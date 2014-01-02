@@ -1,0 +1,1 @@
+///<reference path="hello.ts" />
