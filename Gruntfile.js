@@ -24,7 +24,8 @@ module.exports = function(grunt) {
                     module: 'amd',                 // 'amd' (default) | 'commonjs'
                     sourceMap: true,               // true (default) | false
                     declaration: true,             // true | false (default)
-                    removeComments: false          // true (default) | false
+                    removeComments: false,         // true (default) | false
+                    noImplicitAny: true
                 },
             },
             build: {                               // another target
@@ -35,7 +36,8 @@ module.exports = function(grunt) {
                     module: 'amd',                 // 'amd' (default) | 'commonjs'
                     sourceMap: true,               // true (default) | false
                     declaration: true,             // true | false (default)
-                    removeComments: false          // true (default) | false
+                    removeComments: false,         // true (default) | false
+                    noImplicitAny: true
                 },
             },
         }
