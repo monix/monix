@@ -1,4 +1,4 @@
-///<reference path='monad' />
+///<reference path='reference' />
 var monifu;
 (function (monifu) {
     "use strict";
@@ -52,6 +52,20 @@ var monifu;
                 return this;
             else
                 return new Option(null);
+        };
+
+        Option.prototype.foreach = function (f) {
+            if (this.nonEmpty())
+                f(this.value);
+        };
+
+        Option.prototype.foldLeft = function (initial) {
+            return function (folder) {
+                if (this.isEmpty())
+                    return initial;
+                else
+                    return folder(initial, this.value);
+            };
         };
 
         Option.of = function (value) {

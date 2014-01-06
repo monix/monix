@@ -1,9 +1,9 @@
-///<reference path='monad' />
+///<reference path='reference' />
 
 module monifu {
   "use strict";
 
-  export class Option<T> implements Monad<T> {
+  export class Option<T> implements Iterable<T>, Foldable<T>, Monad<T> {
     constructor (private value: T) {}
 
     get(): T {
@@ -51,6 +51,20 @@ module monifu {
         return this;
       else
         return new Option<T>(null);
+    }
+
+    foreach(f: (e:T) => void) {
+      if (this.nonEmpty())
+        f(this.value);        
+    }
+
+    foldLeft<R>(initial: R): (folder: (result: R, elem: T) => R) => R {
+      return function (folder: (result: R, elem: T) => R) {
+        if (this.isEmpty())
+          return initial;
+        else
+          return folder(initial, this.value);
+      };
     }
 
     static of<A>(value: A): Option<A> {
