@@ -1,98 +1,70 @@
-module monifu.option {
+///<reference path='monad' />
+
+module monifu {
   "use strict";
 
-  export interface Option<T> {
-    get(): T
-    getOrElse(cb: () => T): T 
+  export class Option<T> implements Monad<T> {
+    constructor (private value: T) {}
 
-    size(): number;
-    isEmpty(): boolean;
-    nonEmpty(): boolean;
-
-    map<B>(f: (e:T) => B): Option<B>;
-    flatMap<B>(f: (e:T) => Option<B>): Option<B>;
-    filter(f: (e:T) => boolean): Option<T>;
-  }
-
-  export class Some<T> implements Option<T> {
-    constructor(public value: T) {}
-
-    get():T {
-      return this.value;
+    get(): T {
+      if (this.value != undefined)
+        return this.value
+      else
+        throw new TypeError("None.get");
     }
 
-    getOrElse(cb:() => T): T {
-      return this.value;
+    getOrElse(cb: () => T): T {
+      if (this.isEmpty())
+        return cb();
+      else
+        return this.value;
     }
 
-    size():number {
-      return 1;
+    isEmpty(): boolean {
+      return this.value == undefined;
     }
 
-    isEmpty():boolean {
-      return false;
+    nonEmpty(): boolean {
+      return !this.isEmpty();
     }
 
-    nonEmpty():boolean {
-      return true;
+    size(): number {
+      return this.isEmpty() ? 0 : 1;
     }
 
     map<B>(f: (e:T) => B): Option<B> {
-      return new Some(f(this.value));
+      if (this.isEmpty())
+        return <Option<B>><any>this;
+      else
+        return new Option(f(this.value));
     }
 
     flatMap<B>(f: (e:T) => Option<B>): Option<B> {
-      return f(this.value);
+      if (this.isEmpty())
+        return <Option<B>><any>this;
+      else
+        return f(this.value);
     }
 
     filter(f: (e:T) => boolean): Option<T> {
-      if (f(this.value))
+      if (this.nonEmpty && f(this.value))
         return this;
       else
-        return new None<T>();
-    }
-  }
-
-  export class None<T> implements Option<T> {
-    constructor() {}
-
-    get():T {
-      throw new Error("None.get");
+        return new Option<T>(null);
     }
 
-    getOrElse(cb:() => T):T {
-      return cb();
+    static of<A>(value: A): Option<A> {
+      return new Option(value);
     }
 
-    size():number {
-      return 0;
+    static some<A>(value: A): Option<A> {
+      if (value == undefined)
+        throw new TypeError("value cannot be undefined");
+      return new Option(value);
     }
 
-    isEmpty():boolean {
-      return true;
+    static none<A>(): Option<A> {
+      return new Option<A>(null);
     }
-
-    nonEmpty():boolean {
-      return false;
-    }
-
-    map<B>(f: (e:T) => B): Option<B> {
-      return new None<B>();
-    }
-
-    flatMap<B>(f: (e:T) => Option<B>): Option<B> {
-      return new None<B>();
-    }
-
-    filter(f: (e:T) => boolean): Option<T> {
-      return this;
-    }
-  }
-
-  export function option<T>(value: T): Option<T> {
-    if (value === null || value === undefined)
-      return new None<T>();
-    else
-      return new Some<T>(value);
   }
 }

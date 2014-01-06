@@ -1,6 +1,6 @@
 ///<reference path="option" />
 
-module Main {
-  import m = monifu.option;
-  var n: m.Option<number> = m.option(3);
+module monifu {
+  var a: Option<number> = Option.of(3);
+  var b: Option<string> = a.map(x => (x + 1) + "")
 }
