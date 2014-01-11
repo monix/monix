@@ -1,2 +1,8 @@
-node_modules/
-tscommand.tmp.txt
+.*
+.tags*
+.idea*
+*.log
+.DS_Store
+target/
+/.lib/
+project/target/
