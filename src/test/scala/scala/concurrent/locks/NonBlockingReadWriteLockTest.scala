@@ -3,10 +3,11 @@ package monifu.concurrent.locks
 import org.scalatest.FunSuite
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-import java.util.concurrent.CountDownLatch
+import java.util.concurrent.{CountDownLatch, TimeUnit}
 import concurrent._
 import concurrent.ExecutionContext.Implicits.global
 import monifu.concurrent.atomic.Atomic
+
 
 @RunWith(classOf[JUnitRunner])
 class NonBlockingReadWriteLockTest extends FunSuite {
@@ -32,7 +33,7 @@ class NonBlockingReadWriteLockTest extends FunSuite {
     }
 
     def writeWorker() = Future {
-      startWriteSignal.await()
+      startWriteSignal.await(5, TimeUnit.SECONDS)
       lock.writeLock(value = 10)
       doneSignal.countDown()
     }
@@ -40,9 +41,9 @@ class NonBlockingReadWriteLockTest extends FunSuite {
     readWorker()
     writeWorker()
 
-    awaitStart.await()
+    awaitStart.await(5, TimeUnit.SECONDS)
     startReadSignal.countDown()
-    doneSignal.await()
+    doneSignal.await(5, TimeUnit.SECONDS)
 
     assert(value === 10)
     assert(readValue === 3)
@@ -57,12 +58,12 @@ class NonBlockingReadWriteLockTest extends FunSuite {
       lock.readLock {
         latch.countDown
         active.increment
-        futureWait.await
+        futureWait.await(5, TimeUnit.SECONDS)
       }
     }
 
     createFuture; createFuture
-    latch.await    
+    latch.await(5, TimeUnit.SECONDS)    
     assert(active.get === 2)
     futureWait.countDown
   }
@@ -71,6 +72,7 @@ class NonBlockingReadWriteLockTest extends FunSuite {
     val latch = new CountDownLatch(200)
     val startSignal = new CountDownLatch(1)
     val readCond = Atomic(true)
+    val readsNr = Atomic(0)
 
     var z = 0
     var a = 1
@@ -80,9 +82,10 @@ class NonBlockingReadWriteLockTest extends FunSuite {
       val th = new Thread(new Runnable {
         def run: Unit = {
           latch.countDown
-          startSignal.await
+          startSignal.await(5, TimeUnit.SECONDS)
           lock.readLock {
             readCond.transform(_ && (z + a == b))
+            readsNr.increment
           }
         }
       })
@@ -95,7 +98,7 @@ class NonBlockingReadWriteLockTest extends FunSuite {
       val th = new Thread(new Runnable {
         def run: Unit = {
           latch.countDown
-          startSignal.await
+          startSignal.await(5, TimeUnit.SECONDS)
           lock.writeLock {
             z = a
             a = b
@@ -112,11 +115,12 @@ class NonBlockingReadWriteLockTest extends FunSuite {
       (0 until 100).map(_ => createWriter) ++ 
       (0 until 100).map(_ => createReader)
 
-    latch.await
+    latch.await(5, TimeUnit.SECONDS)
     startSignal.countDown
 
     threads.foreach(_.join)
     assert(b === 1445263496)
     assert(readCond.get === true)
+    assert(readsNr.get === 100)
   }
 }
