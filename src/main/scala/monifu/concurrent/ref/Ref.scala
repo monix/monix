@@ -1,8 +1,9 @@
 package monifu.concurrent.ref
 
 import util.control.NonFatal
-import monifu.concurrent.ReadWriteLock
+import monifu.concurrent.locks.NonBlockingReadWriteLock
 import Ref._
+
 
 @specialized final class Ref[T] private (initialValue: T)(implicit ctx: Context) {
   def apply(): T = 
@@ -80,9 +81,8 @@ object Ref {
       def readLock[T](cb: => T): T = 
         lock.readLock(cb)
 
-      def writes[T](cb: WritePermission => T): T = {
-        lock.writeLock()
-        try {
+      def writes[T](cb: WritePermission => T): T = 
+        lock.writeLock {
           val ev = WritePermission(this)
           try { 
             val ret = cb(ev)
@@ -98,10 +98,6 @@ object Ref {
             ev.invalidate() 
           }
         }
-        finally {
-          lock.writeLockRelease()
-        }
-      }
 
       def registerWrite(ref: Ref[_], ev: WritePermission): Unit = {
         checkPermission(ev)
@@ -124,7 +120,7 @@ object Ref {
         }
 
       private[this] var registeredRefs = Set.empty[Ref[_]] 
-      private[this] val lock = ReadWriteLock()
+      private[this] val lock = NonBlockingReadWriteLock()
     }
   }
 }
