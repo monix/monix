@@ -68,12 +68,13 @@ class NonBlockingReadWriteLockTest extends FunSuite {
     futureWait.countDown
   }
 
-  test("synchronization for writes works") {
-    val latch = new CountDownLatch(200)
+  test("synchronization works") {
+    val latch = new CountDownLatch(1100)
     val startSignal = new CountDownLatch(1)
     val readCond = Atomic(true)
     val readsNr = Atomic(0)
 
+    // generating Fibonacci stuff
     var z = 0
     var a = 1
     var b = 1
@@ -113,7 +114,7 @@ class NonBlockingReadWriteLockTest extends FunSuite {
 
     val threads = 
       (0 until 100).map(_ => createWriter) ++ 
-      (0 until 100).map(_ => createReader)
+      (0 until 1000).map(_ => createReader)
 
     latch.await(5, TimeUnit.SECONDS)
     startSignal.countDown
@@ -121,6 +122,6 @@ class NonBlockingReadWriteLockTest extends FunSuite {
     threads.foreach(_.join)
     assert(b === 1445263496)
     assert(readCond.get === true)
-    assert(readsNr.get === 100)
+    assert(readsNr.get === 1000)
   }
 }
