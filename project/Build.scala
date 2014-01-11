@@ -17,12 +17,11 @@ object Build extends SbtBuild {
       organization := "org.monifu",
       version := "0.1",
 
-      scalaVersion in ThisBuild := "2.10.2",
-
-      crossScalaVersions in ThisBuild := Seq("2.8.2", "2.9.2", "2.9.3", "2.10.2"),
+      scalaVersion in ThisBuild := "2.10.3",
 
       scalacOptions in ThisBuild ++= Seq(
-        "-unchecked", "-deprecation", "-optimize"
+        "-unchecked", "-deprecation", "-feature", "-target:jvm-1.6",
+        "-optimize"
       ),
 
       resolvers ++= Seq(
