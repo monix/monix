@@ -10,11 +10,11 @@ object Build extends SbtBuild {
   }
 
   lazy val godzilla = Project(
-    id = "scala-atomic",
+    id = "monifu",
     base = file("."),
     settings = Project.defaultSettings ++ Seq(
-      name := "scala-atomic",
-      organization := "com.bionicspirit",
+      name := "monifu",
+      organization := "org.monifu",
       version := "0.1",
 
       scalaVersion in ThisBuild := "2.10.2",
@@ -32,20 +32,20 @@ object Build extends SbtBuild {
       libraryDependencies ++= Seq("junit" % "junit" % "4.10" % "test"),
       libraryDependencies <+= scalaVersion(scalatestDependency(_)),
 
-      licenses in ThisBuild := Seq("MIT" -> url("http://opensource.org/licenses/MIT")),
+      licenses in ThisBuild := Seq("ALv2" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
 
-      homepage in ThisBuild := Some(url("http://github.com/alexandru/scala-atomic")),
+      homepage in ThisBuild := Some(url("http://www.monifu.org/")),
 
       pomExtra in ThisBuild := (
         <scm>
-          <url>git@github.com:alexandru/scala-atomic.git</url>
-          <connection>scm:git:git@github.com:alexandru/scala-atomic.git</connection>
+          <url>git@github.com:alexandru/monifu.git</url>
+          <connection>scm:git:git@github.com:alexandru/monifu.git</connection>
         </scm>
         <developers>
           <developer>
             <id>alex_ndc</id>
             <name>Alexandru Nedelcu</name>
-            <url>http://bionicspirit.com</url>
+            <url>https://www.bionicspirit.com/</url>
           </developer>
         </developers>)
     )

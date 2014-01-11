@@ -1,7 +1,5 @@
 # Atomic Reference
 
-**NOTE** - document is incorrect !!!
-
 Scala is awesome at handling concurrecy and parallelism, providing
 high-level tools for handling it, however sometimes you need to go
 lower level. Java's library provides all the multi-threading
@@ -32,7 +30,7 @@ interface and there's no reason for why they shouldn't. See the
 trait.
 
 ```scala
-import scala.concurrent.atomic._
+import monifu.concurrent.atomic._
 
 val refInt: Atomic[Int] = Atomic(0)
 val refLong: Atomic[Long] = Atomic(0L)
@@ -53,10 +51,10 @@ In Scala, thanks to the
 type-class, we can do this:
 
 ```scala 
-scala> import scala.concurrent.atomic._
+scala> import monifu.concurrent.atomic._
 
 scala> val ref = Atomic(BigInt(1))
-ref: scala.concurrent.atomic.AtomicAnyRef[scala.math.BigInt] = Atomic(1)
+ref: monifu.concurrent.atomic.AtomicAnyRef[scala.math.BigInt] = Atomic(1)
 
 scala> ref.incrementAndGet
 res0: scala.math.BigInt = 2
@@ -65,7 +63,7 @@ scala> ref.incrementAndGet(BigInt("329084291234234"))
 res1: scala.math.BigInt = 329084291234236
 
 scala> val ref = Atomic("hello")
-ref: scala.concurrent.atomic.AtomicAnyRef[String] = Atomic(hello)
+ref: monifu.concurrent.atomic.AtomicAnyRef[String] = Atomic(hello)
 
 scala> ref.incrementAndGet
 <console>:12: error: could not find implicit value for parameter num: Numeric[String]
@@ -103,10 +101,10 @@ stored inside an `AtomicLong` by using Java's
 with special care to handle overflows correctly.
 
 ```scala
-scala> import scala.concurrent.atomic._
+scala> import monifu.concurrent.atomic._
 
 scala> val ref = Atomic(0.0)
-ref: scala.concurrent.atomic.AtomicDouble = Atomic(0.0)
+ref: monifu.concurrent.atomic.AtomicDouble = Atomic(0.0)
 
 scala> ref.compareAndSet(0.0, 100.0)
 res0: Boolean = true
@@ -115,7 +113,7 @@ scala> ref.incrementAndGet
 res1: Double = 101.0
 
 scala> val ref = Atomic('a')
-ref: scala.concurrent.atomic.AtomicChar = Atomic(a)
+ref: monifu.concurrent.atomic.AtomicChar = Atomic(a)
 
 scala> ref.incrementAndGet
 res2: Char = b
@@ -184,4 +182,3 @@ duplication all over the place. But that's a useful trade-off.
 ## TODO
 
 - [ ] AtomicArray
-- [ ] pull request on Scala's master, hopefully followed by approval
