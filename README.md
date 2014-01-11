@@ -1,1 +1,7 @@
-My Playground for TypeScript - trying to implement FP stuff.
+monifu
+======
+
+Available docs:
+
+* [Atomic References](docs/atomic.md)
+
