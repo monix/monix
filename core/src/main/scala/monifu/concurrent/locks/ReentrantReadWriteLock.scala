@@ -30,12 +30,10 @@ final class ReentrantReadWriteLock private () extends ReadWriteLock {
         cb
       case _ =>
         val fallbackToRead = 
-          if (localState.get == READ) {
+          if (localState.get != READ) false else {
             lock.readLock.unlock()
             true
           }
-          else 
-            false
 
         lock.writeLock.lock()
         localState.set(WRITE)
