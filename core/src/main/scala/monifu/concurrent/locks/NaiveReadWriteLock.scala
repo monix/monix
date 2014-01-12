@@ -15,7 +15,6 @@ import monifu.concurrent.ThreadLocal
  *    releasing the read-lock first, however downgrading from a write to a read lock
  *    is done directly
  *  - synchronization is based on spinlocks so threads never go into a wait-state (monitor-enter)
- *  - the implementation 
  *
  * Not a good idea to use it in high-contention scenarios, as the locking is unfair
  * (i.e. writes have priority over reads, but otherwise it provides no guarantees
