@@ -18,13 +18,13 @@ import monifu.concurrent.ThreadLocal
  */
 final class NonBlockingReadWriteLock private () extends ReadWriteLock {
 
-  private[this] val activeReads = Atomic(0)
-  private[this] val writePendingOrActive = Atomic(false)
-
   private[this] val IDLE  = 0
   private[this] val READ  = 1
   private[this] val WRITE = 2
+
   private[this] val localState = ThreadLocal(IDLE)
+  private[this] val activeReads = Atomic(0)
+  private[this] val writePendingOrActive = Atomic(false)
 
   /** 
    * Acquires a lock meant for reading. Multiple threads can
@@ -100,15 +100,24 @@ final class NonBlockingReadWriteLock private () extends ReadWriteLock {
 
   private[this] def readLockRelease(): Unit = {
     localState.set(IDLE)
+    // when the `activeReads` counter reaches zero
+    // then pending writes can proceed
     activeReads.decrement
   }  
 
   private[this] def writeLockAcquire(): Unit = {
+    // acquires the write lock
     writePendingOrActive.awaitCompareAndSet(expect=false, update=true)
+    // waits until all active reads are finished
     activeReads.awaitValue(expect=0)
     localState.set(WRITE)
   }
 
+  /** 
+   * Downgrades a write lock to a read lock, so the current thread can
+   * keep reading with a guarantee that the data that was written hasn't
+   * changed in the transition.
+   */
   private[this] def downgradeWriteToReadLock() {
     localState.set(READ)
     activeReads.increment
