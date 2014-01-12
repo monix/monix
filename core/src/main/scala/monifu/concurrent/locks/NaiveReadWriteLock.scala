@@ -5,18 +5,41 @@ import monifu.concurrent.atomic.Atomic
 import monifu.concurrent.ThreadLocal
 
 /** 
- * Non-blocking version of a read-write lock, meant for low-contention scenarios.
+ * Naive read-write lock, meant for low-contention scenarios.
  *
  *  - the read lock can be acquired by multiple threads at the same time
  *  - the write lock can be acquired by only a single thread and blocks all other
  *    reads and writes that are competing for the same lock
  *  - writes have priority, so a pending write will come before subsequent read attempts
+ *  - it has re-entrant behavior. Upgrading from a read to a write lock involves 
+ *    releasing the read-lock first, however downgrading from a write to a read lock
+ *    is done directly
+ *  - synchronization is based on spinlocks so threads never go into a wait-state (monitor-enter)
+ *  - the implementation 
  *
  * Not a good idea to use it in high-contention scenarios, as the locking is unfair
  * (i.e. writes have priority over reads, but otherwise it provides no guarantees
- * to the fairness of what thread gets the lock next)
+ * to the fairness of what thread gets the lock next), plus spinlocking means that
+ * threads never wait and thus consume CPU resources.
+ *
+ * Example:
+ * {{{
+ * class Fibonacci {
+ *   private[this] val lock = new NaiveReadWriteLock()
+ *   private[this] var a, b = 1
+ *
+ *   def get = lock.readLock(b)
+ *
+ *   def next() = lock.writeLock {
+ *     val tmp = b
+ *     b = a + b
+ *     a = tmp
+ *     get 
+ *   }
+ * }
+ * }}}
  */
-final class NonBlockingReadWriteLock private () extends ReadWriteLock {
+final class NaiveReadWriteLock extends ReadWriteLock {
 
   private[this] val IDLE  = 0
   private[this] val READ  = 1
@@ -128,10 +151,4 @@ final class NonBlockingReadWriteLock private () extends ReadWriteLock {
     localState.set(IDLE)
     writePendingOrActive.set(false)
   }
-}
-
-
-object NonBlockingReadWriteLock {
-  def apply(): NonBlockingReadWriteLock =
-    new NonBlockingReadWriteLock()
 }

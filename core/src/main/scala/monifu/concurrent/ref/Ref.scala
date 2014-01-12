@@ -1,7 +1,7 @@
 package monifu.concurrent.ref
 
 import util.control.NonFatal
-import monifu.concurrent.locks.NonBlockingReadWriteLock
+import monifu.concurrent.locks.NaiveReadWriteLock
 import Ref._
 
 
@@ -120,7 +120,7 @@ object Ref {
         }
 
       private[this] var registeredRefs = Set.empty[Ref[_]] 
-      private[this] val lock = NonBlockingReadWriteLock()
+      private[this] val lock = new NaiveReadWriteLock()
     }
   }
 }

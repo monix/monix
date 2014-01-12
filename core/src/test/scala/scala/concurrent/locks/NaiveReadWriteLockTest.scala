@@ -8,8 +8,8 @@ import monifu.concurrent.atomic.Atomic
 
 
 @RunWith(classOf[JUnitRunner])
-class NonBlockingReadWriteLockTest extends FunSuite {
-  val lock = NonBlockingReadWriteLock()
+class NaiveReadWriteLockTest extends FunSuite {
+  val lock = new NaiveReadWriteLock
 
   test("basic read holding write") {
     @volatile var value = 3
