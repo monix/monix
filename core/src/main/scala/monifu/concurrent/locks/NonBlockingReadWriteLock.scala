@@ -4,7 +4,6 @@ import annotation.tailrec
 import monifu.concurrent.atomic.Atomic
 import monifu.concurrent.ThreadLocal
 
-
 /** 
  * Non-blocking version of a read-write lock, meant for low-contention scenarios.
  *
@@ -22,10 +21,10 @@ final class NonBlockingReadWriteLock private () extends ReadWriteLock {
   private[this] val activeReads = Atomic(0)
   private[this] val writePendingOrActive = Atomic(false)
 
-  private[this] val localState = ThreadLocal(IDLE)
   private[this] val IDLE  = 0
   private[this] val READ  = 1
   private[this] val WRITE = 2
+  private[this] val localState = ThreadLocal(IDLE)
 
   /** 
    * Acquires a lock meant for reading. Multiple threads can
@@ -34,21 +33,14 @@ final class NonBlockingReadWriteLock private () extends ReadWriteLock {
    */
   def readLock[T](cb: => T): T = 
     localState.get match {
-      /** 
-       * Re-entrance check - if this thread already acquired either a READ,
-       * or a WRITE lock, then reuse it.
-       */
+      // Re-entrance check - if this thread already acquired either a READ,
+      // or a WRITE lock, then reuse it.
       case READ | WRITE =>
         cb
-      case _ =>
+      case IDLE =>
         readLockAcquire()
-        // signal that the currently acquired lock on this thread
-        // is a read-lock (meant for re-entrance logic)
-        localState.set(READ)
-
-        try (cb) finally { 
-          localState.set(IDLE)
-          readLockRelease() 
+        try (cb) finally {
+          readLockRelease()
         }
     }
 
@@ -59,40 +51,25 @@ final class NonBlockingReadWriteLock private () extends ReadWriteLock {
    */
   def writeLock[T](cb: => T): T = 
     localState.get match {
-      /** 
-       * If the current thread already has the WRITE lock, no point in acquiring
-       * it again.
-       */
+      // If the current thread already has the WRITE lock, no point in acquiring
+      // it again.
       case WRITE =>
         cb
       case _ =>
         // in case the currently acquired lock by the current thread is a READ
         // lock, then we need to release it and re-acquire it after we are finished.
         val fallbackToRead = 
-          if (localState.get == READ) {
+          if (localState.get != READ) false else {
             readLockRelease()
             true
           }
-          else 
-            false
 
         writeLockAcquire()
-        // signal that the currently acquired lock on this thread
-        // is a write-lock (meant for re-entrance logic)
-        localState.set(WRITE)
-
         try (cb) finally {        
-          if (fallbackToRead) {
-            // previous lock acquired by this thread was a READ lock
-            // so we need to restore it
-            localState.set(READ)
+          if (fallbackToRead) 
+            downgradeWriteToReadLock()
+          else 
             writeLockRelease()
-            readLockAcquire()
-          }
-          else {
-            localState.set(IDLE)
-            writeLockRelease()
-          }
         }
     }
 
@@ -101,47 +78,41 @@ final class NonBlockingReadWriteLock private () extends ReadWriteLock {
    * Waits for `writePendingOrActive` (the write lock) to become `false`.
    */
   @tailrec
-  private[this] def readLockAcquire(): Unit = 
-    if (writePendingOrActive.get)
-      // keep retrying until no write is pending/active
+  private[this] def readLockAcquire(): Unit = {
+    // waits for writes to finish
+    writePendingOrActive.awaitValue(expect = false)
+    // optimistically assume that we can acquire the 
+    // read lock by incrementing `activeReads`
+    activeReads.increment
+    // race-condition guard
+    if (writePendingOrActive.get) {
+      // no success, a write came in, so undo the activeReads
+      // counter and keep retrying (writes have priority)
+      activeReads.decrement
       readLockAcquire()
-    else {
-      // optimistically assume that we can acquire the 
-      // read lock by incrementing `activeReads`
-      activeReads.increment
-      // race-condition guard
-      if (writePendingOrActive.get) {
-        // no success, a write came in, so undo the activeReads
-        // counter and keep retrying (writes have priority)
-        activeReads.decrement
-        readLockAcquire()
-      }
     }
+    else {
+      // signal that the currently acquired lock on this thread
+      // is a read-lock (meant for re-entrance logic)
+      localState.set(READ)
+    }
+  }
 
   private[this] def readLockRelease(): Unit = {
-    /* Releasing the read-lock means decrementing just a counter.
-     * When that counter reaches zero, then writes can proceed. */
+    localState.set(IDLE)
     activeReads.decrement
   }  
 
   private[this] def writeLockAcquire(): Unit = {
-    // Loops until is able to acquire the write lock.
-    @tailrec
-    def acquireWrite(): Unit = 
-      if (!writePendingOrActive.compareAndSet(false, true))
-        acquireWrite()
+    writePendingOrActive.awaitCompareAndSet(expect=false, update=true)
+    activeReads.awaitValue(expect=0)
+    localState.set(WRITE)
+  }
 
-    /* Executed after the write lock is acquired,
-     * loops until all active reads have finished.
-     */
-    @tailrec
-    def waitForReadsToFinish(): Unit = {
-      if (activeReads.get > 0)
-        waitForReadsToFinish()
-    } 
-
-    acquireWrite()
-    waitForReadsToFinish()
+  private[this] def downgradeWriteToReadLock() {
+    localState.set(READ)
+    activeReads.increment
+    writePendingOrActive.set(false)
   }
 
   private[this] def writeLockRelease(): Unit = {
