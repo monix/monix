@@ -20,6 +20,22 @@ trait Atomic[@specialized T] {
   def getAndSet(update: T): T
 
   @tailrec
+  final def awaitCompareAndSet(expect: T, update: T): Unit = {
+    if (!compareAndSet(expect, update))
+      awaitCompareAndSet(expect, update)
+  }
+
+  @tailrec
+  final def awaitValue(expect: T): Unit = {
+    if (get != expect) awaitValue(expect)
+  }
+
+  @tailrec
+  final def awaitCondition(p: T => Boolean): Unit = {
+    if (!p(get)) awaitCondition(p)
+  }
+
+  @tailrec
   final def transformAndExtract[U](cb: (T) => (T, U)): U = {
     val current = get
     val (update, extract) = cb(current)

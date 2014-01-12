@@ -4,8 +4,6 @@ import org.scalatest.FunSuite
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import java.util.concurrent.{CountDownLatch, TimeUnit}
-import concurrent._
-import concurrent.ExecutionContext.Implicits.global
 import monifu.concurrent.atomic.Atomic
 
 
@@ -22,24 +20,21 @@ class NonBlockingReadWriteLockTest extends FunSuite {
     val startWriteSignal = new CountDownLatch(1)
     val doneSignal = new CountDownLatch(2)
 
-    def readWorker() = Future {
-      lock.readLock {
-        awaitStart.countDown()
-        startWriteSignal.countDown()
-        startReadSignal.await()
-        readValue = value
-      }
-      doneSignal.countDown()
+    def readWorker() = startThread {
+      awaitStart.countDown()
+      startWriteSignal.countDown()
+      startReadSignal.await()
+      readValue = value
     }
 
-    def writeWorker() = Future {
+    def writeWorker() = startThread {
       startWriteSignal.await(5, TimeUnit.SECONDS)
       lock.writeLock(value = 10)
       doneSignal.countDown()
     }
 
-    readWorker()
-    writeWorker()
+    val r = readWorker()
+    val w = writeWorker()
 
     awaitStart.await(5, TimeUnit.SECONDS)
     startReadSignal.countDown()
@@ -47,6 +42,8 @@ class NonBlockingReadWriteLockTest extends FunSuite {
 
     assert(value === 10)
     assert(readValue === 3)
+
+    r.join; w.join
   }
 
   test("reads are concurrent") {
@@ -54,7 +51,7 @@ class NonBlockingReadWriteLockTest extends FunSuite {
     val active = Atomic(0)
     val futureWait = new CountDownLatch(1)
 
-    def createFuture = Future {
+    def createFuture = startThread {
       lock.readLock {
         latch.countDown
         active.increment
@@ -62,14 +59,15 @@ class NonBlockingReadWriteLockTest extends FunSuite {
       }
     }
 
-    createFuture; createFuture
+    val f1 = createFuture; val f2 = createFuture
     latch.await(5, TimeUnit.SECONDS)    
     assert(active.get === 2)
     futureWait.countDown
+    f1.join; f2.join
   }
 
   test("synchronization works") {
-    val latch = new CountDownLatch(1100)
+    val latch = new CountDownLatch(600)
     val startSignal = new CountDownLatch(1)
     val readCond = Atomic(true)
     val readsNr = Atomic(0)
@@ -79,42 +77,28 @@ class NonBlockingReadWriteLockTest extends FunSuite {
     var a = 1
     var b = 1
 
-    def createReader = {
-      val th = new Thread(new Runnable {
-        def run: Unit = {
-          latch.countDown
-          startSignal.await(5, TimeUnit.SECONDS)
-          lock.readLock {
-            readCond.transform(_ && (z + a == b))
-            readsNr.increment
-          }
-        }
-      })
-
-      th.start()
-      th
+    def createReader = startThread {
+      latch.countDown
+      startSignal.await(5, TimeUnit.SECONDS)
+      lock.readLock {
+        readCond.transform(_ && (z + a == b))
+        readsNr.increment
+      }
     }
 
-    def createWriter: Thread = {
-      val th = new Thread(new Runnable {
-        def run: Unit = {
-          latch.countDown
-          startSignal.await(5, TimeUnit.SECONDS)
-          lock.writeLock {
-            z = a
-            a = b
-            b = z + a
-          }
-        }
-      })
-
-      th.start()
-      th
+    def createWriter = startThread {
+      latch.countDown
+      startSignal.await(5, TimeUnit.SECONDS)
+      lock.writeLock {
+        z = a
+        a = b
+        b = z + a
+      }
     }
 
     val threads = 
       (0 until 100).map(_ => createWriter) ++ 
-      (0 until 1000).map(_ => createReader)
+      (0 until 500).map(_ => createReader)
 
     latch.await(5, TimeUnit.SECONDS)
     startSignal.countDown
@@ -122,6 +106,55 @@ class NonBlockingReadWriteLockTest extends FunSuite {
     threads.foreach(_.join)
     assert(b === 1445263496)
     assert(readCond.get === true)
-    assert(readsNr.get === 1000)
+    assert(readsNr.get === 500)
+  }
+
+  test("re-entrance logic works") {
+    val latch = new CountDownLatch(100)
+    val startSignal = new CountDownLatch(1)
+    val readCond = Atomic(true)
+    val readsNr = Atomic(0)
+
+    // generating Fibonacci stuff
+    var z = 0
+    var a = 1
+    var b = 1
+
+    def createWriter = startThread {
+      latch.countDown
+      startSignal.await(5, TimeUnit.SECONDS)
+      lock.readLock {
+        readsNr.increment
+        var a2 = a; var b2 = b; var z2 = z
+        lock.writeLock {
+          z = a
+          a = b
+          b = z + a
+          a2 = a; b2 = b; z2 = z
+        }
+        readCond.transform(_ && (z2 + a2 == b2))
+      }
+    }
+
+    val threads = (0 until 100).map(_ => createWriter).toList 
+
+    latch.await
+    startSignal.countDown
+
+    threads.foreach(_.join)
+    assert(b === 1445263496)
+    assert(readCond.get === true)
+    assert(readsNr.get === 100)
+  }
+
+  def startThread(cb: => Unit) = {
+    val th = new Thread(new Runnable { def run = {
+      try(cb) catch {
+        case ex: Throwable =>
+          println(ex.toString)
+          throw ex
+      }
+    }})
+    th.start; th
   }
 }
