@@ -22,19 +22,19 @@ import Ref._
   def `:=`(value: T)(implicit ev: WritePermission): Unit =
     update(value)
 
-  private[ref] def commit(ev: WritePermission): Unit = {
-    ctx.checkPermission(ev)
+  private[ref] def commit(ev: WritePermission): Unit = 
     for (tmp <- _tmpValue) {
+      ctx.checkPermission(ev)
       _oldValue = Some(_currentValue)
       _currentValue = tmp
       _tmpValue = None
     }
-  }
 
-  private[ref] def rollback(ev: WritePermission): Unit = {
-    ctx.checkPermission(ev)
-    _tmpValue = None
-  }
+  private[ref] def rollback(ev: WritePermission): Unit = 
+    if (_tmpValue != None) {
+      ctx.checkPermission(ev)
+      _tmpValue = None
+    }
 
   private[this] var _currentValue: T = initialValue;
   private[this] var _tmpValue = Option.empty[T]
