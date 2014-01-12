@@ -2,7 +2,7 @@ package monifu.concurrent.locks
 
 import monifu.concurrent.ThreadLocal
 
-final class ReentrantReadWriteLock private () extends ReadWriteLock {
+final class ReentrantReadWriteLock extends ReadWriteLock {
   private[this] val lock = new java.util.concurrent.locks.ReentrantReadWriteLock()
   private[this] val localState = ThreadLocal(IDLE)
 
@@ -49,9 +49,4 @@ final class ReentrantReadWriteLock private () extends ReadWriteLock {
           lock.writeLock.unlock()
         }
     }
-}
-
-object ReentrantReadWriteLock {
-  def apply(): ReentrantReadWriteLock = 
-    new ReentrantReadWriteLock
 }
