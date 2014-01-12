@@ -116,6 +116,7 @@ final class NonBlockingReadWriteLock private () extends ReadWriteLock {
   }
 
   private[this] def writeLockRelease(): Unit = {
+    localState.set(IDLE)
     writePendingOrActive.set(false)
   }
 }
