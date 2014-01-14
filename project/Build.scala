@@ -6,7 +6,7 @@ import sbt.Keys._
 object Build extends SbtBuild {
   val buildSettings = Defaults.defaultSettings ++ Seq(
     organization := "org.monifu",
-    version := "0.1",
+    version := "0.2-SNAPSHOT",
     scalaVersion := "2.10.3",
 
     scalacOptions ++= Seq(
@@ -24,9 +24,30 @@ object Build extends SbtBuild {
 
     addCompilerPlugin("org.scalamacros" % "paradise" % "2.0.0-M2" cross CrossVersion.full),
 
-    licenses := Seq("ALv2" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
-    homepage := Some(url("http://www.monifu.org/")),
+    // -- Settings meant for deployment on oss.sonatype.org
+
+    publishMavenStyle := true,
+
+    publishTo := {
+      val nexus = "https://oss.sonatype.org/"
+      if (isSnapshot.value)
+        Some("snapshots" at nexus + "content/repositories/snapshots")
+      else
+        Some("releases"  at nexus + "service/local/staging/deploy/maven2")
+    },
+
+    publishArtifact in Test := false,
+    pomIncludeRepository := { _ => false }, // removes optional dependencies
+    
     pomExtra := (
+      <url>http://www.monifu.org/</url>
+      <licenses>
+        <license>
+          <name>Apache License, Version 2.0</name>
+          <url>https://www.apache.org/licenses/LICENSE-2.0</url>
+          <distribution>repo</distribution>
+        </license>
+      </licenses>
       <scm>
         <url>git@github.com:alexandru/monifu.git</url>
         <connection>scm:git:git@github.com:alexandru/monifu.git</connection>
@@ -39,6 +60,8 @@ object Build extends SbtBuild {
         </developer>
       </developers>)
   )
+
+  // -- Actual Projects
 
   lazy val root: Project = Project(
     id = "monifu",
