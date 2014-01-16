@@ -10,7 +10,7 @@ object Build extends SbtBuild {
     scalaVersion := "2.10.3",
 
     scalacOptions ++= Seq(
-      "-unchecked", "-deprecation", "-feature", "-target:jvm-1.6"
+      "-unchecked", "-deprecation", "-feature", "-Xlint", "-target:jvm-1.6"
     ),
     resolvers ++= Seq(
       "Typesafe Releases" at "http://repo.typesafe.com/typesafe/releases",
@@ -18,11 +18,8 @@ object Build extends SbtBuild {
     ),
 
     libraryDependencies ++= Seq(
-      "junit" % "junit" % "4.10" % "test",
       "org.scalatest" %% "scalatest" % "1.9.1" % "test"
     ),
-
-    addCompilerPlugin("org.scalamacros" % "paradise" % "2.0.0-M2" cross CrossVersion.full),
 
     // -- Settings meant for deployment on oss.sonatype.org
 
@@ -39,7 +36,7 @@ object Build extends SbtBuild {
     publishArtifact in Test := false,
     pomIncludeRepository := { _ => false }, // removes optional dependencies
     
-    pomExtra := (
+    pomExtra :=
       <url>http://www.monifu.org/</url>
       <licenses>
         <license>
@@ -58,29 +55,24 @@ object Build extends SbtBuild {
           <name>Alexandru Nedelcu</name>
           <url>https://www.bionicspirit.com/</url>
         </developer>
-      </developers>)
+      </developers>
   )
 
   // -- Actual Projects
 
-  lazy val root: Project = Project(
+  lazy val monifu: Project = Project(
     id = "monifu",
     base = file("."),
-    settings = buildSettings ++ Seq(
-      run <<= run in Compile in core
-    )
-  ) aggregate(macros, core)
-
-  lazy val macros: Project = Project(
-    id = "monifu-macros",
-    base = file("macros"),
-    settings = buildSettings ++ Seq(
-      libraryDependencies <+= (scalaVersion)("org.scala-lang" % "scala-reflect" % _))
+    settings = buildSettings
   )
+  .aggregate(monifuCore)
+  .dependsOn(monifuCore)
 
-  lazy val core: Project = Project(
+  lazy val monifuCore: Project = Project(
     id = "monifu-core",
     base = file("core"),
-    settings = buildSettings
-  ) dependsOn(macros)
+    settings = buildSettings ++ Seq(
+      libraryDependencies <+= (scalaVersion)("org.scala-lang" % "scala-reflect" % _)
+    )
+  ) 
 }

@@ -1,10 +1,7 @@
 package monifu.concurrent.atomic
 
 import org.scalatest.FunSuite
-import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
 
-@RunWith(classOf[JUnitRunner])
 class AtomicBooleanTest extends FunSuite {
   test("set()") {
     val r = Atomic(initialValue = true)
