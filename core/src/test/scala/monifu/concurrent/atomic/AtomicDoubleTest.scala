@@ -1,13 +1,10 @@
 package monifu.concurrent.atomic
 
 import org.scalatest.FunSuite
-import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.Duration
 import scala.concurrent.ExecutionContext.Implicits.global
 
-@RunWith(classOf[JUnitRunner])
 class AtomicDoubleTest extends FunSuite {
   test("get()") {
     assert(Atomic(2.0).get === 2.0)

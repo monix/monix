@@ -1,13 +1,10 @@
 package monifu.concurrent.atomic
 
 import org.scalatest.FunSuite
-import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.Duration
 import scala.concurrent.ExecutionContext.Implicits.global
 
-@RunWith(classOf[JUnitRunner])
 class AtomicCharTest extends FunSuite {
   test("set()") {
     val r = Atomic(11.toChar)

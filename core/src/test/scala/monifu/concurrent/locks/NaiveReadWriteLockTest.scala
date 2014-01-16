@@ -1,13 +1,9 @@
 package monifu.concurrent.locks
 
 import org.scalatest.FunSuite
-import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 import monifu.concurrent.atomic.Atomic
 
-
-@RunWith(classOf[JUnitRunner])
 class NaiveReadWriteLockTest extends FunSuite {
   val lock = new NaiveReadWriteLock
 
@@ -51,19 +47,24 @@ class NaiveReadWriteLockTest extends FunSuite {
     val active = Atomic(0)
     val futureWait = new CountDownLatch(1)
 
-    def createFuture = startThread {
+    def createThread = startThread {
       lock.readLock {
-        latch.countDown
         active.increment
+        latch.countDown
         futureWait.await(5, TimeUnit.SECONDS)
       }
+      active.decrement
     }
 
-    val f1 = createFuture; val f2 = createFuture
-    latch.await(5, TimeUnit.SECONDS)    
+    val t1 = createThread
+    val t2 = createThread
+
+    latch.await(5, TimeUnit.SECONDS)
     assert(active.get === 2)
+
     futureWait.countDown
-    f1.join; f2.join
+    t1.join; t2.join
+    assert(active.get === 0)
   }
 
   test("synchronization works") {
