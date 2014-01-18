@@ -10,7 +10,8 @@ object Build extends SbtBuild {
     scalaVersion := "2.10.3",
 
     scalacOptions ++= Seq(
-      "-unchecked", "-deprecation", "-feature", "-Xlint", "-target:jvm-1.6"
+      "-unchecked", "-deprecation", "-feature", "-Xlint", "-target:jvm-1.6",
+      "-optimise", "-Yinline-warnings"
     ),
     resolvers ++= Seq(
       "Typesafe Releases" at "http://repo.typesafe.com/typesafe/releases",
@@ -71,8 +72,15 @@ object Build extends SbtBuild {
   lazy val monifuCore: Project = Project(
     id = "monifu-core",
     base = file("core"),
+    settings = buildSettings
+  )
+  .dependsOn(monifuMacros)
+
+  lazy val monifuMacros: Project = Project(
+    id = "monifu-macros",
+    base = file("macros"),
     settings = buildSettings ++ Seq(
       libraryDependencies <+= (scalaVersion)("org.scala-lang" % "scala-reflect" % _)
     )
-  ) 
+  )
 }
