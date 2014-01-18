@@ -3,6 +3,9 @@ package monifu.concurrent.locks
 import annotation.tailrec
 import monifu.concurrent.atomic.Atomic
 import monifu.concurrent.ThreadLocal
+import java.util.concurrent.TimeoutException
+import concurrent.duration.FiniteDuration
+
 
 /** 
  * Naive read-write lock, meant for low-contention scenarios.
@@ -53,6 +56,7 @@ final class NaiveReadWriteLock extends ReadWriteLock {
    * acquire the lock at the same time. It is also re-entrant (i.e. the same 
    * thread can acquire it multiple times)
    */
+  @throws(classOf[InterruptedException])
   def readLock[T](cb: => T): T = 
     localState.get match {
       // Re-entrance check - if this thread already acquired either a READ,
@@ -71,6 +75,7 @@ final class NaiveReadWriteLock extends ReadWriteLock {
    * acquire the write lock at the same time and it has to wait until all
    * active reads are finished. 
    */
+  @throws(classOf[InterruptedException])
   def writeLock[T](cb: => T): T = 
     localState.get match {
       // If the current thread already has the WRITE lock, no point in acquiring
@@ -100,9 +105,15 @@ final class NaiveReadWriteLock extends ReadWriteLock {
    * Waits for `writePendingOrActive` (the write lock) to become `false`.
    */
   @tailrec
-  private[this] def readLockAcquire(): Unit = {
+  @throws(classOf[InterruptedException])
+  @throws(classOf[TimeoutException])
+  private[this] def readLockAcquire(waitUntil: Long = 0): Unit = {
     // waits for writes to finish
-    writePendingOrActive.awaitValue(expect = false)
+    if (waitUntil != 0)
+      writePendingOrActive.awaitValue(expect = false, waitUntil = waitUntil)
+    else
+      writePendingOrActive.awaitValue(expect = false)
+
     // optimistically assume that we can acquire the 
     // read lock by incrementing `activeReads`
     activeReads.increment
@@ -127,6 +138,10 @@ final class NaiveReadWriteLock extends ReadWriteLock {
     activeReads.decrement
   }  
 
+  /** 
+   * Loops until is able to acquire a write lock
+   */
+  @throws(classOf[InterruptedException])
   private[this] def writeLockAcquire(): Unit = {
     // acquires the write lock
     writePendingOrActive.awaitCompareAndSet(expect=false, update=true)

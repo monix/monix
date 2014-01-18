@@ -1,6 +1,9 @@
 package monifu.concurrent.atomic
 
 import annotation.tailrec
+import java.util.concurrent.TimeoutException
+import scala.concurrent.duration._
+import monifu.concurrent.Macros._
 
 trait Atomic[@specialized T] {
   type Underlying
@@ -20,20 +23,79 @@ trait Atomic[@specialized T] {
   def getAndSet(update: T): T
 
   @tailrec
-  final def awaitCompareAndSet(expect: T, update: T): Unit = {
-    if (!compareAndSet(expect, update))
+  @throws(classOf[InterruptedException])
+  final def awaitCompareAndSet(expect: T, update: T): Unit = 
+    if (!compareAndSet(expect, update)) {
+      interruptedCheck()
       awaitCompareAndSet(expect, update)
+    }
+
+  @throws(classOf[InterruptedException])
+  @throws(classOf[TimeoutException])
+  final def awaitCompareAndSet(expect: T, update: T, waitAtMost: FiniteDuration): Unit = {
+    val waitUntil = System.nanoTime + waitAtMost.toNanos
+    awaitCompareAndSet(expect, update, waitUntil)
   }
 
   @tailrec
-  final def awaitValue(expect: T): Unit = {
-    if (get != expect) awaitValue(expect)
+  @throws(classOf[InterruptedException])
+  @throws(classOf[TimeoutException])
+  private[monifu] final def awaitCompareAndSet(expect: T, update: T, waitUntil: Long): Unit = 
+    if (!compareAndSet(expect, update)) {
+      interruptedCheck()
+      timeoutCheck(waitUntil)
+      awaitCompareAndSet(expect, update, waitUntil)
+    }
+
+  @tailrec
+  @throws(classOf[InterruptedException])
+  final def awaitValue(expect: T): Unit = 
+    if (get != expect) {
+      interruptedCheck()
+      awaitValue(expect)
+    }
+
+  @throws(classOf[InterruptedException])
+  @throws(classOf[TimeoutException])
+  final def awaitValue(expect: T, waitAtMost: FiniteDuration): Unit = {
+    val waitUntil = System.nanoTime + waitAtMost.toNanos
+    awaitValue(expect, waitUntil)
   }
 
   @tailrec
-  final def awaitCondition(p: T => Boolean): Unit = {
-    if (!p(get)) awaitCondition(p)
+  @throws(classOf[InterruptedException])
+  @throws(classOf[TimeoutException])
+  private[monifu] final def awaitValue(expect: T, waitUntil: Long): Unit = 
+    if (get != expect) {
+      interruptedCheck()
+      timeoutCheck(waitUntil)
+      awaitValue(expect, waitUntil)
+    }
+
+  @tailrec
+  @throws(classOf[InterruptedException])
+  final def awaitCondition(p: T => Boolean): Unit = 
+    if (!p(get)) {
+      interruptedCheck()
+      awaitCondition(p)
+    }
+
+  @throws(classOf[InterruptedException])
+  @throws(classOf[TimeoutException])
+  final def awaitCondition(waitAtMost: FiniteDuration)(p: T => Boolean): Unit = {
+    val waitUntil = System.nanoTime + waitAtMost.toNanos
+    awaitCondition(waitUntil)(p)
   }
+
+  @tailrec
+  @throws(classOf[InterruptedException])
+  @throws(classOf[TimeoutException])
+  private[monifu] final def awaitCondition(waitUntil: Long)(p: T => Boolean): Unit = 
+    if (!p(get)) {
+      interruptedCheck()
+      timeoutCheck(waitUntil)
+      awaitCondition(waitUntil)(p)
+    }
 
   @tailrec
   final def transformAndExtract[U](cb: (T) => (T, U)): U = {
@@ -96,7 +158,7 @@ trait Atomic[@specialized T] {
   }
 
   @tailrec
-  final def transform(cb: (T) => T) {
+  final def transform(cb: (T) => T): Unit = {
     val current = get
     val update = cb(current)
     if (!compareAndSet(current, update))
@@ -104,7 +166,7 @@ trait Atomic[@specialized T] {
   }
 
   @tailrec
-  final def weakTransform(cb: (T) => T) {
+  final def weakTransform(cb: (T) => T): Unit = {
     val current = get
     val update = cb(current)
     if (!compareAndSet(current, update))
