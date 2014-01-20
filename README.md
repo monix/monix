@@ -1,6 +1,6 @@
 Extensions to Scala's standard library for multi-threading primitives, functional programming and whatever makes life easier.
 
-[![Build Status](https://travis-ci.org/alexandru/monifu.png?branch=master)](https://travis-ci.org/alexandru/monifu)
+[![Build Status](https://travis-ci.org/monifu/monifu.png?branch=master)](https://travis-ci.org/monifu/monifu)
 
 ## Documentation
 
