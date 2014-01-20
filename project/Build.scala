@@ -19,7 +19,8 @@ object Build extends SbtBuild {
     ),
 
     libraryDependencies ++= Seq(
-      "org.scalatest" %% "scalatest" % "1.9.1" % "test"
+      "org.scalatest" %% "scalatest" % "1.9.1" % "test",
+      "com.netflix.rxjava" % "rxjava-scala" % "0.16.1"
     ),
 
     // -- Settings meant for deployment on oss.sonatype.org
