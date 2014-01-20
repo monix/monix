@@ -3,9 +3,10 @@ package monifu.concurrent.atomic
 import annotation.tailrec
 import java.util.concurrent.TimeoutException
 import scala.concurrent.duration._
-import monifu.concurrent.Macros._
 
 trait Atomic[@specialized T] {
+  import Atomic.{interruptedCheck, timeoutCheck}
+
   type Underlying
   def asJava: Underlying
 
@@ -177,6 +178,16 @@ trait Atomic[@specialized T] {
 object Atomic {
   def apply[T, R <: Atomic[T]](initialValue: T)(implicit builder: AtomicBuilder[T, R]): R =
     builder.buildInstance(initialValue)
+
+  private def interruptedCheck(): Unit = {
+    if (Thread.interrupted)
+      throw new InterruptedException()
+  }
+
+  private def timeoutCheck(endsAtNanos: Long): Unit = {
+    if (System.nanoTime >= endsAtNanos)
+      throw new TimeoutException()
+  }
 }
 
 

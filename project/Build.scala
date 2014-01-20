@@ -19,8 +19,7 @@ object Build extends SbtBuild {
     ),
 
     libraryDependencies ++= Seq(
-      "org.scalatest" %% "scalatest" % "1.9.1" % "test",
-      "com.netflix.rxjava" % "rxjava-scala" % "0.16.1"
+      "org.scalatest" %% "scalatest" % "1.9.1" % "test"
     ),
 
     // -- Settings meant for deployment on oss.sonatype.org
@@ -67,21 +66,23 @@ object Build extends SbtBuild {
     base = file("."),
     settings = buildSettings
   )
-  .aggregate(monifuCore)
-  .dependsOn(monifuCore)
+  .aggregate(monifuCore, monifuRx)
+  .dependsOn(monifuCore, monifuRx)
 
   lazy val monifuCore: Project = Project(
     id = "monifu-core",
-    base = file("core"),
+    base = file("monifu-core"),
     settings = buildSettings
   )
-  .dependsOn(monifuMacros)
 
-  lazy val monifuMacros: Project = Project(
-    id = "monifu-macros",
-    base = file("macros"),
+  lazy val monifuRx: Project = Project(
+    id = "monifu-rx",
+    base = file("monifu-rx"),
     settings = buildSettings ++ Seq(
-      libraryDependencies <+= (scalaVersion)("org.scala-lang" % "scala-reflect" % _)
+      libraryDependencies ++= Seq(
+        "com.netflix.rxjava" % "rxjava-scala" % "0.16.1"
+      )
     )
   )
+  .dependsOn(monifuCore)
 }
