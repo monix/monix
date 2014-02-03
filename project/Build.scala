@@ -78,11 +78,7 @@ object Build extends SbtBuild {
   lazy val monifuRx: Project = Project(
     id = "monifu-rx",
     base = file("monifu-rx"),
-    settings = buildSettings ++ Seq(
-      libraryDependencies ++= Seq(
-        "com.netflix.rxjava" % "rxjava-scala" % "0.16.1"
-      )
-    )
+    settings = buildSettings
   )
   .dependsOn(monifuCore)
 }

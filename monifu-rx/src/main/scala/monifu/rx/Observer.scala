@@ -2,11 +2,12 @@ package monifu.rx
 
 import annotation.tailrec
 import monifu.concurrent.atomic.Atomic
+import scala.util.control.NonFatal
 
 trait Observer[-T] {
   def onNext(elem: T): Unit
   def onError(ex: Throwable): Unit
-  def onComplete(): Unit  
+  def onCompleted(): Unit
 }
 
 object Observer {
@@ -32,10 +33,22 @@ final class SafeObserver[-T] private (observer: Observer[T]) extends Observer[T]
   @tailrec
   def onNext(elem: T) = state.get match {
     case IDLE =>
-      if (state.compareAndSet(IDLE, NEXT))
-        try (observer.onNext(elem)) finally {
+      if (state.compareAndSet(IDLE, NEXT)) {
+        val err = try {
+          observer.onNext(elem)
+          None
+        }
+        catch {
+          case NonFatal(ex) =>
+            Some(ex)
+        }
+        finally {
           state.set(IDLE)
         }
+
+        if (err != None)
+          onError(err.get)
+      }
       else
         onNext(elem)
     case NEXT =>
@@ -60,16 +73,16 @@ final class SafeObserver[-T] private (observer: Observer[T]) extends Observer[T]
   }
 
   @tailrec
-  def onComplete() = state.get match {
+  def onCompleted() = state.get match {
     case IDLE =>
       if (state.compareAndSet(IDLE, DONE)) {
-        observer.onComplete()
+        observer.onCompleted()
         writeBarrier = true
       }
       else
-        onComplete()
+        onCompleted()
     case NEXT =>
-      onComplete()
+      onCompleted()
     case DONE =>
       // do nothing
   }
@@ -80,7 +93,7 @@ object SafeObserver {
     new SafeObserver(new Observer[T] {
       def onNext(e: T) = next(e)
       def onError(ex: Throwable) = error(ex)
-      def onComplete() = complete()
+      def onCompleted() = complete()
     })
 
   def apply[T](observer: Observer[T]): Observer[T] =
@@ -93,6 +106,6 @@ object SafeObserver {
     SafeObserver(new Observer[T] {
       def onNext(e: T) = f(e)
       def onError(ex: Throwable) = throw ex
-      def onComplete() = ()
+      def onCompleted() = ()
     })
 }

@@ -2,7 +2,6 @@ package monifu.rx
 
 import scala.concurrent.duration.FiniteDuration
 import monifu.concurrent.atomic.Atomic
-import scala.concurrent.ExecutionContext
 
 trait Observable[+A] {
   def subscribe(observer: Observer[A]): Subscription
@@ -11,17 +10,17 @@ trait Observable[+A] {
     subscribe(
       onNext = (elem: A) => f(elem),
       onError = (ex: Throwable) => throw ex,
-      onComplete = () => {}
+      onCompleted = () => {}
     )
 
-  def subscribe(onNext: A => Unit, onError: Throwable => Unit, onComplete: () => Unit): Subscription = 
-    subscribe(Observer(onNext, onError, onComplete))
+  def subscribe(onNext: A => Unit, onError: Throwable => Unit, onCompleted: () => Unit): Subscription =
+    subscribe(Observer(onNext, onError, onCompleted))
 
   def map[B](f: A => B): Observable[B] = 
     Observable[B](observer => subscribe(
       (elem: A) => observer.onNext(f(elem)),
       (ex: Throwable) => observer.onError(ex),
-      () => observer.onComplete()
+      () => observer.onCompleted()
     ))
 
   def flatMap[B](f: A => Observable[B]): Observable[B] = 
@@ -30,7 +29,7 @@ trait Observable[+A] {
 
       composite += subscribe(
         onError = observer.onError,
-        onComplete = observer.onComplete,
+        onCompleted = observer.onCompleted,
         onNext = (elem: A) => 
           composite += f(elem).subscribe(observer)
       )
@@ -41,21 +40,22 @@ trait Observable[+A] {
   def filter(p: A => Boolean): Observable[A] =
     Observable(observer => subscribe(
       onError = observer.onError,
-      onComplete = observer.onComplete,
+      onCompleted = observer.onCompleted,
       onNext = (elem: A) => 
         if (p(elem)) observer.onNext(elem)
     ))
 
-  def startWith[B >: A](elems: B*): Observable[B] = 
-    Observable[B] { observer => 
-      for (e <- elems) observer.onNext(e)
-
-      subscribe(
-        (elem: B) => observer.onNext(elem),
-        (ex: Throwable) => observer.onError(ex),
-        () => observer.onComplete()
-      )
-    }
+  def subscribeOn(s: Scheduler): Observable[A] =
+    Observable(observer =>
+      s.scheduleR(_ => subscribe(observer))
+    )
+  
+  def observeOn(s: Scheduler): Observable[A] =
+    Observable(observer => subscribe(
+      onNext = elem => s.schedule(observer.onNext(elem)),
+      onError = ex => s.schedule(observer.onError(ex)),
+      onCompleted = () => s.schedule(observer.onCompleted())
+    ))
 }
 
 object Observable {
@@ -67,7 +67,7 @@ object Observable {
   def unit[A](elem: A): Observable[A] =
     Observable[A] { observer => Subscription {
       observer.onNext(elem)
-      observer.onComplete()
+      observer.onCompleted()
     }}
 
   def never: Observable[Nothing] =
@@ -79,14 +79,14 @@ object Observable {
       Subscription {}
     }
 
-  def interval(period: FiniteDuration)(implicit s: Scheduler, ec: ExecutionContext): Observable[Long] =
+  def interval(period: FiniteDuration)(implicit s: Scheduler): Observable[Long] =
     Observable { observer =>
       val counter = Atomic(0L)
 
-      s.schedule(period, period, {
-        val nr = counter.incrementAndGet()
+      s.schedule(period, period) {
+        val nr = counter.getAndIncrement()
         observer.onNext(nr)
-      })
+      }
     }
 }
 

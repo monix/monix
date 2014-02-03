@@ -1,87 +1,33 @@
 package monifu.rx
 
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.FiniteDuration
-import java.util.Date
+import scala.concurrent.duration._
+import java.util.concurrent._
+import monifu.concurrent.atomic.Atomic
+import java.util.concurrent.TimeUnit
+
 
 trait Scheduler extends ExecutionContext {
-
-  /**
-   * Schedules a cancelable action to be executed.
-   *
-   * @param action Action to schedule.
-   * @return a subscription to be able to unsubscribe from action.
-   */
-  def schedule(action: Scheduler => Subscription): Subscription
-
-  /**
-   * Schedules an action to be executed.
-   *
-   * @param action action to execute
-   * @return a subscription to be able to unsubscribe from action.
-   */
   def schedule(action: => Unit): Subscription
 
-  /**
-   * Schedules a cancelable action to be executed in delayTime.
-   *
-   * @param action Action to schedule.
-   * @param delay  Time the action is to be delayed before executing.
-   * @return a subscription to be able to unsubscribe from action.
-   */
-  def schedule(delay: FiniteDuration, action: Scheduler => Subscription): Subscription
+  def schedule(delayTime: FiniteDuration)(action: => Unit): Subscription
 
-  /**
-   * Schedules an action to be executed in delayTime.
-   *
-   * @param action action
-   * @return a subscription to be able to unsubscribe from action.
-   */
-  def schedule(delayTime: FiniteDuration, action: => Unit): Subscription
+  def schedule(initialDelay: FiniteDuration, period: FiniteDuration)(action: => Unit): Subscription = {
+    val sub = MultiAssignmentSubscription()
+    val startedAt = System.currentTimeMillis()
 
-  /**
-   * Schedules a cancelable action to be executed periodically.
-   *
-   * This default implementation schedules recursively and waits for actions to complete (instead of potentially executing
-   * long-running actions concurrently). Each scheduler that can do periodic scheduling in a better way should override this.
-   *
-   * @param action The action to execute periodically.
-   * @param initialDelay Time to wait before executing the action for the first time.
-   * @param period The time interval to wait each time in between executing the action.
-   * @return A subscription to be able to unsubscribe from action.
-   */
-  def schedule(initialDelay: FiniteDuration, period: FiniteDuration, action: Scheduler => Subscription): Subscription
+    sub := schedule(initialDelay) {
+      action
+      val timeTaken = (System.currentTimeMillis() - startedAt).millis
+      sub := schedule(period - timeTaken + initialDelay, period)(action)
+    }
 
-  /**
-   * Schedules an action to be executed periodically.
-   *
-   * @param action
-   *            The action to execute periodically.
-   * @param initialDelay
-   *            Time to wait before executing the action for the first time.
-   * @param period
-   *            The time interval to wait each time in between executing the action.
-   * @return A subscription to be able to unsubscribe from action.
-   */
-  def schedule(initialDelay: FiniteDuration, period: FiniteDuration, action: => Unit): Subscription
+    sub
+  }
 
-  /**
-   * Schedules a cancelable action to be executed at dueTime.
-   *
-   * @param action Action to schedule.
-   * @param dueTime Time the action is to be executed. If in the past it will be executed immediately.
-   * @return a subscription to be able to unsubscribe from action.
-   */
-  def scheduleAt(dueTime: Date, action: Scheduler => Subscription): Subscription
+  def scheduleR(action: Scheduler => Subscription): Subscription
 
-  /**
-   * Schedules a cancelable action to be executed at dueTime.
-   *
-   * @param action Action to schedule.
-   * @param dueTime Time the action is to be executed. If in the past it will be executed immediately.
-   * @return a subscription to be able to unsubscribe from action.
-   */
-  def scheduleAt(dueTime: Date, action: => Unit): Subscription
+  def scheduleR(delayTime: FiniteDuration)(action: Scheduler => Subscription): Subscription
 
   /**
    * Runs a block of code in this ExecutionContext.
@@ -94,5 +40,118 @@ trait Scheduler extends ExecutionContext {
    * Inherited from ExecutionContext.
    */
   def reportFailure(t: Throwable): Unit
+}
+
+final class ConcurrentScheduler private (s: ScheduledExecutorService, ec: ExecutionContext) extends Scheduler {
+  def schedule(action: => Unit): Subscription = {
+    val isCancelled = Atomic(false)
+    val sub = BooleanSubscription(isCancelled := true)
+
+    ec.execute(new Runnable {
+      def run(): Unit =
+        if (!isCancelled.get) action
+    })
+
+    sub
+  }
+
+  def schedule(delayTime: FiniteDuration)(action: => Unit): Subscription = {
+    val isCancelled = Atomic(false)
+    val sub = CompositeSubscription(BooleanSubscription {
+      isCancelled := true
+    })
+
+    val runnable = new Runnable {
+      def run(): Unit =
+        ec.execute(new Runnable {
+          def run(): Unit =
+            if (!isCancelled.get) action
+        })
+    }
+
+    val task = s.schedule(runnable, delayTime.toMillis, TimeUnit.MILLISECONDS)
+    sub += BooleanSubscription {
+      task.cancel(true)
+    }
+
+    sub
+  }
+
+  def scheduleR(action: Scheduler => Subscription): Subscription = {
+    val thisScheduler = this
+    val isCancelled = Atomic(false)
+
+    val sub = CompositeSubscription {
+      BooleanSubscription(isCancelled := true)
+    }
+
+    ec.execute(new Runnable {
+      def run(): Unit =
+        if (!isCancelled.get)
+          sub += action(thisScheduler)
+    })
+
+    sub
+  }
+
+  def scheduleR(delayTime: FiniteDuration)(action: Scheduler => Subscription): Subscription = {
+    val thisScheduler = this
+    val isCancelled = Atomic(false)
+
+    val sub = CompositeSubscription(BooleanSubscription {
+      isCancelled := true
+    })
+
+    val runnable = new Runnable {
+      def run(): Unit =
+        ec.execute(new Runnable {
+          def run(): Unit =
+            if (!isCancelled.get)
+              sub += action(thisScheduler)
+        })
+    }
+
+    val task = s.schedule(runnable, delayTime.toMillis, TimeUnit.MILLISECONDS)
+    
+    sub += BooleanSubscription {
+      task.cancel(true)
+    }
+
+    sub
+  }
+
+  /**
+   * Runs a block of code in this ExecutionContext.
+   * Inherited from ExecutionContext.
+   */
+  def execute(runnable: Runnable): Unit =
+    ec.execute(runnable)
+
+  /**
+   * Reports that an asynchronous computation failed.
+   * Inherited from ExecutionContext.
+   */
+  def reportFailure(t: Throwable): Unit =
+    ec.reportFailure(t)
+}
+
+object ConcurrentScheduler {
+  private[this] lazy val defaultScheduledExecutor = Executors.newScheduledThreadPool(1, new ThreadFactory {
+    def newThread(r: Runnable): Thread = {
+      val th = new Thread(r)
+      th.setDaemon(true)
+      th.setName("monifu-rx-scheduler")
+      th
+    }
+  })
+
+  def apply(implicit ec: ExecutionContext): ConcurrentScheduler =
+    new ConcurrentScheduler(defaultScheduledExecutor, ec)
+  
+  def apply(s: ScheduledExecutorService)(implicit ec: ExecutionContext): ConcurrentScheduler =
+    new ConcurrentScheduler(s, ec)
+
+  lazy val defaultInstance =
+    apply(defaultScheduledExecutor)(ExecutionContext.Implicits.global)
 }
 
