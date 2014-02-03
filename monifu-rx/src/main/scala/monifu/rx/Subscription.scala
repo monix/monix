@@ -1,6 +1,7 @@
 package monifu.rx
 
 import monifu.concurrent.atomic.Atomic
+import scala.annotation.tailrec
 
 trait Subscription {
   def unsubscribe(): Unit  
@@ -9,6 +10,11 @@ trait Subscription {
 object Subscription {
   def apply(cb: => Unit): Subscription =
     BooleanSubscription(cb)
+
+  val empty: Subscription =
+    new Subscription {
+      def unsubscribe(): Unit = ()
+    }
 }
 
 trait BooleanSubscription extends Subscription {
@@ -30,31 +36,101 @@ object BooleanSubscription {
     }
 }
 
-trait CompositeSubscription extends BooleanSubscription {
-  def +=(other: Subscription): Unit = append(other)
-  def append(other: Subscription): Unit
+final class CompositeSubscription private () extends BooleanSubscription {
+  def isUnsubscribed =
+    state.get.isUnsubscribed
+
+  def unsubscribe() = {
+    val oldState = state.getAndTransform(_.copy(Set.empty, isUnsubscribed = true))
+    if (!oldState.isUnsubscribed)
+      for (s <- oldState.subscriptions)
+        s.unsubscribe()
+  }
+
+  @tailrec
+  def add(s: Subscription): Unit = {
+    val oldState = state.get
+    if (oldState.isUnsubscribed)
+      s.unsubscribe()
+    else {
+      val newState = oldState.copy(subscriptions = oldState.subscriptions + s)
+      if (!state.compareAndSet(oldState, newState))
+        add(s)
+    }
+  }
+
+  def +=(other: Subscription): Unit =
+    add(other)
+
+  @tailrec
+  def remove(s: Subscription): Unit = {
+    val oldState = state.get
+    if (!oldState.isUnsubscribed) {
+      val newState = oldState.copy(subscriptions = oldState.subscriptions - s)
+      if (!state.compareAndSet(oldState, newState))
+        remove(s)
+    }
+  }
+
+  def -=(s: Subscription) = remove(s)
+
+  private[this] val state = Atomic(State())
+
+  private[this] case class State(
+    subscriptions: Set[Subscription] = Set.empty,
+    isUnsubscribed: Boolean = false
+  )
 }
 
+
 object CompositeSubscription {
-  def apply(): CompositeSubscription = 
-    new CompositeSubscription {
-      private[this] var _unsubscribed = false
-      private[this] var _subscriptions = Set.empty[Subscription]
+  def apply(): CompositeSubscription =
+    new CompositeSubscription()
 
-      def isUnsubscribed = synchronized(_unsubscribed)
+  def apply(head: Subscription, tail: Subscription*): CompositeSubscription = {
+    val cs = new CompositeSubscription()
+    cs += head; for (os <- tail) cs += os
+    cs
+  }
+}
 
-      def unsubscribe() = synchronized {
-        _unsubscribed = true
-        for (s <- _subscriptions)
-          s.unsubscribe()
-        _subscriptions = Set.empty
-      }
+final class MultiAssignmentSubscription private () extends BooleanSubscription {
+  private[this] val state = Atomic(State(Subscription.empty, isUnsubscribed = false))
+  private[this] case class State(subscription: Subscription, isUnsubscribed: Boolean)
 
-      def append(other: Subscription): Unit = synchronized {
-        if (!_unsubscribed)
-          _subscriptions = _subscriptions + other
-        else
-          other.unsubscribe()
-      }
+  def isUnsubscribed: Boolean = state.get.isUnsubscribed
+
+  def unsubscribe(): Unit = {
+    val oldState = state.getAndTransform {
+      _.copy(Subscription.empty, isUnsubscribed = true)
     }
+
+    if (!oldState.isUnsubscribed)
+      oldState.subscription.unsubscribe()
+  }
+
+  def :=(s: Subscription): Unit = set(s)
+
+  @tailrec
+  def set(s: Subscription): Unit = {
+    val oldState = state.get
+    if (oldState.isUnsubscribed)
+      s.unsubscribe()
+    else {
+      val newState = oldState.copy(subscription = s)
+      if (!state.compareAndSet(oldState, newState))
+        set(s)
+    }
+  }
+}
+
+object MultiAssignmentSubscription {
+  def apply(): MultiAssignmentSubscription =
+    new MultiAssignmentSubscription()
+
+  def apply(s: Subscription): MultiAssignmentSubscription = {
+    val ms = new MultiAssignmentSubscription()
+    ms.set(s)
+    ms
+  }
 }
