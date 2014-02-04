@@ -10,18 +10,7 @@ trait Observer[-T] {
   def onCompleted(): Unit
 }
 
-object Observer {
-  def apply[T](next: T => Unit, error: Throwable => Unit, complete: () => Unit): Observer[T] =
-    SafeObserver(next, error, complete)
-
-  def apply[T](f: T => Unit): Observer[T] = 
-    SafeObserver(f,
-      (ex: Throwable) => throw ex,
-      () => {}
-    )
-}
-
-final class SafeObserver[-T] private (observer: Observer[T]) extends Observer[T] {
+final class SafeObserver[-T] private (observer: Observer[T], subscription: Subscription) extends Observer[T] {
   private[this] val IDLE = 0
   private[this] val NEXT = 1
   private[this] val DONE = 2
@@ -60,13 +49,20 @@ final class SafeObserver[-T] private (observer: Observer[T]) extends Observer[T]
   @tailrec
   def onError(ex: Throwable) = state.get match {
     case IDLE =>
-      if (state.compareAndSet(IDLE, DONE)) {
-        observer.onError(ex)
-        writeBarrier = true
-      }
+      if (state.compareAndSet(IDLE, DONE))
+        try {
+          observer.onError(ex)
+          writeBarrier = true
+        }
+        finally {
+          println("unsubscribing on error")
+          subscription.unsubscribe()
+        }
       else
+        // retry
         onError(ex)
     case NEXT =>
+      // retry
       onError(ex)
     case DONE =>
       // do nothing
@@ -75,13 +71,19 @@ final class SafeObserver[-T] private (observer: Observer[T]) extends Observer[T]
   @tailrec
   def onCompleted() = state.get match {
     case IDLE =>
-      if (state.compareAndSet(IDLE, DONE)) {
-        observer.onCompleted()
-        writeBarrier = true
-      }
+      if (state.compareAndSet(IDLE, DONE))
+        try {
+          observer.onCompleted()
+          writeBarrier = true
+        }
+        finally {
+          subscription.unsubscribe()
+        }
       else
+        // retry
         onCompleted()
     case NEXT =>
+      // retry
       onCompleted()
     case DONE =>
       // do nothing
@@ -89,23 +91,16 @@ final class SafeObserver[-T] private (observer: Observer[T]) extends Observer[T]
 }
 
 object SafeObserver {
-  def apply[T](next: T => Unit, error: Throwable => Unit, complete: () => Unit): Observer[T] =
-    new SafeObserver(new Observer[T] {
+  def apply[T](next: T => Unit, error: Throwable => Unit, complete: () => Unit, subscription: Subscription): Observer[T] = {
+    val o = new Observer[T] {
       def onNext(e: T) = next(e)
       def onError(ex: Throwable) = error(ex)
       def onCompleted() = complete()
-    })
+    }
 
-  def apply[T](observer: Observer[T]): Observer[T] =
-    if (!observer.isInstanceOf[SafeObserver[_]])
-      new SafeObserver(observer)
-    else
-      observer
+    new SafeObserver[T](o, subscription)
+  }
 
-  def apply[T](f: T => Unit): Observer[T] = 
-    SafeObserver(new Observer[T] {
-      def onNext(e: T) = f(e)
-      def onError(ex: Throwable) = throw ex
-      def onCompleted() = ()
-    })
+  def apply[T](observer: Observer[T], subscription: Subscription): Observer[T] =
+    new SafeObserver(observer, subscription)
 }
