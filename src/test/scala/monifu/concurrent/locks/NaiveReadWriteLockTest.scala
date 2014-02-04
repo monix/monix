@@ -18,9 +18,11 @@ class NaiveReadWriteLockTest extends FunSuite {
 
     def readWorker() = startThread {
       awaitStart.countDown()
-      startWriteSignal.countDown()
-      startReadSignal.await()
-      readValue = value
+      lock.readLock {
+        startWriteSignal.countDown()
+        startReadSignal.await()
+        readValue = value
+      }
     }
 
     def writeWorker() = startThread {

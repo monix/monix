@@ -66,19 +66,4 @@ object Build extends SbtBuild {
     base = file("."),
     settings = buildSettings
   )
-  .aggregate(monifuCore, monifuRx)
-  .dependsOn(monifuCore, monifuRx)
-
-  lazy val monifuCore: Project = Project(
-    id = "monifu-core",
-    base = file("monifu-core"),
-    settings = buildSettings
-  )
-
-  lazy val monifuRx: Project = Project(
-    id = "monifu-rx",
-    base = file("monifu-rx"),
-    settings = buildSettings
-  )
-  .dependsOn(monifuCore)
 }
