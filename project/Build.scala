@@ -60,10 +60,24 @@ object Build extends SbtBuild {
   )
 
   // -- Actual Projects
-
   lazy val monifu: Project = Project(
     id = "monifu",
     base = file("."),
     settings = buildSettings
   )
+  .aggregate(monifuCore, monifuRx)
+  .dependsOn(monifuCore, monifuRx)
+
+  lazy val monifuCore: Project = Project(
+    id = "core",
+    base = file("core"),
+    settings = buildSettings
+  )
+
+  lazy val monifuRx: Project = Project(
+    id = "rxscala",
+    base = file("rxscala"),
+    settings = buildSettings
+  )
+  .dependsOn(monifuCore)
 }
