@@ -26,10 +26,10 @@ object BooleanSubscription {
     new BooleanSubscription {
       private[this] val _unsubscribed = Atomic(false)
 
-      def isUnsubscribed =
+      def isUnsubscribed = 
         _unsubscribed.get
 
-      def unsubscribe(): Unit =
+      def unsubscribe(): Unit = 
         if (_unsubscribed.compareAndSet(expect=false, update=true)) {
           cb
         }
@@ -109,8 +109,6 @@ final class MultiAssignmentSubscription private () extends BooleanSubscription {
       oldState.subscription.unsubscribe()
   }
 
-  def :=(s: Subscription): Unit = update(s)
-
   @tailrec
   def update(s: Subscription): Unit = {
     val oldState = state.get
@@ -130,66 +128,7 @@ object MultiAssignmentSubscription {
 
   def apply(s: Subscription): MultiAssignmentSubscription = {
     val ms = new MultiAssignmentSubscription()
-    ms.update(s)
+    ms() = s
     ms
   }
-}
-
-final class SingleAssignmentSubscription private () extends BooleanSubscription {
-  import SingleAssignmentSubscription._
-  private[this] val state = Atomic(NotInitialized : State)
-
-  override def isUnsubscribed: Boolean =
-    state.get match {
-      case NotInitialized | Subscribed(_) => false
-      case _ => true
-    }
-
-  @tailrec
-  override def unsubscribe(): Unit = {
-    val oldState = state.get
-    oldState match {
-      case NotInitialized =>
-        if (!state.compareAndSet(NotInitialized, BlankUnsubscribed))
-          unsubscribe()
-      case current @ Subscribed(s) =>
-        if (!state.compareAndSet(current, Unsubscribed))
-          unsubscribe()
-        else
-          s.unsubscribe()
-      case BlankUnsubscribed | Unsubscribed =>
-        // do nothing
-    }
-  }
-
-  @tailrec
-  def update(s: Subscription): Unit = state.get match {
-    case NotInitialized =>
-      if (!state.compareAndSet(NotInitialized, Subscribed(s)))
-        update(s)
-    case BlankUnsubscribed =>
-      if (!state.compareAndSet(BlankUnsubscribed, Unsubscribed))
-        update(s)
-      else
-        s.unsubscribe()
-    case Subscribed(_) | Unsubscribed =>
-      throw new IllegalStateException("SingleAssignmentSubscription was already initialized")
-  }
-
-  def `:=`(s: Subscription): Unit = update(s)
-}
-
-object SingleAssignmentSubscription {
-  def apply(): SingleAssignmentSubscription =
-    new SingleAssignmentSubscription()
-
-  private sealed trait State
-
-  private case object NotInitialized extends State
-
-  private case object Unsubscribed extends State
-
-  private case object BlankUnsubscribed extends State
-
-  private final case class Subscribed(s: Subscription) extends State
 }
