@@ -3,6 +3,8 @@ package monifu.rx
 import scala.concurrent.duration.FiniteDuration
 import monifu.concurrent.atomic.Atomic
 import scala.annotation.tailrec
+import monifu.rx.FoldState.{Cont, Emit}
+import scala.collection.immutable.Queue
 
 trait Observable[+A]  {
   def subscribe(observer: Observer[A]): Subscription
@@ -114,6 +116,50 @@ trait Observable[+A]  {
         observer.onError(ex)
     }))
 
+  def foldState[R](initialState: R)(f: (R, A) => FoldState[R]): Observable[R] = {
+    @tailrec def loop(state: Atomic[R], next: A): FoldState[R] = {
+      val current = state.get
+      val result = f(current, next)
+      if (state.compareAndSet(expect=current, update=result.value))
+        result
+      else
+        loop(state, next)
+    }
+
+    Observable[R] { observer =>
+      val state = Atomic(initialState)
+      subscribe(
+        onError = observer.onError,
+        onCompleted = observer.onCompleted,
+        onNext = nextElem => loop(state, nextElem) match {
+          case Cont(_) => // do nothing
+          case Emit(result) =>
+            observer.onNext(result)
+        }
+      )
+    }
+  }
+
+  def buffer(count: Int, skip: Int = 0): Observable[Queue[A]] = {
+    require(count > 0, "count should be strictly positive")
+    require(skip >= 0, "skip should be positive")
+
+    @tailrec def takeRight(q: Queue[A], nr: Int = 0): Queue[A] =
+      if (nr > 0) takeRight(q.tail, nr - 1) else q
+
+    val folded = foldState[(Queue[A], Int)]((Queue.empty, count)) { (acc, nextElem) =>
+      val (q, steps) = acc
+      val newQ = q.enqueue(nextElem)
+      val limitedQ = takeRight(newQ, newQ.length - count)
+
+      if (steps > 0)
+        Cont((limitedQ, steps - 1))
+      else
+        Emit((limitedQ, skip))
+    }
+
+    folded.map(_._1)
+  }
 }
 
 object Observable {
