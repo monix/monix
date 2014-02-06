@@ -1,3 +1,5 @@
+<img src="docs/assets/monifu-300.png" style="float: right;" />
+
 Extensions to Scala's standard library for multi-threading primitives, functional programming and whatever makes life easier.
 
 [![Build Status](https://travis-ci.org/monifu/monifu.png?branch=master)](https://travis-ci.org/monifu/monifu)
