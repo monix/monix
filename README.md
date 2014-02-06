@@ -1,4 +1,4 @@
-<img src="docs/assets/monifu-300.png" style="float: right;" />
+<img src="docs/assets/monifu.png" style="float: right;" />
 
 Extensions to Scala's standard library for multi-threading primitives, functional programming and whatever makes life easier.
 
