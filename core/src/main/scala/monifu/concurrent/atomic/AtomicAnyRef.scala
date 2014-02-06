@@ -2,7 +2,7 @@ package monifu.concurrent.atomic
 
 import java.util.concurrent.atomic.AtomicReference
 
-class AtomicAnyRef[T <: AnyRef] private[atomic] (underlying: AtomicReference[T]) extends Atomic[T] {
+class AtomicAnyRef[T] private[atomic] (underlying: AtomicReference[T]) extends Atomic[T] {
   final override type Underlying = AtomicReference[T]
   final override def asJava = underlying
 
@@ -28,9 +28,9 @@ class AtomicAnyRef[T <: AnyRef] private[atomic] (underlying: AtomicReference[T])
 }
 
 object AtomicAnyRef {
-  def apply[T <: AnyRef](initialValue: T): AtomicAnyRef[T] =
+  def apply[T](initialValue: T): AtomicAnyRef[T] =
     new AtomicAnyRef(new AtomicReference(initialValue))
 
-  def apply[T <: AnyRef](ref: AtomicReference[T]): AtomicAnyRef[T] =
+  def apply[T](ref: AtomicReference[T]): AtomicAnyRef[T] =
     new AtomicAnyRef(ref)
 }

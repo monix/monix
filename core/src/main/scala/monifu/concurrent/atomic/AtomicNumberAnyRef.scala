@@ -3,39 +3,39 @@ package monifu.concurrent.atomic
 import java.util.concurrent.atomic.AtomicReference
 import annotation.tailrec
 
-final class AtomicNumberAnyRef[T <: AnyRef : Numeric] private (underlying: AtomicReference[T]) 
+final class AtomicNumberAnyRef[T : Numeric] private (underlying: AtomicReference[T])
   extends AtomicAnyRef(underlying) {
 
   private[this] val ev = implicitly[Numeric[T]]
   private[this] val one = ev.one
 
-  final def increment() = add(one)
-  final def increment(v: Int) = add(ev.fromInt(v))
+  def increment() = add(one)
+  def increment(v: Int) = add(ev.fromInt(v))
 
   @tailrec
-  final def add(v: T) {
+  def add(v: T) {
     val current = underlying.get()
     val update = ev.plus(current, v)
     if (!underlying.compareAndSet(current, update))
       add(v)
   }
 
-  final def decrement() = subtract(one)
-  final def decrement(v: Int) = subtract(ev.fromInt(v))
+  def decrement() = subtract(one)
+  def decrement(v: Int) = subtract(ev.fromInt(v))
 
   @tailrec
-  final def subtract(v: T) {
+  def subtract(v: T) {
     val current = underlying.get()
     val update = ev.minus(current, v)
     if (!underlying.compareAndSet(current, update))
       subtract(v)
   }
 
-  final def incrementAndGet(): T = addAndGet(one)
-  final def incrementAndGet(v: Int): T = addAndGet(ev.fromInt(v))
+  def incrementAndGet(): T = addAndGet(one)
+  def incrementAndGet(v: Int): T = addAndGet(ev.fromInt(v))
 
   @tailrec
-  final def addAndGet(v: T): T = {
+  def addAndGet(v: T): T = {
     val current = underlying.get()
     val update = ev.plus(current, v)
     if (!underlying.compareAndSet(current, update))
@@ -44,11 +44,11 @@ final class AtomicNumberAnyRef[T <: AnyRef : Numeric] private (underlying: Atomi
       update
   }
 
-  final def decrementAndGet(): T = subtractAndGet(one)
-  final def decrementAndGet(v: Int): T = subtractAndGet(ev.fromInt(v))
+  def decrementAndGet(): T = subtractAndGet(one)
+  def decrementAndGet(v: Int): T = subtractAndGet(ev.fromInt(v))
 
   @tailrec
-  final def subtractAndGet(v: T): T = {
+  def subtractAndGet(v: T): T = {
     val current = underlying.get()
     val update = ev.minus(current, v)
     if (!underlying.compareAndSet(current, update))
@@ -57,11 +57,11 @@ final class AtomicNumberAnyRef[T <: AnyRef : Numeric] private (underlying: Atomi
       update
   }
 
-  final def getAndIncrement(): T = getAndAdd(one)
-  final def getAndIncrement(v: Int): T = getAndAdd(ev.fromInt(v))
+  def getAndIncrement(): T = getAndAdd(one)
+  def getAndIncrement(v: Int): T = getAndAdd(ev.fromInt(v))
 
   @tailrec
-  final def getAndAdd(v: T): T = {
+  def getAndAdd(v: T): T = {
     val current = underlying.get()
     val update = ev.plus(current, v)
     if (!underlying.compareAndSet(current, update))
@@ -70,11 +70,11 @@ final class AtomicNumberAnyRef[T <: AnyRef : Numeric] private (underlying: Atomi
       current
   }
 
-  final def getAndDecrement(): T = getAndSubtract(one)
-  final def getAndDecrement(v: Int): T = getAndSubtract(ev.fromInt(v))
+  def getAndDecrement(): T = getAndSubtract(one)
+  def getAndDecrement(v: Int): T = getAndSubtract(ev.fromInt(v))
 
   @tailrec
-  final def getAndSubtract(v: T): T = {
+  def getAndSubtract(v: T): T = {
     val current = underlying.get()
     val update = ev.minus(current, v)
     if (!underlying.compareAndSet(current, update))
@@ -85,9 +85,9 @@ final class AtomicNumberAnyRef[T <: AnyRef : Numeric] private (underlying: Atomi
 }
 
 object AtomicNumberAnyRef {
-  def apply[T <: AnyRef](initialValue: T)(implicit ev: Numeric[T]): AtomicNumberAnyRef[T] =
+  def apply[T](initialValue: T)(implicit ev: Numeric[T]): AtomicNumberAnyRef[T] =
     new AtomicNumberAnyRef(new AtomicReference(initialValue))
 
-  def apply[T <: AnyRef](ref: AtomicReference[T])(implicit ev: Numeric[T]): AtomicNumberAnyRef[T] =
+  def apply[T](ref: AtomicReference[T])(implicit ev: Numeric[T]): AtomicNumberAnyRef[T] =
     new AtomicNumberAnyRef(ref)
 }
