@@ -16,10 +16,10 @@ trait Scheduler extends ExecutionContext {
     val sub = MultiAssignmentSubscription()
     val startedAt = System.currentTimeMillis()
 
-    sub := schedule(initialDelay) {
+    sub() = schedule(initialDelay) {
       action
       val timeTaken = (System.currentTimeMillis() - startedAt).millis
-      sub := schedule(period - timeTaken + initialDelay, period)(action)
+      sub() = schedule(period - timeTaken + initialDelay, period)(action)
     }
 
     sub
