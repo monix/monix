@@ -3,8 +3,8 @@ package monifu.concurrent.atomic
 import java.util.concurrent.atomic.AtomicReference
 import annotation.tailrec
 
-final class AtomicNumberAnyRef[T : Numeric] private (underlying: AtomicReference[T])
-  extends AtomicAnyRef(underlying) {
+final class AtomicNumberAny[T : Numeric] private (underlying: AtomicReference[T])
+  extends AtomicAny(underlying) {
 
   private[this] val ev = implicitly[Numeric[T]]
   private[this] val one = ev.one
@@ -84,10 +84,10 @@ final class AtomicNumberAnyRef[T : Numeric] private (underlying: AtomicReference
   }
 }
 
-object AtomicNumberAnyRef {
-  def apply[T](initialValue: T)(implicit ev: Numeric[T]): AtomicNumberAnyRef[T] =
-    new AtomicNumberAnyRef(new AtomicReference(initialValue))
+object AtomicNumberAny {
+  def apply[T](initialValue: T)(implicit ev: Numeric[T]): AtomicNumberAny[T] =
+    new AtomicNumberAny(new AtomicReference(initialValue))
 
-  def apply[T](ref: AtomicReference[T])(implicit ev: Numeric[T]): AtomicNumberAnyRef[T] =
-    new AtomicNumberAnyRef(ref)
+  def apply[T](ref: AtomicReference[T])(implicit ev: Numeric[T]): AtomicNumberAny[T] =
+    new AtomicNumberAny(ref)
 }

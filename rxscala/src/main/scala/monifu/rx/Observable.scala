@@ -5,70 +5,96 @@ import monifu.concurrent.atomic.Atomic
 import scala.annotation.tailrec
 import monifu.rx.FoldState.{Cont, Emit}
 import scala.collection.immutable.Queue
+import monifu.rx.subscriptions._
+import scala.concurrent.{Promise, Future}
+
 
 trait Observable[+A]  {
-  def subscribe(observer: Observer[A]): Subscription
+  protected def fn(observer: Observer[A]): Subscription
 
-  def subscribe(f: A => Unit): Subscription = 
-    subscribe(
-      onNext = (elem: A) => f(elem),
-      onError = (ex: Throwable) => throw ex,
-      onCompleted = () => ()
-    )
-
-  def subscribe(onNext: A => Unit, onError: Throwable => Unit, onCompleted: () => Unit): Subscription = {
-    val n = onNext; val e = onError; val c = onCompleted
-
-    subscribe(new Observer[A] {
-      def onNext(elem: A): Unit = n(elem)
-      def onCompleted(): Unit = c()
-      def onError(ex: Throwable): Unit = e(ex)
-    })
+  def subscribe(observer: Observer[A]): Subscription = {
+    val sub = SingleAssignmentSubscription()
+    sub() = fn(SafeObserver(observer, sub))
+    sub
   }
 
-  def map[B](f: A => B): Observable[B] = 
-    Observable(observer => subscribe(
-      (elem: A) => observer.onNext(f(elem)),
-      (ex: Throwable) => observer.onError(ex),
-      () => observer.onCompleted()
-    ))
+  def subscribe(f: A => Unit): Subscription =
+    subscribe(new Observer[A] {
+      def onNext(elem: A): Unit = f(elem)
+      def onError(ex: Throwable): Unit = throw ex
+      def onCompleted(): Unit = ()
+    })
+  
+  def subscribe(next: A => Unit, error: Throwable => Unit, completed: () => Unit): Subscription =
+    subscribe(new Observer[A] {
+      def onNext(elem: A): Unit = next(elem)
+      def onCompleted(): Unit = completed()
+      def onError(ex: Throwable): Unit = error(ex)
+    })
+
+  def map[B](f: A => B): Observable[B] =
+    Observable(observer => fn(new Observer[A] {
+      def onNext(elem: A): Unit = observer.onNext(f(elem))
+      def onCompleted(): Unit = observer.onCompleted()
+      def onError(ex: Throwable): Unit = observer.onError(ex)
+    }))
 
   def flatMap[B](f: A => Observable[B]): Observable[B] = 
     Observable(observer => {
       val composite = CompositeSubscription()
 
-      composite += subscribe(
-        onError = observer.onError,
-        onCompleted = observer.onCompleted,
-        onNext = (elem: A) => 
-          composite += f(elem).subscribe(observer)
-      )
+      composite += fn(new Observer[A] {
+        def onNext(elem: A) = {
+          val s = SingleAssignmentSubscription()
+          composite += s
+
+          s() = f(elem).fn(new Observer[B] {
+            def onNext(elem: B): Unit =
+              observer.onNext(elem)
+
+            def onCompleted(): Unit = {
+              composite -= s
+              s.unsubscribe()
+            }
+
+            def onError(ex: Throwable): Unit = {
+              composite -= s
+              s.unsubscribe()
+              observer.onError(ex)
+            }
+          })
+        }
+
+        def onError(ex: Throwable) =
+          observer.onError(ex)
+
+        def onCompleted() = ()
+      })
 
       composite
     })
 
   def filter(p: A => Boolean): Observable[A] =
-    Observable(observer => subscribe(
-      onError = observer.onError,
-      onCompleted = observer.onCompleted,
-      onNext = (elem: A) => 
-        if (p(elem)) observer.onNext(elem)
-    ))
+    Observable(observer => fn(new Observer[A] {
+      def onNext(elem: A) = if (p(elem)) observer.onNext(elem)
+      def onError(ex: Throwable) = observer.onError(ex)
+      def onCompleted() = observer.onCompleted()
+    }))
 
   def subscribeOn(s: Scheduler): Observable[A] =
-    Observable(o => s.scheduleR(_ => subscribe(o)))
+    Observable(o => s.scheduleR(_ => fn(o)))
   
   def observeOn(s: Scheduler): Observable[A] =
-    Observable(observer => subscribe(
-      onNext = elem => s.schedule(observer.onNext(elem)),
-      onError = ex => s.schedule(observer.onError(ex)),
-      onCompleted = () => s.schedule(observer.onCompleted())
-    ))
+    Observable(observer => fn(new Observer[A] {
+      def onNext(elem: A) = s.schedule(observer.onNext(elem))
+      def onError(ex: Throwable) = s.schedule(observer.onError(ex))
+      def onCompleted() = s.schedule(observer.onCompleted())
+    }))
 
   def take(nr: Int): Observable[A] = {
     require(nr > 0, "number of elements to take should be strictly positive")
 
-    Observable(observer => subscribe(new Observer[A] {
+    Observable(observer => fn(new Observer[A] {
         val count = Atomic(0)
 
         @tailrec
@@ -97,7 +123,7 @@ trait Observable[+A]  {
   }
 
   def takeWhile(p: A => Boolean): Observable[A] =
-    Observable(observer => subscribe(new Observer[A] {
+    Observable(observer => fn(new Observer[A] {
       val shouldContinue = Atomic(true)
 
       def onNext(elem: A): Unit =
@@ -126,19 +152,39 @@ trait Observable[+A]  {
         loop(state, next)
     }
 
-    Observable[R] { observer =>
+    Observable { observer =>
       val state = Atomic(initialState)
-      subscribe(
-        onError = observer.onError,
-        onCompleted = observer.onCompleted,
-        onNext = nextElem => loop(state, nextElem) match {
+      fn(new Observer[A] {
+        def onError(ex: Throwable) =
+          observer.onError(ex)
+        def onCompleted() =
+          observer.onCompleted()
+        def onNext(nextElem: A) = loop(state, nextElem) match {
           case Cont(_) => // do nothing
           case Emit(result) =>
             observer.onNext(result)
         }
-      )
+      })
     }
   }
+
+  def foldLeft[R](initial: R)(f: (R, A) => R): Observable[R] =
+    Observable { observer =>
+      val state = Atomic(initial)
+
+      fn(new Observer[A] {
+        def onNext(elem: A): Unit =
+          state.transformAndGet(s => f(s, elem))
+
+        def onCompleted(): Unit = {
+          observer.onNext(state.get)
+          observer.onCompleted()
+        }
+
+        def onError(ex: Throwable): Unit =
+          observer.onError(ex)
+      })
+    }
 
   def buffer(count: Int, skip: Int = 0): Observable[Queue[A]] = {
     require(count > 0, "count should be strictly positive")
@@ -160,16 +206,37 @@ trait Observable[+A]  {
 
     folded.map(_._1)
   }
+
+  def asFuture: Future[Option[A]] = {
+    val promise = Promise[Option[A]]()
+
+    val observer = new Observer[A] {
+      @volatile var lastValue = Option.empty[A]
+
+      def onNext(elem: A): Unit = {
+        lastValue = Some(elem)
+      }
+
+      def onCompleted(): Unit = {
+        promise.trySuccess(lastValue)
+      }
+
+      def onError(ex: Throwable): Unit = {
+        promise.tryFailure(ex)
+      }
+    }
+
+    val sub = SingleAssignmentSubscription()
+    sub() = fn(SafeObserver(observer, sub))
+    promise.future
+  }
 }
 
 object Observable {
   def apply[A](f: Observer[A] => Subscription): Observable[A] =
     new Observable[A] {
-      def subscribe(observer: Observer[A]): Subscription = {
-        val sub = MultiAssignmentSubscription()
-        sub() = f(SafeObserver(observer, sub))
-        sub
-      }
+      def fn(observer: Observer[A]) =
+        f(observer)
     }
 
   def unit[A](elem: A): Observable[A] =
@@ -182,7 +249,7 @@ object Observable {
     Observable { observer => Subscription {} }
 
   def error(ex: Throwable): Observable[Nothing] =
-    Observable { observer => 
+    Observable { observer =>
       observer.onError(ex)
       Subscription.empty
     }

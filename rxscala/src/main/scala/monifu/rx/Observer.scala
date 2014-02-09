@@ -55,7 +55,6 @@ final class SafeObserver[-T] private (observer: Observer[T], subscription: Subsc
           writeBarrier = true
         }
         finally {
-          println("unsubscribing on error")
           subscription.unsubscribe()
         }
       else

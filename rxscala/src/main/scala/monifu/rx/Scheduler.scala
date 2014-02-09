@@ -2,6 +2,7 @@ package monifu.rx
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
+import monifu.rx.subscriptions.MultiAssignmentSubscription
 import monifu.rx.schedulers.ConcurrentScheduler
 
 
@@ -47,5 +48,4 @@ object Scheduler {
   def concurrent(ec: ExecutionContext): ConcurrentScheduler =
     ConcurrentScheduler(ec)
 }
-
 

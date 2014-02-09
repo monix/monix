@@ -7,17 +7,17 @@ trait AtomicBuilder[T, R <: Atomic[T]] {
 
 private[atomic] object Implicits {
   trait Level1 {
-    implicit def AtomicRefBuilder[T] = new AtomicBuilder[T, AtomicAnyRef[T]] {
+    implicit def AtomicRefBuilder[T] = new AtomicBuilder[T, AtomicAny[T]] {
       def buildInstance(initialValue: T) =
-        AtomicAnyRef(initialValue)
+        AtomicAny(initialValue)
     }
   }
 
   trait Level2 extends Level1 {
     implicit def AtomicNumberBuilder[T  <: AnyRef : Numeric] = 
-      new AtomicBuilder[T, AtomicNumberAnyRef[T]] {
+      new AtomicBuilder[T, AtomicNumberAny[T]] {
         def buildInstance(initialValue: T) =
-          AtomicNumberAnyRef(initialValue)
+          AtomicNumberAny(initialValue)
       }
   }
 
