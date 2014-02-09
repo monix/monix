@@ -210,7 +210,7 @@ trait Observable[+A]  {
   def asFuture: Future[Option[A]] = {
     val promise = Promise[Option[A]]()
 
-    val observer = new Observer[A] {
+    subscribe(new Observer[A] {
       @volatile var lastValue = Option.empty[A]
 
       def onNext(elem: A): Unit = {
@@ -224,10 +224,8 @@ trait Observable[+A]  {
       def onError(ex: Throwable): Unit = {
         promise.tryFailure(ex)
       }
-    }
+    })
 
-    val sub = SingleAssignmentSubscription()
-    sub() = fn(SafeObserver(observer, sub))
     promise.future
   }
 }
