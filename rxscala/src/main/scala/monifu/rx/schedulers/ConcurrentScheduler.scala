@@ -1,10 +1,12 @@
 package monifu.rx.schedulers
 
-import monifu.rx._
 import java.util.concurrent.{ThreadFactory, Executors, TimeUnit, ScheduledExecutorService}
 import scala.concurrent.ExecutionContext
+import monifu.rx.{Scheduler, Subscription}
 import monifu.concurrent.atomic.Atomic
 import scala.concurrent.duration.FiniteDuration
+import monifu.rx.subscriptions.{CompositeSubscription, BooleanSubscription}
+
 
 final class ConcurrentScheduler private (s: ScheduledExecutorService, ec: ExecutionContext) extends Scheduler {
   def schedule(action: => Unit): Subscription = {
@@ -112,9 +114,7 @@ object ConcurrentScheduler {
   def apply(implicit ec: ExecutionContext): ConcurrentScheduler =
     new ConcurrentScheduler(defaultScheduledExecutor, ec)
 
-  def apply(s: ScheduledExecutorService)(implicit ec: ExecutionContext): ConcurrentScheduler =
-    new ConcurrentScheduler(s, ec)
-
   lazy val defaultInstance =
-    apply(defaultScheduledExecutor)(ExecutionContext.Implicits.global)
+    new ConcurrentScheduler(defaultScheduledExecutor, ExecutionContext.Implicits.global)
 }
+

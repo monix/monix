@@ -2,7 +2,7 @@ package monifu.concurrent.atomic
 
 import org.scalatest.FunSuite
 
-class AtomicAnyRefTest extends FunSuite {
+class AtomicAnyTest extends FunSuite {
   test("set()") {
     val r = Atomic("initial")
     assert(r.get === "initial")
