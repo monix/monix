@@ -1,12 +1,10 @@
 package monifu.concurrent.atomic
 
 import java.lang.Double.{longBitsToDouble, doubleToLongBits}
-import scala.annotation.tailrec
 import java.util.concurrent.atomic.{AtomicLong => JavaAtomicLong}
 
-final class AtomicDouble private (ref: JavaAtomicLong) extends AtomicNumber[Double] {
-  type Underlying = JavaAtomicLong
-  def asJava = ref
+final class AtomicDouble private (ref: JavaAtomicLong)
+  extends AtomicNumber[Double] with CommonOps[Double] with NumberCommonOps[Double] {
 
   def get: Double = longBitsToDouble(ref.get)
   def set(update: Double) = ref.set(doubleToLongBits(update))
@@ -29,7 +27,4 @@ final class AtomicDouble private (ref: JavaAtomicLong) extends AtomicNumber[Doub
 object AtomicDouble {
   def apply(initialValue: Double): AtomicDouble =
     new AtomicDouble(new JavaAtomicLong(doubleToLongBits(initialValue)))
-
-  def apply(ref: JavaAtomicLong): AtomicDouble =
-    new AtomicDouble(ref)
 }

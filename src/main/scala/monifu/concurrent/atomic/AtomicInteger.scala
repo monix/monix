@@ -1,12 +1,9 @@
 package monifu.concurrent.atomic
 
 import java.util.concurrent.atomic.AtomicInteger
-import scala.annotation.tailrec
 
-
-final class AtomicInt private (ref: AtomicInteger) extends AtomicNumber[Int] {
-  type Underlying = AtomicInteger
-  def asJava = ref
+final class AtomicInt private (ref: AtomicInteger)
+  extends AtomicNumber[Int] with CommonOps[Int] with NumberCommonOps[Int] {
 
   def get: Int = ref.get()
   def set(update: Int) = ref.set(update)
@@ -28,5 +25,4 @@ final class AtomicInt private (ref: AtomicInteger) extends AtomicNumber[Int] {
 
 object AtomicInt {
   def apply(initialValue: Int): AtomicInt = new AtomicInt(new AtomicInteger(initialValue))
-  def apply(ref: AtomicInteger): AtomicInt = new AtomicInt(ref)
 }

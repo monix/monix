@@ -5,9 +5,8 @@ import scala.annotation.tailrec
 import java.util.concurrent.atomic.AtomicInteger
 
 
-final class AtomicFloat protected (ref: AtomicInteger) extends AtomicNumber[Float] {
-  type Underlying = AtomicInteger
-  def asJava = ref
+final class AtomicFloat private (ref: AtomicInteger)
+  extends AtomicNumber[Float] with CommonOps[Float] with NumberCommonOps[Float] {
 
   def get: Float = intBitsToFloat(ref.get)
 
@@ -32,7 +31,4 @@ final class AtomicFloat protected (ref: AtomicInteger) extends AtomicNumber[Floa
 object AtomicFloat {
   def apply(initialValue: Float): AtomicFloat =
     new AtomicFloat(new AtomicInteger(floatToIntBits(initialValue)))
-
-  def apply(ref: AtomicInteger): AtomicFloat =
-    new AtomicFloat(ref)
 }
