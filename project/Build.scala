@@ -1,6 +1,8 @@
 import sbt._
 import sbt.{Build => SbtBuild}
 import sbt.Keys._
+import scala.scalajs.sbtplugin.ScalaJSPlugin._
+import scala.scalajs.sbtplugin.ScalaJSPlugin.ScalaJSKeys._
 
 
 object Build extends SbtBuild {
@@ -10,17 +12,12 @@ object Build extends SbtBuild {
     scalaVersion := "2.10.3",
 
     scalacOptions ++= Seq(
-      "-unchecked", "-deprecation", "-feature", "-Xlint", "-target:jvm-1.6",
-      "-optimise", "-Yinline-warnings"
+      "-unchecked", "-deprecation", "-feature", "-Xlint", "-target:jvm-1.6", "-Yinline-warnings"
     ),
 
     resolvers ++= Seq(
       "Typesafe Releases" at "http://repo.typesafe.com/typesafe/releases",
       Resolver.sonatypeRepo("releases")
-    ),
-
-    libraryDependencies ++= Seq(
-      "org.scalatest" %% "scalatest" % "1.9.1" % "test"
     ),
 
     // -- Settings meant for deployment on oss.sonatype.org
@@ -61,9 +58,27 @@ object Build extends SbtBuild {
   )
 
   // -- Actual Projects
+
   lazy val monifu: Project = Project(
     id = "monifu",
     base = file("."),
-    settings = buildSettings
+    settings = buildSettings ++ Seq(
+      unmanagedSourceDirectories in Compile <+= sourceDirectory(_ / "shared" / "scala"),
+      scalacOptions += "-optimise",
+      libraryDependencies ++= Seq(
+        "org.scalatest" %% "scalatest" % "1.9.1" % "test"
+      )
+    )
+  )
+
+  lazy val monifuJS: Project = Project(
+    id = "monifu-js",
+    base = file("js"),
+    settings = scalaJSSettings ++ buildSettings ++ Seq(
+      unmanagedSourceDirectories in Compile <+= sourceDirectory(_ / "shared" / "scala"),
+      libraryDependencies ++= Seq(
+        "org.scala-lang.modules.scalajs" %% "scalajs-jasmine-test-framework" % scalaJSVersion % "test"
+      )
+    )
   )
 }

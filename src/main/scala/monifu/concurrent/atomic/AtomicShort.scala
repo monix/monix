@@ -1,11 +1,9 @@
 package monifu.concurrent.atomic
 
 import java.util.concurrent.atomic.AtomicInteger
-import scala.annotation.tailrec
 
-final class AtomicShort private (ref: AtomicInteger) extends AtomicNumber[Short] {
-  type Underlying = AtomicInteger
-  def asJava = ref
+final class AtomicShort private (ref: AtomicInteger)
+  extends AtomicNumber[Short] with CommonOps[Short] with NumberCommonOps[Short] {
 
   def get: Short =
     (ref.get() & mask).asInstanceOf[Short]

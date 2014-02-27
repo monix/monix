@@ -1,31 +1,17 @@
 package monifu.concurrent.atomic
 
-import annotation.tailrec
 import java.util.concurrent.TimeoutException
-import scala.concurrent.duration._
+import scala.annotation.tailrec
+import scala.concurrent.duration.FiniteDuration
 
-trait Atomic[@specialized T] {
-  import Atomic.{interruptedCheck, timeoutCheck}
+private[atomic] trait CommonOps[@specialized T] { self: Atomic[T] =>
+  import CommonOps._
 
-  type Underlying
-  def asJava: Underlying
-
-  def get: T
-  def apply(): T = get
-
-  def set(update: T): Unit
-  def update(value: T): Unit = set(value)
-  def `:=`(value: T): Unit = set(value)
-
-  def lazySet(update: T)
-
-  def compareAndSet(expect: T, update: T): Boolean
   def weakCompareAndSet(expect: T, update: T): Boolean
-  def getAndSet(update: T): T
-
+  
   @tailrec
   @throws(classOf[InterruptedException])
-  final def awaitCompareAndSet(expect: T, update: T): Unit = 
+  final def awaitCompareAndSet(expect: T, update: T): Unit =
     if (!compareAndSet(expect, update)) {
       interruptedCheck()
       awaitCompareAndSet(expect, update)
@@ -41,7 +27,7 @@ trait Atomic[@specialized T] {
   @tailrec
   @throws(classOf[InterruptedException])
   @throws(classOf[TimeoutException])
-  private[monifu] final def awaitCompareAndSet(expect: T, update: T, waitUntil: Long): Unit = 
+  private[monifu] final def awaitCompareAndSet(expect: T, update: T, waitUntil: Long): Unit =
     if (!compareAndSet(expect, update)) {
       interruptedCheck()
       timeoutCheck(waitUntil)
@@ -50,7 +36,7 @@ trait Atomic[@specialized T] {
 
   @tailrec
   @throws(classOf[InterruptedException])
-  final def awaitValue(expect: T): Unit = 
+  final def awaitValue(expect: T): Unit =
     if (get != expect) {
       interruptedCheck()
       awaitValue(expect)
@@ -66,7 +52,7 @@ trait Atomic[@specialized T] {
   @tailrec
   @throws(classOf[InterruptedException])
   @throws(classOf[TimeoutException])
-  private[monifu] final def awaitValue(expect: T, waitUntil: Long): Unit = 
+  private[monifu] final def awaitValue(expect: T, waitUntil: Long): Unit =
     if (get != expect) {
       interruptedCheck()
       timeoutCheck(waitUntil)
@@ -75,7 +61,7 @@ trait Atomic[@specialized T] {
 
   @tailrec
   @throws(classOf[InterruptedException])
-  final def awaitCondition(p: T => Boolean): Unit = 
+  final def awaitCondition(p: T => Boolean): Unit =
     if (!p(get)) {
       interruptedCheck()
       awaitCondition(p)
@@ -91,7 +77,7 @@ trait Atomic[@specialized T] {
   @tailrec
   @throws(classOf[InterruptedException])
   @throws(classOf[TimeoutException])
-  private[monifu] final def awaitCondition(waitUntil: Long)(p: T => Boolean): Unit = 
+  private[monifu] final def awaitCondition(waitUntil: Long)(p: T => Boolean): Unit =
     if (!p(get)) {
       interruptedCheck()
       timeoutCheck(waitUntil)
@@ -175,20 +161,14 @@ trait Atomic[@specialized T] {
   }
 }
 
-object Atomic {
-  def apply[T, R <: Atomic[T]](initialValue: T)(implicit builder: AtomicBuilder[T, R]): R =
-    builder.buildInstance(initialValue)
-
-  private def interruptedCheck(): Unit = {
+private[atomic] object CommonOps {
+  def interruptedCheck(): Unit = {
     if (Thread.interrupted)
       throw new InterruptedException()
   }
 
-  private def timeoutCheck(endsAtNanos: Long): Unit = {
+  def timeoutCheck(endsAtNanos: Long): Unit = {
     if (System.nanoTime >= endsAtNanos)
       throw new TimeoutException()
   }
 }
-
-
-

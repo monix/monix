@@ -1,11 +1,9 @@
 package monifu.concurrent.atomic
 
 import java.util.concurrent.atomic.{AtomicLong => JavaAtomicLong}
-import scala.annotation.tailrec
 
-final class AtomicLong private (ref: JavaAtomicLong) extends AtomicNumber[Long] {
-  type Underlying = JavaAtomicLong
-  def asJava = ref
+final class AtomicLong private (ref: JavaAtomicLong)
+  extends AtomicNumber[Long] with CommonOps[Long] with NumberCommonOps[Long] {
 
   def get: Long = ref.get()
 
@@ -29,5 +27,4 @@ final class AtomicLong private (ref: JavaAtomicLong) extends AtomicNumber[Long] 
 
 object AtomicLong {
   def apply(initialValue: Long): AtomicLong = new AtomicLong(new JavaAtomicLong(initialValue))
-  def apply(ref: JavaAtomicLong): AtomicLong = new AtomicLong(ref)
 }

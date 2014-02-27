@@ -1,11 +1,9 @@
 package monifu.concurrent.atomic
 
 import java.util.concurrent.atomic.{AtomicBoolean => JavaAtomicBoolean}
-import scala.annotation.tailrec
 
-final class AtomicBoolean private (ref: JavaAtomicBoolean) extends Atomic[Boolean] {
-  type Underlying = JavaAtomicBoolean
-  def asJava = ref
+final class AtomicBoolean private (ref: JavaAtomicBoolean)
+  extends Atomic[Boolean] with CommonOps[Boolean] {
 
   def get: Boolean = ref.get()
   
@@ -24,6 +22,6 @@ final class AtomicBoolean private (ref: JavaAtomicBoolean) extends Atomic[Boolea
 }
 
 object AtomicBoolean {
-  def apply(initialValue: Boolean): AtomicBoolean = new AtomicBoolean(new JavaAtomicBoolean(initialValue))
-  def apply(ref: JavaAtomicBoolean): AtomicBoolean = new AtomicBoolean(ref)
+  def apply(initialValue: Boolean): AtomicBoolean =
+    new AtomicBoolean(new JavaAtomicBoolean(initialValue))
 }

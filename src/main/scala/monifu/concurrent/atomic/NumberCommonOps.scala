@@ -1,8 +1,8 @@
 package monifu.concurrent.atomic
 
-import annotation.tailrec
+import scala.annotation.tailrec
 
-trait AtomicNumber[@specialized T] extends Atomic[T] {
+private[atomic] trait NumberCommonOps[@specialized T] { self: AtomicNumber[T] =>
   protected def plusOp(a: T, b: T): T
   protected def minusOp(a: T, b: T): T
   protected def incrOp(a: T, b: Int): T
@@ -100,11 +100,6 @@ trait AtomicNumber[@specialized T] extends Atomic[T] {
   final def getAndIncrement(): T = getAndIncrement(1)
   final def getAndDecrement(): T = getAndIncrement(-1)
   final def getAndDecrement(v: Int): T = getAndIncrement(-v)
-  final def `+=`(v: T): T = addAndGet(v)
-  final def `-=`(v: T): T = subtractAndGet(v)
-}
-
-object AtomicNumber {
-  def apply[T, R <: AtomicNumber[T]](initialValue: T)(implicit ev: Numeric[T], builder: AtomicBuilder[T, R]): R =
-    builder.buildInstance(initialValue)
+  final def `+=`(v: T): Unit = addAndGet(v)
+  final def `-=`(v: T): Unit = subtractAndGet(v)
 }
