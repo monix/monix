@@ -13,6 +13,7 @@ object Build extends SbtBuild {
       "-unchecked", "-deprecation", "-feature", "-Xlint", "-target:jvm-1.6",
       "-optimise", "-Yinline-warnings"
     ),
+
     resolvers ++= Seq(
       "Typesafe Releases" at "http://repo.typesafe.com/typesafe/releases",
       Resolver.sonatypeRepo("releases")
@@ -65,19 +66,4 @@ object Build extends SbtBuild {
     base = file("."),
     settings = buildSettings
   )
-  .aggregate(monifuCore, monifuRx)
-  .dependsOn(monifuCore, monifuRx)
-
-  lazy val monifuCore: Project = Project(
-    id = "core",
-    base = file("core"),
-    settings = buildSettings
-  )
-
-  lazy val monifuRx: Project = Project(
-    id = "rxscala",
-    base = file("rxscala"),
-    settings = buildSettings
-  )
-  .dependsOn(monifuCore)
 }
