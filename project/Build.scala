@@ -77,8 +77,15 @@ object Build extends SbtBuild {
     settings = scalaJSSettings ++ buildSettings ++ Seq(
       unmanagedSourceDirectories in Compile <+= sourceDirectory(_ / "shared" / "scala"),
       libraryDependencies ++= Seq(
-        "org.scala-lang.modules.scalajs" %% "scalajs-jasmine-test-framework" % scalaJSVersion % "test"
-      )
+        "com.lihaoyi" % "utest_2.10" % "0.1.2-JS" % "test"
+      ),
+      (loadedTestFrameworks in Test) := {
+        import scala.scalajs.sbtplugin.ScalaJSPlugin.ScalaJSKeys._
+        (loadedTestFrameworks in Test).value.updated(
+          sbt.TestFramework(classOf[utest.runner.JsFramework].getName),
+          new utest.runner.JsFramework(environment = (scalaJSEnvironment in Test).value)
+        )
+      }
     )
   )
 }
