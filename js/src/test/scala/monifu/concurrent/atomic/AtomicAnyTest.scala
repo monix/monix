@@ -11,7 +11,7 @@ object AtomicAnyTest extends TestSuite {
       	assert(r.get == "initial")
 
       	r.set("update")
-      	assert(r.get == "update2")
+      	assert(r.get == "update")
       }
 
       "getAndSet" - {
