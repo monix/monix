@@ -88,7 +88,7 @@ final class AtomicNumberAny[T : Numeric] private[atomic] (initialValue: T) exten
   }
 
   def increment(v: Int): Unit = {
-    ref = ev.plus(ref, ev.one)
+    ref = ev.plus(ref, ev.fromInt(v))
   }
 
   def increment(): Unit = increment(1)
