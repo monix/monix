@@ -69,7 +69,7 @@ object Build extends SbtBuild {
         "org.scalatest" %% "scalatest" % "1.9.1" % "test"
       )
     )
-  ).aggregate(monifuJS)
+  )
 
   lazy val monifuJS: Project = Project(
     id = "monifu-js",
