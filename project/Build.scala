@@ -6,7 +6,8 @@ import scala.scalajs.sbtplugin.ScalaJSPlugin.ScalaJSKeys._
 
 
 object Build extends SbtBuild {
-  val buildSettings = Defaults.defaultSettings ++ Seq(
+
+  val sharedSettings = Defaults.defaultSettings ++ Seq(
     organization := "org.monifu",
     version := "0.2-SNAPSHOT",
     scalaVersion := "2.10.3",
@@ -59,10 +60,13 @@ object Build extends SbtBuild {
 
   // -- Actual Projects
 
-  lazy val monifu: Project = Project(
-    id = "monifu",
-    base = file("."),
-    settings = buildSettings ++ Seq(
+  lazy val root = Project(id = "monifu", base = file("."), settings = sharedSettings)
+    .aggregate(monifuCore, monifuCoreJS).dependsOn(monifuCore)
+
+  lazy val monifuCore = Project(
+    id = "monifu-core",
+    base = file("monifu-core"),
+    settings = sharedSettings ++ Seq(
       unmanagedSourceDirectories in Compile <+= sourceDirectory(_ / "shared" / "scala"),
       scalacOptions += "-optimise",
       libraryDependencies ++= Seq(
@@ -71,21 +75,14 @@ object Build extends SbtBuild {
     )
   )
 
-  lazy val monifuJS: Project = Project(
-    id = "monifu-js",
-    base = file("js"),
-    settings = scalaJSSettings ++ buildSettings ++ Seq(
-      unmanagedSourceDirectories in Compile <+= sourceDirectory(_ / "shared" / "scala"),
+  lazy val monifuCoreJS = Project(
+    id = "monifu-core-js",
+    base = file("monifu-core-js"),
+    settings = sharedSettings ++ scalaJSSettings ++ Seq(
+      unmanagedSourceDirectories in Compile <+= sourceDirectory(_ / ".." / ".." / "monifu-core" / "src" / "shared" / "scala/"),
       libraryDependencies ++= Seq(
-        "com.lihaoyi" % "utest_2.10" % "0.1.2-JS" % "test"
-      ),
-      (loadedTestFrameworks in Test) := {
-        import scala.scalajs.sbtplugin.ScalaJSPlugin.ScalaJSKeys._
-        (loadedTestFrameworks in Test).value.updated(
-          sbt.TestFramework(classOf[utest.runner.JsFramework].getName),
-          new utest.runner.JsFramework(environment = (scalaJSEnvironment in Test).value)
-        )
-      }
+        "org.scala-lang.modules.scalajs" %% "scalajs-jasmine-test-framework" % scalaJSVersion % "test"
+      )
     )
   )
 }
