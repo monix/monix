@@ -4,10 +4,9 @@ import annotation.tailrec
 import monifu.concurrent.atomic.Atomic
 import monifu.concurrent.ThreadLocal
 import java.util.concurrent.TimeoutException
-import concurrent.duration.FiniteDuration
 
 
-/** 
+/**
  * Naive read-write lock, meant for low-contention scenarios.
  *
  *  - the read lock can be acquired by multiple threads at the same time
@@ -41,7 +40,7 @@ import concurrent.duration.FiniteDuration
  * }
  * }}}
  */
-final class NaiveReadWriteLock extends ReadWriteLock {
+final class NaiveReadWriteLock private[locks] () extends ReadWriteLock {
 
   private[this] val IDLE  = 0
   private[this] val READ  = 1
@@ -116,12 +115,12 @@ final class NaiveReadWriteLock extends ReadWriteLock {
 
     // optimistically assume that we can acquire the 
     // read lock by incrementing `activeReads`
-    activeReads.increment
+    activeReads.increment()
     // race-condition guard
     if (writePendingOrActive.get) {
       // no success, a write came in, so undo the activeReads
       // counter and keep retrying (writes have priority)
-      activeReads.decrement
+      activeReads.decrement()
       readLockAcquire()
     }
     else {
@@ -135,7 +134,7 @@ final class NaiveReadWriteLock extends ReadWriteLock {
     localState.set(IDLE)
     // when the `activeReads` counter reaches zero
     // then pending writes can proceed
-    activeReads.decrement
+    activeReads.decrement()
   }  
 
   /** 
@@ -157,7 +156,7 @@ final class NaiveReadWriteLock extends ReadWriteLock {
    */
   private[this] def downgradeWriteToReadLock() {
     localState.set(READ)
-    activeReads.increment
+    activeReads.increment()
     writePendingOrActive.set(false)
   }
 
@@ -165,4 +164,9 @@ final class NaiveReadWriteLock extends ReadWriteLock {
     localState.set(IDLE)
     writePendingOrActive.set(false)
   }
+}
+
+object NaiveReadWriteLock {
+  def apply(): NaiveReadWriteLock =
+    new NaiveReadWriteLock()
 }

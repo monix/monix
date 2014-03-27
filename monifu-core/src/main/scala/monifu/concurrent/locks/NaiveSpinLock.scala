@@ -2,7 +2,7 @@ package monifu.concurrent.locks
 
 import monifu.concurrent.atomic.Atomic
 
-class NaiveSpinLock extends Lock {
+final class NaiveSpinLock private[locks] () extends Lock {
   private[this] val acquired = Atomic(false)
 
   @throws(classOf[InterruptedException])
@@ -10,4 +10,9 @@ class NaiveSpinLock extends Lock {
     acquired.awaitCompareAndSet(expect = false, update = true)
     try cb finally acquired.set(update = false)
   }
+}
+
+object NaiveSpinLock {
+  def apply(): NaiveSpinLock =
+    new NaiveSpinLock()
 }

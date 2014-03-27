@@ -1,6 +1,5 @@
 package monifu.concurrent.locks
 
-
 trait Lock {
   /**
    * Acquires a lock meant for both reading and writing.
@@ -8,6 +7,8 @@ trait Lock {
   @throws(classOf[InterruptedException])
   def acquire[T](cb: => T): T
 }
+
+object Lock extends DefaultLockConstructor
 
 trait ReadWriteLock extends Lock {
   /** 
@@ -28,3 +29,5 @@ trait ReadWriteLock extends Lock {
   final def acquire[T](cb: => T): T =
     writeLock(cb)
 }
+
+object ReadWriteLock extends DefaultReadWriteLockConstructor
