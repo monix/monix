@@ -17,7 +17,7 @@ Requires Scala 2.10 and up. From SBT, to use the latest snapshot:
 ```scala
 resolvers += "Sonatype snapshots" at "http://oss.sonatype.org/content/repositories/snapshots/"
 
-libraryDependencies += "org.monifu" %% "monifu" % "0.2-SNAPSHOT"
+libraryDependencies += "org.monifu" %% "monifu" % "0.3-SNAPSHOT"
 ```
 
 ## License
