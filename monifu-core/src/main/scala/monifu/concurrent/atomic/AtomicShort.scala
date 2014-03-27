@@ -3,7 +3,7 @@ package monifu.concurrent.atomic
 import java.util.concurrent.atomic.AtomicInteger
 
 final class AtomicShort private (ref: AtomicInteger)
-  extends AtomicNumber[Short] with CommonOps[Short] with NumberCommonOps[Short] {
+  extends AtomicNumber[Short] with BlockableAtomic[Short] with CommonOps[Short] with NumberCommonOps[Short] {
 
   def get: Short =
     (ref.get() & mask).asInstanceOf[Short]

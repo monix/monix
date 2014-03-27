@@ -109,9 +109,9 @@ final class NaiveReadWriteLock private[locks] () extends ReadWriteLock {
   private[this] def readLockAcquire(waitUntil: Long = 0): Unit = {
     // waits for writes to finish
     if (waitUntil != 0)
-      writePendingOrActive.awaitValue(expect = false, waitUntil = waitUntil)
+      writePendingOrActive.waitForValue(expect = false, waitUntil = waitUntil)
     else
-      writePendingOrActive.awaitValue(expect = false)
+      writePendingOrActive.waitForValue(expect = false)
 
     // optimistically assume that we can acquire the 
     // read lock by incrementing `activeReads`
@@ -143,9 +143,9 @@ final class NaiveReadWriteLock private[locks] () extends ReadWriteLock {
   @throws(classOf[InterruptedException])
   private[this] def writeLockAcquire(): Unit = {
     // acquires the write lock
-    writePendingOrActive.awaitCompareAndSet(expect=false, update=true)
+    writePendingOrActive.waitForCompareAndSet(expect=false, update=true)
     // waits until all active reads are finished
-    activeReads.awaitValue(expect=0)
+    activeReads.waitForValue(expect=0)
     localState.set(WRITE)
   }
 

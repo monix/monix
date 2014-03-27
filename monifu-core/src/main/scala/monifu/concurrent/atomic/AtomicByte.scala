@@ -3,7 +3,7 @@ package monifu.concurrent.atomic
 import java.util.concurrent.atomic.AtomicInteger
 
 final class AtomicByte private (ref: AtomicInteger)
-  extends AtomicNumber[Byte] with CommonOps[Byte] with NumberCommonOps[Byte] {
+  extends AtomicNumber[Byte] with BlockableAtomic[Byte] with CommonOps[Byte] with NumberCommonOps[Byte] {
 
   def get: Byte =
     (ref.get() & mask).asInstanceOf[Byte]
