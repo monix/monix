@@ -3,7 +3,7 @@ package monifu.concurrent.atomic
 import java.util.concurrent.atomic.AtomicReference
 
 final class AtomicNumberAny[T : Numeric] private (underlying: AtomicReference[AnyRef])
-  extends AtomicNumber[T] with CommonOps[T] with NumberCommonOps[T] {
+  extends AtomicNumber[T] with BlockableAtomic[T] with CommonOps[T] with NumberCommonOps[T] {
 
   private[this] val ev = implicitly[Numeric[T]]
 
@@ -27,12 +27,12 @@ final class AtomicNumberAny[T : Numeric] private (underlying: AtomicReference[An
 
   def compareAndSet(expect: T, update: T): Boolean = {
     val current = underlying.get()
-    current == expect && underlying.compareAndSet(current, update.asInstanceOf[AnyRef])
+    current.asInstanceOf[T] == expect && underlying.compareAndSet(current, update.asInstanceOf[AnyRef])
   }
 
   def weakCompareAndSet(expect: T, update: T): Boolean = {
     val current = underlying.get()
-    current == expect && underlying.weakCompareAndSet(current, update.asInstanceOf[AnyRef])
+    current.asInstanceOf[T] == expect && underlying.weakCompareAndSet(current, update.asInstanceOf[AnyRef])
   }
 
   def getAndSet(update: T): T =

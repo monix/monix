@@ -3,7 +3,7 @@ package monifu.concurrent.atomic
 import java.util.concurrent.atomic.AtomicInteger
 
 final class AtomicChar private (ref: AtomicInteger)
-  extends AtomicNumber[Char] with CommonOps[Char] with NumberCommonOps[Char] {
+  extends AtomicNumber[Char] with BlockableAtomic[Char] with CommonOps[Char] with NumberCommonOps[Char] {
 
   def get: Char =
     (ref.get() & mask).asInstanceOf[Char]

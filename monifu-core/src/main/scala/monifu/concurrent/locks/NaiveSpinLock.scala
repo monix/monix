@@ -7,7 +7,7 @@ final class NaiveSpinLock private[locks] () extends Lock {
 
   @throws(classOf[InterruptedException])
   def acquire[T](cb: => T): T = {
-    acquired.awaitCompareAndSet(expect = false, update = true)
+    acquired.waitForCompareAndSet(expect = false, update = true)
     try cb finally acquired.set(update = false)
   }
 }

@@ -2,7 +2,9 @@ package monifu.concurrent.atomic
 
 import java.util.concurrent.atomic.AtomicReference
 
-final class AtomicAny[T] private[atomic] (underlying: AtomicReference[T]) extends Atomic[T] with CommonOps[T] {
+final class AtomicAny[T] private[atomic] (underlying: AtomicReference[T])
+  extends Atomic[T] with BlockableAtomic[T] with CommonOps[T] {
+
   override def get: T = underlying.get()
   override def apply(): T = underlying.get()
 

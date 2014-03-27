@@ -4,7 +4,7 @@ import java.lang.Double.{longBitsToDouble, doubleToLongBits}
 import java.util.concurrent.atomic.{AtomicLong => JavaAtomicLong}
 
 final class AtomicDouble private (ref: JavaAtomicLong)
-  extends AtomicNumber[Double] with CommonOps[Double] with NumberCommonOps[Double] {
+  extends AtomicNumber[Double] with BlockableAtomic[Double] with CommonOps[Double] with NumberCommonOps[Double] {
 
   def get: Double = longBitsToDouble(ref.get)
   def set(update: Double) = ref.set(doubleToLongBits(update))
