@@ -2,6 +2,11 @@ package monifu.concurrent.atomic
 
 import scala.annotation.tailrec
 
+/**
+ * Private trait having reusable and specialised implementations for the methods
+ * specified by `AtomicNumber[T]` - it's raison d'être being that `Atomic[T]` can't be specialized
+ * directly, as it is also used by the Scala.js implementation.
+ */
 private[atomic] trait NumberCommonOps[@specialized T] { self: AtomicNumber[T] =>
   protected def plusOp(a: T, b: T): T
   protected def minusOp(a: T, b: T): T

@@ -3,7 +3,8 @@ package monifu.concurrent.atomic
 import java.util.concurrent.atomic.{AtomicBoolean => JavaAtomicBoolean}
 
 final class AtomicBoolean private (ref: JavaAtomicBoolean)
-  extends Atomic[Boolean] with BlockableAtomic[Boolean] with CommonOps[Boolean] {
+  extends Atomic[Boolean] with BlockableAtomic[Boolean] with WeakAtomic[Boolean]
+  with CommonOps[Boolean] {
 
   def get: Boolean = ref.get()
   

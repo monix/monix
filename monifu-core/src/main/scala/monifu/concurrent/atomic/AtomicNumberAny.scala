@@ -3,7 +3,8 @@ package monifu.concurrent.atomic
 import java.util.concurrent.atomic.AtomicReference
 
 final class AtomicNumberAny[T : Numeric] private (underlying: AtomicReference[AnyRef])
-  extends AtomicNumber[T] with BlockableAtomic[T] with CommonOps[T] with NumberCommonOps[T] {
+  extends AtomicNumber[T] with BlockableAtomic[T] with WeakAtomic[T]
+  with CommonOps[T] with NumberCommonOps[T] {
 
   private[this] val ev = implicitly[Numeric[T]]
 
