@@ -12,7 +12,7 @@ object Build extends SbtBuild {
     version := "0.3-SNAPSHOT",
     scalaVersion := "2.10.4",
 
-    // crossScalaVersions := Seq("2.10.4", "2.11.0-RC3"),
+    crossScalaVersions := Seq("2.10.4", "2.11.0-RC3"),
 
     scalacOptions ++= Seq(
       "-unchecked", "-deprecation", "-feature", "-Xlint", "-target:jvm-1.6", "-Yinline-warnings"
@@ -72,7 +72,7 @@ object Build extends SbtBuild {
       unmanagedSourceDirectories in Compile <+= sourceDirectory(_ / "shared" / "scala"),
       scalacOptions += "-optimise",
       libraryDependencies ++= Seq(
-        "org.scalatest" %% "scalatest" % "1.9.1" % "test"
+        "org.scalatest" %% "scalatest" % "2.1.2" % "test"
       )
     )
   )

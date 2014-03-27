@@ -12,9 +12,7 @@ Available docs:
 
 ## Usage
 
-The first stable release is still pending. Compiled for Scala 2.10 and will be cross-compiled for Scala 2.11 as
-soon as the general release is available. Also cross-compiled to the latest Scala.js (at the moment of writing
- Scala.js 0.4.1).
+The first stable release is still pending. Compiled for Scala 2.10 and Scala 2.11.0-RC3. Also cross-compiled to the latest Scala.js (at the moment of writing Scala.js 0.4.1).
 
 The only sub-project is right now `monifu-core`, but `monifu-rx`, `monifu-iteratees` and probably others will happen.
 
