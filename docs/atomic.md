@@ -26,8 +26,8 @@ and use it safely, plus you've got the whole boxing/unboxing overhead.
 
 One problem is that all of these classes do not share a common
 interface and there's no reason for why they shouldn't. See the
-[Atomic[T]](https://github.com/alexandru/scala-atomic/blob/master/src/main/scala/scala/concurrent/atomic/Atomic.scala)
-trait.
+[Atomic[T]](/monifu-core/src/shared/scala/monifu/concurrent/atomic/Atomic.scala), [AtomicNumber[T]](/monifu-core/src/shared/scala/monifu/concurrent/atomic/AtomicNumber.scala), [BlockableAtomic[T]](/monifu-core/src/main/scala/monifu/concurrent/atomic/BlockableAtomic.scala) and [WeakAtomic[T]](/monifu-core/src/main/scala/monifu/concurrent/atomic/WeakAtomic.scala)
+traits.
 
 ```scala
 import monifu.concurrent.atomic._
@@ -97,7 +97,8 @@ AtomicReference, you'll end up with extra boxing/unboxing going on.
 stored inside an `AtomicLong` by using Java's
 `Double.doubleToLongBits` and `Double.longBitsToDouble`. `Char`,
 `Byte` and `Short` can be stored inside an `AtomicInteger` as well,
-with special care to handle overflows correctly.
+with special care to handle overflows correctly. All this is done to avoid boxing
+for performance reasons.
 
 ```scala
 scala> import monifu.concurrent.atomic._
@@ -119,6 +120,19 @@ res2: Char = b
 
 scala> ref.incrementAndGet
 res3: Char = c
+```
+
+Even when boxing a number inside a generic `AtomicNumberAny` (that makes use of
+the `Numeric[T]` type-class from Scala's standard library, using a plain `j.u.c.a.AtomicReference[T]` 
+internally), the above gotcha doesn't happen, as the implementation of `AtomicNumberAny` is built
+to encounter the autoboxing effects:
+
+```scala
+scala> val ref: Atomic[Double] = AtomicNumberAny(0.0)
+ref: monifu.concurrent.atomic.Atomic[Double] = monifu.concurrent.atomic.AtomicNumberAny@7b221307
+
+scala> ref.compareAndSet(0, 100)
+res0: Boolean = true
 ```
 
 ### Common Pattern: Loops for Transforming the Value
