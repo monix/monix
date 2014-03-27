@@ -12,24 +12,31 @@ Available docs:
 
 ## Usage
 
-The first stable release is still pending. Compiled for Scala 2.10 and Scala 2.11.0-RC3. Also cross-compiled to the latest Scala.js (at the moment of writing Scala.js 0.4.1).
+The packages are published on Maven Central.
 
-The only sub-project is right now `monifu-core`, but `monifu-rx`, `monifu-iteratees` and probably others will happen.
+Compiled for Scala 2.10 and Scala 2.11.0-RC3. Also cross-compiled to the latest Scala.js (at the moment of writing Scala.js 0.4.1).
+
+Current stable release is: 0.3
 
 ### For the JVM
 
 ```scala
-resolvers += "Sonatype snapshots" at "http://oss.sonatype.org/content/repositories/snapshots/"
-
-libraryDependencies += "org.monifu" %% "monifu-core" % "0.3-SNAPSHOT"
+libraryDependencies += "org.monifu" %% "monifu-core" % "0.3"
 ```
 
 ### For in-browser Scala.js
 
 ```scala
-resolvers += "Sonatype snapshots" at "http://oss.sonatype.org/content/repositories/snapshots/"
+libraryDependencies += "org.monifu" %% "monifu-core-js" % "0.3"
+```
 
-libraryDependencies += "org.monifu" %% "monifu-core-js" % "0.3-SNAPSHOT"
+### Trying out a Snapshot Release
+
+To play with snapshot releases that aren't on Maven Central, you might want to add this 
+resolver for Sonatype snapshots:
+
+```scala
+resolvers += "Sonatype snapshots" at "http://oss.sonatype.org/content/repositories/snapshots/"
 ```
 
 ## License
