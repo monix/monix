@@ -162,26 +162,6 @@ res: immutable.Queue[String] = Queue(hello, world)
 Voilà, you now have a concurrent, thread-safe and non-blocking Queue. You can do this
 for whatever persistent data-structure you want.
 
-### Efficiency
-
-Atomic references are low-level primitives for concurrency and because
-of that any extra overhead is unacceptable. 
-
-For example having a common `Atomic[T]` interface implies
-boxing/unboxing of primitives. However, because of Scala's wonderful
-[@specialized](http://www.scala-lang.org/api/current/index.html#scala.specialized)
-annotation we can avoid it.
-
-Increments/decrements are done by going through the
-[Numeric[T]](http://www.scala-lang.org/api/current/index.html#scala.math.Numeric)
-provided implicit, but only for `AnyRef` types, such as BigInt and
-BigDecimal. For primitives the logic has been optimized to bypass
-`Numeric[T]`.
-
-All classes are final, to avoid the resolution overhead of virtual methods. The `AtomicBuilder` mechanism
-for constructing references, means that you can let the compiler infer the most efficient atomic reference type
-for the values you want, also avoiding the overhead associated with polymorphism.
-
 ## Common-pattern: Block the thread until progress is possible
 
 This line of code blocks the thread until the `compareAndSet` operation succeeds.
@@ -226,6 +206,45 @@ java.util.concurrent.TimeoutException
 
 All these blocking calls are also interruptible, throwing an `InterruptedException` in case that happened.
 
+## Scala.js support for targetting Javascript
+
+These atomic references are also cross-compiled to [Scala.js](http://www.scala-js.org/) 
+for targetting Javascript engines (in `monifu-core-js`), because:
+
+- it's a useful way of boxing mutable variables, in case you need to box
+- it's a building block for doing synchronization, so useful for code that you want cross-compiled
+- because mutability doesn't take *time* into account and `compareAndSet` does, atomic references and
+  `compareAndSet` in particular is also useful in a non-multi-threaded / asynchronous environment 
+
+What isn't supported on top of Scala.js / Javascript:
+
+- blocking methods aren't supported since the semantics aren't possible (fret not, the compiler will not
+  let you use them since they are missing from `monifu-core-js`)
+- lazy/weak methods (e.g. `weakCompareAndSet` / `lazySet` and stuff based on those) aren't supported
+  and if you need those, you probably want to stay on the JVM with that piece of code
+
+## Efficiency
+
+Atomic references are low-level primitives for concurrency and because
+of that any extra overhead is unacceptable. 
+
+For example having a common `Atomic[T]` interface implies
+boxing/unboxing of primitives. However, because of Scala's wonderful
+[@specialized](http://www.scala-lang.org/api/current/index.html#scala.specialized)
+annotation we can avoid it.
+
+Increments/decrements are done by going through the
+[Numeric[T]](http://www.scala-lang.org/api/current/index.html#scala.math.Numeric)
+provided implicit, but only for `AnyRef` types, such as BigInt and
+BigDecimal. For primitives the logic has been optimized to bypass
+`Numeric[T]`.
+
+All classes are final, to avoid the resolution overhead of virtual methods. The `AtomicBuilder` mechanism
+for constructing references, means that you can let the compiler infer the most efficient atomic reference type
+for the values you want, also avoiding the overhead associated with polymorphism.
+
 ## TODO
 
+- [ ] Performance benchmark suite to compare against Java's implementations and to guard against regressions
+- [ ] Cache padded variants
 - [ ] AtomicArray
