@@ -3,7 +3,8 @@ package monifu.concurrent.atomic
 import java.util.concurrent.atomic.AtomicInteger
 
 final class AtomicShort private (ref: AtomicInteger)
-  extends AtomicNumber[Short] with BlockableAtomic[Short] with CommonOps[Short] with NumberCommonOps[Short] {
+  extends AtomicNumber[Short] with BlockableAtomic[Short] with WeakAtomic[Short]
+  with CommonOps[Short] with NumberCommonOps[Short] {
 
   def get: Short =
     (ref.get() & mask).asInstanceOf[Short]
@@ -21,9 +22,14 @@ final class AtomicShort private (ref: AtomicInteger)
   def getAndSet(update: Short): Short =
     (ref.getAndSet(update) & mask).asInstanceOf[Short]
 
-  def plusOp(a: Short, b: Short): Short = ((a + b) & mask).asInstanceOf[Short]
-  def minusOp(a: Short, b: Short): Short = ((a - b) & mask).asInstanceOf[Short]
-  def incrOp(a: Short, b: Int): Short = ((a + b) & mask).asInstanceOf[Short]
+  protected def plusOp(a: Short, b: Short): Short =
+    ((a + b) & mask).asInstanceOf[Short]
+
+  protected def minusOp(a: Short, b: Short): Short =
+    ((a - b) & mask).asInstanceOf[Short]
+
+  protected def incrOp(a: Short, b: Int): Short =
+    ((a + b) & mask).asInstanceOf[Short]
 
   private[this] val mask = 255 + 255 * 256
 }

@@ -4,7 +4,8 @@ import java.lang.Float.{intBitsToFloat, floatToIntBits}
 import java.util.concurrent.atomic.AtomicInteger
 
 final class AtomicFloat private (ref: AtomicInteger)
-  extends AtomicNumber[Float] with BlockableAtomic[Float] with CommonOps[Float] with NumberCommonOps[Float] {
+  extends AtomicNumber[Float] with BlockableAtomic[Float] with WeakAtomic[Float]
+  with CommonOps[Float] with NumberCommonOps[Float] {
 
   def get: Float = intBitsToFloat(ref.get)
 

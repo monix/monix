@@ -3,7 +3,8 @@ package monifu.concurrent.atomic
 import java.util.concurrent.atomic.{AtomicLong => JavaAtomicLong}
 
 final class AtomicLong private (ref: JavaAtomicLong)
-  extends AtomicNumber[Long] with BlockableAtomic[Long] with CommonOps[Long] with NumberCommonOps[Long] {
+  extends AtomicNumber[Long] with BlockableAtomic[Long] with WeakAtomic[Long]
+  with CommonOps[Long] with NumberCommonOps[Long] {
 
   def get: Long = ref.get()
 
