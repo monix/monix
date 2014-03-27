@@ -162,7 +162,7 @@ res: immutable.Queue[String] = Queue(hello, world)
 Voilà, you now have a concurrent, thread-safe and non-blocking Queue. You can do this
 for whatever persistent data-structure you want.
 
-## Common-pattern: Block the thread until progress is possible
+### Common-pattern: Block the thread until progress is possible
 
 This line of code blocks the thread until the `compareAndSet` operation succeeds.
 ```scala
