@@ -43,7 +43,7 @@ One really common use-case for atomic references are for numbers to
 which you need to add or subtract. To this purpose
 `j.u.c.a.AtomicInteger` and `j.u.c.a.AtomicLong` have an
 `incrementAndGet` helper. However Ints and Longs aren't the only type
-you normally need. How about `Float` and `Double`? How about
+you normally need. How about `Float` and `Double` and `Short`? How about
 `BigDecimal` and `BigInt`?
 
 In Scala, thanks to the
@@ -54,19 +54,18 @@ type-class, we can do this:
 scala> import monifu.concurrent.atomic._
 
 scala> val ref = Atomic(BigInt(1))
-ref: monifu.concurrent.atomic.AtomicAnyRef[scala.math.BigInt] = Atomic(1)
 
 scala> ref.incrementAndGet
 res0: scala.math.BigInt = 2
 
-scala> ref.incrementAndGet(BigInt("329084291234234"))
+scala> ref.addAndGet(BigInt("329084291234234"))
 res1: scala.math.BigInt = 329084291234236
 
 scala> val ref = Atomic("hello")
-ref: monifu.concurrent.atomic.AtomicAnyRef[String] = Atomic(hello)
+ref: monifu.concurrent.atomic.AtomicAny[String] = Atomic(hello)
 
 scala> ref.incrementAndGet
-<console>:12: error: could not find implicit value for parameter num: Numeric[String]
+<console>:12: error: value incrementAndGet is not a member of monifu.concurrent.atomic.AtomicAny[String]
               ref.incrementAndGet
                   ^
 ```
@@ -88,9 +87,9 @@ res0: Boolean = false
 
 Calling `compareAndSet` fails because when using `AtomicReference<V>`
 the equality comparisson is done by reference and it doesn't work for
-primitives because
+primitives because the process of
 [Autoboxing/Unboxing](http://docs.oracle.com/javase/tutorial/java/data/autoboxing.html)
-gets involved. And then there's the efficiency issue. By using an
+is involved. And then there's the efficiency issue. By using an
 AtomicReference, you'll end up with extra boxing/unboxing going on.
 
 `Float` can be stored inside an `AtomicInteger` by using Java's
@@ -151,7 +150,7 @@ can simply do this:
 
 ```scala
 scala> val ref = Atomic(Queue.empty[String])
-ref: AtomicAnyRef[immutable.Queue[String]] = Atomic(Queue())
+ref: AtomicAny[immutable.Queue[String]] = Atomic(Queue())
 
 scala> ref.transformAndGet(_.enqueue("hello"))
 res: immutable.Queue[String] = Queue(hello)
@@ -159,6 +158,9 @@ res: immutable.Queue[String] = Queue(hello)
 scala> ref.transformAndGet(_.enqueue("world"))
 res: immutable.Queue[String] = Queue(hello, world)
 ```
+
+Voilà, you now have a concurrent, thread-safe and non-blocking Queue. You can do this
+for whatever persistent data-structure you want.
 
 ### Efficiency
 
@@ -176,8 +178,53 @@ provided implicit, but only for `AnyRef` types, such as BigInt and
 BigDecimal. For primitives the logic has been optimized to bypass
 `Numeric[T]`.
 
-As a result, the implementation for primitives is not DRY, with code
-duplication all over the place. But that's a useful trade-off.
+All classes are final, to avoid the resolution overhead of virtual methods. The `AtomicBuilder` mechanism
+for constructing references, means that you can let the compiler infer the most efficient atomic reference type
+for the values you want, also avoiding the overhead associated with polymorphism.
+
+## Common-pattern: Block the thread until progress is possible
+
+This line of code blocks the thread until the `compareAndSet` operation succeeds.
+```scala
+ref.waitForCompareAndSet("hello", "world")
+```
+
+You can also specify a timeout:
+```scala
+scala> import concurrent.duration._
+import concurrent.duration._
+
+scala> ref.waitForCompareAndSet("hello", "world", 1.second)
+java.util.concurrent.TimeoutException
+	at monifu.concurrent.atomic.BlockableAtomic$.timeoutCheck(BlockableAtomic.scala:156)
+	at monifu.concurrent.atomic.BlockableAtomic$class.waitForCompareAndSet(BlockableAtomic.scala:56)
+```
+
+You can also block the thread waiting for a certain value:
+```scala
+ref.waitForValue("world")
+```
+
+And of course you can specify a timeout:
+```scala
+scala> ref.waitForValue("hello", 1.second)
+java.util.concurrent.TimeoutException
+	at monifu.concurrent.atomic.BlockableAtomic$.timeoutCheck(BlockableAtomic.scala:156)
+```
+
+You can block the thread waiting for a callback receiving the persisted value to become true:
+```scala
+ref.waitForCondition(_.contains("wor"))
+```
+
+And of course you can specify a timeout:
+```scala
+scala> ref.waitForCondition(1.second)(_.contains("hell"))
+java.util.concurrent.TimeoutException
+	at monifu.concurrent.atomic.BlockableAtomic$.timeoutCheck(BlockableAtomic.scala:156)
+```
+
+All these blocking calls are also interruptible, throwing an `InterruptedException` in case that happened.
 
 ## TODO
 
