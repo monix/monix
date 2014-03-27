@@ -10,7 +10,9 @@ object Build extends SbtBuild {
   val sharedSettings = Defaults.defaultSettings ++ Seq(
     organization := "org.monifu",
     version := "0.3-SNAPSHOT",
-    scalaVersion := "2.10.3",
+    scalaVersion := "2.10.4",
+
+    // crossScalaVersions := Seq("2.10.4", "2.11.0-RC3"),
 
     scalacOptions ++= Seq(
       "-unchecked", "-deprecation", "-feature", "-Xlint", "-target:jvm-1.6", "-Yinline-warnings"
