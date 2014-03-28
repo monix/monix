@@ -4,10 +4,6 @@ import monifu.concurrent.atomic.AtomicAny
 import scala.annotation.tailrec
 import monifu.concurrent.Cancelable
 
-object SingleAssignmentCancelable {
-  def  apply(): SingleAssignmentCancelable =
-    new SingleAssignmentCancelable()
-}
 
 final class SingleAssignmentCancelable private () extends BooleanCancelable {
   import State._
@@ -56,4 +52,9 @@ final class SingleAssignmentCancelable private () extends BooleanCancelable {
     case object IsCanceled extends State
     case object IsEmptyCanceled extends State
   }
+}
+
+object SingleAssignmentCancelable {
+  def  apply(): SingleAssignmentCancelable =
+    new SingleAssignmentCancelable()
 }
