@@ -1,6 +1,6 @@
 package monifu.concurrent
 
 private[concurrent] trait SchedulerConstructor {
-  def asyncScheduler: Scheduler =
+  def async: Scheduler =
     JSAsyncScheduler
 }
