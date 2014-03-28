@@ -20,5 +20,13 @@ object BooleanCancelable {
           cb
         }
     }
+
+  def empty =
+    new BooleanCancelable {
+      @volatile
+      private[this] var b = false
+      def cancel() = b = true
+      def isCanceled = b
+    }
 }
 

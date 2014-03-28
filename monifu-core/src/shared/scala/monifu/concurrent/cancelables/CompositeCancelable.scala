@@ -4,6 +4,7 @@ import monifu.concurrent.atomic.{AtomicAny, Atomic}
 import monifu.concurrent.Cancelable
 import scala.annotation.tailrec
 
+
 final class CompositeCancelable private () extends BooleanCancelable {
   def isCanceled =
     state.get.isCanceled
