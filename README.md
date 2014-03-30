@@ -24,7 +24,7 @@ Current stable release is: 0.3
 libraryDependencies += "org.monifu" %% "monifu-core" % "0.3"
 ```
 
-### For in-browser Scala.js
+### For targeting Javascript runtimes with Scala.js
 
 ```scala
 libraryDependencies += "org.monifu" %% "monifu-core-js" % "0.3"
