@@ -36,11 +36,11 @@ class SingleAssignmentCancelableTest extends FunSuite {
 
   test("throw exception on multi assignment") {
     val s = SingleAssignmentCancelable()
-    val b1 = BooleanCancelable.empty
+    val b1 = BooleanCancelable()
     s() = b1
 
     intercept[IllegalStateException] {
-      val b2 = BooleanCancelable.empty
+      val b2 = BooleanCancelable()
       s() = b2
     }
   }
@@ -49,11 +49,11 @@ class SingleAssignmentCancelableTest extends FunSuite {
     val s = SingleAssignmentCancelable()
     s.cancel()
 
-    val b1 = BooleanCancelable.empty
+    val b1 = BooleanCancelable()
     s() = b1
 
     intercept[IllegalStateException] {
-      val b2 = BooleanCancelable.empty
+      val b2 = BooleanCancelable()
       s() = b2
     }
   }
