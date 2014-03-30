@@ -1,9 +1,10 @@
-package monifu.concurrent
+package monifu.concurrent.schedulers
 
 import scala.concurrent.duration.FiniteDuration
 import scala.scalajs.js
 import monifu.concurrent.cancelables.{CompositeCancelable, BooleanCancelable}
 import monifu.concurrent.atomic.Atomic
+import monifu.concurrent.{Cancelable, Scheduler}
 
 
 object JSAsyncScheduler extends Scheduler {

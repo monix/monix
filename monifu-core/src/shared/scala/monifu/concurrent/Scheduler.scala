@@ -4,9 +4,10 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import monifu.concurrent.cancelables.MultiAssignmentCancelable
 import scala.annotation.implicitNotFound
+import monifu.concurrent.schedulers.SchedulerConstructor
 
 /**
- * A Scheduler is an [[scala.concurrent.ExecutionContext]] that additionally can schedule
+ * A Scheduler is an `scala.concurrent.ExecutionContext` that additionally can schedule
  * the execution of units of work to run with a delay or periodically.
  */
 @implicitNotFound("Cannot find an implicit Scheduler, either import monifu.concurrent.Scheduler.Implicits.global or use a custom one")
