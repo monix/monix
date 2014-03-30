@@ -1,5 +1,7 @@
 # Schedulers & Cancelables
 
+<img src="assets/monifu.png" align="right" />
+
 Monifu's Schedulers and Cancelables are inspired by .NET's
 [Reactive Extensions](https://rx.codeplex.com/) and Netflix's
 [RxJava](https://github.com/Netflix/RxJava) and are cross-compiled to

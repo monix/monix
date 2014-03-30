@@ -1,5 +1,7 @@
 # Atomic Reference
 
+<img src="assets/monifu.png" align="right" />
+
 Scala is awesome at handling concurrecy and parallelism, providing
 high-level tools for handling it, however sometimes you need to go
 lower level. Java's library provides all the multi-threading
