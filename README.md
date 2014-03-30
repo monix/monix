@@ -11,11 +11,17 @@ Available docs:
 * [Atomic References](docs/atomic.md) 
 * [Schedulers](docs/schedulers.md) and [Cancelables](docs/cancelables.md)
 
+Release Notes:
+
+* [Version 0.4 - March 31, 2014](/docs/release-notes/0.3.md)
+* [Version 0.3 - March 27, 2014](/docs/release-notes/0.4.md)
+
 ## Usage
 
 The packages are published on Maven Central.
 
-Compiled for Scala 2.10 and Scala 2.11.0-RC3. Also cross-compiled to the latest Scala.js (at the moment of writing Scala.js 0.4.1).
+Compiled for Scala 2.10 and Scala 2.11.0-RC3. Also cross-compiled to
+the latest Scala.js (at the moment Scala.js 0.4.1).
 
 Current stable release is: 0.4
 

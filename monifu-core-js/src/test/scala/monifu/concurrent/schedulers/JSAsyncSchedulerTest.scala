@@ -94,7 +94,7 @@ object JSAsyncSchedulerTest extends JasmineTest {
         }
       })
 
-      jasmine.Clock.tick(10 + 50 * 10)
+      jasmine.Clock.tick(1000)
       expect(f.value.flatMap(_.toOption).getOrElse(0)).toBe(4)
     }
   }
