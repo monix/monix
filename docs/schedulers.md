@@ -2,7 +2,7 @@
 
 <img src="assets/monifu.png" align="right" />
 
-Monifu's Schedulers and Cancelables are inspired by .NET's
+Monifu's Schedulers and [Cancelables](./cancelables.md) are inspired by .NET's
 [Reactive Extensions](https://rx.codeplex.com/) and Netflix's
 [RxJava](https://github.com/Netflix/RxJava) and are cross-compiled to
 [Scala.js](scala-js.org) for also targeting JavaScript runtimes.
@@ -428,6 +428,10 @@ val task = s.scheduleRecursive(1.second, 2.seconds, { reschedule =>
     reschedule()
 })
 ```
+
+## Further Reading
+
+Also see the document on [Cancelables](./cancelables.md).
 
 # TODO
 

@@ -12,6 +12,11 @@ import monifu.concurrent.cancelables.BooleanCancelable
 trait Cancelable {
   /**
    * Cancels the unit of work represented by this reference.
+   *
+   * Guaranteed idempotence - calling it multiple times should have the
+   * same effect as calling it only a single time.
+   *
+   * Implementations of this method should also be thread-safe.
    */
   def cancel(): Unit
 }
