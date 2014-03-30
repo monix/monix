@@ -8,7 +8,8 @@ Extensions to Scala's standard library for multi-threading primitives, functiona
 
 Available docs:
 
-* [Atomic References](docs/atomic.md)
+* [Atomic References](docs/atomic.md) (since version 0.3)
+* [Schedulers](docs/schedulers.md) (new in 0.4-SNAPSHOT)
 
 ## Usage
 
