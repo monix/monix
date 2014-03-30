@@ -70,7 +70,7 @@ A
 [monifu.concurrent.Scheduler](../monifu-core/src/shared/scala/monifu/concurrent/Scheduler.scala)
 is a super-set of a
 [scala.concurrent.ExecutionContext](http://www.scala-lang.org/api/current/#scala.concurrent.ExecutionContext),
-that is as I've said, inspired by Rx.Scheduler.
+that is as I've said, inspired by [Rx.Scheduler](https://github.com/Netflix/RxJava/wiki/Scheduler).
 
 ### Initialization
 
@@ -81,12 +81,13 @@ val s = monifu.concurrent.Scheduler.computation
 
 This is in fact an instance of
 [ConcurrentScheduler](../monifu-core/src/main/scala/monifu/concurrent/schedulers/ConcurrentScheduler.scala),
-the only provided implementation at the moment of writing, with
-`Scheduler.computation` being a default instance that internally uses
+the only provided implementation at the moment of writing (because it
+is sufficient for most needs), with `Scheduler.computation` being a
+default instance that internally uses
 [ExecutionContext.Implicits.global](http://www.scala-lang.org/api/current/#scala.concurrent.ExecutionContext$$Implicits$)
 for executing tasks and a
-[j.u.c.ScheduledThreadPoolExecutor](http://docs.oracle.com/javase/7/docs/api/java/util/concurrent/ScheduledThreadPoolExecutor.html) instance
-for scheduling delayed or periodic tasks.
+[j.u.c.ScheduledThreadPoolExecutor](http://docs.oracle.com/javase/7/docs/api/java/util/concurrent/ScheduledThreadPoolExecutor.html)
+instance for scheduling delayed or periodic tasks.
 
 You can construct your own instances like so:
 
@@ -122,7 +123,7 @@ val s = ConcurrentScheduler(
 
 ### Usage 
 
-#### The Basics
+#### Immediate execution
 
 To schedule a unit of work for immediate execution:
 
@@ -142,6 +143,8 @@ As you can see, the returned token is a
 [Cancelable](../monifu-core/src/shared/scala/monifu/concurrent/Cancelable.scala)
 that can be used to cancel the pending execution.
 
+#### Delayed execution
+
 You can also schedule units of computation with a delay, specified as
 a `concurrent.duration.FiniteDuration`:
 
@@ -160,6 +163,8 @@ The above schedules a computation to run after 1 second since now. The
 returned token is also a
 [Cancelable](../monifu-core/src/shared/scala/monifu/concurrent/Cancelable.scala)
 that can be used to cancel the pending execution.
+
+#### Periodic execution
 
 We can also schedule things to run periodically:
 
@@ -181,7 +186,7 @@ implementation tries its best to schedule the first execution at
 `initialDelay` and then at `initialDelay + period` and then at
 `initialDelay + 2 * period` and so on.
 
-#### Scheduling tasks that re-schedule themselves
+#### Recursive re-scheduling - tasks that re-schedule themselves
 
 The `Scheduler` also provides a pair of methods that is more general.
 First is the `scheduleRecursive()`, my favorite:
