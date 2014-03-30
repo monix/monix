@@ -5,8 +5,8 @@ import org.scalatest.FunSuite
 class CompositeCancelableTest extends FunSuite {
   test("cancel") {
     val s = CompositeCancelable()
-    val b1 = BooleanCancelable.empty
-    val b2 = BooleanCancelable.empty
+    val b1 = BooleanCancelable()
+    val b2 = BooleanCancelable()
     s += b1
     s += b2
     s.cancel()
@@ -18,11 +18,11 @@ class CompositeCancelableTest extends FunSuite {
 
   test("cancel on assignment after being canceled") {
     val s = CompositeCancelable()
-    val b1 = BooleanCancelable.empty
+    val b1 = BooleanCancelable()
     s += b1
     s.cancel()
 
-    val b2 = BooleanCancelable.empty
+    val b2 = BooleanCancelable()
     s += b2
 
     assert(s.isCanceled === true)

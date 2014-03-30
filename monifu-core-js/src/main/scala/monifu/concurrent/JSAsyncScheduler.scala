@@ -15,13 +15,13 @@ object JSAsyncScheduler extends Scheduler {
     sub
   }
 
-  def scheduleOnce(delayTime: FiniteDuration, action: => Unit): Cancelable = {
+  def scheduleOnce(initialDelay: FiniteDuration, action: => Unit): Cancelable = {
     val isCancelled = Atomic(false)
     val sub = CompositeCancelable(BooleanCancelable {
       isCancelled := true
     })
 
-    val task = setTimeout(delayTime.toMillis, {
+    val task = setTimeout(initialDelay.toMillis, {
       if (!isCancelled.get) action
     })
 
@@ -29,7 +29,7 @@ object JSAsyncScheduler extends Scheduler {
     sub
   }
 
-  def scheduleOnce(action: Scheduler => Cancelable): Cancelable = {
+  def schedule(action: Scheduler => Cancelable): Cancelable = {
     val thisScheduler = this
     val isCancelled = Atomic(false)
 
@@ -42,12 +42,12 @@ object JSAsyncScheduler extends Scheduler {
     sub
   }
 
-  def scheduleOnce(delayTime: FiniteDuration, action: Scheduler => Cancelable): Cancelable = {
+  def schedule(initialDelay: FiniteDuration, action: Scheduler => Cancelable): Cancelable = {
     val thisScheduler = this
     val isCancelled = Atomic(false)
 
     val sub = CompositeCancelable(BooleanCancelable(isCancelled := true))
-    val task = setTimeout(delayTime.toMillis, {
+    val task = setTimeout(initialDelay.toMillis, {
       if (!isCancelled.get)
         sub += action(thisScheduler)
     })

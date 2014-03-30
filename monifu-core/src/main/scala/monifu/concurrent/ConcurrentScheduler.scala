@@ -20,7 +20,7 @@ final class ConcurrentScheduler private (s: ScheduledExecutorService, ec: Execut
     sub
   }
 
-  def scheduleOnce(delayTime: FiniteDuration, action: => Unit): Cancelable = {
+  def scheduleOnce(initialDelay: FiniteDuration, action: => Unit): Cancelable = {
     val isCancelled = Atomic(false)
     val sub = CompositeCancelable(BooleanCancelable {
       isCancelled := true
@@ -34,7 +34,7 @@ final class ConcurrentScheduler private (s: ScheduledExecutorService, ec: Execut
         })
     }
 
-    val task = s.schedule(runnable, delayTime.toMillis, TimeUnit.MILLISECONDS)
+    val task = s.schedule(runnable, initialDelay.toMillis, TimeUnit.MILLISECONDS)
     sub += BooleanCancelable {
       task.cancel(true)
     }
@@ -42,7 +42,7 @@ final class ConcurrentScheduler private (s: ScheduledExecutorService, ec: Execut
     sub
   }
 
-  def scheduleOnce(action: Scheduler => Cancelable): Cancelable = {
+  def schedule(action: Scheduler => Cancelable): Cancelable = {
     val thisScheduler = this
     val isCancelled = Atomic(false)
 
@@ -59,7 +59,7 @@ final class ConcurrentScheduler private (s: ScheduledExecutorService, ec: Execut
     sub
   }
 
-  def scheduleOnce(delayTime: FiniteDuration, action: Scheduler => Cancelable): Cancelable = {
+  def schedule(initialDelay: FiniteDuration, action: Scheduler => Cancelable): Cancelable = {
     val thisScheduler = this
     val isCancelled = Atomic(false)
 
@@ -76,7 +76,7 @@ final class ConcurrentScheduler private (s: ScheduledExecutorService, ec: Execut
         })
     }
 
-    val task = s.schedule(runnable, delayTime.toMillis, TimeUnit.MILLISECONDS)
+    val task = s.schedule(runnable, initialDelay.toMillis, TimeUnit.MILLISECONDS)
 
     sub += BooleanCancelable {
       task.cancel(true)

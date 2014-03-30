@@ -21,7 +21,7 @@ object BooleanCancelable {
         }
     }
 
-  def empty =
+  def apply() =
     new BooleanCancelable {
       @volatile
       private[this] var b = false
