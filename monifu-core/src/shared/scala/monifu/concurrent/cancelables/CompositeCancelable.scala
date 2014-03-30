@@ -5,6 +5,34 @@ import monifu.concurrent.Cancelable
 import scala.annotation.tailrec
 
 
+/**
+ * Represents a composite of multiple cancelables. In case it is canceled, all
+ * contained cancelables will be canceled too, e.g...
+ * {{{
+ *   val s = CompositeCancelable()
+ *
+ *   s += c1
+ *   s += c2
+ *   s += c3
+ *
+ *   // c1, c2, c3 will also be canceled
+ *   s.cancel()
+ * }}}
+ *
+ * Additionally, once canceled, on appending of new cancelable references, those
+ * references will automatically get canceled too:
+ * {{{
+ *   val s = CompositeCancelable()
+ *   s.cancel()
+ *
+ *   // c1 gets canceled, because s is already canceled
+ *   s += c1
+ *   // c2 gets canceled, because s is already canceled
+ *   s += c2
+ * }}}
+ *
+ * Adding and removing references from this composite is thread-safe.
+ */
 final class CompositeCancelable private () extends BooleanCancelable {
   def isCanceled =
     state.get.isCanceled
@@ -16,6 +44,9 @@ final class CompositeCancelable private () extends BooleanCancelable {
         s.cancel()
   }
 
+  /**
+   * Adds a cancelable reference to this composite.
+   */
   @tailrec
   def add(s: Cancelable): Unit = {
     val oldState = state.get
@@ -28,9 +59,16 @@ final class CompositeCancelable private () extends BooleanCancelable {
     }
   }
 
+  /**
+   * Adds a cancelable reference to this composite.
+   * This is an alias for `add()`.
+   */
   def +=(other: Cancelable): Unit =
     add(other)
 
+  /**
+   * Removes a cancelable reference from this composite.
+   */
   @tailrec
   def remove(s: Cancelable): Unit = {
     val oldState = state.get
@@ -41,6 +79,10 @@ final class CompositeCancelable private () extends BooleanCancelable {
     }
   }
 
+  /**
+   * Removes a cancelable reference from this composite.
+   * This is an alias for `remove()`.
+   */
   def -=(s: Cancelable) = remove(s)
 
   private[this] val state: AtomicAny[State] =

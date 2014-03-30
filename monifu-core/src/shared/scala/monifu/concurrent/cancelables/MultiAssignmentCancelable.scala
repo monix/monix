@@ -5,6 +5,20 @@ import scala.annotation.tailrec
 import monifu.concurrent.Cancelable
 
 
+/**
+ * Represents a [[monifu.concurrent.Cancelable]] whose underlying cancelable reference can be swapped for another.
+ *
+ * Example:
+ * {{{
+ *   val s = MultiAssignmentCancelable()
+ *   s() = c1 // sets the underlying cancelable to c1
+ *   s() = c2 // swaps the underlying cancelable to c2
+ *
+ *   s.cancel() // also cancels c2
+ *
+ *   s() = c3 // also cancels c3, because s is already canceled
+ * }}}
+ */
 final class MultiAssignmentCancelable private () extends BooleanCancelable {
   private[this] case class State(subscription: Cancelable, isCanceled: Boolean)
   private[this] val state: AtomicAny[State] =
@@ -21,6 +35,12 @@ final class MultiAssignmentCancelable private () extends BooleanCancelable {
       oldState.subscription.cancel()
   }
 
+  /**
+   * Swaps the underlying cancelable reference with `s`.
+   *
+   * In case this `MultiAssignmentCancelable` is already canceled,
+   * then the reference `s` will also be canceled on assignment.
+   */
   @tailrec
   def update(s: Cancelable): Unit = {
     val oldState = state.get

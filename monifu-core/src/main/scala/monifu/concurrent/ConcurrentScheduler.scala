@@ -85,17 +85,9 @@ final class ConcurrentScheduler private (s: ScheduledExecutorService, ec: Execut
     sub
   }
 
-  /**
-   * Runs a block of code in this ExecutionContext.
-   * Inherited from ExecutionContext.
-   */
   def execute(runnable: Runnable): Unit =
     ec.execute(runnable)
 
-  /**
-   * Reports that an asynchronous computation failed.
-   * Inherited from ExecutionContext.
-   */
   def reportFailure(t: Throwable): Unit =
     ec.reportFailure(t)
 }

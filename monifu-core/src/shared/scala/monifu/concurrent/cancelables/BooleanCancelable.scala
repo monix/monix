@@ -3,7 +3,14 @@ package monifu.concurrent.cancelables
 import monifu.concurrent.atomic.Atomic
 import monifu.concurrent.Cancelable
 
+/**
+ * Represents a cancelable that can be inquired if it is canceled
+ * or not.
+ */
 trait BooleanCancelable extends Cancelable {
+  /**
+   * @return true in case this cancelable hasn't been canceled.
+   */
   def isCanceled: Boolean
 }
 
