@@ -5,6 +5,18 @@ import scala.annotation.tailrec
 import monifu.concurrent.Cancelable
 
 
+/**
+ * Represents a [[monifu.concurrent.Cancelable]] that can be assigned only once to another
+ * cancelable reference.
+ *
+ * Similar to [[monifu.concurrent.cancelables.MultiAssignmentCancelable]], except that
+ * in case of multi-assignment, it throws a [[java.lang.IllegalStateException]].
+ *
+ * If the assignment happens after this cancelable has been canceled, then on
+ * assignment the reference will get canceled too.
+ *
+ * Useful in case you need a forward reference.
+ */
 final class SingleAssignmentCancelable private () extends BooleanCancelable {
   import State._
 
@@ -15,6 +27,15 @@ final class SingleAssignmentCancelable private () extends BooleanCancelable {
       false
   }
 
+  /**
+   * Sets the underlying cancelable reference with `s`.
+   *
+   * In case this `SingleAssignmentCancelable` is already canceled,
+   * then the reference `s` will also be canceled on assignment.
+   *
+   * @throws IllegalStateException in case this cancelable has already been assigned
+   */
+  @throws(classOf[IllegalStateException])
   @tailrec
   def update(s: Cancelable): Unit = state.get match {
     case Empty =>

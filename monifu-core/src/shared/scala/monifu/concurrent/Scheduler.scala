@@ -5,6 +5,10 @@ import scala.concurrent.duration._
 import monifu.concurrent.cancelables.MultiAssignmentCancelable
 import scala.annotation.implicitNotFound
 
+/**
+ * A Scheduler is an [[scala.concurrent.ExecutionContext]] that additionally can schedule
+ * the execution of units of work to run with a delay or periodically.
+ */
 @implicitNotFound("Cannot find an implicit Scheduler, either import monifu.concurrent.Scheduler.Implicits.global or use a custom one")
 trait Scheduler extends ExecutionContext {
   def schedule(action: Scheduler => Cancelable): Cancelable
@@ -16,17 +20,17 @@ trait Scheduler extends ExecutionContext {
   def scheduleOnce(initialDelay: FiniteDuration, action: => Unit): Cancelable
 
   def schedulePeriodically(initialDelay: FiniteDuration, period: FiniteDuration, action: => Unit): Cancelable =
-    scheduleRec(initialDelay, period, { reschedule =>
+    scheduleRecursive(initialDelay, period, { reschedule =>
       action
       reschedule()
     })
 
-  def scheduleRec(initialDelay: FiniteDuration, period: FiniteDuration, action: (() => Unit) => Unit): Cancelable = {
+  def scheduleRecursive(initialDelay: FiniteDuration, period: FiniteDuration, action: (() => Unit) => Unit): Cancelable = {
     val sub = MultiAssignmentCancelable()
     val startedAtNanos = System.nanoTime()
     def reschedule() = {
       val timeTaken = (System.nanoTime() - startedAtNanos).nanos
-      sub() = scheduleRec(period - timeTaken + initialDelay, period, action)
+      sub() = scheduleRecursive(period - timeTaken + initialDelay, period, action)
     }
 
     sub() = scheduleOnce(initialDelay, { if (!sub.isCanceled) action(reschedule) })
