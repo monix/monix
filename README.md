@@ -18,8 +18,8 @@ API documentation:
 
 Release Notes:
 
-* [Version 0.4 - March 31, 2014](/docs/release-notes/0.3.md)
-* [Version 0.3 - March 27, 2014](/docs/release-notes/0.4.md)
+* [Version 0.4 - March 31, 2014](/docs/release-notes/0.4.md)
+* [Version 0.3 - March 27, 2014](/docs/release-notes/0.3.md)
 
 ## Usage
 
