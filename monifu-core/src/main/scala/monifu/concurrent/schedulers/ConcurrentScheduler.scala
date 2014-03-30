@@ -1,10 +1,11 @@
-package monifu.concurrent
+package monifu.concurrent.schedulers
 
 import java.util.concurrent.{ThreadFactory, Executors, TimeUnit, ScheduledExecutorService}
 import scala.concurrent.ExecutionContext
 import monifu.concurrent.atomic.Atomic
 import scala.concurrent.duration.FiniteDuration
 import monifu.concurrent.cancelables.{CompositeCancelable, BooleanCancelable}
+import monifu.concurrent.{Cancelable, Scheduler}
 
 
 final class ConcurrentScheduler private (s: ScheduledExecutorService, ec: ExecutionContext) extends Scheduler {
@@ -93,14 +94,15 @@ final class ConcurrentScheduler private (s: ScheduledExecutorService, ec: Execut
 }
 
 object ConcurrentScheduler {
-  private[this] lazy val defaultScheduledExecutor = Executors.newScheduledThreadPool(1, new ThreadFactory {
-    def newThread(r: Runnable): Thread = {
-      val th = new Thread(r)
-      th.setDaemon(true)
-      th.setName("monifu-scheduler")
-      th
-    }
-  })
+  private[this] lazy val defaultScheduledExecutor =
+    Executors.newSingleThreadScheduledExecutor(new ThreadFactory {
+      def newThread(r: Runnable): Thread = {
+        val th = new Thread(r)
+        th.setDaemon(true)
+        th.setName("monifu-scheduler")
+        th
+      }
+    })
 
   def apply(schedulerService: ScheduledExecutorService, ec: ExecutionContext): ConcurrentScheduler =
     new ConcurrentScheduler(schedulerService, ec)

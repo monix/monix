@@ -10,7 +10,7 @@ import monifu.concurrent.Cancelable
  * cancelable reference.
  *
  * Similar to [[monifu.concurrent.cancelables.MultiAssignmentCancelable]], except that
- * in case of multi-assignment, it throws a [[java.lang.IllegalStateException]].
+ * in case of multi-assignment, it throws a `java.lang.IllegalStateException`.
  *
  * If the assignment happens after this cancelable has been canceled, then on
  * assignment the reference will get canceled too.

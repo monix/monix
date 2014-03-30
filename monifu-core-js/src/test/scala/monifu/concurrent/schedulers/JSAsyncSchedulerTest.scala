@@ -1,4 +1,4 @@
-package monifu.concurrent
+package monifu.concurrent.schedulers
 
 import scala.scalajs.test.JasmineTest
 import scala.concurrent.Promise

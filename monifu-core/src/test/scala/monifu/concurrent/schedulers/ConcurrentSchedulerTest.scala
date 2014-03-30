@@ -1,4 +1,4 @@
-package monifu.concurrent
+package monifu.concurrent.schedulers
 
 import org.scalatest.FunSuite
 import scala.concurrent.{Await, Promise, ExecutionContext}

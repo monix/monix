@@ -1,4 +1,6 @@
-package monifu.concurrent
+package monifu.concurrent.schedulers
+
+import monifu.concurrent.Scheduler
 
 private[concurrent] trait SchedulerConstructor {
   object Implicits {
