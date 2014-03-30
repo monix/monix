@@ -64,3 +64,11 @@ which are pretty heavy and have nothing to do with Scala's Futures and
 again, this API can surely use improvement.
 
 
+## Monifu's Scheduler
+
+A
+[monifu.concurrent.Scheduler](../monifu-core/src/shared/scala/monifu/concurrent/Scheduler.scala)
+is a super-set of a
+[scala.concurrent.ExecutionContext](http://www.scala-lang.org/api/current/#scala.concurrent.ExecutionContext).
+
+On top of the JVM, ..........
