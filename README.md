@@ -11,6 +11,11 @@ Available docs:
 * [Atomic References](docs/atomic.md) 
 * [Schedulers](docs/schedulers.md) and [Cancelables](docs/cancelables.md)
 
+API documentation:
+
+* [monifu-core](http://www.monifu.org/monifu-core/current/api/)
+* [monifu-core-js](http://www.monifu.org/monifu-core-js/current/api/)
+
 Release Notes:
 
 * [Version 0.4 - March 31, 2014](/docs/release-notes/0.3.md)
