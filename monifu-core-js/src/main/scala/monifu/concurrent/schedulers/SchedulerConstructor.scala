@@ -4,10 +4,10 @@ import monifu.concurrent.Scheduler
 
 private[concurrent] trait SchedulerConstructor {
   object Implicits {
-    implicit lazy val async: Scheduler =
-      SchedulerConstructor.this.async
+    implicit lazy val computation: Scheduler =
+      SchedulerConstructor.this.computation
   }
 
-  def async: Scheduler =
+  def computation: Scheduler =
     JSAsyncScheduler
 }

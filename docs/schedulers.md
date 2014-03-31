@@ -416,7 +416,7 @@ and is based on Javascript's `global.setTimeout` for scheduling. It's
 a full-fledged `Scheduler` implementation and you can use it as such:
 
 ```scala
-val s = monifu.concurrent.Scheduler.async
+val s = monifu.concurrent.Scheduler.computation
 
 var counter = 0
 
