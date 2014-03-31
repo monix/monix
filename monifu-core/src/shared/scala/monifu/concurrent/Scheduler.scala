@@ -20,7 +20,7 @@ trait Scheduler extends ExecutionContext {
 
   def scheduleOnce(initialDelay: FiniteDuration, action: => Unit): Cancelable
 
-  def schedulePeriodically(initialDelay: FiniteDuration, delay: FiniteDuration, action: => Unit): Cancelable =
+  def scheduleRepeated(initialDelay: FiniteDuration, delay: FiniteDuration, action: => Unit): Cancelable =
     scheduleRecursive(initialDelay, delay, { reschedule =>
       action
       reschedule()

@@ -257,7 +257,7 @@ object Observable {
     Observable { observer =>
       val counter = Atomic(0L)
 
-      val sub = s.schedulePeriodically(period, period, {
+      val sub = s.scheduleRepeated(period, period, {
         val nr = counter.getAndIncrement()
         observer.onNext(nr)
       })
