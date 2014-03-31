@@ -39,19 +39,25 @@ final class MultiAssignmentCancelable private () extends BooleanCancelable {
    * Swaps the underlying cancelable reference with `s`.
    *
    * In case this `MultiAssignmentCancelable` is already canceled,
-   * then the reference `s` will also be canceled on assignment.
+   * then the reference `value` will also be canceled on assignment.
    */
   @tailrec
-  def update(s: Cancelable): Unit = {
+  def update(value: Cancelable): Unit = {
     val oldState = state.get
     if (oldState.isCanceled)
-      s.cancel()
+      value.cancel()
     else {
-      val newState = oldState.copy(subscription = s)
+      val newState = oldState.copy(subscription = value)
       if (!state.compareAndSet(oldState, newState))
-        update(s)
+        update(value)
     }
   }
+
+  /**
+   * Alias for `update(value)`
+   */
+  def `:=`(value: Cancelable): Unit =
+    update(value)
 }
 
 object MultiAssignmentCancelable {

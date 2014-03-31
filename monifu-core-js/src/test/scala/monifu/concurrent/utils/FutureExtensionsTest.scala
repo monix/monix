@@ -6,7 +6,7 @@ import concurrent.duration._
 
 object FutureExtensionsTest extends JasmineTest {
   import monifu.concurrent._
-  import Scheduler.Implicits.async
+  import Scheduler.Implicits.computation
 
   describe("FutureExtensions") {
     beforeEach {
