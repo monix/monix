@@ -4,7 +4,7 @@ import monifu.concurrent.Scheduler
 
 private[concurrent] trait SchedulerConstructor {
   object Implicits {
-    implicit lazy val computation: Scheduler =
+    implicit def computation: Scheduler =
       SchedulerConstructor.this.computation
   }
 
