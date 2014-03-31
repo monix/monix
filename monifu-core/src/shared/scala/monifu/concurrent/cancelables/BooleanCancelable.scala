@@ -28,12 +28,18 @@ object BooleanCancelable {
         }
     }
 
-  def apply() =
+  def apply(): BooleanCancelable =
     new BooleanCancelable {
       @volatile
       private[this] var b = false
       def cancel() = b = true
       def isCanceled = b
+    }
+
+  val alreadyCanceled: BooleanCancelable =
+    new BooleanCancelable {
+      def cancel(): Unit = ()
+      val isCanceled = true
     }
 }
 

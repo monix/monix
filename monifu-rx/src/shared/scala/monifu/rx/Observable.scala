@@ -12,39 +12,47 @@ import scala.util.control.NonFatal
 
 
 trait Observable[+A]  {
-  def subscribe(observer: Observer[A]): Cancelable
+  import monifu.rx.Observable.defaultConstructor
 
-  def subscribe(f: A => Unit): Cancelable =
+  protected def fn(observer: Observer[A]): Cancelable
+
+  protected def Observable[B](subscribe: Observer[B] => Cancelable): Observable[B] =
+    defaultConstructor(subscribe)
+
+  def subscribe(observer: Observer[A]): Cancelable =
+    fn(observer)
+
+  final def subscribe(f: A => Unit): Cancelable =
     subscribe(new Observer[A] {
       def onNext(elem: A): Unit = f(elem)
       def onError(ex: Throwable): Unit = throw ex
       def onCompleted(): Unit = ()
     })
 
-  def subscribe(next: A => Unit, error: Throwable => Unit, completed: () => Unit): Cancelable =
+  final def subscribe(next: A => Unit, error: Throwable => Unit, completed: () => Unit): Cancelable =
     subscribe(new Observer[A] {
       def onNext(elem: A): Unit = next(elem)
       def onCompleted(): Unit = completed()
       def onError(ex: Throwable): Unit = error(ex)
     })
 
-  def map[B](f: A => B): Observable[B] =
-    Observable(observer => subscribe(new Observer[A] {
+  final def map[B](f: A => B): Observable[B] =
+    Observable(observer => fn(new Observer[A] {
       def onNext(elem: A): Unit = observer.onNext(f(elem))
       def onCompleted(): Unit = observer.onCompleted()
       def onError(ex: Throwable): Unit = observer.onError(ex)
     }))
 
-  def flatMap[B](f: A => Observable[B]): Observable[B] =
+  final def flatMap[B](f: A => Observable[B]): Observable[B] =
     Observable(observer => {
       val composite = CompositeCancelable()
 
-      composite += subscribe(new Observer[A] {
+      composite += fn(new Observer[A] {
         def onNext(elem: A) = {
           val s = SingleAssignmentCancelable()
           composite += s
 
-          s() = f(elem).subscribe(new Observer[B] {
+          s() = f(elem).fn(new Observer[B] {
             def onNext(elem: B): Unit =
               observer.onNext(elem)
 
@@ -72,27 +80,27 @@ trait Observable[+A]  {
       composite
     })
 
-  def filter(p: A => Boolean): Observable[A] =
-    Observable(observer => subscribe(new Observer[A] {
+  final def filter(p: A => Boolean): Observable[A] =
+    Observable(observer => fn(new Observer[A] {
       def onNext(elem: A) = if (p(elem)) observer.onNext(elem)
       def onError(ex: Throwable) = observer.onError(ex)
       def onCompleted() = observer.onCompleted()
     }))
 
-  def subscribeOn(s: Scheduler): Observable[A] =
-    Observable(o => s.schedule(_ => subscribe(o)))
+  final def subscribeOn(s: Scheduler): Observable[A] =
+    Observable(o => s.schedule(_ => fn(o)))
 
-  def observeOn(s: Scheduler): Observable[A] =
-    Observable(observer => subscribe(new Observer[A] {
+  final def observeOn(s: Scheduler): Observable[A] =
+    Observable(observer => fn(new Observer[A] {
       def onNext(elem: A) = s.scheduleOnce(observer.onNext(elem))
       def onError(ex: Throwable) = s.scheduleOnce(observer.onError(ex))
       def onCompleted() = s.scheduleOnce(observer.onCompleted())
     }))
 
-  def take(nr: Int): Observable[A] = {
+  final def take(nr: Int): Observable[A] = {
     require(nr > 0, "number of elements to take should be strictly positive")
 
-    Observable(observer => subscribe(new Observer[A] {
+    Observable(observer => fn(new Observer[A] {
       val count = Atomic(0)
 
       @tailrec
@@ -120,8 +128,8 @@ trait Observable[+A]  {
     )
   }
 
-  def takeWhile(p: A => Boolean): Observable[A] =
-    Observable(observer => subscribe(new Observer[A] {
+  final def takeWhile(p: A => Boolean): Observable[A] =
+    Observable(observer => fn(new Observer[A] {
       val shouldContinue = Atomic(true)
 
       def onNext(elem: A): Unit =
@@ -140,7 +148,7 @@ trait Observable[+A]  {
         observer.onError(ex)
     }))
 
-  def foldState[R](initialState: R)(f: (R, A) => FoldState[R]): Observable[R] = {
+  final def foldState[R](initialState: R)(f: (R, A) => FoldState[R]): Observable[R] = {
     @tailrec def loop(state: Atomic[R], next: A): FoldState[R] = {
       val current = state.get
       val result = f(current, next)
@@ -153,7 +161,7 @@ trait Observable[+A]  {
     Observable { observer =>
       val state = Atomic(initialState)
 
-      subscribe(new Observer[A] {
+      fn(new Observer[A] {
         def onError(ex: Throwable) =
           observer.onError(ex)
         def onCompleted() =
@@ -167,11 +175,11 @@ trait Observable[+A]  {
     }
   }
 
-  def foldLeft[R](initial: R)(f: (R, A) => R): Observable[R] =
+  final def foldLeft[R](initial: R)(f: (R, A) => R): Observable[R] =
     Observable { observer =>
       val state = Atomic(initial)
 
-      subscribe(new Observer[A] {
+      fn(new Observer[A] {
         def onNext(elem: A): Unit =
           state.transformAndGet(s => f(s, elem))
 
@@ -185,7 +193,7 @@ trait Observable[+A]  {
       })
     }
 
-  def buffer(count: Int, skip: Int = 0): Observable[Queue[A]] = {
+  final def buffer(count: Int, skip: Int = 0): Observable[Queue[A]] = {
     require(count > 0, "count should be strictly positive")
     require(skip >= 0, "skip should be positive")
 
@@ -206,11 +214,11 @@ trait Observable[+A]  {
     folded.map(_._1)
   }
 
-  def asFuture(implicit ec: ExecutionContext): Future[Option[A]] = {
+  final def asFuture(implicit ec: ExecutionContext): Future[Option[A]] = {
     val promise = Promise[Option[A]]()
     val f = promise.future
 
-    val sub = subscribe(new Observer[A] {
+    val sub = fn(new Observer[A] {
       @volatile var lastValue = Option.empty[A]
 
       def onNext(elem: A): Unit = {
@@ -229,14 +237,20 @@ trait Observable[+A]  {
     f.onComplete { case _ => sub.cancel() }
     f
   }
+
+  final def safe: SafeObservable[A] =
+    SafeObservable(observer => fn(observer))
 }
 
 object Observable {
-  def apply[A](f: Observer[A] => Cancelable): Observable[A] =
+  private def defaultConstructor[A](f: Observer[A] => Cancelable): Observable[A] =
     new Observable[A] {
-      def subscribe(observer: Observer[A]) =
+      def fn(observer: Observer[A]) =
         f(observer)
     }
+
+  def apply[A](f: Observer[A] => Cancelable): Observable[A] =
+    defaultConstructor(f)
 
   def unit[A](elem: A): Observable[A] =
     Observable[A] { observer => Cancelable {

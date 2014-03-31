@@ -64,7 +64,7 @@ final class NaiveReadWriteLock private[locks] () extends ReadWriteLock {
         cb
       case IDLE =>
         readLockAcquire()
-        try (cb) finally {
+        try cb finally {
           readLockRelease()
         }
     }
@@ -91,7 +91,7 @@ final class NaiveReadWriteLock private[locks] () extends ReadWriteLock {
           }
 
         writeLockAcquire()
-        try (cb) finally {        
+        try cb finally {
           if (fallbackToRead) 
             downgradeWriteToReadLock()
           else 
@@ -157,12 +157,12 @@ final class NaiveReadWriteLock private[locks] () extends ReadWriteLock {
   private[this] def downgradeWriteToReadLock() {
     localState.set(READ)
     activeReads.increment()
-    writePendingOrActive.set(false)
+    writePendingOrActive.set(update = false)
   }
 
   private[this] def writeLockRelease(): Unit = {
     localState.set(IDLE)
-    writePendingOrActive.set(false)
+    writePendingOrActive.set(update = false)
   }
 }
 
