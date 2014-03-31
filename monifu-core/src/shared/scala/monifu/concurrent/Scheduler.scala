@@ -20,19 +20,16 @@ trait Scheduler extends ExecutionContext {
 
   def scheduleOnce(initialDelay: FiniteDuration, action: => Unit): Cancelable
 
-  def schedulePeriodically(initialDelay: FiniteDuration, period: FiniteDuration, action: => Unit): Cancelable =
-    scheduleRecursive(initialDelay, period, { reschedule =>
+  def schedulePeriodically(initialDelay: FiniteDuration, delay: FiniteDuration, action: => Unit): Cancelable =
+    scheduleRecursive(initialDelay, delay, { reschedule =>
       action
       reschedule()
     })
 
-  def scheduleRecursive(initialDelay: FiniteDuration, period: FiniteDuration, action: (() => Unit) => Unit): Cancelable = {
+  def scheduleRecursive(initialDelay: FiniteDuration, delay: FiniteDuration, action: (() => Unit) => Unit): Cancelable = {
     val sub = MultiAssignmentCancelable()
-    val startedAtNanos = System.nanoTime()
-    def reschedule() = {
-      val timeTaken = (System.nanoTime() - startedAtNanos).nanos
-      sub() = scheduleRecursive(period - timeTaken + initialDelay, period, action)
-    }
+    def reschedule() =
+      sub() = scheduleRecursive(delay, delay, action)
 
     sub() = scheduleOnce(initialDelay, { if (!sub.isCanceled) action(reschedule) })
     sub

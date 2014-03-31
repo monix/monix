@@ -5,7 +5,6 @@ import concurrent.duration._
 import monifu.concurrent.Scheduler.Implicits.computation
 
 object ObservableTest extends JasmineTest {
-
   describe("Observable") {
     beforeEach {
       jasmine.Clock.useMock()
@@ -17,13 +16,13 @@ object ObservableTest extends JasmineTest {
         .foldLeft(0L)(_ + _)
         .asFuture
 
-      for (i <- 0 until 8) {
+      for (i <- 0 until 10) {
         jasmine.Clock.tick(10)
         val value = f.value.flatMap(_.toOption.flatten).getOrElse(0L)
         expect(value).toBe(0L)
       }
 
-      jasmine.Clock.tick(10000)
+      jasmine.Clock.tick(10)
       val value = f.value.flatMap(_.toOption.flatten).getOrElse(0L)
       expect(value).toBe(9 * 5)
     }
