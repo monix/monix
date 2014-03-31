@@ -83,6 +83,7 @@ object Build extends SbtBuild {
     base = file("monifu-core-js"),
     settings = sharedSettings ++ scalaJSSettings ++ Seq(
       unmanagedSourceDirectories in Compile <+= sourceDirectory(_ / ".." / ".." / "monifu-core" / "src" / "shared" / "scala/"),
+      libraryDependencies <+= (scalaVersion)("org.scala-lang" % "scala-reflect" % _),
       libraryDependencies ++= Seq(
         "org.scala-lang.modules.scalajs" %% "scalajs-jasmine-test-framework" % scalaJSVersion % "test"
       )

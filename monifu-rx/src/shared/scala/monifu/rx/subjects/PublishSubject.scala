@@ -33,19 +33,25 @@ final class PublishSubject[T] private () extends Observable[T] with Observer[T] 
   }
 
   def onError(ex: Throwable): Unit = lock.writeLock {
-    if (!isDone) {
-      isDone = true
-      observers.foreach(_.onError(ex))
-      composite.cancel()
-    }
+    if (!isDone)
+      try {
+        observers.foreach(_.onError(ex))
+      }
+      finally {
+        isDone = true
+        composite.cancel()
+      }
   }
 
   def onCompleted(): Unit = lock.writeLock {
-    if (!isDone) {
-      isDone = true
-      observers.foreach(_.onCompleted())
-      composite.cancel()
-    }
+    if (!isDone)
+      try {
+        observers.foreach(_.onCompleted())
+      }
+      finally {
+        isDone = true
+        composite.cancel()
+      }
   }
 }
 

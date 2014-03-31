@@ -6,8 +6,6 @@ import monifu.concurrent.locks.Lock
 import monifu.concurrent.cancelables.BooleanCancelable
 import collection.immutable.Set
 import scala.util.{Failure, Success, Try}
-import scala.util.control.NonFatal
-
 
 final class BehaviorSubject[T] private () extends Observable[T] with Observer[T] {
   private[this] val lock = Lock()
@@ -36,60 +34,37 @@ final class BehaviorSubject[T] private () extends Observable[T] with Observer[T]
   def onNext(elem: T): Unit =
     lock.acquire {
       if (!isDone) {
-        var err: Throwable = null
         lastValue = Some(Success(elem))
         for (obs <- observers)
-          try {
-            obs.onNext(elem)
-          }
-          catch {
-            case NonFatal(e) => err = e
-          }
-
-        // in case an error happened, throw the first one
-        if (err != null) throw err
+          obs.onNext(elem)
       }
     }
 
   def onError(ex: Throwable): Unit =
     lock.acquire {
-      if (!isDone) {
-        var err: Throwable = null
-        isDone = true
-        lastValue = Some(Failure(ex))
-
-        for (obs <- observers)
-          try {
+      if (!isDone)
+        try {
+          for (obs <- observers)
             obs.onError(ex)
-          }
-          catch {
-            case NonFatal(e) => err = e
-          }
-
-        observers = Set.empty
-        // in case errors happened, throw the first one
-        if (err != null) throw err
-      }
+        }
+        finally {
+          isDone = true
+          lastValue = Some(Failure(ex))
+          observers = Set.empty
+        }
     }
 
   def onCompleted(): Unit =
     lock.acquire {
-      if (!isDone) {
-        var err: Throwable = null
-        isDone = true
-
-        for (obs <- observers)
-          try {
+      if (!isDone)
+        try {
+          for (obs <- observers)
             obs.onCompleted()
-          }
-          catch {
-            case NonFatal(e) => err = e
-          }
-
-        observers = Set.empty
-        // in case errors happened, throw the first one
-        if (err != null) throw err
-      }
+        }
+        finally {
+          isDone = true
+          observers = Set.empty
+        }
     }
 }
 
