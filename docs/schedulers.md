@@ -164,7 +164,7 @@ returned token is also a
 [Cancelable](../monifu-core/src/shared/scala/monifu/concurrent/Cancelable.scala)
 that can be used to cancel the pending execution.
 
-#### Periodic execution
+#### Repeated execution
 
 We can also schedule things to run periodically:
 
