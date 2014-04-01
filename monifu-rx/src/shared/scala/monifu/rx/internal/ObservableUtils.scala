@@ -9,20 +9,21 @@ import concurrent.duration._
 
 
 trait ObservableUtils extends Any { this: Observable.type =>
-  def unit[A](elem: A): Observable[A] =
-    Observable { observer => Cancelable {
-      observer.onNext(elem)
-      observer.onCompleted()
-    }}
+  def unitAsync[A](elem: A)(implicit s: Scheduler): Observable[A] =
+    Observable { observer =>
+      s.scheduleOnce {
+        observer.onNext(elem)
+        observer.onCompleted()
+      }
+    }
+
+  def errorAsync(ex: Throwable)(implicit s: Scheduler): Observable[Nothing] =
+    Observable { observer =>
+      s.scheduleOnce(observer.onError(ex))
+    }
 
   def never: Observable[Nothing] =
     Observable { observer => Cancelable.empty }
-
-  def error(ex: Throwable): Observable[Nothing] =
-    Observable { observer =>
-      observer.onError(ex)
-      Cancelable.empty
-    }
 
   def interval(period: FiniteDuration)(implicit s: Scheduler): Observable[Long] =
     Observable { observer =>

@@ -311,7 +311,7 @@ def withTimeout[T](f: Future[T], atMost: FiniteDuration)(implicit s: Scheduler):
 
 This is such a useful combinator that it's provided as an extension
 method for futures in Monifu's
-[FutureExtensions](../monifu-core/src/shared/scala/monifu/concurrent/package.scala)
+[FutureExtensions](../monifu-core/src/shared/scala/monifu/concurrent/extensions.scala)
 and so you can use it directly without wheel reinvention:
 
 ```scala
@@ -324,7 +324,7 @@ val futureWithTimeout = myFuture.withTimeout(1.second)
 
 Actually, since we are on the subject, you also have `delayedResult`
 as an extension of the `Future` companion object, also available in
-[FutureCompanionExtensions](../monifu-core/src/shared/scala/monifu/concurrent/package.scala),
+[FutureCompanionExtensions](../monifu-core/src/shared/scala/monifu/concurrent/extensions.scala),
 who's implementation is something like:
 
 ```scala
@@ -390,7 +390,7 @@ def withKeepAlive[T](keepAlive: T, period: FiniteDuration)(cb: => Future[T])(imp
 Testing it is straightforward:
 
 ```scala
-import monifu.concurrent._
+import monifu.concurrent.extensions._
 
 def runTest(implicit s: Scheduler) = {
   val enum = futureWithKeepAlive(300.millis, ".") {
