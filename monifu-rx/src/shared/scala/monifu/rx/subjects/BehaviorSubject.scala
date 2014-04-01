@@ -3,7 +3,6 @@ package monifu.rx.subjects
 import monifu.rx.{Observable, Observer}
 import monifu.concurrent.Cancelable
 import monifu.concurrent.locks.Lock
-import monifu.concurrent.cancelables.BooleanCancelable
 import collection.immutable.Set
 import scala.util.{Failure, Success, Try}
 
@@ -20,14 +19,14 @@ final class BehaviorSubject[T] private () extends Observable[T] with Observer[T]
           observer.onNext(v)
 
         observers = observers + observer
-        BooleanCancelable {
+        Cancelable {
           observers = observers - observer
         }
       }
       else {
         for (l <- lastValue; ex <- l.failed)
           observer.onError(ex)
-        BooleanCancelable.alreadyCanceled
+        Cancelable.empty
       }
     }
 

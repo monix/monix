@@ -7,45 +7,42 @@ import scala.collection.immutable.Queue
 import monifu.concurrent.cancelables._
 import scala.concurrent.{ExecutionContext, Promise, Future}
 import monifu.concurrent.{Scheduler, Cancelable}
-import concurrent.duration._
-import scala.util.control.NonFatal
+import monifu.rx.observers.{SynchronizedObserver, AutoDetachObserver, AnonymousObserver}
+import monifu.rx.internal.ObservableUtils
 
 
 trait Observable[+A]  {
-  import monifu.rx.Observable.defaultConstructor
-
   protected def fn(observer: Observer[A]): Cancelable
 
-  protected def Observable[B](subscribe: Observer[B] => Cancelable): Observable[B] =
-    defaultConstructor(subscribe)
+  final def subscribe(observer: Observer[A]): Cancelable = {
+    val sub = SingleAssignmentCancelable()
+    sub := fn(AutoDetachObserver(observer, sub))
+    sub
+  }
 
-  def subscribe(observer: Observer[A]): Cancelable =
-    fn(observer)
+  final def subscribe(nextFn: A => Unit): Cancelable =
+    subscribe(AnonymousObserver(nextFn))
 
-  final def subscribe(f: A => Unit): Cancelable =
-    subscribe(new Observer[A] {
-      def onNext(elem: A): Unit = f(elem)
-      def onError(ex: Throwable): Unit = throw ex
-      def onCompleted(): Unit = ()
-    })
+  final def subscribe(nextFn: A => Unit, errorFn: Throwable => Unit): Cancelable =
+    subscribe(AnonymousObserver(nextFn, errorFn))
 
-  final def subscribe(next: A => Unit, error: Throwable => Unit, completed: () => Unit): Cancelable =
-    subscribe(new Observer[A] {
-      def onNext(elem: A): Unit = next(elem)
-      def onCompleted(): Unit = completed()
-      def onError(ex: Throwable): Unit = error(ex)
-    })
+  final def subscribe(nextFn: A => Unit, errorFn: Throwable => Unit, completedFn: () => Unit): Cancelable =
+    subscribe(AnonymousObserver(nextFn, errorFn, completedFn))
 
   final def map[B](f: A => B): Observable[B] =
     Observable(observer => fn(new Observer[A] {
-      def onNext(elem: A): Unit = observer.onNext(f(elem))
-      def onCompleted(): Unit = observer.onCompleted()
-      def onError(ex: Throwable): Unit = observer.onError(ex)
+      def onNext(elem: A) = observer.onNext(f(elem))
+      def onError(ex: Throwable) = observer.onError(ex)
+      def onCompleted() = observer.onCompleted()
     }))
 
   final def flatMap[B](f: A => Observable[B]): Observable[B] =
     Observable(observer => {
       val composite = CompositeCancelable()
+
+      // TODO - think about resource release
+      //      - we should do reference counting here
+      //      - because observer.onComplete() is missing
 
       composite += fn(new Observer[A] {
         def onNext(elem: A) = {
@@ -124,8 +121,7 @@ trait Observable[+A]  {
 
       def onError(ex: Throwable): Unit =
         observer.onError(ex)
-    })
-    )
+    }))
   }
 
   final def takeWhile(p: A => Boolean): Observable[A] =
@@ -238,74 +234,14 @@ trait Observable[+A]  {
     f
   }
 
-  final def safe: SafeObservable[A] =
-    SafeObservable(observer => fn(observer))
+  final def synchronized: Observable[A] =
+    Observable(observer => fn(SynchronizedObserver(observer)))
 }
 
-object Observable {
-  private def defaultConstructor[A](f: Observer[A] => Cancelable): Observable[A] =
+object Observable extends ObservableUtils {
+  def apply[A](fn: Observer[A] => Cancelable): Observable[A] =
     new Observable[A] {
       def fn(observer: Observer[A]) =
-        f(observer)
-    }
-
-  def apply[A](f: Observer[A] => Cancelable): Observable[A] =
-    defaultConstructor(f)
-
-  def unit[A](elem: A): Observable[A] =
-    Observable[A] { observer => Cancelable {
-      observer.onNext(elem)
-      observer.onCompleted()
-    }}
-
-  def never: Observable[Nothing] =
-    Observable { observer => Cancelable {} }
-
-  def error(ex: Throwable): Observable[Nothing] =
-    Observable { observer =>
-      observer.onError(ex)
-      Cancelable.empty
-    }
-
-  def interval(period: FiniteDuration)(implicit s: Scheduler): Observable[Long] =
-    Observable { observer =>
-      val counter = Atomic(0L)
-
-      val sub = s.scheduleRepeated(period, period, {
-        val nr = counter.getAndIncrement()
-        observer.onNext(nr)
-      })
-
-      BooleanCancelable {
-        sub.cancel()
-      }
-    }
-
-  def fromIterable[T](iterable: Iterable[T])(implicit s: Scheduler): Observable[T] =
-    fromIterator(iterable.iterator)
-
-  def fromIterator[T](iterator: Iterator[T])(implicit s: Scheduler): Observable[T] =
-    Observable { observer =>
-      val sub = SingleAssignmentCancelable()
-
-      sub := s.scheduleRecursive(0.seconds, 0.seconds, { reschedule =>
-        try {
-          if (iterator.hasNext) {
-            observer.onNext(iterator.next())
-            reschedule()
-          }
-          else {
-            observer.onCompleted()
-            sub.cancel()
-          }
-        }
-        catch {
-          case NonFatal(ex) =>
-            sub.cancel()
-            observer.onError(ex)
-        }
-      })
-
-      sub
+        fn(observer)
     }
 }
