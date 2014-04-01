@@ -36,17 +36,19 @@ trait Observable[+A]  {
       def onCompleted() = observer.onCompleted()
     }))
 
+  // TODO: flatMap is broken
   final def flatMap[B](f: A => Observable[B]): Observable[B] =
     Observable(observer => {
+      val composite = CompositeCancelable()
       val refCounter = RefCountCancelable(observer.onCompleted())
-      val composite = CompositeCancelable(refCounter)
 
       composite += fn(new Observer[A] {
         def onNext(elem: A) = {
           val refID = refCounter.acquireCancelable()
-          composite += refID
+          val sub = SingleAssignmentCancelable()
+          composite += sub
 
-          composite += f(elem).subscribe(new Observer[B] {
+          sub := f(elem).fn(new Observer[B] {
             def onNext(elem: B) =
               observer.onNext(elem)
 
@@ -56,8 +58,9 @@ trait Observable[+A]  {
 
             def onCompleted() = {
               // do resource release
-              composite -= refID
+              composite -= sub
               refID.cancel()
+              sub.cancel()
             }
           })
         }
@@ -67,7 +70,7 @@ trait Observable[+A]  {
 
         def onCompleted() =
           // triggers observer.onCompleted() when all Observables created have been finished
-          try refCounter.cancel() finally composite.cancel()
+          refCounter.cancel()
       })
 
       composite
