@@ -23,7 +23,7 @@ class ObservableTest extends FunSuite {
     assert((endedAt - startAt).nanos >= 100.millis)
   }
 
-  test("detaches subscriptions") {
+  test("cancel subscriptions") {
     val atomic = Atomic(0)
     val obs = Observable.unitAsync(1).map(_ + 1).filter(_ % 2 == 0)
     val sub = obs.subscribe(x => atomic.set(x))
@@ -32,11 +32,12 @@ class ObservableTest extends FunSuite {
     assert(sub.asInstanceOf[BooleanCancelable].isCanceled === true)
   }
 
-  test("detaches subscriptions on generated interval") {
+  test("takeWhile triggers onComplete and cancels subscription") {
     val atomic = Atomic(0L)
     val obs = Observable.interval(10.millis)
       .takeWhile(_ < 10)
       .foldLeft(0L)(_ + _)
+      .filter(_ => true)
 
     val promise = Promise[Long]()
     val sub = obs.subscribe(x => atomic.set(x), err => promise.failure(err), () => {
