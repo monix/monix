@@ -212,9 +212,7 @@ trait Observable[+A]  {
 
   final def asFuture(implicit ec: ExecutionContext): Future[Option[A]] = {
     val promise = Promise[Option[A]]()
-    val f = promise.future
-
-    val sub = fn(new Observer[A] {
+    val sub = subscribe(new Observer[A] {
       @volatile var lastValue = Option.empty[A]
 
       def onNext(elem: A): Unit = {
@@ -230,8 +228,9 @@ trait Observable[+A]  {
       }
     })
 
-    f.onComplete { case _ => sub.cancel() }
-    f
+    val future = promise.future
+    future.onComplete { case _ => sub.cancel() }
+    future
   }
 
   final def synchronized: Observable[A] =
@@ -239,9 +238,9 @@ trait Observable[+A]  {
 }
 
 object Observable extends ObservableUtils {
-  def apply[A](fn: Observer[A] => Cancelable): Observable[A] =
+  def apply[A](f: Observer[A] => Cancelable): Observable[A] =
     new Observable[A] {
       def fn(observer: Observer[A]) =
-        fn(observer)
+        f(observer)
     }
 }

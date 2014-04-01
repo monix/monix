@@ -1,11 +1,11 @@
-package monifu
+package monifu.concurrent
 
 import scala.concurrent.{ExecutionContext, Promise, Future}
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
 import java.util.concurrent.TimeoutException
 
-package object concurrent {
+object extensions {
   /**
    * Provides utility methods added on Scala's `concurrent.Future`
    */

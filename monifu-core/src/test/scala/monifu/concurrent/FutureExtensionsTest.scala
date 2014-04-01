@@ -4,6 +4,7 @@ import org.scalatest.FunSuite
 import scala.concurrent.{Await, Future}
 import concurrent.duration._
 import java.util.concurrent.TimeoutException
+import monifu.concurrent.extensions._
 
 class FutureExtensionsTest extends FunSuite {
   import Scheduler.Implicits.computation
