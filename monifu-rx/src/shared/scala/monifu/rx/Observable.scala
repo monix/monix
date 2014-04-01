@@ -38,40 +38,36 @@ trait Observable[+A]  {
 
   final def flatMap[B](f: A => Observable[B]): Observable[B] =
     Observable(observer => {
-      val composite = CompositeCancelable()
-
-      // TODO - think about resource release
-      //      - we should do reference counting here
-      //      - because observer.onComplete() is missing
+      val refCounter = RefCountCancelable(observer.onCompleted())
+      val composite = CompositeCancelable(refCounter)
 
       composite += fn(new Observer[A] {
         def onNext(elem: A) = {
-          val s = SingleAssignmentCancelable()
-          composite += s
+          val refID = refCounter.acquireCancelable()
+          composite += refID
 
-          s() = f(elem).fn(new Observer[B] {
-            def onNext(elem: B): Unit =
+          composite += f(elem).subscribe(new Observer[B] {
+            def onNext(elem: B) =
               observer.onNext(elem)
 
-            def onCompleted(): Unit = {
-              composite -= s
-              s.cancel()
-            }
+            def onError(ex: Throwable) =
+              // onError, cancel everything
+              try observer.onError(ex) finally composite.cancel()
 
-            def onError(ex: Throwable): Unit =
-              try {
-                composite -= s
-                s.cancel()
-              } finally {
-                observer.onError(ex)
-              }
+            def onCompleted() = {
+              // do resource release
+              composite -= refID
+              refID.cancel()
+            }
           })
         }
 
         def onError(ex: Throwable) =
-          observer.onError(ex)
+          try observer.onError(ex) finally composite.cancel()
 
-        def onCompleted() = ()
+        def onCompleted() =
+          // triggers observer.onCompleted() when all Observables created have been finished
+          try refCounter.cancel() finally composite.cancel()
       })
 
       composite
