@@ -118,4 +118,11 @@ object Atomic {
    */
   def apply[T, R <: Atomic[T]](initialValue: T)(implicit builder: AtomicBuilder[T, R]): R =
     builder.buildInstance(initialValue)
+
+  /**
+   * Returns the builder that would be chosen to construct Atomic references
+   * for the given `initialValue`.
+   */
+  def builderFor[T, R <: Atomic[T]](initialValue: T)(implicit builder: AtomicBuilder[T, R]): AtomicBuilder[T, R] =
+    builder
 }
