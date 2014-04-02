@@ -2,8 +2,6 @@ package monifu.rx
 
 import monifu.concurrent.atomic.Atomic
 import scala.annotation.tailrec
-import monifu.rx.FoldState.{Cont, Emit}
-import scala.collection.immutable.Queue
 import monifu.concurrent.cancelables._
 import scala.concurrent.{ExecutionContext, Promise, Future}
 import monifu.concurrent.{Scheduler, Cancelable}
@@ -36,7 +34,6 @@ trait Observable[+A]  {
       def onCompleted() = observer.onCompleted()
     }))
 
-  // TODO: flatMap is broken
   final def flatMap[B](f: A => Observable[B]): Observable[B] =
     Observable(observer => {
       val composite = CompositeCancelable()
@@ -93,6 +90,8 @@ trait Observable[+A]  {
       def onCompleted() = s.scheduleOnce(observer.onCompleted())
     }))
 
+  final def head: Observable[A] = take(1)
+
   final def take(nr: Int): Observable[A] = {
     require(nr > 0, "number of elements to take should be strictly positive")
 
@@ -143,33 +142,6 @@ trait Observable[+A]  {
         observer.onError(ex)
     }))
 
-  final def foldState[R](initialState: R)(f: (R, A) => FoldState[R]): Observable[R] = {
-    @tailrec def loop(state: Atomic[R], next: A): FoldState[R] = {
-      val current = state.get
-      val result = f(current, next)
-      if (state.compareAndSet(expect=current, update=result.value))
-        result
-      else
-        loop(state, next)
-    }
-
-    Observable { observer =>
-      val state = Atomic(initialState)
-
-      fn(new Observer[A] {
-        def onError(ex: Throwable) =
-          observer.onError(ex)
-        def onCompleted() =
-          observer.onCompleted()
-        def onNext(nextElem: A) = loop(state, nextElem) match {
-          case Cont(_) => // do nothing
-          case Emit(result) =>
-            observer.onNext(result)
-        }
-      })
-    }
-  }
-
   final def foldLeft[R](initial: R)(f: (R, A) => R): Observable[R] =
     Observable { observer =>
       val state = Atomic(initial)
@@ -188,42 +160,28 @@ trait Observable[+A]  {
       })
     }
 
-  final def buffer(count: Int, skip: Int = 0): Observable[Queue[A]] = {
-    require(count > 0, "count should be strictly positive")
-    require(skip >= 0, "skip should be positive")
-
-    @tailrec def takeRight(q: Queue[A], nr: Int = 0): Queue[A] =
-      if (nr > 0) takeRight(q.tail, nr - 1) else q
-
-    val folded = foldState[(Queue[A], Int)]((Queue.empty, count)) { (acc, nextElem) =>
-      val (q, steps) = acc
-      val newQ = q.enqueue(nextElem)
-      val limitedQ = takeRight(newQ, newQ.length - count)
-
-      if (steps > 0)
-        Cont((limitedQ, steps - 1))
-      else
-        Emit((limitedQ, skip))
-    }
-
-    folded.map(_._1)
-  }
-
+  /**
+   * Returns the first generated result as a Future and then cancels
+   * the subscription.
+   */
   final def asFuture(implicit ec: ExecutionContext): Future[Option[A]] = {
     val promise = Promise[Option[A]]()
-    val sub = subscribe(new Observer[A] {
-      @volatile var lastValue = Option.empty[A]
+    val sub = SingleAssignmentCancelable()
 
+    sub := subscribe(new Observer[A] {
       def onNext(elem: A): Unit = {
-        lastValue = Some(elem)
+        promise.trySuccess(Some(elem))
+        sub.cancel()
       }
 
       def onCompleted(): Unit = {
-        promise.trySuccess(lastValue)
+        promise.trySuccess(None)
+        sub.cancel()
       }
 
       def onError(ex: Throwable): Unit = {
         promise.tryFailure(ex)
+        sub.cancel()
       }
     })
 
