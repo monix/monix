@@ -2,88 +2,62 @@ package monifu.concurrent.schedulers
 
 import java.util.concurrent.{ThreadFactory, Executors, TimeUnit, ScheduledExecutorService}
 import scala.concurrent.ExecutionContext
-import monifu.concurrent.atomic.Atomic
-import scala.concurrent.duration.FiniteDuration
-import monifu.concurrent.cancelables.{CompositeCancelable, BooleanCancelable}
+import scala.concurrent.duration._
+import monifu.concurrent.cancelables.{SingleAssignmentCancelable, BooleanCancelable}
 import monifu.concurrent.{Cancelable, Scheduler}
 
 
 final class ConcurrentScheduler private (s: ScheduledExecutorService, ec: ExecutionContext) extends Scheduler {
   def scheduleOnce(action: => Unit): Cancelable = {
-    val isCancelled = Atomic(false)
-    val sub = BooleanCancelable(isCancelled := true)
+    val sub = BooleanCancelable()
 
     ec.execute(new Runnable {
       def run(): Unit =
-        if (!isCancelled.get) action
+        if (!sub.isCanceled) action
     })
 
     sub
   }
 
-  def scheduleOnce(initialDelay: FiniteDuration, action: => Unit): Cancelable = {
-    val isCancelled = Atomic(false)
-    val sub = CompositeCancelable(BooleanCancelable {
-      isCancelled := true
-    })
+  def scheduleOnce(initialDelay: FiniteDuration, action: => Unit): Cancelable =
+    if (initialDelay <= Duration.Zero)
+      scheduleOnce(action)
+    else {
+      val sub = SingleAssignmentCancelable()
 
+      val runnable = new Runnable {
+        def run(): Unit =
+          ec.execute(new Runnable {
+            def run(): Unit =
+              if (!sub.isCanceled) action
+          })
+      }
+
+      val task =
+        if (initialDelay < oneHour)
+          s.schedule(runnable, initialDelay.toNanos, TimeUnit.NANOSECONDS)
+        else
+          s.schedule(runnable, initialDelay.toMillis, TimeUnit.MILLISECONDS)
+
+      sub := BooleanCancelable(task.cancel(true))
+      sub
+    }
+
+  /**
+   * Overwritten for performance reasons.
+   */
+  override def scheduleRepeated(initialDelay: FiniteDuration, delay: FiniteDuration, action: => Unit): Cancelable = {
+    @volatile var isCanceled = false
     val runnable = new Runnable {
       def run(): Unit =
         ec.execute(new Runnable {
           def run(): Unit =
-            if (!isCancelled.get) action
+            if (!isCanceled) action
         })
     }
 
-    val task = s.schedule(runnable, initialDelay.toMillis, TimeUnit.MILLISECONDS)
-    sub += BooleanCancelable {
-      task.cancel(true)
-    }
-
-    sub
-  }
-
-  def schedule(action: Scheduler => Cancelable): Cancelable = {
-    val thisScheduler = this
-    val isCancelled = Atomic(false)
-
-    val sub = CompositeCancelable {
-      BooleanCancelable(isCancelled := true)
-    }
-
-    ec.execute(new Runnable {
-      def run(): Unit =
-        if (!isCancelled.get)
-          sub += action(thisScheduler)
-    })
-
-    sub
-  }
-
-  def schedule(initialDelay: FiniteDuration, action: Scheduler => Cancelable): Cancelable = {
-    val thisScheduler = this
-    val isCancelled = Atomic(false)
-
-    val sub = CompositeCancelable(BooleanCancelable {
-      isCancelled := true
-    })
-
-    val runnable = new Runnable {
-      def run(): Unit =
-        ec.execute(new Runnable {
-          def run(): Unit =
-            if (!isCancelled.get)
-              sub += action(thisScheduler)
-        })
-    }
-
-    val task = s.schedule(runnable, initialDelay.toMillis, TimeUnit.MILLISECONDS)
-
-    sub += BooleanCancelable {
-      task.cancel(true)
-    }
-
-    sub
+    val task = s.scheduleWithFixedDelay(runnable, initialDelay.toMillis, delay.toMillis, TimeUnit.MILLISECONDS)
+    BooleanCancelable { isCanceled = true; task.cancel(false) }
   }
 
   def execute(runnable: Runnable): Unit =
@@ -91,6 +65,8 @@ final class ConcurrentScheduler private (s: ScheduledExecutorService, ec: Execut
 
   def reportFailure(t: Throwable): Unit =
     ec.reportFailure(t)
+
+  private[this] val oneHour = 1.hour
 }
 
 object ConcurrentScheduler {

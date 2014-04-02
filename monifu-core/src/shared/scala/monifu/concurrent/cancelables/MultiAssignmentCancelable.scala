@@ -1,9 +1,7 @@
 package monifu.concurrent.cancelables
 
-import monifu.concurrent.atomic.{AtomicAny, Atomic}
-import scala.annotation.tailrec
 import monifu.concurrent.Cancelable
-
+import monifu.concurrent.locks.NaiveSpinLock
 
 /**
  * Represents a [[monifu.concurrent.Cancelable]] whose underlying cancelable reference can be swapped for another.
@@ -20,20 +18,21 @@ import monifu.concurrent.Cancelable
  * }}}
  */
 final class MultiAssignmentCancelable private () extends BooleanCancelable {
-  private[this] case class State(subscription: Cancelable, isCanceled: Boolean)
-  private[this] val state: AtomicAny[State] =
-    Atomic(State(Cancelable.empty, isCanceled = false))
+  private[this] var _isCanceled = false
+  private[this] var _subscription = Cancelable.empty
+  private[this] val lock = NaiveSpinLock()
 
-  def isCanceled: Boolean = state.get.isCanceled
+  def isCanceled: Boolean =
+    lock.acquire(_isCanceled)
 
-  def cancel(): Unit = {
-    val oldState = state.getAndTransform {
-      _.copy(Cancelable.empty, isCanceled = true)
+  def cancel(): Unit =
+    lock.acquire {
+      if (!_isCanceled)
+        try _subscription.cancel() finally {
+          _isCanceled = true
+          _subscription = Cancelable.empty
+        }
     }
-
-    if (!oldState.isCanceled)
-      oldState.subscription.cancel()
-  }
 
   /**
    * Swaps the underlying cancelable reference with `s`.
@@ -41,16 +40,11 @@ final class MultiAssignmentCancelable private () extends BooleanCancelable {
    * In case this `MultiAssignmentCancelable` is already canceled,
    * then the reference `value` will also be canceled on assignment.
    */
-  @tailrec
-  def update(value: Cancelable): Unit = {
-    val oldState = state.get
-    if (oldState.isCanceled)
+  def update(value: Cancelable): Unit = lock.acquire {
+    if (_isCanceled)
       value.cancel()
-    else {
-      val newState = oldState.copy(subscription = value)
-      if (!state.compareAndSet(oldState, newState))
-        update(value)
-    }
+    else
+      _subscription = value
   }
 
   /**
