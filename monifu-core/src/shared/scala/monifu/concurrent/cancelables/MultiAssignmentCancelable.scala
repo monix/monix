@@ -1,7 +1,8 @@
 package monifu.concurrent.cancelables
 
 import monifu.concurrent.Cancelable
-import monifu.concurrent.locks.NaiveSpinLock
+import monifu.concurrent.atomic.Atomic
+import scala.annotation.tailrec
 
 /**
  * Represents a [[monifu.concurrent.Cancelable]] whose underlying cancelable reference can be swapped for another.
@@ -20,19 +21,27 @@ import monifu.concurrent.locks.NaiveSpinLock
 final class MultiAssignmentCancelable private () extends BooleanCancelable {
   private[this] var _isCanceled = false
   private[this] var _subscription = Cancelable.empty
-  private[this] val lock = NaiveSpinLock()
+  private[this] val lock = Atomic(false)
 
+  @tailrec
   def isCanceled: Boolean =
-    lock.acquire(_isCanceled)
+    if (!lock.compareAndSet(expect = false, update = true))
+      isCanceled
+    else
+      try _isCanceled finally lock.set(update = false)
 
+  @tailrec
   def cancel(): Unit =
-    lock.acquire {
-      if (!_isCanceled)
-        try _subscription.cancel() finally {
-          _isCanceled = true
-          _subscription = Cancelable.empty
-        }
-    }
+    if (!lock.compareAndSet(expect = false, update = true))
+      cancel()
+    else if (_isCanceled)
+      lock.set(update = false)
+    else
+      try _subscription.cancel() finally {
+        _isCanceled = true
+        _subscription = Cancelable.empty
+        lock.set(update = false)
+      }
 
   /**
    * Swaps the underlying cancelable reference with `s`.
@@ -40,11 +49,14 @@ final class MultiAssignmentCancelable private () extends BooleanCancelable {
    * In case this `MultiAssignmentCancelable` is already canceled,
    * then the reference `value` will also be canceled on assignment.
    */
-  def update(value: Cancelable): Unit = lock.acquire {
-    if (_isCanceled)
-      value.cancel()
+  @tailrec
+  def update(value: Cancelable): Unit = {
+    if (!lock.compareAndSet(expect = false, update = true))
+      update(value)
+    else if (_isCanceled)
+      try value.cancel() finally lock.set(update = false)
     else
-      _subscription = value
+      try _subscription = value finally lock.set(update = false)
   }
 
   /**
