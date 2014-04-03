@@ -12,8 +12,12 @@ final class Subscriber[-T] private (observer: Observer[T], private val subscript
 
   def isCanceled: Boolean = subscription.isCanceled
   def cancel(): Unit = subscription.cancel()
-  def add(s: Cancelable): Unit = subscription.add(s)
-  def remove(s: Cancelable): Unit = subscription.remove(s)
+
+  def add(s: Cancelable): Unit =
+    if (s != this) subscription.add(s)
+
+  def remove(s: Cancelable): Unit =
+    if (s != this) subscription.remove(s)
 
   def map[U](f: Observer[T] => Observer[U]): Subscriber[U] =
     new Subscriber[U](f(observer), subscription)
