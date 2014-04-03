@@ -10,11 +10,26 @@ import monifu.rx.internal.ObservableUtils
 
 
 trait Observable[+A]  {
+  /**
+   * Function that creates the actual subscription when calling `subscribe`,
+   * and that starts the stream, being meant to be overridden in custom combinators
+   * or in classes implementing Observable.
+   *
+   * @param subscriber is both an `Observer[A]` that you can use to push items
+   *                   on the stream, it's also a `CompositeCancelable` to which you
+   *                   can add whatever things you want to get canceled when `cancel()`
+   *                   is invoked and that can also be used to check if the subscription
+   *                   has been canceled from the outside - just return it as the result
+   *                   of this method, after all cancelables you want were added to it
+   *
+   * @return a cancelable that can be used to cancel the streaming - in general it should be
+   *         the subscriber given as parameter
+   */
   protected def fn(subscriber: Subscriber[A]): Cancelable
 
   final def subscribe(observer: Observer[A]): Cancelable = {
     val sub = CompositeCancelable()
-    sub += fn(Subscriber(AutoDetachObserver(observer, sub), sub))
+    sub += synchronized.fn(Subscriber(AutoDetachObserver(observer, sub), sub))
     sub
   }
 
@@ -39,7 +54,7 @@ trait Observable[+A]  {
     Observable(subscriber => {
       val refCounter = RefCountCancelable(subscriber.onCompleted())
 
-      subscriber += fn(subscriber.map(observer => new Observer[A] {
+      fn(subscriber.map(observer => new Observer[A] {
         def onNext(elem: A) = {
           val refID = refCounter.acquireCancelable()
           val sub = SingleAssignmentCancelable()
@@ -82,16 +97,13 @@ trait Observable[+A]  {
     })))
 
   final def subscribeOn(s: Scheduler): Observable[A] =
-    Observable(o => s.schedule(_ => fn(o)))
-
-  final def observeOn(scheduler: Scheduler): Observable[A] =
-    Observable(s => fn(s.map(observer => new Observer[A] {
-      def onNext(elem: A) = scheduler.scheduleOnce(observer.onNext(elem))
-      def onError(ex: Throwable) = scheduler.scheduleOnce(observer.onError(ex))
-      def onCompleted() = scheduler.scheduleOnce(observer.onCompleted())
-    })))
+    Observable { subscriber =>
+      subscriber += s.schedule(_ => fn(subscriber))
+      subscriber
+    }
 
   final def head: Observable[A] = take(1)
+  final def tail: Observable[A] = drop(1)
 
   final def take(nr: Int): Observable[A] = {
     require(nr > 0, "number of elements to take should be strictly positive")
@@ -123,6 +135,33 @@ trait Observable[+A]  {
     })))
   }
 
+  final def drop(nr: Int): Observable[A] = {
+    require(nr > 0, "number of elements to drop should be strictly positive")
+
+    Observable(s => fn(s.map(observer => new Observer[A] {
+      val count = Atomic(0)
+
+      @tailrec
+      def onNext(elem: A): Unit = {
+        val currentCount = count.get
+
+        if (currentCount < nr) {
+          val newCount = currentCount + 1
+          if (!count.compareAndSet(currentCount, newCount))
+            onNext(elem)
+        }
+        else
+          observer.onNext(elem)
+      }
+
+      def onCompleted(): Unit =
+        observer.onCompleted()
+
+      def onError(ex: Throwable): Unit =
+        observer.onError(ex)
+    })))
+  }
+
   final def takeWhile(p: A => Boolean): Observable[A] =
     Observable(s => fn(s.map(observer => new Observer[A] {
       val shouldContinue = Atomic(true)
@@ -134,6 +173,27 @@ trait Observable[+A]  {
             observer.onNext(elem)
           else if (!update)
             observer.onCompleted()
+        }
+
+      def onCompleted(): Unit =
+        observer.onCompleted()
+
+      def onError(ex: Throwable): Unit =
+        observer.onError(ex)
+    })))
+
+  final def dropWhile(p: A => Boolean): Observable[A] =
+    Observable(s => fn(s.map(observer => new Observer[A] {
+      val shouldDropRef = Atomic(true)
+
+      @tailrec
+      def onNext(elem: A): Unit =
+        if (!shouldDropRef.get)
+          observer.onNext(elem)
+        else {
+          val shouldDrop = p(elem)
+          if (!shouldDropRef.compareAndSet(expect=true, update=shouldDrop) || !shouldDrop)
+            onNext(elem)
         }
 
       def onCompleted(): Unit =
@@ -161,15 +221,13 @@ trait Observable[+A]  {
       }))
     }
 
-  final def ++[B >: A](other: Observable[B]): Observable[B] =
-    Observable[B](s => fn(s.map(observer =>
-      SynchronizedObserver(new Observer[A] {
+  final def ++[B >: A](other: => Observable[B]): Observable[B] =
+    Observable[B](s => synchronized.fn(s.map(observer =>
+      new Observer[A] {
         def onNext(elem: A): Unit = observer.onNext(elem)
         def onError(ex: Throwable): Unit = observer.onError(ex)
-        def onCompleted(): Unit = {
-          s += other.fn(s)
-        }
-      }))))
+        def onCompleted(): Unit = other.fn(s)
+      })))
 
   /**
    * Returns the first generated result as a Future and then cancels

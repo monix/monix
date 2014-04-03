@@ -11,7 +11,7 @@ import monifu.concurrent.Cancelable
 class ObservableTest extends MonifuTest {
   import monifu.concurrent.Scheduler.Implicits.computation
 
-  describe("Observable resource management") {
+  describe("Observable") {
     it("should do interval") {
       val startAt = System.nanoTime()
       val f = Observable.interval(10.millis)
@@ -69,9 +69,28 @@ class ObservableTest extends MonifuTest {
       assert(result === 45)
       assert(sub.isCanceled === true)
     }
-  }
 
-  describe("Observable combinators") {
+    it("should cancel subscription on complex expression") {
+      val obs = Observable.interval(1.millis)
+        .filter(_ % 5 == 1)
+        .takeWhile(_ <= 11)
+        .flatMap(x => Observable.interval(10.millis).filter(_ >= x).takeWhile(_ < x + 5))
+        .foldLeft(Seq.empty[Long])(_ :+ _)
+        .map(_.sorted)
+
+      val latch = new CountDownLatch(1)
+      var value = Seq.empty[Long]
+      val sub = obs.subscribe(
+        elem => value = elem,
+        error => throw error,
+        () => latch.countDown()
+      )
+
+      latch.await(5, TimeUnit.SECONDS)
+      expect(sub.isCanceled).toBe(true)
+      expect(value).toBe((1 to 15).map(_.toLong))
+    }
+
     it("should flatMap") {
       val f = Observable.interval(1.millis)
         .filter(_ % 5 == 1)
@@ -94,6 +113,92 @@ class ObservableTest extends MonifuTest {
       val result = Await.result(f, 3.seconds)
 
       assert(result === Some(0.until(200, 2)))
+    }
+
+    it("should synchronize ++") {
+      val sequence = (0 until 100).map(x => Observable.unit(x).subscribeOn(computation))
+      val concat = sequence.foldLeft(Observable.empty[Int])(_ ++ _).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
+      val result = Await.result(concat, 3.seconds)
+
+      expect(result).toBe(Some(0 until 100))
+    }
+
+    it("should map") {
+      @volatile var effect = 0
+      val latch = new CountDownLatch(1)
+      val sub = Observable.unit(100).subscribeOn(computation).map(_ * 2).subscribe(
+        e => effect = e,
+        err => throw err,
+        () => latch.countDown()
+      )
+
+      latch.await(1, TimeUnit.SECONDS)
+      expect(effect).toBe(200)
+      expect(sub.isCanceled).toBe(true)
+    }
+
+    it("should filter") {
+      @volatile var effect = 0
+      val latch = new CountDownLatch(1)
+      val sub = Observable.fromSequence(0 to 10).subscribeOn(computation).filter(_ >= 5).foldLeft(0)(_+_)
+        .subscribe(
+          e => effect = e,
+          err => throw err,
+          () => latch.countDown()
+        )
+
+      latch.await(1, TimeUnit.SECONDS)
+      expect(effect).toBe(10 * 11 / 2 - 4 * 5 / 2)
+      expect(sub.isCanceled).toBe(true)
+    }
+
+    it("should takeWhile and dropWhile") {
+      @volatile var effect = Seq.empty[Long]
+      val latch = new CountDownLatch(1)
+      val sub = Observable.interval(1.millis).dropWhile(_ < 100).takeWhile(_ < 200).foldLeft(Seq.empty[Long])(_:+_)
+        .subscribe(
+          e => effect = e,
+          err => throw err,
+          () => latch.countDown()
+        )
+
+      latch.await(1, TimeUnit.SECONDS)
+      expect(effect.sorted).toBe((100 until 200).map(_.toLong).sorted)
+      expect(sub.isCanceled).toBe(true)
+    }
+
+    it("should take and drop") {
+      @volatile var effect = Seq.empty[Long]
+      val latch = new CountDownLatch(1)
+      val sub = Observable.interval(1.millis).drop(100).take(100).foldLeft(Seq.empty[Long])(_:+_)
+        .subscribe(
+          e => effect = e,
+          err => throw err,
+          () => latch.countDown()
+        )
+
+      latch.await(1, TimeUnit.SECONDS)
+      expect(effect.sorted).toBe((100 until 200).map(_.toLong).sorted)
+      expect(sub.isCanceled).toBe(true)
+    }
+
+    it("should flatMap like a boss") {
+      def merge[T, U](obs: Observable[T])(f: T => Observable[U]): Observable[U] =
+        obs.head.flatMap(f) ++ merge(obs.tail)(f)
+
+      val obs = merge(Observable.interval(1.millis))(x => Observable.fromSequence((x * 5) until (x * 5 + 5)).subscribeOn(computation))
+      @volatile var effect = Seq.empty[Long]
+      val latch = new CountDownLatch(1)
+
+      val sub = obs.take(100).foldLeft(effect)(_:+_).subscribe(
+        e => effect = e,
+        err => throw err,
+        () => latch.countDown()
+      )
+
+      latch.await()
+      expect(sub.isCanceled).toBe(true)
+      expect(effect).toBe((0 until 100).map(_.toLong))
     }
   }
 }

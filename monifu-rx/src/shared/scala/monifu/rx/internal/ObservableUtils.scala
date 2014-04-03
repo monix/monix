@@ -6,6 +6,12 @@ import monifu.rx.Observable
 import concurrent.duration._
 
 trait ObservableUtils extends Any { this: Observable.type =>
+  def empty[A]: Observable[A] =
+    Observable { subscriber =>
+      if (!subscriber.isCanceled) subscriber.onCompleted()
+      subscriber
+    }
+
   def unit[A](elem: A): Observable[A] =
     Observable { subscriber =>
       if (!subscriber.isCanceled) {
