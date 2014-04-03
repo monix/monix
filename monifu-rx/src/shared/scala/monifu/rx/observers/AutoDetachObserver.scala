@@ -2,15 +2,14 @@ package monifu.rx.observers
 
 import monifu.concurrent.Cancelable
 import scala.util.control.NonFatal
-import monifu.rx.Observer
 
 /**
  * An observer wrapper that cancels its subscription on completed or on errors being thrown.
  */
-final class AutoDetachObserver[-T] private (underlying: Observer[T], subscription: Cancelable) extends Observer[T] {
-  def onNext(elem: T): Unit =
+final class AutoDetachObserver[-T] private (observer: Observer[T], subscription: Cancelable) extends Observer[T] {
+  override def onNext(elem: T): Unit =
     try {
-      underlying.onNext(elem)
+      observer.onNext(elem)
     }
     catch {
       // safe-guarding against rogue observers for proper resource-cleanup
@@ -19,13 +18,13 @@ final class AutoDetachObserver[-T] private (underlying: Observer[T], subscriptio
         throw ex
     }
 
-  def onError(ex: Throwable): Unit =
-    try underlying.onError(ex) finally {
+  override def onError(ex: Throwable): Unit =
+    try observer.onError(ex) finally {
       subscription.cancel()
     }
 
-  def onCompleted(): Unit =
-    try underlying.onCompleted() finally {
+  override def onCompleted(): Unit = 
+    try observer.onCompleted() finally {
       subscription.cancel()
     }
 }

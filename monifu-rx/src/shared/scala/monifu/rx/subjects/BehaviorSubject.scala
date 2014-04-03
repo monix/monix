@@ -1,10 +1,12 @@
 package monifu.rx.subjects
 
-import monifu.rx.{Observable, Observer}
+import monifu.rx.Observable
 import monifu.concurrent.Cancelable
 import monifu.concurrent.locks.Lock
 import collection.immutable.Set
 import scala.util.{Failure, Success, Try}
+import monifu.rx.observers.{Subscriber, Observer}
+
 
 final class BehaviorSubject[T] private () extends Observable[T] with Observer[T] {
   private[this] val lock = Lock()
@@ -12,20 +14,20 @@ final class BehaviorSubject[T] private () extends Observable[T] with Observer[T]
   private[this] var isDone = false
   private[this] var lastValue = Option.empty[Try[T]]
 
-  protected def fn(observer: Observer[T]): Cancelable =
+  protected def fn(subscriber: Subscriber[T]): Cancelable =
     lock.acquire {
       if (!isDone) {
         for (l <- lastValue; v <- l)
-          observer.onNext(v)
+          subscriber.onNext(v)
 
-        observers = observers + observer
+        observers = observers + subscriber
         Cancelable {
-          observers = observers - observer
+          observers = observers - subscriber
         }
       }
       else {
         for (l <- lastValue; ex <- l.failed)
-          observer.onError(ex)
+          subscriber.onError(ex)
         Cancelable.alreadyCanceled
       }
     }
