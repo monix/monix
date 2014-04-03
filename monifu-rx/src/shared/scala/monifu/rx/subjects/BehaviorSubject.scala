@@ -26,7 +26,7 @@ final class BehaviorSubject[T] private () extends Observable[T] with Observer[T]
       else {
         for (l <- lastValue; ex <- l.failed)
           observer.onError(ex)
-        Cancelable.empty
+        Cancelable.alreadyCanceled
       }
     }
 

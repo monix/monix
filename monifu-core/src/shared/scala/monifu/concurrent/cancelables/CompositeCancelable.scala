@@ -33,7 +33,7 @@ import scala.annotation.tailrec
  *
  * Adding and removing references from this composite is thread-safe.
  */
-final class CompositeCancelable private () extends BooleanCancelable {
+final class CompositeCancelable private () extends Cancelable {
   def isCanceled =
     state.get.isCanceled
 

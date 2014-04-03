@@ -18,9 +18,9 @@ import scala.annotation.tailrec
  *   s() = c3 // also cancels c3, because s is already canceled
  * }}}
  */
-final class MultiAssignmentCancelable private () extends BooleanCancelable {
+final class MultiAssignmentCancelable private () extends Cancelable {
   private[this] var _isCanceled = false
-  private[this] var _subscription = Cancelable.empty
+  private[this] var _subscription = Cancelable()
   private[this] val lock = Atomic(false)
 
   @tailrec
@@ -39,7 +39,7 @@ final class MultiAssignmentCancelable private () extends BooleanCancelable {
     else
       try _subscription.cancel() finally {
         _isCanceled = true
-        _subscription = Cancelable.empty
+        _subscription = Cancelable.alreadyCanceled
         lock.set(update = false)
       }
 

@@ -17,7 +17,7 @@ import monifu.concurrent.Cancelable
  *
  * Useful in case you need a forward reference.
  */
-final class SingleAssignmentCancelable private () extends BooleanCancelable {
+final class SingleAssignmentCancelable private () extends Cancelable {
   import State._
 
   def isCanceled: Boolean = state.get match {

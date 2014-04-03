@@ -1,11 +1,12 @@
 package monifu.rx
 
 import concurrent.duration._
-import monifu.concurrent.cancelables.{CompositeCancelable, BooleanCancelable}
+import monifu.concurrent.cancelables.CompositeCancelable
 import monifu.concurrent.atomic.Atomic
 import scala.concurrent.{Await, Promise}
 import java.util.concurrent.{TimeUnit, CountDownLatch}
 import monifu.test.MonifuTest
+import monifu.concurrent.Cancelable
 
 class ObservableTest extends MonifuTest {
   import monifu.concurrent.Scheduler.Implicits.computation
@@ -33,7 +34,7 @@ class ObservableTest extends MonifuTest {
           observer.onNext(1)
           observer.onCompleted()
         }
-        composite += BooleanCancelable {
+        composite += Cancelable {
           latch.countDown()
         }
         composite
@@ -43,7 +44,7 @@ class ObservableTest extends MonifuTest {
       val sub = obs.map(_ * 2).subscribe(x => effect = x)
       latch.await(1, TimeUnit.SECONDS)
 
-      assert(sub.asInstanceOf[BooleanCancelable].isCanceled === true)
+      assert(sub.isCanceled === true)
       assert(effect === 2)
     }
 
@@ -63,7 +64,7 @@ class ObservableTest extends MonifuTest {
       val result = Await.result(f, 1.second)
 
       assert(result === 45)
-      assert(sub.asInstanceOf[BooleanCancelable].isCanceled === true)
+      assert(sub.isCanceled === true)
     }
   }
 
