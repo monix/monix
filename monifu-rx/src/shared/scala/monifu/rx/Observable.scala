@@ -7,16 +7,15 @@ import scala.concurrent.{ExecutionContext, Promise, Future}
 import monifu.concurrent.{Scheduler, Cancelable}
 import monifu.rx.observers._
 import monifu.rx.internal.ObservableUtils
-import scala.Some
 
 
 trait Observable[+A]  {
-  protected def fn(observer: Subscriber[A]): Cancelable
+  protected def fn(subscriber: Subscriber[A]): Cancelable
 
   final def subscribe(observer: Observer[A]): Cancelable = {
-    val composite = CompositeCancelable()
-    composite += fn(Subscriber(AutoDetachObserver(observer, composite), composite))
-    composite
+    val sub = CompositeCancelable()
+    sub += fn(Subscriber(AutoDetachObserver(observer, sub), sub))
+    sub
   }
 
   final def subscribe(nextFn: A => Unit): Cancelable =
@@ -38,41 +37,41 @@ trait Observable[+A]  {
 
   final def flatMap[B](f: A => Observable[B]): Observable[B] =
     Observable(subscriber => {
-      val composite = CompositeCancelable()
       val refCounter = RefCountCancelable(subscriber.onCompleted())
 
-      composite += fn(subscriber.map(observer => new Observer[A] {
+      subscriber += fn(subscriber.map(observer => new Observer[A] {
         def onNext(elem: A) = {
           val refID = refCounter.acquireCancelable()
           val sub = SingleAssignmentCancelable()
-          composite += sub
 
-          sub := f(elem).subscribe(new Observer[B] {
+          val childObserver = new Observer[B] {
             def onNext(elem: B) =
               observer.onNext(elem)
 
             def onError(ex: Throwable) =
             // onError, cancel everything
-              try observer.onError(ex) finally composite.cancel()
+              try observer.onError(ex) finally subscriber.cancel()
 
             def onCompleted() = {
               // do resource release
-              composite -= sub
+              subscriber -= sub
               refID.cancel()
               sub.cancel()
             }
-          })
+          }
+
+          subscriber += sub
+          sub := f(elem).fn(Subscriber(childObserver))
         }
 
         def onError(ex: Throwable) =
-          try observer.onError(ex) finally composite.cancel()
+          try observer.onError(ex) finally subscriber.cancel()
 
         def onCompleted() =
-        // triggers observer.onCompleted() when all Observables created have been finished
-          refCounter.cancel()
+          refCounter.cancel() // triggers observer.onCompleted() when all Observables created have been finished
       }))
 
-      composite
+      subscriber
     })
 
   final def filter(p: A => Boolean): Observable[A] =
@@ -168,28 +167,19 @@ trait Observable[+A]  {
    */
   final def asFuture(implicit ec: ExecutionContext): Future[Option[A]] = {
     val promise = Promise[Option[A]]()
-    val sub = SingleAssignmentCancelable()
 
-    sub := subscribe(new Observer[A] {
-      def onNext(elem: A): Unit = {
-        promise.trySuccess(Some(elem))
-        sub.cancel()
-      }
-
-      def onCompleted(): Unit = {
-        promise.trySuccess(None)
-        sub.cancel()
-      }
-
-      def onError(ex: Throwable): Unit = {
+    head.subscribe(new Observer[A] {
+      def onError(ex: Throwable): Unit =
         promise.tryFailure(ex)
-        sub.cancel()
-      }
+
+      def onNext(elem: A): Unit =
+        promise.trySuccess(Some(elem))
+
+      def onCompleted(): Unit =
+        promise.trySuccess(None)
     })
 
-    val future = promise.future
-    future.onComplete { case _ => sub.cancel() }
-    future
+    promise.future
   }
 
   final def synchronized: Observable[A] =

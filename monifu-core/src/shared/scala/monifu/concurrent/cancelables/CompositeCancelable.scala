@@ -33,74 +33,82 @@ import scala.annotation.tailrec
  *
  * Adding and removing references from this composite is thread-safe.
  */
-final class CompositeCancelable private () extends Cancelable {
-  def isCanceled =
-    state.get.isCanceled
-
-  def cancel() = {
-    val oldState = state.getAndTransform(_.copy(Set.empty, isCanceled = true))
-    if (!oldState.isCanceled)
-      for (s <- oldState.subscriptions)
-        s.cancel()
-  }
-
+trait CompositeCancelable extends Cancelable {
   /**
    * Adds a cancelable reference to this composite.
    */
-  @tailrec
-  def add(s: Cancelable): Unit = {
-    val oldState = state.get
-    if (oldState.isCanceled)
-      s.cancel()
-    else {
-      val newState = oldState.copy(subscriptions = oldState.subscriptions + s)
-      if (!state.compareAndSet(oldState, newState))
-        add(s)
-    }
-  }
+  def add(s: Cancelable): Unit
 
   /**
    * Adds a cancelable reference to this composite.
    * This is an alias for `add()`.
    */
-  def +=(other: Cancelable): Unit =
-    add(other)
+  final def +=(other: Cancelable): Unit = add(other)
 
   /**
    * Removes a cancelable reference from this composite.
    */
-  @tailrec
-  def remove(s: Cancelable): Unit = {
-    val oldState = state.get
-    if (!oldState.isCanceled) {
-      val newState = oldState.copy(subscriptions = oldState.subscriptions - s)
-      if (!state.compareAndSet(oldState, newState))
-        remove(s)
-    }
-  }
+  def remove(s: Cancelable): Unit
 
   /**
    * Removes a cancelable reference from this composite.
    * This is an alias for `remove()`.
    */
-  def -=(s: Cancelable) = remove(s)
-
-  private[this] val state: AtomicAny[State] =
-    Atomic(State())
-
-  private[this] case class State(
-    subscriptions: Set[Cancelable] = Set.empty,
-    isCanceled: Boolean = false
-  )
+  final def -=(s: Cancelable): Unit = remove(s)
 }
 
 object CompositeCancelable {
   def apply(): CompositeCancelable =
-    new CompositeCancelable()
+    new CompositeCancelableImpl
 
   def apply(head: Cancelable, tail: Cancelable*): CompositeCancelable = {
-    val cs = new CompositeCancelable()
+    val cs = new CompositeCancelableImpl
     cs += head; for (os <- tail) cs += os
     cs
+  }
+
+  private[this] final class CompositeCancelableImpl extends CompositeCancelable {
+    def isCanceled =
+      state.get.isCanceled
+
+    @tailrec
+    def cancel(): Unit = {
+      val oldState = state.get
+      if (!oldState.isCanceled)
+        if (!state.compareAndSet(oldState, State(Set.empty, isCanceled = true)))
+          cancel()
+        else
+          for (s <- oldState.subscriptions) s.cancel()
+    }
+
+    @tailrec
+    def add(s: Cancelable): Unit = {
+      val oldState = state.get
+      if (oldState.isCanceled)
+        s.cancel()
+      else {
+        val newState = oldState.copy(subscriptions = oldState.subscriptions + s)
+        if (!state.compareAndSet(oldState, newState))
+          add(s)
+      }
+    }
+
+    @tailrec
+    def remove(s: Cancelable): Unit = {
+      val oldState = state.get
+      if (!oldState.isCanceled) {
+        val newState = oldState.copy(subscriptions = oldState.subscriptions - s)
+        if (!state.compareAndSet(oldState, newState))
+          remove(s)
+      }
+    }
+
+    private[this] val state: AtomicAny[State] =
+      Atomic(State())
+
+    private[this] case class State(
+      subscriptions: Set[Cancelable] = Set.empty,
+      isCanceled: Boolean = false
+    )
   }
 }
