@@ -3,13 +3,13 @@ package monifu.concurrent.schedulers
 import java.util.concurrent.{ThreadFactory, Executors, TimeUnit, ScheduledExecutorService}
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import monifu.concurrent.cancelables.{SingleAssignmentCancelable, BooleanCancelable}
+import monifu.concurrent.cancelables.SingleAssignmentCancelable
 import monifu.concurrent.{Cancelable, Scheduler}
 
 
 final class ConcurrentScheduler private (s: ScheduledExecutorService, ec: ExecutionContext) extends Scheduler {
   def scheduleOnce(action: => Unit): Cancelable = {
-    val sub = BooleanCancelable()
+    val sub = Cancelable()
 
     ec.execute(new Runnable {
       def run(): Unit =
@@ -39,7 +39,7 @@ final class ConcurrentScheduler private (s: ScheduledExecutorService, ec: Execut
         else
           s.schedule(runnable, initialDelay.toMillis, TimeUnit.MILLISECONDS)
 
-      sub := BooleanCancelable(task.cancel(true))
+      sub := Cancelable(task.cancel(true))
       sub
     }
 
@@ -57,7 +57,7 @@ final class ConcurrentScheduler private (s: ScheduledExecutorService, ec: Execut
     }
 
     val task = s.scheduleWithFixedDelay(runnable, initialDelay.toMillis, delay.toMillis, TimeUnit.MILLISECONDS)
-    BooleanCancelable { isCanceled = true; task.cancel(false) }
+    Cancelable { isCanceled = true; task.cancel(false) }
   }
 
   def execute(runnable: Runnable): Unit =

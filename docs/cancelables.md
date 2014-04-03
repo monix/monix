@@ -28,16 +28,15 @@ implementations. Currently used by Monifu's
 (work pending) and as you'll see, the provided implementations are
 pretty useful on their own for your own custom logic.
 
-## BooleanCancelable
+## Base Interface
 
-The
-[BooleanCancelable](../monifu-core/src/shared/scala/monifu/concurrent/cancelables/BooleanCancelable.scala)
-is a Cancelable who's status you can query with the `isCanceled`
-method. Also provides a handy constructor that takes a unit of work
-meant to be executed on `cancel()` and guarantees thread-safety (i.e.
-the unit of work specified in that constructor will be executed only
-once, regardless of how many threads are concurrently trying to cancel
-it).
+[Cancelable](../monifu-core/src/shared/scala/monifu/concurrent/Cancelable.scala) objects have a `cancel()` method
+that can be used for resource release / cleanup and an `isCanceled` method that can be used to query
+the status. The `close()` method should be idempotent and thread-safe and all `Cancelable` implementations should
+make sure that it is. Idempotence means that calling it multiple times has the same effect as calling it
+only once.
+
+The companion object of `Cancelable` provides handy helpers for building references:
 
 ```scala
 import monifu.concurrent.cancelables._

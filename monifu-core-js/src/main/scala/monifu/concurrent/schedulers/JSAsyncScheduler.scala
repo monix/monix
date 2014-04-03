@@ -2,14 +2,13 @@ package monifu.concurrent.schedulers
 
 import scala.concurrent.duration.FiniteDuration
 import scala.scalajs.js
-import monifu.concurrent.cancelables.BooleanCancelable
 import monifu.concurrent.{Cancelable, Scheduler}
 
 
 object JSAsyncScheduler extends Scheduler {
   def scheduleOnce(action: => Unit): Cancelable = {
     var isCancelled = false
-    val sub = BooleanCancelable { isCancelled = true }
+    val sub = Cancelable { isCancelled = true }
     setTimeout(if (!isCancelled) action)
     sub
   }
@@ -20,7 +19,7 @@ object JSAsyncScheduler extends Scheduler {
       if (!isCancelled) action
     })
 
-    BooleanCancelable { isCancelled = true; clearTimeout(task) }
+    Cancelable { isCancelled = true; clearTimeout(task) }
   }
 
   def reportFailure(t: Throwable): Unit =

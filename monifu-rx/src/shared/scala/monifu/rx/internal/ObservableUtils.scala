@@ -23,7 +23,7 @@ trait ObservableUtils extends Any { this: Observable.type =>
     }
 
   def never: Observable[Nothing] =
-    Observable { observer => Cancelable.empty }
+    Observable { observer => Cancelable.alreadyCanceled }
 
   def interval(period: FiniteDuration)(implicit s: Scheduler): Observable[Long] =
     Observable { observer =>

@@ -1,11 +1,12 @@
 package monifu.concurrent.cancelables
 
 import org.scalatest.FunSuite
+import monifu.concurrent.Cancelable
 
-class BooleanCancelableTest extends FunSuite {
+class CancelableTest extends FunSuite {
   test("cancel()") {
     var effect = 0
-    val sub = BooleanCancelable(effect += 1)
+    val sub = Cancelable(effect += 1)
     assert(effect === 0)
     assert(!sub.isCanceled)
 

@@ -10,7 +10,7 @@ import scala.annotation.tailrec
  *
  * After all dependent cancelables have been canceled, `onCancel` gets called.
  */
-final class RefCountCancelable private (onCancel: () => Unit) extends BooleanCancelable {
+final class RefCountCancelable private (onCancel: () => Unit) extends Cancelable {
   def isCanceled: Boolean =
     state.get.isCanceled
 
@@ -18,11 +18,11 @@ final class RefCountCancelable private (onCancel: () => Unit) extends BooleanCan
   def acquireCancelable(): Cancelable = {
     val oldState = state.get
     if (oldState.isCanceled)
-      BooleanCancelable.alreadyCanceled
+      Cancelable.alreadyCanceled
     else if (!state.compareAndSet(oldState, oldState.copy(activeCounter = oldState.activeCounter + 1)))
       acquireCancelable()
     else
-      BooleanCancelable {
+      Cancelable {
         val newState = state.transformAndGet(s => s.copy(activeCounter = s.activeCounter - 1))
         if (newState.activeCounter == 0 && newState.isCanceled)
           onCancel()

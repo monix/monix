@@ -3,7 +3,7 @@ package monifu.rx.subjects
 import monifu.rx.{Observable, Observer}
 import monifu.concurrent.Cancelable
 import monifu.concurrent.locks.ReadWriteLock
-import monifu.concurrent.cancelables.{BooleanCancelable, CompositeCancelable}
+import monifu.concurrent.cancelables.CompositeCancelable
 import collection.immutable.Set
 
 final class PublishSubject[T] private () extends Observable[T] with Observer[T] {
@@ -24,7 +24,7 @@ final class PublishSubject[T] private () extends Observable[T] with Observer[T] 
         sub
       }
       else
-        BooleanCancelable.alreadyCanceled
+        Cancelable.alreadyCanceled
     }
 
   def onNext(elem: T): Unit = lock.readLock {
