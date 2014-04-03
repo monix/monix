@@ -1,6 +1,6 @@
 package monifu.rx.internal
 
-import monifu.concurrent.{Scheduler, Cancelable}
+import monifu.concurrent.Scheduler
 import monifu.concurrent.atomic.Atomic
 import monifu.rx.Observable
 import concurrent.duration._
@@ -11,14 +11,15 @@ trait ObservableUtils extends Any { this: Observable.type =>
       if (!subscriber.isCanceled) {
         subscriber.onNext(elem)
         subscriber.onCompleted()
-      }      
-      subscriber.add(Cancelable.alreadyCanceled)
+      }
+
+      subscriber
     }
 
   def error(ex: Throwable): Observable[Nothing] =
     Observable { subscriber =>
       if (!subscriber.isCanceled) subscriber.onError(ex)
-      subscriber.add(Cancelable.alreadyCanceled)
+      subscriber
     }
 
   def never: Observable[Nothing] =
@@ -27,12 +28,12 @@ trait ObservableUtils extends Any { this: Observable.type =>
   def interval(period: FiniteDuration)(implicit s: Scheduler): Observable[Long] =
     Observable { subscriber =>
       val counter = Atomic(0L)
-      val task = s.scheduleRepeated(period, period, {
+      subscriber += s.scheduleRepeated(period, period, {
         val nr = counter.getAndIncrement()
         if (!subscriber.isCanceled) subscriber.onNext(nr)
       })
 
-      subscriber.add(task)
+      subscriber
     }
 
   def fromIterable[T](iterable: Iterable[T])(implicit s: Scheduler): Observable[T] =
@@ -54,5 +55,4 @@ trait ObservableUtils extends Any { this: Observable.type =>
 
     obs.subscribeOn(s)
   }
-
 }
