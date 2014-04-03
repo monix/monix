@@ -36,11 +36,11 @@ trait ObservableUtils extends Any { this: Observable.type =>
       subscriber
     }
 
-  def fromIterable[T](iterable: Iterable[T])(implicit s: Scheduler): Observable[T] =
+  def fromIterable[T](iterable: Iterable[T]): Observable[T] =
     fromSequence(iterable)
 
-  def fromSequence[T](sequence: TraversableOnce[T])(implicit s: Scheduler): Observable[T] = {
-    val obs = Observable[T] { subscriber =>
+  def fromSequence[T](sequence: TraversableOnce[T]): Observable[T] =
+    Observable[T] { subscriber =>
       if (!subscriber.isCanceled) {
         for (i <- sequence)
           if (!subscriber.isCanceled)
@@ -52,7 +52,4 @@ trait ObservableUtils extends Any { this: Observable.type =>
 
       subscriber
     }
-
-    obs.subscribeOn(s)
-  }
 }

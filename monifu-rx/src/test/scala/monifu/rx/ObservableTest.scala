@@ -28,10 +28,11 @@ class ObservableTest extends MonifuTest {
 
     it("should cancels subscriptions onCompleted") {
       val latch = new CountDownLatch(1)
-      val obs = Observable[Int] { observer =>
+      val obs1 = Observable.unit(0)
+      val obs2 = Observable[Int] { observer =>
         val composite = CompositeCancelable()
         composite += computation.scheduleOnce {
-          observer.onNext(1)
+          observer.onNext(10)
           observer.onCompleted()
         }
         composite += Cancelable {
@@ -40,12 +41,14 @@ class ObservableTest extends MonifuTest {
         composite
       }
 
+      val obs = obs1 ++ obs2
+
       var effect = 0
       val sub = obs.map(_ * 2).subscribe(x => effect = x)
       latch.await(1, TimeUnit.SECONDS)
 
       assert(sub.isCanceled === true)
-      assert(effect === 2)
+      assert(effect === 20)
     }
 
     it("should trigger onComplete on takeWhile") {
@@ -80,6 +83,17 @@ class ObservableTest extends MonifuTest {
 
       val result = Await.result(f, 3.seconds)
       assert(result === Some((1 to 15).toSeq))
+    }
+
+    it("should ++") {
+      val obs1 = Observable.fromSequence(0 until 1000).filter(_ % 2 == 0).takeWhile(_ < 100).subscribeOn(computation)
+      val obs2 = Observable.fromSequence(0 until 1000).filter(_ % 2 == 0).filter(_ >= 100).takeWhile(_ < 200).subscribeOn(computation)
+      val obs3 = obs1 ++ obs2
+
+      val f = obs3.foldLeft(Seq.empty[Int])(_ :+ _).asFuture
+      val result = Await.result(f, 3.seconds)
+
+      assert(result === Some(0.until(200, 2)))
     }
   }
 }

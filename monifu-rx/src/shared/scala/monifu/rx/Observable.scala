@@ -161,6 +161,16 @@ trait Observable[+A]  {
       }))
     }
 
+  final def ++[B >: A](other: Observable[B]): Observable[B] =
+    Observable[B](s => fn(s.map(observer =>
+      SynchronizedObserver(new Observer[A] {
+        def onNext(elem: A): Unit = observer.onNext(elem)
+        def onError(ex: Throwable): Unit = observer.onError(ex)
+        def onCompleted(): Unit = {
+          s += other.fn(s)
+        }
+      }))))
+
   /**
    * Returns the first generated result as a Future and then cancels
    * the subscription.
