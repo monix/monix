@@ -1,6 +1,5 @@
 package monifu.rx.observers
 
-import monifu.rx.Observer
 import monifu.concurrent.locks.ReadWriteLock
 
 /**

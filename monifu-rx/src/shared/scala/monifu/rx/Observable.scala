@@ -5,17 +5,18 @@ import scala.annotation.tailrec
 import monifu.concurrent.cancelables._
 import scala.concurrent.{ExecutionContext, Promise, Future}
 import monifu.concurrent.{Scheduler, Cancelable}
-import monifu.rx.observers.{SynchronizedObserver, AutoDetachObserver, AnonymousObserver}
+import monifu.rx.observers._
 import monifu.rx.internal.ObservableUtils
+import scala.Some
 
 
 trait Observable[+A]  {
-  protected def fn(observer: Observer[A]): Cancelable
+  protected def fn(observer: Subscriber[A]): Cancelable
 
   final def subscribe(observer: Observer[A]): Cancelable = {
-    val sub = SingleAssignmentCancelable()
-    sub := fn(AutoDetachObserver(observer, sub))
-    sub
+    val composite = CompositeCancelable()
+    composite += fn(Subscriber(AutoDetachObserver(observer, composite), composite))
+    composite
   }
 
   final def subscribe(nextFn: A => Unit): Cancelable =
@@ -28,29 +29,30 @@ trait Observable[+A]  {
     subscribe(AnonymousObserver(nextFn, errorFn, completedFn))
 
   final def map[B](f: A => B): Observable[B] =
-    Observable(observer => fn(new Observer[A] {
-      def onNext(elem: A) = observer.onNext(f(elem))
-      def onError(ex: Throwable) = observer.onError(ex)
-      def onCompleted() = observer.onCompleted()
-    }))
+    Observable(s =>
+      fn(s.map(observer => new Observer[A] {
+        def onError(ex: Throwable) = observer.onError(ex)
+        def onCompleted() = observer.onCompleted()
+        def onNext(elem: A) = observer.onNext(f(elem))
+      })))
 
   final def flatMap[B](f: A => Observable[B]): Observable[B] =
-    Observable(observer => {
+    Observable(subscriber => {
       val composite = CompositeCancelable()
-      val refCounter = RefCountCancelable(observer.onCompleted())
+      val refCounter = RefCountCancelable(subscriber.onCompleted())
 
-      composite += fn(new Observer[A] {
+      composite += fn(subscriber.map(observer => new Observer[A] {
         def onNext(elem: A) = {
           val refID = refCounter.acquireCancelable()
           val sub = SingleAssignmentCancelable()
           composite += sub
 
-          sub := f(elem).fn(new Observer[B] {
+          sub := f(elem).subscribe(new Observer[B] {
             def onNext(elem: B) =
               observer.onNext(elem)
 
             def onError(ex: Throwable) =
-              // onError, cancel everything
+            // onError, cancel everything
               try observer.onError(ex) finally composite.cancel()
 
             def onCompleted() = {
@@ -66,36 +68,36 @@ trait Observable[+A]  {
           try observer.onError(ex) finally composite.cancel()
 
         def onCompleted() =
-          // triggers observer.onCompleted() when all Observables created have been finished
+        // triggers observer.onCompleted() when all Observables created have been finished
           refCounter.cancel()
-      })
+      }))
 
       composite
     })
 
   final def filter(p: A => Boolean): Observable[A] =
-    Observable(observer => fn(new Observer[A] {
+    Observable(s => fn(s.map(observer => new Observer[A] {
       def onNext(elem: A) = if (p(elem)) observer.onNext(elem)
       def onError(ex: Throwable) = observer.onError(ex)
       def onCompleted() = observer.onCompleted()
-    }))
+    })))
 
   final def subscribeOn(s: Scheduler): Observable[A] =
     Observable(o => s.schedule(_ => fn(o)))
 
-  final def observeOn(s: Scheduler): Observable[A] =
-    Observable(observer => fn(new Observer[A] {
-      def onNext(elem: A) = s.scheduleOnce(observer.onNext(elem))
-      def onError(ex: Throwable) = s.scheduleOnce(observer.onError(ex))
-      def onCompleted() = s.scheduleOnce(observer.onCompleted())
-    }))
+  final def observeOn(scheduler: Scheduler): Observable[A] =
+    Observable(s => fn(s.map(observer => new Observer[A] {
+      def onNext(elem: A) = scheduler.scheduleOnce(observer.onNext(elem))
+      def onError(ex: Throwable) = scheduler.scheduleOnce(observer.onError(ex))
+      def onCompleted() = scheduler.scheduleOnce(observer.onCompleted())
+    })))
 
   final def head: Observable[A] = take(1)
 
   final def take(nr: Int): Observable[A] = {
     require(nr > 0, "number of elements to take should be strictly positive")
 
-    Observable(observer => fn(new Observer[A] {
+    Observable(s => fn(s.map(observer => new Observer[A] {
       val count = Atomic(0)
 
       @tailrec
@@ -119,11 +121,11 @@ trait Observable[+A]  {
 
       def onError(ex: Throwable): Unit =
         observer.onError(ex)
-    }))
+    })))
   }
 
   final def takeWhile(p: A => Boolean): Observable[A] =
-    Observable(observer => fn(new Observer[A] {
+    Observable(s => fn(s.map(observer => new Observer[A] {
       val shouldContinue = Atomic(true)
 
       def onNext(elem: A): Unit =
@@ -140,13 +142,13 @@ trait Observable[+A]  {
 
       def onError(ex: Throwable): Unit =
         observer.onError(ex)
-    }))
+    })))
 
   final def foldLeft[R](initial: R)(f: (R, A) => R): Observable[R] =
-    Observable { observer =>
+    Observable { subscriber =>
       val state = Atomic(initial)
 
-      fn(new Observer[A] {
+      fn(subscriber.map(observer => new Observer[A] {
         def onNext(elem: A): Unit =
           state.transformAndGet(s => f(s, elem))
 
@@ -157,7 +159,7 @@ trait Observable[+A]  {
 
         def onError(ex: Throwable): Unit =
           observer.onError(ex)
-      })
+      }))
     }
 
   /**
@@ -191,13 +193,12 @@ trait Observable[+A]  {
   }
 
   final def synchronized: Observable[A] =
-    Observable(observer => fn(SynchronizedObserver(observer)))
+    Observable(s => fn(s.map(SynchronizedObserver.apply)))
 }
 
 object Observable extends ObservableUtils {
-  def apply[A](f: Observer[A] => Cancelable): Observable[A] =
+  def apply[A](f: Subscriber[A] => Cancelable): Observable[A] =
     new Observable[A] {
-      def fn(observer: Observer[A]) =
-        f(observer)
+      def fn(subscriber: Subscriber[A]) = f(subscriber)
     }
 }
