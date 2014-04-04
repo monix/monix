@@ -12,7 +12,7 @@ import monifu.concurrent.locks.ReadWriteLock
  * }}}
  *
  * In other words, once onCompleted or onError happens, then the Observer
- * shouldn't receive any onNext messages.
+ * shouldn't receive any more onNext messages.
  *
  * This wrapper does NOT protect against multiple onNext messages being
  * sent concurrently. Synchronization at that level is the responsibility
