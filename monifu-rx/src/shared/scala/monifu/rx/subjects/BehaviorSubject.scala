@@ -14,7 +14,7 @@ final class BehaviorSubject[T] private () extends Observable[T] with Observer[T]
   private[this] var isDone = false
   private[this] var lastValue = Option.empty[Try[T]]
 
-  protected def subscribeFn(subscriber: Subscriber[T]): Cancelable =
+  def unsafeSubscribe(subscriber: Subscriber[T]): Cancelable =
     lock.acquire {
       if (!isDone) {
         for (l <- lastValue; v <- l)
