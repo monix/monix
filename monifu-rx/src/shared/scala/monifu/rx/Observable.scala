@@ -53,11 +53,11 @@ trait Observable[+A]  {
    * Returns an Observable that applies the given function to each item emitted by an
    * Observable and emits the result.
    *
-   * <img width="640" src="https://raw.github.com/alexandru/monifu/docs/images/rx-operators/map.png">
+   * <img width="640" src="https://raw.githubusercontent.com/alexandru/monifu/master/docs/images/rx-operators/map.png">
    *
    * @param f a function to apply to each item emitted by the Observable
-   * @return an Observable that emits the items from the source Observable, transformed by the
-   *         given function
+   *
+   * @return an Observable that emits the items from the source Observable, transformed by the given function
    */
   def map[B](f: A => B): Observable[B] =
     Observable.create(s =>
@@ -80,6 +80,15 @@ trait Observable[+A]  {
         def onCompleted() = observer.onCompleted()
       })))
 
+  /**
+   * Returns an Observable which only emits those items for which a given predicate holds.
+   *
+   * <img width="640" src="https://raw.githubusercontent.com/alexandru/monifu/master/docs/images/rx-operators/filter.png">
+   *
+   * @param p a function that evaluates the items emitted by the source Observable, returning `true` if they pass the filter
+   *
+   * @return an Observable that emits only those items in the original Observable for which the filter evaluates as `true`
+   */
   def filter(p: A => Boolean): Observable[A] =
     Observable.create(s => unsafeSubscribe(s.map(observer => new Observer[A] {
       def onNext(elem: A) = {
@@ -101,6 +110,19 @@ trait Observable[+A]  {
     })))
 
 
+  /**
+   * Creates a new Observable by applying a function that you supply to each item emitted by
+   * the source Observable, where that function returns an Observable, and then merging those
+   * resulting Observables and emitting the results of this merger.
+   *
+   * <img width="640" src="https://raw.githubusercontent.com/alexandru/monifu/master/docs/images/rx-operators/flatMap.png">
+   *
+   * @param f a function that, when applied to an item emitted by the source Observable, returns an Observable
+   *
+   * @return an Observable that emits the result of applying the transformation function to each
+   *         item emitted by the source Observable and merging the results of the Observables
+   *         obtained from this transformation.
+   */
   def flatMap[B](f: A => Observable[B]): Observable[B] =
     Observable.create(subscriber => {
       // we need to do ref-counting for triggering `onCompleted` on our subscriber
