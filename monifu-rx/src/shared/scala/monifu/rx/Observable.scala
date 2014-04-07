@@ -43,9 +43,16 @@ trait Observable[+A]  {
   final def subscribe(nextFn: A => Unit, errorFn: Throwable => Unit, completedFn: () => Unit): Cancelable =
     subscribe(AnonymousObserver(nextFn, errorFn, completedFn))
 
-  final def subscribeOn(s: Scheduler): Observable[A] =
+  /**
+   * Asynchronously subscribes Observers on the specified [[monifu.concurrent.Scheduler]].
+   *
+   * @param scheduler the [[monifu.concurrent.Scheduler]] to perform subscription actions on
+   * @return the source Observable modified so that its subscriptions happen
+   *         on the specified [[monifu.concurrent.Scheduler]]
+   */
+  final def subscribeOn(scheduler: Scheduler): Observable[A] =
     Observable.create { subscriber =>
-      subscriber += s.schedule(_ => unsafeSubscribe(subscriber))
+      subscriber += scheduler.schedule(_ => unsafeSubscribe(subscriber))
       subscriber
     }
 
