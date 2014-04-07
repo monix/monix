@@ -15,21 +15,19 @@ class ObservableCombinatorsTest extends FunSpec {
       assert(Await.result(obs, 1.second) === Some(1 until 11))
     }
 
-    it("should not throw exceptions in subscribe implementations (guideline 6.5)") {
+    it("should treat exceptions in subscribe implementations (guideline 6.5)") {
       val latch = new CountDownLatch(1)
       val obs = Observable.create[Int] { subscriber =>
         throw new RuntimeException("Test exception")
       }
 
       var result = ""
-      obs.subscribeOn(computation).map(x => x).subscribe(
+      obs.subscribeOn(computation).map(x => x).doOnCancel(latch.countDown()).subscribe(
         nextFn = _ => (),
         errorFn = ex => {
           result = ex.getMessage
           latch.countDown()
-        },
-        completedFn = () =>
-          latch.countDown()
+        }
       )
 
       latch.await(1, TimeUnit.SECONDS)
@@ -66,25 +64,23 @@ class ObservableCombinatorsTest extends FunSpec {
       assert(Await.result(obs, 1.second) === Some((1 to 10).filter(_ % 2 == 0).sum))
     }
 
-    it("should not throw exceptions in subscribe implementations (guideline 6.5)") {
+    it("should treat exceptions in subscribe implementations (guideline 6.5)") {
       val latch = new CountDownLatch(1)
       val obs = Observable.create[Int] { subscriber =>
         throw new RuntimeException("Test exception")
       }
 
       var result = ""
-      obs.subscribeOn(computation).filter(x => true).subscribe(
+      val sub = obs.subscribeOn(computation).filter(x => true).doOnCancel(latch.countDown()).subscribe(
         nextFn = _ => (),
         errorFn = ex => {
           result = ex.getMessage
-          latch.countDown()
-        },
-        completedFn = () =>
-          latch.countDown()
+        }
       )
 
       latch.await(1, TimeUnit.SECONDS)
       assert(result === "Test exception")
+      assert(sub.isCanceled)
     }
 
     it("should protect calls to user code (guideline 6.4)") {
@@ -119,25 +115,23 @@ class ObservableCombinatorsTest extends FunSpec {
       assert(Await.result(result, 1.second) === Some((0 until 100).sum))
     }
 
-    it("should not throw exceptions in subscribe implementations (guideline 6.5)") {
+    it("should treat exceptions in subscribe implementations (guideline 6.5)") {
       val latch = new CountDownLatch(1)
       val obs = Observable.create[Int] { subscriber =>
         throw new RuntimeException("Test exception")
       }
 
       var result = ""
-      obs.subscribeOn(computation).flatMap(x => Observable.unit(x)).subscribe(
+      val sub = obs.subscribeOn(computation).flatMap(x => Observable.unit(x)).doOnCancel(latch.countDown()).subscribe(
         nextFn = _ => (),
         errorFn = ex => {
           result = ex.getMessage
-          latch.countDown()
-        },
-        completedFn = () =>
-          latch.countDown()
+        }
       )
 
       latch.await(1, TimeUnit.SECONDS)
       assert(result === "Test exception")
+      assert(sub.isCanceled === true)
     }
 
     it("should protect calls to user code (guideline 6.4)") {
@@ -148,12 +142,12 @@ class ObservableCombinatorsTest extends FunSpec {
       val latch = new CountDownLatch(1)
       @volatile var effect = 0
       @volatile var error = ""
-      val sub = obs.subscribeOn(computation).subscribe(
+      val sub = obs.subscribeOn(computation).doOnCancel(latch.countDown()).subscribe(
         e => { effect += e },
-        err => { error = err.getMessage; latch.countDown() }
+        err => { error = err.getMessage }
       )
 
-      latch.await()
+      latch.await(1, TimeUnit.SECONDS)
       assert(effect === (0 until 50).sum)
       assert(error === "test")
       assert(sub.isCanceled === true)
