@@ -59,4 +59,104 @@ class ObservableCombinatorsTest extends FunSpec {
       assert(sub.isCanceled === true)
     }
   }
+
+  describe("Observable.filter") {
+    it("should work") {
+      val obs = Observable.fromSequence(1 to 10).filter(_ % 2 == 0).foldLeft(0)(_ + _).asFuture
+      assert(Await.result(obs, 1.second) === Some((1 to 10).filter(_ % 2 == 0).sum))
+    }
+
+    it("should not throw exceptions in subscribe implementations (guideline 6.5)") {
+      val latch = new CountDownLatch(1)
+      val obs = Observable.create[Int] { subscriber =>
+        throw new RuntimeException("Test exception")
+      }
+
+      var result = ""
+      obs.subscribeOn(computation).filter(x => true).subscribe(
+        nextFn = _ => (),
+        errorFn = ex => {
+          result = ex.getMessage
+          latch.countDown()
+        },
+        completedFn = () =>
+          latch.countDown()
+      )
+
+      latch.await(1, TimeUnit.SECONDS)
+      assert(result === "Test exception")
+    }
+
+    it("should protect calls to user code (guideline 6.4)") {
+      val obs = Observable.interval(1.millis).filter { x =>
+        if (x < 5) true else throw new RuntimeException("test")
+      }
+
+      val latch = new CountDownLatch(1)
+      val effect = Atomic(0L)
+      @volatile var errorThrow: Throwable = null
+
+      val sub = obs.subscribe(
+        nextFn = e => effect.transform(_ + e),
+        errorFn = ex => {
+          errorThrow = ex
+          latch.countDown()
+        }
+      )
+
+      latch.await()
+      assert(effect.get === (0 until 5).sum)
+      assert(errorThrow.getMessage === "test")
+      assert(sub.isCanceled === true)
+    }
+  }
+
+  describe("Observable.flatMap") {
+    it("should work") {
+      val result = Observable.fromSequence(0 until 100).filter(_ % 5 == 0).flatMap(x => Observable.fromSequence(x until (x + 5)))
+        .foldLeft(0)(_ + _).subscribeOn(computation).asFuture
+
+      assert(Await.result(result, 1.second) === Some((0 until 100).sum))
+    }
+
+    it("should not throw exceptions in subscribe implementations (guideline 6.5)") {
+      val latch = new CountDownLatch(1)
+      val obs = Observable.create[Int] { subscriber =>
+        throw new RuntimeException("Test exception")
+      }
+
+      var result = ""
+      obs.subscribeOn(computation).flatMap(x => Observable.unit(x)).subscribe(
+        nextFn = _ => (),
+        errorFn = ex => {
+          result = ex.getMessage
+          latch.countDown()
+        },
+        completedFn = () =>
+          latch.countDown()
+      )
+
+      latch.await(1, TimeUnit.SECONDS)
+      assert(result === "Test exception")
+    }
+
+    it("should protect calls to user code (guideline 6.4)") {
+      val obs = Observable.fromSequence(0 until 100).filter(_ % 5 == 0).flatMap { x =>
+        if (x < 50) Observable.fromSequence(x until (x + 5)) else throw new RuntimeException("test")
+      }
+
+      val latch = new CountDownLatch(1)
+      @volatile var effect = 0
+      @volatile var error = ""
+      val sub = obs.subscribeOn(computation).subscribe(
+        e => { effect += e },
+        err => { error = err.getMessage; latch.countDown() }
+      )
+
+      latch.await()
+      assert(effect === (0 until 50).sum)
+      assert(error === "test")
+      assert(sub.isCanceled === true)
+    }
+  }
 }

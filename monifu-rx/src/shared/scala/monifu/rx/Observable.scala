@@ -43,20 +43,79 @@ trait Observable[+A]  {
   final def subscribe(nextFn: A => Unit, errorFn: Throwable => Unit, completedFn: () => Unit): Cancelable =
     subscribe(AnonymousObserver(nextFn, errorFn, completedFn))
 
-  final def map[B](f: A => B): Observable[B] =
-    Observable.map(this)(f)
+  final def subscribeOn(s: Scheduler): Observable[A] =
+    Observable.create { subscriber =>
+      subscriber += s.schedule(_ => unsafeSubscribe(subscriber))
+      subscriber
+    }
 
-  final def filter(p: A => Boolean): Observable[A] =
-    Observable.filter(this)(p)
+  /**
+   * Returns an Observable that applies the given function to each item emitted by an
+   * Observable and emits the result.
+   *
+   * <img width="640" src="https://raw.github.com/alexandru/monifu/docs/images/rx-operators/map.png">
+   *
+   * @param f a function to apply to each item emitted by the Observable
+   * @return an Observable that emits the items from the source Observable, transformed by the
+   *         given function
+   */
+  def map[B](f: A => B): Observable[B] =
+    Observable.create(s =>
+      unsafeSubscribe(s.map(observer => new Observer[A] {
+        def onNext(elem: A) = {
+          // See Section 6.4. - Protect calls to user code from within an operator - in the Rx Design Guidelines
+          // Note: onNext must not be protected, as it's on the edge of the monad and protecting it yields weird effects
+          var streamError = true
+          try {
+            val r = f(elem)
+            streamError = false
+            observer.onNext(r)
+          }
+          catch {
+            case NonFatal(ex) if streamError =>
+              observer.onError(ex)
+          }
+        }
+        def onError(ex: Throwable) = observer.onError(ex)
+        def onCompleted() = observer.onCompleted()
+      })))
 
-  final def flatMap[B](f: A => Observable[B]): Observable[B] =
+  def filter(p: A => Boolean): Observable[A] =
+    Observable.create(s => unsafeSubscribe(s.map(observer => new Observer[A] {
+      def onNext(elem: A) = {
+        // See Section 6.4. - Protect calls to user code from within an operator - in the Rx Design Guidelines
+        // Note: onNext must not be protected, as it's on the edge of the monad and protecting it yields weird effects
+        var streamError = true
+        try {
+          val r = p(elem)
+          streamError = false
+          if (r) observer.onNext(elem)
+        }
+        catch {
+          case NonFatal(ex) if streamError =>
+            observer.onError(ex)
+        }
+      }
+      def onError(ex: Throwable) = observer.onError(ex)
+      def onCompleted() = observer.onCompleted()
+    })))
+
+
+  def flatMap[B](f: A => Observable[B]): Observable[B] =
     Observable.create(subscriber => {
+      // we need to do ref-counting for triggering `onCompleted` on our subscriber
+      // when all the children threads have ended
       val refCounter = RefCountCancelable(subscriber.onCompleted())
 
       unsafeSubscribe(subscriber.map(observer => new Observer[A] {
         def onNext(elem: A) = {
+          // reference that gets released when the child observer is completed
           val refID = refCounter.acquireCancelable()
+          // cancelable reference created for child threads spawned by this flatMap
+          // ... is different than `refID` as it serves the purpose of cancelling
+          // everything on `cancel()`
           val sub = SingleAssignmentCancelable()
+          subscriber += sub
 
           val childObserver = new Observer[B] {
             def onNext(elem: B) =
@@ -67,32 +126,41 @@ trait Observable[+A]  {
               try observer.onError(ex) finally subscriber.cancel()
 
             def onCompleted() = {
-              // do resource release
+              // do resource release, otherwise we can end up with a memory leak
               subscriber -= sub
               refID.cancel()
               sub.cancel()
             }
           }
 
-          subscriber += sub
-          sub := f(elem).unsafeSubscribe(Subscriber(childObserver))
+          // See Section 6.4. - Protect calls to user code from within an operator - in the Rx Design Guidelines
+          // Note: onNext must not be protected, as it's on the edge of the monad and protecting it yields weird effects
+          var streamError = true
+          try {
+            val childObs = f(elem)
+            streamError = false
+            sub := childObs.unsafeSubscribe(Subscriber(childObserver))
+          }
+          catch {
+            case NonFatal(ex) if streamError =>
+              observer.onError(ex)
+          }
         }
 
         def onError(ex: Throwable) =
           try observer.onError(ex) finally subscriber.cancel()
 
-        def onCompleted() =
-          refCounter.cancel() // triggers observer.onCompleted() when all Observables created have been finished
+        def onCompleted() = {
+          // triggers observer.onCompleted() when all Observables created have been finished
+          // basically when the main thread is completed, it waits to stream onCompleted
+          // until all children have been onCompleted too - only after that `subscriber.onCompleted` gets triggered
+          // (see `RefCountCancelable` for details on how it works)
+          refCounter.cancel()
+        }
       }))
 
       subscriber
     })
-
-  final def subscribeOn(s: Scheduler): Observable[A] =
-    Observable.create { subscriber =>
-      subscriber += s.schedule(_ => unsafeSubscribe(subscriber))
-      subscriber
-    }
 
   final def head: Observable[A] = take(1)
   final def tail: Observable[A] = drop(1)
@@ -258,13 +326,13 @@ object Observable {
     }
 
   def empty[A]: Observable[A] =
-    Observable.create { subscriber =>
+    create { subscriber =>
       if (!subscriber.isCanceled) subscriber.onCompleted()
       subscriber
     }
 
   def unit[A](elem: A): Observable[A] =
-    Observable.create { subscriber =>
+    create { subscriber =>
       if (!subscriber.isCanceled) {
         subscriber.onNext(elem)
         subscriber.onCompleted()
@@ -274,16 +342,16 @@ object Observable {
     }
 
   def error(ex: Throwable): Observable[Nothing] =
-    Observable.create { subscriber =>
+    create { subscriber =>
       if (!subscriber.isCanceled) subscriber.onError(ex)
       subscriber
     }
 
   def never: Observable[Nothing] =
-    Observable.create { subscriber => subscriber }
+    create { subscriber => subscriber }
 
   def interval(period: FiniteDuration)(implicit s: Scheduler): Observable[Long] =
-    Observable.create { subscriber =>
+    create { subscriber =>
       val counter = Atomic(0L)
       subscriber += s.scheduleRepeated(period, period, {
         val nr = counter.getAndIncrement()
@@ -297,7 +365,7 @@ object Observable {
     fromSequence(iterable)
 
   def fromSequence[T](sequence: TraversableOnce[T]): Observable[T] =
-    Observable.create[T] { subscriber =>
+    create[T] { subscriber =>
       if (!subscriber.isCanceled) {
         for (i <- sequence)
           if (!subscriber.isCanceled)
@@ -309,45 +377,4 @@ object Observable {
 
       subscriber
     }
-
-  def map[T, U](source: Observable[T])(f: T => U): Observable[U] =
-    Observable.create(s =>
-      source.unsafeSubscribe(s.map(observer => new Observer[T] {
-        def onNext(elem: T) = {
-          // See Section 6.4. - Protect calls to user code from within an operator - in the Rx Design Guidelines
-          // Note: onNext must not be protected, as it's on the edge of the monad and protecting it yields weird effects
-          var streamError = true
-          try {
-            val r = f(elem)
-            streamError = false
-            observer.onNext(r)
-          }
-          catch {
-            case NonFatal(ex) if streamError =>
-              observer.onError(ex)
-          }
-        }
-        def onError(ex: Throwable) = observer.onError(ex)
-        def onCompleted() = observer.onCompleted()
-      })))
-
-  def filter[T](source: Observable[T])(p: T => Boolean): Observable[T] =
-    Observable.create(s => source.unsafeSubscribe(s.map(observer => new Observer[T] {
-      def onNext(elem: T) = {
-        // See Section 6.4. - Protect calls to user code from within an operator - in the Rx Design Guidelines
-        // Note: onNext must not be protected, as it's on the edge of the monad and protecting it yields weird effects
-        var streamError = true
-        try {
-          val r = p(elem)
-          streamError = false
-          if (r) observer.onNext(elem)
-        }
-        catch {
-          case NonFatal(ex) if streamError =>
-            observer.onError(ex)
-        }
-      }
-      def onError(ex: Throwable) = observer.onError(ex)
-      def onCompleted() = observer.onCompleted()
-    })))
 }
