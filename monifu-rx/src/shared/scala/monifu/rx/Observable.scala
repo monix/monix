@@ -7,6 +7,7 @@ import scala.concurrent.{ExecutionContext, Promise, Future}
 import monifu.concurrent.{Scheduler, Cancelable}
 import monifu.rx.observers._
 import monifu.rx.internal.ObservableUtils
+import scala.util.control.NonFatal
 
 
 trait Observable[+A]  {
@@ -25,12 +26,23 @@ trait Observable[+A]  {
    * @return a cancelable that can be used to cancel the streaming - in general it should be
    *         the subscriber given as parameter
    */
-  protected def fn(subscriber: Subscriber[A]): Cancelable
+  protected def subscribeFn(subscriber: Subscriber[A]): Cancelable
+
+  /**
+   * See section 6.5. from the Rx Design Guidelines:
+   * Subscribe implementations should not throw
+   */
+  protected def safeSubscribeFn(subscriber: Subscriber[A]): Cancelable =
+    try subscribeFn(subscriber) catch {
+      case NonFatal(ex) =>
+        subscriber.onError(ex)
+        subscriber
+    }
 
   final def subscribe(observer: Observer[A]): Cancelable = {
     val sub = CompositeCancelable()
-    sub += synchronized.fn(Subscriber(AutoDetachObserver(observer, sub), sub))
-    sub
+    val subscriber = Subscriber(AutoDetachObserver(observer, sub), sub)
+    safeSubscribeFn(subscriber)
   }
 
   final def subscribe(nextFn: A => Unit): Cancelable =
@@ -44,7 +56,7 @@ trait Observable[+A]  {
 
   final def map[B](f: A => B): Observable[B] =
     Observable(s =>
-      fn(s.map(observer => new Observer[A] {
+      safeSubscribeFn(s.map(observer => new Observer[A] {
         def onError(ex: Throwable) = observer.onError(ex)
         def onCompleted() = observer.onCompleted()
         def onNext(elem: A) = observer.onNext(f(elem))
@@ -54,7 +66,7 @@ trait Observable[+A]  {
     Observable(subscriber => {
       val refCounter = RefCountCancelable(subscriber.onCompleted())
 
-      fn(subscriber.map(observer => new Observer[A] {
+      safeSubscribeFn(subscriber.map(observer => new Observer[A] {
         def onNext(elem: A) = {
           val refID = refCounter.acquireCancelable()
           val sub = SingleAssignmentCancelable()
@@ -76,7 +88,7 @@ trait Observable[+A]  {
           }
 
           subscriber += sub
-          sub := f(elem).fn(Subscriber(childObserver))
+          sub := f(elem).safeSubscribeFn(Subscriber(childObserver))
         }
 
         def onError(ex: Throwable) =
@@ -90,7 +102,7 @@ trait Observable[+A]  {
     })
 
   final def filter(p: A => Boolean): Observable[A] =
-    Observable(s => fn(s.map(observer => new Observer[A] {
+    Observable(s => safeSubscribeFn(s.map(observer => new Observer[A] {
       def onNext(elem: A) = if (p(elem)) observer.onNext(elem)
       def onError(ex: Throwable) = observer.onError(ex)
       def onCompleted() = observer.onCompleted()
@@ -98,7 +110,7 @@ trait Observable[+A]  {
 
   final def subscribeOn(s: Scheduler): Observable[A] =
     Observable { subscriber =>
-      subscriber += s.schedule(_ => fn(subscriber))
+      subscriber += s.schedule(_ => safeSubscribeFn(subscriber))
       subscriber
     }
 
@@ -108,7 +120,7 @@ trait Observable[+A]  {
   final def take(nr: Int): Observable[A] = {
     require(nr > 0, "number of elements to take should be strictly positive")
 
-    Observable(s => fn(s.map(observer => new Observer[A] {
+    Observable(s => safeSubscribeFn(s.map(observer => new Observer[A] {
       val count = Atomic(0)
 
       @tailrec
@@ -138,7 +150,7 @@ trait Observable[+A]  {
   final def drop(nr: Int): Observable[A] = {
     require(nr > 0, "number of elements to drop should be strictly positive")
 
-    Observable(s => fn(s.map(observer => new Observer[A] {
+    Observable(s => safeSubscribeFn(s.map(observer => new Observer[A] {
       val count = Atomic(0)
 
       @tailrec
@@ -163,7 +175,7 @@ trait Observable[+A]  {
   }
 
   final def takeWhile(p: A => Boolean): Observable[A] =
-    Observable(s => fn(s.map(observer => new Observer[A] {
+    Observable(s => safeSubscribeFn(s.map(observer => new Observer[A] {
       val shouldContinue = Atomic(true)
 
       def onNext(elem: A): Unit =
@@ -183,7 +195,7 @@ trait Observable[+A]  {
     })))
 
   final def dropWhile(p: A => Boolean): Observable[A] =
-    Observable(s => fn(s.map(observer => new Observer[A] {
+    Observable(s => safeSubscribeFn(s.map(observer => new Observer[A] {
       val shouldDropRef = Atomic(true)
 
       @tailrec
@@ -207,7 +219,7 @@ trait Observable[+A]  {
     Observable { subscriber =>
       val state = Atomic(initial)
 
-      fn(subscriber.map(observer => new Observer[A] {
+      safeSubscribeFn(subscriber.map(observer => new Observer[A] {
         def onNext(elem: A): Unit =
           state.transformAndGet(s => f(s, elem))
 
@@ -222,12 +234,12 @@ trait Observable[+A]  {
     }
 
   final def ++[B >: A](other: => Observable[B]): Observable[B] =
-    Observable[B](s => synchronized.fn(s.map(observer =>
-      new Observer[A] {
+    Observable[B](s => safeSubscribeFn(s.map(observer =>
+      SynchronizedObserver(new Observer[A] {
         def onNext(elem: A): Unit = observer.onNext(elem)
         def onError(ex: Throwable): Unit = observer.onError(ex)
-        def onCompleted(): Unit = other.fn(s)
-      })))
+        def onCompleted(): Unit = other.safeSubscribeFn(s)
+      }))))
 
   /**
    * Returns the first generated result as a Future and then cancels
@@ -251,12 +263,12 @@ trait Observable[+A]  {
   }
 
   final def synchronized: Observable[A] =
-    Observable(s => fn(s.map(SynchronizedObserver.apply)))
+    Observable(s => safeSubscribeFn(s.map(SynchronizedObserver.apply)))
 }
 
 object Observable extends ObservableUtils {
   def apply[A](f: Subscriber[A] => Cancelable): Observable[A] =
     new Observable[A] {
-      def fn(subscriber: Subscriber[A]) = f(subscriber)
+      def subscribeFn(subscriber: Subscriber[A]) = f(subscriber)
     }
 }
