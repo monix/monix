@@ -1,134 +1,134 @@
 package monifu.concurrent.atomic
 
-import monifu.test.MonifuTest
+import org.scalatest.FunSpec
 
-class AtomicAnyTest extends MonifuTest {
+class AtomicAnyTest extends FunSpec {
   describe("AtomicAny") {
     it("should set()") {
       val r = Atomic("initial")
-      expect(r.get).toBe("initial")
+      assert(r.get === "initial")
 
       r.set("update")
-      expect(r.get).toBe("update")
+      assert(r.get === "update")
     }
 
     it("should getAndSet()") {
       val r = Atomic("initial")
-      expect(r.get).toBe("initial")
+      assert(r.get === "initial")
 
-      expect(r.getAndSet("update")).toBe("initial")
-      expect(r.get).toBe("update")
+      assert(r.getAndSet("update") === "initial")
+      assert(r.get === "update")
     }
 
     it("should compareAndSet()") {
       val r = Atomic("initial")
-      expect(r.get).toBe("initial")
+      assert(r.get === "initial")
 
-      expect(r.compareAndSet("initial", "update")).toBe(true)
-      expect(r.get).toBe("update")
-      expect(r.compareAndSet("initial", "other") ).toBe(false)
-      expect(r.get).toBe("update")
-      expect(r.compareAndSet("update",  "other") ).toBe(true)
-      expect(r.get).toBe("other")
+      assert(r.compareAndSet("initial", "update") === true)
+      assert(r.get === "update")
+      assert(r.compareAndSet("initial", "other")  === false)
+      assert(r.get === "update")
+      assert(r.compareAndSet("update",  "other")  === true)
+      assert(r.get === "other")
     }
 
     it("should increment()") {
       val r = Atomic(BigInt(1))
-      expect(r.get).toBe(BigInt(1))
+      assert(r.get === BigInt(1))
 
       r.increment()
-      expect(r.get).toBe(BigInt(2))
+      assert(r.get === BigInt(2))
       r.increment(2)
-      expect(r.get).toBe(BigInt(4))
+      assert(r.get === BigInt(4))
     }
 
     it("should decrement()") {
       val r = Atomic(BigInt(100))
-      expect(r.get).toBe(BigInt(100))
+      assert(r.get === BigInt(100))
 
       r.decrement()
-      expect(r.get).toBe(BigInt(99))
+      assert(r.get === BigInt(99))
       r.decrement(49)
-      expect(r.get).toBe(BigInt(50))
+      assert(r.get === BigInt(50))
     }
 
     it("should incrementAndGet()") {
       val r = Atomic(BigInt(100))
-      expect(r.get).toBe(BigInt(100))
+      assert(r.get === BigInt(100))
 
-      expect(r.incrementAndGet()).toBe(101)
-      expect(r.incrementAndGet()).toBe(102)
+      assert(r.incrementAndGet() === 101)
+      assert(r.incrementAndGet() === 102)
 
-      expect(r.addAndGet(BigInt(20))).toBe(122)
-      expect(r.addAndGet(BigInt(20))).toBe(142)
+      assert(r.addAndGet(BigInt(20)) === 122)
+      assert(r.addAndGet(BigInt(20)) === 142)
     }
 
     it("should decrementAndGet()") {
       val r = Atomic(BigInt(100))
-      expect(r.get).toBe(BigInt(100))
+      assert(r.get === BigInt(100))
 
-      expect(r.decrementAndGet()).toBe(99)
-      expect(r.decrementAndGet()).toBe(98)
-      expect(r.subtractAndGet(BigInt(20))).toBe(78)
-      expect(r.subtractAndGet(BigInt(20))).toBe(58)
+      assert(r.decrementAndGet() === 99)
+      assert(r.decrementAndGet() === 98)
+      assert(r.subtractAndGet(BigInt(20)) === 78)
+      assert(r.subtractAndGet(BigInt(20)) === 58)
     }
 
     it("should getAndIncrement()") {
       val r = Atomic(BigInt(100))
-      expect(r.get).toBe(BigInt(100))
+      assert(r.get === BigInt(100))
 
-      expect(r.getAndIncrement()).toBe(100)
-      expect(r.getAndIncrement()).toBe(101)
-      expect(r.getAndAdd(BigInt(20))).toBe(102)
-      expect(r.getAndAdd(BigInt(20))).toBe(122)
+      assert(r.getAndIncrement() === 100)
+      assert(r.getAndIncrement() === 101)
+      assert(r.getAndAdd(BigInt(20)) === 102)
+      assert(r.getAndAdd(BigInt(20)) === 122)
     }
 
     it("should getAndDecrement()") {
       val r = Atomic(BigInt(100))
-      expect(r.get).toBe(BigInt(100))
+      assert(r.get === BigInt(100))
 
-      expect(r.getAndDecrement()).toBe(100)
-      expect(r.getAndDecrement()).toBe(99)
-      expect(r.getAndSubtract(BigInt(20))).toBe(98)
-      expect(r.getAndSubtract(BigInt(20))).toBe(78)
+      assert(r.getAndDecrement() === 100)
+      assert(r.getAndDecrement() === 99)
+      assert(r.getAndSubtract(BigInt(20)) === 98)
+      assert(r.getAndSubtract(BigInt(20)) === 78)
     }
 
     it("should transform()") {
       val r = Atomic("initial value")
-      expect(r.get).toBe("initial value")
+      assert(r.get === "initial value")
 
       r.transform(s => "updated" + s.dropWhile(_ != ' '))
-      expect(r.get).toBe("updated value")
+      assert(r.get === "updated value")
     }
 
     it("should transformAndGet()") {
       val r = Atomic("initial value")
-      expect(r.get).toBe("initial value")
+      assert(r.get === "initial value")
 
       val value = r.transformAndGet(s => "updated" + s.dropWhile(_ != ' '))
-      expect(value).toBe("updated value")
+      assert(value === "updated value")
     }
 
     it("should getAndTransform()") {
       val r = Atomic("initial value")
-      expect(r()).toBe("initial value")
+      assert(r() === "initial value")
 
       val value = r.getAndTransform(s => "updated" + s.dropWhile(_ != ' '))
-      expect(value).toBe("initial value")
-      expect(r.get).toBe("updated value")
+      assert(value === "initial value")
+      assert(r.get === "updated value")
     }
 
     it("should transformAndExtract()") {
       val r = Atomic("initial value")
-      expect(r.get).toBe("initial value")
+      assert(r.get === "initial value")
 
       val value = r.transformAndExtract { s =>
         val newS = "updated" + s.dropWhile(_ != ' ')
         (newS, "extracted")
       }
 
-      expect(value).toBe("extracted")
-      expect(r.get).toBe("updated value")
+      assert(value === "extracted")
+      assert(r.get === "updated value")
     }
   }
 }

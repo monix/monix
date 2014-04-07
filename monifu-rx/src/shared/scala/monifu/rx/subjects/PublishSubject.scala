@@ -13,7 +13,7 @@ final class PublishSubject[T] private () extends Observable[T] with Observer[T] 
   private[this] val composite = CompositeCancelable()
   private[this] var isDone = false
 
-  protected def subscribeFn(subscriber: Subscriber[T]): Cancelable =
+  def unsafeSubscribe(subscriber: Subscriber[T]): Cancelable =
     lock.writeLock {
       if (!isDone) {
         observers = observers + subscriber

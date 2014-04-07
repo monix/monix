@@ -5,10 +5,10 @@ import monifu.concurrent.cancelables.CompositeCancelable
 import monifu.concurrent.atomic.Atomic
 import scala.concurrent.{Await, Promise}
 import java.util.concurrent.{TimeUnit, CountDownLatch}
-import monifu.test.MonifuTest
 import monifu.concurrent.Cancelable
+import org.scalatest.FunSpec
 
-class ObservableTest extends MonifuTest {
+class ObservableTest extends FunSpec {
   import monifu.concurrent.Scheduler.Implicits.computation
 
   describe("Observable") {
@@ -29,7 +29,7 @@ class ObservableTest extends MonifuTest {
     it("should cancels subscriptions onCompleted") {
       val latch = new CountDownLatch(1)
       val obs1 = Observable.unit(0)
-      val obs2 = Observable[Int] { observer =>
+      val obs2 = Observable.create[Int] { observer =>
         val composite = CompositeCancelable()
         composite += computation.scheduleOnce {
           observer.onNext(10)
@@ -87,8 +87,8 @@ class ObservableTest extends MonifuTest {
       )
 
       latch.await(5, TimeUnit.SECONDS)
-      expect(sub.isCanceled).toBe(true)
-      expect(value).toBe((1 to 15).map(_.toLong))
+      assert(sub.isCanceled === true)
+      assert(value === (1 to 15).map(_.toLong))
     }
 
     it("should flatMap") {
@@ -120,7 +120,7 @@ class ObservableTest extends MonifuTest {
       val concat = sequence.foldLeft(Observable.empty[Int])(_ ++ _).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
       val result = Await.result(concat, 3.seconds)
 
-      expect(result).toBe(Some(0 until 100))
+      assert(result === Some(0 until 100))
     }
 
     it("should map") {
@@ -133,8 +133,8 @@ class ObservableTest extends MonifuTest {
       )
 
       latch.await(1, TimeUnit.SECONDS)
-      expect(effect).toBe(200)
-      expect(sub.isCanceled).toBe(true)
+      assert(effect === 200)
+      assert(sub.isCanceled === true)
     }
 
     it("should filter") {
@@ -148,8 +148,8 @@ class ObservableTest extends MonifuTest {
         )
 
       latch.await(1, TimeUnit.SECONDS)
-      expect(effect).toBe(10 * 11 / 2 - 4 * 5 / 2)
-      expect(sub.isCanceled).toBe(true)
+      assert(effect === 10 * 11 / 2 - 4 * 5 / 2)
+      assert(sub.isCanceled === true)
     }
 
     it("should takeWhile and dropWhile") {
@@ -163,8 +163,8 @@ class ObservableTest extends MonifuTest {
         )
 
       latch.await(1, TimeUnit.SECONDS)
-      expect(effect.sorted).toBe((100 until 200).map(_.toLong).sorted)
-      expect(sub.isCanceled).toBe(true)
+      assert(effect.sorted === (100 until 200).map(_.toLong).sorted)
+      assert(sub.isCanceled === true)
     }
 
     it("should take and drop") {
@@ -178,8 +178,8 @@ class ObservableTest extends MonifuTest {
         )
 
       latch.await(1, TimeUnit.SECONDS)
-      expect(effect.sorted).toBe((100 until 200).map(_.toLong).sorted)
-      expect(sub.isCanceled).toBe(true)
+      assert(effect.sorted === (100 until 200).map(_.toLong).sorted)
+      assert(sub.isCanceled === true)
     }
 
     it("should flatMap like a boss") {
@@ -197,8 +197,8 @@ class ObservableTest extends MonifuTest {
       )
 
       latch.await()
-      expect(sub.isCanceled).toBe(true)
-      expect(effect).toBe((0 until 100).map(_.toLong))
+      assert(sub.isCanceled === true)
+      assert(effect === (0 until 100).map(_.toLong))
     }
   }
 }
