@@ -2,7 +2,7 @@ package monifu.concurrent.locks
 
 import monifu.concurrent.atomic.Atomic
 
-final class ReentrantLock private[locks] () extends Lock {
+final class NaiveSpinLock private[locks] () extends Lock {
   private[this] val acquired = Atomic(false)
   private[this] val isReentrant = new ThreadLocal[Boolean]() {
     override def initialValue(): Boolean = false
@@ -14,7 +14,7 @@ final class ReentrantLock private[locks] () extends Lock {
     val acquireAndRelease = !isReentrant.get
 
     if (acquireAndRelease) {
-      // try acquiring it through spin-locking, give up after 100 tries
+      // spin-lock, until it succeeds
       acquired.waitForCompareAndSet(expect = false, update = true)
       isReentrant.set(true)
     }
@@ -33,7 +33,7 @@ final class ReentrantLock private[locks] () extends Lock {
   }
 }
 
-object ReentrantLock {
-  def apply(): ReentrantLock =
-    new ReentrantLock()
+object NaiveSpinLock {
+  def apply(): NaiveSpinLock =
+    new NaiveSpinLock()
 }

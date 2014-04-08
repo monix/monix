@@ -4,9 +4,9 @@ import org.scalatest.FunSuite
 import monifu.concurrent.Runnable
 import java.util.concurrent.CountDownLatch
 
-class ReentrantLockTest extends FunSuite {
+class NaiveSpinLockTest extends FunSuite {
   test("reentrancy") {
-    val lock = ReentrantLock()
+    val lock = NaiveSpinLock()
     var effect = "hello"
 
     lock.acquire {
@@ -22,7 +22,7 @@ class ReentrantLockTest extends FunSuite {
     val producerStarted = new CountDownLatch(1)
     val consumerStarted = new CountDownLatch(1)
     val start = new CountDownLatch(1)
-    val lock = ReentrantLock()
+    val lock = NaiveSpinLock()
     var effect = "hello"
     var reading = ""
 

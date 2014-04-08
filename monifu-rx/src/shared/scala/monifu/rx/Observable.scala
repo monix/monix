@@ -9,7 +9,7 @@ import monifu.rx.observers._
 import scala.util.control.NonFatal
 import scala.concurrent.duration.FiniteDuration
 import scala.collection.mutable
-import monifu.concurrent.locks.ReentrantLock
+import monifu.concurrent.locks.NaiveSpinLock
 
 
 /**
@@ -380,7 +380,7 @@ trait Observable[+A]  {
   final def zip[B](other: Observable[B]): Observable[(A,B)] =
     Observable.create { observer =>
       val composite = CompositeCancelable()
-      val lock = ReentrantLock()
+      val lock = NaiveSpinLock()
       val queueA = mutable.Queue.empty[A]
       val queueB = mutable.Queue.empty[B]
       var aIsDone = false
