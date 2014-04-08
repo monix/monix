@@ -13,6 +13,7 @@ object Build extends SbtBuild {
     scalaVersion := "2.10.4",
 
     crossScalaVersions := Seq("2.10.4", "2.11.0-RC3"),
+    parallelExecution in Test := false,
 
     scalacOptions ++= Seq(
       "-unchecked", "-deprecation", "-feature", "-Xlint", "-target:jvm-1.6", "-Yinline-warnings"
@@ -72,6 +73,7 @@ object Build extends SbtBuild {
     settings = sharedSettings ++ Seq(
       unmanagedSourceDirectories in Compile <+= sourceDirectory(_ / "shared" / "scala"),
       scalacOptions += "-optimise",
+      libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _ % "compile"),
       libraryDependencies ++= Seq(
         "org.scalatest" %% "scalatest" % "2.1.2" % "test"
       )

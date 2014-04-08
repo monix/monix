@@ -96,15 +96,15 @@ private[atomic] trait NumberCommonOps[@specialized T] { self: AtomicNumber[T] =>
       current
   }
 
-  final def increment(): Unit = increment(1)
-  final def decrement(v: Int): Unit = increment(-v)
-  final def decrement(): Unit = increment(-1)
-  final def incrementAndGet(): T = incrementAndGet(1)
-  final def decrementAndGet(v: Int): T = incrementAndGet(-v)
-  final def decrementAndGet(): T = incrementAndGet(-1)
-  final def getAndIncrement(): T = getAndIncrement(1)
-  final def getAndDecrement(): T = getAndIncrement(-1)
-  final def getAndDecrement(v: Int): T = getAndIncrement(-v)
-  final def `+=`(v: T): Unit = addAndGet(v)
-  final def `-=`(v: T): Unit = subtractAndGet(v)
+  def increment(): Unit = increment(1)
+  def decrement(v: Int): Unit = increment(-v)
+  def decrement(): Unit = increment(-1)
+  def incrementAndGet(): T = incrementAndGet(1)
+  def decrementAndGet(v: Int): T = incrementAndGet(-v)
+  def decrementAndGet(): T = incrementAndGet(-1)
+  def getAndIncrement(): T = getAndIncrement(1)
+  def getAndDecrement(): T = getAndIncrement(-1)
+  def getAndDecrement(v: Int): T = getAndIncrement(-v)
+  def `+=`(v: T): Unit = addAndGet(v)
+  def `-=`(v: T): Unit = subtractAndGet(v)
 }

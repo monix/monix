@@ -1,5 +1,7 @@
 package monifu.concurrent.locks
 
+import scala.throws
+
 trait Lock {
   /**
    * Acquires a lock meant for both reading and writing.

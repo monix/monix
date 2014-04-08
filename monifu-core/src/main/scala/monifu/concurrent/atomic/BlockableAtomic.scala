@@ -43,17 +43,15 @@ trait BlockableAtomic[@specialized T] { self: Atomic[T] =>
   @tailrec
   @throws(classOf[InterruptedException])
   final def waitForCompareAndSet(expect: T, update: T, maxRetries: Int): Boolean =
-    if (maxRetries < 0)
-      false
-    else {
-      val result = compareAndSet(expect, update)
-      if (!result) {
+    if (!compareAndSet(expect, update))
+      if (maxRetries > 0) {
         interruptedCheck()
         waitForCompareAndSet(expect, update, maxRetries - 1)
       }
       else
-        result
-    }
+        false
+    else
+      true
 
   /**
    * Waits until the `compareAndSet` operation succeeds, e.g...
