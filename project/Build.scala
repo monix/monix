@@ -11,9 +11,7 @@ object Build extends SbtBuild {
     organization := "org.monifu",
     version := "0.5-SNAPSHOT",
     scalaVersion := "2.10.4",
-
     crossScalaVersions := Seq("2.10.4", "2.11.0-RC3"),
-    parallelExecution in Test := false,
 
     scalacOptions ++= Seq(
       "-unchecked", "-deprecation", "-feature", "-Xlint", "-target:jvm-1.6", "-Yinline-warnings"

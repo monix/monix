@@ -2,13 +2,13 @@ package monifu.rx.subjects
 
 import monifu.rx.{Observer, Observable}
 import monifu.concurrent.Cancelable
-import monifu.concurrent.locks.ReentrantLock
+import monifu.concurrent.locks.NaiveSpinLock
 import collection.immutable.Set
 import scala.util.{Failure, Success, Try}
 
 
 final class BehaviorSubject[T] private () extends Observable[T] with Observer[T] {
-  private[this] val lock = ReentrantLock()
+  private[this] val lock = NaiveSpinLock()
   private[this] var observers = Set.empty[Observer[T]]
   private[this] var isDone = false
   private[this] var lastValue = Option.empty[Try[T]]
