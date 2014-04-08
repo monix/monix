@@ -8,25 +8,17 @@ import monifu.concurrent.{Scheduler, Cancelable}
 import monifu.rx.observers._
 import scala.util.control.NonFatal
 import scala.concurrent.duration.FiniteDuration
+import scala.collection.mutable
+import monifu.concurrent.locks.ReentrantLock
 
 
 /**
- * The Observable interface that implements the Reactive Pattern.
+ * The Observable interface that implements the Rx pattern.
  *
- * @define subscribeFunctionDoc
- * Call this method to subscribe an [[monifu.rx.observers.Observer]] for receiving
- * items and notifications from the Observable.
- *
- * A typical implementation of `subscribe` does the following:
- *
- * - It stores a reference to the Observer
- * - It returns a reference to the [[monifu.concurrent.Cancelable]] interface. This enables Observers to
- *   cancel, that is, to stop receiving items and notifications before the Observable stops
- *   sending them, which also invokes the Observer's [[monifu.rx.observers.Observer.onCompleted onCompleted]] method.
- * - An `Observable[T]` instance is responsible for accepting all subscriptions
- *   and notifying all Observers. Unless the documentation for a particular
- *   `Observable[T]` implementation indicates otherwise, Observers should make no
- *   assumptions about the order in which multiple Observers will receive their notifications.
+ * Observables are characterized by their `subscribeFn` function,
+ * that must be overwritten for custom operators or for custom
+ * Observable implementations and on top of which everything else
+ * is built.
  */
 trait Observable[+A]  {
   /**
@@ -34,56 +26,47 @@ trait Observable[+A]  {
    * and that starts the stream, being meant to be overridden in custom combinators
    * or in classes implementing Observable.
    *
-   * @param subscriber is both an `Observer[A]` that you can use to push items
-   *                   on the stream, it's also a `CompositeCancelable` to which you
-   *                   can add whatever things you want to get canceled when `cancel()`
-   *                   is invoked and that can also be used to check if the subscription
-   *                   has been canceled from the outside - just return it as the result
-   *                   of this method, after all cancelables you want were added to it
+   * @param observer is an [[monifu.rx.Observer Observer]] on which `onNext`, `onComplete` and `onError`
+   *                 happens, according to the Rx grammar.
    *
-   * @return a cancelable that can be used to cancel the streaming - in general it should be
-   *         the subscriber given as parameter
+   * @return a cancelable that can be used to cancel the streaming
    */
-  def unsafeSubscribe(subscriber: Subscriber[A]): Cancelable
+  protected def subscribeFn(observer: Observer[A]): Cancelable
 
   /**
-   * $subscribeFunctionDoc
+   * Public version of the [[monifu.rx.Observable.subscribeFn subscribeFn]] function.
+   *
+   * It wraps the given observer into an [[monifu.rx.observers.AutoDetachObserver AutoDetachObserver]]
+   * that ensures the subscription is properly canceled either `onCompleted` or `onError`. This function
+   * is not used for building custom operators / combinators, because it suffices to wrap only the last
+   * observer instance in the chain of observers (i.e. custom operators / combinators rely on `subscribeFn`).
    */
   final def subscribe(observer: Observer[A]): Cancelable = {
-    val sub = CompositeCancelable()
-    val subscriber = Subscriber(AutoDetachObserver(observer, sub), sub)
-    unsafeSubscribe(subscriber)
+    val sub = SingleAssignmentCancelable()
+    val subscriber = AutoDetachObserver(observer, sub)
+    sub := subscribeFn(subscriber)
+    sub
   }
 
-  /**
-   * $subscribeFunctionDoc
-   */
   final def subscribe(nextFn: A => Unit): Cancelable =
     subscribe(AnonymousObserver(nextFn))
 
-  /**
-   * $subscribeFunctionDoc
-   */
   final def subscribe(nextFn: A => Unit, errorFn: Throwable => Unit): Cancelable =
     subscribe(AnonymousObserver(nextFn, errorFn))
 
-  /**
-   * $subscribeFunctionDoc
-   */
   final def subscribe(nextFn: A => Unit, errorFn: Throwable => Unit, completedFn: () => Unit): Cancelable =
     subscribe(AnonymousObserver(nextFn, errorFn, completedFn))
 
   /**
-   * Asynchronously subscribes Observers on the specified [[monifu.concurrent.Scheduler]].
+   * Asynchronously subscribes Observers on the specified `monifu.concurrent.Scheduler`.
    *
-   * @param scheduler the [[monifu.concurrent.Scheduler]] to perform subscription actions on
+   * @param scheduler the `monifu.concurrent.Scheduler` to perform subscription actions on
    * @return the source Observable modified so that its subscriptions happen
-   *         on the specified [[monifu.concurrent.Scheduler]]
+   *         on the specified `monifu.concurrent.Scheduler`
    */
   final def subscribeOn(scheduler: Scheduler): Observable[A] =
-    Observable.create { subscriber =>
-      subscriber += scheduler.schedule(_ => unsafeSubscribe(subscriber))
-      subscriber
+    Observable.create { observer =>
+      scheduler.schedule(_ => subscribeFn(observer))
     }
 
   /**
@@ -94,8 +77,8 @@ trait Observable[+A]  {
    * @return an Observable that emits the items from the source Observable, transformed by the given function
    */
   def map[B](f: A => B): Observable[B] =
-    Observable.create(s =>
-      unsafeSubscribe(s.map(observer => new Observer[A] {
+    Observable.create(observer =>
+      subscribeFn(new Observer[A] {
         def onNext(elem: A) = {
           // See Section 6.4. - Protect calls to user code from within an operator - in the Rx Design Guidelines
           // Note: onNext must not be protected, as it's on the edge of the monad and protecting it yields weird effects
@@ -112,7 +95,7 @@ trait Observable[+A]  {
         }
         def onError(ex: Throwable) = observer.onError(ex)
         def onCompleted() = observer.onCompleted()
-      })))
+      }))
 
   /**
    * Returns an Observable which only emits those items for which a given predicate holds.
@@ -121,7 +104,7 @@ trait Observable[+A]  {
    * @return an Observable that emits only those items in the original Observable for which the filter evaluates as `true`
    */
   def filter(p: A => Boolean): Observable[A] =
-    Observable.create(s => unsafeSubscribe(s.map(observer => new Observer[A] {
+    Observable.create(observer => subscribeFn(new Observer[A] {
       def onNext(elem: A) = {
         // See Section 6.4. - Protect calls to user code from within an operator - in the Rx Design Guidelines
         // Note: onNext must not be protected, as it's on the edge of the monad and protecting it yields weird effects
@@ -138,7 +121,7 @@ trait Observable[+A]  {
       }
       def onError(ex: Throwable) = observer.onError(ex)
       def onCompleted() = observer.onCompleted()
-    })))
+    }))
 
 
   /**
@@ -152,12 +135,13 @@ trait Observable[+A]  {
    *         obtained from this transformation.
    */
   def flatMap[B](f: A => Observable[B]): Observable[B] =
-    Observable.create(subscriber => {
+    Observable.create(observer => {
       // we need to do ref-counting for triggering `onCompleted` on our subscriber
       // when all the children threads have ended
-      val refCounter = RefCountCancelable(subscriber.onCompleted())
+      val refCounter = RefCountCancelable(observer.onCompleted())
+      val composite = CompositeCancelable()
 
-      unsafeSubscribe(subscriber.map(observer => new Observer[A] {
+      composite += subscribeFn(new Observer[A] {
         def onNext(elem: A) = {
           // reference that gets released when the child observer is completed
           val refID = refCounter.acquireCancelable()
@@ -165,7 +149,7 @@ trait Observable[+A]  {
           // ... is different than `refID` as it serves the purpose of cancelling
           // everything on `cancel()`
           val sub = SingleAssignmentCancelable()
-          subscriber += sub
+          composite += sub
 
           val childObserver = new Observer[B] {
             def onNext(elem: B) =
@@ -173,11 +157,11 @@ trait Observable[+A]  {
 
             def onError(ex: Throwable) =
               // onError, cancel everything
-              try observer.onError(ex) finally subscriber.cancel()
+              try observer.onError(ex) finally composite.cancel()
 
             def onCompleted() = {
               // do resource release, otherwise we can end up with a memory leak
-              subscriber -= sub
+              composite -= sub
               refID.cancel()
               sub.cancel()
             }
@@ -189,7 +173,7 @@ trait Observable[+A]  {
           try {
             val childObs = f(elem)
             streamError = false
-            sub := childObs.unsafeSubscribe(Subscriber(childObserver))
+            sub := childObs.subscribeFn(childObserver)
           }
           catch {
             case NonFatal(ex) if streamError =>
@@ -198,7 +182,7 @@ trait Observable[+A]  {
         }
 
         def onError(ex: Throwable) =
-          try observer.onError(ex) finally subscriber.cancel()
+          try observer.onError(ex) finally composite.cancel()
 
         def onCompleted() = {
           // triggers observer.onCompleted() when all Observables created have been finished
@@ -207,10 +191,16 @@ trait Observable[+A]  {
           // (see `RefCountCancelable` for details on how it works)
           refCounter.cancel()
         }
-      }))
+      })
 
-      subscriber
+      composite
     })
+
+  final def flatten[B](implicit ev: A <:< Observable[B]): Observable[B] =
+    flatMap(x => x)
+
+  final def merge[B](implicit ev: A <:< Observable[B]): Observable[B] =
+    flatten
 
   final def head: Observable[A] = take(1)
   final def tail: Observable[A] = drop(1)
@@ -218,7 +208,7 @@ trait Observable[+A]  {
   final def take(nr: Int): Observable[A] = {
     require(nr > 0, "number of elements to take should be strictly positive")
 
-    Observable.create(s => unsafeSubscribe(s.map(observer => new Observer[A] {
+    Observable.create(observer => subscribeFn(new Observer[A] {
       val count = Atomic(0)
 
       @tailrec
@@ -242,13 +232,13 @@ trait Observable[+A]  {
 
       def onError(ex: Throwable): Unit =
         observer.onError(ex)
-    })))
+    }))
   }
 
   final def drop(nr: Int): Observable[A] = {
     require(nr > 0, "number of elements to drop should be strictly positive")
 
-    Observable.create(s => unsafeSubscribe(s.map(observer => new Observer[A] {
+    Observable.create(observer => subscribeFn(new Observer[A] {
       val count = Atomic(0)
 
       @tailrec
@@ -269,11 +259,11 @@ trait Observable[+A]  {
 
       def onError(ex: Throwable): Unit =
         observer.onError(ex)
-    })))
+    }))
   }
 
   final def takeWhile(p: A => Boolean): Observable[A] =
-    Observable.create(s => unsafeSubscribe(s.map(observer => new Observer[A] {
+    Observable.create(observer => subscribeFn(new Observer[A] {
       val shouldContinue = Atomic(true)
 
       def onNext(elem: A): Unit =
@@ -290,10 +280,10 @@ trait Observable[+A]  {
 
       def onError(ex: Throwable): Unit =
         observer.onError(ex)
-    })))
+    }))
 
   final def dropWhile(p: A => Boolean): Observable[A] =
-    Observable.create(s => unsafeSubscribe(s.map(observer => new Observer[A] {
+    Observable.create(observer => subscribeFn(new Observer[A] {
       val shouldDropRef = Atomic(true)
 
       @tailrec
@@ -311,13 +301,13 @@ trait Observable[+A]  {
 
       def onError(ex: Throwable): Unit =
         observer.onError(ex)
-    })))
+    }))
 
   final def foldLeft[R](initial: R)(f: (R, A) => R): Observable[R] =
-    Observable.create { subscriber =>
+    Observable.create { observer =>
       val state = Atomic(initial)
 
-      unsafeSubscribe(subscriber.map(observer => new Observer[A] {
+      subscribeFn(new Observer[A] {
         def onNext(elem: A): Unit =
           state.transformAndGet(s => f(s, elem))
 
@@ -328,16 +318,16 @@ trait Observable[+A]  {
 
         def onError(ex: Throwable): Unit =
           observer.onError(ex)
-      }))
+      })
     }
 
   final def ++[B >: A](other: => Observable[B]): Observable[B] =
-    Observable.create[B](s => unsafeSubscribe(s.map(observer =>
+    Observable.create[B](observer => subscribeFn(
       SynchronizedObserver(new Observer[A] {
         def onNext(elem: A): Unit = observer.onNext(elem)
         def onError(ex: Throwable): Unit = observer.onError(ex)
-        def onCompleted(): Unit = other.unsafeSubscribe(s)
-      }))))
+        def onCompleted(): Unit = other.subscribeFn(observer)
+      })))
 
   /**
    * Executes the given callback when the subscription is canceled,
@@ -351,10 +341,10 @@ trait Observable[+A]  {
    * @param cb the callback to execute when the subscription is canceled
    */
   final def doOnCancel(cb: => Unit): Observable[A] =
-    Observable.create { subscriber =>
-      subscriber += Cancelable(cb)
-      unsafeSubscribe(subscriber)
-      subscriber
+    Observable.create { observer =>
+      val composite = CompositeCancelable(Cancelable(cb))
+      composite += subscribeFn(observer)
+      composite
     }
 
   /**
@@ -364,7 +354,7 @@ trait Observable[+A]  {
    * @return a new Observable that executes the specified callback for each element
    */
   final def doWork(cb: A => Unit): Observable[A] =
-    Observable.create(s => s.map(observer => new Observer[A] {
+    Observable.create(observer => subscribeFn(new Observer[A] {
       def onNext(elem: A): Unit = {
         // See Section 6.4. - Protect calls to user code from within an operator - in the Rx Design Guidelines
         // Note: onNext must not be protected, as it's on the edge of the monad and protecting it yields weird effects
@@ -386,7 +376,85 @@ trait Observable[+A]  {
       def onCompleted(): Unit = 
         observer.onCompleted()
     }))
-    
+
+  final def zip[B](other: Observable[B]): Observable[(A,B)] =
+    Observable.create { observer =>
+      val composite = CompositeCancelable()
+      val lock = ReentrantLock()
+      val queueA = mutable.Queue.empty[A]
+      val queueB = mutable.Queue.empty[B]
+      var aIsDone = false
+      var bIsDone = false
+
+      def _onError(ex: Throwable) =
+        lock.acquire {
+          aIsDone = true
+          bIsDone = true
+          queueA.clear()
+          queueB.clear()
+          observer.onError(ex)
+        }
+
+      composite += subscribeFn(new Observer[A] {
+        def onNext(elem: A): Unit =
+          lock.acquire {
+            if (!aIsDone)
+              if (queueB.nonEmpty) {
+                val b = queueB.dequeue()
+                observer.onNext((elem, b))
+              }
+              else if (bIsDone)
+                onCompleted()
+              else
+                queueA.enqueue(elem)
+          }
+
+        def onCompleted(): Unit =
+          lock.acquire {
+            if (!aIsDone) {
+              aIsDone = true
+              if (queueA.isEmpty || bIsDone) {
+                queueA.clear()
+                observer.onCompleted()
+              }
+            }
+          }
+
+        def onError(ex: Throwable): Unit =
+          _onError(ex)
+      })
+
+      composite += other.subscribeFn(new Observer[B] {
+        def onNext(elem: B): Unit =
+          lock.acquire {
+            if (!bIsDone)
+              if (queueA.nonEmpty) {
+                val a = queueA.dequeue()
+                observer.onNext((a, elem))
+              }
+              else if (aIsDone)
+                onCompleted()
+              else
+                queueB.enqueue(elem)
+          }
+
+        def onCompleted(): Unit =
+          lock.acquire {
+            if (!bIsDone) {
+              bIsDone = true
+              if (queueB.isEmpty || aIsDone) {
+                queueB.clear()
+                observer.onCompleted()
+              }
+            }
+          }
+
+        def onError(ex: Throwable): Unit =
+          _onError(ex)
+      })
+
+      composite
+    }
 
   /**
    * Returns the first generated result as a Future and then cancels
@@ -409,71 +477,83 @@ trait Observable[+A]  {
     promise.future
   }
 
-  final def synchronized: Observable[A] =
-    Observable.create(s => unsafeSubscribe(s.map(SynchronizedObserver.apply)))
+  final def safe: Observable[A] =
+    Observable.create(observer => subscribeFn(SynchronizedObserver(observer)))
 }
 
 object Observable {
-  def create[A](f: Subscriber[A] => Cancelable): Observable[A] =
+  def create[A](f: Observer[A] => Cancelable): Observable[A] =
     new Observable[A] {
-      def unsafeSubscribe(subscriber: Subscriber[A]) =
-        try f(subscriber) catch {
+      def subscribeFn(observer: Observer[A]) =
+        try f(observer) catch {
           case NonFatal(ex) =>
-            subscriber.onError(ex)
-            subscriber
+            observer.onError(ex)
+            Cancelable.alreadyCanceled
         }
     }
 
   def empty[A]: Observable[A] =
-    create { subscriber =>
-      if (!subscriber.isCanceled) subscriber.onCompleted()
-      subscriber
+    create { observer =>
+      observer.onCompleted()
+      Cancelable.alreadyCanceled
     }
 
   def unit[A](elem: A): Observable[A] =
-    create { subscriber =>
-      if (!subscriber.isCanceled) {
-        subscriber.onNext(elem)
-        subscriber.onCompleted()
-      }
-
-      subscriber
+    create { observer =>
+      observer.onNext(elem)
+      observer.onCompleted()
+      Cancelable.alreadyCanceled
     }
 
   def error(ex: Throwable): Observable[Nothing] =
-    create { subscriber =>
-      if (!subscriber.isCanceled) subscriber.onError(ex)
-      subscriber
+    create { observer =>
+      observer.onError(ex)
+      Cancelable.alreadyCanceled
     }
 
   def never: Observable[Nothing] =
-    create { subscriber => subscriber }
+    create { _ => Cancelable() }
 
   def interval(period: FiniteDuration)(implicit s: Scheduler): Observable[Long] =
-    create { subscriber =>
+    create { observer =>
       val counter = Atomic(0L)
-      subscriber += s.scheduleRepeated(period, period, {
-        val nr = counter.getAndIncrement()
-        if (!subscriber.isCanceled) subscriber.onNext(nr)
-      })
 
-      subscriber
+      s.scheduleRepeated(period, period, {
+        val nr = counter.getAndIncrement()
+        observer.onNext(nr)
+      })
     }
+
+  def fromIterable[T](iterable: Iterable[T], s: Scheduler): Observable[T] =
+    fromSequence(iterable, s)
 
   def fromIterable[T](iterable: Iterable[T]): Observable[T] =
     fromSequence(iterable)
 
-  def fromSequence[T](sequence: TraversableOnce[T]): Observable[T] =
-    create[T] { subscriber =>
-      if (!subscriber.isCanceled) {
-        for (i <- sequence)
-          if (!subscriber.isCanceled)
-            subscriber.onNext(i)
+  def fromSequence[T](sequence: TraversableOnce[T], s: Scheduler): Observable[T] =
+    create[T] { observer =>
+      val sub = SingleAssignmentCancelable()
+      sub := s.scheduleOnce {
+        if (!sub.isCanceled) {
+          for (i <- sequence)
+            if (!sub.isCanceled)
+              observer.onNext(i)
 
-        if (!subscriber.isCanceled)
-          subscriber.onCompleted()
+          if (!sub.isCanceled)
+            observer.onCompleted()
+        }
       }
 
-      subscriber
+      sub
     }
+
+  def fromSequence[T](sequence: TraversableOnce[T]): Observable[T] =
+    create[T] { observer =>
+      for (i <- sequence) observer.onNext(i)
+      observer.onCompleted()
+      Cancelable.alreadyCanceled
+    }
+
+  def merge[T](sources: Observable[T]*): Observable[T] =
+    Observable.fromSequence(sources).flatten
 }

@@ -2,8 +2,7 @@ package monifu.rx
 
 import concurrent.duration._
 import monifu.concurrent.cancelables.CompositeCancelable
-import monifu.concurrent.atomic.Atomic
-import scala.concurrent.{Await, Promise}
+import scala.concurrent.Await
 import java.util.concurrent.{TimeUnit, CountDownLatch}
 import monifu.concurrent.Cancelable
 import org.scalatest.FunSpec
@@ -14,7 +13,7 @@ class ObservableTest extends FunSpec {
   describe("Observable") {
     it("should do interval") {
       val startAt = System.nanoTime()
-      val f = Observable.interval(10.millis)
+      val f = Observable.interval(1.millis)
         .takeWhile(_ < 10)
         .foldLeft(0L)(_ + _)
         .asFuture
@@ -23,7 +22,7 @@ class ObservableTest extends FunSpec {
       val endedAt = System.nanoTime()
 
       assert(result === Some(9 * 5))
-      assert((endedAt - startAt).nanos >= 100.millis)
+      assert((endedAt - startAt).nanos >= 10.millis)
     }
 
     it("should cancels subscriptions onCompleted") {
@@ -52,20 +51,16 @@ class ObservableTest extends FunSpec {
     }
 
     it("should trigger onComplete on takeWhile") {
-      val atomic = Atomic(0L)
-      val obs = Observable.interval(10.millis)
+      val latch = new CountDownLatch(1)
+      val obs = Observable.interval(1.millis)
         .takeWhile(_ < 10)
         .foldLeft(0L)(_ + _)
         .filter(_ => true)
 
-      val promise = Promise[Long]()
-      val sub = obs.subscribe(x => atomic.set(x), err => promise.failure(err), () => {
-        computation.scheduleOnce(50.millis, promise.success(atomic.get))
-      })
+      @volatile var result = 0L
+      val sub = obs.doOnCancel(latch.countDown()).subscribe { x => result = x }
 
-      val f = promise.future
-      val result = Await.result(f, 1.second)
-
+      latch.await(1, TimeUnit.SECONDS)
       assert(result === 45)
       assert(sub.isCanceled === true)
     }
@@ -80,10 +75,9 @@ class ObservableTest extends FunSpec {
 
       val latch = new CountDownLatch(1)
       var value = Seq.empty[Long]
-      val sub = obs.subscribe(
+      val sub = obs.doOnCancel(latch.countDown()).subscribe(
         elem => value = elem,
-        error => throw error,
-        () => latch.countDown()
+        error => throw error
       )
 
       latch.await(5, TimeUnit.SECONDS)
@@ -126,10 +120,9 @@ class ObservableTest extends FunSpec {
     it("should map") {
       @volatile var effect = 0
       val latch = new CountDownLatch(1)
-      val sub = Observable.unit(100).subscribeOn(computation).map(_ * 2).subscribe(
+      val sub = Observable.unit(100).subscribeOn(computation).map(_ * 2).doOnCancel(latch.countDown()).subscribe(
         e => effect = e,
-        err => throw err,
-        () => latch.countDown()
+        err => throw err
       )
 
       latch.await(1, TimeUnit.SECONDS)
@@ -141,10 +134,9 @@ class ObservableTest extends FunSpec {
       @volatile var effect = 0
       val latch = new CountDownLatch(1)
       val sub = Observable.fromSequence(0 to 10).subscribeOn(computation).filter(_ >= 5).foldLeft(0)(_+_)
-        .subscribe(
+        .doOnCancel(latch.countDown()).subscribe(
           e => effect = e,
-          err => throw err,
-          () => latch.countDown()
+          err => throw err
         )
 
       latch.await(1, TimeUnit.SECONDS)
@@ -171,10 +163,9 @@ class ObservableTest extends FunSpec {
       @volatile var effect = Seq.empty[Long]
       val latch = new CountDownLatch(1)
       val sub = Observable.interval(1.millis).drop(100).take(100).foldLeft(Seq.empty[Long])(_:+_)
-        .subscribe(
+        .doOnCancel(latch.countDown()).subscribe(
           e => effect = e,
-          err => throw err,
-          () => latch.countDown()
+          err => throw err
         )
 
       latch.await(1, TimeUnit.SECONDS)
@@ -190,13 +181,12 @@ class ObservableTest extends FunSpec {
       @volatile var effect = Seq.empty[Long]
       val latch = new CountDownLatch(1)
 
-      val sub = obs.take(100).foldLeft(effect)(_:+_).subscribe(
+      val sub = obs.take(100).foldLeft(effect)(_:+_).doOnCancel(latch.countDown()).subscribe(
         e => effect = e,
-        err => throw err,
-        () => latch.countDown()
+        err => throw err
       )
 
-      latch.await()
+      latch.await(1, TimeUnit.SECONDS)
       assert(sub.isCanceled === true)
       assert(effect === (0 until 100).map(_.toLong))
     }

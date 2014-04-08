@@ -8,11 +8,6 @@ trait Lock {
   def acquire[T](cb: => T): T
 }
 
-object Lock {
-  def apply(): Lock =
-    NaiveSpinLock()
-}
-
 trait ReadWriteLock extends Lock {
   /** 
    * Acquires a lock meant for reading. 
@@ -33,7 +28,3 @@ trait ReadWriteLock extends Lock {
     writeLock(cb)
 }
 
-object ReadWriteLock {
-  def apply(): ReadWriteLock =
-    NaiveReadWriteLock()
-}

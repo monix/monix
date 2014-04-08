@@ -1,24 +1,23 @@
 package monifu.rx.subjects
 
-import monifu.rx.Observable
+import monifu.rx.{Observer, Observable}
 import monifu.concurrent.Cancelable
-import monifu.concurrent.locks.ReadWriteLock
+import monifu.concurrent.locks.NaiveReadWriteLock
 import monifu.concurrent.cancelables.CompositeCancelable
 import collection.immutable.Set
-import monifu.rx.observers.{Subscriber, Observer}
 
 final class PublishSubject[T] private () extends Observable[T] with Observer[T] {
-  private[this] val lock = ReadWriteLock()
-  private[this] var observers = Set.empty[Subscriber[T]]
+  private[this] val lock = NaiveReadWriteLock()
+  private[this] var observers = Set.empty[Observer[T]]
   private[this] val composite = CompositeCancelable()
   private[this] var isDone = false
 
-  def unsafeSubscribe(subscriber: Subscriber[T]): Cancelable =
+  protected def subscribeFn(observer: Observer[T]): Cancelable =
     lock.writeLock {
       if (!isDone) {
-        observers = observers + subscriber
+        observers = observers + observer
         val sub = Cancelable {
-          observers = observers - subscriber
+          observers = observers - observer
         }
 
         composite += sub

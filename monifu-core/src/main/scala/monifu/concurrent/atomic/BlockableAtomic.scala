@@ -28,6 +28,35 @@ trait BlockableAtomic[@specialized T] { self: Atomic[T] =>
 
   /**
    * Waits until the `compareAndSet` operation succeeds, e.g...
+   *
+   * 1. until the old value == expected and the operation succeeds, or
+   * 2. until the current thread is interrupted
+   * 3. until the the spin lock retried for a maximum of `maxRetries`
+   *
+   * @param expect the expected current value
+   * @param update the value to replace the current value
+   * @param maxRetries the maximum number of times to retry in case of failure
+   *
+   * @return true if the operation succeeded or false in case it failed after
+   *         it retried for `maxRetries` times
+   */
+  @tailrec
+  @throws(classOf[InterruptedException])
+  final def waitForCompareAndSet(expect: T, update: T, maxRetries: Int): Boolean =
+    if (maxRetries < 0)
+      false
+    else {
+      val result = compareAndSet(expect, update)
+      if (!result) {
+        interruptedCheck()
+        waitForCompareAndSet(expect, update, maxRetries - 1)
+      }
+      else
+        result
+    }
+
+  /**
+   * Waits until the `compareAndSet` operation succeeds, e.g...
    * 1. until the old value == expected and the operation succeeds, or
    * 2. until the current thread is interrupted, or
    * 3. the specified timeout is due

@@ -2,6 +2,7 @@ package monifu.rx.observers
 
 import monifu.concurrent.Cancelable
 import scala.util.control.NonFatal
+import monifu.rx.Observer
 
 /**
  * An observer wrapper that cancels its subscription on completed or on errors being thrown.
