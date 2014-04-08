@@ -1,4 +1,4 @@
-package monifu.rx.observers
+package monifu.rx
 
 trait Observer[-T] {
   def onNext(elem: T): Unit

@@ -1,6 +1,7 @@
 package monifu.rx.observers
 
-import monifu.concurrent.locks.ReadWriteLock
+import monifu.concurrent.locks.NaiveReadWriteLock
+import monifu.rx.Observer
 
 /**
  * An observer wrapper that ensures the Rx grammar for onComplete/onError is respected,
@@ -19,7 +20,7 @@ import monifu.concurrent.locks.ReadWriteLock
  * of the Observer implementation given to `subscribe()`.
  */
 final class SynchronizedObserver[-T] private (underlying: Observer[T]) extends Observer[T] {
-  private[this] val lock = ReadWriteLock()
+  private[this] val lock = NaiveReadWriteLock()
   private[this] var isDone = false
 
   def onNext(elem: T): Unit =

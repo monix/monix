@@ -8,7 +8,7 @@ package object locks {
   type Lock = LockImpl.type
   type ReadWriteLock = ReadWriteLockImpl.type
   type NaiveReadWriteLock = ReadWriteLockImpl.type
-  type NaiveSpinLock = LockImpl.type
+  type ReentrantLock = LockImpl.type
   type ReentrantReadWriteLock = ReadWriteLockImpl.type
 
   def Lock(): Lock =
@@ -20,7 +20,7 @@ package object locks {
   def NaiveReadWriteLock(): NaiveReadWriteLock =
     ReadWriteLockImpl
 
-  def NaiveSpinLock(): NaiveSpinLock =
+  def ReentrantLock(): ReentrantLock =
     LockImpl
 
   def ReentrantReadWriteLock(): ReentrantReadWriteLock =

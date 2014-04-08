@@ -1,5 +1,7 @@
 package monifu.rx.observers
 
+import monifu.rx.Observer
+
 
 final class AnonymousObserver[-T] private (nextFn: T => Unit, errorFn: Throwable => Unit, completedFn: () => Unit)
   extends Observer[T] {

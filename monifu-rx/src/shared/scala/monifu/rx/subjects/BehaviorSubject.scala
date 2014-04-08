@@ -1,33 +1,32 @@
 package monifu.rx.subjects
 
-import monifu.rx.Observable
+import monifu.rx.{Observer, Observable}
 import monifu.concurrent.Cancelable
-import monifu.concurrent.locks.Lock
+import monifu.concurrent.locks.ReentrantLock
 import collection.immutable.Set
 import scala.util.{Failure, Success, Try}
-import monifu.rx.observers.{Subscriber, Observer}
 
 
 final class BehaviorSubject[T] private () extends Observable[T] with Observer[T] {
-  private[this] val lock = Lock()
+  private[this] val lock = ReentrantLock()
   private[this] var observers = Set.empty[Observer[T]]
   private[this] var isDone = false
   private[this] var lastValue = Option.empty[Try[T]]
 
-  def unsafeSubscribe(subscriber: Subscriber[T]): Cancelable =
+  protected def subscribeFn(observer: Observer[T]): Cancelable =
     lock.acquire {
       if (!isDone) {
         for (l <- lastValue; v <- l)
-          subscriber.onNext(v)
+          observer.onNext(v)
 
-        observers = observers + subscriber
+        observers = observers + observer
         Cancelable {
-          observers = observers - subscriber
+          observers = observers - observer
         }
       }
       else {
         for (l <- lastValue; ex <- l.failed)
-          subscriber.onError(ex)
+          observer.onError(ex)
         Cancelable.alreadyCanceled
       }
     }
