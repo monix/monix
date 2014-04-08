@@ -22,6 +22,33 @@ final class AtomicInt private (ref: AtomicInteger)
   def plusOp(a: Int, b: Int) = a + b
   def minusOp(a: Int, b: Int) = a - b
   def incrOp(a: Int, b: Int): Int = a + b
+
+  override def increment(): Unit =
+    ref.incrementAndGet()
+
+  override def decrement(): Unit =
+    ref.decrementAndGet()
+
+  override def incrementAndGet(): Int =
+    ref.incrementAndGet()
+
+  override def decrementAndGet(): Int =
+    ref.decrementAndGet()
+
+  override def decrementAndGet(v: Int): Int =
+    ref.addAndGet(-v)
+
+  override def getAndIncrement(): Int =
+    ref.getAndIncrement
+
+  override def getAndDecrement(): Int =
+    ref.getAndDecrement
+
+  override def getAndDecrement(v: Int): Int =
+    ref.getAndAdd(-v)
+
+  override def decrement(v: Int): Unit =
+    ref.addAndGet(-v)
 }
 
 object AtomicInt {
