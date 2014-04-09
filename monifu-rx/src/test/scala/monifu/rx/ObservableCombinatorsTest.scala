@@ -210,4 +210,5 @@ class ObservableCombinatorsTest extends FunSpec {
       assert(sub.isCanceled === true)
     }
   }
+
 }
