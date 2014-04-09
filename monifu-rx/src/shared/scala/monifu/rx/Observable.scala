@@ -123,6 +123,34 @@ trait Observable[+A]  {
       def onCompleted() = observer.onCompleted()
     }))
 
+  /**
+   * Returns an Observable which only emits the first item for which the predicate holds.
+   *
+   * @param p a function that evaluates the items emitted by the source Observable, returning `true` if they pass the filter
+   * @return an Observable that emits only the first item in the original Observable for which the filter evaluates as `true`
+   */
+  final def find(p: A => Boolean): Observable[A] =
+    filter(p).head
+
+  /**
+   * Returns an Observable which emits a single value, either true, in case the given predicate holds for at least
+   * one item, or false otherwise.
+   *
+   * @param p a function that evaluates the items emitted by the source Observable, returning `true` if they pass the filter
+   * @return an Observable that emits only true or false in case the given predicate holds or not for at least one item
+   */
+  final def exists(p: A => Boolean): Observable[Boolean] =
+    find(p).foldLeft(false)((_, _) => true)
+
+  /**
+   * Returns an Observable that emits a single boolean, either true, in case the given predicate holds for all the items
+   * emitted by the source, or false in case at least one item is not verifying the given predicate.
+   *
+   * @param p a function that evaluates the items emitted by the source Observable, returning `true` if they pass the filter
+   * @return an Observable that emits only true or false in case the given predicate holds or not for all the items
+   */
+  final def forAll(p: A => Boolean): Observable[Boolean] =
+    exists(e => !p(e)).map(r => !r)
 
   /**
    * Creates a new Observable by applying a function that you supply to each item emitted by
@@ -196,14 +224,43 @@ trait Observable[+A]  {
       composite
     })
 
+  /**
+   * Flattens the sequence of Observables emitted by `this` into one Observable, without any
+   * transformation.
+   *
+   * You can combine the items emitted by multiple Observables so that they act like a single
+   * Observable by using this method.
+   *
+   * This operation is only available if `this` is of type `Observable[Observable[B]]` for some `B`,
+   * otherwise you'll get a compilation error.
+   *
+   * @return an Observable that emits items that are the result of flattening the items emitted
+   *         by the Observables emitted by `this`
+   */
   final def flatten[B](implicit ev: A <:< Observable[B]): Observable[B] =
     flatMap(x => x)
 
-  final def merge[B](implicit ev: A <:< Observable[B]): Observable[B] =
-    flatten
+  /**
+   * Flattens two Observables into one Observable, without any transformation.
+   *
+   * @param other an Observable to be merged
+   * @return an Observable that emits items from `this` and `that` until
+   *         `this` or `that` emits `onError` or `onComplete`.   */
+  final def merge[B >: A](other: Observable[B]): Observable[B] =
+    Observable.fromSequence(Seq(this, other)).flatMap(x => x)
 
   final def head: Observable[A] = take(1)
+
   final def tail: Observable[A] = drop(1)
+
+  final def headOrElse[B >: A](default: => B): Observable[B] =
+    head.foldLeft(Option.empty[A])((_, elem) => Some(elem)).map {
+      case Some(elem) => elem
+      case None => default
+    }
+
+  final def firstOrElse[B >: A](default: => B): Observable[B] =
+    headOrElse(default)
 
   final def take(nr: Int): Observable[A] = {
     require(nr > 0, "number of elements to take should be strictly positive")
@@ -523,12 +580,6 @@ object Observable {
         observer.onNext(nr)
       })
     }
-
-  def fromIterable[T](iterable: Iterable[T], s: Scheduler): Observable[T] =
-    fromSequence(iterable, s)
-
-  def fromIterable[T](iterable: Iterable[T]): Observable[T] =
-    fromSequence(iterable)
 
   def fromSequence[T](sequence: TraversableOnce[T], s: Scheduler): Observable[T] =
     create[T] { observer =>
