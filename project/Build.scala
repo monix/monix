@@ -9,7 +9,7 @@ object Build extends SbtBuild {
 
   val sharedSettings = Defaults.defaultSettings ++ Seq(
     organization := "org.monifu",
-    version := "0.5-SNAPSHOT",
+    version := "0.5",
     scalaVersion := "2.10.4",
     crossScalaVersions := Seq("2.10.4", "2.11.0-RC4"),
 
@@ -73,7 +73,7 @@ object Build extends SbtBuild {
       scalacOptions += "-optimise",
       libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _ % "compile"),
       libraryDependencies ++= Seq(
-        "org.scalatest" %% "scalatest" % "2.1.2" % "test"
+        "org.scalatest" %% "scalatest" % "2.1.3" % "test"
       )
     )
   )
