@@ -11,7 +11,7 @@ object Build extends SbtBuild {
     organization := "org.monifu",
     version := "0.5-SNAPSHOT",
     scalaVersion := "2.10.4",
-    crossScalaVersions := Seq("2.10.4", "2.11.0-RC3"),
+    crossScalaVersions := Seq("2.10.4", "2.11.0-RC4"),
 
     scalacOptions ++= Seq(
       "-unchecked", "-deprecation", "-feature", "-Xlint", "-target:jvm-1.6", "-Yinline-warnings"
@@ -62,8 +62,8 @@ object Build extends SbtBuild {
   // -- Actual Projects
 
   lazy val root = Project(id = "monifu", base = file("."), settings = sharedSettings)
-    .aggregate(monifuCore, monifuCoreJS, monifuRx, monifuRxJS)
-    .dependsOn(monifuCore, monifuRx)
+    .aggregate(monifuCore, monifuCoreJS)
+    .dependsOn(monifuCore)
 
   lazy val monifuCore = Project(
     id = "monifu-core",
@@ -89,27 +89,4 @@ object Build extends SbtBuild {
       )
     )
   )
-
-  lazy val monifuRx = Project(
-    id = "monifu-rx",
-    base = file("monifu-rx"),
-    settings = sharedSettings ++ Seq(
-      unmanagedSourceDirectories in Compile <+= sourceDirectory(_ / "shared" / "scala"),
-      scalacOptions += "-optimise",
-      libraryDependencies ++= Seq(
-        "org.scalatest" %% "scalatest" % "2.1.2" % "test"
-      )
-    )
-  ).dependsOn(monifuCore)
-
-  lazy val monifuRxJS = Project(
-    id = "monifu-rx-js",
-    base = file("monifu-rx-js"),
-    settings = sharedSettings ++ scalaJSSettings ++ Seq(
-      unmanagedSourceDirectories in Compile <+= sourceDirectory(_ / ".." / ".." / "monifu-rx" / "src" / "shared" / "scala/"),
-      libraryDependencies ++= Seq(
-        "org.scala-lang.modules.scalajs" %% "scalajs-jasmine-test-framework" % scalaJSVersion % "test"
-      )
-    )
-  ).dependsOn(monifuCoreJS)
 }
