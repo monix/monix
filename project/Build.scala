@@ -9,10 +9,9 @@ object Build extends SbtBuild {
 
   val sharedSettings = Defaults.defaultSettings ++ Seq(
     organization := "org.monifu",
-    version := "0.4",
+    version := "0.5",
     scalaVersion := "2.10.4",
-
-    crossScalaVersions := Seq("2.10.4", "2.11.0-RC3"),
+    crossScalaVersions := Seq("2.10.4", "2.11.0-RC4"),
 
     scalacOptions ++= Seq(
       "-unchecked", "-deprecation", "-feature", "-Xlint", "-target:jvm-1.6", "-Yinline-warnings"
@@ -63,7 +62,8 @@ object Build extends SbtBuild {
   // -- Actual Projects
 
   lazy val root = Project(id = "monifu", base = file("."), settings = sharedSettings)
-    .aggregate(monifuCore, monifuCoreJS).dependsOn(monifuCore)
+    .aggregate(monifuCore, monifuCoreJS)
+    .dependsOn(monifuCore)
 
   lazy val monifuCore = Project(
     id = "monifu-core",
@@ -71,8 +71,9 @@ object Build extends SbtBuild {
     settings = sharedSettings ++ Seq(
       unmanagedSourceDirectories in Compile <+= sourceDirectory(_ / "shared" / "scala"),
       scalacOptions += "-optimise",
+      libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _ % "compile"),
       libraryDependencies ++= Seq(
-        "org.scalatest" %% "scalatest" % "2.1.2" % "test"
+        "org.scalatest" %% "scalatest" % "2.1.3" % "test"
       )
     )
   )
@@ -81,7 +82,8 @@ object Build extends SbtBuild {
     id = "monifu-core-js",
     base = file("monifu-core-js"),
     settings = sharedSettings ++ scalaJSSettings ++ Seq(
-      unmanagedSourceDirectories in Compile <+= sourceDirectory(_ / ".." / ".." / "monifu-core" / "src" / "shared" / "scala/"),
+      unmanagedSourceDirectories in Compile <+= sourceDirectory(_ / ".." / ".." / "monifu-core" / "src" / "shared" / "scala"),
+      libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _ % "compile"),
       libraryDependencies ++= Seq(
         "org.scala-lang.modules.scalajs" %% "scalajs-jasmine-test-framework" % scalaJSVersion % "test"
       )

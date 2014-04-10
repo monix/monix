@@ -164,14 +164,14 @@ returned token is also a
 [Cancelable](../monifu-core/src/shared/scala/monifu/concurrent/Cancelable.scala)
 that can be used to cancel the pending execution.
 
-#### Periodic execution
+#### Repeated execution
 
 We can also schedule things to run periodically:
 
 ```scala
 import monifu.concurrent.Scheduler.{computation => s}
 
-val task = s.schedulePeriodically(1.second, 2.second, {
+val task = s.scheduleRepeated(1.second, 2.second, {
   println("Hello world")
 })
 
@@ -181,10 +181,8 @@ task.cancel()
 
 The above will print `"Hello world"` after 1 second (the initial
 delay) and then every 2 seconds after that. Successive executions of
-a task scheduled with `schedulePeriodically()` do NOT overlap. The
-implementation tries its best to schedule the first execution at
-`initialDelay` and then at `initialDelay + period` and then at
-`initialDelay + 2 * period` and so on.
+a task scheduled with `scheduleRepeated()` do NOT overlap and are
+scheduled to run after the specified `delay`.
 
 #### Recursive re-scheduling - tasks that re-schedule themselves
 
@@ -226,14 +224,14 @@ Counter: 10
 ```
 
 And then it will stop, by itself. This is a more general variant of
-`schedulePeriodically` and in fact if you look at
+`scheduleRepeated` and in fact if you look at
 [its implementation](../monifu-core/src/shared/scala/monifu/concurrent/Scheduler.scala),
-`schedulePeriodically` is implemented in terms of `scheduleRecursive`,
+`scheduleRepeated` is implemented in terms of `scheduleRecursive`,
 something like this:
 
 ```scala
-def schedulePeriodically(initialDelay: FiniteDuration, period: FiniteDuration, action: => Unit): Cancelable =
-  scheduleRecursive(initialDelay, period, { reschedule =>
+def scheduleRepeated(initialDelay: FiniteDuration, delay: FiniteDuration, action: => Unit): Cancelable =
+  scheduleRecursive(initialDelay, delay, { reschedule =>
     action
     reschedule()
   })
@@ -271,10 +269,8 @@ val task = s.schedule(1.seconds, loop)
 // task.cancel()
 ```
 
-The effect of the above would be more or less the same as with
-`scheduleRecursive` example. There are implementation details
-(`scheduleRecursive` tries to execute at fixed rates, whereas this
-exemple executes things with a fixed delay for simplicity).
+The effect of the above would be the same as with the
+`scheduleRecursive` or the `scheduleRepeated` examples.
 
 ### Real-world use-case: Futures with Timeouts
 
@@ -315,7 +311,7 @@ def withTimeout[T](f: Future[T], atMost: FiniteDuration)(implicit s: Scheduler):
 
 This is such a useful combinator that it's provided as an extension
 method for futures in Monifu's
-[FutureExtensions](../monifu-core/src/shared/scala/monifu/concurrent/package.scala)
+[FutureExtensions](../monifu-core/src/shared/scala/monifu/concurrent/extensions.scala)
 and so you can use it directly without wheel reinvention:
 
 ```scala
@@ -328,7 +324,7 @@ val futureWithTimeout = myFuture.withTimeout(1.second)
 
 Actually, since we are on the subject, you also have `delayedResult`
 as an extension of the `Future` companion object, also available in
-[FutureCompanionExtensions](../monifu-core/src/shared/scala/monifu/concurrent/package.scala),
+[FutureCompanionExtensions](../monifu-core/src/shared/scala/monifu/concurrent/extensions.scala),
 who's implementation is something like:
 
 ```scala
@@ -394,7 +390,7 @@ def withKeepAlive[T](keepAlive: T, period: FiniteDuration)(cb: => Future[T])(imp
 Testing it is straightforward:
 
 ```scala
-import monifu.concurrent._
+import monifu.concurrent.extensions._
 
 def runTest(implicit s: Scheduler) = {
   val enum = futureWithKeepAlive(300.millis, ".") {
@@ -416,7 +412,7 @@ and is based on Javascript's `global.setTimeout` for scheduling. It's
 a full-fledged `Scheduler` implementation and you can use it as such:
 
 ```scala
-val s = monifu.concurrent.Scheduler.async
+val s = monifu.concurrent.Scheduler.computation
 
 var counter = 0
 

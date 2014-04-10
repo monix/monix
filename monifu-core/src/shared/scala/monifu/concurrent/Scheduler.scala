@@ -12,29 +12,35 @@ import monifu.concurrent.schedulers.SchedulerConstructor
  */
 @implicitNotFound("Cannot find an implicit Scheduler, either import monifu.concurrent.Scheduler.Implicits.global or use a custom one")
 trait Scheduler extends ExecutionContext {
-  def schedule(action: Scheduler => Cancelable): Cancelable
-
-  def schedule(initialDelay: FiniteDuration, action: Scheduler => Cancelable): Cancelable
-
   def scheduleOnce(action: => Unit): Cancelable
 
   def scheduleOnce(initialDelay: FiniteDuration, action: => Unit): Cancelable
 
-  def schedulePeriodically(initialDelay: FiniteDuration, period: FiniteDuration, action: => Unit): Cancelable =
-    scheduleRecursive(initialDelay, period, { reschedule =>
+  def schedule(action: Scheduler => Cancelable): Cancelable = {
+    val sub = MultiAssignmentCancelable()
+    sub := scheduleOnce(sub := action(Scheduler.this))
+    sub
+  }
+
+  def schedule(initialDelay: FiniteDuration, action: Scheduler => Cancelable): Cancelable = {
+    val sub = MultiAssignmentCancelable()
+    sub := scheduleOnce(initialDelay, sub := action(Scheduler.this))
+    sub
+  }
+
+  def scheduleRepeated(initialDelay: FiniteDuration, delay: FiniteDuration, action: => Unit): Cancelable =
+    scheduleRecursive(initialDelay, delay, { reschedule =>
       action
       reschedule()
     })
 
-  def scheduleRecursive(initialDelay: FiniteDuration, period: FiniteDuration, action: (() => Unit) => Unit): Cancelable = {
+  def scheduleRecursive(initialDelay: FiniteDuration, delay: FiniteDuration, action: (() => Unit) => Unit): Cancelable = {
     val sub = MultiAssignmentCancelable()
-    val startedAtNanos = System.nanoTime()
-    def reschedule() = {
-      val timeTaken = (System.nanoTime() - startedAtNanos).nanos
-      sub() = scheduleRecursive(period - timeTaken + initialDelay, period, action)
-    }
 
-    sub() = scheduleOnce(initialDelay, { if (!sub.isCanceled) action(reschedule) })
+    def reschedule(): Unit =
+      sub() = scheduleOnce(delay, action(reschedule))
+
+    sub() = scheduleOnce(initialDelay, action(reschedule))
     sub
   }
 

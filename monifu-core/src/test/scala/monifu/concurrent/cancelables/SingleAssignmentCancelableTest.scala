@@ -1,12 +1,13 @@
 package monifu.concurrent.cancelables
 
 import org.scalatest.FunSuite
+import monifu.concurrent.Cancelable
 
 class SingleAssignmentCancelableTest extends FunSuite {
   test("cancel()") {
     var effect = 0
     val s = SingleAssignmentCancelable()
-    val b = BooleanCancelable { effect += 1 }
+    val b = Cancelable { effect += 1 }
     s() = b
 
     s.cancel()
@@ -24,7 +25,7 @@ class SingleAssignmentCancelableTest extends FunSuite {
     assert(s.isCanceled)
 
     var effect = 0
-    val b = BooleanCancelable { effect += 1 }
+    val b = Cancelable { effect += 1 }
     s() = b
 
     assert(b.isCanceled === true)
@@ -36,11 +37,11 @@ class SingleAssignmentCancelableTest extends FunSuite {
 
   test("throw exception on multi assignment") {
     val s = SingleAssignmentCancelable()
-    val b1 = BooleanCancelable()
+    val b1 = Cancelable()
     s() = b1
 
     intercept[IllegalStateException] {
-      val b2 = BooleanCancelable()
+      val b2 = Cancelable()
       s() = b2
     }
   }
@@ -49,11 +50,11 @@ class SingleAssignmentCancelableTest extends FunSuite {
     val s = SingleAssignmentCancelable()
     s.cancel()
 
-    val b1 = BooleanCancelable()
+    val b1 = Cancelable()
     s() = b1
 
     intercept[IllegalStateException] {
-      val b2 = BooleanCancelable()
+      val b2 = Cancelable()
       s() = b2
     }
   }

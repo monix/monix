@@ -3,10 +3,10 @@ package monifu.concurrent.utils
 import scala.scalajs.test.JasmineTest
 import scala.concurrent.Future
 import concurrent.duration._
+import monifu.concurrent.extensions._
 
 object FutureExtensionsTest extends JasmineTest {
-  import monifu.concurrent._
-  import Scheduler.Implicits.async
+  import monifu.concurrent.Scheduler.Implicits.computation
 
   describe("FutureExtensions") {
     beforeEach {
