@@ -11,7 +11,7 @@ package monifu.concurrent
  * Example:
  * {{{
  *   val s = ConcurrentScheduler()
- *   val task = s.schedulePeriodically(10.seconds, 50.seconds, {
+ *   val task = s.scheduleRepeated(10.seconds, 50.seconds, {
  *     println("Hello")
  *   })
  *

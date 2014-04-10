@@ -24,6 +24,33 @@ final class AtomicLong private (ref: JavaAtomicLong)
   def plusOp(a: Long, b: Long) = a + b
   def minusOp(a: Long, b: Long) = a - b
   def incrOp(a: Long, b: Int): Long = a + b
+
+  override def increment(): Unit =
+    ref.incrementAndGet()
+
+  override def decrement(): Unit =
+    ref.decrementAndGet()
+
+  override def incrementAndGet(): Long =
+    ref.incrementAndGet()
+
+  override def decrementAndGet(): Long =
+    ref.decrementAndGet()
+
+  override def decrementAndGet(v: Int): Long =
+    ref.addAndGet(-v)
+
+  override def getAndIncrement(): Long =
+    ref.getAndIncrement
+
+  override def getAndDecrement(): Long =
+    ref.getAndDecrement
+
+  override def getAndDecrement(v: Int): Long =
+    ref.getAndAdd(-v)
+
+  override def decrement(v: Int): Unit =
+    ref.addAndGet(-v)
 }
 
 object AtomicLong {
