@@ -30,18 +30,30 @@ pretty useful on their own for your own custom logic.
 
 ## Base Interface
 
+```scala
+trait Cancelable {
+  def isCanceled: Boolean
+  def cancel(): Unit
+}
+```
+
 [Cancelable](../monifu-core/src/shared/scala/monifu/concurrent/Cancelable.scala) objects have a `cancel()` method
 that can be used for resource release / cleanup and an `isCanceled` method that can be used to query
-the status. The `close()` method should be idempotent and thread-safe and all `Cancelable` implementations should
-make sure that it is. Idempotence means that calling it multiple times has the same effect as calling it
-only once.
+the status. The design rules when implementing cancelables:
+
+1. The `close()` method should be idempotent and thread-safe and all `Cancelable` implementations should
+   make sure that it is. Idempotence means that calling it multiple times has the same effect as calling it
+   only once.
+2. After `close()` is invoked, `isCanceled` should imediately become `true` - as in, you can trigger 
+   asynchronous computations in `close()` that could execute on another thread, but after `close()` 
+   is finished, then on the same thread `isCanceled` needs to reflect that `close()` was invoked
 
 The companion object of `Cancelable` provides handy helpers for building references:
 
 ```scala
-import monifu.concurrent.cancelables._
+import monifu.concurrent._
 
-val s = BooleanCancelable {
+val s = Cancelable {
   println("Canceling unit of work ...")
 }
 ```
@@ -73,10 +85,10 @@ when doing a `cancel()`.
 ```scala
 val composite = CompositeCancelable()
 
-composite += BooleanCancelable {
+composite += Cancelable {
   println("Canceling unit of work 1")
 }
-composite += BooleanCancelable {
+composite += Cancelable {
   println("Canceling unit of work 2")
 }
 ```
@@ -96,7 +108,7 @@ However, if the composite is already canceled when adding a new
 reference to it, then the added Cancelable will also get canceled:
 
 ```
-scala> composite += BooleanCancelable { println("Ooops, canceling this one too...") }
+scala> composite += Cancelable { println("Ooops, canceling this one too...") }
 Ooops, canceling this one too...
 ```
 
@@ -109,8 +121,8 @@ Checkout the comments:
 def scheduleOnce(initialDelay: FiniteDuration, action: => Unit): Cancelable = {
   // boolean indicating whether the unit of computation was canceled or not
   val isCancelled = Atomic(false)
-  // we need one BooleanCancelable for manipulating the above boolean
-  val sub = CompositeCancelable(BooleanCancelable {
+  // we need one Cancelable for manipulating the above boolean
+  val sub = CompositeCancelable(Cancelable {
     isCancelled := true
   })
 
@@ -129,7 +141,7 @@ def scheduleOnce(initialDelay: FiniteDuration, action: => Unit): Cancelable = {
   // adding to our composite another cancelable that removes
   // the task from our queue of pending tasks ... we couldn't have added this
   // above, because the `task` reference wasn't available yet
-  sub += BooleanCancelable {
+  sub += Cancelable {
     task.cancel(true)
   }
 
@@ -148,9 +160,9 @@ and that can also swap this reference.
 val s = MultiAssignmentCancelable()
 
 // sets the initial value
-s() = BooleanCancelable { println("Terminating first unit") }
+s() = Cancelable { println("Terminating first unit") }
 // swaps the value with another one
-s() = BooleanCancelable { println("Terminating second unit") }
+s() = Cancelable { println("Terminating second unit") }
 ```
 
 On cancel, the boxed reference gets canceled too:
@@ -167,20 +179,50 @@ As with the composite, if the `MultiAssignmentCancelable` is already canceled, t
 assignment it cancels the reference being assigned.
 
 ```
-scala> s() = BooleanCancelable { println("Ooops, canceling this one too...") }
+scala> s() = Cancelable { println("Ooops, canceling this one too...") }
 Ooops, canceling this one too...
 ```
 
 ## SingleAssignmentCancelable
 
 A
-[SingleAssignmentCancelable](../monifu/concurrent/cancelables/SingleAssignmentCancelable.scala)
+[SingleAssignmentCancelable](../monifu-core/src/shared/scala/monifu/concurrent/cancelables/SingleAssignmentCancelable.scala)
 behaves just like a `MultiAssignmentCancelable`, except that it can be
 assigned only once. On a second assignment, it throws an
 `IllegalStateException`.
 
 And as with the `MultiAssignmentCancelable`, assigning it after it has
 already been canceled, will cancel the reference being assigned.
+
+## RefCountCancelable
+
+A [RefCountCancelable](../monifu-core/src/shared/scala/monifu/concurrent/cancelables/RefCountCancelable.scala)
+is for those instances in which you need some sort of composite that `onCancel` waits
+after all children cancelables to be canceled too, before executing its callback.
+
+```scala
+import monifu.concurrent.cancelables.RefCountCancelable
+
+val refs = RefCountCancelable { println("Everything was canceled") }
+
+// acquiring two cancelable references
+val ref1 = refs.acquireCancelable()
+val ref2 = refs.acquireCancelable()
+
+refs.cancel() // <-- starting the cancelation process
+refs.isCanceled // <-- true, but the callback hasn't been invoked yet
+
+// after our RefCountCancelable was canceled, this will return
+// an already canceled reference
+val ref3 = refs.acquireCancelable() 
+ref3.isCanceled // <-- true
+
+ref1.isCanceled // <-- still active, so it's false
+ref1.cancel() // <-- release reference, nothing happens here
+
+// finally getting rid of the last acquired reference
+ref2.cancel() // <-- prints "Everything was canceled"
+```
 
 ## Further Reading
 

@@ -18,6 +18,7 @@ API documentation:
 
 Release Notes:
 
+* [Version 0.5 - April 10, 2014](/docs/release-notes/0.5.md)
 * [Version 0.4 - March 31, 2014](/docs/release-notes/0.4.md)
 * [Version 0.3 - March 27, 2014](/docs/release-notes/0.3.md)
 
@@ -25,30 +26,21 @@ Release Notes:
 
 The packages are published on Maven Central.
 
-Compiled for Scala 2.10 and Scala 2.11.0-RC3. Also cross-compiled to
-the latest Scala.js (at the moment Scala.js 0.4.1).
+Compiled for Scala 2.10 and Scala 2.11.0-RC4. Also cross-compiled to
+the latest Scala.js (at the moment Scala.js 0.4.2).
 
-Current stable release is: 0.4
+Current stable release is: 0.5
 
 ### For the JVM
 
 ```scala
-libraryDependencies += "org.monifu" %% "monifu-core" % "0.4"
+libraryDependencies += "org.monifu" %% "monifu-core" % "0.5"
 ```
 
 ### For targeting Javascript runtimes with Scala.js
 
 ```scala
-libraryDependencies += "org.monifu" %% "monifu-core-js" % "0.4"
-```
-
-### Trying out a Snapshot Release
-
-To play with snapshot releases that aren't on Maven Central, you might want to add this 
-resolver for Sonatype snapshots:
-
-```scala
-resolvers += "Sonatype snapshots" at "http://oss.sonatype.org/content/repositories/snapshots/"
+libraryDependencies += "org.monifu" %% "monifu-core-js" % "0.5"
 ```
 
 ## License
