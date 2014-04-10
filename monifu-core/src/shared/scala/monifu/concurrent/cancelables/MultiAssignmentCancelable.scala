@@ -1,9 +1,8 @@
 package monifu.concurrent.cancelables
 
-import monifu.concurrent.atomic.{AtomicAny, Atomic}
-import scala.annotation.tailrec
 import monifu.concurrent.Cancelable
-
+import monifu.concurrent.atomic.Atomic
+import scala.annotation.tailrec
 
 /**
  * Represents a [[monifu.concurrent.Cancelable]] whose underlying cancelable reference can be swapped for another.
@@ -19,39 +18,52 @@ import monifu.concurrent.Cancelable
  *   s() = c3 // also cancels c3, because s is already canceled
  * }}}
  */
-final class MultiAssignmentCancelable private () extends BooleanCancelable {
-  private[this] case class State(subscription: Cancelable, isCanceled: Boolean)
-  private[this] val state: AtomicAny[State] =
-    Atomic(State(Cancelable.empty, isCanceled = false))
+final class MultiAssignmentCancelable private () extends Cancelable {
+  private[this] var _isCanceled = false
+  private[this] var _subscription = Cancelable()
+  private[this] val lock = Atomic(false)
 
-  def isCanceled: Boolean = state.get.isCanceled
+  @tailrec
+  def isCanceled: Boolean =
+    if (!lock.compareAndSet(expect = false, update = true))
+      isCanceled
+    else
+      try _isCanceled finally lock.set(update = false)
 
-  def cancel(): Unit = {
-    val oldState = state.getAndTransform {
-      _.copy(Cancelable.empty, isCanceled = true)
-    }
-
-    if (!oldState.isCanceled)
-      oldState.subscription.cancel()
-  }
+  @tailrec
+  def cancel(): Unit =
+    if (!lock.compareAndSet(expect = false, update = true))
+      cancel()
+    else if (_isCanceled)
+      lock.set(update = false)
+    else
+      try _subscription.cancel() finally {
+        _isCanceled = true
+        _subscription = Cancelable.alreadyCanceled
+        lock.set(update = false)
+      }
 
   /**
    * Swaps the underlying cancelable reference with `s`.
    *
    * In case this `MultiAssignmentCancelable` is already canceled,
-   * then the reference `s` will also be canceled on assignment.
+   * then the reference `value` will also be canceled on assignment.
    */
   @tailrec
-  def update(s: Cancelable): Unit = {
-    val oldState = state.get
-    if (oldState.isCanceled)
-      s.cancel()
-    else {
-      val newState = oldState.copy(subscription = s)
-      if (!state.compareAndSet(oldState, newState))
-        update(s)
-    }
+  def update(value: Cancelable): Unit = {
+    if (!lock.compareAndSet(expect = false, update = true))
+      update(value)
+    else if (_isCanceled)
+      try value.cancel() finally lock.set(update = false)
+    else
+      try _subscription = value finally lock.set(update = false)
   }
+
+  /**
+   * Alias for `update(value)`
+   */
+  def `:=`(value: Cancelable): Unit =
+    update(value)
 }
 
 object MultiAssignmentCancelable {

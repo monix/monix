@@ -17,7 +17,7 @@ import monifu.concurrent.Cancelable
  *
  * Useful in case you need a forward reference.
  */
-final class SingleAssignmentCancelable private () extends BooleanCancelable {
+final class SingleAssignmentCancelable private () extends Cancelable {
   import State._
 
   def isCanceled: Boolean = state.get match {
@@ -31,21 +31,21 @@ final class SingleAssignmentCancelable private () extends BooleanCancelable {
    * Sets the underlying cancelable reference with `s`.
    *
    * In case this `SingleAssignmentCancelable` is already canceled,
-   * then the reference `s` will also be canceled on assignment.
+   * then the reference `value` will also be canceled on assignment.
    *
    * @throws IllegalStateException in case this cancelable has already been assigned
    */
   @throws(classOf[IllegalStateException])
   @tailrec
-  def update(s: Cancelable): Unit = state.get match {
+  def update(value: Cancelable): Unit = state.get match {
     case Empty =>
-      if (!state.compareAndSet(Empty, IsNotCanceled(s)))
-        update(s)
+      if (!state.compareAndSet(Empty, IsNotCanceled(value)))
+        update(value)
     case IsEmptyCanceled =>
       if (!state.compareAndSet(IsEmptyCanceled, IsCanceled))
-        update(s)
+        update(value)
       else
-        s.cancel()
+        value.cancel()
     case IsCanceled | IsNotCanceled(_) =>
       throw new IllegalStateException("Cannot assign to SingleAssignmentCancelable, as it was already assigned once")
   }
@@ -63,6 +63,12 @@ final class SingleAssignmentCancelable private () extends BooleanCancelable {
     case IsEmptyCanceled | IsCanceled =>
     // do nothing
   }
+
+  /**
+   * Alias for `update(value)`
+   */
+  def `:=`(value: Cancelable): Unit =
+    update(value)
 
   private[this] val state = AtomicAny(Empty : State)
 
