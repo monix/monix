@@ -1,13 +1,16 @@
-package monifu.rx.observers
+package monifu.rx.sync.observers
 
-import monifu.rx.Observer
-
+import monifu.rx.sync.Observer
+import monifu.rx.Ack
+import monifu.rx.Ack.Continue
 
 final class AnonymousObserver[-T] private (nextFn: T => Unit, errorFn: Throwable => Unit, completedFn: () => Unit)
   extends Observer[T] {
 
-  def onNext(elem: T): Unit =
+  def onNext(elem: T): Ack = {
     nextFn(elem)
+    Continue
+  }
 
   def onError(ex: Throwable): Unit =
     errorFn(ex)

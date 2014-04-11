@@ -1,4 +1,4 @@
-package monifu.rx.subjects
+package monifu.rx.sync.subjects
 
 import org.scalatest.FunSuite
 
