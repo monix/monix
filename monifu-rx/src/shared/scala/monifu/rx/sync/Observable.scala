@@ -1,15 +1,18 @@
-package monifu.rx
+package monifu.rx.sync
 
-import monifu.concurrent.atomic.Atomic
+import monifu.concurrent.cancelables.{CompositeCancelable, RefCountCancelable}
+import monifu.rx.sync.observers.{SynchronizedObserver, AnonymousObserver, AutoDetachObserver}
 import scala.annotation.tailrec
-import monifu.concurrent.cancelables._
-import scala.concurrent.{ExecutionContext, Promise, Future}
-import monifu.concurrent.{Scheduler, Cancelable}
-import monifu.rx.observers._
-import scala.util.control.NonFatal
-import scala.concurrent.duration.FiniteDuration
-import scala.collection.mutable
 import monifu.concurrent.locks.NaiveSpinLock
+import scala.collection.mutable
+import scala.concurrent.{Promise, Future, ExecutionContext}
+import monifu.concurrent.atomic.Atomic
+import monifu.concurrent.cancelables.SingleAssignmentCancelable
+import monifu.concurrent.Cancelable
+import scala.util.control.NonFatal
+import monifu.rx.Ack.{Continue, Stop}
+import monifu.rx.Ack
+import scala.util.{Failure, Success, Try}
 
 
 /**
@@ -26,7 +29,7 @@ trait Observable[+A]  {
    * and that starts the stream, being meant to be overridden in custom combinators
    * or in classes implementing Observable.
    *
-   * @param observer is an [[monifu.rx.Observer Observer]] on which `onNext`, `onComplete` and `onError`
+   * @param observer is an [[monifu.rx.sync.Observer Observer]] on which `onNext`, `onComplete` and `onError`
    *                 happens, according to the Rx grammar.
    *
    * @return a cancelable that can be used to cancel the streaming
@@ -34,9 +37,9 @@ trait Observable[+A]  {
   protected def subscribeFn(observer: Observer[A]): Cancelable
 
   /**
-   * Public version of the [[monifu.rx.Observable.subscribeFn subscribeFn]] function.
+   * Public version of the [[monifu.rx.sync.Observable.subscribeFn subscribeFn]] function.
    *
-   * It wraps the given observer into an [[monifu.rx.observers.AutoDetachObserver AutoDetachObserver]]
+   * It wraps the given observer into an [[monifu.rx.sync.observers.AutoDetachObserver AutoDetachObserver]]
    * that ensures the subscription is properly canceled either `onCompleted` or `onError`. This function
    * is not used for building custom operators / combinators, because it suffices to wrap only the last
    * observer instance in the chain of observers (i.e. custom operators / combinators rely on `subscribeFn`).
@@ -56,18 +59,6 @@ trait Observable[+A]  {
 
   final def subscribe(nextFn: A => Unit, errorFn: Throwable => Unit, completedFn: () => Unit): Cancelable =
     subscribe(AnonymousObserver(nextFn, errorFn, completedFn))
-
-  /**
-   * Asynchronously subscribes Observers on the specified `monifu.concurrent.Scheduler`.
-   *
-   * @param scheduler the `monifu.concurrent.Scheduler` to perform subscription actions on
-   * @return the source Observable modified so that its subscriptions happen
-   *         on the specified `monifu.concurrent.Scheduler`
-   */
-  final def subscribeOn(scheduler: Scheduler): Observable[A] =
-    Observable.create { observer =>
-      scheduler.schedule(_ => subscribeFn(observer))
-    }
 
   /**
    * Returns an Observable that applies the given function to each item emitted by an
@@ -91,10 +82,14 @@ trait Observable[+A]  {
           catch {
             case NonFatal(ex) if streamError =>
               observer.onError(ex)
+              Stop
           }
         }
-        def onError(ex: Throwable) = observer.onError(ex)
-        def onCompleted() = observer.onCompleted()
+        def onError(ex: Throwable) =
+          observer.onError(ex)
+
+        def onCompleted() =
+          observer.onCompleted()
       }))
 
   /**
@@ -112,11 +107,15 @@ trait Observable[+A]  {
         try {
           val r = p(elem)
           streamError = false
-          if (r) observer.onNext(elem)
+          if (r)
+            observer.onNext(elem)
+          else
+            Continue
         }
         catch {
           case NonFatal(ex) if streamError =>
             observer.onError(ex)
+            Stop
         }
       }
       def onError(ex: Throwable) = observer.onError(ex)
@@ -202,10 +201,12 @@ trait Observable[+A]  {
             val childObs = f(elem)
             streamError = false
             sub := childObs.subscribeFn(childObserver)
+            Continue
           }
           catch {
             case NonFatal(ex) if streamError =>
               observer.onError(ex)
+              Stop
           }
         }
 
@@ -247,7 +248,7 @@ trait Observable[+A]  {
    * @return an Observable that emits items from `this` and `that` until
    *         `this` or `that` emits `onError` or `onComplete`.   */
   final def merge[B >: A](other: Observable[B]): Observable[B] =
-    Observable.fromSequence(Seq(this, other)).flatMap(x => x)
+    Observable.fromTraversable(Seq(this, other)).flatMap(x => x)
 
   final def head: Observable[A] = take(1)
 
@@ -269,7 +270,7 @@ trait Observable[+A]  {
       val count = Atomic(0)
 
       @tailrec
-      def onNext(elem: A): Unit = {
+      def onNext(elem: A): Ack = {
         val currentCount = count.get
 
         if (currentCount < nr) {
@@ -278,10 +279,16 @@ trait Observable[+A]  {
             onNext(elem)
           else {
             observer.onNext(elem)
-            if (newCount == nr)
+            if (newCount == nr) {
               observer.onCompleted()
+              Stop
+            }
+            else
+              Continue
           }
         }
+        else
+          Stop
       }
 
       def onCompleted(): Unit =
@@ -299,13 +306,15 @@ trait Observable[+A]  {
       val count = Atomic(0)
 
       @tailrec
-      def onNext(elem: A): Unit = {
+      def onNext(elem: A): Ack = {
         val currentCount = count.get
 
         if (currentCount < nr) {
           val newCount = currentCount + 1
           if (!count.compareAndSet(currentCount, newCount))
             onNext(elem)
+          else
+            Continue
         }
         else
           observer.onNext(elem)
@@ -323,14 +332,33 @@ trait Observable[+A]  {
     Observable.create(observer => subscribeFn(new Observer[A] {
       val shouldContinue = Atomic(true)
 
-      def onNext(elem: A): Unit =
-        if (shouldContinue.get) {
-          val update = p(elem)
-          if (shouldContinue.compareAndSet(expect=true, update=update) && update)
-            observer.onNext(elem)
-          else if (!update)
-            observer.onCompleted()
+      def onNext(elem: A): Ack = {
+        var streamError = true
+        try {
+          if (shouldContinue.get) {
+            val update = p(elem)
+            streamError = false
+
+            if (shouldContinue.compareAndSet(expect=true, update=update) && update) {
+              observer.onNext(elem)
+              Continue
+            }
+            else if (!update) {
+              observer.onCompleted()
+              Stop
+            }
+            else
+              Stop
+          }
+          else
+            Stop
         }
+        catch {
+          case NonFatal(ex) if streamError =>
+            observer.onError(ex)
+            Stop
+        }
+      }
 
       def onCompleted(): Unit =
         observer.onCompleted()
@@ -344,13 +372,15 @@ trait Observable[+A]  {
       val shouldDropRef = Atomic(true)
 
       @tailrec
-      def onNext(elem: A): Unit =
+      def onNext(elem: A): Ack =
         if (!shouldDropRef.get)
           observer.onNext(elem)
         else {
           val shouldDrop = p(elem)
           if (!shouldDropRef.compareAndSet(expect=true, update=shouldDrop) || !shouldDrop)
             onNext(elem)
+          else
+            Continue
         }
 
       def onCompleted(): Unit =
@@ -365,8 +395,16 @@ trait Observable[+A]  {
       val state = Atomic(initial)
 
       subscribeFn(new Observer[A] {
-        def onNext(elem: A): Unit =
-          state.transformAndGet(s => f(s, elem))
+        def onNext(elem: A): Ack =
+          try {
+            state.transformAndGet(s => f(s, elem))
+            Continue
+          }
+          catch {
+            case NonFatal(ex) =>
+              observer.onError(ex)
+              Stop
+          }
 
         def onCompleted(): Unit = {
           observer.onNext(state.get)
@@ -381,9 +419,9 @@ trait Observable[+A]  {
   final def ++[B >: A](other: => Observable[B]): Observable[B] =
     Observable.create[B](observer => subscribeFn(
       SynchronizedObserver(new Observer[A] {
-        def onNext(elem: A): Unit = observer.onNext(elem)
-        def onError(ex: Throwable): Unit = observer.onError(ex)
-        def onCompleted(): Unit = other.subscribeFn(observer)
+        def onNext(elem: A) = observer.onNext(elem)
+        def onError(ex: Throwable) = observer.onError(ex)
+        def onCompleted() = other.subscribeFn(observer)
       })))
 
   /**
@@ -394,7 +432,7 @@ trait Observable[+A]  {
    * it gets executed when `cancel()` happens and by definition the error cannot
    * be streamed with `onError()` and so the behavior is left as undefined, possibly
    * crashing the application or worse - leading to non-deterministic behavior.
-   * 
+   *
    * @param cb the callback to execute when the subscription is canceled
    */
   final def doOnCancel(cb: => Unit): Observable[A] =
@@ -407,12 +445,12 @@ trait Observable[+A]  {
   /**
    * Executes the given callback for each element generated by the source
    * Observable, useful for doing side-effects.
-   * 
+   *
    * @return a new Observable that executes the specified callback for each element
    */
   final def doWork(cb: A => Unit): Observable[A] =
     Observable.create(observer => subscribeFn(new Observer[A] {
-      def onNext(elem: A): Unit = {
+      def onNext(elem: A) = {
         // See Section 6.4. - Protect calls to user code from within an operator - in the Rx Design Guidelines
         // Note: onNext must not be protected, as it's on the edge of the monad and protecting it yields weird effects
         var streamError = true
@@ -424,13 +462,14 @@ trait Observable[+A]  {
         catch {
           case NonFatal(ex) if streamError =>
             observer.onError(ex)
+            Stop
         }
       }
 
-      def onError(ex: Throwable): Unit = 
+      def onError(ex: Throwable): Unit =
         observer.onError(ex)
 
-      def onCompleted(): Unit = 
+      def onCompleted(): Unit =
         observer.onCompleted()
     }))
 
@@ -453,17 +492,23 @@ trait Observable[+A]  {
         }
 
       composite += subscribeFn(new Observer[A] {
-        def onNext(elem: A): Unit =
+        def onNext(elem: A) =
           lock.acquire {
             if (!aIsDone)
               if (queueB.nonEmpty) {
                 val b = queueB.dequeue()
                 observer.onNext((elem, b))
               }
-              else if (bIsDone)
+              else if (bIsDone) {
                 onCompleted()
-              else
+                Stop
+              }
+              else {
                 queueA.enqueue(elem)
+                Continue
+              }
+            else
+              Stop
           }
 
         def onCompleted(): Unit =
@@ -482,17 +527,23 @@ trait Observable[+A]  {
       })
 
       composite += other.subscribeFn(new Observer[B] {
-        def onNext(elem: B): Unit =
+        def onNext(elem: B) =
           lock.acquire {
             if (!bIsDone)
               if (queueA.nonEmpty) {
                 val a = queueA.dequeue()
                 observer.onNext((a, elem))
               }
-              else if (aIsDone)
+              else if (aIsDone) {
                 onCompleted()
-              else
+                Stop
+              }
+              else {
                 queueB.enqueue(elem)
+                Continue
+              }
+            else
+              Stop
           }
 
         def onCompleted(): Unit =
@@ -521,11 +572,14 @@ trait Observable[+A]  {
     val promise = Promise[Option[A]]()
 
     head.subscribe(new Observer[A] {
+      def onNext(elem: A): Ack = {
+        promise.trySuccess(Some(elem))
+        Stop
+      }
+
       def onError(ex: Throwable): Unit =
         promise.tryFailure(ex)
 
-      def onNext(elem: A): Unit =
-        promise.trySuccess(Some(elem))
 
       def onCompleted(): Unit =
         promise.trySuccess(None)
@@ -571,40 +625,41 @@ object Observable {
   def never: Observable[Nothing] =
     create { _ => Cancelable() }
 
-  def interval(period: FiniteDuration)(implicit s: Scheduler): Observable[Long] =
-    create { observer =>
-      val counter = Atomic(0L)
-
-      s.scheduleRepeated(period, period, {
-        val nr = counter.getAndIncrement()
-        observer.onNext(nr)
-      })
-    }
-
-  def fromSequence[T](sequence: TraversableOnce[T], s: Scheduler): Observable[T] =
+  def fromTraversable[T](sequence: TraversableOnce[T]): Observable[T] =
     create[T] { observer =>
-      val sub = SingleAssignmentCancelable()
-      sub := s.scheduleOnce {
-        if (!sub.isCanceled) {
-          for (i <- sequence)
-            if (!sub.isCanceled)
-              observer.onNext(i)
+      var alreadyStopped = false
 
-          if (!sub.isCanceled)
-            observer.onCompleted()
-        }
+      Try(sequence.toIterator) match {
+        case Success(iterator) =>
+          var shouldContinue = true
+
+          while (shouldContinue) {
+            var streamError = true
+            try {
+              if (iterator.hasNext) {
+                val next = iterator.next()
+                streamError = false
+                alreadyStopped = observer.onNext(next) == Stop
+                shouldContinue = !alreadyStopped
+              }
+              else
+                shouldContinue = false
+            }
+            catch {
+              case NonFatal(ex) if streamError =>
+                observer.onError(ex)
+                shouldContinue = false
+            }
+          }
+
+        case Failure(ex) =>
+          observer.onError(ex)
       }
 
-      sub
-    }
-
-  def fromSequence[T](sequence: TraversableOnce[T]): Observable[T] =
-    create[T] { observer =>
-      for (i <- sequence) observer.onNext(i)
-      observer.onCompleted()
+      if (!alreadyStopped) observer.onCompleted()
       Cancelable.alreadyCanceled
     }
 
   def merge[T](sources: Observable[T]*): Observable[T] =
-    Observable.fromSequence(sources).flatten
+    Observable.fromTraversable(sources).flatten
 }

@@ -4,11 +4,7 @@ Branch for exploring an [Rx.NET](https://rx.codeplex.com/) / [RxJava](https://gi
 implementation of the Rx pattern. Checkout [master](https://github.com/alexandru/monifu) for Monifu's 
 project details.
 
-This Rx implementation available is actually quite usable, has tests, follows the 
-[Rx Design Guidelines](https://github.com/alexandru/monifu/blob/rx-net/docs/Rx%20Design%20Guidelines.pdf?raw=true),
-but I'm [not happy](https://groups.google.com/forum/#!topic/scala-user/ckgrXz_4F_A) with it yet :-)
-
-[![Build Status](https://travis-ci.org/alexandru/monifu.png?branch=rx-net)](https://travis-ci.org/alexandru/monifu)
+[![Build Status](https://travis-ci.org/alexandru/monifu.png?branch=rx)](https://travis-ci.org/alexandru/monifu)
 
 ## License
 
