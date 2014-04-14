@@ -1,4 +1,4 @@
-package monifu.rx
+package monifu.rx.common
 
 /**
  * Represents the acknowledgement of processing that a consumer

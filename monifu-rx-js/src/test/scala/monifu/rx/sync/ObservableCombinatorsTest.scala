@@ -38,7 +38,7 @@ object ObservableCombinatorsTest extends JasmineTest {
       var effect = 0L
       var errorThrow: Throwable = null
 
-      val sub = obs.subscribe(
+      obs.subscribe(
         elem => {
           effect = effect + elem
         },
@@ -49,7 +49,6 @@ object ObservableCombinatorsTest extends JasmineTest {
 
       expect(effect).toBe((1 to 5).sum)
       expect(errorThrow.getMessage).toBe("test")
-      expect(sub.isCanceled).toBe(true)
     }
   }
 
@@ -83,7 +82,7 @@ object ObservableCombinatorsTest extends JasmineTest {
       var effect = 0L
       var errorThrow: Throwable = null
 
-      val sub = obs.subscribe(
+      obs.subscribe(
         elem => {
           effect = effect + elem
         },
@@ -94,7 +93,6 @@ object ObservableCombinatorsTest extends JasmineTest {
 
       expect(effect).toBe((0 until 5).sum)
       expect(errorThrow.getMessage).toBe("test")
-      expect(sub.isCanceled).toBe(true)
     }
   }
 
@@ -129,7 +127,7 @@ object ObservableCombinatorsTest extends JasmineTest {
       var effect = 0L
       var errorThrow: Throwable = null
 
-      val sub = obs.subscribe(
+      obs.subscribe(
         elem => {
           effect = effect + elem
         },
@@ -140,7 +138,6 @@ object ObservableCombinatorsTest extends JasmineTest {
 
       expect(effect).toBe((0 until 50).sum)
       expect(errorThrow.getMessage).toBe("test")
-      expect(sub.isCanceled).toBe(true)
     }
 
     it("should satisfy source.filter(p) == source.flatMap(x => if (p(x)) unit(x) else empty)") {

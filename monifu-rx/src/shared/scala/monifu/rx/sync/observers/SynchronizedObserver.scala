@@ -2,8 +2,9 @@ package monifu.rx.sync.observers
 
 import monifu.concurrent.locks.NaiveReadWriteLock
 import monifu.rx.sync.Observer
-import monifu.rx.Ack
-import monifu.rx.Ack.{Continue, Stop}
+import monifu.rx.common.Ack
+import Ack.{Continue, Stop}
+import monifu.rx.common.Ack
 
 /**
  * An observer wrapper that ensures the Rx grammar for onComplete/onError is respected,
