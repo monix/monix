@@ -3,12 +3,13 @@ package monifu.rx.async
 import monifu.concurrent.{Scheduler, Cancelable}
 import scala.concurrent.{ExecutionContext, Promise, Future}
 import scala.concurrent.Future.successful
-import monifu.rx.Ack.{Stop, Continue}
+import monifu.rx.common.Ack
+import Ack.{Stop, Continue}
 import monifu.concurrent.atomic.Atomic
 import monifu.concurrent.cancelables.{SingleAssignmentCancelable, RefCountCancelable, CompositeCancelable}
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{Try, Failure, Success}
-import monifu.rx.Ack
+import monifu.rx.common.Ack
 
 
 trait Observable[+T] {

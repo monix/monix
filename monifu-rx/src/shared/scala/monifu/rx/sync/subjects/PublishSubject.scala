@@ -4,21 +4,26 @@ import monifu.concurrent.Cancelable
 import monifu.concurrent.locks.NaiveReadWriteLock
 import collection.immutable.Set
 import monifu.rx.sync.{Observer, Observable}
-import monifu.rx.Ack
-import monifu.rx.Ack.{Continue, Stop}
+import monifu.rx.sync.observers.Subscriber
+import monifu.rx.common.Ack
+import Ack.{Continue, Stop}
+import monifu.rx.common.Ack
+import monifu.concurrent.cancelables.SingleAssignmentCancelable
+import scala.util.control.NonFatal
 
 final class PublishSubject[T] private () extends Observable[T] with Observer[T] {
   private[this] val lock = NaiveReadWriteLock()
-  private[this] var observers = Set.empty[Observer[T]]
+  private[this] var observers = Set.empty[Subscriber[T]]
   private[this] var isDone = false
 
-  protected def subscribeFn(observer: Observer[T]): Cancelable =
+  def subscribe(observer: Observer[T]): Cancelable =
     lock.writeLock {
       if (!isDone) {
-        observers = observers + observer
-        Cancelable {
-          observers = observers - observer
-        }
+        val sub = SingleAssignmentCancelable()
+        val subscriber = Subscriber(observer, sub)
+        observers = observers + subscriber
+        sub := Cancelable { observers = observers - subscriber }
+        sub
       }
       else
         Cancelable.alreadyCanceled
@@ -27,10 +32,12 @@ final class PublishSubject[T] private () extends Observable[T] with Observer[T] 
   def onNext(elem: T): Ack = lock.readLock {
     if (!isDone) {
       for (obs <- observers)
-        obs.onNext(elem) match {
-          case Continue => // nothing
-          case Stop =>
-            lock.writeLock { observers = observers - obs }
+        try
+          obs.onNext(elem)
+        catch {
+          case NonFatal(ex) =>
+            obs.cancel()
+            throw ex
         }
 
       Continue
@@ -53,7 +60,8 @@ final class PublishSubject[T] private () extends Observable[T] with Observer[T] 
   def onCompleted(): Unit = lock.writeLock {
     if (!isDone)
       try {
-        observers.foreach(_.onCompleted())
+        for (obs <- observers)
+          try obs.onCompleted() finally obs.cancel()
       }
       finally {
         isDone = true

@@ -19,13 +19,11 @@ class ObservableCombinatorsTest extends FunSpec {
       }
 
       var result = ""
-      var wasCanceled = false
-      obs.map(x => x).doOnCancel{ wasCanceled = true }.subscribe(
+      obs.map(x => x).subscribe(
         nextFn = _ => (),
         errorFn = ex => result = ex.getMessage
       )
 
-      assert(wasCanceled === true)
       assert(result === "Test exception")
     }
 
@@ -117,14 +115,14 @@ class ObservableCombinatorsTest extends FunSpec {
 
       var effect = 0
       var error = ""
-      val sub = obs.subscribe(
+
+      obs.subscribe(
         e => { effect += e },
         err => { error = err.getMessage }
       )
 
       assert(effect === (0 until 50).sum)
       assert(error === "test")
-      assert(sub.isCanceled === true)
     }
 
     it("should satisfy source.filter(p) == source.flatMap(x => if (p(x)) unit(x) else empty)") {
@@ -165,10 +163,9 @@ class ObservableCombinatorsTest extends FunSpec {
 
       val finalObs = zipped.take(10).foldLeft(Seq.empty[(Long,Long,Long,Long)])(_ :+ _)
       var list = Seq.empty[(Long, Long, Long, Long)]
-      val sub = finalObs.subscribe { l => list = l }
+      finalObs.subscribe { l => list = l }
 
       assert(list === 0.until(20,2).map(x => (x,x,x,x)))
-      assert(sub.isCanceled === true)
     }
   }
 

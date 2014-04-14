@@ -1,4 +1,4 @@
-package monifu.rx.sync.observers
+package monifu.rx.common
 
 /**
  * Exception thrown using an anonymous Observer without
