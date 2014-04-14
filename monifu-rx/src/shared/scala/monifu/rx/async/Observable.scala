@@ -96,34 +96,6 @@ trait Observable[+T] {
     }
 
   /**
-   * Creates a new Observable by applying a function to each item emitted, a function that returns Future
-   * results and then flattens that into a new Observable.
-   */
-  final def flatMapF[U](f: T => Future[U])(implicit ec: ExecutionContext): Observable[U] =
-    Observable.create { observerU =>
-      subscribe(new Observer[T] {
-        def onNext(elem: T) = {
-          // See Section 6.4. in the Rx Design Guidelines:
-          // Protect calls to user code from within an operator
-          val promise = Promise[Ack]()
-          f(elem).onComplete {
-            case Success(u) =>
-              promise.completeWith(observerU.onNext(u))
-            case Failure(ex) =>
-              promise.completeWith(observerU.onError(ex).map(_ => Stop))
-          }
-          promise.future
-        }
-
-        def onError(ex: Throwable) =
-          observerU.onError(ex)
-
-        def onCompleted() =
-          observerU.onCompleted()
-      })
-    }
-
-  /**
    * Creates a new Observable by applying a function that you supply to each item emitted by
    * the source Observable, where that function returns an Observable, and then merging those
    * resulting Observables and emitting the results of this merger.
@@ -203,6 +175,34 @@ trait Observable[+T] {
     }
 
   /**
+   * Creates a new Observable by applying a function to each item emitted, a function that returns Future
+   * results and then flattens that into a new Observable.
+   */
+  final def flatMapFutures[U](f: T => Future[U])(implicit ec: ExecutionContext): Observable[U] =
+    Observable.create { observerU =>
+      subscribe(new Observer[T] {
+        def onNext(elem: T) = {
+          // See Section 6.4. in the Rx Design Guidelines:
+          // Protect calls to user code from within an operator
+          val promise = Promise[Ack]()
+          f(elem).onComplete {
+            case Success(u) =>
+              promise.completeWith(observerU.onNext(u))
+            case Failure(ex) =>
+              promise.completeWith(observerU.onError(ex).map(_ => Stop))
+          }
+          promise.future
+        }
+
+        def onError(ex: Throwable) =
+          observerU.onError(ex)
+
+        def onCompleted() =
+          observerU.onCompleted()
+      })
+    }
+
+  /**
    * Flattens the sequence of Observables emitted by `this` into one Observable, without any
    * transformation.
    *
@@ -226,8 +226,8 @@ trait Observable[+T] {
    *
    * @return an Observable that emits items that are the result of flattening the emitted Futures
    */
-  final def flattenF[U](implicit ec: ExecutionContext, ev: T <:< Future[U]): Observable[U] =
-    flatMapF(x => x)
+  final def flattenFutures[U](implicit ec: ExecutionContext, ev: T <:< Future[U]): Observable[U] =
+    flatMapFutures(x => x)
 
 
   /**
