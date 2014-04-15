@@ -1,7 +1,7 @@
 package monifu.rx.sync.observers
 
 import monifu.rx.sync.Observer
-import monifu.rx.common.{OnErrorRuntimeException, Ack}
+import monifu.rx.base.{OnErrorRuntimeException, Ack}
 import Ack.Continue
 
 final class AnonymousObserver[-T] private (nextFn: T => Unit, errorFn: Throwable => Unit, completedFn: () => Unit)

@@ -1,4 +1,4 @@
-package monifu.rx.common
+package monifu.rx.base
 
 /**
  * Exception thrown using an anonymous Observer without
