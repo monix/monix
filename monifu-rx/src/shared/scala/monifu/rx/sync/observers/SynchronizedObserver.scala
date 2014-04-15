@@ -45,7 +45,6 @@ final class SynchronizedObserver[-T] private (underlying: Observer[T]) extends O
         try underlying.onError(ex) finally {
           isDone = true
         }
-      ()
     }
 
   def onCompleted(): Unit =
@@ -54,7 +53,6 @@ final class SynchronizedObserver[-T] private (underlying: Observer[T]) extends O
         try underlying.onCompleted() finally {
           isDone = true
         }
-      ()
     }
 }
 

@@ -13,7 +13,7 @@ import scala.concurrent.Future
  * is built.
  */
 trait ObservableGen[+T] extends Any with ObservableOperators[T] {
-  type Observer[-I]
+  type O[-I]
 
   /**
    * Function that creates the actual subscription when calling `subscribe`,
@@ -25,11 +25,26 @@ trait ObservableGen[+T] extends Any with ObservableOperators[T] {
    *
    * @return a cancelable that can be used to cancel the streaming
    */
-  def subscribe(observer: Observer[T]): Cancelable
+  def subscribe(observer: O[T]): Cancelable
 }
 
 trait ObservableOperators[+T] extends Any { self: ObservableGen[T] =>
   type This[+I] <: ObservableGen[I]
+
+  /**
+   * Helper to be used by consumers for subscribing to an observable.
+   */
+  def subscribeUnit(nextFn: T => Unit, errorFn: Throwable => Unit, completedFn: () => Unit): Cancelable
+
+  /**
+   * Helper to be used by consumers for subscribing to an observable.
+   */
+  def subscribeUnit(nextFn: T => Unit, errorFn: Throwable => Unit): Cancelable
+
+  /**
+   * Helper to be used by consumers for subscribing to an observable.
+   */
+  def subscribeUnit(nextFn: T => Unit): Cancelable
 
   /**
    * Returns an Observable that applies the given function to each item emitted by an

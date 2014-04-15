@@ -20,7 +20,7 @@ object ObservableCombinatorsTest extends JasmineTest {
       }
 
       var result = ""
-      obs.map(x => x).subscribe(
+      obs.map(x => x).subscribeUnit(
         nextFn = _ => (),
         errorFn = ex => {
           result = ex.getMessage
@@ -38,7 +38,7 @@ object ObservableCombinatorsTest extends JasmineTest {
       var effect = 0L
       var errorThrow: Throwable = null
 
-      obs.subscribe(
+      obs.subscribeUnit(
         elem => {
           effect = effect + elem
         },
@@ -64,7 +64,7 @@ object ObservableCombinatorsTest extends JasmineTest {
       }
 
       var result = ""
-      obs.filter(_ => true).subscribe(
+      obs.filter(_ => true).subscribeUnit(
         nextFn = _ => (),
         errorFn = ex => {
           result = ex.getMessage
@@ -82,7 +82,7 @@ object ObservableCombinatorsTest extends JasmineTest {
       var effect = 0L
       var errorThrow: Throwable = null
 
-      obs.subscribe(
+      obs.subscribeUnit(
         elem => {
           effect = effect + elem
         },
@@ -109,7 +109,7 @@ object ObservableCombinatorsTest extends JasmineTest {
       }
 
       var result = ""
-      obs.flatMap(x => Observable.unit(x)).subscribe(
+      obs.flatMap(x => Observable.unit(x)).subscribeUnit(
         nextFn = _ => (),
         errorFn = ex => {
           result = ex.getMessage
@@ -127,7 +127,7 @@ object ObservableCombinatorsTest extends JasmineTest {
       var effect = 0L
       var errorThrow: Throwable = null
 
-      obs.subscribe(
+      obs.subscribeUnit(
         elem => {
           effect = effect + elem
         },

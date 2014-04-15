@@ -8,8 +8,8 @@ object PublishSubjectTest extends JasmineTest {
       val subject = PublishSubject[Int]()
 
       var sum = 0
-      subject.filter(_ % 2 == 0).map(_ * 2).subscribe(x => sum += x)
-      subject.filter(_ % 2 == 1).map(_ * 2).subscribe(x => sum += x)
+      subject.filter(_ % 2 == 0).map(_ * 2).subscribeUnit(x => sum += x)
+      subject.filter(_ % 2 == 1).map(_ * 2).subscribeUnit(x => sum += x)
 
       for (i <- 1 to 10)
         subject.onNext(i)
@@ -20,8 +20,8 @@ object PublishSubjectTest extends JasmineTest {
 
     it("should cancel subscriptions when terminated") {
       val subject = PublishSubject[Int]()
-      val sub1 = subject.filter(_ % 2 == 0).map(_ * 2).subscribe(_ => ())
-      val sub2 = subject.filter(_ => true).subscribe(_ => ())
+      val sub1 = subject.filter(_ % 2 == 0).map(_ * 2).subscribeUnit(_ => ())
+      val sub2 = subject.filter(_ => true).subscribeUnit(_ => ())
 
       subject.onNext(1)
       subject.onCompleted()
