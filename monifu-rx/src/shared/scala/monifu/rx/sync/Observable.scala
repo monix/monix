@@ -19,8 +19,7 @@ import scala.concurrent.duration.FiniteDuration
 /**
  * Synchronous implementation of the Observable interface.
  */
-trait Observable[+A] extends ObservableGen[A] {
-  type This[+I] = Observable[I]
+trait Observable[+A] extends ObservableGen[A, Observable] {
   type O[-I] = monifu.rx.sync.Observer[I]
 
   def subscribe(observer: Observer[A]): Cancelable
@@ -93,10 +92,13 @@ trait Observable[+A] extends ObservableGen[A] {
     exists(e => !p(e)).map(r => !r)
 
   def flatMap[B](f: A => Observable[B]): Observable[B] =
-    Observable.create(observer => {
-      // we need to do ref-counting for triggering `onCompleted` on our subscriber
-      // when all the children threads have ended
-      val refCounter = RefCountCancelable(observer.onCompleted())
+    map(f).flatten
+
+  final def flatten[B](implicit ev: A <:< Observable[B]): Observable[B] =
+    Observable.create { observerB =>
+    // we need to do ref-counting for triggering `onCompleted` on our subscriber
+    // when all the children threads have ended
+      val refCounter = RefCountCancelable(observerB.onCompleted())
       val composite = CompositeCancelable()
 
       composite += subscribe(new Observer[A] {
@@ -111,11 +113,11 @@ trait Observable[+A] extends ObservableGen[A] {
 
           val childObserver = new Observer[B] {
             def onNext(elem: B) =
-              observer.onNext(elem)
+              observerB.onNext(elem)
 
             def onError(ex: Throwable) =
-              // onError, cancel everything
-              try observer.onError(ex) finally composite.cancel()
+            // onError, cancel everything
+              try observerB.onError(ex) finally composite.cancel()
 
             def onCompleted() = {
               // do resource release, otherwise we can end up with a memory leak
@@ -125,24 +127,12 @@ trait Observable[+A] extends ObservableGen[A] {
             }
           }
 
-          // See Section 6.4. - Protect calls to user code from within an operator - in the Rx Design Guidelines
-          // Note: onNext must not be protected, as it's on the edge of the monad and protecting it yields weird effects
-          var streamError = true
-          try {
-            val childObs = f(elem)
-            streamError = false
-            sub := childObs.subscribe(childObserver)
-            Continue
-          }
-          catch {
-            case NonFatal(ex) if streamError =>
-              observer.onError(ex)
-              Stop
-          }
+          sub := elem.subscribe(childObserver)
+          Continue
         }
 
         def onError(ex: Throwable) =
-          try observer.onError(ex) finally composite.cancel()
+          try observerB.onError(ex) finally composite.cancel()
 
         def onCompleted() = {
           // triggers observer.onCompleted() when all Observables created have been finished
@@ -154,13 +144,7 @@ trait Observable[+A] extends ObservableGen[A] {
       })
 
       composite
-    })
-
-  final def flatten[B](implicit ev: A <:< Observable[B]): Observable[B] =
-    flatMap(x => x)
-
-  final def merge[B >: A](other: Observable[B]): Observable[B] =
-    Observable.fromTraversable(Seq(this, other)).flatMap(x => x)
+    }
 
   final def head: Observable[A] = take(1)
 
@@ -430,8 +414,6 @@ trait Observable[+A] extends ObservableGen[A] {
                 observer.onCompleted()
               }
             }
-
-            ()
           }
 
         def onError(ex: Throwable) =
@@ -467,8 +449,6 @@ trait Observable[+A] extends ObservableGen[A] {
                 observer.onCompleted()
               }
             }
-
-            ()
           }
 
         def onError(ex: Throwable) =
@@ -650,7 +630,7 @@ object Observable extends ObservableBuilder[Observable] {
    * NOTE: the result should be the same as [[monifu.rx.sync.Observable.concat concat]] and in
    *       the asynchronous version it always is.
    */
-  def merge[T](sources: Observable[T]*): Observable[T] =
+  def flatten[T](sources: Observable[T]*): Observable[T] =
     Observable.fromTraversable(sources).flatten
 
   /**

@@ -15,8 +15,7 @@ import scala.util.control.NonFatal
 /**
  * Asynchronous implementation of the Observable interface
  */
-trait Observable[+T] extends ObservableGen[T] {
-  type This[+I] = Observable[I]
+trait Observable[+T] extends ObservableGen[T, Observable] {
   type O[-I] = monifu.rx.async.Observer[I]
 
   /**
@@ -104,6 +103,9 @@ trait Observable[+T] extends ObservableGen[T] {
     }
 
   final def flatMap[U](f: T => Observable[U]): Observable[U] =
+    map(f).flatten
+
+  final def flatten[U](implicit ev: T <:< Observable[U]): Observable[U] =
     Observable.create { observerU =>
     // aggregate subscription that cancels everything
       val composite = CompositeCancelable()
@@ -116,45 +118,37 @@ trait Observable[+T] extends ObservableGen[T] {
       }
 
       composite += subscribe(new Observer[T] {
-        def onNext(seedForU: T) = {
-          // See Section 6.4. in the Rx Design Guidelines:
-          // Protect calls to user code from within an operator
-          Future(Try(f(seedForU))) flatMap {
-            case Success(childObservable) =>
-              val upstreamPromise = Promise[Ack]()
+        def onNext(childObservable: T) = {
+          val upstreamPromise = Promise[Ack]()
 
-              val refID = refCounter.acquireCancelable()
-              val sub = SingleAssignmentCancelable()
-              composite += sub
+          val refID = refCounter.acquireCancelable()
+          val sub = SingleAssignmentCancelable()
+          composite += sub
 
-              sub := childObservable.subscribe(new Observer[U] {
-                def onNext(elem: U) =
-                  observerU.onNext(elem)
+          sub := childObservable.subscribe(new Observer[U] {
+            def onNext(elem: U) =
+              observerU.onNext(elem)
 
-                def onError(ex: Throwable) = {
-                  // error happened, so signaling both the main thread that it should stop
-                  // and the downstream consumer of the error
-                  val f = observerU.onError(ex)
-                  upstreamPromise.completeWith(f.map(_ => Stop))
-                  f
-                }
+            def onError(ex: Throwable) = {
+              // error happened, so signaling both the main thread that it should stop
+              // and the downstream consumer of the error
+              val f = observerU.onError(ex)
+              upstreamPromise.completeWith(f.map(_ => Stop))
+              f
+            }
 
-                def onCompleted() = Future {
-                  // removing the child subscription as we can have a leak otherwise
-                  composite -= sub
-                  // NOTE: we aren't sending this onCompleted signal downstream to our observerU
-                  // instead this will eventually send the EOF downstream (reference counting FTW)
-                  refID.cancel()
-                  // end of child observable, so signal main thread that it should continue
-                  upstreamPromise.success(Continue)
-                }
-              })
+            def onCompleted() = Future {
+              // removing the child subscription as we can have a leak otherwise
+              composite -= sub
+              // NOTE: we aren't sending this onCompleted signal downstream to our observerU
+              // instead this will eventually send the EOF downstream (reference counting FTW)
+              refID.cancel()
+              // end of child observable, so signal main thread that it should continue
+              upstreamPromise.success(Continue)
+            }
+          })
 
-              upstreamPromise.future
-
-            case Failure(ex) =>
-              observerU.onError(ex).map(_ => Stop)
-          }
+          upstreamPromise.future
         }
 
         def onError(ex: Throwable) = {
@@ -171,10 +165,6 @@ trait Observable[+T] extends ObservableGen[T] {
 
       composite
     }
-
-  final def flatten[U](implicit ev: T <:< Observable[U]): Observable[U] =
-    flatMap(x => x)
-
 
   final def take(n: Long): Observable[T] =
     Observable.create { observer =>
@@ -462,10 +452,10 @@ object Observable {
   def create[T](f: Observer[T] => Cancelable)(implicit ctx: ExecutionContext): Observable[T] =
     new Observable[T] {
       protected def ec = ctx
-      def subscribe(observe: Observer[T]): Cancelable =
-        try f(observe) catch {
+      def subscribe(observer: Observer[T]): Cancelable =
+        try f(observer) catch {
           case NonFatal(ex) =>
-            observe.onError(ex)
+            observer.onError(ex)
             Cancelable.alreadyCanceled
         }
     }
@@ -604,19 +594,7 @@ object Observable {
 
   /**
    * Merges the given list of ''observables'' into a single observable.
-   *
-   * NOTE: the result should be the same as [[monifu.rx.async.Observable.concat concat]] and in
-   *       the asynchronous version it always is.
    */
-  def merge[T](sources: Observable[T]*)(implicit ec: ExecutionContext): Observable[T] =
+  def flatten[T](sources: Observable[T]*)(implicit ec: ExecutionContext): Observable[T] =
     Observable.fromTraversable(sources).flatten
-
-  /**
-   * Concatenates the given list of ''observables''.
-   */
-  def concat[T](sources: Observable[T]*)(implicit ec: ExecutionContext): Observable[T] =
-    if (sources.isEmpty)
-      empty
-    else
-      sources.tail.foldLeft(sources.head)((acc, elem) => acc ++ elem)
 }

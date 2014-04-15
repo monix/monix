@@ -5,7 +5,6 @@ import scala.concurrent.duration._
 import monifu.concurrent.cancelables.MultiAssignmentCancelable
 import scala.annotation.implicitNotFound
 import monifu.concurrent.schedulers.SchedulerCompanionImpl
-import java.util.concurrent.Executor
 
 /**
  * A Scheduler is an `scala.concurrent.ExecutionContext` that additionally can schedule
