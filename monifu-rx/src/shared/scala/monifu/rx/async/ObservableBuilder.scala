@@ -43,18 +43,9 @@ final class ObservableBuilder(implicit val context: ExecutionContext)
 
   /**
    * Merges the given list of ''observables'' into a single observable.
-   *
-   * NOTE: the result should be the same as [[monifu.rx.async.Observable.concat concat]] and in
-   *       the asynchronous version it always is.
    */
-  def merge[T](sources: Observable[T]*): Observable[T] =
-    Observable.merge(sources: _*)
-
-  /**
-   * Concatenates the given list of ''observables''.
-   */
-  def concat[T](sources: Observable[T]*): Observable[T] =
-    Observable.concat(sources: _*)
+  def flatten[T](sources: Observable[T]*): Observable[T] =
+    Observable.flatten(sources: _*)
 
   def interval(initialDelay: FiniteDuration, period: FiniteDuration, s: Scheduler): Observable[Long] =
     Observable.interval(initialDelay, period, s)

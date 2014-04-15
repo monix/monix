@@ -97,5 +97,36 @@ object JSAsyncSchedulerTest extends JasmineTest {
       jasmine.Clock.tick(1000)
       expect(f.value.flatMap(_.toOption).getOrElse(0)).toBe(4)
     }
+
+    it("should execute async") {
+      var stackDepth = 0
+      var iterations = 0
+
+      s.scheduleOnce {
+        stackDepth += 1
+        iterations += 1
+        s.scheduleOnce {
+          stackDepth += 1
+          iterations += 1
+          expect(stackDepth).toBe(1)
+
+          s.scheduleOnce {
+            stackDepth += 1
+            iterations += 1
+            expect(stackDepth).toBe(1)
+            stackDepth -= 1
+          }
+
+          expect(stackDepth).toBe(1)
+          stackDepth -= 1
+        }
+        expect(stackDepth).toBe(1)
+        stackDepth -= 1
+      }
+
+      jasmine.Clock.tick(1)
+      expect(iterations).toBe(3)
+      expect(stackDepth).toBe(0)
+    }
   }
 }

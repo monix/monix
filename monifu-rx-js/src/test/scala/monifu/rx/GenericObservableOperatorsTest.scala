@@ -1,20 +1,24 @@
 package monifu.rx
 
-import org.scalatest.FunSpec
-import scala.concurrent.ExecutionContext.Implicits.global
+import monifu.concurrent.Scheduler.Implicits.global
 import monifu.rx.base.{ObservableGen, ObservableBuilder}
 import scala.language.higherKinds
-import scala.concurrent.Await
-import concurrent.duration._
-import java.util.concurrent.{TimeUnit, CountDownLatch}
+import scala.scalajs.test.JasmineTest
 
-class GenericObservableOperatorsTest[Observable[+T] <: ObservableGen[T, Observable]](builder: ObservableBuilder[Observable])
-  extends FunSpec {
+class GenericObservableOperatorsTest[Observable[+T] <: ObservableGen[T, Observable]](builder: ObservableBuilder[Observable], isAsync: Boolean = true)
+  extends JasmineTest {
 
   describe("Observable.map") {
+    beforeEach {
+      jasmine.Clock.useMock()
+    }
+
     it("should work") {
       val f = builder.fromTraversable(0 until 100).map(x => x + 1).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
-      assert(Await.result(f, 1.second) === Some(1 until 101))
+
+      if (isAsync) jasmine.Clock.tick(1)
+      val result = f.value.get.get.get.sum
+      expect(result).toBe((1 until 101).sum)
     }
 
     it("should treat exceptions in subscribe implementations (guideline 6.5)") {
@@ -22,8 +26,7 @@ class GenericObservableOperatorsTest[Observable[+T] <: ObservableGen[T, Observab
         throw new RuntimeException("Test exception")
       }
 
-      val latch = new CountDownLatch(1)
-      @volatile var result = ""
+      var result = ""
 
       obs.map(x => x).subscribeUnit(
         nextFn = _ => {
@@ -32,12 +35,11 @@ class GenericObservableOperatorsTest[Observable[+T] <: ObservableGen[T, Observab
         },
         errorFn = ex => {
           result = ex.getMessage
-          latch.countDown()
         }
       )
 
-      latch.await(1, TimeUnit.SECONDS)
-      assert(result === "Test exception")
+      if (isAsync) jasmine.Clock.tick(1)
+      expect(result).toBe("Test exception")
     }
 
     it("should protect calls to user code (guideline 6.4)") {
@@ -45,8 +47,7 @@ class GenericObservableOperatorsTest[Observable[+T] <: ObservableGen[T, Observab
         if (x < 5) x + 1 else throw new RuntimeException("test")
       }
 
-      @volatile var errorThrow: Throwable = null
-      val latch = new CountDownLatch(1)
+      var errorThrow: Throwable = null
 
       obs.map(x => x).subscribeUnit(
         nextFn = _ => {
@@ -55,19 +56,24 @@ class GenericObservableOperatorsTest[Observable[+T] <: ObservableGen[T, Observab
         },
         errorFn = ex => {
           errorThrow = ex
-          latch.countDown()
         }
       )
 
-      latch.await(1, TimeUnit.SECONDS)
-      assert(errorThrow.getMessage === "test")
+      if (isAsync) jasmine.Clock.tick(1)
+      expect(errorThrow.getMessage).toBe("test")
     }
   }
 
   describe("Observable.filter") {
+    beforeEach {
+      jasmine.Clock.useMock()
+    }
+
     it("should work") {
-      val obs = builder.fromTraversable(1 to 10).filter(_ % 2 == 0).foldLeft(0)(_ + _).asFuture
-      assert(Await.result(obs, 1.second) === Some((1 to 10).filter(_ % 2 == 0).sum))
+      val f = builder.fromTraversable(1 to 10).filter(_ % 2 == 0).foldLeft(0)(_ + _).asFuture
+
+      if (isAsync) jasmine.Clock.tick(1)
+      expect(f.value.get.get.get).toBe((1 to 10).filter(_ % 2 == 0).sum)
     }
 
     it("should treat exceptions in subscribe implementations (guideline 6.5)") {
@@ -75,8 +81,7 @@ class GenericObservableOperatorsTest[Observable[+T] <: ObservableGen[T, Observab
         throw new RuntimeException("Test exception")
       }
 
-      val latch = new CountDownLatch(1)
-      @volatile var result = ""
+      var result = ""
 
       obs.filter(_ % 2 == 0).subscribeUnit(
         nextFn = _ => {
@@ -85,12 +90,11 @@ class GenericObservableOperatorsTest[Observable[+T] <: ObservableGen[T, Observab
         },
         errorFn = ex => {
           result = ex.getMessage
-          latch.countDown()
         }
       )
 
-      latch.await(1, TimeUnit.SECONDS)
-      assert(result === "Test exception")
+      if (isAsync) jasmine.Clock.tick(1)
+      expect(result).toBe("Test exception")
     }
 
     it("should protect calls to user code (guideline 6.4)") {
@@ -98,9 +102,8 @@ class GenericObservableOperatorsTest[Observable[+T] <: ObservableGen[T, Observab
         if (x < 5) true else throw new RuntimeException("test")
       }
 
-      @volatile var sum = 0
-      @volatile var errorThrow: Throwable = null
-      val latch = new CountDownLatch(1)
+      var sum = 0
+      var errorThrow: Throwable = null
 
       obs.map(x => x).subscribeUnit(
         nextFn = e => {
@@ -111,23 +114,27 @@ class GenericObservableOperatorsTest[Observable[+T] <: ObservableGen[T, Observab
         },
         errorFn = ex => {
           errorThrow = ex
-          latch.countDown()
         }
       )
 
-      latch.await(1, TimeUnit.SECONDS)
-      assert(errorThrow.getMessage === "test")
-      assert(sum === (0 until 5).sum)
+      if (isAsync) jasmine.Clock.tick(1)
+      expect(errorThrow.getMessage).toBe("test")
+      expect(sum).toBe((0 until 5).sum)
     }
   }
 
   describe("Observable.flatMap") {
+    beforeEach {
+      jasmine.Clock.useMock()
+    }
+
     it("should work") {
       val result = builder.fromTraversable(0 until 100).filter(_ % 5 == 0)
         .flatMap(x => builder.fromTraversable(x until (x + 5)))
         .foldLeft(0)(_ + _).asFuture
 
-      assert(Await.result(result, 1.second) === Some((0 until 100).sum))
+      if (isAsync) jasmine.Clock.tick(1)
+      expect(result.value.get.get.get).toBe((0 until 100).sum)
     }
 
     it("should treat exceptions in subscribe implementations (guideline 6.5)") {
@@ -135,8 +142,7 @@ class GenericObservableOperatorsTest[Observable[+T] <: ObservableGen[T, Observab
         throw new RuntimeException("Test exception")
       }
 
-      val latch = new CountDownLatch(1)
-      @volatile var result = ""
+      var result = ""
 
       obs.flatMap(x => builder.unit(x)).subscribeUnit(
         nextFn = _ => {
@@ -145,12 +151,11 @@ class GenericObservableOperatorsTest[Observable[+T] <: ObservableGen[T, Observab
         },
         errorFn = ex => {
           result = ex.getMessage
-          latch.countDown()
         }
       )
 
-      latch.await(1, TimeUnit.SECONDS)
-      assert(result === "Test exception")
+      if (isAsync) jasmine.Clock.tick(1)
+      expect(result).toBe("Test exception")
     }
 
     it("should protect calls to user code (guideline 6.4)") {
@@ -158,9 +163,8 @@ class GenericObservableOperatorsTest[Observable[+T] <: ObservableGen[T, Observab
         if (x < 50) builder.unit(x) else throw new RuntimeException("test")
       }
 
-      @volatile var sum = 0
-      @volatile var errorThrow: Throwable = null
-      val latch = new CountDownLatch(1)
+      var sum = 0
+      var errorThrow: Throwable = null      
 
       obs.map(x => x).subscribeUnit(
         nextFn = e => {
@@ -171,13 +175,12 @@ class GenericObservableOperatorsTest[Observable[+T] <: ObservableGen[T, Observab
         },
         errorFn = ex => {
           errorThrow = ex
-          latch.countDown()
         }
       )
 
-      latch.await(1, TimeUnit.SECONDS)
-      assert(errorThrow.getMessage === "test")
-      assert(sum === (0 until 50).sum)
+      if (isAsync) jasmine.Clock.tick(1)
+      expect(errorThrow.getMessage).toBe("test")
+      expect(sum).toBe((0 until 50).sum)
     }
 
     it("should generate elements in order") {
@@ -186,54 +189,36 @@ class GenericObservableOperatorsTest[Observable[+T] <: ObservableGen[T, Observab
         .foldLeft(Seq.empty[Int])(_ :+ _)
         .asFuture
 
-      val result = Await.result(obs, 1.second)
-      assert(result === Some(0 until 100))
+      if (isAsync) jasmine.Clock.tick(1)
+      val result = obs.value.get.get.get
+      expect(result.mkString("-")).toBe((0 until 100).mkString("-"))
     }
 
     it("should satisfy source.filter(p) == source.flatMap(x => if (p(x)) unit(x) else empty)") {
-      val parent = builder.fromTraversable(0 until 1000)
+      val parent = builder.fromTraversable(0 until 100)
       val res1 = parent.filter(_ % 5 == 0).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
       val res2 = parent.flatMap(x => if (x % 5 == 0) builder.unit(x) else builder.empty).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
 
-      assert(Await.result(res1, 1.second) === Await.result(res2, 1.second))
+      if (isAsync) jasmine.Clock.tick(1)
+      expect(res1.value.get.get.get.mkString("-")).toBe(res2.value.get.get.get.mkString("-"))
     }
 
     it("should satisfy source.map(f) == source.flatMap(x => unit(x))") {
-      val parent = builder.fromTraversable(0 until 1000)
+      val parent = builder.fromTraversable(0 until 50)
       val res1 = parent.map(_ + 1).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
       val res2 = parent.flatMap(x => builder.unit(x + 1)).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
 
-      assert(Await.result(res1, 1.second) === Await.result(res2, 1.second))
+      if (isAsync) jasmine.Clock.tick(1)
+      expect(res1.value.get.get.get.mkString("-")).toBe(res2.value.get.get.get.mkString("-"))
     }
 
     it("should satisfy source.map(f).flatten == source.flatMap(f)") {
-      val parent = builder.fromTraversable(0 until 1000).filter(_ % 2 == 0)
+      val parent = builder.fromTraversable(0 until 10).filter(_ % 2 == 0)
       val res1 = parent.map(x => builder.fromTraversable(x until (x + 2))).flatten.foldLeft(Seq.empty[Int])(_ :+ _).asFuture
       val res2 = parent.flatMap(x => builder.fromTraversable(x until (x + 2))).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
 
-      assert(Await.result(res1, 1.second) === Await.result(res2, 1.second))
-    }
-  }
-
-  describe("Observable.fromTraversable") {
-    it("should work without overflow") {
-      val n = 1000000L
-      val sum = n * (n + 1) / 2
-      val obs = builder.fromTraversable(1 to n.toInt)
-      val res = obs.foldLeft(0L)(_ + _).asFuture
-
-      val result = Await.result(res, 20.seconds)
-      assert(result === Some(sum))
-    }
-
-    it("should stop if terminated with a stop") {
-      val n = 1000000L
-      val sum = 101 * 50
-      val obs = builder.fromTraversable(1 to n.toInt).take(100)
-      val res = obs.foldLeft(0L)(_ + _).asFuture
-
-      val result = Await.result(res, 1.second)
-      assert(result === Some(sum))
+      if (isAsync) jasmine.Clock.tick(1)
+      expect(res1.value.get.get.get.mkString("-")).toBe(res2.value.get.get.get.mkString("-"))
     }
   }
 }

@@ -6,7 +6,7 @@ import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.ExecutionContext
 
 
-trait ObservableBuilder[Observable[+T] <: ObservableGen[T]] extends Any {
+trait ObservableBuilder[Observable[+T] <: ObservableGen[T, Observable]] extends Any {
   type O[-I]
 
   /**
@@ -86,10 +86,5 @@ trait ObservableBuilder[Observable[+T] <: ObservableGen[T]] extends Any {
    * NOTE: the result should be the same as [[monifu.rx.sync.Observable.concat concat]] and in
    *       the asynchronous version it always is.
    */
-  def merge[T](sources: Observable[T]*): Observable[T]
-
-  /**
-   * Concatenates the given list of ''observables''.
-   */
-  def concat[T](sources: Observable[T]*): Observable[T]
+  def flatten[T](sources: Observable[T]*): Observable[T]
 }
