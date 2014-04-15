@@ -2,8 +2,8 @@ package monifu.rx.sync.observers
 
 import monifu.rx.sync.Observer
 import monifu.concurrent.Cancelable
-import monifu.rx.common.Ack
-import monifu.rx.common.Ack.{Continue, Stop}
+import monifu.rx.base.Ack
+import monifu.rx.base.Ack.{Continue, Stop}
 
 final case class Subscriber[-T](observer: Observer[T], subscription: Cancelable)
   extends Observer[T] with Cancelable {

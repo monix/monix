@@ -5,36 +5,23 @@ import monifu.rx.sync.observers.{SynchronizedObserver, AnonymousObserver}
 import scala.annotation.tailrec
 import monifu.concurrent.locks.NaiveSpinLock
 import scala.collection.mutable
-import scala.concurrent.{Promise, Future, ExecutionContext}
+import scala.concurrent.{Promise, Future}
 import monifu.concurrent.atomic.Atomic
 import monifu.concurrent.cancelables.SingleAssignmentCancelable
 import monifu.concurrent.Cancelable
 import scala.util.control.NonFatal
-import monifu.rx.common.Ack
+import monifu.rx.base.{ObservableBuilder, ObservableGen, Ack}
 import Ack.{Continue, Stop}
 import scala.util.{Failure, Success, Try}
-import monifu.rx.common.Ack
-
+import concurrent.ExecutionContext
 
 /**
- * The Observable interface that implements the Rx pattern.
- *
- * Observables are characterized by their `subscribe` function,
- * that must be overwritten for custom operators or for custom
- * Observable implementations and on top of which everything else
- * is built.
+ * Synchronous implementation of the Observable interface.
  */
-trait Observable[+A]  {
-  /**
-   * Function that creates the actual subscription when calling `subscribe`,
-   * and that starts the stream, being meant to be overridden in custom combinators
-   * or in classes implementing Observable.
-   *
-   * @param observer is an [[monifu.rx.sync.Observer Observer]] on which `onNext`, `onComplete` and `onError`
-   *                 happens, according to the Rx grammar.
-   *
-   * @return a cancelable that can be used to cancel the streaming
-   */
+trait Observable[+A] extends ObservableGen[A] {
+  type This[+I] = Observable[I]
+  type Observer[-I] = monifu.rx.sync.Observer[I]
+
   def subscribe(observer: Observer[A]): Cancelable
 
   final def subscribe(nextFn: A => Unit): Cancelable =
@@ -46,13 +33,6 @@ trait Observable[+A]  {
   final def subscribe(nextFn: A => Unit, errorFn: Throwable => Unit, completedFn: () => Unit): Cancelable =
     subscribe(AnonymousObserver(nextFn, errorFn, completedFn))
 
-  /**
-   * Returns an Observable that applies the given function to each item emitted by an
-   * Observable and emits the result.
-   *
-   * @param f a function to apply to each item emitted by the Observable
-   * @return an Observable that emits the items from the source Observable, transformed by the given function
-   */
   def map[B](f: A => B): Observable[B] =
     Observable.create(observer =>
       subscribe(new Observer[A] {
@@ -78,12 +58,6 @@ trait Observable[+A]  {
           observer.onCompleted()
       }))
 
-  /**
-   * Returns an Observable which only emits those items for which a given predicate holds.
-   *
-   * @param p a function that evaluates the items emitted by the source Observable, returning `true` if they pass the filter
-   * @return an Observable that emits only those items in the original Observable for which the filter evaluates as `true`
-   */
   def filter(p: A => Boolean): Observable[A] =
     Observable.create(observer => subscribe(new Observer[A] {
       def onNext(elem: A) = {
@@ -108,45 +82,15 @@ trait Observable[+A]  {
       def onCompleted() = observer.onCompleted()
     }))
 
-  /**
-   * Returns an Observable which only emits the first item for which the predicate holds.
-   *
-   * @param p a function that evaluates the items emitted by the source Observable, returning `true` if they pass the filter
-   * @return an Observable that emits only the first item in the original Observable for which the filter evaluates as `true`
-   */
   final def find(p: A => Boolean): Observable[A] =
     filter(p).head
 
-  /**
-   * Returns an Observable which emits a single value, either true, in case the given predicate holds for at least
-   * one item, or false otherwise.
-   *
-   * @param p a function that evaluates the items emitted by the source Observable, returning `true` if they pass the filter
-   * @return an Observable that emits only true or false in case the given predicate holds or not for at least one item
-   */
   final def exists(p: A => Boolean): Observable[Boolean] =
     find(p).foldLeft(false)((_, _) => true)
 
-  /**
-   * Returns an Observable that emits a single boolean, either true, in case the given predicate holds for all the items
-   * emitted by the source, or false in case at least one item is not verifying the given predicate.
-   *
-   * @param p a function that evaluates the items emitted by the source Observable, returning `true` if they pass the filter
-   * @return an Observable that emits only true or false in case the given predicate holds or not for all the items
-   */
   final def forAll(p: A => Boolean): Observable[Boolean] =
     exists(e => !p(e)).map(r => !r)
 
-  /**
-   * Creates a new Observable by applying a function that you supply to each item emitted by
-   * the source Observable, where that function returns an Observable, and then merging those
-   * resulting Observables and emitting the results of this merger.
-   *
-   * @param f a function that, when applied to an item emitted by the source Observable, returns an Observable
-   * @return an Observable that emits the result of applying the transformation function to each
-   *         item emitted by the source Observable and merging the results of the Observables
-   *         obtained from this transformation.
-   */
   def flatMap[B](f: A => Observable[B]): Observable[B] =
     Observable.create(observer => {
       // we need to do ref-counting for triggering `onCompleted` on our subscriber
@@ -211,28 +155,9 @@ trait Observable[+A]  {
       composite
     })
 
-  /**
-   * Flattens the sequence of Observables emitted by `this` into one Observable, without any
-   * transformation.
-   *
-   * You can combine the items emitted by multiple Observables so that they act like a single
-   * Observable by using this method.
-   *
-   * This operation is only available if `this` is of type `Observable[Observable[B]]` for some `B`,
-   * otherwise you'll get a compilation error.
-   *
-   * @return an Observable that emits items that are the result of flattening the items emitted
-   *         by the Observables emitted by `this`
-   */
   final def flatten[B](implicit ev: A <:< Observable[B]): Observable[B] =
     flatMap(x => x)
 
-  /**
-   * Flattens two Observables into one Observable, without any transformation.
-   *
-   * @param other an Observable to be merged
-   * @return an Observable that emits items from `this` and `that` until
-   *         `this` or `that` emits `onError` or `onComplete`.   */
   final def merge[B >: A](other: Observable[B]): Observable[B] =
     Observable.fromTraversable(Seq(this, other)).flatMap(x => x)
 
@@ -249,23 +174,23 @@ trait Observable[+A]  {
   final def firstOrElse[B >: A](default: => B): Observable[B] =
     headOrElse(default)
 
-  final def take(nr: Int): Observable[A] = {
-    require(nr > 0, "number of elements to take should be strictly positive")
+  final def take(n: Long): Observable[A] = {
+    require(n > 0, "number of elements to take should be strictly positive")
 
     Observable.create(observer => subscribe(new Observer[A] {
-      val count = Atomic(0)
+      val count = Atomic(0L)
 
       @tailrec
-      def onNext(elem: A): Ack = {
+      def onNext(elem: A) = {
         val currentCount = count.get
 
-        if (currentCount < nr) {
+        if (currentCount < n) {
           val newCount = currentCount + 1
           if (!count.compareAndSet(currentCount, newCount))
             onNext(elem)
           else {
             observer.onNext(elem)
-            if (newCount == nr) {
+            if (newCount == n) {
               observer.onCompleted()
               Stop
             }
@@ -277,25 +202,25 @@ trait Observable[+A]  {
           Stop
       }
 
-      def onCompleted(): Unit =
+      def onCompleted() =
         observer.onCompleted()
 
-      def onError(ex: Throwable): Unit =
+      def onError(ex: Throwable) =
         observer.onError(ex)
     }))
   }
 
-  final def drop(nr: Int): Observable[A] = {
-    require(nr > 0, "number of elements to drop should be strictly positive")
+  final def drop(n: Long): Observable[A] = {
+    require(n > 0, "number of elements to drop should be strictly positive")
 
     Observable.create(observer => subscribe(new Observer[A] {
-      val count = Atomic(0)
+      val count = Atomic(0L)
 
       @tailrec
-      def onNext(elem: A): Ack = {
+      def onNext(elem: A) = {
         val currentCount = count.get
 
-        if (currentCount < nr) {
+        if (currentCount < n) {
           val newCount = currentCount + 1
           if (!count.compareAndSet(currentCount, newCount))
             onNext(elem)
@@ -306,10 +231,10 @@ trait Observable[+A]  {
           observer.onNext(elem)
       }
 
-      def onCompleted(): Unit =
+      def onCompleted() =
         observer.onCompleted()
 
-      def onError(ex: Throwable): Unit =
+      def onError(ex: Throwable) =
         observer.onError(ex)
     }))
   }
@@ -318,7 +243,7 @@ trait Observable[+A]  {
     Observable.create(observer => subscribe(new Observer[A] {
       val shouldContinue = Atomic(true)
 
-      def onNext(elem: A): Ack = {
+      def onNext(elem: A) = {
         var streamError = true
         try {
           if (shouldContinue.get) {
@@ -346,10 +271,10 @@ trait Observable[+A]  {
         }
       }
 
-      def onCompleted(): Unit =
+      def onCompleted() =
         observer.onCompleted()
 
-      def onError(ex: Throwable): Unit =
+      def onError(ex: Throwable) =
         observer.onError(ex)
     }))
 
@@ -358,7 +283,7 @@ trait Observable[+A]  {
       val shouldDropRef = Atomic(true)
 
       @tailrec
-      def onNext(elem: A): Ack =
+      def onNext(elem: A) =
         if (!shouldDropRef.get)
           observer.onNext(elem)
         else {
@@ -369,10 +294,10 @@ trait Observable[+A]  {
             Continue
         }
 
-      def onCompleted(): Unit =
+      def onCompleted() =
         observer.onCompleted()
 
-      def onError(ex: Throwable): Unit =
+      def onError(ex: Throwable) =
         observer.onError(ex)
     }))
 
@@ -381,7 +306,7 @@ trait Observable[+A]  {
       val state = Atomic(initial)
 
       subscribe(new Observer[A] {
-        def onNext(elem: A): Ack =
+        def onNext(elem: A) =
           try {
             state.transformAndGet(s => f(s, elem))
             Continue
@@ -392,12 +317,12 @@ trait Observable[+A]  {
               Stop
           }
 
-        def onCompleted(): Unit = {
+        def onCompleted() = {
           observer.onNext(state.get)
           observer.onCompleted()
         }
 
-        def onError(ex: Throwable): Unit =
+        def onError(ex: Throwable) =
           observer.onError(ex)
       })
     }
@@ -406,20 +331,16 @@ trait Observable[+A]  {
     Observable.create[B](observer => subscribe(
       SynchronizedObserver(new Observer[A] {
         def onNext(elem: A) = observer.onNext(elem)
-        def onError(ex: Throwable) = observer.onError(ex)
-        def onCompleted() = other.subscribe(observer)
+
+        def onError(ex: Throwable) =
+          observer.onError(ex)
+
+        def onCompleted() = {
+          other.subscribe(observer)
+          ()
+        }
       })))
 
-  /**
-   * Executes the given callback when the stream has ended on `onCompleted`
-   *
-   * NOTE: make sure that the specified callback doesn't throw errors, because
-   * it gets executed when `cancel()` happens and by definition the error cannot
-   * be streamed with `onError()` and so the behavior is left as undefined, possibly
-   * crashing the application or worse - leading to non-deterministic behavior.
-   *
-   * @param cb the callback to execute when the subscription is canceled
-   */
   final def doOnCompleted(cb: => Unit): Observable[A] =
     Observable.create { observer =>
       subscribe(new Observer[A] {
@@ -436,12 +357,6 @@ trait Observable[+A]  {
       })
     }
 
-  /**
-   * Executes the given callback for each element generated by the source
-   * Observable, useful for doing side-effects.
-   *
-   * @return a new Observable that executes the specified callback for each element
-   */
   final def doWork(cb: A => Unit): Observable[A] =
     Observable.create(observer => subscribe(new Observer[A] {
       def onNext(elem: A) = {
@@ -460,10 +375,10 @@ trait Observable[+A]  {
         }
       }
 
-      def onError(ex: Throwable): Unit =
+      def onError(ex: Throwable) =
         observer.onError(ex)
 
-      def onCompleted(): Unit =
+      def onCompleted() =
         observer.onCompleted()
     }))
 
@@ -505,7 +420,7 @@ trait Observable[+A]  {
               Stop
           }
 
-        def onCompleted(): Unit =
+        def onCompleted() =
           lock.acquire {
             if (!aIsDone) {
               aIsDone = true
@@ -514,9 +429,11 @@ trait Observable[+A]  {
                 observer.onCompleted()
               }
             }
+
+            ()
           }
 
-        def onError(ex: Throwable): Unit =
+        def onError(ex: Throwable) =
           _onError(ex)
       })
 
@@ -540,7 +457,7 @@ trait Observable[+A]  {
               Stop
           }
 
-        def onCompleted(): Unit =
+        def onCompleted() =
           lock.acquire {
             if (!bIsDone) {
               bIsDone = true
@@ -549,34 +466,35 @@ trait Observable[+A]  {
                 observer.onCompleted()
               }
             }
+
+            ()
           }
 
-        def onError(ex: Throwable): Unit =
+        def onError(ex: Throwable) =
           _onError(ex)
       })
 
       composite
     }
 
-  /**
-   * Returns the first generated result as a Future and then cancels
-   * the subscription.
-   */
-  final def asFuture(implicit ec: ExecutionContext): Future[Option[A]] = {
+  final def asFuture(implicit ec: concurrent.ExecutionContext): Future[Option[A]] = {
     val promise = Promise[Option[A]]()
 
     head.subscribe(new Observer[A] {
-      def onNext(elem: A): Ack = {
+      def onNext(elem: A) = {
         promise.trySuccess(Some(elem))
         Stop
       }
 
-      def onError(ex: Throwable): Unit =
+      def onError(ex: Throwable) = {
         promise.tryFailure(ex)
+        ()
+      }
 
-
-      def onCompleted(): Unit =
+      def onCompleted() = {
         promise.trySuccess(None)
+        ()
+      }
     })
 
     promise.future
@@ -584,9 +502,67 @@ trait Observable[+A]  {
 
   final def safe: Observable[A] =
     Observable.create(observer => subscribe(SynchronizedObserver(observer)))
+
+  final def toAsyncObservable(implicit ec: ExecutionContext): monifu.rx.async.Observable[A] =
+    monifu.rx.async.Observable.create { observerA =>
+      val ref = Atomic(Future.successful(Continue : Ack))
+      val sub = SingleAssignmentCancelable()
+
+      sub := subscribe(SynchronizedObserver(new Observer[A] {
+        def onError(ex: Throwable): Unit = {
+          val newPromise = Promise[Ack]()
+          val oldFuture = ref.getAndSet(newPromise.future)
+
+          newPromise.completeWith(oldFuture flatMap {
+            case Continue =>
+              sub.cancel()
+              observerA.onError(ex).map(_ => Stop)
+            case Stop =>
+              sub.cancel()
+              Future.successful(Stop)
+          })
+        }
+
+        def onCompleted(): Unit = {
+          val newPromise = Promise[Ack]()
+          val oldFuture = ref.getAndSet(newPromise.future)
+
+          newPromise.completeWith(oldFuture flatMap {
+            case Continue =>
+              sub.cancel()
+              observerA.onCompleted().map(_ => Stop)
+            case Stop =>
+              sub.cancel()
+              Future.successful(Stop)
+          })
+        }
+
+        def onNext(elem: A): Ack = {
+          val newPromise = Promise[Ack]()
+          val oldFuture = ref.getAndSet(newPromise.future)
+
+          newPromise.completeWith(oldFuture flatMap {
+            case Continue =>
+              observerA.onNext(elem)
+            case Stop =>
+              sub.cancel()
+              Future.successful(Stop)
+          })
+
+          Continue
+        }
+      }))
+
+      sub
+    }
 }
 
-object Observable {
+object Observable extends ObservableBuilder[Observable] {
+  implicit def Builder = this
+
+  /**
+   * Observable constructor. To be used for implementing new Observables and operators.
+   */
   def create[A](f: Observer[A] => Cancelable): Observable[A] =
     new Observable[A] {
       def subscribe(observer: Observer[A]) =
@@ -603,6 +579,9 @@ object Observable {
       Cancelable.alreadyCanceled
     }
 
+  /**
+   * Creates an Observable that only emits the given ''a''
+   */
   def unit[A](elem: A): Observable[A] =
     create { observer =>
       observer.onNext(elem)
@@ -610,15 +589,24 @@ object Observable {
       Cancelable.alreadyCanceled
     }
 
+  /**
+   * Creates an Observable that emits an error.
+   */
   def error(ex: Throwable): Observable[Nothing] =
     create { observer =>
       observer.onError(ex)
       Cancelable.alreadyCanceled
     }
 
+  /**
+   * Creates an Observable that doesn't emit anything and that never completes.
+   */
   def never: Observable[Nothing] =
     create { _ => Cancelable() }
 
+  /**
+   * Creates an Observable that emits the elements of the given ''sequence''
+   */
   def fromTraversable[T](sequence: TraversableOnce[T]): Observable[T] =
     create[T] { observer =>
       var alreadyStopped = false
@@ -654,6 +642,21 @@ object Observable {
       Cancelable.alreadyCanceled
     }
 
+  /**
+   * Merges the given list of ''observables'' into a single observable.
+   *
+   * NOTE: the result should be the same as [[monifu.rx.sync.Observable.concat concat]] and in
+   *       the asynchronous version it always is.
+   */
   def merge[T](sources: Observable[T]*): Observable[T] =
     Observable.fromTraversable(sources).flatten
+
+  /**
+   * Concatenates the given list of ''observables''.
+   */
+  def concat[T](sources: Observable[T]*): Observable[T] =
+    if (sources.isEmpty)
+      empty
+    else
+      sources.tail.foldLeft(sources.head)((acc, elem) => acc ++ elem)
 }

@@ -1,6 +1,6 @@
 package monifu.rx.sync
 
-import monifu.rx.common.Ack
+import monifu.rx.base.Ack
 
 /**
  * The Observer from the Rx pattern is the trio of callbacks that

@@ -2,9 +2,8 @@ package monifu.rx.sync.observers
 
 import monifu.concurrent.locks.NaiveReadWriteLock
 import monifu.rx.sync.Observer
-import monifu.rx.common.Ack
+import monifu.rx.base.Ack
 import Ack.{Continue, Stop}
-import monifu.rx.common.Ack
 
 /**
  * An observer wrapper that ensures the Rx grammar for onComplete/onError is respected,
@@ -26,11 +25,12 @@ final class SynchronizedObserver[-T] private (underlying: Observer[T]) extends O
   private[this] val lock = NaiveReadWriteLock()
   private[this] var isDone = false
 
-  def onNext(elem: T): Ack =
+  def onNext(elem: T): Ack  =
     lock.readLock {
       if (!isDone)
         underlying.onNext(elem) match {
-          case Continue => Continue
+          case Continue =>
+            Continue
           case Stop =>
             lock.writeLock { isDone = true }
             Stop
@@ -45,6 +45,7 @@ final class SynchronizedObserver[-T] private (underlying: Observer[T]) extends O
         try underlying.onError(ex) finally {
           isDone = true
         }
+      ()
     }
 
   def onCompleted(): Unit =
@@ -53,6 +54,7 @@ final class SynchronizedObserver[-T] private (underlying: Observer[T]) extends O
         try underlying.onCompleted() finally {
           isDone = true
         }
+      ()
     }
 }
 

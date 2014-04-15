@@ -3,15 +3,14 @@ package monifu.rx.sync.subjects
 import monifu.concurrent.Cancelable
 import monifu.concurrent.locks.NaiveReadWriteLock
 import collection.immutable.Set
-import monifu.rx.sync.{Observer, Observable}
 import monifu.rx.sync.observers.Subscriber
-import monifu.rx.common.Ack
-import Ack.{Continue, Stop}
-import monifu.rx.common.Ack
 import monifu.concurrent.cancelables.SingleAssignmentCancelable
 import scala.util.control.NonFatal
+import monifu.rx.base.Ack.{Stop, Continue}
+import monifu.rx.sync.Observer
 
-final class PublishSubject[T] private () extends Observable[T] with Observer[T] {
+
+final class PublishSubject[T] private () extends Subject[T] {
   private[this] val lock = NaiveReadWriteLock()
   private[this] var observers = Set.empty[Subscriber[T]]
   private[this] var isDone = false
@@ -29,7 +28,7 @@ final class PublishSubject[T] private () extends Observable[T] with Observer[T] 
         Cancelable.alreadyCanceled
     }
 
-  def onNext(elem: T): Ack = lock.readLock {
+  def onNext(elem: T) = lock.readLock {
     if (!isDone) {
       for (obs <- observers)
         try
@@ -46,7 +45,7 @@ final class PublishSubject[T] private () extends Observable[T] with Observer[T] 
       Stop
   }
 
-  def onError(ex: Throwable): Unit = lock.writeLock {
+  def onError(ex: Throwable) = lock.writeLock {
     if (!isDone)
       try {
         observers.foreach(_.onError(ex))
@@ -57,7 +56,7 @@ final class PublishSubject[T] private () extends Observable[T] with Observer[T] 
       }
   }
 
-  def onCompleted(): Unit = lock.writeLock {
+  def onCompleted() = lock.writeLock {
     if (!isDone)
       try {
         for (obs <- observers)

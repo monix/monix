@@ -1,4 +1,4 @@
-package monifu.rx.common
+package monifu.rx.base
 
 /**
  * Represents the acknowledgement of processing that a consumer
@@ -19,4 +19,9 @@ object Ack {
    */
   case object Stop extends Ack
 }
+
+
+
+
+
 
