@@ -9,6 +9,7 @@ import monifu.concurrent.atomic.Atomic
 import monifu.concurrent.cancelables.{SingleAssignmentCancelable, RefCountCancelable, CompositeCancelable}
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{Try, Failure, Success}
+import scala.util.control.NonFatal
 
 
 /**
@@ -16,7 +17,7 @@ import scala.util.{Try, Failure, Success}
  */
 trait Observable[+T] extends ObservableGen[T] {
   type This[+I] = Observable[I]
-  type Observer[-I] = monifu.rx.async.Observer[I]
+  type O[-I] = monifu.rx.async.Observer[I]
 
   /**
    * Function that creates the actual subscription when calling `subscribe`,
@@ -462,34 +463,92 @@ object Observable {
     new Observable[T] {
       protected def ec = ctx
       def subscribe(observe: Observer[T]): Cancelable =
-        f(observe)
+        try f(observe) catch {
+          case NonFatal(ex) =>
+            observe.onError(ex)
+            Cancelable.alreadyCanceled
+        }
     }
 
   def empty[A](implicit ec: ExecutionContext): Observable[A] =
-    Builder(ec).empty
+    Observable.create { observer =>
+      observer.onCompleted()
+      Cancelable.alreadyCanceled
+    }
 
   /**
    * Creates an Observable that only emits the given ''a''
    */
   def unit[A](elem: A)(implicit ec: ExecutionContext): Observable[A] =
-    Builder(ec).unit(elem)
+    Observable.create { observer =>
+      val sub = Cancelable()
+      observer.onNext(elem).onSuccess {
+        case Continue =>
+          if (!sub.isCanceled)
+            observer.onCompleted()
+        case _ =>
+        // nothing
+      }
+      sub
+    }
 
   /**
    * Creates an Observable that emits an error.
    */
   def error(ex: Throwable)(implicit ec: ExecutionContext): Observable[Nothing] =
-    Builder(ec).error(ex)
+    Observable.create { observer =>
+      observer.onError(ex)
+      Cancelable.alreadyCanceled
+    }
 
   /**
    * Creates an Observable that doesn't emit anything and that never completes.
    */
   def never(implicit ec: ExecutionContext): Observable[Nothing] =
-    Builder(ec).never
+    Observable.create { _ => Cancelable() }
 
-  def interval(period: FiniteDuration)(implicit s: Scheduler): Observable[Long] =
-    interval(period, period)
+  /**
+   * Creates an Observable that emits auto-incremented natural numbers with a fixed delay,
+   * starting from number 1.
+   *
+   * @param period the delay between two emitted events
+   * @param ec the execution context in which `onNext` will get called
+   */
+  def interval(period: FiniteDuration)(implicit ec: ExecutionContext): Observable[Long] =
+    interval(period, Scheduler.fromContext)
 
-  def interval(initialDelay: FiniteDuration, period: FiniteDuration)(implicit s: Scheduler): Observable[Long] =
+  /**
+   * Creates an Observable that emits auto-incremented natural numbers with a fixed delay,
+   * starting from number 1.
+   *
+   * @param period the delay between two emitted events
+   * @param s the scheduler to use for scheduling the next event and for triggering `onNext`
+   */
+  def interval(period: FiniteDuration, s: Scheduler): Observable[Long] =
+    interval(period, period, s)
+
+  /**
+   * Creates an Observable that emits auto-incremented natural numbers with a fixed delay,
+   * starting from number 1.
+   *
+   * @param initialDelay the initial delay to wait before the first emitted number
+   * @param period the delay between two subsequent events
+   * @param ec the execution context in which `onNext` will get called
+   */
+  def interval(initialDelay: FiniteDuration, period: FiniteDuration)(implicit ec: ExecutionContext): Observable[Long] =
+    interval(initialDelay, period, Scheduler.fromContext)
+
+  /**
+   * Creates an Observable that emits auto-incremented natural numbers with a fixed delay,
+   * starting from number 1.
+   *
+   * @param initialDelay the initial delay to wait before the first emitted number
+   * @param period the delay between two subsequent events
+   * @param s the scheduler to use for scheduling the next event and for triggering `onNext`
+   */
+  def interval(initialDelay: FiniteDuration, period: FiniteDuration, s: Scheduler): Observable[Long] = {
+    implicit val ec = s
+
     Observable.create { observer =>
       val counter = Atomic(0)
       val sub = SingleAssignmentCancelable()
@@ -505,12 +564,43 @@ object Observable {
 
       sub
     }
+  }
 
   /**
    * Creates an Observable that emits the elements of the given ''sequence''
    */
   def fromTraversable[T](seq: TraversableOnce[T])(implicit ec: ExecutionContext): Observable[T] =
-    Builder(ec).fromTraversable(seq)
+    Observable.create { observer =>
+      def nextInput(iterator: Iterator[T]) =
+        Future {
+          if (iterator.hasNext)
+            Some(iterator.next())
+          else
+            None
+        }
+
+      def startFeedLoop(subscription: Cancelable, iterator: Iterator[T]): Unit =
+        if (!subscription.isCanceled)
+          nextInput(iterator).onComplete {
+            case Success(Some(elem)) =>
+              observer.onNext(elem).onSuccess {
+                case Continue =>
+                  startFeedLoop(subscription, iterator)
+                case Stop =>
+                // do nothing else
+              }
+            case Success(None) =>
+              observer.onCompleted()
+
+            case Failure(ex) =>
+              observer.onError(ex)
+          }
+
+      val iterator = seq.toIterator
+      val subscription = Cancelable()
+      startFeedLoop(subscription, iterator)
+      subscription
+    }
 
   /**
    * Merges the given list of ''observables'' into a single observable.
@@ -519,11 +609,14 @@ object Observable {
    *       the asynchronous version it always is.
    */
   def merge[T](sources: Observable[T]*)(implicit ec: ExecutionContext): Observable[T] =
-    Builder(ec).merge(sources:_*)
+    Observable.fromTraversable(sources).flatten
 
   /**
    * Concatenates the given list of ''observables''.
    */
   def concat[T](sources: Observable[T]*)(implicit ec: ExecutionContext): Observable[T] =
-    Builder(ec).concat(sources:_*)
+    if (sources.isEmpty)
+      empty
+    else
+      sources.tail.foldLeft(sources.head)((acc, elem) => acc ++ elem)
 }

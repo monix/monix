@@ -5,7 +5,7 @@ import concurrent.duration._
 import scala.concurrent.Await
 
 class ObservableCombinatorsTest extends FunSpec {
-  import monifu.concurrent.Scheduler.Implicits.computation
+  import monifu.concurrent.Scheduler.Implicits.global
 
   describe("rx.sync.Observable.map") {
     it("should work") {
@@ -19,7 +19,7 @@ class ObservableCombinatorsTest extends FunSpec {
       }
 
       var result = ""
-      obs.map(x => x).subscribe(
+      obs.map(x => x).subscribeUnit(
         nextFn = _ => (),
         errorFn = ex => result = ex.getMessage
       )
@@ -33,7 +33,7 @@ class ObservableCombinatorsTest extends FunSpec {
       }
 
       var errorThrow: Throwable = null
-      val sub = obs.subscribe(
+      val sub = obs.subscribeUnit(
         nextFn = e => (),
         errorFn = ex => errorThrow = ex
       )
@@ -55,7 +55,7 @@ class ObservableCombinatorsTest extends FunSpec {
       }
 
       var result = ""
-      val sub = obs.filter(x => true).subscribe(
+      val sub = obs.filter(x => true).subscribeUnit(
         nextFn = _ => (),
         errorFn = ex => result = ex.getMessage
       )
@@ -72,7 +72,7 @@ class ObservableCombinatorsTest extends FunSpec {
       var effect = 0L
       var errorThrow: Throwable = null
 
-      val sub = obs.subscribe(
+      val sub = obs.subscribeUnit(
         e => effect = effect + e,
         ex => errorThrow = ex
       )
@@ -97,7 +97,7 @@ class ObservableCombinatorsTest extends FunSpec {
       }
 
       var result = ""
-      val sub = obs.flatMap(x => Observable.unit(x)).subscribe(
+      val sub = obs.flatMap(x => Observable.unit(x)).subscribeUnit(
         nextFn = _ => (),
         errorFn = ex => {
           result = ex.getMessage
@@ -116,7 +116,7 @@ class ObservableCombinatorsTest extends FunSpec {
       var effect = 0
       var error = ""
 
-      obs.subscribe(
+      obs.subscribeUnit(
         e => { effect += e },
         err => { error = err.getMessage }
       )
@@ -163,7 +163,7 @@ class ObservableCombinatorsTest extends FunSpec {
 
       val finalObs = zipped.take(10).foldLeft(Seq.empty[(Long,Long,Long,Long)])(_ :+ _)
       var list = Seq.empty[(Long, Long, Long, Long)]
-      finalObs.subscribe { l => list = l }
+      finalObs.subscribeUnit { l => list = l }
 
       assert(list === 0.until(20,2).map(x => (x,x,x,x)))
     }

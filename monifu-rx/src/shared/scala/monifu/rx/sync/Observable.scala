@@ -8,29 +8,30 @@ import scala.collection.mutable
 import scala.concurrent.{Promise, Future}
 import monifu.concurrent.atomic.Atomic
 import monifu.concurrent.cancelables.SingleAssignmentCancelable
-import monifu.concurrent.Cancelable
+import monifu.concurrent.{Scheduler, Cancelable}
 import scala.util.control.NonFatal
 import monifu.rx.base.{ObservableBuilder, ObservableGen, Ack}
 import Ack.{Continue, Stop}
 import scala.util.{Failure, Success, Try}
 import concurrent.ExecutionContext
+import scala.concurrent.duration.FiniteDuration
 
 /**
  * Synchronous implementation of the Observable interface.
  */
 trait Observable[+A] extends ObservableGen[A] {
   type This[+I] = Observable[I]
-  type Observer[-I] = monifu.rx.sync.Observer[I]
+  type O[-I] = monifu.rx.sync.Observer[I]
 
   def subscribe(observer: Observer[A]): Cancelable
 
-  final def subscribe(nextFn: A => Unit): Cancelable =
+  final def subscribeUnit(nextFn: A => Unit): Cancelable =
     subscribe(AnonymousObserver(nextFn))
 
-  final def subscribe(nextFn: A => Unit, errorFn: Throwable => Unit): Cancelable =
+  final def subscribeUnit(nextFn: A => Unit, errorFn: Throwable => Unit): Cancelable =
     subscribe(AnonymousObserver(nextFn, errorFn))
 
-  final def subscribe(nextFn: A => Unit, errorFn: Throwable => Unit, completedFn: () => Unit): Cancelable =
+  final def subscribeUnit(nextFn: A => Unit, errorFn: Throwable => Unit, completedFn: () => Unit): Cancelable =
     subscribe(AnonymousObserver(nextFn, errorFn, completedFn))
 
   def map[B](f: A => B): Observable[B] =
@@ -559,6 +560,7 @@ trait Observable[+A] extends ObservableGen[A] {
 
 object Observable extends ObservableBuilder[Observable] {
   implicit def Builder = this
+  type O[-I] = Observer[I]
 
   /**
    * Observable constructor. To be used for implementing new Observables and operators.
@@ -659,4 +661,23 @@ object Observable extends ObservableBuilder[Observable] {
       empty
     else
       sources.tail.foldLeft(sources.head)((acc, elem) => acc ++ elem)
+
+  def interval(initialDelay: FiniteDuration, period: FiniteDuration, s: Scheduler): Observable[Long] = {
+    Observable.create { observer =>
+      val counter = Atomic(0)
+      val sub = SingleAssignmentCancelable()
+
+      sub := s.scheduleRecursive(initialDelay, period, { reschedule =>
+        observer.onNext(counter.incrementAndGet()) match {
+          case Continue =>
+            reschedule()
+          case Stop =>
+            sub.cancel()
+        }
+      })
+
+      sub
+    }
+  }
+
 }

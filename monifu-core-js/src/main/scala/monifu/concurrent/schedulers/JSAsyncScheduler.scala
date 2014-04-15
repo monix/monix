@@ -4,8 +4,7 @@ import scala.concurrent.duration.FiniteDuration
 import scala.scalajs.js
 import monifu.concurrent.{Cancelable, Scheduler}
 
-
-object JSAsyncScheduler extends Scheduler {
+private[concurrent] object JSAsyncScheduler extends Scheduler {
   def scheduleOnce(action: => Unit): Cancelable = {
     var isCancelled = false
     val sub = Cancelable { isCancelled = true }

@@ -4,7 +4,8 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import monifu.concurrent.cancelables.MultiAssignmentCancelable
 import scala.annotation.implicitNotFound
-import monifu.concurrent.schedulers.SchedulerConstructor
+import monifu.concurrent.schedulers.SchedulerCompanionImpl
+import java.util.concurrent.Executor
 
 /**
  * A Scheduler is an `scala.concurrent.ExecutionContext` that additionally can schedule
@@ -55,5 +56,16 @@ trait Scheduler extends ExecutionContext {
   def reportFailure(t: Throwable): Unit
 }
 
-object Scheduler extends SchedulerConstructor
+private[concurrent] trait SchedulerCompanion {
+  trait ImplicitsType {
+    implicit def global: Scheduler
+    implicit def computation: Scheduler
+    implicit def io: Scheduler
+  }
+
+  def Implicits: ImplicitsType
+  def fromContext(implicit ec: ExecutionContext): Scheduler
+}
+
+object Scheduler extends SchedulerCompanion with SchedulerCompanionImpl
 

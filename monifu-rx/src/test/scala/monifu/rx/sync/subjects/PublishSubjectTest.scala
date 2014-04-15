@@ -7,8 +7,8 @@ class PublishSubjectTest extends FunSuite {
     val subject = PublishSubject[Int]()
 
     var sum = 0
-    subject.filter(_ % 2 == 0).map(_ * 2).subscribe(x => sum += x)
-    subject.filter(_ % 2 == 1).map(_ * 2).subscribe(x => sum += x)
+    subject.filter(_ % 2 == 0).map(_ * 2).subscribeUnit(x => sum += x)
+    subject.filter(_ % 2 == 1).map(_ * 2).subscribeUnit(x => sum += x)
 
     for (i <- 1 to 10)
       subject.onNext(i)
@@ -19,8 +19,8 @@ class PublishSubjectTest extends FunSuite {
 
   test("cancel subscriptions onTerminated") {
     val subject = PublishSubject[Int]()
-    val sub1 = subject.filter(_ % 2 == 0).map(_ * 2).subscribe(_ => ())
-    val sub2 = subject.filter(_ => true).subscribe(_ => ())
+    val sub1 = subject.filter(_ % 2 == 0).map(_ * 2).subscribeUnit(_ => ())
+    val sub2 = subject.filter(_ => true).subscribeUnit(_ => ())
 
     subject.onNext(1)
     subject.onCompleted()
