@@ -8,6 +8,7 @@ import scala.concurrent.Await
 import concurrent.duration._
 import java.util.concurrent.{TimeUnit, CountDownLatch}
 
+
 class GenericObservableOperatorsTest[Observable[+T] <: ObservableGen[T, Observable]](builder: ObservableBuilder[Observable])
   extends FunSpec {
 
@@ -236,4 +237,40 @@ class GenericObservableOperatorsTest[Observable[+T] <: ObservableGen[T, Observab
       assert(result === Some(sum))
     }
   }
+
+  describe("Observable.zip") {
+    it("should work") {
+      val obs1 = builder.fromTraversable(0 until 10).filter(_ % 2 == 0).map(_.toLong)
+      val obs2 = builder.fromTraversable(0 until 10).map(_ * 2).map(_.toLong)
+
+      val zipped = obs1.zip(obs2)
+
+      val finalObs = zipped.foldLeft(Seq.empty[(Long,Long)])(_ :+ _)
+      val result = Await.result(finalObs.asFuture, 1.second)
+
+      assert(result === Some(0.until(10,2).map(x => (x,x))))
+    }
+
+    it("should work in four") {
+      val obs1 = builder.fromTraversable(0 until 100).filter(_ % 2 == 0).map(_.toLong)
+      val obs2 = builder.fromTraversable(0 until 1000).map(_ * 2).map(_.toLong)
+      val obs3 = builder.fromTraversable(0 until 100).map(_ * 2).map(_.toLong)
+      val obs4 = builder.fromTraversable(0 until 1000).filter(_ % 2 == 0).map(_.toLong)
+
+      val zipped = obs1.zip(obs2).zip(obs3).zip(obs4).map {
+        case (((a, b), c), d) => (a, b, c, d)
+      }
+
+      val finalObs = zipped.take(10).foldLeft(Seq.empty[(Long,Long,Long,Long)])(_ :+ _)
+      val result = Await.result(finalObs.asFuture, 1.second)
+
+      assert(result === Some(0.until(20,2).map(x => (x,x,x,x))))
+    }
+  }
 }
+
+class SyncObservableOperatorsTest
+  extends monifu.rx.GenericObservableOperatorsTest[sync.Observable](sync.Observable.Builder)
+
+class AsyncObservableOperatorsTest
+  extends monifu.rx.GenericObservableOperatorsTest[async.Observable](async.Observable.Builder)
