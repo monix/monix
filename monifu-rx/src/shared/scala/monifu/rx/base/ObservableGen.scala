@@ -176,6 +176,13 @@ trait ObservableOperators[+T, Observable[+_]] extends Any { self: ObservableGen[
   def ++[U >: T](other: => Observable[U]): Observable[U]
 
   /**
+   * Creates a new Observable from this Observable and another given Observable,
+   * by emitting elements combined in pairs. If one of the Observable emits fewer
+   * events than the other, then the rest of the unpaired events are ignored.
+   */
+  def zip[U](other: Observable[U]): Observable[(T,U)]
+
+  /**
    * Only emits the first element emitted by the source observable, after which it's completed immediately.
    */
   def head: Observable[T]

@@ -10,6 +10,8 @@ import monifu.concurrent.cancelables.{SingleAssignmentCancelable, RefCountCancel
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{Try, Failure, Success}
 import scala.util.control.NonFatal
+import scala.collection.mutable
+import monifu.concurrent.locks.NaiveSpinLock
 
 
 /**
@@ -44,7 +46,7 @@ trait Observable[+T] extends ObservableGen[T, Observable] {
         Future(errorFn(ex))
 
       def onCompleted(): Future[Unit] =
-        Future(onCompleted())
+        Future(completedFn())
     })
 
   final def subscribeUnit(nextFn: T => Unit, errorFn: Throwable => Unit): Cancelable =
@@ -421,6 +423,97 @@ trait Observable[+T] extends ObservableGen[T, Observable] {
    */
   final def flattenFutures[U](implicit ev: T <:< Future[U]): Observable[U] =
     flatMapFutures(x => x)
+
+  final def zip[U](other: Observable[U]): Observable[(T, U)] =
+    Observable.create { observerOfPairs =>
+      val composite = CompositeCancelable()
+      val lock = NaiveSpinLock()
+
+      val queueA = mutable.Queue.empty[(Promise[U], Promise[Ack])]
+      val queueB = mutable.Queue.empty[(U, Promise[Ack])]
+
+      val completedPromise = Promise[Unit]()
+      var aIsDone = false
+      var bIsDone = false
+    
+      def _onError(ex: Throwable) = lock.acquire {
+        if (!aIsDone || !bIsDone) {
+          aIsDone = true
+          bIsDone = true
+          observerOfPairs.onError(ex)
+        }
+        else 
+          successful(())
+      }
+
+      composite += subscribe(new Observer[T] {
+        def onNext(a: T): Future[Ack] =
+          lock.acquire {
+            if (queueB.isEmpty) {
+              val resp = Promise[Ack]()
+              val promiseForB = Promise[U]()
+              queueA.enqueue((promiseForB, resp))
+              
+              val f = promiseForB.future.flatMap(b => observerOfPairs.onNext((a, b)))
+              resp.completeWith(f)
+              f
+            }
+            else {
+              val (b, bResponse) = queueB.dequeue()
+              val f = observerOfPairs.onNext((a, b))
+              bResponse.completeWith(f)
+              f
+            }
+          }
+
+        def onError(ex: Throwable): Future[Unit] =
+          _onError(ex)
+
+        def onCompleted(): Future[Unit] = lock.acquire {
+          if (!aIsDone) {
+            aIsDone = true            
+            if (queueA.isEmpty || bIsDone) {
+              queueA.clear()
+              completedPromise.completeWith(observerOfPairs.onCompleted())
+            }
+          }
+
+          completedPromise.future
+        }
+      })
+    
+      composite += other.subscribe(new Observer[U] {
+        def onNext(b: U): Future[Ack] = 
+          lock.acquire {
+            if (queueA.nonEmpty) {
+              val (bPromise, response) = queueA.dequeue()
+              bPromise.success(b)
+              response.future
+            }
+            else {
+              val p = Promise[Ack]()
+              queueB.enqueue((b, p))
+              p.future
+            }
+          }
+
+        def onError(ex: Throwable): Future[Unit] = _onError(ex)
+
+        def onCompleted(): Future[Unit] = lock.acquire {
+          if (!bIsDone) {
+            bIsDone = true
+            if (queueB.isEmpty || aIsDone) {
+              queueB.clear()
+              completedPromise.completeWith(observerOfPairs.onCompleted())
+            }
+          }
+
+          completedPromise.future
+        }
+      })
+
+      composite
+    }
 
   /**
    * Returns a new Observable that uses the specified `ExecutionContext` for listening to the emitted items.
