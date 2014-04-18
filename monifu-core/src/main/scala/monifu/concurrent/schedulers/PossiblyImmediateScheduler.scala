@@ -8,7 +8,9 @@ import scala.util.control.NonFatal
 import scala.concurrent.{CanAwait, BlockContext}
 
 
-private[concurrent] final class PossiblyImmediateScheduler(fallback: ConcurrentScheduler) extends Scheduler with BlockContext {
+private[concurrent] final class PossiblyImmediateScheduler(fallback: ConcurrentScheduler, reporter: Throwable => Unit)
+  extends Scheduler with BlockContext {
+
   private[this] val immediateQueue = ThreadLocal(Queue.empty[Runnable])
   private[this] val withinLoop = ThreadLocal(false)
   private[this] val parentBlockContext = ThreadLocal(null : BlockContext)
@@ -44,11 +46,11 @@ private[concurrent] final class PossiblyImmediateScheduler(fallback: ConcurrentS
         }
         catch {
           case NonFatal(ex) =>
-            // exception in the immediate scheduler must be thrown,
-            // but first we try to reschedule the pending tasks on the fallback
-            try { rescheduleOnFallback(immediateQueue.get()) } finally {
+            // exception in the immediate scheduler must be reported
+            // but first we reschedule the pending tasks on the fallback
+            try { rescheduleOnFallback(immediateQueue.get) } finally {
               immediateQueue set Queue.empty
-              throw ex
+              reportFailure(ex)
             }
         }
         finally {
@@ -83,7 +85,7 @@ private[concurrent] final class PossiblyImmediateScheduler(fallback: ConcurrentS
       rescheduleOnFallback(newQueue)
     }
 
-  def scheduleOnce(initialDelay: FiniteDuration, action: () => Unit): Cancelable = {
+  def scheduleOnce(initialDelay: FiniteDuration, action: => Unit): Cancelable = {
     if (initialDelay.toMillis < 1)
       scheduleOnce(action)
     else {
@@ -94,5 +96,5 @@ private[concurrent] final class PossiblyImmediateScheduler(fallback: ConcurrentS
   }
 
   def reportFailure(t: Throwable): Unit =
-    fallback.reportFailure(t)
+    reporter(t)
 }
