@@ -1,6 +1,6 @@
 package monifu.concurrent.schedulers
 
-import java.util.concurrent.{ThreadFactory, Executors, TimeUnit, ScheduledExecutorService}
+import java.util.concurrent.{TimeUnit, ScheduledExecutorService}
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import monifu.concurrent.cancelables.SingleAssignmentCancelable
@@ -8,18 +8,7 @@ import monifu.concurrent.{Cancelable, Scheduler}
 
 
 private[concurrent] final class ConcurrentScheduler(s: ScheduledExecutorService, ec: ExecutionContext) extends Scheduler {
-  def scheduleOnce(action: => Unit): Cancelable = {
-    val sub = Cancelable()
-
-    ec.execute(new Runnable {
-      def run(): Unit =
-        if (!sub.isCanceled) action
-    })
-
-    sub
-  }
-
-  def scheduleOnce(initialDelay: FiniteDuration, action: => Unit): Cancelable =
+  def scheduleOnce(initialDelay: FiniteDuration, action: () => Unit): Cancelable =
     if (initialDelay <= Duration.Zero)
       scheduleOnce(action)
     else {
@@ -29,7 +18,7 @@ private[concurrent] final class ConcurrentScheduler(s: ScheduledExecutorService,
         def run(): Unit =
           ec.execute(new Runnable {
             def run(): Unit =
-              if (!sub.isCanceled) action
+              if (!sub.isCanceled) action()
           })
       }
 
@@ -46,13 +35,13 @@ private[concurrent] final class ConcurrentScheduler(s: ScheduledExecutorService,
   /**
    * Overwritten for performance reasons.
    */
-  override def scheduleRepeated(initialDelay: FiniteDuration, delay: FiniteDuration, action: => Unit): Cancelable = {
+  override def scheduleRepeated(initialDelay: FiniteDuration, delay: FiniteDuration, action: () => Unit): Cancelable = {
     @volatile var isCanceled = false
     val runnable = new Runnable {
       def run(): Unit =
         ec.execute(new Runnable {
           def run(): Unit =
-            if (!isCanceled) action
+            if (!isCanceled) action()
         })
     }
 
@@ -70,16 +59,6 @@ private[concurrent] final class ConcurrentScheduler(s: ScheduledExecutorService,
 }
 
 private[concurrent] object ConcurrentScheduler {
-  private[this] lazy val defaultScheduledExecutor =
-    Executors.newSingleThreadScheduledExecutor(new ThreadFactory {
-      def newThread(r: Runnable): Thread = {
-        val th = new Thread(r)
-        th.setDaemon(true)
-        th.setName("monifu-scheduler")
-        th
-      }
-    })
-
   def apply(schedulerService: ScheduledExecutorService, ec: ExecutionContext): ConcurrentScheduler =
     new ConcurrentScheduler(schedulerService, ec)
 
