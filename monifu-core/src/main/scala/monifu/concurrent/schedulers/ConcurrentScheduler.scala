@@ -8,7 +8,7 @@ import monifu.concurrent.{Cancelable, Scheduler}
 
 
 private[concurrent] final class ConcurrentScheduler(s: ScheduledExecutorService, ec: ExecutionContext) extends Scheduler {
-  def scheduleOnce(initialDelay: FiniteDuration, action: () => Unit): Cancelable =
+  def scheduleOnce(initialDelay: FiniteDuration, action: => Unit): Cancelable =
     if (initialDelay <= Duration.Zero)
       scheduleOnce(action)
     else {
@@ -18,7 +18,7 @@ private[concurrent] final class ConcurrentScheduler(s: ScheduledExecutorService,
         def run(): Unit =
           ec.execute(new Runnable {
             def run(): Unit =
-              if (!sub.isCanceled) action()
+              if (!sub.isCanceled) action
           })
       }
 
@@ -35,13 +35,13 @@ private[concurrent] final class ConcurrentScheduler(s: ScheduledExecutorService,
   /**
    * Overwritten for performance reasons.
    */
-  override def scheduleRepeated(initialDelay: FiniteDuration, delay: FiniteDuration, action: () => Unit): Cancelable = {
+  override def scheduleRepeated(initialDelay: FiniteDuration, delay: FiniteDuration, action: => Unit): Cancelable = {
     @volatile var isCanceled = false
     val runnable = new Runnable {
       def run(): Unit =
         ec.execute(new Runnable {
           def run(): Unit =
-            if (!isCanceled) action()
+            if (!isCanceled) action
         })
     }
 

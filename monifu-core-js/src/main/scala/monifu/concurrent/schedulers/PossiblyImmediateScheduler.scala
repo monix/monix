@@ -7,7 +7,7 @@ import scala.annotation.tailrec
 import scala.util.control.NonFatal
 
 
-private[concurrent] final class PossiblyImmediateScheduler(fallback: AsyncScheduler.type) extends Scheduler {
+private[concurrent] final class PossiblyImmediateScheduler(fallback: AsyncScheduler.type, reporter: (Throwable) => Unit) extends Scheduler {
   private[this] var immediateQueue = Queue.empty[Runnable]
   private[this] var withinLoop = false
 
@@ -22,19 +22,22 @@ private[concurrent] final class PossiblyImmediateScheduler(fallback: AsyncSchedu
   @tailrec
   private[this] def immediateLoop(): Unit = {
     if (immediateQueue.nonEmpty) {
-      val (task, newQueue) = immediateQueue.dequeue
-      immediateQueue = newQueue
+      val task = {
+        val (t, newQueue) = immediateQueue.dequeue
+        immediateQueue = newQueue
+        t
+      }
 
       try {
         task.run()
       }
       catch {
         case NonFatal(ex) =>
-          // exception in the immediate scheduler must be thrown,
-          // but first we try to reschedule the pending tasks on the fallback
-          try { rescheduleOnFallback(newQueue) } finally {
+          // exception in the immediate scheduler must be reported
+          // but first reschedule the pending tasks on the fallback
+          try { rescheduleOnFallback(immediateQueue) } finally {
             immediateQueue = Queue.empty
-            throw ex
+            reportFailure(ex)
           }
       }
 
@@ -50,17 +53,16 @@ private[concurrent] final class PossiblyImmediateScheduler(fallback: AsyncSchedu
       rescheduleOnFallback(newQueue)
     }
 
-
-  def scheduleOnce(initialDelay: FiniteDuration, action: () => Unit): Cancelable = {
+  def scheduleOnce(initialDelay: FiniteDuration, action: => Unit): Cancelable = {
     if (initialDelay.toMillis < 1)
       scheduleOnce(action)
     else {
       // we cannot schedule tasks with an initial delay on the current thread as that
       // will block the thread, instead we delegate to our fallback
-      fallback.scheduleOnce(action)
+      fallback.scheduleOnce(initialDelay, action)
     }
   }
 
   def reportFailure(t: Throwable): Unit =
-    fallback.reportFailure(t)
+    reporter(t)
 }

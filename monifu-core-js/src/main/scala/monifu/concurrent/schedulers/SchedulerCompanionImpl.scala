@@ -12,7 +12,7 @@ private[concurrent] trait SchedulerCompanionImpl extends SchedulerCompanion {
   val async: Scheduler = AsyncScheduler
 
   val possiblyImmediate: Scheduler =
-    new PossiblyImmediateScheduler(AsyncScheduler)
+    new PossiblyImmediateScheduler(AsyncScheduler, AsyncScheduler.reportFailure)
 
   def fromContext(implicit ec: ExecutionContext): Scheduler =
     new ContextScheduler(ec)

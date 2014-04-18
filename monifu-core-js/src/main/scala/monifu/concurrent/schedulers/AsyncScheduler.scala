@@ -5,12 +5,12 @@ import scala.scalajs.js
 import monifu.concurrent.{Cancelable, Scheduler}
 
 private[concurrent] object AsyncScheduler extends Scheduler {
-  override def scheduleOnce(action: () => Unit): Cancelable = {
+  override def scheduleOnce(action: => Unit): Cancelable = {
     val task = setTimeout(action)
     Cancelable(clearTimeout(task))
   }
 
-  def scheduleOnce(initialDelay: FiniteDuration, action: () => Unit): Cancelable = {
+  def scheduleOnce(initialDelay: FiniteDuration, action: => Unit): Cancelable = {
     val task = setTimeout(initialDelay.toMillis, action)
     Cancelable(clearTimeout(task))
   }
@@ -24,15 +24,15 @@ private[concurrent] object AsyncScheduler extends Scheduler {
     js.Dynamic.global.setTimeout(lambda, 0)
   }
 
-  private[this] def setTimeout(cb: () => Unit): js.Dynamic = {
+  private[this] def setTimeout(cb: => Unit): js.Dynamic = {
     val lambda: js.Function = () =>
-      try { cb() } catch { case t: Throwable => reportFailure(t) }
+      try { cb } catch { case t: Throwable => reportFailure(t) }
     js.Dynamic.global.setTimeout(lambda, 0)
   }
 
-  private[this] def setTimeout(delayMillis: Long, cb: () => Unit): js.Dynamic = {
+  private[this] def setTimeout(delayMillis: Long, cb: => Unit): js.Dynamic = {
     val lambda: js.Function = () =>
-      try { cb() } catch { case t: Throwable => reportFailure(t) }
+      try { cb } catch { case t: Throwable => reportFailure(t) }
     js.Dynamic.global.setTimeout(lambda, delayMillis)
   }
 

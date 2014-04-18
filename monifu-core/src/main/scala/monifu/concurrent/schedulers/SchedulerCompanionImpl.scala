@@ -29,7 +29,10 @@ private[concurrent] trait SchedulerCompanionImpl extends SchedulerCompanion {
   }
 
   lazy val possiblyImmediate: Scheduler =
-    new PossiblyImmediateScheduler(ConcurrentScheduler.defaultInstance)
+    new PossiblyImmediateScheduler(
+      ConcurrentScheduler.defaultInstance,
+      ConcurrentScheduler.defaultInstance.reportFailure
+    )
 
   def fromExecutor(executor: Executor): Scheduler =
     ConcurrentScheduler(ExecutionContext.fromExecutor(executor))

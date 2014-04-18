@@ -1,15 +1,20 @@
 package monifu.concurrent.schedulers
 
 import scala.scalajs.test.JasmineTest
-import scala.concurrent.Promise
-import concurrent.duration._
+import scala.concurrent.{Future, Promise}
 import monifu.concurrent.cancelables.SingleAssignmentCancelable
 import monifu.concurrent.atomic.Atomic
+import concurrent.duration._
+import scala.util.Try
 
-object AsyncSchedulerTest extends JasmineTest {
-  implicit val s = AsyncScheduler
 
-  describe("AsyncScheduler") {
+object PossiblyImmediateSchedulerTest extends JasmineTest {
+  describe("PossiblyImmediateScheduler") {
+    val s = new PossiblyImmediateScheduler(AsyncScheduler, ex => {
+      if (!ex.getMessage.contains("test-exception"))
+        throw ex
+    })
+
     beforeEach {
       jasmine.Clock.useMock()
     }
@@ -49,8 +54,6 @@ object AsyncSchedulerTest extends JasmineTest {
       val f = p.future
       s.schedule(s2 => s2.scheduleOnce(p.success(1)))
 
-      expect(f.value.flatMap(_.toOption).getOrElse(0)).toBe(0)
-      jasmine.Clock.tick(1)
       expect(f.value.flatMap(_.toOption).getOrElse(0)).toBe(1)
     }
 
@@ -103,15 +106,15 @@ object AsyncSchedulerTest extends JasmineTest {
       var iterations = 0
 
       s.scheduleOnce { 
-      stackDepth += 1
+        stackDepth += 1
         iterations += 1
         s.scheduleOnce { 
-        stackDepth += 1
+          stackDepth += 1
           iterations += 1
           expect(stackDepth).toBe(1)
 
           s.scheduleOnce { 
-          stackDepth += 1
+            stackDepth += 1
             iterations += 1
             expect(stackDepth).toBe(1)
             stackDepth -= 1
@@ -127,6 +130,54 @@ object AsyncSchedulerTest extends JasmineTest {
       jasmine.Clock.tick(1)
       expect(iterations).toBe(3)
       expect(stackDepth).toBe(0)
+    }
+
+    it("should not trigger a stack overflow") {
+      var effect = 0
+      def loop(until: Int): Unit =
+        if (effect < until)
+          s.scheduleOnce({
+            effect += 1
+            loop(until)
+          })
+
+      loop(until = 100000)
+      jasmine.Clock.tick(1)
+
+      expect(effect).toBe(100000)
+    }
+
+    it("should immediately execute when no scheduling or errors") {
+      implicit val ec = s
+      val seed = 100
+      var effect = 0
+
+      for (v1 <- Future(seed).map(_ * 100).filter(_ % 2 == 0); v2 <- Future(seed * 3).map(_ - 100)) {
+        effect = v1 + v2
+      }
+
+      expect(effect).toBe(10000 + 200)
+    }
+
+    it("triggering an exception shouldn't blow the thread and should reschedule pending tasks") {
+      val p = Promise[String]()
+
+      def run() =
+        s.scheduleOnce({
+          s.scheduleOnce({
+            p.success("result")
+          })
+
+          expect(p.isCompleted).toBe(false)
+          throw new RuntimeException("test-exception-please-ignore")
+        })
+
+      run()
+      expect(p.future.value.getOrElse(Try("unfinished-result")).get)
+        .toBe("unfinished-result")
+
+      jasmine.Clock.tick(1)
+      expect(p.future.value.get.get).toBe("result")
     }
   }
 }

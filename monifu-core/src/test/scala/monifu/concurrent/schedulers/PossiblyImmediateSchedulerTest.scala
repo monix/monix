@@ -6,16 +6,22 @@ import concurrent.duration._
 import java.util.concurrent.TimeoutException
 import monifu.concurrent.cancelables.SingleAssignmentCancelable
 import monifu.concurrent.atomic.Atomic
-import monifu.concurrent.{ThreadLocal, Scheduler}
-import scala.util.control.NonFatal
+import monifu.concurrent.ThreadLocal
 import concurrent.blocking
 
+
 class PossiblyImmediateSchedulerTest extends FunSuite {
-  val s = Scheduler.possiblyImmediate
+  val s = new PossiblyImmediateScheduler(
+    fallback = ConcurrentScheduler.defaultInstance,
+    reporter = (ex) => {
+      if (!ex.getMessage.contains("test-exception"))
+        throw ex
+    }
+  )
 
   test("scheduleOnce") {
     val p = Promise[Int]()
-    s.scheduleOnce { () => p.success(1) }
+    s.scheduleOnce { p.success(1) }
 
     assert(Await.result(p.future, 100.millis) === 1)
   }
@@ -23,7 +29,7 @@ class PossiblyImmediateSchedulerTest extends FunSuite {
   test("scheduleOnce with delay") {
     val p = Promise[Long]()
     val startedAt = System.nanoTime()
-    s.scheduleOnce(100.millis, () => p.success(System.nanoTime()))
+    s.scheduleOnce(100.millis, p.success(System.nanoTime()))
 
     val endedAt = Await.result(p.future, 1.second)
     val timeTaken = (endedAt - startedAt).nanos.toMillis
@@ -32,7 +38,7 @@ class PossiblyImmediateSchedulerTest extends FunSuite {
 
   test("scheduleOnce with delay and cancel") {
     val p = Promise[Int]()
-    val task = s.scheduleOnce(100.millis, () => p.success(1))
+    val task = s.scheduleOnce(100.millis, p.success(1))
     task.cancel()
 
     intercept[TimeoutException] {
@@ -42,7 +48,7 @@ class PossiblyImmediateSchedulerTest extends FunSuite {
 
   test("schedule") {
     val p = Promise[Int]()
-    s.schedule(s2 => s2.scheduleOnce(() => p.success(1)))
+    s.schedule(s2 => s2.scheduleOnce(p.success(1)))
     assert(Await.result(p.future, 100.millis) === 1)
   }
 
@@ -50,7 +56,7 @@ class PossiblyImmediateSchedulerTest extends FunSuite {
     val p = Promise[Long]()
     val startedAt = System.nanoTime()
     s.schedule(100.millis, s2 => {
-      s2.scheduleOnce(() => {
+      s2.scheduleOnce({
         p.success(System.nanoTime())
       })
     })
@@ -61,7 +67,7 @@ class PossiblyImmediateSchedulerTest extends FunSuite {
 
   test("schedule with delay and cancel") {
     val p = Promise[Long]()
-    val t = s.schedule(100.millis, s2 => s2.scheduleOnce(() => p.success(1)))
+    val t = s.schedule(100.millis, s2 => s2.scheduleOnce(p.success(1)))
     t.cancel()
 
     intercept[TimeoutException] {
@@ -74,7 +80,7 @@ class PossiblyImmediateSchedulerTest extends FunSuite {
     val p = Promise[Int]()
     val value = Atomic(0)
 
-    sub() = s.scheduleRepeated(10.millis, 50.millis, () => {
+    sub() = s.scheduleRepeated(10.millis, 50.millis, {
       if (value.incrementAndGet() > 3) {
         sub.cancel()
         p.success(value.get)
@@ -102,15 +108,15 @@ class PossiblyImmediateSchedulerTest extends FunSuite {
     var stackDepth = 0
     var iterations = 0
 
-    s.scheduleOnce { () =>
+    s.scheduleOnce { 
       stackDepth += 1
       iterations += 1
-      s.scheduleOnce { () =>
+      s.scheduleOnce { 
         stackDepth += 1
         iterations += 1
         assert(stackDepth === 1)
 
-        s.scheduleOnce { () =>
+        s.scheduleOnce { 
           stackDepth += 1
           iterations += 1
           assert(stackDepth === 1)
@@ -128,23 +134,22 @@ class PossiblyImmediateSchedulerTest extends FunSuite {
     assert(stackDepth === 0)
   }
 
-  test("triggering an exception reschedules pending tasks") {
+  test("triggering an exception shouldn't blow the thread, but should reschedule pending tasks") {
     val p = Promise[String]()
-    var exceptionThrown = ""
+    val tl = ThreadLocal("result")
+    tl.set("wrong-result")
 
     def run() =
-      s.scheduleOnce(() => {
-        s.scheduleOnce(() => {
-          p.success("result")
+      s.scheduleOnce({
+        s.scheduleOnce({
+          p.success(tl.get())
         })
 
         assert(p.isCompleted === false)
-        throw new RuntimeException("test-exception")
+        throw new RuntimeException("test-exception-please-ignore")
       })
 
-    try { run() } catch { case NonFatal(ex) => exceptionThrown = ex.getMessage }
-
-    assert(exceptionThrown === "test-exception")
+    run()
     assert(Await.result(p.future, 1.second) === "result")
   }
 
@@ -155,9 +160,9 @@ class PossiblyImmediateSchedulerTest extends FunSuite {
     val async = Promise[String]()
     val local = Promise[String]()
 
-    s.scheduleOnce(() => {
+    s.scheduleOnce({
       // first schedule
-      s.scheduleOnce(() => async.success(seenValue.get()))
+      s.scheduleOnce(async.success(seenValue.get()))
       // then do some blocking
       blocking {
         local.success(seenValue.get())
@@ -175,9 +180,9 @@ class PossiblyImmediateSchedulerTest extends FunSuite {
     val async = Promise[String]()
     val local = Promise[String]()
 
-    s.scheduleOnce(() => {
+    s.scheduleOnce({
       blocking {
-        s.scheduleOnce(() => async.success(seenValue.get()))
+        s.scheduleOnce(async.success(seenValue.get()))
         local.success(seenValue.get())
       }
     })
