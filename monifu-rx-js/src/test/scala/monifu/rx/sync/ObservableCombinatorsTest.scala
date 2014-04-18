@@ -4,7 +4,7 @@ import scala.scalajs.test.JasmineTest
 
 
 object ObservableCombinatorsTest extends JasmineTest {
-  import monifu.concurrent.Scheduler.Implicits.computation
+  import monifu.concurrent.Scheduler.Implicits.global
 
   describe("Observable.map") {
     it("should work") {

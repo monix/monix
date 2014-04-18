@@ -12,25 +12,36 @@ import monifu.concurrent.schedulers.SchedulerCompanionImpl
  */
 @implicitNotFound("Cannot find an implicit Scheduler, either import monifu.concurrent.Scheduler.Implicits.global or use a custom one")
 trait Scheduler extends ExecutionContext {
-  def scheduleOnce(action: => Unit): Cancelable
+  def scheduleOnce(initialDelay: FiniteDuration, action: () => Unit): Cancelable
 
-  def scheduleOnce(initialDelay: FiniteDuration, action: => Unit): Cancelable
+  def scheduleOnce(action: () => Unit): Cancelable = {
+    val sub = Cancelable()
+    execute(new Runnable {
+      def run(): Unit =
+        if (!sub.isCanceled)
+          action()
+    })
+
+    sub
+  }
 
   def schedule(action: Scheduler => Cancelable): Cancelable = {
     val sub = MultiAssignmentCancelable()
-    sub := scheduleOnce(sub := action(Scheduler.this))
+    sub := scheduleOnce(() => sub := action(Scheduler.this))
     sub
   }
 
   def schedule(initialDelay: FiniteDuration, action: Scheduler => Cancelable): Cancelable = {
     val sub = MultiAssignmentCancelable()
-    sub := scheduleOnce(initialDelay, sub := action(Scheduler.this))
+    sub := scheduleOnce(initialDelay, () => {
+      sub := action(Scheduler.this)
+    })
     sub
   }
 
-  def scheduleRepeated(initialDelay: FiniteDuration, delay: FiniteDuration, action: => Unit): Cancelable =
+  def scheduleRepeated(initialDelay: FiniteDuration, delay: FiniteDuration, action: () => Unit): Cancelable =
     scheduleRecursive(initialDelay, delay, { reschedule =>
-      action
+      action()
       reschedule()
     })
 
@@ -38,9 +49,9 @@ trait Scheduler extends ExecutionContext {
     val sub = MultiAssignmentCancelable()
 
     def reschedule(): Unit =
-      sub() = scheduleOnce(delay, action(reschedule))
+      sub() = scheduleOnce(delay, () => action(reschedule))
 
-    sub() = scheduleOnce(initialDelay, action(reschedule))
+    sub() = scheduleOnce(initialDelay, () => action(reschedule))
     sub
   }
 
@@ -58,12 +69,12 @@ trait Scheduler extends ExecutionContext {
 private[concurrent] trait SchedulerCompanion {
   trait ImplicitsType {
     implicit def global: Scheduler
-    implicit def computation: Scheduler
-    implicit def io: Scheduler
   }
 
   def Implicits: ImplicitsType
   def fromContext(implicit ec: ExecutionContext): Scheduler
+
+  def possiblyImmediate: Scheduler
 }
 
 object Scheduler extends SchedulerCompanion with SchedulerCompanionImpl

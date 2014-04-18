@@ -6,14 +6,13 @@ import scala.concurrent.ExecutionContext
 private[concurrent] trait SchedulerCompanionImpl extends SchedulerCompanion {
   object Implicits extends ImplicitsType {
     implicit def global: Scheduler =
-      JSAsyncScheduler
-
-    implicit def computation: Scheduler =
-      JSAsyncScheduler
-
-    implicit def io: Scheduler =
-      JSAsyncScheduler
+      AsyncScheduler
   }
+
+  val async: Scheduler = AsyncScheduler
+
+  val possiblyImmediate: Scheduler =
+    new PossiblyImmediateScheduler(AsyncScheduler)
 
   def fromContext(implicit ec: ExecutionContext): Scheduler =
     new ContextScheduler(ec)

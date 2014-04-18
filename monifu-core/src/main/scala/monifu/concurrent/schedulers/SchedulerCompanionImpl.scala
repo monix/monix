@@ -9,24 +9,27 @@ private[concurrent] trait SchedulerCompanionImpl extends SchedulerCompanion {
   object Implicits extends ImplicitsType {
     implicit def global: Scheduler =
       computation
-
-    implicit def computation: Scheduler =
-      ConcurrentScheduler.defaultInstance
-
-    implicit lazy val io: Scheduler = {
-      val counter = Atomic(0L)
-      ConcurrentScheduler(ExecutionContext.fromExecutor(
-        Executors.newCachedThreadPool(new ThreadFactory {
-          def newThread(r: Runnable): Thread = {
-            val th = new Thread(r)
-            th.setDaemon(true)
-            th.setName("monifu-io-" + counter.getAndIncrement().toString)
-            th
-          }
-        })
-      ))
-    }
   }
+
+  def computation: Scheduler =
+    ConcurrentScheduler.defaultInstance
+
+  lazy val io: Scheduler = {
+    val counter = Atomic(0L)
+    ConcurrentScheduler(ExecutionContext.fromExecutor(
+      Executors.newCachedThreadPool(new ThreadFactory {
+        def newThread(r: Runnable): Thread = {
+          val th = new Thread(r)
+          th.setDaemon(true)
+          th.setName("monifu-io-" + counter.getAndIncrement().toString)
+          th
+        }
+      })
+    ))
+  }
+
+  lazy val possiblyImmediate: Scheduler =
+    new PossiblyImmediateScheduler(ConcurrentScheduler.defaultInstance)
 
   def fromExecutor(executor: Executor): Scheduler =
     ConcurrentScheduler(ExecutionContext.fromExecutor(executor))
