@@ -69,12 +69,12 @@ trait Scheduler extends ExecutionContext {
 private[concurrent] trait SchedulerCompanion {
   trait ImplicitsType {
     implicit def global: Scheduler
+    implicit def trampoline: Scheduler
   }
 
   def Implicits: ImplicitsType
   def fromContext(implicit ec: ExecutionContext): Scheduler
-
-  def possiblyImmediate: Scheduler
+  def trampoline: Scheduler
 }
 
 object Scheduler extends SchedulerCompanion with SchedulerCompanionImpl

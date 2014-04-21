@@ -7,7 +7,7 @@ import monifu.concurrent.cancelables.SingleAssignmentCancelable
 import monifu.concurrent.{Cancelable, Scheduler}
 
 
-private[concurrent] final class ConcurrentScheduler(s: ScheduledExecutorService, ec: ExecutionContext) extends Scheduler {
+final class ConcurrentScheduler private (s: ScheduledExecutorService, ec: ExecutionContext) extends Scheduler {
   def scheduleOnce(initialDelay: FiniteDuration, action: => Unit): Cancelable =
     if (initialDelay <= Duration.Zero)
       scheduleOnce(action)
@@ -58,7 +58,7 @@ private[concurrent] final class ConcurrentScheduler(s: ScheduledExecutorService,
   private[this] val oneHour = 1.hour
 }
 
-private[concurrent] object ConcurrentScheduler {
+object ConcurrentScheduler {
   def apply(schedulerService: ScheduledExecutorService, ec: ExecutionContext): ConcurrentScheduler =
     new ConcurrentScheduler(schedulerService, ec)
 

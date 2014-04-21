@@ -8,7 +8,7 @@ import scala.util.control.NonFatal
 import scala.concurrent.{CanAwait, BlockContext}
 
 
-private[concurrent] final class PossiblyImmediateScheduler(fallback: ConcurrentScheduler, reporter: Throwable => Unit)
+final class TrampolineScheduler private[concurrent] (fallback: ConcurrentScheduler, reporter: Throwable => Unit)
   extends Scheduler with BlockContext {
 
   private[this] val immediateQueue = ThreadLocal(Queue.empty[Runnable])
@@ -97,4 +97,9 @@ private[concurrent] final class PossiblyImmediateScheduler(fallback: ConcurrentS
 
   def reportFailure(t: Throwable): Unit =
     reporter(t)
+}
+
+object TrampolineScheduler {
+  def apply(implicit fallback: ConcurrentScheduler): TrampolineScheduler =
+    new TrampolineScheduler(fallback, fallback.reportFailure)
 }
