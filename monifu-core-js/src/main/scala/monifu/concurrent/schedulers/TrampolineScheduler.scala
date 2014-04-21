@@ -7,7 +7,7 @@ import scala.annotation.tailrec
 import scala.util.control.NonFatal
 
 
-private[concurrent] final class PossiblyImmediateScheduler(fallback: AsyncScheduler.type, reporter: (Throwable) => Unit) extends Scheduler {
+final class TrampolineScheduler private[concurrent] (fallback: Scheduler, reporter: (Throwable) => Unit) extends Scheduler {
   private[this] var immediateQueue = Queue.empty[Runnable]
   private[this] var withinLoop = false
 
@@ -65,4 +65,9 @@ private[concurrent] final class PossiblyImmediateScheduler(fallback: AsyncSchedu
 
   def reportFailure(t: Throwable): Unit =
     reporter(t)
+}
+
+object TrampolineScheduler {
+  def apply(fallback: Scheduler): TrampolineScheduler =
+    new TrampolineScheduler(fallback, fallback.reportFailure)
 }

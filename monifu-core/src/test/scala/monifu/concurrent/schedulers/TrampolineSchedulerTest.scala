@@ -10,8 +10,8 @@ import monifu.concurrent.ThreadLocal
 import concurrent.blocking
 
 
-class PossiblyImmediateSchedulerTest extends FunSuite {
-  val s = new PossiblyImmediateScheduler(
+class TrampolineSchedulerTest extends FunSuite {
+  val s = new TrampolineScheduler(
     fallback = ConcurrentScheduler.defaultInstance,
     reporter = (ex) => {
       if (!ex.getMessage.contains("test-exception"))
@@ -93,7 +93,7 @@ class PossiblyImmediateSchedulerTest extends FunSuite {
   test("immediate execution happens") {
     implicit val ec = s
 
-    var effect = 0
+    @volatile var effect = 0
     val seed = ThreadLocal(0)
     seed set 100
 

@@ -8,9 +8,9 @@ import concurrent.duration._
 import scala.util.Try
 
 
-object PossiblyImmediateSchedulerTest extends JasmineTest {
+object TrampolineSchedulerTest extends JasmineTest {
   describe("PossiblyImmediateScheduler") {
-    val s = new PossiblyImmediateScheduler(AsyncScheduler, ex => {
+    val s = new TrampolineScheduler(AsyncScheduler, ex => {
       if (!ex.getMessage.contains("test-exception"))
         throw ex
     })

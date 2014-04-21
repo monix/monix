@@ -7,12 +7,14 @@ private[concurrent] trait SchedulerCompanionImpl extends SchedulerCompanion {
   object Implicits extends ImplicitsType {
     implicit def global: Scheduler =
       AsyncScheduler
+
+    implicit def trampoline: Scheduler =
+      SchedulerCompanionImpl.this.trampoline
   }
 
   val async: Scheduler = AsyncScheduler
 
-  val possiblyImmediate: Scheduler =
-    new PossiblyImmediateScheduler(AsyncScheduler, AsyncScheduler.reportFailure)
+  val trampoline: Scheduler = TrampolineScheduler(AsyncScheduler)
 
   def fromContext(implicit ec: ExecutionContext): Scheduler =
     new ContextScheduler(ec)
