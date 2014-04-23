@@ -4,22 +4,15 @@ import scala.concurrent.duration.FiniteDuration
 import scala.scalajs.js
 import monifu.concurrent.{Cancelable, Scheduler}
 
-
-object JSAsyncScheduler extends Scheduler {
-  def scheduleOnce(action: => Unit): Cancelable = {
-    var isCancelled = false
-    val sub = Cancelable { isCancelled = true }
-    setTimeout(if (!isCancelled) action)
-    sub
+private[concurrent] object AsyncScheduler extends Scheduler {
+  override def scheduleOnce(action: => Unit): Cancelable = {
+    val task = setTimeout(action)
+    Cancelable(clearTimeout(task))
   }
 
   def scheduleOnce(initialDelay: FiniteDuration, action: => Unit): Cancelable = {
-    var isCancelled = false
-    val task = setTimeout(initialDelay.toMillis, {
-      if (!isCancelled) action
-    })
-
-    Cancelable { isCancelled = true; clearTimeout(task) }
+    val task = setTimeout(initialDelay.toMillis, action)
+    Cancelable(clearTimeout(task))
   }
 
   def reportFailure(t: Throwable): Unit =

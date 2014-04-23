@@ -1,6 +1,6 @@
 package monifu.concurrent.schedulers
 
-import java.util.concurrent.{ThreadFactory, Executors, TimeUnit, ScheduledExecutorService}
+import java.util.concurrent.{TimeUnit, ScheduledExecutorService}
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import monifu.concurrent.cancelables.SingleAssignmentCancelable
@@ -8,17 +8,6 @@ import monifu.concurrent.{Cancelable, Scheduler}
 
 
 final class ConcurrentScheduler private (s: ScheduledExecutorService, ec: ExecutionContext) extends Scheduler {
-  def scheduleOnce(action: => Unit): Cancelable = {
-    val sub = Cancelable()
-
-    ec.execute(new Runnable {
-      def run(): Unit =
-        if (!sub.isCanceled) action
-    })
-
-    sub
-  }
-
   def scheduleOnce(initialDelay: FiniteDuration, action: => Unit): Cancelable =
     if (initialDelay <= Duration.Zero)
       scheduleOnce(action)
@@ -70,16 +59,6 @@ final class ConcurrentScheduler private (s: ScheduledExecutorService, ec: Execut
 }
 
 object ConcurrentScheduler {
-  private[this] lazy val defaultScheduledExecutor =
-    Executors.newSingleThreadScheduledExecutor(new ThreadFactory {
-      def newThread(r: Runnable): Thread = {
-        val th = new Thread(r)
-        th.setDaemon(true)
-        th.setName("monifu-scheduler")
-        th
-      }
-    })
-
   def apply(schedulerService: ScheduledExecutorService, ec: ExecutionContext): ConcurrentScheduler =
     new ConcurrentScheduler(schedulerService, ec)
 
