@@ -10,7 +10,7 @@ import monifu.concurrent.atomic.Atomic
 import monifu.concurrent.cancelables.SingleAssignmentCancelable
 import monifu.concurrent.{Scheduler, Cancelable}
 import scala.util.control.NonFatal
-import monifu.rx.base.{ObservableBuilder, ObservableGen, Ack}
+import monifu.rx.base.{ObservableTypeClass, ObservableLike, Ack}
 import Ack.{Continue, Stop}
 import scala.util.{Failure, Success, Try}
 import concurrent.ExecutionContext
@@ -19,18 +19,18 @@ import scala.concurrent.duration.FiniteDuration
 /**
  * Synchronous implementation of the Observable interface.
  */
-trait Observable[+A] extends ObservableGen[A, Observable] {
+trait Observable[+A] extends ObservableLike[A, Observable] {
   type O[-I] = monifu.rx.sync.Observer[I]
 
   def subscribe(observer: Observer[A]): Cancelable
 
-  final def subscribeUnit(nextFn: A => Unit): Cancelable =
+  def subscribeUnit(nextFn: A => Unit): Cancelable =
     subscribe(AnonymousObserver(nextFn))
 
-  final def subscribeUnit(nextFn: A => Unit, errorFn: Throwable => Unit): Cancelable =
+  def subscribeUnit(nextFn: A => Unit, errorFn: Throwable => Unit): Cancelable =
     subscribe(AnonymousObserver(nextFn, errorFn))
 
-  final def subscribeUnit(nextFn: A => Unit, errorFn: Throwable => Unit, completedFn: () => Unit): Cancelable =
+  def subscribeUnit(nextFn: A => Unit, errorFn: Throwable => Unit, completedFn: () => Unit): Cancelable =
     subscribe(AnonymousObserver(nextFn, errorFn, completedFn))
 
   def map[B](f: A => B): Observable[B] =
@@ -82,19 +82,19 @@ trait Observable[+A] extends ObservableGen[A, Observable] {
       def onCompleted() = observer.onCompleted()
     }))
 
-  final def find(p: A => Boolean): Observable[A] =
+  def find(p: A => Boolean): Observable[A] =
     filter(p).head
 
-  final def exists(p: A => Boolean): Observable[Boolean] =
+  def exists(p: A => Boolean): Observable[Boolean] =
     find(p).foldLeft(false)((_, _) => true)
 
-  final def forAll(p: A => Boolean): Observable[Boolean] =
+  def forAll(p: A => Boolean): Observable[Boolean] =
     exists(e => !p(e)).map(r => !r)
 
   def flatMap[B](f: A => Observable[B]): Observable[B] =
     map(f).flatten
 
-  final def flatten[B](implicit ev: A <:< Observable[B]): Observable[B] =
+  def flatten[B](implicit ev: A <:< Observable[B]): Observable[B] =
     Observable.create { observerB =>
     // we need to do ref-counting for triggering `onCompleted` on our subscriber
     // when all the children threads have ended
@@ -146,20 +146,20 @@ trait Observable[+A] extends ObservableGen[A, Observable] {
       composite
     }
 
-  final def head: Observable[A] = take(1)
+  def head: Observable[A] = take(1)
 
-  final def tail: Observable[A] = drop(1)
+  def tail: Observable[A] = drop(1)
 
-  final def headOrElse[B >: A](default: => B): Observable[B] =
+  def headOrElse[B >: A](default: => B): Observable[B] =
     head.foldLeft(Option.empty[A])((_, elem) => Some(elem)).map {
       case Some(elem) => elem
       case None => default
     }
 
-  final def firstOrElse[B >: A](default: => B): Observable[B] =
+  def firstOrElse[B >: A](default: => B): Observable[B] =
     headOrElse(default)
 
-  final def take(n: Long): Observable[A] = {
+  def take(n: Long): Observable[A] = {
     require(n > 0, "number of elements to take should be strictly positive")
 
     Observable.create(observer => subscribe(new Observer[A] {
@@ -195,7 +195,7 @@ trait Observable[+A] extends ObservableGen[A, Observable] {
     }))
   }
 
-  final def drop(n: Long): Observable[A] = {
+  def drop(n: Long): Observable[A] = {
     require(n > 0, "number of elements to drop should be strictly positive")
 
     Observable.create(observer => subscribe(new Observer[A] {
@@ -224,7 +224,7 @@ trait Observable[+A] extends ObservableGen[A, Observable] {
     }))
   }
 
-  final def takeWhile(p: A => Boolean): Observable[A] =
+  def takeWhile(p: A => Boolean): Observable[A] =
     Observable.create(observer => subscribe(new Observer[A] {
       val shouldContinue = Atomic(true)
 
@@ -263,7 +263,7 @@ trait Observable[+A] extends ObservableGen[A, Observable] {
         observer.onError(ex)
     }))
 
-  final def dropWhile(p: A => Boolean): Observable[A] =
+  def dropWhile(p: A => Boolean): Observable[A] =
     Observable.create(observer => subscribe(new Observer[A] {
       val shouldDropRef = Atomic(true)
 
@@ -286,7 +286,7 @@ trait Observable[+A] extends ObservableGen[A, Observable] {
         observer.onError(ex)
     }))
 
-  final def foldLeft[R](initial: R)(f: (R, A) => R): Observable[R] =
+  def foldLeft[R](initial: R)(f: (R, A) => R): Observable[R] =
     Observable.create { observer =>
       val state = Atomic(initial)
 
@@ -312,7 +312,7 @@ trait Observable[+A] extends ObservableGen[A, Observable] {
       })
     }
 
-  final def ++[B >: A](other: => Observable[B]): Observable[B] =
+  def ++[B >: A](other: => Observable[B]): Observable[B] =
     Observable.create[B](observer => subscribe(
       SynchronizedObserver(new Observer[A] {
         def onNext(elem: A) = observer.onNext(elem)
@@ -326,7 +326,7 @@ trait Observable[+A] extends ObservableGen[A, Observable] {
         }
       })))
 
-  final def doOnCompleted(cb: => Unit): Observable[A] =
+  def doOnCompleted(cb: => Unit): Observable[A] =
     Observable.create { observer =>
       subscribe(new Observer[A] {
         def onNext(elem: A) =
@@ -342,7 +342,7 @@ trait Observable[+A] extends ObservableGen[A, Observable] {
       })
     }
 
-  final def doWork(cb: A => Unit): Observable[A] =
+  def doWork(cb: A => Unit): Observable[A] =
     Observable.create(observer => subscribe(new Observer[A] {
       def onNext(elem: A) = {
         // See Section 6.4. - Protect calls to user code from within an operator - in the Rx Design Guidelines
@@ -367,7 +367,7 @@ trait Observable[+A] extends ObservableGen[A, Observable] {
         observer.onCompleted()
     }))
 
-  final def zip[B](other: Observable[B]): Observable[(A,B)] =
+  def zip[B](other: Observable[B]): Observable[(A,B)] =
     Observable.create { observer =>
       val composite = CompositeCancelable()
       val lock = NaiveSpinLock()
@@ -458,7 +458,7 @@ trait Observable[+A] extends ObservableGen[A, Observable] {
       composite
     }
 
-  final def asFuture(implicit ec: concurrent.ExecutionContext): Future[Option[A]] = {
+  def asFuture(implicit ec: concurrent.ExecutionContext): Future[Option[A]] = {
     val promise = Promise[Option[A]]()
 
     head.subscribe(new Observer[A] {
@@ -481,10 +481,10 @@ trait Observable[+A] extends ObservableGen[A, Observable] {
     promise.future
   }
 
-  final def safe: Observable[A] =
+  def safe: Observable[A] =
     Observable.create(observer => subscribe(SynchronizedObserver(observer)))
 
-  final def toAsyncObservable(implicit ec: ExecutionContext): monifu.rx.async.Observable[A] =
+  def toAsyncObservable(implicit ec: ExecutionContext): monifu.rx.async.Observable[A] =
     monifu.rx.async.Observable.create { observerA =>
       val ref = Atomic(Future.successful(Continue : Ack))
       val sub = SingleAssignmentCancelable()
@@ -538,7 +538,7 @@ trait Observable[+A] extends ObservableGen[A, Observable] {
     }
 }
 
-object Observable extends ObservableBuilder[Observable] {
+object Observable extends ObservableTypeClass[Observable] {
   implicit def Builder = this
   type O[-I] = Observer[I]
 

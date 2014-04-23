@@ -3,9 +3,9 @@ package monifu.rx.async
 import monifu.concurrent.{Scheduler, Cancelable}
 import scala.concurrent.{ExecutionContext, Promise, Future}
 import scala.concurrent.Future.successful
-import monifu.rx.base.{ObservableGen, Ack}
+import monifu.rx.base.{ObservableLike, Ack}
 import Ack.{Stop, Continue}
-import monifu.concurrent.atomic.{AtomicAny, Atomic}
+import monifu.concurrent.atomic.Atomic
 import monifu.concurrent.cancelables.{SingleAssignmentCancelable, RefCountCancelable, CompositeCancelable}
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{Try, Failure, Success}
@@ -13,10 +13,11 @@ import scala.util.control.NonFatal
 import scala.collection.mutable
 import monifu.concurrent.locks.NaiveSpinLock
 
+
 /**
  * Asynchronous implementation of the Observable interface
  */
-trait Observable[+T] extends ObservableGen[T, Observable] {
+trait Observable[+T] extends ObservableLike[T, Observable] {
   type O[-I] = monifu.rx.async.Observer[I]
 
   /**
@@ -34,9 +35,9 @@ trait Observable[+T] extends ObservableGen[T, Observable] {
   /**
    * Implicit `scala.concurrent.ExecutionContext` under which our computations will run.
    */
-  protected implicit def context: Scheduler
+  protected implicit def ec: ExecutionContext
 
-  final def subscribeUnit(nextFn: T => Unit, errorFn: Throwable => Unit, completedFn: () => Unit): Cancelable =
+  def subscribeUnit(nextFn: T => Unit, errorFn: Throwable => Unit, completedFn: () => Unit): Cancelable =
     subscribe(new Observer[T] {
       def onNext(elem: T): Future[Ack] =
         Future { nextFn(elem); Continue }
@@ -48,13 +49,13 @@ trait Observable[+T] extends ObservableGen[T, Observable] {
         Future(completedFn())
     })
 
-  final def subscribeUnit(nextFn: T => Unit, errorFn: Throwable => Unit): Cancelable =
+  def subscribeUnit(nextFn: T => Unit, errorFn: Throwable => Unit): Cancelable =
     subscribeUnit(nextFn, errorFn, () => ())
 
-  final def subscribeUnit(nextFn: T => Unit): Cancelable =
-    subscribeUnit(nextFn, error => context.reportFailure(error), () => ())
+  def subscribeUnit(nextFn: T => Unit): Cancelable =
+    subscribeUnit(nextFn, error => ec.reportFailure(error), () => ())
 
-  final def map[U](f: T => U): Observable[U] =
+  def map[U](f: T => U): Observable[U] =
     Observable.create { observer =>
       subscribe(new Observer[T] {
         def onNext(elem: T) =
@@ -75,7 +76,7 @@ trait Observable[+T] extends ObservableGen[T, Observable] {
       })
     }
 
-  final def filter(p: T => Boolean): Observable[T] =
+  def filter(p: T => Boolean): Observable[T] =
     Observable.create { observer =>
       subscribe(new Observer[T] {
         def onNext(elem: T) = {
@@ -103,10 +104,10 @@ trait Observable[+T] extends ObservableGen[T, Observable] {
       })
     }
 
-  final def flatMap[U](f: T => Observable[U]): Observable[U] =
+  def flatMap[U](f: T => Observable[U]): Observable[U] =
     map(f).flatten
 
-  final def flatten[U](implicit ev: T <:< Observable[U]): Observable[U] =
+  def flatten[U](implicit ev: T <:< Observable[U]): Observable[U] =
     Observable.create { observerU =>
     // aggregate subscription that cancels everything
       val composite = CompositeCancelable()
@@ -167,7 +168,7 @@ trait Observable[+T] extends ObservableGen[T, Observable] {
       composite
     }
 
-  final def take(n: Long): Observable[T] =
+  def take(n: Long): Observable[T] =
     Observable.create { observer =>
       val counterRef = Atomic(0L)
 
@@ -212,7 +213,7 @@ trait Observable[+T] extends ObservableGen[T, Observable] {
       })
     }
 
-  final def drop(n: Long): Observable[T] =
+  def drop(n: Long): Observable[T] =
     Observable.create { observer =>
       val count = Atomic(0L)
 
@@ -232,7 +233,7 @@ trait Observable[+T] extends ObservableGen[T, Observable] {
       })
     }
 
-  final def takeWhile(p: T => Boolean): Observable[T] =
+  def takeWhile(p: T => Boolean): Observable[T] =
     Observable.create { observer =>
       subscribe(new Observer[T] {
         @volatile var shouldContinue = true
@@ -259,7 +260,7 @@ trait Observable[+T] extends ObservableGen[T, Observable] {
       })
     }
 
-  final def dropWhile(p: T => Boolean): Observable[T] =
+  def dropWhile(p: T => Boolean): Observable[T] =
     Observable.create { observer =>
       subscribe(new Observer[T] {
         @volatile var shouldDrop = true
@@ -287,9 +288,9 @@ trait Observable[+T] extends ObservableGen[T, Observable] {
       })
     }
 
-  final def foldLeft[R](initial: R)(op: (R, T) => R): Observable[R] =
+  def foldLeft[R](initial: R)(op: (R, T) => R): Observable[R] =
     Observable.create { observer =>
-      val state = AtomicAny(initial)
+      val state = Atomic(initial)
 
       subscribe(new Observer[T] {
         def onNext(elem: T): Future[Ack] =
@@ -311,7 +312,7 @@ trait Observable[+T] extends ObservableGen[T, Observable] {
       })
     }
 
-  final def doOnCompleted(cb: => Unit): Observable[T] =
+  def doOnCompleted(cb: => Unit): Observable[T] =
     Observable.create { observer =>
       subscribe(new Observer[T] {
         def onNext(elem: T) =
@@ -325,7 +326,7 @@ trait Observable[+T] extends ObservableGen[T, Observable] {
       })
     }
 
-  final def doWork(cb: T => Unit): Observable[T] =
+  def doWork(cb: T => Unit): Observable[T] =
     Observable.create { observer =>
       subscribe(new Observer[T] {
         def onError(ex: Throwable) = observer.onError(ex)
@@ -336,16 +337,16 @@ trait Observable[+T] extends ObservableGen[T, Observable] {
       })
     }
 
-  final def find(p: T => Boolean): Observable[T] =
+  def find(p: T => Boolean): Observable[T] =
     filter(p).head
 
-  final def exists(p: T => Boolean): Observable[Boolean] =
+  def exists(p: T => Boolean): Observable[Boolean] =
     find(p).foldLeft(false)((_, _) => true)
 
-  final def forAll(p: T => Boolean): Observable[Boolean] =
+  def forAll(p: T => Boolean): Observable[Boolean] =
     exists(e => !p(e)).map(r => !r)
 
-  final def asFuture(implicit ec: concurrent.ExecutionContext): Future[Option[T]] = {
+  def asFuture(implicit ec: concurrent.ExecutionContext): Future[Option[T]] = {
     val promise = Promise[Option[T]]()
 
     head.subscribe(new Observer[T] {
@@ -368,27 +369,27 @@ trait Observable[+T] extends ObservableGen[T, Observable] {
     promise.future
   }
 
-  final def ++[U >: T](other: => Observable[U]): Observable[U] =
+  def ++[U >: T](other: => Observable[U]): Observable[U] =
     Observable.fromTraversable(Seq(this, other)).flatten
 
-  final def head: Observable[T] = take(1)
+  def head: Observable[T] = take(1)
 
-  final def tail: Observable[T] = drop(1)
+  def tail: Observable[T] = drop(1)
 
-  final def headOrElse[B >: T](default: => B): Observable[B] =
+  def headOrElse[B >: T](default: => B): Observable[B] =
     head.foldLeft(Option.empty[B])((_, elem) => Some(elem)) map {
       case Some(elem) => elem
       case None => default
     }
 
-  final def firstOrElse[U >: T](default: => U): Observable[U] =
+  def firstOrElse[U >: T](default: => U): Observable[U] =
     headOrElse(default)
 
   /**
    * Creates a new Observable by applying a function to each item emitted, a function that returns Future
    * results and then flattens that into a new Observable.
    */
-  final def flatMapFutures[U](f: T => Future[U]): Observable[U] =
+  def flatMapFutures[U](f: T => Future[U]): Observable[U] =
     Observable.create { observerU =>
       subscribe(new Observer[T] {
         def onNext(elem: T) = {
@@ -420,10 +421,10 @@ trait Observable[+T] extends ObservableGen[T, Observable] {
    *
    * @return an Observable that emits items that are the result of flattening the emitted Futures
    */
-  final def flattenFutures[U](implicit ev: T <:< Future[U]): Observable[U] =
+  def flattenFutures[U](implicit ev: T <:< Future[U]): Observable[U] =
     flatMapFutures(x => x)
 
-  final def zip[U](other: Observable[U]): Observable[(T, U)] =
+  def zip[U](other: Observable[U]): Observable[(T, U)] =
     Observable.create { observerOfPairs =>
       val composite = CompositeCancelable()
       val lock = NaiveSpinLock()
@@ -513,23 +514,18 @@ trait Observable[+T] extends ObservableGen[T, Observable] {
     }
 
   /**
-   * Returns a new Observable that uses the specified `ExecutionContext` for listening to the emitted items.
-   *
-   * Take this example:
-   * {{{
-   *   implicit def ec = myInitialContext
-   *   def ec2 = mySecondContext
-   *
-   *   val obs = Observable.fromSequence(0 until 1000).map(_ + 1).filter(_ % 2 == 0)
-   *     .executeOn(ec2).map(_ + 2).filter(_ % 2 == 4).subscribeUnit(x => println(x))
-   * }}}
-   *
-   * In the above example `myInitialContext` is used for emitting the numbers `fromSequence`, for the first `map`
-   * propagation, for the first `filter` propagation, after which the second `map` propagation, the second `filter`
-   * propagation and the final `Observer` passed to `subscribeUnit` shall use `mySecondContext`.
+   * Returns a new Observable that uses the specified `Scheduler` for listening to the emitted items.
    */
-  final def executeOn(ctx: ExecutionContext): Observable[T] =
-    Observable.create(subscribe)(ctx)
+  def listenOn(s: Scheduler): Observable[T] =
+    Observable.create(subscribe)(s)
+
+  /**
+   * Returns a new Observable that uses the specified `Scheduler` for initiating the subscription.
+   */
+  def subscribeOn(s: Scheduler): Observable[T] =
+    Observable.create { observer =>
+      s.schedule(s => subscribe(observer))
+    }
 }
 
 object Observable {
@@ -541,7 +537,7 @@ object Observable {
    */
   def create[T](f: Observer[T] => Cancelable)(implicit ctx: ExecutionContext): Observable[T] =
     new Observable[T] {
-      protected def context = ctx
+      protected def ec = ctx
       def subscribe(observer: Observer[T]): Cancelable =
         try f(observer) catch {
           case NonFatal(ex) =>

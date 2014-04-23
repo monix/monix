@@ -407,12 +407,12 @@ Monifu is cross-compiled to [Scala.js](http://www.scala-js.org/) and
 as such you can target Javascript runtimes with it.
 
 The available `Scheduler` implementation is
-[AsyncScheduler](../monifu-core-js/src/main/scala/monifu/concurrent/schedulers/AsyncScheduler.scala)
+[JSAsyncScheduler](../monifu-core-js/src/main/scala/monifu/concurrent/schedulers/JSAsyncScheduler.scala)
 and is based on Javascript's `global.setTimeout` for scheduling. It's
 a full-fledged `Scheduler` implementation and you can use it as such:
 
 ```scala
-val s = monifu.concurrent.Scheduler.async
+val s = monifu.concurrent.Scheduler.computation
 
 var counter = 0
 
