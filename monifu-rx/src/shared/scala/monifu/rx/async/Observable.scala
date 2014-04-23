@@ -5,14 +5,13 @@ import scala.concurrent.{ExecutionContext, Promise, Future}
 import scala.concurrent.Future.successful
 import monifu.rx.base.{ObservableGen, Ack}
 import Ack.{Stop, Continue}
-import monifu.concurrent.atomic.Atomic
+import monifu.concurrent.atomic.{AtomicAny, Atomic}
 import monifu.concurrent.cancelables.{SingleAssignmentCancelable, RefCountCancelable, CompositeCancelable}
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{Try, Failure, Success}
 import scala.util.control.NonFatal
 import scala.collection.mutable
 import monifu.concurrent.locks.NaiveSpinLock
-
 
 /**
  * Asynchronous implementation of the Observable interface
@@ -35,7 +34,7 @@ trait Observable[+T] extends ObservableGen[T, Observable] {
   /**
    * Implicit `scala.concurrent.ExecutionContext` under which our computations will run.
    */
-  protected implicit def ec: ExecutionContext
+  protected implicit def context: Scheduler
 
   final def subscribeUnit(nextFn: T => Unit, errorFn: Throwable => Unit, completedFn: () => Unit): Cancelable =
     subscribe(new Observer[T] {
@@ -53,7 +52,7 @@ trait Observable[+T] extends ObservableGen[T, Observable] {
     subscribeUnit(nextFn, errorFn, () => ())
 
   final def subscribeUnit(nextFn: T => Unit): Cancelable =
-    subscribeUnit(nextFn, error => ec.reportFailure(error), () => ())
+    subscribeUnit(nextFn, error => context.reportFailure(error), () => ())
 
   final def map[U](f: T => U): Observable[U] =
     Observable.create { observer =>
@@ -290,7 +289,7 @@ trait Observable[+T] extends ObservableGen[T, Observable] {
 
   final def foldLeft[R](initial: R)(op: (R, T) => R): Observable[R] =
     Observable.create { observer =>
-      val state = Atomic(initial)
+      val state = AtomicAny(initial)
 
       subscribe(new Observer[T] {
         def onNext(elem: T): Future[Ack] =
@@ -433,16 +432,16 @@ trait Observable[+T] extends ObservableGen[T, Observable] {
       val queueB = mutable.Queue.empty[(U, Promise[Ack])]
 
       val completedPromise = Promise[Unit]()
-      var aIsDone = false
-      var bIsDone = false
-    
+      var isCompleted = false
+
       def _onError(ex: Throwable) = lock.acquire {
-        if (!aIsDone || !bIsDone) {
-          aIsDone = true
-          bIsDone = true
+        if (!isCompleted) {
+          isCompleted = true
+          queueA.clear()
+          queueB.clear()
           observerOfPairs.onError(ex)
         }
-        else 
+        else
           successful(())
       }
 
@@ -453,7 +452,7 @@ trait Observable[+T] extends ObservableGen[T, Observable] {
               val resp = Promise[Ack]()
               val promiseForB = Promise[U]()
               queueA.enqueue((promiseForB, resp))
-              
+
               val f = promiseForB.future.flatMap(b => observerOfPairs.onNext((a, b)))
               resp.completeWith(f)
               f
@@ -470,20 +469,19 @@ trait Observable[+T] extends ObservableGen[T, Observable] {
           _onError(ex)
 
         def onCompleted(): Future[Unit] = lock.acquire {
-          if (!aIsDone) {
-            aIsDone = true            
-            if (queueA.isEmpty || bIsDone) {
-              queueA.clear()
-              completedPromise.completeWith(observerOfPairs.onCompleted())
-            }
+          if (!isCompleted && queueA.isEmpty) {
+            isCompleted = true
+            queueA.clear()
+            queueB.clear()
+            completedPromise.completeWith(observerOfPairs.onCompleted())
           }
 
           completedPromise.future
         }
       })
-    
+
       composite += other.subscribe(new Observer[U] {
-        def onNext(b: U): Future[Ack] = 
+        def onNext(b: U): Future[Ack] =
           lock.acquire {
             if (queueA.nonEmpty) {
               val (bPromise, response) = queueA.dequeue()
@@ -500,12 +498,11 @@ trait Observable[+T] extends ObservableGen[T, Observable] {
         def onError(ex: Throwable): Future[Unit] = _onError(ex)
 
         def onCompleted(): Future[Unit] = lock.acquire {
-          if (!bIsDone) {
-            bIsDone = true
-            if (queueB.isEmpty || aIsDone) {
-              queueB.clear()
-              completedPromise.completeWith(observerOfPairs.onCompleted())
-            }
+          if (!isCompleted && queueB.isEmpty) {
+            isCompleted = true
+            queueA.clear()
+            queueB.clear()
+            completedPromise.completeWith(observerOfPairs.onCompleted())
           }
 
           completedPromise.future
@@ -544,7 +541,7 @@ object Observable {
    */
   def create[T](f: Observer[T] => Cancelable)(implicit ctx: ExecutionContext): Observable[T] =
     new Observable[T] {
-      protected def ec = ctx
+      protected def context = ctx
       def subscribe(observer: Observer[T]): Cancelable =
         try f(observer) catch {
           case NonFatal(ex) =>
