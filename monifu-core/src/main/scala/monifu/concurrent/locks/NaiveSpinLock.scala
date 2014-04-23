@@ -26,7 +26,9 @@ final class NaiveSpinLock private[locks] () extends Lock {
       // if this acquisition wasn't reentrant, then needs to release the lock
       if (acquireAndRelease) {
         isReentrant.set(false)
-        // setting the lock to false involves
+        // setting the lock to false also involves a volatile store
+        // which insures a happens-before relationship for the operations
+        // that happened on this thread before the release
         acquired.set(update = false)
       }
     }
