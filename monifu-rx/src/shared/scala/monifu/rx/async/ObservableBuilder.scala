@@ -1,6 +1,6 @@
 package monifu.rx.async
 
-import monifu.rx.base.{ObservableBuilder => ObservableBuilderBase}
+import monifu.rx.base.{ObservableTypeClass => ObservableBuilderBase}
 import scala.concurrent.ExecutionContext
 import monifu.concurrent.{Scheduler, Cancelable}
 import scala.concurrent.duration.FiniteDuration

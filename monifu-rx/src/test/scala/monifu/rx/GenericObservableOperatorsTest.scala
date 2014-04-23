@@ -2,14 +2,14 @@ package monifu.rx
 
 import org.scalatest.FunSpec
 import scala.concurrent.ExecutionContext.Implicits.global
-import monifu.rx.base.{ObservableGen, ObservableBuilder}
+import monifu.rx.base.{ObservableLike, ObservableTypeClass}
 import scala.language.higherKinds
 import scala.concurrent.Await
 import concurrent.duration._
 import java.util.concurrent.{TimeUnit, CountDownLatch}
 
 
-class GenericObservableOperatorsTest[Observable[+T] <: ObservableGen[T, Observable]](builder: ObservableBuilder[Observable])
+class GenericObservableOperatorsTest[Observable[+T] <: ObservableLike[T, Observable]](builder: ObservableTypeClass[Observable])
   extends FunSpec {
 
   describe("Observable.map") {
@@ -265,6 +265,17 @@ class GenericObservableOperatorsTest[Observable[+T] <: ObservableGen[T, Observab
       val result = Await.result(finalObs.asFuture, 1.second)
 
       assert(result === Some(0.until(20,2).map(x => (x,x,x,x))))
+    }
+
+    it("should work when length is equal") {
+      val obs1 = builder.fromTraversable(0 until 100)
+      val obs2 = builder.fromTraversable(0 until 100)
+      val zipped = obs1.zip(obs2)
+
+      val finalObs = zipped.foldLeft(Seq.empty[(Int, Int)])(_ :+ _)
+      val result = Await.result(finalObs.asFuture, 1.second)
+
+      assert(result === Some((0 until 100).map(x => (x,x))))
     }
   }
 }

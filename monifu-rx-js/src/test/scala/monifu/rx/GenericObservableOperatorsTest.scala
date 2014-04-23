@@ -1,11 +1,11 @@
 package monifu.rx
 
 import monifu.concurrent.Scheduler.Implicits.global
-import monifu.rx.base.{ObservableGen, ObservableBuilder}
+import monifu.rx.base._
 import scala.language.higherKinds
 import scala.scalajs.test.JasmineTest
 
-class GenericObservableOperatorsTest[Observable[+T] <: ObservableGen[T, Observable]](builder: ObservableBuilder[Observable], isAsync: Boolean = true)
+class GenericObservableOperatorsTest[Observable[+T] <: ObservableLike[T, Observable]](builder: ObservableTypeClass[Observable], isAsync: Boolean = true)
   extends JasmineTest {
 
   describe("Observable.map") {
