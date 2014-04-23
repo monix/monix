@@ -10,11 +10,13 @@ object Build extends SbtBuild {
   val sharedSettings = Defaults.defaultSettings ++ Seq(
     organization := "org.monifu",
     version := "0.6",
-    scalaVersion := "2.11.0",
+    scalaVersion := "2.10.4",
     crossScalaVersions := Seq("2.10.4", "2.11.0"),
 
     scalacOptions ++= Seq(
-      "-unchecked", "-deprecation", "-feature", "-Xlint", "-target:jvm-1.6", "-Yinline-warnings"
+      "-unchecked", "-deprecation", "-feature", "-Xlint", "-target:jvm-1.6", "-Yinline-warnings",
+      "–Xfatal-warnings", "-optimise", "-Ywarn-adapted-args", "-Ywarn-dead-code", "-Ywarn-inaccessible",
+      "-Ywarn-nullary-override", "-Ywarn-nullary-unit"
     ),
 
     resolvers ++= Seq(
@@ -70,7 +72,6 @@ object Build extends SbtBuild {
     base = file("monifu-core"),
     settings = sharedSettings ++ Seq(
       unmanagedSourceDirectories in Compile <+= sourceDirectory(_ / "shared" / "scala"),
-      scalacOptions += "-optimise",
       libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _ % "compile"),
       libraryDependencies ++= Seq(
         "org.scalatest" %% "scalatest" % "2.1.3" % "test"
