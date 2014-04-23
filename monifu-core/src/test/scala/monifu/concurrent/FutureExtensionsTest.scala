@@ -7,7 +7,7 @@ import java.util.concurrent.TimeoutException
 import monifu.concurrent.extensions._
 
 class FutureExtensionsTest extends FunSuite {
-  import Scheduler.Implicits.computation
+  import Scheduler.Implicits.global
 
   test("delayedResult") {
     val startedAt = System.nanoTime()

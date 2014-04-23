@@ -4,7 +4,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import monifu.concurrent.cancelables.MultiAssignmentCancelable
 import scala.annotation.implicitNotFound
-import monifu.concurrent.schedulers.SchedulerConstructor
+import monifu.concurrent.schedulers.SchedulerCompanionImpl
 
 /**
  * A Scheduler is an `scala.concurrent.ExecutionContext` that additionally can schedule
@@ -12,9 +12,18 @@ import monifu.concurrent.schedulers.SchedulerConstructor
  */
 @implicitNotFound("Cannot find an implicit Scheduler, either import monifu.concurrent.Scheduler.Implicits.global or use a custom one")
 trait Scheduler extends ExecutionContext {
-  def scheduleOnce(action: => Unit): Cancelable
-
   def scheduleOnce(initialDelay: FiniteDuration, action: => Unit): Cancelable
+
+  def scheduleOnce(action: => Unit): Cancelable = {
+    val sub = Cancelable()
+    execute(new Runnable {
+      def run(): Unit =
+        if (!sub.isCanceled)
+          action
+    })
+
+    sub
+  }
 
   def schedule(action: Scheduler => Cancelable): Cancelable = {
     val sub = MultiAssignmentCancelable()
@@ -24,7 +33,9 @@ trait Scheduler extends ExecutionContext {
 
   def schedule(initialDelay: FiniteDuration, action: Scheduler => Cancelable): Cancelable = {
     val sub = MultiAssignmentCancelable()
-    sub := scheduleOnce(initialDelay, sub := action(Scheduler.this))
+    sub := scheduleOnce(initialDelay, {
+      sub := action(Scheduler.this)
+    })
     sub
   }
 
@@ -55,5 +66,16 @@ trait Scheduler extends ExecutionContext {
   def reportFailure(t: Throwable): Unit
 }
 
-object Scheduler extends SchedulerConstructor
+private[concurrent] trait SchedulerCompanion {
+  trait ImplicitsType {
+    implicit def global: Scheduler
+    implicit def trampoline: Scheduler
+  }
+
+  def Implicits: ImplicitsType
+  def fromContext(implicit ec: ExecutionContext): Scheduler
+  def trampoline: Scheduler
+}
+
+object Scheduler extends SchedulerCompanion with SchedulerCompanionImpl
 
