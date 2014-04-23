@@ -22,7 +22,6 @@ object LockImpl {
   def acquire[T](cb: => T): T = macro Macro.noOperation[T]
 }
 
-
 /**
  * Provided for Scala.js for source-level compatibility purposes.
  * Usage does not imply any overhead.

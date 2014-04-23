@@ -96,7 +96,7 @@ import monifu.concurrent.Scheduler
 import monifu.concurrent.schedulers._
 
 // from an ExecutionContext ...
-val s = Scheduler.concurrent(ExecutionContext.Implicits.global)
+val s = Scheduler.fromContext(ExecutionContext.Implicits.global)
 
 // or from a Java ExecutorService
 import java.util.concurrent.Executors
