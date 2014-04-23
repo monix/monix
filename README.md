@@ -29,18 +29,18 @@ The packages are published on Maven Central.
 Compiled for Scala 2.10 and Scala 2.11.0-RC4. Also cross-compiled to
 the latest Scala.js (at the moment Scala.js 0.4.2).
 
-Current stable release is: 0.5
+Current stable release is: 0.6
 
 ### For the JVM
 
 ```scala
-libraryDependencies += "org.monifu" %% "monifu-core" % "0.5"
+libraryDependencies += "org.monifu" %% "monifu-core" % "0.6"
 ```
 
 ### For targeting Javascript runtimes with Scala.js
 
 ```scala
-libraryDependencies += "org.monifu" %% "monifu-core-js" % "0.5"
+libraryDependencies += "org.monifu" %% "monifu-core-js" % "0.6"
 ```
 
 ## License
