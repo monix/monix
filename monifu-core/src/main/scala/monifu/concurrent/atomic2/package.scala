@@ -1,7 +1,3 @@
-package monifu.concurrent
-
-import java.util.concurrent.TimeoutException
-
 /**
  * A small toolkit of classes that support compare-and-swap semantics for safe mutation of variables.
  *
@@ -38,14 +34,18 @@ import java.util.concurrent.TimeoutException
  * A high-level documentation describing the rationale for these can be found here:
  * [[https://github.com/alexandru/monifu/blob/master/docs/atomic.md Atomic Reference]]
  */
-package object atomic {
+package monifu.concurrent
+
+import scala.concurrent.TimeoutException
+
+package object atomic2 {
   /**
    * For private use only by the `monifu` package.
    *
    * Checks if the current thread has been interrupted, throwing
    * an `InterruptedException` in case it is.
    */
-  private[atomic] def interruptedCheck(): Unit = {
+  @inline private[atomic2] def interruptedCheck(): Unit = {
     if (Thread.interrupted)
       throw new InterruptedException()
   }
@@ -55,7 +55,7 @@ package object atomic {
    *
    * Checks if the timeout is due, throwing a `TimeoutException` in case it is.
    */
-  private[atomic] def timeoutCheck(endsAtNanos: Long): Unit = {
+  @inline private[atomic2] def timeoutCheck(endsAtNanos: Long): Unit = {
     if (System.nanoTime >= endsAtNanos)
       throw new TimeoutException()
   }

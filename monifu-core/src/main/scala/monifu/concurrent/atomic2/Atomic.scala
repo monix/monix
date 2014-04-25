@@ -1,13 +1,12 @@
-package monifu.concurrent.atomic
+package monifu.concurrent.atomic2
 
-import scala.annotation.tailrec
-import java.util.concurrent.TimeoutException
+import scala.concurrent.TimeoutException
 import scala.concurrent.duration.FiniteDuration
 
 /**
  * Base trait of all atomic references, no matter the type.
  */
-trait Atomic[@specialized T] {
+trait Atomic[T] extends Any {
   /**
    * @return the current value persisted by this Atomic
    */
@@ -16,7 +15,7 @@ trait Atomic[@specialized T] {
   /**
    * @return the current value persisted by this Atomic, an alias for `get()`
    */
-  @inline final def apply(): T = get
+  def apply(): T = get
 
   /**
    * Updates the current value.
@@ -28,13 +27,13 @@ trait Atomic[@specialized T] {
    * Alias for `set()`. Updates the current value.
    * @param value will be the new value returned by `get()`
    */
-  final def update(value: T): Unit = set(value)
+  def update(value: T): Unit
 
   /**
    * Alias for `set()`. Updates the current value.
    * @param value will be the new value returned by `get()`
    */
-  final def `:=`(value: T): Unit = set(value)
+  def `:=`(value: T): Unit
 
   /**
    * Does a compare-and-set operation on the current value. For more info, checkout the related
@@ -49,19 +48,16 @@ trait Atomic[@specialized T] {
   def compareAndSet(expect: T, update: T): Boolean
 
   /**
-   * Does a compare-and-set operation on the current value, with the difference that
-   * the equality check is not reference equality.
-   */
-  def compareNaturalAndSet(expect: T, update: T): Boolean = {
-    val current = get
-    current == expect && compareAndSet(current, update)
-  }
-
-  /**
    * Sets the persisted value to `update` and returns the old value that was in place.
    * It's an atomic, worry free operation.
    */
   def getAndSet(update: T): T
+
+  /**
+   * Eventually sets to the given value. Has weaker visibility guarantees than the normal `set()`
+   * and is thus less useful.
+   */
+  def lazySet(update: T): Unit
 
   /**
    * Abstracts over `compareAndSet`. You specify a transformation by specifying a callback to be
@@ -75,15 +71,7 @@ trait Atomic[@specialized T] {
    *           the update + what should this method return when the operation succeeds.
    * @return whatever was specified by your callback, once the operation succeeds
    */
-  @tailrec
-  final def transformAndExtract[U](cb: (T) => (U, T)): U = {
-    val current = get
-    val (extract, update) = cb(current)
-    if (!compareAndSet(current, update))
-      transformAndExtract(cb)
-    else
-      extract
-  }
+  def transformAndExtract[U](cb: (T) => (T, U)): U
 
   /**
    * Abstracts over `compareAndSet`. You specify a transformation by specifying a callback to be
@@ -97,15 +85,7 @@ trait Atomic[@specialized T] {
    *           new value that should be persisted
    * @return whatever the update is, after the operation succeeds
    */
-  @tailrec
-  final def transformAndGet(cb: (T) => T): T = {
-    val current = get
-    val update = cb(current)
-    if (!compareAndSet(current, update))
-      transformAndGet(cb)
-    else
-      update
-  }
+  def transformAndGet(cb: (T) => T): T
 
   /**
    * Abstracts over `compareAndSet`. You specify a transformation by specifying a callback to be
@@ -119,15 +99,7 @@ trait Atomic[@specialized T] {
    *           new value that should be persisted
    * @return the old value, just prior to when the successful update happened
    */
-  @tailrec
-  final def getAndTransform(cb: (T) => T): T = {
-    val current = get
-    val update = cb(current)
-    if (!compareAndSet(current, update))
-      getAndTransform(cb)
-    else
-      current
-  }
+  def getAndTransform(cb: (T) => T): T
 
   /**
    * Abstracts over `compareAndSet`. You specify a transformation by specifying a callback to be
@@ -140,26 +112,15 @@ trait Atomic[@specialized T] {
    * @param cb is a callback that receives the current value as input and returns the `update` which is the
    *           new value that should be persisted
    */
-  @tailrec
-  final def transform(cb: (T) => T): Unit = {
-    val current = get
-    val update = cb(current)
-    if (!compareAndSet(current, update))
-      transform(cb)
-  }
+  def transform(cb: (T) => T): Unit
 
   /**
    * Waits until the `compareAndSet` operation succeeds, e.g...
    * 1. until the old value == expected and the operation succeeds, or
    * 2. until the current thread is interrupted
    */
-  @tailrec
   @throws(classOf[InterruptedException])
-  final def waitForCompareAndSet(expect: T, update: T): Unit =
-    if (!compareAndSet(expect, update)) {
-      interruptedCheck()
-      waitForCompareAndSet(expect, update)
-    }
+  def waitForCompareAndSet(expect: T, update: T): Unit
 
   /**
    * Waits until the `compareAndSet` operation succeeds, e.g...
@@ -175,18 +136,8 @@ trait Atomic[@specialized T] {
    * @return true if the operation succeeded or false in case it failed after
    *         it retried for `maxRetries` times
    */
-  @tailrec
   @throws(classOf[InterruptedException])
-  final def waitForCompareAndSet(expect: T, update: T, maxRetries: Int): Boolean =
-    if (!compareAndSet(expect, update))
-      if (maxRetries > 0) {
-        interruptedCheck()
-        waitForCompareAndSet(expect, update, maxRetries - 1)
-      }
-      else
-        false
-    else
-      true
+  def waitForCompareAndSet(expect: T, update: T, maxRetries: Int): Boolean
 
   /**
    * Waits until the `compareAndSet` operation succeeds, e.g...
@@ -201,35 +152,21 @@ trait Atomic[@specialized T] {
    */
   @throws(classOf[InterruptedException])
   @throws(classOf[TimeoutException])
-  final def waitForCompareAndSet(expect: T, update: T, waitAtMost: FiniteDuration): Unit = {
-    val waitUntil = System.nanoTime + waitAtMost.toNanos
-    waitForCompareAndSet(expect, update, waitUntil)
-  }
+  def waitForCompareAndSet(expect: T, update: T, waitAtMost: FiniteDuration): Unit
 
   /**
    * For private use only within `monifu`.
    */
-  @tailrec
   @throws(classOf[InterruptedException])
   @throws(classOf[TimeoutException])
-  private[monifu] final def waitForCompareAndSet(expect: T, update: T, waitUntil: Long): Unit =
-    if (!compareAndSet(expect, update)) {
-      interruptedCheck()
-      timeoutCheck(waitUntil)
-      waitForCompareAndSet(expect, update, waitUntil)
-    }
+  private[monifu] def waitForCompareAndSet(expect: T, update: T, waitUntil: Long): Unit
 
   /**
    * Waits until the specified `expect` value == the value stored by this Atomic reference
    * or until the current thread gets interrupted.
    */
-  @tailrec
   @throws(classOf[InterruptedException])
-  final def waitForValue(expect: T): Unit =
-    if (get != expect) {
-      interruptedCheck()
-      waitForValue(expect)
-    }
+  def waitForValue(expect: T): Unit
 
   /**
    * Waits until the specified `expect` value == the value stored by this Atomic reference
@@ -242,34 +179,20 @@ trait Atomic[@specialized T] {
    */
   @throws(classOf[InterruptedException])
   @throws(classOf[TimeoutException])
-  final def waitForValue(expect: T, waitAtMost: FiniteDuration): Unit = {
-    val waitUntil = System.nanoTime + waitAtMost.toNanos
-    waitForValue(expect, waitUntil)
-  }
+  def waitForValue(expect: T, waitAtMost: FiniteDuration): Unit
 
   /**
    * For private use only within the `monifu` package.
    */
-  @tailrec
   @throws(classOf[InterruptedException])
   @throws(classOf[TimeoutException])
-  private[monifu] final def waitForValue(expect: T, waitUntil: Long): Unit =
-    if (get != expect) {
-      interruptedCheck()
-      timeoutCheck(waitUntil)
-      waitForValue(expect, waitUntil)
-    }
+  private[monifu] def waitForValue(expect: T, waitUntil: Long): Unit
 
   /**
    * Waits until the specified callback, that receives the current value, returns `true`.
    */
-  @tailrec
   @throws(classOf[InterruptedException])
-  final def waitForCondition(p: T => Boolean): Unit =
-    if (!p(get)) {
-      interruptedCheck()
-      waitForCondition(p)
-    }
+  def waitForCondition(p: T => Boolean): Unit
 
   /**
    * Waits until the specified callback, that receives the current value, returns `true`.
@@ -277,97 +200,13 @@ trait Atomic[@specialized T] {
    */
   @throws(classOf[InterruptedException])
   @throws(classOf[TimeoutException])
-  final def waitForCondition(waitAtMost: FiniteDuration)(p: T => Boolean): Unit = {
-    val waitUntil = System.nanoTime + waitAtMost.toNanos
-    waitForCondition(waitUntil)(p)
-  }
+  def waitForCondition(waitAtMost: FiniteDuration, p: T => Boolean): Unit
 
   /**
    * For private use only by the `monifu` package.
    */
-  @tailrec
   @throws(classOf[InterruptedException])
   @throws(classOf[TimeoutException])
-  private[monifu] final def waitForCondition(waitUntil: Long)(p: T => Boolean): Unit =
-    if (!p(get)) {
-      interruptedCheck()
-      timeoutCheck(waitUntil)
-      waitForCondition(waitUntil)(p)
-    }
-
-  /**
-   * Atomically sets the value to the given updated value if the current value == the expected value.
-   *
-   * May fail spuriously and does not provide ordering guarantees, so is only rarely an appropriate
-   * alternative to compareAndSet.
-   *
-   * @param expect is the previous value
-   * @param update is the new value
-   * @return true if the operation succeeded or false otherwise
-   */
-  def weakCompareAndSet(expect: T, update: T): Boolean
-
-  /**
-   * Eventually sets to the given value. Has weaker visibility guarantees than the normal `set()`
-   * and is thus less useful.
-   */
-  def lazySet(update: T): Unit
-
-  @tailrec
-  final def weakTransformAndExtract[U](cb: (T) => (T, U)): U = {
-    val current = get
-    val (update, extract) = cb(current)
-    if (!weakCompareAndSet(current, update))
-      weakTransformAndExtract(cb)
-    else
-      extract
-  }
-
-  @tailrec
-  final def weakTransformAndGet(cb: (T) => T): T = {
-    val current = get
-    val update = cb(current)
-    if (!weakCompareAndSet(current, update))
-      weakTransformAndGet(cb)
-    else
-      update
-  }
-
-  @tailrec
-  final def weakGetAndTransform(cb: (T) => T): T = {
-    val current = get
-    val update = cb(current)
-    if (!weakCompareAndSet(current, update))
-      weakGetAndTransform(cb)
-    else
-      current
-  }
-
-  @tailrec
-  final def weakTransform(cb: (T) => T): Unit = {
-    val current = get
-    val update = cb(current)
-    if (!compareAndSet(current, update))
-      weakTransform(cb)
-  }
+  private[monifu] def waitForCondition(waitUntil: Long, p: T => Boolean): Unit
 }
 
-object Atomic {
-  /**
-   * Constructs an `Atomic[T]` reference. Based on the `initialValue`, it will return the best, most specific
-   * type. E.g. you give it a number, it will return something inheriting from `AtomicNumber[T]`. That's why
-   * it takes an `AtomicBuilder[T, R]` as an implicit parameter - but worry not about such details as it just works.
-   *
-   * @param initialValue is the initial value with which to initialize the Atomic reference
-   * @param builder is the builder that helps us to build the best reference possible, based on our `initialValue`
-   */
-  def apply[T, R <: Atomic[T]](initialValue: T)(implicit builder: AtomicBuilder[T, R]): R =
-    builder.buildInstance(initialValue)
-
-  /**
-   * Returns the builder that would be chosen to construct Atomic references
-   * for the given `initialValue`.
-   */
-  def builderFor[T, R <: Atomic[T]](initialValue: T)(implicit builder: AtomicBuilder[T, R]): AtomicBuilder[T, R] =
-    builder
-}

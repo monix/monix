@@ -1,0 +1,251 @@
+package monifu.concurrent.atomic2
+
+import monifu.misc.Unsafe
+import scala.annotation.tailrec
+import scala.concurrent.TimeoutException
+import scala.concurrent.duration.FiniteDuration
+
+
+final class AtomicInt private (initialValue: Int) extends AtomicNumber[Int] {
+  @volatile private[this] var value = initialValue
+  private[this] val offset = AtomicInt.addressOffset
+
+  @inline def get: Int = value
+
+  @inline def set(update: Int): Unit = {
+    value = update
+  }
+
+  def update(value: Int): Unit = set(value)
+  def `:=`(value: Int): Unit = set(value)
+
+  @inline def compareAndSet(expect: Int, update: Int): Boolean = {
+    val current = value
+    current == expect && Unsafe.compareAndSwapInt(this, offset, current, update)
+  }
+
+  @tailrec
+  def getAndSet(update: Int): Int = {
+    val current = value
+    if (Unsafe.compareAndSwapInt(this, offset, current, update))
+      current
+    else
+      getAndSet(update)
+  }
+
+  @inline def lazySet(update: Int): Unit = {
+    Unsafe.putOrderedInt(this, offset, update)
+  }
+
+  @tailrec
+  def transformAndExtract[U](cb: (Int) => (Int, U)): U = {
+    val current = get
+    val (update, extract) = cb(current)
+    if (!compareAndSet(current, update))
+      transformAndExtract(cb)
+    else
+      extract
+  }
+
+  @tailrec
+  def transformAndGet(cb: (Int) => Int): Int = {
+    val current = get
+    val update = cb(current)
+    if (!compareAndSet(current, update))
+      transformAndGet(cb)
+    else
+      update
+  }
+
+  @tailrec
+  def getAndTransform(cb: (Int) => Int): Int = {
+    val current = get
+    val update = cb(current)
+    if (!compareAndSet(current, update))
+      getAndTransform(cb)
+    else
+      current
+  }
+
+  @tailrec
+  def transform(cb: (Int) => Int): Unit = {
+    val current = get
+    val update = cb(current)
+    if (!compareAndSet(current, update))
+      transform(cb)
+  }
+
+  @tailrec
+  @throws(classOf[InterruptedException])
+  def waitForCompareAndSet(expect: Int, update: Int): Unit =
+    if (!compareAndSet(expect, update)) {
+      interruptedCheck()
+      waitForCompareAndSet(expect, update)
+    }
+
+  @tailrec
+  @throws(classOf[InterruptedException])
+  def waitForCompareAndSet(expect: Int, update: Int, maxRetries: Int): Boolean =
+    if (!compareAndSet(expect, update))
+      if (maxRetries > 0) {
+        interruptedCheck()
+        waitForCompareAndSet(expect, update, maxRetries - 1)
+      }
+      else
+        false
+    else
+      true
+
+  @throws(classOf[InterruptedException])
+  @throws(classOf[TimeoutException])
+  def waitForCompareAndSet(expect: Int, update: Int, waitAtMost: FiniteDuration): Unit = {
+    val waitUntil = System.nanoTime + waitAtMost.toNanos
+    waitForCompareAndSet(expect, update, waitUntil)
+  }
+
+  @tailrec
+  @throws(classOf[InterruptedException])
+  @throws(classOf[TimeoutException])
+  private[monifu] def waitForCompareAndSet(expect: Int, update: Int, waitUntil: Long): Unit =
+    if (!compareAndSet(expect, update)) {
+      interruptedCheck()
+      timeoutCheck(waitUntil)
+      waitForCompareAndSet(expect, update, waitUntil)
+    }
+
+  @tailrec
+  @throws(classOf[InterruptedException])
+  def waitForValue(expect: Int): Unit =
+    if (get != expect) {
+      interruptedCheck()
+      waitForValue(expect)
+    }
+
+  @throws(classOf[InterruptedException])
+  @throws(classOf[TimeoutException])
+  def waitForValue(expect: Int, waitAtMost: FiniteDuration): Unit = {
+    val waitUntil = System.nanoTime + waitAtMost.toNanos
+    waitForValue(expect, waitUntil)
+  }
+
+  @tailrec
+  @throws(classOf[InterruptedException])
+  @throws(classOf[TimeoutException])
+  private[monifu] def waitForValue(expect: Int, waitUntil: Long): Unit =
+    if (get != expect) {
+      interruptedCheck()
+      timeoutCheck(waitUntil)
+      waitForValue(expect, waitUntil)
+    }
+
+  @tailrec
+  @throws(classOf[InterruptedException])
+  def waitForCondition(p: Int => Boolean): Unit =
+    if (!p(get)) {
+      interruptedCheck()
+      waitForCondition(p)
+    }
+
+  @throws(classOf[InterruptedException])
+  @throws(classOf[TimeoutException])
+  def waitForCondition(waitAtMost: FiniteDuration, p: Int => Boolean): Unit = {
+    val waitUntil = System.nanoTime + waitAtMost.toNanos
+    waitForCondition(waitUntil, p)
+  }
+
+  @tailrec
+  @throws(classOf[InterruptedException])
+  @throws(classOf[TimeoutException])
+  private[monifu] def waitForCondition(waitUntil: Long, p: Int => Boolean): Unit =
+    if (!p(get)) {
+      interruptedCheck()
+      timeoutCheck(waitUntil)
+      waitForCondition(waitUntil, p)
+    }
+
+  @tailrec
+  def increment(v: Int): Unit = {
+    val current = value
+    if (!compareAndSet(current, current+v))
+      increment(v)
+  }
+
+  @tailrec
+  def incrementAndGet(v: Int): Int = {
+    val current = value
+    val update = current + v
+    if (!compareAndSet(current, update))
+      incrementAndGet(v)
+    else
+      update
+  }
+
+  @tailrec
+  def getAndIncrement(v: Int): Int = {
+    val current = value
+    val update = current + v
+    if (!compareAndSet(current, update))
+      getAndIncrement(v)
+    else
+      current
+  }
+
+  @tailrec
+  def getAndAdd(v: Int): Int = {
+    val current = value
+    val update = current + v
+    if (!compareAndSet(current, update))
+      getAndAdd(v)
+    else
+      current
+  }
+
+  @tailrec
+  def addAndGet(v: Int): Int = {
+    val current = value
+    val update = current + v
+    if (!compareAndSet(current, update))
+      addAndGet(v)
+    else
+      update
+  }
+
+  @tailrec
+  def add(v: Int): Unit = {
+    val current = value
+    val update = current + v
+    if (!compareAndSet(current, update))
+      add(v)
+  }
+
+  def subtract(v: Int): Unit =
+    add(-v)
+
+  def getAndSubtract(v: Int): Int =
+    getAndAdd(-v)
+
+  def subtractAndGet(v: Int): Int =
+    addAndGet(-v)
+
+  def increment(): Unit = increment(1)
+  def decrement(v: Int): Unit = increment(-v)
+  def decrement(): Unit = increment(-1)
+  def incrementAndGet(): Int = incrementAndGet(1)
+  def decrementAndGet(v: Int): Int = incrementAndGet(-v)
+  def decrementAndGet(): Int = incrementAndGet(-1)
+  def getAndIncrement(): Int = getAndIncrement(1)
+  def getAndDecrement(): Int = getAndIncrement(-1)
+  def getAndDecrement(v: Int): Int = getAndIncrement(-v)
+  def `+=`(v: Int): Unit = addAndGet(v)
+  def `-=`(v: Int): Unit = subtractAndGet(v)
+
+  override def toString: String = s"AtomicInt($value)"
+}
+
+object AtomicInt {
+  def apply(initialValue: Int): AtomicInt =
+    new AtomicInt(initialValue)
+
+  private val addressOffset =
+    Unsafe.objectFieldOffset(classOf[AtomicInt].getFields.find(_.getName.endsWith("value")).get)
+}
