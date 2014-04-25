@@ -124,7 +124,7 @@ class AtomicAnyTest extends FunSpec {
 
       val value = r.transformAndExtract { s =>
         val newS = "updated" + s.dropWhile(_ != ' ')
-        (newS, "extracted")
+        ("extracted", newS)
       }
 
       assert(value === "extracted")
