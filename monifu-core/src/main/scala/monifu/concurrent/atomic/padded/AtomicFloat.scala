@@ -9,7 +9,7 @@ import monifu.syntax.TypeSafeEquals
 import monifu.concurrent.atomic.{AtomicNumber, BlockableAtomic, interruptedCheck, timeoutCheck}
 
 final class AtomicFloat private (initialValue: Float)
-  extends AtomicNumber[Float] with BlockableAtomic[Float] {
+  extends Atomic[Float] with AtomicNumber[Float] with BlockableAtomic[Float] {
 
   private[this] val offset = AtomicFloat.addressOffset
 

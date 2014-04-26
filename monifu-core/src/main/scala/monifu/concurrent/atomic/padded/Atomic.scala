@@ -1,12 +1,10 @@
-package monifu.concurrent.atomic
+package monifu.concurrent.atomic.padded
 
-/**
- * Atomic classes that are cache-padded for reducing cache contention,
- * until JEP 142 and `@Contended` happens. See:
- *
- * http://mail.openjdk.java.net/pipermail/hotspot-dev/2012-November/007309.html
- */
-package object padded {
+import monifu.concurrent.atomic.AtomicBuilder
+
+trait Atomic[T] extends monifu.concurrent.atomic.Atomic[T]
+
+object Atomic {
   /**
    * Constructs an `Atomic[T]` reference. Based on the `initialValue`, it will return the best, most specific
    * type. E.g. you give it a number, it will return something inheriting from `AtomicNumber[T]`. That's why
@@ -15,6 +13,13 @@ package object padded {
    * @param initialValue is the initial value with which to initialize the Atomic reference
    * @param builder is the builder that helps us to build the best reference possible, based on our `initialValue`
    */
-  def apply[T, R <: Atomic[T]](initialValue: T)(implicit builder: PaddedAtomicBuilder[T, R]): R =
+  def apply[T, R <: Atomic[T]](initialValue: T)(implicit builder: AtomicBuilder[T, R]): R =
     builder.buildInstance(initialValue)
+
+  /**
+   * Returns the builder that would be chosen to construct Atomic references
+   * for the given `initialValue`.
+   */
+  def builderFor[T, R <: Atomic[T]](initialValue: T)(implicit builder: PaddedAtomicBuilder[T, R]): PaddedAtomicBuilder[T, R] =
+    builder
 }

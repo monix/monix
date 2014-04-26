@@ -10,7 +10,7 @@ import monifu.concurrent.atomic.{AtomicNumber, BlockableAtomic, interruptedCheck
 
 
 final class AtomicDouble private (initialValue: Double)
-  extends AtomicNumber[Double] with BlockableAtomic[Double] {
+  extends Atomic[Double] with AtomicNumber[Double] with BlockableAtomic[Double] {
 
   private[this] val offset = AtomicDouble.addressOffset
 

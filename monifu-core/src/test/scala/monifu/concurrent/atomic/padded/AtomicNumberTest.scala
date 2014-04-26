@@ -1,6 +1,6 @@
 package monifu.concurrent.atomic.padded
 
-import monifu.concurrent.atomic.{Atomic, AtomicNumberTest}
+import monifu.concurrent.atomic.AtomicNumberTest
 
 class PaddedAtomicDoubleTest extends AtomicNumberTest[Double, AtomicDouble](
   "PaddedAtomicDouble", Atomic.builderFor(0.0), 17.23, Some(Double.NaN), Double.MaxValue, Double.MinValue) {

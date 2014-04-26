@@ -8,7 +8,7 @@ import monifu.syntax.TypeSafeEquals
 import monifu.concurrent.atomic.BlockableAtomic
 import monifu.concurrent.atomic.{interruptedCheck, timeoutCheck}
 
-final class AtomicBoolean private (initialValue: Boolean) extends BlockableAtomic[Boolean] {
+final class AtomicBoolean private (initialValue: Boolean) extends Atomic[Boolean] with BlockableAtomic[Boolean] {
 
   @volatile private[this] var p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16 = 10L
   @volatile private[this] var value: Int = if (initialValue) 1 else 0

@@ -8,7 +8,7 @@ import monifu.concurrent.atomic.AtomicNumber
 import monifu.concurrent.atomic.BlockableAtomic
 import monifu.concurrent.atomic.{interruptedCheck, timeoutCheck}
 
-final class AtomicNumberAny[T : Numeric] private (initialValue: T) extends AtomicNumber[T] with BlockableAtomic[T] {
+final class AtomicNumberAny[T : Numeric] private (initialValue: T) extends Atomic[T] with AtomicNumber[T] with BlockableAtomic[T] {
   @volatile private[this] var p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16 = 10L
   @volatile private[this] var value = initialValue
   @volatile private[this] var s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s16 = 10L
