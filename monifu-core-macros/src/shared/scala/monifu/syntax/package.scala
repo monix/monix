@@ -9,7 +9,8 @@ package object syntax {
    * implemented with macros for efficiency reasons.
    */
   implicit class TypeSafeEquals[T](val self: T) extends AnyVal {
-    def ===[U](other: T): Boolean = macro TypeSafeEquals.equalsImpl[T]
+    def ===(other: T): Boolean = macro TypeSafeEquals.equalsImpl[T]
+
     def ≟(other: T): Boolean = macro TypeSafeEquals.equalsImpl[T]
   }
 
