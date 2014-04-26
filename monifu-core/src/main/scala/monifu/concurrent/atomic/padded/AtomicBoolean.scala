@@ -4,7 +4,6 @@ import monifu.misc.Unsafe
 import scala.annotation.tailrec
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration.FiniteDuration
-import monifu.syntax.TypeSafeEquals
 import monifu.concurrent.atomic.BlockableAtomic
 import monifu.concurrent.atomic.{interruptedCheck, timeoutCheck}
 
@@ -16,7 +15,7 @@ final class AtomicBoolean private (initialValue: Boolean) extends Atomic[Boolean
 
   private[this] val offset = AtomicBoolean.addressOffset
 
-  @inline def get: Boolean = value === 1
+  @inline def get: Boolean = value == 1
 
   @inline def set(update: Boolean): Unit = {
     value = if (update) 1 else 0
@@ -168,7 +167,7 @@ final class AtomicBoolean private (initialValue: Boolean) extends Atomic[Boolean
       waitForCondition(waitUntil, p)
     }
 
-  override def toString: String = s"AtomicBoolean(${value === 1})"
+  override def toString: String = s"AtomicBoolean(${value == 1})"
 }
 
 object AtomicBoolean {

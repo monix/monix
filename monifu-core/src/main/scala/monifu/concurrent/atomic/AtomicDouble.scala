@@ -5,7 +5,6 @@ import scala.annotation.tailrec
 import scala.concurrent._
 import scala.concurrent.duration.FiniteDuration
 import java.lang.Double.{longBitsToDouble, doubleToLongBits}
-import monifu.syntax.TypeSafeEquals
 
 
 final class AtomicDouble private (initialValue: Double)
@@ -27,7 +26,7 @@ final class AtomicDouble private (initialValue: Double)
 
   @inline def compareAndSet(expect: Double, update: Double): Boolean = {
     val current = value
-    current === doubleToLongBits(expect) && Unsafe.compareAndSwapLong(this, offset, current, doubleToLongBits(update))
+    current == doubleToLongBits(expect) && Unsafe.compareAndSwapLong(this, offset, current, doubleToLongBits(update))
   }
 
   @tailrec

@@ -5,7 +5,6 @@ import scala.annotation.tailrec
 import scala.concurrent._
 import scala.concurrent.duration.FiniteDuration
 import java.lang.Float.{intBitsToFloat, floatToIntBits}
-import monifu.syntax.TypeSafeEquals
 
 
 final class AtomicFloat private (initialValue: Float)
@@ -27,7 +26,7 @@ final class AtomicFloat private (initialValue: Float)
 
   @inline def compareAndSet(expect: Float, update: Float): Boolean = {
     val current = value
-    current === floatToIntBits(expect) && Unsafe.compareAndSwapInt(this, offset, current, floatToIntBits(update))
+    current == floatToIntBits(expect) && Unsafe.compareAndSwapInt(this, offset, current, floatToIntBits(update))
   }
 
   @tailrec

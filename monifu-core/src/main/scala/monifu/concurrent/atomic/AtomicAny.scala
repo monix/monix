@@ -4,7 +4,7 @@ import monifu.misc.Unsafe
 import scala.annotation.tailrec
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration.FiniteDuration
-import monifu.syntax.TypeSafeEquals
+
 
 final class AtomicAny[T] private (initialValue: T) extends BlockableAtomic[T] {
   @volatile private[this] var ref = initialValue
@@ -21,7 +21,7 @@ final class AtomicAny[T] private (initialValue: T) extends BlockableAtomic[T] {
 
   @inline def compareAndSet(expect: T, update: T): Boolean = {
     val current = ref
-    current === expect && Unsafe.compareAndSwapObject(this, offset, current.asInstanceOf[AnyRef], update.asInstanceOf[AnyRef])
+    current == expect && Unsafe.compareAndSwapObject(this, offset, current.asInstanceOf[AnyRef], update.asInstanceOf[AnyRef])
   }
 
   @tailrec
