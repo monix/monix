@@ -274,17 +274,27 @@ provided implicit, but only for `AnyRef` types, such as BigInt and
 BigDecimal. For Scala's primitives the logic has been optimized to bypass
 `Numeric[T]`.
 
+### Code duplication
+
 All classes are final, to avoid the resolution overhead of virtual methods. The 
-[AtomicBuilder](monifu-core/src/shared/scala/monifu/concurrent/atomic/AtomicBuilder.scala) mechanism
+[AtomicBuilder](../monifu-core/src/shared/scala/monifu/concurrent/atomic/AtomicBuilder.scala) mechanism
 for constructing references, means that you can let the compiler infer the most efficient atomic reference type
 for the values you want, also avoiding the overhead associated with polymorphism.
+
+In order to avoid overhead, there's a lot of code-duplication going on, therefore the code itself is not very DRY. Thankfully [we can test it in bulk](../monifu-core/src/test/scala/monifu/concurrent/atomic/), thanks to the shared interfaces.
 
 ### Cache-padded versions for avoiding the false sharing problem
 
 In order to reduce cache contention, cache-padded versions for all Atomic classes are provided in the
-[monifu.concurrent.atomic.padded](monifu-core/src/shared/scala/monifu/concurrent/atomic/padded/) package.
+[monifu.concurrent.atomic.padded](../monifu-core/src/shared/scala/monifu/concurrent/atomic/padded/) package.
 
 For reference on what that means, see:
 
 - http://mail.openjdk.java.net/pipermail/hotspot-dev/2012-November/007309.html
 - http://openjdk.java.net/jeps/142
+
+### sun.misc.Unsafe
+
+Atomic references in `java.util.concurrent.atomic` are actually built on top of functionality provided by `sun.misc.Unsafe`. This package is not part of the public API of Java SE.
+
+In light of the cache-padded versions, the implementations of Monifu's Atomic references has switched from boxing Java's atomic reference classes to using `sun.misc.Unsafe` directly. A helper is now provided in [monifu.misc.Unsafe](../monifu-core/src/main/scala/monifu/misc/Unsafe.scala) to access that functionality (normally you can't instantiate `sun.misc.Directly`). `monifu.misc.Unsafe` should be compatible with Android too. As a result, Monifu's implementation should have no overhead over Java's implementations.
