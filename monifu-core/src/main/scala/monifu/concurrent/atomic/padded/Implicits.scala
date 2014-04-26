@@ -1,10 +1,8 @@
-package monifu.concurrent.atomic
+package monifu.concurrent.atomic.padded
 
-trait AtomicBuilder[T, R <: Atomic[T]] {
-  def buildInstance(initialValue: T): R
-}
+import monifu.concurrent.atomic.AtomicBuilder
 
-private[atomic] object Implicits {
+private[padded] object Implicits {
   trait Level1 {
     implicit def AtomicRefBuilder[T] = new AtomicBuilder[T, AtomicAny[T]] {
       def buildInstance(initialValue: T) =
@@ -70,5 +68,3 @@ private[atomic] object Implicits {
       }
   }
 }
-
-object AtomicBuilder extends Implicits.Level3

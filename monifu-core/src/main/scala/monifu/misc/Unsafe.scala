@@ -2,6 +2,7 @@ package monifu.misc
 
 import language.experimental.macros
 import java.lang.reflect.Modifier
+import scala.util.control.NonFatal
 
 /**
  * The quasi-standard way for Java code to gain access to and use functionality
@@ -207,9 +208,19 @@ object Unsafe {
   def putObjectVolatile(obj: AnyRef, offset: Long, update: AnyRef): Unit =
     instance.putObjectVolatile(obj, offset, update)
 
-  private[this] val instance: sun.misc.Unsafe = {
-    val f = classOf[sun.misc.Unsafe].getDeclaredConstructor()
-    f.setAccessible(true)
-    f.newInstance()
-  }
+  private[this] val instance: sun.misc.Unsafe =
+    try {
+      val field = classOf[sun.misc.Unsafe].getDeclaredField("theUnsafe")
+      field.setAccessible(true)
+      field.get(null).asInstanceOf[sun.misc.Unsafe]
+    }
+    catch {
+      case NonFatal(ex) =>
+        // the above does not work on Android, so trying to instantiate
+        // a new instance
+        val constructor = classOf[sun.misc.Unsafe].getDeclaredConstructor()
+        constructor.setAccessible(true)
+        constructor.newInstance()
+    }
+
 }

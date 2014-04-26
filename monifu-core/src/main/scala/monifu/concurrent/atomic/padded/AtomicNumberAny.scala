@@ -1,13 +1,18 @@
-package monifu.concurrent.atomic2
+package monifu.concurrent.atomic.padded
 
 import monifu.misc.Unsafe
 import scala.annotation.tailrec
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration.FiniteDuration
+import monifu.concurrent.atomic.AtomicNumber
+import monifu.concurrent.atomic.BlockableAtomic
+import monifu.concurrent.atomic.{interruptedCheck, timeoutCheck}
 
-
-final class AtomicNumberAny[T : Numeric] private (initialValue: T) extends AtomicNumber[T] {
+final class AtomicNumberAny[T : Numeric] private (initialValue: T) extends AtomicNumber[T] with BlockableAtomic[T] {
+  @volatile private[this] var p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16 = 10L
   @volatile private[this] var value = initialValue
+  @volatile private[this] var s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s16 = 10L
+
   private[this] val offset = AtomicNumberAny.addressOffset
   private[this] val ev = implicitly[Numeric[T]]
 
@@ -39,9 +44,9 @@ final class AtomicNumberAny[T : Numeric] private (initialValue: T) extends Atomi
   }
 
   @tailrec
-  def transformAndExtract[U](cb: (T) => (T, U)): U = {
+  def transformAndExtract[U](cb: (T) => (U, T)): U = {
     val current = get
-    val (update, extract) = cb(current)
+    val (extract, update) = cb(current)
     if (!compareAndSet(current, update))
       transformAndExtract(cb)
     else
@@ -165,14 +170,14 @@ final class AtomicNumberAny[T : Numeric] private (initialValue: T) extends Atomi
     }
 
   @tailrec
-  def increment(v: Int): Unit = {
+  def increment(v: Int = 1): Unit = {
     val current = value
     if (!compareAndSet(current, ev.plus(current, ev.fromInt(v))))
       increment(v)
   }
 
   @tailrec
-  def incrementAndGet(v: Int): T = {
+  def incrementAndGet(v: Int = 1): T = {
     val current = value
     val update = ev.plus(current, ev.fromInt(v))
     if (!compareAndSet(current, update))
@@ -182,7 +187,7 @@ final class AtomicNumberAny[T : Numeric] private (initialValue: T) extends Atomi
   }
 
   @tailrec
-  def getAndIncrement(v: Int): T = {
+  def getAndIncrement(v: Int = 1): T = {
     val current = value
     val update = ev.plus(current, ev.fromInt(v))
     if (!compareAndSet(current, update))
@@ -247,15 +252,9 @@ final class AtomicNumberAny[T : Numeric] private (initialValue: T) extends Atomi
       update
   }
 
-  def increment(): Unit = increment(1)
-  def decrement(v: Int): Unit = increment(-v)
-  def decrement(): Unit = increment(-1)
-  def incrementAndGet(): T = incrementAndGet(1)
-  def decrementAndGet(v: Int): T = incrementAndGet(-v)
-  def decrementAndGet(): T = incrementAndGet(-1)
-  def getAndIncrement(): T = getAndIncrement(1)
-  def getAndDecrement(): T = getAndIncrement(-1)
-  def getAndDecrement(v: Int): T = getAndIncrement(-v)
+  def decrement(v: Int = 1): Unit = increment(-v)
+  def decrementAndGet(v: Int = 1): T = incrementAndGet(-v)
+  def getAndDecrement(v: Int = 1): T = getAndIncrement(-v)
   def `+=`(v: T): Unit = addAndGet(v)
   def `-=`(v: T): Unit = subtractAndGet(v)
 }

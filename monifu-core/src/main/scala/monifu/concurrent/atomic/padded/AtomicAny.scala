@@ -1,45 +1,52 @@
-package monifu.concurrent.atomic2
+package monifu.concurrent.atomic.padded
 
 import monifu.misc.Unsafe
 import scala.annotation.tailrec
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration.FiniteDuration
+import monifu.syntax.TypeSafeEquals
+import monifu.concurrent.atomic.BlockableAtomic
+import monifu.concurrent.atomic.{interruptedCheck, timeoutCheck}
 
+final class AtomicAny[T] private (initialValue: T) extends BlockableAtomic[T] {
 
-final class AtomicBoolean private (initialValue: Boolean) extends Atomic[Boolean] {
-  @volatile private[this] var value: Int = if (initialValue) 1 else 0
-  private[this] val offset = AtomicBoolean.addressOffset
+  @volatile private[this] var p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16 = 10L
+  @volatile private[this] var ref = initialValue
+  @volatile private[this] var s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s16 = 10L
 
-  @inline def get: Boolean = value == 1
+  private[this] val offset = AtomicAny.addressOffset
 
-  @inline def set(update: Boolean): Unit = {
-    value = if (update) 1 else 0
+  @inline def get: T = ref
+
+  @inline def set(update: T): Unit = {
+    ref = update
   }
 
-  def update(value: Boolean): Unit = set(value)
-  def `:=`(value: Boolean): Unit = set(value)
+  def update(value: T): Unit = set(value)
+  def `:=`(value: T): Unit = set(value)
 
-  @inline def compareAndSet(expect: Boolean, update: Boolean): Boolean = {
-    Unsafe.compareAndSwapInt(this, offset, if (expect) 1 else 0, if (update) 1 else 0)
+  @inline def compareAndSet(expect: T, update: T): Boolean = {
+    val current = ref
+    current === expect && Unsafe.compareAndSwapObject(this, offset, current.asInstanceOf[AnyRef], update.asInstanceOf[AnyRef])
   }
 
   @tailrec
-  def getAndSet(update: Boolean): Boolean = {
-    val current = get
-    if (compareAndSet(get, update))
+  def getAndSet(update: T): T = {
+    val current = ref
+    if (Unsafe.compareAndSwapObject(this, offset, current.asInstanceOf[AnyRef], update.asInstanceOf[AnyRef]))
       current
     else
       getAndSet(update)
   }
 
-  @inline def lazySet(update: Boolean): Unit = {
-    Unsafe.putOrderedInt(this, offset, if (update) 1 else 0)
+  @inline def lazySet(update: T): Unit = {
+    Unsafe.putOrderedObject(this, offset, update.asInstanceOf[AnyRef])
   }
 
   @tailrec
-  def transformAndExtract[U](cb: (Boolean) => (Boolean, U)): U = {
+  def transformAndExtract[U](cb: (T) => (U, T)): U = {
     val current = get
-    val (update, extract) = cb(current)
+    val (extract, update) = cb(current)
     if (!compareAndSet(current, update))
       transformAndExtract(cb)
     else
@@ -47,7 +54,7 @@ final class AtomicBoolean private (initialValue: Boolean) extends Atomic[Boolean
   }
 
   @tailrec
-  def transformAndGet(cb: (Boolean) => Boolean): Boolean = {
+  def transformAndGet(cb: (T) => T): T = {
     val current = get
     val update = cb(current)
     if (!compareAndSet(current, update))
@@ -57,7 +64,7 @@ final class AtomicBoolean private (initialValue: Boolean) extends Atomic[Boolean
   }
 
   @tailrec
-  def getAndTransform(cb: (Boolean) => Boolean): Boolean = {
+  def getAndTransform(cb: (T) => T): T = {
     val current = get
     val update = cb(current)
     if (!compareAndSet(current, update))
@@ -67,7 +74,7 @@ final class AtomicBoolean private (initialValue: Boolean) extends Atomic[Boolean
   }
 
   @tailrec
-  def transform(cb: (Boolean) => Boolean): Unit = {
+  def transform(cb: (T) => T): Unit = {
     val current = get
     val update = cb(current)
     if (!compareAndSet(current, update))
@@ -76,7 +83,7 @@ final class AtomicBoolean private (initialValue: Boolean) extends Atomic[Boolean
 
   @tailrec
   @throws(classOf[InterruptedException])
-  def waitForCompareAndSet(expect: Boolean, update: Boolean): Unit =
+  def waitForCompareAndSet(expect: T, update: T): Unit =
     if (!compareAndSet(expect, update)) {
       interruptedCheck()
       waitForCompareAndSet(expect, update)
@@ -84,7 +91,7 @@ final class AtomicBoolean private (initialValue: Boolean) extends Atomic[Boolean
 
   @tailrec
   @throws(classOf[InterruptedException])
-  def waitForCompareAndSet(expect: Boolean, update: Boolean, maxRetries: Int): Boolean =
+  def waitForCompareAndSet(expect: T, update: T, maxRetries: Int): Boolean =
     if (!compareAndSet(expect, update))
       if (maxRetries > 0) {
         interruptedCheck()
@@ -97,7 +104,7 @@ final class AtomicBoolean private (initialValue: Boolean) extends Atomic[Boolean
 
   @throws(classOf[InterruptedException])
   @throws(classOf[TimeoutException])
-  def waitForCompareAndSet(expect: Boolean, update: Boolean, waitAtMost: FiniteDuration): Unit = {
+  def waitForCompareAndSet(expect: T, update: T, waitAtMost: FiniteDuration): Unit = {
     val waitUntil = System.nanoTime + waitAtMost.toNanos
     waitForCompareAndSet(expect, update, waitUntil)
   }
@@ -105,7 +112,7 @@ final class AtomicBoolean private (initialValue: Boolean) extends Atomic[Boolean
   @tailrec
   @throws(classOf[InterruptedException])
   @throws(classOf[TimeoutException])
-  private[monifu] def waitForCompareAndSet(expect: Boolean, update: Boolean, waitUntil: Long): Unit =
+  private[monifu] def waitForCompareAndSet(expect: T, update: T, waitUntil: Long): Unit =
     if (!compareAndSet(expect, update)) {
       interruptedCheck()
       timeoutCheck(waitUntil)
@@ -114,7 +121,7 @@ final class AtomicBoolean private (initialValue: Boolean) extends Atomic[Boolean
 
   @tailrec
   @throws(classOf[InterruptedException])
-  def waitForValue(expect: Boolean): Unit =
+  def waitForValue(expect: T): Unit =
     if (get != expect) {
       interruptedCheck()
       waitForValue(expect)
@@ -122,7 +129,7 @@ final class AtomicBoolean private (initialValue: Boolean) extends Atomic[Boolean
 
   @throws(classOf[InterruptedException])
   @throws(classOf[TimeoutException])
-  def waitForValue(expect: Boolean, waitAtMost: FiniteDuration): Unit = {
+  def waitForValue(expect: T, waitAtMost: FiniteDuration): Unit = {
     val waitUntil = System.nanoTime + waitAtMost.toNanos
     waitForValue(expect, waitUntil)
   }
@@ -130,7 +137,7 @@ final class AtomicBoolean private (initialValue: Boolean) extends Atomic[Boolean
   @tailrec
   @throws(classOf[InterruptedException])
   @throws(classOf[TimeoutException])
-  private[monifu] def waitForValue(expect: Boolean, waitUntil: Long): Unit =
+  private[monifu] def waitForValue(expect: T, waitUntil: Long): Unit =
     if (get != expect) {
       interruptedCheck()
       timeoutCheck(waitUntil)
@@ -139,7 +146,7 @@ final class AtomicBoolean private (initialValue: Boolean) extends Atomic[Boolean
 
   @tailrec
   @throws(classOf[InterruptedException])
-  def waitForCondition(p: Boolean => Boolean): Unit =
+  def waitForCondition(p: T => Boolean): Unit =
     if (!p(get)) {
       interruptedCheck()
       waitForCondition(p)
@@ -147,7 +154,7 @@ final class AtomicBoolean private (initialValue: Boolean) extends Atomic[Boolean
 
   @throws(classOf[InterruptedException])
   @throws(classOf[TimeoutException])
-  def waitForCondition(waitAtMost: FiniteDuration, p: Boolean => Boolean): Unit = {
+  def waitForCondition(waitAtMost: FiniteDuration, p: T => Boolean): Unit = {
     val waitUntil = System.nanoTime + waitAtMost.toNanos
     waitForCondition(waitUntil, p)
   }
@@ -155,20 +162,18 @@ final class AtomicBoolean private (initialValue: Boolean) extends Atomic[Boolean
   @tailrec
   @throws(classOf[InterruptedException])
   @throws(classOf[TimeoutException])
-  private[monifu] def waitForCondition(waitUntil: Long, p: Boolean => Boolean): Unit =
+  private[monifu] def waitForCondition(waitUntil: Long, p: T => Boolean): Unit =
     if (!p(get)) {
       interruptedCheck()
       timeoutCheck(waitUntil)
       waitForCondition(waitUntil, p)
     }
-
-  override def toString: String = s"AtomicBoolean(${value == 1})"
 }
 
-object AtomicBoolean {
-  def apply(initialValue: Boolean): AtomicBoolean =
-    new AtomicBoolean(initialValue)
+object AtomicAny {
+  def apply[T](initialValue: T): AtomicAny[T] =
+    new AtomicAny[T](initialValue)
 
   private val addressOffset =
-    Unsafe.objectFieldOffset(classOf[AtomicBoolean].getFields.find(_.getName.endsWith("value")).get)
+    Unsafe.objectFieldOffset(classOf[AtomicAny[_]].getFields.find(_.getName.endsWith("ref")).get)
 }

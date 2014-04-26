@@ -24,8 +24,8 @@ final class AtomicAny[T] private[atomic] (initialValue: T) extends Atomic[T] {
 
   def get: T = ref
 
-  def transformAndExtract[U](cb: (T) => (T, U)): U = {
-    val (update, r) = cb(ref)
+  def transformAndExtract[U](cb: (T) => (U, T)): U = {
+    val (r, update) = cb(ref)
     ref = update
     r
   }
@@ -45,6 +45,15 @@ final class AtomicAny[T] private[atomic] (initialValue: T) extends Atomic[T] {
   def transform(cb: (T) => T): Unit = {
     ref = cb(ref)
   }
+
+  @inline
+  def update(value: T): Unit = set(value)
+
+  @inline
+  def `:=`(value: T): Unit = set(value)
+
+  @inline
+  def lazySet(update: T): Unit = set(update)
 }
 
 object AtomicAny {
