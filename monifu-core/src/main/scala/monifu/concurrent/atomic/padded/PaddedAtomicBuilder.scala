@@ -2,7 +2,7 @@ package monifu.concurrent.atomic.padded
 
 import monifu.concurrent.atomic.AtomicBuilder
 
-trait PaddedAtomicBuilder[T, R <: monifu.concurrent.atomic.Atomic[T]] extends AtomicBuilder[T, R]
+trait PaddedAtomicBuilder[T, R <: Atomic[T]] extends AtomicBuilder[T, R]
 
 object PaddedAtomicBuilder extends Implicits.Level3
 

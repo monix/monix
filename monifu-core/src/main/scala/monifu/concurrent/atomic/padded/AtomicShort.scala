@@ -7,7 +7,7 @@ import scala.concurrent.duration.FiniteDuration
 import monifu.concurrent.atomic.{AtomicNumber, BlockableAtomic, interruptedCheck, timeoutCheck}
 
 final class AtomicShort private (initialValue: Short)
-  extends AtomicNumber[Short] with BlockableAtomic[Short] {
+  extends Atomic[Short] with AtomicNumber[Short] with BlockableAtomic[Short] {
 
   private[this] val mask = 255 + 255 * 256
   private[this] val offset = AtomicShort.addressOffset

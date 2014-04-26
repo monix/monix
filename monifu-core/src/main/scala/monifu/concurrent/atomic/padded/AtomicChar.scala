@@ -7,7 +7,7 @@ import scala.concurrent.duration.FiniteDuration
 import monifu.concurrent.atomic.{AtomicNumber, BlockableAtomic, interruptedCheck, timeoutCheck}
 
 final class AtomicChar private (initialValue: Char)
-  extends AtomicNumber[Char] with BlockableAtomic[Char] {
+  extends Atomic[Char] with AtomicNumber[Char] with BlockableAtomic[Char] {
 
   @volatile private[this] var p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16 = 10L
   @volatile private[this] var value: Int = initialValue
