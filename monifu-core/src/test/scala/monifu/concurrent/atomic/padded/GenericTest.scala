@@ -1,6 +1,6 @@
 package monifu.concurrent.atomic.padded
 
-import monifu.concurrent.atomic.{Atomic, GenericTest}
+import monifu.concurrent.atomic.GenericTest
 
 class GenericPaddedAtomicAnyTest extends GenericTest[String, AtomicAny[String]](
   "PaddedAtomicAny", Atomic.builderFor(""), x => x.toString, x => x.toInt)
