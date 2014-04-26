@@ -25,8 +25,17 @@ final class AtomicNumberAny[T : Numeric] private[atomic] (initialValue: T) exten
 
   def get: T = ref
 
-  def transformAndExtract[U](cb: (T) => (T, U)): U = {
-    val (update, r) = cb(ref)
+  @inline
+  def update(value: T): Unit = set(value)
+
+  @inline
+  def `:=`(value: T): Unit = set(value)
+
+  @inline
+  def lazySet(update: T): Unit = set(update)
+
+  def transformAndExtract[U](cb: (T) => (U, T)): U = {
+    val (r, update) = cb(ref)
     ref = update
     r
   }
@@ -68,17 +77,18 @@ final class AtomicNumberAny[T : Numeric] private[atomic] (initialValue: T) exten
     c
   }
 
-  def getAndIncrement(v: Int): T = {
+  def getAndIncrement(v: Int = 1): T = {
     val c = ref
     ref = ev.plus(ref, ev.fromInt(v))
     c
   }
 
   def addAndGet(v: T): T = {
-    incrementAndGet()
+    ref = ev.plus(ref, v)
+    ref
   }
 
-  def incrementAndGet(v: Int): T = {
+  def incrementAndGet(v: Int = 1): T = {
     ref = ev.plus(ref, ev.fromInt(v))
     ref
   }
@@ -87,19 +97,13 @@ final class AtomicNumberAny[T : Numeric] private[atomic] (initialValue: T) exten
     ref = ev.plus(ref, v)
   }
 
-  def increment(v: Int): Unit = {
+  def increment(v: Int = 1): Unit = {
     ref = ev.plus(ref, ev.fromInt(v))
   }
 
-  def increment(): Unit = increment(1)
-  def decrement(v: Int): Unit = increment(-v)
-  def decrement(): Unit = increment(-1)
-  def incrementAndGet(): T = incrementAndGet(1)
-  def decrementAndGet(v: Int): T = incrementAndGet(-v)
-  def decrementAndGet(): T = incrementAndGet(-1)
-  def getAndIncrement(): T = getAndIncrement(1)
-  def getAndDecrement(): T = getAndIncrement(-1)
-  def getAndDecrement(v: Int): T = getAndIncrement(-v)
+  def decrement(v: Int = 1): Unit = increment(-v)
+  def decrementAndGet(v: Int = 1): T = incrementAndGet(-v)
+  def getAndDecrement(v: Int = 1): T = getAndIncrement(-v)
   def `+=`(v: T): Unit = addAndGet(v)
   def `-=`(v: T): Unit = subtractAndGet(v)
 }

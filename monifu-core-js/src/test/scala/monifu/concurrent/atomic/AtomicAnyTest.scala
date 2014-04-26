@@ -64,7 +64,7 @@ object AtomicAnyTest extends JasmineTest {
 
       val value = r.transformAndExtract { s =>
         val newS = "updated" + s.dropWhile(_ != ' ')
-        (newS, "extracted")
+        ("extracted", newS)
       }
 
       expect(value).toBe("extracted")

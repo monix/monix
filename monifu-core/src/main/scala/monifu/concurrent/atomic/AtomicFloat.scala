@@ -1,27 +1,175 @@
 package monifu.concurrent.atomic
 
-import java.lang.Float.{intBitsToFloat, floatToIntBits}
-import java.util.concurrent.atomic.AtomicInteger
+import monifu.misc.Unsafe
 import scala.annotation.tailrec
+import scala.concurrent._
+import scala.concurrent.duration.FiniteDuration
+import java.lang.Float.{intBitsToFloat, floatToIntBits}
+import monifu.syntax.TypeSafeEquals
 
-final class AtomicFloat private (ref: AtomicInteger) extends AtomicNumber[Float] {
-  def get: Float = intBitsToFloat(ref.get)
 
-  def set(update: Float) = ref.set(floatToIntBits(update))
+final class AtomicFloat private (initialValue: Float)
+  extends AtomicNumber[Float] with BlockableAtomic[Float] {
 
-  def lazySet(update: Float) = ref.lazySet(floatToIntBits(update))
+  private[this] val offset = AtomicFloat.addressOffset
+  @volatile private[this] var value: Int = floatToIntBits(initialValue)
 
-  def compareAndSet(expect: Float, update: Float): Boolean =
-    ref.compareAndSet(floatToIntBits(expect), floatToIntBits(update))
+  @inline def get: Float =
+    intBitsToFloat(value)
 
-  def weakCompareAndSet(expect: Float, update: Float): Boolean =
-    ref.weakCompareAndSet(floatToIntBits(expect), floatToIntBits(update))
+  @inline def set(update: Float) = {
+    value = floatToIntBits(update)
+  }
 
-  def getAndSet(update: Float): Float =
-    intBitsToFloat(ref.getAndSet(floatToIntBits(update)))
+  @inline def lazySet(update: Float) = {
+    Unsafe.putOrderedInt(this, offset, floatToIntBits(update))
+  }
+
+  @inline def compareAndSet(expect: Float, update: Float): Boolean = {
+    val current = value
+    current === floatToIntBits(expect) && Unsafe.compareAndSwapInt(this, offset, current, floatToIntBits(update))
+  }
 
   @tailrec
-  def increment(v: Int): Unit = {
+  def getAndSet(update: Float): Float = {
+    val current = value
+    if (Unsafe.compareAndSwapInt(this, offset, current, floatToIntBits(update)))
+      intBitsToFloat(current)
+    else
+      getAndSet(update)
+  }
+
+  @inline def update(value: Float): Unit = set(value)
+  @inline def `:=`(value: Float): Unit = set(value)
+
+  @tailrec
+  def transformAndExtract[U](cb: (Float) => (U, Float)): U = {
+    val current = get
+    val (extract, update) = cb(current)
+    if (!compareAndSet(current, update))
+      transformAndExtract(cb)
+    else
+      extract
+  }
+
+  @tailrec
+  def transformAndGet(cb: (Float) => Float): Float = {
+    val current = get
+    val update = cb(current)
+    if (!compareAndSet(current, update))
+      transformAndGet(cb)
+    else
+      update
+  }
+
+  @tailrec
+  def getAndTransform(cb: (Float) => Float): Float = {
+    val current = get
+    val update = cb(current)
+    if (!compareAndSet(current, update))
+      getAndTransform(cb)
+    else
+      current
+  }
+
+  @tailrec
+  def transform(cb: (Float) => Float): Unit = {
+    val current = get
+    val update = cb(current)
+    if (!compareAndSet(current, update))
+      transform(cb)
+  }
+
+  @tailrec
+  @throws(classOf[InterruptedException])
+  def waitForCompareAndSet(expect: Float, update: Float): Unit =
+    if (!compareAndSet(expect, update)) {
+      interruptedCheck()
+      waitForCompareAndSet(expect, update)
+    }
+
+  @tailrec
+  @throws(classOf[InterruptedException])
+  def waitForCompareAndSet(expect: Float, update: Float, maxRetries: Int): Boolean =
+    if (!compareAndSet(expect, update))
+      if (maxRetries > 0) {
+        interruptedCheck()
+        waitForCompareAndSet(expect, update, maxRetries - 1)
+      }
+      else
+        false
+    else
+      true
+
+  @throws(classOf[InterruptedException])
+  @throws(classOf[TimeoutException])
+  def waitForCompareAndSet(expect: Float, update: Float, waitAtMost: FiniteDuration): Unit = {
+    val waitUntil = System.nanoTime + waitAtMost.toNanos
+    waitForCompareAndSet(expect, update, waitUntil)
+  }
+
+  @tailrec
+  @throws(classOf[InterruptedException])
+  @throws(classOf[TimeoutException])
+  private[monifu] def waitForCompareAndSet(expect: Float, update: Float, waitUntil: Long): Unit =
+    if (!compareAndSet(expect, update)) {
+      interruptedCheck()
+      timeoutCheck(waitUntil)
+      waitForCompareAndSet(expect, update, waitUntil)
+    }
+
+  @tailrec
+  @throws(classOf[InterruptedException])
+  def waitForValue(expect: Float): Unit =
+    if (get != expect) {
+      interruptedCheck()
+      waitForValue(expect)
+    }
+
+  @throws(classOf[InterruptedException])
+  @throws(classOf[TimeoutException])
+  def waitForValue(expect: Float, waitAtMost: FiniteDuration): Unit = {
+    val waitUntil = System.nanoTime + waitAtMost.toNanos
+    waitForValue(expect, waitUntil)
+  }
+
+  @tailrec
+  @throws(classOf[InterruptedException])
+  @throws(classOf[TimeoutException])
+  private[monifu] def waitForValue(expect: Float, waitUntil: Long): Unit =
+    if (get != expect) {
+      interruptedCheck()
+      timeoutCheck(waitUntil)
+      waitForValue(expect, waitUntil)
+    }
+
+  @tailrec
+  @throws(classOf[InterruptedException])
+  def waitForCondition(p: Float => Boolean): Unit =
+    if (!p(get)) {
+      interruptedCheck()
+      waitForCondition(p)
+    }
+
+  @throws(classOf[InterruptedException])
+  @throws(classOf[TimeoutException])
+  def waitForCondition(waitAtMost: FiniteDuration, p: Float => Boolean): Unit = {
+    val waitUntil = System.nanoTime + waitAtMost.toNanos
+    waitForCondition(waitUntil, p)
+  }
+
+  @tailrec
+  @throws(classOf[InterruptedException])
+  @throws(classOf[TimeoutException])
+  private[monifu] def waitForCondition(waitUntil: Long, p: Float => Boolean): Unit =
+    if (!p(get)) {
+      interruptedCheck()
+      timeoutCheck(waitUntil)
+      waitForCondition(waitUntil, p)
+    }
+
+  @tailrec
+  def increment(v: Int = 1): Unit = {
     val current = get
     val update = incrOp(current, v)
     if (!compareAndSet(current, update))
@@ -37,7 +185,7 @@ final class AtomicFloat private (ref: AtomicInteger) extends AtomicNumber[Float]
   }
 
   @tailrec
-  def incrementAndGet(v: Int): Float = {
+  def incrementAndGet(v: Int = 1): Float = {
     val current = get
     val update = incrOp(current, v)
     if (!compareAndSet(current, update))
@@ -57,7 +205,7 @@ final class AtomicFloat private (ref: AtomicInteger) extends AtomicNumber[Float]
   }
 
   @tailrec
-  def getAndIncrement(v: Int): Float = {
+  def getAndIncrement(v: Int = 1): Float = {
     val current = get
     val update = incrOp(current, v)
     if (!compareAndSet(current, update))
@@ -103,13 +251,22 @@ final class AtomicFloat private (ref: AtomicInteger) extends AtomicNumber[Float]
     else
       current
   }
-  
-  @inline private[this] def plusOp(a: Float, b: Float) = a + b
-  @inline private[this] def minusOp(a: Float, b: Float) = a - b
+
+  def decrement(v: Int = 1): Unit = increment(-v)
+  def decrementAndGet(v: Int = 1): Float = incrementAndGet(-v)
+  def getAndDecrement(v: Int = 1): Float = getAndIncrement(-v)
+  def `+=`(v: Float): Unit = addAndGet(v)
+  def `-=`(v: Float): Unit = subtractAndGet(v)
+
+  @inline private[this] def plusOp(a: Float, b: Float): Float = a + b
+  @inline private[this] def minusOp(a: Float, b: Float): Float = a - b
   @inline private[this] def incrOp(a: Float, b: Int): Float = a + b
 }
 
 object AtomicFloat {
   def apply(initialValue: Float): AtomicFloat =
-    new AtomicFloat(new AtomicInteger(floatToIntBits(initialValue)))
+    new AtomicFloat(initialValue)
+
+  private val addressOffset =
+    Unsafe.objectFieldOffset(classOf[AtomicFloat].getFields.find(_.getName.endsWith("value")).get)
 }

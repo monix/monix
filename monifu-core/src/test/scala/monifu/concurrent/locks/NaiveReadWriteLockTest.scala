@@ -41,7 +41,7 @@ class NaiveReadWriteLockTest extends FunSuite {
     assert(value === 10)
     assert(readValue === 3)
 
-    r.join; w.join
+    r.join(); w.join()
   }
 
   test("reads are concurrent") {
@@ -51,11 +51,11 @@ class NaiveReadWriteLockTest extends FunSuite {
 
     def createThread = startThread {
       lock.readLock {
-        active.increment
-        latch.countDown
+        active.increment()
+        latch.countDown()
         futureWait.await(5, TimeUnit.SECONDS)
       }
-      active.decrement
+      active.decrement()
     }
 
     val t1 = createThread
@@ -64,8 +64,8 @@ class NaiveReadWriteLockTest extends FunSuite {
     latch.await(5, TimeUnit.SECONDS)
     assert(active.get === 2)
 
-    futureWait.countDown
-    t1.join; t2.join
+    futureWait.countDown()
+    t1.join(); t2.join()
     assert(active.get === 0)
   }
 
@@ -81,16 +81,16 @@ class NaiveReadWriteLockTest extends FunSuite {
     var b = 1
 
     def createReader = startThread {
-      latch.countDown
+      latch.countDown()
       startSignal.await(5, TimeUnit.SECONDS)
       lock.readLock {
         readCond.transform(_ && (z + a == b))
-        readsNr.increment
+        readsNr.increment()
       }
     }
 
     def createWriter = startThread {
-      latch.countDown
+      latch.countDown()
       startSignal.await(5, TimeUnit.SECONDS)
       lock.writeLock {
         z = a
@@ -104,7 +104,7 @@ class NaiveReadWriteLockTest extends FunSuite {
       (0 until 500).map(_ => createReader)
 
     latch.await(5, TimeUnit.SECONDS)
-    startSignal.countDown
+    startSignal.countDown()
 
     threads.foreach(_.join)
     assert(b === 1445263496)
@@ -124,10 +124,10 @@ class NaiveReadWriteLockTest extends FunSuite {
     var b = 1
 
     def createWriter = startThread {
-      latch.countDown
+      latch.countDown()
       startSignal.await(5, TimeUnit.SECONDS)
       lock.readLock {
-        readsNr.increment
+        readsNr.increment()
         var a2 = a; var b2 = b; var z2 = z
         lock.writeLock {
           z = a
@@ -141,8 +141,8 @@ class NaiveReadWriteLockTest extends FunSuite {
 
     val threads = (0 until 100).map(_ => createWriter).toList 
 
-    latch.await
-    startSignal.countDown
+    latch.await()
+    startSignal.countDown()
 
     threads.foreach(_.join)
     assert(b === 1445263496)
@@ -151,13 +151,13 @@ class NaiveReadWriteLockTest extends FunSuite {
   }
 
   def startThread(cb: => Unit) = {
-    val th = new Thread(new Runnable { def run = {
-      try(cb) catch {
+    val th = new Thread(new Runnable { def run() = {
+      try cb catch {
         case ex: Throwable =>
           println(ex.toString)
           throw ex
       }
     }})
-    th.start; th
+    th.start(); th
   }
 }

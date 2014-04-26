@@ -1,16 +1,20 @@
-package monifu.concurrent.atomic
+package monifu.concurrent.atomic.padded
 
 import monifu.misc.Unsafe
 import scala.annotation.tailrec
 import scala.concurrent._
 import scala.concurrent.duration.FiniteDuration
+import monifu.concurrent.atomic.{AtomicNumber, BlockableAtomic, interruptedCheck, timeoutCheck}
 
 final class AtomicChar private (initialValue: Char)
   extends AtomicNumber[Char] with BlockableAtomic[Char] {
 
+  @volatile private[this] var p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16 = 10L
+  @volatile private[this] var value: Int = initialValue
+  @volatile private[this] var s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s16 = 10L
+
   private[this] val mask = 255 + 255 * 256
   private[this] val offset = AtomicChar.addressOffset
-  @volatile private[this] var value: Int = initialValue
 
   @inline def get: Char =
     (value & mask).toChar

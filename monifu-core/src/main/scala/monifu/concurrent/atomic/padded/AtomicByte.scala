@@ -1,47 +1,52 @@
-package monifu.concurrent.atomic
+package monifu.concurrent.atomic.padded
 
-import monifu.misc.Unsafe
 import scala.annotation.tailrec
+import monifu.misc.Unsafe
 import scala.concurrent._
 import scala.concurrent.duration.FiniteDuration
+import monifu.syntax.TypeSafeEquals
+import monifu.concurrent.atomic.{AtomicNumber, BlockableAtomic, interruptedCheck, timeoutCheck}
 
-final class AtomicChar private (initialValue: Char)
-  extends AtomicNumber[Char] with BlockableAtomic[Char] {
+final class AtomicByte private (initialValue: Byte)
+  extends AtomicNumber[Byte] with BlockableAtomic[Byte] {
 
-  private[this] val mask = 255 + 255 * 256
-  private[this] val offset = AtomicChar.addressOffset
+  @volatile private[this] var p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16 = 10L
   @volatile private[this] var value: Int = initialValue
+  @volatile private[this] var s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s16 = 10L
 
-  @inline def get: Char =
-    (value & mask).toChar
+  private[this] val mask = 255
+  private[this] val offset = AtomicByte.addressOffset
 
-  @inline def set(update: Char) = {
+  @inline def get: Byte =
+    (value & mask).toByte
+
+  @inline def set(update: Byte) = {
     value = update
   }
 
-  @inline def lazySet(update: Char) = {
+  @inline def lazySet(update: Byte) = {
     Unsafe.putOrderedInt(this, offset, update)
   }
 
-  @inline def compareAndSet(expect: Char, update: Char): Boolean = {
+  @inline def compareAndSet(expect: Byte, update: Byte): Boolean = {
     val current = value
-    current == expect && Unsafe.compareAndSwapInt(this, offset, current, update)
+    current === expect && Unsafe.compareAndSwapInt(this, offset, current, update)
   }
 
   @tailrec
-  def getAndSet(update: Char): Char = {
+  def getAndSet(update: Byte): Byte = {
     val current = value
     if (Unsafe.compareAndSwapInt(this, offset, current, update))
-      (current & mask).toChar
+      (current & mask).toByte
     else
       getAndSet(update)
   }
 
-  @inline def update(value: Char): Unit = set(value)
-  @inline def `:=`(value: Char): Unit = set(value)
+  @inline def update(value: Byte): Unit = set(value)
+  @inline def `:=`(value: Byte): Unit = set(value)
 
   @tailrec
-  def transformAndExtract[U](cb: (Char) => (U, Char)): U = {
+  def transformAndExtract[U](cb: (Byte) => (U, Byte)): U = {
     val current = get
     val (extract, update) = cb(current)
     if (!compareAndSet(current, update))
@@ -51,7 +56,7 @@ final class AtomicChar private (initialValue: Char)
   }
 
   @tailrec
-  def transformAndGet(cb: (Char) => Char): Char = {
+  def transformAndGet(cb: (Byte) => Byte): Byte = {
     val current = get
     val update = cb(current)
     if (!compareAndSet(current, update))
@@ -61,7 +66,7 @@ final class AtomicChar private (initialValue: Char)
   }
 
   @tailrec
-  def getAndTransform(cb: (Char) => Char): Char = {
+  def getAndTransform(cb: (Byte) => Byte): Byte = {
     val current = get
     val update = cb(current)
     if (!compareAndSet(current, update))
@@ -71,7 +76,7 @@ final class AtomicChar private (initialValue: Char)
   }
 
   @tailrec
-  def transform(cb: (Char) => Char): Unit = {
+  def transform(cb: (Byte) => Byte): Unit = {
     val current = get
     val update = cb(current)
     if (!compareAndSet(current, update))
@@ -80,7 +85,7 @@ final class AtomicChar private (initialValue: Char)
 
   @tailrec
   @throws(classOf[InterruptedException])
-  def waitForCompareAndSet(expect: Char, update: Char): Unit =
+  def waitForCompareAndSet(expect: Byte, update: Byte): Unit =
     if (!compareAndSet(expect, update)) {
       interruptedCheck()
       waitForCompareAndSet(expect, update)
@@ -88,7 +93,7 @@ final class AtomicChar private (initialValue: Char)
 
   @tailrec
   @throws(classOf[InterruptedException])
-  def waitForCompareAndSet(expect: Char, update: Char, maxRetries: Int): Boolean =
+  def waitForCompareAndSet(expect: Byte, update: Byte, maxRetries: Int): Boolean =
     if (!compareAndSet(expect, update))
       if (maxRetries > 0) {
         interruptedCheck()
@@ -101,7 +106,7 @@ final class AtomicChar private (initialValue: Char)
 
   @throws(classOf[InterruptedException])
   @throws(classOf[TimeoutException])
-  def waitForCompareAndSet(expect: Char, update: Char, waitAtMost: FiniteDuration): Unit = {
+  def waitForCompareAndSet(expect: Byte, update: Byte, waitAtMost: FiniteDuration): Unit = {
     val waitUntil = System.nanoTime + waitAtMost.toNanos
     waitForCompareAndSet(expect, update, waitUntil)
   }
@@ -109,7 +114,7 @@ final class AtomicChar private (initialValue: Char)
   @tailrec
   @throws(classOf[InterruptedException])
   @throws(classOf[TimeoutException])
-  private[monifu] def waitForCompareAndSet(expect: Char, update: Char, waitUntil: Long): Unit =
+  private[monifu] def waitForCompareAndSet(expect: Byte, update: Byte, waitUntil: Long): Unit =
     if (!compareAndSet(expect, update)) {
       interruptedCheck()
       timeoutCheck(waitUntil)
@@ -118,7 +123,7 @@ final class AtomicChar private (initialValue: Char)
 
   @tailrec
   @throws(classOf[InterruptedException])
-  def waitForValue(expect: Char): Unit =
+  def waitForValue(expect: Byte): Unit =
     if (get != expect) {
       interruptedCheck()
       waitForValue(expect)
@@ -126,7 +131,7 @@ final class AtomicChar private (initialValue: Char)
 
   @throws(classOf[InterruptedException])
   @throws(classOf[TimeoutException])
-  def waitForValue(expect: Char, waitAtMost: FiniteDuration): Unit = {
+  def waitForValue(expect: Byte, waitAtMost: FiniteDuration): Unit = {
     val waitUntil = System.nanoTime + waitAtMost.toNanos
     waitForValue(expect, waitUntil)
   }
@@ -134,7 +139,7 @@ final class AtomicChar private (initialValue: Char)
   @tailrec
   @throws(classOf[InterruptedException])
   @throws(classOf[TimeoutException])
-  private[monifu] def waitForValue(expect: Char, waitUntil: Long): Unit =
+  private[monifu] def waitForValue(expect: Byte, waitUntil: Long): Unit =
     if (get != expect) {
       interruptedCheck()
       timeoutCheck(waitUntil)
@@ -143,7 +148,7 @@ final class AtomicChar private (initialValue: Char)
 
   @tailrec
   @throws(classOf[InterruptedException])
-  def waitForCondition(p: Char => Boolean): Unit =
+  def waitForCondition(p: Byte => Boolean): Unit =
     if (!p(get)) {
       interruptedCheck()
       waitForCondition(p)
@@ -151,7 +156,7 @@ final class AtomicChar private (initialValue: Char)
 
   @throws(classOf[InterruptedException])
   @throws(classOf[TimeoutException])
-  def waitForCondition(waitAtMost: FiniteDuration, p: Char => Boolean): Unit = {
+  def waitForCondition(waitAtMost: FiniteDuration, p: Byte => Boolean): Unit = {
     val waitUntil = System.nanoTime + waitAtMost.toNanos
     waitForCondition(waitUntil, p)
   }
@@ -159,7 +164,7 @@ final class AtomicChar private (initialValue: Char)
   @tailrec
   @throws(classOf[InterruptedException])
   @throws(classOf[TimeoutException])
-  private[monifu] def waitForCondition(waitUntil: Long, p: Char => Boolean): Unit =
+  private[monifu] def waitForCondition(waitUntil: Long, p: Byte => Boolean): Unit =
     if (!p(get)) {
       interruptedCheck()
       timeoutCheck(waitUntil)
@@ -175,7 +180,7 @@ final class AtomicChar private (initialValue: Char)
   }
 
   @tailrec
-  def add(v: Char): Unit = {
+  def add(v: Byte): Unit = {
     val current = get
     val update = plusOp(current, v)
     if (!compareAndSet(current, update))
@@ -183,7 +188,7 @@ final class AtomicChar private (initialValue: Char)
   }
 
   @tailrec
-  def incrementAndGet(v: Int = 1): Char = {
+  def incrementAndGet(v: Int = 1): Byte = {
     val current = get
     val update = incrOp(current, v)
     if (!compareAndSet(current, update))
@@ -193,7 +198,7 @@ final class AtomicChar private (initialValue: Char)
   }
 
   @tailrec
-  def addAndGet(v: Char): Char = {
+  def addAndGet(v: Byte): Byte = {
     val current = get
     val update = plusOp(current, v)
     if (!compareAndSet(current, update))
@@ -203,7 +208,7 @@ final class AtomicChar private (initialValue: Char)
   }
 
   @tailrec
-  def getAndIncrement(v: Int = 1): Char = {
+  def getAndIncrement(v: Int = 1): Byte = {
     val current = get
     val update = incrOp(current, v)
     if (!compareAndSet(current, update))
@@ -213,7 +218,7 @@ final class AtomicChar private (initialValue: Char)
   }
 
   @tailrec
-  def getAndAdd(v: Char): Char = {
+  def getAndAdd(v: Byte): Byte = {
     val current = get
     val update = plusOp(current, v)
     if (!compareAndSet(current, update))
@@ -223,7 +228,7 @@ final class AtomicChar private (initialValue: Char)
   }
 
   @tailrec
-  def subtract(v: Char): Unit = {
+  def subtract(v: Byte): Unit = {
     val current = get
     val update = minusOp(current, v)
     if (!compareAndSet(current, update))
@@ -231,7 +236,7 @@ final class AtomicChar private (initialValue: Char)
   }
 
   @tailrec
-  def subtractAndGet(v: Char): Char = {
+  def subtractAndGet(v: Byte): Byte = {
     val current = get
     val update = minusOp(current, v)
     if (!compareAndSet(current, update))
@@ -241,7 +246,7 @@ final class AtomicChar private (initialValue: Char)
   }
 
   @tailrec
-  def getAndSubtract(v: Char): Char = {
+  def getAndSubtract(v: Byte): Byte = {
     val current = get
     val update = minusOp(current, v)
     if (!compareAndSet(current, update))
@@ -251,20 +256,20 @@ final class AtomicChar private (initialValue: Char)
   }
 
   def decrement(v: Int = 1): Unit = increment(-v)
-  def decrementAndGet(v: Int = 1): Char = incrementAndGet(-v)
-  def getAndDecrement(v: Int = 1): Char = getAndIncrement(-v)
-  def `+=`(v: Char): Unit = addAndGet(v)
-  def `-=`(v: Char): Unit = subtractAndGet(v)
+  def decrementAndGet(v: Int = 1): Byte = incrementAndGet(-v)
+  def getAndDecrement(v: Int = 1): Byte = getAndIncrement(-v)
+  def `+=`(v: Byte): Unit = addAndGet(v)
+  def `-=`(v: Byte): Unit = subtractAndGet(v)
 
-  @inline private[this] def plusOp(a: Char, b: Char): Char = ((a + b) & mask).asInstanceOf[Char]
-  @inline private[this] def minusOp(a: Char, b: Char): Char = ((a - b) & mask).asInstanceOf[Char]
-  @inline private[this] def incrOp(a: Char, b: Int): Char = ((a + b) & mask).asInstanceOf[Char]
+  @inline private[this] def plusOp(a: Byte, b: Byte): Byte = ((a + b) & mask).asInstanceOf[Byte]
+  @inline private[this] def minusOp(a: Byte, b: Byte): Byte = ((a - b) & mask).asInstanceOf[Byte]
+  @inline private[this] def incrOp(a: Byte, b: Int): Byte = ((a + b) & mask).asInstanceOf[Byte]
 }
 
-object AtomicChar {
-  def apply(initialValue: Char): AtomicChar =
-    new AtomicChar(initialValue)
+object AtomicByte {
+  def apply(initialValue: Byte): AtomicByte =
+    new AtomicByte(initialValue)
 
   private val addressOffset =
-    Unsafe.objectFieldOffset(classOf[AtomicChar].getFields.find(_.getName.endsWith("value")).get)
+    Unsafe.objectFieldOffset(classOf[AtomicByte].getFields.find(_.getName.endsWith("value")).get)
 }
