@@ -36,7 +36,6 @@ object Build extends SbtBuild {
 
     // -- Settings meant for deployment on oss.sonatype.org
 
-    publishArtifact in Test := true,
     publishMavenStyle := true,
 
     publishTo := {
