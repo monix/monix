@@ -293,6 +293,14 @@ For reference on what that means, see:
 - http://mail.openjdk.java.net/pipermail/hotspot-dev/2012-November/007309.html
 - http://openjdk.java.net/jeps/142
 
+To use the cache-padded versions, you need to import stuff from the `padded` sub-package:
+
+```scala
+import monifu.concurrent.atomic.padded.Atomic
+
+val ref = Atomic(1)
+```
+
 ### sun.misc.Unsafe
 
 Atomic references in `java.util.concurrent.atomic` are actually built on top of functionality provided by `sun.misc.Unsafe`. This package is not part of the public API of Java SE.
