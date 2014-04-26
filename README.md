@@ -2,7 +2,7 @@
 
 Extensions to Scala's standard library for multi-threading primitives, functional programming and whatever makes life easier. Targets both the JVM and [Scala.js](http://www.scala-js.org/).
 
-[![Build Status](https://travis-ci.org/alexandru/monifu.png?branch=v0.7-SNAPSHOT)](https://travis-ci.org/alexandru/monifu)
+[![Build Status](https://travis-ci.org/alexandru/monifu.png?branch=v0.7.0)](https://travis-ci.org/alexandru/monifu)
 
 ## Documentation
 
