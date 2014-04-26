@@ -4,7 +4,6 @@ import scala.annotation.tailrec
 import monifu.misc.Unsafe
 import scala.concurrent._
 import scala.concurrent.duration.FiniteDuration
-import monifu.syntax.TypeSafeEquals
 
 final class AtomicByte private (initialValue: Byte)
   extends AtomicNumber[Byte] with BlockableAtomic[Byte] {
@@ -25,8 +24,7 @@ final class AtomicByte private (initialValue: Byte)
   }
 
   @inline def compareAndSet(expect: Byte, update: Byte): Boolean = {
-    val current = value
-    current === expect && Unsafe.compareAndSwapInt(this, offset, current, update)
+    Unsafe.compareAndSwapInt(this, offset, expect, update)
   }
 
   @tailrec
