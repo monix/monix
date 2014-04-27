@@ -222,5 +222,4 @@ object Unsafe {
         constructor.setAccessible(true)
         constructor.newInstance()
     }
-
 }
