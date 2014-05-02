@@ -40,7 +40,7 @@ import java.util.concurrent.TimeoutException
  * }
  * }}}
  */
-final class NaiveReadWriteLock private[locks] () extends ReadWriteLock {
+final class NaiveReadWriteLock private[locks] () {
 
   private[this] val IDLE  = 0
   private[this] val READ  = 1
@@ -130,7 +130,7 @@ final class NaiveReadWriteLock private[locks] () extends ReadWriteLock {
     }
   }
 
-  private[this] def readLockRelease(): Unit = {
+  @inline private[this] def readLockRelease(): Unit = {
     localState.set(IDLE)
     // when the `activeReads` counter reaches zero
     // then pending writes can proceed
@@ -140,8 +140,7 @@ final class NaiveReadWriteLock private[locks] () extends ReadWriteLock {
   /** 
    * Loops until is able to acquire a write lock
    */
-  @throws(classOf[InterruptedException])
-  private[this] def writeLockAcquire(): Unit = {
+  @inline private[this] def writeLockAcquire(): Unit = {
     // acquires the write lock
     writePendingOrActive.waitForCompareAndSet(expect=false, update=true)
     // waits until all active reads are finished
@@ -154,13 +153,13 @@ final class NaiveReadWriteLock private[locks] () extends ReadWriteLock {
    * keep reading with a guarantee that the data that was written hasn't
    * changed in the transition.
    */
-  private[this] def downgradeWriteToReadLock() {
+  @inline private[this] def downgradeWriteToReadLock() {
     localState.set(READ)
     activeReads.increment()
     writePendingOrActive.set(update = false)
   }
 
-  private[this] def writeLockRelease(): Unit = {
+  @inline private[this] def writeLockRelease(): Unit = {
     localState.set(IDLE)
     writePendingOrActive.set(update = false)
   }

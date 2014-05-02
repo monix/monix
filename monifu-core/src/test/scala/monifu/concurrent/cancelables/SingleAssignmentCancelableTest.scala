@@ -7,7 +7,7 @@ class SingleAssignmentCancelableTest extends FunSuite {
   test("cancel()") {
     var effect = 0
     val s = SingleAssignmentCancelable()
-    val b = Cancelable { effect += 1 }
+    val b = BooleanCancelable { effect += 1 }
     s() = b
 
     s.cancel()
@@ -25,7 +25,7 @@ class SingleAssignmentCancelableTest extends FunSuite {
     assert(s.isCanceled)
 
     var effect = 0
-    val b = Cancelable { effect += 1 }
+    val b = BooleanCancelable { effect += 1 }
     s() = b
 
     assert(b.isCanceled === true)

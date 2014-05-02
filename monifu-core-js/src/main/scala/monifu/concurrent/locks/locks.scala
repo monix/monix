@@ -2,15 +2,40 @@ package monifu.concurrent.locks
 
 import scala.reflect.macros.Context
 import language.experimental.macros
+import scala.concurrent.duration.TimeUnit
 
-object Macro {
+object _Macros {
   /**
    * A macro that takes an expression and spits it out unaltered,
    * used for no-op, zero-overhead methods.
    */
-  def noOperation[T : c.WeakTypeTag](c: Context)(cb: c.Expr[T]): c.Expr[T] = {
+  def lockMacroImpl[T : c.WeakTypeTag](c: Context)(cb: c.Expr[T]): c.Expr[T] = {
     import c.universe._
     reify(cb.splice)
+  }
+
+  /**
+   * A macro that takes an expression and spits it out unaltered,
+   * used for no-op, zero-overhead methods.
+   */
+  def tryLockMacro[T : c.WeakTypeTag](c: Context)(cb: c.Expr[T]): c.Expr[Boolean] = {
+    import c.universe._
+    reify {
+      cb.splice
+      true
+    }
+  }
+
+  /**
+   * A macro that takes an expression and spits it out unaltered,
+   * used for no-op, zero-overhead methods.
+   */
+  def tryLockDurationMacro[T : c.WeakTypeTag](c: Context)(time: c.Expr[Long], unit: c.Expr[TimeUnit], cb: c.Expr[T]): c.Expr[Boolean] = {
+    import c.universe._
+    reify {
+      cb.splice
+      true
+    }
   }
 }
 
@@ -19,7 +44,13 @@ object Macro {
  * Usage does not imply any overhead.
  */
 object LockImpl {
-  def acquire[T](cb: => T): T = macro Macro.noOperation[T]
+  def lock[T](cb: => T): T = macro _Macros.lockMacroImpl[T]
+
+  def lockInterruptibly[T](cb: => T): T = macro _Macros.lockMacroImpl[T]
+
+  def tryLock[T](cb: => T): Boolean = macro _Macros.tryLockMacro[T]
+
+  def tryLock[T](time: Long, unit: TimeUnit, cb: => T): Boolean = macro _Macros.tryLockDurationMacro[T]
 }
 
 /**
@@ -27,10 +58,10 @@ object LockImpl {
  * Usage does not imply any overhead.
  */
 object ReadWriteLockImpl {
-  def readLock[T](cb: => T): T = macro Macro.noOperation[T]
+  def readLock[T](cb: => T): T = macro _Macros.lockMacroImpl[T]
 
-  def writeLock[T](cb: => T): T = macro Macro.noOperation[T]
+  def writeLock[T](cb: => T): T = macro _Macros.lockMacroImpl[T]
 
-  def acquire[T](cb: => T): T = macro Macro.noOperation[T]
+  def acquire[T](cb: => T): T = macro _Macros.lockMacroImpl[T]
 }
 
