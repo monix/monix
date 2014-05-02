@@ -10,6 +10,9 @@ import scala.util.control.NonFatal
  * of Java.
  */
 object Unsafe {
+  def apply(): sun.misc.Unsafe =
+    instance
+
   /**
    * Gets the raw byte offset from the start of an object's memory to
    * the memory used to store the indicated instance field.
@@ -207,6 +210,32 @@ object Unsafe {
    */
   def putObjectVolatile(obj: AnyRef, offset: Long, update: AnyRef): Unit =
     instance.putObjectVolatile(obj, offset, update)
+
+  /**
+   * Parks the calling thread for the specified amount of time,
+   * unless the "permit" for the thread is already available (due to
+   * a previous call to [[unpark]]. This method may also return
+   * spuriously (that is, without the thread being told to unpark
+   * and without the indicated amount of time elapsing).
+   *
+   * @param absolute whether the given time value is absolute
+   *                 milliseconds-since-the-epoch (<code>true</code>) or relative
+   *                 nanoseconds-from-now (<code>false</code>)
+   * @param time the (absolute millis or relative nanos) time value
+   */
+  def park(absolute: Boolean, time: Long): Unit =
+    instance.park(absolute, time)
+
+  /**
+   * Unparks the given object, which must be a `Thread`.
+   *
+   * See `java.util.concurrent.locks.LockSupport` for more
+   * in-depth information of the behavior of this method.
+   *
+   * @param thread non-null; the thread to unpark
+   */
+  def unpark(thread: Thread): Unit =
+    instance.unpark(thread)
 
   private[this] val instance: sun.misc.Unsafe =
     try {
