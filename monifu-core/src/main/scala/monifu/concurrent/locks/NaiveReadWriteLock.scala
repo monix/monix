@@ -1,7 +1,7 @@
 package monifu.concurrent.locks
 
 import annotation.tailrec
-import monifu.concurrent.atomic.Atomic
+import monifu.concurrent.atomic.padded.Atomic
 import monifu.concurrent.ThreadLocal
 import java.util.concurrent.TimeoutException
 
@@ -40,8 +40,7 @@ import java.util.concurrent.TimeoutException
  * }
  * }}}
  */
-final class NaiveReadWriteLock private[locks] () {
-
+final class NaiveReadWriteLock {
   private[this] val IDLE  = 0
   private[this] val READ  = 1
   private[this] val WRITE = 2
