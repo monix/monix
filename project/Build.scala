@@ -84,7 +84,6 @@ object Build extends SbtBuild {
       unmanagedSourceDirectories in Compile <+= sourceDirectory(_ / "shared" / "scala"),
       libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _ % "compile"),
       libraryDependencies ++= Seq(
-        // "org.scalaz" %% "scalaz-core" % "7.0.6" % "provided",
         "org.scalatest" %% "scalatest" % "2.1.3" % "test"
       )
     )

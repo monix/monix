@@ -13,7 +13,7 @@ class FibonacciLockBenchmark extends SimpleScalaBenchmark {
   class Box[T](val value: T)
 
   def timeFibonacci_SpinLock_Reentrant(reps: Int) = repeat(reps) {
-    val gate = NaiveSpinLock()
+    val gate = new NaiveSpinLock()
     var (a,b) = (1L,1L)
 
     var i = 0
@@ -21,13 +21,13 @@ class FibonacciLockBenchmark extends SimpleScalaBenchmark {
       createObjects(nrOfThreads) {
         val th = startThread("increment-" + i) {
           for (i <- 0 until 100)
-            gate.lock {
+            gate.enter {
               val tmp = a
               a = b
               b = tmp + a
 
               for (k <- 0 until 100) {
-                gate.lock {
+                gate.enter {
                   val tmp = a
                   a = b
                   b = tmp + a
@@ -46,7 +46,7 @@ class FibonacciLockBenchmark extends SimpleScalaBenchmark {
   }
 
   def timeFibonacci_IntrinsicLock_Reentrant(reps: Int) = repeat(reps) {
-    val gate = NaiveSpinLock()
+    val gate = new NaiveSpinLock()
     var (a,b) = (1L,1L)
 
     var i = 0
@@ -79,7 +79,7 @@ class FibonacciLockBenchmark extends SimpleScalaBenchmark {
   }
 
   def timeFibonacci_SpinLock_NonReentrant(reps: Int) = repeat(reps) {
-    val gate = NaiveSpinLock()
+    val gate = new NaiveSpinLock()
     var (a,b) = (1L,1L)
 
     var i = 0
@@ -87,7 +87,7 @@ class FibonacciLockBenchmark extends SimpleScalaBenchmark {
       createObjects(nrOfThreads) {
         val th = startThread("increment-" + i) {
           for (i <- 0 until 100)
-            gate.lock {
+            gate.enter {
               val tmp = a
               a = b
               b = tmp + a
@@ -110,7 +110,7 @@ class FibonacciLockBenchmark extends SimpleScalaBenchmark {
   }
 
   def timeFibonacci_IntrinsicLock_NonReentrant(reps: Int) = repeat(reps) {
-    val gate = NaiveSpinLock()
+    val gate = new NaiveSpinLock()
     var (a,b) = (1L,1L)
 
     var i = 0

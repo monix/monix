@@ -1,7 +1,5 @@
 package monifu.concurrent.locks
 
-import language.experimental.macros
-import scala.reflect.macros.Context
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.Condition
 import java.util.Date
@@ -12,214 +10,62 @@ import monifu.concurrent.misc.Unsafe
  * [[http://en.wikipedia.org/wiki/Spinlock spinlock-ing]].
  *
  */
-final class NaiveSpinLock extends java.util.concurrent.locks.Lock {
+final class NaiveSpinLock extends Lock {
   // cache line padding
   @volatile private[this] var p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16 = 10L
   @volatile private[this] var acquiringThread: Thread = null
   @volatile private[this] var s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s16 = 10L
 
-  /*
-   * For keeping track of what thread acquired the lock and how many times it did it.
-   * We are avoiding the use of thread-locals here to avoid boxing/unboxing, but this
-   * is effectively a thread-local in usage.
-   */
-  private[this] var reentryCount = 0
-
   // using sun.misc.Unsafe for compareAndSet operations (don't do this at home)
   private[this] val unsafe = Unsafe()
   private[this] val addressOffset = NaiveSpinLock.addressOffset
+  private[this] var acquiringThreadCopy: Thread = null
 
-  /**
-   * Executes the given callback with the lock acquired.
-   *
-   * Is implemented as macro to eliminate any method calls overhead.
-   *
-   * @example {{{
-   *   private[this] val gate = NaiveSpinLock()
-   *   private[this] var queue = mutable.Queue.empty[Int]
-   *
-   *   def push(elem: Int): Unit =
-   *     gate.lock {
-   *       queue.enqueue(elem)
-   *     }
-   *
-   *   def pop(): Option[Int] =
-   *     gate.lock {
-   *       if (queue.nonEmpty) Some(queue.dequeue()) else None
-   *     }
-   * }}}
-   *
-   * @param cb the callback to be executed once the lock is acquired
-   * @return the returned value of our callback
-   */
-  def lock[T](cb: => T): T = macro NaiveSpinLock._lockMacroImpl[T]
+  override def isAcquiredByCurrentThread: Boolean =
+    acquiringThreadCopy eq Thread.currentThread()
 
-  /**
-   * Executes the given callback with the lock acquired, unless the thread was
-   * [[http://docs.oracle.com/javase/7/docs/api/java/lang/Thread.html#interrupt%28%29 interrupted]].
-   *
-   * Is implemented as macro to eliminate any method calls overhead.
-   *
-   * @example {{{
-   *   private[this] val gate = NaiveSpinLock()
-   *   private[this] var queue = mutable.Queue.empty[Int]
-   *
-   *   def push(elem: Int): Unit =
-   *     gate.lockInterruptibly {
-   *       queue.enqueue(elem)
-   *     }
-   *
-   *   def pop(): Option[Int] =
-   *     gate.lockInterruptibly {
-   *       if (queue.nonEmpty) Some(queue.dequeue()) else None
-   *     }
-   * }}}
-   *
-   * @param cb the callback to be executed once the lock is acquired
-   * @throws java.lang.InterruptedException exception is thrown if the thread was interrupted
-   * @return the returned value of our callback
-   */
-  @throws(classOf[InterruptedException])
-  def lockInterruptibly[T](cb: => T): T = macro NaiveSpinLock._lockInterruptiblyMacroImpl[T]
-
-  /**
-   * Acquires the lock only if it is free at the time of invocation and in case the lock was acquired then
-   * executes the given callback.
-   *
-   * @param cb the callback to execute
-   * @return either `true` in case the lock was acquired and the callback was executed, or `false` otherwise.
-   */
-  def tryLock[T](cb: => T): Boolean = macro NaiveSpinLock._tryLockMacroImpl[T]
-
-  /**
-   * Acquires the lock only if it is free within the given waiting time and in case the lock was acquired then
-   * executes the given callback.
-   *
-   * @param time the maximum time to wait for the lock
-   * @param unit the time unit of the `time` argument
-   * @param cb the callback to execute
-   *
-   * @return either `true` in case the lock was acquired and the callback was executed, or `false` otherwise.
-   */
-  def tryLock[T](time: Long, unit: TimeUnit, cb: => T): Boolean = macro NaiveSpinLock._tryLockDurationMacroImpl[T]
-
-  /**
-   * Acquires the lock.
-   *
-   * If the lock is not available, then the thread waits until is able to acquire the lock.
-   * Does not interrupt - for interrupting see [[lockInterruptibly]] instead.
-   */
   override def lock(): Unit = {
     val currentThread = Thread.currentThread()
-
-    // the visibility of acquiringThread is guaranteed here (volatile)
-    if (acquiringThread eq currentThread) {
-      // we do not care about the visibility of reentryCount, as by this point it should be only read
-      // or written to by the current thread
-      reentryCount += 1
-    }
-    else while(true) {
-      if (unsafe.compareAndSwapObject(this, addressOffset, null, currentThread)) {
-        // visibility of this write will happen for the acquiringThread and that's enough
-        reentryCount = 0
-        // we're done acquiring, return
-        return
-      }
-    }
+    while (!unsafe.compareAndSwapObject(this, addressOffset, null, currentThread)) {}
+    acquiringThreadCopy = currentThread
   }
 
-  /**
-   * Acquires the lock.
-   *
-   * If the lock is not available, then the thread waits until is able to acquire the lock.
-   * 
-   * @throws InterruptedException in case the thread was interrupted with `Thread.interrupt()`
-   */
   @throws(classOf[InterruptedException])
   override def lockInterruptibly(): Unit = {
     val currentThread = Thread.currentThread()
-
-    // the visibility of acquiringThread is guaranteed here (volatile)
-    if (acquiringThread eq currentThread) {
-      // we do not care about the visibility of reentryCount, as by this point it should be only read
-      // or written to by the current thread
-      reentryCount += 1
-    }
-    else while(true) {
-      if (Thread.interrupted()) {
+    while (true) {
+      if (Thread.interrupted())
         throw new InterruptedException("NaiveSpinLock was interrupted")
-      }
       else if (unsafe.compareAndSwapObject(this, addressOffset, null, currentThread)) {
-        // visibility of this write will happen for the acquiringThread and that's enough
-        reentryCount = 0
-        // we're done acquiring, return
+        acquiringThreadCopy = currentThread
         return
       }
     }
   }
 
-  /**
-   * Acquires the lock only if it is free at the time of invocation. Meant to be private - using it is dangerous.
-   * Use [[tryLock]] instead.
-   */
   override def tryLock(): Boolean = {
     val currentThread = Thread.currentThread()
-
-    // the visibility of acquiringThread is guaranteed here (volatile)
-    if (acquiringThread eq currentThread) {
-      // we do not care about the visibility of reentryCount, as by this point it should be only read
-      // or written to by the current thread
-      reentryCount += 1
-      true
-    }
-    else if (unsafe.compareAndSwapObject(this, addressOffset, null, currentThread)) {
-      // visibility of this write will happen for the acquiringThread and that's enough
-      reentryCount = 0
+    if (unsafe.compareAndSwapObject(this, addressOffset, null, currentThread)) {
+      acquiringThreadCopy = currentThread
       true
     }
     else
       false
   }
 
-  /**
-   * Acquires the lock if it is free within the given waiting time and the current thread has not been
-   * [[http://docs.oracle.com/javase/7/docs/api/java/lang/Thread.html#interrupt%28%29 interrupted]].
-   *
-   * @param time the maximum time to wait for the lock
-   * @param unit the time unit of the `time` argument
-   *
-   * @throws java.lang.InterruptedException - if the current thread is interrupted while acquiring the lock
-   *                                        (and interruption of lock acquisition is supported)
-   *
-   * @return `true` if the lock was successfully acquired or `false` if the waiting time
-   *        elapsed before the lock was acquired
-   */
   @throws(classOf[InterruptedException])
   override def tryLock(time: Long, unit: TimeUnit): Boolean = {
     val currentThread = Thread.currentThread()
+    val endsAt = System.nanoTime() + TimeUnit.NANOSECONDS.convert(time, unit)
 
-    // the visibility of acquiringThread is guaranteed here (volatile)
-    if (acquiringThread eq currentThread) {
-      // we do not care about the visibility of reentryCount, as by this point it should be only read
-      // or written to by the current thread
-      reentryCount += 1
-      true
-    }
-    else {
-      val endsAt = System.nanoTime() + TimeUnit.NANOSECONDS.convert(time, unit)
+    var isAcquired = false
+    var isTimedOut = false
+    var retries = 0L
 
-      var isAcquired = false
-      var isTimedOut = false
-      var retries = 0L
-
-      while(!isAcquired && !isTimedOut) {
-        isAcquired = unsafe.compareAndSwapObject(this, addressOffset, null, currentThread)
-
-        if (isAcquired) {
-          // visibility of this write will happen for the acquiringThread and that's enough
-          reentryCount = 0
-        }
-        else if (Thread.interrupted()) {
+    while (!isAcquired && !isTimedOut) {
+      isAcquired = unsafe.compareAndSwapObject(this, addressOffset, null, currentThread)
+      if (!isAcquired) {
+        if (Thread.interrupted()) {
           throw new InterruptedException("NaiveSpinLock was interrupted")
         }
         else if (retries < 1000) {
@@ -231,9 +77,12 @@ final class NaiveSpinLock extends java.util.concurrent.locks.Lock {
           retries = 0
         }
       }
-
-      isAcquired && !isTimedOut
+      else {
+        acquiringThreadCopy = currentThread
+      }
     }
+
+    isAcquired && !isTimedOut
   }
 
   /**
@@ -245,15 +94,23 @@ final class NaiveSpinLock extends java.util.concurrent.locks.Lock {
       private[this] val pulsar = new AnyRef
 
       override def await(): Unit = {
-        pulsar.synchronized {
+        if (!isAcquiredByCurrentThread)
+          throw new IllegalMonitorStateException(s"Lock not currently acquired by current thread, so cannot await on condition")
+
+        try pulsar.synchronized {
           unlock()
           pulsar.wait()
         }
-        lockInterruptibly()
+        finally {
+          lock()
+        }
       }
 
       def awaitUninterruptibly(): Unit = {
-        pulsar.synchronized {
+        if (!isAcquiredByCurrentThread)
+          throw new IllegalMonitorStateException("Lock not currently acquired by current thread, so cannot await on condition")
+
+        try pulsar.synchronized {
           unlock()
 
           var terminated = false
@@ -265,20 +122,26 @@ final class NaiveSpinLock extends java.util.concurrent.locks.Lock {
               case _: InterruptedException => // ignore
             }
         }
-
-        lock()
+        finally {
+          lock()
+        }
       }
 
       def awaitNanos(nanosTimeout: Long): Long = {
+        if (!isAcquiredByCurrentThread)
+          throw new IllegalMonitorStateException("Lock not currently acquired by current thread, so cannot await on condition")
+
         val startedAt = System.nanoTime()
         val millis = TimeUnit.NANOSECONDS.toMillis(nanosTimeout)
         val remainingNanos = (nanosTimeout - TimeUnit.MILLISECONDS.toNanos(millis)).toInt
 
-        pulsar.synchronized {
+        try pulsar.synchronized {
           unlock()
           pulsar.wait(millis, remainingNanos)
         }
-        lockInterruptibly()
+        finally {
+          lock()
+        }
         nanosTimeout - (System.nanoTime() - startedAt)
       }
 
@@ -299,101 +162,21 @@ final class NaiveSpinLock extends java.util.concurrent.locks.Lock {
         pulsar.synchronized(pulsar.notifyAll())
     }
 
-
-  /**
-   * Releases the acquired lock.
-   *
-   * @throws IllegalStateException in case the lock isn't acquired by the current thread.
-   */
-  @throws(classOf[IllegalStateException])
+  @throws(classOf[IllegalMonitorStateException])
   override def unlock(): Unit = {
-    if (acquiringThread ne Thread.currentThread())
-      throw new IllegalStateException("NaiveSpinLock cannot unlock because the lock is not acquired by the current thread")
-    _unlock()
+    if (acquiringThreadCopy ne Thread.currentThread())
+      throw new IllegalMonitorStateException(s"Lock is not held by current thread, so cannot unlock $acquiringThreadCopy")
+    acquiringThreadCopy = null
+    acquiringThread = null
   }
 
-  /**
-   * Releases the acquired lock. Meant to be private, using it is dangerous as for
-   * performance reasons it doesn't do any sanity checks.
-   */
-  def _unlock(): Unit = {
-    // visibility is guaranteed, because it's the currentThread that incremented it from zero
-    if (reentryCount != 0) {
-      reentryCount -= 1
-    }
-    else {
-      // releasing the lock, also creating a memory barrier for publishing everything modified by this thread
-      acquiringThread = null
-    }
+  def unsafeUnlock(): Unit = {
+    acquiringThreadCopy = null
+    acquiringThread = null
   }
 }
 
 object NaiveSpinLock {
-  def apply(): NaiveSpinLock =
-    new NaiveSpinLock()
-
   private val addressOffset =
     Unsafe.objectFieldOffset(classOf[NaiveSpinLock].getDeclaredFields.find(_.getName.endsWith("acquiringThread")).get)
-
-  def _lockMacroImpl[T : c.WeakTypeTag](c: Context { type PrefixType = NaiveSpinLock })(cb: c.Expr[T]): c.Expr[T] = {
-    import c.universe._
-    reify {
-      val self = c.prefix.splice
-      self.lock()
-      try {
-        cb.splice
-      }
-      finally {
-        self._unlock()
-      }
-    }
-  }
-
-  def _lockInterruptiblyMacroImpl[T : c.WeakTypeTag](c: Context { type PrefixType = NaiveSpinLock })(cb: c.Expr[T]): c.Expr[T] = {
-    import c.universe._
-    reify {
-      val self = c.prefix.splice
-      self.lockInterruptibly()
-      try {
-        cb.splice
-      }
-      finally {
-        self._unlock()
-      }
-    }
-  }
-
-  def _tryLockMacroImpl[T : c.WeakTypeTag](c: Context { type PrefixType = NaiveSpinLock })(cb: c.Expr[T]): c.Expr[Boolean] = {
-    import c.universe._
-    reify {
-      val self = c.prefix.splice
-      if (self.tryLock())
-        try {
-          cb.splice
-          true
-        }
-        finally {
-          self._unlock()
-        }
-      else
-        false
-    }
-  }
-
-  def _tryLockDurationMacroImpl[T : c.WeakTypeTag](c: Context { type PrefixType = NaiveSpinLock })(time: c.Expr[Long], unit: c.Expr[TimeUnit], cb: c.Expr[T]): c.Expr[Boolean] = {
-    import c.universe._
-    reify {
-      val self = c.prefix.splice
-      if (self.tryLock(time.splice, unit.splice))
-        try {
-          cb.splice
-          true
-        }
-        finally {
-          self._unlock()
-        }
-      else
-        false
-    }
-  }
 }
