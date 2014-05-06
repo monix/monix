@@ -10,43 +10,40 @@ import monifu.concurrent.misc.Unsafe
  * [[http://en.wikipedia.org/wiki/Spinlock spinlock-ing]].
  *
  */
-final class NaiveSpinLock extends Lock {
+final class SpinLock extends Lock {
   // cache line padding
   @volatile private[this] var p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16 = 10L
-  @volatile private[this] var acquiringThread: Thread = null
+  @volatile private[this] var isLockAcquired: Int = 0
   @volatile private[this] var s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s16 = 10L
 
   // using sun.misc.Unsafe for compareAndSet operations (don't do this at home)
   private[this] val unsafe = Unsafe()
-  private[this] val addressOffset = NaiveSpinLock.addressOffset
-  private[this] var acquiringThreadCopy: Thread = null
+  private[this] val addressOffset = SpinLock.addressOffset
+  private[this] var acquiringThread: Thread = null
 
   override def isAcquiredByCurrentThread: Boolean =
-    acquiringThreadCopy eq Thread.currentThread()
+    acquiringThread eq Thread.currentThread()
 
-  override def lock(): Unit = {
-    val currentThread = Thread.currentThread()
-    while (!unsafe.compareAndSwapObject(this, addressOffset, null, currentThread)) {}
-    acquiringThreadCopy = currentThread
+  override def unsafeLock(): Unit = {
+    while (!unsafe.compareAndSwapInt(this, addressOffset, 0, 1)) {}
+    acquiringThread = Thread.currentThread()
   }
 
   @throws(classOf[InterruptedException])
-  override def lockInterruptibly(): Unit = {
-    val currentThread = Thread.currentThread()
+  override def unsafeLockInterruptibly(): Unit = {
     while (true) {
       if (Thread.interrupted())
-        throw new InterruptedException("NaiveSpinLock was interrupted")
-      else if (unsafe.compareAndSwapObject(this, addressOffset, null, currentThread)) {
-        acquiringThreadCopy = currentThread
+        throw new InterruptedException("SpinLock was interrupted")
+      else if (unsafe.compareAndSwapInt(this, addressOffset, 0, 1)) {
+        acquiringThread = Thread.currentThread()
         return
       }
     }
   }
 
-  override def tryLock(): Boolean = {
-    val currentThread = Thread.currentThread()
-    if (unsafe.compareAndSwapObject(this, addressOffset, null, currentThread)) {
-      acquiringThreadCopy = currentThread
+  override def unsafeTryLock(): Boolean = {
+    if (unsafe.compareAndSwapInt(this, addressOffset, 0, 1)) {
+      acquiringThread = Thread.currentThread()
       true
     }
     else
@@ -54,8 +51,7 @@ final class NaiveSpinLock extends Lock {
   }
 
   @throws(classOf[InterruptedException])
-  override def tryLock(time: Long, unit: TimeUnit): Boolean = {
-    val currentThread = Thread.currentThread()
+  override def unsafeTryLock(time: Long, unit: TimeUnit): Boolean = {
     val endsAt = System.nanoTime() + TimeUnit.NANOSECONDS.convert(time, unit)
 
     var isAcquired = false
@@ -63,10 +59,10 @@ final class NaiveSpinLock extends Lock {
     var retries = 0L
 
     while (!isAcquired && !isTimedOut) {
-      isAcquired = unsafe.compareAndSwapObject(this, addressOffset, null, currentThread)
+      isAcquired = unsafe.compareAndSwapInt(this, addressOffset, 0, 1)
       if (!isAcquired) {
         if (Thread.interrupted()) {
-          throw new InterruptedException("NaiveSpinLock was interrupted")
+          throw new InterruptedException("SpinLock was interrupted")
         }
         else if (retries < 1000) {
           // only does the time checks every thousand retries because `System.nanoTime` is expensive
@@ -78,7 +74,7 @@ final class NaiveSpinLock extends Lock {
         }
       }
       else {
-        acquiringThreadCopy = currentThread
+        acquiringThread = Thread.currentThread()
       }
     }
 
@@ -94,25 +90,15 @@ final class NaiveSpinLock extends Lock {
       private[this] val pulsar = new AnyRef
 
       override def await(): Unit = {
-        if (!isAcquiredByCurrentThread)
-          throw new IllegalMonitorStateException(s"Lock not currently acquired by current thread, so cannot await on condition")
-
-        try pulsar.synchronized {
-          unlock()
-          pulsar.wait()
-        }
-        finally {
-          lock()
+        unlock()
+        try pulsar.synchronized(pulsar.wait()) finally {
+          unsafeLock()
         }
       }
 
       def awaitUninterruptibly(): Unit = {
-        if (!isAcquiredByCurrentThread)
-          throw new IllegalMonitorStateException("Lock not currently acquired by current thread, so cannot await on condition")
-
+        unlock()
         try pulsar.synchronized {
-          unlock()
-
           var terminated = false
           while (!terminated)
             try {
@@ -123,7 +109,7 @@ final class NaiveSpinLock extends Lock {
             }
         }
         finally {
-          lock()
+          unsafeLock()
         }
       }
 
@@ -135,12 +121,12 @@ final class NaiveSpinLock extends Lock {
         val millis = TimeUnit.NANOSECONDS.toMillis(nanosTimeout)
         val remainingNanos = (nanosTimeout - TimeUnit.MILLISECONDS.toNanos(millis)).toInt
 
+        unlock()
         try pulsar.synchronized {
-          unlock()
           pulsar.wait(millis, remainingNanos)
         }
         finally {
-          lock()
+          unsafeLock()
         }
         nanosTimeout - (System.nanoTime() - startedAt)
       }
@@ -162,21 +148,13 @@ final class NaiveSpinLock extends Lock {
         pulsar.synchronized(pulsar.notifyAll())
     }
 
-  @throws(classOf[IllegalMonitorStateException])
-  override def unlock(): Unit = {
-    if (acquiringThreadCopy ne Thread.currentThread())
-      throw new IllegalMonitorStateException(s"Lock is not held by current thread, so cannot unlock $acquiringThreadCopy")
-    acquiringThreadCopy = null
-    acquiringThread = null
-  }
-
   def unsafeUnlock(): Unit = {
-    acquiringThreadCopy = null
     acquiringThread = null
+    isLockAcquired = 0
   }
 }
 
-object NaiveSpinLock {
+object SpinLock {
   private val addressOffset =
-    Unsafe.objectFieldOffset(classOf[NaiveSpinLock].getDeclaredFields.find(_.getName.endsWith("acquiringThread")).get)
+    Unsafe.objectFieldOffset(classOf[SpinLock].getDeclaredFields.find(_.getName.endsWith("isLockAcquired")).get)
 }

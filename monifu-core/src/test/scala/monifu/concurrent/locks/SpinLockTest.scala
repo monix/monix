@@ -9,9 +9,9 @@ import scala.collection.mutable
 import java.util.Date
 
 
-class NaiveSpinLockTest extends FunSuite {
+class SpinLockTest extends FunSuite {
   @volatile var barrier = false
-  val lock = new NaiveSpinLock()
+  val lock = new SpinLock()
 
   test("re-entrance") {
     var effect = "hello"

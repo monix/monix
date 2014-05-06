@@ -20,8 +20,23 @@ trait Lock extends JavaLock {
    *
    * If the lock is not available, then the thread waits until is able to acquire the lock.
    * Does not interrupt - for interrupting see [[lockInterruptibly]] instead.
+   *
+   * @throws IllegalMonitorStateException in case the lock is already acquired.
    */
-  def lock(): Unit
+  final def lock(): Unit = {
+    if (isAcquiredByCurrentThread)
+      throw new IllegalMonitorStateException("Lock already acquired by current thread")
+    unsafeLock()
+  }
+
+  /**
+   * Acquires the lock. Compared to [[unsafeLock]] it doesn't do sanity checks, so used unwisely
+   * it may lead to deadlocks or other undesired behavior.
+   *
+   * If the lock is not available, then the thread waits until is able to acquire the lock.
+   * Does not interrupt - for interrupting see [[lockInterruptibly]] instead.
+   */
+  def unsafeLock(): Unit
 
   /**
    * Acquires the lock.
@@ -30,16 +45,47 @@ trait Lock extends JavaLock {
    * Can be [[http://docs.oracle.com/javase/7/docs/api/java/lang/Thread.html#interrupt%28%29 interrupted]].
    *
    * @throws InterruptedException in case the thread was interrupted with `Thread.interrupt()`
+   * @throws IllegalMonitorStateException in case the lock is already acquired.
    */
   @throws(classOf[InterruptedException])
-  def lockInterruptibly(): Unit
+  final def lockInterruptibly(): Unit = {
+    if (isAcquiredByCurrentThread)
+      throw new IllegalMonitorStateException("Lock already acquired by current thread")
+    unsafeLockInterruptibly()
+  }
+
+  /**
+   * Acquires the lock. Compared to [[lockInterruptibly()]] it doesn't do any sanity checks, so used
+   * unwisely it may lead to deadlocks or other undesired behavior.
+   *
+   * If the lock is not available, then the thread waits until is able to acquire the lock.
+   * Can be [[http://docs.oracle.com/javase/7/docs/api/java/lang/Thread.html#interrupt%28%29 interrupted]].
+   *
+   * @throws InterruptedException in case the thread was interrupted with `Thread.interrupt()`
+   * @throws IllegalMonitorStateException in case the lock is already acquired.
+   */
+  def unsafeLockInterruptibly(): Unit
 
   /**
    * Acquires the lock only if it is free at the time of invocation.
    *
+   * @throws IllegalMonitorStateException in case the lock is already acquired.
    * @return either `true` if the lock was acquired or `false` otherwise.
    */
-  def tryLock(): Boolean
+  final def tryLock(): Boolean = {
+    if (isAcquiredByCurrentThread)
+      throw new IllegalMonitorStateException("Lock already acquired by current thread")
+    unsafeTryLock()
+  }
+
+  /**
+   * Acquires the lock only if it is free at the time of invocation. Compared to
+   * [[tryLock()]] it doesn't do any sanity checks, so used
+   * unwisely it may lead to deadlocks or other undesired behavior.
+   *
+   * @return either `true` if the lock was acquired or `false` otherwise.
+   */
+  def unsafeTryLock(): Boolean
 
   /**
    * Acquires the lock if it is free within the given waiting time and the current thread has not been
@@ -48,14 +94,37 @@ trait Lock extends JavaLock {
    * @param time the maximum time to wait for the lock
    * @param unit the time unit of the `time` argument
    *
-   * @throws java.lang.InterruptedException - if the current thread is interrupted while acquiring the lock
-   *                                        (and interruption of lock acquisition is supported)
+   * @throws IllegalMonitorStateException    in case the lock is already acquired.
+   * @throws java.lang.InterruptedException  if the current thread is interrupted while acquiring the lock
+   *                                         (and interruption of lock acquisition is supported)
    *
    * @return `true` if the lock was successfully acquired or `false` if the waiting time
    *        elapsed before the lock was acquired
    */
   @throws(classOf[InterruptedException])
-  def tryLock(time: Long, unit: TimeUnit): Boolean
+  final def tryLock(time: Long, unit: TimeUnit): Boolean = {
+    if (isAcquiredByCurrentThread)
+      throw new IllegalMonitorStateException("Lock already acquired by current thread")
+    unsafeTryLock(time, unit)
+  }
+
+  /**
+   * Acquires the lock if it is free within the given waiting time and the current thread has not been
+   * [[http://docs.oracle.com/javase/7/docs/api/java/lang/Thread.html#interrupt%28%29 interrupted]].
+   * Compared to [[tryLock]] it doesn't do any sanity checks, so used
+   * unwisely it may lead to deadlocks or other undesired behavior.
+   *
+   * @param time the maximum time to wait for the lock
+   * @param unit the time unit of the `time` argument
+   *
+   * @throws java.lang.InterruptedException  if the current thread is interrupted while acquiring the lock
+   *                                         (and interruption of lock acquisition is supported)
+   *
+   * @return `true` if the lock was successfully acquired or `false` if the waiting time
+   *        elapsed before the lock was acquired
+   */
+  @throws(classOf[InterruptedException])
+  def unsafeTryLock(time: Long, unit: TimeUnit): Boolean
 
   /**
    * Returns a new [[http://docs.oracle.com/javase/7/docs/api/java/util/concurrent/locks/Condition.html Condition]]
@@ -66,7 +135,11 @@ trait Lock extends JavaLock {
   /**
    * Releases the acquired lock.
    */
-  def unlock(): Unit
+  final def unlock(): Unit = {
+    if (!isAcquiredByCurrentThread)
+      throw new IllegalMonitorStateException("Lock isn't acquired by current thread so cannot release")
+    unsafeUnlock()
+  }
 
   /**
    * Releases the acquired lock without doing any safety checks.
@@ -179,7 +252,7 @@ object Lock {
           if (self.isAcquiredByCurrentThread)
             cb.splice
           else {
-            self.lock()
+            self.unsafeLock()
             try { cb.splice } finally {
               self.unsafeUnlock()
             }
@@ -207,7 +280,7 @@ object Lock {
           if (self.isAcquiredByCurrentThread)
             cb.splice
           else {
-            self.lockInterruptibly()
+            self.unsafeLockInterruptibly()
             try {
               cb.splice
             } finally {
@@ -242,7 +315,7 @@ object Lock {
             cb.splice
             true
           }
-          else if (self.tryLock())
+          else if (self.unsafeTryLock())
             try {
               cb.splice
               true
@@ -284,7 +357,7 @@ object Lock {
             cb.splice
             true
           }
-          else if (self.tryLock(time.splice, unit.splice))
+          else if (self.unsafeTryLock(time.splice, unit.splice))
             try {
               cb.splice
               true

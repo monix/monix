@@ -2,7 +2,7 @@ package monifu.benchmarks.locks
 
 import monifu.benchmarks.SimpleScalaBenchmark
 import com.google.caliper.Param
-import monifu.concurrent.locks.NaiveSpinLock
+import monifu.concurrent.locks.SpinLock
 
 class FibonacciLockBenchmark extends SimpleScalaBenchmark {
   import SimpleScalaBenchmark._
@@ -13,7 +13,7 @@ class FibonacciLockBenchmark extends SimpleScalaBenchmark {
   class Box[T](val value: T)
 
   def timeFibonacci_SpinLock_Reentrant(reps: Int) = repeat(reps) {
-    val gate = new NaiveSpinLock()
+    val gate = new SpinLock()
     var (a,b) = (1L,1L)
 
     var i = 0
@@ -46,7 +46,7 @@ class FibonacciLockBenchmark extends SimpleScalaBenchmark {
   }
 
   def timeFibonacci_IntrinsicLock_Reentrant(reps: Int) = repeat(reps) {
-    val gate = new NaiveSpinLock()
+    val gate = new SpinLock()
     var (a,b) = (1L,1L)
 
     var i = 0
@@ -79,7 +79,7 @@ class FibonacciLockBenchmark extends SimpleScalaBenchmark {
   }
 
   def timeFibonacci_SpinLock_NonReentrant(reps: Int) = repeat(reps) {
-    val gate = new NaiveSpinLock()
+    val gate = new SpinLock()
     var (a,b) = (1L,1L)
 
     var i = 0
@@ -110,7 +110,7 @@ class FibonacciLockBenchmark extends SimpleScalaBenchmark {
   }
 
   def timeFibonacci_IntrinsicLock_NonReentrant(reps: Int) = repeat(reps) {
-    val gate = new NaiveSpinLock()
+    val gate = new SpinLock()
     var (a,b) = (1L,1L)
 
     var i = 0
