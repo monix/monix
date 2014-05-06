@@ -7,11 +7,12 @@ import concurrent.duration._
 import monifu.concurrent.atomic.Atomic
 import scala.collection.mutable
 import java.util.Date
+import Lock.Extensions
 
 
-class NaiveSpinLockTest extends FunSuite {
+class JavaLockTest extends FunSuite {
   @volatile var barrier = false
-  val lock = new NaiveSpinLock()
+  val lock = new java.util.concurrent.locks.ReentrantLock()
 
   test("re-entrance") {
     var effect = "hello"
