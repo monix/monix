@@ -1,10 +1,10 @@
 package monifu.concurrent.atomic.padded
 
 import scala.annotation.tailrec
-import monifu.misc.Unsafe
 import scala.concurrent._
 import scala.concurrent.duration.FiniteDuration
 import monifu.concurrent.atomic.{AtomicNumber, BlockableAtomic, interruptedCheck, timeoutCheck}
+import monifu.concurrent.misc.Unsafe
 
 final class AtomicByte private (initialValue: Byte)
   extends Atomic[Byte] with AtomicNumber[Byte] with BlockableAtomic[Byte] {

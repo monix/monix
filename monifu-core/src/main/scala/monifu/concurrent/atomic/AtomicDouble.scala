@@ -1,10 +1,10 @@
 package monifu.concurrent.atomic
 
-import monifu.misc.Unsafe
 import scala.annotation.tailrec
 import scala.concurrent._
 import scala.concurrent.duration.FiniteDuration
 import java.lang.Double.{longBitsToDouble, doubleToLongBits}
+import monifu.concurrent.misc.Unsafe
 
 
 final class AtomicDouble private (initialValue: Double)

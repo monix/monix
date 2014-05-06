@@ -1,4 +1,4 @@
-package monifu.misc
+package monifu.concurrent.misc
 
 import language.experimental.macros
 import java.lang.reflect.Modifier

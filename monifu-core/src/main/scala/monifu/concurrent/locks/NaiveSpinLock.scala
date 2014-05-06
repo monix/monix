@@ -2,10 +2,10 @@ package monifu.concurrent.locks
 
 import language.experimental.macros
 import scala.reflect.macros.Context
-import monifu.misc.Unsafe
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.Condition
 import java.util.Date
+import monifu.concurrent.misc.Unsafe
 
 /**
  * A very efficient implementation of a `java.util.concurrent.locks.Lock` that is based on

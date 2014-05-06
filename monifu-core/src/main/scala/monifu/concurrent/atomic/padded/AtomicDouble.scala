@@ -1,11 +1,11 @@
 package monifu.concurrent.atomic.padded
 
-import monifu.misc.Unsafe
 import scala.annotation.tailrec
 import scala.concurrent._
 import scala.concurrent.duration.FiniteDuration
 import java.lang.Double.{longBitsToDouble, doubleToLongBits}
 import monifu.concurrent.atomic.{AtomicNumber, BlockableAtomic, interruptedCheck, timeoutCheck}
+import monifu.concurrent.misc.Unsafe
 
 
 final class AtomicDouble private (initialValue: Double)
