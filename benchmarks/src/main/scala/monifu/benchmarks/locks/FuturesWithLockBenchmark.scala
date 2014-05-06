@@ -5,7 +5,7 @@ import com.google.caliper.Param
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
-import monifu.concurrent.locks.NaiveSpinLock
+import monifu.concurrent.locks.SpinLock
 import java.util.concurrent.locks.ReentrantLock
 import monifu.concurrent.locks.Lock.Extensions
 
@@ -14,11 +14,11 @@ class FuturesWithLockBenchmark extends SimpleScalaBenchmark {
   class Box[T](val value: T)
   val nrOfIterations: Int = 100000
 
-  @Param(Array("1", "2", "3", "5", "8"))
+  @Param(Array("1", "2", "3", "5", "8", "13", "21"))
   val concurrency: Int = 0
 
   def timeFibonacci_SpinLock(reps: Int) = repeat(reps) {
-    val gate = new NaiveSpinLock()
+    val gate = new SpinLock()
     var (a,b) = (1L,1L)
 
     def loop(counter: Int): Future[Long] = {
