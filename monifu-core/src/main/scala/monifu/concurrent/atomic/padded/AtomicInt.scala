@@ -1,10 +1,10 @@
 package monifu.concurrent.atomic.padded
 
-import monifu.misc.Unsafe
 import scala.annotation.tailrec
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration.FiniteDuration
 import monifu.concurrent.atomic.{AtomicNumber, BlockableAtomic, interruptedCheck, timeoutCheck}
+import monifu.concurrent.misc.Unsafe
 
 final class AtomicInt private (initialValue: Int) extends Atomic[Int] with AtomicNumber[Int] with BlockableAtomic[Int] {
   @volatile private[this] var p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16 = 10L

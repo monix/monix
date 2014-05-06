@@ -1,9 +1,9 @@
 package monifu.concurrent.atomic
 
-import monifu.misc.Unsafe
 import scala.annotation.tailrec
 import scala.concurrent._
 import scala.concurrent.duration.FiniteDuration
+import monifu.concurrent.misc.Unsafe
 
 final class AtomicChar private (initialValue: Char)
   extends AtomicNumber[Char] with BlockableAtomic[Char] {

@@ -1,9 +1,9 @@
 package monifu.concurrent.atomic
 
-import monifu.misc.Unsafe
 import scala.annotation.tailrec
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration.FiniteDuration
+import monifu.concurrent.misc.Unsafe
 
 
 final class AtomicAny[T] private (initialValue: T) extends BlockableAtomic[T] {

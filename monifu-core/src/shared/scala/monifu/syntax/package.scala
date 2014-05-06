@@ -8,65 +8,35 @@ package object syntax {
   /**
    * Provides type-safe equality and inequality operators, implemented with
    * macros for efficiency reasons.
-   *
-   * In comparison with other solutions for type-safe equality in Scala, this one
-   * takes sub-typing out of the picture completely and simply doesn't allow it.
-   *
-   * {{{
-   *   scala> 1.0 === 2.0
-   *   res6: Boolean = false
-   *
-   *   scala> 1.0 === 2.0f
-   *   <console>:11: error: Cannot prove that Double =:= Float.
-   *                 1.0 === 2.0f
-   *                     ^
-   *
-   *   scala> 1.0 === 1.0
-   *   res8: Boolean = true
-   *
-   *   scala> 1.0 === 1.0f
-   *   <console>:11: error: Cannot prove that Double =:= Float.
-   *                 1.0 === 1.0f
-   *                     ^
-   *
-   *   scala> 1.0 === 1
-   *   <console>:11: error: Cannot prove that Double =:= Int.
-   *                 1.0 === 1
-   *                     ^
-   *
-   *   scala> 1 === 1.0
-   *   <console>:11: error: Cannot prove that Int =:= Double.
-   *                 1 === 1.0
-   *                   ^
-   * }}}
    */
   implicit class TypeSafeEquals[T](val self: T) extends AnyVal {
-    def ===[U](other: U)(implicit ev: T =:= U): Boolean = macro TypeSafeEquals.equalsImpl[T, U]
+    def ===[U](other: U): Boolean = macro TypeSafeEquals.equalsImpl[T, U]
 
-    def ≟[U](other: U)(implicit ev: T =:= U): Boolean = macro TypeSafeEquals.equalsImpl[T, U]
+    def ≟[U](other: U): Boolean = macro TypeSafeEquals.equalsImpl[T, U]
 
-    def !==[U](other: U)(implicit ev: T =:= U): Boolean = macro TypeSafeEquals.notEqualsImpl[T, U]
+    def !==[U](other: U): Boolean = macro TypeSafeEquals.notEqualsImpl[T, U]
 
-    def ≠[U](other: U)(implicit ev: T =:= U): Boolean = macro TypeSafeEquals.notEqualsImpl[T, U]
+    def ≠[U](other: U): Boolean = macro TypeSafeEquals.notEqualsImpl[T, U]
   }
 
   object TypeSafeEquals {
-    def equalsImpl[T : c.WeakTypeTag, U : c.WeakTypeTag](c: Context)(other: c.Expr[T])(ev: c.Expr[T =:= U]): c.Expr[Boolean] = {
+    def equalsImpl[T : c.WeakTypeTag, U : c.WeakTypeTag](c: Context)(other: c.Expr[T]): c.Expr[Boolean] = {
       import c.universe._
 
-      val value = c.Expr[T](Select(c.prefix.tree, newTermName("self")))
-      reify {
-        value.splice == other.splice
-      }
+      def canProve[A : WeakTypeTag] =
+        c.inferImplicitValue(weakTypeOf[A], silent=true) != EmptyTree
+
+      val selfExpr = c.Expr[T](Select(c.prefix.tree, newTermName("self")))
+      if (canProve[T <:< U] || canProve[U <:< T])
+        reify(selfExpr.splice == other.splice)
+      else
+        c.abort(c.macroApplication.pos, s"Cannot compare unrelated types ${weakTypeOf[T]} and ${weakTypeOf[U]}")
     }
 
-    def notEqualsImpl[T : c.WeakTypeTag, U : c.WeakTypeTag](c: Context)(other: c.Expr[T])(ev: c.Expr[T =:= U]): c.Expr[Boolean] = {
+    def notEqualsImpl[T : c.WeakTypeTag, U : c.WeakTypeTag](c: Context)(other: c.Expr[T]): c.Expr[Boolean] = {
       import c.universe._
-
-      val value = c.Expr[T](Select(c.prefix.tree, newTermName("self")))
-      reify {
-        value.splice != other.splice
-      }
+      val equality = equalsImpl[T, U](c)(other)
+      reify(!equality.splice)
     }
   }
 

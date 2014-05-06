@@ -1,9 +1,9 @@
 package monifu.concurrent.atomic
 
-import monifu.misc.Unsafe
 import scala.annotation.tailrec
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration.FiniteDuration
+import monifu.concurrent.misc.Unsafe
 
 final class AtomicBoolean private (initialValue: Boolean) extends BlockableAtomic[Boolean] {
   @volatile private[this] var value: Int = if (initialValue) 1 else 0
