@@ -1,7 +1,6 @@
 package monifu.concurrent.misc
 
 import language.experimental.macros
-import java.lang.reflect.Modifier
 import scala.util.control.NonFatal
 
 /**
@@ -10,9 +9,6 @@ import scala.util.control.NonFatal
  * of Java.
  */
 object Unsafe {
-  def apply(): sun.misc.Unsafe =
-    instance
-
   /**
    * Gets the raw byte offset from the start of an object's memory to
    * the memory used to store the indicated instance field.
@@ -21,8 +17,32 @@ object Unsafe {
    * @return the offset to the field
    */
   def objectFieldOffset(field: java.lang.reflect.Field): Long = {
-    require(!Modifier.isStatic(field.getModifiers()), "valid for instance fields only")
     instance.objectFieldOffset(field)
+  }
+
+  /**
+   * Report the location of a given static field, in conjunction with [[staticFieldOffset]].
+   *
+   * Fetch the base "Object", if any, with which static fields of the
+   * given class can be accessed via methods like [[getIntVolatile]].
+   * This value may be null.  This value may refer to an object
+   * which is a "cookie", not guaranteed to be a real Object, and it should
+   * not be used in any way except as argument to the get and put routines in
+   * this class.
+   */
+  def staticFieldBase(field: java.lang.reflect.Field): AnyRef = {
+    instance.staticFieldBase(field)
+  }
+
+  /**
+   * Gets the raw byte offset from the start of an object's memory to
+   * the memory used to store the indicated static field.
+   *
+   * @param field non-null; the field in question, which must be a static field
+   * @return the offset to the field
+   */
+  def staticFieldOffset(field: java.lang.reflect.Field): Long = {
+    instance.staticFieldOffset(field)
   }
 
   /**
@@ -33,7 +53,6 @@ object Unsafe {
    * @return the offset to the initial element
    */
   def arrayBaseOffset(clazz: Class[_]): Int = {
-    require(clazz.isArray, "valid for array classes only")
     instance.arrayBaseOffset(clazz)
   }
 
@@ -43,8 +62,7 @@ object Unsafe {
    * @param clazz non-null; class in question; must be an array class
    * @return &gt; 0; the size of each element of the array
    */
-  def arrayIndexScale(clazz: Class[_]): Int = {
-    require(clazz.isArray, "valid for array classes only")
+  def arrayIndexScale(clazz: Class[_ <: Array[_]]): Int = {
     instance.arrayIndexScale(clazz)
   }
 
