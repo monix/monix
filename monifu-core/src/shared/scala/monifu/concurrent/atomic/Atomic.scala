@@ -51,8 +51,8 @@ trait Atomic[T] extends Any {
   def getAndSet(update: T): T
 
   /**
-   * Eventually sets to the given value. Has weaker visibility guarantees than the normal `set()`
-   * and is thus less useful.
+   * Eventually sets to the given value. Has weaker visibility guarantees than the normal `set()`.
+   *
    */
   def lazySet(update: T): Unit
 
