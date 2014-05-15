@@ -1,6 +1,7 @@
 package monifu.rx.sync.subjects
 
 import scala.scalajs.test.JasmineTest
+import monifu.concurrent.cancelables.BooleanCancelable
 
 object PublishSubjectTest extends JasmineTest {
   describe("PublishSubject") {
@@ -26,8 +27,8 @@ object PublishSubjectTest extends JasmineTest {
       subject.onNext(1)
       subject.onCompleted()
 
-      expect(sub1.isCanceled).toBe(true)
-      expect(sub2.isCanceled).toBe(true)
+      expect(sub1.asInstanceOf[BooleanCancelable].isCanceled).toBe(true)
+      expect(sub2.asInstanceOf[BooleanCancelable].isCanceled).toBe(true)
     }
   }
 }

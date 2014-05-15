@@ -1,7 +1,6 @@
 package monifu.rx.sync.subjects
 
 import monifu.concurrent.Cancelable
-import monifu.concurrent.locks.NaiveReadWriteLock
 import collection.immutable.Set
 import monifu.rx.sync.observers.Subscriber
 import monifu.concurrent.cancelables.SingleAssignmentCancelable
@@ -11,12 +10,12 @@ import monifu.rx.sync.Observer
 
 
 final class PublishSubject[T] private () extends Subject[T] {
-  private[this] val lock = NaiveReadWriteLock()
+  private[this] val lock = new AnyRef
   private[this] var observers = Set.empty[Subscriber[T]]
   private[this] var isDone = false
 
   def subscribe(observer: Observer[T]): Cancelable =
-    lock.writeLock {
+    lock.synchronized {
       if (!isDone) {
         val sub = SingleAssignmentCancelable()
         val subscriber = Subscriber(observer, sub)
@@ -25,10 +24,10 @@ final class PublishSubject[T] private () extends Subject[T] {
         sub
       }
       else
-        Cancelable.alreadyCanceled
+        Cancelable.empty
     }
 
-  def onNext(elem: T) = lock.readLock {
+  def onNext(elem: T) = lock.synchronized {
     if (!isDone) {
       for (obs <- observers)
         try
@@ -45,7 +44,7 @@ final class PublishSubject[T] private () extends Subject[T] {
       Stop
   }
 
-  def onError(ex: Throwable) = lock.writeLock {
+  def onError(ex: Throwable) = lock.synchronized {
     if (!isDone)
       try {
         observers.foreach(_.onError(ex))
@@ -56,7 +55,7 @@ final class PublishSubject[T] private () extends Subject[T] {
       }
   }
 
-  def onCompleted() = lock.writeLock {
+  def onCompleted() = lock.synchronized {
     if (!isDone)
       try {
         for (obs <- observers)

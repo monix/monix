@@ -1,6 +1,7 @@
 package monifu.rx.sync.subjects
 
 import org.scalatest.FunSuite
+import monifu.concurrent.cancelables.BooleanCancelable
 
 class PublishSubjectTest extends FunSuite {
   test("propagate onNext") {
@@ -25,7 +26,7 @@ class PublishSubjectTest extends FunSuite {
     subject.onNext(1)
     subject.onCompleted()
 
-    assert(sub1.isCanceled === true)
-    assert(sub2.isCanceled === true)
+    assert(sub1.asInstanceOf[BooleanCancelable].isCanceled === true)
+    assert(sub2.asInstanceOf[BooleanCancelable].isCanceled === true)
   }
 }

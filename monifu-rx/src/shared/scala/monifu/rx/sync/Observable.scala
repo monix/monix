@@ -370,14 +370,14 @@ trait Observable[+A] extends ObservableLike[A, Observable] {
   def zip[B](other: Observable[B]): Observable[(A,B)] =
     Observable.create { observer =>
       val composite = CompositeCancelable()
-      val lock = NaiveSpinLock()
+      val lock = new AnyRef
       val queueA = mutable.Queue.empty[A]
       val queueB = mutable.Queue.empty[B]
       var aIsDone = false
       var bIsDone = false
 
       def _onError(ex: Throwable) =
-        lock.acquire {
+        lock.synchronized {
           aIsDone = true
           bIsDone = true
           queueA.clear()
@@ -387,7 +387,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] {
 
       composite += subscribe(new Observer[A] {
         def onNext(elem: A) =
-          lock.acquire {
+          lock.synchronized {
             if (!aIsDone)
               if (queueB.nonEmpty) {
                 val b = queueB.dequeue()
@@ -406,7 +406,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] {
           }
 
         def onCompleted() =
-          lock.acquire {
+          lock.synchronized {
             if (!aIsDone) {
               aIsDone = true
               if (queueA.isEmpty || bIsDone) {
@@ -422,7 +422,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] {
 
       composite += other.subscribe(new Observer[B] {
         def onNext(elem: B) =
-          lock.acquire {
+          lock.synchronized {
             if (!bIsDone)
               if (queueA.nonEmpty) {
                 val a = queueA.dequeue()
@@ -441,7 +441,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] {
           }
 
         def onCompleted() =
-          lock.acquire {
+          lock.synchronized {
             if (!bIsDone) {
               bIsDone = true
               if (queueB.isEmpty || aIsDone) {
@@ -551,14 +551,14 @@ object Observable extends ObservableTypeClass[Observable] {
         try f(observer) catch {
           case NonFatal(ex) =>
             observer.onError(ex)
-            Cancelable.alreadyCanceled
+            Cancelable.empty
         }
     }
 
   def empty[A]: Observable[A] =
     create { observer =>
       observer.onCompleted()
-      Cancelable.alreadyCanceled
+      Cancelable.empty
     }
 
   /**
@@ -568,7 +568,7 @@ object Observable extends ObservableTypeClass[Observable] {
     create { observer =>
       observer.onNext(elem)
       observer.onCompleted()
-      Cancelable.alreadyCanceled
+      Cancelable.empty
     }
 
   /**
@@ -577,7 +577,7 @@ object Observable extends ObservableTypeClass[Observable] {
   def error(ex: Throwable): Observable[Nothing] =
     create { observer =>
       observer.onError(ex)
-      Cancelable.alreadyCanceled
+      Cancelable.empty
     }
 
   /**
@@ -621,7 +621,7 @@ object Observable extends ObservableTypeClass[Observable] {
       }
 
       if (!alreadyStopped) observer.onCompleted()
-      Cancelable.alreadyCanceled
+      Cancelable.empty
     }
 
   /**
