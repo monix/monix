@@ -1,6 +1,5 @@
 package monifu.rx.sync.observers
 
-import monifu.concurrent.locks.NaiveReadWriteLock
 import monifu.rx.sync.Observer
 import monifu.rx.base.Ack
 import Ack.{Continue, Stop}
@@ -22,17 +21,17 @@ import Ack.{Continue, Stop}
  * of the Observer implementation given to `subscribe()`.
  */
 final class SynchronizedObserver[-T] private (underlying: Observer[T]) extends Observer[T] {
-  private[this] val lock = NaiveReadWriteLock()
+  private[this] val lock = new AnyRef
   private[this] var isDone = false
 
   def onNext(elem: T): Ack  =
-    lock.readLock {
+    lock.synchronized {
       if (!isDone)
         underlying.onNext(elem) match {
           case Continue =>
             Continue
           case Stop =>
-            lock.writeLock { isDone = true }
+            isDone = true
             Stop
         }
       else
@@ -40,7 +39,7 @@ final class SynchronizedObserver[-T] private (underlying: Observer[T]) extends O
     }
 
   def onError(ex: Throwable): Unit =
-    lock.writeLock {
+    lock.synchronized {
       if (!isDone)
         try underlying.onError(ex) finally {
           isDone = true
@@ -48,7 +47,7 @@ final class SynchronizedObserver[-T] private (underlying: Observer[T]) extends O
     }
 
   def onCompleted(): Unit =
-    lock.writeLock {
+    lock.synchronized {
       if (!isDone)
         try underlying.onCompleted() finally {
           isDone = true
