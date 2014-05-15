@@ -3,7 +3,6 @@ package monifu.rx.sync
 import monifu.concurrent.cancelables.{CompositeCancelable, RefCountCancelable}
 import monifu.rx.sync.observers.{SynchronizedObserver, AnonymousObserver}
 import scala.annotation.tailrec
-import monifu.concurrent.locks.NaiveSpinLock
 import scala.collection.mutable
 import scala.concurrent.{Promise, Future}
 import monifu.concurrent.atomic.Atomic
@@ -15,6 +14,7 @@ import Ack.{Continue, Stop}
 import scala.util.{Failure, Success, Try}
 import concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
+
 
 /**
  * Synchronous implementation of the Observable interface.

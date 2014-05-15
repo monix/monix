@@ -1,7 +1,6 @@
 package monifu.concurrent.atomic
 
-import java.util.concurrent.TimeoutException
-import scala.annotation.tailrec
+import scala.concurrent._
 import scala.concurrent.duration.FiniteDuration
 
 /**
@@ -10,21 +9,14 @@ import scala.concurrent.duration.FiniteDuration
  *
  * Useful when using an Atomic reference as a locking mechanism.
  */
-trait BlockableAtomic[@specialized T] { self: Atomic[T] =>
-  import BlockableAtomic._
-
+trait BlockableAtomic[T] extends Atomic[T] {
   /**
    * Waits until the `compareAndSet` operation succeeds, e.g...
    * 1. until the old value == expected and the operation succeeds, or
    * 2. until the current thread is interrupted
    */
-  @tailrec
   @throws(classOf[InterruptedException])
-  final def waitForCompareAndSet(expect: T, update: T): Unit =
-    if (!compareAndSet(expect, update)) {
-      interruptedCheck()
-      waitForCompareAndSet(expect, update)
-    }
+  def waitForCompareAndSet(expect: T, update: T): Unit
 
   /**
    * Waits until the `compareAndSet` operation succeeds, e.g...
@@ -40,18 +32,8 @@ trait BlockableAtomic[@specialized T] { self: Atomic[T] =>
    * @return true if the operation succeeded or false in case it failed after
    *         it retried for `maxRetries` times
    */
-  @tailrec
   @throws(classOf[InterruptedException])
-  final def waitForCompareAndSet(expect: T, update: T, maxRetries: Int): Boolean =
-    if (!compareAndSet(expect, update))
-      if (maxRetries > 0) {
-        interruptedCheck()
-        waitForCompareAndSet(expect, update, maxRetries - 1)
-      }
-      else
-        false
-    else
-      true
+  def waitForCompareAndSet(expect: T, update: T, maxRetries: Int): Boolean
 
   /**
    * Waits until the `compareAndSet` operation succeeds, e.g...
@@ -66,35 +48,21 @@ trait BlockableAtomic[@specialized T] { self: Atomic[T] =>
    */
   @throws(classOf[InterruptedException])
   @throws(classOf[TimeoutException])
-  final def waitForCompareAndSet(expect: T, update: T, waitAtMost: FiniteDuration): Unit = {
-    val waitUntil = System.nanoTime + waitAtMost.toNanos
-    waitForCompareAndSet(expect, update, waitUntil)
-  }
+  def waitForCompareAndSet(expect: T, update: T, waitAtMost: FiniteDuration): Unit
 
   /**
    * For private use only within `monifu`.
    */
-  @tailrec
   @throws(classOf[InterruptedException])
   @throws(classOf[TimeoutException])
-  private[monifu] final def waitForCompareAndSet(expect: T, update: T, waitUntil: Long): Unit =
-    if (!compareAndSet(expect, update)) {
-      interruptedCheck()
-      timeoutCheck(waitUntil)
-      waitForCompareAndSet(expect, update, waitUntil)
-    }
+  private[monifu] def waitForCompareAndSet(expect: T, update: T, waitUntil: Long): Unit
 
   /**
    * Waits until the specified `expect` value == the value stored by this Atomic reference
    * or until the current thread gets interrupted.
    */
-  @tailrec
   @throws(classOf[InterruptedException])
-  final def waitForValue(expect: T): Unit =
-    if (get != expect) {
-      interruptedCheck()
-      waitForValue(expect)
-    }
+  def waitForValue(expect: T): Unit
 
   /**
    * Waits until the specified `expect` value == the value stored by this Atomic reference
@@ -107,34 +75,20 @@ trait BlockableAtomic[@specialized T] { self: Atomic[T] =>
    */
   @throws(classOf[InterruptedException])
   @throws(classOf[TimeoutException])
-  final def waitForValue(expect: T, waitAtMost: FiniteDuration): Unit = {
-    val waitUntil = System.nanoTime + waitAtMost.toNanos
-    waitForValue(expect, waitUntil)
-  }
+  def waitForValue(expect: T, waitAtMost: FiniteDuration): Unit
 
   /**
    * For private use only within the `monifu` package.
    */
-  @tailrec
   @throws(classOf[InterruptedException])
   @throws(classOf[TimeoutException])
-  private[monifu] final def waitForValue(expect: T, waitUntil: Long): Unit =
-    if (get != expect) {
-      interruptedCheck()
-      timeoutCheck(waitUntil)
-      waitForValue(expect, waitUntil)
-    }
+  private[monifu] def waitForValue(expect: T, waitUntil: Long): Unit
 
   /**
    * Waits until the specified callback, that receives the current value, returns `true`.
    */
-  @tailrec
   @throws(classOf[InterruptedException])
-  final def waitForCondition(p: T => Boolean): Unit =
-    if (!p(get)) {
-      interruptedCheck()
-      waitForCondition(p)
-    }
+  def waitForCondition(p: T => Boolean): Unit
 
   /**
    * Waits until the specified callback, that receives the current value, returns `true`.
@@ -142,44 +96,12 @@ trait BlockableAtomic[@specialized T] { self: Atomic[T] =>
    */
   @throws(classOf[InterruptedException])
   @throws(classOf[TimeoutException])
-  final def waitForCondition(waitAtMost: FiniteDuration)(p: T => Boolean): Unit = {
-    val waitUntil = System.nanoTime + waitAtMost.toNanos
-    waitForCondition(waitUntil)(p)
-  }
+  def waitForCondition(waitAtMost: FiniteDuration, p: T => Boolean): Unit
 
   /**
    * For private use only by the `monifu` package.
    */
-  @tailrec
   @throws(classOf[InterruptedException])
   @throws(classOf[TimeoutException])
-  private[monifu] final def waitForCondition(waitUntil: Long)(p: T => Boolean): Unit =
-    if (!p(get)) {
-      interruptedCheck()
-      timeoutCheck(waitUntil)
-      waitForCondition(waitUntil)(p)
-    }
-}
-
-object BlockableAtomic {
-  /**
-   * For private use only by the `monifu` package.
-   *
-   * Checks if the current thread has been interrupted, throwing
-   * an `InterruptedException` in case it is.
-   */
-  private[atomic] def interruptedCheck(): Unit = {
-    if (Thread.interrupted)
-      throw new InterruptedException()
-  }
-
-  /**
-   * For private use only by the `monifu` package.
-   *
-   * Checks if the timeout is due, throwing a `TimeoutException` in case it is.
-   */
-  private[atomic] def timeoutCheck(endsAtNanos: Long): Unit = {
-    if (System.nanoTime >= endsAtNanos)
-      throw new TimeoutException()
-  }
+  private[monifu] def waitForCondition(waitUntil: Long, p: T => Boolean): Unit
 }

@@ -33,7 +33,7 @@ import scala.annotation.tailrec
  *
  * Adding and removing references from this composite is thread-safe.
  */
-trait CompositeCancelable extends Cancelable {
+trait CompositeCancelable extends BooleanCancelable {
   /**
    * Adds a cancelable reference to this composite.
    */

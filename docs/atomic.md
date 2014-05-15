@@ -28,11 +28,10 @@ and use it safely, plus you've got the whole boxing/unboxing overhead.
 
 One problem is that all of these classes do not share a common
 interface and there's no reason for why they shouldn't. See the
-[Atomic[T]](/monifu-core/src/shared/scala/monifu/concurrent/atomic/Atomic.scala), [AtomicNumber[T]](/monifu-core/src/shared/scala/monifu/concurrent/atomic/AtomicNumber.scala), [BlockableAtomic[T]](/monifu-core/src/main/scala/monifu/concurrent/atomic/BlockableAtomic.scala) and [WeakAtomic[T]](/monifu-core/src/main/scala/monifu/concurrent/atomic/WeakAtomic.scala)
-traits.
+[Atomic[T]](/monifu-core/src/shared/scala/monifu/concurrent/atomic/Atomic.scala), [AtomicNumber[T]](/monifu-core/src/shared/scala/monifu/concurrent/atomic/AtomicNumber.scala) and [BlockableAtomic[T]](/monifu-core/src/main/scala/monifu/concurrent/atomic/BlockableAtomic.scala) traits.
 
 ```scala
-import monifu.concurrent.atomic._
+import monifu.concurrent.atomic.Atomic
 
 val refInt: Atomic[Int] = Atomic(0)
 val refLong: Atomic[Long] = Atomic(0L)
@@ -44,7 +43,7 @@ val refString: Atomic[String] = Atomic("hello")
 One really common use-case for atomic references are for numbers to
 which you need to add or subtract. To this purpose
 `j.u.c.a.AtomicInteger` and `j.u.c.a.AtomicLong` have an
-`incrementAndGet` helper. However Ints and Longs aren't the only type
+`incrementAndGet` helper. However Ints and Longs aren't the only types
 you normally need. How about `Float` and `Double` and `Short`? How about
 `BigDecimal` and `BigInt`?
 
@@ -53,11 +52,11 @@ In Scala, thanks to the
 type-class, we can do this:
 
 ```scala 
-scala> import monifu.concurrent.atomic._
+scala> import monifu.concurrent.atomic.Atomic
 
 scala> val ref = Atomic(BigInt(1))
 
-scala> ref.incrementAndGet
+scala> ref.incrementAndGet()
 res0: scala.math.BigInt = 2
 
 scala> ref.addAndGet(BigInt("329084291234234"))
@@ -66,7 +65,7 @@ res1: scala.math.BigInt = 329084291234236
 scala> val ref = Atomic("hello")
 ref: monifu.concurrent.atomic.AtomicAny[String] = Atomic(hello)
 
-scala> ref.incrementAndGet
+scala> ref.incrementAndGet()
 <console>:12: error: value incrementAndGet is not a member of monifu.concurrent.atomic.AtomicAny[String]
               ref.incrementAndGet
                   ^
@@ -103,7 +102,7 @@ with special care to handle overflows correctly. All this is done to avoid boxin
 for performance reasons.
 
 ```scala
-scala> import monifu.concurrent.atomic._
+scala> import monifu.concurrent.atomic.Atomic
 
 scala> val ref = Atomic(0.0)
 ref: monifu.concurrent.atomic.AtomicDouble = Atomic(0.0)
@@ -173,6 +172,12 @@ res: immutable.Queue[String] = Queue(hello)
 
 scala> ref.transformAndGet(_.enqueue("world"))
 res: immutable.Queue[String] = Queue(hello, world)
+
+scala> ref.transformAndExtract(_.dequeue)
+res: String = hello
+
+scala> ref.transformAndExtract(_.dequeue)
+res: String = world
 ```
 
 Voilà, you now have a concurrent, thread-safe and non-blocking Queue. You can do this
@@ -236,31 +241,68 @@ What isn't supported on top of Scala.js / Javascript:
 
 - blocking methods aren't supported since the semantics aren't possible (fret not, the compiler will not
   let you use them since they are missing from `monifu-core-js`)
-- lazy/weak methods (e.g. `weakCompareAndSet` / `lazySet` and stuff based on those) aren't supported
-  and if you need those, you probably want to stay on the JVM with that piece of code
+- cache padded versions, since they make no sense in Javascript
 
 ## Efficiency
 
 Atomic references are low-level primitives for concurrency and because
 of that any extra overhead is unacceptable. 
 
-For example having a common `Atomic[T]` interface implies
-boxing/unboxing of primitives. However, because of Scala's wonderful
-[@specialized](http://www.scala-lang.org/api/current/index.html#scala.specialized)
-annotation we can avoid it.
+### Boxing / Unboxing 
+
+Working with a common `Atomic[T]` interface implies
+boxing/unboxing of primitives. This is why the constructor for atomic references always returns the most
+specialized version, as to avoid boxing and unboxing:
+
+```scala
+scala> val ref = Atomic(1)
+ref: monifu.concurrent.atomic.AtomicInt = AtomicInt(1)
+
+scala> val ref = Atomic(1L)
+ref: monifu.concurrent.atomic.AtomicLong = AtomicLong(1)
+
+scala> val ref = Atomic(true)
+ref: monifu.concurrent.atomic.AtomicBoolean = AtomicBoolean(true)
+
+scala> val ref = Atomic("")
+ref: monifu.concurrent.atomic.AtomicAny[String] = monifu.concurrent.atomic.AtomicAny@1b1ce484
+```
 
 Increments/decrements are done by going through the
 [Numeric[T]](http://www.scala-lang.org/api/current/index.html#scala.math.Numeric)
 provided implicit, but only for `AnyRef` types, such as BigInt and
-BigDecimal. For primitives the logic has been optimized to bypass
+BigDecimal. For Scala's primitives the logic has been optimized to bypass
 `Numeric[T]`.
 
-All classes are final, to avoid the resolution overhead of virtual methods. The `AtomicBuilder` mechanism
+### Code duplication
+
+All classes are final, to avoid the resolution overhead of virtual methods. The 
+[AtomicBuilder](../monifu-core/src/shared/scala/monifu/concurrent/atomic/AtomicBuilder.scala) mechanism
 for constructing references, means that you can let the compiler infer the most efficient atomic reference type
 for the values you want, also avoiding the overhead associated with polymorphism.
 
-## TODO
+In order to avoid overhead, there's a lot of code-duplication going on, therefore the code itself is not very DRY. Thankfully [we can test it in bulk](../monifu-core/src/test/scala/monifu/concurrent/atomic/), thanks to the shared interfaces.
 
-- [ ] Performance benchmark suite to compare against Java's implementations and to guard against regressions
-- [ ] Cache padded variants
-- [ ] AtomicArray
+### Cache-padded versions for avoiding the false sharing problem
+
+In order to reduce cache contention, cache-padded versions for all Atomic classes are provided in the
+[monifu.concurrent.atomic.padded](../monifu-core/src/shared/scala/monifu/concurrent/atomic/padded/) package.
+
+For reference on what that means, see:
+
+- http://mail.openjdk.java.net/pipermail/hotspot-dev/2012-November/007309.html
+- http://openjdk.java.net/jeps/142
+
+To use the cache-padded versions, you need to import stuff from the `padded` sub-package:
+
+```scala
+import monifu.concurrent.atomic.padded.Atomic
+
+val ref = Atomic(1)
+```
+
+### sun.misc.Unsafe
+
+Atomic references in `java.util.concurrent.atomic` are actually built on top of functionality provided by `sun.misc.Unsafe`. This package is not part of the public API of Java SE.
+
+In light of the cache-padded versions, the implementations of Monifu's Atomic references has switched from boxing Java's atomic reference classes to using `sun.misc.Unsafe` directly. A helper is now provided in [monifu.misc.Unsafe](../monifu-core/src/main/scala/monifu/misc/Unsafe.scala) to access that functionality (normally you can't instantiate `sun.misc.Directly`). `monifu.misc.Unsafe` should be compatible with Android too. As a result, Monifu's implementation should have no overhead over Java's implementations.

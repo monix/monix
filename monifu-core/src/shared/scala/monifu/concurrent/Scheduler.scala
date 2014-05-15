@@ -2,7 +2,7 @@ package monifu.concurrent
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import monifu.concurrent.cancelables.MultiAssignmentCancelable
+import monifu.concurrent.cancelables.{BooleanCancelable, MultiAssignmentCancelable}
 import scala.annotation.implicitNotFound
 import monifu.concurrent.schedulers.SchedulerCompanionImpl
 
@@ -15,7 +15,7 @@ trait Scheduler extends ExecutionContext {
   def scheduleOnce(initialDelay: FiniteDuration, action: => Unit): Cancelable
 
   def scheduleOnce(action: => Unit): Cancelable = {
-    val sub = Cancelable()
+    val sub = BooleanCancelable()
     execute(new Runnable {
       def run(): Unit =
         if (!sub.isCanceled)

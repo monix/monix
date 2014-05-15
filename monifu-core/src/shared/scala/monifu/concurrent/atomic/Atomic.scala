@@ -3,7 +3,7 @@ package monifu.concurrent.atomic
 /**
  * Base trait of all atomic references, no matter the type.
  */
-trait Atomic[T] {
+trait Atomic[T] extends Any {
   /**
    * @return the current value persisted by this Atomic
    */
@@ -24,13 +24,13 @@ trait Atomic[T] {
    * Alias for `set()`. Updates the current value.
    * @param value will be the new value returned by `get()`
    */
-  def update(value: T): Unit = set(value)
+  def update(value: T): Unit
 
   /**
    * Alias for `set()`. Updates the current value.
    * @param value will be the new value returned by `get()`
    */
-  def `:=`(value: T): Unit = set(value)
+  def `:=`(value: T): Unit
 
   /**
    * Does a compare-and-set operation on the current value. For more info, checkout the related
@@ -44,12 +44,17 @@ trait Atomic[T] {
    */
   def compareAndSet(expect: T, update: T): Boolean
 
-
   /**
    * Sets the persisted value to `update` and returns the old value that was in place.
    * It's an atomic, worry free operation.
    */
   def getAndSet(update: T): T
+
+  /**
+   * Eventually sets to the given value. Has weaker visibility guarantees than the normal `set()`.
+   *
+   */
+  def lazySet(update: T): Unit
 
   /**
    * Abstracts over `compareAndSet`. You specify a transformation by specifying a callback to be
@@ -63,7 +68,7 @@ trait Atomic[T] {
    *           the update + what should this method return when the operation succeeds.
    * @return whatever was specified by your callback, once the operation succeeds
    */
-  def transformAndExtract[U](cb: (T) => (T, U)): U
+  def transformAndExtract[U](cb: (T) => (U, T)): U
 
   /**
    * Abstracts over `compareAndSet`. You specify a transformation by specifying a callback to be
