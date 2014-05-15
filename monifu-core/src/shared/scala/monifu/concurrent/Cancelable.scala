@@ -11,11 +11,6 @@ import monifu.concurrent.atomic.Atomic
  */
 trait Cancelable {
   /**
-   * @return true in case this cancelable hasn't been canceled.
-   */
-  def isCanceled: Boolean
-
-  /**
    * Cancels the unit of work represented by this reference.
    *
    * Guaranteed idempotence - calling it multiple times should have the
@@ -31,9 +26,6 @@ object Cancelable {
     new Cancelable {
       private[this] val _isCanceled = Atomic(false)
 
-      def isCanceled =
-        _isCanceled.get
-
       def cancel(): Unit =
         if (_isCanceled.compareAndSet(expect=false, update=true)) {
           cb
@@ -41,16 +33,10 @@ object Cancelable {
     }
 
   def apply(): Cancelable =
-    new Cancelable {
-      @volatile
-      private[this] var b = false
-      def cancel() = b = true
-      def isCanceled = b
-    }
+    empty
 
-  val alreadyCanceled: Cancelable =
+  val empty: Cancelable =
     new Cancelable {
       def cancel(): Unit = ()
-      val isCanceled = true
     }
 }

@@ -9,7 +9,7 @@ object Build extends SbtBuild {
 
   val sharedSettings = Defaults.defaultSettings ++ Seq(
     organization := "org.monifu",
-    version := "0.7-SNAPSHOT",
+    version := "0.9.0-SNAPSHOT",
     scalaVersion := "2.10.4",
     crossScalaVersions := Seq("2.10.4", "2.11.0"),
 
@@ -123,4 +123,7 @@ object Build extends SbtBuild {
       )
     )
   ).dependsOn(monifuCoreJS)
+
+  lazy val monifuBenchmarks =
+    Project(id="benchmarks", base=file("benchmarks")).dependsOn(monifuCore)
 }

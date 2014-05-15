@@ -1,13 +1,12 @@
 package monifu.concurrent.cancelables
 
 import scala.scalajs.test.JasmineTest
-import monifu.concurrent.Cancelable
 
 object MultiAssignmentCancelableTest extends JasmineTest {
   describe("MultiAssignmentCancelable") {
     it("should cancel()") {
       var effect = 0
-      val sub = Cancelable(effect += 1)
+      val sub = BooleanCancelable(effect += 1)
       val mSub = MultiAssignmentCancelable(sub)
 
       expect(effect).toBe(0)
@@ -27,9 +26,9 @@ object MultiAssignmentCancelableTest extends JasmineTest {
 
     it("should cancel() after second assignment") {
       var effect = 0
-      val sub = Cancelable(effect += 1)
+      val sub = BooleanCancelable(effect += 1)
       val mSub = MultiAssignmentCancelable(sub)
-      val sub2 = Cancelable(effect += 10)
+      val sub2 = BooleanCancelable(effect += 10)
       mSub() = sub2
 
       expect(effect).toBe(0)
@@ -49,7 +48,7 @@ object MultiAssignmentCancelableTest extends JasmineTest {
       mSub.cancel()
 
       var effect = 0
-      val sub = Cancelable(effect += 1)
+      val sub = BooleanCancelable(effect += 1)
 
       expect(effect).toBe(0)
       expect(sub.isCanceled).toBe(false)

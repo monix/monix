@@ -6,12 +6,11 @@ import scala.concurrent.Future.successful
 import monifu.rx.base.{ObservableLike, Ack}
 import Ack.{Stop, Continue}
 import monifu.concurrent.atomic.Atomic
-import monifu.concurrent.cancelables.{SingleAssignmentCancelable, RefCountCancelable, CompositeCancelable}
+import monifu.concurrent.cancelables.{BooleanCancelable, SingleAssignmentCancelable, RefCountCancelable, CompositeCancelable}
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{Try, Failure, Success}
 import scala.util.control.NonFatal
 import scala.collection.mutable
-import monifu.concurrent.locks.NaiveSpinLock
 
 
 /**
@@ -427,7 +426,7 @@ trait Observable[+T] extends ObservableLike[T, Observable] {
   def zip[U](other: Observable[U]): Observable[(T, U)] =
     Observable.create { observerOfPairs =>
       val composite = CompositeCancelable()
-      val lock = NaiveSpinLock()
+      val lock = new AnyRef
 
       val queueA = mutable.Queue.empty[(Promise[U], Promise[Ack])]
       val queueB = mutable.Queue.empty[(U, Promise[Ack])]
@@ -435,7 +434,7 @@ trait Observable[+T] extends ObservableLike[T, Observable] {
       val completedPromise = Promise[Unit]()
       var isCompleted = false
 
-      def _onError(ex: Throwable) = lock.acquire {
+      def _onError(ex: Throwable) = lock.synchronized {
         if (!isCompleted) {
           isCompleted = true
           queueA.clear()
@@ -448,7 +447,7 @@ trait Observable[+T] extends ObservableLike[T, Observable] {
 
       composite += subscribe(new Observer[T] {
         def onNext(a: T): Future[Ack] =
-          lock.acquire {
+          lock.synchronized {
             if (queueB.isEmpty) {
               val resp = Promise[Ack]()
               val promiseForB = Promise[U]()
@@ -469,7 +468,7 @@ trait Observable[+T] extends ObservableLike[T, Observable] {
         def onError(ex: Throwable): Future[Unit] =
           _onError(ex)
 
-        def onCompleted(): Future[Unit] = lock.acquire {
+        def onCompleted(): Future[Unit] = lock.synchronized {
           if (!isCompleted && queueA.isEmpty) {
             isCompleted = true
             queueA.clear()
@@ -483,7 +482,7 @@ trait Observable[+T] extends ObservableLike[T, Observable] {
 
       composite += other.subscribe(new Observer[U] {
         def onNext(b: U): Future[Ack] =
-          lock.acquire {
+          lock.synchronized {
             if (queueA.nonEmpty) {
               val (bPromise, response) = queueA.dequeue()
               bPromise.success(b)
@@ -498,7 +497,7 @@ trait Observable[+T] extends ObservableLike[T, Observable] {
 
         def onError(ex: Throwable): Future[Unit] = _onError(ex)
 
-        def onCompleted(): Future[Unit] = lock.acquire {
+        def onCompleted(): Future[Unit] = lock.synchronized {
           if (!isCompleted && queueB.isEmpty) {
             isCompleted = true
             queueA.clear()
@@ -542,14 +541,14 @@ object Observable {
         try f(observer) catch {
           case NonFatal(ex) =>
             observer.onError(ex)
-            Cancelable.alreadyCanceled
+            Cancelable.empty
         }
     }
 
   def empty[A](implicit ec: ExecutionContext): Observable[A] =
     Observable.create { observer =>
       observer.onCompleted()
-      Cancelable.alreadyCanceled
+      Cancelable.empty
     }
 
   /**
@@ -557,7 +556,7 @@ object Observable {
    */
   def unit[A](elem: A)(implicit ec: ExecutionContext): Observable[A] =
     Observable.create { observer =>
-      val sub = Cancelable()
+      val sub = BooleanCancelable()
       observer.onNext(elem).onSuccess {
         case Continue =>
           if (!sub.isCanceled)
@@ -574,7 +573,7 @@ object Observable {
   def error(ex: Throwable)(implicit ec: ExecutionContext): Observable[Nothing] =
     Observable.create { observer =>
       observer.onError(ex)
-      Cancelable.alreadyCanceled
+      Cancelable.empty
     }
 
   /**
@@ -655,7 +654,7 @@ object Observable {
             None
         }
 
-      def startFeedLoop(subscription: Cancelable, iterator: Iterator[T]): Unit =
+      def startFeedLoop(subscription: BooleanCancelable, iterator: Iterator[T]): Unit =
         if (!subscription.isCanceled)
           nextInput(iterator).onComplete {
             case Success(Some(elem)) =>
@@ -673,7 +672,7 @@ object Observable {
           }
 
       val iterator = seq.toIterator
-      val subscription = Cancelable()
+      val subscription = BooleanCancelable()
       startFeedLoop(subscription, iterator)
       subscription
     }
