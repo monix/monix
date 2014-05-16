@@ -6,46 +6,46 @@ import scala.concurrent.duration.FiniteDuration
 import monifu.rx.{AsyncObserver, AsyncObservable}
 
 
-final class AsyncObservableBuilder(implicit val context: ExecutionContext)
+final class AsyncObservableBuilder(val context: ExecutionContext)
   extends AnyVal with ObservableTypeClass[AsyncObservable] {
 
   type O[-I] = AsyncObserver[I]
 
   def create[T](f: AsyncObserver[T] => Cancelable): AsyncObservable[T] =
-    AsyncObservable.create(f)
+    AsyncObservable.create(f)(context)
 
   def empty[A]: AsyncObservable[A] =
-    AsyncObservable.empty
+    AsyncObservable.empty(context)
 
   /**
    * Creates an Observable that only emits the given ''a''
    */
   def unit[A](elem: A): AsyncObservable[A] =
-    AsyncObservable.unit(elem)
+    AsyncObservable.unit(elem)(context)
 
   /**
    * Creates an Observable that emits an error.
    */
   def error(ex: Throwable): AsyncObservable[Nothing] =
-    AsyncObservable.error(ex)
+    AsyncObservable.error(ex)(context)
 
   /**
    * Creates an Observable that doesn't emit anything and that never completes.
    */
   def never: AsyncObservable[Nothing] =
-    AsyncObservable.never
+    AsyncObservable.never(context)
 
   /**
    * Creates an Observable that emits the elements of the given ''sequence''
    */
   def fromTraversable[T](seq: TraversableOnce[T]): AsyncObservable[T] =
-    AsyncObservable.fromTraversable(seq)
+    AsyncObservable.fromTraversable(seq)(context)
 
   /**
    * Merges the given list of ''observables'' into a single observable.
    */
   def flatten[T](sources: AsyncObservable[T]*): AsyncObservable[T] =
-    AsyncObservable.flatten(sources: _*)
+    AsyncObservable.flatten(sources: _*)(context)
 
   def interval(initialDelay: FiniteDuration, period: FiniteDuration, s: Scheduler): AsyncObservable[Long] =
     AsyncObservable.interval(initialDelay, period, s)

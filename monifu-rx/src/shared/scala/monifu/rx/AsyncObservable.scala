@@ -519,7 +519,7 @@ trait AsyncObservable[+T] extends ObservableLike[T, AsyncObservable] {
 
 object AsyncObservable {
   implicit def Builder(implicit ec: ExecutionContext): AsyncObservableBuilder =
-    new AsyncObservableBuilder()
+    new AsyncObservableBuilder(ec)
 
   /**
    * Observable constructor. To be used for implementing new Observables and operators.
