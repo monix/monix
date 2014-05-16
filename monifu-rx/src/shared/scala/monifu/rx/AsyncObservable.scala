@@ -1,11 +1,12 @@
 package monifu.rx
 
+import language.implicitConversions
 import monifu.concurrent.{Scheduler, Cancelable}
 import scala.concurrent.{ExecutionContext, Promise, Future}
 import scala.concurrent.Future.successful
 import monifu.rx.api._
 import Ack.{Stop, Continue}
-import monifu.concurrent.atomic.Atomic
+import monifu.concurrent.atomic.padded.Atomic
 import monifu.concurrent.cancelables.{BooleanCancelable, SingleAssignmentCancelable, RefCountCancelable, CompositeCancelable}
 import scala.concurrent.duration.FiniteDuration
 import scala.util.control.NonFatal
@@ -388,7 +389,7 @@ trait AsyncObservable[+T] extends ObservableLike[T, AsyncObservable] {
    * Creates a new Observable by applying a function to each item emitted, a function that returns Future
    * results and then flattens that into a new Observable.
    */
-  def flatMapFutures[U](f: T => Future[U]): AsyncObservable[U] =
+  def flatMapFutures[U](f: T => Future[U])(implicit ec: ExecutionContext): AsyncObservable[U] =
     AsyncObservable.create { observerU =>
       subscribe(new AsyncObserver[T] {
         def onNext(elem: T) = {
@@ -411,17 +412,6 @@ trait AsyncObservable[+T] extends ObservableLike[T, AsyncObservable] {
           observerU.onCompleted()
       })
     }
-
-  /**
-   * Flattens the sequence of Futures emitted by `this` without any transformation.
-   *
-   * This operation is only available if `this` is of type `Observable[Future[B]]` for some `B`,
-   * otherwise you'll get a compilation error.
-   *
-   * @return an Observable that emits items that are the result of flattening the emitted Futures
-   */
-  def flattenFutures[U](implicit ev: T <:< Future[U]): AsyncObservable[U] =
-    flatMapFutures(x => x)
 
   def zip[U](other: AsyncObservable[U]): AsyncObservable[(T, U)] =
     AsyncObservable.create { observerOfPairs =>
@@ -682,4 +672,20 @@ object AsyncObservable {
    */
   def flatten[T](sources: AsyncObservable[T]*)(implicit ec: ExecutionContext): AsyncObservable[T] =
     AsyncObservable.fromTraversable(sources).flatten
+
+  implicit def FutureIsAsyncObservable[T](future: Future[T])(implicit ec: ExecutionContext): AsyncObservable[T] =
+    AsyncObservable.create { observer =>
+      val sub = BooleanCancelable()
+      future.onComplete {
+        case Success(value) if !sub.isCanceled =>
+          observer.onNext(value).onSuccess {
+            case Continue => observer.onCompleted()
+          }
+        case Failure(ex) if !sub.isCanceled =>
+          observer.onError(ex)
+        case _ =>
+          // do nothing
+      }
+      sub
+    }
 }

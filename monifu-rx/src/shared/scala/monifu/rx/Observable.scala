@@ -1,12 +1,12 @@
 package monifu.rx
 
-import monifu.concurrent.cancelables.{CompositeCancelable, RefCountCancelable}
+import language.implicitConversions
+import monifu.concurrent.cancelables.{BooleanCancelable, CompositeCancelable, RefCountCancelable, SingleAssignmentCancelable}
 import monifu.rx.api.AnonymousObserver
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.concurrent.{Promise, Future}
-import monifu.concurrent.atomic.Atomic
-import monifu.concurrent.cancelables.SingleAssignmentCancelable
+import monifu.concurrent.atomic.padded.Atomic
 import monifu.concurrent.{Scheduler, Cancelable}
 import scala.util.control.NonFatal
 import monifu.rx.api.{SynchronizedObserver, ObservableLike, ObservableTypeClass, Ack}
@@ -97,8 +97,8 @@ trait Observable[+A] extends ObservableLike[A, Observable] {
 
   def flatten[B](implicit ev: A <:< Observable[B]): Observable[B] =
     Observable.create { observerB =>
-    // we need to do ref-counting for triggering `onCompleted` on our subscriber
-    // when all the children threads have ended
+      // we need to do ref-counting for triggering `onCompleted` on our subscriber
+      // when all the children threads have ended
       val refCounter = RefCountCancelable(observerB.onCompleted())
       val composite = CompositeCancelable()
 
@@ -114,10 +114,15 @@ trait Observable[+A] extends ObservableLike[A, Observable] {
 
           val childObserver = new Observer[B] {
             def onNext(elem: B) =
-              observerB.onNext(elem)
+              observerB.onNext(elem) match {
+                case Continue => Continue
+                case Stop =>
+                  composite.cancel()
+                  Stop
+              }
 
             def onError(ex: Throwable) =
-            // onError, cancel everything
+              // onError, cancel everything
               try observerB.onError(ex) finally composite.cancel()
 
             def onCompleted() = {
@@ -661,4 +666,18 @@ object Observable extends ObservableTypeClass[Observable] {
     }
   }
 
+  implicit def FutureIsObservable[T](future: Future[T])(implicit ec: ExecutionContext): Observable[T] =
+    Observable.create { observer =>
+      val sub = BooleanCancelable()
+      future.onComplete {
+        case Success(value) if !sub.isCanceled =>
+          if (observer.onNext(value) == Continue)
+            observer.onCompleted()
+        case Failure(ex) if !sub.isCanceled =>
+          observer.onError(ex)
+        case _ =>
+          // do nothing
+      }
+      sub
+    }
 }
