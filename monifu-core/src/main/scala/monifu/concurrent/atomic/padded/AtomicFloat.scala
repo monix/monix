@@ -254,6 +254,21 @@ final class AtomicFloat private (initialValue: Float)
       current
   }
 
+  @tailrec
+  def countDownToZero(v: Float = 1.0f): Float = {
+    val current = get
+    if (current != 0.0f) {
+      val decrement = if (current >= v) v else current
+      val update = current - decrement
+      if (!compareAndSet(current, update))
+        countDownToZero(v)
+      else
+        decrement
+    }
+    else
+      0.0f
+  }
+
   def decrement(v: Int = 1): Unit = increment(-v)
   def decrementAndGet(v: Int = 1): Float = incrementAndGet(-v)
   def getAndDecrement(v: Int = 1): Float = getAndIncrement(-v)

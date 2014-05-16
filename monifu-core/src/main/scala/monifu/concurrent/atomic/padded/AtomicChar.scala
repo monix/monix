@@ -254,6 +254,21 @@ final class AtomicChar private (initialValue: Char)
       current
   }
 
+  @tailrec
+  def countDownToZero(v: Char = 1): Char = {
+    val current = get
+    if (current != 0) {
+      val decrement = if (current >= v) v else current
+      val update = minusOp(current, decrement)
+      if (!compareAndSet(current, update))
+        countDownToZero(v)
+      else
+        decrement
+    }
+    else
+      0
+  }
+
   def decrement(v: Int = 1): Unit = increment(-v)
   def decrementAndGet(v: Int = 1): Char = incrementAndGet(-v)
   def getAndDecrement(v: Int = 1): Char = getAndIncrement(-v)

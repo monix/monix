@@ -12,6 +12,25 @@ class PaddedAtomicDoubleTest extends AtomicNumberTest[Double, AtomicDouble](
       assert(Atomic(Double.NegativeInfinity).get.isNegInfinity === true)
       assert(Atomic(Double.PositiveInfinity).get.isPosInfinity === true)
     }
+
+    it("should countDownToZero(1.1)") {
+      val r = Atomic(15.0)
+      var decrements = 0
+      var number = 0.0
+      var continue = true
+
+      while (continue) {
+        val result = r.countDownToZero(1.5)
+        continue = result > 0
+        if (continue) {
+          decrements += 1
+          number += result
+        }
+      }
+
+      assert(decrements === 10)
+      assert(number === 15.0)
+    }
   }
 }
 
@@ -24,6 +43,25 @@ class PaddedAtomicFloatTest extends AtomicNumberTest[Float, AtomicFloat](
       assert(Atomic(Float.NaN).get.isNaN === true)
       assert(Atomic(Float.NegativeInfinity).get.isNegInfinity === true)
       assert(Atomic(Float.PositiveInfinity).get.isPosInfinity === true)
+    }
+
+    it("should countDownToZero(1.1)") {
+      val r = Atomic(15.0f)
+      var decrements = 0f
+      var number = 0.0f
+      var continue = true
+
+      while (continue) {
+        val result = r.countDownToZero(1.5f)
+        continue = result > 0
+        if (continue) {
+          decrements += 1
+          number += result
+        }
+      }
+
+      assert(decrements === 10)
+      assert(number === 15.0f)
     }
   }
 }
