@@ -1,13 +1,13 @@
 package monifu.rx
 
 import org.scalatest.FunSpec
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.language.higherKinds
-import scala.concurrent.{Future, Promise, Await}
+import scala.concurrent.{Future, Await}
 import concurrent.duration._
 import java.util.concurrent.{TimeUnit, CountDownLatch}
 import monifu.rx
 import monifu.rx.api.{ObservableLike, ObservableTypeClass}
+import monifu.concurrent.Scheduler.Implicits.global
 
 
 class GenericObservableOperatorsTest[Observable[+T] <: ObservableLike[T, Observable]](builder: ObservableTypeClass[Observable])
