@@ -255,6 +255,21 @@ final class AtomicDouble private (initialValue: Double)
       current
   }
 
+  @tailrec
+  def countDownToZero(v: Double = 1.0): Double = {
+    val current = get
+    if (current != 0.0) {
+      val decrement = if (current >= v) v else current
+      val update = current - decrement
+      if (!compareAndSet(current, update))
+        countDownToZero(v)
+      else
+        decrement
+    }
+    else
+      0.0
+  }
+
   def decrement(v: Int = 1): Unit = increment(-v)
   def decrementAndGet(v: Int = 1): Double = incrementAndGet(-v)
   def getAndDecrement(v: Int = 1): Double = getAndIncrement(-v)
