@@ -16,7 +16,7 @@ class GenericObservableOperatorsTest[Observable[+T] <: ObservableLike[T, Observa
   describe("Observable.map") {
     it("should work") {
       val f = builder.fromTraversable(0 until 100).map(x => x + 1).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
-      assert(Await.result(f, 1.second) === Some(1 until 101))
+      assert(Await.result(f, 4.seconds) === Some(1 until 101))
     }
 
     it("should treat exceptions in subscribe implementations (guideline 6.5)") {
@@ -69,7 +69,7 @@ class GenericObservableOperatorsTest[Observable[+T] <: ObservableLike[T, Observa
   describe("Observable.filter") {
     it("should work") {
       val obs = builder.fromTraversable(1 to 10).filter(_ % 2 == 0).foldLeft(0)(_ + _).asFuture
-      assert(Await.result(obs, 1.second) === Some((1 to 10).filter(_ % 2 == 0).sum))
+      assert(Await.result(obs, 4.seconds) === Some((1 to 10).filter(_ % 2 == 0).sum))
     }
 
     it("should treat exceptions in subscribe implementations (guideline 6.5)") {
@@ -129,7 +129,7 @@ class GenericObservableOperatorsTest[Observable[+T] <: ObservableLike[T, Observa
         .flatMap(x => builder.fromTraversable(x until (x + 5)))
         .foldLeft(0)(_ + _).asFuture
 
-      assert(Await.result(result, 1.second) === Some((0 until 100).sum))
+      assert(Await.result(result, 4.seconds) === Some((0 until 100).sum))
     }
 
     it("should treat exceptions in subscribe implementations (guideline 6.5)") {
@@ -188,7 +188,7 @@ class GenericObservableOperatorsTest[Observable[+T] <: ObservableLike[T, Observa
         .foldLeft(Seq.empty[Int])(_ :+ _)
         .asFuture
 
-      val result = Await.result(obs, 1.second)
+      val result = Await.result(obs, 4.seconds)
       assert(result === Some(0 until 100))
     }
 
@@ -197,7 +197,7 @@ class GenericObservableOperatorsTest[Observable[+T] <: ObservableLike[T, Observa
       val res1 = parent.filter(_ % 5 == 0).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
       val res2 = parent.flatMap(x => if (x % 5 == 0) builder.unit(x) else builder.empty).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
 
-      assert(Await.result(res1, 1.second) === Await.result(res2, 1.second))
+      assert(Await.result(res1, 4.seconds) === Await.result(res2, 4.seconds))
     }
 
     it("should satisfy source.map(f) == source.flatMap(x => unit(x))") {
@@ -205,7 +205,7 @@ class GenericObservableOperatorsTest[Observable[+T] <: ObservableLike[T, Observa
       val res1 = parent.map(_ + 1).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
       val res2 = parent.flatMap(x => builder.unit(x + 1)).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
 
-      assert(Await.result(res1, 1.second) === Await.result(res2, 1.second))
+      assert(Await.result(res1, 4.seconds) === Await.result(res2, 4.seconds))
     }
 
     it("should satisfy source.map(f).flatten == source.flatMap(f)") {
@@ -213,7 +213,7 @@ class GenericObservableOperatorsTest[Observable[+T] <: ObservableLike[T, Observa
       val res1 = parent.map(x => builder.fromTraversable(x until (x + 2))).flatten.foldLeft(Seq.empty[Int])(_ :+ _).asFuture
       val res2 = parent.flatMap(x => builder.fromTraversable(x until (x + 2))).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
 
-      assert(Await.result(res1, 1.second) === Await.result(res2, 1.second))
+      assert(Await.result(res1, 4.seconds) === Await.result(res2, 4.seconds))
     }
   }
 
@@ -234,7 +234,7 @@ class GenericObservableOperatorsTest[Observable[+T] <: ObservableLike[T, Observa
       val obs = builder.fromTraversable(1 to n.toInt).take(100)
       val res = obs.foldLeft(0L)(_ + _).asFuture
 
-      val result = Await.result(res, 1.second)
+      val result = Await.result(res, 4.seconds)
       assert(result === Some(sum))
     }
   }
@@ -247,7 +247,7 @@ class GenericObservableOperatorsTest[Observable[+T] <: ObservableLike[T, Observa
       val zipped = obs1.zip(obs2)
 
       val finalObs = zipped.foldLeft(Seq.empty[(Long,Long)])(_ :+ _)
-      val result = Await.result(finalObs.asFuture, 1.second)
+      val result = Await.result(finalObs.asFuture, 4.seconds)
 
       assert(result === Some(0.until(10,2).map(x => (x,x))))
     }
@@ -263,7 +263,7 @@ class GenericObservableOperatorsTest[Observable[+T] <: ObservableLike[T, Observa
       }
 
       val finalObs = zipped.take(10).foldLeft(Seq.empty[(Long,Long,Long,Long)])(_ :+ _)
-      val result = Await.result(finalObs.asFuture, 1.second)
+      val result = Await.result(finalObs.asFuture, 4.seconds)
 
       assert(result === Some(0.until(20,2).map(x => (x,x,x,x))))
     }
@@ -274,7 +274,7 @@ class GenericObservableOperatorsTest[Observable[+T] <: ObservableLike[T, Observa
       val zipped = obs1.zip(obs2)
 
       val finalObs = zipped.foldLeft(Seq.empty[(Int, Int)])(_ :+ _)
-      val result = Await.result(finalObs.asFuture, 1.second)
+      val result = Await.result(finalObs.asFuture, 4.seconds)
 
       assert(result === Some((0 until 100).map(x => (x,x))))
     }
@@ -287,7 +287,7 @@ class SyncObservableOperatorsTest
   describe("Observable.flatMap") {
     it("should work with Futures") {
       val f = Observable.fromTraversable(0 until 100).flatMap(x => Future(x + 1)).foldLeft(0)(_+_).asFuture
-      val result = Await.result(f, 1.second)
+      val result = Await.result(f, 4.seconds)
       assert(result === Some(101 * 50))
     }
   }
@@ -299,7 +299,7 @@ class AsyncObservableOperatorsTest
   describe("AsyncObservable.flatMap") {
     it("should work with Futures") {
       val f = AsyncObservable.fromTraversable(0 until 100).flatMap(x => Future(x + 1)).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
-      val result = Await.result(f, 1.second)
+      val result = Await.result(f, 4.seconds)
       assert(result === Some(1 to 100))
     }
   }
