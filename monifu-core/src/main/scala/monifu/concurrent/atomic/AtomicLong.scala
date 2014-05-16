@@ -227,6 +227,21 @@ final class AtomicLong private (initialValue: Long) extends AtomicNumber[Long] w
   def subtractAndGet(v: Long): Long =
     addAndGet(-v)
 
+  @tailrec
+  def countDownToZero(v: Long = 1L): Long = {
+    val current = get
+    if (current != 0L) {
+      val decrement = if (current >= v) v else current
+      val update = current - decrement
+      if (!compareAndSet(current, update))
+        countDownToZero(v)
+      else
+        decrement
+    }
+    else
+      0L
+  }
+
   def decrement(v: Int = 1): Unit = increment(-v)
   def decrementAndGet(v: Int = 1): Long = incrementAndGet(-v)
   def getAndDecrement(v: Int = 1): Long = getAndIncrement(-v)

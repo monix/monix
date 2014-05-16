@@ -247,6 +247,21 @@ final class AtomicNumberAny[T : Numeric] private (initialValue: T) extends Atomi
       update
   }
 
+  @tailrec
+  def countDownToZero(v: T = ev.one): T = {
+    val current = get
+    if (current != ev.zero) {
+      val decrement = if (ev.compare(current, v) >= 0) v else current
+      val update = ev.minus(current, decrement)
+      if (!compareAndSet(current, update))
+        countDownToZero(v)
+      else
+        decrement
+    }
+    else
+      ev.zero
+  }
+
   def decrement(v: Int = 1): Unit = increment(-v)
   def decrementAndGet(v: Int = 1): T = incrementAndGet(-v)
   def getAndDecrement(v: Int = 1): T = getAndIncrement(-v)
