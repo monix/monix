@@ -18,6 +18,7 @@ API documentation:
 
 Release Notes:
 
+* [Version 0.9 - May 16, 2014](/docs/release-notes/0.9.md)
 * [Version 0.8 - May 13, 2014](/docs/release-notes/0.8.md)
 * [Version 0.7 - April 26, 2014](/docs/release-notes/0.7.md)
 * [Version 0.6 - April 23, 2014](/docs/release-notes/0.6.md)
@@ -30,22 +31,22 @@ Release Notes:
 The packages are published on Maven Central.
 
 Compiled for Scala 2.10 and Scala 2.11. Also cross-compiled to
-the latest Scala.js (at the moment Scala.js 0.4.3). The targetted JDK version
+the latest Scala.js (at the moment Scala.js 0.4.4). The targetted JDK version
 for the published packages is version 6 (see 
 [faq entry](https://github.com/alexandru/monifu/wiki/Frequently-Asked-Questions#what-javajdk-version-is-required)).
 
-Current stable release is: `0.8.0`
+Current stable release is: `0.9.0-alpha1`
 
 ### For the JVM
 
 ```scala
-libraryDependencies += "org.monifu" %% "monifu-core" % "0.8.0"
+libraryDependencies += "org.monifu" %% "monifu-core" % "0.9.0-alpha1"
 ```
 
 ### For targeting Javascript runtimes with Scala.js
 
 ```scala
-libraryDependencies += "org.monifu" %% "monifu-core-js" % "0.8.0"
+libraryDependencies += "org.monifu" %% "monifu-core-js" % "0.9.0-alpha1"
 ```
 
 ## License
