@@ -1,8 +1,8 @@
 <img src="docs/assets/monifu.png" align="right" />
 
-Branch for exploring an implementation for Reactive Extensions (Rx).
+Extensions to Scala's standard library for multi-threading primitives, functional programming and whatever makes life easier. Targets both the JVM and [Scala.js](http://www.scala-js.org/).
 
-[![Build Status](https://travis-ci.org/alexandru/monifu.png?branch=rx)](https://travis-ci.org/alexandru/monifu)
+[![Build Status](https://travis-ci.org/alexandru/monifu.png?branch=v0.9.0-alpha1)](https://travis-ci.org/alexandru/monifu)
 
 ## Documentation
 
@@ -47,7 +47,6 @@ libraryDependencies += "org.monifu" %% "monifu-core" % "0.8.0"
 ```scala
 libraryDependencies += "org.monifu" %% "monifu-core-js" % "0.8.0"
 ```
->>>>>>> master
 
 ## License
 
