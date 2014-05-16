@@ -1,4 +1,4 @@
-package monifu.rx.base
+package monifu.rx.api
 
 import monifu.concurrent.Cancelable
 import language.higherKinds
@@ -20,7 +20,7 @@ trait ObservableLike[+T, Observable[+_]] extends Any with ObservableOperators[T,
    * and that starts the stream, being meant to be overridden in custom combinators
    * or in classes implementing Observable.
    *
-   * @param observer is an [[monifu.rx.sync.Observer Observer]] on which `onNext`, `onComplete` and `onError`
+   * @param observer is an `Observer` on which `onNext`, `onComplete` and `onError`
    *                 happens, according to the Rx grammar.
    *
    * @return a cancelable that can be used to cancel the streaming

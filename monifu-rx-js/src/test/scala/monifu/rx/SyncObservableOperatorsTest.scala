@@ -1,4 +1,4 @@
-package monifu.rx.sync
+package monifu.rx
 
 object SyncObservableOperatorsTest
   extends monifu.rx.GenericObservableOperatorsTest[Observable](Observable.Builder, isAsync = false) {

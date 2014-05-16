@@ -1,6 +1,7 @@
-package monifu.rx.sync.subjects
+package monifu.rx
 
 import scala.scalajs.test.JasmineTest
+import monifu.rx.subjects.PublishSubject
 import monifu.concurrent.cancelables.BooleanCancelable
 
 object PublishSubjectTest extends JasmineTest {

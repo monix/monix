@@ -1,6 +1,4 @@
-package monifu.rx.async
-
-import monifu.concurrent.Scheduler.Implicits.global
+package monifu.rx
 
 object AsyncObservableOperatorsTest
   extends monifu.rx.GenericObservableOperatorsTest[Observable](Observable.Builder)

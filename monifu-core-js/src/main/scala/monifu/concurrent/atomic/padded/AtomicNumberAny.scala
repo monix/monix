@@ -1,6 +1,7 @@
 package monifu.concurrent.atomic.padded
 
 import monifu.concurrent.atomic.AtomicNumber
+import scala.annotation.tailrec
 
 final class AtomicNumberAny[T : Numeric] private[atomic] (initialValue: T) extends Atomic[T] with AtomicNumber[T] {
   private[this] val ev = implicitly[Numeric[T]]
@@ -101,6 +102,17 @@ final class AtomicNumberAny[T : Numeric] private[atomic] (initialValue: T) exten
 
   def increment(v: Int = 1): Unit = {
     ref = ev.plus(ref, ev.fromInt(v))
+  }
+
+  def countDownToZero(v: T = ev.one): T = {
+    val current = get
+    if (current != ev.zero) {
+      val decrement = if (ev.compare(current, v) >= 0) v else current
+      ref = ev.minus(current, decrement)
+      decrement
+    }
+    else
+      ev.zero
   }
 
   def decrement(v: Int = 1): Unit = increment(-v)

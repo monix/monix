@@ -1,8 +1,7 @@
-package monifu.rx.sync.observers
+package monifu.rx.api
 
-import monifu.rx.sync.Observer
-import monifu.rx.base.Ack
 import Ack.{Continue, Stop}
+import monifu.rx.Observer
 
 /**
  * An observer wrapper that ensures the Rx grammar for onComplete/onError is respected,

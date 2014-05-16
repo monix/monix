@@ -1,10 +1,9 @@
-package monifu.rx.sync
+package monifu.rx
 
 import scala.scalajs.test.JasmineTest
-
+import monifu.concurrent.Scheduler.Implicits.trampoline
 
 object ObservableCombinatorsTest extends JasmineTest {
-  import monifu.concurrent.Scheduler.Implicits.global
 
   describe("Observable.map") {
     it("should work") {

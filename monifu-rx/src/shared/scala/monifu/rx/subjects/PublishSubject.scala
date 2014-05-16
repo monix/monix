@@ -1,12 +1,12 @@
-package monifu.rx.sync.subjects
+package monifu.rx.subjects
 
 import monifu.concurrent.Cancelable
 import collection.immutable.Set
-import monifu.rx.sync.observers.Subscriber
 import monifu.concurrent.cancelables.SingleAssignmentCancelable
 import scala.util.control.NonFatal
-import monifu.rx.base.Ack.{Stop, Continue}
-import monifu.rx.sync.Observer
+import monifu.rx.api.{Subscriber, Ack}
+import Ack.{Stop, Continue}
+import monifu.rx.Observer
 
 
 final class PublishSubject[T] private () extends Subject[T] {

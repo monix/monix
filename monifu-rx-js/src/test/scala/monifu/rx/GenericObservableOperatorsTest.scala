@@ -1,7 +1,7 @@
 package monifu.rx
 
 import monifu.concurrent.Scheduler.Implicits.global
-import monifu.rx.base._
+import monifu.rx.api._
 import scala.language.higherKinds
 import scala.scalajs.test.JasmineTest
 
