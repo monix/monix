@@ -34,6 +34,12 @@ final class AsyncQueue[T] private (elems: T*) {
 
     p.foreach(_.success(elem))
   }
+  
+  def clear(): Unit =
+    state.set(State(Queue.empty, Queue.empty))
+
+  def clearAndOffer(elem: T): Unit =
+    state.set(State(Queue(elem), Queue.empty))
 
   private[this] case class State(elements: Queue[T], promises: Queue[Promise[T]])
 }

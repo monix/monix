@@ -3,7 +3,7 @@ package monifu.rx
 import org.scalatest.FunSpec
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.language.higherKinds
-import scala.concurrent.Await
+import scala.concurrent.{Future, Promise, Await}
 import concurrent.duration._
 import java.util.concurrent.{TimeUnit, CountDownLatch}
 import monifu.rx
@@ -282,7 +282,25 @@ class GenericObservableOperatorsTest[Observable[+T] <: ObservableLike[T, Observa
 }
 
 class SyncObservableOperatorsTest
-  extends monifu.rx.GenericObservableOperatorsTest[Observable](rx.Observable.Builder)
+  extends monifu.rx.GenericObservableOperatorsTest[Observable](rx.Observable.Builder) {
+
+  describe("Observable.flatMap") {
+    it("should work with Futures") {
+      val f = Observable.fromTraversable(0 until 100).flatMap(x => Future(x + 1)).foldLeft(0)(_+_).asFuture
+      val result = Await.result(f, 1.second)
+      assert(result === Some(101 * 50))
+    }
+  }
+}
 
 class AsyncObservableOperatorsTest
-  extends monifu.rx.GenericObservableOperatorsTest[AsyncObservable](rx.AsyncObservable.Builder)
+  extends monifu.rx.GenericObservableOperatorsTest[AsyncObservable](rx.AsyncObservable.Builder) {
+
+  describe("AsyncObservable.flatMap") {
+    it("should work with Futures") {
+      val f = AsyncObservable.fromTraversable(0 until 100).flatMap(x => Future(x + 1)).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
+      val result = Await.result(f, 1.second)
+      assert(result === Some(1 to 100))
+    }
+  }
+}

@@ -2,7 +2,7 @@ package monifu.rx.api
 
 import monifu.concurrent.Cancelable
 import language.higherKinds
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 /**
  * The Observable interface that implements the Rx pattern.
