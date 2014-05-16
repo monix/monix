@@ -1,4 +1,4 @@
-package monifu.rx.sync.subjects
+package monifu.rx.subjects
 
 import org.scalatest.FunSuite
 import monifu.concurrent.cancelables.BooleanCancelable

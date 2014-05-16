@@ -1,7 +1,7 @@
-package monifu.rx.sync
+package monifu.rx
 
 import monifu.concurrent.cancelables.{CompositeCancelable, RefCountCancelable}
-import monifu.rx.sync.observers.{SynchronizedObserver, AnonymousObserver}
+import monifu.rx.api.AnonymousObserver
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.concurrent.{Promise, Future}
@@ -9,18 +9,19 @@ import monifu.concurrent.atomic.Atomic
 import monifu.concurrent.cancelables.SingleAssignmentCancelable
 import monifu.concurrent.{Scheduler, Cancelable}
 import scala.util.control.NonFatal
-import monifu.rx.base.{ObservableTypeClass, ObservableLike, Ack}
+import monifu.rx.api.{SynchronizedObserver, ObservableLike, ObservableTypeClass, Ack}
 import Ack.{Continue, Stop}
 import scala.util.{Failure, Success, Try}
 import concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
+import monifu.rx
 
 
 /**
  * Synchronous implementation of the Observable interface.
  */
 trait Observable[+A] extends ObservableLike[A, Observable] {
-  type O[-I] = monifu.rx.sync.Observer[I]
+  type O[-I] = Observer[I]
 
   def subscribe(observer: Observer[A]): Cancelable
 
@@ -484,8 +485,8 @@ trait Observable[+A] extends ObservableLike[A, Observable] {
   def safe: Observable[A] =
     Observable.create(observer => subscribe(SynchronizedObserver(observer)))
 
-  def toAsyncObservable(implicit ec: ExecutionContext): monifu.rx.async.Observable[A] =
-    monifu.rx.async.Observable.create { observerA =>
+  def toAsyncObservable(implicit ec: ExecutionContext): AsyncObservable[A] =
+    rx.AsyncObservable.create { observerA =>
       val ref = Atomic(Future.successful(Continue : Ack))
       val sub = SingleAssignmentCancelable()
 
@@ -627,7 +628,7 @@ object Observable extends ObservableTypeClass[Observable] {
   /**
    * Merges the given list of ''observables'' into a single observable.
    *
-   * NOTE: the result should be the same as [[monifu.rx.sync.Observable.concat concat]] and in
+   * NOTE: the result should be the same as [[monifu.rx.Observable.concat concat]] and in
    *       the asynchronous version it always is.
    */
   def flatten[T](sources: Observable[T]*): Observable[T] =

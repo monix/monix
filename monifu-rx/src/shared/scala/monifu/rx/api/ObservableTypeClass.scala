@@ -1,4 +1,4 @@
-package monifu.rx.base
+package monifu.rx.api
 
 import language.higherKinds
 import monifu.concurrent.{Scheduler, Cancelable}

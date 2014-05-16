@@ -1,35 +1,35 @@
-package monifu.rx.async
+package monifu.rx
 
 import monifu.concurrent.{Scheduler, Cancelable}
 import scala.concurrent.{ExecutionContext, Promise, Future}
 import scala.concurrent.Future.successful
-import monifu.rx.base.{ObservableLike, Ack}
+import monifu.rx.api._
 import Ack.{Stop, Continue}
 import monifu.concurrent.atomic.Atomic
 import monifu.concurrent.cancelables.{BooleanCancelable, SingleAssignmentCancelable, RefCountCancelable, CompositeCancelable}
 import scala.concurrent.duration.FiniteDuration
-import scala.util.{Try, Failure, Success}
 import scala.util.control.NonFatal
 import scala.collection.mutable
+import scala.util.{Try, Failure, Success}
 
 
 /**
  * Asynchronous implementation of the Observable interface
  */
-trait Observable[+T] extends ObservableLike[T, Observable] {
-  type O[-I] = monifu.rx.async.Observer[I]
+trait AsyncObservable[+T] extends ObservableLike[T, AsyncObservable] {
+  type O[-I] = AsyncObserver[I]
 
   /**
    * Function that creates the actual subscription when calling `subscribe`,
    * and that starts the stream, being meant to be overridden in custom combinators
    * or in classes implementing Observable.
    *
-   * @param observer is an [[monifu.rx.sync.Observer Observer]] on which `onNext`, `onComplete` and `onError`
+   * @param observer is an [[AsyncObserver]] on which `onNext`, `onComplete` and `onError`
    *                 happens, according to the Rx grammar.
    *
    * @return a cancelable that can be used to cancel the streaming
    */
-  def subscribe(observer: Observer[T]): Cancelable
+  def subscribe(observer: AsyncObserver[T]): Cancelable
 
   /**
    * Implicit `scala.concurrent.ExecutionContext` under which our computations will run.
@@ -37,7 +37,7 @@ trait Observable[+T] extends ObservableLike[T, Observable] {
   protected implicit def ec: ExecutionContext
 
   def subscribeUnit(nextFn: T => Unit, errorFn: Throwable => Unit, completedFn: () => Unit): Cancelable =
-    subscribe(new Observer[T] {
+    subscribe(new AsyncObserver[T] {
       def onNext(elem: T): Future[Ack] =
         Future { nextFn(elem); Continue }
 
@@ -54,9 +54,9 @@ trait Observable[+T] extends ObservableLike[T, Observable] {
   def subscribeUnit(nextFn: T => Unit): Cancelable =
     subscribeUnit(nextFn, error => ec.reportFailure(error), () => ())
 
-  def map[U](f: T => U): Observable[U] =
-    Observable.create { observer =>
-      subscribe(new Observer[T] {
+  def map[U](f: T => U): AsyncObservable[U] =
+    AsyncObservable.create { observer =>
+      subscribe(new AsyncObserver[T] {
         def onNext(elem: T) =
           // See Section 6.4. in the Rx Design Guidelines:
           // Protect calls to user code from within an operator
@@ -75,9 +75,9 @@ trait Observable[+T] extends ObservableLike[T, Observable] {
       })
     }
 
-  def filter(p: T => Boolean): Observable[T] =
-    Observable.create { observer =>
-      subscribe(new Observer[T] {
+  def filter(p: T => Boolean): AsyncObservable[T] =
+    AsyncObservable.create { observer =>
+      subscribe(new AsyncObserver[T] {
         def onNext(elem: T) = {
           // See Section 6.4. in the Rx Design Guidelines:
           // Protect calls to user code from within an operator
@@ -103,11 +103,11 @@ trait Observable[+T] extends ObservableLike[T, Observable] {
       })
     }
 
-  def flatMap[U](f: T => Observable[U]): Observable[U] =
+  def flatMap[U](f: T => AsyncObservable[U]): AsyncObservable[U] =
     map(f).flatten
 
-  def flatten[U](implicit ev: T <:< Observable[U]): Observable[U] =
-    Observable.create { observerU =>
+  def flatten[U](implicit ev: T <:< AsyncObservable[U]): AsyncObservable[U] =
+    AsyncObservable.create { observerU =>
     // aggregate subscription that cancels everything
       val composite = CompositeCancelable()
 
@@ -118,7 +118,7 @@ trait Observable[+T] extends ObservableLike[T, Observable] {
         finalCompletedPromise.completeWith(observerU.onCompleted())
       }
 
-      composite += subscribe(new Observer[T] {
+      composite += subscribe(new AsyncObserver[T] {
         def onNext(childObservable: T) = {
           val upstreamPromise = Promise[Ack]()
 
@@ -126,7 +126,7 @@ trait Observable[+T] extends ObservableLike[T, Observable] {
           val sub = SingleAssignmentCancelable()
           composite += sub
 
-          sub := childObservable.subscribe(new Observer[U] {
+          sub := childObservable.subscribe(new AsyncObserver[U] {
             def onNext(elem: U) =
               observerU.onNext(elem)
 
@@ -167,11 +167,11 @@ trait Observable[+T] extends ObservableLike[T, Observable] {
       composite
     }
 
-  def take(n: Long): Observable[T] =
-    Observable.create { observer =>
+  def take(n: Long): AsyncObservable[T] =
+    AsyncObservable.create { observer =>
       val counterRef = Atomic(0L)
 
-      subscribe(new Observer[T] {
+      subscribe(new AsyncObserver[T] {
         def onNext(elem: T) = {
           // short-circuit for not endlessly incrementing that number
           if (counterRef.get < n) {
@@ -212,11 +212,11 @@ trait Observable[+T] extends ObservableLike[T, Observable] {
       })
     }
 
-  def drop(n: Long): Observable[T] =
-    Observable.create { observer =>
+  def drop(n: Long): AsyncObservable[T] =
+    AsyncObservable.create { observer =>
       val count = Atomic(0L)
 
-      subscribe(new Observer[T] {
+      subscribe(new AsyncObserver[T] {
         def onNext(elem: T) = {
           if (count.get < n && count.getAndIncrement() < n)
             successful(Continue)
@@ -232,9 +232,9 @@ trait Observable[+T] extends ObservableLike[T, Observable] {
       })
     }
 
-  def takeWhile(p: T => Boolean): Observable[T] =
-    Observable.create { observer =>
-      subscribe(new Observer[T] {
+  def takeWhile(p: T => Boolean): AsyncObservable[T] =
+    AsyncObservable.create { observer =>
+      subscribe(new AsyncObserver[T] {
         @volatile var shouldContinue = true
 
         def onNext(elem: T) =
@@ -259,9 +259,9 @@ trait Observable[+T] extends ObservableLike[T, Observable] {
       })
     }
 
-  def dropWhile(p: T => Boolean): Observable[T] =
-    Observable.create { observer =>
-      subscribe(new Observer[T] {
+  def dropWhile(p: T => Boolean): AsyncObservable[T] =
+    AsyncObservable.create { observer =>
+      subscribe(new AsyncObserver[T] {
         @volatile var shouldDrop = true
 
         def onNext(elem: T) = {
@@ -287,11 +287,11 @@ trait Observable[+T] extends ObservableLike[T, Observable] {
       })
     }
 
-  def foldLeft[R](initial: R)(op: (R, T) => R): Observable[R] =
-    Observable.create { observer =>
+  def foldLeft[R](initial: R)(op: (R, T) => R): AsyncObservable[R] =
+    AsyncObservable.create { observer =>
       val state = Atomic(initial)
 
-      subscribe(new Observer[T] {
+      subscribe(new AsyncObserver[T] {
         def onNext(elem: T): Future[Ack] =
           Future(Try( state.transformAndGet(s => op(s, elem) ))) flatMap {
             case Success(_) =>
@@ -311,9 +311,9 @@ trait Observable[+T] extends ObservableLike[T, Observable] {
       })
     }
 
-  def doOnCompleted(cb: => Unit): Observable[T] =
-    Observable.create { observer =>
-      subscribe(new Observer[T] {
+  def doOnCompleted(cb: => Unit): AsyncObservable[T] =
+    AsyncObservable.create { observer =>
+      subscribe(new AsyncObserver[T] {
         def onNext(elem: T) =
           observer.onNext(elem)
 
@@ -325,9 +325,9 @@ trait Observable[+T] extends ObservableLike[T, Observable] {
       })
     }
 
-  def doWork(cb: T => Unit): Observable[T] =
-    Observable.create { observer =>
-      subscribe(new Observer[T] {
+  def doWork(cb: T => Unit): AsyncObservable[T] =
+    AsyncObservable.create { observer =>
+      subscribe(new AsyncObserver[T] {
         def onError(ex: Throwable) = observer.onError(ex)
         def onCompleted() = observer.onCompleted()
 
@@ -336,19 +336,19 @@ trait Observable[+T] extends ObservableLike[T, Observable] {
       })
     }
 
-  def find(p: T => Boolean): Observable[T] =
+  def find(p: T => Boolean): AsyncObservable[T] =
     filter(p).head
 
-  def exists(p: T => Boolean): Observable[Boolean] =
+  def exists(p: T => Boolean): AsyncObservable[Boolean] =
     find(p).foldLeft(false)((_, _) => true)
 
-  def forAll(p: T => Boolean): Observable[Boolean] =
+  def forAll(p: T => Boolean): AsyncObservable[Boolean] =
     exists(e => !p(e)).map(r => !r)
 
   def asFuture(implicit ec: concurrent.ExecutionContext): Future[Option[T]] = {
     val promise = Promise[Option[T]]()
 
-    head.subscribe(new Observer[T] {
+    head.subscribe(new AsyncObserver[T] {
       def onNext(elem: T) = {
         promise.trySuccess(Some(elem))
         successful(Stop)
@@ -368,29 +368,29 @@ trait Observable[+T] extends ObservableLike[T, Observable] {
     promise.future
   }
 
-  def ++[U >: T](other: => Observable[U]): Observable[U] =
-    Observable.fromTraversable(Seq(this, other)).flatten
+  def ++[U >: T](other: => AsyncObservable[U]): AsyncObservable[U] =
+    AsyncObservable.fromTraversable(Seq(this, other)).flatten
 
-  def head: Observable[T] = take(1)
+  def head: AsyncObservable[T] = take(1)
 
-  def tail: Observable[T] = drop(1)
+  def tail: AsyncObservable[T] = drop(1)
 
-  def headOrElse[B >: T](default: => B): Observable[B] =
+  def headOrElse[B >: T](default: => B): AsyncObservable[B] =
     head.foldLeft(Option.empty[B])((_, elem) => Some(elem)) map {
       case Some(elem) => elem
       case None => default
     }
 
-  def firstOrElse[U >: T](default: => U): Observable[U] =
+  def firstOrElse[U >: T](default: => U): AsyncObservable[U] =
     headOrElse(default)
 
   /**
    * Creates a new Observable by applying a function to each item emitted, a function that returns Future
    * results and then flattens that into a new Observable.
    */
-  def flatMapFutures[U](f: T => Future[U]): Observable[U] =
-    Observable.create { observerU =>
-      subscribe(new Observer[T] {
+  def flatMapFutures[U](f: T => Future[U]): AsyncObservable[U] =
+    AsyncObservable.create { observerU =>
+      subscribe(new AsyncObserver[T] {
         def onNext(elem: T) = {
           // See Section 6.4. in the Rx Design Guidelines:
           // Protect calls to user code from within an operator
@@ -420,11 +420,11 @@ trait Observable[+T] extends ObservableLike[T, Observable] {
    *
    * @return an Observable that emits items that are the result of flattening the emitted Futures
    */
-  def flattenFutures[U](implicit ev: T <:< Future[U]): Observable[U] =
+  def flattenFutures[U](implicit ev: T <:< Future[U]): AsyncObservable[U] =
     flatMapFutures(x => x)
 
-  def zip[U](other: Observable[U]): Observable[(T, U)] =
-    Observable.create { observerOfPairs =>
+  def zip[U](other: AsyncObservable[U]): AsyncObservable[(T, U)] =
+    AsyncObservable.create { observerOfPairs =>
       val composite = CompositeCancelable()
       val lock = new AnyRef
 
@@ -445,7 +445,7 @@ trait Observable[+T] extends ObservableLike[T, Observable] {
           successful(())
       }
 
-      composite += subscribe(new Observer[T] {
+      composite += subscribe(new AsyncObserver[T] {
         def onNext(a: T): Future[Ack] =
           lock.synchronized {
             if (queueB.isEmpty) {
@@ -480,7 +480,7 @@ trait Observable[+T] extends ObservableLike[T, Observable] {
         }
       })
 
-      composite += other.subscribe(new Observer[U] {
+      composite += other.subscribe(new AsyncObserver[U] {
         def onNext(b: U): Future[Ack] =
           lock.synchronized {
             if (queueA.nonEmpty) {
@@ -515,29 +515,29 @@ trait Observable[+T] extends ObservableLike[T, Observable] {
   /**
    * Returns a new Observable that uses the specified `Scheduler` for listening to the emitted items.
    */
-  def listenOn(s: Scheduler): Observable[T] =
-    Observable.create(subscribe)(s)
+  def listenOn(s: Scheduler): AsyncObservable[T] =
+    AsyncObservable.create(subscribe)(s)
 
   /**
    * Returns a new Observable that uses the specified `Scheduler` for initiating the subscription.
    */
-  def subscribeOn(s: Scheduler): Observable[T] =
-    Observable.create { observer =>
+  def subscribeOn(s: Scheduler): AsyncObservable[T] =
+    AsyncObservable.create { observer =>
       s.schedule(s => subscribe(observer))
     }
 }
 
-object Observable {
-  implicit def Builder(implicit ec: ExecutionContext): ObservableBuilder =
-    new ObservableBuilder()
+object AsyncObservable {
+  implicit def Builder(implicit ec: ExecutionContext): AsyncObservableBuilder =
+    new AsyncObservableBuilder()
 
   /**
    * Observable constructor. To be used for implementing new Observables and operators.
    */
-  def create[T](f: Observer[T] => Cancelable)(implicit ctx: ExecutionContext): Observable[T] =
-    new Observable[T] {
+  def create[T](f: AsyncObserver[T] => Cancelable)(implicit ctx: ExecutionContext): AsyncObservable[T] =
+    new AsyncObservable[T] {
       protected def ec = ctx
-      def subscribe(observer: Observer[T]): Cancelable =
+      def subscribe(observer: AsyncObserver[T]): Cancelable =
         try f(observer) catch {
           case NonFatal(ex) =>
             observer.onError(ex)
@@ -545,8 +545,8 @@ object Observable {
         }
     }
 
-  def empty[A](implicit ec: ExecutionContext): Observable[A] =
-    Observable.create { observer =>
+  def empty[A](implicit ec: ExecutionContext): AsyncObservable[A] =
+    AsyncObservable.create { observer =>
       observer.onCompleted()
       Cancelable.empty
     }
@@ -554,8 +554,8 @@ object Observable {
   /**
    * Creates an Observable that only emits the given ''a''
    */
-  def unit[A](elem: A)(implicit ec: ExecutionContext): Observable[A] =
-    Observable.create { observer =>
+  def unit[A](elem: A)(implicit ec: ExecutionContext): AsyncObservable[A] =
+    AsyncObservable.create { observer =>
       val sub = BooleanCancelable()
       observer.onNext(elem).onSuccess {
         case Continue =>
@@ -570,8 +570,8 @@ object Observable {
   /**
    * Creates an Observable that emits an error.
    */
-  def error(ex: Throwable)(implicit ec: ExecutionContext): Observable[Nothing] =
-    Observable.create { observer =>
+  def error(ex: Throwable)(implicit ec: ExecutionContext): AsyncObservable[Nothing] =
+    AsyncObservable.create { observer =>
       observer.onError(ex)
       Cancelable.empty
     }
@@ -579,8 +579,8 @@ object Observable {
   /**
    * Creates an Observable that doesn't emit anything and that never completes.
    */
-  def never(implicit ec: ExecutionContext): Observable[Nothing] =
-    Observable.create { _ => Cancelable() }
+  def never(implicit ec: ExecutionContext): AsyncObservable[Nothing] =
+    AsyncObservable.create { _ => Cancelable() }
 
   /**
    * Creates an Observable that emits auto-incremented natural numbers with a fixed delay,
@@ -589,7 +589,7 @@ object Observable {
    * @param period the delay between two emitted events
    * @param ec the execution context in which `onNext` will get called
    */
-  def interval(period: FiniteDuration)(implicit ec: ExecutionContext): Observable[Long] =
+  def interval(period: FiniteDuration)(implicit ec: ExecutionContext): AsyncObservable[Long] =
     interval(period, Scheduler.fromContext)
 
   /**
@@ -599,7 +599,7 @@ object Observable {
    * @param period the delay between two emitted events
    * @param s the scheduler to use for scheduling the next event and for triggering `onNext`
    */
-  def interval(period: FiniteDuration, s: Scheduler): Observable[Long] =
+  def interval(period: FiniteDuration, s: Scheduler): AsyncObservable[Long] =
     interval(period, period, s)
 
   /**
@@ -610,7 +610,7 @@ object Observable {
    * @param period the delay between two subsequent events
    * @param ec the execution context in which `onNext` will get called
    */
-  def interval(initialDelay: FiniteDuration, period: FiniteDuration)(implicit ec: ExecutionContext): Observable[Long] =
+  def interval(initialDelay: FiniteDuration, period: FiniteDuration)(implicit ec: ExecutionContext): AsyncObservable[Long] =
     interval(initialDelay, period, Scheduler.fromContext)
 
   /**
@@ -621,10 +621,10 @@ object Observable {
    * @param period the delay between two subsequent events
    * @param s the scheduler to use for scheduling the next event and for triggering `onNext`
    */
-  def interval(initialDelay: FiniteDuration, period: FiniteDuration, s: Scheduler): Observable[Long] = {
+  def interval(initialDelay: FiniteDuration, period: FiniteDuration, s: Scheduler): AsyncObservable[Long] = {
     implicit val ec = s
 
-    Observable.create { observer =>
+    AsyncObservable.create { observer =>
       val counter = Atomic(0)
       val sub = SingleAssignmentCancelable()
 
@@ -644,8 +644,8 @@ object Observable {
   /**
    * Creates an Observable that emits the elements of the given ''sequence''
    */
-  def fromTraversable[T](seq: TraversableOnce[T])(implicit ec: ExecutionContext): Observable[T] =
-    Observable.create { observer =>
+  def fromTraversable[T](seq: TraversableOnce[T])(implicit ec: ExecutionContext): AsyncObservable[T] =
+    AsyncObservable.create { observer =>
       def nextInput(iterator: Iterator[T]) =
         Future {
           if (iterator.hasNext)
@@ -680,6 +680,6 @@ object Observable {
   /**
    * Merges the given list of ''observables'' into a single observable.
    */
-  def flatten[T](sources: Observable[T]*)(implicit ec: ExecutionContext): Observable[T] =
-    Observable.fromTraversable(sources).flatten
+  def flatten[T](sources: AsyncObservable[T]*)(implicit ec: ExecutionContext): AsyncObservable[T] =
+    AsyncObservable.fromTraversable(sources).flatten
 }

@@ -2,11 +2,12 @@ package monifu.rx
 
 import org.scalatest.FunSpec
 import scala.concurrent.ExecutionContext.Implicits.global
-import monifu.rx.base.{ObservableLike, ObservableTypeClass}
 import scala.language.higherKinds
 import scala.concurrent.Await
 import concurrent.duration._
 import java.util.concurrent.{TimeUnit, CountDownLatch}
+import monifu.rx
+import monifu.rx.api.{ObservableLike, ObservableTypeClass}
 
 
 class GenericObservableOperatorsTest[Observable[+T] <: ObservableLike[T, Observable]](builder: ObservableTypeClass[Observable])
@@ -281,7 +282,7 @@ class GenericObservableOperatorsTest[Observable[+T] <: ObservableLike[T, Observa
 }
 
 class SyncObservableOperatorsTest
-  extends monifu.rx.GenericObservableOperatorsTest[sync.Observable](sync.Observable.Builder)
+  extends monifu.rx.GenericObservableOperatorsTest[Observable](rx.Observable.Builder)
 
 class AsyncObservableOperatorsTest
-  extends monifu.rx.GenericObservableOperatorsTest[async.Observable](async.Observable.Builder)
+  extends monifu.rx.GenericObservableOperatorsTest[AsyncObservable](rx.AsyncObservable.Builder)
