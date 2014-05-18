@@ -294,11 +294,11 @@ class SyncObservableOperatorsTest
 }
 
 class AsyncObservableOperatorsTest
-  extends monifu.rx.GenericObservableOperatorsTest[AsyncObservable](rx.AsyncObservable.Builder) {
+  extends monifu.rx.GenericObservableOperatorsTest[Observable](rx.Observable.Builder) {
 
   describe("AsyncObservable.flatMap") {
     it("should work with Futures") {
-      val f = AsyncObservable.fromTraversable(0 until 100).flatMap(x => Future(x + 1)).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
+      val f = Observable.fromTraversable(0 until 100).flatMap(x => Future(x + 1)).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
       val result = Await.result(f, 4.seconds)
       assert(result === Some(1 to 100))
     }
