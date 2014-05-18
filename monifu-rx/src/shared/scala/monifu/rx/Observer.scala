@@ -1,13 +1,11 @@
 package monifu.rx
 
+import scala.concurrent.Future
 import monifu.rx.api.Ack
 
 /**
  * The Observer from the Rx pattern is the trio of callbacks that
  * get subscribed to an Observable for receiving events.
- *
- * `Observer` is the synchronous version, whereas [[AsyncObserver]]
- * is the asynchronous version.
  *
  * The events received must follow the Rx grammar, which is:
  *      onNext *   (onCompleted | onError)?
@@ -18,9 +16,9 @@ import monifu.rx.api.Ack
  * shouldn't send any more onNext events.
  */
 trait Observer[-T] {
-  def onNext(elem: T): Ack
+  def onNext(elem: T): Future[Ack]
 
-  def onError(ex: Throwable): Unit
+  def onError(ex: Throwable): Future[Unit]
 
-  def onCompleted(): Unit
+  def onCompleted(): Future[Unit]
 }
