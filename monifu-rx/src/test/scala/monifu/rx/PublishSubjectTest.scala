@@ -6,6 +6,8 @@ import monifu.rx.subjects.PublishSubject
 import scala.concurrent.Await
 import concurrent.duration._
 import monifu.concurrent.atomic.padded.Atomic
+import java.util.concurrent.{TimeUnit, CountDownLatch}
+
 
 class PublishSubjectTest extends FunSpec {
   describe("PublishSubject") {
@@ -148,6 +150,100 @@ class PublishSubjectTest extends FunSpec {
       @volatile var wasCompleted = false
       subject.subscribeUnit(_ => (), _ => (), () => { wasCompleted = true })
       assert(wasCompleted === true)
+    }
+
+    it("should map synchronously") {
+      var result = 0
+      val subject = PublishSubject[Int]()
+      subject.map(x => x + 1).foreach(x => result = x)
+
+      subject.onNext(1)
+      assert(result === 2)
+      subject.onCompleted()
+    }
+
+    it("should filter synchronously") {
+      var result = 0
+      val subject = PublishSubject[Int]()
+      subject.filter(x => x % 2 == 0).foreach(x => result = x)
+
+      subject.onNext(2)
+      subject.onNext(1)
+      assert(result === 2)
+      subject.onCompleted()
+    }
+
+    it("should remove subscribers that triggered errors") {
+      val received = Atomic(0)
+      val errors = Atomic(0)
+
+      val subject = PublishSubject[Int]()
+      subject.map(x => if (x < 5) x else throw new RuntimeException()).subscribeUnit(
+        (elem) => received.increment(elem),
+        (ex) => errors.increment()
+      )
+      subject.map(x => x)
+        .foreach(x => received.increment(x))
+
+      subject.onNext(1)
+      subject.onNext(2)
+      subject.onNext(5)
+      subject.onNext(10)
+      subject.onNext(1)
+      Await.result(subject.onCompleted(), 3.seconds)
+
+      assert(errors.get === 1)
+      assert(received.get === 2 * 1 + 2 * 2 + 5 + 10 + 1)
+    }
+
+    it("should remove subscribers that where done") {
+      val received = Atomic(0)
+      val completed = Atomic(0)
+
+      val subject = PublishSubject[Int]()
+      subject.takeWhile(_ < 5).subscribeUnit(
+        (elem) => received.increment(elem),
+        (ex) => (),
+        () => completed.increment()
+      )
+      subject.map(x => x).subscribeUnit(
+        (elem) => received.increment(elem),
+        (ex) => (),
+        () => completed.increment()
+      )
+
+      subject.onNext(1)
+      Await.result(subject.onNext(2), 3.seconds)
+      assert(completed.get === 0)
+      Await.result(subject.onNext(5), 3.seconds)
+      assert(completed.get === 1)
+
+      subject.onNext(10)
+      subject.onNext(1)
+      Await.result(subject.onCompleted(), 3.seconds)
+
+      assert(completed.get === 2)
+      assert(received.get === 2 * 1 + 2 * 2 + 5 + 10 + 1)
+    }
+
+    it("should complete subscribers immediately after subscription if subject has been completed") {
+      val latch = new CountDownLatch(1)
+
+      val subject = PublishSubject[Int]()
+      subject.onCompleted()
+
+      subject.doOnCompleted(latch.countDown()).foreach(x => ())
+      latch.await(3, TimeUnit.SECONDS)
+    }
+
+    it("should complete subscribers immediately after subscription if subject has been err`d") {
+      val latch = new CountDownLatch(1)
+
+      val subject = PublishSubject[Int]()
+      subject.onError(null)
+
+      subject.doOnCompleted(latch.countDown()).foreach(x => ())
+      latch.await(3, TimeUnit.SECONDS)
     }
   }
 }
