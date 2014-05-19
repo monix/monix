@@ -2,7 +2,7 @@
 
 Extensions to Scala's standard library for multi-threading primitives, functional programming and whatever makes life easier. Targets both the JVM and [Scala.js](http://www.scala-js.org/).
 
-[![Build Status](https://travis-ci.org/alexandru/monifu.png?branch=v0.9.0-alpha1)](https://travis-ci.org/alexandru/monifu)
+[![Build Status](https://travis-ci.org/alexandru/monifu.png?branch=v0.9.1)](https://travis-ci.org/alexandru/monifu)
 
 ## Documentation
 
@@ -35,18 +35,18 @@ the latest Scala.js (at the moment Scala.js 0.4.4). The targetted JDK version
 for the published packages is version 6 (see 
 [faq entry](https://github.com/alexandru/monifu/wiki/Frequently-Asked-Questions#what-javajdk-version-is-required)).
 
-Current stable release is: `0.9.0-alpha1`
+Current stable release is: `0.9.1`
 
 ### For the JVM
 
 ```scala
-libraryDependencies += "org.monifu" %% "monifu-core" % "0.9.0-alpha1"
+libraryDependencies += "org.monifu" %% "monifu-core" % "0.9.1"
 ```
 
 ### For targeting Javascript runtimes with Scala.js
 
 ```scala
-libraryDependencies += "org.monifu" %% "monifu-core-js" % "0.9.0-alpha1"
+libraryDependencies += "org.monifu" %% "monifu-core-js" % "0.9.1"
 ```
 
 ## License
