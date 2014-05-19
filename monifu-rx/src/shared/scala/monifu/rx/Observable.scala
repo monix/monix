@@ -878,7 +878,7 @@ object Observable {
   }
 
   /**
-   * Creates an Observable that continously emits the given ''item''
+   * Creates an Observable that continuously emits the given ''item''
    */
   def continuous[T](elem: T)(implicit scheduler: Scheduler): Observable[T] =
     Observable.create { observer =>
