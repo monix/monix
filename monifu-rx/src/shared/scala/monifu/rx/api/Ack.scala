@@ -13,17 +13,21 @@ object Ack {
    * Acknowledgement of processing that signals upstream that the
    * consumer is interested in receiving more events.
    */
-  case object Continue extends Ack {
-    def asFuture = Future.successful(Continue)
+  sealed trait Continue extends Ack
+
+  object Continue extends Continue {
+    val asFuture = Future.successful(Continue)
   }
 
   /**
    * Acknowledgement or processing that signals upstream that the
    * consumer is no longer interested in receiving events.
    */
-  case object Stop extends Ack {
-    def asFuture = Future.successful(Stop)
-  }
+  sealed trait Done extends Ack
+
+  object Done extends Done {
+    val asFuture = Future.successful(Done)
+  }  
 }
 
 
