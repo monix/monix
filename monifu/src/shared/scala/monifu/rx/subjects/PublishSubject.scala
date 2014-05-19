@@ -6,7 +6,7 @@ import monifu.rx.api.Ack.{Continue, Done}
 import monifu.concurrent.{Cancelable, Scheduler}
 import monifu.rx.Observer
 import scala.collection.mutable
-import monifu.concurrent.atomic.Atomic
+import monifu.concurrent.atomic.padded.Atomic
 import scala.util.{Success, Failure}
 
 final class PublishSubject[T] private (s: Scheduler) extends Subject[T] { self =>
