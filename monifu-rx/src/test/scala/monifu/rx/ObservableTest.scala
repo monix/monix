@@ -11,7 +11,7 @@ import monifu.concurrent.Scheduler.Implicits.global
 class ObservableTest extends FunSpec {
   describe("Observable.map") {
     it("should work") {
-      val f = Observable.fromTraversable(0 until 100).map(x => x + 1).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
+      val f = Observable.fromSequence(0 until 100).map(x => x + 1).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
       assert(Await.result(f, 4.seconds) === Some(1 until 101))
     }
 
@@ -37,10 +37,148 @@ class ObservableTest extends FunSpec {
       latch.await(1, TimeUnit.SECONDS)
       assert(result === "Test exception")
     }
+  }
+
+  describe("Observable.takeWhile") {
+    it("should work") {
+      val f = Observable.fromSequence(0 until 100000).takeWhile(_ < 100)
+        .map(x => x + 1).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
+      assert(Await.result(f, 4.seconds) === Some(1 until 101))
+    }
+
+    it("should treat exceptions in subscribe implementations (guideline 6.5)") {
+      val obs = Observable.create[Int] { subscriber =>
+        throw new RuntimeException("Test exception")
+      }
+
+      val latch = new CountDownLatch(1)
+      @volatile var result = ""
+
+      obs.takeWhile(_ => true).subscribeUnit(
+        nextFn = _ => {
+          if (result != "")
+            throw new IllegalStateException("Should not receive other elements after done")
+        },
+        errorFn = ex => {
+          result = ex.getMessage
+          latch.countDown()
+        }
+      )
+
+      latch.await(1, TimeUnit.SECONDS)
+      assert(result === "Test exception")
+    }
 
     it("should protect calls to user code (guideline 6.4)") {
-      val obs = Observable.fromTraversable(0 until 10000).map { x =>
-        if (x < 5) x + 1 else throw new RuntimeException("test")
+      val obs = Observable.fromSequence(0 until 10000).takeWhile { x =>
+        if (x < 5) true else throw new RuntimeException("test")
+      }
+
+      @volatile var errorThrow: Throwable = null
+      val latch = new CountDownLatch(1)
+
+      obs.map(x => x).subscribeUnit(
+        nextFn = _ => {
+          if (errorThrow != null)
+            throw new IllegalStateException("Should not receive other elements after done")
+        },
+        errorFn = ex => {
+          errorThrow = ex
+          latch.countDown()
+        }
+      )
+
+      latch.await(1, TimeUnit.SECONDS)
+      assert(errorThrow.getMessage === "test")
+    }
+  }
+
+  describe("Observable.dropWhile") {
+    it("should work") {
+      val f = Observable.fromSequence(0 until 200).dropWhile(_ < 100)
+        .foldLeft(Seq.empty[Int])(_ :+ _).asFuture
+      assert(Await.result(f, 4.seconds) === Some(100 until 200))
+    }
+
+    it("should treat exceptions in subscribe implementations (guideline 6.5)") {
+      val obs = Observable.create[Int] { subscriber =>
+        throw new RuntimeException("Test exception")
+      }
+
+      val latch = new CountDownLatch(1)
+      @volatile var result = ""
+
+      obs.dropWhile(_ => true).subscribeUnit(
+        nextFn = _ => {
+          if (result != "")
+            throw new IllegalStateException("Should not receive other elements after done")
+        },
+        errorFn = ex => {
+          result = ex.getMessage
+          latch.countDown()
+        }
+      )
+
+      latch.await(1, TimeUnit.SECONDS)
+      assert(result === "Test exception")
+    }
+
+    it("should protect calls to user code (guideline 6.4)") {
+      val obs = Observable.fromSequence(0 until 100).dropWhile { x =>
+        if (x < 5) true else throw new RuntimeException("test")
+      }
+
+      @volatile var errorThrow: Throwable = null
+      val latch = new CountDownLatch(1)
+
+      obs.map(x => x).subscribeUnit(
+        nextFn = _ => {
+          if (errorThrow != null)
+            throw new IllegalStateException("Should not receive other elements after done")
+        },
+        errorFn = ex => {
+          errorThrow = ex
+          latch.countDown()
+        }
+      )
+
+      latch.await(1, TimeUnit.SECONDS)
+      assert(errorThrow.getMessage === "test")
+    }
+  }
+
+  describe("Observable.scan") {
+    it("should work") {
+      val f = Observable.fromSequence(0 until 100).scan(0)(_ + _).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
+      assert(Await.result(f, 4.seconds) === Some((0 until 100).map(x => (0 to x).sum)))
+    }
+
+    it("should treat exceptions in subscribe implementations (guideline 6.5)") {
+      val obs = Observable.create[Int] { subscriber =>
+        throw new RuntimeException("Test exception")
+      }
+
+      val latch = new CountDownLatch(1)
+      @volatile var result = ""
+
+      obs.scan(0)(_ + _).subscribeUnit(
+        nextFn = _ => {
+          if (result != "")
+            throw new IllegalStateException("Should not receive other elements after done")
+        },
+        errorFn = ex => {
+          result = ex.getMessage
+          latch.countDown()
+        }
+      )
+
+      latch.await(1, TimeUnit.SECONDS)
+      assert(result === "Test exception")
+    }
+
+    it("should protect calls to user code (guideline 6.4)") {
+      val obs = Observable.fromSequence(0 until 100).scan(0) { (acc, elem) =>
+        if (elem < 5) acc + elem else throw new RuntimeException("test")
       }
 
       @volatile var errorThrow: Throwable = null
@@ -64,7 +202,7 @@ class ObservableTest extends FunSpec {
 
   describe("Observable.filter") {
     it("should work") {
-      val obs = Observable.fromTraversable(1 to 10).filter(_ % 2 == 0).foldLeft(0)(_ + _).asFuture
+      val obs = Observable.fromSequence(1 to 10).filter(_ % 2 == 0).foldLeft(0)(_ + _).asFuture
       assert(Await.result(obs, 4.seconds) === Some((1 to 10).filter(_ % 2 == 0).sum))
     }
 
@@ -92,7 +230,7 @@ class ObservableTest extends FunSpec {
     }
 
     it("should protect calls to user code (guideline 6.4)") {
-      val obs = Observable.fromTraversable(0 until 100).filter { x =>
+      val obs = Observable.fromSequence(0 until 100).filter { x =>
         if (x < 5) true else throw new RuntimeException("test")
       }
 
@@ -121,8 +259,8 @@ class ObservableTest extends FunSpec {
 
   describe("Observable.flatMap") {
     it("should work") {
-      val result = Observable.fromTraversable(0 until 100).filter(_ % 5 == 0)
-        .flatMap(x => Observable.fromTraversable(x until (x + 5)))
+      val result = Observable.fromSequence(0 until 100).filter(_ % 5 == 0)
+        .flatMap(x => Observable.fromSequence(x until (x + 5)))
         .foldLeft(0)(_ + _).asFuture
 
       assert(Await.result(result, 4.seconds) === Some((0 until 100).sum))
@@ -152,7 +290,7 @@ class ObservableTest extends FunSpec {
     }
 
     it("should protect calls to user code (guideline 6.4)") {
-      val obs = Observable.fromTraversable(0 until 100).flatMap { x =>
+      val obs = Observable.fromSequence(0 until 100).flatMap { x =>
         if (x < 50) Observable.unit(x) else throw new RuntimeException("test")
       }
 
@@ -179,8 +317,8 @@ class ObservableTest extends FunSpec {
     }
 
     it("should generate elements in order") {
-      val obs = Observable.fromTraversable(0 until 100).filter(_ % 5 == 0)
-        .flatMap(x => Observable.fromTraversable(x until (x + 5)))
+      val obs = Observable.fromSequence(0 until 100).filter(_ % 5 == 0)
+        .flatMap(x => Observable.fromSequence(x until (x + 5)))
         .foldLeft(Seq.empty[Int])(_ :+ _)
         .asFuture
 
@@ -189,7 +327,7 @@ class ObservableTest extends FunSpec {
     }
 
     it("should satisfy source.filter(p) == source.flatMap(x => if (p(x)) unit(x) else empty)") {
-      val parent = Observable.fromTraversable(0 until 1000)
+      val parent = Observable.fromSequence(0 until 1000)
       val res1 = parent.filter(_ % 5 == 0).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
       val res2 = parent.flatMap(x => if (x % 5 == 0) Observable.unit(x) else Observable.empty).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
 
@@ -197,7 +335,7 @@ class ObservableTest extends FunSpec {
     }
 
     it("should satisfy source.map(f) == source.flatMap(x => unit(x))") {
-      val parent = Observable.fromTraversable(0 until 1000)
+      val parent = Observable.fromSequence(0 until 1000)
       val res1 = parent.map(_ + 1).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
       val res2 = parent.flatMap(x => Observable.unit(x + 1)).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
 
@@ -205,46 +343,24 @@ class ObservableTest extends FunSpec {
     }
 
     it("should satisfy source.map(f).flatten == source.flatMap(f)") {
-      val parent = Observable.fromTraversable(0 until 1000).filter(_ % 2 == 0)
-      val res1 = parent.map(x => Observable.fromTraversable(x until (x + 2))).flatten.foldLeft(Seq.empty[Int])(_ :+ _).asFuture
-      val res2 = parent.flatMap(x => Observable.fromTraversable(x until (x + 2))).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
+      val parent = Observable.fromSequence(0 until 1000).filter(_ % 2 == 0)
+      val res1 = parent.map(x => Observable.fromSequence(x until (x + 2))).flatten.foldLeft(Seq.empty[Int])(_ :+ _).asFuture
+      val res2 = parent.flatMap(x => Observable.fromSequence(x until (x + 2))).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
 
       assert(Await.result(res1, 4.seconds) === Await.result(res2, 4.seconds))
     }
 
     it("should work with Futures") {
-      val f = Observable.fromTraversable(0 until 100).flatMap(x => Future(x + 1)).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
+      val f = Observable.fromSequence(0 until 100).flatMap(x => Future(x + 1)).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
       val result = Await.result(f, 4.seconds)
       assert(result === Some(1 to 100))
     }
   }
 
-  describe("Observable.fromTraversable") {
-    it("should work without overflow") {
-      val n = 1000000L
-      val sum = n * (n + 1) / 2
-      val obs = Observable.fromTraversable(1 to n.toInt)
-      val res = obs.foldLeft(0L)(_ + _).asFuture
-
-      val result = Await.result(res, 20.seconds)
-      assert(result === Some(sum))
-    }
-
-    it("should stop if terminated with a stop") {
-      val n = 1000000L
-      val sum = 101 * 50
-      val obs = Observable.fromTraversable(1 to n.toInt).take(100)
-      val res = obs.foldLeft(0L)(_ + _).asFuture
-
-      val result = Await.result(res, 4.seconds)
-      assert(result === Some(sum))
-    }
-  }
-
   describe("Observable.zip") {
     it("should work") {
-      val obs1 = Observable.fromTraversable(0 until 10).filter(_ % 2 == 0).map(_.toLong)
-      val obs2 = Observable.fromTraversable(0 until 10).map(_ * 2).map(_.toLong)
+      val obs1 = Observable.fromSequence(0 until 10).filter(_ % 2 == 0).map(_.toLong)
+      val obs2 = Observable.fromSequence(0 until 10).map(_ * 2).map(_.toLong)
 
       val zipped = obs1.zip(obs2)
 
@@ -255,10 +371,10 @@ class ObservableTest extends FunSpec {
     }
 
     it("should work in four") {
-      val obs1 = Observable.fromTraversable(0 until 100).filter(_ % 2 == 0).map(_.toLong)
-      val obs2 = Observable.fromTraversable(0 until 1000).map(_ * 2).map(_.toLong)
-      val obs3 = Observable.fromTraversable(0 until 100).map(_ * 2).map(_.toLong)
-      val obs4 = Observable.fromTraversable(0 until 1000).filter(_ % 2 == 0).map(_.toLong)
+      val obs1 = Observable.fromSequence(0 until 100).filter(_ % 2 == 0).map(_.toLong)
+      val obs2 = Observable.fromSequence(0 until 1000).map(_ * 2).map(_.toLong)
+      val obs3 = Observable.fromSequence(0 until 100).map(_ * 2).map(_.toLong)
+      val obs4 = Observable.fromSequence(0 until 1000).filter(_ % 2 == 0).map(_.toLong)
 
       val zipped = obs1.zip(obs2).zip(obs3).zip(obs4).map {
         case (((a, b), c), d) => (a, b, c, d)
@@ -271,14 +387,80 @@ class ObservableTest extends FunSpec {
     }
 
     it("should work when length is equal") {
-      val obs1 = Observable.fromTraversable(0 until 100)
-      val obs2 = Observable.fromTraversable(0 until 100)
+      val obs1 = Observable.fromSequence(0 until 100)
+      val obs2 = Observable.fromSequence(0 until 100)
       val zipped = obs1.zip(obs2)
 
       val finalObs = zipped.foldLeft(Seq.empty[(Int, Int)])(_ :+ _)
       val result = Await.result(finalObs.asFuture, 4.seconds)
 
       assert(result === Some((0 until 100).map(x => (x,x))))
+    }
+  }
+
+  describe("Observable.fromSequence") {
+    it("should work") {
+      val expected = (0 until 5000).filter(_ % 5 == 0).flatMap(x => x until (x + 5)).sum
+
+      val f = Observable.fromSequence(0 until 5000).filter(_ % 5 == 0)
+        .flatMap(x => Observable.fromSequence(x until (x + 5)))
+        .foldLeft(0)(_ + _).asFuture
+
+      val result = Await.result(f, 10.seconds)
+      assert(result === Some(expected))
+    }
+
+    it("should work without overflow") {
+      val n = 1000000L
+      val sum = n * (n + 1) / 2
+      val obs = Observable.fromSequence(1 to n.toInt)
+      val res = obs.foldLeft(0L)(_ + _).asFuture
+
+      val result = Await.result(res, 20.seconds)
+      assert(result === Some(sum))
+    }
+
+    it("should stop if terminated with a stop") {
+      val n = 1000000L
+      val sum = 101 * 50
+      val obs = Observable.fromSequence(1 to n.toInt).take(100)
+      val res = obs.foldLeft(0L)(_ + _).asFuture
+
+      val result = Await.result(res, 4.seconds)
+      assert(result === Some(sum))
+    }
+  }
+
+  describe("Observable.fromIterable") {
+    it("should work") {
+      val expected = (0 until 5000).filter(_ % 5 == 0).flatMap(x => x until (x + 5)).sum
+
+      val f = Observable.fromIterable(0 until 5000).filter(_ % 5 == 0)
+        .flatMap(x => Observable.fromIterable(x until (x + 5)))
+        .foldLeft(0)(_ + _).asFuture
+
+      val result = Await.result(f, 10.seconds)
+      assert(result === Some(expected))
+    }
+
+    it("should work without overflow") {
+      val n = 1000000L
+      val sum = n * (n + 1) / 2
+      val obs = Observable.fromIterable(1 to n.toInt)
+      val res = obs.foldLeft(0L)(_ + _).asFuture
+
+      val result = Await.result(res, 20.seconds)
+      assert(result === Some(sum))
+    }
+
+    it("should stop if terminated with a stop") {
+      val n = 1000000L
+      val sum = 101 * 50
+      val obs = Observable.fromIterable(1 to n.toInt).take(100)
+      val res = obs.foldLeft(0L)(_ + _).asFuture
+
+      val result = Await.result(res, 4.seconds)
+      assert(result === Some(sum))
     }
   }
 }
