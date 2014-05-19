@@ -7,13 +7,16 @@ import scala.concurrent.Future.successful
 import monifu.rx.api._
 import Ack.{Done, Continue}
 import monifu.concurrent.atomic.padded.Atomic
-import monifu.concurrent.cancelables.{BooleanCancelable, SingleAssignmentCancelable, RefCountCancelable, CompositeCancelable}
+import monifu.concurrent.cancelables._
 import scala.concurrent.duration.FiniteDuration
 import scala.util.control.NonFatal
 import scala.collection.mutable
 import scala.util.{Failure, Success}
 import scala.annotation.tailrec
 import collection.JavaConverters._
+import scala.util.Failure
+import scala.Some
+import scala.util.Success
 
 
 /**
@@ -873,6 +876,28 @@ object Observable {
       sub
     }
   }
+
+  /**
+   * Creates an Observable that continously emits the given ''item''
+   */
+  def continuous[T](elem: T)(implicit scheduler: Scheduler): Observable[T] =
+    Observable.create { observer =>
+      def loop(sub: BooleanCancelable, elem: T): Unit = {
+        scheduler.execute(new Runnable {
+          def run(): Unit =
+            if (!sub.isCanceled)
+              observer.onNext(elem).onSuccess {
+                case Done => // do nothing
+                case Continue if !sub.isCanceled =>
+                  loop(sub, elem)
+              }
+        })
+      }
+
+      val sub = BooleanCancelable()
+      loop(sub, elem)
+      sub
+    }
 
   /**
    * Creates an Observable that emits the elements of the given ''sequence''

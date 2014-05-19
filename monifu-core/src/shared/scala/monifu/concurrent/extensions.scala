@@ -1,8 +1,8 @@
 package monifu.concurrent
 
 import scala.concurrent.{ExecutionContext, Promise, Future}
-import scala.concurrent.duration.FiniteDuration
-import scala.util.Try
+import scala.concurrent.duration._
+import scala.util.{Failure, Try}
 import java.util.concurrent.TimeoutException
 
 object extensions {
@@ -42,6 +42,36 @@ object extensions {
     def liftTry(implicit ec: ExecutionContext): Future[Try[T]] = {
       val p = Promise[Try[T]]()
       f.onComplete { case result => p.success(result) }
+      p.future
+    }
+
+    /**
+     * Returns a new `Future` that takes `atLeast` and `atMost` time to execute.
+     *
+     * @param atLeast the minimal duration that the returned future will take to complete.
+     * @param atMost the maximum duration that the returned future will take to complete (otherwise it gets completed with a `TimeoutException`)
+     * @param s the implicit scheduler that handles the time scheduling
+     * @return a new `Future` whose execution time is within the specified bounds
+     */
+    def ensureDuration(atLeast: FiniteDuration, atMost: Duration = Duration.Inf)(implicit s: Scheduler): Future[T] = {
+      require(atMost == Duration.Inf || atMost > atLeast)
+
+      val start = System.nanoTime()
+      val future = if (atMost.isFinite()) f.withTimeout(atMost.asInstanceOf[FiniteDuration]) else f
+      val p = Promise[T]()
+
+      future.onComplete {
+        case result =>
+          val remainingNanos = atLeast.toNanos - (System.nanoTime() - start)
+          if (remainingNanos >= 1000000) {
+            val remaining = if (remainingNanos % 1000000 == 0)
+              (remainingNanos / 1000000).millis else ((remainingNanos / 1000000) + 1).millis
+            s.scheduleOnce(remaining, p.complete(result))
+          }
+          else
+            p.complete(result)
+      }
+
       p.future
     }
   }
