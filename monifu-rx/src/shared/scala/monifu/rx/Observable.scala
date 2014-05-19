@@ -2,7 +2,7 @@ package monifu.rx
 
 import language.implicitConversions
 import monifu.concurrent.{Scheduler, Cancelable}
-import scala.concurrent.{ExecutionContext, Promise, Future}
+import scala.concurrent.{Promise, Future}
 import scala.concurrent.Future.successful
 import monifu.rx.api._
 import Ack.{Done, Continue}
@@ -11,7 +11,9 @@ import monifu.concurrent.cancelables.{BooleanCancelable, SingleAssignmentCancela
 import scala.concurrent.duration.FiniteDuration
 import scala.util.control.NonFatal
 import scala.collection.mutable
-import scala.util.{Try, Failure, Success}
+import scala.util.{Failure, Success}
+import scala.annotation.tailrec
+import collection.JavaConverters._
 
 
 /**
@@ -31,9 +33,9 @@ trait Observable[+T] {
   def subscribe(observer: Observer[T]): Cancelable
 
   /**
-   * Implicit `scala.concurrent.ExecutionContext` under which our computations will run.
+   * Implicit scheduler required for asynchronous boundaries.
    */
-  protected implicit def ec: ExecutionContext
+  protected implicit def scheduler: Scheduler
 
   /**
    * Helper to be used by consumers for subscribing to an observable.
@@ -41,13 +43,34 @@ trait Observable[+T] {
   def subscribeUnit(nextFn: T => Unit, errorFn: Throwable => Unit, completedFn: () => Unit): Cancelable =
     subscribe(new Observer[T] {
       def onNext(elem: T): Future[Ack] =
-        Future { nextFn(elem); Continue }
+        try {
+          nextFn(elem)
+          Continue
+        }
+        catch {
+          case NonFatal(ex) =>
+            onError(ex)
+        }
 
       def onError(ex: Throwable) =
-        Future { errorFn(ex); Done }
+        try {
+          errorFn(ex)
+          Done
+        }
+        catch {
+          case NonFatal(e) =>
+            Future.failed(e)
+        }
 
       def onCompleted() =
-        Future { completedFn(); Done }
+        try {
+          completedFn()
+          Done
+        }
+        catch {
+          case NonFatal(ex) =>
+            onError(ex)
+        }
     })
 
   /**
@@ -60,7 +83,7 @@ trait Observable[+T] {
    * Helper to be used by consumers for subscribing to an observable.
    */
   def subscribeUnit(nextFn: T => Unit): Cancelable =
-    subscribeUnit(nextFn, error => ec.reportFailure(error), () => ())
+    subscribeUnit(nextFn, error => error.printStackTrace(), () => ())
 
   /**
    * Returns an Observable that applies the given function to each item emitted by an
@@ -72,15 +95,23 @@ trait Observable[+T] {
   def map[U](f: T => U): Observable[U] =
     Observable.create { observer =>
       subscribe(new Observer[T] {
-        def onNext(elem: T) =
+        def onNext(elem: T) = {
           // See Section 6.4. in the Rx Design Guidelines:
           // Protect calls to user code from within an operator
-          Future(Try(f(elem))) flatMap {
-            case Success(u) =>
-              observer.onNext(u)
-            case Failure(ex) =>
-              observer.onError(ex).map(_ => Done)
+          var streamError = true
+          try {
+            val u = f(elem)
+            streamError = false
+            observer.onNext(u)
           }
+          catch {
+            case NonFatal(ex) =>
+              if (streamError)
+                onError(ex)
+              else
+                Future.failed(ex)
+          }
+        }
 
         def onError(ex: Throwable) =
           observer.onError(ex)
@@ -102,17 +133,18 @@ trait Observable[+T] {
         def onNext(elem: T) = {
           // See Section 6.4. in the Rx Design Guidelines:
           // Protect calls to user code from within an operator
-          Future(Try(p(elem))) flatMap {
-            case Success(isValid) =>
-              if (isValid)
-              // element is valid, so send it downstream
-                observer.onNext(elem)
-              else
-              // not valid, so ignore and signal upstream to send more
-                successful(Continue)
-
-            case Failure(ex) =>
-              observer.onError(ex).map(_ => Done)
+          var streamError = true
+          try {
+            val isValid = p(elem)
+            streamError = false
+            if (isValid)
+              observer.onNext(elem)
+            else
+              Continue
+          }
+          catch {
+            case NonFatal(ex) =>
+              if (streamError) onError(ex) else Future.failed(ex)
           }
         }
 
@@ -123,6 +155,21 @@ trait Observable[+T] {
           observer.onCompleted()
       })
     }
+
+  def foreach(cb: T => Unit): Unit =
+    subscribe(new Observer[T] {
+      def onNext(elem: T) =
+        try { cb(elem); Continue } catch {
+          case NonFatal(ex) =>
+            onError(ex)
+        }
+
+      def onCompleted() = Done
+      def onError(ex: Throwable) = {
+        ex.printStackTrace()
+        Done
+      }
+    })
 
   /**
    * Creates a new Observable by applying a function that you supply to each item emitted by
@@ -239,7 +286,7 @@ trait Observable[+T] {
               // last event in the stream, so we need to send the event followed by an EOF downstream
               // after which we signal upstream to the producer that it should stop
               observer.onNext(elem).flatMap { _ =>
-                observer.onCompleted().map(_ => Done)
+                observer.onCompleted()
               }
             }
             else {
@@ -277,7 +324,7 @@ trait Observable[+T] {
       subscribe(new Observer[T] {
         def onNext(elem: T) = {
           if (count.get < n && count.getAndIncrement() < n)
-            successful(Continue)
+            Continue
           else
             observer.onNext(elem)
         }
@@ -299,19 +346,29 @@ trait Observable[+T] {
       subscribe(new Observer[T] {
         @volatile var shouldContinue = true
 
-        def onNext(elem: T) =
-          if (shouldContinue)
-            Future(Try(p(elem))).flatMap {
-              case Success(true) =>
+        def onNext(elem: T) = {
+          if (shouldContinue) {
+            // See Section 6.4. in the Rx Design Guidelines:
+            // Protect calls to user code from within an operator
+            var streamError = true
+            try {
+              val isValid = p(elem)
+              streamError = false
+              if (isValid)
                 observer.onNext(elem)
-              case Success(false) =>
+              else {
                 shouldContinue = false
-                successful(Done)
-              case Failure(ex) =>
-                observer.onError(ex).map(_ => Done)
+                observer.onCompleted()
+              }
             }
+            catch {
+              case NonFatal(ex) =>
+                if (streamError) onError(ex) else Future.failed(ex)
+            }
+          }
           else
-            successful(Done)
+            Done
+        }
 
         def onCompleted() =
           observer.onCompleted()
@@ -331,18 +388,27 @@ trait Observable[+T] {
         @volatile var shouldDrop = true
 
         def onNext(elem: T) = {
-          if (shouldDrop)
-            Future(Try(p(elem))).flatMap {
-              case Success(true) =>
-                successful(Continue)
-              case Success(false) =>
+          if (shouldDrop) {
+            // See Section 6.4. in the Rx Design Guidelines:
+            // Protect calls to user code from within an operator
+            var streamError = true
+            try {
+              val isInvalid = p(elem)
+              streamError = false
+              if (isInvalid)
+                Continue
+              else {
                 shouldDrop = false
                 observer.onNext(elem)
-              case Failure(ex) =>
-                observer.onError(ex).map(_ => Done)
+              }
             }
+            catch {
+              case NonFatal(ex) =>
+                if (streamError) onError(ex) else Future.failed(ex)
+            }
+          }
           else
-            successful(Done)
+            observer.onNext(elem)
         }
 
         def onCompleted() =
@@ -363,19 +429,58 @@ trait Observable[+T] {
       val state = Atomic(initial)
 
       subscribe(new Observer[T] {
-        def onNext(elem: T): Future[Ack] =
-          Future(Try( state.transformAndGet(s => op(s, elem) ))) flatMap {
-            case Success(_) =>
-              successful(Continue)
-            case Failure(ex) =>
-              observer.onError(ex).map(_ => Done)
+        def onNext(elem: T): Future[Ack] = {
+          // See Section 6.4. in the Rx Design Guidelines:
+          // Protect calls to user code from within an operator
+          try {
+            state.transformAndGet(s => op(s, elem))
+            Continue
           }
-
+          catch {
+            case NonFatal(ex) => onError(ex)
+          }
+        }
 
         def onCompleted() =
           observer.onNext(state.get).flatMap { _ =>
             observer.onCompleted()
           }
+
+        def onError(ex: Throwable) =
+          observer.onError(ex)
+      })
+    }
+
+  /**
+   * Applies a binary operator to a start value and all elements of this Observable,
+   * going left to right and returns a new Observable that emits on each step the result
+   * of the applied function.
+   *
+   * Similar to [[foldLeft]], but emits the state on each step. Useful for modeling finite
+   * state machines.
+   */
+  def scan[R](initial: R)(op: (R, T) => R): Observable[R] =
+    Observable.create { observer =>
+      val state = Atomic(initial)
+
+      subscribe(new Observer[T] {
+        def onNext(elem: T): Future[Ack] = {
+          // See Section 6.4. in the Rx Design Guidelines:
+          // Protect calls to user code from within an operator
+          var streamError = true
+          try {
+            val result = state.transformAndGet(s => op(s, elem))
+            streamError = false
+            observer.onNext(result)
+          }
+          catch {
+            case NonFatal(ex) =>
+              if (streamError) onError(ex) else Future.failed(ex)
+          }
+        }
+
+        def onCompleted() =
+          observer.onCompleted()
 
         def onError(ex: Throwable) =
           observer.onError(ex)
@@ -401,8 +506,18 @@ trait Observable[+T] {
         def onError(ex: Throwable) =
           observer.onError(ex)
 
-        def onCompleted() =
-          observer.onCompleted().map(_ => { cb; Done })
+        def onCompleted() = {
+          var streamError = true
+          try {
+            cb
+            streamError = false
+            observer.onCompleted()
+          }
+          catch {
+            case NonFatal(ex) =>
+              if (streamError) observer.onError(ex) else Future.failed(ex)
+          }
+        }
       })
     }
 
@@ -418,8 +533,20 @@ trait Observable[+T] {
         def onError(ex: Throwable) = observer.onError(ex)
         def onCompleted() = observer.onCompleted()
 
-        def onNext(elem: T) =
-          Future(cb(elem)).map(_ => Continue)
+        def onNext(elem: T) = {
+          // See Section 6.4. in the Rx Design Guidelines:
+          // Protect calls to user code from within an operator
+          var streamError = true
+          try {
+            cb(elem)
+            streamError = false
+            observer.onNext(elem)
+          }
+          catch {
+            case NonFatal(ex) =>
+              if (streamError) onError(ex) else Future.failed(ex)
+          }
+        }
       })
     }
 
@@ -456,7 +583,7 @@ trait Observable[+T] {
    * Returns the first generated result as a Future and then cancels
    * the subscription.
    */
-  def asFuture(implicit ec: concurrent.ExecutionContext): Future[Option[T]] = {
+  def asFuture: Future[Option[T]] = {
     val promise = Promise[Option[T]]()
 
     head.subscribe(new Observer[T] {
@@ -467,12 +594,12 @@ trait Observable[+T] {
 
       def onCompleted() = {
         promise.trySuccess(None)
-        Done.asFuture
+        Done
       }
 
       def onError(ex: Throwable) = {
         promise.tryFailure(ex)
-        Done.asFuture
+        Done
       }
     })
 
@@ -483,7 +610,7 @@ trait Observable[+T] {
    * Concatenates the source Observable with the other Observable, as specified.
    */
   def ++[U >: T](other: => Observable[U]): Observable[U] =
-    Observable.fromTraversable(Seq(this, other)).flatten
+    Observable.fromSequence(Seq(this, other)).flatten
 
   /**
    * Only emits the first element emitted by the source observable, after which it's completed immediately.
@@ -515,34 +642,6 @@ trait Observable[+T] {
     headOrElse(default)
 
   /**
-   * Creates a new Observable by applying a function to each item emitted, a function that returns Future
-   * results and then flattens that into a new Observable.
-   */
-  def flatMapFutures[U](f: T => Future[U])(implicit ec: ExecutionContext): Observable[U] =
-    Observable.create { observerU =>
-      subscribe(new Observer[T] {
-        def onNext(elem: T) = {
-          // See Section 6.4. in the Rx Design Guidelines:
-          // Protect calls to user code from within an operator
-          val promise = Promise[Ack]()
-          f(elem).onComplete {
-            case Success(u) =>
-              promise.completeWith(observerU.onNext(u))
-            case Failure(ex) =>
-              promise.completeWith(observerU.onError(ex).map(_ => Done))
-          }
-          promise.future
-        }
-
-        def onError(ex: Throwable) =
-          observerU.onError(ex)
-
-        def onCompleted() =
-          observerU.onCompleted()
-      })
-    }
-
-  /**
    * Creates a new Observable from this Observable and another given Observable,
    * by emitting elements combined in pairs. If one of the Observable emits fewer
    * events than the other, then the rest of the unpaired events are ignored.
@@ -566,7 +665,7 @@ trait Observable[+T] {
           observerOfPairs.onError(ex)
         }
         else
-          Done.asFuture
+          Done
       }
 
       composite += subscribe(new Observer[T] {
@@ -637,27 +736,60 @@ trait Observable[+T] {
     }
 
   /**
-   * Returns a new Observable that uses the specified `Scheduler` for listening to the emitted items.
+   * Returns a new Observable that uses the specified `ExecutionContext` for listening to the emitted items.
    */
-  def listenOn(s: Scheduler): Observable[T] =
-    Observable.create(subscribe)(s)
+  def observeOn(s: Scheduler): Observable[T] = {
+    implicit val scheduler = s
+
+    Observable.create { observer =>
+      subscribe(new Observer[T] {
+        def onNext(elem: T): Future[Ack] = {
+          val p = Promise[Ack]()
+          scheduler.execute(new Runnable {
+            def run(): Unit =
+              p.completeWith(observer.onNext(elem))
+          })
+          p.future
+        }
+
+        def onError(ex: Throwable): Future[Done] = {
+          val p = Promise[Done]()
+          scheduler.execute(new Runnable {
+            def run(): Unit =
+              p.completeWith(observer.onError(ex))
+          })
+          p.future
+        }
+
+        def onCompleted(): Future[Done] = {
+          val p = Promise[Done]()
+          scheduler.execute(new Runnable {
+            def run(): Unit =
+              p.completeWith(observer.onCompleted())
+          })
+          p.future
+        }
+      })
+    }
+  }
 
   /**
-   * Returns a new Observable that uses the specified `Scheduler` for initiating the subscription.
+   * Returns a new Observable that uses the specified `ExecutionContext` for initiating the subscription.
    */
-  def subscribeOn(s: Scheduler): Observable[T] =
-    Observable.create { observer =>
-      s.schedule(s => subscribe(observer))
-    }
+  def subscribeOn(s: Scheduler): Observable[T] = {
+    implicit val scheduler = s
+    Observable.create(o => s.schedule(s => subscribe(o)))
+  }
 }
 
 object Observable {
   /**
    * Observable constructor. To be used for implementing new Observables and operators.
    */
-  def create[T](f: Observer[T] => Cancelable)(implicit ctx: ExecutionContext): Observable[T] =
+  def create[T](f: Observer[T] => Cancelable)(implicit scheduler: Scheduler): Observable[T] = {
+    val s = scheduler
     new Observable[T] {
-      protected def ec = ctx
+      val scheduler = s
       def subscribe(observer: Observer[T]): Cancelable =
         try f(observer) catch {
           case NonFatal(ex) =>
@@ -665,8 +797,9 @@ object Observable {
             Cancelable.empty
         }
     }
+  }
 
-  def empty[A](implicit ec: ExecutionContext): Observable[A] =
+  def empty[A](implicit scheduler: Scheduler): Observable[A] =
     Observable.create { observer =>
       observer.onCompleted()
       Cancelable.empty
@@ -675,7 +808,7 @@ object Observable {
   /**
    * Creates an Observable that only emits the given ''a''
    */
-  def unit[A](elem: A)(implicit ec: ExecutionContext): Observable[A] =
+  def unit[A](elem: A)(implicit scheduler: Scheduler): Observable[A] = {
     Observable.create { observer =>
       val sub = BooleanCancelable()
       observer.onNext(elem).onSuccess {
@@ -683,15 +816,17 @@ object Observable {
           if (!sub.isCanceled)
             observer.onCompleted()
         case _ =>
-        // nothing
+          // nothing
       }
       sub
     }
+  }
+
 
   /**
    * Creates an Observable that emits an error.
    */
-  def error(ex: Throwable)(implicit ec: ExecutionContext): Observable[Nothing] =
+  def error(ex: Throwable)(implicit scheduler: Scheduler): Observable[Nothing] =
     Observable.create { observer =>
       observer.onError(ex)
       Cancelable.empty
@@ -700,7 +835,7 @@ object Observable {
   /**
    * Creates an Observable that doesn't emit anything and that never completes.
    */
-  def never(implicit ec: ExecutionContext): Observable[Nothing] =
+  def never(implicit scheduler: Scheduler): Observable[Nothing] =
     Observable.create { _ => Cancelable() }
 
   /**
@@ -708,20 +843,10 @@ object Observable {
    * starting from number 1.
    *
    * @param period the delay between two emitted events
-   * @param ec the execution context in which `onNext` will get called
+   * @param scheduler the execution context in which `onNext` will get called
    */
-  def interval(period: FiniteDuration)(implicit ec: ExecutionContext): Observable[Long] =
-    interval(period, Scheduler.fromContext)
-
-  /**
-   * Creates an Observable that emits auto-incremented natural numbers with a fixed delay,
-   * starting from number 1.
-   *
-   * @param period the delay between two emitted events
-   * @param s the scheduler to use for scheduling the next event and for triggering `onNext`
-   */
-  def interval(period: FiniteDuration, s: Scheduler): Observable[Long] =
-    interval(period, period, s)
+  def interval(period: FiniteDuration)(implicit scheduler: Scheduler): Observable[Long] =
+    interval(period, period)
 
   /**
    * Creates an Observable that emits auto-incremented natural numbers with a fixed delay,
@@ -729,27 +854,14 @@ object Observable {
    *
    * @param initialDelay the initial delay to wait before the first emitted number
    * @param period the delay between two subsequent events
-   * @param ec the execution context in which `onNext` will get called
+   * @param scheduler the execution context in which `onNext` will get called
    */
-  def interval(initialDelay: FiniteDuration, period: FiniteDuration)(implicit ec: ExecutionContext): Observable[Long] =
-    interval(initialDelay, period, Scheduler.fromContext)
-
-  /**
-   * Creates an Observable that emits auto-incremented natural numbers with a fixed delay,
-   * starting from number 1.
-   *
-   * @param initialDelay the initial delay to wait before the first emitted number
-   * @param period the delay between two subsequent events
-   * @param s the scheduler to use for scheduling the next event and for triggering `onNext`
-   */
-  def interval(initialDelay: FiniteDuration, period: FiniteDuration, s: Scheduler): Observable[Long] = {
-    implicit val ec = s
-
+  def interval(initialDelay: FiniteDuration, period: FiniteDuration)(implicit scheduler: Scheduler): Observable[Long] = {
     Observable.create { observer =>
       val counter = Atomic(0)
       val sub = SingleAssignmentCancelable()
 
-      sub := s.scheduleRecursive(initialDelay, period, { reschedule =>
+      sub := scheduler.scheduleRecursive(initialDelay, period, { reschedule =>
         observer.onNext(counter.incrementAndGet()) foreach {
           case Continue =>
             reschedule()
@@ -765,34 +877,104 @@ object Observable {
   /**
    * Creates an Observable that emits the elements of the given ''sequence''
    */
-  def fromTraversable[T](seq: TraversableOnce[T])(implicit ec: ExecutionContext): Observable[T] =
+  def fromSequence[T](seq: Seq[T])(implicit scheduler: Scheduler): Observable[T] =
     Observable.create { observer =>
-      def nextInput(iterator: Iterator[T]) =
-        Future {
-          if (iterator.hasNext)
-            Some(iterator.next())
-          else
-            None
-        }
+      def startFeedLoop(subscription: BooleanCancelable, seq: Seq[T]): Unit =
+        scheduler.execute(new Runnable {
+          private[this] var streamError = true
 
-      def startFeedLoop(subscription: BooleanCancelable, iterator: Iterator[T]): Unit =
-        if (!subscription.isCanceled)
-          nextInput(iterator).onComplete {
-            case Success(Some(elem)) =>
-              observer.onNext(elem).onSuccess {
-                case Continue =>
-                  startFeedLoop(subscription, iterator)
-                case Done =>
-                // do nothing else
+          @tailrec
+          def loop(seq: Seq[T]): Unit = {
+            if (seq.nonEmpty) {
+              val elem = seq.head
+              val tail = seq.tail
+              streamError = false
+
+              val ack = observer.onNext(elem)
+              if (ack ne Continue) {
+                if (ack ne Done)
+                  ack.onSuccess {
+                    case Continue =>
+                      startFeedLoop(subscription, tail)
+                    case Done =>
+                      // Do nothing else
+                  }
               }
-            case Success(None) =>
+              else
+                loop(tail)
+            }
+            else {
+              streamError = false
               observer.onCompleted()
-
-            case Failure(ex) =>
-              observer.onError(ex)
+            }
           }
 
-      val iterator = seq.toIterator
+          def run(): Unit =
+            try {
+              streamError = true
+              loop(seq)
+            }
+            catch {
+              case NonFatal(ex) =>
+                if (streamError) observer.onError(ex) else throw ex
+            }
+        })
+
+      val subscription = BooleanCancelable()
+      startFeedLoop(subscription, seq)
+      subscription
+    }
+
+  def fromIterable[T](iterable: Iterable[T])(implicit scheduler: Scheduler): Observable[T] =
+    fromIterable(iterable.asJava)
+
+  /**
+   * Creates an Observable that emits the elements of the given ''sequence''
+   */
+  def fromIterable[T](iterable: java.lang.Iterable[T])(implicit scheduler: Scheduler): Observable[T] =
+    Observable.create { observer =>
+      def startFeedLoop(subscription: BooleanCancelable, iterator: java.util.Iterator[T]): Unit =
+        scheduler.execute(new Runnable {
+          def run(): Unit = synchronized {
+            while (true) {
+              var streamError = true
+              try {
+                if (iterator.hasNext) {
+                  val elem = iterator.next()
+                  streamError = false
+
+                  val ack = observer.onNext(elem)
+                  if (ack ne Continue) {
+                    if (ack ne Done)
+                      ack.onSuccess {
+                        case Continue =>
+                          startFeedLoop(subscription, iterator)
+                        case Done =>
+                          // do nothing else
+                      }
+                    return
+                  }
+                }
+                else {
+                  streamError = false
+                  observer.onCompleted()
+                  return
+                }
+              }
+              catch {
+                case NonFatal(ex) =>
+                  if (streamError) {
+                    observer.onError(ex)
+                    return
+                  }
+                  else
+                    throw ex
+              }
+            }
+          }
+        })
+
+      val iterator = iterable.iterator()
       val subscription = BooleanCancelable()
       startFeedLoop(subscription, iterator)
       subscription
@@ -801,10 +983,10 @@ object Observable {
   /**
    * Merges the given list of ''observables'' into a single observable.
    */
-  def flatten[T](sources: Observable[T]*)(implicit ec: ExecutionContext): Observable[T] =
-    Observable.fromTraversable(sources).flatten
+  def flatten[T](sources: Observable[T]*)(implicit scheduler: Scheduler): Observable[T] =
+    Observable.fromSequence(sources).flatten
 
-  implicit def FutureIsAsyncObservable[T](future: Future[T])(implicit ec: ExecutionContext): Observable[T] =
+  implicit def FutureIsAsyncObservable[T](future: Future[T])(implicit scheduler: Scheduler): Observable[T] =
     Observable.create { observer =>
       val sub = BooleanCancelable()
       future.onComplete {
