@@ -75,24 +75,29 @@ final class PublishSubject[T] private (s: Scheduler) extends Subject[T] { self =
   def onError(ex: Throwable): Future[Done] = self.synchronized {
     if (!isDone) {
       isDone = true
-      val counter = Atomic(subscribers.size)
-      val p = Promise[Done]()
 
-      def completeCountdown(): Unit =
-        if (counter.decrementAndGet() == 0) p.success(Done)
+      if (subscribers.nonEmpty) {
+        val counter = Atomic(subscribers.size)
+        val p = Promise[Done]()
 
-      for ((observer, ack) <- subscribers)
-        ack.onComplete {
-          case Success(Continue) =>
-            observer.onError(ex).onComplete {
-              case _ => completeCountdown()
-            }
-          case Success(Done) | Failure(_) =>
-            completeCountdown()
-        }
+        def completeCountdown(): Unit =
+          if (counter.decrementAndGet() == 0) p.success(Done)
 
-      subscribers.clear()
-      p.future
+        for ((observer, ack) <- subscribers)
+          ack.onComplete {
+            case Success(Continue) =>
+              observer.onError(ex).onComplete {
+                case _ => completeCountdown()
+              }
+            case Success(Done) | Failure(_) =>
+              completeCountdown()
+          }
+
+        subscribers.clear()
+        p.future
+      }
+      else
+        Done
     }
     else
       Done
@@ -101,24 +106,29 @@ final class PublishSubject[T] private (s: Scheduler) extends Subject[T] { self =
   def onCompleted(): Future[Done] = self.synchronized {
     if (!isDone) {
       isDone = true
-      val counter = Atomic(subscribers.size)
-      val p = Promise[Done]()
 
-      def completeCountdown(): Unit =
-        if (counter.decrementAndGet() == 0) p.success(Done)
+      if (subscribers.nonEmpty) {
+        val counter = Atomic(subscribers.size)
+        val p = Promise[Done]()
 
-      for ((observer, ack) <- subscribers)
-        ack.onComplete {
-          case Success(Continue) =>
-            observer.onCompleted().onComplete {
-              case _ => completeCountdown()
-            }
-          case Success(Done) | Failure(_) =>
-            completeCountdown()
-        }
+        def completeCountdown(): Unit =
+          if (counter.decrementAndGet() == 0) p.success(Done)
 
-      subscribers.clear()
-      p.future
+        for ((observer, ack) <- subscribers)
+          ack.onComplete {
+            case Success(Continue) =>
+              observer.onCompleted().onComplete {
+                case _ => completeCountdown()
+              }
+            case Success(Done) | Failure(_) =>
+              completeCountdown()
+          }
+
+        subscribers.clear()
+        p.future
+      }
+      else
+        Done
     }
     else
       Done
