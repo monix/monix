@@ -18,7 +18,7 @@ import monifu.rx.api.Ack
 trait Observer[-T] {
   def onNext(elem: T): Future[Ack]
 
-  def onError(ex: Throwable): Future[Unit]
+  def onError(ex: Throwable): Future[Ack.Done]
 
-  def onCompleted(): Future[Unit]
+  def onCompleted(): Future[Ack.Done]
 }
