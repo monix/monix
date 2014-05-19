@@ -18,7 +18,7 @@ API documentation:
 
 Release Notes:
 
-* [Version 0.9 - May 16, 2014](/docs/release-notes/0.9.md)
+* [Version 0.9 - May 19, 2014](/docs/release-notes/0.9.md)
 * [Version 0.8 - May 13, 2014](/docs/release-notes/0.8.md)
 * [Version 0.7 - April 26, 2014](/docs/release-notes/0.7.md)
 * [Version 0.6 - April 23, 2014](/docs/release-notes/0.6.md)
@@ -40,13 +40,16 @@ Current stable release is: `0.9.1`
 ### For the JVM
 
 ```scala
-libraryDependencies += "org.monifu" %% "monifu-core" % "0.9.1"
+libraryDependencies += "org.monifu" %% "monifu" % "0.9.1"
 ```
 
 ### For targeting Javascript runtimes with Scala.js
 
 ```scala
-libraryDependencies += "org.monifu" %% "monifu-core-js" % "0.9.1"
+libraryDependencies ++= Seq(
+  "org.monifu" %% "monifu-core-js" % "0.9.1",
+  "org.monifu" %% "monifu-rx-js" % "0.9.1"
+)
 ```
 
 ## License
