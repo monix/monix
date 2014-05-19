@@ -463,4 +463,14 @@ class ObservableTest extends FunSpec {
       assert(result === Some(sum))
     }
   }
+
+  describe("Observable.continuous") {
+    it("should work") {
+      val f = Observable.continuous(1).take(5000)
+        .foldLeft(0)(_ + _).asFuture
+
+      val result = Await.result(f, 10.seconds)
+      assert(result === Some(5000))
+    }
+  }
 }
