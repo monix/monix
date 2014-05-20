@@ -1,10 +1,11 @@
-package monifu.reactive.api
+package monifu.reactive.internals
 
 import monifu.concurrent.extensions._
 import monifu.concurrent.atomic.padded.Atomic
 import monifu.reactive.api.Ack.{Done, Continue}
 import scala.concurrent.{ExecutionContext, Promise, Future}
 import scala.util.{Success, Failure}
+import monifu.reactive.api.Ack
 
 /**
  * Internal class used in `Observable.merge`

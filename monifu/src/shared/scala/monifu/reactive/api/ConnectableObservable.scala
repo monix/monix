@@ -25,8 +25,29 @@ trait ConnectableObservable[+T] extends Observable[T] {
    * Returns an observable sequence that stays connected to the source as long
    * as there is at least one subscription to the observable sequence.
    */
-  def refCount(): Observable[T]
-}
+  final def refCount(): Observable[T] = {
+    var count = 0
+    val gate = new AnyRef
+    var subscription = null : Cancelable
+
+    Observable.create { observer =>
+      gate.synchronized {
+        val childSubscription = subscribe(observer)
+        if (count == 0) subscription = connect()
+        count += 1
+
+        Cancelable(gate.synchronized {
+          childSubscription.cancel()
+          count -= 1
+
+          if (count == 0) {
+            subscription.cancel()
+            subscription = null
+          }
+        })
+      }
+    }
+  }}
 
 object ConnectableObservable {
   def apply[T](source: Observable[T], subject: Subject[T], s: Scheduler): ConnectableObservable[T] =
@@ -38,25 +59,5 @@ object ConnectableObservable {
 
       def connect(): Cancelable =
         source.subscribe(subject)
-
-      def refCount(): Observable[T] = {
-        val subscriptionsCount = Atomic(0)
-        val mainSubscription = Atomic(null : Cancelable)
-
-        Observable.create { observer =>
-          val subjectSub = subject.subscribe(observer)
-          if (subscriptionsCount.getAndIncrement() == 0) {
-            mainSubscription.set(source.subscribe(subject))
-          }
-
-          BooleanCancelable {
-            subjectSub.cancel()
-            if (subscriptionsCount.decrementAndGet() == 0) {
-              val ms = mainSubscription.getAndSet(null)
-              if (ms != null) ms.cancel()
-            }
-          }
-        }
-      }
   }
 }
