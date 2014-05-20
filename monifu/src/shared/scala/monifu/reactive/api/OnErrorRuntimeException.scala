@@ -1,4 +1,4 @@
-package monifu.rx.api
+package monifu.reactive.api
 
 /**
  * Exception thrown using an anonymous Observer without

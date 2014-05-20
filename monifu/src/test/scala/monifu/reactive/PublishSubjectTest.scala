@@ -1,8 +1,8 @@
-package monifu.rx
+package monifu.reactive
 
 import org.scalatest.FunSpec
 import monifu.concurrent.Scheduler.Implicits.global
-import monifu.rx.subjects.PublishSubject
+import monifu.reactive.subjects.PublishSubject
 import scala.concurrent.Await
 import concurrent.duration._
 import monifu.concurrent.atomic.padded.Atomic

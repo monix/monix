@@ -1,22 +1,22 @@
-package monifu.rx
+package monifu.reactive
 
 import language.implicitConversions
 import monifu.concurrent.{Scheduler, Cancelable}
 import scala.concurrent.{Promise, Future}
 import scala.concurrent.Future.successful
-import monifu.rx.api._
+import monifu.reactive.api._
 import Ack.{Done, Continue}
 import monifu.concurrent.atomic.padded.Atomic
 import monifu.concurrent.cancelables._
 import scala.concurrent.duration.FiniteDuration
 import scala.util.control.NonFatal
 import scala.collection.mutable
-import scala.util.{Failure, Success}
 import scala.annotation.tailrec
 import collection.JavaConverters._
 import scala.util.Failure
 import scala.Some
 import scala.util.Success
+import monifu.reactive.subjects.{PublishSubject, Subject}
 
 
 /**
@@ -783,6 +783,9 @@ trait Observable[+T] {
     implicit val scheduler = s
     Observable.create(o => s.schedule(s => subscribe(o)))
   }
+
+  def multicast[U >: T](subject: Subject[U] = PublishSubject[U]()): ConnectableObservable[U] =
+    ConnectableObservable(this, subject, implicitly[Scheduler])
 }
 
 object Observable {

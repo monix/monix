@@ -1,7 +1,7 @@
-package monifu.rx
+package monifu.reactive
 
 import scala.concurrent.Future
-import monifu.rx.api.Ack
+import monifu.reactive.api.Ack
 
 /**
  * The Observer from the Rx pattern is the trio of callbacks that

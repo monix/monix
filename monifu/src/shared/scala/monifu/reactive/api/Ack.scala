@@ -1,4 +1,4 @@
-package monifu.rx.api
+package monifu.reactive.api
 
 import scala.concurrent.{CanAwait, ExecutionContext, Future}
 import scala.util.{Success, Try}
