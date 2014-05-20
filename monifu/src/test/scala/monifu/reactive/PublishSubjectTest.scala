@@ -52,11 +52,11 @@ class PublishSubjectTest extends FunSpec {
 
       val subject = PublishSubject[Int]()
 
-      subject.subscribeUnit(
+      subject.subscribe(
         nextFn = elem => (),
         errorFn = ex => result1.set(ex)
       )
-      subject.subscribeUnit(
+      subject.subscribe(
         nextFn = elem => (),
         errorFn = ex => result2.set(ex)
       )
@@ -67,7 +67,7 @@ class PublishSubjectTest extends FunSpec {
       assert(result2.get != null && result2.get.getMessage == "dummy")
 
       @volatile var wasCompleted = false
-      subject.subscribeUnit(_ => (), _ => (), () => { wasCompleted = true })
+      subject.subscribe(_ => (), _ => (), () => { wasCompleted = true })
       assert(wasCompleted === true)
     }
 
@@ -77,11 +77,11 @@ class PublishSubjectTest extends FunSpec {
 
       val subject = PublishSubject[Int]()
 
-      subject.flatMap(x => Observable.unit(x)).subscribeUnit(
+      subject.flatMap(x => Observable.unit(x)).subscribe(
         nextFn = elem => (),
         errorFn = ex => result1.set(ex)
       )
-      subject.flatMap(x => Observable.unit(x)).subscribeUnit(
+      subject.flatMap(x => Observable.unit(x)).subscribe(
         nextFn = elem => (),
         errorFn = ex => result2.set(ex)
       )
@@ -93,7 +93,7 @@ class PublishSubjectTest extends FunSpec {
       assert(result2.get != null && result2.get.getMessage == "dummy")
 
       @volatile var wasCompleted = false
-      subject.subscribeUnit(_ => (), _ => (), () => { wasCompleted = true })
+      subject.subscribe(_ => (), _ => (), () => { wasCompleted = true })
       assert(wasCompleted === true)
     }
 
@@ -103,12 +103,12 @@ class PublishSubjectTest extends FunSpec {
 
       val subject = PublishSubject[Int]()
 
-      subject.subscribeUnit(
+      subject.subscribe(
         nextFn = elem => (),
         errorFn = ex => (),
         completedFn = () => result1.set(1)
       )
-      subject.subscribeUnit(
+      subject.subscribe(
         nextFn = elem => (),
         errorFn = ex => (),
         completedFn = () => result2.set(2)
@@ -120,7 +120,7 @@ class PublishSubjectTest extends FunSpec {
       assert(result2.get === 2)
 
       @volatile var wasCompleted = false
-      subject.subscribeUnit(_ => (), _ => (), () => { wasCompleted = true })
+      subject.subscribe(_ => (), _ => (), () => { wasCompleted = true })
       assert(wasCompleted === true)
     }
 
@@ -130,12 +130,12 @@ class PublishSubjectTest extends FunSpec {
 
       val subject = PublishSubject[Int]()
 
-      subject.flatMap(x => Observable.unit(x)).subscribeUnit(
+      subject.flatMap(x => Observable.unit(x)).subscribe(
         nextFn = elem => (),
         errorFn = ex => (),
         completedFn = () => result1.set(1)
       )
-      subject.flatMap(x => Observable.unit(x)).subscribeUnit(
+      subject.flatMap(x => Observable.unit(x)).subscribe(
         nextFn = elem => (),
         errorFn = ex => (),
         completedFn = () => result2.set(2)
@@ -148,7 +148,7 @@ class PublishSubjectTest extends FunSpec {
       assert(result2.get === 2)
 
       @volatile var wasCompleted = false
-      subject.subscribeUnit(_ => (), _ => (), () => { wasCompleted = true })
+      subject.subscribe(_ => (), _ => (), () => { wasCompleted = true })
       assert(wasCompleted === true)
     }
 
@@ -178,7 +178,7 @@ class PublishSubjectTest extends FunSpec {
       val errors = Atomic(0)
 
       val subject = PublishSubject[Int]()
-      subject.map(x => if (x < 5) x else throw new RuntimeException()).subscribeUnit(
+      subject.map(x => if (x < 5) x else throw new RuntimeException()).subscribe(
         (elem) => received.increment(elem),
         (ex) => errors.increment()
       )
@@ -201,12 +201,12 @@ class PublishSubjectTest extends FunSpec {
       val completed = Atomic(0)
 
       val subject = PublishSubject[Int]()
-      subject.takeWhile(_ < 5).subscribeUnit(
+      subject.takeWhile(_ < 5).subscribe(
         (elem) => received.increment(elem),
         (ex) => (),
         () => completed.increment()
       )
-      subject.map(x => x).subscribeUnit(
+      subject.map(x => x).subscribe(
         (elem) => received.increment(elem),
         (ex) => (),
         () => completed.increment()

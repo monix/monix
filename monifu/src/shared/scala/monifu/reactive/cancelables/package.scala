@@ -1,4 +1,4 @@
-package monifu.concurrent
+package monifu.reactive
 
 /**
  * Cancelables represent asynchronous units of work or other things scheduled for
