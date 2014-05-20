@@ -1,15 +1,16 @@
 package monifu.concurrent
 
+import scala.util.{Failure, Success, Try}
 import scala.concurrent.{ExecutionContext, Promise, Future}
 import scala.concurrent.duration._
-import scala.util.{Failure, Try}
 import java.util.concurrent.TimeoutException
+import scala.util.control.NonFatal
 
 object extensions {
   /**
    * Provides utility methods added on Scala's `concurrent.Future`
    */
-  implicit class FutureExtensions[T](val f: Future[T]) extends AnyVal {
+  implicit class FutureExtensions[T](val source: Future[T]) extends AnyVal {
     /**
      * Combinator that returns a new Future that either completes with
      * the original Future's result or with a TimeoutException in case
@@ -25,7 +26,7 @@ object extensions {
       val promise = Promise[T]()
       val task = s.scheduleOnce(atMost, promise.tryComplete(err))
 
-      f.onComplete { case r =>
+      source.onComplete { case r =>
         // canceling task to prevent waisted CPU resources and memory leaks
         // if the task has been executed already, this has no effect
         task.cancel()
@@ -40,9 +41,14 @@ object extensions {
      * it is useful sometimes.
      */
     def liftTry(implicit ec: ExecutionContext): Future[Try[T]] = {
-      val p = Promise[Try[T]]()
-      f.onComplete { case result => p.success(result) }
-      p.future
+      if (source.isCompleted) {
+        Future.successful(source.value.get)
+      }
+      else {
+        val p = Promise[Try[T]]()
+        source.onComplete { case result => p.success(result) }
+        p.future
+      }
     }
 
     /**
@@ -57,7 +63,7 @@ object extensions {
       require(atMost == Duration.Inf || atMost > atLeast)
 
       val start = System.nanoTime()
-      val future = if (atMost.isFinite()) f.withTimeout(atMost.asInstanceOf[FiniteDuration]) else f
+      val future = if (atMost.isFinite()) source.withTimeout(atMost.asInstanceOf[FiniteDuration]) else source
       val p = Promise[T]()
 
       future.onComplete {
@@ -88,6 +94,85 @@ object extensions {
       val p = Promise[T]()
       s.scheduleOnce(delay, p.success(result))
       p.future
+    }
+  }
+
+  /**
+   * Provides internal utilities used within the Monifu codebase.
+   */
+  private[monifu] implicit class FutureInternalExtensions[T](val source: Future[T]) extends AnyVal {
+    /**
+     * A version of `Future.map` that executes synchronously in the case the source Future
+     * is already complete. To be used only in case you know what you're doing, as executing
+     * things synchronously or asynchronously depending on context is very error-prone.
+     */
+    def unsafeMap[U >: T](f: T => U)(implicit ec: ExecutionContext): Future[U] = {
+      if (source.isCompleted)
+        source.value.get match {
+          case Success(value) =>
+            try Future.successful(f(value)) catch {
+              case NonFatal(ex) => Future.failed(ex)
+            }
+          case Failure(_) =>
+            source
+        }
+      else
+        source.map(f)
+    }
+
+    /**
+     * A version of `Future.flatMap` that executes synchronously in the case the source Future
+     * is already complete. To be used only in case you know what you're doing, as executing
+     * things synchronously or asynchronously depending on context is very error-prone.
+     */
+    def unsafeFlatMap[U](f: T => Future[U])(implicit ec: ExecutionContext): Future[U] = {
+      if (source.isCompleted)
+        source.value.get match {
+          case Success(value) =>
+            try f(value) catch {
+              case NonFatal(ex) => Future.failed(ex)
+            }
+          case Failure(_) =>
+            source.asInstanceOf[Future[U]]
+        }
+      else
+        source.flatMap(f)
+    }
+
+    /**
+     * A version of `Future.onComplete` that executes synchronously in the case the source Future
+     * is already complete. To be used only in case you know what you're doing, as executing
+     * things synchronously or asynchronously depending on context is very error-prone.
+     */
+    def unsafeOnComplete(cb: Try[T] => Unit)(implicit ec: ExecutionContext): Unit = {
+      if (source.isCompleted)
+        try cb(source.value.get) catch {
+          case NonFatal(ex) => ExecutionContext.defaultReporter(ex)
+        }
+      else
+        source.onComplete(cb)
+    }
+
+    /**
+     * A version of `Future.onSuccess` that executes synchronously in the case the source Future
+     * is already complete. To be used only in case you know what you're doing, as executing
+     * things synchronously or asynchronously depending on context is very error-prone.
+     */
+    def unsafeOnSuccess(cb: T => Unit)(implicit ec: ExecutionContext): Unit = {
+      if (source.isCompleted)
+        source.value.get match {
+          case Success(value) =>
+            try cb(value) catch {
+              case NonFatal(ex) => ExecutionContext.defaultReporter(ex)
+            }
+          case Failure(ex) =>
+            // do nothing
+        }
+      else
+        source.onComplete {
+          case Success(any) => cb(any)
+          case _ => // nothing
+        }
     }
   }
 }
