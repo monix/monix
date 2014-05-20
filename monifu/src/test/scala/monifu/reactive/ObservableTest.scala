@@ -1,4 +1,4 @@
-package monifu.rx
+package monifu.reactive
 
 import org.scalatest.FunSpec
 import scala.language.higherKinds

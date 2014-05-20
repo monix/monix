@@ -1,11 +1,11 @@
-package monifu.rx.subjects
+package monifu.reactive.subjects
 
 import monifu.concurrent.{Cancelable, Scheduler}
 import scala.collection.mutable
-import monifu.rx.Observer
+import monifu.reactive.Observer
 import scala.concurrent.{Promise, Future}
-import monifu.rx.api.Ack
-import monifu.rx.api.Ack.{Done, Continue}
+import monifu.reactive.api.Ack
+import monifu.reactive.api.Ack.{Done, Continue}
 import monifu.concurrent.atomic.padded.Atomic
 import scala.util.{Success, Failure}
 
