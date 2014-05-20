@@ -6,6 +6,7 @@ import scala.concurrent.duration._
 import java.util.concurrent.TimeoutException
 import scala.util.control.NonFatal
 
+
 object extensions {
   /**
    * Provides utility methods added on Scala's `concurrent.Future`

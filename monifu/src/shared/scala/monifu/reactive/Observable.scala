@@ -15,9 +15,10 @@ import scala.annotation.tailrec
 import collection.JavaConverters._
 import scala.util.Failure
 import scala.util.Success
-import monifu.reactive.subjects.{PublishSubject, Subject}
+import monifu.reactive.subjects.{BehaviorSubject, PublishSubject, Subject}
 import monifu.concurrent.extensions._
 import monifu.reactive.api.Notification.{OnComplete, OnNext, OnError}
+import monifu.reactive.internals.AckBuffer
 
 
 /**
@@ -962,8 +963,26 @@ trait Observable[+T] {
       })
     }
 
+  /**
+   * Converts this observable into a [[ConnectableObservable]], useful for turning a cold observable into
+   * a hot one (i.e. whose source is shared by all observers).
+   */
   def multicast[U >: T](subject: Subject[U] = PublishSubject[U]()): ConnectableObservable[U] =
     ConnectableObservable(this, subject, implicitly[Scheduler])
+
+  /**
+   * Converts this observable into a [[ConnectableObservable]], useful for turning a cold observable into
+   * a hot one (i.e. whose source is shared by all observers). The underlying subject used is a [[PublishSubject]].
+   */
+  def publish(): ConnectableObservable[T] =
+    ConnectableObservable(this, PublishSubject(), implicitly[Scheduler])
+
+  /**
+   * Converts this observable into a [[ConnectableObservable]], useful for turning a cold observable into
+   * a hot one (i.e. whose source is shared by all observers). The underlying subject used is a [[BehaviorSubject]].
+   */
+  def behavior[U >: T](initialValue: U): ConnectableObservable[U] =
+    ConnectableObservable(this, BehaviorSubject(initialValue), implicitly[Scheduler])
 }
 
 object Observable {

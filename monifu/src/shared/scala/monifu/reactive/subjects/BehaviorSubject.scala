@@ -35,50 +35,54 @@ final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends S
       }
     }
 
-  def onNext(elem: T): Future[Ack] = self.synchronized {
-    if (!isDone) {
-      currentValue = elem
-      val counter = Atomic(subscribers.size)
-      val p = Promise[Continue]()
+  def onNext(elem: T): Future[Ack] =
+    self.synchronized {
+      if (!isDone)
+        if (subscribers.nonEmpty) {
+          currentValue = elem
+          val counter = Atomic(subscribers.size)
+          val p = Promise[Continue]()
 
-      def completeCountdown(): Unit =
-        if (counter.decrementAndGet() == 0) p.success(Continue)
+          def completeCountdown(): Unit =
+            if (counter.decrementAndGet() == 0) p.success(Continue)
 
-      for ((observer, ack) <- subscribers) {
-        val f = ack match {
-          case Continue =>
-            observer.onNext(elem)
-          case Done =>
-            Done
-          case other if other.isCompleted =>
-            if (other.value.get.isSuccess && other.value.get.get == Continue)
-              observer.onNext(elem)
-            else
-              Done
-          case other =>
-            ack.flatMap {
-              case Done => Done
-              case Continue => observer.onNext(elem)
+          for ((observer, ack) <- subscribers) {
+            val f = ack match {
+              case Continue =>
+                observer.onNext(elem)
+              case Done =>
+                Done
+              case other if other.isCompleted =>
+                if (other.value.get.isSuccess && other.value.get.get == Continue)
+                  observer.onNext(elem)
+                else
+                  Done
+              case other =>
+                ack.flatMap {
+                  case Done => Done
+                  case Continue => observer.onNext(elem)
+                }
             }
+
+            subscribers(observer) = f
+
+            f.onComplete {
+              case Failure(_) | Success(Done) =>
+                self.synchronized(subscribers.remove(observer))
+                completeCountdown()
+              case Success(Continue) =>
+                completeCountdown()
+            }
+          }
+
+
+          p.future
         }
-
-        subscribers(observer) = f
-
-        f.onComplete {
-          case Failure(_) | Success(Done) =>
-            self.synchronized(subscribers.remove(observer))
-            completeCountdown()
-          case Success(Continue) =>
-            completeCountdown()
-        }
-      }
-
-
-      p.future
+        else
+          Continue
+      else
+        Done
     }
-    else
-      Done
-  }
 
   def onError(ex: Throwable): Future[Done] = self.synchronized {
     if (!isDone) {

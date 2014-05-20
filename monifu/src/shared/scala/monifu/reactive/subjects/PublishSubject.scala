@@ -29,7 +29,7 @@ final class PublishSubject[T] private (s: Scheduler) extends Subject[T] { self =
     }
 
   def onNext(elem: T): Future[Ack] = self.synchronized {
-    if (!isDone) {
+    if (!isDone && subscribers.nonEmpty) {
       val counter = Atomic(subscribers.size)
       val p = Promise[Continue]()
 
@@ -68,71 +68,75 @@ final class PublishSubject[T] private (s: Scheduler) extends Subject[T] { self =
 
       p.future
     }
+    else if (!isDone)
+      Continue
     else
       Done
   }
 
-  def onError(ex: Throwable): Future[Done] = self.synchronized {
-    if (!isDone) {
-      isDone = true
+  def onError(ex: Throwable): Future[Done] =
+    self.synchronized {
+      if (!isDone) {
+        isDone = true
 
-      if (subscribers.nonEmpty) {
-        val counter = Atomic(subscribers.size)
-        val p = Promise[Done]()
+        if (subscribers.nonEmpty) {
+          val counter = Atomic(subscribers.size)
+          val p = Promise[Done]()
 
-        def completeCountdown(): Unit =
-          if (counter.decrementAndGet() == 0) p.success(Done)
+          def completeCountdown(): Unit =
+            if (counter.decrementAndGet() == 0) p.success(Done)
 
-        for ((observer, ack) <- subscribers)
-          ack.onComplete {
-            case Success(Continue) =>
-              observer.onError(ex).onComplete {
-                case _ => completeCountdown()
-              }
-            case Success(Done) | Failure(_) =>
-              completeCountdown()
-          }
+          for ((observer, ack) <- subscribers)
+            ack.onComplete {
+              case Success(Continue) =>
+                observer.onError(ex).onComplete {
+                  case _ => completeCountdown()
+                }
+              case Success(Done) | Failure(_) =>
+                completeCountdown()
+            }
 
-        subscribers.clear()
-        p.future
+          subscribers.clear()
+          p.future
+        }
+        else
+          Done
       }
       else
         Done
     }
-    else
-      Done
-  }
 
-  def onCompleted(): Future[Done] = self.synchronized {
-    if (!isDone) {
-      isDone = true
+  def onCompleted(): Future[Done] =
+    self.synchronized {
+      if (!isDone) {
+        isDone = true
 
-      if (subscribers.nonEmpty) {
-        val counter = Atomic(subscribers.size)
-        val p = Promise[Done]()
+        if (subscribers.nonEmpty) {
+          val counter = Atomic(subscribers.size)
+          val p = Promise[Done]()
 
-        def completeCountdown(): Unit =
-          if (counter.decrementAndGet() == 0) p.success(Done)
+          def completeCountdown(): Unit =
+            if (counter.decrementAndGet() == 0) p.success(Done)
 
-        for ((observer, ack) <- subscribers)
-          ack.onComplete {
-            case Success(Continue) =>
-              observer.onCompleted().onComplete {
-                case _ => completeCountdown()
-              }
-            case Success(Done) | Failure(_) =>
-              completeCountdown()
-          }
+          for ((observer, ack) <- subscribers)
+            ack.onComplete {
+              case Success(Continue) =>
+                observer.onCompleted().onComplete {
+                  case _ => completeCountdown()
+                }
+              case Success(Done) | Failure(_) =>
+                completeCountdown()
+            }
 
-        subscribers.clear()
-        p.future
+          subscribers.clear()
+          p.future
+        }
+        else
+          Done
       }
       else
         Done
     }
-    else
-      Done
-  }
 }
 
 object PublishSubject {
