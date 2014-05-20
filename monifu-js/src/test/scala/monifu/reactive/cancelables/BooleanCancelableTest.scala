@@ -1,4 +1,4 @@
-package monifu.concurrent.cancelables
+package monifu.reactive.cancelables
 
 import scala.scalajs.test.JasmineTest
 

@@ -3,7 +3,6 @@ package monifu.reactive.api
 import monifu.reactive.{Observer, Observable}
 import monifu.concurrent.{Scheduler, Cancelable}
 import monifu.reactive.subjects.Subject
-import monifu.concurrent.cancelables.BooleanCancelable
 import monifu.concurrent.atomic.Atomic
 
 /**
@@ -30,21 +29,20 @@ trait ConnectableObservable[+T] extends Observable[T] {
     val gate = new AnyRef
     var subscription = null : Cancelable
 
+    def cancel(): Unit =
+      Cancelable(gate.synchronized {
+        if (count > 0) count -= 1
+        if (count == 0 && (subscription ne null)) {
+          subscription.cancel()
+          subscription = null
+        }
+      })
+
     Observable.create { observer =>
       gate.synchronized {
-        val childSubscription = subscribe(observer)
+        doOnCompleted(cancel()).subscribe(observer)
         if (count == 0) subscription = connect()
         count += 1
-
-        Cancelable(gate.synchronized {
-          childSubscription.cancel()
-          count -= 1
-
-          if (count == 0) {
-            subscription.cancel()
-            subscription = null
-          }
-        })
       }
     }
   }}
@@ -54,10 +52,13 @@ object ConnectableObservable {
     new ConnectableObservable[T] {
       implicit val scheduler = s
 
-      def subscribe(observer: Observer[T]): Cancelable =
+      def subscribe(observer: Observer[T]): Unit =
         subject.subscribe(observer)
 
-      def connect(): Cancelable =
-        source.subscribe(subject)
+      def connect(): Cancelable = {
+        val isCanceled = Atomic(false)
+        source.takeWhile(_ => !isCanceled.get).subscribe(subject)
+        Cancelable { isCanceled set true }
+      }
   }
 }

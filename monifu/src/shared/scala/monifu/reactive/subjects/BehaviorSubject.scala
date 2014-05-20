@@ -1,6 +1,6 @@
 package monifu.reactive.subjects
 
-import monifu.concurrent.{Cancelable, Scheduler}
+import monifu.concurrent.Scheduler
 import scala.collection.mutable
 import monifu.reactive.Observer
 import scala.concurrent.{Promise, Future}
@@ -8,6 +8,9 @@ import monifu.reactive.api.Ack
 import monifu.reactive.api.Ack.{Done, Continue}
 import monifu.concurrent.atomic.padded.Atomic
 import scala.util.{Success, Failure}
+import monifu.concurrent.extensions._
+import scala.util.control.NonFatal
+
 
 final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends Subject[T] { self =>
   private[this] var currentValue = initialValue
@@ -17,21 +20,16 @@ final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends S
   private[this] val subscribers = mutable.Map.empty[Observer[T], Future[Ack]]
   private[this] var isDone = false
 
-  def subscribe(observer: Observer[T]): Cancelable =
+  def subscribe(observer: Observer[T]): Unit =
     self.synchronized {
       if (!isDone) {
         subscribers.update(observer, observer.onNext(currentValue))
-        Cancelable {
-          subscribers.remove(observer)
-        }
       }
       else if (errorThrown != null) {
         observer.onError(errorThrown)
-        Cancelable.empty
       }
       else {
         observer.onCompleted()
-        Cancelable.empty
       }
     }
 
@@ -47,26 +45,18 @@ final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends S
             if (counter.decrementAndGet() == 0) p.success(Continue)
 
           for ((observer, ack) <- subscribers) {
-            val f = ack match {
+            val f = ack.unsafeFlatMap {
               case Continue =>
-                observer.onNext(elem)
-              case Done =>
-                Done
-              case other if other.isCompleted =>
-                if (other.value.get.isSuccess && other.value.get.get == Continue)
-                  observer.onNext(elem)
-                else
-                  Done
-              case other =>
-                ack.flatMap {
-                  case Done => Done
-                  case Continue => observer.onNext(elem)
+                try observer.onNext(elem) catch {
+                  case NonFatal(ex) =>
+                    observer.onError(ex)
                 }
+              case Done => Done
             }
 
             subscribers(observer) = f
 
-            f.onComplete {
+            f.unsafeOnComplete {
               case Failure(_) | Success(Done) =>
                 self.synchronized(subscribers.remove(observer))
                 completeCountdown()
@@ -74,7 +64,6 @@ final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends S
                 completeCountdown()
             }
           }
-
 
           p.future
         }
@@ -97,7 +86,7 @@ final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends S
           if (counter.decrementAndGet() == 0) p.success(Done)
 
         for ((observer, ack) <- subscribers)
-          ack.onComplete {
+          ack.unsafeOnComplete {
             case Success(Continue) =>
               observer.onError(ex).onComplete {
                 case _ => completeCountdown()
@@ -128,7 +117,7 @@ final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends S
           if (counter.decrementAndGet() == 0) p.success(Done)
 
         for ((observer, ack) <- subscribers)
-          ack.onComplete {
+          ack.unsafeOnComplete {
             case Success(Continue) =>
               observer.onCompleted().onComplete {
                 case _ => completeCountdown()

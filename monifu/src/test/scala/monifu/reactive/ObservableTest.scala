@@ -23,7 +23,7 @@ class ObservableTest extends FunSpec {
       val latch = new CountDownLatch(1)
       @volatile var result = ""
 
-      obs.map(x => x).subscribeUnit(
+      obs.map(x => x).subscribe(
         nextFn = _ => {
           if (result != "")
             throw new IllegalStateException("Should not receive other elements after done")
@@ -34,7 +34,7 @@ class ObservableTest extends FunSpec {
         }
       )
 
-      latch.await(1, TimeUnit.SECONDS)
+      assert(latch.await(5, TimeUnit.SECONDS), "Latch await failed")
       assert(result === "Test exception")
     }
   }
@@ -54,7 +54,7 @@ class ObservableTest extends FunSpec {
       val latch = new CountDownLatch(1)
       @volatile var result = ""
 
-      obs.takeWhile(_ => true).subscribeUnit(
+      obs.takeWhile(_ => true).subscribe(
         nextFn = _ => {
           if (result != "")
             throw new IllegalStateException("Should not receive other elements after done")
@@ -65,7 +65,7 @@ class ObservableTest extends FunSpec {
         }
       )
 
-      latch.await(1, TimeUnit.SECONDS)
+      assert(latch.await(1, TimeUnit.SECONDS), "Latch await failed")
       assert(result === "Test exception")
     }
 
@@ -77,7 +77,7 @@ class ObservableTest extends FunSpec {
       @volatile var errorThrow: Throwable = null
       val latch = new CountDownLatch(1)
 
-      obs.map(x => x).subscribeUnit(
+      obs.map(x => x).subscribe(
         nextFn = _ => {
           if (errorThrow != null)
             throw new IllegalStateException("Should not receive other elements after done")
@@ -88,7 +88,7 @@ class ObservableTest extends FunSpec {
         }
       )
 
-      latch.await(1, TimeUnit.SECONDS)
+      assert(latch.await(1, TimeUnit.SECONDS), "Latch await failed")
       assert(errorThrow.getMessage === "test")
     }
   }
@@ -108,7 +108,7 @@ class ObservableTest extends FunSpec {
       val latch = new CountDownLatch(1)
       @volatile var result = ""
 
-      obs.dropWhile(_ => true).subscribeUnit(
+      obs.dropWhile(_ => true).subscribe(
         nextFn = _ => {
           if (result != "")
             throw new IllegalStateException("Should not receive other elements after done")
@@ -119,7 +119,7 @@ class ObservableTest extends FunSpec {
         }
       )
 
-      latch.await(1, TimeUnit.SECONDS)
+      assert(latch.await(1, TimeUnit.SECONDS), "Latch await failed")
       assert(result === "Test exception")
     }
 
@@ -131,7 +131,7 @@ class ObservableTest extends FunSpec {
       @volatile var errorThrow: Throwable = null
       val latch = new CountDownLatch(1)
 
-      obs.map(x => x).subscribeUnit(
+      obs.map(x => x).subscribe(
         nextFn = _ => {
           if (errorThrow != null)
             throw new IllegalStateException("Should not receive other elements after done")
@@ -142,7 +142,7 @@ class ObservableTest extends FunSpec {
         }
       )
 
-      latch.await(1, TimeUnit.SECONDS)
+      assert(latch.await(1, TimeUnit.SECONDS), "Latch await failed")
       assert(errorThrow.getMessage === "test")
     }
   }
@@ -161,7 +161,7 @@ class ObservableTest extends FunSpec {
       val latch = new CountDownLatch(1)
       @volatile var result = ""
 
-      obs.scan(0)(_ + _).subscribeUnit(
+      obs.scan(0)(_ + _).subscribe(
         nextFn = _ => {
           if (result != "")
             throw new IllegalStateException("Should not receive other elements after done")
@@ -172,7 +172,7 @@ class ObservableTest extends FunSpec {
         }
       )
 
-      latch.await(1, TimeUnit.SECONDS)
+      assert(latch.await(1, TimeUnit.SECONDS), "Latch await failed")
       assert(result === "Test exception")
     }
 
@@ -184,7 +184,7 @@ class ObservableTest extends FunSpec {
       @volatile var errorThrow: Throwable = null
       val latch = new CountDownLatch(1)
 
-      obs.map(x => x).subscribeUnit(
+      obs.map(x => x).subscribe(
         nextFn = _ => {
           if (errorThrow != null)
             throw new IllegalStateException("Should not receive other elements after done")
@@ -195,7 +195,7 @@ class ObservableTest extends FunSpec {
         }
       )
 
-      latch.await(1, TimeUnit.SECONDS)
+      assert(latch.await(1, TimeUnit.SECONDS), "Latch await failed")
       assert(errorThrow.getMessage === "test")
     }
   }
@@ -214,7 +214,7 @@ class ObservableTest extends FunSpec {
       val latch = new CountDownLatch(1)
       @volatile var result = ""
 
-      obs.filter(_ % 2 == 0).subscribeUnit(
+      obs.filter(_ % 2 == 0).subscribe(
         nextFn = _ => {
           if (result != "")
             throw new IllegalStateException("Should not receive other elements after done")
@@ -225,7 +225,7 @@ class ObservableTest extends FunSpec {
         }
       )
 
-      latch.await(1, TimeUnit.SECONDS)
+      assert(latch.await(1, TimeUnit.SECONDS), "Latch await failed")
       assert(result === "Test exception")
     }
 
@@ -238,7 +238,7 @@ class ObservableTest extends FunSpec {
       @volatile var errorThrow: Throwable = null
       val latch = new CountDownLatch(1)
 
-      obs.map(x => x).subscribeUnit(
+      obs.map(x => x).subscribe(
         nextFn = e => {
           if (errorThrow != null)
             throw new IllegalStateException("Should not receive other elements after done")
@@ -251,7 +251,7 @@ class ObservableTest extends FunSpec {
         }
       )
 
-      latch.await(1, TimeUnit.SECONDS)
+      assert(latch.await(1, TimeUnit.SECONDS), "Latch await failed")
       assert(errorThrow.getMessage === "test")
       assert(sum === (0 until 5).sum)
     }
@@ -274,7 +274,7 @@ class ObservableTest extends FunSpec {
       val latch = new CountDownLatch(1)
       @volatile var result = ""
 
-      obs.flatMap(x => Observable.unit(x)).subscribeUnit(
+      obs.flatMap(x => Observable.unit(x)).subscribe(
         nextFn = _ => {
           if (result != "")
             throw new IllegalStateException("Should not receive other elements after done")
@@ -285,7 +285,7 @@ class ObservableTest extends FunSpec {
         }
       )
 
-      latch.await(1, TimeUnit.SECONDS)
+      assert(latch.await(1, TimeUnit.SECONDS), "Latch await failed")
       assert(result === "Test exception")
     }
 
@@ -298,7 +298,7 @@ class ObservableTest extends FunSpec {
       @volatile var errorThrow: Throwable = null
       val latch = new CountDownLatch(1)
 
-      obs.map(x => x).subscribeUnit(
+      obs.map(x => x).subscribe(
         nextFn = e => {
           if (errorThrow != null)
             throw new IllegalStateException("Should not receive other elements after done")
@@ -311,7 +311,7 @@ class ObservableTest extends FunSpec {
         }
       )
 
-      latch.await(1, TimeUnit.SECONDS)
+      assert(latch.await(1, TimeUnit.SECONDS), "Latch await failed")
       assert(errorThrow.getMessage === "test")
       assert(sum === (0 until 50).sum)
     }
@@ -493,7 +493,7 @@ class ObservableTest extends FunSpec {
       val latch = new CountDownLatch(1)
       @volatile var result = ""
 
-      obs.mergeMap(x => Observable.unit(x)).subscribeUnit(
+      obs.mergeMap(x => Observable.unit(x)).subscribe(
         nextFn = _ => {
           if (result != "")
             throw new IllegalStateException("Should not receive other elements after done")
@@ -504,7 +504,7 @@ class ObservableTest extends FunSpec {
         }
       )
 
-      latch.await(1, TimeUnit.SECONDS)
+      assert(latch.await(1, TimeUnit.SECONDS), "Latch await failed")
       assert(result === "Test exception")
     }
 
@@ -517,7 +517,7 @@ class ObservableTest extends FunSpec {
       @volatile var errorThrow: Throwable = null
       val latch = new CountDownLatch(1)
 
-      obs.map(x => x).subscribeUnit(
+      obs.map(x => x).subscribe(
         nextFn = e => {
           if (errorThrow != null)
             throw new IllegalStateException("Should not receive other elements after done")
@@ -530,7 +530,7 @@ class ObservableTest extends FunSpec {
         }
       )
 
-      latch.await(1, TimeUnit.SECONDS)
+      assert(latch.await(1, TimeUnit.SECONDS), "Latch await failed")
       assert(errorThrow.getMessage === "test")
       assert(sum === (0 until 50).sum)
     }

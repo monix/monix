@@ -1,13 +1,13 @@
 package monifu.reactive
 
 import language.implicitConversions
-import monifu.concurrent.{Scheduler, Cancelable}
+import monifu.concurrent.Scheduler
 import scala.concurrent.{Promise, Future}
 import scala.concurrent.Future.successful
 import monifu.reactive.api._
 import Ack.{Done, Continue}
 import monifu.concurrent.atomic.padded.Atomic
-import monifu.concurrent.cancelables._
+import monifu.reactive.cancelables._
 import scala.concurrent.duration.FiniteDuration
 import scala.util.control.NonFatal
 import scala.collection.mutable
@@ -35,7 +35,7 @@ trait Observable[+T] {
    *
    * @return a cancelable that can be used to cancel the streaming
    */
-  def subscribe(observer: Observer[T]): Cancelable
+  def subscribe(observer: Observer[T]): Unit
 
   /**
    * Implicit scheduler required for asynchronous boundaries.
@@ -45,7 +45,7 @@ trait Observable[+T] {
   /**
    * Helper to be used by consumers for subscribing to an observable.
    */
-  def subscribeUnit(nextFn: T => Unit, errorFn: Throwable => Unit, completedFn: () => Unit): Cancelable =
+  def subscribe(nextFn: T => Unit, errorFn: Throwable => Unit, completedFn: () => Unit): Unit =
     subscribe(new Observer[T] {
       def onNext(elem: T): Future[Ack] =
         try {
@@ -81,14 +81,21 @@ trait Observable[+T] {
   /**
    * Helper to be used by consumers for subscribing to an observable.
    */
-  def subscribeUnit(nextFn: T => Unit, errorFn: Throwable => Unit): Cancelable =
-    subscribeUnit(nextFn, errorFn, () => ())
+  def subscribe(nextFn: T => Unit, errorFn: Throwable => Unit): Unit =
+    subscribe(nextFn, errorFn, () => ())
 
   /**
    * Helper to be used by consumers for subscribing to an observable.
    */
-  def subscribeUnit(nextFn: T => Unit): Cancelable =
-    subscribeUnit(nextFn, error => throw new IllegalStateException("onError not implemented"), () => ())
+  def subscribe(nextFn: T => Unit): Unit =
+    subscribe(nextFn, error => throw new IllegalStateException("onError not implemented"), () => ())
+
+  /**
+   * Helper to be used by consumers for subscribing to an observable.
+   */
+  def subscribe(): Unit =
+    subscribe(elem => (), error => throw new IllegalStateException("onError not implemented"), () => ())
+
 
   /**
    * Returns an Observable that applies the given function to each item emitted by an
@@ -235,9 +242,6 @@ trait Observable[+T] {
    */
   def concat[U](implicit ev: T <:< Observable[U]): Observable[U] =
     Observable.create { observerU =>
-      // aggregate subscription that cancels everything
-      val composite = CompositeCancelable()
-
       // we need to do ref-counting for triggering `EOF` on our observeU
       // when all the children threads have ended
       val finalCompletedPromise = Promise[Done]()
@@ -245,15 +249,12 @@ trait Observable[+T] {
         finalCompletedPromise.completeWith(observerU.onCompleted())
       }
 
-      composite += subscribe(new Observer[T] {
+      subscribe(new Observer[T] {
         def onNext(childObservable: T) = {
           val upstreamPromise = Promise[Ack]()
 
           val refID = refCounter.acquireCancelable()
-          val sub = SingleAssignmentCancelable()
-          composite += sub
-
-          sub := childObservable.subscribe(new Observer[U] {
+          childObservable.subscribe(new Observer[U] {
             def onNext(elem: U) =
               observerU.onNext(elem)
 
@@ -261,13 +262,11 @@ trait Observable[+T] {
               // error happened, so signaling both the main thread that it should stop
               // and the downstream consumer of the error
               val f = observerU.onError(ex)
-              upstreamPromise.completeWith(f.map(_ => Done))
+              f.unsafeOnComplete { case result => upstreamPromise.complete(result) }
               f
             }
 
             def onCompleted() = Future {
-              // removing the child subscription as we can have a leak otherwise
-              composite -= sub
               // NOTE: we aren't sending this onCompleted signal downstream to our observerU
               // instead this will eventually send the EOF downstream (reference counting FTW)
               refID.cancel()
@@ -291,8 +290,6 @@ trait Observable[+T] {
           finalCompletedPromise.future
         }
       })
-
-      composite
     }
 
   /**
@@ -313,7 +310,6 @@ trait Observable[+T] {
    */
   def merge[U](implicit ev: T <:< Observable[U]): Observable[U] = {
     Observable.create { observerB =>
-      val composite = CompositeCancelable()
       val ackBuffer = new AckBuffer
 
       // we need to do ref-counting for triggering `onCompleted` on our subscriber
@@ -322,48 +318,34 @@ trait Observable[+T] {
         ackBuffer.scheduleDone(observerB.onCompleted())
       }
 
-      composite += subscribe(new Observer[T] {
+      subscribe(new Observer[T] {
         def onNext(elem: T) = {
           // reference that gets released when the child observer is completed
           val refID = refCounter.acquireCancelable()
-          // cancelable reference created for child threads spawned by this flatMap
-          // ... is different than `refID` as it serves the purpose of cancelling
-          // everything on `cancel()`
-          val sub = SingleAssignmentCancelable()
-          composite += sub
 
-          val childObserver = new Observer[U] {
+          elem.subscribe(new Observer[U] {
             def onNext(elem: U) =
               ackBuffer.scheduleNext {
-                observerB.onNext(elem).unsafeMap {
-                  case Continue => Continue
-                  case Done =>
-                    composite.cancel()
-                    Done
-                }
+                observerB.onNext(elem)
               }
 
             def onError(ex: Throwable) = {
               // onError, cancel everything
-              composite.cancel()
               ackBuffer.scheduleDone(observerB.onError(ex))
             }
 
             def onCompleted() = {
               // do resource release, otherwise we can end up with a memory leak
-              composite -= sub
               refID.cancel()
-              sub.cancel()
               Done
             }
-          }
+          })
 
-          sub := elem.subscribe(childObserver)
-          Continue
+          ackBuffer.scheduleNext(Continue)
         }
 
         def onError(ex: Throwable) =
-          try observerB.onError(ex) finally composite.cancel()
+          ackBuffer.scheduleDone(observerB.onError(ex))
 
         def onCompleted() = {
           // triggers observer.onCompleted() when all Observables created have been finished
@@ -374,8 +356,6 @@ trait Observable[+T] {
           Done
         }
       })
-
-      composite
     }
   }
 
@@ -768,7 +748,6 @@ trait Observable[+T] {
    */
   def zip[U](other: Observable[U]): Observable[(T, U)] =
     Observable.create { observerOfPairs =>
-      val composite = CompositeCancelable()
       val lock = new AnyRef
 
       val queueA = mutable.Queue.empty[(Promise[U], Promise[Ack])]
@@ -788,7 +767,7 @@ trait Observable[+T] {
           Done
       }
 
-      composite += subscribe(new Observer[T] {
+      subscribe(new Observer[T] {
         def onNext(a: T): Future[Ack] =
           lock.synchronized {
             if (queueB.isEmpty) {
@@ -823,7 +802,7 @@ trait Observable[+T] {
         }
       })
 
-      composite += other.subscribe(new Observer[U] {
+      other.subscribe(new Observer[U] {
         def onNext(b: U): Future[Ack] =
           lock.synchronized {
             if (queueA.nonEmpty) {
@@ -851,8 +830,6 @@ trait Observable[+T] {
           completedPromise.future
         }
       })
-
-      composite
     }
 
   /**
@@ -898,7 +875,7 @@ trait Observable[+T] {
    */
   def subscribeOn(s: Scheduler): Observable[T] = {
     implicit val scheduler = s
-    Observable.create(o => s.schedule(s => subscribe(o)))
+    Observable.create(o => s.scheduleOnce(subscribe(o)))
   }
 
   /**
@@ -989,15 +966,14 @@ object Observable {
   /**
    * Observable constructor. To be used for implementing new Observables and operators.
    */
-  def create[T](f: Observer[T] => Cancelable)(implicit scheduler: Scheduler): Observable[T] = {
+  def create[T](f: Observer[T] => Unit)(implicit scheduler: Scheduler): Observable[T] = {
     val s = scheduler
     new Observable[T] {
       val scheduler = s
-      def subscribe(observer: Observer[T]): Cancelable =
+      def subscribe(observer: Observer[T]): Unit =
         try f(observer) catch {
           case NonFatal(ex) =>
             observer.onError(ex)
-            Cancelable.empty
         }
     }
   }
@@ -1005,7 +981,6 @@ object Observable {
   def empty[A](implicit scheduler: Scheduler): Observable[A] =
     Observable.create { observer =>
       observer.onCompleted()
-      Cancelable.empty
     }
 
   /**
@@ -1013,18 +988,14 @@ object Observable {
    */
   def unit[A](elem: A)(implicit scheduler: Scheduler): Observable[A] = {
     Observable.create { observer =>
-      val sub = BooleanCancelable()
       observer.onNext(elem).onSuccess {
         case Continue =>
-          if (!sub.isCanceled)
-            observer.onCompleted()
+          observer.onCompleted()
         case _ =>
           // nothing
       }
-      sub
     }
   }
-
 
   /**
    * Creates an Observable that emits an error.
@@ -1032,14 +1003,13 @@ object Observable {
   def error(ex: Throwable)(implicit scheduler: Scheduler): Observable[Nothing] =
     Observable.create { observer =>
       observer.onError(ex)
-      Cancelable.empty
     }
 
   /**
    * Creates an Observable that doesn't emit anything and that never completes.
    */
   def never(implicit scheduler: Scheduler): Observable[Nothing] =
-    Observable.create { _ => Cancelable() }
+    Observable.create { _ => () }
 
   /**
    * Creates an Observable that emits auto-incremented natural numbers with a fixed delay,
@@ -1062,18 +1032,15 @@ object Observable {
   def interval(initialDelay: FiniteDuration, period: FiniteDuration)(implicit scheduler: Scheduler): Observable[Long] = {
     Observable.create { observer =>
       val counter = Atomic(0)
-      val sub = SingleAssignmentCancelable()
 
-      sub := scheduler.scheduleRecursive(initialDelay, period, { reschedule =>
+      scheduler.scheduleRecursive(initialDelay, period, { reschedule =>
         observer.onNext(counter.incrementAndGet()) foreach {
           case Continue =>
             reschedule()
           case Done =>
-            sub.cancel()
+            // do nothing else
         }
       })
-
-      sub
     }
   }
 
@@ -1082,21 +1049,18 @@ object Observable {
    */
   def continuous[T](elem: T)(implicit scheduler: Scheduler): Observable[T] =
     Observable.create { observer =>
-      def loop(sub: BooleanCancelable, elem: T): Unit = {
+      def loop(elem: T): Unit = {
         scheduler.execute(new Runnable {
           def run(): Unit =
-            if (!sub.isCanceled)
-              observer.onNext(elem).onSuccess {
-                case Done => // do nothing
-                case Continue if !sub.isCanceled =>
-                  loop(sub, elem)
-              }
+            observer.onNext(elem).onSuccess {
+              case Done => // do nothing
+              case Continue =>
+                loop(elem)
+            }
         })
       }
 
-      val sub = BooleanCancelable()
-      loop(sub, elem)
-      sub
+      loop(elem)
     }
 
   /**
@@ -1104,7 +1068,7 @@ object Observable {
    */
   def fromSequence[T](seq: Seq[T])(implicit scheduler: Scheduler): Observable[T] =
     Observable.create { observer =>
-      def startFeedLoop(subscription: BooleanCancelable, seq: Seq[T]): Unit =
+      def startFeedLoop(seq: Seq[T]): Unit =
         scheduler.execute(new Runnable {
           private[this] var streamError = true
 
@@ -1120,7 +1084,7 @@ object Observable {
                 if (ack ne Done)
                   ack.onSuccess {
                     case Continue =>
-                      startFeedLoop(subscription, tail)
+                      startFeedLoop(tail)
                     case Done =>
                       // Do nothing else
                   }
@@ -1145,9 +1109,7 @@ object Observable {
             }
         })
 
-      val subscription = BooleanCancelable()
-      startFeedLoop(subscription, seq)
-      subscription
+      startFeedLoop(seq)
     }
 
   def fromIterable[T](iterable: Iterable[T])(implicit scheduler: Scheduler): Observable[T] =
@@ -1158,7 +1120,7 @@ object Observable {
    */
   def fromIterable[T](iterable: java.lang.Iterable[T])(implicit scheduler: Scheduler): Observable[T] =
     Observable.create { observer =>
-      def startFeedLoop(subscription: BooleanCancelable, iterator: java.util.Iterator[T]): Unit =
+      def startFeedLoop(iterator: java.util.Iterator[T]): Unit =
         scheduler.execute(new Runnable {
           def run(): Unit = synchronized {
             while (true) {
@@ -1173,7 +1135,7 @@ object Observable {
                     if (ack ne Done)
                       ack.onSuccess {
                         case Continue =>
-                          startFeedLoop(subscription, iterator)
+                          startFeedLoop(iterator)
                         case Done =>
                           // do nothing else
                       }
@@ -1200,9 +1162,7 @@ object Observable {
         })
 
       val iterator = iterable.iterator()
-      val subscription = BooleanCancelable()
-      startFeedLoop(subscription, iterator)
-      subscription
+      startFeedLoop(iterator)
     }
 
   /**
@@ -1225,17 +1185,13 @@ object Observable {
 
   implicit def FutureIsAsyncObservable[T](future: Future[T])(implicit scheduler: Scheduler): Observable[T] =
     Observable.create { observer =>
-      val sub = BooleanCancelable()
       future.onComplete {
-        case Success(value) if !sub.isCanceled =>
+        case Success(value) =>
           observer.onNext(value).onSuccess {
             case Continue => observer.onCompleted()
           }
-        case Failure(ex) if !sub.isCanceled =>
+        case Failure(ex) =>
           observer.onError(ex)
-        case _ =>
-          // do nothing
       }
-      sub
     }
 }
