@@ -473,4 +473,111 @@ class ObservableTest extends FunSpec {
       assert(result === Some(5000))
     }
   }
+
+  // ===
+
+  describe("Observable.mergeMap") {
+    it("should work") {
+      val result = Observable.fromSequence(0 until 100).filter(_ % 5 == 0)
+        .mergeMap(x => Observable.fromSequence(x until (x + 5)))
+        .foldLeft(0)(_ + _).asFuture
+
+      assert(Await.result(result, 4.seconds) === Some((0 until 100).sum))
+    }
+
+    it("should treat exceptions in subscribe implementations (guideline 6.5)") {
+      val obs = Observable.create[Int] { subscriber =>
+        throw new RuntimeException("Test exception")
+      }
+
+      val latch = new CountDownLatch(1)
+      @volatile var result = ""
+
+      obs.mergeMap(x => Observable.unit(x)).subscribeUnit(
+        nextFn = _ => {
+          if (result != "")
+            throw new IllegalStateException("Should not receive other elements after done")
+        },
+        errorFn = ex => {
+          result = ex.getMessage
+          latch.countDown()
+        }
+      )
+
+      latch.await(1, TimeUnit.SECONDS)
+      assert(result === "Test exception")
+    }
+
+    it("should protect calls to user code (guideline 6.4)") {
+      val obs = Observable.fromSequence(0 until 100).mergeMap { x =>
+        if (x < 50) Observable.unit(x) else throw new RuntimeException("test")
+      }
+
+      @volatile var sum = 0
+      @volatile var errorThrow: Throwable = null
+      val latch = new CountDownLatch(1)
+
+      obs.map(x => x).subscribeUnit(
+        nextFn = e => {
+          if (errorThrow != null)
+            throw new IllegalStateException("Should not receive other elements after done")
+          else
+            sum += e
+        },
+        errorFn = ex => {
+          errorThrow = ex
+          latch.countDown()
+        }
+      )
+
+      latch.await(1, TimeUnit.SECONDS)
+      assert(errorThrow.getMessage === "test")
+      assert(sum === (0 until 50).sum)
+    }
+
+    it("should generate elements, without ordering guaranteed") {
+      val obs = Observable.fromSequence(0 until 100).filter(_ % 5 == 0)
+        .mergeMap(x => Observable.fromSequence(x until (x + 5)))
+        .foldLeft(Seq.empty[Int])(_ :+ _)
+        .map(_.sorted)
+        .asFuture
+
+      val result = Await.result(obs, 4.seconds)
+      assert(result === Some(0 until 100))
+    }
+
+    it("should satisfy source.filter(p) == source.mergeMap(x => if (p(x)) unit(x) else empty), without ordering") {
+      val parent = Observable.fromSequence(0 until 1000)
+      val res1 = parent.filter(_ % 5 == 0).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
+      val res2 = parent.mergeMap(x => if (x % 5 == 0) Observable.unit(x) else Observable.empty)
+        .foldLeft(Seq.empty[Int])(_ :+ _).map(_.sorted).asFuture
+
+      assert(Await.result(res1, 4.seconds) === Await.result(res2, 4.seconds))
+    }
+
+    it("should satisfy source.map(f) == source.mergeMap(x => unit(x)), without ordering") {
+      val parent = Observable.fromSequence(0 until 1000)
+      val res1 = parent.map(_ + 1).foldLeft(Seq.empty[Int])(_ :+ _).map(_.sorted).asFuture
+      val res2 = parent.mergeMap(x => Observable.unit(x + 1)).foldLeft(Seq.empty[Int])(_ :+ _).map(_.sorted).asFuture
+
+      assert(Await.result(res1, 4.seconds) === Await.result(res2, 4.seconds))
+    }
+
+    it("should satisfy source.map(f).merge == source.mergeMap(f)") {
+      val parent = Observable.fromSequence(0 until 1000).filter(_ % 2 == 0)
+      val res1 = parent.map(x => Observable.fromSequence(x until (x + 2))).merge
+        .foldLeft(Seq.empty[Int])(_ :+ _).map(_.sorted).asFuture
+      val res2 = parent.mergeMap(x => Observable.fromSequence(x until (x + 2)))
+        .foldLeft(Seq.empty[Int])(_ :+ _).map(_.sorted).asFuture
+
+      assert(Await.result(res1, 4.seconds) === Await.result(res2, 4.seconds))
+    }
+
+    it("should work with Futures") {
+      val f = Observable.fromSequence(0 until 100).mergeMap(x => Future(x + 1))
+        .foldLeft(Seq.empty[Int])(_ :+ _).map(_.sorted).asFuture
+      val result = Await.result(f, 4.seconds)
+      assert(result === Some(1 to 100))
+    }
+  }
 }

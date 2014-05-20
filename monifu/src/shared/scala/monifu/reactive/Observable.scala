@@ -14,9 +14,10 @@ import scala.collection.mutable
 import scala.annotation.tailrec
 import collection.JavaConverters._
 import scala.util.Failure
-import scala.Some
 import scala.util.Success
 import monifu.reactive.subjects.{PublishSubject, Subject}
+import monifu.concurrent.extensions._
+import monifu.reactive.api.Notification.{OnComplete, OnNext, OnError}
 
 
 /**
@@ -86,7 +87,7 @@ trait Observable[+T] {
    * Helper to be used by consumers for subscribing to an observable.
    */
   def subscribeUnit(nextFn: T => Unit): Cancelable =
-    subscribeUnit(nextFn, error => error.printStackTrace(), () => ())
+    subscribeUnit(nextFn, error => throw new IllegalStateException("onError not implemented"), () => ())
 
   /**
    * Returns an Observable that applies the given function to each item emitted by an
@@ -98,23 +99,13 @@ trait Observable[+T] {
   def map[U](f: T => U): Observable[U] =
     Observable.create { observer =>
       subscribe(new Observer[T] {
-        def onNext(elem: T) = {
-          // See Section 6.4. in the Rx Design Guidelines:
-          // Protect calls to user code from within an operator
-          var streamError = true
-          try {
-            val u = f(elem)
-            streamError = false
-            observer.onNext(u)
-          }
-          catch {
+        def onNext(elem: T) =
+          try observer.onNext(f(elem)) catch {
+            // See Section 6.4. in the Rx Design Guidelines:
+            // Protect calls to user code from within an operator
             case NonFatal(ex) =>
-              if (streamError)
-                onError(ex)
-              else
-                Future.failed(ex)
+              observer.onError(ex)
           }
-        }
 
         def onError(ex: Throwable) =
           observer.onError(ex)
@@ -134,20 +125,17 @@ trait Observable[+T] {
     Observable.create { observer =>
       subscribe(new Observer[T] {
         def onNext(elem: T) = {
-          // See Section 6.4. in the Rx Design Guidelines:
-          // Protect calls to user code from within an operator
-          var streamError = true
           try {
-            val isValid = p(elem)
-            streamError = false
-            if (isValid)
+            if (p(elem))
               observer.onNext(elem)
             else
               Continue
           }
           catch {
+            // See Section 6.4. in the Rx Design Guidelines:
+            // Protect calls to user code from within an operator
             case NonFatal(ex) =>
-              if (streamError) onError(ex) else Future.failed(ex)
+              observer.onError(ex)
           }
         }
 
@@ -169,10 +157,36 @@ trait Observable[+T] {
 
       def onCompleted() = Done
       def onError(ex: Throwable) = {
-        ex.printStackTrace()
+        scheduler.reportFailure(ex)
         Done
       }
     })
+
+  /**
+   * Creates a new Observable by applying a function that you supply to each item emitted by
+   * the source Observable, where that function returns an Observable, and then concatenating those
+   * resulting Observables and emitting the results of this concatenation.
+   *
+   * @param f a function that, when applied to an item emitted by the source Observable, returns an Observable
+   * @return an Observable that emits the result of applying the transformation function to each
+   *         item emitted by the source Observable and concatenating the results of the Observables
+   *         obtained from this transformation.
+   */
+  def flatMap[U](f: T => Observable[U]): Observable[U] =
+    map(f).flatten
+
+  /**
+   * Creates a new Observable by applying a function that you supply to each item emitted by
+   * the source Observable, where that function returns an Observable, and then concatenating those
+   * resulting Observables and emitting the results of this concatenation.
+   *
+   * @param f a function that, when applied to an item emitted by the source Observable, returns an Observable
+   * @return an Observable that emits the result of applying the transformation function to each
+   *         item emitted by the source Observable and concatenating the results of the Observables
+   *         obtained from this transformation.
+   */
+  def concatMap[U](f: T => Observable[U]): Observable[U] =
+    map(f).concat
 
   /**
    * Creates a new Observable by applying a function that you supply to each item emitted by
@@ -184,8 +198,8 @@ trait Observable[+T] {
    *         item emitted by the source Observable and merging the results of the Observables
    *         obtained from this transformation.
    */
-  def flatMap[U](f: T => Observable[U]): Observable[U] =
-    map(f).flatten
+  def mergeMap[U](f: T => Observable[U]): Observable[U] =
+    map(f).merge
 
   /**
    * Flattens the sequence of Observables emitted by the source into one Observable, without any
@@ -200,9 +214,27 @@ trait Observable[+T] {
    * @return an Observable that emits items that are the result of flattening the items emitted
    *         by the Observables emitted by `this`
    */
-  def flatten[U](implicit ev: T <:< Observable[U]): Observable[U] =
+  def flatten[U](implicit ev: T <:< Observable[U]): Observable[U] = concat
+
+  /**
+   * Concatenates the sequence of Observables emitted by the source into one Observable, without any
+   * transformation.
+   *
+   * You can combine the items emitted by multiple Observables so that they act like a single
+   * Observable by using this method.
+   *
+   * The difference between [[concat]] and [[merge]] is that `concat` cares about ordering of
+   * emitted items (e.g. all items emitted by the first observable in the sequence will come before
+   * the elements emitted by the second observable), whereas `merge` doesn't care about that
+   * (elements get emitted as they come). Because of back-pressure applied to observables,
+   * [[concat]] is safe to use in all contexts, whereas [[merge]] requires buffering.
+   *
+   * @return an Observable that emits items that are the result of flattening the items emitted
+   *         by the Observables emitted by `this`
+   */
+  def concat[U](implicit ev: T <:< Observable[U]): Observable[U] =
     Observable.create { observerU =>
-    // aggregate subscription that cancels everything
+      // aggregate subscription that cancels everything
       val composite = CompositeCancelable()
 
       // we need to do ref-counting for triggering `EOF` on our observeU
@@ -263,6 +295,90 @@ trait Observable[+T] {
     }
 
   /**
+   * Merges the sequence of Observables emitted by the source into one Observable, without any
+   * transformation.
+   *
+   * You can combine the items emitted by multiple Observables so that they act like a single
+   * Observable by using this method.
+   *
+   * The difference between [[concat]] and [[merge]] is that `concat` cares about ordering of
+   * emitted items (e.g. all items emitted by the first observable in the sequence will come before
+   * the elements emitted by the second observable), whereas `merge` doesn't care about that
+   * (elements get emitted as they come). Because of back-pressure applied to observables,
+   * [[concat]] is safe to use in all contexts, whereas [[merge]] requires buffering.
+   *
+   * @return an Observable that emits items that are the result of flattening the items emitted
+   *         by the Observables emitted by `this`
+   */
+  def merge[U](implicit ev: T <:< Observable[U]): Observable[U] = {
+    Observable.create { observerB =>
+      val composite = CompositeCancelable()
+      val ackBuffer = new AckBuffer
+
+      // we need to do ref-counting for triggering `onCompleted` on our subscriber
+      // when all the children threads have ended
+      val refCounter = RefCountCancelable {
+        ackBuffer.scheduleDone(observerB.onCompleted())
+      }
+
+      composite += subscribe(new Observer[T] {
+        def onNext(elem: T) = {
+          // reference that gets released when the child observer is completed
+          val refID = refCounter.acquireCancelable()
+          // cancelable reference created for child threads spawned by this flatMap
+          // ... is different than `refID` as it serves the purpose of cancelling
+          // everything on `cancel()`
+          val sub = SingleAssignmentCancelable()
+          composite += sub
+
+          val childObserver = new Observer[U] {
+            def onNext(elem: U) =
+              ackBuffer.scheduleNext {
+                observerB.onNext(elem).unsafeMap {
+                  case Continue => Continue
+                  case Done =>
+                    composite.cancel()
+                    Done
+                }
+              }
+
+            def onError(ex: Throwable) = {
+              // onError, cancel everything
+              composite.cancel()
+              ackBuffer.scheduleDone(observerB.onError(ex))
+            }
+
+            def onCompleted() = {
+              // do resource release, otherwise we can end up with a memory leak
+              composite -= sub
+              refID.cancel()
+              sub.cancel()
+              Done
+            }
+          }
+
+          sub := elem.subscribe(childObserver)
+          Continue
+        }
+
+        def onError(ex: Throwable) =
+          try observerB.onError(ex) finally composite.cancel()
+
+        def onCompleted() = {
+          // triggers observer.onCompleted() when all Observables created have been finished
+          // basically when the main thread is completed, it waits to stream onCompleted
+          // until all children have been onCompleted too - only after that `subscriber.onCompleted` gets triggered
+          // (see `RefCountCancelable` for details on how it works)
+          refCounter.cancel()
+          Done
+        }
+      })
+
+      composite
+    }
+  }
+
+  /**
    * Selects the first ''n'' elements (from the start).
    *
    *  @param  n  the number of elements to take
@@ -288,7 +404,7 @@ trait Observable[+T] {
             else if (counter == n) {
               // last event in the stream, so we need to send the event followed by an EOF downstream
               // after which we signal upstream to the producer that it should stop
-              observer.onNext(elem).flatMap { _ =>
+              observer.onNext(elem).unsafeFlatMap { _ =>
                 observer.onCompleted()
               }
             }
@@ -445,7 +561,7 @@ trait Observable[+T] {
         }
 
         def onCompleted() =
-          observer.onNext(state.get).flatMap { _ =>
+          observer.onNext(state.get).unsafeFlatMap { _ =>
             observer.onCompleted()
           }
 
@@ -784,6 +900,68 @@ trait Observable[+T] {
     Observable.create(o => s.schedule(s => subscribe(o)))
   }
 
+  /**
+   * Converts the source Observable that emits `T` into an Observable
+   * that emits `Notification[T]`.
+   *
+   * NOTE: `onComplete` is still emitted after an `onNext(OnComplete)` notification
+   * however an `onError(ex)` notification is emitted as an `onNext(OnError(ex))`
+   * followed by an `onComplete`.
+   */
+  def materialize: Observable[Notification[T]] =
+    Observable.create { observer =>
+      subscribe(new Observer[T] {
+        def onNext(elem: T): Future[Ack] =
+          observer.onNext(OnNext(elem))
+
+        def onError(ex: Throwable): Future[Done] =
+          observer.onNext(OnError(ex)).unsafeFlatMap {
+            case Done => Done
+            case Continue => observer.onCompleted()
+          }
+
+        def onCompleted(): Future[Done] =
+          observer.onNext(OnComplete).unsafeFlatMap {
+            case Done => Done
+            case Continue => observer.onCompleted()
+          }
+      })
+    }
+
+  /**
+   * Utility that can be used for debugging purposes.
+   */
+  def dump(prefix: String): Observable[T] =
+    Observable.create { observer =>
+      subscribe(new Observer[T] {
+        private[this] val pos = Atomic(0)
+
+        def onNext(elem: T): Future[Ack] = {
+          val pos = this.pos.getAndIncrement(2)
+
+          println(s"$pos: $prefix-->$elem")
+          val r = observer.onNext(elem)
+          r.unsafeOnSuccess {
+            case Continue =>
+              println(s"${pos+1}: $prefix-->$elem-->Continue")
+            case Done =>
+              println(s"${pos+1}: $prefix-->$elem-->Done")
+          }
+          r
+        }
+
+        def onError(ex: Throwable): Future[Done] = {
+          println(s"${pos.getAndIncrement()}: $prefix-->$ex")
+          observer.onError(ex)
+        }
+
+        def onCompleted(): Future[Done] = {
+          println(s"${pos.getAndIncrement()}: $prefix completed")
+          observer.onCompleted()
+        }
+      })
+    }
+
   def multicast[U >: T](subject: Subject[U] = PublishSubject[U]()): ConnectableObservable[U] =
     ConnectableObservable(this, subject, implicitly[Scheduler])
 }
@@ -1009,10 +1187,22 @@ object Observable {
     }
 
   /**
-   * Merges the given list of ''observables'' into a single observable.
+   * Concatenates the given list of ''observables'' into a single observable.
    */
   def flatten[T](sources: Observable[T]*)(implicit scheduler: Scheduler): Observable[T] =
     Observable.fromSequence(sources).flatten
+
+  /**
+   * Merges the given list of ''observables'' into a single observable.
+   */
+  def merge[T](sources: Observable[T]*)(implicit scheduler: Scheduler): Observable[T] =
+    Observable.fromSequence(sources).merge
+
+  /**
+   * Concatenates the given list of ''observables'' into a single observable.
+   */
+  def concat[T](sources: Observable[T]*)(implicit scheduler: Scheduler): Observable[T] =
+    Observable.fromSequence(sources).concat
 
   implicit def FutureIsAsyncObservable[T](future: Future[T])(implicit scheduler: Scheduler): Observable[T] =
     Observable.create { observer =>
