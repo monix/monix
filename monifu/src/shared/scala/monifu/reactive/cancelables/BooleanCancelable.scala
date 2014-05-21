@@ -1,7 +1,7 @@
 package monifu.reactive.cancelables
 
 import monifu.concurrent.Cancelable
-import monifu.concurrent.atomic.Atomic
+import monifu.concurrent.atomic.padded.Atomic
 
 /**
  * Represents a Cancelable that can queried for the canceled status.

@@ -8,20 +8,21 @@ import language.experimental.macros
  * Type-class for proving that an implicit `T` does not exist in scope.
  *
  * Example: {{{
- *   scala> implicitly[Not[Numeric[String]]]
- *   res1: monifu.Not[Numeric[String]] = $anon$1@328a3be0
+ *   // works
+ *   implicitly[Not[Numeric[String]]]
  *
- *   scala> implicitly[Not[Numeric[Int]]]
- *   <console>:9: error: cannot prove that Not[Numeric[Int]] because an implicit for Numeric[Int] exists in scope
- *                 implicitly[Not[Numeric[Int]]]
- *                           ^
- *   scala> implicitly[Int =:= Double]
- *   <console>:9: error: Cannot prove that Int =:= Double.
- *                 implicitly[Int =:= Double]
- *                           ^
+ *   implicitly[Not[Numeric[Int]]]
+ *   //=> <console>:9: error: cannot prove that Not[Numeric[Int]] because an implicit for Numeric[Int] exists in scope
+ *   //=>               implicitly[Not[Numeric[Int]]]
+ *   //=>                         ^
  *
- *   scala> implicitly[Not[Int =:= Double]]
- *   res2: monifu.Not[=:=[Int,Double]] = $anon$1@23ccba4
+ *   implicitly[Int =:= Double]
+ *   //=> <console>:9: error: Cannot prove that Int =:= Double.
+ *   //=>               implicitly[Int =:= Double]
+ *   //=>                         ^
+ *
+ *   // works
+ *   implicitly[Not[Int =:= Double]]
  * }}}
  *
  * @tparam T is the implicit value that shouldn't exist in scope for `Not[T]` to exist

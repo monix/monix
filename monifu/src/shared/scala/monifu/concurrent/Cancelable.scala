@@ -1,6 +1,6 @@
 package monifu.concurrent
 
-import monifu.concurrent.atomic.Atomic
+import monifu.concurrent.atomic.padded.Atomic
 
 /**
  * Represents an asynchronous computation whose execution can be canceled.

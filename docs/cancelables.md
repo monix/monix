@@ -8,7 +8,7 @@ Monifu's Cancelables and [Schedulers](./schedulers.md) are inspired by .NET's
 [Scala.js](scala-js.org) for also targeting JavaScript runtimes.
 
 Rough equivalents of Monifu's
-[Cancelable](../monifu-core/src/shared/scala/monifu/concurrent/Cancelable.scala)
+[Cancelable](../monifu/src/shared/scala/monifu/concurrent/Cancelable.scala)
 interface:
 
 - [java.io.Closable](http://docs.oracle.com/javase/7/docs/api/java/io/Closeable.html),
@@ -23,10 +23,7 @@ interface:
 
 Monifu's `Cancelable` is inspired by RxJava's `Subscription` /
 Rx.NET's `IDisposable` and provides equivalents for the most useful
-implementations. Currently used by Monifu's
-[Scheduler](./schedulers.md), but will also be a part of `monifu-rx`
-(work pending) and as you'll see, the provided implementations are
-pretty useful on their own for your own custom logic.
+implementations. 
 
 ## Base Interface
 
@@ -37,7 +34,7 @@ trait Cancelable {
 }
 ```
 
-[Cancelable](../monifu-core/src/shared/scala/monifu/concurrent/Cancelable.scala) objects have a `cancel()` method
+[Cancelable](../monifu/src/shared/scala/monifu/concurrent/Cancelable.scala) objects have a `cancel()` method
 that can be used for resource release / cleanup and an `isCanceled` method that can be used to query
 the status. The design rules when implementing cancelables:
 
@@ -77,7 +74,7 @@ scala> s.cancel() // idempotence guaranteed (nothing happens here)
 ## CompositeCancelable
 
 A
-[CompositeCancelable](../monifu-core/src/shared/scala/monifu/concurrent/cancelables/CompositeCancelable.scala)
+[CompositeCancelable](../monifu/src/shared/scala/monifu/reactive/cancelables/CompositeCancelable.scala)
 is an aggregate of `Cancelable` references (to which you can add new
 references or remove existing ones) and that are handled in aggregate
 when doing a `cancel()`.
@@ -113,7 +110,7 @@ Ooops, canceling this one too...
 ```
 
 This is used for example in
-[ConcurrentScheduler](../monifu-core/src/main/scala/monifu/concurrent/schedulers/ConcurrentScheduler.scala)
+[ConcurrentScheduler](../monifu/src/main/scala/monifu/concurrent/schedulers/ConcurrentScheduler.scala)
 within `scheduleOnce()`. Lets analyze that method for a bit, shall we?
 Checkout the comments:
 
@@ -186,7 +183,7 @@ Ooops, canceling this one too...
 ## SingleAssignmentCancelable
 
 A
-[SingleAssignmentCancelable](../monifu-core/src/shared/scala/monifu/concurrent/cancelables/SingleAssignmentCancelable.scala)
+[SingleAssignmentCancelable](../monifu/src/shared/scala/monifu/reactive/cancelables/SingleAssignmentCancelable.scala)
 behaves just like a `MultiAssignmentCancelable`, except that it can be
 assigned only once. On a second assignment, it throws an
 `IllegalStateException`.
@@ -196,7 +193,7 @@ already been canceled, will cancel the reference being assigned.
 
 ## RefCountCancelable
 
-A [RefCountCancelable](../monifu-core/src/shared/scala/monifu/concurrent/cancelables/RefCountCancelable.scala)
+A [RefCountCancelable](../monifu/src/shared/scala/monifu/reactive/cancelables/RefCountCancelable.scala)
 is for those instances in which you need some sort of composite that `onCancel` waits
 after all children cancelables to be canceled too, before executing its callback.
 
