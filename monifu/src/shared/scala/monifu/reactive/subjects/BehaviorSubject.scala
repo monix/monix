@@ -16,7 +16,7 @@ final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends S
   private[this] var currentValue = initialValue
   private[this] var errorThrown = null : Throwable
 
-  protected implicit val scheduler = s
+  implicit val scheduler = s
   private[this] val subscribers = mutable.Map.empty[Observer[T], Future[Ack]]
   private[this] var isDone = false
 

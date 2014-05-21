@@ -15,8 +15,8 @@ class RefCountCancelableTest extends FunSuite {
     var isCanceled = false
     val sub = RefCountCancelable { isCanceled = true }
 
-    val s1 = sub.acquireCancelable()
-    val s2 = sub.acquireCancelable()
+    val s1 = sub.acquire()
+    val s2 = sub.acquire()
     s1.cancel()
     s2.cancel()
 
@@ -33,8 +33,8 @@ class RefCountCancelableTest extends FunSuite {
     var isCanceled = false
     val sub = RefCountCancelable { isCanceled = true }
 
-    val s1 = sub.acquireCancelable()
-    val s2 = sub.acquireCancelable()
+    val s1 = sub.acquire()
+    val s2 = sub.acquire()
     sub.cancel()
 
     assert(sub.isCanceled === true)

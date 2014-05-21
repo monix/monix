@@ -1,6 +1,6 @@
 <img src="docs/assets/monifu.png" align="right" />
 
-Extensions to Scala's standard library for multi-threading primitives, functional programming and whatever makes life easier. Targets both the JVM and [Scala.js](http://www.scala-js.org/).
+Extensions to Scala's standard library for multi-threading primitives and functional reactive programming. Targets both the JVM and [Scala.js](http://www.scala-js.org/).
 
 [![Build Status](https://travis-ci.org/alexandru/monifu.png?branch=v0.9.2)](https://travis-ci.org/alexandru/monifu)
 
@@ -13,8 +13,8 @@ Available docs:
 
 API documentation:
 
-* [monifu-core](http://www.monifu.org/monifu-core/current/api/)
-* [monifu-core-js](http://www.monifu.org/monifu-core-js/current/api/)
+* [monifu](http://www.monifu.org/monifu/current/api/)
+* [monifu-js](http://www.monifu.org/monifu-js/current/api/)
 
 Release Notes:
 
@@ -35,21 +35,18 @@ the latest Scala.js (at the moment Scala.js 0.4.4). The targetted JDK version
 for the published packages is version 6 (see 
 [faq entry](https://github.com/alexandru/monifu/wiki/Frequently-Asked-Questions#what-javajdk-version-is-required)).
 
-Current stable release is: `0.9.1`
+Current stable release is: `0.9.3`
 
 ### For the JVM
 
 ```scala
-libraryDependencies += "org.monifu" %% "monifu" % "0.9.1"
+libraryDependencies += "org.monifu" %% "monifu" % "0.9.3"
 ```
 
 ### For targeting Javascript runtimes with Scala.js
 
 ```scala
-libraryDependencies ++= Seq(
-  "org.monifu" %% "monifu-core-js" % "0.9.1",
-  "org.monifu" %% "monifu-rx-js" % "0.9.1"
-)
+libraryDependencies += "org.monifu" %% "monifu-js" % "0.9.3"
 ```
 
 ## License

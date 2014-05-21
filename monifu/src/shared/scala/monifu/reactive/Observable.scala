@@ -6,15 +6,14 @@ import scala.concurrent.{Promise, Future}
 import scala.concurrent.Future.successful
 import monifu.reactive.api._
 import Ack.{Done, Continue}
-import monifu.concurrent.atomic.padded.Atomic
+import monifu.concurrent.atomic.{Atomic, padded}
 import monifu.reactive.cancelables._
 import scala.concurrent.duration.FiniteDuration
 import scala.util.control.NonFatal
 import scala.collection.mutable
 import scala.annotation.tailrec
 import collection.JavaConverters._
-import scala.util.Failure
-import scala.util.Success
+import scala.util.{Failure, Success}
 import monifu.reactive.subjects.{BehaviorSubject, PublishSubject, Subject}
 import monifu.concurrent.extensions._
 import monifu.reactive.api.Notification.{OnComplete, OnNext, OnError}
@@ -24,7 +23,7 @@ import monifu.reactive.internals.AckBuffer
 /**
  * Asynchronous implementation of the Observable interface
  */
-trait Observable[+T] {
+trait Observable[+T] { self =>
   /**
    * Function that creates the actual subscription when calling `subscribe`,
    * and that starts the stream, being meant to be overridden in custom combinators
@@ -40,7 +39,7 @@ trait Observable[+T] {
   /**
    * Implicit scheduler required for asynchronous boundaries.
    */
-  protected implicit def scheduler: Scheduler
+  implicit def scheduler: Scheduler
 
   /**
    * Helper to be used by consumers for subscribing to an observable.
@@ -253,7 +252,7 @@ trait Observable[+T] {
         def onNext(childObservable: T) = {
           val upstreamPromise = Promise[Ack]()
 
-          val refID = refCounter.acquireCancelable()
+          val refID = refCounter.acquire()
           childObservable.subscribe(new Observer[U] {
             def onNext(elem: U) =
               observerU.onNext(elem)
@@ -321,7 +320,7 @@ trait Observable[+T] {
       subscribe(new Observer[T] {
         def onNext(elem: T) = {
           // reference that gets released when the child observer is completed
-          val refID = refCounter.acquireCancelable()
+          val refID = refCounter.acquire()
 
           elem.subscribe(new Observer[U] {
             def onNext(elem: U) =
@@ -367,7 +366,7 @@ trait Observable[+T] {
    */
   def take(n: Long): Observable[T] =
     Observable.create { observer =>
-      val counterRef = Atomic(0L)
+      val counterRef = padded.Atomic(0L)
 
       subscribe(new Observer[T] {
         def onNext(elem: T) = {
@@ -419,7 +418,7 @@ trait Observable[+T] {
    */
   def drop(n: Long): Observable[T] =
     Observable.create { observer =>
-      val count = Atomic(0L)
+      val count = padded.Atomic(0L)
 
       subscribe(new Observer[T] {
         def onNext(elem: T) = {
@@ -450,11 +449,8 @@ trait Observable[+T] {
           if (shouldContinue) {
             // See Section 6.4. in the Rx Design Guidelines:
             // Protect calls to user code from within an operator
-            var streamError = true
             try {
-              val isValid = p(elem)
-              streamError = false
-              if (isValid)
+              if (p(elem))
                 observer.onNext(elem)
               else {
                 shouldContinue = false
@@ -463,7 +459,8 @@ trait Observable[+T] {
             }
             catch {
               case NonFatal(ex) =>
-                if (streamError) onError(ex) else Future.failed(ex)
+                shouldContinue = false
+                observer.onError(ex)
             }
           }
           else
@@ -479,20 +476,30 @@ trait Observable[+T] {
     }
 
   /**
-   * Emits elements as long as the [[Atomic]] reference returns true.
+   * Takes longest prefix of elements that satisfy the given predicate
+   * and returns a new Observable that emits those elements.
    */
-  def takeWhile(ref: Atomic[Boolean]): Observable[T] =
+  def takeWhile(isRefTrue: Atomic[Boolean]): Observable[T] =
     Observable.create { observer =>
       subscribe(new Observer[T] {
         @volatile var shouldContinue = true
 
         def onNext(elem: T) = {
           if (shouldContinue) {
-            if (ref.get)
-              observer.onNext(elem)
-            else {
-              shouldContinue = false
-              observer.onCompleted()
+            // See Section 6.4. in the Rx Design Guidelines:
+            // Protect calls to user code from within an operator
+            try {
+              if (isRefTrue.get)
+                observer.onNext(elem)
+              else {
+                shouldContinue = false
+                observer.onCompleted()
+              }
+            }
+            catch {
+              case NonFatal(ex) =>
+                shouldContinue = false
+                observer.onError(ex)
             }
           }
           else
@@ -555,7 +562,7 @@ trait Observable[+T] {
    */
   def foldLeft[R](initial: R)(op: (R, T) => R): Observable[R] =
     Observable.create { observer =>
-      val state = Atomic(initial)
+      val state = padded.Atomic(initial)
 
       subscribe(new Observer[T] {
         def onNext(elem: T): Future[Ack] = {
@@ -590,7 +597,7 @@ trait Observable[+T] {
    */
   def scan[R](initial: R)(op: (R, T) => R): Observable[R] =
     Observable.create { observer =>
-      val state = Atomic(initial)
+      val state = padded.Atomic(initial)
 
       subscribe(new Observer[T] {
         def onNext(elem: T): Future[Ack] = {
@@ -967,7 +974,7 @@ trait Observable[+T] {
   def dump(prefix: String): Observable[T] =
     Observable.create { observer =>
       subscribe(new Observer[T] {
-        private[this] val pos = Atomic(0)
+        private[this] val pos = padded.Atomic(0)
 
         def onNext(elem: T): Future[Ack] = {
           val pos = this.pos.getAndIncrement(2)
@@ -999,30 +1006,40 @@ trait Observable[+T] {
    * Converts this observable into a multicast observable, useful for turning a cold observable into
    * a hot one (i.e. whose source is shared by all observers).
    */
-  def multicast[U >: T](subject: Subject[U] = PublishSubject[U]()): (() => Cancelable, Observable[U]) = {
-    val obs = Observable.create[U](o => subject.subscribe(o))
-    def connect() = {
-      val notCanceled = Atomic(true)
-      takeWhile(notCanceled).subscribe(subject)
-      Cancelable { notCanceled set false }
+  def multicast[U >: T](subject: Subject[U] = PublishSubject[U]()): ConnectableObservable[U] =
+    new ConnectableObservable[U] {
+      private[this] val notCanceled = Atomic(true)
+      val scheduler = self.scheduler
+
+      private[this] val cancelAction =
+        BooleanCancelable { notCanceled set false }
+      private[this] val notConnected =
+        Cancelable { self.takeWhile(notCanceled).subscribe(subject) }
+
+      def connect() = {
+        notConnected.cancel()
+        cancelAction
+      }
+
+      def subscribe(observer: Observer[U]): Unit = {
+        subject.subscribe(observer)
+      }
     }
-
-    (connect, obs)
-  }
-
 
   /**
    * Converts this observable into a multicast observable, useful for turning a cold observable into
-   * a hot one (i.e. whose source is shared by all observers). The underlying subject used is a [[PublishSubject]].
+   * a hot one (i.e. whose source is shared by all observers). The underlying subject used is a
+   * [[monifu.reactive.subjects.PublishSubject PublishSubject]].
    */
-  def publish(): (() => Cancelable, Observable[T]) =
+  def publish(): ConnectableObservable[T] =
     multicast(PublishSubject())
 
   /**
    * Converts this observable into a multicast observable, useful for turning a cold observable into
-   * a hot one (i.e. whose source is shared by all observers). The underlying subject used is a [[BehaviorSubject]].
+   * a hot one (i.e. whose source is shared by all observers). The underlying subject used is a
+   * [[monifu.reactive.subjects.BehaviorSubject BehaviorSubject]].
    */
-  def behavior[U >: T](initialValue: U): (() => Cancelable, Observable[U]) =
+  def behavior[U >: T](initialValue: U): ConnectableObservable[U] =
     multicast(BehaviorSubject(initialValue))
 }
 
@@ -1095,7 +1112,7 @@ object Observable {
    */
   def interval(initialDelay: FiniteDuration, period: FiniteDuration)(implicit scheduler: Scheduler): Observable[Long] = {
     Observable.create { observer =>
-      val counter = Atomic(0)
+      val counter = padded.Atomic(0)
 
       scheduler.scheduleRecursive(initialDelay, period, { reschedule =>
         observer.onNext(counter.incrementAndGet()) foreach {

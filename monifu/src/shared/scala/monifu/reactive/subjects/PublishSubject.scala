@@ -13,7 +13,7 @@ import monifu.concurrent.extensions._
 
 
 final class PublishSubject[T] private (s: Scheduler) extends Subject[T] { self =>
-  protected implicit val scheduler = s
+  implicit val scheduler = s
   private[this] val subscribers = mutable.Map.empty[Observer[T], Future[Ack]]
   private[this] var isDone = false
 
