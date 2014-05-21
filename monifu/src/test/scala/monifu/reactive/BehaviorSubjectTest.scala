@@ -232,7 +232,7 @@ class BehaviorSubjectTest extends FunSpec {
       val subject = BehaviorSubject[Int](10)
       subject.onCompleted()
 
-      subject.doOnCompleted(latch.countDown()).foreach(x => ())
+      subject.doOnComplete(latch.countDown()).foreach(x => ())
       latch.await(3, TimeUnit.SECONDS)
     }
 
@@ -242,7 +242,7 @@ class BehaviorSubjectTest extends FunSpec {
       val subject = BehaviorSubject[Int](10)
       subject.onError(null)
 
-      subject.doOnCompleted(latch.countDown()).foreach(x => ())
+      subject.doOnComplete(latch.countDown()).foreach(x => ())
       latch.await(3, TimeUnit.SECONDS)
     }
   }
