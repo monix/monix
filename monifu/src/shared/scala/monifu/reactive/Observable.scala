@@ -1,7 +1,7 @@
 package monifu.reactive
 
 import language.implicitConversions
-import monifu.concurrent.Scheduler
+import monifu.concurrent.{Cancelable, Scheduler}
 import scala.concurrent.{Promise, Future}
 import scala.concurrent.Future.successful
 import monifu.reactive.api._
@@ -479,6 +479,35 @@ trait Observable[+T] {
     }
 
   /**
+   * Emits elements as long as the [[Atomic]] reference returns true.
+   */
+  def takeWhile(ref: Atomic[Boolean]): Observable[T] =
+    Observable.create { observer =>
+      subscribe(new Observer[T] {
+        @volatile var shouldContinue = true
+
+        def onNext(elem: T) = {
+          if (shouldContinue) {
+            if (ref.get)
+              observer.onNext(elem)
+            else {
+              shouldContinue = false
+              observer.onCompleted()
+            }
+          }
+          else
+            Done
+        }
+
+        def onCompleted() =
+          observer.onCompleted()
+
+        def onError(ex: Throwable) =
+          observer.onError(ex)
+      })
+    }
+
+  /**
    * Drops the longest prefix of elements that satisfy the given predicate
    * and returns a new Observable that emits the rest.
    */
@@ -597,7 +626,7 @@ trait Observable[+T] {
    *
    * @param cb the callback to execute when the subscription is canceled
    */
-  def doOnCompleted(cb: => Unit): Observable[T] =
+  def doOnComplete(cb: => Unit): Observable[T] =
     Observable.create { observer =>
       subscribe(new Observer[T] {
         def onNext(elem: T) =
@@ -617,6 +646,32 @@ trait Observable[+T] {
             case NonFatal(ex) =>
               if (streamError) observer.onError(ex) else Future.failed(ex)
           }
+        }
+      })
+    }
+  
+  def doOnTerminated(cb: => Unit): Observable[T] =
+    Observable.create { observer =>
+      subscribe(new Observer[T] {
+        def onNext(elem: T) = {
+          val result = observer.onNext(elem)
+          result.unsafeOnSuccess {
+            case Done => cb
+            case _ => // nothing
+          }
+          result
+        }
+
+        def onError(ex: Throwable): Future[Done] = {
+          val result = observer.onError(ex)
+          result.unsafeOnSuccess { case _ => cb }
+          result
+        }
+
+        def onCompleted(): Future[Done] = {
+          val result = observer.onCompleted()
+          result.onSuccess { case _ => cb }
+          result
         }
       })
     }
@@ -941,25 +996,34 @@ trait Observable[+T] {
     }
 
   /**
-   * Converts this observable into a [[ConnectableObservable]], useful for turning a cold observable into
+   * Converts this observable into a multicast observable, useful for turning a cold observable into
    * a hot one (i.e. whose source is shared by all observers).
    */
-  def multicast[U >: T](subject: Subject[U] = PublishSubject[U]()): ConnectableObservable[U] =
-    ConnectableObservable(this, subject, implicitly[Scheduler])
+  def multicast[U >: T](subject: Subject[U] = PublishSubject[U]()): (() => Cancelable, Observable[U]) = {
+    val obs = Observable.create[U](o => subject.subscribe(o))
+    def connect() = {
+      val notCanceled = Atomic(true)
+      takeWhile(notCanceled).subscribe(subject)
+      Cancelable { notCanceled set false }
+    }
+
+    (connect, obs)
+  }
+
 
   /**
-   * Converts this observable into a [[ConnectableObservable]], useful for turning a cold observable into
+   * Converts this observable into a multicast observable, useful for turning a cold observable into
    * a hot one (i.e. whose source is shared by all observers). The underlying subject used is a [[PublishSubject]].
    */
-  def publish(): ConnectableObservable[T] =
-    ConnectableObservable(this, PublishSubject(), implicitly[Scheduler])
+  def publish(): (() => Cancelable, Observable[T]) =
+    multicast(PublishSubject())
 
   /**
-   * Converts this observable into a [[ConnectableObservable]], useful for turning a cold observable into
+   * Converts this observable into a multicast observable, useful for turning a cold observable into
    * a hot one (i.e. whose source is shared by all observers). The underlying subject used is a [[BehaviorSubject]].
    */
-  def behavior[U >: T](initialValue: U): ConnectableObservable[U] =
-    ConnectableObservable(this, BehaviorSubject(initialValue), implicitly[Scheduler])
+  def behavior[U >: T](initialValue: U): (() => Cancelable, Observable[U]) =
+    multicast(BehaviorSubject(initialValue))
 }
 
 object Observable {

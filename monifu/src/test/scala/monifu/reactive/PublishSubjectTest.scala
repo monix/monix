@@ -232,7 +232,7 @@ class PublishSubjectTest extends FunSpec {
       val subject = PublishSubject[Int]()
       subject.onCompleted()
 
-      subject.doOnCompleted(latch.countDown()).foreach(x => ())
+      subject.doOnComplete(latch.countDown()).foreach(x => ())
       latch.await(3, TimeUnit.SECONDS)
     }
 
@@ -242,7 +242,7 @@ class PublishSubjectTest extends FunSpec {
       val subject = PublishSubject[Int]()
       subject.onError(null)
 
-      subject.doOnCompleted(latch.countDown()).foreach(x => ())
+      subject.doOnComplete(latch.countDown()).foreach(x => ())
       latch.await(3, TimeUnit.SECONDS)
     }
   }
