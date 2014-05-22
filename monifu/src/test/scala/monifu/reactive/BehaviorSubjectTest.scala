@@ -7,6 +7,7 @@ import scala.concurrent.Await
 import concurrent.duration._
 import monifu.concurrent.atomic.padded.Atomic
 import java.util.concurrent.{TimeUnit, CountDownLatch}
+import monifu.reactive.api.Ack.{Done, Continue}
 
 
 class BehaviorSubjectTest extends FunSpec {
@@ -53,21 +54,21 @@ class BehaviorSubjectTest extends FunSpec {
       val subject = BehaviorSubject[Int](10)
 
       subject.subscribe(
-        nextFn = elem => (),
-        errorFn = ex => result1.set(ex)
+        elem => Continue,
+        ex => { result1.set(ex); Done }
       )
       subject.subscribe(
-        nextFn = elem => (),
-        errorFn = ex => result2.set(ex)
+        elem => Continue,
+        ex => { result2.set(ex); Done }
       )
 
-      Await.result(subject.onError(new RuntimeException("dummy")), 1.second)
+      subject.onError(new RuntimeException("dummy"))
 
       assert(result1.get != null && result1.get.getMessage == "dummy")
       assert(result2.get != null && result2.get.getMessage == "dummy")
 
       @volatile var wasCompleted = false
-      subject.subscribe(_ => (), _ => { wasCompleted = true }, () => { wasCompleted = false })
+      subject.subscribe(_ => Continue, _ => {wasCompleted = true; Done}, () => Done)
       assert(wasCompleted === true)
     }
 
@@ -77,13 +78,13 @@ class BehaviorSubjectTest extends FunSpec {
 
       val subject = BehaviorSubject[Int](10)
 
-      subject.flatMap(x => Observable.unit(x)).subscribe(
-        nextFn = elem => (),
-        errorFn = ex => result1.set(ex)
+      subject.observeOn(global).subscribe(
+        elem => Continue,
+        ex => { result1.set(ex); Done }
       )
-      subject.flatMap(x => Observable.unit(x)).subscribe(
-        nextFn = elem => (),
-        errorFn = ex => result2.set(ex)
+      subject.observeOn(global).subscribe(
+        elem => Continue,
+        ex => { result2.set(ex); Done }
       )
 
       subject.onNext(1)
@@ -93,7 +94,7 @@ class BehaviorSubjectTest extends FunSpec {
       assert(result2.get != null && result2.get.getMessage == "dummy")
 
       @volatile var wasCompleted = false
-      subject.subscribe(_ => (), _ => { wasCompleted = true }, () => { wasCompleted = false })
+      subject.subscribe(_ => Continue, _ => {wasCompleted = true; Done}, () => Done)
       assert(wasCompleted === true)
     }
 
@@ -104,23 +105,23 @@ class BehaviorSubjectTest extends FunSpec {
       val subject = BehaviorSubject[Int](10)
 
       subject.subscribe(
-        nextFn = elem => (),
-        errorFn = ex => (),
-        completedFn = () => result1.set(1)
+        elem => Continue,
+        ex => Done,
+        () => { result1.set(1); Done }
       )
       subject.subscribe(
-        nextFn = elem => (),
-        errorFn = ex => (),
-        completedFn = () => result2.set(2)
+        elem => Continue,
+        ex => Done,
+        () => { result2.set(2); Done }
       )
 
-      Await.result(subject.onCompleted(), 1.second)
+      subject.onCompleted()
 
       assert(result1.get === 1)
       assert(result2.get === 2)
 
       @volatile var wasCompleted = false
-      subject.subscribe(_ => (), _ => (), () => { wasCompleted = true })
+      subject.subscribe(_ => Continue, _ => Done, () => { wasCompleted = true; Done })
       assert(wasCompleted === true)
     }
 
@@ -130,15 +131,15 @@ class BehaviorSubjectTest extends FunSpec {
 
       val subject = BehaviorSubject[Int](10)
 
-      subject.flatMap(x => Observable.unit(x)).subscribe(
-        nextFn = elem => (),
-        errorFn = ex => (),
-        completedFn = () => result1.set(1)
+      subject.observeOn(global).subscribe(
+        elem => Continue,
+        ex => Done,
+        () => { result1.set(1); Done }
       )
-      subject.flatMap(x => Observable.unit(x)).subscribe(
-        nextFn = elem => (),
-        errorFn = ex => (),
-        completedFn = () => result2.set(2)
+      subject.observeOn(global).subscribe(
+        elem => Continue,
+        ex => Done,
+        () => { result2.set(2); Done }
       )
 
       subject.onNext(1)
@@ -148,7 +149,7 @@ class BehaviorSubjectTest extends FunSpec {
       assert(result2.get === 2)
 
       @volatile var wasCompleted = false
-      subject.subscribe(_ => (), _ => (), () => { wasCompleted = true })
+      subject.subscribe(_ => Continue, _ => Done, () => { wasCompleted = true; Done })
       assert(wasCompleted === true)
     }
 
@@ -179,8 +180,8 @@ class BehaviorSubjectTest extends FunSpec {
 
       val subject = BehaviorSubject[Int](1)
       subject.map(x => if (x < 5) x else throw new RuntimeException()).subscribe(
-        (elem) => received.increment(elem),
-        (ex) => errors.increment()
+        (elem) => { received.increment(elem); Continue },
+        (ex) => { errors.increment(); Done }
       )
       subject.map(x => x)
         .foreach(x => received.increment(x))
@@ -202,14 +203,14 @@ class BehaviorSubjectTest extends FunSpec {
 
       val subject = BehaviorSubject[Int](1)
       subject.takeWhile(_ < 5).subscribe(
-        (elem) => received.increment(elem),
-        (ex) => (),
-        () => completed.increment()
+        (elem) => { received.increment(elem); Continue },
+        (ex) => Done,
+        () => { completed.increment(); Done }
       )
       subject.map(x => x).subscribe(
-        (elem) => received.increment(elem),
-        (ex) => (),
-        () => completed.increment()
+        (elem) => { received.increment(elem); Continue },
+        (ex) => Done,
+        () => { completed.increment(); Done }
       )
 
       subject.onNext(1)
