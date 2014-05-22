@@ -3,7 +3,7 @@ package monifu.reactive
 import org.scalatest.FunSpec
 import monifu.concurrent.Scheduler.Implicits.global
 import monifu.reactive.subjects.BehaviorSubject
-import scala.concurrent.Await
+import scala.concurrent.{Future, Await}
 import concurrent.duration._
 import monifu.concurrent.atomic.padded.Atomic
 import java.util.concurrent.{TimeUnit, CountDownLatch}
@@ -25,7 +25,7 @@ class BehaviorSubjectTest extends FunSpec {
         .foldLeft(0)(_ + _).foreach(x => result2.set(x))
       for (i <- 100 until 10000) subject.onNext(i)
 
-      Await.result(subject.onCompleted(), 3.seconds)
+      Await.result(subject.onComplete(), 3.seconds)
 
       assert(result1.get === 21 + (0 until 10000).filter(_ % 2 == 0).flatMap(x => x to (x + 1)).sum)
       assert(result2.get === (100 until 10000).filter(_ % 2 == 0).flatMap(x => x to (x + 1)).sum)
@@ -42,7 +42,7 @@ class BehaviorSubjectTest extends FunSpec {
       subject.filter(_ % 2 == 0).map(_ + 1).foreach(x => result2.increment(x))
       for (i <- 20 until 10000) subject.onNext(i)
 
-      Await.result(subject.onCompleted(), 3.seconds)
+      Await.result(subject.onComplete(), 3.seconds)
       assert(result1.get === 11 + (0 until 10000).filter(_ % 2 == 0).map(_ + 1).sum)
       assert(result2.get === (20 until 10000).filter(_ % 2 == 0).map(_ + 1).sum)
     }
@@ -115,7 +115,7 @@ class BehaviorSubjectTest extends FunSpec {
         () => { result2.set(2); Done }
       )
 
-      subject.onCompleted()
+      subject.onComplete()
 
       assert(result1.get === 1)
       assert(result2.get === 2)
@@ -143,7 +143,7 @@ class BehaviorSubjectTest extends FunSpec {
       )
 
       subject.onNext(1)
-      Await.result(subject.onCompleted(), 1.second)
+      Await.result(subject.onComplete(), 1.second)
 
       assert(result1.get === 1)
       assert(result2.get === 2)
@@ -160,7 +160,7 @@ class BehaviorSubjectTest extends FunSpec {
 
       subject.onNext(1)
       assert(result === 2)
-      subject.onCompleted()
+      subject.onComplete()
     }
 
     it("should filter synchronously") {
@@ -171,7 +171,7 @@ class BehaviorSubjectTest extends FunSpec {
       subject.onNext(2)
       subject.onNext(1)
       assert(result === 2)
-      subject.onCompleted()
+      subject.onComplete()
     }
 
     it("should remove subscribers that triggered errors") {
@@ -191,7 +191,7 @@ class BehaviorSubjectTest extends FunSpec {
       subject.onNext(5)
       subject.onNext(10)
       subject.onNext(1)
-      Await.result(subject.onCompleted(), 3.seconds)
+      Await.result(subject.onComplete(), 3.seconds)
 
       assert(errors.get === 1)
       assert(received.get === 4 * 1 + 2 * 2 + 5 + 10 + 1)
@@ -221,7 +221,7 @@ class BehaviorSubjectTest extends FunSpec {
 
       subject.onNext(10)
       subject.onNext(1)
-      Await.result(subject.onCompleted(), 3.seconds)
+      Await.result(subject.onComplete(), 3.seconds)
 
       assert(completed.get === 2)
       assert(received.get === 4 * 1 + 2 * 2 + 5 + 10 + 1)
@@ -231,7 +231,7 @@ class BehaviorSubjectTest extends FunSpec {
       val latch = new CountDownLatch(1)
 
       val subject = BehaviorSubject[Int](10)
-      subject.onCompleted()
+      subject.onComplete()
 
       subject.doOnComplete(latch.countDown()).foreach(x => ())
       latch.await(3, TimeUnit.SECONDS)
@@ -245,6 +245,124 @@ class BehaviorSubjectTest extends FunSpec {
 
       subject.doOnComplete(latch.countDown()).foreach(x => ())
       latch.await(3, TimeUnit.SECONDS)
+    }
+
+    it("should protect against synchronous exceptions in onNext") {
+      class DummyException extends RuntimeException("test")
+      val subject = BehaviorSubject[Int](0)
+
+      val onNextReceived = Atomic(0)
+      val onErrorReceived = Atomic(0)
+
+      subject.subscribe(new Observer[Int] {
+        def onError(ex: Throwable) = {
+          onErrorReceived.increment()
+          Done
+        }
+
+        def onComplete() =
+          throw new NotImplementedError
+
+        def onNext(elem: Int) = {
+          if (elem == 10)
+            throw new DummyException()
+          onNextReceived.increment()
+          Continue
+        }
+      })
+
+      subject.subscribe(new Observer[Int] {
+        def onError(ex: Throwable) = {
+          onErrorReceived.increment()
+          Done
+        }
+
+        def onComplete() =
+          throw new NotImplementedError
+
+        def onNext(elem: Int) = {
+          if (elem == 11)
+            throw new DummyException()
+          onNextReceived.increment()
+          Continue
+        }
+      })
+
+      subject.onNext(1)
+      subject.onNext(10)
+      subject.onNext(11)
+      subject.onNext(12)
+
+      assert(onNextReceived.get === 5)
+      assert(onErrorReceived.get === 2)
+    }
+
+    it("should protect against asynchronous exceptions in onNext") {
+      class DummyException extends RuntimeException("test")
+      val subject = BehaviorSubject[Int](0)
+
+      val onNextReceived = Atomic(0)
+      val onErrorReceived = Atomic(0)
+
+      subject.subscribeOn(global).observeOn(global).subscribe(new Observer[Int] {
+        def onError(ex: Throwable) = Future {
+          onErrorReceived.increment()
+          Done
+        }
+
+        def onComplete() =
+          throw new NotImplementedError
+
+        def onNext(elem: Int) = Future {
+          if (elem == 10)
+            throw new DummyException()
+          onNextReceived.increment()
+          Continue
+        }
+      })
+
+      subject.observeOn(global).map(x => x).observeOn(global).subscribe(new Observer[Int] {
+        def onError(ex: Throwable) = Future {
+          onErrorReceived.increment()
+          Done
+        }
+
+        def onComplete() =
+          throw new NotImplementedError
+
+        def onNext(elem: Int) = Future {
+          if (elem == 10)
+            throw new DummyException()
+          onNextReceived.increment()
+          Continue
+        }
+      })
+
+      subject.subscribe(new Observer[Int] {
+        def onError(ex: Throwable) = Future {
+          onErrorReceived.increment()
+          Done
+        }
+
+        def onComplete() =
+          throw new NotImplementedError
+
+        def onNext(elem: Int) = Future {
+          if (elem == 11)
+            throw new DummyException()
+          onNextReceived.increment()
+          Continue
+        }
+      })
+
+      subject.onNext(1)
+      subject.onNext(10)
+      subject.onNext(11)
+
+      Await.result(subject.onNext(12), 5.seconds)
+
+      assert(onNextReceived.get === 7)
+      assert(onErrorReceived.get === 3)
     }
   }
 }

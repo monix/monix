@@ -141,6 +141,26 @@ object extensions {
     }
 
     /**
+     * A version of `Future.recoverWith` that executes synchronously in the case the source Future
+     * is already complete. To be used only in case you know what you're doing, as executing
+     * things synchronously or asynchronously depending on context is very error-prone.
+     */
+    def unsafeRecoverWith[U >: T](pf: PartialFunction[Throwable, Future[U]])(implicit ec: ExecutionContext): Future[U] = {
+      if (source.isCompleted)
+        source.value.get match {
+          case Success(_) =>
+            source
+          case Failure(ex) =>
+            try pf.applyOrElse(ex, { _: Throwable => source }) catch {
+              case NonFatal(err) =>
+                Future.failed(err)
+            }
+        }
+      else
+        source.recoverWith(pf)
+    }
+
+    /**
      * A version of `Future.onComplete` that executes synchronously in the case the source Future
      * is already complete. To be used only in case you know what you're doing, as executing
      * things synchronously or asynchronously depending on context is very error-prone.
@@ -148,7 +168,7 @@ object extensions {
     def unsafeOnComplete(cb: Try[T] => Unit)(implicit ec: ExecutionContext): Unit = {
       if (source.isCompleted)
         try cb(source.value.get) catch {
-          case NonFatal(ex) => ExecutionContext.defaultReporter(ex)
+          case NonFatal(ex) => ec.reportFailure(ex)
         }
       else
         source.onComplete(cb)
@@ -159,21 +179,18 @@ object extensions {
      * is already complete. To be used only in case you know what you're doing, as executing
      * things synchronously or asynchronously depending on context is very error-prone.
      */
-    def unsafeOnSuccess(cb: T => Unit)(implicit ec: ExecutionContext): Unit = {
+    def unsafeOnSuccess(pf: PartialFunction[T, Unit])(implicit ec: ExecutionContext): Unit = {
       if (source.isCompleted)
         source.value.get match {
           case Success(value) =>
-            try cb(value) catch {
-              case NonFatal(ex) => ExecutionContext.defaultReporter(ex)
+            try pf.applyOrElse(value, Predef.conforms[T]) catch {
+              case NonFatal(ex) => ec.reportFailure(ex)
             }
           case Failure(ex) =>
             // do nothing
         }
       else
-        source.onComplete {
-          case Success(any) => cb(any)
-          case _ => // nothing
-        }
+        source.onSuccess(pf)
     }
   }
 }
