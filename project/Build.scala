@@ -11,7 +11,7 @@ object Build extends SbtBuild {
     organization := "org.monifu",
     version := "0.9.4",
     scalaVersion := "2.10.4",
-    crossScalaVersions := Seq("2.10.4", "2.11.0"),
+    crossScalaVersions := Seq("2.10.4", "2.11.1"),
 
     initialize := {
        val _ = initialize.value // run the previous initialization
