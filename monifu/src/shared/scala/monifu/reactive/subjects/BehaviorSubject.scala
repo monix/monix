@@ -4,12 +4,10 @@ import monifu.concurrent.Scheduler
 import scala.collection.mutable
 import monifu.reactive.Observer
 import scala.concurrent.{Promise, Future}
-import monifu.reactive.api.Ack
+import monifu.reactive.api.{SafeObserver, Ack}
 import monifu.reactive.api.Ack.{Done, Continue}
 import monifu.concurrent.atomic.padded.Atomic
-import scala.util.{Success, Failure}
 import monifu.concurrent.extensions._
-import scala.util.control.NonFatal
 
 
 final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends Subject[T] { self =>
@@ -20,17 +18,15 @@ final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends S
   private[this] val subscribers = mutable.Map.empty[Observer[T], Future[Ack]]
   private[this] var isDone = false
 
-  def subscribe(observer: Observer[T]): Unit =
+  def subscribeFn(observer: Observer[T]): Unit =
     self.synchronized {
-      if (!isDone) {
-        subscribers.update(observer, observer.onNext(currentValue))
-      }
-      else if (errorThrown != null) {
-        observer.onError(errorThrown)
-      }
-      else {
-        observer.onCompleted()
-      }
+      val safe = SafeObserver(observer)
+      if (!isDone)
+        subscribers.update(safe, safe.onNext(currentValue))
+      else if (errorThrown != null)
+        safe.onError(errorThrown)
+      else
+        safe.onComplete()
     }
 
   def onNext(elem: T): Future[Ack] =
@@ -47,20 +43,18 @@ final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends S
           for ((observer, ack) <- subscribers) {
             val f = ack.unsafeFlatMap {
               case Continue =>
-                try observer.onNext(elem) catch {
-                  case NonFatal(ex) =>
-                    observer.onError(ex)
-                }
-              case Done => Done
+                observer.onNext(elem)
+              case Done =>
+                Done
             }
 
             subscribers(observer) = f
 
-            f.unsafeOnComplete {
-              case Failure(_) | Success(Done) =>
+            f.unsafeOnSuccess {
+              case Done =>
                 self.synchronized(subscribers.remove(observer))
                 completeCountdown()
-              case Success(Continue) =>
+              case Continue =>
                 completeCountdown()
             }
           }
@@ -86,12 +80,12 @@ final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends S
           if (counter.decrementAndGet() == 0) p.success(Done)
 
         for ((observer, ack) <- subscribers)
-          ack.unsafeOnComplete {
-            case Success(Continue) =>
-              observer.onError(ex).onComplete {
+          ack.unsafeOnSuccess {
+            case Continue =>
+              observer.onError(ex).unsafeOnComplete {
                 case _ => completeCountdown()
               }
-            case Success(Done) | Failure(_) =>
+            case Done =>
               completeCountdown()
           }
 
@@ -105,7 +99,7 @@ final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends S
       Done
   }
 
-  def onCompleted(): Future[Done] = self.synchronized {
+  def onComplete(): Future[Done] = self.synchronized {
     if (!isDone) {
       isDone = true
 
@@ -117,12 +111,12 @@ final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends S
           if (counter.decrementAndGet() == 0) p.success(Done)
 
         for ((observer, ack) <- subscribers)
-          ack.unsafeOnComplete {
-            case Success(Continue) =>
-              observer.onCompleted().onComplete {
+          ack.unsafeOnSuccess {
+            case Continue =>
+              observer.onComplete().unsafeOnComplete {
                 case _ => completeCountdown()
               }
-            case Success(Done) | Failure(_) =>
+            case Done =>
               completeCountdown()
           }
 

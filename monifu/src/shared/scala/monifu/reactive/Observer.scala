@@ -8,11 +8,11 @@ import monifu.reactive.api.Ack
  * get subscribed to an Observable for receiving events.
  *
  * The events received must follow the Rx grammar, which is:
- *      onNext *   (onCompleted | onError)?
+ *      onNext *   (onComplete | onError)?
  *
  * That means an Observer can receive zero or multiple events, the stream
- * ending either in one or zero `onCompleted` or `onError` (just one, not both),
- * and after onCompleted or onError, a well behaved Observable implementation
+ * ending either in one or zero `onComplete` or `onError` (just one, not both),
+ * and after onComplete or onError, a well behaved Observable implementation
  * shouldn't send any more onNext events.
  */
 trait Observer[-T] {
@@ -20,5 +20,5 @@ trait Observer[-T] {
 
   def onError(ex: Throwable): Future[Ack.Done]
 
-  def onCompleted(): Future[Ack.Done]
+  def onComplete(): Future[Ack.Done]
 }

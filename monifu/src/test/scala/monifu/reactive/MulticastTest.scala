@@ -49,7 +49,7 @@ class MulticastTest extends FunSpec {
 
       val onCompleted = new CountDownLatch(1)
       obs.doOnComplete(onCompleted.countDown()).subscribe()
-      assert(onCompleted.await(10, TimeUnit.SECONDS), "onCompleted.await should have succeeded")
+      assert(onCompleted.await(10, TimeUnit.SECONDS), "onComplete.await should have succeeded")
     }
   }
 }
