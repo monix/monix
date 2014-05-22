@@ -44,12 +44,12 @@ trait Observable[+T] { self =>
   /**
    * Helper to be used by consumers for subscribing to an observable.
    */
-  def subscribe(nextFn: T => Unit, errorFn: Throwable => Unit, completedFn: () => Unit): Unit =
+  def subscribe(nextFn: T => Future[Ack], errorFn: Throwable => Future[Ack.Done], completedFn: () => Future[Ack.Done]): Unit =
     subscribe(new Observer[T] {
-      def onNext(elem: T): Future[Ack] =
-        try {
-          nextFn(elem)
-          Continue
+      def onNext(elem: T) =
+        try nextFn(elem) match {
+          case Continue => Continue
+          case Done => Done
         }
         catch {
           case NonFatal(ex) =>
@@ -57,21 +57,13 @@ trait Observable[+T] { self =>
         }
 
       def onError(ex: Throwable) =
-        try {
-          errorFn(ex)
-          Done
-        }
-        catch {
+        try errorFn(ex) catch {
           case NonFatal(e) =>
             Future.failed(e)
         }
 
       def onCompleted() =
-        try {
-          completedFn()
-          Done
-        }
-        catch {
+        try completedFn() catch {
           case NonFatal(ex) =>
             onError(ex)
         }
@@ -80,20 +72,20 @@ trait Observable[+T] { self =>
   /**
    * Helper to be used by consumers for subscribing to an observable.
    */
-  def subscribe(nextFn: T => Unit, errorFn: Throwable => Unit): Unit =
-    subscribe(nextFn, errorFn, () => ())
+  def subscribe(nextFn: T => Future[Ack], errorFn: Throwable => Future[Ack.Done]): Unit =
+    subscribe(nextFn, errorFn, () => Done)
 
   /**
    * Helper to be used by consumers for subscribing to an observable.
    */
-  def subscribe(nextFn: T => Unit): Unit =
-    subscribe(nextFn, error => throw new IllegalStateException("onError not implemented"), () => ())
+  def subscribe(nextFn: T => Future[Ack]): Unit =
+    subscribe(nextFn, error => { scheduler.reportFailure(error); Done }, () => Done)
 
   /**
    * Helper to be used by consumers for subscribing to an observable.
    */
   def subscribe(): Unit =
-    subscribe(elem => (), error => throw new IllegalStateException("onError not implemented"), () => ())
+    subscribe(elem => Continue)
 
 
   /**
@@ -1069,11 +1061,13 @@ object Observable {
    */
   def unit[A](elem: A)(implicit scheduler: Scheduler): Observable[A] = {
     Observable.create { observer =>
-      observer.onNext(elem).onSuccess {
-        case Continue =>
+      observer.onNext(elem).unsafeOnComplete {
+        case Success(Continue) =>
           observer.onCompleted()
+        case Failure(ex) =>
+          observer.onError(ex)
         case _ =>
-          // nothing
+        // nothing
       }
     }
   }
@@ -1115,11 +1109,13 @@ object Observable {
       val counter = padded.Atomic(0)
 
       scheduler.scheduleRecursive(initialDelay, period, { reschedule =>
-        observer.onNext(counter.incrementAndGet()) foreach {
-          case Continue =>
+        observer.onNext(counter.incrementAndGet()).onComplete {
+          case Success(Continue) =>
             reschedule()
-          case Done =>
-            // do nothing else
+          case Success(Done) =>
+          // do nothing else
+          case Failure(ex) =>
+            observer.onError(ex)
         }
       })
     }
@@ -1133,10 +1129,12 @@ object Observable {
       def loop(elem: T): Unit = {
         scheduler.execute(new Runnable {
           def run(): Unit =
-            observer.onNext(elem).onSuccess {
-              case Done => // do nothing
-              case Continue =>
+            observer.onNext(elem).onComplete {
+              case Success(Done) => // do nothing
+              case Success(Continue) =>
                 loop(elem)
+              case Failure(ex) =>
+                observer.onError(ex)
             }
         })
       }
@@ -1145,59 +1143,102 @@ object Observable {
     }
 
   /**
+   * Creates an Observable that emits items in the given range.
+   *
+   * @param from the range start
+   * @param until the range end
+   * @param step increment step, either positive or negative
+   */
+  def range(from: Int, until: Int, step: Int = 1)(implicit scheduler: Scheduler): Observable[Int] = {
+    require(step != 0, "step must be a number different from zero")
+
+    Observable.create { observer =>
+      def scheduleLoop(from: Int, until: Int, step: Int): Unit =
+        scheduler.execute(new Runnable {
+          @tailrec
+          def loop(from: Int, until: Int, step: Int): Unit =
+            if ((step > 0 && from < until) || (step < 0 && from > until)) {
+              observer.onNext(from) match {
+                case Continue =>
+                  loop(from + step, until, step)
+                case Done =>
+                  // do nothing else
+                case async =>
+                  async.onComplete {
+                    case Success(Continue) =>
+                      scheduleLoop(from + step, until, step)
+                    case Success(Done) =>
+                    // do nothing else
+                    case Failure(ex) =>
+                      observer.onError(ex)
+                  }
+              }
+            }
+            else
+              observer.onCompleted()
+
+          def run(): Unit =
+            loop(from, until, step)
+        })
+
+      scheduleLoop(from, until, step)
+    }
+  }
+
+
+  /**
    * Creates an Observable that emits the elements of the given ''sequence''
    */
   def fromSequence[T](seq: Seq[T])(implicit scheduler: Scheduler): Observable[T] =
     Observable.create { observer =>
       def startFeedLoop(seq: Seq[T]): Unit =
         scheduler.execute(new Runnable {
-          private[this] var streamError = true
-
           @tailrec
           def loop(seq: Seq[T]): Unit = {
             if (seq.nonEmpty) {
               val elem = seq.head
               val tail = seq.tail
-              streamError = false
 
-              val ack = observer.onNext(elem)
-              if (ack ne Continue) {
-                if (ack ne Done)
-                  ack.onSuccess {
-                    case Continue =>
+              observer.onNext(elem) match {
+                case Continue =>
+                  loop(tail)
+                case Done =>
+                // do nothing else
+                case async =>
+                  async.onComplete {
+                    case Success(Continue) =>
                       startFeedLoop(tail)
-                    case Done =>
-                      // Do nothing else
+                    case Success(Done) =>
+                    // Do nothing else
+                    case Failure(ex) =>
+                      observer.onError(ex)
                   }
               }
-              else
-                loop(tail)
             }
             else {
-              streamError = false
               observer.onCompleted()
             }
           }
 
           def run(): Unit =
-            try {
-              streamError = true
-              loop(seq)
-            }
-            catch {
-              case NonFatal(ex) =>
-                if (streamError) observer.onError(ex) else throw ex
+            try { loop(seq) } catch {
+              case NonFatal(ex) => observer.onError(ex)
             }
         })
 
       startFeedLoop(seq)
     }
 
+  /**
+   * Creates an Observable that emits the elements of the given ''iterable''.
+   * Prefer [[fromSequence]] for immutable collections that can be efficiently decomposed as head/tail.
+   */
   def fromIterable[T](iterable: Iterable[T])(implicit scheduler: Scheduler): Observable[T] =
     fromIterable(iterable.asJava)
 
   /**
-   * Creates an Observable that emits the elements of the given ''sequence''
+   * Creates an Observable that emits the elements of the given ''iterable''.
+   * Prefer [[fromSequence]] for immutable collections that can be efficiently decomposed as head/tail.
    */
   def fromIterable[T](iterable: java.lang.Iterable[T])(implicit scheduler: Scheduler): Observable[T] =
     Observable.create { observer =>
@@ -1205,38 +1246,32 @@ object Observable {
         scheduler.execute(new Runnable {
           def run(): Unit = synchronized {
             while (true) {
-              var streamError = true
               try {
                 if (iterator.hasNext) {
                   val elem = iterator.next()
-                  streamError = false
-
-                  val ack = observer.onNext(elem)
-                  if (ack ne Continue) {
-                    if (ack ne Done)
-                      ack.onSuccess {
-                        case Continue =>
+                  observer.onNext(elem) match {
+                    case Continue =>
+                    // continue loop
+                    case Done =>
+                      return
+                    case async =>
+                      async.onComplete {
+                        case Success(Continue) =>
                           startFeedLoop(iterator)
-                        case Done =>
-                          // do nothing else
+                        case Success(Done) =>
+                        // do nothing else
+                        case Failure(ex) =>
+                          observer.onError(ex)
                       }
-                    return
+                      return // interrupt the loop
                   }
                 }
                 else {
-                  streamError = false
                   observer.onCompleted()
                   return
                 }
-              }
-              catch {
-                case NonFatal(ex) =>
-                  if (streamError) {
-                    observer.onError(ex)
-                    return
-                  }
-                  else
-                    throw ex
+              } catch {
+                case NonFatal(ex) => observer.onError(ex)
               }
             }
           }
@@ -1259,6 +1294,30 @@ object Observable {
     Observable.fromSequence(sources).merge
 
   /**
+   * Creates a new Observable from two observables,
+   * by emitting elements combined in pairs. If one of the Observable emits fewer
+   * events than the other, then the rest of the unpaired events are ignored.
+   */
+  def zip[T1, T2](obs1: Observable[T1], obs2: Observable[T2]): Observable[(T1,T2)] =
+    obs1.zip(obs2)
+
+  /**
+   * Creates a new Observable from three observables,
+   * by emitting elements combined in tuples of 3 elements. If one of the Observable emits fewer
+   * events than the others, then the rest of the unpaired events are ignored.
+   */
+  def zip[T1, T2, T3](obs1: Observable[T1], obs2: Observable[T2], obs3: Observable[T3]): Observable[(T1, T2, T3)] =
+    obs1.zip(obs2).zip(obs3).map { case ((t1, t2), t3) => (t1, t2, t3) }
+
+  /**
+   * Creates a new Observable from three observables,
+   * by emitting elements combined in tuples of 4 elements. If one of the Observable emits fewer
+   * events than the others, then the rest of the unpaired events are ignored.
+   */
+  def zip[T1, T2, T3, T4](obs1: Observable[T1], obs2: Observable[T2], obs3: Observable[T3], obs4: Observable[T4]): Observable[(T1, T2, T3, T4)] =
+    obs1.zip(obs2).zip(obs3).zip(obs4).map { case (((t1, t2), t3), t4) => (t1, t2, t3, t4) }
+
+  /**
    * Concatenates the given list of ''observables'' into a single observable.
    */
   def concat[T](sources: Observable[T]*)(implicit scheduler: Scheduler): Observable[T] =
@@ -1268,8 +1327,12 @@ object Observable {
     Observable.create { observer =>
       future.onComplete {
         case Success(value) =>
-          observer.onNext(value).onSuccess {
-            case Continue => observer.onCompleted()
+          observer.onNext(value).unsafeOnComplete {
+            case Success(Continue) =>
+              observer.onCompleted()
+            case Success(Done) => // do nothing
+            case Failure(ex) =>
+              observer.onError(ex)
           }
         case Failure(ex) =>
           observer.onError(ex)

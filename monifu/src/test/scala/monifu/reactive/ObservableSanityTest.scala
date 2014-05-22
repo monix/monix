@@ -6,9 +6,10 @@ import scala.concurrent.{Future, Await}
 import concurrent.duration._
 import java.util.concurrent.{TimeUnit, CountDownLatch}
 import monifu.concurrent.Scheduler.Implicits.global
+import monifu.reactive.api.Ack.{Done, Continue}
 
 
-class ObservableTest extends FunSpec {
+class ObservableSanityTest extends FunSpec {
   describe("Observable.map") {
     it("should work") {
       val f = Observable.fromSequence(0 until 100).map(x => x + 1).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
@@ -27,10 +28,12 @@ class ObservableTest extends FunSpec {
         nextFn = _ => {
           if (result != "")
             throw new IllegalStateException("Should not receive other elements after done")
+          Continue
         },
         errorFn = ex => {
           result = ex.getMessage
           latch.countDown()
+          Done
         }
       )
 
@@ -58,10 +61,12 @@ class ObservableTest extends FunSpec {
         nextFn = _ => {
           if (result != "")
             throw new IllegalStateException("Should not receive other elements after done")
+          Continue
         },
         errorFn = ex => {
           result = ex.getMessage
           latch.countDown()
+          Done
         }
       )
 
@@ -81,10 +86,13 @@ class ObservableTest extends FunSpec {
         nextFn = _ => {
           if (errorThrow != null)
             throw new IllegalStateException("Should not receive other elements after done")
+          else
+            Continue
         },
         errorFn = ex => {
           errorThrow = ex
           latch.countDown()
+          Done
         }
       )
 
@@ -112,10 +120,12 @@ class ObservableTest extends FunSpec {
         nextFn = _ => {
           if (result != "")
             throw new IllegalStateException("Should not receive other elements after done")
+          Continue
         },
         errorFn = ex => {
           result = ex.getMessage
           latch.countDown()
+          Done
         }
       )
 
@@ -135,10 +145,12 @@ class ObservableTest extends FunSpec {
         nextFn = _ => {
           if (errorThrow != null)
             throw new IllegalStateException("Should not receive other elements after done")
+          Continue
         },
         errorFn = ex => {
           errorThrow = ex
           latch.countDown()
+          Done
         }
       )
 
@@ -165,10 +177,12 @@ class ObservableTest extends FunSpec {
         nextFn = _ => {
           if (result != "")
             throw new IllegalStateException("Should not receive other elements after done")
+          Continue
         },
         errorFn = ex => {
           result = ex.getMessage
           latch.countDown()
+          Done
         }
       )
 
@@ -188,10 +202,12 @@ class ObservableTest extends FunSpec {
         nextFn = _ => {
           if (errorThrow != null)
             throw new IllegalStateException("Should not receive other elements after done")
+          Continue
         },
         errorFn = ex => {
           errorThrow = ex
           latch.countDown()
+          Done
         }
       )
 
@@ -218,10 +234,12 @@ class ObservableTest extends FunSpec {
         nextFn = _ => {
           if (result != "")
             throw new IllegalStateException("Should not receive other elements after done")
+          Continue
         },
         errorFn = ex => {
           result = ex.getMessage
           latch.countDown()
+          Done
         }
       )
 
@@ -244,10 +262,12 @@ class ObservableTest extends FunSpec {
             throw new IllegalStateException("Should not receive other elements after done")
           else
             sum += e
+          Continue
         },
         errorFn = ex => {
           errorThrow = ex
           latch.countDown()
+          Done
         }
       )
 
@@ -278,10 +298,12 @@ class ObservableTest extends FunSpec {
         nextFn = _ => {
           if (result != "")
             throw new IllegalStateException("Should not receive other elements after done")
+          Continue
         },
         errorFn = ex => {
           result = ex.getMessage
           latch.countDown()
+          Done
         }
       )
 
@@ -304,10 +326,12 @@ class ObservableTest extends FunSpec {
             throw new IllegalStateException("Should not receive other elements after done")
           else
             sum += e
+          Continue
         },
         errorFn = ex => {
           errorThrow = ex
           latch.countDown()
+          Done
         }
       )
 
@@ -474,8 +498,6 @@ class ObservableTest extends FunSpec {
     }
   }
 
-  // ===
-
   describe("Observable.mergeMap") {
     it("should work") {
       val result = Observable.fromSequence(0 until 100).filter(_ % 5 == 0)
@@ -497,10 +519,12 @@ class ObservableTest extends FunSpec {
         nextFn = _ => {
           if (result != "")
             throw new IllegalStateException("Should not receive other elements after done")
+          Continue
         },
         errorFn = ex => {
           result = ex.getMessage
           latch.countDown()
+          Done
         }
       )
 
@@ -523,10 +547,12 @@ class ObservableTest extends FunSpec {
             throw new IllegalStateException("Should not receive other elements after done")
           else
             sum += e
+          Continue
         },
         errorFn = ex => {
           errorThrow = ex
           latch.countDown()
+          Done
         }
       )
 
@@ -578,6 +604,39 @@ class ObservableTest extends FunSpec {
         .foldLeft(Seq.empty[Int])(_ :+ _).map(_.sorted).asFuture
       val result = Await.result(f, 4.seconds)
       assert(result === Some(1 to 100))
+    }
+  }
+
+  describe("Observable.range") {
+    it("should work") {
+      val expected = (0 until 5000).filter(_ % 5 == 0).flatMap(x => x until (x + 5)).sum
+
+      val f = Observable.range(0, 5000).filter(_ % 5 == 0)
+        .flatMap(x => Observable.range(x, x + 5))
+        .foldLeft(0)(_ + _).asFuture
+
+      val result = Await.result(f, 10.seconds)
+      assert(result === Some(expected))
+    }
+
+    it("should work without overflow") {
+      val n = 1000000L
+      val sum = n * (n + 1) / 2
+      val obs = Observable.range(1, (n + 1).toInt)
+      val res = obs.foldLeft(0L)(_ + _).asFuture
+
+      val result = Await.result(res, 20.seconds)
+      assert(result === Some(sum))
+    }
+
+    it("should stop if terminated with a stop") {
+      val n = 1000000L
+      val sum = 101 * 50
+      val obs = Observable.range(1, n.toInt).take(100)
+      val res = obs.foldLeft(0L)(_ + _).asFuture
+
+      val result = Await.result(res, 4.seconds)
+      assert(result === Some(sum))
     }
   }
 }
