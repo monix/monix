@@ -126,4 +126,34 @@ class ConcurrencyTest extends FunSpec {
       assert(list === Some(1 to 100))
     }
   }
+
+  describe("Observable.merge") {
+    it("should not have concurrency problems, test 1") {
+      val f = Observable.fromSequence(0 until 1000)
+        .observeOn(global)
+        .take(100)
+        .observeOn(global)
+        .mergeMap(x => Observable.range(x, x + 100).observeOn(global).take(10).mergeMap(x => Observable.unit(x).observeOn(global)))
+        .foldLeft(Seq.empty[Int])(_:+_)
+        .asFuture
+
+      val r = Await.result(f, 20.seconds)
+      assert(r.nonEmpty && r.get.size === 100 * 10)
+      assert(r.get.sorted === (0 until 1000).take(100).flatMap(x => x until (x + 10)).sorted)
+    }
+
+    it("should not have concurrency problems, test 2") {
+      val f = Observable.fromSequence(0 until 1000)
+        .observeOn(global)
+        .take(100)
+        .observeOn(global)
+        .mergeMap(x => Observable.range(x, x + 100).observeOn(global).take(10).mergeMap(x => Observable.unit(x).observeOn(global)))
+        .take(100 * 9)
+        .foldLeft(Seq.empty[Int])(_:+_)
+        .asFuture
+
+      val r = Await.result(f, 20.seconds)
+      assert(r.nonEmpty && r.get.size === 100 * 9)
+    }
+  }
 }
