@@ -214,6 +214,11 @@ class ObservableSanityTest extends FunSpec {
       assert(latch.await(1, TimeUnit.SECONDS), "Latch await failed")
       assert(errorThrow.getMessage === "test")
     }
+
+    it("should be empty on no elements") {
+      val f = Observable.empty[Int].observeOn(global).scan(0)(_+_).asFuture
+      assert(Await.result(f, 5.seconds) === None)
+    }
   }
 
   describe("Observable.filter") {
@@ -637,6 +642,94 @@ class ObservableSanityTest extends FunSpec {
 
       val result = Await.result(res, 4.seconds)
       assert(result === Some(sum))
+    }
+  }
+
+  describe("Observable.reduce") {
+    it("should work") {
+      val f = Observable.range(0, 1000)
+        .observeOn(global).reduce(_ + _)
+        .asFuture
+
+      val r = Await.result(f, 10.seconds)
+      assert(r === Some((0 until 1000).sum))
+    }
+
+    it("should be empty on zero elements") {
+      val f = Observable.empty[Int]
+        .observeOn(global).reduce(_ + _)
+        .asFuture
+
+      val r = Await.result(f, 10.seconds)
+      assert(r === None)
+    }
+
+    it("should be empty on one elements") {
+      val f = Observable.unit(100)
+        .observeOn(global).reduce(_ + _)
+        .asFuture
+
+      val r = Await.result(f, 10.seconds)
+      assert(r === None)
+    }
+
+    it("should be work for 2 elements") {
+      val two = Observable.unit(100) ++ Observable.unit(200)
+      val f = two.observeOn(global).reduce(_ + _)
+        .asFuture
+
+      val r = Await.result(f, 10.seconds)
+      assert(r === Some(100 + 200))
+    }
+
+    it("should treat exceptions in subscribe implementations (guideline 6.5)") {
+      val obs = Observable.create[Int] { subscriber =>
+        throw new RuntimeException("Test exception")
+      }
+
+      val latch = new CountDownLatch(1)
+      @volatile var result = ""
+
+      obs.reduce(_+_).subscribe(
+        nextFn = _ => {
+          if (result != "")
+            throw new IllegalStateException("Should not receive other elements after done")
+          Continue
+        },
+        errorFn = ex => {
+          result = ex.getMessage
+          latch.countDown()
+          Done
+        }
+      )
+
+      assert(latch.await(1, TimeUnit.SECONDS), "Latch await failed")
+      assert(result === "Test exception")
+    }
+
+    it("should protect calls to user code (guideline 6.4)") {
+      val obs = Observable.fromSequence(0 until 100).reduce { (acc, elem) =>
+        if (elem < 5) acc + elem else throw new RuntimeException("test")
+      }
+
+      @volatile var errorThrow: Throwable = null
+      val latch = new CountDownLatch(1)
+
+      obs.map(x => x).subscribe(
+        nextFn = _ => {
+          if (errorThrow != null)
+            throw new IllegalStateException("Should not receive other elements after done")
+          Continue
+        },
+        errorFn = ex => {
+          errorThrow = ex
+          latch.countDown()
+          Done
+        }
+      )
+
+      assert(latch.await(1, TimeUnit.SECONDS), "Latch await failed")
+      assert(errorThrow.getMessage === "test")
     }
   }
 }
