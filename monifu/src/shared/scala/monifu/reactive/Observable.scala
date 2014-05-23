@@ -6,7 +6,7 @@ import scala.concurrent.{Promise, Future}
 import scala.concurrent.Future.successful
 import monifu.reactive.api._
 import Ack.{Done, Continue}
-import monifu.concurrent.atomic.{Atomic, padded}
+import monifu.concurrent.atomic.Atomic
 import monifu.reactive.cancelables._
 import scala.concurrent.duration.FiniteDuration
 import scala.util.control.NonFatal
@@ -352,16 +352,13 @@ trait Observable[+T] { self =>
    */
   final def take(n: Long): Observable[T] =
     Observable.create { observer =>
-      val counterRef = padded.Atomic(0L)
-
       subscribeFn(new Observer[T] {
+        private[this] var counter = 0L
+
         def onNext(elem: T) = {
           // short-circuit for not endlessly incrementing that number
-          if (counterRef.get < n) {
-            // this increment needs to be synchronized - a well behaved producer
-            // does back-pressure by means of the acknowledgement that the observer
-            // returns, however we can still have visibility problems
-            val counter = counterRef.incrementAndGet()
+          if (counter < n) {
+            counter += 1
 
             if (counter < n) {
               // this is not the last event in the stream, so send it directly
@@ -404,12 +401,14 @@ trait Observable[+T] { self =>
    */
   final def drop(n: Long): Observable[T] =
     Observable.create { observer =>
-      val count = padded.Atomic(0L)
+      var count = 0L
 
       subscribeFn(new Observer[T] {
         def onNext(elem: T) = {
-          if (count.get < n && count.getAndIncrement() < n)
+          if (count < n) {
+            count += 1
             Continue
+          }
           else
             observer.onNext(elem)
         }
@@ -429,7 +428,7 @@ trait Observable[+T] { self =>
   final def takeWhile(p: T => Boolean): Observable[T] =
     Observable.create { observer =>
       subscribeFn(new Observer[T] {
-        @volatile var shouldContinue = true
+        var shouldContinue = true
 
         def onNext(elem: T) = {
           if (shouldContinue) {
@@ -470,7 +469,7 @@ trait Observable[+T] { self =>
   final def takeWhile(isRefTrue: Atomic[Boolean]): Observable[T] =
     Observable.create { observer =>
       subscribeFn(new Observer[T] {
-        @volatile var shouldContinue = true
+        var shouldContinue = true
 
         def onNext(elem: T) = {
           if (shouldContinue) {
@@ -512,7 +511,7 @@ trait Observable[+T] { self =>
   final def dropWhile(p: T => Boolean): Observable[T] =
     Observable.create { observer =>
       subscribeFn(new Observer[T] {
-        @volatile var shouldDrop = true
+        var shouldDrop = true
 
         def onNext(elem: T) = {
           if (shouldDrop) {
@@ -554,14 +553,14 @@ trait Observable[+T] { self =>
    */
   final def foldLeft[R](initial: R)(op: (R, T) => R): Observable[R] =
     Observable.create { observer =>
-      val state = padded.Atomic(initial)
-
       subscribeFn(new Observer[T] {
+        private[this] var state = initial
+
         def onNext(elem: T): Future[Ack] = {
           // See Section 6.4. in the Rx Design Guidelines:
           // Protect calls to user code from within an operator
           try {
-            state.transformAndGet(s => op(s, elem))
+            state = op(state, elem)
             Continue
           }
           catch {
@@ -570,12 +569,59 @@ trait Observable[+T] { self =>
         }
 
         def onComplete() =
-          observer.onNext(state.get).unsafeFlatMap { _ =>
+          observer.onNext(state).unsafeFlatMap { _ =>
             observer.onComplete()
           }
 
         def onError(ex: Throwable) =
           observer.onError(ex)
+      })
+    }
+
+  /**
+   * Applies a binary operator to a start value and all elements of this Observable,
+   * going left to right and returns a new Observable that emits only one item
+   * before `onComplete`.
+   */
+  final def reduce[U >: T](op: (U, U) => U): Observable[U] =
+    Observable.create { observer =>
+      subscribeFn(new Observer[T] {
+        private[this] var state: U = _
+        private[this] var isFirst = true
+        private[this] var wasApplied = false
+
+        def onNext(elem: T): Future[Ack] = {
+          // See Section 6.4. in the Rx Design Guidelines:
+          // Protect calls to user code from within an operator
+          try {
+            if (isFirst) {
+              isFirst = false
+              state = elem
+            }
+            else {
+              state = op(state, elem)
+              if (!wasApplied) wasApplied = true
+            }
+
+            Continue
+          }
+          catch {
+            case NonFatal(ex) =>
+              onError(ex)
+          }
+        }
+
+        def onComplete() =
+          if (wasApplied)
+            observer.onNext(state).unsafeFlatMap { _ =>
+              observer.onComplete()
+            }
+          else
+            observer.onComplete()
+
+        def onError(ex: Throwable) = {
+          observer.onError(ex)
+        }
       })
     }
 
@@ -589,17 +635,61 @@ trait Observable[+T] { self =>
    */
   final def scan[R](initial: R)(op: (R, T) => R): Observable[R] =
     Observable.create { observer =>
-      val state = padded.Atomic(initial)
-
       subscribeFn(new Observer[T] {
+        private[this] var state = initial
+
         def onNext(elem: T): Future[Ack] = {
           // See Section 6.4. in the Rx Design Guidelines:
           // Protect calls to user code from within an operator
           var streamError = true
           try {
-            val result = state.transformAndGet(s => op(s, elem))
+            state = op(state, elem)
             streamError = false
-            observer.onNext(result)
+            observer.onNext(state)
+          }
+          catch {
+            case NonFatal(ex) =>
+              if (streamError) onError(ex) else Future.failed(ex)
+          }
+        }
+
+        def onComplete() =
+          observer.onComplete()
+
+        def onError(ex: Throwable) =
+          observer.onError(ex)
+      })
+    }
+
+  /**
+   * Applies a binary operator to the first item emitted by a source Observable,
+   * then feeds the result of that function along with the second item emitted by
+   * the source Observable into the same function, and so on until all items have been
+   * emitted by the source Observable, emitting the result of each of these iterations.
+   *
+   * Similar to [[reduce]], but emits the state on each step. Useful for modeling finite
+   * state machines.
+   */
+  final def scan[U >: T](op: (U, U) => U): Observable[U] =
+    Observable.create { observer =>
+      subscribeFn(new Observer[T] {
+        private[this] var state: U = _
+        private[this] var isFirst = true
+
+        def onNext(elem: T): Future[Ack] = {
+          // See Section 6.4. in the Rx Design Guidelines:
+          // Protect calls to user code from within an operator
+          var streamError = true
+          try {
+            if (isFirst) {
+              state = elem
+              isFirst = false
+            }
+            else
+              state = op(state, elem)
+
+            streamError = false
+            observer.onNext(state)
           }
           catch {
             case NonFatal(ex) =>
@@ -966,29 +1056,23 @@ trait Observable[+T] { self =>
   final def dump(prefix: String): Observable[T] =
     Observable.create { observer =>
       subscribeFn(new Observer[T] {
-        private[this] val pos = padded.Atomic(0)
+        private[this] var pos = 0
 
         def onNext(elem: T): Future[Ack] = {
-          val pos = this.pos.getAndIncrement(2)
-
           println(s"$pos: $prefix-->$elem")
-          val r = observer.onNext(elem)
-          r.unsafeOnSuccess {
-            case Continue =>
-              println(s"${pos+1}: $prefix-->$elem-->Continue")
-            case Done =>
-              println(s"${pos+1}: $prefix-->$elem-->Done")
-          }
-          r
+          pos += 1
+          observer.onNext(elem)
         }
 
         def onError(ex: Throwable): Future[Done] = {
-          println(s"${pos.getAndIncrement()}: $prefix-->$ex")
+          println(s"$pos: $prefix-->$ex")
+          pos += 1
           observer.onError(ex)
         }
 
         def onComplete(): Future[Done] = {
-          println(s"${pos.getAndIncrement()}: $prefix completed")
+          println(s"$pos: $prefix completed")
+          pos += 1
           observer.onComplete()
         }
       })
@@ -1123,10 +1207,13 @@ object Observable {
   def interval(initialDelay: FiniteDuration, period: FiniteDuration)(implicit scheduler: Scheduler): Observable[Long] = {
     Observable.create { o =>
       val observer = SafeObserver(o)
-      val counter = padded.Atomic(0)
+      var counter = 0
 
       scheduler.scheduleRecursive(initialDelay, period, { reschedule =>
-        observer.onNext(counter.incrementAndGet()).unsafeOnSuccess {
+        counter += 1
+        val result = observer.onNext(counter)
+
+        result.unsafeOnSuccess {
           case Continue =>
             reschedule()
         }
@@ -1253,7 +1340,7 @@ object Observable {
 
       def startFeedLoop(iterator: java.util.Iterator[T]): Unit =
         scheduler.execute(new Runnable {
-          def run(): Unit = synchronized {
+          def run(): Unit =
             while (true) {
               try {
                 if (iterator.hasNext) {
@@ -1282,7 +1369,6 @@ object Observable {
                   observer.onError(ex)
               }
             }
-          }
         })
 
       val iterator = iterable.iterator()
