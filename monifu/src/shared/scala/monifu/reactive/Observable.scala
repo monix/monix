@@ -3,7 +3,6 @@ package monifu.reactive
 import language.implicitConversions
 import monifu.concurrent.{Cancelable, Scheduler}
 import scala.concurrent.{Promise, Future}
-import scala.concurrent.Future.successful
 import monifu.reactive.api._
 import Ack.{Done, Continue}
 import monifu.concurrent.atomic.Atomic
@@ -374,13 +373,13 @@ trait Observable[+T] { self =>
             else {
               // we already emitted the maximum number of events, so signal upstream
               // to the producer that it should stop sending events
-              successful(Done)
+              Done
             }
           }
           else {
             // we already emitted the maximum number of events, so signal upstream
             // to the producer that it should stop sending events
-            successful(Done)
+            Done
           }
         }
 
@@ -833,7 +832,7 @@ trait Observable[+T] { self =>
     head.subscribeFn(new Observer[T] {
       def onNext(elem: T) = {
         promise.trySuccess(Some(elem))
-        successful(Done)
+        Done
       }
 
       def onComplete() = {
