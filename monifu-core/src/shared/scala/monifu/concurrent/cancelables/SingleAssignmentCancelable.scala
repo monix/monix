@@ -1,4 +1,4 @@
-package monifu.reactive.cancelables
+package monifu.concurrent.cancelables
 
 import monifu.concurrent.atomic.AtomicAny
 import scala.annotation.tailrec
@@ -9,7 +9,7 @@ import monifu.concurrent.Cancelable
  * Represents a [[monifu.concurrent.Cancelable]] that can be assigned only once to another
  * cancelable reference.
  *
- * Similar to [[monifu.reactive.cancelables.MultiAssignmentCancelable]], except that
+ * Similar to [[monifu.concurrent.cancelables.MultiAssignmentCancelable]], except that
  * in case of multi-assignment, it throws a `java.lang.IllegalStateException`.
  *
  * If the assignment happens after this cancelable has been canceled, then on

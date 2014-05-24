@@ -1,4 +1,4 @@
-package monifu.reactive.cancelables
+package monifu.concurrent.cancelables
 
 import monifu.concurrent.Cancelable
 import monifu.concurrent.atomic.Atomic

@@ -1,5 +1,7 @@
 package monifu.concurrent
 
+import language.experimental.macros
+import scala.reflect.macros.Context
 import scala.util.{Failure, Success, Try}
 import scala.concurrent.{ExecutionContext, Promise, Future}
 import scala.concurrent.duration._
@@ -101,13 +103,13 @@ object extensions {
   /**
    * Provides internal utilities used within the Monifu codebase.
    */
-  private[monifu] implicit class FutureInternalExtensions[T](val source: Future[T]) extends AnyVal {
+  private[monifu] implicit class FutureInternalExtensions[+T](val source: Future[T]) extends AnyVal {
     /**
      * A version of `Future.map` that executes synchronously in the case the source Future
      * is already complete. To be used only in case you know what you're doing, as executing
      * things synchronously or asynchronously depending on context is very error-prone.
      */
-    def unsafeMap[U >: T](f: T => U)(implicit ec: ExecutionContext): Future[U] = {
+    def unsafeMap[U](f: T => U)(implicit ec: ExecutionContext): Future[U] = {
       if (source.isCompleted)
         source.value.get match {
           case Success(value) =>
@@ -115,7 +117,7 @@ object extensions {
               case NonFatal(ex) => Future.failed(ex)
             }
           case Failure(_) =>
-            source
+            source.asInstanceOf[Future[U]]
         }
       else
         source.map(f)

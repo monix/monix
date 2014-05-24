@@ -6,10 +6,9 @@ import scala.scalajs.sbtplugin.ScalaJSPlugin.ScalaJSKeys._
 
 
 object Build extends SbtBuild {
-
   val sharedSettings = Defaults.defaultSettings ++ Seq(
     organization := "org.monifu",
-    version := "0.9.5",
+    version := "0.9.6-SNAPSHOT",
     scalaVersion := "2.10.4",
     crossScalaVersions := Seq("2.10.4", "2.11.1"),
 
@@ -23,11 +22,18 @@ object Build extends SbtBuild {
         s"(SBT instance running on top of JDK $specVersion with class version $classVersion)")
     },
 
-    scalacOptions ++= Seq(
-      "-unchecked", "-deprecation", "-feature", "-Xlint", "-target:jvm-1.6", "-Yinline-warnings",
-      "-optimise", "-Ywarn-adapted-args", "-Ywarn-dead-code", "-Ywarn-inaccessible",
-      "-Ywarn-nullary-override", "-Ywarn-nullary-unit"
-    ),
+    scalacOptions <<= scalaVersion map { v: String =>
+      val default = Seq(
+        "-unchecked", "-deprecation", "-feature", "-Xlint", "-target:jvm-1.6", "-Yinline-warnings",
+        "-optimise", "-Ywarn-adapted-args", "-Ywarn-dead-code", "-Ywarn-inaccessible",
+        "-Ywarn-nullary-override", "-Ywarn-nullary-unit"
+      )
+
+      if (v.startsWith("2.11.")) 
+        default :+ "-Ydelambdafy:method" 
+      else 
+        default
+    },
 
     resolvers ++= Seq(
       "Typesafe Releases" at "http://repo.typesafe.com/typesafe/releases",

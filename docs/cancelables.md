@@ -198,7 +198,7 @@ is for those instances in which you need some sort of composite that `onCancel` 
 after all children cancelables to be canceled too, before executing its callback.
 
 ```scala
-import monifu.reactive.cancelables.RefCountCancelable
+import monifu.concurrent.cancelables.RefCountCancelable
 
 val refs = RefCountCancelable { println("Everything was canceled") }
 
