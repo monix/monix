@@ -74,14 +74,17 @@ object Build extends SbtBuild {
 
   // -- Actual Projects
 
-  lazy val root = Project(
-      id = "monifu-root", base = file("."), 
-      settings = sharedSettings ++ Seq(publishArtifact := false))
-    .aggregate(monifu, monifuJS)
+  lazy val monifu = Project(id = "monifu", base = file("."), settings = sharedSettings)
+    .aggregate(monifuCore, monifuCoreJS, monifuJS)
+    .dependsOn(monifuCore, monifuRx)
 
-  lazy val monifu = Project(
-    id = "monifu",
-    base = file("monifu"),
+  lazy val monifuJS = Project(id = "monifu-js", base = file("monifu-js"), settings = sharedSettings ++ scalaJSSettings)
+    .aggregate(monifuCoreJS, monifuRxJS)
+    .dependsOn(monifuCoreJS, monifuRxJS)
+
+  lazy val monifuCore = Project(
+    id = "monifu-core",
+    base = file("monifu-core"),
     settings = sharedSettings ++ Seq(
       unmanagedSourceDirectories in Compile <+= sourceDirectory(_ / "shared" / "scala"),
       libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _ % "compile"),
@@ -91,11 +94,11 @@ object Build extends SbtBuild {
     )
   )
 
-  lazy val monifuJS = Project(
-    id = "monifu-js",
-    base = file("monifu-js"),
+  lazy val monifuCoreJS = Project(
+    id = "monifu-core-js",
+    base = file("monifu-core-js"),
     settings = sharedSettings ++ scalaJSSettings ++ Seq(
-      unmanagedSourceDirectories in Compile <+= sourceDirectory(_ / ".." / ".." / "monifu" / "src" / "shared" / "scala"),
+      unmanagedSourceDirectories in Compile <+= sourceDirectory(_ / ".." / ".." / "monifu-core" / "src" / "shared" / "scala"),
       libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _ % "compile"),
       libraryDependencies ++= Seq(
         "org.scala-lang.modules.scalajs" %% "scalajs-jasmine-test-framework" % scalaJSVersion % "test"
@@ -103,6 +106,28 @@ object Build extends SbtBuild {
     )
   )
 
+  lazy val monifuRx = Project(
+    id = "monifu-rx",
+    base = file("monifu-rx"),
+    settings = sharedSettings ++ Seq(
+      unmanagedSourceDirectories in Compile <+= sourceDirectory(_ / "shared" / "scala"),
+      libraryDependencies ++= Seq(
+        "org.scalatest" %% "scalatest" % "2.1.3" % "test"
+      )
+    )
+  ).dependsOn(monifuCore)
+
+  lazy val monifuRxJS = Project(
+    id = "monifu-rx-js",
+    base = file("monifu-rx-js"),
+    settings = sharedSettings ++ scalaJSSettings ++ Seq(
+      unmanagedSourceDirectories in Compile <+= sourceDirectory(_ / ".." / ".." / "monifu-rx" / "src" / "shared" / "scala/"),
+      libraryDependencies ++= Seq(
+        "org.scala-lang.modules.scalajs" %% "scalajs-jasmine-test-framework" % scalaJSVersion % "test"
+      )
+    )
+  ).dependsOn(monifuCoreJS)
+
   lazy val monifuBenchmarks =
-    Project(id="benchmarks", base=file("benchmarks")).dependsOn(monifu)
+    Project(id="benchmarks", base=file("benchmarks")).dependsOn(monifuCore)
 }
