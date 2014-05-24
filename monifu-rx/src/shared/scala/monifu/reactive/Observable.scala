@@ -6,7 +6,7 @@ import scala.concurrent.{Promise, Future}
 import monifu.reactive.api._
 import Ack.{Done, Continue}
 import monifu.concurrent.atomic.Atomic
-import monifu.reactive.cancelables._
+import monifu.concurrent.cancelables._
 import scala.concurrent.duration.FiniteDuration
 import scala.util.control.NonFatal
 import scala.collection.mutable
@@ -366,8 +366,9 @@ trait Observable[+T] { self =>
             else if (counter == n) {
               // last event in the stream, so we need to send the event followed by an EOF downstream
               // after which we signal upstream to the producer that it should stop
-              observer.onNext(elem).unsafeFlatMap { _ =>
-                observer.onComplete()
+              observer.onNext(elem).unsafeFlatMap {
+                case Continue => observer.onComplete()
+                case Done => Done
               }
             }
             else {
@@ -568,8 +569,9 @@ trait Observable[+T] { self =>
         }
 
         def onComplete() =
-          observer.onNext(state).unsafeFlatMap { _ =>
-            observer.onComplete()
+          observer.onNext(state).unsafeFlatMap {
+            case Continue => observer.onComplete()
+            case Done => Done
           }
 
         def onError(ex: Throwable) =
@@ -612,8 +614,9 @@ trait Observable[+T] { self =>
 
         def onComplete() =
           if (wasApplied)
-            observer.onNext(state).unsafeFlatMap { _ =>
-              observer.onComplete()
+            observer.onNext(state).unsafeFlatMap {
+              case Continue => observer.onComplete()
+              case Done => Done
             }
           else
             observer.onComplete()
@@ -1037,14 +1040,14 @@ trait Observable[+T] { self =>
 
         def onError(ex: Throwable): Future[Done] =
           observer.onNext(OnError(ex)).unsafeFlatMap {
-            case Done => Done
             case Continue => observer.onComplete()
+            case Done => Done
           }
 
         def onComplete(): Future[Done] =
           observer.onNext(OnComplete).unsafeFlatMap {
-            case Done => Done
             case Continue => observer.onComplete()
+            case Done => Done
           }
       })
     }
@@ -1102,16 +1105,16 @@ trait Observable[+T] { self =>
     }
 
   /**
-   * Wraps the observer implementation given to `subscribeFn` into a [[SafeObserver]].
+   * Wraps the observer implementation given to `subscribeFn` into a [[api.SafeObserver SafeObserver]].
    * Normally wrapping in a `SafeObserver` happens at the edges of the monad
-   * (in the user-facing [[subscribe]] implementation) or in Observable subscribe implementations,
+   * (in the user-facing `subscribe()` implementation) or in Observable subscribe implementations,
    * so this wrapping is useful.
    */
   final def safe: Observable[T] =
     Observable.create { observer => subscribeFn(SafeObserver(observer)) }
 
   /**
-   * Wraps the observer implementation given to `subscribeFn` into a [[SynchronizedObserver]].
+   * Wraps the observer implementation given to `subscribeFn` into a [[api.SynchronizedObserver SynchronizedObserver]].
    *
    * Normally Monifu's implementation guarantees that events are not emitted concurrently,
    * by contract, however one may still have visibility concerns and for badly behaved

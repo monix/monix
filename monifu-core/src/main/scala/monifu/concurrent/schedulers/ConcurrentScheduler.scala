@@ -3,7 +3,7 @@ package monifu.concurrent.schedulers
 import java.util.concurrent.{TimeUnit, ScheduledExecutorService}
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import monifu.reactive.cancelables.SingleAssignmentCancelable
+import monifu.concurrent.cancelables.SingleAssignmentCancelable
 import monifu.concurrent.{Cancelable, Scheduler}
 
 

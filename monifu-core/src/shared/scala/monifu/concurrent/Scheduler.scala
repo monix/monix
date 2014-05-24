@@ -2,7 +2,7 @@ package monifu.concurrent
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import monifu.reactive.cancelables.{BooleanCancelable, MultiAssignmentCancelable}
+import monifu.concurrent.cancelables.{BooleanCancelable, MultiAssignmentCancelable}
 import scala.annotation.implicitNotFound
 import monifu.concurrent.schedulers.SchedulerCompanionImpl
 

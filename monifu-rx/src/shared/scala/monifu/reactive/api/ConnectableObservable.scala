@@ -1,7 +1,7 @@
 package monifu.reactive.api
 
 import monifu.reactive.Observable
-import monifu.reactive.cancelables.BooleanCancelable
+import monifu.concurrent.cancelables.BooleanCancelable
 
 /**
  * Represents an [[Observable]] that waits for the call to `connect()` before

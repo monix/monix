@@ -42,10 +42,8 @@ final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends S
 
           for ((observer, ack) <- subscribers) {
             val f = ack.unsafeFlatMap {
-              case Continue =>
-                observer.onNext(elem)
-              case Done =>
-                Done
+              case Continue => observer.onNext(elem)
+              case Done => Done
             }
 
             subscribers(observer) = f

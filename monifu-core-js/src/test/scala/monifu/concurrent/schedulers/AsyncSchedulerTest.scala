@@ -3,7 +3,7 @@ package monifu.concurrent.schedulers
 import scala.scalajs.test.JasmineTest
 import scala.concurrent.Promise
 import concurrent.duration._
-import monifu.reactive.cancelables.SingleAssignmentCancelable
+import monifu.concurrent.cancelables.SingleAssignmentCancelable
 import monifu.concurrent.atomic.Atomic
 
 object AsyncSchedulerTest extends JasmineTest {

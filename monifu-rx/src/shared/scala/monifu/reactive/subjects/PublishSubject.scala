@@ -36,8 +36,7 @@ final class PublishSubject[T] private (s: Scheduler) extends Subject[T] { self =
 
           for ((observer, ack) <- subscribers) {
             val f = ack.unsafeFlatMap {
-              case Continue =>
-                observer.onNext(elem)
+              case Continue => observer.onNext(elem)
               case Done => Done
             }
 
