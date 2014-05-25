@@ -3,9 +3,9 @@ package monifu.reactive.api
 import monifu.reactive.Observer
 import scala.concurrent.Future
 import scala.util.control.NonFatal
-import monifu.reactive.api.Ack.Done
+import monifu.reactive.api.Ack.{Continue, Done}
 import monifu.concurrent.Scheduler
-import monifu.concurrent.extensions._
+import monifu.concurrent.extensions.FutureInternalExtensions
 
 /**
  * A safe observer ensures too things:
@@ -25,12 +25,21 @@ final class SafeObserver[-T] private (observer: Observer[T])(implicit scheduler:
 
   def onNext(elem: T): Future[Ack] = {
     if (!isDone) {
-      try observer.onNext(elem).unsafeRecoverWith {
-        case err => onError(err)
+      try {
+        val result = observer.onNext(elem)
+        if (result == Continue || result == Done || (result.isCompleted && result.value.get.isSuccess))
+          result
+        else
+          result.unsafeRecoverWith {
+            case err =>
+              onError(err)
+              Done
+          }
       }
       catch {
         case NonFatal(ex) =>
           onError(ex)
+          Done
       }
     }
     else
@@ -40,38 +49,17 @@ final class SafeObserver[-T] private (observer: Observer[T])(implicit scheduler:
   def onError(ex: Throwable) = {
     if (!isDone) {
       isDone = true
-      val result =
-        try observer.onError(ex).unsafeRecoverWith {
-          case err =>
-            scheduler.reportFailure(err)
-            Done
-        }
-        catch {
-          case NonFatal(err) =>
-            scheduler.reportFailure(err)
-            Done
-        }
-
-      result.onFailure {
-        case err =>
+      try observer.onError(ex) catch {
+        case NonFatal(err) =>
           scheduler.reportFailure(err)
       }
-
-      result
     }
-    else
-      Done
   }
 
   def onComplete() = {
     if (!isDone) {
       isDone = true
-      try observer.onComplete().unsafeRecoverWith {
-        case err =>
-          scheduler.reportFailure(err)
-          Done
-      }
-      catch {
+      try observer.onComplete() catch {
         case NonFatal(err) =>
           scheduler.reportFailure(err)
           Done

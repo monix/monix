@@ -156,4 +156,14 @@ class ConcurrencyTest extends FunSpec {
       assert(r.nonEmpty && r.get.size === 100 * 9)
     }
   }
+
+  describe("Observable.takeRight") {
+    it("should not have concurrency problems") {
+      val f = Observable.range(0, 10000).observeOn(global).takeRight(100)
+        .foldLeft(Seq.empty[Int])(_ :+ _).asFuture
+
+      val r = Await.result(f, 20.seconds)
+      assert(r === Some(9900 until 10000))
+    }
+  }
 }

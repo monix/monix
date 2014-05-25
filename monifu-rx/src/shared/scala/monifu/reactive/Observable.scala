@@ -46,7 +46,7 @@ trait Observable[+T] { self =>
   /**
    * Helper to be used by consumers for subscribing to an observable.
    */
-  final def subscribe(nextFn: T => Future[Ack], errorFn: Throwable => Future[Ack.Done], completedFn: () => Future[Ack.Done]): Unit =
+  final def subscribe(nextFn: T => Future[Ack], errorFn: Throwable => Unit, completedFn: () => Unit): Unit =
     subscribe(new Observer[T] {
       def onNext(elem: T) = nextFn(elem)
       def onError(ex: Throwable) = errorFn(ex)
@@ -56,7 +56,7 @@ trait Observable[+T] { self =>
   /**
    * Helper to be used by consumers for subscribing to an observable.
    */
-  final def subscribe(nextFn: T => Future[Ack], errorFn: Throwable => Future[Ack.Done]): Unit =
+  final def subscribe(nextFn: T => Future[Ack], errorFn: Throwable => Unit): Unit =
     subscribe(nextFn, errorFn, () => Done)
 
   /**
@@ -92,7 +92,7 @@ trait Observable[+T] { self =>
           }
           catch {
             case NonFatal(ex) =>
-              if (streamError) observer.onError(ex) else Future.failed(ex)
+              if (streamError) { observer.onError(ex); Done } else Future.failed(ex)
           }
         }
 
@@ -127,7 +127,7 @@ trait Observable[+T] { self =>
           }
           catch {
             case NonFatal(ex) =>
-              if (streamError) observer.onError(ex) else Future.failed(ex)
+              if (streamError) { observer.onError(ex); Done } else Future.failed(ex)
           }
         }
 
@@ -145,6 +145,7 @@ trait Observable[+T] { self =>
         try { cb(elem); Continue } catch {
           case NonFatal(ex) =>
             onError(ex)
+            Done
         }
 
       def onComplete() = Done
@@ -226,18 +227,10 @@ trait Observable[+T] { self =>
    */
   final def concat[U](implicit ev: T <:< Observable[U]): Observable[U] =
     Observable.create { observerU =>
-      // we need to do ref-counting for triggering `EOF` on our observeU
-      // when all the children threads have ended
-      val finalCompletedPromise = Promise[Done]()
-      val refCounter = RefCountCancelable {
-        finalCompletedPromise.completeWith(observerU.onComplete())
-      }
-
       subscribeFn(new Observer[T] {
         def onNext(childObservable: T) = {
           val upstreamPromise = Promise[Ack]()
 
-          val refID = refCounter.acquire()
           childObservable.subscribeFn(new Observer[U] {
             def onNext(elem: U) =
               observerU.onNext(elem)
@@ -245,18 +238,14 @@ trait Observable[+T] { self =>
             def onError(ex: Throwable) = {
               // error happened, so signaling both the main thread that it should stop
               // and the downstream consumer of the error
-              val f = observerU.onError(ex)
-              f.unsafeOnComplete { case result => upstreamPromise.complete(result) }
-              f
+              observerU.onError(ex)
+              upstreamPromise.success(Done)
             }
 
-            def onComplete() = Future {
+            def onComplete() = {
               // NOTE: we aren't sending this onComplete signal downstream to our observerU
-              // instead this will eventually send the EOF downstream (reference counting FTW)
-              refID.cancel()
-              // end of child observable, so signal main thread that it should continue
+              // instead we are just instructing upstream to send the next observable
               upstreamPromise.success(Continue)
-              Done
             }
           })
 
@@ -269,9 +258,8 @@ trait Observable[+T] { self =>
         }
 
         def onComplete() = {
-          // initiating the `observeU(EOF)` process by counting down on the remaining children
-          refCounter.cancel()
-          finalCompletedPromise.future
+          // at this point all children observables have ended
+          observerU.onComplete()
         }
       })
     }
@@ -321,7 +309,6 @@ trait Observable[+T] { self =>
             def onComplete() = {
               // do resource release, otherwise we can end up with a memory leak
               refID.cancel()
-              Done
             }
           })
 
@@ -337,7 +324,6 @@ trait Observable[+T] { self =>
           // until all children have been onComplete too - only after that `subscriber.onComplete` gets triggered
           // (see `RefCountCancelable` for details on how it works)
           refCounter.cancel()
-          Done
         }
       })
     }
@@ -349,10 +335,10 @@ trait Observable[+T] { self =>
    *  @param  n  the number of elements to take
    *  @return    a new Observable that emits only the first ''n'' elements from the source
    */
-  final def take(n: Long): Observable[T] =
+  final def take(n: Int): Observable[T] =
     Observable.create { observer =>
       subscribeFn(new Observer[T] {
-        private[this] var counter = 0L
+        private[this] var counter = 0
 
         def onNext(elem: T) = {
           // short-circuit for not endlessly incrementing that number
@@ -363,18 +349,15 @@ trait Observable[+T] { self =>
               // this is not the last event in the stream, so send it directly
               observer.onNext(elem)
             }
-            else if (counter == n) {
+            else  {
               // last event in the stream, so we need to send the event followed by an EOF downstream
               // after which we signal upstream to the producer that it should stop
               observer.onNext(elem).unsafeFlatMap {
-                case Continue => observer.onComplete()
                 case Done => Done
+                case Continue =>
+                  observer.onComplete()
+                  Done
               }
-            }
-            else {
-              // we already emitted the maximum number of events, so signal upstream
-              // to the producer that it should stop sending events
-              Done
             }
           }
           else {
@@ -392,6 +375,35 @@ trait Observable[+T] { self =>
       })
     }
 
+  final def takeRight(n: Int): Observable[T] =
+    Observable.create { observer =>
+      subscribe(new Observer[T] {
+        private[this] val queue = mutable.Queue.empty[T]
+        private[this] var queued = 0
+
+        def onNext(elem: T): Future[Ack] = {
+          if (queued < n) {
+            queue.enqueue(elem)
+            queued += 1
+          }
+          else {
+            queue.enqueue(elem)
+            queue.dequeue()
+          }
+          Continue
+        }
+
+        def onError(ex: Throwable): Unit = {
+          queue.clear()
+          observer.onError(ex)
+        }
+
+        def onComplete(): Unit = {
+          Observable.fromIterable(queue).subscribeFn(observer)
+        }
+      })
+    }
+
   /**
    * Drops the first ''n'' elements (from the start).
    *
@@ -399,11 +411,11 @@ trait Observable[+T] { self =>
    *  @return    a new Observable that drops the first ''n'' elements
    *             emitted by the source
    */
-  final def drop(n: Long): Observable[T] =
+  final def drop(n: Int): Observable[T] =
     Observable.create { observer =>
-      var count = 0L
-
       subscribeFn(new Observer[T] {
+        private[this] var count = 0L
+
         def onNext(elem: T) = {
           if (count < n) {
             count += 1
@@ -443,11 +455,12 @@ trait Observable[+T] { self =>
               else {
                 shouldContinue = false
                 observer.onComplete()
+                Done
               }
             }
             catch {
               case NonFatal(ex) =>
-                if (streamError) observer.onError(ex) else Future.failed(ex)
+                if (streamError) { observer.onError(ex); Done } else Future.failed(ex)
             }
           }
           else
@@ -485,11 +498,12 @@ trait Observable[+T] { self =>
               else {
                 shouldContinue = false
                 observer.onComplete()
+                Done
               }
             }
             catch {
               case NonFatal(ex) =>
-                if (streamError) observer.onError(ex) else Future.failed(ex)
+                if (streamError) { observer.onError(ex); Done } else Future.failed(ex)
             }
           }
           else
@@ -531,7 +545,7 @@ trait Observable[+T] { self =>
             }
             catch {
               case NonFatal(ex) =>
-                if (streamError) onError(ex) else Future.failed(ex)
+                if (streamError) { observer.onError(ex); Done } else Future.failed(ex)
             }
           }
           else
@@ -564,14 +578,15 @@ trait Observable[+T] { self =>
             Continue
           }
           catch {
-            case NonFatal(ex) => onError(ex)
+            case NonFatal(ex) =>
+              onError(ex)
+              Done
           }
         }
 
         def onComplete() =
-          observer.onNext(state).unsafeFlatMap {
+          observer.onNext(state).unsafeOnSuccess {
             case Continue => observer.onComplete()
-            case Done => Done
           }
 
         def onError(ex: Throwable) =
@@ -609,14 +624,14 @@ trait Observable[+T] { self =>
           catch {
             case NonFatal(ex) =>
               onError(ex)
+              Done
           }
         }
 
         def onComplete() =
           if (wasApplied)
-            observer.onNext(state).unsafeFlatMap {
+            observer.onNext(state).unsafeOnSuccess {
               case Continue => observer.onComplete()
-              case Done => Done
             }
           else
             observer.onComplete()
@@ -651,7 +666,7 @@ trait Observable[+T] { self =>
           }
           catch {
             case NonFatal(ex) =>
-              if (streamError) onError(ex) else Future.failed(ex)
+              if (streamError) { observer.onError(ex); Done } else Future.failed(ex)
           }
         }
 
@@ -695,7 +710,7 @@ trait Observable[+T] { self =>
           }
           catch {
             case NonFatal(ex) =>
-              if (streamError) onError(ex) else Future.failed(ex)
+              if (streamError) { observer.onError(ex); Done } else Future.failed(ex)
           }
         }
 
@@ -735,34 +750,8 @@ trait Observable[+T] { self =>
           }
           catch {
             case NonFatal(ex) =>
-              if (streamError) observer.onError(ex) else Future.failed(ex)
+              if (streamError) { observer.onError(ex); Done } else Future.failed(ex)
           }
-        }
-      })
-    }
-
-  final def doOnTerminated(cb: => Unit): Observable[T] =
-    Observable.create { observer =>
-      subscribeFn(new Observer[T] {
-        def onNext(elem: T) = {
-          val result = observer.onNext(elem)
-          result.unsafeOnSuccess {
-            case Done => cb
-            case _ => // nothing
-          }
-          result
-        }
-
-        def onError(ex: Throwable): Future[Done] = {
-          val result = observer.onError(ex)
-          result.unsafeOnSuccess { case _ => cb }
-          result
-        }
-
-        def onComplete(): Future[Done] = {
-          val result = observer.onComplete()
-          result.onSuccess { case _ => cb }
-          result
         }
       })
     }
@@ -790,7 +779,7 @@ trait Observable[+T] { self =>
           }
           catch {
             case NonFatal(ex) =>
-              if (streamError) onError(ex) else Future.failed(ex)
+              if (streamError) { observer.onError(ex); Done } else Future.failed(ex)
           }
         }
       })
@@ -824,6 +813,39 @@ trait Observable[+T] { self =>
    */
   final def forAll(p: T => Boolean): Observable[Boolean] =
     exists(e => !p(e)).map(r => !r)
+
+  /**
+   * Returns an Observable that doesn't emit anything, but that completes when the source Observable completes.
+   */
+  final def complete: Observable[Nothing] =
+    Observable.create { observer =>
+      subscribeFn(new Observer[T] {
+        def onNext(elem: T) = Continue
+        def onError(ex: Throwable): Unit =
+          observer.onError(ex)
+        def onComplete(): Unit =
+          observer.onComplete()
+      })
+    }
+
+  /**
+   * Returns an Observable that emits a single Throwable, in case an error was thrown by the source Observable,
+   * otherwise it isn't going to emit anything.
+   */
+  final def error: Observable[Throwable] =
+    Observable.create { observer =>
+      subscribeFn(new Observer[T] {
+        def onNext(elem: T) = Continue
+        def onComplete(): Unit =
+          observer.onComplete()
+
+        def onError(ex: Throwable): Unit = {
+          observer.onNext(ex).unsafeOnSuccess {
+            case Continue => observer.onComplete()
+          }
+        }
+      })
+    }
 
   /**
    * Returns the first generated result as a Future and then cancels
@@ -869,6 +891,11 @@ trait Observable[+T] { self =>
   final def tail: Observable[T] = drop(1)
 
   /**
+   * Only emits the last element emitted by the source observable, after which it's completed immediately.
+   */
+  final def last: Observable[T] = takeRight(1)
+
+  /**
    * Emits the first element emitted by the source, or otherwise if the source is completed without
    * emitting anything, then the `default` is emitted.
    */
@@ -894,12 +921,10 @@ trait Observable[+T] { self =>
    */
   final def zip[U](other: Observable[U]): Observable[(T, U)] =
     Observable.create { observerOfPairs =>
+      // using mutability, receiving data from 2 producers, so must synchronize
       val lock = new AnyRef
-
       val queueA = mutable.Queue.empty[(Promise[U], Promise[Ack])]
       val queueB = mutable.Queue.empty[(U, Promise[Ack])]
-
-      val completedPromise = Promise[Done]()
       var isCompleted = false
 
       def _onError(ex: Throwable) = lock.synchronized {
@@ -941,10 +966,8 @@ trait Observable[+T] { self =>
             isCompleted = true
             queueA.clear()
             queueB.clear()
-            completedPromise.completeWith(observerOfPairs.onComplete())
+            observerOfPairs.onComplete()
           }
-
-          completedPromise.future
         }
       })
 
@@ -970,10 +993,8 @@ trait Observable[+T] { self =>
             isCompleted = true
             queueA.clear()
             queueB.clear()
-            completedPromise.completeWith(observerOfPairs.onComplete())
+            observerOfPairs.onComplete()
           }
-
-          completedPromise.future
         }
       })
     }
@@ -990,27 +1011,25 @@ trait Observable[+T] { self =>
           val p = Promise[Ack]()
           scheduler.execute(new Runnable {
             def run(): Unit =
-              p.completeWith(observer.onNext(elem))
+              observer.onNext(elem).unsafeOnComplete {
+                case r => p.complete(r)
+              }
           })
           p.future
         }
 
-        def onError(ex: Throwable): Future[Done] = {
-          val p = Promise[Done]()
+        def onError(ex: Throwable): Unit = {
           scheduler.execute(new Runnable {
             def run(): Unit =
-              p.completeWith(observer.onError(ex))
+              observer.onError(ex)
           })
-          p.future
         }
 
-        def onComplete(): Future[Done] = {
-          val p = Promise[Done]()
+        def onComplete(): Unit = {
           scheduler.execute(new Runnable {
             def run(): Unit =
-              p.completeWith(observer.onComplete())
+              observer.onComplete()
           })
-          p.future
         }
       })
     }
@@ -1038,16 +1057,14 @@ trait Observable[+T] { self =>
         def onNext(elem: T): Future[Ack] =
           observer.onNext(OnNext(elem))
 
-        def onError(ex: Throwable): Future[Done] =
-          observer.onNext(OnError(ex)).unsafeFlatMap {
+        def onError(ex: Throwable): Unit =
+          observer.onNext(OnError(ex)).unsafeOnSuccess {
             case Continue => observer.onComplete()
-            case Done => Done
           }
 
-        def onComplete(): Future[Done] =
-          observer.onNext(OnComplete).unsafeFlatMap {
+        def onComplete(): Unit =
+          observer.onNext(OnComplete).unsafeOnSuccess {
             case Continue => observer.onComplete()
-            case Done => Done
           }
       })
     }
@@ -1066,13 +1083,13 @@ trait Observable[+T] { self =>
           observer.onNext(elem)
         }
 
-        def onError(ex: Throwable): Future[Done] = {
+        def onError(ex: Throwable) = {
           println(s"$pos: $prefix-->$ex")
           pos += 1
           observer.onError(ex)
         }
 
-        def onComplete(): Future[Done] = {
+        def onComplete() = {
           println(s"$pos: $prefix completed")
           pos += 1
           observer.onComplete()
@@ -1419,7 +1436,10 @@ object Observable {
   def concat[T](sources: Observable[T]*)(implicit scheduler: Scheduler): Observable[T] =
     Observable.fromSequence(sources).concat
 
-  implicit def FutureIsAsyncObservable[T](future: Future[T])(implicit scheduler: Scheduler): Observable[T] =
+  /**
+   * Implicit conversion from Future to Observable.
+   */
+  implicit def FutureIsObservable[T](future: Future[T])(implicit scheduler: Scheduler): Observable[T] =
     Observable.create { o =>
       val observer = SafeObserver(o)
 
