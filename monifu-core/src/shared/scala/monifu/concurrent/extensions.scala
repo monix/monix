@@ -1,7 +1,6 @@
 package monifu.concurrent
 
 import language.experimental.macros
-import scala.reflect.macros.Context
 import scala.util.{Failure, Success, Try}
 import scala.concurrent.{ExecutionContext, Promise, Future}
 import scala.concurrent.duration._
