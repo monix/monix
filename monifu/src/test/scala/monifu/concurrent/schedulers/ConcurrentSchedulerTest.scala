@@ -4,7 +4,7 @@ import org.scalatest.FunSuite
 import scala.concurrent.{Await, Promise, ExecutionContext}
 import concurrent.duration._
 import java.util.concurrent.TimeoutException
-import monifu.concurrent.cancelables.SingleAssignmentCancelable
+import monifu.reactive.cancelables.SingleAssignmentCancelable
 import monifu.concurrent.atomic.Atomic
 
 class ConcurrentSchedulerTest extends FunSuite {

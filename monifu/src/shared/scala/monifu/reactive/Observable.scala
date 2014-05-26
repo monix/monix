@@ -6,7 +6,7 @@ import scala.concurrent.{Promise, Future}
 import monifu.reactive.api._
 import Ack.{Done, Continue}
 import monifu.concurrent.atomic.Atomic
-import monifu.concurrent.cancelables._
+import monifu.reactive.cancelables._
 import scala.concurrent.duration.FiniteDuration
 import scala.util.control.NonFatal
 import scala.collection.mutable
