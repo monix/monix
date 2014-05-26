@@ -1,4 +1,4 @@
-package monifu.concurrent.cancelables
+package monifu.reactive.cancelables
 
 import org.scalatest.FunSuite
 import monifu.concurrent.Cancelable
