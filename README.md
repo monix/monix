@@ -1,4 +1,4 @@
-<img src="docs/assets/monifu.png" align="right" />
+<img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/monifu.png" align="right" />
 
 Extensions to Scala's standard library for multi-threading primitives and functional reactive programming. Targets both the JVM and [Scala.js](http://www.scala-js.org/).
 
