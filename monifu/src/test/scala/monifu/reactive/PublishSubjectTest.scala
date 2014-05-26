@@ -8,7 +8,6 @@ import concurrent.duration._
 import monifu.concurrent.atomic.padded.Atomic
 import java.util.concurrent.{TimeUnit, CountDownLatch}
 import monifu.reactive.api.Ack.{Done, Continue}
-import monifu.reactive.api.Ack
 
 
 class PublishSubjectTest extends FunSpec {
@@ -18,15 +17,17 @@ class PublishSubjectTest extends FunSpec {
       val result2 = Atomic(0)
 
       val subject = PublishSubject[Int]()
+      val latch = new CountDownLatch(2)
 
       subject.filter(x => x % 2 == 0).flatMap(x => Observable.fromSequence(x to x + 1))
-        .foldLeft(0)(_ + _).foreach(x => result1.set(x))
+        .foldLeft(0)(_ + _).foreach { x => result1.set(x); latch.countDown() }
       for (i <- 0 until 100) subject.onNext(i)
       subject.filter(x => x % 2 == 0).flatMap(x => Observable.fromSequence(x to x + 1))
-        .foldLeft(0)(_ + _).foreach(x => result2.set(x))
+        .foldLeft(0)(_ + _).foreach { x => result2.set(x); ; latch.countDown() }
       for (i <- 100 until 10000) subject.onNext(i)
 
-      Await.result(subject.onComplete(), 3.seconds)
+      subject.onComplete()
+      assert(latch.await(3, TimeUnit.SECONDS), "latch.await should have succeeded")
 
       assert(result1.get === (0 until 10000).filter(_ % 2 == 0).flatMap(x => x to (x + 1)).sum)
       assert(result2.get === (100 until 10000).filter(_ % 2 == 0).flatMap(x => x to (x + 1)).sum)
@@ -37,13 +38,15 @@ class PublishSubjectTest extends FunSpec {
       val result2 = Atomic(0)
 
       val subject = PublishSubject[Int]()
+      val latch = new CountDownLatch(2)
 
-      subject.filter(_ % 2 == 0).map(_ + 1).foreach(x => result1.increment(x))
+      subject.filter(_ % 2 == 0).map(_ + 1).doOnComplete(latch.countDown()).foreach(x => result1.increment(x))
       for (i <- 0 until 20) subject.onNext(i)
-      subject.filter(_ % 2 == 0).map(_ + 1).foreach(x => result2.increment(x))
+      subject.filter(_ % 2 == 0).map(_ + 1).doOnComplete(latch.countDown()).foreach(x => result2.increment(x))
       for (i <- 20 until 10000) subject.onNext(i)
 
-      Await.result(subject.onComplete(), 3.seconds)
+      subject.onComplete()
+      assert(latch.await(3, TimeUnit.SECONDS), "latch.await should have succeeded")
       assert(result1.get === (0 until 10000).filter(_ % 2 == 0).map(_ + 1).sum)
       assert(result2.get === (20 until 10000).filter(_ % 2 == 0).map(_ + 1).sum)
     }
@@ -68,7 +71,7 @@ class PublishSubjectTest extends FunSpec {
       assert(result1.get != null && result1.get.getMessage == "dummy")
       assert(result2.get != null && result2.get.getMessage == "dummy")
 
-      @volatile var wasCompleted = false
+      var wasCompleted = false
       subject.subscribe(_ => Continue, _ => Done, () => { wasCompleted = true; Done })
       assert(wasCompleted === true)
     }
@@ -78,18 +81,21 @@ class PublishSubjectTest extends FunSpec {
       val result2 = Atomic(null : Throwable)
 
       val subject = PublishSubject[Int]()
+      val latch = new CountDownLatch(2)
 
       subject.observeOn(global).subscribe(
         elem => Continue,
-        ex => { result1.set(ex); Done }
+        ex => { result1.set(ex); latch.countDown() }
       )
       subject.observeOn(global).subscribe(
         elem => Continue,
-        ex => { result2.set(ex); Done }
+        ex => { result2.set(ex); latch.countDown() }
       )
 
       subject.onNext(1)
-      Await.result(subject.onError(new RuntimeException("dummy")), 1.second)
+      subject.onError(new RuntimeException("dummy"))
+
+      assert(latch.await(3, TimeUnit.SECONDS), "latch.await should have succeeded")
 
       assert(result1.get != null && result1.get.getMessage == "dummy")
       assert(result2.get != null && result2.get.getMessage == "dummy")
@@ -121,7 +127,7 @@ class PublishSubjectTest extends FunSpec {
       assert(result1.get === 1)
       assert(result2.get === 2)
 
-      @volatile var wasCompleted = false
+      var wasCompleted = false
       subject.subscribe(_ => Continue, _ => Done, () => { wasCompleted = true; Done })
       assert(wasCompleted === true)
     }
@@ -131,20 +137,23 @@ class PublishSubjectTest extends FunSpec {
       val result2 = Atomic(0)
 
       val subject = PublishSubject[Int]()
+      val latch = new CountDownLatch(2)
 
       subject.observeOn(global).subscribe(
         elem => Continue,
         ex => Done,
-        () => { result1.set(1); Done }
+        () => { result1.set(1); latch.countDown() }
       )
       subject.observeOn(global).subscribe(
         elem => Continue,
         ex => Done,
-        () => { result2.set(2); Done }
+        () => { result2.set(2); latch.countDown() }
       )
 
       subject.onNext(1)
-      Await.result(subject.onComplete(), 1.second)
+      subject.onComplete()
+
+      assert(latch.await(3, TimeUnit.SECONDS), "latch.await should have succeeded")
 
       assert(result1.get === 1)
       assert(result2.get === 2)
@@ -192,7 +201,9 @@ class PublishSubjectTest extends FunSpec {
       subject.onNext(5)
       subject.onNext(10)
       subject.onNext(1)
-      Await.result(subject.onComplete(), 3.seconds)
+      subject.onComplete()
+
+      Await.result(subject.complete.asFuture, 3.seconds)
 
       assert(errors.get === 1)
       assert(received.get === 2 * 1 + 2 * 2 + 5 + 10 + 1)
@@ -222,7 +233,9 @@ class PublishSubjectTest extends FunSpec {
 
       subject.onNext(10)
       subject.onNext(1)
-      Await.result(subject.onComplete(), 3.seconds)
+      subject.onComplete()
+
+      Await.result(subject.complete.asFuture, 3.seconds)
 
       assert(completed.get === 2)
       assert(received.get === 2 * 1 + 2 * 2 + 5 + 10 + 1)

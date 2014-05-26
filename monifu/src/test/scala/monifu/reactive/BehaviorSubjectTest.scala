@@ -17,15 +17,17 @@ class BehaviorSubjectTest extends FunSpec {
       val result2 = Atomic(0)
 
       val subject = BehaviorSubject[Int](10)
+      val latch = new CountDownLatch(2)
 
       subject.filter(x => x % 2 == 0).flatMap(x => Observable.fromSequence(x to x + 1))
-        .foldLeft(0)(_ + _).foreach(x => result1.set(x))
+        .foldLeft(0)(_ + _).doOnComplete(latch.countDown()).foreach(x => result1.set(x))
       for (i <- 0 until 100) subject.onNext(i)
       subject.filter(x => x % 2 == 0).flatMap(x => Observable.fromSequence(x to x + 1))
-        .foldLeft(0)(_ + _).foreach(x => result2.set(x))
+        .foldLeft(0)(_ + _).doOnComplete(latch.countDown()).foreach(x => result2.set(x))
       for (i <- 100 until 10000) subject.onNext(i)
 
-      Await.result(subject.onComplete(), 3.seconds)
+      subject.onComplete()
+      assert(latch.await(3, TimeUnit.SECONDS), "latch.await should have succeeded")
 
       assert(result1.get === 21 + (0 until 10000).filter(_ % 2 == 0).flatMap(x => x to (x + 1)).sum)
       assert(result2.get === (100 until 10000).filter(_ % 2 == 0).flatMap(x => x to (x + 1)).sum)
@@ -36,13 +38,16 @@ class BehaviorSubjectTest extends FunSpec {
       val result2 = Atomic(0)
 
       val subject = BehaviorSubject[Int](10)
+      val latch = new CountDownLatch(2)
 
-      subject.filter(_ % 2 == 0).map(_ + 1).foreach(x => result1.increment(x))
+      subject.filter(_ % 2 == 0).map(_ + 1).doOnComplete(latch.countDown()).foreach(x => result1.increment(x))
       for (i <- 0 until 20) subject.onNext(i)
-      subject.filter(_ % 2 == 0).map(_ + 1).foreach(x => result2.increment(x))
+      subject.filter(_ % 2 == 0).map(_ + 1).doOnComplete(latch.countDown()).foreach(x => result2.increment(x))
       for (i <- 20 until 10000) subject.onNext(i)
 
-      Await.result(subject.onComplete(), 3.seconds)
+      subject.onComplete()
+      assert(latch.await(3, TimeUnit.SECONDS), "latch.await should have succeeded")
+
       assert(result1.get === 11 + (0 until 10000).filter(_ % 2 == 0).map(_ + 1).sum)
       assert(result2.get === (20 until 10000).filter(_ % 2 == 0).map(_ + 1).sum)
     }
@@ -67,8 +72,8 @@ class BehaviorSubjectTest extends FunSpec {
       assert(result1.get != null && result1.get.getMessage == "dummy")
       assert(result2.get != null && result2.get.getMessage == "dummy")
 
-      @volatile var wasCompleted = false
-      subject.subscribe(_ => Continue, _ => {wasCompleted = true; Done}, () => Done)
+      var wasCompleted = false
+      subject.subscribe(_ => Continue, _ => { wasCompleted = true }, () => ())
       assert(wasCompleted === true)
     }
 
@@ -77,18 +82,21 @@ class BehaviorSubjectTest extends FunSpec {
       val result2 = Atomic(null : Throwable)
 
       val subject = BehaviorSubject[Int](10)
+      val latch = new CountDownLatch(2)
 
       subject.observeOn(global).subscribe(
         elem => Continue,
-        ex => { result1.set(ex); Done }
+        ex => { result1.set(ex); latch.countDown() }
       )
       subject.observeOn(global).subscribe(
         elem => Continue,
-        ex => { result2.set(ex); Done }
+        ex => { result2.set(ex); latch.countDown() }
       )
 
       subject.onNext(1)
-      Await.result(subject.onError(new RuntimeException("dummy")), 1.second)
+      subject.onError(new RuntimeException("dummy"))
+
+      assert(latch.await(3, TimeUnit.SECONDS), "latch.await should have succeeded")
 
       assert(result1.get != null && result1.get.getMessage == "dummy")
       assert(result2.get != null && result2.get.getMessage == "dummy")
@@ -120,7 +128,7 @@ class BehaviorSubjectTest extends FunSpec {
       assert(result1.get === 1)
       assert(result2.get === 2)
 
-      @volatile var wasCompleted = false
+      var wasCompleted = false
       subject.subscribe(_ => Continue, _ => Done, () => { wasCompleted = true; Done })
       assert(wasCompleted === true)
     }
@@ -130,25 +138,28 @@ class BehaviorSubjectTest extends FunSpec {
       val result2 = Atomic(0)
 
       val subject = BehaviorSubject[Int](10)
+      val latch = new CountDownLatch(2)
 
       subject.observeOn(global).subscribe(
         elem => Continue,
         ex => Done,
-        () => { result1.set(1); Done }
+        () => { result1.set(1); latch.countDown() }
       )
       subject.observeOn(global).subscribe(
         elem => Continue,
         ex => Done,
-        () => { result2.set(2); Done }
+        () => { result2.set(2); latch.countDown() }
       )
 
       subject.onNext(1)
-      Await.result(subject.onComplete(), 1.second)
+      subject.onComplete()
+
+      assert(latch.await(3, TimeUnit.SECONDS), "latch.await should have succeeded")
 
       assert(result1.get === 1)
       assert(result2.get === 2)
 
-      @volatile var wasCompleted = false
+      var wasCompleted = false
       subject.subscribe(_ => Continue, _ => Done, () => { wasCompleted = true; Done })
       assert(wasCompleted === true)
     }
@@ -191,7 +202,9 @@ class BehaviorSubjectTest extends FunSpec {
       subject.onNext(5)
       subject.onNext(10)
       subject.onNext(1)
-      Await.result(subject.onComplete(), 3.seconds)
+      subject.onComplete()
+
+      Await.result(subject.complete.asFuture, 3.seconds)
 
       assert(errors.get === 1)
       assert(received.get === 4 * 1 + 2 * 2 + 5 + 10 + 1)
@@ -221,7 +234,9 @@ class BehaviorSubjectTest extends FunSpec {
 
       subject.onNext(10)
       subject.onNext(1)
-      Await.result(subject.onComplete(), 3.seconds)
+      subject.onComplete()
+
+      Await.result(subject.complete.asFuture, 3.seconds)
 
       assert(completed.get === 2)
       assert(received.get === 4 * 1 + 2 * 2 + 5 + 10 + 1)
@@ -303,10 +318,12 @@ class BehaviorSubjectTest extends FunSpec {
 
       val onNextReceived = Atomic(0)
       val onErrorReceived = Atomic(0)
+      val latch = new CountDownLatch(3)
 
       subject.subscribeOn(global).observeOn(global).subscribe(new Observer[Int] {
         def onError(ex: Throwable) = Future {
           onErrorReceived.increment()
+          latch.countDown()
           Done
         }
 
@@ -324,7 +341,7 @@ class BehaviorSubjectTest extends FunSpec {
       subject.observeOn(global).map(x => x).observeOn(global).subscribe(new Observer[Int] {
         def onError(ex: Throwable) = Future {
           onErrorReceived.increment()
-          Done
+          latch.countDown()
         }
 
         def onComplete() =
@@ -341,7 +358,7 @@ class BehaviorSubjectTest extends FunSpec {
       subject.subscribe(new Observer[Int] {
         def onError(ex: Throwable) = Future {
           onErrorReceived.increment()
-          Done
+          latch.countDown()
         }
 
         def onComplete() =
@@ -358,11 +375,10 @@ class BehaviorSubjectTest extends FunSpec {
       subject.onNext(1)
       subject.onNext(10)
       subject.onNext(11)
+      subject.onNext(12)
 
-      Await.result(subject.onNext(12), 5.seconds)
-
+      assert(latch.await(5, TimeUnit.SECONDS), "latch.await should have succeeded")
       assert(onNextReceived.get === 7)
-      assert(onErrorReceived.get === 3)
     }
   }
 }
