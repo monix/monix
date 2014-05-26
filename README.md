@@ -4,6 +4,58 @@ Extensions to Scala's standard library for multi-threading primitives and functi
 
 [![Build Status](https://travis-ci.org/alexandru/monifu.png?branch=v0.10.1)](https://travis-ci.org/alexandru/monifu)
 
+## Feature Overview
+
+[Atomic References](https://github.com/alexandru/monifu/wiki/Atomic-References)
+
+```scala
+import monifu.concurrent.atomic.Atomic
+
+val queue = Atomic(Queue.empty[String])
+
+queue.transform(queue.enqueue("first item"))
+queue.transform(queue.enqueue("second item"))
+
+queue.transformAndExtract(queue.dequeue)
+//=> "first item"
+
+queue.transformAndExtract(queue.dequeue)
+//=> "second item"
+```
+
+[Schedulers](https://github.com/alexandru/monifu/wiki/Schedulers)
+
+```scala
+import monifu.concurrent.atomic.Atomic
+import monifu.concurrent.Scheduler.{computation => s}
+
+val loop = Atomic(0)
+s.scheduleRecursive(1.second, 5.seconds, { reschedule =>
+	val counted = loop.incrementAndGet
+	if (counted < 10) {
+    println(s"Counted: $counted")
+    reschedule()		
+	}
+})
+```
+
+[Reactive Extensions](https://github.com/alexandru/monifu/wiki/Reactive-Extensions-(Rx))
+
+```scala
+import monifu.concurrent.Scheduler.Implicits.global
+import play.api.libs.ws._
+import monifu.reactive._
+
+// emits an auto-incremented number, every second
+Observable.interval(1.second)
+  .drop(10) // drops the first 10 emitted events
+  .take(100) // takes the first 100 emitted events
+  .flatMap(x => WS.request(s"http://some.endpoint.com/request?tick=$x").get())
+  .filter(response => response.status == 200)
+  .map(response => response.body) // prints response body
+  .foreach(x => println(x)) // foreach element, print
+```
+
 ## Documentation
 
 The available documentation is maintained as a [GitHub's Wiki](https://github.com/alexandru/monifu/wiki).
