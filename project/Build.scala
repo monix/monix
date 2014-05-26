@@ -8,7 +8,7 @@ import scala.scalajs.sbtplugin.ScalaJSPlugin.ScalaJSKeys._
 object Build extends SbtBuild {
   val sharedSettings = Defaults.defaultSettings ++ Seq(
     organization := "org.monifu",
-    version := "0.9.6-SNAPSHOT",
+    version := "0.10.0",
     scalaVersion := "2.10.4",
     crossScalaVersions := Seq("2.10.4", "2.11.1"),
 
