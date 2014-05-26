@@ -51,31 +51,6 @@ class PublishSubjectTest extends FunSpec {
       assert(result2.get === (20 until 10000).filter(_ % 2 == 0).map(_ + 1).sum)
     }
 
-    it("onError should be emitted without asynchronous boundaries") {
-      val result1 = Atomic(null : Throwable)
-      val result2 = Atomic(null : Throwable)
-
-      val subject = PublishSubject[Int]()
-
-      subject.subscribe(
-        elem => Continue,
-        ex => { result1.set(ex); Done }
-      )
-      subject.subscribe(
-        elem => Continue,
-        ex => { result2.set(ex); Done }
-      )
-
-      subject.onError(new RuntimeException("dummy"))
-
-      assert(result1.get != null && result1.get.getMessage == "dummy")
-      assert(result2.get != null && result2.get.getMessage == "dummy")
-
-      var wasCompleted = null : Throwable
-      subject.subscribe(_ => Continue, (err) => { wasCompleted = err; Done }, () => ())
-      assert(wasCompleted != null && wasCompleted.getMessage == "dummy")
-    }
-
     it("onError should be emitted over asynchronous boundaries") {
       val result1 = Atomic(null : Throwable)
       val result2 = Atomic(null : Throwable)
@@ -103,33 +78,6 @@ class PublishSubjectTest extends FunSpec {
       var wasCompleted = null : Throwable
       subject.subscribe(_ => Continue, (err) => { wasCompleted = err; Done }, () => ())
       assert(wasCompleted != null && wasCompleted.getMessage == "dummy")
-    }
-
-    it("onComplete should be emitted without asynchronous boundaries") {
-      val result1 = Atomic(0)
-      val result2 = Atomic(0)
-
-      val subject = PublishSubject[Int]()
-
-      subject.subscribe(
-        elem => Continue,
-        ex => Done,
-        () => { result1.set(1); Done }
-      )
-      subject.subscribe(
-        elem => Continue,
-        ex => Done,
-        () => { result2.set(2); Done }
-      )
-
-      subject.onComplete()
-
-      assert(result1.get === 1)
-      assert(result2.get === 2)
-
-      var wasCompleted = false
-      subject.subscribe(_ => Continue, _ => Done, () => { wasCompleted = true; Done })
-      assert(wasCompleted === true)
     }
 
     it("onComplete should be emitted over asynchronous boundaries") {
@@ -163,35 +111,16 @@ class PublishSubjectTest extends FunSpec {
       assert(wasCompleted === true)
     }
 
-    it("should map synchronously") {
-      var result = 0
-      val subject = PublishSubject[Int]()
-      subject.map(x => x + 1).foreach(x => result = x)
-
-      subject.onNext(1)
-      assert(result === 2)
-      subject.onComplete()
-    }
-
-    it("should filter synchronously") {
-      var result = 0
-      val subject = PublishSubject[Int]()
-      subject.filter(x => x % 2 == 0).foreach(x => result = x)
-
-      subject.onNext(2)
-      subject.onNext(1)
-      assert(result === 2)
-      subject.onComplete()
-    }
-
     it("should remove subscribers that triggered errors") {
       val received = Atomic(0)
       val errors = Atomic(0)
 
       val subject = PublishSubject[Int]()
+      val latch = new CountDownLatch(1)
+
       subject.map(x => if (x < 5) x else throw new RuntimeException()).subscribe(
         (elem) => { received.increment(elem); Continue },
-        (ex) => { errors.increment(); Done }
+        (ex) => { errors.increment(); latch.countDown(); Done }
       )
       subject.map(x => x)
         .foreach(x => received.increment(x))
@@ -204,6 +133,7 @@ class PublishSubjectTest extends FunSpec {
       subject.onComplete()
 
       Await.result(subject.complete.asFuture, 3.seconds)
+      assert(latch.await(3, TimeUnit.SECONDS), "latch.await should have succeeded")
 
       assert(errors.get === 1)
       assert(received.get === 2 * 1 + 2 * 2 + 5 + 10 + 1)
@@ -214,15 +144,17 @@ class PublishSubjectTest extends FunSpec {
       val completed = Atomic(0)
 
       val subject = PublishSubject[Int]()
+      val latch = new CountDownLatch(2)
+
       subject.takeWhile(_ < 5).subscribe(
         (elem) => { received.increment(elem); Continue },
         (ex) => Done,
-        () => { completed.increment(); Done }
+        () => { completed.increment(); latch.countDown(); Done }
       )
       subject.map(x => x).subscribe(
         (elem) => { received.increment(elem); Continue },
         (ex) => Done,
-        () => { completed.increment(); Done }
+        () => { completed.increment(); latch.countDown(); Done }
       )
 
       subject.onNext(1)
@@ -236,6 +168,7 @@ class PublishSubjectTest extends FunSpec {
       subject.onComplete()
 
       Await.result(subject.complete.asFuture, 3.seconds)
+      assert(latch.await(3, TimeUnit.SECONDS), "latch.await should be true")
 
       assert(completed.get === 2)
       assert(received.get === 2 * 1 + 2 * 2 + 5 + 10 + 1)
@@ -305,7 +238,7 @@ class PublishSubjectTest extends FunSpec {
       subject.onNext(1)
       subject.onNext(10)
       subject.onNext(11)
-      subject.onNext(12)
+      Await.result(subject.onNext(12), 3.seconds)
 
       assert(onNextReceived.get === 3)
       assert(onErrorReceived.get === 2)

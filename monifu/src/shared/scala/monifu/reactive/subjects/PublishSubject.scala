@@ -10,7 +10,6 @@ import monifu.concurrent.atomic.Atomic
 import scala.annotation.tailrec
 import scala.collection.immutable.Set
 import scala.util.Success
-import monifu.concurrent.extensions._
 
 
 final class PublishSubject[T] private (s: Scheduler) extends Subject[T,T] { self =>
@@ -62,16 +61,16 @@ final class PublishSubject[T] private (s: Scheduler) extends Subject[T,T] { self
         val oldResponse = lastResponse
         lastResponse = newResponse
 
-        oldResponse.onSuccessNowPlease { case _ =>
+        oldResponse.onComplete { _ =>
           val iterator = observers.iterator
           while (iterator.hasNext) {
             val obs = iterator.next()
 
-            obs.onNext(elem).onCompleteNowPlease {
-              case Success(Done) =>
-                removeSubscription(obs)
+            obs.onNext(elem).onComplete {
+              case Success(Continue) =>
                 newPromise.countdown()
               case _ =>
+                removeSubscription(obs)
                 newPromise.countdown()
             }
           }
@@ -91,13 +90,12 @@ final class PublishSubject[T] private (s: Scheduler) extends Subject[T,T] { self
         if (!state.compareAndSet(current, Complete(ex)))
           onError(ex)
         else
-          lastResponse.onSuccessNowPlease {
-            case _ =>
-              val iterator = observers.iterator
-              while (iterator.hasNext) {
-                val obs = iterator.next()
-                obs.onError(ex)
-              }
+          lastResponse.onComplete { _ =>
+            val iterator = observers.iterator
+            while (iterator.hasNext) {
+              val obs = iterator.next()
+              obs.onError(ex)
+            }
           }
     }
 
@@ -112,12 +110,12 @@ final class PublishSubject[T] private (s: Scheduler) extends Subject[T,T] { self
         if (!state.compareAndSet(current, Complete(null)))
           onComplete()
         else
-          lastResponse.onSuccessNowPlease { case _ =>
-              val iterator = observers.iterator
-              while (iterator.hasNext) {
-                val obs = iterator.next()
-                obs.onComplete()
-              }
+          lastResponse.onComplete { _ =>
+            val iterator = observers.iterator
+            while (iterator.hasNext) {
+              val obs = iterator.next()
+              obs.onComplete()
+            }
           }
     }
 }

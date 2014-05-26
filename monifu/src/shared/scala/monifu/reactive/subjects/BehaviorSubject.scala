@@ -7,7 +7,6 @@ import scala.concurrent.{Promise, Future}
 import monifu.reactive.api.{SafeObserver, Ack}
 import monifu.reactive.api.Ack.{Done, Continue}
 import monifu.concurrent.atomic.padded.Atomic
-import monifu.concurrent.extensions._
 import scala.util.Success
 
 
@@ -42,14 +41,14 @@ final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends S
             if (counter.decrementAndGet() == 0) p.success(Continue)
 
           for ((observer, ack) <- subscribers) {
-            val f = ack.flatMapNowPlease {
+            val f = ack.flatMap {
               case Continue => observer.onNext(elem)
               case Done => Done
             }
 
             subscribers(observer) = f
 
-            f.onCompleteNowPlease {
+            f.onComplete {
               case Success(Continue) =>
                 completeCountdown()
               case _ =>
@@ -73,7 +72,7 @@ final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends S
 
       if (subscribers.nonEmpty) {
         for ((observer, ack) <- subscribers)
-          ack.onSuccessNowPlease {
+          ack.onSuccess {
             case Continue =>
               observer.onError(ex)
           }
@@ -89,7 +88,7 @@ final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends S
 
       if (subscribers.nonEmpty) {
         for ((observer, ack) <- subscribers)
-          ack.onSuccessNowPlease {
+          ack.onSuccess {
             case Continue =>
               observer.onComplete()
           }

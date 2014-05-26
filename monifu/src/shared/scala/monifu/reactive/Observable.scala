@@ -14,7 +14,6 @@ import scala.annotation.tailrec
 import collection.JavaConverters._
 import scala.util.{Failure, Success}
 import monifu.reactive.subjects.{BehaviorSubject, PublishSubject, Subject}
-import monifu.concurrent.extensions._
 import monifu.reactive.api.Notification.{OnComplete, OnNext, OnError}
 import monifu.reactive.internals.AckBuffer
 
@@ -352,7 +351,7 @@ trait Observable[+T] { self =>
             else  {
               // last event in the stream, so we need to send the event followed by an EOF downstream
               // after which we signal upstream to the producer that it should stop
-              observer.onNext(elem).flatMapNowPlease {
+              observer.onNext(elem).flatMap {
                 case Done => Done
                 case Continue =>
                   observer.onComplete()
@@ -585,7 +584,7 @@ trait Observable[+T] { self =>
         }
 
         def onComplete() =
-          observer.onNext(state).onSuccessNowPlease {
+          observer.onNext(state).onSuccess {
             case Continue => observer.onComplete()
           }
 
@@ -630,7 +629,7 @@ trait Observable[+T] { self =>
 
         def onComplete() =
           if (wasApplied)
-            observer.onNext(state).onSuccessNowPlease {
+            observer.onNext(state).onSuccess {
               case Continue => observer.onComplete()
             }
           else
@@ -840,7 +839,7 @@ trait Observable[+T] { self =>
           observer.onComplete()
 
         def onError(ex: Throwable): Unit = {
-          observer.onNext(ex).onSuccessNowPlease {
+          observer.onNext(ex).onSuccess {
             case Continue => observer.onComplete()
           }
         }
@@ -1007,29 +1006,35 @@ trait Observable[+T] { self =>
 
     Observable.create { observer =>
       subscribeFn(new Observer[T] {
+        private[this] var lastResponse = Continue : Future[Ack]
+
         def onNext(elem: T): Future[Ack] = {
-          val p = Promise[Ack]()
-          scheduler.execute(new Runnable {
-            def run(): Unit =
-              observer.onNext(elem).onCompleteNowPlease {
-                case r => p.complete(r)
-              }
-          })
-          p.future
+          val newResponse = lastResponse.flatMap {
+            case Done => Done
+            case Continue =>
+              observer.onNext(elem)
+          }
+
+          lastResponse = newResponse
+          newResponse
         }
 
         def onError(ex: Throwable): Unit = {
-          scheduler.execute(new Runnable {
-            def run(): Unit =
+          lastResponse = lastResponse.flatMap {
+            case Done => Done
+            case Continue =>
               observer.onError(ex)
-          })
+              Done
+          }
         }
 
         def onComplete(): Unit = {
-          scheduler.execute(new Runnable {
-            def run(): Unit =
+          lastResponse = lastResponse.flatMap {
+            case Done => Done
+            case Continue =>
               observer.onComplete()
-          })
+              Done
+          }
         }
       })
     }
@@ -1058,12 +1063,12 @@ trait Observable[+T] { self =>
           observer.onNext(OnNext(elem))
 
         def onError(ex: Throwable): Unit =
-          observer.onNext(OnError(ex)).onSuccessNowPlease {
+          observer.onNext(OnError(ex)).onSuccess {
             case Continue => observer.onComplete()
           }
 
         def onComplete(): Unit =
-          observer.onNext(OnComplete).onSuccessNowPlease {
+          observer.onNext(OnComplete).onSuccess {
             case Continue => observer.onComplete()
           }
       })
@@ -1223,7 +1228,7 @@ object Observable {
   def unit[A](elem: A)(implicit scheduler: Scheduler): Observable[A] = {
     Observable.create { o =>
       val observer = SafeObserver(o)
-      observer.onNext(elem).onSuccessNowPlease {
+      observer.onNext(elem).onSuccess {
         case Continue =>
           observer.onComplete()
       }
@@ -1267,7 +1272,7 @@ object Observable {
         val result = observer.onNext(counter)
         counter += 1
 
-        result.onSuccessNowPlease {
+        result.onSuccess {
           case Continue =>
             reschedule()
         }
@@ -1285,7 +1290,7 @@ object Observable {
       def loop(elem: T): Unit =
         scheduler.execute(new Runnable {
           def run(): Unit =
-            observer.onNext(elem).onSuccessNowPlease {
+            observer.onNext(elem).onSuccess {
               case Continue =>
                 loop(elem)
             }
@@ -1320,7 +1325,7 @@ object Observable {
                 case Done =>
                   // do nothing else
                 case async =>
-                  async.onSuccessNowPlease {
+                  async.onSuccess {
                     case Continue =>
                       scheduleLoop(from + step, until, step)
                   }
@@ -1361,7 +1366,7 @@ object Observable {
                 case Done =>
                 // do nothing else
                 case async =>
-                  async.onSuccessNowPlease {
+                  async.onSuccess {
                     case Continue =>
                       startFeedLoop(tail)
                   }
@@ -1414,7 +1419,7 @@ object Observable {
                     case Done =>
                       return
                     case async =>
-                      async.onSuccessNowPlease {
+                      async.onSuccess {
                         case Continue =>
                           startFeedLoop(iterator)
                       }
@@ -1486,9 +1491,9 @@ object Observable {
     Observable.create { o =>
       val observer = SafeObserver(o)
 
-      future.onCompleteNowPlease {
+      future.onComplete {
         case Success(value) =>
-          observer.onNext(value).onSuccessNowPlease {
+          observer.onNext(value).onSuccess {
             case Continue =>
               observer.onComplete()
           }
