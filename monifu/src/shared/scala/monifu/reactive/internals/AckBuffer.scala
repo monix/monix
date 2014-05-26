@@ -32,20 +32,11 @@ private[reactive] final class AckBuffer {
     promise.future
   }
 
-  def scheduleDone(f: => Future[Done])(implicit ec: ExecutionContext): Future[Done] = {
-    val promise = Promise[Done]()
-    val oldResponse = lastResponse.getAndSet(promise.future)
-    oldResponse.unsafeOnComplete {
-      case Failure(ex) => promise.failure(ex)
-      case Success(Done) => promise.success(Done)
-      case Success(Continue) =>
-        f match {
-          case Done =>
-            promise.success(Done)
-          case other =>
-            promise.completeWith(other)
-        }
+  def scheduleDone(cb: => Unit)(implicit ec: ExecutionContext): Done = {
+    val oldResponse = lastResponse.getAndSet(Done)
+    oldResponse.unsafeOnSuccess {
+      case Continue => cb
     }
-    promise.future
+    Done
   }
 }
