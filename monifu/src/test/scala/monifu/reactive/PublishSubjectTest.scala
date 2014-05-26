@@ -19,11 +19,11 @@ class PublishSubjectTest extends FunSpec {
       val subject = PublishSubject[Int]()
       val latch = new CountDownLatch(2)
 
-      subject.filter(x => x % 2 == 0).flatMap(x => Observable.fromSequence(x to x + 1))
+      subject.observeOn(global).filter(x => x % 2 == 0).flatMap(x => Observable.fromSequence(x to x + 1))
         .foldLeft(0)(_ + _).foreach { x => result1.set(x); latch.countDown() }
       for (i <- 0 until 100) subject.onNext(i)
-      subject.filter(x => x % 2 == 0).flatMap(x => Observable.fromSequence(x to x + 1))
-        .foldLeft(0)(_ + _).foreach { x => result2.set(x); ; latch.countDown() }
+      subject.observeOn(global).filter(x => x % 2 == 0).flatMap(x => Observable.fromSequence(x to x + 1))
+        .foldLeft(0)(_ + _).foreach { x => result2.set(x); latch.countDown() }
       for (i <- 100 until 10000) subject.onNext(i)
 
       subject.onComplete()
@@ -71,9 +71,9 @@ class PublishSubjectTest extends FunSpec {
       assert(result1.get != null && result1.get.getMessage == "dummy")
       assert(result2.get != null && result2.get.getMessage == "dummy")
 
-      var wasCompleted = false
-      subject.subscribe(_ => Continue, _ => Done, () => { wasCompleted = true; Done })
-      assert(wasCompleted === true)
+      var wasCompleted = null : Throwable
+      subject.subscribe(_ => Continue, (err) => { wasCompleted = err; Done }, () => ())
+      assert(wasCompleted != null && wasCompleted.getMessage == "dummy")
     }
 
     it("onError should be emitted over asynchronous boundaries") {
@@ -100,9 +100,9 @@ class PublishSubjectTest extends FunSpec {
       assert(result1.get != null && result1.get.getMessage == "dummy")
       assert(result2.get != null && result2.get.getMessage == "dummy")
 
-      @volatile var wasCompleted = false
-      subject.subscribe(_ => Continue, _ => Done, () => { wasCompleted = true; Done })
-      assert(wasCompleted === true)
+      var wasCompleted = null : Throwable
+      subject.subscribe(_ => Continue, (err) => { wasCompleted = err; Done }, () => ())
+      assert(wasCompleted != null && wasCompleted.getMessage == "dummy")
     }
 
     it("onComplete should be emitted without asynchronous boundaries") {

@@ -127,7 +127,7 @@ object extensions {
      * is already complete. To be used only in case you know what you're doing, as executing
      * things synchronously or asynchronously depending on context is very error-prone.
      */
-    def unsafeFlatMap[U](f: T => Future[U])(implicit ec: ExecutionContext): Future[U] = {
+    def flatMapNowPlease[U](f: T => Future[U])(implicit ec: ExecutionContext): Future[U] = {
       if (source.isCompleted)
         source.value.get match {
           case Success(value) =>
@@ -166,7 +166,7 @@ object extensions {
      * is already complete. To be used only in case you know what you're doing, as executing
      * things synchronously or asynchronously depending on context is very error-prone.
      */
-    def unsafeOnComplete(cb: Try[T] => Unit)(implicit ec: ExecutionContext): Unit = {
+    def onCompleteNowPlease(cb: Try[T] => Unit)(implicit ec: ExecutionContext): Unit = {
       if (source.isCompleted)
         try cb(source.value.get) catch {
           case NonFatal(ex) => ec.reportFailure(ex)
@@ -180,7 +180,7 @@ object extensions {
      * is already complete. To be used only in case you know what you're doing, as executing
      * things synchronously or asynchronously depending on context is very error-prone.
      */
-    def unsafeOnSuccess(pf: PartialFunction[T, Unit])(implicit ec: ExecutionContext): Unit = {
+    def onSuccessNowPlease(pf: PartialFunction[T, Unit])(implicit ec: ExecutionContext): Unit = {
       if (source.isCompleted)
         source.value.get match {
           case Success(value) =>

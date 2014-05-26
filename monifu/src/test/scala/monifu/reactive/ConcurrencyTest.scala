@@ -110,7 +110,7 @@ class ConcurrencyTest extends FunSpec {
         .asFuture
 
       val list = Await.result(f, 40.seconds)
-      assert(list === Some(1 to 100))
+      assert(list === Some(0 until 100))
     }
   }
 
