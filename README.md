@@ -1,4 +1,4 @@
-<img src="docs/assets/monifu.png" align="right" />
+<img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/monifu.png" align="right" />
 
 Extensions to Scala's standard library for multi-threading primitives and functional reactive programming. Targets both the JVM and [Scala.js](http://www.scala-js.org/).
 
@@ -6,10 +6,11 @@ Extensions to Scala's standard library for multi-threading primitives and functi
 
 ## Documentation
 
-Available docs:
+The available documentation is maintained as a [GitHub's Wiki](https://github.com/alexandru/monifu/wiki).
+Some picks:
 
-* [Atomic References](docs/atomic.md) 
-* [Schedulers](docs/schedulers.md) and [Cancelables](docs/cancelables.md)
+* [Atomic References](https://github.com/alexandru/monifu/wiki/Atomic-References) 
+* [Schedulers](https://github.com/alexandru/monifu/wiki/Schedulers) and [Cancelables](https://github.com/alexandru/monifu/wiki/Cancelables)
 
 API documentation:
 
@@ -18,11 +19,11 @@ API documentation:
 
 Release Notes:
 
-* [Version 0.10 - May 26, 2014](/docs/release-notes/0.10.md)
-* [Version 0.9 - May 23, 2014](/docs/release-notes/0.9.md)
-* [Version 0.8 - May 13, 2014](/docs/release-notes/0.8.md)
-* [Version 0.7 - April 26, 2014](/docs/release-notes/0.7.md)
-* [Older Releases](/docs/release-notes/)
+* [Version 0.10 - May 26, 2014](https://github.com/alexandru/monifu/wiki/0.10)
+* [Version 0.9 - May 23, 2014](https://github.com/alexandru/monifu/wiki/0.9)
+* [Version 0.8 - May 13, 2014](https://github.com/alexandru/monifu/wiki/0.8)
+* [Version 0.7 - April 26, 2014](https://github.com/alexandru/monifu/wiki/0.7)
+* [Other Releases](https://github.com/alexandru/monifu/wiki/Release-Notes)
 
 ## Usage
 
