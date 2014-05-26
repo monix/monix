@@ -5,7 +5,6 @@ import scala.concurrent.Future
 import scala.util.control.NonFatal
 import monifu.reactive.api.Ack.{Continue, Done}
 import monifu.concurrent.Scheduler
-import monifu.concurrent.extensions.FutureInternalExtensions
 
 /**
  * A safe observer ensures too things:
@@ -30,7 +29,7 @@ final class SafeObserver[-T] private (observer: Observer[T])(implicit scheduler:
         if (result == Continue || result == Done || (result.isCompleted && result.value.get.isSuccess))
           result
         else
-          result.unsafeRecoverWith {
+          result.recoverWith {
             case err =>
               onError(err)
               Done

@@ -1,6 +1,5 @@
 package monifu.reactive.internals
 
-import monifu.concurrent.extensions._
 import monifu.concurrent.atomic.padded.Atomic
 import monifu.reactive.api.Ack.{Done, Continue}
 import scala.concurrent.{ExecutionContext, Promise, Future}
@@ -16,7 +15,7 @@ private[reactive] final class AckBuffer {
   def scheduleNext(f: => Future[Ack])(implicit ec: ExecutionContext): Future[Ack] = {
     val promise = Promise[Ack]()
     val oldResponse = lastResponse.getAndSet(promise.future)
-    oldResponse.onCompleteNowPlease {
+    oldResponse.onComplete {
       case Failure(ex) => promise.failure(ex)
       case Success(Done) => promise.success(Done)
       case Success(Continue) =>
@@ -34,7 +33,7 @@ private[reactive] final class AckBuffer {
 
   def scheduleDone(cb: => Unit)(implicit ec: ExecutionContext): Done = {
     val oldResponse = lastResponse.getAndSet(Done)
-    oldResponse.onSuccessNowPlease {
+    oldResponse.onSuccess {
       case Continue => cb
     }
     Done
