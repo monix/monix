@@ -16,7 +16,7 @@ private[reactive] final class AckBuffer {
   def scheduleNext(f: => Future[Ack])(implicit ec: ExecutionContext): Future[Ack] = {
     val promise = Promise[Ack]()
     val oldResponse = lastResponse.getAndSet(promise.future)
-    oldResponse.unsafeOnComplete {
+    oldResponse.onCompleteNowPlease {
       case Failure(ex) => promise.failure(ex)
       case Success(Done) => promise.success(Done)
       case Success(Continue) =>
@@ -34,7 +34,7 @@ private[reactive] final class AckBuffer {
 
   def scheduleDone(cb: => Unit)(implicit ec: ExecutionContext): Done = {
     val oldResponse = lastResponse.getAndSet(Done)
-    oldResponse.unsafeOnSuccess {
+    oldResponse.onSuccessNowPlease {
       case Continue => cb
     }
     Done

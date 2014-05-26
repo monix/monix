@@ -8,9 +8,10 @@ import monifu.reactive.api.{SafeObserver, Ack}
 import monifu.reactive.api.Ack.{Done, Continue}
 import monifu.concurrent.atomic.padded.Atomic
 import monifu.concurrent.extensions._
+import scala.util.Success
 
 
-final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends Subject[T] { self =>
+final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends Subject[T,T] { self =>
   private[this] var currentValue = initialValue
   private[this] var errorThrown = null : Throwable
 
@@ -41,18 +42,18 @@ final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends S
             if (counter.decrementAndGet() == 0) p.success(Continue)
 
           for ((observer, ack) <- subscribers) {
-            val f = ack.unsafeFlatMap {
+            val f = ack.flatMapNowPlease {
               case Continue => observer.onNext(elem)
               case Done => Done
             }
 
             subscribers(observer) = f
 
-            f.unsafeOnSuccess {
-              case Done =>
-                self.synchronized(subscribers.remove(observer))
+            f.onCompleteNowPlease {
+              case Success(Continue) =>
                 completeCountdown()
-              case Continue =>
+              case _ =>
+                self.synchronized(subscribers.remove(observer))
                 completeCountdown()
             }
           }
@@ -72,7 +73,7 @@ final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends S
 
       if (subscribers.nonEmpty) {
         for ((observer, ack) <- subscribers)
-          ack.unsafeOnSuccess {
+          ack.onSuccessNowPlease {
             case Continue =>
               observer.onError(ex)
           }
@@ -88,7 +89,7 @@ final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends S
 
       if (subscribers.nonEmpty) {
         for ((observer, ack) <- subscribers)
-          ack.unsafeOnSuccess {
+          ack.onSuccessNowPlease {
             case Continue =>
               observer.onComplete()
           }
