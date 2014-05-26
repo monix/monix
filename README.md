@@ -7,10 +7,11 @@ Extensions to Scala's standard library for multi-threading primitives and functi
 ## Documentation
 
 The available documentation is maintained as a [GitHub's Wiki](https://github.com/alexandru/monifu/wiki).
-Some picks:
+Work in progress:
 
 * [Atomic References](https://github.com/alexandru/monifu/wiki/Atomic-References) 
 * [Schedulers](https://github.com/alexandru/monifu/wiki/Schedulers) and [Cancelables](https://github.com/alexandru/monifu/wiki/Cancelables)
+* [Reactive Extensions (Rx)](https://github.com/alexandru/monifu/wiki/Reactive-Extensions-%28Rx%29)
 
 API documentation:
 
