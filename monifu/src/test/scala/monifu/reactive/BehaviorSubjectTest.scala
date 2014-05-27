@@ -21,13 +21,14 @@ class BehaviorSubjectTest extends FunSpec {
 
       subject.filter(x => x % 2 == 0).flatMap(x => Observable.fromSequence(x to x + 1))
         .foldLeft(0)(_ + _).doOnComplete(latch.countDown()).foreach(x => result1.set(x))
+
       for (i <- 0 until 100) subject.onNext(i)
       subject.filter(x => x % 2 == 0).flatMap(x => Observable.fromSequence(x to x + 1))
         .foldLeft(0)(_ + _).doOnComplete(latch.countDown()).foreach(x => result2.set(x))
       for (i <- 100 until 10000) subject.onNext(i)
 
       subject.onComplete()
-      assert(latch.await(3, TimeUnit.SECONDS), "latch.await should have succeeded")
+      assert(latch.await(10, TimeUnit.SECONDS), "latch.await should have succeeded")
 
       assert(result1.get === 21 + (0 until 10000).filter(_ % 2 == 0).flatMap(x => x to (x + 1)).sum)
       assert(result2.get === (100 until 10000).filter(_ % 2 == 0).flatMap(x => x to (x + 1)).sum)
@@ -46,7 +47,7 @@ class BehaviorSubjectTest extends FunSpec {
       for (i <- 20 until 10000) subject.onNext(i)
 
       subject.onComplete()
-      assert(latch.await(3, TimeUnit.SECONDS), "latch.await should have succeeded")
+      assert(latch.await(10, TimeUnit.SECONDS), "latch.await should have succeeded")
 
       assert(result1.get === 11 + (0 until 10000).filter(_ % 2 == 0).map(_ + 1).sum)
       assert(result2.get === (20 until 10000).filter(_ % 2 == 0).map(_ + 1).sum)
@@ -71,7 +72,7 @@ class BehaviorSubjectTest extends FunSpec {
       subject.onNext(1)
       subject.onError(new RuntimeException("dummy"))
 
-      assert(latch.await(3, TimeUnit.SECONDS), "latch.await should have succeeded")
+      assert(latch.await(10, TimeUnit.SECONDS), "latch.await should have succeeded")
 
       assert(result1.get != null && result1.get.getMessage == "dummy")
       assert(result2.get != null && result2.get.getMessage == "dummy")
@@ -102,14 +103,15 @@ class BehaviorSubjectTest extends FunSpec {
       subject.onNext(1)
       subject.onComplete()
 
-      assert(latch.await(3, TimeUnit.SECONDS), "latch.await should have succeeded")
+      assert(latch.await(10, TimeUnit.SECONDS), "latch.await should have succeeded")
 
       assert(result1.get === 1)
       assert(result2.get === 2)
 
-      var wasCompleted = false
-      subject.subscribe(_ => Continue, _ => Done, () => { wasCompleted = true; Done })
-      assert(wasCompleted === true)
+      val completeLatch = new CountDownLatch(1)
+      subject.subscribe(_ => Continue, _ => (), () => { completeLatch.countDown() })
+      
+      assert(completeLatch.await(10, TimeUnit.SECONDS), "completeLatch.await should have succeeded")
     }
 
     it("should remove subscribers that triggered errors") {
@@ -133,8 +135,8 @@ class BehaviorSubjectTest extends FunSpec {
       subject.onNext(1)
       subject.onComplete()
 
-      Await.result(subject.complete.asFuture, 3.seconds)
-      assert(latch.await(3, TimeUnit.SECONDS), "latch.await should have succeeded")
+      Await.result(subject.complete.asFuture, 10.seconds)
+      assert(latch.await(10, TimeUnit.SECONDS), "latch.await should have succeeded")
 
       assert(errors.get === 1)
       assert(received.get === 4 * 1 + 2 * 2 + 5 + 10 + 1)
@@ -159,17 +161,17 @@ class BehaviorSubjectTest extends FunSpec {
       )
 
       subject.onNext(1)
-      Await.result(subject.onNext(2), 3.seconds)
+      Await.result(subject.onNext(2), 10.seconds)
       assert(completed.get === 0)
-      Await.result(subject.onNext(5), 3.seconds)
+      Await.result(subject.onNext(5), 10.seconds)
       assert(completed.get === 1)
 
       subject.onNext(10)
       subject.onNext(1)
       subject.onComplete()
 
-      Await.result(subject.complete.asFuture, 3.seconds)
-      assert(latch.await(3, TimeUnit.SECONDS), "latch.await should be true")
+      Await.result(subject.complete.asFuture, 10.seconds)
+      assert(latch.await(10, TimeUnit.SECONDS), "latch.await should be true")
 
       assert(completed.get === 2)
       assert(received.get === 4 * 1 + 2 * 2 + 5 + 10 + 1)
@@ -182,7 +184,7 @@ class BehaviorSubjectTest extends FunSpec {
       subject.onComplete()
 
       subject.doOnComplete(latch.countDown()).foreach(x => ())
-      latch.await(3, TimeUnit.SECONDS)
+      latch.await(10, TimeUnit.SECONDS)
     }
 
     it("should complete subscribers immediately after subscription if subject has been err`d") {
@@ -192,7 +194,7 @@ class BehaviorSubjectTest extends FunSpec {
       subject.onError(null)
 
       subject.doOnComplete(latch.countDown()).foreach(x => ())
-      latch.await(3, TimeUnit.SECONDS)
+      latch.await(10, TimeUnit.SECONDS)
     }
 
     it("should protect against synchronous exceptions in onNext") {

@@ -116,14 +116,19 @@ class PublishSubjectTest extends FunSpec {
       val errors = Atomic(0)
 
       val subject = PublishSubject[Int]()
-      val latch = new CountDownLatch(1)
+      val latch = new CountDownLatch(2)
 
-      subject.map(x => if (x < 5) x else throw new RuntimeException()).subscribe(
-        (elem) => { received.increment(elem); Continue },
-        (ex) => { errors.increment(); latch.countDown(); Done }
+      subject.map(x => if (x < 5) x else throw new RuntimeException())
+        .subscribe(
+          (elem) => { received.increment(elem); Continue },
+          (ex) => { errors.increment(); latch.countDown() }
+        )
+
+      subject.map(x => x).subscribe(
+        x => { received.increment(x); Continue },
+        ex => { errors.increment(); latch.countDown() },
+        () => latch.countDown()
       )
-      subject.map(x => x)
-        .foreach(x => received.increment(x))
 
       subject.onNext(1)
       subject.onNext(2)
@@ -132,7 +137,6 @@ class PublishSubjectTest extends FunSpec {
       subject.onNext(1)
       subject.onComplete()
 
-      Await.result(subject.complete.asFuture, 3.seconds)
       assert(latch.await(3, TimeUnit.SECONDS), "latch.await should have succeeded")
 
       assert(errors.get === 1)
