@@ -13,7 +13,7 @@ import scala.collection.mutable
 import scala.annotation.tailrec
 import collection.JavaConverters._
 import scala.util.{Failure, Success}
-import monifu.reactive.subjects.{BehaviorSubject, PublishSubject, Subject}
+import monifu.reactive.subjects.{ReplaySubject, BehaviorSubject, PublishSubject, Subject}
 import monifu.reactive.api.Notification.{OnComplete, OnNext, OnError}
 import monifu.reactive.internals.MergeBuffer
 import monifu.reactive.observers.{SafeObserver, BufferedObserver}
@@ -1179,6 +1179,14 @@ trait Observable[+T] { self =>
    */
   final def behavior[U >: T](initialValue: U): ConnectableObservable[U] =
     multicast(BehaviorSubject(initialValue))
+
+  /**
+   * Converts this observable into a multicast observable, useful for turning a cold observable into
+   * a hot one (i.e. whose source is shared by all observers). The underlying subject used is a
+   * [[monifu.reactive.subjects.ReplaySubject ReplaySubject]].
+   */
+  final def replay(): ConnectableObservable[T] =
+    multicast(ReplaySubject())
 }
 
 object Observable {

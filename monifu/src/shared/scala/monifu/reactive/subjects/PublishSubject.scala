@@ -12,6 +12,18 @@ import scala.collection.immutable.Set
 import scala.util.Success
 
 
+/**
+ * A `PublishSubject` emits to a subscriber only those items that are
+ * emitted by the source subsequent to the time of the subscription
+ *
+ * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/S.PublishSubject.png" />
+ *
+ * If the source terminates with an error, the `PublishSubject` will not emit any
+ * items to subsequent subscribers, but will simply pass along the error
+ * notification from the source Observable.
+ *
+ * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/S.PublishSubject.e.png" />
+ */
 final class PublishSubject[T] private (s: Scheduler) extends Subject[T,T] { self =>
   import PublishSubject._
 
