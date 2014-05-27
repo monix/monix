@@ -2,7 +2,7 @@ package monifu.reactive.api
 
 import monifu.reactive.Observer
 import scala.collection.mutable.ListBuffer
-import scala.concurrent.Future
+import scala.concurrent.{Promise, Future}
 import monifu.reactive.api.Ack.{Done, Continue}
 import monifu.concurrent.Scheduler
 
@@ -27,6 +27,9 @@ final class ConnectableObserver[-T](val underlying: Observer[T])(implicit s: Sch
   // and has been drained and thus the onNext/onError/onComplete
   // can take the fast path
   @volatile private[this] var isConnected = false
+
+  // promise guaranteed to be fulfilled once isConnected=true
+  private[this] val connectedPromise = Promise[Ack]()
 
   def scheduleFirst(elems: T*): Unit = {
     lock.synchronized {
@@ -92,6 +95,7 @@ final class ConnectableObserver[-T](val underlying: Observer[T])(implicit s: Sch
                 observer.onError(errorThrown)
                 queue.clear()
                 queue = null
+                connectedPromise.success(Done)
                 isConnected = true
               }
               else if (isDone) {
@@ -101,10 +105,12 @@ final class ConnectableObserver[-T](val underlying: Observer[T])(implicit s: Sch
                 observer.onComplete()
                 queue.clear()
                 queue = null
+                connectedPromise.success(Done)
                 isConnected = true
               }
               else {
                 // publishing isConnect, letting the upstream loose on the observer
+                connectedPromise.success(Continue)
                 isConnected = true
               }
             }
@@ -115,6 +121,7 @@ final class ConnectableObserver[-T](val underlying: Observer[T])(implicit s: Sch
               queue.clear()
               queue = null
               isDone = true
+              connectedPromise.success(Done)
               isConnected = true
             }
         }
@@ -131,7 +138,7 @@ final class ConnectableObserver[-T](val underlying: Observer[T])(implicit s: Sch
         if (!isConnected) {
           // if still not connected, enqueue element
           queue.append(elem)
-          Continue
+          connectedPromise.future
         }
         else if (!isDone) {
           // race condition happened, can send the event

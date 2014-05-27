@@ -1135,6 +1135,12 @@ trait Observable[+T] { self =>
     Observable.create { observer => subscribeFn(SafeObserver(observer)) }
 
   /**
+   * Wraps the observer implementation given to `subscribeFn` into a [[api.BufferedObserver BufferedObserver]].
+   */
+  final def buffered: Observable[T] =
+    Observable.create { observer => subscribeFn(BufferedObserver(observer)) }
+
+  /**
    * Wraps the observer implementation given to `subscribeFn` into a [[api.SynchronizedObserver SynchronizedObserver]].
    *
    * Normally Monifu's implementation guarantees that events are not emitted concurrently,
