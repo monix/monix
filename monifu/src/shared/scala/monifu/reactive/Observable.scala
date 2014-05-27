@@ -15,8 +15,8 @@ import collection.JavaConverters._
 import scala.util.{Failure, Success}
 import monifu.reactive.subjects.{BehaviorSubject, PublishSubject, Subject}
 import monifu.reactive.api.Notification.{OnComplete, OnNext, OnError}
-import monifu.reactive.internals.AckBuffer
-import monifu.reactive.observers.BufferedObserver
+import monifu.reactive.internals.MergeBuffer
+import monifu.reactive.observers.{SafeObserver, BufferedObserver}
 
 
 /**
@@ -282,7 +282,7 @@ trait Observable[+T] { self =>
    */
   final def merge[U](implicit ev: T <:< Observable[U]): Observable[U] = {
     Observable.create { observerB =>
-      val ackBuffer = new AckBuffer
+      val ackBuffer = new MergeBuffer
 
       // we need to do ref-counting for triggering `onComplete` on our subscriber
       // when all the children threads have ended
@@ -1127,7 +1127,7 @@ trait Observable[+T] { self =>
     }
 
   /**
-   * Wraps the observer implementation given to `subscribeFn` into a [[api.SafeObserver SafeObserver]].
+   * Wraps the observer implementation given to `subscribeFn` into a [[SafeObserver SafeObserver]].
    * Normally wrapping in a `SafeObserver` happens at the edges of the monad
    * (in the user-facing `subscribe()` implementation) or in Observable subscribe implementations,
    * so this wrapping is useful.
