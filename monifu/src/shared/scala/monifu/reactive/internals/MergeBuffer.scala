@@ -5,11 +5,12 @@ import monifu.reactive.api.Ack.{Done, Continue}
 import scala.concurrent.{ExecutionContext, Promise, Future}
 import scala.util.{Success, Failure}
 import monifu.reactive.api.Ack
+import monifu.concurrent.Scheduler
 
 /**
  * Internal class used in `Observable.merge`
  */
-private[reactive] final class AckBuffer {
+private[reactive] final class MergeBuffer(implicit s: Scheduler) {
   private[this] val lastResponse = Atomic(Continue : Future[Ack])
 
   def scheduleNext(f: => Future[Ack])(implicit ec: ExecutionContext): Future[Ack] = {

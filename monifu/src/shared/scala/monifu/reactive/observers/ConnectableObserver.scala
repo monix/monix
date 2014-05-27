@@ -5,7 +5,7 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.{Promise, Future}
 import monifu.reactive.api.Ack.{Done, Continue}
 import monifu.concurrent.Scheduler
-import monifu.reactive.api.{Ack, SafeObserver}
+import monifu.reactive.api.Ack
 
 
 /**
