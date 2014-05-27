@@ -1,74 +1,73 @@
 package monifu.reactive.subjects
 
-import scala.concurrent.{Promise, Future}
-import monifu.reactive.api.Ack
+import scala.concurrent.Future
 import monifu.reactive.api.Ack.{Continue, Done}
 import monifu.concurrent.Scheduler
 import monifu.reactive.Observer
-import monifu.reactive.internals.PromiseCounter
 import monifu.concurrent.atomic.padded.Atomic
 import scala.annotation.tailrec
-import scala.collection.immutable.Set
-import scala.util.{Failure, Success}
+import monifu.reactive.api.{Ack, ConnectableObserver}
 
 
-final class BehaviorSubject3[T] private (initialValue: T, s: Scheduler) extends Subject[T,T] { self =>
-  import BehaviorSubject3.State
-  import BehaviorSubject3.State._
+final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends Subject[T,T] { self =>
+  import BehaviorSubject.State
+  import BehaviorSubject.State._
 
   implicit val scheduler = s
   private[this] val state = Atomic(Empty(initialValue) : State[T])
 
   def subscribeFn(observer: Observer[T]): Unit = {
     @tailrec
-    def loop(newAck: Future[Continue]): (Future[Continue], T, Throwable, Boolean) = {
+    def loop(): ConnectableObserver[T] = {
       state.get match {
         case current @ Empty(cachedValue) =>
-          if (!state.compareAndSet(current, Active(Set(observer), cachedValue, newAck)))
-            loop(newAck)
-          else
-            (Continue, cachedValue, null, false)
+          val obs = new ConnectableObserver[T](observer)
+          obs.scheduleFirst(cachedValue)
 
-        case current @ Active(observers, cachedValue, lastAck) =>
-          if (!state.compareAndSet(current, Active(observers + observer, cachedValue, newAck)))
-            loop(newAck)
+          if (!state.compareAndSet(current, Active(Array(obs), cachedValue)))
+            loop()
           else
-            (lastAck, cachedValue, null, false)
+            obs
 
-        case current @ Complete(cachedValue, errorThrown, lastAck) =>
-          if (!state.compareAndSet(current, Complete(cachedValue, errorThrown, newAck)))
-            loop(newAck)
+        case current @ Active(observers, cachedValue) =>
+          val obs = new ConnectableObserver[T](observer)
+          obs.scheduleFirst(cachedValue)
+
+          if (!state.compareAndSet(current, Active(observers :+ obs, cachedValue)))
+            loop()
           else
-            (lastAck, cachedValue, errorThrown, true)
+            obs
+
+        case current @ Complete(cachedValue, errorThrown) =>
+          val obs = new ConnectableObserver[T](observer)
+          if (errorThrown eq null) {
+            obs.scheduleFirst(cachedValue)
+            obs.scheduleComplete()
+          }
+          else {
+            obs.schedulerError(errorThrown)
+          }
+          obs
       }
     }
 
-    val p = Promise[Continue]()
-    val (ack, value, ex, shouldComplete) = loop(p.future)
-
-    if (ex != null) {
-      try observer.onError(ex) finally p.success(Continue)
-    }
-    else
-      ack.onComplete(_ =>
-        observer.onNext(value).onComplete {
-          case Success(Continue) =>
-            try {
-              if (shouldComplete)
-                observer.onComplete()
-            }
-            finally {
-              p.success(Continue)
-            }
-          case Success(Done) =>
-            removeSubscription(observer)
-            p.success(Continue)
-          case Failure(err) =>
-            removeSubscription(observer)
-            try observer.onError(err) finally p.success(Continue)
-        }
-      )
+    loop().connect()
   }
+
+  private[this] def emitNext(obs: Observer[T], elem: T): Future[Continue] =
+    obs.onNext(elem) match {
+      case Continue => Continue
+      case Done =>
+        removeSubscription(obs)
+        Continue
+      case other =>
+        other.map {
+          case Continue => Continue
+          case Done =>
+            removeSubscription(obs)
+            Continue
+        }
+    }
 
   @tailrec
   def onNext(elem: T): Future[Ack] = {
@@ -79,26 +78,28 @@ final class BehaviorSubject3[T] private (initialValue: T, s: Scheduler) extends 
         else
           Continue
 
-      case current @ Active(observers, cachedValue, lastAck) =>
-        val p = PromiseCounter[Continue](Continue, observers.size)
-        if (!state.compareAndSet(current, Active(observers, elem, p.future)))
+      case current @ Active(observers, cachedValue) =>
+        if (!state.compareAndSet(current, Active(observers, elem)))
           onNext(elem)
+
         else {
-          lastAck.onComplete { _ =>
-            for (obs <- observers)
-              obs.onNext(elem).onComplete {
-                case Success(Continue) =>
-                  p.countdown()
-                case Success(Done) =>
-                  removeSubscription(obs)
-                  p.countdown()
-                case Failure(ex) =>
-                  removeSubscription(obs)
-                  try obs.onError(ex) finally p.countdown()
+          var idx = 0
+          var acc = Continue : Future[Continue]
+
+          while (idx < observers.length) {
+            val obs = observers(idx)
+            acc =
+              if (acc == Continue || (acc.isCompleted && acc.value.get.isSuccess))
+                emitNext(obs, elem)
+              else {
+                val f = emitNext(obs, elem)
+                acc.flatMap(_ => f)
               }
+
+            idx += 1
           }
 
-          p.future
+          acc
         }
 
       case _ =>
@@ -110,55 +111,63 @@ final class BehaviorSubject3[T] private (initialValue: T, s: Scheduler) extends 
   def onComplete(): Unit =
     state.get match {
       case current @ Empty(cachedValue) =>
-        if (!state.compareAndSet(current, Complete(cachedValue, null, Continue)))
-          onComplete()
-
-      case current @ Active(observers, cachedValue, lastAck) =>
-        if (!state.compareAndSet(current, Complete(cachedValue, null, lastAck)))
-          onComplete()
-        else
-          lastAck.onComplete { _ =>
-            for (obs <- observers)
-              obs.onComplete()
+        if (!state.compareAndSet(current, Complete(cachedValue, null))) {
+          onComplete() // retry
+        }
+      case current @ Active(observers, cachedValue) =>
+        if (!state.compareAndSet(current, Complete(cachedValue, null))) {
+          onComplete() // retry
+        }
+        else {
+          var idx = 0
+          while (idx < observers.length) {
+            observers(idx).onComplete()
+            idx += 1
           }
-
-      case _ => // already complete, ignore
+        }
+      case _ =>
+        // already complete, ignore
     }
 
   @tailrec
   def onError(ex: Throwable): Unit =
     state.get match {
       case current @ Empty(cachedValue) =>
-        if (!state.compareAndSet(current, Complete(cachedValue, ex, Continue)))
-          onError(ex)
-
-      case current @ Active(observers, cachedValue, lastAck) =>
-        if (!state.compareAndSet(current, Complete(cachedValue, ex, lastAck)))
-          onError(ex)
-        else
-          lastAck.onComplete { _ =>
-            for (obs <- observers)
-              obs.onError(ex)
+        if (!state.compareAndSet(current, Complete(cachedValue, ex))) {
+          onError(ex) // retry
+        }
+      case current @ Active(observers, cachedValue) =>
+        if (!state.compareAndSet(current, Complete(cachedValue, ex))) {
+          onError(ex) // retry
+        }
+        else {
+          var idx = 0
+          while (idx < observers.length) {
+            observers(idx).onError(ex)
+            idx += 1
           }
-
-      case _ => // already complete, ignore
+        }
+      case _ =>
+        // already complete, ignore
     }
 
   private[this] def removeSubscription(obs: Observer[T]): Unit =
     state.transform {
-      case current @ Active(observers,_,_) => current.copy(observers - obs)
-      case other => other
+      case current @ Active(observers,_) =>
+        current.copy(observers.filterNot(_ eq obs))
+      case other =>
+        other
     }
 }
 
-object BehaviorSubject3 {
-  def apply[T](initialValue: T)(implicit scheduler: Scheduler): BehaviorSubject3[T] =
-    new BehaviorSubject3[T](initialValue, scheduler)
+object BehaviorSubject {
+  def apply[T](initialValue: T)(implicit scheduler: Scheduler): BehaviorSubject[T] =
+    new BehaviorSubject[T](initialValue, scheduler)
 
   private sealed trait State[T]
   private object State {
     case class Empty[T](cachedValue: T) extends State[T]
-    case class Active[T](observers: Set[Observer[T]], cachedValue: T, lastAck: Future[Continue]) extends State[T]
-    case class Complete[T](cachedValue: T, errorThrown: Throwable = null, lastAck: Future[Continue]) extends State[T]
+    case class Active[T](iterator: Array[ConnectableObserver[T]], cachedValue: T) extends State[T]
+    case class Complete[T](cachedValue: T, errorThrown: Throwable = null) extends State[T]
   }
 }
