@@ -1,12 +1,20 @@
-package monifu.reactive.api
+package monifu.reactive.observers
 
 import monifu.reactive.Observer
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.{Promise, Future}
 import monifu.reactive.api.Ack.{Done, Continue}
 import monifu.concurrent.Scheduler
+import monifu.reactive.api.{Ack, SafeObserver}
 
 
+/**
+ * Represents an [[Observer]] that buffers emitted items until the call to `connect()` happens.
+ * Before connecting, one can also schedule items to be prepended to the stream by means of
+ * `scheduleFirst` or for the stream to end by means of `schedulerError` or `scheduleCompleted`.
+ *
+ * Used in the [[monifu.reactive.subjects.BehaviorSubject BehaviorSubject]] implementation.
+ */
 final class ConnectableObserver[-T](val underlying: Observer[T])(implicit s: Scheduler)
   extends Observer[T] {
 
@@ -22,15 +30,21 @@ final class ConnectableObserver[-T](val underlying: Observer[T])(implicit s: Sch
   // MUST BE protected by `lock`
   private[this] var queue = new ListBuffer[T]()
 
-  // volatile that is set to true once the buffer is drained
-  // once visible as true, it implies that the queue is empty
+  // Volatile that is set to true once the buffer is drained.
+  // Once visible as true, it implies that the queue is empty
   // and has been drained and thus the onNext/onError/onComplete
   // can take the fast path
   @volatile private[this] var isConnected = false
 
-  // promise guaranteed to be fulfilled once isConnected=true
+  // promise guaranteed to be fulfilled once isConnected is seen as true
+  // and used for back-pressure
   private[this] val connectedPromise = Promise[Ack]()
 
+  /**
+   * Prepends the given items to the queue, items that will be emitted as soon as
+   * the call to [[connect]] happens. These queued items will be emitted first,
+   * before any other events that are queued by the upstream's calls to [[onNext]].
+   */
   def scheduleFirst(elems: T*): Unit = {
     lock.synchronized {
       if (!isConnected)
@@ -40,6 +54,10 @@ final class ConnectableObserver[-T](val underlying: Observer[T])(implicit s: Sch
     }
   }
 
+  /**
+   * Schedules an error to be emitted as soon as the call to [[connect]] happens,
+   * but after any items scheduled with [[scheduleFirst]].
+   */
   def schedulerError(ex: Throwable): Unit = {
     lock.synchronized {
       if (!isConnected) {
@@ -51,6 +69,10 @@ final class ConnectableObserver[-T](val underlying: Observer[T])(implicit s: Sch
     }
   }
 
+  /**
+   * Schedules a complete event to be emitted as soon as the call to [[connect]] happens,
+   * but after any items scheduled with [[scheduleFirst]].
+   */
   def scheduleComplete(): Unit = {
     lock.synchronized {
       if (!isConnected)

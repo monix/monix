@@ -5,11 +5,11 @@ import monifu.concurrent.Scheduler.Implicits.global
 import monifu.reactive.subjects.BehaviorSubject
 import monifu.concurrent.atomic.padded.Atomic
 import java.util.concurrent.{TimeUnit, CountDownLatch}
-import monifu.reactive.api.BufferedObserver
 import monifu.reactive.api.Ack.{Done, Continue}
 import scala.concurrent.{Future, Await}
 import concurrent.duration._
 import monifu.concurrent.extensions._
+import monifu.reactive.observers.BufferedObserver
 
 
 class BehaviorSubjectTest extends FunSpec {

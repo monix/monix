@@ -16,6 +16,7 @@ import scala.util.{Failure, Success}
 import monifu.reactive.subjects.{BehaviorSubject, PublishSubject, Subject}
 import monifu.reactive.api.Notification.{OnComplete, OnNext, OnError}
 import monifu.reactive.internals.AckBuffer
+import monifu.reactive.observers.BufferedObserver
 
 
 /**
@@ -1135,20 +1136,33 @@ trait Observable[+T] { self =>
     Observable.create { observer => subscribeFn(SafeObserver(observer)) }
 
   /**
-   * Wraps the observer implementation given to `subscribeFn` into a [[api.BufferedObserver BufferedObserver]].
+   * Wraps the observer implementation given to `subscribeFn` into a [[BufferedObserver BufferedObserver]].
+   *
+   * Normally Monifu's implementation guarantees that events are not emitted concurrently,
+   * and that the publisher MUST NOT emit the next event without acknowledgement from the consumer
+   * that it may proceed, however for badly behaved publishers, this wrapper provides
+   * the guarantee that the downstream [[Observer]] given in `subscribe` will not receive
+   * concurrent events, also making it thread-safe.
+   *
+   * WARNING: the JVM's process might blow up if the producer is emitting events too fast,
+   * because the buffer is unbounded.
    */
   final def buffered: Observable[T] =
     Observable.create { observer => subscribeFn(BufferedObserver(observer)) }
 
   /**
-   * Wraps the observer implementation given to `subscribeFn` into a [[api.SynchronizedObserver SynchronizedObserver]].
+   * An alias for [[buffered]]. Wraps the observer implementation given to `subscribeFn`
+   * into a [[BufferedObserver BufferedObserver]].
    *
    * Normally Monifu's implementation guarantees that events are not emitted concurrently,
-   * by contract, however one may still have visibility concerns and for badly behaved
-   * observers / observables used in asynchronous pipelines, this method may prove useful.
-   */
-  final def sync: Observable[T] =
-    Observable.create { observer => subscribeFn(SafeObserver(observer)) }
+   * and that the publisher MUST NOT emit the next event without acknowledgement from the consumer
+   * that it may proceed, however for badly behaved publishers, this wrapper provides
+   * the guarantee that the downstream [[Observer]] given in `subscribe` will not receive
+   * concurrent events, also making it thread-safe.
+   *
+   * WARNING: the JVM's process might blow up if the producer is emitting events too fast,
+   * because the buffer is unbounded.   */
+  final def sync: Observable[T] = buffered
 
   /**
    * Converts this observable into a multicast observable, useful for turning a cold observable into
