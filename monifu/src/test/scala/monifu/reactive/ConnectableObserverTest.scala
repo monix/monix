@@ -1,11 +1,12 @@
 package monifu.reactive
 
 import org.scalatest.FunSpec
-import monifu.reactive.api.{Ack, ConnectableObserver}
+import monifu.reactive.api.Ack
 import scala.concurrent.Future
 import monifu.reactive.api.Ack.{Done, Continue}
 import monifu.concurrent.Scheduler.Implicits.global
 import java.util.concurrent.{TimeUnit, CountDownLatch}
+import monifu.reactive.observers.ConnectableObserver
 
 class ConnectableObserverTest extends FunSpec {
   describe("ConnectableObserver") {

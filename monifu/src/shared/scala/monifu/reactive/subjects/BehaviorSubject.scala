@@ -6,7 +6,8 @@ import monifu.concurrent.Scheduler
 import monifu.reactive.Observer
 import monifu.concurrent.atomic.padded.Atomic
 import scala.annotation.tailrec
-import monifu.reactive.api.{Ack, ConnectableObserver}
+import monifu.reactive.api.Ack
+import monifu.reactive.observers.ConnectableObserver
 
 
 final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends Subject[T,T] { self =>
