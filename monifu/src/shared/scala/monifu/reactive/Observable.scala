@@ -723,33 +723,32 @@ trait Observable[+T] { self =>
 
   /**
    * Executes the given callback when the stream has ended on `onComplete`
+   * (after the event was already emitted)
    *
    * NOTE: protect the callback such that it doesn't throw exceptions, because
-   * it gets executed when `cancel()` happens and by definition the error cannot
-   * be streamed with `onError()` and so the behavior is left as undefined, possibly
-   * crashing the application or worse - leading to non-deterministic behavior.
+   * it gets executed after `onComplete()` happens and by definition the error cannot
+   * be streamed with `onError()`.
    *
    * @param cb the callback to execute when the subscription is canceled
    */
   final def doOnComplete(cb: => Unit): Observable[T] =
     Observable.create { observer =>
       subscribeFn(new Observer[T] {
-        def onNext(elem: T) =
-          observer.onNext(elem)
+        def onNext(elem: T) = {
+          val f = observer.onNext(elem)
+          f.onSuccess { case Done => cb }
+          f
+        }
 
-        def onError(ex: Throwable) =
+        def onError(ex: Throwable): Unit =
           observer.onError(ex)
 
-        def onComplete() = {
-          var streamError = true
-          try {
-            cb
-            streamError = false
-            observer.onComplete()
-          }
-          catch {
-            case NonFatal(ex) =>
-              if (streamError) { observer.onError(ex); Done } else Future.failed(ex)
+        def onComplete(): Unit = {
+          try observer.onComplete() finally {
+            try cb catch {
+              case NonFatal(ex) =>
+                scheduler.reportFailure(ex)
+            }
           }
         }
       })
