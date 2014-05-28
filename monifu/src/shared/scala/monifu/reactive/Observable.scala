@@ -1127,7 +1127,7 @@ trait Observable[+T] { self =>
     }
 
   /**
-   * Wraps the observer implementation given to `subscribeFn` into a [[SafeObserver SafeObserver]].
+   * Wraps the observer implementation given to `subscribeFn` into a [[observers.SafeObserver SafeObserver]].
    * Normally wrapping in a `SafeObserver` happens at the edges of the monad
    * (in the user-facing `subscribe()` implementation) or in Observable subscribe implementations,
    * so this wrapping is useful.
@@ -1136,7 +1136,7 @@ trait Observable[+T] { self =>
     Observable.create { observer => subscribeFn(SafeObserver(observer)) }
 
   /**
-   * Wraps the observer implementation given to `subscribeFn` into a [[BufferedObserver BufferedObserver]].
+   * Wraps the observer implementation given to `subscribeFn` into a [[observers.BufferedObserver BufferedObserver]].
    *
    * Normally Monifu's implementation guarantees that events are not emitted concurrently,
    * and that the publisher MUST NOT emit the next event without acknowledgement from the consumer
@@ -1152,7 +1152,7 @@ trait Observable[+T] { self =>
 
   /**
    * An alias for [[buffered]]. Wraps the observer implementation given to `subscribeFn`
-   * into a [[BufferedObserver BufferedObserver]].
+   * into a [[observers.BufferedObserver BufferedObserver]].
    *
    * Normally Monifu's implementation guarantees that events are not emitted concurrently,
    * and that the publisher MUST NOT emit the next event without acknowledgement from the consumer
