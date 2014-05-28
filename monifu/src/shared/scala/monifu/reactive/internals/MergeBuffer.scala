@@ -1,22 +1,22 @@
 package monifu.reactive.internals
 
-import monifu.concurrent.extensions._
 import monifu.concurrent.atomic.padded.Atomic
 import monifu.reactive.api.Ack.{Done, Continue}
 import scala.concurrent.{ExecutionContext, Promise, Future}
 import scala.util.{Success, Failure}
 import monifu.reactive.api.Ack
+import monifu.concurrent.Scheduler
 
 /**
  * Internal class used in `Observable.merge`
  */
-private[reactive] final class AckBuffer {
+private[reactive] final class MergeBuffer(implicit s: Scheduler) {
   private[this] val lastResponse = Atomic(Continue : Future[Ack])
 
   def scheduleNext(f: => Future[Ack])(implicit ec: ExecutionContext): Future[Ack] = {
     val promise = Promise[Ack]()
     val oldResponse = lastResponse.getAndSet(promise.future)
-    oldResponse.unsafeOnComplete {
+    oldResponse.onComplete {
       case Failure(ex) => promise.failure(ex)
       case Success(Done) => promise.success(Done)
       case Success(Continue) =>
@@ -34,7 +34,7 @@ private[reactive] final class AckBuffer {
 
   def scheduleDone(cb: => Unit)(implicit ec: ExecutionContext): Done = {
     val oldResponse = lastResponse.getAndSet(Done)
-    oldResponse.unsafeOnSuccess {
+    oldResponse.onSuccess {
       case Continue => cb
     }
     Done

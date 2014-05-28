@@ -7,16 +7,16 @@ import monifu.reactive.api._
 import Ack.{Done, Continue}
 import monifu.concurrent.atomic.Atomic
 import monifu.reactive.cancelables._
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.control.NonFatal
 import scala.collection.mutable
 import scala.annotation.tailrec
 import collection.JavaConverters._
 import scala.util.{Failure, Success}
-import monifu.reactive.subjects.{BehaviorSubject, PublishSubject, Subject}
-import monifu.concurrent.extensions._
+import monifu.reactive.subjects.{ReplaySubject, BehaviorSubject, PublishSubject, Subject}
 import monifu.reactive.api.Notification.{OnComplete, OnNext, OnError}
-import monifu.reactive.internals.AckBuffer
+import monifu.reactive.internals.MergeBuffer
+import monifu.reactive.observers.{SafeObserver, BufferedObserver}
 
 
 /**
@@ -282,7 +282,7 @@ trait Observable[+T] { self =>
    */
   final def merge[U](implicit ev: T <:< Observable[U]): Observable[U] = {
     Observable.create { observerB =>
-      val ackBuffer = new AckBuffer
+      val ackBuffer = new MergeBuffer
 
       // we need to do ref-counting for triggering `onComplete` on our subscriber
       // when all the children threads have ended
@@ -352,7 +352,7 @@ trait Observable[+T] { self =>
             else  {
               // last event in the stream, so we need to send the event followed by an EOF downstream
               // after which we signal upstream to the producer that it should stop
-              observer.onNext(elem).unsafeFlatMap {
+              observer.onNext(elem).flatMap {
                 case Done => Done
                 case Continue =>
                   observer.onComplete()
@@ -585,7 +585,7 @@ trait Observable[+T] { self =>
         }
 
         def onComplete() =
-          observer.onNext(state).unsafeOnSuccess {
+          observer.onNext(state).onSuccess {
             case Continue => observer.onComplete()
           }
 
@@ -630,7 +630,7 @@ trait Observable[+T] { self =>
 
         def onComplete() =
           if (wasApplied)
-            observer.onNext(state).unsafeOnSuccess {
+            observer.onNext(state).onSuccess {
               case Continue => observer.onComplete()
             }
           else
@@ -724,33 +724,32 @@ trait Observable[+T] { self =>
 
   /**
    * Executes the given callback when the stream has ended on `onComplete`
+   * (after the event was already emitted)
    *
    * NOTE: protect the callback such that it doesn't throw exceptions, because
-   * it gets executed when `cancel()` happens and by definition the error cannot
-   * be streamed with `onError()` and so the behavior is left as undefined, possibly
-   * crashing the application or worse - leading to non-deterministic behavior.
+   * it gets executed after `onComplete()` happens and by definition the error cannot
+   * be streamed with `onError()`.
    *
    * @param cb the callback to execute when the subscription is canceled
    */
   final def doOnComplete(cb: => Unit): Observable[T] =
     Observable.create { observer =>
       subscribeFn(new Observer[T] {
-        def onNext(elem: T) =
-          observer.onNext(elem)
+        def onNext(elem: T) = {
+          val f = observer.onNext(elem)
+          f.onSuccess { case Done => cb }
+          f
+        }
 
-        def onError(ex: Throwable) =
+        def onError(ex: Throwable): Unit =
           observer.onError(ex)
 
-        def onComplete() = {
-          var streamError = true
-          try {
-            cb
-            streamError = false
-            observer.onComplete()
-          }
-          catch {
-            case NonFatal(ex) =>
-              if (streamError) { observer.onError(ex); Done } else Future.failed(ex)
+        def onComplete(): Unit = {
+          try observer.onComplete() finally {
+            try cb catch {
+              case NonFatal(ex) =>
+                scheduler.reportFailure(ex)
+            }
           }
         }
       })
@@ -840,7 +839,7 @@ trait Observable[+T] { self =>
           observer.onComplete()
 
         def onError(ex: Throwable): Unit = {
-          observer.onNext(ex).unsafeOnSuccess {
+          observer.onNext(ex).onSuccess {
             case Continue => observer.onComplete()
           }
         }
@@ -1007,29 +1006,35 @@ trait Observable[+T] { self =>
 
     Observable.create { observer =>
       subscribeFn(new Observer[T] {
+        private[this] var lastResponse = Continue : Future[Ack]
+
         def onNext(elem: T): Future[Ack] = {
-          val p = Promise[Ack]()
-          scheduler.execute(new Runnable {
-            def run(): Unit =
-              observer.onNext(elem).unsafeOnComplete {
-                case r => p.complete(r)
-              }
-          })
-          p.future
+          val newResponse = lastResponse.flatMap {
+            case Done => Done
+            case Continue =>
+              observer.onNext(elem)
+          }
+
+          lastResponse = newResponse
+          newResponse
         }
 
         def onError(ex: Throwable): Unit = {
-          scheduler.execute(new Runnable {
-            def run(): Unit =
+          lastResponse = lastResponse.flatMap {
+            case Done => Done
+            case Continue =>
               observer.onError(ex)
-          })
+              Done
+          }
         }
 
         def onComplete(): Unit = {
-          scheduler.execute(new Runnable {
-            def run(): Unit =
+          lastResponse = lastResponse.flatMap {
+            case Done => Done
+            case Continue =>
               observer.onComplete()
-          })
+              Done
+          }
         }
       })
     }
@@ -1058,12 +1063,12 @@ trait Observable[+T] { self =>
           observer.onNext(OnNext(elem))
 
         def onError(ex: Throwable): Unit =
-          observer.onNext(OnError(ex)).unsafeOnSuccess {
+          observer.onNext(OnError(ex)).onSuccess {
             case Continue => observer.onComplete()
           }
 
         def onComplete(): Unit =
-          observer.onNext(OnComplete).unsafeOnSuccess {
+          observer.onNext(OnComplete).onSuccess {
             case Continue => observer.onComplete()
           }
       })
@@ -1101,8 +1106,8 @@ trait Observable[+T] { self =>
    * Converts this observable into a multicast observable, useful for turning a cold observable into
    * a hot one (i.e. whose source is shared by all observers).
    */
-  final def multicast[U >: T](subject: Subject[U] = PublishSubject[U]()): ConnectableObservable[U] =
-    new ConnectableObservable[U] {
+  final def multicast[R](subject: Subject[T, R]): ConnectableObservable[R] =
+    new ConnectableObservable[R] {
       private[this] val notCanceled = Atomic(true)
       val scheduler = self.scheduler
 
@@ -1116,13 +1121,13 @@ trait Observable[+T] { self =>
         cancelAction
       }
 
-      def subscribeFn(observer: Observer[U]): Unit = {
+      def subscribeFn(observer: Observer[R]): Unit = {
         subject.subscribeFn(observer)
       }
     }
 
   /**
-   * Wraps the observer implementation given to `subscribeFn` into a [[api.SafeObserver SafeObserver]].
+   * Wraps the observer implementation given to `subscribeFn` into a [[observers.SafeObserver SafeObserver]].
    * Normally wrapping in a `SafeObserver` happens at the edges of the monad
    * (in the user-facing `subscribe()` implementation) or in Observable subscribe implementations,
    * so this wrapping is useful.
@@ -1131,14 +1136,33 @@ trait Observable[+T] { self =>
     Observable.create { observer => subscribeFn(SafeObserver(observer)) }
 
   /**
-   * Wraps the observer implementation given to `subscribeFn` into a [[api.SynchronizedObserver SynchronizedObserver]].
+   * Wraps the observer implementation given to `subscribeFn` into a [[observers.BufferedObserver BufferedObserver]].
    *
    * Normally Monifu's implementation guarantees that events are not emitted concurrently,
-   * by contract, however one may still have visibility concerns and for badly behaved
-   * observers / observables used in asynchronous pipelines, this method may prove useful.
+   * and that the publisher MUST NOT emit the next event without acknowledgement from the consumer
+   * that it may proceed, however for badly behaved publishers, this wrapper provides
+   * the guarantee that the downstream [[Observer]] given in `subscribe` will not receive
+   * concurrent events, also making it thread-safe.
+   *
+   * WARNING: the JVM's process might blow up if the producer is emitting events too fast,
+   * because the buffer is unbounded.
    */
-  final def sync: Observable[T] =
-    Observable.create { observer => subscribeFn(SafeObserver(observer)) }
+  final def buffered: Observable[T] =
+    Observable.create { observer => subscribeFn(BufferedObserver(observer)) }
+
+  /**
+   * An alias for [[buffered]]. Wraps the observer implementation given to `subscribeFn`
+   * into a [[observers.BufferedObserver BufferedObserver]].
+   *
+   * Normally Monifu's implementation guarantees that events are not emitted concurrently,
+   * and that the publisher MUST NOT emit the next event without acknowledgement from the consumer
+   * that it may proceed, however for badly behaved publishers, this wrapper provides
+   * the guarantee that the downstream [[Observer]] given in `subscribe` will not receive
+   * concurrent events, also making it thread-safe.
+   *
+   * WARNING: the JVM's process might blow up if the producer is emitting events too fast,
+   * because the buffer is unbounded.   */
+  final def sync: Observable[T] = buffered
 
   /**
    * Converts this observable into a multicast observable, useful for turning a cold observable into
@@ -1155,11 +1179,50 @@ trait Observable[+T] { self =>
    */
   final def behavior[U >: T](initialValue: U): ConnectableObservable[U] =
     multicast(BehaviorSubject(initialValue))
+
+  /**
+   * Converts this observable into a multicast observable, useful for turning a cold observable into
+   * a hot one (i.e. whose source is shared by all observers). The underlying subject used is a
+   * [[monifu.reactive.subjects.ReplaySubject ReplaySubject]].
+   */
+  final def replay(): ConnectableObservable[T] =
+    multicast(ReplaySubject())
 }
 
 object Observable {
   /**
-   * Observable constructor. To be used for implementing new Observables and operators.
+   * Observable constructor for creating an [[Observable]] from the specified function.
+   *
+   * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/create.png" />
+   *
+   * Example: {{{
+   *   import monifu.reactive._
+   *   import monifu.reactive.api.Ack.Continue
+   *   import monifu.concurrent.Scheduler
+   *
+   *   def emit[T](elem: T, nrOfTimes: Int)(implicit scheduler: Scheduler): Observable[T] =
+   *     Observable.create { observer =>
+   *       def loop(times: Int): Unit =
+   *         scheduler.scheduleOnce {
+   *           if (times > 0)
+   *             observer.onNext(elem).onSuccess {
+   *               case Continue => loop(times - 1)
+   *             }
+   *           else
+   *             observer.onComplete()
+   *         }
+   *       loop(nrOfTimes)
+   *     }
+   *
+   *   // usage sample
+   *   import monifu.concurrent.Scheduler.Implicits.global
+
+   *   emit(elem=30, nrOfTimes=3).dump("Emit").subscribe()
+   *   //=> 0: Emit-->30
+   *   //=> 1: Emit-->30
+   *   //=> 2: Emit-->30
+   *   //=> 3: Emit completed
+   * }}}
    */
   def create[T](f: Observer[T] => Unit)(implicit scheduler: Scheduler): Observable[T] = {
     val s = scheduler
@@ -1173,6 +1236,12 @@ object Observable {
     }
   }
 
+  /**
+   * Creates an observable that doesn't emit anything, but immediately calls `onComplete`
+   * instead.
+   *
+   * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/empty.png" />
+   */
   def empty[A](implicit scheduler: Scheduler): Observable[A] =
     Observable.create { observer =>
       SafeObserver(observer).onComplete()
@@ -1180,11 +1249,13 @@ object Observable {
 
   /**
    * Creates an Observable that only emits the given ''a''
+   *
+   * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/unit.png" />
    */
   def unit[A](elem: A)(implicit scheduler: Scheduler): Observable[A] = {
     Observable.create { o =>
       val observer = SafeObserver(o)
-      observer.onNext(elem).unsafeOnSuccess {
+      observer.onNext(elem).onSuccess {
         case Continue =>
           observer.onComplete()
       }
@@ -1193,6 +1264,8 @@ object Observable {
 
   /**
    * Creates an Observable that emits an error.
+   *
+   * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/error.png" />
    */
   def error(ex: Throwable)(implicit scheduler: Scheduler): Observable[Nothing] =
     Observable.create { observer =>
@@ -1201,38 +1274,32 @@ object Observable {
 
   /**
    * Creates an Observable that doesn't emit anything and that never completes.
+   *
+   * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/never.png"" />
    */
   def never(implicit scheduler: Scheduler): Observable[Nothing] =
     Observable.create { _ => () }
 
   /**
-   * Creates an Observable that emits auto-incremented natural numbers with a fixed delay,
-   * starting from number 1.
+   * Creates an Observable that emits auto-incremented natural numbers (longs) spaced by
+   * a given time interval. Starts from 0 with no delay, after which it emits incremented
+   * numbers spaced by the `period` of time.
    *
-   * @param period the delay between two emitted events
-   * @param scheduler the execution context in which `onNext` will get called
-   */
-  def interval(period: FiniteDuration)(implicit scheduler: Scheduler): Observable[Long] =
-    interval(period, period)
-
-  /**
-   * Creates an Observable that emits auto-incremented natural numbers with a fixed delay,
-   * starting from number 1.
+   * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/interval.png"" />
    *
-   * @param initialDelay the initial delay to wait before the first emitted number
    * @param period the delay between two subsequent events
    * @param scheduler the execution context in which `onNext` will get called
    */
-  def interval(initialDelay: FiniteDuration, period: FiniteDuration)(implicit scheduler: Scheduler): Observable[Long] = {
+  def interval(period: FiniteDuration)(implicit scheduler: Scheduler): Observable[Long] = {
     Observable.create { o =>
       val observer = SafeObserver(o)
       var counter = 0
 
-      scheduler.scheduleRecursive(initialDelay, period, { reschedule =>
-        counter += 1
+      scheduler.scheduleRecursive(Duration.Zero, period, { reschedule =>
         val result = observer.onNext(counter)
+        counter += 1
 
-        result.unsafeOnSuccess {
+        result.onSuccess {
           case Continue =>
             reschedule()
         }
@@ -1241,7 +1308,7 @@ object Observable {
   }
 
   /**
-   * Creates an Observable that continuously emits the given ''item''
+   * Creates an Observable that continuously emits the given ''item'' repeatedly.
    */
   def continuous[T](elem: T)(implicit scheduler: Scheduler): Observable[T] =
     Observable.create { o =>
@@ -1250,7 +1317,7 @@ object Observable {
       def loop(elem: T): Unit =
         scheduler.execute(new Runnable {
           def run(): Unit =
-            observer.onNext(elem).unsafeOnSuccess {
+            observer.onNext(elem).onSuccess {
               case Continue =>
                 loop(elem)
             }
@@ -1261,6 +1328,8 @@ object Observable {
 
   /**
    * Creates an Observable that emits items in the given range.
+   *
+   * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/range.png" />
    *
    * @param from the range start
    * @param until the range end
@@ -1283,7 +1352,7 @@ object Observable {
                 case Done =>
                   // do nothing else
                 case async =>
-                  async.unsafeOnSuccess {
+                  async.onSuccess {
                     case Continue =>
                       scheduleLoop(from + step, until, step)
                   }
@@ -1302,7 +1371,9 @@ object Observable {
 
 
   /**
-   * Creates an Observable that emits the elements of the given ''sequence''
+   * Creates an Observable that emits the elements of the given ''sequence''.
+   *
+   * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/fromSequence.png" />
    */
   def fromSequence[T](seq: Seq[T])(implicit scheduler: Scheduler): Observable[T] =
     Observable.create { o =>
@@ -1322,7 +1393,7 @@ object Observable {
                 case Done =>
                 // do nothing else
                 case async =>
-                  async.unsafeOnSuccess {
+                  async.onSuccess {
                     case Continue =>
                       startFeedLoop(tail)
                   }
@@ -1345,6 +1416,8 @@ object Observable {
   /**
    * Creates an Observable that emits the elements of the given ''iterable''.
    * Prefer [[fromSequence]] for immutable collections that can be efficiently decomposed as head/tail.
+   *
+   * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/fromIterable.png" />
    */
   def fromIterable[T](iterable: Iterable[T])(implicit scheduler: Scheduler): Observable[T] =
     fromIterable(iterable.asJava)
@@ -1352,6 +1425,8 @@ object Observable {
   /**
    * Creates an Observable that emits the elements of the given ''iterable''.
    * Prefer [[fromSequence]] for immutable collections that can be efficiently decomposed as head/tail.
+   *
+   * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/fromIterable.png" />
    */
   def fromIterable[T](iterable: java.lang.Iterable[T])(implicit scheduler: Scheduler): Observable[T] =
     Observable.create { o =>
@@ -1371,7 +1446,7 @@ object Observable {
                     case Done =>
                       return
                     case async =>
-                      async.unsafeOnSuccess {
+                      async.onSuccess {
                         case Continue =>
                           startFeedLoop(iterator)
                       }
@@ -1443,9 +1518,9 @@ object Observable {
     Observable.create { o =>
       val observer = SafeObserver(o)
 
-      future.unsafeOnComplete {
+      future.onComplete {
         case Success(value) =>
-          observer.onNext(value).unsafeOnSuccess {
+          observer.onNext(value).onSuccess {
             case Continue =>
               observer.onComplete()
           }

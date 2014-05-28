@@ -2,7 +2,7 @@
 
 Extensions to Scala's standard library for multi-threading primitives and functional reactive programming. Targets both the JVM and [Scala.js](http://www.scala-js.org/).
 
-[![Build Status](https://travis-ci.org/alexandru/monifu.png?branch=v0.10.1)](https://travis-ci.org/alexandru/monifu)
+[![Build Status](https://travis-ci.org/alexandru/monifu.png?branch=v0.11.0)](https://travis-ci.org/alexandru/monifu)
 
 ## Feature Overview
 
@@ -31,11 +31,11 @@ import monifu.concurrent.Scheduler.{computation => s}
 
 val loop = Atomic(0)
 s.scheduleRecursive(1.second, 5.seconds, { reschedule =>
-	val counted = loop.incrementAndGet
-	if (counted < 10) {
+  val counted = loop.incrementAndGet
+  if (counted < 10) {
     println(s"Counted: $counted")
-    reschedule()		
-	}
+    reschedule()    
+  }
 })
 ```
 
@@ -72,6 +72,7 @@ API documentation:
 
 Release Notes:
 
+* [Version 0.11 - May 28, 2014](https://github.com/alexandru/monifu/wiki/0.11)
 * [Version 0.10 - May 26, 2014](https://github.com/alexandru/monifu/wiki/0.10)
 * [Version 0.9 - May 23, 2014](https://github.com/alexandru/monifu/wiki/0.9)
 * [Version 0.8 - May 13, 2014](https://github.com/alexandru/monifu/wiki/0.8)
@@ -87,18 +88,18 @@ the latest Scala.js (at the moment Scala.js 0.4.4). The targetted JDK version
 for the published packages is version 6 (see 
 [faq entry](https://github.com/alexandru/monifu/wiki/Frequently-Asked-Questions#what-javajdk-version-is-required)).
 
-Current stable release is: `0.10.1`
+Current stable release is: `0.11.0`
 
 ### For the JVM
 
 ```scala
-libraryDependencies += "org.monifu" %% "monifu" % "0.10.1"
+libraryDependencies += "org.monifu" %% "monifu" % "0.11.0"
 ```
 
 ### For targeting Javascript runtimes with Scala.js
 
 ```scala
-libraryDependencies += "org.monifu" %% "monifu-js" % "0.10.1"
+libraryDependencies += "org.monifu" %% "monifu-js" % "0.11.0"
 ```
 
 ## License
