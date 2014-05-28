@@ -8,56 +8,52 @@ import monifu.concurrent.atomic.padded.Atomic
 import scala.annotation.tailrec
 import monifu.reactive.api.Ack
 import monifu.reactive.observers.ConnectableObserver
+import scala.collection.immutable.Queue
 
 
 /**
- * `BehaviorSubject` when subscribed, will emit the most recently emitted item by the source,
- * or the `initialValue` (as the seed) in case no value has yet been emitted, the continuing
- * to emit events subsequent to the time of invocation.
+ * `ReplaySubject` emits to any observer all of the items that were emitted
+ * by the source, regardless of when the observer subscribes.
  *
- * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/S.BehaviorSubject.png" />
- *
- * When the source terminates in error, the `BehaviorSubject` will not emit any items to
- * subsequent subscribers, but instead it will pass along the error notification.
- *
- * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/S.BehaviorSubject.png" />
+ * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/S.ReplaySubject.png" />
  */
-final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends Subject[T,T] { self =>
-  import BehaviorSubject.State
-  import BehaviorSubject.State._
+final class ReplaySubject[T] private (s: Scheduler) extends Subject[T,T] { self =>
+  import ReplaySubject.State
+  import ReplaySubject.State._
 
   implicit val scheduler = s
-  private[this] val state = Atomic(Empty(initialValue) : State[T])
+  private[this] val state = Atomic(Empty(Queue.empty) : State[T])
 
   def subscribeFn(observer: Observer[T]): Unit = {
     @tailrec
     def loop(): ConnectableObserver[T] = {
       state.get match {
-        case current @ Empty(cachedValue) =>
+        case current @ Empty(cache) =>
           val obs = new ConnectableObserver[T](observer)
-          obs.scheduleFirst(cachedValue)
+          obs.scheduleFirst(cache : _*)
 
-          if (!state.compareAndSet(current, Active(Array(obs), cachedValue)))
+          if (!state.compareAndSet(current, Active(Array(obs), cache)))
             loop()
           else
             obs
 
-        case current @ Active(observers, cachedValue) =>
+        case current @ Active(observers, cache) =>
           val obs = new ConnectableObserver[T](observer)
-          obs.scheduleFirst(cachedValue)
+          obs.scheduleFirst(cache : _*)
 
-          if (!state.compareAndSet(current, Active(observers :+ obs, cachedValue)))
+          if (!state.compareAndSet(current, Active(observers :+ obs, cache)))
             loop()
           else
             obs
 
-        case current @ Complete(cachedValue, errorThrown) =>
+        case current @ Complete(cache, errorThrown) =>
           val obs = new ConnectableObserver[T](observer)
           if (errorThrown eq null) {
-            obs.scheduleFirst(cachedValue)
+            obs.scheduleFirst(cache : _*)
             obs.scheduleComplete()
           }
           else {
+            obs.scheduleFirst(cache : _*)
             obs.schedulerError(errorThrown)
           }
           obs
@@ -86,13 +82,13 @@ final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends S
   def onNext(elem: T): Future[Ack] = {
     state.get match {
       case current @ Empty(_) =>
-        if (!state.compareAndSet(current, Empty(elem)))
+        if (!state.compareAndSet(current, Empty(current.cache.enqueue(elem))))
           onNext(elem)
         else
           Continue
 
-      case current @ Active(observers, cachedValue) =>
-        if (!state.compareAndSet(current, Active(observers, elem)))
+      case current @ Active(observers, cache) =>
+        if (!state.compareAndSet(current, Active(observers, cache.enqueue(elem))))
           onNext(elem)
 
         else {
@@ -123,12 +119,12 @@ final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends S
   @tailrec
   def onComplete(): Unit =
     state.get match {
-      case current @ Empty(cachedValue) =>
-        if (!state.compareAndSet(current, Complete(cachedValue, null))) {
+      case current @ Empty(cache) =>
+        if (!state.compareAndSet(current, Complete(cache, null))) {
           onComplete() // retry
         }
-      case current @ Active(observers, cachedValue) =>
-        if (!state.compareAndSet(current, Complete(cachedValue, null))) {
+      case current @ Active(observers, cache) =>
+        if (!state.compareAndSet(current, Complete(cache, null))) {
           onComplete() // retry
         }
         else {
@@ -139,18 +135,18 @@ final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends S
           }
         }
       case _ =>
-        // already complete, ignore
+      // already complete, ignore
     }
 
   @tailrec
   def onError(ex: Throwable): Unit =
     state.get match {
-      case current @ Empty(cachedValue) =>
-        if (!state.compareAndSet(current, Complete(cachedValue, ex))) {
+      case current @ Empty(cache) =>
+        if (!state.compareAndSet(current, Complete(cache, ex))) {
           onError(ex) // retry
         }
-      case current @ Active(observers, cachedValue) =>
-        if (!state.compareAndSet(current, Complete(cachedValue, ex))) {
+      case current @ Active(observers, cache) =>
+        if (!state.compareAndSet(current, Complete(cache, ex))) {
           onError(ex) // retry
         }
         else {
@@ -161,7 +157,7 @@ final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends S
           }
         }
       case _ =>
-        // already complete, ignore
+      // already complete, ignore
     }
 
   private[this] def removeSubscription(obs: Observer[T]): Unit =
@@ -173,14 +169,14 @@ final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends S
     }
 }
 
-object BehaviorSubject {
-  def apply[T](initialValue: T)(implicit scheduler: Scheduler): BehaviorSubject[T] =
-    new BehaviorSubject[T](initialValue, scheduler)
+object ReplaySubject {
+  def apply[T]()(implicit scheduler: Scheduler): ReplaySubject[T] =
+    new ReplaySubject[T](scheduler)
 
   private sealed trait State[T]
   private object State {
-    case class Empty[T](cachedValue: T) extends State[T]
-    case class Active[T](iterator: Array[ConnectableObserver[T]], cachedValue: T) extends State[T]
-    case class Complete[T](cachedValue: T, errorThrown: Throwable = null) extends State[T]
+    case class Empty[T](cache: Queue[T]) extends State[T]
+    case class Active[T](iterator: Array[ConnectableObserver[T]], cache: Queue[T]) extends State[T]
+    case class Complete[T](cache: Queue[T], errorThrown: Throwable = null) extends State[T]
   }
 }

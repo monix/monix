@@ -2,7 +2,7 @@ package monifu.reactive
 
 import org.scalatest.FunSpec
 import monifu.concurrent.Scheduler.Implicits.global
-import monifu.reactive.subjects.BehaviorSubject
+import monifu.reactive.subjects.ReplaySubject
 import monifu.concurrent.atomic.padded.Atomic
 import java.util.concurrent.{TimeUnit, CountDownLatch}
 import monifu.reactive.api.Ack.{Done, Continue}
@@ -12,13 +12,13 @@ import monifu.concurrent.extensions._
 import monifu.reactive.observers.BufferedObserver
 
 
-class BehaviorSubjectTest extends FunSpec {
-  describe("BehaviorSubject") {
+class ReplaySubjectTest extends FunSpec {
+  describe("ReplaySubject") {
     it("should work over asynchronous boundaries") {
       val result1 = Atomic(0)
       val result2 = Atomic(0)
 
-      val subject = BehaviorSubject[Int](10)
+      val subject = ReplaySubject[Int]()
       val channel = BufferedObserver(subject)
 
       val completed = new CountDownLatch(2)
@@ -45,15 +45,15 @@ class BehaviorSubjectTest extends FunSpec {
       channel.onComplete()
       assert(completed.await(10, TimeUnit.SECONDS), "completed.await should have succeeded")
 
-      assert(result1.get === 21 + (0 until 10000).filter(_ % 2 == 0).flatMap(x => x to (x + 1)).sum)
-      assert(result2.get === (100 until 10000).filter(_ % 2 == 0).flatMap(x => x to (x + 1)).sum)
+      assert(result1.get === (0 until 10000).filter(_ % 2 == 0).flatMap(x => x to (x + 1)).sum)
+      assert(result2.get === (0 until 10000).filter(_ % 2 == 0).flatMap(x => x to (x + 1)).sum)
     }
 
     it("should work without asynchronous boundaries") {
       val result1 = Atomic(0)
       val result2 = Atomic(0)
 
-      val subject = BehaviorSubject[Int](10)
+      val subject = ReplaySubject[Int]()
       val latch = new CountDownLatch(2)
 
       subject.filter(_ % 2 == 0).map(_ + 1).doOnComplete(latch.countDown()).foreach(x => result1.increment(x))
@@ -62,15 +62,15 @@ class BehaviorSubjectTest extends FunSpec {
       for (i <- 20 until 100000) subject.onNext(i)
 
       subject.onComplete()
-      assert(result1.get === 11 + (0 until 100000).filter(_ % 2 == 0).map(_ + 1).sum)
-      assert(result2.get === (20 until 100000).filter(_ % 2 == 0).map(_ + 1).sum)
+      assert(result1.get === (0 until 100000).filter(_ % 2 == 0).map(_ + 1).sum)
+      assert(result2.get === (0 until 100000).filter(_ % 2 == 0).map(_ + 1).sum)
     }
 
     it("onError should be emitted over asynchronous boundaries") {
       val result1 = Atomic(null : Throwable)
       val result2 = Atomic(null : Throwable)
 
-      val subject = BehaviorSubject[Int](10)
+      val subject = ReplaySubject[Int]()
       val channel = BufferedObserver(subject)
       val latch = new CountDownLatch(2)
 
@@ -100,7 +100,7 @@ class BehaviorSubjectTest extends FunSpec {
       val result1 = Atomic(0)
       val result2 = Atomic(0)
 
-      val subject = BehaviorSubject[Int](10)
+      val subject = ReplaySubject[Int]()
       val channel = BufferedObserver(subject)
       val latch = new CountDownLatch(2)
 
@@ -132,7 +132,7 @@ class BehaviorSubjectTest extends FunSpec {
       val received = Atomic(0)
       val errors = Atomic(0)
 
-      val subject = BehaviorSubject[Int](1)
+      val subject = ReplaySubject[Int]()
       val channel = BufferedObserver(subject)
       val latch = new CountDownLatch(1)
 
@@ -154,14 +154,14 @@ class BehaviorSubjectTest extends FunSpec {
       assert(latch.await(10, TimeUnit.SECONDS), "latch.await should have succeeded")
 
       assert(errors.get === 1)
-      assert(received.get === 4 * 1 + 2 * 2 + 5 + 10 + 1)
+      assert(received.get === 2 * 1 + 2 * 2 + 5 + 10 + 1)
     }
 
     it("should remove subscribers that where done") {
       val received = Atomic(0)
       val completed = Atomic(0)
 
-      val subject = BehaviorSubject[Int](1)
+      val subject = ReplaySubject[Int]()
       val channel = BufferedObserver(subject)
       val latch = new CountDownLatch(2)
 
@@ -190,13 +190,13 @@ class BehaviorSubjectTest extends FunSpec {
       assert(latch.await(10, TimeUnit.SECONDS), "latch.await should be true")
 
       assert(completed.get === 2)
-      assert(received.get === 4 * 1 + 2 * 2 + 5 + 10 + 1)
+      assert(received.get === 2 * 1 + 2 * 2 + 5 + 10 + 1)
     }
 
     it("should complete subscribers immediately after subscription if subject has been completed") {
       val latch = new CountDownLatch(1)
 
-      val subject = BehaviorSubject[Int](10)
+      val subject = ReplaySubject[Int]()
       subject.onComplete()
 
       subject.doOnComplete(latch.countDown()).foreach(x => ())
@@ -206,7 +206,7 @@ class BehaviorSubjectTest extends FunSpec {
     it("should complete subscribers immediately after subscription if subject has been err`d") {
       val latch = new CountDownLatch(1)
 
-      val subject = BehaviorSubject[Int](10)
+      val subject = ReplaySubject[Int]()
       subject.onError(null)
 
       subject.doOnComplete(latch.countDown()).foreach(x => ())
@@ -215,7 +215,7 @@ class BehaviorSubjectTest extends FunSpec {
 
     it("should protect against synchronous exceptions in onNext") {
       class DummyException extends RuntimeException("test")
-      val subject = BehaviorSubject[Int](0)
+      val subject = ReplaySubject[Int]()
       val channel = BufferedObserver(subject)
 
       val onNextReceived = Atomic(0)
@@ -265,13 +265,13 @@ class BehaviorSubjectTest extends FunSpec {
 
       assert(latch.await(5, TimeUnit.SECONDS), "latch.await should have succeeded")
 
-      assert(onNextReceived.get === 5)
+      assert(onNextReceived.get === 3)
       assert(onErrorReceived.get === 2)
     }
 
     it("should protect against asynchronous exceptions in onNext") {
       class DummyException extends RuntimeException("test")
-      val subject = BehaviorSubject[Int](0)
+      val subject = ReplaySubject[Int]()
       val channel = BufferedObserver(subject)
 
       val onNextReceived = Atomic(0)
@@ -336,11 +336,11 @@ class BehaviorSubjectTest extends FunSpec {
       channel.onNext(12)
 
       assert(latch.await(5, TimeUnit.SECONDS), "latch.await should have succeeded")
-      assert(onNextReceived.get === 7)
+      assert(onNextReceived.get === 4)
     }
-    
+
     it("should emit in parallel") {
-      val subject = BehaviorSubject[Int](1)
+      val subject = ReplaySubject[Int]()
       val subject1Complete = new CountDownLatch(1)
       val receivedFirst = new CountDownLatch(2)
 
@@ -368,6 +368,7 @@ class BehaviorSubjectTest extends FunSpec {
         sum2 += x; Continue
       }
 
+      subject.onNext(1)
       assert(receivedFirst.await(3, TimeUnit.SECONDS), "receivedFirst.await should have succeeded")
 
       assert(sum1 === 1)

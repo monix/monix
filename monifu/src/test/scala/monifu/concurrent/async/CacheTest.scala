@@ -178,7 +178,7 @@ class CacheTest extends FunSuite {
       assert(cache.realSize === 1)
 
       val timeWindow1 = math.round((m1ts - startTS) / 1000.0)
-      assert(timeWindow1 >= 3 && timeWindow1 <= 7, "scheduler should run at no less than 3 secs and no more than 7 secs")
+      assert(timeWindow1 >= 3, "scheduler should run at no less than 3 secs")
 
       val diff2 = Await.result(cache.maintenance, 20.seconds)
       val m2ts = System.currentTimeMillis()
@@ -187,7 +187,7 @@ class CacheTest extends FunSuite {
       assert(cache.realSize === 1)
 
       val timeWindow2 = math.round((m2ts - m1ts) / 1000.0)
-      assert(timeWindow2 >= 3 && timeWindow2 <= 7, "scheduler should run at no less than 3 secs and no more than 7 secs")
+      assert(timeWindow2 >= 3, "scheduler should run at no less than 3 secs")
     }
   }
 

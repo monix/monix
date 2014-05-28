@@ -1,11 +1,10 @@
 package monifu.concurrent
 
 import language.experimental.macros
-import scala.util.{Failure, Success, Try}
+import scala.util.Try
 import scala.concurrent.{ExecutionContext, Promise, Future}
 import scala.concurrent.duration._
 import java.util.concurrent.TimeoutException
-import scala.util.control.NonFatal
 
 
 object extensions {
@@ -96,102 +95,6 @@ object extensions {
       val p = Promise[T]()
       s.scheduleOnce(delay, p.success(result))
       p.future
-    }
-  }
-
-  /**
-   * Provides internal utilities used within the Monifu codebase.
-   */
-  private[monifu] implicit class FutureInternalExtensions[+T](val source: Future[T]) extends AnyVal {
-    /**
-     * A version of `Future.map` that executes synchronously in the case the source Future
-     * is already complete. To be used only in case you know what you're doing, as executing
-     * things synchronously or asynchronously depending on context is very error-prone.
-     */
-    def unsafeMap[U](f: T => U)(implicit ec: ExecutionContext): Future[U] = {
-      if (source.isCompleted)
-        source.value.get match {
-          case Success(value) =>
-            try Future.successful(f(value)) catch {
-              case NonFatal(ex) => Future.failed(ex)
-            }
-          case Failure(_) =>
-            source.asInstanceOf[Future[U]]
-        }
-      else
-        source.map(f)
-    }
-
-    /**
-     * A version of `Future.flatMap` that executes synchronously in the case the source Future
-     * is already complete. To be used only in case you know what you're doing, as executing
-     * things synchronously or asynchronously depending on context is very error-prone.
-     */
-    def unsafeFlatMap[U](f: T => Future[U])(implicit ec: ExecutionContext): Future[U] = {
-      if (source.isCompleted)
-        source.value.get match {
-          case Success(value) =>
-            try f(value) catch {
-              case NonFatal(ex) => Future.failed(ex)
-            }
-          case Failure(_) =>
-            source.asInstanceOf[Future[U]]
-        }
-      else
-        source.flatMap(f)
-    }
-
-    /**
-     * A version of `Future.recoverWith` that executes synchronously in the case the source Future
-     * is already complete. To be used only in case you know what you're doing, as executing
-     * things synchronously or asynchronously depending on context is very error-prone.
-     */
-    def unsafeRecoverWith[U >: T](pf: PartialFunction[Throwable, Future[U]])(implicit ec: ExecutionContext): Future[U] = {
-      if (source.isCompleted)
-        source.value.get match {
-          case Success(_) =>
-            source
-          case Failure(ex) =>
-            try pf.applyOrElse(ex, { _: Throwable => source }) catch {
-              case NonFatal(err) =>
-                Future.failed(err)
-            }
-        }
-      else
-        source.recoverWith(pf)
-    }
-
-    /**
-     * A version of `Future.onComplete` that executes synchronously in the case the source Future
-     * is already complete. To be used only in case you know what you're doing, as executing
-     * things synchronously or asynchronously depending on context is very error-prone.
-     */
-    def unsafeOnComplete(cb: Try[T] => Unit)(implicit ec: ExecutionContext): Unit = {
-      if (source.isCompleted)
-        try cb(source.value.get) catch {
-          case NonFatal(ex) => ec.reportFailure(ex)
-        }
-      else
-        source.onComplete(cb)
-    }
-
-    /**
-     * A version of `Future.onSuccess` that executes synchronously in the case the source Future
-     * is already complete. To be used only in case you know what you're doing, as executing
-     * things synchronously or asynchronously depending on context is very error-prone.
-     */
-    def unsafeOnSuccess(pf: PartialFunction[T, Unit])(implicit ec: ExecutionContext): Unit = {
-      if (source.isCompleted)
-        source.value.get match {
-          case Success(value) =>
-            try pf.applyOrElse(value, Predef.conforms[T]) catch {
-              case NonFatal(ex) => ec.reportFailure(ex)
-            }
-          case Failure(ex) =>
-            // do nothing
-        }
-      else
-        source.onSuccess(pf)
     }
   }
 }
