@@ -21,6 +21,11 @@ queue.transformAndExtract(queue.dequeue)
 
 queue.transformAndExtract(queue.dequeue)
 //=> "second item"
+
+val number = Atomic(BigInt(1))
+
+number.incrementAndGet
+//=> res: scala.math.BigInt = 2
 ```
 
 [Schedulers](https://github.com/alexandru/monifu/wiki/Schedulers)
@@ -29,11 +34,12 @@ queue.transformAndExtract(queue.dequeue)
 import monifu.concurrent.atomic.Atomic
 import monifu.concurrent.Scheduler.{computation => s}
 
-val loop = Atomic(0)
+val loop = Atomic(0) // we don't actually need an atomic or volatile here
+
 s.scheduleRecursive(1.second, 5.seconds, { reschedule =>
-  val counted = loop.incrementAndGet
-  if (counted < 10) {
+  if (loop.incrementAndGet < 10) {
     println(s"Counted: $counted")
+    // do next one
     reschedule()    
   }
 })
