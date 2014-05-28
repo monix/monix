@@ -48,12 +48,18 @@ import monifu.reactive._
 
 // emits an auto-incremented number, every second
 Observable.interval(1.second)
-  .drop(10) // drops the first 10 emitted events
-  .take(100) // takes the first 100 emitted events
+  // drops the first 10 emitted events
+  .drop(10) 
+  // takes the first 100 emitted events  
+  .take(100) 
+  // per second, makes requests and concatenates the results
   .flatMap(x => WS.request(s"http://some.endpoint.com/request?tick=$x").get())
-  .filter(response => response.status == 200)
-  .map(response => response.body) // prints response body
-  .foreach(x => println(x)) // foreach element, print
+  // filters only valid responses
+  .filter(response => response.status == 200) 
+  // processes response, selecting the body
+  .map(response => response.body) 
+  // creates subscription, foreach response print it
+  .foreach(x => println(x)) 
 ```
 
 ## Documentation
