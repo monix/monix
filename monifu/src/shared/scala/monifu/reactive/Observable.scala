@@ -1075,6 +1075,42 @@ trait Observable[+T] { self =>
     }
 
   /**
+   * returns an Observable which will end when the duration expires
+   */
+  final def takeTimeout(duration: FiniteDuration)(implicit scheduler: Scheduler): Observable[T] =
+    Observable.create { observer =>
+      subscribeFn(new Observer[T] {
+        @volatile var shouldContinue = true
+
+        private[this] def end() = {
+          shouldContinue = false
+          observer.onComplete()
+        }
+
+        val cancelable = scheduler.scheduleOnce(duration, end)
+
+        def onNext(elem: T) = {
+          if (shouldContinue)
+            observer.onNext(elem)
+          else
+            Done
+        }
+
+        def onComplete() = {
+          shouldContinue = false
+          cancelable.cancel()
+          observer.onComplete()
+        }
+
+        def onError(ex: Throwable) = {
+          shouldContinue = false
+          cancelable.cancel()
+          observer.onError(ex)
+        }
+      })
+    }
+
+  /**
    * Utility that can be used for debugging purposes.
    */
   final def dump(prefix: String): Observable[T] =
