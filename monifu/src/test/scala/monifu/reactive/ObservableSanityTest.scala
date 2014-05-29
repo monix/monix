@@ -12,7 +12,7 @@ import monifu.reactive.api.Ack.{Done, Continue}
 class ObservableSanityTest extends FunSpec {
   describe("Observable.map") {
     it("should work") {
-      val f = Observable.fromSequence(0 until 100).map(x => x + 1).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
+      val f = Observable.from(0 until 100).map(x => x + 1).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
       assert(Await.result(f, 4.seconds) === Some(1 until 101))
     }
 
@@ -40,11 +40,17 @@ class ObservableSanityTest extends FunSpec {
       assert(latch.await(5, TimeUnit.SECONDS), "Latch await failed")
       assert(result === "Test exception")
     }
+
+    it("should cancel when downstream has canceled") {
+      val latch = new CountDownLatch(1)
+      Observable.repeat(1).doOnComplete(latch.countDown()).map(x => x).take(1000).subscribe()
+      assert(latch.await(10, TimeUnit.SECONDS), "latch.await should have succeeded")
+    }
   }
 
   describe("Observable.takeWhile") {
     it("should work") {
-      val f = Observable.fromSequence(0 until 100000).takeWhile(_ < 100)
+      val f = Observable.from(0 until 100000).takeWhile(_ < 100)
         .map(x => x + 1).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
       assert(Await.result(f, 4.seconds) === Some(1 until 101))
     }
@@ -75,7 +81,7 @@ class ObservableSanityTest extends FunSpec {
     }
 
     it("should protect calls to user code (guideline 6.4)") {
-      val obs = Observable.fromSequence(0 until 10000).takeWhile { x =>
+      val obs = Observable.from(0 until 10000).takeWhile { x =>
         if (x < 5) true else throw new RuntimeException("test")
       }
 
@@ -99,11 +105,17 @@ class ObservableSanityTest extends FunSpec {
       assert(latch.await(1, TimeUnit.SECONDS), "Latch await failed")
       assert(errorThrow.getMessage === "test")
     }
+
+    it("should cancel when downstream has canceled") {
+      val latch = new CountDownLatch(1)
+      Observable.repeat(1).doOnComplete(latch.countDown()).takeWhile(_ => true).take(1000).subscribe()
+      assert(latch.await(10, TimeUnit.SECONDS), "latch.await should have succeeded")
+    }
   }
 
   describe("Observable.dropWhile") {
     it("should work") {
-      val f = Observable.fromSequence(0 until 200).dropWhile(_ < 100)
+      val f = Observable.from(0 until 200).dropWhile(_ < 100)
         .foldLeft(Seq.empty[Int])(_ :+ _).asFuture
       assert(Await.result(f, 4.seconds) === Some(100 until 200))
     }
@@ -134,7 +146,7 @@ class ObservableSanityTest extends FunSpec {
     }
 
     it("should protect calls to user code (guideline 6.4)") {
-      val obs = Observable.fromSequence(0 until 100).dropWhile { x =>
+      val obs = Observable.from(0 until 100).dropWhile { x =>
         if (x < 5) true else throw new RuntimeException("test")
       }
 
@@ -157,11 +169,17 @@ class ObservableSanityTest extends FunSpec {
       assert(latch.await(1, TimeUnit.SECONDS), "Latch await failed")
       assert(errorThrow.getMessage === "test")
     }
+
+    it("should cancel when downstream has canceled") {
+      val latch = new CountDownLatch(1)
+      Observable.range(0,1000).doOnComplete(latch.countDown()).dropWhile(_ < 100).take(100).subscribe()
+      assert(latch.await(10, TimeUnit.SECONDS), "latch.await should have succeeded")
+    }
   }
 
   describe("Observable.scan") {
     it("should work") {
-      val f = Observable.fromSequence(0 until 100).scan(0)(_ + _).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
+      val f = Observable.from(0 until 100).scan(0)(_ + _).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
       assert(Await.result(f, 4.seconds) === Some((0 until 100).map(x => (0 to x).sum)))
     }
 
@@ -191,7 +209,7 @@ class ObservableSanityTest extends FunSpec {
     }
 
     it("should protect calls to user code (guideline 6.4)") {
-      val obs = Observable.fromSequence(0 until 100).scan(0) { (acc, elem) =>
+      val obs = Observable.from(0 until 100).scan(0) { (acc, elem) =>
         if (elem < 5) acc + elem else throw new RuntimeException("test")
       }
 
@@ -219,11 +237,17 @@ class ObservableSanityTest extends FunSpec {
       val f = Observable.empty[Int].observeOn(global).scan(0)(_+_).asFuture
       assert(Await.result(f, 5.seconds) === None)
     }
+
+    it("should cancel when downstream has canceled") {
+      val latch = new CountDownLatch(1)
+      Observable.repeat(1).doOnComplete(latch.countDown()).scan(0)(_+_).take(1000).subscribe()
+      assert(latch.await(10, TimeUnit.SECONDS), "latch.await should have succeeded")
+    }
   }
 
   describe("Observable.filter") {
     it("should work") {
-      val obs = Observable.fromSequence(1 to 10).filter(_ % 2 == 0).foldLeft(0)(_ + _).asFuture
+      val obs = Observable.from(1 to 10).filter(_ % 2 == 0).foldLeft(0)(_ + _).asFuture
       assert(Await.result(obs, 4.seconds) === Some((1 to 10).filter(_ % 2 == 0).sum))
     }
 
@@ -253,7 +277,7 @@ class ObservableSanityTest extends FunSpec {
     }
 
     it("should protect calls to user code (guideline 6.4)") {
-      val obs = Observable.fromSequence(0 until 100).filter { x =>
+      val obs = Observable.from(0 until 100).filter { x =>
         if (x < 5) true else throw new RuntimeException("test")
       }
 
@@ -280,12 +304,18 @@ class ObservableSanityTest extends FunSpec {
       assert(errorThrow.getMessage === "test")
       assert(sum === (0 until 5).sum)
     }
+
+    it("should cancel when downstream has canceled") {
+      val latch = new CountDownLatch(1)
+      Observable.repeat(1).doOnComplete(latch.countDown()).filter(_ => true).take(1000).subscribe()
+      assert(latch.await(10, TimeUnit.SECONDS), "latch.await should have succeeded")
+    }
   }
 
   describe("Observable.flatMap") {
     it("should work") {
-      val result = Observable.fromSequence(0 until 100).filter(_ % 5 == 0)
-        .flatMap(x => Observable.fromSequence(x until (x + 5)))
+      val result = Observable.from(0 until 100).filter(_ % 5 == 0)
+        .flatMap(x => Observable.from(x until (x + 5)))
         .foldLeft(0)(_ + _).asFuture
 
       assert(Await.result(result, 4.seconds) === Some((0 until 100).sum))
@@ -317,7 +347,7 @@ class ObservableSanityTest extends FunSpec {
     }
 
     it("should protect calls to user code (guideline 6.4)") {
-      val obs = Observable.fromSequence(0 until 100).flatMap { x =>
+      val obs = Observable.from(0 until 100).flatMap { x =>
         if (x < 50) Observable.unit(x) else throw new RuntimeException("test")
       }
 
@@ -346,8 +376,8 @@ class ObservableSanityTest extends FunSpec {
     }
 
     it("should generate elements in order") {
-      val obs = Observable.fromSequence(0 until 100).filter(_ % 5 == 0)
-        .flatMap(x => Observable.fromSequence(x until (x + 5)))
+      val obs = Observable.from(0 until 100).filter(_ % 5 == 0)
+        .flatMap(x => Observable.from(x until (x + 5)))
         .foldLeft(Seq.empty[Int])(_ :+ _)
         .asFuture
 
@@ -356,7 +386,7 @@ class ObservableSanityTest extends FunSpec {
     }
 
     it("should satisfy source.filter(p) == source.flatMap(x => if (p(x)) unit(x) else empty)") {
-      val parent = Observable.fromSequence(0 until 1000)
+      val parent = Observable.from(0 until 1000)
       val res1 = parent.filter(_ % 5 == 0).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
       val res2 = parent.flatMap(x => if (x % 5 == 0) Observable.unit(x) else Observable.empty).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
 
@@ -364,7 +394,7 @@ class ObservableSanityTest extends FunSpec {
     }
 
     it("should satisfy source.map(f) == source.flatMap(x => unit(x))") {
-      val parent = Observable.fromSequence(0 until 1000)
+      val parent = Observable.from(0 until 1000)
       val res1 = parent.map(_ + 1).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
       val res2 = parent.flatMap(x => Observable.unit(x + 1)).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
 
@@ -372,15 +402,23 @@ class ObservableSanityTest extends FunSpec {
     }
 
     it("should satisfy source.map(f).flatten == source.flatMap(f)") {
-      val parent = Observable.fromSequence(0 until 1000).filter(_ % 2 == 0)
-      val res1 = parent.map(x => Observable.fromSequence(x until (x + 2))).flatten.foldLeft(Seq.empty[Int])(_ :+ _).asFuture
-      val res2 = parent.flatMap(x => Observable.fromSequence(x until (x + 2))).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
+      val parent = Observable.from(0 until 1000).filter(_ % 2 == 0)
+      val res1 = parent.map(x => Observable.from(x until (x + 2))).flatten.foldLeft(Seq.empty[Int])(_ :+ _).asFuture
+      val res2 = parent.flatMap(x => Observable.from(x until (x + 2))).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
 
       assert(Await.result(res1, 4.seconds) === Await.result(res2, 4.seconds))
     }
 
+    it("should cancel when downstream has canceled") {
+      val latch = new CountDownLatch(1)
+      Observable.from(0 until 1000).doOnComplete(latch.countDown())
+        .flatMap(x => Observable.repeat(x)).take(1000).subscribe()
+
+      assert(latch.await(10, TimeUnit.SECONDS), "latch.await should have succeeded")
+    }
+
     it("should work with Futures") {
-      val f = Observable.fromSequence(0 until 100).flatMap(x => Future(x + 1)).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
+      val f = Observable.from(0 until 100).flatMap(x => Future(x + 1)).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
       val result = Await.result(f, 4.seconds)
       assert(result === Some(1 to 100))
     }
@@ -388,8 +426,8 @@ class ObservableSanityTest extends FunSpec {
 
   describe("Observable.zip") {
     it("should work") {
-      val obs1 = Observable.fromSequence(0 until 10).filter(_ % 2 == 0).map(_.toLong)
-      val obs2 = Observable.fromSequence(0 until 10).map(_ * 2).map(_.toLong)
+      val obs1 = Observable.from(0 until 10).filter(_ % 2 == 0).map(_.toLong)
+      val obs2 = Observable.from(0 until 10).map(_ * 2).map(_.toLong)
 
       val zipped = obs1.zip(obs2)
 
@@ -400,10 +438,10 @@ class ObservableSanityTest extends FunSpec {
     }
 
     it("should work in four") {
-      val obs1 = Observable.fromSequence(0 until 100).filter(_ % 2 == 0).map(_.toLong)
-      val obs2 = Observable.fromSequence(0 until 1000).map(_ * 2).map(_.toLong)
-      val obs3 = Observable.fromSequence(0 until 100).map(_ * 2).map(_.toLong)
-      val obs4 = Observable.fromSequence(0 until 1000).filter(_ % 2 == 0).map(_.toLong)
+      val obs1 = Observable.from(0 until 100).filter(_ % 2 == 0).map(_.toLong)
+      val obs2 = Observable.from(0 until 1000).map(_ * 2).map(_.toLong)
+      val obs3 = Observable.from(0 until 100).map(_ * 2).map(_.toLong)
+      val obs4 = Observable.from(0 until 1000).filter(_ % 2 == 0).map(_.toLong)
 
       val zipped = obs1.zip(obs2).zip(obs3).zip(obs4).map {
         case (((a, b), c), d) => (a, b, c, d)
@@ -416,8 +454,8 @@ class ObservableSanityTest extends FunSpec {
     }
 
     it("should work when length is equal") {
-      val obs1 = Observable.fromSequence(0 until 100)
-      val obs2 = Observable.fromSequence(0 until 100)
+      val obs1 = Observable.from(0 until 100)
+      val obs2 = Observable.from(0 until 100)
       val zipped = obs1.zip(obs2)
 
       val finalObs = zipped.foldLeft(Seq.empty[(Int, Int)])(_ :+ _)
@@ -425,14 +463,24 @@ class ObservableSanityTest extends FunSpec {
 
       assert(result === Some((0 until 100).map(x => (x,x))))
     }
+
+    it("should cancel when downstream has canceled") {
+      val latch = new CountDownLatch(2)
+      val obs1 = Observable.repeat(1).doOnComplete(latch.countDown())
+      val obs2 = Observable.repeat(2).doOnComplete(latch.countDown())
+
+      obs1.zip(obs2).take(1000).subscribe()
+
+      assert(latch.await(10, TimeUnit.SECONDS), "latch.await should have succeeded")
+    }
   }
 
-  describe("Observable.fromSequence") {
+  describe("Observable.from(sequence)") {
     it("should work") {
       val expected = (0 until 5000).filter(_ % 5 == 0).flatMap(x => x until (x + 5)).sum
 
-      val f = Observable.fromSequence(0 until 5000).filter(_ % 5 == 0)
-        .flatMap(x => Observable.fromSequence(x until (x + 5)))
+      val f = Observable.from(0 until 5000).filter(_ % 5 == 0)
+        .flatMap(x => Observable.from(x until (x + 5)))
         .foldLeft(0)(_ + _).asFuture
 
       val result = Await.result(f, 10.seconds)
@@ -442,7 +490,7 @@ class ObservableSanityTest extends FunSpec {
     it("should work without overflow") {
       val n = 1000000L
       val sum = n * (n + 1) / 2
-      val obs = Observable.fromSequence(1 to n.toInt)
+      val obs = Observable.from(1 to n.toInt)
       val res = obs.foldLeft(0L)(_ + _).asFuture
 
       val result = Await.result(res, 20.seconds)
@@ -452,7 +500,7 @@ class ObservableSanityTest extends FunSpec {
     it("should stop if terminated with a stop") {
       val n = 1000000L
       val sum = 101 * 50
-      val obs = Observable.fromSequence(1 to n.toInt).take(100)
+      val obs = Observable.from(1 to n.toInt).take(100)
       val res = obs.foldLeft(0L)(_ + _).asFuture
 
       val result = Await.result(res, 4.seconds)
@@ -460,12 +508,12 @@ class ObservableSanityTest extends FunSpec {
     }
   }
 
-  describe("Observable.fromIterable") {
+  describe("Observable.from(iterable)") {
     it("should work") {
       val expected = (0 until 5000).filter(_ % 5 == 0).flatMap(x => x until (x + 5)).sum
 
-      val f = Observable.fromIterable(0 until 5000).filter(_ % 5 == 0)
-        .flatMap(x => Observable.fromIterable(x until (x + 5)))
+      val f = Observable.from(0 until 5000).filter(_ % 5 == 0)
+        .flatMap(x => Observable.from(x until (x + 5)))
         .foldLeft(0)(_ + _).asFuture
 
       val result = Await.result(f, 10.seconds)
@@ -475,7 +523,7 @@ class ObservableSanityTest extends FunSpec {
     it("should work without overflow") {
       val n = 1000000L
       val sum = n * (n + 1) / 2
-      val obs = Observable.fromIterable(1 to n.toInt)
+      val obs = Observable.from(1 to n.toInt)
       val res = obs.foldLeft(0L)(_ + _).asFuture
 
       val result = Await.result(res, 20.seconds)
@@ -485,7 +533,7 @@ class ObservableSanityTest extends FunSpec {
     it("should stop if terminated with a stop") {
       val n = 1000000L
       val sum = 101 * 50
-      val obs = Observable.fromIterable(1 to n.toInt).take(100)
+      val obs = Observable.from(1 to n.toInt).take(100)
       val res = obs.foldLeft(0L)(_ + _).asFuture
 
       val result = Await.result(res, 4.seconds)
@@ -493,9 +541,9 @@ class ObservableSanityTest extends FunSpec {
     }
   }
 
-  describe("Observable.continuous") {
+  describe("Observable.repeat") {
     it("should work") {
-      val f = Observable.continuous(1).take(5000)
+      val f = Observable.repeat(1).take(5000)
         .foldLeft(0)(_ + _).asFuture
 
       val result = Await.result(f, 10.seconds)
@@ -505,8 +553,8 @@ class ObservableSanityTest extends FunSpec {
 
   describe("Observable.mergeMap") {
     it("should work") {
-      val result = Observable.fromSequence(0 until 100).filter(_ % 5 == 0)
-        .mergeMap(x => Observable.fromSequence(x until (x + 5)))
+      val result = Observable.from(0 until 100).filter(_ % 5 == 0)
+        .mergeMap(x => Observable.from(x until (x + 5)))
         .foldLeft(0)(_ + _).asFuture
 
       assert(Await.result(result, 4.seconds) === Some((0 until 100).sum))
@@ -538,7 +586,7 @@ class ObservableSanityTest extends FunSpec {
     }
 
     it("should protect calls to user code (guideline 6.4)") {
-      val obs = Observable.fromSequence(0 until 100).mergeMap { x =>
+      val obs = Observable.from(0 until 100).mergeMap { x =>
         if (x < 50) Observable.unit(x) else throw new RuntimeException("test")
       }
 
@@ -567,8 +615,8 @@ class ObservableSanityTest extends FunSpec {
     }
 
     it("should generate elements, without ordering guaranteed") {
-      val obs = Observable.fromSequence(0 until 100).filter(_ % 5 == 0)
-        .mergeMap(x => Observable.fromSequence(x until (x + 5)))
+      val obs = Observable.from(0 until 100).filter(_ % 5 == 0)
+        .mergeMap(x => Observable.from(x until (x + 5)))
         .foldLeft(Seq.empty[Int])(_ :+ _)
         .map(_.sorted)
         .asFuture
@@ -578,7 +626,7 @@ class ObservableSanityTest extends FunSpec {
     }
 
     it("should satisfy source.filter(p) == source.mergeMap(x => if (p(x)) unit(x) else empty), without ordering") {
-      val parent = Observable.fromSequence(0 until 1000)
+      val parent = Observable.from(0 until 1000)
       val res1 = parent.filter(_ % 5 == 0).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
       val res2 = parent.mergeMap(x => if (x % 5 == 0) Observable.unit(x) else Observable.empty)
         .foldLeft(Seq.empty[Int])(_ :+ _).map(_.sorted).asFuture
@@ -587,7 +635,7 @@ class ObservableSanityTest extends FunSpec {
     }
 
     it("should satisfy source.map(f) == source.mergeMap(x => unit(x)), without ordering") {
-      val parent = Observable.fromSequence(0 until 1000)
+      val parent = Observable.from(0 until 1000)
       val res1 = parent.map(_ + 1).foldLeft(Seq.empty[Int])(_ :+ _).map(_.sorted).asFuture
       val res2 = parent.mergeMap(x => Observable.unit(x + 1)).foldLeft(Seq.empty[Int])(_ :+ _).map(_.sorted).asFuture
 
@@ -595,17 +643,25 @@ class ObservableSanityTest extends FunSpec {
     }
 
     it("should satisfy source.map(f).merge == source.mergeMap(f)") {
-      val parent = Observable.fromSequence(0 until 1000).filter(_ % 2 == 0)
-      val res1 = parent.map(x => Observable.fromSequence(x until (x + 2))).merge
+      val parent = Observable.from(0 until 1000).filter(_ % 2 == 0)
+      val res1 = parent.map(x => Observable.from(x until (x + 2))).merge
         .foldLeft(Seq.empty[Int])(_ :+ _).map(_.sorted).asFuture
-      val res2 = parent.mergeMap(x => Observable.fromSequence(x until (x + 2)))
+      val res2 = parent.mergeMap(x => Observable.from(x until (x + 2)))
         .foldLeft(Seq.empty[Int])(_ :+ _).map(_.sorted).asFuture
 
       assert(Await.result(res1, 4.seconds) === Await.result(res2, 4.seconds))
     }
 
+    it("should cancel when downstream has canceled") {
+      val latch = new CountDownLatch(1)
+      Observable.from(0 until 1000).doOnComplete(latch.countDown())
+        .mergeMap(x => Observable.repeat(x)).take(1000).subscribe()
+
+      assert(latch.await(10, TimeUnit.SECONDS), "latch.await should have succeeded")
+    }
+
     it("should work with Futures") {
-      val f = Observable.fromSequence(0 until 100).mergeMap(x => Future(x + 1))
+      val f = Observable.from(0 until 100).mergeMap(x => Future(x + 1))
         .foldLeft(Seq.empty[Int])(_ :+ _).map(_.sorted).asFuture
       val result = Await.result(f, 4.seconds)
       assert(result === Some(1 to 100))
@@ -708,7 +764,7 @@ class ObservableSanityTest extends FunSpec {
     }
 
     it("should protect calls to user code (guideline 6.4)") {
-      val obs = Observable.fromSequence(0 until 100).reduce { (acc, elem) =>
+      val obs = Observable.from(0 until 100).reduce { (acc, elem) =>
         if (elem < 5) acc + elem else throw new RuntimeException("test")
       }
 
@@ -730,6 +786,54 @@ class ObservableSanityTest extends FunSpec {
 
       assert(latch.await(1, TimeUnit.SECONDS), "Latch await failed")
       assert(errorThrow.getMessage === "test")
+    }
+  }
+
+  describe("Observable#repeat") {
+    it("should work") {
+      val f = Observable.from(0 until 5).repeat.take(100).foldLeft(Vector.empty[Int])(_:+_).asFuture
+      assert(Await.result(f, 10.seconds) === Some((0 until 20).flatMap(_ => 0 until 5)))
+    }
+
+    it("should stop on error, test 1") {
+      var elems = Vector.empty[Int]
+      val latch = new CountDownLatch(2)
+      var errorThrow = null : Throwable
+
+      val obs = Observable.from(0 until 50).doOnComplete(latch.countDown())
+        .repeat.filter(x => if (x == 10) throw new RuntimeException("dummy") else true)
+
+      obs.subscribe(
+        (elem) => { elems = elems :+ elem; Continue },
+        (ex) => { errorThrow = ex; latch.countDown() },
+        () => throw new IllegalStateException()
+      )
+
+      assert(latch.await(10, TimeUnit.SECONDS), "latch.await should have succeeded")
+      assert(errorThrow.getMessage == "dummy")
+      assert(elems === (0 until 10))
+    }
+
+    it("should stop on error, test 2") {
+      var elems = Vector.empty[Int]
+      val latch = new CountDownLatch(2)
+      var errorThrow = null : Throwable
+
+      val obs = Observable.from(0 until 10).doOnComplete(latch.countDown()).repeat
+
+      obs.subscribe(
+        (elem) => {
+          elems = elems :+ elem
+          if (elems.size == 300) throw new RuntimeException("dummy")
+          Continue
+        },
+        (ex) => { errorThrow = ex; latch.countDown() },
+        () => throw new IllegalStateException()
+      )
+
+      assert(latch.await(10, TimeUnit.SECONDS), "latch.await should have succeeded")
+      assert(errorThrow.getMessage == "dummy")
+      assert(elems.size === 300)
     }
   }
 }
