@@ -25,7 +25,7 @@ class ReplaySubjectTest extends FunSpec {
       val barrier = new CountDownLatch(1)
 
       subject.filter(x => x % 2 == 0)
-        .flatMap(x => Observable.fromSequence(x to x + 1))
+        .flatMap(x => Observable.from(x to x + 1))
         .doWork(x => if (x == 99) barrier.countDown())
         .foldLeft(0)(_ + _)
         .doOnComplete(completed.countDown())
@@ -35,7 +35,7 @@ class ReplaySubjectTest extends FunSpec {
       assert(barrier.await(10, TimeUnit.SECONDS), "barrier.await should have succeeded")
 
       subject.filter(x => x % 2 == 0)
-        .flatMap(x => Observable.fromSequence(x to x + 1))
+        .flatMap(x => Observable.from(x to x + 1))
         .foldLeft(0)(_ + _)
         .doOnComplete(completed.countDown())
         .foreach(x => result2.set(x))
@@ -93,7 +93,7 @@ class ReplaySubjectTest extends FunSpec {
 
       val wasCompleted = new CountDownLatch(1)
       subject.subscribe(_ => Continue, _ => wasCompleted.countDown(), () => Done)
-      assert(wasCompleted.await(3, TimeUnit.SECONDS))
+      assert(wasCompleted.await(3, TimeUnit.SECONDS), "wasCompleted.await should have succeeded")
     }
 
     it("onComplete should be emitted over asynchronous boundaries") {

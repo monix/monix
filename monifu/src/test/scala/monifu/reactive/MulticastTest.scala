@@ -8,7 +8,7 @@ class MulticastTest extends FunSpec {
   describe("Observable.multicast") {
     it("should not subscribe observers until connect() happens") {
       val latch = new CountDownLatch(2)
-      val obs = Observable.fromSequence(1 until 100).publish()
+      val obs = Observable.from(1 until 100).publish()
 
       obs.doOnComplete(latch.countDown()).subscribe()
       obs.doOnComplete(latch.countDown()).subscribe()
@@ -21,7 +21,7 @@ class MulticastTest extends FunSpec {
 
     it("should complete observers after cancel()") {
       val latch = new CountDownLatch(2)
-      val obs = Observable.continuous(()).publish()
+      val obs = Observable.repeat(()).publish()
 
       obs.doOnComplete(latch.countDown()).subscribe()
       obs.doOnComplete(latch.countDown()).subscribe()
@@ -35,7 +35,7 @@ class MulticastTest extends FunSpec {
 
     it("should not connect() again, once canceled") {
       val latch = new CountDownLatch(2)
-      val obs = Observable.continuous(()).publish()
+      val obs = Observable.repeat(()).publish()
 
       obs.doOnComplete(latch.countDown()).subscribe()
       obs.doOnComplete(latch.countDown()).subscribe()

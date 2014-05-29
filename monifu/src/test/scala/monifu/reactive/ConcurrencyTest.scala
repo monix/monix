@@ -67,7 +67,7 @@ class ConcurrencyTest extends FunSpec {
     }
 
     it("should work with an asynchronous operator") {
-      val obs = Observable.fromSequence(10000.until(0, -1))
+      val obs = Observable.from(10000.until(0, -1))
         .observeOn(global)
         .drop(9900)
         .flatMap(x => Observable.range(x, x + 100).drop(90))
@@ -91,7 +91,7 @@ class ConcurrencyTest extends FunSpec {
     }
 
     it("should work with an asynchronous operator") {
-      val obs = Observable.fromSequence(10000.until(0, -1))
+      val obs = Observable.from(10000.until(0, -1))
         .observeOn(global)
         .dropWhile(_ > 100)
         .flatMap(x => Observable.range(x, x + 100).dropWhile(_ < x + 90))
@@ -116,7 +116,7 @@ class ConcurrencyTest extends FunSpec {
 
   describe("Observable.fromIterable") {
     it("should not have concurrency problems") {
-      val f = Observable.fromIterable(1 until 1000).observeOn(global)
+      val f = Observable.from(1 until 1000).observeOn(global)
         .map(_.toLong)
         .take(100)
         .foldLeft(Seq.empty[Long])(_:+_)
@@ -129,7 +129,7 @@ class ConcurrencyTest extends FunSpec {
 
   describe("Observable.merge") {
     it("should not have concurrency problems, test 1") {
-      val f = Observable.fromSequence(0 until 1000)
+      val f = Observable.from(0 until 1000)
         .observeOn(global)
         .take(100)
         .observeOn(global)
@@ -143,7 +143,7 @@ class ConcurrencyTest extends FunSpec {
     }
 
     it("should not have concurrency problems, test 2") {
-      val f = Observable.fromSequence(0 until 1000)
+      val f = Observable.from(0 until 1000)
         .observeOn(global)
         .take(100)
         .observeOn(global)

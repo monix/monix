@@ -19,10 +19,10 @@ class PublishSubjectTest extends FunSpec {
       val subject = PublishSubject[Int]()
       val latch = new CountDownLatch(2)
 
-      subject.observeOn(global).filter(x => x % 2 == 0).flatMap(x => Observable.fromSequence(x to x + 1))
+      subject.observeOn(global).filter(x => x % 2 == 0).flatMap(x => Observable.from(x to x + 1))
         .foldLeft(0)(_ + _).foreach { x => result1.set(x); latch.countDown() }
       for (i <- 0 until 100) subject.onNext(i)
-      subject.observeOn(global).filter(x => x % 2 == 0).flatMap(x => Observable.fromSequence(x to x + 1))
+      subject.observeOn(global).filter(x => x % 2 == 0).flatMap(x => Observable.from(x to x + 1))
         .foldLeft(0)(_ + _).foreach { x => result2.set(x); latch.countDown() }
       for (i <- 100 until 10000) subject.onNext(i)
 

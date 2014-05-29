@@ -232,8 +232,11 @@ trait Observable[+T] { self =>
           val upstreamPromise = Promise[Ack]()
 
           childObservable.subscribeFn(new Observer[U] {
-            def onNext(elem: U) =
-              observerU.onNext(elem)
+            def onNext(elem: U) = {
+              val future = observerU.onNext(elem)
+              future.onSuccess { case Done => upstreamPromise.success(Done) }
+              future
+            }
 
             def onError(ex: Throwable) = {
               // error happened, so signaling both the main thread that it should stop
@@ -399,7 +402,7 @@ trait Observable[+T] { self =>
         }
 
         def onComplete(): Unit = {
-          Observable.fromIterable(queue).subscribeFn(observer)
+          Observable.from(queue).subscribeFn(observer)
         }
       })
     }
@@ -874,10 +877,52 @@ trait Observable[+T] { self =>
   }
 
   /**
+   * Emits the given exception instead of `onComplete`.
+   * @param error the exception to emit onComplete
+   * @return a new Observable that emits an exception onComplete
+   */
+  final def endWithError(error: Throwable): Observable[T] =
+    Observable.create { observer =>
+      subscribeFn(new Observer[T] {
+        def onNext(elem: T) = observer.onNext(elem)
+        def onError(ex: Throwable) = observer.onError(ex)
+        def onComplete() = observer.onError(error)
+      })
+    }
+
+  /**
+   * Creates a new Observable that emits the given elements
+   * and then it also emits the events of the source (prepend operation).
+   */
+  def +:[U >: T](elems: U*): Observable[U] =
+    Observable.from(elems) ++ this
+
+  /**
+   * Creates a new Observable that emits the given elements
+   * and then it also emits the events of the source (prepend operation).
+   */
+  def startWith[U >: T](elems: U*): Observable[U] =
+    Observable.from(elems) ++ this
+
+  /**
+   * Creates a new Observable that emits the events of the source
+   * and then it also emits the given elements (appended to the stream).
+   */
+  def :+[U >: T](elems: U*): Observable[U] =
+    this ++ Observable.from(elems)
+
+  /**
+   * Creates a new Observable that emits the events of the source
+   * and then it also emits the given elements (appended to the stream).
+   */
+  def endWith[U >: T](elems: U*): Observable[U] =
+    this ++ Observable.from(elems)
+
+  /**
    * Concatenates the source Observable with the other Observable, as specified.
    */
   final def ++[U >: T](other: => Observable[U]): Observable[U] =
-    Observable.fromSequence(Seq(this, other)).flatten
+    Observable.concat(this, other)
 
   /**
    * Only emits the first element emitted by the source observable, after which it's completed immediately.
@@ -1103,6 +1148,37 @@ trait Observable[+T] { self =>
     }
 
   /**
+   * Repeats the items emitted by this Observable continuously. It caches the generated items until `onComplete`
+   * and repeats them ad infinitum. On error it terminates.
+   */
+  def repeat: Observable[T] = {
+    def loop(subject: Subject[T, T], observer: Observer[T]): Unit =
+      subject.subscribe(new Observer[T] {
+        def onNext(elem: T) = observer.onNext(elem)
+        def onError(ex: Throwable) = observer.onError(ex)
+        def onComplete(): Unit =
+          scheduler.scheduleOnce(loop(subject, observer))
+      })
+
+    Observable.create { observer =>
+      val subject = ReplaySubject[T]()
+      loop(subject, observer)
+
+      subscribeFn(new Observer[T] {
+        def onNext(elem: T): Future[Ack] = {
+          subject.onNext(elem)
+        }
+        def onError(ex: Throwable): Unit = {
+          subject.onError(ex)
+        }
+        def onComplete(): Unit = {
+          subject.onComplete()
+        }
+      })
+    }
+  }
+
+  /**
    * Converts this observable into a multicast observable, useful for turning a cold observable into
    * a hot one (i.e. whose source is shared by all observers).
    */
@@ -1310,21 +1386,27 @@ object Observable {
   /**
    * Creates an Observable that continuously emits the given ''item'' repeatedly.
    */
-  def continuous[T](elem: T)(implicit scheduler: Scheduler): Observable[T] =
-    Observable.create { o =>
-      val observer = SafeObserver(o)
+  def repeat[T](elems: T*)(implicit scheduler: Scheduler): Observable[T] = {
+    if (elems.size == 0) Observable.empty
+    else if (elems.size == 1) {
+      Observable.create { o =>
+        val observer = SafeObserver(o)
 
-      def loop(elem: T): Unit =
-        scheduler.execute(new Runnable {
-          def run(): Unit =
-            observer.onNext(elem).onSuccess {
-              case Continue =>
-                loop(elem)
-            }
-        })
+        def loop(elem: T): Unit =
+          scheduler.execute(new Runnable {
+            def run(): Unit =
+              observer.onNext(elem).onSuccess {
+                case Continue =>
+                  loop(elem)
+              }
+          })
 
-      loop(elem)
+        loop(elems.head)
+      }
     }
+    else
+      Observable.from(elems).repeat
+  }
 
   /**
    * Creates an Observable that emits items in the given range.
@@ -1369,66 +1451,27 @@ object Observable {
     }
   }
 
-
   /**
-   * Creates an Observable that emits the elements of the given ''sequence''.
-   *
-   * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/fromSequence.png" />
-   */
-  def fromSequence[T](seq: Seq[T])(implicit scheduler: Scheduler): Observable[T] =
-    Observable.create { o =>
-      val observer = SafeObserver(o)
-
-      def startFeedLoop(seq: Seq[T]): Unit =
-        scheduler.execute(new Runnable {
-          @tailrec
-          def loop(seq: Seq[T]): Unit = {
-            if (seq.nonEmpty) {
-              val elem = seq.head
-              val tail = seq.tail
-
-              observer.onNext(elem) match {
-                case Continue =>
-                  loop(tail)
-                case Done =>
-                // do nothing else
-                case async =>
-                  async.onSuccess {
-                    case Continue =>
-                      startFeedLoop(tail)
-                  }
-              }
-            }
-            else
-              observer.onComplete()
-          }
-
-          def run(): Unit =
-            try { loop(seq) } catch {
-              case NonFatal(ex) =>
-                observer.onError(ex)
-            }
-        })
-
-      startFeedLoop(seq)
-    }
-
-  /**
-   * Creates an Observable that emits the elements of the given ''iterable''.
-   * Prefer [[fromSequence]] for immutable collections that can be efficiently decomposed as head/tail.
+   * Converts a Future to an Observable.
    *
    * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/fromIterable.png" />
    */
-  def fromIterable[T](iterable: Iterable[T])(implicit scheduler: Scheduler): Observable[T] =
-    fromIterable(iterable.asJava)
-
+  def from[T](f: Future[T])(implicit scheduler: Scheduler): Observable[T] = f
+  
   /**
    * Creates an Observable that emits the elements of the given ''iterable''.
-   * Prefer [[fromSequence]] for immutable collections that can be efficiently decomposed as head/tail.
    *
    * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/fromIterable.png" />
    */
-  def fromIterable[T](iterable: java.lang.Iterable[T])(implicit scheduler: Scheduler): Observable[T] =
+  def from[T](iterable: Iterable[T])(implicit scheduler: Scheduler): Observable[T] =
+    from(iterable.asJava)
+
+  /**
+   * Creates an Observable that emits the elements of the given ''iterable''.
+   *
+   * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/fromIterable.png" />
+   */
+  def from[T](iterable: java.lang.Iterable[T])(implicit scheduler: Scheduler): Observable[T] =
     Observable.create { o =>
       val observer = SafeObserver(o)
 
@@ -1473,13 +1516,13 @@ object Observable {
    * Concatenates the given list of ''observables'' into a single observable.
    */
   def flatten[T](sources: Observable[T]*)(implicit scheduler: Scheduler): Observable[T] =
-    Observable.fromSequence(sources).flatten
+    Observable.from(sources).flatten
 
   /**
    * Merges the given list of ''observables'' into a single observable.
    */
   def merge[T](sources: Observable[T]*)(implicit scheduler: Scheduler): Observable[T] =
-    Observable.fromSequence(sources).merge
+    Observable.from(sources).merge
 
   /**
    * Creates a new Observable from two observables,
@@ -1509,7 +1552,7 @@ object Observable {
    * Concatenates the given list of ''observables'' into a single observable.
    */
   def concat[T](sources: Observable[T]*)(implicit scheduler: Scheduler): Observable[T] =
-    Observable.fromSequence(sources).concat
+    Observable.from(sources).concat
 
   /**
    * Implicit conversion from Future to Observable.
