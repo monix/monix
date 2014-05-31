@@ -29,7 +29,7 @@ final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends S
   implicit val scheduler = s
   private[this] val state = Atomic(Empty(initialValue) : State[T])
 
-  def subscribeFn(observer: Observer[T]): Unit = {
+  def unsafeSubscribe(observer: Observer[T]): Unit = {
     @tailrec
     def loop(): ConnectableObserver[T] = {
       state.get match {

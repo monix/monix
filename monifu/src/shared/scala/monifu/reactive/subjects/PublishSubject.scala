@@ -32,14 +32,14 @@ final class PublishSubject[T] private (s: Scheduler) extends Subject[T,T] { self
   private[this] var lastResponse = Continue : Future[Continue]
 
   @tailrec
-  def subscribeFn(observer: Observer[T]): Unit =
+  def unsafeSubscribe(observer: Observer[T]): Unit =
     state.get match {
       case Empty =>
         if (!state.compareAndSet(Empty, Active(Set(observer))))
-          subscribeFn(observer)
+          unsafeSubscribe(observer)
       case current @ Active(observers) =>
         if (!state.compareAndSet(current, Active(observers + observer)))
-          subscribeFn(observer)
+          unsafeSubscribe(observer)
       case Complete(errorThrown) =>
         if (errorThrown != null)
           observer.onError(errorThrown)
