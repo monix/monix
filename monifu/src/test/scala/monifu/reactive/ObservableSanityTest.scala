@@ -836,4 +836,45 @@ class ObservableSanityTest extends FunSpec {
       assert(elems.size === 300)
     }
   }
+
+  describe("Simple Operators") {
+    it("should do max") {
+      val max = Observable.range(0, 100).mergeMap(x => Observable.range(0, x+1)).max.asFuture
+      assert(Await.result(max, 10.seconds) === Some(99))
+    }
+
+    it("should do max with a key function") {
+      val max = Observable.range(0, 100).mergeMap(x => Observable.range(0, x+1)).maxBy(x => x).asFuture
+      assert(Await.result(max, 10.seconds) === Some(99))
+    }
+
+    it("should sum") {
+      val sum = Observable.range(0, 100).mergeMap(x => Observable.range(0, x+1)).sum.asFuture
+      assert(Await.result(sum, 10.seconds) === Some((0 until 100).flatMap(x => (0 until (x+1))).sum))
+    }
+
+    it("should emit only distinct items") {
+      val obs1 = Observable.from(Seq(1, 1, 2, 1, 3, 1, 4, 5, 6, 6, 5, 7))
+        .distinct.foldLeft(Seq.empty[Int])(_ :+ _).asFuture
+
+      assert(Await.result(obs1, 10.seconds) === Some(Seq(1,2,3,4,5,6,7)))
+
+      val obs2 = Observable.from(Seq(1, 1, 2, 1, 3, 1, 4, 5, 6, 6, 5, 7))
+        .distinct(x => x + 1).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
+
+      assert(Await.result(obs2, 10.seconds) === Some(Seq(1,2,3,4,5,6,7)))
+    }
+
+    it("should do distinctUntilChanged") {
+      val obs1 = Observable.from(Seq(1, 1, 2, 1, 3, 1, 4, 5, 6, 6, 5, 7))
+        .distinctUntilChanged.foldLeft(Seq.empty[Int])(_ :+ _).asFuture
+
+      assert(Await.result(obs1, 10.seconds) === Some(Seq(1,2,1,3,1,4,5,6,5,7)))
+
+      val obs2 = Observable.from(Seq(1, 1, 2, 1, 3, 1, 4, 5, 6, 6, 5, 7))
+        .distinctUntilChanged(x => x + 1).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
+
+      assert(Await.result(obs2, 10.seconds) === Some(Seq(1,2,1,3,1,4,5,6,5,7)))
+    }
+  }
 }
