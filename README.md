@@ -21,6 +21,11 @@ queue.transformAndExtract(queue.dequeue)
 
 queue.transformAndExtract(queue.dequeue)
 //=> "second item"
+
+val number = Atomic(BigInt(1))
+
+number.incrementAndGet
+//=> res: scala.math.BigInt = 2
 ```
 
 [Schedulers](https://github.com/alexandru/monifu/wiki/Schedulers)
@@ -29,11 +34,12 @@ queue.transformAndExtract(queue.dequeue)
 import monifu.concurrent.atomic.Atomic
 import monifu.concurrent.Scheduler.{computation => s}
 
-val loop = Atomic(0)
+val loop = Atomic(0) // we don't actually need an atomic or volatile here
+
 s.scheduleRecursive(1.second, 5.seconds, { reschedule =>
-  val counted = loop.incrementAndGet
-  if (counted < 10) {
+  if (loop.incrementAndGet < 10) {
     println(s"Counted: $counted")
+    // do next one
     reschedule()    
   }
 })
@@ -48,12 +54,18 @@ import monifu.reactive._
 
 // emits an auto-incremented number, every second
 Observable.interval(1.second)
-  .drop(10) // drops the first 10 emitted events
-  .take(100) // takes the first 100 emitted events
+  // drops the first 10 emitted events
+  .drop(10) 
+  // takes the first 100 emitted events  
+  .take(100) 
+  // per second, makes requests and concatenates the results
   .flatMap(x => WS.request(s"http://some.endpoint.com/request?tick=$x").get())
-  .filter(response => response.status == 200)
-  .map(response => response.body) // prints response body
-  .foreach(x => println(x)) // foreach element, print
+  // filters only valid responses
+  .filter(response => response.status == 200) 
+  // processes response, selecting the body
+  .map(response => response.body) 
+  // creates subscription, foreach response print it
+  .foreach(x => println(x)) 
 ```
 
 ## Documentation
