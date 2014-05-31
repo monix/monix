@@ -9,7 +9,7 @@ object Build extends SbtBuild {
 
   val sharedSettings = Defaults.defaultSettings ++ Seq(
     organization := "org.monifu",
-    version := "0.11.0",
+    version := "0.12.0",
     scalaVersion := "2.10.4",
     crossScalaVersions := Seq("2.10.4", "2.11.1"),
 
