@@ -24,7 +24,7 @@ final class ReplaySubject[T] private (s: Scheduler) extends Subject[T,T] { self 
   implicit val scheduler = s
   private[this] val state = Atomic(Empty(Queue.empty) : State[T])
 
-  def subscribeFn(observer: Observer[T]): Unit = {
+  def unsafeSubscribe(observer: Observer[T]): Unit = {
     @tailrec
     def loop(): ConnectableObserver[T] = {
       state.get match {

@@ -33,7 +33,7 @@ trait Observable[+T] { self =>
    *
    * @return a cancelable that can be used to cancel the streaming
    */
-  protected def subscribeFn(observer: Observer[T]): Unit
+  def unsafeSubscribe(observer: Observer[T]): Unit
 
   /**
    * Implicit scheduler required for asynchronous boundaries.
@@ -41,7 +41,7 @@ trait Observable[+T] { self =>
   implicit def scheduler: Scheduler
 
   final def subscribe(observer: Observer[T]): Unit =
-    subscribeFn(SafeObserver[T](observer))
+    unsafeSubscribe(SafeObserver[T](observer))
 
   /**
    * Helper to be used by consumers for subscribing to an observable.
@@ -80,7 +80,7 @@ trait Observable[+T] { self =>
    */
   final def map[U](f: T => U): Observable[U] =
     Observable.create { observer =>
-      subscribeFn(new Observer[T] {
+      unsafeSubscribe(new Observer[T] {
         def onNext(elem: T) = {
           // See Section 6.4. in the Rx Design Guidelines:
           // Protect calls to user code from within an operator
@@ -112,7 +112,7 @@ trait Observable[+T] { self =>
    */
   final def filter(p: T => Boolean): Observable[T] =
     Observable.create { observer =>
-      subscribeFn(new Observer[T] {
+      unsafeSubscribe(new Observer[T] {
         def onNext(elem: T) = {
           // See Section 6.4. in the Rx Design Guidelines:
           // Protect calls to user code from within an operator
@@ -140,7 +140,7 @@ trait Observable[+T] { self =>
     }
 
   final def foreach(cb: T => Unit): Unit =
-    subscribeFn(new Observer[T] {
+    unsafeSubscribe(new Observer[T] {
       def onNext(elem: T) =
         try { cb(elem); Continue } catch {
           case NonFatal(ex) =>
@@ -227,11 +227,11 @@ trait Observable[+T] { self =>
    */
   final def concat[U](implicit ev: T <:< Observable[U]): Observable[U] =
     Observable.create { observerU =>
-      subscribeFn(new Observer[T] {
+      unsafeSubscribe(new Observer[T] {
         def onNext(childObservable: T) = {
           val upstreamPromise = Promise[Ack]()
 
-          childObservable.subscribeFn(new Observer[U] {
+          childObservable.unsafeSubscribe(new Observer[U] {
             def onNext(elem: U) = {
               val future = observerU.onNext(elem)
               future.onSuccess { case Done => upstreamPromise.success(Done) }
@@ -293,12 +293,12 @@ trait Observable[+T] { self =>
         ackBuffer.scheduleDone(observerB.onComplete())
       }
 
-      subscribeFn(new Observer[T] {
+      unsafeSubscribe(new Observer[T] {
         def onNext(elem: T) = {
           // reference that gets released when the child observer is completed
           val refID = refCounter.acquire()
 
-          elem.subscribeFn(new Observer[U] {
+          elem.unsafeSubscribe(new Observer[U] {
             def onNext(elem: U) =
               ackBuffer.scheduleNext {
                 observerB.onNext(elem)
@@ -340,7 +340,7 @@ trait Observable[+T] { self =>
    */
   final def take(n: Int): Observable[T] =
     Observable.create { observer =>
-      subscribeFn(new Observer[T] {
+      unsafeSubscribe(new Observer[T] {
         private[this] var counter = 0
 
         def onNext(elem: T) = {
@@ -402,7 +402,7 @@ trait Observable[+T] { self =>
         }
 
         def onComplete(): Unit = {
-          Observable.from(queue).subscribeFn(observer)
+          Observable.from(queue).unsafeSubscribe(observer)
         }
       })
     }
@@ -416,7 +416,7 @@ trait Observable[+T] { self =>
    */
   final def drop(n: Int): Observable[T] =
     Observable.create { observer =>
-      subscribeFn(new Observer[T] {
+      unsafeSubscribe(new Observer[T] {
         private[this] var count = 0L
 
         def onNext(elem: T) = {
@@ -442,7 +442,7 @@ trait Observable[+T] { self =>
    */
   final def takeWhile(p: T => Boolean): Observable[T] =
     Observable.create { observer =>
-      subscribeFn(new Observer[T] {
+      unsafeSubscribe(new Observer[T] {
         var shouldContinue = true
 
         def onNext(elem: T) = {
@@ -484,7 +484,7 @@ trait Observable[+T] { self =>
    */
   final def takeWhile(isRefTrue: Atomic[Boolean]): Observable[T] =
     Observable.create { observer =>
-      subscribeFn(new Observer[T] {
+      unsafeSubscribe(new Observer[T] {
         var shouldContinue = true
 
         def onNext(elem: T) = {
@@ -527,7 +527,7 @@ trait Observable[+T] { self =>
    */
   final def dropWhile(p: T => Boolean): Observable[T] =
     Observable.create { observer =>
-      subscribeFn(new Observer[T] {
+      unsafeSubscribe(new Observer[T] {
         var shouldDrop = true
 
         def onNext(elem: T) = {
@@ -570,7 +570,7 @@ trait Observable[+T] { self =>
    */
   final def foldLeft[R](initial: R)(op: (R, T) => R): Observable[R] =
     Observable.create { observer =>
-      subscribeFn(new Observer[T] {
+      unsafeSubscribe(new Observer[T] {
         private[this] var state = initial
 
         def onNext(elem: T): Future[Ack] = {
@@ -604,7 +604,7 @@ trait Observable[+T] { self =>
    */
   final def reduce[U >: T](op: (U, U) => U): Observable[U] =
     Observable.create { observer =>
-      subscribeFn(new Observer[T] {
+      unsafeSubscribe(new Observer[T] {
         private[this] var state: U = _
         private[this] var isFirst = true
         private[this] var wasApplied = false
@@ -655,7 +655,7 @@ trait Observable[+T] { self =>
    */
   final def scan[R](initial: R)(op: (R, T) => R): Observable[R] =
     Observable.create { observer =>
-      subscribeFn(new Observer[T] {
+      unsafeSubscribe(new Observer[T] {
         private[this] var state = initial
 
         def onNext(elem: T): Future[Ack] = {
@@ -692,7 +692,7 @@ trait Observable[+T] { self =>
    */
   final def scan[U >: T](op: (U, U) => U): Observable[U] =
     Observable.create { observer =>
-      subscribeFn(new Observer[T] {
+      unsafeSubscribe(new Observer[T] {
         private[this] var state: U = _
         private[this] var isFirst = true
 
@@ -737,7 +737,7 @@ trait Observable[+T] { self =>
    */
   final def doOnComplete(cb: => Unit): Observable[T] =
     Observable.create { observer =>
-      subscribeFn(new Observer[T] {
+      unsafeSubscribe(new Observer[T] {
         def onNext(elem: T) = {
           val f = observer.onNext(elem)
           f.onSuccess { case Done => cb }
@@ -766,7 +766,7 @@ trait Observable[+T] { self =>
    */
   final def doWork(cb: T => Unit): Observable[T] =
     Observable.create { observer =>
-      subscribeFn(new Observer[T] {
+      unsafeSubscribe(new Observer[T] {
         def onError(ex: Throwable) = observer.onError(ex)
         def onComplete() = observer.onComplete()
 
@@ -821,7 +821,7 @@ trait Observable[+T] { self =>
    */
   final def complete: Observable[Nothing] =
     Observable.create { observer =>
-      subscribeFn(new Observer[T] {
+      unsafeSubscribe(new Observer[T] {
         def onNext(elem: T) = Continue
         def onError(ex: Throwable): Unit =
           observer.onError(ex)
@@ -836,7 +836,7 @@ trait Observable[+T] { self =>
    */
   final def error: Observable[Throwable] =
     Observable.create { observer =>
-      subscribeFn(new Observer[T] {
+      unsafeSubscribe(new Observer[T] {
         def onNext(elem: T) = Continue
         def onComplete(): Unit =
           observer.onComplete()
@@ -856,7 +856,7 @@ trait Observable[+T] { self =>
   final def asFuture: Future[Option[T]] = {
     val promise = Promise[Option[T]]()
 
-    head.subscribeFn(new Observer[T] {
+    head.unsafeSubscribe(new Observer[T] {
       def onNext(elem: T) = {
         promise.trySuccess(Some(elem))
         Done
@@ -883,7 +883,7 @@ trait Observable[+T] { self =>
    */
   final def endWithError(error: Throwable): Observable[T] =
     Observable.create { observer =>
-      subscribeFn(new Observer[T] {
+      unsafeSubscribe(new Observer[T] {
         def onNext(elem: T) = observer.onNext(elem)
         def onError(ex: Throwable) = observer.onError(ex)
         def onComplete() = observer.onError(error)
@@ -982,7 +982,7 @@ trait Observable[+T] { self =>
           Done
       }
 
-      subscribeFn(new Observer[T] {
+      unsafeSubscribe(new Observer[T] {
         def onNext(a: T): Future[Ack] =
           lock.synchronized {
             if (queueB.isEmpty) {
@@ -1015,7 +1015,7 @@ trait Observable[+T] { self =>
         }
       })
 
-      other.subscribeFn(new Observer[U] {
+      other.unsafeSubscribe(new Observer[U] {
         def onNext(b: U): Future[Ack] =
           lock.synchronized {
             if (queueA.nonEmpty) {
@@ -1049,7 +1049,7 @@ trait Observable[+T] { self =>
    */
   final def max[U >: T](implicit ev: Ordering[U]): Observable[U] =
     Observable.create { observer =>
-      subscribeFn(new Observer[T] {
+      unsafeSubscribe(new Observer[T] {
         private[this] var maxValue: T = _
         private[this] var hasValue = false
 
@@ -1082,7 +1082,7 @@ trait Observable[+T] { self =>
    */
   final def maxBy[U](f: T => U)(implicit ev: Ordering[U]): Observable[T] =
     Observable.create { observer =>
-      subscribeFn(new Observer[T] {
+      unsafeSubscribe(new Observer[T] {
         private[this] var maxValue: T = _
         private[this] var maxValueU: U = _
         private[this] var hasValue = false
@@ -1121,7 +1121,7 @@ trait Observable[+T] { self =>
    */
   final def min[U >: T](implicit ev: Ordering[U]): Observable[T] =
     Observable.create { observer =>
-      subscribeFn(new Observer[T] {
+      unsafeSubscribe(new Observer[T] {
         private[this] var minValue: T = _
         private[this] var hasValue = false
 
@@ -1154,7 +1154,7 @@ trait Observable[+T] { self =>
    */
   final def minBy[U](f: T => U)(implicit ev: Ordering[U]): Observable[T] =
     Observable.create { observer =>
-      subscribeFn(new Observer[T] {
+      unsafeSubscribe(new Observer[T] {
         private[this] var minValue: T = _
         private[this] var minValueU: U = _
         private[this] var hasValue = false
@@ -1193,7 +1193,7 @@ trait Observable[+T] { self =>
    */
   final def sum[U >: T](implicit ev: Numeric[U]): Observable[U] = {
     Observable.create { observer =>
-      subscribeFn(new Observer[T] {
+      unsafeSubscribe(new Observer[T] {
         private[this] var result = ev.zero
 
         def onNext(elem: T): Future[Ack] = {
@@ -1218,7 +1218,7 @@ trait Observable[+T] { self =>
     implicit val scheduler = s
 
     Observable.create { observer =>
-      subscribeFn(new Observer[T] {
+      unsafeSubscribe(new Observer[T] {
         private[this] var lastResponse = Continue : Future[Ack]
 
         def onNext(elem: T): Future[Ack] = {
@@ -1260,7 +1260,7 @@ trait Observable[+T] { self =>
    */
   def distinct: Observable[T] =
     Observable.create { observer =>
-      subscribeFn(new Observer[T] {
+      unsafeSubscribe(new Observer[T] {
         private[this] val set = mutable.Set.empty[T]
 
         def onNext(elem: T) = {
@@ -1284,7 +1284,7 @@ trait Observable[+T] { self =>
    */
   def distinct[U](fn: T => U): Observable[T] =
     Observable.create { observer =>
-      subscribeFn(new Observer[T] {
+      unsafeSubscribe(new Observer[T] {
         private[this] val set = mutable.Set.empty[U]
 
         def onNext(elem: T) = {
@@ -1306,7 +1306,7 @@ trait Observable[+T] { self =>
    */
   def distinctUntilChanged: Observable[T] =
     Observable.create { observer =>
-      subscribeFn(new Observer[T] {
+      unsafeSubscribe(new Observer[T] {
         private[this] var isFirst = true
         private[this] var lastElem: T = _
 
@@ -1334,7 +1334,7 @@ trait Observable[+T] { self =>
    */
   def distinctUntilChanged[U](fn: T => U): Observable[T] =
     Observable.create { observer =>
-      subscribeFn(new Observer[T] {
+      unsafeSubscribe(new Observer[T] {
         private[this] var isFirst = true
         private[this] var lastKey: U = _
 
@@ -1363,7 +1363,7 @@ trait Observable[+T] { self =>
    */
   final def subscribeOn(s: Scheduler): Observable[T] = {
     implicit val scheduler = s
-    Observable.create(o => s.scheduleOnce(subscribeFn(o)))
+    Observable.create(o => s.scheduleOnce(unsafeSubscribe(o)))
   }
 
   /**
@@ -1376,7 +1376,7 @@ trait Observable[+T] { self =>
    */
   final def materialize: Observable[Notification[T]] =
     Observable.create { observer =>
-      subscribeFn(new Observer[T] {
+      unsafeSubscribe(new Observer[T] {
         def onNext(elem: T): Future[Ack] =
           observer.onNext(OnNext(elem))
 
@@ -1397,7 +1397,7 @@ trait Observable[+T] { self =>
    */
   final def dump(prefix: String): Observable[T] =
     Observable.create { observer =>
-      subscribeFn(new Observer[T] {
+      unsafeSubscribe(new Observer[T] {
         private[this] var pos = 0
 
         def onNext(elem: T): Future[Ack] = {
@@ -1437,7 +1437,7 @@ trait Observable[+T] { self =>
       val subject = ReplaySubject[T]()
       loop(subject, observer)
 
-      subscribeFn(new Observer[T] {
+      unsafeSubscribe(new Observer[T] {
         def onNext(elem: T): Future[Ack] = {
           subject.onNext(elem)
         }
@@ -1463,29 +1463,29 @@ trait Observable[+T] { self =>
       private[this] val cancelAction =
         BooleanCancelable { notCanceled set false }
       private[this] val notConnected =
-        Cancelable { self.takeWhile(notCanceled).subscribeFn(subject) }
+        Cancelable { self.takeWhile(notCanceled).unsafeSubscribe(subject) }
 
       def connect() = {
         notConnected.cancel()
         cancelAction
       }
 
-      def subscribeFn(observer: Observer[R]): Unit = {
-        subject.subscribeFn(observer)
+      def unsafeSubscribe(observer: Observer[R]): Unit = {
+        subject.unsafeSubscribe(observer)
       }
     }
 
   /**
-   * Wraps the observer implementation given to `subscribeFn` into a [[observers.SafeObserver SafeObserver]].
+   * Wraps the observer implementation given to `unsafeSubscribe` into a [[observers.SafeObserver SafeObserver]].
    * Normally wrapping in a `SafeObserver` happens at the edges of the monad
    * (in the user-facing `subscribe()` implementation) or in Observable subscribe implementations,
    * so this wrapping is useful.
    */
   final def safe: Observable[T] =
-    Observable.create { observer => subscribeFn(SafeObserver(observer)) }
+    Observable.create { observer => unsafeSubscribe(SafeObserver(observer)) }
 
   /**
-   * Wraps the observer implementation given to `subscribeFn` into a [[observers.BufferedObserver BufferedObserver]].
+   * Wraps the observer implementation given to `unsafeSubscribe` into a [[observers.BufferedObserver BufferedObserver]].
    *
    * Normally Monifu's implementation guarantees that events are not emitted concurrently,
    * and that the publisher MUST NOT emit the next event without acknowledgement from the consumer
@@ -1497,10 +1497,10 @@ trait Observable[+T] { self =>
    * because the buffer is unbounded.
    */
   final def buffered: Observable[T] =
-    Observable.create { observer => subscribeFn(BufferedObserver(observer)) }
+    Observable.create { observer => unsafeSubscribe(BufferedObserver(observer)) }
 
   /**
-   * An alias for [[buffered]]. Wraps the observer implementation given to `subscribeFn`
+   * An alias for [[buffered]]. Wraps the observer implementation given to `unsafeSubscribe`
    * into a [[observers.BufferedObserver BufferedObserver]].
    *
    * Normally Monifu's implementation guarantees that events are not emitted concurrently,
@@ -1577,7 +1577,7 @@ object Observable {
     val s = scheduler
     new Observable[T] {
       val scheduler = s
-      def subscribeFn(observer: Observer[T]): Unit =
+      def unsafeSubscribe(observer: Observer[T]): Unit =
         try f(observer) catch {
           case NonFatal(ex) =>
             observer.onError(ex)
