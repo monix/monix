@@ -4,7 +4,7 @@ import scala.concurrent.Future
 import monifu.reactive.api.Ack
 import monifu.reactive.api.Ack.{Continue, Done}
 import monifu.concurrent.Scheduler
-import monifu.reactive.Observer
+import monifu.reactive.{Subject, Observer}
 import monifu.reactive.internals.PromiseCounter
 import monifu.concurrent.atomic.Atomic
 import scala.annotation.tailrec

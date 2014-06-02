@@ -7,6 +7,7 @@ import monifu.concurrent.Scheduler
 import monifu.concurrent.atomic.padded.Atomic
 import scala.util.Success
 import monifu.reactive.api.Ack
+import monifu.reactive.internals.FutureAckExtensions
 
 
 /**
@@ -23,9 +24,9 @@ final class BufferedObserver[-T] private (observer: Observer[T])(implicit schedu
     val newAck = p.future
     val oldAck = ack.getAndSet(newAck)
 
-    oldAck.onComplete {
+    oldAck.onCompleteNow {
       case Success(Continue) =>
-        p.completeWith(observer.onNext(elem))
+        observer.onNext(elem).onCompleteNow(r => p.complete(r))
       case other =>
         p.complete(other)
     }

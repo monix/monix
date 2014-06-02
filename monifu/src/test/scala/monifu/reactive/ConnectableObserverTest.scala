@@ -6,7 +6,7 @@ import scala.concurrent.Future
 import monifu.reactive.api.Ack.{Done, Continue}
 import monifu.concurrent.Scheduler.Implicits.global
 import java.util.concurrent.{TimeUnit, CountDownLatch}
-import monifu.reactive.observers.ConnectableObserver
+import monifu.reactive.observers.{BufferedObserver, ConnectableObserver}
 
 class ConnectableObserverTest extends FunSpec {
   describe("ConnectableObserver") {
@@ -27,7 +27,7 @@ class ConnectableObserverTest extends FunSpec {
         }
       })
 
-      obs.scheduleFirst(1, 2)
+      obs.pushNext(1, 2)
       obs.connect()
 
       Observable.range(0, 1000).subscribe(obs)
@@ -54,9 +54,10 @@ class ConnectableObserverTest extends FunSpec {
         }
       })
 
-      obs.onNext(1).onComplete(_ => ackLatch.countDown())
-      obs.onNext(2).onComplete(_ => ackLatch.countDown())
-      obs.onNext(3).onComplete(_ => ackLatch.countDown())
+      val channel = BufferedObserver(obs)
+      channel.onNext(1).onComplete(_ => ackLatch.countDown())
+      channel.onNext(2).onComplete(_ => ackLatch.countDown())
+      channel.onNext(3).onComplete(_ => ackLatch.countDown())
 
       assert(!ackLatch.await(300, TimeUnit.MILLISECONDS), "ackLatch.await should not succeed")
       assert(sum === 0)
@@ -64,7 +65,7 @@ class ConnectableObserverTest extends FunSpec {
       obs.connect()
       assert(ackLatch.await(10, TimeUnit.SECONDS), "ackLatch.await should succeed")
 
-      obs.onComplete()
+      channel.onComplete()
       assert(completed.await(10, TimeUnit.SECONDS), "completed.await should succeed")
       assert(sum === 6)
     }
@@ -87,7 +88,7 @@ class ConnectableObserverTest extends FunSpec {
         }
       })
 
-      obs.scheduleFirst(1, 2)
+      obs.pushNext(1, 2)
       Observable.range(0, 1000).doWork(_ => streamStarted.countDown()).subscribe(obs)
 
       assert(streamStarted.await(10, TimeUnit.SECONDS), "streamCompleted.await should have succeeded")
@@ -118,8 +119,8 @@ class ConnectableObserverTest extends FunSpec {
         }
       })
 
-      obs.scheduleFirst(1, 2, 3)
-      obs.scheduleComplete()
+      obs.pushNext(1, 2, 3)
+      obs.pushComplete()
       obs.connect()
 
       assert(completed.await(10, TimeUnit.SECONDS), "completed.await should have succeeded")
@@ -148,8 +149,8 @@ class ConnectableObserverTest extends FunSpec {
         def onComplete(): Unit = ()
       })
 
-      obs.scheduleFirst(1, 2, 3)
-      obs.schedulerError(new RuntimeException("dummy"))
+      obs.pushNext(1, 2, 3)
+      obs.pushError(new RuntimeException("dummy"))
       obs.connect()
 
       assert(completed.await(10, TimeUnit.SECONDS), "completed.await should have succeeded")
@@ -182,8 +183,8 @@ class ConnectableObserverTest extends FunSpec {
       Observable.range(0, 1000).doWork(_ => streamCompleted.countDown()).subscribe(obs)
       assert(streamCompleted.await(10, TimeUnit.SECONDS), "streamCompleted.await should have succeeded")
 
-      obs.scheduleFirst(1, 2, 3)
-      obs.scheduleComplete()
+      obs.pushNext(1, 2, 3)
+      obs.pushComplete()
       obs.connect()
 
       assert(completed.await(10, TimeUnit.SECONDS), "completed.await should have succeeded")
@@ -212,8 +213,8 @@ class ConnectableObserverTest extends FunSpec {
         }
       })
 
-      obs.scheduleFirst(1, 2, 3)
-      obs.scheduleComplete()
+      obs.pushNext(1, 2, 3)
+      obs.pushComplete()
       obs.connect()
 
       Observable.range(0, 1000).doOnComplete(streamCompleted.countDown()).subscribe(obs)
@@ -242,7 +243,7 @@ class ConnectableObserverTest extends FunSpec {
       })
 
       Observable.range(0, 100000).observeOn(global).subscribe(obs)
-      obs.scheduleFirst(0 until 1000 : _*)
+      obs.pushNext(0 until 1000 : _*)
       obs.connect()
 
       assert(completed.await(10, TimeUnit.SECONDS), "completed.await should have succeeded")
@@ -267,7 +268,7 @@ class ConnectableObserverTest extends FunSpec {
         }
       })
 
-      obs.scheduleFirst(0 until 1000 : _*)
+      obs.pushNext(0 until 1000 : _*)
       Observable.range(0, 100000).observeOn(global).subscribe(obs)
       obs.connect()
 
@@ -293,8 +294,9 @@ class ConnectableObserverTest extends FunSpec {
         }
       })
 
-      obs.scheduleFirst(0 until 1000 : _*)
+      obs.pushNext(0 until 1000 : _*)
       obs.connect()
+
       Observable.range(0, 100000).observeOn(global).subscribe(obs)
 
       assert(completed.await(10, TimeUnit.SECONDS), "completed.await should have succeeded")
@@ -326,7 +328,7 @@ class ConnectableObserverTest extends FunSpec {
         }
       })
 
-      obs.scheduleFirst(1, 2)
+      obs.pushNext(1, 2)
       Observable.range(0, 1000).doWork(_ => streamStarted.countDown()).subscribe(obs)
       assert(streamStarted.await(10, TimeUnit.SECONDS), "streamStarted.await should have succeeded")
 
@@ -360,7 +362,7 @@ class ConnectableObserverTest extends FunSpec {
         }
       })
 
-      obs.scheduleFirst(0 until 20 : _*)
+      obs.pushNext(0 until 20 : _*)
       Observable.range(0, 1000).doWork(_ => streamStarted.countDown()).subscribe(obs)
       assert(streamStarted.await(10, TimeUnit.SECONDS), "streamStarted.await should have succeeded")
 
@@ -388,7 +390,7 @@ class ConnectableObserverTest extends FunSpec {
 
       val publish = Observable.range(3, 100000).publish()
 
-      obs.scheduleFirst(1, 2)
+      obs.pushNext(1, 2)
       publish.subscribe(obs)
 
       publish.connect()
@@ -420,7 +422,7 @@ class ConnectableObserverTest extends FunSpec {
 
       val publish = Observable.range(1000, 100000).observeOn(global).publish()
 
-      obs.scheduleFirst(0 until 1000 : _*)
+      obs.pushNext(0 until 1000 : _*)
       publish.subscribe(obs)
 
       publish.connect()
@@ -439,16 +441,18 @@ class ConnectableObserverTest extends FunSpec {
           expecting += 1
           Continue
         }
+
         def onError(ex: Throwable): Unit = {
           throw new IllegalStateException(s"onError($ex)")
         }
+
         def onComplete(): Unit = {
           assert(expecting === 100000)
           completed.countDown()
         }
       })
 
-      obs.scheduleFirst(0 until 1000 : _*)
+      obs.pushNext(0 until 1000 : _*)
       obs.connect()
 
       Observable.range(1000, 100000).observeOn(global).subscribe(obs)

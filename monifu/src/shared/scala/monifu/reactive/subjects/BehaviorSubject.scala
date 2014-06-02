@@ -3,7 +3,7 @@ package monifu.reactive.subjects
 import scala.concurrent.Future
 import monifu.reactive.api.Ack.{Continue, Done}
 import monifu.concurrent.Scheduler
-import monifu.reactive.Observer
+import monifu.reactive.{Subject, Observer}
 import monifu.concurrent.atomic.padded.Atomic
 import scala.annotation.tailrec
 import monifu.reactive.api.Ack
@@ -35,7 +35,7 @@ final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends S
       state.get match {
         case current @ Empty(cachedValue) =>
           val obs = new ConnectableObserver[T](observer)
-          obs.scheduleFirst(cachedValue)
+          obs.pushNext(cachedValue)
 
           if (!state.compareAndSet(current, Active(Array(obs), cachedValue)))
             loop()
@@ -44,7 +44,7 @@ final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends S
 
         case current @ Active(observers, cachedValue) =>
           val obs = new ConnectableObserver[T](observer)
-          obs.scheduleFirst(cachedValue)
+          obs.pushNext(cachedValue)
 
           if (!state.compareAndSet(current, Active(observers :+ obs, cachedValue)))
             loop()
@@ -54,11 +54,11 @@ final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends S
         case current @ Complete(cachedValue, errorThrown) =>
           val obs = new ConnectableObserver[T](observer)
           if (errorThrown eq null) {
-            obs.scheduleFirst(cachedValue)
-            obs.scheduleComplete()
+            obs.pushNext(cachedValue)
+            obs.pushComplete()
           }
           else {
-            obs.schedulerError(errorThrown)
+            obs.pushError(errorThrown)
           }
           obs
       }

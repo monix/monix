@@ -3,7 +3,7 @@ package monifu.reactive.subjects
 import scala.concurrent.Future
 import monifu.reactive.api.Ack.{Continue, Done}
 import monifu.concurrent.Scheduler
-import monifu.reactive.{Observable, Observer}
+import monifu.reactive.{Subject, Observer}
 import monifu.concurrent.atomic.padded.Atomic
 import scala.annotation.tailrec
 import monifu.reactive.api.Ack
@@ -30,7 +30,7 @@ final class ReplaySubject[T] private (s: Scheduler) extends Subject[T,T] { self 
       state.get match {
         case current @ Empty(cache) =>
           val obs = new ConnectableObserver[T](observer)
-          obs.scheduleFirst(cache : _*)
+          obs.pushNext(cache : _*)
 
           if (!state.compareAndSet(current, Active(Array(obs), cache)))
             loop()
@@ -39,7 +39,7 @@ final class ReplaySubject[T] private (s: Scheduler) extends Subject[T,T] { self 
 
         case current @ Active(observers, cache) =>
           val obs = new ConnectableObserver[T](observer)
-          obs.scheduleFirst(cache : _*)
+          obs.pushNext(cache : _*)
 
           if (!state.compareAndSet(current, Active(observers :+ obs, cache)))
             loop()
@@ -47,19 +47,17 @@ final class ReplaySubject[T] private (s: Scheduler) extends Subject[T,T] { self 
             obs
 
         case current @ Complete(cache, errorThrown) =>
-          // we already have the cache, it can't grow, so just
-          // take the fast path
-          if (errorThrown eq null)
-            Observable.from(cache).subscribe(observer)
+          val obs = new ConnectableObserver[T](observer)
+          obs.pushNext(cache : _*)
+          if (errorThrown ne null)
+            obs.pushError(errorThrown)
           else
-            Observable.from(cache).endWithError(errorThrown)
-              .subscribe(observer)
-          null
+            obs.pushComplete()
+          obs
       }
     }
 
-    val c = loop()
-    if (c != null) c.connect()
+    loop().connect()
   }
 
   private[this] def emitNext(obs: Observer[T], elem: T): Future[Continue] =

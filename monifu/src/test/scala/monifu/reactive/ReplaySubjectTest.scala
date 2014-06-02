@@ -49,23 +49,6 @@ class ReplaySubjectTest extends FunSpec {
       assert(result2.get === (0 until 10000).filter(_ % 2 == 0).flatMap(x => x to (x + 1)).sum)
     }
 
-    it("should work without asynchronous boundaries") {
-      val result1 = Atomic(0)
-      val result2 = Atomic(0)
-
-      val subject = ReplaySubject[Int]()
-      val latch = new CountDownLatch(2)
-
-      subject.filter(_ % 2 == 0).map(_ + 1).doOnComplete(latch.countDown()).foreach(x => result1.increment(x))
-      for (i <- 0 until 20) subject.onNext(i)
-      subject.filter(_ % 2 == 0).map(_ + 1).doOnComplete(latch.countDown()).foreach(x => result2.increment(x))
-      for (i <- 20 until 100000) subject.onNext(i)
-
-      subject.onComplete()
-      assert(result1.get === (0 until 100000).filter(_ % 2 == 0).map(_ + 1).sum)
-      assert(result2.get === (0 until 100000).filter(_ % 2 == 0).map(_ + 1).sum)
-    }
-
     it("onError should be emitted over asynchronous boundaries") {
       val result1 = Atomic(null : Throwable)
       val result2 = Atomic(null : Throwable)

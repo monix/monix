@@ -1,34 +1,72 @@
 package monifu.reactive.observers
 
-import monifu.reactive.Observer
-import scala.collection.mutable.ListBuffer
-import scala.concurrent.{Promise, Future}
-import monifu.reactive.api.Ack.{Done, Continue}
-import monifu.concurrent.Scheduler
+import monifu.reactive.{Observable, Channel, Observer}
+import scala.concurrent.Promise
 import monifu.reactive.api.Ack
-
+import monifu.concurrent.Scheduler
+import monifu.reactive.api.Ack.{Done, Continue}
+import scala.collection.mutable
+import monifu.reactive.internals.FutureAckExtensions
 
 /**
- * Represents an [[Observer]] that buffers emitted items until the call to `connect()` happens.
- * Before connecting, one can also schedule items to be prepended to the stream by means of
- * `scheduleFirst` or for the stream to end by means of `schedulerError` or `scheduleCompleted`.
+ * Wraps an [[Observer]] into an implementation that abstains from emitting items until the call
+ * to `connect()` happens. Prior to `connect()` it's also a [[Channel]] into which you can enqueue
+ * events for delivery once `connect()` happens, but before any items
+ * emitted by `onNext` / `onComplete` and `onError`.
  *
- * Used in the [[monifu.reactive.subjects.BehaviorSubject BehaviorSubject]] implementation.
+ * Example: {{{
+ *   val obs = ConnectableObserver(observer)
+ *
+ *   // schedule onNext event, after connect()
+ *   obs.onNext("c")
+ *
+ *   // schedule event "a" to be emitted first
+ *   obs.pushNext("a")
+ *   // schedule event "b" to be emitted second
+ *   obs.pushNext("b")
+ *
+ *   // underlying observer now gets events "a", "b", "c" in order
+ *   obs.connect()
+ * }}}
+ *
+ * Example of an observer ended in error: {{{
+ *   val obs = ConnectableObserver(observer)
+ *
+ *   // schedule onNext event, after connect()
+ *   obs.onNext("c")
+ *
+ *   obs.pushNext("a") // event "a" to be emitted first
+ *   obs.pushNext("b") // event "b" to be emitted first
+ *
+ *   // schedule an onError sent downstream, once connect()
+ *   // happens, but after "a" and "b"
+ *   obs.pushError(new RuntimeException())
+ *
+ *   // underlying observer receives ...
+ *   // onNext("a") -> onNext("b") -> onError(RuntimeException)
+ *   obs.connect()
+ *
+ *   // NOTE: that onNext("c") never happens
+ * }}}
  */
-final class ConnectableObserver[-T](val underlying: Observer[T])(implicit s: Scheduler)
-  extends Observer[T] {
+final class ConnectableObserver[-T](underlying: Observer[T])(implicit s: Scheduler)
+  extends Channel[T] with Observer[T] { self =>
 
   private[this] val observer = SafeObserver(underlying)
-  private[this] val lock = new AnyRef
 
-  // MUST BE protected by `lock` if isConnected == false
-  private[this] var isDone = false
-  // MUST BE protected by `lock` if isConnected == false
-  private[this] var errorThrown = null : Throwable
-  // MUST BE protected by `lock`
-  private[this] var lastAck = Continue : Future[Ack]
-  // MUST BE protected by `lock`
-  private[this] var queue = new ListBuffer[T]()
+  // MUST BE synchronized by `self`, only available if isConnected == false
+  private[this] var queue = mutable.ArrayBuffer.empty[T]
+  // MUST BE synchronized by `self`, only available if isConnected == false
+  private[this] var scheduledDone = false
+  // MUST BE synchronized by `self`, only available if isConnected == false
+  private[this] var scheduledError = null : Throwable
+  // MUST BE synchronized by `self`
+  private[this] var isConnectionStarted = false
+
+  // Promise guaranteed to be fulfilled once isConnected is
+  // seen as true and used for back-pressure.
+  // MUST BE synchronized by `self`, only available if isConnected == false
+  private[this] var connectedPromise = Promise[Ack]()
 
   // Volatile that is set to true once the buffer is drained.
   // Once visible as true, it implies that the queue is empty
@@ -36,206 +74,130 @@ final class ConnectableObserver[-T](val underlying: Observer[T])(implicit s: Sch
   // can take the fast path
   @volatile private[this] var isConnected = false
 
-  // promise guaranteed to be fulfilled once isConnected is seen as true
-  // and used for back-pressure
-  private[this] val connectedPromise = Promise[Ack]()
-
   /**
-   * Prepends the given items to the queue, items that will be emitted as soon as
-   * the call to [[connect]] happens. These queued items will be emitted first,
-   * before any other events that are queued by the upstream's calls to [[onNext]].
+   * Connects the underling observer to the upstream publisher.
+   *
+   * This function should be idempotent. Calling it multiple times should have the same
+   * effect as calling it once.
    */
-  def scheduleFirst(elems: T*): Unit = {
-    lock.synchronized {
-      if (!isConnected)
-        queue.prepend(elems : _*)
-      else
-        throw new IllegalStateException("Cannot scheduleFirst after isConnected")
-    }
-  }
+  def connect(): Unit =
+    synchronized {
+      if (!isConnected && !isConnectionStarted) {
+        isConnectionStarted = true
 
-  /**
-   * Schedules an error to be emitted as soon as the call to [[connect]] happens,
-   * but after any items scheduled with [[scheduleFirst]].
-   */
-  def schedulerError(ex: Throwable): Unit = {
-    lock.synchronized {
-      if (!isConnected) {
-        isDone = true
-        errorThrown = ex
-      }
-      else
-        throw new IllegalStateException("Cannot scheduleError after isConnected")
-    }
-  }
+        Observable.from(queue).unsafeSubscribe(new Observer[T] {
+          def onNext(elem: T) =
+            observer.onNext(elem).onDoneComplete(connectedPromise)
 
-  /**
-   * Schedules a complete event to be emitted as soon as the call to [[connect]] happens,
-   * but after any items scheduled with [[scheduleFirst]].
-   */
-  def scheduleComplete(): Unit = {
-    lock.synchronized {
-      if (!isConnected)
-        isDone = true
-      else
-        throw new IllegalStateException("Cannot scheduleComplete after isConnected")
-    }
-  }
-
-  def connect(): Unit = {
-    lock.synchronized {
-      // method connect() should be idempotent, calling it multiple times
-      // should have the same effect as calling it once
-      if (!isConnected) {
-        // taking current elements from Queue and building a sequence of
-        // onNext events from them ... must be based on the last acknowledgement
-        // sent by the observer
-        lastAck = queue.foldLeft(lastAck) { (acc, elem) =>
-          acc.flatMap {
-            case Continue => observer.onNext(elem)
-            case Done => Done
+          def onError(ex: Throwable) = {
+            connectedPromise.success(Done)
+            observer.onError(ex)
           }
-        }
 
-        // clearing the queue of current elements, safe since we are
-        // synchronized under lock - not setting to null yet, since
-        // concurrent onNext events can enqueue in it
-        queue.clear()
-
-        lastAck.onSuccess {
-          case Continue =>
-            lock.synchronized {
-              if (queue.nonEmpty) {
-                // the publisher has pushed new items in our queue
-                // that must be processed before the connection happens
-                connect()
-              }
-              else if (errorThrown ne null) {
-                // onError signaled from upstream before the connection
-                // happened, so it is the responsibility of connect() to
-                // signal it downstream - after which we are done
-                observer.onError(errorThrown)
-                queue.clear()
-                queue = null
-                connectedPromise.success(Done)
-                isConnected = true
-              }
-              else if (isDone) {
-                // onComplete signaled from upstream before the connection
-                // happened, so it is the responsibility of connect() to
-                // signal it downstream - after which we are done
-                observer.onComplete()
-                queue.clear()
-                queue = null
-                connectedPromise.success(Done)
-                isConnected = true
-              }
-              else {
-                // publishing isConnect, letting the upstream loose on the observer
-                connectedPromise.success(Continue)
-                isConnected = true
-              }
-            }
-          case Done =>
-            lock.synchronized {
-              // downstream has terminated the subscription and doesn't want any
-              // more items, so clearing the queue, since we are done
-              queue.clear()
-              queue = null
-              isDone = true
+          def onComplete() = self.synchronized {
+            if (scheduledDone) {
               connectedPromise.success(Done)
-              isConnected = true
+              if (scheduledError ne null)
+                observer.onError(scheduledError)
+              else
+                observer.onComplete()
             }
-        }
-      }
-    }
-  }
+            else
+              connectedPromise.success(Continue)
+          }
+        })
 
-  def onNext(elem: T): Future[Ack] = {
-    if (!isConnected) {
-      // slow path - isConnected is not visible, so must synchronize
-      lock.synchronized {
-        // race condition could happen, checking again, as otherwise
-        // the queue could be empty
-        if (!isConnected) {
-          // if still not connected, enqueue element
-          queue.append(elem)
-          connectedPromise.future
-        }
-        else if (!isDone) {
-          // race condition happened, can send the event
-          // directly if not completed by connect()
-          observer.onNext(elem)
-        }
-        else {
-          // observer was already completed in connect()
-          // so we are done
-          Done
-        }
+        connectedPromise.future.onComplete(_ => self.synchronized {
+          queue = null // for garbage collecting purposes
+          scheduledError = null // for garbage collecting purposes
+          connectedPromise = null // for garbage collecting purposes
+          isConnected = true
+        })
       }
     }
-    else if (!isDone) {
-      // isConnected is visible, so here the queue is definitely empty,
-      // taking the fast path
+
+  /**
+   * Emit an item immediately to the underlying observer,
+   * after previous `pushNext()` events, but before any events emitted through
+   * `onNext`.
+   */
+  def pushNext(elems: T*) =
+    synchronized {
+      if (isConnected || isConnectionStarted)
+        throw new IllegalStateException("Observer was already connected, so cannot pushNext")
+      else if (!scheduledDone)
+        queue.append(elems : _*)
+    }
+
+  /**
+   * Emit an item
+   */
+  def pushComplete() =
+    synchronized {
+      if (isConnected || isConnectionStarted)
+        throw new IllegalStateException("Observer was already connected, so cannot pushNext")
+      else if (!scheduledDone) {
+        scheduledDone = true
+      }
+    }
+
+  def pushError(ex: Throwable) =
+    synchronized {
+      if (isConnected || isConnectionStarted)
+        throw new IllegalStateException("Observer was already connected, so cannot pushNext")
+      else if (!scheduledDone) {
+        scheduledDone = true
+        scheduledError = ex
+      }
+    }
+
+  def onNext(elem: T) = {
+    if (!isConnected)
+      synchronized {
+        // race condition guard, since connectedPromise may be null otherwise
+        if (!isConnected)
+          connectedPromise.future.flatMap {
+            case Done => Done
+            case Continue => observer.onNext(elem)
+          }
+        else
+          observer.onNext(elem)
+      }
+    else {
+      // taking fast path
       observer.onNext(elem)
     }
+  }
+
+  def onComplete() = {
+    if (!isConnected)
+      synchronized {
+        // race condition guard, since connectedPromise may be null otherwise
+        if (!isConnected)
+          connectedPromise.future
+            .onContinueTriggerComplete(observer)
+        else
+          observer.onComplete()
+      }
     else {
-      // isDone happened either in connect(), in which case it is visible
-      // because isConnected is visible, or in onComplete/onError
-      Done
+      // taking fast path
+      observer.onComplete()
     }
   }
 
-  def onError(ex: Throwable): Unit =
-    if (isConnected) {
-      // connection happened, taking the fast path
-      // isDone could have been signaled during connection, in which case
-      // we must not send anything
-      if (!isDone) {
-        isDone = true
-        errorThrown = ex
-        observer.onError(ex)
+  def onError(ex: Throwable) = {
+    if (!isConnected)
+      synchronized {
+        // race condition guard, since connectedPromise may be null otherwise
+        if (!isConnected)
+          connectedPromise.future
+            .onContinueTriggerError(observer, ex)
+        else
+          observer.onComplete()
       }
-    }
     else {
-      // slow path
-      lock.synchronized {
-        // as long as isConnected is false, we cannot trust the value of isDone
-        // so this must be synchronized
-        if (!isDone) {
-          errorThrown = ex
-          isDone = true
-
-          // we could have had a race condition here and changes to isConnected
-          // are definitely visible within the lock
-          if (isConnected)
-            observer.onError(ex)
-        }
-      }
+      // taking fast path
+      observer.onError(ex)
     }
-
-  def onComplete(): Unit =
-    if (isConnected) {
-      // connection happened, taking the fast path
-      // isDone could have been signaled during connection, in which case
-      // we must not send anything
-      if (!isDone) {
-        isDone = true
-        observer.onComplete()
-      }
-    }
-    else {
-      // slow path
-      lock.synchronized {
-        // as long as isConnected is false, we cannot trust the value of isDone
-        // so this must be synchronized
-        if (!isDone) {
-          isDone = true
-          // we could have had a race condition here and changes to isConnected
-          // are definitely visible within the lock
-          if (isConnected)
-            observer.onComplete()
-        }
-      }
-    }
+  }
 }
