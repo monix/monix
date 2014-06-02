@@ -233,7 +233,8 @@ trait Observable[+T] { self =>
 
           childObservable.unsafeSubscribe(new Observer[U] {
             def onNext(elem: U) = {
-              observerU.onNext(elem).onDoneContinue(upstreamPromise)
+              observerU.onNext(elem)
+                .onDoneComplete(upstreamPromise)
             }
 
             def onError(ex: Throwable) = {
