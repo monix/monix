@@ -16,7 +16,7 @@ import monifu.reactive.internals.FutureAckExtensions
  * cases in which the producer is emitting data too fast or concurrently
  * without fulfilling the back-pressure requirements.
  */
-final class BufferedObserver[-T] private (observer: Observer[T])(implicit scheduler: Scheduler) extends Observer[T] {
+final class BufferedObserver[-T] private (underlying: Observer[T])(implicit scheduler: Scheduler) extends Observer[T] {
   private[this] val ack = Atomic(Continue : Future[Ack])
 
   def onNext(elem: T) = {
@@ -26,7 +26,7 @@ final class BufferedObserver[-T] private (observer: Observer[T])(implicit schedu
 
     oldAck.onCompleteNow {
       case Success(Continue) =>
-        observer.onNext(elem).onCompleteNow(r => p.complete(r))
+        underlying.onNext(elem).onCompleteNow(r => p.complete(r))
       case other =>
         p.complete(other)
     }
@@ -36,12 +36,12 @@ final class BufferedObserver[-T] private (observer: Observer[T])(implicit schedu
 
   def onError(ex: Throwable): Unit = {
     val oldAck = ack.getAndSet(Done)
-    oldAck.onSuccess { case Continue => observer.onError(ex) }
+    oldAck.onSuccess { case Continue => underlying.onError(ex) }
   }
 
   def onComplete(): Unit = {
     val oldAck = ack.getAndSet(Done)
-    oldAck.onSuccess { case Continue => observer.onComplete() }
+    oldAck.onSuccess { case Continue => underlying.onComplete() }
   }
 }
 

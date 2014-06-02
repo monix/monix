@@ -10,14 +10,14 @@ import monifu.reactive.subjects.BehaviorSubject
  * [[monifu.reactive.subjects.BehaviorSubject BehaviorSubject]].
  */
 final class BehaviorChannel[T] private (initialValue: T, s: Scheduler) extends Channel[T] with Observable[T] {
+  implicit val scheduler = s
+
   private[this] val subject = BehaviorSubject(initialValue)
   private[this] val channel = BufferedObserver(subject)
 
   private[this] var isDone = false
   private[this] var lastValue = initialValue
   private[this] var errorThrown = null : Throwable
-
-  implicit val scheduler = s
 
   def unsafeSubscribe(observer: Observer[T]): Unit = {
     subject.unsafeSubscribe(observer)

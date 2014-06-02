@@ -8,9 +8,9 @@ import monifu.concurrent.Scheduler
  * Wraps any [[Subject]] into a [[Channel]].
  */
 class SubjectChannel[-I,+O](subject: Subject[I, O], s: Scheduler) extends Channel[I] with Observable[O] {
-  private[this] val channel = BufferedObserver(subject)
-
   final implicit val scheduler = s
+
+  private[this] val channel = BufferedObserver(subject)
 
   final def unsafeSubscribe(observer: Observer[O]): Unit = {
     subject.unsafeSubscribe(observer)

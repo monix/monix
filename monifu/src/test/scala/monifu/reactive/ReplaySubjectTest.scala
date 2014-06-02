@@ -10,6 +10,7 @@ import scala.concurrent.{Future, Await}
 import concurrent.duration._
 import monifu.concurrent.extensions._
 import monifu.reactive.observers.BufferedObserver
+import monifu.reactive.channels.ReplayChannel
 
 
 class ReplaySubjectTest extends FunSpec {
@@ -323,7 +324,7 @@ class ReplaySubjectTest extends FunSpec {
     }
 
     it("should emit in parallel") {
-      val subject = ReplaySubject[Int]()
+      val subject = ReplayChannel[Int]()
       val subject1Complete = new CountDownLatch(1)
       val receivedFirst = new CountDownLatch(2)
 
@@ -331,7 +332,7 @@ class ReplaySubjectTest extends FunSpec {
       var sum2 = 0
 
       // lazy subscriber
-      subject.buffered.doOnComplete(subject1Complete.countDown()).subscribe { x =>
+      subject.doOnComplete(subject1Complete.countDown()).subscribe { x =>
         if (x == 1) {
           sum1 += x
           receivedFirst.countDown()
@@ -351,18 +352,18 @@ class ReplaySubjectTest extends FunSpec {
         sum2 += x; Continue
       }
 
-      subject.onNext(1)
+      subject.pushNext(1)
       assert(receivedFirst.await(3, TimeUnit.SECONDS), "receivedFirst.await should have succeeded")
 
       assert(sum1 === 1)
       assert(sum2 === 1)
 
-      subject.onNext(2)
+      subject.pushNext(2)
 
       assert(sum1 === 1)
       assert(sum2 === 3)
 
-      subject.onComplete()
+      subject.pushNext()
       subject1Complete.await(3, TimeUnit.SECONDS)
 
       assert(sum1 === 3)

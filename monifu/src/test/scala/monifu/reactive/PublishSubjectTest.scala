@@ -8,6 +8,7 @@ import concurrent.duration._
 import monifu.concurrent.atomic.padded.Atomic
 import java.util.concurrent.{TimeUnit, CountDownLatch}
 import monifu.reactive.api.Ack.{Done, Continue}
+import monifu.reactive.channels.PublishChannel
 
 
 class PublishSubjectTest extends FunSpec {
@@ -16,21 +17,21 @@ class PublishSubjectTest extends FunSpec {
       val result1 = Atomic(0)
       val result2 = Atomic(0)
 
-      val subject = PublishSubject[Int]()
+      val subject = PublishChannel[Int]()
       val latch = new CountDownLatch(2)
 
       subject.observeOn(global).filter(x => x % 2 == 0).flatMap(x => Observable.from(x to x + 1))
         .foldLeft(0)(_ + _).foreach { x => result1.set(x); latch.countDown() }
-      for (i <- 0 until 100) subject.onNext(i)
       subject.observeOn(global).filter(x => x % 2 == 0).flatMap(x => Observable.from(x to x + 1))
         .foldLeft(0)(_ + _).foreach { x => result2.set(x); latch.countDown() }
-      for (i <- 100 until 10000) subject.onNext(i)
 
-      subject.onComplete()
+      for (i <- 0 until 10000) subject.pushNext(i)
+      subject.pushComplete()
+
       assert(latch.await(3, TimeUnit.SECONDS), "latch.await should have succeeded")
 
       assert(result1.get === (0 until 10000).filter(_ % 2 == 0).flatMap(x => x to (x + 1)).sum)
-      assert(result2.get === (100 until 10000).filter(_ % 2 == 0).flatMap(x => x to (x + 1)).sum)
+      assert(result2.get === result1.get)
     }
 
     it("should work without asynchronous boundaries") {
