@@ -6,7 +6,8 @@ import monifu.concurrent.Scheduler
 import monifu.reactive.subjects.BehaviorSubject
 
 /**
- * A `BehaviorChannel` is a [[Channel]] that uses an underlying [[BehaviorSubject]].
+ * A `BehaviorChannel` is a [[Channel]] that uses an underlying
+ * [[monifu.reactive.subjects.BehaviorSubject BehaviorSubject]].
  */
 final class BehaviorChannel[T] private (initialValue: T, s: Scheduler) extends Channel[T] with Observable[T] {
   private[this] val subject = BehaviorSubject(initialValue)
