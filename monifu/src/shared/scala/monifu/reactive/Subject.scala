@@ -1,6 +1,4 @@
-package monifu.reactive.subjects
-
-import monifu.reactive.{Observer, Observable}
+package monifu.reactive
 
 /**
  * A `Subject` is a sort of bridge or proxy that acts both as an

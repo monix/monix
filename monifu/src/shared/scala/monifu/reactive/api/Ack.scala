@@ -3,6 +3,7 @@ package monifu.reactive.api
 import scala.concurrent.{CanAwait, ExecutionContext, Future}
 import scala.util.{Success, Try}
 import scala.concurrent.duration.Duration
+import monifu.reactive.api.Ack.{Done, Continue}
 
 /**
  * Represents the acknowledgement of processing that a consumer

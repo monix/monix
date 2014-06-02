@@ -49,23 +49,6 @@ class BehaviorSubjectTest extends FunSpec {
       assert(result2.get === (100 until 10000).filter(_ % 2 == 0).flatMap(x => x to (x + 1)).sum)
     }
 
-    it("should work without asynchronous boundaries") {
-      val result1 = Atomic(0)
-      val result2 = Atomic(0)
-
-      val subject = BehaviorSubject[Int](10)
-      val latch = new CountDownLatch(2)
-
-      subject.filter(_ % 2 == 0).map(_ + 1).doOnComplete(latch.countDown()).foreach(x => result1.increment(x))
-      for (i <- 0 until 20) subject.onNext(i)
-      subject.filter(_ % 2 == 0).map(_ + 1).doOnComplete(latch.countDown()).foreach(x => result2.increment(x))
-      for (i <- 20 until 100000) subject.onNext(i)
-
-      subject.onComplete()
-      assert(result1.get === 11 + (0 until 100000).filter(_ % 2 == 0).map(_ + 1).sum)
-      assert(result2.get === (20 until 100000).filter(_ % 2 == 0).map(_ + 1).sum)
-    }
-
     it("onError should be emitted over asynchronous boundaries") {
       val result1 = Atomic(null : Throwable)
       val result2 = Atomic(null : Throwable)
@@ -277,6 +260,7 @@ class BehaviorSubjectTest extends FunSpec {
       val onNextReceived = Atomic(0)
       val onErrorReceived = Atomic(0)
       val latch = new CountDownLatch(3)
+      val subscribed = new CountDownLatch(1)
 
       subject.subscribeOn(global).observeOn(global).subscribe(new Observer[Int] {
         def onError(ex: Throwable) = Future {
@@ -291,6 +275,8 @@ class BehaviorSubjectTest extends FunSpec {
         def onNext(elem: Int) = Future {
           if (elem == 10)
             throw new DummyException()
+          if (elem == 0)
+            subscribed.countDown()
           onNextReceived.increment()
           Continue
         }
@@ -329,6 +315,8 @@ class BehaviorSubjectTest extends FunSpec {
           Continue
         }
       })
+
+      assert(subscribed.await(3, TimeUnit.SECONDS), "subscribed.await should have succeeded")
 
       channel.onNext(1)
       channel.onNext(10)

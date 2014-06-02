@@ -13,10 +13,10 @@ import scala.collection.mutable
 import scala.annotation.tailrec
 import collection.JavaConverters._
 import scala.util.{Failure, Success}
-import monifu.reactive.subjects.{ReplaySubject, BehaviorSubject, PublishSubject, Subject}
+import monifu.reactive.subjects.{ReplaySubject, BehaviorSubject, PublishSubject}
 import monifu.reactive.api.Notification.{OnComplete, OnNext, OnError}
-import monifu.reactive.internals.MergeBuffer
 import monifu.reactive.observers.{SafeObserver, BufferedObserver}
+import monifu.reactive.internals.FutureAckExtensions
 
 
 /**
@@ -233,9 +233,7 @@ trait Observable[+T] { self =>
 
           childObservable.unsafeSubscribe(new Observer[U] {
             def onNext(elem: U) = {
-              val future = observerU.onNext(elem)
-              future.onSuccess { case Done => upstreamPromise.success(Done) }
-              future
+              observerU.onNext(elem).onDoneContinue(upstreamPromise)
             }
 
             def onError(ex: Throwable) = {
@@ -285,28 +283,31 @@ trait Observable[+T] { self =>
    */
   final def merge[U](implicit ev: T <:< Observable[U]): Observable[U] = {
     Observable.create { observerB =>
-      val ackBuffer = new MergeBuffer
-
-      // we need to do ref-counting for triggering `onComplete` on our subscriber
-      // when all the children threads have ended
-      val refCounter = RefCountCancelable {
-        ackBuffer.scheduleDone(observerB.onComplete())
-      }
-
       unsafeSubscribe(new Observer[T] {
+        @volatile private[this] var lastAck = Continue : Future[Ack]
+        private[this] val buffer = BufferedObserver(observerB)
+
+        // we need to do ref-counting for triggering `onComplete` on our subscriber
+        // when all the children threads have ended
+        private[this] val refCounter = RefCountCancelable {
+          buffer.onComplete()
+        }
+
         def onNext(elem: T) = {
           // reference that gets released when the child observer is completed
           val refID = refCounter.acquire()
 
           elem.unsafeSubscribe(new Observer[U] {
-            def onNext(elem: U) =
-              ackBuffer.scheduleNext {
-                observerB.onNext(elem)
-              }
+            def onNext(elem: U) = {
+              val response = buffer.onNext(elem)
+              lastAck = response
+              response
+            }
 
             def onError(ex: Throwable) = {
               // onError, cancel everything
-              ackBuffer.scheduleDone(observerB.onError(ex))
+              buffer.onError(ex)
+              lastAck = Done
             }
 
             def onComplete() = {
@@ -315,11 +316,12 @@ trait Observable[+T] { self =>
             }
           })
 
-          ackBuffer.scheduleNext(Continue)
+          lastAck
         }
 
-        def onError(ex: Throwable) =
-          ackBuffer.scheduleDone(observerB.onError(ex))
+        def onError(ex: Throwable) = {
+          buffer.onError(ex)
+        }
 
         def onComplete() = {
           // triggers observer.onComplete() when all Observables created have been finished
