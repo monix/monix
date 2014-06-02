@@ -39,7 +39,7 @@ class ConcurrentSchedulerTest extends FunSuite {
   test("schedule") {
     val p = Promise[Int]()
     s.schedule(s2 => s2.scheduleOnce(p.success(1)))
-    assert(Await.result(p.future, 100.millis) === 1)
+    assert(Await.result(p.future, 3.seconds) === 1)
   }
 
   test("schedule with delay") {
