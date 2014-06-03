@@ -17,6 +17,7 @@ import monifu.reactive.subjects.{ReplaySubject, BehaviorSubject, PublishSubject}
 import monifu.reactive.api.Notification.{OnComplete, OnNext, OnError}
 import monifu.reactive.observers.{BufferedObserver, SafeObserver, ConcurrentObserver}
 import monifu.reactive.internals.FutureAckExtensions
+import monifu.reactive.api.BufferPolicy.Unbounded
 
 
 /**
@@ -1505,8 +1506,12 @@ trait Observable[+T] { self =>
    * the guarantee that the downstream [[Observer]] given in `subscribe` will not receive
    * concurrent events, also making it thread-safe.
    *
-   * WARNING: the JVM's process might blow up if the producer is emitting events too fast,
-   * because the buffer is unbounded.
+   * WARNING: the buffer created by this operator is unbounded and can blow up the process if the
+   * data source is pushing events without following the back-pressure requirements and faster than
+   * what the destination consumer can consume. On the other hand, if the data-source does follow
+   * the back-pressure contract, than this is safe. For data sources that cannot respect the
+   * back-pressure requirements and are problematic, see [[buffered]] and
+   * [[monifu.reactive.api.BufferPolicy BufferPolicy]] for options.
    */
   final def concurrent: Observable[T] =
     Observable.create { observer => unsafeSubscribe(ConcurrentObserver(observer)) }
@@ -1524,7 +1529,9 @@ trait Observable[+T] { self =>
    * WARNING: the buffer created by this operator is unbounded and can blow up the process if the
    * data source is pushing events without following the back-pressure requirements and faster than
    * what the destination consumer can consume. On the other hand, if the data-source does follow
-   * the back-pressure contract, than this is safe.
+   * the back-pressure contract, than this is safe. For data sources that cannot respect the
+   * back-pressure requirements and are problematic, see [[buffered]] and
+   * [[monifu.reactive.api.BufferPolicy BufferPolicy]] for options.
    */
   final def sync: Observable[T] = concurrent
 
@@ -1544,11 +1551,13 @@ trait Observable[+T] { self =>
    * the final consumer to receive and process the previous event (i.e. the data source will receive the `Continue`
    * acknowledgement once the event has been buffered, not when it has been received by its final destination).
    *
-   * WARNING: the buffer created by this operator is unbounded and can blow up the process if the data source
+   * WARNING: if the buffer created by this operator is unbounded, it can blow up the process if the data source
    * is pushing events faster than what the observer can consume, as it introduces an asynchronous
-   * boundary that eliminates the back-pressure requirements of the data source.
+   * boundary that eliminates the back-pressure requirements of the data source. Unbounded is the default
+   * [[monifu.reactive.api.BufferPolicy policy]], see [[monifu.reactive.api.BufferPolicy BufferPolicy]]
+   * for options.
    */
-  final def buffered: Observable[T] =
+  final def buffered(policy: BufferPolicy = Unbounded): Observable[T] =
     Observable.create { observer => unsafeSubscribe(BufferedObserver(observer)) }
 
   /**
