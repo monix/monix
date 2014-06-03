@@ -216,6 +216,10 @@ package object internals {
             case Done.IsSuccess | Failure(_) =>
               try cb catch { case NonFatal(ex) => ec.reportFailure(ex) }
               source
+            case other =>
+              // branch not necessary, but Scala's compiler emits warnings if missing
+              ec.reportFailure(new MatchError(other.toString))
+              source
           }
         case async =>
           source.onComplete {
