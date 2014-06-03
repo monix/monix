@@ -9,6 +9,7 @@ import monifu.concurrent.atomic.padded.Atomic
 import java.util.concurrent.{TimeUnit, CountDownLatch}
 import monifu.reactive.api.Ack.{Done, Continue}
 import monifu.reactive.channels.PublishChannel
+import monifu.reactive.observers.ConcurrentObserver
 
 
 class PublishSubjectTest extends FunSpec {
@@ -252,6 +253,7 @@ class PublishSubjectTest extends FunSpec {
     it("should protect against asynchronous exceptions") {
       class DummyException extends RuntimeException("test")
       val subject = PublishSubject[Int]()
+      val channel = ConcurrentObserver(subject)
 
       val onNextReceived = Atomic(0)
       val onErrorReceived = Atomic(0)
@@ -290,11 +292,11 @@ class PublishSubjectTest extends FunSpec {
         }
       })
 
-      subject.onNext(1)
-      subject.onNext(10)
-      subject.onNext(11)
+      channel.onNext(1)
+      channel.onNext(10)
+      channel.onNext(11)
 
-      Await.result(subject.onNext(12), 5.seconds)
+      Await.result(channel.onNext(12), 5.seconds)
 
       assert(onNextReceived.get === 3)
       assert(onErrorReceived.get === 2)

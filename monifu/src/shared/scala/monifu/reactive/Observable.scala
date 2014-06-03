@@ -15,7 +15,7 @@ import collection.JavaConverters._
 import scala.util.{Failure, Success}
 import monifu.reactive.subjects.{ReplaySubject, BehaviorSubject, PublishSubject}
 import monifu.reactive.api.Notification.{OnComplete, OnNext, OnError}
-import monifu.reactive.observers.{SafeObserver, BufferedObserver}
+import monifu.reactive.observers.{BufferedObserver, SafeObserver, ConcurrentObserver}
 import monifu.reactive.internals.FutureAckExtensions
 
 
@@ -279,14 +279,19 @@ trait Observable[+T] { self =>
    * (elements get emitted as they come). Because of back-pressure applied to observables,
    * [[concat]] is safe to use in all contexts, whereas [[merge]] requires buffering.
    *
+   * WARNING: the buffer created by this operator is unbounded and can blow up the process if the data source
+   * is pushing events faster than what the observer can consume, as it introduces an asynchronous
+   * boundary that eliminates the back-pressure requirements of the data sources emitting events for merging
+   * downstream. Use with care.
+   *
    * @return an Observable that emits items that are the result of flattening the items emitted
    *         by the Observables emitted by `this`
    */
   final def merge[U](implicit ev: T <:< Observable[U]): Observable[U] = {
     Observable.create { observerB =>
       unsafeSubscribe(new Observer[T] {
-        @volatile private[this] var lastAck = Continue : Future[Ack]
         private[this] val buffer = BufferedObserver(observerB)
+        private[this] var mergeAck: Ack with Future[Ack] = Continue
 
         // we need to do ref-counting for triggering `onComplete` on our subscriber
         // when all the children threads have ended
@@ -299,16 +304,19 @@ trait Observable[+T] { self =>
           val refID = refCounter.acquire()
 
           elem.unsafeSubscribe(new Observer[U] {
-            def onNext(elem: U) = {
-              val response = buffer.onNext(elem)
-              lastAck = response
-              response
-            }
+            def onNext(elem: U) =
+              mergeAck match {
+                case Continue =>
+                  val ack = buffer.onNext(elem)
+                  if (ack == Done) mergeAck = Done
+                  ack
+                case Done =>
+                  Done
+              }
 
             def onError(ex: Throwable) = {
               // onError, cancel everything
               buffer.onError(ex)
-              lastAck = Done
             }
 
             def onComplete() = {
@@ -317,7 +325,7 @@ trait Observable[+T] { self =>
             }
           })
 
-          lastAck
+          mergeAck
         }
 
         def onError(ex: Throwable) = {
@@ -1488,7 +1496,8 @@ trait Observable[+T] { self =>
     Observable.create { observer => unsafeSubscribe(SafeObserver(observer)) }
 
   /**
-   * Wraps the observer implementation given to `unsafeSubscribe` into a [[observers.BufferedObserver BufferedObserver]].
+   * Wraps the observer implementation given to `unsafeSubscribe` into a
+   * [[observers.ConcurrentObserver ConcurrentObserver]].
    *
    * Normally Monifu's implementation guarantees that events are not emitted concurrently,
    * and that the publisher MUST NOT emit the next event without acknowledgement from the consumer
@@ -1499,12 +1508,12 @@ trait Observable[+T] { self =>
    * WARNING: the JVM's process might blow up if the producer is emitting events too fast,
    * because the buffer is unbounded.
    */
-  final def buffered: Observable[T] =
-    Observable.create { observer => unsafeSubscribe(BufferedObserver(observer)) }
+  final def concurrent: Observable[T] =
+    Observable.create { observer => unsafeSubscribe(ConcurrentObserver(observer)) }
 
   /**
-   * An alias for [[buffered]]. Wraps the observer implementation given to `unsafeSubscribe`
-   * into a [[observers.BufferedObserver BufferedObserver]].
+   * An alias for [[concurrent]]. Wraps the observer implementation given to `unsafeSubscribe`
+   * into a [[observers.ConcurrentObserver ConcurrentObserver]].
    *
    * Normally Monifu's implementation guarantees that events are not emitted concurrently,
    * and that the publisher MUST NOT emit the next event without acknowledgement from the consumer
@@ -1512,9 +1521,35 @@ trait Observable[+T] { self =>
    * the guarantee that the downstream [[Observer]] given in `subscribe` will not receive
    * concurrent events, also making it thread-safe.
    *
-   * WARNING: the JVM's process might blow up if the producer is emitting events too fast,
-   * because the buffer is unbounded.   */
-  final def sync: Observable[T] = buffered
+   * WARNING: the buffer created by this operator is unbounded and can blow up the process if the
+   * data source is pushing events without following the back-pressure requirements and faster than
+   * what the destination consumer can consume. On the other hand, if the data-source does follow
+   * the back-pressure contract, than this is safe.
+   */
+  final def sync: Observable[T] = concurrent
+
+  /**
+   * Wraps the observer implementation given to `unsafeSubscribe` into a
+   * [[observers.BufferedObserver BufferedObserver]].
+   *
+   * Normally Monifu's implementation guarantees that events are not emitted concurrently,
+   * and that the publisher MUST NOT emit the next event without acknowledgement from the consumer
+   * that it may proceed, however for badly behaved publishers, this wrapper provides
+   * the guarantee that the downstream [[Observer]] given in `subscribe` will not receive
+   * concurrent events.
+   *
+   * Compared with [[concurrent]] / [[observers.ConcurrentObserver ConcurrentObserver]], the acknowledgement
+   * given by [[observers.BufferedObserver BufferedObserver]] is synchronous
+   * (i.e. the `Future[Ack]` is already completed), so the publisher can send the next event without waiting for
+   * the final consumer to receive and process the previous event (i.e. the data source will receive the `Continue`
+   * acknowledgement once the event has been buffered, not when it has been received by its final destination).
+   *
+   * WARNING: the buffer created by this operator is unbounded and can blow up the process if the data source
+   * is pushing events faster than what the observer can consume, as it introduces an asynchronous
+   * boundary that eliminates the back-pressure requirements of the data source.
+   */
+  final def buffered: Observable[T] =
+    Observable.create { observer => unsafeSubscribe(BufferedObserver(observer)) }
 
   /**
    * Converts this observable into a multicast observable, useful for turning a cold observable into
@@ -1839,10 +1874,8 @@ object Observable {
 
       future.onComplete {
         case Success(value) =>
-          observer.onNext(value).onSuccess {
-            case Continue =>
-              observer.onComplete()
-          }
+          observer.onNext(value)
+            .onContinueTriggerComplete(observer)
         case Failure(ex) =>
           observer.onError(ex)
       }

@@ -9,7 +9,7 @@ import monifu.reactive.api.Ack.{Done, Continue}
 import scala.concurrent.{Future, Await}
 import concurrent.duration._
 import monifu.concurrent.extensions._
-import monifu.reactive.observers.BufferedObserver
+import monifu.reactive.observers.ConcurrentObserver
 import monifu.reactive.channels.ReplayChannel
 
 
@@ -20,7 +20,7 @@ class ReplaySubjectTest extends FunSpec {
       val result2 = Atomic(0)
 
       val subject = ReplaySubject[Int]()
-      val channel = BufferedObserver(subject)
+      val channel = ConcurrentObserver(subject)
 
       val completed = new CountDownLatch(2)
       val barrier = new CountDownLatch(1)
@@ -55,7 +55,7 @@ class ReplaySubjectTest extends FunSpec {
       val result2 = Atomic(null : Throwable)
 
       val subject = ReplaySubject[Int]()
-      val channel = BufferedObserver(subject)
+      val channel = ConcurrentObserver(subject)
       val latch = new CountDownLatch(2)
 
       subject.observeOn(global).subscribe(
@@ -85,7 +85,7 @@ class ReplaySubjectTest extends FunSpec {
       val result2 = Atomic(0)
 
       val subject = ReplaySubject[Int]()
-      val channel = BufferedObserver(subject)
+      val channel = ConcurrentObserver(subject)
       val latch = new CountDownLatch(2)
 
       subject.observeOn(global).subscribe(
@@ -117,7 +117,7 @@ class ReplaySubjectTest extends FunSpec {
       val errors = Atomic(0)
 
       val subject = ReplaySubject[Int]()
-      val channel = BufferedObserver(subject)
+      val channel = ConcurrentObserver(subject)
       val latch = new CountDownLatch(1)
 
       subject.map(x => if (x < 5) x else throw new RuntimeException()).subscribe(
@@ -146,7 +146,7 @@ class ReplaySubjectTest extends FunSpec {
       val completed = Atomic(0)
 
       val subject = ReplaySubject[Int]()
-      val channel = BufferedObserver(subject)
+      val channel = ConcurrentObserver(subject)
       val latch = new CountDownLatch(2)
 
       subject.takeWhile(_ < 5).subscribe(
@@ -200,7 +200,7 @@ class ReplaySubjectTest extends FunSpec {
     it("should protect against synchronous exceptions in onNext") {
       class DummyException extends RuntimeException("test")
       val subject = ReplaySubject[Int]()
-      val channel = BufferedObserver(subject)
+      val channel = ConcurrentObserver(subject)
 
       val onNextReceived = Atomic(0)
       val onErrorReceived = Atomic(0)
@@ -256,7 +256,7 @@ class ReplaySubjectTest extends FunSpec {
     it("should protect against asynchronous exceptions in onNext") {
       class DummyException extends RuntimeException("test")
       val subject = ReplaySubject[Int]()
-      val channel = BufferedObserver(subject)
+      val channel = ConcurrentObserver(subject)
 
       val onNextReceived = Atomic(0)
       val onErrorReceived = Atomic(0)
@@ -327,6 +327,7 @@ class ReplaySubjectTest extends FunSpec {
       val subject = ReplayChannel[Int]()
       val subject1Complete = new CountDownLatch(1)
       val receivedFirst = new CountDownLatch(2)
+      val subject2ReceivedSecond = new CountDownLatch(1)
 
       @volatile var sum1 = 0
       var sum2 = 0
@@ -339,7 +340,7 @@ class ReplaySubjectTest extends FunSpec {
           Continue
         }
         else if (x == 2)
-          Future.delayedResult(500.millis) {
+          Future.delayedResult(1.second) {
             sum1 += x
             Done
           }
@@ -349,6 +350,7 @@ class ReplaySubjectTest extends FunSpec {
 
       subject.subscribe { x =>
         if (x == 1) receivedFirst.countDown()
+        if (x == 2) subject2ReceivedSecond.countDown()
         sum2 += x; Continue
       }
 
@@ -359,11 +361,12 @@ class ReplaySubjectTest extends FunSpec {
       assert(sum2 === 1)
 
       subject.pushNext(2)
+      assert(subject2ReceivedSecond.await(3, TimeUnit.SECONDS), "subject2ReceivedSecond.await should have succeeded")
 
       assert(sum1 === 1)
       assert(sum2 === 3)
 
-      subject.pushNext()
+      subject.pushComplete()
       subject1Complete.await(3, TimeUnit.SECONDS)
 
       assert(sum1 === 3)
