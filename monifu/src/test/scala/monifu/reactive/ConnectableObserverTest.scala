@@ -6,7 +6,7 @@ import scala.concurrent.Future
 import monifu.reactive.api.Ack.{Done, Continue}
 import monifu.concurrent.Scheduler.Implicits.global
 import java.util.concurrent.{TimeUnit, CountDownLatch}
-import monifu.reactive.observers.{BufferedObserver, ConnectableObserver}
+import monifu.reactive.observers.{ConcurrentObserver, ConnectableObserver}
 
 class ConnectableObserverTest extends FunSpec {
   describe("ConnectableObserver") {
@@ -54,7 +54,7 @@ class ConnectableObserverTest extends FunSpec {
         }
       })
 
-      val channel = BufferedObserver(obs)
+      val channel = ConcurrentObserver(obs)
       channel.onNext(1).onComplete(_ => ackLatch.countDown())
       channel.onNext(2).onComplete(_ => ackLatch.countDown())
       channel.onNext(3).onComplete(_ => ackLatch.countDown())

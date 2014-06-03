@@ -9,7 +9,7 @@ import monifu.reactive.api.Ack.{Done, Continue}
 import scala.concurrent.{Future, Await}
 import concurrent.duration._
 import monifu.concurrent.extensions._
-import monifu.reactive.observers.BufferedObserver
+import monifu.reactive.observers.ConcurrentObserver
 
 
 class BehaviorSubjectTest extends FunSpec {
@@ -19,7 +19,7 @@ class BehaviorSubjectTest extends FunSpec {
       val result2 = Atomic(0)
 
       val subject = BehaviorSubject[Int](10)
-      val channel = BufferedObserver(subject)
+      val channel = ConcurrentObserver(subject)
 
       val completed = new CountDownLatch(2)
       val barrier = new CountDownLatch(1)
@@ -54,7 +54,7 @@ class BehaviorSubjectTest extends FunSpec {
       val result2 = Atomic(null : Throwable)
 
       val subject = BehaviorSubject[Int](10)
-      val channel = BufferedObserver(subject)
+      val channel = ConcurrentObserver(subject)
       val latch = new CountDownLatch(2)
 
       subject.observeOn(global).subscribe(
@@ -84,7 +84,7 @@ class BehaviorSubjectTest extends FunSpec {
       val result2 = Atomic(0)
 
       val subject = BehaviorSubject[Int](10)
-      val channel = BufferedObserver(subject)
+      val channel = ConcurrentObserver(subject)
       val latch = new CountDownLatch(2)
 
       subject.observeOn(global).subscribe(
@@ -116,7 +116,7 @@ class BehaviorSubjectTest extends FunSpec {
       val errors = Atomic(0)
 
       val subject = BehaviorSubject[Int](1)
-      val channel = BufferedObserver(subject)
+      val channel = ConcurrentObserver(subject)
       val latch = new CountDownLatch(1)
 
       subject.map(x => if (x < 5) x else throw new RuntimeException()).subscribe(
@@ -145,7 +145,7 @@ class BehaviorSubjectTest extends FunSpec {
       val completed = Atomic(0)
 
       val subject = BehaviorSubject[Int](1)
-      val channel = BufferedObserver(subject)
+      val channel = ConcurrentObserver(subject)
       val latch = new CountDownLatch(2)
 
       subject.takeWhile(_ < 5).subscribe(
@@ -199,7 +199,7 @@ class BehaviorSubjectTest extends FunSpec {
     it("should protect against synchronous exceptions in onNext") {
       class DummyException extends RuntimeException("test")
       val subject = BehaviorSubject[Int](0)
-      val channel = BufferedObserver(subject)
+      val channel = ConcurrentObserver(subject)
 
       val onNextReceived = Atomic(0)
       val onErrorReceived = Atomic(0)
@@ -255,7 +255,7 @@ class BehaviorSubjectTest extends FunSpec {
     it("should protect against asynchronous exceptions in onNext") {
       class DummyException extends RuntimeException("test")
       val subject = BehaviorSubject[Int](0)
-      val channel = BufferedObserver(subject)
+      val channel = ConcurrentObserver(subject)
 
       val onNextReceived = Atomic(0)
       val onErrorReceived = Atomic(0)
@@ -329,21 +329,24 @@ class BehaviorSubjectTest extends FunSpec {
     
     it("should emit in parallel") {
       val subject = BehaviorSubject[Int](1)
+      val channel = ConcurrentObserver(subject)
+
       val subject1Complete = new CountDownLatch(1)
       val receivedFirst = new CountDownLatch(2)
+      val subject2ReceivedSecond = new CountDownLatch(1)
 
       @volatile var sum1 = 0
       var sum2 = 0
 
       // lazy subscriber
-      subject.buffered.doOnComplete(subject1Complete.countDown()).subscribe { x =>
+      subject.concurrent.doOnComplete(subject1Complete.countDown()).subscribe { x =>
         if (x == 1) {
           sum1 += x
           receivedFirst.countDown()
           Continue
         }
         else if (x == 2)
-          Future.delayedResult(500.millis) {
+          Future.delayedResult(1.second) {
             sum1 += x
             Done
           }
@@ -352,8 +355,10 @@ class BehaviorSubjectTest extends FunSpec {
       }
 
       subject.subscribe { x =>
+        sum2 += x
         if (x == 1) receivedFirst.countDown()
-        sum2 += x; Continue
+        else if (x == 2) subject2ReceivedSecond.countDown()
+        Continue
       }
 
       assert(receivedFirst.await(3, TimeUnit.SECONDS), "receivedFirst.await should have succeeded")
@@ -361,13 +366,14 @@ class BehaviorSubjectTest extends FunSpec {
       assert(sum1 === 1)
       assert(sum2 === 1)
 
-      subject.onNext(2)
+      channel.onNext(2)
+      assert(subject2ReceivedSecond.await(3, TimeUnit.SECONDS), "subject2ReceivedSecond.await should have succeeded")
 
       assert(sum1 === 1)
       assert(sum2 === 3)
 
-      subject.onComplete()
-      subject1Complete.await(3, TimeUnit.SECONDS)
+      channel.onComplete()
+      assert(subject1Complete.await(3, TimeUnit.SECONDS), "subject1Complete.await should have succeeded")
 
       assert(sum1 === 3)
     }

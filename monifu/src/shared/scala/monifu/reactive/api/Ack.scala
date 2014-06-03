@@ -3,7 +3,6 @@ package monifu.reactive.api
 import scala.concurrent.{CanAwait, ExecutionContext, Future}
 import scala.util.{Success, Try}
 import scala.concurrent.duration.Duration
-import monifu.reactive.api.Ack.{Done, Continue}
 
 /**
  * Represents the acknowledgement of processing that a consumer
@@ -18,8 +17,9 @@ object Ack {
    */
   sealed trait Continue extends Ack
 
-  object Continue extends Continue with AckIsFuture[Continue] {
-    val value = Some(Success(Continue))
+  case object Continue extends Continue with AckIsFuture[Continue] {
+    final val IsSuccess = Success(Continue)
+    final val value = Some(IsSuccess)
   }
 
   /**
@@ -28,8 +28,9 @@ object Ack {
    */
   sealed trait Done extends Ack
 
-  object Done extends Done with AckIsFuture[Done] {
-    val value = Some(Success(Done))
+  case object Done extends Done with AckIsFuture[Done] {
+    final val IsSuccess = Success(Done)
+    final val value = Some(IsSuccess)
   }
 }
 
