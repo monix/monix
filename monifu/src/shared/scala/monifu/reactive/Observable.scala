@@ -11,7 +11,6 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.control.NonFatal
 import scala.collection.mutable
 import scala.annotation.tailrec
-import collection.JavaConverters._
 import scala.util.{Failure, Success}
 import monifu.reactive.subjects.{ReplaySubject, BehaviorSubject, PublishSubject}
 import monifu.reactive.api.Notification.{OnComplete, OnNext, OnError}
@@ -1772,30 +1771,40 @@ object Observable {
   }
 
   /**
+   * Creates an Observable that emits the given elements.
+   *
+   * Usage sample: {{{
+   *   val obs = Observable(1, 2, 3, 4)
+   *
+   *   obs.dump("MyObservable").subscribe()
+   *   //=> 0: MyObservable-->1
+   *   //=> 1: MyObservable-->2
+   *   //=> 2: MyObservable-->3
+   *   //=> 3: MyObservable-->4
+   *   //=> 4: MyObservable completed
+   * }}}
+   */
+  def apply[T](elems: T*)(implicit scheduler: Scheduler): Observable[T] = {
+    from(elems)
+  }
+
+  /**
    * Converts a Future to an Observable.
    *
    * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/fromIterable.png" />
    */
   def from[T](f: Future[T])(implicit scheduler: Scheduler): Observable[T] = f
-  
+
   /**
    * Creates an Observable that emits the elements of the given ''iterable''.
    *
    * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/fromIterable.png" />
    */
   def from[T](iterable: Iterable[T])(implicit scheduler: Scheduler): Observable[T] =
-    from(iterable.asJava)
-
-  /**
-   * Creates an Observable that emits the elements of the given ''iterable''.
-   *
-   * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/fromIterable.png" />
-   */
-  def from[T](iterable: java.lang.Iterable[T])(implicit scheduler: Scheduler): Observable[T] =
     Observable.create { o =>
       val observer = SafeObserver(o)
 
-      def startFeedLoop(iterator: java.util.Iterator[T]): Unit =
+      def startFeedLoop(iterator: Iterator[T]): Unit =
         scheduler.execute(new Runnable {
           def run(): Unit =
             while (true) {
@@ -1828,7 +1837,7 @@ object Observable {
             }
         })
 
-      val iterator = iterable.iterator()
+      val iterator = iterable.iterator
       startFeedLoop(iterator)
     }
 
