@@ -29,7 +29,7 @@ class PublishSubjectTest extends FunSpec {
       for (i <- 0 until 10000) subject.pushNext(i)
       subject.pushComplete()
 
-      assert(latch.await(3, TimeUnit.SECONDS), "latch.await should have succeeded")
+      assert(latch.await(10, TimeUnit.SECONDS), "latch.await should have succeeded")
 
       assert(result1.get === (0 until 10000).filter(_ % 2 == 0).flatMap(x => x to (x + 1)).sum)
       assert(result2.get === result1.get)
