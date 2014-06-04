@@ -8,7 +8,8 @@ import monifu.concurrent.atomic.padded.Atomic
 import scala.annotation.tailrec
 import monifu.reactive.api.Ack
 import monifu.reactive.observers.ConnectableObserver
-
+import monifu.reactive.internals.PromiseCounter
+import monifu.reactive.internals.FutureAckExtensions
 
 /**
  * `BehaviorSubject` when subscribed, will emit the most recently emitted item by the source,
@@ -67,21 +68,6 @@ final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends S
     loop().connect()
   }
 
-  private[this] def emitNext(obs: Observer[T], elem: T): Future[Continue] =
-    obs.onNext(elem) match {
-      case Continue => Continue
-      case Done =>
-        removeSubscription(obs)
-        Continue
-      case other =>
-        other.map {
-          case Continue => Continue
-          case Done =>
-            removeSubscription(obs)
-            Continue
-        }
-    }
-
   @tailrec
   def onNext(elem: T): Future[Ack] = {
     state.get match {
@@ -95,25 +81,8 @@ final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends S
         if (!state.compareAndSet(current, Active(observers, elem)))
           onNext(elem)
 
-        else {
-          var idx = 0
-          var acc = Continue : Future[Continue]
-
-          while (idx < observers.length) {
-            val obs = observers(idx)
-            acc =
-              if (acc == Continue || (acc.isCompleted && acc.value.get.isSuccess))
-                emitNext(obs, elem)
-              else {
-                val f = emitNext(obs, elem)
-                acc.flatMap(_ => f)
-              }
-
-            idx += 1
-          }
-
-          acc
-        }
+        else
+          stream(observers, elem)
 
       case _ =>
         Done
@@ -164,12 +133,41 @@ final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends S
         // already complete, ignore
     }
 
-  private[this] def removeSubscription(obs: Observer[T]): Unit =
-    state.transform {
-      case current @ Active(observers,_) =>
-        current.copy(observers.filterNot(_ eq obs))
-      case other =>
-        other
+  private[this] def stream(array: Array[ConnectableObserver[T]], elem: T): Future[Continue] = {
+    val newPromise = PromiseCounter[Continue](Continue, array.length)
+    val length = array.length
+    var idx = 0
+
+    while (idx < length) {
+      val obs = array(idx)
+      obs.onNext(elem).onCompleteNow {
+        case Continue.IsSuccess =>
+          newPromise.countdown()
+        case _ =>
+          removeSubscription(obs)
+          newPromise.countdown()
+      }
+
+      idx += 1
+    }
+
+    newPromise.future
+  }
+
+  @tailrec
+  private[this] def removeSubscription(observer: Observer[T]): Unit =
+    state.get match {
+      case current @ Active(observers, cachedValue) =>
+        val update = observers.filterNot(_ == observer)
+        if (update.nonEmpty) {
+          if (!state.compareAndSet(current, Active(update, cachedValue)))
+            removeSubscription(observer)
+        }
+        else {
+          if (!state.compareAndSet(current, Empty(cachedValue)))
+            removeSubscription(observer)
+        }
+      case _ => // ignore
     }
 }
 
