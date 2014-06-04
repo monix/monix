@@ -17,6 +17,7 @@ import monifu.reactive.api.Notification.{OnComplete, OnNext, OnError}
 import monifu.reactive.observers.{BufferedObserver, SafeObserver, ConcurrentObserver}
 import monifu.reactive.internals.FutureAckExtensions
 import monifu.reactive.api.BufferPolicy.Unbounded
+import monifu.concurrent.extensions._
 
 
 /**
@@ -681,6 +682,70 @@ trait Observable[+T] { self =>
           catch {
             case NonFatal(ex) =>
               if (streamError) { observer.onError(ex); Done } else Future.failed(ex)
+          }
+        }
+
+        def onComplete() =
+          observer.onComplete()
+
+        def onError(ex: Throwable) =
+          observer.onError(ex)
+      })
+    }
+
+  /**
+   * Given a start value (a seed) and a function taking the current state
+   * (starting with the seed) and the currently emitted item and returning a new
+   * state value as a `Future`, it returns a new Observable that applies the given
+   * function to all emitted items, emitting the produced state along the way.
+   *
+   * This operator is to [[scan]] what [[flatMap]] is to [[map]].
+   *
+   * Example: {{{
+   *   // dumb long running function, returning a Future result
+   *   def sumUp(x: Long, y: Int) = Future(x + y)
+   *
+   *   Observable.range(0, 10).flatScan(0L)(sumUp).dump("FlatScan").subscribe()
+   *   //=> 0: FlatScan-->0
+   *   //=> 1: FlatScan-->1
+   *   //=> 2: FlatScan-->3
+   *   //=> 3: FlatScan-->6
+   *   //=> 4: FlatScan-->10
+   *   //=> 5: FlatScan-->15
+   *   //=> 6: FlatScan-->21
+   *   //=> 7: FlatScan-->28
+   *   //=> 8: FlatScan-->36
+   *   //=> 9: FlatScan-->45
+   *   //=> 10: FlatScan completed
+   * }}}
+   *
+   * NOTE that it does back-pressure and the state produced by this function is
+   * emitted in order of the original input. This is the equivalent of
+   * [[concatMap]] and NOT [[mergeMap]] (a mergeScan wouldn't make sense anyway).
+   */
+  def flatScan[R](initial: R)(op: (R, T) => Future[R]): Observable[R] =
+    Observable.create { observer =>
+      unsafeSubscribe(new Observer[T] {
+        private[this] var state = initial
+
+        def onNext(elem: T): Future[Ack] = {
+          // See Section 6.4. in the Rx Design Guidelines:
+          // Protect calls to user code from within an operator
+          try op(state, elem).liftTry.flatMap {
+            case Success(newState) =>
+              // clear happens before relationship between
+              // subsequent invocations, so this is thread-safe
+              state = newState
+              observer.onNext(newState)
+
+            case Failure(ex) =>
+              observer.onError(ex)
+              Done
+          }
+          catch {
+            case NonFatal(ex) =>
+              observer.onError(ex)
+              Done
           }
         }
 

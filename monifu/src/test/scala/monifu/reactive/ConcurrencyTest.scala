@@ -2,8 +2,10 @@ package monifu.reactive
 
 import org.scalatest.FunSpec
 import monifu.concurrent.Scheduler.Implicits.global
-import scala.concurrent.Await
+import scala.concurrent.{Future, Await}
 import concurrent.duration._
+import scala.util.Random
+import monifu.concurrent.extensions._
 
 class ConcurrencyTest extends FunSpec {
   describe("Observable.take") {
@@ -164,6 +166,19 @@ class ConcurrencyTest extends FunSpec {
 
       val r = Await.result(f, 20.seconds)
       assert(r === Some(9900 until 10000))
+    }
+  }
+
+  describe("Observable.flatScan") {
+    it("should not have concurrency problems") {
+      def sumUp(x: Long, y: Int) = Future.delayedResult(Random.nextInt(3).millisecond)(x + y)
+      val obs = Observable.range(0, 1000).flatScan(0L)(sumUp)
+        .foldLeft(Seq.empty[Long])(_ :+ _)
+
+      val f = obs.asFuture
+      val result = Await.result(f, 30.seconds).get
+
+      assert(result === (0 until 1000).map(x => (0 to x).sum))
     }
   }
 }

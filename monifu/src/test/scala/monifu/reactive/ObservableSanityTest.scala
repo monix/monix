@@ -7,6 +7,8 @@ import concurrent.duration._
 import java.util.concurrent.{TimeUnit, CountDownLatch}
 import monifu.concurrent.Scheduler.Implicits.global
 import monifu.reactive.api.Ack.{Done, Continue}
+import monifu.concurrent.extensions._
+import scala.util.Random
 
 
 class ObservableSanityTest extends FunSpec {
@@ -875,6 +877,19 @@ class ObservableSanityTest extends FunSpec {
         .distinctUntilChanged(x => x + 1).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
 
       assert(Await.result(obs2, 10.seconds) === Some(Seq(1,2,1,3,1,4,5,6,5,7)))
+    }
+  }
+
+  describe("Observable.flatScan") {
+    it("should work") {
+      def sumUp(x: Long, y: Int) = Future(x + y)
+      val obs = Observable.range(0, 1000).flatScan(0L)(sumUp)
+        .foldLeft(Seq.empty[Long])(_ :+ _)
+
+      val f = obs.asFuture
+      val result = Await.result(f, 10.seconds).get
+
+      assert(result === (0 until 1000).map(x => (0 to x).sum))
     }
   }
 }
