@@ -8,8 +8,7 @@ import monifu.reactive.{Subject, Observer}
 import monifu.reactive.internals.PromiseCounter
 import monifu.concurrent.atomic.Atomic
 import scala.annotation.tailrec
-import scala.collection.immutable.Set
-import scala.util.Success
+import monifu.reactive.internals.FutureAckExtensions
 
 
 /**
@@ -35,10 +34,10 @@ final class PublishSubject[T] private (s: Scheduler) extends Subject[T,T] { self
   def unsafeSubscribe(observer: Observer[T]): Unit =
     state.get match {
       case Empty =>
-        if (!state.compareAndSet(Empty, Active(Set(observer))))
+        if (!state.compareAndSet(Empty, Active(Array(observer))))
           unsafeSubscribe(observer)
       case current @ Active(observers) =>
-        if (!state.compareAndSet(current, Active(observers + observer)))
+        if (!state.compareAndSet(current, Active(updatedObservers(observers, observer))))
           unsafeSubscribe(observer)
       case Complete(errorThrown) =>
         if (errorThrown != null)
@@ -47,48 +46,14 @@ final class PublishSubject[T] private (s: Scheduler) extends Subject[T,T] { self
           observer.onComplete()
     }
 
-  @tailrec
-  private[this] def removeSubscription(observer: Observer[T]): Unit =
-    state.get match {
-      case current @ Active(observers) =>
-        val update = observers - observer
-        if (update.nonEmpty) {
-          if (!state.compareAndSet(current, Active(update)))
-            removeSubscription(observer)
-        }
-        else {
-          if (!state.compareAndSet(current, Empty))
-            removeSubscription(observer)
-        }
-      case _ => // ignore
-    }
-
   def onNext(elem: T): Future[Ack] =
     state.get match {
       case Empty => Continue
       case Complete(_) => Done
       case Active(observers) =>
-        val newPromise = PromiseCounter[Continue](Continue, observers.size)
-        val newResponse = newPromise.future
-        val oldResponse = lastResponse
-        lastResponse = newResponse
-
-        oldResponse.onComplete { _ =>
-          val iterator = observers.iterator
-          while (iterator.hasNext) {
-            val obs = iterator.next()
-
-            obs.onNext(elem).onComplete {
-              case Success(Continue) =>
-                newPromise.countdown()
-              case _ =>
-                removeSubscription(obs)
-                newPromise.countdown()
-            }
-          }
-        }
-
-        newResponse
+        val resp = stream(observers, elem)
+        lastResponse = resp
+        resp
     }
 
   @tailrec
@@ -130,6 +95,50 @@ final class PublishSubject[T] private (s: Scheduler) extends Subject[T,T] { self
             }
           }
     }
+
+  private[this] def stream(array: Array[Observer[T]], elem: T): Future[Continue] = {
+    val newPromise = PromiseCounter[Continue](Continue, array.length)
+    val length = array.length
+    var idx = 0
+
+    while (idx < length) {
+      val obs = array(idx)
+      obs.onNext(elem).onCompleteNow {
+        case Continue.IsSuccess =>
+          newPromise.countdown()
+        case _ =>
+          removeSubscription(obs)
+          newPromise.countdown()
+      }
+
+      idx += 1
+    }
+
+    newPromise.future
+  }
+
+  @tailrec
+  private[this] def removeSubscription(observer: Observer[T]): Unit =
+    state.get match {
+      case current @ Active(observers) =>
+        val update = observers.filterNot(_ == observer)
+        if (update.nonEmpty) {
+          if (!state.compareAndSet(current, Active(update)))
+            removeSubscription(observer)
+        }
+        else {
+          if (!state.compareAndSet(current, Empty))
+            removeSubscription(observer)
+        }
+      case _ => // ignore
+    }
+
+  private[this] def updatedObservers(observers: Array[Observer[T]], instance: Observer[T]): Array[Observer[T]] = {
+    if (!observers.contains(instance))
+      observers :+ instance
+    else
+      observers
+  }
 }
 
 object PublishSubject {
@@ -138,6 +147,6 @@ object PublishSubject {
 
   private sealed trait State[+T]
   private case object Empty extends State[Nothing]
-  private case class Active[T](observers: Set[Observer[T]]) extends State[T]
+  private case class Active[T](observers: Array[Observer[T]]) extends State[T]
   private case class Complete(errorThrown: Throwable = null) extends State[Nothing]
 }

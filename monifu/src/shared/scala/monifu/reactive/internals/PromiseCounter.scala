@@ -8,6 +8,8 @@ import monifu.concurrent.atomic.padded.Atomic
  * receiving a `countdownUntil` number of `countdown()` calls.
  */
 final class PromiseCounter[T] private (value: T, countdownUntil: Int) {
+  require(countdownUntil > 0, "countdownUntil must be strictly positive")
+
   private[this] val promise = Promise[T]()
   private[this] val counter = Atomic(0)
 
