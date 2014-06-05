@@ -349,9 +349,10 @@ class ReplaySubjectTest extends FunSpec {
       }
 
       subject.subscribe { x =>
+        sum2 += x
         if (x == 1) receivedFirst.countDown()
         if (x == 2) subject2ReceivedSecond.countDown()
-        sum2 += x; Continue
+        Continue
       }
 
       subject.pushNext(1)
