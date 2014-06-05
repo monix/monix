@@ -17,4 +17,12 @@ private[monifu] final class ConcurrentQueue[T](elems: T*) {
     else
       underlying.dequeue()
   }
+
+  def isEmpty: Boolean = {
+    underlying.isEmpty
+  }
+
+  def nonEmpty: Boolean = {
+    !underlying.isEmpty
+  }
 }

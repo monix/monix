@@ -3,7 +3,7 @@ package monifu.reactive.observers
 import monifu.reactive.Observer
 import scala.concurrent.Future
 import scala.util.control.NonFatal
-import monifu.reactive.api.Ack.{Continue, Done}
+import monifu.reactive.api.Ack.{Continue, Cancel}
 import monifu.concurrent.Scheduler
 import monifu.reactive.api.Ack
 
@@ -11,7 +11,7 @@ import monifu.reactive.api.Ack
  * A safe observer ensures too things:
  *
  * - errors triggered by downstream observers are caught and streamed to `onError`,
- *   while the upstream gets an `Ack.Done`, to stop sending events
+ *   while the upstream gets an `Ack.Cancel`, to stop sending events
  *
  * - once an `onError` or `onComplete` was emitted, the observer no longer accepts
  *   `onNext` events, ensuring that the Rx grammar is respected.
@@ -27,23 +27,23 @@ final class SafeObserver[-T] private (observer: Observer[T])(implicit scheduler:
     if (!isDone) {
       try {
         val result = observer.onNext(elem)
-        if (result == Continue || result == Done || (result.isCompleted && result.value.get.isSuccess))
+        if (result == Continue || result == Cancel || (result.isCompleted && result.value.get.isSuccess))
           result
         else
           result.recoverWith {
             case err =>
               onError(err)
-              Done
+              Cancel
           }
       }
       catch {
         case NonFatal(ex) =>
           onError(ex)
-          Done
+          Cancel
       }
     }
     else
-      Done
+      Cancel
   }
 
   def onError(ex: Throwable) = {
@@ -62,11 +62,11 @@ final class SafeObserver[-T] private (observer: Observer[T])(implicit scheduler:
       try observer.onComplete() catch {
         case NonFatal(err) =>
           scheduler.reportFailure(err)
-          Done
+          Cancel
       }
     }
     else
-      Done
+      Cancel
   }
 }
 

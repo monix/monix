@@ -2,7 +2,7 @@ package monifu.reactive.subjects
 
 import scala.concurrent.Future
 import monifu.reactive.api.Ack
-import monifu.reactive.api.Ack.{Continue, Done}
+import monifu.reactive.api.Ack.{Continue, Cancel}
 import monifu.concurrent.Scheduler
 import monifu.reactive.{Subject, Observer}
 import monifu.reactive.internals.PromiseCounter
@@ -49,7 +49,7 @@ final class PublishSubject[T] private (s: Scheduler) extends Subject[T,T] { self
   def onNext(elem: T): Future[Ack] =
     state.get match {
       case Empty => Continue
-      case Complete(_) => Done
+      case Complete(_) => Cancel
       case Active(observers) =>
         val resp = stream(observers, elem)
         lastResponse = resp

@@ -5,7 +5,7 @@ import monifu.concurrent.Scheduler.Implicits.global
 import monifu.reactive.subjects.ReplaySubject
 import monifu.concurrent.atomic.padded.Atomic
 import java.util.concurrent.{TimeUnit, CountDownLatch}
-import monifu.reactive.api.Ack.{Done, Continue}
+import monifu.reactive.api.Ack.{Cancel, Continue}
 import scala.concurrent.{Future, Await}
 import concurrent.duration._
 import monifu.concurrent.extensions._
@@ -76,7 +76,7 @@ class ReplaySubjectTest extends FunSpec {
       assert(result2.get != null && result2.get.getMessage == "dummy")
 
       val wasCompleted = new CountDownLatch(1)
-      subject.subscribe(_ => Continue, _ => wasCompleted.countDown(), () => Done)
+      subject.subscribe(_ => Continue, _ => wasCompleted.countDown(), () => Cancel)
       assert(wasCompleted.await(3, TimeUnit.SECONDS), "wasCompleted.await should have succeeded")
     }
 
@@ -90,12 +90,12 @@ class ReplaySubjectTest extends FunSpec {
 
       subject.observeOn(global).subscribe(
         elem => Continue,
-        ex => Done,
+        ex => Cancel,
         () => { result1.set(1); latch.countDown() }
       )
       subject.observeOn(global).subscribe(
         elem => Continue,
-        ex => Done,
+        ex => Cancel,
         () => { result2.set(2); latch.countDown() }
       )
 
@@ -122,7 +122,7 @@ class ReplaySubjectTest extends FunSpec {
 
       subject.map(x => if (x < 5) x else throw new RuntimeException()).subscribe(
         (elem) => { received.increment(elem); Continue },
-        (ex) => { errors.increment(); latch.countDown(); Done }
+        (ex) => { errors.increment(); latch.countDown(); Cancel }
       )
       subject.map(x => x)
         .foreach(x => received.increment(x))
@@ -151,13 +151,13 @@ class ReplaySubjectTest extends FunSpec {
 
       subject.takeWhile(_ < 5).subscribe(
         (elem) => { received.increment(elem); Continue },
-        (ex) => Done,
-        () => { completed.increment(); latch.countDown(); Done }
+        (ex) => Cancel,
+        () => { completed.increment(); latch.countDown(); Cancel }
       )
       subject.map(x => x).subscribe(
         (elem) => { received.increment(elem); Continue },
-        (ex) => Done,
-        () => { completed.increment(); latch.countDown(); Done }
+        (ex) => Cancel,
+        () => { completed.increment(); latch.countDown(); Cancel }
       )
 
       channel.onNext(1)
@@ -210,7 +210,7 @@ class ReplaySubjectTest extends FunSpec {
         def onError(ex: Throwable) = {
           onErrorReceived.increment()
           latch.countDown()
-          Done
+          Cancel
         }
 
         def onComplete() =
@@ -228,7 +228,7 @@ class ReplaySubjectTest extends FunSpec {
         def onError(ex: Throwable) = {
           onErrorReceived.increment()
           latch.countDown()
-          Done
+          Cancel
         }
 
         def onComplete() =
@@ -266,7 +266,7 @@ class ReplaySubjectTest extends FunSpec {
         def onError(ex: Throwable) = Future {
           onErrorReceived.increment()
           latch.countDown()
-          Done
+          Cancel
         }
 
         def onComplete() =
@@ -342,7 +342,7 @@ class ReplaySubjectTest extends FunSpec {
         else if (x == 2)
           Future.delayedResult(1.second) {
             sum1 += x
-            Done
+            Cancel
           }
         else
           throw new IllegalStateException(s"Illegal onNext($x)")

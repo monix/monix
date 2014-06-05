@@ -4,7 +4,7 @@ import monifu.reactive.{Observable, Channel, Observer}
 import scala.concurrent.Promise
 import monifu.reactive.api.Ack
 import monifu.concurrent.Scheduler
-import monifu.reactive.api.Ack.{Done, Continue}
+import monifu.reactive.api.Ack.{Cancel, Continue}
 import scala.collection.mutable
 import monifu.reactive.internals.FutureAckExtensions
 
@@ -87,16 +87,16 @@ final class ConnectableObserver[-T](underlying: Observer[T])(implicit s: Schedul
 
         Observable.from(queue).unsafeSubscribe(new Observer[T] {
           def onNext(elem: T) =
-            observer.onNext(elem).onDoneComplete(connectedPromise)
+            observer.onNext(elem).onCancelComplete(connectedPromise)
 
           def onError(ex: Throwable) = {
-            connectedPromise.success(Done)
+            connectedPromise.success(Cancel)
             observer.onError(ex)
           }
 
           def onComplete() = self.synchronized {
             if (scheduledDone) {
-              connectedPromise.success(Done)
+              connectedPromise.success(Cancel)
               if (scheduledError ne null)
                 observer.onError(scheduledError)
               else
@@ -157,7 +157,7 @@ final class ConnectableObserver[-T](underlying: Observer[T])(implicit s: Schedul
         // race condition guard, since connectedPromise may be null otherwise
         if (!isConnected)
           connectedPromise.future.flatMap {
-            case Done => Done
+            case Cancel => Cancel
             case Continue => observer.onNext(elem)
           }
         else

@@ -26,10 +26,10 @@ object Ack {
    * Acknowledgement or processing that signals upstream that the
    * consumer is no longer interested in receiving events.
    */
-  sealed trait Done extends Ack
+  sealed trait Cancel extends Ack
 
-  case object Done extends Done with AckIsFuture[Done] {
-    final val IsSuccess = Success(Done)
+  case object Cancel extends Cancel with AckIsFuture[Cancel] {
+    final val IsSuccess = Success(Cancel)
     final val value = Some(IsSuccess)
   }
 }

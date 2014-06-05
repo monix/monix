@@ -4,7 +4,7 @@ import language.implicitConversions
 import monifu.concurrent.{Cancelable, Scheduler}
 import scala.concurrent.{Promise, Future}
 import monifu.reactive.api._
-import Ack.{Done, Continue}
+import Ack.{Cancel, Continue}
 import monifu.concurrent.atomic.Atomic
 import monifu.reactive.cancelables._
 import scala.concurrent.duration.{Duration, FiniteDuration}
@@ -15,7 +15,7 @@ import scala.util.{Failure, Success}
 import monifu.reactive.subjects.{ReplaySubject, BehaviorSubject, PublishSubject}
 import monifu.reactive.api.Notification.{OnComplete, OnNext, OnError}
 import monifu.reactive.observers.{BufferedObserver, SafeObserver, ConcurrentObserver}
-import monifu.reactive.internals.FutureAckExtensions
+import monifu.reactive.internals.{MergeBuffer, FutureAckExtensions}
 import monifu.reactive.api.BufferPolicy.Unbounded
 import monifu.concurrent.extensions._
 
@@ -58,13 +58,13 @@ trait Observable[+T] { self =>
    * Helper to be used by consumers for subscribing to an observable.
    */
   final def subscribe(nextFn: T => Future[Ack], errorFn: Throwable => Unit): Unit =
-    subscribe(nextFn, errorFn, () => Done)
+    subscribe(nextFn, errorFn, () => Cancel)
 
   /**
    * Helper to be used by consumers for subscribing to an observable.
    */
   final def subscribe(nextFn: T => Future[Ack]): Unit =
-    subscribe(nextFn, error => { scheduler.reportFailure(error); Done }, () => Done)
+    subscribe(nextFn, error => { scheduler.reportFailure(error); Cancel }, () => Cancel)
 
   /**
    * Helper to be used by consumers for subscribing to an observable.
@@ -93,7 +93,7 @@ trait Observable[+T] { self =>
           }
           catch {
             case NonFatal(ex) =>
-              if (streamError) { observer.onError(ex); Done } else Future.failed(ex)
+              if (streamError) { observer.onError(ex); Cancel } else Future.failed(ex)
           }
         }
 
@@ -128,7 +128,7 @@ trait Observable[+T] { self =>
           }
           catch {
             case NonFatal(ex) =>
-              if (streamError) { observer.onError(ex); Done } else Future.failed(ex)
+              if (streamError) { observer.onError(ex); Cancel } else Future.failed(ex)
           }
         }
 
@@ -146,13 +146,13 @@ trait Observable[+T] { self =>
         try { cb(elem); Continue } catch {
           case NonFatal(ex) =>
             onError(ex)
-            Done
+            Cancel
         }
 
-      def onComplete() = Done
+      def onComplete() = Cancel
       def onError(ex: Throwable) = {
         scheduler.reportFailure(ex)
-        Done
+        Cancel
       }
     })
 
@@ -235,14 +235,14 @@ trait Observable[+T] { self =>
           childObservable.unsafeSubscribe(new Observer[U] {
             def onNext(elem: U) = {
               observerU.onNext(elem)
-                .onDoneComplete(upstreamPromise)
+                .onCancelComplete(upstreamPromise)
             }
 
             def onError(ex: Throwable) = {
               // error happened, so signaling both the main thread that it should stop
               // and the downstream consumer of the error
               observerU.onError(ex)
-              upstreamPromise.success(Done)
+              upstreamPromise.success(Cancel)
             }
 
             def onComplete() = {
@@ -291,42 +291,11 @@ trait Observable[+T] { self =>
   final def merge[U](implicit ev: T <:< Observable[U]): Observable[U] = {
     Observable.create { observerB =>
       unsafeSubscribe(new Observer[T] {
-        private[this] val buffer = BufferedObserver(observerB)
-        private[this] var mergeAck: Ack with Future[Ack] = Continue
-
-        // we need to do ref-counting for triggering `onComplete` on our subscriber
-        // when all the children threads have ended
-        private[this] val refCounter = RefCountCancelable {
-          buffer.onComplete()
-        }
+        private[this] val buffer: MergeBuffer[U] =
+          new MergeBuffer[U](observerB, bufferSize = 4096)
 
         def onNext(elem: T) = {
-          // reference that gets released when the child observer is completed
-          val refID = refCounter.acquire()
-
-          elem.unsafeSubscribe(new Observer[U] {
-            def onNext(elem: U) =
-              mergeAck match {
-                case Continue =>
-                  val ack = buffer.onNext(elem)
-                  if (ack == Done) mergeAck = Done
-                  ack
-                case Done =>
-                  Done
-              }
-
-            def onError(ex: Throwable) = {
-              // onError, cancel everything
-              buffer.onError(ex)
-            }
-
-            def onComplete() = {
-              // do resource release, otherwise we can end up with a memory leak
-              refID.cancel()
-            }
-          })
-
-          mergeAck
+          buffer.merge(elem)
         }
 
         def onError(ex: Throwable) = {
@@ -334,11 +303,7 @@ trait Observable[+T] { self =>
         }
 
         def onComplete() = {
-          // triggers observer.onComplete() when all Observables created have been finished
-          // basically when the main thread is completed, it waits to stream onComplete
-          // until all children have been onComplete too - only after that `subscriber.onComplete` gets triggered
-          // (see `RefCountCancelable` for details on how it works)
-          refCounter.cancel()
+          buffer.onComplete()
         }
       })
     }
@@ -368,17 +333,17 @@ trait Observable[+T] { self =>
               // last event in the stream, so we need to send the event followed by an EOF downstream
               // after which we signal upstream to the producer that it should stop
               observer.onNext(elem).flatMap {
-                case Done => Done
+                case Cancel => Cancel
                 case Continue =>
                   observer.onComplete()
-                  Done
+                  Cancel
               }
             }
           }
           else {
             // we already emitted the maximum number of events, so signal upstream
             // to the producer that it should stop sending events
-            Done
+            Cancel
           }
         }
 
@@ -470,16 +435,16 @@ trait Observable[+T] { self =>
               else {
                 shouldContinue = false
                 observer.onComplete()
-                Done
+                Cancel
               }
             }
             catch {
               case NonFatal(ex) =>
-                if (streamError) { observer.onError(ex); Done } else Future.failed(ex)
+                if (streamError) { observer.onError(ex); Cancel } else Future.failed(ex)
             }
           }
           else
-            Done
+            Cancel
         }
 
         def onComplete() =
@@ -513,16 +478,16 @@ trait Observable[+T] { self =>
               else {
                 shouldContinue = false
                 observer.onComplete()
-                Done
+                Cancel
               }
             }
             catch {
               case NonFatal(ex) =>
-                if (streamError) { observer.onError(ex); Done } else Future.failed(ex)
+                if (streamError) { observer.onError(ex); Cancel } else Future.failed(ex)
             }
           }
           else
-            Done
+            Cancel
         }
 
         def onComplete() =
@@ -560,7 +525,7 @@ trait Observable[+T] { self =>
             }
             catch {
               case NonFatal(ex) =>
-                if (streamError) { observer.onError(ex); Done } else Future.failed(ex)
+                if (streamError) { observer.onError(ex); Cancel } else Future.failed(ex)
             }
           }
           else
@@ -595,7 +560,7 @@ trait Observable[+T] { self =>
           catch {
             case NonFatal(ex) =>
               onError(ex)
-              Done
+              Cancel
           }
         }
 
@@ -639,7 +604,7 @@ trait Observable[+T] { self =>
           catch {
             case NonFatal(ex) =>
               onError(ex)
-              Done
+              Cancel
           }
         }
 
@@ -681,7 +646,7 @@ trait Observable[+T] { self =>
           }
           catch {
             case NonFatal(ex) =>
-              if (streamError) { observer.onError(ex); Done } else Future.failed(ex)
+              if (streamError) { observer.onError(ex); Cancel } else Future.failed(ex)
           }
         }
 
@@ -740,12 +705,12 @@ trait Observable[+T] { self =>
 
             case Failure(ex) =>
               observer.onError(ex)
-              Done
+              Cancel
           }
           catch {
             case NonFatal(ex) =>
               observer.onError(ex)
-              Done
+              Cancel
           }
         }
 
@@ -789,7 +754,7 @@ trait Observable[+T] { self =>
           }
           catch {
             case NonFatal(ex) =>
-              if (streamError) { observer.onError(ex); Done } else Future.failed(ex)
+              if (streamError) { observer.onError(ex); Cancel } else Future.failed(ex)
           }
         }
 
@@ -816,7 +781,7 @@ trait Observable[+T] { self =>
       unsafeSubscribe(new Observer[T] {
         def onNext(elem: T) = {
           val f = observer.onNext(elem)
-          f.onSuccess { case Done => cb }
+          f.onSuccess { case Cancel => cb }
           f
         }
 
@@ -857,7 +822,7 @@ trait Observable[+T] { self =>
           }
           catch {
             case NonFatal(ex) =>
-              if (streamError) { observer.onError(ex); Done } else Future.failed(ex)
+              if (streamError) { observer.onError(ex); Cancel } else Future.failed(ex)
           }
         }
       })
@@ -935,17 +900,17 @@ trait Observable[+T] { self =>
     head.unsafeSubscribe(new Observer[T] {
       def onNext(elem: T) = {
         promise.trySuccess(Some(elem))
-        Done
+        Cancel
       }
 
       def onComplete() = {
         promise.trySuccess(None)
-        Done
+        Cancel
       }
 
       def onError(ex: Throwable) = {
         promise.tryFailure(ex)
-        Done
+        Cancel
       }
     })
 
@@ -1055,7 +1020,7 @@ trait Observable[+T] { self =>
           observerOfPairs.onError(ex)
         }
         else
-          Done
+          Cancel
       }
 
       unsafeSubscribe(new Observer[T] {
@@ -1299,7 +1264,7 @@ trait Observable[+T] { self =>
 
         def onNext(elem: T): Future[Ack] = {
           val newResponse = lastResponse.flatMap {
-            case Done => Done
+            case Cancel => Cancel
             case Continue =>
               observer.onNext(elem)
           }
@@ -1310,19 +1275,19 @@ trait Observable[+T] { self =>
 
         def onError(ex: Throwable): Unit = {
           lastResponse = lastResponse.flatMap {
-            case Done => Done
+            case Cancel => Cancel
             case Continue =>
               observer.onError(ex)
-              Done
+              Cancel
           }
         }
 
         def onComplete(): Unit = {
           lastResponse = lastResponse.flatMap {
-            case Done => Done
+            case Cancel => Cancel
             case Continue =>
               observer.onComplete()
-              Done
+              Cancel
           }
         }
       })
@@ -1479,7 +1444,9 @@ trait Observable[+T] { self =>
         def onNext(elem: T): Future[Ack] = {
           println(s"$pos: $prefix-->$elem")
           pos += 1
-          observer.onNext(elem)
+          val f = observer.onNext(elem)
+          f.onCancel { pos += 1; println(s"$pos: $prefix canceled") }
+          f
         }
 
         def onError(ex: Throwable) = {
@@ -1815,7 +1782,7 @@ object Observable {
               observer.onNext(from) match {
                 case Continue =>
                   loop(from + step, until, step)
-                case Done =>
+                case Cancel =>
                   // do nothing else
                 case async =>
                   async.onSuccess {
@@ -1880,7 +1847,7 @@ object Observable {
                   observer.onNext(elem) match {
                     case Continue =>
                     // continue loop
-                    case Done =>
+                    case Cancel =>
                       return
                     case async =>
                       async.onSuccess {

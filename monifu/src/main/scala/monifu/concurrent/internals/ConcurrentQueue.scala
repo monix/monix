@@ -14,4 +14,12 @@ private[monifu] final class ConcurrentQueue[T](elems: T*) {
   def poll(): T = {
     underlying.poll()
   }
+
+  def isEmpty: Boolean = {
+    underlying.isEmpty
+  }
+
+  def nonEmpty: Boolean = {
+    !underlying.isEmpty
+  }
 }
