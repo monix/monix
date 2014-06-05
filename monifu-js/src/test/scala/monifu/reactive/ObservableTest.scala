@@ -5,7 +5,7 @@ import scala.concurrent.Future
 import monifu.concurrent.Scheduler.Implicits.trampoline
 import concurrent.duration._
 import monifu.reactive._
-import monifu.reactive.api.Ack.{Continue, Done}
+import monifu.reactive.api.Ack.{Continue, Cancel}
 
 
 object ObservableTest extends JasmineTest {
@@ -30,12 +30,12 @@ object ObservableTest extends JasmineTest {
       obs.map(x => x).subscribe(
         nextFn = _ => {
           if (result != "")
-            throw new IllegalStateException("Should not receive other elements after done")
+            throw new IllegalStateException("Should not receive other elements after Cancel")
           Continue
         },
         errorFn = ex => {
           result = ex.getMessage
-          Done
+          Cancel
         }
       )
 

@@ -6,6 +6,7 @@ import scala.concurrent.{Future, Await}
 import concurrent.duration._
 import java.util.concurrent.{TimeUnit, CountDownLatch}
 import monifu.reactive.api.Ack.{Cancel, Continue}
+import scala.util.Random
 
 /**
  * Observable.merge is special, gets its own test.
@@ -153,6 +154,56 @@ class MergeTest extends FunSpec {
 
       val r = Await.result(f, 20.seconds)
       assert(r.nonEmpty && r.get.size === 100 * 9)
+    }
+
+    it("should work with random stuff") {
+      for (repeats <- 0 until 5) {
+        val streamLengths = (0 until 5).map(_ => Random.nextInt(100000))
+        val completed = new CountDownLatch(2)
+
+        val result = Observable.from(streamLengths)
+          .doOnComplete(completed.countDown())
+          .mergeMap(x => Observable.range(0, x))
+          .sum
+          .doOnComplete(completed.countDown())
+          .asFuture
+
+        assert(Await.result(result, 20.seconds) === Some(streamLengths.flatMap(x => 0 until x).sum))
+        assert(completed.await(10, TimeUnit.SECONDS), "completed.await should have succeeded")
+      }
+    }
+
+    it("should work with never ending streams") {
+      val completed = new CountDownLatch(2)
+      val result = Observable.repeat(1)
+        .doOnComplete(completed.countDown())
+        .mergeMap(_ => Observable.repeat(2))
+        .doOnComplete(completed.countDown())
+        .take(100000).sum.asFuture
+
+      assert(Await.result(result, 20.seconds) === Some(100000 * 2))
+      assert(completed.await(10, TimeUnit.SECONDS), "completed.await should have succeeded")
+    }
+
+    it("should work with empty observables") {
+      val completed = new CountDownLatch(2)
+      Observable.range(0, 10000)
+        .doOnComplete(completed.countDown())
+        .mergeMap(_ => Observable.empty[Int])
+        .doOnComplete(completed.countDown())
+        .subscribe()
+
+      assert(completed.await(10, TimeUnit.SECONDS), "completed.await should have succeeded")
+    }
+
+    it("should abort on error") {
+      val completed = new CountDownLatch(2)
+      Observable.range(0, Int.MaxValue)
+        .doOnComplete(completed.countDown())
+        .mergeMap(x => if (x === 7000) throw new RuntimeException() else Observable.unit(x))
+        .subscribe(x => Continue, ex => completed.countDown())
+
+      assert(completed.await(10, TimeUnit.SECONDS), "completed.await should have succeeded")
     }
   }
 }
