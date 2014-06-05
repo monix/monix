@@ -10,7 +10,7 @@ import scala.util.Failure
 import scala.annotation.tailrec
 import monifu.reactive.api.{BufferOverflowException, BufferPolicy, Ack}
 import scala.concurrent.{Promise, Future}
-import monifu.reactive.api.BufferPolicy.{BackPressured, OverflowTriggered, Unbounded}
+import monifu.reactive.api.BufferPolicy.{BackPressured, OverflowTriggering, Unbounded}
 
 
 /**
@@ -37,7 +37,7 @@ import monifu.reactive.api.BufferPolicy.{BackPressured, OverflowTriggered, Unbou
  *  - the buffer MAY BE either unbounded or bounded, in case of bounded buffers, then an appropriate policy
  *    needs to be set for when the buffer overflows - either an `onError` triggered in the underlying observer
  *    coupled with a `Cancel` signaled to the upstream data sources, or dropping events from the head or the tail of
- *    the queue
+ *    the queue, or attempting to apply back-pressure, etc...
  *
  * See [[monifu.reactive.api.BufferPolicy BufferPolicy]] for the buffer policies available.
  */
@@ -49,7 +49,7 @@ object BufferedObserver {
     bufferPolicy match {
       case Unbounded =>
         new DefaultBufferedObserver[T](observer, 0)
-      case OverflowTriggered(bufferSize) =>
+      case OverflowTriggering(bufferSize) =>
         new DefaultBufferedObserver[T](observer, bufferSize)
       case BackPressured(bufferSize) =>
         new BackPressuredBufferedObserver[T](observer, bufferSize)
@@ -64,9 +64,7 @@ object BufferedObserver {
  * [[monifu.reactive.api.BufferPolicy buffer policies]] - unbounded or bounded and terminated
  * with a [[monifu.reactive.api.BufferOverflowException BufferOverflowException]].
  *
- * Currently used in [[monifu.reactive.Observable.merge Observable.merge]].
- * 
- * The interface of this class is not public, so create an instance using an unbounded policy: {{{
+ * The interface of this class is not public, so to create an instance using an unbounded policy: {{{
  *   // by default, the constructor for BufferedObserver is returning this unbounded variant   
  *   BufferedObserver(observer)
  *   
@@ -78,9 +76,9 @@ object BufferedObserver {
  * To create a bounded buffered observable that triggers
  * [[monifu.reactive.api.BufferOverflowException BufferOverflowException]]
  * when over capacity: {{{
- *   import monifu.reactive.api.BufferPolicy.OverflowTriggered
+ *   import monifu.reactive.api.BufferPolicy.OverflowTriggering
  *   // triggers buffer overflow error after 10000 messages
- *   val buffered = BufferedObserver(observer, bufferPolicy = OverflowTriggered(bufferSize = 10000))
+ *   val buffered = BufferedObserver(observer, bufferPolicy = OverflowTriggering(bufferSize = 10000))
  * }}}
  *
  * @param underlying is the underlying observer receiving the queued events

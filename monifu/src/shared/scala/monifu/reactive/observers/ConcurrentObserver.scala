@@ -18,12 +18,12 @@ import monifu.reactive.internals.FutureAckExtensions
  * The `Future` returned by `onNext` on each call is guaranteed to be
  * completed only after downstream has processed the call.
  *
- * For high-contention scenarios it is very expensive and has a performance
- * penalty. If one needs to send `onNext/onComplete` events concurrently
- * and buffering, but without the requirement for `onNext` to return a
- * `Future` that's only complete when the event was processed by downstream
- * (i.e. thread-safe buffering), then one is better served by
- * [[monifu.reactive.observers.BufferedObserver BufferedObserver]].
+ * For high-contention scenarios it is very expensive in terms of both
+ * memory usage and throughput. If one needs to send `onNext/onComplete`
+ * events concurrently and buffering, but without the requirement for
+ * `onNext` to return a `Future` that's only complete when the event was
+ * processed by downstream (i.e. thread-safe buffering), then one is better
+ * served by [[monifu.reactive.observers.BufferedObserver BufferedObserver]].
  */
 final class ConcurrentObserver[-T] private (underlying: Observer[T])(implicit scheduler: Scheduler) extends Observer[T] {
   private[this] val ack = Atomic(Continue : Future[Ack])
