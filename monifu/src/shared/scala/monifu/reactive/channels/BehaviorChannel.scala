@@ -4,23 +4,25 @@ import monifu.reactive.{Observable, Observer, Channel}
 import monifu.reactive.observers.BufferedObserver
 import monifu.concurrent.Scheduler
 import monifu.reactive.subjects.BehaviorSubject
+import monifu.reactive.api.BufferPolicy
+import monifu.reactive.api.BufferPolicy.Unbounded
 
 /**
  * A `BehaviorChannel` is a [[Channel]] that uses an underlying
  * [[monifu.reactive.subjects.BehaviorSubject BehaviorSubject]].
  */
-final class BehaviorChannel[T] private (initialValue: T, s: Scheduler) extends Channel[T] with Observable[T] {
+final class BehaviorChannel[T] private (initialValue: T, policy: BufferPolicy, s: Scheduler) extends Channel[T] with Observable[T] {
   implicit val scheduler = s
 
   private[this] val subject = BehaviorSubject(initialValue)
-  private[this] val channel = BufferedObserver(subject)
+  private[this] val channel = BufferedObserver(subject, policy)
 
   private[this] var isDone = false
   private[this] var lastValue = initialValue
   private[this] var errorThrown = null : Throwable
 
-  def unsafeSubscribe(observer: Observer[T]): Unit = {
-    subject.unsafeSubscribe(observer)
+  def subscribeFn(observer: Observer[T]): Unit = {
+    subject.subscribeFn(observer)
   }
 
   def pushNext(elems: T*): Unit = synchronized {
@@ -57,6 +59,6 @@ final class BehaviorChannel[T] private (initialValue: T, s: Scheduler) extends C
 }
 
 object BehaviorChannel {
-  def apply[T](initial: T)(implicit s: Scheduler): BehaviorChannel[T] =
-    new BehaviorChannel[T](initial, s)
+  def apply[T](initial: T, bufferPolicy: BufferPolicy = Unbounded)(implicit s: Scheduler): BehaviorChannel[T] =
+    new BehaviorChannel[T](initial, bufferPolicy, s)
 }

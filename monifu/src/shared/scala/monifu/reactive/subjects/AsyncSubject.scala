@@ -31,11 +31,11 @@ final class AsyncSubject[T] private (s: Scheduler) extends Subject[T,T] { self =
   private[this] var currentElem: T = _
 
   @tailrec
-  def unsafeSubscribe(observer: Observer[T]): Unit =
+  def subscribeFn(observer: Observer[T]): Unit =
     state.get match {
       case current @ Active(set) =>
         if (!state.compareAndSet(current, Active(set + observer)))
-          unsafeSubscribe(observer)
+          subscribeFn(observer)
       case CompletedEmpty =>
         observer.onComplete()
       case CompletedError(ex) =>

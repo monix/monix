@@ -11,14 +11,12 @@ import monifu.concurrent.atomic.padded.Atomic
 import scala.annotation.tailrec
 
 
-final class MergeBuffer[U](downstream: Observer[U], bufferSize: Int)(implicit scheduler: Scheduler)
+final class MergeBuffer[U](downstream: Observer[U], bufferPolicy: BufferPolicy)(implicit scheduler: Scheduler)
   extends Observer[U] { self =>
 
   import MergeBuffer.mergeBatchSize
 
-  require(bufferSize > 0, "bufferSize must be a strictly positive number")
-
-  private[this] val buffer = BufferedObserver(downstream, BufferPolicy.BackPressured(bufferSize))
+  private[this] val buffer = BufferedObserver(downstream, bufferPolicy)
   private[this] final case class State(counter: Int, permission: Promise[Ack])
   private[this] val state = Atomic(State(counter = 1, permission = Promise()))
 
