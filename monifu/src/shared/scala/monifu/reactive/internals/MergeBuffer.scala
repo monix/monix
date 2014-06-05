@@ -104,5 +104,5 @@ final class MergeBuffer[U](downstream: Observer[U], bufferPolicy: BufferPolicy)(
 }
 
 object MergeBuffer {
-  final val mergeBatchSize = math.min(1024, math.max(1, Runtime.getRuntime.availableProcessors()) * 64)
+  final val mergeBatchSize = math.min(1024, math.max(1, Runtime.getRuntime.availableProcessors()) * 32)
 }

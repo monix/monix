@@ -29,7 +29,9 @@ object BufferPolicy {
    * the pipeline should cancel the subscription and send an `onError`
    * to the observer(s) downstream.
    */
-  case class OverflowTriggering(bufferSize: Int) extends BufferPolicy
+  case class OverflowTriggering(bufferSize: Int) extends BufferPolicy {
+    require(bufferSize > 1, "bufferSize must be greater than 1")
+  }
 
   /**
    * A [[BufferPolicy]] specifying that on reaching the maximum size,
@@ -37,5 +39,7 @@ object BufferPolicy {
    * delaying the data source in producing more elements, until the
    * the consumer has drained the buffer and space is available).
    */
-  case class BackPressured(bufferSize: Int) extends BufferPolicy
+  case class BackPressured(bufferSize: Int) extends BufferPolicy {
+    require(bufferSize > 1, "bufferSize should be greater than 1")
+  }
 }
