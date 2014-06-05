@@ -3,9 +3,32 @@
 Extensions to Scala's standard library for multi-threading primitives and functional reactive programming. Targets both the JVM and [Scala.js](http://www.scala-js.org/).
 
 - [![Build Status](https://travis-ci.org/alexandru/monifu.png?branch=v0.12.2)](https://travis-ci.org/alexandru/monifu) (stable version)
-- [![Build Status](https://travis-ci.org/alexandru/monifu.png?branch=v0.13.0-M2)](https://travis-ci.org/alexandru/monifu) (in-development version)
+- [![Build Status](https://travis-ci.org/alexandru/monifu.png?branch=v0.13.0-M3)](https://travis-ci.org/alexandru/monifu) (in-development version)
 
 ## Feature Overview
+
+[Reactive Extensions](https://github.com/alexandru/monifu/wiki/Reactive-Extensions-(Rx))
+
+```scala
+import monifu.concurrent.Scheduler.Implicits.global
+import play.api.libs.ws._
+import monifu.reactive._
+
+// emits an auto-incremented number, every second
+Observable.interval(1.second)
+  // drops the first 10 emitted events
+  .drop(10) 
+  // takes the first 100 emitted events  
+  .take(100) 
+  // per second, makes requests and concatenates the results
+  .flatMap(x => WS.request(s"http://some.endpoint.com/request?tick=$x").get())
+  // filters only valid responses
+  .filter(response => response.status == 200) 
+  // processes response, selecting the body
+  .map(response => response.body) 
+  // creates subscription, foreach response print it
+  .foreach(x => println(x)) 
+```
 
 [Atomic References](https://github.com/alexandru/monifu/wiki/Atomic-References)
 
@@ -46,37 +69,14 @@ s.scheduleRecursive(1.second, 5.seconds, { reschedule =>
 })
 ```
 
-[Reactive Extensions](https://github.com/alexandru/monifu/wiki/Reactive-Extensions-(Rx))
-
-```scala
-import monifu.concurrent.Scheduler.Implicits.global
-import play.api.libs.ws._
-import monifu.reactive._
-
-// emits an auto-incremented number, every second
-Observable.interval(1.second)
-  // drops the first 10 emitted events
-  .drop(10) 
-  // takes the first 100 emitted events  
-  .take(100) 
-  // per second, makes requests and concatenates the results
-  .flatMap(x => WS.request(s"http://some.endpoint.com/request?tick=$x").get())
-  // filters only valid responses
-  .filter(response => response.status == 200) 
-  // processes response, selecting the body
-  .map(response => response.body) 
-  // creates subscription, foreach response print it
-  .foreach(x => println(x)) 
-```
-
 ## Documentation
 
 The available documentation is maintained as a [GitHub's Wiki](https://github.com/alexandru/monifu/wiki).
 Work in progress:
 
-* [Atomic References](https://github.com/alexandru/monifu/wiki/Atomic-References) 
-* [Schedulers](https://github.com/alexandru/monifu/wiki/Schedulers) and [Cancelables](https://github.com/alexandru/monifu/wiki/Cancelables)
 * [Reactive Extensions (Rx)](https://github.com/alexandru/monifu/wiki/Reactive-Extensions-%28Rx%29)
+* [Atomic References](https://github.com/alexandru/monifu/wiki/Atomic-References) 
+* [Schedulers](https://github.com/alexandru/monifu/wiki/Schedulers) 
 
 API documentation:
 
@@ -102,7 +102,7 @@ for the published packages is version 6 (see
 [faq entry](https://github.com/alexandru/monifu/wiki/Frequently-Asked-Questions#what-javajdk-version-is-required)).
 
 - Current stable release is: `0.12.2`
-- In-development release: `0.13.0-M2`
+- In-development release: `0.13.0-M3`
 
 ### For the JVM
 
