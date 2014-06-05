@@ -67,7 +67,7 @@ class ConcurrentSchedulerTest extends FunSuite {
     val value = Atomic(0)
 
     sub() = s.scheduleRepeated(10.millis, 50.millis, {
-      if (value.incrementAndGet() > 3) {
+      if (value.getAndIncrement() == 3) {
         sub.cancel()
         p.success(value.get)
       }

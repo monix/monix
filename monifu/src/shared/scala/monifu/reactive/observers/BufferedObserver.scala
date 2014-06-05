@@ -129,27 +129,34 @@ private[observers] final class DefaultBufferedObserver[-T](underlying: Observer[
     }
   }
 
-  private[this] def pushToConsumer(): Unit =
+  @tailrec
+  private[this] def pushToConsumer(): Unit = {
+    val currentNr = itemsToPush.get
+
     if (bufferSize == 0) {
-      // unbounded buffer branch
-      if (itemsToPush.getAndIncrement() == 0)
+      // unbounded branch
+      if (!itemsToPush.compareAndSet(currentNr, currentNr + 1))
+        pushToConsumer()
+      else if (currentNr == 0)
         scheduler.execute(new Runnable {
           def run() = fastLoop(0)
         })
     }
     else {
-      // bounded buffer branch
-      val leftToPush = itemsToPush.getAndIncrement()
-      if (leftToPush > bufferSize && !upstreamIsComplete)
+      // triggering overflow branch
+      if (currentNr >= bufferSize && !upstreamIsComplete) {
         onError(new BufferOverflowException(
-          s"Downstream observer is too slow, buffer over capacity with a specified $bufferSize size and" +
-          s" $leftToPush events being left for push"))
-      else if (leftToPush == 0)
+          s"Downstream observer is too slow, buffer over capacity with a specified buffer size of $bufferSize and" +
+            s" $currentNr events being left for push"))
+      }
+      else if (!itemsToPush.compareAndSet(currentNr, currentNr + 1))
+        pushToConsumer()
+      else if (currentNr == 0)
         scheduler.execute(new Runnable {
           def run() = fastLoop(0)
         })
     }
-
+  }
 
   private[this] def rescheduled(processed: Int): Unit = {
     fastLoop(processed)
@@ -160,7 +167,7 @@ private[observers] final class DefaultBufferedObserver[-T](underlying: Observer[
     if (!downstreamIsDone) {
       val next = queue.poll()
 
-      if (next != null)
+      if (next != null) {
         underlying.onNext(next) match {
           case sync if sync.isCompleted =>
             sync match {
@@ -204,6 +211,7 @@ private[observers] final class DefaultBufferedObserver[-T](underlying: Observer[
                 underlying.onError(new MatchError(s"$other"))
             }
         }
+      }
       else if (upstreamIsComplete) {
         // ending loop
         downstreamIsDone = true
