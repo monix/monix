@@ -6,7 +6,7 @@ import scala.concurrent.{Future, Await}
 import concurrent.duration._
 import java.util.concurrent.{TimeUnit, CountDownLatch}
 import monifu.concurrent.Scheduler.Implicits.global
-import monifu.reactive.api.Ack.{Done, Continue}
+import monifu.reactive.api.Ack.{Cancel, Continue}
 import monifu.concurrent.extensions._
 import scala.util.Random
 
@@ -35,7 +35,7 @@ class ObservableSanityTest extends FunSpec {
         errorFn = ex => {
           result = ex.getMessage
           latch.countDown()
-          Done
+          Cancel
         }
       )
 
@@ -74,7 +74,7 @@ class ObservableSanityTest extends FunSpec {
         errorFn = ex => {
           result = ex.getMessage
           latch.countDown()
-          Done
+          Cancel
         }
       )
 
@@ -100,7 +100,7 @@ class ObservableSanityTest extends FunSpec {
         errorFn = ex => {
           errorThrow = ex
           latch.countDown()
-          Done
+          Cancel
         }
       )
 
@@ -139,7 +139,7 @@ class ObservableSanityTest extends FunSpec {
         errorFn = ex => {
           result = ex.getMessage
           latch.countDown()
-          Done
+          Cancel
         }
       )
 
@@ -164,7 +164,7 @@ class ObservableSanityTest extends FunSpec {
         errorFn = ex => {
           errorThrow = ex
           latch.countDown()
-          Done
+          Cancel
         }
       )
 
@@ -202,7 +202,7 @@ class ObservableSanityTest extends FunSpec {
         errorFn = ex => {
           result = ex.getMessage
           latch.countDown()
-          Done
+          Cancel
         }
       )
 
@@ -227,7 +227,7 @@ class ObservableSanityTest extends FunSpec {
         errorFn = ex => {
           errorThrow = ex
           latch.countDown()
-          Done
+          Cancel
         }
       )
 
@@ -270,7 +270,7 @@ class ObservableSanityTest extends FunSpec {
         errorFn = ex => {
           result = ex.getMessage
           latch.countDown()
-          Done
+          Cancel
         }
       )
 
@@ -298,7 +298,7 @@ class ObservableSanityTest extends FunSpec {
         errorFn = ex => {
           errorThrow = ex
           latch.countDown()
-          Done
+          Cancel
         }
       )
 
@@ -340,7 +340,7 @@ class ObservableSanityTest extends FunSpec {
         errorFn = ex => {
           result = ex.getMessage
           latch.countDown()
-          Done
+          Cancel
         }
       )
 
@@ -368,7 +368,7 @@ class ObservableSanityTest extends FunSpec {
         errorFn = ex => {
           errorThrow = ex
           latch.countDown()
-          Done
+          Cancel
         }
       )
 
@@ -579,7 +579,7 @@ class ObservableSanityTest extends FunSpec {
         errorFn = ex => {
           result = ex.getMessage
           latch.countDown()
-          Done
+          Cancel
         }
       )
 
@@ -607,7 +607,7 @@ class ObservableSanityTest extends FunSpec {
         errorFn = ex => {
           errorThrow = ex
           latch.countDown()
-          Done
+          Cancel
         }
       )
 
@@ -757,7 +757,7 @@ class ObservableSanityTest extends FunSpec {
         errorFn = ex => {
           result = ex.getMessage
           latch.countDown()
-          Done
+          Cancel
         }
       )
 
@@ -782,7 +782,7 @@ class ObservableSanityTest extends FunSpec {
         errorFn = ex => {
           errorThrow = ex
           latch.countDown()
-          Done
+          Cancel
         }
       )
 

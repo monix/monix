@@ -2,15 +2,15 @@ package monifu.reactive.observers
 
 import monifu.reactive.Observer
 import monifu.concurrent.internals.ConcurrentQueue
-import monifu.reactive.api.Ack.{Done, Continue}
+import monifu.reactive.api.Ack.{Cancel, Continue}
 import monifu.concurrent.atomic.padded.Atomic
 import monifu.concurrent.Scheduler
 import scala.util.control.NonFatal
 import scala.util.Failure
 import scala.annotation.tailrec
 import monifu.reactive.api.{BufferOverflowException, BufferPolicy, Ack}
-import scala.concurrent.Future
-import monifu.reactive.api.BufferPolicy.{TriggerOverflow, Unbounded}
+import scala.concurrent.{Promise, Future}
+import monifu.reactive.api.BufferPolicy.{BackPressured, OverflowTriggered, Unbounded}
 
 
 /**
@@ -24,24 +24,40 @@ import monifu.reactive.api.BufferPolicy.{TriggerOverflow, Unbounded}
  *
  *  - `onNext` / `onError` / `onComplete` of this interface MAY be called concurrently
  *  - `onNext` SHOULD return an immediate `Continue`, as long as the buffer is not full and
- *    the underlying observer hasn't signaled `Done` (N.B. due to the asynchronous nature, `Done` signaled by
+ *    the underlying observer hasn't signaled `Cancel` (N.B. due to the asynchronous nature, `Cancel` signaled by
  *    the underlying observer may be noticed later, so implementations of this interface make no guarantee about
  *    queued events - which could be generated, queued and dropped on the floor later)
- *  - `onNext` MUST return an immediate `Done` result, after it notices that the underlying observer signaled `Done`
+ *  - `onNext` MUST return an immediate `Cancel` result, after it notices that the underlying observer signaled `Cancel`
  *    (due to the asynchronous nature of observers, this may happen later and queued events might get dropped on the floor)
  *  - in general the contract for the underlying Observer is fully respected (grammar, non-concurrent notifications, etc...)
- *  - when the underlying observer canceled (by returning `Done`), or when a concurrent upstream data source triggered
+ *  - when the underlying observer canceled (by returning `Cancel`), or when a concurrent upstream data source triggered
  *    an error, this SHOULD eventually be noticed and acted upon
- *  - as long as the buffer isn't full and the underlying observer isn't `Done`, then implementations
+ *  - as long as the buffer isn't full and the underlying observer isn't `Cancel`, then implementations
  *    of this interface SHOULD not lose events in the process
  *  - the buffer MAY BE either unbounded or bounded, in case of bounded buffers, then an appropriate policy
  *    needs to be set for when the buffer overflows - either an `onError` triggered in the underlying observer
- *    coupled with a `Done` signaled to the upstream data sources, or dropping events from the head or the tail of
+ *    coupled with a `Cancel` signaled to the upstream data sources, or dropping events from the head or the tail of
  *    the queue
  *
  * See [[monifu.reactive.api.BufferPolicy BufferPolicy]] for the buffer policies available.
  */
 trait BufferedObserver[-T] extends Observer[T]
+
+
+object BufferedObserver {
+  def apply[T](observer: Observer[T], bufferPolicy: BufferPolicy = Unbounded)(implicit scheduler: Scheduler): BufferedObserver[T] = {
+    bufferPolicy match {
+      case Unbounded =>
+        new DefaultBufferedObserver[T](observer, 0)
+      case OverflowTriggered(bufferSize) =>
+        new DefaultBufferedObserver[T](observer, bufferSize)
+      case BackPressured(bufferSize) =>
+        new BackPressuredBufferedObserver[T](observer, bufferSize)
+      case _ =>
+        throw new NotImplementedError(s"BufferedObserver($bufferPolicy)")
+    }
+  }
+}
 
 /**
  * A highly optimized [[BufferedObserver]] implementation. It supports 2
@@ -62,9 +78,9 @@ trait BufferedObserver[-T] extends Observer[T]
  * To create a bounded buffered observable that triggers
  * [[monifu.reactive.api.BufferOverflowException BufferOverflowException]]
  * when over capacity: {{{
- *   import monifu.reactive.api.BufferPolicy.TriggerOverflow
+ *   import monifu.reactive.api.BufferPolicy.OverflowTriggered
  *   // triggers buffer overflow error after 10000 messages
- *   val buffered = BufferedObserver(observer, bufferPolicy = TriggerOverflow(bufferSize = 10000))
+ *   val buffered = BufferedObserver(observer, bufferPolicy = OverflowTriggered(bufferSize = 10000))
  * }}}
  *
  * @param underlying is the underlying observer receiving the queued events
@@ -83,8 +99,6 @@ private[observers] final class DefaultBufferedObserver[-T](underlying: Observer[
   // for enforcing non-concurrent updates
   private[this] val itemsToPush = Atomic(0)
 
-  def isComplete = upstreamIsComplete || downstreamIsDone
-
   def onNext(elem: T): Ack with Future[Ack] = {
     if (!upstreamIsComplete && !downstreamIsDone) {
       try {
@@ -95,11 +109,11 @@ private[observers] final class DefaultBufferedObserver[-T](underlying: Observer[
       catch {
         case NonFatal(ex) =>
           onError(ex)
-          Done
+          Cancel
       }
     }
     else
-      Done
+      Cancel
   }
 
   def onError(ex: Throwable) = {
@@ -119,19 +133,23 @@ private[observers] final class DefaultBufferedObserver[-T](underlying: Observer[
 
   private[this] def pushToConsumer(): Unit =
     if (bufferSize == 0) {
-      // unbounded branch
+      // unbounded buffer branch
       if (itemsToPush.getAndIncrement() == 0)
         scheduler.execute(new Runnable {
           def run() = fastLoop(0)
         })
     }
     else {
-      // bounded branch
+      // bounded buffer branch
       val leftToPush = itemsToPush.getAndIncrement()
       if (leftToPush > bufferSize && !upstreamIsComplete)
         onError(new BufferOverflowException(
           s"Downstream observer is too slow, buffer over capacity with a specified $bufferSize size and" +
           s" $leftToPush events being left for push"))
+      else if (leftToPush == 0)
+        scheduler.execute(new Runnable {
+          def run() = fastLoop(0)
+        })
     }
 
 
@@ -152,7 +170,7 @@ private[observers] final class DefaultBufferedObserver[-T](underlying: Observer[
                 // process next
                 fastLoop(processed + 1)
 
-              case done if done == Done || done.value.get == Done.IsSuccess =>
+              case done if done == Cancel || done.value.get == Cancel.IsSuccess =>
                 // ending loop
                 downstreamIsDone = true
                 itemsToPush.set(0)
@@ -168,16 +186,9 @@ private[observers] final class DefaultBufferedObserver[-T](underlying: Observer[
             async.onComplete {
               case Continue.IsSuccess =>
                 // re-run loop (in different thread)
-                if (bufferSize == 0) {
-                  // unbounded branch
-                  rescheduled(processed + 1)
-                }
-                else {
-                  itemsToPush.decrement(processed + 1)
-                  rescheduled(0)
-                }
+                rescheduled(processed + 1)
 
-              case Done.IsSuccess =>
+              case Cancel.IsSuccess =>
                 // ending loop
                 downstreamIsDone = true
                 itemsToPush.set(0)
@@ -214,15 +225,180 @@ private[observers] final class DefaultBufferedObserver[-T](underlying: Observer[
   }
 }
 
-object BufferedObserver {
-  def apply[T](observer: Observer[T], bufferPolicy: BufferPolicy = Unbounded)(implicit scheduler: Scheduler): BufferedObserver[T] = {
-    bufferPolicy match {
-      case Unbounded =>
-        new DefaultBufferedObserver[T](observer, bufferSize = 0)
-      case TriggerOverflow(bufferSize) =>
-        new DefaultBufferedObserver[T](observer, bufferSize = bufferSize)
-      case _ =>
-        throw new NotImplementedError(s"BufferedObserver($bufferPolicy)")
+private[observers] final class BackPressuredBufferedObserver[-T](underlying: Observer[T], bufferSize: Int)(implicit scheduler: Scheduler)
+  extends BufferedObserver[T] { self =>
+
+  require(bufferSize > 0, "bufferSize must be a strictly positive number")
+
+  private[this] val queue = new ConcurrentQueue[T]()
+  // to be modified only in onError, before upstreamIsComplete
+  private[this] var errorThrown: Throwable = null
+  // to be modified only in onError / onComplete
+  @volatile private[this] var upstreamIsComplete = false
+  // to be modified only by consumer
+  @volatile private[this] var downstreamIsDone = false
+
+  // for enforcing non-concurrent updates and back-pressure
+  // all access must be synchronized
+  private[this] var itemsToPush = 0
+  private[this] var nextAckPromise = Promise[Ack]()
+  private[this] var appliesBackPressure = false
+
+  def onNext(elem: T): Future[Ack] = {
+    if (!upstreamIsComplete && !downstreamIsDone) {
+      try {
+        queue.offer(elem)
+        pushToConsumer()
+      }
+      catch {
+        case NonFatal(ex) =>
+          onError(ex)
+          Cancel
+      }
+    }
+    else
+      Cancel
+  }
+
+  def onError(ex: Throwable) = {
+    if (!upstreamIsComplete && !downstreamIsDone) {
+      errorThrown = ex
+      upstreamIsComplete = true
+      pushToConsumer()
+    }
+  }
+
+  def onComplete() = {
+    if (!upstreamIsComplete && !downstreamIsDone) {
+      upstreamIsComplete = true
+      pushToConsumer()
+    }
+  }
+
+  private[this] def pushToConsumer(): Future[Ack] =
+    self.synchronized {
+      if (itemsToPush == 0) {
+        nextAckPromise = Promise[Ack]()
+        appliesBackPressure = false
+        itemsToPush += 1
+
+        scheduler.execute(new Runnable {
+          def run() = fastLoop(0)
+        })
+
+        Continue
+      }
+      else if (appliesBackPressure) {
+        itemsToPush += 1
+        nextAckPromise.future
+      }
+      else if (itemsToPush >= bufferSize) {
+        appliesBackPressure = true
+        itemsToPush += 1
+        nextAckPromise.future
+      }
+      else {
+        itemsToPush += 1
+        Continue
+      }
+    }
+
+  private[this] def rescheduled(processed: Int): Unit = {
+    fastLoop(processed)
+  }
+
+  @tailrec
+  private[this] def fastLoop(processed: Int): Unit = {
+    if (!downstreamIsDone) {
+      val next = queue.poll()
+
+      if (next != null)
+        underlying.onNext(next) match {
+          case sync if sync.isCompleted =>
+            sync match {
+              case continue if continue == Continue || continue.value.get == Continue.IsSuccess =>
+                // process next
+                fastLoop(processed + 1)
+
+              case done if done == Cancel || done.value.get == Cancel.IsSuccess =>
+                // ending loop
+                downstreamIsDone = true
+                self.synchronized {
+                  itemsToPush = 0
+                  nextAckPromise.success(Cancel)
+                }
+
+              case error if error.value.get.isFailure =>
+                // ending loop
+                downstreamIsDone = true
+                try underlying.onError(error.value.get.failed.get) finally
+                  self.synchronized {
+                    itemsToPush = 0
+                    nextAckPromise.success(Cancel)
+                  }
+            }
+
+          case async =>
+            async.onComplete {
+              case Continue.IsSuccess =>
+                // re-run loop (in different thread)
+                rescheduled(processed + 1)
+
+              case Cancel.IsSuccess =>
+                // ending loop
+                downstreamIsDone = true
+                self.synchronized {
+                  itemsToPush = 0
+                  nextAckPromise.success(Cancel)
+                }
+
+              case Failure(ex) =>
+                // ending loop
+                downstreamIsDone = true
+                try underlying.onError(ex) finally
+                  self.synchronized {
+                    itemsToPush = 0
+                    nextAckPromise.success(Cancel)
+                  }
+
+              case other =>
+                // never happens, but to appease Scala's compiler
+                downstreamIsDone = true
+                try underlying.onError(new MatchError(s"$other")) finally
+                  self.synchronized {
+                    itemsToPush = 0
+                    nextAckPromise.success(Cancel)
+                  }
+            }
+        }
+      else if (upstreamIsComplete) {
+        // ending loop
+        downstreamIsDone = true
+        try {
+          if (errorThrown ne null)
+            underlying.onError(errorThrown)
+          else
+            underlying.onComplete()
+        }
+        finally self.synchronized {
+          itemsToPush = 0
+          nextAckPromise.success(Cancel)
+        }
+      }
+      else {
+        val remaining = self.synchronized {
+          itemsToPush -= processed
+          if (itemsToPush <= 0) // this really has to be LESS-or-equal
+            nextAckPromise.success(Continue)
+          itemsToPush
+        }
+
+        // if the queue is non-empty (i.e. concurrent modifications might have happened)
+        // then start all over again
+        if (remaining > 0) fastLoop(0)
+      }
     }
   }
 }
+
+

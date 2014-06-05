@@ -7,7 +7,7 @@ import scala.concurrent.{Future, Await}
 import concurrent.duration._
 import monifu.concurrent.atomic.padded.Atomic
 import java.util.concurrent.{TimeUnit, CountDownLatch}
-import monifu.reactive.api.Ack.{Done, Continue}
+import monifu.reactive.api.Ack.{Cancel, Continue}
 import monifu.reactive.channels.PublishChannel
 import monifu.reactive.observers.ConcurrentObserver
 
@@ -78,7 +78,7 @@ class PublishSubjectTest extends FunSpec {
       assert(result2.get != null && result2.get.getMessage == "dummy")
 
       var wasCompleted = null : Throwable
-      subject.subscribe(_ => Continue, (err) => { wasCompleted = err; Done }, () => ())
+      subject.subscribe(_ => Continue, (err) => { wasCompleted = err; Cancel }, () => ())
       assert(wasCompleted != null && wasCompleted.getMessage == "dummy")
     }
 
@@ -91,12 +91,12 @@ class PublishSubjectTest extends FunSpec {
 
       subject.observeOn(global).subscribe(
         elem => Continue,
-        ex => Done,
+        ex => Cancel,
         () => { result1.set(1); latch.countDown() }
       )
       subject.observeOn(global).subscribe(
         elem => Continue,
-        ex => Done,
+        ex => Cancel,
         () => { result2.set(2); latch.countDown() }
       )
 
@@ -109,7 +109,7 @@ class PublishSubjectTest extends FunSpec {
       assert(result2.get === 2)
 
       @volatile var wasCompleted = false
-      subject.subscribe(_ => Continue, _ => Done, () => { wasCompleted = true; Done })
+      subject.subscribe(_ => Continue, _ => Cancel, () => { wasCompleted = true; Cancel })
       assert(wasCompleted === true)
     }
 
@@ -154,13 +154,13 @@ class PublishSubjectTest extends FunSpec {
 
       subject.takeWhile(_ < 5).subscribe(
         (elem) => { received.increment(elem); Continue },
-        (ex) => Done,
-        () => { completed.increment(); latch.countDown(); Done }
+        (ex) => Cancel,
+        () => { completed.increment(); latch.countDown(); Cancel }
       )
       subject.map(x => x).subscribe(
         (elem) => { received.increment(elem); Continue },
-        (ex) => Done,
-        () => { completed.increment(); latch.countDown(); Done }
+        (ex) => Cancel,
+        () => { completed.increment(); latch.countDown(); Cancel }
       )
 
       subject.onNext(1)
@@ -210,7 +210,7 @@ class PublishSubjectTest extends FunSpec {
       subject.subscribe(new Observer[Int] {
         def onError(ex: Throwable) = {
           onErrorReceived.increment()
-          Done
+          Cancel
         }
 
         def onComplete() =
@@ -227,7 +227,7 @@ class PublishSubjectTest extends FunSpec {
       subject.subscribe(new Observer[Int] {
         def onError(ex: Throwable) = {
           onErrorReceived.increment()
-          Done
+          Cancel
         }
 
         def onComplete() =
@@ -261,7 +261,7 @@ class PublishSubjectTest extends FunSpec {
       subject.subscribe(new Observer[Int] {
         def onError(ex: Throwable) = Future {
           onErrorReceived.increment()
-          Done
+          Cancel
         }
 
         def onComplete() =
@@ -278,7 +278,7 @@ class PublishSubjectTest extends FunSpec {
       subject.subscribe(new Observer[Int] {
         def onError(ex: Throwable) = Future {
           onErrorReceived.increment()
-          Done
+          Cancel
         }
 
         def onComplete() =

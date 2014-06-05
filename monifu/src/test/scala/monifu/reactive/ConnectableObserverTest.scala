@@ -3,7 +3,7 @@ package monifu.reactive
 import org.scalatest.FunSpec
 import monifu.reactive.api.Ack
 import scala.concurrent.Future
-import monifu.reactive.api.Ack.{Done, Continue}
+import monifu.reactive.api.Ack.{Cancel, Continue}
 import monifu.concurrent.Scheduler.Implicits.global
 import java.util.concurrent.{TimeUnit, CountDownLatch}
 import monifu.reactive.observers.{ConcurrentObserver, ConnectableObserver}
@@ -303,7 +303,7 @@ class ConnectableObserverTest extends FunSpec {
       assert(sum === (0 until 100000).sum + (0 until 1000).sum)
     }
 
-    it("should handle onNext==Done after draining the queue") {
+    it("should handle onNext==Cancel after draining the queue") {
       val streamStarted = new CountDownLatch(1)
       val completed = new CountDownLatch(1)
       var sum = 0
@@ -317,7 +317,7 @@ class ConnectableObserverTest extends FunSpec {
           else {
             assert(completed.getCount === 1)
             completed.countDown()
-            Done
+            Cancel
           }
         }
         def onError(ex: Throwable): Unit = {
@@ -337,7 +337,7 @@ class ConnectableObserverTest extends FunSpec {
       assert(sum === (0 until 10).sum + 3)
     }
 
-    it("should handle onNext==Done in connect()") {
+    it("should handle onNext==Cancel in connect()") {
       val streamStarted = new CountDownLatch(1)
       val completed = new CountDownLatch(1)
       var sum = 0
@@ -351,7 +351,7 @@ class ConnectableObserverTest extends FunSpec {
           else {
             assert(completed.getCount === 1)
             completed.countDown()
-            Done
+            Cancel
           }
         }
         def onError(ex: Throwable): Unit = {

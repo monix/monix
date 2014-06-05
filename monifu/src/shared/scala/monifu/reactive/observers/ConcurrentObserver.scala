@@ -1,7 +1,7 @@
 package monifu.reactive.observers
 
 import monifu.reactive.Observer
-import monifu.reactive.api.Ack.{Done, Continue}
+import monifu.reactive.api.Ack.{Cancel, Continue}
 import scala.concurrent.{Promise, Future}
 import monifu.concurrent.Scheduler
 import monifu.concurrent.atomic.padded.Atomic
@@ -16,18 +16,14 @@ import monifu.reactive.internals.FutureAckExtensions
  * without fulfilling the back-pressure requirements.
  *
  * The `Future` returned by `onNext` on each call is guaranteed to be
- * completed only after downstream has processed the call. Is used in
- * the implementation of [[monifu.reactive.Subject Subjects]] meant to
- * multicast but that must also follow the [[monifu.reactive.Observer]]
- * contract.
+ * completed only after downstream has processed the call.
  *
  * For high-contention scenarios it is very expensive and has a performance
  * penalty. If one needs to send `onNext/onComplete` events concurrently
  * and buffering, but without the requirement for `onNext` to return a
  * `Future` that's only complete when the event was processed by downstream
  * (i.e. thread-safe buffering), then one is better served by
- * [[monifu.reactive.observers.BufferedObserver BufferedObserver]], as it is
- * much more efficient in high-contention scenarios.
+ * [[monifu.reactive.observers.BufferedObserver BufferedObserver]].
  */
 final class ConcurrentObserver[-T] private (underlying: Observer[T])(implicit scheduler: Scheduler) extends Observer[T] {
   private[this] val ack = Atomic(Continue : Future[Ack])
@@ -48,12 +44,12 @@ final class ConcurrentObserver[-T] private (underlying: Observer[T])(implicit sc
   }
 
   def onError(ex: Throwable): Unit = {
-    val oldAck = ack.getAndSet(Done)
+    val oldAck = ack.getAndSet(Cancel)
     oldAck.onSuccess { case Continue => underlying.onError(ex) }
   }
 
   def onComplete(): Unit = {
-    val oldAck = ack.getAndSet(Done)
+    val oldAck = ack.getAndSet(Cancel)
     oldAck.onSuccess { case Continue => underlying.onComplete() }
   }
 }

@@ -1,7 +1,7 @@
 package monifu.reactive.subjects
 
 import scala.concurrent.Future
-import monifu.reactive.api.Ack.{Continue, Done}
+import monifu.reactive.api.Ack.{Continue, Cancel}
 import monifu.concurrent.Scheduler
 import monifu.reactive.{Subject, Observer}
 import monifu.concurrent.atomic.padded.Atomic
@@ -63,13 +63,13 @@ final class ReplaySubject[T] private (s: Scheduler) extends Subject[T,T] { self 
   private[this] def emitNext(obs: Observer[T], elem: T): Future[Continue] =
     obs.onNext(elem) match {
       case Continue => Continue
-      case Done =>
+      case Cancel =>
         removeSubscription(obs)
         Continue
       case other =>
         other.map {
           case Continue => Continue
-          case Done =>
+          case Cancel =>
             removeSubscription(obs)
             Continue
         }
@@ -109,7 +109,7 @@ final class ReplaySubject[T] private (s: Scheduler) extends Subject[T,T] { self 
         }
 
       case _ =>
-        Done
+        Cancel
     }
   }
 
