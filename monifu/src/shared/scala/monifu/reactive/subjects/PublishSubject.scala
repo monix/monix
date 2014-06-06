@@ -6,8 +6,6 @@ import monifu.reactive.api.Ack.{Continue, Cancel}
 import monifu.concurrent.Scheduler
 import monifu.reactive.{Subject, Observer}
 import monifu.reactive.internals.PromiseCounter
-import monifu.concurrent.atomic.Atomic
-import scala.annotation.tailrec
 import monifu.reactive.internals.FutureAckExtensions
 
 
@@ -24,76 +22,58 @@ import monifu.reactive.internals.FutureAckExtensions
  * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/S.PublishSubject.e.png" />
  */
 final class PublishSubject[T] private (s: Scheduler) extends Subject[T,T] { self =>
-  import PublishSubject._
-
   implicit val scheduler = s
-  private[this] val state = Atomic(Empty : State[T])
-  private[this] var lastResponse = Continue : Future[Continue]
+  private[this] var isCompleted = false
+  private[this] var errorThrown: Throwable = null
+  @volatile private[this] var subscriptions = Array.empty[Observer[T]]
 
-  @tailrec
   def subscribeFn(observer: Observer[T]): Unit =
-    state.get match {
-      case Empty =>
-        if (!state.compareAndSet(Empty, Active(Array(observer))))
-          subscribeFn(observer)
-      case current @ Active(observers) =>
-        if (!state.compareAndSet(current, Active(updatedObservers(observers, observer))))
-          subscribeFn(observer)
-      case Complete(errorThrown) =>
-        if (errorThrown != null)
-          observer.onError(errorThrown)
-        else
-          observer.onComplete()
+    synchronized {
+      if (!isCompleted)
+        subscriptions = createSubscription(subscriptions, observer)
+      else if (errorThrown ne null)
+        observer.onError(errorThrown)
+      else
+        observer.onComplete()
     }
 
-  def onNext(elem: T): Future[Ack] =
-    state.get match {
-      case Empty => Continue
-      case Complete(_) => Cancel
-      case Active(observers) =>
-        val resp = stream(observers, elem)
-        lastResponse = resp
-        resp
+  def onNext(elem: T): Future[Ack] = {
+    if (!isCompleted) {
+      val observers = subscriptions
+      if (observers.nonEmpty)
+        stream(observers, elem)
+      else
+        Continue
+    }
+    else
+      Cancel
+  }
+
+  def onError(ex: Throwable) =
+    synchronized {
+      if (!isCompleted) {
+        isCompleted = true
+        errorThrown = ex
+
+        var idx = 0
+        while (idx < subscriptions.length) {
+          subscriptions(idx).onError(ex)
+          idx += 1
+        }
+      }
     }
 
-  @tailrec
-  def onError(ex: Throwable): Unit =
-    state.get match {
-      case _: Complete => // ignore
-      case Empty =>
-        if (!state.compareAndSet(Empty, Complete(ex)))
-          onError(ex)
-      case current @ Active(observers) =>
-        if (!state.compareAndSet(current, Complete(ex)))
-          onError(ex)
-        else
-          lastResponse.onComplete { _ =>
-            val iterator = observers.iterator
-            while (iterator.hasNext) {
-              val obs = iterator.next()
-              obs.onError(ex)
-            }
-          }
-    }
-
-  @tailrec
   def onComplete() =
-    state.get match {
-      case _: Complete => // ignore
-      case Empty =>
-        if (!state.compareAndSet(Empty, Complete(null)))
-          onComplete()
-      case current @ Active(observers) =>
-        if (!state.compareAndSet(current, Complete(null)))
-          onComplete()
-        else
-          lastResponse.onComplete { _ =>
-            val iterator = observers.iterator
-            while (iterator.hasNext) {
-              val obs = iterator.next()
-              obs.onComplete()
-            }
-          }
+    synchronized {
+      if (!isCompleted) {
+        isCompleted = true
+
+        var idx = 0
+        while (idx < subscriptions.length) {
+          subscriptions(idx).onComplete()
+          idx += 1
+        }
+      }
     }
 
   private[this] def stream(array: Array[Observer[T]], elem: T): Future[Continue] = {
@@ -117,36 +97,21 @@ final class PublishSubject[T] private (s: Scheduler) extends Subject[T,T] { self
     newPromise.future
   }
 
-  @tailrec
   private[this] def removeSubscription(observer: Observer[T]): Unit =
-    state.get match {
-      case current @ Active(observers) =>
-        val update = observers.filterNot(_ == observer)
-        if (update.nonEmpty) {
-          if (!state.compareAndSet(current, Active(update)))
-            removeSubscription(observer)
-        }
-        else {
-          if (!state.compareAndSet(current, Empty))
-            removeSubscription(observer)
-        }
-      case _ => // ignore
+    synchronized {
+      subscriptions = subscriptions.filter(_ != observer)
     }
 
-  private[this] def updatedObservers(observers: Array[Observer[T]], instance: Observer[T]): Array[Observer[T]] = {
-    if (!observers.contains(instance))
-      observers :+ instance
-    else
-      observers
-  }
+  private[this] def createSubscription(observers: Array[Observer[T]], instance: Observer[T]): Array[Observer[T]] =
+    synchronized {
+      if (!observers.contains(instance))
+        observers :+ instance
+      else
+        observers
+    }
 }
 
 object PublishSubject {
   def apply[T]()(implicit scheduler: Scheduler): PublishSubject[T] =
     new PublishSubject[T](scheduler)
-
-  private sealed trait State[+T]
-  private case object Empty extends State[Nothing]
-  private case class Active[T](observers: Array[Observer[T]]) extends State[T]
-  private case class Complete(errorThrown: Throwable = null) extends State[Nothing]
 }

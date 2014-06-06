@@ -21,9 +21,6 @@ import monifu.reactive.subjects.{BehaviorSubject, ReplaySubject, PublishSubject,
  */
 trait Subject[-I, +T] extends Observable[T] with Observer[I] { self =>
 
-  override final def pipe[R](subject: Subject[T, R]): Subject[I, R]  =
-    lift(_.pipe(subject))
-
   override final def scan[R](initial: R)(op: (R, T) => R): Subject[I, R] =
     lift(_.scan(initial)(op))
 
@@ -216,9 +213,6 @@ trait Subject[-I, +T] extends Observable[T] with Observer[I] { self =>
 
   override final def forAll(p: (T) => Boolean): Subject[I, Boolean] =
     lift(_.forAll(p))
-
-  override final def >>[R](subject: Subject[T, R]): Subject[I, R] =
-    lift(_ >> subject)
 
   override final def drop(n: Int): Subject[I, T] =
     lift(_.drop(n))

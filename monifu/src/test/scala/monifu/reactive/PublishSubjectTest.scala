@@ -82,6 +82,15 @@ class PublishSubjectTest extends FunSpec {
       assert(wasCompleted != null && wasCompleted.getMessage == "dummy")
     }
 
+    it("should emit onError to new subscribers after it terminated in error") {
+      val subject = PublishSubject[Int]()
+      subject.onError(new RuntimeException("dummy"))
+
+      var wasCompleted = null : Throwable
+      subject.subscribe(_ => Continue, (err) => { wasCompleted = err; Cancel }, () => ())
+      assert(wasCompleted != null && wasCompleted.getMessage == "dummy")
+    }
+
     it("onComplete should be emitted over asynchronous boundaries") {
       val result1 = Atomic(0)
       val result2 = Atomic(0)
