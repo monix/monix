@@ -20,35 +20,6 @@ import monifu.concurrent.extensions._
 
 
 trait GenericObservable[+T] extends Observable[T] { self =>
-  /**
-   * Implicit scheduler required for asynchronous boundaries.
-   */
-  implicit def scheduler: Scheduler
-
-  final def unsafeSubscribe(observer: Observer[T]): Unit = {
-    subscribeFn(observer)
-  }
-
-  final def subscribe(observer: Observer[T]): Unit = {
-    unsafeSubscribe(SafeObserver[T](observer))
-  }
-
-  final def subscribe(nextFn: T => Future[Ack], errorFn: Throwable => Unit, completedFn: () => Unit): Unit =
-    subscribe(new Observer[T] {
-      def onNext(elem: T) = nextFn(elem)
-      def onError(ex: Throwable) = errorFn(ex)
-      def onComplete() = completedFn()
-    })
-
-  final def subscribe(nextFn: T => Future[Ack], errorFn: Throwable => Unit): Unit =
-    subscribe(nextFn, errorFn, () => Cancel)
-
-  final def subscribe(nextFn: T => Future[Ack]): Unit =
-    subscribe(nextFn, error => { scheduler.reportFailure(error); Cancel }, () => Cancel)
-
-  final def subscribe(): Unit =
-    subscribe(elem => Continue)
-
   final def map[U](f: T => U): Observable[U] =
     Observable.create { observer =>
       unsafeSubscribe(new Observer[T] {
@@ -103,22 +74,6 @@ trait GenericObservable[+T] extends Observable[T] { self =>
           observer.onComplete()
       })
     }
-
-  final def foreach(cb: T => Unit): Unit =
-    unsafeSubscribe(new Observer[T] {
-      def onNext(elem: T) =
-        try { cb(elem); Continue } catch {
-          case NonFatal(ex) =>
-            onError(ex)
-            Cancel
-        }
-
-      def onComplete() = Cancel
-      def onError(ex: Throwable) = {
-        scheduler.reportFailure(ex)
-        Cancel
-      }
-    })
 
   final def flatMap[U](f: T => Observable[U]): Observable[U] =
     map(f).flatten
@@ -682,29 +637,6 @@ trait GenericObservable[+T] extends Observable[T] { self =>
       })
     }
 
-  final def asFuture: Future[Option[T]] = {
-    val promise = Promise[Option[T]]()
-
-    head.unsafeSubscribe(new Observer[T] {
-      def onNext(elem: T) = {
-        promise.trySuccess(Some(elem))
-        Cancel
-      }
-
-      def onComplete() = {
-        promise.trySuccess(None)
-        Cancel
-      }
-
-      def onError(ex: Throwable) = {
-        promise.tryFailure(ex)
-        Cancel
-      }
-    })
-
-    promise.future
-  }
-
   final def endWithError(error: Throwable): Observable[T] =
     Observable.create { observer =>
       unsafeSubscribe(new Observer[T] {
@@ -1200,7 +1132,7 @@ trait GenericObservable[+T] extends Observable[T] { self =>
     pipe(subject)
 
   final def multicast[R](subject: Subject[T, R]): ConnectableObservable[R] =
-    new ConnectableObservable[R] {
+    new ConnectableObservable[R] with GenericObservable[R] {
       private[this] val notCanceled = Atomic(true)
       val scheduler = self.scheduler
 
@@ -1236,6 +1168,9 @@ trait GenericObservable[+T] extends Observable[T] { self =>
 
   final def replay(): ConnectableObservable[T] =
     multicast(ReplaySubject())
+
+  final def lift[U](f: Observable[T] => Observable[U]): Observable[U] =
+    f(self)
 }
 
 object GenericObservable {

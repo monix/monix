@@ -1,6 +1,7 @@
 package monifu.reactive.observables
 
 import monifu.reactive.cancelables.BooleanCancelable
+import monifu.reactive.Observable
 
 /**
  * Represents an [[monifu.reactive.Observable Observable]] that waits for
@@ -10,7 +11,7 @@ import monifu.reactive.cancelables.BooleanCancelable
  * Useful for converting cold observables into hot observables and thus returned by
  * [[monifu.reactive.Observable.multicast Observable.multicast]].
  */
-trait ConnectableObservable[+T] extends GenericObservable[T] {
+trait ConnectableObservable[+T] extends Observable[T] {
   /**
    * Starts emitting events to subscribers.
    */
