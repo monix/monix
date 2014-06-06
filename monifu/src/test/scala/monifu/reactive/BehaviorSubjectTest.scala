@@ -43,7 +43,7 @@ class BehaviorSubjectTest extends FunSpec {
       for (i <- 100 until 10000) channel.onNext(i)
 
       channel.onComplete()
-      assert(completed.await(10, TimeUnit.SECONDS), "completed.await should have succeeded")
+      assert(completed.await(20, TimeUnit.SECONDS), "completed.await should have succeeded")
 
       assert(result1.get === 21 + (0 until 10000).filter(_ % 2 == 0).flatMap(x => x to (x + 1)).sum)
       assert(result2.get === (100 until 10000).filter(_ % 2 == 0).flatMap(x => x to (x + 1)).sum)

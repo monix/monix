@@ -10,6 +10,7 @@ import monifu.reactive.api.Ack
 import monifu.reactive.observers.ConnectableObserver
 import monifu.reactive.internals.PromiseCounter
 import monifu.reactive.internals.FutureAckExtensions
+import monifu.reactive.observables.GenericObservable
 
 /**
  * `BehaviorSubject` when subscribed, will emit the most recently emitted item by the source,
@@ -23,7 +24,7 @@ import monifu.reactive.internals.FutureAckExtensions
  *
  * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/S.BehaviorSubject.png" />
  */
-final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends Subject[T,T] { self =>
+final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends Subject[T,T] with GenericObservable[T] { self =>
   import BehaviorSubject.State
   import BehaviorSubject.State._
 

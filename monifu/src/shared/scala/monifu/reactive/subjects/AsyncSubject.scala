@@ -8,6 +8,7 @@ import monifu.reactive.{Subject, Observer}
 import monifu.concurrent.atomic.Atomic
 import scala.annotation.tailrec
 import scala.collection.immutable.Set
+import monifu.reactive.observables.GenericObservable
 
 
 /**
@@ -22,7 +23,7 @@ import scala.collection.immutable.Set
  *
  * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/S.AsyncSubject.e.png" />
  */
-final class AsyncSubject[T] private (s: Scheduler) extends Subject[T,T] { self =>
+final class AsyncSubject[T] private (s: Scheduler) extends GenericObservable[T] with Subject[T,T] { self =>
   import AsyncSubject._
 
   implicit val scheduler = s

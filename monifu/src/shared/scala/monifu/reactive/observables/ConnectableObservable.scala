@@ -1,16 +1,16 @@
-package monifu.reactive.api
+package monifu.reactive.observables
 
-import monifu.reactive.Observable
 import monifu.reactive.cancelables.BooleanCancelable
 
 /**
- * Represents an [[Observable]] that waits for the call to `connect()` before
+ * Represents an [[monifu.reactive.Observable Observable]] that waits for
+ * the call to `connect()` before
  * starting to emit elements to its subscriber(s).
  *
  * Useful for converting cold observables into hot observables and thus returned by
- * [[Observable.multicast]].
+ * [[monifu.reactive.Observable.multicast Observable.multicast]].
  */
-trait ConnectableObservable[+T] extends Observable[T] {
+trait ConnectableObservable[+T] extends GenericObservable[T] {
   /**
    * Starts emitting events to subscribers.
    */
