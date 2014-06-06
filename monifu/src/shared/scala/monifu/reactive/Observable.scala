@@ -550,25 +550,6 @@ trait Observable[+T] {
   def repeat: Observable[T]
 
   /**
-   * Pipes the input stream through a `Subject[T,R]`, whose purpose is to
-   * transform the input `T` into `R`. Useful for dealing with reusable transformations
-   * of data.
-   *
-   * This does not create a multicast observable. For multicast observables powered by
-   * [[Subject subjects]], see [[Observable.multicast]].
-   */
-  def pipe[R](subject: Subject[T,R]): Observable[R]
-
-  /**
-   * Pipes the input stream through a `Subject[T,R]`, whose purpose is to
-   * transform the input `T` into `R`. Useful for dealing with reusable transformations
-   * of data.
-   *
-   * Handy alias for [[pipe]].
-   */
-  def >>[R](subject: Subject[T, R]): Observable[R]
-
-  /**
    * Converts this observable into a multicast observable, useful for turning a cold observable into
    * a hot one (i.e. whose source is shared by all observers).
    */

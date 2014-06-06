@@ -1108,29 +1108,6 @@ trait GenericObservable[+T] extends Observable[T] { self =>
     }
   }
 
-  final def pipe[R](subject: Subject[T,R]): Observable[R] = {
-    Observable.create { observer =>
-      subject.unsafeSubscribe(observer)
-
-      unsafeSubscribe(new Observer[T] {
-        def onNext(elem: T) = {
-          subject.onNext(elem)
-        }
-
-        def onError(ex: Throwable) = {
-          subject.onError(ex)
-        }
-
-        def onComplete() = {
-          subject.onComplete()
-        }
-      })
-    }
-  }
-
-  final def >>[R](subject: Subject[T, R]): Observable[R] =
-    pipe(subject)
-
   final def multicast[R](subject: Subject[T, R]): ConnectableObservable[R] =
     new ConnectableObservable[R] with GenericObservable[R] {
       private[this] val notCanceled = Atomic(true)
