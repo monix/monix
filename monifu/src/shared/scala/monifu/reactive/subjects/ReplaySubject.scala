@@ -9,6 +9,7 @@ import scala.annotation.tailrec
 import monifu.reactive.api.Ack
 import monifu.reactive.observers.ConnectableObserver
 import scala.collection.immutable.Queue
+import monifu.reactive.observables.GenericObservable
 
 
 /**
@@ -17,7 +18,7 @@ import scala.collection.immutable.Queue
  *
  * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/S.ReplaySubject.png" />
  */
-final class ReplaySubject[T] private (s: Scheduler) extends Subject[T,T] { self =>
+final class ReplaySubject[T] private (s: Scheduler) extends Subject[T,T] with GenericObservable[T] { self =>
   import ReplaySubject.State
   import ReplaySubject.State._
 

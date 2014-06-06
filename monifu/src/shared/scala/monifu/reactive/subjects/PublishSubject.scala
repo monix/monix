@@ -9,6 +9,7 @@ import monifu.reactive.internals.PromiseCounter
 import monifu.concurrent.atomic.Atomic
 import scala.annotation.tailrec
 import monifu.reactive.internals.FutureAckExtensions
+import monifu.reactive.observables.GenericObservable
 
 
 /**
@@ -23,7 +24,7 @@ import monifu.reactive.internals.FutureAckExtensions
  *
  * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/S.PublishSubject.e.png" />
  */
-final class PublishSubject[T] private (s: Scheduler) extends Subject[T,T] { self =>
+final class PublishSubject[T] private (s: Scheduler) extends Subject[T,T] with GenericObservable[T] { self =>
   import PublishSubject._
 
   implicit val scheduler = s
