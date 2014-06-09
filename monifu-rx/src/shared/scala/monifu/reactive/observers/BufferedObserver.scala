@@ -11,6 +11,7 @@ import scala.annotation.tailrec
 import monifu.reactive.api.{BufferOverflowException, BufferPolicy, Ack}
 import scala.concurrent.{Promise, Future}
 import monifu.reactive.api.BufferPolicy.{BackPressured, OverflowTriggering, Unbounded}
+import monifu.concurrent.locks.SpinLock
 
 
 /**
@@ -246,11 +247,12 @@ private[observers] final class BackPressuredBufferedObserver[-T](underlying: Obs
 
   // for enforcing non-concurrent updates and back-pressure
   // all access must be synchronized
+  private[this] val lock = new SpinLock()
   private[this] var itemsToPush = 0
   private[this] var nextAckPromise = Promise[Ack]()
   private[this] var appliesBackPressure = false
 
-  def onNext(elem: T): Future[Ack] = self.synchronized {
+  def onNext(elem: T): Future[Ack] = lock.enter {
     if (!upstreamIsComplete && !downstreamIsDone) {
       try {
         queue.offer(elem)
@@ -267,7 +269,7 @@ private[observers] final class BackPressuredBufferedObserver[-T](underlying: Obs
     }
   }
 
-  def onError(ex: Throwable) = self.synchronized {
+  def onError(ex: Throwable) = lock.enter {
     if (!upstreamIsComplete && !downstreamIsDone) {
       errorThrown = ex
       upstreamIsComplete = true
@@ -275,7 +277,7 @@ private[observers] final class BackPressuredBufferedObserver[-T](underlying: Obs
     }
   }
 
-  def onComplete() = self.synchronized {
+  def onComplete() = lock.enter {
     if (!upstreamIsComplete && !downstreamIsDone) {
       upstreamIsComplete = true
       pushToConsumer()
@@ -331,7 +333,7 @@ private[observers] final class BackPressuredBufferedObserver[-T](underlying: Obs
               case done if done == Cancel || done.value.get == Cancel.IsSuccess =>
                 // ending loop
                 downstreamIsDone = true
-                self.synchronized {
+                lock.enter {
                   itemsToPush = 0
                   nextAckPromise.success(Cancel)
                 }
@@ -340,7 +342,7 @@ private[observers] final class BackPressuredBufferedObserver[-T](underlying: Obs
                 // ending loop
                 downstreamIsDone = true
                 try underlying.onError(error.value.get.failed.get) finally
-                  self.synchronized {
+                  lock.enter {
                     itemsToPush = 0
                     nextAckPromise.success(Cancel)
                   }
@@ -355,7 +357,7 @@ private[observers] final class BackPressuredBufferedObserver[-T](underlying: Obs
               case Cancel.IsSuccess =>
                 // ending loop
                 downstreamIsDone = true
-                self.synchronized {
+                lock.enter {
                   itemsToPush = 0
                   nextAckPromise.success(Cancel)
                 }
@@ -364,7 +366,7 @@ private[observers] final class BackPressuredBufferedObserver[-T](underlying: Obs
                 // ending loop
                 downstreamIsDone = true
                 try underlying.onError(ex) finally
-                  self.synchronized {
+                  lock.enter {
                     itemsToPush = 0
                     nextAckPromise.success(Cancel)
                   }
@@ -373,7 +375,7 @@ private[observers] final class BackPressuredBufferedObserver[-T](underlying: Obs
                 // never happens, but to appease Scala's compiler
                 downstreamIsDone = true
                 try underlying.onError(new MatchError(s"$other")) finally
-                  self.synchronized {
+                  lock.enter {
                     itemsToPush = 0
                     nextAckPromise.success(Cancel)
                   }
@@ -382,7 +384,7 @@ private[observers] final class BackPressuredBufferedObserver[-T](underlying: Obs
       else if (upstreamIsComplete || hasError) {
         // needs to synchronize in order to check if the queue is indeed empty
         // otherwise we may lose events
-        val shouldContinue = self.synchronized {
+        val shouldContinue = lock.enter {
           // re-checks if the queue is indeed empty or if an error happened
           // errors have priority, so if an error happened, it doesn't matter
           // if the queue is empty or not
@@ -397,7 +399,7 @@ private[observers] final class BackPressuredBufferedObserver[-T](underlying: Obs
               else
                 underlying.onComplete()
             }
-            finally self.synchronized {
+            finally lock.enter {
               itemsToPush = 0
               nextAckPromise.success(Cancel)
             }
@@ -411,7 +413,7 @@ private[observers] final class BackPressuredBufferedObserver[-T](underlying: Obs
           fastLoop(processed)
       }
       else {
-        val remaining = self.synchronized {
+        val remaining = lock.enter {
           itemsToPush -= processed
           if (itemsToPush <= 0) // this really has to be LESS-or-equal
             nextAckPromise.success(Continue)

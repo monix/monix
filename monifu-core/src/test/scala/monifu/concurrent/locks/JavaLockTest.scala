@@ -6,7 +6,7 @@ import concurrent.duration._
 import monifu.concurrent.atomic.Atomic
 import scala.collection.mutable
 import java.util.Date
-import Lock.Extensions
+import monifu.concurrent.locks.Lock.Extensions
 
 
 class JavaLockTest extends FunSuite {

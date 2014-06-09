@@ -1,7 +1,7 @@
 package monifu.concurrent.locks
 
 import language.experimental.macros
-import scala.reflect.macros.Context
+import scala.reflect.macros.blackbox.Context
 import java.util.concurrent.locks.Condition
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.{Lock => JavaLock}
@@ -230,110 +230,89 @@ object Lock {
       c.inferImplicitValue(weakTypeOf[I], silent=true) != EmptyTree
     }
 
-
-    private[this] def getPrefix[L : c.WeakTypeTag](c: Context): c.Expr[L] = {
+    def enterMacroImpl[L <: JavaLock : c.WeakTypeTag, T : c.WeakTypeTag](c: Context { type PrefixType = Extensions[L] })(callback: c.Expr[T]): c.Expr[T] = {
       import c.universe._
-      c.prefix.tree match {
-        case Apply(_, argument :: Nil) =>
-          c.Expr[L](argument)
-        case _ =>
-          c.Expr[L](Select(c.prefix.tree, newTermName("self")))
-      }
-    }
 
-    def enterMacroImpl[L <: JavaLock : c.WeakTypeTag, T : c.WeakTypeTag](c: Context)(callback: c.Expr[T]): c.Expr[T] = {
-      import c.universe._
-      val cb = c.Expr[T](c.resetLocalAttrs(callback.tree))
-
-      if (canProve[L <:< Lock](c)) {
-        val selfExpr = getPrefix[Lock](c)
-        reify {
-          val self = selfExpr.splice
-          if (self.isAcquiredByCurrentThread)
-            cb.splice
-          else {
+      if (canProve[L <:< Lock](c)) reify {
+        val self = c.prefix.splice.self.asInstanceOf[Lock]
+        val wasAcquired =
+          if (!self.isAcquiredByCurrentThread) {
             self.unsafeLock()
-            try { cb.splice } finally {
-              self.unsafeUnlock()
-            }
-          }
-        }
-      }
-      else {
-        val selfExpr = getPrefix[JavaLock](c)
-        reify {
-          val self = selfExpr.splice
-          self.lock()
-          try { cb.splice } finally { self.unlock() }
-        }
-      }
-    }
-
-    def enterInterruptiblyMacroImpl[L <: JavaLock : c.WeakTypeTag, T : c.WeakTypeTag](c: Context)(callback: c.Expr[T]): c.Expr[T] = {
-      import c.universe._
-      val cb = c.Expr[T](c.resetLocalAttrs(callback.tree))
-
-      if (canProve[L <:< Lock](c)) {
-        val selfExpr = getPrefix[Lock](c)
-        reify {
-          val self = selfExpr.splice
-          if (self.isAcquiredByCurrentThread)
-            cb.splice
-          else {
-            self.unsafeLockInterruptibly()
-            try {
-              cb.splice
-            } finally {
-              self.unsafeUnlock()
-            }
-          }
-        }
-      }
-      else {
-        val selfExpr = getPrefix[JavaLock](c)
-        reify {
-          val self = selfExpr.splice
-          self.lockInterruptibly()
-          try {
-            cb.splice
-          } finally {
-            self.unlock()
-          }
-        }
-      }
-    }
-
-    def tryEnterMacro[L <: JavaLock : c.WeakTypeTag, T : c.WeakTypeTag](c: Context)(callback: c.Expr[T]): c.Expr[Boolean] = {
-      import c.universe._
-      val cb = c.Expr[T](c.resetLocalAttrs(callback.tree))
-
-      if (canProve[L <:< Lock](c)) {
-        val selfExpr = getPrefix[Lock](c)
-        reify {
-          val self = selfExpr.splice
-          if (self.isAcquiredByCurrentThread) {
-            cb.splice
             true
           }
-          else if (self.unsafeTryLock())
+          else
+            false
+
+        try {
+          callback.splice
+        }
+        finally {
+          if (wasAcquired)
+            self.unsafeUnlock()
+        }
+      }
+      else reify {
+        val self = c.prefix.splice.self
+        self.lock()
+        try { callback.splice } finally { self.unlock() }
+      }
+    }
+
+    def enterInterruptiblyMacroImpl[L <: JavaLock : c.WeakTypeTag, T : c.WeakTypeTag](c: Context { type PrefixType = Extensions[L] })(callback: c.Expr[T]): c.Expr[T] = {
+      import c.universe._
+
+      if (canProve[L <:< Lock](c)) reify {
+        val self = c.prefix.splice.self.asInstanceOf[Lock]
+        val wasAcquired =
+          if (!self.isAcquiredByCurrentThread) {
+            self.unsafeLockInterruptibly()
+            true
+          }
+          else
+            false
+
+        try {
+          callback.splice
+        }
+        finally {
+          if (wasAcquired)
+            self.unsafeUnlock()
+        }
+      }
+      else reify {
+        val self = c.prefix.splice.self
+        self.lockInterruptibly()
+        try { callback.splice } finally { self.unlock() }
+      }
+    }
+
+    def tryEnterMacro[L <: JavaLock : c.WeakTypeTag, T : c.WeakTypeTag](c: Context { type PrefixType = Extensions[L] })(callback: c.Expr[T]): c.Expr[Boolean] = {
+      import c.universe._
+
+      if (canProve[L <:< Lock](c)) {
+        reify {
+          val self = c.prefix.splice.self.asInstanceOf[Lock]
+          val isReentrant = self.isAcquiredByCurrentThread
+          val wasAcquired = isReentrant || self.unsafeTryLock()
+
+          if (wasAcquired)
             try {
-              cb.splice
+              callback.splice
               true
             }
             finally {
-              self.unsafeUnlock()
+              if (!isReentrant) self.unsafeUnlock()
             }
           else
             false
         }
       }
       else {
-        val selfExpr = getPrefix[JavaLock](c)
         reify {
-          val self = selfExpr.splice
+          val self = c.prefix.splice.self
           if (self.tryLock())
             try {
-              cb.splice
+              callback.splice
               true
             }
             finally {
@@ -345,37 +324,33 @@ object Lock {
       }
     }
 
-    def tryTimedEnterMacro[L <: JavaLock : c.WeakTypeTag, T : c.WeakTypeTag](c: Context)(time: c.Expr[Long], unit: c.Expr[TimeUnit], callback: c.Expr[T]): c.Expr[Boolean] = {
+    def tryTimedEnterMacro[L <: JavaLock : c.WeakTypeTag, T : c.WeakTypeTag](c: Context { type PrefixType = Extensions[L] })(time: c.Expr[Long], unit: c.Expr[TimeUnit], callback: c.Expr[T]): c.Expr[Boolean] = {
       import c.universe._
-      val cb = c.Expr[T](c.resetLocalAttrs(callback.tree))
 
       if (canProve[L <:< Lock](c)) {
-        val selfExpr = getPrefix[Lock](c)
         reify {
-          val self = selfExpr.splice
-          if (self.isAcquiredByCurrentThread) {
-            cb.splice
-            true
-          }
-          else if (self.unsafeTryLock(time.splice, unit.splice))
+          val self = c.prefix.splice.self.asInstanceOf[Lock]
+          val isReentrant = self.isAcquiredByCurrentThread
+          val wasAcquired = isReentrant || self.unsafeTryLock(time.splice, unit.splice)
+
+          if (wasAcquired)
             try {
-              cb.splice
+              callback.splice
               true
             }
             finally {
-              self.unsafeUnlock()
+              if (!isReentrant) self.unsafeUnlock()
             }
           else
             false
         }
       }
       else {
-        val selfExpr = getPrefix[JavaLock](c)
         reify {
-          val self = selfExpr.splice
+          val self = c.prefix.splice.self
           if (self.tryLock(time.splice, unit.splice))
             try {
-              cb.splice
+              callback.splice
               true
             }
             finally {
