@@ -15,7 +15,7 @@ import monifu.reactive.subjects.{ReplaySubject, BehaviorSubject, PublishSubject}
 import monifu.reactive.api.Notification.{OnComplete, OnNext, OnError}
 import monifu.reactive.observers.{BufferedObserver, SafeObserver, ConcurrentObserver}
 import monifu.reactive.internals.{MergeBuffer, FutureAckExtensions}
-import monifu.reactive.api.BufferPolicy.BackPressured
+import monifu.reactive.api.BufferPolicy.{Unbounded, BackPressured}
 import monifu.concurrent.extensions._
 
 
@@ -127,11 +127,20 @@ trait GenericObservable[+T] extends Observable[T] { self =>
       })
     }
 
+  final def merge[U](implicit ev: T <:< Observable[U]): Observable[U] = {
+    merge(BackPressured(2048))
+  }
+
   final def merge[U](bufferPolicy: BufferPolicy)(implicit ev: T <:< Observable[U]): Observable[U] = {
+    val parallelism = math.min(1024, math.max(1, Runtime.getRuntime.availableProcessors()) * 8)
+    merge(parallelism, bufferPolicy)
+  }
+
+  final def merge[U](parallelism: Int, bufferPolicy: BufferPolicy)(implicit ev: T <:< Observable[U]): Observable[U] = {
     Observable.create { observerB =>
       unsafeSubscribe(new Observer[T] {
         private[this] val buffer: MergeBuffer[U] =
-          new MergeBuffer[U](observerB, bufferPolicy)
+          new MergeBuffer[U](observerB, parallelism, bufferPolicy)
 
         def onNext(elem: T) = {
           buffer.merge(elem)
@@ -148,8 +157,8 @@ trait GenericObservable[+T] extends Observable[T] { self =>
     }
   }
 
-  final def merge[U](implicit ev: T <:< Observable[U]): Observable[U] = {
-    merge(BackPressured(4096))
+  final def unsafeMerge[U](implicit ev: T <:< Observable[U]): Observable[U] = {
+    merge(0, Unbounded)
   }
 
   final def take(n: Int): Observable[T] =
@@ -909,35 +918,18 @@ trait GenericObservable[+T] extends Observable[T] { self =>
 
     Observable.create { observer =>
       unsafeSubscribe(new Observer[T] {
-        private[this] var lastResponse = Continue : Future[Ack]
+        private[this] val buffer = BufferedObserver(observer, BackPressured(bufferSize = 1024))(s)
 
         def onNext(elem: T): Future[Ack] = {
-          val newResponse = lastResponse.flatMap {
-            case Cancel => Cancel
-            case Continue =>
-              observer.onNext(elem)
-          }
-
-          lastResponse = newResponse
-          newResponse
+          buffer.onNext(elem)
         }
 
         def onError(ex: Throwable): Unit = {
-          lastResponse = lastResponse.flatMap {
-            case Cancel => Cancel
-            case Continue =>
-              observer.onError(ex)
-              Cancel
-          }
+          buffer.onError(ex)
         }
 
         def onComplete(): Unit = {
-          lastResponse = lastResponse.flatMap {
-            case Cancel => Cancel
-            case Continue =>
-              observer.onComplete()
-              Cancel
-          }
+          buffer.onComplete()
         }
       })
     }
@@ -1032,7 +1024,6 @@ trait GenericObservable[+T] extends Observable[T] { self =>
     }
 
   final def subscribeOn(s: Scheduler): Observable[T] = {
-    implicit val scheduler = s
     Observable.create(o => s.scheduleOnce(unsafeSubscribe(o)))
   }
 

@@ -166,9 +166,11 @@ private[observers] final class DefaultBufferedObserver[-T](underlying: Observer[
   @tailrec
   private[this] def fastLoop(processed: Int): Unit = {
     if (!downstreamIsDone) {
+      // errors have priority
+      val hasError = errorThrown ne null
       val next = queue.poll()
 
-      if (next != null) {
+      if (next != null && !hasError) {
         underlying.onNext(next) match {
           case sync if sync.isCompleted =>
             sync match {
@@ -213,14 +215,20 @@ private[observers] final class DefaultBufferedObserver[-T](underlying: Observer[
             }
         }
       }
-      else if (upstreamIsComplete) {
-        // ending loop
-        downstreamIsDone = true
-        itemsToPush.set(0)
-        if (errorThrown ne null)
-          underlying.onError(errorThrown)
-        else
-          underlying.onComplete()
+      else if (upstreamIsComplete || hasError) {
+        if (!hasError && queue.nonEmpty) {
+          fastLoop(processed)
+        }
+        else {
+          // ending loop
+          downstreamIsDone = true
+          itemsToPush.set(0)
+          queue.clear()
+          if (errorThrown ne null)
+            underlying.onError(errorThrown)
+          else
+            underlying.onComplete()
+        }
       }
       else {
         val remaining = itemsToPush.decrementAndGet(processed)
@@ -384,7 +392,7 @@ private[observers] final class BackPressuredBufferedObserver[-T](underlying: Obs
       else if (upstreamIsComplete || hasError) {
         // needs to synchronize in order to check if the queue is indeed empty
         // otherwise we may lose events
-        val shouldContinue = lock.enter {
+        val shouldContinue = (!hasError && queue.nonEmpty) || lock.enter {
           // re-checks if the queue is indeed empty or if an error happened
           // errors have priority, so if an error happened, it doesn't matter
           // if the queue is empty or not
