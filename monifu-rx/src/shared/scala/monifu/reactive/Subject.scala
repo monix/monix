@@ -1,7 +1,6 @@
 package monifu.reactive
 
 import monifu.concurrent.{Cancelable, Scheduler}
-import monifu.reactive.observables.GenericObservable
 import monifu.concurrent.atomic.Atomic
 import monifu.concurrent.cancelables.BooleanCancelable
 import scala.concurrent.{Future, Promise}
@@ -104,8 +103,8 @@ trait Subject[-I, +T] extends Observable[T] with Observer[I] { self =>
   override final def complete: Subject[I, Nothing] =
     lift(_.complete)
 
-  override final def +:[U >: T](elems: U*): Subject[I, U] =
-    lift(_.:+(elems : _*))
+  override final def +:[U >: T](elem: U): Subject[I, U] =
+    lift(_.:+(elem))
 
   override final def mergeMap[U](f: (T) => Observable[U]): Subject[I, U] =
     lift(_.mergeMap(f))
@@ -176,8 +175,8 @@ trait Subject[-I, +T] extends Observable[T] with Observer[I] { self =>
   override final def head: Subject[I, T] =
     lift(_.head)
 
-  override final def buffered(policy: BufferPolicy): Subject[I, T] =
-    lift(_.buffered(policy))
+  override final def async(policy: BufferPolicy): Subject[I, T] =
+    lift(_.async(policy))
 
   override final def maxBy[U](f: (T) => U)(implicit ev: Ordering[U]): Subject[I, T] =
     lift(_.maxBy(f)(ev))
@@ -197,8 +196,8 @@ trait Subject[-I, +T] extends Observable[T] with Observer[I] { self =>
   override final def observeOn(s: Scheduler, bufferPolicy: BufferPolicy = BackPressured(1024)): Subject[I,T] =
     lift(_.observeOn(s, bufferPolicy))
 
-  override final def :+[U >: T](elems: U*): Subject[I, U] =
-    lift(_.:+(elems : _*))
+  override final def :+[U >: T](elem: U): Subject[I, U] =
+    lift(_.:+(elem))
 
   override final def last: Subject[I, T] =
     lift(_.last)
@@ -268,7 +267,7 @@ trait Subject[-I, +T] extends Observable[T] with Observer[I] { self =>
         self.onComplete()
 
       private[this] val observableU = {
-        val observableT = GenericObservable.create[T](o => self.unsafeSubscribe(o))
+        val observableT = Observable.create[T](o => self.unsafeSubscribe(o))
         f(observableT)
       }
 
