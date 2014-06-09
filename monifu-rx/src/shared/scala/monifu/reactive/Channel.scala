@@ -8,7 +8,7 @@ package monifu.reactive
  *
  *     (pushNext)* (pushComplete | pushError)
  */
-trait Channel[-I] {
+trait Channel[-I] { self =>
   /**
    * Push the given events down the stream.
    */

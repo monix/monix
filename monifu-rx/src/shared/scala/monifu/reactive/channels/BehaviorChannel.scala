@@ -1,19 +1,18 @@
 package monifu.reactive.channels
 
-import monifu.reactive.{Observer, Channel}
+import monifu.reactive.{Observable, Observer, Channel}
 import monifu.reactive.observers.BufferedObserver
 import monifu.concurrent.Scheduler
 import monifu.reactive.subjects.BehaviorSubject
 import monifu.reactive.api.BufferPolicy
 import monifu.reactive.api.BufferPolicy.Unbounded
-import monifu.reactive.observables.GenericObservable
 import monifu.concurrent.locks.SpinLock
 
 /**
  * A `BehaviorChannel` is a [[Channel]] that uses an underlying
  * [[monifu.reactive.subjects.BehaviorSubject BehaviorSubject]].
  */
-final class BehaviorChannel[T] private (initialValue: T, policy: BufferPolicy, s: Scheduler) extends Channel[T] with GenericObservable[T] {
+final class BehaviorChannel[T] private (initialValue: T, policy: BufferPolicy, s: Scheduler) extends Channel[T] with Observable[T] {
   implicit val scheduler = s
 
   private[this] val lock = SpinLock()
