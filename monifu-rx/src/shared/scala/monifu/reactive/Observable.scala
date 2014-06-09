@@ -186,11 +186,6 @@ trait Observable[+T] {
    * (elements get emitted as they come). Because of back-pressure applied to observables,
    * [[concat]] is safe to use in all contexts, whereas [[merge]] requires buffering.
    *
-   * WARNING: the buffer created by this operator is unbounded and can blow up the process if the data source
-   * is pushing events faster than what the observer can consume, as it introduces an asynchronous
-   * boundary that eliminates the back-pressure requirements of the data sources emitting events for merging
-   * downstream. Use with care.
-   *
    * @param bufferPolicy the policy used for buffering, useful if you want to limit the buffer size and
    *                     apply back-pressure, trigger and error, etc... see the
    *                     available [[monifu.reactive.api.BufferPolicy buffer policies]].
@@ -213,15 +208,62 @@ trait Observable[+T] {
    * (elements get emitted as they come). Because of back-pressure applied to observables,
    * [[concat]] is safe to use in all contexts, whereas [[merge]] requires buffering.
    *
-   * WARNING: the buffer created by this operator is unbounded and can blow up the process if the data source
-   * is pushing events faster than what the observer can consume, as it introduces an asynchronous
-   * boundary that eliminates the back-pressure requirements of the data sources emitting events for merging
-   * downstream. Use with care.
+   * @param bufferPolicy the policy used for buffering, useful if you want to limit the buffer size and
+   *                     apply back-pressure, trigger and error, etc... see the
+   *                     available [[monifu.reactive.api.BufferPolicy buffer policies]].
+   *
+   * @param parallelism a number indicating the maximum number of observables subscribed
+   *                    in parallel; if negative or zero, then no upper bound is applied
+   *
+   * @return an Observable that emits items that are the result of flattening the items emitted
+   *         by the Observables emitted by `this`
+   */
+  def merge[U](parallelism: Int, bufferPolicy: BufferPolicy)(implicit ev: T <:< Observable[U]): Observable[U]
+
+  /**
+   * Merges the sequence of Observables emitted by the source into one Observable, without any
+   * transformation.
+   *
+   * You can combine the items emitted by multiple Observables so that they act like a single
+   * Observable by using this method.
+   *
+   * The difference between [[concat]] and [[merge]] is that `concat` cares about ordering of
+   * emitted items (e.g. all items emitted by the first observable in the sequence will come before
+   * the elements emitted by the second observable), whereas `merge` doesn't care about that
+   * (elements get emitted as they come). Because of back-pressure applied to observables,
+   * [[concat]] is safe to use in all contexts, whereas [[merge]] requires buffering.
+   *
+   * This variant of the merge call (no parameters) does apply
+   * [[api.BufferPolicy.BackPressured back-pressured buffering]] and also applies an upper-bound
+   * on the number of observables subscribed, so it is fairly safe to use.
    *
    * @return an Observable that emits items that are the result of flattening the items emitted
    *         by the Observables emitted by `this`
    */
   def merge[U](implicit ev: T <:< Observable[U]): Observable[U]
+
+  /**
+   * Merges the sequence of Observables emitted by the source into one Observable, without any
+   * transformation.
+   *
+   * You can combine the items emitted by multiple Observables so that they act like a single
+   * Observable by using this method.
+   *
+   * The difference between [[concat]] and [[merge]] is that `concat` cares about ordering of
+   * emitted items (e.g. all items emitted by the first observable in the sequence will come before
+   * the elements emitted by the second observable), whereas `merge` doesn't care about that
+   * (elements get emitted as they come). Because of back-pressure applied to observables,
+   * [[concat]] is safe to use in all contexts, whereas [[merge]] requires buffering.
+   *
+   * This unsafe variant of the merge call applies absolutely no back-pressure or upper bounds
+   * on subscribed observables, so it is unsafe to use. Only use it when you know what
+   * you're doing.
+   *
+   * @return an Observable that emits items that are the result of flattening the items emitted
+   *         by the Observables emitted by `this`
+   */
+  def unsafeMerge[U](implicit ev: T <:< Observable[U]): Observable[U]
+
   /**
    * Selects the first ''n'' elements (from the start).
    *

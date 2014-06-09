@@ -10,15 +10,13 @@ import scala.util.control.NonFatal
 import monifu.concurrent.locks.SpinLock
 
 
-final class MergeBuffer[U](downstream: Observer[U], bufferPolicy: BufferPolicy)(implicit scheduler: Scheduler)
+final class MergeBuffer[U](downstream: Observer[U], mergeBatchSize: Int, bufferPolicy: BufferPolicy)(implicit scheduler: Scheduler)
   extends Observer[U] { self =>
 
-  import MergeBuffer.mergeBatchSize
-
+  private[this] val lock = SpinLock()
   private[this] val buffer = BufferedObserver(downstream, bufferPolicy)
 
-  private[this] val lock = SpinLock()
-  private[this] var permission = Promise[Ack]()
+  private[this] var permission = if (mergeBatchSize <= 0) null else Promise[Ack]()
   private[this] var activeStreams = 1
   private[this] var pendingStreams = 0
   private[this] var isDone = false
@@ -28,7 +26,7 @@ final class MergeBuffer[U](downstream: Observer[U], bufferPolicy: BufferPolicy)(
       if (isDone) {
         Cancel
       }
-      else if (activeStreams >= mergeBatchSize) {
+      else if (mergeBatchSize > 0 && activeStreams >= mergeBatchSize + 1) {
         if (!wasPending) pendingStreams += 1
 
         permission.future.flatMap {
@@ -53,34 +51,39 @@ final class MergeBuffer[U](downstream: Observer[U], bufferPolicy: BufferPolicy)(
       }
     }
 
-  private[this] def cancelStreaming(signalError: Throwable = null): Unit = {
-    if (!isDone) {
-      isDone = true
-      activeStreams = 0
-      pendingStreams = 0
-      permission.success(Cancel)
-      if (signalError ne null)
-        buffer.onError(signalError)
-    }
-  }
+  private[this] def cancelStreaming(signalError: Throwable = null): Unit =
+    lock.enter {
+      if (!isDone) {
+        isDone = true
+        activeStreams = 0
+        pendingStreams = 0
 
-  def onNext(elem: U) = lock.enter {
+        if (mergeBatchSize > 0)
+          permission.success(Cancel)
+
+        if (signalError ne null)
+          buffer.onError(signalError)
+      }
+    }
+
+  def onNext(elem: U) = {
     buffer.onNext(elem).onCancel(cancelStreaming())
   }
 
-  def onError(ex: Throwable) = lock.enter {
+  def onError(ex: Throwable) = {
     cancelStreaming(ex)
   }
 
   def onComplete() = lock.enter {
-    if (activeStreams > 0) {
+    if (!isDone) {
       if (activeStreams == 1 && pendingStreams == 0) {
         activeStreams = 0
-        permission.success(Cancel)
+        if (mergeBatchSize > 0)
+          permission.success(Cancel)
         buffer.onComplete()
         isDone = true
       }
-      else if (activeStreams == mergeBatchSize) {
+      else if (mergeBatchSize > 0 && activeStreams == mergeBatchSize + 1) {
         permission.success(Continue)
         permission = Promise[Ack]()
         activeStreams -= 1
@@ -90,8 +93,4 @@ final class MergeBuffer[U](downstream: Observer[U], bufferPolicy: BufferPolicy)(
       }
     }
   }
-}
-
-object MergeBuffer {
-  final val mergeBatchSize = math.min(1024, math.max(1, Runtime.getRuntime.availableProcessors()) * 5)
 }

@@ -115,11 +115,17 @@ trait Subject[-I, +T] extends Observable[T] with Observer[I] { self =>
   override def flatMap[U](f: (T) => Observable[U]): Subject[I, U] =
     lift(_.flatMap(f))
 
+  override final def merge[U](implicit ev: <:<[T, Observable[U]]): Subject[I, U] =
+    lift(_.merge(ev))
+
+  override final def unsafeMerge[U](implicit ev: <:<[T, Observable[U]]): Subject[I, U] =
+    lift(_.unsafeMerge(ev))
+
   override final def merge[U](bufferPolicy: BufferPolicy)(implicit ev: <:<[T, Observable[U]]): Subject[I, U] =
     lift(_.merge(bufferPolicy)(ev))
 
-  override final def merge[U](implicit ev: <:<[T, Observable[U]]): Subject[I, U] =
-    lift(_.merge(ev))
+  override final def merge[U](parallelism: Int, bufferPolicy: BufferPolicy)(implicit ev: <:<[T, Observable[U]]): Subject[I, U] =
+    lift(_.merge(parallelism, bufferPolicy)(ev))
 
   override def concatMap[U](f: (T) => Observable[U]): Subject[I, U] =
     lift(_.concatMap(f))
