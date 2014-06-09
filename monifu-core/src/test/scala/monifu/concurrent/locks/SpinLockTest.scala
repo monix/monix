@@ -686,7 +686,7 @@ class SpinLockTest extends FunSuite {
       }
     }
 
-    for (th <- threads) th.join(5.seconds.toMillis)
+    for (th <- threads) th.join(20.seconds.toMillis)
     assert(iterationsCount === 10100000)
     assert(b === finalResult)
   }
