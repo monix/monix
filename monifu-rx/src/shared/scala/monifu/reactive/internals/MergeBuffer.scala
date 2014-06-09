@@ -17,7 +17,7 @@ final class MergeBuffer[U](downstream: Observer[U], bufferPolicy: BufferPolicy)(
 
   private[this] val buffer = BufferedObserver(downstream, bufferPolicy)
 
-  private[this] val lock = new SpinLock()
+  private[this] val lock = SpinLock()
   private[this] var permission = Promise[Ack]()
   private[this] var activeStreams = 1
   private[this] var pendingStreams = 0

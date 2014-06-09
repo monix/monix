@@ -247,7 +247,7 @@ private[observers] final class BackPressuredBufferedObserver[-T](underlying: Obs
 
   // for enforcing non-concurrent updates and back-pressure
   // all access must be synchronized
-  private[this] val lock = new SpinLock()
+  private[this] val lock = SpinLock()
   private[this] var itemsToPush = 0
   private[this] var nextAckPromise = Promise[Ack]()
   private[this] var appliesBackPressure = false

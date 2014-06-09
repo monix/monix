@@ -1,6 +1,6 @@
 package monifu.concurrent.locks
 
-import scala.reflect.macros.Context
+import scala.reflect.macros.blackbox.Context
 import language.experimental.macros
 import scala.concurrent.duration.TimeUnit
 
@@ -44,12 +44,12 @@ object Macros {
  * Usage does not imply any overhead.
  */
 object LockImpl {
-  def lock[T](cb: => T): T = macro Macros.lockMacroImpl[T]
+  def enter[T](cb: => T): T = macro Macros.lockMacroImpl[T]
 
-  def lockInterruptibly[T](cb: => T): T = macro Macros.lockMacroImpl[T]
+  def enterInterruptibly[T](cb: => T): T = macro Macros.lockMacroImpl[T]
 
-  def tryLock[T](cb: => T): Boolean = macro Macros.tryLockMacro[T]
+  def tryEnter[T](cb: => T): Boolean = macro Macros.tryLockMacro[T]
 
-  def tryLock[T](time: Long, unit: TimeUnit, cb: => T): Boolean = macro Macros.tryLockDurationMacro[T]
+  def tryEnter[T](time: Long, unit: TimeUnit, cb: => T): Boolean = macro Macros.tryLockDurationMacro[T]
 }
 
