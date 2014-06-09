@@ -10,7 +10,7 @@ import java.util.Date
 
 class SpinLockTest extends FunSuite {
   @volatile var barrier = false
-  val lock = new SpinLock()
+  val lock = SpinLock()
 
   test("re-entrance") {
     var effect = "hello"

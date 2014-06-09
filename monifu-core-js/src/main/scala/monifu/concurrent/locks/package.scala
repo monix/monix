@@ -5,8 +5,8 @@ package monifu.concurrent
  * Usage of these locks in Scala.js does not imply any overhead.
  */
 package object locks {
-  type NaiveSpinLock = LockImpl.type
+  type SpinLock = LockImpl.type
 
-  def NaiveSpinLock(): NaiveSpinLock =
+  def SpinLock(): SpinLock =
     LockImpl
 }

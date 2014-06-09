@@ -11,7 +11,7 @@ import scala.annotation.tailrec
  * [[http://en.wikipedia.org/wiki/Spinlock spinlock-ing]].
  *
  */
-final class SpinLock extends Lock {
+final class SpinLock private () extends Lock {
   private[this] val isLockAcquired = Atomic(0)
   private[this] var acquiringThread: Thread = null
 
@@ -143,4 +143,8 @@ final class SpinLock extends Lock {
     acquiringThread = null
     isLockAcquired.set(0)
   }
+}
+
+object SpinLock {
+  def apply(): SpinLock = new SpinLock()
 }
