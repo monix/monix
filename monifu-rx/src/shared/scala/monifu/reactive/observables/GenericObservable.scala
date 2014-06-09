@@ -17,6 +17,7 @@ import monifu.reactive.observers.{BufferedObserver, SafeObserver, ConcurrentObse
 import monifu.reactive.internals.{MergeBuffer, FutureAckExtensions}
 import monifu.reactive.api.BufferPolicy.{Unbounded, BackPressured}
 import monifu.concurrent.extensions._
+import monifu.concurrent.locks.SpinLock
 
 
 trait GenericObservable[+T] extends Observable[T] { self =>
@@ -688,12 +689,12 @@ trait GenericObservable[+T] extends Observable[T] { self =>
   final def zip[U](other: Observable[U]): Observable[(T, U)] =
     Observable.create { observerOfPairs =>
       // using mutability, receiving data from 2 producers, so must synchronize
-      val lock = new AnyRef
+      val lock = SpinLock()
       val queueA = mutable.Queue.empty[(Promise[U], Promise[Ack])]
       val queueB = mutable.Queue.empty[(U, Promise[Ack])]
       var isCompleted = false
 
-      def _onError(ex: Throwable) = lock.synchronized {
+      def _onError(ex: Throwable) = lock.enter {
         if (!isCompleted) {
           isCompleted = true
           queueA.clear()
@@ -706,7 +707,7 @@ trait GenericObservable[+T] extends Observable[T] { self =>
 
       unsafeSubscribe(new Observer[T] {
         def onNext(a: T): Future[Ack] =
-          lock.synchronized {
+          lock.enter {
             if (queueB.isEmpty) {
               val resp = Promise[Ack]()
               val promiseForB = Promise[U]()
@@ -727,7 +728,7 @@ trait GenericObservable[+T] extends Observable[T] { self =>
         def onError(ex: Throwable) =
           _onError(ex)
 
-        def onComplete() = lock.synchronized {
+        def onComplete() = lock.enter {
           if (!isCompleted && queueA.isEmpty) {
             isCompleted = true
             queueA.clear()
@@ -739,7 +740,7 @@ trait GenericObservable[+T] extends Observable[T] { self =>
 
       other.unsafeSubscribe(new Observer[U] {
         def onNext(b: U): Future[Ack] =
-          lock.synchronized {
+          lock.enter {
             if (queueA.nonEmpty) {
               val (bPromise, response) = queueA.dequeue()
               bPromise.success(b)
@@ -754,7 +755,7 @@ trait GenericObservable[+T] extends Observable[T] { self =>
 
         def onError(ex: Throwable) = _onError(ex)
 
-        def onComplete() = lock.synchronized {
+        def onComplete() = lock.enter {
           if (!isCompleted && queueB.isEmpty) {
             isCompleted = true
             queueA.clear()

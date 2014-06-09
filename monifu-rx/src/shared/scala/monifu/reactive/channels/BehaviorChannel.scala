@@ -7,6 +7,7 @@ import monifu.reactive.subjects.BehaviorSubject
 import monifu.reactive.api.BufferPolicy
 import monifu.reactive.api.BufferPolicy.Unbounded
 import monifu.reactive.observables.GenericObservable
+import monifu.concurrent.locks.SpinLock
 
 /**
  * A `BehaviorChannel` is a [[Channel]] that uses an underlying
@@ -15,6 +16,7 @@ import monifu.reactive.observables.GenericObservable
 final class BehaviorChannel[T] private (initialValue: T, policy: BufferPolicy, s: Scheduler) extends Channel[T] with GenericObservable[T] {
   implicit val scheduler = s
 
+  private[this] val lock = SpinLock()
   private[this] val subject = BehaviorSubject(initialValue)
   private[this] val channel = BufferedObserver(subject, policy)
 
@@ -26,7 +28,7 @@ final class BehaviorChannel[T] private (initialValue: T, policy: BufferPolicy, s
     subject.subscribeFn(observer)
   }
 
-  def pushNext(elems: T*): Unit = synchronized {
+  def pushNext(elems: T*): Unit = lock.enter {
     if (!isDone)
       for (elem <- elems) {
         lastValue = elem
@@ -34,14 +36,14 @@ final class BehaviorChannel[T] private (initialValue: T, policy: BufferPolicy, s
       }
   }
 
-  def pushComplete() = synchronized {
+  def pushComplete() = lock.enter {
     if (!isDone) {
       isDone = true
       channel.onComplete()
     }
   }
 
-  def pushError(ex: Throwable) = synchronized {
+  def pushError(ex: Throwable) = lock.enter {
     if (!isDone) {
       isDone = true
       errorThrown = ex
@@ -51,7 +53,7 @@ final class BehaviorChannel[T] private (initialValue: T, policy: BufferPolicy, s
 
   def :=(update: T): Unit = pushNext(update)
 
-  def apply(): T = synchronized {
+  def apply(): T = lock.enter {
     if (errorThrown ne null)
       throw errorThrown
     else
