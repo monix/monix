@@ -7,6 +7,7 @@ import monifu.concurrent.Scheduler
 import monifu.reactive.api.Ack.{Cancel, Continue}
 import scala.collection.mutable
 import monifu.reactive.internals.FutureAckExtensions
+import monifu.concurrent.locks.SpinLock
 
 /**
  * Wraps an [[Observer]] into an implementation that abstains from emitting items until the call
@@ -53,19 +54,20 @@ final class ConnectableObserver[-T](underlying: Observer[T])(implicit s: Schedul
   extends Channel[T] with Observer[T] { self =>
 
   private[this] val observer = SafeObserver(underlying)
+  private[this] val lock = SpinLock()
 
-  // MUST BE synchronized by `self`, only available if isConnected == false
+  // MUST BE lock.enter by `self`, only available if isConnected == false
   private[this] var queue = mutable.ArrayBuffer.empty[T]
-  // MUST BE synchronized by `self`, only available if isConnected == false
+  // MUST BE lock.enter by `self`, only available if isConnected == false
   private[this] var scheduledDone = false
-  // MUST BE synchronized by `self`, only available if isConnected == false
+  // MUST BE lock.enter by `self`, only available if isConnected == false
   private[this] var scheduledError = null : Throwable
-  // MUST BE synchronized by `self`
+  // MUST BE lock.enter by `self`
   private[this] var isConnectionStarted = false
 
   // Promise guaranteed to be fulfilled once isConnected is
   // seen as true and used for back-pressure.
-  // MUST BE synchronized by `self`, only available if isConnected == false
+  // MUST BE lock.enter by `self`, only available if isConnected == false
   private[this] var connectedPromise = Promise[Ack]()
 
   // Volatile that is set to true once the buffer is drained.
@@ -81,7 +83,7 @@ final class ConnectableObserver[-T](underlying: Observer[T])(implicit s: Schedul
    * effect as calling it once.
    */
   def connect(): Unit =
-    synchronized {
+    lock.enter {
       if (!isConnected && !isConnectionStarted) {
         isConnectionStarted = true
 
@@ -94,7 +96,7 @@ final class ConnectableObserver[-T](underlying: Observer[T])(implicit s: Schedul
             observer.onError(ex)
           }
 
-          def onComplete() = self.synchronized {
+          def onComplete() = lock.enter {
             if (scheduledDone) {
               connectedPromise.success(Cancel)
               if (scheduledError ne null)
@@ -107,7 +109,7 @@ final class ConnectableObserver[-T](underlying: Observer[T])(implicit s: Schedul
           }
         })
 
-        connectedPromise.future.onComplete(_ => self.synchronized {
+        connectedPromise.future.onComplete(_ => lock.enter {
           queue = null // for garbage collecting purposes
           scheduledError = null // for garbage collecting purposes
           connectedPromise = null // for garbage collecting purposes
@@ -122,7 +124,7 @@ final class ConnectableObserver[-T](underlying: Observer[T])(implicit s: Schedul
    * `onNext`.
    */
   def pushNext(elems: T*) =
-    synchronized {
+    lock.enter {
       if (isConnected || isConnectionStarted)
         throw new IllegalStateException("Observer was already connected, so cannot pushNext")
       else if (!scheduledDone)
@@ -133,7 +135,7 @@ final class ConnectableObserver[-T](underlying: Observer[T])(implicit s: Schedul
    * Emit an item
    */
   def pushComplete() =
-    synchronized {
+    lock.enter {
       if (isConnected || isConnectionStarted)
         throw new IllegalStateException("Observer was already connected, so cannot pushNext")
       else if (!scheduledDone) {
@@ -142,7 +144,7 @@ final class ConnectableObserver[-T](underlying: Observer[T])(implicit s: Schedul
     }
 
   def pushError(ex: Throwable) =
-    synchronized {
+    lock.enter {
       if (isConnected || isConnectionStarted)
         throw new IllegalStateException("Observer was already connected, so cannot pushNext")
       else if (!scheduledDone) {
@@ -153,7 +155,7 @@ final class ConnectableObserver[-T](underlying: Observer[T])(implicit s: Schedul
 
   def onNext(elem: T) = {
     if (!isConnected)
-      synchronized {
+      lock.enter {
         // race condition guard, since connectedPromise may be null otherwise
         if (!isConnected)
           connectedPromise.future.flatMap {
@@ -171,7 +173,7 @@ final class ConnectableObserver[-T](underlying: Observer[T])(implicit s: Schedul
 
   def onComplete() = {
     if (!isConnected)
-      synchronized {
+      lock.enter {
         // race condition guard, since connectedPromise may be null otherwise
         if (!isConnected)
           connectedPromise.future
@@ -187,7 +189,7 @@ final class ConnectableObserver[-T](underlying: Observer[T])(implicit s: Schedul
 
   def onError(ex: Throwable) = {
     if (!isConnected)
-      synchronized {
+      lock.enter {
         // race condition guard, since connectedPromise may be null otherwise
         if (!isConnected)
           connectedPromise.future

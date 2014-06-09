@@ -7,6 +7,7 @@ import monifu.concurrent.Scheduler
 import monifu.reactive.{Subject, Observer}
 import monifu.reactive.internals.PromiseCounter
 import monifu.reactive.internals.FutureAckExtensions
+import monifu.concurrent.locks.SpinLock
 
 
 /**
@@ -21,14 +22,16 @@ import monifu.reactive.internals.FutureAckExtensions
  *
  * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/S.PublishSubject.e.png" />
  */
-final class PublishSubject[T] private (s: Scheduler) extends Subject[T,T] { self =>
+final class PublishSubject[T] private (s: Scheduler) extends Subject[T,T] {
   implicit val scheduler = s
+  
+  private[this] val lock = SpinLock()
   private[this] var isCompleted = false
   private[this] var errorThrown: Throwable = null
   @volatile private[this] var subscriptions = Array.empty[Observer[T]]
 
   def subscribeFn(observer: Observer[T]): Unit =
-    synchronized {
+    lock.enter {
       if (!isCompleted)
         subscriptions = createSubscription(subscriptions, observer)
       else if (errorThrown ne null)
@@ -50,7 +53,7 @@ final class PublishSubject[T] private (s: Scheduler) extends Subject[T,T] { self
   }
 
   def onError(ex: Throwable) =
-    synchronized {
+    lock.enter {
       if (!isCompleted) {
         isCompleted = true
         errorThrown = ex
@@ -64,7 +67,7 @@ final class PublishSubject[T] private (s: Scheduler) extends Subject[T,T] { self
     }
 
   def onComplete() =
-    synchronized {
+    lock.enter {
       if (!isCompleted) {
         isCompleted = true
 
@@ -98,12 +101,12 @@ final class PublishSubject[T] private (s: Scheduler) extends Subject[T,T] { self
   }
 
   private[this] def removeSubscription(observer: Observer[T]): Unit =
-    synchronized {
+    lock.enter {
       subscriptions = subscriptions.filter(_ != observer)
     }
 
   private[this] def createSubscription(observers: Array[Observer[T]], instance: Observer[T]): Array[Observer[T]] =
-    synchronized {
+    lock.enter {
       if (!observers.contains(instance))
         observers :+ instance
       else
