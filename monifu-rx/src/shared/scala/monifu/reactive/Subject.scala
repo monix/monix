@@ -9,6 +9,7 @@ import monifu.reactive.api.{Notification, BufferPolicy, Ack}
 import monifu.reactive.api.Ack.Continue
 import monifu.reactive.internals.FutureAckExtensions
 import monifu.reactive.subjects.{BehaviorSubject, ReplaySubject, PublishSubject, ConnectableSubject}
+import monifu.reactive.api.BufferPolicy.BackPressured
 
 /**
  * A `Subject` is a sort of bridge or proxy that acts both as an
@@ -193,8 +194,8 @@ trait Subject[-I, +T] extends Observable[T] with Observer[I] { self =>
   override final def repeat: Subject[I, T] =
     lift(_.repeat)
 
-  override final def observeOn(s: Scheduler): Subject[I, T] =
-    lift(_.observeOn(s))
+  override final def observeOn(s: Scheduler, bufferPolicy: BufferPolicy = BackPressured(1024)): Subject[I,T] =
+    lift(_.observeOn(s, bufferPolicy))
 
   override final def :+[U >: T](elems: U*): Subject[I, U] =
     lift(_.:+(elems : _*))
