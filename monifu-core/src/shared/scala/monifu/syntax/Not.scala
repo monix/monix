@@ -1,7 +1,7 @@
 package monifu.syntax
 
 import scala.annotation.implicitNotFound
-import scala.reflect.macros.Context
+import scala.reflect.macros.whitebox.Context
 import language.experimental.macros
 
 /**
@@ -31,13 +31,13 @@ import language.experimental.macros
 trait Not[T] {}
 
 object Not {
-  def notImpl[T : c.WeakTypeTag](c: Context): c.Expr[Not[T]] = {
+  def notImpl[T : c.WeakTypeTag](c: Context): c.Tree = {
     import c.universe._
 
     if (c.inferImplicitValue(weakTypeOf[T], silent=true) == EmptyTree)
-      reify(new Not[T] {})
+      reify(new Not[T] {}).tree
     else
-      c.abort(c.macroApplication.pos, "Found an implicit, so can't find Not[T]")
+      c.abort(c.macroApplication.pos, "Found an implicit, so can't prove Not[T]")
   }
 
   implicit def not[T]: Not[T] = macro notImpl[T]

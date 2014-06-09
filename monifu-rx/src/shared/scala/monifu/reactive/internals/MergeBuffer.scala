@@ -7,6 +7,7 @@ import scala.concurrent.{Promise, Future}
 import monifu.reactive.api.Ack.{Cancel, Continue}
 import monifu.concurrent.Scheduler
 import scala.util.control.NonFatal
+import monifu.concurrent.locks.SpinLock
 
 
 final class MergeBuffer[U](downstream: Observer[U], bufferPolicy: BufferPolicy)(implicit scheduler: Scheduler)
@@ -16,13 +17,14 @@ final class MergeBuffer[U](downstream: Observer[U], bufferPolicy: BufferPolicy)(
 
   private[this] val buffer = BufferedObserver(downstream, bufferPolicy)
 
+  private[this] val lock = new SpinLock()
   private[this] var permission = Promise[Ack]()
   private[this] var activeStreams = 1
   private[this] var pendingStreams = 0
   private[this] var isDone = false
 
   def merge(upstream: Observable[U], wasPending: Boolean = false): Future[Ack] =
-    self.synchronized {
+    lock.enter {
       if (isDone) {
         Cancel
       }
@@ -62,15 +64,15 @@ final class MergeBuffer[U](downstream: Observer[U], bufferPolicy: BufferPolicy)(
     }
   }
 
-  def onNext(elem: U) = self.synchronized {
+  def onNext(elem: U) = lock.enter {
     buffer.onNext(elem).onCancel(cancelStreaming())
   }
 
-  def onError(ex: Throwable) = self.synchronized {
+  def onError(ex: Throwable) = lock.enter {
     cancelStreaming(ex)
   }
 
-  def onComplete() = self.synchronized {
+  def onComplete() = lock.enter {
     if (activeStreams > 0) {
       if (activeStreams == 1 && pendingStreams == 0) {
         activeStreams = 0
