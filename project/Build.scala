@@ -79,6 +79,18 @@ object Build extends SbtBuild {
       settings = sharedSettings ++ Seq(publishArtifact := false))
     .aggregate(monifu, monifuJS)
 
+  lazy val monifuCore = Project(
+    id = "monifu-core",
+    base = file("monifu-core"),
+    settings = sharedSettings ++ Seq(
+      unmanagedSourceDirectories in Compile <+= sourceDirectory(_ / "shared" / "scala"),
+      libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _ % "compile"),
+      libraryDependencies ++= Seq(
+        "org.scalatest" %% "scalatest" % "2.1.3" % "test"
+      )
+    )
+  )
+
   lazy val monifu = Project(
     id = "monifu",
     base = file("monifu"),
@@ -87,6 +99,18 @@ object Build extends SbtBuild {
       libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _ % "compile"),
       libraryDependencies ++= Seq(
         "org.scalatest" %% "scalatest" % "2.1.3" % "test"
+      )
+    )
+  ).dependsOn(monifuCore).aggregate(monifuCore)
+
+  lazy val monifuCoreJS = Project(
+    id = "monifu-core-js",
+    base = file("monifu-core-js"),
+    settings = sharedSettings ++ scalaJSSettings ++ Seq(
+      unmanagedSourceDirectories in Compile <+= sourceDirectory(_ / ".." / ".." / "monifu-core" / "src" / "shared" / "scala"),
+      libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _ % "compile"),
+      libraryDependencies ++= Seq(
+        "org.scala-lang.modules.scalajs" %% "scalajs-jasmine-test-framework" % scalaJSVersion % "test"
       )
     )
   )
@@ -101,7 +125,7 @@ object Build extends SbtBuild {
         "org.scala-lang.modules.scalajs" %% "scalajs-jasmine-test-framework" % scalaJSVersion % "test"
       )
     )
-  )
+  ).dependsOn(monifuCoreJS).aggregate(monifuCoreJS)
 
   lazy val monifuBenchmarks =
     Project(id="benchmarks", base=file("benchmarks")).dependsOn(monifu)

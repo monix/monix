@@ -7,8 +7,6 @@ import scala.concurrent.{Promise, Future}
 import monifu.reactive.api.Ack.{Cancel, Continue}
 import monifu.concurrent.Scheduler
 import scala.util.control.NonFatal
-import monifu.concurrent.atomic.padded.Atomic
-import scala.annotation.tailrec
 
 
 final class MergeBuffer[U](downstream: Observer[U], bufferPolicy: BufferPolicy)(implicit scheduler: Scheduler)
@@ -17,27 +15,31 @@ final class MergeBuffer[U](downstream: Observer[U], bufferPolicy: BufferPolicy)(
   import MergeBuffer.mergeBatchSize
 
   private[this] val buffer = BufferedObserver(downstream, bufferPolicy)
-  private[this] final case class State(counter: Int, permission: Promise[Ack])
-  private[this] val state = Atomic(State(counter = 1, permission = Promise()))
 
-  @tailrec
-  def merge(upstream: Observable[U]): Future[Ack] = {
-    state.get match {
-      case current @ State(counter, permission) =>
-        if (counter == 0) {
-          Cancel
+  private[this] var permission = Promise[Ack]()
+  private[this] var activeStreams = 1
+  private[this] var pendingStreams = 0
+  private[this] var isDone = false
+
+  def merge(upstream: Observable[U], wasPending: Boolean = false): Future[Ack] =
+    self.synchronized {
+      if (isDone) {
+        Cancel
+      }
+      else if (activeStreams >= mergeBatchSize) {
+        if (!wasPending) pendingStreams += 1
+
+        permission.future.flatMap {
+          case Cancel => Cancel
+          case Continue =>
+            merge(upstream, wasPending = true)
         }
-        else if (counter >= mergeBatchSize)
-          permission.future.flatMap {
-            case Continue =>
-              retryMerge(upstream)
-            case Cancel =>
-              Cancel
-          }
-        else if (!state.compareAndSet(current, State(counter + 1, permission))) {
-          merge(upstream)
-        }
-        else try {
+      }
+      else {
+        if (wasPending) pendingStreams -= 1
+        activeStreams += 1
+
+        try {
           upstream.unsafeSubscribe(self)
           Continue
         }
@@ -46,63 +48,48 @@ final class MergeBuffer[U](downstream: Observer[U], bufferPolicy: BufferPolicy)(
             self.onError(ex)
             Cancel
         }
+      }
+    }
+
+  private[this] def cancelStreaming(signalError: Throwable = null): Unit = {
+    if (!isDone) {
+      isDone = true
+      activeStreams = 0
+      pendingStreams = 0
+      permission.success(Cancel)
+      if (signalError ne null)
+        buffer.onError(signalError)
     }
   }
 
-  /**
-   * Helper used in merge for forcing a non-tail-recursive call.
-   */
-  private[this] def retryMerge(upstream: Observable[U]) = {
-    merge(upstream)
-  }
-
-  @tailrec
-  private[this] def cancelStreaming(signalError: Throwable = null): Unit =
-    state.get match {
-      case current @ State(counter, permission) if counter > 0 =>
-        if (!state.compareAndSet(current, State(counter = 0, permission)))
-          cancelStreaming()
-        else {
-          permission.success(Cancel)
-          if (signalError ne null)
-            buffer.onError(signalError)
-        }
-
-      case _ => // already canceled
-    }
-
-  def onNext(elem: U) = {
+  def onNext(elem: U) = self.synchronized {
     buffer.onNext(elem).onCancel(cancelStreaming())
   }
 
-  def onError(ex: Throwable) = {
-    cancelStreaming(signalError = ex)
+  def onError(ex: Throwable) = self.synchronized {
+    cancelStreaming(ex)
   }
 
-  @tailrec
-  def onComplete() = state.get match {
-    case current @ State(counter, permission) if counter > 0 =>
-      if (counter - 1 == 0)
-        if (!state.compareAndSet(current, State(0, permission)))
-          onComplete()
-        else {
-          permission.success(Cancel)
-          buffer.onComplete()
-        }
-      else if (counter == mergeBatchSize) {
-        val newPromise = Promise[Ack]()
-        if (!state.compareAndSet(current, State(counter - 1, newPromise)))
-          onComplete()
-        else
-          permission.success(Continue)
+  def onComplete() = self.synchronized {
+    if (activeStreams > 0) {
+      if (activeStreams == 1 && pendingStreams == 0) {
+        activeStreams = 0
+        permission.success(Cancel)
+        buffer.onComplete()
+        isDone = true
       }
-      else if (!state.compareAndSet(current, State(counter - 1, permission)))
-        onComplete()
-
-    case _ => // already complete
+      else if (activeStreams == mergeBatchSize) {
+        permission.success(Continue)
+        permission = Promise[Ack]()
+        activeStreams -= 1
+      }
+      else if (activeStreams > 0) {
+        activeStreams -= 1
+      }
+    }
   }
 }
 
 object MergeBuffer {
-  final val mergeBatchSize = math.min(1024, math.max(1, Runtime.getRuntime.availableProcessors()) * 32)
+  final val mergeBatchSize = math.min(1024, math.max(1, Runtime.getRuntime.availableProcessors()) * 5)
 }

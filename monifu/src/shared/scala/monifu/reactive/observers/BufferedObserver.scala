@@ -250,7 +250,7 @@ private[observers] final class BackPressuredBufferedObserver[-T](underlying: Obs
   private[this] var nextAckPromise = Promise[Ack]()
   private[this] var appliesBackPressure = false
 
-  def onNext(elem: T): Future[Ack] = {
+  def onNext(elem: T): Future[Ack] = self.synchronized {
     if (!upstreamIsComplete && !downstreamIsDone) {
       try {
         queue.offer(elem)
@@ -262,11 +262,12 @@ private[observers] final class BackPressuredBufferedObserver[-T](underlying: Obs
           Cancel
       }
     }
-    else
+    else {
       Cancel
+    }
   }
 
-  def onError(ex: Throwable) = {
+  def onError(ex: Throwable) = self.synchronized {
     if (!upstreamIsComplete && !downstreamIsDone) {
       errorThrown = ex
       upstreamIsComplete = true
@@ -274,40 +275,39 @@ private[observers] final class BackPressuredBufferedObserver[-T](underlying: Obs
     }
   }
 
-  def onComplete() = {
+  def onComplete() = self.synchronized {
     if (!upstreamIsComplete && !downstreamIsDone) {
       upstreamIsComplete = true
       pushToConsumer()
     }
   }
 
-  private[this] def pushToConsumer(): Future[Ack] =
-    self.synchronized {
-      if (itemsToPush == 0) {
-        nextAckPromise = Promise[Ack]()
-        appliesBackPressure = false
-        itemsToPush += 1
+  private[this] def pushToConsumer(): Future[Ack] = {
+    if (itemsToPush == 0) {
+      nextAckPromise = Promise[Ack]()
+      appliesBackPressure = false
+      itemsToPush += 1
 
-        scheduler.execute(new Runnable {
-          def run() = fastLoop(0)
-        })
+      scheduler.execute(new Runnable {
+        def run() = fastLoop(0)
+      })
 
-        Continue
-      }
-      else if (appliesBackPressure) {
-        itemsToPush += 1
-        nextAckPromise.future
-      }
-      else if (itemsToPush >= bufferSize) {
-        appliesBackPressure = true
-        itemsToPush += 1
-        nextAckPromise.future
-      }
-      else {
-        itemsToPush += 1
-        Continue
-      }
+      Continue
     }
+    else if (appliesBackPressure) {
+      itemsToPush += 1
+      nextAckPromise.future
+    }
+    else if (itemsToPush >= bufferSize) {
+      appliesBackPressure = true
+      itemsToPush += 1
+      nextAckPromise.future
+    }
+    else {
+      itemsToPush += 1
+      Continue
+    }
+  }
 
   private[this] def rescheduled(processed: Int): Unit = {
     fastLoop(processed)
@@ -316,9 +316,11 @@ private[observers] final class BackPressuredBufferedObserver[-T](underlying: Obs
   @tailrec
   private[this] def fastLoop(processed: Int): Unit = {
     if (!downstreamIsDone) {
-      val next = queue.poll()
+      // errors have priority, in case an error happened, it is streamed immediately
+      val hasError = errorThrown ne null
+      val next: T = queue.poll()
 
-      if (next != null)
+      if (next != null && !hasError)
         underlying.onNext(next) match {
           case sync if sync.isCompleted =>
             sync match {
@@ -377,19 +379,36 @@ private[observers] final class BackPressuredBufferedObserver[-T](underlying: Obs
                   }
             }
         }
-      else if (upstreamIsComplete) {
-        // ending loop
-        downstreamIsDone = true
-        try {
-          if (errorThrown ne null)
-            underlying.onError(errorThrown)
+      else if (upstreamIsComplete || hasError) {
+        // needs to synchronize in order to check if the queue is indeed empty
+        // otherwise we may lose events
+        val shouldContinue = self.synchronized {
+          // re-checks if the queue is indeed empty or if an error happened
+          // errors have priority, so if an error happened, it doesn't matter
+          // if the queue is empty or not
+          if (queue.isEmpty || hasError) {
+            // ending loop
+            downstreamIsDone = true
+            try {
+              if (errorThrown ne null) {
+                queue.clear()
+                underlying.onError(errorThrown)
+              }
+              else
+                underlying.onComplete()
+            }
+            finally self.synchronized {
+              itemsToPush = 0
+              nextAckPromise.success(Cancel)
+            }
+            false
+          }
           else
-            underlying.onComplete()
+            true
         }
-        finally self.synchronized {
-          itemsToPush = 0
-          nextAckPromise.success(Cancel)
-        }
+
+        if (shouldContinue)
+          fastLoop(processed)
       }
       else {
         val remaining = self.synchronized {

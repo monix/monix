@@ -7,7 +7,7 @@ import scala.concurrent.{Promise, Future}
 import monifu.reactive.api._
 import Ack.{Cancel, Continue}
 import monifu.concurrent.atomic.Atomic
-import monifu.reactive.cancelables._
+import monifu.concurrent.cancelables._
 import scala.util.control.NonFatal
 import scala.collection.mutable
 import scala.util.{Failure, Success}
@@ -1060,21 +1060,21 @@ trait GenericObservable[+T] extends Observable[T] { self =>
         private[this] var pos = 0
 
         def onNext(elem: T): Future[Ack] = {
-          println(s"$pos: $prefix-->$elem")
+          System.out.println(s"$pos: $prefix-->$elem")
           pos += 1
           val f = observer.onNext(elem)
-          f.onCancel { pos += 1; println(s"$pos: $prefix canceled") }
+          f.onCancel { pos += 1; System.out.println(s"$pos: $prefix canceled") }
           f
         }
 
         def onError(ex: Throwable) = {
-          println(s"$pos: $prefix-->$ex")
+          System.out.println(s"$pos: $prefix-->$ex")
           pos += 1
           observer.onError(ex)
         }
 
         def onComplete() = {
-          println(s"$pos: $prefix completed")
+          System.out.println(s"$pos: $prefix completed")
           pos += 1
           observer.onComplete()
         }

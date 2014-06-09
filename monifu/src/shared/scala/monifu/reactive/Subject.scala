@@ -3,7 +3,7 @@ package monifu.reactive
 import monifu.concurrent.{Cancelable, Scheduler}
 import monifu.reactive.observables.GenericObservable
 import monifu.concurrent.atomic.Atomic
-import monifu.reactive.cancelables.BooleanCancelable
+import monifu.concurrent.cancelables.BooleanCancelable
 import scala.concurrent.{Future, Promise}
 import monifu.reactive.api.{Notification, BufferPolicy, Ack}
 import monifu.reactive.api.Ack.Continue

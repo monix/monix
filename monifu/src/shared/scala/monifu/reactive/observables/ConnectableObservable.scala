@@ -1,6 +1,6 @@
 package monifu.reactive.observables
 
-import monifu.reactive.cancelables.BooleanCancelable
+import monifu.concurrent.cancelables.BooleanCancelable
 import monifu.reactive.Observable
 
 /**
