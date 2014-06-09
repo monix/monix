@@ -1,7 +1,7 @@
 package monifu
 
 import language.experimental.macros
-import scala.reflect.macros.blackbox.Context
+import scala.reflect.macros.Context
 import scala.language.reflectiveCalls
 
 package object syntax {

@@ -3,7 +3,7 @@
 Extensions to Scala's standard library for multi-threading primitives and functional reactive programming. Targets both the JVM and [Scala.js](http://www.scala-js.org/).
 
 - [![Build Status](https://travis-ci.org/alexandru/monifu.png?branch=v0.12.2)](https://travis-ci.org/alexandru/monifu) (stable version)
-- [![Build Status](https://travis-ci.org/alexandru/monifu.png?branch=v0.13.0-RC2)](https://travis-ci.org/alexandru/monifu) (in-development version)
+- [![Build Status](https://travis-ci.org/alexandru/monifu.png?branch=v0.13.0-RC3)](https://travis-ci.org/alexandru/monifu) (in-development version)
 
 ## Feature Overview
 
@@ -96,13 +96,13 @@ Release Notes:
 
 The packages are published on Maven Central.
 
-Compiled for Scala 2.11. Also cross-compiled to
-the latest Scala.js (at the moment Scala.js 0.5.0-RC2). The targeted JDK version
+Compiled for Scala 2.10 and 2.11. Also cross-compiled to
+the latest Scala.js (at the moment Scala.js 0.5.0-RC1). The targeted JDK version
 for the published packages is version 6 (see 
 [faq entry](https://github.com/alexandru/monifu/wiki/Frequently-Asked-Questions#what-javajdk-version-is-required)).
 
 - Current stable release is: `0.12.2`
-- In-development release: `0.13.0-RC2`
+- In-development release: `0.13.0-RC3`
 
 ### For the JVM
 

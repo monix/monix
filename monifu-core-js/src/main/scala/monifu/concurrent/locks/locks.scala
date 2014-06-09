@@ -1,6 +1,6 @@
 package monifu.concurrent.locks
 
-import scala.reflect.macros.blackbox.Context
+import scala.reflect.macros.Context
 import language.experimental.macros
 import scala.concurrent.duration.TimeUnit
 
