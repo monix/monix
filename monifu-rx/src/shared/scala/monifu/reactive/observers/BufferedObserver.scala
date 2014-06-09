@@ -216,6 +216,9 @@ private[observers] final class DefaultBufferedObserver[-T](underlying: Observer[
         }
       }
       else if (upstreamIsComplete || hasError) {
+        // Race-condition check, but if upstreamIsComplete=true is visible, then the queue should be fully published
+        // because there's a clear happens-before relationship between queue.offer() and upstreamIsComplete=true
+        // NOTE: errors have priority, so in case of an error seen, then the loop is stopped
         if (!hasError && queue.nonEmpty) {
           fastLoop(processed)
         }
@@ -223,7 +226,7 @@ private[observers] final class DefaultBufferedObserver[-T](underlying: Observer[
           // ending loop
           downstreamIsDone = true
           itemsToPush.set(0)
-          queue.clear()
+          queue.clear() // for GC purposes
           if (errorThrown ne null)
             underlying.onError(errorThrown)
           else
@@ -390,35 +393,27 @@ private[observers] final class BackPressuredBufferedObserver[-T](underlying: Obs
             }
         }
       else if (upstreamIsComplete || hasError) {
-        // needs to synchronize in order to check if the queue is indeed empty
-        // otherwise we may lose events
-        val shouldContinue = (!hasError && queue.nonEmpty) || lock.enter {
-          // re-checks if the queue is indeed empty or if an error happened
-          // errors have priority, so if an error happened, it doesn't matter
-          // if the queue is empty or not
-          if (queue.isEmpty || hasError) {
-            // ending loop
-            downstreamIsDone = true
-            try {
-              if (errorThrown ne null) {
-                queue.clear()
-                underlying.onError(errorThrown)
-              }
-              else
-                underlying.onComplete()
-            }
-            finally lock.enter {
-              itemsToPush = 0
-              nextAckPromise.success(Cancel)
-            }
-            false
-          }
-          else
-            true
+        // Race-condition check, but if upstreamIsComplete=true is visible, then the queue should be fully published
+        // because there's a clear happens-before relationship between queue.offer() and upstreamIsComplete=true
+        // NOTE: errors have priority, so in case of an error seen, then the loop is stopped
+        if (!hasError && queue.nonEmpty) {
+          fastLoop(processed) // re-run loop
         }
-
-        if (shouldContinue)
-          fastLoop(processed)
+        else {
+          // ending loop
+          downstreamIsDone = true
+          try {
+            if (errorThrown ne null)
+              underlying.onError(errorThrown)
+            else
+              underlying.onComplete()
+          }
+          finally lock.enter {
+            queue.clear() // for GC purposes
+            itemsToPush = 0
+            nextAckPromise.success(Cancel)
+          }
+        }
       }
       else {
         val remaining = lock.enter {

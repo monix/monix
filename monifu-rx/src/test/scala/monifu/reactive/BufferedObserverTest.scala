@@ -104,18 +104,15 @@ class BufferedObserverTest extends FunSpec {
         }
         def onNext(elem: Int) = promise.future
         def onComplete() = throw new IllegalStateException()
-      }, OverflowTriggering(6))
+      }, OverflowTriggering(5))
 
       buffer.onNext(1)
       buffer.onNext(2)
       buffer.onNext(3)
       buffer.onNext(4)
       buffer.onNext(5)
-
       buffer.onError(new RuntimeException("dummy"))
-      assert(!latch.await(1, TimeUnit.SECONDS), "latch.await should have failed")
 
-      buffer.onNext(6)
       promise.success(Continue)
       assert(latch.await(5, TimeUnit.SECONDS), "latch.await should have succeeded")
     }

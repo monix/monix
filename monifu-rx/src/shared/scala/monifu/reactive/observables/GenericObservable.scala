@@ -913,12 +913,12 @@ trait GenericObservable[+T] extends Observable[T] { self =>
     }
   }
 
-  final def observeOn(s: Scheduler): Observable[T] = {
+  final def observeOn(s: Scheduler, bufferPolicy: BufferPolicy = BackPressured(1024)): Observable[T] = {
     implicit val scheduler = s
 
     Observable.create { observer =>
       unsafeSubscribe(new Observer[T] {
-        private[this] val buffer = BufferedObserver(observer, BackPressured(bufferSize = 1024))(s)
+        private[this] val buffer = BufferedObserver(observer, bufferPolicy)(s)
 
         def onNext(elem: T): Future[Ack] = {
           buffer.onNext(elem)

@@ -537,8 +537,12 @@ trait Observable[+T] {
 
   /**
    * Returns a new Observable that uses the specified `ExecutionContext` for listening to the emitted items.
+   *
+   * @param s the execution context on top of which the generated `onNext` / `onComplete` / `onError` events will run
+   *
+   * @param bufferPolicy specifies the buffering policy used by the created asynchronous boundary
    */
-  def observeOn(s: Scheduler): Observable[T]
+  def observeOn(s: Scheduler, bufferPolicy: BufferPolicy = BackPressured(1024)): Observable[T]
 
   /**
    * Suppress the duplicate elements emitted by the source Observable.
