@@ -105,8 +105,9 @@ final class ConnectableObserver[-T](underlying: Observer[T])(implicit s: Schedul
                 if (connectedPromise.trySuccess(Cancel)) {
                   if (scheduledError ne null)
                     observer.onError(scheduledError)
-                  else
+                  else {
                     observer.onComplete()
+                  }
                 }
               }
               else
@@ -167,7 +168,9 @@ final class ConnectableObserver[-T](underlying: Observer[T])(implicit s: Schedul
         if (!isConnected) {
           val p = Promise[Ack]()
           connectedFuture = connectedFuture.map {
-            case Cancel => Cancel
+            case Cancel =>
+              p.success(Cancel)
+              Cancel
             case Continue =>
               p.completeWith(observer.onNext(elem))
               Continue
