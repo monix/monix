@@ -2,16 +2,74 @@ package monifu.reactive
 
 import org.scalatest.FunSpec
 import monifu.concurrent.Scheduler.Implicits.global
-import scala.concurrent.{Await, Promise}
+import scala.concurrent.{Future, Await, Promise}
 import java.util.concurrent.{TimeUnit, CountDownLatch}
 import monifu.reactive.api.Ack.Continue
 import monifu.reactive.api.{BufferOverflowException, Ack}
 import monifu.reactive.observers.BufferedObserver
-import monifu.reactive.api.BufferPolicy.{BackPressured, OverflowTriggering}
+import monifu.reactive.api.BufferPolicy.{Unbounded, BackPressured, OverflowTriggering}
 import concurrent.duration._
+
 
 class BufferedObserverTest extends FunSpec {
   describe("BufferedObserver(OverflowTriggering)") {
+    it("should not lose events, test 1") {
+      var number = 0
+      val completed = new CountDownLatch(1)
+
+      val underlying = new Observer[Int] {
+        def onNext(elem: Int): Future[Ack] = {
+          number += 1
+          Continue
+        }
+
+        def onError(ex: Throwable): Unit = {
+          global.reportFailure(ex)
+        }
+
+        def onComplete(): Unit = {
+          completed.countDown()
+        }
+      }
+
+      val buffer = BufferedObserver(underlying, OverflowTriggering(100000))
+      for (i <- 0 until 100000) buffer.onNext(i)
+      buffer.onComplete()
+
+      assert(completed.await(20, TimeUnit.SECONDS), "completed.await should have succeeded")
+      assert(number === 100000)
+    }
+
+    it("should not lose events, test 2") {
+      var number = 0
+      val completed = new CountDownLatch(1)
+
+      val underlying = new Observer[Int] {
+        def onNext(elem: Int): Future[Ack] = {
+          number += 1
+          Continue
+        }
+
+        def onError(ex: Throwable): Unit = {
+          global.reportFailure(ex)
+        }
+
+        def onComplete(): Unit = {
+          completed.countDown()
+        }
+      }
+
+      val buffer = BufferedObserver(underlying, OverflowTriggering(100000))
+
+      def loop(n: Int): Unit =
+        if (n > 0) global.scheduleOnce { buffer.onNext(n); loop(n-1) }
+        else buffer.onComplete()
+
+      loop(10000)
+      assert(completed.await(20, TimeUnit.SECONDS), "completed.await should have succeeded")
+      assert(number === 10000)
+    }
+
     it("should trigger overflow when over capacity") {
       val errorCaught = new CountDownLatch(1)
       val receivedLatch = new CountDownLatch(5)
@@ -251,6 +309,63 @@ class BufferedObserverTest extends FunSpec {
   }
 
   describe("BufferedObserver(Unbounded)") {
+    it("should not lose events, test 1") {
+      var number = 0
+      val completed = new CountDownLatch(1)
+
+      val underlying = new Observer[Int] {
+        def onNext(elem: Int): Future[Ack] = {
+          number += 1
+          Continue
+        }
+
+        def onError(ex: Throwable): Unit = {
+          global.reportFailure(ex)
+        }
+
+        def onComplete(): Unit = {
+          completed.countDown()
+        }
+      }
+
+      val buffer = BufferedObserver(underlying, Unbounded)
+      for (i <- 0 until 100000) buffer.onNext(i)
+      buffer.onComplete()
+
+      assert(completed.await(20, TimeUnit.SECONDS), "completed.await should have succeeded")
+      assert(number === 100000)
+    }
+
+    it("should not lose events, test 2") {
+      var number = 0
+      val completed = new CountDownLatch(1)
+
+      val underlying = new Observer[Int] {
+        def onNext(elem: Int): Future[Ack] = {
+          number += 1
+          Continue
+        }
+
+        def onError(ex: Throwable): Unit = {
+          global.reportFailure(ex)
+        }
+
+        def onComplete(): Unit = {
+          completed.countDown()
+        }
+      }
+
+      val buffer = BufferedObserver(underlying, Unbounded)
+
+      def loop(n: Int): Unit =
+        if (n > 0) global.scheduleOnce { buffer.onNext(n); loop(n-1) }
+        else buffer.onComplete()
+
+      loop(10000)
+      assert(completed.await(20, TimeUnit.SECONDS), "completed.await should have succeeded")
+      assert(number === 10000)
+    }
+
     it("should send onError when empty") {
       val latch = new CountDownLatch(1)
       val buffer = BufferedObserver(new Observer[Int] {
@@ -447,6 +562,63 @@ class BufferedObserverTest extends FunSpec {
 
       buffer.onComplete()
       assert(completed.await(10, TimeUnit.SECONDS), "completed.await should have succeeded")
+    }
+
+    it("should not lose events, test 1") {
+      var number = 0
+      val completed = new CountDownLatch(1)
+
+      val underlying = new Observer[Int] {
+        def onNext(elem: Int): Future[Ack] = {
+          number += 1
+          Continue
+        }
+
+        def onError(ex: Throwable): Unit = {
+          global.reportFailure(ex)
+        }
+
+        def onComplete(): Unit = {
+          completed.countDown()
+        }
+      }
+
+      val buffer = BufferedObserver(underlying, BackPressured(100000))
+      for (i <- 0 until 100000) buffer.onNext(i)
+      buffer.onComplete()
+
+      assert(completed.await(20, TimeUnit.SECONDS), "completed.await should have succeeded")
+      assert(number === 100000)
+    }
+
+    it("should not lose events, test 2") {
+      var number = 0
+      val completed = new CountDownLatch(1)
+
+      val underlying = new Observer[Int] {
+        def onNext(elem: Int): Future[Ack] = {
+          number += 1
+          Continue
+        }
+
+        def onError(ex: Throwable): Unit = {
+          global.reportFailure(ex)
+        }
+
+        def onComplete(): Unit = {
+          completed.countDown()
+        }
+      }
+
+      val buffer = BufferedObserver(underlying, BackPressured(100000))
+
+      def loop(n: Int): Unit =
+        if (n > 0) global.scheduleOnce { buffer.onNext(n); loop(n-1) }
+        else buffer.onComplete()
+
+      loop(10000)
+      assert(completed.await(20, TimeUnit.SECONDS), "completed.await should have succeeded")
+      assert(number === 10000)
     }
 
     it("should send onError when empty") {

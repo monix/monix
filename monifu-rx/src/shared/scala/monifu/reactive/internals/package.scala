@@ -5,6 +5,7 @@ import monifu.reactive.api.Ack
 import monifu.reactive.api.Ack.{Cancel, Continue}
 import scala.util.{Try, Failure}
 import scala.util.control.NonFatal
+import monifu.syntax.TypeSafeEquals
 
 package object internals {
   /**
@@ -12,118 +13,21 @@ package object internals {
    */
   implicit class FutureAckExtensions(val source: Future[Ack]) extends AnyVal {
     /**
-     * On Continue, triggers onComplete on the given Observer.
+     * On Continue, triggers the execution of the given callback.
      */
-    def onContinueTriggerComplete[T](observer: Observer[T])(implicit ec: ExecutionContext): Cancel =
+    def onContinue(cb: => Unit)(implicit ec: ExecutionContext): Unit =
       source match {
-        case Continue =>
-          try observer.onComplete() catch {
-            case NonFatal(ex) => try observer.onError(ex) catch {
-              case NonFatal(err) =>
+        case sync if sync.isCompleted =>
+          if (sync === Continue || ((sync !== Cancel) && sync.value.get === Continue.IsSuccess))
+            try cb catch {
+              case NonFatal(ex) =>
                 ec.reportFailure(ex)
-                ec.reportFailure(err)
             }
-          }
-          Cancel
-        case Cancel =>
-          Cancel// do nothing
-        case sync if sync.isCompleted && sync.value.get.isSuccess =>
-          var streamError = true
-          try sync.value.get match {
-            case Continue.IsSuccess =>
-              observer.onComplete()
-              Cancel
-            case Cancel.IsSuccess =>
-              // do nothing
-              Cancel
-            case Failure(ex) =>
-              streamError = false
-              observer.onError(ex)
-              Cancel
-            case other =>
-              // branch not necessary, but Scala's compiler emits warnings if missing
-              ec.reportFailure(new MatchError(other.toString))
-              Cancel
-          }
-          catch {
-            case NonFatal(ex) =>
-              if (streamError)
-                try observer.onError(ex) catch {
-                  case NonFatal(err) =>
-                    ec.reportFailure(ex)
-                    ec.reportFailure(err)
-                }
-              else
-                ec.reportFailure(ex)
-              Cancel
-          }
         case async =>
-          async.onComplete {
-            case Continue.IsSuccess => observer.onComplete()
-            case Cancel.IsSuccess => // nothing
-            case Failure(ex) => observer.onError(ex)
-            case other =>
-              // branch not necessary, but Scala's compiler emits warnings if missing
-              ec.reportFailure(new MatchError(other.toString))
-          }
-          Cancel
-      }
-
-    /**
-     * On Continue, triggers onComplete on the given Observer.
-     */
-    def onContinueTriggerError[T](observer: Observer[T], error: Throwable)(implicit ec: ExecutionContext): Future[Ack] = {
-      source match {
-        case Continue =>
-          try observer.onError(error) catch {
-            case NonFatal(err2) =>
-              ec.reportFailure(error)
-              ec.reportFailure(err2)
-          }
-        case Cancel => // do nothing
-        case sync if sync.isCompleted  =>
-          sync.value.get match {
-            case Continue.IsSuccess =>
-              try observer.onError(error) catch {
-                case NonFatal(err2) =>
-                  ec.reportFailure(error)
-                  ec.reportFailure(err2)
-              }
-            case Cancel.IsSuccess => // do nothing
-            case Failure(ex) =>
-              ec.reportFailure(ex)
-              try observer.onError(error) catch {
-                case NonFatal(err2) =>
-                  ec.reportFailure(error)
-                  ec.reportFailure(err2)
-              }
-            case other =>
-              // branch not necessary, but Scala's compiler emits warnings if missing
-              ec.reportFailure(new MatchError(other.toString))
-          }
-        case async =>
-          async.onComplete {
-            case Continue.IsSuccess =>
-              try observer.onError(error) catch {
-                case NonFatal(err2) =>
-                  ec.reportFailure(error)
-                  ec.reportFailure(err2)
-              }
-            case Cancel.IsSuccess => // nothing
-            case Failure(ex) =>
-              ec.reportFailure(ex)
-              try observer.onError(error) catch {
-                case NonFatal(err2) =>
-                  ec.reportFailure(error)
-                  ec.reportFailure(err2)
-              }
-            case other =>
-              // branch not necessary, but Scala's compiler emits warnings if missing
-              ec.reportFailure(new MatchError(other.toString))
+          async.onSuccess {
+            case Continue => cb
           }
       }
-      Cancel
-    }
 
     /**
      * On Cancel, triggers Continue on the given Promise.
@@ -155,16 +59,16 @@ package object internals {
     /**
      * On Cancel, triggers Cancel on the given Promise.
      */
-    def onCancelComplete(p: Promise[Ack])(implicit ec: ExecutionContext): Future[Ack] = {
+    def onCancelDoCancel(p: Promise[Ack])(implicit ec: ExecutionContext): Future[Ack] = {
       source match {
         case Continue => // do nothing
-        case Cancel => p.success(Cancel)
+        case Cancel => p.trySuccess(Cancel)
 
         case sync if sync.isCompleted =>
           sync.value.get match {
             case Continue.IsSuccess => // do nothing
-            case Cancel.IsSuccess => p.success(Cancel)
-            case Failure(ex) => p.failure(ex)
+            case Cancel.IsSuccess => p.trySuccess(Cancel)
+            case Failure(ex) => p.tryFailure(ex)
             case other =>
               // branch not necessary, but Scala's compiler emits warnings if missing
               ec.reportFailure(new MatchError(other.toString))
@@ -173,8 +77,8 @@ package object internals {
         case async =>
           async.onComplete {
             case Continue.IsSuccess => // nothing
-            case Cancel.IsSuccess => p.success(Cancel)
-            case Failure(ex) => p.failure(ex)
+            case Cancel.IsSuccess => p.trySuccess(Cancel)
+            case Failure(ex) => p.tryFailure(ex)
             case other =>
               // branch not necessary, but Scala's compiler emits warnings if missing
               ec.reportFailure(new MatchError(other.toString))

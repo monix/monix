@@ -15,12 +15,12 @@ import monifu.reactive.observables.ConnectableObservable
 import monifu.concurrent.atomic.Atomic
 import monifu.reactive.api.BufferPolicy.{Unbounded, BackPressured}
 import scala.collection.mutable
-import monifu.concurrent.extensions._
 import monifu.concurrent.locks.SpinLock
 import monifu.reactive.api.Notification.{OnComplete, OnError, OnNext}
 import monifu.reactive.subjects.{BehaviorSubject, PublishSubject, ReplaySubject}
-import monifu.concurrent.cancelables.BooleanCancelable
+import monifu.concurrent.cancelables.{RefCountCancelable, BooleanCancelable}
 import scala.collection.mutable.ArrayBuffer
+import monifu.syntax.TypeSafeEquals
 
 /**
  * Asynchronous implementation of the Observable interface
@@ -235,26 +235,30 @@ trait Observable[+T] { self =>
   def concat[U](implicit ev: T <:< Observable[U]): Observable[U] =
     Observable.create { observerU =>
       unsafeSubscribe(new Observer[T] {
+        private[this] val refCount = RefCountCancelable(observerU.onComplete())
+
         def onNext(childObservable: T) = {
           val upstreamPromise = Promise[Ack]()
+          val refID = refCount.acquire()
 
           childObservable.unsafeSubscribe(new Observer[U] {
             def onNext(elem: U) = {
-              observerU.onNext(elem)
-                .onCancelComplete(upstreamPromise)
+              observerU.onNext(elem).onCancelDoCancel(upstreamPromise)
             }
 
             def onError(ex: Throwable) = {
               // error happened, so signaling both the main thread that it should stop
               // and the downstream consumer of the error
               observerU.onError(ex)
-              upstreamPromise.success(Cancel)
+              upstreamPromise.trySuccess(Cancel)
             }
 
             def onComplete() = {
               // NOTE: we aren't sending this onComplete signal downstream to our observerU
               // instead we are just instructing upstream to send the next observable
-              upstreamPromise.success(Continue)
+              if (upstreamPromise.trySuccess(Continue)) {
+                refID.cancel()
+              }
             }
           })
 
@@ -267,8 +271,7 @@ trait Observable[+T] { self =>
         }
 
         def onComplete() = {
-          // at this point all children observables have ended
-          observerU.onComplete()
+          refCount.cancel()
         }
       })
     }
@@ -399,10 +402,16 @@ trait Observable[+T] { self =>
     Observable.create { observer =>
       unsafeSubscribe(new Observer[T] {
         private[this] var counter = 0
+        private[this] var isDone = false
 
         def onNext(elem: T) = {
-          // short-circuit for not endlessly incrementing that number
-          if (counter < n) {
+          if (n <= 0 && !isDone) {
+            isDone = true
+            observer.onComplete()
+            Cancel
+          }
+          else if (!isDone && counter < n) {
+            // ^^ short-circuit for not endlessly incrementing that number
             counter += 1
 
             if (counter < n) {
@@ -412,12 +421,10 @@ trait Observable[+T] { self =>
             else  {
               // last event in the stream, so we need to send the event followed by an EOF downstream
               // after which we signal upstream to the producer that it should stop
-              observer.onNext(elem).flatMap {
-                case Cancel => Cancel
-                case Continue =>
-                  observer.onComplete()
-                  Cancel
-              }
+              isDone = true
+              observer.onNext(elem)
+              observer.onComplete()
+              Cancel
             }
           }
           else {
@@ -428,10 +435,16 @@ trait Observable[+T] { self =>
         }
 
         def onError(ex: Throwable) =
-          observer.onError(ex)
+          if (!isDone) {
+            isDone = true
+            observer.onError(ex)
+          }
 
         def onComplete() =
-          observer.onComplete()
+          if (!isDone) {
+            isDone = true
+            observer.onComplete()
+          }
       })
     }
 
@@ -446,7 +459,9 @@ trait Observable[+T] { self =>
         private[this] var queued = 0
 
         def onNext(elem: T): Future[Ack] = {
-          if (queued < n) {
+          if (n <= 0)
+            Cancel
+          else if (queued < n) {
             queue.enqueue(elem)
             queued += 1
           }
@@ -589,21 +604,21 @@ trait Observable[+T] { self =>
   def dropWhile(p: T => Boolean): Observable[T] =
     Observable.create { observer =>
       unsafeSubscribe(new Observer[T] {
-        var shouldDrop = true
+        var continueDropping = true
 
         def onNext(elem: T) = {
-          if (shouldDrop) {
+          if (continueDropping) {
             // See Section 6.4. in the Rx Design Guidelines:
             // Protect calls to user code from within an operator
             var streamError = true
             try {
-              val isInvalid = p(elem)
+              val isStillInvalid = p(elem)
               streamError = false
 
-              if (isInvalid)
+              if (isStillInvalid)
                 Continue
               else {
-                shouldDrop = false
+                continueDropping = false
                 observer.onNext(elem)
               }
             }
@@ -651,15 +666,17 @@ trait Observable[+T] { self =>
 
         def onError(ex: Throwable): Unit = {
           observer.onError(ex)
+          buffer = null
         }
 
         def onComplete(): Unit = {
           if (size > 0) {
             observer.onNext(buffer)
-              .onContinueTriggerComplete(observer)
+            observer.onComplete()
           }
           else
             observer.onComplete()
+          buffer = null
         }
       })
     }
@@ -684,7 +701,7 @@ trait Observable[+T] { self =>
         private[this] val task =
           scheduler.scheduleRecursive(timespan, timespan, { reschedule =>
             lock.enter {
-              if (!isDone && queue.nonEmpty) {
+              if (!isDone) {
                 observer.onNext(queue)
                 queue = ArrayBuffer.empty
                 reschedule()
@@ -708,9 +725,10 @@ trait Observable[+T] { self =>
 
         def onComplete(): Unit = lock.enter {
           if (!isDone) {
-            if (queue.nonEmpty)
+            if (queue.nonEmpty) {
               observer.onNext(queue)
-                .onContinueTriggerComplete(observer)
+              observer.onComplete()
+            }
             else
               observer.onComplete()
 
@@ -746,13 +764,14 @@ trait Observable[+T] { self =>
           }
         }
 
-        def onComplete() =
-          observer.onNext(state).onSuccess {
-            case Continue => observer.onComplete()
-          }
+        def onComplete() = {
+          observer.onNext(state)
+          observer.onComplete()
+        }
 
-        def onError(ex: Throwable) =
+        def onError(ex: Throwable) = {
           observer.onError(ex)
+        }
       })
     }
 
@@ -790,13 +809,14 @@ trait Observable[+T] { self =>
           }
         }
 
-        def onComplete() =
-          if (wasApplied)
-            observer.onNext(state).onSuccess {
-              case Continue => observer.onComplete()
-            }
+        def onComplete() = {
+          if (wasApplied) {
+            observer.onNext(state)
+            observer.onComplete()
+          }
           else
             observer.onComplete()
+        }
 
         def onError(ex: Throwable) = {
           observer.onError(ex)
@@ -870,87 +890,54 @@ trait Observable[+T] { self =>
    * emitted in order of the original input. This is the equivalent of
    * [[concatMap]] and NOT [[mergeMap]] (a mergeScan wouldn't make sense anyway).
    */
-  def flatScan[R](initial: R)(op: (R, T) => Future[R]): Observable[R] =
+  def flatScan[R](initial: R)(op: (R, T) => Observable[R]): Observable[R] =
     Observable.create { observer =>
       unsafeSubscribe(new Observer[T] {
+        private[this] val refCount = RefCountCancelable(observer.onComplete())
         private[this] var state = initial
 
         def onNext(elem: T): Future[Ack] = {
-          // See Section 6.4. in the Rx Design Guidelines:
-          // Protect calls to user code from within an operator
-          try op(state, elem).liftTry.flatMap {
-            case Success(newState) =>
-              // clear happens before relationship between
-              // subsequent invocations, so this is thread-safe
-              state = newState
-              observer.onNext(newState)
+          val refID = refCount.acquire()
+          val upstreamPromise = Promise[Ack]()
 
-            case Failure(ex) =>
-              observer.onError(ex)
-              Cancel
-          }
-          catch {
-            case NonFatal(ex) =>
-              observer.onError(ex)
-              Cancel
-          }
-        }
+          op(state, elem).subscribe(new Observer[R] {
+            private[this] var ack = Continue : Future[Ack]
 
-        def onComplete() =
-          observer.onComplete()
-
-        def onError(ex: Throwable) =
-          observer.onError(ex)
-      })
-    }
-
-  /**
-   * Applies a binary operator to the first item emitted by a source Observable,
-   * then feeds the result of that function along with the second item emitted by
-   * the source Observable into the same function, and so on until all items have been
-   * emitted by the source Observable, emitting the result of each of these iterations.
-   *
-   * Similar to [[reduce]], but emits the state on each step. Useful for modeling finite
-   * state machines.
-   */
-  def scan[U >: T](op: (U, U) => U): Observable[U] =
-    Observable.create { observer =>
-      unsafeSubscribe(new Observer[T] {
-        private[this] var state: U = _
-        private[this] var isFirst = true
-
-        def onNext(elem: T): Future[Ack] = {
-          // See Section 6.4. in the Rx Design Guidelines:
-          // Protect calls to user code from within an operator
-          var streamError = true
-          try {
-            if (isFirst) {
+            def onNext(elem: R): Future[Ack] = {
               state = elem
-              isFirst = false
+              ack = observer.onNext(elem)
+                .onCancelDoCancel(upstreamPromise)
+              ack
             }
-            else
-              state = op(state, elem)
 
-            streamError = false
-            observer.onNext(state)
-          }
-          catch {
-            case NonFatal(ex) =>
-              if (streamError) { observer.onError(ex); Cancel } else Future.failed(ex)
-          }
+            def onError(ex: Throwable): Unit = {
+              if (upstreamPromise.trySuccess(Cancel))
+                observer.onError(ex)
+            }
+
+            def onComplete(): Unit =
+              ack.onContinue {
+                refID.cancel()
+                upstreamPromise.trySuccess(Continue)
+              }
+          })
+
+          upstreamPromise.future
         }
 
-        def onComplete() =
-          observer.onComplete()
+        def onComplete() = {
+          refCount.cancel()
+        }
 
-        def onError(ex: Throwable) =
+        def onError(ex: Throwable) = {
           observer.onError(ex)
+        }
       })
     }
 
   /**
-   * Executes the given callback when the stream has ended on `onComplete`
-   * (after the event was already emitted)
+   * Executes the given callback when the stream has ended
+   * (after the event was already emitted).
    *
    * NOTE: protect the callback such that it doesn't throw exceptions, because
    * it gets executed after `onComplete()` happens and by definition the error cannot
@@ -961,22 +948,28 @@ trait Observable[+T] { self =>
   def doOnComplete(cb: => Unit): Observable[T] =
     Observable.create { observer =>
       unsafeSubscribe(new Observer[T] {
-        def onNext(elem: T) = {
-          val f = observer.onNext(elem)
-          f.onSuccess { case Cancel => cb }
-          f
-        }
+        private[this] val wasExecuted = Atomic(false)
 
-        def onError(ex: Throwable): Unit =
-          observer.onError(ex)
-
-        def onComplete(): Unit = {
-          try observer.onComplete() finally {
+        private[this] def execute() = {
+          if (wasExecuted.compareAndSet(expect=false, update=true))
             try cb catch {
               case NonFatal(ex) =>
                 scheduler.reportFailure(ex)
             }
-          }
+        }
+
+        def onNext(elem: T) = {
+          val f = observer.onNext(elem)
+          f.onSuccess { case Cancel => execute() }
+          f
+        }
+
+        def onError(ex: Throwable): Unit = {
+          try observer.onError(ex) finally execute()
+        }
+
+        def onComplete(): Unit = {
+          try observer.onComplete() finally execute()
         }
       })
     }
@@ -1100,9 +1093,8 @@ trait Observable[+T] { self =>
           observer.onComplete()
 
         def onError(ex: Throwable): Unit = {
-          observer.onNext(ex).onSuccess {
-            case Continue => observer.onComplete()
-          }
+          observer.onNext(ex)
+          observer.onComplete()
         }
       })
     }
@@ -1201,6 +1193,7 @@ trait Observable[+T] { self =>
       val queueA = mutable.Queue.empty[(Promise[U], Promise[Ack])]
       val queueB = mutable.Queue.empty[(U, Promise[Ack])]
       var isCompleted = false
+      var ack = Continue : Future[Ack]
 
       def _onError(ex: Throwable) = lock.enter {
         if (!isCompleted) {
@@ -1209,21 +1202,21 @@ trait Observable[+T] { self =>
           queueB.clear()
           observerOfPairs.onError(ex)
         }
-        else
-          Cancel
       }
 
       unsafeSubscribe(new Observer[T] {
         def onNext(a: T): Future[Ack] =
           lock.enter {
-            if (queueB.isEmpty) {
+            if (isCompleted)
+              Cancel
+            else if (queueB.isEmpty) {
               val resp = Promise[Ack]()
               val promiseForB = Promise[U]()
               queueA.enqueue((promiseForB, resp))
 
-              val f = promiseForB.future.flatMap(b => observerOfPairs.onNext((a, b)))
-              resp.completeWith(f)
-              f
+              ack = promiseForB.future.flatMap(b => observerOfPairs.onNext((a, b)))
+              resp.completeWith(ack)
+              ack
             }
             else {
               val (b, bResponse) = queueB.dequeue()
@@ -1236,20 +1229,25 @@ trait Observable[+T] { self =>
         def onError(ex: Throwable) =
           _onError(ex)
 
-        def onComplete() = lock.enter {
-          if (!isCompleted && queueA.isEmpty) {
-            isCompleted = true
-            queueA.clear()
-            queueB.clear()
-            observerOfPairs.onComplete()
+        def onComplete() =
+          ack.onContinue {
+            lock.enter {
+              if (!isCompleted && queueA.isEmpty) {
+                isCompleted = true
+                queueA.clear()
+                queueB.clear()
+                observerOfPairs.onComplete()
+              }
+            }
           }
-        }
       })
 
       other.unsafeSubscribe(new Observer[U] {
         def onNext(b: U): Future[Ack] =
           lock.enter {
-            if (queueA.nonEmpty) {
+            if (isCompleted)
+              Cancel
+            else if (queueA.nonEmpty) {
               val (bPromise, response) = queueA.dequeue()
               bPromise.success(b)
               response.future
@@ -1263,14 +1261,17 @@ trait Observable[+T] { self =>
 
         def onError(ex: Throwable) = _onError(ex)
 
-        def onComplete() = lock.enter {
-          if (!isCompleted && queueB.isEmpty) {
-            isCompleted = true
-            queueA.clear()
-            queueB.clear()
-            observerOfPairs.onComplete()
+        def onComplete() =
+          ack.onContinue {
+            lock.enter {
+              if (!isCompleted && queueB.isEmpty) {
+                isCompleted = true
+                queueA.clear()
+                queueB.clear()
+                observerOfPairs.onComplete()
+              }
+            }
           }
-        }
       })
     }
 
@@ -1299,10 +1300,10 @@ trait Observable[+T] { self =>
         def onComplete(): Unit = {
           if (!hasValue)
             observer.onComplete()
-          else
-            observer.onNext(maxValue).onSuccess {
-              case Continue => observer.onComplete()
-            }
+          else {
+            observer.onNext(maxValue)
+            observer.onComplete()
+          }
         }
       })
     }
@@ -1338,10 +1339,10 @@ trait Observable[+T] { self =>
         def onComplete(): Unit = {
           if (!hasValue)
             observer.onComplete()
-          else
-            observer.onNext(maxValue).onSuccess {
-              case Continue => observer.onComplete()
-            }
+          else {
+            observer.onNext(maxValue)
+            observer.onComplete()
+          }
         }
       })
     }
@@ -1371,10 +1372,10 @@ trait Observable[+T] { self =>
         def onComplete(): Unit = {
           if (!hasValue)
             observer.onComplete()
-          else
-            observer.onNext(minValue).onSuccess {
-              case Continue => observer.onComplete()
-            }
+          else {
+            observer.onNext(minValue)
+            observer.onComplete()
+          }
         }
       })
     }
@@ -1410,10 +1411,10 @@ trait Observable[+T] { self =>
         def onComplete(): Unit = {
           if (!hasValue)
             observer.onComplete()
-          else
-            observer.onNext(minValue).onSuccess {
-              case Continue => observer.onComplete()
-            }
+          else {
+            observer.onNext(minValue)
+            observer.onComplete()
+          }
         }
       })
     }
@@ -1434,9 +1435,8 @@ trait Observable[+T] { self =>
 
         def onError(ex: Throwable) = observer.onError(ex)
         def onComplete(): Unit = {
-          observer.onNext(result).onSuccess {
-            case Continue => observer.onComplete()
-          }
+          observer.onNext(result)
+          observer.onComplete()
         }
       })
     }
@@ -1597,15 +1597,15 @@ trait Observable[+T] { self =>
         def onNext(elem: T): Future[Ack] =
           observer.onNext(OnNext(elem))
 
-        def onError(ex: Throwable): Unit =
-          observer.onNext(OnError(ex)).onSuccess {
-            case Continue => observer.onComplete()
-          }
+        def onError(ex: Throwable): Unit = {
+          observer.onNext(OnError(ex))
+          observer.onComplete()
+        }
 
-        def onComplete(): Unit =
-          observer.onNext(OnComplete).onSuccess {
-            case Continue => observer.onComplete()
-          }
+        def onComplete(): Unit = {
+          observer.onNext(OnComplete)
+          observer.onComplete()
+        }
       })
     }
 
@@ -1797,12 +1797,10 @@ trait Observable[+T] { self =>
 
       def onComplete() = {
         promise.trySuccess(None)
-        Cancel
       }
 
       def onError(ex: Throwable) = {
         promise.tryFailure(ex)
-        Cancel
       }
     })
 
@@ -1822,10 +1820,9 @@ trait Observable[+T] { self =>
             Cancel
         }
 
-      def onComplete() = Cancel
+      def onComplete() = ()
       def onError(ex: Throwable) = {
         scheduler.reportFailure(ex)
-        Cancel
       }
     })
 }
@@ -1897,10 +1894,8 @@ object Observable {
   def unit[A](elem: A)(implicit scheduler: Scheduler): Observable[A] = {
     Observable.create { o =>
       val observer = SafeObserver(o)
-      observer.onNext(elem).onSuccess {
-        case Continue =>
-          observer.onComplete()
-      }
+      observer.onNext(elem)
+      observer.onComplete()
     }
   }
 
@@ -1987,30 +1982,37 @@ object Observable {
     require(step != 0, "step must be a number different from zero")
 
     Observable.create { o =>
-      val observer = SafeObserver(o)
-
       def scheduleLoop(from: Int, until: Int, step: Int): Unit =
         scheduler.execute(new Runnable {
+          private[this] val observer = SafeObserver(o)
+
+          private[this] def isInRange(x: Int): Boolean = {
+            (step > 0 && x < until) || (step < 0 && x > until)
+          }
+
           @tailrec
           def loop(from: Int, until: Int, step: Int): Unit =
-            if ((step > 0 && from < until) || (step < 0 && from > until)) {
+            if (isInRange(from)) {
               observer.onNext(from) match {
-                case Continue =>
-                  loop(from + step, until, step)
-                case Cancel =>
-                  // do nothing else
+                case sync if sync.isCompleted =>
+                  if (sync === Continue || sync.value.get === Continue.IsSuccess)
+                    loop(from + step, until, step)
                 case async =>
-                  async.onSuccess {
-                    case Continue =>
-                      scheduleLoop(from + step, until, step)
-                  }
+                  if (isInRange(from + step))
+                    async.onSuccess {
+                      case Continue =>
+                        scheduleLoop(from + step, until, step)
+                    }
+                  else
+                    observer.onComplete()
               }
             }
             else
               observer.onComplete()
 
-          def run(): Unit =
+          def run(): Unit = {
             loop(from, until, step)
+          }
         })
 
       scheduleLoop(from, until, step)
@@ -2047,7 +2049,7 @@ object Observable {
       future.onComplete {
         case Success(value) =>
           observer.onNext(value)
-            .onContinueTriggerComplete(observer)
+          observer.onComplete()
         case Failure(ex) =>
           observer.onError(ex)
       }
@@ -2064,39 +2066,34 @@ object Observable {
 
       def startFeedLoop(iterator: Iterator[T]): Unit =
         scheduler.execute(new Runnable {
-          def run(): Unit =
-            while (true) {
-              try {
-                if (iterator.hasNext) {
-                  val elem = iterator.next()
-
-                  observer.onNext(elem) match {
+          @tailrec
+          def loop(): Unit = {
+            val ack = observer.onNext(iterator.next())
+            if (iterator.hasNext)
+              ack match {
+                case sync if sync.isCompleted =>
+                  if (sync === Continue || sync.value.get === Continue.IsSuccess)
+                    loop()
+                case async =>
+                  async.onSuccess {
                     case Continue =>
-                    // continue loop
-                    case Cancel =>
-                      return
-                    case async =>
-                      async.onSuccess {
-                        case Continue =>
-                          startFeedLoop(iterator)
-                      }
-                      return // interrupt the loop
+                      startFeedLoop(iterator)
                   }
-                }
-                else {
-                  observer.onComplete()
-                  return
-                }
               }
-              catch {
-                case NonFatal(ex) =>
-                  observer.onError(ex)
-              }
+            else
+              observer.onComplete()
+          }
+
+          def run(): Unit = {
+            try loop() catch {
+              case NonFatal(ex) =>
+                observer.onError(ex)
             }
+          }
         })
 
       val iterator = iterable.iterator
-      startFeedLoop(iterator)
+      if (iterator.hasNext) startFeedLoop(iterator) else observer.onComplete()
     }
 
   /**
