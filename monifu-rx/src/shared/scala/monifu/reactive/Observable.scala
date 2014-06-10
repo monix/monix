@@ -449,6 +449,88 @@ trait Observable[+T] { self =>
     }
 
   /**
+   * Creates a new Observable that emits the events of the source, only
+   * for the specified `timestamp`, after which it completes.
+   *
+   * @param timespan the window of time during which the new Observable
+   *                 is allowed to emit the events of the source
+   */
+  def take(timespan: FiniteDuration): Observable[T] =
+    Observable.create { observer =>
+      subscribeFn(new Observer[T] {
+        private[this] val lock = SpinLock()
+        private[this] var isDone = false
+
+        private[this] val task =
+          scheduler.scheduleOnce(timespan, onComplete())
+
+        def onNext(elem: T): Future[Ack] =
+          lock.enter {
+            if (!isDone)
+              observer.onNext(elem).onCancel {
+                lock.enter {
+                  task.cancel()
+                  isDone = true
+                }                
+              }
+            else
+              Cancel
+          }
+
+        def onError(ex: Throwable): Unit =
+          lock.enter {
+            if (!isDone) {
+              isDone = true
+              observer.onError(ex)
+            }            
+          }
+
+        def onComplete(): Unit =
+          lock.enter {
+            if (!isDone) {
+              isDone = true
+              observer.onComplete()
+            }
+          }
+      })
+    }
+
+  /**
+   * Creates a new Observable that drops the events of the source, only
+   * for the specified `timestamp` window.
+   *
+   * @param timespan the window of time during which the new Observable
+   *                 is must drop the events emitted by the source
+   */
+  def drop(timespan: FiniteDuration): Observable[T] =
+    Observable.create { observer =>
+      subscribeFn(new Observer[T] {
+        @volatile private[this] var shouldDrop = true
+        private[this] val task =
+          scheduler.scheduleOnce(timespan, {
+            shouldDrop = false
+          })
+
+        def onNext(elem: T): Future[Ack] = {
+          if (shouldDrop)
+            Continue
+          else
+            observer.onNext(elem)
+        }
+
+        def onError(ex: Throwable): Unit = {
+          task.cancel()
+          observer.onError(ex)
+        }
+
+        def onComplete(): Unit = {
+          task.cancel()
+          observer.onComplete()
+        }
+      })
+    }
+
+  /**
    * Creates a new Observable that only emits the last `n` elements
    * emitted by the source.
    */
