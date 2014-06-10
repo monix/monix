@@ -5,8 +5,7 @@ import monifu.concurrent.atomic.Atomic
 import monifu.concurrent.cancelables.BooleanCancelable
 import scala.concurrent.{Future, Promise}
 import monifu.reactive.api.{Notification, BufferPolicy, Ack}
-import monifu.reactive.api.Ack.Continue
-import monifu.reactive.internals.FutureAckExtensions
+import monifu.reactive.api.Ack.{Cancel, Continue}
 import monifu.reactive.subjects.{BehaviorSubject, ReplaySubject, PublishSubject, ConnectableSubject}
 import monifu.reactive.api.BufferPolicy.BackPressured
 
@@ -24,11 +23,8 @@ trait Subject[-I, +T] extends Observable[T] with Observer[I] { self =>
   override final def scan[R](initial: R)(op: (R, T) => R): Subject[I, R] =
     lift(_.scan(initial)(op))
 
-  override final def flatScan[R](initial: R)(op: (R, T) => Future[R]): Subject[I, R] =
+  override final def flatScan[R](initial: R)(op: (R, T) => Observable[R]): Subject[I, R] =
     lift(_.flatScan(initial)(op))
-
-  override final def scan[U >: T](op: (U, U) => U): Subject[I, U] =
-    lift(_.scan(op))
 
   override final def dropWhile(p: (T) => Boolean): Subject[I, T] =
     lift(_.dropWhile(p))
@@ -51,8 +47,8 @@ trait Subject[-I, +T] extends Observable[T] with Observer[I] { self =>
       implicit val scheduler = self.scheduler
 
       @volatile private[this] var isConnected = false
-      private[this] val connectedPromise = Promise[Continue]()
-      private[this] val connectedFuture = connectedPromise.future
+      private[this] val connectedPromise = Promise[Ack]()
+      private[this] var connectedFuture = connectedPromise.future
 
       private[this] val cancelAction =
         BooleanCancelable { notCanceled set false }
@@ -66,20 +62,33 @@ trait Subject[-I, +T] extends Observable[T] with Observer[I] { self =>
       override final def onNext(elem: I): Future[Ack] = {
         if (isConnected)
           self.onNext(elem)
-        else
-          connectedFuture.flatMap { _ =>
-            self.onNext(elem)
+        else {
+          connectedFuture = connectedFuture.flatMap {
+            case Continue => self.onNext(elem)
+            case Cancel => Cancel
           }
+          connectedFuture
+        }
       }
 
       override final def onError(ex: Throwable): Unit = {
-        if (isConnected) self.onError(ex)
-        else connectedFuture.onContinueTriggerError(self, ex)
+        if (isConnected)
+          self.onError(ex)
+        else
+          connectedFuture = connectedFuture.flatMap {
+            case Continue => self.onError(ex); Cancel
+            case Cancel => Cancel
+          }
       }
 
       override final def onComplete() = {
-        if (isConnected) self.onComplete()
-        else connectedFuture.onContinueTriggerComplete(self)
+        if (isConnected)
+          self.onComplete()
+        else
+          connectedFuture = connectedFuture.flatMap {
+            case Continue => self.onComplete(); Cancel
+            case Cancel => Cancel
+          }
       }
 
       override final def connect() = {
