@@ -1,16 +1,15 @@
 package monifu.reactive.channels
 
-import monifu.reactive.{Observer, Channel, Subject}
+import monifu.reactive.{Observable, Observer, Channel, Subject}
 import monifu.reactive.observers.BufferedObserver
 import monifu.concurrent.Scheduler
 import monifu.reactive.api.BufferPolicy
 import monifu.reactive.api.BufferPolicy.Unbounded
-import monifu.reactive.observables.GenericObservable
 
 /**
  * Wraps any [[Subject]] into a [[Channel]].
  */
-class SubjectChannel[-I,+O](subject: Subject[I, O], policy: BufferPolicy, s: Scheduler) extends Channel[I] with GenericObservable[O] {
+class SubjectChannel[-I,+O](subject: Subject[I, O], policy: BufferPolicy, s: Scheduler) extends Channel[I] with Observable[O] {
   final implicit val scheduler = s
   private[this] val channel = BufferedObserver(subject, policy)
 

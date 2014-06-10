@@ -69,6 +69,7 @@ final class ConnectableObserver[-T](underlying: Observer[T])(implicit s: Schedul
   // seen as true and used for back-pressure.
   // MUST BE lock.enter by `self`, only available if isConnected == false
   private[this] var connectedPromise = Promise[Ack]()
+  private[this] var connectedFuture = connectedPromise.future
 
   // Volatile that is set to true once the buffer is drained.
   // Once visible as true, it implies that the queue is empty
@@ -89,23 +90,28 @@ final class ConnectableObserver[-T](underlying: Observer[T])(implicit s: Schedul
 
         Observable.from(queue).unsafeSubscribe(new Observer[T] {
           def onNext(elem: T) =
-            observer.onNext(elem).onCancelComplete(connectedPromise)
+            observer.onNext(elem).onCancelDoCancel(connectedPromise)
 
-          def onError(ex: Throwable) = {
-            connectedPromise.success(Cancel)
-            observer.onError(ex)
+          def onError(ex: Throwable) = lock.enter {
+            if (!isConnected) {
+              if (connectedPromise.trySuccess(Cancel))
+                observer.onError(ex)
+            }
           }
 
           def onComplete() = lock.enter {
-            if (scheduledDone) {
-              connectedPromise.success(Cancel)
-              if (scheduledError ne null)
-                observer.onError(scheduledError)
+            if (!isConnected) {
+              if (scheduledDone) {
+                if (connectedPromise.trySuccess(Cancel)) {
+                  if (scheduledError ne null)
+                    observer.onError(scheduledError)
+                  else
+                    observer.onComplete()
+                }
+              }
               else
-                observer.onComplete()
+                connectedPromise.trySuccess(Continue)
             }
-            else
-              connectedPromise.success(Continue)
           }
         })
 
@@ -113,6 +119,7 @@ final class ConnectableObserver[-T](underlying: Observer[T])(implicit s: Schedul
           queue = null // for garbage collecting purposes
           scheduledError = null // for garbage collecting purposes
           connectedPromise = null // for garbage collecting purposes
+          connectedFuture = null
           isConnected = true
         })
       }
@@ -157,13 +164,19 @@ final class ConnectableObserver[-T](underlying: Observer[T])(implicit s: Schedul
     if (!isConnected)
       lock.enter {
         // race condition guard, since connectedPromise may be null otherwise
-        if (!isConnected)
-          connectedPromise.future.flatMap {
+        if (!isConnected) {
+          val p = Promise[Ack]()
+          connectedFuture = connectedFuture.map {
             case Cancel => Cancel
-            case Continue => observer.onNext(elem)
+            case Continue =>
+              p.completeWith(observer.onNext(elem))
+              Continue
           }
-        else
+          p.future
+        }
+        else {
           observer.onNext(elem)
+        }
       }
     else {
       // taking fast path
@@ -175,9 +188,14 @@ final class ConnectableObserver[-T](underlying: Observer[T])(implicit s: Schedul
     if (!isConnected)
       lock.enter {
         // race condition guard, since connectedPromise may be null otherwise
-        if (!isConnected)
-          connectedPromise.future
-            .onContinueTriggerComplete(observer)
+        if (!isConnected) {
+          connectedFuture = connectedFuture.map {
+            case Cancel => Cancel
+            case Continue =>
+              observer.onComplete()
+              Cancel
+          }
+        }
         else
           observer.onComplete()
       }
@@ -191,9 +209,14 @@ final class ConnectableObserver[-T](underlying: Observer[T])(implicit s: Schedul
     if (!isConnected)
       lock.enter {
         // race condition guard, since connectedPromise may be null otherwise
-        if (!isConnected)
-          connectedPromise.future
-            .onContinueTriggerError(observer, ex)
+        if (!isConnected) {
+          connectedFuture = connectedFuture.map {
+            case Cancel => Cancel
+            case Continue =>
+              observer.onError(ex)
+              Cancel
+          }
+        }
         else
           observer.onComplete()
       }
