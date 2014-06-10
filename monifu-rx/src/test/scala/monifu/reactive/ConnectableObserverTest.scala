@@ -11,91 +11,135 @@ import monifu.reactive.observers.{ConcurrentObserver, ConnectableObserver}
 class ConnectableObserverTest extends FunSpec {
   describe("ConnectableObserver") {
     it("should work when connecting before the streaming started") {
-      val latch = new CountDownLatch(1)
-      var sum = 0
+      for (i <- 0 until 100) {
+        val latch = new CountDownLatch(1)
+        var sum = 0
 
-      val obs = new ConnectableObserver[Int](new Observer[Int] {
-        def onNext(elem: Int): Future[Ack] = {
-          sum += elem
-          Continue
+        val obs = new ConnectableObserver[Int](new Observer[Int] {
+          def onNext(elem: Int): Future[Ack] = {
+            sum += elem
+            Continue
+          }
+          def onError(ex: Throwable): Unit = {
+            global.reportFailure(ex)
+          }
+          def onComplete(): Unit = {
+            latch.countDown()
+          }
+        })
+
+        obs.pushNext(1, 2)
+        obs.connect()
+
+        Observable.range(0, 1000).subscribe(obs)
+
+        assert(latch.await(10, TimeUnit.SECONDS), "latch.await should have succeeded")
+        assert(sum === (0 until 1000).sum + 3)
+      }
+    }
+
+    it("should back-pressure Observable.unit if subscribed before connect") {
+      for (i <- 0 until 10000) {
+        val latch = new CountDownLatch(1)
+        var sum = 0
+
+        val obs = new ConnectableObserver[Int](new Observer[Int] {
+          def onNext(elem: Int): Future[Ack] = {
+            sum += elem
+            Continue
+          }
+          def onError(ex: Throwable): Unit = {
+            global.reportFailure(ex)
+          }
+          def onComplete(): Unit = {
+            latch.countDown()
+          }
+        })
+
+        if (i % 2 == 0)
+          Observable.unit(3).subscribe(obs)
+        else
+          Observable.unit(3).observeOn(global).subscribe(obs)
+
+        if (i % 3 != 0) {
+          obs.pushNext(1, 2)
+          obs.connect()
         }
-        def onError(ex: Throwable): Unit = {
-          global.reportFailure(ex)
-        }
-        def onComplete(): Unit = {
-          latch.countDown()
-        }
-      })
+        else
+          global.scheduleOnce {
+            obs.pushNext(1, 2)
+            obs.connect()
+          }
 
-      obs.pushNext(1, 2)
-      obs.connect()
-
-      Observable.range(0, 1000).subscribe(obs)
-
-      assert(latch.await(10, TimeUnit.SECONDS), "latch.await should have succeeded")
-      assert(sum === (0 until 1000).sum + 3)
+        assert(latch.await(1, TimeUnit.SECONDS), "latch.await should have succeeded")
+        assert(sum === 6)
+      }
     }
 
     it("should do back-pressure until connected, but still buffer incoming") {
-      val completed = new CountDownLatch(1)
-      val ackLatch = new CountDownLatch(3)
-      @volatile var sum = 0
+      for (_ <- 0 until 50) {
+        val completed = new CountDownLatch(1)
+        val ackLatch = new CountDownLatch(3)
+        @volatile var sum = 0
 
-      val obs = new ConnectableObserver[Int](new Observer[Int] {
-        def onNext(elem: Int): Future[Ack] = {
-          sum += elem
-          Continue
-        }
-        def onError(ex: Throwable): Unit = {
-          global.reportFailure(ex)
-        }
-        def onComplete(): Unit = {
-          completed.countDown()
-        }
-      })
+        val obs = new ConnectableObserver[Int](new Observer[Int] {
+          def onNext(elem: Int): Future[Ack] = {
+            sum += elem
+            Continue
+          }
+          def onError(ex: Throwable): Unit = {
+            global.reportFailure(ex)
+          }
+          def onComplete(): Unit = {
+            completed.countDown()
+          }
+        })
 
-      val channel = ConcurrentObserver(obs)
-      channel.onNext(1).onComplete(_ => ackLatch.countDown())
-      channel.onNext(2).onComplete(_ => ackLatch.countDown())
-      channel.onNext(3).onComplete(_ => ackLatch.countDown())
+        val channel = ConcurrentObserver(obs)
+        channel.onNext(1).onComplete(_ => ackLatch.countDown())
+        channel.onNext(2).onComplete(_ => ackLatch.countDown())
+        channel.onNext(3).onComplete(_ => ackLatch.countDown())
 
-      assert(!ackLatch.await(300, TimeUnit.MILLISECONDS), "ackLatch.await should not succeed")
-      assert(sum === 0)
+        assert(!ackLatch.await(1, TimeUnit.MILLISECONDS), "ackLatch.await should not succeed")
+        assert(sum === 0)
 
-      obs.connect()
-      assert(ackLatch.await(10, TimeUnit.SECONDS), "ackLatch.await should succeed")
+        obs.connect()
+        assert(ackLatch.await(10, TimeUnit.SECONDS), "ackLatch.await should succeed")
 
-      channel.onComplete()
-      assert(completed.await(10, TimeUnit.SECONDS), "completed.await should succeed")
-      assert(sum === 6)
+        channel.onComplete()
+        assert(completed.await(10, TimeUnit.SECONDS), "completed.await should succeed")
+        assert(sum === 6)
+      }
     }
 
     it("should work when connecting after the streaming started") {
-      val streamStarted = new CountDownLatch(1)
-      val completed = new CountDownLatch(1)
-      var sum = 0
+      for (_ <- 0 until 1000) {
+        val streamStarted = new CountDownLatch(1)
+        val completed = new CountDownLatch(1)
+        var sum = 0
 
-      val obs = new ConnectableObserver[Int](new Observer[Int] {
-        def onNext(elem: Int): Future[Ack] = {
-          sum += elem
-          Continue
-        }
-        def onError(ex: Throwable): Unit = {
-          global.reportFailure(ex)
-        }
-        def onComplete(): Unit = {
-          completed.countDown()
-        }
-      })
+        val obs = new ConnectableObserver[Int](new Observer[Int] {
+          def onNext(elem: Int): Future[Ack] = {
+            sum += elem
+            Continue
+          }
+          def onError(ex: Throwable): Unit = {
+            global.reportFailure(ex)
+          }
+          def onComplete(): Unit = {
+            completed.countDown()
+          }
+        })
 
-      obs.pushNext(1, 2)
-      Observable.range(0, 1000).doWork(_ => streamStarted.countDown()).subscribe(obs)
+        obs.pushNext(1, 2)
+        Observable.range(0, 1000).doWork(_ => streamStarted.countDown()).subscribe(obs)
 
-      assert(streamStarted.await(10, TimeUnit.SECONDS), "streamCompleted.await should have succeeded")
-      obs.connect()
+        assert(streamStarted.await(10, TimeUnit.SECONDS), "streamCompleted.await should have succeeded")
+        obs.connect()
 
-      assert(completed.await(10, TimeUnit.SECONDS), "completed.await should have succeeded")
-      assert(sum === (0 until 1000).sum + 3)
+        assert(completed.await(10, TimeUnit.SECONDS), "completed.await should have succeeded")
+        assert(sum === (0 until 1000).sum + 3)
+      }
     }
 
     it("should scheduleFirst and scheduleCompleted") {

@@ -14,7 +14,26 @@ import monifu.reactive.observers.ConcurrentObserver
 
 class PublishSubjectTest extends FunSpec {
   describe("PublishSubject") {
-    it("should work over asynchronous boundaries") {
+    it("should work over asynchronous boundaries, simple") {
+      val result1 = Atomic(0)
+      val result2 = Atomic(0)
+
+      val subject = PublishChannel[Int]()
+      val latch = new CountDownLatch(2)
+
+      subject.observeOn(global).doOnComplete(latch.countDown()).foreach { x => result1.increment(x) }
+      subject.observeOn(global).doOnComplete(latch.countDown()).foreach { x => result2.increment(x) }
+
+      for (i <- 0 until 100000) subject.pushNext(i)
+      subject.pushComplete()
+
+      assert(latch.await(10, TimeUnit.SECONDS), "latch.await should have succeeded")
+
+      assert(result1.get === (0 until 100000).sum)
+      assert(result2.get === result1.get)
+    }
+
+    it("should work over asynchronous boundaries, complicated") {
       val result1 = Atomic(0)
       val result2 = Atomic(0)
 
@@ -22,9 +41,9 @@ class PublishSubjectTest extends FunSpec {
       val latch = new CountDownLatch(2)
 
       subject.observeOn(global).filter(x => x % 2 == 0).flatMap(x => Observable.from(x to x + 1))
-        .foldLeft(0)(_ + _).foreach { x => result1.set(x); latch.countDown() }
+        .foldLeft(0)(_ + _).doOnComplete(latch.countDown()).foreach { x => result1.set(x) }
       subject.observeOn(global).filter(x => x % 2 == 0).flatMap(x => Observable.from(x to x + 1))
-        .foldLeft(0)(_ + _).foreach { x => result2.set(x); latch.countDown() }
+        .foldLeft(0)(_ + _).doOnComplete(latch.countDown()).foreach { x => result2.set(x) }
 
       for (i <- 0 until 10000) subject.pushNext(i)
       subject.pushComplete()
