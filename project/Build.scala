@@ -3,16 +3,18 @@ import sbt.{Build => SbtBuild}
 import sbt.Keys._
 import scala.scalajs.sbtplugin.ScalaJSPlugin._
 import scala.scalajs.sbtplugin.ScalaJSPlugin.ScalaJSKeys._
-
+import sbtunidoc.Plugin._
+import sbtunidoc.Plugin.UnidocKeys._
 
 object Build extends SbtBuild {
+  val projectVersion = "0.13.0-RC4"
+
   val sharedSettings = Defaults.defaultSettings ++ Seq(
     organization := "org.monifu",
-    version := "0.13.0-RC4",
+    version := projectVersion,
 
     scalaVersion := "2.10.4",
     scalaVersion in ThisBuild := "2.10.4",
-
     crossScalaVersions ++= Seq("2.11.1"),
 
     initialize := {
@@ -30,6 +32,15 @@ object Build extends SbtBuild {
       "-optimise", "-Ywarn-adapted-args", "-Ywarn-dead-code", "-Ywarn-inaccessible",
       "-Ywarn-nullary-override", "-Ywarn-nullary-unit"
     ),
+
+    scalacOptions <<= baseDirectory.map { bd => Seq("-sourcepath", bd.getAbsolutePath) },
+
+    scalacOptions in (ScalaUnidoc, unidoc) <<= baseDirectory.map { bd => 
+      Seq(
+        "-Ymacro-no-expand",
+        "-sourcepath", bd.getAbsolutePath
+      )
+    },
 
     resolvers ++= Seq(
       "Typesafe Releases" at "http://repo.typesafe.com/typesafe/releases",
@@ -73,12 +84,13 @@ object Build extends SbtBuild {
       </developers>
   )
 
-
   // -- Actual Projects
 
   lazy val root = Project(
       id = "monifu-root", base = file("."), 
-      settings = sharedSettings ++ Seq(publishArtifact := false))
+      settings = sharedSettings ++ Seq(
+        publishArtifact := false
+      ))
     .aggregate(monifu, monifuJS)
 
   lazy val monifuCore = Project(
@@ -105,7 +117,18 @@ object Build extends SbtBuild {
     )
   ).dependsOn(monifuCore)
 
-  lazy val monifu = Project(id="monifu", base = file("monifu"), settings=sharedSettings)
+  lazy val monifu = Project(id="monifu", base = file("monifu"), 
+    settings=sharedSettings ++ unidocSettings ++ Seq(
+      unidocProjectFilter in (ScalaUnidoc, unidoc) := inProjects(monifuCore, monifuRx),
+      scalacOptions in (ScalaUnidoc, sbtunidoc.Plugin.UnidocKeys.unidoc) ++=
+        Opts.doc.sourceUrl(s"https://github.com/alexandru/monifu/tree/v$projectVersion/monifu€{FILE_PATH}.scala"),
+      scalacOptions in (ScalaUnidoc, sbtunidoc.Plugin.UnidocKeys.unidoc) ++=
+        Opts.doc.title(s"Monifu"),
+      scalacOptions in (ScalaUnidoc, sbtunidoc.Plugin.UnidocKeys.unidoc) ++=
+        Opts.doc.version(s"$projectVersion"),
+      scalacOptions in (ScalaUnidoc, sbtunidoc.Plugin.UnidocKeys.unidoc) ++= 
+        Seq("-doc-root-content", "rootdoc.txt")
+    ))
     .dependsOn(monifuCore, monifuRx).aggregate(monifuCore, monifuRx)
 
   lazy val monifuCoreJS = Project(
@@ -132,7 +155,10 @@ object Build extends SbtBuild {
     )
   ).dependsOn(monifuCoreJS)
 
-  lazy val monifuJS = Project(id="monifu-js", base = file("monifu-js"), settings=sharedSettings)
+  lazy val monifuJS = Project(id="monifu-js", base = file("monifu-js"), 
+    settings=sharedSettings ++ unidocSettings ++ (
+      unidocProjectFilter in (ScalaUnidoc, unidoc) := inProjects(monifuCoreJS, monifuRxJS)
+    ))
     .dependsOn(monifuCoreJS, monifuRxJS).aggregate(monifuCoreJS, monifuRxJS)
 
   lazy val monifuBenchmarks =
