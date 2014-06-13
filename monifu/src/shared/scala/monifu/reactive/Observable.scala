@@ -1079,33 +1079,63 @@ trait Observable[+T] { self =>
    */
   final def takeTimeout(duration: FiniteDuration)(implicit scheduler: Scheduler): Observable[T] =
     Observable.create { observer =>
-      subscribeFn(new Observer[T] {
-        @volatile var shouldContinue = true
+    /**
+     * semaphore will remain true if and only if stream ends
+     * green = false, red = true
+     */
+      val semaphore: Atomic[Boolean] = Atomic(false)
+      val ended: Atomic[Boolean] = Atomic(false)
 
-        private[this] def end() = {
-          shouldContinue = false
-          observer.onComplete()
+      subscribeFn(new Observer[T] {
+        //recursive end function that will execute as long as the semaphore is red and not ended
+        private[this] def end(): Unit = {
+          if(semaphore.compareAndSet(false,true) && !ended.get) {
+            ended.set(true)
+            observer.onComplete()
+          } else if (!ended.get)
+            end()
+          else ()
         }
 
-        val cancelable = scheduler.scheduleOnce(duration, end)
+        val cancelable = scheduler.scheduleOnce(duration, end())
 
-        def onNext(elem: T) = {
-          if (shouldContinue)
-            observer.onNext(elem)
+        /**
+         * if the semaphore is red then onComplete is already taking care of on another thread
+         */
+        override def onComplete(): Unit = {
+          if(semaphore.compareAndSet(false,true)) {
+            cancelable.cancel()
+            ended.set(true)
+            observer.onComplete()
+          }
+        }
+
+        /**
+         * if the semaphore is red then onComplete is already taking care of on another thread
+         * so no need to send the error
+         */
+        override def onError(ex: Throwable): Unit = {
+          if(semaphore.compareAndSet(false,true)) {
+            cancelable.cancel()
+            ended.set(true)
+            observer.onError(ex)
+          }
+        }
+
+        override def onNext(elem: T): Future[Ack] = {
+          val ok = semaphore.compareAndSet(false,true)
+          if (ok)
+            observer.onNext(elem) map {
+              case Done =>
+                cancelable.cancel()
+                ended.set(true)
+                Done
+              case other =>
+                semaphore.set(false)
+                other
+            }
           else
             Done
-        }
-
-        def onComplete() = {
-          shouldContinue = false
-          cancelable.cancel()
-          observer.onComplete()
-        }
-
-        def onError(ex: Throwable) = {
-          shouldContinue = false
-          cancelable.cancel()
-          observer.onError(ex)
         }
       })
     }
