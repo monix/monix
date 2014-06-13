@@ -4,12 +4,11 @@ import monifu.reactive.Observer
 import monifu.concurrent.internals.ConcurrentQueue
 import monifu.reactive.api.Ack.{Cancel, Continue}
 import monifu.concurrent.atomic.padded.Atomic
-import monifu.concurrent.Scheduler
 import scala.util.control.NonFatal
 import scala.util.Failure
 import scala.annotation.tailrec
 import monifu.reactive.api.{BufferOverflowException, BufferPolicy, Ack}
-import scala.concurrent.{Promise, Future}
+import scala.concurrent.{ExecutionContext, Promise, Future}
 import monifu.reactive.api.BufferPolicy.{BackPressured, OverflowTriggering, Unbounded}
 import monifu.concurrent.locks.SpinLock
 
@@ -46,14 +45,14 @@ trait BufferedObserver[-T] extends Observer[T]
 
 
 object BufferedObserver {
-  def apply[T](observer: Observer[T], bufferPolicy: BufferPolicy = Unbounded)(implicit scheduler: Scheduler): BufferedObserver[T] = {
+  def apply[T](observer: Observer[T], bufferPolicy: BufferPolicy = Unbounded)(implicit ec: ExecutionContext): BufferedObserver[T] = {
     bufferPolicy match {
       case Unbounded =>
-        new DefaultBufferedObserver[T](observer, 0)
+        SynchronousBufferedObserver.unbounded(observer)
       case OverflowTriggering(bufferSize) =>
-        new DefaultBufferedObserver[T](observer, bufferSize)
+        SynchronousBufferedObserver.overflowTriggering(observer, bufferSize)
       case BackPressured(bufferSize) =>
-        new BackPressuredBufferedObserver[T](observer, bufferSize)
+        BackPressuredBufferedObserver(observer, bufferSize)
       case _ =>
         throw new NotImplementedError(s"BufferedObserver($bufferPolicy)")
     }
@@ -65,7 +64,7 @@ object BufferedObserver {
  * [[monifu.reactive.api.BufferPolicy buffer policies]] - unbounded or bounded and terminated
  * with a [[monifu.reactive.api.BufferOverflowException BufferOverflowException]].
  *
- * The interface of this class is not public, so to create an instance using an unbounded policy: {{{
+ * To create an instance using an unbounded policy: {{{
  *   // by default, the constructor for BufferedObserver is returning this unbounded variant   
  *   BufferedObserver(observer)
  *   
@@ -85,7 +84,9 @@ object BufferedObserver {
  * @param underlying is the underlying observer receiving the queued events
  * @param bufferSize is the maximum buffer size, or zero if unbounded
  */
-private[observers] final class DefaultBufferedObserver[-T](underlying: Observer[T], bufferSize: Int = 0)(implicit scheduler: Scheduler) extends BufferedObserver[T] {
+final class SynchronousBufferedObserver[-T] private (underlying: Observer[T], bufferSize: Int = 0)(implicit ec: ExecutionContext)
+  extends SynchronousObserver[T] with BufferedObserver[T] {
+
   require(bufferSize >= 0, "bufferSize must be a positive number")
 
   private[this] val queue = new ConcurrentQueue[T]()
@@ -98,7 +99,7 @@ private[observers] final class DefaultBufferedObserver[-T](underlying: Observer[
   // for enforcing non-concurrent updates
   private[this] val itemsToPush = Atomic(0)
 
-  def onNext(elem: T): Ack with Future[Ack] = {
+  def onNext(elem: T): Ack = {
     if (!upstreamIsComplete && !downstreamIsDone) {
       try {
         queue.offer(elem)
@@ -139,7 +140,7 @@ private[observers] final class DefaultBufferedObserver[-T](underlying: Observer[
       if (!itemsToPush.compareAndSet(currentNr, currentNr + 1))
         pushToConsumer()
       else if (currentNr == 0)
-        scheduler.execute(new Runnable {
+        ec.execute(new Runnable {
           def run() = fastLoop(0)
         })
     }
@@ -153,7 +154,7 @@ private[observers] final class DefaultBufferedObserver[-T](underlying: Observer[
       else if (!itemsToPush.compareAndSet(currentNr, currentNr + 1))
         pushToConsumer()
       else if (currentNr == 0)
-        scheduler.execute(new Runnable {
+        ec.execute(new Runnable {
           def run() = fastLoop(0)
         })
     }
@@ -243,7 +244,15 @@ private[observers] final class DefaultBufferedObserver[-T](underlying: Observer[
   }
 }
 
-private[observers] final class BackPressuredBufferedObserver[-T](underlying: Observer[T], bufferSize: Int)(implicit scheduler: Scheduler)
+object SynchronousBufferedObserver {
+  def unbounded[T](observer: Observer[T])(implicit ec: ExecutionContext) =
+    new SynchronousBufferedObserver[T](observer)
+  
+  def overflowTriggering[T](observer: Observer[T], bufferSize: Int)(implicit ec: ExecutionContext) =
+    new SynchronousBufferedObserver[T](observer, bufferSize)
+}
+
+final class BackPressuredBufferedObserver[-T] private (underlying: Observer[T], bufferSize: Int)(implicit ec: ExecutionContext)
   extends BufferedObserver[T] { self =>
 
   require(bufferSize > 0, "bufferSize must be a strictly positive number")
@@ -301,7 +310,7 @@ private[observers] final class BackPressuredBufferedObserver[-T](underlying: Obs
       appliesBackPressure = false
       itemsToPush += 1
 
-      scheduler.execute(new Runnable {
+      ec.execute(new Runnable {
         def run() = fastLoop(0)
       })
 
@@ -431,4 +440,7 @@ private[observers] final class BackPressuredBufferedObserver[-T](underlying: Obs
   }
 }
 
-
+object BackPressuredBufferedObserver {
+  def apply[T](observer: Observer[T], bufferSize: Int)(implicit ec: ExecutionContext) =
+    new BackPressuredBufferedObserver[T](observer, bufferSize)
+}

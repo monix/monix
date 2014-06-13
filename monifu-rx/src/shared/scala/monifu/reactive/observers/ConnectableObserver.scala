@@ -1,7 +1,7 @@
 package monifu.reactive.observers
 
 import monifu.reactive.{Observable, Channel, Observer}
-import scala.concurrent.Promise
+import scala.concurrent.{Future, Promise}
 import monifu.reactive.api.Ack
 import monifu.concurrent.Scheduler
 import monifu.reactive.api.Ack.{Cancel, Continue}
@@ -56,19 +56,21 @@ final class ConnectableObserver[-T](underlying: Observer[T])(implicit s: Schedul
   private[this] val observer = SafeObserver(underlying)
   private[this] val lock = SpinLock()
 
-  // MUST BE lock.enter by `self`, only available if isConnected == false
+  // MUST BE synchronized by `lock`, only available if isConnected == false
   private[this] var queue = mutable.ArrayBuffer.empty[T]
-  // MUST BE lock.enter by `self`, only available if isConnected == false
+  // MUST BE synchronized by `lock`, only available if isConnected == false
   private[this] var scheduledDone = false
-  // MUST BE lock.enter by `self`, only available if isConnected == false
+  // MUST BE synchronized by `lock`, only available if isConnected == false
   private[this] var scheduledError = null : Throwable
-  // MUST BE lock.enter by `self`
+  // MUST BE synchronized by `lock`
   private[this] var isConnectionStarted = false
+  // MUST BE synchronized by `lock`, as long as isConnected == false
+  private[this] var wasCanceled = false
 
   // Promise guaranteed to be fulfilled once isConnected is
   // seen as true and used for back-pressure.
-  // MUST BE lock.enter by `self`, only available if isConnected == false
-  private[this] var connectedPromise = Promise[Ack]()
+  // MUST BE synchronized by `lock`, only available if isConnected == false
+  private[this] val connectedPromise = Promise[Ack]()
   private[this] var connectedFuture = connectedPromise.future
 
   // Volatile that is set to true once the buffer is drained.
@@ -89,39 +91,51 @@ final class ConnectableObserver[-T](underlying: Observer[T])(implicit s: Schedul
         isConnectionStarted = true
 
         Observable.from(queue).unsafeSubscribe(new Observer[T] {
-          def onNext(elem: T) =
-            observer.onNext(elem).onCancelDoCancel(connectedPromise)
+          private[this] var lastAck = Continue : Future[Ack]
+          private[this] val bufferWasDrained = Promise[Ack]()
 
-          def onError(ex: Throwable) = lock.enter {
-            if (!isConnected) {
-              if (connectedPromise.trySuccess(Cancel))
+          bufferWasDrained.future.onSuccess {
+            case Continue =>
+              connectedPromise.success(Continue)
+              isConnected = true
+              queue = null // gc relief
+            case Cancel =>
+              wasCanceled = true
+              connectedPromise.success(Cancel)
+              isConnected = true
+              queue = null // gc relief
+          }
+
+          def onNext(elem: T): Future[Ack] = {
+            lastAck = observer.onNext(elem)
+              .ifCancelTryCanceling(bufferWasDrained)
+            lastAck
+          }
+
+          def onComplete(): Unit = {
+            if (!scheduledDone) {
+              bufferWasDrained.tryCompleteWith(lastAck)
+            }
+            else if (scheduledError ne null) {
+              if (bufferWasDrained.trySuccess(Cancel))
+                observer.onError(scheduledError)
+            }
+            else if (bufferWasDrained.trySuccess(Cancel))
+              observer.onComplete()
+          }
+
+          def onError(ex: Throwable): Unit = {
+            if (scheduledError ne null)
+              s.reportFailure(ex)
+            else {
+              scheduledDone = true
+              scheduledError = ex
+              if (bufferWasDrained.trySuccess(Cancel))
                 observer.onError(ex)
-            }
-          }
-
-          def onComplete() = lock.enter {
-            if (!isConnected) {
-              if (scheduledDone) {
-                if (connectedPromise.trySuccess(Cancel)) {
-                  if (scheduledError ne null)
-                    observer.onError(scheduledError)
-                  else {
-                    observer.onComplete()
-                  }
-                }
-              }
               else
-                connectedPromise.trySuccess(Continue)
+                s.reportFailure(ex)
             }
           }
-        })
-
-        connectedPromise.future.onComplete(_ => lock.enter {
-          queue = null // for garbage collecting purposes
-          scheduledError = null // for garbage collecting purposes
-          connectedPromise = null // for garbage collecting purposes
-          connectedFuture = null
-          isConnected = true
         })
       }
     }
@@ -162,70 +176,35 @@ final class ConnectableObserver[-T](underlying: Observer[T])(implicit s: Schedul
     }
 
   def onNext(elem: T) = {
-    if (!isConnected)
-      lock.enter {
-        // race condition guard, since connectedPromise may be null otherwise
-        if (!isConnected) {
-          val p = Promise[Ack]()
-          connectedFuture = connectedFuture.map {
-            case Cancel =>
-              p.success(Cancel)
-              Cancel
-            case Continue =>
-              p.completeWith(observer.onNext(elem))
-              Continue
-          }
-          p.future
-        }
-        else {
+    if (!isConnected) {
+      // no need for synchronization here, since this reference is initialized
+      // before the subscription happens and because it gets written only in
+      // onNext / onComplete, which are non-concurrent clauses
+      connectedFuture = connectedFuture.flatMap {
+        case Cancel => Cancel
+        case Continue =>
           observer.onNext(elem)
-        }
       }
-    else {
+      connectedFuture
+    }
+    else if (!wasCanceled) {
       // taking fast path
       observer.onNext(elem)
+    }
+    else {
+      // was canceled either during connect, or the upstream publisher
+      // sent an onNext event after onComplete / onError
+      Cancel
     }
   }
 
   def onComplete() = {
-    if (!isConnected)
-      lock.enter {
-        // race condition guard, since connectedPromise may be null otherwise
-        if (!isConnected) {
-          connectedFuture = connectedFuture.map {
-            case Cancel => Cancel
-            case Continue =>
-              observer.onComplete()
-              Cancel
-          }
-        }
-        else
-          observer.onComplete()
-      }
-    else {
-      // taking fast path
-      observer.onComplete()
-    }
+    // we cannot take a fast path here
+    connectedFuture.onContinueComplete(observer)
   }
 
   def onError(ex: Throwable) = {
-    if (!isConnected)
-      lock.enter {
-        // race condition guard, since connectedPromise may be null otherwise
-        if (!isConnected) {
-          connectedFuture = connectedFuture.map {
-            case Cancel => Cancel
-            case Continue =>
-              observer.onError(ex)
-              Cancel
-          }
-        }
-        else
-          observer.onComplete()
-      }
-    else {
-      // taking fast path
-      observer.onError(ex)
-    }
+    // we cannot take a fast path here
+    connectedFuture.onContinueComplete(observer, ex)
   }
 }

@@ -1,7 +1,6 @@
 package monifu.reactive.subjects
 
-import monifu.reactive.observables.ConnectableObservable
-import monifu.reactive.Subject
+import monifu.reactive.{ConnectableObservable, Subject}
 
 /**
  * Represents a [[monifu.reactive.Subject Subject]] that waits for

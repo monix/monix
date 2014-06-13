@@ -333,18 +333,20 @@ class ObservableOperatorsOnUnitTest extends FunSpec {
     }
 
     it("should multicast") {
-      var seen = 0
-      val completed = new CountDownLatch(1)
+      for (_ <- 0 until 1000) {
+        var seen = 0
+        val completed = new CountDownLatch(1)
 
-      val connectable = Observable.unit(1).multicast(BehaviorSubject(1))
-      connectable.doOnComplete(completed.countDown()).sum.foreach(x => seen = x)
+        val connectable = Observable.unit(1).multicast(BehaviorSubject(1))
+        connectable.doOnComplete(completed.countDown()).sum.foreach(x => seen = x)
 
-      assert(seen === 0)
-      assert(!completed.await(100, TimeUnit.MILLISECONDS), "connectable.await should have failed")
+        assert(seen === 0)
+        assert(completed.getCount === 1)
 
-      connectable.connect()
-      assert(completed.await(1, TimeUnit.SECONDS), "completed.await should have succeeded")
-      assert(seen === 2)
+        connectable.connect()
+        assert(completed.await(1, TimeUnit.SECONDS), "completed.await should have succeeded")
+        assert(seen === 2)
+      }
     }
 
     it("should publish") {

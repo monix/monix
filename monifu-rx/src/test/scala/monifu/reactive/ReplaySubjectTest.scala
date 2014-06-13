@@ -1,16 +1,18 @@
 package monifu.reactive
 
-import org.scalatest.FunSpec
+import java.util.concurrent.{CountDownLatch, TimeUnit}
+
 import monifu.concurrent.Scheduler.Implicits.global
-import monifu.reactive.subjects.ReplaySubject
 import monifu.concurrent.atomic.padded.Atomic
-import java.util.concurrent.{TimeUnit, CountDownLatch}
-import monifu.reactive.api.Ack.{Cancel, Continue}
-import scala.concurrent.{Future, Await}
-import concurrent.duration._
 import monifu.concurrent.extensions._
-import monifu.reactive.observers.ConcurrentObserver
+import monifu.reactive.api.Ack.{Cancel, Continue}
 import monifu.reactive.channels.ReplayChannel
+import monifu.reactive.observers.ConcurrentObserver
+import monifu.reactive.subjects.ReplaySubject
+import org.scalatest.FunSpec
+
+import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
 
 
 class ReplaySubjectTest extends FunSpec {
@@ -371,6 +373,77 @@ class ReplaySubjectTest extends FunSpec {
       subject1Complete.await(3, TimeUnit.SECONDS)
 
       assert(sum1 === 3)
+    }
+
+    it("should handle the stress when adding subscribers, test 1") {
+      val subject = ReplaySubject[Int]()
+      val latch = new CountDownLatch(1000)
+      val sum = Atomic(0)
+
+      val obs = Observable.repeat(1,2).take(10000).multicast(subject)
+      val cancelable = obs.connect()
+
+      for (_ <- 0 until 1000)
+        obs.take(2).subscribe(new Observer[Int] {
+          private[this] var received = Vector.empty[Int]
+          def onNext(elem: Int) = {
+            received = received :+ elem
+            sum += elem
+            Continue
+          }
+
+          def onComplete(): Unit = {
+            if (received.sum != 3)
+              println(received)
+            latch.countDown()
+          }
+
+          def onError(ex: Throwable): Unit =
+            global.reportFailure(ex)
+        })
+
+      try {
+        assert(latch.await(30, TimeUnit.SECONDS), "latch.await should have completed")
+        assert(sum.get === 3 * 1000)
+      }
+      finally {
+        cancelable.cancel()
+      }
+    }
+
+    it("should handle the stress when adding subscribers, test 2") {
+      val subject = ReplaySubject[Int]()
+      val latch = new CountDownLatch(1000)
+      val sum = Atomic(0)
+
+      val obs = Observable.repeat(1,2).take(10000).multicast(subject)
+      for (_ <- 0 until 1000)
+        obs.take(2).subscribe(new Observer[Int] {
+          private[this] var received = Vector.empty[Int]
+          def onNext(elem: Int) = {
+            received = received :+ elem
+            sum += elem
+            Continue
+          }
+
+          def onComplete(): Unit = {
+            if (received.sum != 3)
+              println(received)
+            latch.countDown()
+          }
+
+          def onError(ex: Throwable): Unit =
+            global.reportFailure(ex)
+        })
+
+      val cancelable = obs.connect()
+      try {
+        assert(latch.await(30, TimeUnit.SECONDS), "latch.await should have completed")
+        assert(sum.get === 3 * 1000)
+      }
+      finally {
+        cancelable.cancel()
+      }
     }
   }
 }
