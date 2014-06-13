@@ -29,6 +29,43 @@ package object internals {
           }
       }
 
+    def onContinueComplete[T](observer: Observer[T], ex: Throwable = null)(implicit ec: ExecutionContext): Unit =
+      source match {
+        case sync if sync.isCompleted =>
+          if (sync === Continue || ((sync !== Cancel) && sync.value.get === Continue.IsSuccess)) {
+            var streamError = true
+            try {
+              if (ex eq null)
+                observer.onComplete()
+              else {
+                streamError = false
+                observer.onError(ex)
+              }
+            }
+            catch {
+              case NonFatal(err) =>
+                if (streamError) observer.onError(ex) else ec.reportFailure(err)
+            }
+          }
+        case async =>
+          async.onSuccess {
+            case Continue =>
+              var streamError = true
+              try {
+                if (ex eq null)
+                  observer.onComplete()
+                else {
+                  streamError = false
+                  observer.onError(ex)
+                }
+              }
+              catch {
+                case NonFatal(err) =>
+                  if (streamError) observer.onError(ex) else ec.reportFailure(err)
+              }
+          }
+      }
+
     /**
      * On Cancel, triggers Continue on the given Promise.
      */
@@ -57,9 +94,9 @@ package object internals {
     }
 
     /**
-     * On Cancel, triggers Cancel on the given Promise.
+     * On Cancel, try to trigger Cancel on the given Promise.
      */
-    def onCancelDoCancel(p: Promise[Ack])(implicit ec: ExecutionContext): Future[Ack] = {
+    def ifCancelTryCanceling(p: Promise[Ack])(implicit ec: ExecutionContext): Future[Ack] = {
       source match {
         case Continue => // do nothing
         case Cancel => p.trySuccess(Cancel)
@@ -86,6 +123,38 @@ package object internals {
       }
       source
     }
+
+    /**
+     * On Cancel, try to trigger Cancel on the given Promise.
+     */
+    def ifCanceledDoCancel(p: Promise[Ack])(implicit ec: ExecutionContext): Future[Ack] = {
+      source match {
+        case Continue => // do nothing
+        case Cancel => p.success(Cancel)
+
+        case sync if sync.isCompleted =>
+          sync.value.get match {
+            case Continue.IsSuccess => // do nothing
+            case Cancel.IsSuccess => p.success(Cancel)
+            case Failure(ex) => p.failure(ex)
+            case other =>
+              // branch not necessary, but Scala's compiler emits warnings if missing
+              ec.reportFailure(new MatchError(other.toString))
+          }
+
+        case async =>
+          async.onComplete {
+            case Continue.IsSuccess => // nothing
+            case Cancel.IsSuccess => p.success(Cancel)
+            case Failure(ex) => p.failure(ex)
+            case other =>
+              // branch not necessary, but Scala's compiler emits warnings if missing
+              ec.reportFailure(new MatchError(other.toString))
+          }
+      }
+      source
+    }
+
 
     /**
      * Unsafe version of `onComplete` that triggers execution synchronously

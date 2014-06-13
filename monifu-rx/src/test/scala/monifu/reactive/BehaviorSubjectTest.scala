@@ -326,7 +326,7 @@ class BehaviorSubjectTest extends FunSpec {
       assert(latch.await(5, TimeUnit.SECONDS), "latch.await should have succeeded")
       assert(onNextReceived.get === 7)
     }
-    
+
     it("should emit in parallel") {
       val subject = BehaviorSubject[Int](1)
       val channel = ConcurrentObserver(subject)
@@ -376,6 +376,71 @@ class BehaviorSubjectTest extends FunSpec {
       assert(subject1Complete.await(3, TimeUnit.SECONDS), "subject1Complete.await should have succeeded")
 
       assert(sum1 === 3)
+    }
+
+    it("should handle the stress when adding subscribers, test 1") {
+      val subject = BehaviorSubject[Int](0)
+      val latch = new CountDownLatch(10000)
+      val sum = Atomic(0)
+
+      val obs = Observable.repeat(1,2).multicast(subject)
+      val cancelable = obs.connect()
+
+      for (_ <- 0 until 10000)
+        obs.dropWhile(_ == 0).take(2).subscribe(new Observer[Int] {
+          def onNext(elem: Int) = {
+            sum += elem
+            Continue
+          }
+
+          def onComplete(): Unit = {
+            latch.countDown()
+          }
+
+          def onError(ex: Throwable): Unit =
+            global.reportFailure(ex)
+        })
+
+      try {
+        assert(latch.await(30, TimeUnit.SECONDS), "latch.await should have completed")
+        assert(sum.get === (0 until 10000).map(_ => 3).sum)
+      }
+      finally {
+        cancelable.cancel()
+      }
+    }
+
+    it("should handle the stress when adding subscribers, test 2") {
+      val latch = new CountDownLatch(10000)
+      val obs = Observable(1,2).behavior(0)
+      val sum = Atomic(0)
+
+      for (_ <- 0 until 10000)
+        obs.dropWhile(_ == 0).take(2).subscribe(new Observer[Int] {
+          private[this] var received = 0
+
+          def onNext(elem: Int) = {
+            received += elem
+            sum += elem
+            Continue
+          }
+
+          def onComplete(): Unit = {
+            latch.countDown()
+          }
+
+          def onError(ex: Throwable): Unit =
+            global.reportFailure(ex)
+        })
+
+      val cancelable = obs.connect()
+      try {
+        assert(latch.await(30, TimeUnit.SECONDS), "latch.await should have completed")
+        assert(sum.get === (0 until 10000).map(_ => 3).sum)
+      }
+      finally {
+        cancelable.cancel()
+      }
     }
   }
 }

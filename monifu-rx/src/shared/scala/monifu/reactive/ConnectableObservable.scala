@@ -1,7 +1,6 @@
-package monifu.reactive.observables
+package monifu.reactive
 
 import monifu.concurrent.cancelables.BooleanCancelable
-import monifu.reactive.Observable
 
 /**
  * Represents an [[monifu.reactive.Observable Observable]] that waits for

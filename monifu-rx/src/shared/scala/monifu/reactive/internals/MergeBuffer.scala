@@ -1,8 +1,11 @@
 package monifu.reactive.internals
 
+import monifu.concurrent.atomic.Atomic
+import monifu.reactive.api.BufferPolicy.{OverflowTriggering, Unbounded}
 import monifu.reactive.{Observable, Observer}
-import monifu.reactive.observers.BufferedObserver
+import monifu.reactive.observers.{SynchronousBufferedObserver, SynchronousObserver, BufferedObserver}
 import monifu.reactive.api.{Ack, BufferPolicy}
+import scala.annotation.tailrec
 import scala.concurrent.{Promise, Future}
 import monifu.reactive.api.Ack.{Cancel, Continue}
 import monifu.concurrent.Scheduler
@@ -10,8 +13,10 @@ import scala.util.control.NonFatal
 import monifu.concurrent.locks.SpinLock
 
 
-final class MergeBuffer[U](downstream: Observer[U], mergeBatchSize: Int, bufferPolicy: BufferPolicy)(implicit scheduler: Scheduler)
+private[monifu] final class BoundedMergeBuffer[U](downstream: Observer[U], mergeBatchSize: Int, bufferPolicy: BufferPolicy)(implicit scheduler: Scheduler)
   extends Observer[U] { self =>
+
+  require(mergeBatchSize > 0, "mergeBatchSize must be strictly positive")
 
   private[this] val lock = SpinLock()
   private[this] val buffer = BufferedObserver(downstream, bufferPolicy)
@@ -91,6 +96,81 @@ final class MergeBuffer[U](downstream: Observer[U], mergeBatchSize: Int, bufferP
       else if (activeStreams > 0) {
         activeStreams -= 1
       }
+    }
+  }
+}
+
+private[monifu] final class UnboundedMergeBuffer[U](downstream: Observer[U], bufferPolicy: BufferPolicy)(implicit scheduler: Scheduler)
+  extends SynchronousObserver[U] { self =>
+
+  private[this] val activeStreams = Atomic(1)
+  private[this] val buffer = bufferPolicy match {
+    case Unbounded =>
+      SynchronousBufferedObserver.unbounded(downstream)
+    case OverflowTriggering(bufferSize) =>
+      SynchronousBufferedObserver.overflowTriggering(downstream, bufferSize)
+    case _ =>
+      throw new IllegalArgumentException(bufferPolicy.toString)
+  }
+
+  @tailrec
+  def merge(upstream: Observable[U]): Ack =
+    activeStreams.get match {
+      case current if current > 0 =>
+        if (!activeStreams.compareAndSet(current, current + 1))
+          merge(upstream)
+        else try {
+          upstream.unsafeSubscribe(self)
+          Continue
+        }
+        catch {
+          case NonFatal(ex) =>
+            self.onError(ex)
+            Cancel
+        }
+
+      case _ =>
+        // we are done, so we must cancel upstream
+        Cancel
+    }
+
+  private[this] def cancelStreamingNow(signalError: Throwable = null): Unit = {
+    val current = activeStreams.get
+    if (current > 0) {
+      if (!activeStreams.compareAndSet(current, 0))
+        cancelStreamingNow(signalError)
+      else if (signalError ne null)
+        buffer.onError(signalError)
+    }
+  }
+
+  def onNext(elem: U) =
+    buffer.onNext(elem) match {
+      case Continue => Continue
+      case Cancel =>
+        cancelStreamingNow()
+        Cancel
+    }
+
+  def onError(ex: Throwable) = {
+    cancelStreamingNow(ex)
+  }
+
+  @tailrec
+  def onComplete() = {
+    activeStreams.get match {
+      case current if current == 1 =>
+        if (!activeStreams.compareAndSet(current, 0))
+          onComplete()
+        else
+          buffer.onComplete()
+
+      case current if current > 0 =>
+        if (!activeStreams.compareAndSet(current, current - 1))
+          onComplete()
+
+      case _ =>
+        // do nothing else
     }
   }
 }

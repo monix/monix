@@ -1,7 +1,7 @@
 package monifu.reactive
 
-import scala.concurrent.Future
 import monifu.reactive.api.Ack
+import scala.concurrent.Future
 
 /**
  * The Observer from the Rx pattern is the trio of callbacks that
@@ -22,3 +22,5 @@ trait Observer[-T] {
 
   def onComplete(): Unit
 }
+
+

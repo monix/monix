@@ -1,17 +1,19 @@
 package monifu.reactive
 
-import org.scalatest.FunSpec
-import monifu.reactive.api.Ack
-import scala.concurrent.Future
-import monifu.reactive.api.Ack.{Cancel, Continue}
-import monifu.concurrent.Scheduler.Implicits.global
 import java.util.concurrent.{TimeUnit, CountDownLatch}
-import monifu.reactive.observers.{ConcurrentObserver, ConnectableObserver}
+
+import monifu.reactive.api.Ack
+import monifu.reactive.api.Ack.{Cancel, Continue}
+import monifu.reactive.observers.{ConnectableObserver, ConcurrentObserver}
+import org.scalatest.FunSpec
+import monifu.concurrent.Scheduler.Implicits.global
+import scala.concurrent.Future
+
 
 class ConnectableObserverTest extends FunSpec {
   describe("ConnectableObserver") {
     it("should work when connecting before the streaming started") {
-      for (i <- 0 until 100) {
+      for (i <- 0 until 10000) {
         val latch = new CountDownLatch(1)
         var sum = 0
 
@@ -294,7 +296,7 @@ class ConnectableObserverTest extends FunSpec {
         }
       })
 
-      Observable.range(0, 100000).observeOn(global).subscribe(obs)
+      Observable.from(0 until 100000).observeOn(global).subscribe(obs)
       obs.pushNext(0 until 1000 : _*)
       obs.connect()
 
@@ -356,7 +358,7 @@ class ConnectableObserverTest extends FunSpec {
     }
 
     it("should handle onNext==Cancel after draining the queue") {
-      for (_ <- 0 until 100) {
+      for (_ <- 0 until 10000) {
         val streamStarted = new CountDownLatch(1)
         val completed = new CountDownLatch(1)
         var sum = 0
@@ -373,6 +375,7 @@ class ConnectableObserverTest extends FunSpec {
               Cancel
             }
           }
+
           def onError(ex: Throwable): Unit = {
             throw new IllegalStateException(s"onError($ex)")
           }
@@ -392,38 +395,42 @@ class ConnectableObserverTest extends FunSpec {
     }
 
     it("should handle onNext==Cancel in connect()") {
-      for (_ <- 0 until 100) {
+      for (_ <- 0 until 10000) {
         val streamStarted = new CountDownLatch(1)
         val completed = new CountDownLatch(1)
         var sum = 0
 
         val obs = new ConnectableObserver[Int](new Observer[Int] {
           def onNext(elem: Int): Future[Ack] = {
+            sum += elem
+
             if (elem < 10) {
-              sum += elem
               Continue
             }
-            else {
-              assert(completed.getCount === 1)
+            else if (elem == 10) {
               completed.countDown()
               Cancel
             }
+            else
+              throw new IllegalStateException("Received illegal onNext($elem)")
           }
+
           def onError(ex: Throwable): Unit = {
             throw new IllegalStateException(s"onError($ex)")
           }
+
           def onComplete(): Unit = {
             throw new IllegalStateException("onComplete")
           }
         })
 
         obs.pushNext(0 until 20 : _*)
-        Observable.range(0, 1000).doOnStart(_ => streamStarted.countDown()).subscribe(obs)
+        Observable.range(100, 1000).doOnStart(_ => streamStarted.countDown()).subscribe(obs)
         assert(streamStarted.await(10, TimeUnit.SECONDS), "streamStarted.await should have succeeded")
 
         obs.connect()
         assert(completed.await(10, TimeUnit.SECONDS), "completed.await should have succeeded")
-        assert(sum === (0 until 10).sum)
+        assert(sum === (0 to 10).sum)
       }
     }
 
@@ -513,6 +520,505 @@ class ConnectableObserverTest extends FunSpec {
 
       Observable.range(1000, 100000).observeOn(global).subscribe(obs)
       assert(completed.await(10, TimeUnit.SECONDS), "completed.await should have succeeded")
+    }
+
+    it("should emit single element before connect and single element after connect, test 1") {
+      for (_ <- 0 until 10000) {
+        val completed = new CountDownLatch(1)
+        var sum = 0
+
+        val obs = new ConnectableObserver[Int](new Observer[Int] {
+          def onNext(elem: Int): Future[Ack] = {
+            sum += elem
+            Continue
+          }
+
+          def onError(ex: Throwable): Unit = {
+            global.reportFailure(ex)
+          }
+
+          def onComplete(): Unit = {
+            completed.countDown()
+          }
+        })
+
+        global.scheduleOnce {
+          obs.pushNext(1)
+          obs.connect()
+        }
+
+        global.scheduleOnce {
+          obs.onNext(2)
+          obs.onComplete()
+        }
+
+        assert(completed.await(2, TimeUnit.SECONDS), "completed.await should have succeeded")
+        assert(sum === 3)
+      }
+    }
+
+    it("should emit single element before connect and single element after connect, test 2") {
+      for (_ <- 0 until 10000) {
+        val completed = new CountDownLatch(1)
+        var sum = 0
+
+        val obs = new ConnectableObserver[Int](new Observer[Int] {
+          def onNext(elem: Int): Future[Ack] = {
+            sum += elem
+            Continue
+          }
+
+          def onError(ex: Throwable): Unit = {
+            global.reportFailure(ex)
+          }
+
+          def onComplete(): Unit = {
+            completed.countDown()
+          }
+        })
+
+        obs.pushNext(1)
+        obs.connect()
+        obs.onNext(2)
+        obs.onComplete()
+
+        assert(completed.await(2, TimeUnit.SECONDS), "completed.await should have succeeded")
+        assert(sum === 3)
+      }
+    }
+
+    it("should emit single element before connect and single element after connect, test 3") {
+      for (_ <- 0 until 10000) {
+        val completed = new CountDownLatch(1)
+        var sum = 0
+
+        val obs = new ConnectableObserver[Int](new Observer[Int] {
+          def onNext(elem: Int): Future[Ack] = {
+            sum += elem
+            Continue
+          }
+
+          def onError(ex: Throwable): Unit = {
+            global.reportFailure(ex)
+          }
+
+          def onComplete(): Unit = {
+            completed.countDown()
+          }
+        })
+
+        obs.pushNext(1)
+        obs.onNext(2)
+        obs.connect()
+        obs.onComplete()
+
+        assert(completed.await(2, TimeUnit.SECONDS), "completed.await should have succeeded")
+        assert(sum === 3)
+      }
+    }
+
+    it("should close connection before connect, test 1") {
+      for (_ <- 0 until 10000) {
+        val completed = new CountDownLatch(1)
+        var seen = 0
+
+        val obs = new ConnectableObserver[Int](new Observer[Int] {
+          def onNext(elem: Int): Future[Ack] = {
+            assert(completed.getCount === 1)
+            seen += elem
+            Continue
+          }
+
+          def onError(ex: Throwable): Unit = {
+            throw new IllegalStateException(s"onError($ex) should not happen")
+          }
+
+          def onComplete(): Unit = {
+            completed.countDown()
+          }
+        })
+
+        global.scheduleOnce {
+          obs.pushNext(1)
+          obs.pushNext(2)
+          obs.pushComplete()
+          obs.connect()
+        }
+
+        global.scheduleOnce {
+          obs.onError(new RuntimeException("dummy"))
+        }
+
+        assert(completed.await(2, TimeUnit.SECONDS), "completed.await should have succeeded")
+        assert(seen === 3)
+      }
+    }
+
+    it("should close connection before connect, test 2") {
+      for (_ <- 0 until 10000) {
+        val completed = new CountDownLatch(1)
+        var seen = 0
+
+        val obs = new ConnectableObserver[Int](new Observer[Int] {
+          def onNext(elem: Int): Future[Ack] = {
+            assert(completed.getCount === 1)
+            seen += elem
+            Continue
+          }
+
+          def onError(ex: Throwable): Unit = {
+            throw new IllegalStateException(s"onError($ex) should not happen")
+          }
+
+          def onComplete(): Unit = {
+            completed.countDown()
+          }
+        })
+
+        global.scheduleOnce {
+          obs.pushNext(1)
+          obs.pushNext(2)
+          obs.pushComplete()
+          obs.connect()
+        }
+
+        global.scheduleOnce {
+          obs.onComplete()
+        }
+
+        assert(completed.await(2, TimeUnit.SECONDS), "completed.await should have succeeded")
+        assert(seen === 3)
+      }
+    }
+
+    it("should close connection before connect, test 3") {
+      for (_ <- 0 until 10000) {
+        val completed = new CountDownLatch(1)
+        var seen = 0
+
+        val obs = new ConnectableObserver[Int](new Observer[Int] {
+          def onNext(elem: Int): Future[Ack] = {
+            assert(completed.getCount === 1)
+            seen += elem
+            Continue
+          }
+
+          def onError(ex: Throwable): Unit = {
+            throw new IllegalStateException(s"onError($ex) should not happen")
+          }
+
+          def onComplete(): Unit = {
+            completed.countDown()
+          }
+        })
+
+        global.scheduleOnce {
+          obs.pushNext(1)
+          obs.pushNext(2)
+          obs.pushComplete()
+          obs.connect()
+        }
+
+        global.scheduleOnce {
+          obs.onNext(4)
+          obs.onComplete()
+        }
+
+        assert(completed.await(2, TimeUnit.SECONDS), "completed.await should have succeeded")
+        assert(seen === 3)
+      }
+    }
+
+    it("should close connection before connect, test 4") {
+      for (_ <- 0 until 10000) {
+        val completed = new CountDownLatch(1)
+        var seen = 0
+
+        val obs = new ConnectableObserver[Int](new Observer[Int] {
+          def onNext(elem: Int): Future[Ack] = {
+            assert(completed.getCount === 1)
+            seen += elem
+            Continue
+          }
+
+          def onError(ex: Throwable): Unit = {
+            assert(ex.getMessage === "dummy")
+            completed.countDown()
+          }
+
+          def onComplete(): Unit = {
+            throw new IllegalStateException("onComplete should not happen")
+          }
+        })
+
+        global.scheduleOnce {
+          obs.pushNext(1)
+          obs.pushNext(2)
+          obs.pushError(new RuntimeException("dummy"))
+          obs.connect()
+        }
+
+        global.scheduleOnce {
+          obs.onNext(4)
+          obs.onComplete()
+        }
+
+        assert(completed.await(2, TimeUnit.SECONDS), "completed.await should have succeeded")
+        assert(seen === 3)
+      }
+    }
+
+    it("should close connection before connect, test 5") {
+      for (_ <- 0 until 10000) {
+        val completed = new CountDownLatch(1)
+        var seen = 0
+
+        val obs = new ConnectableObserver[Int](new Observer[Int] {
+          def onNext(elem: Int): Future[Ack] = {
+            assert(completed.getCount === 1)
+            seen += elem
+            Continue
+          }
+
+          def onError(ex: Throwable): Unit = {
+            assert(ex.getMessage === "dummy")
+            completed.countDown()
+          }
+
+          def onComplete(): Unit = {
+            throw new IllegalStateException("onComplete should not happen")
+          }
+        })
+
+        global.scheduleOnce {
+          obs.pushNext(1)
+          obs.pushNext(2)
+          obs.pushError(new RuntimeException("dummy"))
+          obs.connect()
+        }
+
+        global.scheduleOnce {
+          obs.onComplete()
+        }
+
+        assert(completed.await(2, TimeUnit.SECONDS), "completed.await should have succeeded")
+        assert(seen === 3)
+      }
+    }
+
+    it("should close connection before connect, test 6") {
+      for (_ <- 0 until 10000) {
+        val completed = new CountDownLatch(1)
+        var seen = 0
+
+        val obs = new ConnectableObserver[Int](new Observer[Int] {
+          def onNext(elem: Int): Future[Ack] = {
+            assert(completed.getCount === 1)
+            seen += elem
+            Continue
+          }
+
+          def onError(ex: Throwable): Unit = {
+            assert(ex.getMessage === "dummy")
+            completed.countDown()
+          }
+
+          def onComplete(): Unit = {
+            throw new IllegalStateException("onComplete should not happen")
+          }
+        })
+
+        global.scheduleOnce {
+          obs.pushNext(1)
+          obs.pushNext(2)
+          obs.pushError(new RuntimeException("dummy"))
+          obs.connect()
+        }
+
+        global.scheduleOnce {
+          obs.onError(new RuntimeException("dummy2"))
+        }
+
+        assert(completed.await(2, TimeUnit.SECONDS), "completed.await should have succeeded")
+        assert(seen === 3)
+      }
+    }
+
+    it("should close connection before connect, test 7") {
+      for (_ <- 0 until 10000) {
+        val completed = new CountDownLatch(1)
+        var seen = 0
+
+        val obs = new ConnectableObserver[Int](new Observer[Int] {
+          def onNext(elem: Int): Future[Ack] = {
+            assert(completed.getCount === 1)
+            seen += elem
+            Continue
+          }
+
+          def onError(ex: Throwable): Unit = {
+            assert(ex.getMessage === "dummy")
+            completed.countDown()
+          }
+
+          def onComplete(): Unit = {
+            throw new IllegalStateException("onComplete should not happen")
+          }
+        })
+
+        global.scheduleOnce {
+          obs.pushNext(1)
+          obs.pushNext(2)
+          obs.pushError(new RuntimeException("dummy"))
+          obs.connect()
+        }
+
+        global.scheduleOnce {
+          obs.onNext(1)
+          obs.onError(new RuntimeException("dummy2"))
+        }
+
+        assert(completed.await(2, TimeUnit.SECONDS), "completed.await should have succeeded")
+        assert(seen === 3)
+      }
+    }
+
+    it("should emit single element before connect and single element after connect, followed by error, test 1") {
+      for (_ <- 0 until 10000) {
+        val completed = new CountDownLatch(1)
+        var seen = 0
+
+        val obs = new ConnectableObserver[Int](new Observer[Int] {
+          def onNext(elem: Int): Future[Ack] = {
+            assert(completed.getCount === 1)
+            seen = elem
+            Continue
+          }
+
+          def onError(ex: Throwable): Unit = {
+            assert(ex.getMessage === "dummy")
+            completed.countDown()
+          }
+
+          def onComplete(): Unit = {
+            throw new IllegalStateException("onComplete should not happen")
+          }
+        })
+
+        obs.pushNext(1)
+        obs.onNext(2)
+        obs.connect()
+        obs.onError(new RuntimeException("dummy"))
+
+        assert(completed.await(2, TimeUnit.SECONDS), "completed.await should have succeeded")
+        assert(seen > 0)
+      }
+    }
+
+    it("should emit single element before connect and single element after connect, followed by error, test 2") {
+      for (_ <- 0 until 10000) {
+        val completed = new CountDownLatch(1)
+        var seen = 0
+
+        val obs = new ConnectableObserver[Int](new Observer[Int] {
+          def onNext(elem: Int): Future[Ack] = {
+            assert(completed.getCount === 1)
+            seen = elem
+            Continue
+          }
+
+          def onError(ex: Throwable): Unit = {
+            assert(ex.getMessage === "dummy")
+            completed.countDown()
+          }
+
+          def onComplete(): Unit = {
+            throw new IllegalStateException("onComplete should not happen")
+          }
+        })
+
+        obs.pushNext(1)
+        obs.connect()
+
+        obs.onNext(2)
+        obs.onError(new RuntimeException("dummy"))
+
+        assert(completed.await(2, TimeUnit.SECONDS), "completed.await should have succeeded")
+        assert(seen > 0)
+      }
+    }
+
+    it("should emit single element before connect and single element after connect, followed by error, test 3") {
+      for (_ <- 0 until 10000) {
+        val completed = new CountDownLatch(1)
+        var seen = 0
+
+        val obs = new ConnectableObserver[Int](new Observer[Int] {
+          def onNext(elem: Int): Future[Ack] = {
+            assert(completed.getCount === 1)
+            seen = elem
+            Continue
+          }
+
+          def onError(ex: Throwable): Unit = {
+            assert(ex.getMessage === "dummy")
+            completed.countDown()
+          }
+
+          def onComplete(): Unit = {
+            throw new IllegalStateException("onComplete should not happen")
+          }
+        })
+
+        global.scheduleOnce {
+          obs.pushNext(1)
+          obs.connect()
+        }
+
+        global.scheduleOnce {
+          obs.onNext(2)
+          obs.onError(new RuntimeException("dummy"))
+        }
+
+        assert(completed.await(2, TimeUnit.SECONDS), "completed.await should have succeeded")
+        assert(seen > 0)
+      }
+    }
+
+    it("should emit single element before connect, followed by error after connect") {
+      for (_ <- 0 until 10000) {
+        val completed = new CountDownLatch(1)
+        var seen = 0
+
+        val obs = new ConnectableObserver[Int](new Observer[Int] {
+          def onNext(elem: Int): Future[Ack] = {
+            assert(completed.getCount === 1)
+            seen = elem
+            Continue
+          }
+
+          def onError(ex: Throwable): Unit = {
+            assert(ex.getMessage === "dummy")
+            completed.countDown()
+          }
+
+          def onComplete(): Unit = {
+            throw new IllegalStateException("onComplete should not happen")
+          }
+        })
+
+        global.scheduleOnce {
+          obs.pushNext(1)
+          obs.connect()
+        }
+
+        global.scheduleOnce {
+          obs.onError(new RuntimeException("dummy"))
+        }
+
+        assert(completed.await(2, TimeUnit.SECONDS), "completed.await should have succeeded")
+        assert(seen > 0)
+      }
     }
   }
 }

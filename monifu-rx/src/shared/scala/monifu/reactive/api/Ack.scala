@@ -8,7 +8,7 @@ import scala.concurrent.duration.Duration
  * Represents the acknowledgement of processing that a consumer
  * sends back upstream on `Observer.onNext`
  */
-sealed trait Ack
+sealed trait Ack extends Future[Ack]
 
 object Ack {
   /**
