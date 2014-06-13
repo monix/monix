@@ -87,7 +87,7 @@ class TrampolineSchedulerTest extends FunSuite {
       }
     })
 
-    assert(Await.result(p.future, 1.second) === 4)
+    assert(Await.result(p.future, 10.second) === 4)
   }
 
   test("immediate execution happens") {
