@@ -1,52 +1,55 @@
 package monifu.reactive
 
-import org.scalatest.FunSpec
+import java.util.concurrent.{CountDownLatch, TimeUnit}
+
 import monifu.concurrent.Scheduler.Implicits.global
-import monifu.reactive.subjects.BehaviorSubject
 import monifu.concurrent.atomic.padded.Atomic
-import java.util.concurrent.{TimeUnit, CountDownLatch}
 import monifu.reactive.api.Ack.{Cancel, Continue}
-import scala.concurrent.{Future, Await}
-import concurrent.duration._
-import monifu.concurrent.extensions._
 import monifu.reactive.observers.ConcurrentObserver
+import monifu.reactive.subjects.BehaviorSubject
+import org.scalatest.FunSpec
+import scala.concurrent.{Await, Future}
+import scala.concurrent.duration._
+import monifu.concurrent.extensions._
 
 
 class BehaviorSubjectTest extends FunSpec {
   describe("BehaviorSubject") {
     it("should work over asynchronous boundaries") {
-      val result1 = Atomic(0)
-      val result2 = Atomic(0)
+      for (_ <- 0 until 100) {
+        val result1 = Atomic(0)
+        val result2 = Atomic(0)
 
-      val subject = BehaviorSubject[Int](10)
-      val channel = ConcurrentObserver(subject)
+        val subject = BehaviorSubject[Int](10)
+        val channel = ConcurrentObserver(subject)
 
-      val completed = new CountDownLatch(2)
-      val barrier = new CountDownLatch(1)
+        val completed = new CountDownLatch(2)
+        val barrier = new CountDownLatch(1)
 
-      subject.filter(x => x % 2 == 0)
-        .flatMap(x => Observable.from(x to x + 1))
-        .doWork(x => if (x == 99) barrier.countDown())
-        .foldLeft(0)(_ + _)
-        .doOnComplete(completed.countDown())
-        .foreach(x => result1.set(x))
+        subject
+          .doWork(x => if (x == 99) barrier.countDown())
+          .filter(x => x % 2 == 0)
+          .flatMap(x => Observable.from(x to x + 1))
+          .foldLeft(0)(_ + _)
+          .foreach { x => result1.set(x); completed.countDown() }
 
-      for (i <- 0 until 100) channel.onNext(i)
-      assert(barrier.await(10, TimeUnit.SECONDS), "barrier.await should have succeeded")
+        for (i <- 0 until 100) channel.onNext(i)
+        assert(barrier.await(10, TimeUnit.SECONDS), "barrier.await should have succeeded")
 
-      subject.filter(x => x % 2 == 0)
-        .flatMap(x => Observable.from(x to x + 1))
-        .foldLeft(0)(_ + _)
-        .doOnComplete(completed.countDown())
-        .foreach(x => result2.set(x))
+        subject
+          .filter(x => x % 2 == 0)
+          .flatMap(x => Observable.from(x to x + 1))
+          .foldLeft(0)(_ + _)
+          .foreach { x => result2.set(x); completed.countDown() }
 
-      for (i <- 100 until 10000) channel.onNext(i)
+        for (i <- 100 until 10000) channel.onNext(i)
 
-      channel.onComplete()
-      assert(completed.await(20, TimeUnit.SECONDS), "completed.await should have succeeded")
+        channel.onComplete()
+        assert(completed.await(20, TimeUnit.SECONDS), "completed.await should have succeeded")
 
-      assert(result1.get === 21 + (0 until 10000).filter(_ % 2 == 0).flatMap(x => x to (x + 1)).sum)
-      assert(result2.get === (100 until 10000).filter(_ % 2 == 0).flatMap(x => x to (x + 1)).sum)
+        assert(result1.get === 21 + (0 until 10000).filter(_ % 2 == 0).flatMap(x => x to (x + 1)).sum)
+        assert(result2.get === (100 until 10000).filter(_ % 2 == 0).flatMap(x => x to (x + 1)).sum)
+      }
     }
 
     it("onError should be emitted over asynchronous boundaries") {
