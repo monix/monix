@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2014 by its authors. Some rights reserved. 
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+ 
 package monifu.reactive.subjects
 
 import scala.concurrent.Future
@@ -13,7 +29,7 @@ import monifu.reactive.internals.FutureAckExtensions
 
 /**
  * `BehaviorSubject` when subscribed, will emit the most recently emitted item by the source,
- * or the `initialValue` (as the seed) in case no value has yet been emitted, the continuing
+ * or the `initialValue` (as the seed) in case no value has yet been emitted, then continuing
  * to emit events subsequent to the time of invocation.
  *
  * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/S.BehaviorSubject.png" />
