@@ -1,12 +1,12 @@
-<img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/monifu.png" align="right" />
+<img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/monifu.png" align="right" />
 
 Extensions to Scala's standard library for multi-threading primitives and functional reactive programming. Targets both the JVM and [Scala.js](http://www.scala-js.org/).
 
-[![Build Status](https://travis-ci.org/monifu/monifu.png?branch=v0.13.0)](https://travis-ci.org/alexandru/monifu)
+[![Build Status](https://travis-ci.org/monifu/monifu.png?branch=v0.13.0)](https://travis-ci.org/monifu/monifu)
 
 ## Teaser
 
-[Reactive Extensions](https://github.com/alexandru/monifu/wiki/Reactive-Extensions-(Rx))
+[Reactive Extensions](https://github.com/monifu/monifu/wiki/Reactive-Extensions-(Rx))
 
 ```scala
 import monifu.concurrent.Scheduler.Implicits.global
@@ -29,7 +29,7 @@ Observable.interval(1.second)
   .foreach(x => println(x)) 
 ```
 
-[Atomic References](https://github.com/alexandru/monifu/wiki/Atomic-References)
+[Atomic References](https://github.com/monifu/monifu/wiki/Atomic-References)
 
 ```scala
 import monifu.concurrent.atomic.Atomic
@@ -51,7 +51,7 @@ number.incrementAndGet
 //=> res: scala.math.BigInt = 2
 ```
 
-[Schedulers](https://github.com/alexandru/monifu/wiki/Schedulers)
+[Schedulers](https://github.com/monifu/monifu/wiki/Schedulers)
 
 ```scala
 import monifu.concurrent.atomic.Atomic
@@ -70,12 +70,12 @@ s.scheduleRecursive(1.second, 5.seconds, { reschedule =>
 
 ## Documentation
 
-The available documentation is maintained as a [GitHub's Wiki](https://github.com/alexandru/monifu/wiki).
+The available documentation is maintained as a [GitHub's Wiki](https://github.com/monifu/monifu/wiki).
 Work in progress.
 
-* [Reactive Extensions (Rx)](https://github.com/alexandru/monifu/wiki/Reactive-Extensions-%28Rx%29)
-* [Atomic References](https://github.com/alexandru/monifu/wiki/Atomic-References) 
-* [Schedulers](https://github.com/alexandru/monifu/wiki/Schedulers) 
+* [Reactive Extensions (Rx)](https://github.com/monifu/monifu/wiki/Reactive-Extensions-%28Rx%29)
+* [Atomic References](https://github.com/monifu/monifu/wiki/Atomic-References) 
+* [Schedulers](https://github.com/monifu/monifu/wiki/Schedulers) 
 
 API documentation:
 
@@ -84,9 +84,9 @@ API documentation:
 
 Release Notes:
 
-* [Version 0.13 - Jun 19, 2014](https://github.com/alexandru/monifu/wiki/0.13)
-* [Version 0.12 - May 31, 2014](https://github.com/alexandru/monifu/wiki/0.12)
-* [Other Releases](https://github.com/alexandru/monifu/wiki/Release-Notes)
+* [Version 0.13 - Jun 19, 2014](https://github.com/monifu/monifu/wiki/0.13)
+* [Version 0.12 - May 31, 2014](https://github.com/monifu/monifu/wiki/0.12)
+* [Other Releases](https://github.com/monifu/monifu/wiki/Release-Notes)
 
 ## Usage
 
@@ -95,7 +95,7 @@ The packages are published on Maven Central.
 Compiled for Scala 2.10 and 2.11. Also cross-compiled to
 the latest Scala.js (at the moment Scala.js 0.5.0). The targeted JDK version
 for the published packages is version 6 (see 
-[faq entry](https://github.com/alexandru/monifu/wiki/Frequently-Asked-Questions#what-javajdk-version-is-required)).
+[faq entry](https://github.com/monifu/monifu/wiki/Frequently-Asked-Questions#what-javajdk-version-is-required)).
 
 - Current stable release is: `0.13.0`
 
