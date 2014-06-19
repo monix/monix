@@ -71,8 +71,8 @@ object Build extends SbtBuild {
         </license>
       </licenses>
       <scm>
-        <url>git@github.com:alexandru/monifu.git</url>
-        <connection>scm:git:git@github.com:alexandru/monifu.git</connection>
+        <url>git@github.com:monifu/monifu.git</url>
+        <connection>scm:git:git@github.com:monifu/monifu.git</connection>
       </scm>
       <developers>
         <developer>
@@ -120,7 +120,7 @@ object Build extends SbtBuild {
     settings=sharedSettings ++ unidocSettings ++ Seq(
       unidocProjectFilter in (ScalaUnidoc, unidoc) := inProjects(monifuCore, monifuRx),
       scalacOptions in (ScalaUnidoc, sbtunidoc.Plugin.UnidocKeys.unidoc) ++=
-        Opts.doc.sourceUrl(s"https://github.com/alexandru/monifu/tree/v$projectVersion/monifu€{FILE_PATH}.scala"),
+        Opts.doc.sourceUrl(s"https://github.com/monifu/monifu/tree/v$projectVersion/monifu€{FILE_PATH}.scala"),
       scalacOptions in (ScalaUnidoc, sbtunidoc.Plugin.UnidocKeys.unidoc) ++=
         Opts.doc.title(s"Monifu"),
       scalacOptions in (ScalaUnidoc, sbtunidoc.Plugin.UnidocKeys.unidoc) ++=
