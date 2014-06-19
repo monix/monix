@@ -71,7 +71,7 @@ trait Lock extends JavaLock {
   }
 
   /**
-   * Acquires the lock. Compared to [[lockInterruptibly()]] it doesn't do any sanity checks, so used
+   * Acquires the lock. Compared to [[lockInterruptibly]] it doesn't do any sanity checks, so used
    * unwisely it may lead to deadlocks or other undesired behavior.
    *
    * If the lock is not available, then the thread waits until is able to acquire the lock.
@@ -96,7 +96,7 @@ trait Lock extends JavaLock {
 
   /**
    * Acquires the lock only if it is free at the time of invocation. Compared to
-   * [[tryLock()]] it doesn't do any sanity checks, so used
+   * [[tryLock]] it doesn't do any sanity checks, so used
    * unwisely it may lead to deadlocks or other undesired behavior.
    *
    * @return either `true` if the lock was acquired or `false` otherwise.

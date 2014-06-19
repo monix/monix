@@ -7,7 +7,7 @@ import sbtunidoc.Plugin._
 import sbtunidoc.Plugin.UnidocKeys._
 
 object Build extends SbtBuild {
-  val projectVersion = "0.13.0-RC5"
+  val projectVersion = "0.13.0"
 
   val sharedSettings = Defaults.defaultSettings ++ Seq(
     organization := "org.monifu",
@@ -34,8 +34,7 @@ object Build extends SbtBuild {
     ),
 
     scalacOptions <<= baseDirectory.map { bd => Seq("-sourcepath", bd.getAbsolutePath) },
-
-    scalacOptions in (ScalaUnidoc, unidoc) <<= baseDirectory.map { bd => 
+    scalacOptions in (ScalaUnidoc, unidoc) <<= baseDirectory.map { bd =>
       Seq(
         "-Ymacro-no-expand",
         "-sourcepath", bd.getAbsolutePath
