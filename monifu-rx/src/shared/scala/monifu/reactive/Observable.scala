@@ -35,7 +35,6 @@ import monifu.reactive.api.Notification.{OnComplete, OnError, OnNext}
 import monifu.reactive.subjects.{BehaviorSubject, PublishSubject, ReplaySubject}
 import monifu.concurrent.cancelables.{RefCountCancelable, BooleanCancelable}
 import scala.collection.mutable.ArrayBuffer
-import monifu.syntax.TypeSafeEquals
 
 /**
  * Asynchronous implementation of the Observable interface
@@ -2118,7 +2117,7 @@ object Observable {
             if (isInRange(from)) {
               observer.onNext(from) match {
                 case sync if sync.isCompleted =>
-                  if (sync === Continue || sync.value.get === Continue.IsSuccess)
+                  if (sync == Continue || sync.value.get == Continue.IsSuccess)
                     loop(from + step, until, step)
                 case async =>
                   if (isInRange(from + step))
@@ -2195,7 +2194,7 @@ object Observable {
             if (iterator.hasNext)
               ack match {
                 case sync if sync.isCompleted =>
-                  if (sync === Continue || sync.value.get === Continue.IsSuccess)
+                  if (sync == Continue || sync.value.get == Continue.IsSuccess)
                     fastLoop()
                 case async =>
                   async.onSuccess {

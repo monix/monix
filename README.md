@@ -2,8 +2,7 @@
 
 Extensions to Scala's standard library for multi-threading primitives and functional reactive programming. Targets both the JVM and [Scala.js](http://www.scala-js.org/).
 
-- [![Build Status](https://travis-ci.org/monifu/monifu.png?branch=v0.12.2)](https://travis-ci.org/alexandru/monifu) (stable version)
-- [![Build Status](https://travis-ci.org/monifu/monifu.png?branch=v0.13.0-RC5)](https://travis-ci.org/alexandru/monifu) (in-development version)
+- [![Build Status](https://travis-ci.org/monifu/monifu.png?branch=v0.13.0)](https://travis-ci.org/alexandru/monifu) (stable version)
 
 ## Feature Overview
 
@@ -72,7 +71,7 @@ s.scheduleRecursive(1.second, 5.seconds, { reschedule =>
 ## Documentation
 
 The available documentation is maintained as a [GitHub's Wiki](https://github.com/alexandru/monifu/wiki).
-Work in progress:
+Work in progress.
 
 * [Reactive Extensions (Rx)](https://github.com/alexandru/monifu/wiki/Reactive-Extensions-%28Rx%29)
 * [Atomic References](https://github.com/alexandru/monifu/wiki/Atomic-References) 
@@ -85,11 +84,8 @@ API documentation:
 
 Release Notes:
 
-* [Version 0.13 - in development](https://github.com/alexandru/monifu/wiki/0.13)
+* [Version 0.13 - Jun 19, 2014](https://github.com/alexandru/monifu/wiki/0.13)
 * [Version 0.12 - May 31, 2014](https://github.com/alexandru/monifu/wiki/0.12)
-* [Version 0.11 - May 28, 2014](https://github.com/alexandru/monifu/wiki/0.11)
-* [Version 0.10 - May 26, 2014](https://github.com/alexandru/monifu/wiki/0.10)
-* [Version 0.9 - May 23, 2014](https://github.com/alexandru/monifu/wiki/0.9)
 * [Other Releases](https://github.com/alexandru/monifu/wiki/Release-Notes)
 
 ## Usage
@@ -97,23 +93,22 @@ Release Notes:
 The packages are published on Maven Central.
 
 Compiled for Scala 2.10 and 2.11. Also cross-compiled to
-the latest Scala.js (at the moment Scala.js 0.5.0-RC1). The targeted JDK version
+the latest Scala.js (at the moment Scala.js 0.5.0). The targeted JDK version
 for the published packages is version 6 (see 
 [faq entry](https://github.com/alexandru/monifu/wiki/Frequently-Asked-Questions#what-javajdk-version-is-required)).
 
-- Current stable release is: `0.12.2`
-- In-development release: `0.13.0-RC5`
+- Current stable release is: `0.13.0`
 
 ### For the JVM
 
 ```scala
-libraryDependencies += "org.monifu" %% "monifu" % "0.12.2"
+libraryDependencies += "org.monifu" %% "monifu" % "0.13.0"
 ```
 
 ### For targeting Javascript runtimes with Scala.js
 
 ```scala
-libraryDependencies += "org.monifu" %% "monifu-js" % "0.12.2"
+libraryDependencies += "org.monifu" %% "monifu-js" % "0.13.0"
 ```
 
 ## License

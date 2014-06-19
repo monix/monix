@@ -21,7 +21,6 @@ import monifu.reactive.api.Ack
 import monifu.reactive.api.Ack.{Cancel, Continue}
 import scala.util.{Try, Failure}
 import scala.util.control.NonFatal
-import monifu.syntax.TypeSafeEquals
 
 package object internals {
   /**
@@ -34,7 +33,7 @@ package object internals {
     def onContinue(cb: => Unit)(implicit ec: ExecutionContext): Unit =
       source match {
         case sync if sync.isCompleted =>
-          if (sync === Continue || ((sync !== Cancel) && sync.value.get === Continue.IsSuccess))
+          if (sync == Continue || (sync != Cancel && sync.value.get == Continue.IsSuccess))
             try cb catch {
               case NonFatal(ex) =>
                 ec.reportFailure(ex)
@@ -48,7 +47,7 @@ package object internals {
     def onContinueComplete[T](observer: Observer[T], ex: Throwable = null)(implicit ec: ExecutionContext): Unit =
       source match {
         case sync if sync.isCompleted =>
-          if (sync === Continue || ((sync !== Cancel) && sync.value.get === Continue.IsSuccess)) {
+          if (sync == Continue || ((sync != Cancel) && sync.value.get == Continue.IsSuccess)) {
             var streamError = true
             try {
               if (ex eq null)
