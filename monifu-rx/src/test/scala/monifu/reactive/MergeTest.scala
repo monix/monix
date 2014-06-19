@@ -563,14 +563,12 @@ class MergeTest extends FunSpec {
       val legit = Observable.range(0, 1000).map(x => Observable.unit(x))
       val errors = Observable.range(0, 1000).map(_ => Observable.error(new RuntimeException("dummy")))
       val completed = new CountDownLatch(2)
-      var sum = 0
 
       (legit ++ errors)
         .doOnComplete(if (completed.getCount > 0) completed.countDown() else throw new IllegalStateException("completed more than once"))
         .unsafeMerge.unsafeSubscribe(
           new Observer[Int] {
             def onNext(elem: Int) = {
-              sum += elem
               Continue
             }
 
@@ -588,7 +586,6 @@ class MergeTest extends FunSpec {
           })
 
       assert(completed.await(20, TimeUnit.SECONDS), "completed.await should have succeeded")
-      assert(sum > 0, s"calculated sum $sum is not greater than 0")
     }
 
     it("should emit a single error downstream and a single cancel upstream, test 2") {
