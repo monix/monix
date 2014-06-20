@@ -39,7 +39,7 @@ class TrampolineSchedulerTest extends FunSuite {
     val p = Promise[Int]()
     s.scheduleOnce { p.success(1) }
 
-    assert(Await.result(p.future, 100.millis) === 1)
+    assert(Await.result(p.future, 3.seconds) === 1)
   }
 
   test("scheduleOnce with delay") {
@@ -47,7 +47,7 @@ class TrampolineSchedulerTest extends FunSuite {
     val startedAt = System.nanoTime()
     s.scheduleOnce(100.millis, p.success(System.nanoTime()))
 
-    val endedAt = Await.result(p.future, 1.second)
+    val endedAt = Await.result(p.future, 3.second)
     val timeTaken = (endedAt - startedAt).nanos.toMillis
     assert(timeTaken >= 100, s"timeTaken ($timeTaken millis) < 100 millis")
   }
@@ -65,7 +65,7 @@ class TrampolineSchedulerTest extends FunSuite {
   test("schedule") {
     val p = Promise[Int]()
     s.schedule(s2 => s2.scheduleOnce(p.success(1)))
-    assert(Await.result(p.future, 100.millis) === 1)
+    assert(Await.result(p.future, 3.seconds) === 1)
   }
 
   test("schedule with delay") {
@@ -77,7 +77,7 @@ class TrampolineSchedulerTest extends FunSuite {
       })
     })
 
-    val timeTaken = Await.result(p.future, 1.second)
+    val timeTaken = Await.result(p.future, 5.second)
     assert((timeTaken - startedAt).nanos.toMillis >= 100)
   }
 
@@ -166,7 +166,7 @@ class TrampolineSchedulerTest extends FunSuite {
       })
 
     run()
-    assert(Await.result(p.future, 1.second) === "result")
+    assert(Await.result(p.future, 3.second) === "result")
   }
 
   test("blocking the thread reschedules pending tasks") {
@@ -185,8 +185,8 @@ class TrampolineSchedulerTest extends FunSuite {
       }
     })
 
-    assert(Await.result(local.future, 1.second) === "local-value")
-    assert(Await.result(async.future, 1.second) === "async-value")
+    assert(Await.result(local.future, 3.second) === "local-value")
+    assert(Await.result(async.future, 3.second) === "async-value")
   }
 
   test("while blocking, all future tasks should be scheduled on the fallback") {
@@ -203,7 +203,7 @@ class TrampolineSchedulerTest extends FunSuite {
       }
     })
 
-    assert(Await.result(local.future, 1.second) === "local-value")
-    assert(Await.result(async.future, 1.second) === "async-value")
+    assert(Await.result(local.future, 3.second) === "local-value")
+    assert(Await.result(async.future, 3.second) === "async-value")
   }
 }
