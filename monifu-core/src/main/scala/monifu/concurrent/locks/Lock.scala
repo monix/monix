@@ -188,7 +188,7 @@ object Lock {
      * @param callback the callback to be executed once the lock is acquired
      * @return the returned value of our callback
      */
-    def enter[T](callback: => T): T = macro Extensions.enterMacroImpl[L, T]
+    def enter[T](callback: T): T = macro Extensions.enterMacroImpl[L, T]
 
     /**
      * Executes the given callback with the lock acquired, unless the thread was
