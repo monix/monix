@@ -1,8 +1,6 @@
 import sbt._
 import sbt.{Build => SbtBuild}
 import sbt.Keys._
-import scala.scalajs.sbtplugin.ScalaJSPlugin._
-import scala.scalajs.sbtplugin.ScalaJSPlugin.ScalaJSKeys._
 import sbtunidoc.Plugin._
 import sbtunidoc.Plugin.UnidocKeys._
 
@@ -85,13 +83,6 @@ object Build extends SbtBuild {
 
   // -- Actual Projects
 
-  lazy val root = Project(
-      id = "monifu-root", base = file("."), 
-      settings = sharedSettings ++ Seq(
-        publishArtifact := false
-      ))
-    .aggregate(monifu, monifuJS)
-
   lazy val monifuCore = Project(
     id = "monifu-core",
     base = file("monifu-core"),
@@ -116,7 +107,7 @@ object Build extends SbtBuild {
     )
   ).dependsOn(monifuCore)
 
-  lazy val monifu = Project(id="monifu", base = file("monifu"), 
+  lazy val monifu = Project(id="monifu", base = file("."), 
     settings=sharedSettings ++ unidocSettings ++ Seq(
       unidocProjectFilter in (ScalaUnidoc, unidoc) := inProjects(monifuCore, monifuRx),
       scalacOptions in (ScalaUnidoc, sbtunidoc.Plugin.UnidocKeys.unidoc) ++=
@@ -129,36 +120,6 @@ object Build extends SbtBuild {
         Seq("-doc-root-content", "rootdoc.txt")
     ))
     .dependsOn(monifuCore, monifuRx).aggregate(monifuCore, monifuRx)
-
-  lazy val monifuCoreJS = Project(
-    id = "monifu-core-js",
-    base = file("monifu-core-js"),
-    settings = sharedSettings ++ scalaJSSettings ++ Seq(
-      unmanagedSourceDirectories in Compile <+= sourceDirectory(_ / ".." / ".." / "monifu-core" / "src" / "shared" / "scala"),
-      libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _ % "compile"),
-      libraryDependencies ++= Seq(
-        "org.scala-lang.modules.scalajs" %% "scalajs-jasmine-test-framework" % scalaJSVersion % "test"
-      )
-    )
-  )
-
-  lazy val monifuRxJS = Project(
-    id = "monifu-rx-js",
-    base = file("monifu-rx-js"),
-    settings = sharedSettings ++ scalaJSSettings ++ Seq(
-      unmanagedSourceDirectories in Compile <+= sourceDirectory(_ / ".." / ".." / "monifu-rx" / "src" / "shared" / "scala"),
-      libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _ % "compile"),
-      libraryDependencies ++= Seq(
-        "org.scala-lang.modules.scalajs" %% "scalajs-jasmine-test-framework" % scalaJSVersion % "test"
-      )
-    )
-  ).dependsOn(monifuCoreJS)
-
-  lazy val monifuJS = Project(id="monifu-js", base = file("monifu-js"), 
-    settings=sharedSettings ++ unidocSettings ++ (
-      unidocProjectFilter in (ScalaUnidoc, unidoc) := inProjects(monifuCoreJS, monifuRxJS)
-    ))
-    .dependsOn(monifuCoreJS, monifuRxJS).aggregate(monifuCoreJS, monifuRxJS)
 
   lazy val monifuBenchmarks =
     Project(id="benchmarks", base=file("benchmarks"),

@@ -1,6 +1,6 @@
 <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/monifu.png" align="right" />
 
-Extensions to Scala's standard library for multi-threading primitives and functional reactive programming. Targets both the JVM and [Scala.js](http://www.scala-js.org/).
+Extensions to Scala's standard library for multi-threading primitives and functional reactive programming. Targets both the JVM and [Scala.js](http://www.scala-js.org/) (for targetting Javascript see its [Monifu.js](https://github.com/monifu/monifu.js)).
 
 [![Build Status](https://travis-ci.org/monifu/monifu.png?branch=v0.13.0)](https://travis-ci.org/monifu/monifu)
 
