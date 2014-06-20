@@ -30,7 +30,7 @@ class ConcurrentSchedulerTest extends FunSuite {
     val p = Promise[Int]()
     s.scheduleOnce { p.success(1) }
 
-    assert(Await.result(p.future, 100.millis) === 1)
+    assert(Await.result(p.future, 3.seconds) === 1)
   }
 
   test("scheduleOnce with delay") {
@@ -38,7 +38,7 @@ class ConcurrentSchedulerTest extends FunSuite {
     val startedAt = System.nanoTime()
     s.scheduleOnce(100.millis, p.success(System.nanoTime()))
 
-    val timeTaken = Await.result(p.future, 1.second)
+    val timeTaken = Await.result(p.future, 3.second)
     assert((timeTaken - startedAt).nanos.toMillis >= 100)
   }
 
@@ -63,7 +63,7 @@ class ConcurrentSchedulerTest extends FunSuite {
     val startedAt = System.nanoTime()
     s.schedule(100.millis, s2 => s2.scheduleOnce(p.success(System.nanoTime())))
 
-    val timeTaken = Await.result(p.future, 1.second)
+    val timeTaken = Await.result(p.future, 5.second)
     assert((timeTaken - startedAt).nanos.toMillis >= 100)
   }
 
@@ -93,6 +93,6 @@ class ConcurrentSchedulerTest extends FunSuite {
       }
     })
 
-    assert(Await.result(p.future, 1.second) === 4)
+    assert(Await.result(p.future, 5.second) === 4)
   }
 }
