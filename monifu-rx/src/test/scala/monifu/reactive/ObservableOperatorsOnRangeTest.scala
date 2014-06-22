@@ -55,7 +55,7 @@ class ObservableOperatorsOnRangeTest extends FunSpec {
     }
 
     it("should unsafeMerge") {
-      val f = Observable.range(0, 100).map(_ => Observable.range(0, 100)).unsafeMerge.sum.asFuture
+      val f = Observable.range(0, 100).map(_ => Observable.range(0, 100)).merge(Unbounded, batchSize=0).sum.asFuture
       assert(Await.result(f, 2.seconds) === Some((0 until 100).flatMap(_ => 0 until 100).sum))
     }
 

@@ -32,8 +32,6 @@ import monifu.concurrent.locks.SpinLock
 private[monifu] final class BoundedMergeBuffer[U](downstream: Observer[U], mergeBatchSize: Int, bufferPolicy: BufferPolicy)(implicit scheduler: Scheduler)
   extends Observer[U] { self =>
 
-  require(mergeBatchSize > 0, "mergeBatchSize must be strictly positive")
-
   private[this] val lock = SpinLock()
   private[this] val buffer = BufferedObserver(downstream, bufferPolicy)
 

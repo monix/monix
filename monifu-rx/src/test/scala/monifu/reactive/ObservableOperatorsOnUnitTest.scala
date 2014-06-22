@@ -56,7 +56,7 @@ class ObservableOperatorsOnUnitTest extends FunSpec {
     }
 
     it("should unsafeMerge") {
-      val f = Observable.unit(1).map(x => Observable.unit(x + 2)).unsafeMerge.asFuture
+      val f = Observable.unit(1).map(x => Observable.unit(x + 2)).merge(Unbounded, batchSize=0).asFuture
       assert(Await.result(f, 2.seconds) === Some(3))
     }
 
