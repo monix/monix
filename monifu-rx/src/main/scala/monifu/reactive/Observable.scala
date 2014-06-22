@@ -215,7 +215,7 @@ trait Observable[+T] { self =>
    *         obtained from this transformation.
    */
   def mergeMap[U](f: T => Observable[U]): Observable[U] =
-    map(f).merge
+    map(f).merge()
 
   /**
    * Flattens the sequence of Observables emitted by the source into one Observable, without any
@@ -310,44 +310,19 @@ trait Observable[+T] { self =>
    *                     apply back-pressure, trigger and error, etc... see the
    *                     available [[monifu.reactive.api.BufferPolicy buffer policies]].
    *
-   * @return an Observable that emits items that are the result of flattening the items emitted
-   *         by the Observables emitted by `this`
-   */
-  def merge[U](bufferPolicy: BufferPolicy)(implicit ev: T <:< Observable[U]): Observable[U] = {
-    val parallelism = math.min(1024, math.max(1, Runtime.getRuntime.availableProcessors()) * 8)
-    merge(parallelism, bufferPolicy)
-  }
-
-  /**
-   * Merges the sequence of Observables emitted by the source into one Observable, without any
-   * transformation.
-   *
-   * You can combine the items emitted by multiple Observables so that they act like a single
-   * Observable by using this method.
-   *
-   * The difference between [[concat]] and [[merge]] is that `concat` cares about ordering of
-   * emitted items (e.g. all items emitted by the first observable in the sequence will come before
-   * the elements emitted by the second observable), whereas `merge` doesn't care about that
-   * (elements get emitted as they come). Because of back-pressure applied to observables,
-   * [[concat]] is safe to use in all contexts, whereas [[merge]] requires buffering.
-   *
-   * @param bufferPolicy the policy used for buffering, useful if you want to limit the buffer size and
-   *                     apply back-pressure, trigger and error, etc... see the
-   *                     available [[monifu.reactive.api.BufferPolicy buffer policies]].
-   *
-   * @param parallelism a number indicating the maximum number of observables subscribed
-   *                    in parallel; if negative or zero, then no upper bound is applied
+   * @param batchSize a number indicating the maximum number of observables subscribed
+   *                  in parallel; if negative or zero, then no upper bound is applied
    *
    * @return an Observable that emits items that are the result of flattening the items emitted
    *         by the Observables emitted by `this`
    */
-  def merge[U](parallelism: Int, bufferPolicy: BufferPolicy)(implicit ev: T <:< Observable[U]): Observable[U] =
+  def merge[U](bufferPolicy: BufferPolicy = BackPressured(2048), batchSize: Int = 0)(implicit ev: T <:< Observable[U]): Observable[U] =
     Observable.create { observerB =>
 
       // if the parallelism is unbounded and the buffer policy allows for a
       // synchronous buffer, then we can use a more efficient implementation
       bufferPolicy match {
-        case Unbounded | OverflowTriggering(_) if parallelism <= 0 =>
+        case Unbounded | OverflowTriggering(_) if batchSize <= 0 =>
           unsafeSubscribe(new SynchronousObserver[T] {
             private[this] val buffer =
               new UnboundedMergeBuffer[U](observerB, bufferPolicy)
@@ -362,7 +337,7 @@ trait Observable[+T] { self =>
         case _ =>
           unsafeSubscribe(new Observer[T] {
             private[this] val buffer: BoundedMergeBuffer[U] =
-              new BoundedMergeBuffer[U](observerB, parallelism, bufferPolicy)
+              new BoundedMergeBuffer[U](observerB, batchSize, bufferPolicy)
             def onNext(elem: T) =
               buffer.merge(elem)
             def onError(ex: Throwable) =
@@ -372,54 +347,6 @@ trait Observable[+T] { self =>
           })
       }
     }
-
-  /**
-   * Merges the sequence of Observables emitted by the source into one Observable, without any
-   * transformation.
-   *
-   * You can combine the items emitted by multiple Observables so that they act like a single
-   * Observable by using this method.
-   *
-   * The difference between [[concat]] and [[merge]] is that `concat` cares about ordering of
-   * emitted items (e.g. all items emitted by the first observable in the sequence will come before
-   * the elements emitted by the second observable), whereas `merge` doesn't care about that
-   * (elements get emitted as they come). Because of back-pressure applied to observables,
-   * [[concat]] is safe to use in all contexts, whereas [[merge]] requires buffering.
-   *
-   * This variant of the merge call (no parameters) does apply
-   * [[api.BufferPolicy.BackPressured back-pressured buffering]] and also applies an upper-bound
-   * on the number of observables subscribed, so it is fairly safe to use.
-   *
-   * @return an Observable that emits items that are the result of flattening the items emitted
-   *         by the Observables emitted by `this`
-   */
-  def merge[U](implicit ev: T <:< Observable[U]): Observable[U] = {
-    merge(BackPressured(2048))
-  }
-
-  /**
-   * Merges the sequence of Observables emitted by the source into one Observable, without any
-   * transformation.
-   *
-   * You can combine the items emitted by multiple Observables so that they act like a single
-   * Observable by using this method.
-   *
-   * The difference between [[concat]] and [[merge]] is that `concat` cares about ordering of
-   * emitted items (e.g. all items emitted by the first observable in the sequence will come before
-   * the elements emitted by the second observable), whereas `merge` doesn't care about that
-   * (elements get emitted as they come). Because of back-pressure applied to observables,
-   * [[concat]] is safe to use in all contexts, whereas [[merge]] requires buffering.
-   *
-   * This unsafe variant of the merge call applies absolutely no back-pressure or upper bounds
-   * on subscribed observables, so it is unsafe to use. Only use it when you know what
-   * you're doing.
-   *
-   * @return an Observable that emits items that are the result of flattening the items emitted
-   *         by the Observables emitted by `this`
-   */
-  def unsafeMerge[U](implicit ev: T <:< Observable[U]): Observable[U] = {
-    merge(0, Unbounded)
-  }
 
   /**
    * Selects the first ''n'' elements (from the start).
@@ -2228,7 +2155,7 @@ object Observable {
    * Merges the given list of ''observables'' into a single observable.
    */
   def merge[T](sources: Observable[T]*)(implicit scheduler: Scheduler): Observable[T] =
-    Observable.from(sources).merge
+    Observable.from(sources).merge()
 
   /**
    * Creates a new Observable from two observables,

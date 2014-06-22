@@ -24,7 +24,6 @@ import java.util.concurrent.{TimeUnit, CountDownLatch}
 import monifu.reactive.api.Ack.{Cancel, Continue}
 import scala.util.Random
 import monifu.concurrent.atomic.Atomic
-import scala.Some
 import monifu.reactive.api.BufferPolicy.Unbounded
 
 /**
@@ -137,7 +136,7 @@ class MergeTest extends FunSpec {
     it("should satisfy source.map(f).merge == source.mergeMap(f)") {
       for (_ <- 0 until 100) {
         val parent = Observable.from(0 until 1000).filter(_ % 2 == 0)
-        val res1 = parent.map(x => Observable.from(x until (x + 2))).merge
+        val res1 = parent.map(x => Observable.from(x until (x + 2))).merge()
           .foldLeft(Seq.empty[Int])(_ :+ _).map(_.sorted).asFuture
         val res2 = parent.mergeMap(x => Observable.from(x until (x + 2)))
           .foldLeft(Seq.empty[Int])(_ :+ _).map(_.sorted).asFuture
@@ -254,7 +253,7 @@ class MergeTest extends FunSpec {
 
       (legit ++ errors)
         .doOnComplete(if (completed.getCount > 0) completed.countDown() else throw new IllegalStateException("completed more than once"))
-        .merge.unsafeSubscribe(
+        .merge().unsafeSubscribe(
           new Observer[Int] {
             def onNext(elem: Int) = {
               sum += elem
@@ -283,7 +282,7 @@ class MergeTest extends FunSpec {
       val completed = new CountDownLatch(2)
 
       errors.doOnComplete(if (completed.getCount > 0) completed.countDown() else throw new IllegalStateException("completed more than once"))
-        .merge.unsafeSubscribe(
+        .merge().unsafeSubscribe(
           new Observer[Int] {
             def onNext(elem: Int) = {
               throw new IllegalStateException("onNext should have never happened")
@@ -377,7 +376,7 @@ class MergeTest extends FunSpec {
       for (_ <- 0 until 10000) {
         val result = Observable.from(0 until 100).filter(_ % 5 == 0)
           .map(x => Observable.from(x until (x + 5)))
-          .unsafeMerge
+          .merge(Unbounded)
           .foldLeft(0)(_ + _).asFuture
 
         assert(Await.result(result, 4.seconds) === Some((0 until 100).sum))
@@ -393,7 +392,7 @@ class MergeTest extends FunSpec {
         val latch = new CountDownLatch(1)
         @volatile var result = ""
 
-        obs.map(x => Observable.unit(x)).unsafeMerge.subscribe(
+        obs.map(x => Observable.unit(x)).merge(Unbounded).subscribe(
           nextFn = _ => {
             if (result != "")
               throw new IllegalStateException("Should not receive other elements after done")
@@ -415,7 +414,7 @@ class MergeTest extends FunSpec {
       for (_ <- 0 until 1000) {
         val obs = Observable.from(0 until 100).map { x =>
           if (x < 50) Observable.unit(x) else throw new RuntimeException("test")
-        }.unsafeMerge
+        }.merge(Unbounded)
 
         @volatile var sum = 0
         @volatile var errorThrow: Throwable = null
@@ -445,7 +444,7 @@ class MergeTest extends FunSpec {
       for (_ <- 0 until 1000) {
         val obs = Observable.from(0 until 100).filter(_ % 5 == 0)
           .map(x => Observable.from(x until (x + 5)))
-          .unsafeMerge
+          .merge(Unbounded)
           .foldLeft(Seq.empty[Int])(_ :+ _)
           .map(_.sorted)
           .asFuture
@@ -459,31 +458,31 @@ class MergeTest extends FunSpec {
       for (_ <- 0 until 100) {
         val parent = Observable.from(0 until 1000)
         val res1 = parent.filter(_ % 5 == 0).foldLeft(Seq.empty[Int])(_ :+ _).asFuture
-        val res2 = parent.map(x => if (x % 5 == 0) Observable.unit(x) else Observable.empty).unsafeMerge
+        val res2 = parent.map(x => if (x % 5 == 0) Observable.unit(x) else Observable.empty).merge(Unbounded)
           .foldLeft(Seq.empty[Int])(_ :+ _).map(_.sorted).asFuture
 
         assert(Await.result(res1, 10.seconds) === Await.result(res2, 4.seconds))
       }
     }
 
-    it("should satisfy source.map(f) == source.map(x => unit(x)).merge(parallelism=1)") {
+    it("should satisfy source.map(f) == source.map(x => unit(x)).merge(batchSize=1)") {
       for (_ <- 0 until 100) {
         val parent = Observable.from(0 until 1000)
         val res1 = parent.map(_ + 1)
           .foldLeft(Seq.empty[Int])(_ :+ _).asFuture
-        val res2 = parent.map(x => Observable.unit(x + 1)).merge(1, Unbounded)
+        val res2 = parent.map(x => Observable.unit(x + 1)).merge(Unbounded, batchSize=1)
           .foldLeft(Seq.empty[Int])(_ :+ _).asFuture
 
         assert(Await.result(res1, 10.seconds) === Await.result(res2, 4.seconds))
       }
     }
 
-    it("should satisfy source.filter(f) == source.map(x => if (f(x)) unit(x) else empty).merge(parallelism=1)") {
+    it("should satisfy source.filter(f) == source.map(x => if (f(x)) unit(x) else empty).merge(batchSize=1)") {
       for (_ <- 0 until 100) {
         val parent = Observable.from(0 until 1000)
         val res1 = parent.filter(_ % 2 == 0)
           .foldLeft(Seq.empty[Int])(_ :+ _).asFuture
-        val res2 = parent.map(x => if (x % 2 == 0) Observable.unit(x) else Observable.empty).merge(1, Unbounded)
+        val res2 = parent.map(x => if (x % 2 == 0) Observable.unit(x) else Observable.empty).merge(Unbounded, batchSize=1)
           .foldLeft(Seq.empty[Int])(_ :+ _).asFuture
 
         assert(Await.result(res1, 10.seconds) === Await.result(res2, 4.seconds))
@@ -494,7 +493,7 @@ class MergeTest extends FunSpec {
       for (_ <- 0 until 100) {
         val latch = new CountDownLatch(1)
         Observable.from(0 until 1000).doOnComplete(latch.countDown())
-          .map(x => Observable.repeat(x)).unsafeMerge.take(1000).subscribe()
+          .map(x => Observable.repeat(x)).merge(Unbounded).take(1000).subscribe()
 
         assert(latch.await(10, TimeUnit.SECONDS), "latch.await should have succeeded")
       }
@@ -502,7 +501,7 @@ class MergeTest extends FunSpec {
 
     it("should work with Futures") {
       for (_ <- 0 until 100) {
-        val f = Observable.from(0 until 100).map(x => Observable.from(Future(x + 1))).unsafeMerge
+        val f = Observable.from(0 until 100).map(x => Observable.from(Future(x + 1))).merge(Unbounded)
           .foldLeft(Seq.empty[Int])(_ :+ _).map(_.sorted).asFuture
         val result = Await.result(f, 4.seconds)
         assert(result === Some(1 to 100))
@@ -517,7 +516,7 @@ class MergeTest extends FunSpec {
 
         val result = Observable.from(streamLengths)
           .doOnComplete(completed.countDown())
-          .map(x => Observable.range(0, x)).unsafeMerge
+          .map(x => Observable.range(0, x)).merge(Unbounded)
           .sum
           .doOnComplete(completed.countDown())
           .asFuture
@@ -531,7 +530,7 @@ class MergeTest extends FunSpec {
       val completed = new CountDownLatch(2)
       val result = Observable.repeat(1)
         .doOnComplete(completed.countDown())
-        .map(_ => Observable.repeat(2)).unsafeMerge
+        .map(_ => Observable.repeat(2)).merge(Unbounded)
         .doOnComplete(completed.countDown())
         .take(100).sum.asFuture
 
@@ -544,7 +543,7 @@ class MergeTest extends FunSpec {
         val completed = new CountDownLatch(2)
         Observable.range(0, 10000)
           .doOnComplete(completed.countDown())
-          .map(_ => Observable.empty[Int]).unsafeMerge
+          .map(_ => Observable.empty[Int]).merge(Unbounded)
           .doOnComplete(completed.countDown())
           .subscribe()
 
@@ -554,7 +553,7 @@ class MergeTest extends FunSpec {
 
     it("should merge one element observables") {
       for (_ <- 0 until 100) {
-        val f = Observable.range(0, 10000).map(x => Observable.unit(x)).unsafeMerge.sum.asFuture
+        val f = Observable.range(0, 10000).map(x => Observable.unit(x)).merge(Unbounded).sum.asFuture
         assert(Await.result(f, 10.seconds) === Some((0 until 10000).sum))
       }
     }
@@ -566,7 +565,7 @@ class MergeTest extends FunSpec {
 
       (legit ++ errors)
         .doOnComplete(if (completed.getCount > 0) completed.countDown() else throw new IllegalStateException("completed more than once"))
-        .unsafeMerge.unsafeSubscribe(
+        .merge(Unbounded).unsafeSubscribe(
           new Observer[Int] {
             def onNext(elem: Int) = {
               Continue
@@ -593,7 +592,7 @@ class MergeTest extends FunSpec {
       val completed = new CountDownLatch(2)
 
       errors.doOnComplete(if (completed.getCount > 0) completed.countDown() else throw new IllegalStateException("completed more than once"))
-        .unsafeMerge.unsafeSubscribe(
+        .merge(Unbounded).unsafeSubscribe(
           new Observer[Int] {
             def onNext(elem: Int) = {
               throw new IllegalStateException("onNext should have never happened")
@@ -621,7 +620,7 @@ class MergeTest extends FunSpec {
         Observable.range(0, Int.MaxValue)
           .doOnComplete(completed.countDown())
           .map(x => if (x === 7000) throw new RuntimeException() else Observable.unit(x))
-          .unsafeMerge
+          .merge(Unbounded)
           .subscribe(x => Continue, ex => completed.countDown())
 
         assert(completed.await(10, TimeUnit.SECONDS), "completed.await should have succeeded")
