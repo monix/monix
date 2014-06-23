@@ -16,13 +16,13 @@
  
 package monifu.reactive
 
-import java.util.concurrent.{TimeUnit, CountDownLatch}
+import java.util.concurrent.{CountDownLatch, TimeUnit}
 
-import monifu.reactive.api.Ack
-import monifu.reactive.api.Ack.{Cancel, Continue}
-import monifu.reactive.observers.{ConnectableObserver, ConcurrentObserver}
-import org.scalatest.FunSpec
 import monifu.concurrent.Scheduler.Implicits.global
+import monifu.reactive.Ack.{Cancel, Continue}
+import monifu.reactive.observers.{ConcurrentObserver, ConnectableObserver}
+import org.scalatest.FunSpec
+
 import scala.concurrent.Future
 
 

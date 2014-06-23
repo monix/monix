@@ -16,15 +16,16 @@
  
 package monifu.reactive
 
-import org.scalatest.FunSpec
+import java.util.concurrent.{CountDownLatch, TimeUnit}
+
 import monifu.concurrent.Scheduler.Implicits.global
-import scala.concurrent.{Future, Await, Promise}
-import java.util.concurrent.{TimeUnit, CountDownLatch}
-import monifu.reactive.api.Ack.Continue
-import monifu.reactive.api.{BufferOverflowException, Ack}
+import monifu.reactive.Ack.Continue
+import monifu.reactive.BufferPolicy.{BackPressured, OverflowTriggering, Unbounded}
 import monifu.reactive.observers.BufferedObserver
-import monifu.reactive.api.BufferPolicy.{Unbounded, BackPressured, OverflowTriggering}
-import concurrent.duration._
+import org.scalatest.FunSpec
+
+import scala.concurrent.duration._
+import scala.concurrent.{Await, Future, Promise}
 
 
 class BufferedObserverTest extends FunSpec {

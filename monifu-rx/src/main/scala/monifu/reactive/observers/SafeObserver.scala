@@ -19,9 +19,9 @@ package monifu.reactive.observers
 import monifu.reactive.Observer
 import scala.concurrent.Future
 import scala.util.control.NonFatal
-import monifu.reactive.api.Ack.{Continue, Cancel}
+import monifu.reactive.Ack.{Continue, Cancel}
 import monifu.concurrent.Scheduler
-import monifu.reactive.api.Ack
+import monifu.reactive.Ack
 
 /**
  * A safe observer ensures too things:

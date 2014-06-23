@@ -16,30 +16,30 @@
 
 package monifu.reactive
 
-import language.implicitConversions
-import monifu.concurrent.{Cancelable, Scheduler}
-import scala.concurrent.{Promise, Future}
-import monifu.reactive.api._
-import Ack.{Cancel, Continue}
-import scala.concurrent.duration.{Duration, FiniteDuration}
-import scala.util.control.NonFatal
-import scala.annotation.tailrec
-import scala.util.{Failure, Success}
-import monifu.reactive.observers._
-import monifu.reactive.internals._
-import monifu.concurrent.atomic.Atomic
-import monifu.reactive.api.BufferPolicy.{OverflowTriggering, Unbounded, BackPressured}
-import scala.collection.mutable
+import monifu.concurrent.atomic.{Atomic, AtomicBoolean}
+import monifu.concurrent.cancelables.{BooleanCancelable, RefCountCancelable}
 import monifu.concurrent.locks.SpinLock
-import monifu.reactive.api.Notification.{OnComplete, OnError, OnNext}
+import monifu.concurrent.{Cancelable, Scheduler}
+import monifu.reactive.Ack.{Cancel, Continue}
+import monifu.reactive.BufferPolicy.{BackPressured, OverflowTriggering, Unbounded}
+import monifu.reactive.Notification.{OnComplete, OnError, OnNext}
+import monifu.reactive.internals._
+import monifu.reactive.observers._
 import monifu.reactive.subjects.{BehaviorSubject, PublishSubject, ReplaySubject}
-import monifu.concurrent.cancelables.{RefCountCancelable, BooleanCancelable}
+
+import scala.annotation.tailrec
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.concurrent.{Future, Promise}
+import scala.language.implicitConversions
+import scala.util.control.NonFatal
+import scala.util.{Failure, Success}
 
 /**
  * Asynchronous implementation of the Observable interface
  */
-trait Observable[+T] { self =>
+trait Observable[+T] extends Publisher[T] { self =>
   /**
    * Characteristic function for an `Observable` instance,
    * that creates the subscription and that eventually starts the streaming of events
@@ -62,8 +62,10 @@ trait Observable[+T] { self =>
    * @param observer is an [[monifu.reactive.Observer Observer]] on which `onNext`, `onComplete` and `onError`
    *                 happens, according to the Monifu Rx contract.
    */
-  final def subscribe(observer: Observer[T]): Unit = {
-    unsafeSubscribe(SafeObserver[T](observer))
+  final def subscribe(observer: Observer[T]): Cancelable = {
+    val isRunning = Atomic(true)
+    takeWhile(isRunning).unsafeSubscribe(SafeObserver[T](observer))
+    Cancelable { isRunning := false }
   }
 
   /**
@@ -83,31 +85,63 @@ trait Observable[+T] { self =>
   }
 
   /**
+   * Given a [[Subscriber]] instance it creates the subscription that eventually
+   * starts the streaming of events to the given [[Subscriber]].
+   *
+   * @param subscriber is a [[Subscriber]] instance on which `onSubscribe`, `onNext`,
+   *                   `onComplete` and `onError` events happen according to the
+   *                   [[http://www.reactive-streams.org/ Reactive Streams]]
+   *                   contract.
+   */
+  final def subscribe(subscriber: Subscriber[T]): Unit = {
+    subscribeFn(SafeObserver(Observer.from(subscriber)))
+  }
+
+  /**
+   * Given a [[Subscriber]] instance it creates the subscription that eventually
+   * starts the streaming of events to the given [[Subscriber]].
+   *
+   * This function is "unsafe" to call because it does protect the calls to the
+   * given [[Subscriber]] implementation in regards to unexpected exceptions that
+   * violate the contract, therefore the given instance must respect its contract
+   * and not throw any exceptions when the publisher calls `onSubscribe`, `onNext`,
+   * `onComplete` and `onError`. If it does, then the behavior is undefined.
+   *
+   * @param subscriber is a [[Subscriber]] instance on which `onSubscribe`, `onNext`,
+   *                   `onComplete` and `onError` events happen according to the
+   *                   [[http://www.reactive-streams.org/ Reactive Streams]]
+   *                   contract.
+   */
+  final def unsafeSubscribe(subscriber: Subscriber[T]): Unit = {
+    unsafeSubscribe(Observer.from(subscriber))
+  }
+
+  /**
    * Creates the subscription and starts the stream.
    */
-  final def subscribe(nextFn: T => Future[Ack], errorFn: Throwable => Unit, completedFn: () => Unit): Unit =
+  final def subscribe(nextFn: T => Future[Ack], errorFn: Throwable => Unit, completedFn: () => Unit): Cancelable =
     subscribe(new Observer[T] {
       def onNext(elem: T) = nextFn(elem)
-      def onError(ex: Throwable) = errorFn(ex)
       def onComplete() = completedFn()
+      def onError(ex: Throwable) = errorFn(ex)
     })
 
   /**
    * Creates the subscription and starts the stream.
    */
-  final def subscribe(nextFn: T => Future[Ack], errorFn: Throwable => Unit): Unit =
+  final def subscribe(nextFn: T => Future[Ack], errorFn: Throwable => Unit): Cancelable =
     subscribe(nextFn, errorFn, () => Cancel)
 
   /**
    * Creates the subscription and starts the stream.
    */
-  final def subscribe(): Unit =
+  final def subscribe(): Cancelable =
     subscribe(elem => Continue)
 
   /**
    * Creates the subscription and starts the stream.
    */
-  final def subscribe(nextFn: T => Future[Ack]): Unit =
+  final def subscribe(nextFn: T => Future[Ack]): Cancelable =
     subscribe(nextFn, error => { scheduler.reportFailure(error); Cancel }, () => Cancel)
 
   /**
@@ -308,7 +342,7 @@ trait Observable[+T] { self =>
    *
    * @param bufferPolicy the policy used for buffering, useful if you want to limit the buffer size and
    *                     apply back-pressure, trigger and error, etc... see the
-   *                     available [[monifu.reactive.api.BufferPolicy buffer policies]].
+   *                     available [[monifu.reactive.BufferPolicy buffer policies]].
    *
    * @param batchSize a number indicating the maximum number of observables subscribed
    *                  in parallel; if negative or zero, then no upper bound is applied
@@ -492,7 +526,7 @@ trait Observable[+T] { self =>
    */
   def takeRight(n: Int): Observable[T] =
     Observable.create { observer =>
-      subscribe(new Observer[T] {
+      subscribeFn(new Observer[T] {
         private[this] val queue = mutable.Queue.empty[T]
         private[this] var queued = 0
 
@@ -567,8 +601,9 @@ trait Observable[+T] { self =>
             try {
               val isValid = p(elem)
               streamError = false
-              if (isValid)
+              if (isValid) {
                 observer.onNext(elem)
+              }
               else {
                 shouldContinue = false
                 observer.onComplete()
@@ -577,18 +612,25 @@ trait Observable[+T] { self =>
             }
             catch {
               case NonFatal(ex) =>
-                if (streamError) { observer.onError(ex); Cancel } else Future.failed(ex)
+                if (streamError) {
+                  observer.onError(ex)
+                  Cancel
+                }
+                else
+                  Future.failed(ex)
             }
           }
           else
             Cancel
         }
 
-        def onComplete() =
+        def onComplete() = {
           observer.onComplete()
+        }
 
-        def onError(ex: Throwable) =
+        def onError(ex: Throwable) = {
           observer.onError(ex)
+        }
       })
     }
 
@@ -596,42 +638,32 @@ trait Observable[+T] { self =>
    * Takes longest prefix of elements that satisfy the given predicate
    * and returns a new Observable that emits those elements.
    */
-  def takeWhile(isRefTrue: Atomic[Boolean]): Observable[T] =
+  def takeWhile(isRefTrue: AtomicBoolean): Observable[T] =
     Observable.create { observer =>
       unsafeSubscribe(new Observer[T] {
         var shouldContinue = true
 
         def onNext(elem: T) = {
           if (shouldContinue) {
-            // See Section 6.4. in the Rx Design Guidelines:
-            // Protect calls to user code from within an operator
-            var streamError = true
-            try {
-              val continue = isRefTrue.get
-              streamError = false
-
-              if (continue)
-                observer.onNext(elem)
-              else {
-                shouldContinue = false
-                observer.onComplete()
-                Cancel
-              }
-            }
-            catch {
-              case NonFatal(ex) =>
-                if (streamError) { observer.onError(ex); Cancel } else Future.failed(ex)
+            if (isRefTrue.get)
+              observer.onNext(elem)
+            else {
+              shouldContinue = false
+              observer.onComplete()
+              Cancel
             }
           }
           else
             Cancel
         }
 
-        def onComplete() =
+        def onComplete() = {
           observer.onComplete()
+        }
 
-        def onError(ex: Throwable) =
+        def onError(ex: Throwable) = {
           observer.onError(ex)
+        }
       })
     }
 
@@ -930,35 +962,50 @@ trait Observable[+T] { self =>
    */
   def flatScan[R](initial: R)(op: (R, T) => Observable[R]): Observable[R] =
     Observable.create { observer =>
-      unsafeSubscribe(new Observer[T] {
+      subscribeFn(new Observer[T] {
         private[this] val refCount = RefCountCancelable(observer.onComplete())
         private[this] var state = initial
 
         def onNext(elem: T): Future[Ack] = {
           val refID = refCount.acquire()
           val upstreamPromise = Promise[Ack]()
+          var streamError = true
 
-          op(state, elem).subscribe(new Observer[R] {
-            private[this] var ack = Continue : Future[Ack]
+          try {
+            val newState = op(state, elem)
+            streamError = false
 
-            def onNext(elem: R): Future[Ack] = {
-              state = elem
-              ack = observer.onNext(elem)
-                .ifCancelTryCanceling(upstreamPromise)
-              ack
-            }
+            newState.unsafeSubscribe(new Observer[R] {
+              private[this] var ack = Continue : Future[Ack]
 
-            def onError(ex: Throwable): Unit = {
-              if (upstreamPromise.trySuccess(Cancel))
-                observer.onError(ex)
-            }
-
-            def onComplete(): Unit =
-              ack.onContinue {
-                refID.cancel()
-                upstreamPromise.trySuccess(Continue)
+              def onNext(elem: R): Future[Ack] = {
+                state = elem
+                ack = observer.onNext(elem)
+                  .ifCancelTryCanceling(upstreamPromise)
+                ack
               }
-          })
+
+              def onError(ex: Throwable): Unit = {
+                if (upstreamPromise.trySuccess(Cancel))
+                  observer.onError(ex)
+              }
+
+              def onComplete(): Unit =
+                ack.onContinue {
+                  refID.cancel()
+                  upstreamPromise.trySuccess(Continue)
+                }
+            })
+          }
+          catch {
+            case NonFatal(ex) =>
+              if (streamError) {
+                observer.onError(ex)
+                Cancel
+              }
+              else
+                Future.failed(ex)
+          }
 
           upstreamPromise.future
         }
@@ -1689,7 +1736,7 @@ trait Observable[+T] { self =>
    */
   def repeat: Observable[T] = {
     def loop(subject: Subject[T, T], observer: Observer[T]): Unit =
-      subject.subscribe(new Observer[T] {
+      subject.unsafeSubscribe(new Observer[T] {
         private[this] var lastResponse = Continue : Future[Ack]
         def onNext(elem: T) = {
           lastResponse = observer.onNext(elem)
@@ -1768,7 +1815,7 @@ trait Observable[+T] { self =>
    * what the destination consumer can consume. On the other hand, if the data-source does follow
    * the back-pressure contract, than this is safe. For data sources that cannot respect the
    * back-pressure requirements and are problematic, see [[async]] and
-   * [[monifu.reactive.api.BufferPolicy BufferPolicy]] for options.
+   * [[monifu.reactive.BufferPolicy BufferPolicy]] for options.
    */
   def concurrent: Observable[T] =
     Observable.create { observer => unsafeSubscribe(ConcurrentObserver(observer)) }
@@ -1794,7 +1841,7 @@ trait Observable[+T] { self =>
    * WARNING: if the buffer created by this operator is unbounded, it can blow up the process if the data source
    * is pushing events faster than what the observer can consume, as it introduces an asynchronous
    * boundary that eliminates the back-pressure requirements of the data source. Unbounded is the default
-   * [[monifu.reactive.api.BufferPolicy policy]], see [[monifu.reactive.api.BufferPolicy BufferPolicy]]
+   * [[monifu.reactive.BufferPolicy policy]], see [[monifu.reactive.BufferPolicy BufferPolicy]]
    * for options.
    */
   def async(policy: BufferPolicy = BackPressured(bufferSize = 4096)): Observable[T] =
@@ -1884,7 +1931,7 @@ object Observable {
    *
    * Example: {{{
    *   import monifu.reactive._
-   *   import monifu.reactive.api.Ack.Continue
+   *   import monifu.reactive.Ack.Continue
    *   import monifu.concurrent.Scheduler
    *
    *   def emit[T](elem: T, nrOfTimes: Int)(implicit scheduler: Scheduler): Observable[T] =

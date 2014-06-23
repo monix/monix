@@ -18,9 +18,9 @@ package monifu.reactive.observers
 
 import monifu.reactive.{Observable, Channel, Observer}
 import scala.concurrent.{Future, Promise}
-import monifu.reactive.api.Ack
+import monifu.reactive.Ack
 import monifu.concurrent.Scheduler
-import monifu.reactive.api.Ack.{Cancel, Continue}
+import monifu.reactive.Ack.{Cancel, Continue}
 import scala.collection.mutable
 import monifu.reactive.internals.FutureAckExtensions
 import monifu.concurrent.locks.SpinLock

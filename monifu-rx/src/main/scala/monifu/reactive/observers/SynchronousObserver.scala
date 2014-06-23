@@ -17,7 +17,7 @@
 package monifu.reactive.observers
 
 import monifu.reactive.Observer
-import monifu.reactive.api.Ack
+import monifu.reactive.Ack
 
 /**
  * A `SyncObserver` is an [[Observer]] that signals demand
@@ -29,8 +29,8 @@ import monifu.reactive.api.Ack
  */
 trait SynchronousObserver[-T] extends Observer[T] {
   /**
-   * Returns either a [[monifu.reactive.api.Ack.Continue Continue]] or a
-   * [[monifu.reactive.api.Ack.Cancel Cancel]], in response to an `elem` event
+   * Returns either a [[monifu.reactive.Ack.Continue Continue]] or a
+   * [[monifu.reactive.Ack.Cancel Cancel]], in response to an `elem` event
    * being received.
    */
   def onNext(elem: T): Ack

@@ -22,7 +22,7 @@ import scala.concurrent.{Future, Await}
 import concurrent.duration._
 import java.util.concurrent.{TimeUnit, CountDownLatch}
 import monifu.concurrent.Scheduler.Implicits.global
-import monifu.reactive.api.Ack.{Cancel, Continue}
+import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.concurrent.extensions._
 import scala.util.Random
 

@@ -16,14 +16,13 @@
  
 package monifu.reactive
 
-import monifu.concurrent.{Cancelable, Scheduler}
-import monifu.concurrent.atomic.Atomic
+import monifu.concurrent.atomic.{Atomic, AtomicBoolean}
 import monifu.concurrent.cancelables.BooleanCancelable
+import monifu.concurrent.{Cancelable, Scheduler}
+import monifu.reactive.Ack.{Cancel, Continue}
+import monifu.reactive.BufferPolicy.BackPressured
+import monifu.reactive.subjects.{BehaviorSubject, ConnectableSubject, PublishSubject, ReplaySubject}
 import scala.concurrent.{Future, Promise}
-import monifu.reactive.api.{Notification, BufferPolicy, Ack}
-import monifu.reactive.api.Ack.{Cancel, Continue}
-import monifu.reactive.subjects.{BehaviorSubject, ReplaySubject, PublishSubject, ConnectableSubject}
-import monifu.reactive.api.BufferPolicy.BackPressured
 
 /**
  * A `Subject` is a sort of bridge or proxy that acts both as an
@@ -263,7 +262,7 @@ trait Subject[-I, +T] extends Observable[T] with Observer[I] { self =>
   override final def takeWhile(p: (T) => Boolean): Subject[I, T] =
     lift(_.takeWhile(p))
 
-  override final def takeWhile(isRefTrue: Atomic[Boolean]): Subject[I, T] =
+  override final def takeWhile(isRefTrue: AtomicBoolean): Subject[I, T] =
     lift(_.takeWhile(isRefTrue))
 
   override final def endWithError(error: Throwable): Subject[I, T] =

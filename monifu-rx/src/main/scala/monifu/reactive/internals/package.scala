@@ -16,9 +16,9 @@
  
 package monifu.reactive
 
+import monifu.reactive.Ack.{Cancel, Continue}
+
 import scala.concurrent.{ExecutionContext, Promise, Future}
-import monifu.reactive.api.Ack
-import monifu.reactive.api.Ack.{Cancel, Continue}
 import scala.util.{Try, Failure}
 import scala.util.control.NonFatal
 

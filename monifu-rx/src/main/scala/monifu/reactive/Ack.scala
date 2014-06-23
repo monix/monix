@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 by its authors. Some rights reserved. 
+ * Copyright (c) 2014 by its authors. Some rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
-package monifu.reactive.api
+
+package monifu.reactive
+
 
 import scala.concurrent.{CanAwait, ExecutionContext, Future}
 import scala.util.{Success, Try}
@@ -61,8 +62,3 @@ sealed trait AckIsFuture[T <: Ack] extends Future[T] { self =>
       def run(): Unit = func(value.get)
     })
 }
-
-
-
-
-

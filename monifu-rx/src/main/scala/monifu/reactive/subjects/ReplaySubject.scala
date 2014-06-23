@@ -17,12 +17,12 @@
 package monifu.reactive.subjects
 
 import scala.concurrent.Future
-import monifu.reactive.api.Ack.{Continue, Cancel}
+import monifu.reactive.Ack.{Continue, Cancel}
 import monifu.concurrent.Scheduler
 import monifu.reactive.{Subject, Observer}
 import monifu.concurrent.atomic.padded.Atomic
 import scala.annotation.tailrec
-import monifu.reactive.api.Ack
+import monifu.reactive.Ack
 import monifu.reactive.observers.ConnectableObserver
 import scala.collection.immutable.Queue
 

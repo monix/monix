@@ -17,11 +17,11 @@
 package monifu.reactive.observers
 
 import monifu.reactive.Observer
-import monifu.reactive.api.Ack.{Cancel, Continue}
+import monifu.reactive.Ack.{Cancel, Continue}
 import scala.concurrent.{Promise, Future}
 import monifu.concurrent.Scheduler
 import monifu.concurrent.atomic.padded.Atomic
-import monifu.reactive.api.Ack
+import monifu.reactive.Ack
 import monifu.reactive.internals.FutureAckExtensions
 
 

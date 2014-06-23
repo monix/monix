@@ -20,7 +20,7 @@ import java.util.concurrent.{CountDownLatch, TimeUnit}
 
 import monifu.concurrent.Scheduler.Implicits.global
 import monifu.concurrent.atomic.padded.Atomic
-import monifu.reactive.api.Ack.{Cancel, Continue}
+import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.observers.ConcurrentObserver
 import monifu.reactive.subjects.BehaviorSubject
 import org.scalatest.FunSpec
