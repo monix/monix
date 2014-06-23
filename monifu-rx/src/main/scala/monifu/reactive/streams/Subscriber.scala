@@ -14,9 +14,11 @@
  * limitations under the License.
  */
 
-package monifu.reactive
+package monifu.reactive.streams
 
+import monifu.reactive.Observer
 import monifu.reactive.observers._
+
 import scala.concurrent.ExecutionContext
 
 /**

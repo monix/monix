@@ -25,6 +25,7 @@ import monifu.reactive.BufferPolicy.{BackPressured, OverflowTriggering, Unbounde
 import monifu.reactive.Notification.{OnComplete, OnError, OnNext}
 import monifu.reactive.internals._
 import monifu.reactive.observers._
+import monifu.reactive.streams.{Subscriber, Publisher}
 import monifu.reactive.subjects.{BehaviorSubject, PublishSubject, ReplaySubject}
 
 import scala.annotation.tailrec

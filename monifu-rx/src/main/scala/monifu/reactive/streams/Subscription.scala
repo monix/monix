@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package monifu.reactive
+package monifu.reactive.streams
 
 /**
  * Represents a one-to-one lifecycle of a [[Subscriber]] subscribing to a [[Publisher]]

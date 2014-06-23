@@ -16,7 +16,7 @@
  
 package monifu.reactive
 
-import monifu.reactive.observers.SubscriberAsObserver
+import monifu.reactive.streams.{SubscriberAsObserver, Subscriber}
 import scala.concurrent.{ExecutionContext, Future}
 
 /**
