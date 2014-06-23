@@ -359,5 +359,23 @@ class ObservableOperatorsOnRangeTest extends FunSpec {
       val f = Observable.range(0,3).repeat.take(1000).sum.asFuture
       assert(Await.result(f, 10.seconds) === Some((0 until 1000).map(_ % 3).sum))
     }
+
+    it("should ambWith") {
+      val completed = new CountDownLatch(2)
+      var sum = 0
+      var count = 0
+
+      val obs = Observable.range(0,1000).observeOn(global).doOnComplete(completed.countDown())
+        .ambWith(Observable.range(0,1000).observeOn(global).doOnComplete(completed.countDown()))
+
+      for (elem <- obs) {
+        sum += elem
+        count += 1
+      }
+
+      assert(completed.await(10, TimeUnit.SECONDS), "completed.await should have succeeded")
+      assert(sum === (0 until 1000).sum)
+      assert(count === 1000)
+    }
   }
 }

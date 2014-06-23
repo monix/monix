@@ -407,5 +407,23 @@ class ObservableOperatorsOnUnitTest extends FunSpec {
       assert(completed.await(10, TimeUnit.SECONDS), "completed.await should have succeeded")
       assert(seen === 1)
     }
+
+    it("should ambWith") {
+      val completed = new CountDownLatch(2)
+      var seen = 0
+      var count = 0
+
+      val obs = Observable.unit(1).observeOn(global).doOnComplete(completed.countDown())
+        .ambWith(Observable.unit(2).observeOn(global).doOnComplete(completed.countDown()))
+
+      for (elem <- obs) {
+        seen = elem
+        count += 1
+      }
+
+      assert(completed.await(10, TimeUnit.SECONDS), "completed.await should have succeeded")
+      assert(seen > 0)
+      assert(count === 1)
+    }
   }
 }

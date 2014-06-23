@@ -22,6 +22,7 @@ import monifu.concurrent.{Cancelable, Scheduler}
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.BufferPolicy.BackPressured
 import monifu.reactive.subjects.{BehaviorSubject, ConnectableSubject, PublishSubject, ReplaySubject}
+import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Future, Promise}
 
 /**
@@ -267,6 +268,22 @@ trait Subject[-I, +T] extends Observable[T] with Observer[I] { self =>
 
   override final def endWithError(error: Throwable): Subject[I, T] =
     lift(_.endWithError(error))
+
+
+  override def ambWith[U >: T](other: Observable[U]): Subject[I, U] =
+    lift(_.ambWith(other))
+
+  override def take(timespan: FiniteDuration): Subject[I, T] =
+    lift(_.take(timespan))
+
+  override def drop(timespan: FiniteDuration): Subject[I, T] =
+    lift(_.drop(timespan))
+
+  override def buffer(count: Int): Subject[I, Seq[T]] =
+    lift(_.buffer(count))
+
+  override def buffer(timespan: FiniteDuration): Subject[I, Seq[T]] =
+    lift(_.buffer(timespan))
 
   override final def lift[U](f: Observable[T] => Observable[U]): Subject[I,U] = {
     new Subject[I,U] {

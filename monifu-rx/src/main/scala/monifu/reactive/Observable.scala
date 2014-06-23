@@ -16,7 +16,7 @@
 
 package monifu.reactive
 
-import monifu.concurrent.atomic.{Atomic, AtomicBoolean}
+import monifu.concurrent.atomic.{AtomicInt, Atomic, AtomicBoolean}
 import monifu.concurrent.cancelables.{BooleanCancelable, RefCountCancelable}
 import monifu.concurrent.locks.SpinLock
 import monifu.concurrent.{Cancelable, Scheduler}
@@ -352,6 +352,39 @@ trait Observable[+T] { self =>
     }
 
   /**
+   * Given the source observable and another `Observable`, emits all of the items
+   * from the first of these Observables to emit an item and cancel the other.
+   */
+  def ambWith[U >: T](other: Observable[U]): Observable[U] = {
+    Observable.amb(this, other)
+  }
+
+  /**
+   * Emit items from the source Observable, or emit a default item if
+   * the source Observable completes after emitting no items.
+   */
+  def defaultIfEmpty[U >: T](default: U): Observable[U] =
+    Observable.create { observer =>
+      subscribeFn(new Observer[T] {
+        private[this] var isEmpty = true
+
+        def onNext(elem: T): Future[Ack] = {
+          if (isEmpty) isEmpty = false
+          observer.onNext(elem)
+        }
+
+        def onError(ex: Throwable): Unit = {
+          observer.onError(ex)
+        }
+
+        def onComplete(): Unit = {
+          if (isEmpty) observer.onNext(default)
+          observer.onComplete()
+        }
+      })
+    }
+
+  /**
    * Selects the first ''n'' elements (from the start).
    *
    *  @param  n  the number of elements to take
@@ -656,6 +689,53 @@ trait Observable[+T] { self =>
 
               if (isStillInvalid)
                 Continue
+              else {
+                continueDropping = false
+                observer.onNext(elem)
+              }
+            }
+            catch {
+              case NonFatal(ex) =>
+                if (streamError) { observer.onError(ex); Cancel } else Future.failed(ex)
+            }
+          }
+          else
+            observer.onNext(elem)
+        }
+
+        def onComplete() =
+          observer.onComplete()
+
+        def onError(ex: Throwable) =
+          observer.onError(ex)
+      })
+    }
+
+  /**
+   * Drops the longest prefix of elements that satisfy the given function
+   * and returns a new Observable that emits the rest. In comparison with
+   * [[dropWhile]], this version accepts a function that takes an additional
+   * parameter: the zero-based index of the element.
+   */
+  def dropWhileWithIndex(p: (T, Int) => Boolean): Observable[T] =
+    Observable.create { observer =>
+      unsafeSubscribe(new Observer[T] {
+        var continueDropping = true
+        var index = 0
+
+        def onNext(elem: T) = {
+          if (continueDropping) {
+            // See Section 6.4. in the Rx Design Guidelines:
+            // Protect calls to user code from within an operator
+            var streamError = true
+            try {
+              val isStillInvalid = p(elem, index)
+              streamError = false
+
+              if (isStillInvalid) {
+                index += 1
+                Continue
+              }
               else {
                 continueDropping = false
                 observer.onNext(elem)
@@ -2162,6 +2242,32 @@ object Observable {
     }
 
   /**
+   * Create an Observable that emits a single item after a given delay.
+   */
+  def timer[T](delay: FiniteDuration, unit: T)(implicit s: Scheduler): Observable[T] =
+    Observable.create { observer =>
+      s.scheduleOnce(delay, {
+        observer.onNext(unit)
+        observer.onComplete()
+      })
+    }
+
+  /**
+   * Create an Observable that repeatedly emits the given `item`, until
+   * the underlying Observer cancels.
+   */
+  def timer[T](initialDelay: FiniteDuration, period: FiniteDuration, unit: T)(implicit s: Scheduler): Observable[T] =
+    Observable.create { observer =>
+      val safeObserver = SafeObserver(observer)
+
+      s.scheduleRecursive(initialDelay, period, { reschedule =>
+        safeObserver.onNext(unit).onContinue {
+          reschedule()
+        }
+      })
+    }
+
+  /**
    * Concatenates the given list of ''observables'' into a single observable.
    */
   def flatten[T](sources: Observable[T]*)(implicit scheduler: Scheduler): Observable[T] =
@@ -2202,6 +2308,46 @@ object Observable {
    */
   def concat[T](sources: Observable[T]*)(implicit scheduler: Scheduler): Observable[T] =
     Observable.from(sources).concat
+
+  /**
+   * Given a list of source Observables, emits all of the items from the first of
+   * these Observables to emit an item and cancel the rest.
+   */
+  def amb[T](source: Observable[T]*)(implicit scheduler: Scheduler): Observable[T] = {
+    // helper function used for creating a subscription that uses `finishLine` as guard
+    def createSubscription(observable: Observable[T], observer: Observer[T], finishLine: AtomicInt, idx: Int): Unit =
+      observable.unsafeSubscribe(new Observer[T] {
+        def onNext(elem: T): Future[Ack] = {
+          if (finishLine.get == idx || finishLine.compareAndSet(0, idx))
+            observer.onNext(elem)
+          else
+            Cancel
+        }
+
+        def onError(ex: Throwable): Unit = {
+          if (finishLine.get == idx || finishLine.compareAndSet(0, idx))
+            observer.onError(ex)
+        }
+
+        def onComplete(): Unit = {
+          if (finishLine.get == idx || finishLine.compareAndSet(0, idx))
+            observer.onComplete()
+        }
+      })
+
+    Observable.create { observer =>
+      val finishLine = Atomic(0)
+      var idx = 0
+      for (observable <- source) {
+        createSubscription(observable, observer, finishLine, idx + 1)
+        idx += 1
+      }
+
+      // if the list of observables was empty, just
+      // emit `onComplete`
+      if (idx == 0) observer.onComplete()
+    }
+  }
 
   /**
    * Implicit conversion from Future to Observable.
