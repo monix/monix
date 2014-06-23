@@ -25,7 +25,7 @@ import scala.concurrent.ExecutionContext
  * Mirrors the `Subscriber` interface from the
  * [[http://www.reactive-streams.org/ Reactive Streams]] project.
  */
-trait Subscriber[-T] {
+trait Subscriber[T] {
   def onSubscribe(s: Subscription): Unit
   def onNext(elem: T): Unit
   def onError(ex: Throwable): Unit
