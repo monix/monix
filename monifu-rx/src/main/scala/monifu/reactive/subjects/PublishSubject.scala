@@ -17,8 +17,8 @@
 package monifu.reactive.subjects
 
 import scala.concurrent.Future
-import monifu.reactive.api.Ack
-import monifu.reactive.api.Ack.{Continue, Cancel}
+import monifu.reactive.Ack
+import monifu.reactive.Ack.{Continue, Cancel}
 import monifu.concurrent.Scheduler
 import monifu.reactive.{Subject, Observer}
 import monifu.reactive.internals.PromiseCounter

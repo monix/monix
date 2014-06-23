@@ -19,8 +19,8 @@ package monifu.reactive.channels
 import monifu.reactive.{Observable, Observer, Channel, Subject}
 import monifu.reactive.observers.BufferedObserver
 import monifu.concurrent.Scheduler
-import monifu.reactive.api.BufferPolicy
-import monifu.reactive.api.BufferPolicy.Unbounded
+import monifu.reactive.BufferPolicy
+import monifu.reactive.BufferPolicy.Unbounded
 
 /**
  * Wraps any [[Subject]] into a [[Channel]].

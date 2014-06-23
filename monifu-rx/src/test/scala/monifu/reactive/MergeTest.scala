@@ -21,10 +21,10 @@ import monifu.concurrent.Scheduler.Implicits.global
 import scala.concurrent.{Future, Await}
 import concurrent.duration._
 import java.util.concurrent.{TimeUnit, CountDownLatch}
-import monifu.reactive.api.Ack.{Cancel, Continue}
+import monifu.reactive.Ack.{Cancel, Continue}
 import scala.util.Random
 import monifu.concurrent.atomic.Atomic
-import monifu.reactive.api.BufferPolicy.Unbounded
+import monifu.reactive.BufferPolicy.Unbounded
 
 /**
  * Observable.merge can have potentially severe concurrency problems,

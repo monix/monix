@@ -16,16 +16,17 @@
  
 package monifu.reactive
 
-import org.scalatest.FunSpec
-import scala.concurrent.{Future, Await}
-import scala.concurrent.duration._
+import java.util.concurrent.{CountDownLatch, TimeUnit}
+
 import monifu.concurrent.Scheduler.Implicits.global
-import java.util.concurrent.{TimeUnit, CountDownLatch}
-import monifu.reactive.api.Ack.Continue
-import monifu.reactive.api.BufferPolicy.{OverflowTriggering, BackPressured, Unbounded}
-import monifu.reactive.api.Notification
-import monifu.reactive.api.Notification.{OnComplete, OnNext}
+import monifu.reactive.Ack.Continue
+import monifu.reactive.BufferPolicy.{BackPressured, OverflowTriggering, Unbounded}
+import monifu.reactive.Notification.{OnComplete, OnNext}
 import monifu.reactive.subjects.BehaviorSubject
+import org.scalatest.FunSpec
+
+import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
 
 /**
  * Tests involving the Observable operators when used on `Observable.unit`.

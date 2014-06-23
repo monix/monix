@@ -18,8 +18,8 @@ package monifu.reactive.channels
 
 import monifu.concurrent.Scheduler
 import monifu.reactive.subjects.ReplaySubject
-import monifu.reactive.api.BufferPolicy
-import monifu.reactive.api.BufferPolicy.Unbounded
+import monifu.reactive.BufferPolicy
+import monifu.reactive.BufferPolicy.Unbounded
 
 /**
  * Represents a [[monifu.reactive.Channel Channel]] that uses an underlying

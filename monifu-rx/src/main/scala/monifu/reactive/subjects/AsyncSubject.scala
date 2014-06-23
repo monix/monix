@@ -17,8 +17,8 @@
 package monifu.reactive.subjects
 
 import scala.concurrent.Future
-import monifu.reactive.api.Ack
-import monifu.reactive.api.Ack.Continue
+import monifu.reactive.Ack
+import monifu.reactive.Ack.Continue
 import monifu.concurrent.Scheduler
 import monifu.reactive.{Subject, Observer}
 import monifu.concurrent.atomic.Atomic

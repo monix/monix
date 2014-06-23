@@ -16,12 +16,11 @@
  
 package monifu.reactive.channels
 
-import monifu.reactive.{Observable, Observer, Channel}
+import monifu.reactive.BufferPolicy.Unbounded
+import monifu.reactive.{BufferPolicy, Observable, Observer, Channel}
 import monifu.reactive.observers.BufferedObserver
 import monifu.concurrent.Scheduler
 import monifu.reactive.subjects.BehaviorSubject
-import monifu.reactive.api.BufferPolicy
-import monifu.reactive.api.BufferPolicy.Unbounded
 import monifu.concurrent.locks.SpinLock
 
 /**

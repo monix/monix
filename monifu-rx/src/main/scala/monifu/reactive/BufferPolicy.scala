@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 by its authors. Some rights reserved. 
+ * Copyright (c) 2014 by its authors. Some rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,15 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
-package monifu.reactive.api
+
+package monifu.reactive
 
 /**
  * Represents the buffering policy chosen for actions that need buffering,
  * instructing the pipeline what to do when the buffer is full.
  *
  * For the available policies, see:
- * 
+ *
  * - [[BufferPolicy.Unbounded Unbounded]]
  * - [[BufferPolicy.OverflowTriggering OverflowTriggering]]
  * - [[BufferPolicy.BackPressured BackPressured]]
@@ -59,3 +59,4 @@ object BufferPolicy {
     require(bufferSize > 1, "bufferSize should be greater than 1")
   }
 }
+

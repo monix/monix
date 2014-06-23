@@ -23,7 +23,7 @@ import scala.concurrent.{Future, Await}
 import concurrent.duration._
 import monifu.concurrent.atomic.padded.Atomic
 import java.util.concurrent.{TimeUnit, CountDownLatch}
-import monifu.reactive.api.Ack.{Cancel, Continue}
+import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.channels.PublishChannel
 import monifu.reactive.observers.ConcurrentObserver
 
