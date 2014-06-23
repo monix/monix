@@ -25,7 +25,7 @@ import monifu.reactive.BufferPolicy.{BackPressured, OverflowTriggering, Unbounde
 import monifu.reactive.Notification.{OnComplete, OnError, OnNext}
 import monifu.reactive.internals._
 import monifu.reactive.observers._
-import monifu.reactive.streams.{Subscriber, Publisher}
+import monifu.reactive.streams.Publisher
 import monifu.reactive.subjects.{BehaviorSubject, PublishSubject, ReplaySubject}
 
 import scala.annotation.tailrec
@@ -40,7 +40,7 @@ import scala.util.{Failure, Success}
 /**
  * Asynchronous implementation of the Observable interface
  */
-trait Observable[+T] extends Publisher[T] { self =>
+trait Observable[+T] { self =>
   /**
    * Characteristic function for an `Observable` instance,
    * that creates the subscription and that eventually starts the streaming of events
@@ -83,38 +83,6 @@ trait Observable[+T] extends Publisher[T] { self =>
    */
   final def unsafeSubscribe(observer: Observer[T]): Unit = {
     subscribeFn(observer)
-  }
-
-  /**
-   * Given a [[Subscriber]] instance it creates the subscription that eventually
-   * starts the streaming of events to the given [[Subscriber]].
-   *
-   * @param subscriber is a [[Subscriber]] instance on which `onSubscribe`, `onNext`,
-   *                   `onComplete` and `onError` events happen according to the
-   *                   [[http://www.reactive-streams.org/ Reactive Streams]]
-   *                   contract.
-   */
-  final def subscribe(subscriber: Subscriber[T]): Unit = {
-    subscribeFn(SafeObserver(Observer.from(subscriber)))
-  }
-
-  /**
-   * Given a [[Subscriber]] instance it creates the subscription that eventually
-   * starts the streaming of events to the given [[Subscriber]].
-   *
-   * This function is "unsafe" to call because it does protect the calls to the
-   * given [[Subscriber]] implementation in regards to unexpected exceptions that
-   * violate the contract, therefore the given instance must respect its contract
-   * and not throw any exceptions when the publisher calls `onSubscribe`, `onNext`,
-   * `onComplete` and `onError`. If it does, then the behavior is undefined.
-   *
-   * @param subscriber is a [[Subscriber]] instance on which `onSubscribe`, `onNext`,
-   *                   `onComplete` and `onError` events happen according to the
-   *                   [[http://www.reactive-streams.org/ Reactive Streams]]
-   *                   contract.
-   */
-  final def unsafeSubscribe(subscriber: Subscriber[T]): Unit = {
-    unsafeSubscribe(Observer.from(subscriber))
   }
 
   /**
@@ -2240,4 +2208,10 @@ object Observable {
    */
   implicit def FutureIsObservable[T](future: Future[T])(implicit scheduler: Scheduler): Observable[T] =
     Observable.from(future)
+
+  /**
+   * Implicit conversion from Observable to Publisher.
+   */
+  implicit def ObservableIsPublisher[T](source: Observable[T]): Publisher[T] =
+    Publisher.from(source)
 }

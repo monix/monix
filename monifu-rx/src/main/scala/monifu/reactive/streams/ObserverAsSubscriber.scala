@@ -59,7 +59,7 @@ import scala.concurrent.ExecutionContext
  *
  * @param ec the execution context needed for processing asynchronous `Future` results
  */
-final class ObserverAsSubscriber[-T] private (observer: Observer[T], requestCount: Int)(implicit ec: ExecutionContext)
+final class ObserverAsSubscriber[T] private (observer: Observer[T], requestCount: Int)(implicit ec: ExecutionContext)
   extends Subscriber[T] {
 
   require(requestCount > 0, "requestCount must be strictly positive, according to the Reactive Streams contract")
@@ -168,7 +168,7 @@ object ObserverAsSubscriber {
  *
  * @param ec the execution context needed for processing asynchronous `Future` results
  */
-final class SynchronousObserverAsSubscriber[-T] private (observer: SynchronousObserver[T], requestCount: Int)(implicit ec: ExecutionContext)
+final class SynchronousObserverAsSubscriber[T] private (observer: SynchronousObserver[T], requestCount: Int)(implicit ec: ExecutionContext)
   extends Subscriber[T] {
 
   require(requestCount > 0, "requestCount must be strictly positive, according to the Reactive Streams contract")

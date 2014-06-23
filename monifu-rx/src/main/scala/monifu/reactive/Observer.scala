@@ -47,4 +47,11 @@ object Observer {
   def from[T](subscriber: Subscriber[T])(implicit ec: ExecutionContext): Observer[T] = {
     SubscriberAsObserver(subscriber)
   }
+
+  /**
+   * Implicit conversion from [[Observer]] to [[monifu.reactive.streams.Subscriber Subscriber]].
+   */
+  def ObserverIsSubscriber[T](source: Observer[T])(implicit ec: ExecutionContext): Subscriber[T] = {
+    Subscriber.from(source)(ec)
+  }
 }

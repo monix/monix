@@ -29,7 +29,7 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
  * into an [[monifu.reactive.Observer Observer]] instance that respect the `Observer`
  * contract.
  */
-final class SubscriberAsObserver[-T] private (subscriber: Subscriber[T])(implicit ec: ExecutionContext)
+final class SubscriberAsObserver[T] private (subscriber: Subscriber[T])(implicit ec: ExecutionContext)
   extends Observer[T] {
 
   @volatile private[this] var isCanceled = false
