@@ -14,18 +14,20 @@
  * limitations under the License.
  */
 
-package monifu.reactive.observers
+package monifu.reactive.streams
 
 import monifu.concurrent.atomic.Atomic
-import monifu.reactive.Ack
 import monifu.reactive.Ack.{Cancel, Continue}
-import monifu.reactive.{Subscription, Observer, Subscriber}
+import monifu.reactive.{Ack, Observer}
 
 import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future, Promise}
 
 /**
- * Wraps a [[Subscriber]] instance into an [[Observer]] interface.
+ * Wraps a [[Subscriber Subscriber]] instance that respects the
+ * [[http://www.reactive-streams.org/ Reactive Streams]] contract
+ * into an [[monifu.reactive.Observer Observer]] instance that respect the `Observer`
+ * contract.
  */
 final class SubscriberAsObserver[-T] private (subscriber: Subscriber[T])(implicit ec: ExecutionContext)
   extends Observer[T] {
@@ -54,10 +56,6 @@ final class SubscriberAsObserver[-T] private (subscriber: Subscriber[T])(implici
     else if (isCanceled) {
       Cancel
     }
-    else if (leftToPush.get < 0) {
-      subscriber.onNext(elem)
-      Continue
-    }
     else if (leftToPush.countDownToZero() > 0) {
       subscriber.onNext(elem)
       Continue
@@ -79,6 +77,8 @@ final class SubscriberAsObserver[-T] private (subscriber: Subscriber[T])(implici
 
       @tailrec
       def request(n: Int): Unit = if (!isCanceled) {
+        require(n > 0, "n must be strictly positive, according to the Reactive Streams contract")
+
         // the very first request call must complete a different
         // promise, because we don't want the subscription implementation
         // to be in charge of updating the `requestPromise` atomic
@@ -89,19 +89,10 @@ final class SubscriberAsObserver[-T] private (subscriber: Subscriber[T])(implici
             requestPromise.get
 
         val currentDemand = leftToPush.get
-        if (n != 0 && currentDemand >= 0)
-          if (n > 0) {
-            if (!leftToPush.compareAndSet(currentDemand, currentDemand + n))
-              request(n)
-            else if (currentDemand == 0)
-              promise.trySuccess(Continue)
-          }
-          else {
-            if (!leftToPush.compareAndSet(currentDemand, n))
-              request(n)
-            else if (currentDemand == 0)
-              promise.trySuccess(Continue)
-          }
+        if (!leftToPush.compareAndSet(currentDemand, currentDemand + n))
+          request(n)
+        else if (currentDemand == 0)
+          promise.trySuccess(Continue)
       }
 
       def cancel(): Unit = {

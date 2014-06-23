@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package monifu.reactive
+package monifu.reactive.streams
 
 /**
  * Mirrors the `Publisher` interface from the
@@ -30,7 +30,7 @@ trait Publisher[+T] {
    * subscribe once to a single [[Publisher]].
    *
    * If the [[Publisher]] rejects the subscription attempt or otherwise fails
-   * it will signal the error via [[Subscriber.onError]].≟
+   * it will signal the error via [[Subscriber.onError]].
    *
    * @param subscriber the [[Subscriber]] that will consume signals from this [[Publisher]]
    */
