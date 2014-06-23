@@ -779,7 +779,7 @@ class ConnectableObserverTest extends FunSpec {
           obs.onComplete()
         }
 
-        assert(completed.await(2, TimeUnit.SECONDS), "completed.await should have succeeded")
+        assert(completed.await(5, TimeUnit.SECONDS), "completed.await should have succeeded")
         assert(seen === 3)
       }
     }

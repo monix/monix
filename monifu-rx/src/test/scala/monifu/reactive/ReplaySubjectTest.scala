@@ -386,7 +386,7 @@ class ReplaySubjectTest extends FunSpec {
       assert(sum2 === 3)
 
       subject.pushComplete()
-      subject1Complete.await(3, TimeUnit.SECONDS)
+      assert(subject1Complete.await(5, TimeUnit.SECONDS), "subject1Complete.await should have succeeded")
 
       assert(sum1 === 3)
     }

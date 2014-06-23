@@ -39,6 +39,8 @@ object Build extends SbtBuild {
       )
     },
 
+    parallelExecution in Test := false,
+
     resolvers ++= Seq(
       "Typesafe Releases" at "http://repo.typesafe.com/typesafe/releases",
       Resolver.sonatypeRepo("releases")
