@@ -137,13 +137,13 @@ trait Subject[-I, +T] extends Observable[T] with Observer[I] { self =>
   override final def flatten[U](implicit ev: <:<[T, Observable[U]]): Subject[I, U] =
     lift(_.flatten(ev))
 
-  override def flatMap[U](f: (T) => Observable[U]): Subject[I, U] =
+  override final def flatMap[U](f: (T) => Observable[U]): Subject[I, U] =
     lift(_.flatMap(f))
 
-  override def merge[U](bufferPolicy: BufferPolicy, batchSize: Int)(implicit ev: <:<[T, Observable[U]]) =
+  override final def merge[U](bufferPolicy: BufferPolicy, batchSize: Int)(implicit ev: <:<[T, Observable[U]]) =
     lift(_.merge(bufferPolicy, batchSize))
 
-  override def concatMap[U](f: (T) => Observable[U]): Subject[I, U] =
+  override final def concatMap[U](f: (T) => Observable[U]): Subject[I, U] =
     lift(_.concatMap(f))
 
   override final def find(p: (T) => Boolean): Subject[I, T] =
@@ -200,10 +200,10 @@ trait Subject[-I, +T] extends Observable[T] with Observer[I] { self =>
   override final def firstOrElse[U >: T](default: => U): Subject[I, U] =
     lift(_.firstOrElse(default))
 
-  override def take(n: Int): Subject[I, T] =
+  override final def take(n: Int): Subject[I, T] =
     lift(_.take(n))
 
-  override def doWork(cb: (T) => Unit): Subject[I, T] =
+  override final def doWork(cb: (T) => Unit): Subject[I, T] =
     lift(_.doWork(cb))
 
   override final def repeat: Subject[I, T] =
@@ -269,21 +269,26 @@ trait Subject[-I, +T] extends Observable[T] with Observer[I] { self =>
   override final def endWithError(error: Throwable): Subject[I, T] =
     lift(_.endWithError(error))
 
-
-  override def ambWith[U >: T](other: Observable[U]): Subject[I, U] =
+  override final def ambWith[U >: T](other: Observable[U]): Subject[I, U] =
     lift(_.ambWith(other))
 
-  override def take(timespan: FiniteDuration): Subject[I, T] =
+  override final def take(timespan: FiniteDuration): Subject[I, T] =
     lift(_.take(timespan))
 
-  override def drop(timespan: FiniteDuration): Subject[I, T] =
+  override final def drop(timespan: FiniteDuration): Subject[I, T] =
     lift(_.drop(timespan))
 
-  override def buffer(count: Int): Subject[I, Seq[T]] =
+  override final def buffer(count: Int): Subject[I, Seq[T]] =
     lift(_.buffer(count))
 
-  override def buffer(timespan: FiniteDuration): Subject[I, Seq[T]] =
+  override final def buffer(timespan: FiniteDuration): Subject[I, Seq[T]] =
     lift(_.buffer(timespan))
+
+  override final def defaultIfEmpty[U >: T](default: U): Subject[I, U] =
+    lift(_.defaultIfEmpty(default))
+
+  override final def dropWhileWithIndex(p: (T, Int) => Boolean): Subject[I, T] =
+    lift(_.dropWhileWithIndex(p))
 
   override final def lift[U](f: Observable[T] => Observable[U]): Subject[I,U] = {
     new Subject[I,U] {
