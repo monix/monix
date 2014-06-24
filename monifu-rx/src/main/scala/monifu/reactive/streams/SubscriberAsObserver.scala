@@ -17,9 +17,10 @@
 package monifu.reactive.streams
 
 import monifu.concurrent.atomic.Atomic
+import monifu.concurrent.locks.SpinLock
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.{Ack, Observer}
-
+import monifu.reactive.internals.FutureAckExtensions
 import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future, Promise}
 
@@ -35,70 +36,82 @@ final class SubscriberAsObserver[T] private (subscriber: Subscriber[T])(implicit
   @volatile private[this] var isCanceled = false
   private[this] var isFirstEvent = true
   private[this] val leftToPush = Atomic(0)
-  private[this] val requestPromise = Atomic(Promise[Ack]())
+  private[this] var ack = Continue : Future[Ack]
 
+  private[this] val lock = SpinLock()
+  // MUST BE synchronized by lock
+  // MUST only be modified by the Subscription object
+  private[this] var requestPromise = Promise[Ack]()
+
+  private[this] def retryOnNext(elem: T) = onNext(elem)
+
+  @tailrec
   def onNext(elem: T): Future[Ack] = {
     // on the first event sent, we need to create the subscription
     // to our underlying Subscriber by calling onSubscribe and then
     // we must block for demand to be sent
     if (isFirstEvent) {
       isFirstEvent = false
-      val firstPromise = Promise[Ack]()
       // create the subscription
-      subscriber.onSubscribe(createSubscription(firstPromise))
-
-      // back-pressure until a request(n) or a cancel() comes in
-      firstPromise.future.flatMap {
-        case Continue if !isCanceled => onNext(elem)
-        case _ => Cancel
-      }
+      subscriber.onSubscribe(createSubscription())
+      // tail-recursive call - retry
+      onNext(elem)
     }
     else if (isCanceled) {
-      Cancel
+      ack = Cancel
+      ack
     }
     else if (leftToPush.countDownToZero() > 0) {
       subscriber.onNext(elem)
-      Continue
+      ack = Continue
+      ack
     }
     else {
-      // Applying back-pressure until request(n) or cancel()
-      // NOTE: if the contract is broken and concurrent onNext
-      // events come in then this has concurrency problems
-      requestPromise.getAndSet(Promise()).future.flatMap {
-        case Continue if !isCanceled => onNext(elem) // retry
-        case _ => Cancel
+      val result = lock.enter {
+        // race condition guard
+        if (isCanceled) {
+          Cancel
+        }
+        else if (leftToPush.get > 0) {
+          // we've had request events in the meantime
+          null
+        }
+        else {
+          // Applying back-pressure until request(n) or cancel()
+          // NOTE: if the contract is broken and concurrent onNext
+          // events come in then this has concurrency problems
+          requestPromise.future.flatMap {
+            case Continue if !isCanceled => retryOnNext(elem)
+            case _ => Cancel
+          }
+        }
+      }
+
+      if (result == null) onNext(elem) else {
+        ack = result
+        ack
       }
     }
   }
 
-  private[this] def createSubscription(firstPromise: Promise[Ack]) =
+  private[this] def createSubscription(): Subscription =
     new Subscription {
-      private[this] val isFirst = Atomic(true)
+      def request(n: Int): Unit = lock.enter {
+        if (!isCanceled) {
+          require(n > 0, "n must be strictly positive, according to the Reactive Streams contract")
 
-      @tailrec
-      def request(n: Int): Unit = if (!isCanceled) {
-        require(n > 0, "n must be strictly positive, according to the Reactive Streams contract")
-
-        // the very first request call must complete a different
-        // promise, because we don't want the subscription implementation
-        // to be in charge of updating the `requestPromise` atomic
-        val promise =
-          if (isFirst.get && isFirst.compareAndSet(expect=true, update=false))
-            firstPromise
-          else
-            requestPromise.get
-
-        val currentDemand = leftToPush.get
-        if (!leftToPush.compareAndSet(currentDemand, currentDemand + n))
-          request(n)
-        else if (currentDemand == 0)
-          promise.trySuccess(Continue)
+          if (leftToPush.getAndIncrement(n) == 0) {
+            val promise = requestPromise
+            requestPromise = Promise()
+            promise.trySuccess(Continue)
+          }
+        }
       }
 
-      def cancel(): Unit = {
+      def cancel(): Unit = lock.enter {
         leftToPush lazySet 0
         isCanceled = true
-        requestPromise.get.trySuccess(Cancel)
+        requestPromise.trySuccess(Cancel)
       }
     }
 
@@ -110,10 +123,19 @@ final class SubscriberAsObserver[T] private (subscriber: Subscriber[T])(implicit
   }
 
   def onComplete(): Unit = {
-    if (!isCanceled) {
+    if (isFirstEvent) {
       isCanceled = true
       subscriber.onComplete()
     }
+    else if (!isCanceled)
+      ack.onContinue {
+        lock.enter {
+          if (!isCanceled) {
+            isCanceled = true
+            subscriber.onComplete()
+          }
+        }
+      }
   }
 }
 

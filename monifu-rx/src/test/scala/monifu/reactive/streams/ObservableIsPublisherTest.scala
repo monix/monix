@@ -20,80 +20,86 @@ import java.util.concurrent.{CountDownLatch, TimeUnit}
 
 import monifu.concurrent.Scheduler.Implicits.global
 import monifu.reactive.Observable
+import monifu.reactive.internals.FutureAckExtensions
 import org.scalatest.FunSpec
 
 class ObservableIsPublisherTest extends FunSpec {
   describe("Observable.subscribe(subscriber)") {
     it("should work with stop-and-wait back-pressure") {
-      val completed = new CountDownLatch(1)
-      var sum = 0
+      for (_ <- 0 until 100) {
+        val completed = new CountDownLatch(1)
+        var sum = 0
 
-      Observable.from(1 to 10000).subscribe(new Subscriber[Int] {
-        private[this] var s = null : Subscription
-        def onSubscribe(s: Subscription): Unit = {
-          this.s = s
-          s.request(1)
-        }
+        Observable.from(1 to 10000).subscribe(new Subscriber[Int] {
+          private[this] var s = null : Subscription
+          def onSubscribe(s: Subscription): Unit = {
+            this.s = s
+            s.request(1)
+          }
 
-        def onNext(elem: Int): Unit = {
-          sum += elem
-          s.request(1)
-        }
+          def onNext(elem: Int): Unit = {
+            sum += elem
+            s.request(1)
+          }
 
-        def onError(ex: Throwable): Unit = {
-          global.reportFailure(ex)
-        }
+          def onError(ex: Throwable): Unit = {
+            global.reportFailure(ex)
+          }
 
-        def onComplete(): Unit = {
-          completed.countDown()
-        }
-      })
+          def onComplete(): Unit = {
+            completed.countDown()
+          }
+        })
 
-      assert(completed.await(5, TimeUnit.SECONDS), "completed.await should have succeeded")
-      assert(sum === 5000 * 10001)
+        assert(completed.await(5, TimeUnit.SECONDS), "completed.await should have succeeded")
+        assert(sum === 5000 * 10001)
+      }
     }
 
     it("should work with batched execution") {
-      val completed = new CountDownLatch(1)
-      var sum = 0
+      for (_ <- 0 until 100) {
+        val completed = new CountDownLatch(1)
+        var sum = 0
 
-      Observable.from(1 to 10000).subscribe(new Subscriber[Int] {
-        private[this] var s = null : Subscription
-        private[this] var leftToProcess = 1000
+        Observable.from(1 to 10000).subscribe(new Subscriber[Int] {
+          private[this] var s = null : Subscription
+          private[this] var leftToProcess = 1000
 
-        def onSubscribe(s: Subscription): Unit = {
-          this.s = s
-          s.request(leftToProcess)
-        }
-
-        def onNext(elem: Int): Unit = {
-          sum += elem
-          leftToProcess -= 1
-          if (leftToProcess == 0) {
-            leftToProcess = 1000
-            s.request(1000)
+          def onSubscribe(s: Subscription): Unit = {
+            this.s = s
+            s.request(leftToProcess)
           }
-        }
 
-        def onError(ex: Throwable): Unit = {
-          global.reportFailure(ex)
-        }
+          def onNext(elem: Int): Unit = {
+            sum += elem
+            leftToProcess -= 1
+            if (leftToProcess == 0) {
+              leftToProcess = 1000
+              s.request(1000)
+            }
+          }
 
-        def onComplete(): Unit = {
-          completed.countDown()
-        }
-      })
+          def onError(ex: Throwable): Unit = {
+            global.reportFailure(ex)
+          }
 
-      assert(completed.await(5, TimeUnit.SECONDS), "completed.await should have succeeded")
-      assert(sum === 5000 * 10001)
+          def onComplete(): Unit = {
+            completed.countDown()
+          }
+        })
+
+        assert(completed.await(5, TimeUnit.SECONDS), "completed.await should have succeeded")
+        assert(sum === 5000 * 10001)
+      }
     }
 
-    it("should merge") {
-      val completed = new CountDownLatch(1)
-      var sum = 0
+    it("should merge in batches of 1000, test 1") {
+      for (_ <- 0 until 100) {
+        val completed = new CountDownLatch(1)
+        var sum = 0
 
-      Observable.from(1 to 10000).mergeMap(x => Observable.unit(x))
-        .subscribe(new Subscriber[Int] {
+        Observable.from(1 to 10000).mergeMap(x => Observable.unit(x))
+          .subscribe(new Subscriber[Int] {
           private[this] var s = null : Subscription
           private[this] var requested = 1000
 
@@ -121,16 +127,18 @@ class ObservableIsPublisherTest extends FunSpec {
           }
         })
 
-      assert(completed.await(5, TimeUnit.SECONDS), "completed.await should have succeeded")
-      assert(sum === 5000 * 10001)
+        assert(completed.await(5, TimeUnit.SECONDS), "completed.await should have succeeded")
+        assert(sum === 5000 * 10001)
+      }
     }
 
-    it("should flatMap") {
-      val completed = new CountDownLatch(1)
-      var sum = 0
+    it("should merge in batches of 1000, test 2") {
+      for (_ <- 0 until 100) {
+        val completed = new CountDownLatch(1)
+        var sum = 0
 
-      Observable.from(1 to 10000).flatMap(x => Observable.unit(x))
-        .subscribe(new Subscriber[Int] {
+        Observable.from(1 to 10000).mergeMap(x => Observable.unit(x))
+          .subscribe(new Subscriber[Int] {
           private[this] var s = null : Subscription
           private[this] var requested = 1000
 
@@ -140,13 +148,13 @@ class ObservableIsPublisherTest extends FunSpec {
           }
 
           def onNext(elem: Int): Unit = {
-            sum += elem
-
             requested -= 1
             if (requested == 0) {
               s.request(1000)
               requested = 1000
             }
+
+            sum += elem
           }
 
           def onError(ex: Throwable): Unit = {
@@ -158,92 +166,659 @@ class ObservableIsPublisherTest extends FunSpec {
           }
         })
 
-      assert(completed.await(5, TimeUnit.SECONDS), "completed.await should have succeeded")
-      assert(sum === 5000 * 10001)
+        assert(completed.await(5, TimeUnit.SECONDS), "completed.await should have succeeded")
+        assert(sum === 5000 * 10001)
+      }
+    }
+
+    it("should merge in batches of 1, test 1") {
+      for (_ <- 0 until 100) {
+        val completed = new CountDownLatch(1)
+        var sum = 0
+
+        Observable.from(1 to 10000).mergeMap(x => Observable.unit(x))
+          .subscribe(new Subscriber[Int] {
+          private[this] var s = null : Subscription
+
+          def onSubscribe(s: Subscription): Unit = {
+            this.s = s
+            s.request(1)
+          }
+
+          def onNext(elem: Int): Unit = {
+            sum += elem
+            s.request(1)
+          }
+
+          def onError(ex: Throwable): Unit = {
+            global.reportFailure(ex)
+          }
+
+          def onComplete(): Unit = {
+            completed.countDown()
+          }
+        })
+
+        assert(completed.await(5, TimeUnit.SECONDS), "completed.await should have succeeded")
+        assert(sum === 5000 * 10001)
+      }
+    }
+
+    it("should merge in batches of 1, test 2") {
+      for (_ <- 0 until 100) {
+        val completed = new CountDownLatch(1)
+        var sum = 0
+
+        Observable.from(1 to 10000).mergeMap(x => Observable.unit(x))
+          .subscribe(new Subscriber[Int] {
+          private[this] var s = null : Subscription
+
+          def onSubscribe(s: Subscription): Unit = {
+            this.s = s
+            s.request(1)
+          }
+
+          def onNext(elem: Int): Unit = {
+            s.request(1)
+            sum += elem
+          }
+
+          def onError(ex: Throwable): Unit = {
+            global.reportFailure(ex)
+          }
+
+          def onComplete(): Unit = {
+            completed.countDown()
+          }
+        })
+
+        assert(completed.await(5, TimeUnit.SECONDS), "completed.await should have succeeded")
+        assert(sum === 5000 * 10001)
+      }
+    }
+
+    it("should merge.take(1), test 1") {
+      for (_ <- 0 until 100) {
+        val completed = new CountDownLatch(1)
+        var sum = 0
+
+        Observable.from(1 to 10000).mergeMap(x => Observable.unit(x)).take(1)
+          .subscribe(new Subscriber[Int] {
+            def onSubscribe(s: Subscription): Unit = {
+              s.request(1000)
+            }
+
+            def onNext(elem: Int): Unit = {
+              sum += elem
+            }
+
+            def onError(ex: Throwable): Unit = {
+              global.reportFailure(ex)
+            }
+
+            def onComplete(): Unit = {
+              completed.countDown()
+            }
+          })
+
+        assert(completed.await(5, TimeUnit.SECONDS), "completed.await should have succeeded")
+        assert(sum === 1)
+      }
+    }
+
+    it("should merge.take(1), test 2") {
+      for (_ <- 0 until 100) {
+        val completed = new CountDownLatch(1)
+        var seen = 0
+
+        Observable.from(1 to 10000).mergeMap(x => Observable.unit(x)).take(1)
+          .subscribe(new Subscriber[Int] {
+            private[this] var sub: Subscription = null
+            def onSubscribe(s: Subscription): Unit = {
+              sub = s
+              s.request(1)
+            }
+
+            def onNext(elem: Int): Unit = {
+              assert(seen === 0)
+              seen = elem
+              sub.cancel()
+              completed.countDown()
+            }
+
+            def onError(ex: Throwable): Unit = {
+              global.reportFailure(ex)
+            }
+
+            def onComplete(): Unit = {
+              throw new IllegalStateException("onComplete()")
+            }
+          })
+
+        assert(completed.await(5, TimeUnit.SECONDS), "completed.await should have succeeded")
+        assert(seen === 1)
+      }
+    }
+
+    it("should flatMap in batches of 1000, test 1") {
+      for (_ <- 0 until 100) {
+        val completed = new CountDownLatch(1)
+        var sum = 0
+
+        Observable.from(1 to 10000).flatMap(x => Observable.unit(x)).subscribe(
+          new Subscriber[Int] {
+            private[this] var s = null : Subscription
+            private[this] var requested = 1000
+
+            def onSubscribe(s: Subscription): Unit = {
+              this.s = s
+              s.request(requested)
+            }
+
+            def onNext(elem: Int): Unit = {
+              sum += elem
+
+              requested -= 1
+              if (requested == 0) {
+                s.request(1000)
+                requested = 1000
+              }
+            }
+
+            def onError(ex: Throwable): Unit = {
+              global.reportFailure(ex)
+            }
+
+            def onComplete(): Unit = {
+              completed.countDown()
+            }
+          })
+
+        assert(completed.await(5, TimeUnit.SECONDS), "completed.await should have succeeded")
+        assert(sum === 5000 * 10001)
+      }
+    }
+
+    it("should flatMap in batches of 1000, test 2") {
+      for (_ <- 0 until 100) {
+        val completed = new CountDownLatch(1)
+        var sum = 0
+
+        Observable.from(1 to 10000).flatMap(x => Observable.unit(x)).subscribe(
+          new Subscriber[Int] {
+            private[this] var s = null : Subscription
+            private[this] var requested = 1000
+
+            def onSubscribe(s: Subscription): Unit = {
+              this.s = s
+              s.request(requested)
+            }
+
+            def onNext(elem: Int): Unit = {
+              requested -= 1
+              if (requested == 0) {
+                s.request(1000)
+                requested = 1000
+              }
+
+              sum += elem
+            }
+
+            def onError(ex: Throwable): Unit = {
+              global.reportFailure(ex)
+            }
+
+            def onComplete(): Unit = {
+              completed.countDown()
+            }
+          })
+
+        assert(completed.await(5, TimeUnit.SECONDS), "completed.await should have succeeded")
+        assert(sum === 5000 * 10001)
+      }
+    }
+
+    it("should flatMap in batches of 1, test 1") {
+      for (_ <- 0 until 100) {
+        val completed = new CountDownLatch(1)
+        var sum = 0
+
+        Observable.from(1 to 10000).flatMap(x => Observable.unit(x)).subscribe(
+          new Subscriber[Int] {
+            private[this] var s = null : Subscription
+
+            def onSubscribe(s: Subscription): Unit = {
+              this.s = s
+              s.request(1)
+            }
+
+            def onNext(elem: Int): Unit = {
+              sum += elem
+              s.request(1)
+            }
+
+            def onError(ex: Throwable): Unit = {
+              global.reportFailure(ex)
+            }
+
+            def onComplete(): Unit = {
+              completed.countDown()
+            }
+          })
+
+        assert(completed.await(5, TimeUnit.SECONDS), "completed.await should have succeeded")
+        assert(sum === 5000 * 10001)
+      }
+    }
+
+    it("should flatMap in batches of 1, test 2") {
+      for (_ <- 0 until 100) {
+        val completed = new CountDownLatch(1)
+        var sum = 0
+
+        Observable.from(1 to 10000).flatMap(x => Observable.unit(x)).subscribe(
+          new Subscriber[Int] {
+            private[this] var s = null : Subscription
+
+            def onSubscribe(s: Subscription): Unit = {
+              this.s = s
+              s.request(1)
+            }
+
+            def onNext(elem: Int): Unit = {
+              s.request(1)
+              sum += elem
+            }
+
+            def onError(ex: Throwable): Unit = {
+              global.reportFailure(ex)
+            }
+
+            def onComplete(): Unit = {
+              completed.countDown()
+            }
+          })
+
+        assert(completed.await(5, TimeUnit.SECONDS), "completed.await should have succeeded")
+        assert(sum === 5000 * 10001)
+      }
+    }
+
+    it("should flatMap.take(1), test 1") {
+      for (_ <- 0 until 100) {
+        val completed = new CountDownLatch(1)
+        var sum = 0
+
+        Observable.from(1 to 10000).flatMap(x => Observable.unit(x)).take(1)
+          .subscribe(new Subscriber[Int] {
+            def onSubscribe(s: Subscription): Unit = {
+              s.request(1000)
+            }
+
+            def onNext(elem: Int): Unit = {
+              sum += elem
+            }
+
+            def onError(ex: Throwable): Unit = {
+              global.reportFailure(ex)
+            }
+
+            def onComplete(): Unit = {
+              completed.countDown()
+            }
+          })
+
+        assert(completed.await(5, TimeUnit.SECONDS), "completed.await should have succeeded")
+        assert(sum === 1)
+      }
+    }
+
+    it("should flatMap.take(1), test 2") {
+      for (_ <- 0 until 100) {
+        val completed = new CountDownLatch(1)
+        var seen = 0
+
+        Observable.from(1 to 10000).flatMap(x => Observable.unit(x)).take(1)
+          .subscribe(new Subscriber[Int] {
+          private[this] var sub: Subscription = null
+            def onSubscribe(s: Subscription): Unit = {
+              sub = s
+              s.request(1)
+            }
+
+            def onNext(elem: Int): Unit = {
+              assert(seen === 0)
+              seen = elem
+              sub.cancel()
+              completed.countDown()
+            }
+
+            def onError(ex: Throwable): Unit = {
+              global.reportFailure(ex)
+            }
+
+            def onComplete(): Unit = {
+              throw new IllegalStateException("onComplete()")
+            }
+          })
+
+        assert(completed.await(5, TimeUnit.SECONDS), "completed.await should have succeeded")
+        assert(seen === 1)
+      }
+    }
+
+    it("should work for Observable.unit, test 1") {
+      for (_ <- 0 until 100) {
+        var seen = 0
+        val completed = new CountDownLatch(1)
+
+        Observable.unit(1).subscribe(new Subscriber[Int] {
+          private[this] var s: Subscription = null
+          def onSubscribe(s: Subscription): Unit = {
+            this.s = s
+            s.request(1)
+          }
+
+          def onError(ex: Throwable): Unit =
+            global.reportFailure(ex)
+
+          def onComplete(): Unit =
+            completed.countDown()
+
+          def onNext(elem: Int): Unit = {
+            seen = elem
+            s.request(1)
+          }
+        })
+
+        assert(completed.await(5, TimeUnit.SECONDS), "completed.await should have succeeded")
+        assert(seen === 1)
+      }
+    }
+
+    it("should work for Observable.unit, test 2") {
+      for (_ <- 0 until 100) {
+        var seen = 0
+        val completed = new CountDownLatch(1)
+
+        Observable.unit(1).subscribe(new Subscriber[Int] {
+          private[this] var s: Subscription = null
+          def onSubscribe(s: Subscription): Unit = {
+            this.s = s
+            global.execute(new Runnable {
+              def run(): Unit = s.request(1)
+            })
+          }
+
+          def onError(ex: Throwable): Unit =
+            global.reportFailure(ex)
+
+          def onComplete(): Unit =
+            completed.countDown()
+
+          def onNext(elem: Int): Unit = {
+            seen = elem
+            s.request(1)
+          }
+        })
+
+        assert(completed.await(5, TimeUnit.SECONDS), "completed.await should have succeeded")
+        assert(seen === 1)
+      }
+    }
+
+    it("should work for Observable.unit, test 3") {
+      for (_ <- 0 until 100) {
+        var seen = 0
+        val completed = new CountDownLatch(1)
+
+        Observable.unit(1).subscribe(new Subscriber[Int] {
+          private[this] var s: Subscription = null
+          def onSubscribe(s: Subscription): Unit = {
+            this.s = s
+            global.execute(new Runnable {
+              def run(): Unit = s.request(1)
+            })
+          }
+
+          def onError(ex: Throwable): Unit =
+            global.reportFailure(ex)
+
+          def onComplete(): Unit = {
+            throw new IllegalStateException("onComplete()")
+          }
+
+          def onNext(elem: Int): Unit = {
+            seen = elem
+            s.cancel()
+            completed.countDown()
+          }
+        })
+
+        assert(completed.await(5, TimeUnit.SECONDS), "completed.await should have succeeded")
+        assert(seen === 1)
+      }
     }
 
     it("should cancel with stop-and-wait back-pressure") {
-      val completed = new CountDownLatch(1)
-      var sum = 0
+      for (_ <- 0 until 100) {
+        val completed = new CountDownLatch(1)
+        var sum = 0
 
-      Observable.from(1 to 10000).observeOn(global).subscribe(new Subscriber[Int] {
-        private[this] var s = null : Subscription
-        private[this] var processed = 0
+        Observable.from(1 to 10000).observeOn(global).subscribe(new Subscriber[Int] {
+          private[this] var s = null : Subscription
+          private[this] var processed = 0
 
-        def onSubscribe(s: Subscription): Unit = {
-          this.s = s
-          s.request(1)
-        }
-
-        def onNext(elem: Int): Unit = {
-          sum += elem
-          processed += 1
-          if (processed < 5000)
+          def onSubscribe(s: Subscription): Unit = {
+            this.s = s
             s.request(1)
-          else if (processed == 5000) {
-            s.cancel()
-            completed.countDown()
           }
-          else
-            throw new IllegalStateException(s"onNext($elem)")
-        }
 
-        def onError(ex: Throwable): Unit = {
-          global.reportFailure(ex)
-        }
+          def onNext(elem: Int): Unit = {
+            sum += elem
+            processed += 1
+            if (processed < 5000)
+              s.request(1)
+            else if (processed == 5000) {
+              s.cancel()
+              completed.countDown()
+            }
+            else
+              throw new IllegalStateException(s"onNext($elem)")
+          }
 
-        def onComplete(): Unit = {
-          throw new IllegalStateException(s"onComplete()")
-        }
-      })
+          def onError(ex: Throwable): Unit = {
+            global.reportFailure(ex)
+          }
 
-      assert(completed.await(5, TimeUnit.SECONDS), "completed.await should have succeeded")
-      assert(sum === 2500 * 5001)
+          def onComplete(): Unit = {
+            throw new IllegalStateException(s"onComplete()")
+          }
+        })
+
+        assert(completed.await(5, TimeUnit.SECONDS), "completed.await should have succeeded")
+        assert(sum === 2500 * 5001)
+      }
     }
 
     it("should cancel with batched requests") {
-      val completed = new CountDownLatch(1)
-      var sum = 0
+      for (_ <- 0 until 100) {
+        val completed = new CountDownLatch(1)
+        var sum = 0
 
-      Observable.from(1 to 10000).observeOn(global).subscribe(new Subscriber[Int] {
-        private[this] var s = null : Subscription
-        private[this] var processed = 0
-        private[this] var requested = 100
+        Observable.from(1 to 10000).observeOn(global).subscribe(new Subscriber[Int] {
+          private[this] var s = null : Subscription
+          private[this] var processed = 0
+          private[this] var requested = 100
 
-        def onSubscribe(s: Subscription): Unit = {
-          this.s = s
-          s.request(requested)
+          def onSubscribe(s: Subscription): Unit = {
+            this.s = s
+            s.request(requested)
+          }
+
+          def onNext(elem: Int): Unit = {
+            sum += elem
+            processed += 1
+            if (processed < 5000) {
+              requested -= 1
+              if (requested == 0) {
+                s.request(100)
+                requested = 100
+              }
+            }
+            else if (processed == 5000) {
+              s.cancel()
+              completed.countDown()
+            }
+            else
+              throw new IllegalStateException(s"onNext($elem)")
+          }
+
+          def onError(ex: Throwable): Unit = {
+            global.reportFailure(ex)
+          }
+
+          def onComplete(): Unit = {
+            throw new IllegalStateException(s"onComplete()")
+          }
+        })
+
+        assert(completed.await(5, TimeUnit.SECONDS), "completed.await should have succeeded")
+        assert(sum === 2500 * 5001)
+      }
+    }
+
+    it("should receive 1 element and cancel") {
+      for (_ <- 0 until 100000) {
+        val completed = new CountDownLatch(1)
+
+        val obs = Observable.create[Int] { observer =>
+          observer.onNext(1).onContinue {
+            observer.onNext(2)
+            observer.onComplete()
+          }
         }
 
-        def onNext(elem: Int): Unit = {
-          sum += elem
-          processed += 1
-          if (processed < 5000) {
-            requested -= 1
-            if (requested == 0) {
-              s.request(100)
-              requested = 100
-            }
+        var seen = 0
+        obs.subscribe(new Subscriber[Int] {
+          private[this] var s: Subscription = null
+          def onSubscribe(s: Subscription): Unit = {
+            this.s = s
+            s.request(1)
           }
-          else if (processed == 5000) {
+
+          def onError(ex: Throwable): Unit = {
+            throw new IllegalStateException(ex)
+          }
+
+          def onComplete(): Unit = {
+            throw new IllegalStateException("onComplete()")
+          }
+
+          def onNext(elem: Int): Unit = {
+            seen = elem
             s.cancel()
             completed.countDown()
           }
-          else
-            throw new IllegalStateException(s"onNext($elem)")
+        })
+
+        assert(completed.await(5, TimeUnit.SECONDS), "completed.await should have succeeded")
+        assert(seen === 1)
+      }
+    }
+
+    it("should receive 2 elements and cancel, test 1") {
+      for (_ <- 0 until 100000) {
+        val completed = new CountDownLatch(1)
+
+        val obs = Observable.create[Int] { observer =>
+          observer.onNext(1).onContinue {
+            observer.onNext(2)
+            observer.onComplete()
+          }
         }
 
-        def onError(ex: Throwable): Unit = {
-          global.reportFailure(ex)
+        var sum = 0
+        obs.subscribe(new Subscriber[Int] {
+          private[this] var s: Subscription = null
+          private[this] var received = 0
+
+          def onSubscribe(s: Subscription): Unit = {
+            this.s = s
+            s.request(1)
+          }
+
+          def onError(ex: Throwable): Unit = {
+            throw new IllegalStateException(ex)
+          }
+
+          def onComplete(): Unit = {
+            throw new IllegalStateException("onComplete()")
+          }
+
+          def onNext(elem: Int): Unit = {
+            sum += elem
+            received += 1
+            if (received == 2) {
+              s.cancel()
+              completed.countDown()
+            }
+            else
+              s.request(1)
+          }
+        })
+
+        assert(completed.await(5, TimeUnit.SECONDS), "completed.await should have succeeded")
+        assert(sum === 3)
+      }
+    }
+
+    it("should receive 2 elements and cancel, test 2") {
+      for (_ <- 0 until 100000) {
+        val completed = new CountDownLatch(1)
+
+        val obs = Observable.create[Int] { observer =>
+          observer.onNext(1).onContinue {
+            observer.onNext(2)
+            observer.onComplete()
+          }
         }
 
-        def onComplete(): Unit = {
-          throw new IllegalStateException(s"onComplete()")
-        }
-      })
+        var sum = 0
+        obs.subscribe(new Subscriber[Int] {
+          private[this] var s: Subscription = null
+          private[this] var received = 0
 
-      assert(completed.await(5, TimeUnit.SECONDS), "completed.await should have succeeded")
-      assert(sum === 2500 * 5001)
+          def onSubscribe(s: Subscription): Unit = {
+            this.s = s
+            s.request(1)
+          }
+
+          def onError(ex: Throwable): Unit = {
+            throw new IllegalStateException(ex)
+          }
+
+          def onComplete(): Unit = {
+            throw new IllegalStateException("onComplete()")
+          }
+
+          def onNext(elem: Int): Unit = {
+            received += 1
+            if (received == 2) {
+              s.cancel()
+              sum += elem
+              completed.countDown()
+            }
+            else {
+              s.request(1)
+              sum += elem
+            }
+          }
+        })
+
+        assert(completed.await(5, TimeUnit.SECONDS), "completed.await should have succeeded")
+        assert(sum === 3)
+      }
     }
   }
 }
