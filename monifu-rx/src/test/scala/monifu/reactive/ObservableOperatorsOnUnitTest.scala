@@ -110,6 +110,11 @@ class ObservableOperatorsOnUnitTest extends FunSpec {
       assert(Await.result(f2, 2.seconds) === None)
     }
 
+    it("should count") {
+      val f = Observable.unit("One").count().asFuture
+      assert(Await.result(f, 2.seconds) === Some(1))
+    }
+
     it("should buffer(count)") {
       val f1 = Observable.unit(1).buffer(1).asFuture
       assert(Await.result(f1, 2.seconds) === Some(Seq(1)))
