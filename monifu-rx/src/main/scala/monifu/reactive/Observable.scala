@@ -758,6 +758,12 @@ trait Observable[+T] { self =>
       })
     }
 
+  def count(): Observable[Int] =
+    reduce(0)((acc: Int, t: T) => acc + 1)
+
+  def longCount(): Observable[Long] =
+    reduce(0l)((acc: Long, t: T) => acc + 1l)
+
   /**
    * Periodically gather items emitted by an Observable into bundles and emit
    * these bundles rather than emitting the items one at a time.
@@ -913,6 +919,50 @@ trait Observable[+T] { self =>
             if (isFirst) {
               isFirst = false
               state = elem
+            }
+            else {
+              state = op(state, elem)
+              if (!wasApplied) wasApplied = true
+            }
+
+            Continue
+          }
+          catch {
+            case NonFatal(ex) =>
+              onError(ex)
+              Cancel
+          }
+        }
+
+        def onComplete() = {
+          if (wasApplied) {
+            observer.onNext(state)
+            observer.onComplete()
+          }
+          else
+            observer.onComplete()
+        }
+
+        def onError(ex: Throwable) = {
+          observer.onError(ex)
+        }
+      })
+    }
+
+  def reduce[U](initial: U)(op: (U, T) => U): Observable[U] =
+    Observable.create { observer =>
+      unsafeSubscribe(new Observer[T] {
+        private[this] var state: U = _
+        private[this] var isFirst = true
+        private[this] var wasApplied = false
+
+        def onNext(elem: T): Future[Ack] = {
+          // See Section 6.4. in the Rx Design Guidelines:
+          // Protect calls to user code from within an operator
+          try {
+            if (isFirst) {
+              isFirst = false
+              state = initial
             }
             else {
               state = op(state, elem)
