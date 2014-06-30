@@ -759,7 +759,32 @@ trait Observable[+T] { self =>
     }
 
   def count(): Observable[Long] =
-    foldLeft(0l)((acc: Long, t: T) => acc + 1l)
+    Observable.create { observer =>
+      subscribeFn(new Observer[T] {
+        private[this] var count = 0l
+
+        def onNext(elem: T): Future[Ack] = {
+          try {
+            count += 1
+            Continue
+          }
+          catch {
+            case NonFatal(ex) =>
+              onError(ex)
+              Cancel
+          }
+        }
+
+        def onComplete() = {
+          observer.onNext(count)
+          observer.onComplete()
+        }
+
+        def onError(ex: Throwable) = {
+          observer.onError(ex)
+        }
+      })
+    }
 
   /**
    * Periodically gather items emitted by an Observable into bundles and emit
