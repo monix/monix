@@ -764,15 +764,8 @@ trait Observable[+T] { self =>
         private[this] var count = 0l
 
         def onNext(elem: T): Future[Ack] = {
-          try {
-            count += 1
-            Continue
-          }
-          catch {
-            case NonFatal(ex) =>
-              onError(ex)
-              Cancel
-          }
+          count += 1
+          Continue
         }
 
         def onComplete() = {
