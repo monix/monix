@@ -758,11 +758,8 @@ trait Observable[+T] { self =>
       })
     }
 
-  def count(): Observable[Int] =
-    scan(0)((acc: Int, t: T) => acc + 1).last
-
-  def longCount(): Observable[Long] =
-    scan(0l)((acc: Long, t: T) => acc + 1l).last
+  def count(): Observable[Long] =
+    foldLeft(0l)((acc: Long, t: T) => acc + 1l)
 
   /**
    * Periodically gather items emitted by an Observable into bundles and emit
