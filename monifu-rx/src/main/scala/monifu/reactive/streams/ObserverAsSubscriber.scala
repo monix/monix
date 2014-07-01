@@ -19,11 +19,12 @@ package monifu.reactive.streams
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.Observer
 import monifu.reactive.observers.{SynchronousBufferedObserver, SynchronousObserver}
+import org.reactivestreams.{Subscription, Subscriber}
 import scala.concurrent.ExecutionContext
 
 /**
  * Wraps a [[monifu.reactive.Observer Observer]] instance into an
- * [[Subscriber Subscriber]] instance. The resulting
+ * `org.reactivestreams.Subscriber` instance. The resulting
  * subscriber respects the [[http://www.reactive-streams.org/ Reactive Streams]]
  * contract.
  *
@@ -52,9 +53,9 @@ import scala.concurrent.ExecutionContext
  * }}}
  *
  * @param observer the observer instance that will get wrapped into a
- *                 [[Subscriber Subscriber]]
+ *                 `org.reactivestreams.Subscriber`
  *
- * @param requestCount the parameter passed to [[Subscription.request]],
+ * @param requestCount the parameter passed to `Subscription.request`,
  *                    also representing the buffer size; MUST BE strictly positive
  *
  * @param ec the execution context needed for processing asynchronous `Future` results
@@ -87,7 +88,7 @@ final class ObserverAsSubscriber[T] private (observer: Observer[T], requestCount
 object ObserverAsSubscriber {
   /**
    * Wraps a [[monifu.reactive.Observer Observer]] instance into a
-   * [[Subscriber Subscriber]] instance. The resulting
+   * `org.reactivestreams.Subscriber` instance. The resulting
    * subscriber respects the [[http://www.reactive-streams.org/ Reactive Streams]]
    * contract.
    *
@@ -116,9 +117,9 @@ object ObserverAsSubscriber {
    * }}}
    *
    * @param observer the observer instance that will get wrapped into a
-   *                 [[Subscriber Subscriber]]
+   *                 `org.reactivestreams.Subscriber`
    *
-   * @param requestCount the parameter passed to each [[Subscription.request]] call,
+   * @param requestCount the parameter passed to each `Subscription.request` call,
    *                    also representing the buffer size; MUST BE strictly positive
    *
    * @param ec the execution context needed for processing asynchronous `Future` results
@@ -134,7 +135,7 @@ object ObserverAsSubscriber {
 
 /**
  * Wraps a [[monifu.reactive.observers.SynchronousObserver SynchronousObserver]] instance into a
- * [[Subscriber Subscriber]] instance. The resulting
+ * `org.reactivestreams.Subscriber` instance. The resulting
  * subscriber respects the [[http://www.reactive-streams.org/ Reactive Streams]]
  * contract.
  *
@@ -162,9 +163,9 @@ object ObserverAsSubscriber {
  * }}}
  *
  * @param observer the observer instance that will get wrapped into a
- *                 [[Subscriber Subscriber]]
+ *                 `org.reactivestreams.Subscriber`
  *
- * @param requestCount the parameter passed to each [[Subscription.request]] call.
+ * @param requestCount the parameter passed to each `Subscription.request` call.
  *
  * @param ec the execution context needed for processing asynchronous `Future` results
  */
@@ -222,7 +223,7 @@ final class SynchronousObserverAsSubscriber[T] private (observer: SynchronousObs
 object SynchronousObserverAsSubscriber {
   /**
    * Wraps a [[monifu.reactive.observers.SynchronousObserver SynchronousObserver]] instance into a
-   * [[Subscriber Subscriber]] instance. The resulting
+   * `org.reactivestreams.Subscriber` instance. The resulting
    * subscriber respects the [[http://www.reactive-streams.org/ Reactive Streams]]
    * contract.
    *
@@ -250,9 +251,9 @@ object SynchronousObserverAsSubscriber {
    * }}}
    *
    * @param observer the observer instance that will get wrapped into a
-   *                 [[Subscriber Subscriber]]
+   *                 `org.reactivestreams.Subscriber`
    *
-   * @param requestCount the parameter passed to [[Subscription.request]]
+   * @param requestCount the parameter passed to `Subscription.request`
    *
    * @param ec the execution context needed for processing asynchronous `Future` results
    */

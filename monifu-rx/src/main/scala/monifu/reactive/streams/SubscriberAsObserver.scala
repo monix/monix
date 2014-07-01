@@ -21,11 +21,12 @@ import monifu.concurrent.locks.SpinLock
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.{Ack, Observer}
 import monifu.reactive.internals.FutureAckExtensions
+import org.reactivestreams.{Subscription, Subscriber}
 import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future, Promise}
 
 /**
- * Wraps a [[Subscriber Subscriber]] instance that respects the
+ * Wraps a `org.reactivestreams.Subscriber` instance that respects the
  * [[http://www.reactive-streams.org/ Reactive Streams]] contract
  * into an [[monifu.reactive.Observer Observer]] instance that respect the `Observer`
  * contract.
@@ -141,8 +142,10 @@ final class SubscriberAsObserver[T] private (subscriber: Subscriber[T])(implicit
 
 object SubscriberAsObserver {
   /**
-   * Given a [[Subscriber]] as defined by the the [[http://www.reactive-streams.org/ Reactive Streams]]
-   * specification, it builds an [[Observer]] instance compliant with the Monifu Rx implementation.
+   * Given an `org.reactivestreams.Subscriber` as defined by
+   * the [[http://www.reactive-streams.org/ Reactive Streams]]
+   * specification, it builds an [[Observer]] instance compliant
+   * with the Monifu Rx implementation.
    */
   def apply[T](subscriber: Subscriber[T])(implicit ec: ExecutionContext): SubscriberAsObserver[T] = {
     new SubscriberAsObserver[T](subscriber)

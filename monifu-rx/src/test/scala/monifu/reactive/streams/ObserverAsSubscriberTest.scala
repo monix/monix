@@ -76,7 +76,7 @@ class ObserverAsSubscriberTest extends FunSpec {
         }
 
         Observable.from(1 to 10000)
-          .subscribe(Subscriber.from(observer, requestSize = 128))
+          .subscribe(Observer.asSubscriber(observer, requestSize = 128))
 
         assert(completed.await(5, TimeUnit.SECONDS), "completed.await should have succeeded")
         assert(sum === 5000 * 10001)
@@ -105,7 +105,7 @@ class ObserverAsSubscriberTest extends FunSpec {
         }
 
         Observable.from(1 to 10000)
-          .subscribe(Subscriber.from(observer, requestSize = 1))
+          .subscribe(Observer.asSubscriber(observer, requestSize = 1))
 
         assert(completed.await(5, TimeUnit.SECONDS), "completed.await should have succeeded")
         assert(sum === 5000 * 10001)
@@ -133,7 +133,7 @@ class ObserverAsSubscriberTest extends FunSpec {
         }
 
         Observable.from(1 to 10000)
-          .subscribe(Subscriber.from(observer, requestSize = 128))
+          .subscribe(Observer.asSubscriber(observer, requestSize = 128))
 
         assert(completed.await(5, TimeUnit.SECONDS), "completed.await should have succeeded")
         assert(sum === 5000 * 10001)
@@ -161,7 +161,7 @@ class ObserverAsSubscriberTest extends FunSpec {
         }
 
         Observable.from(1 to 10000)
-          .subscribe(Subscriber.from(observer, requestSize = 1))
+          .subscribe(Observer.asSubscriber(observer, requestSize = 1))
 
         assert(completed.await(5, TimeUnit.SECONDS), "completed.await should have succeeded")
         assert(sum === 5000 * 10001)
@@ -189,7 +189,7 @@ class ObserverAsSubscriberTest extends FunSpec {
         }
 
         Observable.from(1 to 10000).flatMap(x => Observable.unit(x))
-          .subscribe(Subscriber.from(observer, requestSize = 128))
+          .subscribe(Observer.asSubscriber(observer, requestSize = 128))
 
         assert(completed.await(5, TimeUnit.SECONDS), "completed.await should have succeeded")
         assert(sum === 5000 * 10001)
@@ -217,7 +217,7 @@ class ObserverAsSubscriberTest extends FunSpec {
         }
 
         Observable.from(1 to 10000).flatMap(x => Observable.unit(x))
-          .subscribe(Subscriber.from(observer, requestSize = 1))
+          .subscribe(Observer.asSubscriber(observer, requestSize = 1))
 
         assert(completed.await(5, TimeUnit.SECONDS), "completed.await should have succeeded")
         assert(sum === 5000 * 10001)
@@ -245,7 +245,7 @@ class ObserverAsSubscriberTest extends FunSpec {
         }
 
         Observable.from(1 to 10000).mergeMap(x => Observable.unit(x))
-          .subscribe(Subscriber.from(observer, requestSize = 128))
+          .subscribe(Observer.asSubscriber(observer, requestSize = 128))
 
         assert(completed.await(5, TimeUnit.SECONDS), "completed.await should have succeeded")
         assert(sum === 5000 * 10001)
@@ -273,7 +273,7 @@ class ObserverAsSubscriberTest extends FunSpec {
         }
 
         Observable.from(1 to 10000).mergeMap(x => Observable.unit(x))
-          .subscribe(Subscriber.from(observer, requestSize = 1))
+          .subscribe(Observer.asSubscriber(observer, requestSize = 1))
 
         assert(completed.await(5, TimeUnit.SECONDS), "completed.await should have succeeded")
         assert(sum === 5000 * 10001)
@@ -310,7 +310,7 @@ class ObserverAsSubscriberTest extends FunSpec {
         }
 
         Observable.from(1 to 10000)
-          .subscribe(Subscriber.from(observer, requestSize = 1))
+          .subscribe(Observer.asSubscriber(observer, requestSize = 1))
 
         assert(completed.await(5, TimeUnit.SECONDS), "completed.await should have succeeded")
         assert(sum === 5 * 11)
@@ -348,7 +348,7 @@ class ObserverAsSubscriberTest extends FunSpec {
         }
 
         Observable.from(1 to 10000)
-          .subscribe(Subscriber.from(observer, requestSize = 1))
+          .subscribe(Observer.asSubscriber(observer, requestSize = 1))
 
         assert(completed.await(5, TimeUnit.SECONDS), "completed.await should have succeeded")
         assert(sum === 50 * 101)
