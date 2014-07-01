@@ -25,8 +25,8 @@ import monifu.reactive.BufferPolicy.{BackPressured, OverflowTriggering, Unbounde
 import monifu.reactive.Notification.{OnComplete, OnError, OnNext}
 import monifu.reactive.internals._
 import monifu.reactive.observers._
-import monifu.reactive.streams.Publisher
 import monifu.reactive.subjects.{BehaviorSubject, PublishSubject, ReplaySubject}
+import org.reactivestreams.{Subscriber, Publisher}
 
 import scala.annotation.tailrec
 import scala.collection.mutable
@@ -112,6 +112,16 @@ trait Observable[+T] { self =>
    */
   final def subscribe(nextFn: T => Future[Ack]): Cancelable =
     subscribe(nextFn, error => { scheduler.reportFailure(error); Cancel }, () => Cancel)
+
+  /**
+   * Wraps this Observable into an `org.reactivestreams.Publisher`.
+   */
+  def publisher[U >: T]: Publisher[U] =
+    new Publisher[U] {
+      def subscribe(s: Subscriber[U]): Unit = {
+        subscribeFn(SafeObserver(Observer.from(s)))
+      }
+    }
 
   /**
    * Returns an Observable that applies the given function to each item emitted by an
@@ -2359,5 +2369,5 @@ object Observable {
    * Implicit conversion from Observable to Publisher.
    */
   implicit def ObservableIsPublisher[T](source: Observable[T]): Publisher[T] =
-    Publisher.from(source)
+    source.publisher
 }

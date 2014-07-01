@@ -16,7 +16,10 @@
  
 package monifu.reactive
 
-import monifu.reactive.streams.{SubscriberAsObserver, Subscriber}
+import monifu.reactive.observers.SynchronousObserver
+import monifu.reactive.streams.{ObserverAsSubscriber, SubscriberAsObserver, SynchronousObserverAsSubscriber}
+import org.reactivestreams.Subscriber
+
 import scala.concurrent.{ExecutionContext, Future}
 
 /**
@@ -49,9 +52,22 @@ object Observer {
   }
 
   /**
-   * Implicit conversion from [[Observer]] to [[monifu.reactive.streams.Subscriber Subscriber]].
+   * Transforms the source [[Observer]] into a [[Subscriber]] instance as defined by the
+   * [[http://www.reactive-streams.org/ Reactive Streams]] specification.
    */
-  def ObserverIsSubscriber[T](source: Observer[T])(implicit ec: ExecutionContext): Subscriber[T] = {
-    Subscriber.from(source)(ec)
+  def asSubscriber[T](observer: Observer[T], requestSize: Int = 128)(implicit ec: ExecutionContext): Subscriber[T] = {
+    observer match {
+      case sync: SynchronousObserver[_] =>
+        val inst = sync.asInstanceOf[SynchronousObserver[T]]
+        SynchronousObserverAsSubscriber(inst, requestSize)
+      case async =>
+        ObserverAsSubscriber(async, requestSize)
+    }
   }
+
+  /**
+   * Implicit conversion from [[Observer]] to `org.reactivestreams.Subscriber`.
+   */
+  def ObserverIsSubscriber[T](source: Observer[T])(implicit ec: ExecutionContext): Subscriber[T] =
+    Observer.asSubscriber(source)
 }
