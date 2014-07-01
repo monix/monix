@@ -115,6 +115,11 @@ class ObservableOperatorsOnRangeTest extends FunSpec {
       assert(Await.result(f3, 2.seconds) === Some(0 until 100))
     }
 
+    it("should count") {
+      val f = Observable.from(Seq("One", "Two", "Three")).count().asFuture
+      assert(Await.result(f, 2.seconds) === Some(3))
+    }
+
     it("should buffer(count)") {
       val f1 = Observable.range(0,100).buffer(50).foldLeft(Seq.empty[Seq[Int]])(_:+_).asFuture
       assert(Await.result(f1, 2.seconds) === Some(Seq(0 until 50, 50 until 100)))
