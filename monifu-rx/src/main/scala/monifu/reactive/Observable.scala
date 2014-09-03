@@ -843,7 +843,7 @@ trait Observable[+T] { self =>
    */
   def buffer(timespan: FiniteDuration): Observable[Seq[T]] =
     Observable.create { observer =>
-      subscribeFn(new Observer[T] {
+      subscribeFn(new SynchronousObserver[T] {
         private[this] val lock = SpinLock()
         private[this] var queue = ArrayBuffer.empty[T]
         private[this] var isDone = false
@@ -852,16 +852,27 @@ trait Observable[+T] { self =>
           scheduler.scheduleRecursive(timespan, timespan, { reschedule =>
             lock.enter {
               if (!isDone) {
-                observer.onNext(queue)
                 queue = ArrayBuffer.empty
-                reschedule()
+                for (ack <- observer.onNext(queue))
+                  ack match {
+                    case Continue =>
+                      reschedule()
+                    case Cancel =>
+                      lock.enter {
+                        isDone = true
+                      }
+                  }
               }
             }
           })
 
-        def onNext(elem: T): Future[Ack] = lock.enter {
-          queue.append(elem)
-          Continue
+        def onNext(elem: T): Ack = lock.enter {
+          if (!isDone) {
+            queue.append(elem)
+            Continue
+          }
+          else
+            Cancel
         }
 
         def onError(ex: Throwable): Unit = lock.enter {
