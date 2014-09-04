@@ -19,38 +19,30 @@ package monifu.concurrent.atomic
 import scala.annotation.tailrec
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration.FiniteDuration
-import monifu.concurrent.misc.Unsafe
+import java.util.concurrent.atomic.AtomicReference
 
 
-final class AtomicAny[T] private (initialValue: T) extends BlockableAtomic[T] {
-  @volatile private[this] var ref = initialValue
-  private[this] val offset = AtomicAny.addressOffset
+final class AtomicAny[T] private (ref: AtomicReference[T]) extends BlockableAtomic[T] {
+  def get: T = ref.get()
 
-  @inline def get: T = ref
-
-  @inline def set(update: T): Unit = {
-    ref = update
+  def set(update: T): Unit = {
+    ref.set(update)
   }
 
   def update(value: T): Unit = set(value)
   def `:=`(value: T): Unit = set(value)
 
-  @inline def compareAndSet(expect: T, update: T): Boolean = {
-    val current = ref
-    current == expect && Unsafe.compareAndSwapObject(this, offset, current.asInstanceOf[AnyRef], update.asInstanceOf[AnyRef])
+  def compareAndSet(expect: T, update: T): Boolean = {
+    val current = ref.get()
+    current == expect && ref.compareAndSet(current, update)
   }
 
-  @tailrec
   def getAndSet(update: T): T = {
-    val current = ref
-    if (Unsafe.compareAndSwapObject(this, offset, current.asInstanceOf[AnyRef], update.asInstanceOf[AnyRef]))
-      current
-    else
-      getAndSet(update)
+    ref.getAndSet(update)
   }
 
-  @inline def lazySet(update: T): Unit = {
-    Unsafe.putOrderedObject(this, offset, update.asInstanceOf[AnyRef])
+  def lazySet(update: T): Unit = {
+    ref.lazySet(update)
   }
 
   @tailrec
@@ -182,8 +174,8 @@ final class AtomicAny[T] private (initialValue: T) extends BlockableAtomic[T] {
 
 object AtomicAny {
   def apply[T](initialValue: T): AtomicAny[T] =
-    new AtomicAny[T](initialValue)
+    new AtomicAny[T](new AtomicReference[T](initialValue))
 
-  private val addressOffset =
-    Unsafe.objectFieldOffset(classOf[AtomicAny[_]].getFields.find(_.getName.endsWith("ref")).get)
+  def wrap[T](ref: AtomicReference[T]): AtomicAny[T] =
+    new AtomicAny[T](ref)
 }

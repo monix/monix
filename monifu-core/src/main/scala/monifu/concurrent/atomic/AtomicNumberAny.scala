@@ -19,39 +19,33 @@ package monifu.concurrent.atomic
 import scala.annotation.tailrec
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration.FiniteDuration
-import monifu.concurrent.misc.Unsafe
+import java.util.concurrent.atomic.{AtomicReference => JavaAtomicReference}
 
-
-final class AtomicNumberAny[T : Numeric] private (initialValue: T) extends AtomicNumber[T] with BlockableAtomic[T] {
-  @volatile private[this] var value = initialValue
-  private[this] val offset = AtomicNumberAny.addressOffset
+final class AtomicNumberAny[T : Numeric] private (ref: JavaAtomicReference[T])
+  extends AtomicNumber[T] with BlockableAtomic[T] {
+  
   private[this] val ev = implicitly[Numeric[T]]
 
-  @inline def get: T = value
+  def get: T = ref.get()
 
-  @inline def set(update: T): Unit = {
-    value = update
+  def set(update: T): Unit = {
+    ref.set(update)
   }
 
   def update(value: T): Unit = set(value)
   def `:=`(value: T): Unit = set(value)
 
-  @inline def compareAndSet(expect: T, update: T): Boolean = {
-    val current = value
-    current == expect && Unsafe.compareAndSwapObject(this, offset, current.asInstanceOf[AnyRef], update.asInstanceOf[AnyRef])
+  def compareAndSet(expect: T, update: T): Boolean = {
+    val current = ref.get()
+    current == expect && ref.compareAndSet(current, update)
   }
 
-  @tailrec
   def getAndSet(update: T): T = {
-    val current = value
-    if (Unsafe.compareAndSwapObject(this, offset, current.asInstanceOf[AnyRef], update.asInstanceOf[AnyRef]))
-      current
-    else
-      getAndSet(update)
+    ref.getAndSet(update)
   }
 
-  @inline def lazySet(update: T): Unit = {
-    Unsafe.putOrderedObject(this, offset, update.asInstanceOf[AnyRef])
+  def lazySet(update: T): Unit = {
+    ref.lazySet(update)
   }
 
   @tailrec
@@ -182,14 +176,14 @@ final class AtomicNumberAny[T : Numeric] private (initialValue: T) extends Atomi
 
   @tailrec
   def increment(v: Int = 1): Unit = {
-    val current = value
+    val current = ref.get()
     if (!compareAndSet(current, ev.plus(current, ev.fromInt(v))))
       increment(v)
   }
 
   @tailrec
   def incrementAndGet(v: Int = 1): T = {
-    val current = value
+    val current = ref.get()
     val update = ev.plus(current, ev.fromInt(v))
     if (!compareAndSet(current, update))
       incrementAndGet(v)
@@ -199,7 +193,7 @@ final class AtomicNumberAny[T : Numeric] private (initialValue: T) extends Atomi
 
   @tailrec
   def getAndIncrement(v: Int = 1): T = {
-    val current = value
+    val current = ref.get()
     val update = ev.plus(current, ev.fromInt(v))
     if (!compareAndSet(current, update))
       getAndIncrement(v)
@@ -209,7 +203,7 @@ final class AtomicNumberAny[T : Numeric] private (initialValue: T) extends Atomi
 
   @tailrec
   def getAndAdd(v: T): T = {
-    val current = value
+    val current = ref.get()
     val update = ev.plus(current, v)
     if (!compareAndSet(current, update))
       getAndAdd(v)
@@ -219,7 +213,7 @@ final class AtomicNumberAny[T : Numeric] private (initialValue: T) extends Atomi
 
   @tailrec
   def addAndGet(v: T): T = {
-    val current = value
+    val current = ref.get()
     val update = ev.plus(current, v)
     if (!compareAndSet(current, update))
       addAndGet(v)
@@ -229,7 +223,7 @@ final class AtomicNumberAny[T : Numeric] private (initialValue: T) extends Atomi
 
   @tailrec
   def add(v: T): Unit = {
-    val current = value
+    val current = ref.get()
     val update = ev.plus(current, v)
     if (!compareAndSet(current, update))
       add(v)
@@ -237,7 +231,7 @@ final class AtomicNumberAny[T : Numeric] private (initialValue: T) extends Atomi
 
   @tailrec
   def subtract(v: T): Unit = {
-    val current = value
+    val current = ref.get()
     val update = ev.minus(current, v)
     if (!compareAndSet(current, update))
       subtract(v)
@@ -245,7 +239,7 @@ final class AtomicNumberAny[T : Numeric] private (initialValue: T) extends Atomi
 
   @tailrec
   def getAndSubtract(v: T): T = {
-    val current = value
+    val current = ref.get()
     val update = ev.minus(current, v)
     if (!compareAndSet(current, update))
       getAndSubtract(v)
@@ -255,7 +249,7 @@ final class AtomicNumberAny[T : Numeric] private (initialValue: T) extends Atomi
 
   @tailrec
   def subtractAndGet(v: T): T = {
-    val current = value
+    val current = ref.get()
     val update = ev.minus(current, v)
     if (!compareAndSet(current, update))
       subtractAndGet(v)
@@ -287,8 +281,8 @@ final class AtomicNumberAny[T : Numeric] private (initialValue: T) extends Atomi
 
 object AtomicNumberAny {
   def apply[T : Numeric](initialValue: T): AtomicNumberAny[T] =
-    new AtomicNumberAny(initialValue)
+    new AtomicNumberAny(new JavaAtomicReference[T](initialValue))
 
-  private val addressOffset =
-    Unsafe.objectFieldOffset(classOf[AtomicNumberAny[_]].getFields.find(_.getName.endsWith("value")).get)
+  def wrap[T : Numeric](ref: JavaAtomicReference[T]): AtomicNumberAny[T] =
+    new AtomicNumberAny[T](ref)
 }

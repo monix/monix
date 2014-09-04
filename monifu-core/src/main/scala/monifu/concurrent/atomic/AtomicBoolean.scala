@@ -19,36 +19,30 @@ package monifu.concurrent.atomic
 import scala.annotation.tailrec
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration.FiniteDuration
-import monifu.concurrent.misc.Unsafe
+import java.util.concurrent.atomic.{AtomicBoolean => JavaAtomicBoolean}
 
-final class AtomicBoolean private (initialValue: Boolean) extends BlockableAtomic[Boolean] {
-  @volatile private[this] var value: Int = if (initialValue) 1 else 0
-  private[this] val offset = AtomicBoolean.addressOffset
+final class AtomicBoolean private (ref: JavaAtomicBoolean) extends BlockableAtomic[Boolean] {
+  def get: Boolean = {
+    ref.get()
+  }
 
-  @inline def get: Boolean = value == 1
-
-  @inline def set(update: Boolean): Unit = {
-    value = if (update) 1 else 0
+  def set(update: Boolean): Unit = {
+    ref.set(update)
   }
 
   def update(value: Boolean): Unit = set(value)
   def `:=`(value: Boolean): Unit = set(value)
 
-  @inline def compareAndSet(expect: Boolean, update: Boolean): Boolean = {
-    Unsafe.compareAndSwapInt(this, offset, if (expect) 1 else 0, if (update) 1 else 0)
+  def compareAndSet(expect: Boolean, update: Boolean): Boolean = {
+    ref.compareAndSet(expect, update)
   }
 
-  @tailrec
   def getAndSet(update: Boolean): Boolean = {
-    val current = get
-    if (compareAndSet(get, update))
-      current
-    else
-      getAndSet(update)
+    ref.getAndSet(update)
   }
 
-  @inline def lazySet(update: Boolean): Unit = {
-    Unsafe.putOrderedInt(this, offset, if (update) 1 else 0)
+  def lazySet(update: Boolean): Unit = {
+    ref.lazySet(update)
   }
 
   @tailrec
@@ -177,13 +171,13 @@ final class AtomicBoolean private (initialValue: Boolean) extends BlockableAtomi
       waitForCondition(waitUntil, p)
     }
 
-  override def toString: String = s"AtomicBoolean(${value == 1})"
+  override def toString: String = s"AtomicBoolean(${ref.get})"
 }
 
 object AtomicBoolean {
   def apply(initialValue: Boolean): AtomicBoolean =
-    new AtomicBoolean(initialValue)
+    new AtomicBoolean(new JavaAtomicBoolean(initialValue))
 
-  private val addressOffset =
-    Unsafe.objectFieldOffset(classOf[AtomicBoolean].getFields.find(_.getName.endsWith("value")).get)
+  def wrap(ref: JavaAtomicBoolean): AtomicBoolean =
+    new AtomicBoolean(ref)
 }

@@ -20,42 +20,34 @@ import scala.annotation.tailrec
 import scala.concurrent._
 import scala.concurrent.duration.FiniteDuration
 import java.lang.Float.{intBitsToFloat, floatToIntBits}
-import monifu.concurrent.misc.Unsafe
+import java.util.concurrent.atomic.{AtomicInteger => JavaAtomicInteger}
 
-
-final class AtomicFloat private (initialValue: Float)
+final class AtomicFloat private (ref: JavaAtomicInteger)
   extends AtomicNumber[Float] with BlockableAtomic[Float] {
 
-  private[this] val offset = AtomicFloat.addressOffset
-  @volatile private[this] var value: Int = floatToIntBits(initialValue)
+  def get: Float =
+    intBitsToFloat(ref.get())
 
-  @inline def get: Float =
-    intBitsToFloat(value)
-
-  @inline def set(update: Float) = {
-    value = floatToIntBits(update)
+  def set(update: Float) = {
+    ref.set(floatToIntBits(update))
   }
 
-  @inline def lazySet(update: Float) = {
-    Unsafe.putOrderedInt(this, offset, floatToIntBits(update))
+  def lazySet(update: Float) = {
+    ref.lazySet(floatToIntBits(update))
   }
 
-  @inline def compareAndSet(expect: Float, update: Float): Boolean = {
-    val current = value
-    current == floatToIntBits(expect) && Unsafe.compareAndSwapInt(this, offset, current, floatToIntBits(update))
+  def compareAndSet(expect: Float, update: Float): Boolean = {
+    val current = ref.get()
+    current == floatToIntBits(expect) && ref.compareAndSet(current, floatToIntBits(update))
   }
 
-  @tailrec
   def getAndSet(update: Float): Float = {
-    val current = value
-    if (Unsafe.compareAndSwapInt(this, offset, current, floatToIntBits(update)))
-      intBitsToFloat(current)
-    else
-      getAndSet(update)
+    intBitsToFloat(ref.getAndSet(floatToIntBits(update)))
   }
 
-  @inline def update(value: Float): Unit = set(value)
-  @inline def `:=`(value: Float): Unit = set(value)
+  def update(value: Float): Unit = set(value)
+
+  def `:=`(value: Float): Unit = set(value)
 
   @tailrec
   def transformAndExtract[U](cb: (Float) => (U, Float)): U = {
@@ -288,15 +280,15 @@ final class AtomicFloat private (initialValue: Float)
   def `+=`(v: Float): Unit = addAndGet(v)
   def `-=`(v: Float): Unit = subtractAndGet(v)
 
-  @inline private[this] def plusOp(a: Float, b: Float): Float = a + b
-  @inline private[this] def minusOp(a: Float, b: Float): Float = a - b
-  @inline private[this] def incrOp(a: Float, b: Int): Float = a + b
+  private[this] def plusOp(a: Float, b: Float): Float = a + b
+  private[this] def minusOp(a: Float, b: Float): Float = a - b
+  private[this] def incrOp(a: Float, b: Int): Float = a + b
 }
 
 object AtomicFloat {
   def apply(initialValue: Float): AtomicFloat =
-    new AtomicFloat(initialValue)
+    new AtomicFloat(new JavaAtomicInteger(floatToIntBits(initialValue)))
 
-  private val addressOffset =
-    Unsafe.objectFieldOffset(classOf[AtomicFloat].getFields.find(_.getName.endsWith("value")).get)
+  def wrap(ref: JavaAtomicInteger): AtomicFloat =
+    new AtomicFloat(ref)
 }
