@@ -5,7 +5,7 @@ import sbtunidoc.Plugin._
 import sbtunidoc.Plugin.UnidocKeys._
 
 object Build extends SbtBuild {
-  val projectVersion = "0.13.0"
+  val projectVersion = "0.14.0.M2"
 
   val sharedSettings = Defaults.defaultSettings ++ Seq(
     organization := "org.monifu",
@@ -104,7 +104,7 @@ object Build extends SbtBuild {
       unmanagedSourceDirectories in Compile <+= sourceDirectory(_ / "shared" / "scala"),
       libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _ % "compile"),
       libraryDependencies ++= Seq(
-        "org.reactivestreams" % "reactive-streams" % "0.4.0.M1",
+        "org.reactivestreams" % "reactive-streams" % "0.4.0.M2",
         "org.scalatest" %% "scalatest" % "2.1.3" % "test"
       )
     )
