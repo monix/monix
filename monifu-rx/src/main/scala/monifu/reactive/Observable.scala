@@ -31,11 +31,11 @@ import org.reactivestreams.{Subscriber, Publisher}
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
-import scala.concurrent.duration.{Duration, FiniteDuration}
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{TimeoutException, Future, Promise}
 import scala.language.implicitConversions
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
+import scala.concurrent.duration._
 
 /**
  * Asynchronous implementation of the Observable interface
@@ -675,6 +675,36 @@ trait Observable[+T] { self =>
 
         def onError(ex: Throwable) = {
           observer.onError(ex)
+        }
+      })
+    }
+
+  /**
+   * Create an Observable that emits items from a source Observable,
+   * but issue an exception if no item is emitted in a specified timespan.
+   */
+  def timeout(initialDelay: FiniteDuration, timespan: FiniteDuration): Observable[T] =
+    Observable.create { observer =>
+      subscribeFn(new Observer[T] {
+        private[this] var hasReceivedNextElement = true
+        private[this] val checkOnNextElement = scheduler.scheduleRecursive(initialDelay, timespan, { reschedule =>
+          if(hasReceivedNextElement){
+            reschedule()
+            hasReceivedNextElement = false
+          } else {
+            observer.onError(new TimeoutException(s"No element emitted in the last $timespan"))
+          }
+        })
+
+        def onNext(elem: T) = {
+          hasReceivedNextElement = true
+          observer.onNext(elem)
+        }
+
+        def onError(ex: Throwable) = observer.onError(ex)
+        def onComplete() = {
+          checkOnNextElement.cancel()
+          observer.onComplete()
         }
       })
     }
