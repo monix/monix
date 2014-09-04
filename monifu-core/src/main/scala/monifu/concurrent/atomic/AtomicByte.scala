@@ -19,41 +19,34 @@ package monifu.concurrent.atomic
 import scala.annotation.tailrec
 import scala.concurrent._
 import scala.concurrent.duration.FiniteDuration
-import monifu.concurrent.misc.Unsafe
+import java.util.concurrent.atomic.{AtomicInteger => JavaAtomicInteger}
 
-final class AtomicByte private (initialValue: Byte)
+final class AtomicByte private (ref: JavaAtomicInteger)
   extends AtomicNumber[Byte] with BlockableAtomic[Byte] {
-
   private[this] val mask = 255
-  private[this] val offset = AtomicByte.addressOffset
-  @volatile private[this] var value: Int = initialValue
 
-  @inline def get: Byte =
-    (value & mask).toByte
+  def get: Byte =
+    (ref.get & mask).toByte
 
-  @inline def set(update: Byte) = {
-    value = update
+  def set(update: Byte) = {
+    ref.set(update)
   }
 
-  @inline def lazySet(update: Byte) = {
-    Unsafe.putOrderedInt(this, offset, update)
+  def lazySet(update: Byte) = {
+    ref.lazySet(update)
   }
 
-  @inline def compareAndSet(expect: Byte, update: Byte): Boolean = {
-    Unsafe.compareAndSwapInt(this, offset, expect, update)
+  def compareAndSet(expect: Byte, update: Byte): Boolean = {
+    ref.compareAndSet(expect, update)
   }
 
-  @tailrec
   def getAndSet(update: Byte): Byte = {
-    val current = value
-    if (Unsafe.compareAndSwapInt(this, offset, current, update))
-      (current & mask).toByte
-    else
-      getAndSet(update)
+    (ref.getAndSet(update) & mask).toByte
   }
 
-  @inline def update(value: Byte): Unit = set(value)
-  @inline def `:=`(value: Byte): Unit = set(value)
+  def update(value: Byte): Unit = set(value)
+
+  def `:=`(value: Byte): Unit = set(value)
 
   @tailrec
   def transformAndExtract[U](cb: (Byte) => (U, Byte)): U = {
@@ -286,15 +279,20 @@ final class AtomicByte private (initialValue: Byte)
   def `+=`(v: Byte): Unit = addAndGet(v)
   def `-=`(v: Byte): Unit = subtractAndGet(v)
 
-  @inline private[this] def plusOp(a: Byte, b: Byte): Byte = ((a + b) & mask).asInstanceOf[Byte]
-  @inline private[this] def minusOp(a: Byte, b: Byte): Byte = ((a - b) & mask).asInstanceOf[Byte]
-  @inline private[this] def incrOp(a: Byte, b: Int): Byte = ((a + b) & mask).asInstanceOf[Byte]
+  private[this] def plusOp(a: Byte, b: Byte): Byte =
+    ((a + b) & mask).asInstanceOf[Byte]
+
+  private[this] def minusOp(a: Byte, b: Byte): Byte =
+    ((a - b) & mask).asInstanceOf[Byte]
+
+  private[this] def incrOp(a: Byte, b: Int): Byte =
+    ((a + b) & mask).asInstanceOf[Byte]
 }
 
 object AtomicByte {
   def apply(initialValue: Byte): AtomicByte =
-    new AtomicByte(initialValue)
+    new AtomicByte(new JavaAtomicInteger(initialValue))
 
-  private val addressOffset =
-    Unsafe.objectFieldOffset(classOf[AtomicByte].getFields.find(_.getName.endsWith("value")).get)
+  def wrap(ref: JavaAtomicInteger): AtomicByte =
+    new AtomicByte(ref)
 }

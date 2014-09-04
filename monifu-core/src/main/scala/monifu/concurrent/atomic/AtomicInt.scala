@@ -19,38 +19,30 @@ package monifu.concurrent.atomic
 import scala.annotation.tailrec
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration.FiniteDuration
-import monifu.concurrent.misc.Unsafe
+import java.util.concurrent.atomic.{AtomicInteger => JavaAtomicInteger}
 
+final class AtomicInt private (ref: JavaAtomicInteger)
+  extends AtomicNumber[Int] with BlockableAtomic[Int] {
 
-final class AtomicInt private (initialValue: Int) extends AtomicNumber[Int] with BlockableAtomic[Int] {
-  @volatile private[this] var value = initialValue
-  private[this] val offset = AtomicInt.addressOffset
+  def get: Int = ref.get()
 
-  @inline def get: Int = value
-
-  @inline def set(update: Int): Unit = {
-    value = update
+  def set(update: Int): Unit = {
+    ref.set(update)
   }
 
   def update(value: Int): Unit = set(value)
   def `:=`(value: Int): Unit = set(value)
 
-  @inline def compareAndSet(expect: Int, update: Int): Boolean = {
-    val current = value
-    current == expect && Unsafe.compareAndSwapInt(this, offset, current, update)
+  def compareAndSet(expect: Int, update: Int): Boolean = {
+    ref.compareAndSet(expect, update)
   }
 
-  @tailrec
   def getAndSet(update: Int): Int = {
-    val current = value
-    if (Unsafe.compareAndSwapInt(this, offset, current, update))
-      current
-    else
-      getAndSet(update)
+    ref.getAndSet(update)
   }
 
-  @inline def lazySet(update: Int): Unit = {
-    Unsafe.putOrderedInt(this, offset, update)
+  def lazySet(update: Int): Unit = {
+    ref.lazySet(update)
   }
 
   @tailrec
@@ -181,14 +173,14 @@ final class AtomicInt private (initialValue: Int) extends AtomicNumber[Int] with
 
   @tailrec
   def increment(v: Int = 1): Unit = {
-    val current = value
+    val current = ref.get()
     if (!compareAndSet(current, current+v))
       increment(v)
   }
 
   @tailrec
   def incrementAndGet(v: Int = 1): Int = {
-    val current = value
+    val current = ref.get()
     val update = current + v
     if (!compareAndSet(current, update))
       incrementAndGet(v)
@@ -198,7 +190,7 @@ final class AtomicInt private (initialValue: Int) extends AtomicNumber[Int] with
 
   @tailrec
   def getAndIncrement(v: Int = 1): Int = {
-    val current = value
+    val current = ref.get()
     val update = current + v
     if (!compareAndSet(current, update))
       getAndIncrement(v)
@@ -208,7 +200,7 @@ final class AtomicInt private (initialValue: Int) extends AtomicNumber[Int] with
 
   @tailrec
   def getAndAdd(v: Int): Int = {
-    val current = value
+    val current = ref.get()
     val update = current + v
     if (!compareAndSet(current, update))
       getAndAdd(v)
@@ -218,7 +210,7 @@ final class AtomicInt private (initialValue: Int) extends AtomicNumber[Int] with
 
   @tailrec
   def addAndGet(v: Int): Int = {
-    val current = value
+    val current = ref.get()
     val update = current + v
     if (!compareAndSet(current, update))
       addAndGet(v)
@@ -228,7 +220,7 @@ final class AtomicInt private (initialValue: Int) extends AtomicNumber[Int] with
 
   @tailrec
   def add(v: Int): Unit = {
-    val current = value
+    val current = ref.get()
     val update = current + v
     if (!compareAndSet(current, update))
       add(v)
@@ -264,13 +256,13 @@ final class AtomicInt private (initialValue: Int) extends AtomicNumber[Int] with
   def `+=`(v: Int): Unit = addAndGet(v)
   def `-=`(v: Int): Unit = subtractAndGet(v)
 
-  override def toString: String = s"AtomicInt($value)"
+  override def toString: String = s"AtomicInt(${ref.get()})"
 }
 
 object AtomicInt {
   def apply(initialValue: Int): AtomicInt =
-    new AtomicInt(initialValue)
+    new AtomicInt(new JavaAtomicInteger(initialValue))
 
-  private val addressOffset =
-    Unsafe.objectFieldOffset(classOf[AtomicInt].getFields.find(_.getName.endsWith("value")).get)
+  def wrap(ref: JavaAtomicInteger): AtomicInt =
+    new AtomicInt(ref)
 }

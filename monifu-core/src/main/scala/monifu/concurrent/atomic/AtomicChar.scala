@@ -19,45 +19,38 @@ package monifu.concurrent.atomic
 import scala.annotation.tailrec
 import scala.concurrent._
 import scala.concurrent.duration.FiniteDuration
-import monifu.concurrent.misc.Unsafe
+import java.util.concurrent.atomic.{AtomicInteger => JavaAtomicInteger}
 
-final class AtomicChar private (initialValue: Char)
+class AtomicChar private (ref: JavaAtomicInteger)
   extends AtomicNumber[Char] with BlockableAtomic[Char] {
 
   private[this] val mask = 255 + 255 * 256
-  private[this] val offset = AtomicChar.addressOffset
-  @volatile private[this] var value: Int = initialValue
 
-  @inline def get: Char =
-    (value & mask).toChar
+  final def get: Char =
+    (ref.get & mask).asInstanceOf[Char]
 
-  @inline def set(update: Char) = {
-    value = update
+  final def set(update: Char) = {
+    ref.set(update)
   }
 
-  @inline def lazySet(update: Char) = {
-    Unsafe.putOrderedInt(this, offset, update)
+  final def lazySet(update: Char) = {
+    ref.lazySet(update)
   }
 
-  @inline def compareAndSet(expect: Char, update: Char): Boolean = {
-    val current = value
-    current == expect && Unsafe.compareAndSwapInt(this, offset, current, update)
+  final def compareAndSet(expect: Char, update: Char): Boolean = {
+    ref.compareAndSet(expect, update)
   }
+
+  final def getAndSet(update: Char): Char = {
+    (ref.getAndSet(update) & mask).asInstanceOf[Char]
+  }
+
+  final def update(value: Char): Unit = set(value)
+
+  final def `:=`(value: Char): Unit = set(value)
 
   @tailrec
-  def getAndSet(update: Char): Char = {
-    val current = value
-    if (Unsafe.compareAndSwapInt(this, offset, current, update))
-      (current & mask).toChar
-    else
-      getAndSet(update)
-  }
-
-  @inline def update(value: Char): Unit = set(value)
-  @inline def `:=`(value: Char): Unit = set(value)
-
-  @tailrec
-  def transformAndExtract[U](cb: (Char) => (U, Char)): U = {
+  final def transformAndExtract[U](cb: (Char) => (U, Char)): U = {
     val current = get
     val (extract, update) = cb(current)
     if (!compareAndSet(current, update))
@@ -67,7 +60,7 @@ final class AtomicChar private (initialValue: Char)
   }
 
   @tailrec
-  def transformAndGet(cb: (Char) => Char): Char = {
+  final def transformAndGet(cb: (Char) => Char): Char = {
     val current = get
     val update = cb(current)
     if (!compareAndSet(current, update))
@@ -77,7 +70,7 @@ final class AtomicChar private (initialValue: Char)
   }
 
   @tailrec
-  def getAndTransform(cb: (Char) => Char): Char = {
+  final def getAndTransform(cb: (Char) => Char): Char = {
     val current = get
     val update = cb(current)
     if (!compareAndSet(current, update))
@@ -87,7 +80,7 @@ final class AtomicChar private (initialValue: Char)
   }
 
   @tailrec
-  def transform(cb: (Char) => Char): Unit = {
+  final def transform(cb: (Char) => Char): Unit = {
     val current = get
     val update = cb(current)
     if (!compareAndSet(current, update))
@@ -96,7 +89,7 @@ final class AtomicChar private (initialValue: Char)
 
   @tailrec
   @throws(classOf[InterruptedException])
-  def waitForCompareAndSet(expect: Char, update: Char): Unit =
+  final def waitForCompareAndSet(expect: Char, update: Char): Unit =
     if (!compareAndSet(expect, update)) {
       interruptedCheck()
       waitForCompareAndSet(expect, update)
@@ -104,7 +97,7 @@ final class AtomicChar private (initialValue: Char)
 
   @tailrec
   @throws(classOf[InterruptedException])
-  def waitForCompareAndSet(expect: Char, update: Char, maxRetries: Int): Boolean =
+  final def waitForCompareAndSet(expect: Char, update: Char, maxRetries: Int): Boolean =
     if (!compareAndSet(expect, update))
       if (maxRetries > 0) {
         interruptedCheck()
@@ -117,7 +110,7 @@ final class AtomicChar private (initialValue: Char)
 
   @throws(classOf[InterruptedException])
   @throws(classOf[TimeoutException])
-  def waitForCompareAndSet(expect: Char, update: Char, waitAtMost: FiniteDuration): Unit = {
+  final def waitForCompareAndSet(expect: Char, update: Char, waitAtMost: FiniteDuration): Unit = {
     val waitUntil = System.nanoTime + waitAtMost.toNanos
     waitForCompareAndSet(expect, update, waitUntil)
   }
@@ -125,7 +118,7 @@ final class AtomicChar private (initialValue: Char)
   @tailrec
   @throws(classOf[InterruptedException])
   @throws(classOf[TimeoutException])
-  private[monifu] def waitForCompareAndSet(expect: Char, update: Char, waitUntil: Long): Unit =
+  private[monifu] final def waitForCompareAndSet(expect: Char, update: Char, waitUntil: Long): Unit =
     if (!compareAndSet(expect, update)) {
       interruptedCheck()
       timeoutCheck(waitUntil)
@@ -134,7 +127,7 @@ final class AtomicChar private (initialValue: Char)
 
   @tailrec
   @throws(classOf[InterruptedException])
-  def waitForValue(expect: Char): Unit =
+  final def waitForValue(expect: Char): Unit =
     if (get != expect) {
       interruptedCheck()
       waitForValue(expect)
@@ -142,7 +135,7 @@ final class AtomicChar private (initialValue: Char)
 
   @throws(classOf[InterruptedException])
   @throws(classOf[TimeoutException])
-  def waitForValue(expect: Char, waitAtMost: FiniteDuration): Unit = {
+  final def waitForValue(expect: Char, waitAtMost: FiniteDuration): Unit = {
     val waitUntil = System.nanoTime + waitAtMost.toNanos
     waitForValue(expect, waitUntil)
   }
@@ -150,7 +143,7 @@ final class AtomicChar private (initialValue: Char)
   @tailrec
   @throws(classOf[InterruptedException])
   @throws(classOf[TimeoutException])
-  private[monifu] def waitForValue(expect: Char, waitUntil: Long): Unit =
+  private[monifu] final def waitForValue(expect: Char, waitUntil: Long): Unit =
     if (get != expect) {
       interruptedCheck()
       timeoutCheck(waitUntil)
@@ -159,7 +152,7 @@ final class AtomicChar private (initialValue: Char)
 
   @tailrec
   @throws(classOf[InterruptedException])
-  def waitForCondition(p: Char => Boolean): Unit =
+  final def waitForCondition(p: Char => Boolean): Unit =
     if (!p(get)) {
       interruptedCheck()
       waitForCondition(p)
@@ -167,7 +160,7 @@ final class AtomicChar private (initialValue: Char)
 
   @throws(classOf[InterruptedException])
   @throws(classOf[TimeoutException])
-  def waitForCondition(waitAtMost: FiniteDuration, p: Char => Boolean): Unit = {
+  final def waitForCondition(waitAtMost: FiniteDuration, p: Char => Boolean): Unit = {
     val waitUntil = System.nanoTime + waitAtMost.toNanos
     waitForCondition(waitUntil, p)
   }
@@ -175,7 +168,7 @@ final class AtomicChar private (initialValue: Char)
   @tailrec
   @throws(classOf[InterruptedException])
   @throws(classOf[TimeoutException])
-  private[monifu] def waitForCondition(waitUntil: Long, p: Char => Boolean): Unit =
+  private[monifu] final def waitForCondition(waitUntil: Long, p: Char => Boolean): Unit =
     if (!p(get)) {
       interruptedCheck()
       timeoutCheck(waitUntil)
@@ -183,7 +176,7 @@ final class AtomicChar private (initialValue: Char)
     }
 
   @tailrec
-  def increment(v: Int = 1): Unit = {
+  final def increment(v: Int = 1): Unit = {
     val current = get
     val update = incrOp(current, v)
     if (!compareAndSet(current, update))
@@ -191,7 +184,7 @@ final class AtomicChar private (initialValue: Char)
   }
 
   @tailrec
-  def add(v: Char): Unit = {
+  final def add(v: Char): Unit = {
     val current = get
     val update = plusOp(current, v)
     if (!compareAndSet(current, update))
@@ -199,7 +192,7 @@ final class AtomicChar private (initialValue: Char)
   }
 
   @tailrec
-  def incrementAndGet(v: Int = 1): Char = {
+  final def incrementAndGet(v: Int = 1): Char = {
     val current = get
     val update = incrOp(current, v)
     if (!compareAndSet(current, update))
@@ -209,7 +202,7 @@ final class AtomicChar private (initialValue: Char)
   }
 
   @tailrec
-  def addAndGet(v: Char): Char = {
+  final def addAndGet(v: Char): Char = {
     val current = get
     val update = plusOp(current, v)
     if (!compareAndSet(current, update))
@@ -219,7 +212,7 @@ final class AtomicChar private (initialValue: Char)
   }
 
   @tailrec
-  def getAndIncrement(v: Int = 1): Char = {
+  final def getAndIncrement(v: Int = 1): Char = {
     val current = get
     val update = incrOp(current, v)
     if (!compareAndSet(current, update))
@@ -229,7 +222,7 @@ final class AtomicChar private (initialValue: Char)
   }
 
   @tailrec
-  def getAndAdd(v: Char): Char = {
+  final def getAndAdd(v: Char): Char = {
     val current = get
     val update = plusOp(current, v)
     if (!compareAndSet(current, update))
@@ -239,7 +232,7 @@ final class AtomicChar private (initialValue: Char)
   }
 
   @tailrec
-  def subtract(v: Char): Unit = {
+  final def subtract(v: Char): Unit = {
     val current = get
     val update = minusOp(current, v)
     if (!compareAndSet(current, update))
@@ -247,7 +240,7 @@ final class AtomicChar private (initialValue: Char)
   }
 
   @tailrec
-  def subtractAndGet(v: Char): Char = {
+  final def subtractAndGet(v: Char): Char = {
     val current = get
     val update = minusOp(current, v)
     if (!compareAndSet(current, update))
@@ -257,7 +250,7 @@ final class AtomicChar private (initialValue: Char)
   }
 
   @tailrec
-  def getAndSubtract(v: Char): Char = {
+  final def getAndSubtract(v: Char): Char = {
     val current = get
     val update = minusOp(current, v)
     if (!compareAndSet(current, update))
@@ -267,7 +260,7 @@ final class AtomicChar private (initialValue: Char)
   }
 
   @tailrec
-  def countDownToZero(v: Char = 1): Char = {
+  final def countDownToZero(v: Char = 1): Char = {
     val current = get
     if (current != 0) {
       val decrement = if (current >= v) v else current
@@ -281,21 +274,26 @@ final class AtomicChar private (initialValue: Char)
       0
   }
 
-  def decrement(v: Int = 1): Unit = increment(-v)
-  def decrementAndGet(v: Int = 1): Char = incrementAndGet(-v)
-  def getAndDecrement(v: Int = 1): Char = getAndIncrement(-v)
-  def `+=`(v: Char): Unit = addAndGet(v)
-  def `-=`(v: Char): Unit = subtractAndGet(v)
+  final def decrement(v: Int = 1): Unit = increment(-v)
+  final def decrementAndGet(v: Int = 1): Char = incrementAndGet(-v)
+  final def getAndDecrement(v: Int = 1): Char = getAndIncrement(-v)
+  final def `+=`(v: Char): Unit = addAndGet(v)
+  final def `-=`(v: Char): Unit = subtractAndGet(v)
 
-  @inline private[this] def plusOp(a: Char, b: Char): Char = ((a + b) & mask).asInstanceOf[Char]
-  @inline private[this] def minusOp(a: Char, b: Char): Char = ((a - b) & mask).asInstanceOf[Char]
-  @inline private[this] def incrOp(a: Char, b: Int): Char = ((a + b) & mask).asInstanceOf[Char]
+  private[this] final def plusOp(a: Char, b: Char): Char =
+    ((a + b) & mask).asInstanceOf[Char]
+
+  private[this] final def minusOp(a: Char, b: Char): Char =
+    ((a - b) & mask).asInstanceOf[Char]
+
+  private[this] final def incrOp(a: Char, b: Int): Char =
+    ((a + b) & mask).asInstanceOf[Char]
 }
 
 object AtomicChar {
   def apply(initialValue: Char): AtomicChar =
-    new AtomicChar(initialValue)
+    new AtomicChar(new JavaAtomicInteger(initialValue))
 
-  private val addressOffset =
-    Unsafe.objectFieldOffset(classOf[AtomicChar].getFields.find(_.getName.endsWith("value")).get)
+  def wrap(ref: JavaAtomicInteger): AtomicChar =
+    new AtomicChar(ref)
 }

@@ -19,42 +19,34 @@ package monifu.concurrent.atomic
 import scala.annotation.tailrec
 import scala.concurrent._
 import scala.concurrent.duration.FiniteDuration
-import monifu.concurrent.misc.Unsafe
+import java.util.concurrent.atomic.{AtomicInteger => JavaAtomicInteger}
 
-final class AtomicShort private (initialValue: Short)
+final class AtomicShort private (ref: JavaAtomicInteger)
   extends AtomicNumber[Short] with BlockableAtomic[Short] {
 
   private[this] val mask = 255 + 255 * 256
-  private[this] val offset = AtomicShort.addressOffset
-  @volatile private[this] var value: Int = initialValue
 
-  @inline def get: Short =
-    (value & mask).toShort
+  def get: Short =
+    (ref.get() & mask).toShort
 
-  @inline def set(update: Short) = {
-    value = update
+  def set(update: Short) = {
+    ref.set(update)
   }
 
-  @inline def lazySet(update: Short) = {
-    Unsafe.putOrderedInt(this, offset, update)
+  def lazySet(update: Short) = {
+    ref.lazySet(update)
   }
 
-  @inline def compareAndSet(expect: Short, update: Short): Boolean = {
-    val current = value
-    current == expect && Unsafe.compareAndSwapInt(this, offset, current, update)
+  def compareAndSet(expect: Short, update: Short): Boolean = {
+    ref.compareAndSet(expect, update)
   }
 
-  @tailrec
   def getAndSet(update: Short): Short = {
-    val current = value
-    if (Unsafe.compareAndSwapInt(this, offset, current, update))
-      (current & mask).toShort
-    else
-      getAndSet(update)
+    (ref.getAndSet(update) & mask).asInstanceOf[Short]
   }
 
-  @inline def update(value: Short): Unit = set(value)
-  @inline def `:=`(value: Short): Unit = set(value)
+  def update(value: Short): Unit = set(value)
+  def `:=`(value: Short): Unit = set(value)
 
   @tailrec
   def transformAndExtract[U](cb: (Short) => (U, Short)): U = {
@@ -287,15 +279,15 @@ final class AtomicShort private (initialValue: Short)
   def `+=`(v: Short): Unit = addAndGet(v)
   def `-=`(v: Short): Unit = subtractAndGet(v)
 
-  @inline private[this] def plusOp(a: Short, b: Short): Short = ((a + b) & mask).asInstanceOf[Short]
-  @inline private[this] def minusOp(a: Short, b: Short): Short = ((a - b) & mask).asInstanceOf[Short]
-  @inline private[this] def incrOp(a: Short, b: Int): Short = ((a + b) & mask).asInstanceOf[Short]
+  private[this] def plusOp(a: Short, b: Short): Short = ((a + b) & mask).asInstanceOf[Short]
+  private[this] def minusOp(a: Short, b: Short): Short = ((a - b) & mask).asInstanceOf[Short]
+  private[this] def incrOp(a: Short, b: Int): Short = ((a + b) & mask).asInstanceOf[Short]
 }
 
 object AtomicShort {
   def apply(initialValue: Short): AtomicShort =
-    new AtomicShort(initialValue)
+    new AtomicShort(new JavaAtomicInteger(initialValue))
 
-  private val addressOffset =
-    Unsafe.objectFieldOffset(classOf[AtomicShort].getFields.find(_.getName.endsWith("value")).get)
+  def wrap(ref: JavaAtomicInteger): AtomicShort =
+    new AtomicShort(ref)
 }

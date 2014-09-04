@@ -20,42 +20,34 @@ import scala.annotation.tailrec
 import scala.concurrent._
 import scala.concurrent.duration.FiniteDuration
 import java.lang.Double.{longBitsToDouble, doubleToLongBits}
-import monifu.concurrent.misc.Unsafe
+import java.util.concurrent.atomic.{AtomicLong => JavaAtomicLong}
 
-
-final class AtomicDouble private (initialValue: Double)
+final class AtomicDouble private (ref: JavaAtomicLong)
   extends AtomicNumber[Double] with BlockableAtomic[Double] {
 
-  private[this] val offset = AtomicDouble.addressOffset
-  @volatile private[this] var value: Long = doubleToLongBits(initialValue)
+  def get: Double =
+    longBitsToDouble(ref.get())
 
-  @inline def get: Double =
-    longBitsToDouble(value)
-
-  @inline def set(update: Double) = {
-    value = doubleToLongBits(update)
+  def set(update: Double) = {
+    ref.set(doubleToLongBits(update))
   }
 
-  @inline def lazySet(update: Double) = {
-    Unsafe.putOrderedLong(this, offset, doubleToLongBits(update))
+  def lazySet(update: Double) = {
+    ref.lazySet(doubleToLongBits(update))
   }
 
-  @inline def compareAndSet(expect: Double, update: Double): Boolean = {
-    val current = value
-    current == doubleToLongBits(expect) && Unsafe.compareAndSwapLong(this, offset, current, doubleToLongBits(update))
+  def compareAndSet(expect: Double, update: Double): Boolean = {
+    val current = ref.get()
+    current == doubleToLongBits(expect) && ref.compareAndSet(current, doubleToLongBits(update))
   }
 
-  @tailrec
   def getAndSet(update: Double): Double = {
-    val current = value
-    if (Unsafe.compareAndSwapLong(this, offset, current, doubleToLongBits(update)))
-      longBitsToDouble(current)
-    else
-      getAndSet(update)
+    longBitsToDouble(ref.getAndSet(doubleToLongBits(update)))
   }
 
-  @inline def update(value: Double): Unit = set(value)
-  @inline def `:=`(value: Double): Unit = set(value)
+  def update(value: Double): Unit = set(value)
+
+  def `:=`(value: Double): Unit = set(value)
 
   @tailrec
   def transformAndExtract[U](cb: (Double) => (U, Double)): U = {
@@ -288,15 +280,15 @@ final class AtomicDouble private (initialValue: Double)
   def `+=`(v: Double): Unit = addAndGet(v)
   def `-=`(v: Double): Unit = subtractAndGet(v)
 
-  @inline private[this] def plusOp(a: Double, b: Double): Double = a + b
-  @inline private[this] def minusOp(a: Double, b: Double): Double = a - b
-  @inline private[this] def incrOp(a: Double, b: Int): Double = a + b
+  private[this] def plusOp(a: Double, b: Double): Double = a + b
+  private[this] def minusOp(a: Double, b: Double): Double = a - b
+  private[this] def incrOp(a: Double, b: Int): Double = a + b
 }
 
 object AtomicDouble {
   def apply(initialValue: Double): AtomicDouble =
-    new AtomicDouble(initialValue)
+    new AtomicDouble(new JavaAtomicLong(doubleToLongBits(initialValue)))
 
-  private val addressOffset =
-    Unsafe.objectFieldOffset(classOf[AtomicDouble].getFields.find(_.getName.endsWith("value")).get)
+  def wrap(ref: JavaAtomicLong): AtomicDouble =
+    new AtomicDouble(ref)
 }
