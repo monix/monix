@@ -118,7 +118,7 @@ trait Observable[+T] { self =>
    */
   def publisher[U >: T]: Publisher[U] =
     new Publisher[U] {
-      def subscribe(s: Subscriber[U]): Unit = {
+      def subscribe(s: Subscriber[_ >: U]): Unit = {
         subscribeFn(SafeObserver(Observer.from(s)))
       }
     }
@@ -852,16 +852,42 @@ trait Observable[+T] { self =>
           scheduler.scheduleRecursive(timespan, timespan, { reschedule =>
             lock.enter {
               if (!isDone) {
+                val current = queue
                 queue = ArrayBuffer.empty
-                for (ack <- observer.onNext(queue))
-                  ack match {
-                    case Continue =>
-                      reschedule()
-                    case Cancel =>
-                      lock.enter {
-                        isDone = true
-                      }
+                val result =
+                  try observer.onNext(current) catch {
+                    case NonFatal(ex) =>
+                      Future.failed(ex)
                   }
+
+                result match {
+                  case sync if sync.isCompleted =>
+                    sync.value.get match {
+                      case Success(Continue) =>
+                        reschedule()
+                      case Success(Cancel) =>
+                        isDone = true
+                      case Failure(ex) =>
+                        isDone = true
+                        observer.onError(ex)
+                    }
+                  case async =>
+                    async.onComplete {
+                      case Success(Continue) =>
+                        lock.enter {
+                          if (!isDone) reschedule
+                        }
+                      case Success(Cancel) =>
+                        lock.enter {
+                          isDone = true
+                        }
+                      case Failure(ex) =>
+                        lock.enter {
+                          isDone = true
+                          observer.onError(ex)
+                        }
+                    }
+                }
               }
             }
           })

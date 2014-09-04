@@ -36,7 +36,7 @@ final class SubscriberAsObserver[T] private (subscriber: Subscriber[T])(implicit
 
   @volatile private[this] var isCanceled = false
   private[this] var isFirstEvent = true
-  private[this] val leftToPush = Atomic(0)
+  private[this] val leftToPush = Atomic(0L)
   private[this] var ack = Continue : Future[Ack]
 
   private[this] val lock = SpinLock()
@@ -97,11 +97,11 @@ final class SubscriberAsObserver[T] private (subscriber: Subscriber[T])(implicit
 
   private[this] def createSubscription(): Subscription =
     new Subscription {
-      def request(n: Int): Unit = lock.enter {
+      def request(n: Long): Unit = lock.enter {
         if (!isCanceled) {
           require(n > 0, "n must be strictly positive, according to the Reactive Streams contract")
 
-          if (leftToPush.getAndIncrement(n) == 0) {
+          if (leftToPush.getAndAdd(n) == 0) {
             val promise = requestPromise
             requestPromise = Promise()
             promise.trySuccess(Continue)
