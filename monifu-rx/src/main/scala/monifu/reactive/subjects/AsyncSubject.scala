@@ -27,8 +27,8 @@ import scala.collection.immutable.Set
 
 
 /**
- * A `AsyncSubject` emits to a subscriber only those items that are
- * emitted by the source subsequent to the time of the subscription
+ * An `AsyncSubject` emits the last value (and only the last value) emitted by the source Observable,
+ * and only after that source Observable completes.
  *
  * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/S.AsyncSubject.png" />
  *
