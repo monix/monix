@@ -16,7 +16,7 @@
 
 package monifu.reactive
 
-import monifu.concurrent.atomic.{AtomicInt, Atomic, AtomicBoolean}
+import monifu.concurrent.atomic.{Atomic, AtomicBoolean, AtomicInt}
 import monifu.concurrent.cancelables.{BooleanCancelable, RefCountCancelable}
 import monifu.concurrent.locks.SpinLock
 import monifu.concurrent.{Cancelable, Scheduler}
@@ -25,8 +25,8 @@ import monifu.reactive.BufferPolicy.{BackPressured, OverflowTriggering, Unbounde
 import monifu.reactive.Notification.{OnComplete, OnError, OnNext}
 import monifu.reactive.internals._
 import monifu.reactive.observers._
-import monifu.reactive.subjects.{BehaviorSubject, PublishSubject, ReplaySubject}
-import org.reactivestreams.{Subscriber, Publisher}
+import monifu.reactive.subjects.{AsyncSubject, BehaviorSubject, PublishSubject, ReplaySubject}
+import org.reactivestreams.{Publisher, Subscriber}
 
 import scala.annotation.tailrec
 import scala.collection.mutable
@@ -924,6 +924,127 @@ trait Observable[+T] { self =>
             task.cancel()
           }
         }
+      })
+    }
+
+
+  /**
+   * Emit the most recent items emitted by an Observable within periodic time
+   * intervals.
+   *
+   * Use the sample() method to periodically look at an Observable
+   * to see what item it has most recently emitted since the previous
+   * sampling. Note that if the source Observable has emitted no
+   * items since the last time it was sampled, the Observable that
+   * results from the sample( ) operator will emit no item for
+   * that sampling period.
+   *
+   * @param delay the timespan at which sampling occurs and note that this is
+   *              not accurate as it is subject to back-pressure concerns - as in
+   *              if the delay is 1 second and the processing of an event on `onNext`
+   *              in the observer takes one second, then the actual sampling delay
+   *              will be 2 seconds.
+   */
+  def sample(delay: FiniteDuration): Observable[T] =
+    sample(delay, delay)
+
+  /**
+   * Emit the most recent items emitted by an Observable within periodic time
+   * intervals.
+   *
+   * Use the sample() method to periodically look at an Observable
+   * to see what item it has most recently emitted since the previous
+   * sampling. Note that if the source Observable has emitted no
+   * items since the last time it was sampled, the Observable that
+   * results from the sample( ) operator will emit no item for
+   * that sampling period.
+   *
+   * @param initialDelay the initial delay after which sampling can happen
+   *
+   * @param delay the timespan at which sampling occurs and note that this is
+   *              not accurate as it is subject to back-pressure concerns - as in
+   *              if the delay is 1 second and the processing of an event on `onNext`
+   *              in the observer takes one second, then the actual sampling delay
+   *              will be 2 seconds.
+   */
+  def sample(initialDelay: FiniteDuration, delay: FiniteDuration): Observable[T] =
+    Observable.create { observer =>
+      unsafeSubscribe(new SynchronousObserver[T] {
+        private[this] val lock = SpinLock()
+        // must be synchronized by lock
+        private[this] var isDone = false
+        // must be synchronized by lock
+        private[this] var lastEvent: T = _
+        // must be synchronized by lock
+        private[this] var valueHappened = false
+
+        private[this] val task =
+          scheduler.scheduleRecursive(initialDelay, delay, { reschedule =>
+            lock.enter {
+              if (!isDone) {
+                if (valueHappened) {
+                  valueHappened = false
+                  val result =
+                    try observer.onNext(lastEvent) catch {
+                      case NonFatal(ex) =>
+                        Future.failed(ex)
+                    }
+
+                  result match {
+                    case sync if sync.isCompleted =>
+                      sync.value.get match {
+                        case Success(Continue) =>
+                          reschedule()
+                        case Success(Cancel) =>
+                          isDone = true
+                        case Failure(ex) =>
+                          onError(ex)
+                      }
+                    case async =>
+                      async.onComplete {
+                        case Success(Continue) =>
+                          reschedule()
+                        case Success(Cancel) =>
+                          lock.enter { isDone = true }
+                        case Failure(ex) =>
+                          onError(ex)
+                      }
+                  }
+                }
+                else {
+                  reschedule()
+                }
+              }
+            }
+          })
+
+        def onNext(elem: T) =
+          lock.enter {
+            if (isDone) Cancel
+            else {
+              valueHappened = true
+              lastEvent = elem
+              Continue
+            }
+          }
+
+        def onError(ex: Throwable): Unit =
+          lock.enter {
+            if (!isDone) {
+              isDone = true
+              task.cancel()
+              observer.onError(ex)
+            }
+          }
+
+        def onComplete(): Unit =
+          lock.enter {
+            if (!isDone) {
+              isDone = true
+              task.cancel()
+              observer.onComplete()
+            }
+          }
       })
     }
 
@@ -1987,6 +2108,14 @@ trait Observable[+T] { self =>
    */
   def replay(): ConnectableObservable[T] =
     multicast(ReplaySubject())
+
+  /**
+   * Converts this observable into a multicast observable, useful for turning a cold observable into
+   * a hot one (i.e. whose source is shared by all observers). The underlying subject used is a
+   * [[monifu.reactive.subjects.AsyncSubject AsyncSubject]].
+   */
+  def publishLast(): ConnectableObservable[T] =
+    multicast(AsyncSubject())
 
   /**
    * Given a function that transforms an `Observable[T]` into an `Observable[U]`,
