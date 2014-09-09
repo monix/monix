@@ -60,7 +60,7 @@ final class PublishSubject[T] private (s: Scheduler) extends Subject[T,T] {
     if (!isCompleted) {
       val observers = subscriptions
       if (observers.nonEmpty)
-        stream(observers, elem)
+        streamToMany(observers, elem)
       else
         Continue
     }
@@ -95,7 +95,7 @@ final class PublishSubject[T] private (s: Scheduler) extends Subject[T,T] {
       }
     }
 
-  private[this] def stream(array: Array[Observer[T]], elem: T): Future[Continue] = {
+  private[this] def streamToMany(array: Array[Observer[T]], elem: T): Future[Continue] = {
     val newPromise = PromiseCounter[Continue](Continue, array.length)
     val length = array.length
     var idx = 0
