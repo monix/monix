@@ -58,5 +58,11 @@ object BufferPolicy {
   case class BackPressured(bufferSize: Int) extends BufferPolicy {
     require(bufferSize > 1, "bufferSize should be greater than 1")
   }
+
+  /**
+   * The default library-wide policy used whenever a default argument
+   * value is needed.
+   */
+  val default: BufferPolicy = BackPressured(bufferSize = 2048)
 }
 

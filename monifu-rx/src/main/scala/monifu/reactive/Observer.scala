@@ -16,11 +16,16 @@
  
 package monifu.reactive
 
-import monifu.reactive.observers.SynchronousObserver
+import monifu.concurrent.Scheduler
+import monifu.reactive.Ack.{Cancel, Continue}
+import monifu.reactive.observers.{SafeObserver, SynchronousObserver}
 import monifu.reactive.streams.{ObserverAsSubscriber, SubscriberAsObserver, SynchronousObserverAsSubscriber}
 import org.reactivestreams.Subscriber
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.annotation.tailrec
+import scala.concurrent.{Promise, ExecutionContext, Future}
+import scala.util.{Failure, Success}
+import scala.util.control.NonFatal
 
 /**
  * The Observer from the Rx pattern is the trio of callbacks that
@@ -70,4 +75,56 @@ object Observer {
    */
   def ObserverIsSubscriber[T](source: Observer[T])(implicit ec: ExecutionContext): Subscriber[T] =
     Observer.asSubscriber(source)
+
+  /**
+   * Feeds the given [[Observer]] instance with elements from the given iterable,
+   * respecting the contract and returning a `Future[Ack]` with the last
+   * acknowledgement given after the last emitted element.
+   */
+  def feed[T](observer: Observer[T], iterable: Iterable[T])(implicit scheduler: Scheduler): Future[Ack] = {
+    val safeObs = SafeObserver(observer)
+
+    def scheduleFeedLoop(promise: Promise[Ack], iterator: Iterator[T]): Future[Ack] = {
+      scheduler.execute(new Runnable {
+        @tailrec
+        def fastLoop(): Unit = {
+          val ack = safeObs.onNext(iterator.next())
+
+          if (iterator.hasNext)
+            ack match {
+              case sync if sync.isCompleted =>
+                if (sync == Continue || sync.value.get == Continue.IsSuccess)
+                  fastLoop()
+                else
+                  promise.completeWith(sync)
+              case async =>
+                async.onComplete {
+                  case Success(Continue) =>
+                    scheduleFeedLoop(promise, iterator)
+                  case Success(Cancel) =>
+                    promise.success(Cancel)
+                  case Failure(ex) =>
+                    promise.failure(ex)
+                }
+            }
+          else
+            promise.completeWith(ack)
+        }
+
+        def run(): Unit = {
+          try fastLoop() catch {
+            case NonFatal(ex) =>
+              try safeObs.onError(ex) finally {
+                promise.failure(ex)
+              }
+          }
+        }
+      })
+
+      promise.future
+    }
+
+    val iterator = iterable.iterator
+    if (iterator.hasNext) scheduleFeedLoop(Promise[Ack](), iterator) else Continue
+  }
 }

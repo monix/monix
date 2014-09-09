@@ -36,6 +36,7 @@ import scala.concurrent.{Future, Promise}
 import scala.language.implicitConversions
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
+import BufferPolicy.{default => defaultPolicy}
 
 /**
  * Asynchronous implementation of the Observable interface
@@ -72,7 +73,7 @@ trait Observable[+T] { self =>
   /**
    * Creates the subscription that eventually starts the stream.
    *
-   * This function is "unsafe" to call because it does protect the calls to the
+   * This function is "unsafe" to call because it does not protect the calls to the
    * given [[Observer]] implementation in regards to unexpected exceptions that
    * violate the contract, therefore the given instance must respect its contract
    * and not throw any exceptions when the observable calls `onNext`,
@@ -329,7 +330,7 @@ trait Observable[+T] { self =>
    * @return an Observable that emits items that are the result of flattening the items emitted
    *         by the Observables emitted by `this`
    */
-  def merge[U](bufferPolicy: BufferPolicy = BackPressured(2048), batchSize: Int = 0)(implicit ev: T <:< Observable[U]): Observable[U] =
+  def merge[U](bufferPolicy: BufferPolicy = defaultPolicy, batchSize: Int = 0)(implicit ev: T <:< Observable[U]): Observable[U] =
     Observable.create { observerB =>
 
       // if the parallelism is unbounded and the buffer policy allows for a
@@ -680,6 +681,61 @@ trait Observable[+T] { self =>
     }
 
   /**
+   * Returns the values from the source Observable until the other
+   * Observable produces a value.
+   *
+   * The second Observable can cause takeUntil to quit emitting items
+   * either by emitting an event or by completing with
+   * `onError` or `onCompleted`.
+   *
+   * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/create.png" />
+   */
+  def takeUntil[U](other: Observable[U]): Observable[T] =
+    Observable.create { observer =>
+      // we've got contention between the source and the other observable
+      // and we can't use an Atomic here because of `onNext`, so we are
+      // forced to use a lock in order to preserve the non-concurrency
+      // clause in the contract
+      val lock = SpinLock()
+      // must be at all times synchronized by lock
+      var isDone = false
+
+      def terminate(ex: Throwable = null): Unit =
+        lock.enter {
+          if (!isDone) {
+            isDone = true
+            if (ex == null)
+              observer.onComplete()
+            else
+              observer.onError(ex)
+          }
+        }
+
+      unsafeSubscribe(new Observer[T] {
+        def onNext(elem: T) = lock.enter {
+          if (isDone) Cancel
+          else
+            observer.onNext(elem).onCancel {
+              lock.enter { isDone = true }
+            }
+        }
+
+        def onError(ex: Throwable): Unit = terminate(ex)
+        def onComplete(): Unit = terminate()
+      })
+
+      other.unsafeSubscribe(new SynchronousObserver[U] {
+        def onNext(elem: U) = {
+          terminate()
+          Cancel
+        }
+
+        def onError(ex: Throwable) = terminate(ex)
+        def onComplete() = terminate()
+      })
+    }
+
+  /**
    * Drops the longest prefix of elements that satisfy the given predicate
    * and returns a new Observable that emits the rest.
    */
@@ -768,6 +824,14 @@ trait Observable[+T] { self =>
       })
     }
 
+  /**
+   * Creates a new Observable that emits the total number of `onNext` events
+   * that were emitted by the source.
+   *
+   * Note that this Observable emits only one item after the source is complete.
+   * And in case the source emits an error, then only that error will be
+   * emitted.
+   */
   def count(): Observable[Long] =
     Observable.create { observer =>
       subscribeFn(new Observer[T] {
@@ -1046,6 +1110,360 @@ trait Observable[+T] { self =>
             }
           }
       })
+    }
+
+  /**
+   * Creates an Observable that emits the events emitted by the source, shifted
+   * forward in time, specified by the given `itemDelay`.
+   *
+   * Note: the [[BufferPolicy.default default policy]] is being used for buffering.
+   *
+   * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/delay.png" />
+   *
+   * @param itemDelay is the period of time to wait before events start
+   *                   being signaled
+   */
+  def delay(itemDelay: FiniteDuration): Observable[T] =
+    delay(defaultPolicy, itemDelay)
+
+  /**
+   * Creates an Observable that emits the events emitted by the source, shifted
+   * forward in time, specified by the given `itemDelay`.
+   *
+   * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/delay.png" />
+   *
+   * @param policy is the policy used for buffering, see [[BufferPolicy]]
+   *
+   * @param itemDelay is the period of time to wait before events start
+   *                   being signaled
+   */
+  def delay(policy: BufferPolicy, itemDelay: FiniteDuration): Observable[T] =
+    self.delay(policy, { (connect, _) =>
+      scheduler.scheduleOnce(itemDelay, connect())
+    })
+
+  /**
+   * Creates an Observable that emits the events emitted by the source, shifted
+   * forward in time, the streaming being triggered by the completion of a future.
+   *
+   * During the delay period the emitted elements are being buffered.
+   * If the future is completed with a failure, then the error
+   * will get streamed directly to our observable, bypassing any buffered
+   * events that we may have.
+   *
+   * Note: the [[BufferPolicy.default default policy]] is being used for buffering.
+   *
+   * @param future is a `Future` that starts the streaming upon completion
+   */
+  def delay(future: Future[_]): Observable[T] = {
+    delay(defaultPolicy, future)
+  }
+
+  /**
+   * Creates an Observable that emits the events emitted by the source, shifted
+   * forward in time, the streaming being triggered by the completion of a future.
+   *
+   * During the delay period the emitted elements are being buffered.
+   * If the future is completed with a failure, then the error
+   * will get streamed directly to our observable, bypassing any buffered
+   * events that we may have.
+   *
+   * @param policy is the policy used for buffering, see [[BufferPolicy]]
+   *
+   * @param future is a `Future` that starts the streaming upon completion
+   */
+  def delay(policy: BufferPolicy, future: Future[_]): Observable[T] = {
+    delay(policy, { (connect, signalError) =>
+      val task = BooleanCancelable()
+      future.onComplete {
+        case Success(_) =>
+          if (!task.isCanceled)
+            connect()
+        case Failure(ex) =>
+          if (!task.isCanceled)
+            signalError(ex)
+      }
+
+      task
+    })
+  }
+
+  /**
+   * Creates an Observable that emits the events emitted by the source
+   * shifted forward in time, delay introduced by waiting for an event
+   * to happen, an event initiated by the given callback.
+   *
+   * Example 1:
+   * {{{
+   *   Observable.interval(1.second)
+   *     .delay { (connect, signalError) =>
+   *       val task = BooleanCancelable()
+   *       future.onComplete {
+   *         case Success(_) =>
+   *           if (!task.isCanceled)
+   *             connect()
+   *         case Failure(ex) =>
+   *           if (!task.isCanceled)
+   *             signalError(ex)
+   *       }
+   *
+   *       task
+   *     }
+   * }}}
+   *
+   * In the above example, upon subscription the given function gets called,
+   * scheduling the streaming to start after a certain future is completed.
+   * During that wait period the events are buffered and after the
+   * future is finally completed, the buffer gets streamed to the observer,
+   * after which streaming proceeds as normal.
+   *
+   * Example 2:
+   * {{{
+   *   Observable.interval(1.second)
+   *     .delay { (connect, handleError) =>
+   *       scheduler.schedule(5.seconds, {
+   *         connect()
+   *       })
+   *     }
+   * }}}
+   *
+   * In the above example, upon subscription the given function gets called,
+   * scheduling a task to execute after 5 seconds. During those 5 seconds
+   * the events are buffered and after those 5 seconds are elapsed, the
+   * buffer gets streamed, after which streaming proceeds as normal.
+   *
+   * Notes:
+   *
+   * - only `onNext` and `onComplete` events are delayed, but not `onError`,
+   *   as `onError` interrupts the delay and streams the error as soon as it can.
+   * - the [[BufferPolicy.default default policy]] is being used for
+   *   buffering.
+   *
+   * @param init is the function that gets called for initiating the event
+   *             that finally starts the streaming sometime in the future - it
+   *             takes 2 arguments, a function that must be called to start the
+   *             streaming and an error handling function that must be called
+   *             in case an error happened while waiting
+   */
+  def delay(init: (() => Unit, Throwable => Unit) => Cancelable): Observable[T] =
+    delay(defaultPolicy, init)
+
+  /**
+   * Creates an Observable that emits the events emitted by the source
+   * shifted forward in time, delay introduced by waiting for an event
+   * to happen, an event initiated by the given callback.
+   *
+   * Example 1:
+   * {{{
+   *   Observable.interval(1.second)
+   *     .delay(Unbounded, { (connect, signalError) =>
+   *       val task = BooleanCancelable()
+   *       future.onComplete {
+   *         case Success(_) =>
+   *           if (!task.isCanceled)
+   *             connect()
+   *         case Failure(ex) =>
+   *           if (!task.isCanceled)
+   *             signalError(ex)
+   *       }
+   *       task
+   *     })
+   * }}}
+   *
+   * In the above example, upon subscription the given function gets called,
+   * scheduling the streaming to start after a certain future is completed.
+   * During that wait period the events are buffered and after the
+   * future is finally completed, the buffer gets streamed to the observer,
+   * after which streaming proceeds as normal.
+   *
+   * Example 2:
+   * {{{
+   *   Observable.interval(1.second)
+   *     .delay(Unbounded, { (connect, handleError) =>
+   *       scheduler.schedule(5.seconds, {
+   *         connect()
+   *       })
+   *     })
+   * }}}
+   *
+   * In the above example, upon subscription the given function gets called,
+   * scheduling a task to execute after 5 seconds. During those 5 seconds
+   * the events are buffered and after those 5 seconds are elapsed, the
+   * buffer gets streamed, after which streaming proceeds as normal.
+   *
+   * Notes:
+   *
+   * - if an error happens while waiting for our event to get triggered, it can
+   *   be signaled with `handleError` (see sample above)
+   * - only `onNext` and `onComplete` events are delayed, but not `onError`,
+   *   as `onError` interrupts the delay and streams the error as soon as it can.
+   *
+   * @param policy is the buffering policy used, see [[BufferPolicy]]
+   *
+   * @param init is the function that gets called for initiating the event
+   *             that finally starts the streaming sometime in the future - it
+   *             takes 2 arguments, a function that must be called to start the
+   *             streaming and an error handling function that must be called
+   *             in case an error happened while waiting
+   */
+  def delay(policy: BufferPolicy, init: (() => Unit, Throwable => Unit) => Cancelable): Observable[T] =
+    Observable.create { observer =>
+      unsafeSubscribe(new Observer[T] {
+        private[this] val lock = SpinLock()
+        // MUST BE synchronized by lock at all times
+        private[this] var buffer = ArrayBuffer.empty[T]
+        // SHOULD BE synchronized by lock if false, if true then
+        // the logic can take the fast path and avoid lock synchronization
+        private[this] var isConnected = false
+        // signals that the downstream observer has canceled the stream
+        // during buffer draining, set to true after isConnected = true and
+        // before connectedF is completed
+        private[this] var isCanceledDuringFeeding = false
+        // Promise to be completed after the observer has been fed
+        // with the whole buffer
+        private[this] val connectedP = Promise[Ack]()
+        // Future to be completed after the observer has been fed
+        // with the whole buffer - reference must be mutable, because
+        // that flatMap-ing in onNext can become concurrent with
+        // onComplete / onError, so it must be changed to reflect
+        // the latest acknowledgement of `observer.onNext(elem)`
+        private[this] var connectedF = connectedP.future
+        // task that has to run after the given `delay`,
+        // can be canceled in `onError`
+        private[this] val task = init(connect, onError)
+
+        private[this] def connect(): Unit = lock.enter {
+          if (!isConnected) {
+            // signals that the observer has been connected to the stream
+            // and thus future events mustn't be buffered
+            isConnected = true
+
+            Observer.feed(observer, buffer).onCompleteNow {
+              case ack @ Success(Continue | Cancel) =>
+                lock.enter {
+                  isCanceledDuringFeeding = ack == Cancel.IsSuccess
+                  buffer = null // GC purposes
+                  connectedP.complete(ack)
+                }
+              case Failure(ex) =>
+                isCanceledDuringFeeding = true
+                observer.onError(ex)
+                buffer = null // GC purposes
+                connectedP.success(Cancel)
+            }
+          }
+        }
+
+        def onNext(elem: T): Future[Ack] = {
+          if (isConnected && connectedF.isCompleted) {
+            // fast path branch taken when the observer is connected
+            // and the whole buffer has been drained
+            if (!isCanceledDuringFeeding) {
+              connectedF = observer.onNext(elem)
+              connectedF
+            }
+            else {
+              Cancel
+            }
+          }
+          else if (isConnected) {
+            // slow path branch taken when the observer is connected,
+            // but the buffer draining is in progress, so we must still do
+            // buffering, this time piggybacking on the execution context
+            connectedF = connectedF.flatMap {
+              case Cancel => Cancel
+              case Continue =>
+                observer.onNext(elem)
+            }
+            connectedF
+          }
+          else lock.enter {
+            // race condition guard
+            if (isConnected)
+              onNext(elem) // retry
+            else {
+              // we are still within the delay period and hence we are still
+              // buffering incoming events, but we can only do buffering
+              // according to the requested policy
+              policy match {
+                case Unbounded =>
+                  // unbounded means buffer everything
+                  buffer.append(elem)
+                  Continue
+
+                case OverflowTriggering(capacity) =>
+                  if (buffer.length < capacity) {
+                    buffer.append(elem)
+                    Continue
+                  }
+                  else {
+                    // if over capacity, then trigger error
+                    onError(new BufferOverflowException(
+                      s"Reached buffer capacity of $capacity during delay, " +
+                        "cannot buffer any more items"
+                    ))
+                    Cancel
+                  }
+
+                case BackPressured(capacity) =>
+                  if (buffer.length < capacity) {
+                    buffer.append(elem)
+                    Continue
+                  }
+                  else {
+                    // if over capacity, then do back-pressure
+                    connectedF = connectedF.flatMap {
+                      case Cancel => Cancel
+                      case Continue =>
+                        observer.onNext(elem)
+                    }
+                    connectedF
+                  }
+              }
+            }
+          }
+        }
+
+        def onComplete(): Unit = {
+          // the complete event gets scheduled to run after the
+          // observer has been connected and the buffer has
+          // been drained - careful here, since this logic can end up
+          // running concurrent with the flatMap-ing in onNext
+          connectedF.onContinueComplete(observer)
+        }
+
+        def onError(ex: Throwable): Unit = lock.enter {
+          if (!isConnected) {
+            // we are not connected yet, so cancel the buffer
+            // and stream the error immediately
+            task.cancel()
+            buffer = null // GC purposes
+            isConnected = true
+            observer.onError(ex)
+          }
+          else {
+            // we are connected, so we must stream the error only after
+            // the buffer has been drained - careful here, since this logic
+            // can end up running concurrently with the flatMap-ing in onNext
+            connectedF.onContinueComplete(observer, ex)
+          }
+        }
+      })
+    }
+
+  /**
+   *
+   * @param future
+   * @return
+   */
+  def delaySubscription(future: Future[_]): Observable[T] =
+    Observable.create { observer =>
+      future.onComplete {
+        case Success(_) =>
+          unsafeSubscribe(observer)
+        case Failure(ex) =>
+          observer.onError(ex)
+      }
     }
 
   /**
@@ -1771,7 +2189,7 @@ trait Observable[+T] { self =>
    *
    * @param bufferPolicy specifies the buffering policy used by the created asynchronous boundary
    */
-  def observeOn(s: Scheduler, bufferPolicy: BufferPolicy = BackPressured(1024)): Observable[T] = {
+  def observeOn(s: Scheduler, bufferPolicy: BufferPolicy = defaultPolicy): Observable[T] = {
     implicit val scheduler = s
 
     Observable.create { observer =>
@@ -2082,7 +2500,7 @@ trait Observable[+T] { self =>
    * [[monifu.reactive.BufferPolicy policy]], see [[monifu.reactive.BufferPolicy BufferPolicy]]
    * for options.
    */
-  def async(policy: BufferPolicy = BackPressured(bufferSize = 4096)): Observable[T] =
+  def async(policy: BufferPolicy = defaultPolicy): Observable[T] =
     Observable.create { observer => unsafeSubscribe(BufferedObserver(observer, policy)) }
 
   /**
@@ -2173,7 +2591,7 @@ object Observable {
   /**
    * Observable constructor for creating an [[Observable]] from the specified function.
    *
-   * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/create.png" />
+   * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/create.png" />
    *
    * Example: {{{
    *   import monifu.reactive._
@@ -2221,7 +2639,7 @@ object Observable {
    * Creates an observable that doesn't emit anything, but immediately calls `onComplete`
    * instead.
    *
-   * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/empty.png" />
+   * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/empty.png" />
    */
   def empty[A](implicit scheduler: Scheduler): Observable[A] =
     Observable.create { observer =>
@@ -2231,7 +2649,7 @@ object Observable {
   /**
    * Creates an Observable that only emits the given ''a''
    *
-   * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/unit.png" />
+   * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/unit.png" />
    */
   def unit[A](elem: A)(implicit scheduler: Scheduler): Observable[A] = {
     Observable.create { o =>
@@ -2244,7 +2662,7 @@ object Observable {
   /**
    * Creates an Observable that emits an error.
    *
-   * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/error.png" />
+   * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/error.png" />
    */
   def error(ex: Throwable)(implicit scheduler: Scheduler): Observable[Nothing] =
     Observable.create { observer =>
@@ -2254,7 +2672,7 @@ object Observable {
   /**
    * Creates an Observable that doesn't emit anything and that never completes.
    *
-   * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/never.png"" />
+   * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/never.png"" />
    */
   def never(implicit scheduler: Scheduler): Observable[Nothing] =
     Observable.create { _ => () }
@@ -2264,7 +2682,7 @@ object Observable {
    * a given time interval. Starts from 0 with no delay, after which it emits incremented
    * numbers spaced by the `period` of time.
    *
-   * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/interval.png"" />
+   * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/interval.png"" />
    *
    * @param period the delay between two subsequent events
    * @param scheduler the execution context in which `onNext` will get called
@@ -2314,7 +2732,7 @@ object Observable {
   /**
    * Creates an Observable that emits items in the given range.
    *
-   * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/range.png" />
+   * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/range.png" />
    *
    * @param from the range start
    * @param until the range end
@@ -2382,7 +2800,7 @@ object Observable {
   /**
    * Converts a Future to an Observable.
    *
-   * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/fromIterable.png" />
+   * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/fromIterable.png" />
    */
   def from[T](future: Future[T])(implicit scheduler: Scheduler): Observable[T] =
     Observable.create { o =>
@@ -2400,7 +2818,7 @@ object Observable {
   /**
    * Creates an Observable that emits the elements of the given ''iterable''.
    *
-   * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/fromIterable.png" />
+   * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/fromIterable.png" />
    */
   def from[T](iterable: Iterable[T])(implicit scheduler: Scheduler): Observable[T] =
     Observable.create { o =>

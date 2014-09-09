@@ -170,7 +170,6 @@ package object internals {
       source
     }
 
-
     /**
      * Unsafe version of `onComplete` that triggers execution synchronously
      * in case the source is already completed.
