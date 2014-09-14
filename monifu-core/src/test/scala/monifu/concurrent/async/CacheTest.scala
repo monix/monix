@@ -16,6 +16,8 @@
  
 package monifu.concurrent.async
 
+import monifu.concurrent.Scheduler
+
 import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
 import org.scalatest.FunSuite
@@ -208,7 +210,7 @@ class CacheTest extends FunSuite {
   }
 
   def withInstance[T](cb: Cache => T) = {
-    val instance = Cache(global)
+    val instance = Cache(Scheduler(), global)
     try cb(instance) finally {
       instance.close()
     }

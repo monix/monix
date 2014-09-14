@@ -5,7 +5,7 @@ import sbtunidoc.Plugin._
 import sbtunidoc.Plugin.UnidocKeys._
 
 object Build extends SbtBuild {
-  val projectVersion = "0.14.0.M3"
+  val projectVersion = "0.14.0.M4"
 
   val sharedSettings = Defaults.defaultSettings ++ Seq(
     organization := "org.monifu",

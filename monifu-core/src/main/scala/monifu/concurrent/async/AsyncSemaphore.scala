@@ -16,10 +16,10 @@
  
 package monifu.concurrent.async
 
-import scala.concurrent.{ExecutionContext, Future}
-import scala.concurrent.duration.FiniteDuration
 import monifu.concurrent.extensions.FutureExtensions
-import monifu.concurrent.Scheduler
+
+import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.{ExecutionContext, Future}
 
 final class AsyncSemaphore private (limit: Int) {
   private[this] val queue = {
@@ -27,7 +27,7 @@ final class AsyncSemaphore private (limit: Int) {
     AsyncQueue(elems :_*)
   }
 
-  def acquire[T](timeout: FiniteDuration)(f: => Future[T])(implicit s: Scheduler): Future[T] =
+  def acquire[T](timeout: FiniteDuration)(f: => Future[T])(implicit ec: ExecutionContext): Future[T] =
     queue.poll().flatMap { _ =>
       val t = f.withTimeout(timeout)
       t.onComplete { _ => queue.offer(()) }

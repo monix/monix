@@ -21,10 +21,10 @@ import scala.concurrent.{Await, Future}
 import concurrent.duration._
 import java.util.concurrent.TimeoutException
 import monifu.concurrent.extensions._
+import scala.concurrent.ExecutionContext.Implicits.global
+
 
 class FutureExtensionsTest extends FunSuite {
-  import Scheduler.Implicits.global
-
   test("delayedResult") {
     val startedAt = System.nanoTime()
     val f = Future.delayedResult(100.millis)("TICK")

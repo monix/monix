@@ -50,13 +50,11 @@ trait Cache extends java.io.Closeable {
 }
 
 object Cache {
-  def apply(ec: ExecutionContext): Cache =
-    new CacheImpl()(ec)
+  def apply(scheduler: Scheduler, ec: ExecutionContext): Cache =
+    new CacheImpl(scheduler)(ec)
 }
 
-private[async] final class CacheImpl(implicit ec: ExecutionContext) extends Cache {
-  private[this] val scheduler = Scheduler.fromContext(ec)
-
+private[async] final class CacheImpl(scheduler: Scheduler)(implicit ec: ExecutionContext) extends Cache {
   def get[T](key: String): Option[T] = {
     val currentState = stateRef.get
 

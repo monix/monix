@@ -35,9 +35,12 @@ object extensions {
      *
      * @param atMost specifies the maximum wait time until the future is
      *               terminated with a TimeoutException
-     * @param s is the implicit Scheduler, needed for completing our internal promise
+     * @param s is the Scheduler, needed for completing our internal promise
+     *
+     * @return a new future that will either complete with the result of our
+     *         source or fail in case the timeout is reached.
      */
-    def withTimeout(atMost: FiniteDuration)(implicit s: Scheduler): Future[T] = {
+    def withTimeout(atMost: FiniteDuration, s: Scheduler = Scheduler.global)(implicit ec: ExecutionContext): Future[T] = {
       // catching the exception here, for non-useless stack traces
       val err = Try(throw new TimeoutException)
       val promise = Promise[T]()
@@ -76,7 +79,8 @@ object extensions {
      * @param s the implicit scheduler that handles the time scheduling
      * @return a new `Future` whose execution time is within the specified bounds
      */
-    def ensureDuration(atLeast: FiniteDuration, atMost: Duration = Duration.Inf)(implicit s: Scheduler): Future[T] = {
+    def ensureDuration(atLeast: FiniteDuration, atMost: Duration = Duration.Inf, s: Scheduler = Scheduler.global)
+        (implicit ec: ExecutionContext): Future[T] = {
       require(atMost == Duration.Inf || atMost > atLeast)
 
       val start = System.nanoTime()
@@ -107,7 +111,7 @@ object extensions {
      * Future that completes with the specified `result`, but only
      * after the specified `delay`.
      */
-    def delayedResult[T](delay: FiniteDuration)(result: => T)(implicit s: Scheduler): Future[T] = {
+    def delayedResult[T](delay: FiniteDuration, s: Scheduler = Scheduler.global)(result: => T)(implicit ec: ExecutionContext): Future[T] = {
       val p = Promise[T]()
       s.scheduleOnce(delay, p.success(result))
       p.future
