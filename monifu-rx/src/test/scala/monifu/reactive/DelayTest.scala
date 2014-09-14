@@ -1,14 +1,14 @@
 package monifu.reactive
 
-import java.util.concurrent.{TimeUnit, CountDownLatch}
-
+import java.util.concurrent.{CountDownLatch, TimeUnit}
 import monifu.reactive.Ack.Continue
 import monifu.reactive.BufferPolicy.{BackPressured, OverflowTriggering}
 import monifu.reactive.subjects.PublishSubject
+import monifu.concurrent.Implicits.scheduler
 import org.scalatest.FunSpec
-import monifu.concurrent.Scheduler.Implicits.global
-import concurrent.duration._
-import scala.concurrent.{Promise, Future, Await}
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
+import scala.concurrent.{Await, Future, Promise}
 
 
 class DelayTest extends FunSpec {

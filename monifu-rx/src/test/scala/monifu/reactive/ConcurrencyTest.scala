@@ -16,12 +16,14 @@
  
 package monifu.reactive
 
-import org.scalatest.FunSpec
-import monifu.concurrent.Scheduler.Implicits.global
-import scala.concurrent.{Future, Await}
-import concurrent.duration._
-import scala.util.Random
 import monifu.concurrent.extensions._
+import org.scalatest.FunSpec
+import scala.concurrent.ExecutionContext.Implicits.global
+import monifu.concurrent.Implicits.scheduler
+import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
+import scala.util.Random
+
 
 class ConcurrencyTest extends FunSpec {
   describe("Observable.take") {

@@ -16,24 +16,25 @@
  
 package monifu.reactive.channels
 
-import monifu.concurrent.Scheduler
 import monifu.reactive.BufferPolicy
 import monifu.reactive.BufferPolicy.Unbounded
 import monifu.reactive.subjects.PublishSubject
+import scala.concurrent.ExecutionContext
 
 /**
  * Represents a [[monifu.reactive.Channel Channel]] that uses an underlying
  * [[monifu.reactive.subjects.PublishSubject PublishSubject]].
  */
-final class PublishChannel[T] private (policy: BufferPolicy, s: Scheduler)
-  extends SubjectChannel(PublishSubject[T]()(s), policy, s)
+final class PublishChannel[T] private (policy: BufferPolicy, ec: ExecutionContext)
+  extends SubjectChannel(PublishSubject[T]()(ec), policy)(ec)
 
 object PublishChannel {
   /**
    * Builds a [[monifu.reactive.Channel Channel]] that uses an underlying
    * [[monifu.reactive.subjects.PublishSubject PublishSubject]].
    */
-  def apply[T](bufferPolicy: BufferPolicy = Unbounded)(implicit s: Scheduler): PublishChannel[T] = {
-    new PublishChannel[T](bufferPolicy, s)
+  def apply[T](bufferPolicy: BufferPolicy = Unbounded)
+      (implicit ec: ExecutionContext): PublishChannel[T] = {
+    new PublishChannel[T](bufferPolicy, ec)
   }
 }

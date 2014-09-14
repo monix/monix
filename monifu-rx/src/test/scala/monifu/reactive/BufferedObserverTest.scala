@@ -18,12 +18,12 @@ package monifu.reactive
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 
-import monifu.concurrent.Scheduler.Implicits.global
 import monifu.reactive.Ack.Continue
 import monifu.reactive.BufferPolicy.{BackPressured, OverflowTriggering, Unbounded}
 import monifu.reactive.observers.BufferedObserver
 import org.scalatest.FunSpec
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, Promise}
 
@@ -79,7 +79,9 @@ class BufferedObserverTest extends FunSpec {
       val buffer = BufferedObserver(underlying, OverflowTriggering(100000))
 
       def loop(n: Int): Unit =
-        if (n > 0) global.scheduleOnce { buffer.onNext(n); loop(n-1) }
+        if (n > 0) global.execute(new Runnable {
+          def run() = { buffer.onNext(n); loop(n-1) }
+        })
         else buffer.onComplete()
 
       loop(10000)
@@ -375,7 +377,9 @@ class BufferedObserverTest extends FunSpec {
       val buffer = BufferedObserver(underlying, Unbounded)
 
       def loop(n: Int): Unit =
-        if (n > 0) global.scheduleOnce { buffer.onNext(n); loop(n-1) }
+        if (n > 0) global.execute(new Runnable {
+          def run() = { buffer.onNext(n); loop(n-1) }
+        })
         else buffer.onComplete()
 
       loop(10000)
@@ -630,7 +634,9 @@ class BufferedObserverTest extends FunSpec {
       val buffer = BufferedObserver(underlying, BackPressured(100000))
 
       def loop(n: Int): Unit =
-        if (n > 0) global.scheduleOnce { buffer.onNext(n); loop(n-1) }
+        if (n > 0) global.execute(new Runnable {
+          def run() = { buffer.onNext(n); loop(n-1) }
+        })
         else buffer.onComplete()
 
       loop(10000)

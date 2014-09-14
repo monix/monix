@@ -16,15 +16,14 @@
  
 package monifu.reactive
 
-import org.scalatest.FunSpec
-import scala.language.higherKinds
-import scala.concurrent.{Future, Await}
-import concurrent.duration._
-import java.util.concurrent.{TimeUnit, CountDownLatch}
-import monifu.concurrent.Scheduler.Implicits.global
+import java.util.concurrent.{CountDownLatch, TimeUnit}
+
 import monifu.reactive.Ack.{Cancel, Continue}
-import monifu.concurrent.extensions._
-import scala.util.Random
+import org.scalatest.FunSpec
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
+import scala.language.higherKinds
 
 
 class ObservableSanityTest extends FunSpec {

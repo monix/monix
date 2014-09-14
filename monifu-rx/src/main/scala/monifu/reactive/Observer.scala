@@ -16,16 +16,15 @@
  
 package monifu.reactive
 
-import monifu.concurrent.Scheduler
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.observers.{SafeObserver, SynchronousObserver}
 import monifu.reactive.streams.{ObserverAsSubscriber, SubscriberAsObserver, SynchronousObserverAsSubscriber}
 import org.reactivestreams.Subscriber
 
 import scala.annotation.tailrec
-import scala.concurrent.{Promise, ExecutionContext, Future}
-import scala.util.{Failure, Success}
+import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.control.NonFatal
+import scala.util.{Failure, Success}
 
 /**
  * The Observer from the Rx pattern is the trio of callbacks that
@@ -81,11 +80,11 @@ object Observer {
    * respecting the contract and returning a `Future[Ack]` with the last
    * acknowledgement given after the last emitted element.
    */
-  def feed[T](observer: Observer[T], iterable: Iterable[T])(implicit scheduler: Scheduler): Future[Ack] = {
+  def feed[T](observer: Observer[T], iterable: Iterable[T])(implicit ec: ExecutionContext): Future[Ack] = {
     val safeObs = SafeObserver(observer)
 
     def scheduleFeedLoop(promise: Promise[Ack], iterator: Iterator[T]): Future[Ack] = {
-      scheduler.execute(new Runnable {
+      ec.execute(new Runnable {
         @tailrec
         def fastLoop(): Unit = {
           val ack = safeObs.onNext(iterator.next())

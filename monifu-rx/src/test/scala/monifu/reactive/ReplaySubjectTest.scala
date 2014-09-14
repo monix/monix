@@ -17,8 +17,6 @@
 package monifu.reactive
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
-
-import monifu.concurrent.Scheduler.Implicits.global
 import monifu.concurrent.atomic.padded.Atomic
 import monifu.concurrent.extensions._
 import monifu.reactive.Ack.{Cancel, Continue}
@@ -26,7 +24,7 @@ import monifu.reactive.channels.ReplayChannel
 import monifu.reactive.observers.ConcurrentObserver
 import monifu.reactive.subjects.ReplaySubject
 import org.scalatest.FunSpec
-
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 

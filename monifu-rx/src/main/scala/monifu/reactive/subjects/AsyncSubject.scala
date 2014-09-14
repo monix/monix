@@ -16,14 +16,13 @@
  
 package monifu.reactive.subjects
 
-import scala.concurrent.Future
-import monifu.reactive.Ack
-import monifu.reactive.Ack.Continue
-import monifu.concurrent.Scheduler
-import monifu.reactive.{Subject, Observer}
 import monifu.concurrent.atomic.Atomic
+import monifu.reactive.Ack.Continue
+import monifu.reactive.{Ack, Observer, Subject}
+
 import scala.annotation.tailrec
 import scala.collection.immutable.Set
+import scala.concurrent.{ExecutionContext, Future}
 
 
 /**
@@ -38,10 +37,10 @@ import scala.collection.immutable.Set
  *
  * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/S.AsyncSubject.e.png" />
  */
-final class AsyncSubject[T] private (s: Scheduler) extends Subject[T,T] { self =>
-  import AsyncSubject._
+final class AsyncSubject[T] private (ec: ExecutionContext) extends Subject[T,T] { self =>
+  import monifu.reactive.subjects.AsyncSubject._
 
-  implicit val scheduler = s
+  override implicit val context = ec
   private[this] val state = Atomic(Active(Set.empty[Observer[T]]) : State[T])
   private[this] var onNextHappened = false
   private[this] var currentElem: T = _
@@ -103,8 +102,8 @@ final class AsyncSubject[T] private (s: Scheduler) extends Subject[T,T] { self =
 }
 
 object AsyncSubject {
-  def apply[T]()(implicit scheduler: Scheduler): AsyncSubject[T] =
-    new AsyncSubject[T](scheduler)
+  def apply[T]()(implicit ec: ExecutionContext): AsyncSubject[T] =
+    new AsyncSubject[T](ec)
 
   private sealed trait State[+T]
   private case class Active[T](observers: Set[Observer[T]]) extends State[T]

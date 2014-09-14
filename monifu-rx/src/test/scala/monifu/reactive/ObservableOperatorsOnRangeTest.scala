@@ -17,13 +17,12 @@
 package monifu.reactive
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
-
-import monifu.concurrent.Scheduler.Implicits.global
+import monifu.concurrent.Implicits.scheduler
 import monifu.reactive.Ack.Continue
 import monifu.reactive.BufferPolicy.{BackPressured, OverflowTriggering, Unbounded}
 import monifu.reactive.Notification.{OnComplete, OnNext}
 import org.scalatest.FunSpec
-
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 

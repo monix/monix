@@ -16,13 +16,12 @@
  
 package monifu.reactive.observers
 
-import monifu.reactive.Observer
-import monifu.reactive.Ack.{Cancel, Continue}
-import scala.concurrent.{Promise, Future}
-import monifu.concurrent.Scheduler
 import monifu.concurrent.atomic.padded.Atomic
-import monifu.reactive.Ack
+import monifu.reactive.Ack.{Cancel, Continue}
+import monifu.reactive.{Ack, Observer}
 import monifu.reactive.internals.FutureAckExtensions
+
+import scala.concurrent.{ExecutionContext, Future, Promise}
 
 
 /**
@@ -41,7 +40,9 @@ import monifu.reactive.internals.FutureAckExtensions
  * processed by downstream (i.e. thread-safe buffering), then one is better
  * served by [[monifu.reactive.observers.BufferedObserver BufferedObserver]].
  */
-final class ConcurrentObserver[-T] private (underlying: Observer[T])(implicit scheduler: Scheduler) extends Observer[T] {
+final class ConcurrentObserver[-T] private (underlying: Observer[T])
+    (implicit ec: ExecutionContext) extends Observer[T] {
+
   private[this] val ack = Atomic(Continue : Future[Ack])
 
   def onNext(elem: T) = {
@@ -71,6 +72,6 @@ final class ConcurrentObserver[-T] private (underlying: Observer[T])(implicit sc
 }
 
 object ConcurrentObserver {
-  def apply[T](observer: Observer[T])(implicit scheduler: Scheduler): ConcurrentObserver[T] =
+  def apply[T](observer: Observer[T])(implicit ec: ExecutionContext): ConcurrentObserver[T] =
     new ConcurrentObserver[T](observer)
 }

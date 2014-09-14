@@ -16,15 +16,14 @@
  
 package monifu.reactive.subjects
 
-import scala.concurrent.Future
-import monifu.reactive.Ack.{Continue, Cancel}
-import monifu.concurrent.Scheduler
-import monifu.reactive.{Subject, Observer}
 import monifu.concurrent.atomic.padded.Atomic
-import scala.annotation.tailrec
-import monifu.reactive.Ack
+import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.observers.ConnectableObserver
+import monifu.reactive.{Ack, Observer, Subject}
+
+import scala.annotation.tailrec
 import scala.collection.immutable.Queue
+import scala.concurrent.{ExecutionContext, Future}
 
 
 /**
@@ -33,11 +32,11 @@ import scala.collection.immutable.Queue
  *
  * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/S.ReplaySubject.png" />
  */
-final class ReplaySubject[T] private (s: Scheduler) extends Subject[T,T] { self =>
-  import ReplaySubject.State
-  import ReplaySubject.State._
+final class ReplaySubject[T] private (ec: ExecutionContext) extends Subject[T,T] { self =>
+  import monifu.reactive.subjects.ReplaySubject.State
+  import monifu.reactive.subjects.ReplaySubject.State._
 
-  implicit val scheduler = s
+  override implicit val context = ec
   private[this] val state = Atomic(Empty(Queue.empty) : State[T])
 
   def subscribeFn(observer: Observer[T]): Unit = {
@@ -183,8 +182,8 @@ final class ReplaySubject[T] private (s: Scheduler) extends Subject[T,T] { self 
 }
 
 object ReplaySubject {
-  def apply[T]()(implicit scheduler: Scheduler): ReplaySubject[T] =
-    new ReplaySubject[T](scheduler)
+  def apply[T]()(implicit ec: ExecutionContext): ReplaySubject[T] =
+    new ReplaySubject[T](ec)
 
   private sealed trait State[T]
   private object State {
