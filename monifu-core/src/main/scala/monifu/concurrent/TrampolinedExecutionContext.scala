@@ -115,7 +115,7 @@ object TrampolinedExecutionContext {
     new TrampolinedExecutionContext(fallback)
 
   object Implicits {
-    implicit lazy val global: ExecutionContext =
+    implicit lazy val executionContext: ExecutionContext =
       apply(ExecutionContext.Implicits.global)
   }
 }
