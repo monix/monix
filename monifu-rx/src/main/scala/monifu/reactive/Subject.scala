@@ -21,7 +21,7 @@ import monifu.concurrent.cancelables.BooleanCancelable
 import monifu.concurrent.{Cancelable, Scheduler}
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.BufferPolicy.BackPressured
-import monifu.reactive.subjects.{BehaviorSubject, ConnectableSubject, PublishSubject, ReplaySubject}
+import monifu.reactive.subjects._
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Future, Promise}
 
@@ -124,6 +124,9 @@ trait Subject[-I, +T] extends Observable[T] with Observer[I] { self =>
 
   override final def behavior[U >: T](initialValue: U): ConnectableSubject[I,U] =
     multicast(BehaviorSubject(initialValue))
+
+  override def publishLast(): ConnectableSubject[I, T] =
+    multicast(AsyncSubject())
 
   override final def complete: Subject[I, Nothing] =
     lift(_.complete)
@@ -289,6 +292,42 @@ trait Subject[-I, +T] extends Observable[T] with Observer[I] { self =>
 
   override final def dropWhileWithIndex(p: (T, Int) => Boolean): Subject[I, T] =
     lift(_.dropWhileWithIndex(p))
+
+  override def delay(init: (() => Unit, Throwable => Unit) => Cancelable): Subject[I, T] =
+    lift(_.delay(init))
+
+  override def delay(policy: BufferPolicy, init: (() => Unit, Throwable=> Unit) => Cancelable): Subject[I, T] =
+    lift(_.delay(policy, init))
+
+  override def delay(future: Future[_]): Subject[I, T] =
+    lift(_.delay(future))
+
+  override def delay(policy: BufferPolicy, future: Future[_]): Subject[I, T] =
+    lift(_.delay(policy, future))
+
+  override def delay(itemDelay: FiniteDuration): Subject[I, T] =
+    lift(_.delay(itemDelay))
+
+  override def delay(policy: BufferPolicy, itemDelay: FiniteDuration): Subject[I, T] =
+    lift(_.delay(policy, itemDelay))
+
+  override def delaySubscription(future: Future[_]): Subject[I, T] =
+    lift(_.delaySubscription(future))
+
+  override def delaySubscription(timespan: FiniteDuration): Subject[I, T] =
+    lift(_.delaySubscription(timespan))
+
+  override def takeUntil[U](other: Observable[U]): Subject[I, T] =
+    lift(_.takeUntil(other))
+
+  override def count(): Subject[I, Long] =
+    lift(_.count())
+
+  override def sample(delay: FiniteDuration): Subject[I, T] =
+    lift(_.sample(delay))
+
+  override def sample(initialDelay: FiniteDuration, delay: FiniteDuration): Subject[I, T] =
+    lift(_.sample(initialDelay, delay))
 
   override final def lift[U](f: Observable[T] => Observable[U]): Subject[I,U] = {
     new Subject[I,U] {
