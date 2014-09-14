@@ -17,12 +17,12 @@
 package monifu.reactive.streams
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
-
-import monifu.concurrent.Scheduler.Implicits.global
 import monifu.reactive.Observable
 import monifu.reactive.internals.FutureAckExtensions
 import org.reactivestreams.{Subscriber, Subscription}
 import org.scalatest.FunSpec
+import scala.concurrent.ExecutionContext.Implicits.global
+
 
 class ObservableIsPublisherTest extends FunSpec {
   describe("Observable.subscribe(subscriber)") {

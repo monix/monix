@@ -16,12 +16,11 @@
  
 package monifu.reactive.observers
 
-import monifu.reactive.Observer
-import scala.concurrent.Future
+import monifu.reactive.Ack.{Cancel, Continue}
+import monifu.reactive.{Ack, Observer}
+
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
-import monifu.reactive.Ack.{Continue, Cancel}
-import monifu.concurrent.Scheduler
-import monifu.reactive.Ack
 
 /**
  * A safe observer ensures too things:
@@ -34,7 +33,8 @@ import monifu.reactive.Ack
  *
  * This implementation doesn't address multi-threading concerns in any way.
  */
-final class SafeObserver[-T] private (observer: Observer[T])(implicit scheduler: Scheduler)
+final class SafeObserver[-T] private (observer: Observer[T])
+    (implicit ec: ExecutionContext)
   extends Observer[T] {
 
   private[this] var isDone = false
@@ -67,7 +67,7 @@ final class SafeObserver[-T] private (observer: Observer[T])(implicit scheduler:
       isDone = true
       try observer.onError(ex) catch {
         case NonFatal(err) =>
-          scheduler.reportFailure(err)
+          ec.reportFailure(err)
       }
     }
   }
@@ -77,7 +77,7 @@ final class SafeObserver[-T] private (observer: Observer[T])(implicit scheduler:
       isDone = true
       try observer.onComplete() catch {
         case NonFatal(err) =>
-          scheduler.reportFailure(err)
+          ec.reportFailure(err)
           Cancel
       }
     }
@@ -90,7 +90,7 @@ object SafeObserver {
   /**
    * Wraps an Observer instance into a SafeObserver.
    */
-  def apply[T](observer: Observer[T])(implicit scheduler: Scheduler): SafeObserver[T] =
+  def apply[T](observer: Observer[T])(implicit ec: ExecutionContext): SafeObserver[T] =
     observer match {
       case ref: SafeObserver[_] => ref.asInstanceOf[SafeObserver[T]]
       case _ => new SafeObserver[T](observer)

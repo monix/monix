@@ -18,16 +18,14 @@ package monifu.reactive.streams
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 
-import monifu.concurrent.Scheduler.Implicits.global
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.{Observable, Observer}
 import org.scalatest.FunSpec
-
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 
 class ObserverAsSubscriberTest extends FunSpec {
-
   describe("ObserverAsSubscriber") {
     it("should work") {
       var sum = 0

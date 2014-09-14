@@ -17,19 +17,20 @@
 package monifu.reactive.internals
 
 import monifu.concurrent.atomic.Atomic
-import monifu.reactive.Ack.{Continue, Cancel}
-import monifu.reactive.BufferPolicy.{Unbounded, OverflowTriggering}
-import monifu.reactive.{Ack, BufferPolicy, Observable, Observer}
-import monifu.reactive.observers.{SynchronousBufferedObserver, SynchronousObserver, BufferedObserver}
-import scala.annotation.tailrec
-import scala.concurrent.{Promise, Future}
-import monifu.concurrent.Scheduler
-import scala.util.control.NonFatal
 import monifu.concurrent.locks.SpinLock
+import monifu.reactive.Ack.{Cancel, Continue}
+import monifu.reactive.BufferPolicy.{OverflowTriggering, Unbounded}
+import monifu.reactive.observers.{BufferedObserver, SynchronousBufferedObserver, SynchronousObserver}
+import monifu.reactive.{Ack, BufferPolicy, Observable, Observer}
+
+import scala.annotation.tailrec
+import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.util.control.NonFatal
 
 
-private[monifu] final class BoundedMergeBuffer[U](downstream: Observer[U], mergeBatchSize: Int, bufferPolicy: BufferPolicy)(implicit scheduler: Scheduler)
-  extends Observer[U] { self =>
+private[monifu] final class BoundedMergeBuffer[U]
+  (downstream: Observer[U], mergeBatchSize: Int, bufferPolicy: BufferPolicy)
+      (implicit ec: ExecutionContext) extends Observer[U] { self =>
 
   private[this] val lock = SpinLock()
   private[this] val buffer = BufferedObserver(downstream, bufferPolicy)
@@ -113,8 +114,9 @@ private[monifu] final class BoundedMergeBuffer[U](downstream: Observer[U], merge
   }
 }
 
-private[monifu] final class UnboundedMergeBuffer[U](downstream: Observer[U], bufferPolicy: BufferPolicy)(implicit scheduler: Scheduler)
-  extends SynchronousObserver[U] { self =>
+private[monifu] final class UnboundedMergeBuffer[U]
+  (downstream: Observer[U], bufferPolicy: BufferPolicy)
+      (implicit ec: ExecutionContext) extends SynchronousObserver[U] { self =>
 
   private[this] val activeStreams = Atomic(1)
   private[this] val buffer = bufferPolicy match {

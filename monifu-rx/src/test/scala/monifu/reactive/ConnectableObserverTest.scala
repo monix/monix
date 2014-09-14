@@ -17,12 +17,10 @@
 package monifu.reactive
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
-
-import monifu.concurrent.Scheduler.Implicits.global
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.observers.{ConcurrentObserver, ConnectableObserver}
 import org.scalatest.FunSpec
-
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 
@@ -84,7 +82,7 @@ class ConnectableObserverTest extends FunSpec {
           obs.connect()
         }
         else
-          global.scheduleOnce {
+          scheduleOnce {
             obs.pushNext(1, 2)
             obs.connect()
           }
@@ -558,12 +556,12 @@ class ConnectableObserverTest extends FunSpec {
           }
         })
 
-        global.scheduleOnce {
+        scheduleOnce {
           obs.pushNext(1)
           obs.connect()
         }
 
-        global.scheduleOnce {
+        scheduleOnce {
           obs.onNext(2)
           obs.onComplete()
         }
@@ -654,14 +652,14 @@ class ConnectableObserverTest extends FunSpec {
           }
         })
 
-        global.scheduleOnce {
+        scheduleOnce {
           obs.pushNext(1)
           obs.pushNext(2)
           obs.pushComplete()
           obs.connect()
         }
 
-        global.scheduleOnce {
+        scheduleOnce {
           obs.onError(new RuntimeException("dummy"))
         }
 
@@ -691,14 +689,14 @@ class ConnectableObserverTest extends FunSpec {
           }
         })
 
-        global.scheduleOnce {
+        scheduleOnce {
           obs.pushNext(1)
           obs.pushNext(2)
           obs.pushComplete()
           obs.connect()
         }
 
-        global.scheduleOnce {
+        scheduleOnce {
           obs.onComplete()
         }
 
@@ -728,14 +726,14 @@ class ConnectableObserverTest extends FunSpec {
           }
         })
 
-        global.scheduleOnce {
+        scheduleOnce {
           obs.pushNext(1)
           obs.pushNext(2)
           obs.pushComplete()
           obs.connect()
         }
 
-        global.scheduleOnce {
+        scheduleOnce {
           obs.onNext(4)
           obs.onComplete()
         }
@@ -767,14 +765,14 @@ class ConnectableObserverTest extends FunSpec {
           }
         })
 
-        global.scheduleOnce {
+        scheduleOnce {
           obs.pushNext(1)
           obs.pushNext(2)
           obs.pushError(new RuntimeException("dummy"))
           obs.connect()
         }
 
-        global.scheduleOnce {
+        scheduleOnce {
           obs.onNext(4)
           obs.onComplete()
         }
@@ -806,14 +804,14 @@ class ConnectableObserverTest extends FunSpec {
           }
         })
 
-        global.scheduleOnce {
+        scheduleOnce {
           obs.pushNext(1)
           obs.pushNext(2)
           obs.pushError(new RuntimeException("dummy"))
           obs.connect()
         }
 
-        global.scheduleOnce {
+        scheduleOnce {
           obs.onComplete()
         }
 
@@ -844,14 +842,14 @@ class ConnectableObserverTest extends FunSpec {
           }
         })
 
-        global.scheduleOnce {
+        scheduleOnce {
           obs.pushNext(1)
           obs.pushNext(2)
           obs.pushError(new RuntimeException("dummy"))
           obs.connect()
         }
 
-        global.scheduleOnce {
+        scheduleOnce {
           obs.onError(new RuntimeException("dummy2"))
         }
 
@@ -882,14 +880,14 @@ class ConnectableObserverTest extends FunSpec {
           }
         })
 
-        global.scheduleOnce {
+        scheduleOnce {
           obs.pushNext(1)
           obs.pushNext(2)
           obs.pushError(new RuntimeException("dummy"))
           obs.connect()
         }
 
-        global.scheduleOnce {
+        scheduleOnce {
           obs.onNext(1)
           obs.onError(new RuntimeException("dummy2"))
         }
@@ -986,12 +984,12 @@ class ConnectableObserverTest extends FunSpec {
           }
         })
 
-        global.scheduleOnce {
+        scheduleOnce {
           obs.pushNext(1)
           obs.connect()
         }
 
-        global.scheduleOnce {
+        scheduleOnce {
           obs.onNext(2)
           obs.onError(new RuntimeException("dummy"))
         }
@@ -1023,12 +1021,12 @@ class ConnectableObserverTest extends FunSpec {
           }
         })
 
-        global.scheduleOnce {
+        scheduleOnce {
           obs.pushNext(1)
           obs.connect()
         }
 
-        global.scheduleOnce {
+        scheduleOnce {
           obs.onError(new RuntimeException("dummy"))
         }
 
@@ -1037,4 +1035,9 @@ class ConnectableObserverTest extends FunSpec {
       }
     }
   }
+  
+  def scheduleOnce(action: => Unit) = 
+    global.execute(new Runnable {
+      def run() = action
+    })
 }

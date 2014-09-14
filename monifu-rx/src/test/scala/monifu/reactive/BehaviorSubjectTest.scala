@@ -17,16 +17,15 @@
 package monifu.reactive
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
-
-import monifu.concurrent.Scheduler.Implicits.global
 import monifu.concurrent.atomic.padded.Atomic
+import monifu.concurrent.extensions._
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.observers.ConcurrentObserver
 import monifu.reactive.subjects.BehaviorSubject
 import org.scalatest.FunSpec
-import scala.concurrent.{Await, Future}
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import monifu.concurrent.extensions._
+import scala.concurrent.{Await, Future}
 
 
 class BehaviorSubjectTest extends FunSpec {

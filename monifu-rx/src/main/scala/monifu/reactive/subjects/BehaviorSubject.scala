@@ -16,16 +16,13 @@
  
 package monifu.reactive.subjects
 
-import scala.concurrent.Future
-import monifu.reactive.Ack.{Continue, Cancel}
-import monifu.concurrent.Scheduler
-import monifu.reactive.{Subject, Observer}
 import monifu.concurrent.atomic.padded.Atomic
-import scala.annotation.tailrec
-import monifu.reactive.Ack
+import monifu.reactive.Ack.{Cancel, Continue}
+import monifu.reactive.internals.{FutureAckExtensions, PromiseCounter}
 import monifu.reactive.observers.ConnectableObserver
-import monifu.reactive.internals.PromiseCounter
-import monifu.reactive.internals.FutureAckExtensions
+import monifu.reactive.{Ack, Observer, Subject}
+import scala.annotation.tailrec
+import scala.concurrent.{ExecutionContext, Future}
 
 /**
  * `BehaviorSubject` when subscribed, will emit the most recently emitted item by the source,
@@ -39,11 +36,11 @@ import monifu.reactive.internals.FutureAckExtensions
  *
  * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/S.BehaviorSubject.png" />
  */
-final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends Subject[T,T] { self =>
-  import BehaviorSubject.State
-  import BehaviorSubject.State._
+final class BehaviorSubject[T] private (initialValue: T, ec: ExecutionContext) extends Subject[T,T] { self =>
+  import monifu.reactive.subjects.BehaviorSubject.State
+  import monifu.reactive.subjects.BehaviorSubject.State._
 
-  implicit val scheduler = s
+  implicit val context = ec
   private[this] val state = Atomic(Empty(initialValue) : State[T])
 
   def subscribeFn(observer: Observer[T]): Unit = {
@@ -188,8 +185,8 @@ final class BehaviorSubject[T] private (initialValue: T, s: Scheduler) extends S
 }
 
 object BehaviorSubject {
-  def apply[T](initialValue: T)(implicit scheduler: Scheduler): BehaviorSubject[T] =
-    new BehaviorSubject[T](initialValue, scheduler)
+  def apply[T](initialValue: T)(implicit ec: ExecutionContext): BehaviorSubject[T] =
+    new BehaviorSubject[T](initialValue, ec)
 
   private sealed trait State[T]
   private object State {

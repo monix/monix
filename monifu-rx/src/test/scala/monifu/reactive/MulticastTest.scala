@@ -16,9 +16,10 @@
  
 package monifu.reactive
 
+import java.util.concurrent.{CountDownLatch, TimeUnit}
 import org.scalatest.FunSpec
-import java.util.concurrent.{TimeUnit, CountDownLatch}
-import monifu.concurrent.Scheduler.Implicits.global
+import scala.concurrent.ExecutionContext.Implicits.global
+
 
 class MulticastTest extends FunSpec {
   describe("Observable.multicast") {

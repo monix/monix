@@ -16,16 +16,16 @@
  
 package monifu.reactive
 
-import org.scalatest.FunSpec
-import monifu.concurrent.Scheduler.Implicits.global
-import monifu.reactive.subjects.PublishSubject
-import scala.concurrent.{Future, Await}
-import concurrent.duration._
+import java.util.concurrent.{CountDownLatch, TimeUnit}
 import monifu.concurrent.atomic.padded.Atomic
-import java.util.concurrent.{TimeUnit, CountDownLatch}
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.channels.PublishChannel
 import monifu.reactive.observers.ConcurrentObserver
+import monifu.reactive.subjects.PublishSubject
+import org.scalatest.FunSpec
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
 
 
 class PublishSubjectTest extends FunSpec {

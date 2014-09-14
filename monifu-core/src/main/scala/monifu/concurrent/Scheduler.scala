@@ -130,9 +130,5 @@ trait Scheduler {
 object Scheduler {
   def apply(): Scheduler = ExecutorScheduler()
   lazy val global: Scheduler = apply()
-
-  object Implicits {
-    implicit def global = Scheduler.global
-  }
 }
 

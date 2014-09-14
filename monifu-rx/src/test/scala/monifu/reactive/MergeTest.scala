@@ -16,15 +16,15 @@
  
 package monifu.reactive
 
-import org.scalatest.FunSpec
-import monifu.concurrent.Scheduler.Implicits.global
-import scala.concurrent.{Future, Await}
-import concurrent.duration._
-import java.util.concurrent.{TimeUnit, CountDownLatch}
-import monifu.reactive.Ack.{Cancel, Continue}
-import scala.util.Random
+import java.util.concurrent.{CountDownLatch, TimeUnit}
 import monifu.concurrent.atomic.Atomic
+import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.BufferPolicy.Unbounded
+import org.scalatest.FunSpec
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
+import scala.util.Random
 
 /**
  * Observable.merge can have potentially severe concurrency problems,

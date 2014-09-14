@@ -32,7 +32,7 @@ import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration.{Duration, FiniteDuration}
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.language.implicitConversions
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
@@ -54,9 +54,9 @@ trait Observable[+T] { self =>
   protected def subscribeFn(observer: Observer[T]): Unit
 
   /**
-   * Implicit scheduler required for asynchronous boundaries.
+   * Implicit execution context required for asynchronous boundaries.
    */
-  implicit def scheduler: Scheduler
+  implicit def context: ExecutionContext
 
   /**
    * Creates the subscription and that starts the stream.
@@ -64,7 +64,7 @@ trait Observable[+T] { self =>
    * @param observer is an [[monifu.reactive.Observer Observer]] on which `onNext`, `onComplete` and `onError`
    *                 happens, according to the Monifu Rx contract.
    */
-  final def subscribe(observer: Observer[T]): Cancelable = {
+  def subscribe(observer: Observer[T]): Cancelable = {
     val isRunning = Atomic(true)
     takeWhile(isRunning).unsafeSubscribe(SafeObserver[T](observer))
     Cancelable { isRunning := false }
@@ -82,14 +82,14 @@ trait Observable[+T] { self =>
    * @param observer is an [[monifu.reactive.Observer Observer]] that respects
    *                 Monifu Rx contract.
    */
-  final def unsafeSubscribe(observer: Observer[T]): Unit = {
+  def unsafeSubscribe(observer: Observer[T]): Unit = {
     subscribeFn(observer)
   }
 
   /**
    * Creates the subscription and starts the stream.
    */
-  final def subscribe(nextFn: T => Future[Ack], errorFn: Throwable => Unit, completedFn: () => Unit): Cancelable =
+  def subscribe(nextFn: T => Future[Ack], errorFn: Throwable => Unit, completedFn: () => Unit): Cancelable =
     subscribe(new Observer[T] {
       def onNext(elem: T) = nextFn(elem)
       def onComplete() = completedFn()
@@ -99,23 +99,23 @@ trait Observable[+T] { self =>
   /**
    * Creates the subscription and starts the stream.
    */
-  final def subscribe(nextFn: T => Future[Ack], errorFn: Throwable => Unit): Cancelable =
+  def subscribe(nextFn: T => Future[Ack], errorFn: Throwable => Unit): Cancelable =
     subscribe(nextFn, errorFn, () => Cancel)
 
   /**
    * Creates the subscription and starts the stream.
    */
-  final def subscribe(): Cancelable =
+  def subscribe(): Cancelable =
     subscribe(elem => Continue)
 
   /**
    * Creates the subscription and starts the stream.
    */
-  final def subscribe(nextFn: T => Future[Ack]): Cancelable =
-    subscribe(nextFn, error => { scheduler.reportFailure(error); Cancel }, () => Cancel)
+  def subscribe(nextFn: T => Future[Ack]): Cancelable =
+    subscribe(nextFn, error => { context.reportFailure(error); Cancel }, () => Cancel)
 
   /**
-   * Wraps this Observable into an `org.reactivestreams.Publisher`.
+   * Wraps this Observable into a `org.reactivestreams.Publisher`.
    */
   def publisher[U >: T]: Publisher[U] =
     new Publisher[U] {
@@ -457,8 +457,11 @@ trait Observable[+T] { self =>
    *
    * @param timespan the window of time during which the new Observable
    *                 is allowed to emit the events of the source
+   *
+   * @param scheduler is the [[monifu.concurrent.Scheduler Scheduler]] needed
+   *                  for triggering the timeout event.
    */
-  def take(timespan: FiniteDuration): Observable[T] =
+  def take(timespan: FiniteDuration)(implicit scheduler: Scheduler): Observable[T] =
     Observable.create { observer =>
       subscribeFn(new Observer[T] {
         private[this] val lock = SpinLock()
@@ -504,8 +507,11 @@ trait Observable[+T] { self =>
    *
    * @param timespan the window of time during which the new Observable
    *                 is must drop the events emitted by the source
+   *
+   * @param scheduler is the [[monifu.concurrent.Scheduler Scheduler]] needed
+   *                  for triggering the timeout event.
    */
-  def drop(timespan: FiniteDuration): Observable[T] =
+  def drop(timespan: FiniteDuration)(implicit scheduler: Scheduler): Observable[T] =
     Observable.create { observer =>
       subscribeFn(new Observer[T] {
         @volatile private[this] var shouldDrop = true
@@ -904,8 +910,11 @@ trait Observable[+T] { self =>
    * source Observable since the previous bundle emission.
    *
    * @param timespan the interval of time at which it should emit the buffered bundle
+   *
+   * @param scheduler is the [[monifu.concurrent.Scheduler Scheduler]] needed
+   *                  for triggering the `onNext` events.
    */
-  def buffer(timespan: FiniteDuration): Observable[Seq[T]] =
+  def buffer(timespan: FiniteDuration)(implicit scheduler: Scheduler): Observable[Seq[T]] =
     Observable.create { observer =>
       subscribeFn(new SynchronousObserver[T] {
         private[this] val lock = SpinLock()
@@ -1008,8 +1017,11 @@ trait Observable[+T] { self =>
    *              if the delay is 1 second and the processing of an event on `onNext`
    *              in the observer takes one second, then the actual sampling delay
    *              will be 2 seconds.
+   *
+   * @param scheduler is the [[monifu.concurrent.Scheduler Scheduler]] needed
+   *                  for triggering the sample events.
    */
-  def sample(delay: FiniteDuration): Observable[T] =
+  def sample(delay: FiniteDuration)(implicit scheduler: Scheduler): Observable[T] =
     sample(delay, delay)
 
   /**
@@ -1030,8 +1042,11 @@ trait Observable[+T] { self =>
    *              if the delay is 1 second and the processing of an event on `onNext`
    *              in the observer takes one second, then the actual sampling delay
    *              will be 2 seconds.
+   *
+   * @param scheduler is the [[monifu.concurrent.Scheduler Scheduler]] needed
+   *                  for triggering the sample events.
    */
-  def sample(initialDelay: FiniteDuration, delay: FiniteDuration): Observable[T] =
+  def sample(initialDelay: FiniteDuration, delay: FiniteDuration)(implicit scheduler: Scheduler): Observable[T] =
     Observable.create { observer =>
       unsafeSubscribe(new SynchronousObserver[T] {
         private[this] val lock = SpinLock()
@@ -1122,8 +1137,11 @@ trait Observable[+T] { self =>
    *
    * @param itemDelay is the period of time to wait before events start
    *                   being signaled
+   *
+   * @param scheduler is the [[monifu.concurrent.Scheduler Scheduler]] needed
+   *                  for triggering the timeout.
    */
-  def delay(itemDelay: FiniteDuration): Observable[T] =
+  def delay(itemDelay: FiniteDuration)(implicit scheduler: Scheduler): Observable[T] =
     delay(defaultPolicy, itemDelay)
 
   /**
@@ -1136,8 +1154,11 @@ trait Observable[+T] { self =>
    *
    * @param itemDelay is the period of time to wait before events start
    *                   being signaled
+   *
+   * @param scheduler is the [[monifu.concurrent.Scheduler Scheduler]] needed
+   *                  for triggering the timeout.
    */
-  def delay(policy: BufferPolicy, itemDelay: FiniteDuration): Observable[T] =
+  def delay(policy: BufferPolicy, itemDelay: FiniteDuration)(implicit scheduler: Scheduler): Observable[T] =
     self.delay(policy, { (connect, _) =>
       scheduler.scheduleOnce(itemDelay, connect())
     })
@@ -1472,8 +1493,14 @@ trait Observable[+T] { self =>
   /**
    * Hold an Observer's subscription request for a specified
    * amount of time before passing it on to the source Observable.
+   *
+   * @param timespan is the time to wait before the subscription
+   *                 is being initiated.
+   *
+   * @param scheduler is the [[monifu.concurrent.Scheduler Scheduler]] needed
+   *                  for triggering the timeout event.
    */
-  def delaySubscription(timespan: FiniteDuration): Observable[T] =
+  def delaySubscription(timespan: FiniteDuration)(implicit scheduler: Scheduler): Observable[T] =
     delaySubscription {
       val p = Promise[Unit]()
       scheduler.scheduleOnce(timespan, p.success(()))
@@ -1709,7 +1736,7 @@ trait Observable[+T] { self =>
           if (wasExecuted.compareAndSet(expect=false, update=true))
             try cb catch {
               case NonFatal(ex) =>
-                scheduler.reportFailure(ex)
+                context.reportFailure(ex)
             }
         }
 
@@ -2199,17 +2226,16 @@ trait Observable[+T] { self =>
   /**
    * Returns a new Observable that uses the specified `ExecutionContext` for listening to the emitted items.
    *
-   * @param s the execution context on top of which the generated `onNext` / `onComplete` / `onError` events will run
+   * @param ec the execution context on top of which the generated `onNext` / `onComplete` / `onError` events will run
    *
    * @param bufferPolicy specifies the buffering policy used by the created asynchronous boundary
    */
-  def observeOn(s: Scheduler, bufferPolicy: BufferPolicy = defaultPolicy): Observable[T] = {
-    implicit val scheduler = s
-
-    Observable.create { observer =>
+  def observeOn(ec: ExecutionContext, bufferPolicy: BufferPolicy = defaultPolicy): Observable[T] = {
+    implicit val context = ec
+    Observable.create(observer =>
       unsafeSubscribe(new Observer[T] {
         private[this] val buffer =
-          BufferedObserver(observer, bufferPolicy)(s)
+          BufferedObserver(observer, bufferPolicy)
 
         def onNext(elem: T): Future[Ack] = {
           buffer.onNext(elem)
@@ -2222,8 +2248,7 @@ trait Observable[+T] { self =>
         def onComplete(): Unit = {
           buffer.onComplete()
         }
-      })
-    }
+      }))
   }
 
   /**
@@ -2334,8 +2359,10 @@ trait Observable[+T] { self =>
   /**
    * Returns a new Observable that uses the specified `ExecutionContext` for initiating the subscription.
    */
-  def subscribeOn(s: Scheduler): Observable[T] = {
-    Observable.create(o => s.scheduleOnce(unsafeSubscribe(o)))
+  def subscribeOn(ec: ExecutionContext): Observable[T] = {
+    Observable.create(o => ec.execute(new Runnable {
+      def run() = unsafeSubscribe(o)
+    }))
   }
 
   /**
@@ -2443,7 +2470,7 @@ trait Observable[+T] { self =>
   def multicast[R](subject: Subject[T, R]): ConnectableObservable[R] =
     new ConnectableObservable[R] {
       private[this] val notCanceled = Atomic(true)
-      val scheduler = self.scheduler
+      implicit val context = self.context
 
       private[this] val cancelAction =
         BooleanCancelable { notCanceled set false }
@@ -2596,7 +2623,7 @@ trait Observable[+T] { self =>
 
       def onComplete() = ()
       def onError(ex: Throwable) = {
-        scheduler.reportFailure(ex)
+        context.reportFailure(ex)
       }
     })
 }
@@ -2610,24 +2637,27 @@ object Observable {
    * Example: {{{
    *   import monifu.reactive._
    *   import monifu.reactive.Ack.Continue
-   *   import monifu.concurrent.Scheduler
+   *   import concurrent.ExecutionContext
    *
-   *   def emit[T](elem: T, nrOfTimes: Int)(implicit scheduler: Scheduler): Observable[T] =
+   *   def emit[T](elem: T, nrOfTimes: Int)(implicit ec: ExecutionContext): Observable[T] =
    *     Observable.create { observer =>
    *       def loop(times: Int): Unit =
-   *         scheduler.scheduleOnce {
-   *           if (times > 0)
-   *             observer.onNext(elem).onSuccess {
-   *               case Continue => loop(times - 1)
-   *             }
-   *           else
-   *             observer.onComplete()
-   *         }
+   *         ec.execute(new Runnable {
+   *           def run() = {
+   *             if (times > 0)
+   *               observer.onNext(elem).onSuccess {
+   *                 case Continue => loop(times - 1)
+   *               }
+   *             else
+   *               observer.onComplete()
+   *           }
+   *         })
+   *
    *       loop(nrOfTimes)
    *     }
    *
    *   // usage sample
-   *   import monifu.concurrent.Scheduler.Implicits.global
+   *   import concurrent.ExecutionContext.Implicits.global
 
    *   emit(elem=30, nrOfTimes=3).dump("Emit").subscribe()
    *   //=> 0: Emit-->30
@@ -2636,11 +2666,9 @@ object Observable {
    *   //=> 3: Emit completed
    * }}}
    */
-  def create[T](f: Observer[T] => Unit)(implicit scheduler: Scheduler): Observable[T] ={
-    val s = scheduler
+  def create[T](f: Observer[T] => Unit)(implicit ec: ExecutionContext): Observable[T] ={
     new Observable[T] {
-      val scheduler = s
-
+      implicit val context = ec
       override def subscribeFn(observer: Observer[T]): Unit =
         try f(observer) catch {
           case NonFatal(ex) =>
@@ -2655,7 +2683,7 @@ object Observable {
    *
    * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/empty.png" />
    */
-  def empty[A](implicit scheduler: Scheduler): Observable[A] =
+  def empty[A](implicit ec: ExecutionContext): Observable[A] =
     Observable.create { observer =>
       SafeObserver(observer).onComplete()
     }
@@ -2665,7 +2693,7 @@ object Observable {
    *
    * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/unit.png" />
    */
-  def unit[A](elem: A)(implicit scheduler: Scheduler): Observable[A] = {
+  def unit[A](elem: A)(implicit ec: ExecutionContext): Observable[A] = {
     Observable.create { o =>
       val observer = SafeObserver(o)
       observer.onNext(elem)
@@ -2678,7 +2706,7 @@ object Observable {
    *
    * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/error.png" />
    */
-  def error(ex: Throwable)(implicit scheduler: Scheduler): Observable[Nothing] =
+  def error(ex: Throwable)(implicit ec: ExecutionContext): Observable[Nothing] =
     Observable.create { observer =>
       SafeObserver[Nothing](observer).onError(ex)
     }
@@ -2688,7 +2716,7 @@ object Observable {
    *
    * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/never.png"" />
    */
-  def never(implicit scheduler: Scheduler): Observable[Nothing] =
+  def never(implicit ec: ExecutionContext): Observable[Nothing] =
     Observable.create { _ => () }
 
   /**
@@ -2699,14 +2727,15 @@ object Observable {
    * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/interval.png"" />
    *
    * @param period the delay between two subsequent events
-   * @param scheduler the execution context in which `onNext` will get called
+   * @param ec the execution context in which `onNext` will get called
+   * @param s the scheduler used for scheduling the periodic signaling of onNext
    */
-  def interval(period: FiniteDuration)(implicit scheduler: Scheduler): Observable[Long] = {
+  def interval(period: FiniteDuration)(implicit ec: ExecutionContext, s: Scheduler): Observable[Long] = {
     Observable.create { o =>
       val observer = SafeObserver(o)
       var counter = 0
 
-      scheduler.scheduleRecursive(Duration.Zero, period, { reschedule =>
+      s.scheduleRecursive(Duration.Zero, period, { reschedule =>
         val result = observer.onNext(counter)
         counter += 1
 
@@ -2721,14 +2750,14 @@ object Observable {
   /**
    * Creates an Observable that continuously emits the given ''item'' repeatedly.
    */
-  def repeat[T](elems: T*)(implicit scheduler: Scheduler): Observable[T] = {
+  def repeat[T](elems: T*)(implicit ec: ExecutionContext): Observable[T] = {
     if (elems.size == 0) Observable.empty
     else if (elems.size == 1) {
       Observable.create { o =>
         val observer = SafeObserver(o)
 
         def loop(elem: T): Unit =
-          scheduler.execute(new Runnable {
+          ec.execute(new Runnable {
             def run(): Unit =
               observer.onNext(elem).onSuccess {
                 case Continue =>
@@ -2752,12 +2781,12 @@ object Observable {
    * @param until the range end
    * @param step increment step, either positive or negative
    */
-  def range(from: Int, until: Int, step: Int = 1)(implicit scheduler: Scheduler): Observable[Int] = {
+  def range(from: Int, until: Int, step: Int = 1)(implicit ec: ExecutionContext): Observable[Int] = {
     require(step != 0, "step must be a number different from zero")
 
     Observable.create { o =>
       def scheduleLoop(from: Int, until: Int, step: Int): Unit =
-        scheduler.execute(new Runnable {
+        ec.execute(new Runnable {
           private[this] val observer = SafeObserver(o)
 
           private[this] def isInRange(x: Int): Boolean = {
@@ -2807,7 +2836,7 @@ object Observable {
    *   //=> 4: MyObservable completed
    * }}}
    */
-  def apply[T](elems: T*)(implicit scheduler: Scheduler): Observable[T] = {
+  def apply[T](elems: T*)(implicit ec: ExecutionContext): Observable[T] = {
     from(elems)
   }
 
@@ -2816,7 +2845,7 @@ object Observable {
    *
    * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/fromIterable.png" />
    */
-  def from[T](future: Future[T])(implicit scheduler: Scheduler): Observable[T] =
+  def from[T](future: Future[T])(implicit ec: ExecutionContext): Observable[T] =
     Observable.create { o =>
       val observer = SafeObserver(o)
 
@@ -2834,12 +2863,12 @@ object Observable {
    *
    * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/fromIterable.png" />
    */
-  def from[T](iterable: Iterable[T])(implicit scheduler: Scheduler): Observable[T] =
+  def from[T](iterable: Iterable[T])(implicit ec: ExecutionContext): Observable[T] =
     Observable.create { o =>
       val observer = SafeObserver(o)
 
       def startFeedLoop(iterator: Iterator[T]): Unit =
-        scheduler.execute(new Runnable {
+        ec.execute(new Runnable {
           @tailrec
           def fastLoop(): Unit = {
             val ack = observer.onNext(iterator.next())
@@ -2873,7 +2902,7 @@ object Observable {
   /**
    * Create an Observable that emits a single item after a given delay.
    */
-  def timer[T](delay: FiniteDuration, unit: T)(implicit s: Scheduler): Observable[T] =
+  def timer[T](delay: FiniteDuration, unit: T)(implicit ec: ExecutionContext, s: Scheduler): Observable[T] =
     Observable.create { observer =>
       s.scheduleOnce(delay, {
         observer.onNext(unit)
@@ -2885,7 +2914,9 @@ object Observable {
    * Create an Observable that repeatedly emits the given `item`, until
    * the underlying Observer cancels.
    */
-  def timer[T](initialDelay: FiniteDuration, period: FiniteDuration, unit: T)(implicit s: Scheduler): Observable[T] =
+  def timer[T](initialDelay: FiniteDuration, period: FiniteDuration, unit: T)
+      (implicit ec: ExecutionContext, s: Scheduler): Observable[T] = {
+
     Observable.create { observer =>
       val safeObserver = SafeObserver(observer)
 
@@ -2895,17 +2926,18 @@ object Observable {
         }
       })
     }
+  }
 
   /**
    * Concatenates the given list of ''observables'' into a single observable.
    */
-  def flatten[T](sources: Observable[T]*)(implicit scheduler: Scheduler): Observable[T] =
+  def flatten[T](sources: Observable[T]*)(implicit ec: ExecutionContext): Observable[T] =
     Observable.from(sources).flatten
 
   /**
    * Merges the given list of ''observables'' into a single observable.
    */
-  def merge[T](sources: Observable[T]*)(implicit scheduler: Scheduler): Observable[T] =
+  def merge[T](sources: Observable[T]*)(implicit ec: ExecutionContext): Observable[T] =
     Observable.from(sources).merge()
 
   /**
@@ -2935,14 +2967,14 @@ object Observable {
   /**
    * Concatenates the given list of ''observables'' into a single observable.
    */
-  def concat[T](sources: Observable[T]*)(implicit scheduler: Scheduler): Observable[T] =
+  def concat[T](sources: Observable[T]*)(implicit ec: ExecutionContext): Observable[T] =
     Observable.from(sources).concat
 
   /**
    * Given a list of source Observables, emits all of the items from the first of
    * these Observables to emit an item and cancel the rest.
    */
-  def amb[T](source: Observable[T]*)(implicit scheduler: Scheduler): Observable[T] = {
+  def amb[T](source: Observable[T]*)(implicit ec: ExecutionContext): Observable[T] = {
     // helper function used for creating a subscription that uses `finishLine` as guard
     def createSubscription(observable: Observable[T], observer: Observer[T], finishLine: AtomicInt, idx: Int): Unit =
       observable.unsafeSubscribe(new Observer[T] {
@@ -2981,7 +3013,7 @@ object Observable {
   /**
    * Implicit conversion from Future to Observable.
    */
-  implicit def FutureIsObservable[T](future: Future[T])(implicit scheduler: Scheduler): Observable[T] =
+  implicit def FutureIsObservable[T](future: Future[T])(implicit ec: ExecutionContext): Observable[T] =
     Observable.from(future)
 
   /**

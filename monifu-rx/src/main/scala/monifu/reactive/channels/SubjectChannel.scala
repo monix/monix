@@ -16,17 +16,19 @@
  
 package monifu.reactive.channels
 
-import monifu.reactive.{Observable, Observer, Channel, Subject}
-import monifu.reactive.observers.BufferedObserver
-import monifu.concurrent.Scheduler
-import monifu.reactive.BufferPolicy
 import monifu.reactive.BufferPolicy.Unbounded
+import monifu.reactive.observers.BufferedObserver
+import monifu.reactive.{BufferPolicy, Channel, Observable, Observer, Subject}
+
+import scala.concurrent.ExecutionContext
 
 /**
  * Wraps any [[Subject]] into a [[Channel]].
  */
-class SubjectChannel[-I,+O](subject: Subject[I, O], policy: BufferPolicy, s: Scheduler) extends Channel[I] with Observable[O] {
-  final implicit val scheduler = s
+class SubjectChannel[-I,+O](subject: Subject[I, O], policy: BufferPolicy)
+    (implicit val context: ExecutionContext)
+  extends Channel[I] with Observable[O] {
+
   private[this] val channel = BufferedObserver(subject, policy)
 
   final def subscribeFn(observer: Observer[O]): Unit = {
@@ -50,7 +52,8 @@ object SubjectChannel {
   /**
    * Wraps any [[Subject]] into a [[Channel]].
    */
-  def apply[I,O](subject: Subject[I, O], bufferPolicy: BufferPolicy = Unbounded)(implicit s: Scheduler): SubjectChannel[I, O] = {
-    new SubjectChannel[I,O](subject, bufferPolicy, s)
+  def apply[I,O](subject: Subject[I, O], bufferPolicy: BufferPolicy = Unbounded)
+      (implicit ec: ExecutionContext): SubjectChannel[I, O] = {
+    new SubjectChannel[I,O](subject, bufferPolicy)
   }
 }

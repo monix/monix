@@ -16,10 +16,10 @@
  
 package monifu.reactive
 
-import org.scalatest.FunSpec
+import java.util.concurrent.{CountDownLatch, TimeUnit}
 import monifu.reactive.subjects.AsyncSubject
-import monifu.concurrent.Scheduler.Implicits.global
-import java.util.concurrent.{TimeUnit, CountDownLatch}
+import org.scalatest.FunSpec
+import scala.concurrent.ExecutionContext.Implicits.global
 
 class AsyncSubjectTest extends FunSpec {
   describe("AsyncSubject") {
