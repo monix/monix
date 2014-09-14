@@ -16,81 +16,123 @@
  
 package monifu.concurrent
 
+import monifu.concurrent.cancelables.MultiAssignmentCancelable
+import monifu.concurrent.schedulers.ExecutorScheduler
+
+import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import monifu.concurrent.cancelables.{BooleanCancelable, MultiAssignmentCancelable}
-import scala.annotation.implicitNotFound
-import monifu.concurrent.schedulers.SchedulerCompanionImpl
 
 /**
- * A Scheduler is an `scala.concurrent.ExecutionContext` that additionally can schedule
- * the execution of units of work to run with a delay or periodically.
+ * A `Scheduler` is used for scheduling one-off or periodic tasks in the future.
  */
-@implicitNotFound("Cannot find an implicit Scheduler, either import monifu.concurrent.Scheduler.Implicits.global or use a custom one")
-trait Scheduler extends ExecutionContext {
-  def scheduleOnce(initialDelay: FiniteDuration, action: => Unit): Cancelable
+@implicitNotFound(
+  "An implicit Scheduler could not be found, " +
+  "either instantiate one yourself or import monifu.concurrent.Scheduler.defaultScheduler")
+trait Scheduler {
+  /**
+   * Schedules a task to run in the future, after `initialDelay`.
+   *
+   * For example the following schedules a message to be printed to
+   * standard output after 5 minutes:
+   * {{{
+   *   val task = scheduler.scheduleOnce(5.minutes, {
+   *     println("Hello, world!")
+   *   })
+   *
+   *   // later if you change your mind ...
+   *   task.cancel()
+   * }}}
+   *
+   * @param initialDelay is the time to wait until the execution happens
+   * @param action is the callback to be executed
+   * @param ec is the `ExecutionContext` on top of which the task will run
+   *
+   * @return a `Cancelable` that can be used to cancel the created task
+   *         before execution.
+   */
+  def scheduleOnce(initialDelay: FiniteDuration, action: => Unit)(implicit ec: ExecutionContext): Cancelable
 
-  def scheduleOnce(action: => Unit): Cancelable = {
-    val sub = BooleanCancelable()
-    execute(new Runnable {
-      def run(): Unit =
-        if (!sub.isCanceled)
-          action
-    })
-    sub
-  }
+  /**
+   * Schedules a task for execution repeated with the given `delay` between
+   * executions. The first execution happens after `initialDelay`.
+   *
+   * For example the following schedules a message to be printed to
+   * standard output every 10 seconds with an initial delay of 5 seconds:
+   * {{{
+   *   val task = scheduler.scheduleRepeated(5.seconds, 10.seconds , {
+   *     println("Hello, world!")
+   *   })
+   *
+   *   // later if you change your mind ...
+   *   task.cancel()
+   * }}}
+   *
+   * @param initialDelay is the time to wait until the first execution happens
+   * @param delay is the time to wait between 2 subsequent executions of the task
+   * @param action is the callback to be executed
+   * @param ec is the `ExecutionContext` on top of which the task will run
+   *
+   * @return a cancelable that can be used to cancel the execution of
+   *         this repeated task at any time.
+   */
+  def scheduleRepeated(initialDelay: FiniteDuration, delay: FiniteDuration, action: => Unit)
+      (implicit ec: ExecutionContext): Cancelable = {
 
-  def schedule(action: Scheduler => Cancelable): Cancelable = {
-    val sub = MultiAssignmentCancelable()
-    sub := scheduleOnce(sub := action(Scheduler.this))
-    sub
-  }
-
-  def schedule(initialDelay: FiniteDuration, action: Scheduler => Cancelable): Cancelable = {
-    val sub = MultiAssignmentCancelable()
-    sub := scheduleOnce(initialDelay, {
-      sub := action(Scheduler.this)
-    })
-    sub
-  }
-
-  def scheduleRepeated(initialDelay: FiniteDuration, delay: FiniteDuration, action: => Unit): Cancelable =
     scheduleRecursive(initialDelay, delay, { reschedule =>
       action
       reschedule()
     })
+  }
 
-  def scheduleRecursive(initialDelay: FiniteDuration, delay: FiniteDuration, action: (() => Unit) => Unit): Cancelable = {
+  /**
+   * Schedules a task for periodic execution. The callback scheduled for
+   * execution receives a function as parameter, a function that can be used
+   * to reschedule the execution or consequently to stop it.
+   *
+   * This variant of [[Scheduler.scheduleRepeated scheduleRepeated]] is
+   * useful if at some point you want to stop the execution from within the
+   * callback.
+   *
+   * The following increments a number every 5 seconds until the number reaches
+   * 20, then prints a message and stops:
+   * {{{
+   *   var counter = 0
+   *
+   *   scheduler.schedule(5.seconds, 5.seconds, { reschedule =>
+   *     count += 1
+   *     if (counter < 20)
+   *       reschedule()
+   *     else
+   *       println("Done!")
+   *   })
+   * }}}
+   *
+   * @param initialDelay is the time to wait until the first execution happens
+   * @param delay is the time to wait between 2 subsequent executions of the task
+   * @param action is the callback to be executed
+   * @param ec is the `ExecutionContext` on top of which the task will run
+   *
+   * @return a cancelable that can be used to cancel the task at any time.
+   */
+  def scheduleRecursive(initialDelay: FiniteDuration, delay: FiniteDuration, action: (() => Unit) => Unit)
+      (implicit ec: ExecutionContext): Cancelable = {
+
     val sub = MultiAssignmentCancelable()
-
     def reschedule(): Unit =
       sub() = scheduleOnce(delay, action(reschedule))
 
     sub() = scheduleOnce(initialDelay, action(reschedule))
     sub
   }
-
-  /**
-   * Runs a block of code in this ExecutionContext.
-   */
-  def execute(runnable: Runnable): Unit
-
-  /**
-   * Reports that an asynchronous computation failed.
-   */
-  def reportFailure(t: Throwable): Unit
 }
 
-private[concurrent] trait SchedulerCompanion {
-  trait ImplicitsType {
-    implicit def global: Scheduler
-    implicit def trampoline: Scheduler
+object Scheduler {
+  def apply(): Scheduler = ExecutorScheduler()
+  lazy val global: Scheduler = apply()
+
+  object Implicits {
+    implicit def global = Scheduler.global
   }
-
-  def Implicits: ImplicitsType
-  def fromContext(implicit ec: ExecutionContext): Scheduler
-  def trampoline: Scheduler
 }
-
-object Scheduler extends SchedulerCompanion with SchedulerCompanionImpl
 

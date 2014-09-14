@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 by its authors. Some rights reserved. 
+ * Copyright (c) 2014 by its authors. Some rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,97 +13,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
-package monifu.concurrent.schedulers
+
+package monifu.concurrent
 
 import org.scalatest.FunSuite
-import scala.concurrent.{Future, Await, Promise}
-import concurrent.duration._
-import java.util.concurrent.TimeoutException
-import monifu.concurrent.cancelables.SingleAssignmentCancelable
-import monifu.concurrent.atomic.Atomic
-import monifu.concurrent.ThreadLocal
-import concurrent.blocking
+import scala.concurrent._
+import scala.concurrent.duration._
 
 
-class TrampolineSchedulerTest extends FunSuite {
-  val s = new TrampolineScheduler(
-    fallback = ConcurrentScheduler.defaultInstance,
-    reporter = (ex) => {
+class TrampolinedExecutionContextTest extends FunSuite {
+  val s = new TrampolinedExecutionContext(new ExecutionContext {
+    def execute(runnable: Runnable) = {
+      ExecutionContext.Implicits.global.execute(runnable)
+    }
+    
+    def reportFailure(ex: Throwable) = {
       if (!ex.getMessage.contains("test-exception"))
         throw ex
     }
-  )
+  })
 
+  def runnable(action: => Unit) = 
+    new Runnable { def run() = action }
+  
   test("scheduleOnce") {
     val p = Promise[Int]()
-    s.scheduleOnce { p.success(1) }
-
-    assert(Await.result(p.future, 3.seconds) === 1)
-  }
-
-  test("scheduleOnce with delay") {
-    val p = Promise[Long]()
-    val startedAt = System.nanoTime()
-    s.scheduleOnce(100.millis, p.success(System.nanoTime()))
-
-    val endedAt = Await.result(p.future, 3.second)
-    val timeTaken = (endedAt - startedAt).nanos.toMillis
-    assert(timeTaken >= 100, s"timeTaken ($timeTaken millis) < 100 millis")
-  }
-
-  test("scheduleOnce with delay and cancel") {
-    val p = Promise[Int]()
-    val task = s.scheduleOnce(100.millis, p.success(1))
-    task.cancel()
-
-    intercept[TimeoutException] {
-      Await.result(p.future, 150.millis)
-    }
-  }
-
-  test("schedule") {
-    val p = Promise[Int]()
-    s.schedule(s2 => s2.scheduleOnce(p.success(1)))
-    assert(Await.result(p.future, 3.seconds) === 1)
-  }
-
-  test("schedule with delay") {
-    val p = Promise[Long]()
-    val startedAt = System.nanoTime()
-    s.schedule(100.millis, s2 => {
-      s2.scheduleOnce({
-        p.success(System.nanoTime())
-      })
-    })
-
-    val timeTaken = Await.result(p.future, 5.second)
-    assert((timeTaken - startedAt).nanos.toMillis >= 100)
-  }
-
-  test("schedule with delay and cancel") {
-    val p = Promise[Long]()
-    val t = s.schedule(100.millis, s2 => s2.scheduleOnce(p.success(1)))
-    t.cancel()
-
-    intercept[TimeoutException] {
-      Await.result(p.future, 150.millis)
-    }
-  }
-
-  test("schedule periodically") {
-    val sub = SingleAssignmentCancelable()
-    val p = Promise[Int]()
-    val value = Atomic(0)
-
-    sub() = s.scheduleRepeated(10.millis, 50.millis, {
-      if (value.incrementAndGet() > 3) {
-        sub.cancel()
-        p.success(value.get)
-      }
-    })
-
-    assert(Await.result(p.future, 10.second) === 4)
+    s.execute(runnable(p.success(1)))
+    assert(p.future.value.get.get === 1)
   }
 
   test("immediate execution happens") {
@@ -124,27 +60,28 @@ class TrampolineSchedulerTest extends FunSuite {
     var stackDepth = 0
     var iterations = 0
 
-    s.scheduleOnce { 
+    s.execute(runnable { 
       stackDepth += 1
       iterations += 1
-      s.scheduleOnce { 
+      s.execute(runnable { 
         stackDepth += 1
         iterations += 1
         assert(stackDepth === 1)
 
-        s.scheduleOnce { 
+        s.execute(runnable { 
           stackDepth += 1
           iterations += 1
           assert(stackDepth === 1)
           stackDepth -= 1
-        }
+        })
 
         assert(stackDepth === 1)
         stackDepth -= 1
-      }
+      })
+
       assert(stackDepth === 1)
       stackDepth -= 1
-    }
+    })
 
     assert(iterations === 3)
     assert(stackDepth === 0)
@@ -156,8 +93,8 @@ class TrampolineSchedulerTest extends FunSuite {
     tl.set("wrong-result")
 
     def run() =
-      s.scheduleOnce({
-        s.scheduleOnce({
+      s.execute(runnable {
+        s.execute(runnable {
           p.success(tl.get())
         })
 
@@ -176,9 +113,9 @@ class TrampolineSchedulerTest extends FunSuite {
     val async = Promise[String]()
     val local = Promise[String]()
 
-    s.scheduleOnce({
+    s.execute(runnable {
       // first schedule
-      s.scheduleOnce(async.success(seenValue.get()))
+      s.execute(runnable(async.success(seenValue.get())))
       // then do some blocking
       blocking {
         local.success(seenValue.get())
@@ -196,9 +133,9 @@ class TrampolineSchedulerTest extends FunSuite {
     val async = Promise[String]()
     val local = Promise[String]()
 
-    s.scheduleOnce({
+    s.execute(runnable {
       blocking {
-        s.scheduleOnce(async.success(seenValue.get()))
+        s.execute(runnable(async.success(seenValue.get())))
         local.success(seenValue.get())
       }
     })

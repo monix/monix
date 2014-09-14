@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 by its authors. Some rights reserved. 
+ * Copyright (c) 2014 by its authors. Some rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,19 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
-package monifu.concurrent.schedulers
 
-import monifu.concurrent.{ThreadLocal, Cancelable, Scheduler}
-import scala.concurrent.duration.FiniteDuration
-import scala.collection.immutable.Queue
+package monifu.concurrent
+
 import scala.annotation.tailrec
+import scala.collection.immutable.Queue
+import scala.concurrent.{BlockContext, CanAwait, ExecutionContext}
 import scala.util.control.NonFatal
-import scala.concurrent.{CanAwait, BlockContext}
 
 
-final class TrampolineScheduler private[concurrent] (fallback: ConcurrentScheduler, reporter: Throwable => Unit)
-  extends Scheduler with BlockContext {
+/**
+ * An execution context that runs scheduled tasks synchronously.
+ *
+ * @param fallback is the fallback `ExecutionContext` used for rescheduling
+ *                 pending tasks in case the currently running task either
+ *                 triggers an error or is executing a blocking task.
+ */
+final class TrampolinedExecutionContext private[concurrent] (fallback: ExecutionContext)
+  extends ExecutionContext with BlockContext {
 
   private[this] val immediateQueue = ThreadLocal(Queue.empty[Runnable])
   private[this] val withinLoop = ThreadLocal(false)
@@ -101,21 +106,16 @@ final class TrampolineScheduler private[concurrent] (fallback: ConcurrentSchedul
       rescheduleOnFallback(newQueue)
     }
 
-  def scheduleOnce(initialDelay: FiniteDuration, action: => Unit): Cancelable = {
-    if (initialDelay.toMillis < 1)
-      scheduleOnce(action)
-    else {
-      // we cannot schedule tasks with an initial delay on the current thread as that
-      // will block the thread, instead we delegate to our fallback
-      fallback.scheduleOnce(initialDelay, action)
-    }
-  }
-
   def reportFailure(t: Throwable): Unit =
-    reporter(t)
+    fallback.reportFailure(t)
 }
 
-object TrampolineScheduler {
-  def apply(implicit fallback: ConcurrentScheduler): TrampolineScheduler =
-    new TrampolineScheduler(fallback, fallback.reportFailure)
+object TrampolinedExecutionContext {
+  def apply(fallback: ExecutionContext): TrampolinedExecutionContext =
+    new TrampolinedExecutionContext(fallback)
+
+  object Implicits {
+    implicit lazy val global: ExecutionContext =
+      apply(ExecutionContext.Implicits.global)
+  }
 }

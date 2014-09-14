@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 by its authors. Some rights reserved. 
+ * Copyright (c) 2014 by its authors. Some rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,25 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
-package monifu.concurrent.schedulers
 
-import org.scalatest.FunSuite
-import scala.concurrent.{Await, Promise, ExecutionContext}
-import concurrent.duration._
+package monifu.concurrent
+
 import java.util.concurrent.TimeoutException
+
 import monifu.concurrent.cancelables.SingleAssignmentCancelable
-import monifu.concurrent.atomic.Atomic
+import monifu.concurrent.schedulers.ExecutorScheduler
+import org.scalatest.FunSuite
+
+import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext, Promise}
 
 class ConcurrentSchedulerTest extends FunSuite {
-  val s = ConcurrentScheduler(ExecutionContext.Implicits.global)
-
-  test("scheduleOnce") {
-    val p = Promise[Int]()
-    s.scheduleOnce { p.success(1) }
-
-    assert(Await.result(p.future, 3.seconds) === 1)
-  }
+  import ExecutionContext.Implicits.global
+  val s = ExecutorScheduler()
 
   test("scheduleOnce with delay") {
     val p = Promise[Long]()
@@ -52,31 +48,6 @@ class ConcurrentSchedulerTest extends FunSuite {
     }
   }
 
-  test("schedule") {
-    val p = Promise[Int]()
-    s.schedule(s2 => s2.scheduleOnce(p.success(1)))
-    assert(Await.result(p.future, 3.seconds) === 1)
-  }
-
-  test("schedule with delay") {
-    val p = Promise[Long]()
-    val startedAt = System.nanoTime()
-    s.schedule(100.millis, s2 => s2.scheduleOnce(p.success(System.nanoTime())))
-
-    val timeTaken = Await.result(p.future, 5.second)
-    assert((timeTaken - startedAt).nanos.toMillis >= 100)
-  }
-
-  test("schedule with delay and cancel") {
-    val p = Promise[Long]()
-    val t = s.schedule(100.millis, s2 => s2.scheduleOnce(p.success(1)))
-    t.cancel()
-
-    intercept[TimeoutException] {
-      Await.result(p.future, 150.millis)
-    }
-  }
-
   test("schedule periodically") {
     val sub = SingleAssignmentCancelable()
     val p = Promise[Int]()
@@ -90,6 +61,24 @@ class ConcurrentSchedulerTest extends FunSuite {
       }
       else if (value < 4) {
         value += 1
+      }
+    })
+
+    assert(Await.result(p.future, 5.second) === 4)
+  }
+
+  test("schedule recursively") {
+    val p = Promise[Int]()
+    var value = 0
+
+    s.scheduleRecursive(10.millis, 50.millis, { reschedule =>
+      if (value + 1 == 4) {
+        value += 1
+        p.success(value)
+      }
+      else if (value < 4) {
+        value += 1
+        reschedule()
       }
     })
 
