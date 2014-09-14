@@ -13,7 +13,7 @@ object Build extends SbtBuild {
 
     scalaVersion := "2.10.4",
     scalaVersion in ThisBuild := "2.10.4",
-    crossScalaVersions ++= Seq("2.11.2"),
+    crossScalaVersions ++= Seq("2.10.4", "2.11.2"),
 
     initialize := {
        val _ = initialize.value // run the previous initialization
