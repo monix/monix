@@ -3,6 +3,7 @@ package monifu.reactive
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 import monifu.reactive.Ack.Continue
 import monifu.reactive.BufferPolicy.{BackPressured, OverflowTriggering}
+import monifu.reactive.channels.PublishChannel
 import monifu.reactive.subjects.PublishSubject
 import monifu.concurrent.Implicits.scheduler
 import org.scalatest.FunSpec
@@ -26,6 +27,38 @@ class DelayTest extends FunSpec {
       val f = Observable.error(new RuntimeException("DUMMY")).delay(10.seconds).asFuture
       Await.ready(f, 2.seconds)
       assert(f.value.get.failed.get.getMessage === "DUMMY")
+    }
+
+    it("should be relative to the first event being emitted") {
+      val channel = PublishChannel[Int]()
+      val f = channel.delay(200.millis).asFuture
+
+      scheduler.scheduleOnce(200.millis, {
+        channel.pushNext(1)
+      })
+
+      val startTS = System.currentTimeMillis()
+      val r = Await.result(f, 5.seconds)
+      assert(r === Some(1))
+
+      val endTS = System.currentTimeMillis()
+      assert(endTS - startTS >= 400, s"Elapsed ${endTS - startTS} millis >= 400 millis")
+    }
+
+    it("should be relative to onComplete if observable is empty") {
+      val channel = PublishChannel[Int]()
+      val f = channel.delay(200.millis).asFuture
+
+      scheduler.scheduleOnce(200.millis, {
+        channel.pushComplete()
+      })
+
+      val startTS = System.currentTimeMillis()
+      val r = Await.result(f, 5.seconds)
+      assert(r === None)
+
+      val endTS = System.currentTimeMillis()
+      assert(endTS - startTS >= 400, s"Elapsed ${endTS - startTS} millis >= 400 millis")
     }
   }
 

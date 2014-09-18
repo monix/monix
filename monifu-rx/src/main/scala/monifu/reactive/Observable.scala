@@ -17,7 +17,7 @@
 package monifu.reactive
 
 import monifu.concurrent.atomic.{Atomic, AtomicBoolean, AtomicInt}
-import monifu.concurrent.cancelables.{BooleanCancelable, RefCountCancelable}
+import monifu.concurrent.cancelables.{SingleAssignmentCancelable, BooleanCancelable, RefCountCancelable}
 import monifu.concurrent.locks.SpinLock
 import monifu.concurrent.{Cancelable, Scheduler}
 import monifu.reactive.Ack.{Cancel, Continue}
@@ -1349,9 +1349,20 @@ trait Observable[+T] { self =>
         // onComplete / onError, so it must be changed to reflect
         // the latest acknowledgement of `observer.onNext(elem)`
         private[this] var connectedF = connectedP.future
-        // task that has to run after the given `delay`,
-        // can be canceled in `onError`
-        private[this] val task = init(connect, onError)
+        // cancelable of the task that has to run for executing `connect`,
+        // initialized either in onNext or in onComplete.
+        private[this] val task = SingleAssignmentCancelable()
+        // value to be set to false after the first item being signaled
+        // accessed from onNext/onComplete so does not need synchronization
+        private[this] var isTaskInitialized = false
+
+        /** Initializes scheduled task, to be called in onNext/onComplete */
+        @inline private[this] def initializeTask(): Unit = {
+          if (!isTaskInitialized) {
+            task := init(connect, onError)
+            isTaskInitialized = true
+          }
+        }
 
         private[this] def connect(): Unit = lock.enter {
           if (!isConnected) {
@@ -1403,6 +1414,10 @@ trait Observable[+T] { self =>
             if (isConnected)
               onNext(elem) // retry
             else {
+              // initializing the task that will eventually connect
+              // the buffer to the downstream observer
+              initializeTask()
+
               // we are still within the delay period and hence we are still
               // buffering incoming events, but we can only do buffering
               // according to the requested policy
@@ -1446,6 +1461,7 @@ trait Observable[+T] { self =>
         }
 
         def onComplete(): Unit = {
+          initializeTask()
           // the complete event gets scheduled to run after the
           // observer has been connected and the buffer has
           // been drained - careful here, since this logic can end up
