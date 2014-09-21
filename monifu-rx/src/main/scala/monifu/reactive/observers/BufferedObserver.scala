@@ -61,7 +61,9 @@ trait BufferedObserver[-T] extends Observer[T]
 
 
 object BufferedObserver {
-  def apply[T](observer: Observer[T], bufferPolicy: BufferPolicy = Unbounded)(implicit ec: ExecutionContext): BufferedObserver[T] = {
+  def apply[T](observer: Observer[T], bufferPolicy: BufferPolicy = Unbounded)
+      (implicit ec: ExecutionContext): BufferedObserver[T] = {
+
     bufferPolicy match {
       case Unbounded =>
         SynchronousBufferedObserver.unbounded(observer)
@@ -100,7 +102,8 @@ object BufferedObserver {
  * @param underlying is the underlying observer receiving the queued events
  * @param bufferSize is the maximum buffer size, or zero if unbounded
  */
-final class SynchronousBufferedObserver[-T] private (underlying: Observer[T], bufferSize: Int = 0)(implicit ec: ExecutionContext)
+final class SynchronousBufferedObserver[-T] private
+    (underlying: Observer[T], bufferSize: Int = 0)(implicit ec: ExecutionContext)
   extends SynchronousObserver[T] with BufferedObserver[T] {
 
   require(bufferSize >= 0, "bufferSize must be a positive number")
@@ -268,7 +271,8 @@ object SynchronousBufferedObserver {
     new SynchronousBufferedObserver[T](observer, bufferSize)
 }
 
-final class BackPressuredBufferedObserver[-T] private (underlying: Observer[T], bufferSize: Int)(implicit ec: ExecutionContext)
+final class BackPressuredBufferedObserver[-T] private
+    (underlying: Observer[T], bufferSize: Int)(implicit ec: ExecutionContext)
   extends BufferedObserver[T] { self =>
 
   require(bufferSize > 0, "bufferSize must be a strictly positive number")

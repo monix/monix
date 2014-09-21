@@ -60,7 +60,8 @@ import scala.concurrent.ExecutionContext
  *
  * @param ec the execution context needed for processing asynchronous `Future` results
  */
-final class ObserverAsSubscriber[T] private (observer: Observer[T], requestCount: Int)(implicit ec: ExecutionContext)
+final class ObserverAsSubscriber[T] private (observer: Observer[T], requestCount: Int)
+    (implicit ec: ExecutionContext)
   extends Subscriber[T] {
 
   require(requestCount > 0, "requestCount must be strictly positive, according to the Reactive Streams contract")
@@ -124,7 +125,8 @@ object ObserverAsSubscriber {
    *
    * @param ec the execution context needed for processing asynchronous `Future` results
    */
-  def apply[T](observer: Observer[T], requestCount: Int = 128)(implicit ec: ExecutionContext): Subscriber[T] =
+  def apply[T](observer: Observer[T], requestCount: Int = 128)
+      (implicit ec: ExecutionContext): Subscriber[T] =
     observer match {
       case ref: SynchronousObserver[_] =>
         SynchronousObserverAsSubscriber(ref.asInstanceOf[SynchronousObserver[T]], requestCount)
@@ -169,7 +171,8 @@ object ObserverAsSubscriber {
  *
  * @param ec the execution context needed for processing asynchronous `Future` results
  */
-final class SynchronousObserverAsSubscriber[T] private (observer: SynchronousObserver[T], requestCount: Int)(implicit ec: ExecutionContext)
+final class SynchronousObserverAsSubscriber[T] private
+    (observer: SynchronousObserver[T], requestCount: Int)(implicit ec: ExecutionContext)
   extends Subscriber[T] {
 
   require(requestCount > 0, "requestCount must be strictly positive, according to the Reactive Streams contract")
@@ -257,7 +260,8 @@ object SynchronousObserverAsSubscriber {
    *
    * @param ec the execution context needed for processing asynchronous `Future` results
    */
-  def apply[T](observer: SynchronousObserver[T], requestCount: Int = 128)(implicit ec: ExecutionContext): Subscriber[T] = {
+  def apply[T](observer: SynchronousObserver[T], requestCount: Int = 128)
+      (implicit ec: ExecutionContext): Subscriber[T] = {
     new SynchronousObserverAsSubscriber[T](observer, requestCount)
   }
 }

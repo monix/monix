@@ -23,7 +23,7 @@ import monifu.reactive.channels.PublishChannel
 import monifu.reactive.observers.ConcurrentObserver
 import monifu.reactive.subjects.PublishSubject
 import org.scalatest.FunSpec
-import scala.concurrent.ExecutionContext.Implicits.global
+import monifu.concurrent.Implicits.globalScheduler
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 
@@ -37,8 +37,8 @@ class PublishSubjectTest extends FunSpec {
       val subject = PublishChannel[Int]()
       val latch = new CountDownLatch(2)
 
-      subject.observeOn(global).doOnComplete(latch.countDown()).foreach { x => result1.increment(x) }
-      subject.observeOn(global).doOnComplete(latch.countDown()).foreach { x => result2.increment(x) }
+      subject.asyncBoundary().doOnComplete(latch.countDown()).foreach { x => result1.increment(x) }
+      subject.asyncBoundary().doOnComplete(latch.countDown()).foreach { x => result2.increment(x) }
 
       for (i <- 0 until 100000) subject.pushNext(i)
       subject.pushComplete()
@@ -56,9 +56,9 @@ class PublishSubjectTest extends FunSpec {
       val subject = PublishChannel[Int]()
       val latch = new CountDownLatch(2)
 
-      subject.observeOn(global).filter(x => x % 2 == 0).flatMap(x => Observable.from(x to x + 1))
+      subject.asyncBoundary().filter(x => x % 2 == 0).flatMap(x => Observable.from(x to x + 1))
         .foldLeft(0)(_ + _).doOnComplete(latch.countDown()).foreach { x => result1.set(x) }
-      subject.observeOn(global).filter(x => x % 2 == 0).flatMap(x => Observable.from(x to x + 1))
+      subject.asyncBoundary().filter(x => x % 2 == 0).flatMap(x => Observable.from(x to x + 1))
         .foldLeft(0)(_ + _).doOnComplete(latch.countDown()).foreach { x => result2.set(x) }
 
       for (i <- 0 until 10000) subject.pushNext(i)
@@ -95,11 +95,11 @@ class PublishSubjectTest extends FunSpec {
       val subject = PublishSubject[Int]()
       val latch = new CountDownLatch(2)
 
-      subject.observeOn(global).subscribe(
+      subject.asyncBoundary().subscribe(
         elem => Continue,
         ex => { result1.set(ex); latch.countDown() }
       )
-      subject.observeOn(global).subscribe(
+      subject.asyncBoundary().subscribe(
         elem => Continue,
         ex => { result2.set(ex); latch.countDown() }
       )
@@ -133,12 +133,12 @@ class PublishSubjectTest extends FunSpec {
       val subject = PublishSubject[Int]()
       val latch = new CountDownLatch(2)
 
-      subject.observeOn(global).subscribe(
+      subject.asyncBoundary().subscribe(
         elem => Continue,
         ex => Cancel,
         () => { result1.set(1); latch.countDown() }
       )
-      subject.observeOn(global).subscribe(
+      subject.asyncBoundary().subscribe(
         elem => Continue,
         ex => Cancel,
         () => { result2.set(2); latch.countDown() }

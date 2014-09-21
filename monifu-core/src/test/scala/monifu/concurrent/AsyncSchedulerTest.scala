@@ -24,7 +24,7 @@ import scala.concurrent.{Await, Promise}
 
 
 class AsyncSchedulerTest extends FunSuite {
-  val s = Scheduler.Implicits.global
+  val s = monifu.concurrent.Implicits.globalScheduler
 
   test("scheduleOnce with delay") {
     val p = Promise[Long]()

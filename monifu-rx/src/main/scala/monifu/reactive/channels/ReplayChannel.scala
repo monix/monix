@@ -16,25 +16,24 @@
  
 package monifu.reactive.channels
 
+import monifu.concurrent.Scheduler
 import monifu.reactive.BufferPolicy
 import monifu.reactive.BufferPolicy.Unbounded
 import monifu.reactive.subjects.ReplaySubject
-import scala.concurrent.ExecutionContext
 
 /**
  * Represents a [[monifu.reactive.Channel Channel]] that uses an underlying
  * [[monifu.reactive.subjects.ReplaySubject ReplaySubject]].
  */
-final class ReplayChannel[T] private (policy: BufferPolicy, ec: ExecutionContext)
-  extends SubjectChannel(ReplaySubject[T]()(ec), policy)(ec)
+final class ReplayChannel[T] private (policy: BufferPolicy, s: Scheduler)
+  extends SubjectChannel(ReplaySubject[T]()(s), policy)(s)
 
 object ReplayChannel {
   /**
    * Builds a [[monifu.reactive.Channel Channel]] that uses an underlying
    * [[monifu.reactive.subjects.ReplaySubject ReplaySubject]].
    */
-  def apply[T](bufferPolicy: BufferPolicy = Unbounded)
-      (implicit ec: ExecutionContext): ReplayChannel[T] = {
-    new ReplayChannel[T](bufferPolicy, ec)
+  def apply[T](bufferPolicy: BufferPolicy = Unbounded)(implicit s: Scheduler): ReplayChannel[T] = {
+    new ReplayChannel[T](bufferPolicy, s)
   }
 }

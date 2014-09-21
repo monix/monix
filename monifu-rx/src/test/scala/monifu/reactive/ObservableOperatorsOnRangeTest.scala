@@ -17,12 +17,11 @@
 package monifu.reactive
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
-import monifu.concurrent.Implicits.scheduler
 import monifu.reactive.Ack.Continue
 import monifu.reactive.BufferPolicy.{BackPressured, OverflowTriggering, Unbounded}
 import monifu.reactive.Notification.{OnComplete, OnNext}
 import org.scalatest.FunSpec
-import scala.concurrent.ExecutionContext.Implicits.global
+import monifu.concurrent.Implicits.globalScheduler
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 
@@ -317,19 +316,19 @@ class ObservableOperatorsOnRangeTest extends FunSpec {
     }
 
     it("should observeOn") {
-      val f1 = Observable.range(1,10000).observeOn(global, Unbounded).sum.asFuture
+      val f1 = Observable.range(1,10000).asyncBoundary(Unbounded).sum.asFuture
       assert(Await.result(f1, 5.seconds) === Some(1.until(10000).sum))
 
-      val f2 = Observable.range(1,10000).observeOn(global, BackPressured(2)).sum.asFuture
+      val f2 = Observable.range(1,10000).asyncBoundary(BackPressured(2)).sum.asFuture
       assert(Await.result(f2, 5.seconds) === Some(1.until(10000).sum))
 
-      val f3 = Observable.range(1,10000).observeOn(global, BackPressured(100000)).sum.asFuture
+      val f3 = Observable.range(1,10000).asyncBoundary(BackPressured(100000)).sum.asFuture
       assert(Await.result(f3, 5.seconds) === Some(1.until(10000).sum))
 
-      val f4 = Observable.range(1,10000).observeOn(global, OverflowTriggering(10000)).sum.asFuture
+      val f4 = Observable.range(1,10000).asyncBoundary(OverflowTriggering(10000)).sum.asFuture
       assert(Await.result(f4, 5.seconds) === Some(1.until(10000).sum))
 
-      val f5 = Observable.range(1,10000).observeOn(global, OverflowTriggering(100000)).sum.asFuture
+      val f5 = Observable.range(1,10000).asyncBoundary(OverflowTriggering(100000)).sum.asFuture
       assert(Await.result(f5, 5.seconds) === Some(1.until(10000).sum))
     }
 
@@ -350,7 +349,7 @@ class ObservableOperatorsOnRangeTest extends FunSpec {
     }
 
     it("should subscribeOn") {
-      val f = Observable.range(1,100).subscribeOn(global).sum.asFuture
+      val f = Observable.range(1,100).subscribeOn(globalScheduler).sum.asFuture
       assert(Await.result(f, 5.seconds) === Some((1 until 100).sum))
     }
 
@@ -369,8 +368,8 @@ class ObservableOperatorsOnRangeTest extends FunSpec {
       var sum = 0
       var count = 0
 
-      val obs = Observable.range(0,1000).observeOn(global).doOnComplete(completed.countDown())
-        .ambWith(Observable.range(0,1000).observeOn(global).doOnComplete(completed.countDown()))
+      val obs = Observable.range(0,1000).asyncBoundary().doOnComplete(completed.countDown())
+        .ambWith(Observable.range(0,1000).asyncBoundary().doOnComplete(completed.countDown()))
 
       for (elem <- obs) {
         sum += elem

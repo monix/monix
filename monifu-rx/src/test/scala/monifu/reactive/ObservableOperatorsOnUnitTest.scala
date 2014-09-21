@@ -17,13 +17,12 @@
 package monifu.reactive
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
-import monifu.concurrent.Implicits.scheduler
+import monifu.concurrent.Implicits.globalScheduler
 import monifu.reactive.Ack.Continue
 import monifu.reactive.BufferPolicy.{BackPressured, OverflowTriggering, Unbounded}
 import monifu.reactive.Notification.{OnComplete, OnNext}
 import monifu.reactive.subjects.BehaviorSubject
 import org.scalatest.FunSpec
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 
@@ -307,19 +306,19 @@ class ObservableOperatorsOnUnitTest extends FunSpec {
     }
 
     it("should observeOn") {
-      val f1 = Observable.unit(1).observeOn(global, Unbounded).sum.asFuture
+      val f1 = Observable.unit(1).asyncBoundary(Unbounded).sum.asFuture
       assert(Await.result(f1, 5.seconds) === Some(1))
 
-      val f2 = Observable.unit(1).observeOn(global, BackPressured(2)).sum.asFuture
+      val f2 = Observable.unit(1).asyncBoundary(BackPressured(2)).sum.asFuture
       assert(Await.result(f2, 5.seconds) === Some(1))
 
-      val f3 = Observable.unit(1).observeOn(global, BackPressured(1000)).sum.asFuture
+      val f3 = Observable.unit(1).asyncBoundary(BackPressured(1000)).sum.asFuture
       assert(Await.result(f3, 5.seconds) === Some(1))
 
-      val f4 = Observable.unit(1).observeOn(global, OverflowTriggering(2)).sum.asFuture
+      val f4 = Observable.unit(1).asyncBoundary(OverflowTriggering(2)).sum.asFuture
       assert(Await.result(f4, 5.seconds) === Some(1))
 
-      val f5 = Observable.unit(1).observeOn(global, OverflowTriggering(1000)).sum.asFuture
+      val f5 = Observable.unit(1).asyncBoundary(OverflowTriggering(1000)).sum.asFuture
       assert(Await.result(f5, 5.seconds) === Some(1))
     }
 
@@ -340,7 +339,7 @@ class ObservableOperatorsOnUnitTest extends FunSpec {
     }
 
     it("should subscribeOn") {
-      val f = Observable.unit(1).subscribeOn(global).asFuture
+      val f = Observable.unit(1).subscribeOn(globalScheduler).asFuture
       assert(Await.result(f, 5.seconds) === Some(1))
     }
 
@@ -418,8 +417,8 @@ class ObservableOperatorsOnUnitTest extends FunSpec {
       var seen = 0
       var count = 0
 
-      val obs = Observable.unit(1).observeOn(global).doOnComplete(completed.countDown())
-        .ambWith(Observable.unit(2).observeOn(global).doOnComplete(completed.countDown()))
+      val obs = Observable.unit(1).asyncBoundary().doOnComplete(completed.countDown())
+        .ambWith(Observable.unit(2).asyncBoundary().doOnComplete(completed.countDown()))
 
       for (elem <- obs) {
         seen = elem

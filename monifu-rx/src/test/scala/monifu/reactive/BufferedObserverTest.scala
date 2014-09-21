@@ -23,7 +23,7 @@ import monifu.reactive.BufferPolicy.{BackPressured, OverflowTriggering, Unbounde
 import monifu.reactive.observers.BufferedObserver
 import org.scalatest.FunSpec
 
-import scala.concurrent.ExecutionContext.Implicits.global
+import monifu.concurrent.Implicits.globalScheduler
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, Promise}
 
@@ -41,7 +41,7 @@ class BufferedObserverTest extends FunSpec {
         }
 
         def onError(ex: Throwable): Unit = {
-          global.reportFailure(ex)
+          globalScheduler.reportFailure(ex)
         }
 
         def onComplete(): Unit = {
@@ -68,7 +68,7 @@ class BufferedObserverTest extends FunSpec {
         }
 
         def onError(ex: Throwable): Unit = {
-          global.reportFailure(ex)
+          globalScheduler.reportFailure(ex)
         }
 
         def onComplete(): Unit = {
@@ -79,7 +79,7 @@ class BufferedObserverTest extends FunSpec {
       val buffer = BufferedObserver(underlying, OverflowTriggering(100000))
 
       def loop(n: Int): Unit =
-        if (n > 0) global.execute(new Runnable {
+        if (n > 0) globalScheduler.execute(new Runnable {
           def run() = { buffer.onNext(n); loop(n-1) }
         })
         else buffer.onComplete()
@@ -339,7 +339,7 @@ class BufferedObserverTest extends FunSpec {
         }
 
         def onError(ex: Throwable): Unit = {
-          global.reportFailure(ex)
+          globalScheduler.reportFailure(ex)
         }
 
         def onComplete(): Unit = {
@@ -366,7 +366,7 @@ class BufferedObserverTest extends FunSpec {
         }
 
         def onError(ex: Throwable): Unit = {
-          global.reportFailure(ex)
+          globalScheduler.reportFailure(ex)
         }
 
         def onComplete(): Unit = {
@@ -377,7 +377,7 @@ class BufferedObserverTest extends FunSpec {
       val buffer = BufferedObserver(underlying, Unbounded)
 
       def loop(n: Int): Unit =
-        if (n > 0) global.execute(new Runnable {
+        if (n > 0) globalScheduler.execute(new Runnable {
           def run() = { buffer.onNext(n); loop(n-1) }
         })
         else buffer.onComplete()
@@ -596,7 +596,7 @@ class BufferedObserverTest extends FunSpec {
         }
 
         def onError(ex: Throwable): Unit = {
-          global.reportFailure(ex)
+          globalScheduler.reportFailure(ex)
         }
 
         def onComplete(): Unit = {
@@ -623,7 +623,7 @@ class BufferedObserverTest extends FunSpec {
         }
 
         def onError(ex: Throwable): Unit = {
-          global.reportFailure(ex)
+          globalScheduler.reportFailure(ex)
         }
 
         def onComplete(): Unit = {
@@ -634,7 +634,7 @@ class BufferedObserverTest extends FunSpec {
       val buffer = BufferedObserver(underlying, BackPressured(100000))
 
       def loop(n: Int): Unit =
-        if (n > 0) global.execute(new Runnable {
+        if (n > 0) globalScheduler.execute(new Runnable {
           def run() = { buffer.onNext(n); loop(n-1) }
         })
         else buffer.onComplete()

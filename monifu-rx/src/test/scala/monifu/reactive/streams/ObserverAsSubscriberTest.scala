@@ -18,10 +18,10 @@ package monifu.reactive.streams
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 
+import monifu.concurrent.Implicits.globalScheduler
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.{Observable, Observer}
 import org.scalatest.FunSpec
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 
@@ -38,7 +38,7 @@ class ObserverAsSubscriberTest extends FunSpec {
         }
 
         def onError(ex: Throwable): Unit = {
-          global.reportFailure(ex)
+          globalScheduler.reportFailure(ex)
         }
 
         def onComplete(): Unit = {

@@ -16,14 +16,16 @@
 
 package monifu.reactive.streams
 
+import monifu.concurrent.Scheduler
 import monifu.concurrent.atomic.Atomic
 import monifu.concurrent.locks.SpinLock
 import monifu.reactive.Ack.{Cancel, Continue}
-import monifu.reactive.{Ack, Observer}
 import monifu.reactive.internals.FutureAckExtensions
-import org.reactivestreams.{Subscription, Subscriber}
+import monifu.reactive.{Ack, Observer}
+import org.reactivestreams.{Subscriber, Subscription}
+
 import scala.annotation.tailrec
-import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.concurrent.{Future, Promise}
 
 /**
  * Wraps a `org.reactivestreams.Subscriber` instance that respects the
@@ -31,7 +33,8 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
  * into an [[monifu.reactive.Observer Observer]] instance that respect the `Observer`
  * contract.
  */
-final class SubscriberAsObserver[T] private (subscriber: Subscriber[T])(implicit ec: ExecutionContext)
+final class SubscriberAsObserver[T] private
+    (subscriber: Subscriber[T])(implicit s: Scheduler)
   extends Observer[T] {
 
   @volatile private[this] var isCanceled = false
@@ -147,7 +150,7 @@ object SubscriberAsObserver {
    * specification, it builds an [[Observer]] instance compliant
    * with the Monifu Rx implementation.
    */
-  def apply[T](subscriber: Subscriber[T])(implicit ec: ExecutionContext): SubscriberAsObserver[T] = {
+  def apply[T](subscriber: Subscriber[T])(implicit s: Scheduler): SubscriberAsObserver[T] = {
     new SubscriberAsObserver[T](subscriber)
   }
 }

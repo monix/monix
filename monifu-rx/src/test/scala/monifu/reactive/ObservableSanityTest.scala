@@ -20,7 +20,7 @@ import java.util.concurrent.{CountDownLatch, TimeUnit}
 
 import monifu.reactive.Ack.{Cancel, Continue}
 import org.scalatest.FunSpec
-import scala.concurrent.ExecutionContext.Implicits.global
+import monifu.concurrent.Implicits.globalScheduler
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 import scala.language.higherKinds
@@ -251,7 +251,7 @@ class ObservableSanityTest extends FunSpec {
     }
 
     it("should be empty on no elements") {
-      val f = Observable.empty[Int].observeOn(global).scan(0)(_+_).asFuture
+      val f = Observable.empty[Int].asyncBoundary().scan(0)(_+_).asFuture
       assert(Await.result(f, 5.seconds) === None)
     }
 
@@ -604,7 +604,7 @@ class ObservableSanityTest extends FunSpec {
   describe("Observable.reduce") {
     it("should work") {
       val f = Observable.range(0, 1000)
-        .observeOn(global).reduce(_ + _)
+        .asyncBoundary().reduce(_ + _)
         .asFuture
 
       val r = Await.result(f, 10.seconds)
@@ -613,7 +613,7 @@ class ObservableSanityTest extends FunSpec {
 
     it("should be empty on zero elements") {
       val f = Observable.empty[Int]
-        .observeOn(global).reduce(_ + _)
+        .asyncBoundary().reduce(_ + _)
         .asFuture
 
       val r = Await.result(f, 10.seconds)
@@ -622,7 +622,7 @@ class ObservableSanityTest extends FunSpec {
 
     it("should be empty on one elements") {
       val f = Observable.unit(100)
-        .observeOn(global).reduce(_ + _)
+        .asyncBoundary().reduce(_ + _)
         .asFuture
 
       val r = Await.result(f, 10.seconds)
@@ -631,7 +631,7 @@ class ObservableSanityTest extends FunSpec {
 
     it("should be work for 2 elements") {
       val two = Observable.unit(100) ++ Observable.unit(200)
-      val f = two.observeOn(global).reduce(_ + _)
+      val f = two.asyncBoundary().reduce(_ + _)
         .asFuture
 
       val r = Await.result(f, 10.seconds)
@@ -750,7 +750,8 @@ class ObservableSanityTest extends FunSpec {
 
     it("should sum") {
       val sum = Observable.range(0, 100).mergeMap(x => Observable.range(0, x+1)).sum.asFuture
-      assert(Await.result(sum, 10.seconds) === Some((0 until 100).flatMap(x => (0 until (x+1))).sum))
+      assert(Await.result(sum, 10.seconds) === Some((0 until 100)
+        .flatMap(x => 0 until (x + 1)).sum))
     }
 
     it("should emit only distinct items") {

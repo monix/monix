@@ -5,9 +5,8 @@ import monifu.reactive.Ack.Continue
 import monifu.reactive.BufferPolicy.{BackPressured, OverflowTriggering}
 import monifu.reactive.channels.PublishChannel
 import monifu.reactive.subjects.PublishSubject
-import monifu.concurrent.Implicits.scheduler
+import monifu.concurrent.Implicits.globalScheduler
 import org.scalatest.FunSpec
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, Promise}
 
@@ -16,7 +15,7 @@ class DelayTest extends FunSpec {
   describe("Observable.delay(timespan)") {
     it("should work") {
       val now = System.currentTimeMillis()
-      val f = Observable.repeat(1).take(100000).delay(200.millis).take(5).reduce(_ + _).asFuture
+      val f = Observable.repeat(1).take(100000).delayFirst(200.millis).take(5).reduce(_ + _).asFuture
       val r = Await.result(f, 5.seconds)
       assert(r === Some(5))
       val delayed = System.currentTimeMillis() - now
@@ -24,16 +23,16 @@ class DelayTest extends FunSpec {
     }
 
     it("should stream onError immediately") {
-      val f = Observable.error(new RuntimeException("DUMMY")).delay(10.seconds).asFuture
+      val f = Observable.error(new RuntimeException("DUMMY")).delayFirst(10.seconds).asFuture
       Await.ready(f, 2.seconds)
       assert(f.value.get.failed.get.getMessage === "DUMMY")
     }
 
     it("should be relative to the first event being emitted") {
       val channel = PublishChannel[Int]()
-      val f = channel.delay(200.millis).asFuture
+      val f = channel.delayFirst(200.millis).asFuture
 
-      scheduler.scheduleOnce(200.millis, {
+      globalScheduler.scheduleOnce(200.millis, {
         channel.pushNext(1)
       })
 
@@ -47,9 +46,9 @@ class DelayTest extends FunSpec {
 
     it("should be relative to onComplete if observable is empty") {
       val channel = PublishChannel[Int]()
-      val f = channel.delay(200.millis).asFuture
+      val f = channel.delayFirst(200.millis).asFuture
 
-      scheduler.scheduleOnce(200.millis, {
+      globalScheduler.scheduleOnce(200.millis, {
         channel.pushComplete()
       })
 
@@ -65,7 +64,7 @@ class DelayTest extends FunSpec {
   describe("Observable.delay(future)") {
     it("should delay until the future completes with success") {
       val trigger = Promise[Unit]()
-      val obs = Observable.unit(1).delay(trigger.future)
+      val obs = Observable.unit(1).delayFirst(trigger.future)
       val f = obs.asFuture
       assert(f.value === None)
 
@@ -76,7 +75,7 @@ class DelayTest extends FunSpec {
 
     it("should interrupt when the future terminates in error") {
       val trigger = Promise[Unit]()
-      val obs = Observable.unit(1).delay(trigger.future)
+      val obs = Observable.unit(1).delayFirst(trigger.future)
       val f = obs.asFuture
       assert(f.value === None)
 
@@ -87,7 +86,7 @@ class DelayTest extends FunSpec {
 
     it("should fail with a buffer overflow in case the policy is OverflowTriggering") {
       val trigger = Promise[Unit]()
-      val obs = Observable.repeat(1).delay(OverflowTriggering(1000), trigger.future)
+      val obs = Observable.repeat(1).delayFirst(OverflowTriggering(1000), trigger.future)
       val f = obs.asFuture
       Await.ready(f, 5.seconds)
       assert(f.value.get.failed.get.isInstanceOf[BufferOverflowException],
@@ -97,7 +96,7 @@ class DelayTest extends FunSpec {
     it("should do back-pressure when the policy is BackPressured") {
       val trigger = Promise[Unit]()
       val subject = PublishSubject[Int]()
-      val f = subject.delay(BackPressured(1000), trigger.future)
+      val f = subject.delayFirst(BackPressured(1000), trigger.future)
         .reduce(_ + _).asFuture
 
       var ack = subject.onNext(1)
@@ -125,7 +124,7 @@ class DelayTest extends FunSpec {
       var triggeredError = null : Throwable
       var sum = 0
 
-      subject.delay(BackPressured(1000), trigger.future)
+      subject.delayFirst(BackPressured(1000), trigger.future)
         .subscribe(
           elem => { sum += elem; Continue },
           error => { triggeredError = error; completed.countDown() },
@@ -154,7 +153,7 @@ class DelayTest extends FunSpec {
       var triggeredError = null : Throwable
       var sum = 0
 
-      subject.delay(OverflowTriggering(1000), trigger.future)
+      subject.delayFirst(OverflowTriggering(1000), trigger.future)
         .subscribe(
           elem => { sum += elem; Continue },
           error => { triggeredError = error; completed.countDown() },

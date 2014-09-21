@@ -16,12 +16,13 @@
  
 package monifu.reactive.observers
 
+import monifu.concurrent.Scheduler
 import monifu.concurrent.locks.SpinLock
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.internals.FutureAckExtensions
 import monifu.reactive.{Ack, Channel, Observable, Observer}
 import scala.collection.mutable
-import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.concurrent.{Future, Promise}
 
 
 /**
@@ -65,7 +66,7 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
  *   // NOTE: that onNext("c") never happens
  * }}}
  */
-final class ConnectableObserver[-T](underlying: Observer[T])(implicit context: ExecutionContext)
+final class ConnectableObserver[-T](underlying: Observer[T])(implicit scheduler: Scheduler)
   extends Channel[T] with Observer[T] { self =>
 
   private[this] val observer = SafeObserver(underlying)
@@ -141,14 +142,14 @@ final class ConnectableObserver[-T](underlying: Observer[T])(implicit context: E
 
           def onError(ex: Throwable): Unit = {
             if (scheduledError ne null)
-              context.reportFailure(ex)
+              scheduler.reportFailure(ex)
             else {
               scheduledDone = true
               scheduledError = ex
               if (bufferWasDrained.trySuccess(Cancel))
                 observer.onError(ex)
               else
-                context.reportFailure(ex)
+                scheduler.reportFailure(ex)
             }
           }
         })
