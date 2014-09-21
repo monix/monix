@@ -21,10 +21,10 @@ import scala.concurrent.{Await, Future}
 import concurrent.duration._
 import java.util.concurrent.TimeoutException
 import monifu.concurrent.extensions._
-import scala.concurrent.ExecutionContext.Implicits.global
+import monifu.concurrent.Scheduler.Implicits.global
 
 
-class FutureExtensionsTest extends FunSuite {
+class FutureUtilsTest extends FunSuite {
   test("delayedResult") {
     val startedAt = System.nanoTime()
     val f = Future.delayedResult(100.millis)("TICK")
@@ -51,7 +51,7 @@ class FutureExtensionsTest extends FunSuite {
 
   test("ensureDuration should succeed on lower time bound") {
     val start = System.nanoTime()
-    val f = Future(1).ensureDuration(400.millis)
+    val f = Future(1).withMinDuration(400.millis)
     assert(Await.result(f, 10.seconds) === 1)
 
     val duration = (System.nanoTime() - start).nanos
@@ -60,23 +60,10 @@ class FutureExtensionsTest extends FunSuite {
 
   test("ensureDuration should succeed on lower bound, with upper bound specified") {
     val start = System.nanoTime()
-    val f = Future(1).ensureDuration(400.millis, 10.seconds)
+    val f = Future(1).withMinDuration(400.millis)
     assert(Await.result(f, 10.seconds) === 1)
 
     val duration = (System.nanoTime() - start).nanos
-    assert(duration >= 400.millis, s"$duration < 400 millis")
-  }
-
-  test("ensureDuration should succeed on upper bound") {
-    val start = System.nanoTime()
-    val f = Future.delayedResult(1.second)(1)
-      .ensureDuration(10.millis, 200.millis)
-
-    intercept[TimeoutException] {
-      Await.result(f, 10.seconds)
-    }
-
-    val duration = (System.nanoTime() - start).nanos
-    assert(duration >= 200.millis, s"$duration < 200 millis")
+    assert(duration >= 400.millis, s"$duration >= 400 millis")
   }
 }

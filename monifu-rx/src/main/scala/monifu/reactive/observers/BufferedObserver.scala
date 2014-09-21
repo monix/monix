@@ -16,8 +16,8 @@
  
 package monifu.reactive.observers
 
+import java.util.concurrent.ConcurrentLinkedQueue
 import monifu.reactive.Observer
-import monifu.concurrent.internals.ConcurrentQueue
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.concurrent.atomic.padded.Atomic
 import scala.util.control.NonFatal
@@ -105,7 +105,7 @@ final class SynchronousBufferedObserver[-T] private (underlying: Observer[T], bu
 
   require(bufferSize >= 0, "bufferSize must be a positive number")
 
-  private[this] val queue = new ConcurrentQueue[T]()
+  private[this] val queue = new ConcurrentLinkedQueue[T]()
   // to be modified only in onError, before upstreamIsComplete
   private[this] var errorThrown: Throwable = null
   // to be modified only in onError / onComplete
@@ -236,7 +236,7 @@ final class SynchronousBufferedObserver[-T] private (underlying: Observer[T], bu
         // Race-condition check, but if upstreamIsComplete=true is visible, then the queue should be fully published
         // because there's a clear happens-before relationship between queue.offer() and upstreamIsComplete=true
         // NOTE: errors have priority, so in case of an error seen, then the loop is stopped
-        if (!hasError && queue.nonEmpty) {
+        if (!hasError && !queue.isEmpty) {
           fastLoop(processed)
         }
         else {
@@ -273,7 +273,7 @@ final class BackPressuredBufferedObserver[-T] private (underlying: Observer[T], 
 
   require(bufferSize > 0, "bufferSize must be a strictly positive number")
 
-  private[this] val queue = new ConcurrentQueue[T]()
+  private[this] val queue = new ConcurrentLinkedQueue[T]()
   // to be modified only in onError, before upstreamIsComplete
   private[this] var errorThrown: Throwable = null
   // to be modified only in onError / onComplete
@@ -421,7 +421,7 @@ final class BackPressuredBufferedObserver[-T] private (underlying: Observer[T], 
         // Race-condition check, but if upstreamIsComplete=true is visible, then the queue should be fully published
         // because there's a clear happens-before relationship between queue.offer() and upstreamIsComplete=true
         // NOTE: errors have priority, so in case of an error seen, then the loop is stopped
-        if (!hasError && queue.nonEmpty) {
+        if (!hasError && !queue.isEmpty) {
           fastLoop(processed) // re-run loop
         }
         else {
