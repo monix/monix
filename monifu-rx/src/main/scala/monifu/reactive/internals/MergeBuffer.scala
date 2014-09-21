@@ -16,6 +16,7 @@
  
 package monifu.reactive.internals
 
+import monifu.concurrent.Scheduler
 import monifu.concurrent.atomic.Atomic
 import monifu.concurrent.locks.SpinLock
 import monifu.reactive.Ack.{Cancel, Continue}
@@ -30,7 +31,7 @@ import scala.util.control.NonFatal
 
 private[monifu] final class BoundedMergeBuffer[U]
   (downstream: Observer[U], mergeBatchSize: Int, bufferPolicy: BufferPolicy)
-      (implicit ec: ExecutionContext) extends Observer[U] { self =>
+      (implicit s: Scheduler) extends Observer[U] { self =>
 
   private[this] val lock = SpinLock()
   private[this] val buffer = BufferedObserver(downstream, bufferPolicy)

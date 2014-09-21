@@ -17,14 +17,14 @@
 package monifu.concurrent
 
 import org.scalatest.FunSuite
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{Promise, Await, Future}
 import concurrent.duration._
 import java.util.concurrent.TimeoutException
 import monifu.concurrent.extensions._
-import monifu.concurrent.Scheduler.Implicits.global
+import monifu.concurrent.Implicits.globalScheduler
 
 
-class FutureUtilsTest extends FunSuite {
+class ExtensionsTest extends FunSuite {
   test("delayedResult") {
     val startedAt = System.nanoTime()
     val f = Future.delayedResult(100.millis)("TICK")
@@ -65,5 +65,14 @@ class FutureUtilsTest extends FunSuite {
 
     val duration = (System.nanoTime() - start).nanos
     assert(duration >= 400.millis, s"$duration >= 400 millis")
+  }
+
+  test("execute(callback) should work") {
+    val p = Promise[Unit]()
+    globalScheduler.executeNow {
+      p.success(())
+    }
+
+    assert(Await.result(p.future, 5.seconds) === ())
   }
 }

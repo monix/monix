@@ -21,7 +21,7 @@ import monifu.concurrent.atomic.Atomic
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.BufferPolicy.Unbounded
 import org.scalatest.FunSpec
-import scala.concurrent.ExecutionContext.Implicits.global
+import monifu.concurrent.Implicits.globalScheduler
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 import scala.util.Random
@@ -167,10 +167,10 @@ class MergeTest extends FunSpec {
     it("should not have concurrency problems, test 1") {
       for (_ <- 0 until 10) {
         val f = Observable.from(0 until 1000)
-          .observeOn(global)
+          .asyncBoundary()
           .take(100)
-          .observeOn(global)
-          .mergeMap(x => Observable.range(x, x + 100).observeOn(global).take(10).mergeMap(x => Observable.unit(x).observeOn(global)))
+          .asyncBoundary()
+          .mergeMap(x => Observable.range(x, x + 100).asyncBoundary().take(10).mergeMap(x => Observable.unit(x).asyncBoundary()))
           .foldLeft(Seq.empty[Int])(_ :+ _)
           .asFuture
 
@@ -183,10 +183,10 @@ class MergeTest extends FunSpec {
     it("should not have concurrency problems, test 2") {
       for (_ <- 0 until 10) {
         val f = Observable.from(0 until 1000)
-          .observeOn(global)
+          .asyncBoundary()
           .take(100)
-          .observeOn(global)
-          .mergeMap(x => Observable.range(x, x + 100).observeOn(global).take(10).mergeMap(x => Observable.unit(x).observeOn(global)))
+          .asyncBoundary()
+          .mergeMap(x => Observable.range(x, x + 100).asyncBoundary().take(10).mergeMap(x => Observable.unit(x).asyncBoundary()))
           .take(100 * 9)
           .foldLeft(Seq.empty[Int])(_ :+ _)
           .asFuture

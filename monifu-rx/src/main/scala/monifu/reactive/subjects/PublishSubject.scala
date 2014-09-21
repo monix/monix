@@ -16,12 +16,12 @@
  
 package monifu.reactive.subjects
 
+import monifu.concurrent.Scheduler
 import monifu.concurrent.locks.SpinLock
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.internals.{FutureAckExtensions, PromiseCounter}
 import monifu.reactive.{Ack, Observer, Subject}
-
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 
 
 /**
@@ -36,9 +36,7 @@ import scala.concurrent.{ExecutionContext, Future}
  *
  * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/S.PublishSubject.e.png" />
  */
-final class PublishSubject[T] private (ec: ExecutionContext) extends Subject[T,T] {
-  implicit val context = ec
-  
+final class PublishSubject[T] private (implicit s: Scheduler) extends Subject[T,T] {
   private[this] val lock = SpinLock()
   private[this] var isCompleted = false
   private[this] var errorThrown: Throwable = null
@@ -129,6 +127,6 @@ final class PublishSubject[T] private (ec: ExecutionContext) extends Subject[T,T
 }
 
 object PublishSubject {
-  def apply[T]()(implicit ec: ExecutionContext): PublishSubject[T] =
-    new PublishSubject[T](ec)
+  def apply[T]()(implicit s: Scheduler): PublishSubject[T] =
+    new PublishSubject[T]()
 }

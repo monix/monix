@@ -18,8 +18,7 @@ package monifu.reactive
 
 import monifu.concurrent.extensions._
 import org.scalatest.FunSpec
-import scala.concurrent.ExecutionContext.Implicits.global
-import monifu.concurrent.Implicits.scheduler
+import monifu.concurrent.Implicits.globalScheduler
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 import scala.util.Random
@@ -29,9 +28,9 @@ class ConcurrencyTest extends FunSpec {
   describe("Observable.take") {
     it("should work asynchronously") {
       val obs = Observable.range(0, 10000)
-        .subscribeOn(global)
-        .observeOn(global).take(9000)
-        .observeOn(global)
+        .subscribeOn(globalScheduler)
+        .asyncBoundary().take(9000)
+        .asyncBoundary()
         .foldLeft(Seq.empty[Int])(_ :+ _)
 
       val r = Await.result(obs.asFuture, 20.seconds)
@@ -40,7 +39,7 @@ class ConcurrencyTest extends FunSpec {
 
     it("should work with an asynchronous operator") {
       val obs = Observable.range(0, 10000)
-        .observeOn(global)
+        .asyncBoundary()
         .take(9000)
         .flatMap(x => Observable.range(x, x + 100).take(5))
         .foldLeft(0)(_+_)
@@ -53,9 +52,9 @@ class ConcurrencyTest extends FunSpec {
   describe("Observable.takeWhile") {
     it("should work asynchronously") {
       val obs = Observable.range(0, 10000)
-        .subscribeOn(global)
-        .observeOn(global).takeWhile(_ < 9000)
-        .observeOn(global)
+        .subscribeOn(globalScheduler)
+        .asyncBoundary().takeWhile(_ < 9000)
+        .asyncBoundary()
         .foldLeft(Seq.empty[Int])(_ :+ _)
 
       val r = Await.result(obs.asFuture, 10.seconds)
@@ -64,7 +63,7 @@ class ConcurrencyTest extends FunSpec {
 
     it("should work with an asynchronous operator") {
       val obs = Observable.range(0, 10000)
-        .observeOn(global)
+        .asyncBoundary()
         .takeWhile(_ < 9000)
         .flatMap(x => Observable.range(x, x + 100).takeWhile(_ < x + 5))
         .foldLeft(0)(_+_)
@@ -77,9 +76,9 @@ class ConcurrencyTest extends FunSpec {
   describe("Observable.drop") {
     it("should work asynchronously") {
       val obs = Observable.range(10000, 0, -1)
-        .subscribeOn(global)
-        .observeOn(global).drop(9900)
-        .observeOn(global)
+        .subscribeOn(globalScheduler)
+        .asyncBoundary().drop(9900)
+        .asyncBoundary()
         .foldLeft(Seq.empty[Int])(_ :+ _)
 
       val r = Await.result(obs.asFuture, 10.seconds)
@@ -88,7 +87,7 @@ class ConcurrencyTest extends FunSpec {
 
     it("should work with an asynchronous operator") {
       val obs = Observable.from(10000.until(0, -1))
-        .observeOn(global)
+        .asyncBoundary()
         .drop(9900)
         .flatMap(x => Observable.range(x, x + 100).drop(90))
         .foldLeft(0)(_+_)
@@ -101,9 +100,9 @@ class ConcurrencyTest extends FunSpec {
   describe("Observable.dropWhile") {
     it("should work asynchronously") {
       val obs = Observable.range(10000, 0, -1)
-        .subscribeOn(global)
-        .observeOn(global).dropWhile(_ > 100)
-        .observeOn(global)
+        .subscribeOn(globalScheduler)
+        .asyncBoundary().dropWhile(_ > 100)
+        .asyncBoundary()
         .foldLeft(Seq.empty[Int])(_ :+ _)
 
       val r = Await.result(obs.asFuture, 10.seconds)
@@ -112,7 +111,7 @@ class ConcurrencyTest extends FunSpec {
 
     it("should work with an asynchronous operator") {
       val obs = Observable.from(10000.until(0, -1))
-        .observeOn(global)
+        .asyncBoundary()
         .dropWhile(_ > 100)
         .flatMap(x => Observable.range(x, x + 100).dropWhile(_ < x + 90))
         .foldLeft(0)(_+_)
@@ -124,7 +123,7 @@ class ConcurrencyTest extends FunSpec {
 
   describe("Observable.interval") {
     it("should not have concurrency problems") {
-      val f = Observable.interval(1.millisecond).observeOn(global)
+      val f = Observable.interval(1.millisecond).asyncBoundary()
         .take(100)
         .foldLeft(Seq.empty[Long])(_:+_)
         .asFuture
@@ -136,7 +135,7 @@ class ConcurrencyTest extends FunSpec {
 
   describe("Observable.fromIterable") {
     it("should not have concurrency problems") {
-      val f = Observable.from(1 until 1000).observeOn(global)
+      val f = Observable.from(1 until 1000).asyncBoundary()
         .map(_.toLong)
         .take(100)
         .foldLeft(Seq.empty[Long])(_:+_)
@@ -149,7 +148,7 @@ class ConcurrencyTest extends FunSpec {
 
   describe("Observable.takeRight") {
     it("should not have concurrency problems") {
-      val f = Observable.range(0, 10000).observeOn(global).takeRight(100)
+      val f = Observable.range(0, 10000).asyncBoundary().takeRight(100)
         .foldLeft(Seq.empty[Int])(_ :+ _).asFuture
 
       val r = Await.result(f, 20.seconds)
@@ -159,7 +158,9 @@ class ConcurrencyTest extends FunSpec {
 
   describe("Observable.flatScan") {
     it("should not have concurrency problems") {
-      def sumUp(x: Long, y: Int) = Future.delayedResult(Random.nextInt(3).millisecond)(x + y)
+      def sumUp(x: Long, y: Int) =
+        Future.delayedResult(Random.nextInt(3).millisecond)(x + y)
+
       val obs = Observable.range(0, 1000).flatScan(0L)(sumUp)
         .foldLeft(Seq.empty[Long])(_ :+ _)
 

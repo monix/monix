@@ -16,11 +16,11 @@
  
 package monifu.reactive
 
+import monifu.concurrent.Scheduler
 import monifu.reactive.Ack.{Cancel, Continue}
-
-import scala.concurrent.{ExecutionContext, Promise, Future}
-import scala.util.{Try, Failure}
+import scala.concurrent.{Future, Promise}
 import scala.util.control.NonFatal
+import scala.util.{Failure, Try}
 
 package object internals {
   /**
@@ -30,13 +30,13 @@ package object internals {
     /**
      * On Continue, triggers the execution of the given callback.
      */
-    def onContinue(cb: => Unit)(implicit ec: ExecutionContext): Unit =
+    def onContinue(cb: => Unit)(implicit s: Scheduler): Unit =
       source match {
         case sync if sync.isCompleted =>
           if (sync == Continue || (sync != Cancel && sync.value.get == Continue.IsSuccess))
             try cb catch {
               case NonFatal(ex) =>
-                ec.reportFailure(ex)
+                s.reportFailure(ex)
             }
         case async =>
           async.onSuccess {
@@ -44,7 +44,8 @@ package object internals {
           }
       }
 
-    def onContinueComplete[T](observer: Observer[T], ex: Throwable = null)(implicit ec: ExecutionContext): Unit =
+    def onContinueComplete[T](observer: Observer[T], ex: Throwable = null)
+        (implicit s: Scheduler): Unit =
       source match {
         case sync if sync.isCompleted =>
           if (sync == Continue || ((sync != Cancel) && sync.value.get == Continue.IsSuccess)) {
@@ -59,7 +60,7 @@ package object internals {
             }
             catch {
               case NonFatal(err) =>
-                if (streamError) observer.onError(ex) else ec.reportFailure(err)
+                if (streamError) observer.onError(ex) else s.reportFailure(err)
             }
           }
         case async =>
@@ -76,7 +77,7 @@ package object internals {
               }
               catch {
                 case NonFatal(err) =>
-                  if (streamError) observer.onError(ex) else ec.reportFailure(err)
+                  if (streamError) observer.onError(ex) else s.reportFailure(err)
               }
           }
       }
@@ -84,7 +85,7 @@ package object internals {
     /**
      * On Cancel, triggers Continue on the given Promise.
      */
-    def onCancelContinue(p: Promise[Ack])(implicit ec: ExecutionContext): Future[Ack] = {
+    def onCancelContinue(p: Promise[Ack])(implicit s: Scheduler): Future[Ack] = {
       source match {
         case Continue => // do nothing
         case Cancel => p.success(Continue)
@@ -102,7 +103,7 @@ package object internals {
             case Failure(ex) => p.failure(ex)
             case other =>
               // branch not necessary, but Scala's compiler emits warnings if missing
-              ec.reportFailure(new MatchError(other.toString))
+              s.reportFailure(new MatchError(other.toString))
           }
       }
       source
@@ -111,7 +112,7 @@ package object internals {
     /**
      * On Cancel, try to trigger Cancel on the given Promise.
      */
-    def ifCancelTryCanceling(p: Promise[Ack])(implicit ec: ExecutionContext): Future[Ack] = {
+    def ifCancelTryCanceling(p: Promise[Ack])(implicit s: Scheduler): Future[Ack] = {
       source match {
         case Continue => // do nothing
         case Cancel => p.trySuccess(Cancel)
@@ -123,7 +124,7 @@ package object internals {
             case Failure(ex) => p.tryFailure(ex)
             case other =>
               // branch not necessary, but Scala's compiler emits warnings if missing
-              ec.reportFailure(new MatchError(other.toString))
+              s.reportFailure(new MatchError(other.toString))
           }
 
         case async =>
@@ -133,7 +134,7 @@ package object internals {
             case Failure(ex) => p.tryFailure(ex)
             case other =>
               // branch not necessary, but Scala's compiler emits warnings if missing
-              ec.reportFailure(new MatchError(other.toString))
+              s.reportFailure(new MatchError(other.toString))
           }
       }
       source
@@ -142,7 +143,7 @@ package object internals {
     /**
      * On Cancel, try to trigger Cancel on the given Promise.
      */
-    def ifCanceledDoCancel(p: Promise[Ack])(implicit ec: ExecutionContext): Future[Ack] = {
+    def ifCanceledDoCancel(p: Promise[Ack])(implicit s: Scheduler): Future[Ack] = {
       source match {
         case Continue => // do nothing
         case Cancel => p.success(Cancel)
@@ -154,7 +155,7 @@ package object internals {
             case Failure(ex) => p.failure(ex)
             case other =>
               // branch not necessary, but Scala's compiler emits warnings if missing
-              ec.reportFailure(new MatchError(other.toString))
+              s.reportFailure(new MatchError(other.toString))
           }
 
         case async =>
@@ -164,7 +165,7 @@ package object internals {
             case Failure(ex) => p.failure(ex)
             case other =>
               // branch not necessary, but Scala's compiler emits warnings if missing
-              ec.reportFailure(new MatchError(other.toString))
+              s.reportFailure(new MatchError(other.toString))
           }
       }
       source
@@ -174,12 +175,12 @@ package object internals {
      * Unsafe version of `onComplete` that triggers execution synchronously
      * in case the source is already completed.
      */
-    def onCompleteNow(f: Try[Ack] => Unit)(implicit ec: ExecutionContext): Future[Ack] =
+    def onCompleteNow(f: Try[Ack] => Unit)(implicit s: Scheduler): Future[Ack] =
       source match {
         case sync if sync.isCompleted =>
           try f(sync.value.get) catch {
             case NonFatal(ex) =>
-              ec.reportFailure(ex)
+              s.reportFailure(ex)
           }
           source
         case async =>
@@ -191,21 +192,21 @@ package object internals {
      * Triggers execution of the given callback, once the source terminates either
      * with a `Cancel` or with a failure.
      */
-    def onCancel(cb: => Unit)(implicit ec: ExecutionContext): Future[Ack] =
+    def onCancel(cb: => Unit)(implicit s: Scheduler): Future[Ack] =
       source match {
         case Continue => source
         case Cancel =>
-          try cb catch { case NonFatal(ex) => ec.reportFailure(ex) }
+          try cb catch { case NonFatal(ex) => s.reportFailure(ex) }
           source
         case sync if sync.isCompleted =>
           sync.value.get match {
             case Continue.IsSuccess => source
             case Cancel.IsSuccess | Failure(_) =>
-              try cb catch { case NonFatal(ex) => ec.reportFailure(ex) }
+              try cb catch { case NonFatal(ex) => s.reportFailure(ex) }
               source
             case other =>
               // branch not necessary, but Scala's compiler emits warnings if missing
-              ec.reportFailure(new MatchError(other.toString))
+              s.reportFailure(new MatchError(other.toString))
               source
           }
         case async =>

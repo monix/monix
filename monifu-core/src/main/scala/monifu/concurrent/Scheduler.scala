@@ -27,13 +27,16 @@ import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.concurrent.forkjoin.ForkJoinPool
+import UncaughtExceptionReporter.LogExceptionsToStandardErr
 
 /**
  * A Scheduler is an `scala.concurrent.ExecutionContext` that additionally can schedule
  * the execution of units of work to run with a delay or periodically.
  */
-@implicitNotFound("Cannot find an implicit Scheduler, either import monifu.concurrent.Scheduler.Implicits.global or use a custom one")
-trait Scheduler extends ExecutionContext {
+@implicitNotFound(
+  "Cannot find an implicit Scheduler, either " +
+  "import monifu.concurrent.Implicits.globalScheduler or use a custom one")
+trait Scheduler extends ExecutionContext with UncaughtExceptionReporter {
   /**
    * Schedules the given `action` for immediate execution.
    *
@@ -154,57 +157,16 @@ trait Scheduler extends ExecutionContext {
 
 object Scheduler {
   /**
-   * Declares easy to use implicit [[Scheduler]] instances.
+   * [[Scheduler]] builder.
    *
-   * Example:
-   * {{{
-   *   import monifu.concurrent.Scheduler.Implicits.global
-   * }}}
+   * @param executor is the `ScheduledExecutorService` that handles the scheduling
+   *                 of tasks into the future.
+   *
+   * @param ec is the execution context in which all tasks will run.
+   * @param r is the [[UncaughtExceptionReporter]] that logs uncaught exceptions.
    */
-  object Implicits {
-    /**
-     * A global [[Scheduler]] instance, provided for convenience, piggy-backing
-     * on top of Scala's own `concurrent.ExecutionContext.global`, which is a
-     * `ForkJoinPool`.
-     *
-     * It can be tuned by setting the following JVM system properties:
-     *
-     * - "scala.concurrent.context.minThreads" an integer specifying the minimum
-     *   number of active threads in the pool
-     *
-     * - "scala.concurrent.context.maxThreads" an integer specifying the maximum
-     *   number of active threads in the pool
-     *
-     * - "scala.concurrent.context.numThreads" can be either an integer,
-     *   specifying the parallelism directly or a string with the format "xNUM"
-     *   (e.g. "x1.5") specifying the multiplication factor of the number of
-     *   available processors (taken with `Runtime.availableProcessors`)
-     *
-     * The formula for calculating the parallelism in our pool is
-     * `min(maxThreads, max(minThreads, numThreads))`.
-     *
-     * To set a system property from the command line, a JVM parameter must be
-     * given to the `java` command as `-Dname=value`. So as an example, to customize
-     * this global scheduler, we could start our process like this:
-     *
-     * <pre>
-     *   java -Dscala.concurrent.context.minThreads=2 \
-     *        -Dscala.concurrent.context.maxThreads=30 \
-     *        -Dscala.concurrent.context.numThreads=x1.5 \
-     *        ...
-     * </pre>
-     *
-     * As a note, this being backed by Scala's own global execution context,
-     * it is cooperating with Scala's BlockContext, so when operations marked
-     * with `scala.concurrent.blocking` are encountered, the thread-pool may
-     * decide to add extra threads in the pool. However this is not a thread-pool
-     * that is optimal for doing blocking operations, so for example if you want
-     * to do a lot of blocking I/O, then use a Scheduler backed by a
-     * thread-pool that is more optimal for blocking. See for example
-     * [[Scheduler.io]].
-     */
-    implicit lazy val global: Scheduler =
-      AsyncScheduler(defaultScheduledExecutor, ExecutionContext.Implicits.global)
+  def apply(executor: ScheduledExecutorService, ec: ExecutionContext, r: UncaughtExceptionReporter): Scheduler = {
+    AsyncScheduler(executor, ec, r)
   }
 
   /**
@@ -212,10 +174,22 @@ object Scheduler {
    *
    * @param executor is the `ScheduledExecutorService` that handles the scheduling
    *                 of tasks into the future.
+   *
    * @param ec is the execution context in which all tasks will run.
    */
-  def apply(executor: ScheduledExecutorService, ec: ExecutionContext): Scheduler =
-    AsyncScheduler(executor, ec)
+  def apply(executor: ScheduledExecutorService, ec: ExecutionContext): Scheduler = {
+    AsyncScheduler(executor, ec, UncaughtExceptionReporter(ec.reportFailure))
+  }
+
+  /**
+   * [[Scheduler]] builder - uses Monifu's default `ScheduledExecutorService` for
+   * handling the scheduling of tasks.
+   *
+   * @param ec is the execution context in which all tasks will run.
+   * @param r is the [[UncaughtExceptionReporter]] that logs uncaught exceptions.
+   */
+  def apply(ec: ExecutionContext, r: UncaughtExceptionReporter): Scheduler =
+    AsyncScheduler(defaultScheduledExecutor, ec, r)
 
   /**
    * [[Scheduler]] builder - uses Monifu's default `ScheduledExecutorService` for
@@ -224,7 +198,11 @@ object Scheduler {
    * @param ec is the execution context in which all tasks will run.
    */
   def apply(ec: ExecutionContext): Scheduler =
-    AsyncScheduler(defaultScheduledExecutor, ec)
+    AsyncScheduler(
+      defaultScheduledExecutor, ec,
+      UncaughtExceptionReporter(ec.reportFailure)
+    )
+
 
   /**
    * Creates a [[Scheduler]] meant for computational heavy tasks.
@@ -237,12 +215,12 @@ object Scheduler {
    * - cooperates with Scala's `BlockContext`
    *
    * @param parallelism is the number of threads that can run in parallel
-   * @param reporter the callback that is supposed to log uncaught exceptions
+   * @param r is the [[UncaughtExceptionReporter]] that logs uncaught exceptions.
    */
-  def computation(parallelism: Int, reporter: Throwable => Unit = defaultReporter): Scheduler = {
+  def computation(parallelism: Int, r: UncaughtExceptionReporter = LogExceptionsToStandardErr): Scheduler = {
     val exceptionHandler = new UncaughtExceptionHandler {
       def uncaughtException(t: Thread, e: Throwable) =
-        reporter(e)
+        r.reportFailure(e)
     }
 
     val pool = new scala.concurrent.forkjoin.ForkJoinPool(
@@ -252,8 +230,8 @@ object Scheduler {
       true // asyncMode
     )
 
-    val context = ExecutionContext.fromExecutor(pool, reporter)
-    AsyncScheduler(defaultScheduledExecutor, context)
+    val context = ExecutionContext.fromExecutor(pool, r.reportFailure)
+    AsyncScheduler(defaultScheduledExecutor, context, r)
   }
 
   /**
@@ -266,23 +244,31 @@ object Scheduler {
    * - uses Monifu's default `ScheduledExecutorService` instance for scheduling
    * - doesn't cooperate with Scala's `BlockContext` only because it is unbounded
    *
-   * @param name the created threads name prefix, for easy identification
+   * @param name the created threads name prefix, for easy identification.
+   *
    * @param daemonic specifies whether the created threads should be daemonic
-   *                 (non-daemonic threads are blocking the JVM process on exit)
+   *                 (non-daemonic threads are blocking the JVM process on exit).
+   *
+   * @param r is the [[UncaughtExceptionReporter]] that logs uncaught exceptions.
    */
-  def io(name: String = "monifu-io", daemonic: Boolean = true): Scheduler = {
-    val context = ExecutionContext.fromExecutor(
-      Executors.newCachedThreadPool(new ThreadFactory {
-        private[this] val counter = Atomic(0L)
-        def newThread(r: Runnable): Thread = {
-          val th = new Thread(r)
-          th.setDaemon(daemonic)
-          th.setName(name + "-" + counter.getAndIncrement().toString)
-          th
-        }
-      }))
+  def io(name: String = "monifu-io", daemonic: Boolean = true,
+      r: UncaughtExceptionReporter = LogExceptionsToStandardErr): Scheduler = {
+    val threadFactory = new ThreadFactory {
+      private[this] val counter = Atomic(0L)
+      def newThread(r: Runnable): Thread = {
+        val th = new Thread(r)
+        th.setDaemon(daemonic)
+        th.setName(name + "-" + counter.getAndIncrement().toString)
+        th
+      }
+    }
 
-    AsyncScheduler(defaultScheduledExecutor, context)
+    val context = ExecutionContext.fromExecutor(
+      Executors.newCachedThreadPool(threadFactory),
+      r.reportFailure
+    )
+
+    AsyncScheduler(defaultScheduledExecutor, context, r)
   }
 
   /**
@@ -296,11 +282,14 @@ object Scheduler {
    *   block on the result of other tasks scheduled to run on this same thread
    *
    * @param name is the name of the created thread, for easy identification
-   * @param reporter is the callback that logs uncaught exceptions
+   *
    * @param daemonic specifies whether the created thread should be daemonic
    *                 (non-daemonic threads are blocking the JVM process on exit)
+   *
+   * @param r is the [[UncaughtExceptionReporter]] that logs uncaught exceptions.
    */
-  def singleThread(name: String, reporter: Throwable => Unit = Scheduler.defaultReporter, daemonic: Boolean = true): Scheduler = {
+  def singleThread(name: String, daemonic: Boolean = true,
+      r: UncaughtExceptionReporter = LogExceptionsToStandardErr): Scheduler = {
     val executor = 
       Executors.newSingleThreadScheduledExecutor(new ThreadFactory {
         def newThread(r: Runnable) = {
@@ -312,11 +301,11 @@ object Scheduler {
       })
     
     val context = new ExecutionContext {
-      def reportFailure(t: Throwable) = reporter(t)
+      def reportFailure(t: Throwable) = r.reportFailure(t)
       def execute(runnable: Runnable) = executor.execute(runnable)
     }
     
-    AsyncScheduler(executor, context)
+    AsyncScheduler(executor, context, r)
   }
 
   /**
@@ -331,9 +320,5 @@ object Scheduler {
         th
       }
     })
-
-  def defaultReporter(ex: Throwable): Unit = {
-    ExecutionContext.defaultReporter(ex)
-  }
 }
 

@@ -16,20 +16,19 @@
  
 package monifu.reactive.channels
 
+import monifu.concurrent.Scheduler
 import monifu.concurrent.locks.SpinLock
 import monifu.reactive.BufferPolicy.Unbounded
 import monifu.reactive.observers.BufferedObserver
 import monifu.reactive.subjects.BehaviorSubject
 import monifu.reactive.{BufferPolicy, Channel, Observable, Observer}
 
-import scala.concurrent.ExecutionContext
-
 /**
  * A `BehaviorChannel` is a [[Channel]] that uses an underlying
  * [[monifu.reactive.subjects.BehaviorSubject BehaviorSubject]].
  */
 final class BehaviorChannel[T] private (initialValue: T, policy: BufferPolicy)
-    (implicit val context: ExecutionContext)
+    (implicit val scheduler: Scheduler)
   extends Channel[T] with Observable[T] {
 
   private[this] val lock = SpinLock()
@@ -78,7 +77,6 @@ final class BehaviorChannel[T] private (initialValue: T, policy: BufferPolicy)
 }
 
 object BehaviorChannel {
-  def apply[T](initial: T, bufferPolicy: BufferPolicy = Unbounded)
-      (implicit ec: ExecutionContext): BehaviorChannel[T] =
+  def apply[T](initial: T, bufferPolicy: BufferPolicy = Unbounded)(implicit s: Scheduler): BehaviorChannel[T] =
     new BehaviorChannel[T](initial, bufferPolicy)
 }

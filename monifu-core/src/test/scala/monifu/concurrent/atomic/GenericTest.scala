@@ -20,7 +20,7 @@ import org.scalatest.FunSpec
 import scala.concurrent.{TimeoutException, Await, Future}
 import java.util.concurrent.{TimeUnit, CountDownLatch}
 import concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global
+import monifu.concurrent.Implicits.globalScheduler
 
 
 abstract class GenericTest[T, R <: Atomic[T] with BlockableAtomic[T]]

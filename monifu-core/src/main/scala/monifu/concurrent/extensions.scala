@@ -16,9 +16,10 @@
  
 package monifu.concurrent
 
+import language.experimental.macros
+import scala.reflect.macros.Context
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
-import scala.language.experimental.macros
 import scala.util.Try
 
 
@@ -71,5 +72,53 @@ object extensions {
      */
     def delayedResult[T](delay: FiniteDuration)(result: => T)(implicit s: Scheduler): Future[T] =
       FutureUtils.delayedResult(delay)(result)
+  }
+
+  /**
+   * Extension methods for `ExecutionContext`.
+   */
+  implicit class ExecutionContextExtensions(val ec: ExecutionContext) extends AnyVal {
+    /**
+     * Executes the given callback in our execution context, provided for
+     * syntactic sugar purposes.
+     *
+     * This is a macro that converts a call like this:
+     *
+     * {{{
+     *   ec.execute {
+     *     println("hello world")
+     *   }
+     * }}}
+     *
+     * Into a call like this:
+     *
+     * {{{
+     *   ec.execute(new Runnable {
+     *     def run() = {
+     *       println("hello world")
+     *     }
+     *   })
+     * }}}
+     *
+     * @param callback the callback to execute in our execution context.
+     */
+    def executeNow[T](callback: => T): Unit =
+      macro ExecutionContextExtensions.executeMacro[T]
+  }
+
+  object ExecutionContextExtensions {
+    type Ctx = Context { type PrefixType = ExecutionContextExtensions }
+
+    /**
+     * Implementation for [[ExecutionContextExtensions.executeNow]].
+     */
+    def executeMacro[T : c.WeakTypeTag](c: Ctx)(callback: c.Expr[T]): c.Expr[Unit] = {
+      import c.universe._
+      reify {
+        c.prefix.splice.ec.execute(new Runnable {
+          def run() = { callback.splice }
+        })
+      }
+    }
   }
 }

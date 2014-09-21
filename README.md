@@ -9,7 +9,7 @@ Extensions to Scala's standard library for multi-threading primitives and functi
 [Reactive Extensions](https://github.com/monifu/monifu/wiki/Reactive-Extensions-(Rx))
 
 ```scala
-import monifu.concurrent.Scheduler.Implicits.global
+import monifu.concurrent.Implicits.globalScheduler
 import play.api.libs.ws._
 import monifu.reactive._
 

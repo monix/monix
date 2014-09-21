@@ -19,7 +19,8 @@ package monifu.reactive
 import monifu.concurrent.atomic.{Atomic, AtomicBoolean, AtomicInt}
 import monifu.concurrent.cancelables.{SingleAssignmentCancelable, BooleanCancelable, RefCountCancelable}
 import monifu.concurrent.locks.SpinLock
-import monifu.concurrent.{Cancelable, Scheduler}
+import monifu.concurrent.{UncaughtExceptionReporter, Cancelable, Scheduler}
+import monifu.concurrent.extensions._
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.BufferPolicy.{BackPressured, OverflowTriggering, Unbounded}
 import monifu.reactive.Notification.{OnComplete, OnError, OnNext}
@@ -32,7 +33,7 @@ import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration.{Duration, FiniteDuration}
-import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.concurrent.{Future, Promise}
 import scala.language.implicitConversions
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
@@ -54,21 +55,47 @@ trait Observable[+T] { self =>
   protected def subscribeFn(observer: Observer[T]): Unit
 
   /**
-   * Implicit execution context required for asynchronous boundaries.
-   */
-  implicit def context: ExecutionContext
-
-  /**
    * Creates the subscription and that starts the stream.
    *
    * @param observer is an [[monifu.reactive.Observer Observer]] on which `onNext`, `onComplete` and `onError`
    *                 happens, according to the Monifu Rx contract.
    */
-  def subscribe(observer: Observer[T]): Cancelable = {
+  def subscribe(observer: Observer[T])(implicit s: Scheduler): Cancelable = {
     val isRunning = Atomic(true)
     takeWhile(isRunning).unsafeSubscribe(SafeObserver[T](observer))
     Cancelable { isRunning := false }
   }
+
+  /**
+   * Creates the subscription and starts the stream.
+   */
+  def subscribe(nextFn: T => Future[Ack], errorFn: Throwable => Unit, completedFn: () => Unit)
+      (implicit s: Scheduler): Cancelable = {
+
+    subscribe(new Observer[T] {
+      def onNext(elem: T) = nextFn(elem)
+      def onComplete() = completedFn()
+      def onError(ex: Throwable) = errorFn(ex)
+    })
+  }
+
+  /**
+   * Creates the subscription and starts the stream.
+   */
+  def subscribe(nextFn: T => Future[Ack], errorFn: Throwable => Unit)(implicit s: Scheduler): Cancelable =
+    subscribe(nextFn, errorFn, () => Cancel)
+
+  /**
+   * Creates the subscription and starts the stream.
+   */
+  def subscribe()(implicit s: Scheduler): Cancelable =
+    subscribe(elem => Continue)
+
+  /**
+   * Creates the subscription and starts the stream.
+   */
+  def subscribe(nextFn: T => Future[Ack])(implicit s: Scheduler): Cancelable =
+    subscribe(nextFn, error => s.reportFailure(error), () => Cancel)
 
   /**
    * Creates the subscription that eventually starts the stream.
@@ -87,40 +114,12 @@ trait Observable[+T] { self =>
   }
 
   /**
-   * Creates the subscription and starts the stream.
-   */
-  def subscribe(nextFn: T => Future[Ack], errorFn: Throwable => Unit, completedFn: () => Unit): Cancelable =
-    subscribe(new Observer[T] {
-      def onNext(elem: T) = nextFn(elem)
-      def onComplete() = completedFn()
-      def onError(ex: Throwable) = errorFn(ex)
-    })
-
-  /**
-   * Creates the subscription and starts the stream.
-   */
-  def subscribe(nextFn: T => Future[Ack], errorFn: Throwable => Unit): Cancelable =
-    subscribe(nextFn, errorFn, () => Cancel)
-
-  /**
-   * Creates the subscription and starts the stream.
-   */
-  def subscribe(): Cancelable =
-    subscribe(elem => Continue)
-
-  /**
-   * Creates the subscription and starts the stream.
-   */
-  def subscribe(nextFn: T => Future[Ack]): Cancelable =
-    subscribe(nextFn, error => { context.reportFailure(error); Cancel }, () => Cancel)
-
-  /**
    * Wraps this Observable into a `org.reactivestreams.Publisher`.
    */
-  def publisher[U >: T]: Publisher[U] =
+  def publisher[U >: T](implicit s: Scheduler): Publisher[U] =
     new Publisher[U] {
-      def subscribe(s: Subscriber[_ >: U]): Unit = {
-        subscribeFn(SafeObserver(Observer.from(s)))
+      def subscribe(subscriber: Subscriber[_ >: U]): Unit = {
+        subscribeFn(SafeObserver(Observer.from(subscriber)))
       }
     }
 
@@ -202,7 +201,7 @@ trait Observable[+T] { self =>
    *         item emitted by the source Observable and concatenating the results of the Observables
    *         obtained from this transformation.
    */
-  def flatMap[U](f: T => Observable[U]): Observable[U] =
+  def flatMap[U](f: T => Observable[U])(implicit s: Scheduler): Observable[U] =
     map(f).flatten
 
   /**
@@ -215,7 +214,7 @@ trait Observable[+T] { self =>
    *         item emitted by the source Observable and concatenating the results of the Observables
    *         obtained from this transformation.
    */
-  def concatMap[U](f: T => Observable[U]): Observable[U] =
+  def concatMap[U](f: T => Observable[U])(implicit s: Scheduler): Observable[U] =
     map(f).concat
 
   /**
@@ -228,7 +227,7 @@ trait Observable[+T] { self =>
    *         item emitted by the source Observable and merging the results of the Observables
    *         obtained from this transformation.
    */
-  def mergeMap[U](f: T => Observable[U]): Observable[U] =
+  def mergeMap[U](f: T => Observable[U])(implicit s: Scheduler): Observable[U] =
     map(f).merge()
 
   /**
@@ -244,7 +243,7 @@ trait Observable[+T] { self =>
    * @return an Observable that emits items that are the result of flattening the items emitted
    *         by the Observables emitted by `this`
    */
-  def flatten[U](implicit ev: T <:< Observable[U]): Observable[U] = concat
+  def flatten[U](implicit ev: T <:< Observable[U], s: Scheduler): Observable[U] = concat
 
   /**
    * Concatenates the sequence of Observables emitted by the source into one Observable, without any
@@ -262,7 +261,7 @@ trait Observable[+T] { self =>
    * @return an Observable that emits items that are the result of flattening the items emitted
    *         by the Observables emitted by `this`
    */
-  def concat[U](implicit ev: T <:< Observable[U]): Observable[U] =
+  def concat[U](implicit ev: T <:< Observable[U], s: Scheduler): Observable[U] =
     Observable.create { observerU =>
       unsafeSubscribe(new Observer[T] {
         private[this] val refCount = RefCountCancelable(observerU.onComplete())
@@ -330,7 +329,8 @@ trait Observable[+T] { self =>
    * @return an Observable that emits items that are the result of flattening the items emitted
    *         by the Observables emitted by `this`
    */
-  def merge[U](bufferPolicy: BufferPolicy = defaultPolicy, batchSize: Int = 0)(implicit ev: T <:< Observable[U]): Observable[U] =
+  def merge[U](bufferPolicy: BufferPolicy = defaultPolicy, batchSize: Int = 0)
+      (implicit ev: T <:< Observable[U], s: Scheduler): Observable[U] =
     Observable.create { observerB =>
 
       // if the parallelism is unbounded and the buffer policy allows for a
@@ -366,7 +366,7 @@ trait Observable[+T] { self =>
    * Given the source observable and another `Observable`, emits all of the items
    * from the first of these Observables to emit an item and cancel the other.
    */
-  def ambWith[U >: T](other: Observable[U]): Observable[U] = {
+  def ambWith[U >: T](other: Observable[U])(implicit s: Scheduler): Observable[U] = {
     Observable.amb(this, other)
   }
 
@@ -543,7 +543,7 @@ trait Observable[+T] { self =>
    * Creates a new Observable that only emits the last `n` elements
    * emitted by the source.
    */
-  def takeRight(n: Int): Observable[T] =
+  def takeRight(n: Int)(implicit s: Scheduler): Observable[T] =
     Observable.create { observer =>
       subscribeFn(new Observer[T] {
         private[this] val queue = mutable.Queue.empty[T]
@@ -696,7 +696,7 @@ trait Observable[+T] { self =>
    *
    * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/create.png" />
    */
-  def takeUntil[U](other: Observable[U]): Observable[T] =
+  def takeUntil[U](other: Observable[U])(implicit s: Scheduler): Observable[T] =
     Observable.create { observer =>
       // we've got contention between the source and the other observable
       // and we can't use an Atomic here because of `onNext`, so we are
@@ -1135,32 +1135,32 @@ trait Observable[+T] { self =>
    *
    * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/delay.png" />
    *
-   * @param itemDelay is the period of time to wait before events start
+   * @param timespan is the period of time to wait before events start
    *                   being signaled
    *
    * @param scheduler is the [[monifu.concurrent.Scheduler Scheduler]] needed
    *                  for triggering the timeout.
    */
-  def delay(itemDelay: FiniteDuration)(implicit scheduler: Scheduler): Observable[T] =
-    delay(defaultPolicy, itemDelay)
+  def delayFirst(timespan: FiniteDuration)(implicit scheduler: Scheduler): Observable[T] =
+    delayFirst(defaultPolicy, timespan)
 
   /**
-   * Creates an Observable that emits the events emitted by the source, shifted
-   * forward in time, specified by the given `itemDelay`.
+   * Creates an Observable that emits the events emitted by the source, 
+   * with the first event shifted forward in time, specified by the given `timespan`.
    *
    * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/delay.png" />
    *
    * @param policy is the policy used for buffering, see [[BufferPolicy]]
    *
-   * @param itemDelay is the period of time to wait before events start
+   * @param timespan is the period of time to wait before events start
    *                   being signaled
    *
    * @param scheduler is the [[monifu.concurrent.Scheduler Scheduler]] needed
    *                  for triggering the timeout.
    */
-  def delay(policy: BufferPolicy, itemDelay: FiniteDuration)(implicit scheduler: Scheduler): Observable[T] =
-    self.delay(policy, { (connect, _) =>
-      scheduler.scheduleOnce(itemDelay, connect())
+  def delayFirst(policy: BufferPolicy, timespan: FiniteDuration)(implicit scheduler: Scheduler): Observable[T] =
+    self.delayFirst(policy, { (connect, _) =>
+      scheduler.scheduleOnce(timespan, connect())
     })
 
   /**
@@ -1176,13 +1176,14 @@ trait Observable[+T] { self =>
    *
    * @param future is a `Future` that starts the streaming upon completion
    */
-  def delay(future: Future[_]): Observable[T] = {
-    delay(defaultPolicy, future)
+  def delayFirst(future: Future[_])(implicit s: Scheduler): Observable[T] = {
+    delayFirst(defaultPolicy, future)
   }
 
   /**
-   * Creates an Observable that emits the events emitted by the source, shifted
-   * forward in time, the streaming being triggered by the completion of a future.
+   * Creates an Observable that emits the events emitted by the source, with
+   * the first item shifted forward in time, the streaming being triggered
+   * by the completion of a future.
    *
    * During the delay period the emitted elements are being buffered.
    * If the future is completed with a failure, then the error
@@ -1193,8 +1194,8 @@ trait Observable[+T] { self =>
    *
    * @param future is a `Future` that starts the streaming upon completion
    */
-  def delay(policy: BufferPolicy, future: Future[_]): Observable[T] = {
-    delay(policy, { (connect, signalError) =>
+  def delayFirst(policy: BufferPolicy, future: Future[_])(implicit s: Scheduler): Observable[T] = {
+    delayFirst(policy, { (connect, signalError) =>
       val task = BooleanCancelable()
       future.onComplete {
         case Success(_) =>
@@ -1266,8 +1267,9 @@ trait Observable[+T] { self =>
    *             streaming and an error handling function that must be called
    *             in case an error happened while waiting
    */
-  def delay(init: (() => Unit, Throwable => Unit) => Cancelable): Observable[T] =
-    delay(defaultPolicy, init)
+  def delayFirst(init: (() => Unit, Throwable => Unit) => Cancelable)
+      (implicit s: Scheduler): Observable[T] =
+    delayFirst(defaultPolicy, init)
 
   /**
    * Creates an Observable that emits the events emitted by the source
@@ -1277,7 +1279,7 @@ trait Observable[+T] { self =>
    * Example 1:
    * {{{
    *   Observable.interval(1.second)
-   *     .delay(Unbounded, { (connect, signalError) =>
+   *     .delayFirst(Unbounded, { (connect, signalError) =>
    *       val task = BooleanCancelable()
    *       future.onComplete {
    *         case Success(_) =>
@@ -1300,7 +1302,7 @@ trait Observable[+T] { self =>
    * Example 2:
    * {{{
    *   Observable.interval(1.second)
-   *     .delay(Unbounded, { (connect, handleError) =>
+   *     .delayFirst(Unbounded, { (connect, handleError) =>
    *       scheduler.schedule(5.seconds, {
    *         connect()
    *       })
@@ -1327,7 +1329,8 @@ trait Observable[+T] { self =>
    *             streaming and an error handling function that must be called
    *             in case an error happened while waiting
    */
-  def delay(policy: BufferPolicy, init: (() => Unit, Throwable => Unit) => Cancelable): Observable[T] =
+  def delayFirst(policy: BufferPolicy, init: (() => Unit, Throwable => Unit) => Cancelable)
+      (implicit s: Scheduler): Observable[T] =
     Observable.create { observer =>
       unsafeSubscribe(new Observer[T] {
         private[this] val lock = SpinLock()
@@ -1496,7 +1499,7 @@ trait Observable[+T] { self =>
    * @param future the `Future` that must complete in order for the
    *               subscription to happen.
    */
-  def delaySubscription(future: Future[_]): Observable[T] =
+  def delaySubscription(future: Future[_])(implicit s: Scheduler): Observable[T] =
     Observable.create { observer =>
       future.onComplete {
         case Success(_) =>
@@ -1673,7 +1676,7 @@ trait Observable[+T] { self =>
    * emitted in order of the original input. This is the equivalent of
    * [[concatMap]] and NOT [[mergeMap]] (a mergeScan wouldn't make sense anyway).
    */
-  def flatScan[R](initial: R)(op: (R, T) => Observable[R]): Observable[R] =
+  def flatScan[R](initial: R)(op: (R, T) => Observable[R])(implicit s: Scheduler): Observable[R] =
     Observable.create { observer =>
       subscribeFn(new Observer[T] {
         private[this] val refCount = RefCountCancelable(observer.onComplete())
@@ -1743,7 +1746,7 @@ trait Observable[+T] { self =>
    *
    * @param cb the callback to execute when the subscription is canceled
    */
-  def doOnComplete(cb: => Unit): Observable[T] =
+  def doOnComplete(cb: => Unit)(implicit s: Scheduler): Observable[T] =
     Observable.create { observer =>
       unsafeSubscribe(new Observer[T] {
         private[this] val wasExecuted = Atomic(false)
@@ -1752,7 +1755,7 @@ trait Observable[+T] { self =>
           if (wasExecuted.compareAndSet(expect=false, update=true))
             try cb catch {
               case NonFatal(ex) =>
-                context.reportFailure(ex)
+                s.reportFailure(ex)
             }
         }
 
@@ -1763,11 +1766,17 @@ trait Observable[+T] { self =>
         }
 
         def onError(ex: Throwable): Unit = {
-          try observer.onError(ex) finally execute()
+          try observer.onError(ex) finally
+            s.executeNow {
+              execute()
+            }
         }
 
         def onComplete(): Unit = {
-          try observer.onComplete() finally execute()
+          try observer.onComplete() finally
+            s.executeNow {
+              execute()
+            }
         }
       })
     }
@@ -1915,34 +1924,34 @@ trait Observable[+T] { self =>
    * Creates a new Observable that emits the given element
    * and then it also emits the events of the source (prepend operation).
    */
-  def +:[U >: T](elem: U): Observable[U] =
+  def +:[U >: T](elem: U)(implicit s: Scheduler): Observable[U] =
     Observable.unit(elem) ++ this
 
   /**
    * Creates a new Observable that emits the given elements
    * and then it also emits the events of the source (prepend operation).
    */
-  def startWith[U >: T](elems: U*): Observable[U] =
+  def startWith[U >: T](elems: U*)(implicit s: Scheduler): Observable[U] =
     Observable.from(elems) ++ this
 
   /**
    * Creates a new Observable that emits the events of the source
    * and then it also emits the given element (appended to the stream).
    */
-  def :+[U >: T](elem: U): Observable[U] =
+  def :+[U >: T](elem: U)(implicit s: Scheduler): Observable[U] =
     this ++ Observable.unit(elem)
 
   /**
    * Creates a new Observable that emits the events of the source
    * and then it also emits the given elements (appended to the stream).
    */
-  def endWith[U >: T](elems: U*): Observable[U] =
+  def endWith[U >: T](elems: U*)(implicit s: Scheduler): Observable[U] =
     this ++ Observable.from(elems)
 
   /**
    * Concatenates the source Observable with the other Observable, as specified.
    */
-  def ++[U >: T](other: => Observable[U]): Observable[U] =
+  def ++[U >: T](other: => Observable[U])(implicit s: Scheduler): Observable[U] =
     Observable.concat(this, other)
 
   /**
@@ -1958,7 +1967,8 @@ trait Observable[+T] { self =>
   /**
    * Only emits the last element emitted by the source observable, after which it's completed immediately.
    */
-  def last: Observable[T] = takeRight(1)
+  def last(implicit s: Scheduler): Observable[T] =
+    takeRight(1)
 
   /**
    * Emits the first element emitted by the source, or otherwise if the source is completed without
@@ -1984,7 +1994,7 @@ trait Observable[+T] { self =>
    * by emitting elements combined in pairs. If one of the Observable emits fewer
    * events than the other, then the rest of the unpaired events are ignored.
    */
-  def zip[U](other: Observable[U]): Observable[(T, U)] =
+  def zip[U](other: Observable[U])(implicit s: Scheduler): Observable[(T, U)] =
     Observable.create { observerOfPairs =>
       // using mutability, receiving data from 2 producers, so must synchronize
       val lock = SpinLock()
@@ -2240,34 +2250,6 @@ trait Observable[+T] { self =>
     }
 
   /**
-   * Returns a new Observable that uses the specified `ExecutionContext` for listening to the emitted items.
-   *
-   * @param ec the execution context on top of which the generated `onNext` / `onComplete` / `onError` events will run
-   *
-   * @param bufferPolicy specifies the buffering policy used by the created asynchronous boundary
-   */
-  def observeOn(ec: ExecutionContext, bufferPolicy: BufferPolicy = defaultPolicy): Observable[T] = {
-    implicit val context = ec
-    Observable.create(observer =>
-      unsafeSubscribe(new Observer[T] {
-        private[this] val buffer =
-          BufferedObserver(observer, bufferPolicy)
-
-        def onNext(elem: T): Future[Ack] = {
-          buffer.onNext(elem)
-        }
-
-        def onError(ex: Throwable): Unit = {
-          buffer.onError(ex)
-        }
-
-        def onComplete(): Unit = {
-          buffer.onComplete()
-        }
-      }))
-  }
-
-  /**
    * Suppress the duplicate elements emitted by the source Observable.
    *
    * WARNING: this requires unbounded buffering.
@@ -2375,10 +2357,10 @@ trait Observable[+T] { self =>
   /**
    * Returns a new Observable that uses the specified `ExecutionContext` for initiating the subscription.
    */
-  def subscribeOn(ec: ExecutionContext): Observable[T] = {
-    Observable.create(o => ec.execute(new Runnable {
-      def run() = unsafeSubscribe(o)
-    }))
+  def subscribeOn(s: Scheduler): Observable[T] = {
+    Observable.create(o => s.executeNow {
+      unsafeSubscribe(o)
+    })
   }
 
   /**
@@ -2389,7 +2371,7 @@ trait Observable[+T] { self =>
    * however an `onError(ex)` notification is emitted as an `onNext(OnError(ex))`
    * followed by an `onComplete`.
    */
-  def materialize: Observable[Notification[T]] =
+  def materialize(implicit s: Scheduler): Observable[Notification[T]] =
     Observable.create { observer =>
       unsafeSubscribe(new Observer[T] {
         private[this] var ack = Continue : Future[Ack]
@@ -2416,7 +2398,7 @@ trait Observable[+T] { self =>
   /**
    * Utility that can be used for debugging purposes.
    */
-  def dump(prefix: String): Observable[T] =
+  def dump(prefix: String)(implicit s: Scheduler): Observable[T] =
     Observable.create { observer =>
       unsafeSubscribe(new Observer[T] {
         private[this] var pos = 0
@@ -2447,7 +2429,7 @@ trait Observable[+T] { self =>
    * Repeats the items emitted by this Observable continuously. It caches the generated items until `onComplete`
    * and repeats them ad infinitum. On error it terminates.
    */
-  def repeat: Observable[T] = {
+  def repeat(implicit s: Scheduler): Observable[T] = {
     def loop(subject: Subject[T, T], observer: Observer[T]): Unit =
       subject.unsafeSubscribe(new Observer[T] {
         private[this] var lastResponse = Continue : Future[Ack]
@@ -2486,7 +2468,6 @@ trait Observable[+T] { self =>
   def multicast[R](subject: Subject[T, R]): ConnectableObservable[R] =
     new ConnectableObservable[R] {
       private[this] val notCanceled = Atomic(true)
-      implicit val context = self.context
 
       private[this] val cancelAction =
         BooleanCancelable { notCanceled set false }
@@ -2510,7 +2491,7 @@ trait Observable[+T] { self =>
    * (in the user-facing `subscribe()` implementation) or in Observable subscribe implementations,
    * so this wrapping is useful.
    */
-  def safe: Observable[T] =
+  def safe(implicit s: Scheduler): Observable[T] =
     Observable.create { observer => unsafeSubscribe(SafeObserver(observer)) }
 
   /**
@@ -2527,10 +2508,10 @@ trait Observable[+T] { self =>
    * data source is pushing events without following the back-pressure requirements and faster than
    * what the destination consumer can consume. On the other hand, if the data-source does follow
    * the back-pressure contract, than this is safe. For data sources that cannot respect the
-   * back-pressure requirements and are problematic, see [[async]] and
+   * back-pressure requirements and are problematic, see [[asyncBoundary]] and
    * [[monifu.reactive.BufferPolicy BufferPolicy]] for options.
    */
-  def concurrent: Observable[T] =
+  def concurrent(implicit s: Scheduler): Observable[T] =
     Observable.create { observer => unsafeSubscribe(ConcurrentObserver(observer)) }
 
   /**
@@ -2557,7 +2538,7 @@ trait Observable[+T] { self =>
    * [[monifu.reactive.BufferPolicy policy]], see [[monifu.reactive.BufferPolicy BufferPolicy]]
    * for options.
    */
-  def async(policy: BufferPolicy = defaultPolicy): Observable[T] =
+  def asyncBoundary(policy: BufferPolicy = defaultPolicy)(implicit s: Scheduler): Observable[T] =
     Observable.create { observer => unsafeSubscribe(BufferedObserver(observer, policy)) }
 
   /**
@@ -2565,7 +2546,7 @@ trait Observable[+T] { self =>
    * a hot one (i.e. whose source is shared by all observers). The underlying subject used is a
    * [[monifu.reactive.subjects.PublishSubject PublishSubject]].
    */
-  def publish(): ConnectableObservable[T] =
+  def publish()(implicit s: Scheduler): ConnectableObservable[T] =
     multicast(PublishSubject())
 
   /**
@@ -2573,7 +2554,7 @@ trait Observable[+T] { self =>
    * a hot one (i.e. whose source is shared by all observers). The underlying subject used is a
    * [[monifu.reactive.subjects.BehaviorSubject BehaviorSubject]].
    */
-  def behavior[U >: T](initialValue: U): ConnectableObservable[U] =
+  def behavior[U >: T](initialValue: U)(implicit s: Scheduler): ConnectableObservable[U] =
     multicast(BehaviorSubject(initialValue))
 
   /**
@@ -2581,7 +2562,7 @@ trait Observable[+T] { self =>
    * a hot one (i.e. whose source is shared by all observers). The underlying subject used is a
    * [[monifu.reactive.subjects.ReplaySubject ReplaySubject]].
    */
-  def replay(): ConnectableObservable[T] =
+  def replay()(implicit s: Scheduler): ConnectableObservable[T] =
     multicast(ReplaySubject())
 
   /**
@@ -2589,7 +2570,7 @@ trait Observable[+T] { self =>
    * a hot one (i.e. whose source is shared by all observers). The underlying subject used is a
    * [[monifu.reactive.subjects.AsyncSubject AsyncSubject]].
    */
-  def publishLast(): ConnectableObservable[T] =
+  def publishLast()(implicit s: Scheduler): ConnectableObservable[T] =
     multicast(AsyncSubject())
 
   /**
@@ -2603,7 +2584,7 @@ trait Observable[+T] { self =>
    * Returns the first generated result as a Future and then cancels
    * the subscription.
    */
-  def asFuture: Future[Option[T]] = {
+  def asFuture(implicit s: Scheduler): Future[Option[T]] = {
     val promise = Promise[Option[T]]()
 
     head.unsafeSubscribe(new Observer[T] {
@@ -2628,7 +2609,7 @@ trait Observable[+T] { self =>
    * Subscribes to the source `Observable` and foreach element emitted by the source
    * it executes the given callback.
    */
-  def foreach(cb: T => Unit): Unit =
+  def foreach(cb: T => Unit)(implicit r: UncaughtExceptionReporter): Unit =
     unsafeSubscribe(new Observer[T] {
       def onNext(elem: T) =
         try { cb(elem); Continue } catch {
@@ -2639,7 +2620,7 @@ trait Observable[+T] { self =>
 
       def onComplete() = ()
       def onError(ex: Throwable) = {
-        context.reportFailure(ex)
+        r.reportFailure(ex)
       }
     })
 }
@@ -2655,7 +2636,7 @@ object Observable {
    *   import monifu.reactive.Ack.Continue
    *   import concurrent.ExecutionContext
    *
-   *   def emit[T](elem: T, nrOfTimes: Int)(implicit ec: ExecutionContext): Observable[T] =
+   *   def emit[T](elem: T, nrOfTimes: Int)(implicit s: Scheduler): Observable[T] =
    *     Observable.create { observer =>
    *       def loop(times: Int): Unit =
    *         ec.execute(new Runnable {
@@ -2682,9 +2663,8 @@ object Observable {
    *   //=> 3: Emit completed
    * }}}
    */
-  def create[T](f: Observer[T] => Unit)(implicit ec: ExecutionContext): Observable[T] ={
+  def create[T](f: Observer[T] => Unit): Observable[T] ={
     new Observable[T] {
-      implicit val context = ec
       override def subscribeFn(observer: Observer[T]): Unit =
         try f(observer) catch {
           case NonFatal(ex) =>
@@ -2699,7 +2679,7 @@ object Observable {
    *
    * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/empty.png" />
    */
-  def empty[A](implicit ec: ExecutionContext): Observable[A] =
+  def empty[A](implicit s: Scheduler): Observable[A] =
     Observable.create { observer =>
       SafeObserver(observer).onComplete()
     }
@@ -2709,7 +2689,7 @@ object Observable {
    *
    * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/unit.png" />
    */
-  def unit[A](elem: A)(implicit ec: ExecutionContext): Observable[A] = {
+  def unit[A](elem: A)(implicit s: Scheduler): Observable[A] = {
     Observable.create { o =>
       val observer = SafeObserver(o)
       observer.onNext(elem)
@@ -2722,7 +2702,7 @@ object Observable {
    *
    * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/error.png" />
    */
-  def error(ex: Throwable)(implicit ec: ExecutionContext): Observable[Nothing] =
+  def error(ex: Throwable)(implicit s: Scheduler): Observable[Nothing] =
     Observable.create { observer =>
       SafeObserver[Nothing](observer).onError(ex)
     }
@@ -2732,7 +2712,7 @@ object Observable {
    *
    * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/never.png"" />
    */
-  def never(implicit ec: ExecutionContext): Observable[Nothing] =
+  def never(implicit s: Scheduler): Observable[Nothing] =
     Observable.create { _ => () }
 
   /**
@@ -2743,10 +2723,9 @@ object Observable {
    * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/interval.png"" />
    *
    * @param period the delay between two subsequent events
-   * @param ec the execution context in which `onNext` will get called
    * @param s the scheduler used for scheduling the periodic signaling of onNext
    */
-  def interval(period: FiniteDuration)(implicit ec: ExecutionContext, s: Scheduler): Observable[Long] = {
+  def interval(period: FiniteDuration)(implicit s: Scheduler): Observable[Long] = {
     Observable.create { o =>
       val observer = SafeObserver(o)
       var counter = 0
@@ -2766,14 +2745,14 @@ object Observable {
   /**
    * Creates an Observable that continuously emits the given ''item'' repeatedly.
    */
-  def repeat[T](elems: T*)(implicit ec: ExecutionContext): Observable[T] = {
+  def repeat[T](elems: T*)(implicit s: Scheduler): Observable[T] = {
     if (elems.size == 0) Observable.empty
     else if (elems.size == 1) {
       Observable.create { o =>
         val observer = SafeObserver(o)
 
         def loop(elem: T): Unit =
-          ec.execute(new Runnable {
+          s.execute(new Runnable {
             def run(): Unit =
               observer.onNext(elem).onSuccess {
                 case Continue =>
@@ -2797,12 +2776,12 @@ object Observable {
    * @param until the range end
    * @param step increment step, either positive or negative
    */
-  def range(from: Int, until: Int, step: Int = 1)(implicit ec: ExecutionContext): Observable[Int] = {
+  def range(from: Int, until: Int, step: Int = 1)(implicit s: Scheduler): Observable[Int] = {
     require(step != 0, "step must be a number different from zero")
 
     Observable.create { o =>
       def scheduleLoop(from: Int, until: Int, step: Int): Unit =
-        ec.execute(new Runnable {
+        s.execute(new Runnable {
           private[this] val observer = SafeObserver(o)
 
           private[this] def isInRange(x: Int): Boolean = {
@@ -2852,7 +2831,7 @@ object Observable {
    *   //=> 4: MyObservable completed
    * }}}
    */
-  def apply[T](elems: T*)(implicit ec: ExecutionContext): Observable[T] = {
+  def apply[T](elems: T*)(implicit s: Scheduler): Observable[T] = {
     from(elems)
   }
 
@@ -2861,7 +2840,7 @@ object Observable {
    *
    * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/fromIterable.png" />
    */
-  def from[T](future: Future[T])(implicit ec: ExecutionContext): Observable[T] =
+  def from[T](future: Future[T])(implicit s: Scheduler): Observable[T] =
     Observable.create { o =>
       val observer = SafeObserver(o)
 
@@ -2879,12 +2858,12 @@ object Observable {
    *
    * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/fromIterable.png" />
    */
-  def from[T](iterable: Iterable[T])(implicit ec: ExecutionContext): Observable[T] =
+  def from[T](iterable: Iterable[T])(implicit s: Scheduler): Observable[T] =
     Observable.create { o =>
       val observer = SafeObserver(o)
 
       def startFeedLoop(iterator: Iterator[T]): Unit =
-        ec.execute(new Runnable {
+        s.execute(new Runnable {
           @tailrec
           def fastLoop(): Unit = {
             val ack = observer.onNext(iterator.next())
@@ -2918,7 +2897,7 @@ object Observable {
   /**
    * Create an Observable that emits a single item after a given delay.
    */
-  def timer[T](delay: FiniteDuration, unit: T)(implicit ec: ExecutionContext, s: Scheduler): Observable[T] =
+  def timer[T](delay: FiniteDuration, unit: T)(implicit s: Scheduler): Observable[T] =
     Observable.create { observer =>
       s.scheduleOnce(delay, {
         observer.onNext(unit)
@@ -2931,7 +2910,7 @@ object Observable {
    * the underlying Observer cancels.
    */
   def timer[T](initialDelay: FiniteDuration, period: FiniteDuration, unit: T)
-      (implicit ec: ExecutionContext, s: Scheduler): Observable[T] = {
+      (implicit s: Scheduler): Observable[T] = {
 
     Observable.create { observer =>
       val safeObserver = SafeObserver(observer)
@@ -2947,13 +2926,13 @@ object Observable {
   /**
    * Concatenates the given list of ''observables'' into a single observable.
    */
-  def flatten[T](sources: Observable[T]*)(implicit ec: ExecutionContext): Observable[T] =
+  def flatten[T](sources: Observable[T]*)(implicit s: Scheduler): Observable[T] =
     Observable.from(sources).flatten
 
   /**
    * Merges the given list of ''observables'' into a single observable.
    */
-  def merge[T](sources: Observable[T]*)(implicit ec: ExecutionContext): Observable[T] =
+  def merge[T](sources: Observable[T]*)(implicit s: Scheduler): Observable[T] =
     Observable.from(sources).merge()
 
   /**
@@ -2961,7 +2940,7 @@ object Observable {
    * by emitting elements combined in pairs. If one of the Observable emits fewer
    * events than the other, then the rest of the unpaired events are ignored.
    */
-  def zip[T1, T2](obs1: Observable[T1], obs2: Observable[T2]): Observable[(T1,T2)] =
+  def zip[T1, T2](obs1: Observable[T1], obs2: Observable[T2])(implicit s: Scheduler): Observable[(T1,T2)] =
     obs1.zip(obs2)
 
   /**
@@ -2969,7 +2948,8 @@ object Observable {
    * by emitting elements combined in tuples of 3 elements. If one of the Observable emits fewer
    * events than the others, then the rest of the unpaired events are ignored.
    */
-  def zip[T1, T2, T3](obs1: Observable[T1], obs2: Observable[T2], obs3: Observable[T3]): Observable[(T1, T2, T3)] =
+  def zip[T1, T2, T3](obs1: Observable[T1], obs2: Observable[T2], obs3: Observable[T3])
+      (implicit s: Scheduler): Observable[(T1, T2, T3)] =
     obs1.zip(obs2).zip(obs3).map { case ((t1, t2), t3) => (t1, t2, t3) }
 
   /**
@@ -2977,20 +2957,21 @@ object Observable {
    * by emitting elements combined in tuples of 4 elements. If one of the Observable emits fewer
    * events than the others, then the rest of the unpaired events are ignored.
    */
-  def zip[T1, T2, T3, T4](obs1: Observable[T1], obs2: Observable[T2], obs3: Observable[T3], obs4: Observable[T4]): Observable[(T1, T2, T3, T4)] =
+  def zip[T1, T2, T3, T4](obs1: Observable[T1], obs2: Observable[T2], obs3: Observable[T3], obs4: Observable[T4])
+      (implicit s: Scheduler): Observable[(T1, T2, T3, T4)] =
     obs1.zip(obs2).zip(obs3).zip(obs4).map { case (((t1, t2), t3), t4) => (t1, t2, t3, t4) }
 
   /**
    * Concatenates the given list of ''observables'' into a single observable.
    */
-  def concat[T](sources: Observable[T]*)(implicit ec: ExecutionContext): Observable[T] =
+  def concat[T](sources: Observable[T]*)(implicit s: Scheduler): Observable[T] =
     Observable.from(sources).concat
 
   /**
    * Given a list of source Observables, emits all of the items from the first of
    * these Observables to emit an item and cancel the rest.
    */
-  def amb[T](source: Observable[T]*)(implicit ec: ExecutionContext): Observable[T] = {
+  def amb[T](source: Observable[T]*)(implicit s: Scheduler): Observable[T] = {
     // helper function used for creating a subscription that uses `finishLine` as guard
     def createSubscription(observable: Observable[T], observer: Observer[T], finishLine: AtomicInt, idx: Int): Unit =
       observable.unsafeSubscribe(new Observer[T] {
@@ -3029,12 +3010,12 @@ object Observable {
   /**
    * Implicit conversion from Future to Observable.
    */
-  implicit def FutureIsObservable[T](future: Future[T])(implicit ec: ExecutionContext): Observable[T] =
+  implicit def FutureIsObservable[T](future: Future[T])(implicit s: Scheduler): Observable[T] =
     Observable.from(future)
 
   /**
    * Implicit conversion from Observable to Publisher.
    */
-  implicit def ObservableIsPublisher[T](source: Observable[T]): Publisher[T] =
+  implicit def ObservableIsPublisher[T](source: Observable[T])(implicit s: Scheduler): Publisher[T] =
     source.publisher
 }

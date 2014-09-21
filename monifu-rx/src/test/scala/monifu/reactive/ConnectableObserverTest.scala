@@ -20,7 +20,7 @@ import java.util.concurrent.{CountDownLatch, TimeUnit}
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.observers.{ConcurrentObserver, ConnectableObserver}
 import org.scalatest.FunSpec
-import scala.concurrent.ExecutionContext.Implicits.global
+import monifu.concurrent.Implicits.globalScheduler
 import scala.concurrent.Future
 
 
@@ -37,7 +37,7 @@ class ConnectableObserverTest extends FunSpec {
             Continue
           }
           def onError(ex: Throwable): Unit = {
-            global.reportFailure(ex)
+            globalScheduler.reportFailure(ex)
           }
           def onComplete(): Unit = {
             latch.countDown()
@@ -65,7 +65,7 @@ class ConnectableObserverTest extends FunSpec {
             Continue
           }
           def onError(ex: Throwable): Unit = {
-            global.reportFailure(ex)
+            globalScheduler.reportFailure(ex)
           }
           def onComplete(): Unit = {
             latch.countDown()
@@ -75,7 +75,7 @@ class ConnectableObserverTest extends FunSpec {
         if (i % 2 == 0)
           Observable.unit(3).subscribe(obs)
         else
-          Observable.unit(3).observeOn(global).subscribe(obs)
+          Observable.unit(3).asyncBoundary().subscribe(obs)
 
         if (i % 3 != 0) {
           obs.pushNext(1, 2)
@@ -104,7 +104,7 @@ class ConnectableObserverTest extends FunSpec {
             Continue
           }
           def onError(ex: Throwable): Unit = {
-            global.reportFailure(ex)
+            globalScheduler.reportFailure(ex)
           }
           def onComplete(): Unit = {
             completed.countDown()
@@ -140,7 +140,7 @@ class ConnectableObserverTest extends FunSpec {
             Continue
           }
           def onError(ex: Throwable): Unit = {
-            global.reportFailure(ex)
+            globalScheduler.reportFailure(ex)
           }
           def onComplete(): Unit = {
             completed.countDown()
@@ -173,7 +173,7 @@ class ConnectableObserverTest extends FunSpec {
             Continue
           }
           def onError(ex: Throwable): Unit = {
-            global.reportFailure(ex)
+            globalScheduler.reportFailure(ex)
           }
           def onComplete(): Unit = {
             completed.countDown()
@@ -238,7 +238,7 @@ class ConnectableObserverTest extends FunSpec {
             Continue
           }
           def onError(ex: Throwable): Unit = {
-            global.reportFailure(ex)
+            globalScheduler.reportFailure(ex)
           }
           def onComplete(): Unit = {
             completed.countDown()
@@ -273,7 +273,7 @@ class ConnectableObserverTest extends FunSpec {
             Continue
           }
           def onError(ex: Throwable): Unit = {
-            global.reportFailure(ex)
+            globalScheduler.reportFailure(ex)
           }
           def onComplete(): Unit = {
             completed.countDown()
@@ -302,7 +302,7 @@ class ConnectableObserverTest extends FunSpec {
           Continue
         }
         def onError(ex: Throwable): Unit = {
-          global.reportFailure(ex)
+          globalScheduler.reportFailure(ex)
         }
         def onComplete(): Unit = {
           assert(sum === (0 until 100000).sum + (0 until 1000).sum)
@@ -310,7 +310,7 @@ class ConnectableObserverTest extends FunSpec {
         }
       })
 
-      Observable.from(0 until 100000).observeOn(global).subscribe(obs)
+      Observable.from(0 until 100000).asyncBoundary().subscribe(obs)
       obs.pushNext(0 until 1000 : _*)
       obs.connect()
 
@@ -328,7 +328,7 @@ class ConnectableObserverTest extends FunSpec {
           Continue
         }
         def onError(ex: Throwable): Unit = {
-          global.reportFailure(ex)
+          globalScheduler.reportFailure(ex)
         }
         def onComplete(): Unit = {
           assert(sum === (0 until 100000).sum + (0 until 1000).sum)
@@ -337,7 +337,7 @@ class ConnectableObserverTest extends FunSpec {
       })
 
       obs.pushNext(0 until 1000 : _*)
-      Observable.range(0, 100000).observeOn(global).subscribe(obs)
+      Observable.range(0, 100000).asyncBoundary().subscribe(obs)
       obs.connect()
 
       assert(completed.await(10, TimeUnit.SECONDS), "completed.await should have succeeded")
@@ -354,7 +354,7 @@ class ConnectableObserverTest extends FunSpec {
           Continue
         }
         def onError(ex: Throwable): Unit = {
-          global.reportFailure(ex)
+          globalScheduler.reportFailure(ex)
         }
         def onComplete(): Unit = {
           assert(sum === (0 until 100000).sum + (0 until 1000).sum)
@@ -365,7 +365,7 @@ class ConnectableObserverTest extends FunSpec {
       obs.pushNext(0 until 1000 : _*)
       obs.connect()
 
-      Observable.range(0, 100000).observeOn(global).subscribe(obs)
+      Observable.range(0, 100000).asyncBoundary().subscribe(obs)
 
       assert(completed.await(10, TimeUnit.SECONDS), "completed.await should have succeeded")
       assert(sum === (0 until 100000).sum + (0 until 1000).sum)
@@ -497,7 +497,7 @@ class ConnectableObserverTest extends FunSpec {
         }
       })
 
-      val publish = Observable.range(1000, 100000).observeOn(global).publish()
+      val publish = Observable.range(1000, 100000).asyncBoundary().publish()
 
       obs.pushNext(0 until 1000 : _*)
       publish.subscribe(obs)
@@ -532,7 +532,7 @@ class ConnectableObserverTest extends FunSpec {
       obs.pushNext(0 until 1000 : _*)
       obs.connect()
 
-      Observable.range(1000, 100000).observeOn(global).subscribe(obs)
+      Observable.range(1000, 100000).asyncBoundary().subscribe(obs)
       assert(completed.await(10, TimeUnit.SECONDS), "completed.await should have succeeded")
     }
 
@@ -548,7 +548,7 @@ class ConnectableObserverTest extends FunSpec {
           }
 
           def onError(ex: Throwable): Unit = {
-            global.reportFailure(ex)
+            globalScheduler.reportFailure(ex)
           }
 
           def onComplete(): Unit = {
@@ -583,7 +583,7 @@ class ConnectableObserverTest extends FunSpec {
           }
 
           def onError(ex: Throwable): Unit = {
-            global.reportFailure(ex)
+            globalScheduler.reportFailure(ex)
           }
 
           def onComplete(): Unit = {
@@ -613,7 +613,7 @@ class ConnectableObserverTest extends FunSpec {
           }
 
           def onError(ex: Throwable): Unit = {
-            global.reportFailure(ex)
+            globalScheduler.reportFailure(ex)
           }
 
           def onComplete(): Unit = {
@@ -1037,7 +1037,7 @@ class ConnectableObserverTest extends FunSpec {
   }
   
   def scheduleOnce(action: => Unit) = 
-    global.execute(new Runnable {
+    globalScheduler.execute(new Runnable {
       def run() = action
     })
 }

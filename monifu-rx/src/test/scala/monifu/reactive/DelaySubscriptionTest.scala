@@ -1,10 +1,9 @@
 package monifu.reactive
 
 import org.scalatest.FunSpec
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Promise, TimeoutException}
-import monifu.concurrent.Implicits.scheduler
+import monifu.concurrent.Implicits.globalScheduler
 
 
 class DelaySubscriptionTest extends FunSpec {

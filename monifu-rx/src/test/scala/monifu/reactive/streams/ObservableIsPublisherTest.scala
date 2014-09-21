@@ -21,7 +21,7 @@ import monifu.reactive.Observable
 import monifu.reactive.internals.FutureAckExtensions
 import org.reactivestreams.{Subscriber, Subscription}
 import org.scalatest.FunSpec
-import scala.concurrent.ExecutionContext.Implicits.global
+import monifu.concurrent.Implicits.globalScheduler
 
 
 class ObservableIsPublisherTest extends FunSpec {
@@ -44,7 +44,7 @@ class ObservableIsPublisherTest extends FunSpec {
           }
 
           def onError(ex: Throwable): Unit = {
-            global.reportFailure(ex)
+            globalScheduler.reportFailure(ex)
           }
 
           def onComplete(): Unit = {
@@ -81,7 +81,7 @@ class ObservableIsPublisherTest extends FunSpec {
           }
 
           def onError(ex: Throwable): Unit = {
-            global.reportFailure(ex)
+            globalScheduler.reportFailure(ex)
           }
 
           def onComplete(): Unit = {
@@ -120,7 +120,7 @@ class ObservableIsPublisherTest extends FunSpec {
           }
 
           def onError(ex: Throwable): Unit = {
-            global.reportFailure(ex)
+            globalScheduler.reportFailure(ex)
           }
 
           def onComplete(): Unit = {
@@ -159,7 +159,7 @@ class ObservableIsPublisherTest extends FunSpec {
           }
 
           def onError(ex: Throwable): Unit = {
-            global.reportFailure(ex)
+            globalScheduler.reportFailure(ex)
           }
 
           def onComplete(): Unit = {
@@ -192,7 +192,7 @@ class ObservableIsPublisherTest extends FunSpec {
           }
 
           def onError(ex: Throwable): Unit = {
-            global.reportFailure(ex)
+            globalScheduler.reportFailure(ex)
           }
 
           def onComplete(): Unit = {
@@ -225,7 +225,7 @@ class ObservableIsPublisherTest extends FunSpec {
           }
 
           def onError(ex: Throwable): Unit = {
-            global.reportFailure(ex)
+            globalScheduler.reportFailure(ex)
           }
 
           def onComplete(): Unit = {
@@ -254,7 +254,7 @@ class ObservableIsPublisherTest extends FunSpec {
             }
 
             def onError(ex: Throwable): Unit = {
-              global.reportFailure(ex)
+              globalScheduler.reportFailure(ex)
             }
 
             def onComplete(): Unit = {
@@ -288,7 +288,7 @@ class ObservableIsPublisherTest extends FunSpec {
             }
 
             def onError(ex: Throwable): Unit = {
-              global.reportFailure(ex)
+              globalScheduler.reportFailure(ex)
             }
 
             def onComplete(): Unit = {
@@ -327,7 +327,7 @@ class ObservableIsPublisherTest extends FunSpec {
             }
 
             def onError(ex: Throwable): Unit = {
-              global.reportFailure(ex)
+              globalScheduler.reportFailure(ex)
             }
 
             def onComplete(): Unit = {
@@ -366,7 +366,7 @@ class ObservableIsPublisherTest extends FunSpec {
             }
 
             def onError(ex: Throwable): Unit = {
-              global.reportFailure(ex)
+              globalScheduler.reportFailure(ex)
             }
 
             def onComplete(): Unit = {
@@ -399,7 +399,7 @@ class ObservableIsPublisherTest extends FunSpec {
             }
 
             def onError(ex: Throwable): Unit = {
-              global.reportFailure(ex)
+              globalScheduler.reportFailure(ex)
             }
 
             def onComplete(): Unit = {
@@ -432,7 +432,7 @@ class ObservableIsPublisherTest extends FunSpec {
             }
 
             def onError(ex: Throwable): Unit = {
-              global.reportFailure(ex)
+              globalScheduler.reportFailure(ex)
             }
 
             def onComplete(): Unit = {
@@ -461,7 +461,7 @@ class ObservableIsPublisherTest extends FunSpec {
             }
 
             def onError(ex: Throwable): Unit = {
-              global.reportFailure(ex)
+              globalScheduler.reportFailure(ex)
             }
 
             def onComplete(): Unit = {
@@ -495,7 +495,7 @@ class ObservableIsPublisherTest extends FunSpec {
             }
 
             def onError(ex: Throwable): Unit = {
-              global.reportFailure(ex)
+              globalScheduler.reportFailure(ex)
             }
 
             def onComplete(): Unit = {
@@ -521,7 +521,7 @@ class ObservableIsPublisherTest extends FunSpec {
           }
 
           def onError(ex: Throwable): Unit =
-            global.reportFailure(ex)
+            globalScheduler.reportFailure(ex)
 
           def onComplete(): Unit =
             completed.countDown()
@@ -546,13 +546,13 @@ class ObservableIsPublisherTest extends FunSpec {
           private[this] var s: Subscription = null
           def onSubscribe(s: Subscription): Unit = {
             this.s = s
-            global.execute(new Runnable {
+            globalScheduler.execute(new Runnable {
               def run(): Unit = s.request(1)
             })
           }
 
           def onError(ex: Throwable): Unit =
-            global.reportFailure(ex)
+            globalScheduler.reportFailure(ex)
 
           def onComplete(): Unit =
             completed.countDown()
@@ -577,13 +577,13 @@ class ObservableIsPublisherTest extends FunSpec {
           private[this] var s: Subscription = null
           def onSubscribe(s: Subscription): Unit = {
             this.s = s
-            global.execute(new Runnable {
+            globalScheduler.execute(new Runnable {
               def run(): Unit = s.request(1)
             })
           }
 
           def onError(ex: Throwable): Unit =
-            global.reportFailure(ex)
+            globalScheduler.reportFailure(ex)
 
           def onComplete(): Unit = {
             throw new IllegalStateException("onComplete()")
@@ -606,7 +606,7 @@ class ObservableIsPublisherTest extends FunSpec {
         val completed = new CountDownLatch(1)
         var sum = 0
 
-        Observable.from(1 to 10000).observeOn(global).subscribe(new Subscriber[Int] {
+        Observable.from(1 to 10000).asyncBoundary().subscribe(new Subscriber[Int] {
           private[this] var s = null : Subscription
           private[this] var processed = 0
 
@@ -629,7 +629,7 @@ class ObservableIsPublisherTest extends FunSpec {
           }
 
           def onError(ex: Throwable): Unit = {
-            global.reportFailure(ex)
+            globalScheduler.reportFailure(ex)
           }
 
           def onComplete(): Unit = {
@@ -647,7 +647,7 @@ class ObservableIsPublisherTest extends FunSpec {
         val completed = new CountDownLatch(1)
         var sum = 0
 
-        Observable.from(1 to 10000).observeOn(global).subscribe(new Subscriber[Int] {
+        Observable.from(1 to 10000).asyncBoundary().subscribe(new Subscriber[Int] {
           private[this] var s = null : Subscription
           private[this] var processed = 0
           private[this] var requested = 100
@@ -676,7 +676,7 @@ class ObservableIsPublisherTest extends FunSpec {
           }
 
           def onError(ex: Throwable): Unit = {
-            global.reportFailure(ex)
+            globalScheduler.reportFailure(ex)
           }
 
           def onComplete(): Unit = {

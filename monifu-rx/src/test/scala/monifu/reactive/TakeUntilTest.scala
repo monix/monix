@@ -4,18 +4,18 @@ import java.util.concurrent.{CountDownLatch, TimeUnit}
 import monifu.reactive.Ack.Continue
 import monifu.reactive.channels.PublishChannel
 import monifu.reactive.subjects.PublishSubject
-import monifu.concurrent.Implicits.scheduler
+import monifu.concurrent.Implicits.globalScheduler
 import org.scalatest.FunSpec
 import scala.concurrent.Await
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+
 
 class TakeUntilTest extends FunSpec {
   describe("Observable.takeUntil(other: Observable)") {
     it("should emit everything in case the other observable does not emit anything") {
       val other = Observable.never
       val f = Observable.from(0 until 1000)
-        .delay(200.millis) // introducing artificial delay
+        .delayFirst(200.millis) // introducing artificial delay
         .takeUntil(other)
         .reduce(_ + _)
         .asFuture

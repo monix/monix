@@ -18,7 +18,7 @@ package monifu.concurrent.schedulers
 
 import java.util.concurrent.{ScheduledExecutorService, TimeUnit}
 import monifu.concurrent.cancelables.SingleAssignmentCancelable
-import monifu.concurrent.{Scheduler, Cancelable}
+import monifu.concurrent.{UncaughtExceptionReporter, Scheduler, Cancelable}
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
@@ -29,7 +29,7 @@ import scala.concurrent.duration._
  * the given `ExecutionContext`.
  */
 final class AsyncScheduler private
-    (s: ScheduledExecutorService, ec: ExecutionContext)
+    (s: ScheduledExecutorService, ec: ExecutionContext, r: UncaughtExceptionReporter)
   extends Scheduler {
 
   def scheduleOnce(initialDelay: FiniteDuration, action: => Unit): Cancelable =
@@ -77,12 +77,13 @@ final class AsyncScheduler private
     ec.execute(runnable)
 
   def reportFailure(t: Throwable): Unit =
-    ec.reportFailure(t)
+    r.reportFailure(t)
 
   private[this] val oneHour = 1.hour
 }
 
 object AsyncScheduler {
-  def apply(schedulerService: ScheduledExecutorService, ec: ExecutionContext): AsyncScheduler =
-    new AsyncScheduler(schedulerService, ec)
+  def apply(schedulerService: ScheduledExecutorService,
+            ec: ExecutionContext, reporter: UncaughtExceptionReporter): AsyncScheduler =
+    new AsyncScheduler(schedulerService, ec, reporter)
 }

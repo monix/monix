@@ -24,7 +24,7 @@ import monifu.reactive.channels.ReplayChannel
 import monifu.reactive.observers.ConcurrentObserver
 import monifu.reactive.subjects.ReplaySubject
 import org.scalatest.FunSpec
-import scala.concurrent.ExecutionContext.Implicits.global
+import monifu.concurrent.Implicits.globalScheduler
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 
@@ -74,11 +74,11 @@ class ReplaySubjectTest extends FunSpec {
       val channel = ConcurrentObserver(subject)
       val latch = new CountDownLatch(2)
 
-      subject.observeOn(global).subscribe(
+      subject.asyncBoundary().subscribe(
         elem => Continue,
         ex => { result1.set(ex); latch.countDown() }
       )
-      subject.observeOn(global).subscribe(
+      subject.asyncBoundary().subscribe(
         elem => Continue,
         ex => { result2.set(ex); latch.countDown() }
       )
@@ -104,12 +104,12 @@ class ReplaySubjectTest extends FunSpec {
       val channel = ConcurrentObserver(subject)
       val latch = new CountDownLatch(2)
 
-      subject.observeOn(global).subscribe(
+      subject.asyncBoundary().subscribe(
         elem => Continue,
         ex => Cancel,
         () => { result1.set(1); latch.countDown() }
       )
-      subject.observeOn(global).subscribe(
+      subject.asyncBoundary().subscribe(
         elem => Continue,
         ex => Cancel,
         () => { result2.set(2); latch.countDown() }
@@ -278,7 +278,7 @@ class ReplaySubjectTest extends FunSpec {
       val onErrorReceived = Atomic(0)
       val latch = new CountDownLatch(3)
 
-      subject.subscribeOn(global).observeOn(global).subscribe(new Observer[Int] {
+      subject.subscribeOn(globalScheduler).asyncBoundary().subscribe(new Observer[Int] {
         def onError(ex: Throwable) = Future {
           onErrorReceived.increment()
           latch.countDown()
@@ -296,7 +296,7 @@ class ReplaySubjectTest extends FunSpec {
         }
       })
 
-      subject.observeOn(global).map(x => x).observeOn(global).subscribe(new Observer[Int] {
+      subject.asyncBoundary().map(x => x).asyncBoundary().subscribe(new Observer[Int] {
         def onError(ex: Throwable) = Future {
           onErrorReceived.increment()
           latch.countDown()
@@ -413,7 +413,7 @@ class ReplaySubjectTest extends FunSpec {
           }
 
           def onError(ex: Throwable): Unit =
-            global.reportFailure(ex)
+            globalScheduler.reportFailure(ex)
         })
 
       try {
@@ -447,7 +447,7 @@ class ReplaySubjectTest extends FunSpec {
           }
 
           def onError(ex: Throwable): Unit =
-            global.reportFailure(ex)
+            globalScheduler.reportFailure(ex)
         })
 
       val cancelable = obs.connect()
