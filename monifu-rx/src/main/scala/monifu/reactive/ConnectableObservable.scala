@@ -16,6 +16,8 @@
  
 package monifu.reactive
 
+import monifu.concurrent.Cancelable
+import monifu.concurrent.atomic.Atomic
 import monifu.concurrent.cancelables.BooleanCancelable
 
 /**
@@ -31,4 +33,30 @@ trait ConnectableObservable[+T] extends Observable[T] {
    * Starts emitting events to subscribers.
    */
   def connect(): BooleanCancelable
+}
+
+
+object ConnectableObservable {
+  /**
+   * Builds a [[ConnectableObservable]] for the given observable source
+   * and a given [[Subject]].
+   */
+  def apply[T, R](source: Observable[T], subject: Subject[T, R]): ConnectableObservable[R] =
+    new ConnectableObservable[R] {
+      private[this] val notCanceled = Atomic(true)
+
+      private[this] val cancelAction =
+        BooleanCancelable { notCanceled set false }
+      private[this] val notConnected =
+        Cancelable { source.takeWhileRefIsTrue(notCanceled).unsafeSubscribe(subject) }
+
+      def connect() = {
+        notConnected.cancel()
+        cancelAction
+      }
+
+      def subscribeFn(observer: Observer[R]): Unit = {
+        subject.unsafeSubscribe(observer)
+      }
+    }
 }
