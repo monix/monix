@@ -17,17 +17,14 @@
 package monifu.concurrent
 
 import java.util.concurrent.TimeoutException
-
 import monifu.concurrent.cancelables.SingleAssignmentCancelable
-import monifu.concurrent.schedulers.ExecutorScheduler
 import org.scalatest.FunSuite
-
 import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext, Promise}
+import scala.concurrent.{Await, Promise}
 
-class ConcurrentSchedulerTest extends FunSuite {
-  import ExecutionContext.Implicits.global
-  val s = ExecutorScheduler()
+
+class AsyncSchedulerTest extends FunSuite {
+  val s = Scheduler.Implicits.global
 
   test("scheduleOnce with delay") {
     val p = Promise[Long]()
@@ -36,6 +33,12 @@ class ConcurrentSchedulerTest extends FunSuite {
 
     val timeTaken = Await.result(p.future, 3.second)
     assert((timeTaken - startedAt).nanos.toMillis >= 100)
+  }
+
+  test("scheduleOnce with delay lower than 1.milli") {
+    val p = Promise[Int]()
+    s.scheduleOnce(20.nanos, p.success(1))
+    assert(Await.result(p.future, 3.seconds) === 1)
   }
 
   test("scheduleOnce with delay and cancel") {
