@@ -16,7 +16,7 @@ class TakeUntilTest extends FunSpec {
       val other = Observable.never
       val f = Observable.from(0 until 1000)
         .delayFirst(200.millis) // introducing artificial delay
-        .takeUntil(other)
+        .takeUntilOtherEmits(other)
         .reduce(_ + _)
         .asFuture
 
@@ -30,7 +30,7 @@ class TakeUntilTest extends FunSpec {
       val completed = new CountDownLatch(1)
       var sum = 0
 
-      channel.takeUntil(trigger).subscribe(
+      channel.takeUntilOtherEmits(trigger).subscribe(
         elem => { sum += elem; Continue },
         ex => throw ex,
         () => completed.countDown()
@@ -52,7 +52,7 @@ class TakeUntilTest extends FunSpec {
       val completed = new CountDownLatch(1)
       var sum = 0
 
-      channel.takeUntil(trigger).subscribe(
+      channel.takeUntilOtherEmits(trigger).subscribe(
         elem => { sum += elem; Continue },
         ex => throw ex,
         () => completed.countDown()
@@ -74,7 +74,7 @@ class TakeUntilTest extends FunSpec {
       val errorThrown = new CountDownLatch(1)
       var sum = 0
 
-      channel.takeUntil(trigger).subscribe(
+      channel.takeUntilOtherEmits(trigger).subscribe(
         elem => { sum += elem; Continue },
         ex => { errorThrown.countDown() }
       )

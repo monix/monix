@@ -348,13 +348,13 @@ class MergeTest extends FunSpec {
       val childrenNotComplete = Atomic(true)
 
       val f = Observable.from(0 until Int.MaxValue)
-        .takeWhile(upstreamNotComplete)
+        .takeWhileRefIsTrue(upstreamNotComplete)
         .doOnComplete(latch.countDown())
         .map { x =>
           Observable.from(0 until Int.MaxValue)
             .doOnStart { _ => latch.increment(); enoughStarted.countDown()}
             .doOnComplete(latch.countDown())
-            .takeWhile(childrenNotComplete)
+            .takeWhileRefIsTrue(childrenNotComplete)
         }
         .merge(batchSize=128)
         .doOnComplete(latch.countDown())
@@ -657,13 +657,13 @@ class MergeTest extends FunSpec {
       val childrenNotComplete = Atomic(true)
 
       val f = Observable.from(0 until Int.MaxValue)
-        .takeWhile(upstreamNotComplete)
+        .takeWhileRefIsTrue(upstreamNotComplete)
         .doOnComplete(latch.countDown())
         .mergeMap { x =>
           Observable.from(0 until Int.MaxValue)
             .doOnStart { _ => latch.increment(); enoughStarted.countDown()}
             .doOnComplete(latch.countDown())
-            .takeWhile(childrenNotComplete)
+            .takeWhileRefIsTrue(childrenNotComplete)
         }
         .doOnComplete(latch.countDown())
         .map(_ => 1)
