@@ -12,11 +12,11 @@ import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Success}
 import scala.util.control.NonFatal
 
-object buffer {
-  /**
-   * Implementation for [[Observable.buffer]].
-   */
-  def apply[T](count: Int)(source: Observable[T]): Observable[Seq[T]] =
+/**
+ * Implementation for [[Observable.buffer]].
+ */
+object Buffer {
+  def withSize[T](source: Observable[T])(count: Int): Observable[Seq[T]] =
     Observable.create { observer =>
       source.unsafeSubscribe(new Observer[T] {
         private[this] var buffer = ArrayBuffer.empty[T]
@@ -52,8 +52,8 @@ object buffer {
       })
     }
 
-  def apply[T](timespan: FiniteDuration)(implicit s: Scheduler) =
-    (source: Observable[T]) => Observable.create[Seq[T]] { observer =>
+  def withTimespan[T](source: Observable[T])(timespan: FiniteDuration)(implicit s: Scheduler) =
+    Observable.create[Seq[T]] { observer =>
       source.unsafeSubscribe(new SynchronousObserver[T] {
         private[this] val lock = SpinLock()
         private[this] var queue = ArrayBuffer.empty[T]

@@ -17,7 +17,9 @@
 package monifu.reactive
 
 import monifu.concurrent.Scheduler
+import monifu.concurrent.atomic.AtomicBoolean
 import monifu.reactive.Ack.{Cancel, Continue}
+
 import scala.concurrent.{Future, Promise}
 import scala.util.control.NonFatal
 import scala.util.{Failure, Try}
@@ -216,5 +218,41 @@ package object internals {
           }
           source
       }
+
+    /**
+     * Utility used in [[monifu.reactive.observers.SafeObserver.onNext]] for
+     * handling errors in `onNext`. Avoids submitting tasks to the pool in case the
+     * future is already complete and we can thus determine if it's a failure,
+     * in which case we only need to cancel the stream and report the error.
+     */
+    def onErrorCancelStream[T](downstream: Observer[T], isDone: AtomicBoolean)
+        (implicit scheduler: Scheduler): Future[Ack] = {
+
+      def report(ex: Throwable) = {
+        if (isDone.compareAndSet(expect=false, update=true)) {
+          try downstream.onError(ex) catch {
+            case NonFatal(oops) =>
+              scheduler.reportFailure(oops)
+          }
+
+          Cancel
+        }
+        else {
+          scheduler.reportFailure(ex)
+          Cancel
+        }
+      }
+
+      source match {
+        case sync if sync.isCompleted =>
+          if (sync.value.get.isFailure)
+            report(sync.value.get.failed.get)
+          else
+            sync
+
+        case async =>
+          source.recover { case ex => report(ex) }
+      }
+    }
   }
 }

@@ -66,10 +66,9 @@ import scala.concurrent.{Future, Promise}
  *   // NOTE: that onNext("c") never happens
  * }}}
  */
-final class ConnectableObserver[-T](underlying: Observer[T])(implicit scheduler: Scheduler)
+final class ConnectableObserver[-T](observer: Observer[T])(implicit scheduler: Scheduler)
   extends Channel[T] with Observer[T] { self =>
 
-  private[this] val observer = SafeObserver(underlying)
   private[this] val lock = SpinLock()
 
   // MUST BE synchronized by `lock`, only available if isConnected == false
@@ -115,6 +114,7 @@ final class ConnectableObserver[-T](underlying: Observer[T])(implicit scheduler:
               connectedPromise.success(Continue)
               isConnected = true
               queue = null // gc relief
+
             case Cancel =>
               wasCanceled = true
               connectedPromise.success(Cancel)
