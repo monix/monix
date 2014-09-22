@@ -17,8 +17,11 @@
 package monifu.reactive.observers
 
 import monifu.concurrent.Scheduler
-import monifu.reactive.Ack.{Cancel, Continue}
+import monifu.concurrent.atomic.Atomic
+import monifu.reactive.Ack.Cancel
+import monifu.reactive.internals._
 import monifu.reactive.{Ack, Observer}
+
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 
@@ -37,20 +40,13 @@ import scala.util.control.NonFatal
 final class SafeObserver[-T] private (observer: Observer[T])(implicit s: Scheduler)
   extends Observer[T] {
 
-  private[this] var isDone = false
+  private[this] val isDone = Atomic(false)
 
   def onNext(elem: T): Future[Ack] = {
-    if (!isDone) {
+    if (!isDone()) {
       try {
-        val result = observer.onNext(elem)
-        if (result == Continue || result == Cancel || (result.isCompleted && result.value.get.isSuccess))
-          result
-        else
-          result.recoverWith {
-            case err =>
-              onError(err)
-              Cancel
-          }
+        observer.onNext(elem)
+          .onErrorCancelStream(observer, isDone)
       }
       catch {
         case NonFatal(ex) =>
@@ -63,26 +59,21 @@ final class SafeObserver[-T] private (observer: Observer[T])(implicit s: Schedul
   }
 
   def onError(ex: Throwable) = {
-    if (!isDone) {
-      isDone = true
+    if (isDone.compareAndSet(expect = false, update = true))
       try observer.onError(ex) catch {
         case NonFatal(err) =>
           s.reportFailure(err)
       }
-    }
+    else
+      s.reportFailure(ex)
   }
 
   def onComplete() = {
-    if (!isDone) {
-      isDone = true
+    if (isDone.compareAndSet(expect = false, update = true))
       try observer.onComplete() catch {
         case NonFatal(err) =>
           s.reportFailure(err)
-          Cancel
       }
-    }
-    else
-      Cancel
   }
 }
 

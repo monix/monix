@@ -18,7 +18,7 @@ package monifu.reactive
 
 import monifu.concurrent.Scheduler
 import monifu.reactive.Ack.{Cancel, Continue}
-import monifu.reactive.observers.{SafeObserver, SynchronousObserver}
+import monifu.reactive.observers.SynchronousObserver
 import monifu.reactive.streams.{ObserverAsSubscriber, SubscriberAsObserver, SynchronousObserverAsSubscriber}
 import org.reactivestreams.Subscriber
 
@@ -83,13 +83,11 @@ object Observer {
    * acknowledgement given after the last emitted element.
    */
   def feed[T](observer: Observer[T], iterable: Iterable[T])(implicit s: Scheduler): Future[Ack] = {
-    val safeObs = SafeObserver(observer)
-
     def scheduleFeedLoop(promise: Promise[Ack], iterator: Iterator[T]): Future[Ack] = {
       s.execute(new Runnable {
         @tailrec
         def fastLoop(): Unit = {
-          val ack = safeObs.onNext(iterator.next())
+          val ack = observer.onNext(iterator.next())
 
           if (iterator.hasNext)
             ack match {
@@ -115,7 +113,7 @@ object Observer {
         def run(): Unit = {
           try fastLoop() catch {
             case NonFatal(ex) =>
-              try safeObs.onError(ex) finally {
+              try observer.onError(ex) finally {
                 promise.failure(ex)
               }
           }

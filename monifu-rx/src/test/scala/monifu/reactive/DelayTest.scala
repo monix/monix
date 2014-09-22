@@ -12,7 +12,7 @@ import scala.concurrent.{Await, Future, Promise}
 
 
 class DelayTest extends FunSpec {
-  describe("Observable.delay(timespan)") {
+  describe("Observable.delayFirst(timespan)") {
     it("should work") {
       val now = System.currentTimeMillis()
       val f = Observable.repeat(1).take(100000).delayFirst(200.millis).take(5).reduce(_ + _).asFuture
@@ -61,10 +61,10 @@ class DelayTest extends FunSpec {
     }
   }
 
-  describe("Observable.delay(future)") {
+  describe("Observable.delayFirstOnFuture(future)") {
     it("should delay until the future completes with success") {
       val trigger = Promise[Unit]()
-      val obs = Observable.unit(1).delayFirst(trigger.future)
+      val obs = Observable.unit(1).delayFirstOnFuture(trigger.future)
       val f = obs.asFuture
       assert(f.value === None)
 
@@ -75,7 +75,7 @@ class DelayTest extends FunSpec {
 
     it("should interrupt when the future terminates in error") {
       val trigger = Promise[Unit]()
-      val obs = Observable.unit(1).delayFirst(trigger.future)
+      val obs = Observable.unit(1).delayFirstOnFuture(trigger.future)
       val f = obs.asFuture
       assert(f.value === None)
 
@@ -86,7 +86,7 @@ class DelayTest extends FunSpec {
 
     it("should fail with a buffer overflow in case the policy is OverflowTriggering") {
       val trigger = Promise[Unit]()
-      val obs = Observable.repeat(1).delayFirst(OverflowTriggering(1000), trigger.future)
+      val obs = Observable.repeat(1).delayFirstOnFuture(trigger.future, OverflowTriggering(1000))
       val f = obs.asFuture
       Await.ready(f, 5.seconds)
       assert(f.value.get.failed.get.isInstanceOf[BufferOverflowException],
@@ -96,7 +96,7 @@ class DelayTest extends FunSpec {
     it("should do back-pressure when the policy is BackPressured") {
       val trigger = Promise[Unit]()
       val subject = PublishSubject[Int]()
-      val f = subject.delayFirst(BackPressured(1000), trigger.future)
+      val f = subject.delayFirstOnFuture(trigger.future, BackPressured(1000))
         .reduce(_ + _).asFuture
 
       var ack = subject.onNext(1)
@@ -124,7 +124,7 @@ class DelayTest extends FunSpec {
       var triggeredError = null : Throwable
       var sum = 0
 
-      subject.delayFirst(BackPressured(1000), trigger.future)
+      subject.delayFirstOnFuture(trigger.future, BackPressured(1000))
         .subscribe(
           elem => { sum += elem; Continue },
           error => { triggeredError = error; completed.countDown() },
@@ -153,7 +153,7 @@ class DelayTest extends FunSpec {
       var triggeredError = null : Throwable
       var sum = 0
 
-      subject.delayFirst(OverflowTriggering(1000), trigger.future)
+      subject.delayFirstOnFuture(trigger.future, OverflowTriggering(1000))
         .subscribe(
           elem => { sum += elem; Continue },
           error => { triggeredError = error; completed.countDown() },

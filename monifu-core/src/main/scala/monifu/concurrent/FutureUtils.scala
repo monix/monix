@@ -83,7 +83,7 @@ object FutureUtils {
    */
   def delayedResult[T](delay: FiniteDuration)(result: => T)(implicit s: Scheduler): Future[T] = {
     val p = Promise[T]()
-    s.scheduleOnce(delay, p.success(result))
+    s.scheduleOnce(delay, p.complete(Try(result)))
     p.future
   }
 }
