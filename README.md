@@ -116,3 +116,12 @@ libraryDependencies += "org.monifu" %% "monifu-js" % "0.14.0.M4"
 
 All code in this repository is licensed under the Apache License, Version 2.0.
 See [LICENCE.txt](./LICENSE.txt).
+
+## Acknowledgements
+
+<img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/yklogo.png" align="right" />
+YourKit supports the Monifu project with its full-featured Java Profiler.
+YourKit, LLC is the creator [YourKit Java Profiler](http://www.yourkit.com/java/profiler/index.jsp)
+and [YourKit .NET Profiler](http://www.yourkit.com/.net/profiler/index.jsp),
+innovative and intelligent tools for profiling Java and .NET applications.
+
