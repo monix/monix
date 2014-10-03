@@ -16,7 +16,7 @@ object SampleForProfiling extends App {
   val f = Observable.from(0 until 1000000)
     .map(x => Observable.from(x until (x + 2)))
     .merge(BufferPolicy.BackPressured(2000))
-    .buffer(1.second)
+    .bufferTimed(1.second)
     .foldLeft(0L)((sum, seq) => sum + seq.sum)
     .asFuture
 

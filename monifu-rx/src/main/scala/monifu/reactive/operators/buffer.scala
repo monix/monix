@@ -5,6 +5,7 @@ import monifu.concurrent.locks.SpinLock
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.observers.SynchronousObserver
 import monifu.reactive.{Ack, Observer, Observable}
+import monifu.reactive.internals._
 
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Future
@@ -13,13 +14,14 @@ import scala.util.{Failure, Success}
 import scala.util.control.NonFatal
 
 /**
- * Implementation for [[Observable.buffer]].
+ * Implementation for [[Observable.bufferTimed]].
  */
-object Buffer {
-  def withSize[T](source: Observable[T])(count: Int): Observable[Seq[T]] =
+object buffer {
+  def withSize[T](source: Observable[T], count: Int)(implicit s: Scheduler): Observable[Seq[T]] =
     Observable.create { observer =>
       source.unsafeSubscribe(new Observer[T] {
         private[this] var buffer = ArrayBuffer.empty[T]
+        private[this] var lastAck = Continue : Future[Ack]
         private[this] var size = 0
 
         def onNext(elem: T): Future[Ack] = {
@@ -29,7 +31,9 @@ object Buffer {
             val oldBuffer = buffer
             buffer = ArrayBuffer.empty[T]
             size = 0
-            observer.onNext(oldBuffer)
+
+            lastAck = observer.onNext(oldBuffer)
+            lastAck
           }
           else
             Continue
@@ -42,36 +46,39 @@ object Buffer {
 
         def onComplete(): Unit = {
           if (size > 0) {
-            observer.onNext(buffer)
-            observer.onComplete()
+            // if we don't do this, then it breaks the
+            // back-pressure contract
+            lastAck.onContinueCompleteWith(observer, buffer)
           }
           else
             observer.onComplete()
+
           buffer = null
         }
       })
     }
 
-  def withTimespan[T](source: Observable[T])(timespan: FiniteDuration)(implicit s: Scheduler) =
+  def withTime[T](source: Observable[T], timespan: FiniteDuration)(implicit s: Scheduler) =
     Observable.create[Seq[T]] { observer =>
       source.unsafeSubscribe(new SynchronousObserver[T] {
         private[this] val lock = SpinLock()
-        private[this] var queue = ArrayBuffer.empty[T]
+        private[this] var buffer = ArrayBuffer.empty[T]
         private[this] var isDone = false
+        private[this] var lastAck = Continue : Future[Ack]
 
         private[this] val task =
           s.scheduleRecursive(timespan, timespan, { reschedule =>
             lock.enter {
               if (!isDone) {
-                val current = queue
-                queue = ArrayBuffer.empty
-                val result =
+                val current = buffer
+                buffer = ArrayBuffer.empty
+                lastAck =
                   try observer.onNext(current) catch {
                     case NonFatal(ex) =>
                       Future.failed(ex)
                   }
 
-                result match {
+                lastAck match {
                   case sync if sync.isCompleted =>
                     sync.value.get match {
                       case Success(Continue) =>
@@ -82,6 +89,7 @@ object Buffer {
                         isDone = true
                         observer.onError(ex)
                     }
+
                   case async =>
                     async.onComplete {
                       case Success(Continue) =>
@@ -105,7 +113,7 @@ object Buffer {
 
         def onNext(elem: T): Ack = lock.enter {
           if (!isDone) {
-            queue.append(elem)
+            buffer.append(elem)
             Continue
           }
           else
@@ -115,7 +123,7 @@ object Buffer {
         def onError(ex: Throwable): Unit = lock.enter {
           if (!isDone) {
             isDone = true
-            queue = null
+            buffer = null
             observer.onError(ex)
             task.cancel()
           }
@@ -123,15 +131,16 @@ object Buffer {
 
         def onComplete(): Unit = lock.enter {
           if (!isDone) {
-            if (queue.nonEmpty) {
-              observer.onNext(queue)
-              observer.onComplete()
+            if (buffer.nonEmpty) {
+              // if we don't do this, then it breaks the
+              // back-pressure contract
+              lastAck.onContinueCompleteWith(observer, buffer)
             }
             else
               observer.onComplete()
 
             isDone = true
-            queue = null
+            buffer = null
             task.cancel()
           }
         }

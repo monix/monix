@@ -10,7 +10,7 @@ object reduce {
   /**
    * Implementation for [[monifu.reactive.Observable.reduce]].
    */
-  def apply[T](op: (T, T) => T)(source: Observable[T]) =
+  def apply[T](source: Observable[T])(op: (T, T) => T) =
     Observable.create[T] { observer =>
       source.unsafeSubscribe(new Observer[T] {
         private[this] var state: T = _

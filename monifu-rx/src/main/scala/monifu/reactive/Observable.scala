@@ -27,11 +27,12 @@ import monifu.reactive.subjects.{AsyncSubject, BehaviorSubject, PublishSubject, 
 import org.reactivestreams.{Publisher, Subscriber}
 
 import scala.annotation.tailrec
-import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Future, Promise}
 import scala.language.implicitConversions
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
+
 
 /**
  * Asynchronous implementation of the Observable interface
@@ -125,7 +126,7 @@ trait Observable[+T] { self =>
    * @return an Observable that emits the items from the source Observable, transformed by the given function
    */
   def map[U](f: T => U): Observable[U] =
-    lift(operators.map(f))
+    operators.map(self)(f)
 
   /**
    * Returns an Observable which only emits those items for which the given predicate holds.
@@ -134,7 +135,7 @@ trait Observable[+T] { self =>
    * @return an Observable that emits only those items in the original Observable for which the filter evaluates as `true`
    */
   def filter(p: T => Boolean): Observable[T] =
-    lift(operators.filter(p))
+    operators.filter(self)(p)
 
   /**
    * Creates a new Observable by applying a function that you supply to each item emitted by
@@ -208,7 +209,7 @@ trait Observable[+T] { self =>
    *         by the Observables emitted by `this`
    */
   def concat[U](implicit ev: T <:< Observable[U], s: Scheduler): Observable[U] =
-    operators.Flatten.concat(this)(ev, s)
+    operators.flatten.concat(self)
 
   /**
    * Merges the sequence of Observables emitted by the source into one Observable, without any
@@ -235,14 +236,14 @@ trait Observable[+T] { self =>
    */
   def merge[U](bufferPolicy: BufferPolicy = defaultPolicy, batchSize: Int = 0)
       (implicit ev: T <:< Observable[U], s: Scheduler): Observable[U] =
-    operators.Flatten.merge(this)(bufferPolicy, batchSize)
+    operators.flatten.merge(self, bufferPolicy, batchSize)
 
   /**
    * Given the source observable and another `Observable`, emits all of the items
    * from the first of these Observables to emit an item and cancel the other.
    */
   def ambWith[U >: T](other: Observable[U])(implicit s: Scheduler): Observable[U] = {
-    Observable.amb(this, other)
+    Observable.amb(self, other)
   }
 
   /**
@@ -250,7 +251,7 @@ trait Observable[+T] { self =>
    * the source Observable completes after emitting no items.
    */
   def defaultIfEmpty[U >: T](default: U): Observable[U] =
-    operators.Misc.defaultIfEmpty(this : Observable[U])(default)
+    operators.misc.defaultIfEmpty(self, default)
 
   /**
    * Selects the first ''n'' elements (from the start).
@@ -259,7 +260,7 @@ trait Observable[+T] { self =>
    *  @return    a new Observable that emits only the first ''n'' elements from the source
    */
   def take(n: Int): Observable[T] =
-    lift(operators.take(n))
+    operators.take.left(self, n)
 
   /**
    * Creates a new Observable that emits the events of the source, only
@@ -268,31 +269,18 @@ trait Observable[+T] { self =>
    * @param timespan the window of time during which the new Observable
    *                 is allowed to emit the events of the source
    *
-   * @param scheduler is the [[monifu.concurrent.Scheduler Scheduler]] needed
-   *                  for triggering the timeout event.
+   * @param s is the [[monifu.concurrent.Scheduler Scheduler]] needed
+   *          for triggering the timeout event.
    */
-  def take(timespan: FiniteDuration)(implicit scheduler: Scheduler): Observable[T] =
-    lift(operators.takeTimespan(timespan))
-
-  /**
-   * Creates a new Observable that drops the events of the source, only
-   * for the specified `timestamp` window.
-   *
-   * @param timespan the window of time during which the new Observable
-   *                 is must drop the events emitted by the source
-   *
-   * @param scheduler is the [[monifu.concurrent.Scheduler Scheduler]] needed
-   *                  for triggering the timeout event.
-   */
-  def drop(timespan: FiniteDuration)(implicit scheduler: Scheduler): Observable[T] =
-    lift(operators.dropTimespan(timespan))
+  def take(timespan: FiniteDuration)(implicit s: Scheduler): Observable[T] =
+    operators.take.leftByTimespan(self, timespan)
 
   /**
    * Creates a new Observable that only emits the last `n` elements
    * emitted by the source.
    */
   def takeRight(n: Int)(implicit s: Scheduler): Observable[T] =
-    lift(operators.takeRight(n))
+    operators.take.right(self, n)
 
   /**
    * Drops the first ''n'' elements (from the start).
@@ -302,21 +290,51 @@ trait Observable[+T] { self =>
    *             emitted by the source
    */
   def drop(n: Int): Observable[T] =
-    lift(operators.drop(n))
+    operators.drop.byCount(self, n)
+
+  /**
+   * Creates a new Observable that drops the events of the source, only
+   * for the specified `timestamp` window.
+   *
+   * @param timespan the window of time during which the new Observable
+   *                 is must drop the events emitted by the source
+   *
+   * @param s is the [[monifu.concurrent.Scheduler Scheduler]] needed
+   *          for triggering the timeout event.
+   */
+  def dropByTimespan(timespan: FiniteDuration)(implicit s: Scheduler): Observable[T] =
+    operators.drop.byTimespan(self, timespan)
+
+  /**
+   * Drops the longest prefix of elements that satisfy the given predicate
+   * and returns a new Observable that emits the rest.
+   */
+  def dropWhile(p: T => Boolean): Observable[T] =
+    operators.drop.byPredicate(self)(p)
+
+  /**
+   * Drops the longest prefix of elements that satisfy the given function
+   * and returns a new Observable that emits the rest. In comparison with
+   * [[dropWhile]], this version accepts a function that takes an additional
+   * parameter: the zero-based index of the element.
+   */
+  def dropWhileWithIndex(p: (T, Int) => Boolean): Observable[T] =
+    operators.drop.byPredicateWithIndex(self)(p)
+
 
   /**
    * Takes longest prefix of elements that satisfy the given predicate
    * and returns a new Observable that emits those elements.
    */
   def takeWhile(p: T => Boolean): Observable[T] =
-    lift(operators.takeWhile(p))
+    operators.take.byPredicate(self)(p)
 
   /**
    * Takes longest prefix of elements that satisfy the given predicate
    * and returns a new Observable that emits those elements.
    */
   def takeWhileRefIsTrue(ref: AtomicBoolean): Observable[T] =
-    lift(operators.takeWhileRefIsTrue(ref))
+    operators.take.whileRefIsTrue(self, ref)
 
   /**
    * Returns the values from the source Observable until the other
@@ -327,23 +345,7 @@ trait Observable[+T] { self =>
    * `onError` or `onCompleted`.
    */
   def takeUntilOtherEmits[U](other: Observable[U])(implicit s: Scheduler): Observable[T] =
-    lift(operators.takeUntilOtherEmits(other))
-
-  /**
-   * Drops the longest prefix of elements that satisfy the given predicate
-   * and returns a new Observable that emits the rest.
-   */
-  def dropWhile(p: T => Boolean): Observable[T] =
-    lift(operators.dropWhile(p))
-
-  /**
-   * Drops the longest prefix of elements that satisfy the given function
-   * and returns a new Observable that emits the rest. In comparison with
-   * [[dropWhile]], this version accepts a function that takes an additional
-   * parameter: the zero-based index of the element.
-   */
-  def dropWhileWithIndex(p: (T, Int) => Boolean): Observable[T] =
-    lift(operators.dropWhileWithIndex(p))
+    operators.take.untilOtherEmits(self, other)
 
   /**
    * Creates a new Observable that emits the total number of `onNext` events
@@ -354,7 +356,7 @@ trait Observable[+T] { self =>
    * emitted.
    */
   def count(): Observable[Long] =
-    operators.Math.count(this)
+    operators.math.count(self)
 
   /**
    * Periodically gather items emitted by an Observable into bundles and emit
@@ -362,8 +364,8 @@ trait Observable[+T] { self =>
    * 
    * @param count the bundle size
    */
-  def buffer(count: Int): Observable[Seq[T]] =
-    operators.Buffer.withSize(this)(count)
+  def buffer(count: Int)(implicit s: Scheduler): Observable[Seq[T]] =
+    operators.buffer.withSize(self, count)
 
   /**
    * Periodically gather items emitted by an Observable into bundles and emit
@@ -375,11 +377,11 @@ trait Observable[+T] { self =>
    *
    * @param timespan the interval of time at which it should emit the buffered bundle
    *
-   * @param scheduler is the [[monifu.concurrent.Scheduler Scheduler]] needed
-   *                  for triggering the `onNext` events.
+   * @param s is the [[monifu.concurrent.Scheduler Scheduler]] needed
+   *          for triggering the `onNext` events.
    */
-  def buffer(timespan: FiniteDuration)(implicit scheduler: Scheduler): Observable[Seq[T]] =
-    operators.Buffer.withTimespan(this)(timespan)
+  def bufferTimed(timespan: FiniteDuration)(implicit s: Scheduler): Observable[Seq[T]] =
+    operators.buffer.withTime(this, timespan)
 
   /**
    * Emit the most recent items emitted by an Observable within periodic time
@@ -398,10 +400,10 @@ trait Observable[+T] { self =>
    *              in the observer takes one second, then the actual sampling delay
    *              will be 2 seconds.
    *
-   * @param scheduler is the [[monifu.concurrent.Scheduler Scheduler]] needed
-   *                  for triggering the sample events.
+   * @param s is the [[monifu.concurrent.Scheduler Scheduler]] needed
+   *          for triggering the sample events.
    */
-  def sample(delay: FiniteDuration)(implicit scheduler: Scheduler): Observable[T] =
+  def sample(delay: FiniteDuration)(implicit s: Scheduler): Observable[T] =
     sample(delay, delay)
 
   /**
@@ -423,11 +425,11 @@ trait Observable[+T] { self =>
    *              in the observer takes one second, then the actual sampling delay
    *              will be 2 seconds.
    *
-   * @param scheduler is the [[monifu.concurrent.Scheduler Scheduler]] needed
-   *                  for triggering the sample events.
+   * @param s is the [[monifu.concurrent.Scheduler Scheduler]] needed
+   *          for triggering the sample events.
    */
-  def sample(initialDelay: FiniteDuration, delay: FiniteDuration)(implicit scheduler: Scheduler): Observable[T] =
-    operators.Sampler.sample(this)(initialDelay, delay)
+  def sample(initialDelay: FiniteDuration, delay: FiniteDuration)(implicit s: Scheduler): Observable[T] =
+    operators.sample.once(self, initialDelay, delay)
 
   /**
    * Emit the most recent items emitted by an Observable within periodic time
@@ -442,10 +444,10 @@ trait Observable[+T] { self =>
    *              in the observer takes one second, then the actual sampling delay
    *              will be 2 seconds.
    *
-   * @param scheduler is the [[monifu.concurrent.Scheduler Scheduler]] needed
-   *                  for triggering the sample events.
+   * @param s is the [[monifu.concurrent.Scheduler Scheduler]] needed
+   *          for triggering the sample events.
    */
-  def sampleRepeated(delay: FiniteDuration)(implicit scheduler: Scheduler): Observable[T] =
+  def sampleRepeated(delay: FiniteDuration)(implicit s: Scheduler): Observable[T] =
     sampleRepeated(delay, delay)
 
   /**
@@ -463,11 +465,11 @@ trait Observable[+T] { self =>
    *              in the observer takes one second, then the actual sampling delay
    *              will be 2 seconds.
    *
-   * @param scheduler is the [[monifu.concurrent.Scheduler Scheduler]] needed
-   *                  for triggering the sample events.
+   * @param s is the [[monifu.concurrent.Scheduler Scheduler]] needed
+   *          for triggering the sample events.
    */
-  def sampleRepeated(initialDelay: FiniteDuration, delay: FiniteDuration)(implicit scheduler: Scheduler): Observable[T] =
-    operators.Sampler.sampleRepeated(this)(initialDelay, delay)
+  def sampleRepeated(initialDelay: FiniteDuration, delay: FiniteDuration)(implicit s: Scheduler): Observable[T] =
+    operators.sample.repeated(self, initialDelay, delay)
 
   /**
    * Creates an Observable that emits the events emitted by the source, 
@@ -480,14 +482,14 @@ trait Observable[+T] { self =>
    * @param timespan is the period of time to wait before events start
    *                   being signaled
    *
-   * @param scheduler is the [[monifu.concurrent.Scheduler Scheduler]] needed
-   *                  for triggering the timeout.
+   * @param s is the [[monifu.concurrent.Scheduler Scheduler]] needed
+   *          for triggering the timeout.
    */
   def delayFirst(timespan: FiniteDuration, policy: BufferPolicy = defaultPolicy)
-      (implicit scheduler: Scheduler): Observable[T] = {
+      (implicit s: Scheduler): Observable[T] = {
 
     delayFirstOnEvent(policy = policy, eventInit = {
-      (connect, _) => scheduler.scheduleOnce(timespan, connect())
+      (connect, _) => s.scheduleOnce(timespan, connect())
     })
   }
 
@@ -506,7 +508,7 @@ trait Observable[+T] { self =>
    */
   def delayFirstOnFuture(future: Future[_], policy: BufferPolicy = defaultPolicy)
       (implicit s: Scheduler): Observable[T] =
-    operators.Delay.onFuture(this)(policy, future)
+    operators.delay.onFuture(self, policy, future)
 
   /**
    * Creates an Observable that emits the events emitted by the source
@@ -568,7 +570,7 @@ trait Observable[+T] { self =>
    */
   def delayFirstOnEvent(eventInit: (() => Unit, Throwable => Unit) => Cancelable, policy: BufferPolicy = defaultPolicy)
       (implicit s: Scheduler): Observable[T] =
-    operators.Delay.onEvent(this)(policy, eventInit)
+    operators.delay.onEvent(self, policy)(eventInit)
 
   /**
    * Hold an Observer's subscription request until the given `future` completes,
@@ -579,7 +581,7 @@ trait Observable[+T] { self =>
    *               subscription to happen.
    */
   def delaySubscription(future: Future[_])(implicit s: Scheduler): Observable[T] =
-    lift(operators.delaySubscription(future))
+    operators.delaySubscription.onFuture(self, future)
 
   /**
    * Hold an Observer's subscription request for a specified
@@ -588,11 +590,11 @@ trait Observable[+T] { self =>
    * @param timespan is the time to wait before the subscription
    *                 is being initiated.
    *
-   * @param scheduler is the [[monifu.concurrent.Scheduler Scheduler]] needed
-   *                  for triggering the timeout event.
+   * @param s is the [[monifu.concurrent.Scheduler Scheduler]] needed
+   *          for triggering the timeout event.
    */
-  def delaySubscription(timespan: FiniteDuration)(implicit scheduler: Scheduler): Observable[T] =
-    lift(operators.delaySubscription(timespan))
+  def delaySubscription(timespan: FiniteDuration)(implicit s: Scheduler): Observable[T] =
+    operators.delaySubscription.onTimespan(self, timespan)
 
   /**
    * Applies a binary operator to a start value and all elements of this Observable,
@@ -600,7 +602,7 @@ trait Observable[+T] { self =>
    * before `onComplete`.
    */
   def foldLeft[R](initial: R)(op: (R, T) => R): Observable[R] =
-    lift(operators.foldLeft(initial)(op))
+    operators.foldLeft(self, initial)(op)
 
   /**
    * Applies a binary operator to a start value and all elements of this Observable,
@@ -608,7 +610,7 @@ trait Observable[+T] { self =>
    * before `onComplete`.
    */
   def reduce[U >: T](op: (U, U) => U): Observable[U] =
-    lift(operators.reduce(op))
+    operators.reduce(self : Observable[U])(op)
 
   /**
    * Applies a binary operator to a start value and all elements of this Observable,
@@ -619,7 +621,7 @@ trait Observable[+T] { self =>
    * state machines.
    */
   def scan[R](initial: R)(op: (R, T) => R): Observable[R] =
-    lift(operators.scan(initial)(op))
+    operators.scan(self, initial)(op)
 
   /**
    * Given a start value (a seed) and a function taking the current state
@@ -652,7 +654,7 @@ trait Observable[+T] { self =>
    * [[concatMap]] and NOT [[mergeMap]] (a mergeScan wouldn't make sense anyway).
    */
   def flatScan[R](initial: R)(op: (R, T) => Observable[R])(implicit s: Scheduler): Observable[R] =
-    lift(operators.flatScan(initial)(op))
+    operators.flatScan(self, initial)(op)
 
   /**
    * Executes the given callback when the stream has ended
@@ -665,7 +667,7 @@ trait Observable[+T] { self =>
    * @param cb the callback to execute when the subscription is canceled
    */
   def doOnComplete(cb: => Unit)(implicit s: Scheduler): Observable[T] =
-    lift(operators.doOnComplete(cb))
+    lift(operators.doWork.onComplete(cb))
 
   /**
    * Executes the given callback for each element generated by the source
@@ -674,7 +676,7 @@ trait Observable[+T] { self =>
    * @return a new Observable that executes the specified callback for each element
    */
   def doWork(cb: T => Unit): Observable[T] =
-    lift(operators.doWork(cb))
+    lift(operators.doWork.onNext(cb))
 
   /**
    * Executes the given callback only for the first element generated by the source
@@ -683,7 +685,7 @@ trait Observable[+T] { self =>
    * @return a new Observable that executes the specified callback only for the first element
    */
   def doOnStart(cb: T => Unit): Observable[T] =
-    lift(operators.doOnStart(cb))
+    lift(operators.doWork.onStart(cb))
 
   /**
    * Returns an Observable which only emits the first item for which the predicate holds.
@@ -718,21 +720,21 @@ trait Observable[+T] { self =>
    * Returns an Observable that doesn't emit anything, but that completes when the source Observable completes.
    */
   def complete: Observable[Nothing] =
-    operators.Misc.complete(this)
+    operators.misc.complete(this)
 
   /**
    * Returns an Observable that emits a single Throwable, in case an error was thrown by the source Observable,
    * otherwise it isn't going to emit anything.
    */
   def error: Observable[Throwable] =
-    operators.Misc.error(this)
+    operators.misc.error(this)
   /**
    * Emits the given exception instead of `onComplete`.
    * @param error the exception to emit onComplete
    * @return a new Observable that emits an exception onComplete
    */
   def endWithError(error: Throwable): Observable[T] =
-    operators.Misc.endWithError(this)(error)
+    operators.misc.endWithError(this)(error)
 
   /**
    * Creates a new Observable that emits the given element
@@ -809,42 +811,42 @@ trait Observable[+T] { self =>
    * events than the other, then the rest of the unpaired events are ignored.
    */
   def zip[U](other: Observable[U])(implicit s: Scheduler): Observable[(T, U)] =
-    lift(operators.zip(other))
+    operators.zip(self, other)
 
   /**
    * Takes the elements of the source Observable and emits the maximum value,
    * after the source has completed.
    */
   def max[U >: T](implicit ev: Ordering[U]): Observable[U] =
-    operators.Math.max(this : Observable[U])
+    operators.math.max(this : Observable[U])
 
   /**
    * Takes the elements of the source Observable and emits the element that has
    * the maximum key value, where the key is generated by the given function `f`.
    */
   def maxBy[U](f: T => U)(implicit ev: Ordering[U]): Observable[T] =
-    operators.Math.maxBy(this)(f)(ev)
+    operators.math.maxBy(this)(f)(ev)
 
   /**
    * Takes the elements of the source Observable and emits the minimum value,
    * after the source has completed.
    */
   def min[U >: T](implicit ev: Ordering[U]): Observable[U] =
-    operators.Math.min(this : Observable[U])
+    operators.math.min(this : Observable[U])
 
   /**
    * Takes the elements of the source Observable and emits the element that has
    * the minimum key value, where the key is generated by the given function `f`.
    */
   def minBy[U](f: T => U)(implicit ev: Ordering[U]): Observable[T] =
-    operators.Math.minBy(this)(f)
+    operators.math.minBy(this)(f)
 
   /**
    * Given a source that emits numeric values, the `sum` operator
    * sums up all values and at onComplete it emits the total.
    */
   def sum[U >: T](implicit ev: Numeric[U]): Observable[U] =
-    operators.Math.sum(this : Observable[U])
+    operators.math.sum(this : Observable[U])
 
   /**
    * Suppress the duplicate elements emitted by the source Observable.
@@ -852,7 +854,7 @@ trait Observable[+T] { self =>
    * WARNING: this requires unbounded buffering.
    */
   def distinct: Observable[T] =
-    lift(operators.distinct())
+    operators.distinct.distinct(this)
 
   /**
    * Given a function that returns a key for each element emitted by
@@ -861,19 +863,19 @@ trait Observable[+T] { self =>
    * WARNING: this requires unbounded buffering.
    */
   def distinct[U](fn: T => U): Observable[T] =
-    lift(operators.distinct(fn))
+    operators.distinct.distinctBy(this)(fn)
 
   /**
    * Suppress duplicate consecutive items emitted by the source Observable
    */
   def distinctUntilChanged: Observable[T] =
-    lift(operators.distinctUntilChanged())
+    operators.distinct.untilChanged(this)
 
   /**
    * Suppress duplicate consecutive items emitted by the source Observable
    */
   def distinctUntilChanged[U](fn: T => U): Observable[T] =
-    lift(operators.distinctUntilChanged(fn))
+    operators.distinct.untilChangedBy(this)(fn)
 
   /**
    * Returns a new Observable that uses the specified `ExecutionContext` for initiating the subscription.
@@ -893,20 +895,20 @@ trait Observable[+T] { self =>
    * followed by an `onComplete`.
    */
   def materialize(implicit s: Scheduler): Observable[Notification[T]] =
-    lift(operators.materialize(s))
+    operators.materialize(self)
 
   /**
    * Utility that can be used for debugging purposes.
    */
   def dump(prefix: String)(implicit s: Scheduler): Observable[T] =
-    lift(operators.dump(prefix))
+    operators.debug.dump(self, prefix)
 
   /**
    * Repeats the items emitted by this Observable continuously. It caches the generated items until `onComplete`
    * and repeats them ad infinitum. On error it terminates.
    */
   def repeat(implicit s: Scheduler): Observable[T] =
-    lift(operators.repeat(s))
+    operators.repeat(self)
 
   /**
    * Converts this observable into a multicast observable, useful for turning a cold observable into
@@ -971,6 +973,14 @@ trait Observable[+T] { self =>
    */
   def asyncBoundary(policy: BufferPolicy = defaultPolicy)(implicit s: Scheduler): Observable[T] =
     Observable.create { observer => unsafeSubscribe(BufferedObserver(observer, policy)) }
+
+  /**
+   * While the destination observer is busy, drop the incoming events.
+   *
+   * @param cb a callback to be called in case events are dropped
+   */
+  def whileBusyDrop(cb: T => Unit): Observable[T] =
+    operators.whileBusy.drop(this)(cb)
 
   /**
    * Converts this observable into a multicast observable, useful for turning a cold observable into
@@ -1094,7 +1104,7 @@ object Observable {
    *   //=> 3: Emit completed
    * }}}
    */
-  def create[T](f: Observer[T] => Unit): Observable[T] ={
+  def create[T](f: Observer[T] => Unit): Observable[T] = {
     new Observable[T] {
       override def subscribeFn(observer: Observer[T]): Unit =
         try f(observer) catch {
@@ -1147,49 +1157,61 @@ object Observable {
   /**
    * Creates an Observable that emits auto-incremented natural numbers (longs) spaced by
    * a given time interval. Starts from 0 with no delay, after which it emits incremented
-   * numbers spaced by the `period` of time.
+   * numbers spaced by the `period` of time. The given `period` of time acts as a fixed delay
+   * between subsequent events.
    *
    * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/interval.png"" />
    *
-   * @param period the delay between two subsequent events
+   * @param delay the delay between two subsequent events
    * @param s the scheduler used for scheduling the periodic signaling of onNext
    */
-  def interval(period: FiniteDuration)(implicit s: Scheduler): Observable[Long] = {
-    Observable.create { o =>
-      var counter = 0
+  def intervalWithFixedDelay(delay: FiniteDuration)(implicit s: Scheduler): Observable[Long] =
+    builders.interval.withFixedDelay(delay)
 
-      s.scheduleRecursive(Duration.Zero, period, { reschedule =>
-        val result = o.onNext(counter)
-        counter += 1
+  /**
+   * Creates an Observable that emits auto-incremented natural numbers (longs) spaced by
+   * a given time interval. Starts from 0 with no delay, after which it emits incremented
+   * numbers spaced by the `period` of time. The given `period` of time acts as a fixed delay
+   * between subsequent events.
+   *
+   * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/interval.png"" />
+   *
+   * @param delay the delay between two subsequent events
+   * @param s the scheduler used for scheduling the periodic signaling of onNext
+   */
+  def interval(delay: FiniteDuration)(implicit s: Scheduler): Observable[Long] =
+    intervalWithFixedDelay(delay)
 
-        result.onSuccess {
-          case Continue =>
-            reschedule()
-        }
-      })
-    }
-  }
+  /**
+   * Creates an Observable that emits auto-incremented natural numbers (longs) at a fixed rate,
+   * as given by the specified `period`. The time it takes to process an `onNext` event gets
+   * subtracted from the specified `period` and thus the created observable tries to emit events
+   * spaced by the given time interval, regardless of how long the processing of `onNext` takes.
+   *
+   * For example, an invocation like this:
+   * {{{
+   *   Observable.intervalAtFixedRate(1.second)
+   * }}}
+   *
+   * Is roughly equivalent to this:
+   * {{{
+   *   import monifu.concurrent.extensions._
+   *
+   *   Observable.range(0, Long.MaxValue)
+   *     .flatMap(x => Future(x).withMinDuration(1.second))
+   * }}}
+   *
+   * @param period is the period of time the observable waits between 2 subsequent `onNext` events
+   * @param s the scheduler used for scheduling the periodic signaling of `onNext` events
+   */
+  def intervalAtFixedRate(period: FiniteDuration)(implicit s: Scheduler): Observable[Long] =
+    builders.interval.atFixedRate(period)
 
   /**
    * Creates an Observable that continuously emits the given ''item'' repeatedly.
    */
-  def repeat[T](elems: T*)(implicit s: Scheduler): Observable[T] = {
-    if (elems.size == 0)
-      Observable.empty
-    else if (elems.size == 1) {
-      Observable.create { o =>
-        def loop(elem: T): Unit =
-          o.onNext(elem).onSuccess {
-            case Continue =>
-              loop(elem)
-          }
-
-        loop(elems.head)
-      }
-    }
-    else
-      Observable.from(elems).repeat
-  }
+  def repeat[T](elems: T*)(implicit s: Scheduler): Observable[T] =
+    builders.repeat(elems : _*)
 
   /**
    * Creates an Observable that emits items in the given range.
@@ -1200,44 +1222,8 @@ object Observable {
    * @param until the range end
    * @param step increment step, either positive or negative
    */
-  def range(from: Int, until: Int, step: Int = 1)(implicit s: Scheduler): Observable[Int] = {
-    require(step != 0, "step must be a number different from zero")
-
-    Observable.create { o =>
-      def scheduleLoop(from: Int, until: Int, step: Int): Unit =
-        s.execute(new Runnable {
-          private[this] def isInRange(x: Int): Boolean = {
-            (step > 0 && x < until) || (step < 0 && x > until)
-          }
-
-          @tailrec
-          def loop(from: Int, until: Int, step: Int): Unit =
-            if (isInRange(from)) {
-              o.onNext(from) match {
-                case sync if sync.isCompleted =>
-                  if (sync == Continue || sync.value.get == Continue.IsSuccess)
-                    loop(from + step, until, step)
-                case async =>
-                  if (isInRange(from + step))
-                    async.onSuccess {
-                      case Continue =>
-                        scheduleLoop(from + step, until, step)
-                    }
-                  else
-                    o.onComplete()
-              }
-            }
-            else
-              o.onComplete()
-
-          def run(): Unit = {
-            loop(from, until, step)
-          }
-        })
-
-      scheduleLoop(from, until, step)
-    }
-  }
+  def range(from: Int, until: Int, step: Int = 1)(implicit s: Scheduler): Observable[Int] =
+    builders.range(from, until, step)
 
   /**
    * Creates an Observable that emits the given elements.

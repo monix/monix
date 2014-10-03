@@ -10,7 +10,7 @@ import monifu.reactive.internals._
 import scala.concurrent.Promise
 
 
-object Flatten {
+object flatten {
   /**
    * Implementation for [[Observable.concat]].
    */
@@ -62,7 +62,7 @@ object Flatten {
   /**
    * Implementation for [[monifu.reactive.Observable.merge]].
    */
-  def merge[T,U](source: Observable[T])(bufferPolicy: BufferPolicy, batchSize: Int)
+  def merge[T,U](source: Observable[T], bufferPolicy: BufferPolicy, batchSize: Int)
       (implicit ev: T <:< Observable[U], s: Scheduler): Observable[U] =
     Observable.create[U] { observerB =>
       // if the parallelism is unbounded and the buffer policy allows for a

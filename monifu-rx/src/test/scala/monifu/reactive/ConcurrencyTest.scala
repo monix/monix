@@ -123,7 +123,7 @@ class ConcurrencyTest extends FunSpec {
 
   describe("Observable.interval") {
     it("should not have concurrency problems") {
-      val f = Observable.interval(1.millisecond).asyncBoundary()
+      val f = Observable.intervalWithFixedDelay(1.millisecond).asyncBoundary()
         .take(100)
         .foldLeft(Seq.empty[Long])(_:+_)
         .asFuture

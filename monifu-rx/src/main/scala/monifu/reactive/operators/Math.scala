@@ -2,10 +2,9 @@ package monifu.reactive.operators
 
 import monifu.reactive.Ack.Continue
 import monifu.reactive.{Ack, Observer, Observable}
-
 import scala.concurrent.Future
 
-object Math {
+object math {
   /**
    * Implementation for [[Observable.count]].
    */

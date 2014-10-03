@@ -11,7 +11,7 @@ import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Success}
 import scala.util.control.NonFatal
 
-object Sampler {
+object sample {
   /**
    * Implementation for `Observable.sample(initialDelay, delay)`.
    *
@@ -19,7 +19,7 @@ object Sampler {
    * this version does not emit any events if no fresh values were emitted
    * since the last sampling.
    */
-  def sample[T](source: Observable[T])(initialDelay: FiniteDuration, delay: FiniteDuration)(implicit s: Scheduler) =
+  def once[T](source: Observable[T], initialDelay: FiniteDuration, delay: FiniteDuration)(implicit s: Scheduler) =
     Observable.create[T] { observer =>
       source.unsafeSubscribe(new SampleObserver(
         observer,
@@ -35,8 +35,7 @@ object Sampler {
    * By comparison with [[monifu.reactive.Observable.sample]], this version always
    * emits values at the requested interval, even if no fresh value in the meantime.
    */
-  def sampleRepeated[T](source: Observable[T])
-      (initialDelay: FiniteDuration, delay: FiniteDuration)(implicit s: Scheduler) =
+  def repeated[T](source: Observable[T], initialDelay: FiniteDuration, delay: FiniteDuration)(implicit s: Scheduler) =
      Observable.create[T] { observer =>
       source.unsafeSubscribe(new SampleObserver(
         observer,

@@ -123,7 +123,7 @@ class ObservableOperatorsOnUnitTest extends FunSpec {
     }
 
     it("should buffer(timespan)") {
-      val f = Observable.unit(1).buffer(200.millis).asFuture
+      val f = Observable.unit(1).bufferTimed(200.millis).asFuture
       assert(Await.result(f, 5.seconds) === Some(Seq(1)))
     }
 
