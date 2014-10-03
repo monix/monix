@@ -46,8 +46,7 @@ package object internals {
           }
       }
 
-    def onContinueComplete[T](observer: Observer[T], ex: Throwable = null)
-        (implicit s: Scheduler): Unit =
+    def onContinueComplete[T](observer: Observer[T], ex: Throwable = null)(implicit s: Scheduler): Unit =
       source match {
         case sync if sync.isCompleted =>
           if (sync == Continue || ((sync != Cancel) && sync.value.get == Continue.IsSuccess)) {
@@ -62,7 +61,10 @@ package object internals {
             }
             catch {
               case NonFatal(err) =>
-                if (streamError) observer.onError(ex) else s.reportFailure(err)
+                if (streamError)
+                  observer.onError(err)
+                else
+                  s.reportFailure(err)
             }
           }
         case async =>
@@ -79,7 +81,37 @@ package object internals {
               }
               catch {
                 case NonFatal(err) =>
-                  if (streamError) observer.onError(ex) else s.reportFailure(err)
+                  if (streamError)
+                    observer.onError(err)
+                  else
+                    s.reportFailure(err)
+              }
+          }
+      }
+
+    def onContinueCompleteWith[T](observer: Observer[T], lastElem: T)(implicit s: Scheduler): Unit =
+      source match {
+        case sync if sync.isCompleted =>
+          if (sync == Continue || ((sync != Cancel) && sync.value.get == Continue.IsSuccess)) {
+            try {
+              observer.onNext(lastElem)
+              observer.onComplete()
+            }
+            catch {
+              case NonFatal(err) =>
+                observer.onError(err)
+            }
+          }
+        case async =>
+          async.onSuccess {
+            case Continue =>
+              try {
+                observer.onNext(lastElem)
+                observer.onComplete()
+              }
+              catch {
+                case NonFatal(err) =>
+                  observer.onError(err)
               }
           }
       }

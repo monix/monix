@@ -10,7 +10,7 @@ object filter {
   /**
    * Implementation for [[Observable.filter]].
    */
-  def apply[T](p: T => Boolean)(source: Observable[T]): Observable[T] = {
+  def apply[T](source: Observable[T])(p: T => Boolean): Observable[T] = {
     Observable.create { observer =>
       source.unsafeSubscribe(new Observer[T] {
         def onNext(elem: T) = {

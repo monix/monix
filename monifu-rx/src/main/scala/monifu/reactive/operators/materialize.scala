@@ -12,7 +12,7 @@ object materialize {
   /**
    * Implementation for [[Observable.materialize]].
    */
-  def apply[T](implicit s: Scheduler) = (source: Observable[T]) =>
+  def apply[T](source: Observable[T])(implicit s: Scheduler): Observable[Notification[T]] =
     Observable.create[Notification[T]] { observer =>
       source.unsafeSubscribe(new Observer[T] {
         private[this] var ack = Continue : Future[Ack]

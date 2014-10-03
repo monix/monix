@@ -7,12 +7,12 @@ import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Promise, Future}
 import scala.util.{Failure, Success}
 
+
 object delaySubscription {
   /**
    * Implementation for [[Observable.delaySubscription]].
    */
-  def apply[T](future: Future[_])(implicit s: Scheduler) =
-    (source: Observable[T]) =>
+  def onFuture[T](source: Observable[T], future: Future[_])(implicit s: Scheduler) =
       Observable.create[T] { observer =>
         future.onComplete {
           case Success(_) =>
@@ -25,11 +25,10 @@ object delaySubscription {
   /**
    * Implementation for [[Observable.delaySubscription]].
    */
-  def apply[T](timespan: FiniteDuration)(implicit s: Scheduler) =
-    (source: Observable[T]) =>
-      source.delaySubscription {
-        val p = Promise[Unit]()
-        s.scheduleOnce(timespan, p.success(()))
-        p.future
-      }
+  def onTimespan[T](source: Observable[T], timespan: FiniteDuration)(implicit s: Scheduler) =
+    source.delaySubscription {
+      val p = Promise[Unit]()
+      s.scheduleOnce(timespan, p.success(()))
+      p.future
+    }
 }

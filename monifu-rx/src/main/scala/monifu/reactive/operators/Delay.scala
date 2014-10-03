@@ -13,12 +13,12 @@ import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success}
 
 
-object Delay {
+object delay {
   /**
    * Implementation for `Observable.delayFirst(policy, init)`.
    */
-  def onEvent[T](source: Observable[T])
-      (policy: BufferPolicy, eventInit: (() => Unit, Throwable => Unit) => Cancelable)
+  def onEvent[T](source: Observable[T], policy: BufferPolicy)
+      (eventInit: (() => Unit, Throwable => Unit) => Cancelable)
       (implicit s: Scheduler) = Observable.create[T] { observer =>
     source.unsafeSubscribe(new Observer[T] {
       private[this] val lock = SpinLock()
@@ -182,7 +182,7 @@ object Delay {
   /**
    * Implementation for `Observable.delayFirst(policy, future)`.
    */
-  def onFuture[T](source: Observable[T])(policy: BufferPolicy, future: Future[_])(implicit s: Scheduler) =
+  def onFuture[T](source: Observable[T], policy: BufferPolicy, future: Future[_])(implicit s: Scheduler) =
       source.delayFirstOnEvent(policy = policy, eventInit = {
         (connect, signalError) =>
           val task = BooleanCancelable()

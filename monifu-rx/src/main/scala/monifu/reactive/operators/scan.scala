@@ -10,7 +10,7 @@ object scan {
   /**
    * Implementation for [[Observable.scan]].
    */
-  def apply[T, R](initial: R)(op: (R, T) => R)(source: Observable[T]) =
+  def apply[T, R](source: Observable[T], initial: R)(op: (R, T) => R) =
     Observable.create[R] { observer =>
       source.unsafeSubscribe(new Observer[T] {
         private[this] var state = initial

@@ -5,7 +5,7 @@ import monifu.reactive.{Ack, Observer, Observable}
 
 import scala.concurrent.Future
 
-object Misc {
+object misc {
   /**
    * Implements [[Observable.complete]].
    */
@@ -42,7 +42,7 @@ object Misc {
   /**
    * Implementation for [[monifu.reactive.Observable.defaultIfEmpty]].
    */
-  def defaultIfEmpty[T](source: Observable[T])(default: T) =
+  def defaultIfEmpty[T](source: Observable[T], default: T) =
     Observable.create[T] { observer =>
       source.unsafeSubscribe(new Observer[T] {
         private[this] var isEmpty = true

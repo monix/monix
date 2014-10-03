@@ -11,7 +11,7 @@ object repeat {
   /**
    * Implementation for [[Observable.repeat]].
    */
-  def apply[T](implicit s: Scheduler) = (source: Observable[T]) => {
+  def apply[T](source: Observable[T])(implicit s: Scheduler) = {
     // recursive function - subscribes the observer again when
     // onComplete happens
     def loop(subject: Subject[T, T], observer: Observer[T]): Unit =

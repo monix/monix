@@ -2,7 +2,6 @@ package monifu.reactive.operators
 
 import monifu.reactive.Ack.Cancel
 import monifu.reactive.{Observer, Observable}
-
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 
@@ -10,7 +9,7 @@ object map {
   /**
    * Implementation for [[Observable.map]].
    */
-  def apply[T,U](f: T => U)(source: Observable[T]): Observable[U] = {
+  def apply[T,U](source: Observable[T])(f: T => U): Observable[U] = {
     Observable.create { observer =>
       source.unsafeSubscribe(new Observer[T] {
         def onNext(elem: T) = {

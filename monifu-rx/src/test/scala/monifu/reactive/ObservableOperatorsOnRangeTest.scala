@@ -127,7 +127,7 @@ class ObservableOperatorsOnRangeTest extends FunSpec {
     }
 
     it("should buffer(timespan)") {
-      val f = Observable.range(0,100).buffer(200.millis).asFuture
+      val f = Observable.range(0,100).bufferTimed(200.millis).asFuture
       assert(Await.result(f, 5.seconds) === Some(0 until 100))
     }
 
