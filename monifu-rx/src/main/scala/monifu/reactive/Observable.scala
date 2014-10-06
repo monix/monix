@@ -1,11 +1,14 @@
 /*
- * Copyright (c) 2014 by its authors. Some rights reserved. 
+ * Copyright (c) 2014 by its authors. Some rights reserved.
+ * See the project homepage at
+ *
+ *     http://www.monifu.org/
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *  	http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,17 +19,15 @@
 
 package monifu.reactive
 
-import monifu.concurrent.atomic.{Atomic, AtomicBoolean, AtomicInt}
+import monifu.concurrent.atomic.{Atomic, AtomicBoolean}
 import monifu.concurrent.extensions._
 import monifu.concurrent.{Cancelable, Scheduler, UncaughtExceptionReporter}
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.BufferPolicy.{default => defaultPolicy}
-import monifu.reactive.internals._
 import monifu.reactive.observers._
 import monifu.reactive.subjects.{AsyncSubject, BehaviorSubject, PublishSubject, ReplaySubject}
 import org.reactivestreams.{Publisher, Subscriber}
 
-import scala.annotation.tailrec
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Future, Promise}
 import scala.language.implicitConversions
@@ -980,7 +981,7 @@ trait Observable[+T] { self =>
    * @param cb a callback to be called in case events are dropped
    */
   def whileBusyDrop(cb: T => Unit): Observable[T] =
-    operators.whileBusy.drop(this)(cb)
+    operators.whileBusy.drop(self)(cb)
 
   /**
    * Converts this observable into a multicast observable, useful for turning a cold observable into
@@ -1265,68 +1266,21 @@ object Observable {
    * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/fromIterable.png" />
    */
   def from[T](iterable: Iterable[T])(implicit s: Scheduler): Observable[T] =
-    Observable.create { observer =>
-      def startFeedLoop(iterator: Iterator[T]): Unit =
-        s.execute(new Runnable {
-          @tailrec
-          def fastLoop(): Unit = {
-            val ack = observer.onNext(iterator.next())
-            if (iterator.hasNext)
-              ack match {
-                case sync if sync.isCompleted =>
-                  if (sync == Continue || sync.value.get == Continue.IsSuccess)
-                    fastLoop()
-                case async =>
-                  async.onSuccess {
-                    case Continue =>
-                      startFeedLoop(iterator)
-                  }
-              }
-            else
-              observer.onComplete()
-          }
-
-          def run(): Unit = {
-            try fastLoop() catch {
-              case NonFatal(ex) =>
-                observer.onError(ex)
-            }
-          }
-        })
-
-      val iterator = iterable.iterator
-      if (iterator.hasNext)
-        startFeedLoop(iterator)
-      else
-        observer.onComplete()
-    }
+    builders.from.iterable(iterable)
 
   /**
    * Create an Observable that emits a single item after a given delay.
    */
-  def timer[T](delay: FiniteDuration, unit: T)(implicit s: Scheduler): Observable[T] =
-    Observable.create { observer =>
-      s.scheduleOnce(delay, {
-        observer.onNext(unit)
-        observer.onComplete()
-      })
-    }
+  def timerOneTime[T](delay: FiniteDuration, unit: T)(implicit s: Scheduler): Observable[T] =
+    builders.timer.oneTime(delay, unit)
 
   /**
    * Create an Observable that repeatedly emits the given `item`, until
    * the underlying Observer cancels.
    */
-  def timer[T](initialDelay: FiniteDuration, period: FiniteDuration, unit: T)
-      (implicit s: Scheduler): Observable[T] = {
-
-    Observable.create { observer =>
-      s.scheduleRecursive(initialDelay, period, { reschedule =>
-        observer.onNext(unit).onContinue {
-          reschedule()
-        }
-      })
-    }
-  }
+  def timerRepeated[T](initialDelay: FiniteDuration, period: FiniteDuration, unit: T)
+      (implicit s: Scheduler): Observable[T] =
+    builders.timer.repeated(initialDelay, period, unit)
 
   /**
    * Concatenates the given list of ''observables'' into a single observable.
@@ -1376,41 +1330,8 @@ object Observable {
    * Given a list of source Observables, emits all of the items from the first of
    * these Observables to emit an item and cancel the rest.
    */
-  def amb[T](source: Observable[T]*)(implicit s: Scheduler): Observable[T] = {
-    // helper function used for creating a subscription that uses `finishLine` as guard
-    def createSubscription(observable: Observable[T], observer: Observer[T], finishLine: AtomicInt, idx: Int): Unit =
-      observable.unsafeSubscribe(new Observer[T] {
-        def onNext(elem: T): Future[Ack] = {
-          if (finishLine.get == idx || finishLine.compareAndSet(0, idx))
-            observer.onNext(elem)
-          else
-            Cancel
-        }
-
-        def onError(ex: Throwable): Unit = {
-          if (finishLine.get == idx || finishLine.compareAndSet(0, idx))
-            observer.onError(ex)
-        }
-
-        def onComplete(): Unit = {
-          if (finishLine.get == idx || finishLine.compareAndSet(0, idx))
-            observer.onComplete()
-        }
-      })
-
-    Observable.create { observer =>
-      val finishLine = Atomic(0)
-      var idx = 0
-      for (observable <- source) {
-        createSubscription(observable, observer, finishLine, idx + 1)
-        idx += 1
-      }
-
-      // if the list of observables was empty, just
-      // emit `onComplete`
-      if (idx == 0) observer.onComplete()
-    }
-  }
+  def amb[T](source: Observable[T]*)(implicit s: Scheduler): Observable[T] =
+    builders.amb(source : _*)
 
   /**
    * Implicit conversion from Future to Observable.
