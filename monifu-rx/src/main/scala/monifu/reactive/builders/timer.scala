@@ -17,37 +17,40 @@
  * limitations under the License.
  */
 
-package monifu.reactive.operators
+package monifu.reactive.builders
 
 import monifu.concurrent.Scheduler
 import monifu.reactive.Observable
-
+import monifu.reactive.internals._
 import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.{Promise, Future}
-import scala.util.{Failure, Success}
 
 
-object delaySubscription {
-  /**
-   * Implementation for [[Observable.delaySubscription]].
-   */
-  def onFuture[T](source: Observable[T], future: Future[_])(implicit s: Scheduler) =
-      Observable.create[T] { observer =>
-        future.onComplete {
-          case Success(_) =>
-            source.unsafeSubscribe(observer)
-          case Failure(ex) =>
-            observer.onError(ex)
-        }
-      }
+object timer {
 
   /**
-   * Implementation for [[Observable.delaySubscription]].
+   * Create an Observable that emits a single item after a given delay.
    */
-  def onTimespan[T](source: Observable[T], timespan: FiniteDuration)(implicit s: Scheduler) =
-    source.delaySubscription {
-      val p = Promise[Unit]()
-      s.scheduleOnce(timespan, p.success(()))
-      p.future
+  def oneTime[T](delay: FiniteDuration, unit: T)(implicit s: Scheduler): Observable[T] =
+    Observable.create { observer =>
+      s.scheduleOnce(delay, {
+        observer.onNext(unit)
+        observer.onComplete()
+      })
     }
+
+  /**
+   * Create an Observable that repeatedly emits the given `item`, until
+   * the underlying Observer cancels.
+   */
+  def repeated[T](initialDelay: FiniteDuration, period: FiniteDuration, unit: T)
+      (implicit s: Scheduler): Observable[T] = {
+
+    Observable.create { observer =>
+      s.scheduleRecursive(initialDelay, period, { reschedule =>
+        observer.onNext(unit).onContinue {
+          reschedule()
+        }
+      })
+    }
+  }
 }
