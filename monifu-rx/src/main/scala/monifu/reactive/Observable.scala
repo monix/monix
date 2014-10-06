@@ -361,12 +361,20 @@ trait Observable[+T] { self =>
 
   /**
    * Periodically gather items emitted by an Observable into bundles and emit
-   * these bundles rather than emitting the items one at a time.
-   * 
+   * these bundles rather than emitting the items one at a time. This version
+   * of `buffer` is emitting items once the internal buffer has the reached the
+   * given count.
+   *
+   * So in this example, we are creating a new observable that emits sequences of
+   * exactly 10 elements (or whatever is in the buffer when `onComplete` happens):
+   * {{{
+   *   observable.buffer(10)
+   * }}}
+   *
    * @param count the bundle size
    */
   def buffer(count: Int)(implicit s: Scheduler): Observable[Seq[T]] =
-    operators.buffer.withSize(self, count)
+    operators.buffer.sized(self, count)
 
   /**
    * Periodically gather items emitted by an Observable into bundles and emit
@@ -382,7 +390,25 @@ trait Observable[+T] { self =>
    *          for triggering the `onNext` events.
    */
   def bufferTimed(timespan: FiniteDuration)(implicit s: Scheduler): Observable[Seq[T]] =
-    operators.buffer.withTime(this, timespan)
+    operators.buffer.timed(self, timespan)
+
+  /**
+   * Periodically gather items emitted by an Observable into bundles and emit
+   * these bundles rather than emitting the items one at a time.
+   *
+   * This version of `buffer` emits a new bundle of items periodically,
+   * every timespan amount of time, containing all items emitted by the
+   * source Observable since the previous bundle emission, or when the buffer
+   * size has reached the given `count`.
+   *
+   * @param maxSize is the maximum bundle size
+   * @param timespan the interval of time at which it should emit the buffered bundle
+   *
+   * @param s is the [[monifu.concurrent.Scheduler Scheduler]] needed
+   *          for triggering the `onNext` events.
+   */
+  def bufferSizedAndTimed(maxSize: Int, timespan: FiniteDuration)(implicit s: Scheduler): Observable[Seq[T]] =
+    operators.buffer.sizedAndTimed(self, maxSize, timespan)
 
   /**
    * Emit the most recent items emitted by an Observable within periodic time
