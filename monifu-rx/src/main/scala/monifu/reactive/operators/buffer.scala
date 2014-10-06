@@ -20,23 +20,20 @@
 package monifu.reactive.operators
 
 import monifu.concurrent.Scheduler
-import monifu.concurrent.locks.SpinLock
-import monifu.reactive.Ack.{Cancel, Continue}
-import monifu.reactive.observers.SynchronousObserver
-import monifu.reactive.{Ack, Observer, Observable}
+import monifu.reactive.Ack.Continue
 import monifu.reactive.internals._
+import monifu.reactive.{Ack, Observable, Observer}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
-import scala.util.{Failure, Success}
-import scala.util.control.NonFatal
 
-/**
- * Implementation for [[Observable.bufferTimed]].
- */
+
 object buffer {
-  def withSize[T](source: Observable[T], count: Int)(implicit s: Scheduler): Observable[Seq[T]] =
+  /**
+   * Implementation for [[Observable.buffer]].
+   */
+  def sized[T](source: Observable[T], count: Int)(implicit s: Scheduler): Observable[Seq[T]] =
     Observable.create { observer =>
       source.unsafeSubscribe(new Observer[T] {
         private[this] var buffer = ArrayBuffer.empty[T]
@@ -77,91 +74,92 @@ object buffer {
       })
     }
 
-  def withTime[T](source: Observable[T], timespan: FiniteDuration)(implicit s: Scheduler) =
+  /**
+   * Implementation for [[Observable.bufferTimed]].
+   */
+  def timed[T](source: Observable[T], timespan: FiniteDuration)(implicit s: Scheduler) =
     Observable.create[Seq[T]] { observer =>
-      source.unsafeSubscribe(new SynchronousObserver[T] {
-        private[this] val lock = SpinLock()
+      source.unsafeSubscribe(new Observer[T] {
+        private[this] val timespanMillis = timespan.toMillis
+        private[this] var lastSignalTS = System.currentTimeMillis()
         private[this] var buffer = ArrayBuffer.empty[T]
-        private[this] var isDone = false
-        private[this] var lastAck = Continue : Future[Ack]
+        private[this] var lastAck: Future[Ack] = Continue
 
-        private[this] val task =
-          s.scheduleRecursive(timespan, timespan, { reschedule =>
-            lock.enter {
-              if (!isDone) {
-                val current = buffer
-                buffer = ArrayBuffer.empty
-                lastAck =
-                  try observer.onNext(current) catch {
-                    case NonFatal(ex) =>
-                      Future.failed(ex)
-                  }
+        def onNext(elem: T) = {
+          val rightNow = System.currentTimeMillis()
+          val expiresAt = lastSignalTS + timespanMillis
+          buffer.append(elem)
 
-                lastAck match {
-                  case sync if sync.isCompleted =>
-                    sync.value.get match {
-                      case Success(Continue) =>
-                        reschedule()
-                      case Success(Cancel) =>
-                        isDone = true
-                      case Failure(ex) =>
-                        isDone = true
-                        observer.onError(ex)
-                    }
-
-                  case async =>
-                    async.onComplete {
-                      case Success(Continue) =>
-                        lock.enter {
-                          if (!isDone) reschedule
-                        }
-                      case Success(Cancel) =>
-                        lock.enter {
-                          isDone = true
-                        }
-                      case Failure(ex) =>
-                        lock.enter {
-                          isDone = true
-                          observer.onError(ex)
-                        }
-                    }
-                }
-              }
-            }
-          })
-
-        def onNext(elem: T): Ack = lock.enter {
-          if (!isDone) {
-            buffer.append(elem)
-            Continue
+          if (expiresAt <= rightNow) {
+            lastAck = observer.onNext(buffer)
+            buffer = ArrayBuffer.empty[T]
+            lastSignalTS = rightNow
           }
-          else
-            Cancel
+
+          lastAck
         }
 
-        def onError(ex: Throwable): Unit = lock.enter {
-          if (!isDone) {
-            isDone = true
-            buffer = null
-            observer.onError(ex)
-            task.cancel()
-          }
+        def onError(ex: Throwable): Unit = {
+          observer.onError(ex)
+          buffer = null
         }
 
-        def onComplete(): Unit = lock.enter {
-          if (!isDone) {
-            if (buffer.nonEmpty) {
-              // if we don't do this, then it breaks the
-              // back-pressure contract
-              lastAck.onContinueCompleteWith(observer, buffer)
-            }
-            else
-              observer.onComplete()
-
-            isDone = true
-            buffer = null
-            task.cancel()
+        def onComplete(): Unit = {
+          if (buffer.nonEmpty) {
+            // if we don't do this, then it breaks the
+            // back-pressure contract
+            lastAck.onContinueCompleteWith(observer, buffer)
           }
+          else {
+            observer.onComplete()
+          }
+
+          buffer = null
+        }
+      })
+    }
+
+  /**
+   * Implementation for [[Observable.bufferSizedAndTimed]].
+   */
+  def sizedAndTimed[T](source: Observable[T], count: Int, timespan: FiniteDuration)(implicit s: Scheduler) =
+    Observable.create[Seq[T]] { observer =>
+      source.unsafeSubscribe(new Observer[T] {
+        private[this] val timespanMillis = timespan.toMillis
+        private[this] var lastSignalTS = System.currentTimeMillis()
+        private[this] var buffer = ArrayBuffer.empty[T]
+        private[this] var lastAck: Future[Ack] = Continue
+
+        def onNext(elem: T) = {
+          val rightNow = System.currentTimeMillis()
+          val expiresAt = lastSignalTS + timespanMillis
+          buffer.append(elem)
+
+          if (expiresAt <= rightNow || buffer.length >= count) {
+            lastAck = observer.onNext(buffer)
+            buffer = ArrayBuffer.empty[T]
+            lastSignalTS = rightNow
+          }
+
+          lastAck
+        }
+
+        def onError(ex: Throwable): Unit = {
+          observer.onError(ex)
+          buffer = null
+        }
+
+        def onComplete(): Unit = {
+          if (buffer.nonEmpty) {
+            // if we don't do this, then it breaks the
+            // back-pressure contract
+            lastAck.onContinueCompleteWith(observer, buffer)
+          }
+          else {
+            observer.onComplete()
+          }
+
+          buffer = null
         }
       })
     }
