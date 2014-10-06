@@ -25,7 +25,7 @@ import monifu.concurrent.Implicits.globalScheduler
 import monifu.reactive.Ack.Continue
 import monifu.reactive.BufferPolicy.{BackPressured, OverflowTriggering, Unbounded}
 import monifu.reactive.Notification.{OnComplete, OnNext}
-import monifu.reactive.Observable
+import monifu.reactive.{Notification, Observable}
 import org.scalatest.FunSpec
 
 import scala.concurrent.duration._
@@ -360,7 +360,10 @@ class ObservableOperatorsOnRangeTest extends FunSpec {
     }
 
     it("should materialize") {
-      val f = Observable.range(1, 100).materialize.foldLeft(Seq.empty[Notification[Int]])(_:+_).asFuture
+      val f = Observable.range(1, 100).materialize
+        .foldLeft(Seq.empty[Notification[Int]])(_ :+ _)
+        .asFuture
+
       assert(Await.result(f, 5.seconds) === Some((1 until 100).map(OnNext.apply) :+ OnComplete))
     }
 
