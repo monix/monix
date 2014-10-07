@@ -106,7 +106,7 @@ object Build extends SbtBuild {
 
   lazy val root = Project(id="root", base=file("."))
     .settings(publishArtifact in Compile := false)
-    .aggregate(monifuJVM, monifuJS)
+    .aggregate(monifuJVM, monifuJS, reactiveStreamsTCK)
 
   lazy val monifuCoreJVM = Project(
     id = "monifu-core",
@@ -128,14 +128,27 @@ object Build extends SbtBuild {
       libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _ % "compile"),
       libraryDependencies ++= Seq(
         "org.reactivestreams" % "reactive-streams" % "0.4.0",
-        "org.reactivestreams" % "reactive-streams-tck" % "0.4.0",
         "org.scalatest" %% "scalatest" % "2.1.3" % "test"
       )
     )
   ).dependsOn(monifuCoreJVM)
 
-  lazy val monifuJVM = Project(id="monifu", base = file("jvm"), 
+  lazy val reactiveStreamsTCK = Project(
+    id = "streams-tck",
+    base = file("jvm/streams-tck"),
+    settings = sharedSettings ++ Seq(
+      publishArtifact in Compile := false,
+      publishArtifact in Test := false,
+      libraryDependencies ++= Seq(
+        "org.reactivestreams" % "reactive-streams-tck" % "0.4.0",
+        "org.scalatest" %% "scalatest" % "2.1.3" % "test"
+      )
+    ))
+    .dependsOn(monifuRxJVM)
+
+  lazy val monifuJVM = Project(id="monifu-jvm", base = file("jvm"),
     settings=sharedSettings ++ unidocSettings ++ Seq(
+      artifact := Artifact("monifu"),
       unidocProjectFilter in (ScalaUnidoc, unidoc) := inProjects(monifuCoreJVM, monifuRxJVM),
       scalacOptions in (ScalaUnidoc, sbtunidoc.Plugin.UnidocKeys.unidoc) ++=
         Opts.doc.sourceUrl(s"https://github.com/monifu/monifu/tree/v$projectVersion/monifu€{FILE_PATH}.scala"),
