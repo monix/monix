@@ -44,6 +44,7 @@ class WhileBusyTest extends FunSpec {
 
       ch.whileBusyDrop(x => { dropped += x; barrierOne.countDown() })
         .subscribe(new Observer[Int] {
+
         def onNext(elem: Int) = {
           received += elem
           barrierOne.countDown()
