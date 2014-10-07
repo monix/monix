@@ -30,8 +30,7 @@ object Build extends SbtBuild {
     organization := "org.monifu",
     version := projectVersion,
 
-    scalaVersion := "2.10.4",
-    scalaVersion in ThisBuild := "2.10.4",
+    scalaVersion := "2.11.2",
     crossScalaVersions ++= Seq("2.10.4", "2.11.2"),
 
     initialize := {
@@ -104,9 +103,9 @@ object Build extends SbtBuild {
 
   // -- Actual Projects
 
-  lazy val monifuCore = Project(
+  lazy val monifuCoreJVM = Project(
     id = "monifu-core",
-    base = file("monifu-core"),
+    base = file("jvm/monifu-core"),
     settings = sharedSettings ++ Seq(
       unmanagedSourceDirectories in Compile <+= sourceDirectory(_ / "shared" / "scala"),
       libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _ % "compile"),
@@ -116,9 +115,9 @@ object Build extends SbtBuild {
     )
   )
 
-  lazy val monifuRx = Project(
+  lazy val monifuRxJVM = Project(
     id = "monifu-rx",
-    base = file("monifu-rx"),
+    base = file("jvm/monifu-rx"),
     settings = sharedSettings ++ Seq(
       unmanagedSourceDirectories in Compile <+= sourceDirectory(_ / "shared" / "scala"),
       libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _ % "compile"),
@@ -127,11 +126,11 @@ object Build extends SbtBuild {
         "org.scalatest" %% "scalatest" % "2.1.3" % "test"
       )
     )
-  ).dependsOn(monifuCore)
+  ).dependsOn(monifuCoreJVM)
 
-  lazy val monifu = Project(id="monifu", base = file("."), 
+  lazy val monifuJVM = Project(id="monifu", base = file("jvm"), 
     settings=sharedSettings ++ unidocSettings ++ Seq(
-      unidocProjectFilter in (ScalaUnidoc, unidoc) := inProjects(monifuCore, monifuRx),
+      unidocProjectFilter in (ScalaUnidoc, unidoc) := inProjects(monifuCoreJVM, monifuRxJVM),
       scalacOptions in (ScalaUnidoc, sbtunidoc.Plugin.UnidocKeys.unidoc) ++=
         Opts.doc.sourceUrl(s"https://github.com/monifu/monifu/tree/v$projectVersion/monifu€{FILE_PATH}.scala"),
       scalacOptions in (ScalaUnidoc, sbtunidoc.Plugin.UnidocKeys.unidoc) ++=
@@ -141,9 +140,6 @@ object Build extends SbtBuild {
       scalacOptions in (ScalaUnidoc, sbtunidoc.Plugin.UnidocKeys.unidoc) ++= 
         Seq("-doc-root-content", "rootdoc.txt")
     ))
-    .dependsOn(monifuCore, monifuRx).aggregate(monifuCore, monifuRx)
-
-  lazy val monifuBenchmarks =
-    Project(id="benchmarks", base=file("benchmarks"),
-      settings = sharedSettings ++ Seq(publishArtifact := false)).dependsOn(monifu).aggregate(monifu)
+    .dependsOn(monifuCoreJVM, monifuRxJVM)
+    .aggregate(monifuCoreJVM, monifuRxJVM)
 }
