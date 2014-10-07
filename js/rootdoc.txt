@@ -1,0 +1,13 @@
+<img src="https://raw.githubusercontent.com/wiki/monifu/monifu.js/assets/monifu.png" align="right" />
+
+This is the API documentation for the [[https://github.com/monifu/monifu.js Monifu.js]] library.
+
+==Overview==
+
+Monifu is a library for functional reactive programming. Checkout the [[http://www.reactivemanifesto.org/ Reactive Manifesto]] for the need to go reactive.
+
+Monifu brings an implementation of [[https://rx.codeplex.com/ Reactive Extensions]],
+with back-pressure added to the contract (also see the [[http://www.reactive-streams.org/ Reactive Streams effort]]).
+
+
+
