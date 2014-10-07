@@ -36,7 +36,7 @@ class WhileBusyTest extends FunSpec {
       var received = 0
 
       val ch = PublishChannel[Int]()
-      val barrierOne = new CountDownLatch(2)
+      val barrierOne = new CountDownLatch(3)
       val completed = new CountDownLatch(1)
 
       val p = Promise[Ack]()

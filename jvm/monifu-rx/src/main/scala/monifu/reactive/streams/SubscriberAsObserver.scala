@@ -104,7 +104,8 @@ final class SubscriberAsObserver[T] private
     new Subscription {
       def request(n: Long): Unit = lock.synchronized {
         if (!isCanceled) {
-          require(n > 0, "n must be strictly positive, according to the Reactive Streams contract")
+          require(n > 0, "n must be strictly positive, according to " +
+            "the Reactive Streams contract, rule 3.9")
 
           if (leftToPush.getAndAdd(n) == 0) {
             val promise = requestPromise

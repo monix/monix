@@ -108,7 +108,7 @@ abstract class GenericTest[T, R <: Atomic[T] with BlockableAtomic[T]]
     }
 
     val f = Future.sequence(futures)
-    Await.result(f, 1.second)
+    Await.result(f, 5.second)
     assert(r.get === valueFromInt(500))
   }
 
@@ -120,7 +120,7 @@ abstract class GenericTest[T, R <: Atomic[T] with BlockableAtomic[T]]
     }
 
     val f = Future.sequence(futures)
-    Await.result(f, 1.second)
+    Await.result(f, 5.second)
     assert(r.get === valueFromInt(99))
   }
 
@@ -134,10 +134,10 @@ abstract class GenericTest[T, R <: Atomic[T] with BlockableAtomic[T]]
       done.countDown()
     }
 
-    start.await(1, TimeUnit.SECONDS)
+    start.await(5, TimeUnit.SECONDS)
     assert(done.getCount === 1 && r.get === one)
     r.set(zero)
-    done.await(1, TimeUnit.SECONDS)
+    done.await(5, TimeUnit.SECONDS)
     assert(r.get === one)
   }
 
@@ -183,10 +183,10 @@ abstract class GenericTest[T, R <: Atomic[T] with BlockableAtomic[T]]
       done.countDown()
     }
 
-    start.await(1, TimeUnit.SECONDS)
+    start.await(5, TimeUnit.SECONDS)
     assert(done.getCount === 1)
     a.set(one)
-    done.await(1, TimeUnit.SECONDS)
+    done.await(5, TimeUnit.SECONDS)
   }
 
   it("should fail on waitForValue with duration") {
@@ -212,10 +212,10 @@ abstract class GenericTest[T, R <: Atomic[T] with BlockableAtomic[T]]
       done.countDown()
     }
 
-    start.await(1, TimeUnit.SECONDS)
+    start.await(5, TimeUnit.SECONDS)
     assert(done.getCount === 1)
     a.set(one)
-    done.await(1, TimeUnit.SECONDS)
+    done.await(5, TimeUnit.SECONDS)
   }
 
   it("should waitForCondition") {
@@ -229,10 +229,10 @@ abstract class GenericTest[T, R <: Atomic[T] with BlockableAtomic[T]]
       done.countDown()
     }
 
-    start.await(1, TimeUnit.SECONDS)
+    start.await(5, TimeUnit.SECONDS)
     assert(done.getCount === 1)
     a.set(one)
-    done.await(1, TimeUnit.SECONDS)
+    done.await(5, TimeUnit.SECONDS)
   }
 
   it("should fail on waitForCondition with duration") {
@@ -258,10 +258,10 @@ abstract class GenericTest[T, R <: Atomic[T] with BlockableAtomic[T]]
       done.countDown()
     }
 
-    start.await(1, TimeUnit.SECONDS)
+    start.await(5, TimeUnit.SECONDS)
     assert(done.getCount === 1)
     a.set(one)
-    done.await(1, TimeUnit.SECONDS)
+    done.await(5, TimeUnit.SECONDS)
   }
 }
 
