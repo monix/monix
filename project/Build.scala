@@ -27,7 +27,7 @@ import scala.scalajs.sbtplugin.ScalaJSPlugin._
 object Build extends SbtBuild {
   val projectVersion = "0.14.0.RC1"
 
-  val sharedSettings = Defaults.defaultSettings ++ Seq(
+  val baseSettings = Defaults.defaultSettings ++ Seq(
     organization := "org.monifu",
     version := projectVersion,
 
@@ -102,6 +102,13 @@ object Build extends SbtBuild {
       </developers>
   )
 
+  val nonPublishedSettings = baseSettings ++ Seq(
+    publishArtifact := false,
+    publishArtifact in (Compile, packageDoc) := false,
+    publishArtifact in (Compile, packageSrc) := false,
+    publishArtifact in (Compile, packageBin) := false
+  )
+
   val sharedCorePath = new File(
     (file(".") / "shared" / "monifu-core" / "src" / "main" / "scala").getCanonicalPath
   )
@@ -113,13 +120,13 @@ object Build extends SbtBuild {
   // -- Actual Projects
 
   lazy val root = Project(id="root", base=file("."))
-    .settings(publishArtifact in Compile := false)
+    .settings(nonPublishedSettings : _*)
     .aggregate(monifuJVM, monifuJS, reactiveStreamsTCK)
 
   lazy val monifuCoreJVM = Project(
     id = "monifu-core",
     base = file("jvm/monifu-core"),
-    settings = sharedSettings ++ Seq(
+    settings = baseSettings ++ Seq(
       unmanagedSourceDirectories in Compile += sharedCorePath,
       libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _ % "compile"),
       libraryDependencies ++= Seq(
@@ -131,7 +138,7 @@ object Build extends SbtBuild {
   lazy val monifuRxJVM = Project(
     id = "monifu-rx",
     base = file("jvm/monifu-rx"),
-    settings = sharedSettings ++ Seq(
+    settings = baseSettings ++ Seq(
       unmanagedSourceDirectories in Compile += sharedRxPath,
       libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _ % "compile"),
       libraryDependencies ++= Seq(
@@ -141,22 +148,17 @@ object Build extends SbtBuild {
     )
   ).dependsOn(monifuCoreJVM)
 
-  lazy val reactiveStreamsTCK = Project(
-    id = "streams-tck",
-    base = file("jvm/streams-tck"),
-    settings = sharedSettings ++ Seq(
-      publishArtifact in Compile := false,
-      publishArtifact in Test := false,
+  lazy val reactiveStreamsTCK = Project(id = "streams-tck", base = file("jvm/streams-tck"))
+    .settings(nonPublishedSettings ++ Seq(
       libraryDependencies ++= Seq(
         "org.reactivestreams" % "reactive-streams-tck" % "0.4.0",
         "org.scalatest" %% "scalatest" % "2.1.3" % "test"
       )
-    ))
+    ) : _*)
     .dependsOn(monifuRxJVM)
 
-  lazy val monifuJVM = Project(id="monifu-jvm", base = file("jvm"),
-    settings=sharedSettings ++ unidocSettings ++ Seq(
-      artifact := Artifact("monifu"),
+  lazy val monifuJVM = Project(id="monifu", base = file("jvm"),
+    settings=baseSettings ++ unidocSettings ++ Seq(
       unidocProjectFilter in (ScalaUnidoc, unidoc) := inProjects(monifuCoreJVM, monifuRxJVM),
       scalacOptions in (ScalaUnidoc, sbtunidoc.Plugin.UnidocKeys.unidoc) ++=
         Opts.doc.sourceUrl(s"https://github.com/monifu/monifu/tree/v$projectVersion/monifu€{FILE_PATH}.scala"),
@@ -171,8 +173,7 @@ object Build extends SbtBuild {
     .aggregate(monifuCoreJVM, monifuRxJVM)
 
   lazy val monifuJS = Project(id="monifu-js", base = file("js"), 
-    settings=sharedSettings ++ scalaJSSettings ++ unidocSettings ++ Seq(
-      artifact := Artifact("monifu"),
+    settings=baseSettings ++ scalaJSSettings ++ unidocSettings ++ Seq(
       scalacOptions in (ScalaUnidoc, sbtunidoc.Plugin.UnidocKeys.unidoc) ++=
         Opts.doc.sourceUrl(s"https://github.com/monifu/monifu.js/tree/v$projectVersion/monifu€{FILE_PATH}.scala"),
       scalacOptions in (ScalaUnidoc, sbtunidoc.Plugin.UnidocKeys.unidoc) ++=
@@ -188,8 +189,7 @@ object Build extends SbtBuild {
   lazy val monifuCoreJS = Project(
     id = "monifu-core-js",
     base = file("js/monifu-core"),
-    settings = sharedSettings ++ scalaJSSettings ++ Seq(
-      artifact := Artifact("monifu-core"),
+    settings = baseSettings ++ scalaJSSettings ++ Seq(
       unmanagedSourceDirectories in Compile += sharedCorePath,
       libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _ % "compile"),
       libraryDependencies ++= Seq(
@@ -201,8 +201,7 @@ object Build extends SbtBuild {
   lazy val monifuRxJS = Project(
     id = "monifu-rx-js",
     base = file("js/monifu-rx"),
-    settings = sharedSettings ++ scalaJSSettings ++ Seq(
-      artifact := Artifact("monifu-rx"),
+    settings = baseSettings ++ scalaJSSettings ++ Seq(
       unmanagedSourceDirectories in Compile += sharedRxPath,
       libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _ % "compile"),
       libraryDependencies ++= Seq(
