@@ -55,7 +55,7 @@ number.incrementAndGet
 
 ```scala
 import monifu.concurrent.atomic.Atomic
-import monifu.concurrent.Scheduler.{computation => s}
+import monifu.concurrent.Implicits.{globalScheduler => s}
 
 val loop = Atomic(0) // we don't actually need an atomic or volatile here
 
