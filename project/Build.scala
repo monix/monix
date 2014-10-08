@@ -25,7 +25,7 @@ import scala.scalajs.sbtplugin.ScalaJSPlugin._
 
 
 object Build extends SbtBuild {
-  val projectVersion = "0.14.0.M8"
+  val projectVersion = "0.14.0.RC1"
 
   val sharedSettings = Defaults.defaultSettings ++ Seq(
     organization := "org.monifu",
