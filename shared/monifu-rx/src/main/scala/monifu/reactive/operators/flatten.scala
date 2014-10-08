@@ -26,7 +26,7 @@ import monifu.reactive.BufferPolicy.{OverflowTriggering, Unbounded}
 import monifu.reactive.observers.SynchronousObserver
 import monifu.reactive.{BufferPolicy, Ack, Observer, Observable}
 import monifu.reactive.internals._
-import scala.concurrent.Promise
+import scala.concurrent.{Future, Promise}
 
 
 object flatten {
@@ -43,22 +43,26 @@ object flatten {
           val refID = refCount.acquire()
 
           childObservable.unsafeSubscribe(new Observer[U] {
+            var lastAck: Future[Ack] = Continue
+
             def onNext(elem: U) = {
-              observerU.onNext(elem)
+              lastAck = observerU.onNext(elem)
                 .ifCancelTryCanceling(upstreamPromise)
+              lastAck
             }
 
-            def onError(ex: Throwable) = {
+            def onError(ex: Throwable): Unit = {
               // error happened, so signaling both the main thread that it should stop
               // and the downstream consumer of the error
               observerU.onError(ex)
               upstreamPromise.trySuccess(Cancel)
             }
 
-            def onComplete() = {
-              // NOTE: we aren't sending this onComplete signal downstream to our observerU
-              // instead we are just instructing upstream to send the next observable
-              if (upstreamPromise.trySuccess(Continue)) {
+            def onComplete(): Unit = {
+              lastAck.onContinue {
+                // NOTE: we aren't sending this onComplete signal downstream to our observerU
+                // instead we are just instructing upstream to send the next observable
+                upstreamPromise.trySuccess(Continue)
                 refID.cancel()
               }
             }

@@ -102,6 +102,14 @@ object Build extends SbtBuild {
       </developers>
   )
 
+  val sharedCorePath = new File(
+    (file(".") / "shared" / "monifu-core" / "src" / "main" / "scala").getCanonicalPath
+  )
+
+  val sharedRxPath = new File(
+    (file(".") / "shared" / "monifu-rx" / "src" / "main" / "scala").getCanonicalPath
+  )
+
   // -- Actual Projects
 
   lazy val root = Project(id="root", base=file("."))
@@ -112,7 +120,7 @@ object Build extends SbtBuild {
     id = "monifu-core",
     base = file("jvm/monifu-core"),
     settings = sharedSettings ++ Seq(
-      unmanagedSourceDirectories in Compile <+= sourceDirectory(_ / "shared" / "scala"),
+      unmanagedSourceDirectories in Compile += sharedCorePath,
       libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _ % "compile"),
       libraryDependencies ++= Seq(
         "org.scalatest" %% "scalatest" % "2.1.3" % "test"
@@ -124,7 +132,7 @@ object Build extends SbtBuild {
     id = "monifu-rx",
     base = file("jvm/monifu-rx"),
     settings = sharedSettings ++ Seq(
-      unmanagedSourceDirectories in Compile <+= sourceDirectory(_ / "shared" / "scala"),
+      unmanagedSourceDirectories in Compile += sharedRxPath,
       libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _ % "compile"),
       libraryDependencies ++= Seq(
         "org.reactivestreams" % "reactive-streams" % "0.4.0",
@@ -182,6 +190,7 @@ object Build extends SbtBuild {
     base = file("js/monifu-core"),
     settings = sharedSettings ++ scalaJSSettings ++ Seq(
       artifact := Artifact("monifu-core"),
+      unmanagedSourceDirectories in Compile += sharedCorePath,
       libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _ % "compile"),
       libraryDependencies ++= Seq(
         "org.scala-lang.modules.scalajs" %% "scalajs-jasmine-test-framework" % scalaJSVersion % "test"
@@ -194,6 +203,7 @@ object Build extends SbtBuild {
     base = file("js/monifu-rx"),
     settings = sharedSettings ++ scalaJSSettings ++ Seq(
       artifact := Artifact("monifu-rx"),
+      unmanagedSourceDirectories in Compile += sharedRxPath,
       libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _ % "compile"),
       libraryDependencies ++= Seq(
         "org.scala-lang.modules.scalajs" %% "scalajs-jasmine-test-framework" % scalaJSVersion % "test"

@@ -29,6 +29,7 @@ import concurrent.duration._
 import monifu.concurrent.Implicits.globalScheduler
 import scala.concurrent.{Await, Promise}
 
+
 class WhileBusyTest extends FunSpec {
   describe("Observable.whileBusyDrop") {
     it("should work") {
@@ -66,6 +67,7 @@ class WhileBusyTest extends FunSpec {
 
       p.success(Continue)
       Await.result(future, 5.seconds)
+      Thread.sleep(1000) // sleep for one second, just to be sure
 
       ch.pushNext(40, 50)
       ch.pushComplete()

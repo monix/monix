@@ -32,7 +32,7 @@ object doWork {
   /**
    * Implementation for [[Observable.doWork]].
    */
-  def onNext[T](cb: T => Unit)(source: Observable[T]) =
+  def onNext[T](source: Observable[T])(cb: T => Unit): Observable[T] =
     Observable.create[T] { observer =>
       source.unsafeSubscribe(new Observer[T] {
         def onError(ex: Throwable) = observer.onError(ex)
@@ -58,7 +58,7 @@ object doWork {
   /**
    * Implementation for [[Observable.doOnComplete]].
    */
-  def onComplete[T](cb: => Unit)(implicit s: Scheduler) = (source: Observable[T]) =>
+  def onComplete[T](source: Observable[T])(cb: => Unit)(implicit s: Scheduler): Observable[T] =
     Observable.create[T] { observer =>
       source.unsafeSubscribe(new Observer[T] {
         private[this] val wasExecuted = Atomic(false)
@@ -96,7 +96,7 @@ object doWork {
   /**
    * Implementation for [[Observable.doOnStart]].
    */
-  def onStart[T](cb: T => Unit)(source: Observable[T]): Observable[T] =
+  def onStart[T](source: Observable[T])(cb: T => Unit): Observable[T] =
     Observable.create { observer =>
       source.unsafeSubscribe(new Observer[T] {
         private[this] var isStarted = false
