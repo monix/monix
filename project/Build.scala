@@ -102,18 +102,16 @@ object Build extends SbtBuild {
       </developers>
   )
 
-  val nonPublishedSettings = baseSettings ++ Seq(
-    publishArtifact := false,
-    publishArtifact in (Compile, packageDoc) := false,
-    publishArtifact in (Compile, packageSrc) := false,
-    publishArtifact in (Compile, packageBin) := false
-  )
 
   // -- Actual Projects
 
-  lazy val root = Project(id="root", base=file("."))
-    .settings(nonPublishedSettings : _*)
-    .aggregate(monifuJVM, monifuJS, reactiveStreamsTCK)
+  lazy val root = Project(id="root", base=file("."), settings = baseSettings ++ Seq(
+      publishArtifact := false,
+      publishArtifact in (Compile, packageDoc) := false,
+      publishArtifact in (Compile, packageSrc) := false,
+      publishArtifact in (Compile, packageBin) := false
+    ))
+    .aggregate(monifuJVM, monifuJS)
 
   lazy val monifuCoreJVM = Project(
     id = "monifu-core",
@@ -134,19 +132,14 @@ object Build extends SbtBuild {
       libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _ % "compile"),
       libraryDependencies ++= Seq(
         "org.reactivestreams" % "reactive-streams" % "0.4.0",
-        "org.scalatest" %% "scalatest" % "2.1.3" % "test"
+
+        // for testing
+        "org.reactivestreams" % "reactive-streams-tck" % "0.4.0" % "test",
+        "org.scalatest" %% "scalatest" % "2.1.3" % "test",
+        "com.google.inject" % "guice" % "4.0-beta5" % "test"
       )
     )
   ).dependsOn(monifuCoreJVM)
-
-  lazy val reactiveStreamsTCK = Project(id = "streams-tck", base = file("jvm/streams-tck"))
-    .settings(nonPublishedSettings ++ Seq(
-      libraryDependencies ++= Seq(
-        "org.reactivestreams" % "reactive-streams-tck" % "0.4.0",
-        "org.scalatest" %% "scalatest" % "2.1.3" % "test"
-      )
-    ) : _*)
-    .dependsOn(monifuRxJVM)
 
   lazy val monifuJVM = Project(id="monifu", base = file("jvm"),
     settings=baseSettings ++ unidocSettings ++ Seq(
