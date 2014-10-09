@@ -72,7 +72,7 @@ class ExtensionsTest extends FunSuite {
 
   test("execute(callback) should work") {
     val p = Promise[Unit]()
-    globalScheduler.executeNow {
+    globalScheduler.scheduleOnce {
       p.success(())
     }
 

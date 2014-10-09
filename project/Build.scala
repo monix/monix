@@ -109,14 +109,6 @@ object Build extends SbtBuild {
     publishArtifact in (Compile, packageBin) := false
   )
 
-  val sharedCorePath = new File(
-    (file(".") / "shared" / "monifu-core" / "src" / "main" / "scala").getCanonicalPath
-  )
-
-  val sharedRxPath = new File(
-    (file(".") / "shared" / "monifu-rx" / "src" / "main" / "scala").getCanonicalPath
-  )
-
   // -- Actual Projects
 
   lazy val root = Project(id="root", base=file("."))
@@ -127,7 +119,6 @@ object Build extends SbtBuild {
     id = "monifu-core",
     base = file("jvm/monifu-core"),
     settings = baseSettings ++ Seq(
-      unmanagedSourceDirectories in Compile += sharedCorePath,
       libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _ % "compile"),
       libraryDependencies ++= Seq(
         "org.scalatest" %% "scalatest" % "2.1.3" % "test"
@@ -139,7 +130,7 @@ object Build extends SbtBuild {
     id = "monifu-rx",
     base = file("jvm/monifu-rx"),
     settings = baseSettings ++ Seq(
-      unmanagedSourceDirectories in Compile += sharedRxPath,
+      unmanagedSourceDirectories in Compile += baseDirectory.value / "shared" / "main" / "scala",
       libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _ % "compile"),
       libraryDependencies ++= Seq(
         "org.reactivestreams" % "reactive-streams" % "0.4.0",
@@ -190,7 +181,6 @@ object Build extends SbtBuild {
     id = "monifu-core-js",
     base = file("js/monifu-core"),
     settings = baseSettings ++ scalaJSSettings ++ Seq(
-      unmanagedSourceDirectories in Compile += sharedCorePath,
       libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _ % "compile"),
       libraryDependencies ++= Seq(
         "org.scala-lang.modules.scalajs" %% "scalajs-jasmine-test-framework" % scalaJSVersion % "test"
@@ -202,7 +192,7 @@ object Build extends SbtBuild {
     id = "monifu-rx-js",
     base = file("js/monifu-rx"),
     settings = baseSettings ++ scalaJSSettings ++ Seq(
-      unmanagedSourceDirectories in Compile += sharedRxPath,
+      unmanagedSourceDirectories in Compile += baseDirectory.value / "shared" / "main" / "scala",
       libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _ % "compile"),
       libraryDependencies ++= Seq(
         "org.scala-lang.modules.scalajs" %% "scalajs-jasmine-test-framework" % scalaJSVersion % "test"

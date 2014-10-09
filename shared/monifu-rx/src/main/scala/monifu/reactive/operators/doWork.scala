@@ -23,7 +23,6 @@ import monifu.concurrent.Scheduler
 import monifu.concurrent.atomic.Atomic
 import monifu.reactive.Ack.Cancel
 import monifu.reactive.{Observer, Observable}
-import monifu.concurrent.extensions._
 import monifu.reactive.internals._
 import scala.concurrent.Future
 import scala.util.control.NonFatal
@@ -79,14 +78,14 @@ object doWork {
 
         def onError(ex: Throwable): Unit = {
           try observer.onError(ex) finally
-            s.executeNow {
+            s.scheduleOnce {
               execute()
             }
         }
 
         def onComplete(): Unit = {
           try observer.onComplete() finally
-            s.executeNow {
+            s.scheduleOnce {
               execute()
             }
         }

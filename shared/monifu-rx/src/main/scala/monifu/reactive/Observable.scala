@@ -20,7 +20,6 @@
 package monifu.reactive
 
 import monifu.concurrent.atomic.{Atomic, AtomicBoolean}
-import monifu.concurrent.extensions._
 import monifu.concurrent.{Cancelable, Scheduler, UncaughtExceptionReporter}
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.BufferPolicy.{default => defaultPolicy}
@@ -908,9 +907,7 @@ trait Observable[+T] { self =>
    * Returns a new Observable that uses the specified `ExecutionContext` for initiating the subscription.
    */
   def subscribeOn(s: Scheduler): Observable[T] = {
-    Observable.create(o => s.executeNow {
-      unsafeSubscribe(o)
-    })
+    Observable.create(o => s.scheduleOnce(unsafeSubscribe(o)))
   }
 
   /**
