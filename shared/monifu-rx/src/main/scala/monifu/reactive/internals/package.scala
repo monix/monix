@@ -27,6 +27,7 @@ import scala.concurrent.{Future, Promise}
 import scala.util.control.NonFatal
 import scala.util.{Failure, Try}
 
+
 package object internals {
   /**
    * Internal extensions to Future[Ack] used in the implementation of Observable.
@@ -89,6 +90,22 @@ package object internals {
                   else
                     s.reportFailure(err)
               }
+          }
+      }
+
+    def onContinueStreamOnNext[T](observer: Observer[T], nextElem: T)(implicit s: Scheduler) =
+      source match {
+        case sync if sync.isCompleted =>
+          if (sync == Continue || sync.value.get == Continue.IsSuccess)
+            observer.onNext(nextElem)
+          else
+            Cancel
+        case async =>
+          async.flatMap {
+            case Continue =>
+              observer.onNext(nextElem)
+            case Cancel =>
+              Cancel
           }
       }
 

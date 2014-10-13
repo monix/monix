@@ -131,11 +131,26 @@ trait Observable[+T] { self =>
   /**
    * Returns an Observable which only emits those items for which the given predicate holds.
    *
-   * @param p a function that evaluates the items emitted by the source Observable, returning `true` if they pass the filter
-   * @return an Observable that emits only those items in the original Observable for which the filter evaluates as `true`
+   * @param p a function that evaluates the items emitted by the source Observable,
+   *          returning `true` if they pass the filter
+   *
+   * @return an Observable that emits only those items in the original Observable
+   *         for which the filter evaluates as `true`
    */
   def filter(p: T => Boolean): Observable[T] =
     operators.filter(self)(p)
+
+  /**
+   * Returns an Observable by applying the given partial function to the source observable
+   * for each element for which the given partial function is defined.
+   *
+   * Useful to be used instead of a filter & map combination.
+   *
+   * @param pf the function that filters and maps the resulting observable
+   * @return an Observable that emits the transformed items by the given partial function
+   */
+  def collect[U](pf: PartialFunction[T, U]): Observable[U] =
+    operators.collect(self)(pf)
 
   /**
    * Creates a new Observable by applying a function that you supply to each item emitted by
@@ -840,6 +855,17 @@ trait Observable[+T] { self =>
     operators.zip(self, other)
 
   /**
+   * Creates a new Observable from this Observable and another given Observable.
+   *
+   * This operator behaves in a similar way to [[zip]], but while `zip` emits items
+   * only when all of the zipped source Observables have emitted a previously unzipped item,
+   * `combine` emits an item whenever any of the source Observables emits
+   * an item (so long as each of the source Observables has emitted at least one item).
+   */
+  def combineLatest[U](other: Observable[U])(implicit s: Scheduler): Observable[(T, U)] =
+    operators.combineLatest(self, other)
+
+  /**
    * Takes the elements of the source Observable and emits the maximum value,
    * after the source has completed.
    */
@@ -1342,6 +1368,51 @@ object Observable {
   def zip[T1, T2, T3, T4](obs1: Observable[T1], obs2: Observable[T2], obs3: Observable[T3], obs4: Observable[T4])
       (implicit s: Scheduler): Observable[(T1, T2, T3, T4)] =
     obs1.zip(obs2).zip(obs3).zip(obs4).map { case (((t1, t2), t3), t4) => (t1, t2, t3, t4) }
+
+  /**
+   * Creates a combined observable from 2 source observables.
+   *
+   * This operator behaves in a similar way to [[zip]], but while `zip` emits items
+   * only when all of the zipped source Observables have emitted a previously unzipped item,
+   * `combine` emits an item whenever any of the source Observables emits
+   * an item (so long as each of the source Observables has emitted at least one item).
+   */
+  def combineLatest[T1, T2](first: Observable[T1], second: Observable[T2])
+      (implicit s: Scheduler): Observable[(T1,T2)] = {
+    first.combineLatest(second)
+  }
+
+  /**
+   * Creates a combined observable from 3 source observables.
+   *
+   * This operator behaves in a similar way to [[zip]], but while `zip` emits items
+   * only when all of the zipped source Observables have emitted a previously unzipped item,
+   * `combine` emits an item whenever any of the source Observables emits
+   * an item (so long as each of the source Observables has emitted at least one item).
+   */
+  def combineLatest[T1, T2, T3]
+      (first: Observable[T1], second: Observable[T2], third: Observable[T3])
+      (implicit s: Scheduler): Observable[(T1,T2,T3)] = {
+
+    first.combineLatest(second).combineLatest(third)
+      .map { case ((t1, t2), t3) => (t1, t2, t3) }
+  }
+
+  /**
+   * Creates a combined observable from 4 source observables.
+   *
+   * This operator behaves in a similar way to [[zip]], but while `zip` emits items
+   * only when all of the zipped source Observables have emitted a previously unzipped item,
+   * `combine` emits an item whenever any of the source Observables emits
+   * an item (so long as each of the source Observables has emitted at least one item).
+   */
+  def combineLatest[T1, T2, T3, T4]
+      (first: Observable[T1], second: Observable[T2], third: Observable[T3], fourth: Observable[T4])
+      (implicit s: Scheduler): Observable[(T1, T2, T3, T4)] = {
+
+    first.combineLatest(second).combineLatest(third).combineLatest(fourth)
+      .map { case (((t1, t2), t3), t4) => (t1, t2, t3, t4) }
+  }
 
   /**
    * Concatenates the given list of ''observables'' into a single observable.
