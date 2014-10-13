@@ -13,7 +13,7 @@ plus multi-threading primitives for building efficient, concurrent and non-block
 ==Rx Sample==
 
 Sample: {{{
-  import monifu.concurrent.Scheduler.Implicits.global
+  import monifu.concurrent.Implicits.globalScheduler
   import play.api.libs.ws._
   import monifu.reactive._
 

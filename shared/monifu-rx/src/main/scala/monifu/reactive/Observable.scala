@@ -496,7 +496,7 @@ trait Observable[+T] { self =>
    * intervals. If no new value has been emitted since the last time it
    * was sampled, the emit the last emitted value anyway.
    *
-   * Also see [[Observable.sample]].
+   * Also see [[Observable!.sample]].
    *
    * @param initialDelay the initial delay after which sampling can happen
    *

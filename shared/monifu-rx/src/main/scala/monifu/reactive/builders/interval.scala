@@ -68,7 +68,7 @@ object interval {
    * @param s the scheduler used for scheduling the periodic signaling of onNext
    */
   def atFixedRate(period: FiniteDuration)(implicit s: Scheduler): Observable[Long] = {
-    /**
+    /*
      * Helper that recursively loops, feeding the given observer with an incremented
      * counter at a fixed rate.
      */

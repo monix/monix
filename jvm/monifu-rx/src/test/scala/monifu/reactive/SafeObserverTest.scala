@@ -62,7 +62,7 @@ class SafeObserverTest extends FunSpec {
 
         val p = Promise[Throwable]()
         val obs = SafeObserver(new Observer[Int] {
-          def onNext(elem: Int) = Future.failed(throw new DummyException)
+          def onNext(elem: Int) = Future.failed(new DummyException)
           def onError(ex: Throwable) = p.success(ex)
           def onComplete() = ()
         })

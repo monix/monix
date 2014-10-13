@@ -80,16 +80,4 @@ object Implicits {
       ExecutionContext.Implicits.global,
       UncaughtExceptionReporter.LogExceptionsToStandardErr
     )
-
-  /**
-   * Default reporter that can be used in case an [[UncaughtExceptionReporter]]
-   * is needed.
-   *
-   * This simply prints uncaught exceptions to STDERR. Usually it is recommended
-   * to not use the default one in a production setting, since in production
-   * you usually want to log exceptions by means of SLF4J or other means
-   * by which exceptions end up in log files.
-   */
-  implicit def globalExceptionsReporter: UncaughtExceptionReporter =
-    UncaughtExceptionReporter.LogExceptionsToStandardErr
 }
