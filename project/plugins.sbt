@@ -6,4 +6,3 @@ addSbtPlugin("org.scala-lang.modules.scalajs" % "scalajs-sbt-plugin" % "0.5.5")
 
 addSbtPlugin("com.eed3si9n" % "sbt-unidoc" % "0.3.1")
 
-addSbtPlugin("com.github.gseitz" % "sbt-release" % "0.8.5")

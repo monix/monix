@@ -22,12 +22,14 @@ import sbt.{Build => SbtBuild, _}
 import sbtunidoc.Plugin.UnidocKeys._
 import sbtunidoc.Plugin._
 import scala.scalajs.sbtplugin.ScalaJSPlugin._
-import sbtrelease.ReleasePlugin._
 
 
 object Build extends SbtBuild {
-  val baseSettings = Defaults.defaultSettings ++ releaseSettings ++ Seq(
+  val projectVersion = "0.14.0"
+
+  val baseSettings = Defaults.defaultSettings ++ Seq(
     organization := "org.monifu",
+    version := projectVersion,
 
     scalaVersion := "2.11.2",
     crossScalaVersions := Seq("2.11.2", "2.10.4"),
@@ -145,13 +147,13 @@ object Build extends SbtBuild {
     .settings(
       unidocProjectFilter in (ScalaUnidoc, unidoc) := inProjects(monifuCoreJVM, monifuRxJVM),
       scalacOptions in (ScalaUnidoc, sbtunidoc.Plugin.UnidocKeys.unidoc) ++=
-        Opts.doc.sourceUrl(s"https://github.com/monifu/monifu/tree/v${version.value}/monifu€{FILE_PATH}.scala"),
+        Opts.doc.sourceUrl(s"https://github.com/monifu/monifu/tree/v$projectVersion/monifu€{FILE_PATH}.scala"),
       scalacOptions in (ScalaUnidoc, sbtunidoc.Plugin.UnidocKeys.unidoc) ++=
         Opts.doc.title(s"Monifu"),
       scalacOptions in (ScalaUnidoc, sbtunidoc.Plugin.UnidocKeys.unidoc) ++=
         Opts.doc.version(s"${version.value}"),
       scalacOptions in (ScalaUnidoc, sbtunidoc.Plugin.UnidocKeys.unidoc) ++= 
-        Seq("-doc-root-content", "rootdoc.txt")
+        Seq("-doc-root-content", "jvm/rootdoc.txt")
     )
 
   lazy val monifuJS = Project(id="monifu-js", base = file("js"))
@@ -160,13 +162,13 @@ object Build extends SbtBuild {
     .settings(baseSettings ++ scalaJSSettings ++ unidocSettings : _*)
     .settings(
       scalacOptions in (ScalaUnidoc, sbtunidoc.Plugin.UnidocKeys.unidoc) ++=
-        Opts.doc.sourceUrl(s"https://github.com/monifu/monifu.js/tree/v${version.value}/monifu€{FILE_PATH}.scala"),
+        Opts.doc.sourceUrl(s"https://github.com/monifu/monifu.js/tree/v$projectVersion/monifu€{FILE_PATH}.scala"),
       scalacOptions in (ScalaUnidoc, sbtunidoc.Plugin.UnidocKeys.unidoc) ++=
         Opts.doc.title(s"Monifu.js"),
       scalacOptions in (ScalaUnidoc, sbtunidoc.Plugin.UnidocKeys.unidoc) ++=
         Opts.doc.version(s"${version.value}"),
       scalacOptions in (ScalaUnidoc, sbtunidoc.Plugin.UnidocKeys.unidoc) ++= 
-        Seq("-doc-root-content", "rootdoc.txt")
+        Seq("-doc-root-content", "js/rootdoc.txt")
     )
 
   lazy val monifuCoreJS = Project(id = "monifu-core-js", base = file("js/monifu-core"))

@@ -29,7 +29,7 @@ import scala.concurrent.Future
 
 object combineLatest {
   /**
-   * Implements [[monifu.reactive.Observable#combineLatest]].
+   * Implements [[monifu.reactive.Observable!.combineLatest]].
    */
   def apply[T, U](first: Observable[T], second: Observable[U])
       (implicit s: Scheduler): Observable[(T, U)] = {

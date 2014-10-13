@@ -429,7 +429,7 @@ class ConnectableObserverTest extends FunSpec {
               Cancel
             }
             else
-              throw new IllegalStateException("Received illegal onNext($elem)")
+              throw new IllegalStateException(s"Received illegal onNext($elem)")
           }
 
           def onError(ex: Throwable): Unit = {

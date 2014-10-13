@@ -20,7 +20,6 @@
 package monifu.concurrent
 
 import scala.annotation.implicitNotFound
-import scala.concurrent.ExecutionContext
 
 /**
  * An exception reporter is a function that logs an uncaught error.
@@ -32,9 +31,8 @@ import scala.concurrent.ExecutionContext
  */
 @implicitNotFound(
   "No ExceptionReporter was found in context for " +
-  "reporting uncaught errors, either build one yourself or use either " +
-  "an implicit Scheduler (schedulers are ExceptionReporters) or " +
-  "import monifu.concurrent.Scheduler.Implicits.defaultExceptionReporter")
+  "reporting uncaught errors, either build one yourself or use " +
+  "an implicit Scheduler (schedulers are ExceptionReporters)")
 trait UncaughtExceptionReporter {
   def reportFailure(ex: Throwable): Unit
 }
