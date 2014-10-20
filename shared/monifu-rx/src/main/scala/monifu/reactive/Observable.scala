@@ -19,7 +19,7 @@
 
 package monifu.reactive
 
-import monifu.concurrent.atomic.{Atomic, AtomicBoolean}
+import monifu.concurrent.cancelables.BooleanCancelable
 import monifu.concurrent.{Cancelable, Scheduler, UncaughtExceptionReporter}
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.BufferPolicy.{default => defaultPolicy}
@@ -56,9 +56,9 @@ trait Observable[+T] { self =>
    *                 happens, according to the Monifu Rx contract.
    */
   def subscribe(observer: Observer[T])(implicit s: Scheduler): Cancelable = {
-    val isRunning = Atomic(true)
-    takeWhileRefIsTrue(isRunning).unsafeSubscribe(SafeObserver[T](observer))
-    Cancelable { isRunning := false }
+    val cancelable = BooleanCancelable()
+    takeWhileNotCanceled(cancelable).unsafeSubscribe(SafeObserver[T](observer))
+    cancelable
   }
 
   /**
@@ -348,8 +348,8 @@ trait Observable[+T] { self =>
    * Takes longest prefix of elements that satisfy the given predicate
    * and returns a new Observable that emits those elements.
    */
-  def takeWhileRefIsTrue(ref: AtomicBoolean): Observable[T] =
-    operators.take.whileRefIsTrue(self, ref)
+  def takeWhileNotCanceled(c: BooleanCancelable): Observable[T] =
+    operators.take.takeWhileNotCanceled(self, c)
 
   /**
    * Returns the values from the source Observable until the other
@@ -394,8 +394,8 @@ trait Observable[+T] { self =>
    * Periodically gather items emitted by an Observable into bundles and emit
    * these bundles rather than emitting the items one at a time.
    *
-   * This version of `buffer` emits a new bundle of items periodically, 
-   * every timespan amount of time, containing all items emitted by the 
+   * This version of `buffer` emits a new bundle of items periodically,
+   * every timespan amount of time, containing all items emitted by the
    * source Observable since the previous bundle emission.
    *
    * @param timespan the interval of time at which it should emit the buffered bundle
@@ -513,7 +513,7 @@ trait Observable[+T] { self =>
     operators.sample.repeated(self, initialDelay, delay)
 
   /**
-   * Creates an Observable that emits the events emitted by the source, 
+   * Creates an Observable that emits the events emitted by the source,
    * with the first event shifted forward in time, specified by the given `timespan`.
    *
    * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/delay.png" />

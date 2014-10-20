@@ -20,7 +20,6 @@
 package monifu.reactive
 
 import monifu.concurrent.Cancelable
-import monifu.concurrent.atomic.Atomic
 import monifu.concurrent.cancelables.BooleanCancelable
 
 /**
@@ -46,12 +45,9 @@ object ConnectableObservable {
    */
   def apply[T, R](source: Observable[T], subject: Subject[T, R]): ConnectableObservable[R] =
     new ConnectableObservable[R] {
-      private[this] val notCanceled = Atomic(true)
-
-      private[this] val cancelAction =
-        BooleanCancelable { notCanceled set false }
+      private[this] val cancelAction = BooleanCancelable()
       private[this] val notConnected =
-        Cancelable { source.takeWhileRefIsTrue(notCanceled).unsafeSubscribe(subject) }
+        Cancelable { source.takeWhileNotCanceled(cancelAction).unsafeSubscribe(subject) }
 
       def connect() = {
         notConnected.cancel()
