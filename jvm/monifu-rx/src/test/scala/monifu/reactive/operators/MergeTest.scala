@@ -22,7 +22,7 @@ package monifu.reactive.operators
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 
 import monifu.concurrent.Implicits.globalScheduler
-import monifu.concurrent.atomic.Atomic
+import monifu.concurrent.cancelables.BooleanCancelable
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.BufferPolicy.Unbounded
 import monifu.reactive.{Observable, Observer}
@@ -350,17 +350,17 @@ class MergeTest extends FunSpec {
     it("should wait on children to complete, after upstream completes") {
       val latch = new SpecialLatch(3)
       val enoughStarted = new CountDownLatch(30)
-      val upstreamNotComplete = Atomic(true)
-      val childrenNotComplete = Atomic(true)
+      val upstreamNotComplete = BooleanCancelable()
+      val childrenNotComplete = BooleanCancelable()
 
       val f = Observable.from(0 until Int.MaxValue)
-        .takeWhileRefIsTrue(upstreamNotComplete)
+        .takeWhileNotCanceled(upstreamNotComplete)
         .doOnComplete(latch.countDown())
         .map { x =>
           Observable.from(0 until Int.MaxValue)
             .doOnStart { _ => latch.increment(); enoughStarted.countDown()}
             .doOnComplete(latch.countDown())
-            .takeWhileRefIsTrue(childrenNotComplete)
+            .takeWhileNotCanceled(childrenNotComplete)
         }
         .merge(batchSize=128)
         .doOnComplete(latch.countDown())
@@ -370,10 +370,10 @@ class MergeTest extends FunSpec {
         .asFuture
 
       assert(enoughStarted.await(20, TimeUnit.SECONDS), "enoughStarted.await should have succeeded")
-      upstreamNotComplete set false
+      upstreamNotComplete.cancel()
       assert(!latch.await(1.second), "latch.await should have failed")
 
-      childrenNotComplete set false
+      childrenNotComplete.cancel()
       assert(Await.result(f, 20.seconds).get > 0, "no events processed")
       assert(latch.await(20.seconds), "latch.await should have completed")
     }
@@ -659,17 +659,17 @@ class MergeTest extends FunSpec {
     it("should wait on children to complete, after upstream completes") {
       val latch = new SpecialLatch(3)
       val enoughStarted = new CountDownLatch(30)
-      val upstreamNotComplete = Atomic(true)
-      val childrenNotComplete = Atomic(true)
+      val upstreamNotComplete = BooleanCancelable()
+      val childrenNotComplete = BooleanCancelable()
 
       val f = Observable.from(0 until Int.MaxValue)
-        .takeWhileRefIsTrue(upstreamNotComplete)
+        .takeWhileNotCanceled(upstreamNotComplete)
         .doOnComplete(latch.countDown())
         .mergeMap { x =>
           Observable.from(0 until Int.MaxValue)
             .doOnStart { _ => latch.increment(); enoughStarted.countDown()}
             .doOnComplete(latch.countDown())
-            .takeWhileRefIsTrue(childrenNotComplete)
+            .takeWhileNotCanceled(childrenNotComplete)
         }
         .doOnComplete(latch.countDown())
         .map(_ => 1)
@@ -678,10 +678,10 @@ class MergeTest extends FunSpec {
         .asFuture
 
       assert(enoughStarted.await(10, TimeUnit.SECONDS), "enoughStarted.await should have succeeded")
-      upstreamNotComplete set false
+      upstreamNotComplete.cancel()
       assert(!latch.await(1.second), "latch.await should have failed")
 
-      childrenNotComplete set false
+      childrenNotComplete.cancel()
       assert(Await.result(f, 20.seconds).get > 0, "no events processed")
       assert(latch.await(20.seconds), "latch.await should have completed")
     }

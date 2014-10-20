@@ -20,11 +20,11 @@
 package monifu.reactive.operators
 
 import monifu.concurrent.Scheduler
-import monifu.concurrent.atomic.AtomicBoolean
-import monifu.reactive.Ack.{Continue, Cancel}
-import monifu.reactive.observers.SynchronousObserver
-import monifu.reactive.{Ack, Observer, Observable}
+import monifu.concurrent.cancelables.BooleanCancelable
+import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.internals._
+import monifu.reactive.observers.SynchronousObserver
+import monifu.reactive.{Ack, Observable, Observer}
 
 import scala.collection.mutable
 import scala.concurrent.Future
@@ -259,16 +259,16 @@ object take {
     }
 
   /**
-   * Implementation for [[monifu.reactive.Observable.takeWhileRefIsTrue]].
+   * Implementation for [[monifu.reactive.Observable.takeWhileNotCanceled]].
    */
-  def whileRefIsTrue[T](source: Observable[T], ref: AtomicBoolean) =
+  def takeWhileNotCanceled[T](source: Observable[T], c: BooleanCancelable) =
     Observable.create[T] { observer =>
       source.unsafeSubscribe(new Observer[T] {
         var shouldContinue = true
 
         def onNext(elem: T) = {
           if (shouldContinue) {
-            if (ref.get)
+            if (!c.isCanceled)
               observer.onNext(elem)
             else {
               shouldContinue = false
