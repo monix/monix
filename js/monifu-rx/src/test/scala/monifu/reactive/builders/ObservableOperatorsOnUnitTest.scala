@@ -405,6 +405,16 @@ object ObservableOperatorsOnUnitTest extends JasmineTest {
       expect(completed).toBe(true)
       expect(seen).toBe(1)
     }
+
+    it("should check empty") {
+      expectBoolean(Observable.empty.isEmpty.asFuture, expected = true, default = false)
+      expectBoolean(Observable.unit(1).isEmpty.asFuture, expected = false, default = true)
+    }
+
+    it("should check non-empty") {
+      expectBoolean(Observable.empty.nonEmpty.asFuture, expected = false, default = true)
+      expectBoolean(Observable.unit(1).nonEmpty.asFuture, expected = true, default = false)
+    }
   }
 
   def expectInt(f: Future[Option[Int]], expected: Int, default: Int) {
