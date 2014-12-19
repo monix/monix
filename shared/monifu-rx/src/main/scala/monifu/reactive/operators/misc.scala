@@ -19,7 +19,7 @@
 
 package monifu.reactive.operators
 
-import monifu.reactive.Ack.Continue
+import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.{Ack, Observer, Observable}
 
 import scala.concurrent.Future
@@ -91,6 +91,29 @@ object misc {
         def onNext(elem: T) = observer.onNext(elem)
         def onError(ex: Throwable) = observer.onError(ex)
         def onComplete() = observer.onError(error)
+      })
+    }
+
+  /**
+   * Implements [[Observable.isEmpty]].
+   */
+  def isEmpty[T](source: Observable[T]): Observable[Boolean] =
+    Observable.create[Boolean] { observer =>
+      source.unsafeSubscribe(new Observer[T] {
+        private[this] var isEmpty = true
+
+        override def onNext(elem: T): Future[Ack] = {
+          isEmpty = false
+          observer.onNext(isEmpty)
+          observer.onComplete()
+          Cancel
+        }
+
+        override def onError(ex: Throwable): Unit = observer.onError(ex)
+        override def onComplete(): Unit = {
+          if(isEmpty) observer.onNext(isEmpty)
+          observer.onComplete()
+        }
       })
     }
 }
