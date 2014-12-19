@@ -748,6 +748,22 @@ trait Observable[+T] { self =>
     find(p).foldLeft(false)((_, _) => true)
 
   /**
+   * Returns an Observable that emits true if the source Observable is empty, otherwise false.
+   *
+   * @return an Observable that emits a Boolean
+   */
+  def isEmpty: Observable[Boolean] =
+    operators.misc.isEmpty(self)
+
+  /**
+   * Returns an Observable that emits false if the source Observable is empty, otherwise true.
+   *
+   * @return an Observable that emits a Boolean
+   */
+  def nonEmpty: Observable[Boolean] =
+    operators.misc.isEmpty(self).map(!_)
+
+  /**
    * Returns an Observable that emits a single boolean, either true, in case the given predicate holds for all the items
    * emitted by the source, or false in case at least one item is not verifying the given predicate.
    *
