@@ -1,0 +1,100 @@
+/*
+ * Copyright (c) 2014 by its authors. Some rights reserved.
+ * See the project homepage at
+ *
+ *     http://www.monifu.org/
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package monifu.reactive.operators
+
+import monifu.reactive.Ack.{Cancel, Continue}
+import monifu.reactive.{Observer, Observable}
+import monifu.concurrent.extensions._
+import concurrent.duration._
+import scala.concurrent.Future
+
+object TakeByTimespanSuite extends BaseOperatorSuite {
+  val waitForFirst = Duration.Zero
+  val waitForNext = 100.millis
+
+  def brokenUserCodeObservable(count: Int, ex: Throwable) = None
+  def sum(count: Int) = count.toLong * (count - 1) / 2
+
+  def observable(count: Int) = {
+    require(count > 0, "count should be strictly positive")
+
+    Some(Observable.intervalAtFixedRate(100.millis)
+      .take(100.millis * count))
+  }
+
+  def observableInError(count: Int, ex: Throwable) = {
+    require(count > 0, "count should be strictly positive")
+    val source = Observable.create[Long] { subscriber =>
+      implicit val s = subscriber.scheduler
+      val o = Observable.intervalAtFixedRate(100.millis).take(count)
+      o.unsafeSubscribe(new Observer[Long] {
+        def onNext(elem: Long) =
+          subscriber.observer.onNext(elem)
+        def onError(ex: Throwable) =
+          subscriber.observer.onError(ex)
+        def onComplete() =
+          subscriber.observer.onError(ex)
+      })
+    }
+
+    Some(createObservableEndingInError(source.take(100.millis * (count + 2)), ex))
+  }
+
+  test("should complete even if no element was emitted") { implicit s =>
+    var wasCompleted = false
+
+    Observable.never.take(1.second).unsafeSubscribe(new Observer[Any] {
+      def onNext(elem: Any) = Continue
+      def onError(ex: Throwable) = ()
+      def onComplete() = wasCompleted = true
+    })
+
+    s.tick()
+    assert(!wasCompleted)
+    s.tick(1.second)
+    assert(wasCompleted)
+  }
+
+  test("should cancel if downstream cancels") { implicit s =>
+    var received = 0
+
+    Observable.intervalAtFixedRate(1.second).take(10.seconds).subscribe(
+      new Observer[Long] {
+        def onNext(elem: Long) =
+          Future.delayedResult(100.millis) {
+            received += 1
+            if (received < 3) Continue else Cancel
+          }
+
+        def onError(ex: Throwable) =
+          throw new IllegalStateException()
+
+        def onComplete() =
+          throw new IllegalStateException()
+      })
+
+    s.tick(100.millis)
+    assertEquals(received, 1)
+    s.tick(1.second)
+    assertEquals(received, 2)
+    s.tick(1.second)
+    assertEquals(received, 3)
+  }
+}
