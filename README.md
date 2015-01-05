@@ -6,6 +6,8 @@ Extensions to Scala's standard library for multi-threading primitives and functi
 
 ## Teaser
 
+[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/monifu/monifu?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 [Reactive Extensions](https://github.com/monifu/monifu/wiki/Reactive-Extensions-(Rx))
 
 ```scala
