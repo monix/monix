@@ -8,7 +8,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *  	http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,32 +17,19 @@
  * limitations under the License.
  */
 
+import org.scalajs.sbtplugin.ScalaJSPlugin
+import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport._
 import sbt.Keys._
 import sbt.{Build => SbtBuild, _}
+import sbtrelease.ReleasePlugin._
 import sbtunidoc.Plugin.UnidocKeys._
 import sbtunidoc.Plugin._
-import scala.scalajs.sbtplugin.ScalaJSPlugin._
 
 
 object Build extends SbtBuild {
-  val projectVersion = "0.14.1"
-
-  val baseSettings = Defaults.defaultSettings ++ Seq(
-    organization := "org.monifu",
-    version := projectVersion,
-
-    scalaVersion := "2.11.2",
-    crossScalaVersions := Seq("2.11.2", "2.10.4"),
-
-    initialize := {
-       val _ = initialize.value // run the previous initialization
-       val classVersion = sys.props("java.class.version")
-       val specVersion = sys.props("java.specification.version")
-       assert(
-        classVersion.toDouble >= 50 && specVersion.toDouble >= 1.6,
-        s"JDK version 6 or newer is required for building this project " + 
-        s"(SBT instance running on top of JDK $specVersion with class version $classVersion)")
-    },
+  val compilerSettings = Seq(
+    unmanagedSourceDirectories in Compile <+= baseDirectory(_ /  "shared" / "main" / "scala"),
+    unmanagedSourceDirectories in Test <+= baseDirectory(_ / "shared" / "test" / "scala"),
 
     scalacOptions <<= baseDirectory.map { bd => Seq("-sourcepath", bd.getAbsolutePath) },
     scalacOptions in (ScalaUnidoc, unidoc) <<= baseDirectory.map { bd =>
@@ -56,14 +43,19 @@ object Build extends SbtBuild {
       "-unchecked", "-deprecation", "-feature", "-Xlint", "-target:jvm-1.6", "-Yinline-warnings",
       "-optimise", "-Ywarn-adapted-args", "-Ywarn-dead-code", "-Ywarn-inaccessible",
       "-Ywarn-nullary-override", "-Ywarn-nullary-unit"
-    ),
+    )
+  )
 
-    parallelExecution in Test := false,
+  val sharedSettings = releaseSettings ++ Seq(
+    organization := "org.monifu",
+    scalaVersion := "2.11.4",
 
     resolvers ++= Seq(
       "Typesafe Releases" at "http://repo.typesafe.com/typesafe/releases",
       Resolver.sonatypeRepo("releases")
     ),
+
+    libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _ % "compile"),
 
     // -- Settings meant for deployment on oss.sonatype.org
 
@@ -79,7 +71,7 @@ object Build extends SbtBuild {
 
     publishArtifact in Test := false,
     pomIncludeRepository := { _ => false }, // removes optional dependencies
-    
+
     pomExtra :=
       <url>http://www.monifu.org/</url>
       <licenses>
@@ -102,92 +94,83 @@ object Build extends SbtBuild {
       </developers>
   )
 
+  // -- Root aggregating everything
 
-  // -- Actual Projects
-
-  lazy val root = Project(id="root", base=file("."))
-    .aggregate(monifuJVM, monifuJS)
-    .settings(baseSettings : _*)
+  lazy val root = project.in(file("."))
+    .aggregate(coreJVM, coreJS, jvm, js)
+    .settings(sharedSettings : _*)
     .settings(
+      name := "root",
       publishArtifact := false,
       publishArtifact in (Compile, packageDoc) := false,
       publishArtifact in (Compile, packageSrc) := false,
       publishArtifact in (Compile, packageBin) := false
     )
 
-  lazy val monifuCoreJVM = Project(id = "monifu-core", base = file("jvm/monifu-core"))
-    .settings(baseSettings : _*)
+  // -- Monifu Core
+
+  lazy val coreJVM = project.in(file("monifu-core/jvm"))
+    .settings(sharedSettings ++ compilerSettings : _*)
     .settings(
-      libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _ % "compile"),
+      name := "monifu-core",
+      testFrameworks += new TestFramework("minitest.runner.Framework"),
       libraryDependencies ++= Seq(
-        "org.scalatest" %% "scalatest" % "2.1.3" % "test"
+        "org.monifu" %% "minitest" % "0.8" % "test"
       )
     )
 
-  lazy val monifuRxJVM = Project(id = "monifu-rx", base = file("jvm/monifu-rx"))
-    .dependsOn(monifuCoreJVM)
-    .settings(baseSettings : _*)
+  lazy val coreJS = project.in(file("monifu-core/js"))
+    .settings(sharedSettings ++ compilerSettings : _*)
+    .enablePlugins(ScalaJSPlugin)
     .settings(
-      unmanagedSourceDirectories in Compile += baseDirectory.value / "shared" / "main" / "scala",
-      libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _ % "compile"),
+      name := "monifu-core",
+      testFrameworks += new TestFramework("minitest.runner.Framework"),
       libraryDependencies ++= Seq(
-        "org.reactivestreams" % "reactive-streams" % "0.4.0",
-
-        // for testing
-        "org.reactivestreams" % "reactive-streams-tck" % "0.4.0" % "test",
-        "org.scalatest" %% "scalatest" % "2.1.3" % "test",
-        "com.google.inject" % "guice" % "4.0-beta5" % "test"
+        "org.monifu" %%%! "minitest" % "0.8" % "test"
       )
     )
 
-  lazy val monifuJVM = Project(id="monifu", base = file("jvm"))
-    .dependsOn(monifuCoreJVM, monifuRxJVM)
-    .aggregate(monifuCoreJVM, monifuRxJVM)
-    .settings(baseSettings ++ unidocSettings : _*)
+  // -- Monifu
+
+  lazy val jvm = project.in(file("monifu/jvm"))
+    .dependsOn(coreJVM)
+    .settings(sharedSettings ++ compilerSettings ++ unidocSettings : _*)
     .settings(
-      unidocProjectFilter in (ScalaUnidoc, unidoc) := inProjects(monifuCoreJVM, monifuRxJVM),
+      name := "monifu",
       scalacOptions in (ScalaUnidoc, sbtunidoc.Plugin.UnidocKeys.unidoc) ++=
-        Opts.doc.sourceUrl(s"https://github.com/monifu/monifu/tree/v$projectVersion/monifu€{FILE_PATH}.scala"),
+        Opts.doc.sourceUrl(s"https://github.com/monifu/monifu/tree/v${version.value}/monifu€{FILE_PATH}.scala"),
       scalacOptions in (ScalaUnidoc, sbtunidoc.Plugin.UnidocKeys.unidoc) ++=
         Opts.doc.title(s"Monifu"),
       scalacOptions in (ScalaUnidoc, sbtunidoc.Plugin.UnidocKeys.unidoc) ++=
         Opts.doc.version(s"${version.value}"),
-      scalacOptions in (ScalaUnidoc, sbtunidoc.Plugin.UnidocKeys.unidoc) ++= 
-        Seq("-doc-root-content", "jvm/rootdoc.txt")
+      scalacOptions in (ScalaUnidoc, sbtunidoc.Plugin.UnidocKeys.unidoc) ++=
+        Seq("-doc-root-content", "monifu/jvm/rootdoc.txt"),
+
+      testFrameworks += new TestFramework("minitest.runner.Framework"),
+      libraryDependencies ++= Seq(
+        "org.reactivestreams" % "reactive-streams" % "0.4.0",
+        "org.monifu" %% "minitest" % "0.8" % "test"
+      )
     )
 
-  lazy val monifuJS = Project(id="monifu-js", base = file("js"))
-    .dependsOn(monifuCoreJS, monifuRxJS)
-    .aggregate(monifuCoreJS, monifuRxJS)
-    .settings(baseSettings ++ scalaJSSettings ++ unidocSettings : _*)
+  lazy val js = project.in(file("monifu/js"))
+    .dependsOn(coreJS)
+    .enablePlugins(ScalaJSPlugin)
+    .settings(sharedSettings ++ compilerSettings ++ unidocSettings : _*)
     .settings(
+      name := "monifu",
       scalacOptions in (ScalaUnidoc, sbtunidoc.Plugin.UnidocKeys.unidoc) ++=
-        Opts.doc.sourceUrl(s"https://github.com/monifu/monifu.js/tree/v$projectVersion/monifu€{FILE_PATH}.scala"),
+        Opts.doc.sourceUrl(s"https://github.com/monifu/monifu.js/tree/v${version.value}/monifu€{FILE_PATH}.scala"),
       scalacOptions in (ScalaUnidoc, sbtunidoc.Plugin.UnidocKeys.unidoc) ++=
         Opts.doc.title(s"Monifu.js"),
       scalacOptions in (ScalaUnidoc, sbtunidoc.Plugin.UnidocKeys.unidoc) ++=
         Opts.doc.version(s"${version.value}"),
-      scalacOptions in (ScalaUnidoc, sbtunidoc.Plugin.UnidocKeys.unidoc) ++= 
-        Seq("-doc-root-content", "js/rootdoc.txt")
-    )
+      scalacOptions in (ScalaUnidoc, sbtunidoc.Plugin.UnidocKeys.unidoc) ++=
+        Seq("-doc-root-content", "monifu/js/rootdoc.txt"),
 
-  lazy val monifuCoreJS = Project(id = "monifu-core-js", base = file("js/monifu-core"))
-    .settings(baseSettings ++ scalaJSSettings : _*)
-    .settings(
-      libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _ % "compile"),
+      testFrameworks += new TestFramework("minitest.runner.Framework"),
       libraryDependencies ++= Seq(
-        "org.scala-lang.modules.scalajs" %% "scalajs-jasmine-test-framework" % scalaJSVersion % "test"
+        "org.monifu" %%%! "minitest" % "0.8" % "test"
       )
     )
-
-  lazy val monifuRxJS = Project(id = "monifu-rx-js", base = file("js/monifu-rx"))
-    .dependsOn(monifuCoreJS) 
-    .settings(baseSettings ++ scalaJSSettings : _*)
-    .settings(
-      unmanagedSourceDirectories in Compile += baseDirectory.value / "shared" / "main" / "scala",
-      libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _ % "compile"),
-      libraryDependencies ++= Seq(
-        "org.scala-lang.modules.scalajs" %% "scalajs-jasmine-test-framework" % scalaJSVersion % "test"
-      )      
-    )   
 }
