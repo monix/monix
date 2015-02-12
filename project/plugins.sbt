@@ -1,8 +1,15 @@
-resolvers += Resolver.url("scala-js-releases",
-  url("http://dl.bintray.com/content/scala-js/scala-js-releases"))(
-    Resolver.ivyStylePatterns)
+resolvers ++= Seq(
+  Classpaths.sbtPluginReleases,
 
-addSbtPlugin("org.scala-lang.modules.scalajs" % "scalajs-sbt-plugin" % "0.5.5")
+  Resolver.url("scala-js-releases",
+    url("http://dl.bintray.com/content/scala-js/scala-js-releases"))(
+      Resolver.ivyStylePatterns)
+)
+
+addSbtPlugin("org.scala-js" % "sbt-scalajs" % "0.6.0")
 
 addSbtPlugin("com.eed3si9n" % "sbt-unidoc" % "0.3.1")
 
+addSbtPlugin("com.github.gseitz" % "sbt-release" % "0.8.5")
+
+addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.0.1")
