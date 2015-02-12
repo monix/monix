@@ -2,7 +2,7 @@
 
 Extensions to Scala's standard library for multi-threading primitives and functional reactive programming. Targets both the JVM and [Scala.js](http://www.scala-js.org/) (for targetting Javascript see its [Monifu.js](https://github.com/monifu/monifu.js)).
 
-[![Build Status](https://travis-ci.org/monifu/monifu.png?branch=v0.14.0)](https://travis-ci.org/monifu/monifu) 
+[![Build Status](https://travis-ci.org/monifu/monifu.png?branch=v0.14.0)](https://travis-ci.org/monifu/monifu)
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/monifu/monifu?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 ## Teaser
@@ -17,17 +17,17 @@ import monifu.reactive._
 // emits an auto-incremented number, every second
 Observable.interval(1.second)
   // drops the first 10 emitted events
-  .drop(10) 
+  .drop(10)
   // takes the first 100 emitted events  
-  .take(100) 
+  .take(100)
   // per second, makes requests and concatenates the results
   .flatMap(x => WS.request(s"http://some.endpoint.com/request?tick=$x").get())
   // filters only valid responses
-  .filter(response => response.status == 200) 
+  .filter(response => response.status == 200)
   // processes response, selecting the body
-  .map(response => response.body) 
+  .map(response => response.body)
   // creates subscription, foreach response print it
-  .foreach(x => println(x)) 
+  .foreach(x => println(x))
 ```
 
 [Atomic References](https://github.com/monifu/monifu/wiki/Atomic-References)
@@ -64,7 +64,7 @@ s.scheduleRecursive(1.second, 5.seconds, { reschedule =>
   if (loop.incrementAndGet < 10) {
     println(s"Counted: $counted")
     // do next one
-    reschedule()    
+    reschedule()
   }
 })
 ```
@@ -75,8 +75,8 @@ The available documentation is maintained as a [GitHub's Wiki](https://github.co
 Work in progress.
 
 * [Reactive Extensions (Rx)](https://github.com/monifu/monifu/wiki/Reactive-Extensions-%28Rx%29)
-* [Atomic References](https://github.com/monifu/monifu/wiki/Atomic-References) 
-* [Schedulers](https://github.com/monifu/monifu/wiki/Schedulers) 
+* [Atomic References](https://github.com/monifu/monifu/wiki/Atomic-References)
+* [Schedulers](https://github.com/monifu/monifu/wiki/Schedulers)
 
 API documentation:
 
@@ -91,25 +91,21 @@ Release Notes:
 
 ## Usage
 
-The packages are published on Maven Central.
+The packages are published on Maven Central. Compiled for Scala 2.11.5
+and Scala.js 0.6.0. Older versions are no longer supported.
 
-Compiled for Scala 2.10 and 2.11. Also cross-compiled to
-the latest Scala.js (at the moment Scala.js 0.5.5). The targeted JDK version
-for the published packages is version 6 (see 
-[faq entry](https://github.com/monifu/monifu/wiki/Frequently-Asked-Questions#what-javajdk-version-is-required)).
-
-- Current stable release is: `0.14.0`
+- Current stable release is: `0.15.0`
 
 ### For the JVM
 
 ```scala
-libraryDependencies += "org.monifu" %% "monifu" % "0.14.0"
+libraryDependencies += "org.monifu" %% "monifu" % "0.15.0"
 ```
 
 ### For targeting Javascript runtimes with Scala.js
 
 ```scala
-libraryDependencies += "org.monifu" %%% "monifu-js" % "0.14.0"
+libraryDependencies += "org.monifu" %%% "monifu" % "0.15.0"
 ```
 
 ## License
@@ -124,4 +120,3 @@ YourKit supports the Monifu project with its full-featured Java Profiler.
 YourKit, LLC is the creator [YourKit Java Profiler](http://www.yourkit.com/java/profiler/index.jsp)
 and [YourKit .NET Profiler](http://www.yourkit.com/.net/profiler/index.jsp),
 innovative and intelligent tools for profiling Java and .NET applications.
-
