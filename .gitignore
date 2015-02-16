@@ -8,3 +8,4 @@ TODO
 target/
 /.lib/
 project/target/
+.classpath

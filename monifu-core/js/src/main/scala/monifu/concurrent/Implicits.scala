@@ -22,9 +22,9 @@ package monifu.concurrent
 import monifu.concurrent.schedulers.AsyncScheduler
 
 /**
- * Defines implicit values that can be used by importing in the 
+ * Defines implicit values that can be used by importing in the
  * current context.
- * 
+ *
  * Example:
  * {{{
  *   import monifu.concurrent.Implicits.globalScheduler

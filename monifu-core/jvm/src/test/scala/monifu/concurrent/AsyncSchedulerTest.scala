@@ -32,7 +32,7 @@ object AsyncSchedulerTest extends SimpleTestSuite {
   test("scheduleOnce with delay") {
     val p = Promise[Long]()
     val startedAt = System.nanoTime()
-    s.scheduleOnce(100.millis, p.success(System.nanoTime()))
+    s.scheduleOnce(100.millis)(p.success(System.nanoTime()))
 
     val timeTaken = Await.result(p.future, 3.second)
     assert((timeTaken - startedAt).nanos.toMillis >= 100)
@@ -40,13 +40,13 @@ object AsyncSchedulerTest extends SimpleTestSuite {
 
   test("scheduleOnce with delay lower than 1.milli") {
     val p = Promise[Int]()
-    s.scheduleOnce(20.nanos, p.success(1))
+    s.scheduleOnce(20.nanos)(p.success(1))
     assert(Await.result(p.future, 3.seconds) == 1)
   }
 
   test("scheduleOnce with delay and cancel") {
     val p = Promise[Int]()
-    val task = s.scheduleOnce(100.millis, p.success(1))
+    val task = s.scheduleOnce(100.millis)(p.success(1))
     task.cancel()
 
     intercept[TimeoutException] {
@@ -54,12 +54,12 @@ object AsyncSchedulerTest extends SimpleTestSuite {
     }
   }
 
-  test("schedule periodically") {
+  test("schedule with fixed delay") {
     val sub = SingleAssignmentCancelable()
     val p = Promise[Int]()
     var value = 0
 
-    sub() = s.scheduleRepeated(10.millis, 50.millis, {
+    sub() = s.scheduleFixedDelay(10.millis, 50.millis) {
       if (value + 1 == 4) {
         value += 1
         sub.cancel()
@@ -68,25 +68,26 @@ object AsyncSchedulerTest extends SimpleTestSuite {
       else if (value < 4) {
         value += 1
       }
-    })
+    }
 
     assert(Await.result(p.future, 5.second) == 4)
   }
 
-  test("schedule recursively") {
+  test("schedule at fixed rate") {
+    val sub = SingleAssignmentCancelable()
     val p = Promise[Int]()
     var value = 0
 
-    s.scheduleRecursive(10.millis, 50.millis, { reschedule =>
+    sub() = s.scheduleAtFixedRate(10.millis, 50.millis) {
       if (value + 1 == 4) {
         value += 1
+        sub.cancel()
         p.success(value)
       }
       else if (value < 4) {
         value += 1
-        reschedule()
       }
-    })
+    }
 
     assert(Await.result(p.future, 5.second) == 4)
   }

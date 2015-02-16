@@ -20,14 +20,18 @@
 package monifu.concurrent.schedulers
 
 import monifu.concurrent.UncaughtExceptionReporter
-
 import scala.scalajs.js
 
+/**
+ * Utils for quickly using Javascript's `setTimeout` and
+ * `clearTimeout`.
+ */
 private[concurrent] object Timer {
-  def setTimeout(delayMillis: Long, cb: => Unit, r: UncaughtExceptionReporter): js.Dynamic = {
-    val lambda: js.Function = () => {
-      try { cb } catch { case t: Throwable => r.reportFailure(t) }
-    }
+  def setTimeout(delayMillis: Long, r: Runnable, reporter: UncaughtExceptionReporter): js.Dynamic = {
+    val lambda: js.Function = () =>
+      try { r.run() } catch { case t: Throwable =>
+        reporter.reportFailure(t)
+      }
 
     js.Dynamic.global.setTimeout(lambda, delayMillis)
   }
