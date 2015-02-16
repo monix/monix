@@ -48,7 +48,7 @@ object Build extends SbtBuild {
 
   val sharedSettings = releaseSettings ++ Seq(
     organization := "org.monifu",
-    scalaVersion := "2.11.4",
+    scalaVersion := "2.11.5",
 
     resolvers ++= Seq(
       "Typesafe Releases" at "http://repo.typesafe.com/typesafe/releases",
@@ -115,7 +115,7 @@ object Build extends SbtBuild {
       name := "monifu-core",
       testFrameworks += new TestFramework("minitest.runner.Framework"),
       libraryDependencies ++= Seq(
-        "org.monifu" %% "minitest" % "0.8" % "test"
+        "org.monifu" %% "minitest" % "0.11" % "test"
       )
     )
 
@@ -126,7 +126,7 @@ object Build extends SbtBuild {
       name := "monifu-core",
       testFrameworks += new TestFramework("minitest.runner.Framework"),
       libraryDependencies ++= Seq(
-        "org.monifu" %%%! "minitest" % "0.8" % "test"
+        "org.monifu" %%%! "minitest" % "0.11" % "test"
       )
     )
 
@@ -149,7 +149,7 @@ object Build extends SbtBuild {
       testFrameworks += new TestFramework("minitest.runner.Framework"),
       libraryDependencies ++= Seq(
         "org.reactivestreams" % "reactive-streams" % "0.4.0",
-        "org.monifu" %% "minitest" % "0.8" % "test"
+        "org.monifu" %% "minitest" % "0.11" % "test"
       )
     )
 
@@ -170,7 +170,7 @@ object Build extends SbtBuild {
 
       testFrameworks += new TestFramework("minitest.runner.Framework"),
       libraryDependencies ++= Seq(
-        "org.monifu" %%%! "minitest" % "0.8" % "test"
+        "org.monifu" %%%! "minitest" % "0.11" % "test"
       )
     )
 }

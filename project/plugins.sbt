@@ -6,7 +6,7 @@ resolvers ++= Seq(
       Resolver.ivyStylePatterns)
 )
 
-addSbtPlugin("org.scala-js" % "sbt-scalajs" % "0.6.0-M3")
+addSbtPlugin("org.scala-js" % "sbt-scalajs" % "0.6.0")
 
 addSbtPlugin("com.eed3si9n" % "sbt-unidoc" % "0.3.1")
 
