@@ -33,47 +33,32 @@ import scala.concurrent.duration._
  */
 final class AsyncScheduler private
     (s: ScheduledExecutorService, ec: ExecutionContext, r: UncaughtExceptionReporter)
-  extends Scheduler {
+  extends ReferenceScheduler {
 
-  def scheduleOnce(initialDelay: FiniteDuration, action: => Unit): Cancelable =
-    if (initialDelay <= Duration.Zero)
-      scheduleOnce(action)
+  def scheduleOnce(initialDelay: FiniteDuration, r: Runnable): Cancelable = {
+    if (initialDelay <= Duration.Zero) {
+      execute(r)
+      Cancelable()
+    }
     else {
-      val sub = SingleAssignmentCancelable()
-
-      val runnable = new Runnable {
-        def run(): Unit =
-          ec.execute(new Runnable {
-            def run(): Unit =
-              if (!sub.isCanceled) action
-          })
-      }
-
       val task =
         if (initialDelay < oneHour)
-          s.schedule(runnable, initialDelay.toNanos, TimeUnit.NANOSECONDS)
+          s.schedule(r, initialDelay.toNanos, TimeUnit.NANOSECONDS)
         else
-          s.schedule(runnable, initialDelay.toMillis, TimeUnit.MILLISECONDS)
+          s.schedule(r, initialDelay.toMillis, TimeUnit.MILLISECONDS)
 
-      sub := Cancelable(task.cancel(true))
-      sub
+      Cancelable(task.cancel(true))
     }
+  }
 
-  /**
-   * Overwritten for performance reasons.
-   */
-  override def scheduleRepeated(initialDelay: FiniteDuration, delay: FiniteDuration, action: => Unit): Cancelable = {
-    @volatile var isCanceled = false
-    val runnable = new Runnable {
-      def run(): Unit =
-        ec.execute(new Runnable {
-          def run(): Unit =
-            if (!isCanceled) action
-        })
-    }
+  override def scheduleFixedDelay(initialDelay: FiniteDuration, delay: FiniteDuration, r: Runnable): Cancelable = {
+    val task = s.scheduleWithFixedDelay(r, initialDelay.toMillis, delay.toMillis, TimeUnit.MILLISECONDS)
+    Cancelable(task.cancel(false))
+  }
 
-    val task = s.scheduleWithFixedDelay(runnable, initialDelay.toMillis, delay.toMillis, TimeUnit.MILLISECONDS)
-    Cancelable { isCanceled = true; task.cancel(false) }
+  override def scheduleAtFixedRate(initialDelay: FiniteDuration, period: FiniteDuration, r: Runnable): Cancelable = {
+    val task = s.scheduleAtFixedRate(r, initialDelay.toMillis, period.toMillis, TimeUnit.MILLISECONDS)
+    Cancelable(task.cancel(false))
   }
 
   def execute(runnable: Runnable): Unit =

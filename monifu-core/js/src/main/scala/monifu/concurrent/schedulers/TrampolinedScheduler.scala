@@ -28,12 +28,15 @@ import scala.concurrent.duration.FiniteDuration
 import scala.util.control.NonFatal
 
 
-final class TrampolineScheduler private (r: UncaughtExceptionReporter) extends Scheduler {
+final class TrampolineScheduler private
+    (reporter: UncaughtExceptionReporter)
+  extends ReferenceScheduler {
+
   private[this] val immediateQueue = mutable.Queue.empty[Runnable]
   private[this] var withinLoop = false
 
-  def scheduleOnce(initialDelay: FiniteDuration, action: => Unit): Cancelable = {
-    val task = setTimeout(initialDelay.toMillis, action, r)
+  def scheduleOnce(initialDelay: FiniteDuration, r: Runnable): Cancelable = {
+    val task = setTimeout(initialDelay.toMillis, r, reporter)
     Cancelable(clearTimeout(task))
   }
 
@@ -65,7 +68,7 @@ final class TrampolineScheduler private (r: UncaughtExceptionReporter) extends S
   }
 
   def reportFailure(t: Throwable): Unit =
-    r.reportFailure(t)
+    reporter.reportFailure(t)
 }
 
 object TrampolineScheduler {

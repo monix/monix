@@ -19,30 +19,29 @@
 
 package monifu.concurrent.schedulers
 
-import monifu.concurrent.{Cancelable, Scheduler, UncaughtExceptionReporter}
 import scala.concurrent.duration._
+import monifu.concurrent.{Cancelable, Scheduler, UncaughtExceptionReporter}
 import monifu.concurrent.schedulers.Timer.{setTimeout, clearTimeout}
-
 
 /**
  * An `AsyncScheduler` schedules tasks to happen in the future with the
  * given `ScheduledExecutorService` and the tasks themselves are executed on
  * the given `ExecutionContext`.
  */
-final class AsyncScheduler private (r: UncaughtExceptionReporter)
-  extends Scheduler {
+final class AsyncScheduler private (reporter: UncaughtExceptionReporter)
+  extends ReferenceScheduler {
 
-  def scheduleOnce(initialDelay: FiniteDuration, action: => Unit): Cancelable = {
-    val task = setTimeout(initialDelay.toMillis, action, r)
+  def scheduleOnce(initialDelay: FiniteDuration, r: Runnable): Cancelable = {
+    val task = setTimeout(initialDelay.toMillis, r, reporter)
     Cancelable(clearTimeout(task))
   }
 
   def execute(runnable: Runnable): Unit = {
-    setTimeout(0, runnable.run(), r)
+    setTimeout(0, runnable, reporter)
   }
 
   def reportFailure(t: Throwable): Unit =
-    r.reportFailure(t)
+    reporter.reportFailure(t)
 }
 
 object AsyncScheduler {

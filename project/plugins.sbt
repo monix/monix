@@ -8,8 +8,6 @@ resolvers ++= Seq(
 
 addSbtPlugin("org.scala-js" % "sbt-scalajs" % "0.6.0")
 
-addSbtPlugin("com.eed3si9n" % "sbt-unidoc" % "0.3.1")
-
 addSbtPlugin("com.github.gseitz" % "sbt-release" % "0.8.5")
 
 addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.0.1")
