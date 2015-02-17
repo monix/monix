@@ -16,64 +16,15 @@
 
 package monifu.reactive.operators
 
-import monifu.concurrent.{Scheduler, Cancelable}
-import monifu.reactive.Ack.{Cancel, Continue}
-import monifu.reactive.{Ack, Observer, Observable}
-import monifu.reactive.observers.SynchronousObserver
+import monifu.concurrent.Scheduler
+import monifu.reactive.Ack.Continue
 import monifu.reactive.internals._
-
-import scala.concurrent.Future
+import monifu.reactive.observers.SynchronousObserver
+import monifu.reactive.{Ack, Observable, Observer}
 import scala.concurrent.duration._
-import scala.util.{Failure, Success}
-import scala.util.control.NonFatal
+
 
 object sample {
-  def once2[T](source: Observable[T], initialDelay: FiniteDuration, delay: FiniteDuration): Observable[T] =
-    Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
-
-      source.unsafeSubscribe(new Observer[T] {
-        private[this] var lastValue: T = _
-        @volatile private[this] var hasValue = false
-        @volatile private[this] var upstreamIsDone = false
-        private[this] val task = tick(initialDelay, delay)
-
-        def tick(initialDelay: FiniteDuration, period: FiniteDuration): Cancelable =
-          s.scheduleOnce(initialDelay, {
-            val startedAt = s.nanoTime
-
-            if (hasValue) {
-              val result = observer.onNext(lastValue)
-              hasValue = false
-
-              result.onContinue {
-                val duration = (s.nanoTime - startedAt).nanos
-                val delay = {
-                  val d = period - duration
-                  if (d >= Duration.Zero) d else Duration.Zero
-                }
-                
-                tick(delay, period)
-              }
-            }
-            else {
-              tick(period, period)
-            }
-          })
-
-
-        def onNext(elem: T): Future[Ack] = {
-
-        }
-
-        def onError(ex: Throwable): Unit = ???
-
-        def onComplete(): Unit = ???
-      })
-    }
-
-
   /**
    * Implementation for `Observable.sample(initialDelay, delay)`.
    *
@@ -116,7 +67,7 @@ object sample {
   protected[reactive] class SampleObserver[T]
       (downstream: Observer[T], initialDelay: FiniteDuration, delay: FiniteDuration, shouldRepeatOnSilence: Boolean)
       (implicit s: Scheduler)
-    extends SynchronousObserver[T] {
+    extends SynchronousObserver[T] with Runnable {
 
     @volatile private[this] var hasValue = false
     // MUST BE written before `hasValue = true`
@@ -130,7 +81,7 @@ object sample {
     /**
      * Function that gets scheduled for periodic execution.
      */
-    def tick(initialDelay: FiniteDuration, period: FiniteDuration): Unit = {
+    def tick(initialDelay: FiniteDuration): Unit = {
       if (upstreamIsDone) {
         if (upstreamError != null)
           downstream.onError(upstreamError)
@@ -138,27 +89,7 @@ object sample {
           downstream.onComplete()
       }
       else {
-        s.scheduleOnce(initialDelay, {
-          val startedAt = s.nanoTime
-
-          if (hasValue) {
-            val result = downstream.onNext(lastValue)
-            hasValue = shouldRepeatOnSilence
-
-            result.onContinue {
-              val duration = (s.nanoTime - startedAt).nanos
-              val delay = {
-                val d = period - duration
-                if (d >= Duration.Zero) d else Duration.Zero
-              }
-
-              tick(delay, period)
-            }
-          }
-          else {
-            tick(period, period)
-          }
-        })
+        s.scheduleOnce(initialDelay, this)
       }
     }
 
@@ -175,6 +106,28 @@ object sample {
 
     def onComplete(): Unit = {
       upstreamIsDone = true
+    }
+
+    def run(): Unit = {
+      val startedAt = s.nanoTime()
+
+      if (hasValue) {
+        val result = downstream.onNext(lastValue)
+        hasValue = shouldRepeatOnSilence
+
+        result.onContinue {
+          val duration = (s.nanoTime() - startedAt).nanos
+          val initialDelay = {
+            val d = delay - duration
+            if (d >= Duration.Zero) d else Duration.Zero
+          }
+
+          tick(initialDelay)
+        }
+      }
+      else {
+        tick(delay)
+      }
     }
   }
 }

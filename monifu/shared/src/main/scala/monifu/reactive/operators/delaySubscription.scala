@@ -47,7 +47,7 @@ object delaySubscription {
       implicit val s = subscriber.scheduler
       val underlying = source.delaySubscription {
         val p = Promise[Unit]()
-        s.scheduleOnce(timespan, p.success(()))
+        s.scheduleOnce(timespan)(p.success(()))
         p.future
       }
 
