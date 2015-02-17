@@ -17,7 +17,7 @@
 package monifu.reactive.operators
 
 import monifu.reactive.Ack.{Cancel, Continue}
-import monifu.reactive.{Observer, Observable}
+import monifu.reactive.{DummyException, Observer, Observable}
 import monifu.concurrent.extensions._
 import concurrent.duration._
 import scala.concurrent.Future
@@ -43,20 +43,14 @@ object TakeByTimespanSuite extends BaseOperatorSuite {
 
   def observableInError(sourceCount: Int, ex: Throwable) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
-    val source = Observable.create[Long] { subscriber =>
-      implicit val s = subscriber.scheduler
-      val o = Observable.intervalAtFixedRate(100.millis).take(sourceCount)
-      o.unsafeSubscribe(new Observer[Long] {
-        def onNext(elem: Long) =
-          subscriber.observer.onNext(elem)
-        def onError(ex: Throwable) =
-          subscriber.observer.onError(ex)
-        def onComplete() =
-          subscriber.observer.onError(ex)
-      })
-    }
+    Some {
+      val source = if (sourceCount == 1)
+        createObservableEndingInError(Observable.range(1, 10).take(1), ex)
+      else
+        createObservableEndingInError(Observable.range(1, sourceCount * 2).take(sourceCount), ex)
 
-    Some(createObservableEndingInError(source.take(100.millis * (sourceCount + 2)), ex))
+      source.take(1.day)
+    }
   }
 
   test("should complete even if no element was emitted") { implicit s =>

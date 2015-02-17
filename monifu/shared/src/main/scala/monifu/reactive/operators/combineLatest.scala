@@ -50,15 +50,8 @@ object combineLatest {
 
       // MUST BE synchronized by `lock`
       def signalOnNext(t: T, u: U) = {
-        if (isDone()) {
-          Cancel
-        }
-        else if (isElemTInitialized && isElemUInitialized) {
-          lastAck = lastAck.onContinueStreamOnNext(observer, t -> u)
-          lastAck
-        }
-        else
-          Continue
+        lastAck = lastAck.onContinueStreamOnNext(observer, t -> u)
+        lastAck
       }
 
       def signalOnError(ex: Throwable): Unit = lock.synchronized {

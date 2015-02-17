@@ -39,7 +39,6 @@ object TakeLeftSuite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      val ex = DummyException("dummy")
       if (sourceCount == 1)
         createObservableEndingInError(Observable.range(1, 10).take(1), ex)
       else
