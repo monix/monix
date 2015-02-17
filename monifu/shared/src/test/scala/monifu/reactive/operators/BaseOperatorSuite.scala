@@ -34,9 +34,25 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
   }
 
   /**
-   * Returns an observable that emits exactly `count` items.
+   * Returns an observable that emits from its data-source
+   * the specified `sourceCount` number of items.
+   * 
+   * NOTE: the final observable may emit more or less than 
+   *       the specified amount, however if `sourceCount`
+   *       is one, then the built observable should also
+   *       emit a single item and then stop.
    */
-  def observable(count: Int): Option[Observable[Long]]
+  def observable(sourceCount: Int): Option[Observable[Long]]
+
+  /**
+   * Returns the total sum of the elements emitted.
+   */
+  def sum(sourceCount: Int): Long
+
+  /**
+   * Returns the count of the elements emitted.
+   */
+  def count(sourceCount: Int): Int
 
   /**
    * Optionally build an observable that simulates an error in user
@@ -45,22 +61,17 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
    * It first emits count-1 elements, followed by an error triggered
    * within the user-provided portion of the operator.
    */
-  def brokenUserCodeObservable(count: Int, ex: Throwable): Option[Observable[Long]]
+  def brokenUserCodeObservable(sourceCount: Int, ex: Throwable): Option[Observable[Long]]
 
   /**
    * Optionally builds an observable that first emits the `count`
    * items and then ends in error.
    */
-  def observableInError(count: Int, ex: Throwable): Option[Observable[Long]]
-
-  /**
-   * Returns the total sum of the elements returned.
-   */
-  def sum(count: Int): Long
+  def observableInError(sourceCount: Int, ex: Throwable): Option[Observable[Long]]
 
   /**
    * Specifies how long to wait for an element to be emitted
-   * (expect for the first one).
+   * (except for the first one).
    */
   def waitForNext: FiniteDuration
 
@@ -88,12 +99,14 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
       })
     }
 
-  test("should emit exactly the number of requested elements") { implicit s =>
-    val count = Random.nextInt(300) + 100
+  test("should emit exactly the requested elements") { implicit s =>
+    val sourceCount = Random.nextInt(300) + 100
+    val count = this.count(sourceCount)
+
     var received = 0
     var wasCompleted = false
 
-    observable(count) match {
+    observable(sourceCount) match {
       case None => ignore()
       case Some(obs) =>
         obs.unsafeSubscribe(new Observer[Long] {
@@ -135,11 +148,12 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
   }
 
   test("should work for synchronous observers") { implicit s =>
-    val count = Random.nextInt(300) + 100
+    val sourceCount = Random.nextInt(300) + 100
+
     var received = 0
     var total = 0L
 
-    observable(count) match {
+    observable(sourceCount) match {
       case None => ignore()
       case Some(obs) =>
         obs.unsafeSubscribe(new Observer[Long] {
@@ -155,28 +169,31 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
           def onComplete(): Unit = total = sum
         })
 
-        s.tick(waitForFirst + waitForNext * count)
-        assertEquals(received, count)
-        assertEquals(total, sum(count))
+        s.tick(waitForFirst + waitForNext * count(sourceCount))
+        assertEquals(received, count(sourceCount))
+        assertEquals(total, sum(sourceCount))
     }
   }
 
   test("should work for asynchronous observers") { implicit s =>
-    val count = Random.nextInt(300) + 100
+    val sourceCount = Random.nextInt(300) + 100
+    val count = this.count(sourceCount)
+
     var received = 0
     var total = 0L
 
-    observable(count) match {
+    observable(sourceCount) match {
       case None => ignore()
       case Some(obs) =>
         obs.unsafeSubscribe(new Observer[Long] {
           private[this] var sum = 0L
 
-          def onNext(elem: Long) = {
-            received += 1
-            sum += elem
-            Future.delayedResult(100.millis)(Continue)
-          }
+          def onNext(elem: Long) =
+            Future.delayedResult(100.millis) {
+              received += 1
+              sum += elem
+              Continue
+            }
 
           def onError(ex: Throwable): Unit = throw new IllegalStateException()
           def onComplete(): Unit = total = sum
@@ -184,17 +201,18 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
 
         s.tick(waitForFirst + waitForNext * (count - 1) + 100.millis * count)
         assertEquals(received, count)
-        assertEquals(total, this.sum(count))
+        assertEquals(total, sum(sourceCount))
     }
   }
 
   test("should back-pressure all the way") { implicit s =>
-    val count = Random.nextInt(300) + 100
+    val sourceCount = Random.nextInt(300) + 100
+
     var p = Promise[Continue]()
     var wasCompleted = false
     var received = 0
 
-    observable(count) match {
+    observable(sourceCount) match {
       case None => ignore()
       case Some(obs) =>
         obs.unsafeSubscribe(new Observer[Long] {
@@ -206,6 +224,8 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
           def onError(ex: Throwable): Unit = throw new IllegalStateException()
           def onComplete(): Unit = wasCompleted = true
         })
+
+        val count = this.count(sourceCount)
 
         for (index <- 1 to count) {
           if (index == 1)
@@ -232,9 +252,9 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
   }
 
   test("should protect user-level code") { implicit s =>
-    val count = Random.nextInt(300) + 100
+    val sourceCount = Random.nextInt(300) + 100
 
-    brokenUserCodeObservable(count, DummyException("dummy")) match {
+    brokenUserCodeObservable(sourceCount, DummyException("dummy")) match {
       case None => ignore()
       case Some(obs) =>
         var thrownError: Throwable = null
@@ -250,6 +270,7 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
           def onComplete(): Unit = throw new IllegalStateException()
         })
 
+        val count = this.count(sourceCount)
         s.tick(waitForFirst + waitForNext * (count - 1))
         assertEquals(received, count-1)
         assertEquals(thrownError, DummyException("dummy"))
@@ -257,9 +278,9 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
   }
 
   test("should back-pressure onError") { implicit s =>
-    val count = Random.nextInt(300) + 100
+    val sourceCount = Random.nextInt(300) + 100
 
-    observableInError(count, DummyException("dummy")) match {
+    observableInError(sourceCount, DummyException("dummy")) match {
       case None => ignore()
       case Some(obs) =>
         var thrownError: Throwable = null
@@ -275,6 +296,7 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
           def onComplete(): Unit = throw new IllegalStateException()
         })
 
+        val count = this.count(sourceCount)
         s.tick(waitForFirst + waitForNext * (count - 1))
         assertEquals(received, count)
         s.tick(waitForNext)

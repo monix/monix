@@ -23,32 +23,36 @@ object BufferSizedAndTimedNr2Suite extends BaseOperatorSuite {
   val waitForNext = 1.second
   val waitForFirst = 1.second
 
-  def sum(count: Int) = {
-    val total = (count * 10 - 1).toLong
+  def sum(sourceCount: Int) = {
+    val total = (sourceCount * 10 - 1).toLong
     total * (total + 1) / 2
   }
 
-  def observable(count: Int) = {
-    require(count > 0, "count must be strictly positive")
+  def count(sourceCount: Int) = {
+    sourceCount
+  }
+
+  def observable(sourceCount: Int) = {
+    require(sourceCount > 0, "count must be strictly positive")
     Some {
       Observable.intervalAtFixedRate(100.millis)
-        .take(count * 10)
+        .take(sourceCount * 10)
         .bufferSizedAndTimed(10, 2.seconds)
         .map(_.sum)
     }
   }
 
-  def observableInError(count: Int, ex: Throwable) = {
-    require(count > 0, "count must be strictly positive")
+  def observableInError(sourceCount: Int, ex: Throwable) = {
+    require(sourceCount > 0, "count must be strictly positive")
     Some {
       Observable.intervalAtFixedRate(100.millis)
-        .map(x => if (x == count * 10 - 1) throw ex else x)
-        .take(count * 10)
+        .map(x => if (x == sourceCount * 10 - 1) throw ex else x)
+        .take(sourceCount * 10)
         .bufferSizedAndTimed(10, 2.seconds)
         .map(_.sum)
     }
   }
 
-  def brokenUserCodeObservable(count: Int, ex: Throwable) =
+  def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) =
     None
 }

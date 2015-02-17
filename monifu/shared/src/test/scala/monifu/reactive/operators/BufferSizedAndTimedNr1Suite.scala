@@ -24,40 +24,44 @@ object BufferSizedAndTimedNr1Suite extends BaseOperatorSuite {
   val waitForNext = 1.second
   val waitForFirst = 1.second
 
-  def sum(count: Int) = {
-    val total = (count * 10 - 1).toLong
+  def sum(sourceCount: Int) = {
+    val total = (sourceCount * 10 - 1).toLong
     total * (total + 1) / 2
   }
 
-  def observable(count: Int) = {
-    require(count > 0, "count must be strictly positive")
+  def count(sourceCount: Int) = {
+    sourceCount
+  }
+
+  def observable(sourceCount: Int) = {
+    require(sourceCount > 0, "sourceCount must be strictly positive")
     Some {
       Observable.intervalAtFixedRate(100.millis)
-        .take(count * 10)
+        .take(sourceCount * 10)
         .bufferSizedAndTimed(20, 1.second)
         .map(_.sum)
     }
   }
 
-  def observableInError(count: Int, ex: Throwable) = {
-    require(count > 0, "count must be strictly positive")
+  def observableInError(sourceCount: Int, ex: Throwable) = {
+    require(sourceCount > 0, "sourceCount must be strictly positive")
     Some {
       Observable.intervalAtFixedRate(100.millis)
-        .map(x => if (x == count * 10 - 1) throw ex else x)
-        .take(count * 10)
+        .map(x => if (x == sourceCount * 10 - 1) throw ex else x)
+        .take(sourceCount * 10)
         .bufferSizedAndTimed(20, 1.second)
         .map(_.sum)
     }
   }
 
-  def brokenUserCodeObservable(count: Int, ex: Throwable) =
+  def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) =
     None
 
   test("should emit buffer onComplete") { implicit s =>
-    val count = 157
+    val sourceCount = 157
 
     val obs = Observable.intervalAtFixedRate(100.millis)
-      .take(count * 10)
+      .take(sourceCount * 10)
       .bufferSizedAndTimed(100, 2.seconds)
       .map(_.sum)
 
@@ -76,19 +80,19 @@ object BufferSizedAndTimedNr1Suite extends BaseOperatorSuite {
       def onComplete(): Unit = wasCompleted = true
     })
 
-    s.tick(waitForFirst + waitForNext * (count - 1))
-    assertEquals(received, count / 2 + 1)
-    assertEquals(total, sum(count))
+    s.tick(waitForFirst + waitForNext * (sourceCount - 1))
+    assertEquals(received, sourceCount / 2 + 1)
+    assertEquals(total, sum(sourceCount))
     s.tick(waitForNext)
     assert(wasCompleted)
   }
 
   test("should emit buffer onError") { implicit s =>
-    val count = 157
+    val sourceCount = 157
 
     val obs =
       createObservableEndingInError(
-        Observable.intervalAtFixedRate(100.millis).take(count * 10),
+        Observable.intervalAtFixedRate(100.millis).take(sourceCount * 10),
         DummyException("dummy"))
       .bufferSizedAndTimed(100, 2.seconds)
       .map(_.sum)
@@ -108,9 +112,9 @@ object BufferSizedAndTimedNr1Suite extends BaseOperatorSuite {
       def onComplete(): Unit = ()
     })
 
-    s.tick(waitForFirst + waitForNext * (count - 1))
-    assertEquals(received, count / 2 + 1)
-    assertEquals(total, sum(count))
+    s.tick(waitForFirst + waitForNext * (sourceCount - 1))
+    assertEquals(received, sourceCount / 2 + 1)
+    assertEquals(total, sum(sourceCount))
     s.tick(waitForNext)
     assertEquals(errorThrown, DummyException("dummy"))
   }

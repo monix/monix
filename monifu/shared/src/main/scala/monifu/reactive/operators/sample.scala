@@ -65,9 +65,9 @@ object sample {
     }
 
   protected[reactive] class SampleObserver[T]
-      (downstream: Observer[T], initialDelay: FiniteDuration, delay: FiniteDuration, shouldRepeatOnSilence: Boolean)
+      (downstream: Observer[T], initialDelay: FiniteDuration, period: FiniteDuration, shouldRepeatOnSilence: Boolean)
       (implicit s: Scheduler)
-    extends SynchronousObserver[T] with Runnable {
+    extends SynchronousObserver[T] {
 
     @volatile private[this] var hasValue = false
     // MUST BE written before `hasValue = true`
@@ -77,21 +77,6 @@ object sample {
     @volatile private[this] var upstreamIsDone = false
     // MUST BE written to before `upstreamIsDone = true`
     private[this] var upstreamError: Throwable = null
-
-    /**
-     * Function that gets scheduled for periodic execution.
-     */
-    def tick(initialDelay: FiniteDuration): Unit = {
-      if (upstreamIsDone) {
-        if (upstreamError != null)
-          downstream.onError(upstreamError)
-        else
-          downstream.onComplete()
-      }
-      else {
-        s.scheduleOnce(initialDelay, this)
-      }
-    }
 
     def onNext(elem: T): Ack = {
       lastValue = elem
@@ -107,27 +92,48 @@ object sample {
     def onComplete(): Unit = {
       upstreamIsDone = true
     }
+    
+    s.scheduleOnce(initialDelay, new Runnable { self =>
+      import ObserverState.{ON_CONTINUE, ON_NEXT}
+      private[this] var nextState = ON_NEXT
+      private[this] var startedAt = 0L
 
-    def run(): Unit = {
-      val startedAt = s.nanoTime()
+      def run() = nextState match {
+        case ON_NEXT =>          
+          startedAt = s.nanoTime()
 
-      if (hasValue) {
-        val result = downstream.onNext(lastValue)
-        hasValue = shouldRepeatOnSilence
+          if (hasValue) {
+            val result = downstream.onNext(lastValue)
+            hasValue = shouldRepeatOnSilence
+            nextState = ON_CONTINUE
+            result.onContinue(self)
+          }
+          else {
+            scheduleNext(startedAt)
+          }
 
-        result.onContinue {
-          val duration = (s.nanoTime() - startedAt).nanos
-          val initialDelay = {
-            val d = delay - duration
+        case ON_CONTINUE =>
+          scheduleNext(startedAt)
+      }
+
+      def scheduleNext(startedAt: Long): Unit = {
+        if (upstreamIsDone) {
+          if (upstreamError != null)
+            downstream.onError(upstreamError)
+          else
+            downstream.onComplete()
+        }
+        else {
+          val nextDelay = {
+            val duration = (s.nanoTime() - startedAt).nanos
+            val d = period - duration
             if (d >= Duration.Zero) d else Duration.Zero
           }
 
-          tick(initialDelay)
+          nextState = ON_NEXT
+          s.scheduleOnce(nextDelay, self)
         }
       }
-      else {
-        tick(delay)
-      }
-    }
+    })
   }
 }

@@ -17,38 +17,40 @@
 package monifu.reactive.operators
 
 import monifu.reactive.{DummyException, Observable}
-
 import scala.concurrent.duration.Duration
 
 object TakeRightSuite extends BaseOperatorSuite {
   val waitForFirst = Duration.Zero
   val waitForNext = Duration.Zero
 
-  def sum(count: Int) =
-    if (count == 1) 9 else (1 until count * 2).takeRight(count).sum
+  def sum(sourceCount: Int) =
+    if (sourceCount == 1) 9 else (1 until sourceCount * 2).takeRight(sourceCount).sum
 
-  def observable(count: Int) = {
-    require(count > 0, "count should be strictly positive")
+  def count(sourceCount: Int) =
+    sourceCount
+
+  def observable(sourceCount: Int) = {
+    require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      if (count == 1)
+      if (sourceCount == 1)
         Observable.range(1, 10).takeRight(1)
       else
-        Observable.range(1, count * 2).takeRight(count)
+        Observable.range(1, sourceCount * 2).takeRight(sourceCount)
     }
   }
 
-  def observableInError(count: Int, ex: Throwable) = {
-    require(count > 0, "count should be strictly positive")
+  def observableInError(sourceCount: Int, ex: Throwable) = {
+    require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val ex = DummyException("dummy")
-      if (count == 1)
+      if (sourceCount == 1)
         createObservableEndingInError(Observable.range(1, 10), ex)
           .takeRight(1)
       else
-        createObservableEndingInError(Observable.range(1, count * 2), ex)
-          .takeRight(count)
+        createObservableEndingInError(Observable.range(1, sourceCount * 2), ex)
+          .takeRight(sourceCount)
     }
   }
 
-  def brokenUserCodeObservable(count: Int, ex: Throwable) = None
+  def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 }

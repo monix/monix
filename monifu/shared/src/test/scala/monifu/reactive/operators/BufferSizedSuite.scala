@@ -26,28 +26,32 @@ object BufferSizedSuite extends BaseOperatorSuite {
   val waitForNext = Duration.Zero
   val waitForFirst = Duration.Zero
 
-  def sum(count: Int) = {
-    val total = (count * 10 - 1).toLong
+  def sum(sourceCount: Int) = {
+    val total = (sourceCount * 10 - 1).toLong
     total * (total + 1) / 2
   }
 
-  def observable(count: Int) = {
-    require(count > 0, "count must be strictly positive")
+  def count(sourceCount: Int) = {
+    sourceCount
+  }
+
+  def observable(sourceCount: Int) = {
+    require(sourceCount > 0, "count must be strictly positive")
     Some {
-      Observable.range(0, count * 10).buffer(10).map(_.sum)
+      Observable.range(0, sourceCount * 10).buffer(10).map(_.sum)
     }
   }
 
-  def observableInError(count: Int, ex: Throwable) = {
-    require(count > 0, "count must be strictly positive")
+  def observableInError(sourceCount: Int, ex: Throwable) = {
+    require(sourceCount > 0, "count must be strictly positive")
     Some {
-      Observable.range(0, count * 10 + 1)
-        .map(x => if (x == count * 10) throw ex else x)
+      Observable.range(0, sourceCount * 10 + 1)
+        .map(x => if (x == sourceCount * 10) throw ex else x)
         .buffer(10).map(_.sum)
     }
   }
 
-  def brokenUserCodeObservable(count: Int, ex: Throwable) =
+  def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) =
     None
 
   test("should emit buffer onComplete") { implicit s =>

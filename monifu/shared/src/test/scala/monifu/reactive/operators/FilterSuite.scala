@@ -22,39 +22,45 @@ import scala.concurrent.duration.Duration
 object FilterSuite extends BaseOperatorSuite {
   val waitForFirst = Duration.Zero
   val waitForNext = Duration.Zero
-  def sum(count: Int): Long = count.toLong * (count + 1)
 
-  def observable(count: Int) = {
-    require(count > 0, "count should be strictly positive")
+  def count(sourceCount: Int) = {
+    sourceCount
+  }
+
+  def sum(sourceCount: Int): Long =
+    sourceCount.toLong * (sourceCount + 1)
+ 
+  def observable(sourceCount: Int) = {
+    require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      if (count == 1)
+      if (sourceCount == 1)
         Observable.unit(2L).filter(_ % 2 == 0)
       else
-        Observable.range(1, count * 2 + 1, 1).filter(_ % 2 == 0)
+        Observable.range(1, sourceCount * 2 + 1, 1).filter(_ % 2 == 0)
     }
   }
 
-  def observableInError(count: Int, ex: Throwable) = {
-    require(count > 0, "count should be strictly positive")
+  def observableInError(sourceCount: Int, ex: Throwable) = {
+    require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val ex = DummyException("dummy")
-      if (count == 1)
+      if (sourceCount == 1)
         createObservableEndingInError(Observable.unit(2L), ex)
           .filter(_ % 2 == 0)
       else
-        createObservableEndingInError(Observable.range(1, count * 2 + 1, 1), ex)
+        createObservableEndingInError(Observable.range(1, sourceCount * 2 + 1, 1), ex)
           .filter(_ % 2 == 0)
     }
   }
 
-  def brokenUserCodeObservable(count: Int, ex: Throwable) = {
-    require(count > 0, "count should be strictly positive")
+  def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = {
+    require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      if (count == 1)
+      if (sourceCount == 1)
         Observable.unit(1L).filter(_ => throw ex)
       else
-        Observable.range(1, count * 2 + 1, 1).filter { x =>
-          if (x == count * 2)
+        Observable.range(1, sourceCount * 2 + 1, 1).filter { x =>
+          if (x == sourceCount * 2)
             throw ex
           else
             x % 2 == 0
