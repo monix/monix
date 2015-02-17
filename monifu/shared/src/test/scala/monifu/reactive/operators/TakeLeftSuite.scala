@@ -23,29 +23,30 @@ object TakeLeftSuite extends BaseOperatorSuite {
   val waitForFirst = Duration.Zero
   val waitForNext = Duration.Zero
 
-  def sum(count: Int): Long = count.toLong * (count + 1) / 2
+  def sum(sourceCount: Int): Long = sourceCount.toLong * (sourceCount + 1) / 2
+  def count(sourceCount: Int) = sourceCount
 
-  def observable(count: Int) = {
-    require(count > 0, "count should be strictly positive")
+  def observable(sourceCount: Int) = {
+    require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      if (count == 1)
+      if (sourceCount == 1)
         Observable.range(1, 10).take(1)
       else
-        Observable.range(1, count * 2).take(count)
+        Observable.range(1, sourceCount * 2).take(sourceCount)
     }
   }
 
-  def observableInError(count: Int, ex: Throwable) = {
-    require(count > 0, "count should be strictly positive")
+  def observableInError(sourceCount: Int, ex: Throwable) = {
+    require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val ex = DummyException("dummy")
-      if (count == 1)
+      if (sourceCount == 1)
         createObservableEndingInError(Observable.range(1, 10).take(1), ex)
       else
-        createObservableEndingInError(Observable.range(1, count * 2).take(count), ex)
+        createObservableEndingInError(Observable.range(1, sourceCount * 2).take(sourceCount), ex)
     }
   }
 
-  def brokenUserCodeObservable(count: Int, ex: Throwable) =
+  def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) =
     None
 }

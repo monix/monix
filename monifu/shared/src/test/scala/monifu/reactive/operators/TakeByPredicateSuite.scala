@@ -23,36 +23,39 @@ object TakeByPredicateSuite extends BaseOperatorSuite {
   val waitForFirst = Duration.Zero
   val waitForNext = Duration.Zero
 
-  def sum(count: Int): Long =
-    count.toLong * (count + 1) / 2
+  def sum(sourceCount: Int): Long =
+    sourceCount.toLong * (sourceCount + 1) / 2
 
-  def observable(count: Int) = {
-    require(count > 0, "count should be strictly positive")
+  def count(sourceCount: Int) =
+    sourceCount
+  
+  def observable(sourceCount: Int) = {
+    require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      if (count == 1)
+      if (sourceCount == 1)
         Observable.range(1, 10).takeWhile(_ <= 1)
       else
-        Observable.range(1, count * 2).takeWhile(_ <= count)
+        Observable.range(1, sourceCount * 2).takeWhile(_ <= sourceCount)
     }
   }
 
-  def observableInError(count: Int, ex: Throwable) = {
-    require(count > 0, "count should be strictly positive")
+  def observableInError(sourceCount: Int, ex: Throwable) = {
+    require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val ex = DummyException("dummy")
-      if (count == 1)
+      if (sourceCount == 1)
         createObservableEndingInError(Observable.range(1, 10).takeWhile(_ <= 1), ex)
       else
-        createObservableEndingInError(Observable.range(1, count * 2).takeWhile(_ <= count), ex)
+        createObservableEndingInError(Observable.range(1, sourceCount * 2).takeWhile(_ <= sourceCount), ex)
     }
   }
 
-  def brokenUserCodeObservable(count: Int, ex: Throwable) = {
-    require(count > 0, "count should be strictly positive")
+  def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = {
+    require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val ex = DummyException("dummy")
-      Observable.range(1, count * 2).takeWhile { x =>
-        if (x < count) true else throw ex
+      Observable.range(1, sourceCount * 2).takeWhile { x =>
+        if (x < sourceCount) true else throw ex
       }
     }
   }

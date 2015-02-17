@@ -24,23 +24,28 @@ import scala.concurrent.Future
 
 object TakeByTimespanSuite extends BaseOperatorSuite {
   val waitForFirst = Duration.Zero
-  val waitForNext = 100.millis
+  val waitForNext = 1.second
 
-  def brokenUserCodeObservable(count: Int, ex: Throwable) = None
-  def sum(count: Int) = count.toLong * (count - 1) / 2
+  def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 
-  def observable(count: Int) = {
-    require(count > 0, "count should be strictly positive")
+  def sum(sourceCount: Int) =
+    sourceCount.toLong * (sourceCount - 1) / 2
 
-    Some(Observable.intervalAtFixedRate(100.millis)
-      .take(100.millis * count))
+  def count(sourceCount: Int) =
+    sourceCount
+
+  def observable(sourceCount: Int) = {
+    require(sourceCount > 0, "sourceCount should be strictly positive")
+
+    Some(Observable.intervalAtFixedRate(1.second)
+      .take(1.second * sourceCount))
   }
 
-  def observableInError(count: Int, ex: Throwable) = {
-    require(count > 0, "count should be strictly positive")
+  def observableInError(sourceCount: Int, ex: Throwable) = {
+    require(sourceCount > 0, "sourceCount should be strictly positive")
     val source = Observable.create[Long] { subscriber =>
       implicit val s = subscriber.scheduler
-      val o = Observable.intervalAtFixedRate(100.millis).take(count)
+      val o = Observable.intervalAtFixedRate(100.millis).take(sourceCount)
       o.unsafeSubscribe(new Observer[Long] {
         def onNext(elem: Long) =
           subscriber.observer.onNext(elem)
@@ -51,7 +56,7 @@ object TakeByTimespanSuite extends BaseOperatorSuite {
       })
     }
 
-    Some(createObservableEndingInError(source.take(100.millis * (count + 2)), ex))
+    Some(createObservableEndingInError(source.take(100.millis * (sourceCount + 2)), ex))
   }
 
   test("should complete even if no element was emitted") { implicit s =>

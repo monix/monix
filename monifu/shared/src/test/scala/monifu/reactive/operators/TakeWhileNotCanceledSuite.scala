@@ -25,50 +25,53 @@ object TakeWhileNotCanceledSuite extends BaseOperatorSuite {
   val waitForFirst = Duration.Zero
   val waitForNext = Duration.Zero
 
-  def sum(count: Int): Long =
-    count.toLong * (count + 1) / 2
+  def sum(sourceCount: Int): Long =
+    sourceCount.toLong * (sourceCount + 1) / 2
 
-  def observable(count: Int) = {
-    require(count > 0, "count should be strictly positive")
+  def count(sourceCount: Int) =
+    sourceCount
+
+  def observable(sourceCount: Int) = {
+    require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val c = BooleanCancelable()
-      if (count == 1)
+      if (sourceCount == 1)
         Observable.range(1, 10).takeWhileNotCanceled(c)
           .map { x => c.cancel(); x }
       else
-        Observable.range(1, count * 2).takeWhileNotCanceled(c)
-          .map { x => if (x == count) c.cancel(); x }
+        Observable.range(1, sourceCount * 2).takeWhileNotCanceled(c)
+          .map { x => if (x == sourceCount) c.cancel(); x }
     }
   }
 
-  def brokenUserCodeObservable(count: Int, ex: Throwable) = {
-    require(count > 0, "count should be strictly positive")
+  def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = {
+    require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val c = new BooleanCancelable {
         def cancel() = false
         val counter = Atomic(0)
 
         def isCanceled =
-          if (counter.incrementAndGet() < count)
+          if (counter.incrementAndGet() < sourceCount)
             false
           else
             throw ex
       }
 
-      Observable.range(1, count * 2)
+      Observable.range(1, sourceCount * 2)
         .takeWhileNotCanceled(c)
     }
   }
 
-  def observableInError(count: Int, ex: Throwable) = {
-    require(count > 0, "count should be strictly positive")
+  def observableInError(sourceCount: Int, ex: Throwable) = {
+    require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val c = BooleanCancelable()
-      if (count == 1)
+      if (sourceCount == 1)
         createObservableEndingInError(Observable.unit(1), ex)
           .takeWhileNotCanceled(c)
       else
-        createObservableEndingInError(Observable.range(1, count + 1), ex)
+        createObservableEndingInError(Observable.range(1, sourceCount + 1), ex)
           .takeWhileNotCanceled(c)
     }
   }
