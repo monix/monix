@@ -42,11 +42,11 @@ final class TestScheduler private () extends ReferenceScheduler {
     lastReportedError = null
   ))
 
-  override def nanoTime: Long =
+  override def nanoTime(): Long =
     state.get.clock.toNanos
 
   def scheduleOnce(initialDelay: FiniteDuration, r: Runnable): Cancelable =
-    state.transformAndExtract(_.scheduleOnce(initialDelay, r.run()))
+    state.transformAndExtract(_.scheduleOnce(initialDelay, r))
 
   private[this] def cancelTask(t: Task): Unit =
     state.transform(s => s.copy(tasks = s.tasks - t))
@@ -179,14 +179,13 @@ object TestScheduler {
     /**
      * Returns a new state with a scheduled task included.
      */
-    def scheduleOnce(delay: FiniteDuration, action: => Unit): (Cancelable, State) = {
+    def scheduleOnce(delay: FiniteDuration, r: Runnable): (Cancelable, State) = {
       require(delay >= Duration.Zero, "The given delay must be positive")
 
       val newID = lastID + 1
       val cancelable = SingleAssignmentCancelable()
-      val runnable = new Runnable { def run() = if (!cancelable.isCanceled) action }
 
-      val task = Task(newID, runnable, this.clock + delay)
+      val task = Task(newID, r, this.clock + delay)
       cancelable := Cancelable { cancelTask(task) }
 
       (cancelable, copy(

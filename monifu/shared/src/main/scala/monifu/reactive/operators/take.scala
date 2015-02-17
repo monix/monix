@@ -134,36 +134,38 @@ object take {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
-        private[this] var lastAck: Future[Ack] = Continue
-        private[this] var isDone = false
-
-        private[this] val task =
-          s.scheduleOnce(timespan, onComplete())
+      source.unsafeSubscribe(new Observer[T] with Runnable {
+        private[this] var isActive = true
+        private[this] val task = s.scheduleOnce(timespan, this)
 
         def onNext(elem: T): Future[Ack] = synchronized {
-          if (!isDone) {
-            lastAck = observer.onNext(elem).ifCanceledDoCancel(task)
-            lastAck
-          }
-          else
+          if (isActive)
+            observer.onNext(elem)
+              .ifCanceledDoCancel(task)
+          else {
+            onComplete()
             Cancel
+          }
         }
 
         def onError(ex: Throwable): Unit = synchronized {
-          if (!isDone) {
-            isDone = true
+          if (isActive) {
+            isActive = false
             task.cancel()
-            lastAck.onContinueSignalError(observer, ex)
+            observer.onError(ex)
           }
         }
 
         def onComplete(): Unit = synchronized {
-          if (!isDone) {
-            isDone = true
+          if (isActive) {
+            isActive = false
             task.cancel()
-            lastAck.onContinueSignalComplete(observer)
+            observer.onComplete()
           }
+        }
+
+        def run(): Unit = {
+          onComplete()
         }
       })
     }

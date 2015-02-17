@@ -229,7 +229,7 @@ object delayFirst {
     Observable.create { subscriber =>
       implicit val s = subscriber.scheduler
       val underlying = source.delayFirstOnEvent(policy = policy, eventInit = {
-        (connect, _) => s.scheduleOnce(timespan, connect())
+        (connect, _) => s.scheduleOnce(timespan)(connect())
       })
 
       underlying.unsafeSubscribe(subscriber)

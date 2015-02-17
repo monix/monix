@@ -26,7 +26,7 @@ import scala.concurrent.duration._
 
 
 object TimerSuite extends SimpleTestSuite {
-  test("should do intervalWithFixedDelay") {
+  test("should do timerRepeated") {
     implicit val s = TestScheduler()
     var received = 0
 
@@ -47,12 +47,12 @@ object TimerSuite extends SimpleTestSuite {
     s.tick()
     assertEquals(received, 1)
 
-    s.tick(1.second)
+    s.tick(900.millis)
     assertEquals(received, 1)
     s.tick(100.millis)
     assertEquals(received, 2)
 
-    s.tick(1.second + 100.millis)
+    s.tick(1.second)
     assertEquals(received, 3)
   }
 }

@@ -16,10 +16,10 @@
 
 package monifu.reactive.builders
 
-import monifu.concurrent.{Scheduler, Cancelable}
+import monifu.reactive.Observable
 import monifu.reactive.internals._
-import monifu.reactive.{Observable, Observer}
 import scala.concurrent.duration._
+
 
 object interval {
   /**
@@ -36,11 +36,20 @@ object interval {
       implicit val s = subscriber.scheduler
       val o = subscriber.observer
 
-      var counter = 0
-      s.scheduleRecursive(Duration.Zero, delay, { reschedule =>
-        o.onNext(counter).onContinue {
-          counter += 1
-          reschedule()
+      s.execute(new Runnable { self =>
+        import monifu.reactive.internals.ObserverState.{ON_CONTINUE, ON_NEXT}
+        var state = ON_NEXT
+        var counter = 0L
+
+        def run() = state match {
+          case ON_NEXT =>
+            state = ON_CONTINUE
+            o.onNext(counter).onContinue(self)
+
+          case ON_CONTINUE =>
+            state = ON_NEXT
+            counter += 1
+            s.scheduleOnce(delay, self)
         }
       })
     }
@@ -53,27 +62,35 @@ object interval {
    * @param period the delay between two subsequent events
    */
   def atFixedRate(period: FiniteDuration): Observable[Long] = {
-    /*
-     * Helper that recursively loops, feeding the given observer with an incremented
-     * counter at a fixed rate.
-     */
-    def loop(o: Observer[Long], counter: Long, initialDelay: FiniteDuration, period: FiniteDuration)(implicit s: Scheduler): Cancelable =
-      s.scheduleOnce(initialDelay, {
-        val startedAt = s.nanoTime
+    Observable.create { subscriber =>
+      implicit val s = subscriber.scheduler
+      val o = subscriber.observer
 
-        o.onNext(counter).onContinue {
-          val duration = (s.nanoTime - startedAt).nanos
-          val delay = {
-            val d = period - duration
-            if (d >= Duration.Zero) d else Duration.Zero
-          }
+      s.execute(new Runnable { self =>
+        import monifu.reactive.internals.ObserverState.{ON_CONTINUE, ON_NEXT}
+        var state = ON_NEXT
+        var counter = 0L
+        var startedAt = 0L
 
-          loop(o, counter + 1, delay, period)
+        def run() = state match {
+          case ON_NEXT =>
+            state = ON_CONTINUE
+            startedAt = s.nanoTime()
+            o.onNext(counter).onContinue(self)
+
+          case ON_CONTINUE =>
+            state = ON_NEXT
+            counter += 1
+
+            val delay = {
+              val duration = (s.nanoTime() - startedAt).nanos
+              val d = period - duration
+              if (d >= Duration.Zero) d else Duration.Zero
+            }
+
+            s.scheduleOnce(delay, self)
         }
       })
-
-    Observable.create { s =>
-      loop(s.observer, 0, Duration.Zero, period)(s.scheduler)
     }
   }
 }

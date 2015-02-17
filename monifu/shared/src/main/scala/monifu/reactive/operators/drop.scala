@@ -60,13 +60,11 @@ object drop {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.unsafeSubscribe(new Observer[T] with Runnable {
         @volatile private[this] var shouldDrop = true
 
         private[this] val task =
-          s.scheduleOnce(timespan, {
-            shouldDrop = false
-          })
+          s.scheduleOnce(timespan, this)
 
         def onNext(elem: T): Future[Ack] = {
           if (shouldDrop)
@@ -83,6 +81,10 @@ object drop {
         def onComplete(): Unit = {
           task.cancel()
           observer.onComplete()
+        }
+
+        def run(): Unit = {
+          shouldDrop = false
         }
       })
     }

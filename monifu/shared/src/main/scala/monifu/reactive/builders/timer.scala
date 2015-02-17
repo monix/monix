@@ -18,7 +18,7 @@ package monifu.reactive.builders
 
 import monifu.reactive.Observable
 import monifu.reactive.internals._
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
 
 object timer {
   /**
@@ -30,10 +30,32 @@ object timer {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      s.scheduleRecursive(initialDelay, period, { reschedule =>
-        observer.onNext(unit)
-          .onContinue(reschedule())
-      })
+      // we are deploying optimizations in order to reduce garbage allocations,
+      // therefore the weird Runnable instance that does a state machine
+      val runnable = new Runnable { self =>
+        import ObserverState.{ON_CONTINUE, ON_NEXT}
+        var state = ON_NEXT
+        var startedAt = 0L
+
+        def run(): Unit = state match {
+          case ON_NEXT =>
+            state = ON_CONTINUE
+            startedAt = s.nanoTime()
+            observer.onNext(unit).onContinue(self)
+
+          case ON_CONTINUE =>
+            state = ON_NEXT
+            val initialDelay = {
+              val duration = (s.nanoTime() - startedAt).nanos
+              val d = period - duration
+              if (d >= Duration.Zero) d else Duration.Zero
+            }
+
+            s.scheduleOnce(initialDelay, self)
+        }
+      }
+
+      s.scheduleOnce(initialDelay, runnable)
     }
   }
 }

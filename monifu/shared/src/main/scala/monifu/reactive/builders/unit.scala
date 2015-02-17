@@ -36,10 +36,10 @@ object unit {
    */
   def oneDelayed[A](delay: FiniteDuration, elem: A): Observable[A] =
     Observable.create { s =>
-      s.scheduler.scheduleOnce(delay, {
+      s.scheduler.scheduleOnce(delay) {
         s.observer.onNext(elem)
           .onContinueSignalComplete(s.observer)(s.scheduler)
-      })
+      }
     }
 
   /**

@@ -28,7 +28,7 @@ package object internals {
   /**
    * Internal extensions to Future[Ack] used in the implementation of Observable.
    */
-  implicit class FutureAckExtensions(val source: Future[Ack]) extends AnyVal {
+  protected[monifu] implicit class FutureAckExtensions(val source: Future[Ack]) extends AnyVal {
     /**
      * If the result of this `Future` is a `Continue`, then completes
      * the stream with an `onComplete`.
@@ -105,34 +105,49 @@ package object internals {
       }
 
     /**
+     * On Continue, triggers the execution of the given runnable.
+     */
+    def onContinue(r: Runnable)(implicit s: Scheduler): Unit = {
+      def onComplete(result: Try[Ack]): Unit = result match {
+        case Continue.IsSuccess =>
+          try r.run() catch {
+            case NonFatal(ex) =>
+              s.reportFailure(ex)
+          }
+        case _ =>
+          () // do nothing
+      }
+
+      source match {
+        case sync if sync.isCompleted =>
+          onComplete(sync.value.get)
+
+        case async =>
+          async.onComplete(onComplete)
+      }
+    }
+
+
+    /**
      * Helper that triggers [[Cancelable.cancel]] on the given reference,
      * in case our source is a [[Cancel]] or a failure.
      */
     def ifCanceledDoCancel(cancelable: Cancelable)(implicit s: Scheduler): Future[Ack] = {
+      def cancel(result: Try[Ack]): Unit = result match {
+        case Cancel.IsSuccess | Failure(_) =>
+          cancelable.cancel()
+        case _ =>
+          () // do nothing
+      }
+
       source match {
         case sync if sync.isCompleted =>
-          sync.value.get match {
-            case Cancel.IsSuccess | Failure(_) =>
-              cancelable.cancel()
-              sync
-            case _ =>
-              sync
-          }
+          cancel(sync.value.get)
+          sync
 
         case async =>
-          val p = Promise[Ack]()
-          async.onComplete {
-            case Cancel.IsSuccess =>
-              cancelable.cancel()
-              p.success(Cancel)
-            case Failure(ex) =>
-              cancelable.cancel()
-              p.failure(ex)
-            case _ =>
-              p.success(Continue)
-          }
-
-          p.future
+          async.onComplete(cancel)
+          async
       }
     }
 

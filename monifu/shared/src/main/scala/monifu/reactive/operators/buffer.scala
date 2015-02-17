@@ -85,10 +85,10 @@ object buffer {
       source.unsafeSubscribe(new Observer[T] {
         private[this] val timespanNanos = timespan.toNanos
         private[this] var buffer = ArrayBuffer.empty[T]
-        private[this] var expiresAt = s.nanoTime + timespanNanos
+        private[this] var expiresAt = s.nanoTime() + timespanNanos
 
         def onNext(elem: T) = {
-          val rightNow = s.nanoTime
+          val rightNow = s.nanoTime()
           buffer.append(elem)
 
           if (expiresAt <= rightNow) {
@@ -137,10 +137,10 @@ object buffer {
       source.unsafeSubscribe(new Observer[T] {
         private[this] val timespanNanos = timespan.toNanos
         private[this] var buffer = ArrayBuffer.empty[T]
-        private[this] var expiresAt = s.nanoTime + timespanNanos
+        private[this] var expiresAt = s.nanoTime() + timespanNanos
 
         def onNext(elem: T) = {
-          val rightNow = s.nanoTime
+          val rightNow = s.nanoTime()
           buffer.append(elem)
 
           if (expiresAt <= rightNow || buffer.length >= count) {
