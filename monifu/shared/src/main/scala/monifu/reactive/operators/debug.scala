@@ -16,16 +16,20 @@
 
 package monifu.reactive.operators
 
+import java.io.PrintStream
+
+import monifu.reactive.Ack.Cancel
 import monifu.reactive.{Ack, Observer, Observable}
 import monifu.reactive.internals._
 import scala.concurrent.Future
+import scala.util.control.NonFatal
 
 
 object debug {
   /**
    * Implementation for [[Observable.dump]].
    */
-  def dump[T](source: Observable[T], prefix: String): Observable[T] =
+  def dump[T](source: Observable[T], prefix: String, out: PrintStream): Observable[T] =
     Observable.create[T] { subscriber =>
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
@@ -34,22 +38,47 @@ object debug {
         private[this] var pos = 0
 
         def onNext(elem: T): Future[Ack] = {
-          System.out.println(s"$pos: $prefix-->$elem")
-          pos += 1
-          val f = observer.onNext(elem)
-          f.onCancel { pos += 1; System.out.println(s"$pos: $prefix canceled") }
-          f
+          // Protects calls to user code from within the operator
+          var streamError = true
+          try {
+            out.println(s"$pos: $prefix-->$elem")
+            streamError = false
+
+            pos += 1
+            val f = observer.onNext(elem)
+            f.onCancel { pos += 1; out.println(s"$pos: $prefix canceled") }
+            f
+          }
+          catch {
+            case NonFatal(ex) =>
+              if (streamError) { observer.onError(ex); Cancel } else
+                Future.failed(ex)
+          }
         }
 
         def onError(ex: Throwable) = {
-          System.out.println(s"$pos: $prefix-->$ex")
-          pos += 1
+          try {
+            out.println(s"$pos: $prefix-->$ex")
+            pos += 1
+          }
+          catch {
+            case NonFatal(_) =>
+              () // ignore
+          }
+
           observer.onError(ex)
         }
 
         def onComplete() = {
-          System.out.println(s"$pos: $prefix completed")
-          pos += 1
+          try {
+            out.println(s"$pos: $prefix completed")
+            pos += 1
+          }
+          catch {
+            case NonFatal(_) =>
+              () // ignore
+          }
+
           observer.onComplete()
         }
       })

@@ -39,14 +39,17 @@ object zip {
       var isCompleted = false
       var ack = Continue : Future[Ack]
 
-      def _onError(ex: Throwable) = lock.synchronized {
-        if (!isCompleted) {
-          isCompleted = true
-          queueA.clear()
-          queueB.clear()
-          observerOfPairs.onError(ex)
+      def _onError(ex: Throwable) =
+        ack.onContinue {
+          lock.synchronized {
+            if (!isCompleted) {
+              isCompleted = true
+              queueA.clear()
+              queueB.clear()
+              observerOfPairs.onError(ex)
+            }
+          }
         }
-      }
 
       first.unsafeSubscribe(new Observer[T] {
         def onNext(a: T): Future[Ack] =

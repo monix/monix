@@ -16,6 +16,8 @@
 
 package monifu.reactive
 
+import java.io.PrintStream
+
 import monifu.concurrent.cancelables.BooleanCancelable
 import monifu.concurrent.{Cancelable, Scheduler}
 import monifu.reactive.Ack.{Cancel, Continue}
@@ -484,98 +486,6 @@ trait Observable[+T] { self =>
     operators.sample.repeated(self, initialDelay, delay)
 
   /**
-   * Creates an Observable that emits the events emitted by the source,
-   * with the first event shifted forward in time, specified by the given `timespan`.
-   *
-   * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/delay.png" />
-   *
-   * @param policy is the policy used for buffering, see [[BufferPolicy]]
-   *
-   * @param timespan is the period of time to wait before events start
-   *                   being signaled
-   */
-  def delayFirst(timespan: FiniteDuration, policy: BufferPolicy = defaultPolicy): Observable[T] = {
-    operators.delayFirst.byTimespan(self, timespan, policy)
-  }
-
-  /**
-   * Creates an Observable that emits the events emitted by the source, shifted
-   * forward in time, the streaming being triggered by the completion of a future.
-   *
-   * During the delay period the emitted elements are being buffered.
-   * If the future is completed with a failure, then the error
-   * will get streamed directly to our observable, bypassing any buffered
-   * events that we may have.
-   *
-   * Note: the [[BufferPolicy.default default policy]] is being used for buffering.
-   *
-   * @param future is a `Future` that starts the streaming upon completion
-   */
-  def delayFirstOnFuture(future: Future[_], policy: BufferPolicy = defaultPolicy): Observable[T] =
-    operators.delayFirst.onFuture(self, policy, future)
-
-  /**
-   * Creates an Observable that emits the events emitted by the source
-   * shifted forward in time, delay introduced by waiting for an event
-   * to happen, an event initiated by the given callback.
-   *
-   * Example 1:
-   * {{{
-   *   Observable.interval(1.second)
-   *     .delayFirst(Unbounded, { (connect, signalError) =>
-   *       val task = BooleanCancelable()
-   *       future.onComplete {
-   *         case Success(_) =>
-   *           if (!task.isCanceled)
-   *             connect()
-   *         case Failure(ex) =>
-   *           if (!task.isCanceled)
-   *             signalError(ex)
-   *       }
-   *       task
-   *     })
-   * }}}
-   *
-   * In the above example, upon subscription the given function gets called,
-   * scheduling the streaming to start after a certain future is completed.
-   * During that wait period the events are buffered and after the
-   * future is finally completed, the buffer gets streamed to the observer,
-   * after which streaming proceeds as normal.
-   *
-   * Example 2:
-   * {{{
-   *   Observable.interval(1.second)
-   *     .delayFirst(Unbounded, { (connect, handleError) =>
-   *       scheduler.schedule(5.seconds, {
-   *         connect()
-   *       })
-   *     })
-   * }}}
-   *
-   * In the above example, upon subscription the given function gets called,
-   * scheduling a task to execute after 5 seconds. During those 5 seconds
-   * the events are buffered and after those 5 seconds are elapsed, the
-   * buffer gets streamed, after which streaming proceeds as normal.
-   *
-   * Notes:
-   *
-   * - if an error happens while waiting for our event to get triggered, it can
-   *   be signaled with `handleError` (see sample above)
-   * - only `onNext` and `onComplete` events are delayed, but not `onError`,
-   *   as `onError` interrupts the delay and streams the error as soon as it can.
-   *
-   * @param policy is the buffering policy used, see [[BufferPolicy]]
-   *
-   * @param eventInit is the function that gets called for initiating the event
-   *        that finally starts the streaming sometime in the future - it
-   *        takes 2 arguments, a function that must be called to start the
-   *        streaming and an error handling function that must be called
-   *        in case an error happened while waiting
-   */
-  def delayFirstOnEvent(eventInit: (() => Unit, Throwable => Unit) => Cancelable, policy: BufferPolicy = defaultPolicy): Observable[T] =
-    operators.delayFirst.onEvent(self, policy)(eventInit)
-
-  /**
    * Hold an Observer's subscription request until the given `future` completes,
    * before passing it on to the source Observable. If the given `future`
    * completes in error, then the subscription is terminated with `onError`.
@@ -876,8 +786,8 @@ trait Observable[+T] { self =>
   /**
    * Utility that can be used for debugging purposes.
    */
-  def dump(prefix: String): Observable[T] =
-    operators.debug.dump(self, prefix)
+  def dump(prefix: String, out: PrintStream = System.out): Observable[T] =
+    operators.debug.dump(self, prefix, out)
 
   /**
    * Repeats the items emitted by this Observable continuously. It caches the generated items until `onComplete`

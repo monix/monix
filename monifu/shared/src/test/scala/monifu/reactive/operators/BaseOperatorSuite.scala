@@ -270,15 +270,17 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
           def onComplete(): Unit = throw new IllegalStateException()
         })
 
-        val count = this.count(sourceCount)
+        val count = this.count(sourceCount - 1)
         s.tick(waitForFirst + waitForNext * (count - 1))
-        assertEquals(received, count-1)
+
+        assertEquals(received, count)
         assertEquals(thrownError, DummyException("dummy"))
     }
   }
 
   test("should back-pressure onError") { implicit s =>
     val sourceCount = Random.nextInt(300) + 100
+    val count = this.count(sourceCount)
 
     observableInError(sourceCount, DummyException("dummy")) match {
       case None => ignore()
@@ -289,17 +291,21 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
         obs.unsafeSubscribe(new Observer[Long] {
           def onNext(elem: Long) = {
             received += 1
-            Continue
+            if (received == count)
+              Future.delayedResult(1.hour)(Continue)
+            else
+              Continue
           }
 
           def onError(ex: Throwable): Unit = thrownError = ex
           def onComplete(): Unit = throw new IllegalStateException()
         })
 
-        val count = this.count(sourceCount)
         s.tick(waitForFirst + waitForNext * (count - 1))
         assertEquals(received, count)
-        s.tick(waitForNext)
+        assertEquals(thrownError, null)
+
+        s.tick(1.hour)
         assertEquals(thrownError, DummyException("dummy"))
     }
   }

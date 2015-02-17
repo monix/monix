@@ -53,5 +53,4 @@ object delaySubscription {
 
       underlying.unsafeSubscribe(subscriber)
     }
-
 }
