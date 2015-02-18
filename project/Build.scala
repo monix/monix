@@ -128,6 +128,7 @@ object Build extends SbtBuild {
     .enablePlugins(ScalaJSPlugin)
     .settings(
       name := "monifu-core",
+      scalaJSStage in Test := FastOptStage,
       testFrameworks += new TestFramework("minitest.runner.Framework"),
       libraryDependencies ++= Seq(
         "org.monifu" %%% "minitest" % "0.11" % "test"
@@ -154,6 +155,7 @@ object Build extends SbtBuild {
     .settings(sharedSettings ++ compilerSettings ++ unidocSettings : _*)
     .settings(
       name := "monifu",
+      scalaJSStage in Test := FastOptStage,
       testFrameworks += new TestFramework("minitest.runner.Framework"),
       libraryDependencies ++= Seq(
         "org.monifu" %%% "minitest" % "0.11" % "test"

@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.{AtomicBoolean => JavaAtomicBoolean}
 import java.util.concurrent.atomic.{AtomicReference => JavaAtomicReference}
 
 import monifu.concurrent.atomic
-import monifu.concurrent.atomic.AtomicBuilder
+import monifu.concurrent.atomic.{AtomicBuilder => BaseAtomicBuilder}
 
 /**
  * Adds 128 bytes of cache-line padding to Java's AtomicLong.
@@ -95,14 +95,14 @@ object Atomic {
    * @param initialValue is the initial value with which to initialize the Atomic reference
    * @param builder is the builder that helps us to build the best reference possible, based on our `initialValue`
    */
-  def apply[T, R <: Atomic[T]](initialValue: T)(implicit builder: PaddedAtomicBuilder[T, R]): R =
+  def apply[T, R <: Atomic[T]](initialValue: T)(implicit builder: AtomicBuilder[T, R]): R =
     builder.buildInstance(initialValue)
 
   /**
    * Returns the builder that would be chosen to construct Atomic references
    * for the given `initialValue`.
    */
-  def builderFor[T, R <: Atomic[T]](initialValue: T)(implicit builder: PaddedAtomicBuilder[T, R]): PaddedAtomicBuilder[T, R] =
+  def builderFor[T, R <: Atomic[T]](initialValue: T)(implicit builder: AtomicBuilder[T, R]): AtomicBuilder[T, R] =
     builder
 }
 
@@ -196,13 +196,13 @@ object AtomicShort {
     atomic.AtomicShort.wrap(new PaddedJavaAtomicInteger(initialValue))
 }
 
-trait PaddedAtomicBuilder[T, R <: Atomic[T]] extends AtomicBuilder[T, R]
+trait AtomicBuilder[T, R <: Atomic[T]] extends BaseAtomicBuilder[T, R]
 
-object PaddedAtomicBuilder extends Implicits.Level3
+object AtomicBuilder extends Implicits.Level3
 
 private[padded] object Implicits {
   trait Level1 {
-    implicit def AtomicRefBuilder[T] = new PaddedAtomicBuilder[T, AtomicAny[T]] {
+    implicit def AtomicRefBuilder[T] = new AtomicBuilder[T, AtomicAny[T]] {
       def buildInstance(initialValue: T) =
         AtomicAny(initialValue)
     }
@@ -210,7 +210,7 @@ private[padded] object Implicits {
 
   trait Level2 extends Level1 {
     implicit def AtomicNumberBuilder[T : Numeric] =
-      new PaddedAtomicBuilder[T, AtomicNumberAny[T]] {
+      new AtomicBuilder[T, AtomicNumberAny[T]] {
         def buildInstance(initialValue: T) =
           AtomicNumberAny(initialValue)
       }
@@ -218,49 +218,49 @@ private[padded] object Implicits {
 
   trait Level3 extends Level2 {
     implicit val AtomicIntBuilder =
-      new PaddedAtomicBuilder[Int, AtomicInt] {
+      new AtomicBuilder[Int, AtomicInt] {
         def buildInstance(initialValue: Int) =
           AtomicInt(initialValue)
       }
 
     implicit val AtomicLongBuilder =
-      new PaddedAtomicBuilder[Long, AtomicLong] {
+      new AtomicBuilder[Long, AtomicLong] {
         def buildInstance(initialValue: Long) =
           AtomicLong(initialValue)
       }
 
     implicit val AtomicBooleanBuilder =
-      new PaddedAtomicBuilder[Boolean, AtomicBoolean] {
+      new AtomicBuilder[Boolean, AtomicBoolean] {
         def buildInstance(initialValue: Boolean) =
           AtomicBoolean(initialValue)
       }
 
     implicit val AtomicByteBuilder =
-      new PaddedAtomicBuilder[Byte, AtomicByte] {
+      new AtomicBuilder[Byte, AtomicByte] {
         def buildInstance(initialValue: Byte): AtomicByte =
           AtomicByte(initialValue)
       }
 
     implicit val AtomicCharBuilder =
-      new PaddedAtomicBuilder[Char, AtomicChar] {
+      new AtomicBuilder[Char, AtomicChar] {
         def buildInstance(initialValue: Char): AtomicChar =
           AtomicChar(initialValue)
       }
 
     implicit val AtomicShortBuilder =
-      new PaddedAtomicBuilder[Short, AtomicShort] {
+      new AtomicBuilder[Short, AtomicShort] {
         def buildInstance(initialValue: Short): AtomicShort =
           AtomicShort(initialValue)
       }
 
     implicit val AtomicFloatBuilder =
-      new PaddedAtomicBuilder[Float, AtomicFloat] {
+      new AtomicBuilder[Float, AtomicFloat] {
         def buildInstance(initialValue: Float): AtomicFloat =
           AtomicFloat(initialValue)
       }
 
     implicit val AtomicDoubleBuilder =
-      new PaddedAtomicBuilder[Double, AtomicDouble] {
+      new AtomicBuilder[Double, AtomicDouble] {
         def buildInstance(initialValue: Double): AtomicDouble =
           AtomicDouble(initialValue)
       }

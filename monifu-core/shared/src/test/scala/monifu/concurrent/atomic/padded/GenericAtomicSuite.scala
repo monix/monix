@@ -24,8 +24,8 @@ object GenericAtomicAnySuite extends GenericAtomicSuite[String, AtomicAny[String
 object GenericAtomicBooleanSuite extends GenericAtomicSuite[Boolean, AtomicBoolean](
   "AtomicBoolean", Atomic.builderFor(true), x => if (x == 1) true else false, x => if (x) 1 else 0)
 
-object GenericAtomicNumberAnySuite extends GenericAtomicSuite[BigInt, AtomicNumberAny[BigInt]](
-  "AtomicNumberAny", Atomic.builderFor(BigInt(0)), x => BigInt(x), x => x.toInt)
+object GenericAtomicNumberAnySuite extends GenericAtomicSuite[Long, AtomicNumberAny[Long]](
+  "AtomicNumberAny", AtomicBuilder.AtomicNumberBuilder[Long], x => x.toLong, x => x.toInt)
 
 object GenericAtomicFloatSuite extends GenericAtomicSuite[Float, AtomicFloat](
   "AtomicFloat", Atomic.builderFor(0.0f), x => x.toFloat, x => x.toInt)

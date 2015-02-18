@@ -286,5 +286,5 @@ object AtomicByteSuite extends AtomicNumberSuite[Byte, AtomicByte](
 object AtomicCharSuite extends AtomicNumberSuite[Char, AtomicChar](
   "AtomicChar", Atomic.builderFor(0.toChar), 782.toChar, Char.MaxValue, Char.MinValue)
 
-object AtomicNumberAnySuite extends AtomicNumberSuite[BigInt, AtomicNumberAny[BigInt]](
-  "AtomicNumberAny", Atomic.builderFor(BigInt(0)), BigInt(Int.MaxValue), BigInt(Long.MaxValue), BigInt(Long.MinValue))
+object AtomicNumberAnySuite extends AtomicNumberSuite[Long, AtomicNumberAny[Long]](
+  "AtomicNumberAny", AtomicBuilder.AtomicNumberBuilder[Long], 782, Long.MaxValue, Long.MinValue)
