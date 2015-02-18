@@ -16,14 +16,12 @@
 
 package monifu.reactive.operators
 
-import monifu.concurrent.cancelables.RefCountCancelable
+import monifu.concurrent.cancelables.{BooleanCancelable, RefCountCancelable}
 import monifu.reactive.Ack.{Cancel, Continue}
-import monifu.reactive.BufferPolicy.{OverflowTriggering, Unbounded}
 import monifu.reactive.internals._
-import monifu.reactive.observers.SynchronousObserver
+import monifu.reactive.observers.{BufferedSubscriber, SynchronousObserver}
 import monifu.reactive.{Ack, BufferPolicy, Observable, Observer}
 import scala.concurrent.Promise
-
 
 object flatten {
   /**
@@ -77,43 +75,59 @@ object flatten {
     }
   }
 
-  /**
-   * Implementation for [[monifu.reactive.Observable.merge]].
-   */
-  def merge[T,U](source: Observable[T], bufferPolicy: BufferPolicy, batchSize: Int)
+  def merge[T,U](source: Observable[T], bufferPolicy: BufferPolicy)
       (implicit ev: T <:< Observable[U]): Observable[U] = {
 
-    Observable.create[U] { subscriber =>
+    Observable.create { subscriber =>
       implicit val s = subscriber.scheduler
-      val observerB = subscriber.observer
+      val buffer = BufferedSubscriber(subscriber.observer, bufferPolicy)
+      val observerU = buffer.observer
 
-      // if the parallelism is unbounded and the buffer policy allows for a
-      // synchronous buffer, then we can use a more efficient implementation
-      bufferPolicy match {
-        case Unbounded | OverflowTriggering(_) if batchSize <= 0 =>
-          source.unsafeSubscribe(new SynchronousObserver[T] {
-            private[this] val buffer =
-              new UnboundedMergeBuffer[U](observerB, bufferPolicy)
-            def onNext(elem: T): Ack =
-              buffer.merge(elem)
-            def onError(ex: Throwable): Unit =
-              buffer.onError(ex)
-            def onComplete(): Unit =
-              buffer.onComplete()
+      source.unsafeSubscribe(new SynchronousObserver[T] {
+        private[this] val refCount =
+          RefCountCancelable(observerU.onComplete())
+        private[this] val streamActivity =
+          BooleanCancelable()
+
+        def onNext(childObservable: T) = {
+          val refID = refCount.acquire()
+
+          childObservable.unsafeSubscribe(new Observer[U] {
+            def onNext(elem: U) = {
+              if (streamActivity.isCanceled)
+                Cancel
+              else
+                observerU.onNext(elem)
+                  .ifCanceledDoCancel(streamActivity)
+            }
+
+            def onError(ex: Throwable): Unit = {
+              streamActivity.cancel()
+              observerU.onError(ex)
+            }
+
+            def onComplete(): Unit = {
+              // NOTE: we aren't sending this onComplete signal downstream to our observerU
+              // we will eventually do that after all of them are complete
+              refID.cancel()
+            }
           })
 
-        case _ =>
-          source.unsafeSubscribe(new Observer[T] {
-            private[this] val buffer: BoundedMergeBuffer[U] =
-              new BoundedMergeBuffer[U](observerB, batchSize, bufferPolicy)
-            def onNext(elem: T) =
-              buffer.merge(elem)
-            def onError(ex: Throwable) =
-              buffer.onError(ex)
-            def onComplete() =
-              buffer.onComplete()
-          })
-      }
+          if (streamActivity.isCanceled)
+            Cancel
+          else
+            Continue
+        }
+
+        def onError(ex: Throwable) = {
+          // oops, error happened on main thread, piping that along should cancel everything
+          observerU.onError(ex)
+        }
+
+        def onComplete() = {
+          refCount.cancel()
+        }
+      })
     }
   }
 }

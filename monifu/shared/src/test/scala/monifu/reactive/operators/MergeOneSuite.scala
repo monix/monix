@@ -25,10 +25,10 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import monifu.reactive.Observable.{unit, empty}
 
-object ConcatOneSuite extends BaseOperatorSuite {
+object MergeOneSuite extends BaseOperatorSuite {
   def observable(sourceCount: Int) = Some {
     Observable.range(0, sourceCount)
-      .flatMap(i => Observable.unit(i))
+      .mergeMap(i => Observable.unit(i))
   }
 
   def count(sourceCount: Int) =
@@ -39,7 +39,7 @@ object ConcatOneSuite extends BaseOperatorSuite {
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
     createObservableEndingInError(Observable.range(0, sourceCount), ex)
-      .flatMap(i => Observable.unit(i))
+      .mergeMap(i => Observable.unit(i))
   }
 
   def sum(sourceCount: Int) = {
@@ -60,9 +60,9 @@ object ConcatOneSuite extends BaseOperatorSuite {
       .map(_.getOrElse(Vector.empty))
   }
 
-  test("filter can be expressed in terms of flatMap") { implicit s =>
+  test("filter can be expressed in terms of mergeMap, without ordering") { implicit s =>
     val obs1 = Observable.range(0, 100).filter(_ % 2 == 0)
-    val obs2 = Observable.range(0, 100).flatMap(x => if (x % 2 == 0) unit(x) else empty)
+    val obs2 = Observable.range(0, 100).mergeMap(x => if (x % 2 == 0) unit(x) else empty)
 
     val lst1 = toList(obs1)
     val lst2 = toList(obs2)
@@ -72,9 +72,9 @@ object ConcatOneSuite extends BaseOperatorSuite {
     assertEquals(lst1.value.get, lst2.value.get)
   }
 
-  test("map can be expressed in terms of flatMap") { implicit s =>
+  test("map can be expressed in terms of mergeMap, without ordering") { implicit s =>
     val obs1 = Observable.range(0, 100).map(_ + 10)
-    val obs2 = Observable.range(0, 100).flatMap(x => unit(x + 10))
+    val obs2 = Observable.range(0, 100).mergeMap(x => unit(x + 10))
 
     val lst1 = toList(obs1)
     val lst2 = toList(obs2)

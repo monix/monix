@@ -18,9 +18,7 @@ package monifu.reactive.operators
 
 import monifu.reactive.Ack.Continue
 import monifu.reactive.{Observer, DummyException, Observable}
-
 import scala.concurrent.duration.Duration
-import scala.util.Random
 
 object BufferSizedSuite extends BaseOperatorSuite {
   val waitForNext = Duration.Zero

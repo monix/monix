@@ -18,7 +18,7 @@ package monifu.reactive.operators
 
 import monifu.concurrent.extensions._
 import monifu.reactive.Ack.Continue
-import monifu.reactive.operators.SampleOnceSuite._
+import monifu.reactive.subjects.PublishSubject
 import monifu.reactive.{Observer, Observable}
 import concurrent.duration._
 import scala.concurrent.Future
@@ -28,18 +28,18 @@ object SampleRepeatedSuite extends BaseOperatorSuite {
   def waitForFirst = 500.millis
 
   def observable(sourceCount: Int) = Some {
-    Observable.intervalAtFixedRate(1.second)
-      .take(sourceCount)
+    Observable.create[Long](_.observer.onNext(1L))
       .sampleRepeated(500.millis)
+      .take(sourceCount)
+      .scan(0L)((acc, _) => acc + 1)
   }
 
   def sum(sourceCount: Int) = {
-    (1 until (sourceCount - 1)).sum +
-      (1 until sourceCount).sum
+    sourceCount * (sourceCount + 1) / 2
   }
 
   def count(sourceCount: Int) = {
-    (sourceCount - 1) * 2
+    sourceCount
   }
 
 
@@ -55,8 +55,8 @@ object SampleRepeatedSuite extends BaseOperatorSuite {
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 
   test("specified period should be respected if consumer is responsive") { implicit s =>
-    val obs = Observable.intervalAtFixedRate(1.second).take(2)
-      .sampleRepeated(500.millis)
+    val sub = PublishSubject[Long]()
+    val obs = sub.sampleRepeated(500.millis)
 
     var onNextCount = 0
     var received = 0
@@ -75,31 +75,33 @@ object SampleRepeatedSuite extends BaseOperatorSuite {
       def onComplete() = wasCompleted = true
     })
 
-    // sample
-    s.tick(500.millis)
+    sub.onNext(1)
+
+    s.tick()
+    assertEquals(onNextCount, 0)
     assertEquals(received, 0)
+
+    s.tick(500.millis)
     assertEquals(onNextCount, 1)
-    assert(!wasCompleted)
-    // consumer delay
+    assertEquals(received, 0)
+
     s.tick(100.millis)
-    assertEquals(received, 1)
     assertEquals(onNextCount, 1)
-    assert(!wasCompleted)
-    // sample
-    s.tick(400.millis)
     assertEquals(received, 1)
-    assertEquals(onNextCount, 2)
+
+    sub.onComplete()
+    s.tick()
     assert(!wasCompleted)
-    // consumer delay
-    s.tick(100.millis)
-    assertEquals(received, 2)
-    assertEquals(onNextCount, 2)
+
+    s.tick(500.millis)
     assert(wasCompleted)
+    assertEquals(onNextCount, 2)
+    assertEquals(received, 2)
   }
 
   test("specified period should not be respected if consumer is not responsive") { implicit s =>
-    val obs = Observable.intervalAtFixedRate(1.second).take(3)
-      .sampleRepeated(500.millis)
+    val sub = PublishSubject[Long]()
+    val obs = sub.sampleRepeated(500.millis)
 
     var onNextCount = 0
     var received = 0
@@ -108,7 +110,7 @@ object SampleRepeatedSuite extends BaseOperatorSuite {
     obs.unsafeSubscribe(new Observer[Long] {
       def onNext(elem: Long) = {
         onNextCount += 1
-        Future.delayedResult(600.millis) {
+        Future.delayedResult(1000.millis) {
           received += 1
           Continue
         }
@@ -118,25 +120,31 @@ object SampleRepeatedSuite extends BaseOperatorSuite {
       def onComplete() = wasCompleted = true
     })
 
-    // sample
-    s.tick(500.millis)
+    sub.onNext(1)
+
+    s.tick()
+    assertEquals(onNextCount, 0)
     assertEquals(received, 0)
+
+    s.tick(500.millis)
     assertEquals(onNextCount, 1)
-    assert(!wasCompleted)
-    // consumer delay
-    s.tick(600.millis)
-    assertEquals(received, 1)
+    assertEquals(received, 0)
+
+    s.tick(500.millis)
+    assertEquals(onNextCount, 1)
+    assertEquals(received, 0)
+
+    s.tick(500.millis)
     assertEquals(onNextCount, 2)
+    assertEquals(received, 1)
+
+    sub.onComplete()
+    s.tick()
     assert(!wasCompleted)
-    // sample
-    s.tick(600.millis)
-    assertEquals(received, 2)
-    assertEquals(onNextCount, 3)
-    assert(!wasCompleted)
-    // consumer delay
-    s.tick(600.millis)
-    assertEquals(received, 3)
-    assertEquals(onNextCount, 3)
+
+    s.tick(1.second)
     assert(wasCompleted)
+    assertEquals(onNextCount, 2)
+    assertEquals(received, 2)
   }
 }

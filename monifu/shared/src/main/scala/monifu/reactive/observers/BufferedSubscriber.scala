@@ -202,11 +202,10 @@ final class SynchronousBufferedSubscriber[-T] private
   @tailrec
   private[this] def fastLoop(processed: Int): Unit = {
     if (!downstreamIsDone) {
-      // errors have priority
       val hasError = errorThrown ne null
       val next = queue.poll()
 
-      if (next != null && !hasError) {
+      if (next != null) {
         underlying.onNext(next) match {
           case sync if sync.isCompleted =>
             sync match {
@@ -252,10 +251,10 @@ final class SynchronousBufferedSubscriber[-T] private
         }
       }
       else if (upstreamIsComplete || hasError) {
-        // Race-condition check, but if upstreamIsComplete=true is visible, then the queue should be fully published
-        // because there's a clear happens-before relationship between queue.offer() and upstreamIsComplete=true
-        // NOTE: errors have priority, so in case of an error seen, then the loop is stopped
-        if (!hasError && !queue.isEmpty) {
+        // Race-condition check, but if upstreamIsComplete=true is visible,
+        // then the queue should be fully published because there's a clear happens-before
+        // relationship between queue.offer() and upstreamIsComplete=true
+        if (!queue.isEmpty) {
           fastLoop(processed)
         }
         else {
@@ -376,11 +375,10 @@ final class BackPressuredBufferedSubscriber[-T] private
   @tailrec
   private[this] def fastLoop(processed: Int): Unit = {
     if (!downstreamIsDone) {
-      // errors have priority, in case an error happened, it is streamed immediately
       val hasError = errorThrown ne null
       val next: T = queue.poll()
 
-      if (next != null && !hasError)
+      if (next != null)
         underlying.onNext(next) match {
           case sync if sync.isCompleted =>
             sync match {
@@ -443,7 +441,7 @@ final class BackPressuredBufferedSubscriber[-T] private
         // Race-condition check, but if upstreamIsComplete=true is visible, then the queue should be fully published
         // because there's a clear happens-before relationship between queue.offer() and upstreamIsComplete=true
         // NOTE: errors have priority, so in case of an error seen, then the loop is stopped
-        if (!hasError && !queue.isEmpty) {
+        if (!queue.isEmpty) {
           fastLoop(processed) // re-run loop
         }
         else {

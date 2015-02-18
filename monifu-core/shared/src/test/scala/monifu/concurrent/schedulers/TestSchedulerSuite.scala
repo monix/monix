@@ -197,6 +197,16 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     assert(s.state.get.tasks.isEmpty)
   }
 
+  test("tasks sharing same runsAt should execute randomly") { implicit s =>
+    var seq = Seq.empty[Int]
+    for (i <- 0 until 1000) s.execute { seq = seq :+ i }
+    s.tick()
+
+    val expected = (0 until 1000).toSeq
+    assert(seq != expected)
+    assertEquals(seq.sum, expected.sum)
+  }
+
   def delayedResult[T](delay: FiniteDuration, timeout: FiniteDuration)(r: => T)(implicit s: Scheduler) = {
     val f1 = {
       val p = Promise[T]()

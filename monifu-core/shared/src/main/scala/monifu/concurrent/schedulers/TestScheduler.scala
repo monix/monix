@@ -16,14 +16,15 @@
 
 package monifu.concurrent.schedulers
 
+import monifu.concurrent.Cancelable
 import monifu.concurrent.atomic.Atomic
 import monifu.concurrent.cancelables.SingleAssignmentCancelable
 import monifu.concurrent.schedulers.TestScheduler._
-import monifu.concurrent.{Cancelable, Scheduler}
 
 import scala.annotation.tailrec
 import scala.collection.immutable.SortedSet
 import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.util.Random
 import scala.util.control.NonFatal
 
 /**
@@ -51,23 +52,41 @@ final class TestScheduler private () extends ReferenceScheduler {
   private[this] def cancelTask(t: Task): Unit =
     state.transform(s => s.copy(tasks = s.tasks - t))
 
-  def execute(runnable: Runnable): Unit =
+  def execute(runnable: Runnable): Unit = {
     state.transform(_.execute(runnable))
+  }
 
   def reportFailure(t: Throwable): Unit = {
     state.transform(_.copy(lastReportedError = t))
   }
 
+  private[this] def extractOneTask(current: State, clock: FiniteDuration) = {
+    current.tasks.headOption.filter(_.runsAt <= clock) match {
+      case Some(value) =>
+        val firstTick = value.runsAt
+        val immediateT = current.tasks.takeWhile(_.runsAt == firstTick)
+        val shuffled = Random.shuffle(immediateT.toVector)
+
+        val forExecution = shuffled.head
+        val remaining = (current.tasks -- immediateT) ++ shuffled.drop(1)
+
+        assert(!remaining.contains(forExecution), "contract breach")
+        assert(remaining.size == current.tasks.size - 1, "contract breach")
+
+        Some((forExecution, remaining))
+
+      case None =>
+        None
+    }
+  }
+
   @tailrec
   def tickOne(): Boolean = {
     val current = state.get
-    val firstOpt = current.tasks
-      .headOption.filter(_.runsAt <= current.clock)
 
-    firstOpt match {
-      case Some(head) =>
-        val rest = current.tasks.tail
-
+    // extracting one task by taking the immediate tasks
+    extractOneTask(current, current.clock) match {
+      case Some((head, rest)) =>
         if (!state.compareAndSet(current, current.copy(tasks = rest)))
           tickOne()
         else {
@@ -91,13 +110,8 @@ final class TestScheduler private () extends ReferenceScheduler {
       val current = state.get
       val currentClock = current.clock + time
 
-      val firstOpt = current.tasks
-        .headOption.filter(_.runsAt <= currentClock)
-
-      firstOpt match {
-        case Some(head) =>
-          val rest = current.tasks.tail
-
+      extractOneTask(current, currentClock) match {
+        case Some((head, rest)) =>
           if (!state.compareAndSet(current, current.copy(clock = head.runsAt, tasks = rest)))
             loop(time, result)
           else {

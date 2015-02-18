@@ -16,7 +16,7 @@
 
 package monifu.reactive.operators
 
-import monifu.reactive.{DummyException, Observable}
+import monifu.reactive.Observable
 import scala.concurrent.duration.Duration
 
 object TakeLeftSuite extends BaseOperatorSuite {
