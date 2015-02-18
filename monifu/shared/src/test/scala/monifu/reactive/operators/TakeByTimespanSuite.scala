@@ -16,11 +16,12 @@
 
 package monifu.reactive.operators
 
-import monifu.reactive.Ack.{Cancel, Continue}
-import monifu.reactive.{DummyException, Observer, Observable}
 import monifu.concurrent.extensions._
-import concurrent.duration._
+import monifu.reactive.Ack.{Cancel, Continue}
+import monifu.reactive.{Observable, Observer}
 import scala.concurrent.Future
+import scala.concurrent.duration._
+
 
 object TakeByTimespanSuite extends BaseOperatorSuite {
   val waitForFirst = Duration.Zero
@@ -38,7 +39,7 @@ object TakeByTimespanSuite extends BaseOperatorSuite {
     require(sourceCount > 0, "sourceCount should be strictly positive")
 
     Some(Observable.intervalAtFixedRate(1.second)
-      .take(1.second * sourceCount))
+      .take(1.second * sourceCount - 1.milli))
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = {

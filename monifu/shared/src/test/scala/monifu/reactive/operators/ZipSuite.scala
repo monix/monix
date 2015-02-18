@@ -37,7 +37,7 @@ object ZipSuite extends BaseOperatorSuite {
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
     val o1 = createObservableEndingInError(Observable.range(0, sourceCount), ex)
-    val o2 = Observable.range(0, sourceCount)
+    val o2 = createObservableEndingInError(Observable.range(0, sourceCount), ex)
 
     Observable.zip(o1, o2)
       .map { case (x1, x2) => x1 + x2 }

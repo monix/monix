@@ -251,15 +251,12 @@ trait Observable[+T] { self =>
    *                     apply back-pressure, trigger and error, etc... see the
    *                     available [[monifu.reactive.BufferPolicy buffer policies]].
    *
-   * @param batchSize a number indicating the maximum number of observables subscribed
-   *                  in parallel; if negative or zero, then no upper bound is applied
-   *
    * @return an Observable that emits items that are the result of flattening the items emitted
    *         by the Observables emitted by `this`
    */
-  def merge[U](bufferPolicy: BufferPolicy = defaultPolicy, batchSize: Int = 0)
+  def merge[U](bufferPolicy: BufferPolicy = defaultPolicy)
       (implicit ev: T <:< Observable[U]): Observable[U] =
-    operators.flatten.merge(self, bufferPolicy, batchSize)
+    operators.flatten.merge(self, bufferPolicy)
 
   /**
    * Given the source observable and another `Observable`, emits all of the items
@@ -1101,6 +1098,14 @@ object Observable {
    */
   def fromIterable[T](iterable: Iterable[T]): Observable[T] =
     builders.from.iterable(iterable)
+
+  /**
+   * Creates an Observable that emits the given elements exactly.
+   *
+   * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/fromIterable.png" />
+   */
+  def from[T](elems: T*): Observable[T] =
+    builders.from.iterable(elems)
 
   /**
    * Create an Observable that emits a single item after a given delay.

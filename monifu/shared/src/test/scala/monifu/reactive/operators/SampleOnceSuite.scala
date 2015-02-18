@@ -18,6 +18,7 @@ package monifu.reactive.operators
 
 import monifu.concurrent.extensions._
 import monifu.reactive.Ack.Continue
+import monifu.reactive.subjects.PublishSubject
 import monifu.reactive.{Observer, Observable}
 import concurrent.duration._
 import scala.concurrent.Future
@@ -53,9 +54,8 @@ object SampleOnceSuite extends BaseOperatorSuite {
   }
 
   test("specified period should be respected if consumer is responsive") { implicit s =>
-    val obs = Observable.intervalAtFixedRate(1.second)
-      .take(3)
-      .sample(500.millis)
+    val sub = PublishSubject[Long]()
+    val obs = sub.sample(500.millis)
 
     var onNextCount = 0
     var received = 0
@@ -65,7 +65,7 @@ object SampleOnceSuite extends BaseOperatorSuite {
       def onNext(elem: Long) = {
         onNextCount += 1
         Future.delayedResult(100.millis) {
-          received += 1
+          received = 1
           Continue
         }
       }
@@ -74,41 +74,31 @@ object SampleOnceSuite extends BaseOperatorSuite {
       def onComplete() = wasCompleted = true
     })
 
-    // sample
-    s.tick(500.millis)
+    sub.onNext(1)
+
+    s.tick()
+    assertEquals(onNextCount, 0)
     assertEquals(received, 0)
+
+    s.tick(500.millis)
     assertEquals(onNextCount, 1)
-    assert(!wasCompleted)
-    // consumer delay
+    assertEquals(received, 0)
+
     s.tick(100.millis)
-    assertEquals(received, 1)
     assertEquals(onNextCount, 1)
+    assertEquals(received, 1)
+
+    sub.onComplete()
+    s.tick()
     assert(!wasCompleted)
-    // sample
+
     s.tick(400.millis)
-    assertEquals(received, 1)
-    assertEquals(onNextCount, 2)
-    assert(!wasCompleted)
-    // consumer delay
-    s.tick(100.millis)
-    assertEquals(received, 2)
-    assertEquals(onNextCount, 2)
-    assert(!wasCompleted)
-    // sample
-    s.tick(900.millis)
-    assertEquals(received, 2)
-    assertEquals(onNextCount, 3)
-    assert(!wasCompleted)
-    // consumer delay
-    s.tick(100.millis)
-    assertEquals(received, 3)
-    assertEquals(onNextCount, 3)
     assert(wasCompleted)
   }
 
   test("specified period should not be respected if consumer is not responsive") { implicit s =>
-    val obs = Observable.intervalAtFixedRate(1.second).take(3)
-      .sample(500.millis)
+    val sub = PublishSubject[Long]()
+    val obs = sub.sample(500.millis)
 
     var onNextCount = 0
     var received = 0
@@ -117,8 +107,8 @@ object SampleOnceSuite extends BaseOperatorSuite {
     obs.unsafeSubscribe(new Observer[Long] {
       def onNext(elem: Long) = {
         onNextCount += 1
-        Future.delayedResult(600.millis) {
-          received += 1
+        Future.delayedResult(1000.millis) {
+          received = 1
           Continue
         }
       }
@@ -127,30 +117,29 @@ object SampleOnceSuite extends BaseOperatorSuite {
       def onComplete() = wasCompleted = true
     })
 
-    // sample
-    s.tick(500.millis)
+    sub.onNext(1)
+
+    s.tick()
+    assertEquals(onNextCount, 0)
     assertEquals(received, 0)
+
+    s.tick(500.millis)
     assertEquals(onNextCount, 1)
-    assert(!wasCompleted)
-    // consumer delay
-    s.tick(600.millis)
+    assertEquals(received, 0)
+
+    s.tick(500.millis)
+    assertEquals(onNextCount, 1)
+    assertEquals(received, 0)
+
+    s.tick(500.millis)
+    assertEquals(onNextCount, 1)
     assertEquals(received, 1)
-    assertEquals(onNextCount, 2)
+
+    sub.onComplete()
+    s.tick()
     assert(!wasCompleted)
-    // sample
-    s.tick(600.millis)
-    assertEquals(received, 2)
-    assertEquals(onNextCount, 2)
-    assert(!wasCompleted)
-    // sample
-    s.tick(600.millis)
-    assertEquals(received, 2)
-    assertEquals(onNextCount, 3)
-    assert(!wasCompleted)
-    // consumer delay
-    s.tick(600.millis)
-    assertEquals(received, 3)
-    assertEquals(onNextCount, 3)
+
+    s.tick(1.second)
     assert(wasCompleted)
   }
 }
