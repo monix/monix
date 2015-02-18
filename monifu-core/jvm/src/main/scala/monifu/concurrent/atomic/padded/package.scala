@@ -48,6 +48,6 @@ package object padded {
    * @param initialValue is the initial value with which to initialize the Atomic reference
    * @param builder is the builder that helps us to build the best reference possible, based on our `initialValue`
    */
-  def apply[T, R <: Atomic[T]](initialValue: T)(implicit builder: PaddedAtomicBuilder[T, R]): R =
+  def apply[T, R <: Atomic[T]](initialValue: T)(implicit builder: AtomicBuilder[T, R]): R =
     builder.buildInstance(initialValue)
 }
