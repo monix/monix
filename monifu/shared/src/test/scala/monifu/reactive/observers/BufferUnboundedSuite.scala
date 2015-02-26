@@ -52,12 +52,12 @@ object BufferUnboundedSuite extends TestSuite[TestScheduler] {
     }
 
     val buffer = BufferedSubscriber(underlying, Unbounded)
-    for (i <- 0 until 100000) buffer.observer.onNext(i)
+    for (i <- 0 until 1000) buffer.observer.onNext(i)
     buffer.observer.onComplete()
 
     assert(!wasCompleted)
     s.tick()
-    assert(number == 100000)
+    assert(number == 1000)
     assert(wasCompleted)
   }
 
