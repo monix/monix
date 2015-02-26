@@ -246,8 +246,10 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
             Continue
           }
 
-          def onError(ex: Throwable): Unit = thrownError = ex
-          def onComplete(): Unit = throw new IllegalStateException()
+          def onComplete(): Unit = ()
+          def onError(ex: Throwable): Unit = {
+            thrownError = ex
+          }
         })
 
         s.tick(waitForFirst + waitForNext * (count - 1))

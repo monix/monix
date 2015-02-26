@@ -16,9 +16,11 @@
 
 package monifu.reactive.operators
 
-import monifu.reactive.Ack.Continue
+import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.{Observer, Observable}
 import scala.collection.mutable
+import scala.concurrent.Future
+import scala.util.control.NonFatal
 
 
 object distinct {
@@ -34,8 +36,7 @@ object distinct {
         private[this] val set = mutable.Set.empty[T]
 
         def onNext(elem: T) = {
-          if (set(elem)) Continue
-          else {
+          if (set(elem)) Continue else {
             set += elem
             observer.onNext(elem)
           }
@@ -55,16 +56,33 @@ object distinct {
         private[this] val set = mutable.Set.empty[U]
 
         def onNext(elem: T) = {
-          val key = fn(elem)
-          if (set(key)) Continue
-          else {
-            set += key
-            observer.onNext(elem)
+          var streamError = true
+          try {
+            val key = fn(elem)
+            streamError = false
+
+            if (set(key)) Continue
+            else {
+              set += key
+              observer.onNext(elem)
+            }
+          }
+          catch {
+            case NonFatal(ex) =>
+              if (!streamError) Future.failed(ex) else {
+                observer.onError(ex)
+                Cancel
+              }
           }
         }
 
-        def onError(ex: Throwable) = observer.onError(ex)
-        def onComplete() = observer.onComplete()
+        def onError(ex: Throwable) = {
+          observer.onError(ex)
+        }
+
+        def onComplete() = {
+          observer.onComplete()
+        }
       })
     }
 
@@ -112,18 +130,30 @@ object distinct {
         private[this] var lastKey: U = _
 
         def onNext(elem: T) = {
-          val key = fn(elem)
-          if (isFirst) {
-            lastKey = fn(elem)
-            isFirst = false
-            observer.onNext(elem)
+          var streamError = true
+          try {
+            val key = fn(elem)
+            streamError = false
+
+            if (isFirst) {
+              lastKey = fn(elem)
+              isFirst = false
+              observer.onNext(elem)
+            }
+            else if (lastKey != key) {
+              lastKey = key
+              observer.onNext(elem)
+            }
+            else
+              Continue
           }
-          else if (lastKey != key) {
-            lastKey = key
-            observer.onNext(elem)
+          catch {
+            case NonFatal(ex) =>
+              if (!streamError) Future.failed(ex) else {
+                observer.onError(ex)
+                Cancel
+              }
           }
-          else
-            Continue
         }
 
         def onError(ex: Throwable) = observer.onError(ex)

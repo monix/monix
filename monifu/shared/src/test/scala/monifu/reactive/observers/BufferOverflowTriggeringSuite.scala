@@ -50,13 +50,13 @@ object BufferOverflowTriggeringSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    val buffer = BufferedSubscriber(underlying, OverflowTriggering(100000))
-    for (i <- 0 until 100000) buffer.observer.onNext(i)
+    val buffer = BufferedSubscriber(underlying, OverflowTriggering(1000))
+    for (i <- 0 until 1000) buffer.observer.onNext(i)
     buffer.observer.onComplete()
 
     assert(!wasCompleted)
     s.tick()
-    assert(number == 100000)
+    assert(number == 1000)
     assert(wasCompleted)
   }
 
@@ -79,7 +79,7 @@ object BufferOverflowTriggeringSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    val buffer = BufferedSubscriber(underlying, OverflowTriggering(100000))
+    val buffer = BufferedSubscriber(underlying, OverflowTriggering(1000))
 
     def loop(n: Int): Unit =
       if (n > 0)

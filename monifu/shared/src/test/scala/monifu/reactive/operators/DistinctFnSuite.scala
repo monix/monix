@@ -34,7 +34,7 @@ object DistinctFnSuite extends BaseOperatorSuite {
     val source = Observable.range(0, sourceCount)
       .flatMap(i => Observable.from(i, i, i))
 
-    val o = createObservableEndingInError(source, ex)
+    val o = source.endWithError(ex)
       .map(Val.apply)
       .distinct(_.x)
       .map(_.x)
