@@ -23,12 +23,13 @@ import monifu.reactive.{DummyException, Observer, Observable}
 import monifu.reactive.subjects.PublishSubject
 import scala.concurrent.Future
 import scala.concurrent.duration._
+import scala.concurrent.duration.Duration.Zero
 import monifu.reactive.Observable.{unit, empty}
 
 object MergeOneSuite extends BaseOperatorSuite {
   def observable(sourceCount: Int) = Some {
-    Observable.range(0, sourceCount)
-      .mergeMap(i => Observable.unit(i))
+    val o = Observable.range(0, sourceCount).mergeMap(i => Observable.unit(i))
+    Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 
   def count(sourceCount: Int) =
@@ -38,8 +39,10 @@ object MergeOneSuite extends BaseOperatorSuite {
   def waitForNext = Duration.Zero
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    createObservableEndingInError(Observable.range(0, sourceCount), ex)
+    val o = createObservableEndingInError(Observable.range(0, sourceCount), ex)
       .mergeMap(i => Observable.unit(i))
+
+    Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 
   def sum(sourceCount: Int) = {
@@ -47,12 +50,14 @@ object MergeOneSuite extends BaseOperatorSuite {
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    Observable.range(0, sourceCount).flatMap { i =>
+    val o = Observable.range(0, sourceCount).flatMap { i =>
       if (i == sourceCount-1)
         throw ex
       else
         Observable.unit(i)
     }
+
+    Sample(o, count(sourceCount-1), sum(sourceCount-1), Zero, Zero)
   }
 
   def toList[T](o: Observable[T])(implicit s: Scheduler) = {

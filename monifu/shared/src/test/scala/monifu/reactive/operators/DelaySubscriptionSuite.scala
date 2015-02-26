@@ -23,14 +23,16 @@ import scala.concurrent.Future
 
 object DelaySubscriptionSuite extends BaseOperatorSuite {
   def observable(sourceCount: Int) = Some {
-    Observable.range(0, sourceCount)
+    val o = Observable.range(0, sourceCount)
       .delaySubscription(1.second)
+
+    Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
   }
 
   def count(sourceCount: Int) = sourceCount
   def sum(sourceCount: Int) = sourceCount * (sourceCount - 1) / 2
-  def waitForFirst = 1.second
-  def waitForNext = Duration.Zero
+  def waitFirst = 1.second
+  def waitNext = Duration.Zero
 
   def observableInError(sourceCount: Int, ex: Throwable) = None
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None

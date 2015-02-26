@@ -106,7 +106,6 @@ final class ConnectableSubscriber[-T] private (underlying: Observer[T], val sche
         isConnectionStarted = true
 
         Observable.fromIterable(queue).unsafeSubscribe(new Observer[T] {
-          private[this] var lastAck = Continue : Future[Ack]
           private[this] val bufferWasDrained = Promise[Ack]()
 
           bufferWasDrained.future.onSuccess {
@@ -123,14 +122,13 @@ final class ConnectableSubscriber[-T] private (underlying: Observer[T], val sche
           }
 
           def onNext(elem: T): Future[Ack] = {
-            lastAck = underlying.onNext(elem)
+            underlying.onNext(elem)
               .ifCancelTryCanceling(bufferWasDrained)
-            lastAck
           }
 
           def onComplete(): Unit = {
             if (!scheduledDone) {
-              bufferWasDrained.tryCompleteWith(lastAck)
+              bufferWasDrained.trySuccess(Continue)
             }
             else if (scheduledError ne null) {
               if (bufferWasDrained.trySuccess(Cancel))
@@ -146,6 +144,7 @@ final class ConnectableSubscriber[-T] private (underlying: Observer[T], val sche
             else {
               scheduledDone = true
               scheduledError = ex
+
               if (bufferWasDrained.trySuccess(Cancel))
                 underlying.onError(ex)
               else

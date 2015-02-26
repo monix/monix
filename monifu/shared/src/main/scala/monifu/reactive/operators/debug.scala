@@ -18,6 +18,7 @@ package monifu.reactive.operators
 
 import java.io.PrintStream
 
+import monifu.concurrent.Cancelable
 import monifu.reactive.Ack.Cancel
 import monifu.reactive.{Ack, Observer, Observable}
 import monifu.reactive.internals._
@@ -36,6 +37,9 @@ object debug {
 
       source.unsafeSubscribe(new Observer[T] {
         private[this] var pos = 0
+        private[this] val downstreamActive = Cancelable {
+          pos += 1; out.println(s"$pos: $prefix canceled")
+        }
 
         def onNext(elem: T): Future[Ack] = {
           // Protects calls to user code from within the operator
@@ -45,9 +49,8 @@ object debug {
             streamError = false
 
             pos += 1
-            val f = observer.onNext(elem)
-            f.onCancel { pos += 1; out.println(s"$pos: $prefix canceled") }
-            f
+            observer.onNext(elem)
+              .ifCanceledDoCancel(downstreamActive)
           }
           catch {
             case NonFatal(ex) =>

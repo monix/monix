@@ -17,12 +17,9 @@
 package monifu.reactive.operators
 
 import monifu.reactive.{DummyException, Observable}
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration.Duration.Zero
 
 object FilterSuite extends BaseOperatorSuite {
-  val waitForFirst = Duration.Zero
-  val waitForNext = Duration.Zero
-
   def count(sourceCount: Int) = {
     sourceCount
   }
@@ -33,10 +30,12 @@ object FilterSuite extends BaseOperatorSuite {
   def observable(sourceCount: Int) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      if (sourceCount == 1)
+      val o = if (sourceCount == 1)
         Observable.unit(2L).filter(_ % 2 == 0)
       else
         Observable.range(1, sourceCount * 2 + 1, 1).filter(_ % 2 == 0)
+
+      Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }
   }
 
@@ -44,19 +43,21 @@ object FilterSuite extends BaseOperatorSuite {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val ex = DummyException("dummy")
-      if (sourceCount == 1)
+      val o = if (sourceCount == 1)
         createObservableEndingInError(Observable.unit(2L), ex)
           .filter(_ % 2 == 0)
       else
         createObservableEndingInError(Observable.range(1, sourceCount * 2 + 1, 1), ex)
           .filter(_ % 2 == 0)
+
+      Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      if (sourceCount == 1)
+      val o = if (sourceCount == 1)
         Observable.unit(1L).filter(_ => throw ex)
       else
         Observable.range(1, sourceCount * 2 + 1, 1).filter { x =>
@@ -65,6 +66,8 @@ object FilterSuite extends BaseOperatorSuite {
           else
             x % 2 == 0
         }
+
+      Sample(o, count(sourceCount-1), sum(sourceCount-1), Zero, Zero)
     }
   }
 }

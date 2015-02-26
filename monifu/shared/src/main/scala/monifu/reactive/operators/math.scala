@@ -16,9 +16,11 @@
 
 package monifu.reactive.operators
 
-import monifu.reactive.Ack.Continue
+import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.{Ack, Observer, Observable}
+import monifu.reactive.internals._
 import scala.concurrent.Future
+import scala.util.control.NonFatal
 
 object math {
   /**
@@ -39,7 +41,7 @@ object math {
 
         def onComplete() = {
           observer.onNext(count)
-          observer.onComplete()
+            .onContinueSignalComplete(observer)
         }
 
         def onError(ex: Throwable) = {
@@ -70,7 +72,7 @@ object math {
 
         def onComplete(): Unit = {
           observer.onNext(result)
-          observer.onComplete()
+            .onContinueSignalComplete(observer)
         }
       })
     }
@@ -90,29 +92,38 @@ object math {
         private[this] var hasValue = false
 
         def onNext(elem: T): Future[Ack] = {
-          if (!hasValue) {
-            hasValue = true
-            minValue = elem
-            minValueU = f(elem)
-          }
-          else {
-            val m = f(elem)
-            if (ev.compare(m, minValueU) < 0) {
+          try {
+            if (!hasValue) {
+              hasValue = true
               minValue = elem
-              minValueU = m
+              minValueU = f(elem)
             }
+            else {
+              val m = f(elem)
+              if (ev.compare(m, minValueU) < 0) {
+                minValue = elem
+                minValueU = m
+              }
+            }
+
+            Continue
           }
-          Continue
+          catch {
+            case NonFatal(ex) =>
+              onError(ex)
+              Cancel
+          }
         }
 
-        def onError(ex: Throwable): Unit = observer.onError(ex)
+        def onError(ex: Throwable): Unit =
+          observer.onError(ex)
 
         def onComplete(): Unit = {
           if (!hasValue)
             observer.onComplete()
           else {
             observer.onNext(minValue)
-            observer.onComplete()
+              .onContinueSignalComplete(observer)
           }
         }
       })
@@ -139,6 +150,7 @@ object math {
           else if (ev.compare(elem, minValue) < 0) {
             minValue = elem
           }
+
           Continue
         }
 
@@ -148,7 +160,7 @@ object math {
             observer.onComplete()
           else {
             observer.onNext(minValue)
-            observer.onComplete()
+              .onContinueSignalComplete(observer)
           }
         }
       })
@@ -166,28 +178,38 @@ object math {
         private[this] var hasValue = false
 
         def onNext(elem: T): Future[Ack] = {
-          if (!hasValue) {
-            hasValue = true
-            maxValue = elem
-            maxValueU = f(elem)
-          }
-          else {
-            val m = f(elem)
-            if (ev.compare(m, maxValueU) > 0) {
+          try {
+            if (!hasValue) {
+              hasValue = true
               maxValue = elem
-              maxValueU = m
+              maxValueU = f(elem)
             }
+            else {
+              val m = f(elem)
+              if (ev.compare(m, maxValueU) > 0) {
+                maxValue = elem
+                maxValueU = m
+              }
+            }
+
+            Continue
           }
-          Continue
+          catch {
+            case NonFatal(ex) =>
+              onError(ex)
+              Cancel
+          }
         }
 
-        def onError(ex: Throwable): Unit = observer.onError(ex)
+        def onError(ex: Throwable): Unit =
+          observer.onError(ex)
+
         def onComplete(): Unit = {
           if (!hasValue)
             observer.onComplete()
           else {
             observer.onNext(maxValue)
-            observer.onComplete()
+              .onContinueSignalComplete(observer)
           }
         }
       })
@@ -223,7 +245,7 @@ object math {
             observer.onComplete()
           else {
             observer.onNext(maxValue)
-            observer.onComplete()
+              .onContinueSignalComplete(observer)
           }
         }
       })

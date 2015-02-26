@@ -19,6 +19,7 @@ package monifu.reactive.operators
 import monifu.reactive.Ack.Continue
 import monifu.reactive.{Ack, Observer, Observable}
 import scala.concurrent.Future
+import monifu.reactive.internals._
 
 object misc {
   /**
@@ -55,7 +56,7 @@ object misc {
 
         def onError(ex: Throwable): Unit = {
           observer.onNext(ex)
-          observer.onComplete()
+            .onContinueSignalComplete(observer)
         }
       })
     }
@@ -81,8 +82,11 @@ object misc {
         }
 
         def onComplete(): Unit = {
-          if (isEmpty) observer.onNext(default)
-          observer.onComplete()
+          if (isEmpty)
+            observer.onNext(default)
+              .onContinueSignalComplete(observer)
+          else
+            observer.onComplete()
         }
       })
     }

@@ -24,8 +24,8 @@ import scala.concurrent.duration._
 
 
 object TakeByTimespanSuite extends BaseOperatorSuite {
-  val waitForFirst = Duration.Zero
-  val waitForNext = 1.second
+  val waitFirst = Duration.Zero
+  val waitNext = 1.second
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 
@@ -35,11 +35,13 @@ object TakeByTimespanSuite extends BaseOperatorSuite {
   def count(sourceCount: Int) =
     sourceCount
 
-  def observable(sourceCount: Int) = {
+  def observable(sourceCount: Int) = Some {
     require(sourceCount > 0, "sourceCount should be strictly positive")
 
-    Some(Observable.intervalAtFixedRate(1.second)
-      .take(1.second * sourceCount - 1.milli))
+    val o = Observable.intervalAtFixedRate(1.second)
+      .take(1.second * sourceCount - 1.milli)
+
+    Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = {
@@ -50,7 +52,8 @@ object TakeByTimespanSuite extends BaseOperatorSuite {
       else
         createObservableEndingInError(Observable.range(1, sourceCount * 2).take(sourceCount), ex)
 
-      source.take(1.day)
+      val o = source.take(1.day)
+      Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
     }
   }
 

@@ -19,18 +19,15 @@ package monifu.reactive.operators
 import monifu.reactive.{Observable, Ack}
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.observers.SynchronousObserver
-
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
-import scala.util.control.NonFatal
+
 
 object whileBusy {
   /**
    * While the destination observer is busy, drop the incoming events.
-   *
-   * @param cb a callback to be called in case events are dropped
    */
-  def drop[T](source: Observable[T])(cb: T => Unit): Observable[T] =
+  def dropEvents[T](source: Observable[T]): Observable[T] =
     Observable.create { subscriber =>
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
@@ -64,15 +61,7 @@ object whileBusy {
               }
 
             case _ =>
-              try {
-                cb(elem)
-                Continue
-              }
-              catch {
-                case NonFatal(ex) =>
-                  observer.onError(ex)
-                  Cancel
-              }
+              Continue
           }
           else
             Cancel

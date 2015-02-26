@@ -17,8 +17,9 @@
 package monifu.reactive.subjects
 
 import monifu.concurrent.atomic.Atomic
-import monifu.reactive.Ack.Continue
+import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.{Ack, Subject, Subscriber}
+import monifu.reactive.internals._
 
 import scala.annotation.tailrec
 import scala.collection.immutable.Set
@@ -43,6 +44,7 @@ final class AsyncSubject[T] extends Subject[T,T] { self =>
   private[this] val state = Atomic(Active(Set.empty[Subscriber[T]]) : State[T])
   private[this] var onNextHappened = false
   private[this] var currentElem: T = _
+  private[this] var isCompleted = false
 
   @tailrec
   def subscribeFn(subscriber: Subscriber[T]): Unit =
@@ -56,21 +58,24 @@ final class AsyncSubject[T] extends Subject[T,T] { self =>
         subscriber.observer.onError(ex)
       case Completed(value) =>
         implicit val s = subscriber.scheduler
-        subscriber.observer.onNext(value).onSuccess {
-          case Continue =>
-            subscriber.observer.onComplete()
-        }
+        subscriber.observer.onNext(value)
+          .onContinueSignalComplete(subscriber.observer)
     }
 
   def onNext(elem: T): Future[Ack] = {
-    if (!onNextHappened) onNextHappened = true
-    currentElem = elem
-    Continue
+    if (!isCompleted) {
+      if (!onNextHappened) onNextHappened = true
+      currentElem = elem
+      Continue
+    }
+    else
+      Cancel
   }
 
   @tailrec
   def onError(ex: Throwable): Unit = state.get match {
     case current @ Active(set) =>
+      isCompleted = true
       if (!state.compareAndSet(current, CompletedError(ex)))
         onError(ex)
       else
@@ -83,19 +88,18 @@ final class AsyncSubject[T] extends Subject[T,T] { self =>
   @tailrec
   def onComplete(): Unit = state.get match {
     case current @ Active(set) =>
+      isCompleted = true
+
       if (onNextHappened)
         if (!state.compareAndSet(current, Completed(currentElem)))
           onComplete()
         else
           for (subscriber <- set) {
             implicit val s = subscriber.scheduler
-            subscriber.observer.onNext(currentElem).onSuccess {
-              case Continue =>
-                subscriber.observer.onComplete()
-            }
+            subscriber.observer.onNext(currentElem)
+              .onContinueSignalComplete(subscriber.observer)
           }
-      else
-      if (!state.compareAndSet(current, CompletedEmpty))
+      else if (!state.compareAndSet(current, CompletedEmpty))
         onComplete()
       else
         for (s <- set) s.observer.onComplete()

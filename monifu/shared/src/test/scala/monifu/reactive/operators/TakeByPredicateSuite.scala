@@ -17,12 +17,9 @@
 package monifu.reactive.operators
 
 import monifu.reactive.{DummyException, Observable}
-import scala.concurrent.duration._
+import scala.concurrent.duration.Duration.Zero
 
 object TakeByPredicateSuite extends BaseOperatorSuite {
-  val waitForFirst = Duration.Zero
-  val waitForNext = Duration.Zero
-
   def sum(sourceCount: Int): Long =
     sourceCount.toLong * (sourceCount + 1) / 2
 
@@ -32,10 +29,12 @@ object TakeByPredicateSuite extends BaseOperatorSuite {
   def observable(sourceCount: Int) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      if (sourceCount == 1)
+      val o = if (sourceCount == 1)
         Observable.range(1, 10).takeWhile(_ <= 1)
       else
         Observable.range(1, sourceCount * 2).takeWhile(_ <= sourceCount)
+
+      Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }
   }
 
@@ -43,10 +42,12 @@ object TakeByPredicateSuite extends BaseOperatorSuite {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val ex = DummyException("dummy")
-      if (sourceCount == 1)
+      val o = if (sourceCount == 1)
         createObservableEndingInError(Observable.range(1, 10).takeWhile(_ <= 1), ex)
       else
         createObservableEndingInError(Observable.range(1, sourceCount * 2).takeWhile(_ <= sourceCount), ex)
+
+      Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }
   }
 
@@ -54,9 +55,11 @@ object TakeByPredicateSuite extends BaseOperatorSuite {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val ex = DummyException("dummy")
-      Observable.range(1, sourceCount * 2).takeWhile { x =>
+      val o = Observable.range(1, sourceCount * 2).takeWhile { x =>
         if (x < sourceCount) true else throw ex
       }
+
+      Sample(o, count(sourceCount-1), sum(sourceCount-1), Zero, Zero)
     }
   }
 }

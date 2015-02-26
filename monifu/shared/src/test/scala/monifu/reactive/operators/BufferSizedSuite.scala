@@ -21,8 +21,8 @@ import monifu.reactive.{Observer, DummyException, Observable}
 import scala.concurrent.duration.Duration
 
 object BufferSizedSuite extends BaseOperatorSuite {
-  val waitForNext = Duration.Zero
-  val waitForFirst = Duration.Zero
+  val waitNext = Duration.Zero
+  val waitFirst = Duration.Zero
 
   def sum(sourceCount: Int) = {
     val total = (sourceCount * 10 - 1).toLong
@@ -36,16 +36,19 @@ object BufferSizedSuite extends BaseOperatorSuite {
   def observable(sourceCount: Int) = {
     require(sourceCount > 0, "count must be strictly positive")
     Some {
-      Observable.range(0, sourceCount * 10).buffer(10).map(_.sum)
+      val o = Observable.range(0, sourceCount * 10).buffer(10).map(_.sum)
+      Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
     }
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = {
     require(sourceCount > 0, "count must be strictly positive")
     Some {
-      Observable.range(0, sourceCount * 10 + 1)
+      val o = Observable.range(0, sourceCount * 10 + 1)
         .map(x => if (x == sourceCount * 10) throw ex else x)
         .buffer(10).map(_.sum)
+
+      Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
     }
   }
 
@@ -71,10 +74,10 @@ object BufferSizedSuite extends BaseOperatorSuite {
       def onComplete(): Unit = wasCompleted = true
     })
 
-    s.tick(waitForFirst + waitForNext * (count - 1))
+    s.tick(waitFirst + waitNext * (count - 1))
     assertEquals(received, count / 2 + 1)
     assertEquals(total, sum(count))
-    s.tick(waitForNext)
+    s.tick(waitNext)
     assert(wasCompleted)
   }
 
@@ -99,10 +102,10 @@ object BufferSizedSuite extends BaseOperatorSuite {
       def onComplete(): Unit = ()
     })
 
-    s.tick(waitForFirst + waitForNext * (count - 1))
+    s.tick(waitFirst + waitNext * (count - 1))
     assertEquals(received, count / 2 + 1)
     assertEquals(total, sum(count))
-    s.tick(waitForNext)
+    s.tick(waitNext)
     assertEquals(errorThrown, DummyException("dummy"))
   }
 }

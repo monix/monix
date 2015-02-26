@@ -20,16 +20,19 @@ import monifu.reactive.Ack.Continue
 import monifu.reactive.subjects.PublishSubject
 import monifu.reactive.{DummyException, Observable, Observer}
 import monifu.concurrent.extensions._
+
 import scala.concurrent.Future
+import scala.concurrent.duration.Duration.Zero
 import scala.concurrent.duration._
+
 
 object ZipSuite extends BaseOperatorSuite {
   def observable(sourceCount: Int) = Some {
     val o1 = Observable.range(0, sourceCount)
     val o2 = Observable.range(0, sourceCount)
 
-    Observable.zip(o1, o2)
-      .map { case (x1, x2) => x1 + x2 }
+    val o = Observable.zip(o1, o2).map { case (x1, x2) => x1 + x2 }
+    Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 
   def count(sourceCount: Int) = sourceCount
@@ -39,13 +42,11 @@ object ZipSuite extends BaseOperatorSuite {
     val o1 = createObservableEndingInError(Observable.range(0, sourceCount), ex)
     val o2 = createObservableEndingInError(Observable.range(0, sourceCount), ex)
 
-    Observable.zip(o1, o2)
-      .map { case (x1, x2) => x1 + x2 }
+    val o = Observable.zip(o1, o2).map { case (x1, x2) => x1 + x2 }
+    Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
-  def waitForNext = Duration.Zero
-  def waitForFirst = Duration.Zero
 
   test("self starts before other and finishes before other") { implicit s =>
     val obs1 = PublishSubject[Int]()
@@ -87,7 +88,7 @@ object ZipSuite extends BaseOperatorSuite {
     var wasCanceled = false
     var received = (0,0)
 
-    obs1.zip(obs2.doOnComplete { wasCanceled = true })
+    obs1.zip(obs2.doOnCanceled { wasCanceled = true })
       .unsafeSubscribe(new Observer[(Int, Int)] {
         def onNext(elem: (Int, Int)) = { received = elem; Continue }
         def onError(ex: Throwable) = wasThrown = ex
@@ -110,7 +111,7 @@ object ZipSuite extends BaseOperatorSuite {
     var wasCanceled = false
     var received = (0,0)
 
-    obs2.zip(obs1.doOnComplete { wasCanceled = true })
+    obs2.doOnCanceled { wasCanceled = true }.zip(obs1)
       .unsafeSubscribe(new Observer[(Int, Int)] {
       def onNext(elem: (Int, Int)) = { received = elem; Continue }
       def onError(ex: Throwable) = wasThrown = ex

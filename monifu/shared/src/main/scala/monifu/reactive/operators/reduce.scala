@@ -18,6 +18,7 @@ package monifu.reactive.operators
 
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.{Ack, Observer, Observable}
+import monifu.reactive.internals._
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 
@@ -60,10 +61,11 @@ object reduce {
         def onComplete() = {
           if (wasApplied) {
             observer.onNext(state)
+              .onContinueSignalComplete(observer)
+          }
+          else {
             observer.onComplete()
           }
-          else
-            observer.onComplete()
         }
 
         def onError(ex: Throwable) = {

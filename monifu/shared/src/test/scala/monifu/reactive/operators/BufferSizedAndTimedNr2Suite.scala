@@ -20,8 +20,8 @@ import monifu.reactive.Observable
 import scala.concurrent.duration._
 
 object BufferSizedAndTimedNr2Suite extends BaseOperatorSuite {
-  val waitForNext = 1.second
-  val waitForFirst = 1.second
+  val waitFirst = 1.second
+  val waitNext = 1.second
 
   def sum(sourceCount: Int) = {
     val total = (sourceCount * 10 - 1).toLong
@@ -35,21 +35,25 @@ object BufferSizedAndTimedNr2Suite extends BaseOperatorSuite {
   def observable(sourceCount: Int) = {
     require(sourceCount > 0, "count must be strictly positive")
     Some {
-      Observable.intervalAtFixedRate(100.millis)
+      val o = Observable.intervalAtFixedRate(100.millis)
         .take(sourceCount * 10)
         .bufferSizedAndTimed(10, 2.seconds)
         .map(_.sum)
+
+      Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
     }
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = {
     require(sourceCount > 0, "count must be strictly positive")
     Some {
-      Observable.intervalAtFixedRate(100.millis)
+      val o = Observable.intervalAtFixedRate(100.millis)
         .map(x => if (x == sourceCount * 10 - 1) throw ex else x)
         .take(sourceCount * 10)
         .bufferSizedAndTimed(10, 2.seconds)
         .map(_.sum)
+
+      Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
     }
   }
 

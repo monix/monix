@@ -50,6 +50,7 @@ object ConnectableObservable {
           synchronized {
             if (subscription == null)
               subscription = source.subscribe(subject)
+
             subscription
           }
       }

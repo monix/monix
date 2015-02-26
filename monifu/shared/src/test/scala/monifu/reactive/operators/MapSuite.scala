@@ -17,22 +17,21 @@
 package monifu.reactive.operators
 
 import monifu.reactive.{DummyException, Observable}
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration.Duration.Zero
 
 object MapSuite extends BaseOperatorSuite {
-  val waitForFirst = Duration.Zero
-  val waitForNext = Duration.Zero
-  
   def sum(sourceCount: Int): Long = sourceCount.toLong * (sourceCount + 1)
   def count(sourceCount: Int) = sourceCount
 
   def observable(sourceCount: Int) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      if (sourceCount == 1)
+      val o = if (sourceCount == 1)
         Observable.unit(1L).map(_ * 2)
       else
         Observable.range(1, sourceCount+1, 1).map(_ * 2)
+
+      Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }
   }
 
@@ -40,19 +39,21 @@ object MapSuite extends BaseOperatorSuite {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val ex = DummyException("dummy")
-      if (sourceCount == 1)
+      val o = if (sourceCount == 1)
         createObservableEndingInError(Observable.unit(1L), ex)
           .map(_ * 2)
       else
         createObservableEndingInError(Observable.range(1, sourceCount+1, 1), ex)
           .map(_ * 2)
+
+      Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      if (sourceCount == 1)
+      val o = if (sourceCount == 1)
         Observable.unit(1).map(_ => throw ex)
       else
         Observable.range(1, sourceCount + 1, 1).map { x =>
@@ -61,6 +62,8 @@ object MapSuite extends BaseOperatorSuite {
           else
             x * 2
         }
+
+      Sample(o, count(sourceCount-1), sum(sourceCount-1), Zero, Zero)
     }
   }
 }
