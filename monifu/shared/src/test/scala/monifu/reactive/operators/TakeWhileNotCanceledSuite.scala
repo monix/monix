@@ -19,12 +19,9 @@ package monifu.reactive.operators
 import monifu.concurrent.atomic.Atomic
 import monifu.concurrent.cancelables.BooleanCancelable
 import monifu.reactive.Observable
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration.Duration.Zero
 
 object TakeWhileNotCanceledSuite extends BaseOperatorSuite {
-  val waitForFirst = Duration.Zero
-  val waitForNext = Duration.Zero
-
   def sum(sourceCount: Int): Long =
     sourceCount.toLong * (sourceCount + 1) / 2
 
@@ -35,44 +32,45 @@ object TakeWhileNotCanceledSuite extends BaseOperatorSuite {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val c = BooleanCancelable()
-      if (sourceCount == 1)
+      val o = if (sourceCount == 1)
         Observable.range(1, 10).takeWhileNotCanceled(c)
           .map { x => c.cancel(); x }
       else
         Observable.range(1, sourceCount * 2).takeWhileNotCanceled(c)
           .map { x => if (x == sourceCount) c.cancel(); x }
+
+      Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }
   }
 
-  def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = {
+  def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
     require(sourceCount > 0, "sourceCount should be strictly positive")
-    Some {
-      val c = new BooleanCancelable {
-        def cancel() = false
-        val counter = Atomic(0)
 
-        def isCanceled =
-          if (counter.incrementAndGet() < sourceCount)
-            false
-          else
-            throw ex
-      }
+    val c = new BooleanCancelable {
+      def cancel() = false
+      val counter = Atomic(0)
 
-      Observable.range(1, sourceCount * 2)
+      def isCanceled =
+        if (counter.incrementAndGet() < sourceCount)
+          false
+        else
+          throw ex
+    }
+
+    val o = Observable.range(1, sourceCount * 2).takeWhileNotCanceled(c)
+    Sample(o, count(sourceCount-1), sum(sourceCount-1), Zero, Zero)
+  }
+
+  def observableInError(sourceCount: Int, ex: Throwable) = Some {
+    require(sourceCount > 0, "sourceCount should be strictly positive")
+    val c = BooleanCancelable()
+    val o = if (sourceCount == 1)
+      createObservableEndingInError(Observable.unit(1), ex)
         .takeWhileNotCanceled(c)
-    }
-  }
+    else
+      createObservableEndingInError(Observable.range(1, sourceCount + 1), ex)
+        .takeWhileNotCanceled(c)
 
-  def observableInError(sourceCount: Int, ex: Throwable) = {
-    require(sourceCount > 0, "sourceCount should be strictly positive")
-    Some {
-      val c = BooleanCancelable()
-      if (sourceCount == 1)
-        createObservableEndingInError(Observable.unit(1), ex)
-          .takeWhileNotCanceled(c)
-      else
-        createObservableEndingInError(Observable.range(1, sourceCount + 1), ex)
-          .takeWhileNotCanceled(c)
-    }
+    Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 }

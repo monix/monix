@@ -16,12 +16,13 @@
 
 package monifu.reactive.operators
 
-import monifu.concurrent.atomic.Atomic
+import monifu.concurrent.Cancelable
 import monifu.reactive.Ack.Cancel
-import monifu.reactive.{Observer, Observable}
 import monifu.reactive.internals._
+import monifu.reactive.{Observable, Observer}
 import scala.concurrent.Future
 import scala.util.control.NonFatal
+
 
 object doWork {
   /**
@@ -62,34 +63,86 @@ object doWork {
       val observer = subscriber.observer
 
       source.unsafeSubscribe(new Observer[T] {
-        private[this] val wasExecuted = Atomic(false)
-
-        private[this] def execute() = {
-          if (wasExecuted.compareAndSet(expect=false, update=true))
-            try cb catch {
-              case NonFatal(ex) =>
-                s.reportFailure(ex)
-            }
-        }
-
         def onNext(elem: T) = {
-          val f = observer.onNext(elem)
-          f.onCancel(execute())
-          f
+          observer.onNext(elem)
         }
 
         def onError(ex: Throwable): Unit = {
-          try observer.onError(ex) finally
-            s.execute {
-              execute()
-            }
+          observer.onError(ex)
         }
 
         def onComplete(): Unit = {
-          try observer.onComplete() finally
-            s.execute {
-              execute()
-            }
+          // protecting call to user level code
+          var streamError = true
+          try {
+            cb
+            streamError = false
+            observer.onComplete()
+          }
+          catch {
+            case NonFatal(ex) =>
+              observer.onError(ex)
+          }
+        }
+      })
+    }
+
+  /**
+   * Implementation for [[Observable.doOnError]].
+   */
+  def onError[T](source: Observable[T])(cb: Throwable => Unit): Observable[T] =
+    Observable.create[T] { subscriber =>
+      implicit val s = subscriber.scheduler
+      val observer = subscriber.observer
+
+      source.unsafeSubscribe(new Observer[T] {
+        def onNext(elem: T) = {
+          observer.onNext(elem)
+        }
+
+        def onError(ex: Throwable): Unit = {
+          // in case our callback throws an error
+          // the behavior is undefined, so we just
+          // log it
+          try {
+            cb(ex)
+          }
+          catch {
+            case NonFatal(err) =>
+              s.reportFailure(err)
+          }
+          finally {
+            observer.onError(ex)
+          }
+        }
+
+        def onComplete(): Unit = {
+          observer.onComplete()
+        }
+      })
+    }
+
+  /**
+   * Implementation for [[Observable.doOnCanceled]].
+   */
+  def onCanceled[T](source: Observable[T])(cb: => Unit): Observable[T] =
+    Observable.create[T] { subscriber =>
+      implicit val s = subscriber.scheduler
+      val observer = subscriber.observer
+      val isActive = Cancelable(cb)
+
+      source.unsafeSubscribe(new Observer[T] {
+        def onNext(elem: T) = {
+          observer.onNext(elem)
+            .ifCanceledDoCancel(isActive)
+        }
+
+        def onError(ex: Throwable): Unit = {
+          observer.onError(ex)
+        }
+
+        def onComplete(): Unit = {
+          observer.onComplete()
         }
       })
     }

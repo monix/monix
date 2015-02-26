@@ -28,24 +28,27 @@ object CombineLatestSuite extends BaseOperatorSuite {
     val o1 = Observable.unit(1)
     val o2 = Observable.range(0, sourceCount)
 
-    Observable.combineLatest(o1, o2)
+    val o = Observable.combineLatest(o1, o2)
       .map { case (x1, x2) => x1 + x2 }
+
+    Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
   }
 
   def count(sourceCount: Int) = sourceCount
   def sum(sourceCount: Int) = sourceCount * (sourceCount + 1) / 2
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val o1 = Observable.unit(1)
-    val o2 = createObservableEndingInError(Observable.range(0, sourceCount), ex)
-
-    Observable.combineLatest(o1, o2)
+    val unit = Observable.unit(1)
+    val flawed = createObservableEndingInError(Observable.range(0, sourceCount), ex)
+    val o = Observable.combineLatest(unit, flawed)
       .map { case (x1, x2) => x1 + x2 }
+
+    Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
-  def waitForNext = Duration.Zero
-  def waitForFirst = Duration.Zero
+  def waitFirst = Duration.Zero
+  def waitNext = Duration.Zero
 
   test("self starts before other and finishes before other") { implicit s =>
     val obs1 = PublishSubject[Int]()
@@ -121,7 +124,7 @@ object CombineLatestSuite extends BaseOperatorSuite {
     var wasCanceled = false
     var received = (0,0)
 
-    obs1.combineLatest(obs2.doOnComplete { wasCanceled = true })
+    obs1.combineLatest(obs2.doOnCanceled { wasCanceled = true })
       .unsafeSubscribe(new Observer[(Int, Int)] {
         def onNext(elem: (Int, Int)) = { received = elem; Continue }
         def onError(ex: Throwable) = wasThrown = ex
@@ -145,12 +148,12 @@ object CombineLatestSuite extends BaseOperatorSuite {
     var wasCanceled = false
     var received = (0,0)
 
-    obs2.combineLatest(obs1.doOnComplete { wasCanceled = true })
+    obs2.doOnCanceled { wasCanceled = true }.combineLatest(obs1)
       .unsafeSubscribe(new Observer[(Int, Int)] {
-      def onNext(elem: (Int, Int)) = { received = elem; Continue }
-      def onError(ex: Throwable) = wasThrown = ex
-      def onComplete() = ()
-    })
+        def onNext(elem: (Int, Int)) = { received = elem; Continue }
+        def onError(ex: Throwable) = wasThrown = ex
+        def onComplete() = ()
+      })
 
     obs1.onNext(1)
     obs1.onError(DummyException("dummy"))

@@ -17,12 +17,9 @@
 package monifu.reactive.operators
 
 import monifu.reactive.{DummyException, Observable}
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration.Duration.Zero
 
 object TakeRightSuite extends BaseOperatorSuite {
-  val waitForFirst = Duration.Zero
-  val waitForNext = Duration.Zero
-
   def sum(sourceCount: Int) =
     if (sourceCount == 1) 9 else (1 until sourceCount * 2).takeRight(sourceCount).sum
 
@@ -32,10 +29,12 @@ object TakeRightSuite extends BaseOperatorSuite {
   def observable(sourceCount: Int) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      if (sourceCount == 1)
+      val o = if (sourceCount == 1)
         Observable.range(1, 10).takeRight(1)
       else
         Observable.range(1, sourceCount * 2).takeRight(sourceCount)
+
+      Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }
   }
 
@@ -43,12 +42,14 @@ object TakeRightSuite extends BaseOperatorSuite {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val ex = DummyException("dummy")
-      if (sourceCount == 1)
+      val o = if (sourceCount == 1)
         createObservableEndingInError(Observable.range(1, 10), ex)
           .takeRight(1)
       else
         createObservableEndingInError(Observable.range(1, sourceCount * 2), ex)
           .takeRight(sourceCount)
+
+      Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }
   }
 

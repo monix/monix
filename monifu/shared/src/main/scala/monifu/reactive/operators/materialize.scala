@@ -16,7 +16,6 @@
 
 package monifu.reactive.operators
 
-import monifu.reactive.Ack.Continue
 import monifu.reactive.Notification.{OnComplete, OnError, OnNext}
 import monifu.reactive.{Notification, Observable, Ack, Observer}
 import monifu.reactive.internals._
@@ -33,24 +32,19 @@ object materialize {
       val observer = subscriber.observer
 
       source.unsafeSubscribe(new Observer[T] {
-        private[this] var ack = Continue : Future[Ack]
-
         def onNext(elem: T): Future[Ack] = {
-          ack = observer.onNext(OnNext(elem))
-          ack
+          observer.onNext(OnNext(elem))
         }
 
-        def onError(ex: Throwable): Unit =
-          ack.onContinue {
-            observer.onNext(OnError(ex))
-            observer.onComplete()
-          }
+        def onError(ex: Throwable): Unit = {
+          observer.onNext(OnError(ex))
+            .onContinueSignalError(observer, ex)
+        }
 
-        def onComplete(): Unit =
-          ack.onContinue {
-            observer.onNext(OnComplete)
-            observer.onComplete()
-          }
+        def onComplete(): Unit = {
+          observer.onNext(OnComplete)
+            .onContinueSignalComplete(observer)
+        }
       })
     }
 }

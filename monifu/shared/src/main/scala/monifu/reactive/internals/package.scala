@@ -133,54 +133,28 @@ package object internals {
      * in case our source is a [[Cancel]] or a failure.
      */
     def ifCanceledDoCancel(cancelable: Cancelable)(implicit s: Scheduler): Future[Ack] = {
-      def cancel(result: Try[Ack]): Unit = result match {
-        case Cancel.IsSuccess | Failure(_) =>
-          cancelable.cancel()
-        case _ =>
-          () // do nothing
-      }
-
       source match {
         case sync if sync.isCompleted =>
-          cancel(sync.value.get)
-          sync
+          sync.value.get match {
+            case Cancel.IsSuccess | Failure(_) =>
+              cancelable.cancel()
+              sync
+            case _ =>
+              sync
+          }
 
         case async =>
-          async.onComplete(cancel)
+          async.onComplete {
+            case Cancel.IsSuccess | Failure(_) =>
+              cancelable.cancel()
+            case _ =>
+              ()
+          }
           async
       }
     }
 
     // -----
-
-    /**
-     * Triggers execution of the given callback, once the source terminates either
-     * with a `Cancel` or with a failure.
-     */
-    def onCancel(cb: => Unit)(implicit s: Scheduler): Future[Ack] =
-      source match {
-        case Continue => source
-        case Cancel =>
-          try cb catch { case NonFatal(ex) => s.reportFailure(ex) }
-          source
-        case sync if sync.isCompleted =>
-          sync.value.get match {
-            case Continue.IsSuccess => source
-            case Cancel.IsSuccess | Failure(_) =>
-              try cb catch { case NonFatal(ex) => s.reportFailure(ex) }
-              source
-            case other =>
-              // branch not necessary, but Scala's compiler emits warnings if missing
-              s.reportFailure(new MatchError(other.toString))
-              source
-          }
-        case async =>
-          source.onComplete {
-            case Cancel.IsSuccess | Failure(_) => cb
-            case _ => // nothing
-          }
-          source
-      }
 
     def onContinueStreamOnNext[T](observer: Observer[T], nextElem: T)(implicit s: Scheduler) =
       source match {

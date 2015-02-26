@@ -21,8 +21,8 @@ import monifu.reactive.{DummyException, Observer, Observable}
 import scala.concurrent.duration._
 
 object BufferSizedAndTimedNr1Suite extends BaseOperatorSuite {
-  val waitForNext = 1.second
-  val waitForFirst = 1.second
+  val waitNext = 1.second
+  val waitFirst = 1.second
 
   def sum(sourceCount: Int) = {
     val total = (sourceCount * 10 - 1).toLong
@@ -36,21 +36,25 @@ object BufferSizedAndTimedNr1Suite extends BaseOperatorSuite {
   def observable(sourceCount: Int) = {
     require(sourceCount > 0, "sourceCount must be strictly positive")
     Some {
-      Observable.intervalAtFixedRate(100.millis)
+      val o = Observable.intervalAtFixedRate(100.millis)
         .take(sourceCount * 10)
         .bufferSizedAndTimed(20, 1.second)
         .map(_.sum)
+      
+      Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
     }
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = {
     require(sourceCount > 0, "sourceCount must be strictly positive")
     Some {
-      Observable.intervalAtFixedRate(100.millis)
+      val o = Observable.intervalAtFixedRate(100.millis)
         .map(x => if (x == sourceCount * 10 - 1) throw ex else x)
         .take(sourceCount * 10)
         .bufferSizedAndTimed(20, 1.second)
         .map(_.sum)
+
+      Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
     }
   }
 
@@ -80,10 +84,10 @@ object BufferSizedAndTimedNr1Suite extends BaseOperatorSuite {
       def onComplete(): Unit = wasCompleted = true
     })
 
-    s.tick(waitForFirst + waitForNext * (sourceCount - 1))
+    s.tick(waitFirst + waitNext * (sourceCount - 1))
     assertEquals(received, sourceCount / 2 + 1)
     assertEquals(total, sum(sourceCount))
-    s.tick(waitForNext)
+    s.tick(waitNext)
     assert(wasCompleted)
   }
 
@@ -112,10 +116,10 @@ object BufferSizedAndTimedNr1Suite extends BaseOperatorSuite {
       def onComplete(): Unit = ()
     })
 
-    s.tick(waitForFirst + waitForNext * (sourceCount - 1))
+    s.tick(waitFirst + waitNext * (sourceCount - 1))
     assertEquals(received, sourceCount / 2 + 1)
     assertEquals(total, sum(sourceCount))
-    s.tick(waitForNext)
+    s.tick(waitNext)
     assertEquals(errorThrown, DummyException("dummy"))
   }
 

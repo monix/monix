@@ -17,11 +17,10 @@
 package monifu.reactive.operators
 
 import monifu.concurrent.Scheduler
-import monifu.reactive.Ack.Continue
 import monifu.reactive.subjects.ReplaySubject
-import monifu.reactive.{Ack, Observer, Subject, Observable}
-import monifu.reactive.internals._
+import monifu.reactive.{Ack, Observable, Observer, Subject}
 import scala.concurrent.Future
+
 
 object repeat {
   /**
@@ -32,18 +31,15 @@ object repeat {
     // onComplete happens
     def loop(subject: Subject[T, T], observer: Observer[T])(implicit s: Scheduler): Unit =
       subject.unsafeSubscribe(new Observer[T] {
-        private[this] var lastResponse = Continue : Future[Ack]
-
         def onNext(elem: T) = {
-          lastResponse = observer.onNext(elem)
-          lastResponse
+          observer.onNext(elem)
         }
 
         def onError(ex: Throwable) =
           observer.onError(ex)
 
         def onComplete(): Unit =
-          lastResponse.onContinue(loop(subject, observer))
+          loop(subject, observer)
       })
 
     Observable.create { subscriber =>
@@ -57,9 +53,11 @@ object repeat {
         def onNext(elem: T): Future[Ack] = {
           subject.onNext(elem)
         }
+
         def onError(ex: Throwable): Unit = {
           subject.onError(ex)
         }
+
         def onComplete(): Unit = {
           subject.onComplete()
         }

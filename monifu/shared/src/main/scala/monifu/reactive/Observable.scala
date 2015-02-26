@@ -531,12 +531,8 @@ trait Observable[+T] { self =>
     operators.scan(self, initial)(op)
 
   /**
-   * Executes the given callback when the stream has ended
-   * (after the event was already emitted).
-   *
-   * NOTE: protect the callback such that it doesn't throw exceptions, because
-   * it gets executed after `onComplete()` happens and by definition the error cannot
-   * be streamed with `onError()`.
+   * Executes the given callback when the stream has ended,
+   * but before the complete event is emitted.
    *
    * @param cb the callback to execute when the subscription is canceled
    */
@@ -560,6 +556,24 @@ trait Observable[+T] { self =>
    */
   def doOnStart(cb: T => Unit): Observable[T] =
     operators.doWork.onStart(self)(cb)
+
+  /**
+   * Executes the given callback if the downstream observer
+   * has canceled the streaming.
+   */
+  def doOnCanceled(cb: => Unit): Observable[T] =
+    operators.doWork.onCanceled(self)(cb)
+
+  /**
+   * Executes the given callback when the stream is interrupted
+   * with an error, before the `onError` event is emitted downstream.
+   *
+   * NOTE: should protect the code in this callback, because if it
+   * throws an exception the `onError` event will prefer signaling the
+   * original exception and otherwise the behavior is undefined.
+   */
+  def doOnError(cb: Throwable => Unit): Observable[T] =
+    operators.doWork.onError(self)(cb)
 
   /**
    * Returns an Observable which only emits the first item for which the predicate holds.
@@ -591,17 +605,20 @@ trait Observable[+T] { self =>
     exists(e => !p(e)).map(r => !r)
 
   /**
-   * Returns an Observable that doesn't emit anything, but that completes when the source Observable completes.
+   * Returns an Observable that doesn't emit anything,
+   * but that completes when the source Observable completes.
    */
   def complete: Observable[Nothing] =
     operators.misc.complete(this)
 
   /**
-   * Returns an Observable that emits a single Throwable, in case an error was thrown by the source Observable,
+   * Returns an Observable that emits a single Throwable,
+   * in case an error was thrown by the source Observable,
    * otherwise it isn't going to emit anything.
    */
   def error: Observable[Throwable] =
     operators.misc.error(this)
+
   /**
    * Emits the given exception instead of `onComplete`.
    * @param error the exception to emit onComplete
@@ -826,11 +843,9 @@ trait Observable[+T] { self =>
 
   /**
    * While the destination observer is busy, drop the incoming events.
-   *
-   * @param cb a callback to be called in case events are dropped
    */
-  def whileBusyDrop(cb: T => Unit): Observable[T] =
-    operators.whileBusy.drop(self)(cb)
+  def whileBusyDropEvents: Observable[T] =
+    operators.whileBusy.dropEvents(self)
 
   /**
    * Converts this observable into a multicast observable, useful for turning a cold observable into

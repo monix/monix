@@ -17,26 +17,25 @@
 package monifu.reactive.operators
 
 import monifu.reactive.Observable
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration.Duration.Zero
 
 object DistinctSuite extends BaseOperatorSuite {
   def observable(sourceCount: Int) = Some {
-    Observable.range(0, sourceCount)
+    val o = Observable.range(0, sourceCount)
       .flatMap(i => Observable.from(i, i, i))
       .distinct
+
+    Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val source = Observable.range(0, sourceCount)
-      .flatMap(i => Observable.from(i, i, i))
-    createObservableEndingInError(source, ex).distinct
-  }
+    val source = Observable.range(0, sourceCount).flatMap(i => Observable.from(i, i, i))
+    val o = createObservableEndingInError(source, ex).distinct
 
+    Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
+  }
 
   def count(sourceCount: Int) = sourceCount
   def sum(sourceCount: Int) = sourceCount * (sourceCount - 1) / 2
-  def waitForNext = Duration.Zero
-  def waitForFirst = Duration.Zero
-
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 }

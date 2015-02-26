@@ -21,8 +21,8 @@ import monifu.reactive.{DummyException, Observer, Observable}
 import scala.concurrent.duration._
 
 object BufferTimedSuite extends BaseOperatorSuite {
-  val waitForNext = 1.second
-  val waitForFirst = 1.second
+  val waitFirst = 1.second
+  val waitNext = 1.second
 
   def sum(count: Int) = {
     val total = (count * 10 - 1).toLong
@@ -36,21 +36,25 @@ object BufferTimedSuite extends BaseOperatorSuite {
   def observable(sourceCount: Int) = {
     require(sourceCount > 0, "sourceCount must be strictly positive")
     Some {
-      Observable.intervalAtFixedRate(100.millis)
+      val o = Observable.intervalAtFixedRate(100.millis)
         .take(sourceCount * 10)
         .bufferTimed(1.second)
         .map(_.sum)
+
+      Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
     }
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = {
     require(sourceCount > 0, "sourceCount must be strictly positive")
     Some {
-      Observable.intervalAtFixedRate(100.millis)
+      val o = Observable.intervalAtFixedRate(100.millis)
         .map(x => if (x == sourceCount * 10 - 1) throw ex else x)
         .take(sourceCount * 10)
         .bufferTimed(1.second)
         .map(_.sum)
+
+      Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
     }
   }
 
@@ -80,10 +84,10 @@ object BufferTimedSuite extends BaseOperatorSuite {
       def onComplete(): Unit = wasCompleted = true
     })
 
-    s.tick(waitForFirst + waitForNext * (count - 1))
+    s.tick(waitNext + waitFirst * (count - 1))
     assertEquals(received, count / 2 + 1)
     assertEquals(total, sum(count))
-    s.tick(waitForNext)
+    s.tick(waitFirst)
     assert(wasCompleted)
   }
 
@@ -112,10 +116,10 @@ object BufferTimedSuite extends BaseOperatorSuite {
       def onComplete(): Unit = ()
     })
 
-    s.tick(waitForFirst + waitForNext * (count - 1))
+    s.tick(waitNext + waitFirst * (count - 1))
     assertEquals(received, count / 2 + 1)
     assertEquals(total, sum(count))
-    s.tick(waitForNext)
+    s.tick(waitFirst)
     assertEquals(errorThrown, DummyException("dummy"))
   }
 

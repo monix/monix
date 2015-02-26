@@ -17,36 +17,40 @@
 package monifu.reactive.operators
 
 import monifu.reactive.Observable
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration.Duration.Zero
 
 object DistinctFnUntilChangedSuite extends BaseOperatorSuite {
   case class Val(x: Long)
   def observable(sourceCount: Int) = Some {
-    Observable.range(0, sourceCount)
+    val o = Observable.range(0, sourceCount)
       .flatMap(i => Observable.from(Val(i), Val(i), Val(i)))
       .distinctUntilChanged(_.x)
       .map(_.x)
+
+    Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
     val source = Observable.range(0, sourceCount)
       .flatMap(i => Observable.from(i, i, i))
 
-    createObservableEndingInError(source, ex)
+    val o = createObservableEndingInError(source, ex)
       .map(Val.apply)
       .distinctUntilChanged(_.x)
       .map(_.x)
+
+    Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    Observable.range(0, sourceCount)
+    val o = Observable.range(0, sourceCount)
       .flatMap(i => Observable.from(Val(i), Val(i), Val(i)))
       .distinctUntilChanged(i => if (i.x == sourceCount-1) throw ex else i.x)
       .map(_.x)
+
+    Sample(o, count(sourceCount-1), sum(sourceCount-1), Zero, Zero)
   }
 
   def count(sourceCount: Int) = sourceCount
   def sum(sourceCount: Int) = sourceCount * (sourceCount - 1) / 2
-  def waitForNext = Duration.Zero
-  def waitForFirst = Duration.Zero
 }

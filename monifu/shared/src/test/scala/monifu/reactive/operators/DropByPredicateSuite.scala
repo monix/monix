@@ -17,17 +17,14 @@
 package monifu.reactive.operators
 
 import monifu.reactive.Observable
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration.Duration.Zero
 
 object DropByPredicateSuite extends BaseOperatorSuite {
-  val waitForFirst = Duration.Zero
-  val waitForNext = Duration.Zero
-
   def observable(sourceCount: Int) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      Observable.range(1, sourceCount * 2)
-        .dropWhile(_ < sourceCount)
+      val o = Observable.range(1, sourceCount * 2).dropWhile(_ < sourceCount)
+      Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }
   }
 
@@ -40,8 +37,10 @@ object DropByPredicateSuite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      createObservableEndingInError(Observable.range(1, sourceCount + 2), ex)
+      val o = createObservableEndingInError(Observable.range(1, sourceCount + 2), ex)
         .dropWhile(_ == 1)
+
+      Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }
   }
 

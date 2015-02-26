@@ -21,8 +21,8 @@ import scala.concurrent.duration._
 
 
 object DropByTimespanSuite extends BaseOperatorSuite {
-  val waitForFirst = 2500.millis
-  val waitForNext = 500.millis
+  val waitFirst = 2500.millis
+  val waitNext = 500.millis
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 
@@ -35,9 +35,11 @@ object DropByTimespanSuite extends BaseOperatorSuite {
   def observable(sourceCount: Int) = Some {
     require(sourceCount > 0, "sourceCount should be strictly positive")
 
-    Observable.intervalAtFixedRate(500.millis)
+    val o = Observable.intervalAtFixedRate(500.millis)
       .take(sourceCount + 5)
       .dropByTimespan(2300.millis)
+
+    Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = {
@@ -46,8 +48,10 @@ object DropByTimespanSuite extends BaseOperatorSuite {
       val source = Observable.intervalAtFixedRate(500.millis)
         .take(sourceCount + 5)
 
-      createObservableEndingInError(source, ex)
+      val o = createObservableEndingInError(source, ex)
         .dropByTimespan(2300.millis)
+
+      Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
     }
   }
 }

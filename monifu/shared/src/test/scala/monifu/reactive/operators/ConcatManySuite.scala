@@ -21,19 +21,23 @@ import scala.concurrent.duration.Duration
 
 object ConcatManySuite extends BaseOperatorSuite {
   def observable(sourceCount: Int) = Some {
-    Observable.range(0, sourceCount)
+    val o = Observable.range(0, sourceCount)
       .flatMap(i => Observable.fromIterable(Seq(i,i,i)))
+
+    Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
   }
 
   def count(sourceCount: Int) = 
     sourceCount * 3
 
-  def waitForFirst = Duration.Zero
-  def waitForNext = Duration.Zero
+  def waitFirst = Duration.Zero
+  def waitNext = Duration.Zero
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    createObservableEndingInError(Observable.range(0, sourceCount), ex)
+    val o = createObservableEndingInError(Observable.range(0, sourceCount), ex)
       .flatMap(i => Observable.fromIterable(Seq(i, i, i)))
+
+    Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
   }
 
   def sum(sourceCount: Int) = {
@@ -41,11 +45,13 @@ object ConcatManySuite extends BaseOperatorSuite {
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    Observable.range(0, sourceCount).flatMap { i =>
+    val o = Observable.range(0, sourceCount).flatMap { i =>
       if (i == sourceCount-1)
         throw ex
       else
         Observable.fromIterable(Seq(i,i,i))
     }
+
+    Sample(o, count(sourceCount-1), sum(sourceCount-1), waitFirst, waitNext)
   }
 }

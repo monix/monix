@@ -24,10 +24,15 @@ import concurrent.duration._
 import scala.concurrent.Future
 
 object SampleOnceSuite extends BaseOperatorSuite {
+  def waitFirst = 500.millis
+  def waitNext = 1.second
+
   def observable(sourceCount: Int) = Some {
-    Observable.intervalAtFixedRate(1.second)
+    val o = Observable.intervalAtFixedRate(1.second)
       .take(sourceCount)
       .sample(500.millis)
+
+    Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
   }
 
   def sum(sourceCount: Int) = {
@@ -38,19 +43,18 @@ object SampleOnceSuite extends BaseOperatorSuite {
     sourceCount
   }
 
-  def waitForNext = 1.second
-
-  def observableInError(sourceCount: Int, ex: Throwable) =
-    observable(sourceCount).map(obs => createObservableEndingInError(obs, ex))
-
-  def waitForFirst = 500.millis
+  def observableInError(sourceCount: Int, ex: Throwable) = Some {
+    val source = Observable.intervalAtFixedRate(1.second).take(sourceCount)
+    val o = createObservableEndingInError(source, ex).sample(500.millis)
+    Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
+  }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
     val source = Observable.intervalAtFixedRate(1.second)
       .take(sourceCount - 1)
 
-    createObservableEndingInError(source, ex)
-      .sample(500.millis)
+    val o = createObservableEndingInError(source, ex).sample(500.millis)
+    Sample(o, count(sourceCount-1), sum(sourceCount-1), waitFirst, waitNext)
   }
 
   test("specified period should be respected if consumer is responsive") { implicit s =>

@@ -20,8 +20,8 @@ import monifu.reactive.{DummyException, Observable}
 import scala.concurrent.duration.Duration
 
 object CollectSuite extends BaseOperatorSuite {
-  val waitForFirst = Duration.Zero
-  val waitForNext = Duration.Zero
+  val waitFirst = Duration.Zero
+  val waitNext = Duration.Zero
 
   def count(sourceCount: Int) = {
     sourceCount
@@ -33,12 +33,14 @@ object CollectSuite extends BaseOperatorSuite {
   def observable(sourceCount: Int) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      if (sourceCount == 1)
+      val o = if (sourceCount == 1)
         Observable.unit(2L)
           .collect { case x if x % 2 == 0 => x }
       else
         Observable.range(1, sourceCount * 2 + 1, 1)
           .collect { case x if x % 2 == 0 => x }
+
+      Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
     }
   }
 
@@ -46,19 +48,21 @@ object CollectSuite extends BaseOperatorSuite {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val ex = DummyException("dummy")
-      if (sourceCount == 1)
+      val o = if (sourceCount == 1)
         createObservableEndingInError(Observable.unit(2L), ex)
           .collect { case x if x % 2 == 0 => x }
       else
         createObservableEndingInError(Observable.range(1, sourceCount * 2 + 1, 1), ex)
           .collect { case x if x % 2 == 0 => x }
+
+      Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
     }
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      if (sourceCount == 1)
+      val o = if (sourceCount == 1)
         Observable.unit(1L).collect { case x => throw ex }
       else
         Observable.range(1, sourceCount * 2 + 1, 1).collect {
@@ -68,6 +72,8 @@ object CollectSuite extends BaseOperatorSuite {
             else
               x
         }
+
+      Sample(o, count(sourceCount-1), sum(sourceCount-1), waitFirst, waitNext)
     }
   }
 }

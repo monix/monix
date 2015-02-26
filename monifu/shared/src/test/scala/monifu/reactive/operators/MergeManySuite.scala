@@ -17,24 +17,22 @@
 package monifu.reactive.operators
 
 import monifu.reactive.Observable
-
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration.Duration.Zero
 
 object MergeManySuite extends BaseOperatorSuite {
   def observable(sourceCount: Int) = Some {
-    Observable.range(0, sourceCount)
+    val o = Observable.range(0, sourceCount)
       .mergeMap(i => Observable.fromIterable(Seq(i,i,i,i)))
+    Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 
   def count(sourceCount: Int) =
     4 * sourceCount
 
-  def waitForFirst = Duration.Zero
-  def waitForNext = Duration.Zero
-
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    createObservableEndingInError(Observable.range(0, sourceCount), ex)
+    val o = createObservableEndingInError(Observable.range(0, sourceCount), ex)
       .flatMap(i => Observable.fromIterable(Seq(i, i, i, i)))
+    Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 
   def sum(sourceCount: Int) = {
@@ -42,12 +40,14 @@ object MergeManySuite extends BaseOperatorSuite {
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    Observable.range(0, sourceCount).flatMap { i =>
+    val o = Observable.range(0, sourceCount).flatMap { i =>
       if (i == sourceCount-1)
         throw ex
       else
         Observable.fromIterable(Seq(i,i,i,i))
     }
+
+    Sample(o, count(sourceCount-1), sum(sourceCount-1), Zero, Zero)
   }
 }
 

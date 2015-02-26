@@ -64,10 +64,12 @@ final class ReplaySubject[T] extends Subject[T,T] { self =>
         case current @ Complete(cache, errorThrown) =>
           val connectable = ConnectableSubscriber(subscriber)
           connectable.pushNext(cache : _*)
+
           if (errorThrown ne null)
             connectable.pushError(errorThrown)
           else
             connectable.pushComplete()
+
           connectable
       }
     }
@@ -80,12 +82,17 @@ final class ReplaySubject[T] extends Subject[T,T] { self =>
     val obs = subscriber.observer
 
     obs.onNext(elem) match {
-      case Continue => Continue
-      case Cancel =>
-        removeSubscription(subscriber)
-        Continue
-      case other =>
-        other.map {
+      case sync if sync.isCompleted =>
+        sync.value.get match {
+          case Continue.IsSuccess =>
+            Continue
+
+          case _ =>
+            removeSubscription(subscriber)
+            Continue
+        }
+      case async =>
+        async.map {
           case Continue => Continue
           case Cancel =>
             removeSubscription(subscriber)
@@ -152,7 +159,7 @@ final class ReplaySubject[T] extends Subject[T,T] { self =>
           }
         }
       case _ =>
-      // already complete, ignore
+        () // already complete, ignore
     }
 
   @tailrec
@@ -174,16 +181,21 @@ final class ReplaySubject[T] extends Subject[T,T] { self =>
           }
         }
       case _ =>
-      // already complete, ignore
+        () // already complete, ignore
     }
 
-  private[this] def removeSubscription(subscriber: Subscriber[T]): Unit =
-    state.transform {
-      case current @ Active(observers,_) =>
-        current.copy(observers.filterNot(_ eq subscriber))
-      case other =>
-        other
+  @tailrec
+  private[this] def removeSubscription(subscriber: Subscriber[T]): Unit = {
+    state.get match {
+      case current @ Active(observers, _) =>
+        val update = current.copy(observers.filterNot(_ eq subscriber))
+        if (!state.compareAndSet(current, update))
+          removeSubscription(subscriber)
+
+      case _ =>
+        () // not active, do nothing
     }
+  }
 }
 
 object ReplaySubject {
