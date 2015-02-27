@@ -531,6 +531,14 @@ trait Observable[+T] { self =>
     operators.scan(self, initial)(op)
 
   /**
+   * When stream is interrupted with an error, resumes it with given Observable.
+   *
+   * @param resumeSequence the Observable that will emit elements if the current has an error
+   */
+  def onErrorResumeNext[U >: T](resumeSequence: Observable[U]): Observable[U] =
+    operators.onError.onErrorResumeNext(self, resumeSequence)
+
+  /**
    * Executes the given callback when the stream has ended,
    * but before the complete event is emitted.
    *
