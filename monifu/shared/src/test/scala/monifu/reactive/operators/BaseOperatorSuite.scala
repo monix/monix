@@ -29,7 +29,7 @@ import scala.util.Random
 trait BaseOperatorSuite extends TestSuite[TestScheduler] {
   case class Sample(
     observable: Observable[Long],
-    count: Int, sample: Long,
+    count: Int, sum: Long,
     waitFirst: FiniteDuration,
     waitNext: FiniteDuration
   )
@@ -258,7 +258,7 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
     }
   }
 
-  test("should back-pressure onError") { implicit s =>
+  test("onError should work") { implicit s =>
     val sourceCount = Random.nextInt(300) + 100
 
     observableInError(sourceCount, DummyException("dummy")) match {
@@ -286,7 +286,26 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
         s.tick(1.hour)
         assertEquals(thrownError, DummyException("dummy"))
 
-      case _ =>
+      case Some(Sample(obs, _, _, waitForFirst, _)) =>
+        // observable emits error right away, as count is zero
+        var thrownError: Throwable = null
+        var received = 0
+
+        obs.unsafeSubscribe(new Observer[Long] {
+          def onNext(elem: Long) = {
+            received += 1
+            Continue
+          }
+
+          def onError(ex: Throwable): Unit = thrownError = ex
+          def onComplete(): Unit = throw new IllegalStateException()
+        })
+
+        s.tick(waitForFirst)
+        assertEquals(received, 0)
+        assertEquals(thrownError, DummyException("dummy"))
+
+      case None =>
         ignore()
     }
   }
