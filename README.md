@@ -2,7 +2,7 @@
 
 Extensions to Scala's standard library for multi-threading primitives and functional reactive programming. Targets both the JVM and [Scala.js](http://www.scala-js.org/) (for targetting Javascript see its [Monifu.js](https://github.com/monifu/monifu.js)).
 
-[![Build Status](https://travis-ci.org/monifu/monifu.png?branch=v0.14.0)](https://travis-ci.org/monifu/monifu)
+[![Build Status](https://travis-ci.org/monifu/monifu.png?branch=v1.0-M1)](https://travis-ci.org/monifu/monifu)
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/monifu/monifu?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 ## Teaser
@@ -24,52 +24,21 @@ Observable.interval(1.second)
   .flatMap(x => WS.request(s"http://some.endpoint.com/request?tick=$x").get())
   // filters only valid responses
   .filter(response => response.status == 200)
+  // samples by 3 seconds, repeating previous results in case of nothing new
+  .sampleRepeated(3.seconds)
   // processes response, selecting the body
   .map(response => response.body)
   // creates subscription, foreach response print it
   .foreach(x => println(x))
 ```
 
-[Atomic References](https://github.com/monifu/monifu/wiki/Atomic-References)
-
-```scala
-import monifu.concurrent.atomic.Atomic
-
-val queue = Atomic(Queue.empty[String])
-
-queue.transform(queue.enqueue("first item"))
-queue.transform(queue.enqueue("second item"))
-
-queue.transformAndExtract(queue.dequeue)
-//=> "first item"
-
-queue.transformAndExtract(queue.dequeue)
-//=> "second item"
-
-val number = Atomic(BigInt(1))
-
-number.incrementAndGet
-//=> res: scala.math.BigInt = 2
-```
-
-[Schedulers](https://github.com/monifu/monifu/wiki/Schedulers)
-
-```scala
-import monifu.concurrent.atomic.Atomic
-import monifu.concurrent.Implicits.{globalScheduler => s}
-
-val loop = Atomic(0) // we don't actually need an atomic or volatile here
-
-s.scheduleRecursive(1.second, 5.seconds, { reschedule =>
-  if (loop.incrementAndGet < 10) {
-    println(s"Counted: $counted")
-    // do next one
-    reschedule()
-  }
-})
-```
+There's actually a lot more to Monifu.
 
 ## Documentation
+
+**NOTE (Feb 27):** the documentation is a little obsolete and incomplete in places.
+Currently the project is marching towards a stable 1.0 and properly documented
+version. Be patient :-)
 
 The available documentation is maintained as a [GitHub's Wiki](https://github.com/monifu/monifu/wiki).
 Work in progress.
@@ -94,18 +63,18 @@ Release Notes:
 The packages are published on Maven Central. Compiled for Scala 2.11.5
 and Scala.js 0.6.0. Older versions are no longer supported.
 
-- Current stable release is: `0.15.0`
+- Current stable release is: `1.0-M1`
 
 ### For the JVM
 
 ```scala
-libraryDependencies += "org.monifu" %% "monifu" % "0.15.0"
+libraryDependencies += "org.monifu" %% "monifu" % "1.0-M1"
 ```
 
 ### For targeting Javascript runtimes with Scala.js
 
 ```scala
-libraryDependencies += "org.monifu" %%% "monifu" % "0.15.0"
+libraryDependencies += "org.monifu" %%% "monifu" % "1.0-M1"
 ```
 
 ## License
