@@ -14,11 +14,13 @@
  * limitations under the License.
  */
 
+import com.typesafe.sbt.pgp.PgpKeys
 import org.scalajs.sbtplugin.ScalaJSPlugin
 import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport._
 import sbt.Keys._
 import sbt.{Build => SbtBuild, _}
 import sbtrelease.ReleasePlugin._
+import sbtrelease.ReleasePlugin.ReleaseKeys._
 import sbtunidoc.Plugin.UnidocKeys._
 import sbtunidoc.Plugin._
 
@@ -50,6 +52,7 @@ object Build extends SbtBuild {
     // -- Settings meant for deployment on oss.sonatype.org
 
     publishMavenStyle := true,
+    publishArtifactsAction := PgpKeys.publishSigned.value,
 
     publishTo := {
       val nexus = "https://oss.sonatype.org/"
