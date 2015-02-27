@@ -17,9 +17,8 @@
 package monifu.concurrent
 
 import java.util.concurrent.TimeoutException
-
-import scala.concurrent.{ExecutionContext, Promise, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.Try
 
 object FutureUtils {
@@ -37,10 +36,9 @@ object FutureUtils {
    *         source or fail in case the timeout is reached.
    */
   def withTimeout[T](source: Future[T], atMost: FiniteDuration)(implicit s: Scheduler): Future[T] = {
-    // catching the exception here, for non-useless stack traces
-    val err = Try(throw new TimeoutException)
+    val err = new TimeoutException
     val promise = Promise[T]()
-    val task = s.scheduleOnce(atMost)(promise.tryComplete(err))
+    val task = s.scheduleOnce(atMost)(promise.tryFailure(err))
 
     source.onComplete { case r =>
       // canceling task to prevent waisted CPU resources and memory leaks
