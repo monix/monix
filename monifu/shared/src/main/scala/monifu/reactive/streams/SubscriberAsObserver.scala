@@ -19,7 +19,6 @@ package monifu.reactive.streams
 import monifu.concurrent.Scheduler
 import monifu.concurrent.atomic.padded.Atomic
 import monifu.reactive.Ack.{Cancel, Continue}
-import monifu.reactive.internals._
 import monifu.reactive.{Ack, Observer}
 import org.reactivestreams.{Subscriber => RSubscriber, Subscription}
 
@@ -42,7 +41,6 @@ final class SubscriberAsObserver[T] private
   private[this] val requests = new RequestsQueue
   private[this] var leftToPush = 0L
   private[this] var firstEvent = true
-  private[this] var lastAck: Future[Ack] = Continue
 
   @tailrec
   def onNext(elem: T): Future[Ack] = {
@@ -51,34 +49,28 @@ final class SubscriberAsObserver[T] private
       subscriber.onSubscribe(createSubscription())
       onNext(elem) // retry
     }
+    else if (leftToPush > 0) {
+      leftToPush -= 1
+      subscriber.onNext(elem)
+      Continue
+    }
     else {
-      val hasLeft = leftToPush > 0
-      leftToPush = if (hasLeft) leftToPush - 1 else 0
-
-      lastAck =
-        if (hasLeft) {
+      requests.await().flatMap { requested =>
+        if (requested <= 0) Cancel else {
+          leftToPush += (requested - 1)
           subscriber.onNext(elem)
           Continue
         }
-        else
-          requests.await().flatMap { requested =>
-            if (requested <= 0) Cancel else {
-              leftToPush = leftToPush + (requested - 1)
-              subscriber.onNext(elem)
-              Continue
-            }
-          }
-
-      lastAck
+      }
     }
   }
 
   def onError(ex: Throwable): Unit = {
-    lastAck.onContinue(subscriber.onError(ex))
+    subscriber.onError(ex)
   }
 
   def onComplete(): Unit = {
-    lastAck.onContinue(subscriber.onComplete())
+    subscriber.onComplete()
   }
 
   private def createSubscription() = new Subscription {
