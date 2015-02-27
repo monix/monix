@@ -54,9 +54,8 @@ API documentation:
 
 Release Notes:
 
-* [Version 0.13 - Jun 19, 2014](https://github.com/monifu/monifu/wiki/0.13)
-* [Version 0.12 - May 31, 2014](https://github.com/monifu/monifu/wiki/0.12)
-* [Other Releases](https://github.com/monifu/monifu/wiki/Release-Notes)
+* [Version 1.0-M1 - Feb 27, 2015](https://github.com/monifu/monifu/wiki/1.0-M1)
+* [Other Versions](https://github.com/monifu/monifu/wiki/Release-Notes)
 
 ## Usage
 
