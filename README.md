@@ -1,13 +1,11 @@
 <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/monifu.png" align="right" />
 
-Extensions to Scala's standard library for multi-threading primitives and functional reactive programming. Targets both the JVM and [Scala.js](http://www.scala-js.org/) (for targetting Javascript see its [Monifu.js](https://github.com/monifu/monifu.js)).
+Idiomatic Reactive Extensions for Scala. Targets both the JVM and [Scala.js](http://www.scala-js.org/).
 
 [![Build Status](https://travis-ci.org/monifu/monifu.png?branch=v1.0-M1)](https://travis-ci.org/monifu/monifu)
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/monifu/monifu?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 ## Teaser
-
-[Reactive Extensions](https://github.com/monifu/monifu/wiki/Reactive-Extensions-(Rx))
 
 ```scala
 import monifu.concurrent.Implicits.globalScheduler
