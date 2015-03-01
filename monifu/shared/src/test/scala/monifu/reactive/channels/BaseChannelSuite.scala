@@ -215,7 +215,7 @@ trait BaseChannelSuite extends TestSuite[TestScheduler] {
   }
 
   test("should remove subscribers that triggered errors") { implicit s =>
-    val elems = (0 until Random.nextInt(300) + 10).map(_.toLong).toSeq
+    val elems = (0 until Random.nextInt(300) + 100).map(_.toLong).toSeq
     var wereCompleted = 0
     var totalOnNext = 0L
 

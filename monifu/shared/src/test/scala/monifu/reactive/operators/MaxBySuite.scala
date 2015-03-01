@@ -49,20 +49,10 @@ object MaxBySuite extends BaseOperatorSuite {
   def sum(sourceCount: Int) = sourceCount
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.create[Long] { subscriber =>
-      implicit val s = subscriber.scheduler
-      val o = subscriber.observer
-      val source = Observable.range(0, sourceCount+1).maxBy(x => throw ex)
+    val o = Observable.range(0, sourceCount)
+      .maxBy(x => if (x == sourceCount-1) throw ex else x)
 
-      o.onNext(sum(sourceCount)).onComplete {
-        case Success(Continue) =>
-          source.subscribe(o)
-        case _ =>
-          ()
-      }
-    }
-
-    Sample(o, count(sourceCount-1), sum(sourceCount-1), Zero, Zero)
+    Sample(o, 0, 0, Zero, Zero)
   }
 
   test("empty observable should be empty") { implicit s =>
