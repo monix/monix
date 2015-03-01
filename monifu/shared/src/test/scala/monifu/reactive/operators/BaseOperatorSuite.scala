@@ -239,10 +239,12 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
       case Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
         var thrownError: Throwable = null
         var received = 0
+        var receivedSum = 0L
 
         obs.unsafeSubscribe(new Observer[Long] {
           def onNext(elem: Long) = {
             received += 1
+            receivedSum += elem
             Continue
           }
 
@@ -254,6 +256,7 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
 
         s.tick(waitForFirst + waitForNext * (count - 1))
         assertEquals(received, count)
+        assertEquals(receivedSum, sum)
         assertEquals(thrownError, DummyException("dummy"))
     }
   }
