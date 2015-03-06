@@ -17,7 +17,6 @@
 package monifu.reactive.observers
 
 import minitest.TestSuite
-import monifu.concurrent.Implicits._
 import monifu.concurrent.schedulers.TestScheduler
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.BufferPolicy.BackPressured
@@ -79,7 +78,7 @@ object BufferBackPressuredSuite extends TestSuite[TestScheduler] {
       }
 
       def onError(ex: Throwable): Unit = {
-        globalScheduler.reportFailure(ex)
+        s.reportFailure(ex)
       }
 
       def onComplete(): Unit = {

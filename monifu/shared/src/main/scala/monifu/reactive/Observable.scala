@@ -17,7 +17,6 @@
 package monifu.reactive
 
 import java.io.PrintStream
-
 import monifu.concurrent.cancelables.BooleanCancelable
 import monifu.concurrent.{Cancelable, Scheduler}
 import monifu.reactive.Ack.{Cancel, Continue}
@@ -531,6 +530,17 @@ trait Observable[+T] { self =>
     operators.scan(self, initial)(op)
 
   /**
+   * Applies a binary operator to a start value and to elements produced
+   * by the source observable, going from left to right, producing
+   * and concatenating observables along the way.
+   *
+   * It's the combination between [[monifu.reactive.Observable.scan scan]]
+   * and [[monifu.reactive.Observable.flatten]].
+   */
+  def flatScan[R](initial: R)(op: (R, T) => Observable[R]): Observable[R] =
+    operators.flatScan(self, initial)(op)
+
+  /**
    * Executes the given callback when the stream has ended,
    * but before the complete event is emitted.
    *
@@ -794,7 +804,8 @@ trait Observable[+T] { self =>
     operators.distinct.untilChangedBy(this)(fn)
 
   /**
-   * Returns a new Observable that uses the specified `ExecutionContext` for initiating the subscription.
+   * Returns a new Observable that uses the specified
+   * `Scheduler` for initiating the subscription.
    */
   def subscribeOn(s: Scheduler): Observable[T] = {
     Observable.create(o => s.execute(unsafeSubscribe(o)))
@@ -860,6 +871,13 @@ trait Observable[+T] { self =>
    */
   def whileBusyDropEvents: Observable[T] =
     operators.whileBusy.dropEvents(self)
+
+  /**
+   * While the destination observer is busy, buffers events then send
+   * whatever was buffered in one big batch.
+   */
+  def whileBusyBufferEvents(bufferSize: Int): Observable[Seq[T]] =
+    operators.whileBusy.bufferEvents(self, bufferSize)
 
   /**
    * Converts this observable into a multicast observable, useful for turning a cold observable into
