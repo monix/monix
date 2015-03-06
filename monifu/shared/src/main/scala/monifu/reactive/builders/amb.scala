@@ -20,7 +20,6 @@ import monifu.concurrent.Scheduler
 import monifu.concurrent.atomic.{Atomic, AtomicInt}
 import monifu.reactive.Ack.Cancel
 import monifu.reactive.{Ack, Observable, Observer}
-
 import scala.concurrent.Future
 
 object amb {

@@ -108,25 +108,30 @@ package object internals {
      * On Continue, triggers the execution of the given runnable.
      */
     def onContinue(r: Runnable)(implicit s: Scheduler): Unit = {
-      def onComplete(result: Try[Ack]): Unit = result match {
-        case Continue.IsSuccess =>
-          try r.run() catch {
-            case NonFatal(ex) =>
-              s.reportFailure(ex)
-          }
-        case _ =>
-          () // do nothing
-      }
-
       source match {
         case sync if sync.isCompleted =>
-          onComplete(sync.value.get)
+          sync.value.get match {
+            case Continue.IsSuccess =>
+              try r.run() catch {
+                case NonFatal(ex) =>
+                  s.reportFailure(ex)
+              }
+            case _ =>
+              () // do nothing
+          }
 
         case async =>
-          async.onComplete(onComplete)
+          async.onComplete {
+            case Continue.IsSuccess =>
+              try r.run() catch {
+                case NonFatal(ex) =>
+                  s.reportFailure(ex)
+              }
+            case _ =>
+              () // do nothing
+          }
       }
     }
-
 
     /**
      * Helper that triggers [[Cancelable.cancel]] on the given reference,

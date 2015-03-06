@@ -16,12 +16,11 @@
 
 package monifu.reactive.operators
 
-import monifu.reactive.{Observable, Ack}
 import monifu.reactive.Ack.{Cancel, Continue}
-import monifu.reactive.observers.SynchronousObserver
+import monifu.reactive.observers.{SynchronousObserver, WhileBusyBufferSubscriber}
+import monifu.reactive.{Ack, Observable, Observer}
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
-
 
 object whileBusy {
   /**
@@ -78,6 +77,30 @@ object whileBusy {
             isDone = true
             observer.onComplete()
           }
+      })
+    }
+
+  /**
+   * Implementation for [[Observable.whileBusyBufferEvents]].
+   */
+  def bufferEvents[T](source: Observable[T], bufferSize: Int): Observable[Seq[T]] =
+    Observable.create { subscriber =>
+      implicit val s = subscriber.scheduler
+      val buffer = WhileBusyBufferSubscriber(subscriber.observer, bufferSize)
+      val downstream = buffer.observer
+
+      source.unsafeSubscribe(new Observer[T] {
+        def onNext(elem: T) = {
+          downstream.onNext(elem)
+        }
+
+        def onError(ex: Throwable) = {
+          downstream.onError(ex)
+        }
+
+        def onComplete() = {
+          downstream.onComplete()
+        }
       })
     }
 }

@@ -17,12 +17,10 @@
 package monifu.reactive.observers
 
 import minitest.TestSuite
-import monifu.concurrent.Implicits._
 import monifu.concurrent.schedulers.TestScheduler
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.BufferPolicy.Unbounded
 import monifu.reactive.{Ack, DummyException, Observer}
-
 import scala.concurrent.{Future, Promise}
 
 object BufferUnboundedSuite extends TestSuite[TestScheduler] {
@@ -43,7 +41,7 @@ object BufferUnboundedSuite extends TestSuite[TestScheduler] {
       }
 
       def onError(ex: Throwable): Unit = {
-        globalScheduler.reportFailure(ex)
+        s.reportFailure(ex)
       }
 
       def onComplete(): Unit = {
