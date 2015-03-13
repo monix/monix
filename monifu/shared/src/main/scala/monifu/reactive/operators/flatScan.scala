@@ -18,8 +18,9 @@ package monifu.reactive.operators
 
 import monifu.concurrent.cancelables.RefCountCancelable
 import monifu.reactive.Ack.{Cancel, Continue}
-import monifu.reactive.{Ack, Observer, Observable}
+import monifu.reactive.{CompositeException, Ack, Observer, Observable}
 import monifu.reactive.internals._
+import scala.collection.mutable
 import scala.concurrent.{Future, Promise}
 import scala.util.control.NonFatal
 
@@ -85,6 +86,80 @@ object flatScan {
         def onError(ex: Throwable) = {
           // oops, error happened on main thread, piping that along should cancel everything
           o.onError(ex)
+        }
+
+        def onComplete() = {
+          refCount.cancel()
+        }
+      })
+    }
+
+  /**
+   * Implementation for [[Observable.flatScanDelayError]].
+   */
+  def delayError[T,R](source: Observable[T], initial: R)(op: (R, T) => Observable[R]) =
+    Observable.create[R] { subscriber =>
+      implicit val s = subscriber.scheduler
+      val o = subscriber.observer
+
+      source.unsafeSubscribe(new Observer[T] {
+        private[this] var state = initial
+        private[this] val errors = mutable.ArrayBuffer.empty[Throwable]
+        private[this] val refCount = RefCountCancelable {
+          if (errors.nonEmpty)
+            o.onError(CompositeException(errors))
+          else
+            o.onComplete()
+        }
+
+        def onNext(elem: T) = {
+          // for protecting user calls
+          var streamError = true
+          try {
+            val upstreamPromise = Promise[Ack]()
+            val newState = op(state, elem)
+            streamError = false
+
+            val refID = refCount.acquire()
+
+            newState.unsafeSubscribe(new Observer[R] {
+              def onNext(elem: R): Future[Ack] = {
+                state = elem
+                o.onNext(elem)
+                  .ifCancelTryCanceling(upstreamPromise)
+              }
+
+              def onError(ex: Throwable): Unit = {
+                errors += ex
+                // next element please
+                upstreamPromise.trySuccess(Continue)
+                refID.cancel()
+              }
+
+              def onComplete(): Unit = {
+                // next element please
+                upstreamPromise.trySuccess(Continue)
+                refID.cancel()
+              }
+            })
+
+            upstreamPromise.future
+          }
+          catch {
+            case NonFatal(ex) =>
+              if (streamError) {
+                onError(ex)
+                Cancel
+              }
+              else {
+                Future.failed(ex)
+              }
+          }
+        }
+
+        def onError(ex: Throwable) = {
+          errors += ex
+          refCount.cancel()
         }
 
         def onComplete() = {

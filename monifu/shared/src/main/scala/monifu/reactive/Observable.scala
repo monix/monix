@@ -72,7 +72,7 @@ trait Observable[+T] { self =>
    * Creates the subscription and starts the stream.
    */
   def subscribe(nextFn: T => Future[Ack], errorFn: Throwable => Unit)(implicit s: Scheduler): BooleanCancelable =
-    subscribe(nextFn, errorFn, () => Cancel)
+    subscribe(nextFn, errorFn, () => ())
 
   /**
    * Creates the subscription and starts the stream.
@@ -84,7 +84,7 @@ trait Observable[+T] { self =>
    * Creates the subscription and starts the stream.
    */
   def subscribe(nextFn: T => Future[Ack])(implicit s: Scheduler): BooleanCancelable =
-    subscribe(nextFn, error => s.reportFailure(error), () => Cancel)
+    subscribe(nextFn, error => s.reportFailure(error), () => ())
 
   /**
    * Creates the subscription that eventually starts the stream.
@@ -177,6 +177,21 @@ trait Observable[+T] { self =>
    * the source Observable, where that function returns an Observable, and then concatenating those
    * resulting Observables and emitting the results of this concatenation.
    *
+   * It's an alias for [[Observable.concatMapDelayError]].
+   *
+   * @param f a function that, when applied to an item emitted by the source Observable, returns an Observable
+   * @return an Observable that emits the result of applying the transformation function to each
+   *         item emitted by the source Observable and concatenating the results of the Observables
+   *         obtained from this transformation.
+   */
+  def flatMapDelayError[U](f: T => Observable[U]): Observable[U] =
+    map(f).concatDelayError
+
+  /**
+   * Creates a new Observable by applying a function that you supply to each item emitted by
+   * the source Observable, where that function returns an Observable, and then concatenating those
+   * resulting Observables and emitting the results of this concatenation.
+   *
    * @param f a function that, when applied to an item emitted by the source Observable, returns an Observable
    * @return an Observable that emits the result of applying the transformation function to each
    *         item emitted by the source Observable and concatenating the results of the Observables
@@ -184,6 +199,23 @@ trait Observable[+T] { self =>
    */
   def concatMap[U](f: T => Observable[U]): Observable[U] =
     map(f).concat
+
+  /**
+   * Creates a new Observable by applying a function that you supply to each item emitted by
+   * the source Observable, where that function returns an Observable, and then concatenating those
+   * resulting Observables and emitting the results of this concatenation.
+   *
+   * It's like [[Observable.concatMap]], except that the created observable is reserving onError
+   * notifications until all of the merged Observables complete and only then passing it along
+   * to the observers.
+   *
+   * @param f a function that, when applied to an item emitted by the source Observable, returns an Observable
+   * @return an Observable that emits the result of applying the transformation function to each
+   *         item emitted by the source Observable and concatenating the results of the Observables
+   *         obtained from this transformation.
+   */
+  def concatMapDelayError[U](f: T => Observable[U]): Observable[U] =
+    map(f).concatDelayError
 
   /**
    * Creates a new Observable by applying a function that you supply to each item emitted by
@@ -199,20 +231,45 @@ trait Observable[+T] { self =>
     map(f).merge()
 
   /**
+   * Creates a new Observable by applying a function that you supply to each item emitted by
+   * the source Observable, where that function returns an Observable, and then merging those
+   * resulting Observables and emitting the results of this merger.
+   *
+   * It's like [[Observable.mergeMap]], except that the created observable is reserving onError
+   * notifications until all of the merged Observables complete and only then passing it along
+   * to the observers.
+   *
+   * @param f a function that, when applied to an item emitted by the source Observable, returns an Observable
+   * @return an Observable that emits the result of applying the transformation function to each
+   *         item emitted by the source Observable and merging the results of the Observables
+   *         obtained from this transformation.
+   */
+  def mergeMapDelayError[U](f: T => Observable[U]): Observable[U] =
+    map(f).mergeDelayError()
+
+  /**
    * Flattens the sequence of Observables emitted by the source into one Observable, without any
    * transformation.
    *
-   * You can combine the items emitted by multiple Observables so that they act like a single
-   * Observable by using this method.
-   *
-   * This operation is only available if `this` is of type `Observable[Observable[B]]` for some `B`,
-   * otherwise you'll get a compilation error.
+   * It's an alias for [[Observable.concat]].
    *
    * @return an Observable that emits items that are the result of flattening the items emitted
    *         by the Observables emitted by `this`
    */
   def flatten[U](implicit ev: T <:< Observable[U]): Observable[U] =
     concat
+
+  /**
+   * Flattens the sequence of Observables emitted by the source into one Observable, without any
+   * transformation. Delays errors until the end.
+   *
+   * It's an alias for [[Observable.concatDelayError]].
+   *
+   * @return an Observable that emits items that are the result of flattening the items emitted
+   *         by the Observables emitted by `this`
+   */
+  def flattenDelayError[U](implicit ev: T <:< Observable[U]): Observable[U] =
+    concatDelayError
 
   /**
    * Concatenates the sequence of Observables emitted by the source into one Observable, without any
@@ -231,7 +288,21 @@ trait Observable[+T] { self =>
    *         by the Observables emitted by `this`
    */
   def concat[U](implicit ev: T <:< Observable[U]): Observable[U] =
-    operators.flatten.concat(self)
+    operators.flatten.concat(self, delayErrors = false)
+
+  /**
+   * Concatenates the sequence of Observables emitted by the source into one Observable, without any
+   * transformation.
+   *
+   * It's like [[Observable.concat]], except that the created observable is reserving onError
+   * notifications until all of the merged Observables complete and only then passing it along
+   * to the observers.
+   *
+   * @return an Observable that emits items that are the result of flattening the items emitted
+   *         by the Observables emitted by `this`
+   */
+  def concatDelayError[U](implicit ev: T <:< Observable[U]): Observable[U] =
+    operators.flatten.concat(self, delayErrors = true)
 
   /**
    * Merges the sequence of Observables emitted by the source into one Observable, without any
@@ -255,7 +326,27 @@ trait Observable[+T] { self =>
    */
   def merge[U](bufferPolicy: BufferPolicy = defaultPolicy)
       (implicit ev: T <:< Observable[U]): Observable[U] =
-    operators.flatten.merge(self, bufferPolicy)
+    operators.flatten.merge(self, bufferPolicy, delayErrors = false)
+
+  /**
+   * Merges the sequence of Observables emitted by the source into one Observable, without any
+   * transformation. You can combine the items emitted by multiple Observables so that they act
+   * like a single Observable by using this method.
+   *
+   * It's like [[Observable.merge]], except that the created observable is reserving onError
+   * notifications until all of the merged Observables complete and only then passing it along
+   * to the observers.
+   *
+   * @param bufferPolicy the policy used for buffering, useful if you want to limit the buffer size and
+   *                     apply back-pressure, trigger and error, etc... see the
+   *                     available [[monifu.reactive.BufferPolicy buffer policies]].
+   *
+   * @return an Observable that emits items that are the result of flattening the items emitted
+   *         by the Observables emitted by `this`
+   */
+  def mergeDelayError[U](bufferPolicy: BufferPolicy = defaultPolicy)
+      (implicit ev: T <:< Observable[U]): Observable[U] =
+    operators.flatten.merge(self, bufferPolicy, delayErrors = true)
 
   /**
    * Given the source observable and another `Observable`, emits all of the items
@@ -541,6 +632,17 @@ trait Observable[+T] { self =>
     operators.flatScan(self, initial)(op)
 
   /**
+   * Applies a binary operator to a start value and to elements produced
+   * by the source observable, going from left to right, producing
+   * and concatenating observables along the way.
+   *
+   * It's the combination between [[monifu.reactive.Observable.scan scan]]
+   * and [[monifu.reactive.Observable.flattenDelayError]].
+   */
+  def flatScanDelayError[R](initial: R)(op: (R, T) => Observable[R]): Observable[R] =
+    operators.flatScan.delayError(self, initial)(op)
+
+  /**
    * Executes the given callback when the stream has ended,
    * but before the complete event is emitted.
    *
@@ -737,7 +839,17 @@ trait Observable[+T] { self =>
    * an item (so long as each of the source Observables has emitted at least one item).
    */
   def combineLatest[U](other: Observable[U]): Observable[(T, U)] =
-    operators.combineLatest(self, other)
+    operators.combineLatest(self, other, delayErrors = false)
+
+  /**
+   * Creates a new Observable from this Observable and another given Observable.
+   *
+   * It's like [[Observable.combineLatest]], except that the created observable is reserving onError
+   * notifications until all of the combined Observables complete and only then passing it along
+   * to the observers.
+   */
+  def combineLatestDelayError[U](other: Observable[U]): Observable[(T, U)] =
+    operators.combineLatest(self, other, delayErrors = true)
 
   /**
    * Takes the elements of the source Observable and emits the maximum value,
@@ -1250,13 +1362,41 @@ object Observable {
    * Concatenates the given list of ''observables'' into a single observable.
    */
   def flatten[T](sources: Observable[T]*): Observable[T] =
-    Observable.fromIterable(sources).flatten
+    Observable.fromIterable(sources).concat
+
+  /**
+   * Concatenates the given list of ''observables'' into a single observable.
+   * Delays errors until the end.
+   */
+  def flattenDelayError[T](sources: Observable[T]*): Observable[T] =
+    Observable.fromIterable(sources).concatDelayError
 
   /**
    * Merges the given list of ''observables'' into a single observable.
    */
   def merge[T](sources: Observable[T]*): Observable[T] =
     Observable.fromIterable(sources).merge()
+
+  /**
+   * Merges the given list of ''observables'' into a single observable.
+   * Delays errors until the end.
+   */
+  def mergeDelayError[T](sources: Observable[T]*): Observable[T] =
+    Observable.fromIterable(sources).mergeDelayError()
+
+
+  /**
+   * Concatenates the given list of ''observables'' into a single observable.
+   */
+  def concat[T](sources: Observable[T]*): Observable[T] =
+    Observable.fromIterable(sources).concat
+
+  /**
+   * Concatenates the given list of ''observables'' into a single observable.
+   * Delays errors until the end.
+   */
+  def concatDelayError[T](sources: Observable[T]*): Observable[T] =
+    Observable.fromIterable(sources).concatDelayError
 
   /**
    * Creates a new Observable from two observables,
@@ -1324,12 +1464,6 @@ object Observable {
     first.combineLatest(second).combineLatest(third).combineLatest(fourth)
       .map { case (((t1, t2), t3), t4) => (t1, t2, t3, t4) }
   }
-
-  /**
-   * Concatenates the given list of ''observables'' into a single observable.
-   */
-  def concat[T](sources: Observable[T]*): Observable[T] =
-    Observable.fromIterable(sources).concat
 
   /**
    * Given a list of source Observables, emits all of the items from the first of

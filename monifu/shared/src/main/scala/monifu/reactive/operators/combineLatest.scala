@@ -19,15 +19,15 @@ package monifu.reactive.operators
 import monifu.concurrent.atomic.Atomic
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.internals._
-import monifu.reactive.{Ack, Observable, Observer}
+import monifu.reactive.{CompositeException, Ack, Observable, Observer}
 import scala.concurrent.Future
-
+import scala.collection.mutable
 
 object combineLatest {
   /**
    * Implements [[monifu.reactive.Observable!.combineLatest]].
    */
-  def apply[T, U](first: Observable[T], second: Observable[U]): Observable[(T, U)] = {
+  def apply[T, U](first: Observable[T], second: Observable[U], delayErrors: Boolean): Observable[(T, U)] = {
     Observable.create { subscriber =>
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
@@ -47,6 +47,8 @@ object combineLatest {
       var isElemUInitialized = false
       // MUST BE synchronized by `lock`
       var completedCount = 0
+      // MUST BE synchronized by `lock`
+      val errors = if (delayErrors) mutable.ArrayBuffer.empty[Throwable] else null
 
       // MUST BE synchronized by `lock`
       def signalOnNext(t: T, u: U) = {
@@ -55,7 +57,11 @@ object combineLatest {
       }
 
       def signalOnError(ex: Throwable): Unit = lock.synchronized {
-        if (isDone.compareAndSet(expect = false, update = true)) {
+        if (delayErrors) {
+          errors += ex
+          signalOnComplete()
+        }
+        else if (isDone.compareAndSet(expect = false, update = true)) {
           lastAck.onContinueSignalError(observer, ex)
           lastAck = Cancel
         }
@@ -64,11 +70,14 @@ object combineLatest {
       def signalOnComplete(): Unit = lock.synchronized  {
         completedCount += 1
 
-        if (completedCount == 2)
-          if (isDone.compareAndSet(expect = false, update = true)) {
+        if (completedCount == 2 && isDone.compareAndSet(expect = false, update = true)) {
+          if (delayErrors && errors.nonEmpty)
+            lastAck.onContinueSignalError(observer, CompositeException(errors))
+          else
             lastAck.onContinueSignalComplete(observer)
-            lastAck = Cancel
-          }
+
+          lastAck = Cancel
+        }
       }
 
       first.unsafeSubscribe(new Observer[T] {
