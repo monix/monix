@@ -33,7 +33,7 @@ object Build extends SbtBuild {
 
   val sharedSettings = releaseSettings ++ Seq(
     organization := "org.monifu",
-    scalaVersion := "2.11.5",
+    scalaVersion := "2.11.6",
 
     scalacOptions <<= baseDirectory.map { bd => Seq("-sourcepath", bd.getAbsolutePath) },
     scalacOptions ++= Seq(
@@ -147,7 +147,7 @@ object Build extends SbtBuild {
       name := "monifu",
       testFrameworks += new TestFramework("minitest.runner.Framework"),
       libraryDependencies ++= Seq(
-        "org.reactivestreams" % "reactive-streams" % "0.4.0",
+        "org.reactivestreams" % "reactive-streams" % "1.0.0.final",
         "org.monifu" %% "minitest" % "0.11" % "test"
       )
     )
