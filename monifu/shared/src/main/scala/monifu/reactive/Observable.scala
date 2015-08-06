@@ -573,6 +573,22 @@ trait Observable[+T] { self =>
     operators.sample.repeated(self, initialDelay, delay)
 
   /**
+   * Only emit an item from an Observable if a particular
+   * timespan has passed without it emitting another item.
+   *
+   * Note: If the source Observable keeps emitting items more frequently
+   * than the length of the time window then no items will be emitted
+   * by the resulting Observable.
+   *
+   * @param timeout the length of the window of time that must pass after
+   *                the emission of an item from the source Observable in which
+   *                that Observable emits no items in order for the item to
+   *                be emitted by the resulting Observable
+   */
+  def debounce(timeout: FiniteDuration): Observable[T] =
+    operators.debounce.apply(self, timeout)
+
+  /**
    * Hold an Observer's subscription request until the given `future` completes,
    * before passing it on to the source Observable. If the given `future`
    * completes in error, then the subscription is terminated with `onError`.
@@ -951,7 +967,7 @@ trait Observable[+T] { self =>
    * Converts this observable into a multicast observable, useful for turning a cold observable into
    * a hot one (i.e. whose source is shared by all observers).
    */
-  def multicast[R](subject: Subject[T, R]): ConnectableObservable[R] =
+  def multicast[R](subject: Subject[T, R])(implicit s: Scheduler): ConnectableObservable[R] =
     ConnectableObservable(this, subject)
 
   /**
@@ -996,7 +1012,7 @@ trait Observable[+T] { self =>
    * a hot one (i.e. whose source is shared by all observers). The underlying subject used is a
    * [[monifu.reactive.subjects.PublishSubject PublishSubject]].
    */
-  def publish(): ConnectableObservable[T] =
+  def publish()(implicit s: Scheduler): ConnectableObservable[T] =
     multicast(PublishSubject())
 
   /**
@@ -1004,7 +1020,7 @@ trait Observable[+T] { self =>
    * a hot one (i.e. whose source is shared by all observers). The underlying subject used is a
    * [[monifu.reactive.subjects.BehaviorSubject BehaviorSubject]].
    */
-  def behavior[U >: T](initialValue: U): ConnectableObservable[U] =
+  def behavior[U >: T](initialValue: U)(implicit s: Scheduler): ConnectableObservable[U] =
     multicast(BehaviorSubject(initialValue))
 
   /**
@@ -1012,7 +1028,7 @@ trait Observable[+T] { self =>
    * a hot one (i.e. whose source is shared by all observers). The underlying subject used is a
    * [[monifu.reactive.subjects.ReplaySubject ReplaySubject]].
    */
-  def replay(): ConnectableObservable[T] =
+  def replay()(implicit s: Scheduler): ConnectableObservable[T] =
     multicast(ReplaySubject())
 
   /**
@@ -1020,7 +1036,7 @@ trait Observable[+T] { self =>
    * a hot one (i.e. whose source is shared by all observers). The underlying subject used is a
    * [[monifu.reactive.subjects.AsyncSubject AsyncSubject]].
    */
-  def publishLast(): ConnectableObservable[T] =
+  def publishLast()(implicit s: Scheduler): ConnectableObservable[T] =
     multicast(AsyncSubject())
 
   /**

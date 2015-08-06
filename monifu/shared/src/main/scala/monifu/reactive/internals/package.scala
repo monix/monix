@@ -19,7 +19,7 @@ package monifu.reactive
 import language.implicitConversions
 import monifu.concurrent.{Cancelable, Scheduler}
 import monifu.reactive.Ack.{Cancel, Continue}
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.control.NonFatal
 import scala.util.{Failure, Try}
 
@@ -79,6 +79,36 @@ package object internals {
               () // do nothing
           }
       }
+
+    /**
+     * Returns a new `Future` that completes with the result of `other`,
+     * in case `self` completes with a `Continue`, being in essence the
+     * equivalent of:
+     * {{{
+     *   self.flatMap {
+     *      case Continue => other
+     *      case Cancel => Cancel
+     *   }
+     * }}}
+     */
+    def continueWith(other: => Future[Ack])(implicit ec: ExecutionContext): Future[Ack] = {
+      source match {
+        case sync if sync.isCompleted =>
+          if (sync == Continue || sync.value.get == Continue.IsSuccess)
+            try other catch {
+              case NonFatal(ex) =>
+                Future.failed(ex)
+            }
+          else
+            source
+
+        case async =>
+          async.flatMap {
+            case Continue => other
+            case Cancel => Cancel
+          }
+      }
+    }
 
     /**
      * On Continue, triggers the execution of the given callback.

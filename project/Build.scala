@@ -149,8 +149,7 @@ object Build extends SbtBuild {
       libraryDependencies ++= Seq(
         "org.reactivestreams" % "reactive-streams" % "1.0.0.final",
         "org.monifu" %% "minitest" % "0.11" % "test"
-      )
-    )
+      ))
 
   lazy val js = project.in(file("monifu/js"))
     .dependsOn(coreJS)
@@ -162,6 +161,5 @@ object Build extends SbtBuild {
       testFrameworks += new TestFramework("minitest.runner.Framework"),
       libraryDependencies ++= Seq(
         "org.monifu" %%% "minitest" % "0.11" % "test"
-      )
-    )
+      ))
 }
