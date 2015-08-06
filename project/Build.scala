@@ -33,7 +33,7 @@ object Build extends SbtBuild {
 
   val sharedSettings = releaseSettings ++ Seq(
     organization := "org.monifu",
-    scalaVersion := "2.11.6",
+    scalaVersion := "2.11.7",
 
     scalacOptions <<= baseDirectory.map { bd => Seq("-sourcepath", bd.getAbsolutePath) },
     scalacOptions ++= Seq(
