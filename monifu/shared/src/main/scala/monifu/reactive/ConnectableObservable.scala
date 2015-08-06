@@ -31,7 +31,7 @@ trait ConnectableObservable[+T] extends Observable[T] {
   /**
    * Starts emitting events to subscribers.
    */
-  def connect(implicit s: Scheduler): BooleanCancelable
+  def connect(): BooleanCancelable
 }
 
 
@@ -40,23 +40,21 @@ object ConnectableObservable {
    * Builds a [[ConnectableObservable]] for the given observable source
    * and a given [[Subject]].
    */
-  def apply[T, R](source: Observable[T], subject: Subject[T, R]): ConnectableObservable[R] =
+  def apply[T, R](source: Observable[T], subject: Subject[T, R])
+      (implicit s: Scheduler): ConnectableObservable[R] = {
+
     new ConnectableObservable[R] {
-      @volatile
-      private[this] var subscription: BooleanCancelable = null
+      private[this] lazy val connection = {
+        source.subscribe(subject)
+      }
 
-      def connect(implicit s: Scheduler) = {
-        if (subscription != null) subscription else
-          synchronized {
-            if (subscription == null)
-              subscription = source.subscribe(subject)
-
-            subscription
-          }
+      def connect() = {
+        connection
       }
 
       def subscribeFn(subscriber: Subscriber[R]): Unit = {
         subject.unsafeSubscribe(subscriber)
       }
     }
+  }
 }

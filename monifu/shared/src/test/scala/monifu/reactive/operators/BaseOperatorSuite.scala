@@ -85,7 +85,7 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
     }
 
   test("should emit exactly the requested elements") { implicit s =>
-    val sourceCount = Random.nextInt(300) + 100
+    val sourceCount = 20
     var received = 0
     var wasCompleted = false
 
