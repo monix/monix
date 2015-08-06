@@ -53,9 +53,9 @@ object debounce {
             if (lastEvent == null) scheduleNext(timeout) else {
               val (lastEmitted, lastTS) = lastEvent
               val rightNow = s.nanoTime()
-              val sinceLastOnNext = (rightNow - lastTS).nanos
+              val sinceLastOnNext = rightNow - lastTS
 
-              if (sinceLastOnNext >= timeout) {
+              if (sinceLastOnNext >= timeoutNanos) {
                 ack = downstream.onNext(lastEmitted).continueWith {
                   val executionTime = s.nanoTime() - rightNow
                   val delay = if (timeoutNanos > executionTime)
@@ -66,8 +66,8 @@ object debounce {
                 }
               }
               else {
-                val remainingTime = timeout - sinceLastOnNext
-                scheduleNext(remainingTime)
+                val remainingTime = timeoutNanos - sinceLastOnNext
+                scheduleNext(remainingTime.nanos)
               }
             }
           }
