@@ -22,6 +22,7 @@ import monifu.concurrent.schedulers.TestScheduler
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.internals._
 import scala.concurrent.{Future, Promise}
+import scala.util.{Failure, Success}
 
 
 object InternalsSuite extends TestSuite[TestScheduler] {
@@ -171,5 +172,49 @@ object InternalsSuite extends TestSuite[TestScheduler] {
     val c3 = BooleanCancelable()
     Future.successful(Continue).ifCanceledDoCancel(c3)
     s.tick(); assert(!c3.isCanceled)
+  }
+
+  test("should do synchronous lightFastMap") { implicit s =>
+    val r = Continue.fastFlatMap {
+      case Continue => Cancel
+      case Cancel => Continue
+    }
+
+    assertEquals(r.value, Some(Success(Cancel)))
+  }
+
+  test("should do asynchronous lightFastMap") { implicit s =>
+    val r = Future(Continue).fastFlatMap {
+      case Continue => Cancel
+      case Cancel => Continue
+    }
+
+    assertEquals(r.value, None)
+    s.tick()
+    assertEquals(r.value, Some(Success(Cancel)))
+  }
+
+  test("should do synchronous lightFastMap with error") { implicit s =>
+    val ex = DummyException("dummy")
+    val source: Future[Ack] = Future.failed(ex)
+    val r = source.fastFlatMap {
+      case Continue => Cancel
+      case Cancel => Continue
+    }
+
+    assertEquals(r.value, Some(Failure(ex)))
+  }
+
+  test("should do asynchronous lightFastMap with error") { implicit s =>
+    val ex = DummyException("dummy")
+    val source: Future[Ack] = Future(throw ex)
+    val r = source.fastFlatMap {
+      case Continue => Cancel
+      case Cancel => Continue
+    }
+
+    assertEquals(r.value, None)
+    s.tick()
+    assertEquals(r.value, Some(Failure(ex)))
   }
 }
