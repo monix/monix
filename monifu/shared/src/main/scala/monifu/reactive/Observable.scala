@@ -1001,6 +1001,21 @@ trait Observable[+T] { self =>
     operators.whileBusy.dropEvents(self)
 
   /**
+   * While the destination observer is busy, drop the incoming events.
+   * When the downstream recovers, we can signal a special event
+   * meant to inform the downstream observer how many events
+   * where dropped.
+   *
+   * @param onOverflow is a function used to build a message that will be
+   *                   the first event sent after the observer recovers,
+   *                   a function receiving as argument the number of dropped
+   *                   messages and thus can be used to inform the downstream
+   *                   how many messages it missed.
+   */
+  def whileBusyDropEventsThenSignalOverflow[U >: T](onOverflow: Long => U): Observable[U] =
+    operators.whileBusy.dropEventsThenSignalOverflow(self, onOverflow)
+
+  /**
    * While the destination observer is busy, buffers events then send
    * whatever was buffered in one big batch.
    */
