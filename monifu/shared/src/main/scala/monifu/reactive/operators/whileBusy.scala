@@ -17,9 +17,11 @@
 package monifu.reactive.operators
 
 import monifu.reactive.Ack.{Cancel, Continue}
+import monifu.reactive.internals._
 import monifu.reactive.observers.{SynchronousObserver, WhileBusyBufferSubscriber}
 import monifu.reactive.{Ack, Observable, Observer}
 import scala.concurrent.Future
+import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
 object whileBusy {
@@ -69,14 +71,107 @@ object whileBusy {
         def onError(ex: Throwable) =
           if (!isDone) {
             isDone = true
-            observer.onError(ex)
+            lastAck.onContinueSignalError(observer, ex)
           }
 
         def onComplete() =
           if (!isDone) {
             isDone = true
-            observer.onComplete()
+            lastAck.onContinueSignalComplete(observer)
           }
+      })
+    }
+
+  /**
+   * While the destination observer is busy,
+   * drop the incoming events, then signal how many events
+   * where dropped.
+   */
+  def dropEventsThenSignalOverflow[T](source: Observable[T], onOverflow: Long => T): Observable[T] =
+    Observable.create { subscriber =>
+      implicit val s = subscriber.scheduler
+      val observer = subscriber.observer
+
+      source.unsafeSubscribe(new SynchronousObserver[T] {
+        private[this] var lastAck = Continue : Future[Ack]
+        private[this] var eventsDropped = 0L
+        private[this] var isDone = false
+
+        def onNext(elem: T) = {
+          if (!isDone) lastAck match {
+            case sync if sync.isCompleted =>
+              sync.value.get match {
+                case Success(Cancel) =>
+                  isDone = true
+                  Cancel
+
+                case Failure(ex) =>
+                  isDone = true
+                  observer.onError(ex)
+                  Cancel
+
+                case Success(Continue) =>
+                  val hasOverflow = eventsDropped > 0
+                  var streamError = true
+
+                  lastAck = if (hasOverflow)
+                    try {
+                      val message = onOverflow(eventsDropped)
+                      eventsDropped = 0
+                      streamError = false
+                      observer.onNext(message)
+                    }
+                    catch {
+                      case NonFatal(ex) if streamError =>
+                        onError(ex)
+                        Cancel
+                    }
+                  else {
+                    observer.onNext(elem)
+                  }
+
+                  if (hasOverflow)
+                    onNext(elem) // retry
+                  else
+                    Continue
+              }
+
+            case _ =>
+              eventsDropped += 1
+              Continue
+          }
+          else
+            Cancel
+        }
+
+        def onError(ex: Throwable): Unit = if (!isDone) {
+          isDone = true
+          lastAck.onContinueSignalError(observer, ex)
+        }
+
+        def onComplete(): Unit = if (!isDone) {
+          isDone = true
+
+          val f = if (eventsDropped <= 0) lastAck else {
+            var streamError = true
+            try {
+              val message = onOverflow(eventsDropped)
+              eventsDropped = 0
+              streamError = false
+
+              lastAck.fastFlatMap {
+                case Continue => observer.onNext(message)
+                case Cancel => Cancel
+              }
+            }
+            catch {
+              case NonFatal(ex) =>
+                Future.failed(ex)
+            }
+          }
+
+          f.onContinueSignalComplete(observer)
+        }
       })
     }
 

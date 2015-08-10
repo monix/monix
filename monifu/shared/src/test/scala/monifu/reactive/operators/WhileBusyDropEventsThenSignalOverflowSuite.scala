@@ -19,13 +19,16 @@ package monifu.reactive.operators
 import minitest.TestSuite
 import monifu.concurrent.schedulers.TestScheduler
 import monifu.reactive.Ack.Continue
-import monifu.reactive.{DummyException, Observer, Observable}
+import monifu.reactive.{Observer, Observable}
 import monifu.reactive.subjects.PublishSubject
 
 import scala.concurrent.Promise
 import scala.util.Success
 
-object WhileBusyDropEventsSuite extends TestSuite[TestScheduler] {
+
+object WhileBusyDropEventsThenSignalOverflowSuite
+  extends TestSuite[TestScheduler] {
+
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
     assert(s.state.get.tasks.isEmpty,
@@ -33,9 +36,10 @@ object WhileBusyDropEventsSuite extends TestSuite[TestScheduler] {
   }
 
   test("should not drop events for synchronous observers") { implicit s =>
-    val f = Observable.range(0, 1000).whileBusyDropEvents.sum.asFuture
-    s.tick()
+    val f = Observable.range(0, 1000)
+      .whileBusyDropEventsThenSignalOverflow(x => x).sum.asFuture
 
+    s.tick()
     assertEquals(f.value, Some(Success(Some(999 * 500))))
   }
 
@@ -45,17 +49,18 @@ object WhileBusyDropEventsSuite extends TestSuite[TestScheduler] {
     var received = 0L
     var wasCompleted = false
 
-    source.whileBusyDropEvents.unsafeSubscribe(new Observer[Long] {
-      def onNext(elem: Long) = {
-        received += elem
-        p.future
-      }
+    source.whileBusyDropEventsThenSignalOverflow(x => x)
+      .unsafeSubscribe(new Observer[Long] {
+        def onNext(elem: Long) = {
+          received += elem
+          p.future
+        }
 
-      def onError(ex: Throwable) = ()
-      def onComplete() = {
-        wasCompleted = true
-      }
-    })
+        def onError(ex: Throwable) = ()
+        def onComplete() = {
+          wasCompleted = true
+        }
+      })
 
     source.onNext(1)
     s.tick()
@@ -68,31 +73,34 @@ object WhileBusyDropEventsSuite extends TestSuite[TestScheduler] {
     s.tick()
     assertEquals(received, 1)
 
-    for (i <- 100 until 200) source.onNext(i)
-    assertEquals(received, (100 until 200).sum + 1)
+    source.onNext(1)
+    assertEquals(received, 1 + 1 + 100)
+    source.onNext(1)
+    assertEquals(received, 102 + 1)
   }
 
-  test("onComplete should apply back-pressure") { implicit s =>
+  test("should send number of dropped events when onComplete") { implicit s =>
     val source = PublishSubject[Long]()
     val p = Promise[Continue]()
     var received = 0L
     var wasCompleted = false
 
-    source.whileBusyDropEvents
+    source.whileBusyDropEventsThenSignalOverflow(x => x)
       .unsafeSubscribe(new Observer[Long] {
-        def onNext(elem: Long) =
-          p.future.map { continue =>
-            received += elem
-            continue
-          }
-
-        def onError(ex: Throwable) = ()
-        def onComplete() = {
-          wasCompleted = true
+      def onNext(elem: Long) =
+        p.future.map { continue =>
+          received += elem
+          continue
         }
-      })
 
-    source.onNext(1); s.tick()
+      def onError(ex: Throwable) = ()
+      def onComplete() = {
+        wasCompleted = true
+      }
+    })
+
+    source.onNext(1)
+    s.tick()
     assertEquals(received, 0)
 
     source.onComplete(); s.tick()
@@ -100,38 +108,6 @@ object WhileBusyDropEventsSuite extends TestSuite[TestScheduler] {
 
     p.success(Continue); s.tick()
     assert(wasCompleted, "wasCompleted should be true")
-    assertEquals(received, 1)
-  }
-
-  test("onError should apply back-pressure") { implicit s =>
-    val source = PublishSubject[Long]()
-    val p = Promise[Continue]()
-    var received = 0L
-    var wasThrown = null : Throwable
-
-    source.whileBusyDropEvents.unsafeSubscribe(
-      new Observer[Long] {
-        def onNext(elem: Long) =
-          p.future.map { continue =>
-            received += elem
-            continue
-          }
-
-        def onError(ex: Throwable) = wasThrown = ex
-        def onComplete() = ()
-      })
-
-    val ex = DummyException("dummy")
-
-    source.onNext(1); s.tick()
-    assertEquals(received, 0)
-
-    source.onError(ex); s.tick()
-    assertEquals(received, 0)
-    assertEquals(wasThrown, null)
-
-    p.success(Continue); s.tick()
-    assertEquals(wasThrown, ex)
     assertEquals(received, 1)
   }
 }
