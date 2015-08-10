@@ -20,6 +20,8 @@ import monifu.concurrent.atomic.{Atomic, AtomicLong}
 import monifu.reactive.Ack.Continue
 import monifu.reactive.{Observable, Observer}
 
+import scala.util.Success
+
 object PublishSubjectSuite extends BaseSubjectSuite {
   def alreadyTerminatedTest(expectedElems: Seq[Long]) = {
     val s = PublishSubject[Long]()
@@ -59,5 +61,29 @@ object PublishSubjectSuite extends BaseSubjectSuite {
 
     assertEquals(wereCompleted, 2)
     assertEquals(sum1.get, sum2.get)
+  }
+
+  test("issue #50") { implicit s =>
+    val p = PublishSubject[Int]()
+    var received = 0
+
+    Observable.merge(p).subscribe(new Observer[Int] {
+      def onNext(elem: Int) = {
+        received += elem
+        Continue
+      }
+
+      def onError(ex: Throwable) = ()
+      def onComplete() = ()
+    })
+
+    s.tick() // merge operation happens async
+
+    val f = p.onNext(1)
+    assertEquals(f.value, Some(Success(Continue)))
+    assertEquals(received, 0)
+
+    s.tick()
+    assertEquals(received, 1)
   }
 }

@@ -21,7 +21,7 @@ import monifu.concurrent.{Cancelable, Scheduler}
 import monifu.reactive.Ack.{Cancel, Continue}
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.control.NonFatal
-import scala.util.{Failure, Try}
+import scala.util.{Success, Failure, Try}
 
 
 package object internals {
@@ -79,36 +79,6 @@ package object internals {
               () // do nothing
           }
       }
-
-    /**
-     * Returns a new `Future` that completes with the result of `other`,
-     * in case `self` completes with a `Continue`, being in essence the
-     * equivalent of:
-     * {{{
-     *   self.flatMap {
-     *      case Continue => other
-     *      case Cancel => Cancel
-     *   }
-     * }}}
-     */
-    def continueWith(other: => Future[Ack])(implicit ec: ExecutionContext): Future[Ack] = {
-      source match {
-        case sync if sync.isCompleted =>
-          if (sync == Continue || sync.value.get == Continue.IsSuccess)
-            try other catch {
-              case NonFatal(ex) =>
-                Future.failed(ex)
-            }
-          else
-            source
-
-        case async =>
-          async.flatMap {
-            case Continue => other
-            case Cancel => Cancel
-          }
-      }
-    }
 
     /**
      * On Continue, triggers the execution of the given callback.
@@ -188,6 +158,26 @@ package object internals {
           async
       }
     }
+
+    /**
+     * An implementation of `flatMap` that executes
+     * synchronously if the source is already completed.
+     */
+    def fastFlatMap[R](f: Ack => Future[R])(implicit ec: ExecutionContext): Future[R] =
+      source.value match {
+        case Some(sync) =>
+          sync match {
+            case Success(ack) =>
+              try f(ack) catch {
+                case NonFatal(ex) =>
+                  Future.failed(ex)
+              }
+            case Failure(_) =>
+              source.asInstanceOf[Future[R]]
+          }
+        case None =>
+          source.flatMap(f)
+      }
 
     // -----
 
