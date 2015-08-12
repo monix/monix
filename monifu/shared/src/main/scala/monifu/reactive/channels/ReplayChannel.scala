@@ -25,7 +25,7 @@ import monifu.reactive.subjects.ReplaySubject
  * Represents a [[monifu.reactive.Channel Channel]] that uses an underlying
  * [[monifu.reactive.subjects.ReplaySubject ReplaySubject]].
  */
-final class ReplayChannel[T] private (policy: BufferPolicy, s: Scheduler)
+final class ReplayChannel[T] private (policy: BufferPolicy.Synchronous[T], s: Scheduler)
   extends SubjectChannel(ReplaySubject[T](), policy)(s)
 
 object ReplayChannel {
@@ -33,7 +33,9 @@ object ReplayChannel {
    * Builds a [[monifu.reactive.Channel Channel]] that uses an underlying
    * [[monifu.reactive.subjects.ReplaySubject ReplaySubject]].
    */
-  def apply[T](bufferPolicy: BufferPolicy = Unbounded)(implicit s: Scheduler): ReplayChannel[T] = {
+  def apply[T](bufferPolicy: BufferPolicy.Synchronous[T] = Unbounded)
+      (implicit s: Scheduler): ReplayChannel[T] = {
+
     new ReplayChannel[T](bufferPolicy, s)
   }
 }

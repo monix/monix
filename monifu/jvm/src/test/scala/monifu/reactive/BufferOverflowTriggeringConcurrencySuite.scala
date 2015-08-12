@@ -50,7 +50,7 @@ object BufferOverflowTriggeringConcurrencySuite extends TestSuite[Scheduler] {
       }
     }
 
-    val buffer = BufferedSubscriber(underlying, OverflowTriggering(100000))
+    val buffer = BufferedSubscriber[Int](underlying, OverflowTriggering(100000))
     for (i <- 0 until 100000) buffer.observer.onNext(i)
     buffer.observer.onComplete()
 
@@ -77,7 +77,7 @@ object BufferOverflowTriggeringConcurrencySuite extends TestSuite[Scheduler] {
       }
     }
 
-    val buffer = BufferedSubscriber(underlying, OverflowTriggering(100000))
+    val buffer = BufferedSubscriber[Int](underlying, OverflowTriggering(100000))
 
     def loop(n: Int): Unit =
       if (n > 0) s.execute(new Runnable {
@@ -123,7 +123,7 @@ object BufferOverflowTriggeringConcurrencySuite extends TestSuite[Scheduler] {
       }
     }
 
-    val buffer = BufferedSubscriber(underlying, OverflowTriggering(5))
+    val buffer = BufferedSubscriber[Int](underlying, OverflowTriggering(5))
 
     assertEquals(buffer.observer.onNext(1), Continue)
     assertEquals(buffer.observer.onNext(2), Continue)
@@ -143,7 +143,7 @@ object BufferOverflowTriggeringConcurrencySuite extends TestSuite[Scheduler] {
 
   test("should send onError when empty") { implicit s =>
     val latch = new CountDownLatch(1)
-    val buffer = BufferedSubscriber(new Observer[Int] {
+    val buffer = BufferedSubscriber[Int](new Observer[Int] {
       def onError(ex: Throwable) = {
         assert(ex.getMessage == "dummy")
         latch.countDown()
@@ -162,7 +162,7 @@ object BufferOverflowTriggeringConcurrencySuite extends TestSuite[Scheduler] {
 
   test("should send onError when in flight") { implicit s =>
     val latch = new CountDownLatch(1)
-    val buffer = BufferedSubscriber(new Observer[Int] {
+    val buffer = BufferedSubscriber[Int](new Observer[Int] {
       def onError(ex: Throwable) = {
         assert(ex.getMessage == "dummy")
         latch.countDown()
@@ -180,7 +180,7 @@ object BufferOverflowTriggeringConcurrencySuite extends TestSuite[Scheduler] {
     val latch = new CountDownLatch(1)
     val promise = Promise[Ack]()
 
-    val buffer = BufferedSubscriber(new Observer[Int] {
+    val buffer = BufferedSubscriber[Int](new Observer[Int] {
       def onError(ex: Throwable) = {
         assert(ex.getMessage == "dummy")
         latch.countDown()
@@ -202,7 +202,7 @@ object BufferOverflowTriggeringConcurrencySuite extends TestSuite[Scheduler] {
 
   test("should send onComplete when empty") { implicit s =>
     val latch = new CountDownLatch(1)
-    val buffer = BufferedSubscriber(new Observer[Int] {
+    val buffer = BufferedSubscriber[Int](new Observer[Int] {
       def onError(ex: Throwable) = throw new IllegalStateException()
       def onNext(elem: Int) = throw new IllegalStateException()
       def onComplete() = latch.countDown()
@@ -215,7 +215,7 @@ object BufferOverflowTriggeringConcurrencySuite extends TestSuite[Scheduler] {
   test("should send onComplete when in flight") { implicit s =>
     val latch = new CountDownLatch(1)
     val promise = Promise[Ack]()
-    val buffer = BufferedSubscriber(new Observer[Int] {
+    val buffer = BufferedSubscriber[Int](new Observer[Int] {
       def onError(ex: Throwable) = throw new IllegalStateException()
       def onNext(elem: Int) = promise.future
       def onComplete() = latch.countDown()
@@ -232,7 +232,7 @@ object BufferOverflowTriggeringConcurrencySuite extends TestSuite[Scheduler] {
   test("should send onComplete when at capacity") { implicit s =>
     val latch = new CountDownLatch(1)
     val promise = Promise[Ack]()
-    val buffer = BufferedSubscriber(new Observer[Int] {
+    val buffer = BufferedSubscriber[Int](new Observer[Int] {
       def onError(ex: Throwable) = throw new IllegalStateException()
       def onNext(elem: Int) = promise.future
       def onComplete() = latch.countDown()
@@ -255,7 +255,7 @@ object BufferOverflowTriggeringConcurrencySuite extends TestSuite[Scheduler] {
     val complete = new CountDownLatch(1)
     val startConsuming = Promise[Continue]()
 
-    val buffer = BufferedSubscriber(new Observer[Long] {
+    val buffer = BufferedSubscriber[Long](new Observer[Long] {
       def onNext(elem: Long) = {
         sum += elem
         startConsuming.future
@@ -276,7 +276,7 @@ object BufferOverflowTriggeringConcurrencySuite extends TestSuite[Scheduler] {
     var sum = 0L
     val complete = new CountDownLatch(1)
 
-    val buffer = BufferedSubscriber(new Observer[Long] {
+    val buffer = BufferedSubscriber[Long](new Observer[Long] {
       def onNext(elem: Long) = {
         sum += elem
         Continue
@@ -297,7 +297,7 @@ object BufferOverflowTriggeringConcurrencySuite extends TestSuite[Scheduler] {
     val complete = new CountDownLatch(1)
     val startConsuming = Promise[Continue]()
 
-    val buffer = BufferedSubscriber(new Observer[Long] {
+    val buffer = BufferedSubscriber[Long](new Observer[Long] {
       def onNext(elem: Long) = {
         sum += elem
         startConsuming.future
@@ -318,7 +318,7 @@ object BufferOverflowTriggeringConcurrencySuite extends TestSuite[Scheduler] {
     var sum = 0L
     val complete = new CountDownLatch(1)
 
-    val buffer = BufferedSubscriber(new Observer[Long] {
+    val buffer = BufferedSubscriber[Long](new Observer[Long] {
       def onNext(elem: Long) = {
         sum += elem
         Continue

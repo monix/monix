@@ -25,7 +25,7 @@ import monifu.reactive.subjects.PublishSubject
  * Represents a [[monifu.reactive.Channel Channel]] that uses an underlying
  * [[monifu.reactive.subjects.PublishSubject PublishSubject]].
  */
-final class PublishChannel[T] private (policy: BufferPolicy, s: Scheduler)
+final class PublishChannel[T] private (policy: BufferPolicy.Synchronous[T], s: Scheduler)
   extends SubjectChannel(PublishSubject[T](), policy)(s)
 
 object PublishChannel {
@@ -33,7 +33,7 @@ object PublishChannel {
    * Builds a [[monifu.reactive.Channel Channel]] that uses an underlying
    * [[monifu.reactive.subjects.PublishSubject PublishSubject]].
    */
-  def apply[T](bufferPolicy: BufferPolicy = Unbounded)(implicit s: Scheduler): PublishChannel[T] = {
+  def apply[T](bufferPolicy: BufferPolicy.Synchronous[T] = Unbounded)(implicit s: Scheduler): PublishChannel[T] = {
     new PublishChannel[T](bufferPolicy, s)
   }
 }

@@ -324,7 +324,7 @@ trait Observable[+T] { self =>
    * @return an Observable that emits items that are the result of flattening the items emitted
    *         by the Observables emitted by `this`
    */
-  def merge[U](bufferPolicy: BufferPolicy = defaultPolicy)
+  def merge[U](bufferPolicy: BufferPolicy[U] = defaultPolicy)
       (implicit ev: T <:< Observable[U]): Observable[U] =
     operators.flatten.merge(self, bufferPolicy, delayErrors = false)
 
@@ -344,7 +344,7 @@ trait Observable[+T] { self =>
    * @return an Observable that emits items that are the result of flattening the items emitted
    *         by the Observables emitted by `this`
    */
-  def mergeDelayError[U](bufferPolicy: BufferPolicy = defaultPolicy)
+  def mergeDelayError[U](bufferPolicy: BufferPolicy[U] = defaultPolicy)
       (implicit ev: T <:< Observable[U]): Observable[U] =
     operators.flatten.merge(self, bufferPolicy, delayErrors = true)
 
@@ -988,7 +988,7 @@ trait Observable[+T] { self =>
    * [[monifu.reactive.BufferPolicy policy]], see [[monifu.reactive.BufferPolicy BufferPolicy]]
    * for options.
    */
-  def asyncBoundary(policy: BufferPolicy = defaultPolicy): Observable[T] =
+  def asyncBoundary[U >: T](policy: BufferPolicy[U] = defaultPolicy): Observable[U] =
     Observable.create { subscriber =>
       implicit val s = subscriber.scheduler
       unsafeSubscribe(BufferedSubscriber(subscriber.observer, policy))

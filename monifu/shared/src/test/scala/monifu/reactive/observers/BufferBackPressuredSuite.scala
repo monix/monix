@@ -35,7 +35,7 @@ object BufferBackPressuredSuite extends TestSuite[TestScheduler] {
     val promise = Promise[Ack]()
     var wasCompleted = false
 
-    val buffer = BufferedSubscriber(new Observer[Int] {
+    val buffer = BufferedSubscriber[Int](new Observer[Int] {
       def onNext(elem: Int) = promise.future
       def onError(ex: Throwable) = throw new IllegalStateException()
       def onComplete() = wasCompleted = true
@@ -86,7 +86,7 @@ object BufferBackPressuredSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    val buffer = BufferedSubscriber(underlying, BackPressured(1000))
+    val buffer = BufferedSubscriber[Int](underlying, BackPressured(1000))
     for (i <- 0 until 1000) buffer.observer.onNext(i)
     buffer.observer.onComplete()
 
@@ -115,7 +115,7 @@ object BufferBackPressuredSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    val buffer = BufferedSubscriber(underlying, BackPressured(1000))
+    val buffer = BufferedSubscriber[Int](underlying, BackPressured(1000))
 
     def loop(n: Int): Unit =
       if (n > 0)
@@ -134,7 +134,7 @@ object BufferBackPressuredSuite extends TestSuite[TestScheduler] {
 
   test("should send onError when empty") { implicit s =>
     var errorThrown: Throwable = null
-    val buffer = BufferedSubscriber(new Observer[Int] {
+    val buffer = BufferedSubscriber[Int](new Observer[Int] {
       def onError(ex: Throwable) = {
         errorThrown = ex
       }
@@ -153,7 +153,7 @@ object BufferBackPressuredSuite extends TestSuite[TestScheduler] {
 
   test("should send onError when in flight") { implicit s =>
     var errorThrown: Throwable = null
-    val buffer = BufferedSubscriber(new Observer[Int] {
+    val buffer = BufferedSubscriber[Int](new Observer[Int] {
       def onError(ex: Throwable) = {
         errorThrown = ex
       }
@@ -172,7 +172,7 @@ object BufferBackPressuredSuite extends TestSuite[TestScheduler] {
     var errorThrown: Throwable = null
     val promise = Promise[Ack]()
 
-    val buffer = BufferedSubscriber(new Observer[Int] {
+    val buffer = BufferedSubscriber[Int](new Observer[Int] {
       def onError(ex: Throwable) = {
         errorThrown = ex
       }
@@ -195,7 +195,7 @@ object BufferBackPressuredSuite extends TestSuite[TestScheduler] {
 
   test("should send onComplete when empty") { implicit s =>
     var wasCompleted = false
-    val buffer = BufferedSubscriber(new Observer[Int] {
+    val buffer = BufferedSubscriber[Int](new Observer[Int] {
       def onError(ex: Throwable) = throw new IllegalStateException()
       def onNext(elem: Int) = throw new IllegalStateException()
       def onComplete() = wasCompleted = true
@@ -209,7 +209,7 @@ object BufferBackPressuredSuite extends TestSuite[TestScheduler] {
   test("should send onComplete when in flight") { implicit s =>
     var wasCompleted = false
     val promise = Promise[Ack]()
-    val buffer = BufferedSubscriber(new Observer[Int] {
+    val buffer = BufferedSubscriber[Int](new Observer[Int] {
       def onError(ex: Throwable) = throw new IllegalStateException()
       def onNext(elem: Int) = promise.future
       def onComplete() = wasCompleted = true
@@ -228,7 +228,7 @@ object BufferBackPressuredSuite extends TestSuite[TestScheduler] {
   test("should send onComplete when at capacity") { implicit s =>
     var wasCompleted = false
     val promise = Promise[Ack]()
-    val buffer = BufferedSubscriber(new Observer[Int] {
+    val buffer = BufferedSubscriber[Int](new Observer[Int] {
       def onError(ex: Throwable) = throw new IllegalStateException()
       def onNext(elem: Int) = promise.future
       def onComplete() = wasCompleted = true
@@ -253,7 +253,7 @@ object BufferBackPressuredSuite extends TestSuite[TestScheduler] {
     var wasCompleted = false
     val startConsuming = Promise[Continue]()
 
-    val buffer = BufferedSubscriber(new Observer[Long] {
+    val buffer = BufferedSubscriber[Long](new Observer[Long] {
       def onNext(elem: Long) = {
         sum += elem
         startConsuming.future
@@ -275,7 +275,7 @@ object BufferBackPressuredSuite extends TestSuite[TestScheduler] {
     var sum = 0L
     var wasCompleted = false
 
-    val buffer = BufferedSubscriber(new Observer[Long] {
+    val buffer = BufferedSubscriber[Long](new Observer[Long] {
       def onNext(elem: Long) = {
         sum += elem
         Continue
@@ -297,7 +297,7 @@ object BufferBackPressuredSuite extends TestSuite[TestScheduler] {
     var errorThrown: Throwable = null
     val startConsuming = Promise[Continue]()
 
-    val buffer = BufferedSubscriber(new Observer[Long] {
+    val buffer = BufferedSubscriber[Long](new Observer[Long] {
       def onNext(elem: Long) = {
         sum += elem
         startConsuming.future
@@ -319,7 +319,7 @@ object BufferBackPressuredSuite extends TestSuite[TestScheduler] {
     var sum = 0L
     var errorThrown: Throwable = null
 
-    val buffer = BufferedSubscriber(new Observer[Long] {
+    val buffer = BufferedSubscriber[Long](new Observer[Long] {
       def onNext(elem: Long) = {
         sum += elem
         Continue

@@ -26,7 +26,7 @@ import monifu.reactive._
  * A `BehaviorChannel` is a [[Channel]] that uses an underlying
  * [[monifu.reactive.subjects.BehaviorSubject BehaviorSubject]].
  */
-final class BehaviorChannel[T] private (initialValue: T, policy: BufferPolicy)
+final class BehaviorChannel[T] private (initialValue: T, policy: BufferPolicy.Synchronous[T])
     (implicit val scheduler: Scheduler)
   extends Channel[T] with Observable[T] {
 
@@ -76,6 +76,10 @@ final class BehaviorChannel[T] private (initialValue: T, policy: BufferPolicy)
 }
 
 object BehaviorChannel {
-  def apply[T](initial: T, bufferPolicy: BufferPolicy = Unbounded)(implicit s: Scheduler): BehaviorChannel[T] =
+  /** Builder for [[monifu.reactive.channels.BehaviorChannel]] */
+  def apply[T](initial: T, bufferPolicy: BufferPolicy.Synchronous[T] = Unbounded)
+      (implicit s: Scheduler): BehaviorChannel[T] = {
+
     new BehaviorChannel[T](initial, bufferPolicy)
+  }
 }

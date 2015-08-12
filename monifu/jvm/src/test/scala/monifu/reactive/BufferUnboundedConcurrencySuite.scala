@@ -49,7 +49,7 @@ object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
       }
     }
 
-    val buffer = BufferedSubscriber(underlying, Unbounded)
+    val buffer = BufferedSubscriber[Int](underlying, Unbounded)
     for (i <- 0 until 100000) buffer.observer.onNext(i)
     buffer.observer.onComplete()
 
@@ -76,7 +76,7 @@ object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
       }
     }
 
-    val buffer = BufferedSubscriber(underlying, Unbounded)
+    val buffer = BufferedSubscriber[Int](underlying, Unbounded)
 
     def loop(n: Int): Unit =
       if (n > 0) s.execute(new Runnable {
@@ -91,14 +91,16 @@ object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
 
   test("should send onError when empty") { implicit s =>
     val latch = new CountDownLatch(1)
-    val buffer = BufferedSubscriber(new Observer[Int] {
+    val underlying = new Observer[Int] {
       def onError(ex: Throwable) = {
         assertEquals(ex.getMessage, "dummy")
         latch.countDown()
       }
       def onNext(elem: Int) = throw new IllegalStateException()
       def onComplete() = throw new IllegalStateException()
-    })
+    }
+
+    val buffer = BufferedSubscriber[Int](underlying, Unbounded)
 
     buffer.observer.onError(new RuntimeException("dummy"))
     assert(latch.await(5, TimeUnit.SECONDS), "latch.await should have succeeded")
@@ -106,14 +108,16 @@ object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
 
   test("should send onError when in flight") { implicit s =>
     val latch = new CountDownLatch(1)
-    val buffer = BufferedSubscriber(new Observer[Int] {
+    val underlying = new Observer[Int] {
       def onError(ex: Throwable) = {
         assertEquals(ex.getMessage, "dummy")
         latch.countDown()
       }
       def onNext(elem: Int) = Continue
       def onComplete() = throw new IllegalStateException()
-    })
+    }
+
+    val buffer = BufferedSubscriber[Int](underlying, Unbounded)
 
     buffer.observer.onNext(1)
     buffer.observer.onError(new RuntimeException("dummy"))
@@ -122,11 +126,13 @@ object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
 
   test("should send onComplete when empty") { implicit s =>
     val latch = new CountDownLatch(1)
-    val buffer = BufferedSubscriber(new Observer[Int] {
+    val underlying = new Observer[Int] {
       def onError(ex: Throwable) = throw new IllegalStateException()
       def onNext(elem: Int) = throw new IllegalStateException()
       def onComplete() = latch.countDown()
-    })
+    }
+
+    val buffer = BufferedSubscriber[Int](underlying, Unbounded)
 
     buffer.observer.onComplete()
     assert(latch.await(5, TimeUnit.SECONDS), "latch.await should have succeeded")
@@ -135,11 +141,13 @@ object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
   test("should send onComplete when in flight") { implicit s =>
     val latch = new CountDownLatch(1)
     val promise = Promise[Ack]()
-    val buffer = BufferedSubscriber(new Observer[Int] {
+    val underlying = new Observer[Int] {
       def onError(ex: Throwable) = throw new IllegalStateException()
       def onNext(elem: Int) = promise.future
       def onComplete() = latch.countDown()
-    })
+    }
+
+    val buffer = BufferedSubscriber[Int](underlying, Unbounded)
 
     buffer.observer.onNext(1)
     buffer.observer.onComplete()
@@ -154,15 +162,16 @@ object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
     val complete = new CountDownLatch(1)
     val startConsuming = Promise[Continue]()
 
-    val buffer = BufferedSubscriber(new Observer[Long] {
+    val underlying = new Observer[Long] {
       def onNext(elem: Long) = {
         sum += elem
         startConsuming.future
       }
       def onError(ex: Throwable) = throw ex
       def onComplete() = complete.countDown()
-    })
+    }
 
+    val buffer = BufferedSubscriber[Long](underlying, Unbounded)
     (0 until 9999).foreach(x => buffer.observer.onNext(x))
     buffer.observer.onComplete()
     startConsuming.success(Continue)
@@ -174,15 +183,16 @@ object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
   test("should do onComplete only after all the queue was drained, test2") { implicit s =>
     var sum = 0L
     val complete = new CountDownLatch(1)
-
-    val buffer = BufferedSubscriber(new Observer[Long] {
+    val underlying = new Observer[Long] {
       def onNext(elem: Long) = {
         sum += elem
         Continue
       }
       def onError(ex: Throwable) = throw ex
       def onComplete() = complete.countDown()
-    })
+    }
+
+    val buffer = BufferedSubscriber[Long](underlying, Unbounded)
 
     (0 until 9999).foreach(x => buffer.observer.onNext(x))
     buffer.observer.onComplete()
@@ -196,14 +206,16 @@ object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
     val complete = new CountDownLatch(1)
     val startConsuming = Promise[Continue]()
 
-    val buffer = BufferedSubscriber(new Observer[Long] {
+    val underlying = new Observer[Long] {
       def onNext(elem: Long) = {
         sum += elem
         startConsuming.future
       }
       def onError(ex: Throwable) = complete.countDown()
       def onComplete() = throw new IllegalStateException()
-    })
+    }
+
+    val buffer = BufferedSubscriber[Long](underlying, Unbounded)
 
     (0 until 9999).foreach(x => buffer.observer.onNext(x))
     buffer.observer.onError(new RuntimeException)
@@ -217,15 +229,16 @@ object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
     var sum = 0L
     val complete = new CountDownLatch(1)
 
-    val buffer = BufferedSubscriber(new Observer[Long] {
+    val underlying = new Observer[Long] {
       def onNext(elem: Long) = {
         sum += elem
         Continue
       }
       def onError(ex: Throwable) = complete.countDown()
       def onComplete() = throw new IllegalStateException()
-    })
+    }
 
+    val buffer = BufferedSubscriber[Long](underlying, Unbounded)
     (0 until 9999).foreach(x => buffer.observer.onNext(x))
     buffer.observer.onError(new RuntimeException)
 

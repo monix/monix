@@ -18,13 +18,13 @@ package monifu.reactive.channels
 
 import monifu.concurrent.Scheduler
 import monifu.reactive.BufferPolicy.Unbounded
-import monifu.reactive.observers.BufferedSubscriber
 import monifu.reactive._
+import monifu.reactive.observers.BufferedSubscriber
 
 /**
  * Wraps any [[Subject]] into a [[Channel]].
  */
-class SubjectChannel[-I,+O](subject: Subject[I, O], policy: BufferPolicy)
+class SubjectChannel[-I,+O](subject: Subject[I, O], policy: BufferPolicy.Synchronous[I])
     (implicit scheduler: Scheduler)
   extends Channel[I] with Observable[O] {
 
@@ -51,7 +51,7 @@ object SubjectChannel {
   /**
    * Wraps any [[Subject]] into a [[Channel]].
    */
-  def apply[I,O](subject: Subject[I, O], bufferPolicy: BufferPolicy = Unbounded)
+  def apply[I,O](subject: Subject[I, O], bufferPolicy: BufferPolicy.Synchronous[I] = Unbounded)
       (implicit s: Scheduler): SubjectChannel[I, O] = {
     new SubjectChannel[I,O](subject, bufferPolicy)
   }
