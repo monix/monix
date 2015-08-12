@@ -14,15 +14,17 @@
  * limitations under the License.
  */
 
-package monifu.reactive
+package monifu.reactive.observers
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
+
 import minitest.TestSuite
 import monifu.concurrent.Scheduler
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.BufferPolicy.OverflowTriggering
-import monifu.reactive.observers.BufferedSubscriber
-import scala.concurrent.{Promise, Future}
+import monifu.reactive.{Ack, BufferOverflowException, DummyException, Observer}
+
+import scala.concurrent.{Future, Promise}
 
 
 object BufferOverflowTriggeringConcurrencySuite extends TestSuite[Scheduler] {

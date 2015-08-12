@@ -14,30 +14,57 @@
  * limitations under the License.
  */
 
-package monifu.reactive
+package monifu.reactive.observers
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
+
 import minitest.TestSuite
 import monifu.concurrent.Scheduler
 import monifu.reactive.Ack.{Cancel, Continue}
-import monifu.reactive.BufferPolicy.DropIncomingThenSignal
-import monifu.reactive.observers.BufferedSubscriber
-import scala.concurrent.{Future, Promise}
+import monifu.reactive.BufferPolicy.BackPressured
+import monifu.reactive.{Ack, DummyException, Observer}
+
+import scala.concurrent.duration._
+import scala.concurrent.{Await, Future, Promise}
 
 
-object BufferDropIncomingThenSignalConcurrencySuite extends TestSuite[Scheduler] {
+object BufferBackPressuredConcurrencySuite extends TestSuite[Scheduler] {
   def tearDown(env: Scheduler) = ()
-
   def setup() = {
     monifu.concurrent.Implicits.globalScheduler
   }
 
-  def policyForIntEvents(bufferSize: Int) = {
-    DropIncomingThenSignal[Int](bufferSize, nr => nr.toInt)
-  }
+  test("should do back-pressure") { implicit s =>
+    val promise = Promise[Ack]()
+    val completed = new CountDownLatch(1)
 
-  def policyForLongEvents(bufferSize: Int) = {
-    DropIncomingThenSignal[Long](bufferSize, nr => nr)
+    val buffer = BufferedSubscriber[Int](new Observer[Int] {
+      def onNext(elem: Int) = promise.future
+      def onError(ex: Throwable) = throw new IllegalStateException()
+      def onComplete() = completed.countDown()
+    }, BackPressured(5))
+
+    assertEquals(buffer.observer.onNext(1), Continue)
+    assertEquals(buffer.observer.onNext(2), Continue)
+    assertEquals(buffer.observer.onNext(3), Continue)
+    assertEquals(buffer.observer.onNext(4), Continue)
+    assertEquals(buffer.observer.onNext(5), Continue)
+
+    val async = buffer.observer.onNext(6)
+    assert(async != Continue)
+
+    promise.success(Continue)
+    Await.result(async, 10.seconds)
+
+    assertEquals(buffer.observer.onNext(1), Continue)
+    assertEquals(buffer.observer.onNext(2), Continue)
+    assertEquals(buffer.observer.onNext(3), Continue)
+    assertEquals(buffer.observer.onNext(4), Continue)
+    assertEquals(buffer.observer.onNext(5), Continue)
+    assert(!completed.await(100, TimeUnit.MILLISECONDS), "completed.await shouldn't have succeeded")
+
+    buffer.observer.onComplete()
+    assert(completed.await(10, TimeUnit.SECONDS), "completed.await should have succeeded")
   }
 
   test("should not lose events, test 1") { implicit s =>
@@ -59,7 +86,7 @@ object BufferDropIncomingThenSignalConcurrencySuite extends TestSuite[Scheduler]
       }
     }
 
-    val buffer = BufferedSubscriber[Int](underlying, policyForIntEvents(100000))
+    val buffer = BufferedSubscriber[Int](underlying, BackPressured(100000))
     for (i <- 0 until 100000) buffer.observer.onNext(i)
     buffer.observer.onComplete()
 
@@ -86,7 +113,7 @@ object BufferDropIncomingThenSignalConcurrencySuite extends TestSuite[Scheduler]
       }
     }
 
-    val buffer = BufferedSubscriber[Int](underlying, policyForIntEvents(100000))
+    val buffer = BufferedSubscriber[Int](underlying, BackPressured(100000))
 
     def loop(n: Int): Unit =
       if (n > 0) s.execute(new Runnable {
@@ -99,61 +126,6 @@ object BufferDropIncomingThenSignalConcurrencySuite extends TestSuite[Scheduler]
     assertEquals(number, 10000)
   }
 
-  test("should drop incoming when over capacity") { implicit s =>
-    var received = 0
-    val wasCompleted = new CountDownLatch(1)
-    val receivedLatch = new CountDownLatch(5)
-    val promise = Promise[Ack]()
-
-    val underlying = new Observer[Int] {
-      def onNext(elem: Int) = {
-        received += elem
-
-        if (elem < 5) {
-          receivedLatch.countDown()
-          Continue
-        }
-        else if (elem == 5) {
-          receivedLatch.countDown()
-          // never ending piece of processing
-          promise.future
-        }
-        else
-          Continue
-      }
-
-      def onError(ex: Throwable): Unit = {
-        s.reportFailure(ex)
-      }
-
-      def onComplete() = {
-        wasCompleted.countDown()
-      }
-    }
-
-    val buffer = BufferedSubscriber[Int](underlying, policyForIntEvents(5))
-
-    assertEquals(buffer.observer.onNext(1), Continue)
-    assertEquals(buffer.observer.onNext(2), Continue)
-    assertEquals(buffer.observer.onNext(3), Continue)
-    assertEquals(buffer.observer.onNext(4), Continue)
-    assertEquals(buffer.observer.onNext(5), Continue)
-
-    assert(receivedLatch.await(10, TimeUnit.SECONDS), "receivedLatch.await should have succeeded")
-    assert(!wasCompleted.await(1, TimeUnit.SECONDS), "wasCompleted.await should have failed")
-    assertEquals(received, 15)
-
-    for (i <- 0 until 10) buffer.observer.onNext(6 + i)
-    buffer.observer.onComplete()
-
-    assert(!wasCompleted.await(1, TimeUnit.SECONDS), "wasCompleted.await should have failed")
-    assertEquals(received, 15)
-
-    promise.success(Continue)
-    assert(wasCompleted.await(5, TimeUnit.SECONDS), "wasCompleted.await should have succeeded")
-    assertEquals(received, 15 + 10)
-  }
-
   test("should send onError when empty") { implicit s =>
     val latch = new CountDownLatch(1)
     val buffer = BufferedSubscriber[Int](new Observer[Int] {
@@ -164,7 +136,7 @@ object BufferDropIncomingThenSignalConcurrencySuite extends TestSuite[Scheduler]
 
       def onNext(elem: Int) = throw new IllegalStateException()
       def onComplete() = throw new IllegalStateException()
-    }, policyForIntEvents(5))
+    }, BackPressured(5))
 
     buffer.observer.onError(new RuntimeException("dummy"))
     assert(latch.await(5, TimeUnit.SECONDS), "latch.await should have succeeded")
@@ -182,7 +154,7 @@ object BufferDropIncomingThenSignalConcurrencySuite extends TestSuite[Scheduler]
       }
       def onNext(elem: Int) = Continue
       def onComplete() = throw new IllegalStateException()
-    }, policyForIntEvents(5))
+    }, BackPressured(5))
 
     buffer.observer.onNext(1)
     buffer.observer.onError(new RuntimeException("dummy"))
@@ -200,7 +172,7 @@ object BufferDropIncomingThenSignalConcurrencySuite extends TestSuite[Scheduler]
       }
       def onNext(elem: Int) = promise.future
       def onComplete() = throw new IllegalStateException()
-    }, policyForIntEvents(5))
+    }, BackPressured(5))
 
     buffer.observer.onNext(1)
     buffer.observer.onNext(2)
@@ -219,7 +191,7 @@ object BufferDropIncomingThenSignalConcurrencySuite extends TestSuite[Scheduler]
       def onError(ex: Throwable) = throw new IllegalStateException()
       def onNext(elem: Int) = throw new IllegalStateException()
       def onComplete() = latch.countDown()
-    }, policyForIntEvents(5))
+    }, BackPressured(5))
 
     buffer.observer.onComplete()
     assert(latch.await(5, TimeUnit.SECONDS), "latch.await should have succeeded")
@@ -232,7 +204,7 @@ object BufferDropIncomingThenSignalConcurrencySuite extends TestSuite[Scheduler]
       def onError(ex: Throwable) = throw new IllegalStateException()
       def onNext(elem: Int) = promise.future
       def onComplete() = latch.countDown()
-    }, policyForIntEvents(5))
+    }, BackPressured(5))
 
     buffer.observer.onNext(1)
     buffer.observer.onComplete()
@@ -249,7 +221,7 @@ object BufferDropIncomingThenSignalConcurrencySuite extends TestSuite[Scheduler]
       def onError(ex: Throwable) = throw new IllegalStateException()
       def onNext(elem: Int) = promise.future
       def onComplete() = latch.countDown()
-    }, policyForIntEvents(5))
+    }, BackPressured(5))
 
     buffer.observer.onNext(1)
     buffer.observer.onNext(2)
@@ -275,7 +247,7 @@ object BufferDropIncomingThenSignalConcurrencySuite extends TestSuite[Scheduler]
       }
       def onError(ex: Throwable) = throw ex
       def onComplete() = complete.countDown()
-    }, policyForLongEvents(10000))
+    }, BackPressured(10000))
 
     (0 until 9999).foreach(x => buffer.observer.onNext(x))
     buffer.observer.onComplete()
@@ -296,7 +268,7 @@ object BufferDropIncomingThenSignalConcurrencySuite extends TestSuite[Scheduler]
       }
       def onError(ex: Throwable) = throw ex
       def onComplete() = complete.countDown()
-    }, policyForLongEvents(10000))
+    }, BackPressured(10000))
 
     (0 until 9999).foreach(x => buffer.observer.onNext(x))
     buffer.observer.onComplete()
@@ -317,7 +289,7 @@ object BufferDropIncomingThenSignalConcurrencySuite extends TestSuite[Scheduler]
       }
       def onError(ex: Throwable) = complete.countDown()
       def onComplete() = throw new IllegalStateException()
-    }, policyForLongEvents(10000))
+    }, BackPressured(10000))
 
     (0 until 9999).foreach(x => buffer.observer.onNext(x))
     buffer.observer.onError(new RuntimeException)
@@ -338,7 +310,7 @@ object BufferDropIncomingThenSignalConcurrencySuite extends TestSuite[Scheduler]
       }
       def onError(ex: Throwable) = complete.countDown()
       def onComplete() = throw new IllegalStateException()
-    }, policyForLongEvents(10000))
+    }, BackPressured(10000))
 
     (0 until 9999).foreach(x => buffer.observer.onNext(x))
     buffer.observer.onError(new RuntimeException)
