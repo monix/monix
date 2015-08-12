@@ -98,10 +98,23 @@ final class DropIncomingBufferedSubscriber[-T] private
       }
     }
 
-    def onComplete() = {
+    def onComplete(): Unit = {
       if (!upstreamIsComplete && !downstreamIsDone) {
-        upstreamIsComplete = true
-        notifyConsumerOfNewEvent()
+        if (eventsDropped > 0 && onOverflow != null) try {
+          val message = onOverflow(eventsDropped)
+          eventsDropped = 0
+          queue.offer(message)
+          upstreamIsComplete = true
+          notifyConsumerOfNewEvent()
+        }
+        catch {
+          case NonFatal(ex) =>
+            onError(ex)
+        }
+        else {
+          upstreamIsComplete = true
+          notifyConsumerOfNewEvent()
+        }
       }
     }
   }
