@@ -25,15 +25,17 @@ import monifu.reactive.subjects.AsyncSubject
  * Represents a [[monifu.reactive.Channel Channel]] that uses an underlying
  * [[monifu.reactive.subjects.AsyncSubject AsyncSubject]].
  */
-final class AsyncChannel[T] private (policy: BufferPolicy, s: Scheduler)
-  extends SubjectChannel(AsyncSubject[T](), policy)(s)
+final class AsyncChannel[T] private (policy: BufferPolicy.Synchronous[T], s: Scheduler)
+  extends SubjectChannel[T,T](AsyncSubject[T](), policy)(s)
 
 object AsyncChannel {
   /**
    * Builds a [[monifu.reactive.Channel Channel]] that uses an underlying
    * [[monifu.reactive.subjects.AsyncSubject AsyncSubject]].
    */
-  def apply[T](bufferPolicy: BufferPolicy = Unbounded)(implicit s: Scheduler): AsyncChannel[T] = {
+  def apply[T](bufferPolicy: BufferPolicy.Synchronous[T] = Unbounded)
+      (implicit s: Scheduler): AsyncChannel[T]= {
+
     new AsyncChannel[T](bufferPolicy, s)
   }
 }

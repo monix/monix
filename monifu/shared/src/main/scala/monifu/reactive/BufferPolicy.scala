@@ -30,25 +30,39 @@ package monifu.reactive
  * to implement buffering when concurrent actions are needed, such as in
  * [[monifu.reactive.Channel Channels]] or in [[monifu.reactive.Observable.merge Observable.merge]].
  */
-sealed trait BufferPolicy
+sealed trait BufferPolicy[+T]
 
 object BufferPolicy {
+  /**
+   * A category of [[BufferPolicy]] for buffers that can be used
+   * synchronously, without worrying about back-pressure concerns.
+   *
+   * Needed such that buffer policies can safely be used
+   * in combination with [[Channel]] for publishing. For now,
+   * that's all policies except [[BackPressured]], a policy
+   * that can't work for [[Channel]].
+   */
+  sealed trait Synchronous[+T] extends BufferPolicy[T]
+  
   /**
    * A [[BufferPolicy]] specifying that the buffer is completely unbounded.
    * Using this policy implies that with a fast data source, the system's
    * memory can be exhausted and the process might blow up on lack of memory.
    */
-  case object Unbounded extends BufferPolicy
+  case object Unbounded extends Synchronous[Nothing]
 
   /**
    * A [[BufferPolicy]] specifying that on reaching the maximum size,
    * the pipeline should cancel the subscription and send an `onError`
    * to the observer(s) downstream.
+   *
+   * @param bufferSize specifies how many events our buffer can hold
+   *                   before overflowing
    */
   case class OverflowTriggering(bufferSize: Int)
-    extends BufferPolicy {
+    extends Synchronous[Nothing] {
 
-    require(bufferSize > 1, "bufferSize must be greater than 1")
+    require(bufferSize > 1, "bufferSize must be strictly greater than 1")
   }
 
   /**
@@ -56,15 +70,51 @@ object BufferPolicy {
    * the pipeline should try to apply back-pressure (i.e. it should try
    * delaying the data source in producing more elements, until the
    * the consumer has drained the buffer and space is available).
+   *
+   * @param bufferSize specifies how many events our buffer can hold
+   *                   before overflowing
    */
-  case class BackPressured(bufferSize: Int) extends BufferPolicy {
-    require(bufferSize > 1, "bufferSize should be greater than 1")
+  case class BackPressured(bufferSize: Int)
+    extends BufferPolicy[Nothing] {
+
+    require(bufferSize > 1, "bufferSize should be strictly greater than 1")
+  }
+
+  /**
+   * A [[BufferPolicy]] specifying that on reaching the maximum size,
+   * the pipeline should begin dropping incoming events until the buffer
+   * has room in it again and is free to process more elements.
+   *
+   * @param bufferSize specifies how many events our buffer can hold
+   *                   before overflowing
+   */
+  case class DropIncoming[T](bufferSize: Int)
+    extends Synchronous[Nothing] {
+
+    require(bufferSize > 1, "bufferSize should be strictly greater than 1")
+  }
+
+  /**
+   * A [[BufferPolicy]] specifying that on reaching the maximum size,
+   * the pipeline should begin dropping incoming events until the buffer
+   * has room in it again and is free to process more elements.
+   *
+   * @param bufferSize specifies how many events our buffer can hold
+   *                   before overflowing
+   * @param onOverflow is a function that receives the number of events that were
+   *                   dropped and is used to construct an overflow event for
+   *                   signalling downstream that events were dropped.
+   */
+  case class DropIncomingThenSignal[+T](bufferSize: Int, onOverflow: Long => T)
+    extends Synchronous[T] {
+        
+    require(bufferSize > 1, "bufferSize should be strictly greater than 1")
   }
 
   /**
    * The default library-wide policy used whenever a default argument
    * value is needed.
    */
-  val default: BufferPolicy = BackPressured(bufferSize = 2048)
+  val default: BufferPolicy[Nothing] = BackPressured(bufferSize = 2048)
 }
 

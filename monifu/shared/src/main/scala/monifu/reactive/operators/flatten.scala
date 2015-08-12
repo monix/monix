@@ -100,7 +100,7 @@ object flatten {
   /**
    * Implementation for [[Observable.merge]].
    */
-  def merge[T,U](source: Observable[T], bufferPolicy: BufferPolicy, delayErrors: Boolean)
+  def merge[T,U](source: Observable[T], bufferPolicy: BufferPolicy[U], delayErrors: Boolean)
       (implicit ev: T <:< Observable[U]): Observable[U] = {
 
     Observable.create { subscriber =>

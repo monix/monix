@@ -16,6 +16,7 @@
 
 package monifu.reactive.operators
 
+import monifu.reactive.BufferPolicy.Unbounded
 import monifu.reactive.Observable
 import monifu.reactive.observers.BufferedSubscriber
 import scala.concurrent.duration.Duration.Zero
@@ -24,7 +25,7 @@ object DoWorkSuite extends BaseOperatorSuite {
   def observable(sourceCount: Int) = Some {
     val o = Observable.create[Long] { s =>
       implicit val ec = s.scheduler
-      val buffer = BufferedSubscriber(s.observer)
+      val buffer = BufferedSubscriber[Long](s.observer, Unbounded)
 
       Observable.range(0, sourceCount)
         .doWork(x => buffer.observer.onNext(x))
@@ -41,7 +42,7 @@ object DoWorkSuite extends BaseOperatorSuite {
     val o = Observable.create[Long] { s =>
       implicit val ec = s.scheduler
 
-      val buffer = BufferedSubscriber(s.observer)
+      val buffer = BufferedSubscriber[Long](s.observer, Unbounded)
       createObservableEndingInError(Observable.range(0, sourceCount), ex)
         .doWork(x => buffer.observer.onNext(x))
         .doOnError(buffer.observer.onError)
@@ -59,7 +60,7 @@ object DoWorkSuite extends BaseOperatorSuite {
     val o = Observable.create[Long] { s =>
       implicit val ec = s.scheduler
 
-      val buffer = BufferedSubscriber(s.observer)
+      val buffer = BufferedSubscriber[Long](s.observer, Unbounded)
       Observable.range(0, sourceCount)
         .doWork(x => if (x == sourceCount - 1) throw ex else buffer.observer.onNext(x))
         .doOnError(buffer.observer.onError)
