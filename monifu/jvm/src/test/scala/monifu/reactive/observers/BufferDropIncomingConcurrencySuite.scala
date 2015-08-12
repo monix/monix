@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package monifu.reactive
+package monifu.reactive.observers
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 
@@ -22,7 +22,7 @@ import minitest.TestSuite
 import monifu.concurrent.Scheduler
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.BufferPolicy.DropIncoming
-import monifu.reactive.observers.BufferedSubscriber
+import monifu.reactive.{Ack, DummyException, Observer}
 
 import scala.concurrent.{Future, Promise}
 
@@ -94,57 +94,45 @@ object BufferDropIncomingConcurrencySuite extends TestSuite[Scheduler] {
   }
 
   test("should drop incoming when over capacity") { implicit s =>
-    var received = 0
-    val wasCompleted = new CountDownLatch(1)
-    val receivedLatch = new CountDownLatch(5)
-    val promise = Promise[Ack]()
+    // repeating test 100 times because of problems
+    for (_ <- 0 until 100) {
+      var sum = 0
+      val completed = new CountDownLatch(1)
+      val promise = Promise[Ack]()
 
-    val underlying = new Observer[Int] {
-      def onNext(elem: Int) = {
-        received += 1
-        if (received < 5) {
-          receivedLatch.countDown()
-          Continue
-        }
-        else if (received == 5) {
-          receivedLatch.countDown()
-          // never ending piece of processing
+      val underlying = new Observer[Int] {
+        var received = 0
+
+        def onNext(elem: Int) = {
+          sum += elem
+          received += 1
           promise.future
         }
-        else
-          Continue
+
+        def onError(ex: Throwable): Unit = {
+          s.reportFailure(ex)
+        }
+
+        def onComplete() = {
+          completed.countDown()
+        }
       }
 
-      def onError(ex: Throwable): Unit = {
-        s.reportFailure(ex)
-      }
+      val buffer = BufferedSubscriber[Int](underlying, DropIncoming(5))
 
-      def onComplete() = {
-        wasCompleted.countDown()
-      }
+      assertEquals(buffer.observer.onNext(1), Continue)
+      assertEquals(buffer.observer.onNext(2), Continue)
+      assertEquals(buffer.observer.onNext(3), Continue)
+      assertEquals(buffer.observer.onNext(4), Continue)
+      assertEquals(buffer.observer.onNext(5), Continue)
+
+      for (i <- 0 until 20) buffer.observer.onNext(6 + i)
+      buffer.observer.onComplete()
+      promise.success(Continue)
+
+      assert(completed.await(5, TimeUnit.SECONDS), "wasCompleted.await should have succeeded")
+      assertEquals(sum, 15)
     }
-
-    val buffer = BufferedSubscriber[Int](underlying, DropIncoming(5))
-
-    assertEquals(buffer.observer.onNext(1), Continue)
-    assertEquals(buffer.observer.onNext(2), Continue)
-    assertEquals(buffer.observer.onNext(3), Continue)
-    assertEquals(buffer.observer.onNext(4), Continue)
-    assertEquals(buffer.observer.onNext(5), Continue)
-
-    assert(receivedLatch.await(10, TimeUnit.SECONDS), "receivedLatch.await should have succeeded")
-    assert(!wasCompleted.await(1, TimeUnit.SECONDS), "wasCompleted.await should have failed")
-    assertEquals(received, 5)
-
-    for (i <- 0 until 10) buffer.observer.onNext(6 + i)
-    buffer.observer.onComplete()
-
-    assert(!wasCompleted.await(1, TimeUnit.SECONDS), "wasCompleted.await should have failed")
-    assertEquals(received, 5)
-
-    promise.success(Continue)
-    assert(wasCompleted.await(5, TimeUnit.SECONDS), "wasCompleted.await should have succeeded")
-    assertEquals(received, 5)
   }
 
   test("should send onError when empty") { implicit s =>
