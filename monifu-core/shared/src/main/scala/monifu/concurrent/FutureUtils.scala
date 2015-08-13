@@ -16,7 +16,7 @@
 
 package monifu.concurrent
 
-import java.util.concurrent.TimeoutException
+import java.util.concurrent.{TimeUnit, TimeoutException}
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.Try
@@ -80,10 +80,8 @@ object FutureUtils {
     source.onComplete {
       case result =>
         val remainingMillis = atLeast.toMillis - (s.currentTimeMillis() - start)
-        if (remainingMillis >= 1000000) {
-          val remaining = math.round(remainingMillis / 1000000.0).millis
-          s.scheduleOnce(remaining)(p.complete(result))
-        }
+        if (remainingMillis >= 1)
+          s.scheduleOnce(remainingMillis, TimeUnit.MILLISECONDS)(p.complete(result))
         else
           p.complete(result)
     }
