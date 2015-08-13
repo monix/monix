@@ -16,12 +16,15 @@
 
 package monifu.concurrent.schedulers
 
+import java.util.concurrent.TimeUnit
+
 import monifu.concurrent.cancelables.MultiAssignmentCancelable
 import monifu.concurrent.{Cancelable, Scheduler}
 import scala.concurrent.duration._
 
 abstract class ReferenceScheduler extends Scheduler {
-  def nanoTime(): Long = System.nanoTime()
+  def currentTimeMillis(): Long =
+    System.currentTimeMillis()
 
   def execute(action: => Unit): Unit = {
     execute(new Runnable { def run(): Unit = action })
@@ -29,6 +32,11 @@ abstract class ReferenceScheduler extends Scheduler {
 
   def scheduleOnce(initialDelay: FiniteDuration)(action: => Unit): Cancelable =
     scheduleOnce(initialDelay, new Runnable {
+      def run(): Unit = action
+    })
+
+  def scheduleOnce(initialDelay: Long, unit: TimeUnit)(action: => Unit): Cancelable =
+    scheduleOnce(initialDelay, unit, new Runnable {
       def run(): Unit = action
     })
 
@@ -47,8 +55,28 @@ abstract class ReferenceScheduler extends Scheduler {
     sub
   }
 
+  def scheduleWithFixedDelay(initialDelay: Long, delay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
+    val sub = MultiAssignmentCancelable()
+
+    def loop(initialDelay: Long, delay: Long): Unit =
+      sub := scheduleOnce(initialDelay, unit, new Runnable {
+        def run(): Unit = {
+          r.run()
+          loop(delay, delay)
+        }
+      })
+
+    loop(initialDelay, delay)
+    sub
+  }
+
   def scheduleWithFixedDelay(initialDelay: FiniteDuration, delay: FiniteDuration)(action: => Unit): Cancelable =
     scheduleWithFixedDelay(initialDelay, delay, new Runnable {
+      def run(): Unit = action
+    })
+
+  def scheduleWithFixedDelay(initialDelay: Long, delay: Long, unit: TimeUnit)(action: => Unit): Cancelable =
+    scheduleWithFixedDelay(initialDelay, delay, unit, new Runnable {
       def run(): Unit = action
     })
 
@@ -56,14 +84,14 @@ abstract class ReferenceScheduler extends Scheduler {
     val sub = MultiAssignmentCancelable()
 
     def loop(initialDelay: FiniteDuration): Unit = {
-      val startedAt = nanoTime()
+      val startedAtMillis = currentTimeMillis()
 
       sub := scheduleOnce(initialDelay, new Runnable {
         def run(): Unit = {
           r.run()
 
           val delay = {
-            val duration = (nanoTime() - startedAt).nanos
+            val duration = (currentTimeMillis() - startedAtMillis).millis
             val d = period - duration
             if (d >= Duration.Zero) d else Duration.Zero
           }
@@ -78,8 +106,41 @@ abstract class ReferenceScheduler extends Scheduler {
     sub
   }
 
+  def scheduleAtFixedRate(initialDelay: Long, period: Long, unit: TimeUnit, r: Runnable): Cancelable = {
+    val sub = MultiAssignmentCancelable()
+
+    def loop(initialDelayMs: Long, periodMs: Long): Unit = {
+      val startedAtMillis = currentTimeMillis()
+
+      sub := scheduleOnce(initialDelayMs, TimeUnit.MILLISECONDS, new Runnable {
+        def run(): Unit = {
+          r.run()
+
+          val delay = {
+            val durationMillis = currentTimeMillis() - startedAtMillis
+            val d = periodMs - durationMillis
+            if (d >= 0) d else 0
+          }
+
+          loop(delay, periodMs)
+        }
+      })
+    }
+
+    val initialMs = TimeUnit.MILLISECONDS.convert(initialDelay, unit)
+    val periodMs = TimeUnit.MILLISECONDS.convert(period, unit)
+    
+    loop(initialMs, periodMs)
+    sub
+  }
+
   def scheduleAtFixedRate(initialDelay: FiniteDuration, period: FiniteDuration)(action: => Unit): Cancelable =
     scheduleAtFixedRate(initialDelay, period, new Runnable {
+      def run(): Unit = action
+    })
+
+  def scheduleAtFixedRate(initialDelay: Long, period: Long, unit: TimeUnit)(action: => Unit): Cancelable =
+    scheduleAtFixedRate(initialDelay, period, unit, new Runnable {
       def run(): Unit = action
     })
 

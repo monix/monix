@@ -16,9 +16,10 @@
 
 package monifu.concurrent.schedulers
 
+import java.util.concurrent.TimeUnit
+import monifu.concurrent.schedulers.Timer.{clearTimeout, setTimeout}
+import monifu.concurrent.{Cancelable, UncaughtExceptionReporter}
 import scala.concurrent.duration._
-import monifu.concurrent.{Cancelable, Scheduler, UncaughtExceptionReporter}
-import monifu.concurrent.schedulers.Timer.{setTimeout, clearTimeout}
 
 /**
  * An `AsyncScheduler` schedules tasks to happen in the future with
@@ -30,6 +31,12 @@ final class AsyncScheduler private (reporter: UncaughtExceptionReporter)
 
   def scheduleOnce(initialDelay: FiniteDuration, r: Runnable): Cancelable = {
     val task = setTimeout(initialDelay.toMillis, r, reporter)
+    Cancelable(clearTimeout(task))
+  }
+
+  def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable) = {
+    val millis = TimeUnit.MILLISECONDS.convert(initialDelay, unit)
+    val task = setTimeout(millis, r, reporter)
     Cancelable(clearTimeout(task))
   }
 

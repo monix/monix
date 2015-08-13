@@ -16,12 +16,12 @@
 
 package monifu.concurrent.schedulers
 
+import java.util.concurrent.TimeUnit
 import monifu.concurrent.schedulers.Timer.{clearTimeout, setTimeout}
-import monifu.concurrent.{Cancelable, Scheduler, UncaughtExceptionReporter}
-
+import monifu.concurrent.{Cancelable, UncaughtExceptionReporter}
 import scala.annotation.tailrec
 import scala.collection.mutable
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{FiniteDuration, TimeUnit}
 import scala.util.control.NonFatal
 
 
@@ -34,6 +34,12 @@ final class TrampolineScheduler private
 
   def scheduleOnce(initialDelay: FiniteDuration, r: Runnable): Cancelable = {
     val task = setTimeout(initialDelay.toMillis, r, reporter)
+    Cancelable(clearTimeout(task))
+  }
+
+  def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable) = {
+    val millis = TimeUnit.MILLISECONDS.convert(initialDelay, unit)
+    val task = setTimeout(millis, r, reporter)
     Cancelable(clearTimeout(task))
   }
 

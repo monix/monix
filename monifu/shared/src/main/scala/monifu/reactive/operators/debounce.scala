@@ -16,6 +16,8 @@
 
 package monifu.reactive.operators
 
+import java.util.concurrent.TimeUnit
+
 import monifu.concurrent.cancelables.MultiAssignmentCancelable
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.internals._
@@ -33,37 +35,37 @@ object debounce {
     Observable.create { subscriber => 
       implicit val s = subscriber.scheduler
       val downstream = subscriber.observer
-      val timeoutNanos = timeout.toNanos
+      val timeoutMillis = timeout.toMillis
 
       source.unsafeSubscribe(new SynchronousObserver[T] with Runnable { self =>
         private[this] val task = MultiAssignmentCancelable()
         private[this] var ack: Future[Ack] = Continue
         private[this] var isDone = false
         private[this] var lastEvent: T = _
-        private[this] var lastTSInNanos: Long = 0L
+        private[this] var lastTSInMillis: Long = 0L
 
         locally {
-          scheduleNext(timeout)
+          scheduleNext(timeoutMillis)
         }
 
-        def scheduleNext(delay: FiniteDuration): Unit = {
-          task := s.scheduleOnce(delay, self)
+        def scheduleNext(delayMillis: Long): Unit = {
+          task := s.scheduleOnce(delayMillis, TimeUnit.MILLISECONDS, self)
         }
 
         def run(): Unit = self.synchronized {
           if (!isDone) {
-            if (lastEvent == null) scheduleNext(timeout) else {
-              val rightNow = s.nanoTime()
-              val sinceLastOnNext = rightNow - lastTSInNanos
+            if (lastEvent == null) scheduleNext(timeoutMillis) else {
+              val rightNow = s.currentTimeMillis()
+              val sinceLastOnNext = rightNow - lastTSInMillis
 
-              if (sinceLastOnNext >= timeoutNanos) {
+              if (sinceLastOnNext >= timeoutMillis) {
                 ack = downstream.onNext(lastEvent).fastFlatMap {
                   case Continue =>
-                    val executionTime = s.nanoTime() - rightNow
-                    val delay = if (timeoutNanos > executionTime)
-                      timeoutNanos - executionTime else 0L
+                    val executionTime = s.currentTimeMillis() - rightNow
+                    val delay = if (timeoutMillis > executionTime)
+                      timeoutMillis - executionTime else 0L
 
-                    scheduleNext(delay.nanos)
+                    scheduleNext(delay)
                     Continue
 
                   case Cancel =>
@@ -72,8 +74,8 @@ object debounce {
                 }
               }
               else {
-                val remainingTime = timeoutNanos - sinceLastOnNext
-                scheduleNext(remainingTime.nanos)
+                val remainingTime = timeoutMillis - sinceLastOnNext
+                scheduleNext(remainingTime)
               }
             }
           }
@@ -82,7 +84,7 @@ object debounce {
         def onNext(elem: T): Ack = self.synchronized {
           if (!isDone) {
             lastEvent = elem
-            lastTSInNanos = s.nanoTime()
+            lastTSInMillis = s.currentTimeMillis()
             Continue
           }
           else {

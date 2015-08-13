@@ -23,7 +23,7 @@ import monifu.concurrent.schedulers.TestScheduler._
 
 import scala.annotation.tailrec
 import scala.collection.immutable.SortedSet
-import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.concurrent.duration.{TimeUnit, Duration, FiniteDuration}
 import scala.util.Random
 import scala.util.control.NonFatal
 
@@ -43,11 +43,14 @@ final class TestScheduler private () extends ReferenceScheduler {
     lastReportedError = null
   ))
 
-  override def nanoTime(): Long =
-    state.get.clock.toNanos
+  override def currentTimeMillis(): Long =
+    state.get.clock.toMillis
 
   def scheduleOnce(initialDelay: FiniteDuration, r: Runnable): Cancelable =
     state.transformAndExtract(_.scheduleOnce(initialDelay, r))
+
+  def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable =
+    state.transformAndExtract(_.scheduleOnce(FiniteDuration(initialDelay, unit), r))
 
   private[this] def cancelTask(t: Task): Unit =
     state.transform(s => s.copy(tasks = s.tasks - t))

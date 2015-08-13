@@ -16,6 +16,8 @@
 
 package monifu.reactive.operators
 
+import java.util.concurrent.TimeUnit
+
 import monifu.concurrent.Scheduler
 import monifu.reactive.Ack.Continue
 import monifu.reactive.internals._
@@ -95,12 +97,14 @@ object sample {
     
     s.scheduleOnce(initialDelay, new Runnable { self =>
       import ObserverState.{ON_CONTINUE, ON_NEXT}
+
+      private[this] val periodMillis = period.toMillis
       private[this] var nextState = ON_NEXT
       private[this] var startedAt = 0L
 
       def run() = nextState match {
         case ON_NEXT =>          
-          startedAt = s.nanoTime()
+          startedAt = s.currentTimeMillis()
 
           if (hasValue) {
             val result = downstream.onNext(lastValue)
@@ -125,13 +129,13 @@ object sample {
         }
         else {
           val nextDelay = {
-            val duration = (s.nanoTime() - startedAt).nanos
-            val d = period - duration
-            if (d >= Duration.Zero) d else Duration.Zero
+            val duration = s.currentTimeMillis() - startedAt
+            val d = periodMillis - duration
+            if (d >= 0L) d else 0L
           }
 
           nextState = ON_NEXT
-          s.scheduleOnce(nextDelay, self)
+          s.scheduleOnce(nextDelay, TimeUnit.MILLISECONDS, self)
         }
       }
     })
