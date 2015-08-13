@@ -1134,6 +1134,34 @@ trait Observable[+T] { self =>
     operators.onError.retryIf(self, p)
 
   /**
+   * Returns an Observable that mirrors the source Observable but
+   * applies a timeout policy for each emitted item. If the next item
+   * isn't emitted within the specified timeout duration starting from
+   * its predecessor, the resulting Observable terminates and notifies
+   * observers of a TimeoutException.
+   *
+   * @param timeout maximum duration between emitted items before
+   *                a timeout occurs
+   */
+  def timeout(timeout: FiniteDuration): Observable[T] =
+    operators.timeout.emitError(self, timeout)
+
+  /**
+   * Returns an Observable that mirrors the source Observable but
+   * applies a timeout policy for each emitted item. If the next item
+   * isn't emitted within the specified timeout duration starting from
+   * its predecessor, the resulting Observable begins instead to
+   * mirror a backup Observable.
+   *
+   * @param timeout maximum duration between emitted items before
+   *                a timeout occurs
+   * @param backup is the backup observable to subscribe to
+   *               in case of a timeout
+   */
+  def timeout[U >: T](timeout: FiniteDuration, backup: Observable[U]): Observable[U] =
+    operators.timeout.switchToBackup(self, timeout, backup)
+
+  /**
    * Given a function that transforms an `Observable[T]` into an `Observable[U]`,
    * it transforms the source observable into an `Observable[U]`.
    */
