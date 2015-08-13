@@ -16,6 +16,8 @@
 
 package monifu.reactive.builders
 
+import java.util.concurrent.TimeUnit
+
 import monifu.reactive.Observable
 import monifu.reactive.internals._
 import scala.concurrent.duration._
@@ -34,24 +36,26 @@ object timer {
       // therefore the weird Runnable instance that does a state machine
       val runnable = new Runnable { self =>
         import ObserverState.{ON_CONTINUE, ON_NEXT}
-        var state = ON_NEXT
-        var startedAt = 0L
+
+        private[this] val periodMs = period.toMillis
+        private[this] var state = ON_NEXT
+        private[this] var startedAt = 0L
 
         def run(): Unit = state match {
           case ON_NEXT =>
             state = ON_CONTINUE
-            startedAt = s.nanoTime()
+            startedAt = s.currentTimeMillis()
             observer.onNext(unit).onContinue(self)
 
           case ON_CONTINUE =>
             state = ON_NEXT
             val initialDelay = {
-              val duration = (s.nanoTime() - startedAt).nanos
-              val d = period - duration
-              if (d >= Duration.Zero) d else Duration.Zero
+              val duration = s.currentTimeMillis() - startedAt
+              val d = periodMs - duration
+              if (d >= 0L) d else 0L
             }
 
-            s.scheduleOnce(initialDelay, self)
+            s.scheduleOnce(initialDelay, TimeUnit.MILLISECONDS, self)
         }
       }
 

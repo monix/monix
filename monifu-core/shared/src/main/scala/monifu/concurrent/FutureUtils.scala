@@ -74,14 +74,14 @@ object FutureUtils {
    * @return a new `Future` whose execution time is within the specified bounds
    */
   def withMinDuration[T](source: Future[T], atLeast: FiniteDuration)(implicit s: Scheduler): Future[T] = {
-    val start = System.nanoTime()
+    val start = s.currentTimeMillis()
     val p = Promise[T]()
 
     source.onComplete {
       case result =>
-        val remainingNanos = atLeast.toNanos - (System.nanoTime() - start)
-        if (remainingNanos >= 1000000) {
-          val remaining = math.round(remainingNanos / 1000000.0).millis
+        val remainingMillis = atLeast.toMillis - (s.currentTimeMillis() - start)
+        if (remainingMillis >= 1000000) {
+          val remaining = math.round(remainingMillis / 1000000.0).millis
           s.scheduleOnce(remaining)(p.complete(result))
         }
         else

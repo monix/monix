@@ -17,8 +17,7 @@
 package monifu.concurrent.schedulers
 
 import java.util.concurrent.{ScheduledExecutorService, TimeUnit}
-import monifu.concurrent.cancelables.SingleAssignmentCancelable
-import monifu.concurrent.{UncaughtExceptionReporter, Scheduler, Cancelable}
+import monifu.concurrent.{Cancelable, UncaughtExceptionReporter}
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
@@ -33,17 +32,16 @@ final class AsyncScheduler private
   extends ReferenceScheduler {
 
   def scheduleOnce(initialDelay: FiniteDuration, r: Runnable): Cancelable = {
-    if (initialDelay <= Duration.Zero) {
+    scheduleOnce(initialDelay.length, initialDelay.unit, r)
+  }
+
+  def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable) = {
+    if (initialDelay <= 0) {
       execute(r)
       Cancelable()
     }
     else {
-      val task =
-        if (initialDelay < oneHour)
-          s.schedule(r, initialDelay.toNanos, TimeUnit.NANOSECONDS)
-        else
-          s.schedule(r, initialDelay.toMillis, TimeUnit.MILLISECONDS)
-
+      val task = s.schedule(r, initialDelay, unit)
       Cancelable(task.cancel(true))
     }
   }
@@ -53,8 +51,18 @@ final class AsyncScheduler private
     Cancelable(task.cancel(false))
   }
 
+  override def scheduleWithFixedDelay(initialDelay: Long, delay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
+    val task = s.scheduleWithFixedDelay(r, initialDelay, delay, unit)
+    Cancelable(task.cancel(false))
+  }
+
   override def scheduleAtFixedRate(initialDelay: FiniteDuration, period: FiniteDuration, r: Runnable): Cancelable = {
     val task = s.scheduleAtFixedRate(r, initialDelay.toMillis, period.toMillis, TimeUnit.MILLISECONDS)
+    Cancelable(task.cancel(false))
+  }
+
+  override def scheduleAtFixedRate(initialDelay: Long, period: Long, unit: TimeUnit, r: Runnable): Cancelable = {
+    val task = s.scheduleAtFixedRate(r, initialDelay, period, unit)
     Cancelable(task.cancel(false))
   }
 
@@ -63,8 +71,6 @@ final class AsyncScheduler private
 
   def reportFailure(t: Throwable): Unit =
     r.reportFailure(t)
-
-  private[this] val oneHour = 1.hour
 }
 
 object AsyncScheduler {

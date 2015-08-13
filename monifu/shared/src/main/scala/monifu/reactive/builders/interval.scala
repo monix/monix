@@ -16,6 +16,7 @@
 
 package monifu.reactive.builders
 
+import java.util.concurrent.TimeUnit
 import monifu.reactive.Observable
 import monifu.reactive.internals._
 import scala.concurrent.duration._
@@ -68,14 +69,16 @@ object interval {
 
       s.execute(new Runnable { self =>
         import monifu.reactive.internals.ObserverState.{ON_CONTINUE, ON_NEXT}
-        var state = ON_NEXT
-        var counter = 0L
-        var startedAt = 0L
+
+        private[this] val periodMillis = period.toMillis
+        private[this] var state = ON_NEXT
+        private[this] var counter = 0L
+        private[this] var startedAt = 0L
 
         def run() = state match {
           case ON_NEXT =>
             state = ON_CONTINUE
-            startedAt = s.nanoTime()
+            startedAt = s.currentTimeMillis()
             o.onNext(counter).onContinue(self)
 
           case ON_CONTINUE =>
@@ -83,12 +86,12 @@ object interval {
             counter += 1
 
             val delay = {
-              val duration = (s.nanoTime() - startedAt).nanos
-              val d = period - duration
-              if (d >= Duration.Zero) d else Duration.Zero
+              val durationMillis = s.currentTimeMillis() - startedAt
+              val d = periodMillis - durationMillis
+              if (d >= 0L) d else 0L
             }
 
-            s.scheduleOnce(delay, self)
+            s.scheduleOnce(delay, TimeUnit.MILLISECONDS, self)
         }
       })
     }
