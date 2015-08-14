@@ -22,9 +22,7 @@ import sbtrelease.ReleasePlugin.autoImport._
 
 
 object Build extends SbtBuild {
-  val sharedSettings = Seq(
-    name := "monifu",
-    organization := "org.monifu",
+  val compilerSettings = Seq(
     scalaVersion := "2.11.7",
 
     scalacOptions <<= baseDirectory.map { bd => Seq("-sourcepath", bd.getAbsolutePath) },
@@ -48,7 +46,12 @@ object Build extends SbtBuild {
       Seq(
         "-Ymacro-no-expand",
         "-sourcepath", bd.getAbsolutePath
-      )),
+      ))
+  )
+
+  val sharedSettings = compilerSettings ++ Seq(
+    name := "monifu",
+    organization := "org.monifu",
 
     resolvers ++= Seq(
       "Typesafe Releases" at "http://repo.typesafe.com/typesafe/releases",
@@ -95,13 +98,10 @@ object Build extends SbtBuild {
         </developers>
   )
 
-  // -- Root aggregating everything
-
   lazy val root = project.in(file("."))
     .aggregate(jvm, js)
+    .settings(compilerSettings: _*)
     .settings(publish := {}, publishLocal := {})
-
-  // -- Monifu
 
   lazy val monifu = crossProject.in(file("."))
     .settings(sharedSettings: _*)
@@ -113,7 +113,7 @@ object Build extends SbtBuild {
         "org.monifu" %% "minitest" % "0.13" % "test"
       ))
     .jsSettings(
-      scalaJSStage in Test := FastOptStage,
+//      scalaJSStage in Test := FastOptStage,
       testFrameworks += new TestFramework("minitest.runner.Framework"),
       libraryDependencies ++= Seq(
         "org.monifu" %%% "minitest" % "0.13" % "test"
