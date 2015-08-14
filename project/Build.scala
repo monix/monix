@@ -25,7 +25,6 @@ object Build extends SbtBuild {
   val compilerSettings = Seq(
     scalaVersion := "2.11.7",
 
-    scalacOptions <<= baseDirectory.map { bd => Seq("-sourcepath", bd.getAbsolutePath) },
     scalacOptions ++= Seq(
       "-unchecked", "-deprecation", "-feature", "-Xlint", "-target:jvm-1.6", "-Yinline-warnings",
       "-optimise", "-Ywarn-adapted-args", "-Ywarn-dead-code", "-Ywarn-inaccessible",
@@ -37,16 +36,12 @@ object Build extends SbtBuild {
     scalacOptions in (Compile, doc) ++=
       Opts.doc.sourceUrl(s"https://github.com/monifu/monifu/tree/v${version.value}/monifu€{FILE_PATH}.scala"),
     scalacOptions in (Compile, doc) ++=
-      Opts.doc.title(s"Monifu"),
+      Seq("-doc-root-content", baseDirectory.value + "/rootdoc.txt"),
     scalacOptions in (Compile, doc) ++=
       Opts.doc.version(s"${version.value}"),
-    scalacOptions in (Compile, doc) ++=
-      Seq("-doc-root-content", "rootdoc.txt"),
-    scalacOptions in (Compile, doc) <<= baseDirectory.map(bd =>
-      Seq(
-        "-Ymacro-no-expand",
-        "-sourcepath", bd.getAbsolutePath
-      ))
+    scalacOptions in ThisBuild <++= baseDirectory.map { bd =>
+      Seq("-sourcepath", bd.getAbsolutePath)
+    }
   )
 
   val sharedSettings = compilerSettings ++ Seq(
@@ -107,13 +102,15 @@ object Build extends SbtBuild {
     .settings(sharedSettings: _*)
     .settings(name := "monifu")
     .jvmSettings(
+      scalacOptions in (Compile, doc) ++= Opts.doc.title(s"Monifu"),
       testFrameworks += new TestFramework("minitest.runner.Framework"),
       libraryDependencies ++= Seq(
         "org.reactivestreams" % "reactive-streams" % "1.0.0.final",
         "org.monifu" %% "minitest" % "0.13" % "test"
       ))
     .jsSettings(
-//      scalaJSStage in Test := FastOptStage,
+      scalacOptions in (Compile, doc) ++= Opts.doc.title(s"Monifu (JS)"),
+      scalaJSStage in Test := FastOptStage,
       testFrameworks += new TestFramework("minitest.runner.Framework"),
       libraryDependencies ++= Seq(
         "org.monifu" %%% "minitest" % "0.13" % "test"

@@ -1,0 +1,34 @@
+<img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/monifu.png" align="right" />
+
+This is the API documentation for the [[https://github.com/alexandru/monifu Monifu]] library.
+
+==Overview==
+
+Monifu is a library for functional reactive programming. Checkout the [[http://www.reactivemanifesto.org/ Reactive Manifesto]] for the need to go reactive.
+
+Monifu brings an implementation of [[https://rx.codeplex.com/ Reactive Extensions]],
+with back-pressure added (also the [[http://www.reactive-streams.org/ Reactive Streams effort]]),
+plus multi-threading primitives for building efficient, concurrent and non-blocking algorithms.
+
+==Rx Sample==
+
+Sample: {{{
+  import monifu.concurrent.Implicits.globalScheduler
+  import play.api.libs.ws._
+  import monifu.reactive._
+
+  // emits an auto-incremented number, every second
+  Observable.interval(1.second)
+    // drops the first 10 emitted events
+    .drop(10) 
+    // takes the first 100 emitted events  
+    .take(100) 
+    // per second, makes requests and concatenates the results
+    .flatMap(x => WS.request(s"http://some.endpoint.com/request?tick=$x").get())
+    // filters only valid responses
+    .filter(response => response.status == 200) 
+    // processes response, selecting the body
+    .map(response => response.body) 
+    // creates subscription, foreach response print it
+    .foreach(x => println(x))
+}}}
