@@ -19,8 +19,7 @@ import org.scalajs.sbtplugin.ScalaJSPlugin
 import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport._
 import sbt.Keys._
 import sbt.{Build => SbtBuild, _}
-import sbtrelease.ReleasePlugin._
-import sbtrelease.ReleasePlugin.ReleaseKeys._
+import sbtrelease.ReleasePlugin.autoImport._
 import sbtunidoc.Plugin.UnidocKeys._
 import sbtunidoc.Plugin._
 
@@ -31,7 +30,7 @@ object Build extends SbtBuild {
     unmanagedSourceDirectories in Test <+= baseDirectory(_ / "shared" / "test" / "scala")
   )
 
-  val sharedSettings = releaseSettings ++ Seq(
+  val sharedSettings = /*releaseSettings ++ */Seq(
     organization := "org.monifu",
     scalaVersion := "2.11.7",
 
@@ -52,7 +51,7 @@ object Build extends SbtBuild {
     // -- Settings meant for deployment on oss.sonatype.org
 
     publishMavenStyle := true,
-    publishArtifactsAction := PgpKeys.publishSigned.value,
+    releasePublishArtifactsAction := PgpKeys.publishSigned.value,
 
     publishTo := {
       val nexus = "https://oss.sonatype.org/"
@@ -122,7 +121,7 @@ object Build extends SbtBuild {
       name := "monifu-core",
       testFrameworks += new TestFramework("minitest.runner.Framework"),
       libraryDependencies ++= Seq(
-        "org.monifu" %% "minitest" % "0.11" % "test"
+        "org.monifu" %% "minitest" % "0.13" % "test"
       )
     )
 
@@ -134,7 +133,7 @@ object Build extends SbtBuild {
       scalaJSStage in Test := FastOptStage,
       testFrameworks += new TestFramework("minitest.runner.Framework"),
       libraryDependencies ++= Seq(
-        "org.monifu" %%% "minitest" % "0.11" % "test"
+        "org.monifu" %%% "minitest" % "0.13" % "test"
       )
     )
 
