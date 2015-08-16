@@ -497,6 +497,21 @@ trait Observable[+T] { self =>
     operators.buffer.sizedAndTimed(self, maxSize, timespan)
 
   /**
+   * Periodically subdivide items from an Observable into Observable windows and emit
+   * these windows rather than emitting the items one at a time
+   *
+   * This variant of `window` opens its first window immediately. It closes the currently
+   * open window and opens another one every timespan period of time. It will also close
+   * the currently open window if it receives an onCompleted or onError notification from
+   * the source Observable. This variant of `window` emits a series of non-overlapping windows
+   * whose collective emissions correspond one-to-one with those of the source Observable.
+   *
+   * @param timespan the interval of time at which it should emit the buffered bundle
+   */
+  def windowTimed(timespan: FiniteDuration): Observable[Observable[T]] =
+    operators.window.timed(self, timespan)
+
+  /**
    * Emit the most recent items emitted by an Observable within periodic time
    * intervals.
    *
