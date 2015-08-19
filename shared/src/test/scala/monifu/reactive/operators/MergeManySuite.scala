@@ -31,7 +31,7 @@ object MergeManySuite extends BaseOperatorSuite {
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
     val o = createObservableEndingInError(Observable.range(0, sourceCount), ex)
-      .flatMap(i => Observable.fromIterable(Seq(i, i, i, i)))
+      .mergeMap(i => Observable.fromIterable(Seq(i, i, i, i)))
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 
@@ -40,7 +40,7 @@ object MergeManySuite extends BaseOperatorSuite {
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.range(0, sourceCount).flatMap { i =>
+    val o = Observable.range(0, sourceCount).mergeMap { i =>
       if (i == sourceCount-1)
         throw ex
       else
