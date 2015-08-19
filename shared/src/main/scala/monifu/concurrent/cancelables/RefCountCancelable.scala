@@ -31,14 +31,14 @@ final class RefCountCancelable private (onCancel: () => Unit) extends BooleanCan
     state.get.isCanceled
 
   @tailrec
-  def acquire(): Cancelable = {
+  def acquire(): BooleanCancelable = {
     val oldState = state.get
     if (oldState.isCanceled)
       BooleanCancelable.alreadyCanceled
     else if (!state.compareAndSet(oldState, oldState.copy(activeCounter = oldState.activeCounter + 1)))
       acquire()
     else
-      Cancelable {
+      BooleanCancelable {
         val newState = state.transformAndGet(s => s.copy(activeCounter = s.activeCounter - 1))
         if (newState.activeCounter == 0 && newState.isCanceled)
           onCancel()

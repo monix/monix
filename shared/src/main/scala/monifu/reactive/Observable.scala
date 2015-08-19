@@ -1168,6 +1168,13 @@ trait Observable[+T] { self =>
   def lift[U](f: Observable[T] => Observable[U]): Observable[U] =
     f(self)
 
+
+  /**
+   *
+   */
+  def switch[U](implicit ev: T <:< Observable[U]): Observable[U] =
+    operators.switch(self)
+
   /**
    * Returns the first generated result as a Future and then cancels
    * the subscription.
