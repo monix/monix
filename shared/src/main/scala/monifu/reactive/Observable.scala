@@ -349,6 +349,24 @@ trait Observable[+T] { self =>
     operators.flatten.merge(self, bufferPolicy, delayErrors = true)
 
   /**
+   * Convert an Observable that emits Observables into a single Observable that
+   * emits the items emitted by the most-recently-emitted of those Observables.
+   */
+  def switch[U](implicit ev: T <:< Observable[U]): Observable[U] =
+    operators.switch(self, delayErrors = false)
+
+  /**
+   * Convert an Observable that emits Observables into a single Observable that
+   * emits the items emitted by the most-recently-emitted of those Observables.
+   *
+   * It's like [[Observable.switch]], except that the created observable is
+   * reserving onError notifications until all of the Observables complete
+   * and only then passing the error along to the observers.
+   */
+  def switchDelayError[U](implicit ev: T <:< Observable[U]): Observable[U] =
+    operators.switch(self, delayErrors = true)
+
+  /**
    * Given the source observable and another `Observable`, emits all of the items
    * from the first of these Observables to emit an item and cancel the other.
    */
@@ -1167,13 +1185,6 @@ trait Observable[+T] { self =>
    */
   def lift[U](f: Observable[T] => Observable[U]): Observable[U] =
     f(self)
-
-
-  /**
-   *
-   */
-  def switch[U](implicit ev: T <:< Observable[U]): Observable[U] =
-    operators.switch(self)
 
   /**
    * Returns the first generated result as a Future and then cancels
