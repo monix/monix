@@ -215,17 +215,18 @@ trait BaseSubjectSuite extends TestSuite[TestScheduler] {
   test("should remove subscribers that triggered errors") { implicit s =>
     val elems = (0 until Random.nextInt(300) + 10).map(_.toLong).toSeq
     var wereCompleted = 0
-    var totalOnNext = 0L
+    var totalReceived = 0
 
     def createObserver =
       new Observer[Long] {
+        var received = 0
         def onNext(elem: Long) = {
-          if (elem > 10)
+          totalReceived += 1
+          received += 1
+          if (received > 10)
             throw DummyException("dummy")
-          else {
-            totalOnNext += elem
+          else
             Continue
-          }
         }
 
         def onComplete() = ()
@@ -253,7 +254,7 @@ trait BaseSubjectSuite extends TestSuite[TestScheduler] {
 
         assertEquals(wereCompleted, 3)
         assertEquals(totalEmitted, expectedSum)
-        assertEquals(totalOnNext, 11 * 5 * 3)
+        assertEquals(totalReceived, 33)
     }
   }
 

@@ -16,10 +16,8 @@
 
 package monifu.reactive.operators
 
-import monifu.reactive.{Ack, Observer, Observable}
-import scala.concurrent.Future
+import monifu.reactive.Observable
 import scala.concurrent.duration._
-import scala.language.postfixOps
 
 object SwitchSuite extends BaseOperatorSuite {
   def createChild() = {
@@ -44,8 +42,7 @@ object SwitchSuite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
     def createChild(i: Long) = {
       if (i < sourceCount-1)
-        (Observable.interval(1.second).take(2) ++
-          Observable.interval(1.second).drop(3)).doOnCanceled("CANCELED")
+        Observable.interval(1.second).take(2)
       else
         Observable.interval(1.second)
           .take(sourceCount)
@@ -53,9 +50,7 @@ object SwitchSuite extends BaseOperatorSuite {
 
     val source = Observable.interval(2.seconds).take(sourceCount)
     val endingInError = createObservableEndingInError(source, ex)
-    val o = endingInError
-      .map(i => createChild(i))
-      .switch
+    val o = endingInError.map(createChild).switch
 
     val count = (sourceCount - 1) * 2
     val sum = sourceCount - 1

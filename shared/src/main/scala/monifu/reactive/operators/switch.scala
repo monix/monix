@@ -16,18 +16,21 @@
 
 package monifu.reactive.operators
 
-import monifu.concurrent.cancelables.{BooleanCancelable, RefCountCancelable}
+import monifu.concurrent.cancelables.{RefCountCancelable, SerialCancelable}
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive._
 import monifu.reactive.internals._
 import monifu.reactive.observers.SynchronousObserver
+import scala.collection.mutable
 import scala.concurrent.Future
 
 object switch {
   /**
    * Implementation for [[Observable.concat]].
    */
-  def apply[T, U](source: Observable[T])(implicit ev: T <:< Observable[U]): Observable[U] =
+  def apply[T, U](source: Observable[T], delayErrors: Boolean)
+      (implicit ev: T <:< Observable[U]): Observable[U] = {
+
     Observable.create { subscriber:Subscriber[U] =>
       implicit val s = subscriber.scheduler
       val observerU = subscriber.observer
@@ -35,16 +38,23 @@ object switch {
       source.unsafeSubscribe(new SynchronousObserver[T] { self =>
         // Global subscription, is canceled by the downstream
         // observer and if canceled all streaming is supposed to stop
-        private[this] val upstream = BooleanCancelable()
+        private[this] val upstream = SerialCancelable()
 
         // MUST BE synchronized by `self`
         private[this] var ack: Future[Ack] = Continue
-        // To be accessed only in `self.onNext`
-        private[this] var current: BooleanCancelable = null
+        // MUST BE synchronized by `self`
+        private[this] val errors = if (delayErrors)
+          mutable.ArrayBuffer.empty[Throwable] else null
 
         private[this] val refCount = RefCountCancelable {
           self.synchronized {
-            ack.onContinueSignalComplete(observerU)
+            if (delayErrors && errors.nonEmpty) {
+              ack.onContinueSignalError(observerU, CompositeException(errors))
+              errors.clear()
+            }
+            else {
+              ack.onContinueSignalComplete(observerU)
+            }
           }
         }
 
@@ -52,28 +62,32 @@ object switch {
           if (upstream.isCanceled) Cancel else {
             // canceling current observable in order to
             // start the new stream
-            val activeSubscription = refCount.acquire()
-            if (current != null) current.cancel()
-            current = activeSubscription
+            val refID = refCount.acquire()
+            upstream := refID
 
             childObservable.unsafeSubscribe(new Observer[U] {
               def onNext(elem: U) = self.synchronized {
-                if (upstream.isCanceled || activeSubscription.isCanceled)
-                  Cancel
-                else {
+                if (refID.isCanceled) Cancel else {
                   ack = ack.onContinueStreamOnNext(observerU, elem)
                   ack.ifCanceledDoCancel(upstream)
-                  ack
                 }
               }
 
-              def onError(ex: Throwable): Unit =
-                self.onError(ex)
+              def onError(ex: Throwable): Unit = {
+                if (delayErrors) self.synchronized {
+                  errors += ex
+                  onComplete()
+                }
+                else {
+                  self.onError(ex)
+                }
+              }
 
               def onComplete(): Unit = {
-                // NOTE: we aren't sending this onComplete signal downstream to our observerU
-                // we will eventually do that after all of them are complete
-                activeSubscription.cancel()
+                // NOTE: we aren't sending this onComplete signal downstream to
+                // our observerU we will eventually do that after all of them
+                // are complete
+                refID.cancel()
               }
             })
 
@@ -83,7 +97,11 @@ object switch {
 
         def onError(ex: Throwable): Unit =
           self.synchronized {
-            if (!upstream.isCanceled) {
+            if (delayErrors) {
+              errors += ex
+              onComplete()
+            }
+            else if (!upstream.isCanceled) {
               upstream.cancel()
               ack.onContinueSignalError(observerU, ex)
             }
@@ -94,4 +112,5 @@ object switch {
         }
       })
     }
+  }
 }

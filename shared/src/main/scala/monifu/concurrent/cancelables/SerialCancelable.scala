@@ -22,25 +22,26 @@ import scala.annotation.tailrec
 
 /**
  * Represents a [[monifu.concurrent.Cancelable]] whose underlying cancelable
- * reference can be swapped for another.
+ * can be swapped for another cancelable which causes the previous underlying
+ * cancelable to be canceled.
  *
  * Example:
  * {{{
- *   val s = MultiAssignmentCancelable()
+ *   val s = SerialCancelable()
  *   s := c1 // sets the underlying cancelable to c1
- *   s := c2 // swaps the underlying cancelable to c2
+ *   s := c2 // cancels c1 and swaps the underlying cancelable to c2
  *
  *   s.cancel() // also cancels c2
  *
- *   s := c3 // also cancels c3, because s is already canceled
+ *   s() = c3 // also cancels c3, because s is already canceled
  * }}}
  *
- * Also see [[SerialCancelable]], which is similar, except that it cancels the
- * old cancelable upon assigning a new cancelable.
+ * Also see [[MultiAssignmentCancelable]], which is similar, but doesn't cancel
+ * the old cancelable upon assignment.
  */
-final class MultiAssignmentCancelable private () extends BooleanCancelable {
-  import MultiAssignmentCancelable.State
-  import MultiAssignmentCancelable.State._
+final class SerialCancelable private () extends BooleanCancelable {
+  import SerialCancelable.State
+  import SerialCancelable.State._
 
   private[this] val state = Atomic(Active(Cancelable()) : State)
 
@@ -64,7 +65,7 @@ final class MultiAssignmentCancelable private () extends BooleanCancelable {
   /**
    * Swaps the underlying cancelable reference with `s`.
    *
-   * In case this `MultiAssignmentCancelable` is already canceled,
+   * In case this `SerialCancelable` is already canceled,
    * then the reference `value` will also be canceled on assignment.
    */
   @tailrec
@@ -73,6 +74,8 @@ final class MultiAssignmentCancelable private () extends BooleanCancelable {
     case current @ Active(s) =>
       if (!state.compareAndSet(current, Active(value)))
         update(value)
+      else
+        s.cancel()
   }
 
   /**
@@ -82,17 +85,18 @@ final class MultiAssignmentCancelable private () extends BooleanCancelable {
     update(value)
 }
 
-object MultiAssignmentCancelable {
-  def apply(): MultiAssignmentCancelable =
-    new MultiAssignmentCancelable()
+object SerialCancelable {
+  def apply(): SerialCancelable =
+    new SerialCancelable()
 
-  def apply(s: Cancelable): MultiAssignmentCancelable = {
-    val ms = new MultiAssignmentCancelable()
+  def apply(s: Cancelable): SerialCancelable = {
+    val ms = new SerialCancelable()
     ms() = s
     ms
   }
 
   private sealed trait State
+
   private object State {
     case class Active(s: Cancelable) extends State
     case object Cancelled extends State
