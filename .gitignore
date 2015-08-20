@@ -3,6 +3,7 @@ TODO
 .*
 .tags*
 .idea*
+*.iml
 *.log
 .DS_Store
 target/
