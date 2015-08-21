@@ -33,12 +33,13 @@ import scala.concurrent.Future
  *
  * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/S.ReplaySubject.png" />
  */
-final class ReplaySubject[T] extends Subject[T,T] { self =>
+final class ReplaySubject[T] private (queue: Queue[T])
+  extends Subject[T,T] { self =>
 
   import monifu.reactive.subjects.ReplaySubject.State
   import monifu.reactive.subjects.ReplaySubject.State._
 
-  private[this] val state = Atomic(Empty(Queue.empty) : State[T])
+  private[this] val state = Atomic(Empty(queue) : State[T])
 
   def subscribeFn(subscriber: Subscriber[T]): Unit = {
     @tailrec
@@ -201,7 +202,10 @@ final class ReplaySubject[T] extends Subject[T,T] { self =>
 
 object ReplaySubject {
   def apply[T](): ReplaySubject[T] =
-    new ReplaySubject[T]
+    new ReplaySubject[T](Queue.empty)
+
+  def apply[T](initial: T*): ReplaySubject[T] =
+    new ReplaySubject[T](Queue(initial: _*))
 
   private sealed trait State[T]
   private object State {

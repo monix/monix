@@ -476,16 +476,34 @@ trait Observable[+T] { self =>
    * of `buffer` is emitting items once the internal buffer has the reached the
    * given count.
    *
-   * So in this example, we are creating a new observable that emits sequences of
-   * exactly 10 elements (or whatever is in the buffer when `onComplete` happens):
-   * {{{
-   *   observable.buffer(10)
-   * }}}
-   *
-   * @param count the bundle size
+   * @param count the maximum size of each buffer before it should be emitted
    */
   def buffer(count: Int): Observable[Seq[T]] =
-    operators.buffer.sized(self, count)
+    operators.buffer.sized(self, count, count)
+
+  /**
+   * Returns an Observable that emits buffers of items it collects from the
+   * source Observable. The resulting Observable emits buffers every `skip`
+   * items, each containing `count` items. When the source Observable completes
+   * or encounters an error, the resulting Observable emits the current buffer
+   * and propagates the notification from the source Observable.
+   *
+   * There are 3 possibilities:
+   *
+   * 1. in case `skip == count`, then there are no items dropped and no overlap,
+   *    the call being equivalent to `window(count)`
+   * 2. in case `skip < count`, then overlap between windows happens, with the
+   *    number of elements being repeated being `count - skip`
+   * 3. in case `skip > count`, then `skip - count` elements start getting
+   *    dropped between windows
+   *
+   * @param count the maximum size of each buffer before it should be emitted
+   * @param skip how many items emitted by the source Observable should be
+   *             skipped before starting a new buffer. Note that when skip and
+   *             count are equal, this is the same operation as `buffer(count)`
+   */
+  def buffer(count: Int, skip: Int): Observable[Seq[T]] =
+    operators.buffer.sized(self, count, skip)
 
   /**
    * Periodically gather items emitted by an Observable into bundles and emit
@@ -514,6 +532,45 @@ trait Observable[+T] { self =>
    */
   def bufferSizedAndTimed(maxSize: Int, timespan: FiniteDuration): Observable[Seq[T]] =
     operators.buffer.sizedAndTimed(self, maxSize, timespan)
+
+  /**
+   * Periodically subdivide items from an Observable into Observable windows and
+   * emit these windows rather than emitting the items one at a time.
+   *
+   * This variant of window opens its first window immediately. It closes the
+   * currently open window and immediately opens a new one whenever the current
+   * window has emitted count items. It will also close the currently open
+   * window if it receives an onCompleted or onError notification from the
+   * source Observable. This variant of window emits a series of non-overlapping
+   * windows whose collective emissions correspond one-to-one with those of
+   * the source Observable.
+   *
+   * @param count the bundle size
+   */
+  def window(count: Int): Observable[Observable[T]] =
+    operators.window.sized(self, count, count)
+
+  /**
+   * Returns an Observable that emits windows of items it collects from the
+   * source Observable. The resulting Observable emits windows every skip items,
+   * each containing no more than count items. When the source Observable
+   * completes or encounters an error, the resulting Observable emits the
+   * current window and propagates the notification from the source Observable.
+   *
+   * There are 3 possibilities:
+   *
+   * 1. in case `skip == count`, then there are no items dropped and no overlap,
+   *    the call being equivalent to `window(count)`
+   * 2. in case `skip < count`, then overlap between windows happens, with the
+   *    number of elements being repeated being `count - skip`
+   * 3. in case `skip > count`, then `skip - count` elements start getting
+   *    dropped between windows
+   *
+   * @param count - the maximum size of each window before it should be emitted
+   * @param skip - how many items need to be skipped before starting a new window
+   */
+  def window(count: Int, skip: Int): Observable[Observable[T]] =
+    operators.window.sized(self, count, skip)
 
   /**
    * Emit the most recent items emitted by an Observable within periodic time
