@@ -40,7 +40,10 @@ object BufferSizedDropSuite extends BaseOperatorSuite {
       Sample(o, count, sum, waitFirst, waitNext)
     }
     else Some {
-      val o = Observable.unit(1L).window(2,1).flatten
+      val o = Observable.unit(1L).buffer(2,1)
+        .map(Observable.fromIterable)
+        .flatten
+
       Sample(o, 1, 1, waitFirst, waitNext)
     }
   }

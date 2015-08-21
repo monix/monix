@@ -479,7 +479,7 @@ trait Observable[+T] { self =>
    * @param count the maximum size of each buffer before it should be emitted
    */
   def buffer(count: Int): Observable[Seq[T]] =
-    operators.buffer.sized(self, count, count)
+    operators.buffer.skipped(self, count, count)
 
   /**
    * Returns an Observable that emits buffers of items it collects from the
@@ -503,7 +503,7 @@ trait Observable[+T] { self =>
    *             count are equal, this is the same operation as `buffer(count)`
    */
   def buffer(count: Int, skip: Int): Observable[Seq[T]] =
-    operators.buffer.sized(self, count, skip)
+    operators.buffer.skipped(self, count, skip)
 
   /**
    * Periodically gather items emitted by an Observable into bundles and emit
@@ -515,23 +515,25 @@ trait Observable[+T] { self =>
    *
    * @param timespan the interval of time at which it should emit the buffered bundle
    */
-  def bufferTimed(timespan: FiniteDuration): Observable[Seq[T]] =
-    operators.buffer.timed(self, timespan)
+  def buffer(timespan: FiniteDuration): Observable[Seq[T]] =
+    operators.buffer.timed(self, maxCount = 0, timespan = timespan)
 
   /**
    * Periodically gather items emitted by an Observable into bundles and emit
    * these bundles rather than emitting the items one at a time.
    *
-   * This version of `buffer` emits a new bundle of items periodically,
-   * every timespan amount of time, containing all items emitted by the
-   * source Observable since the previous bundle emission, or when the buffer
-   * size has reached the given `count`.
+   * The resulting Observable emits connected, non-overlapping buffers, each of
+   * a fixed duration specified by the `timespan` argument or a maximum size
+   * specified by the `maxSize` argument (whichever is reached first). When the
+   * source Observable completes or encounters an error, the resulting
+   * Observable emits the current buffer and propagates the notification from
+   * the source Observable.
    *
-   * @param maxSize is the maximum bundle size
    * @param timespan the interval of time at which it should emit the buffered bundle
+   * @param maxSize is the maximum bundle size
    */
-  def bufferSizedAndTimed(maxSize: Int, timespan: FiniteDuration): Observable[Seq[T]] =
-    operators.buffer.sizedAndTimed(self, maxSize, timespan)
+  def buffer(timespan: FiniteDuration, maxSize: Int): Observable[Seq[T]] =
+    operators.buffer.timed(self, timespan, maxSize)
 
   /**
    * Periodically subdivide items from an Observable into Observable windows and
@@ -548,7 +550,7 @@ trait Observable[+T] { self =>
    * @param count the bundle size
    */
   def window(count: Int): Observable[Observable[T]] =
-    operators.window.sized(self, count, count)
+    operators.window.skipped(self, count, count)
 
   /**
    * Returns an Observable that emits windows of items it collects from the
@@ -570,7 +572,40 @@ trait Observable[+T] { self =>
    * @param skip - how many items need to be skipped before starting a new window
    */
   def window(count: Int, skip: Int): Observable[Observable[T]] =
-    operators.window.sized(self, count, skip)
+    operators.window.skipped(self, count, skip)
+
+  /**
+   * Periodically subdivide items from an Observable into Observable windows and
+   * emit these windows rather than emitting the items one at a time.
+   *
+   * The resulting Observable emits connected, non-overlapping windows,
+   * each of a fixed duration specified by the timespan argument. When
+   * the source Observable completes or encounters an error, the resulting
+   * Observable emits the current window and propagates the notification
+   * from the source Observable.
+   *
+   * @param timespan the interval of time at which it should complete the
+   *                 current window and emit a new one
+   */
+  def window(timespan: FiniteDuration): Observable[Observable[T]] =
+    operators.window.timed(self, timespan, maxCount = 0)
+
+  /**
+   * Periodically subdivide items from an Observable into Observable windows and
+   * emit these windows rather than emitting the items one at a time.
+   *
+   * The resulting Observable emits connected, non-overlapping windows,
+   * each of a fixed duration specified by the timespan argument. When
+   * the source Observable completes or encounters an error, the resulting
+   * Observable emits the current window and propagates the notification
+   * from the source Observable.
+   *
+   * @param timespan the interval of time at which it should complete the
+   *                 current window and emit a new one
+   * @param maxCount the maximum size of each window
+   */
+  def window(timespan: FiniteDuration, maxCount: Int): Observable[Observable[T]] =
+    operators.window.timed(self, timespan, maxCount)
 
   /**
    * Emit the most recent items emitted by an Observable within periodic time

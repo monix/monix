@@ -21,7 +21,7 @@ import monifu.reactive.Ack.Continue
 import monifu.reactive.{DummyException, Observer, Observable}
 import scala.concurrent.duration._
 
-object BufferTimedSuite extends BaseOperatorSuite {
+object WindowTimedSuite extends BaseOperatorSuite {
   val waitFirst = 1.second
   val waitNext = 1.second
 
@@ -39,8 +39,8 @@ object BufferTimedSuite extends BaseOperatorSuite {
     Some {
       val o = Observable.intervalAtFixedRate(100.millis)
         .take(sourceCount * 10)
-        .buffer(1.second)
-        .map(_.sum)
+        .window(1.second)
+        .flatMap(_.sum)
 
       Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
     }
@@ -52,8 +52,8 @@ object BufferTimedSuite extends BaseOperatorSuite {
       val o = Observable.intervalAtFixedRate(100.millis)
         .map(x => if (x == sourceCount * 10 - 1) throw ex else x)
         .take(sourceCount * 10)
-        .buffer(1.second)
-        .map(_.sum)
+        .window(1.second)
+        .flatMap(_.sum)
 
       Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
     }
@@ -62,13 +62,13 @@ object BufferTimedSuite extends BaseOperatorSuite {
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) =
     None
 
-  test("should emit buffer onComplete") { implicit s =>
+  test("should emit onComplete") { implicit s =>
     val count = 157
 
     val obs = Observable.intervalAtFixedRate(100.millis)
       .take(count * 10)
-      .buffer(2.seconds)
-      .map(_.sum)
+      .window(2.seconds)
+      .flatMap(_.sum)
 
     var wasCompleted = false
     var received = 0
@@ -92,15 +92,15 @@ object BufferTimedSuite extends BaseOperatorSuite {
     assert(wasCompleted)
   }
 
-  test("should emit buffer onError") { implicit s =>
+  test("should emit onError") { implicit s =>
     val count = 157
 
     val obs =
       createObservableEndingInError(
         Observable.intervalAtFixedRate(100.millis).take(count * 10),
         DummyException("dummy"))
-      .buffer(2.seconds)
-      .map(_.sum)
+        .window(2.seconds)
+        .flatMap(_.sum)
 
     var errorThrown: Throwable = null
     var received = 0
@@ -127,7 +127,7 @@ object BufferTimedSuite extends BaseOperatorSuite {
   test("should throw on negative timespan") { implicit s =>
     intercept[IllegalArgumentException] {
       Observable.intervalAtFixedRate(100.millis)
-        .buffer(Duration.Zero - 1.second)
+        .window(Duration.Zero - 1.second)
     }
   }
 }
