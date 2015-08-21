@@ -26,7 +26,7 @@ import monifu.reactive.observers._
 import monifu.reactive.subjects.{AsyncSubject, BehaviorSubject, PublishSubject, ReplaySubject}
 import org.reactivestreams.{Publisher, Subscriber => RSubscriber}
 
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent.{Future, Promise}
 import scala.language.implicitConversions
 import scala.util.control.NonFatal
@@ -608,6 +608,50 @@ trait Observable[+T] { self =>
     operators.window.timed(self, timespan, maxCount)
 
   /**
+   * Returns an Observable that emits only the last item emitted by the source
+   * Observable during sequential time windows of a specified duration.
+   *
+   * This differs from [[Observable.throttleFirst)]] in that this ticks along
+   * at a scheduled interval whereas `throttleFirst` does not tick, it just
+   * tracks passage of time.
+   *
+   * @param period - duration of windows within which the last item
+   *                 emitted by the source Observable will be emitted
+   */
+  def throttleLast(period: FiniteDuration): Observable[T] =
+    sample(period)
+
+  /**
+   * Returns an Observable that emits only the first item emitted by the source
+   * Observable during sequential time windows of a specified duration.
+   *
+   * This differs from [[Observable.throttleLast]] in that this only tracks
+   * passage of time whereas `throttleLast` ticks at scheduled intervals.
+   *
+   * @param interval time to wait before emitting another item after
+   *                       emitting the last item
+   */
+  def throttleFirst(interval: FiniteDuration): Observable[T] =
+    operators.throttle.first(self, interval)
+
+  /**
+   * Returns an Observable that only emits those items emitted by the source
+   * Observable that are not followed by another emitted item within a
+   * specified time window.
+   *
+   * Note: If the source Observable keeps emitting items more frequently than
+   * the length of the time window then no items will be emitted by the
+   * resulting Observable.
+   *
+   * @param timeout - the length of the window of time that must pass after the
+   *                emission of an item from the source Observable in which that
+   *                Observable emits no items in order for the item to be
+   *                emitted by the resulting Observable
+   */
+  def throttleWithTimeout(timeout: FiniteDuration): Observable[T] =
+    debounce(timeout)
+
+  /**
    * Emit the most recent items emitted by an Observable within periodic time
    * intervals.
    *
@@ -650,6 +694,23 @@ trait Observable[+T] { self =>
     operators.sample.once(self, initialDelay, delay)
 
   /**
+   * Returns an Observable that, when the specified sampler Observable emits an
+   * item or completes, emits the most recently emitted item (if any) emitted
+   * by the source Observable since the previous emission from the sampler
+   * Observable.
+   *
+   * Use the sample() method to periodically look at an Observable
+   * to see what item it has most recently emitted since the previous
+   * sampling. Note that if the source Observable has emitted no
+   * items since the last time it was sampled, the Observable that
+   * results from the sample( ) operator will emit no item.
+   *
+   * @param sampler - the Observable to use for sampling the source Observable
+   */
+  def sample[U](sampler: Observable[U]): Observable[T] =
+    operators.sample.once(self, sampler)
+
+  /**
    * Emit the most recent items emitted by an Observable within periodic time
    * intervals. If no new value has been emitted since the last time it
    * was sampled, the emit the last emitted value anyway.
@@ -682,6 +743,20 @@ trait Observable[+T] { self =>
    */
   def sampleRepeated(initialDelay: FiniteDuration, delay: FiniteDuration): Observable[T] =
     operators.sample.repeated(self, initialDelay, delay)
+
+  /**
+   * Returns an Observable that, when the specified sampler Observable emits an
+   * item or completes, emits the most recently emitted item (if any) emitted
+   * by the source Observable since the previous emission from the sampler
+   * Observable. If no new value has been emitted since the last time it
+   * was sampled, the emit the last emitted value anyway.
+   *
+   * Also see [[Observable.sample]].
+   *
+   * @param sampler - the Observable to use for sampling the source Observable
+   */
+  def sampleRepeated[U](sampler: Observable[U]): Observable[T] =
+    operators.sample.repeated(self, sampler)
 
   /**
    * Only emit an item from an Observable if a particular
@@ -1326,7 +1401,8 @@ trait Observable[+T] { self =>
 
 object Observable {
   /**
-   * Observable constructor for creating an [[Observable]] from the specified function.
+   * Observable constructor for creating an [[Observable]] from the
+   * specified function.
    *
    * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/create.png" />
    *
@@ -1373,8 +1449,8 @@ object Observable {
   }
 
   /**
-   * Creates an observable that doesn't emit anything, but immediately calls `onComplete`
-   * instead.
+   * Creates an observable that doesn't emit anything, but immediately
+   * calls `onComplete` instead.
    *
    * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/empty.png" />
    */
@@ -1398,7 +1474,8 @@ object Observable {
     builders.unit.error(ex)
 
   /**
-   * Creates an Observable that doesn't emit anything and that never completes.
+   * Creates an Observable that doesn't emit anything and that never
+   * completes.
    *
    * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/never.png"" />
    */
@@ -1406,54 +1483,77 @@ object Observable {
     builders.unit.never
 
   /**
-   * Creates an Observable that emits auto-incremented natural numbers (longs) spaced by
-   * a given time interval. Starts from 0 with no delay, after which it emits incremented
-   * numbers spaced by the `period` of time. The given `period` of time acts as a fixed delay
-   * between subsequent events.
+   * Creates an Observable that emits auto-incremented natural numbers
+   * (longs) spaced by a given time interval. Starts from 0 with no
+   * delay, after which it emits incremented numbers spaced by the
+   * `period` of time. The given `period` of time acts as a fixed
+   * delay between successive events.
    *
    * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/interval.png"" />
    *
-   * @param delay the delay between two subsequent events
+   * @param delay the delay between 2 successive events
    */
   def intervalWithFixedDelay(delay: FiniteDuration): Observable[Long] =
-    builders.interval.withFixedDelay(delay)
+    builders.interval.withFixedDelay(Duration.Zero, delay)
 
   /**
-   * Creates an Observable that emits auto-incremented natural numbers (longs) spaced by
-   * a given time interval. Starts from 0 with no delay, after which it emits incremented
-   * numbers spaced by the `period` of time. The given `period` of time acts as a fixed delay
-   * between subsequent events.
+   * Creates an Observable that emits auto-incremented natural numbers
+   * (longs) spaced by a given time interval. Starts from 0 with no
+   * delay, after which it emits incremented numbers spaced by the
+   * `period` of time. The given `period` of time acts as a fixed
+   * delay between successive events.
    *
    * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/interval.png"" />
    *
-   * @param delay the delay between two subsequent events
+   * @param initialDelay is the delay to wait before emitting the first event
+   * @param delay the time to wait between 2 successive events
+   */
+  def intervalWithFixedDelay(initialDelay: FiniteDuration, delay: FiniteDuration): Observable[Long] =
+    builders.interval.withFixedDelay(initialDelay, delay)
+  /**
+   * Creates an Observable that emits auto-incremented natural numbers
+   * (longs) spaced by a given time interval. Starts from 0 with no
+   * delay, after which it emits incremented numbers spaced by the
+   * `period` of time. The given `period` of time acts as a fixed
+   * delay between successive events.
+   *
+   * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/interval.png"" />
+   *
+   * @param delay the delay between 2 successive events
    */
   def interval(delay: FiniteDuration): Observable[Long] =
     intervalWithFixedDelay(delay)
 
   /**
-   * Creates an Observable that emits auto-incremented natural numbers (longs) at a fixed rate,
-   * as given by the specified `period`. The time it takes to process an `onNext` event gets
-   * subtracted from the specified `period` and thus the created observable tries to emit events
-   * spaced by the given time interval, regardless of how long the processing of `onNext` takes.
+   * Creates an Observable that emits auto-incremented natural numbers
+   * (longs) at a fixed rate, as given by the specified `period`. The
+   * time it takes to process an `onNext` event gets subtracted from
+   * the specified `period` and thus the created observable tries to
+   * emit events spaced by the given time interval, regardless of how
+   * long the processing of `onNext` takes.
    *
-   * For example, an invocation like this:
-   * {{{
-   *   Observable.intervalAtFixedRate(1.second)
-   * }}}
-   *
-   * Is roughly equivalent to this:
-   * {{{
-   *   import monifu.concurrent.extensions._
-   *
-   *   Observable.range(0, Long.MaxValue)
-   *     .flatMap(x => Future(x).withMinDuration(1.second))
-   * }}}
-   *
-   * @param period is the period of time the observable waits between 2 subsequent `onNext` events
+   * @param period the period between 2 successive `onNext` events
    */
   def intervalAtFixedRate(period: FiniteDuration): Observable[Long] =
-    builders.interval.atFixedRate(period)
+    builders.interval.atFixedRate(Duration.Zero, period)
+
+  /**
+   * Creates an Observable that emits auto-incremented natural numbers
+   * (longs) at a fixed rate, as given by the specified `period`. The
+   * time it takes to process an `onNext` event gets subtracted from
+   * the specified `period` and thus the created observable tries to
+   * emit events spaced by the given time interval, regardless of how
+   * long the processing of `onNext` takes.
+   *
+   * This version of the `intervalAtFixedRate` allows specifying an
+   * `initialDelay` before events start being emitted.
+   *
+   * @param initialDelay is the initial delay before emitting the first event
+   * @param period the period between 2 successive `onNext` events
+   */
+  def intervalAtFixedRate(initialDelay: FiniteDuration, period: FiniteDuration): Observable[Long] =
+    builders.interval.atFixedRate(initialDelay, period)
+
 
   /**
    * Creates an Observable that continuously emits the given ''item'' repeatedly.

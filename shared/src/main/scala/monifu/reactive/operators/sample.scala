@@ -17,65 +17,57 @@
 
 package monifu.reactive.operators
 
-import java.util.concurrent.TimeUnit
-
 import monifu.concurrent.Scheduler
-import monifu.reactive.Ack.Continue
-import monifu.reactive.internals._
+import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.observers.SynchronousObserver
 import monifu.reactive.{Ack, Observable, Observer}
+import scala.concurrent.Future
 import scala.concurrent.duration._
 
 
 object sample {
   /**
    * Implementation for `Observable.sample(initialDelay, delay)`.
-   *
-   * By comparison with [[monifu.reactive.Observable.sampleRepeated]],
-   * this version does not emit any events if no fresh values were emitted
-   * since the last sampling.
    */
   def once[T](source: Observable[T], initialDelay: FiniteDuration, delay: FiniteDuration): Observable[T] =
+    once(source, Observable.intervalAtFixedRate(initialDelay, delay))
+
+  /**
+   * Implementation for `Observable.sample(sampler)`.
+   */
+  def once[T,U](source: Observable[T], sampler: Observable[U]): Observable[T] =
     Observable.create { subscriber =>
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
-
       source.unsafeSubscribe(new SampleObserver(
-        observer,
-        initialDelay,
-        delay,
-        shouldRepeatOnSilence = false
-      ))
+        observer, sampler, shouldRepeatOnSilence = false))
+    }
+
+  /**
+   * Implementation for `Observable.sampleRepeated(sampler)`.
+   */
+  def repeated[T,U](source: Observable[T], sampler: Observable[U]): Observable[T] =
+    Observable.create { subscriber =>
+      implicit val s = subscriber.scheduler
+      val observer = subscriber.observer
+      source.unsafeSubscribe(new SampleObserver(
+        observer, sampler, shouldRepeatOnSilence = true))
     }
 
   /**
    * Implementation for `Observable.sampleRepeated(initialDelay, delay)`.
-   *
-   * By comparison with [[monifu.reactive.Observable.sample]], this version always
-   * emits values at the requested interval, even if no fresh value in the meantime.
    */
   def repeated[T](source: Observable[T], initialDelay: FiniteDuration, delay: FiniteDuration): Observable[T] =
-     Observable.create { subscriber =>
-       implicit val s = subscriber.scheduler
-       val observer = subscriber.observer
+    repeated(source, Observable.intervalAtFixedRate(initialDelay, delay))
 
-       source.unsafeSubscribe(new SampleObserver(
-        observer,
-        initialDelay,
-        delay,
-        shouldRepeatOnSilence = true
-      ))
-    }
-
-  protected[reactive] class SampleObserver[T]
-      (downstream: Observer[T], initialDelay: FiniteDuration, period: FiniteDuration, shouldRepeatOnSilence: Boolean)
+  private class SampleObserver[T,U]
+      (downstream: Observer[T], sampler: Observable[U], shouldRepeatOnSilence: Boolean)
       (implicit s: Scheduler)
     extends SynchronousObserver[T] {
 
     @volatile private[this] var hasValue = false
     // MUST BE written before `hasValue = true`
     private[this] var lastValue: T = _
-
     // to be written in onComplete/onError, to be read from tick
     @volatile private[this] var upstreamIsDone = false
     // MUST BE written to before `upstreamIsDone = true`
@@ -95,49 +87,39 @@ object sample {
     def onComplete(): Unit = {
       upstreamIsDone = true
     }
-    
-    s.scheduleOnce(initialDelay, new Runnable { self =>
-      import ObserverState.{ON_CONTINUE, ON_NEXT}
 
-      private[this] val periodMillis = period.toMillis
-      private[this] var nextState = ON_NEXT
-      private[this] var startedAt = 0L
+    sampler.unsafeSubscribe(new Observer[U] {
+      private[this] var samplerIsDone = false
 
-      def run() = nextState match {
-        case ON_NEXT =>          
-          startedAt = s.currentTimeMillis()
-
-          if (hasValue) {
-            val result = downstream.onNext(lastValue)
-            hasValue = shouldRepeatOnSilence
-            nextState = ON_CONTINUE
-            result.onContinue(self)
-          }
+      def onNext(elem: U): Future[Ack] = {
+        if (samplerIsDone) Cancel else {
+          if (upstreamIsDone)
+            signalComplete(upstreamError)
+          else if (!hasValue)
+            Continue
           else {
-            scheduleNext(startedAt)
+            hasValue = shouldRepeatOnSilence
+            downstream.onNext(lastValue)
           }
-
-        case ON_CONTINUE =>
-          scheduleNext(startedAt)
+        }
       }
 
-      def scheduleNext(startedAt: Long): Unit = {
-        if (upstreamIsDone) {
-          if (upstreamError != null)
-            downstream.onError(upstreamError)
-          else
+      def onError(ex: Throwable): Unit = {
+        signalComplete(ex)
+      }
+
+      def onComplete(): Unit = {
+        signalComplete()
+      }
+
+      private def signalComplete(ex: Throwable = null): Cancel = {
+        if (!samplerIsDone) {
+          samplerIsDone = true
+          if (ex != null) downstream.onError(ex) else
             downstream.onComplete()
         }
-        else {
-          val nextDelay = {
-            val duration = s.currentTimeMillis() - startedAt
-            val d = periodMillis - duration
-            if (d >= 0L) d else 0L
-          }
 
-          nextState = ON_NEXT
-          s.scheduleOnce(nextDelay, TimeUnit.MILLISECONDS, self)
-        }
+        Cancel
       }
     })
   }

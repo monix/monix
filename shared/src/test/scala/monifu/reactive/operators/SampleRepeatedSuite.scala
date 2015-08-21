@@ -97,21 +97,21 @@ object SampleRepeatedSuite extends BaseOperatorSuite {
 
     s.tick(500.millis)
     assert(wasCompleted)
-    assertEquals(onNextCount, 2)
-    assertEquals(received, 2)
+    assertEquals(onNextCount, 1)
+    assertEquals(received, 1)
   }
 
   test("specified period should not be respected if consumer is not responsive") { implicit s =>
     val sub = PublishSubject[Long]()
     val obs = sub.sampleRepeated(500.millis)
 
-    var onNextCount = 0
+    var onNextCalls = 0
     var received = 0
     var wasCompleted = false
 
     obs.unsafeSubscribe(new Observer[Long] {
       def onNext(elem: Long) = {
-        onNextCount += 1
+        onNextCalls += 1
         Future.delayedResult(1000.millis) {
           received += 1
           Continue
@@ -119,25 +119,27 @@ object SampleRepeatedSuite extends BaseOperatorSuite {
       }
 
       def onError(ex: Throwable) = ()
-      def onComplete() = wasCompleted = true
+      def onComplete() = {
+        wasCompleted = true
+      }
     })
 
     sub.onNext(1)
 
     s.tick()
-    assertEquals(onNextCount, 0)
+    assertEquals(onNextCalls, 0)
     assertEquals(received, 0)
 
     s.tick(500.millis)
-    assertEquals(onNextCount, 1)
+    assertEquals(onNextCalls, 1)
     assertEquals(received, 0)
 
     s.tick(500.millis)
-    assertEquals(onNextCount, 1)
+    assertEquals(onNextCalls, 1)
     assertEquals(received, 0)
 
     s.tick(500.millis)
-    assertEquals(onNextCount, 2)
+    assertEquals(onNextCalls, 2)
     assertEquals(received, 1)
 
     sub.onComplete()
@@ -145,8 +147,8 @@ object SampleRepeatedSuite extends BaseOperatorSuite {
     assert(!wasCompleted)
 
     s.tick(1.second)
-    assert(wasCompleted)
-    assertEquals(onNextCount, 2)
+    assertEquals(onNextCalls, 2)
     assertEquals(received, 2)
+    assert(wasCompleted)
   }
 }

@@ -163,7 +163,7 @@ trait Scheduler extends ExecutionContext with UncaughtExceptionReporter {
    * }}}
    *
    * @param initialDelay is the time to wait until the first execution happens
-   * @param delay is the time to wait between 2 subsequent executions of the task
+   * @param delay is the time to wait between 2 successive executions of the task
    * @param r is the callback to be executed
    *
    * @return a cancelable that can be used to cancel the execution of
@@ -190,7 +190,7 @@ trait Scheduler extends ExecutionContext with UncaughtExceptionReporter {
    * }}}
    *
    * @param initialDelay is the time to wait until the first execution happens
-   * @param delay is the time to wait between 2 subsequent executions of the task
+   * @param delay is the time to wait between 2 successive executions of the task
    * @param unit is the time unit used for the `initialDelay` and the `delay` parameters
    * @param r is the callback to be executed
    *
@@ -216,7 +216,7 @@ trait Scheduler extends ExecutionContext with UncaughtExceptionReporter {
    * }}}
    *
    * @param initialDelay is the time to wait until the first execution happens
-   * @param delay is the time to wait between 2 subsequent executions of the task
+   * @param delay is the time to wait between 2 successive executions of the task
    * @param action is the callback to be executed
    *
    * @return a cancelable that can be used to cancel the execution of
@@ -241,7 +241,7 @@ trait Scheduler extends ExecutionContext with UncaughtExceptionReporter {
    * }}}
    *
    * @param initialDelay is the time to wait until the first execution happens
-   * @param delay is the time to wait between 2 subsequent executions of the task
+   * @param delay is the time to wait between 2 successive executions of the task
    * @param unit is the time unit used for the `initialDelay` and the `delay` parameters
    * @param action is the callback to be executed
    *
@@ -274,7 +274,7 @@ trait Scheduler extends ExecutionContext with UncaughtExceptionReporter {
    * }}}
    *
    * @param initialDelay is the time to wait until the first execution happens
-   * @param period is the time to wait between 2 subsequent executions of the task
+   * @param period is the time to wait between 2 successive executions of the task
    * @param r is the callback to be executed
    *
    * @return a cancelable that can be used to cancel the execution of
@@ -306,7 +306,7 @@ trait Scheduler extends ExecutionContext with UncaughtExceptionReporter {
    * }}}
    *
    * @param initialDelay is the time to wait until the first execution happens
-   * @param period is the time to wait between 2 subsequent executions of the task
+   * @param period is the time to wait between 2 successive executions of the task
    * @param unit is the time unit used for the `initialDelay` and the `period` parameters
    * @param r is the callback to be executed
    *
@@ -339,7 +339,7 @@ trait Scheduler extends ExecutionContext with UncaughtExceptionReporter {
    * }}}
    *
    * @param initialDelay is the time to wait until the first execution happens
-   * @param period is the time to wait between 2 subsequent executions of the task
+   * @param period is the time to wait between 2 successive executions of the task
    * @param action is the callback to be executed
    *
    * @return a cancelable that can be used to cancel the execution of
@@ -371,7 +371,7 @@ trait Scheduler extends ExecutionContext with UncaughtExceptionReporter {
    * }}}
    *
    * @param initialDelay is the time to wait until the first execution happens
-   * @param period is the time to wait between 2 subsequent executions of the task
+   * @param period is the time to wait between 2 successive executions of the task
    * @param unit is the time unit used for the `initialDelay` and the `period` parameters
    * @param action is the callback to be executed
    *
