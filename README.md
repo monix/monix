@@ -2,6 +2,7 @@
 
 Idiomatic Reactive Extensions for Scala. Targets both the JVM and [Scala.js](http://www.scala-js.org/).
 
+[![Build Status](https://travis-ci.org/monifu/monifu.png?branch=master)](https://travis-ci.org/monifu/monifu)
 [![Build Status](https://travis-ci.org/monifu/monifu.png?branch=v1.0-M7)](https://travis-ci.org/monifu/monifu)
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/monifu/monifu?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
@@ -86,3 +87,9 @@ YourKit supports the Monifu project with its full-featured Java Profiler.
 YourKit, LLC is the creator [YourKit Java Profiler](http://www.yourkit.com/java/profiler/index.jsp)
 and [YourKit .NET Profiler](http://www.yourkit.com/.net/profiler/index.jsp),
 innovative and intelligent tools for profiling Java and .NET applications.
+
+<img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/logo-eloquentix@2x.png" align="right" width="130" />
+
+Development of Monifu has been initiated by [Eloquentix](http://eloquentix.com/) 
+engineers, with Monifu being introduced at E.ON Connecting Energies,
+powering the next generation energy grid solutions. 
