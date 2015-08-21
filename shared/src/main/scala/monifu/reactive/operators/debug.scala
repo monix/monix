@@ -27,7 +27,7 @@ import scala.concurrent.Future
 import scala.util.control.NonFatal
 
 
-object debug {
+private[reactive] object debug {
   /**
    * Implementation for [[Observable.dump]].
    */

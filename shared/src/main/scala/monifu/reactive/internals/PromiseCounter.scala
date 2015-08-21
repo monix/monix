@@ -24,7 +24,8 @@ import monifu.concurrent.atomic.padded.Atomic
  * Represents a Promise that completes with `value` after
  * receiving a `countdownUntil` number of `countdown()` calls.
  */
-final class PromiseCounter[T] private (value: T, countdownUntil: Int) {
+private[reactive] final class PromiseCounter[T] private
+(value: T, countdownUntil: Int) {
   require(countdownUntil > 0, "countdownUntil must be strictly positive")
 
   private[this] val promise = Promise[T]()
@@ -42,7 +43,7 @@ final class PromiseCounter[T] private (value: T, countdownUntil: Int) {
   }
 }
 
-object PromiseCounter {
+private[reactive] object PromiseCounter {
   def apply[T](value: T, countDown: Int): PromiseCounter[T] =
     new PromiseCounter[T](value, countDown)
 }

@@ -24,7 +24,7 @@ import monifu.reactive.internals._
 import scala.collection.mutable
 import scala.concurrent.{Future, Promise}
 
-object zip {
+private[reactive] object zip {
   /**
    * Implements [[Observable.zip]].
    */

@@ -22,7 +22,7 @@ import monifu.reactive.{Ack, Observer, Observable}
 import scala.concurrent.Future
 import monifu.reactive.internals._
 
-object misc {
+private[reactive] object misc {
   /**
    * Implements [[Observable.complete]].
    */

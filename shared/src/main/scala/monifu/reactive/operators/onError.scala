@@ -22,7 +22,7 @@ import monifu.reactive.{Observer, Observable}
 import scala.util.control.NonFatal
 
 
-object onError {
+private[reactive] object onError {
   /**
    * Implementation for [[Observable.onErrorRecoverWith]].
    */

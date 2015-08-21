@@ -27,7 +27,7 @@ import monifu.reactive.{Ack, Observable}
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-object debounce {
+private[reactive] object debounce {
   /**
    * Only emit an item from an Observable if a particular 
    * timespan has passed without it emitting another item

@@ -23,7 +23,7 @@ import monifu.reactive.{Ack, Observable, Observer, Subject}
 import scala.concurrent.Future
 
 
-object repeat {
+private[reactive] object repeat {
   /**
    * Implementation for [[Observable.repeat]].
    */

@@ -23,7 +23,7 @@ import monifu.reactive.internals._
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 
-object math {
+private[reactive] object math {
   /**
    * Implementation for [[Observable.count]].
    */

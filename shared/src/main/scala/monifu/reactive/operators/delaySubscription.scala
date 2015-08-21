@@ -23,7 +23,7 @@ import scala.concurrent.{Promise, Future}
 import scala.util.{Failure, Success}
 
 
-object delaySubscription {
+private[reactive] object delaySubscription {
   /**
    * Implementation for [[Observable.delaySubscription]].
    */

@@ -22,7 +22,7 @@ import monifu.reactive.{Observer, Observable}
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 
-object collect {
+private[reactive] object collect {
   /**
    * Implementation for [[Observable.collect]].
    */

@@ -25,7 +25,7 @@ import monifu.reactive.observers.SynchronousObserver
 import scala.collection.mutable
 import scala.concurrent.Future
 
-object switch {
+private[reactive] object switch {
   /**
    * Implementation for [[Observable.concat]].
    */

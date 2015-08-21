@@ -22,7 +22,7 @@ import monifu.reactive.{Observable, Ack, Observer}
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 
-object foldLeft {
+private[reactive] object foldLeft {
   /**
    * Implementation for [[Observable.foldLeft]].
    */

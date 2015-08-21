@@ -25,7 +25,7 @@ import scala.concurrent.Future
 import scala.util.control.NonFatal
 
 
-object doWork {
+private[reactive] object doWork {
   /**
    * Implementation for [[Observable.doWork]].
    */
