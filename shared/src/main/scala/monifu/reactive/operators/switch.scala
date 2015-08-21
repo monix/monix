@@ -59,7 +59,7 @@ private[reactive] object switch {
           }
         }
 
-        def onNext(childObservable: T) = {
+        def onNext(childObservable: T) = self.synchronized {
           if (upstream.isCanceled) Cancel else {
             // canceling current observable in order to
             // start the new stream
