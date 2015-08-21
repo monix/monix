@@ -25,7 +25,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
 
-object buffer {
+private[reactive] object buffer {
   /**
    * Implementation for [[Observable.buffer]].
    */

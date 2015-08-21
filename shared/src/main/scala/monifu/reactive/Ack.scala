@@ -52,7 +52,9 @@ object Ack {
   }
 }
 
-sealed trait AckIsFuture[T <: Ack] extends Future[T] { self =>
+private[reactive] sealed trait AckIsFuture[T <: Ack]
+  extends Future[T] { self =>
+
   final val isCompleted = true
 
   final def ready(atMost: Duration)(implicit permit: CanAwait) = self

@@ -64,7 +64,7 @@ final class ConcurrentQueue[A](elems: A*)
    * @param elems the elements to be inserted into this queue
    * @return `true` if this queue changed as a result of the call
    *
-   * @throws `NullPointerException` if the specified collection or any
+   * @throws NullPointerException if the specified collection or any
    *         of its elements are null
    */
   def addAll(elems: A*): Unit = {

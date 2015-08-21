@@ -25,7 +25,7 @@ import scala.collection.mutable
 import scala.concurrent.{Future, Promise}
 import scala.util.control.NonFatal
 
-object flatScan {
+private[reactive] object flatScan {
   /**
    * Implementation for [[Observable.flatScan]].
    */

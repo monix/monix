@@ -21,6 +21,6 @@ package monifu.reactive.internals
  * Models the state of an observer, used for modeling Runnable instances
  * as an optimization technique - for internal usage only.
  */
-protected[reactive] object ObserverState extends Enumeration {
+private[reactive] object ObserverState extends Enumeration {
   val ON_NEXT, ON_CONTINUE = Value
 }

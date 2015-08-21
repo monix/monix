@@ -23,7 +23,7 @@ import monifu.reactive.internals._
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 
-object reduce {
+private[reactive] object reduce {
   /**
    * Implementation for [[monifu.reactive.Observable.reduce]].
    */

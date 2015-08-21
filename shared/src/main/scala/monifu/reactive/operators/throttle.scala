@@ -23,7 +23,7 @@ import monifu.reactive.{Ack, Observer, Observable}
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 
-object throttle {
+private[reactive] object throttle {
   /** Implementation for [[Observable.throttleFirst]] */
   def first[T](self: Observable[T], interval: FiniteDuration): Observable[T] =
     Observable.create { subscriber =>

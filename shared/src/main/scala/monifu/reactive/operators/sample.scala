@@ -25,7 +25,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 
 
-object sample {
+private[reactive] object sample {
   /**
    * Implementation for `Observable.sample(initialDelay, delay)`.
    */

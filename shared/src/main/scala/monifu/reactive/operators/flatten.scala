@@ -25,7 +25,7 @@ import monifu.reactive._
 import scala.collection.mutable
 import scala.concurrent.Promise
 
-object flatten {
+private[reactive] object flatten {
   /**
    * Implementation for [[Observable.concat]].
    */

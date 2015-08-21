@@ -26,7 +26,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
 
-object window {
+private[reactive] object window {
   /** Implementation for [[Observable.window]] */
   def skipped[T](source: Observable[T], count: Int, skip: Int): Observable[Observable[T]] = {
     require(count > 0, "count must be strictly positive")

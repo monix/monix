@@ -22,7 +22,7 @@ import monifu.reactive.{Observable, Ack, Observer}
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 
-object scan {
+private[reactive] object scan {
   /**
    * Implementation for [[Observable.scan]].
    */

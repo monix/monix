@@ -24,7 +24,7 @@ import scala.concurrent.Future
 import scala.util.control.NonFatal
 
 
-object distinct {
+private[reactive] object distinct {
   /**
    * Implementation for [[Observable.distinct]].
    */

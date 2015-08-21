@@ -23,11 +23,12 @@ import monifu.concurrent.Cancelable
 
 
 /**
- * Represents a [[monifu.concurrent.Cancelable]] that can be assigned only once to another
- * cancelable reference.
+ * Represents a [[monifu.concurrent.Cancelable]] that can be assigned only
+ * once to another cancelable reference.
  *
- * Similar to [[monifu.concurrent.cancelables.MultiAssignmentCancelable]], except that
- * in case of multi-assignment, it throws a `java.lang.IllegalStateException`.
+ * Similar to [[monifu.concurrent.cancelables.MultiAssignmentCancelable]],
+ * except that in case of multi-assignment, it throws a
+ * `java.lang.IllegalStateException`.
  *
  * If the assignment happens after this cancelable has been canceled, then on
  * assignment the reference will get canceled too.

@@ -22,7 +22,7 @@ import monifu.reactive.{Observer, Observable}
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 
-object filter {
+private[reactive] object filter {
   /**
    * Implementation for [[Observable.filter]].
    */

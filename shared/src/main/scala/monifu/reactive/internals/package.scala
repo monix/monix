@@ -29,7 +29,7 @@ package object internals {
   /**
    * Internal extensions to Future[Ack] used in the implementation of Observable.
    */
-  protected[monifu] implicit class FutureAckExtensions(val source: Future[Ack]) extends AnyVal {
+  private[monifu] implicit class FutureAckExtensions(val source: Future[Ack]) extends AnyVal {
     /**
      * If the result of this `Future` is a `Continue`, then completes
      * the stream with an `onComplete`.

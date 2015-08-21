@@ -24,8 +24,8 @@ import monifu.concurrent.Scheduler
  * whose usage is in [[Observable.create]].
  *
  * An `Observable.subscribe` takes as parameters both an [[Observer]]
- * and a [[Scheduler]] and the purpose of a `Subscriber` is convenient
- * grouping in `Observable.create`.
+ * and a [[monifu.concurrent.Scheduler Scheduler]] and the purpose of a
+ * `Subscriber` is convenient grouping in `Observable.create`.
  *
  * A `Subscriber` value is basically an address that the data source needs
  * in order to send events.

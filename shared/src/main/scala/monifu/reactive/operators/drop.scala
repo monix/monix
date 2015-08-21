@@ -24,7 +24,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 import scala.util.control.NonFatal
 
-object drop {
+private[reactive] object drop {
   /**
    * Implementation for [[Observable.dropByTimespan]].
    */

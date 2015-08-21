@@ -24,7 +24,7 @@ import monifu.reactive.{CompositeException, Ack, Observable, Observer}
 import scala.concurrent.Future
 import scala.collection.mutable
 
-object combineLatest {
+private[reactive] object combineLatest {
   /**
    * Implements [[monifu.reactive.Observable!.combineLatest]].
    */

@@ -28,7 +28,7 @@ import scala.concurrent.duration.FiniteDuration
 import scala.util.control.NonFatal
 
 
-object take {
+private[reactive] object take {
   /**
    * Implementation for [[monifu.reactive.Observable.take]].
    */

@@ -25,7 +25,7 @@ import scala.concurrent.Future
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
-object whileBusy {
+private[reactive] object whileBusy {
   /**
    * While the destination observer is busy, drop the incoming events.
    */

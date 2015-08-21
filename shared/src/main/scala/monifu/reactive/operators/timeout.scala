@@ -27,7 +27,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{Future, TimeoutException}
 
 
-object timeout {
+private[reactive] object timeout {
   def emitError[T](source: Observable[T], timeout: FiniteDuration): Observable[T] =
     switchToBackup(source, timeout, Observable.error(
       new TimeoutException(s"Observable timed-out after $timeout of inactivity")

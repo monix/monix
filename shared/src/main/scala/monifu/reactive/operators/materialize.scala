@@ -23,7 +23,7 @@ import monifu.reactive.internals._
 import scala.concurrent.Future
 
 
-object materialize {
+private[reactive] object materialize {
   /**
    * Implementation for [[Observable.materialize]].
    */

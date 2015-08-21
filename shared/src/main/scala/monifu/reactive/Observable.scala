@@ -1046,9 +1046,9 @@ trait Observable[+T] { self =>
   /**
    * Creates a new Observable from this Observable and another given Observable.
    *
-   * It's like [[Observable.combineLatest]], except that the created observable is reserving onError
-   * notifications until all of the combined Observables complete and only then passing it along
-   * to the observers.
+   * It's like [[Observable.combineLatest]], except that the created observable
+   * is reserving `onError` notifications until all of the combined Observables
+   * complete and only then passing it along to the observers.
    */
   def combineLatestDelayError[U](other: Observable[U]): Observable[(T, U)] =
     operators.combineLatest(self, other, delayErrors = true)
