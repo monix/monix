@@ -30,7 +30,7 @@ object SampleOnceSuite extends BaseOperatorSuite {
 
   def observable(sourceCount: Int) = Some {
     val o = Observable.intervalAtFixedRate(1.second)
-      .take(sourceCount)
+      .take(sourceCount+1)
       .sample(500.millis)
 
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
@@ -45,18 +45,12 @@ object SampleOnceSuite extends BaseOperatorSuite {
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val source = Observable.intervalAtFixedRate(1.second).take(sourceCount)
+    val source = Observable.intervalAtFixedRate(1.second).take(sourceCount+1)
     val o = createObservableEndingInError(source, ex).sample(500.millis)
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
   }
 
-  def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val source = Observable.intervalAtFixedRate(1.second)
-      .take(sourceCount - 1)
-
-    val o = createObservableEndingInError(source, ex).sample(500.millis)
-    Sample(o, count(sourceCount-1), sum(sourceCount-1), waitFirst, waitNext)
-  }
+  def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 
   test("specified period should be respected if consumer is responsive") { implicit s =>
     val sub = PublishSubject[Long]()

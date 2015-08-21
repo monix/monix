@@ -25,20 +25,14 @@ import scala.concurrent.duration._
 
 object interval {
   /**
-   * Creates an Observable that emits auto-incremented natural numbers (longs) spaced equally by
-   * a given time interval. Starts from 0 with no delay, after which it emits incremented
-   * numbers spaced by the `period` of time.
-   *
-   * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/interval.png"" />
-   *
-   * @param delay the delay between two subsequent events
+   * Implementation for [[Observable.intervalWithFixedDelay]].
    */
-  def withFixedDelay(delay: FiniteDuration): Observable[Long] = {
+  def withFixedDelay(initialDelay: FiniteDuration, delay: FiniteDuration): Observable[Long] = {
     Observable.create { subscriber =>
       implicit val s = subscriber.scheduler
       val o = subscriber.observer
 
-      s.execute(new Runnable { self =>
+      s.scheduleOnce(initialDelay, new Runnable { self =>
         import monifu.reactive.internals.ObserverState.{ON_CONTINUE, ON_NEXT}
         var state = ON_NEXT
         var counter = 0L
@@ -58,17 +52,14 @@ object interval {
   }
 
   /**
-   * Creates an Observable that emits auto-incremented natural numbers (longs) emitted
-   * at a fixed rate, as specified by `period`.
-   *
-   * @param period the delay between two subsequent events
+   * Implementation for [[Observable.intervalAtFixedRate]].
    */
-  def atFixedRate(period: FiniteDuration): Observable[Long] = {
+  def atFixedRate(initialDelay: FiniteDuration, period: FiniteDuration): Observable[Long] = {
     Observable.create { subscriber =>
       implicit val s = subscriber.scheduler
       val o = subscriber.observer
 
-      s.execute(new Runnable { self =>
+      s.scheduleOnce(initialDelay, new Runnable { self =>
         import monifu.reactive.internals.ObserverState.{ON_CONTINUE, ON_NEXT}
 
         private[this] val periodMillis = period.toMillis
