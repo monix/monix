@@ -38,7 +38,7 @@ object BufferSizedAndTimedNr2Suite extends BaseOperatorSuite {
     Some {
       val o = Observable.intervalAtFixedRate(100.millis)
         .take(sourceCount * 10)
-        .bufferSizedAndTimed(10, 2.seconds)
+        .buffer(2.seconds, 10)
         .map(_.sum)
 
       Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
@@ -51,7 +51,7 @@ object BufferSizedAndTimedNr2Suite extends BaseOperatorSuite {
       val o = Observable.intervalAtFixedRate(100.millis)
         .map(x => if (x == sourceCount * 10 - 1) throw ex else x)
         .take(sourceCount * 10)
-        .bufferSizedAndTimed(10, 2.seconds)
+        .buffer(2.seconds, 10)
         .map(_.sum)
 
       Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)

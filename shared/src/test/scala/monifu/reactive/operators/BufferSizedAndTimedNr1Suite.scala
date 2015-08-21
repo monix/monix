@@ -39,7 +39,7 @@ object BufferSizedAndTimedNr1Suite extends BaseOperatorSuite {
     Some {
       val o = Observable.intervalAtFixedRate(100.millis)
         .take(sourceCount * 10)
-        .bufferSizedAndTimed(20, 1.second)
+        .buffer(1.second, maxSize = 20)
         .map(_.sum)
       
       Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
@@ -52,7 +52,7 @@ object BufferSizedAndTimedNr1Suite extends BaseOperatorSuite {
       val o = Observable.intervalAtFixedRate(100.millis)
         .map(x => if (x == sourceCount * 10 - 1) throw ex else x)
         .take(sourceCount * 10)
-        .bufferSizedAndTimed(20, 1.second)
+        .buffer(1.second, maxSize = 20)
         .map(_.sum)
 
       Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
@@ -67,7 +67,7 @@ object BufferSizedAndTimedNr1Suite extends BaseOperatorSuite {
 
     val obs = Observable.intervalAtFixedRate(100.millis)
       .take(sourceCount * 10)
-      .bufferSizedAndTimed(100, 2.seconds)
+      .buffer(2.seconds, 100)
       .map(_.sum)
 
     var wasCompleted = false
@@ -99,7 +99,7 @@ object BufferSizedAndTimedNr1Suite extends BaseOperatorSuite {
       createObservableEndingInError(
         Observable.intervalAtFixedRate(100.millis).take(sourceCount * 10),
         DummyException("dummy"))
-      .bufferSizedAndTimed(100, 2.seconds)
+      .buffer(2.seconds, 100)
       .map(_.sum)
 
     var errorThrown: Throwable = null
@@ -127,7 +127,7 @@ object BufferSizedAndTimedNr1Suite extends BaseOperatorSuite {
   test("should throw on negative timespan") { implicit s =>
     intercept[IllegalArgumentException] {
       Observable.intervalAtFixedRate(100.millis)
-        .bufferSizedAndTimed(10, Duration.Zero - 1.second)
+        .buffer(Duration.Zero - 1.second, 10)
     }
   }
 }

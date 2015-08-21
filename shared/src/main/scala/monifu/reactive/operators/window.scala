@@ -17,17 +17,18 @@
 
 package monifu.reactive.operators
 
-import monifu.reactive.Ack.{Continue, Cancel}
+import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.internals._
 import monifu.reactive.subjects.ReplaySubject
 import monifu.reactive.{Ack, Observable, Observer}
 import scala.collection.mutable
 import scala.concurrent.Future
+import scala.concurrent.duration.{Duration, FiniteDuration}
 
 
 object window {
   /** Implementation for [[Observable.window]] */
-  def sized[T](source: Observable[T], count: Int, skip: Int): Observable[Observable[T]] = {
+  def skipped[T](source: Observable[T], count: Int, skip: Int): Observable[Observable[T]] = {
     require(count > 0, "count must be strictly positive")
     require(skip > 0, "skip must be strictly positive")
 
@@ -182,6 +183,69 @@ object window {
               leftToDrop = skip - count - 1
               leftToPush = count
               buffer = ReplaySubject()
+
+              val previousAck = ack
+              ack = ack.onContinueStreamOnNext(observer, buffer)
+              previousAck
+            }
+          }
+
+        def onError(ex: Throwable): Unit = {
+          if (!isDone) {
+            isDone = true
+            buffer.onComplete()
+            ack.onContinueSignalError(observer, ex)
+            buffer = null
+          }
+        }
+
+        def onComplete(): Unit = {
+          if (!isDone) {
+            isDone = true
+            buffer.onComplete()
+            ack.onContinueSignalComplete(observer)
+            buffer = null
+          }
+        }
+      })
+    }
+  }
+
+  /**
+   * Implementation for [[Observable.window]].
+   */
+  def timed[T](source: Observable[T], timespan: FiniteDuration, maxCount: Int): Observable[Observable[T]] = {
+    require(timespan >= Duration.Zero, "timespan must be positive")
+    require(maxCount >= 0, "maxCount must be positive")
+
+    Observable.create { subscriber =>
+      implicit val s = subscriber.scheduler
+      val observer = subscriber.observer
+
+      source.unsafeSubscribe(new Observer[T] {
+        private[this] val timespanMillis = timespan.toMillis
+        private[this] var expiresAt = s.currentTimeMillis() + timespanMillis
+
+        private[this] var size = 0
+        private[this] var isDone = false
+        private[this] var buffer = ReplaySubject[T]()
+        private[this] var ack = observer.onNext(buffer)
+
+        def onNext(elem: T): Future[Ack] =
+          if (isDone) Cancel else {
+            val rightNow = s.currentTimeMillis()
+            val hasExpired = expiresAt <= rightNow ||
+              (maxCount > 0 && size >= maxCount)
+
+            if (!hasExpired) {
+              size += 1
+              buffer.onNext(elem)
+            }
+            else {
+              buffer.onComplete()
+              buffer = ReplaySubject(elem)
+              expiresAt = rightNow + timespanMillis
+              size = 1
 
               val previousAck = ack
               ack = ack.onContinueStreamOnNext(observer, buffer)

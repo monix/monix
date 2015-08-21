@@ -29,7 +29,7 @@ object buffer {
   /**
    * Implementation for [[Observable.buffer]].
    */
-  def sized[T](source: Observable[T], count: Int, skip: Int): Observable[Seq[T]] = {
+  def skipped[T](source: Observable[T], count: Int, skip: Int): Observable[Seq[T]] = {
     require(count > 0, "count must be strictly positive")
     require(skip > 0, "skip must be strictly positive")
 
@@ -95,12 +95,12 @@ object buffer {
     }
   }
 
-
   /**
-   * Implementation for [[Observable.bufferTimed]].
+   * Implementation for [[Observable.buffer]].
    */
-  def timed[T](source: Observable[T], timespan: FiniteDuration): Observable[Seq[T]] = {
+  def timed[T](source: Observable[T], timespan: FiniteDuration, maxCount: Int): Observable[Seq[T]] = {
     require(timespan >= Duration.Zero, "timespan must be positive")
+    require(maxCount >= 0, "maxCount must be positive")
 
     Observable.create[Seq[T]] { subscriber =>
       implicit val s = subscriber.scheduler
@@ -115,59 +115,7 @@ object buffer {
           val rightNow = s.currentTimeMillis()
           buffer.append(elem)
 
-          if (expiresAt <= rightNow) {
-            val oldBuffer = buffer
-            buffer = ArrayBuffer.empty[T]
-            expiresAt = rightNow + timespanMillis
-            observer.onNext(oldBuffer)
-          }
-          else
-            Continue
-        }
-
-        def onError(ex: Throwable): Unit = {
-          if (buffer.nonEmpty) {
-            observer.onNext(buffer)
-              .onContinueSignalError(observer, ex)
-            buffer = null
-          }
-          else
-            observer.onError(ex)
-        }
-
-        def onComplete(): Unit = {
-          if (buffer.nonEmpty) {
-            observer.onNext(buffer)
-              .onContinueSignalComplete(observer)
-            buffer = null
-          }
-          else
-            observer.onComplete()
-        }
-      })
-    }
-  }
-
-  /**
-   * Implementation for [[Observable.bufferSizedAndTimed]].
-   */
-  def sizedAndTimed[T](source: Observable[T], count: Int, timespan: FiniteDuration): Observable[Seq[T]] = {
-    require(timespan >= Duration.Zero, "timespan must be positive")
-
-    Observable.create[Seq[T]] { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
-
-      source.unsafeSubscribe(new Observer[T] {
-        private[this] val timespanMillis = timespan.toMillis
-        private[this] var buffer = ArrayBuffer.empty[T]
-        private[this] var expiresAt = s.currentTimeMillis() + timespanMillis
-
-        def onNext(elem: T) = {
-          val rightNow = s.currentTimeMillis()
-          buffer.append(elem)
-
-          if (expiresAt <= rightNow || buffer.length >= count) {
+          if (expiresAt <= rightNow || (maxCount > 0 && maxCount <= buffer.length)) {
             val oldBuffer = buffer
             buffer = ArrayBuffer.empty[T]
             expiresAt = rightNow + timespanMillis
