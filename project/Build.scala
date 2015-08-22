@@ -16,6 +16,7 @@
  */
 
 import com.typesafe.sbt.pgp.PgpKeys
+import org.scalajs.sbtplugin.ScalaJSPlugin
 import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport._
 import sbt.Keys._
 import sbt.{Build => SbtBuild, _}
@@ -56,6 +57,9 @@ object Build extends SbtBuild {
 
     libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _ % "compile"),
 
+    unmanagedSourceDirectories in Compile <+= baseDirectory(_ / ".." / "shared" / "src" / "main" / "scala"),
+    unmanagedSourceDirectories in Test <+= baseDirectory(_ / ".." / "shared" / "src" / "test" / "scala"),
+
     // -- Settings meant for deployment on oss.sonatype.org
 
     publishMavenStyle := true,
@@ -94,22 +98,27 @@ object Build extends SbtBuild {
         </developers>
   )
 
-  lazy val root = project.in(file("."))
-    .aggregate(jvm, js)
+  lazy val monifu = project.in(file("."))
+    .aggregate(monifuJVM, monifuJS, tckTests)
     .settings(compilerSettings: _*)
     .settings(publish := {}, publishLocal := {})
 
-  lazy val monifu = crossProject.in(file("."))
+  lazy val monifuJVM = project.in(file("jvm"))
     .settings(sharedSettings: _*)
-    .settings(name := "monifu")
-    .jvmSettings(
+    .settings(
+      name := "monifu",
       scalacOptions in (Compile, doc) ++= Opts.doc.title(s"Monifu"),
       testFrameworks += new TestFramework("minitest.runner.Framework"),
       libraryDependencies ++= Seq(
-        "org.reactivestreams" % "reactive-streams" % "1.0.0.final",
+        "org.reactivestreams" % "reactive-streams" % "1.0.0",
         "org.monifu" %% "minitest" % "0.13" % "test"
       ))
-    .jsSettings(
+
+  lazy val monifuJS = project.in(file("js"))
+    .settings(sharedSettings: _*)
+    .enablePlugins(ScalaJSPlugin)
+    .settings(
+      name := "monifu",
       scalacOptions in (Compile, doc) ++= Opts.doc.title(s"Monifu (JS)"),
       scalaJSStage in Test := FastOptStage,
       testFrameworks += new TestFramework("minitest.runner.Framework"),
@@ -117,6 +126,13 @@ object Build extends SbtBuild {
         "org.monifu" %%% "minitest" % "0.13" % "test"
       ))
 
-  lazy val jvm = monifu.jvm
-  lazy val js = monifu.js
+  lazy val tckTests = project.in(file("tckTests"))
+    .dependsOn(monifuJVM)
+    .settings(compilerSettings: _*)
+    .settings(publish := {}, publishLocal := {})
+    .settings(
+      libraryDependencies ++= Seq(
+        "org.reactivestreams" % "reactive-streams-tck" % "1.0.0" % "test",
+        "org.scalatest" %% "scalatest" % "2.2.4" % "test"
+      ))
 }

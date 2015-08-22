@@ -37,6 +37,7 @@ final class SubscriberAsObserver[T] private
     (subscriber: RSubscriber[T])(implicit s: Scheduler)
   extends Observer[T] {
 
+  if (subscriber == null) throw null
   import monifu.reactive.streams.SubscriberAsObserver.RequestsQueue
 
   private[this] val requests = new RequestsQueue
@@ -67,10 +68,12 @@ final class SubscriberAsObserver[T] private
   }
 
   def onError(ex: Throwable): Unit = {
+    if (firstEvent) subscriber.onSubscribe(createSubscription())
     subscriber.onError(ex)
   }
 
   def onComplete(): Unit = {
+    if (firstEvent) subscriber.onSubscribe(createSubscription())
     subscriber.onComplete()
   }
 
@@ -80,9 +83,10 @@ final class SubscriberAsObserver[T] private
     }
 
     def request(n: Long): Unit = {
-      require(n > 0, "n must be strictly positive, according to " +
-        "the Reactive Streams contract, rule 3.9")
-      requests.request(n)
+      try requests.request(n) catch {
+        case ex: IllegalArgumentException =>
+          subscriber.onError(ex)
+      }
     }
   }
 }
