@@ -32,13 +32,13 @@ private[reactive] object take {
   /**
    * Implementation for [[monifu.reactive.Observable.take]].
    */
-  def left[T](source: Observable[T], n: Int): Observable[T] =
+  def left[T](source: Observable[T], n: Long): Observable[T] =
     Observable.create { subscriber =>
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
       source.unsafeSubscribe(new Observer[T] {
-        private[this] var counter = 0
+        private[this] var counter = 0L
         private[this] var isDone = false
 
         def onNext(elem: T) = {

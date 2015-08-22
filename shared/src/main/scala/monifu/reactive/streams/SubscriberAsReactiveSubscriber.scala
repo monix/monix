@@ -72,8 +72,10 @@ final class SubscriberAsReactiveSubscriber[T] private
   def onSubscribe(s: Subscription): Unit =
     buffer.onSubscribe(s)
 
-  def onNext(elem: T): Unit =
+  def onNext(elem: T): Unit = {
+    if (elem == null) throw new NullPointerException("onNext(null)")
     buffer.onNext(elem)
+  }
 
   def onError(ex: Throwable): Unit =
     buffer.onError(ex)
@@ -170,14 +172,20 @@ final class SynchronousSubscriberAsReactiveSubscriber[T] private
   private[this] var expectingCount = 0
   @volatile private[this] var isCanceled = false
 
-  def onSubscribe(s: Subscription): Unit =
-    if (!isCanceled) {
+  def onSubscribe(s: Subscription): Unit = {
+    if (subscription == null && !isCanceled) {
       subscription = s
       expectingCount = requestCount
       s.request(requestCount)
     }
+    else {
+      s.cancel()
+    }
+  }
 
   def onNext(elem: T): Unit = {
+    if (elem == null) throw new NullPointerException("onNext(null)")
+
     if (!isCanceled) {
       if (expectingCount > 0) expectingCount -= 1
 
@@ -197,6 +205,8 @@ final class SynchronousSubscriberAsReactiveSubscriber[T] private
   }
 
   def onError(ex: Throwable): Unit = {
+    if (ex == null) throw new NullPointerException("onError(null)")
+
     if (!isCanceled) {
       isCanceled = true
       subscriber.observer.onError(ex)

@@ -388,7 +388,7 @@ trait Observable[+T] { self =>
    *  @param  n  the number of elements to take
    *  @return    a new Observable that emits only the first ''n'' elements from the source
    */
-  def take(n: Int): Observable[T] =
+  def take(n: Long): Observable[T] =
     operators.take.left(self, n)
 
   /**
