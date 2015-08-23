@@ -33,7 +33,221 @@ import scala.util.control.NonFatal
 
 
 /**
- * Asynchronous implementation of the Observable interface.
+ * The Observable interface in the Rx pattern.
+ *
+ * ==Interface==
+ *
+ * An Observable is characterized by a `subscribeFn` method that needs
+ * to be implemented. In simple terms, an Observable might as well be
+ * just a function like:
+ * {{{
+ *   type Observable[+T] = Subscriber[T] => Unit
+ * }}}
+ *
+ * In other words an Observable is something that provides a
+ * side-effecting function that can connect a [[Subscriber]] to
+ * a stream of data. A `Subscriber` is a cross between an
+ * [[Observer]] and a [[Scheduler]]. We need a [[Scheduler]] when
+ * calling `subscribe` because that's when the side-effects happen
+ * and a context capable of scheduling tasks for asynchronous
+ * execution is needed. An [[Observer]] on the other hand is
+ * the interface implemented by consumer and that receives
+ * events according to the Rx grammar.
+ *
+ * On `subscribeFn`, because we need the interesting operators and
+ * the polymorphic behavior provided by OOP, the Observable is
+ * being described as an interface that has to be implemented:
+ * {{{
+ *   class MySampleObservable(unit: Int) extends Observable[Int] {
+ *     def subscribeFn(sub: Subscriber[Int]): Unit = {
+ *       implicit val s = sub.scheduler
+ *       // note we must apply back-pressure
+ *       // when calling `onNext`
+ *       sub.observer.onNext(unit).onComplete {
+ *         case Success(Cancel) =>
+ *           () // do nothing
+ *         case Success(Continue) =>
+ *           sub.observer.onComplete()
+ *         case Failure(ex) =>
+ *           sub.observer.onError(ex)
+ *       }
+ *     }
+ *   }
+ * }}}
+ *
+ * Of course, you don't need to inherit from this trait, as you can just
+ * use [[Observable.create]], the following example being equivalent
+ * to the above:
+ * {{{
+ *   Observable.create[Int] { sub =>
+ *     implicit val s = sub.scheduler
+ *     // note we must apply back-pressure
+ *     // when calling `onNext`
+ *     sub.observer.onNext(unit).onComplete {
+ *       case Success(Cancel) =>
+ *         () // do nothing
+ *       case Success(Continue) =>
+ *         sub.observer.onComplete()
+ *       case Failure(ex) =>
+ *         sub.observer.onError(ex)
+ *     }
+ *   }
+ * }}}
+ *
+ * The above is describing how to create your own Observables, however
+ * Monifu already provides already made utilities in the
+ * [[Observable$ Observable companion object]]. For example, to
+ * periodically make a request to a web service, you could do it like
+ * this:
+ * {{{
+ *   // just some http client
+ *   import play.api.libs.ws._
+ *
+ *   // triggers an auto-incremented number every second
+ *   Observable.intervalAtFixedRate(1.second)
+ *     .flatMap(_ => WS.request(s"http://some.endpoint.com/request?tick=$x").get())
+ * }}}
+ *
+ * As you might notice, in the above example we are doing
+ * [[Observable!.flatMap]] on an Observable that emits `Future`
+ * instances. And it works, because Monifu considers Scala's Futures
+ * to be just a subset of Observables, see the automatic
+ * [[Observable.FutureIsObservable FutureIsObservable]] conversion that
+ * it defines. Or you could just use [[Observable.fromFuture]] for
+ * explicit conversions, an Observable builder available
+ * [[Observable$ amongst others]].
+ *
+ * ==Contract==
+ *
+ * Observables must obey Monifu's contract, this is why if you get away
+ * with already built and tested observables, that would be better than
+ * implementing your own by means of inheriting the interface or by using
+ * [[Observable.create create]]. The contract is this:
+ *
+ *   - the supplied `subscribeFn` method MUST NOT throw exceptions, any
+ *     unforeseen errors that happen in user-code must be emitted to
+ *     the observers and the streaming closed
+ *   - events MUST follow this grammar: `onNext* (onComplete | onError)`
+ *     - a data source can emit zero or many `onNext` events
+ *     - the stream can be infinite, but when the stream is closed
+ *       (and not canceled by the observer), then
+ *       it always emits a final `onComplete` or `onError`
+ *   - MUST apply back-pressure when emitting events, which means that sending
+ *     events is always done in response to demand signaled by observers and
+ *     that observers should only receive events in response to that signaled
+ *     demand
+ *     - emitting a new `onNext` event must happen only after the previous
+ *       `onNext` completed with a [[Ack.Continue Continue]]
+ *     - streaming must stop immediately after an `onNext` event
+ *       is signaling a [[Ack.Cancel Cancel]]
+ *     - back-pressure must be applied for the final events as well,
+ *       so `onComplete` and `onError` must happen only after the previous
+ *       `onNext` was completed with a [[Ack.Continue Continue]]
+ *       acknowledgement
+ *     - the first `onNext` event can be sent directly, since there are no
+ *       previous events
+ *     - if there are no previous `onNext` events, then streams can be
+ *       closed with `onComplete` and `onError` directly
+ *     - if buffering of events happens, it is acceptable for events
+ *       to get dropped when `onError` happens such that its delivery
+ *       is prioritized
+ *
+ * ===On Dealing with the contract===
+ *
+ * Back-pressure means in essence that the speed with which the data-source
+ * produces events is adjusted to the speed with which the consumer consumes.
+ *
+ * For example, lets say we want to feed an iterator into an observer,
+ * similar to what we are doing in [[Observer.feed]], we might build a loop
+ * like this:
+ * {{{
+ *   /** Transforms any Iterable into an Observable */
+ *   def fromIterator[T](iterable: Iterable[T]): Observable[T] =
+ *     Observable.create { sub =>
+ *       implicit val s = sub.scheduler
+ *       loop(sub.observer, iterable.iterator).onComplete {
+ *         case Success(Cancel) =>
+ *           () // do nothing
+ *         case Success(Continue) =>
+ *           sub.observer.onComplete()
+ *         case Failed(ex) =>
+ *           reportError(ex)
+ *       }
+ *     }
+ *
+ *   private def loop[T](o: Observer[T], iterator: Iterator[T])
+ *     (implicit s: Scheduler): Future[Ack] = {
+ *
+ *     try {
+ *       if (iterator.hasNext) {
+ *         val next = iterator.next()
+ *         // signaling event, applying back-pressure
+ *         o.onNext(next).flatMap {
+ *           case Cancel => Cancel
+ *           case Continue =>
+ *             // signal next event (recursive, but async)
+ *             loop(o, iterator)
+ *         }
+ *       }
+ *       else {
+ *         // nothing left to do, and because we are implementing
+ *         // Observer.feed, the final acknowledgement is a `Continue`
+ *         // assuming that the observer hasn't canceled or failed
+ *         Continue
+ *       }
+ *     }
+ *     catch {
+ *       case NonFatal(ex) =>
+ *         reportError(ex)
+ *     }
+ *   }
+ *
+ *   private def reportError[T](o: Observer[T], ex: Throwable): Cancel =
+ *     try o.onError(ex) catch {
+ *       case NonFatal(err) =>
+ *         // oops, onError failed, trying to
+ *         // report it somewhere
+ *         s.reportFailure(ex)
+ *         s.reportFailure(err)
+ *         Cancel
+ *     }
+ * }}}
+ *
+ * There are cases in which the data-source can't be slowed down in response
+ * to the demand signaled through back-pressure. For such cases buffering
+ * is needed.
+ *
+ * For example to "imperatively" build an Observable, we could use channels:
+ * {{{
+ *   val channel = PublishChannel[Int](OverflowStrategy.DropNew(bufferSize = 100))
+ *
+ *   // look mum, no back-pressure concerns
+ *   channel.pushNext(1)
+ *   channel.pushNext(2)
+ *   channel.pushNext(3)
+ *   channel.pushComplete()
+ * }}}
+ *
+ * In Monifu a [[Channel]] is much like a [[Subject]], meaning that it can be
+ * used to construct observables, except that a `Channel` has a buffer
+ * attached and IS NOT an `Observer` (like the `Subject` is). In Monifu
+ * (compared to Rx implementations) [[Subject Subjects]] are subject to
+ * back-pressure concerns as well, so they can't be used in an imperative way,
+ * like described above, hence the need for Channels.
+ *
+ * Or for more serious and lower level jobs, you can simply take an
+ * `Observer` and wrap it into a [[BufferedSubscriber]].
+ *
+ * @see [[monifu.reactive.Observer Observer]], the interface that must be
+ *     implemented by consumers
+ * @see [[monifu.concurrent.Scheduler Scheduler]], our enhanced `ExecutionContext`
+ * @see [[monifu.reactive.Subscriber Subscriber]], the cross between an
+ *     [[Observer]] and a [[Scheduler]]
+ * @see [[monifu.concurrent.Cancelable Cancelable]], the type returned by higher
+ *     level `subscribe` variants and that can be used to cancel subscriptions
+ * @see [[monifu.reactive.Subject Subject]], which are both Observables and Observers
+ * @see [[monifu.reactive.Channel Channel]], which are meant for imperatively building
+ *     Observables without back-pressure concerns
  *
  * @define concatDescription Concatenates the sequence
  *         of Observables emitted by the source into one Observable,
@@ -1080,6 +1294,17 @@ trait Observable[+T] { self =>
   /**
    * Creates a new Observable that emits the given element
    * and then it also emits the events of the source (prepend operation).
+   *
+   * @example {{{
+   *   val source = 1 +: Observable(2, 3, 4)
+   *   source.dump("O").subscribe()
+   *
+   *   // 0: O-->1
+   *   // 1: O-->2
+   *   // 2: O-->3
+   *   // 3: O-->4
+   *   // 4: O completed
+   * }}}
    */
   def +:[U >: T](elem: U): Observable[U] =
     Observable.unit(elem) ++ this
@@ -1094,6 +1319,17 @@ trait Observable[+T] { self =>
   /**
    * Creates a new Observable that emits the events of the source
    * and then it also emits the given element (appended to the stream).
+   *
+   * @example {{{
+   *   val source = Observable(1, 2, 3) :+ 4
+   *   source.dump("O").subscribe()
+   *
+   *   // 0: O-->1
+   *   // 1: O-->2
+   *   // 2: O-->3
+   *   // 3: O-->4
+   *   // 4: O completed
+   * }}}
    */
   def :+[U >: T](elem: U): Observable[U] =
     this ++ Observable.unit(elem)
@@ -1107,6 +1343,23 @@ trait Observable[+T] { self =>
 
   /**
    * Concatenates the source Observable with the other Observable, as specified.
+   *
+   * Ordering of subscription is preserved, so the second observable
+   * starts only after the source observable is completed successfully with
+   * an `onComplete`. On the other hand, the second observable is never
+   * subscribed if the source completes with an error.
+   *
+   * @example {{{
+   *   val concat = Observable(1,2,3) ++ Observable(4,5)
+   *   concat.dump("O").subscribe()
+   *
+   *   // 0: O-->1
+   *   // 1: O-->2
+   *   // 2: O-->3
+   *   // 3: O-->4
+   *   // 4: O-->5
+   *   // 5: O completed
+   * }}}
    */
   def ++[U >: T](other: => Observable[U]): Observable[U] =
     Observable.concat(this, other)
@@ -1742,6 +1995,12 @@ object Observable {
    */
   def fromIterable[T](iterable: Iterable[T]): Observable[T] =
     builders.from.iterable(iterable)
+
+  /**
+   * Creates an Observable that emits the elements of the given `iterator`.
+   */
+  def fromIterator[T](iterator: Iterator[T]): Observable[T] =
+    builders.from.iterator(iterator)
 
   /**
    * Creates an Observable that emits the given elements exactly.

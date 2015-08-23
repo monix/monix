@@ -1,6 +1,6 @@
-<img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/monifu.png" align="right" />
+<img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/monifu-square.png" align="right" width="280" />
 
-Idiomatic Reactive Extensions for Scala. Targets both the JVM and [Scala.js](http://www.scala-js.org/).
+Idiomatic Reactive Extensions for Scala and [Scala.js](http://www.scala-js.org/).
 
 [![Build Status](https://travis-ci.org/monifu/monifu.png?branch=master)](https://travis-ci.org/monifu/monifu)
 [![Build Status](https://travis-ci.org/monifu/monifu.png?branch=v1.0-M7)](https://travis-ci.org/monifu/monifu)
@@ -8,7 +8,59 @@ Idiomatic Reactive Extensions for Scala. Targets both the JVM and [Scala.js](htt
 
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/monifu/monifu?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-## Teaser
+## Overview
+
+Monifu is a high-performance Scala / Scala.js library for 
+composing asynchronous and event-based programs using observable sequences
+that are exposed as asynchronous streams, expanding on the 
+[observer pattern](https://en.wikipedia.org/wiki/Observer_pattern), 
+strongly inspired by [Reactive Extensions (Rx)](http://reactivex.io/), 
+but designed from the ground up  for back-pressure and made to cleanly interact 
+with Scala's standard library and compatible out-of-the-box with the 
+[Reactive Streams](http://www.reactive-streams.org/) protocol.
+
+Highlights:
+
+- zero dependencies
+- clean and user-friendly API, with the observer interface using `Future` for back-pressure purposes
+- Observable operators exposed in a way that's idiomatic to Scala
+- compatible with for-comprehensions
+- compatible with [Scalaz](https://github.com/scalaz/scalaz)
+- designed to be completely asynchronous - Rx operators that are
+  blocking or that are not compatible with back-pressure semantics  
+  are not going to be supported
+- does not depend on any particular mechanism for asynchronous
+  execution and can be made to work with threads, actors, event loops,
+  or whatnot, running perfectly both on top of the JVM or in Node.js
+  or the browser
+- really good test coverage as a project policy
+
+### Example usage
+
+In order for subscriptions to work, we need an implicit 
+[Scheduler](shared/src/main/scala/monifu/concurrent/Scheduler.scala#L33) imported in our
+context. A `Scheduler` inherits from Scala's own [ExecutionContext](http://www.scala-lang.org/api/current/index.html#scala.concurrent.ExecutionContext) 
+and any `ExecutionContext` can be quickly converted into a `Scheduler`.
+And then you're off ...
+
+```scala
+// scala.concurrent.ExecutionContext.Implicits.global 
+// is being used under the hood
+import monifu.concurrent.Implicits.globalScheduler
+
+// or we can simply convert our own execution context
+// import play.api.libs.concurrent.Execution.Implicits.defaultContext
+// implicit val scheduler = Scheduler(defaultContext)
+
+import concurrent.duration._
+import monifu.reactive._
+
+val subscription = Observable.intervalAtFixedRate(1.second)
+  .take(10)
+  .subscription(x => println(x))
+```
+
+We can then try out more complex things: 
 
 ```scala
 import monifu.concurrent.Implicits.globalScheduler
@@ -17,8 +69,8 @@ import monifu.reactive._
 
 // emits an auto-incremented number, every second
 Observable.interval(1.second)
-  // drops the first 10 emitted events
-  .drop(10)
+  // drops the items emitted over the first 5 secs
+  .dropByTimespan(5.seconds)
   // takes the first 100 emitted events  
   .take(100)
   // per second, makes requests and concatenates the results
