@@ -21,7 +21,7 @@ package monifu.reactive.observers
 import minitest.TestSuite
 import monifu.concurrent.schedulers.TestScheduler
 import monifu.reactive.Ack.{Cancel, Continue}
-import monifu.reactive.BufferPolicy.DropIncomingThenSignal
+import monifu.reactive.BufferPolicy.DropNewThenSignal
 import monifu.reactive.{Ack, DummyException, Observer}
 import scala.concurrent.{Future, Promise}
 
@@ -34,11 +34,11 @@ object BufferDropIncomingThenSignalSuite extends TestSuite[TestScheduler] {
   }
   
   def policyForIntEvents(bufferSize: Int) = {
-    DropIncomingThenSignal[Int](bufferSize, nr => nr.toInt)
+    DropNewThenSignal[Int](bufferSize, nr => nr.toInt)
   }
 
   def policyForLongEvents(bufferSize: Int) = {
-    DropIncomingThenSignal[Long](bufferSize, nr => nr)
+    DropNewThenSignal[Long](bufferSize, nr => nr)
   }
 
   test("should not lose events, test 1") { implicit s =>

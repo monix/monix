@@ -1184,7 +1184,7 @@ trait Observable[+T] { self =>
    * While the destination observer is busy, drop the incoming events.
    */
   def whileBusyDropEvents: Observable[T] =
-    operators.whileBusy.dropEvents(self)
+    operators.onBackPressure.dropEvents(self)
 
   /**
    * While the destination observer is busy, drop the incoming events.
@@ -1198,15 +1198,15 @@ trait Observable[+T] { self =>
    *                   messages and thus can be used to inform the downstream
    *                   how many messages it missed.
    */
-  def whileBusyDropEventsThenSignalOverflow[U >: T](onOverflow: Long => U): Observable[U] =
-    operators.whileBusy.dropEventsThenSignalOverflow(self, onOverflow)
+  def whileBusyDropEvents[U >: T](onOverflow: Long => U): Observable[U] =
+    operators.onBackPressure.dropEventsThenSignalOverflow(self, onOverflow)
 
   /**
-   * While the destination observer is busy, buffers events then send
-   * whatever was buffered in one big batch.
+   * While the destination observer is busy, buffers events, applying
+   * the given policy.
    */
-  def whileBusyBufferEvents(bufferSize: Int): Observable[Seq[T]] =
-    operators.whileBusy.bufferEvents(self, bufferSize)
+  def whileBusyBuffer[U >: T](p: BufferPolicy.Synchronous[U]): Observable[U] =
+    asyncBoundary(p)
 
   /**
    * Converts this observable into a multicast observable, useful for turning a cold observable into

@@ -29,8 +29,8 @@ import scala.util.control.NonFatal
 /**
  * A [[BufferedSubscriber]] implementation for the following policies:
  *
- * - [[monifu.reactive.BufferPolicy.DropIncoming]]
- * - [[monifu.reactive.BufferPolicy.DropIncomingThenSignal]]
+ * - [[monifu.reactive.BufferPolicy.DropNew]]
+ * - [[monifu.reactive.BufferPolicy.DropNewThenSignal]]
  */
 final class EvictingBufferedSubscriber[-T] private
     (underlying: Observer[T], buffer: EvictingQueue[AnyRef], onOverflow: Long => T = null)
@@ -230,7 +230,7 @@ object EvictingBufferedSubscriber {
 
   /**
    * Returns an instance of a [[EvictingBufferedSubscriber]] for the
-   * [[monifu.reactive.BufferPolicy.DropBuffer DropBuffer]]
+   * [[monifu.reactive.BufferPolicy.ClearBuffer ClearBuffer]]
    * policy.
    */
   def dropBuffer[T](underlying: Observer[T], bufferSize: Int)
@@ -245,7 +245,7 @@ object EvictingBufferedSubscriber {
 
   /**
    * Returns an instance of a [[EvictingBufferedSubscriber]]
-   * for the [[monifu.reactive.BufferPolicy.DropBuffer DropBuffer]]
+   * for the [[monifu.reactive.BufferPolicy.ClearBuffer ClearBuffer]]
    * policy.
    */
   def dropBuffer[T](underlying: Observer[T], bufferSize: Int, onOverflow: Long => T)

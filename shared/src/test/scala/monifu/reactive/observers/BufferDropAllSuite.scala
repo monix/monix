@@ -20,7 +20,7 @@ package monifu.reactive.observers
 import minitest.TestSuite
 import monifu.concurrent.schedulers.TestScheduler
 import monifu.reactive.Ack.{Cancel, Continue}
-import monifu.reactive.BufferPolicy.DropBuffer
+import monifu.reactive.BufferPolicy.ClearBuffer
 import monifu.reactive.{Ack, DummyException, Observer}
 import scala.concurrent.{Future, Promise}
 
@@ -50,7 +50,7 @@ object BufferDropAllSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    val buffer = BufferedSubscriber[Int](underlying, DropBuffer(1000))
+    val buffer = BufferedSubscriber[Int](underlying, ClearBuffer(1000))
     for (i <- 0 until 1000) buffer.observer.onNext(i)
     buffer.observer.onComplete()
 
@@ -79,7 +79,7 @@ object BufferDropAllSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    val buffer = BufferedSubscriber[Int](underlying, DropBuffer(1000))
+    val buffer = BufferedSubscriber[Int](underlying, ClearBuffer(1000))
 
     def loop(n: Int): Unit =
       if (n > 0)
@@ -114,7 +114,7 @@ object BufferDropAllSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    val buffer = BufferedSubscriber[Int](underlying, DropBuffer(5))
+    val buffer = BufferedSubscriber[Int](underlying, ClearBuffer(5))
 
     for (i <- 1 to 7) assertEquals(buffer.observer.onNext(i), Continue)
     s.tick()
@@ -140,7 +140,7 @@ object BufferDropAllSuite extends TestSuite[TestScheduler] {
 
       def onNext(elem: Int) = throw new IllegalStateException()
       def onComplete() = throw new IllegalStateException()
-    }, DropBuffer(5))
+    }, ClearBuffer(5))
 
     buffer.observer.onError(DummyException("dummy"))
     s.tickOne()
@@ -158,7 +158,7 @@ object BufferDropAllSuite extends TestSuite[TestScheduler] {
       }
       def onNext(elem: Int) = Continue
       def onComplete() = throw new IllegalStateException()
-    }, DropBuffer(5))
+    }, ClearBuffer(5))
 
     buffer.observer.onNext(1)
     buffer.observer.onError(DummyException("dummy"))
@@ -177,7 +177,7 @@ object BufferDropAllSuite extends TestSuite[TestScheduler] {
       }
       def onNext(elem: Int) = promise.future
       def onComplete() = throw new IllegalStateException()
-    }, DropBuffer(5))
+    }, ClearBuffer(5))
 
     for (i <- 1 to 10) assertEquals(buffer.observer.onNext(i), Continue)
     buffer.observer.onError(DummyException("dummy"))
@@ -200,7 +200,7 @@ object BufferDropAllSuite extends TestSuite[TestScheduler] {
       }
       def onError(ex: Throwable) = throw ex
       def onComplete() = wasCompleted = true
-    }, DropBuffer(10000))
+    }, ClearBuffer(10000))
 
     (0 until 9999).foreach(x => buffer.observer.onNext(x))
     buffer.observer.onComplete()
@@ -222,7 +222,7 @@ object BufferDropAllSuite extends TestSuite[TestScheduler] {
       }
       def onError(ex: Throwable) = throw ex
       def onComplete() = wasCompleted = true
-    }, DropBuffer(10000))
+    }, ClearBuffer(10000))
 
     (0 until 9999).foreach(x => buffer.observer.onNext(x))
     buffer.observer.onComplete()
@@ -244,7 +244,7 @@ object BufferDropAllSuite extends TestSuite[TestScheduler] {
       }
       def onError(ex: Throwable) = errorThrown = ex
       def onComplete() = throw new IllegalStateException()
-    }, DropBuffer(10000))
+    }, ClearBuffer(10000))
 
     (0 until 9999).foreach(x => buffer.observer.onNext(x))
     buffer.observer.onError(DummyException("dummy"))
@@ -266,7 +266,7 @@ object BufferDropAllSuite extends TestSuite[TestScheduler] {
       }
       def onError(ex: Throwable) = errorThrown = ex
       def onComplete() = throw new IllegalStateException()
-    }, DropBuffer(10000))
+    }, ClearBuffer(10000))
 
     (0 until 9999).foreach(x => buffer.observer.onNext(x))
     buffer.observer.onError(DummyException("dummy"))

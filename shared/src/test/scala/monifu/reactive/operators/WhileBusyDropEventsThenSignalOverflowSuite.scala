@@ -38,7 +38,7 @@ object WhileBusyDropEventsThenSignalOverflowSuite
 
   test("should not drop events for synchronous observers") { implicit s =>
     val f = Observable.range(0, 1000)
-      .whileBusyDropEventsThenSignalOverflow(x => x).sum.asFuture
+      .whileBusyDropEvents(x => x).sum.asFuture
 
     s.tick()
     assertEquals(f.value, Some(Success(Some(999 * 500))))
@@ -50,7 +50,7 @@ object WhileBusyDropEventsThenSignalOverflowSuite
     var received = 0L
     var wasCompleted = false
 
-    source.whileBusyDropEventsThenSignalOverflow(x => x)
+    source.whileBusyDropEvents(x => x)
       .unsafeSubscribe(new Observer[Long] {
         def onNext(elem: Long) = {
           received += elem
@@ -86,7 +86,7 @@ object WhileBusyDropEventsThenSignalOverflowSuite
     var received = 0L
     var wasCompleted = false
 
-    source.whileBusyDropEventsThenSignalOverflow(x => x)
+    source.whileBusyDropEvents(x => x)
       .unsafeSubscribe(new Observer[Long] {
       def onNext(elem: Long) =
         p.future.map { continue =>

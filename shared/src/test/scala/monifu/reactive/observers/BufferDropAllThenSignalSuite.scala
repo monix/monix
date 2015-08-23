@@ -20,7 +20,7 @@ package monifu.reactive.observers
 import minitest.TestSuite
 import monifu.concurrent.schedulers.TestScheduler
 import monifu.reactive.Ack.{Cancel, Continue}
-import monifu.reactive.BufferPolicy.DropBufferThenSignal
+import monifu.reactive.BufferPolicy.ClearBufferThenSignal
 import monifu.reactive.{Ack, DummyException, Observer}
 import scala.concurrent.{Future, Promise}
 
@@ -32,8 +32,8 @@ object BufferDropAllThenSignalSuite extends TestSuite[TestScheduler] {
       "TestScheduler should have no pending tasks")
   }
 
-  def dropAll(nr: Int): DropBufferThenSignal[Int] = {
-    DropBufferThenSignal(nr, x => x.toInt)
+  def dropAll(nr: Int): ClearBufferThenSignal[Int] = {
+    ClearBufferThenSignal(nr, x => x.toInt)
   }
 
   test("should not lose events, test 1") { implicit s =>

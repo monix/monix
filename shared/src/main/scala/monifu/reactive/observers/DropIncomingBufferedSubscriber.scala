@@ -30,8 +30,8 @@ import scala.util.control.NonFatal
 /**
  * A [[BufferedSubscriber]] implementation for the following policies:
  *
- * - [[monifu.reactive.BufferPolicy.DropIncoming]]
- * - [[monifu.reactive.BufferPolicy.DropIncomingThenSignal]]
+ * - [[monifu.reactive.BufferPolicy.DropNew]]
+ * - [[monifu.reactive.BufferPolicy.DropNewThenSignal]]
  */
 final class DropIncomingBufferedSubscriber[-T] private
     (underlying: Observer[T], bufferSize: Int, onOverflow: Long => T = null)
@@ -219,7 +219,7 @@ final class DropIncomingBufferedSubscriber[-T] private
 object DropIncomingBufferedSubscriber {
   /**
    * Returns an instance of a [[DropIncomingBufferedSubscriber]]
-   * for the [[monifu.reactive.BufferPolicy.DropIncoming DropIncoming]]
+   * for the [[monifu.reactive.BufferPolicy.DropNew DropNew]]
    * policy.
    */
   def simple[T](underlying: Observer[T], bufferSize: Int)
@@ -230,7 +230,7 @@ object DropIncomingBufferedSubscriber {
 
   /**
    * Returns an instance of a [[DropIncomingBufferedSubscriber]]
-   * for the [[monifu.reactive.BufferPolicy.DropIncoming DropIncoming]]
+   * for the [[monifu.reactive.BufferPolicy.DropNew DropNew]]
    * policy.
    */
   def withSignal[T](underlying: Observer[T], bufferSize: Int, onOverflow: Long => T)
