@@ -19,13 +19,13 @@ package monifu.reactive.operators
 
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.internals._
-import monifu.reactive.observers.{SynchronousObserver, WhileBusyBufferSubscriber}
-import monifu.reactive.{Ack, Observable, Observer}
+import monifu.reactive.observers.SynchronousObserver
+import monifu.reactive.{Ack, Observable}
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
-private[reactive] object whileBusy {
+private[reactive] object onBackPressure {
   /**
    * While the destination observer is busy, drop the incoming events.
    */
@@ -172,30 +172,6 @@ private[reactive] object whileBusy {
           }
 
           f.onContinueSignalComplete(observer)
-        }
-      })
-    }
-
-  /**
-   * Implementation for [[Observable.whileBusyBufferEvents]].
-   */
-  def bufferEvents[T](source: Observable[T], bufferSize: Int): Observable[Seq[T]] =
-    Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
-      val buffer = WhileBusyBufferSubscriber(subscriber.observer, bufferSize)
-      val downstream = buffer.observer
-
-      source.unsafeSubscribe(new Observer[T] {
-        def onNext(elem: T) = {
-          downstream.onNext(elem)
-        }
-
-        def onError(ex: Throwable) = {
-          downstream.onError(ex)
-        }
-
-        def onComplete() = {
-          downstream.onComplete()
         }
       })
     }

@@ -76,17 +76,17 @@ object BufferedSubscriber {
         SynchronousBufferedSubscriber.overflowTriggering(observer, bufferSize)
       case BackPressure(bufferSize) =>
         BackPressuredBufferedSubscriber(observer, bufferSize)
-      case DropIncoming(bufferSize) =>
+      case DropNew(bufferSize) =>
         DropIncomingBufferedSubscriber.simple(observer, bufferSize)
-      case DropIncomingThenSignal(bufferSize, onOverflow) =>
+      case DropNewThenSignal(bufferSize, onOverflow) =>
         DropIncomingBufferedSubscriber.withSignal(observer, bufferSize, onOverflow)
       case DropOld(bufferSize) =>
         EvictingBufferedSubscriber.dropOld(observer, bufferSize)
       case DropOldThenSignal(bufferSize, onOverflow) =>
         EvictingBufferedSubscriber.dropOld(observer, bufferSize, onOverflow)
-      case DropBuffer(bufferSize) =>
+      case ClearBuffer(bufferSize) =>
         EvictingBufferedSubscriber.dropBuffer(observer, bufferSize)
-      case DropBufferThenSignal(bufferSize, onOverflow) =>
+      case ClearBufferThenSignal(bufferSize, onOverflow) =>
         EvictingBufferedSubscriber.dropBuffer(observer, bufferSize, onOverflow)
     }
   }

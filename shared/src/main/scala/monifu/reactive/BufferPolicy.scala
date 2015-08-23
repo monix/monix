@@ -44,7 +44,7 @@ object BufferPolicy {
    * that can't work for [[Channel]].
    */
   sealed trait Synchronous[+T] extends BufferPolicy[T]
-  
+
   /**
    * A [[BufferPolicy]] specifying that the buffer is completely unbounded.
    * Using this policy implies that with a fast data source, the system's
@@ -89,7 +89,7 @@ object BufferPolicy {
    * @param bufferSize specifies how many events our buffer can hold
    *                   before overflowing
    */
-  case class DropIncoming(bufferSize: Int)
+  case class DropNew(bufferSize: Int)
     extends Synchronous[Nothing] {
 
     require(bufferSize > 1, "bufferSize should be strictly greater than 1")
@@ -107,7 +107,7 @@ object BufferPolicy {
    *                   dropped and is used to construct an overflow event for
    *                   signalling to downstream that events were dropped.
    */
-  case class DropIncomingThenSignal[+T](bufferSize: Int, onOverflow: Long => T)
+  case class DropNewThenSignal[+T](bufferSize: Int, onOverflow: Long => T)
     extends Synchronous[T] {
         
     require(bufferSize > 1, "bufferSize should be strictly greater than 1")
@@ -121,7 +121,7 @@ object BufferPolicy {
    * @param bufferSize specifies how many events our buffer can hold
    *                   before overflowing
    */
-  case class DropBuffer(bufferSize: Int)
+  case class ClearBuffer(bufferSize: Int)
     extends Synchronous[Nothing] {
 
     require(bufferSize > 1, "bufferSize should be strictly greater than 1")
@@ -138,7 +138,7 @@ object BufferPolicy {
    *                   dropped and is used to construct an overflow event for
    *                   signalling to downstream that events were dropped.
    */
-  case class DropBufferThenSignal[+T](bufferSize: Int, onOverflow: Long => T)
+  case class ClearBufferThenSignal[+T](bufferSize: Int, onOverflow: Long => T)
     extends Synchronous[T] {
 
     require(bufferSize > 1, "bufferSize should be strictly greater than 1")
