@@ -24,9 +24,18 @@ import sbtrelease.ReleasePlugin.autoImport._
 
 
 object Build extends SbtBuild {
-  val compilerSettings = Seq(
-    scalaVersion := "2.11.7",
+  val dontPublishArtifact = Seq(
+    publishArtifact := false,
+    publishArtifact in (Compile, packageDoc) := false,
+    publishArtifact in (Compile, packageSrc) := false,
+    publishArtifact in (Compile, packageBin) := false
+  )
 
+  val sharedSettings = Seq(
+    name := "monifu",
+    organization := "org.monifu",
+
+    scalaVersion := "2.11.7",
     scalacOptions ++= Seq(
       "-unchecked", "-deprecation", "-feature", "-Xlint", "-target:jvm-1.6", "-Yinline-warnings",
       "-optimise", "-Ywarn-adapted-args", "-Ywarn-dead-code", "-Ywarn-inaccessible",
@@ -43,12 +52,7 @@ object Build extends SbtBuild {
       Opts.doc.version(s"${version.value}"),
     scalacOptions in ThisBuild <++= baseDirectory.map { bd =>
       Seq("-sourcepath", bd.getAbsolutePath)
-    }
-  )
-
-  val sharedSettings = compilerSettings ++ Seq(
-    name := "monifu",
-    organization := "org.monifu",
+    },
 
     resolvers ++= Seq(
       "Typesafe Releases" at "http://repo.typesafe.com/typesafe/releases",
@@ -100,8 +104,8 @@ object Build extends SbtBuild {
 
   lazy val monifu = project.in(file("."))
     .aggregate(monifuJVM, monifuJS, tckTests)
-    .settings(compilerSettings: _*)
-    .settings(publish := {}, publishLocal := {})
+    .settings(sharedSettings: _*)
+    .settings(dontPublishArtifact: _*)
 
   lazy val monifuJVM = project.in(file("jvm"))
     .settings(sharedSettings: _*)
@@ -128,8 +132,8 @@ object Build extends SbtBuild {
 
   lazy val tckTests = project.in(file("tckTests"))
     .dependsOn(monifuJVM)
-    .settings(compilerSettings: _*)
-    .settings(publish := {}, publishLocal := {})
+    .settings(sharedSettings: _*)
+    .settings(dontPublishArtifact: _*)
     .settings(
       libraryDependencies ++= Seq(
         "org.reactivestreams" % "reactive-streams-tck" % "1.0.0" % "test",
