@@ -29,8 +29,8 @@ import scala.util.control.NonFatal
 /**
  * A [[BufferedSubscriber]] implementation for the following policies:
  *
- * - [[monifu.reactive.BufferPolicy.DropNew]]
- * - [[monifu.reactive.BufferPolicy.DropNewThenSignal]]
+ * - [[monifu.reactive.OverflowStrategy.DropNew]]
+ * - [[monifu.reactive.OverflowStrategy.DropNewThenSignal]]
  */
 final class EvictingBufferedSubscriber[-T] private
     (underlying: Observer[T], buffer: EvictingQueue[AnyRef], onOverflow: Long => T = null)
@@ -200,8 +200,8 @@ final class EvictingBufferedSubscriber[-T] private
 object EvictingBufferedSubscriber {
   /**
    * Returns an instance of a [[EvictingBufferedSubscriber]]
-   * for the [[monifu.reactive.BufferPolicy.DropOld DropIDropOldcoming]]
-   * policy.
+   * for the [[monifu.reactive.OverflowStrategy.DropOld DropIDropOldcoming]]
+   * overflowStrategy.
    */
   def dropOld[T](underlying: Observer[T], bufferSize: Int)
     (implicit s: Scheduler): EvictingBufferedSubscriber[T] = {
@@ -215,8 +215,8 @@ object EvictingBufferedSubscriber {
 
   /**
    * Returns an instance of a [[EvictingBufferedSubscriber]] for the
-   * [[monifu.reactive.BufferPolicy.DropOldThenSignal DropOldThenSignal]]
-   * policy.
+   * [[monifu.reactive.OverflowStrategy.DropOldThenSignal DropOldThenSignal]]
+   * overflowStrategy.
    */
   def dropOld[T](underlying: Observer[T], bufferSize: Int, onOverflow: Long => T)
     (implicit s: Scheduler): EvictingBufferedSubscriber[T] = {
@@ -230,10 +230,10 @@ object EvictingBufferedSubscriber {
 
   /**
    * Returns an instance of a [[EvictingBufferedSubscriber]] for the
-   * [[monifu.reactive.BufferPolicy.ClearBuffer ClearBuffer]]
-   * policy.
+   * [[monifu.reactive.OverflowStrategy.ClearBuffer ClearBuffer]]
+   * overflowStrategy.
    */
-  def dropBuffer[T](underlying: Observer[T], bufferSize: Int)
+  def clearBuffer[T](underlying: Observer[T], bufferSize: Int)
     (implicit s: Scheduler): EvictingBufferedSubscriber[T] = {
 
     require(bufferSize > 1,
@@ -245,10 +245,10 @@ object EvictingBufferedSubscriber {
 
   /**
    * Returns an instance of a [[EvictingBufferedSubscriber]]
-   * for the [[monifu.reactive.BufferPolicy.ClearBuffer ClearBuffer]]
-   * policy.
+   * for the [[monifu.reactive.OverflowStrategy.ClearBuffer ClearBuffer]]
+   * overflowStrategy.
    */
-  def dropBuffer[T](underlying: Observer[T], bufferSize: Int, onOverflow: Long => T)
+  def clearBuffer[T](underlying: Observer[T], bufferSize: Int, onOverflow: Long => T)
     (implicit s: Scheduler): EvictingBufferedSubscriber[T] = {
 
     require(bufferSize > 1,

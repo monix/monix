@@ -18,23 +18,57 @@
 package monifu.reactive.channels
 
 import monifu.concurrent.Scheduler
-import monifu.reactive.BufferPolicy
-import monifu.reactive.BufferPolicy.Unbounded
+import monifu.reactive.OverflowStrategy
 import monifu.reactive.subjects.PublishSubject
 
 /**
  * Represents a [[monifu.reactive.Channel Channel]] that uses an underlying
  * [[monifu.reactive.subjects.PublishSubject PublishSubject]].
  */
-final class PublishChannel[T] private (policy: BufferPolicy.Synchronous[T], s: Scheduler)
-  extends SubjectChannel(PublishSubject[T](), policy)(s)
+final class PublishChannel[T] private 
+    (policy: OverflowStrategy.Synchronous, onOverflow: Long => T)
+    (implicit s: Scheduler)
+  extends SubjectChannel(PublishSubject[T](), policy, onOverflow)(s)
 
 object PublishChannel {
   /**
    * Builds a [[monifu.reactive.Channel Channel]] that uses an underlying
    * [[monifu.reactive.subjects.PublishSubject PublishSubject]].
+   *
+   * @param strategy - the [[OverflowStrategy overflow strategy]]
+   *        used for buffering, which specifies what to do in case
+   *        we're dealing with slow consumers: should an unbounded
+   *        buffer be used, should back-pressure be applied, should
+   *        the pipeline drop newer or older events, should it drop
+   *        the whole buffer?  See [[OverflowStrategy]] for more
+   *        details.
    */
-  def apply[T](bufferPolicy: BufferPolicy.Synchronous[T] = Unbounded)(implicit s: Scheduler): PublishChannel[T] = {
-    new PublishChannel[T](bufferPolicy, s)
+  def apply[T](strategy: OverflowStrategy.Synchronous)
+    (implicit s: Scheduler): PublishChannel[T] = {
+
+    new PublishChannel[T](strategy, null)
+  }
+
+  /**
+   * Builds a [[monifu.reactive.Channel Channel]] that uses an underlying
+   * [[monifu.reactive.subjects.PublishSubject PublishSubject]].
+   *
+   * @param strategy - the [[OverflowStrategy overflow strategy]]
+   *        used for buffering, which specifies what to do in case
+   *        we're dealing with slow consumers: should an unbounded
+   *        buffer be used, should back-pressure be applied, should
+   *        the pipeline drop newer or older events, should it drop
+   *        the whole buffer?  See [[OverflowStrategy]] for more
+   *        details.
+   *
+   * @param onOverflow - a function that is used for signaling a special
+   *        event used to inform the consumers that an overflow event
+   *        happened, function that receives the number of dropped
+   *        events as a parameter (see [[OverflowStrategy.WithSignal]])
+   */
+  def apply[T](strategy: OverflowStrategy.WithSignal, onOverflow: Long => T)
+    (implicit s: Scheduler): PublishChannel[T] = {
+
+    new PublishChannel[T](strategy, onOverflow)
   }
 }

@@ -18,13 +18,11 @@
 package monifu.reactive.observers
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
-
 import minitest.TestSuite
 import monifu.concurrent.Scheduler
 import monifu.reactive.Ack.{Cancel, Continue}
-import monifu.reactive.BufferPolicy.BackPressure
+import monifu.reactive.OverflowStrategy.BackPressure
 import monifu.reactive.{Ack, DummyException, Observer}
-
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, Promise}
 

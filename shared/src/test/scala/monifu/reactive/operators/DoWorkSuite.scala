@@ -17,7 +17,7 @@
 
 package monifu.reactive.operators
 
-import monifu.reactive.BufferPolicy.Unbounded
+import monifu.reactive.OverflowStrategy.Unbounded
 import monifu.reactive.Observable
 import monifu.reactive.observers.BufferedSubscriber
 import scala.concurrent.duration.Duration.Zero

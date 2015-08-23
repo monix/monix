@@ -22,7 +22,7 @@ import java.util.concurrent.{CountDownLatch, TimeUnit}
 import minitest.TestSuite
 import monifu.concurrent.Scheduler
 import monifu.reactive.Ack.Continue
-import monifu.reactive.BufferPolicy.Unbounded
+import monifu.reactive.OverflowStrategy.Unbounded
 import monifu.reactive.{Ack, Observer}
 
 import scala.concurrent.{Future, Promise}

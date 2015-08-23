@@ -29,7 +29,9 @@ private[reactive] object flatten {
   /**
    * Implementation for [[Observable.concat]].
    */
-  def concat[T,U](source: Observable[T], delayErrors: Boolean)(implicit ev: T <:< Observable[U]): Observable[U] = {
+  def concat[T,U](source: Observable[T], delayErrors: Boolean)
+    (implicit ev: T <:< Observable[U]): Observable[U] = {
+
     Observable.create[U] { subscriber =>
       implicit val s = subscriber.scheduler
       val observerU = subscriber.observer
@@ -101,12 +103,13 @@ private[reactive] object flatten {
   /**
    * Implementation for [[Observable.merge]].
    */
-  def merge[T,U](source: Observable[T], bufferPolicy: BufferPolicy[U], delayErrors: Boolean)
-      (implicit ev: T <:< Observable[U]): Observable[U] = {
+  def merge[T,U](source: Observable[T])
+    (overflowStrategy: OverflowStrategy, onOverflow: Long => U, delayErrors: Boolean)
+    (implicit ev: T <:< Observable[U]): Observable[U] = {
 
     Observable.create { subscriber =>
       implicit val s = subscriber.scheduler
-      val buffer = BufferedSubscriber(subscriber.observer, bufferPolicy)
+      val buffer = BufferedSubscriber(subscriber.observer, overflowStrategy, onOverflow)
       val observerU = buffer.observer
 
       source.unsafeSubscribe(new SynchronousObserver[T] {

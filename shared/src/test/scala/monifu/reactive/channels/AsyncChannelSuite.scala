@@ -20,11 +20,12 @@ package monifu.reactive.channels
 import monifu.concurrent.Scheduler
 import monifu.concurrent.atomic.{Atomic, AtomicLong}
 import monifu.reactive.Ack.Continue
+import monifu.reactive.OverflowStrategy.Unbounded
 import monifu.reactive.{DummyException, Observer}
 
 object AsyncChannelSuite extends BaseChannelSuite {
   def alreadyTerminatedTest(expectedElems: Seq[Long])(implicit s: Scheduler) = {
-    val c = AsyncChannel[Long]()
+    val c = AsyncChannel[Long](Unbounded)
     Sample(c, expectedElems.lastOption.getOrElse(0))
   }
 
@@ -46,7 +47,7 @@ object AsyncChannelSuite extends BaseChannelSuite {
       }
     }
 
-    val channel = AsyncChannel[Long]()
+    val channel = AsyncChannel[Long](Unbounded)
     channel.unsafeSubscribe(createObserver)
     channel.unsafeSubscribe(createObserver)
     channel.unsafeSubscribe(createObserver)
@@ -90,7 +91,7 @@ object AsyncChannelSuite extends BaseChannelSuite {
       }
     }
 
-    val channel = AsyncChannel[Long]()
+    val channel = AsyncChannel[Long](Unbounded)
     channel.unsafeSubscribe(createObserver)
     channel.unsafeSubscribe(createObserver)
     channel.unsafeSubscribe(createObserver)
@@ -129,7 +130,7 @@ object AsyncChannelSuite extends BaseChannelSuite {
       def onError(ex: Throwable) = ()
     }
 
-    val channel = AsyncChannel[Long]()
+    val channel = AsyncChannel[Long](Unbounded)
     channel.unsafeSubscribe(createObserver)
     channel.unsafeSubscribe(createObserver)
     channel.unsafeSubscribe(createObserver)

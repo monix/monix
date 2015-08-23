@@ -20,7 +20,7 @@ package monifu.reactive.observers
 import minitest.TestSuite
 import monifu.concurrent.schedulers.TestScheduler
 import monifu.reactive.Ack.{Cancel, Continue}
-import monifu.reactive.BufferPolicy.BackPressure
+import monifu.reactive.OverflowStrategy.BackPressure
 import monifu.reactive.{Ack, DummyException, Observer}
 import scala.concurrent.{Future, Promise}
 import scala.util.Success

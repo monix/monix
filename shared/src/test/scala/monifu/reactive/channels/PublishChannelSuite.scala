@@ -18,15 +18,16 @@
 package monifu.reactive.channels
 
 import monifu.concurrent.Scheduler
+import monifu.reactive.OverflowStrategy.Unbounded
 
 object PublishChannelSuite extends BaseChannelSuite {
   def alreadyTerminatedTest(expectedElems: Seq[Long])(implicit s: Scheduler) = {
-    val c = PublishChannel[Long]()
+    val c = PublishChannel[Long](Unbounded)
     Sample(c, 0)
   }
 
   def continuousStreamingTest(expectedElems: Seq[Long])(implicit s: Scheduler) = {
-    val c = PublishChannel[Long]()
+    val c = PublishChannel[Long](Unbounded)
     Some(Sample(c, expectedElems.sum))
   }
 }

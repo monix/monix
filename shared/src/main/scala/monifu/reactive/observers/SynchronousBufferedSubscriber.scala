@@ -29,24 +29,24 @@ import scala.util.control.NonFatal
 
 /**
  * A highly optimized [[BufferedSubscriber]] implementation. It supports 2
- * [[monifu.reactive.BufferPolicy buffer policies]] - unbounded or bounded and terminated
+ * [[monifu.reactive.OverflowStrategy buffer policies]] - unbounded or bounded and terminated
  * with a [[monifu.reactive.BufferOverflowException BufferOverflowException]].
  *
- * To create an instance using an unbounded policy: {{{
+ * To create an instance using an unbounded overflowStrategy: {{{
  *   // by default, the constructor for BufferedSubscriber is returning this unbounded variant
  *   BufferedSubscriber(observer)
  *
- *   // or you can specify the Unbounded policy explicitly
- *   import monifu.reactive.BufferPolicy.Unbounded
- *   val buffered = BufferedSubscriber(observer, bufferPolicy = Unbounded)
+ *   // or you can specify the Unbounded overflowStrategy explicitly
+ *   import monifu.reactive.OverflowStrategy.Unbounded
+ *   val buffered = BufferedSubscriber(observer, overflowStrategy = Unbounded)
  * }}}
  *
  * To create a bounded buffered observable that triggers
  * [[monifu.reactive.BufferOverflowException BufferOverflowException]]
  * when over capacity: {{{
- *   import monifu.reactive.BufferPolicy.OverflowTriggering
+ *   import monifu.reactive.OverflowStrategy.OverflowTriggering
  *   // triggers buffer overflow error after 10000 messages
- *   val buffered = BufferedSubscriber(observer, bufferPolicy = OverflowTriggering(bufferSize = 10000))
+ *   val buffered = BufferedSubscriber(observer, overflowStrategy = OverflowTriggering(bufferSize = 10000))
  * }}}
  *
  * @param underlying is the underlying observer receiving the queued events

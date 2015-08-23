@@ -22,7 +22,7 @@ package monifu.reactive
  * that were caught while delaying errors in the processing
  * of observables.
  *
- * Used in operators such as `mergeDelayError`,
+ * Used in operators such as `mergeDelayErrors`,
  * `concatDelayError`, `combineLatestDelayError`, etc...
  */
 case class CompositeException(errors: Seq[Throwable])
