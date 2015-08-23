@@ -30,7 +30,24 @@ object from {
   /**
    * Implementation for [[Observable.fromIterable]].
    */
-  def iterable[T](iterable: Iterable[T]): Observable[T] = {
+  def iterable[T](iterable: Iterable[T]): Observable[T] =
+    Observable.create { subscriber =>
+      var streamError = true
+      try {
+        val i = iterable.iterator
+        streamError = false
+        iterator(i).unsafeSubscribe(subscriber)
+      }
+      catch {
+        case NonFatal(ex) if streamError =>
+          subscriber.observer.onError(ex)
+      }
+    }
+
+  /**
+   * Implementation for [[Observable.fromIterator]].
+   */
+  def iterator[T](iterator: Iterator[T]): Observable[T] = {
     Observable.create { subscriber =>
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
@@ -101,7 +118,6 @@ object from {
 
       var streamError = true
       try {
-        val iterator = iterable.iterator
         val isEmpty = iterator.isEmpty
         streamError = false
 

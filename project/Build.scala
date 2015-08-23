@@ -50,12 +50,17 @@ object Build extends SbtBuild {
     scalacOptions in (Compile, doc) ++=
       Opts.doc.sourceUrl(s"https://github.com/monifu/monifu/tree/v${version.value}/monifu€{FILE_PATH}.scala"),
     scalacOptions in (Compile, doc) ++=
-      Seq("-doc-root-content", baseDirectory.value + "/rootdoc.txt"),
+      Seq("-doc-root-content", file("./shared/rootdoc.txt").getAbsolutePath),
     scalacOptions in (Compile, doc) ++=
       Opts.doc.version(s"${version.value}"),
-    scalacOptions in ThisBuild <++= baseDirectory.map { bd =>
-      Seq("-sourcepath", bd.getAbsolutePath)
-    },
+    scalacOptions in ThisBuild ++= Seq(
+      // Note, this is used by the doc-source-url feature to determine the
+      // relative path of a given source file. If it's not a prefix of a the
+      // absolute path of the source file, the absolute path of that file
+      // will be put into the FILE_SOURCE variable, which is
+      // definitely not what we want.
+      "-sourcepath", file(".").getAbsolutePath
+    ),
 
     // -- Settings meant for deployment on oss.sonatype.org
 
