@@ -32,9 +32,7 @@ object Build extends SbtBuild {
   )
 
   val sharedSettings = Seq(
-    name := "monifu",
     organization := "org.monifu",
-
     scalaVersion := "2.11.7",
     scalacOptions ++= Seq(
       "-unchecked", "-deprecation", "-feature", "-Xlint", "-target:jvm-1.6", "-Yinline-warnings",
@@ -131,9 +129,9 @@ object Build extends SbtBuild {
       ))
 
   lazy val tckTests = project.in(file("tckTests"))
-    .dependsOn(monifuJVM)
     .settings(sharedSettings: _*)
     .settings(dontPublishArtifact: _*)
+    .dependsOn(monifuJVM)
     .settings(
       libraryDependencies ++= Seq(
         "org.reactivestreams" % "reactive-streams-tck" % "1.0.0" % "test",
