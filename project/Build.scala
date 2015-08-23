@@ -24,7 +24,7 @@ import sbtrelease.ReleasePlugin.autoImport._
 
 
 object Build extends SbtBuild {
-  val dontPublishArtifact = Seq(
+  val doNotPublishArtifact = Seq(
     publishArtifact := false,
     publishArtifact in (Compile, packageDoc) := false,
     publishArtifact in (Compile, packageSrc) := false,
@@ -40,6 +40,11 @@ object Build extends SbtBuild {
       "-Ywarn-nullary-override", "-Ywarn-nullary-unit"
     ),
 
+    resolvers ++= Seq(
+      "Typesafe Releases" at "http://repo.typesafe.com/typesafe/releases",
+      Resolver.sonatypeRepo("releases")
+    ),
+
     // ScalaDoc settings
     autoAPIMappings := true,
     scalacOptions in (Compile, doc) ++=
@@ -51,16 +56,6 @@ object Build extends SbtBuild {
     scalacOptions in ThisBuild <++= baseDirectory.map { bd =>
       Seq("-sourcepath", bd.getAbsolutePath)
     },
-
-    resolvers ++= Seq(
-      "Typesafe Releases" at "http://repo.typesafe.com/typesafe/releases",
-      Resolver.sonatypeRepo("releases")
-    ),
-
-    libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _ % "compile"),
-
-    unmanagedSourceDirectories in Compile <+= baseDirectory(_ / ".." / "shared" / "src" / "main" / "scala"),
-    unmanagedSourceDirectories in Test <+= baseDirectory(_ / ".." / "shared" / "src" / "test" / "scala"),
 
     // -- Settings meant for deployment on oss.sonatype.org
 
@@ -100,13 +95,20 @@ object Build extends SbtBuild {
         </developers>
   )
 
+  val crossSettings = sharedSettings ++ Seq(
+    libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _ % "compile"),
+
+    unmanagedSourceDirectories in Compile <+= baseDirectory(_ / ".." / "shared" / "src" / "main" / "scala"),
+    unmanagedSourceDirectories in Test <+= baseDirectory(_ / ".." / "shared" / "src" / "test" / "scala")
+  )
+
   lazy val monifu = project.in(file("."))
     .aggregate(monifuJVM, monifuJS, tckTests)
     .settings(sharedSettings: _*)
-    .settings(dontPublishArtifact: _*)
+    .settings(doNotPublishArtifact: _*)
 
   lazy val monifuJVM = project.in(file("jvm"))
-    .settings(sharedSettings: _*)
+    .settings(crossSettings: _*)
     .settings(
       name := "monifu",
       scalacOptions in (Compile, doc) ++= Opts.doc.title(s"Monifu"),
@@ -117,7 +119,7 @@ object Build extends SbtBuild {
       ))
 
   lazy val monifuJS = project.in(file("js"))
-    .settings(sharedSettings: _*)
+    .settings(crossSettings: _*)
     .enablePlugins(ScalaJSPlugin)
     .settings(
       name := "monifu",
@@ -130,7 +132,7 @@ object Build extends SbtBuild {
 
   lazy val tckTests = project.in(file("tckTests"))
     .settings(sharedSettings: _*)
-    .settings(dontPublishArtifact: _*)
+    .settings(doNotPublishArtifact: _*)
     .dependsOn(monifuJVM)
     .settings(
       libraryDependencies ++= Seq(
