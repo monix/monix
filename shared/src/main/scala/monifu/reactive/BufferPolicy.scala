@@ -24,8 +24,8 @@ package monifu.reactive
  * For the available policies, see:
  *
  * - [[BufferPolicy.Unbounded Unbounded]]
- * - [[BufferPolicy.OverflowTriggering OverflowTriggering]]
- * - [[BufferPolicy.BackPressured BackPressured]]
+ * - [[BufferPolicy.TriggerError OverflowTriggering]]
+ * - [[BufferPolicy.BackPressure BackPressured]]
  *
  * Used in [[monifu.reactive.observers.BufferedSubscriber BufferedSubscriber]]
  * to implement buffering when concurrent actions are needed, such as in
@@ -40,7 +40,7 @@ object BufferPolicy {
    *
    * Needed such that buffer policies can safely be used
    * in combination with [[Channel]] for publishing. For now,
-   * that's all policies except [[BackPressured]], a policy
+   * that's all policies except [[BackPressure]], a policy
    * that can't work for [[Channel]].
    */
   sealed trait Synchronous[+T] extends BufferPolicy[T]
@@ -60,7 +60,7 @@ object BufferPolicy {
    * @param bufferSize specifies how many events our buffer can hold
    *                   before overflowing
    */
-  case class OverflowTriggering(bufferSize: Int)
+  case class TriggerError(bufferSize: Int)
     extends Synchronous[Nothing] {
 
     require(bufferSize > 1, "bufferSize must be strictly greater than 1")
@@ -75,7 +75,7 @@ object BufferPolicy {
    * @param bufferSize specifies how many events our buffer can hold
    *                   before overflowing
    */
-  case class BackPressured(bufferSize: Int)
+  case class BackPressure(bufferSize: Int)
     extends BufferPolicy[Nothing] {
 
     require(bufferSize > 1, "bufferSize should be strictly greater than 1")
@@ -89,7 +89,7 @@ object BufferPolicy {
    * @param bufferSize specifies how many events our buffer can hold
    *                   before overflowing
    */
-  case class DropIncoming[T](bufferSize: Int)
+  case class DropIncoming(bufferSize: Int)
     extends Synchronous[Nothing] {
 
     require(bufferSize > 1, "bufferSize should be strictly greater than 1")
@@ -102,9 +102,10 @@ object BufferPolicy {
    *
    * @param bufferSize specifies how many events our buffer can hold
    *                   before overflowing
+   *
    * @param onOverflow is a function that receives the number of events that were
    *                   dropped and is used to construct an overflow event for
-   *                   signalling downstream that events were dropped.
+   *                   signalling to downstream that events were dropped.
    */
   case class DropIncomingThenSignal[+T](bufferSize: Int, onOverflow: Long => T)
     extends Synchronous[T] {
@@ -113,9 +114,72 @@ object BufferPolicy {
   }
 
   /**
+   * A [[BufferPolicy]] specifying that on reaching the maximum size,
+   * the current buffer should be dropped completely to make room for
+   * new events.
+   *
+   * @param bufferSize specifies how many events our buffer can hold
+   *                   before overflowing
+   */
+  case class DropBuffer(bufferSize: Int)
+    extends Synchronous[Nothing] {
+
+    require(bufferSize > 1, "bufferSize should be strictly greater than 1")
+  }
+
+  /**
+   * A [[BufferPolicy]] specifying that on reaching the maximum size,
+   * the current buffer should be dropped completely.
+   *
+   * @param bufferSize specifies how many events our buffer can hold
+   *                   before overflowing
+   *
+   * @param onOverflow is a function that receives the number of events that were
+   *                   dropped and is used to construct an overflow event for
+   *                   signalling to downstream that events were dropped.
+   */
+  case class DropBufferThenSignal[+T](bufferSize: Int, onOverflow: Long => T)
+    extends Synchronous[T] {
+
+    require(bufferSize > 1, "bufferSize should be strictly greater than 1")
+  }
+
+  /**
+   * A [[BufferPolicy]] specifying that on reaching the maximum size,
+   * the currently buffered events should start being dropped in a FIFO order,
+   * so the oldest events from the buffer will be dropped first.
+   *
+   * @param bufferSize specifies how many events our buffer can hold
+   *                   before overflowing
+   */
+  case class DropOld(bufferSize: Int)
+    extends Synchronous[Nothing] {
+
+    require(bufferSize > 1, "bufferSize should be strictly greater than 1")
+  }
+
+  /**
+   * A [[BufferPolicy]] specifying that on reaching the maximum size,
+   * the currently buffered events should start being dropped in a FIFO order,
+   * so the oldest events from the buffer will be dropped first.
+   *
+   * @param bufferSize specifies how many events our buffer can hold
+   *                   before overflowing
+   *
+   * @param onOverflow is a function that receives the number of events that were
+   *                   dropped and is used to construct an overflow event for
+   *                   signalling to downstream that events were dropped.
+   */
+  case class DropOldThenSignal[+T](bufferSize: Int, onOverflow: Long => T)
+    extends Synchronous[T] {
+
+    require(bufferSize > 1, "bufferSize should be strictly greater than 1")
+  }
+  
+  /**
    * The default library-wide policy used whenever a default argument
    * value is needed.
    */
-  val default: BufferPolicy[Nothing] = BackPressured(bufferSize = 2048)
+  val default: BufferPolicy[Nothing] = BackPressure(bufferSize = 2048)
 }
 

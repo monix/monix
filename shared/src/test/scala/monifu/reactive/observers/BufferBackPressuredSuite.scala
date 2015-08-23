@@ -20,7 +20,7 @@ package monifu.reactive.observers
 import minitest.TestSuite
 import monifu.concurrent.schedulers.TestScheduler
 import monifu.reactive.Ack.{Cancel, Continue}
-import monifu.reactive.BufferPolicy.BackPressured
+import monifu.reactive.BufferPolicy.BackPressure
 import monifu.reactive.{Ack, DummyException, Observer}
 import scala.concurrent.{Future, Promise}
 import scala.util.Success
@@ -40,7 +40,7 @@ object BufferBackPressuredSuite extends TestSuite[TestScheduler] {
       def onNext(elem: Int) = promise.future
       def onError(ex: Throwable) = throw new IllegalStateException()
       def onComplete() = wasCompleted = true
-    }, BackPressured(5))
+    }, BackPressure(5))
 
     assertEquals(buffer.observer.onNext(1), Continue)
     assertEquals(buffer.observer.onNext(2), Continue)
@@ -87,7 +87,7 @@ object BufferBackPressuredSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    val buffer = BufferedSubscriber[Int](underlying, BackPressured(1000))
+    val buffer = BufferedSubscriber[Int](underlying, BackPressure(1000))
     for (i <- 0 until 1000) buffer.observer.onNext(i)
     buffer.observer.onComplete()
 
@@ -116,7 +116,7 @@ object BufferBackPressuredSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    val buffer = BufferedSubscriber[Int](underlying, BackPressured(1000))
+    val buffer = BufferedSubscriber[Int](underlying, BackPressure(1000))
 
     def loop(n: Int): Unit =
       if (n > 0)
@@ -142,7 +142,7 @@ object BufferBackPressuredSuite extends TestSuite[TestScheduler] {
 
       def onNext(elem: Int) = throw new IllegalStateException()
       def onComplete() = throw new IllegalStateException()
-    }, BackPressured(5))
+    }, BackPressure(5))
 
     buffer.observer.onError(DummyException("dummy"))
     s.tickOne()
@@ -160,7 +160,7 @@ object BufferBackPressuredSuite extends TestSuite[TestScheduler] {
       }
       def onNext(elem: Int) = Continue
       def onComplete() = throw new IllegalStateException()
-    }, BackPressured(5))
+    }, BackPressure(5))
 
     buffer.observer.onNext(1)
     buffer.observer.onError(DummyException("dummy"))
@@ -179,7 +179,7 @@ object BufferBackPressuredSuite extends TestSuite[TestScheduler] {
       }
       def onNext(elem: Int) = promise.future
       def onComplete() = throw new IllegalStateException()
-    }, BackPressured(5))
+    }, BackPressure(5))
 
     buffer.observer.onNext(1)
     buffer.observer.onNext(2)
@@ -200,7 +200,7 @@ object BufferBackPressuredSuite extends TestSuite[TestScheduler] {
       def onError(ex: Throwable) = throw new IllegalStateException()
       def onNext(elem: Int) = throw new IllegalStateException()
       def onComplete() = wasCompleted = true
-    }, BackPressured(5))
+    }, BackPressure(5))
 
     buffer.observer.onComplete()
     s.tickOne()
@@ -214,7 +214,7 @@ object BufferBackPressuredSuite extends TestSuite[TestScheduler] {
       def onError(ex: Throwable) = throw new IllegalStateException()
       def onNext(elem: Int) = promise.future
       def onComplete() = wasCompleted = true
-    }, BackPressured(5))
+    }, BackPressure(5))
 
     buffer.observer.onNext(1)
     buffer.observer.onComplete()
@@ -233,7 +233,7 @@ object BufferBackPressuredSuite extends TestSuite[TestScheduler] {
       def onError(ex: Throwable) = throw new IllegalStateException()
       def onNext(elem: Int) = promise.future
       def onComplete() = wasCompleted = true
-    }, BackPressured(5))
+    }, BackPressure(5))
 
     buffer.observer.onNext(1)
     buffer.observer.onNext(2)
@@ -261,7 +261,7 @@ object BufferBackPressuredSuite extends TestSuite[TestScheduler] {
       }
       def onError(ex: Throwable) = throw ex
       def onComplete() = wasCompleted = true
-    }, BackPressured(10000))
+    }, BackPressure(10000))
 
     (0 until 9999).foreach(x => buffer.observer.onNext(x))
     buffer.observer.onComplete()
@@ -283,7 +283,7 @@ object BufferBackPressuredSuite extends TestSuite[TestScheduler] {
       }
       def onError(ex: Throwable) = throw ex
       def onComplete() = wasCompleted = true
-    }, BackPressured(10000))
+    }, BackPressure(10000))
 
     (0 until 9999).foreach(x => buffer.observer.onNext(x))
     buffer.observer.onComplete()
@@ -305,7 +305,7 @@ object BufferBackPressuredSuite extends TestSuite[TestScheduler] {
       }
       def onError(ex: Throwable) = errorThrown = ex
       def onComplete() = throw new IllegalStateException()
-    }, BackPressured(10000))
+    }, BackPressure(10000))
 
     (0 until 9999).foreach(x => buffer.observer.onNext(x))
     buffer.observer.onError(DummyException("dummy"))
@@ -327,7 +327,7 @@ object BufferBackPressuredSuite extends TestSuite[TestScheduler] {
       }
       def onError(ex: Throwable) = errorThrown = ex
       def onComplete() = throw new IllegalStateException()
-    }, BackPressured(10000))
+    }, BackPressure(10000))
 
     (0 until 9999).foreach(x => buffer.observer.onNext(x))
     buffer.observer.onError(DummyException("dummy"))

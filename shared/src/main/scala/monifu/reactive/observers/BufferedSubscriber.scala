@@ -72,14 +72,22 @@ object BufferedSubscriber {
     bufferPolicy match {
       case Unbounded =>
         SynchronousBufferedSubscriber.unbounded(observer)
-      case OverflowTriggering(bufferSize) =>
+      case TriggerError(bufferSize) =>
         SynchronousBufferedSubscriber.overflowTriggering(observer, bufferSize)
-      case BackPressured(bufferSize) =>
+      case BackPressure(bufferSize) =>
         BackPressuredBufferedSubscriber(observer, bufferSize)
       case DropIncoming(bufferSize) =>
         DropIncomingBufferedSubscriber.simple(observer, bufferSize)
       case DropIncomingThenSignal(bufferSize, onOverflow) =>
         DropIncomingBufferedSubscriber.withSignal(observer, bufferSize, onOverflow)
+      case DropOld(bufferSize) =>
+        EvictingBufferedSubscriber.dropOld(observer, bufferSize)
+      case DropOldThenSignal(bufferSize, onOverflow) =>
+        EvictingBufferedSubscriber.dropOld(observer, bufferSize, onOverflow)
+      case DropBuffer(bufferSize) =>
+        EvictingBufferedSubscriber.dropBuffer(observer, bufferSize)
+      case DropBufferThenSignal(bufferSize, onOverflow) =>
+        EvictingBufferedSubscriber.dropBuffer(observer, bufferSize, onOverflow)
     }
   }
 }

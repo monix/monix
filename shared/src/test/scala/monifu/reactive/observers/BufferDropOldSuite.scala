@@ -20,11 +20,11 @@ package monifu.reactive.observers
 import minitest.TestSuite
 import monifu.concurrent.schedulers.TestScheduler
 import monifu.reactive.Ack.{Cancel, Continue}
-import monifu.reactive.BufferPolicy.TriggerError
-import monifu.reactive.{Ack, BufferOverflowException, DummyException, Observer}
+import monifu.reactive.BufferPolicy.DropOld
+import monifu.reactive.{Ack, DummyException, Observer}
 import scala.concurrent.{Future, Promise}
 
-object BufferOverflowTriggeringSuite extends TestSuite[TestScheduler] {
+object BufferDropOldSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
     assert(s.state.get.tasks.isEmpty,
@@ -50,13 +50,13 @@ object BufferOverflowTriggeringSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    val buffer = BufferedSubscriber[Int](underlying, TriggerError(1000))
+    val buffer = BufferedSubscriber[Int](underlying, DropOld(1000))
     for (i <- 0 until 1000) buffer.observer.onNext(i)
     buffer.observer.onComplete()
 
     assert(!wasCompleted)
     s.tick()
-    assert(number == 1000)
+    assertEquals(number, 1000)
     assert(wasCompleted)
   }
 
@@ -79,7 +79,7 @@ object BufferOverflowTriggeringSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    val buffer = BufferedSubscriber[Int](underlying, TriggerError(1000))
+    val buffer = BufferedSubscriber[Int](underlying, DropOld(1000))
 
     def loop(n: Int): Unit =
       if (n > 0)
@@ -96,57 +96,39 @@ object BufferOverflowTriggeringSuite extends TestSuite[TestScheduler] {
     assertEquals(number, 10000)
   }
 
-  test("should trigger overflow when over capacity") { implicit s =>
-    var errorCaught: Throwable = null
-    var receivedLatch = 5
+  test("should drop old events when over capacity") { implicit s =>
+    var received = 0
+    var wasCompleted = false
     val promise = Promise[Ack]()
 
     val underlying = new Observer[Int] {
-      var received = 0
       def onNext(elem: Int) = {
-        received += 1
-        if (received < 6) {
-          receivedLatch -= 1
-          Continue
-        }
-        else if (received == 6) {
-          receivedLatch -= 1
-          // never ending piece of processing
-          promise.future
-        }
-        else
-          Continue
+        received += elem
+        if (elem < 7) Continue else promise.future
       }
 
-      def onError(ex: Throwable) = {
-        assert(ex.isInstanceOf[BufferOverflowException],
-          s"Exception $ex is not a buffer overflow error")
-        errorCaught = ex
-      }
+      def onError(ex: Throwable) = ()
 
       def onComplete() = {
-        throw new IllegalStateException("Should not onComplete")
+        wasCompleted = true
       }
     }
 
-    val buffer = BufferedSubscriber[Int](underlying, TriggerError(5))
+    val buffer = BufferedSubscriber[Int](underlying, DropOld(5))
 
-    assertEquals(buffer.observer.onNext(1), Continue)
-    assertEquals(buffer.observer.onNext(2), Continue)
-    assertEquals(buffer.observer.onNext(3), Continue)
-    assertEquals(buffer.observer.onNext(4), Continue)
-    assertEquals(buffer.observer.onNext(5), Continue)
+    for (i <- 1 to 7) assertEquals(buffer.observer.onNext(i), Continue)
+    s.tick()
+    assertEquals(received, 28)
 
-    for (_ <- 0 until 1000; if receivedLatch > 0) s.tickOne()
-    assertEquals(receivedLatch, 0)
-    assertEquals(errorCaught, null)
+    for (i <- 0 to 1000) assertEquals(buffer.observer.onNext(i), Continue)
+    s.tick()
+    assertEquals(received, 28)
 
-    buffer.observer.onNext(6)
-    for (i <- 0 until 10) buffer.observer.onNext(7)
+    promise.success(Continue); s.tick()
+    assertEquals(received, (994 to 1000).sum + 28)
 
-    promise.success(Continue)
-    s.tickOne()
-    assert(errorCaught != null && errorCaught.isInstanceOf[BufferOverflowException])
+    buffer.observer.onComplete(); s.tick()
+    assert(wasCompleted, "wasCompleted should be true")
   }
 
   test("should send onError when empty") { implicit s =>
@@ -158,7 +140,7 @@ object BufferOverflowTriggeringSuite extends TestSuite[TestScheduler] {
 
       def onNext(elem: Int) = throw new IllegalStateException()
       def onComplete() = throw new IllegalStateException()
-    }, TriggerError(5))
+    }, DropOld(5))
 
     buffer.observer.onError(DummyException("dummy"))
     s.tickOne()
@@ -176,7 +158,7 @@ object BufferOverflowTriggeringSuite extends TestSuite[TestScheduler] {
       }
       def onNext(elem: Int) = Continue
       def onComplete() = throw new IllegalStateException()
-    }, TriggerError(5))
+    }, DropOld(5))
 
     buffer.observer.onNext(1)
     buffer.observer.onError(DummyException("dummy"))
@@ -195,74 +177,15 @@ object BufferOverflowTriggeringSuite extends TestSuite[TestScheduler] {
       }
       def onNext(elem: Int) = promise.future
       def onComplete() = throw new IllegalStateException()
-    }, TriggerError(5))
+    }, DropOld(5))
 
-    buffer.observer.onNext(1)
-    buffer.observer.onNext(2)
-    buffer.observer.onNext(3)
-    buffer.observer.onNext(4)
-    buffer.observer.onNext(5)
+    for (i <- 1 to 10) assertEquals(buffer.observer.onNext(i), Continue)
     buffer.observer.onError(DummyException("dummy"))
 
     promise.success(Continue)
     s.tick()
 
     assertEquals(errorThrown, DummyException("dummy"))
-  }
-
-  test("should send onComplete when empty") { implicit s =>
-    var wasCompleted = false
-    val buffer = BufferedSubscriber[Int](new Observer[Int] {
-      def onError(ex: Throwable) = throw new IllegalStateException()
-      def onNext(elem: Int) = throw new IllegalStateException()
-      def onComplete() = wasCompleted = true
-    }, TriggerError(5))
-
-    buffer.observer.onComplete()
-    s.tickOne()
-    assert(wasCompleted)
-  }
-
-  test("should send onComplete when in flight") { implicit s =>
-    var wasCompleted = false
-    val promise = Promise[Ack]()
-    val buffer = BufferedSubscriber[Int](new Observer[Int] {
-      def onError(ex: Throwable) = throw new IllegalStateException()
-      def onNext(elem: Int) = promise.future
-      def onComplete() = wasCompleted = true
-    }, TriggerError(5))
-
-    buffer.observer.onNext(1)
-    buffer.observer.onComplete()
-    s.tick()
-    assert(!wasCompleted)
-
-    promise.success(Continue)
-    s.tick()
-    assert(wasCompleted)
-  }
-
-  test("should send onComplete when at capacity") { implicit s =>
-    var wasCompleted = false
-    val promise = Promise[Ack]()
-    val buffer = BufferedSubscriber[Int](new Observer[Int] {
-      def onError(ex: Throwable) = throw new IllegalStateException()
-      def onNext(elem: Int) = promise.future
-      def onComplete() = wasCompleted = true
-    }, TriggerError(5))
-
-    buffer.observer.onNext(1)
-    buffer.observer.onNext(2)
-    buffer.observer.onNext(3)
-    buffer.observer.onNext(4)
-    buffer.observer.onComplete()
-
-    s.tick()
-    assert(!wasCompleted)
-
-    promise.success(Continue)
-    s.tick()
-    assert(wasCompleted)
   }
 
   test("should do onComplete only after all the queue was drained") { implicit s =>
@@ -277,7 +200,7 @@ object BufferOverflowTriggeringSuite extends TestSuite[TestScheduler] {
       }
       def onError(ex: Throwable) = throw ex
       def onComplete() = wasCompleted = true
-    }, TriggerError(10000))
+    }, DropOld(10000))
 
     (0 until 9999).foreach(x => buffer.observer.onNext(x))
     buffer.observer.onComplete()
@@ -299,7 +222,7 @@ object BufferOverflowTriggeringSuite extends TestSuite[TestScheduler] {
       }
       def onError(ex: Throwable) = throw ex
       def onComplete() = wasCompleted = true
-    }, TriggerError(10000))
+    }, DropOld(10000))
 
     (0 until 9999).foreach(x => buffer.observer.onNext(x))
     buffer.observer.onComplete()
@@ -321,7 +244,7 @@ object BufferOverflowTriggeringSuite extends TestSuite[TestScheduler] {
       }
       def onError(ex: Throwable) = errorThrown = ex
       def onComplete() = throw new IllegalStateException()
-    }, TriggerError(10000))
+    }, DropOld(10000))
 
     (0 until 9999).foreach(x => buffer.observer.onNext(x))
     buffer.observer.onError(DummyException("dummy"))
@@ -343,7 +266,7 @@ object BufferOverflowTriggeringSuite extends TestSuite[TestScheduler] {
       }
       def onError(ex: Throwable) = errorThrown = ex
       def onComplete() = throw new IllegalStateException()
-    }, TriggerError(10000))
+    }, DropOld(10000))
 
     (0 until 9999).foreach(x => buffer.observer.onNext(x))
     buffer.observer.onError(DummyException("dummy"))
