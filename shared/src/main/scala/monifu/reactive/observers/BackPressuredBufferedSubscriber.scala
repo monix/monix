@@ -29,7 +29,7 @@ import scala.util.control.NonFatal
 
 /**
  * A [[BufferedSubscriber]] implementation for the
- * [[monifu.reactive.BufferPolicy.BackPressure BackPressured]] buffer policy.
+ * [[monifu.reactive.OverflowStrategy.BackPressure BackPressured]] buffer overflowStrategy.
  */
 final class BackPressuredBufferedSubscriber[-T] private
     (underlying: Observer[T], bufferSize: Int)

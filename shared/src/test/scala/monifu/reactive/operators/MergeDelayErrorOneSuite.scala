@@ -29,7 +29,7 @@ object MergeDelayErrorOneSuite extends BaseOperatorSuite {
     val source = if (ex == null) Observable.range(0, sourceCount)
     else Observable.range(0, sourceCount).endWithError(ex)
 
-    val o = source.mergeMapDelayError(i =>
+    val o = source.mergeMapDelayErrors(i =>
       Observable.unit(i).endWithError(SomeException(10)))
 
     val recovered = o.onErrorRecoverWith {

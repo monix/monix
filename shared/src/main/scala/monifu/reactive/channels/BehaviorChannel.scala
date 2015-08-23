@@ -18,22 +18,22 @@
 package monifu.reactive.channels
 
 import monifu.concurrent.Scheduler
-import monifu.reactive.BufferPolicy.Unbounded
+import monifu.reactive._
 import monifu.reactive.observers.BufferedSubscriber
 import monifu.reactive.subjects.BehaviorSubject
-import monifu.reactive._
 
 /**
  * A `BehaviorChannel` is a [[Channel]] that uses an underlying
  * [[monifu.reactive.subjects.BehaviorSubject BehaviorSubject]].
  */
-final class BehaviorChannel[T] private (initialValue: T, policy: BufferPolicy.Synchronous[T])
-    (implicit val scheduler: Scheduler)
+final class BehaviorChannel[T] private 
+  (initialValue: T, strategy: OverflowStrategy.Synchronous, onOverflow: Long => T)
+  (implicit val scheduler: Scheduler)
   extends Channel[T] with Observable[T] {
 
   private[this] val lock = new AnyRef
   private[this] val subject = BehaviorSubject(initialValue)
-  private[this] val channel = BufferedSubscriber(subject, policy)
+  private[this] val channel = BufferedSubscriber(subject, strategy, onOverflow)
 
   private[this] var isDone = false
   private[this] var lastValue = initialValue
@@ -77,10 +77,44 @@ final class BehaviorChannel[T] private (initialValue: T, policy: BufferPolicy.Sy
 }
 
 object BehaviorChannel {
-  /** Builder for [[monifu.reactive.channels.BehaviorChannel]] */
-  def apply[T](initial: T, bufferPolicy: BufferPolicy.Synchronous[T] = Unbounded)
-      (implicit s: Scheduler): BehaviorChannel[T] = {
+  /**
+   * Builds a [[monifu.reactive.Channel Channel]] that uses an underlying
+   * [[monifu.reactive.subjects.BehaviorSubject BehaviorSubject]].
+   *
+   * @param strategy - the [[OverflowStrategy overflow strategy]]
+   *        used for buffering, which specifies what to do in case
+   *        we're dealing with slow consumers: should an unbounded
+   *        buffer be used, should back-pressure be applied, should
+   *        the pipeline drop newer or older events, should it drop
+   *        the whole buffer?  See [[OverflowStrategy]] for more
+   *        details.
+   */
+  def apply[T](initial: T, strategy: OverflowStrategy.Synchronous)
+    (implicit s: Scheduler): BehaviorChannel[T] = {
 
-    new BehaviorChannel[T](initial, bufferPolicy)
+    new BehaviorChannel[T](initial, strategy, null)
+  }
+
+  /**
+   * Builds a [[monifu.reactive.Channel Channel]] that uses an underlying
+   * [[monifu.reactive.subjects.BehaviorSubject BehaviorSubject]].
+   *
+   * @param strategy - the [[OverflowStrategy overflow strategy]]
+   *        used for buffering, which specifies what to do in case
+   *        we're dealing with slow consumers: should an unbounded
+   *        buffer be used, should back-pressure be applied, should
+   *        the pipeline drop newer or older events, should it drop
+   *        the whole buffer?  See [[OverflowStrategy]] for more
+   *        details.
+   *
+   * @param onOverflow - a function that is used for signaling a special
+   *        event used to inform the consumers that an overflow event
+   *        happened, function that receives the number of dropped
+   *        events as a parameter (see [[OverflowStrategy.WithSignal]])
+   */
+  def apply[T](initial: T, strategy: OverflowStrategy.WithSignal, onOverflow: Long => T)
+    (implicit s: Scheduler): BehaviorChannel[T] = {
+
+    new BehaviorChannel[T](initial, strategy, onOverflow)
   }
 }

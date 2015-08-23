@@ -18,7 +18,7 @@
 package monifu.reactive.observers
 
 import monifu.concurrent.Scheduler
-import monifu.reactive.BufferPolicy._
+import monifu.reactive.OverflowStrategy._
 import monifu.reactive._
 
 /**
@@ -54,40 +54,62 @@ import monifu.reactive._
  *    isn't `Cancel`, then implementations of this interface SHOULD
  *    not lose events in the process
  *  - the buffer MAY BE either unbounded or bounded, in case of
- *    bounded buffers, then an appropriate policy needs to be set for
+ *    bounded buffers, then an appropriate overflowStrategy needs to be set for
  *    when the buffer overflows - either an `onError` triggered in the
  *    underlying observer coupled with a `Cancel` signaled to the
  *    upstream data sources, or dropping events from the head or the
  *    tail of the queue, or attempting to apply back-pressure, etc...
  *
- * See [[monifu.reactive.BufferPolicy BufferPolicy]] for the buffer
+ * See [[monifu.reactive.OverflowStrategy OverflowStrategy]] for the buffer
  * policies available.
  */
 trait BufferedSubscriber[-T] extends Subscriber[T]
 
 object BufferedSubscriber {
-  def apply[T](observer: Observer[T], bufferPolicy: BufferPolicy[T])
+  def apply[T](observer: Observer[T], bufferPolicy: OverflowStrategy)
       (implicit s: Scheduler): BufferedSubscriber[T] = {
 
     bufferPolicy match {
       case Unbounded =>
         SynchronousBufferedSubscriber.unbounded(observer)
-      case TriggerError(bufferSize) =>
+      case Fail(bufferSize) =>
         SynchronousBufferedSubscriber.overflowTriggering(observer, bufferSize)
       case BackPressure(bufferSize) =>
         BackPressuredBufferedSubscriber(observer, bufferSize)
       case DropNew(bufferSize) =>
         DropIncomingBufferedSubscriber.simple(observer, bufferSize)
-      case DropNewThenSignal(bufferSize, onOverflow) =>
-        DropIncomingBufferedSubscriber.withSignal(observer, bufferSize, onOverflow)
       case DropOld(bufferSize) =>
         EvictingBufferedSubscriber.dropOld(observer, bufferSize)
-      case DropOldThenSignal(bufferSize, onOverflow) =>
-        EvictingBufferedSubscriber.dropOld(observer, bufferSize, onOverflow)
       case ClearBuffer(bufferSize) =>
-        EvictingBufferedSubscriber.dropBuffer(observer, bufferSize)
-      case ClearBufferThenSignal(bufferSize, onOverflow) =>
-        EvictingBufferedSubscriber.dropBuffer(observer, bufferSize, onOverflow)
+        EvictingBufferedSubscriber.clearBuffer(observer, bufferSize)
+    }
+  }
+
+  private[reactive] def apply[T]
+    (observer: Observer[T], strategy: OverflowStrategy, onOverflow: Long => T)
+    (implicit s: Scheduler): BufferedSubscriber[T] = {
+
+    strategy match {
+      case withSignal: WithSignal if onOverflow != null =>
+        withOverflowSignal(observer, withSignal)(onOverflow)
+      case _ =>
+        apply(observer, strategy)
+    }
+  }
+
+  def withOverflowSignal[T](observer: Observer[T], overflowStrategy: OverflowStrategy.WithSignal)
+    (onOverflow: Long => T)
+    (implicit s: Scheduler): BufferedSubscriber[T] = {
+
+    overflowStrategy match {
+      case DropNew(bufferSize) =>
+        DropIncomingBufferedSubscriber.withSignal(observer, bufferSize, onOverflow)
+
+      case DropOld(bufferSize) =>
+        EvictingBufferedSubscriber.dropOld(observer, bufferSize, onOverflow)
+
+      case ClearBuffer(bufferSize) =>
+        EvictingBufferedSubscriber.clearBuffer(observer, bufferSize, onOverflow)
     }
   }
 }

@@ -31,7 +31,7 @@ object SwitchDelayErrorSuite extends BaseOperatorSuite {
       .take(sourceCount)
       .endWithError(DummyException("dummy"))
       .map(i => (if (i < sourceCount-1) createChild() else Observable.interval(1.second)).take(sourceCount))
-      .switchDelayError
+      .switchDelayErrors
 
     val o = source.onErrorRecoverWith {
       case CompositeException(Seq(DummyException("dummy"))) =>

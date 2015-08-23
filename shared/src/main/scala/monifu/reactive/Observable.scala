@@ -21,7 +21,7 @@ import java.io.PrintStream
 import monifu.concurrent.cancelables.BooleanCancelable
 import monifu.concurrent.{Cancelable, Scheduler}
 import monifu.reactive.Ack.{Cancel, Continue}
-import monifu.reactive.BufferPolicy.{default => defaultPolicy}
+import monifu.reactive.OverflowStrategy.{default => defaultStrategy}
 import monifu.reactive.observers._
 import monifu.reactive.subjects.{AsyncSubject, BehaviorSubject, PublishSubject, ReplaySubject}
 import org.reactivestreams.{Publisher, Subscriber => RSubscriber}
@@ -33,22 +33,129 @@ import scala.util.control.NonFatal
 
 
 /**
- * Asynchronous implementation of the Observable interface
+ * Asynchronous implementation of the Observable interface.
+ *
+ * @define concatDescription Concatenates the sequence
+ *         of Observables emitted by the source into one Observable,
+ *         without any transformation.
+ *
+ *         You can combine the items emitted by multiple Observables
+ *         so that they act like a single Observable by using this
+ *         method.
+ *
+ *         The difference between the `concat` operation and
+ *         [[Observable!.merge merge]] is that `concat` cares about
+ *         ordering of emitted items (e.g. all items emitted by the
+ *         first observable in the sequence will come before the
+ *         elements emitted by the second observable), whereas
+ *         `merge` doesn't care about that (elements get emitted as
+ *         they come). Because of back-pressure applied to
+ *         observables, [[Observable!.concat]] is safe to use in all
+ *         contexts, whereas `merge` requires buffering.
+ *
+ * @define concatReturn an Observable that emits items that are the result of
+ *         flattening the items emitted by the Observables emitted
+ *         by `this`
+ *
+ * @define mergeMapDescription Creates a new Observable by applying a
+ *         function that you supply to each item emitted by the source
+ *         Observable, where that function returns an Observable, and then
+ *         merging those resulting Observables and emitting the
+ *         results of this merger.
+ *
+ *         This function is the equivalent of `observable.map(f).merge`.
+ *
+ *         The difference between [[Observable!.concat concat]] and
+ *         `merge` is that `concat` cares about ordering of emitted
+ *         items (e.g. all items emitted by the first observable in
+ *         the sequence will come before the elements emitted by the
+ *         second observable), whereas `merge` doesn't care about that
+ *         (elements get emitted as they come). Because of
+ *         back-pressure applied to observables, [[Observable!.concat concat]]
+ *         is safe to use in all contexts, whereas [[Observable!.merge]]
+ *         requires buffering.
+ *
+ * @define mergeMapReturn an Observable that emits the result of applying the
+ *         transformation function to each item emitted by the source
+ *         Observable and merging the results of the Observables
+ *         obtained from this transformation.
+ *
+ * @define mergeDescription Merges the sequence of Observables emitted by
+ *         the source into one Observable, without any transformation.
+ *
+ *         You can combine the items emitted by multiple Observables
+ *         so that they act like a single Observable by using this
+ *         method.
+ *
+ * @define mergeReturn an Observable that emits items that are the
+ *         result of flattening the items emitted by the Observables
+ *         emitted by `this`
+ *
+ * @define overflowStrategyParam the [[OverflowStrategy overflow strategy]]
+ *         used for buffering, which specifies what to do in case we're
+ *         dealing with a slow consumer - should an unbounded buffer be used,
+ *         should back-pressure be applied, should the pipeline drop newer or
+ *         older events, should it drop the whole buffer? See
+ *         [[OverflowStrategy]] for more details
+ *
+ * @define onOverflowParam a function that is used for signaling a special
+ *         event used to inform the consumers that an overflow event
+ *         happened, function that receives the number of dropped events as
+ *         a parameter (see [[OverflowStrategy.WithSignal]])
+ *
+ * @define delayErrorsDescription This version
+ *         is reserving onError notifications until all of the
+ *         Observables complete and only then passing the issued
+ *         errors(s) along to the observers. Note that the streamed
+ *         error is a [[CompositeException]], since multiple errors
+ *         from multiple streams can happen.
+ *
+ * @define defaultOverflowStrategy this operation needs to do buffering
+ *         and by not specifying an [[OverflowStrategy]], the
+ *         [[OverflowStrategy.default default strategy]] is being
+ *         used.
+ *
+ * @define switchDescription Convert an Observable that emits Observables
+ *         into a single Observable that emits the items emitted by the
+ *         most-recently-emitted of those Observables.
+ *
+ * @define asyncBoundaryDescription Forces a buffered asynchronous boundary.
+ *
+ *         Internally it wraps the observer implementation given to
+ *         `subscribeFn` into a
+ *         [[monifu.reactive.observers.BufferedSubscriber BufferedSubscriber]].
+ *
+ *         Normally Monifu's implementation guarantees that events
+ *         are not emitted concurrently, and that the publisher MUST
+ *         NOT emit the next event without acknowledgement from the
+ *         consumer that it may proceed, however for badly behaved
+ *         publishers, this wrapper provides the guarantee that the
+ *         downstream [[monifu.reactive.Observer Observer]] given in
+ *         `subscribe` will not receive concurrent events.
+ *
+ *         WARNING: if the buffer created by this operator is
+ *         unbounded, it can blow up the process if the data source
+ *         is pushing events faster than what the observer can
+ *         consume, as it introduces an asynchronous boundary that
+ *         eliminates the back-pressure requirements of the data
+ *         source. Unbounded is the default
+ *         [[monifu.reactive.OverflowStrategy overflowStrategy]], see
+ *         [[monifu.reactive.OverflowStrategy OverflowStrategy]] for
+ *         options.
  */
 trait Observable[+T] { self =>
   /**
-   * Characteristic function for an `Observable` instance,
-   * that creates the subscription and that eventually starts the streaming of events
-   * to the given [[Observer]], being meant to be overridden in custom combinators
-   * or in classes implementing Observable.
+   * Characteristic function for an `Observable` instance, that
+   * creates the subscription and that eventually starts the streaming
+   * of events to the given [[Observer]], being meant to be overridden
+   * in custom combinators or in classes implementing Observable.
    */
   protected def subscribeFn(subscriber: Subscriber[T]): Unit
 
   /**
-   * Creates the subscription and that starts the stream.
+   * Subscribes to the stream.
    *
-   * @param observer is an [[monifu.reactive.Observer Observer]] on which `onNext`, `onComplete` and `onError`
-   *                 happens, according to the Monifu Rx contract.
+   * @return a subscription that can be used to cancel the streaming.
    */
   def subscribe(observer: Observer[T])(implicit s: Scheduler): BooleanCancelable = {
     val cancelable = BooleanCancelable()
@@ -57,7 +164,9 @@ trait Observable[+T] { self =>
   }
 
   /**
-   * Creates the subscription and starts the stream.
+   * Subscribes to the stream.
+   *
+   * @return a subscription that can be used to cancel the streaming.
    */
   def subscribe(nextFn: T => Future[Ack], errorFn: Throwable => Unit, completedFn: () => Unit)
       (implicit s: Scheduler): BooleanCancelable = {
@@ -70,47 +179,55 @@ trait Observable[+T] { self =>
   }
 
   /**
-   * Creates the subscription and starts the stream.
+   * Subscribes to the stream.
+   *
+   * @return a subscription that can be used to cancel the streaming.
    */
   def subscribe(nextFn: T => Future[Ack], errorFn: Throwable => Unit)(implicit s: Scheduler): BooleanCancelable =
     subscribe(nextFn, errorFn, () => ())
 
   /**
-   * Creates the subscription and starts the stream.
+   * Subscribes to the stream.
+   *
+   * @return a subscription that can be used to cancel the streaming.
    */
   def subscribe()(implicit s: Scheduler): Cancelable =
     subscribe(elem => Continue)
 
   /**
-   * Creates the subscription and starts the stream.
+   * Subscribes to the stream.
+   *
+   * @return a subscription that can be used to cancel the streaming.
    */
   def subscribe(nextFn: T => Future[Ack])(implicit s: Scheduler): BooleanCancelable =
     subscribe(nextFn, error => s.reportFailure(error), () => ())
 
   /**
-   * Creates the subscription that eventually starts the stream.
+   * Subscribes to the stream.
    *
-   * This function is "unsafe" to call because it does not protect the calls to the
-   * given [[Observer]] implementation in regards to unexpected exceptions that
-   * violate the contract, therefore the given instance must respect its contract
-   * and not throw any exceptions when the observable calls `onNext`,
-   * `onComplete` and `onError`. if it does, then the behavior is undefined.
+   * This function is "unsafe" to call because it does not protect the
+   * calls to the given [[Observer]] implementation in regards to
+   * unexpected exceptions that violate the contract, therefore the
+   * given instance must respect its contract and not throw any
+   * exceptions when the observable calls `onNext`, `onComplete` and
+   * `onError`. If it does, then the behavior is undefined.
    *
    * @param observer is an [[monifu.reactive.Observer Observer]] that respects
-   *                 Monifu Rx contract.
+   *                 the Monifu Rx contract.
    */
   def unsafeSubscribe(observer: Observer[T])(implicit s: Scheduler): Unit = {
     subscribeFn(Subscriber(observer, s))
   }
 
   /**
-   * Creates the subscription that eventually starts the stream.
+   * Subscribes to the stream.
    *
-   * This function is "unsafe" to call because it does not protect the calls to the
-   * given [[Observer]] implementation in regards to unexpected exceptions that
-   * violate the contract, therefore the given instance must respect its contract
-   * and not throw any exceptions when the observable calls `onNext`,
-   * `onComplete` and `onError`. if it does, then the behavior is undefined.
+   * This function is "unsafe" to call because it does not protect the
+   * calls to the given [[Observer]] implementation in regards to
+   * unexpected exceptions that violate the contract, therefore the
+   * given instance must respect its contract and not throw any
+   * exceptions when the observable calls `onNext`, `onComplete` and
+   * `onError`. If it does, then the behavior is undefined.
    */
   def unsafeSubscribe(subscriber: Subscriber[T]): Unit = {
     subscribeFn(subscriber)
@@ -118,6 +235,8 @@ trait Observable[+T] { self =>
 
   /**
    * Wraps this Observable into a `org.reactivestreams.Publisher`.
+   * See the [[http://www.reactive-streams.org/ Reactive Streams]]
+   * protocol that Monifu implements.
    */
   def publisher[U >: T](implicit s: Scheduler): Publisher[U] =
     new Publisher[U] {
@@ -178,7 +297,7 @@ trait Observable[+T] { self =>
    * the source Observable, where that function returns an Observable, and then concatenating those
    * resulting Observables and emitting the results of this concatenation.
    *
-   * It's an alias for [[Observable.concatMapDelayError]].
+   * It's an alias for [[Observable!.concatMapDelayError]].
    *
    * @param f a function that, when applied to an item emitted by the source Observable, returns an Observable
    * @return an Observable that emits the result of applying the transformation function to each
@@ -206,7 +325,7 @@ trait Observable[+T] { self =>
    * the source Observable, where that function returns an Observable, and then concatenating those
    * resulting Observables and emitting the results of this concatenation.
    *
-   * It's like [[Observable.concatMap]], except that the created observable is reserving onError
+   * It's like [[Observable!.concatMap]], except that the created observable is reserving onError
    * notifications until all of the merged Observables complete and only then passing it along
    * to the observers.
    *
@@ -219,152 +338,155 @@ trait Observable[+T] { self =>
     map(f).concatDelayError
 
   /**
-   * Creates a new Observable by applying a function that you supply to each item emitted by
-   * the source Observable, where that function returns an Observable, and then merging those
-   * resulting Observables and emitting the results of this merger.
+   * $mergeMapDescription
    *
-   * @param f a function that, when applied to an item emitted by the source Observable, returns an Observable
-   * @return an Observable that emits the result of applying the transformation function to each
-   *         item emitted by the source Observable and merging the results of the Observables
-   *         obtained from this transformation.
+   * @param f - the transformation function
+   * @return $mergeMapReturn
    */
   def mergeMap[U](f: T => Observable[U]): Observable[U] =
-    map(f).merge()
+    map(f).merge
 
   /**
-   * Creates a new Observable by applying a function that you supply to each item emitted by
-   * the source Observable, where that function returns an Observable, and then merging those
-   * resulting Observables and emitting the results of this merger.
+   * $mergeMapDescription
    *
-   * It's like [[Observable.mergeMap]], except that the created observable is reserving onError
-   * notifications until all of the merged Observables complete and only then passing it along
-   * to the observers.
-   *
-   * @param f a function that, when applied to an item emitted by the source Observable, returns an Observable
-   * @return an Observable that emits the result of applying the transformation function to each
-   *         item emitted by the source Observable and merging the results of the Observables
-   *         obtained from this transformation.
+   * $delayErrorsDescription
+   * 
+   * @param f - the transformation function
+   * @return $mergeMapReturn
    */
-  def mergeMapDelayError[U](f: T => Observable[U]): Observable[U] =
-    map(f).mergeDelayError()
+  def mergeMapDelayErrors[U](f: T => Observable[U]): Observable[U] =
+    map(f).mergeDelayErrors
 
   /**
-   * Flattens the sequence of Observables emitted by the source into one Observable, without any
-   * transformation.
+   * Alias for [[Observable!.concat]].
    *
-   * It's an alias for [[Observable.concat]].
+   * $concatDescription
    *
-   * @return an Observable that emits items that are the result of flattening the items emitted
-   *         by the Observables emitted by `this`
+   * @return $concatReturn
    */
   def flatten[U](implicit ev: T <:< Observable[U]): Observable[U] =
     concat
 
   /**
-   * Flattens the sequence of Observables emitted by the source into one Observable, without any
-   * transformation. Delays errors until the end.
+   * Alias for [[Observable!.concatDelayError]].
    *
-   * It's an alias for [[Observable.concatDelayError]].
+   * $concatDescription
+   * $delayErrorsDescription
    *
-   * @return an Observable that emits items that are the result of flattening the items emitted
-   *         by the Observables emitted by `this`
+   * @return $concatReturn
    */
   def flattenDelayError[U](implicit ev: T <:< Observable[U]): Observable[U] =
     concatDelayError
 
   /**
-   * Concatenates the sequence of Observables emitted by the source into one Observable, without any
-   * transformation.
+   * $concatDescription
    *
-   * You can combine the items emitted by multiple Observables so that they act like a single
-   * Observable by using this method.
-   *
-   * The difference between [[concat]] and [[Observable!.merge merge]] is
-   * that `concat` cares about ordering of emitted items (e.g. all items emitted by the first observable
-   * in the sequence will come before the elements emitted by the second observable), whereas `merge`
-   * doesn't care about that (elements get emitted as they come). Because of back-pressure applied to observables,
-   * [[concat]] is safe to use in all contexts, whereas [[merge]] requires buffering.
-   *
-   * @return an Observable that emits items that are the result of flattening the items emitted
-   *         by the Observables emitted by `this`
+   * @return $concatReturn
    */
   def concat[U](implicit ev: T <:< Observable[U]): Observable[U] =
     operators.flatten.concat(self, delayErrors = false)
 
   /**
-   * Concatenates the sequence of Observables emitted by the source into one Observable, without any
-   * transformation.
+   * $concatDescription
    *
-   * It's like [[Observable.concat]], except that the created observable is reserving onError
-   * notifications until all of the merged Observables complete and only then passing it along
-   * to the observers.
+   * $delayErrorsDescription
    *
-   * @return an Observable that emits items that are the result of flattening the items emitted
-   *         by the Observables emitted by `this`
+   * @return $concatReturn
    */
   def concatDelayError[U](implicit ev: T <:< Observable[U]): Observable[U] =
     operators.flatten.concat(self, delayErrors = true)
 
   /**
-   * Merges the sequence of Observables emitted by the source into one Observable, without any
-   * transformation.
+   * $mergeDescription
    *
-   * You can combine the items emitted by multiple Observables so that they act like a single
-   * Observable by using this method.
-   *
-   * The difference between [[concat]] and [[merge]] is that `concat` cares about ordering of
-   * emitted items (e.g. all items emitted by the first observable in the sequence will come before
-   * the elements emitted by the second observable), whereas `merge` doesn't care about that
-   * (elements get emitted as they come). Because of back-pressure applied to observables,
-   * [[concat]] is safe to use in all contexts, whereas [[merge]] requires buffering.
-   *
-   * @param bufferPolicy the policy used for buffering, useful if you want to limit the buffer size and
-   *                     apply back-pressure, trigger and error, etc... see the
-   *                     available [[monifu.reactive.BufferPolicy buffer policies]].
-   *
-   * @return an Observable that emits items that are the result of flattening the items emitted
-   *         by the Observables emitted by `this`
+   * @note $defaultOverflowStrategy
+   * @return $mergeReturn
    */
-  def merge[U](bufferPolicy: BufferPolicy[U] = defaultPolicy)
-      (implicit ev: T <:< Observable[U]): Observable[U] =
-    operators.flatten.merge(self, bufferPolicy, delayErrors = false)
+  def merge[U](implicit ev: T <:< Observable[U]): Observable[U] = {
+    operators.flatten.merge(self)(defaultStrategy,
+      onOverflow = null, delayErrors = false)
+  }
 
   /**
-   * Merges the sequence of Observables emitted by the source into one Observable, without any
-   * transformation. You can combine the items emitted by multiple Observables so that they act
-   * like a single Observable by using this method.
+   * $mergeDescription
    *
-   * It's like [[Observable.merge]], except that the created observable is reserving onError
-   * notifications until all of the merged Observables complete and only then passing it along
-   * to the observers.
-   *
-   * @param bufferPolicy the policy used for buffering, useful if you want to limit the buffer size and
-   *                     apply back-pressure, trigger and error, etc... see the
-   *                     available [[monifu.reactive.BufferPolicy buffer policies]].
-   *
-   * @return an Observable that emits items that are the result of flattening the items emitted
-   *         by the Observables emitted by `this`
+   * @param overflowStrategy - $overflowStrategyParam
+   * @return $mergeReturn
    */
-  def mergeDelayError[U](bufferPolicy: BufferPolicy[U] = defaultPolicy)
-      (implicit ev: T <:< Observable[U]): Observable[U] =
-    operators.flatten.merge(self, bufferPolicy, delayErrors = true)
+  def merge[U](overflowStrategy: OverflowStrategy)
+    (implicit ev: T <:< Observable[U]): Observable[U] = {
+
+    operators.flatten.merge(self)(overflowStrategy,
+      onOverflow = null, delayErrors = false)
+  }
 
   /**
-   * Convert an Observable that emits Observables into a single Observable that
-   * emits the items emitted by the most-recently-emitted of those Observables.
+   * $mergeDescription
+   *
+   * @param overflowStrategy - $overflowStrategyParam
+   * @param onOverflow - $onOverflowParam
+   * @return $mergeReturn
+   */
+  def merge[U](overflowStrategy: OverflowStrategy.WithSignal, onOverflow: Long => U)
+    (implicit ev: T <:< Observable[U]): Observable[U] = {
+
+    operators.flatten.merge(self)(overflowStrategy, 
+      onOverflow, delayErrors = false)
+  }
+
+  /**
+   * $mergeDescription
+   *
+   * $delayErrorsDescription
+   * 
+   * @note $defaultOverflowStrategy
+   * @return $mergeReturn
+   */
+  def mergeDelayErrors[U](implicit ev: T <:< Observable[U]): Observable[U] = {
+    operators.flatten.merge(self)(defaultStrategy, null, delayErrors = true)
+  }
+
+  /**
+   * $mergeDescription
+   *
+   * $delayErrorsDescription
+   *
+   * @param overflowStrategy - $overflowStrategyParam
+   * @return $mergeReturn
+   */
+  def mergeDelayErrors[U](overflowStrategy: OverflowStrategy)
+      (implicit ev: T <:< Observable[U]): Observable[U] = {
+
+    operators.flatten.merge(self)(overflowStrategy, null, delayErrors = true)
+  }
+
+  /**
+   * $mergeDescription
+   *
+   * $delayErrorsDescription
+   *
+   * @param overflowStrategy - $overflowStrategyParam
+   * @param onOverflow - $onOverflowParam
+   * @return $mergeReturn
+   */
+  def mergeDelayErrors[U](overflowStrategy: OverflowStrategy.WithSignal, onOverflow: Long => U)
+    (implicit ev: T <:< Observable[U]): Observable[U] = {
+
+    operators.flatten.merge(self)(overflowStrategy, onOverflow, delayErrors = true)
+  }
+  
+  /**
+   * $switchDescription
    */
   def switch[U](implicit ev: T <:< Observable[U]): Observable[U] =
     operators.switch(self, delayErrors = false)
 
   /**
-   * Convert an Observable that emits Observables into a single Observable that
-   * emits the items emitted by the most-recently-emitted of those Observables.
+   * $switchDescription
    *
-   * It's like [[Observable.switch]], except that the created observable is
-   * reserving onError notifications until all of the Observables complete
-   * and only then passing the error along to the observers.
+   * $delayErrorsDescription
    */
-  def switchDelayError[U](implicit ev: T <:< Observable[U]): Observable[U] =
+  def switchDelayErrors[U](implicit ev: T <:< Observable[U]): Observable[U] =
     operators.switch(self, delayErrors = true)
 
   /**
@@ -611,7 +733,7 @@ trait Observable[+T] { self =>
    * Returns an Observable that emits only the last item emitted by the source
    * Observable during sequential time windows of a specified duration.
    *
-   * This differs from [[Observable.throttleFirst)]] in that this ticks along
+   * This differs from [[Observable!.throttleFirst)]] in that this ticks along
    * at a scheduled interval whereas `throttleFirst` does not tick, it just
    * tracks passage of time.
    *
@@ -625,7 +747,7 @@ trait Observable[+T] { self =>
    * Returns an Observable that emits only the first item emitted by the source
    * Observable during sequential time windows of a specified duration.
    *
-   * This differs from [[Observable.throttleLast]] in that this only tracks
+   * This differs from [[Observable!.throttleLast]] in that this only tracks
    * passage of time whereas `throttleLast` ticks at scheduled intervals.
    *
    * @param interval time to wait before emitting another item after
@@ -715,7 +837,7 @@ trait Observable[+T] { self =>
    * intervals. If no new value has been emitted since the last time it
    * was sampled, the emit the last emitted value anyway.
    *
-   * Also see [[Observable.sample]].
+   * Also see [[Observable!.sample]].
    *
    * @param delay the timespan at which sampling occurs and note that this is
    *              not accurate as it is subject to back-pressure concerns - as in
@@ -751,7 +873,7 @@ trait Observable[+T] { self =>
    * Observable. If no new value has been emitted since the last time it
    * was sampled, the emit the last emitted value anyway.
    *
-   * Also see [[Observable.sample]].
+   * @see [[Observable!.sample sample]]
    *
    * @param sampler - the Observable to use for sampling the source Observable
    */
@@ -1046,9 +1168,16 @@ trait Observable[+T] { self =>
   /**
    * Creates a new Observable from this Observable and another given Observable.
    *
-   * It's like [[Observable.combineLatest]], except that the created observable
+   * This operator behaves in a similar way to [[zip]], but while `zip` emits items
+   * only when all of the zipped source Observables have emitted a previously unzipped item,
+   * `combine` emits an item whenever any of the source Observables emits
+   * an item (so long as each of the source Observables has emitted at least one item).
+   *
+   * This version of [[Observable!.combineLatest combineLatest]]
    * is reserving `onError` notifications until all of the combined Observables
    * complete and only then passing it along to the observers.
+   *
+   * @see [[Observable!.combineLatest]]
    */
   def combineLatestDelayError[U](other: Observable[U]): Observable[(T, U)] =
     operators.combineLatest(self, other, delayErrors = true)
@@ -1157,27 +1286,26 @@ trait Observable[+T] { self =>
     ConnectableObservable(this, subject)
 
   /**
-   * Forces a buffered asynchronous boundary.
-   *
-   * Internally it wraps the observer implementation given to `subscribeFn` into a
-   * [[monifu.reactive.observers.BufferedSubscriber BufferedSubscriber]].
-   *
-   * Normally Monifu's implementation guarantees that events are not emitted concurrently,
-   * and that the publisher MUST NOT emit the next event without acknowledgement from the consumer
-   * that it may proceed, however for badly behaved publishers, this wrapper provides
-   * the guarantee that the downstream [[monifu.reactive.Observer Observer]] given in `subscribe` will not receive
-   * concurrent events.
-   *
-   * WARNING: if the buffer created by this operator is unbounded, it can blow up the process if the data source
-   * is pushing events faster than what the observer can consume, as it introduces an asynchronous
-   * boundary that eliminates the back-pressure requirements of the data source. Unbounded is the default
-   * [[monifu.reactive.BufferPolicy policy]], see [[monifu.reactive.BufferPolicy BufferPolicy]]
-   * for options.
+   * $asyncBoundaryDescription
+   * 
+   * @param overflowStrategy - $overflowStrategyParam
    */
-  def asyncBoundary[U >: T](policy: BufferPolicy[U] = defaultPolicy): Observable[U] =
+  def asyncBoundary(overflowStrategy: OverflowStrategy): Observable[T] =
     Observable.create { subscriber =>
       implicit val s = subscriber.scheduler
-      unsafeSubscribe(BufferedSubscriber(subscriber.observer, policy))
+      unsafeSubscribe(BufferedSubscriber(subscriber.observer, overflowStrategy))
+    }
+
+  /**
+   * $asyncBoundaryDescription
+   *
+   * @param overflowStrategy - $overflowStrategyParam
+   * @param onOverflow - $onOverflowParam
+   */
+  def asyncBoundary[U >: T](overflowStrategy: OverflowStrategy.WithSignal, onOverflow: Long => U): Observable[U] =
+    Observable.create { subscriber =>
+      implicit val s = subscriber.scheduler
+      unsafeSubscribe(BufferedSubscriber(subscriber.observer, overflowStrategy))
     }
 
   /**
@@ -1192,21 +1320,29 @@ trait Observable[+T] { self =>
    * meant to inform the downstream observer how many events
    * where dropped.
    *
-   * @param onOverflow is a function used to build a message that will be
-   *                   the first event sent after the observer recovers,
-   *                   a function receiving as argument the number of dropped
-   *                   messages and thus can be used to inform the downstream
-   *                   how many messages it missed.
+   * @param onOverflow - $onOverflowParam
    */
   def whileBusyDropEvents[U >: T](onOverflow: Long => U): Observable[U] =
     operators.onBackPressure.dropEventsThenSignalOverflow(self, onOverflow)
 
   /**
    * While the destination observer is busy, buffers events, applying
-   * the given policy.
+   * the given overflowStrategy.
+   *
+   * @param overflowStrategy - $overflowStrategyParam
    */
-  def whileBusyBuffer[U >: T](p: BufferPolicy.Synchronous[U]): Observable[U] =
-    asyncBoundary(p)
+  def whileBusyBuffer[U >: T](overflowStrategy: OverflowStrategy.Synchronous): Observable[U] =
+    asyncBoundary(overflowStrategy)
+
+  /**
+   * While the destination observer is busy, buffers events, applying
+   * the given overflowStrategy.
+   *
+   * @param overflowStrategy - $overflowStrategyParam
+   * @param onOverflow - $onOverflowParam
+   */
+  def whileBusyBuffer[U >: T](overflowStrategy: OverflowStrategy.WithSignal, onOverflow: Long => U): Observable[U] =
+    asyncBoundary(overflowStrategy, onOverflow)
 
   /**
    * Converts this observable into a multicast observable, useful for turning a cold observable into
@@ -1321,7 +1457,7 @@ trait Observable[+T] { self =>
 
   /**
    * Returns an Observable that mirrors the source Observable but
-   * applies a timeout policy for each emitted item. If the next item
+   * applies a timeout overflowStrategy for each emitted item. If the next item
    * isn't emitted within the specified timeout duration starting from
    * its predecessor, the resulting Observable terminates and notifies
    * observers of a TimeoutException.
@@ -1334,7 +1470,7 @@ trait Observable[+T] { self =>
 
   /**
    * Returns an Observable that mirrors the source Observable but
-   * applies a timeout policy for each emitted item. If the next item
+   * applies a timeout overflowStrategy for each emitted item. If the next item
    * isn't emitted within the specified timeout duration starting from
    * its predecessor, the resulting Observable begins instead to
    * mirror a backup Observable.
@@ -1645,14 +1781,14 @@ object Observable {
    * Merges the given list of ''observables'' into a single observable.
    */
   def merge[T](sources: Observable[T]*): Observable[T] =
-    Observable.fromIterable(sources).merge()
+    Observable.fromIterable(sources).merge
 
   /**
    * Merges the given list of ''observables'' into a single observable.
    * Delays errors until the end.
    */
   def mergeDelayError[T](sources: Observable[T]*): Observable[T] =
-    Observable.fromIterable(sources).mergeDelayError()
+    Observable.fromIterable(sources).mergeDelayErrors
 
 
   /**

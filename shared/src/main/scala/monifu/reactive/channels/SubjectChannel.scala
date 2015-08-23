@@ -18,18 +18,23 @@
 package monifu.reactive.channels
 
 import monifu.concurrent.Scheduler
-import monifu.reactive.BufferPolicy.Unbounded
+import monifu.reactive.OverflowStrategy.WithSignal
 import monifu.reactive._
 import monifu.reactive.observers.BufferedSubscriber
 
 /**
  * Wraps any [[Subject]] into a [[Channel]].
  */
-class SubjectChannel[-I,+O](subject: Subject[I, O], policy: BufferPolicy.Synchronous[I])
+class SubjectChannel[-I,+O] private[reactive]
+    (subject: Subject[I, O], overflowStrategy: OverflowStrategy.Synchronous, onOverflow: Long => I)
     (implicit scheduler: Scheduler)
   extends Channel[I] with Observable[O] {
 
-  private[this] val channel = BufferedSubscriber(subject, policy)
+  assert(onOverflow == null || overflowStrategy.isInstanceOf[WithSignal],
+    "onOverflow is only supported for `OverflowStrategy.WithSignal`")
+
+  private[this] val channel =
+    BufferedSubscriber(subject, overflowStrategy, onOverflow)
 
   final def subscribeFn(subscriber: Subscriber[O]): Unit = {
     subject.unsafeSubscribe(subscriber)
@@ -51,9 +56,40 @@ class SubjectChannel[-I,+O](subject: Subject[I, O], policy: BufferPolicy.Synchro
 object SubjectChannel {
   /**
    * Wraps any [[Subject]] into a [[Channel]].
+   *
+   * @param strategy - the [[OverflowStrategy overflow strategy]]
+   *        used for buffering, which specifies what to do in case
+   *        we're dealing with slow consumers: should an unbounded
+   *        buffer be used, should back-pressure be applied, should
+   *        the pipeline drop newer or older events, should it drop
+   *        the whole buffer?  See [[OverflowStrategy]] for more
+   *        details.
    */
-  def apply[I,O](subject: Subject[I, O], bufferPolicy: BufferPolicy.Synchronous[I] = Unbounded)
-      (implicit s: Scheduler): SubjectChannel[I, O] = {
-    new SubjectChannel[I,O](subject, bufferPolicy)
+  def apply[I,O](subject: Subject[I, O], strategy: OverflowStrategy.Synchronous)
+    (implicit s: Scheduler): SubjectChannel[I, O] = {
+
+    new SubjectChannel[I,O](subject, strategy, null)
+  }
+
+  /**
+   * Wraps any [[Subject]] into a [[Channel]].
+   *
+   * @param strategy - the [[OverflowStrategy overflow strategy]]
+   *        used for buffering, which specifies what to do in case
+   *        we're dealing with slow consumers: should an unbounded
+   *        buffer be used, should back-pressure be applied, should
+   *        the pipeline drop newer or older events, should it drop
+   *        the whole buffer?  See [[OverflowStrategy]] for more
+   *        details.
+   *
+   * @param onOverflow - a function that is used for signaling a special
+   *        event used to inform the consumers that an overflow event
+   *        happened, function that receives the number of dropped
+   *        events as a parameter (see [[OverflowStrategy.WithSignal]])
+   */
+  def apply[I,O](subject: Subject[I, O], strategy: OverflowStrategy.WithSignal, onOverflow: Long => I)
+    (implicit s: Scheduler): SubjectChannel[I, O] = {
+
+    new SubjectChannel[I,O](subject, strategy, onOverflow)
   }
 }
