@@ -36,7 +36,7 @@ import scala.util.control.NonFatal
 final class DropIncomingBufferedSubscriber[-T] private
     (underlying: Observer[T], bufferSize: Int, onOverflow: Long => T = null)
     (implicit val scheduler: Scheduler)
-  extends BufferedSubscriber[T] with SynchronousSubscriber[T] {
+  extends BufferedSubscriber[T] with SynchronousSubscriber[T] { self =>
 
   require(bufferSize > 0, "bufferSize must be a strictly positive number")
 
@@ -53,7 +53,7 @@ final class DropIncomingBufferedSubscriber[-T] private
   private[this] var eventsDropped = 0L
 
   val observer: SynchronousObserver[T] = new SynchronousObserver[T] {
-    def onNext(elem: T): Ack = {
+    def onNext(elem: T): Ack = self.synchronized {
       if (!upstreamIsComplete && !downstreamIsDone) {
         if (itemsToPush.get >= bufferSize) {
           // no more room, dropping event
@@ -67,7 +67,8 @@ final class DropIncomingBufferedSubscriber[-T] private
             // first send the overflow message
             queue.offer(message)
             notifyConsumerOfNewEvent()
-            // then try to send our current event (recursive call)
+            // then try to send our current event
+            // (recursive non-tailrec call)
             onNext(elem)
           }
           catch {
@@ -91,7 +92,7 @@ final class DropIncomingBufferedSubscriber[-T] private
         Cancel
     }
 
-    def onError(ex: Throwable) = {
+    def onError(ex: Throwable) = self.synchronized {
       if (!upstreamIsComplete && !downstreamIsDone) {
         errorThrown = ex
         upstreamIsComplete = true
@@ -99,7 +100,7 @@ final class DropIncomingBufferedSubscriber[-T] private
       }
     }
 
-    def onComplete(): Unit = {
+    def onComplete(): Unit = self.synchronized {
       if (!upstreamIsComplete && !downstreamIsDone) {
         if (eventsDropped > 0 && onOverflow != null) try {
           val message = onOverflow(eventsDropped)
