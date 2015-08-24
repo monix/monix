@@ -108,27 +108,47 @@ object Build extends SbtBuild {
   )
 
   lazy val monifu = project.in(file("."))
-    .aggregate(monifuJVM, monifuJS, tckTests)
+    .aggregate(monifuCoreJVM, monifuCoreJS, monifuJVM, monifuJS, tckTests)
     .settings(sharedSettings: _*)
     .settings(doNotPublishArtifact: _*)
 
-  lazy val monifuJVM = project.in(file("jvm"))
+  lazy val monifuCoreJVM = project.in(file("monifu-core/jvm"))
     .settings(crossSettings: _*)
     .settings(
+      name := "monifu-core",
+      testFrameworks += new TestFramework("minitest.runner.Framework"),
+      libraryDependencies ++= Seq(
+        "org.monifu" %% "minitest" % "0.13" % "test"
+      ))
+
+  lazy val monifuCoreJS = project.in(file("monifu-core/js"))
+      .settings(crossSettings: _*)
+      .enablePlugins(ScalaJSPlugin)
+      .settings(
+        name := "monifu-core",
+        scalaJSStage in Test := FastOptStage,
+        testFrameworks += new TestFramework("minitest.runner.Framework"),
+        libraryDependencies ++= Seq(
+          "org.monifu" %%% "minitest" % "0.13" % "test"
+        ))
+
+  lazy val monifuJVM = project.in(file("monifu/jvm"))
+    .settings(crossSettings: _*)
+    .dependsOn(monifuCoreJVM)
+    .settings(
       name := "monifu",
-      scalacOptions in (Compile, doc) ++= Opts.doc.title(s"Monifu"),
       testFrameworks += new TestFramework("minitest.runner.Framework"),
       libraryDependencies ++= Seq(
         "org.reactivestreams" % "reactive-streams" % "1.0.0",
         "org.monifu" %% "minitest" % "0.13" % "test"
       ))
 
-  lazy val monifuJS = project.in(file("js"))
+  lazy val monifuJS = project.in(file("monifu/js"))
     .settings(crossSettings: _*)
     .enablePlugins(ScalaJSPlugin)
+    .dependsOn(monifuCoreJS)
     .settings(
       name := "monifu",
-      scalacOptions in (Compile, doc) ++= Opts.doc.title(s"Monifu (JS)"),
       scalaJSStage in Test := FastOptStage,
       testFrameworks += new TestFramework("minitest.runner.Framework"),
       libraryDependencies ++= Seq(
