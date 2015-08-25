@@ -21,6 +21,8 @@ import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport._
 import sbt.Keys._
 import sbt.{Build => SbtBuild, _}
 import sbtrelease.ReleasePlugin.autoImport._
+import sbtunidoc.Plugin._
+import sbtunidoc.Plugin.UnidocKeys._
 
 
 object Build extends SbtBuild {
@@ -47,11 +49,15 @@ object Build extends SbtBuild {
 
     // ScalaDoc settings
     autoAPIMappings := true,
-    scalacOptions in (Compile, doc) ++=
-      Opts.doc.sourceUrl(s"https://github.com/monifu/monifu/tree/v${version.value}/monifu€{FILE_PATH}.scala"),
-    scalacOptions in (Compile, doc) ++=
-      Seq("-doc-root-content", file("./shared/rootdoc.txt").getAbsolutePath),
-    scalacOptions in (Compile, doc) ++=
+    scalacOptions in (ScalaUnidoc, unidoc) +=
+      "-Ymacro-expand:none",
+    scalacOptions in (ScalaUnidoc, unidoc) ++=
+      Opts.doc.title(s"Monifu"),
+    scalacOptions in (ScalaUnidoc, unidoc) ++=
+      Opts.doc.sourceUrl(s"https://github.com/monifu/monifu/tree/v${version.value}€{FILE_PATH}.scala"),
+    scalacOptions in (ScalaUnidoc, unidoc) ++=
+      Seq("-doc-root-content", file("./rootdoc.txt").getAbsolutePath),
+    scalacOptions in (ScalaUnidoc, unidoc) ++=
       Opts.doc.version(s"${version.value}"),
     scalacOptions in ThisBuild ++= Seq(
       // Note, this is used by the doc-source-url feature to determine the
@@ -59,7 +65,7 @@ object Build extends SbtBuild {
       // absolute path of the source file, the absolute path of that file
       // will be put into the FILE_SOURCE variable, which is
       // definitely not what we want.
-      "-sourcepath", file(".").getAbsolutePath
+      "-sourcepath", file(".").getAbsolutePath.replaceAll("[.]$", "")
     ),
 
     // -- Settings meant for deployment on oss.sonatype.org
@@ -109,8 +115,13 @@ object Build extends SbtBuild {
 
   lazy val monifu = project.in(file("."))
     .aggregate(monifuCoreJVM, monifuCoreJS, monifuJVM, monifuJS, tckTests)
+    .settings(unidocSettings: _*)
     .settings(sharedSettings: _*)
     .settings(doNotPublishArtifact: _*)
+    .settings(
+      unidocProjectFilter in (ScalaUnidoc, unidoc) := inAnyProject --
+        inProjects(monifuCoreJS, monifuJS, tckTests)
+    )
 
   lazy val monifuCoreJVM = project.in(file("monifu-core/jvm"))
     .settings(crossSettings: _*)
