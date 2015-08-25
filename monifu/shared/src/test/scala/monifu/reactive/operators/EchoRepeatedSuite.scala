@@ -17,7 +17,11 @@
 
 package monifu.reactive.operators
 
-import monifu.reactive.Observable
+import monifu.concurrent.extensions._
+import monifu.reactive.Ack.Continue
+import monifu.reactive.{Ack, Observer, Observable}
+import monifu.reactive.subjects.PublishSubject
+import scala.concurrent.Future
 import scala.concurrent.duration._
 
 object EchoRepeatedSuite extends BaseOperatorSuite {
@@ -40,4 +44,151 @@ object EchoRepeatedSuite extends BaseOperatorSuite {
 
   def observableInError(sourceCount: Int, ex: Throwable) = None
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
-}
+
+  test("should timeout on inactivity and start emitting") { implicit s =>
+    val channel = PublishSubject[Int]()
+    var received = 0
+    var wasCompleted = false
+
+    channel.echoRepeated(1.second)
+      .subscribe(new Observer[Int] {
+        def onNext(elem: Int): Future[Ack] = {
+          received += elem
+          Continue
+        }
+
+        def onError(ex: Throwable): Unit = ()
+        def onComplete(): Unit = wasCompleted = true
+      })
+
+    channel.onNext(1)
+    assertEquals(received, 1)
+    s.tick(900.millis)
+    assertEquals(received, 1)
+
+    channel.onNext(2)
+    assertEquals(received, 3)
+    s.tick(900.millis)
+    assertEquals(received, 3)
+    s.tick(100.millis)
+    assertEquals(received, 5)
+
+    channel.onComplete()
+    assertEquals(wasCompleted, true)
+  }
+
+  test("time for processing upstream messages should be ignored") { implicit s =>
+    val channel = PublishSubject[Int]()
+    var received = 0
+    var wasCompleted = false
+
+    channel.echoRepeated(1.second)
+      .subscribe(new Observer[Int] {
+        def onNext(elem: Int): Future[Ack] = {
+          received += 1
+          if (received % 2 == 1)
+            Future.delayedResult(2.seconds)(Continue)
+          else
+            Continue
+        }
+
+        def onError(ex: Throwable): Unit = ()
+        def onComplete(): Unit = wasCompleted = true
+      })
+
+    val ack = channel.onNext(1)
+    assert(ack != Continue)
+    assertEquals(received, 1)
+
+    // waiting the delayedResult
+    s.tick(2.seconds)
+    assertEquals(received, 1)
+    assertEquals(ack.value.get, Continue.IsSuccess)
+
+    // should still not trigger
+    s.tick(900.millis)
+    assertEquals(received, 1)
+
+    // this should trigger, since we waited the original 2 secs + 1
+    s.tick(100.millis)
+    assertEquals(received, 2)
+
+    channel.onComplete()
+    assertEquals(wasCompleted, true)
+  }
+
+  test("interval should be at fixed rate") { implicit s =>
+    val channel = PublishSubject[Int]()
+    var received = 0
+    var wasCompleted = false
+
+    channel.echoRepeated(1.second)
+      .subscribe(new Observer[Int] {
+      def onNext(elem: Int): Future[Ack] =
+        Future.delayedResult(500.millis) {
+          received += 1
+          Continue
+        }
+
+      def onError(ex: Throwable): Unit = ()
+      def onComplete(): Unit = wasCompleted = true
+    })
+
+    channel.onNext(1)
+    assertEquals(received, 0)
+    s.tick(500.millis)
+    assertEquals(received, 1)
+
+    s.tick(1.second + 500.millis)
+    assertEquals(received, 2)
+    s.tick(1.second)
+    assertEquals(received, 3)
+    s.tick(1.second)
+    assertEquals(received, 4)
+
+    channel.onComplete()
+    assertEquals(wasCompleted, true)
+  }
+
+  test("new item should interrupt the streaming") { implicit s =>
+    val channel = PublishSubject[Int]()
+    var received = 0
+    var wasCompleted = false
+
+    channel.echoRepeated(1.second)
+      .subscribe(new Observer[Int] {
+      def onNext(elem: Int): Future[Ack] =
+        Future.delayedResult(500.millis) {
+          received += elem
+          Continue
+        }
+
+      def onError(ex: Throwable): Unit = ()
+      def onComplete(): Unit = wasCompleted = true
+    })
+
+    channel.onNext(1)
+    assertEquals(received, 0)
+    s.tick(500.millis)
+    assertEquals(received, 1)
+
+    s.tick(1.second + 500.millis)
+    assertEquals(received, 2)
+    s.tick(1.second)
+    assertEquals(received, 3)
+    s.tick(1.second)
+    assertEquals(received, 4)
+    s.tick(400.millis)
+    assertEquals(received, 4)
+
+    channel.onNext(10)
+    s.tick(500.millis)
+    assertEquals(received, 14)
+    s.tick(500.millis)
+    assertEquals(received, 14)
+    s.tick(1.second)
+    assertEquals(received, 24)
+
+    channel.onComplete()
+    assertEquals(wasCompleted, true)
+  }}
