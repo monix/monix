@@ -1125,7 +1125,8 @@ trait Observable[+T] { self =>
    *                that Observable emits no items in order for the item to
    *                be emitted by the resulting Observable
    *
-   * @see [[Observable.echo echo]], for
+   * @see [[Observable.echoOnce echoOnce]] for a similar operator that also
+   *     mirrors the source observable
    */
   def debounce(timeout: FiniteDuration): Observable[T] =
     operators.debounce.apply(self, timeout)

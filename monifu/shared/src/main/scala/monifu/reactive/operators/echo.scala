@@ -92,15 +92,17 @@ private[reactive] object echo {
 
           def run(): Unit = lock.enter {
             if (!ack.isCompleted) {
-              // the consumer is still processing its last message,
-              // and this processing time does not enter the picture
+              // The consumer is still processing its last message,
+              // and this processing time does not enter the picture.
+              // Given that the lastTSInMillis is set after Continue
+              // happens, it means that we'll wait for Continue plus
+              // our period in order to get another chance to emit
               ack.onComplete(scheduleAfterContinue)
             }
-            else if (lastEvent == null || !hasValue || !ack.isCompleted) {
-              // in this case, either the data source hasn't emitted anything
+            else if (lastEvent == null || !hasValue) {
+              // on this branch either the data source hasn't emitted anything
               // yet (lastEvent == null), or we don't have a new value since
-              // the last time we've tried (!hasValue), so keep waiting,
-              // or there's an onNext active, in which case we wait
+              // the last time we've tried (!hasValue), so keep waiting
               scheduleNext(timeoutMillis)
             }
             else {
@@ -113,9 +115,18 @@ private[reactive] object echo {
                 // value until a new one happens)
                 hasValue = !onlyOnce
 
+                // this call is actually synchronous because we're testing
+                // for ack.isCompleted above, but doing it nonetheless because
+                // of safety and because last ack might have been a Cancel
                 val next = ack.onContinueStreamOnNext(downstream, lastEvent)
+                
+                // applying back-pressure again, this time on a result
+                // that might or might not be completed
                 ack = next.fastFlatMap {
                   case Continue =>
+                    // the speed with which the downstream replied with Continue
+                    // matters in this case, so we are measuring it and 
+                    // subtracting it from the period
                     val executionTime = s.currentTimeMillis() - rightNow
                     val delay = if (timeoutMillis > executionTime)
                       timeoutMillis - executionTime else 0L
