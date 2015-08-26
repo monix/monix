@@ -21,7 +21,8 @@ import minitest.TestSuite
 import monifu.concurrent.atomic.{Atomic, AtomicLong}
 import monifu.concurrent.schedulers.TestScheduler
 import monifu.reactive.Ack.{Cancel, Continue}
-import monifu.reactive.{Observable, DummyException, Observer, Subject}
+import monifu.reactive.exceptions.DummyException
+import monifu.reactive.{Observable, Observer, Subject}
 
 import scala.concurrent.Promise
 import scala.util.Random

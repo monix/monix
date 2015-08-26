@@ -22,7 +22,8 @@ import minitest.TestSuite
 import monifu.concurrent.Scheduler
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.OverflowStrategy.BackPressure
-import monifu.reactive.{Ack, DummyException, Observer}
+import monifu.reactive.exceptions.DummyException
+import monifu.reactive.{Ack, Observer}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, Promise}
 

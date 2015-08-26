@@ -135,32 +135,6 @@ package object internals {
     }
 
     /**
-     * Helper that triggers [[Cancelable.cancel]] on the given reference,
-     * in case our source is a [[Cancel]] or a failure.
-     */
-    def ifCanceledDoCancel(cancelable: Cancelable)(implicit s: Scheduler): Future[Ack] = {
-      source match {
-        case sync if sync.isCompleted =>
-          sync.value.get match {
-            case Cancel.IsSuccess | Failure(_) =>
-              cancelable.cancel()
-              sync
-            case _ =>
-              sync
-          }
-
-        case async =>
-          async.onComplete {
-            case Cancel.IsSuccess | Failure(_) =>
-              cancelable.cancel()
-            case _ =>
-              ()
-          }
-          async
-      }
-    }
-
-    /**
      * An implementation of `flatMap` that executes
      * synchronously if the source is already completed.
      */
@@ -179,6 +153,47 @@ package object internals {
         case None =>
           source.flatMap(f)
       }
+
+    /**
+     * Helper that triggers [[Cancelable.cancel]] on the given reference,
+     * in case our source is a [[Cancel]] or a failure.
+     */
+    def ifCanceledDoCancel(cancelable: Cancelable)(implicit s: Scheduler): Future[Ack] = {
+      source match {
+        case sync if sync.isCompleted =>
+          sync.value.get match {
+            case Cancel.IsSuccess | Failure(_) =>
+              try {
+                cancelable.cancel()
+                sync
+              }
+              catch {
+                case NonFatal(ex) =>
+                  Future.failed(ex)
+              }
+
+            case _ =>
+              sync
+          }
+
+        case async =>
+          val p = Promise[Ack]()
+          async.onComplete {
+            case result @ (Cancel.IsSuccess | Failure(_)) =>
+              try {
+                cancelable.cancel()
+                p.complete(result)
+              }
+              catch {
+                case NonFatal(ex) =>
+                  p.failure(ex)
+              }
+            case other =>
+              p.complete(other)
+          }
+          p.future
+      }
+    }
 
     // -----
 

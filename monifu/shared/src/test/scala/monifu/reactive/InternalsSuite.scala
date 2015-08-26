@@ -21,6 +21,7 @@ import minitest.TestSuite
 import monifu.concurrent.cancelables.BooleanCancelable
 import monifu.concurrent.schedulers.TestScheduler
 import monifu.reactive.Ack.{Cancel, Continue}
+import monifu.reactive.exceptions.DummyException
 import monifu.reactive.internals._
 import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success}

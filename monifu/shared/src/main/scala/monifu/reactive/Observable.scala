@@ -22,7 +22,10 @@ import monifu.concurrent.cancelables.BooleanCancelable
 import monifu.concurrent.{Cancelable, Scheduler}
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.OverflowStrategy.{default => defaultStrategy}
+import monifu.reactive.exceptions.CompositeException
+import monifu.reactive.observables.{GroupedObservable, ConnectableObservable}
 import monifu.reactive.observers._
+import monifu.reactive.internals._
 import monifu.reactive.subjects.{AsyncSubject, BehaviorSubject, PublishSubject, ReplaySubject}
 import org.reactivestreams.{Publisher, Subscriber => RSubscriber}
 
@@ -962,6 +965,44 @@ trait Observable[+T] { self =>
     operators.window.timed(self, timespan, maxCount)
 
   /**
+   * Groups the items emitted by an Observable according to a specified 
+   * criterion, and emits these grouped items as GroupedObservables, 
+   * one GroupedObservable per group.
+   *
+   * Note: A [[GroupedObservable]] will cache the items it is to emit
+   * until such time as it is subscribed to. For this reason, in order to
+   * avoid memory leaks, you should not simply ignore those GroupedObservables
+   * that do not concern you. Instead, you can signal to them that they may
+   * discard their buffers by doing something like `source.take(0)`.
+   *
+   * @param keySelector - a function that extracts the key for each item
+   */
+  def groupBy[K](keySelector: T => K): Observable[GroupedObservable[K,T]] =
+    operators.groupBy.apply(self, OverflowStrategy.Unbounded, keySelector)
+
+  /**
+   * Groups the items emitted by an Observable according to a specified
+   * criterion, and emits these grouped items as GroupedObservables,
+   * one GroupedObservable per group.
+   *
+   * A [[GroupedObservable]] will cache the items it is to emit
+   * until such time as it is subscribed to. For this reason, in order to
+   * avoid memory leaks, you should not simply ignore those GroupedObservables
+   * that do not concern you. Instead, you can signal to them that they may
+   * discard their buffers by doing something like `source.take(0)`.
+   *
+   * This variant of `groupBy` specifies a `keyBufferSize` representing the
+   * size of the buffer that holds our keys. We cannot block when emitting
+   * new [[GroupedObservable]]. So by specifying a buffer size, on overflow
+   * the resulting observable will terminate with an `onError`.
+   *
+   * @param keySelector - a function that extracts the key for each item
+   * @param keyBufferSize - the buffer size used for buffering keys
+   */
+  def groupBy[K](keyBufferSize: Int, keySelector: T => K): Observable[GroupedObservable[K,T]] =
+    operators.groupBy.apply(self, OverflowStrategy.Fail(keyBufferSize), keySelector)
+
+  /**
    * Returns an Observable that emits only the last item emitted by the source
    * Observable during sequential time windows of a specified duration.
    *
@@ -1598,7 +1639,7 @@ trait Observable[+T] { self =>
    * Converts this observable into a multicast observable, useful for turning a cold observable into
    * a hot one (i.e. whose source is shared by all observers).
    */
-  def multicast[R](subject: Subject[T, R])(implicit s: Scheduler): ConnectableObservable[R] =
+  def multicast[U >: T, R](subject: Subject[U, R])(implicit s: Scheduler): ConnectableObservable[R] =
     ConnectableObservable(this, subject)
 
   /**
@@ -1666,7 +1707,7 @@ trait Observable[+T] { self =>
    * [[monifu.reactive.subjects.PublishSubject PublishSubject]].
    */
   def publish()(implicit s: Scheduler): ConnectableObservable[T] =
-    multicast(PublishSubject())
+    multicast(PublishSubject[T]())
 
   /**
    * Converts this observable into a multicast observable, useful for turning a cold observable into
@@ -1674,7 +1715,7 @@ trait Observable[+T] { self =>
    * [[monifu.reactive.subjects.BehaviorSubject BehaviorSubject]].
    */
   def behavior[U >: T](initialValue: U)(implicit s: Scheduler): ConnectableObservable[U] =
-    multicast(BehaviorSubject(initialValue))
+    multicast(BehaviorSubject[U](initialValue))
 
   /**
    * Converts this observable into a multicast observable, useful for turning a cold observable into
@@ -1682,7 +1723,7 @@ trait Observable[+T] { self =>
    * [[monifu.reactive.subjects.ReplaySubject ReplaySubject]].
    */
   def replay()(implicit s: Scheduler): ConnectableObservable[T] =
-    multicast(ReplaySubject())
+    multicast(ReplaySubject[T]())
 
   /**
    * Converts this observable into a multicast observable, useful for turning a cold observable into
@@ -1690,7 +1731,7 @@ trait Observable[+T] { self =>
    * [[monifu.reactive.subjects.AsyncSubject AsyncSubject]].
    */
   def publishLast()(implicit s: Scheduler): ConnectableObservable[T] =
-    multicast(AsyncSubject())
+    multicast(AsyncSubject[T]())
 
   /**
    * Returns an Observable that mirrors the behavior of the source,
