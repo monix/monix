@@ -123,7 +123,7 @@ object Build extends SbtBuild {
         inProjects(monifuCoreJS, monifuJS, tckTests)
     )
 
-  lazy val monifuCoreJVM = project.in(file("monifu-core/jvm"))
+  lazy val monifuCoreJVM = project.in(file("core/jvm"))
     .settings(crossSettings: _*)
     .settings(
       name := "monifu-core",
@@ -132,7 +132,7 @@ object Build extends SbtBuild {
         "org.monifu" %% "minitest" % "0.13" % "test"
       ))
 
-  lazy val monifuCoreJS = project.in(file("monifu-core/js"))
+  lazy val monifuCoreJS = project.in(file("core/js"))
       .settings(crossSettings: _*)
       .enablePlugins(ScalaJSPlugin)
       .settings(
