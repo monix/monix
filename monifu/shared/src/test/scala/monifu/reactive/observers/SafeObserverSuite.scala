@@ -20,7 +20,8 @@ package monifu.reactive.observers
 import minitest.TestSuite
 import monifu.concurrent.schedulers.TestScheduler
 import monifu.reactive.Ack.{Cancel, Continue}
-import monifu.reactive.{Ack, DummyException, Observer}
+import monifu.reactive.exceptions.DummyException
+import monifu.reactive.{Ack, Observer}
 import scala.concurrent.{Future, Promise}
 import scala.util.Success
 

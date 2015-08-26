@@ -21,7 +21,8 @@ import minitest.TestSuite
 import monifu.concurrent.schedulers.TestScheduler
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.OverflowStrategy.Fail
-import monifu.reactive.{Ack, BufferOverflowException, DummyException, Observer}
+import monifu.reactive.exceptions.{DummyException, BufferOverflowException}
+import monifu.reactive.{Ack, Observer}
 import scala.concurrent.{Future, Promise}
 
 object BufferOverflowTriggeringSuite extends TestSuite[TestScheduler] {

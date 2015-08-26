@@ -21,7 +21,8 @@ import minitest.TestSuite
 import monifu.concurrent.Scheduler
 import monifu.concurrent.schedulers.TestScheduler
 import monifu.reactive.Ack.Continue
-import monifu.reactive.{Channel, DummyException, Observable, Observer}
+import monifu.reactive.exceptions.DummyException
+import monifu.reactive.{Channel, Observable, Observer}
 
 import scala.concurrent.Promise
 import scala.util.Random

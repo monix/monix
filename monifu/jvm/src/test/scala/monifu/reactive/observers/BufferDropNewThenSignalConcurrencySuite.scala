@@ -23,7 +23,8 @@ import minitest.TestSuite
 import monifu.concurrent.Scheduler
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.OverflowStrategy.DropNew
-import monifu.reactive.{Ack, DummyException, Observer}
+import monifu.reactive.exceptions.DummyException
+import monifu.reactive.{Ack, Observer}
 import scala.concurrent.{Future, Promise}
 
 object BufferDropNewThenSignalConcurrencySuite

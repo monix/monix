@@ -22,7 +22,8 @@ import monifu.concurrent.Scheduler
 import monifu.concurrent.schedulers.TestScheduler
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.OverflowStrategy.ClearBuffer
-import monifu.reactive.{Ack, DummyException, Observer}
+import monifu.reactive.exceptions.DummyException
+import monifu.reactive.{Ack, Observer}
 import scala.concurrent.{Future, Promise}
 
 

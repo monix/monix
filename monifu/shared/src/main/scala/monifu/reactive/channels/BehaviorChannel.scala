@@ -29,7 +29,7 @@ import monifu.reactive.subjects.BehaviorSubject
 final class BehaviorChannel[T] private 
   (initialValue: T, strategy: OverflowStrategy.Synchronous, onOverflow: Long => T)
   (implicit val scheduler: Scheduler)
-  extends Channel[T] with Observable[T] {
+  extends ObservableChannel[T,T] {
 
   private[this] val lock = new AnyRef
   private[this] val subject = BehaviorSubject(initialValue)

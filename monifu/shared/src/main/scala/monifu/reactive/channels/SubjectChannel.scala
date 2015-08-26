@@ -25,10 +25,10 @@ import monifu.reactive.observers.BufferedSubscriber
 /**
  * Wraps any [[Subject]] into a [[Channel]].
  */
-class SubjectChannel[-I,+O] private[reactive]
+class SubjectChannel[I,+O] private[reactive]
     (subject: Subject[I, O], overflowStrategy: OverflowStrategy.Synchronous, onOverflow: Long => I)
     (implicit scheduler: Scheduler)
-  extends Channel[I] with Observable[O] {
+  extends ObservableChannel[I,O] {
 
   assert(onOverflow == null || overflowStrategy.isInstanceOf[WithSignal],
     "onOverflow is only supported for `OverflowStrategy.WithSignal`")

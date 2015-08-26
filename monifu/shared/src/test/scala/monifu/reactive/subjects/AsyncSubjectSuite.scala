@@ -19,7 +19,8 @@ package monifu.reactive.subjects
 
 import monifu.concurrent.atomic.{Atomic, AtomicLong}
 import monifu.reactive.Ack.Continue
-import monifu.reactive.{Observable, DummyException, Observer}
+import monifu.reactive.exceptions.DummyException
+import monifu.reactive.{Observable, Observer}
 
 object AsyncSubjectSuite extends BaseSubjectSuite {
   def alreadyTerminatedTest(expectedElems: Seq[Long]) = {

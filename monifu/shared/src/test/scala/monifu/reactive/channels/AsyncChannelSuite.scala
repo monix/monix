@@ -21,7 +21,8 @@ import monifu.concurrent.Scheduler
 import monifu.concurrent.atomic.{Atomic, AtomicLong}
 import monifu.reactive.Ack.Continue
 import monifu.reactive.OverflowStrategy.Unbounded
-import monifu.reactive.{DummyException, Observer}
+import monifu.reactive.Observer
+import monifu.reactive.exceptions.DummyException
 
 object AsyncChannelSuite extends BaseChannelSuite {
   def alreadyTerminatedTest(expectedElems: Seq[Long])(implicit s: Scheduler) = {

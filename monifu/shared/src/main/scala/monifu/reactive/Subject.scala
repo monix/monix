@@ -17,6 +17,9 @@
  
 package monifu.reactive
 
+import monifu.reactive.observables.LiftOperators2
+import scala.concurrent.Future
+
 /**
  * A `Subject` is a sort of bridge or proxy that acts both as an
  * [[Observer]] and as an [[Observable]] and that must respect the contract of both.
@@ -26,5 +29,18 @@ package monifu.reactive
  *
  * Useful to build multicast Observables or reusable processing pipelines.
  */
-trait Subject[-I, +T] extends Observable[T] with Observer[I]
+trait Subject[I, +T] extends Observable[T] with Observer[I]
+  with LiftOperators2[I, T, Subject] { self =>
 
+  protected def liftToSelf[U](f: Observable[T] => Observable[U]): Subject[I, U] =
+    new Subject[I,U] {
+      def onNext(elem: I): Future[Ack] = self.onNext(elem)
+      def onError(ex: Throwable): Unit = self.onError(ex)
+      def onComplete(): Unit = self.onComplete()
+
+      private[this] val lifted =
+        f(Observable.create[T](self.unsafeSubscribe))
+      def subscribeFn(subscriber: Subscriber[U]): Unit =
+        lifted.unsafeSubscribe(subscriber)
+    }
+}
