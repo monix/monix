@@ -31,7 +31,7 @@ private[reactive] object misc {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         def onNext(elem: T) = Continue
         def onError(ex: Throwable): Unit =
           observer.onError(ex)
@@ -48,7 +48,7 @@ private[reactive] object misc {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         def onNext(elem: T) =
           Continue
 
@@ -70,7 +70,7 @@ private[reactive] object misc {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         private[this] var isEmpty = true
 
         def onNext(elem: T): Future[Ack] = {
@@ -100,7 +100,7 @@ private[reactive] object misc {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         def onNext(elem: T) = observer.onNext(elem)
         def onError(ex: Throwable) = observer.onError(ex)
         def onComplete() = observer.onError(error)
@@ -115,7 +115,7 @@ private[reactive] object misc {
       implicit val s = subscriber.scheduler
       val o = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         def onNext(elem: T): Future[Ack] = {
           o.onNext(false).onContinueSignalComplete(o)
           Cancel

@@ -47,7 +47,7 @@ private[reactive] object window {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         private[this] var isDone = false
         private[this] var buffer = ReplaySubject[T]()
         private[this] var ack = observer.onNext(buffer)
@@ -101,7 +101,7 @@ private[reactive] object window {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         private[this] var isDone = false
         private[this] var buffer = ReplaySubject[T]()
         private[this] var ack = observer.onNext(buffer)
@@ -161,7 +161,7 @@ private[reactive] object window {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         private[this] var isDone = false
         private[this] var buffer = ReplaySubject[T]()
         private[this] var ack = observer.onNext(buffer)
@@ -222,7 +222,7 @@ private[reactive] object window {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         private[this] val timespanMillis = timespan.toMillis
         private[this] var expiresAt = s.currentTimeMillis() + timespanMillis
 

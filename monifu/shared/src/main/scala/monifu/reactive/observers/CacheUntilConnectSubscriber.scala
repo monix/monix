@@ -69,7 +69,7 @@ final class CacheUntilConnectSubscriber[-T] private (underlying: Subscriber[T])
     if (!isConnected && !isConnectionStarted) {
       isConnectionStarted = true
 
-      Observable.fromIterable(queue).unsafeSubscribe(new Observer[T] {
+      Observable.fromIterable(queue).onSubscribe(new Observer[T] {
         private[this] val bufferWasDrained = Promise[Ack]()
 
         bufferWasDrained.future.onSuccess {

@@ -52,7 +52,7 @@ private[reactive] object zip {
           }
         }
 
-      first.unsafeSubscribe(new Observer[T] {
+      first.onSubscribe(new Observer[T] {
         def onNext(a: T): Future[Ack] =
           lock.synchronized {
             if (isCompleted)
@@ -90,7 +90,7 @@ private[reactive] object zip {
           }
       })
 
-      second.unsafeSubscribe(new Observer[U] {
+      second.onSubscribe(new Observer[U] {
         def onNext(b: U): Future[Ack] =
           lock.synchronized {
             if (isCompleted)

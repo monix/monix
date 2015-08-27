@@ -64,7 +64,7 @@ object SampleRepeatedSuite extends BaseOperatorSuite {
     var received = 0
     var wasCompleted = false
 
-    obs.unsafeSubscribe(new Observer[Long] {
+    obs.onSubscribe(new Observer[Long] {
       def onNext(elem: Long) = {
         onNextCount += 1
         Future.delayedResult(100.millis) {
@@ -109,7 +109,7 @@ object SampleRepeatedSuite extends BaseOperatorSuite {
     var received = 0
     var wasCompleted = false
 
-    obs.unsafeSubscribe(new Observer[Long] {
+    obs.onSubscribe(new Observer[Long] {
       def onNext(elem: Long) = {
         onNextCalls += 1
         Future.delayedResult(1000.millis) {

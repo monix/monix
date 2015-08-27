@@ -33,7 +33,7 @@ private[reactive] object drop {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         private[this] var count = 0L
 
         def onNext(elem: T) = {
@@ -61,7 +61,7 @@ private[reactive] object drop {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] with Runnable {
+      source.onSubscribe(new Observer[T] with Runnable {
         @volatile private[this] var shouldDrop = true
 
         private[this] val task =
@@ -98,7 +98,7 @@ private[reactive] object drop {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         var continueDropping = true
 
         def onNext(elem: T) = {
@@ -142,7 +142,7 @@ private[reactive] object drop {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         var continueDropping = true
         var index = 0
 

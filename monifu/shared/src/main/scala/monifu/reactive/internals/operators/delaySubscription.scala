@@ -34,7 +34,7 @@ private[reactive] object delaySubscription {
 
         future.onComplete {
           case Success(_) =>
-            source.unsafeSubscribe(observer)
+            source.onSubscribe(observer)
           case Failure(ex) =>
             observer.onError(ex)
         }
@@ -52,6 +52,6 @@ private[reactive] object delaySubscription {
         p.future
       }
 
-      underlying.unsafeSubscribe(subscriber)
+      underlying.onSubscribe(subscriber)
     }
 }

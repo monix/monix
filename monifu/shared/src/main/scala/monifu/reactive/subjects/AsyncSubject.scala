@@ -48,11 +48,11 @@ final class AsyncSubject[T] extends Subject[T,T] { self =>
   private[this] var isCompleted = false
 
   @tailrec
-  def subscribeFn(subscriber: Subscriber[T]): Unit =
+  def onSubscribe(subscriber: Subscriber[T]): Unit =
     state.get match {
       case current @ Active(set) =>
         if (!state.compareAndSet(current, Active(set + subscriber)))
-          subscribeFn(subscriber)
+          onSubscribe(subscriber)
       case CompletedEmpty =>
         subscriber.observer.onComplete()
       case CompletedError(ex) =>

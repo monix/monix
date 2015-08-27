@@ -43,7 +43,7 @@ private[reactive] object timeout {
     Observable.create[T] { subscriber =>
       implicit val s = subscriber.scheduler
 
-      source.unsafeSubscribe(new Observer[T] with Runnable { self =>
+      source.onSubscribe(new Observer[T] with Runnable { self =>
         private[this] val downstream = subscriber.observer
         private[this] val timeoutMillis = timeout.toMillis
         private[this] val task = MultiAssignmentCancelable()
@@ -66,7 +66,7 @@ private[reactive] object timeout {
               isDone = true
               ack.onContinue {
                 // subscribing our downstream observer to the backup observable
-                backup.unsafeSubscribe(subscriber)
+                backup.onSubscribe(subscriber)
               }
             }
             else {

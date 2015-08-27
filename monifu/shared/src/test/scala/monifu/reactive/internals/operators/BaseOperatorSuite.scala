@@ -74,7 +74,7 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
     Observable.create[Long] { subscriber =>
       implicit val s = subscriber.scheduler
 
-      source.unsafeSubscribe(new Observer[Long] {
+      source.onSubscribe(new Observer[Long] {
         def onNext(elem: Long) =
           subscriber.observer.onNext(elem)
 
@@ -94,7 +94,7 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
     observable(sourceCount) match {
       case None => ignore()
       case Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
-        obs.unsafeSubscribe(new Observer[Long] {
+        obs.onSubscribe(new Observer[Long] {
           def onNext(elem: Long) = {
             received += 1
             Continue
@@ -120,7 +120,7 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
       case ref @ Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
         var onNextReceived = false
 
-        obs.unsafeSubscribe(new Observer[Long] {
+        obs.onSubscribe(new Observer[Long] {
           def onNext(elem: Long) = { onNextReceived = true; p.future }
           def onError(ex: Throwable): Unit = throw new IllegalStateException()
           def onComplete(): Unit = wasCompleted = true
@@ -143,7 +143,7 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
     observable(sourceCount) match {
       case None => ignore()
       case Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
-        obs.unsafeSubscribe(new Observer[Long] {
+        obs.onSubscribe(new Observer[Long] {
           private[this] var sum = 0L
 
           def onNext(elem: Long) = {
@@ -170,7 +170,7 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
     observable(sourceCount) match {
       case None => ignore()
       case Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
-        obs.unsafeSubscribe(new Observer[Long] {
+        obs.onSubscribe(new Observer[Long] {
           private[this] var sum = 0L
 
           def onNext(elem: Long) =
@@ -199,7 +199,7 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
     observable(sourceCount) match {
       case None => ignore()
       case Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
-        obs.unsafeSubscribe(new Observer[Long] {
+        obs.onSubscribe(new Observer[Long] {
           def onNext(elem: Long) = {
             received += 1
             p.future
@@ -243,7 +243,7 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
         var received = 0
         var receivedSum = 0L
 
-        obs.unsafeSubscribe(new Observer[Long] {
+        obs.onSubscribe(new Observer[Long] {
           def onNext(elem: Long) = {
             received += 1
             receivedSum += elem
@@ -271,7 +271,7 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
         var thrownError: Throwable = null
         var received = 0
 
-        obs.unsafeSubscribe(new Observer[Long] {
+        obs.onSubscribe(new Observer[Long] {
           def onNext(elem: Long) = {
             received += 1
             if (received == count)
@@ -296,7 +296,7 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
         var thrownError: Throwable = null
         var received = 0
 
-        obs.unsafeSubscribe(new Observer[Long] {
+        obs.onSubscribe(new Observer[Long] {
           def onNext(elem: Long) = {
             received += 1
             Continue

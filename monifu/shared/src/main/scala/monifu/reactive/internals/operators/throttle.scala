@@ -30,7 +30,7 @@ private[reactive] object throttle {
       implicit val s = subscriber.scheduler
       val downstream = subscriber.observer
 
-      self.unsafeSubscribe(new Observer[T] {
+      self.onSubscribe(new Observer[T] {
         private[this] val intervalMs = interval.toMillis
         private[this] var nextChange = 0L
 

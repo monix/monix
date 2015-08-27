@@ -37,7 +37,7 @@ private[reactive] object flatten {
       implicit val s = subscriber.scheduler
       val observerU = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         private[this] val errors = if (delayErrors)
           mutable.ArrayBuffer.empty[Throwable] else null
 
@@ -52,7 +52,7 @@ private[reactive] object flatten {
           val upstreamPromise = Promise[Ack]()
           val refID = refCount.acquire()
 
-          childObservable.unsafeSubscribe(new Observer[U] {
+          childObservable.onSubscribe(new Observer[U] {
             def onNext(elem: U) = {
               observerU.onNext(elem)
                 .ifCancelTryCanceling(upstreamPromise)
@@ -113,7 +113,7 @@ private[reactive] object flatten {
       val buffer = BufferedSubscriber(subscriber.observer, overflowStrategy, onOverflow)
       val observerU = buffer.observer
 
-      source.unsafeSubscribe(new SynchronousObserver[T] {
+      source.onSubscribe(new SynchronousObserver[T] {
         private[this] val streamActivity =
           BooleanCancelable()
         private[this] val errors = if (delayErrors)
@@ -134,7 +134,7 @@ private[reactive] object flatten {
         def onNext(childObservable: T) = {
           val refID = refCount.acquire()
 
-          childObservable.unsafeSubscribe(new Observer[U] {
+          childObservable.onSubscribe(new Observer[U] {
             def onNext(elem: U) = {
               if (streamActivity.isCanceled)
                 Cancel

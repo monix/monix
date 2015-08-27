@@ -31,7 +31,7 @@ private[reactive] object map {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         def onNext(elem: T) = {
           // Protects calls to user code from within the operator
           var streamError = true

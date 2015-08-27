@@ -37,7 +37,7 @@ private[reactive] object buffer {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         private[this] val shouldDrop = skip > count
         private[this] var leftToDrop = 0
         private[this] val shouldOverlap = skip < count
@@ -106,7 +106,7 @@ private[reactive] object buffer {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         private[this] val timespanMillis = timespan.toMillis
         private[this] var buffer = ArrayBuffer.empty[T]
         private[this] var expiresAt = s.currentTimeMillis() + timespanMillis

@@ -43,8 +43,8 @@ trait ConnectableObservable[+T] extends Observable[T]
     new ConnectableObservable[U] {
       private[this] val lifted = f(self)
       def connect() = self.connect()
-      def subscribeFn(subscriber: Subscriber[U]): Unit =
-        lifted.unsafeSubscribe(subscriber)
+      def onSubscribe(subscriber: Subscriber[U]): Unit =
+        lifted.onSubscribe(subscriber)
     }
 }
 
@@ -66,8 +66,8 @@ object ConnectableObservable {
         connection
       }
 
-      def subscribeFn(subscriber: Subscriber[R]): Unit = {
-        subject.unsafeSubscribe(subscriber)
+      def onSubscribe(subscriber: Subscriber[R]): Unit = {
+        subject.onSubscribe(subscriber)
       }
     }
   }
@@ -97,8 +97,8 @@ object ConnectableObservable {
         connection
       }
 
-      def subscribeFn(subscriber: Subscriber[R]): Unit = {
-        subject.unsafeSubscribe(subscriber)
+      def onSubscribe(subscriber: Subscriber[R]): Unit = {
+        subject.onSubscribe(subscriber)
       }
     }
   }

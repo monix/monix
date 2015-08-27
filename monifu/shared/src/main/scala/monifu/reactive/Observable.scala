@@ -40,7 +40,7 @@ import scala.util.control.NonFatal
  *
  * ==Interface==
  *
- * An Observable is characterized by a `subscribeFn` method that needs
+ * An Observable is characterized by a `onSubscribe` method that needs
  * to be implemented. In simple terms, an Observable might as well be
  * just a function like:
  * {{{
@@ -57,12 +57,12 @@ import scala.util.control.NonFatal
  * the interface implemented by consumer and that receives
  * events according to the Rx grammar.
  *
- * On `subscribeFn`, because we need the interesting operators and
+ * On `onSubscribe`, because we need the interesting operators and
  * the polymorphic behavior provided by OOP, the Observable is
  * being described as an interface that has to be implemented:
  * {{{
  *   class MySampleObservable(unit: Int) extends Observable[Int] {
- *     def subscribeFn(sub: Subscriber[Int]): Unit = {
+ *     def onSubscribe(sub: Subscriber[Int]): Unit = {
  *       implicit val s = sub.scheduler
  *       // note we must apply back-pressure
  *       // when calling `onNext`
@@ -127,7 +127,7 @@ import scala.util.control.NonFatal
  * implementing your own by means of inheriting the interface or by using
  * [[Observable.create create]]. The contract is this:
  *
- *   - the supplied `subscribeFn` method MUST NOT throw exceptions, any
+ *   - the supplied `onSubscribe` method MUST NOT throw exceptions, any
  *     unforeseen errors that happen in user-code must be emitted to
  *     the observers and the streaming closed
  *   - events MUST follow this grammar: `onNext* (onComplete | onError)`
@@ -339,7 +339,7 @@ import scala.util.control.NonFatal
  * @define asyncBoundaryDescription Forces a buffered asynchronous boundary.
  *
  *         Internally it wraps the observer implementation given to
- *         `subscribeFn` into a
+ *         `onSubscribe` into a
  *         [[monifu.reactive.observers.BufferedSubscriber BufferedSubscriber]].
  *
  *         Normally Monifu's implementation guarantees that events
@@ -366,8 +366,36 @@ trait Observable[+T] { self =>
    * creates the subscription and that eventually starts the streaming
    * of events to the given [[Observer]], being meant to be overridden
    * in custom combinators or in classes implementing Observable.
+   *
+   * This function is "unsafe" to call because it does not protect the
+   * calls to the given [[Observer]] implementation in regards to
+   * unexpected exceptions that violate the contract, therefore the
+   * given instance must respect its contract and not throw any
+   * exceptions when the observable calls `onNext`, `onComplete` and
+   * `onError`. If it does, then the behavior is undefined.
+   *
+   * @see [[Observable.subscribe]].
    */
-  protected def subscribeFn(subscriber: Subscriber[T]): Unit
+  def onSubscribe(subscriber: Subscriber[T]): Unit
+
+  /**
+   * Subscribes to the stream.
+   *
+   * This function is "unsafe" to call because it does not protect the
+   * calls to the given [[Observer]] implementation in regards to
+   * unexpected exceptions that violate the contract, therefore the
+   * given instance must respect its contract and not throw any
+   * exceptions when the observable calls `onNext`, `onComplete` and
+   * `onError`. If it does, then the behavior is undefined.
+   *
+   * @param observer is an [[monifu.reactive.Observer Observer]] that respects
+   *                 the Monifu Rx contract
+   *
+   * @param s is the [[Scheduler]] used for creating the subscription
+   */
+  def onSubscribe(observer: Observer[T])(implicit s: Scheduler): Unit = {
+    onSubscribe(Subscriber(observer, s))
+  }
 
   /**
    * Subscribes to the stream.
@@ -376,7 +404,7 @@ trait Observable[+T] { self =>
    */
   def subscribe(observer: Observer[T])(implicit s: Scheduler): BooleanCancelable = {
     val cancelable = BooleanCancelable()
-    takeWhileNotCanceled(cancelable).unsafeSubscribe(SafeObserver[T](observer))
+    takeWhileNotCanceled(cancelable).onSubscribe(SafeObserver[T](observer))
     cancelable
   }
 
@@ -420,37 +448,6 @@ trait Observable[+T] { self =>
     subscribe(nextFn, error => s.reportFailure(error), () => ())
 
   /**
-   * Subscribes to the stream.
-   *
-   * This function is "unsafe" to call because it does not protect the
-   * calls to the given [[Observer]] implementation in regards to
-   * unexpected exceptions that violate the contract, therefore the
-   * given instance must respect its contract and not throw any
-   * exceptions when the observable calls `onNext`, `onComplete` and
-   * `onError`. If it does, then the behavior is undefined.
-   *
-   * @param observer is an [[monifu.reactive.Observer Observer]] that respects
-   *                 the Monifu Rx contract.
-   */
-  def unsafeSubscribe(observer: Observer[T])(implicit s: Scheduler): Unit = {
-    subscribeFn(Subscriber(observer, s))
-  }
-
-  /**
-   * Subscribes to the stream.
-   *
-   * This function is "unsafe" to call because it does not protect the
-   * calls to the given [[Observer]] implementation in regards to
-   * unexpected exceptions that violate the contract, therefore the
-   * given instance must respect its contract and not throw any
-   * exceptions when the observable calls `onNext`, `onComplete` and
-   * `onError`. If it does, then the behavior is undefined.
-   */
-  def unsafeSubscribe(subscriber: Subscriber[T]): Unit = {
-    subscribeFn(subscriber)
-  }
-
-  /**
    * Wraps this Observable into a `org.reactivestreams.Publisher`.
    * See the [[http://www.reactive-streams.org/ Reactive Streams]]
    * protocol that Monifu implements.
@@ -458,7 +455,7 @@ trait Observable[+T] { self =>
   def publisher[U >: T](implicit s: Scheduler): Publisher[U] =
     new Publisher[U] {
       def subscribe(subscriber: RSubscriber[_ >: U]): Unit = {
-        subscribeFn(Subscriber(SafeObserver(Observer.from(subscriber)), s))
+        onSubscribe(Subscriber(SafeObserver(Observer.from(subscriber)), s))
       }
     }
 
@@ -1608,7 +1605,7 @@ trait Observable[+T] { self =>
    * `Scheduler` for initiating the subscription.
    */
   def subscribeOn(s: Scheduler): Observable[T] = {
-    Observable.create(o => s.execute(unsafeSubscribe(o)))
+    Observable.create(o => s.execute(onSubscribe(o)))
   }
 
   /**
@@ -1650,7 +1647,7 @@ trait Observable[+T] { self =>
   def asyncBoundary(overflowStrategy: OverflowStrategy): Observable[T] =
     Observable.create { subscriber =>
       implicit val s = subscriber.scheduler
-      unsafeSubscribe(BufferedSubscriber(subscriber.observer, overflowStrategy))
+      onSubscribe(BufferedSubscriber(subscriber.observer, overflowStrategy))
     }
 
   /**
@@ -1662,7 +1659,7 @@ trait Observable[+T] { self =>
   def asyncBoundary[U >: T](overflowStrategy: OverflowStrategy.WithSignal, onOverflow: Long => U): Observable[U] =
     Observable.create { subscriber =>
       implicit val s = subscriber.scheduler
-      unsafeSubscribe(BufferedSubscriber(subscriber.observer, overflowStrategy))
+      onSubscribe(BufferedSubscriber(subscriber.observer, overflowStrategy))
     }
 
   /**
@@ -1854,7 +1851,7 @@ trait Observable[+T] { self =>
   def asFuture(implicit s: Scheduler): Future[Option[T]] = {
     val promise = Promise[Option[T]]()
 
-    head.unsafeSubscribe(new Observer[T] {
+    head.onSubscribe(new Observer[T] {
       def onNext(elem: T) = {
         promise.trySuccess(Some(elem))
         Cancel
@@ -1877,7 +1874,7 @@ trait Observable[+T] { self =>
    * it executes the given callback.
    */
   def foreach(cb: T => Unit)(implicit s: Scheduler): Unit =
-    unsafeSubscribe(new Observer[T] {
+    onSubscribe(new Observer[T] {
       def onNext(elem: T) =
         try { cb(elem); Continue } catch {
           case NonFatal(ex) =>
@@ -1933,7 +1930,7 @@ object Observable {
    */
   def create[T](f: Subscriber[T] => Unit): Observable[T] = {
     new Observable[T] {
-      def subscribeFn(subscriber: Subscriber[T]): Unit =
+      def onSubscribe(subscriber: Subscriber[T]): Unit =
         try f(subscriber) catch {
           case NonFatal(ex) =>
             subscriber.observer.onError(ex)

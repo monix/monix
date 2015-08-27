@@ -34,7 +34,7 @@ private[reactive] object doWork {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         def onError(ex: Throwable) = observer.onError(ex)
         def onComplete() = observer.onComplete()
 
@@ -63,7 +63,7 @@ private[reactive] object doWork {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         def onNext(elem: T) = {
           observer.onNext(elem)
         }
@@ -96,7 +96,7 @@ private[reactive] object doWork {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         def onNext(elem: T) = {
           observer.onNext(elem)
         }
@@ -132,7 +132,7 @@ private[reactive] object doWork {
       val observer = subscriber.observer
       val isActive = Cancelable(cb)
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         def onNext(elem: T) = {
           observer.onNext(elem)
             .ifCanceledDoCancel(isActive)
@@ -156,7 +156,7 @@ private[reactive] object doWork {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         private[this] var isStarted = false
 
         def onNext(elem: T) = {

@@ -82,7 +82,7 @@ private[reactive] object combineLatest {
         }
       }
 
-      first.unsafeSubscribe(new Observer[T] {
+      first.onSubscribe(new Observer[T] {
         def onNext(elem: T): Future[Ack] = lock.synchronized {
           if (isDone()) Cancel else {
             elemT = elem
@@ -103,7 +103,7 @@ private[reactive] object combineLatest {
           signalOnComplete()
       })
 
-      second.unsafeSubscribe(new Observer[U] {
+      second.onSubscribe(new Observer[U] {
         def onNext(elem: U): Future[Ack] = lock.synchronized {
           if (isDone()) Cancel else {
             elemU = elem

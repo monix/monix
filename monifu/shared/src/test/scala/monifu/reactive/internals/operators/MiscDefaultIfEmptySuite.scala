@@ -44,7 +44,7 @@ object MiscDefaultIfEmptySuite extends BaseOperatorSuite {
         case Success(Continue) =>
           Observable.error(DummyException("dummy"))
             .defaultIfEmpty(0L)
-            .unsafeSubscribe(observer)
+            .onSubscribe(observer)
         case _ =>
           ()
       }
@@ -58,7 +58,7 @@ object MiscDefaultIfEmptySuite extends BaseOperatorSuite {
     var received = 0
     var wasCompleted = false
 
-    obs.unsafeSubscribe(new Observer[Int] {
+    obs.onSubscribe(new Observer[Int] {
       def onError(ex: Throwable) = ()
 
       def onComplete() = {

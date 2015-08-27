@@ -67,9 +67,9 @@ trait BaseChannelSuite extends TestSuite[TestScheduler] {
     val Sample(channel, expectedSum) = alreadyTerminatedTest(Seq.empty)
     channel.pushComplete()
 
-    channel.unsafeSubscribe(createObserver)
-    channel.unsafeSubscribe(createObserver)
-    channel.unsafeSubscribe(createObserver)
+    channel.onSubscribe(createObserver)
+    channel.onSubscribe(createObserver)
+    channel.onSubscribe(createObserver)
 
     s.tick()
 
@@ -100,9 +100,9 @@ trait BaseChannelSuite extends TestSuite[TestScheduler] {
     channel.pushError(DummyException("dummy"))
     s.tick()
 
-    channel.unsafeSubscribe(createObserver)
-    channel.unsafeSubscribe(createObserver)
-    channel.unsafeSubscribe(createObserver)
+    channel.onSubscribe(createObserver)
+    channel.onSubscribe(createObserver)
+    channel.onSubscribe(createObserver)
 
     s.tick()
 
@@ -131,9 +131,9 @@ trait BaseChannelSuite extends TestSuite[TestScheduler] {
     channel.pushNext(elems :_*); channel.pushComplete()
     s.tick()
 
-    channel.unsafeSubscribe(createObserver)
-    channel.unsafeSubscribe(createObserver)
-    channel.unsafeSubscribe(createObserver)
+    channel.onSubscribe(createObserver)
+    channel.onSubscribe(createObserver)
+    channel.onSubscribe(createObserver)
 
     s.tick()
 
@@ -162,9 +162,9 @@ trait BaseChannelSuite extends TestSuite[TestScheduler] {
 
     s.tick()
 
-    channel.unsafeSubscribe(createObserver)
-    channel.unsafeSubscribe(createObserver)
-    channel.unsafeSubscribe(createObserver)
+    channel.onSubscribe(createObserver)
+    channel.onSubscribe(createObserver)
+    channel.onSubscribe(createObserver)
 
     s.tick()
     assertEquals(wereCompleted, 3)
@@ -199,7 +199,7 @@ trait BaseChannelSuite extends TestSuite[TestScheduler] {
 
       val promises = for (_ <- 0 until 3) yield {
         val (p, o) = createObserver
-        channel.unsafeSubscribe(o)
+        channel.onSubscribe(o)
         p
       }
 

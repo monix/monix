@@ -65,7 +65,7 @@ object MergeDelayErrorManySuite extends BaseOperatorSuite {
     val Some(Sample(obs, count, sum, _, _)) =
       create(sourceCount, SomeException(100))
 
-    obs.unsafeSubscribe(new Observer[Long] {
+    obs.onSubscribe(new Observer[Long] {
       def onNext(elem: Long) = {
         received += 1
         receivedSum += elem

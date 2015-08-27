@@ -34,7 +34,7 @@ private[reactive] object onBackPressure {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new SynchronousObserver[T] {
+      source.onSubscribe(new SynchronousObserver[T] {
         private[this] var lastAck = Continue : Future[Ack]
         private[this] var isDone = false
 
@@ -93,7 +93,7 @@ private[reactive] object onBackPressure {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new SynchronousObserver[T] {
+      source.onSubscribe(new SynchronousObserver[T] {
         private[this] var lastAck = Continue : Future[Ack]
         private[this] var eventsDropped = 0L
         private[this] var isDone = false

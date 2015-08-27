@@ -31,7 +31,7 @@ private[reactive] object collect {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         def onNext(elem: T) = {
           // See Section 6.4. in the Rx Design Guidelines:
           // Protect calls to user code from within an operator

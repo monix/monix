@@ -37,7 +37,7 @@ private[reactive] object switch {
       implicit val s = subscriber.scheduler
       val observerU = subscriber.observer
 
-      source.unsafeSubscribe(new SynchronousObserver[T] { self =>
+      source.onSubscribe(new SynchronousObserver[T] { self =>
         // Global subscription, is canceled by the downstream
         // observer and if canceled all streaming is supposed to stop
         private[this] val upstream = SerialCancelable()
@@ -67,7 +67,7 @@ private[reactive] object switch {
             val refID = refCount.acquire()
             upstream := refID
 
-            childObservable.unsafeSubscribe(new Observer[U] {
+            childObservable.onSubscribe(new Observer[U] {
               def onNext(elem: U) = self.synchronized {
                 if (refID.isCanceled) Cancel else {
                   ack = ack.onContinueStreamOnNext(observerU, elem)

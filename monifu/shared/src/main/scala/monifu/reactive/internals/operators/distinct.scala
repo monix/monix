@@ -33,7 +33,7 @@ private[reactive] object distinct {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         private[this] val set = mutable.Set.empty[T]
 
         def onNext(elem: T) = {
@@ -53,7 +53,7 @@ private[reactive] object distinct {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         private[this] val set = mutable.Set.empty[U]
 
         def onNext(elem: T) = {
@@ -95,7 +95,7 @@ private[reactive] object distinct {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         private[this] var isFirst = true
         private[this] var lastElem: T = _
 
@@ -126,7 +126,7 @@ private[reactive] object distinct {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         private[this] var isFirst = true
         private[this] var lastKey: U = _
 

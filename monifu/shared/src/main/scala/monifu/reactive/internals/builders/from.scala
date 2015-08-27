@@ -36,7 +36,7 @@ private[reactive] object from {
       try {
         val i = iterable.iterator
         streamError = false
-        iterator(i).unsafeSubscribe(subscriber)
+        iterator(i).onSubscribe(subscriber)
       }
       catch {
         case NonFatal(ex) if streamError =>
