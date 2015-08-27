@@ -59,6 +59,8 @@ object groupBy {
 
               if (cache.contains(key)) {
                 cache(key).onNext(elem)
+                  // if downstream cancels, we retry
+                  .onCancelStreamOnNext(self, elem)
               }
               else {
                 val onCancel = Cancelable(recycleKey(key))
@@ -69,7 +71,7 @@ object groupBy {
                   downstream.observer.onNext(observable).fastFlatMap {
                     case Continue =>
                       // pushing the first element
-                      observer.onNext(elem)
+                      observer.onNext(elem).mapToContinue
 
                     case Cancel =>
                       val errors = completeAll()

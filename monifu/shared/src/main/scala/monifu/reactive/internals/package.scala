@@ -213,6 +213,31 @@ package object internals {
           }
       }
 
+    def mapToContinue(implicit s: Scheduler): Future[Continue] =
+      source match {
+        case sync if sync.isCompleted && sync.value.get.isSuccess =>
+          Continue
+
+        case async =>
+          async.map(_ => Continue)
+      }
+
+    def onCancelStreamOnNext[T](observer: Observer[T], nextElem: T)(implicit s: Scheduler) =
+      source match {
+        case sync if sync.isCompleted =>
+          if (sync == Continue || sync.value.get == Continue.IsSuccess)
+            Continue
+          else
+            observer.onNext(nextElem)
+
+        case async =>
+          async.flatMap {
+            case Continue => Continue
+            case Cancel =>
+              observer.onNext(nextElem)
+          }
+      }
+
     def onContinueCompleteWith[T](observer: Observer[T], lastElem: T)(implicit s: Scheduler): Unit =
       source match {
         case sync if sync.isCompleted =>

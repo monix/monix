@@ -38,6 +38,15 @@ trait ConnectableObservable[+T] extends Observable[T]
    */
   def connect(): BooleanCancelable
 
+  /**
+   * Returns an [[Observable]] that stays connected to this
+   * `ConnectableObservable` as long as there is at least one
+   * subscription that is active.
+   */
+  def refCount(): Observable[T] = {
+    RefCountObservable(self)
+  }
+
   protected
   def liftToSelf[U](f: Observable[T] => Observable[U]): ConnectableObservable[U] =
     new ConnectableObservable[U] {
