@@ -17,8 +17,12 @@
 
 package monifu.reactive.internals.operators
 
-import monifu.reactive.Observable
+import monifu.reactive.Ack.{Cancel, Continue}
+import monifu.reactive.{Ack, Observer, Observable}
+import monifu.reactive.subjects.PublishSubject
+import scala.concurrent.Future
 import scala.concurrent.duration.Duration.Zero
+import scala.concurrent.duration._
 
 object GroupBySuite extends BaseOperatorSuite {
   def observable(sourceCount: Int) = Some {
@@ -50,6 +54,55 @@ object GroupBySuite extends BaseOperatorSuite {
       .concat
 
     Sample(o, 1, 1, Zero, Zero)
+  }
+
+  test("on complete the key should get recycled") { implicit s =>
+    var received = 0
+    var wasCompleted = 0
+    var fallbackTick = 0
+    var nextShouldCancel = false
+
+    def fallbackObservable: Observable[Nothing] =
+      Observable.create { s =>
+        fallbackTick += 1
+        Observable.empty.onSubscribe(s)
+      }
+
+    val ch = PublishSubject[Int]().groupBy(_ % 2)
+      .mergeMap(_.timeout(10.seconds, fallbackObservable))
+
+    ch.onSubscribe(new Observer[Int] {
+      def onNext(elem: Int): Future[Ack] =
+        if (nextShouldCancel) Cancel else {
+          received += elem
+          Continue
+        }
+
+      def onError(ex: Throwable): Unit = ()
+      def onComplete(): Unit = { wasCompleted += 1 }
+    })
+
+    ch.onNext(1); s.tick()
+    assertEquals(received, 1)
+    // at this point it should timeout
+    s.tick(10.second)
+    assertEquals(received, 1)
+    assertEquals(fallbackTick, 1)
+
+    ch.onNext(11); s.tick()
+    assertEquals(received, 12)
+    assertEquals(fallbackTick, 1)
+    // at this point it should timeout again
+    s.tick(10.second)
+    assertEquals(received, 12)
+    assertEquals(fallbackTick, 2)
+
+    nextShouldCancel = true
+    // this should have no effect
+    ch.onNext(21); s.tick()
+    assertEquals(received, 12)
+    s.tick(10.second)
+    assertEquals(fallbackTick, 3)
   }
 }
 

@@ -1707,6 +1707,13 @@ trait Observable[+T] { self =>
     multicast(PublishSubject[T]())
 
   /**
+   * Returns a new Observable that multi-casts (shares) the original Observable.
+   */
+  def share()(implicit s: Scheduler): Observable[T] =
+    publish().refCount()
+
+
+  /**
    * Converts this observable into a multicast observable, useful for turning a cold observable into
    * a hot one (i.e. whose source is shared by all observers). The underlying subject used is a
    * [[monifu.reactive.subjects.BehaviorSubject BehaviorSubject]].
