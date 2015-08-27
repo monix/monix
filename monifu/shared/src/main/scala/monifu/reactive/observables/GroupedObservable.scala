@@ -44,10 +44,9 @@ trait GroupedObservable[K, +V] extends Observable[V]
     new GroupedObservable[K, U] {
       val key = self.key
 
-      private[this] val lifted =
-        f(Observable.create[V](self.unsafeSubscribe))
-      def subscribeFn(subscriber: Subscriber[U]): Unit =
-        lifted.unsafeSubscribe(subscriber)
+      private[this] val lifted = f(self)
+      def onSubscribe(subscriber: Subscriber[U]): Unit =
+        lifted.onSubscribe(subscriber)
     }
 }
 
@@ -92,8 +91,8 @@ object GroupedObservable {
     val observer: Observer[V] =
       underlying.observer
 
-    protected def subscribeFn(subscriber: Subscriber[V]): Unit =
-      self.synchronized{
+    def onSubscribe(subscriber: Subscriber[V]): Unit =
+      self.synchronized {
         if (ref != null)
           throw new IllegalStateException(
             s"Cannot subscribe twice to a GroupedObservable")

@@ -32,7 +32,7 @@ private[reactive] object reduce {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         private[this] var state: T = _
         private[this] var isFirst = true
         private[this] var wasApplied = false

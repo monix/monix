@@ -65,7 +65,7 @@ object BufferSizedSuite extends BaseOperatorSuite {
     var received = 0
     var total = 0L
 
-    obs.unsafeSubscribe(new Observer[Long] {
+    obs.onSubscribe(new Observer[Long] {
       def onNext(elem: Long) = {
         received += 1
         total += elem
@@ -93,7 +93,7 @@ object BufferSizedSuite extends BaseOperatorSuite {
     var received = 0
     var total = 0L
 
-    obs.unsafeSubscribe(new Observer[Long] {
+    obs.onSubscribe(new Observer[Long] {
       def onNext(elem: Long) = {
         received += 1
         total += elem

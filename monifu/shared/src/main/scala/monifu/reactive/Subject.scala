@@ -38,9 +38,8 @@ trait Subject[I, +T] extends Observable[T] with Observer[I]
       def onError(ex: Throwable): Unit = self.onError(ex)
       def onComplete(): Unit = self.onComplete()
 
-      private[this] val lifted =
-        f(Observable.create[T](self.unsafeSubscribe))
-      def subscribeFn(subscriber: Subscriber[U]): Unit =
-        lifted.unsafeSubscribe(subscriber)
+      private[this] val lifted = f(self)
+      def onSubscribe(subscriber: Subscriber[U]): Unit =
+        lifted.onSubscribe(subscriber)
     }
 }

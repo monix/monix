@@ -39,7 +39,7 @@ private[reactive] object sample {
     Observable.create { subscriber =>
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
-      source.unsafeSubscribe(new SampleObserver(
+      source.onSubscribe(new SampleObserver(
         observer, sampler, shouldRepeatOnSilence = false))
     }
 
@@ -50,7 +50,7 @@ private[reactive] object sample {
     Observable.create { subscriber =>
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
-      source.unsafeSubscribe(new SampleObserver(
+      source.onSubscribe(new SampleObserver(
         observer, sampler, shouldRepeatOnSilence = true))
     }
 
@@ -88,7 +88,7 @@ private[reactive] object sample {
       upstreamIsDone = true
     }
 
-    sampler.unsafeSubscribe(new Observer[U] {
+    sampler.onSubscribe(new Observer[U] {
       private[this] var samplerIsDone = false
 
       def onNext(elem: U): Future[Ack] = {

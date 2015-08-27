@@ -31,7 +31,7 @@ private[reactive] object foldLeft {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         private[this] var state = initial
 
         def onNext(elem: T): Future[Ack] = {

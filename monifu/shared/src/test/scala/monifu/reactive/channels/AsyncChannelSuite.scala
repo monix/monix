@@ -49,9 +49,9 @@ object AsyncChannelSuite extends BaseChannelSuite {
     }
 
     val channel = AsyncChannel[Long](Unbounded)
-    channel.unsafeSubscribe(createObserver)
-    channel.unsafeSubscribe(createObserver)
-    channel.unsafeSubscribe(createObserver)
+    channel.onSubscribe(createObserver)
+    channel.onSubscribe(createObserver)
+    channel.onSubscribe(createObserver)
 
     channel.pushNext(10, 20, 30)
 
@@ -66,7 +66,7 @@ object AsyncChannelSuite extends BaseChannelSuite {
     assertEquals(sum, 30 * 3)
     assertEquals(wereCompleted, 3)
 
-    channel.unsafeSubscribe(createObserver)
+    channel.onSubscribe(createObserver)
     s.tick()
 
     assertEquals(sum, 30 * 4)
@@ -93,9 +93,9 @@ object AsyncChannelSuite extends BaseChannelSuite {
     }
 
     val channel = AsyncChannel[Long](Unbounded)
-    channel.unsafeSubscribe(createObserver)
-    channel.unsafeSubscribe(createObserver)
-    channel.unsafeSubscribe(createObserver)
+    channel.onSubscribe(createObserver)
+    channel.onSubscribe(createObserver)
+    channel.onSubscribe(createObserver)
 
     channel.pushNext(10)
     channel.pushNext(20)
@@ -112,7 +112,7 @@ object AsyncChannelSuite extends BaseChannelSuite {
     assertEquals(sum, 0)
     assertEquals(wereCompleted, 3)
 
-    channel.unsafeSubscribe(createObserver)
+    channel.onSubscribe(createObserver)
     assertEquals(sum, 0)
     assertEquals(wereCompleted, 4)
   }
@@ -132,9 +132,9 @@ object AsyncChannelSuite extends BaseChannelSuite {
     }
 
     val channel = AsyncChannel[Long](Unbounded)
-    channel.unsafeSubscribe(createObserver)
-    channel.unsafeSubscribe(createObserver)
-    channel.unsafeSubscribe(createObserver)
+    channel.onSubscribe(createObserver)
+    channel.onSubscribe(createObserver)
+    channel.onSubscribe(createObserver)
 
     channel.pushComplete()
 
@@ -142,7 +142,7 @@ object AsyncChannelSuite extends BaseChannelSuite {
     assertEquals(sum, 0)
     assertEquals(wereCompleted, 3)
 
-    channel.unsafeSubscribe(createObserver)
+    channel.onSubscribe(createObserver)
 
     s.tick()
     assertEquals(sum, 0)
@@ -168,9 +168,9 @@ object AsyncChannelSuite extends BaseChannelSuite {
     val sum2 = Atomic(0L)
     val observer2 = createObserver(sum2)
 
-    channel.unsafeSubscribe(observer1)
-    channel.unsafeSubscribe(observer2)
-    channel.unsafeSubscribe(observer2)
+    channel.onSubscribe(observer1)
+    channel.onSubscribe(observer2)
+    channel.onSubscribe(observer2)
 
     for (i <- 0 until 1000) channel.pushNext(i)
     channel.pushComplete()

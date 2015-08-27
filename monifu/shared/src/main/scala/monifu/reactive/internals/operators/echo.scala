@@ -38,7 +38,7 @@ private[reactive] object echo {
       val downstream = subscriber.observer
       val timeoutMillis = timeout.toMillis
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         private[this] val lock = SpinLock()
         private[this] val task = MultiAssignmentCancelable()
         private[this] var ack: Future[Ack] = Continue

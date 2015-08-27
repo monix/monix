@@ -37,7 +37,7 @@ private[reactive] object take {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         private[this] var counter = 0L
         private[this] var isDone = false
 
@@ -93,7 +93,7 @@ private[reactive] object take {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         private[this] val queue = mutable.Queue.empty[T]
         private[this] var queued = 0
 
@@ -112,11 +112,11 @@ private[reactive] object take {
         }
 
         def onComplete(): Unit = {
-          Observable.fromIterable(queue).unsafeSubscribe(observer)
+          Observable.fromIterable(queue).onSubscribe(observer)
         }
 
         def onError(ex: Throwable): Unit = {
-          Observable.fromIterable(queue).unsafeSubscribe(new Observer[T] {
+          Observable.fromIterable(queue).onSubscribe(new Observer[T] {
             def onError(ex: Throwable) =
               observer.onError(ex)
 
@@ -135,7 +135,7 @@ private[reactive] object take {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] with Runnable {
+      source.onSubscribe(new Observer[T] with Runnable {
         private[this] var isActive = true
         private[this] val task = s.scheduleOnce(timespan, this)
 
@@ -179,7 +179,7 @@ private[reactive] object take {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         var shouldContinue = true
 
         def onNext(elem: T) = {
@@ -231,7 +231,7 @@ private[reactive] object take {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         var shouldContinue = true
 
         def onNext(elem: T) = {

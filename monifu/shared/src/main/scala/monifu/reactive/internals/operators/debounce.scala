@@ -37,7 +37,7 @@ private[reactive] object debounce {
       val downstream = subscriber.observer
       val timeoutMillis = timeout.toMillis
 
-      source.unsafeSubscribe(new SynchronousObserver[T] with Runnable { self =>
+      source.onSubscribe(new SynchronousObserver[T] with Runnable { self =>
         private[this] val task = MultiAssignmentCancelable()
         private[this] var ack: Future[Ack] = Continue
         private[this] var isDone = false

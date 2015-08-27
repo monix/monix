@@ -32,7 +32,7 @@ object TimerSuite extends SimpleTestSuite {
     var received = 0
 
     Observable.timerRepeated(0.seconds, 1.second, 1L)
-      .unsafeSubscribe(new Observer[Long] {
+      .onSubscribe(new Observer[Long] {
         def onNext(elem: Long): Future[Ack] = {
           received += 1
           Future.delayedResult(100.millis)(Continue)

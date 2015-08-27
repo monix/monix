@@ -36,8 +36,8 @@ class SubjectChannel[I,+O] private[reactive]
   private[this] val channel =
     BufferedSubscriber(subject, overflowStrategy, onOverflow)
 
-  final def subscribeFn(subscriber: Subscriber[O]): Unit = {
-    subject.unsafeSubscribe(subscriber)
+  final def onSubscribe(subscriber: Subscriber[O]): Unit = {
+    subject.onSubscribe(subscriber)
   }
 
   final def pushNext(elems: I*): Unit = {

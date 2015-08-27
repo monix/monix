@@ -41,7 +41,7 @@ final class ReplaySubject[T] private (queue: Queue[T])
 
   private[this] val state = Atomic(Empty(queue) : State[T])
 
-  def subscribeFn(subscriber: Subscriber[T]): Unit = {
+  def onSubscribe(subscriber: Subscriber[T]): Unit = {
     @tailrec
     def loop(): ConnectableSubscriber[T] = {
       state.get match {

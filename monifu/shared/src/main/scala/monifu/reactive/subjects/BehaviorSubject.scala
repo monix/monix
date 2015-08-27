@@ -45,7 +45,7 @@ final class BehaviorSubject[T](initialValue: T) extends Subject[T,T] { self =>
 
   private[this] val state = Atomic(Empty(initialValue) : State[T])
 
-  def subscribeFn(subscriber: Subscriber[T]): Unit = {
+  def onSubscribe(subscriber: Subscriber[T]): Unit = {
     @tailrec
     def loop(): ConnectableSubscriber[T] = {
       state.get match {

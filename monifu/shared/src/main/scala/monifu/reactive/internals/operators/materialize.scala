@@ -32,7 +32,7 @@ private[reactive] object materialize {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         def onNext(elem: T): Future[Ack] = {
           observer.onNext(OnNext(elem))
         }

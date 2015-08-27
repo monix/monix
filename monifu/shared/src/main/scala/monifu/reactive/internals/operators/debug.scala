@@ -36,7 +36,7 @@ private[reactive] object debug {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         private[this] var pos = 0
         private[this] val downstreamActive = Cancelable {
           pos += 1; out.println(s"$pos: $prefix canceled")

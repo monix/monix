@@ -31,7 +31,7 @@ private[reactive] object amb {
   def apply[T](source: Observable[T]*): Observable[T] = {
     // helper function used for creating a subscription that uses `finishLine` as guard
     def createSubscription(observable: Observable[T], observer: Observer[T], finishLine: AtomicInt, idx: Int)(implicit s: Scheduler): Unit =
-      observable.unsafeSubscribe(new Observer[T] {
+      observable.onSubscribe(new Observer[T] {
         def onNext(elem: T): Future[Ack] = {
           if (finishLine.get == idx || finishLine.compareAndSet(0, idx))
             observer.onNext(elem)

@@ -35,7 +35,7 @@ object groupBy {
     Observable.create { subscriber =>
       implicit val s = subscriber.scheduler
 
-      source.unsafeSubscribe(new Observer[T] { self =>
+      source.onSubscribe(new Observer[T] { self =>
         private[this] var isDone = false
         private[this] val downstream = BufferedSubscriber(subscriber.observer, os)
         private[this] val cacheRef = Atomic(Map.empty[K, Observer[T]])

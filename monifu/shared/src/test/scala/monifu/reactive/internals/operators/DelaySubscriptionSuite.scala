@@ -44,7 +44,7 @@ object DelaySubscriptionSuite extends BaseOperatorSuite {
     var wasCompleted = false
     var received = 0
 
-    obs.unsafeSubscribe(new Observer[Int] {
+    obs.onSubscribe(new Observer[Int] {
       def onError(ex: Throwable) = ()
       def onComplete() = wasCompleted = true
 
@@ -66,7 +66,7 @@ object DelaySubscriptionSuite extends BaseOperatorSuite {
       .delaySubscription(Future { throw new DummyException("dummy") })
 
     var errorThrown: Throwable = null
-    obs.unsafeSubscribe(new Observer[Int] {
+    obs.onSubscribe(new Observer[Int] {
       def onError(ex: Throwable) =
         errorThrown = ex
       def onComplete() = ()

@@ -35,7 +35,7 @@ private[reactive] object flatScan {
       implicit val s = subscriber.scheduler
       val o = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         private[this] val refCount = RefCountCancelable(o.onComplete())
         private[this] var state = initial
 
@@ -49,7 +49,7 @@ private[reactive] object flatScan {
 
             val refID = refCount.acquire()
 
-            newState.unsafeSubscribe(new Observer[R] {
+            newState.onSubscribe(new Observer[R] {
               def onNext(elem: R): Future[Ack] = {
                 state = elem
                 o.onNext(elem)
@@ -104,7 +104,7 @@ private[reactive] object flatScan {
       implicit val s = subscriber.scheduler
       val o = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         private[this] var state = initial
         private[this] val errors = mutable.ArrayBuffer.empty[Throwable]
         private[this] val refCount = RefCountCancelable {
@@ -124,7 +124,7 @@ private[reactive] object flatScan {
 
             val refID = refCount.acquire()
 
-            newState.unsafeSubscribe(new Observer[R] {
+            newState.onSubscribe(new Observer[R] {
               def onNext(elem: R): Future[Ack] = {
                 state = elem
                 o.onNext(elem)

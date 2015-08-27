@@ -61,7 +61,7 @@ object MaxBySuite extends BaseOperatorSuite {
     var received = 0
     var wasCompleted = false
 
-    source.maxBy(x => 100 - x).unsafeSubscribe(new Observer[Long] {
+    source.maxBy(x => 100 - x).onSubscribe(new Observer[Long] {
       def onNext(elem: Long) = { received += 1; Continue }
       def onError(ex: Throwable) = ()
       def onComplete() = { wasCompleted = true }

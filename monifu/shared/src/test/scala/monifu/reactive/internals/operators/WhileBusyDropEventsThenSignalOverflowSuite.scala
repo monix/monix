@@ -51,7 +51,7 @@ object WhileBusyDropEventsThenSignalOverflowSuite
     var wasCompleted = false
 
     source.whileBusyDropEvents(x => x)
-      .unsafeSubscribe(new Observer[Long] {
+      .onSubscribe(new Observer[Long] {
         def onNext(elem: Long) = {
           received += elem
           p.future
@@ -87,7 +87,7 @@ object WhileBusyDropEventsThenSignalOverflowSuite
     var wasCompleted = false
 
     source.whileBusyDropEvents(x => x)
-      .unsafeSubscribe(new Observer[Long] {
+      .onSubscribe(new Observer[Long] {
       def onNext(elem: Long) =
         p.future.map { continue =>
           received += elem

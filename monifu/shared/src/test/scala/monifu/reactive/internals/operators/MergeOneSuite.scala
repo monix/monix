@@ -99,7 +99,7 @@ object MergeOneSuite extends BaseOperatorSuite {
     val obs1 = PublishSubject[Long]()
     val obs2 = Observable.range(1, 100).map { x => obs2WasStarted = true; x }
 
-    Observable.from(obs1, obs2).flatten.unsafeSubscribe(new Observer[Long] {
+    Observable.from(obs1, obs2).flatten.onSubscribe(new Observer[Long] {
       def onNext(elem: Long) = {
         received += elem
         if (elem == 1000)
@@ -138,7 +138,7 @@ object MergeOneSuite extends BaseOperatorSuite {
     val obs1 = sub.doOnStart(_ => obs1WasStarted = true)
     val obs2 = Observable.range(1, 100).map { x => obs2WasStarted = true; x }
 
-    Observable.from(obs1, obs2).flatten.unsafeSubscribe(new Observer[Long] {
+    Observable.from(obs1, obs2).flatten.onSubscribe(new Observer[Long] {
       def onNext(elem: Long) = Continue
       def onError(ex: Throwable) = wasThrown = ex
       def onComplete() = ()

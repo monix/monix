@@ -106,7 +106,7 @@ final class ConnectableSubscriber[-T] private (underlying: Observer[T], val sche
       if (!isConnected && !isConnectionStarted) {
         isConnectionStarted = true
 
-        Observable.fromIterable(queue).unsafeSubscribe(new Observer[T] {
+        Observable.fromIterable(queue).onSubscribe(new Observer[T] {
           private[this] val bufferWasDrained = Promise[Ack]()
 
           bufferWasDrained.future.onSuccess {

@@ -53,11 +53,11 @@ object PublishSubjectSuite extends BaseSubjectSuite {
     val sum2 = Atomic(0L)
     val observer2 = createObserver(sum2)
 
-    subject.unsafeSubscribe(observer1)
-    subject.unsafeSubscribe(observer2)
-    subject.unsafeSubscribe(observer2)
+    subject.onSubscribe(observer1)
+    subject.onSubscribe(observer2)
+    subject.onSubscribe(observer2)
 
-    Observable.range(0, 1000).unsafeSubscribe(subject)
+    Observable.range(0, 1000).onSubscribe(subject)
     s.tick()
 
     assertEquals(wereCompleted, 2)

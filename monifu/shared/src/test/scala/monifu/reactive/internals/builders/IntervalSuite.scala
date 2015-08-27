@@ -31,7 +31,7 @@ object IntervalSuite extends SimpleTestSuite {
     implicit val s = TestScheduler()
     var received = 0
 
-    Observable.intervalWithFixedDelay(1.second).unsafeSubscribe(new Observer[Long] {
+    Observable.intervalWithFixedDelay(1.second).onSubscribe(new Observer[Long] {
       def onNext(elem: Long): Future[Ack] = {
         received += 1
         Future.delayedResult(100.millis)(Continue)
@@ -60,7 +60,7 @@ object IntervalSuite extends SimpleTestSuite {
     implicit val s = TestScheduler()
     var received = 0
 
-    Observable.intervalAtFixedRate(1.second).unsafeSubscribe(new Observer[Long] {
+    Observable.intervalAtFixedRate(1.second).onSubscribe(new Observer[Long] {
       def onNext(elem: Long): Future[Ack] = {
         received += 1
         Future.delayedResult(100.millis)(Continue)

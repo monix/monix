@@ -32,7 +32,7 @@ private[reactive] object math {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         private[this] var count = 0l
 
         def onNext(elem: T): Future[Ack] = {
@@ -60,7 +60,7 @@ private[reactive] object math {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         private[this] var result = ev.zero
 
         def onNext(elem: T): Future[Ack] = {
@@ -87,7 +87,7 @@ private[reactive] object math {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         private[this] var minValue: T = _
         private[this] var minValueU: U = _
         private[this] var hasValue = false
@@ -139,7 +139,7 @@ private[reactive] object math {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         private[this] var minValue: T = _
         private[this] var hasValue = false
 
@@ -173,7 +173,7 @@ private[reactive] object math {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         private[this] var maxValue: T = _
         private[this] var maxValueU: U = _
         private[this] var hasValue = false
@@ -225,7 +225,7 @@ private[reactive] object math {
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         private[this] var maxValue: T = _
         private[this] var hasValue = false
 

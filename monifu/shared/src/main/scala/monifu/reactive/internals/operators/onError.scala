@@ -31,7 +31,7 @@ private[reactive] object onError {
       implicit val s = subscriber.scheduler
       val o = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         def onNext(elem: T) =
           o.onNext(elem)
 
@@ -43,7 +43,7 @@ private[reactive] object onError {
               val fallbackTo = pf(ex)
               // need asynchronous execution to avoid a synchronous loop
               // blowing out the call stack
-              s.execute(fallbackTo.unsafeSubscribe(o))
+              s.execute(fallbackTo.onSubscribe(o))
             }
             else {
               // we can't protect the onError call and if it throws
@@ -75,7 +75,7 @@ private[reactive] object onError {
       implicit val s = subscriber.scheduler
       val o = subscriber.observer
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         def onNext(elem: T) =
           o.onNext(elem)
 
@@ -84,7 +84,7 @@ private[reactive] object onError {
             val fallback = other
             // need asynchronous execution to avoid a synchronous loop
             // blowing out the call stack
-            s.execute(fallback.unsafeSubscribe(o))
+            s.execute(fallback.onSubscribe(o))
           }
           catch {
             case NonFatal(err) =>
@@ -107,7 +107,7 @@ private[reactive] object onError {
   def retryCounted[T](source: Observable[T], maxRetries: Long) = {
     // helper to subscribe in a loop when onError happens
     def subscribe(o: Observer[T], retryIdx: Long)(implicit s: Scheduler): Unit =
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         def onNext(elem: T) = o.onNext(elem)
         def onComplete() = o.onComplete()
 
@@ -134,7 +134,7 @@ private[reactive] object onError {
   def retryUnlimited[T](source: Observable[T]): Observable[T] = {
     // helper to subscribe in a loop when onError happens
     def subscribe(o: Observer[T])(implicit s: Scheduler): Unit =
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         def onNext(elem: T) = o.onNext(elem)
         def onComplete() = o.onComplete()
 
@@ -156,7 +156,7 @@ private[reactive] object onError {
   def retryIf[T](source: Observable[T], p: Throwable => Boolean) = {
     // helper to subscribe in a loop when onError happens
     def subscribe(o: Observer[T])(implicit s: Scheduler): Unit =
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         def onNext(elem: T) = o.onNext(elem)
         def onComplete() = o.onComplete()
 

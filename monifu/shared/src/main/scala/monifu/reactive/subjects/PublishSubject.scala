@@ -41,7 +41,7 @@ final class PublishSubject[T] extends Subject[T,T] {
   private[this] var errorThrown: Throwable = null
   @volatile private[this] var subscriptions = Array.empty[Subscriber[T]]
 
-  def subscribeFn(subscriber: Subscriber[T]): Unit =
+  def onSubscribe(subscriber: Subscriber[T]): Unit =
     lock.synchronized {
       if (!isCompleted)
         subscriptions = createSubscription(subscriptions, subscriber)

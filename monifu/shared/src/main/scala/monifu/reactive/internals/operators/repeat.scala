@@ -31,7 +31,7 @@ private[reactive] object repeat {
     // recursive function - subscribes the observer again when
     // onComplete happens
     def loop(subject: Subject[T, T], observer: Observer[T])(implicit s: Scheduler): Unit =
-      subject.unsafeSubscribe(new Observer[T] {
+      subject.onSubscribe(new Observer[T] {
         def onNext(elem: T) = {
           observer.onNext(elem)
         }
@@ -50,7 +50,7 @@ private[reactive] object repeat {
       val subject = ReplaySubject[T]()
       loop(subject, observer)
 
-      source.unsafeSubscribe(new Observer[T] {
+      source.onSubscribe(new Observer[T] {
         def onNext(elem: T): Future[Ack] = {
           subject.onNext(elem)
         }

@@ -47,9 +47,9 @@ object AsyncSubjectSuite extends BaseSubjectSuite {
     }
 
     val subject = AsyncSubject[Long]()
-    subject.unsafeSubscribe(createObserver)
-    subject.unsafeSubscribe(createObserver)
-    subject.unsafeSubscribe(createObserver)
+    subject.onSubscribe(createObserver)
+    subject.onSubscribe(createObserver)
+    subject.onSubscribe(createObserver)
 
     subject.onNext(10)
     subject.onNext(20)
@@ -65,7 +65,7 @@ object AsyncSubjectSuite extends BaseSubjectSuite {
     assertEquals(sum, 30 * 3)
     assertEquals(wereCompleted, 3)
 
-    subject.unsafeSubscribe(createObserver)
+    subject.onSubscribe(createObserver)
     assertEquals(sum, 30 * 4)
     assertEquals(wereCompleted, 4)
   }
@@ -90,9 +90,9 @@ object AsyncSubjectSuite extends BaseSubjectSuite {
     }
 
     val subject = AsyncSubject[Long]()
-    subject.unsafeSubscribe(createObserver)
-    subject.unsafeSubscribe(createObserver)
-    subject.unsafeSubscribe(createObserver)
+    subject.onSubscribe(createObserver)
+    subject.onSubscribe(createObserver)
+    subject.onSubscribe(createObserver)
 
     subject.onNext(10)
     subject.onNext(20)
@@ -108,7 +108,7 @@ object AsyncSubjectSuite extends BaseSubjectSuite {
     assertEquals(sum, 0)
     assertEquals(wereCompleted, 3)
 
-    subject.unsafeSubscribe(createObserver)
+    subject.onSubscribe(createObserver)
     assertEquals(sum, 0)
     assertEquals(wereCompleted, 4)
   }
@@ -128,16 +128,16 @@ object AsyncSubjectSuite extends BaseSubjectSuite {
     }
 
     val subject = AsyncSubject[Long]()
-    subject.unsafeSubscribe(createObserver)
-    subject.unsafeSubscribe(createObserver)
-    subject.unsafeSubscribe(createObserver)
+    subject.onSubscribe(createObserver)
+    subject.onSubscribe(createObserver)
+    subject.onSubscribe(createObserver)
 
     subject.onComplete()
 
     assertEquals(sum, 0)
     assertEquals(wereCompleted, 3)
 
-    subject.unsafeSubscribe(createObserver)
+    subject.onSubscribe(createObserver)
     assertEquals(sum, 0)
     assertEquals(wereCompleted, 4)
   }
@@ -161,11 +161,11 @@ object AsyncSubjectSuite extends BaseSubjectSuite {
     val sum2 = Atomic(0L)
     val observer2 = createObserver(sum2)
 
-    subject.unsafeSubscribe(observer1)
-    subject.unsafeSubscribe(observer2)
-    subject.unsafeSubscribe(observer2)
+    subject.onSubscribe(observer1)
+    subject.onSubscribe(observer2)
+    subject.onSubscribe(observer2)
 
-    Observable.range(0, 1000).unsafeSubscribe(subject)
+    Observable.range(0, 1000).onSubscribe(subject)
     s.tick()
 
     assertEquals(wereCompleted, 2)
