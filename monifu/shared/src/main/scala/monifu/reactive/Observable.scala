@@ -1712,7 +1712,6 @@ trait Observable[+T] { self =>
   def share()(implicit s: Scheduler): Observable[T] =
     publish().refCount()
 
-
   /**
    * Converts this observable into a multicast observable, useful for turning a cold observable into
    * a hot one (i.e. whose source is shared by all observers). The underlying subject used is a
