@@ -3,20 +3,20 @@
 Idiomatic Reactive Extensions for Scala and [Scala.js](http://www.scala-js.org/).
 
 [![Build Status](https://travis-ci.org/monifu/monifu.png?branch=master)](https://travis-ci.org/monifu/monifu)
-[![Build Status](https://travis-ci.org/monifu/monifu.png?branch=v1.0-M9)](https://travis-ci.org/monifu/monifu)
+[![Build Status](https://travis-ci.org/monifu/monifu.png?branch=v1.0-M10)](https://travis-ci.org/monifu/monifu)
 [![License](http://img.shields.io/:license-Apache%202-red.svg)](http://www.apache.org/licenses/LICENSE-2.0.txt)
 
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/monifu/monifu?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 ## Overview
 
-Monifu is a high-performance Scala / Scala.js library for 
+Monifu is a high-performance Scala / Scala.js library for
 composing asynchronous and event-based programs using observable sequences
-that are exposed as asynchronous streams, expanding on the 
-[observer pattern](https://en.wikipedia.org/wiki/Observer_pattern), 
-strongly inspired by [Reactive Extensions (Rx)](http://reactivex.io/), 
-but designed from the ground up  for back-pressure and made to cleanly interact 
-with Scala's standard library and compatible out-of-the-box with the 
+that are exposed as asynchronous streams, expanding on the
+[observer pattern](https://en.wikipedia.org/wiki/Observer_pattern),
+strongly inspired by [Reactive Extensions (Rx)](http://reactivex.io/),
+but designed from the ground up  for back-pressure and made to cleanly interact
+with Scala's standard library and compatible out-of-the-box with the
 [Reactive Streams](http://www.reactive-streams.org/) protocol.
 
 Highlights:
@@ -37,14 +37,14 @@ Highlights:
 
 ### Example usage
 
-In order for subscriptions to work, we need an implicit 
+In order for subscriptions to work, we need an implicit
 [Scheduler](shared/src/main/scala/monifu/concurrent/Scheduler.scala#L33) imported in our
-context. A `Scheduler` inherits from Scala's own [ExecutionContext](http://www.scala-lang.org/api/current/index.html#scala.concurrent.ExecutionContext) 
+context. A `Scheduler` inherits from Scala's own [ExecutionContext](http://www.scala-lang.org/api/current/index.html#scala.concurrent.ExecutionContext)
 and any `ExecutionContext` can be quickly converted into a `Scheduler`.
 And then you're off ...
 
 ```scala
-// scala.concurrent.ExecutionContext.Implicits.global 
+// scala.concurrent.ExecutionContext.Implicits.global
 // is being used under the hood
 import monifu.concurrent.Implicits.globalScheduler
 
@@ -60,7 +60,7 @@ val subscription = Observable.intervalAtFixedRate(1.second)
   .subscription(x => println(x))
 ```
 
-We can then try out more complex things: 
+We can then try out more complex things:
 
 ```scala
 import monifu.concurrent.Implicits.globalScheduler
@@ -115,18 +115,18 @@ Release Notes:
 The packages are published on Maven Central. Compiled for Scala 2.11.5
 and Scala.js 0.6.0. Older versions are no longer supported.
 
-- Current stable release is: `1.0-M9`
+- Current stable release is: `1.0-M10`
 
 ### For the JVM
 
 ```scala
-libraryDependencies += "org.monifu" %% "monifu" % "1.0-M9"
+libraryDependencies += "org.monifu" %% "monifu" % "1.0-M10"
 ```
 
 ### For targeting Javascript runtimes with Scala.js
 
 ```scala
-libraryDependencies += "org.monifu" %%% "monifu" % "1.0-M9"
+libraryDependencies += "org.monifu" %%% "monifu" % "1.0-M10"
 ```
 
 ## License
@@ -144,6 +144,6 @@ innovative and intelligent tools for profiling Java and .NET applications.
 
 <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/logo-eloquentix@2x.png" align="right" width="130" />
 
-Development of Monifu has been initiated by [Eloquentix](http://eloquentix.com/) 
+Development of Monifu has been initiated by [Eloquentix](http://eloquentix.com/)
 engineers, with Monifu being introduced at E.ON Connecting Energies,
-powering the next generation energy grid solutions. 
+powering the next generation energy grid solutions.
