@@ -17,6 +17,7 @@
 
 package monifu.collection.mutable
 
+import java.util.ConcurrentModificationException
 import monifu.util.math.nextPowerOf2
 import scala.reflect.ClassTag
 
@@ -33,7 +34,7 @@ import scala.reflect.ClassTag
  *                  2^30^ (the maximum positive int that can be expressed as
  *                  a power of 2)
  */
-final class DropAllOnOverflowQueue[T : ClassTag] private (_capacity: Int)
+private[monifu] final class DropAllOnOverflowQueue[T : ClassTag] private (_capacity: Int)
   extends EvictingQueue[T] { self =>
 
   require(_capacity > 1, "minCapacity must be bigger than 1")
@@ -125,12 +126,16 @@ final class DropAllOnOverflowQueue[T : ClassTag] private (_capacity: Int)
 
   def iterator: Iterator[T] = {
     new Iterator[T] {
-      private[this] val arrayCopy = new Array[T](maxSize)
       private[this] var isStarted = false
+      private[this] val initialHeadIdx = self.headIdx
+      private[this] val initialTailIdx = self.tailIdx
       private[this] var tailIdx = 0
       private[this] var headIdx = 0
 
       def hasNext: Boolean = {
+        if (initialHeadIdx != self.headIdx || initialTailIdx != self.tailIdx)
+          throw new ConcurrentModificationException(s"headIdx != $initialHeadIdx || tailIdx != $initialTailIdx")
+
         if (!isStarted) init()
         headIdx != tailIdx
       }
@@ -150,16 +155,29 @@ final class DropAllOnOverflowQueue[T : ClassTag] private (_capacity: Int)
       private[this] def init(): Unit = {
         isStarted = true
         if (self.headIdx != self.tailIdx) {
-          array.copyToArray(arrayCopy)
-          headIdx = self.headIdx
-          tailIdx = self.tailIdx
+          headIdx = initialHeadIdx
+          tailIdx = initialTailIdx
         }
       }
     }
   }
+
+  def clear(): Unit = {
+    headIdx = 0
+    tailIdx = 0
+  }
+
+  def length: Int = size
+
+  def apply(idx: Int): T = {
+    if (idx >= size)
+      throw new NoSuchElementException(s"apply($idx)")
+    else
+      array((headIdx + idx) & modulus)
+  }
 }
 
-object DropAllOnOverflowQueue {
+private[monifu] object DropAllOnOverflowQueue {
   /**
    * Builder for [[DropAllOnOverflowQueue]]
    *

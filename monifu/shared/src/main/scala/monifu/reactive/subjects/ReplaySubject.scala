@@ -17,10 +17,10 @@
 
 package monifu.reactive.subjects
 
+import monifu.collection.mutable.{DropHeadOnOverflowQueue, UnlimitedBuffer, Buffer}
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive._
 import monifu.reactive.internals._
-import scala.collection.mutable
 import scala.concurrent.Future
 
 /**
@@ -29,13 +29,13 @@ import scala.concurrent.Future
  *
  * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/S.ReplaySubject.png" />
  */
-final class ReplaySubject[T] private (initial: T*)
+final class ReplaySubject[T] private (initial: Buffer[T])
   extends Subject[T,T] { self =>
 
   @volatile private[this] var subscribers = Vector.empty[Subscriber[T]]
   @volatile private[this] var isDone = false
 
-  private[this] val queue = mutable.ArrayBuffer(initial: _*)
+  private[this] val queue = initial
   private[this] var errorThrown: Throwable = null
 
   private[this] def onDone(subscriber: Subscriber[T]): Unit = {
@@ -65,7 +65,7 @@ final class ReplaySubject[T] private (initial: T*)
 
   def onNext(elem: T): Future[Ack] = {
     if (isDone) Cancel else {
-      queue.append(elem)
+      queue.offer(elem)
 
       val iterator = subscribers.iterator
       var result: PromiseCounter[Continue.type] = null
@@ -125,7 +125,33 @@ final class ReplaySubject[T] private (initial: T*)
 }
 
 object ReplaySubject {
-  /** Builder for [[ReplaySubject]] */
-  def apply[T](initial: T*): ReplaySubject[T] =
-    new ReplaySubject[T](initial: _*)
+  /** Creates an unbounded replay subject. */
+  def apply[T](initial: T*): ReplaySubject[T] = {
+    val buffer = UnlimitedBuffer[T]()
+    if (initial.nonEmpty) buffer.offerMany(initial: _*)
+    new ReplaySubject[T](buffer)
+  }
+
+  /** Creates an unbounded replay subject. */
+  def create[T](initial: T*): ReplaySubject[T] = {
+    val buffer = UnlimitedBuffer[T]()
+    if (initial.nonEmpty) buffer.offerMany(initial: _*)
+    new ReplaySubject[T](buffer)
+  }
+
+  /**
+   * Creates a size-bounded replay subject.
+   *
+   * In this setting, the ReplaySubject holds at most size items in its
+   * internal buffer and discards the oldest item.
+   *
+   * NOTE: the `capacity` is actually grown to the next power of 2 (minus 1),
+   * because buffers sized as powers of two can be more efficient and the
+   * underlying implementation is most likely to be a ring buffer. So give it
+   * `300` and its capacity is going to be `512 - 1`
+   */
+  def createWithSize[T](capacity: Int) = {
+    val buffer = DropHeadOnOverflowQueue[Any](capacity)
+    new ReplaySubject[T](buffer.asInstanceOf[Buffer[T]])
+  }
 }

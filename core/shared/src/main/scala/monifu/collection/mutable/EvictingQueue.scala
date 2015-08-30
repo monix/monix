@@ -17,7 +17,7 @@
 
 package monifu.collection.mutable
 
-trait EvictingQueue[T] extends Iterable[T] {
+private[monifu] trait EvictingQueue[T] extends Buffer[T] {
   /**
    * Returns the capacity of this queue.
    */
