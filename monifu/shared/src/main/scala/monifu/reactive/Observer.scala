@@ -17,17 +17,14 @@
  
 package monifu.reactive
 
-import language.implicitConversions
 import monifu.concurrent.Scheduler
-import monifu.reactive.Ack.{Cancel, Continue}
-import monifu.reactive.observers.{SynchronousSubscriber, SynchronousObserver}
-import monifu.reactive.streams.{SubscriberAsReactiveSubscriber, SubscriberAsObserver, SynchronousSubscriberAsReactiveSubscriber}
+import monifu.reactive.Ack.Continue
+import monifu.reactive.observers.{SynchronousObserver, SynchronousSubscriber}
+import monifu.reactive.streams.{SubscriberAsObserver, SubscriberAsReactiveSubscriber, SynchronousSubscriberAsReactiveSubscriber}
 import org.reactivestreams.{Subscriber => RSubscriber}
-
 import scala.annotation.tailrec
 import scala.concurrent.{Future, Promise}
 import scala.util.control.NonFatal
-import scala.util.{Failure, Success}
 
 
 /**
@@ -52,10 +49,12 @@ trait Observer[-T] {
 
 object Observer {
   /**
-   * Given an `org.reactivestreams.Subscriber` as defined by the [[http://www.reactive-streams.org/ Reactive Streams]]
-   * specification, it builds an [[Observer]] instance compliant with the Monifu Rx implementation.
+   * Given an `org.reactivestreams.Subscriber` as defined by the 
+   * [[http://www.reactive-streams.org/ Reactive Streams]] specification, 
+   * it builds an [[Observer]] instance compliant with the 
+   * Monifu Rx implementation.
    */
-  def from[T](subscriber: RSubscriber[T])(implicit s: Scheduler): Observer[T] = {
+  def fromReactiveSubscriber[T](subscriber: RSubscriber[T])(implicit s: Scheduler): Observer[T] = {
     SubscriberAsObserver(subscriber)
   }
 
@@ -64,19 +63,111 @@ object Observer {
    * instance as defined by the [[http://www.reactive-streams.org/ Reactive Streams]]
    * specification.
    */
-  def toSubscriber[T](observer: Observer[T], requestSize: Int = 128)(implicit s: Scheduler): RSubscriber[T] = {
+  def toReactiveSubscriber[T](observer: Observer[T])(implicit s: Scheduler): RSubscriber[T] = {
+    toReactiveSubscriber(observer, s.env.batchSize)(s)
+  }
+
+  /**
+   * Transforms the source [[Observer]] into a `org.reactivestreams.Subscriber`
+   * instance as defined by the [[http://www.reactive-streams.org/ Reactive Streams]]
+   * specification.
+   *
+   * @param bufferSize a strictly positive number, representing the size
+   *                   of the buffer used and the number of elements requested
+   *                   on each cycle when communicating demand, compliant with
+   *                   the reactive streams specification
+   */
+  def toReactiveSubscriber[T](observer: Observer[T], bufferSize: Int)(implicit s: Scheduler): RSubscriber[T] = {
+    require(bufferSize > 0, "requestCount > 0")
     observer match {
       case sync: SynchronousObserver[_] =>
         val inst = sync.asInstanceOf[SynchronousObserver[T]]
-        SynchronousSubscriberAsReactiveSubscriber(SynchronousSubscriber(inst, s), requestSize)
+        SynchronousSubscriberAsReactiveSubscriber(SynchronousSubscriber(inst, s), bufferSize)
       case async =>
-        SubscriberAsReactiveSubscriber(Subscriber(async, s), requestSize)
+        SubscriberAsReactiveSubscriber(Subscriber(async, s), bufferSize)
     }
   }
 
   /**
-   * Implicit conversion from [[Observer]] to `org.reactivestreams.Subscriber`.
+   * Extension methods for [[Observer]].
    */
-  implicit def ObserverIsReactive[T](source: Observer[T])(implicit s: Scheduler): RSubscriber[T] =
-    Observer.toSubscriber(source)
+  implicit class Extensions[T](val source: Observer[T]) extends AnyVal {
+    /**
+     * Transforms the source [[Observer]] into a `org.reactivestreams.Subscriber`
+     * instance as defined by the [[http://www.reactive-streams.org/ Reactive Streams]]
+     * specification.
+     */
+    def toReactiveSubscriber(implicit s: Scheduler): RSubscriber[T] =
+      Observer.toReactiveSubscriber(source)
+
+    /**
+     * Transforms the source [[Observer]] into a `org.reactivestreams.Subscriber`
+     * instance as defined by the [[http://www.reactive-streams.org/ Reactive Streams]]
+     * specification.
+     *
+     * @param bufferSize a strictly positive number, representing the size
+     *                   of the buffer used and the number of elements requested
+     *                   on each cycle when communicating demand, compliant with
+     *                   the reactive streams specification
+     */
+    def toReactiveSubscriber(bufferSize: Int)(implicit s: Scheduler): RSubscriber[T] =
+      Observer.toReactiveSubscriber(source, bufferSize)
+
+
+    /**
+     * Feeds the given [[Observer]] instance with elements from the given iterable,
+     * respecting the contract and returning a `Future[Ack]` with the last
+     * acknowledgement given after the last emitted element.
+     */
+    def feed(iterable: Iterable[T])(implicit s: Scheduler): Future[Ack] = {
+      def scheduleFeedLoop(promise: Promise[Ack], iterator: Iterator[T]): Future[Ack] = {
+        s.execute(new Runnable {
+          private[this] val modulus = s.env.batchSize - 1
+
+          @tailrec
+          def fastLoop(syncIndex: Int): Unit = {
+            val ack = source.onNext(iterator.next())
+
+            if (iterator.hasNext) {
+              val nextIndex = if (!ack.isCompleted) 0 else
+                (syncIndex + 1) & modulus
+
+              if (nextIndex != 0) {
+                if (ack == Continue || ack.value.get == Continue.IsSuccess)
+                  fastLoop(nextIndex)
+                else
+                  promise.complete(ack.value.get)
+              }
+              else ack.onComplete {
+                case Continue.IsSuccess =>
+                  run()
+                case other =>
+                  promise.complete(other)
+              }
+            }
+            else {
+              promise.completeWith(ack)
+            }
+          }
+
+          def run(): Unit = {
+            try fastLoop(0) catch {
+              case NonFatal(ex) =>
+                try source.onError(ex) finally {
+                  promise.failure(ex)
+                }
+            }
+          }
+        })
+
+        promise.future
+      }
+
+      val iterator = iterable.iterator
+      if (iterator.hasNext)
+        scheduleFeedLoop(Promise[Ack](), iterator)
+      else
+        Continue
+    }
+  }
 }

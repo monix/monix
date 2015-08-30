@@ -83,13 +83,17 @@ final class EvictingBufferedSubscriber[-T] private
     }
   }
 
-  /**
-   * Starts the consumer loop, in case there is none active.
-   */
-  private[this] def consume(): Unit = {
-    // Checks if there are pending elements and starts
-    // consuming.
-    def nextBatch(): Unit = self.synchronized {
+  private[this] def consume() = {
+    // no synchronization here, because we are calling
+    // this on the producer's side, which is already synchronized
+    if (!isLoopStarted) {
+      isLoopStarted = true
+      scheduler.execute(consumer)
+    }
+  }
+
+  private[this] val consumer = new Runnable { consumer =>
+    def run(): Unit = self.synchronized {
       val count =
         if (eventsDropped > 0 && onOverflow != null) {
           val message = onOverflow(eventsDropped).asInstanceOf[AnyRef]
@@ -97,12 +101,13 @@ final class EvictingBufferedSubscriber[-T] private
           consumerBuffer(0) = message
           1 + buffer.pollMany(consumerBuffer, 1)
         }
-        else
+        else {
           buffer.pollMany(consumerBuffer)
+        }
 
       if (count > 0) {
         isLoopStarted = true
-        scheduler.execute(fastLoop(consumerBuffer, count, 0))
+        fastLoop(consumerBuffer, count, 0)
       }
       else if (upstreamIsComplete || (errorThrown ne null)) {
         // ending loop
@@ -181,16 +186,10 @@ final class EvictingBufferedSubscriber[-T] private
             }
         }
       }
-      else
+      else {
         // consume next batch of items
-        nextBatch()
-    }
-
-    // no synchronization here, because we are calling
-    // this on the producer's side, which is already synchronized
-    if (!isLoopStarted) {
-      isLoopStarted = true
-      nextBatch()
+        scheduler.execute(consumer)
+      }
     }
   }
 }

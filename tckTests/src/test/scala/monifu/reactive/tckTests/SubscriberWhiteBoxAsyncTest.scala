@@ -32,7 +32,7 @@ class SubscriberWhiteBoxAsyncTest
   with TestNGSuiteLike {
 
   def createSubscriber(probe: WhiteboxSubscriberProbe[Value]): Subscriber[Value] = {
-    val underlying = Observer.toSubscriber(new Observer[Value] {
+    val underlying = Observer.toReactiveSubscriber(new Observer[Value] {
       def onNext(elem: Value): Future[Ack] = {
         probe.registerOnNext(elem)
         Future(Continue)

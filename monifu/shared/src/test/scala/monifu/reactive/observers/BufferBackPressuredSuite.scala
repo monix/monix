@@ -50,7 +50,7 @@ object BufferBackPressuredSuite extends TestSuite[TestScheduler] {
     assertEquals(buffer.observer.onNext(5), Continue)
 
     val async = buffer.observer.onNext(6)
-    assert(async.value != Some(Success(Continue)))
+    assert(!async.value.contains(Success(Continue)))
 
     promise.success(Continue)
     s.tick()
@@ -336,5 +336,32 @@ object BufferBackPressuredSuite extends TestSuite[TestScheduler] {
     s.tick()
     assertEquals(errorThrown, DummyException("dummy"))
     assertEquals(sum, (0 until 9999).sum)
+  }
+
+  test("should do synchronous execution in batches") { implicit s =>
+    var received = 0L
+    var wasCompleted = false
+
+    val buffer: BufferedSubscriber[Long] = BufferedSubscriber[Long](
+      new Observer[Long] {
+        def onNext(elem: Long) = {
+          received += 1
+          Continue
+        }
+        def onError(ex: Throwable) = ()
+        def onComplete() = wasCompleted = true
+      },
+      BackPressure(s.env.batchSize * 3))
+
+    for (i <- 0 until (s.env.batchSize * 2)) buffer.observer.onNext(i)
+    buffer.observer.onComplete()
+    assertEquals(received, 0)
+
+    s.tickOne()
+    assertEquals(received, s.env.batchSize)
+    s.tickOne()
+    assertEquals(received, s.env.batchSize * 2)
+    s.tickOne()
+    assertEquals(wasCompleted, true)
   }
 }

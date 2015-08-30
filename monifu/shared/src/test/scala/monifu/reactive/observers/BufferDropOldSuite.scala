@@ -163,7 +163,7 @@ object BufferDropOldSuite extends TestSuite[TestScheduler] {
 
     buffer.observer.onNext(1)
     buffer.observer.onError(DummyException("dummy"))
-    s.tickOne()
+    s.tick()
 
     assertEquals(errorThrown, DummyException("dummy"))
   }
@@ -260,14 +260,15 @@ object BufferDropOldSuite extends TestSuite[TestScheduler] {
     var sum = 0L
     var errorThrown: Throwable = null
 
-    val buffer = BufferedSubscriber[Long](new Observer[Long] {
-      def onNext(elem: Long) = {
-        sum += elem
-        Continue
-      }
-      def onError(ex: Throwable) = errorThrown = ex
-      def onComplete() = throw new IllegalStateException()
-    }, DropOld(10000))
+    val buffer = BufferedSubscriber[Long](
+      new Observer[Long] {
+        def onNext(elem: Long) = {
+          sum += elem
+          Continue
+        }
+        def onError(ex: Throwable) = errorThrown = ex
+        def onComplete() = throw new IllegalStateException()
+      }, DropOld(10000))
 
     (0 until 9999).foreach(x => buffer.observer.onNext(x))
     buffer.observer.onError(DummyException("dummy"))
@@ -275,5 +276,31 @@ object BufferDropOldSuite extends TestSuite[TestScheduler] {
     s.tick()
     assertEquals(errorThrown, DummyException("dummy"))
     assertEquals(sum, (0 until 9999).sum)
+  }
+
+  test("should do synchronous execution in batches") { implicit s =>
+    var received = 0L
+    var wasCompleted = false
+
+    val buffer = BufferedSubscriber[Long](
+      new Observer[Long] {
+        def onNext(elem: Long) = {
+          received += 1
+          Continue
+        }
+        def onError(ex: Throwable) = ()
+        def onComplete() = wasCompleted = true
+      }, DropOld(s.env.batchSize * 3))
+
+    for (i <- 0 until (s.env.batchSize * 2)) buffer.observer.onNext(i)
+    buffer.observer.onComplete()
+    assertEquals(received, 0)
+
+    s.tickOne()
+    assertEquals(received, s.env.batchSize)
+    s.tickOne()
+    assertEquals(received, s.env.batchSize * 2)
+    s.tickOne()
+    assertEquals(wasCompleted, true)
   }
 }

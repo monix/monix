@@ -353,4 +353,30 @@ object BufferOverflowTriggeringSuite extends TestSuite[TestScheduler] {
     assertEquals(errorThrown, DummyException("dummy"))
     assertEquals(sum, (0 until 9999).sum)
   }
+
+  test("should do synchronous execution in batches") { implicit s =>
+    var received = 0L
+    var wasCompleted = false
+
+    val buffer = BufferedSubscriber[Long](
+      new Observer[Long] {
+        def onNext(elem: Long) = {
+          received += 1
+          Continue
+        }
+        def onError(ex: Throwable) = ()
+        def onComplete() = wasCompleted = true
+      }, Fail(s.env.batchSize * 3))
+
+    for (i <- 0 until (s.env.batchSize * 2)) buffer.observer.onNext(i)
+    buffer.observer.onComplete()
+    assertEquals(received, 0)
+
+    s.tickOne()
+    assertEquals(received, s.env.batchSize)
+    s.tickOne()
+    assertEquals(received, s.env.batchSize * 2)
+    s.tickOne()
+    assertEquals(wasCompleted, true)
+  }
 }
