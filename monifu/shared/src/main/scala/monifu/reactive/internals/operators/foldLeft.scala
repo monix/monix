@@ -28,8 +28,7 @@ private[reactive] object foldLeft {
    */
   def apply[T, R](source: Observable[T], initial: R)(op: (R, T) => R): Observable[R] =
     Observable.create[R] { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
         private[this] var state = initial
@@ -49,12 +48,12 @@ private[reactive] object foldLeft {
         }
 
         def onComplete() = {
-          observer.onNext(state)
-          observer.onComplete()
+          subscriber.onNext(state)
+          subscriber.onComplete()
         }
 
         def onError(ex: Throwable) = {
-          observer.onError(ex)
+          subscriber.onError(ex)
         }
       })
     }

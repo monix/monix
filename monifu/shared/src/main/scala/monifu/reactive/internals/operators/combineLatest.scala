@@ -31,8 +31,7 @@ private[reactive] object combineLatest {
    */
   def apply[T, U](first: Observable[T], second: Observable[U], delayErrors: Boolean): Observable[(T, U)] = {
     Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
 
       val isDone = Atomic(false)
       // lock used for synchronization
@@ -54,7 +53,7 @@ private[reactive] object combineLatest {
 
       // MUST BE synchronized by `lock`
       def signalOnNext(t: T, u: U) = {
-        lastAck = lastAck.onContinueStreamOnNext(observer, t -> u)
+        lastAck = lastAck.onContinueStreamOnNext(subscriber, t -> u)
         lastAck
       }
 
@@ -64,7 +63,7 @@ private[reactive] object combineLatest {
           signalOnComplete()
         }
         else if (isDone.compareAndSet(expect = false, update = true)) {
-          lastAck.onContinueSignalError(observer, ex)
+          lastAck.onContinueSignalError(subscriber, ex)
           lastAck = Cancel
         }
       }
@@ -74,9 +73,9 @@ private[reactive] object combineLatest {
 
         if (completedCount == 2 && isDone.compareAndSet(expect = false, update = true)) {
           if (delayErrors && errors.nonEmpty)
-            lastAck.onContinueSignalError(observer, CompositeException(errors))
+            lastAck.onContinueSignalError(subscriber, CompositeException(errors))
           else
-            lastAck.onContinueSignalComplete(observer)
+            lastAck.onContinueSignalComplete(subscriber)
 
           lastAck = Cancel
         }

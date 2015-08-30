@@ -29,22 +29,21 @@ private[reactive] object materialize {
    */
   def apply[T](source: Observable[T]): Observable[Notification[T]] =
     Observable.create[Notification[T]] { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
         def onNext(elem: T): Future[Ack] = {
-          observer.onNext(OnNext(elem))
+          subscriber.onNext(OnNext(elem))
         }
 
         def onError(ex: Throwable): Unit = {
-          observer.onNext(OnError(ex))
-            .onContinueSignalError(observer, ex)
+          subscriber.onNext(OnError(ex))
+            .onContinueSignalError(subscriber, ex)
         }
 
         def onComplete(): Unit = {
-          observer.onNext(OnComplete)
-            .onContinueSignalComplete(observer)
+          subscriber.onNext(OnComplete)
+            .onContinueSignalComplete(subscriber)
         }
       })
     }

@@ -18,11 +18,9 @@
 package monifu.reactive.observers
 
 import monifu.collection.mutable.ConcurrentQueue
-import monifu.concurrent.Scheduler
 import monifu.concurrent.atomic.padded.Atomic
 import monifu.reactive.Ack.{Cancel, Continue}
-import monifu.reactive.{Ack, Observer}
-
+import monifu.reactive.{Ack, Subscriber}
 import scala.annotation.tailrec
 import scala.util.Failure
 import scala.util.control.NonFatal
@@ -32,12 +30,12 @@ import scala.util.control.NonFatal
  * [[monifu.reactive.OverflowStrategy.DropNew DropNew]] overflow strategy.
  */
 final class DropIncomingBufferedSubscriber[-T] private
-    (underlying: Observer[T], bufferSize: Int, onOverflow: Long => T = null)
-    (implicit val scheduler: Scheduler)
+    (underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => T = null)
   extends BufferedSubscriber[T] with SynchronousSubscriber[T] { self =>
 
   require(bufferSize > 0, "bufferSize must be a strictly positive number")
 
+  implicit val scheduler = underlying.scheduler
   private[this] val queue = ConcurrentQueue.empty[T]
   private[this] val batchSizeModulus = scheduler.env.batchSize - 1
 
@@ -49,38 +47,25 @@ final class DropIncomingBufferedSubscriber[-T] private
   @volatile private[this] var downstreamIsDone = false
   // for enforcing non-concurrent updates
   private[this] val itemsToPush = Atomic(0)
-
   private[this] var eventsDropped = 0L
 
-  val observer: SynchronousObserver[T] = new SynchronousObserver[T] {
-    def onNext(elem: T): Ack = self.synchronized {
-      if (!upstreamIsComplete && !downstreamIsDone) {
-        if (itemsToPush.get >= bufferSize) {
-          // no more room, dropping event
-          eventsDropped += 1
-          Continue
-        }
-        else if (eventsDropped > 0 && onOverflow != null) {
-          try {
-            val message = onOverflow(eventsDropped)
-            eventsDropped = 0
-            // first send the overflow message
-            queue.offer(message)
-            notifyConsumerOfNewEvent()
-            // then try to send our current event
-            // (recursive non-tailrec call)
-            onNext(elem)
-          }
-          catch {
-            case NonFatal(ex) =>
-              onError(ex)
-              Cancel
-          }
-        }
-        else try {
-          queue.offer(elem)
+  def onNext(elem: T): Ack = self.synchronized {
+    if (!upstreamIsComplete && !downstreamIsDone) {
+      if (itemsToPush.get >= bufferSize) {
+        // no more room, dropping event
+        eventsDropped += 1
+        Continue
+      }
+      else if (eventsDropped > 0 && onOverflow != null) {
+        try {
+          val message = onOverflow(eventsDropped)
+          eventsDropped = 0
+          // first send the overflow message
+          queue.offer(message)
           notifyConsumerOfNewEvent()
-          Continue
+          // then try to send our current event
+          // (recursive non-tailrec call)
+          onNext(elem)
         }
         catch {
           case NonFatal(ex) =>
@@ -88,35 +73,45 @@ final class DropIncomingBufferedSubscriber[-T] private
             Cancel
         }
       }
-      else
-        Cancel
+      else try {
+        queue.offer(elem)
+        notifyConsumerOfNewEvent()
+        Continue
+      }
+      catch {
+        case NonFatal(ex) =>
+          onError(ex)
+          Cancel
+      }
     }
+    else
+      Cancel
+  }
 
-    def onError(ex: Throwable) = self.synchronized {
-      if (!upstreamIsComplete && !downstreamIsDone) {
-        errorThrown = ex
+  def onError(ex: Throwable) = self.synchronized {
+    if (!upstreamIsComplete && !downstreamIsDone) {
+      errorThrown = ex
+      upstreamIsComplete = true
+      notifyConsumerOfNewEvent()
+    }
+  }
+
+  def onComplete(): Unit = self.synchronized {
+    if (!upstreamIsComplete && !downstreamIsDone) {
+      if (eventsDropped > 0 && onOverflow != null) try {
+        val message = onOverflow(eventsDropped)
+        eventsDropped = 0
+        queue.offer(message)
         upstreamIsComplete = true
         notifyConsumerOfNewEvent()
       }
-    }
-
-    def onComplete(): Unit = self.synchronized {
-      if (!upstreamIsComplete && !downstreamIsDone) {
-        if (eventsDropped > 0 && onOverflow != null) try {
-          val message = onOverflow(eventsDropped)
-          eventsDropped = 0
-          queue.offer(message)
-          upstreamIsComplete = true
-          notifyConsumerOfNewEvent()
-        }
-        catch {
-          case NonFatal(ex) =>
-            onError(ex)
-        }
-        else {
-          upstreamIsComplete = true
-          notifyConsumerOfNewEvent()
-        }
+      catch {
+        case NonFatal(ex) =>
+          onError(ex)
+      }
+      else {
+        upstreamIsComplete = true
+        notifyConsumerOfNewEvent()
       }
     }
   }
@@ -228,9 +223,7 @@ object DropIncomingBufferedSubscriber {
    * for the [[monifu.reactive.OverflowStrategy.DropNew DropNew]]
    * overflowStrategy.
    */
-  def simple[T](underlying: Observer[T], bufferSize: Int)
-      (implicit s: Scheduler): DropIncomingBufferedSubscriber[T] = {
-
+  def simple[T](underlying: Subscriber[T], bufferSize: Int): DropIncomingBufferedSubscriber[T] = {
     new DropIncomingBufferedSubscriber[T](underlying, bufferSize, null)
   }
 
@@ -239,8 +232,8 @@ object DropIncomingBufferedSubscriber {
    * for the [[monifu.reactive.OverflowStrategy.DropNew DropNew]]
    * overflowStrategy.
    */
-  def withSignal[T](underlying: Observer[T], bufferSize: Int, onOverflow: Long => T)
-      (implicit s: Scheduler): DropIncomingBufferedSubscriber[T] = {
+  def withSignal[T](underlying: Subscriber[T], bufferSize: Int,
+    onOverflow: Long => T): DropIncomingBufferedSubscriber[T] = {
 
     new DropIncomingBufferedSubscriber[T](underlying, bufferSize, onOverflow)
   }

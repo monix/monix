@@ -18,12 +18,10 @@
 package monifu.reactive.observers
 
 import monifu.collection.mutable.ConcurrentQueue
-import monifu.concurrent.Scheduler
 import monifu.concurrent.atomic.padded.Atomic
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.exceptions.BufferOverflowException
-import monifu.reactive.{Ack, Observer}
-
+import monifu.reactive.{Ack, Subscriber}
 import scala.annotation.tailrec
 import scala.util.Failure
 import scala.util.control.NonFatal
@@ -54,11 +52,12 @@ import scala.util.control.NonFatal
  * @param bufferSize is the maximum buffer size, or zero if unbounded
  */
 final class SynchronousBufferedSubscriber[-T] private
-    (underlying: Observer[T], bufferSize: Int = 0)(implicit val scheduler: Scheduler)
-  extends BufferedSubscriber[T] with SynchronousSubscriber[T] {
+    (underlying: Subscriber[T], bufferSize: Int = 0)
+  extends BufferedSubscriber[T] with SynchronousSubscriber[T] { self =>
 
   require(bufferSize >= 0, "bufferSize must be a positive number")
 
+  implicit val scheduler = underlying.scheduler
   private[this] val queue = ConcurrentQueue.empty[T]
   private[this] val batchSizeModulus = scheduler.env.batchSize - 1
 
@@ -71,40 +70,37 @@ final class SynchronousBufferedSubscriber[-T] private
   // for enforcing non-concurrent updates
   private[this] val itemsToPush = Atomic(0)
 
-  val observer: SynchronousObserver[T] = new SynchronousObserver[T] {
-    def onNext(elem: T): Ack = {
-      if (!upstreamIsComplete && !downstreamIsDone) {
-        try {
-          queue.offer(elem)
-          pushToConsumer()
-          Continue
-        }
-        catch {
-          case NonFatal(ex) =>
-            onError(ex)
-            Cancel
-        }
-      }
-      else
-        Cancel
-    }
-
-    def onError(ex: Throwable) = {
-      if (!upstreamIsComplete && !downstreamIsDone) {
-        errorThrown = ex
-        upstreamIsComplete = true
+  def onNext(elem: T): Ack = {
+    if (!upstreamIsComplete && !downstreamIsDone) {
+      try {
+        queue.offer(elem)
         pushToConsumer()
+        Continue
+      }
+      catch {
+        case NonFatal(ex) =>
+          onError(ex)
+          Cancel
       }
     }
+    else
+      Cancel
+  }
 
-    def onComplete() = {
-      if (!upstreamIsComplete && !downstreamIsDone) {
-        upstreamIsComplete = true
-        pushToConsumer()
-      }
+  def onError(ex: Throwable) = {
+    if (!upstreamIsComplete && !downstreamIsDone) {
+      errorThrown = ex
+      upstreamIsComplete = true
+      pushToConsumer()
     }
   }
 
+  def onComplete() = {
+    if (!upstreamIsComplete && !downstreamIsDone) {
+      upstreamIsComplete = true
+      pushToConsumer()
+    }
+  }
 
   @tailrec
   private[this] def pushToConsumer(): Unit = {
@@ -122,7 +118,7 @@ final class SynchronousBufferedSubscriber[-T] private
     else {
       // triggering overflow branch
       if (currentNr >= bufferSize && !upstreamIsComplete) {
-        observer.onError(new BufferOverflowException(
+        self.onError(new BufferOverflowException(
           s"Downstream observer is too slow, buffer over capacity with a specified buffer size of $bufferSize and" +
             s" $currentNr events being left for push"))
       }
@@ -225,9 +221,9 @@ final class SynchronousBufferedSubscriber[-T] private
 }
 
 object SynchronousBufferedSubscriber {
-  def unbounded[T](observer: Observer[T])(implicit s: Scheduler): SynchronousBufferedSubscriber[T] =
-    new SynchronousBufferedSubscriber[T](observer)
+  def unbounded[T](underlying: Subscriber[T]): SynchronousBufferedSubscriber[T] =
+    new SynchronousBufferedSubscriber[T](underlying)
 
-  def overflowTriggering[T](observer: Observer[T], bufferSize: Int)(implicit s: Scheduler): SynchronousBufferedSubscriber[T] =
-    new SynchronousBufferedSubscriber[T](observer, bufferSize)
+  def overflowTriggering[T](underlying: Subscriber[T], bufferSize: Int): SynchronousBufferedSubscriber[T] =
+    new SynchronousBufferedSubscriber[T](underlying, bufferSize)
 }

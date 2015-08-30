@@ -22,6 +22,8 @@ import monifu.reactive._
 import monifu.reactive.internals._
 import monifu.reactive.observers.CacheUntilConnectSubscriber
 
+import scala.concurrent.Future
+
 /**
  * A `GroupedObservable` is an observable type generated
  * by `Observable.groupBy`. It has the following properties:
@@ -53,10 +55,10 @@ trait GroupedObservable[K, +V] extends Observable[V]
 object GroupedObservable {
   /** Builder returning an input+output pair */
   private[reactive] def broadcast[K,V](key: K, onCancel: Cancelable)
-    (implicit s: Scheduler): (Observer[V], GroupedObservable[K,V]) = {
+    (implicit s: Scheduler): (Subscriber[V], GroupedObservable[K,V]) = {
 
     val ref = new Implementation[K,V](key, onCancel)
-    (ref.observer, ref)
+    (ref, ref)
   }
 
   /** Implementation for [[GroupedObservable]] */
@@ -65,7 +67,7 @@ object GroupedObservable {
     extends GroupedObservable[K,V] with Subscriber[V] { self =>
 
     // needs to be set upon subscription
-    private[this] var ref: Observer[V] = null
+    private[this] var ref: Subscriber[V] = null
     private[this] val underlying = {
       val o = new Observer[V] {
         def onNext(elem: V) = {
@@ -88,8 +90,9 @@ object GroupedObservable {
       CacheUntilConnectSubscriber(Subscriber(o, scheduler))
     }
 
-    val observer: Observer[V] =
-      underlying.observer
+    def onNext(elem: V): Future[Ack] = underlying.onNext(elem)
+    def onError(ex: Throwable): Unit = underlying.onError(ex)
+    def onComplete(): Unit = underlying.onComplete()
 
     def onSubscribe(subscriber: Subscriber[V]): Unit =
       self.synchronized {
@@ -97,7 +100,7 @@ object GroupedObservable {
           throw new IllegalStateException(
             s"Cannot subscribe twice to a GroupedObservable")
         else {
-          ref = subscriber.observer
+          ref = subscriber
           underlying.connect()
         }
       }

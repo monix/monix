@@ -33,7 +33,8 @@ final class BehaviorChannel[T] private
 
   private[this] val lock = new AnyRef
   private[this] val subject = BehaviorSubject(initialValue)
-  private[this] val channel = BufferedSubscriber(subject, strategy, onOverflow)
+  private[this] val channel = BufferedSubscriber(
+    Subscriber(subject, scheduler), strategy, onOverflow)
 
   private[this] var isDone = false
   private[this] var lastValue = initialValue
@@ -47,14 +48,14 @@ final class BehaviorChannel[T] private
     if (!isDone)
       for (elem <- elems) {
         lastValue = elem
-        channel.observer.onNext(elem)
+        channel.onNext(elem)
       }
   }
 
   def pushComplete() = lock.synchronized {
     if (!isDone) {
       isDone = true
-      channel.observer.onComplete()
+      channel.onComplete()
     }
   }
 
@@ -62,7 +63,7 @@ final class BehaviorChannel[T] private
     if (!isDone) {
       isDone = true
       errorThrown = ex
-      channel.observer.onError(ex)
+      channel.onError(ex)
     }
   }
 

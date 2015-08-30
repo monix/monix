@@ -51,19 +51,18 @@ private[reactive] object amb {
       })
 
     Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.scheduler
 
       val finishLine = Atomic(0)
       var idx = 0
       for (observable <- source) {
-        createSubscription(observable, observer, finishLine, idx + 1)
+        createSubscription(observable, subscriber, finishLine, idx + 1)
         idx += 1
       }
 
       // if the list of observables was empty, just
       // emit `onComplete`
-      if (idx == 0) observer.onComplete()
+      if (idx == 0) subscriber.onComplete()
     }
   }
 }

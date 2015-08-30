@@ -25,12 +25,12 @@ import scala.concurrent.duration.Duration.Zero
 object DoOnCompleteSuite extends BaseOperatorSuite {
   def observable(sourceCount: Int) = Some {
     val o = Observable.create[Long] { s =>
-      implicit val ec = s.scheduler
+      import s.scheduler
       val sum = Atomic(0L)
 
       Observable.range(0, sourceCount)
         .doWork(sum.add)
-        .doOnComplete(unit(sum.get).subscribe(s.observer))
+        .doOnComplete(unit(sum.get).subscribe(s))
         .subscribe()
     }
 

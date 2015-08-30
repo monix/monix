@@ -59,7 +59,7 @@ final class RefCountObservable[+T] private (source: ConnectableObservable[T])
     else {
       implicit val s = subscriber.scheduler
       val cancelable = BooleanCancelable(cancel())
-      source.onSubscribe(observer(cancelable, subscriber.observer))
+      source.onSubscribe(observer(cancelable, subscriber))
       if (current == -1) connection // triggers connect()
     }
   }

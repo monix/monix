@@ -65,13 +65,13 @@ import scala.util.control.NonFatal
  *       implicit val s = sub.scheduler
  *       // note we must apply back-pressure
  *       // when calling `onNext`
- *       sub.observer.onNext(unit).onComplete {
+ *       sub.onNext(unit).onComplete {
  *         case Success(Cancel) =>
  *           () // do nothing
  *         case Success(Continue) =>
- *           sub.observer.onComplete()
+ *           sub.onComplete()
  *         case Failure(ex) =>
- *           sub.observer.onError(ex)
+ *           sub.onError(ex)
  *       }
  *     }
  *   }
@@ -85,13 +85,13 @@ import scala.util.control.NonFatal
  *     implicit val s = sub.scheduler
  *     // note we must apply back-pressure
  *     // when calling `onNext`
- *     sub.observer.onNext(unit).onComplete {
+ *     sub.onNext(unit).onComplete {
  *       case Success(Cancel) =>
  *         () // do nothing
  *       case Success(Continue) =>
- *         sub.observer.onComplete()
+ *         sub.onComplete()
  *       case Failure(ex) =>
- *         sub.observer.onError(ex)
+ *         sub.onError(ex)
  *     }
  *   }
  * }}}
@@ -171,7 +171,7 @@ import scala.util.control.NonFatal
  *         case Success(Cancel) =>
  *           () // do nothing
  *         case Success(Continue) =>
- *           sub.observer.onComplete()
+ *           sub.onComplete()
  *         case Failed(ex) =>
  *           reportError(ex)
  *       }
@@ -1645,8 +1645,7 @@ trait Observable[+T] { self =>
    */
   def asyncBoundary(overflowStrategy: OverflowStrategy): Observable[T] =
     Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
-      onSubscribe(BufferedSubscriber(subscriber.observer, overflowStrategy))
+      onSubscribe(BufferedSubscriber(subscriber, overflowStrategy))
     }
 
   /**
@@ -1657,15 +1656,14 @@ trait Observable[+T] { self =>
    */
   def asyncBoundary[U >: T](overflowStrategy: OverflowStrategy.Evicted, onOverflow: Long => U): Observable[U] =
     Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
-      onSubscribe(BufferedSubscriber(subscriber.observer, overflowStrategy))
+      onSubscribe(BufferedSubscriber(subscriber, overflowStrategy))
     }
 
   /**
    * While the destination observer is busy, drop the incoming events.
    */
   def whileBusyDropEvents: Observable[T] =
-    operators.onBackPressure.dropEvents(self)
+    operators.whileBusy.dropEvents(self)
 
   /**
    * While the destination observer is busy, drop the incoming events.
@@ -1676,7 +1674,7 @@ trait Observable[+T] { self =>
    * @param onOverflow - $onOverflowParam
    */
   def whileBusyDropEvents[U >: T](onOverflow: Long => U): Observable[U] =
-    operators.onBackPressure.dropEventsThenSignalOverflow(self, onOverflow)
+    operators.whileBusy.dropEventsThenSignalOverflow(self, onOverflow)
 
   /**
    * While the destination observer is busy, buffers events, applying
@@ -1938,7 +1936,7 @@ object Observable {
       def onSubscribe(subscriber: Subscriber[T]): Unit =
         try f(subscriber) catch {
           case NonFatal(ex) =>
-            subscriber.observer.onError(ex)
+            subscriber.onError(ex)
         }
     }
   }

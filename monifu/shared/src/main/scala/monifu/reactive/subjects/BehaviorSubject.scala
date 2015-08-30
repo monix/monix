@@ -118,7 +118,7 @@ final class BehaviorSubject[T](initialValue: T) extends Subject[T,T] { self =>
         else {
           var idx = 0
           while (idx < observers.length) {
-            observers(idx).observer.onComplete()
+            observers(idx).onComplete()
             idx += 1
           }
         }
@@ -140,7 +140,7 @@ final class BehaviorSubject[T](initialValue: T) extends Subject[T,T] { self =>
         else {
           var idx = 0
           while (idx < observers.length) {
-            observers(idx).observer.onError(ex)
+            observers(idx).onError(ex)
             idx += 1
           }
         }
@@ -155,10 +155,9 @@ final class BehaviorSubject[T](initialValue: T) extends Subject[T,T] { self =>
 
     while (idx < length) {
       val subscriber = array(idx)
-      val obs = subscriber.observer
       implicit val s = subscriber.scheduler
 
-      obs.onNext(elem).onCompleteNow {
+      subscriber.onNext(elem).onCompleteNow {
         case Continue.IsSuccess =>
           newPromise.countdown()
         case _ =>

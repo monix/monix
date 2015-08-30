@@ -44,13 +44,12 @@ private[reactive] object window {
     require(count > 0, "count must be strictly positive")
 
     Observable.create[Observable[T]] { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
         private[this] var isDone = false
         private[this] var buffer = ReplaySubject[T]()
-        private[this] var ack = observer.onNext(buffer)
+        private[this] var ack = subscriber.onNext(buffer)
         private[this] var leftToPush = count
 
         def onNext(elem: T): Future[Ack] =
@@ -66,7 +65,7 @@ private[reactive] object window {
               leftToPush = count - 1
 
               val previousAck = ack
-              ack = ack.onContinueStreamOnNext(observer, buffer)
+              ack = ack.onContinueStreamOnNext(subscriber, buffer)
               previousAck
             }
           }
@@ -75,7 +74,7 @@ private[reactive] object window {
           if (!isDone) {
             isDone = true
             buffer.onComplete()
-            ack.onContinueSignalError(observer, ex)
+            ack.onContinueSignalError(subscriber, ex)
             buffer = null
           }
         }
@@ -84,7 +83,7 @@ private[reactive] object window {
           if (!isDone) {
             isDone = true
             buffer.onComplete()
-            ack.onContinueSignalComplete(observer)
+            ack.onContinueSignalComplete(subscriber)
             buffer = null
           }
         }
@@ -98,13 +97,12 @@ private[reactive] object window {
     assert(skip < count, "skip < count")
 
     Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
         private[this] var isDone = false
         private[this] var buffer = ReplaySubject[T]()
-        private[this] var ack = observer.onNext(buffer)
+        private[this] var ack = subscriber.onNext(buffer)
         private[this] var leftToPush = count
 
         private[this] val overlap = count - skip
@@ -126,7 +124,7 @@ private[reactive] object window {
               if (leftToPush <= overlap) queue += elem
 
               val previousAck = ack
-              ack = ack.onContinueStreamOnNext(observer, buffer)
+              ack = ack.onContinueStreamOnNext(subscriber, buffer)
               previousAck
             }
           }
@@ -135,7 +133,7 @@ private[reactive] object window {
           if (!isDone) {
             isDone = true
             buffer.onComplete()
-            ack.onContinueSignalError(observer, ex)
+            ack.onContinueSignalError(subscriber, ex)
             buffer = null
           }
         }
@@ -144,7 +142,7 @@ private[reactive] object window {
           if (!isDone) {
             isDone = true
             buffer.onComplete()
-            ack.onContinueSignalComplete(observer)
+            ack.onContinueSignalComplete(subscriber)
             buffer = null
           }
         }
@@ -158,13 +156,12 @@ private[reactive] object window {
     assert(skip > count, "skip > drop")
 
     Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
         private[this] var isDone = false
         private[this] var buffer = ReplaySubject[T]()
-        private[this] var ack = observer.onNext(buffer)
+        private[this] var ack = subscriber.onNext(buffer)
         private[this] var leftToPush = count
         private[this] var leftToDrop = 0
 
@@ -185,7 +182,7 @@ private[reactive] object window {
               buffer = ReplaySubject()
 
               val previousAck = ack
-              ack = ack.onContinueStreamOnNext(observer, buffer)
+              ack = ack.onContinueStreamOnNext(subscriber, buffer)
               previousAck
             }
           }
@@ -194,7 +191,7 @@ private[reactive] object window {
           if (!isDone) {
             isDone = true
             buffer.onComplete()
-            ack.onContinueSignalError(observer, ex)
+            ack.onContinueSignalError(subscriber, ex)
             buffer = null
           }
         }
@@ -203,7 +200,7 @@ private[reactive] object window {
           if (!isDone) {
             isDone = true
             buffer.onComplete()
-            ack.onContinueSignalComplete(observer)
+            ack.onContinueSignalComplete(subscriber)
             buffer = null
           }
         }
@@ -219,8 +216,7 @@ private[reactive] object window {
     require(maxCount >= 0, "maxCount must be positive")
 
     Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
         private[this] val timespanMillis = timespan.toMillis
@@ -229,7 +225,7 @@ private[reactive] object window {
         private[this] var size = 0
         private[this] var isDone = false
         private[this] var buffer = ReplaySubject[T]()
-        private[this] var ack = observer.onNext(buffer)
+        private[this] var ack = subscriber.onNext(buffer)
 
         def onNext(elem: T): Future[Ack] =
           if (isDone) Cancel else {
@@ -248,7 +244,7 @@ private[reactive] object window {
               size = 1
 
               val previousAck = ack
-              ack = ack.onContinueStreamOnNext(observer, buffer)
+              ack = ack.onContinueStreamOnNext(subscriber, buffer)
               previousAck
             }
           }
@@ -257,7 +253,7 @@ private[reactive] object window {
           if (!isDone) {
             isDone = true
             buffer.onComplete()
-            ack.onContinueSignalError(observer, ex)
+            ack.onContinueSignalError(subscriber, ex)
             buffer = null
           }
         }
@@ -266,7 +262,7 @@ private[reactive] object window {
           if (!isDone) {
             isDone = true
             buffer.onComplete()
-            ack.onContinueSignalComplete(observer)
+            ack.onContinueSignalComplete(subscriber)
             buffer = null
           }
         }

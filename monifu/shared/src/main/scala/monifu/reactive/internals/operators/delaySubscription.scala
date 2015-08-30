@@ -29,14 +29,13 @@ private[reactive] object delaySubscription {
    */
   def onFuture[T](source: Observable[T], future: Future[_]): Observable[T] =
       Observable.create[T] { subscriber =>
-        implicit val s = subscriber.scheduler
-        val observer = subscriber.observer
+        import subscriber.{scheduler => s}
 
         future.onComplete {
           case Success(_) =>
-            source.onSubscribe(observer)
+            source.onSubscribe(subscriber)
           case Failure(ex) =>
-            observer.onError(ex)
+            subscriber.onError(ex)
         }
       }
 
@@ -45,7 +44,7 @@ private[reactive] object delaySubscription {
    */
   def onTimespan[T](source: Observable[T], timespan: FiniteDuration): Observable[T] =
     Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
+      import subscriber.{scheduler => s}
       val underlying = source.delaySubscription {
         val p = Promise[Unit]()
         s.scheduleOnce(timespan)(p.success(()))

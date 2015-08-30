@@ -54,13 +54,13 @@ final class AsyncSubject[T] extends Subject[T,T] { self =>
         if (!state.compareAndSet(current, Active(set + subscriber)))
           onSubscribe(subscriber)
       case CompletedEmpty =>
-        subscriber.observer.onComplete()
+        subscriber.onComplete()
       case CompletedError(ex) =>
-        subscriber.observer.onError(ex)
+        subscriber.onError(ex)
       case Completed(value) =>
         implicit val s = subscriber.scheduler
-        subscriber.observer.onNext(value)
-          .onContinueSignalComplete(subscriber.observer)
+        subscriber.onNext(value)
+          .onContinueSignalComplete(subscriber)
     }
 
   def onNext(elem: T): Future[Ack] = {
@@ -80,7 +80,7 @@ final class AsyncSubject[T] extends Subject[T,T] { self =>
       if (!state.compareAndSet(current, CompletedError(ex)))
         onError(ex)
       else
-        for (s <- set) s.observer.onError(ex)
+        for (s <- set) s.onError(ex)
 
     case _ =>
       () // already completed, do nothing
@@ -96,14 +96,14 @@ final class AsyncSubject[T] extends Subject[T,T] { self =>
           onComplete()
         else
           for (subscriber <- set) {
-            implicit val s = subscriber.scheduler
-            subscriber.observer.onNext(currentElem)
-              .onContinueSignalComplete(subscriber.observer)
+            import subscriber.scheduler
+            subscriber.onNext(currentElem)
+              .onContinueSignalComplete(subscriber)
           }
       else if (!state.compareAndSet(current, CompletedEmpty))
         onComplete()
       else
-        for (s <- set) s.observer.onComplete()
+        for (s <- set) s.onComplete()
 
     case _ =>
       () // already completed, do nothing

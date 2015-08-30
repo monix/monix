@@ -18,43 +18,36 @@
 package monifu.reactive.observers
 
 import monifu.concurrent.Scheduler
-import monifu.reactive.Subscriber
+import monifu.reactive.{Ack, Subscriber}
 
 /**
- * A `SynchronousSubscriber` is a [[Subscriber]] whose observer
- * signals demand synchronously (i.e. the upstream observable doesn't need to
+ * A `SynchronousSubscriber` is a [[Subscriber]] whose `onNext` signal
+ * is synchronous (i.e. the upstream observable doesn't need to
  * wait on a `Future` in order to decide whether to send the next event
  * or not).
  */
-trait SynchronousSubscriber[-T] extends Subscriber[T] {
-  def observer: SynchronousObserver[T]
-}
+trait SynchronousSubscriber[-T] extends Subscriber[T]
+  with SynchronousObserver[T]
 
 object SynchronousSubscriber {
   /** Subscriber builder */
   def apply[T](observer: SynchronousObserver[T], scheduler: Scheduler): SynchronousSubscriber[T] =
-    new Implementation[T](observer, scheduler)
-
-  /** Utility for pattern matching */
-  def unapply[T](ref: SynchronousSubscriber[T]): Some[(SynchronousObserver[T], Scheduler)] =
-    Some((ref.observer, ref.scheduler))
+    observer match {
+      case ref: SynchronousSubscriber[_] if ref.scheduler == scheduler =>
+        ref.asInstanceOf[SynchronousSubscriber[T]]
+      case _ =>
+        new Implementation[T](observer, scheduler)
+    }
 
   private[this] final class Implementation[-T]
-      (val observer: SynchronousObserver[T], val scheduler: Scheduler)
+      (observer: SynchronousObserver[T], val scheduler: Scheduler)
     extends SynchronousSubscriber[T] {
 
     require(observer != null, "Observer should not be null")
     require(scheduler != null, "Scheduler should not be null")
 
-    override def equals(other: Any): Boolean = other match {
-      case that: Implementation[_] =>
-        observer == that.observer &&
-          scheduler == that.scheduler
-      case _ =>
-        false
-    }
-
-    override val hashCode: Int = {
-      31 * observer.hashCode() + scheduler.hashCode()
-    }
-  }}
+    def onNext(elem: T): Ack = observer.onNext(elem)
+    def onError(ex: Throwable): Unit = observer.onError(ex)
+    def onComplete(): Unit = observer.onComplete()
+  }
+}

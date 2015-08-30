@@ -18,7 +18,7 @@
 package monifu.reactive
 
 import monifu.concurrent.Scheduler
-import monifu.reactive.Ack.Continue
+import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.observers.{SynchronousObserver, SynchronousSubscriber}
 import monifu.reactive.streams.{SubscriberAsObserver, SubscriberAsReactiveSubscriber, SynchronousSubscriberAsReactiveSubscriber}
 import org.reactivestreams.{Subscriber => RSubscriber}
@@ -89,6 +89,81 @@ object Observer {
   }
 
   /**
+   * Feeds the given [[Observer]] instance with elements from the given iterable,
+   * respecting the contract and returning a `Future[Ack]` with the last
+   * acknowledgement given after the last emitted element.
+   */
+  def feed[T](source: Observer[T], iterable: Iterable[T])(implicit s: Scheduler): Future[Ack] = {
+    try feed(source, iterable.iterator) catch {
+      case NonFatal(ex) =>
+        source.onError(ex)
+        Cancel
+    }
+  }
+
+  /**
+   * Feeds the given [[Observer]] instance with elements from the given iterator,
+   * respecting the contract and returning a `Future[Ack]` with the last
+   * acknowledgement given after the last emitted element.
+   */
+  def feed[T](source: Observer[T], iterator: Iterator[T])(implicit s: Scheduler): Future[Ack] = {
+    def scheduleFeedLoop(promise: Promise[Ack], iterator: Iterator[T]): Future[Ack] = {
+      s.execute(new Runnable {
+        private[this] val modulus = s.env.batchSize - 1
+
+        @tailrec
+        def fastLoop(syncIndex: Int): Unit = {
+          val ack = source.onNext(iterator.next())
+
+          if (iterator.hasNext) {
+            val nextIndex = if (!ack.isCompleted) 0 else
+              (syncIndex + 1) & modulus
+
+            if (nextIndex != 0) {
+              if (ack == Continue || ack.value.get == Continue.IsSuccess)
+                fastLoop(nextIndex)
+              else
+                promise.complete(ack.value.get)
+            }
+            else ack.onComplete {
+              case Continue.IsSuccess =>
+                run()
+              case other =>
+                promise.complete(other)
+            }
+          }
+          else {
+            promise.completeWith(ack)
+          }
+        }
+
+        def run(): Unit = {
+          try fastLoop(0) catch {
+            case NonFatal(ex) =>
+              try source.onError(ex) finally {
+                promise.failure(ex)
+              }
+          }
+        }
+      })
+
+      promise.future
+    }
+
+    try {
+      if (iterator.hasNext)
+        scheduleFeedLoop(Promise[Ack](), iterator)
+      else
+        Continue
+    }
+    catch {
+      case NonFatal(ex) =>
+        source.onError(ex)
+        Cancel
+    }
+  }
+
+  /**
    * Extension methods for [[Observer]].
    */
   implicit class Extensions[T](val source: Observer[T]) extends AnyVal {
@@ -113,61 +188,20 @@ object Observer {
     def toReactiveSubscriber(bufferSize: Int)(implicit s: Scheduler): RSubscriber[T] =
       Observer.toReactiveSubscriber(source, bufferSize)
 
-
     /**
-     * Feeds the given [[Observer]] instance with elements from the given iterable,
+     * Feeds the source [[Observer]] with elements from the given iterable,
      * respecting the contract and returning a `Future[Ack]` with the last
      * acknowledgement given after the last emitted element.
      */
-    def feed(iterable: Iterable[T])(implicit s: Scheduler): Future[Ack] = {
-      def scheduleFeedLoop(promise: Promise[Ack], iterator: Iterator[T]): Future[Ack] = {
-        s.execute(new Runnable {
-          private[this] val modulus = s.env.batchSize - 1
+    def feed(iterable: Iterable[T])(implicit s: Scheduler): Future[Ack] =
+      Observer.feed(source, iterable)
 
-          @tailrec
-          def fastLoop(syncIndex: Int): Unit = {
-            val ack = source.onNext(iterator.next())
-
-            if (iterator.hasNext) {
-              val nextIndex = if (!ack.isCompleted) 0 else
-                (syncIndex + 1) & modulus
-
-              if (nextIndex != 0) {
-                if (ack == Continue || ack.value.get == Continue.IsSuccess)
-                  fastLoop(nextIndex)
-                else
-                  promise.complete(ack.value.get)
-              }
-              else ack.onComplete {
-                case Continue.IsSuccess =>
-                  run()
-                case other =>
-                  promise.complete(other)
-              }
-            }
-            else {
-              promise.completeWith(ack)
-            }
-          }
-
-          def run(): Unit = {
-            try fastLoop(0) catch {
-              case NonFatal(ex) =>
-                try source.onError(ex) finally {
-                  promise.failure(ex)
-                }
-            }
-          }
-        })
-
-        promise.future
-      }
-
-      val iterator = iterable.iterator
-      if (iterator.hasNext)
-        scheduleFeedLoop(Promise[Ack](), iterator)
-      else
-        Continue
-    }
+    /**
+     * Feeds the source [[Observer]] with elements from the given iterator,
+     * respecting the contract and returning a `Future[Ack]` with the last
+     * acknowledgement given after the last emitted element.
+     */
+    def feed(iterator: Iterator[T])(implicit s: Scheduler): Future[Ack] =
+      Observer.feed(source, iterator)
   }
 }

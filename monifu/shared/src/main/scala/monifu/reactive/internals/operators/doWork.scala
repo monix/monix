@@ -31,12 +31,11 @@ private[reactive] object doWork {
    */
   def onNext[T](source: Observable[T])(cb: T => Unit): Observable[T] =
     Observable.create[T] { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
-        def onError(ex: Throwable) = observer.onError(ex)
-        def onComplete() = observer.onComplete()
+        def onError(ex: Throwable) = subscriber.onError(ex)
+        def onComplete() = subscriber.onComplete()
 
         def onNext(elem: T) = {
           // See Section 6.4. in the Rx Design Guidelines:
@@ -45,11 +44,11 @@ private[reactive] object doWork {
           try {
             cb(elem)
             streamError = false
-            observer.onNext(elem)
+            subscriber.onNext(elem)
           }
           catch {
             case NonFatal(ex) =>
-              if (streamError) { observer.onError(ex); Cancel } else Future.failed(ex)
+              if (streamError) { subscriber.onError(ex); Cancel } else Future.failed(ex)
           }
         }
       })
@@ -60,16 +59,15 @@ private[reactive] object doWork {
    */
   def onComplete[T](source: Observable[T])(cb: => Unit): Observable[T] =
     Observable.create[T] { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
         def onNext(elem: T) = {
-          observer.onNext(elem)
+          subscriber.onNext(elem)
         }
 
         def onError(ex: Throwable): Unit = {
-          observer.onError(ex)
+          subscriber.onError(ex)
         }
 
         def onComplete(): Unit = {
@@ -78,11 +76,11 @@ private[reactive] object doWork {
           try {
             cb
             streamError = false
-            observer.onComplete()
+            subscriber.onComplete()
           }
           catch {
             case NonFatal(ex) =>
-              observer.onError(ex)
+              subscriber.onError(ex)
           }
         }
       })
@@ -93,12 +91,11 @@ private[reactive] object doWork {
    */
   def onError[T](source: Observable[T])(cb: Throwable => Unit): Observable[T] =
     Observable.create[T] { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
         def onNext(elem: T) = {
-          observer.onNext(elem)
+          subscriber.onNext(elem)
         }
 
         def onError(ex: Throwable): Unit = {
@@ -113,12 +110,12 @@ private[reactive] object doWork {
               s.reportFailure(err)
           }
           finally {
-            observer.onError(ex)
+            subscriber.onError(ex)
           }
         }
 
         def onComplete(): Unit = {
-          observer.onComplete()
+          subscriber.onComplete()
         }
       })
     }
@@ -128,22 +125,21 @@ private[reactive] object doWork {
    */
   def onCanceled[T](source: Observable[T])(cb: => Unit): Observable[T] =
     Observable.create[T] { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
       val isActive = Cancelable(cb)
 
       source.onSubscribe(new Observer[T] {
         def onNext(elem: T) = {
-          observer.onNext(elem)
+          subscriber.onNext(elem)
             .ifCanceledDoCancel(isActive)
         }
 
         def onError(ex: Throwable): Unit = {
-          observer.onError(ex)
+          subscriber.onError(ex)
         }
 
         def onComplete(): Unit = {
-          observer.onComplete()
+          subscriber.onComplete()
         }
       })
     }
@@ -153,8 +149,7 @@ private[reactive] object doWork {
    */
   def onStart[T](source: Observable[T])(cb: T => Unit): Observable[T] =
     Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
         private[this] var isStarted = false
@@ -166,20 +161,20 @@ private[reactive] object doWork {
             try {
               cb(elem)
               streamError = false
-              observer.onNext(elem)
+              subscriber.onNext(elem)
             }
             catch {
               case NonFatal(ex) =>
-                observer.onError(ex)
+                subscriber.onError(ex)
                 Cancel
             }
           }
           else
-            observer.onNext(elem)
+            subscriber.onNext(elem)
         }
 
-        def onError(ex: Throwable) = observer.onError(ex)
-        def onComplete() = observer.onComplete()
+        def onError(ex: Throwable) = subscriber.onError(ex)
+        def onComplete() = subscriber.onComplete()
       })
     }
 }

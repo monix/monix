@@ -93,7 +93,7 @@ object ConnectableObservable {
     new ConnectableObservable[R] {
       private[this] val (connectable, cancelRef) = {
         val ref = CacheUntilConnectSubscriber(Subscriber(subject, s))
-        val c = source.subscribe(ref.observer) // connects immediately
+        val c = source.subscribe(ref) // connects immediately
         (ref, c)
       }
 

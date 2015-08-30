@@ -28,15 +28,14 @@ private[reactive] object misc {
    */
   def complete[T](source: Observable[T]): Observable[Nothing] =
     Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
         def onNext(elem: T) = Continue
         def onError(ex: Throwable): Unit =
-          observer.onError(ex)
+          subscriber.onError(ex)
         def onComplete(): Unit =
-          observer.onComplete()
+          subscriber.onComplete()
       })
     }
 
@@ -45,19 +44,18 @@ private[reactive] object misc {
    */
   def error[T](source: Observable[T]): Observable[Throwable] =
     Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
         def onNext(elem: T) =
           Continue
 
         def onComplete(): Unit =
-          observer.onComplete()
+          subscriber.onComplete()
 
         def onError(ex: Throwable): Unit = {
-          observer.onNext(ex)
-            .onContinueSignalComplete(observer)
+          subscriber.onNext(ex)
+            .onContinueSignalComplete(subscriber)
         }
       })
     }
@@ -67,27 +65,26 @@ private[reactive] object misc {
    */
   def defaultIfEmpty[T](source: Observable[T], default: T): Observable[T] =
     Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
         private[this] var isEmpty = true
 
         def onNext(elem: T): Future[Ack] = {
           if (isEmpty) isEmpty = false
-          observer.onNext(elem)
+          subscriber.onNext(elem)
         }
 
         def onError(ex: Throwable): Unit = {
-          observer.onError(ex)
+          subscriber.onError(ex)
         }
 
         def onComplete(): Unit = {
           if (isEmpty)
-            observer.onNext(default)
-              .onContinueSignalComplete(observer)
+            subscriber.onNext(default)
+              .onContinueSignalComplete(subscriber)
           else
-            observer.onComplete()
+            subscriber.onComplete()
         }
       })
     }
@@ -97,13 +94,12 @@ private[reactive] object misc {
    */
   def endWithError[T](source: Observable[T])(error: Throwable): Observable[T] =
     Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
-        def onNext(elem: T) = observer.onNext(elem)
-        def onError(ex: Throwable) = observer.onError(ex)
-        def onComplete() = observer.onError(error)
+        def onNext(elem: T) = subscriber.onNext(elem)
+        def onError(ex: Throwable) = subscriber.onError(ex)
+        def onComplete() = subscriber.onError(error)
       })
     }
 
@@ -112,21 +108,20 @@ private[reactive] object misc {
    */
   def isEmpty[T](source: Observable[T]): Observable[Boolean] =
     Observable.create[Boolean] { subscriber =>
-      implicit val s = subscriber.scheduler
-      val o = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
         def onNext(elem: T): Future[Ack] = {
-          o.onNext(false).onContinueSignalComplete(o)
+          subscriber.onNext(false).onContinueSignalComplete(subscriber)
           Cancel
         }
 
         def onError(ex: Throwable): Unit =
-          o.onError(ex)
+          subscriber.onError(ex)
 
         def onComplete(): Unit = {
           // if we get here, it means that `onNext` never happened
-          o.onNext(true).onContinueSignalComplete(o)
+          subscriber.onNext(true).onContinueSignalComplete(subscriber)
         }
       })
     }

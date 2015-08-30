@@ -38,13 +38,12 @@ object MiscDefaultIfEmptySuite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
     val o = Observable.create[Long] { subscriber =>
       implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
 
-      observer.onNext(222L).onComplete {
+      subscriber.onNext(222L).onComplete {
         case Success(Continue) =>
           Observable.error(DummyException("dummy"))
             .defaultIfEmpty(0L)
-            .onSubscribe(observer)
+            .onSubscribe(subscriber)
         case _ =>
           ()
       }

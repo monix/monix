@@ -34,9 +34,8 @@ private[reactive] object buffer {
     require(skip > 0, "skip must be strictly positive")
 
     Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
-
+      import subscriber.{scheduler => s}
+      
       source.onSubscribe(new Observer[T] {
         private[this] val shouldDrop = skip > count
         private[this] var leftToDrop = 0
@@ -63,7 +62,7 @@ private[reactive] object buffer {
 
             if (size >= count) {
               if (shouldDrop) leftToDrop = skip - count
-              val continue = observer.onNext(buffer)
+              val continue = subscriber.onNext(buffer)
               buffer = null
               continue
             }
@@ -74,22 +73,22 @@ private[reactive] object buffer {
 
         def onError(ex: Throwable): Unit = {
           if (buffer != null) {
-            observer.onNext(buffer).onContinueSignalError(observer, ex)
+            subscriber.onNext(buffer).onContinueSignalError(subscriber, ex)
             buffer = null
             nextBuffer = null
           }
           else
-            observer.onError(ex)
+            subscriber.onError(ex)
         }
 
         def onComplete(): Unit = {
           if (buffer != null) {
-            observer.onNext(buffer).onContinueSignalComplete(observer)
+            subscriber.onNext(buffer).onContinueSignalComplete(subscriber)
             buffer = null
             nextBuffer = null
           }
           else
-            observer.onComplete()
+            subscriber.onComplete()
         }
       })
     }
@@ -104,7 +103,6 @@ private[reactive] object buffer {
 
     Observable.create[Seq[T]] { subscriber =>
       implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
 
       source.onSubscribe(new Observer[T] {
         private[this] val timespanMillis = timespan.toMillis
@@ -119,7 +117,7 @@ private[reactive] object buffer {
             val oldBuffer = buffer
             buffer = ArrayBuffer.empty[T]
             expiresAt = rightNow + timespanMillis
-            observer.onNext(oldBuffer)
+            subscriber.onNext(oldBuffer)
           }
           else
             Continue
@@ -127,20 +125,20 @@ private[reactive] object buffer {
 
         def onError(ex: Throwable): Unit = {
           if (buffer.nonEmpty) {
-            observer.onNext(buffer).onContinueSignalError(observer, ex)
+            subscriber.onNext(buffer).onContinueSignalError(subscriber, ex)
             buffer = null
           }
           else
-            observer.onError(ex)
+            subscriber.onError(ex)
         }
 
         def onComplete(): Unit = {
           if (buffer.nonEmpty) {
-            observer.onNext(buffer).onContinueSignalComplete(observer)
+            subscriber.onNext(buffer).onContinueSignalComplete(subscriber)
             buffer = null
           }
           else
-            observer.onComplete()
+            subscriber.onComplete()
         }
       })
     }

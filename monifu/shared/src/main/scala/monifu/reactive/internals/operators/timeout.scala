@@ -40,11 +40,10 @@ private[reactive] object timeout {
    * Implementation for
    */
   def switchToBackup[T](source: Observable[T], timeout: FiniteDuration, backup: Observable[T]) =
-    Observable.create[T] { subscriber =>
-      implicit val s = subscriber.scheduler
+    Observable.create[T] { downstream =>
+      import downstream.{scheduler => s}
 
       source.onSubscribe(new Observer[T] with Runnable { self =>
-        private[this] val downstream = subscriber.observer
         private[this] val timeoutMillis = timeout.toMillis
         private[this] val task = MultiAssignmentCancelable()
         private[this] var ack: Future[Ack] = Continue
@@ -66,7 +65,7 @@ private[reactive] object timeout {
               isDone = true
               ack.onContinue {
                 // subscribing our downstream observer to the backup observable
-                backup.onSubscribe(subscriber)
+                backup.onSubscribe(downstream)
               }
             }
             else {

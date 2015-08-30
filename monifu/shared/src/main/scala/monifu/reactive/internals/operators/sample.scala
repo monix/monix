@@ -17,13 +17,11 @@
 
 package monifu.reactive.internals.operators
 
-import monifu.concurrent.Scheduler
 import monifu.reactive.Ack.{Cancel, Continue}
-import monifu.reactive.observers.SynchronousObserver
-import monifu.reactive.{Ack, Observable, Observer}
+import monifu.reactive.observers.SynchronousSubscriber
+import monifu.reactive.{Ack, Observable, Observer, Subscriber}
 import scala.concurrent.Future
 import scala.concurrent.duration._
-
 
 private[reactive] object sample {
   /**
@@ -37,10 +35,9 @@ private[reactive] object sample {
    */
   def once[T,U](source: Observable[T], sampler: Observable[U]): Observable[T] =
     Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
       source.onSubscribe(new SampleObserver(
-        observer, sampler, shouldRepeatOnSilence = false))
+        subscriber, sampler, shouldRepeatOnSilence = false))
     }
 
   /**
@@ -48,10 +45,9 @@ private[reactive] object sample {
    */
   def repeated[T,U](source: Observable[T], sampler: Observable[U]): Observable[T] =
     Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
       source.onSubscribe(new SampleObserver(
-        observer, sampler, shouldRepeatOnSilence = true))
+        subscriber, sampler, shouldRepeatOnSilence = true))
     }
 
   /**
@@ -61,9 +57,10 @@ private[reactive] object sample {
     repeated(source, Observable.intervalAtFixedRate(initialDelay, delay))
 
   private class SampleObserver[T,U]
-      (downstream: Observer[T], sampler: Observable[U], shouldRepeatOnSilence: Boolean)
-      (implicit s: Scheduler)
-    extends SynchronousObserver[T] {
+      (downstream: Subscriber[T], sampler: Observable[U], shouldRepeatOnSilence: Boolean)
+    extends SynchronousSubscriber[T] {
+
+    implicit val scheduler = downstream.scheduler
 
     @volatile private[this] var hasValue = false
     // MUST BE written before `hasValue = true`

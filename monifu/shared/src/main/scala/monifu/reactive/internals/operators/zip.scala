@@ -29,9 +29,8 @@ private[reactive] object zip {
    * Implements [[Observable.zip]].
    */
   def apply[T, U](first: Observable[T], second: Observable[U]) = {
-    Observable.create[(T, U)] { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observerOfPairs = subscriber.observer
+    Observable.create[(T, U)] { observerOfPairs =>
+      import observerOfPairs.{scheduler => s}
 
       // using mutability, receiving data from 2 producers, so must synchronize
       val lock = new AnyRef

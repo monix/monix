@@ -31,13 +31,12 @@ object MaxBySuite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
     val o = Observable.create[Long] { subscriber =>
       implicit val s = subscriber.scheduler
-      val o = subscriber.observer
       val source = createObservableEndingInError(Observable.range(0, sourceCount+1), ex)
         .maxBy(x => x + 1)
 
-      o.onNext(sum(sourceCount)).onComplete {
+      subscriber.onNext(sum(sourceCount)).onComplete {
         case Success(Continue) =>
-          source.subscribe(o)
+          source.subscribe(subscriber)
         case _ =>
           ()
       }

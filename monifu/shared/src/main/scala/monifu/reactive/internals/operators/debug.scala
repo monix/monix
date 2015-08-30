@@ -33,8 +33,7 @@ private[reactive] object debug {
    */
   def dump[T](source: Observable[T], prefix: String, out: PrintStream): Observable[T] =
     Observable.create[T] { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
         private[this] var pos = 0
@@ -50,12 +49,12 @@ private[reactive] object debug {
             streamError = false
 
             pos += 1
-            observer.onNext(elem)
+            subscriber.onNext(elem)
               .ifCanceledDoCancel(downstreamActive)
           }
           catch {
             case NonFatal(ex) =>
-              if (streamError) { observer.onError(ex); Cancel } else
+              if (streamError) { subscriber.onError(ex); Cancel } else
                 Future.failed(ex)
           }
         }
@@ -70,7 +69,7 @@ private[reactive] object debug {
               () // ignore
           }
 
-          observer.onError(ex)
+          subscriber.onError(ex)
         }
 
         def onComplete() = {
@@ -83,7 +82,7 @@ private[reactive] object debug {
               () // ignore
           }
 
-          observer.onComplete()
+          subscriber.onComplete()
         }
       })
     }

@@ -18,10 +18,8 @@
 package monifu.reactive.observers
 
 import monifu.collection.mutable.ConcurrentQueue
-import monifu.concurrent.Scheduler
-import monifu.reactive.Ack.{Continue, Cancel}
-import monifu.reactive.{Ack, Observer}
-
+import monifu.reactive.Ack.{Cancel, Continue}
+import monifu.reactive.{Ack, Subscriber}
 import scala.annotation.tailrec
 import scala.concurrent.{Future, Promise}
 import scala.util.Failure
@@ -32,13 +30,12 @@ import scala.util.control.NonFatal
  * [[monifu.reactive.OverflowStrategy.BackPressure BackPressured]] buffer overflowStrategy.
  */
 final class BackPressuredBufferedSubscriber[-T] private
-    (underlying: Observer[T], bufferSize: Int)
-    (implicit val scheduler: Scheduler)
+    (underlying: Subscriber[T], bufferSize: Int)
   extends BufferedSubscriber[T] { self =>
 
   require(bufferSize > 0, "bufferSize must be a strictly positive number")
 
-
+  implicit val scheduler = underlying.scheduler
   private[this] val queue = ConcurrentQueue.empty[T]
   private[this] val batchSizeModulus = scheduler.env.batchSize - 1
 
@@ -56,37 +53,35 @@ final class BackPressuredBufferedSubscriber[-T] private
   private[this] var nextAckPromise = Promise[Ack]()
   private[this] var appliesBackPressure = false
 
-  val observer: Observer[T] = new Observer[T] {
-    def onNext(elem: T): Future[Ack] = lock.synchronized {
-      if (!upstreamIsComplete && !downstreamIsDone) {
-        try {
-          queue.offer(elem)
-          pushToConsumer()
-        }
-        catch {
-          case NonFatal(ex) =>
-            onError(ex)
-            Cancel
-        }
-      }
-      else {
-        Cancel
-      }
-    }
-
-    def onError(ex: Throwable) = lock.synchronized {
-      if (!upstreamIsComplete && !downstreamIsDone) {
-        errorThrown = ex
-        upstreamIsComplete = true
+  def onNext(elem: T): Future[Ack] = lock.synchronized {
+    if (!upstreamIsComplete && !downstreamIsDone) {
+      try {
+        queue.offer(elem)
         pushToConsumer()
       }
-    }
-
-    def onComplete() = lock.synchronized {
-      if (!upstreamIsComplete && !downstreamIsDone) {
-        upstreamIsComplete = true
-        pushToConsumer()
+      catch {
+        case NonFatal(ex) =>
+          onError(ex)
+          Cancel
       }
+    }
+    else {
+      Cancel
+    }
+  }
+
+  def onError(ex: Throwable) = lock.synchronized {
+    if (!upstreamIsComplete && !downstreamIsDone) {
+      errorThrown = ex
+      upstreamIsComplete = true
+      pushToConsumer()
+    }
+  }
+
+  def onComplete() = lock.synchronized {
+    if (!upstreamIsComplete && !downstreamIsDone) {
+      upstreamIsComplete = true
+      pushToConsumer()
     }
   }
 
@@ -235,6 +230,6 @@ final class BackPressuredBufferedSubscriber[-T] private
 }
 
 object BackPressuredBufferedSubscriber {
-  def apply[T](observer: Observer[T], bufferSize: Int)(implicit s: Scheduler) =
-    new BackPressuredBufferedSubscriber[T](observer, bufferSize)
+  def apply[T](underlying: Subscriber[T], bufferSize: Int) =
+    new BackPressuredBufferedSubscriber[T](underlying, bufferSize)
 }

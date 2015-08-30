@@ -33,23 +33,23 @@ class SubjectChannel[I,+O] private[reactive]
   assert(onOverflow == null || overflowStrategy.isInstanceOf[Evicted],
     "onOverflow is only supported for `OverflowStrategy.WithSignal`")
 
-  private[this] val channel =
-    BufferedSubscriber(subject, overflowStrategy, onOverflow)
+  private[this] val channel = BufferedSubscriber(
+    Subscriber(subject, scheduler), overflowStrategy, onOverflow)
 
   final def onSubscribe(subscriber: Subscriber[O]): Unit = {
     subject.onSubscribe(subscriber)
   }
 
   final def pushNext(elems: I*): Unit = {
-    for (elem <- elems) channel.observer.onNext(elem)
+    for (elem <- elems) channel.onNext(elem)
   }
 
   final def pushComplete(): Unit = {
-    channel.observer.onComplete()
+    channel.onComplete()
   }
 
   final def pushError(ex: Throwable): Unit = {
-    channel.observer.onError(ex)
+    channel.onError(ex)
   }
 }
 

@@ -33,7 +33,7 @@ object DoOnCancelSuite extends BaseOperatorSuite {
       val sum = Atomic(0L)
       val source = Observable.range(0, sourceCount)
         .doWork(sum.add)
-        .doOnCanceled(unit(sum.get).subscribe(s.observer))
+        .doOnCanceled(unit(sum.get).subscribe(s))
 
       source.subscribe(new Observer[Long] {
         def onError(ex: Throwable) = ()
