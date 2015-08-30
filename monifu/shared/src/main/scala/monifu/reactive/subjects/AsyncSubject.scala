@@ -17,15 +17,10 @@
  
 package monifu.reactive.subjects
 
-import monifu.concurrent.atomic.Atomic
 import monifu.reactive.Ack.{Cancel, Continue}
-import monifu.reactive.{Ack, Subject, Subscriber}
 import monifu.reactive.internals._
-
-import scala.annotation.tailrec
-import scala.collection.immutable.Set
+import monifu.reactive.{Ack, Subject, Subscriber}
 import scala.concurrent.Future
-
 
 /**
  * An `AsyncSubject` emits the last value (and only the last value) emitted by the source Observable,
@@ -40,83 +35,65 @@ import scala.concurrent.Future
  * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/S.AsyncSubject.e.png" />
  */
 final class AsyncSubject[T] extends Subject[T,T] { self =>
-  import monifu.reactive.subjects.AsyncSubject._
+  @volatile private[this] var subscribers = Vector.empty[Subscriber[T]]
+  @volatile private[this] var isDone = false
 
-  private[this] val state = Atomic(Active(Set.empty[Subscriber[T]]) : State[T])
   private[this] var onNextHappened = false
-  private[this] var currentElem: T = _
-  private[this] var isCompleted = false
+  private[this] var errorThrown: Throwable = null
+  private[this] var cachedElem: T = _
 
-  @tailrec
+  private[this] def onDone(subscriber: Subscriber[T]) = {
+    import subscriber.scheduler
+    if (errorThrown != null)
+      subscriber.onError(errorThrown)
+    else if (onNextHappened) {
+      subscriber.onNext(cachedElem)
+        .onContinueSignalComplete(subscriber)
+    }
+    else {
+      subscriber.onComplete()
+    }
+  }
+
   def onSubscribe(subscriber: Subscriber[T]): Unit =
-    state.get match {
-      case current @ Active(set) =>
-        if (!state.compareAndSet(current, Active(set + subscriber)))
-          onSubscribe(subscriber)
-      case CompletedEmpty =>
-        subscriber.onComplete()
-      case CompletedError(ex) =>
-        subscriber.onError(ex)
-      case Completed(value) =>
-        implicit val s = subscriber.scheduler
-        subscriber.onNext(value)
-          .onContinueSignalComplete(subscriber)
+    if (isDone) {
+      // fast path
+      onDone(subscriber)
+    }
+    else self.synchronized {
+      if (isDone)
+        onDone(subscriber)
+      else
+        subscribers = subscribers :+ subscriber
     }
 
   def onNext(elem: T): Future[Ack] = {
-    if (!isCompleted) {
+    if (isDone) Cancel else {
       if (!onNextHappened) onNextHappened = true
-      currentElem = elem
+      cachedElem = elem
       Continue
     }
-    else
-      Cancel
   }
 
-  @tailrec
-  def onError(ex: Throwable): Unit = state.get match {
-    case current @ Active(set) =>
-      isCompleted = true
-      if (!state.compareAndSet(current, CompletedError(ex)))
-        onError(ex)
-      else
-        for (s <- set) s.onError(ex)
-
-    case _ =>
-      () // already completed, do nothing
+  def onError(ex: Throwable): Unit = self.synchronized {
+    if (!isDone) {
+      errorThrown = ex
+      isDone = true
+      subscribers.foreach(onDone)
+      subscribers = Vector.empty
+    }
   }
 
-  @tailrec
-  def onComplete(): Unit = state.get match {
-    case current @ Active(set) =>
-      isCompleted = true
-
-      if (onNextHappened)
-        if (!state.compareAndSet(current, Completed(currentElem)))
-          onComplete()
-        else
-          for (subscriber <- set) {
-            import subscriber.scheduler
-            subscriber.onNext(currentElem)
-              .onContinueSignalComplete(subscriber)
-          }
-      else if (!state.compareAndSet(current, CompletedEmpty))
-        onComplete()
-      else
-        for (s <- set) s.onComplete()
-
-    case _ =>
-      () // already completed, do nothing
+  def onComplete(): Unit = self.synchronized {
+    if (!isDone) {
+      isDone = true
+      subscribers.foreach(onDone)
+      subscribers = Vector.empty
+    }
   }
 }
 
 object AsyncSubject {
   def apply[T](): AsyncSubject[T] =
     new AsyncSubject[T]()
-
-  private sealed trait State[+T]
-  private case class Active[T](observers: Set[Subscriber[T]]) extends State[T]
-  private case object CompletedEmpty extends State[Nothing]
-  private case class Completed[+T](value: T) extends State[T]
-  private case class CompletedError(ex: Throwable) extends State[Nothing]
 }

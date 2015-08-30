@@ -17,11 +17,10 @@
 
 package monifu.reactive.subjects
 
-import monifu.concurrent.atomic.{Atomic, AtomicLong}
 import monifu.reactive.Ack.Continue
 import monifu.reactive.{Observable, Observer}
-
 import scala.util.Success
+
 
 object PublishSubjectSuite extends BaseSubjectSuite {
   def alreadyTerminatedTest(expectedElems: Seq[Long]) = {
@@ -32,36 +31,6 @@ object PublishSubjectSuite extends BaseSubjectSuite {
   def continuousStreamingTest(expectedElems: Seq[Long]) = {
     val s = PublishSubject[Long]()
     Some(Sample(s, expectedElems.sum))
-  }
-
-  test("should not subscribe the same observer instance twice") { implicit s =>
-    val Sample(subject, _) = alreadyTerminatedTest(Seq.empty)
-    var wereCompleted = 0
-
-    def createObserver(sum: AtomicLong) = new Observer[Long] {
-      def onNext(elem: Long) = {
-        sum.add(elem)
-        Continue
-      }
-
-      def onError(ex: Throwable) = ()
-      def onComplete() = wereCompleted += 1
-    }
-
-    val sum1 = Atomic(0L)
-    val observer1 = createObserver(sum1)
-    val sum2 = Atomic(0L)
-    val observer2 = createObserver(sum2)
-
-    subject.onSubscribe(observer1)
-    subject.onSubscribe(observer2)
-    subject.onSubscribe(observer2)
-
-    Observable.range(0, 1000).onSubscribe(subject)
-    s.tick()
-
-    assertEquals(wereCompleted, 2)
-    assertEquals(sum1.get, sum2.get)
   }
 
   test("issue #50") { implicit s =>

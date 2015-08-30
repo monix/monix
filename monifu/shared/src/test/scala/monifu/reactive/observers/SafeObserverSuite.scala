@@ -21,7 +21,7 @@ import minitest.TestSuite
 import monifu.concurrent.schedulers.TestScheduler
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.exceptions.DummyException
-import monifu.reactive.{Ack, Observer}
+import monifu.reactive.{Subscriber, Ack, Observer}
 import scala.concurrent.{Future, Promise}
 import scala.util.Success
 
@@ -34,7 +34,9 @@ object SafeObserverSuite extends TestSuite[TestScheduler] {
 
   test("should protect against synchronous errors, test 1") { implicit s =>
     var errorThrown: Throwable = null
-    val observer = SafeObserver(new Observer[Int] {
+    val observer = SafeSubscriber(new Subscriber[Int] {
+      val scheduler = s
+      
       def onNext(elem: Int): Future[Ack] = {
         throw new DummyException
       }
@@ -57,7 +59,9 @@ object SafeObserverSuite extends TestSuite[TestScheduler] {
 
   test("should protect against synchronous errors, test 2") { implicit s =>
     var errorThrown: Throwable = null
-    val observer = SafeObserver(new Observer[Int] {
+    val observer = SafeSubscriber(new Subscriber[Int] {
+      val scheduler = s
+      
       def onNext(elem: Int): Future[Ack] = {
         Future.failed(new DummyException)
       }
@@ -80,7 +84,9 @@ object SafeObserverSuite extends TestSuite[TestScheduler] {
 
   test("should protect against asynchronous errors") { implicit s =>
     var errorThrown: Throwable = null
-    val observer = SafeObserver(new Observer[Int] {
+    val observer = SafeSubscriber(new Subscriber[Int] {
+      val scheduler = s
+
       def onNext(elem: Int): Future[Ack] = {
         Future { throw new DummyException }
       }
@@ -105,7 +111,9 @@ object SafeObserverSuite extends TestSuite[TestScheduler] {
 
   test("should protect against errors in onComplete") { implicit s =>
     var errorThrown: Throwable = null
-    val observer = SafeObserver(new Observer[Int] {
+    val observer = SafeSubscriber(new Subscriber[Int] {
+      val scheduler = s
+
       def onNext(elem: Int) = Continue
       def onComplete(): Unit = {
         throw new DummyException()
@@ -126,7 +134,9 @@ object SafeObserverSuite extends TestSuite[TestScheduler] {
 
   test("should protect against errors in onError") { implicit s =>
     var errorThrown: Throwable = null
-    val observer = SafeObserver(new Observer[Int] {
+    val observer = SafeSubscriber(new Subscriber[Int] {
+      val scheduler = s
+
       def onNext(elem: Int) = Continue
       def onComplete(): Unit = ()
       def onError(ex: Throwable): Unit = {
@@ -146,7 +156,9 @@ object SafeObserverSuite extends TestSuite[TestScheduler] {
 
   test("should protect against total collapse") { implicit s =>
     var errorThrown: Throwable = null
-    val observer = SafeObserver(new Observer[Int] {
+    val observer = SafeSubscriber(new Subscriber[Int] {
+      val scheduler = s
+
       def onNext(elem: Int) = Continue
       def onComplete(): Unit = {
         throw new DummyException("onComplete")
@@ -165,7 +177,9 @@ object SafeObserverSuite extends TestSuite[TestScheduler] {
 
   test("on synchronous cancel should block further signals") { implicit s =>
     var received = 0
-    val observer = SafeObserver(new Observer[Int] {
+    val observer = SafeSubscriber(new Subscriber[Int] {
+      val scheduler = s
+
       def onNext(elem: Int) = {
         received += 1
         Cancel
@@ -192,7 +206,9 @@ object SafeObserverSuite extends TestSuite[TestScheduler] {
     val p = Promise[Cancel]()
     var received = 0
 
-    val observer = SafeObserver(new Observer[Int] {
+    val observer = SafeSubscriber(new Subscriber[Int] {
+      val scheduler = s
+
       def onNext(elem: Int) = {
         received += 1
         p.future

@@ -20,7 +20,7 @@ package monifu.reactive.streams
 import monifu.concurrent.Scheduler
 import monifu.concurrent.atomic.padded.Atomic
 import monifu.reactive.Ack.{Cancel, Continue}
-import monifu.reactive.{Ack, Observer}
+import monifu.reactive.{Subscriber, Ack, Observer}
 import org.reactivestreams.{Subscriber => RSubscriber, Subscription}
 
 import scala.annotation.tailrec
@@ -33,12 +33,13 @@ import scala.concurrent.{Future, Promise}
  * into an [[monifu.reactive.Observer Observer]] instance that respect the `Observer`
  * contract.
  */
-final class SubscriberAsObserver[T] private
-    (subscriber: RSubscriber[T])(implicit s: Scheduler)
-  extends Observer[T] {
+final class ReactiveSubscriberAsMonifuSubscriber[T] private
+    (subscriber: RSubscriber[T])
+    (implicit val scheduler: Scheduler)
+  extends Subscriber[T] {
 
   if (subscriber == null) throw null
-  import monifu.reactive.streams.SubscriberAsObserver.RequestsQueue
+  import monifu.reactive.streams.ReactiveSubscriberAsMonifuSubscriber.RequestsQueue
 
   private[this] val requests = new RequestsQueue
   private[this] var leftToPush = 0L
@@ -91,15 +92,15 @@ final class SubscriberAsObserver[T] private
   }
 }
 
-object SubscriberAsObserver {
+object ReactiveSubscriberAsMonifuSubscriber {
   /**
    * Given an `org.reactivestreams.Subscriber` as defined by
    * the [[http://www.reactive-streams.org/ Reactive Streams]]
    * specification, it builds an [[Observer]] instance compliant
    * with the Monifu Rx implementation.
    */
-  def apply[T](subscriber: RSubscriber[T])(implicit s: Scheduler): SubscriberAsObserver[T] = {
-    new SubscriberAsObserver[T](subscriber)
+  def apply[T](subscriber: RSubscriber[T])(implicit s: Scheduler): ReactiveSubscriberAsMonifuSubscriber[T] = {
+    new ReactiveSubscriberAsMonifuSubscriber[T](subscriber)
   }
 
   /**

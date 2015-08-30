@@ -148,35 +148,4 @@ object AsyncChannelSuite extends BaseChannelSuite {
     assertEquals(sum, 0)
     assertEquals(wereCompleted, 4)
   }
-
-  test("should not subscribe the same observer instance twice") { implicit s =>
-    val Sample(channel, _) = alreadyTerminatedTest(Seq.empty)
-    var wereCompleted = 0
-
-    def createObserver(sum: AtomicLong) = new Observer[Long] {
-      def onNext(elem: Long) = {
-        sum.add(elem)
-        Continue
-      }
-
-      def onError(ex: Throwable) = ()
-      def onComplete() = wereCompleted += 1
-    }
-
-    val sum1 = Atomic(0L)
-    val observer1 = createObserver(sum1)
-    val sum2 = Atomic(0L)
-    val observer2 = createObserver(sum2)
-
-    channel.onSubscribe(observer1)
-    channel.onSubscribe(observer2)
-    channel.onSubscribe(observer2)
-
-    for (i <- 0 until 1000) channel.pushNext(i)
-    channel.pushComplete()
-
-    s.tick()
-    assertEquals(wereCompleted, 2)
-    assertEquals(sum1.get, sum2.get)
-  }
 }

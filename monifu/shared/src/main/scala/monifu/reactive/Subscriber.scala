@@ -18,8 +18,8 @@
 package monifu.reactive
 
 import monifu.concurrent.Scheduler
-import monifu.reactive.observers.SynchronousSubscriber
-import monifu.reactive.streams.{SubscriberAsReactiveSubscriber, SynchronousSubscriberAsReactiveSubscriber}
+import monifu.reactive.observers.{SynchronousObserver, SynchronousSubscriber}
+import monifu.reactive.streams.{ReactiveSubscriberAsMonifuSubscriber, SubscriberAsReactiveSubscriber, SynchronousSubscriberAsReactiveSubscriber}
 import org.reactivestreams.{Subscriber => RSubscriber}
 import scala.concurrent.Future
 
@@ -44,9 +44,21 @@ object Subscriber {
     observer match {
       case ref: Subscriber[_] if ref.scheduler == scheduler =>
         ref.asInstanceOf[Subscriber[T]]
+      case ref: SynchronousObserver[_] =>
+        SynchronousSubscriber(ref.asInstanceOf[SynchronousObserver[T]], scheduler)
       case _ =>
         new Implementation[T](observer, scheduler)
     }
+
+  /**
+   * Given an `org.reactivestreams.Subscriber` as defined by the 
+   * [[http://www.reactive-streams.org/ Reactive Streams]] specification, 
+   * it builds an [[Subscriber]] instance compliant with the
+   * Monifu Rx implementation.
+   */
+  def fromReactiveSubscriber[T](subscriber: RSubscriber[T])(implicit s: Scheduler): Subscriber[T] = {
+    ReactiveSubscriberAsMonifuSubscriber(subscriber)
+  }
 
   /**
    * Transforms the source [[Subscriber]] into a `org.reactivestreams.Subscriber`
@@ -86,7 +98,7 @@ object Subscriber {
      * instance as defined by the [[http://www.reactive-streams.org/ Reactive Streams]]
      * specification.
      */
-    def toReactiveSubscriber: RSubscriber[T] =
+    def toReactive: RSubscriber[T] =
       Subscriber.toReactiveSubscriber(source)
 
     /**
@@ -99,7 +111,7 @@ object Subscriber {
      *                   on each cycle when communicating demand, compliant with
      *                   the reactive streams specification
      */
-    def toReactiveSubscriber(bufferSize: Int): RSubscriber[T] =
+    def toReactive(bufferSize: Int): RSubscriber[T] =
       Subscriber.toReactiveSubscriber(source, bufferSize)
 
     /**

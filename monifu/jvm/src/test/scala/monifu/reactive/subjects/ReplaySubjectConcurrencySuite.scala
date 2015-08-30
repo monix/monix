@@ -17,53 +17,44 @@
 
 package monifu.reactive.subjects
 
+import java.util.concurrent.{TimeUnit, CountDownLatch}
+
+import minitest.TestSuite
+import monifu.concurrent.Scheduler
 import monifu.reactive.Ack.Continue
+import monifu.reactive.Observable
 import monifu.reactive.observers.SynchronousObserver
 
-object ReplaySubjectSuite extends BaseSubjectSuite {
-  def alreadyTerminatedTest(expectedElems: Seq[Long]) = {
-    val s = ReplaySubject[Long]()
-    Sample(s, expectedElems.sum)
-  }
-
-  def continuousStreamingTest(expectedElems: Seq[Long]) = {
-    val s = ReplaySubject[Long]()
-    Some(Sample(s, expectedElems.sum))
+object ReplaySubjectConcurrencySuite extends TestSuite[Scheduler] {
+  def tearDown(env: Scheduler) = ()
+  def setup() = {
+    monifu.concurrent.Implicits.globalScheduler
   }
 
   test("subscribers should get everything") { implicit s =>
-    var completed = 0
-
+    val nrOfSubscribers = 100
+    val completed = new CountDownLatch(nrOfSubscribers)
     def create(expectedSum: Long) = new SynchronousObserver[Int] {
       var received = 0L
       def onNext(elem: Int) = { received += elem; Continue }
       def onError(ex: Throwable): Unit = throw ex
       def onComplete(): Unit = {
         assertEquals(received, expectedSum)
-        completed += 1
+        completed.countDown()
       }
     }
 
     val subject = ReplaySubject[Int]()
-    subject.onSubscribe(create(20000))
+    subject.onSubscribe(create(40000))
 
-    s.tick(); subject.onNext(2); s.tick()
+    s.execute {
+      Observable.range(0, 20000).map(_ => 2).onSubscribe(subject)
+      subject.onSubscribe(create(40000))
+    }
 
-    for (_ <- 1 until 5000) assertEquals(subject.onNext(2), Continue)
+    for (_ <- 0 until (nrOfSubscribers - 2))
+      s.execute(subject.onSubscribe(create(40000)))
 
-    subject.onSubscribe(create(20000))
-    s.tick(); subject.onNext(2); s.tick()
-
-    for (_ <- 1 until 5000) assertEquals(subject.onNext(2), Continue)
-
-    subject.onSubscribe(create(20000))
-    s.tick()
-
-    subject.onComplete()
-    s.tick()
-    subject.onSubscribe(create(20000))
-    s.tick()
-
-    assertEquals(completed, 4)
+    assert(completed.await(10, TimeUnit.SECONDS), "completed.await")
   }
 }

@@ -20,6 +20,13 @@ package org.reactivestreams
 /**
  * Mirrors the `Publisher` interface from the
  * [[http://www.reactive-streams.org/ Reactive Streams]] project.
+ *
+ * A `Publisher` is a provider of a potentially unbounded number of sequenced
+ * elements, publishing them according to the demand received from its
+ * [[Subscriber Subscribers]].
+ *
+ * A `Publisher` can serve multiple Subscribers subscribed
+ * dynamically at various points in time.
  */
 trait Publisher[T] extends Any {
   /**
@@ -33,7 +40,8 @@ trait Publisher[T] extends Any {
    * If the [[Publisher]] rejects the subscription attempt or otherwise fails
    * it will signal the error via [[Subscriber.onError]].
    *
-   * @param subscriber the [[Subscriber]] that will consume signals from this [[Publisher]]
+   * @param subscriber the [[Subscriber]] that will consume signals
+   *                   from this [[Publisher]]
    */
   def subscribe(subscriber: Subscriber[_ >: T]): Unit
 }

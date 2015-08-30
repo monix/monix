@@ -18,7 +18,7 @@
 package monifu.reactive.subjects
 
 import monifu.reactive.Ack.{Cancel, Continue}
-import monifu.reactive.internals.{FutureAckExtensions, PromiseCounter}
+import monifu.reactive.internals.PromiseCounter
 import monifu.reactive.{Ack, Subject, Subscriber}
 import scala.concurrent.Future
 
@@ -35,100 +35,89 @@ import scala.concurrent.Future
  *
  * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/S.PublishSubject.e.png" />
  */
-final class PublishSubject[T] extends Subject[T,T] {
-  private[this] val lock = new AnyRef
-  private[this] var isCompleted = false
+final class PublishSubject[T] private () extends Subject[T,T] { self =>
+  @volatile private[this] var subscribers = Vector.empty[Subscriber[T]]
+  @volatile private[this] var isDone = false
   private[this] var errorThrown: Throwable = null
-  @volatile private[this] var subscriptions =
-    Array.empty[Subscriber[T]]
+
+  private[this] def onDone(subscriber: Subscriber[T]) = {
+    if (errorThrown != null)
+      subscriber.onError(errorThrown)
+    else
+      subscriber.onComplete()
+  }
 
   def onSubscribe(subscriber: Subscriber[T]): Unit =
-    lock.synchronized {
-      if (!isCompleted)
-        subscriptions = createSubscription(subscriptions, subscriber)
-      else if (errorThrown ne null)
-        subscriber.onError(errorThrown)
-      else
-        subscriber.onComplete()
+    if (isDone) {
+      // fast path
+      onDone(subscriber)
+    }
+    else self.synchronized {
+      if (isDone) onDone(subscriber) else
+        subscribers = subscribers :+ subscriber
     }
 
   def onNext(elem: T): Future[Ack] = {
-    if (!isCompleted) {
-      val observers = subscriptions
-      if (observers.nonEmpty)
-        streamToMany(observers, elem)
-      else
-        Continue
-    }
-    else
-      Cancel
-  }
+    if (isDone) Cancel else {
+      val iterator = subscribers.iterator
+      var result: PromiseCounter[Continue.type] = null
 
-  def onError(ex: Throwable) =
-    lock.synchronized {
-      if (!isCompleted) {
-        isCompleted = true
-        errorThrown = ex
+      while (iterator.hasNext) {
+        val subscriber = iterator.next()
+        import subscriber.scheduler
 
-        var idx = 0
-        while (idx < subscriptions.length) {
-          subscriptions(idx).onError(ex)
-          idx += 1
+        val ack = subscriber.onNext(elem)
+        if (ack.isCompleted) {
+          if (ack != Continue && ack.value.get != Continue.IsSuccess)
+            unsubscribe(subscriber)
+        }
+        else {
+          if (result == null) result = PromiseCounter(Continue, 1)
+          result.acquire()
+
+          ack.onComplete {
+            case Continue.IsSuccess =>
+              result.countdown()
+            case _ =>
+              unsubscribe(subscriber)
+              result.countdown()
+          }
         }
       }
-    }
 
-  def onComplete() =
-    lock.synchronized {
-      if (!isCompleted) {
-        isCompleted = true
-
-        var idx = 0
-        while (idx < subscriptions.length) {
-          subscriptions(idx).onComplete()
-          idx += 1
-        }
+      if (result == null) Continue else {
+        result.countdown()
+        result.future
       }
     }
-
-  private[this] def streamToMany(array: Array[Subscriber[T]], elem: T): Future[Continue] = {
-    val newPromise = PromiseCounter[Continue](Continue, array.length)
-    val length = array.length
-    var idx = 0
-
-    while (idx < length) {
-      val subscriber = array(idx)
-      implicit val s = subscriber.scheduler
-
-      subscriber.onNext(elem).onCompleteNow {
-        case Continue.IsSuccess =>
-          newPromise.countdown()
-        case _ =>
-          removeSubscription(subscriber)
-          newPromise.countdown()
-      }
-
-      idx += 1
-    }
-
-    newPromise.future
   }
 
-  private[this] def removeSubscription(subscriber: Subscriber[T]): Unit =
-    lock.synchronized {
-      subscriptions = subscriptions.filter(_ != subscriber)
+  def onError(ex: Throwable): Unit = self.synchronized {
+    if (!isDone) {
+      errorThrown = ex
+      isDone = true
+      subscribers.foreach(_.onError(ex))
+      subscribers = Vector.empty
     }
+  }
 
-  private[this] def createSubscription(observers: Array[Subscriber[T]], instance: Subscriber[T]): Array[Subscriber[T]] =
-    lock.synchronized {
-      if (!observers.contains(instance))
-        observers :+ instance
-      else
-        observers
+  def onComplete(): Unit = self.synchronized {
+    if (!isDone) {
+      isDone = true
+      subscribers.foreach(_.onComplete())
+      subscribers = Vector.empty
+    }
+  }
+
+  private[this] def unsubscribe(subscriber: Subscriber[T]): Continue =
+    self.synchronized {
+      subscribers = subscribers.filterNot(_ == subscriber)
+      Continue
     }
 }
 
 object PublishSubject {
+  /** Builder for [[PublishSubject]] */
   def apply[T](): PublishSubject[T] =
     new PublishSubject[T]()
 }
