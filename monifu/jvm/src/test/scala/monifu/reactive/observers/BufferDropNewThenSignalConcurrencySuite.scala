@@ -24,7 +24,7 @@ import monifu.concurrent.Scheduler
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.OverflowStrategy.DropNew
 import monifu.reactive.exceptions.DummyException
-import monifu.reactive.{Ack, Observer}
+import monifu.reactive.{Subscriber, Ack, Observer}
 import scala.concurrent.{Future, Promise}
 
 object BufferDropNewThenSignalConcurrencySuite
@@ -38,12 +38,12 @@ object BufferDropNewThenSignalConcurrencySuite
 
   def buildNewForInt(bufferSize: Int, underlying: Observer[Int])
     (implicit s: Scheduler): BufferedSubscriber[Int] = {
-    BufferedSubscriber(underlying, DropNew(bufferSize), nr => nr.toInt)
+    BufferedSubscriber(Subscriber(underlying, s), DropNew(bufferSize), nr => nr.toInt)
   }
 
   def buildNewForLong(bufferSize: Int, underlying: Observer[Long])
     (implicit s: Scheduler): BufferedSubscriber[Long] = {
-    BufferedSubscriber(underlying, DropNew(bufferSize), nr => nr)
+    BufferedSubscriber(Subscriber(underlying, s), DropNew(bufferSize), nr => nr)
   }
 
   test("should not lose events, test 1") { implicit s =>
@@ -66,8 +66,8 @@ object BufferDropNewThenSignalConcurrencySuite
     }
 
     val buffer = buildNewForInt(100000, underlying)
-    for (i <- 0 until 100000) buffer.observer.onNext(i)
-    buffer.observer.onComplete()
+    for (i <- 0 until 100000) buffer.onNext(i)
+    buffer.onComplete()
 
     assert(completed.await(20, TimeUnit.SECONDS), "completed.await should have succeeded")
     assert(number == 100000)
@@ -96,9 +96,9 @@ object BufferDropNewThenSignalConcurrencySuite
 
     def loop(n: Int): Unit =
       if (n > 0) s.execute(new Runnable {
-        def run() = { buffer.observer.onNext(n); loop(n-1) }
+        def run() = { buffer.onNext(n); loop(n-1) }
       })
-      else buffer.observer.onComplete()
+      else buffer.onComplete()
 
     loop(10000)
     assert(completed.await(20, TimeUnit.SECONDS), "completed.await should have succeeded")
@@ -132,14 +132,14 @@ object BufferDropNewThenSignalConcurrencySuite
 
       val buffer = buildNewForInt(5, underlying)
 
-      assertEquals(buffer.observer.onNext(1), Continue)
-      assertEquals(buffer.observer.onNext(2), Continue)
-      assertEquals(buffer.observer.onNext(3), Continue)
-      assertEquals(buffer.observer.onNext(4), Continue)
-      assertEquals(buffer.observer.onNext(5), Continue)
+      assertEquals(buffer.onNext(1), Continue)
+      assertEquals(buffer.onNext(2), Continue)
+      assertEquals(buffer.onNext(3), Continue)
+      assertEquals(buffer.onNext(4), Continue)
+      assertEquals(buffer.onNext(5), Continue)
 
-      for (i <- 0 until 20) buffer.observer.onNext(6 + i)
-      buffer.observer.onComplete()
+      for (i <- 0 until 20) buffer.onNext(6 + i)
+      buffer.onComplete()
       promise.success(Continue)
 
       assert(completed.await(5, TimeUnit.SECONDS), "wasCompleted.await should have succeeded")
@@ -159,10 +159,10 @@ object BufferDropNewThenSignalConcurrencySuite
       def onComplete() = throw new IllegalStateException()
     })
 
-    buffer.observer.onError(new RuntimeException("dummy"))
+    buffer.onError(new RuntimeException("dummy"))
     assert(latch.await(5, TimeUnit.SECONDS), "latch.await should have succeeded")
 
-    val r = buffer.observer.onNext(1)
+    val r = buffer.onNext(1)
     assertEquals(r, Cancel)
   }
 
@@ -177,8 +177,8 @@ object BufferDropNewThenSignalConcurrencySuite
       def onComplete() = throw new IllegalStateException()
     })
 
-    buffer.observer.onNext(1)
-    buffer.observer.onError(new RuntimeException("dummy"))
+    buffer.onNext(1)
+    buffer.onError(new RuntimeException("dummy"))
     assert(latch.await(5, TimeUnit.SECONDS), "latch.await should have succeeded")
   }
 
@@ -195,12 +195,12 @@ object BufferDropNewThenSignalConcurrencySuite
       def onComplete() = throw new IllegalStateException()
     })
 
-    buffer.observer.onNext(1)
-    buffer.observer.onNext(2)
-    buffer.observer.onNext(3)
-    buffer.observer.onNext(4)
-    buffer.observer.onNext(5)
-    buffer.observer.onError(DummyException("dummy"))
+    buffer.onNext(1)
+    buffer.onNext(2)
+    buffer.onNext(3)
+    buffer.onNext(4)
+    buffer.onNext(5)
+    buffer.onError(DummyException("dummy"))
 
     promise.success(Continue)
     assert(latch.await(5, TimeUnit.SECONDS), "latch.await should have succeeded")
@@ -214,7 +214,7 @@ object BufferDropNewThenSignalConcurrencySuite
       def onComplete() = latch.countDown()
     })
 
-    buffer.observer.onComplete()
+    buffer.onComplete()
     assert(latch.await(5, TimeUnit.SECONDS), "latch.await should have succeeded")
   }
 
@@ -227,8 +227,8 @@ object BufferDropNewThenSignalConcurrencySuite
       def onComplete() = latch.countDown()
     })
 
-    buffer.observer.onNext(1)
-    buffer.observer.onComplete()
+    buffer.onNext(1)
+    buffer.onComplete()
     assert(!latch.await(1, TimeUnit.SECONDS), "latch.await should have failed")
 
     promise.success(Continue)
@@ -244,11 +244,11 @@ object BufferDropNewThenSignalConcurrencySuite
       def onComplete() = latch.countDown()
     })
 
-    buffer.observer.onNext(1)
-    buffer.observer.onNext(2)
-    buffer.observer.onNext(3)
-    buffer.observer.onNext(4)
-    buffer.observer.onComplete()
+    buffer.onNext(1)
+    buffer.onNext(2)
+    buffer.onNext(3)
+    buffer.onNext(4)
+    buffer.onComplete()
 
     assert(!latch.await(1, TimeUnit.SECONDS), "latch.await should have failed")
 
@@ -270,8 +270,8 @@ object BufferDropNewThenSignalConcurrencySuite
       def onComplete() = complete.countDown()
     })
 
-    (0 until 9999).foreach(x => buffer.observer.onNext(x))
-    buffer.observer.onComplete()
+    (0 until 9999).foreach(x => buffer.onNext(x))
+    buffer.onComplete()
     startConsuming.success(Continue)
 
     assert(complete.await(10, TimeUnit.SECONDS), "complete.await should have succeeded")
@@ -291,8 +291,8 @@ object BufferDropNewThenSignalConcurrencySuite
       def onComplete() = complete.countDown()
     })
 
-    (0 until 9999).foreach(x => buffer.observer.onNext(x))
-    buffer.observer.onComplete()
+    (0 until 9999).foreach(x => buffer.onNext(x))
+    buffer.onComplete()
 
     assert(complete.await(10, TimeUnit.SECONDS), "complete.await should have succeeded")
     assert(sum == (0 until 9999).sum)
@@ -312,8 +312,8 @@ object BufferDropNewThenSignalConcurrencySuite
       def onComplete() = throw new IllegalStateException()
     })
 
-    (0 until 9999).foreach(x => buffer.observer.onNext(x))
-    buffer.observer.onError(new RuntimeException)
+    (0 until 9999).foreach(x => buffer.onNext(x))
+    buffer.onError(new RuntimeException)
     startConsuming.success(Continue)
 
     assert(complete.await(10, TimeUnit.SECONDS), "complete.await should have succeeded")
@@ -333,8 +333,8 @@ object BufferDropNewThenSignalConcurrencySuite
       def onComplete() = throw new IllegalStateException()
     })
 
-    (0 until 9999).foreach(x => buffer.observer.onNext(x))
-    buffer.observer.onError(new RuntimeException)
+    (0 until 9999).foreach(x => buffer.onNext(x))
+    buffer.onError(new RuntimeException)
 
     assert(complete.await(10, TimeUnit.SECONDS), "complete.await should have succeeded")
     assertEquals(sum, (0 until 9999).sum)

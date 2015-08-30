@@ -30,8 +30,7 @@ private[reactive] object timer {
    */
   def repeated[T](initialDelay: FiniteDuration, period: FiniteDuration, unit: T): Observable[T] = {
     Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
 
       // we are deploying optimizations in order to reduce garbage allocations,
       // therefore the weird Runnable instance that does a state machine
@@ -58,7 +57,7 @@ private[reactive] object timer {
 
         def run(): Unit = {
           startedAt = s.currentTimeMillis()
-          observer.onNext(unit).onComplete(scheduleNext)
+          subscriber.onNext(unit).onComplete(scheduleNext)
         }
       }
 

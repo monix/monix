@@ -33,7 +33,7 @@ private[reactive] object flatScan {
   def apply[T,R](source: Observable[T], initial: R)(op: (R, T) => Observable[R]) =
     Observable.create[R] { subscriber =>
       implicit val s = subscriber.scheduler
-      val o = subscriber.observer
+      val o = subscriber
 
       source.onSubscribe(new Observer[T] {
         private[this] val refCount = RefCountCancelable(o.onComplete())
@@ -101,17 +101,16 @@ private[reactive] object flatScan {
    */
   def delayError[T,R](source: Observable[T], initial: R)(op: (R, T) => Observable[R]) =
     Observable.create[R] { subscriber =>
-      implicit val s = subscriber.scheduler
-      val o = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
         private[this] var state = initial
         private[this] val errors = mutable.ArrayBuffer.empty[Throwable]
         private[this] val refCount = RefCountCancelable {
           if (errors.nonEmpty)
-            o.onError(CompositeException(errors))
+            subscriber.onError(CompositeException(errors))
           else
-            o.onComplete()
+            subscriber.onComplete()
         }
 
         def onNext(elem: T) = {
@@ -127,7 +126,7 @@ private[reactive] object flatScan {
             newState.onSubscribe(new Observer[R] {
               def onNext(elem: R): Future[Ack] = {
                 state = elem
-                o.onNext(elem)
+                subscriber.onNext(elem)
                   .ifCancelTryCanceling(upstreamPromise)
               }
 

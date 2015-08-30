@@ -23,7 +23,7 @@ import monifu.concurrent.schedulers.TestScheduler
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.OverflowStrategy.DropOld
 import monifu.reactive.exceptions.DummyException
-import monifu.reactive.{Ack, Observer}
+import monifu.reactive.{Subscriber, Ack, Observer}
 import scala.concurrent.{Future, Promise}
 
 object BufferDropOldThenSignalSuite extends TestSuite[TestScheduler] {
@@ -35,8 +35,8 @@ object BufferDropOldThenSignalSuite extends TestSuite[TestScheduler] {
 
   def buildNew(bufferSize: Int, underlying: Observer[Int])
     (implicit s: Scheduler): BufferedSubscriber[Int] = {
-    BufferedSubscriber
-      .withOverflowSignal(underlying, DropOld(bufferSize))(nr => nr.toInt)
+    BufferedSubscriber.withOverflowSignal(
+      Subscriber(underlying, s), DropOld(bufferSize))(nr => nr.toInt)
   }
   
   test("should not lose events, test 1") { implicit s =>
@@ -59,8 +59,8 @@ object BufferDropOldThenSignalSuite extends TestSuite[TestScheduler] {
     }
 
     val buffer = buildNew(1000, underlying)
-    for (i <- 0 until 1000) buffer.observer.onNext(i)
-    buffer.observer.onComplete()
+    for (i <- 0 until 1000) buffer.onNext(i)
+    buffer.onComplete()
 
     assert(!wasCompleted)
     s.tick()
@@ -91,9 +91,9 @@ object BufferDropOldThenSignalSuite extends TestSuite[TestScheduler] {
 
     def loop(n: Int): Unit =
       if (n > 0)
-        s.execute { buffer.observer.onNext(n); loop(n-1) }
+        s.execute { buffer.onNext(n); loop(n-1) }
       else
-        buffer.observer.onComplete()
+        buffer.onComplete()
 
     loop(10000)
     assert(!completed)
@@ -124,18 +124,18 @@ object BufferDropOldThenSignalSuite extends TestSuite[TestScheduler] {
 
     val buffer = buildNew(5, underlying)
 
-    for (i <- 1 to 7) assertEquals(buffer.observer.onNext(i), Continue)
+    for (i <- 1 to 7) assertEquals(buffer.onNext(i), Continue)
     s.tick()
     assertEquals(received, 28)
 
-    for (i <- 0 to 1000) assertEquals(buffer.observer.onNext(100 + i), Continue)
+    for (i <- 0 to 1000) assertEquals(buffer.onNext(100 + i), Continue)
     s.tick()
     assertEquals(received, 28)
 
     promise.success(Continue); s.tick()
     assertEquals(received, (1094 to 1100).sum + 28 + 994)
 
-    buffer.observer.onComplete(); s.tick()
+    buffer.onComplete(); s.tick()
     assert(wasCompleted, "wasCompleted should be true")
   }
 
@@ -150,11 +150,11 @@ object BufferDropOldThenSignalSuite extends TestSuite[TestScheduler] {
       def onComplete() = throw new IllegalStateException()
     })
 
-    buffer.observer.onError(DummyException("dummy"))
+    buffer.onError(DummyException("dummy"))
     s.tickOne()
 
     assertEquals(errorThrown, DummyException("dummy"))
-    val r = buffer.observer.onNext(1)
+    val r = buffer.onNext(1)
     assertEquals(r, Cancel)
   }
 
@@ -168,8 +168,8 @@ object BufferDropOldThenSignalSuite extends TestSuite[TestScheduler] {
       def onComplete() = throw new IllegalStateException()
     })
 
-    buffer.observer.onNext(1)
-    buffer.observer.onError(DummyException("dummy"))
+    buffer.onNext(1)
+    buffer.onError(DummyException("dummy"))
     
     s.tick()
     assertEquals(errorThrown, DummyException("dummy"))
@@ -187,8 +187,8 @@ object BufferDropOldThenSignalSuite extends TestSuite[TestScheduler] {
       def onComplete() = throw new IllegalStateException()
     })
 
-    for (i <- 1 to 10) assertEquals(buffer.observer.onNext(i), Continue)
-    buffer.observer.onError(DummyException("dummy"))
+    for (i <- 1 to 10) assertEquals(buffer.onNext(i), Continue)
+    buffer.onError(DummyException("dummy"))
 
     promise.success(Continue)
     s.tick()
@@ -210,8 +210,8 @@ object BufferDropOldThenSignalSuite extends TestSuite[TestScheduler] {
       def onComplete() = wasCompleted = true
     })
 
-    (0 until 9999).foreach(x => buffer.observer.onNext(x))
-    buffer.observer.onComplete()
+    (0 until 9999).foreach(x => buffer.onNext(x))
+    buffer.onComplete()
     startConsuming.success(Continue)
 
     s.tick()
@@ -232,8 +232,8 @@ object BufferDropOldThenSignalSuite extends TestSuite[TestScheduler] {
       def onComplete() = wasCompleted = true
     })
 
-    (0 until 9999).foreach(x => buffer.observer.onNext(x))
-    buffer.observer.onComplete()
+    (0 until 9999).foreach(x => buffer.onNext(x))
+    buffer.onComplete()
     s.tick()
 
     assert(wasCompleted)
@@ -254,8 +254,8 @@ object BufferDropOldThenSignalSuite extends TestSuite[TestScheduler] {
       def onComplete() = throw new IllegalStateException()
     })
 
-    (0 until 9999).foreach(x => buffer.observer.onNext(x))
-    buffer.observer.onError(DummyException("dummy"))
+    (0 until 9999).foreach(x => buffer.onNext(x))
+    buffer.onError(DummyException("dummy"))
     startConsuming.success(Continue)
 
     s.tick()
@@ -276,8 +276,8 @@ object BufferDropOldThenSignalSuite extends TestSuite[TestScheduler] {
       def onComplete() = throw new IllegalStateException()
     })
 
-    (0 until 9999).foreach(x => buffer.observer.onNext(x))
-    buffer.observer.onError(DummyException("dummy"))
+    (0 until 9999).foreach(x => buffer.onNext(x))
+    buffer.onError(DummyException("dummy"))
 
     s.tick()
     assertEquals(errorThrown, DummyException("dummy"))
@@ -298,8 +298,8 @@ object BufferDropOldThenSignalSuite extends TestSuite[TestScheduler] {
       def onComplete() = wasCompleted = true
     })
 
-    for (i <- 0 until (s.env.batchSize * 2)) buffer.observer.onNext(i)
-    buffer.observer.onComplete()
+    for (i <- 0 until (s.env.batchSize * 2)) buffer.onNext(i)
+    buffer.onComplete()
     assertEquals(received, 0)
 
     s.tickOne()

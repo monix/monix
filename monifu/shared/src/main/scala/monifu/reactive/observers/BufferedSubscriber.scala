@@ -66,50 +66,46 @@ import monifu.reactive._
 trait BufferedSubscriber[-T] extends Subscriber[T]
 
 object BufferedSubscriber {
-  def apply[T](observer: Observer[T], bufferPolicy: OverflowStrategy)
-      (implicit s: Scheduler): BufferedSubscriber[T] = {
-
+  def apply[T](subscriber: Subscriber[T], bufferPolicy: OverflowStrategy): BufferedSubscriber[T] = {
     bufferPolicy match {
       case Unbounded =>
-        SynchronousBufferedSubscriber.unbounded(observer)
+        SynchronousBufferedSubscriber.unbounded(subscriber)
       case Fail(bufferSize) =>
-        SynchronousBufferedSubscriber.overflowTriggering(observer, bufferSize)
+        SynchronousBufferedSubscriber.overflowTriggering(subscriber, bufferSize)
       case BackPressure(bufferSize) =>
-        BackPressuredBufferedSubscriber(observer, bufferSize)
+        BackPressuredBufferedSubscriber(subscriber, bufferSize)
       case DropNew(bufferSize) =>
-        DropIncomingBufferedSubscriber.simple(observer, bufferSize)
+        DropIncomingBufferedSubscriber.simple(subscriber, bufferSize)
       case DropOld(bufferSize) =>
-        EvictingBufferedSubscriber.dropOld(observer, bufferSize)
+        EvictingBufferedSubscriber.dropOld(subscriber, bufferSize)
       case ClearBuffer(bufferSize) =>
-        EvictingBufferedSubscriber.clearBuffer(observer, bufferSize)
+        EvictingBufferedSubscriber.clearBuffer(subscriber, bufferSize)
     }
   }
 
-  private[reactive] def apply[T]
-    (observer: Observer[T], strategy: OverflowStrategy, onOverflow: Long => T)
+  private[reactive] def apply[T](subscriber: Subscriber[T], strategy: OverflowStrategy, onOverflow: Long => T)
     (implicit s: Scheduler): BufferedSubscriber[T] = {
 
     strategy match {
       case withSignal: Evicted if onOverflow != null =>
-        withOverflowSignal(observer, withSignal)(onOverflow)
+        withOverflowSignal(subscriber, withSignal)(onOverflow)
       case _ =>
-        apply(observer, strategy)
+        apply(subscriber, strategy)
     }
   }
 
-  def withOverflowSignal[T](observer: Observer[T], overflowStrategy: OverflowStrategy.Evicted)
-    (onOverflow: Long => T)
-    (implicit s: Scheduler): BufferedSubscriber[T] = {
+  def withOverflowSignal[T](subscriber: Subscriber[T], overflowStrategy: OverflowStrategy.Evicted)
+    (onOverflow: Long => T): BufferedSubscriber[T] = {
 
     overflowStrategy match {
       case DropNew(bufferSize) =>
-        DropIncomingBufferedSubscriber.withSignal(observer, bufferSize, onOverflow)
+        DropIncomingBufferedSubscriber.withSignal(subscriber, bufferSize, onOverflow)
 
       case DropOld(bufferSize) =>
-        EvictingBufferedSubscriber.dropOld(observer, bufferSize, onOverflow)
+        EvictingBufferedSubscriber.dropOld(subscriber, bufferSize, onOverflow)
 
       case ClearBuffer(bufferSize) =>
-        EvictingBufferedSubscriber.clearBuffer(observer, bufferSize, onOverflow)
+        EvictingBufferedSubscriber.clearBuffer(subscriber, bufferSize, onOverflow)
     }
   }
 }

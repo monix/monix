@@ -31,7 +31,7 @@ import org.reactivestreams.{Subscriber, Subscription}
  * the call may pass asynchronous boundaries, the emitted events need to be buffered.
  * The `requestCount` constructor parameter also represents the buffer size.
  * 
- * To create an instance, [[SubscriberAsReactiveSubscriber.apply]] must be used: {{{
+ * To create an instance, [[SubscriberAsReactiveSubscriber]] must be used: {{{
  *   // uses the default requestCount of 128
  *   val subscriber = SubscriberAsReactiveSubscriber(new Observer[Int] {
  *     private[this] var sum = 0
@@ -65,9 +65,8 @@ final class SubscriberAsReactiveSubscriber[T] private
 
   private[this] val buffer =
     SynchronousSubscriberAsReactiveSubscriber(
-      SynchronousBufferedSubscriber.unbounded(subscriber.observer)(subscriber.scheduler),
-      requestCount = requestCount
-    )
+      SynchronousBufferedSubscriber.unbounded(subscriber),
+      requestCount = requestCount)
 
   def onSubscribe(s: Subscription): Unit =
     buffer.onSubscribe(s)
@@ -140,7 +139,7 @@ object SubscriberAsReactiveSubscriber {
  * Given that we can guarantee a [[monifu.reactive.observers.SynchronousObserver SynchronousObserver]]
  * is used, then no buffering is needed and thus the implementation is very efficient.
  *
- * To create an instance, [[SynchronousSubscriberAsReactiveSubscriber.apply]] must be used: {{{
+ * To create an instance, [[SynchronousSubscriberAsReactiveSubscriber]] must be used: {{{
  *   // uses the default requestCount of 128
  *   val subscriber = SynchronousSubscriberAsReactiveSubscriber(new Observer[Int] {
  *     private[this] var sum = 0
@@ -190,7 +189,7 @@ final class SynchronousSubscriberAsReactiveSubscriber[T] private
     if (!isCanceled) {
       if (expectingCount > 0) expectingCount -= 1
 
-      subscriber.observer.onNext(elem) match {
+      subscriber.onNext(elem) match {
         case Continue =>
           // should it request more events?
           if (expectingCount == 0) {
@@ -210,14 +209,14 @@ final class SynchronousSubscriberAsReactiveSubscriber[T] private
 
     if (!isCanceled) {
       isCanceled = true
-      subscriber.observer.onError(ex)
+      subscriber.onError(ex)
     }
   }
 
   def onComplete(): Unit = {
     if (!isCanceled) {
       isCanceled = true
-      subscriber.observer.onComplete()
+      subscriber.onComplete()
     }
   }
 }

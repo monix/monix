@@ -28,8 +28,7 @@ private[reactive] object filter {
    */
   def apply[T](source: Observable[T])(p: T => Boolean): Observable[T] = {
     Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
         def onNext(elem: T) = {
@@ -38,22 +37,22 @@ private[reactive] object filter {
           try {
             if (p(elem)) {
               streamError = false
-              observer.onNext(elem)
+              subscriber.onNext(elem)
             }
             else
               Continue
           }
           catch {
             case NonFatal(ex) =>
-              if (streamError) { observer.onError(ex); Cancel } else Future.failed(ex)
+              if (streamError) { subscriber.onError(ex); Cancel } else Future.failed(ex)
           }
         }
 
         def onError(ex: Throwable) =
-          observer.onError(ex)
+          subscriber.onError(ex)
 
         def onComplete() =
-          observer.onComplete()
+          subscriber.onComplete()
       })
     }
   }

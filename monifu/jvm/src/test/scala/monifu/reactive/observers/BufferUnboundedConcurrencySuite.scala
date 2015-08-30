@@ -23,7 +23,7 @@ import minitest.TestSuite
 import monifu.concurrent.Scheduler
 import monifu.reactive.Ack.Continue
 import monifu.reactive.OverflowStrategy.Unbounded
-import monifu.reactive.{Ack, Observer}
+import monifu.reactive.{Subscriber, Ack, Observer}
 
 import scala.concurrent.{Future, Promise}
 
@@ -52,9 +52,9 @@ object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
       }
     }
 
-    val buffer = BufferedSubscriber[Int](underlying, Unbounded)
-    for (i <- 0 until 100000) buffer.observer.onNext(i)
-    buffer.observer.onComplete()
+    val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), Unbounded)
+    for (i <- 0 until 100000) buffer.onNext(i)
+    buffer.onComplete()
 
     assert(completed.await(20, TimeUnit.SECONDS), "completed.await should have succeeded")
     assertEquals(number, 100000)
@@ -79,13 +79,13 @@ object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
       }
     }
 
-    val buffer = BufferedSubscriber[Int](underlying, Unbounded)
+    val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), Unbounded)
 
     def loop(n: Int): Unit =
       if (n > 0) s.execute(new Runnable {
-        def run() = { buffer.observer.onNext(n); loop(n-1) }
+        def run() = { buffer.onNext(n); loop(n-1) }
       })
-      else buffer.observer.onComplete()
+      else buffer.onComplete()
 
     loop(10000)
     assert(completed.await(20, TimeUnit.SECONDS), "completed.await should have succeeded")
@@ -103,9 +103,9 @@ object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
       def onComplete() = throw new IllegalStateException()
     }
 
-    val buffer = BufferedSubscriber[Int](underlying, Unbounded)
+    val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), Unbounded)
 
-    buffer.observer.onError(new RuntimeException("dummy"))
+    buffer.onError(new RuntimeException("dummy"))
     assert(latch.await(5, TimeUnit.SECONDS), "latch.await should have succeeded")
   }
 
@@ -120,10 +120,10 @@ object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
       def onComplete() = throw new IllegalStateException()
     }
 
-    val buffer = BufferedSubscriber[Int](underlying, Unbounded)
+    val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), Unbounded)
 
-    buffer.observer.onNext(1)
-    buffer.observer.onError(new RuntimeException("dummy"))
+    buffer.onNext(1)
+    buffer.onError(new RuntimeException("dummy"))
     assert(latch.await(5, TimeUnit.SECONDS), "latch.await should have succeeded")
   }
 
@@ -135,9 +135,9 @@ object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
       def onComplete() = latch.countDown()
     }
 
-    val buffer = BufferedSubscriber[Int](underlying, Unbounded)
+    val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), Unbounded)
 
-    buffer.observer.onComplete()
+    buffer.onComplete()
     assert(latch.await(5, TimeUnit.SECONDS), "latch.await should have succeeded")
   }
 
@@ -150,10 +150,10 @@ object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
       def onComplete() = latch.countDown()
     }
 
-    val buffer = BufferedSubscriber[Int](underlying, Unbounded)
+    val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), Unbounded)
 
-    buffer.observer.onNext(1)
-    buffer.observer.onComplete()
+    buffer.onNext(1)
+    buffer.onComplete()
     assert(!latch.await(1, TimeUnit.SECONDS), "latch.await should have failed")
 
     promise.success(Continue)
@@ -174,9 +174,9 @@ object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
       def onComplete() = complete.countDown()
     }
 
-    val buffer = BufferedSubscriber[Long](underlying, Unbounded)
-    (0 until 9999).foreach(x => buffer.observer.onNext(x))
-    buffer.observer.onComplete()
+    val buffer = BufferedSubscriber[Long](Subscriber(underlying, s), Unbounded)
+    (0 until 9999).foreach(x => buffer.onNext(x))
+    buffer.onComplete()
     startConsuming.success(Continue)
 
     assert(complete.await(10, TimeUnit.SECONDS), "complete.await should have succeeded")
@@ -195,10 +195,10 @@ object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
       def onComplete() = complete.countDown()
     }
 
-    val buffer = BufferedSubscriber[Long](underlying, Unbounded)
+    val buffer = BufferedSubscriber[Long](Subscriber(underlying, s), Unbounded)
 
-    (0 until 9999).foreach(x => buffer.observer.onNext(x))
-    buffer.observer.onComplete()
+    (0 until 9999).foreach(x => buffer.onNext(x))
+    buffer.onComplete()
 
     assert(complete.await(10, TimeUnit.SECONDS), "complete.await should have succeeded")
     assert(sum == (0 until 9999).sum)
@@ -218,10 +218,10 @@ object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
       def onComplete() = throw new IllegalStateException()
     }
 
-    val buffer = BufferedSubscriber[Long](underlying, Unbounded)
+    val buffer = BufferedSubscriber[Long](Subscriber(underlying, s), Unbounded)
 
-    (0 until 9999).foreach(x => buffer.observer.onNext(x))
-    buffer.observer.onError(new RuntimeException)
+    (0 until 9999).foreach(x => buffer.onNext(x))
+    buffer.onError(new RuntimeException)
     startConsuming.success(Continue)
 
     assert(complete.await(10, TimeUnit.SECONDS), "complete.await should have succeeded")
@@ -241,9 +241,9 @@ object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
       def onComplete() = throw new IllegalStateException()
     }
 
-    val buffer = BufferedSubscriber[Long](underlying, Unbounded)
-    (0 until 9999).foreach(x => buffer.observer.onNext(x))
-    buffer.observer.onError(new RuntimeException)
+    val buffer = BufferedSubscriber[Long](Subscriber(underlying, s), Unbounded)
+    (0 until 9999).foreach(x => buffer.onNext(x))
+    buffer.onError(new RuntimeException)
 
     assert(complete.await(10, TimeUnit.SECONDS), "complete.await should have succeeded")
     assertEquals(sum, (0 until 9999).sum)

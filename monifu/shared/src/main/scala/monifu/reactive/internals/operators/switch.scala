@@ -33,9 +33,8 @@ private[reactive] object switch {
   def apply[T, U](source: Observable[T], delayErrors: Boolean)
       (implicit ev: T <:< Observable[U]): Observable[U] = {
 
-    Observable.create { subscriber:Subscriber[U] =>
-      implicit val s = subscriber.scheduler
-      val observerU = subscriber.observer
+    Observable.create { observerU: Subscriber[U] =>
+      import observerU.{scheduler => s}
 
       source.onSubscribe(new SynchronousObserver[T] { self =>
         // Global subscription, is canceled by the downstream

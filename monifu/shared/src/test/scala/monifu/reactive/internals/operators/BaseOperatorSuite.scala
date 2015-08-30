@@ -76,13 +76,13 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
 
       source.onSubscribe(new Observer[Long] {
         def onNext(elem: Long) =
-          subscriber.observer.onNext(elem)
+          subscriber.onNext(elem)
 
         def onError(ex: Throwable) =
-          subscriber.observer.onError(ex)
+          subscriber.onError(ex)
 
         def onComplete() =
-          subscriber.observer.onError(ex)
+          subscriber.onError(ex)
       })
     }
 

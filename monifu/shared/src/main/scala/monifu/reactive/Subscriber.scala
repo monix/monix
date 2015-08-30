@@ -18,10 +18,9 @@
 package monifu.reactive
 
 import monifu.concurrent.Scheduler
-import monifu.reactive.observers.{SynchronousSubscriber, SynchronousObserver}
+import monifu.reactive.observers.SynchronousSubscriber
 import monifu.reactive.streams.{SubscriberAsReactiveSubscriber, SynchronousSubscriberAsReactiveSubscriber}
 import org.reactivestreams.{Subscriber => RSubscriber}
-
 import scala.concurrent.Future
 
 /**
@@ -35,19 +34,19 @@ import scala.concurrent.Future
  * A `Subscriber` value is basically an address that the data source needs
  * in order to send events.
  */
-trait Subscriber[-T] {
-  def observer: Observer[T]
-  def scheduler: Scheduler
+trait Subscriber[-T] extends Observer[T] {
+  implicit def scheduler: Scheduler
 }
 
 object Subscriber {
   /** Subscriber builder */
   def apply[T](observer: Observer[T], scheduler: Scheduler): Subscriber[T] =
-    new Implementation[T](observer, scheduler)
-
-  /** Utility for pattern matching */
-  def unapply[T](ref: Subscriber[T]): Some[(Observer[T], Scheduler)] =
-    Some((ref.observer, ref.scheduler))
+    observer match {
+      case ref: Subscriber[_] if ref.scheduler == scheduler =>
+        ref.asInstanceOf[Subscriber[T]]
+      case _ =>
+        new Implementation[T](observer, scheduler)
+    }
 
   /**
    * Transforms the source [[Subscriber]] into a `org.reactivestreams.Subscriber`
@@ -69,14 +68,13 @@ object Subscriber {
    *                   the reactive streams specification
    */
   def toReactiveSubscriber[T](source: Subscriber[T], bufferSize: Int): RSubscriber[T] = {
-    val s = source.scheduler
-    source.observer match {
-      case sync: SynchronousObserver[_] =>
-        val inst = sync.asInstanceOf[SynchronousObserver[T]]
-        SynchronousSubscriberAsReactiveSubscriber(SynchronousSubscriber(inst, s), bufferSize)
+    source match {
+      case sync: SynchronousSubscriber[_] =>
+        val inst = sync.asInstanceOf[SynchronousSubscriber[T]]
+        SynchronousSubscriberAsReactiveSubscriber(inst, bufferSize)
       case async =>
-        SubscriberAsReactiveSubscriber(Subscriber(async, s), bufferSize)
-    }  
+        SubscriberAsReactiveSubscriber(async, bufferSize)
+    }
   }
   
   /**
@@ -105,31 +103,41 @@ object Subscriber {
       Subscriber.toReactiveSubscriber(source, bufferSize)
 
     /**
-     * Feeds the source [[Subscriber]] instance with elements from the given iterable,
+     * Feeds the source [[Subscriber]] with elements from the given iterable,
      * respecting the contract and returning a `Future[Ack]` with the last
      * acknowledgement given after the last emitted element.
      */
-    def feed(iterable: Iterable[T]): Future[Ack] = {
-      source.observer.feed(iterable)(source.scheduler)
-    }
+    def feed(iterable: Iterable[T]): Future[Ack] =
+      Observer.feed(source, iterable)(source.scheduler)
+
+    /**
+     * Feeds the source [[Subscriber]] with elements from the given iterator,
+     * respecting the contract and returning a `Future[Ack]` with the last
+     * acknowledgement given after the last emitted element.
+     */
+    def feed(iterator: Iterator[T]): Future[Ack] =
+      Observer.feed(source, iterator)(source.scheduler)
   }
 
   private[this] final class Implementation[-T]
-      (val observer: Observer[T], val scheduler: Scheduler)
+      (private val observer: Observer[T], val scheduler: Scheduler)
     extends Subscriber[T] {
 
     require(observer != null, "Observer should not be null")
     require(scheduler != null, "Scheduler should not be null")
 
+    def onNext(elem: T): Future[Ack] = observer.onNext(elem)
+    def onError(ex: Throwable): Unit = observer.onError(ex)
+    def onComplete(): Unit = observer.onComplete()
+
     override def equals(other: Any): Boolean = other match {
       case that: Implementation[_] =>
-        observer == that.observer &&
-        scheduler == that.scheduler
+        observer == that.observer && scheduler == that.scheduler
       case _ =>
         false
     }
 
-    override val hashCode: Int = {
+    override def hashCode(): Int = {
       31 * observer.hashCode() + scheduler.hashCode()
     }
   }

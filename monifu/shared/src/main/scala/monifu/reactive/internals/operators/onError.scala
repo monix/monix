@@ -18,7 +18,7 @@
 package monifu.reactive.internals.operators
 
 import monifu.concurrent.Scheduler
-import monifu.reactive.{Observer, Observable}
+import monifu.reactive.{Subscriber, Observer, Observable}
 import scala.util.control.NonFatal
 
 
@@ -28,12 +28,11 @@ private[reactive] object onError {
    */
   def recoverWith[T](source: Observable[T], pf: PartialFunction[Throwable, Observable[T]]) =
     Observable.create[T] { subscriber =>
-      implicit val s = subscriber.scheduler
-      val o = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
-        def onNext(elem: T) =
-          o.onNext(elem)
+        def onNext(elem: T) = subscriber.onNext(elem)
+        def onComplete() = subscriber.onComplete()
 
         def onError(ex: Throwable) = {
           // protecting user level code
@@ -43,27 +42,24 @@ private[reactive] object onError {
               val fallbackTo = pf(ex)
               // need asynchronous execution to avoid a synchronous loop
               // blowing out the call stack
-              s.execute(fallbackTo.onSubscribe(o))
+              s.execute(fallbackTo.onSubscribe(subscriber))
             }
             else {
               // we can't protect the onError call and if it throws
               // the behavior should be undefined
               streamError = false
-              o.onError(ex)
+              subscriber.onError(ex)
             }
           }
           catch {
             case NonFatal(err) if streamError =>
               // streaming the immediate exception
-              try o.onError(err) finally {
+              try subscriber.onError(err) finally {
                 // logging the original exception
                 s.reportFailure(ex)
               }
           }
         }
-
-        def onComplete() =
-          o.onComplete()
       })
     }
 
@@ -72,24 +68,23 @@ private[reactive] object onError {
    */
   def fallbackTo[T](source: Observable[T], other: => Observable[T]) =
     Observable.create[T] { subscriber =>
-      implicit val s = subscriber.scheduler
-      val o = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
         def onNext(elem: T) =
-          o.onNext(elem)
+          subscriber.onNext(elem)
 
         def onError(ex: Throwable) = {
           try {
             val fallback = other
             // need asynchronous execution to avoid a synchronous loop
             // blowing out the call stack
-            s.execute(fallback.onSubscribe(o))
+            s.execute(fallback.onSubscribe(subscriber))
           }
           catch {
             case NonFatal(err) =>
               // streaming the immediate exception
-              try o.onError(err) finally {
+              try subscriber.onError(err) finally {
                 // logging the original exception
                 s.reportFailure(ex)
               }
@@ -97,7 +92,7 @@ private[reactive] object onError {
         }
 
         def onComplete() =
-          o.onComplete()
+          subscriber.onComplete()
       })
     }
 
@@ -124,7 +119,7 @@ private[reactive] object onError {
       })
 
     Observable.create[T] { s =>
-      subscribe(s.observer, 0)(s.scheduler)
+      subscribe(s, 0)(s.scheduler)
     }
   }
 
@@ -146,7 +141,7 @@ private[reactive] object onError {
       })
 
     Observable.create[T] { s =>
-      subscribe(s.observer)(s.scheduler)
+      subscribe(s)(s.scheduler)
     }
   }
 
@@ -155,7 +150,9 @@ private[reactive] object onError {
    */
   def retryIf[T](source: Observable[T], p: Throwable => Boolean) = {
     // helper to subscribe in a loop when onError happens
-    def subscribe(o: Observer[T])(implicit s: Scheduler): Unit =
+    def subscribe(o: Subscriber[T]): Unit = {
+      import o.scheduler
+
       source.onSubscribe(new Observer[T] {
         def onNext(elem: T) = o.onNext(elem)
         def onComplete() = o.onComplete()
@@ -167,23 +164,23 @@ private[reactive] object onError {
             // need asynchronous execution to avoid a synchronous loop
             // blowing out the call stack
             if (shouldRetry)
-              s.execute(subscribe(o))
+              o.scheduler.execute(subscribe(o))
             else
               o.onError(ex)
           }
           catch {
             case NonFatal(err) =>
               // exception is getting lost, so try logging it
-              s.reportFailure(ex)
+              o.scheduler.reportFailure(ex)
               // reporting user code exception, which
               // is always worse if it happens
               o.onError(err)
           }
         }
       })
-
-    Observable.create[T] { s =>
-      subscribe(s.observer)(s.scheduler)
     }
+
+
+    Observable.create[T](subscribe)
   }
 }

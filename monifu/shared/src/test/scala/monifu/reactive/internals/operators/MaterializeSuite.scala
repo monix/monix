@@ -24,9 +24,8 @@ import scala.concurrent.duration.Duration.Zero
 
 object MaterializeSuite extends BaseOperatorSuite {
   def observable(sourceCount: Int) = Some {
-    val o = Observable.create[Long] { s =>
-      implicit val ec = s.scheduler
-      val o = s.observer
+    val o = Observable.create[Long] { subscriber =>
+      import subscriber.scheduler
 
       val source: Observable[Notification[Long]] =
         Observable.range(0, sourceCount).materialize
@@ -37,12 +36,12 @@ object MaterializeSuite extends BaseOperatorSuite {
 
         def onNext(elem: Notification[Long]) = elem match {
           case OnNext(e) =>
-            o.onNext(e)
+            subscriber.onNext(e)
           case OnError(ex) =>
-            o.onError(ex)
+            subscriber.onError(ex)
             Cancel
           case OnComplete =>
-            o.onComplete()
+            subscriber.onComplete()
             Cancel
         }
       })

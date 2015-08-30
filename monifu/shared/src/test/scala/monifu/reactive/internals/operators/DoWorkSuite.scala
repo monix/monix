@@ -25,12 +25,12 @@ import scala.concurrent.duration.Duration.Zero
 object DoWorkSuite extends BaseOperatorSuite {
   def observable(sourceCount: Int) = Some {
     val o = Observable.create[Long] { s =>
-      implicit val ec = s.scheduler
-      val buffer = BufferedSubscriber[Long](s.observer, Unbounded)
+      import s.scheduler
+      val buffer = BufferedSubscriber[Long](s, Unbounded)
 
       Observable.range(0, sourceCount)
-        .doWork(x => buffer.observer.onNext(x))
-        .doOnComplete(buffer.observer.onComplete())
+        .doWork(x => buffer.onNext(x))
+        .doOnComplete(buffer.onComplete())
         .subscribe()
     }
 
@@ -41,12 +41,12 @@ object DoWorkSuite extends BaseOperatorSuite {
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
     val o = Observable.create[Long] { s =>
-      implicit val ec = s.scheduler
+      import s.scheduler
 
-      val buffer = BufferedSubscriber[Long](s.observer, Unbounded)
+      val buffer = BufferedSubscriber[Long](s, Unbounded)
       createObservableEndingInError(Observable.range(0, sourceCount), ex)
-        .doWork(x => buffer.observer.onNext(x))
-        .doOnError(buffer.observer.onError)
+        .doWork(x => buffer.onNext(x))
+        .doOnError(buffer.onError)
         .subscribe()
     }
 
@@ -59,12 +59,12 @@ object DoWorkSuite extends BaseOperatorSuite {
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
     val o = Observable.create[Long] { s =>
-      implicit val ec = s.scheduler
+      import s.scheduler
 
-      val buffer = BufferedSubscriber[Long](s.observer, Unbounded)
+      val buffer = BufferedSubscriber[Long](s, Unbounded)
       Observable.range(0, sourceCount)
-        .doWork(x => if (x == sourceCount - 1) throw ex else buffer.observer.onNext(x))
-        .doOnError(buffer.observer.onError)
+        .doWork(x => if (x == sourceCount - 1) throw ex else buffer.onNext(x))
+        .doOnError(buffer.onError)
         .subscribe()
     }
 

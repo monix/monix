@@ -33,11 +33,11 @@ object groupBy {
   /** Implementation for [[Observable.groupBy]] */
   def apply[T,K](source: Observable[T], os: OverflowStrategy.Synchronous, keyFn: T => K): Observable[GroupedObservable[K,T]] = {
     Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] { self =>
         private[this] var isDone = false
-        private[this] val downstream = BufferedSubscriber(subscriber.observer, os)
+        private[this] val downstream = BufferedSubscriber(subscriber, os)
         private[this] val cacheRef = Atomic(Map.empty[K, Observer[T]])
 
         @tailrec
@@ -68,7 +68,7 @@ object groupBy {
                   GroupedObservable.broadcast[K,T](key, onCancel)
 
                 if (cacheRef.compareAndSet(cache, cache.updated(key, observer)))
-                  downstream.observer.onNext(observable).fastFlatMap {
+                  downstream.onNext(observable).fastFlatMap {
                     case Continue =>
                       // pushing the first element
                       observer.onNext(elem).mapToContinue
@@ -121,9 +121,9 @@ object groupBy {
             isDone = true
             val errors = completeAll()
             if (errors.nonEmpty)
-              downstream.observer.onError(CompositeException(ex +: errors))
+              downstream.onError(CompositeException(ex +: errors))
             else
-              downstream.observer.onError(ex)
+              downstream.onError(ex)
           }
         }
 
@@ -132,9 +132,9 @@ object groupBy {
             isDone = true
             val errors = completeAll()
             if (errors.nonEmpty)
-              downstream.observer.onError(CompositeException(errors))
+              downstream.onError(CompositeException(errors))
             else
-              downstream.observer.onComplete()
+              downstream.onComplete()
           }
         }
       })

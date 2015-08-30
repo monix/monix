@@ -33,9 +33,8 @@ private[reactive] object echo {
    * Implementation for [[Observable!.echo]].
    */
   def apply[T](source: Observable[T], timeout: FiniteDuration, onlyOnce: Boolean): Observable[T] = {
-    Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
-      val downstream = subscriber.observer
+    Observable.create { downstream =>
+      import downstream.{scheduler => s}
       val timeoutMillis = timeout.toMillis
 
       source.onSubscribe(new Observer[T] {

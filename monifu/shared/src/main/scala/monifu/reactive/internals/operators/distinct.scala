@@ -29,9 +29,8 @@ private[reactive] object distinct {
    * Implementation for [[Observable.distinct]].
    */
   def distinct[T](source: Observable[T]): Observable[T] =
-    Observable.create[T] { subscriber=>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+    Observable.create[T] { subscriber =>
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
         private[this] val set = mutable.Set.empty[T]
@@ -39,19 +38,18 @@ private[reactive] object distinct {
         def onNext(elem: T) = {
           if (set(elem)) Continue else {
             set += elem
-            observer.onNext(elem)
+            subscriber.onNext(elem)
           }
         }
 
-        def onError(ex: Throwable) = observer.onError(ex)
-        def onComplete() = observer.onComplete()
+        def onError(ex: Throwable) = subscriber.onError(ex)
+        def onComplete() = subscriber.onComplete()
       })
     }
 
   def distinctBy[T, U](source: Observable[T])(fn: T => U): Observable[T] =
     Observable.create[T] { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
         private[this] val set = mutable.Set.empty[U]
@@ -65,24 +63,24 @@ private[reactive] object distinct {
             if (set(key)) Continue
             else {
               set += key
-              observer.onNext(elem)
+              subscriber.onNext(elem)
             }
           }
           catch {
             case NonFatal(ex) =>
               if (!streamError) Future.failed(ex) else {
-                observer.onError(ex)
+                subscriber.onError(ex)
                 Cancel
               }
           }
         }
 
         def onError(ex: Throwable) = {
-          observer.onError(ex)
+          subscriber.onError(ex)
         }
 
         def onComplete() = {
-          observer.onComplete()
+          subscriber.onComplete()
         }
       })
     }
@@ -92,8 +90,7 @@ private[reactive] object distinct {
    */
   def untilChanged[T](source: Observable[T]): Observable[T] =
     Observable.create[T] { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
         private[this] var isFirst = true
@@ -103,18 +100,18 @@ private[reactive] object distinct {
           if (isFirst) {
             lastElem = elem
             isFirst = false
-            observer.onNext(elem)
+            subscriber.onNext(elem)
           }
           else if (lastElem != elem) {
             lastElem = elem
-            observer.onNext(elem)
+            subscriber.onNext(elem)
           }
           else
             Continue
         }
 
-        def onError(ex: Throwable) = observer.onError(ex)
-        def onComplete() = observer.onComplete()
+        def onError(ex: Throwable) = subscriber.onError(ex)
+        def onComplete() = subscriber.onComplete()
       })
     }
 
@@ -123,8 +120,7 @@ private[reactive] object distinct {
    */
   def untilChangedBy[T, U](source: Observable[T])(fn: T => U): Observable[T] =
     Observable.create[T] { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
         private[this] var isFirst = true
@@ -139,11 +135,11 @@ private[reactive] object distinct {
             if (isFirst) {
               lastKey = fn(elem)
               isFirst = false
-              observer.onNext(elem)
+              subscriber.onNext(elem)
             }
             else if (lastKey != key) {
               lastKey = key
-              observer.onNext(elem)
+              subscriber.onNext(elem)
             }
             else
               Continue
@@ -151,14 +147,14 @@ private[reactive] object distinct {
           catch {
             case NonFatal(ex) =>
               if (!streamError) Future.failed(ex) else {
-                observer.onError(ex)
+                subscriber.onError(ex)
                 Cancel
               }
           }
         }
 
-        def onError(ex: Throwable) = observer.onError(ex)
-        def onComplete() = observer.onComplete()
+        def onError(ex: Throwable) = subscriber.onError(ex)
+        def onComplete() = subscriber.onComplete()
       })
     }
 }

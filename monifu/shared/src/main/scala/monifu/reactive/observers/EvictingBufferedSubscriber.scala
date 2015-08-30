@@ -17,11 +17,9 @@
 
 package monifu.reactive.observers
 
-import monifu.collection.mutable.{DropAllOnOverflowQueue, EvictingQueue, DropHeadOnOverflowQueue}
-import monifu.concurrent.Scheduler
+import monifu.collection.mutable.{DropAllOnOverflowQueue, DropHeadOnOverflowQueue, EvictingQueue}
 import monifu.reactive.Ack.{Cancel, Continue}
-import monifu.reactive.{Ack, Observer}
-
+import monifu.reactive.{Ack, Subscriber}
 import scala.annotation.tailrec
 import scala.util.Failure
 import scala.util.control.NonFatal
@@ -31,10 +29,10 @@ import scala.util.control.NonFatal
  * [[monifu.reactive.OverflowStrategy.DropNew DropNew]] overflow strategy.
  */
 final class EvictingBufferedSubscriber[-T] private
-    (underlying: Observer[T], buffer: EvictingQueue[AnyRef], onOverflow: Long => T = null)
-    (implicit val scheduler: Scheduler)
+    (underlying: Subscriber[T], buffer: EvictingQueue[AnyRef], onOverflow: Long => T = null)
   extends BufferedSubscriber[T] with SynchronousSubscriber[T] { self =>
 
+  implicit val scheduler = underlying.scheduler
   // to be modified only in onError, before upstreamIsComplete
   private[this] var errorThrown: Throwable = null
   // to be modified only in onError / onComplete
@@ -49,37 +47,35 @@ final class EvictingBufferedSubscriber[-T] private
   // MUST only be accessed within the consumer loop
   private[this] val consumerBuffer = new Array[AnyRef](scheduler.env.batchSize)
 
-  val observer: SynchronousObserver[T] = new SynchronousObserver[T] {
-    def onNext(elem: T): Ack = self.synchronized {
-      if (!upstreamIsComplete && !downstreamIsDone) {
-        try {
-          eventsDropped += buffer.offer(elem.asInstanceOf[AnyRef])
-          consume()
-          Continue
-        }
-        catch {
-          case NonFatal(ex) =>
-            onError(ex)
-            Cancel
-        }
-      }
-      else
-        Cancel
-    }
-
-    def onError(ex: Throwable) = self.synchronized {
-      if (!upstreamIsComplete && !downstreamIsDone) {
-        errorThrown = ex
-        upstreamIsComplete = true
+  def onNext(elem: T): Ack = self.synchronized {
+    if (!upstreamIsComplete && !downstreamIsDone) {
+      try {
+        eventsDropped += buffer.offer(elem.asInstanceOf[AnyRef])
         consume()
+        Continue
+      }
+      catch {
+        case NonFatal(ex) =>
+          onError(ex)
+          Cancel
       }
     }
+    else
+      Cancel
+  }
 
-    def onComplete(): Unit = self.synchronized {
-      if (!upstreamIsComplete && !downstreamIsDone) {
-        upstreamIsComplete = true
-        consume()
-      }
+  def onError(ex: Throwable) = self.synchronized {
+    if (!upstreamIsComplete && !downstreamIsDone) {
+      errorThrown = ex
+      upstreamIsComplete = true
+      consume()
+    }
+  }
+
+  def onComplete(): Unit = self.synchronized {
+    if (!upstreamIsComplete && !downstreamIsDone) {
+      upstreamIsComplete = true
+      consume()
     }
   }
 
@@ -200,9 +196,7 @@ object EvictingBufferedSubscriber {
    * for the [[monifu.reactive.OverflowStrategy.DropOld DropOld]]
    * overflow strategy.
    */
-  def dropOld[T](underlying: Observer[T], bufferSize: Int)
-    (implicit s: Scheduler): EvictingBufferedSubscriber[T] = {
-
+  def dropOld[T](underlying: Subscriber[T], bufferSize: Int): EvictingBufferedSubscriber[T] = {
     require(bufferSize > 1,
       "bufferSize must be a strictly positive number, bigger than 1")
 
@@ -216,9 +210,7 @@ object EvictingBufferedSubscriber {
    * overflow strategy, with signaling of the number of events that
    * were dropped.
    */
-  def dropOld[T](underlying: Observer[T], bufferSize: Int, onOverflow: Long => T)
-    (implicit s: Scheduler): EvictingBufferedSubscriber[T] = {
-
+  def dropOld[T](underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => T): EvictingBufferedSubscriber[T] = {
     require(bufferSize > 1,
       "bufferSize must be a strictly positive number, bigger than 1")
 
@@ -231,9 +223,7 @@ object EvictingBufferedSubscriber {
    * [[monifu.reactive.OverflowStrategy.ClearBuffer ClearBuffer]]
    * overflow strategy.
    */
-  def clearBuffer[T](underlying: Observer[T], bufferSize: Int)
-    (implicit s: Scheduler): EvictingBufferedSubscriber[T] = {
-
+  def clearBuffer[T](underlying: Subscriber[T], bufferSize: Int): EvictingBufferedSubscriber[T] = {
     require(bufferSize > 1,
       "bufferSize must be a strictly positive number, bigger than 1")
 
@@ -247,9 +237,7 @@ object EvictingBufferedSubscriber {
    * overflow strategy, with signaling of the number of events that
    * were dropped.
    */
-  def clearBuffer[T](underlying: Observer[T], bufferSize: Int, onOverflow: Long => T)
-    (implicit s: Scheduler): EvictingBufferedSubscriber[T] = {
-
+  def clearBuffer[T](underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => T): EvictingBufferedSubscriber[T] = {
     require(bufferSize > 1,
       "bufferSize must be a strictly positive number, bigger than 1")
 

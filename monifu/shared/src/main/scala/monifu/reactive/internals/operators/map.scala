@@ -28,8 +28,7 @@ private[reactive] object map {
    */
   def apply[T,U](source: Observable[T])(f: T => U): Observable[U] = {
     Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
         def onNext(elem: T) = {
@@ -38,19 +37,19 @@ private[reactive] object map {
           try {
             val next = f(elem)
             streamError = false
-            observer.onNext(next)
+            subscriber.onNext(next)
           }
           catch {
             case NonFatal(ex) =>
-              if (streamError) { observer.onError(ex); Cancel } else Future.failed(ex)
+              if (streamError) { subscriber.onError(ex); Cancel } else Future.failed(ex)
           }
         }
 
         def onError(ex: Throwable) =
-          observer.onError(ex)
+          subscriber.onError(ex)
 
         def onComplete() =
-          observer.onComplete()
+          subscriber.onComplete()
       })
     }
   }

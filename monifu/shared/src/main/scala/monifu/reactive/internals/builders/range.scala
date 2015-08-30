@@ -36,8 +36,7 @@ private[reactive] object range {
     require(step != 0, "step must be a number different from zero")
 
     Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
-      val o = subscriber.observer
+      import subscriber.{scheduler => s}
 
       def scheduleLoop(from: Long, until: Long, step: Long): Unit =
         s.execute(new Runnable {
@@ -53,7 +52,7 @@ private[reactive] object range {
           @tailrec
           def fastLoop(from: Long, until: Long, step: Long, syncIndex: Int): Unit =
             if (isInRange(from)) {
-              val ack = o.onNext(from)
+              val ack = subscriber.onNext(from)
               val nextIndex = if (!ack.isCompleted) 0 else
                 (syncIndex + 1) & modulus
 
@@ -79,7 +78,7 @@ private[reactive] object range {
               }
             }
             else
-              o.onComplete()
+              subscriber.onComplete()
 
           def run(): Unit = {
             fastLoop(from, until, step, 0)

@@ -44,8 +44,8 @@ private[reactive] object repeat {
 
   private
   final class RepeatOnceLoop[T](subscriber: Subscriber[T], elem: T) extends Runnable {
-    private[this] implicit val s = subscriber.scheduler
-    private[this] val o = subscriber.observer
+    import subscriber.{scheduler => s}
+    private[this] val o = subscriber
     private[this] val modulus = s.env.batchSize - 1
 
     def run(): Unit = {

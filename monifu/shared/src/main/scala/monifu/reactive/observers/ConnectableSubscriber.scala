@@ -66,9 +66,10 @@ import scala.concurrent.{Future, Promise}
  *   // NOTE: that onNext("c") never happens
  * }}}
  */
-final class ConnectableSubscriber[-T] private (underlying: Observer[T], val scheduler: Scheduler)
+final class ConnectableSubscriber[-T] private (underlying: Subscriber[T])
   extends Channel[T] with Subscriber[T] { self =>
 
+  val scheduler = underlying.scheduler
   private[this] implicit val s = scheduler
   private[this] val lock = new AnyRef
 
@@ -191,51 +192,49 @@ final class ConnectableSubscriber[-T] private (underlying: Observer[T], val sche
       }
     }
 
-  val observer: Observer[T] = new Observer[T] {
-    def onNext(elem: T) = {
-      if (!isConnected) {
-        // no need for synchronization here, since this reference is initialized
-        // before the subscription happens and because it gets written only in
-        // onNext / onComplete, which are non-concurrent clauses
-        connectedFuture = connectedFuture.flatMap {
-          case Cancel => Cancel
-          case Continue =>
-            underlying.onNext(elem)
-        }
-        connectedFuture
+  def onNext(elem: T): Future[Ack] = {
+    if (!isConnected) {
+      // no need for synchronization here, since this reference is initialized
+      // before the subscription happens and because it gets written only in
+      // onNext / onComplete, which are non-concurrent clauses
+      connectedFuture = connectedFuture.flatMap {
+        case Cancel => Cancel
+        case Continue =>
+          underlying.onNext(elem)
       }
-      else if (!wasCanceled) {
-        // taking fast path
-        underlying.onNext(elem)
-      }
-      else {
-        // was canceled either during connect, or the upstream publisher
-        // sent an onNext event after onComplete / onError
-        Cancel
-      }
+      connectedFuture
     }
+    else if (!wasCanceled) {
+      // taking fast path
+      underlying.onNext(elem)
+    }
+    else {
+      // was canceled either during connect, or the upstream publisher
+      // sent an onNext event after onComplete / onError
+      Cancel
+    }
+  }
 
-    def onComplete() = {
-      // we cannot take a fast path here
-      connectedFuture.onContinueSignalComplete(underlying)
-    }
+  def onComplete() = {
+    // we cannot take a fast path here
+    connectedFuture.onContinueSignalComplete(underlying)
+  }
 
-    def onError(ex: Throwable) = {
-      // we cannot take a fast path here
-      connectedFuture.onContinueSignalError(underlying, ex)
-    }
+  def onError(ex: Throwable) = {
+    // we cannot take a fast path here
+    connectedFuture.onContinueSignalError(underlying, ex)
   }
 }
 
 object ConnectableSubscriber {
   /** `ConnectableSubscriber` builder */
   def apply[T](subscriber: Subscriber[T]): ConnectableSubscriber[T] = {
-    new ConnectableSubscriber[T](subscriber.observer, subscriber.scheduler)
+    new ConnectableSubscriber[T](subscriber)
   }
 
   /** `ConnectableSubscriber` builder */
   def apply[T](observer: Observer[T], scheduler: Scheduler): ConnectableSubscriber[T] = {
-    new ConnectableSubscriber[T](observer, scheduler)
+    new ConnectableSubscriber[T](Subscriber(observer, scheduler))
   }
 
 }

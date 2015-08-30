@@ -28,8 +28,7 @@ private[reactive] object scan {
    */
   def apply[T, R](source: Observable[T], initial: R)(op: (R, T) => R): Observable[R] =
     Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
         private[this] var state = initial
@@ -41,19 +40,20 @@ private[reactive] object scan {
           try {
             state = op(state, elem)
             streamError = false
-            observer.onNext(state)
+            subscriber.onNext(state)
           }
           catch {
             case NonFatal(ex) =>
-              if (streamError) { observer.onError(ex); Cancel } else Future.failed(ex)
+              if (streamError) { subscriber.onError(ex); Cancel }
+              else Future.failed(ex)
           }
         }
 
         def onComplete() =
-          observer.onComplete()
+          subscriber.onComplete()
 
         def onError(ex: Throwable) =
-          observer.onError(ex)
+          subscriber.onError(ex)
       })
     }
 }

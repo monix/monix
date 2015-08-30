@@ -81,9 +81,7 @@ final class ReplaySubject[T] private (queue: Queue[T])
 
   private[this] def emitNext(subscriber: Subscriber[T], elem: T): Future[Continue] = {
     implicit val s = subscriber.scheduler
-    val obs = subscriber.observer
-
-    obs.onNext(elem) match {
+    subscriber.onNext(elem) match {
       case sync if sync.isCompleted =>
         sync.value.get match {
           case Continue.IsSuccess =>
@@ -93,6 +91,7 @@ final class ReplaySubject[T] private (queue: Queue[T])
             removeSubscription(subscriber)
             Continue
         }
+
       case async =>
         async.map {
           case Continue => Continue
@@ -156,7 +155,7 @@ final class ReplaySubject[T] private (queue: Queue[T])
         else {
           var idx = 0
           while (idx < observers.length) {
-            observers(idx).observer.onComplete()
+            observers(idx).onComplete()
             idx += 1
           }
         }
@@ -178,7 +177,7 @@ final class ReplaySubject[T] private (queue: Queue[T])
         else {
           var idx = 0
           while (idx < observers.length) {
-            observers(idx).observer.onError(ex)
+            observers(idx).onError(ex)
             idx += 1
           }
         }

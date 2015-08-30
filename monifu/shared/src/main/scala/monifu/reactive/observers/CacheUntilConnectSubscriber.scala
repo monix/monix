@@ -31,12 +31,10 @@ import scala.concurrent.{Future, Promise}
  *
  * This is a variant of [[ConnectableSubscriber]].
  */
-final class CacheUntilConnectSubscriber[-T] private (underlying: Subscriber[T])
+final class CacheUntilConnectSubscriber[-T] private (downstream: Subscriber[T])
   extends Subscriber[T] { self =>
 
-  val scheduler = underlying.scheduler
-
-  private[this] val downstream = underlying.observer
+  val scheduler = downstream.scheduler
   private[this] implicit val s = scheduler
   private[this] val lock = new AnyRef
 
@@ -96,7 +94,7 @@ final class CacheUntilConnectSubscriber[-T] private (underlying: Subscriber[T])
 
         def onError(ex: Throwable): Unit = {
           if (bufferWasDrained.trySuccess(Continue))
-            self.observer.onError(ex)
+            self.onError(ex)
           else
             s.reportFailure(ex)
         }
@@ -104,47 +102,45 @@ final class CacheUntilConnectSubscriber[-T] private (underlying: Subscriber[T])
     }
   }
 
-  val observer: Observer[T] = new Observer[T] {
-    def onNext(elem: T) = {
-      if (!isConnected) lock.synchronized {
-        // checking again because of multi-threading concerns
-        if (!isConnected && !isConnectionStarted) {
-          // we can cache the incoming event
-          queue.append(elem)
-          Continue
-        }
-        else {
-          // if the connection started, we cannot modify the queue anymore
-          // so we must be patient and apply back-pressure
-          connectedFuture = connectedFuture.flatMap {
-            case Cancel => Cancel
-            case Continue =>
-              downstream.onNext(elem)
-          }
-
-          connectedFuture
-        }
-      }
-      else if (!wasCanceled) {
-        // taking fast path :-)
-        downstream.onNext(elem)
+  def onNext(elem: T) = {
+    if (!isConnected) lock.synchronized {
+      // checking again because of multi-threading concerns
+      if (!isConnected && !isConnectionStarted) {
+        // we can cache the incoming event
+        queue.append(elem)
+        Continue
       }
       else {
-        // was canceled either during connect, or the upstream publisher
-        // sent an onNext event after onComplete / onError
-        Cancel
+        // if the connection started, we cannot modify the queue anymore
+        // so we must be patient and apply back-pressure
+        connectedFuture = connectedFuture.flatMap {
+          case Cancel => Cancel
+          case Continue =>
+            downstream.onNext(elem)
+        }
+
+        connectedFuture
       }
     }
-
-    def onComplete() = {
-      // we cannot take a fast path here
-      connectedFuture.onContinueSignalComplete(downstream)
+    else if (!wasCanceled) {
+      // taking fast path :-)
+      downstream.onNext(elem)
     }
-
-    def onError(ex: Throwable) = {
-      // we cannot take a fast path here
-      connectedFuture.onContinueSignalError(downstream, ex)
+    else {
+      // was canceled either during connect, or the upstream publisher
+      // sent an onNext event after onComplete / onError
+      Cancel
     }
+  }
+
+  def onComplete() = {
+    // we cannot take a fast path here
+    connectedFuture.onContinueSignalComplete(downstream)
+  }
+
+  def onError(ex: Throwable) = {
+    // we cannot take a fast path here
+    connectedFuture.onContinueSignalError(downstream, ex)
   }
 }
 

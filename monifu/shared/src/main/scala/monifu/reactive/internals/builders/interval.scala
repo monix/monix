@@ -30,8 +30,8 @@ private[reactive] object interval {
    */
   def withFixedDelay(initialDelay: FiniteDuration, delay: FiniteDuration): Observable[Long] = {
     Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
-      val o = subscriber.observer
+      import subscriber.{scheduler => s}
+      val o = subscriber
 
       s.scheduleOnce(initialDelay, new Runnable { self =>
         private[this] var counter = 0L
@@ -64,8 +64,8 @@ private[reactive] object interval {
    */
   def atFixedRate(initialDelay: FiniteDuration, period: FiniteDuration): Observable[Long] = {
     Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
-      val o = subscriber.observer
+      import subscriber.{scheduler => s}
+      val o = subscriber
 
       s.scheduleOnce(initialDelay, new Runnable { self =>
         private[this] val periodMillis = period.toMillis

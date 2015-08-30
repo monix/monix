@@ -29,8 +29,7 @@ private[reactive] object reduce {
    */
   def apply[T](source: Observable[T])(op: (T, T) => T): Observable[T] = {
     Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
         private[this] var state: T = _
@@ -61,16 +60,16 @@ private[reactive] object reduce {
 
         def onComplete() = {
           if (wasApplied) {
-            observer.onNext(state)
-              .onContinueSignalComplete(observer)
+            subscriber.onNext(state)
+              .onContinueSignalComplete(subscriber)
           }
           else {
-            observer.onComplete()
+            subscriber.onComplete()
           }
         }
 
         def onError(ex: Throwable) = {
-          observer.onError(ex)
+          subscriber.onError(ex)
         }
       })
     }

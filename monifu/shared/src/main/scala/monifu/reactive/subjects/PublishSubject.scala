@@ -39,16 +39,17 @@ final class PublishSubject[T] extends Subject[T,T] {
   private[this] val lock = new AnyRef
   private[this] var isCompleted = false
   private[this] var errorThrown: Throwable = null
-  @volatile private[this] var subscriptions = Array.empty[Subscriber[T]]
+  @volatile private[this] var subscriptions =
+    Array.empty[Subscriber[T]]
 
   def onSubscribe(subscriber: Subscriber[T]): Unit =
     lock.synchronized {
       if (!isCompleted)
         subscriptions = createSubscription(subscriptions, subscriber)
       else if (errorThrown ne null)
-        subscriber.observer.onError(errorThrown)
+        subscriber.onError(errorThrown)
       else
-        subscriber.observer.onComplete()
+        subscriber.onComplete()
     }
 
   def onNext(elem: T): Future[Ack] = {
@@ -71,7 +72,7 @@ final class PublishSubject[T] extends Subject[T,T] {
 
         var idx = 0
         while (idx < subscriptions.length) {
-          subscriptions(idx).observer.onError(ex)
+          subscriptions(idx).onError(ex)
           idx += 1
         }
       }
@@ -84,7 +85,7 @@ final class PublishSubject[T] extends Subject[T,T] {
 
         var idx = 0
         while (idx < subscriptions.length) {
-          subscriptions(idx).observer.onComplete()
+          subscriptions(idx).onComplete()
           idx += 1
         }
       }
@@ -98,9 +99,8 @@ final class PublishSubject[T] extends Subject[T,T] {
     while (idx < length) {
       val subscriber = array(idx)
       implicit val s = subscriber.scheduler
-      val obs = subscriber.observer
 
-      obs.onNext(elem).onCompleteNow {
+      subscriber.onNext(elem).onCompleteNow {
         case Continue.IsSuccess =>
           newPromise.countdown()
         case _ =>

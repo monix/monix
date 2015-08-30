@@ -26,9 +26,8 @@ import scala.concurrent.duration.FiniteDuration
 private[reactive] object throttle {
   /** Implementation for [[Observable.throttleFirst]] */
   def first[T](self: Observable[T], interval: FiniteDuration): Observable[T] =
-    Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
-      val downstream = subscriber.observer
+    Observable.create { downstream =>
+      import downstream.{scheduler => s}
 
       self.onSubscribe(new Observer[T] {
         private[this] val intervalMs = interval.toMillis

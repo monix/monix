@@ -33,9 +33,8 @@ private[reactive] object flatten {
   def concat[T,U](source: Observable[T], delayErrors: Boolean)
     (implicit ev: T <:< Observable[U]): Observable[U] = {
 
-    Observable.create[U] { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observerU = subscriber.observer
+    Observable.create[U] { observerU =>
+      import observerU.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
         private[this] val errors = if (delayErrors)
@@ -109,9 +108,8 @@ private[reactive] object flatten {
     (implicit ev: T <:< Observable[U]): Observable[U] = {
 
     Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
-      val buffer = BufferedSubscriber(subscriber.observer, overflowStrategy, onOverflow)
-      val observerU = buffer.observer
+      import subscriber.{scheduler => s}
+      val observerU = BufferedSubscriber(subscriber, overflowStrategy, onOverflow)
 
       source.onSubscribe(new SynchronousObserver[T] {
         private[this] val streamActivity =

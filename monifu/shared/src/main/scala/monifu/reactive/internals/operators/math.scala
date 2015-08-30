@@ -29,8 +29,7 @@ private[reactive] object math {
    */
   def count[T](source: Observable[T]): Observable[Long] = {
     Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
         private[this] var count = 0l
@@ -41,12 +40,12 @@ private[reactive] object math {
         }
 
         def onComplete() = {
-          observer.onNext(count)
-            .onContinueSignalComplete(observer)
+          subscriber.onNext(count)
+            .onContinueSignalComplete(subscriber)
         }
 
         def onError(ex: Throwable) = {
-          observer.onError(ex)
+          subscriber.onError(ex)
         }
       })
     }
@@ -57,8 +56,7 @@ private[reactive] object math {
    */
   def sum[T](source: Observable[T])(implicit ev: Numeric[T]): Observable[T] = {
     Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
         private[this] var result = ev.zero
@@ -69,11 +67,11 @@ private[reactive] object math {
         }
 
         def onError(ex: Throwable) =
-          observer.onError(ex)
+          subscriber.onError(ex)
 
         def onComplete(): Unit = {
-          observer.onNext(result)
-            .onContinueSignalComplete(observer)
+          subscriber.onNext(result)
+            .onContinueSignalComplete(subscriber)
         }
       })
     }
@@ -84,8 +82,7 @@ private[reactive] object math {
    */
   def minBy[T,U](source: Observable[T])(f: T => U)(implicit ev: Ordering[U]): Observable[T] = {
     Observable.create[T] { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
         private[this] var minValue: T = _
@@ -117,14 +114,14 @@ private[reactive] object math {
         }
 
         def onError(ex: Throwable): Unit =
-          observer.onError(ex)
+          subscriber.onError(ex)
 
         def onComplete(): Unit = {
           if (!hasValue)
-            observer.onComplete()
+            subscriber.onComplete()
           else {
-            observer.onNext(minValue)
-              .onContinueSignalComplete(observer)
+            subscriber.onNext(minValue)
+              .onContinueSignalComplete(subscriber)
           }
         }
       })
@@ -136,8 +133,7 @@ private[reactive] object math {
    */
   def min[T](source: Observable[T])(implicit ev: Ordering[T]): Observable[T] = {
     Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
         private[this] var minValue: T = _
@@ -155,13 +151,13 @@ private[reactive] object math {
           Continue
         }
 
-        def onError(ex: Throwable): Unit = observer.onError(ex)
+        def onError(ex: Throwable): Unit = subscriber.onError(ex)
         def onComplete(): Unit = {
           if (!hasValue)
-            observer.onComplete()
+            subscriber.onComplete()
           else {
-            observer.onNext(minValue)
-              .onContinueSignalComplete(observer)
+            subscriber.onNext(minValue)
+              .onContinueSignalComplete(subscriber)
           }
         }
       })
@@ -170,8 +166,7 @@ private[reactive] object math {
 
   def maxBy[T,U](source: Observable[T])(f: T => U)(implicit ev: Ordering[U]): Observable[T] = {
     Observable.create[T] { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
         private[this] var maxValue: T = _
@@ -203,14 +198,14 @@ private[reactive] object math {
         }
 
         def onError(ex: Throwable): Unit =
-          observer.onError(ex)
+          subscriber.onError(ex)
 
         def onComplete(): Unit = {
           if (!hasValue)
-            observer.onComplete()
+            subscriber.onComplete()
           else {
-            observer.onNext(maxValue)
-              .onContinueSignalComplete(observer)
+            subscriber.onNext(maxValue)
+              .onContinueSignalComplete(subscriber)
           }
         }
       })
@@ -222,8 +217,7 @@ private[reactive] object math {
    */
   def max[T](source: Observable[T])(implicit ev: Ordering[T]): Observable[T] = {
     Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
         private[this] var maxValue: T = _
@@ -240,13 +234,13 @@ private[reactive] object math {
           Continue
         }
 
-        def onError(ex: Throwable): Unit = observer.onError(ex)
+        def onError(ex: Throwable): Unit = subscriber.onError(ex)
         def onComplete(): Unit = {
           if (!hasValue)
-            observer.onComplete()
+            subscriber.onComplete()
           else {
-            observer.onNext(maxValue)
-              .onContinueSignalComplete(observer)
+            subscriber.onNext(maxValue)
+              .onContinueSignalComplete(subscriber)
           }
         }
       })

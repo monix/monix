@@ -26,12 +26,12 @@ object DoOnErrorSuite extends BaseOperatorSuite {
 
   def observable(sourceCount: Int) = Some {
     val o = Observable.create[Long] { s =>
-      implicit val ec = s.scheduler
+      import s.scheduler
 
       Observable.range(0, sourceCount)
         .foldLeft(0L)(_ + _)
         .map(x => throw DummyException(x))
-        .doOnError(ex => unit(ex.asInstanceOf[DummyException].value).subscribe(s.observer))
+        .doOnError(ex => unit(ex.asInstanceOf[DummyException].value).subscribe(s))
         .subscribe()
     }
 

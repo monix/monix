@@ -44,11 +44,9 @@ private[reactive] object repeat {
       })
 
     Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
-
+      import subscriber.{scheduler => s}
       val subject = ReplaySubject[T]()
-      loop(subject, observer)
+      loop(subject, subscriber)
 
       source.onSubscribe(new Observer[T] {
         def onNext(elem: T): Future[Ack] = {

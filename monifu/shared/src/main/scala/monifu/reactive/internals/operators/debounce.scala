@@ -32,9 +32,8 @@ private[reactive] object debounce {
    * timespan has passed without it emitting another item
    */
   def apply[T](source: Observable[T], timeout: FiniteDuration): Observable[T] = {
-    Observable.create { subscriber => 
-      implicit val s = subscriber.scheduler
-      val downstream = subscriber.observer
+    Observable.create { downstream =>
+      import downstream.{scheduler => s}
       val timeoutMillis = timeout.toMillis
 
       source.onSubscribe(new SynchronousObserver[T] with Runnable { self =>

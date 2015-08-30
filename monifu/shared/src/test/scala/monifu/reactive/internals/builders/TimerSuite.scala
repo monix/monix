@@ -21,7 +21,6 @@ import minitest.SimpleTestSuite
 import monifu.concurrent.extensions._
 import monifu.concurrent.schedulers.TestScheduler
 import monifu.reactive.Ack.Continue
-import monifu.reactive.internals.builders.RepeatOneSuite._
 import monifu.reactive.{Ack, Observable, Observer}
 import scala.concurrent.Future
 import scala.concurrent.duration._

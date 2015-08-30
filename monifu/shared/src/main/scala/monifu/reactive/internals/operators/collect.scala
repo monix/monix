@@ -28,8 +28,7 @@ private[reactive] object collect {
    */
   def apply[T,U](source: Observable[T])(pf: PartialFunction[T,U]): Observable[U] = {
     Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
         def onNext(elem: T) = {
@@ -40,22 +39,22 @@ private[reactive] object collect {
             if (pf.isDefinedAt(elem)) {
               val next = pf(elem)
               streamError = false
-              observer.onNext(next)
+              subscriber.onNext(next)
             }
             else
               Continue
           }
           catch {
             case NonFatal(ex) =>
-              if (streamError) { observer.onError(ex); Cancel } else Future.failed(ex)
+              if (streamError) { subscriber.onError(ex); Cancel } else Future.failed(ex)
           }
         }
 
         def onError(ex: Throwable) =
-          observer.onError(ex)
+          subscriber.onError(ex)
 
         def onComplete() =
-          observer.onComplete()
+          subscriber.onComplete()
       })
     }
   }

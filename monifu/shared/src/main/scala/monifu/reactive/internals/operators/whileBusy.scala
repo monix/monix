@@ -25,14 +25,13 @@ import scala.concurrent.Future
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
-private[reactive] object onBackPressure {
+private[reactive] object whileBusy {
   /**
-   * While the destination observer is busy, drop the incoming events.
+   * While the destination subscriber is busy, drop the incoming events.
    */
   def dropEvents[T](source: Observable[T]): Observable[T] =
     Observable.create { subscriber =>
       implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
 
       source.onSubscribe(new SynchronousObserver[T] {
         private[this] var lastAck = Continue : Future[Ack]
@@ -48,11 +47,11 @@ private[reactive] object onBackPressure {
 
                 case Failure(ex) =>
                   isDone = true
-                  observer.onError(ex)
+                  subscriber.onError(ex)
                   Cancel
 
                 case Success(Continue) =>
-                  observer.onNext(elem) match {
+                  subscriber.onNext(elem) match {
                     case Cancel =>
                       isDone = true
                       Cancel
@@ -72,26 +71,25 @@ private[reactive] object onBackPressure {
         def onError(ex: Throwable) =
           if (!isDone) {
             isDone = true
-            lastAck.onContinueSignalError(observer, ex)
+            lastAck.onContinueSignalError(subscriber, ex)
           }
 
         def onComplete() =
           if (!isDone) {
             isDone = true
-            lastAck.onContinueSignalComplete(observer)
+            lastAck.onContinueSignalComplete(subscriber)
           }
       })
     }
 
   /**
-   * While the destination observer is busy,
+   * While the destination subscriber is busy,
    * drop the incoming events, then signal how many events
    * where dropped.
    */
   def dropEventsThenSignalOverflow[T](source: Observable[T], onOverflow: Long => T): Observable[T] =
     Observable.create { subscriber =>
       implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
 
       source.onSubscribe(new SynchronousObserver[T] {
         private[this] var lastAck = Continue : Future[Ack]
@@ -108,7 +106,7 @@ private[reactive] object onBackPressure {
 
                 case Failure(ex) =>
                   isDone = true
-                  observer.onError(ex)
+                  subscriber.onError(ex)
                   Cancel
 
                 case Success(Continue) =>
@@ -120,7 +118,7 @@ private[reactive] object onBackPressure {
                       val message = onOverflow(eventsDropped)
                       eventsDropped = 0
                       streamError = false
-                      observer.onNext(message)
+                      subscriber.onNext(message)
                     }
                     catch {
                       case NonFatal(ex) if streamError =>
@@ -128,7 +126,7 @@ private[reactive] object onBackPressure {
                         Cancel
                     }
                   else {
-                    observer.onNext(elem)
+                    subscriber.onNext(elem)
                   }
 
                   if (hasOverflow)
@@ -147,7 +145,7 @@ private[reactive] object onBackPressure {
 
         def onError(ex: Throwable): Unit = if (!isDone) {
           isDone = true
-          lastAck.onContinueSignalError(observer, ex)
+          lastAck.onContinueSignalError(subscriber, ex)
         }
 
         def onComplete(): Unit = if (!isDone) {
@@ -161,7 +159,7 @@ private[reactive] object onBackPressure {
               streamError = false
 
               lastAck.fastFlatMap {
-                case Continue => observer.onNext(message)
+                case Continue => subscriber.onNext(message)
                 case Cancel => Cancel
               }
             }
@@ -171,7 +169,7 @@ private[reactive] object onBackPressure {
             }
           }
 
-          f.onContinueSignalComplete(observer)
+          f.onContinueSignalComplete(subscriber)
         }
       })
     }

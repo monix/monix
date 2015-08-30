@@ -40,7 +40,7 @@ private[reactive] object from {
       }
       catch {
         case NonFatal(ex) if streamError =>
-          subscriber.observer.onError(ex)
+          subscriber.onError(ex)
       }
     }
 
@@ -49,8 +49,7 @@ private[reactive] object from {
    */
   def iterator[T](iterator: Iterator[T]): Observable[T] = {
     Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
       val modulus = s.env.batchSize - 1
 
       def startFeedLoop(iterator: Iterator[T]): Unit = s.execute(new Runnable {
@@ -76,7 +75,7 @@ private[reactive] object from {
             if (iterator.hasNext) {
               val next = iterator.next()
               streamError = false
-              ack = observer.onNext(next)
+              ack = subscriber.onNext(next)
             }
             else
               iteratorIsDone = true
@@ -87,10 +86,10 @@ private[reactive] object from {
           }
 
           if (iteratorIsDone) {
-            observer.onComplete()
+            subscriber.onComplete()
           }
           else if (iteratorTriggeredError != null) {
-            observer.onError(iteratorTriggeredError)
+            subscriber.onError(iteratorTriggeredError)
           }
           else {
             val nextIndex = if (!ack.isCompleted) 0 else
@@ -130,13 +129,13 @@ private[reactive] object from {
         streamError = false
 
         if (isEmpty)
-          observer.onComplete()
+          subscriber.onComplete()
         else
           startFeedLoop(iterator)
       }
       catch {
         case NonFatal(ex) if streamError =>
-          observer.onError(ex)
+          subscriber.onError(ex)
       }
     }
   }
@@ -146,19 +145,18 @@ private[reactive] object from {
    */
   def future[T](f: Future[T]): Observable[T] =
     Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
-      val o = subscriber.observer
+      import subscriber.{scheduler => s}
 
       f.value match {
         case Some(Success(value)) =>
-          o.onNext(value).onContinueSignalComplete(o)
+          subscriber.onNext(value).onContinueSignalComplete(subscriber)
         case Some(Failure(ex)) =>
-          o.onError(ex)
+          subscriber.onError(ex)
         case None => f.onComplete {
           case Success(value) =>
-            o.onNext(value).onContinueSignalComplete(o)
+            subscriber.onNext(value).onContinueSignalComplete(subscriber)
           case Failure(ex) =>
-            o.onError(ex)
+            subscriber.onError(ex)
         }
       }
     }

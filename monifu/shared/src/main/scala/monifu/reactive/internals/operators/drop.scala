@@ -30,8 +30,7 @@ private[reactive] object drop {
    */
   def byCount[T](source: Observable[T], nr: Int): Observable[T] =
     Observable.create[T] { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
         private[this] var count = 0L
@@ -42,14 +41,14 @@ private[reactive] object drop {
             Continue
           }
           else
-            observer.onNext(elem)
+            subscriber.onNext(elem)
         }
 
         def onComplete() =
-          observer.onComplete()
+          subscriber.onComplete()
 
         def onError(ex: Throwable) =
-          observer.onError(ex)
+          subscriber.onError(ex)
       })
     }
 
@@ -58,8 +57,7 @@ private[reactive] object drop {
    */
   def byTimespan[T](source: Observable[T], timespan: FiniteDuration): Observable[T] =
     Observable.create[T] { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] with Runnable {
         @volatile private[this] var shouldDrop = true
@@ -71,17 +69,17 @@ private[reactive] object drop {
           if (shouldDrop)
             Continue
           else
-            observer.onNext(elem)
+            subscriber.onNext(elem)
         }
 
         def onError(ex: Throwable): Unit = {
           task.cancel()
-          observer.onError(ex)
+          subscriber.onError(ex)
         }
 
         def onComplete(): Unit = {
           task.cancel()
-          observer.onComplete()
+          subscriber.onComplete()
         }
 
         def run(): Unit = {
@@ -95,8 +93,7 @@ private[reactive] object drop {
    */
   def byPredicate[T](source: Observable[T])(p: T => Boolean): Observable[T] =
     Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
         var continueDropping = true
@@ -114,23 +111,23 @@ private[reactive] object drop {
                 Continue
               else {
                 continueDropping = false
-                observer.onNext(elem)
+                subscriber.onNext(elem)
               }
             }
             catch {
               case NonFatal(ex) =>
-                if (streamError) { observer.onError(ex); Cancel } else Future.failed(ex)
+                if (streamError) { subscriber.onError(ex); Cancel } else Future.failed(ex)
             }
           }
           else
-            observer.onNext(elem)
+            subscriber.onNext(elem)
         }
 
         def onComplete() =
-          observer.onComplete()
+          subscriber.onComplete()
 
         def onError(ex: Throwable) =
-          observer.onError(ex)
+          subscriber.onError(ex)
       })
     }
 
@@ -139,8 +136,7 @@ private[reactive] object drop {
    */
   def byPredicateWithIndex[T](source: Observable[T])(p: (T, Int) => Boolean): Observable[T] =
     Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
         var continueDropping = true
@@ -161,23 +157,23 @@ private[reactive] object drop {
               }
               else {
                 continueDropping = false
-                observer.onNext(elem)
+                subscriber.onNext(elem)
               }
             }
             catch {
               case NonFatal(ex) =>
-                if (streamError) { observer.onError(ex); Cancel } else Future.failed(ex)
+                if (streamError) { subscriber.onError(ex); Cancel } else Future.failed(ex)
             }
           }
           else
-            observer.onNext(elem)
+            subscriber.onNext(elem)
         }
 
         def onComplete() =
-          observer.onComplete()
+          subscriber.onComplete()
 
         def onError(ex: Throwable) =
-          observer.onError(ex)
+          subscriber.onError(ex)
       })
     }
 }

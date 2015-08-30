@@ -31,12 +31,11 @@ object MinSuite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
     val o = Observable.create[Long] { subscriber =>
       implicit val s = subscriber.scheduler
-      val o = subscriber.observer
       val source = createObservableEndingInError(Observable.range(0, sourceCount), ex).min
 
-      o.onNext(sum(sourceCount)).onComplete {
+      subscriber.onNext(sum(sourceCount)).onComplete {
         case Success(Continue) =>
-          source.subscribe(o)
+          source.subscribe(subscriber)
         case _ => ()
       }
     }

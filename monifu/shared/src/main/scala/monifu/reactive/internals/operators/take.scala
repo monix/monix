@@ -34,8 +34,7 @@ private[reactive] object take {
    */
   def left[T](source: Observable[T], n: Long): Observable[T] =
     Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
         private[this] var counter = 0L
@@ -44,7 +43,7 @@ private[reactive] object take {
         def onNext(elem: T) = {
           if (n <= 0 && !isDone) {
             isDone = true
-            observer.onComplete()
+            subscriber.onComplete()
             Cancel
           }
           else if (!isDone && counter < n) {
@@ -53,14 +52,14 @@ private[reactive] object take {
 
             if (counter < n) {
               // this is not the last event in the stream, so send it directly
-              observer.onNext(elem)
+              subscriber.onNext(elem)
             }
             else  {
               // last event in the stream, so we need to send the event followed by an EOF downstream
               // after which we signal upstream to the producer that it should stop
               isDone = true
-              observer.onNext(elem)
-                .onContinueSignalComplete(observer)
+              subscriber.onNext(elem)
+                .onContinueSignalComplete(subscriber)
               Cancel
             }
           }
@@ -74,13 +73,13 @@ private[reactive] object take {
         def onError(ex: Throwable) =
           if (!isDone) {
             isDone = true
-            observer.onError(ex)
+            subscriber.onError(ex)
           }
 
         def onComplete() =
           if (!isDone) {
             isDone = true
-            observer.onComplete()
+            subscriber.onComplete()
           }
       })
     }
@@ -90,8 +89,7 @@ private[reactive] object take {
    */
   def right[T](source: Observable[T], n: Int): Observable[T] =
     Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
         private[this] val queue = mutable.Queue.empty[T]
@@ -103,28 +101,29 @@ private[reactive] object take {
           else if (queued < n) {
             queue.enqueue(elem)
             queued += 1
+            Continue
           }
           else {
             queue.enqueue(elem)
             queue.dequeue()
+            Continue
           }
-          Continue
         }
 
         def onComplete(): Unit = {
-          Observable.fromIterable(queue).onSubscribe(observer)
+          Observable.fromIterable(queue).onSubscribe(subscriber)
         }
 
         def onError(ex: Throwable): Unit = {
           Observable.fromIterable(queue).onSubscribe(new Observer[T] {
             def onError(ex: Throwable) =
-              observer.onError(ex)
+              subscriber.onError(ex)
 
             def onComplete() =
-              observer.onError(ex)
+              subscriber.onError(ex)
 
             def onNext(elem: T) =
-              observer.onNext(elem)
+              subscriber.onNext(elem)
           })
         }
       })
@@ -132,8 +131,7 @@ private[reactive] object take {
 
   def leftByTimespan[T](source: Observable[T], timespan: FiniteDuration): Observable[T] =
     Observable.create { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] with Runnable {
         private[this] var isActive = true
@@ -141,7 +139,7 @@ private[reactive] object take {
 
         def onNext(elem: T): Future[Ack] = synchronized {
           if (isActive)
-            observer.onNext(elem)
+            subscriber.onNext(elem)
               .ifCanceledDoCancel(task)
           else {
             onComplete()
@@ -153,7 +151,7 @@ private[reactive] object take {
           if (isActive) {
             isActive = false
             task.cancel()
-            observer.onError(ex)
+            subscriber.onError(ex)
           }
         }
 
@@ -161,7 +159,7 @@ private[reactive] object take {
           if (isActive) {
             isActive = false
             task.cancel()
-            observer.onComplete()
+            subscriber.onComplete()
           }
         }
 
@@ -176,8 +174,7 @@ private[reactive] object take {
    */
   def byPredicate[T](source: Observable[T])(p: T => Boolean): Observable[T] =
     Observable.create[T] { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
         var shouldContinue = true
@@ -191,18 +188,18 @@ private[reactive] object take {
               streamError = false
 
               if (isValid) {
-                observer.onNext(elem)
+                subscriber.onNext(elem)
               }
               else {
                 shouldContinue = false
-                observer.onComplete()
+                subscriber.onComplete()
                 Cancel
               }
             }
             catch {
               case NonFatal(ex) =>
                 if (streamError) {
-                  observer.onError(ex)
+                  subscriber.onError(ex)
                   Cancel
                 }
                 else
@@ -214,11 +211,11 @@ private[reactive] object take {
         }
 
         def onComplete() = {
-          observer.onComplete()
+          subscriber.onComplete()
         }
 
         def onError(ex: Throwable) = {
-          observer.onError(ex)
+          subscriber.onError(ex)
         }
       })
     }
@@ -228,8 +225,7 @@ private[reactive] object take {
    */
   def takeWhileNotCanceled[T](source: Observable[T], c: BooleanCancelable): Observable[T] =
     Observable.create[T] { subscriber =>
-      implicit val s = subscriber.scheduler
-      val observer = subscriber.observer
+      import subscriber.{scheduler => s}
 
       source.onSubscribe(new Observer[T] {
         var shouldContinue = true
@@ -242,17 +238,17 @@ private[reactive] object take {
               streamError = false
 
               if (!isCanceled)
-                observer.onNext(elem)
+                subscriber.onNext(elem)
               else {
                 shouldContinue = false
-                observer.onComplete()
+                subscriber.onComplete()
                 Cancel
               }
             }
             catch {
               case NonFatal(ex) =>
                 if (streamError) {
-                  observer.onError(ex)
+                  subscriber.onError(ex)
                   Cancel
                 }
                 else
@@ -264,11 +260,11 @@ private[reactive] object take {
         }
 
         def onComplete() = {
-          observer.onComplete()
+          subscriber.onComplete()
         }
 
         def onError(ex: Throwable) = {
-          observer.onError(ex)
+          subscriber.onError(ex)
         }
       })
     }
