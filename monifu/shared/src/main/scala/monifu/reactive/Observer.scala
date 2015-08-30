@@ -17,6 +17,7 @@
  
 package monifu.reactive
 
+import language.implicitConversions
 import monifu.concurrent.Scheduler
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.observers.{SynchronousSubscriber, SynchronousObserver}
@@ -63,7 +64,7 @@ object Observer {
    * instance as defined by the [[http://www.reactive-streams.org/ Reactive Streams]]
    * specification.
    */
-  def asSubscriber[T](observer: Observer[T], requestSize: Int = 128)(implicit s: Scheduler): RSubscriber[T] = {
+  def toSubscriber[T](observer: Observer[T], requestSize: Int = 128)(implicit s: Scheduler): RSubscriber[T] = {
     observer match {
       case sync: SynchronousObserver[_] =>
         val inst = sync.asInstanceOf[SynchronousObserver[T]]
@@ -76,56 +77,6 @@ object Observer {
   /**
    * Implicit conversion from [[Observer]] to `org.reactivestreams.Subscriber`.
    */
-  def ObserverIsSubscriber[T](source: Observer[T])(implicit s: Scheduler): RSubscriber[T] =
-    Observer.asSubscriber(source)
-
-  /**
-   * Feeds the given [[Observer]] instance with elements from the given iterable,
-   * respecting the contract and returning a `Future[Ack]` with the last
-   * acknowledgement given after the last emitted element.
-   */
-  def feed[T](observer: Observer[T], iterable: Iterable[T])(implicit s: Scheduler): Future[Ack] = {
-    def scheduleFeedLoop(promise: Promise[Ack], iterator: Iterator[T]): Future[Ack] = {
-      s.execute(new Runnable {
-        @tailrec
-        def fastLoop(): Unit = {
-          val ack = observer.onNext(iterator.next())
-
-          if (iterator.hasNext)
-            ack match {
-              case sync if sync.isCompleted =>
-                if (sync == Continue || sync.value.get == Continue.IsSuccess)
-                  fastLoop()
-                else
-                  promise.completeWith(sync)
-              case async =>
-                async.onComplete {
-                  case Success(Continue) =>
-                    scheduleFeedLoop(promise, iterator)
-                  case Success(Cancel) =>
-                    promise.success(Cancel)
-                  case Failure(ex) =>
-                    promise.failure(ex)
-                }
-            }
-          else
-            promise.completeWith(ack)
-        }
-
-        def run(): Unit = {
-          try fastLoop() catch {
-            case NonFatal(ex) =>
-              try observer.onError(ex) finally {
-                promise.failure(ex)
-              }
-          }
-        }
-      })
-
-      promise.future
-    }
-
-    val iterator = iterable.iterator
-    if (iterator.hasNext) scheduleFeedLoop(Promise[Ack](), iterator) else Continue
-  }
+  implicit def ObserverIsReactive[T](source: Observer[T])(implicit s: Scheduler): RSubscriber[T] =
+    Observer.toSubscriber(source)
 }

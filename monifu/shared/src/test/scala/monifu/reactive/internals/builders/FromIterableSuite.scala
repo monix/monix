@@ -26,7 +26,6 @@ import monifu.reactive.{Observable, Observer}
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-
 object FromIterableSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
@@ -34,7 +33,7 @@ object FromIterableSuite extends TestSuite[TestScheduler] {
       "TestScheduler should be left with no pending tasks")
   }
 
-  test("fromIterable should stream synchronously after loop was initiated") { implicit s =>
+  test("first execution is async") { implicit s =>
     var wasCompleted = false
     var sum = 0
 
@@ -49,9 +48,38 @@ object FromIterableSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable): Unit = ()
       })
 
+    assert(!wasCompleted)
+    assertEquals(sum, 0)
+
     assert(s.tickOne())
     assert(wasCompleted)
     assertEquals(sum, 15)
+  }
+
+  test("should do synchronous execution in batches") { implicit s =>
+    var wasCompleted = false
+    var sum = 0
+
+    Observable.fromIterable(0 until (s.env.batchSize * 2)).onSubscribe(
+      new Observer[Int] {
+        def onNext(elem: Int) = {
+          sum += 1
+          Continue
+        }
+
+        def onComplete(): Unit = wasCompleted = true
+        def onError(ex: Throwable): Unit = ()
+      })
+
+    assert(!wasCompleted)
+    assertEquals(sum, 0)
+
+    assert(s.tickOne())
+    assertEquals(sum, s.env.batchSize)
+    assert(s.tickOne())
+    assertEquals(sum, s.env.batchSize * 2)
+    s.tickOne()
+    assert(wasCompleted)
   }
 
   test("fromIterable should do back-pressure") { implicit s =>

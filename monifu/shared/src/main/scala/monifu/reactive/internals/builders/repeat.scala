@@ -18,30 +18,66 @@
 package monifu.reactive.internals.builders
 
 import monifu.reactive.Ack.Continue
-import monifu.reactive.Observable
+import monifu.reactive.{Observable, Subscriber}
+import scala.annotation.tailrec
+import scala.util.Failure
 
 private[reactive] object repeat {
   /**
    * Creates an Observable that continuously emits the given ''item'' repeatedly.
    */
   def apply[T](elems: T*): Observable[T] = {
-    if (elems.size == 0)
+    if (elems.isEmpty) {
       Observable.empty
-    else if (elems.size == 1) {
+    }
+    else if (elems.length == 1) {
       Observable.create { subscriber =>
-        implicit val s = subscriber.scheduler
-        val o = subscriber.observer
-
-        def loop(elem: T): Unit =
-          o.onNext(elem).onSuccess {
-            case Continue =>
-              loop(elem)
-          }
-
-        loop(elems.head)
+        // first execution is always asynchronous
+        subscriber.scheduler
+          .execute(new RepeatOnceLoop(subscriber, elems.head))
       }
     }
-    else
+    else {
       Observable.fromIterable(elems).repeat
+    }
+  }
+
+  private
+  final class RepeatOnceLoop[T](subscriber: Subscriber[T], elem: T) extends Runnable {
+    private[this] implicit val s = subscriber.scheduler
+    private[this] val o = subscriber.observer
+    private[this] val modulus = s.env.batchSize - 1
+
+    def run(): Unit = {
+      fastLoop(0)
+    }
+
+    @tailrec
+    def fastLoop(syncIndex: Int): Unit = {
+      val ack = o.onNext(elem)
+      val nextIndex = if (!ack.isCompleted) 0 else
+        (syncIndex + 1) & modulus
+
+      if (nextIndex != 0) {
+        if (ack == Continue)
+          fastLoop(nextIndex)
+        else ack.value.get match {
+          case Continue.IsSuccess =>
+            fastLoop(nextIndex)
+          case Failure(ex) =>
+            s.reportFailure(ex)
+          case _ =>
+            () // this was a Cancel, do nothing
+        }
+      }
+      else ack.onComplete {
+        case Continue.IsSuccess =>
+          run()
+        case Failure(ex) =>
+          s.reportFailure(ex)
+        case _ =>
+          () // this was a Cancel, do nothing
+      }
+    }
   }
 }

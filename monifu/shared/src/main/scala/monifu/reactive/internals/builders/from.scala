@@ -51,6 +51,7 @@ private[reactive] object from {
     Observable.create { subscriber =>
       implicit val s = subscriber.scheduler
       val observer = subscriber.observer
+      val modulus = s.env.batchSize - 1
 
       def startFeedLoop(iterator: Iterator[T]): Unit = s.execute(new Runnable {
         /**
@@ -59,7 +60,7 @@ private[reactive] object from {
          * is being hit.
          */
         @tailrec
-        def fastLoop(): Unit = {
+        def fastLoop(syncIndex: Int): Unit = {
           // the result of onNext calls, on which we must do back-pressure
           var ack: Future[Ack] = Continue
           // we do not want to catch errors from our interaction with our observer,
@@ -67,9 +68,9 @@ private[reactive] object from {
           // catch and stream errors related to the interactions with the iterator
           var streamError = true
           // true in case our iterator is seen to be empty and we must signal onComplete
-          var signalDone = false
+          var iteratorIsDone = false
           // non-null in case we caught an iterator related error and we must signal onError
-          var signalError: Throwable = null
+          var iteratorTriggeredError: Throwable = null
 
           try {
             if (iterator.hasNext) {
@@ -78,41 +79,48 @@ private[reactive] object from {
               ack = observer.onNext(next)
             }
             else
-              signalDone = true
+              iteratorIsDone = true
           }
           catch {
             case NonFatal(ex) if streamError =>
-              signalError = ex
+              iteratorTriggeredError = ex
           }
 
-          if (signalDone) {
+          if (iteratorIsDone) {
             observer.onComplete()
           }
-          else if (signalError != null) {
-            observer.onError(signalError)
+          else if (iteratorTriggeredError != null) {
+            observer.onError(iteratorTriggeredError)
           }
-          else
-            ack match {
-              case sync if sync.isCompleted =>
-                sync.value.get match {
-                  case Continue.IsSuccess =>
-                    fastLoop()
-                  case _ =>
-                    () // do nothing
-                }
+          else {
+            val nextIndex = if (!ack.isCompleted) 0 else
+              (syncIndex + 1) & modulus
 
-              case async =>
-                async.onComplete {
-                  case Continue.IsSuccess =>
-                    run()
-                  case _ =>
-                    () // do nothing
-                }
+            if (nextIndex > 0) {
+              if (ack == Continue)
+                fastLoop(nextIndex)
+              else ack.value.get match {
+                case Continue.IsSuccess =>
+                  fastLoop(nextIndex)
+                case Failure(ex) =>
+                  s.reportFailure(ex)
+                case _ =>
+                  () // do nothing
+              }
             }
+            else ack.onComplete {
+              case Continue.IsSuccess =>
+                run()
+              case Failure(ex) =>
+                s.reportFailure(ex)
+              case _ =>
+                () // do nothing
+            }
+          }
         }
 
         def run(): Unit = {
-          fastLoop()
+          fastLoop(0)
         }
       })
 

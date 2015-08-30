@@ -90,14 +90,14 @@ object BufferedSubscriber {
     (implicit s: Scheduler): BufferedSubscriber[T] = {
 
     strategy match {
-      case withSignal: WithSignal if onOverflow != null =>
+      case withSignal: Evicted if onOverflow != null =>
         withOverflowSignal(observer, withSignal)(onOverflow)
       case _ =>
         apply(observer, strategy)
     }
   }
 
-  def withOverflowSignal[T](observer: Observer[T], overflowStrategy: OverflowStrategy.WithSignal)
+  def withOverflowSignal[T](observer: Observer[T], overflowStrategy: OverflowStrategy.Evicted)
     (onOverflow: Long => T)
     (implicit s: Scheduler): BufferedSubscriber[T] = {
 

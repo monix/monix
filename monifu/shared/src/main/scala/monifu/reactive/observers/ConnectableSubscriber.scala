@@ -166,7 +166,7 @@ final class ConnectableSubscriber[-T] private (underlying: Observer[T], val sche
       if (isConnected || isConnectionStarted)
         throw new IllegalStateException("Observer was already connected, so cannot pushNext")
       else if (!scheduledDone)
-        queue.append(elems : _*)
+        queue.append(elems: _*)
     }
 
   /**

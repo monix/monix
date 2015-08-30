@@ -18,10 +18,10 @@
 package monifu.reactive.internals.builders
 
 import java.util.concurrent.TimeUnit
-
-import monifu.reactive.Observable
-import monifu.reactive.internals._
+import monifu.reactive.Ack.Continue
+import monifu.reactive.{Ack, Observable}
 import scala.concurrent.duration._
+import scala.util.{Failure, Try}
 
 private[reactive] object timer {
   /**
@@ -36,20 +36,11 @@ private[reactive] object timer {
       // we are deploying optimizations in order to reduce garbage allocations,
       // therefore the weird Runnable instance that does a state machine
       val runnable = new Runnable { self =>
-        import ObserverState.{ON_CONTINUE, ON_NEXT}
-
         private[this] val periodMs = period.toMillis
-        private[this] var state = ON_NEXT
         private[this] var startedAt = 0L
 
-        def run(): Unit = state match {
-          case ON_NEXT =>
-            state = ON_CONTINUE
-            startedAt = s.currentTimeMillis()
-            observer.onNext(unit).onContinue(self)
-
-          case ON_CONTINUE =>
-            state = ON_NEXT
+        def scheduleNext(r: Try[Ack]): Unit = r match {
+          case Continue.IsSuccess =>
             val initialDelay = {
               val duration = s.currentTimeMillis() - startedAt
               val d = periodMs - duration
@@ -57,6 +48,17 @@ private[reactive] object timer {
             }
 
             s.scheduleOnce(initialDelay, TimeUnit.MILLISECONDS, self)
+
+          case Failure(ex) =>
+            s.reportFailure(ex)
+
+          case _ =>
+            () // do nothing
+        }
+
+        def run(): Unit = {
+          startedAt = s.currentTimeMillis()
+          observer.onNext(unit).onComplete(scheduleNext)
         }
       }
 

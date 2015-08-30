@@ -27,10 +27,8 @@ import scala.util.Failure
 import scala.util.control.NonFatal
 
 /**
- * A [[BufferedSubscriber]] implementation for the following policies:
- *
- * - [[monifu.reactive.OverflowStrategy.DropNew]]
- * - [[monifu.reactive.OverflowStrategy.DropNewThenSignal]]
+ * A [[BufferedSubscriber]] implementation for the
+ * [[monifu.reactive.OverflowStrategy.DropNew DropNew]] overflow strategy.
  */
 final class EvictingBufferedSubscriber[-T] private
     (underlying: Observer[T], buffer: EvictingQueue[AnyRef], onOverflow: Long => T = null)
@@ -49,7 +47,7 @@ final class EvictingBufferedSubscriber[-T] private
   // events being dropped
   private[this] var eventsDropped = 0L
   // MUST only be accessed within the consumer loop
-  private[this] val consumerBuffer = new Array[AnyRef](200)
+  private[this] val consumerBuffer = new Array[AnyRef](scheduler.env.batchSize)
 
   val observer: SynchronousObserver[T] = new SynchronousObserver[T] {
     def onNext(elem: T): Ack = self.synchronized {
@@ -200,8 +198,8 @@ final class EvictingBufferedSubscriber[-T] private
 object EvictingBufferedSubscriber {
   /**
    * Returns an instance of a [[EvictingBufferedSubscriber]]
-   * for the [[monifu.reactive.OverflowStrategy.DropOld DropIDropOldcoming]]
-   * overflowStrategy.
+   * for the [[monifu.reactive.OverflowStrategy.DropOld DropOld]]
+   * overflow strategy.
    */
   def dropOld[T](underlying: Observer[T], bufferSize: Int)
     (implicit s: Scheduler): EvictingBufferedSubscriber[T] = {
@@ -214,9 +212,10 @@ object EvictingBufferedSubscriber {
   }
 
   /**
-   * Returns an instance of a [[EvictingBufferedSubscriber]] for the
-   * [[monifu.reactive.OverflowStrategy.DropOldThenSignal DropOldThenSignal]]
-   * overflowStrategy.
+   * Returns an instance of a [[EvictingBufferedSubscriber]]
+   * for the [[monifu.reactive.OverflowStrategy.DropOld DropOld]]
+   * overflow strategy, with signaling of the number of events that
+   * were dropped.
    */
   def dropOld[T](underlying: Observer[T], bufferSize: Int, onOverflow: Long => T)
     (implicit s: Scheduler): EvictingBufferedSubscriber[T] = {
@@ -231,7 +230,7 @@ object EvictingBufferedSubscriber {
   /**
    * Returns an instance of a [[EvictingBufferedSubscriber]] for the
    * [[monifu.reactive.OverflowStrategy.ClearBuffer ClearBuffer]]
-   * overflowStrategy.
+   * overflow strategy.
    */
   def clearBuffer[T](underlying: Observer[T], bufferSize: Int)
     (implicit s: Scheduler): EvictingBufferedSubscriber[T] = {
@@ -246,7 +245,8 @@ object EvictingBufferedSubscriber {
   /**
    * Returns an instance of a [[EvictingBufferedSubscriber]]
    * for the [[monifu.reactive.OverflowStrategy.ClearBuffer ClearBuffer]]
-   * overflowStrategy.
+   * overflow strategy, with signaling of the number of events that
+   * were dropped.
    */
   def clearBuffer[T](underlying: Observer[T], bufferSize: Int, onOverflow: Long => T)
     (implicit s: Scheduler): EvictingBufferedSubscriber[T] = {

@@ -56,7 +56,7 @@ object ObserverAsSubscriberSuite extends TestSuite[TestScheduler] {
     }
 
     Observable.range(0, 10000)
-      .subscribe(Observer.asSubscriber(observer, requestSize = 128))
+      .subscribe(Observer.toSubscriber(observer, requestSize = 128))
 
     scheduler.tick()
     assertEquals(sum, 5000L * 9999)
@@ -82,7 +82,7 @@ object ObserverAsSubscriberSuite extends TestSuite[TestScheduler] {
     }
 
     Observable.range(0, 10000)
-      .subscribe(Observer.asSubscriber(observer, requestSize = 1))
+      .subscribe(Observer.toSubscriber(observer, requestSize = 1))
 
     s.tick()
     assertEquals(sum, 5000L * 9999)
@@ -109,7 +109,7 @@ object ObserverAsSubscriberSuite extends TestSuite[TestScheduler] {
     }
 
     Observable.range(0, 10000)
-      .subscribe(Observer.asSubscriber(observer, requestSize = 128))
+      .subscribe(Observer.toSubscriber(observer, requestSize = 128))
 
     s.tick()
     assertEquals(sum, 5000L * 9999)
@@ -136,7 +136,7 @@ object ObserverAsSubscriberSuite extends TestSuite[TestScheduler] {
     }
 
     Observable.range(0, 10000)
-      .subscribe(Observer.asSubscriber(observer, requestSize = 1))
+      .subscribe(Observer.toSubscriber(observer, requestSize = 1))
 
     scheduler.tick()
     assertEquals(sum, 5000L * 9999)
@@ -175,7 +175,7 @@ object ObserverAsSubscriberSuite extends TestSuite[TestScheduler] {
     }
 
     Observable.range(1, 10000)
-      .subscribe(Observer.asSubscriber(observer, requestSize = 128))
+      .subscribe(Observer.toSubscriber(observer, requestSize = 128))
 
     s.tick()
     assertEquals(sum, 5 * 11)
@@ -215,7 +215,7 @@ object ObserverAsSubscriberSuite extends TestSuite[TestScheduler] {
     }
 
     Observable.range(1, 10000)
-      .subscribe(Observer.asSubscriber(observer, requestSize = 1))
+      .subscribe(Observer.toSubscriber(observer, requestSize = 1))
 
     s.tick()
     assertEquals(sum, 5 * 11)
@@ -248,7 +248,7 @@ object ObserverAsSubscriberSuite extends TestSuite[TestScheduler] {
     }
 
     Observable.unit(100L)
-      .subscribe(Observer.asSubscriber(observer, requestSize = 128))
+      .subscribe(Observer.toSubscriber(observer, requestSize = 128))
 
     s.tick()
     assertEquals(sum, 100L)
@@ -281,7 +281,7 @@ object ObserverAsSubscriberSuite extends TestSuite[TestScheduler] {
     }
 
     Observable.unit(100L)
-      .subscribe(Observer.asSubscriber(observer, requestSize = 1))
+      .subscribe(Observer.toSubscriber(observer, requestSize = 1))
 
     s.tick()
     assertEquals(sum, 100L)

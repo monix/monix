@@ -64,9 +64,9 @@ object AsyncChannel {
    * @param onOverflow - a function that is used for signaling a special
    *        event used to inform the consumers that an overflow event
    *        happened, function that receives the number of dropped
-   *        events as a parameter (see [[OverflowStrategy.WithSignal]])
+   *        events as a parameter (see [[OverflowStrategy.Evicted]])
    */
-  def apply[T](strategy: OverflowStrategy.WithSignal, onOverflow: Long => T)
+  def apply[T](strategy: OverflowStrategy.Evicted, onOverflow: Long => T)
     (implicit s: Scheduler): AsyncChannel[T] = {
 
     new AsyncChannel[T](strategy, onOverflow)

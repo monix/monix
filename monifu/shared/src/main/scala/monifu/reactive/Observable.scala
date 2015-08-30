@@ -18,17 +18,17 @@
 package monifu.reactive
 
 import java.io.PrintStream
+
 import monifu.concurrent.cancelables.BooleanCancelable
 import monifu.concurrent.{Cancelable, Scheduler}
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.OverflowStrategy.{default => defaultStrategy}
 import monifu.reactive.exceptions.CompositeException
-import monifu.reactive.observables.{GroupedObservable, ConnectableObservable}
-import monifu.reactive.observers._
 import monifu.reactive.internals._
+import monifu.reactive.observables.{ConnectableObservable, GroupedObservable}
+import monifu.reactive.observers._
 import monifu.reactive.subjects.{AsyncSubject, BehaviorSubject, PublishSubject, ReplaySubject}
 import org.reactivestreams.{Publisher, Subscriber => RSubscriber}
-
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent.{Future, Promise}
 import scala.language.implicitConversions
@@ -318,7 +318,7 @@ import scala.util.control.NonFatal
  * @define onOverflowParam a function that is used for signaling a special
  *         event used to inform the consumers that an overflow event
  *         happened, function that receives the number of dropped events as
- *         a parameter (see [[OverflowStrategy.WithSignal]])
+ *         a parameter (see [[OverflowStrategy.Evicted]])
  *
  * @define delayErrorsDescription This version
  *         is reserving onError notifications until all of the
@@ -641,7 +641,7 @@ trait Observable[+T] { self =>
    * @param onOverflow - $onOverflowParam
    * @return $mergeReturn
    */
-  def merge[U](overflowStrategy: OverflowStrategy.WithSignal, onOverflow: Long => U)
+  def merge[U](overflowStrategy: OverflowStrategy.Evicted, onOverflow: Long => U)
     (implicit ev: T <:< Observable[U]): Observable[U] = {
 
     operators.flatten.merge(self)(overflowStrategy, 
@@ -683,7 +683,7 @@ trait Observable[+T] { self =>
    * @param onOverflow - $onOverflowParam
    * @return $mergeReturn
    */
-  def mergeDelayErrors[U](overflowStrategy: OverflowStrategy.WithSignal, onOverflow: Long => U)
+  def mergeDelayErrors[U](overflowStrategy: OverflowStrategy.Evicted, onOverflow: Long => U)
     (implicit ev: T <:< Observable[U]): Observable[U] = {
 
     operators.flatten.merge(self)(overflowStrategy, onOverflow, delayErrors = true)
@@ -1656,7 +1656,7 @@ trait Observable[+T] { self =>
    * @param overflowStrategy - $overflowStrategyParam
    * @param onOverflow - $onOverflowParam
    */
-  def asyncBoundary[U >: T](overflowStrategy: OverflowStrategy.WithSignal, onOverflow: Long => U): Observable[U] =
+  def asyncBoundary[U >: T](overflowStrategy: OverflowStrategy.Evicted, onOverflow: Long => U): Observable[U] =
     Observable.create { subscriber =>
       implicit val s = subscriber.scheduler
       onSubscribe(BufferedSubscriber(subscriber.observer, overflowStrategy))
@@ -1695,7 +1695,7 @@ trait Observable[+T] { self =>
    * @param overflowStrategy - $overflowStrategyParam
    * @param onOverflow - $onOverflowParam
    */
-  def whileBusyBuffer[U >: T](overflowStrategy: OverflowStrategy.WithSignal, onOverflow: Long => U): Observable[U] =
+  def whileBusyBuffer[U >: T](overflowStrategy: OverflowStrategy.Evicted, onOverflow: Long => U): Observable[U] =
     asyncBoundary(overflowStrategy, onOverflow)
 
   /**
@@ -1880,7 +1880,7 @@ trait Observable[+T] { self =>
    * it executes the given callback.
    */
   def foreach(cb: T => Unit)(implicit s: Scheduler): Unit =
-    onSubscribe(new Observer[T] {
+    onSubscribe(new SynchronousObserver[T] {
       def onNext(elem: T) =
         try { cb(elem); Continue } catch {
           case NonFatal(ex) =>
@@ -2116,6 +2116,20 @@ object Observable {
    */
   def from[T](elems: T*): Observable[T] =
     builders.from.iterable(elems)
+
+  /**
+   * Given a `org.reactivestreams.Publisher`, converts it into a
+   * Monifu / Rx Observable.
+   *
+   * See the [[http://www.reactive-streams.org/ Reactive Streams]]
+   * protocol that Monifu implements.
+   *
+   * @see [[Observable!.publisher]] for converting ``
+   */
+  def fromPublisher[T](publisher: Publisher[T]): Observable[T] =
+    Observable.create[T] { sub =>
+      publisher.subscribe(Subscriber.toSubscriber(sub))
+    }
 
   /**
    * Create an Observable that emits a single item after a given delay.

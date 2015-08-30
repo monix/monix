@@ -38,7 +38,10 @@ final class BackPressuredBufferedSubscriber[-T] private
 
   require(bufferSize > 0, "bufferSize must be a strictly positive number")
 
+
   private[this] val queue = ConcurrentQueue.empty[T]
+  private[this] val batchSizeModulus = scheduler.env.batchSize - 1
+
   // to be modified only in onError, before upstreamIsComplete
   private[this] var errorThrown: Throwable = null
   // to be modified only in onError / onComplete
@@ -94,7 +97,7 @@ final class BackPressuredBufferedSubscriber[-T] private
       itemsToPush += 1
 
       scheduler.execute(new Runnable {
-        def run() = fastLoop(0)
+        def run() = fastLoop(0, 0)
       })
 
       Continue
@@ -115,80 +118,89 @@ final class BackPressuredBufferedSubscriber[-T] private
   }
 
   private[this] def rescheduled(processed: Int): Unit = {
-    fastLoop(processed)
+    fastLoop(processed, 0)
   }
 
   @tailrec
-  private[this] def fastLoop(processed: Int): Unit = {
+  private[this] def fastLoop(processed: Int, syncIndex: Int): Unit = {
     if (!downstreamIsDone) {
       val hasError = errorThrown ne null
       val next: T = queue.poll()
 
-      if (next != null)
-        underlying.onNext(next) match {
-          case sync if sync.isCompleted =>
-            sync match {
-              case continue if continue == Continue || continue.value.get == Continue.IsSuccess =>
-                // process next
-                fastLoop(processed + 1)
+      if (next != null) {
+        val ack = underlying.onNext(next)
+        val nextIndex = if (!ack.isCompleted) 0 else
+          (syncIndex + 1) & batchSizeModulus
 
-              case done if done == Cancel || done.value.get == Cancel.IsSuccess =>
-                // ending loop
-                downstreamIsDone = true
-                lock.synchronized {
-                  itemsToPush = 0
-                  nextAckPromise.success(Cancel)
-                }
-
-              case error if error.value.get.isFailure =>
-                // ending loop
-                downstreamIsDone = true
-                try underlying.onError(error.value.get.failed.get) finally
-                  lock.synchronized {
-                    itemsToPush = 0
-                    nextAckPromise.success(Cancel)
-                  }
+        if (nextIndex != 0) {
+          if (ack == Continue || ack.value.get == Continue.IsSuccess)
+            fastLoop(processed + 1, nextIndex)
+          else if (ack == Cancel || ack.value.get == Cancel.IsSuccess) {
+            // ending loop
+            downstreamIsDone = true
+            lock.synchronized {
+              itemsToPush = 0
+              nextAckPromise.success(Cancel)
             }
-
-          case async =>
-            async.onComplete {
-              case Continue.IsSuccess =>
-                // re-run loop (in different thread)
-                rescheduled(processed + 1)
-
-              case Cancel.IsSuccess =>
-                // ending loop
-                downstreamIsDone = true
-                lock.synchronized {
-                  itemsToPush = 0
-                  nextAckPromise.success(Cancel)
-                }
-
-              case Failure(ex) =>
-                // ending loop
-                downstreamIsDone = true
-                try underlying.onError(ex) finally
-                  lock.synchronized {
-                    itemsToPush = 0
-                    nextAckPromise.success(Cancel)
-                  }
-
-              case other =>
-                // never happens, but to appease Scala's compiler
-                downstreamIsDone = true
-                try underlying.onError(new MatchError(s"$other")) finally
-                  lock.synchronized {
-                    itemsToPush = 0
-                    nextAckPromise.success(Cancel)
-                  }
-            }
+          }
+          else if (ack.value.get.isFailure) {
+            // ending loop
+            downstreamIsDone = true
+            try underlying.onError(ack.value.get.failed.get) finally
+              lock.synchronized {
+                itemsToPush = 0
+                nextAckPromise.success(Cancel)
+              }
+          }
+          else {
+            // never happens
+            downstreamIsDone = true
+            try underlying.onError(new MatchError(s"${ack.value.get}")) finally
+              lock.synchronized {
+                itemsToPush = 0
+                nextAckPromise.success(Cancel)
+              }
+          }
         }
+        else ack.onComplete {
+          case Continue.IsSuccess =>
+            // re-run loop (in different thread)
+            rescheduled(processed + 1)
+
+          case Cancel.IsSuccess =>
+            // ending loop
+            downstreamIsDone = true
+            lock.synchronized {
+              itemsToPush = 0
+              nextAckPromise.success(Cancel)
+            }
+
+          case Failure(ex) =>
+            // ending loop
+            downstreamIsDone = true
+            try underlying.onError(ex) finally
+              lock.synchronized {
+                itemsToPush = 0
+                nextAckPromise.success(Cancel)
+              }
+
+          case other =>
+            // never happens, but to appease Scala's compiler
+            downstreamIsDone = true
+            try underlying.onError(new MatchError(s"$other")) finally
+              lock.synchronized {
+                itemsToPush = 0
+                nextAckPromise.success(Cancel)
+              }
+        }
+      }
       else if (upstreamIsComplete || hasError) {
-        // Race-condition check, but if upstreamIsComplete=true is visible, then the queue should be fully published
-        // because there's a clear happens-before relationship between queue.offer() and upstreamIsComplete=true
+        // Race-condition check, but if upstreamIsComplete=true is visible,
+        // then the queue should be fully published because there's a clear
+        // happens-before relationship between queue.offer() and upstreamIsComplete=true
         // NOTE: errors have priority, so in case of an error seen, then the loop is stopped
         if (!queue.isEmpty) {
-          fastLoop(processed) // re-run loop
+          fastLoop(processed, syncIndex) // re-run loop
         }
         else {
           // ending loop
@@ -216,7 +228,7 @@ final class BackPressuredBufferedSubscriber[-T] private
 
         // if the queue is non-empty (i.e. concurrent modifications might have happened)
         // then start all over again
-        if (remaining > 0) fastLoop(0)
+        if (remaining > 0) fastLoop(0, syncIndex)
       }
     }
   }

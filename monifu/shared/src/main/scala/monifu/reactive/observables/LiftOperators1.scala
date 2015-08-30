@@ -20,7 +20,7 @@ package monifu.reactive.observables
 import java.io.PrintStream
 import monifu.concurrent.Scheduler
 import monifu.concurrent.cancelables.BooleanCancelable
-import monifu.reactive.OverflowStrategy.{Synchronous, WithSignal}
+import monifu.reactive.OverflowStrategy.{Synchronous, Evicted}
 import monifu.reactive.{Notification, Observable, OverflowStrategy}
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
@@ -80,7 +80,7 @@ trait LiftOperators1[+T, Self[+U] <: Observable[U]] { self: Observable[T] =>
   override def merge[U](overflowStrategy: OverflowStrategy)(implicit ev: <:<[T, Observable[U]]): Self[U] =
     liftToSelf(o => Observable.create[T](o.onSubscribe).merge(overflowStrategy))
 
-  override def merge[U](overflowStrategy: WithSignal, onOverflow: (Long) => U)(implicit ev: <:<[T, Observable[U]]): Self[U] =
+  override def merge[U](overflowStrategy: Evicted, onOverflow: (Long) => U)(implicit ev: <:<[T, Observable[U]]): Self[U] =
     liftToSelf(o => Observable.create[T](o.onSubscribe).merge(overflowStrategy, onOverflow))
 
   override def mergeDelayErrors[U](implicit ev: <:<[T, Observable[U]]): Self[U] =
@@ -89,7 +89,7 @@ trait LiftOperators1[+T, Self[+U] <: Observable[U]] { self: Observable[T] =>
   override def mergeDelayErrors[U](overflowStrategy: OverflowStrategy)(implicit ev: <:<[T, Observable[U]]): Self[U] =
     liftToSelf(o => Observable.create[T](o.onSubscribe).mergeDelayErrors(overflowStrategy))
 
-  override def mergeDelayErrors[U](overflowStrategy: WithSignal, onOverflow: (Long) => U)(implicit ev: <:<[T, Observable[U]]): Self[U] =
+  override def mergeDelayErrors[U](overflowStrategy: Evicted, onOverflow: (Long) => U)(implicit ev: <:<[T, Observable[U]]): Self[U] =
     liftToSelf(o => Observable.create[T](o.onSubscribe).mergeDelayErrors(overflowStrategy, onOverflow))
 
   override def switch[U](implicit ev: <:<[T, Observable[U]]): Self[U] =
@@ -341,7 +341,7 @@ trait LiftOperators1[+T, Self[+U] <: Observable[U]] { self: Observable[T] =>
   override def asyncBoundary(overflowStrategy: OverflowStrategy): Self[T] =
     liftToSelf(o => Observable.create[T](o.onSubscribe).asyncBoundary(overflowStrategy))
 
-  override def asyncBoundary[U >: T](overflowStrategy: WithSignal, onOverflow: (Long) => U): Self[U] =
+  override def asyncBoundary[U >: T](overflowStrategy: Evicted, onOverflow: (Long) => U): Self[U] =
     liftToSelf(o => Observable.create[T](o.onSubscribe).asyncBoundary(overflowStrategy, onOverflow))
 
   override def whileBusyDropEvents: Self[T] =
@@ -353,7 +353,7 @@ trait LiftOperators1[+T, Self[+U] <: Observable[U]] { self: Observable[T] =>
   override def whileBusyBuffer[U >: T](overflowStrategy: Synchronous): Self[U] =
     liftToSelf(o => Observable.create[T](o.onSubscribe).whileBusyBuffer(overflowStrategy))
 
-  override def whileBusyBuffer[U >: T](overflowStrategy: WithSignal, onOverflow: (Long) => U): Self[U] =
+  override def whileBusyBuffer[U >: T](overflowStrategy: Evicted, onOverflow: (Long) => U): Self[U] =
     liftToSelf(o => Observable.create[T](o.onSubscribe).whileBusyBuffer(overflowStrategy, onOverflow))
 
   override def onErrorRecoverWith[U >: T](pf: PartialFunction[Throwable, Observable[U]]): Self[U] =

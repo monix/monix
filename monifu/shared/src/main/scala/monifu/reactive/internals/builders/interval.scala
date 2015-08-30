@@ -18,9 +18,10 @@
 package monifu.reactive.internals.builders
 
 import java.util.concurrent.TimeUnit
-import monifu.reactive.Observable
-import monifu.reactive.internals._
+import monifu.reactive.Ack.Continue
+import monifu.reactive.{Ack, Observable}
 import scala.concurrent.duration._
+import scala.util.{Try, Failure}
 
 
 private[reactive] object interval {
@@ -33,19 +34,26 @@ private[reactive] object interval {
       val o = subscriber.observer
 
       s.scheduleOnce(initialDelay, new Runnable { self =>
-        import monifu.reactive.internals.ObserverState.{ON_CONTINUE, ON_NEXT}
-        var state = ON_NEXT
-        var counter = 0L
+        private[this] var counter = 0L
 
-        def run() = state match {
-          case ON_NEXT =>
-            state = ON_CONTINUE
-            o.onNext(counter).onContinue(self)
-
-          case ON_CONTINUE =>
-            state = ON_NEXT
+        def scheduleNext(r: Try[Ack]): Unit = r match {
+          case Continue.IsSuccess =>
             counter += 1
             s.scheduleOnce(delay, self)
+
+          case Failure(ex) =>
+            s.reportFailure(ex)
+          case _ =>
+            () // do nothing
+        }
+
+        def run(): Unit = {
+          val ack = o.onNext(counter)
+
+          if (ack.isCompleted)
+            scheduleNext(ack.value.get)
+          else
+            ack.onComplete(scheduleNext)
         }
       })
     }
@@ -60,23 +68,13 @@ private[reactive] object interval {
       val o = subscriber.observer
 
       s.scheduleOnce(initialDelay, new Runnable { self =>
-        import monifu.reactive.internals.ObserverState.{ON_CONTINUE, ON_NEXT}
-
         private[this] val periodMillis = period.toMillis
-        private[this] var state = ON_NEXT
         private[this] var counter = 0L
         private[this] var startedAt = 0L
 
-        def run() = state match {
-          case ON_NEXT =>
-            state = ON_CONTINUE
-            startedAt = s.currentTimeMillis()
-            o.onNext(counter).onContinue(self)
-
-          case ON_CONTINUE =>
-            state = ON_NEXT
+        def scheduleNext(r: Try[Ack]): Unit = r match {
+          case Continue.IsSuccess =>
             counter += 1
-
             val delay = {
               val durationMillis = s.currentTimeMillis() - startedAt
               val d = periodMillis - durationMillis
@@ -84,6 +82,21 @@ private[reactive] object interval {
             }
 
             s.scheduleOnce(delay, TimeUnit.MILLISECONDS, self)
+
+          case Failure(ex) =>
+            s.reportFailure(ex)
+          case _ =>
+            () // do nothing else
+        }
+
+        def run(): Unit = {
+          startedAt = s.currentTimeMillis()
+          val ack = o.onNext(counter)
+
+          if (ack.isCompleted)
+            scheduleNext(ack.value.get)
+          else
+            ack.onComplete(scheduleNext)
         }
       })
     }

@@ -21,6 +21,7 @@ import minitest.TestSuite
 import monifu.concurrent.extensions._
 import monifu.concurrent.schedulers.TestScheduler
 import monifu.reactive.Ack.Continue
+import monifu.reactive.internals.builders.RepeatOneSuite._
 import monifu.reactive.{Observable, Observer}
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -95,21 +96,33 @@ object RangeSuite extends TestSuite[TestScheduler] {
       def onError(ex: Throwable): Unit = ()
     })
 
-    assert(!wasCompleted) 
+    assert(!wasCompleted)
 
     s.tick(); assertEquals(sum, 0); assertEquals(received, 1)
     s.tick(1.second); assertEquals(sum, 1); assertEquals(received, 3)
     s.tick(1.second); assertEquals(sum, 3); assertEquals(received, 6)
     s.tick(1.second); assertEquals(sum, 6); assertEquals(received, 10)
 
-    assert(!wasCompleted) 
+    assert(!wasCompleted)
     s.tick(1.second); assertEquals(sum, 10); assertEquals(received, 10)
-    assert(wasCompleted) 
+    assert(wasCompleted)
   }
 
   test("should throw if step is zero") { implicit s =>
     intercept[IllegalArgumentException] {
       Observable.range(0, 10, 0)
     }
+  }
+
+  test("should do synchronous execution in batches") { implicit s =>
+    var received = 0
+    Observable.range(0, s.env.batchSize * 2).map(_ => 1)
+      .subscribe { x => received += 1; Continue }
+
+    s.tickOne()
+    assertEquals(received, s.env.batchSize)
+    s.tickOne()
+    assertEquals(received, s.env.batchSize * 2)
+    s.tickOne()
   }
 }

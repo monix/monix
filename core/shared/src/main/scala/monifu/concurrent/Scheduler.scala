@@ -17,8 +17,9 @@
 
 package monifu.concurrent
 
+import monifu.concurrent.Scheduler.Environment
 import monifu.concurrent.schedulers._
-
+import monifu.util.math.roundToPowerOf2
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
@@ -32,19 +33,14 @@ import scala.concurrent.duration._
   "import monifu.concurrent.Implicits.globalScheduler or use a custom one")
 trait Scheduler extends ExecutionContext with UncaughtExceptionReporter {
   /**
-   * Returns the current time in milliseconds.  Note that while the
-   * unit of time of the return value is a millisecond, the
-   * granularity of the value depends on the underlying operating
-   * system and may be larger.  For example, many operating systems
-   * measure time in units of tens of milliseconds.
-   *
-   * It's the equivalent of `System.currentTimeMillis()`. When wanting
-   * to measure time, do not use `System.currentTimeMillis()`
-   * directly, prefer this method instead, because then it can be
-   * mocked for testing purposes (see for example
-   * [[monifu.concurrent.schedulers.TestScheduler TestScheduler]])
+   * Runs a block of code in this `ExecutionContext`.
    */
-  def currentTimeMillis(): Long
+  def execute(runnable: Runnable): Unit
+
+  /**
+   * Reports that an asynchronous computation failed.
+   */
+  def reportFailure(t: Throwable): Unit
 
   /**
    * Schedules the given `action` for immediate execution.
@@ -381,14 +377,85 @@ trait Scheduler extends ExecutionContext with UncaughtExceptionReporter {
   def scheduleAtFixedRate(initialDelay: Long, period: Long, unit: TimeUnit)(action: => Unit): Cancelable
 
   /**
-   * Runs a block of code in this `ExecutionContext`.
+   * Returns the current time in milliseconds.  Note that while the
+   * unit of time of the return value is a millisecond, the
+   * granularity of the value depends on the underlying operating
+   * system and may be larger.  For example, many operating systems
+   * measure time in units of tens of milliseconds.
+   *
+   * It's the equivalent of `System.currentTimeMillis()`. When wanting
+   * to measure time, do not use `System.currentTimeMillis()`
+   * directly, prefer this method instead, because then it can be
+   * mocked for testing purposes (see for example
+   * [[monifu.concurrent.schedulers.TestScheduler TestScheduler]])
    */
-  def execute(runnable: Runnable): Unit
+  def currentTimeMillis(): Long
 
   /**
-   * Reports that an asynchronous computation failed.
+   * Information about the environment on top of
+   * which our scheduler runs on.
    */
-  def reportFailure(t: Throwable): Unit
+  def env: Environment
 }
 
-object Scheduler extends SchedulerCompanion
+object Scheduler extends SchedulerCompanion {
+  /**
+   * Information about the environment on top of which
+   * our scheduler runs on.
+   */
+  final class Environment private
+    (_batchSize: Int, _platform: Platform.Value) {
+
+    /**
+     * Recommended batch size used for breaking synchronous loops in
+     * asynchronous batches. When streaming value from a producer to
+     * a synchronous consumer it's recommended to break the streaming
+     * in batches as to not hold the current thread or run-loop
+     * indefinitely.
+     *
+     * Working with power of 2, because then for applying the modulo
+     * operation we can just do:
+     * {{{
+     *   val modulus = scheduler.env.batchSize - 1
+     *   // ...
+     *   nr = (nr + 1) & modulus
+     * }}}
+     */
+    val batchSize: Int =
+      roundToPowerOf2(_batchSize)
+
+    /**
+     * Represents the platform our scheduler runs on.
+     */
+    val platform: Platform.Value =
+      _platform
+
+    override def equals(other: Any): Boolean = other match {
+      case that: Environment =>
+        batchSize == that.batchSize &&
+        platform == that.platform
+      case _ => false
+    }
+
+    override val hashCode: Int = {
+      val state = Seq(batchSize.hashCode(), platform.hashCode())
+      state.foldLeft(0)((a, b) => 31 * a + b)
+    }
+  }
+
+  object Environment {
+    /** Builder for [[Environment]] */
+    def apply(batchSize: Int, platform: Platform.Value): Environment = {
+      new Environment(batchSize, platform)
+    }
+  }
+
+  /**
+   * Represents the platform our scheduler runs on.
+   */
+  object Platform extends Enumeration {
+    val JVM = Value("JVM")
+    val JS = Value("JS")
+    val Fake = Value("Fake")
+  }
+}
