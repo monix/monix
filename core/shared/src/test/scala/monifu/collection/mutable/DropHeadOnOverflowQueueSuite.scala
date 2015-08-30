@@ -17,6 +17,7 @@
 
 package monifu.collection.mutable
 
+import java.util.ConcurrentModificationException
 import minitest.SimpleTestSuite
 
 object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
@@ -130,6 +131,28 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
       assertEquals(q.offer(i), 1)
       assertEquals(q.size, 7)
       assert(q.isAtCapacity)
+    }
+  }
+
+  test("throw ConcurrentModificationException after poll") {
+    val q = DropHeadOnOverflowQueue[Int](7)
+    q.offerMany(1,2,3,4)
+    val iterator = q.iterator
+
+    q.poll()
+    intercept[ConcurrentModificationException] {
+      iterator.hasNext
+    }
+  }
+
+  test("throw ConcurrentModificationException after offer") {
+    val q = DropHeadOnOverflowQueue[Int](7)
+    q.offerMany(1,2,3,4)
+    val iterator = q.iterator
+
+    q.offer(1)
+    intercept[ConcurrentModificationException] {
+      iterator.hasNext
     }
   }
 }
