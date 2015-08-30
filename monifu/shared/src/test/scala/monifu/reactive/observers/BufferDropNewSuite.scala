@@ -25,6 +25,8 @@ import monifu.concurrent.schedulers.TestScheduler
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.OverflowStrategy.DropNew
 import monifu.reactive.exceptions.DummyException
+import monifu.reactive.observers.BufferClearBufferThenSignalSuite._
+import monifu.reactive.observers.BufferDropAllSuite._
 import monifu.reactive.{Ack, Observer}
 import scala.concurrent.{Future, Promise}
 
@@ -295,5 +297,31 @@ object BufferDropNewSuite extends TestSuite[TestScheduler] {
     s.tick()
     assertEquals(errorThrown, DummyException("dummy"))
     assertEquals(sum, (0 until 9999).sum)
+  }
+
+  test("should do synchronous execution in batches") { implicit s =>
+    var received = 0L
+    var wasCompleted = false
+
+    val buffer = buildNew(s.env.batchSize * 3, new Observer[Int] {
+      def onNext(elem: Int) = {
+        received += 1
+        Continue
+      }
+
+      def onError(ex: Throwable) = ()
+      def onComplete() = wasCompleted = true
+    })
+
+    for (i <- 0 until (s.env.batchSize * 2)) buffer.observer.onNext(i)
+    buffer.observer.onComplete()
+    assertEquals(received, 0)
+
+    s.tickOne()
+    assertEquals(received, s.env.batchSize)
+    s.tickOne()
+    assertEquals(received, s.env.batchSize * 2)
+    s.tickOne()
+    assertEquals(wasCompleted, true)
   }
 }

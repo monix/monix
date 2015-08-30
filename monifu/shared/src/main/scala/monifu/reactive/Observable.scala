@@ -18,7 +18,6 @@
 package monifu.reactive
 
 import java.io.PrintStream
-
 import monifu.concurrent.cancelables.BooleanCancelable
 import monifu.concurrent.{Cancelable, Scheduler}
 import monifu.reactive.Ack.{Cancel, Continue}
@@ -28,7 +27,7 @@ import monifu.reactive.internals._
 import monifu.reactive.observables.{ConnectableObservable, GroupedObservable}
 import monifu.reactive.observers._
 import monifu.reactive.subjects.{AsyncSubject, BehaviorSubject, PublishSubject, ReplaySubject}
-import org.reactivestreams.{Publisher, Subscriber => RSubscriber}
+import org.reactivestreams.{Publisher => RPublisher, Subscriber => RSubscriber}
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent.{Future, Promise}
 import scala.language.implicitConversions
@@ -161,8 +160,8 @@ import scala.util.control.NonFatal
  * produces events is adjusted to the speed with which the consumer consumes.
  *
  * For example, lets say we want to feed an iterator into an observer,
- * similar to what we are doing in [[Observer.feed]], we might build a loop
- * like this:
+ * similar to what we are doing in [[Observer.Extensions.feed]],
+ * we might build a loop like this:
  * {{{
  *   /** Transforms any Iterable into an Observable */
  *   def fromIterator[T](iterable: Iterable[T]): Observable[T] =
@@ -452,13 +451,13 @@ trait Observable[+T] { self =>
    * See the [[http://www.reactive-streams.org/ Reactive Streams]]
    * protocol that Monifu implements.
    */
-  def publisher[U >: T](implicit s: Scheduler): Publisher[U] =
-    new Publisher[U] {
+  def toReactivePublisher[U >: T](implicit s: Scheduler): RPublisher[U] =
+    new RPublisher[U] {
       def subscribe(subscriber: RSubscriber[_ >: U]): Unit = {
-        onSubscribe(Subscriber(SafeObserver(Observer.from(subscriber)), s))
+        onSubscribe(Subscriber(SafeObserver(Observer.fromReactiveSubscriber(subscriber)), s))
       }
     }
-
+  
   /**
    * Returns an Observable that applies the given function to each item emitted by an
    * Observable and emits the result.
@@ -2006,6 +2005,7 @@ object Observable {
    */
   def intervalWithFixedDelay(initialDelay: FiniteDuration, delay: FiniteDuration): Observable[Long] =
     builders.interval.withFixedDelay(initialDelay, delay)
+
   /**
    * Creates an Observable that emits auto-incremented natural numbers
    * (longs) spaced by a given time interval. Starts from 0 with no
@@ -2126,9 +2126,35 @@ object Observable {
    *
    * @see [[Observable!.publisher]] for converting ``
    */
-  def fromPublisher[T](publisher: Publisher[T]): Observable[T] =
+  def fromReactivePublisher[T](publisher: RPublisher[T]): Observable[T] =
     Observable.create[T] { sub =>
-      publisher.subscribe(Subscriber.toSubscriber(sub))
+      publisher.subscribe(sub.toReactiveSubscriber)
+    }
+
+  /**
+   * Wraps this Observable into a `org.reactivestreams.Publisher`.
+   * See the [[http://www.reactive-streams.org/ Reactive Streams]]
+   * protocol that Monifu implements.
+   */
+  def toReactivePublisher[T](source: Observable[T])(implicit s: Scheduler): RPublisher[T] =
+    new RPublisher[T] {
+      def subscribe(subscriber: RSubscriber[_ >: T]): Unit = {
+        source.onSubscribe(Subscriber(SafeObserver(Observer.fromReactiveSubscriber(subscriber)), s))
+      }
+    }
+
+  /**
+   * Wraps this Observable into a `org.reactivestreams.Publisher`.
+   * See the [[http://www.reactive-streams.org/ Reactive Streams]]
+   * protocol that Monifu implements.
+   *
+   * @param requestSize is
+   */
+  def toReactivePublisher[T](source: Observable[T], requestSize: Int)(implicit s: Scheduler): RPublisher[T] =
+    new RPublisher[T] {
+      def subscribe(subscriber: RSubscriber[_ >: T]): Unit = {
+        source.onSubscribe(Subscriber(SafeObserver(Observer.fromReactiveSubscriber(subscriber)), s))
+      }
     }
 
   /**
@@ -2267,6 +2293,6 @@ object Observable {
   /**
    * Implicit conversion from Observable to Publisher.
    */
-  implicit def ObservableIsPublisher[T](source: Observable[T])(implicit s: Scheduler): Publisher[T] =
-    source.publisher
+  implicit def ObservableIsReactive[T](source: Observable[T])(implicit s: Scheduler): RPublisher[T] =
+    source.toReactivePublisher
 }

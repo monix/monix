@@ -184,6 +184,7 @@ final class SynchronousSubscriberAsReactiveSubscriber[T] private
   }
 
   def onNext(elem: T): Unit = {
+    if (subscription == null) throw new NullPointerException("onSubscription never happened")
     if (elem == null) throw new NullPointerException("onNext(null)")
 
     if (!isCanceled) {
