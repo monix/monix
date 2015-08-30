@@ -106,35 +106,6 @@ package object internals {
       }
 
     /**
-     * On Continue, triggers the execution of the given runnable.
-     */
-    def onContinue(r: Runnable)(implicit s: Scheduler): Unit = {
-      source match {
-        case sync if sync.isCompleted =>
-          sync.value.get match {
-            case Continue.IsSuccess =>
-              try r.run() catch {
-                case NonFatal(ex) =>
-                  s.reportFailure(ex)
-              }
-            case _ =>
-              () // do nothing
-          }
-
-        case async =>
-          async.onComplete {
-            case Continue.IsSuccess =>
-              try r.run() catch {
-                case NonFatal(ex) =>
-                  s.reportFailure(ex)
-              }
-            case _ =>
-              () // do nothing
-          }
-      }
-    }
-
-    /**
      * An implementation of `flatMap` that executes
      * synchronously if the source is already completed.
      */
@@ -296,30 +267,38 @@ package object internals {
      * On Cancel, try to trigger Cancel on the given Promise.
      */
     def ifCancelTryCanceling(p: Promise[Ack])(implicit s: Scheduler): Future[Ack] = {
-      source match {
-        case Continue => // do nothing
-        case Cancel => p.trySuccess(Cancel)
-
-        case sync if sync.isCompleted =>
-          sync.value.get match {
-            case Continue.IsSuccess => // do nothing
-            case Cancel.IsSuccess => p.trySuccess(Cancel)
-            case Failure(ex) => p.tryFailure(ex)
-            case other =>
-              // branch not necessary, but Scala's compiler emits warnings if missing
-              s.reportFailure(new MatchError(other.toString))
-          }
-
-        case async =>
-          async.onComplete {
-            case Continue.IsSuccess => // nothing
-            case Cancel.IsSuccess => p.trySuccess(Cancel)
-            case Failure(ex) => p.tryFailure(ex)
-            case other =>
-              // branch not necessary, but Scala's compiler emits warnings if missing
-              s.reportFailure(new MatchError(other.toString))
-          }
+      if (source.isCompleted) {
+        // do
+        if (source == Continue)
+          () // do nothing
+        else if (source == Cancel)
+          p.trySuccess(Cancel)
+        else source.value.get match {
+          case Continue.IsSuccess =>
+            () // do nothing
+          case Cancel.IsSuccess =>
+            p.trySuccess(Cancel)
+          case Failure(ex) =>
+            p.tryFailure(ex)
+          case other =>
+            // branch not necessary, but the Scala
+            // compiler emits warnings if missing
+            s.reportFailure(new MatchError(other.toString))
+        }
       }
+      else source.onComplete {
+        case Continue.IsSuccess =>
+          () // do nothing
+        case Cancel.IsSuccess =>
+          p.trySuccess(Cancel)
+        case Failure(ex) =>
+          p.tryFailure(ex)
+        case other =>
+          // branch not necessary, but the Scala
+          // compiler emits warnings if missing
+          s.reportFailure(new MatchError(other.toString))
+      }
+
       source
     }
 

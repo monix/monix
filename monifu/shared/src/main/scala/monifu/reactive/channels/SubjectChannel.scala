@@ -18,7 +18,7 @@
 package monifu.reactive.channels
 
 import monifu.concurrent.Scheduler
-import monifu.reactive.OverflowStrategy.WithSignal
+import monifu.reactive.OverflowStrategy.Evicted
 import monifu.reactive._
 import monifu.reactive.observers.BufferedSubscriber
 
@@ -30,7 +30,7 @@ class SubjectChannel[I,+O] private[reactive]
     (implicit scheduler: Scheduler)
   extends ObservableChannel[I,O] {
 
-  assert(onOverflow == null || overflowStrategy.isInstanceOf[WithSignal],
+  assert(onOverflow == null || overflowStrategy.isInstanceOf[Evicted],
     "onOverflow is only supported for `OverflowStrategy.WithSignal`")
 
   private[this] val channel =
@@ -85,9 +85,9 @@ object SubjectChannel {
    * @param onOverflow - a function that is used for signaling a special
    *        event used to inform the consumers that an overflow event
    *        happened, function that receives the number of dropped
-   *        events as a parameter (see [[OverflowStrategy.WithSignal]])
+   *        events as a parameter (see [[OverflowStrategy.Evicted]])
    */
-  def apply[I,O](subject: Subject[I, O], strategy: OverflowStrategy.WithSignal, onOverflow: Long => I)
+  def apply[I,O](subject: Subject[I, O], strategy: OverflowStrategy.Evicted, onOverflow: Long => I)
     (implicit s: Scheduler): SubjectChannel[I, O] = {
 
     new SubjectChannel[I,O](subject, strategy, onOverflow)

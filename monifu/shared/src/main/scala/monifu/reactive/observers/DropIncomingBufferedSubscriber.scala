@@ -28,10 +28,8 @@ import scala.util.Failure
 import scala.util.control.NonFatal
 
 /**
- * A [[BufferedSubscriber]] implementation for the following policies:
- *
- * - [[monifu.reactive.OverflowStrategy.DropNew]]
- * - [[monifu.reactive.OverflowStrategy.DropNewThenSignal]]
+ * A [[BufferedSubscriber]] implementation for the
+ * [[monifu.reactive.OverflowStrategy.DropNew DropNew]] overflow strategy.
  */
 final class DropIncomingBufferedSubscriber[-T] private
     (underlying: Observer[T], bufferSize: Int, onOverflow: Long => T = null)
@@ -41,6 +39,8 @@ final class DropIncomingBufferedSubscriber[-T] private
   require(bufferSize > 0, "bufferSize must be a strictly positive number")
 
   private[this] val queue = ConcurrentQueue.empty[T]
+  private[this] val batchSizeModulus = scheduler.env.batchSize - 1
+
   // to be modified only in onError, before upstreamIsComplete
   private[this] var errorThrown: Throwable = null
   // to be modified only in onError / onComplete
@@ -129,63 +129,69 @@ final class DropIncomingBufferedSubscriber[-T] private
       notifyConsumerOfNewEvent()
     else if (currentNr == 0)
       scheduler.execute(new Runnable {
-        def run() = fastLoop(0)
+        def run() = fastLoop(0,0)
       })
   }
 
   private[this] def rescheduled(processed: Int): Unit = {
-    fastLoop(processed)
+    fastLoop(processed, 0)
   }
 
   @tailrec
-  private[this] def fastLoop(processed: Int): Unit = {
+  private[this] def fastLoop(processed: Int, syncIndex: Int): Unit = {
     if (!downstreamIsDone) {
       val hasError = errorThrown ne null
       val next = queue.poll()
 
       if (next != null) {
-        underlying.onNext(next) match {
-          case sync if sync.isCompleted =>
-            sync match {
-              case continue if continue == Continue || continue.value.get == Continue.IsSuccess =>
-                // process next
-                fastLoop(processed + 1)
+        val ack = underlying.onNext(next)
+        val nextIndex = if (!ack.isCompleted) 0 else
+          (syncIndex + 1) & batchSizeModulus
 
-              case done if done == Cancel || done.value.get == Cancel.IsSuccess =>
-                // ending loop
-                downstreamIsDone = true
-                itemsToPush.set(0)
+        if (nextIndex != 0) {
+          if (ack == Continue || ack.value.get == Continue.IsSuccess) {
+            // process next
+            fastLoop(processed + 1, nextIndex)
+          }
+          else if (ack == Cancel || ack.value.get == Cancel.IsSuccess) {
+            // ending loop
+            downstreamIsDone = true
+            itemsToPush.set(0)
+          }
+          else if (ack.value.get.isFailure) {
+            // ending loop
+            downstreamIsDone = true
+            itemsToPush.set(0)
+            underlying.onError(ack.value.get.failed.get)
+          }
+          else {
+            // never happens, but to appease the Scala compiler
+            downstreamIsDone = true
+            itemsToPush.set(0)
+            underlying.onError(new MatchError(s"${ack.value.get}"))
+          }
+        }
+        else ack.onComplete {
+          case Continue.IsSuccess =>
+            // re-run loop (in different thread)
+            rescheduled(processed + 1)
 
-              case error if error.value.get.isFailure =>
-                // ending loop
-                downstreamIsDone = true
-                itemsToPush.set(0)
-                underlying.onError(error.value.get.failed.get)
-            }
+          case Cancel.IsSuccess =>
+            // ending loop
+            downstreamIsDone = true
+            itemsToPush.set(0)
 
-          case async =>
-            async.onComplete {
-              case Continue.IsSuccess =>
-                // re-run loop (in different thread)
-                rescheduled(processed + 1)
+          case Failure(ex) =>
+            // ending loop
+            downstreamIsDone = true
+            itemsToPush.set(0)
+            underlying.onError(ex)
 
-              case Cancel.IsSuccess =>
-                // ending loop
-                downstreamIsDone = true
-                itemsToPush.set(0)
-
-              case Failure(ex) =>
-                // ending loop
-                downstreamIsDone = true
-                itemsToPush.set(0)
-                underlying.onError(ex)
-
-              case other =>
-                // never happens, but to appease Scala's compiler
-                downstreamIsDone = true
-                itemsToPush.set(0)
-                underlying.onError(new MatchError(s"$other"))
-            }
+          case other =>
+            // never happens, but to appease the Scala compiler
+            downstreamIsDone = true
+            itemsToPush.set(0)
+            underlying.onError(new MatchError(s"$other"))
         }
       }
       else if (upstreamIsComplete || hasError) {
@@ -193,7 +199,7 @@ final class DropIncomingBufferedSubscriber[-T] private
         // then the queue should be fully published because there's a clear happens-before
         // relationship between queue.offer() and upstreamIsComplete=true
         if (!queue.isEmpty) {
-          fastLoop(processed)
+          fastLoop(processed, syncIndex)
         }
         else {
           // ending loop
@@ -210,7 +216,7 @@ final class DropIncomingBufferedSubscriber[-T] private
         val remaining = itemsToPush.decrementAndGet(processed)
         // if the queue is non-empty (i.e. concurrent modifications just happened)
         // then start all over again
-        if (remaining > 0) fastLoop(0)
+        if (remaining > 0) fastLoop(0, syncIndex)
       }
     }
   }

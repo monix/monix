@@ -32,7 +32,7 @@ class SubscriberWhiteBoxSyncTest
   with TestNGSuiteLike {
 
   def createSubscriber(probe: WhiteboxSubscriberProbe[Value]): Subscriber[Value] = {
-    val underlying = Observer.asSubscriber(new SynchronousObserver[Value] {
+    val underlying = Observer.toSubscriber(new SynchronousObserver[Value] {
       def onNext(elem: Value) = {
         probe.registerOnNext(elem)
         Continue

@@ -107,7 +107,8 @@ private[reactive] object zip {
             }
           }
 
-        def onError(ex: Throwable) = _onError(ex)
+        def onError(ex: Throwable) =
+          _onError(ex)
 
         def onComplete() =
           ack.onContinue {

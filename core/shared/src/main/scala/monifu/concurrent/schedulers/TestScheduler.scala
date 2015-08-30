@@ -18,6 +18,7 @@
 package monifu.concurrent.schedulers
 
 import monifu.concurrent.Cancelable
+import monifu.concurrent.Scheduler.{Platform, Environment}
 import monifu.concurrent.atomic.Atomic
 import monifu.concurrent.cancelables.SingleAssignmentCancelable
 import monifu.concurrent.schedulers.TestScheduler._
@@ -140,6 +141,8 @@ final class TestScheduler private () extends ReferenceScheduler {
 
     loop(time, result = false)
   }
+
+  val env = Environment(256, Platform.Fake)
 }
 
 object TestScheduler {

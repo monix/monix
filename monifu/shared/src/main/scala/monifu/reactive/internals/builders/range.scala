@@ -20,6 +20,7 @@ package monifu.reactive.internals.builders
 import monifu.reactive.Ack.Continue
 import monifu.reactive.Observable
 import scala.annotation.tailrec
+import scala.util.Failure
 
 private[reactive] object range {
   /**
@@ -40,38 +41,48 @@ private[reactive] object range {
 
       def scheduleLoop(from: Long, until: Long, step: Long): Unit =
         s.execute(new Runnable {
+          private[this] val modulus = s.env.batchSize - 1
+
           private[this] def isInRange(x: Long): Boolean = {
             (step > 0 && x < until) || (step < 0 && x > until)
           }
 
           def reschedule(from: Long, until: Long, step: Long): Unit =
-            fastLoop(from, until, step)
+            fastLoop(from, until, step, 0)
 
           @tailrec
-          def fastLoop(from: Long, until: Long, step: Long): Unit =
-            if (isInRange(from))
-              o.onNext(from) match {
-                case sync if sync.isCompleted =>
-                  sync.value.get match {
-                    case Continue.IsSuccess =>
-                      fastLoop(from + step, until, step)
-                    case _ =>
-                      () // do nothing else
-                  }
+          def fastLoop(from: Long, until: Long, step: Long, syncIndex: Int): Unit =
+            if (isInRange(from)) {
+              val ack = o.onNext(from)
+              val nextIndex = if (!ack.isCompleted) 0 else
+                (syncIndex + 1) & modulus
 
-                case async =>
-                  async.onComplete {
-                    case Continue.IsSuccess =>
-                      reschedule(from + step, until, step)
-                    case _ =>
-                      () // do nothing else
-                  }
+              if (nextIndex != 0) {
+                if (ack == Continue)
+                  fastLoop(from + step, until, step, nextIndex)
+                else ack.value.get match {
+                  case Continue.IsSuccess =>
+                    fastLoop(from + step, until, step, nextIndex)
+                  case Failure(ex) =>
+                    s.reportFailure(ex)
+                  case _ =>
+                    () // this was a Cancel, do nothing
+                }
               }
+              else ack.onComplete {
+                case Continue.IsSuccess =>
+                  reschedule(from + step, until, step)
+                case Failure(ex) =>
+                  s.reportFailure(ex)
+                case _ =>
+                  () // this was a Cancel, do nothing
+              }
+            }
             else
               o.onComplete()
 
           def run(): Unit = {
-            fastLoop(from, until, step)
+            fastLoop(from, until, step, 0)
           }
         })
 

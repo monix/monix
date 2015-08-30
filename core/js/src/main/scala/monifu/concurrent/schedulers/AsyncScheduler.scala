@@ -18,6 +18,7 @@
 package monifu.concurrent.schedulers
 
 import java.util.concurrent.TimeUnit
+import monifu.concurrent.Scheduler.{Platform, Environment}
 import monifu.concurrent.schedulers.Timer.{clearTimeout, setTimeout}
 import monifu.concurrent.{Cancelable, UncaughtExceptionReporter}
 import scala.concurrent.duration._
@@ -47,6 +48,8 @@ final class AsyncScheduler private (reporter: UncaughtExceptionReporter)
 
   def reportFailure(t: Throwable): Unit =
     reporter.reportFailure(t)
+
+  val env = Environment(256, Platform.JS)
 }
 
 object AsyncScheduler {

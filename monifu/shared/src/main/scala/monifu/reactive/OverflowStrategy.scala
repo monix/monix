@@ -79,7 +79,7 @@ object OverflowStrategy {
    *                   before overflowing
    */
   case class DropNew(bufferSize: Int)
-    extends OverflowStrategy with Synchronous with WithSignal {
+    extends OverflowStrategy with Synchronous with Evicted {
 
     require(bufferSize > 1, "bufferSize should be strictly greater than 1")
   }
@@ -93,7 +93,7 @@ object OverflowStrategy {
    *                   before overflowing
    */
   case class DropOld(bufferSize: Int)
-    extends OverflowStrategy with Synchronous with WithSignal {
+    extends OverflowStrategy with Synchronous with Evicted {
 
     require(bufferSize > 1, "bufferSize should be strictly greater than 1")
   }
@@ -107,7 +107,7 @@ object OverflowStrategy {
    *                   before overflowing
    */
   case class ClearBuffer(bufferSize: Int)
-    extends OverflowStrategy with Synchronous with WithSignal {
+    extends OverflowStrategy with Synchronous with Evicted {
 
     require(bufferSize > 1, "bufferSize should be strictly greater than 1")
   }
@@ -125,10 +125,12 @@ object OverflowStrategy {
 
   /**
    * A sub-category of [[OverflowStrategy overflow strategies]]
-   * that are [[Synchronous synchronous]] and that can signal
+   * that are [[Synchronous synchronous]] and that represent
+   * eviction policies, meaning that on buffer overflows events
+   * start being dropped. Using these policies one can also signal
    * a message informing downstream of dropped events.
    */
-  sealed trait WithSignal extends Synchronous
+  sealed trait Evicted extends Synchronous
 
   /**
    * The default library-wide overflowStrategy used whenever a default argument
