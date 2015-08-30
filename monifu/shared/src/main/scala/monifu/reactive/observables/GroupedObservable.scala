@@ -21,7 +21,6 @@ import monifu.concurrent.{Cancelable, Scheduler}
 import monifu.reactive._
 import monifu.reactive.internals._
 import monifu.reactive.observers.CacheUntilConnectSubscriber
-
 import scala.concurrent.Future
 
 /**
@@ -96,9 +95,11 @@ object GroupedObservable {
 
     def onSubscribe(subscriber: Subscriber[V]): Unit =
       self.synchronized {
-        if (ref != null)
-          throw new IllegalStateException(
-            s"Cannot subscribe twice to a GroupedObservable")
+        if (ref != null) {
+          subscriber.onError(
+            new IllegalStateException(
+              s"Cannot subscribe twice to a GroupedObservable"))
+        }
         else {
           ref = subscriber
           underlying.connect()

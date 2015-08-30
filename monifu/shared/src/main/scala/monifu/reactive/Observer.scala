@@ -20,7 +20,7 @@ package monifu.reactive
 import monifu.concurrent.Scheduler
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.observers.{SynchronousObserver, SynchronousSubscriber}
-import monifu.reactive.streams.{SubscriberAsObserver, SubscriberAsReactiveSubscriber, SynchronousSubscriberAsReactiveSubscriber}
+import monifu.reactive.streams._
 import org.reactivestreams.{Subscriber => RSubscriber}
 import scala.annotation.tailrec
 import scala.concurrent.{Future, Promise}
@@ -54,8 +54,8 @@ object Observer {
    * it builds an [[Observer]] instance compliant with the 
    * Monifu Rx implementation.
    */
-  def fromReactiveSubscriber[T](subscriber: RSubscriber[T])(implicit s: Scheduler): Observer[T] = {
-    SubscriberAsObserver(subscriber)
+  def fromReactiveSubscriber[T](subscriber: RSubscriber[T])(implicit s: Scheduler): Subscriber[T] = {
+    ReactiveSubscriberAsMonifuSubscriber(subscriber)
   }
 
   /**
@@ -172,7 +172,7 @@ object Observer {
      * instance as defined by the [[http://www.reactive-streams.org/ Reactive Streams]]
      * specification.
      */
-    def toReactiveSubscriber(implicit s: Scheduler): RSubscriber[T] =
+    def toReactive(implicit s: Scheduler): RSubscriber[T] =
       Observer.toReactiveSubscriber(source)
 
     /**
@@ -185,7 +185,7 @@ object Observer {
      *                   on each cycle when communicating demand, compliant with
      *                   the reactive streams specification
      */
-    def toReactiveSubscriber(bufferSize: Int)(implicit s: Scheduler): RSubscriber[T] =
+    def toReactive(bufferSize: Int)(implicit s: Scheduler): RSubscriber[T] =
       Observer.toReactiveSubscriber(source, bufferSize)
 
     /**

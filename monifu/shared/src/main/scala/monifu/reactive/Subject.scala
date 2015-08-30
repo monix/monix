@@ -17,7 +17,9 @@
  
 package monifu.reactive
 
+import monifu.concurrent.Scheduler
 import monifu.reactive.observables.LiftOperators2
+import org.reactivestreams.{Processor, Subscriber => RSubscriber, Subscription}
 import scala.concurrent.Future
 
 /**
@@ -42,4 +44,49 @@ trait Subject[I, +T] extends Observable[T] with Observer[I]
       def onSubscribe(subscriber: Subscriber[U]): Unit =
         lifted.onSubscribe(subscriber)
     }
+
+  override def toReactive[U >: T](implicit s: Scheduler): Processor[I, U] =
+    Subject.toReactiveProcessor(self, s.env.batchSize)
+
+  def toReactive[U >: T](bufferSize: Int)(implicit s: Scheduler): Processor[I, U] =
+    Subject.toReactiveProcessor(self, bufferSize)
+}
+
+object Subject {
+  /**
+   * Transforms the source [[Subject]] into a `org.reactivestreams.Processor`
+   * instance as defined by the [[http://www.reactive-streams.org/ Reactive Streams]]
+   * specification.
+   *
+   * @param bufferSize a strictly positive number, representing the size
+   *                   of the buffer used and the number of elements requested
+   *                   on each cycle when communicating demand, compliant with
+   *                   the reactive streams specification
+   */
+  def toReactiveProcessor[I,O](source: Subject[I,O], bufferSize: Int)(implicit s: Scheduler): Processor[I,O] = {
+    new Processor[I,O] {
+      private[this] val subscriber =
+        Subscriber(source, s).toReactive(bufferSize)
+
+      def subscribe(subscriber: RSubscriber[_ >: O]): Unit = {
+        source.onSubscribe(Subscriber.fromReactiveSubscriber(subscriber))
+      }
+
+      def onSubscribe(s: Subscription): Unit = {
+        subscriber.onSubscribe(s)
+      }
+
+      def onNext(t: I): Unit = {
+        subscriber.onNext(t)
+      }
+
+      def onError(t: Throwable): Unit = {
+        subscriber.onError(t)
+      }
+
+      def onComplete(): Unit = {
+        subscriber.onComplete()
+      }
+    }
+  }
 }

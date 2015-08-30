@@ -401,10 +401,19 @@ trait Observable[+T] { self =>
    *
    * @return a subscription that can be used to cancel the streaming.
    */
-  def subscribe(observer: Observer[T])(implicit s: Scheduler): BooleanCancelable = {
+  def subscribe(subscriber: Subscriber[T]): BooleanCancelable = {
     val cancelable = BooleanCancelable()
-    takeWhileNotCanceled(cancelable).onSubscribe(SafeObserver[T](observer))
+    takeWhileNotCanceled(cancelable).onSubscribe(SafeSubscriber[T](subscriber))
     cancelable
+  }
+
+  /**
+   * Subscribes to the stream.
+   *
+   * @return a subscription that can be used to cancel the streaming.
+   */
+  def subscribe(observer: Observer[T])(implicit s: Scheduler): BooleanCancelable = {
+    subscribe(Subscriber(observer, s))
   }
 
   /**
@@ -451,10 +460,10 @@ trait Observable[+T] { self =>
    * See the [[http://www.reactive-streams.org/ Reactive Streams]]
    * protocol that Monifu implements.
    */
-  def toReactivePublisher[U >: T](implicit s: Scheduler): RPublisher[U] =
+  def toReactive[U >: T](implicit s: Scheduler): RPublisher[U] =
     new RPublisher[U] {
       def subscribe(subscriber: RSubscriber[_ >: U]): Unit = {
-        onSubscribe(Subscriber(SafeObserver(Observer.fromReactiveSubscriber(subscriber)), s))
+        onSubscribe(SafeSubscriber(Subscriber.fromReactiveSubscriber(subscriber)))
       }
     }
   
@@ -2126,7 +2135,7 @@ object Observable {
    */
   def fromReactivePublisher[T](publisher: RPublisher[T]): Observable[T] =
     Observable.create[T] { sub =>
-      publisher.subscribe(sub.toReactiveSubscriber)
+      publisher.subscribe(sub.toReactive)
     }
 
   /**
@@ -2137,7 +2146,7 @@ object Observable {
   def toReactivePublisher[T](source: Observable[T])(implicit s: Scheduler): RPublisher[T] =
     new RPublisher[T] {
       def subscribe(subscriber: RSubscriber[_ >: T]): Unit = {
-        source.onSubscribe(Subscriber(SafeObserver(Observer.fromReactiveSubscriber(subscriber)), s))
+        source.onSubscribe(SafeSubscriber(Observer.fromReactiveSubscriber(subscriber)))
       }
     }
 
@@ -2151,7 +2160,7 @@ object Observable {
   def toReactivePublisher[T](source: Observable[T], requestSize: Int)(implicit s: Scheduler): RPublisher[T] =
     new RPublisher[T] {
       def subscribe(subscriber: RSubscriber[_ >: T]): Unit = {
-        source.onSubscribe(Subscriber(SafeObserver(Observer.fromReactiveSubscriber(subscriber)), s))
+        source.onSubscribe(SafeSubscriber(Observer.fromReactiveSubscriber(subscriber)))
       }
     }
 
@@ -2292,5 +2301,5 @@ object Observable {
    * Implicit conversion from Observable to Publisher.
    */
   implicit def ObservableIsReactive[T](source: Observable[T])(implicit s: Scheduler): RPublisher[T] =
-    source.toReactivePublisher
+    source.toReactive
 }

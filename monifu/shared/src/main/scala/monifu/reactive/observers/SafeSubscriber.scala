@@ -19,7 +19,7 @@ package monifu.reactive.observers
 
 import monifu.concurrent.Scheduler
 import monifu.reactive.Ack.{Cancel, Continue}
-import monifu.reactive.{Ack, Observer}
+import monifu.reactive.{Subscriber, Ack, Observer}
 
 import scala.concurrent.{Future, Promise}
 import scala.util.Failure
@@ -40,8 +40,10 @@ import scala.util.control.NonFatal
  *
  * This implementation doesn't address multi-threading concerns in any way.
  */
-final class SafeObserver[-T] private (observer: Observer[T])(implicit s: Scheduler)
-  extends Observer[T] {
+final class SafeSubscriber[-T] private (subscriber: Subscriber[T])
+  extends Subscriber[T] {
+
+  implicit val scheduler = subscriber.scheduler
 
   @volatile
   private[this] var isDone = false
@@ -49,7 +51,7 @@ final class SafeObserver[-T] private (observer: Observer[T])(implicit s: Schedul
   def onNext(elem: T): Future[Ack] = {
     if (!isDone)
       try {
-        val r = observer.onNext(elem)
+        val r = subscriber.onNext(elem)
         onCancelMarkDone(r)
       }
       catch {
@@ -65,9 +67,9 @@ final class SafeObserver[-T] private (observer: Observer[T])(implicit s: Schedul
     if (!isDone) {
       isDone = true
 
-      try observer.onError(ex) catch {
+      try subscriber.onError(ex) catch {
         case NonFatal(err) =>
-          s.reportFailure(err)
+          scheduler.reportFailure(err)
       }
     }
   }
@@ -76,12 +78,12 @@ final class SafeObserver[-T] private (observer: Observer[T])(implicit s: Schedul
     if (!isDone) {
       isDone = true
 
-      try observer.onComplete() catch {
+      try subscriber.onComplete() catch {
         case NonFatal(ex) =>
-          try observer.onError(ex) catch {
+          try subscriber.onError(ex) catch {
             case NonFatal(err) =>
-              s.reportFailure(ex)
-              s.reportFailure(err)
+              scheduler.reportFailure(ex)
+              scheduler.reportFailure(err)
           }
       }
     }
@@ -130,13 +132,13 @@ final class SafeObserver[-T] private (observer: Observer[T])(implicit s: Schedul
   }
 }
 
-object SafeObserver {
+object SafeSubscriber {
   /**
    * Wraps an Observer instance into a SafeObserver.
    */
-  def apply[T](observer: Observer[T])(implicit s: Scheduler): SafeObserver[T] =
-    observer match {
-      case ref: SafeObserver[_] => ref.asInstanceOf[SafeObserver[T]]
-      case _ => new SafeObserver[T](observer)
+  def apply[T](subscriber: Subscriber[T]): SafeSubscriber[T] =
+    subscriber match {
+      case ref: SafeSubscriber[_] => ref.asInstanceOf[SafeSubscriber[T]]
+      case _ => new SafeSubscriber[T](subscriber)
     }
 }

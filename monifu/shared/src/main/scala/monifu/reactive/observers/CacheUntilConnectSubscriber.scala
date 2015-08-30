@@ -28,8 +28,6 @@ import scala.concurrent.{Future, Promise}
  * all events until the call to `connect()` happens. After being connected,
  * the buffer is drained into the `underlying` observer, after which all
  * subsequent events are pushed directly.
- *
- * This is a variant of [[ConnectableSubscriber]].
  */
 final class CacheUntilConnectSubscriber[-T] private (downstream: Subscriber[T])
   extends Subscriber[T] { self =>

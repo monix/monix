@@ -14,18 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
+
 package monifu.reactive.subjects
 
-import monifu.concurrent.atomic.padded.Atomic
 import monifu.reactive.Ack.{Cancel, Continue}
-import monifu.reactive.observers.ConnectableSubscriber
-import monifu.reactive.{Ack, Subject, Subscriber}
-
-import scala.annotation.tailrec
-import scala.collection.immutable.Queue
+import monifu.reactive._
+import monifu.reactive.internals._
+import scala.collection.mutable
 import scala.concurrent.Future
-
 
 /**
  * `ReplaySubject` emits to any observer all of the items that were emitted
@@ -33,183 +29,103 @@ import scala.concurrent.Future
  *
  * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/S.ReplaySubject.png" />
  */
-final class ReplaySubject[T] private (queue: Queue[T])
+final class ReplaySubject[T] private (initial: T*)
   extends Subject[T,T] { self =>
 
-  import monifu.reactive.subjects.ReplaySubject.State
-  import monifu.reactive.subjects.ReplaySubject.State._
+  @volatile private[this] var subscribers = Vector.empty[Subscriber[T]]
+  @volatile private[this] var isDone = false
 
-  private[this] val state = Atomic(Empty(queue) : State[T])
+  private[this] val queue = mutable.ArrayBuffer(initial: _*)
+  private[this] var errorThrown: Throwable = null
 
-  def onSubscribe(subscriber: Subscriber[T]): Unit = {
-    @tailrec
-    def loop(): ConnectableSubscriber[T] = {
-      state.get match {
-        case current @ Empty(cache) =>
-          val connectable = ConnectableSubscriber(subscriber)
-          connectable.pushNext(cache : _*)
+  private[this] def onDone(subscriber: Subscriber[T]): Unit = {
+    import subscriber.scheduler
+    val f = subscriber.feed(queue)
+    if (errorThrown != null)
+      f.onContinueSignalError(subscriber, errorThrown)
+    else
+      f.onContinueSignalComplete(subscriber)
+  }
 
-          if (!state.compareAndSet(current, Active(Array(connectable), cache)))
-            loop()
-          else
-            connectable
-
-        case current @ Active(observers, cache) =>
-          val connectable = ConnectableSubscriber(subscriber)
-          connectable.pushNext(cache : _*)
-
-          if (!state.compareAndSet(current, Active(observers :+ connectable, cache)))
-            loop()
-          else
-            connectable
-
-        case current @ Complete(cache, errorThrown) =>
-          val connectable = ConnectableSubscriber(subscriber)
-          connectable.pushNext(cache : _*)
-
-          if (errorThrown ne null)
-            connectable.pushError(errorThrown)
-          else
-            connectable.pushComplete()
-
-          connectable
+  def onSubscribe(subscriber: Subscriber[T]): Unit =
+    if (isDone) {
+      // fast path
+      onDone(subscriber)
+    }
+    else self.synchronized {
+      if (isDone) onDone(subscriber) else {
+        import subscriber.scheduler
+        val newSubscriber = new FreezeOnFirstOnNextSubscriber(subscriber)
+        subscribers = subscribers :+ newSubscriber
+        newSubscriber.firstTimeOnNext.onComplete { _ =>
+          newSubscriber.continue(subscriber.feed(queue))
+        }
       }
     }
 
-    loop().connect()
-  }
-
-  private[this] def emitNext(subscriber: Subscriber[T], elem: T): Future[Continue] = {
-    implicit val s = subscriber.scheduler
-    subscriber.onNext(elem) match {
-      case sync if sync.isCompleted =>
-        sync.value.get match {
-          case Continue.IsSuccess =>
-            Continue
-
-          case _ =>
-            removeSubscription(subscriber)
-            Continue
-        }
-
-      case async =>
-        async.map {
-          case Continue => Continue
-          case Cancel =>
-            removeSubscription(subscriber)
-            Continue
-        }
-    }
-  }
-
-  @tailrec
   def onNext(elem: T): Future[Ack] = {
-    state.get match {
-      case current @ Empty(_) =>
-        if (!state.compareAndSet(current, Empty(current.cache.enqueue(elem))))
-          onNext(elem)
-        else
-          Continue
+    if (isDone) Cancel else {
+      queue.append(elem)
 
-      case current @ Active(subscribers, cache) =>
-        if (!state.compareAndSet(current, Active(subscribers, cache.enqueue(elem))))
-          onNext(elem)
+      val iterator = subscribers.iterator
+      var result: PromiseCounter[Continue.type] = null
 
-        else {
-          var idx = 0
-          var acc = Continue : Future[Continue]
+      while (iterator.hasNext) {
+        val subscriber = iterator.next()
+        import subscriber.scheduler
 
-          while (idx < subscribers.length) {
-            val subscriber = subscribers(idx)
-            implicit val s = subscriber.scheduler
-
-            acc = if (acc == Continue || (acc.isCompleted && acc.value.get.isSuccess))
-              emitNext(subscriber, elem)
-            else {
-              val f = emitNext(subscriber, elem)
-              acc.flatMap(_ => f)
-            }
-
-            idx += 1
-          }
-
-          acc
+        val ack = subscriber.onNext(elem)
+        if (ack.isCompleted) {
+          if (ack != Continue && ack.value.get != Continue.IsSuccess)
+            unsubscribe(subscriber)
         }
+        else {
+          if (result == null) result = PromiseCounter(Continue, 1)
+          result.acquire()
 
-      case _ =>
-        Cancel
+          ack.onComplete {
+            case Continue.IsSuccess =>
+              result.countdown()
+            case _ =>
+              unsubscribe(subscriber)
+              result.countdown()
+          }
+        }
+      }
+
+      if (result == null) Continue else {
+        result.countdown()
+        result.future
+      }
     }
   }
 
-  @tailrec
-  def onComplete(): Unit =
-    state.get match {
-      case current @ Empty(cache) =>
-        if (!state.compareAndSet(current, Complete(cache, null))) {
-          onComplete() // retry
-        }
-      case current @ Active(observers, cache) =>
-        if (!state.compareAndSet(current, Complete(cache, null))) {
-          onComplete() // retry
-        }
-        else {
-          var idx = 0
-          while (idx < observers.length) {
-            observers(idx).onComplete()
-            idx += 1
-          }
-        }
-      case _ =>
-        () // already complete, ignore
-    }
-
-  @tailrec
-  def onError(ex: Throwable): Unit =
-    state.get match {
-      case current @ Empty(cache) =>
-        if (!state.compareAndSet(current, Complete(cache, ex))) {
-          onError(ex) // retry
-        }
-      case current @ Active(observers, cache) =>
-        if (!state.compareAndSet(current, Complete(cache, ex))) {
-          onError(ex) // retry
-        }
-        else {
-          var idx = 0
-          while (idx < observers.length) {
-            observers(idx).onError(ex)
-            idx += 1
-          }
-        }
-      case _ =>
-        () // already complete, ignore
-    }
-
-  @tailrec
-  private[this] def removeSubscription(subscriber: Subscriber[T]): Unit = {
-    state.get match {
-      case current @ Active(observers, _) =>
-        val update = current.copy(observers.filterNot(_ eq subscriber))
-        if (!state.compareAndSet(current, update))
-          removeSubscription(subscriber)
-
-      case _ =>
-        () // not active, do nothing
+  def onError(ex: Throwable): Unit = self.synchronized {
+    if (!isDone) {
+      errorThrown = ex
+      isDone = true
+      subscribers.foreach(_.onError(ex))
+      subscribers = Vector.empty
     }
   }
+
+  def onComplete(): Unit = self.synchronized {
+    if (!isDone) {
+      isDone = true
+      subscribers.foreach(_.onComplete())
+      subscribers = Vector.empty
+    }
+  }
+
+  private[this] def unsubscribe(subscriber: Subscriber[T]): Continue =
+    self.synchronized {
+      subscribers = subscribers.filterNot(_ == subscriber)
+      Continue
+    }
 }
 
 object ReplaySubject {
-  def apply[T](): ReplaySubject[T] =
-    new ReplaySubject[T](Queue.empty)
-
+  /** Builder for [[ReplaySubject]] */
   def apply[T](initial: T*): ReplaySubject[T] =
-    new ReplaySubject[T](Queue(initial: _*))
-
-  private sealed trait State[T]
-  private object State {
-    case class Empty[T](cache: Queue[T]) extends State[T]
-    case class Active[T](iterator: Array[ConnectableSubscriber[T]], cache: Queue[T]) extends State[T]
-    case class Complete[T](cache: Queue[T], errorThrown: Throwable = null) extends State[T]
-  }
+    new ReplaySubject[T](initial: _*)
 }
