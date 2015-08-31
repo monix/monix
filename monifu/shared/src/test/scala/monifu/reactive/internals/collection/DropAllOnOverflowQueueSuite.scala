@@ -15,41 +15,41 @@
  * limitations under the License.
  */
 
-package monifu.collection.mutable
+package monifu.reactive.internals.collection
 
 import java.util.ConcurrentModificationException
 import minitest.SimpleTestSuite
 
-object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
+object DropAllOnOverflowQueueSuite extends SimpleTestSuite {
   test("capacity must be computed as a power of 2") {
-    val q1 = DropHeadOnOverflowQueue[Int](1000)
+    val q1 = DropAllOnOverflowQueue[Int](1000)
     assertEquals(q1.capacity, 1023)
 
-    val q2 = DropHeadOnOverflowQueue[Int](600)
+    val q2 = DropAllOnOverflowQueue[Int](600)
     assertEquals(q2.capacity, 1023)
 
-    val q3 = DropHeadOnOverflowQueue[Int](1024)
+    val q3 = DropAllOnOverflowQueue[Int](1024)
     assertEquals(q3.capacity, 2047)
 
-    val q4 = DropHeadOnOverflowQueue[Int](1025)
+    val q4 = DropAllOnOverflowQueue[Int](1025)
     assertEquals(q4.capacity, 2047)
 
     intercept[IllegalArgumentException] {
-      DropHeadOnOverflowQueue[Int](0)
+      DropAllOnOverflowQueue[Int](0)
     }
 
     intercept[IllegalArgumentException] {
-      DropHeadOnOverflowQueue[Int](1)
+      DropAllOnOverflowQueue[Int](1)
     }
 
     intercept[IllegalArgumentException] {
-      DropHeadOnOverflowQueue[Int](-100)
+      DropAllOnOverflowQueue[Int](-100)
     }
   }
 
   test("offer and poll, happy path") {
     val array = new Array[Int](7)
-    val q = DropHeadOnOverflowQueue[Int](7)
+    val q = DropAllOnOverflowQueue[Int](7)
 
     assertEquals(q.capacity, 7)
     intercept[NoSuchElementException](q.poll())
@@ -71,7 +71,7 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
 
   test("offer and poll, overflow") {
     val array = new Array[Int](7)
-    val q = DropHeadOnOverflowQueue[Int](7)
+    val q = DropAllOnOverflowQueue[Int](7)
 
     assertEquals(q.capacity, 7)
     intercept[NoSuchElementException](q.poll())
@@ -81,13 +81,8 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
 
     assertEquals(q.offerMany(1 to 7: _*), 0)
 
-    assertEquals(q.offer(8), 1)
-    assertEquals(q.offer(9), 1)
-    assertEquals(q.offer(10), 1)
-    assertEquals(q.offer(11), 1)
-    assertEquals(q.offer(12), 1)
-    assertEquals(q.offer(13), 1)
-    assertEquals(q.offer(14), 1)
+    assertEquals(q.offer(8), 7)
+    assertEquals(q.offerMany(9 to 14: _*), 0)
 
     assertEquals(q.pollMany(array), 7)
     assertEquals(array.toList, List(8, 9, 10, 11, 12, 13, 14))
@@ -100,7 +95,7 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
   }
 
   test("size should be correct on happy path") {
-    val q = DropHeadOnOverflowQueue[Int](7)
+    val q = DropAllOnOverflowQueue[Int](7)
     assertEquals(q.size, 0)
 
     for (i <- 1 to 7) {
@@ -127,15 +122,22 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
     assertEquals(q.size, 7)
     assert(q.isAtCapacity)
 
-    for (i <- 8 until 100) {
-      assertEquals(q.offer(i), 1)
-      assertEquals(q.size, 7)
-      assert(q.isAtCapacity)
+    for (i <- 0 until 100) {
+      if (i % 7 == 0) {
+        assert(q.isAtCapacity)
+        assertEquals(q.offer(i), 7)
+        assertEquals(q.size, 1)
+        assert(!q.isAtCapacity)
+      }
+      else {
+        assertEquals(q.offer(i), 0)
+        assertEquals(q.size, i % 7 + 1)
+      }
     }
   }
 
   test("throw ConcurrentModificationException after poll") {
-    val q = DropHeadOnOverflowQueue[Int](7)
+    val q = DropAllOnOverflowQueue[Int](7)
     q.offerMany(1,2,3,4)
     val iterator = q.iterator
 
@@ -146,7 +148,7 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
   }
 
   test("throw ConcurrentModificationException after offer") {
-    val q = DropHeadOnOverflowQueue[Int](7)
+    val q = DropAllOnOverflowQueue[Int](7)
     q.offerMany(1,2,3,4)
     val iterator = q.iterator
 

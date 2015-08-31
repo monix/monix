@@ -15,30 +15,22 @@
  * limitations under the License.
  */
 
-package monifu.collection.mutable
+package monifu.reactive.internals.collection
 
-import scala.collection.mutable
+import minitest.SimpleTestSuite
 
-private[monifu] final class UnlimitedBuffer[T] private () extends Buffer[T] {
-  private[this] val buffer = mutable.ArrayBuffer.empty[T]
+object UnlimitedBufferSuite extends SimpleTestSuite{
+  test("should grow dynamically") {
+    val b = UnlimitedBuffer[Int]()
+    for (i <- 0 until 1000) b.offer(i)
 
-  def offer(elem: T): Int = {
-    buffer.append(elem)
-    0
+    assertEquals(b.toList, (0 until 1000).toList)
   }
 
-  def offerMany(seq: T*): Long = {
-    buffer.append(seq: _*)
-    0L
+  test("should work at limit") {
+    val b = UnlimitedBuffer[Int]()
+    for (i <- 0 until (1024 - 16)) b.offer(i)
+
+    assertEquals(b.toList, (0 until (1024 - 16)).toList)
   }
-
-  def iterator: Iterator[T] = buffer.iterator
-  def apply(idx: Int): T = buffer(idx)
-  def clear(): Unit = buffer.clear()
-  def length: Int = buffer.length
-}
-
-object UnlimitedBuffer {
-  def apply[T](): UnlimitedBuffer[T] =
-    new UnlimitedBuffer[T]()
 }

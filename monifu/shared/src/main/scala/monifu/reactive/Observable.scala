@@ -1737,6 +1737,18 @@ trait Observable[+T] { self =>
   /**
    * Converts this observable into a multicast observable, useful for turning a cold observable into
    * a hot one (i.e. whose source is shared by all observers). The underlying subject used is a
+   * [[monifu.reactive.subjects.ReplaySubject ReplaySubject]].
+   *
+   * @param bufferSize is the size of the buffer limiting the number of items
+   *                   that can be replayed (on overflow the head starts being
+   *                   dropped)
+   */
+  def replay(bufferSize: Int)(implicit s: Scheduler): ConnectableObservable[T] =
+    multicast(ReplaySubject.createWithSize[T](bufferSize))
+
+  /**
+   * Converts this observable into a multicast observable, useful for turning a cold observable into
+   * a hot one (i.e. whose source is shared by all observers). The underlying subject used is a
    * [[monifu.reactive.subjects.AsyncSubject AsyncSubject]].
    */
   def publishLast()(implicit s: Scheduler): ConnectableObservable[T] =

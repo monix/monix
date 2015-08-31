@@ -17,8 +17,8 @@
 
 package monifu.reactive.observers
 
-import monifu.collection.mutable.{DropAllOnOverflowQueue, DropHeadOnOverflowQueue, EvictingQueue}
 import monifu.reactive.Ack.{Cancel, Continue}
+import monifu.reactive.internals.collection.{DropAllOnOverflowQueue, DropHeadOnOverflowQueue, EvictingQueue}
 import monifu.reactive.{Ack, Subscriber}
 import scala.annotation.tailrec
 import scala.util.Failure

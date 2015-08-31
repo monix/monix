@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package monifu.collection.mutable
+package monifu.reactive.internals.collection
 
-private[monifu] trait EvictingQueue[T] extends Buffer[T] {
+private[reactive] trait EvictingQueue[T] extends Buffer[T] {
   /**
    * Returns the capacity of this queue.
    */

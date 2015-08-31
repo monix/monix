@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package monifu.collection.mutable
+package monifu.reactive.internals.collection
 
 import java.util.ConcurrentModificationException
 import monifu.util.math.nextPowerOf2
@@ -34,7 +34,7 @@ import scala.reflect.ClassTag
  *                  2^30^ (the maximum positive int that can be expressed as
  *                  a power of 2)
  */
-private[monifu] final class DropAllOnOverflowQueue[T : ClassTag] private (_capacity: Int)
+private[reactive] final class DropHeadOnOverflowQueue[T : ClassTag] private (_capacity: Int)
   extends EvictingQueue[T] { self =>
 
   require(_capacity > 1, "minCapacity must be bigger than 1")
@@ -49,10 +49,6 @@ private[monifu] final class DropAllOnOverflowQueue[T : ClassTag] private (_capac
   // tail is incremented by `offer()`
   private[this] var tailIdx = 0
 
-  def isAtCapacity: Boolean = {
-    size >= modulus
-  }
-
   override def isEmpty: Boolean = {
     headIdx == tailIdx
   }
@@ -61,17 +57,24 @@ private[monifu] final class DropAllOnOverflowQueue[T : ClassTag] private (_capac
     headIdx != tailIdx
   }
 
+  def isAtCapacity: Boolean = {
+    size >= modulus
+  }
+
   def offer(elem: T): Int = {
     array(tailIdx) = elem
     tailIdx = (tailIdx + 1) & modulus
 
     if (tailIdx != headIdx) 0 else {
-      // overflow just happened, dropping all by decrementing head
-      headIdx = (headIdx - 1) & modulus
-      capacity
+      // overflow just happened, dropping one by incrementing head
+      headIdx = (headIdx + 1) & modulus
+      1
     }
   }
 
+  def state = {
+    (headIdx, tailIdx, array.toSeq)
+  }
   def offerMany(seq: T*): Long = {
     seq.foldLeft(0L)((acc, e) => acc + offer(e))
   }
@@ -168,26 +171,19 @@ private[monifu] final class DropAllOnOverflowQueue[T : ClassTag] private (_capac
   }
 
   def length: Int = size
-
-  def apply(idx: Int): T = {
-    if (idx >= size)
-      throw new NoSuchElementException(s"apply($idx)")
-    else
-      array((headIdx + idx) & modulus)
-  }
 }
 
-private[monifu] object DropAllOnOverflowQueue {
-  /**
-   * Builder for [[DropAllOnOverflowQueue]]
-   *
+private[reactive] object DropHeadOnOverflowQueue {
+  /** 
+   * Builder for [[DropHeadOnOverflowQueue]]
+   * 
    * @param capacity is the recommended capacity that this queue will support,
    *                 however the actual capacity will be the closest power of 2
    *                 that is bigger than the given number, or a maximum of
    *                 2^30^ (the maximum positive int that can be expressed as
    *                 a power of 2)
    */
-  def apply[T : ClassTag](capacity: Int): DropAllOnOverflowQueue[T] = {
-    new DropAllOnOverflowQueue[T](capacity)
+  def apply[T : ClassTag](capacity: Int): DropHeadOnOverflowQueue[T] = {
+    new DropHeadOnOverflowQueue[T](capacity)
   }
 }

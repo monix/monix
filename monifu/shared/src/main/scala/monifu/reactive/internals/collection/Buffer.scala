@@ -15,15 +15,13 @@
  * limitations under the License.
  */
 
-package monifu.collection.mutable
-
-import java.util.NoSuchElementException
+package monifu.reactive.internals.collection
 
 /**
- * A `Buffer` is a data-structure that can be appended and indexed in
+ * A `Buffer` is a data-structure that can be appended in constant time
  * constant time and that can be iterated efficiently.
  */
-private[monifu] trait Buffer[T] extends Iterable[T] {
+private[reactive] trait Buffer[T] extends Iterable[T] {
   /**
    * Pushes a new element in the queue. Depending on
    * implementation, on overflow it might start to evict
@@ -48,12 +46,6 @@ private[monifu] trait Buffer[T] extends Iterable[T] {
    * Clears all items in this buffer leaving it empty.
    */
   def clear(): Unit
-
-  /**
-   * Returns element at the specifies index.
-   * @throws NoSuchElementException in case the index doesn't exist.
-   */
-  def apply(idx: Int): T
 
   /** Returns the number of elements stored */
   def length: Int

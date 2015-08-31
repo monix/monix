@@ -17,10 +17,10 @@
 
 package monifu.reactive.subjects
 
-import monifu.collection.mutable.{DropHeadOnOverflowQueue, UnlimitedBuffer, Buffer}
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive._
 import monifu.reactive.internals._
+import monifu.reactive.internals.collection.{DropHeadOnOverflowQueue, UnlimitedBuffer, Buffer}
 import scala.concurrent.Future
 
 /**
@@ -127,16 +127,16 @@ final class ReplaySubject[T] private (initial: Buffer[T])
 object ReplaySubject {
   /** Creates an unbounded replay subject. */
   def apply[T](initial: T*): ReplaySubject[T] = {
-    val buffer = UnlimitedBuffer[T]()
+    val buffer = UnlimitedBuffer[Any]()
     if (initial.nonEmpty) buffer.offerMany(initial: _*)
-    new ReplaySubject[T](buffer)
+    new ReplaySubject[T](buffer.asInstanceOf[Buffer[T]])
   }
 
   /** Creates an unbounded replay subject. */
   def create[T](initial: T*): ReplaySubject[T] = {
-    val buffer = UnlimitedBuffer[T]()
+    val buffer = UnlimitedBuffer[Any]()
     if (initial.nonEmpty) buffer.offerMany(initial: _*)
-    new ReplaySubject[T](buffer)
+    new ReplaySubject[T](buffer.asInstanceOf[Buffer[T]])
   }
 
   /**

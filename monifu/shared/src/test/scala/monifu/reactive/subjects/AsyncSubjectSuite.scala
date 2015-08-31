@@ -17,10 +17,9 @@
 
 package monifu.reactive.subjects
 
-import monifu.concurrent.atomic.{Atomic, AtomicLong}
 import monifu.reactive.Ack.Continue
+import monifu.reactive.Observer
 import monifu.reactive.exceptions.DummyException
-import monifu.reactive.{Observable, Observer}
 
 object AsyncSubjectSuite extends BaseSubjectSuite {
   def alreadyTerminatedTest(expectedElems: Seq[Long]) = {
@@ -140,5 +139,70 @@ object AsyncSubjectSuite extends BaseSubjectSuite {
     subject.onSubscribe(createObserver)
     assertEquals(sum, 0)
     assertEquals(wereCompleted, 4)
+  }
+
+
+  test("subscribe after complete should complete immediately if empty") { implicit s =>
+    val subject = AsyncSubject[Int]()
+    subject.onComplete()
+
+    var wasCompleted = false
+    subject.onSubscribe(new Observer[Int] {
+      def onNext(elem: Int) = throw new IllegalStateException("onNext")
+      def onError(ex: Throwable): Unit = ()
+      def onComplete(): Unit = wasCompleted = true
+    })
+
+    assert(wasCompleted)
+  }
+
+  test("subscribe after complete should complete immediately if non-empty") { implicit s =>
+    val subject = AsyncSubject[Int]()
+    subject.onNext(10)
+    subject.onComplete()
+
+    var wasCompleted = false
+    var received = 0
+
+    subject.onSubscribe(new Observer[Int] {
+      def onNext(elem: Int) = { received += elem; Continue }
+      def onError(ex: Throwable): Unit = ()
+      def onComplete(): Unit = wasCompleted = true
+    })
+
+    assert(wasCompleted)
+    assertEquals(received, 10)
+  }
+
+  test("onError should terminate current and future subscribers") { implicit s =>
+    val subject = AsyncSubject[Int]()
+    val dummy = DummyException("dummy")
+    var elemsReceived = 0
+    var errorsReceived = 0
+
+    for (_ <- 0 until 10)
+      subject.onSubscribe(new Observer[Int] {
+        def onNext(elem: Int) = { elemsReceived += elem; Continue }
+        def onComplete(): Unit = ()
+        def onError(ex: Throwable): Unit = ex match {
+          case `dummy` => errorsReceived += 1
+          case _ => ()
+        }
+      })
+
+    subject.onNext(1)
+    subject.onError(dummy)
+
+    subject.onSubscribe(new Observer[Int] {
+      def onNext(elem: Int) = throw new IllegalStateException("onNext")
+      def onComplete(): Unit = ()
+      def onError(ex: Throwable): Unit = ex match {
+        case `dummy` => errorsReceived += 1
+        case _ => ()
+      }
+    })
+
+    assertEquals(elemsReceived, 0)
+    assertEquals(errorsReceived, 11)
   }
 }
