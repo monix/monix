@@ -3,7 +3,7 @@
 Idiomatic Reactive Extensions for Scala and [Scala.js](http://www.scala-js.org/).
 
 [![Build Status](https://travis-ci.org/monifu/monifu.png?branch=master)](https://travis-ci.org/monifu/monifu)
-[![Build Status](https://travis-ci.org/monifu/monifu.png?branch=v1.0-M10)](https://travis-ci.org/monifu/monifu)
+[![Build Status](https://travis-ci.org/monifu/monifu.png?branch=v1.0-M11)](https://travis-ci.org/monifu/monifu)
 [![License](http://img.shields.io/:license-Apache%202-red.svg)](http://www.apache.org/licenses/LICENSE-2.0.txt)
 
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/monifu/monifu?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
@@ -115,18 +115,18 @@ Release Notes:
 The packages are published on Maven Central. Compiled for Scala 2.11.5
 and Scala.js 0.6.0. Older versions are no longer supported.
 
-- Current stable release is: `1.0-M10`
+- Current stable release is: `1.0-M11`
 
 ### For the JVM
 
 ```scala
-libraryDependencies += "org.monifu" %% "monifu" % "1.0-M10"
+libraryDependencies += "org.monifu" %% "monifu" % "1.0-M11"
 ```
 
 ### For targeting Javascript runtimes with Scala.js
 
 ```scala
-libraryDependencies += "org.monifu" %%% "monifu" % "1.0-M10"
+libraryDependencies += "org.monifu" %%% "monifu" % "1.0-M11"
 ```
 
 ## License
