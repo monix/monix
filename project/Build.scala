@@ -68,6 +68,8 @@ object Build extends SbtBuild {
       "-sourcepath", file(".").getAbsolutePath.replaceAll("[.]$", "")
     ),
 
+    parallelExecution in Test := false,
+
     // -- Settings meant for deployment on oss.sonatype.org
 
     publishMavenStyle := true,
