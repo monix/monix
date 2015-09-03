@@ -1043,13 +1043,15 @@ trait Observable[+T] { self =>
    * the length of the time window then no items will be emitted by the
    * resulting Observable.
    *
+   * @param initialDelay - the length of the window of time that must pass before
+   *                     the emission of items starts from the source observable
    * @param timeout - the length of the window of time that must pass after the
    *                emission of an item from the source Observable in which that
    *                Observable emits no items in order for the item to be
    *                emitted by the resulting Observable
    */
-  def throttleWithTimeout(timeout: FiniteDuration): Observable[T] =
-    debounce(timeout)
+  def throttleWithTimeout(initialDelay: FiniteDuration, timeout: FiniteDuration): Observable[T] =
+    debounce(initialDelay, timeout)
 
   /**
    * Emit the most recent items emitted by an Observable within periodic time
@@ -1166,6 +1168,8 @@ trait Observable[+T] { self =>
    * than the length of the time window then no items will be emitted
    * by the resulting Observable.
    *
+   * @param initialDelay - the length of the window of time that must pass before
+   *                the emission of items starts from the source observable
    * @param timeout the length of the window of time that must pass after
    *                the emission of an item from the source Observable in which
    *                that Observable emits no items in order for the item to
@@ -1174,8 +1178,8 @@ trait Observable[+T] { self =>
    * @see [[Observable.echoOnce echoOnce]] for a similar operator that also
    *     mirrors the source observable
    */
-  def debounce(timeout: FiniteDuration): Observable[T] =
-    operators.debounce.apply(self, timeout)
+  def debounce(initialDelay: FiniteDuration, timeout: FiniteDuration): Observable[T] =
+    operators.debounce.apply(self, initialDelay, timeout)
 
   /**
    * Mirror the source observable as long as the source keeps emitting items,
