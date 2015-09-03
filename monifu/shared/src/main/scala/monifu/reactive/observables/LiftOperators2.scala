@@ -171,8 +171,8 @@ trait LiftOperators2[I, +T, Self[A,+B] <: Observable[B]] { self: Observable[T] =
   override def throttleFirst(interval: FiniteDuration): Self[I,T] =
     liftToSelf(o => Observable.create[T](o.onSubscribe).throttleFirst(interval))
 
-  override def throttleWithTimeout(timeout: FiniteDuration): Self[I,T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).throttleWithTimeout(timeout))
+  override def throttleWithTimeout(initialDelay: FiniteDuration, timeout: FiniteDuration): Self[I,T] =
+    liftToSelf(o => Observable.create[T](o.onSubscribe).throttleWithTimeout(initialDelay, timeout))
 
   override def sample(delay: FiniteDuration): Self[I,T] =
     liftToSelf(o => Observable.create[T](o.onSubscribe).sample(delay))
@@ -192,8 +192,8 @@ trait LiftOperators2[I, +T, Self[A,+B] <: Observable[B]] { self: Observable[T] =
   override def sampleRepeated[U](sampler: Observable[U]): Self[I,T] =
     liftToSelf(o => Observable.create[T](o.onSubscribe).sampleRepeated(sampler))
 
-  override def debounce(timeout: FiniteDuration): Self[I,T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).debounce(timeout))
+  override def debounce(initialDelay: FiniteDuration, timeout: FiniteDuration): Self[I,T] =
+    liftToSelf(o => Observable.create[T](o.onSubscribe).debounce(initialDelay, timeout))
 
   override def echoOnce(timeout: FiniteDuration): Self[I,T] =
     liftToSelf(o => Observable.create[T](o.onSubscribe).echoOnce(timeout))

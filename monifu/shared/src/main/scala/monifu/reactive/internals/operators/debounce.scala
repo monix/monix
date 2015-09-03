@@ -31,7 +31,7 @@ private[reactive] object debounce {
    * Only emit an item from an Observable if a particular 
    * timespan has passed without it emitting another item
    */
-  def apply[T](source: Observable[T], timeout: FiniteDuration): Observable[T] = {
+  def apply[T](source: Observable[T], initialDelay: FiniteDuration, timeout: FiniteDuration): Observable[T] = {
     Observable.create { downstream =>
       import downstream.{scheduler => s}
       val timeoutMillis = timeout.toMillis
@@ -45,7 +45,7 @@ private[reactive] object debounce {
         private[this] var hasValue = false
 
         locally {
-          scheduleNext(timeoutMillis)
+          scheduleNext(initialDelay.toMillis)
         }
 
         def scheduleNext(delayMillis: Long): Unit = {

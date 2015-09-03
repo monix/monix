@@ -23,7 +23,7 @@ import concurrent.duration._
 object DebounceSuite extends BaseOperatorSuite {
   def observable(sourceCount: Int) = Some {
     val o = Observable.create[Long](_.onNext(sourceCount))
-      .debounce(1.second).take(1)
+      .debounce(1.second, 1.second).take(1)
 
     Sample(o, 1, sourceCount, 1.second, 1.second)
   }
