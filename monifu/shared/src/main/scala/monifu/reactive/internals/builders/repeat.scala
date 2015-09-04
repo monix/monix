@@ -34,7 +34,7 @@ private[reactive] object repeat {
       Observable.create { subscriber =>
         // first execution is always asynchronous
         subscriber.scheduler
-          .execute(new RepeatOnceLoop(subscriber, elems.head))
+          .execute(new RepeatOneLoop(subscriber, elems.head))
       }
     }
     else {
@@ -43,7 +43,7 @@ private[reactive] object repeat {
   }
 
   private
-  final class RepeatOnceLoop[T](subscriber: Subscriber[T], elem: T) extends Runnable {
+  final class RepeatOneLoop[T](subscriber: Subscriber[T], elem: T) extends Runnable {
     import subscriber.{scheduler => s}
     private[this] val o = subscriber
     private[this] val modulus = s.env.batchSize - 1
