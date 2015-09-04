@@ -2107,6 +2107,23 @@ object Observable {
   }
 
   /**
+   * Given an initial state and a generator function that produces
+   * the next state and the next element in the sequence, creates
+   * an observable that keeps generating elements produced by our
+   * generator function.
+   *
+   * {{{
+   *   from monifu.concurrent.Implicits.{globalScheduler => s}
+   *   from monifu.util import Random
+   *
+   *   def randomDoubles(): Observable[Double] =
+   *     Observable.fromStateAction(Random.double)(s.currentTimeMillis())
+   * }}}
+   */
+  def fromStateAction[S,A](f: S => (A,S))(initialState: S): Observable[A] =
+    builders.from.stateAction(f)(initialState)
+
+  /**
    * Converts a Future to an Observable.
    *
    * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/fromIterable.png" />

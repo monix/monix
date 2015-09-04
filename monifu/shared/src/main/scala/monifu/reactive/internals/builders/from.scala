@@ -17,13 +17,13 @@
 
 package monifu.reactive.internals.builders
 
-import monifu.reactive.Ack.Continue
-import monifu.reactive.{Ack, Observable}
+import monifu.reactive.Ack.{Cancel, Continue}
+import monifu.reactive.{Subscriber, Ack, Observable}
 import monifu.reactive.internals._
 
 import scala.annotation.tailrec
 import scala.concurrent.Future
-import scala.util.{Failure, Success}
+import scala.util.{Try, Failure, Success}
 import scala.util.control.NonFatal
 
 private[reactive] object from {
@@ -160,4 +160,70 @@ private[reactive] object from {
         }
       }
     }
+
+  /**
+   * Implementation for [[Observable.fromStateAction]].
+   */
+  def stateAction[S,A](f: S => (A,S))(seed: S): Observable[A] =
+    Observable.create { subscriber =>
+      import subscriber.scheduler
+      scheduler.execute(new StateRunLoop(subscriber, seed, f))
+    }
+
+  private[this]
+  final class StateRunLoop[S,A](o: Subscriber[A], initialSeed: S, f: S => (A,S))
+    extends Runnable { self =>
+
+    import o.{scheduler => s}
+    private[this] var seed = initialSeed
+    private[this] val modulus = s.env.batchSize - 1
+
+    private[this] val asyncReschedule: Try[Ack] => Unit = {
+      case Continue.IsSuccess =>
+        s.execute(self)
+      case Failure(ex) =>
+        o.onError(ex)
+      case _ =>
+        () // do nothing else
+    }
+
+    @tailrec
+    def fastLoop(syncIndex: Int): Unit = {
+      val ack = try {
+        val (nextA, newState) = f(seed)
+        this.seed = newState
+        o.onNext(nextA)
+      }
+      catch {
+        case NonFatal(ex) =>
+          o.onError(ex)
+          Cancel
+      }
+
+      val nextIndex = if (!ack.isCompleted) 0 else
+        (syncIndex + 1) & modulus
+
+      if (nextIndex > 0) {
+        if (ack == Continue)
+          fastLoop(nextIndex)
+        else ack.value.get match {
+          case Continue.IsSuccess =>
+            fastLoop(nextIndex)
+          case Failure(ex) =>
+            o.onError(ex)
+          case _ =>
+            () // do nothing else
+        }
+      }
+      else {
+        ack.onComplete(asyncReschedule)
+      }
+    }
+
+    def run(): Unit =
+      try fastLoop(0) catch {
+        case NonFatal(ex) =>
+          s.reportFailure(ex)
+      }
+  }
 }
