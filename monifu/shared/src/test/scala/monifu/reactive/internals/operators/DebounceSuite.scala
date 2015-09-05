@@ -21,7 +21,7 @@ import monifu.reactive.Observable
 import concurrent.duration._
 
 object DebounceSuite extends BaseOperatorSuite {
-  def observable(sourceCount: Int) = Some {
+  def createObservable(sourceCount: Int) = Some {
     val o = Observable.create[Long](_.onNext(sourceCount))
       .debounce(1.second).take(1)
 

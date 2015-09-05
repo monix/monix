@@ -23,7 +23,7 @@ import scala.concurrent.duration.Duration.Zero
 import scala.util.Success
 
 object ReduceSuite extends BaseOperatorSuite {
-  def observable(sourceCount: Int) = Some {
+  def createObservable(sourceCount: Int) = Some {
     if (sourceCount > 1) {
       val o = Observable.range(1, sourceCount+1).reduce(_ + _)
       Sample(o, 1, sum(sourceCount), Zero, Zero)

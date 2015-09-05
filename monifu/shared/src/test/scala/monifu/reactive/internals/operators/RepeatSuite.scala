@@ -25,7 +25,7 @@ object RepeatSuite extends BaseOperatorSuite {
     (0 until sourceCount).foldLeft(0L)((acc, e) => acc + e % 5)
   }
 
-  def observable(sourceCount: Int) = Some {
+  def createObservable(sourceCount: Int) = Some {
     val o = Observable.range(0, 5).repeat.take(sourceCount)
     Sample(o, sourceCount, sum(sourceCount), Zero, Zero)
   }

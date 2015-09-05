@@ -29,7 +29,7 @@ import scala.concurrent.duration.Duration.Zero
 import monifu.reactive.Observable.{unit, empty}
 
 object MergeOneSuite extends BaseOperatorSuite {
-  def observable(sourceCount: Int) = Some {
+  def createObservable(sourceCount: Int) = Some {
     val o = Observable.range(0, sourceCount).mergeMap(i => Observable.unit(i))
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }

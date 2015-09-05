@@ -21,7 +21,7 @@ import monifu.reactive.Observable
 import scala.concurrent.duration.Duration.Zero
 
 object ScanSuite extends BaseOperatorSuite {
-  def observable(sourceCount: Int) = Some {
+  def createObservable(sourceCount: Int) = Some {
     val o = Observable.range(0, sourceCount).scan(0L)(_ + _)
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }

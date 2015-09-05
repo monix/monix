@@ -21,7 +21,7 @@ import monifu.reactive.Observable
 import concurrent.duration._
 
 object ThrottleFirstSuite extends BaseOperatorSuite {
-  def observable(sourceCount: Int) = Some {
+  def createObservable(sourceCount: Int) = Some {
     if (sourceCount == 1) {
       val o = Observable.unitDelayed(500.millis, 100L).throttleFirst(1.second)
       Sample(o, 1, 100, 500.millis, 1.second)

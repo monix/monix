@@ -29,7 +29,7 @@ object FilterSuite extends BaseOperatorSuite {
   def sum(sourceCount: Int): Long =
     sourceCount.toLong * (sourceCount + 1)
  
-  def observable(sourceCount: Int) = {
+  def createObservable(sourceCount: Int) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val o = if (sourceCount == 1)

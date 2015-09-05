@@ -36,7 +36,7 @@ object TakeByTimespanSuite extends BaseOperatorSuite {
   def count(sourceCount: Int) =
     sourceCount
 
-  def observable(sourceCount: Int) = Some {
+  def createObservable(sourceCount: Int) = Some {
     require(sourceCount > 0, "sourceCount should be strictly positive")
 
     val o = Observable.intervalAtFixedRate(1.second)

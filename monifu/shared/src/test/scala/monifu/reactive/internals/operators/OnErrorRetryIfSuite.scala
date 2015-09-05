@@ -41,7 +41,7 @@ object OnErrorRetryIfSuite extends BaseOperatorSuite {
     }
   }
 
-  def observable(sourceCount: Int) = Some {
+  def createObservable(sourceCount: Int) = Some {
     val retriesCount = Atomic(0)
     val o = create(sourceCount, 3, DummyException("expected")).onErrorRetryIf {
       case DummyException("expected") =>

@@ -24,7 +24,7 @@ import scala.concurrent.duration._
 object CombineLatestDelayErrorSuite extends BaseOperatorSuite {
   case class SomeException(value: Long) extends RuntimeException
 
-  def observable(sourceCount: Int) = Some {
+  def createObservable(sourceCount: Int) = Some {
     def recovered(o: Observable[Long]) =
       o.onErrorRecoverWith {
         case CompositeException(errors) =>

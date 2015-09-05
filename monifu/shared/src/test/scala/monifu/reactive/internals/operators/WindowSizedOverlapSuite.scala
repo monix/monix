@@ -25,7 +25,7 @@ object WindowSizedOverlapSuite extends BaseOperatorSuite {
   val waitNext = Duration.Zero
   val waitFirst = Duration.Zero
 
-  def observable(sourceCount: Int) = {
+  def createObservable(sourceCount: Int) = {
     require(sourceCount > 0, "count must be strictly positive")
     if (sourceCount > 1) Some {
       val divBy4 = sourceCount / 4 * 4

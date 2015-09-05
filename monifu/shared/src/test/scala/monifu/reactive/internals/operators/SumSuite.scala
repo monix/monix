@@ -24,7 +24,7 @@ import scala.concurrent.duration.Duration._
 import scala.util.Success
 
 object SumSuite extends BaseOperatorSuite {
-  def observable(sourceCount: Int) = Some {
+  def createObservable(sourceCount: Int) = Some {
     val o = Observable.range(0, sourceCount).sum
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }

@@ -23,7 +23,7 @@ import monifu.reactive.{Notification, Observer, Observable}
 import scala.concurrent.duration.Duration.Zero
 
 object MaterializeSuite extends BaseOperatorSuite {
-  def observable(sourceCount: Int) = Some {
+  def createObservable(sourceCount: Int) = Some {
     val o = Observable.create[Long] { subscriber =>
       import subscriber.scheduler
 

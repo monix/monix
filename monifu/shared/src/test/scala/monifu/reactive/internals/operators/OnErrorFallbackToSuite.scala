@@ -22,7 +22,7 @@ import monifu.reactive.exceptions.DummyException
 import scala.concurrent.duration.Duration.Zero
 
 object OnErrorFallbackToSuite extends BaseOperatorSuite {
-  def observable(sourceCount: Int) = Some {
+  def createObservable(sourceCount: Int) = Some {
     val obs = Observable.range(0, sourceCount)
       .endWithError(DummyException("expected"))
       .onErrorFallbackTo(Observable.range(0, 10))

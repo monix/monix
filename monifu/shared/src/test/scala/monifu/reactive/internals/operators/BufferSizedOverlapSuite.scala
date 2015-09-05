@@ -18,14 +18,14 @@
 package monifu.reactive.internals.operators
 
 import monifu.reactive.Observable
-
 import scala.concurrent.duration.Duration
+
 
 object BufferSizedOverlapSuite extends BaseOperatorSuite {
   val waitNext = Duration.Zero
   val waitFirst = Duration.Zero
 
-  def observable(sourceCount: Int) = {
+  def createObservable(sourceCount: Int) = {
     require(sourceCount > 0, "count must be strictly positive")
     if (sourceCount > 1) Some {
       val divBy4 = sourceCount / 4 * 4
@@ -39,7 +39,8 @@ object BufferSizedOverlapSuite extends BaseOperatorSuite {
       Sample(o, count, sum, waitFirst, waitNext)
     }
     else Some {
-      val o = Observable.unit(1L).buffer(2,1).flatMap(Observable.fromIterable)
+      val o = Observable.unit(1L)
+        .buffer(2,1).flatMap(Observable.fromIterable)
       Sample(o, 1, 1, waitFirst, waitNext)
     }
   }

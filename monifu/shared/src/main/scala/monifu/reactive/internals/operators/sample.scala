@@ -17,6 +17,7 @@
 
 package monifu.reactive.internals.operators
 
+import monifu.concurrent.cancelables.BooleanCancelable
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.observers.SynchronousSubscriber
 import monifu.reactive.{Ack, Observable, Observer, Subscriber}
@@ -35,7 +36,6 @@ private[reactive] object sample {
    */
   def once[T,U](source: Observable[T], sampler: Observable[U]): Observable[T] =
     Observable.create { subscriber =>
-      import subscriber.{scheduler => s}
       source.onSubscribe(new SampleObserver(
         subscriber, sampler, shouldRepeatOnSilence = false))
     }
@@ -45,7 +45,6 @@ private[reactive] object sample {
    */
   def repeated[T,U](source: Observable[T], sampler: Observable[U]): Observable[T] =
     Observable.create { subscriber =>
-      import subscriber.{scheduler => s}
       source.onSubscribe(new SampleObserver(
         subscriber, sampler, shouldRepeatOnSilence = true))
     }
@@ -57,7 +56,7 @@ private[reactive] object sample {
     repeated(source, Observable.intervalAtFixedRate(initialDelay, delay))
 
   private class SampleObserver[T,U]
-      (downstream: Subscriber[T], sampler: Observable[U], shouldRepeatOnSilence: Boolean)
+  (downstream: Subscriber[T], sampler: Observable[U], shouldRepeatOnSilence: Boolean)
     extends SynchronousSubscriber[T] {
 
     implicit val scheduler = downstream.scheduler
@@ -69,12 +68,15 @@ private[reactive] object sample {
     @volatile private[this] var upstreamIsDone = false
     // MUST BE written to before `upstreamIsDone = true`
     private[this] var upstreamError: Throwable = null
+    // MUST BE canceled by the sampler
+    private[this] val downstreamConnection = BooleanCancelable()
 
-    def onNext(elem: T): Ack = {
-      lastValue = elem
-      hasValue = true
-      Continue
-    }
+    def onNext(elem: T): Ack =
+      if (downstreamConnection.isCanceled) Cancel else {
+        lastValue = elem
+        hasValue = true
+        Continue
+      }
 
     def onError(ex: Throwable): Unit = {
       upstreamError = ex
@@ -96,7 +98,9 @@ private[reactive] object sample {
             Continue
           else {
             hasValue = shouldRepeatOnSilence
-            downstream.onNext(lastValue)
+            val ack = downstream.onNext(lastValue)
+            notifyUpstreamOnCancel(ack, downstreamConnection)
+            ack
           }
         }
       }
@@ -117,6 +121,17 @@ private[reactive] object sample {
         }
 
         Cancel
+      }
+
+      private def notifyUpstreamOnCancel(ack: Future[Ack], c: BooleanCancelable): Unit = {
+        if (ack.isCompleted) {
+          if (ack != Continue && ack.value.get != Continue.IsSuccess)
+            c.cancel()
+        }
+        else ack.onComplete {
+          case Continue.IsSuccess => ()
+          case _ => c.cancel()
+        }
       }
     })
   }

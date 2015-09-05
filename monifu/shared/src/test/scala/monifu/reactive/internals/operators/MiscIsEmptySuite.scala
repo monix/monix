@@ -21,7 +21,7 @@ import monifu.reactive.Observable
 import concurrent.duration.Duration.Zero
 
 object MiscIsEmptySuite extends BaseOperatorSuite {
-  def observable(sourceCount: Int) = Some {
+  def createObservable(sourceCount: Int) = Some {
     val shouldBeEmpty = (sourceCount % 2) == 0
     val sum = if (shouldBeEmpty) 2L else 1L
 

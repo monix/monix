@@ -37,9 +37,33 @@ object Build extends SbtBuild {
     organization := "org.monifu",
     scalaVersion := "2.11.7",
     scalacOptions ++= Seq(
-      "-unchecked", "-deprecation", "-feature", "-Xlint", "-target:jvm-1.6", "-Yinline-warnings",
-      "-optimise", "-Ywarn-adapted-args", "-Ywarn-dead-code", "-Ywarn-inaccessible",
-      "-Ywarn-nullary-override", "-Ywarn-nullary-unit"
+      "-target:jvm-1.6", // generates code with the Java 6 class format
+      "-optimise", // enables optimisations
+      "-Xfatal-warnings", // turns all warnings into errors ;-)
+      // warnings
+      "-unchecked", // able additional warnings where generated code depends on assumptions
+      "-deprecation", // emit warning for usages of deprecated APIs
+      "-feature", // emit warning usages of features that should be imported explicitly
+      // enables linter
+      "-Xlint:adapted-args", // warn if an argument list is modified to match the receiver
+      "-Xlint:nullary-unit", // warn when nullary methods return Unit
+      "-Xlint:inaccessible", // warn about inaccessible types in method signatures
+      "-Xlint:nullary-override", // warn when non-nullary `def f()' overrides nullary `def f'
+      "-Xlint:infer-any", // warn when a type argument is inferred to be `Any`
+      "-Xlint:missing-interpolator", // a string literal appears to be missing an interpolator id
+      "-Xlint:doc-detached", // a ScalaDoc comment appears to be detached from its element
+      "-Xlint:private-shadow", // a private field (or class parameter) shadows a superclass field
+      "-Xlint:type-parameter-shadow", // a local type parameter shadows a type already in scope
+      "-Xlint:poly-implicit-overload", // parameterized overloaded implicit methods are not visible as view bounds
+      "-Xlint:option-implicit", // Option.apply used implicit view
+      "-Xlint:delayedinit-select", // Selecting member of DelayedInit
+      "-Xlint:by-name-right-associative", // By-name parameter of right associative operator
+      "-Xlint:package-object-classes", // Class or object defined in package object
+      "-Xlint:unsound-match", // Pattern match may not be typesafe
+      // possibly deprecated options
+      "-Yinline-warnings",
+      "-Ywarn-dead-code",
+      "-Ywarn-inaccessible"
     ),
 
     resolvers ++= Seq(

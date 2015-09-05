@@ -19,7 +19,7 @@ package monifu.reactive.internals.operators
 
 import monifu.reactive.Ack.Continue
 import monifu.reactive.exceptions.DummyException
-import monifu.reactive.{Observer, Observable}
+import monifu.reactive.{Observable, Observer}
 import scala.concurrent.duration._
 
 object BufferSizedAndTimedNr1Suite extends BaseOperatorSuite {
@@ -35,7 +35,7 @@ object BufferSizedAndTimedNr1Suite extends BaseOperatorSuite {
     sourceCount
   }
 
-  def observable(sourceCount: Int) = {
+  def createObservable(sourceCount: Int) = {
     require(sourceCount > 0, "sourceCount must be strictly positive")
     Some {
       val o = Observable.intervalAtFixedRate(100.millis)

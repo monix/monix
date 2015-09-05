@@ -21,7 +21,7 @@ import monifu.reactive.Observable
 import scala.concurrent.duration.Duration.Zero
 
 object DropByPredicateSuite extends BaseOperatorSuite {
-  def observable(sourceCount: Int) = {
+  def createObservable(sourceCount: Int) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val o = Observable.range(1, sourceCount * 2).dropWhile(_ < sourceCount)

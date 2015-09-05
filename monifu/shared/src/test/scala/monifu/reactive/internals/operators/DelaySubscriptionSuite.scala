@@ -24,7 +24,7 @@ import concurrent.duration._
 import scala.concurrent.Future
 
 object DelaySubscriptionSuite extends BaseOperatorSuite {
-  def observable(sourceCount: Int) = Some {
+  def createObservable(sourceCount: Int) = Some {
     val o = Observable.range(0, sourceCount)
       .delaySubscription(1.second)
 

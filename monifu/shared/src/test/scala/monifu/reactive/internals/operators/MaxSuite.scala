@@ -23,7 +23,7 @@ import scala.concurrent.duration.Duration.Zero
 import scala.util.Success
 
 object MaxSuite extends BaseOperatorSuite {
-  def observable(sourceCount: Int) = Some {
+  def createObservable(sourceCount: Int) = Some {
     val o = Observable.range(0, sourceCount+1).max
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }

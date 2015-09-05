@@ -28,7 +28,7 @@ object EchoRepeatedSuite extends BaseOperatorSuite {
   def waitFirst = 1.second
   def waitNext = 1.second
 
-  def observable(sourceCount: Int) = Some {
+  def createObservable(sourceCount: Int) = Some {
     val source = Observable.create[Long](_.onNext(1L))
     val o = source.echoRepeated(1.second).drop(1).take(sourceCount)
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
