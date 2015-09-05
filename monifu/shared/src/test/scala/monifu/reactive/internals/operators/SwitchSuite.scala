@@ -26,7 +26,7 @@ object SwitchSuite extends BaseOperatorSuite {
       Observable.interval(1.second).drop(3)
   }
 
-  def observable(sourceCount: Int) = Some {
+  def createObservable(sourceCount: Int) = Some {
     val o = Observable.interval(2.seconds)
       .take(sourceCount)
       .map(i => (if (i < sourceCount-1) createChild() else Observable.interval(1.second)).take(sourceCount))

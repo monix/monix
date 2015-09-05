@@ -29,7 +29,7 @@ import scala.concurrent.duration._
 
 
 object ZipSuite extends BaseOperatorSuite {
-  def observable(sourceCount: Int) = Some {
+  def createObservable(sourceCount: Int) = Some {
     val o1 = Observable.range(0, sourceCount)
     val o2 = Observable.range(0, sourceCount)
 

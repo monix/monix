@@ -28,7 +28,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 
 object TimeoutSuite extends BaseOperatorSuite {
-  def observable(sourceCount: Int) = Some {
+  def createObservable(sourceCount: Int) = Some {
     val source = Observable.create[Long](_.onNext(sourceCount))
     val o = source.timeout(1.second).onErrorRecoverWith {
       case _: TimeoutException =>
@@ -40,7 +40,7 @@ object TimeoutSuite extends BaseOperatorSuite {
 
   def observableInError(sourceCount: Int, ex: Throwable) = {
     val ex = DummyException("dummy")
-    observable(sourceCount).map(s => s.copy(observable =
+    createObservable(sourceCount).map(s => s.copy(observable =
       createObservableEndingInError(s.observable, ex)))
   }
 

@@ -23,7 +23,7 @@ import monifu.reactive.Observable.unit
 import scala.concurrent.duration.Duration.Zero
 
 object DoOnCompleteSuite extends BaseOperatorSuite {
-  def observable(sourceCount: Int) = Some {
+  def createObservable(sourceCount: Int) = Some {
     val o = Observable.create[Long] { s =>
       import s.scheduler
       val sum = Atomic(0L)

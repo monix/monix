@@ -28,7 +28,7 @@ object SampleOnceSuite extends BaseOperatorSuite {
   def waitFirst = 500.millis
   def waitNext = 1.second
 
-  def observable(sourceCount: Int) = Some {
+  def createObservable(sourceCount: Int) = Some {
     val o = Observable.intervalAtFixedRate(1.second)
       .take(sourceCount+1)
       .sample(500.millis)

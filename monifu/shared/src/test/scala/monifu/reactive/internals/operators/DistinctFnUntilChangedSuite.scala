@@ -22,7 +22,7 @@ import scala.concurrent.duration.Duration.Zero
 
 object DistinctFnUntilChangedSuite extends BaseOperatorSuite {
   case class Val(x: Long)
-  def observable(sourceCount: Int) = Some {
+  def createObservable(sourceCount: Int) = Some {
     val o = Observable.range(0, sourceCount)
       .flatMap(i => Observable.from(Val(i), Val(i), Val(i)))
       .distinctUntilChanged(_.x)

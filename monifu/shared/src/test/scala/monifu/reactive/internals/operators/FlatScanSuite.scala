@@ -22,7 +22,7 @@ import monifu.reactive.Observable
 import scala.concurrent.duration.Duration.Zero
 
 object FlatScanSuite extends BaseOperatorSuite {
-  def observable(sourceCount: Int) = Some {
+  def createObservable(sourceCount: Int) = Some {
     val o = Observable.range(0, sourceCount)
       .flatScan(1L)((acc, elem) => Observable.repeat(acc + elem).take(3))
 

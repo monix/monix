@@ -35,7 +35,7 @@ object WindowTimedSuite extends BaseOperatorSuite {
     sourceCount
   }
 
-  def observable(sourceCount: Int) = {
+  def createObservable(sourceCount: Int) = {
     require(sourceCount > 0, "sourceCount must be strictly positive")
     Some {
       val o = Observable.intervalAtFixedRate(100.millis)

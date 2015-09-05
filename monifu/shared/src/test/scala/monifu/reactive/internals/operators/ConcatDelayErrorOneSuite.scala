@@ -45,7 +45,7 @@ object ConcatDelayErrorOneSuite extends BaseOperatorSuite {
     Sample(recovered, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
   }
 
-  def observable(sourceCount: Int) = create(sourceCount)
+  def createObservable(sourceCount: Int) = create(sourceCount)
   def observableInError(sourceCount: Int, ex: Throwable) = None
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 

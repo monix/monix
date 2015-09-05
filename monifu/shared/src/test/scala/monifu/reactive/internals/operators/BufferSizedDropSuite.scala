@@ -25,7 +25,7 @@ object BufferSizedDropSuite extends BaseOperatorSuite {
   val waitNext = Duration.Zero
   val waitFirst = Duration.Zero
 
-  def observable(sourceCount: Int) = {
+  def createObservable(sourceCount: Int) = {
     require(sourceCount > 0, "count must be strictly positive")
     if (sourceCount > 1) Some {
       val sc = sourceCount / 8 * 8
@@ -40,7 +40,8 @@ object BufferSizedDropSuite extends BaseOperatorSuite {
       Sample(o, count, sum, waitFirst, waitNext)
     }
     else Some {
-      val o = Observable.unit(1L).buffer(2,1)
+      val o = Observable.unit(1L)
+        .buffer(2,1)
         .map(Observable.fromIterable)
         .flatten
 

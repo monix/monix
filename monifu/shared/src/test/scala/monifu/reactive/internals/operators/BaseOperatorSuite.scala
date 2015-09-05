@@ -20,9 +20,10 @@ package monifu.reactive.internals.operators
 import minitest.TestSuite
 import monifu.concurrent.extensions._
 import monifu.concurrent.schedulers.TestScheduler
-import monifu.reactive.Ack.Continue
+import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.exceptions.DummyException
-import monifu.reactive.{Observable, Observer}
+import monifu.reactive.subjects.PublishSubject
+import monifu.reactive.{Ack, Observable, Observer}
 import scala.concurrent.duration._
 import scala.concurrent.{Future, Promise}
 import scala.util.Random
@@ -31,10 +32,10 @@ import scala.util.Random
 trait BaseOperatorSuite extends TestSuite[TestScheduler] {
   case class Sample(
     observable: Observable[Long],
-    count: Int, sum: Long,
+    count: Int,
+    sum: Long,
     waitFirst: FiniteDuration,
-    waitNext: FiniteDuration
-  )
+    waitNext: FiniteDuration)
 
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
@@ -49,7 +50,7 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
    * the resulting observable, being just a way to randomly vary
    * the events being emitted.
    */
-  def observable(sourceCount: Int): Option[Sample]
+  def createObservable(sourceCount: Int): Option[Sample]
 
   /**
    * Optionally build an observable that simulates an error in user
@@ -91,7 +92,7 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
     var received = 0
     var wasCompleted = false
 
-    observable(sourceCount) match {
+    createObservable(sourceCount) match {
       case None => ignore()
       case Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
         obs.onSubscribe(new Observer[Long] {
@@ -115,7 +116,7 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
     val p = Promise[Continue]()
     var wasCompleted = false
 
-    observable(1) match {
+    createObservable(1) match {
       case None => ignore()
       case ref @ Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
         var onNextReceived = false
@@ -140,7 +141,7 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
     var received = 0
     var total = 0L
 
-    observable(sourceCount) match {
+    createObservable(sourceCount) match {
       case None => ignore()
       case Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
         obs.onSubscribe(new Observer[Long] {
@@ -167,7 +168,7 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
     var received = 0
     var total = 0L
 
-    observable(sourceCount) match {
+    createObservable(sourceCount) match {
       case None => ignore()
       case Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
         obs.onSubscribe(new Observer[Long] {
@@ -196,7 +197,7 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
     var wasCompleted = false
     var received = 0
 
-    observable(sourceCount) match {
+    createObservable(sourceCount) match {
       case None => ignore()
       case Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
         obs.onSubscribe(new Observer[Long] {
@@ -312,6 +313,37 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
 
       case None =>
         ignore()
+    }
+  }
+
+  test("should stop on first onNext") { implicit s =>
+    val sourceCount = Random.nextInt(300) + 100
+
+    createObservable(sourceCount) match {
+      case None => ignore()
+      case Some(Sample(o, count, sum, waitForFirst, waitForNext)) =>
+        var wasCompleted = false
+        var received = 0
+
+        o.onSubscribe(new Observer[Long] {
+          def onNext(elem: Long) = {
+            received += 1
+            Cancel
+          }
+
+          def onError(ex: Throwable): Unit = ()
+
+          def onComplete(): Unit = {
+            wasCompleted = true
+          }
+        })
+
+        s.tick(waitForFirst)
+        assert(!wasCompleted)
+        assertEquals(received, 1)
+        s.tick(waitForNext * 2)
+        assertEquals(received, 1)
+        assert(!wasCompleted)
     }
   }
 }

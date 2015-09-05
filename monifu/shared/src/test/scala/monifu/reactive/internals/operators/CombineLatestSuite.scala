@@ -26,7 +26,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 
 object CombineLatestSuite extends BaseOperatorSuite {
-  def observable(sourceCount: Int) = Some {
+  def createObservable(sourceCount: Int) = Some {
     val o1 = Observable.unit(1)
     val o2 = Observable.range(0, sourceCount)
 

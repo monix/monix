@@ -48,7 +48,7 @@ object FlatScanDelayErrorSuite extends BaseOperatorSuite {
     Sample(recovered, sourceCount * 3 + 1, sum, Zero, Zero)
   }
 
-  def observable(sourceCount: Int) = create(sourceCount)
+  def createObservable(sourceCount: Int) = create(sourceCount)
   def observableInError(sourceCount: Int, ex: Throwable) = None
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 }

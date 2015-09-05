@@ -28,7 +28,7 @@ object SampleRepeatedSuite extends BaseOperatorSuite {
   def waitNext = 500.millis
   def waitFirst = 500.millis
 
-  def observable(sourceCount: Int) = Some {
+  def createObservable(sourceCount: Int) = Some {
     val o = Observable.create[Long](_.onNext(1L))
       .sampleRepeated(500.millis)
       .take(sourceCount)

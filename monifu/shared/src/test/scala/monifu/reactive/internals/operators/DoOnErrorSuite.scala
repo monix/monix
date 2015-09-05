@@ -24,7 +24,7 @@ import scala.concurrent.duration.Duration.Zero
 object DoOnErrorSuite extends BaseOperatorSuite {
   case class DummyException(value: Long) extends RuntimeException
 
-  def observable(sourceCount: Int) = Some {
+  def createObservable(sourceCount: Int) = Some {
     val o = Observable.create[Long] { s =>
       import s.scheduler
 

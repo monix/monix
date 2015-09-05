@@ -27,7 +27,7 @@ object SwitchDelayErrorSuite extends BaseOperatorSuite {
       Observable.interval(1.second).drop(3)
   }
 
-  def observable(sourceCount: Int) = Some {
+  def createObservable(sourceCount: Int) = Some {
     val source = Observable.interval(2.seconds)
       .take(sourceCount)
       .endWithError(DummyException("dummy"))

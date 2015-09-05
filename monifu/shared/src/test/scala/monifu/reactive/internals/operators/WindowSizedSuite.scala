@@ -35,7 +35,7 @@ object WindowSizedSuite extends BaseOperatorSuite {
     sourceCount
   }
 
-  def observable(sourceCount: Int) = {
+  def createObservable(sourceCount: Int) = {
     require(sourceCount > 0, "count must be strictly positive")
     Some {
       val o = Observable.range(0, sourceCount * 10).window(10).flatMap(_.sum)

@@ -39,7 +39,7 @@ object OnErrorRetryUnlimitedSuite extends BaseOperatorSuite {
     }
   }
 
-  def observable(sourceCount: Int) = Some {
+  def createObservable(sourceCount: Int) = Some {
     val o = create(sourceCount, 3, DummyException("expected"))
       .onErrorRetryUnlimited
 
