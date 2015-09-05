@@ -17,6 +17,8 @@
 
 package monifu.reactive.internals.builders
 
+import java.util.concurrent.Callable
+
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.{Subscriber, Ack, Observable}
 import monifu.reactive.internals._
@@ -162,6 +164,75 @@ private[reactive] object from {
     }
 
   /**
+   * Implementation for [[Observable.fromTask]].
+   */
+  def task[A](t: => A): Observable[A] =
+    Observable.create { subscriber =>
+      import subscriber.{scheduler => s}
+
+      s.execute {
+        try {
+          subscriber.onNext(t)
+            .onContinueSignalComplete(subscriber)
+        }
+        catch {
+          case NonFatal(ex) =>
+            try subscriber.onError(ex) catch {
+              case NonFatal(err) =>
+                s.reportFailure(ex)
+                s.reportFailure(err)
+            }
+        }
+      }
+    }
+
+  /**
+   * Implementation for [[Observable.fromCallable]].
+   */
+  def callable[T](c: Callable[T]): Observable[T] =
+    Observable.create { subscriber =>
+      import subscriber.{scheduler => s}
+
+      s.execute {
+        try {
+          subscriber.onNext(c.call())
+            .onContinueSignalComplete(subscriber)
+        }
+        catch {
+          case NonFatal(ex) =>
+            try subscriber.onError(ex) catch {
+              case NonFatal(err) =>
+                s.reportFailure(ex)
+                s.reportFailure(err)
+            }
+        }
+      }
+    }
+
+  /**
+   * Implementation for [[Observable.fromRunable]].
+   */
+  def runnable[T](r: Runnable): Observable[Unit] =
+    Observable.create { subscriber =>
+      import subscriber.{scheduler => s}
+
+      s.execute {
+        try {
+          subscriber.onNext(r.run())
+            .onContinueSignalComplete(subscriber)
+        }
+        catch {
+          case NonFatal(ex) =>
+            try subscriber.onError(ex) catch {
+              case NonFatal(err) =>
+                s.reportFailure(ex)
+                s.reportFailure(err)
+            }
+        }
+      }
+    }
+
+  /**
    * Implementation for [[Observable.fromStateAction]].
    */
   def stateAction[S,A](f: S => (A,S))(seed: S): Observable[A] =
@@ -180,7 +251,7 @@ private[reactive] object from {
 
     private[this] val asyncReschedule: Try[Ack] => Unit = {
       case Continue.IsSuccess =>
-        s.execute(self)
+        self.run()
       case Failure(ex) =>
         o.onError(ex)
       case _ =>
