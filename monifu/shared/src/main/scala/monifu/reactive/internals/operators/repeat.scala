@@ -27,7 +27,7 @@ private[reactive] object repeat {
   /**
    * Implementation for [[Observable.repeat]].
    */
-  def apply[T](source: Observable[T]): Observable[T] = {
+  def elements[T](source: Observable[T]): Observable[T] = {
     // recursive function - subscribes the observer again when
     // onComplete happens
     def loop(subject: Subject[T, T], observer: Observer[T])(implicit s: Scheduler): Unit =
@@ -62,5 +62,15 @@ private[reactive] object repeat {
         }
       })
     }
+  }
+
+  /** Implementation for [[monifu.reactive.Observable.repeatTask]] */
+  def task[T](t: => T): Observable[T] = {
+    Observable.fromIterator(new TaskIterator[T](t))
+  }
+
+  private final class TaskIterator[T](t: => T) extends Iterator[T] {
+    val hasNext = true
+    def next(): T = t
   }
 }

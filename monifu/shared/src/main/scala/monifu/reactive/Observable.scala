@@ -18,6 +18,7 @@
 package monifu.reactive
 
 import java.io.PrintStream
+import java.util.concurrent.Callable
 import monifu.concurrent.cancelables.BooleanCancelable
 import monifu.concurrent.{Cancelable, Scheduler}
 import monifu.reactive.Ack.{Cancel, Continue}
@@ -1641,7 +1642,7 @@ trait Observable[+T] { self =>
    * and repeats them ad infinitum. On error it terminates.
    */
   def repeat: Observable[T] =
-    operators.repeat(self)
+    operators.repeat.elements(self)
 
   /**
    * Converts this observable into a multicast observable, useful for turning a cold observable into
@@ -2032,6 +2033,13 @@ object Observable {
     builders.repeat(elems : _*)
 
   /**
+   * Repeats the execution of the given `task`, emitting
+   * the results indefinitely.
+   */
+  def repeatTask[T](task: => T): Observable[T] =
+    operators.repeat.task(task)
+
+  /**
    * Creates an Observable that emits items in the given range.
    *
    * @param from the range start
@@ -2113,6 +2121,27 @@ object Observable {
     Observable.create[T] { sub =>
       publisher.subscribe(sub.toReactive)
     }
+
+  /**
+   * Given a lazy by-name argument, converts it into an Observable
+   * that emits a single element.
+   */
+  def fromTask[T](task: => T): Observable[T] =
+    builders.from.task(task)
+
+  /**
+   * Given a runnable, converts it into an Observable that executes it,
+   * then signals the execution with a `Unit` being emitted.
+   */
+  def fromRunnable(r: Runnable): Observable[Unit] =
+    builders.from.runnable(r)
+
+  /**
+   * Given a `java.util.concurrent.Callable`, converts it into an
+   * Observable that executes it, then emits the result.
+   */
+  def fromCallable[T](c: Callable[T]): Observable[T] =
+    builders.from.callable(c)
 
   /**
    * Wraps this Observable into a `org.reactivestreams.Publisher`.
