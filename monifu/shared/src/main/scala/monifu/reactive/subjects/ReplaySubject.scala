@@ -26,8 +26,6 @@ import scala.concurrent.Future
 /**
  * `ReplaySubject` emits to any observer all of the items that were emitted
  * by the source, regardless of when the observer subscribes.
- *
- * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/S.ReplaySubject.png" />
  */
 final class ReplaySubject[T] private (initial: Buffer[T])
   extends Subject[T,T] { self =>

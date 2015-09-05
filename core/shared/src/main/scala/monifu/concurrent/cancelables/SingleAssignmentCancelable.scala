@@ -51,7 +51,8 @@ final class SingleAssignmentCancelable private () extends BooleanCancelable {
    * In case this `SingleAssignmentCancelable` is already canceled,
    * then the reference `value` will also be canceled on assignment.
    *
-   * @throws IllegalStateException in case this cancelable has already been assigned
+   * Throws `IllegalStateException` in case this cancelable has already
+   * been assigned.
    */
   @throws(classOf[IllegalStateException])
   @tailrec

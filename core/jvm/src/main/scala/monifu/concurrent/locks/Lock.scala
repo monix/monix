@@ -26,7 +26,7 @@ import scala.reflect.macros.blackbox
 
 trait Lock extends JavaLock {
   /**
-   * Meant for re-entrancy logic.
+   * Meant for reentrancy logic.
    *
    * @return `true` if this lock is acquired by the current thread or `false` otherwise
    */
@@ -38,7 +38,7 @@ trait Lock extends JavaLock {
    * If the lock is not available, then the thread waits until is able to acquire the lock.
    * Does not interrupt - for interrupting see [[lockInterruptibly]] instead.
    *
-   * @throws IllegalMonitorStateException in case the lock is already acquired.
+   * Throws IllegalMonitorStateException in case the lock is already acquired.
    */
   final def lock(): Unit = {
     if (isAcquiredByCurrentThread)
@@ -61,8 +61,8 @@ trait Lock extends JavaLock {
    * If the lock is not available, then the thread waits until is able to acquire the lock.
    * Can be [[http://docs.oracle.com/javase/7/docs/api/java/lang/Thread.html#interrupt%28%29 interrupted]].
    *
-   * @throws InterruptedException in case the thread was interrupted with `Thread.interrupt()`
-   * @throws IllegalMonitorStateException in case the lock is already acquired.
+   * Throws InterruptedException in case the thread was interrupted with `Thread.interrupt()`.
+   * Throws IllegalMonitorStateException in case the lock is already acquired.
    */
   @throws(classOf[InterruptedException])
   final def lockInterruptibly(): Unit = {
@@ -78,15 +78,15 @@ trait Lock extends JavaLock {
    * If the lock is not available, then the thread waits until is able to acquire the lock.
    * Can be [[http://docs.oracle.com/javase/7/docs/api/java/lang/Thread.html#interrupt%28%29 interrupted]].
    *
-   * @throws InterruptedException in case the thread was interrupted with `Thread.interrupt()`
-   * @throws IllegalMonitorStateException in case the lock is already acquired.
+   * Throws InterruptedException in case the thread was interrupted with `Thread.interrupt()`.
+   * Throws IllegalMonitorStateException in case the lock is already acquired.
    */
   def unsafeLockInterruptibly(): Unit
 
   /**
    * Acquires the lock only if it is free at the time of invocation.
+   * Throws IllegalMonitorStateException in case the lock is already acquired.
    *
-   * @throws IllegalMonitorStateException in case the lock is already acquired.
    * @return either `true` if the lock was acquired or `false` otherwise.
    */
   final def tryLock(): Boolean = {
@@ -97,7 +97,7 @@ trait Lock extends JavaLock {
 
   /**
    * Acquires the lock only if it is free at the time of invocation. Compared to
-   * [[tryLock]] it doesn't do any sanity checks, so used
+   * [[Lock!.tryLock():Boolean*]] it doesn't do any sanity checks, so used
    * unwisely it may lead to deadlocks or other undesired behavior.
    *
    * @return either `true` if the lock was acquired or `false` otherwise.
@@ -111,9 +111,9 @@ trait Lock extends JavaLock {
    * @param time the maximum time to wait for the lock
    * @param unit the time unit of the `time` argument
    *
-   * @throws IllegalMonitorStateException    in case the lock is already acquired.
-   * @throws java.lang.InterruptedException  if the current thread is interrupted while acquiring the lock
-   *                                         (and interruption of lock acquisition is supported)
+   * Throws IllegalMonitorStateException in case the lock is already acquired.
+   * Throws InterruptedException if the current thread is interrupted
+   * while acquiring the lock (and interruption of lock acquisition is supported).
    *
    * @return `true` if the lock was successfully acquired or `false` if the waiting time
    *        elapsed before the lock was acquired
@@ -128,17 +128,17 @@ trait Lock extends JavaLock {
   /**
    * Acquires the lock if it is free within the given waiting time and the current thread has not been
    * [[http://docs.oracle.com/javase/7/docs/api/java/lang/Thread.html#interrupt%28%29 interrupted]].
-   * Compared to [[tryLock]] it doesn't do any sanity checks, so used
+   * Compared to [[Lock!.tryLock():Boolean*]] it doesn't do any sanity checks, so used
    * unwisely it may lead to deadlocks or other undesired behavior.
    *
    * @param time the maximum time to wait for the lock
    * @param unit the time unit of the `time` argument
    *
-   * @throws java.lang.InterruptedException  if the current thread is interrupted while acquiring the lock
-   *                                         (and interruption of lock acquisition is supported)
+   * Throws InterruptedException if the current thread is interrupted while
+   * acquiring the lock (and interruption of lock acquisition is supported).
    *
-   * @return `true` if the lock was successfully acquired or `false` if the waiting time
-   *        elapsed before the lock was acquired
+   * @return `true` if the lock was successfully acquired or `false` if the
+   *        waiting time elapsed before the lock was acquired
    */
   @throws(classOf[InterruptedException])
   def unsafeTryLock(time: Long, unit: TimeUnit): Boolean
@@ -213,7 +213,6 @@ object Lock {
      * }}}
      *
      * @param callback the callback to be executed once the lock is acquired
-     * @throws java.lang.InterruptedException exception is thrown if the thread was interrupted
      * @return the returned value of our callback
      */
     @throws(classOf[InterruptedException])

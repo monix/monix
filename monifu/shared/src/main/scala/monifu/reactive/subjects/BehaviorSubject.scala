@@ -28,12 +28,8 @@ import scala.concurrent.Future
  * or the `initialValue` (as the seed) in case no value has yet been emitted, then continuing
  * to emit events subsequent to the time of invocation.
  *
- * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/S.BehaviorSubject.png" />
- *
  * When the source terminates in error, the `BehaviorSubject` will not emit any items to
  * subsequent subscribers, but instead it will pass along the error notification.
- *
- * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/S.BehaviorSubject.png" />
  */
 final class BehaviorSubject[T] private (initialValue: T) extends Subject[T,T] { self =>
   @volatile private[this] var subscribers = Vector.empty[Subscriber[T]]

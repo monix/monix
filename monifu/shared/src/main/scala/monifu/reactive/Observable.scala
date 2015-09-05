@@ -22,7 +22,6 @@ import monifu.concurrent.cancelables.BooleanCancelable
 import monifu.concurrent.{Cancelable, Scheduler}
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.OverflowStrategy.{default => defaultStrategy}
-import monifu.reactive.exceptions.CompositeException
 import monifu.reactive.internals._
 import monifu.reactive.observables.{ConnectableObservable, GroupedObservable}
 import monifu.reactive.observers._
@@ -47,14 +46,14 @@ import scala.util.control.NonFatal
  * }}}
  *
  * In other words an Observable is something that provides a
- * side-effecting function that can connect a [[Subscriber]] to
- * a stream of data. A `Subscriber` is a cross between an
- * [[Observer]] and a [[Scheduler]]. We need a [[Scheduler]] when
- * calling `subscribe` because that's when the side-effects happen
- * and a context capable of scheduling tasks for asynchronous
- * execution is needed. An [[Observer]] on the other hand is
- * the interface implemented by consumer and that receives
- * events according to the Rx grammar.
+ * side-effecting function that can connect a [[Subscriber]] to a
+ * stream of data. A `Subscriber` is a cross between an [[Observer]]
+ * and a [[monifu.concurrent.Scheduler Scheduler]].  We need a
+ * `Scheduler` when calling `subscribe` because that's when the
+ * side-effects happen and a context capable of scheduling tasks for
+ * asynchronous execution is needed. An [[Observer]] on the other hand
+ * is the interface implemented by consumer and that receives events
+ * according to the Rx grammar.
  *
  * On `onSubscribe`, because we need the interesting operators and
  * the polymorphic behavior provided by OOP, the Observable is
@@ -107,7 +106,7 @@ import scala.util.control.NonFatal
  *
  *   // triggers an auto-incremented number every second
  *   Observable.intervalAtFixedRate(1.second)
- *     .flatMap(_ => WS.request(s"http://some.endpoint.com/request?tick=$x").get())
+ *     .flatMap(_ => WS.request(s"http://some.endpoint.com/request").get())
  * }}}
  *
  * As you might notice, in the above example we are doing
@@ -160,7 +159,7 @@ import scala.util.control.NonFatal
  * produces events is adjusted to the speed with which the consumer consumes.
  *
  * For example, lets say we want to feed an iterator into an observer,
- * similar to what we are doing in [[Observer.Extensions.feed]],
+ * similar to what we are doing in [[Observer.Extensions.feed(iterable* Observer.feed]],
  * we might build a loop like this:
  * {{{
  *   /** Transforms any Iterable into an Observable */
@@ -238,13 +237,14 @@ import scala.util.control.NonFatal
  * like described above, hence the need for Channels.
  *
  * Or for more serious and lower level jobs, you can simply take an
- * `Observer` and wrap it into a [[BufferedSubscriber]].
+ * `Observer` and wrap it into a
+ * [[monifu.reactive.observers.BufferedSubscriber BufferedSubscriber]].
  *
  * @see [[monifu.reactive.Observer Observer]], the interface that must be
  *     implemented by consumers
  * @see [[monifu.concurrent.Scheduler Scheduler]], our enhanced `ExecutionContext`
  * @see [[monifu.reactive.Subscriber Subscriber]], the cross between an
- *     [[Observer]] and a [[Scheduler]]
+ *     [[Observer]] and a [[monifu.concurrent.Scheduler Scheduler]]
  * @see [[monifu.concurrent.Cancelable Cancelable]], the type returned by higher
  *     level `subscribe` variants and that can be used to cancel subscriptions
  * @see [[monifu.reactive.Subject Subject]], which are both Observables and Observers
@@ -260,7 +260,7 @@ import scala.util.control.NonFatal
  *         method.
  *
  *         The difference between the `concat` operation and
- *         [[Observable!.merge merge]] is that `concat` cares about
+ *         [[Observable!.merge[U](implicit* merge]] is that `concat` cares about
  *         ordering of emitted items (e.g. all items emitted by the
  *         first observable in the sequence will come before the
  *         elements emitted by the second observable), whereas
@@ -288,8 +288,8 @@ import scala.util.control.NonFatal
  *         second observable), whereas `merge` doesn't care about that
  *         (elements get emitted as they come). Because of
  *         back-pressure applied to observables, [[Observable!.concat concat]]
- *         is safe to use in all contexts, whereas [[Observable!.merge]]
- *         requires buffering.
+ *         is safe to use in all contexts, whereas
+ *         [[Observable!.merge[U](implicit* merge]] requires buffering.
  *
  * @define mergeMapReturn an Observable that emits the result of applying the
  *         transformation function to each item emitted by the source
@@ -323,8 +323,8 @@ import scala.util.control.NonFatal
  *         is reserving onError notifications until all of the
  *         Observables complete and only then passing the issued
  *         errors(s) along to the observers. Note that the streamed
- *         error is a [[CompositeException]], since multiple errors
- *         from multiple streams can happen.
+ *         error is a [[monifu.reactive.exceptions.CompositeException CompositeException]],
+ *         since multiple errors from multiple streams can happen.
  *
  * @define defaultOverflowStrategy this operation needs to do buffering
  *         and by not specifying an [[OverflowStrategy]], the
@@ -373,7 +373,7 @@ trait Observable[+T] { self =>
    * exceptions when the observable calls `onNext`, `onComplete` and
    * `onError`. If it does, then the behavior is undefined.
    *
-   * @see [[Observable.subscribe]].
+   * @see [[Observable.subscribe(observer* subscribe]].
    */
   def onSubscribe(subscriber: Subscriber[T]): Unit
 
@@ -390,7 +390,8 @@ trait Observable[+T] { self =>
    * @param observer is an [[monifu.reactive.Observer Observer]] that respects
    *                 the Monifu Rx contract
    *
-   * @param s is the [[Scheduler]] used for creating the subscription
+   * @param s is the [[monifu.concurrent.Scheduler Scheduler]]
+   *          used for creating the subscription
    */
   def onSubscribe(observer: Observer[T])(implicit s: Scheduler): Unit = {
     onSubscribe(Subscriber(observer, s))
@@ -974,10 +975,11 @@ trait Observable[+T] { self =>
    * criterion, and emits these grouped items as GroupedObservables, 
    * one GroupedObservable per group.
    *
-   * Note: A [[GroupedObservable]] will cache the items it is to emit
-   * until such time as it is subscribed to. For this reason, in order to
-   * avoid memory leaks, you should not simply ignore those GroupedObservables
-   * that do not concern you. Instead, you can signal to them that they may
+   * Note: A [[monifu.reactive.observables.GroupedObservable GroupedObservable]]
+   * will cache the items it is to emit until such time as it is
+   * subscribed to. For this reason, in order to avoid memory leaks,
+   * you should not simply ignore those GroupedObservables that do not
+   * concern you. Instead, you can signal to them that they may
    * discard their buffers by doing something like `source.take(0)`.
    *
    * @param keySelector - a function that extracts the key for each item
@@ -990,16 +992,17 @@ trait Observable[+T] { self =>
    * criterion, and emits these grouped items as GroupedObservables,
    * one GroupedObservable per group.
    *
-   * A [[GroupedObservable]] will cache the items it is to emit
-   * until such time as it is subscribed to. For this reason, in order to
-   * avoid memory leaks, you should not simply ignore those GroupedObservables
-   * that do not concern you. Instead, you can signal to them that they may
+   * A [[monifu.reactive.observables.GroupedObservable GroupedObservable]]
+   * will cache the items it is to emit until such time as it is
+   * subscribed to. For this reason, in order to avoid memory leaks,
+   * you should not simply ignore those GroupedObservables that do not
+   * concern you. Instead, you can signal to them that they may
    * discard their buffers by doing something like `source.take(0)`.
    *
    * This variant of `groupBy` specifies a `keyBufferSize` representing the
    * size of the buffer that holds our keys. We cannot block when emitting
-   * new [[GroupedObservable]]. So by specifying a buffer size, on overflow
-   * the resulting observable will terminate with an `onError`.
+   * new `GroupedObservable`. So by specifying a buffer size, on overflow
+   * the resulting observable will terminate with an onError`.
    *
    * @param keySelector - a function that extracts the key for each item
    * @param keyBufferSize - the buffer size used for buffering keys
@@ -1011,7 +1014,7 @@ trait Observable[+T] { self =>
    * Returns an Observable that emits only the last item emitted by the source
    * Observable during sequential time windows of a specified duration.
    *
-   * This differs from [[Observable!.throttleFirst)]] in that this ticks along
+   * This differs from [[Observable!.throttleFirst]] in that this ticks along
    * at a scheduled interval whereas `throttleFirst` does not tick, it just
    * tracks passage of time.
    *
@@ -1115,7 +1118,7 @@ trait Observable[+T] { self =>
    * intervals. If no new value has been emitted since the last time it
    * was sampled, the emit the last emitted value anyway.
    *
-   * Also see [[Observable!.sample]].
+   * Also see [[Observable!.sample(delay* Observable.sample]].
    *
    * @param delay the timespan at which sampling occurs and note that this is
    *              not accurate as it is subject to back-pressure concerns - as in
@@ -1151,7 +1154,7 @@ trait Observable[+T] { self =>
    * Observable. If no new value has been emitted since the last time it
    * was sampled, the emit the last emitted value anyway.
    *
-   * @see [[Observable!.sample sample]]
+   * @see [[Observable!.sample[U](sampler* Observable.sample]]
    *
    * @param sampler - the Observable to use for sampling the source Observable
    */
@@ -1917,40 +1920,6 @@ object Observable {
   /**
    * Observable constructor for creating an [[Observable]] from the
    * specified function.
-   *
-   * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/create.png" />
-   *
-   * Example: {{{
-   *   import monifu.reactive._
-   *   import monifu.reactive.Ack.Continue
-   *   import concurrent.ExecutionContext
-   *
-   *   def emit[T](elem: T, nrOfTimes: Int)(implicit s: Scheduler): Observable[T] =
-   *     Observable.create { observer =>
-   *       def loop(times: Int): Unit =
-   *         ec.execute(new Runnable {
-   *           def run() = {
-   *             if (times > 0)
-   *               observer.onNext(elem).onSuccess {
-   *                 case Continue => loop(times - 1)
-   *               }
-   *             else
-   *               observer.onComplete()
-   *           }
-   *         })
-   *
-   *       loop(nrOfTimes)
-   *     }
-   *
-   *   // usage sample
-   *   import concurrent.ExecutionContext.Implicits.global
-
-   *   emit(elem=30, nrOfTimes=3).dump("Emit").subscribe()
-   *   //=> 0: Emit-->30
-   *   //=> 1: Emit-->30
-   *   //=> 2: Emit-->30
-   *   //=> 3: Emit completed
-   * }}}
    */
   def create[T](f: Subscriber[T] => Unit): Observable[T] = {
     new Observable[T] {
@@ -1965,24 +1934,18 @@ object Observable {
   /**
    * Creates an observable that doesn't emit anything, but immediately
    * calls `onComplete` instead.
-   *
-   * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/empty.png" />
    */
   def empty: Observable[Nothing] =
     builders.unit.empty
 
   /**
    * Creates an Observable that only emits the given ''a''
-   *
-   * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/unit.png" />
    */
   def unit[A](elem: A): Observable[A] =
     builders.unit.one(elem)
 
   /**
    * Creates an Observable that emits an error.
-   *
-   * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/error.png" />
    */
   def error(ex: Throwable): Observable[Nothing] =
     builders.unit.error(ex)
@@ -1990,8 +1953,6 @@ object Observable {
   /**
    * Creates an Observable that doesn't emit anything and that never
    * completes.
-   *
-   * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/never.png"" />
    */
   def never: Observable[Nothing] =
     builders.unit.never
@@ -2002,8 +1963,6 @@ object Observable {
    * delay, after which it emits incremented numbers spaced by the
    * `period` of time. The given `period` of time acts as a fixed
    * delay between successive events.
-   *
-   * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/interval.png"" />
    *
    * @param delay the delay between 2 successive events
    */
@@ -2017,8 +1976,6 @@ object Observable {
    * `period` of time. The given `period` of time acts as a fixed
    * delay between successive events.
    *
-   * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/interval.png"" />
-   *
    * @param initialDelay is the delay to wait before emitting the first event
    * @param delay the time to wait between 2 successive events
    */
@@ -2031,8 +1988,6 @@ object Observable {
    * delay, after which it emits incremented numbers spaced by the
    * `period` of time. The given `period` of time acts as a fixed
    * delay between successive events.
-   *
-   * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/interval.png"" />
    *
    * @param delay the delay between 2 successive events
    */
@@ -2079,8 +2034,6 @@ object Observable {
   /**
    * Creates an Observable that emits items in the given range.
    *
-   * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/range.png" />
-   *
    * @param from the range start
    * @param until the range end
    * @param step increment step, either positive or negative
@@ -2125,16 +2078,12 @@ object Observable {
 
   /**
    * Converts a Future to an Observable.
-   *
-   * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/fromIterable.png" />
    */
   def fromFuture[T](future: Future[T]): Observable[T] =
     builders.from.future(future)
 
   /**
    * Creates an Observable that emits the elements of the given ''iterable''.
-   *
-   * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/fromIterable.png" />
    */
   def fromIterable[T](iterable: Iterable[T]): Observable[T] =
     builders.from.iterable(iterable)
@@ -2147,8 +2096,6 @@ object Observable {
 
   /**
    * Creates an Observable that emits the given elements exactly.
-   *
-   * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/fromIterable.png" />
    */
   def from[T](elems: T*): Observable[T] =
     builders.from.iterable(elems)
@@ -2160,7 +2107,7 @@ object Observable {
    * See the [[http://www.reactive-streams.org/ Reactive Streams]]
    * protocol that Monifu implements.
    *
-   * @see [[Observable!.publisher]] for converting ``
+   * @see [[Observable!.toReactive]] for converting ``
    */
   def fromReactivePublisher[T](publisher: RPublisher[T]): Observable[T] =
     Observable.create[T] { sub =>
@@ -2247,17 +2194,19 @@ object Observable {
     Observable.fromIterable(sources).concatDelayError
 
   /**
-   * Creates a new Observable from two observables,
-   * by emitting elements combined in pairs. If one of the Observable emits fewer
-   * events than the other, then the rest of the unpaired events are ignored.
+   * Creates a new Observable from two observables, by emitting
+   * elements combined in pairs. If one of the Observable emits fewer
+   * events than the other, then the rest of the unpaired events are
+   * ignored.
    */
   def zip[T1, T2](obs1: Observable[T1], obs2: Observable[T2]): Observable[(T1,T2)] =
     obs1.zip(obs2)
 
   /**
-   * Creates a new Observable from three observables,
-   * by emitting elements combined in tuples of 3 elements. If one of the Observable emits fewer
-   * events than the others, then the rest of the unpaired events are ignored.
+   * Creates a new Observable from three observables, by emitting
+   * elements combined in tuples of 3 elements. If one of the
+   * Observable emits fewer events than the others, then the rest of
+   * the unpaired events are ignored.
    */
   def zip[T1, T2, T3](obs1: Observable[T1], obs2: Observable[T2], obs3: Observable[T3]): Observable[(T1, T2, T3)] =
     obs1.zip(obs2).zip(obs3).map { case ((t1, t2), t3) => (t1, t2, t3) }
@@ -2273,10 +2222,12 @@ object Observable {
   /**
    * Creates a combined observable from 2 source observables.
    *
-   * This operator behaves in a similar way to [[zip]], but while `zip` emits items
-   * only when all of the zipped source Observables have emitted a previously unzipped item,
-   * `combine` emits an item whenever any of the source Observables emits
-   * an item (so long as each of the source Observables has emitted at least one item).
+   * This operator behaves in a similar way to [[Observable!.zip]],
+   * but while `zip` emits items only when all of the zipped source
+   * Observables have emitted a previously unzipped item, `combine`
+   * emits an item whenever any of the source Observables emits an
+   * item (so long as each of the source Observables has emitted at
+   * least one item).
    */
   def combineLatest[T1, T2](first: Observable[T1], second: Observable[T2]): Observable[(T1,T2)] = {
     first.combineLatest(second)
@@ -2285,10 +2236,12 @@ object Observable {
   /**
    * Creates a combined observable from 3 source observables.
    *
-   * This operator behaves in a similar way to [[zip]], but while `zip` emits items
-   * only when all of the zipped source Observables have emitted a previously unzipped item,
-   * `combine` emits an item whenever any of the source Observables emits
-   * an item (so long as each of the source Observables has emitted at least one item).
+   * This operator behaves in a similar way to [[Observable!.zip]],
+   * but while `zip` emits items only when all of the zipped source
+   * Observables have emitted a previously unzipped item, `combine`
+   * emits an item whenever any of the source Observables emits an
+   * item (so long as each of the source Observables has emitted at
+   * least one item).
    */
   def combineLatest[T1, T2, T3]
       (first: Observable[T1], second: Observable[T2], third: Observable[T3]): Observable[(T1,T2,T3)] = {
@@ -2300,10 +2253,12 @@ object Observable {
   /**
    * Creates a combined observable from 4 source observables.
    *
-   * This operator behaves in a similar way to [[zip]], but while `zip` emits items
-   * only when all of the zipped source Observables have emitted a previously unzipped item,
-   * `combine` emits an item whenever any of the source Observables emits
-   * an item (so long as each of the source Observables has emitted at least one item).
+   * This operator behaves in a similar way to [[Observable!.zip]],
+   * but while `zip` emits items only when all of the zipped source
+   * Observables have emitted a previously unzipped item, `combine`
+   * emits an item whenever any of the source Observables emits an
+   * item (so long as each of the source Observables has emitted at
+   * least one item).
    */
   def combineLatest[T1, T2, T3, T4]
       (first: Observable[T1], second: Observable[T2],
@@ -2314,8 +2269,9 @@ object Observable {
   }
 
   /**
-   * Given a list of source Observables, emits all of the items from the first of
-   * these Observables to emit an item and cancel the rest.
+   * Given a list of source Observables, emits all of the items from
+   * the first of these Observables to emit an item and cancel the
+   * rest.
    */
   def amb[T](source: Observable[T]*): Observable[T] =
     builders.amb(source : _*)
