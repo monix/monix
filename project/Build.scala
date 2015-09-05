@@ -36,6 +36,7 @@ object Build extends SbtBuild {
   val sharedSettings = Seq(
     organization := "org.monifu",
     scalaVersion := "2.11.7",
+
     scalacOptions ++= Seq(
       "-target:jvm-1.6", // generates code with the Java 6 class format
       "-optimise", // enables optimisations
@@ -66,10 +67,8 @@ object Build extends SbtBuild {
       "-Ywarn-inaccessible"
     ),
 
-    resolvers ++= Seq(
-      "Typesafe Releases" at "http://repo.typesafe.com/typesafe/releases",
-      Resolver.sonatypeRepo("releases")
-    ),
+    // Turning off fatal warnings for ScalaDoc, otherwise we can't release.
+    scalacOptions in (Compile, doc) ~= (_ filterNot (_ == "-Xfatal-warnings")),
 
     // ScalaDoc settings
     autoAPIMappings := true,
@@ -93,6 +92,11 @@ object Build extends SbtBuild {
     ),
 
     parallelExecution in Test := false,
+
+    resolvers ++= Seq(
+      "Typesafe Releases" at "http://repo.typesafe.com/typesafe/releases",
+      Resolver.sonatypeRepo("releases")
+    ),
 
     // -- Settings meant for deployment on oss.sonatype.org
 
