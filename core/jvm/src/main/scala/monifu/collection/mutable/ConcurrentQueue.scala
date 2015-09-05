@@ -18,7 +18,6 @@
 package monifu.collection.mutable
 
 import java.util.concurrent.ConcurrentLinkedQueue
-
 import scala.collection.JavaConverters._
 import scala.collection.generic.{GenericTraversableTemplate, CanBuildFrom, GenericCompanion, TraversableFactory}
 import scala.collection.{mutable, Iterable}
@@ -34,7 +33,7 @@ import scala.collection.{mutable, Iterable}
  * Contrary to Scala best-practices, the `poll()` method that pulls elements from our
  * queue is returning `null` in case the queue is empty.
  */
-final class ConcurrentQueue[A](elems: A*)
+private[monifu] final class ConcurrentQueue[A](elems: A*)
   extends Iterable[A]
   with GenericTraversableTemplate[A, ConcurrentQueue]
   with mutable.Cloneable[ConcurrentQueue[A]]
@@ -55,7 +54,7 @@ final class ConcurrentQueue[A](elems: A*)
   /**
    * Enqueues one element in this queue
    *
-   * @throws NullPointerException if the specified element is null
+   * Throws `NullPointerException` if the given `elem` is null.
    */
   def offer(elem: A): Unit = {
     underlying.offer(elem)
@@ -67,11 +66,11 @@ final class ConcurrentQueue[A](elems: A*)
    * collection's iterator. Attempts to `addAll` of a queue to
    * itself result in `IllegalArgumentException`.
    *
+   * Throws `NullPointerException` if the specified collection or any
+   * of its elements are null.
+   *
    * @param elems the elements to be inserted into this queue
    * @return `true` if this queue changed as a result of the call
-   *
-   * @throws `NullPointerException` if the specified collection or any
-   *         of its elements are null
    */
   def addAll(elems: A*): Unit = {
     underlying.addAll(elems.asJava)
@@ -128,7 +127,7 @@ final class ConcurrentQueue[A](elems: A*)
  * Contrary to Scala best-practices, the `poll()` method that pulls elements from our
  * queue is returning `null` in case the queue is empty.
  */
-object ConcurrentQueue extends TraversableFactory[ConcurrentQueue] {
+private[monifu] object ConcurrentQueue extends TraversableFactory[ConcurrentQueue] {
   implicit def canBuildFrom[A]: CanBuildFrom[Coll, A, ConcurrentQueue[A]] =
     ReusableCBF.asInstanceOf[GenericCanBuildFrom[A]]
 

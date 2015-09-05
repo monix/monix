@@ -29,7 +29,7 @@ import scala.annotation.tailrec
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 
-object groupBy {
+private[reactive] object groupBy {
   /** Implementation for [[Observable.groupBy]] */
   def apply[T,K](source: Observable[T], os: OverflowStrategy.Synchronous, keyFn: T => K): Observable[GroupedObservable[K,T]] = {
     Observable.create { subscriber =>

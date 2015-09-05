@@ -26,13 +26,9 @@ import scala.concurrent.Future
  * An `AsyncSubject` emits the last value (and only the last value) emitted by the source Observable,
  * and only after that source Observable completes.
  *
- * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/S.AsyncSubject.png" />
- *
  * If the source terminates with an error, the `AsyncSubject` will not emit any
  * items to subsequent subscribers, but will simply pass along the error
  * notification from the source Observable.
- *
- * <img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/rx-operators/S.AsyncSubject.e.png" />
  */
 final class AsyncSubject[T] extends Subject[T,T] { self =>
   @volatile private[this] var subscribers = Vector.empty[Subscriber[T]]

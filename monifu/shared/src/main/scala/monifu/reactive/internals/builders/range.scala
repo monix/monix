@@ -24,13 +24,7 @@ import scala.util.Failure
 
 private[reactive] object range {
   /**
-   * Creates an Observable that emits items in the given range.
-   *
-   * <img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/rx-operators/range.png" />
-   *
-   * @param from the range start
-   * @param until the range end
-   * @param step increment step, either positive or negative
+   * Implementation for [[Observable.range]]
    */
   def apply(from: Long, until: Long, step: Long = 1): Observable[Long] = {
     require(step != 0, "step must be a number different from zero")

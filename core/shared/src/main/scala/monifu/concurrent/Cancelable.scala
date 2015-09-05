@@ -25,6 +25,8 @@ import monifu.concurrent.atomic.padded.Atomic
  *
  * It is equivalent to `java.io.Closeable`, but without the I/O focus, or to `IDisposable` in Microsoft .NET,
  * or to `akka.actor.Cancellable`.
+ *
+ * @see [[monifu.concurrent.cancelables]]
  */
 trait Cancelable {
   /**
