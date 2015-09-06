@@ -37,8 +37,25 @@ Highlights:
 
 ## Usage
 
-See **[monifu-sample](https://github.com/monifu/monifu-sample)** for 
+See **[monifu-sample](https://github.com/monifu/monifu-sample)** for
 a project exemplifying Monifu used both on the server and on the client.
+
+The packages are published on Maven Central. Compiled for Scala 2.11.5
+and Scala.js 0.6.0. Older versions are no longer supported.
+
+- Current stable release is: `1.0-RC1`
+
+### For the JVM
+
+```scala
+libraryDependencies += "org.monifu" %% "monifu" % "1.0-RC1"
+```
+
+### For targeting Javascript runtimes with Scala.js
+
+```scala
+libraryDependencies += "org.monifu" %%% "monifu" % "1.0-RC1"
+```
 
 ### Example
 
@@ -97,25 +114,6 @@ There's actually a lot more to Monifu.
 The documentation is a work in progress.
 
 [API Documentation](http://monifu.org/api/current/)
-
-## Usage
-
-The packages are published on Maven Central. Compiled for Scala 2.11.5
-and Scala.js 0.6.0. Older versions are no longer supported.
-
-- Current stable release is: `1.0-RC1`
-
-### For the JVM
-
-```scala
-libraryDependencies += "org.monifu" %% "monifu" % "1.0-RC1"
-```
-
-### For targeting Javascript runtimes with Scala.js
-
-```scala
-libraryDependencies += "org.monifu" %%% "monifu" % "1.0-RC1"
-```
 
 ## License
 
