@@ -35,7 +35,12 @@ Highlights:
   or the browser
 - really good test coverage as a project policy
 
-### Example usage
+## Usage
+
+See **[monifu-sample](https://github.com/monifu/monifu-sample)** for 
+a project exemplifying Monifu used both on the server and on the client.
+
+### Example
 
 In order for subscriptions to work, we need an implicit
 [Scheduler](shared/src/main/scala/monifu/concurrent/Scheduler.scala#L33) imported in our
