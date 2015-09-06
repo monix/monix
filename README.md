@@ -89,26 +89,9 @@ There's actually a lot more to Monifu.
 
 ## Documentation
 
-**NOTE (Feb 27):** the documentation is a little obsolete and incomplete in places.
-Currently the project is marching towards a stable 1.0 and properly documented
-version. Be patient :-)
+The documentation is a work in progress.
 
-The available documentation is maintained as a [GitHub's Wiki](https://github.com/monifu/monifu/wiki).
-Work in progress.
-
-* [Reactive Extensions (Rx)](https://github.com/monifu/monifu/wiki/Reactive-Extensions-%28Rx%29)
-* [Atomic References](https://github.com/monifu/monifu/wiki/Atomic-References)
-* [Schedulers](https://github.com/monifu/monifu/wiki/Schedulers)
-
-API documentation:
-
-* [monifu](http://www.monifu.org/monifu/current/api/)
-* [monifu-js](http://www.monifu.org/monifu-js/current/api/)
-
-Release Notes:
-
-* [Version 1.0-M1 - Feb 27, 2015](https://github.com/monifu/monifu/wiki/1.0-M1)
-* [Other Versions](https://github.com/monifu/monifu/wiki/Release-Notes)
+[API Documentation](http://monifu.org/api/current/)
 
 ## Usage
 
