@@ -17,22 +17,19 @@
 
 package monifu.reactive.internals.operators
 
-import monifu.concurrent.cancelables.{RefCountCancelable, SerialCancelable}
+import monifu.concurrent.cancelables.{BooleanCancelable, SerialCancelable}
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive._
-import monifu.reactive.exceptions.CompositeException
 import monifu.reactive.internals._
 import monifu.reactive.observers.SynchronousObserver
-import scala.collection.mutable
 import scala.concurrent.Future
+
 
 private[reactive] object switch {
   /**
-   * Implementation for [[Observable.concat]].
+   * Implementation for [[Observable.switch]].
    */
-  def apply[T, U](source: Observable[T], delayErrors: Boolean)
-      (implicit ev: T <:< Observable[U]): Observable[U] = {
-
+  def apply[T,U](source: Observable[T])(implicit ev: T <:< Observable[U]): Observable[U] = {
     Observable.create { observerU: Subscriber[U] =>
       import observerU.{scheduler => s}
 
@@ -40,55 +37,31 @@ private[reactive] object switch {
         // Global subscription, is canceled by the downstream
         // observer and if canceled all streaming is supposed to stop
         private[this] val upstream = SerialCancelable()
-
         // MUST BE synchronized by `self`
         private[this] var ack: Future[Ack] = Continue
         // MUST BE synchronized by `self`
-        private[this] val errors = if (delayErrors)
-          mutable.ArrayBuffer.empty[Throwable] else null
-
-        private[this] val refCount = RefCountCancelable {
-          self.synchronized {
-            if (delayErrors && errors.nonEmpty) {
-              ack.onContinueSignalError(observerU, CompositeException(errors))
-              errors.clear()
-            }
-            else {
-              ack.onContinueSignalComplete(observerU)
-            }
-          }
-        }
 
         def onNext(childObservable: T) = self.synchronized {
           if (upstream.isCanceled) Cancel else {
             // canceling current observable in order to
             // start the new stream
-            val refID = refCount.acquire()
-            upstream := refID
+            val activeRef = BooleanCancelable()
+            upstream := activeRef
 
             childObservable.onSubscribe(new Observer[U] {
               def onNext(elem: U) = self.synchronized {
-                if (refID.isCanceled) Cancel else {
+                if (activeRef.isCanceled) Cancel else {
                   ack = ack.onContinueStreamOnNext(observerU, elem)
                   ack.ifCanceledDoCancel(upstream)
                 }
               }
 
               def onError(ex: Throwable): Unit = {
-                if (delayErrors) self.synchronized {
-                  errors += ex
-                  onComplete()
-                }
-                else {
-                  self.onError(ex)
-                }
+                self.onError(ex)
               }
 
               def onComplete(): Unit = {
-                // NOTE: we aren't sending this onComplete signal downstream to
-                // our observerU we will eventually do that after all of them
-                // are complete
-                refID.cancel()
+                // do absolutely nothing
               }
             })
 
@@ -96,20 +69,18 @@ private[reactive] object switch {
           }
         }
 
-        def onError(ex: Throwable): Unit =
-          self.synchronized {
-            if (delayErrors) {
-              errors += ex
-              onComplete()
-            }
-            else if (!upstream.isCanceled) {
-              upstream.cancel()
-              ack.onContinueSignalError(observerU, ex)
-            }
+        def onError(ex: Throwable): Unit = self.synchronized {
+          if (!upstream.isCanceled) {
+            upstream.cancel()
+            ack.onContinueSignalError(observerU, ex)
           }
+        }
 
-        def onComplete(): Unit = {
-          refCount.cancel()
+        def onComplete(): Unit = self.synchronized {
+          if (!upstream.isCanceled) {
+            upstream.cancel()
+            ack.onContinueSignalComplete(observerU)
+          }
         }
       })
     }

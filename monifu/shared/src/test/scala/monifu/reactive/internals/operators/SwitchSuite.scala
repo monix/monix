@@ -21,41 +21,25 @@ import monifu.reactive.Observable
 import scala.concurrent.duration._
 
 object SwitchSuite extends BaseOperatorSuite {
-  def createChild() = {
-    Observable.interval(1.second).take(2) ++
-      Observable.interval(1.second).drop(3)
-  }
-
   def createObservable(sourceCount: Int) = Some {
+    val count = sourceCount / 2 * 2 + 1
     val o = Observable.interval(2.seconds)
-      .take(sourceCount)
-      .map(i => (if (i < sourceCount-1) createChild() else Observable.interval(1.second)).take(sourceCount))
-      .switch
+      .switchMap(i => Observable.interval(1.second).map(_ => i).take(2) ++ Observable.empty.delaySubscription(1.second))
+      .take(count)
 
-    val count = (sourceCount - 1) * 2 + sourceCount
-    val sum = (sourceCount - 1) + (1 until sourceCount).sum
+    val sum = (0 until count).flatMap(x => Seq(x,x)).take(count).sum
     Sample(o, count, sum, waitFirst, waitNext)
   }
 
-  def waitFirst = 0.seconds
+  def waitFirst = 1.seconds
   def waitNext = 1.second
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    def createChild(i: Long) = {
-      if (i < sourceCount-1)
-        Observable.interval(1.second).take(2)
-      else
-        Observable.interval(1.second)
-          .take(sourceCount)
-    }
+    val count = sourceCount / 2 * 2 + 1
+    val o = createObservableEndingInError(Observable.interval(2.seconds).take(count), ex)
+      .switchMap(i => Observable.interval(1.second).map(_ => i).take(2) ++ Observable.empty.delaySubscription(1.second))
 
-    val source = Observable.interval(2.seconds).take(sourceCount)
-    val endingInError = createObservableEndingInError(source, ex)
-    val o = endingInError.map(createChild).switch
-
-    val count = (sourceCount - 1) * 2
-    val sum = sourceCount - 1
-
+    val sum = (0 until count).flatMap(x => Seq(x,x)).take(count).sum
     Sample(o, count, sum, waitFirst, waitNext)
   }
 

@@ -22,8 +22,7 @@ import monifu.concurrent.extensions._
 import monifu.concurrent.schedulers.TestScheduler
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.exceptions.DummyException
-import monifu.reactive.subjects.PublishSubject
-import monifu.reactive.{Ack, Observable, Observer}
+import monifu.reactive.{Observable, Observer}
 import scala.concurrent.duration._
 import scala.concurrent.{Future, Promise}
 import scala.util.Random
@@ -185,7 +184,7 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
           def onComplete(): Unit = total = sum
         })
 
-        s.tick(waitForFirst + waitForNext * (count - 1) + 100.millis * count)
+        s.tick(waitForFirst + waitForNext * count + 100.millis * count)
         assertEquals(received, count)
         assertEquals(total, sum)
     }
