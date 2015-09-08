@@ -95,14 +95,14 @@ trait LiftOperators1[+T, Self[+U] <: Observable[U]] { self: Observable[T] =>
   override def switch[U](implicit ev: <:<[T, Observable[U]]): Self[U] =
     liftToSelf(o => Observable.create[T](o.onSubscribe).switch)
 
-  override def switchDelayErrors[U](implicit ev: <:<[T, Observable[U]]): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).switchDelayErrors)
+  override def flattenLatest[U](implicit ev: <:<[T, Observable[U]]): Self[U] =
+    liftToSelf(o => Observable.create[T](o.onSubscribe).flattenLatest)
 
-  override def flatMapLatest[U](implicit ev: <:<[T, Observable[U]]): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).flatMapLatest)
+  override def flatMapLatest[U](f: (T) => Observable[U]): Self[U] =
+    liftToSelf(o => Observable.create[T](o.onSubscribe).flatMapLatest(f))
 
-  override def flatMapLatestDelayErrors[U](implicit ev: <:<[T, Observable[U]]): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).flatMapLatestDelayErrors)
+  override def switchMap[U](f: (T) => Observable[U]): Self[U] =
+    liftToSelf(o => Observable.create[T](o.onSubscribe).switchMap(f))
 
   override def ambWith[U >: T](other: Observable[U]): Self[U] =
     liftToSelf(o => Observable.create[T](o.onSubscribe).ambWith(other))
@@ -193,6 +193,18 @@ trait LiftOperators1[+T, Self[+U] <: Observable[U]] { self: Observable[T] =>
 
   override def debounce(timeout: FiniteDuration): Self[T] =
     liftToSelf(o => Observable.create[T](o.onSubscribe).debounce(timeout))
+
+  override def debounceRepeated(period: FiniteDuration): Self[T] =
+    liftToSelf(o => Observable.create[T](o.onSubscribe).debounceRepeated(period))
+
+  override def debounce[U](timeout: FiniteDuration, f: (T) => Observable[U]): Self[U] =
+    liftToSelf(o => Observable.create[T](o.onSubscribe).debounce(timeout, f))
+
+  override def debounce(selector: (T) => Observable[Any]): Self[T] =
+    liftToSelf(o => Observable.create[T](o.onSubscribe).debounce(selector))
+
+  override def debounce[U](selector: (T) => Observable[Any], f: (T) => Observable[U]): Self[U] =
+    liftToSelf(o => Observable.create[T](o.onSubscribe).debounce(selector, f))
 
   override def echoOnce(timeout: FiniteDuration): Self[T] =
     liftToSelf(o => Observable.create[T](o.onSubscribe).echoOnce(timeout))

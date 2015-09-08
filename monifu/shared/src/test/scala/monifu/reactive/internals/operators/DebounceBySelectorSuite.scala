@@ -17,34 +17,20 @@
 
 package monifu.reactive.internals.operators
 
-import monifu.reactive.exceptions.{DummyException, CompositeException}
 import monifu.reactive.Observable
-import scala.concurrent.duration._
+import concurrent.duration._
 
-object SwitchDelayErrorSuite extends BaseOperatorSuite {
-  def createChild() = {
-    Observable.interval(1.second).take(2) ++
-      Observable.interval(1.second).drop(3)
-  }
-
+object DebounceBySelectorSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val source = Observable.interval(2.seconds)
+    val o = Observable.interval(2.seconds)
+      .debounce(x => Observable.unit(0).delaySubscription(1.second))
       .take(sourceCount)
-      .endWithError(DummyException("dummy"))
-      .map(i => (if (i < sourceCount-1) createChild() else Observable.interval(1.second)).take(sourceCount))
-      .switchDelayErrors
 
-    val o = source.onErrorRecoverWith {
-      case CompositeException(Seq(DummyException("dummy"))) =>
-        Observable.unit(10L)
-    }
-
-    val count = (sourceCount - 1) * 2 + sourceCount + 1
-    val sum = (sourceCount - 1) + (1 until sourceCount).sum + 10
-    Sample(o, count, sum, 0.seconds, 1.seconds)
+    val count = sourceCount
+    val sum = sourceCount * (sourceCount - 1) / 2
+    Sample(o, count, sum, 1.second, 2.second)
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = None
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 }
-

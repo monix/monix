@@ -26,12 +26,12 @@ import monifu.reactive.{Ack, Observable}
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
+
 private[reactive] object debounce {
   /**
-   * Only emit an item from an Observable if a particular 
-   * timespan has passed without it emitting another item
+   * Implementation for [[Observable.debounce]].
    */
-  def apply[T](source: Observable[T], timeout: FiniteDuration): Observable[T] = {
+  def timeout[T](source: Observable[T], timeout: FiniteDuration, repeat: Boolean): Observable[T] = {
     Observable.create { downstream =>
       import downstream.{scheduler => s}
       val timeoutMillis = timeout.toMillis
@@ -67,7 +67,7 @@ private[reactive] object debounce {
               if (sinceLastOnNext >= timeoutMillis) {
                 // signaling event, so next time we'll
                 // require a new event
-                hasValue = false
+                hasValue = repeat
 
                 ack = downstream.onNext(lastEvent).fastFlatMap {
                   case Continue =>
@@ -125,4 +125,13 @@ private[reactive] object debounce {
       })
     }
   }
+
+  def bySelector[T,U](source: Observable[T], selector: T => Observable[U]): Observable[T] =
+    source.flatMapLatest(t => selector(t).complete ++ Observable.unit(t))
+
+  def flatten[T,U](source: Observable[T], timeout: FiniteDuration, f: T => Observable[U]): Observable[U] =
+    source.flatMapLatest(t => f(t).delaySubscription(timeout))
+
+  def flattenBySelector[T,S,U](source: Observable[T], selector: T => Observable[S], f: T => Observable[U]): Observable[U] =
+    source.flatMapLatest(t => selector(t).complete ++ f(t))
 }

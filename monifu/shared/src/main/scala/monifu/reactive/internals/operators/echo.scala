@@ -19,7 +19,6 @@ package monifu.reactive.internals.operators
 
 import java.util.concurrent.TimeUnit
 import monifu.concurrent.cancelables.MultiAssignmentCancelable
-import monifu.concurrent.locks.SpinLock
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.internals._
 import monifu.reactive.{Ack, Observable, Observer}
@@ -37,8 +36,7 @@ private[reactive] object echo {
       import downstream.{scheduler => s}
       val timeoutMillis = timeout.toMillis
 
-      source.onSubscribe(new Observer[T] {
-        private[this] val lock = SpinLock()
+      source.onSubscribe(new Observer[T] { lock =>
         private[this] val task = MultiAssignmentCancelable()
         private[this] var ack: Future[Ack] = Continue
         private[this] var lastEvent: T = _
@@ -47,7 +45,7 @@ private[reactive] object echo {
 
         private[this] val unfreeze: Ack => Ack = {
           case Continue =>
-            lock.enter {
+            lock.synchronized {
               hasValue = true
               lastTSInMillis = s.currentTimeMillis()
               Continue
@@ -56,7 +54,7 @@ private[reactive] object echo {
             Cancel
         }
 
-        def onNext(elem: T): Future[Ack] = lock.enter {
+        def onNext(elem: T): Future[Ack] = lock.synchronized {
           lastEvent = elem
           ack = ack.onContinueStreamOnNext(downstream, elem)
             .fastFlatMap(unfreeze)
@@ -64,14 +62,14 @@ private[reactive] object echo {
         }
 
         def onError(ex: Throwable): Unit =
-          lock.enter {
+          lock.synchronized {
             task.cancel()
             ack.onContinueSignalError(downstream, ex)
             ack = Cancel
           }
 
         def onComplete(): Unit =
-          lock.enter {
+          lock.synchronized {
             task.cancel()
             ack.onContinueSignalComplete(downstream)
             ack = Cancel
@@ -89,7 +87,7 @@ private[reactive] object echo {
             task := s.scheduleOnce(delayMillis, TimeUnit.MILLISECONDS, self)
           }
 
-          def run(): Unit = lock.enter {
+          def run(): Unit = lock.synchronized {
             if (!ack.isCompleted) {
               // The consumer is still processing its last message,
               // and this processing time does not enter the picture.

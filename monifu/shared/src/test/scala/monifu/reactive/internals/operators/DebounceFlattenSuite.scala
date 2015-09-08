@@ -17,18 +17,19 @@
 
 package monifu.reactive.internals.operators
 
-import monifu.reactive.Observable
-import concurrent.duration._
 
-object DebounceSuite extends BaseOperatorSuite {
+import monifu.reactive.Observable
+import scala.concurrent.duration._
+
+object DebounceFlattenSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.interval(2.seconds)
-      .debounce(1.second)
+    val o = Observable.create[Long](_.onNext(1))
+      .debounce(1.second, (x: Long) => Observable.interval(1.second).map(_ + x))
       .take(sourceCount)
 
     val count = sourceCount
-    val sum = sourceCount * (sourceCount - 1) / 2
-    Sample(o, count, sum, 1.second, 2.second)
+    val sum = sourceCount * (sourceCount + 1) / 2
+    Sample(o, count, sum, 1.second, 1.second)
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = None
