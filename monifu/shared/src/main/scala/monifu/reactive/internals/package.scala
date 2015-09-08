@@ -17,12 +17,13 @@
 
 package monifu.reactive
 
-import language.implicitConversions
 import monifu.concurrent.{Cancelable, Scheduler}
 import monifu.reactive.Ack.{Cancel, Continue}
+
 import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.language.implicitConversions
 import scala.util.control.NonFatal
-import scala.util.{Success, Failure, Try}
+import scala.util.{Failure, Success, Try}
 
 
 package object internals {
@@ -130,58 +131,57 @@ package object internals {
      * in case our source is a [[Cancel]] or a failure.
      */
     def ifCanceledDoCancel(cancelable: Cancelable)(implicit s: Scheduler): Future[Ack] = {
-      source match {
-        case sync if sync.isCompleted =>
-          sync.value.get match {
-            case Cancel.IsSuccess | Failure(_) =>
-              try {
-                cancelable.cancel()
-                sync
-              }
-              catch {
-                case NonFatal(ex) =>
-                  Future.failed(ex)
-              }
+      if (source.isCompleted) {
+        if (source == Continue || source.value.get == Continue.IsSuccess) {
+          source // do nothing
+        }
+        else try {
+          cancelable.cancel()
+          source
+        }
+        catch {
+          case NonFatal(ex) =>
+            Future.failed(ex)
+        }
+      }
+      else {
+        val p = Promise[Ack]()
+        source.onComplete {
+          case Continue.IsSuccess =>
+            p.success(Continue)
 
-            case _ =>
-              sync
-          }
+          case result@(Cancel.IsSuccess | Failure(_)) =>
+            try {
+              cancelable.cancel()
+              p.complete(result)
+            }
+            catch {
+              case NonFatal(ex) =>
+                p.failure(ex)
+            }
 
-        case async =>
-          val p = Promise[Ack]()
-          async.onComplete {
-            case result @ (Cancel.IsSuccess | Failure(_)) =>
-              try {
-                cancelable.cancel()
-                p.complete(result)
-              }
-              catch {
-                case NonFatal(ex) =>
-                  p.failure(ex)
-              }
-            case other =>
-              p.complete(other)
-          }
-          p.future
+          case other =>
+            p.complete(other)
+        }
+
+        p.future
       }
     }
 
     // -----
 
     def onContinueStreamOnNext[T](observer: Observer[T], nextElem: T)(implicit s: Scheduler) =
-      source match {
-        case sync if sync.isCompleted =>
-          if (sync == Continue || sync.value.get == Continue.IsSuccess)
-            observer.onNext(nextElem)
-          else
-            Cancel
-        case async =>
-          async.flatMap {
-            case Continue =>
-              observer.onNext(nextElem)
-            case Cancel =>
-              Cancel
-          }
+      if (source.isCompleted) {
+        if (source == Continue || source.value.get == Continue.IsSuccess)
+          observer.onNext(nextElem)
+        else
+          Cancel
+      }
+      else source.flatMap {
+        case Continue =>
+          observer.onNext(nextElem)
+        case Cancel =>
+          Cancel
       }
 
     def mapToContinue(implicit s: Scheduler): Future[Continue] =

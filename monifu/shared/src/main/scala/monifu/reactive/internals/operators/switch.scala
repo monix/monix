@@ -21,7 +21,6 @@ import monifu.concurrent.cancelables.{BooleanCancelable, SerialCancelable}
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive._
 import monifu.reactive.internals._
-import monifu.reactive.observers.SynchronousObserver
 import scala.concurrent.Future
 
 
@@ -33,7 +32,7 @@ private[reactive] object switch {
     Observable.create { observerU: Subscriber[U] =>
       import observerU.{scheduler => s}
 
-      source.onSubscribe(new SynchronousObserver[T] { self =>
+      source.onSubscribe(new Observer[T] { self =>
         // Global subscription, is canceled by the downstream
         // observer and if canceled all streaming is supposed to stop
         private[this] val upstream = SerialCancelable()
@@ -48,24 +47,27 @@ private[reactive] object switch {
             val activeRef = BooleanCancelable()
             upstream := activeRef
 
-            childObservable.onSubscribe(new Observer[U] {
-              def onNext(elem: U) = self.synchronized {
-                if (activeRef.isCanceled) Cancel else {
-                  ack = ack.onContinueStreamOnNext(observerU, elem)
-                  ack.ifCanceledDoCancel(upstream)
-                }
-              }
+            ack.fastFlatMap {
+              case Continue =>
+                childObservable.onSubscribe(new Observer[U] {
+                  def onNext(elem: U) = self.synchronized {
+                    if (activeRef.isCanceled) Cancel else {
+                      ack = ack.onContinueStreamOnNext(observerU, elem)
+                      ack.ifCanceledDoCancel(upstream)
+                    }
+                  }
 
-              def onError(ex: Throwable): Unit = {
-                self.onError(ex)
-              }
+                  def onComplete(): Unit = ()
+                  def onError(ex: Throwable): Unit = {
+                    self.onError(ex)
+                  }
+                })
 
-              def onComplete(): Unit = {
-                // do absolutely nothing
-              }
-            })
+                Continue
 
-            Continue
+              case Cancel =>
+                Cancel
+            }
           }
         }
 

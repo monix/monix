@@ -40,9 +40,20 @@ object SwitchSuite extends BaseOperatorSuite {
       .switchMap(i => Observable.interval(1.second).map(_ => i).take(2) ++ Observable.empty.delaySubscription(1.second))
 
     val sum = (0 until count).flatMap(x => Seq(x,x)).take(count).sum
-    Sample(o, count, sum, waitFirst, waitNext)
+    Sample(o, count, sum, waitFirst, 2.seconds)
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) =
     None
+
+  test("source.switchMap(unit) == source") { implicit s =>
+    val source = Observable.range(0, 100)
+    val switched = source.switchMap(i => Observable.unit(i))
+
+    val r1 = source.foldLeft(Seq.empty[Long])(_ :+ _).asFuture
+    val r2 = switched.foldLeft(Seq.empty[Long])(_ :+ _).asFuture
+    s.tick()
+
+    assertEquals(r2.value.get, r1.value.get)
+  }
 }
