@@ -17,26 +17,33 @@
 
 package monifu.reactive.internals.operators
 
-import monifu.reactive.Observable
+import monifu.reactive.Ack.Cancel
+import monifu.reactive.{Ack, Observable, Observer}
 import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.{Promise, Future}
-import scala.util.{Failure, Success}
-
+import scala.concurrent.{Future, Promise}
 
 private[reactive] object delaySubscription {
   /**
    * Implementation for [[Observable.delaySubscription]].
    */
-  def onFuture[T](source: Observable[T], future: Future[_]): Observable[T] =
+  def onTrigger[T,U](source: Observable[T], trigger: Observable[U]): Observable[T] =
       Observable.create[T] { subscriber =>
         import subscriber.{scheduler => s}
 
-        future.onComplete {
-          case Success(_) =>
+        trigger.onSubscribe(new Observer[U] {
+          def onNext(elem: U): Future[Ack] = {
             source.onSubscribe(subscriber)
-          case Failure(ex) =>
+            Cancel
+          }
+
+          def onError(ex: Throwable): Unit = {
             subscriber.onError(ex)
-        }
+          }
+
+          def onComplete(): Unit = {
+            source.onSubscribe(subscriber)
+          }
+        })
       }
 
   /**

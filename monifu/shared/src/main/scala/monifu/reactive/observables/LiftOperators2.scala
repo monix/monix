@@ -23,7 +23,6 @@ import monifu.concurrent.Scheduler
 import monifu.concurrent.cancelables.BooleanCancelable
 import monifu.reactive.OverflowStrategy.{Synchronous, Evicted}
 import monifu.reactive.{Notification, Observable, OverflowStrategy}
-import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 
 /**
@@ -213,11 +212,17 @@ trait LiftOperators2[I, +T, Self[A,+B] <: Observable[B]] { self: Observable[T] =
   override def echoRepeated(timeout: FiniteDuration): Self[I,T] =
     liftToSelf(o => Observable.create[T](o.onSubscribe).echoRepeated(timeout))
 
-  override def delaySubscription(future: Future[_]): Self[I,T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).delaySubscription(future))
+  override def delaySubscription[U](trigger: Observable[U]): Self[I,T] =
+    liftToSelf(o => Observable.create[T](o.onSubscribe).delaySubscription(trigger))
 
   override def delaySubscription(timespan: FiniteDuration): Self[I,T] =
     liftToSelf(o => Observable.create[T](o.onSubscribe).delaySubscription(timespan))
+
+  override def delay(duration: FiniteDuration): Self[I, T] =
+    liftToSelf(o => Observable.create[T](o.onSubscribe).delay(duration))
+
+  override def delay[U](selector: (T) => Observable[U]): Self[I, T] =
+    liftToSelf(o => Observable.create[T](o.onSubscribe).delay(selector))
 
   override def foldLeft[R](initial: R)(op: (R, T) => R): Self[I,R] =
     liftToSelf(o => Observable.create[T](o.onSubscribe).foldLeft(initial)(op))

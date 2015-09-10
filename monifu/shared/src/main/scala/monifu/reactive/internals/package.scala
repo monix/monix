@@ -345,6 +345,7 @@ package object internals {
               s.reportFailure(ex)
           }
           source
+
         case async =>
           source.onComplete(f)
           source

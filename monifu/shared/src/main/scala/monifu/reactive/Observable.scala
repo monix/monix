@@ -1039,24 +1039,6 @@ trait Observable[+T] { self =>
     operators.throttle.first(self, interval)
 
   /**
-   * Alias for [[Observable!.debounce(selector* debounce]].
-   *
-   * Only emit an item from an Observable if a particular
-   * timespan has passed without it emitting another item,
-   * a timespan indicated by the completion of an observable
-   * generated the `selector` function.
-   *
-   * Note: If the source Observable keeps emitting items more frequently
-   * than the length of the time window then no items will be emitted
-   * by the resulting Observable.
-   *
-   * @param selector function to retrieve a sequence that indicates the
-   *                 throttle duration for each item
-   */
-  def throttleWithTimeout(selector: T => Observable[Any]): Observable[T] =
-    debounce(selector)
-
-  /**
    * Alias for [[Observable!.debounce(timeout* debounce]].
    *
    * Returns an Observable that only emits those items emitted by the source
@@ -1328,15 +1310,18 @@ trait Observable[+T] { self =>
     operators.echo.apply(self, timeout, onlyOnce = false)
 
   /**
-   * Hold an Observer's subscription request until the given `future` completes,
-   * before passing it on to the source Observable. If the given `future`
-   * completes in error, then the subscription is terminated with `onError`.
+   * Hold an Observer's subscription request until the given `trigger`
+   * observable either emits an item or completes, before passing it on to
+   * the source Observable.
    *
-   * @param future the `Future` that must complete in order for the
-   *               subscription to happen.
+   * If the given `trigger` completes in error, then the subscription is
+   * terminated with `onError`.
+   *
+   * @param trigger - the observable that must either emit an item or
+   *                complete in order for the source to be subscribed.
    */
-  def delaySubscription(future: Future[_]): Observable[T] =
-    operators.delaySubscription.onFuture(self, future)
+  def delaySubscription[U](trigger: Observable[U]): Observable[T] =
+    operators.delaySubscription.onTrigger(self, trigger)
 
   /**
    * Hold an Observer's subscription request for a specified
@@ -1347,6 +1332,51 @@ trait Observable[+T] { self =>
    */
   def delaySubscription(timespan: FiniteDuration): Observable[T] =
     operators.delaySubscription.onTimespan(self, timespan)
+
+  /**
+   * Returns an Observable that emits the items emitted by the source
+   * Observable shifted forward in time by a specified delay.
+   *
+   * Each time the source Observable emits an item, delay starts a timer,
+   * and when that timer reaches the given duration, the Observable
+   * returned from delay emits the same item.
+   *
+   * NOTE: this delay refers strictly to the time between the `onNext`
+   * event coming from our source and the time it takes the downstream
+   * observer to get this event. On the other hand the operator is also 
+   * applying back-pressure, so on slow observers the actual time passing
+   * between two successive events may be higher than the 
+   * specified `duration`.
+   *
+   * @param duration - the delay to shift the source by
+   * @return the source Observable shifted in time by the specified delay
+   */
+  def delay(duration: FiniteDuration): Observable[T] =
+    operators.delay.byDuration(self, duration)
+
+  /**
+   * Returns an Observable that emits the items emitted by the source
+   * Observable shifted forward in time.
+   *
+   * This variant of `delay` sets its delay duration on a per-item basis by
+   * passing each item from the source Observable into a function that returns
+   * an Observable and then monitoring those Observables. When any such
+   * Observable emits an item or completes, the Observable returned
+   * by delay emits the associated item.
+   *
+   * @see [[Observable!.delay(duration* delay(duration)]] for the other variant
+   *
+   * @param selector - a function that returns an Observable for each item
+   *                   emitted by the source Observable, which is then used
+   *                   to delay the emission of that item by the resulting
+   *                   Observable until the Observable returned
+   *                   from `selector` emits an item
+   *
+   * @return the source Observable shifted in time by
+   *         the specified delay
+   */
+  def delay[U](selector: T => Observable[U]): Observable[T] =
+    operators.delay.bySelector(self, selector)
 
   /**
    * Applies a binary operator to a start value and all elements of this Observable,
