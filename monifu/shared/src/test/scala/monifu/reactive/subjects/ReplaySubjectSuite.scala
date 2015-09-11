@@ -21,7 +21,6 @@ import monifu.reactive.Ack.Continue
 import monifu.reactive.{Ack, Observer}
 import monifu.reactive.exceptions.DummyException
 import monifu.reactive.observers.SynchronousObserver
-
 import scala.concurrent.Future
 
 object ReplaySubjectSuite extends BaseSubjectSuite {

@@ -18,7 +18,7 @@
 package monifu.concurrent
 
 import monifu.concurrent.Scheduler.Environment
-import monifu.concurrent.schedulers._
+import monifu.concurrent.schedulers.SchedulerCompanion
 import monifu.util.math.roundToPowerOf2
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext

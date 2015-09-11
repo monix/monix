@@ -17,9 +17,12 @@
  
 package monifu.reactive.subjects
 
+import monifu.concurrent.atomic.padded.Atomic
 import monifu.reactive.Ack.{Cancel, Continue}
+import monifu.reactive.internals.GenericSubject.State
 import monifu.reactive.internals._
 import monifu.reactive.{Ack, Subject, Subscriber}
+import scala.annotation.tailrec
 import scala.concurrent.Future
 
 /**
@@ -31,60 +34,81 @@ import scala.concurrent.Future
  * notification from the source Observable.
  */
 final class AsyncSubject[T] extends Subject[T,T] { self =>
-  @volatile private[this] var subscribers = Vector.empty[Subscriber[T]]
-  @volatile private[this] var isDone = false
+  /*
+   * NOTE: the stored vector value can be null and if it is, then
+   * that means our subject has been terminated.
+   */
+  private[this] val stateRef = Atomic(State[T]())
 
   private[this] var onNextHappened = false
-  private[this] var errorThrown: Throwable = null
   private[this] var cachedElem: T = _
 
-  private[this] def onDone(subscriber: Subscriber[T]) = {
-    import subscriber.scheduler
-    if (errorThrown != null)
-      subscriber.onError(errorThrown)
-    else if (onNextHappened) {
-      subscriber.onNext(cachedElem)
-        .onContinueSignalComplete(subscriber)
+  @tailrec
+  def onSubscribe(subscriber: Subscriber[T]): Unit = {
+    val state = stateRef.get
+    val subscribers = state.subscribers
+
+    if (subscribers eq null) {
+      // our subject was completed, taking fast path
+      val errorThrown = state.errorThrown
+      if (errorThrown != null)
+        subscriber.onError(errorThrown)
+      else if (onNextHappened) {
+        import subscriber.scheduler
+        subscriber.onNext(cachedElem)
+          .onContinueSignalComplete(subscriber)
+      }
+      else {
+        subscriber.onComplete()
+      }
     }
     else {
-      subscriber.onComplete()
+      val update = State(subscribers :+ subscriber)
+
+      if (!stateRef.compareAndSet(state, update))
+        onSubscribe(subscriber) // repeat
     }
   }
 
-  def onSubscribe(subscriber: Subscriber[T]): Unit =
-    if (isDone) {
-      // fast path
-      onDone(subscriber)
-    }
-    else self.synchronized {
-      if (isDone)
-        onDone(subscriber)
-      else
-        subscribers = subscribers :+ subscriber
-    }
-
   def onNext(elem: T): Future[Ack] = {
-    if (isDone) Cancel else {
+    if (stateRef.get.isDone) Cancel else {
       if (!onNextHappened) onNextHappened = true
       cachedElem = elem
       Continue
     }
   }
 
-  def onError(ex: Throwable): Unit = self.synchronized {
-    if (!isDone) {
-      errorThrown = ex
-      isDone = true
-      subscribers.foreach(onDone)
-      subscribers = Vector.empty
-    }
+  def onError(ex: Throwable): Unit = {
+    onCompleteOrError(ex)
   }
 
-  def onComplete(): Unit = self.synchronized {
+  def onComplete(): Unit = {
+    onCompleteOrError(null)
+  }
+
+  @tailrec
+  private def onCompleteOrError(ex: Throwable): Unit = {
+    val state = stateRef.get
+    val subscribers = state.subscribers
+    val isDone = subscribers eq null
+
     if (!isDone) {
-      isDone = true
-      subscribers.foreach(onDone)
-      subscribers = Vector.empty
+      if (!stateRef.compareAndSet(state, state.complete(ex)))
+        onCompleteOrError(ex)
+      else {
+        val iterator = subscribers.iterator
+        while (iterator.hasNext) {
+          val ref = iterator.next()
+          import ref.scheduler
+
+          if (ex != null)
+            ref.onError(ex)
+          else if (onNextHappened)
+            ref.onNext(cachedElem).onContinueSignalComplete(ref)
+          else
+            ref.onComplete()
+        }
+      }
     }
   }
 }
