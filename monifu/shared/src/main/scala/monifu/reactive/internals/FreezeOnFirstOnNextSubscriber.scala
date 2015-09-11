@@ -17,30 +17,32 @@
 
 package monifu.reactive.internals
 
+import monifu.concurrent.atomic.padded.Atomic
 import monifu.reactive.{Ack, Subscriber}
 import scala.concurrent.{Future, Promise}
 
+
 private[reactive] final class FreezeOnFirstOnNextSubscriber[-T]
-    (underlying: Subscriber[T])
+  (underlying: Subscriber[T])
   extends Subscriber[T] { self =>
 
   implicit val scheduler = underlying.scheduler
+
+  private[this] val isConnected = Atomic(false)
   private[this] val connectedPromise = Promise[Ack]()
-  private[this] val connectedFuture = connectedPromise.future
   private[this] val firstTimePromise = Promise[Unit]()
-  @volatile private[this] var isConnected = false
 
-  val firstTimeOnNext = firstTimePromise.future
-
-  def continue(ack: Future[Ack]): Unit = {
-    connectedPromise.tryCompleteWith(ack)
-    isConnected = true
+  def initializeOnNext(ack: => Future[Ack]): Unit = {
+    firstTimePromise.future.onComplete { _ =>
+      connectedPromise.tryCompleteWith(ack)
+      isConnected set true
+    }
   }
 
   def onNext(elem: T): Future[Ack] = {
-    if (!isConnected) {
+    if (!isConnected.get) {
       firstTimePromise.trySuccess(())
-      connectedFuture
+      connectedPromise.future
     }
     else {
       // fast path
@@ -49,14 +51,14 @@ private[reactive] final class FreezeOnFirstOnNextSubscriber[-T]
   }
 
   def onComplete() = {
-    if (!isConnected) firstTimePromise.trySuccess(())
+    if (!isConnected.get) firstTimePromise.trySuccess(())
     // we cannot take a fast path here
-    connectedFuture.onContinueSignalComplete(underlying)
+    connectedPromise.future.onContinueSignalComplete(underlying)
   }
 
   def onError(ex: Throwable) = {
-    if (!isConnected) firstTimePromise.trySuccess(())
+    if (!isConnected.get) firstTimePromise.trySuccess(())
     // we cannot take a fast path here
-    connectedFuture.onContinueSignalError(underlying, ex)
+    connectedPromise.future.onContinueSignalError(underlying, ex)
   }
 }

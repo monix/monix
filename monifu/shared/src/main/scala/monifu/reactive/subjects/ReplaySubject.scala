@@ -17,109 +17,41 @@
 
 package monifu.reactive.subjects
 
-import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive._
 import monifu.reactive.internals._
-import monifu.reactive.internals.collection.{DropHeadOnOverflowQueue, UnlimitedBuffer, Buffer}
-import scala.concurrent.Future
+import monifu.reactive.internals.collection._
 
 /**
  * `ReplaySubject` emits to any observer all of the items that were emitted
  * by the source, regardless of when the observer subscribes.
  */
 final class ReplaySubject[T] private (initial: Buffer[T])
-  extends Subject[T,T] { self =>
+  extends GenericSubject[T] {
 
-  @volatile private[this] var subscribers = Vector.empty[Subscriber[T]]
-  @volatile private[this] var isDone = false
+  protected type LiftedSubscriber = FreezeOnFirstOnNextSubscriber[T]
 
-  private[this] val queue = initial
-  private[this] var errorThrown: Throwable = null
+  protected def liftSubscriber(ref: Subscriber[T]): LiftedSubscriber =
+    new FreezeOnFirstOnNextSubscriber(ref)
 
-  private[this] def onDone(subscriber: Subscriber[T]): Unit = {
-    import subscriber.scheduler
-    val f = subscriber.feed(queue)
+  private[this] val buffer = initial
+  protected def cacheOrIgnore(elem: T): Unit =
+    buffer.offer(elem)
+
+  protected def onSubscribeCompleted(s: Subscriber[T], errorThrown: Throwable): Unit = {
+    import s.scheduler
+    val f = s.feed(buffer)
+
     if (errorThrown != null)
-      f.onContinueSignalError(subscriber, errorThrown)
+      f.onContinueSignalError(s, errorThrown)
     else
-      f.onContinueSignalComplete(subscriber)
+      f.onContinueSignalComplete(s)
   }
 
-  def onSubscribe(subscriber: Subscriber[T]): Unit =
-    if (isDone) {
-      // fast path
-      onDone(subscriber)
-    }
-    else self.synchronized {
-      if (isDone) onDone(subscriber) else {
-        import subscriber.scheduler
-        val newSubscriber = new FreezeOnFirstOnNextSubscriber(subscriber)
-        subscribers = subscribers :+ newSubscriber
-        newSubscriber.firstTimeOnNext.onComplete { _ =>
-          newSubscriber.continue(subscriber.feed(queue))
-        }
-      }
-    }
-
-  def onNext(elem: T): Future[Ack] = {
-    if (isDone) Cancel else {
-      queue.offer(elem)
-
-      val iterator = subscribers.iterator
-      var result: PromiseCounter[Continue.type] = null
-
-      while (iterator.hasNext) {
-        val subscriber = iterator.next()
-        import subscriber.scheduler
-
-        val ack = subscriber.onNext(elem)
-        if (ack.isCompleted) {
-          if (ack != Continue && ack.value.get != Continue.IsSuccess)
-            unsubscribe(subscriber)
-        }
-        else {
-          if (result == null) result = PromiseCounter(Continue, 1)
-          result.acquire()
-
-          ack.onComplete {
-            case Continue.IsSuccess =>
-              result.countdown()
-            case _ =>
-              unsubscribe(subscriber)
-              result.countdown()
-          }
-        }
-      }
-
-      if (result == null) Continue else {
-        result.countdown()
-        result.future
-      }
-    }
+  protected def onSubscribeContinue(lifted: FreezeOnFirstOnNextSubscriber[T], s: Subscriber[T]): Unit = {
+    // if update succeeded, then wait for `onNext`,
+    // then feed our buffer, then unfreeze onNext
+    lifted.initializeOnNext(s.feed(buffer))
   }
-
-  def onError(ex: Throwable): Unit = self.synchronized {
-    if (!isDone) {
-      errorThrown = ex
-      isDone = true
-      subscribers.foreach(_.onError(ex))
-      subscribers = Vector.empty
-    }
-  }
-
-  def onComplete(): Unit = self.synchronized {
-    if (!isDone) {
-      isDone = true
-      subscribers.foreach(_.onComplete())
-      subscribers = Vector.empty
-    }
-  }
-
-  private[this] def unsubscribe(subscriber: Subscriber[T]): Continue =
-    self.synchronized {
-      subscribers = subscribers.filterNot(_ == subscriber)
-      Continue
-    }
 }
 
 object ReplaySubject {

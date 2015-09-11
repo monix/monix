@@ -17,11 +17,8 @@
  
 package monifu.reactive.subjects
 
-import monifu.reactive.Ack.{Cancel, Continue}
+import monifu.reactive.Subscriber
 import monifu.reactive.internals._
-import monifu.reactive.{Ack, Subject, Subscriber}
-import scala.concurrent.Future
-
 
 /**
  * `BehaviorSubject` when subscribed, will emit the most recently emitted item by the source,
@@ -30,97 +27,32 @@ import scala.concurrent.Future
  *
  * When the source terminates in error, the `BehaviorSubject` will not emit any items to
  * subsequent subscribers, but instead it will pass along the error notification.
+ *
+ * @see [[monifu.reactive.Subject]]
  */
-final class BehaviorSubject[T] private (initialValue: T) extends Subject[T,T] { self =>
-  @volatile private[this] var subscribers = Vector.empty[Subscriber[T]]
-  @volatile private[this] var isDone = false
-
-  private[this] var errorThrown: Throwable = null
+final class BehaviorSubject[T] private (initialValue: T) extends GenericSubject[T] {
   private[this] var cachedElem = initialValue
+  protected type LiftedSubscriber = FreezeOnFirstOnNextSubscriber[T]
 
-  private[this] def onDone(subscriber: Subscriber[T]) = {
-    import subscriber.scheduler
-    if (errorThrown != null)
-      subscriber.onError(errorThrown)
+  protected def liftSubscriber(ref: Subscriber[T]): LiftedSubscriber =
+    new FreezeOnFirstOnNextSubscriber(ref)
+
+  protected def cacheOrIgnore(elem: T): Unit = {
+    cachedElem = elem
+  }
+
+  protected def onSubscribeCompleted(s: Subscriber[T], errorThrown: Throwable): Unit = {
+    if (errorThrown == null)
+      s.onNext(cachedElem).onContinueSignalComplete(s)(s.scheduler)
     else
-      subscriber.onNext(cachedElem)
-        .onContinueSignalComplete(subscriber)
+      s.onError(errorThrown)
   }
 
-  def onSubscribe(subscriber: Subscriber[T]): Unit =
-    if (isDone) {
-      // fast path
-      onDone(subscriber)
-    }
-    else self.synchronized {
-      if (isDone) onDone(subscriber) else {
-        import subscriber.scheduler
-        val newSubscriber = new FreezeOnFirstOnNextSubscriber(subscriber)
-        subscribers = subscribers :+ newSubscriber
-        newSubscriber.firstTimeOnNext.onComplete { _ =>
-          newSubscriber.continue(subscriber.onNext(cachedElem))
-        }
-      }
-    }
-
-  def onNext(elem: T): Future[Ack] = {
-    if (isDone) Cancel else {
-      cachedElem = elem
-      val iterator = subscribers.iterator
-      var result: PromiseCounter[Continue.type] = null
-
-      while (iterator.hasNext) {
-        val subscriber = iterator.next()
-        import subscriber.scheduler
-
-        val ack = subscriber.onNext(elem)
-        if (ack.isCompleted) {
-          if (ack != Continue && ack.value.get != Continue.IsSuccess)
-            unsubscribe(subscriber)
-        }
-        else {
-          if (result == null) result = PromiseCounter(Continue, 1)
-          result.acquire()
-
-          ack.onComplete {
-            case Continue.IsSuccess =>
-              result.countdown()
-            case _ =>
-              unsubscribe(subscriber)
-              result.countdown()
-          }
-        }
-      }
-
-      if (result == null) Continue else {
-        result.countdown()
-        result.future
-      }
-    }
+  protected def onSubscribeContinue(lifted: FreezeOnFirstOnNextSubscriber[T], s: Subscriber[T]): Unit = {
+    // if update succeeded, then wait for `onNext`,
+    // then feed our buffer, then unfreeze onNext
+    lifted.initializeOnNext(s.onNext(cachedElem))
   }
-
-  def onError(ex: Throwable): Unit = self.synchronized {
-    if (!isDone) {
-      errorThrown = ex
-      isDone = true
-      subscribers.foreach(_.onError(ex))
-      subscribers = Vector.empty
-    }
-  }
-
-  def onComplete(): Unit = self.synchronized {
-    if (!isDone) {
-      isDone = true
-      subscribers.foreach(_.onComplete())
-      subscribers = Vector.empty
-    }
-  }
-
-  private[this] def unsubscribe(subscriber: Subscriber[T]): Continue =
-    self.synchronized {
-      subscribers = subscribers.filterNot(_ == subscriber)
-      Continue
-    }
 }
 
 object BehaviorSubject {
