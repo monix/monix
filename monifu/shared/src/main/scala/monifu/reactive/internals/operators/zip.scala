@@ -28,7 +28,7 @@ private[reactive] object zip {
   /**
    * Implements [[Observable.zip]].
    */
-  def apply[T, U](first: Observable[T], second: Observable[U]) = {
+  def two[T, U](first: Observable[T], second: Observable[U]) = {
     Observable.create[(T, U)] { observerOfPairs =>
       import observerOfPairs.{scheduler => s}
 
@@ -123,4 +123,26 @@ private[reactive] object zip {
       })
     }
   }
+
+  /** Implementation for [[Observable.zipWithIndex]] */
+  def withIndex[T](source: Observable[T]): Observable[(T, Long)] =
+    Observable.create { downstream =>
+      import downstream.scheduler
+
+      source.onSubscribe(new Observer[T] {
+        private[this] var index = 0
+
+        def onNext(elem: T): Future[Ack] = {
+          val oldIndex = index
+          index += 1
+          downstream.onNext(elem -> oldIndex)
+        }
+
+        def onError(ex: Throwable): Unit =
+          downstream.onError(ex)
+
+        def onComplete(): Unit =
+          downstream.onComplete()
+      })
+    }
 }

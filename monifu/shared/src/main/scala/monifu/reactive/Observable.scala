@@ -1652,7 +1652,13 @@ trait Observable[+T] { self =>
    * events than the other, then the rest of the unpaired events are ignored.
    */
   def zip[U](other: Observable[U]): Observable[(T, U)] =
-    operators.zip(self, other)
+    operators.zip.two(self, other)
+
+  /**
+   * Zips the emitted elements of the source with their indices.
+   */
+  def zipWithIndex: Observable[(T, Long)] =
+    operators.zip.withIndex(self)
 
   /**
    * Creates a new Observable from this Observable and another given Observable.
