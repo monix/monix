@@ -2381,12 +2381,54 @@ object Observable {
     obs1.zip(obs2).zip(obs3).map { case ((t1, t2), t3) => (t1, t2, t3) }
 
   /**
-   * Creates a new Observable from three observables,
-   * by emitting elements combined in tuples of 4 elements. If one of the Observable emits fewer
-   * events than the others, then the rest of the unpaired events are ignored.
+   * Creates a new Observable from three observables, by emitting
+   * elements combined in tuples of 4 elements. If one of the
+   * Observable emits fewer events than the others, then the rest of
+   * the unpaired events are ignored.
    */
   def zip[T1, T2, T3, T4](obs1: Observable[T1], obs2: Observable[T2], obs3: Observable[T3], obs4: Observable[T4]): Observable[(T1, T2, T3, T4)] =
     obs1.zip(obs2).zip(obs3).zip(obs4).map { case (((t1, t2), t3), t4) => (t1, t2, t3, t4) }
+
+  /**
+   * Creates a new Observable from three observables, by emitting
+   * elements combined in tuples of 5 elements. If one of the
+   * Observable emits fewer events than the others, then the rest of
+   * the unpaired events are ignored.
+   */
+  def zip[T1, T2, T3, T4, T5](
+    obs1: Observable[T1], obs2: Observable[T2], obs3: Observable[T3],
+    obs4: Observable[T4], obs5: Observable[T5]): Observable[(T1, T2, T3, T4, T5)] = {
+
+    obs1.zip(obs2).zip(obs3).zip(obs4).zip(obs5)
+      .map { case ((((t1, t2), t3), t4), t5) => (t1, t2, t3, t4, t5) }
+  }
+
+  /**
+   * Creates a new Observable from three observables, by emitting
+   * elements combined in tuples of 6 elements. If one of the
+   * Observable emits fewer events than the others, then the rest of
+   * the unpaired events are ignored.
+   */
+  def zip[T1, T2, T3, T4, T5, T6](
+    obs1: Observable[T1], obs2: Observable[T2], obs3: Observable[T3],
+    obs4: Observable[T4], obs5: Observable[T5], obs6: Observable[T6]): Observable[(T1, T2, T3, T4, T5, T6)] = {
+
+    obs1.zip(obs2).zip(obs3).zip(obs4).zip(obs5).zip(obs6)
+      .map { case (((((t1, t2), t3), t4), t5), t6) => (t1, t2, t3, t4, t5, t6) }
+  }
+
+  /**
+   * Given an observable sequence, it [[Observable!.zip zips]] them together
+   * returning a new observable that generates sequences.
+   */
+  def zipList[T](sources: Observable[T]*): Observable[Seq[T]] = {
+    if (sources.isEmpty) Observable.empty else {
+      val seed = sources.head.map(t => Vector(t))
+      sources.tail.foldLeft(seed) { (acc, obs) =>
+        acc.zip(obs).map { case (seq, elem) => seq :+ elem }
+      }
+    }
+  }
 
   /**
    * Creates a combined observable from 2 source observables.
@@ -2435,6 +2477,57 @@ object Observable {
 
     first.combineLatest(second).combineLatest(third).combineLatest(fourth)
       .map { case (((t1, t2), t3), t4) => (t1, t2, t3, t4) }
+  }
+
+  /**
+   * Creates a combined observable from 5 source observables.
+   *
+   * This operator behaves in a similar way to [[Observable!.zip]],
+   * but while `zip` emits items only when all of the zipped source
+   * Observables have emitted a previously unzipped item, `combine`
+   * emits an item whenever any of the source Observables emits an
+   * item (so long as each of the source Observables has emitted at
+   * least one item).
+   */
+  def combineLatest[T1, T2, T3, T4, T5](
+    obs1: Observable[T1], obs2: Observable[T2], obs3: Observable[T3],
+    obs4: Observable[T4], obs5: Observable[T5]): Observable[(T1, T2, T3, T4, T5)] = {
+
+    obs1.combineLatest(obs2).combineLatest(obs3)
+      .combineLatest(obs4).combineLatest(obs5)
+      .map { case ((((t1, t2), t3), t4), t5) => (t1, t2, t3, t4, t5) }
+  }
+
+  /**
+   * Creates a combined observable from 6 source observables.
+   *
+   * This operator behaves in a similar way to [[Observable!.zip]],
+   * but while `zip` emits items only when all of the zipped source
+   * Observables have emitted a previously unzipped item, `combine`
+   * emits an item whenever any of the source Observables emits an
+   * item (so long as each of the source Observables has emitted at
+   * least one item).
+   */
+  def combineLatest[T1, T2, T3, T4, T5, T6](
+    obs1: Observable[T1], obs2: Observable[T2], obs3: Observable[T3],
+    obs4: Observable[T4], obs5: Observable[T5], obs6: Observable[T6]): Observable[(T1, T2, T3, T4, T5, T6)] = {
+
+    obs1.combineLatest(obs2).combineLatest(obs3)
+      .combineLatest(obs4).combineLatest(obs5).combineLatest(obs6)
+      .map { case (((((t1, t2), t3), t4), t5), t6) => (t1, t2, t3, t4, t5, t6) }
+  }
+
+  /**
+   * Given an observable sequence, it [[Observable!.zip zips]] them together
+   * returning a new observable that generates sequences.
+   */
+  def combineLatestList[T](sources: Observable[T]*): Observable[Seq[T]] = {
+    if (sources.isEmpty) Observable.empty else {
+      val seed = sources.head.map(t => Vector(t))
+      sources.tail.foldLeft(seed) { (acc, obs) =>
+        acc.combineLatest(obs).map { case (seq, elem) => seq :+ elem }
+      }
+    }
   }
 
   /**
