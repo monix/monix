@@ -270,7 +270,7 @@ trait LiftOperators2[I, +T, Self[A,+B] <: Observable[B]] { self: Observable[T] =
     liftToSelf(o => Observable.create[T](o.onSubscribe).forAll(p))
 
   override def complete: Self[I,Nothing] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).complete)
+    liftToSelf(o => Observable.create[T](o.onSubscribe).ignoreElements)
 
   override def error: Self[I,Throwable] =
     liftToSelf(o => Observable.create[T](o.onSubscribe).error)
@@ -403,4 +403,10 @@ trait LiftOperators2[I, +T, Self[A,+B] <: Observable[B]] { self: Observable[T] =
 
   override def groupBy[K](keyBufferSize: Int, keySelector: (T) => K): Self[I,GroupedObservable[K, T]] =
     liftToSelf(o => Observable.create[T](o.onSubscribe).groupBy(keyBufferSize, keySelector))
+
+  override def ignoreElements: Self[I, Nothing] =
+    liftToSelf(o => Observable.create[T](o.onSubscribe).ignoreElements)
+
+  override def zipWithIndex: Self[I, (T, Long)] =
+    liftToSelf(o => Observable.create[T](o.onSubscribe).zipWithIndex)
 }

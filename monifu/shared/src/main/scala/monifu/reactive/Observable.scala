@@ -1516,8 +1516,23 @@ trait Observable[+T] { self =>
     exists(e => !p(e)).map(r => !r)
 
   /**
-   * Returns an Observable that doesn't emit anything,
-   * but that completes when the source Observable completes.
+   * Alias for [[Observable!.complete]].
+   *
+   * Ignores all items emitted by the source Observable and
+   * only calls onCompleted or onError.
+   *
+   * @return an empty Observable that only calls onCompleted or onError,
+   *         based on which one is called by the source Observable
+   */
+  def ignoreElements: Observable[Nothing] =
+    operators.misc.complete(this)
+
+  /**
+   * Ignores all items emitted by the source Observable and
+   * only calls onCompleted or onError.
+   *
+   * @return an empty Observable that only calls onCompleted or onError,
+   *         based on which one is called by the source Observable
    */
   def complete: Observable[Nothing] =
     operators.misc.complete(this)
@@ -2141,6 +2156,24 @@ object Observable {
    */
   def never: Observable[Nothing] =
     builders.unit.never
+
+  /**
+   * Returns an Observable that calls an Observable factory to create
+   * an Observable for each new Observer that subscribes. That is, for
+   * each subscriber, the actual Observable that subscriber observes is
+   * determined by the factory function.
+   *
+   * The defer Observer allows you to defer or delay emitting items
+   * from an Observable until such time as an Observer subscribes
+   * to the Observable. This allows an Observer to easily obtain updates
+   * or a refreshed version of the sequence.
+   *
+   * @param factory is the Observable factory function to invoke for each
+   *                Observer that subscribes to the resulting Observable
+   */
+  def defer[T](factory: => Observable[T]): Observable[T] = {
+    create[T](s => factory.onSubscribe(s))
+  }
 
   /**
    * Creates an Observable that emits auto-incremented natural numbers
