@@ -24,7 +24,7 @@ import monifu.concurrent.{Cancelable, Scheduler}
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.OverflowStrategy.{default => defaultStrategy}
 import monifu.reactive.internals._
-import monifu.reactive.observables.{ConnectableObservable, GroupedObservable}
+import monifu.reactive.observables.{CachedObservable, ConnectableObservable, GroupedObservable}
 import monifu.reactive.observers._
 import monifu.reactive.subjects.{AsyncSubject, BehaviorSubject, PublishSubject, ReplaySubject}
 import org.reactivestreams.{Publisher => RPublisher, Subscriber => RSubscriber}
@@ -1861,6 +1861,50 @@ trait Observable[+T] { self =>
    */
   def share()(implicit s: Scheduler): Observable[T] =
     publish().refCount()
+
+  /**
+   * Caches the emissions from the source Observable and replays them
+   * in order to any subsequent Subscribers. This method has similar
+   * behavior to [[Observable!.replay()]] except that this auto-subscribes
+   * to the source Observable rather than returning a [[ConnectableObservable]]
+   * for which you must call [[ConnectableObservable.connect connect]]
+   * to activate the subscription.
+   *
+   * When you call cache, it does not yet subscribe to the source Observable
+   * and so does not yet begin caching items. This only happens when the
+   * first Subscriber calls the resulting Observable's `subscribe` method.
+   *
+   * Note: You sacrifice the ability to cancel the origin when you use
+   * the cache operator so be careful not to use this on Observables that emit an
+   * infinite or very large number of items that will use up memory.
+   *
+   * @return an Observable that, when first subscribed to, caches all of its
+   *         items and notifications for the benefit of subsequent subscribers
+   */
+  def cache: Observable[T] =
+    CachedObservable.create(self)
+
+  /**
+   * Caches the emissions from the source Observable and replays them
+   * in order to any subsequent Subscribers. This method has similar
+   * behavior to [[Observable!.replay()]] except that this auto-subscribes
+   * to the source Observable rather than returning a [[ConnectableObservable]]
+   * for which you must call [[ConnectableObservable.connect connect]]
+   * to activate the subscription.
+   *
+   * When you call cache, it does not yet subscribe to the source Observable
+   * and so does not yet begin caching items. This only happens when the
+   * first Subscriber calls the resulting Observable's `subscribe` method.
+   *
+   * @param maxCapacity is the maximum buffer size after which old events
+   *                    start being dropped (according to what happens when using
+   *                    [[ReplaySubject.createWithSize]]
+   *
+   * @return an Observable that, when first subscribed to, caches all of its
+   *         items and notifications for the benefit of subsequent subscribers
+   */
+  def cache(maxCapacity: Int): Observable[T] =
+    CachedObservable.create(self, maxCapacity)
 
   /**
    * Converts this observable into a multicast observable, useful for turning a cold observable into
