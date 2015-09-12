@@ -43,7 +43,7 @@ trait ConnectableObservable[+T] extends Observable[T]
    * `ConnectableObservable` as long as there is at least one
    * subscription that is active.
    */
-  def refCount(): Observable[T] = {
+  def refCount: Observable[T] = {
     RefCountObservable(self)
   }
 

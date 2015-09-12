@@ -73,6 +73,8 @@ object Build extends SbtBuild {
     // ScalaDoc settings
     autoAPIMappings := true,
     scalacOptions in (ScalaUnidoc, unidoc) +=
+      "-Xfatal-warnings",
+    scalacOptions in (ScalaUnidoc, unidoc) +=
       "-Ymacro-expand:none",
     scalacOptions in (ScalaUnidoc, unidoc) ++=
       Opts.doc.title(s"Monifu"),

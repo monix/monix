@@ -831,7 +831,7 @@ trait Observable[+T] { self =>
    * And in case the source emits an error, then only that error will be
    * emitted.
    */
-  def count(): Observable[Long] =
+  def count: Observable[Long] =
     operators.math.count(self)
 
   /**
@@ -1061,7 +1061,7 @@ trait Observable[+T] { self =>
    * Emit the most recent items emitted by an Observable within periodic time
    * intervals.
    *
-   * Use the sample() method to periodically look at an Observable
+   * Use the `sample` operator to periodically look at an Observable
    * to see what item it has most recently emitted since the previous
    * sampling. Note that if the source Observable has emitted no
    * items since the last time it was sampled, the Observable that
@@ -1189,7 +1189,7 @@ trait Observable[+T] { self =>
    * and keeps emitting that item at regular intervals until
    * the source breaks the silence.
    *
-   * So compared to regular [[Observable!.debounce debounce]]
+   * So compared to regular [[Observable!.debounce(timeout* debounce]]
    * it keeps emitting the last item of the source.
    *
    * Note: If the source Observable keeps emitting items more frequently
@@ -1868,21 +1868,23 @@ trait Observable[+T] { self =>
    * a hot one (i.e. whose source is shared by all observers). The underlying subject used is a
    * [[monifu.reactive.subjects.PublishSubject PublishSubject]].
    */
-  def publish()(implicit s: Scheduler): ConnectableObservable[T] =
+  def publish(implicit s: Scheduler): ConnectableObservable[T] =
     multicast(PublishSubject[T]())
 
   /**
    * Returns a new Observable that multi-casts (shares) the original Observable.
    */
-  def share()(implicit s: Scheduler): Observable[T] =
-    publish().refCount()
+  def share(implicit s: Scheduler): Observable[T] =
+    publish.refCount
 
   /**
    * Caches the emissions from the source Observable and replays them
    * in order to any subsequent Subscribers. This method has similar
-   * behavior to [[Observable!.replay()]] except that this auto-subscribes
-   * to the source Observable rather than returning a [[ConnectableObservable]]
-   * for which you must call [[ConnectableObservable.connect connect]]
+   * behavior to [[Observable!.replay(implicit* replay]] except that
+   * this auto-subscribes to the source Observable rather than
+   * returning a [[monifu.reactive.observables.ConnectableObservable ConnectableObservable]]
+   * for which you must call
+   * [[monifu.reactive.observables.ConnectableObservable.connect connect]]
    * to activate the subscription.
    *
    * When you call cache, it does not yet subscribe to the source Observable
@@ -1902,9 +1904,11 @@ trait Observable[+T] { self =>
   /**
    * Caches the emissions from the source Observable and replays them
    * in order to any subsequent Subscribers. This method has similar
-   * behavior to [[Observable!.replay()]] except that this auto-subscribes
-   * to the source Observable rather than returning a [[ConnectableObservable]]
-   * for which you must call [[ConnectableObservable.connect connect]]
+   * behavior to [[Observable!.replay(implicit* replay]] except that this
+   * auto-subscribes to the source Observable rather than returning a
+   * [[monifu.reactive.observables.ConnectableObservable ConnectableObservable]]
+   * for which you must call
+   * [[monifu.reactive.observables.ConnectableObservable.connect connect]]
    * to activate the subscription.
    *
    * When you call cache, it does not yet subscribe to the source Observable
@@ -1913,7 +1917,7 @@ trait Observable[+T] { self =>
    *
    * @param maxCapacity is the maximum buffer size after which old events
    *                    start being dropped (according to what happens when using
-   *                    [[ReplaySubject.createWithSize]]
+   *                    [[subjects.ReplaySubject.createWithSize ReplaySubject.createWithSize]])
    *
    * @return an Observable that, when first subscribed to, caches all of its
    *         items and notifications for the benefit of subsequent subscribers
@@ -1934,7 +1938,7 @@ trait Observable[+T] { self =>
    * a hot one (i.e. whose source is shared by all observers). The underlying subject used is a
    * [[monifu.reactive.subjects.ReplaySubject ReplaySubject]].
    */
-  def replay()(implicit s: Scheduler): ConnectableObservable[T] =
+  def replay(implicit s: Scheduler): ConnectableObservable[T] =
     multicast(ReplaySubject[T]())
 
   /**
@@ -1954,7 +1958,7 @@ trait Observable[+T] { self =>
    * a hot one (i.e. whose source is shared by all observers). The underlying subject used is a
    * [[monifu.reactive.subjects.AsyncSubject AsyncSubject]].
    */
-  def publishLast()(implicit s: Scheduler): ConnectableObservable[T] =
+  def publishLast(implicit s: Scheduler): ConnectableObservable[T] =
     multicast(AsyncSubject[T]())
 
   /**
