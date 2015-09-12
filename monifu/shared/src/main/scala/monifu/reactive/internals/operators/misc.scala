@@ -24,7 +24,7 @@ import monifu.reactive.internals._
 
 private[reactive] object misc {
   /**
-   * Implements [[Observable.complete]].
+   * Implements [[Observable.ignoreElements]].
    */
   def complete[T](source: Observable[T]): Observable[Nothing] =
     Observable.create { subscriber =>

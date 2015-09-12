@@ -127,11 +127,11 @@ private[reactive] object debounce {
   }
 
   def bySelector[T,U](source: Observable[T], selector: T => Observable[U]): Observable[T] =
-    source.flatMapLatest(t => selector(t).complete ++ Observable.unit(t))
+    source.flatMapLatest(t => selector(t).ignoreElements ++ Observable.unit(t))
 
   def flatten[T,U](source: Observable[T], timeout: FiniteDuration, f: T => Observable[U]): Observable[U] =
     source.flatMapLatest(t => f(t).delaySubscription(timeout))
 
   def flattenBySelector[T,S,U](source: Observable[T], selector: T => Observable[S], f: T => Observable[U]): Observable[U] =
-    source.flatMapLatest(t => selector(t).complete ++ f(t))
+    source.flatMapLatest(t => selector(t).ignoreElements ++ f(t))
 }
