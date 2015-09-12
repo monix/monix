@@ -48,7 +48,7 @@ object RefCountObservableSuite extends TestSuite[TestScheduler] {
       def onComplete(): Unit = completed += 1
     }
 
-    val ref = Observable.interval(2.seconds).publish().refCount()
+    val ref = Observable.interval(2.seconds).publish.refCount
     val s1 = ref.subscribe(createObserver)
 
     assertEquals(received, 0)
@@ -94,7 +94,7 @@ object RefCountObservableSuite extends TestSuite[TestScheduler] {
     }
 
     val ch = PublishChannel[Long](Unbounded)
-    val ref = ch.publish().refCount()
+    val ref = ch.publish.refCount
     ref.subscribe(createObserver)
     ref.subscribe(createObserver)
 
@@ -127,7 +127,7 @@ object RefCountObservableSuite extends TestSuite[TestScheduler] {
     }
 
     val ch = PublishChannel[Long](Unbounded)
-    val ref = ch.publish().refCount()
+    val ref = ch.publish.refCount
     ref.subscribe(createObserver)
     ref.subscribe(createObserver)
 

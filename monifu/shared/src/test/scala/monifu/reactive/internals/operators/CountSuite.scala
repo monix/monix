@@ -22,12 +22,12 @@ import scala.concurrent.duration.Duration.Zero
 
 object CountSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.range(0, sourceCount).count()
+    val o = Observable.range(0, sourceCount).count
     Sample(o, 1, sourceCount, Zero, Zero)
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val o = createObservableEndingInError(Observable.range(0, sourceCount), ex).count()
+    val o = createObservableEndingInError(Observable.range(0, sourceCount), ex).count
     Sample(o, 0, 0, Zero, Zero)
   }
 

@@ -137,8 +137,8 @@ trait LiftOperators2[I, +T, Self[A,+B] <: Observable[B]] { self: Observable[T] =
   override def takeWhileNotCanceled(c: BooleanCancelable): Self[I,T] =
     liftToSelf(o => Observable.create[T](o.onSubscribe).takeWhileNotCanceled(c))
 
-  override def count(): Self[I,Long] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).count())
+  override def count: Self[I,Long] =
+    liftToSelf(o => Observable.create[T](o.onSubscribe).count)
 
   override def buffer(count: Int): Self[I,Seq[T]] =
     liftToSelf(o => Observable.create[T](o.onSubscribe).buffer(count))
