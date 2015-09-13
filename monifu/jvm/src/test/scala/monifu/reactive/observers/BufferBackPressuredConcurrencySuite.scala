@@ -121,7 +121,8 @@ object BufferBackPressuredConcurrencySuite extends TestSuite[Scheduler] {
       if (n > 0) s.execute(new Runnable {
         def run() = { buffer.onNext(n); loop(n-1) }
       })
-      else buffer.onComplete()
+      else
+        buffer.onComplete()
 
     loop(10000)
     assert(completed.await(20, TimeUnit.SECONDS), "completed.await should have succeeded")
