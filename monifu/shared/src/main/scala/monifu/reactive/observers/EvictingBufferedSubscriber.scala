@@ -28,8 +28,8 @@ import scala.util.control.NonFatal
  * A [[BufferedSubscriber]] implementation for the
  * [[monifu.reactive.OverflowStrategy.DropNew DropNew]] overflow strategy.
  */
-final class EvictingBufferedSubscriber[-T] private
-    (underlying: Subscriber[T], buffer: EvictingQueue[AnyRef], onOverflow: Long => T = null)
+private[reactive] final class EvictingBufferedSubscriber[-T] private
+  (underlying: Subscriber[T], buffer: EvictingQueue[AnyRef], onOverflow: Long => T = null)
   extends BufferedSubscriber[T] with SynchronousSubscriber[T] { self =>
 
   implicit val scheduler = underlying.scheduler
@@ -190,7 +190,7 @@ final class EvictingBufferedSubscriber[-T] private
   }
 }
 
-object EvictingBufferedSubscriber {
+private[reactive] object EvictingBufferedSubscriber {
   /**
    * Returns an instance of a [[EvictingBufferedSubscriber]]
    * for the [[monifu.reactive.OverflowStrategy.DropOld DropOld]]

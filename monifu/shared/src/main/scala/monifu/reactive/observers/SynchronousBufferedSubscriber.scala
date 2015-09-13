@@ -28,30 +28,15 @@ import scala.util.control.NonFatal
 
 /**
  * A highly optimized [[BufferedSubscriber]] implementation. It supports 2
- * [[monifu.reactive.OverflowStrategy buffer policies]] - unbounded or bounded and terminated
- * with a [[monifu.reactive.exceptions.BufferOverflowException BufferOverflowException]].
+ * [[monifu.reactive.OverflowStrategy overflow strategies]]:
  *
- * To create an instance using an unbounded overflowStrategy: {{{
- *   // by default, the constructor for BufferedSubscriber is returning this unbounded variant
- *   BufferedSubscriber(observer)
- *
- *   // or you can specify the Unbounded overflowStrategy explicitly
- *   import monifu.reactive.OverflowStrategy.Unbounded
- *   val buffered = BufferedSubscriber(observer, overflowStrategy = Unbounded)
- * }}}
- *
- * To create a bounded buffered observable that triggers
- * [[monifu.reactive.exceptions.BufferOverflowException BufferOverflowException]]
- * when over capacity: {{{
- *   import monifu.reactive.OverflowStrategy.OverflowTriggering
- *   // triggers buffer overflow error after 10000 messages
- *   val buffered = BufferedSubscriber(observer, overflowStrategy = OverflowTriggering(bufferSize = 10000))
- * }}}
+ *   - [[monifu.reactive.OverflowStrategy.Unbounded Unbounded]]
+ *   - [[monifu.reactive.OverflowStrategy.Fail Fail]]
  *
  * @param underlying is the underlying observer receiving the queued events
  * @param bufferSize is the maximum buffer size, or zero if unbounded
  */
-final class SynchronousBufferedSubscriber[-T] private
+private[reactive] final class SynchronousBufferedSubscriber[-T] private
     (underlying: Subscriber[T], bufferSize: Int = 0)
   extends BufferedSubscriber[T] with SynchronousSubscriber[T] { self =>
 
@@ -220,7 +205,7 @@ final class SynchronousBufferedSubscriber[-T] private
   }
 }
 
-object SynchronousBufferedSubscriber {
+private[reactive] object SynchronousBufferedSubscriber {
   def unbounded[T](underlying: Subscriber[T]): SynchronousBufferedSubscriber[T] =
     new SynchronousBufferedSubscriber[T](underlying)
 
