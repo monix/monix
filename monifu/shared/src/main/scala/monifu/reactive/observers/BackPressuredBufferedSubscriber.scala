@@ -89,7 +89,7 @@ private[reactive] final class BackPressuredBufferedSubscriber[-T] private
    */
   @tailrec private def pushToConsumer(state: State): Future[Ack] = {
     // no run-loop is active? then we need to start one
-    if (state.itemsToPush == 0) {
+    if (state.itemsToPush <= 0) {
       val update = state.copy(
         nextAckPromise = Promise[Ack](),
         appliesBackPressure = false,
