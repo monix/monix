@@ -274,8 +274,13 @@ private[reactive] final class DropIncomingBufferedSubscriber[-T] private
       }
       else {
         val ref = stateRef.transformAndGet(_.declareProcessed(processed))
-        // do we have more items to push?
-        if (ref.itemsToPush > 0) {
+        // this really has to be LESS-or-equal
+        if (ref.itemsToPush <= 0) {
+          // race-condition check
+          if (!queue.isEmpty && stateRef.compareAndSet(ref, ref.copy(itemsToPush = 1)))
+            fastLoop(ref, 0, syncIndex)
+        }
+        else {
           // if the queue is non-empty (i.e. concurrent modifications
           // might have happened) then start all over again
           fastLoop(ref, 0, syncIndex)
@@ -324,7 +329,7 @@ object DropIncomingBufferedSubscriber {
     }
 
     def declareProcessed(processed: Int): State = {
-      val count = itemsToPush - processed
+      val count = itemsToPush - (if (processed > 0) processed else 1)
       copy(itemsToPush = if (count > 0) count else 0)
     }
 

@@ -18,15 +18,14 @@
 package monifu.reactive.observers
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
-
 import minitest.TestSuite
 import monifu.concurrent.Scheduler
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.OverflowStrategy.DropNew
 import monifu.reactive.exceptions.DummyException
-import monifu.reactive.{Subscriber, Ack, Observer}
-
-import scala.concurrent.{Future, Promise}
+import monifu.reactive.{Observable, Subscriber, Ack, Observer}
+import scala.concurrent.{Await, Future, Promise}
+import concurrent.duration._
 
 
 object BufferDropNewConcurrencySuite extends TestSuite[Scheduler] {
@@ -34,6 +33,21 @@ object BufferDropNewConcurrencySuite extends TestSuite[Scheduler] {
   
   def setup() = {
     monifu.concurrent.Implicits.globalScheduler
+  }
+
+  test("merge test should work") { implicit s =>
+    val source = Observable.repeat(1L).take(1000000)
+    val o1 = source.map(_ + 2)
+    val o2 = source.map(_ + 3)
+    val o3 = source.map(_ + 4)
+
+    val f = Observable(o1, o2, o3)
+      .merge(DropNew(1000))
+      .sum
+      .asFuture
+
+    val result = Await.result(f, 30.seconds)
+    assert(result.exists(_ > 0))
   }
 
   test("should not lose events, test 1") { implicit s =>
