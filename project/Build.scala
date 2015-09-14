@@ -114,6 +114,7 @@ object Build extends SbtBuild {
 
     publishMavenStyle := true,
     releasePublishArtifactsAction := PgpKeys.publishSigned.value,
+    releaseCrossBuild := true,
 
     publishTo := {
       val nexus = "https://oss.sonatype.org/"
