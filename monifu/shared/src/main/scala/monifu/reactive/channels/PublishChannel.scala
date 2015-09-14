@@ -26,9 +26,8 @@ import monifu.reactive.subjects.PublishSubject
  * [[monifu.reactive.subjects.PublishSubject PublishSubject]].
  */
 final class PublishChannel[T] private 
-    (policy: OverflowStrategy.Synchronous, onOverflow: Long => T)
-    (implicit s: Scheduler)
-  extends SubjectChannel(PublishSubject[T](), policy, onOverflow)(s)
+    (policy: OverflowStrategy.Synchronous, onOverflow: Long => T, s: Scheduler)
+  extends SubjectChannel(PublishSubject[T](), policy, onOverflow, s)
 
 object PublishChannel {
   /**
@@ -46,7 +45,7 @@ object PublishChannel {
   def apply[T](strategy: OverflowStrategy.Synchronous)
     (implicit s: Scheduler): PublishChannel[T] = {
 
-    new PublishChannel[T](strategy, null)
+    new PublishChannel[T](strategy, null, s)
   }
 
   /**
@@ -69,6 +68,6 @@ object PublishChannel {
   def apply[T](strategy: OverflowStrategy.Evicted, onOverflow: Long => T)
     (implicit s: Scheduler): PublishChannel[T] = {
 
-    new PublishChannel[T](strategy, onOverflow)
+    new PublishChannel[T](strategy, onOverflow, s)
   }
 }

@@ -36,6 +36,7 @@ object Build extends SbtBuild {
   val sharedSettings = Seq(
     organization := "org.monifu",
     scalaVersion := "2.11.7",
+    crossScalaVersions := Seq("2.10.5", "2.11.7"),
 
     scalacOptions ++= Seq(
       "-target:jvm-1.6", // generates code with the Java 6 class format
@@ -45,27 +46,36 @@ object Build extends SbtBuild {
       "-unchecked", // able additional warnings where generated code depends on assumptions
       "-deprecation", // emit warning for usages of deprecated APIs
       "-feature", // emit warning usages of features that should be imported explicitly
-      // enables linter
-      "-Xlint:adapted-args", // warn if an argument list is modified to match the receiver
-      "-Xlint:nullary-unit", // warn when nullary methods return Unit
-      "-Xlint:inaccessible", // warn about inaccessible types in method signatures
-      "-Xlint:nullary-override", // warn when non-nullary `def f()' overrides nullary `def f'
-      "-Xlint:infer-any", // warn when a type argument is inferred to be `Any`
-      "-Xlint:missing-interpolator", // a string literal appears to be missing an interpolator id
-      "-Xlint:doc-detached", // a ScalaDoc comment appears to be detached from its element
-      "-Xlint:private-shadow", // a private field (or class parameter) shadows a superclass field
-      "-Xlint:type-parameter-shadow", // a local type parameter shadows a type already in scope
-      "-Xlint:poly-implicit-overload", // parameterized overloaded implicit methods are not visible as view bounds
-      "-Xlint:option-implicit", // Option.apply used implicit view
-      "-Xlint:delayedinit-select", // Selecting member of DelayedInit
-      "-Xlint:by-name-right-associative", // By-name parameter of right associative operator
-      "-Xlint:package-object-classes", // Class or object defined in package object
-      "-Xlint:unsound-match", // Pattern match may not be typesafe
       // possibly deprecated options
       "-Yinline-warnings",
       "-Ywarn-dead-code",
       "-Ywarn-inaccessible"
     ),
+
+    // version specific compiler options
+    scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((2, majorVersion)) if majorVersion >= 11 =>
+        Seq(
+          // enables linter options
+          "-Xlint:adapted-args", // warn if an argument list is modified to match the receiver
+          "-Xlint:nullary-unit", // warn when nullary methods return Unit
+          "-Xlint:inaccessible", // warn about inaccessible types in method signatures
+          "-Xlint:nullary-override", // warn when non-nullary `def f()' overrides nullary `def f'
+          "-Xlint:infer-any", // warn when a type argument is inferred to be `Any`
+          "-Xlint:missing-interpolator", // a string literal appears to be missing an interpolator id
+          "-Xlint:doc-detached", // a ScalaDoc comment appears to be detached from its element
+          "-Xlint:private-shadow", // a private field (or class parameter) shadows a superclass field
+          "-Xlint:type-parameter-shadow", // a local type parameter shadows a type already in scope
+          "-Xlint:poly-implicit-overload", // parameterized overloaded implicit methods are not visible as view bounds
+          "-Xlint:option-implicit", // Option.apply used implicit view
+          "-Xlint:delayedinit-select", // Selecting member of DelayedInit
+          "-Xlint:by-name-right-associative", // By-name parameter of right associative operator
+          "-Xlint:package-object-classes", // Class or object defined in package object
+          "-Xlint:unsound-match" // Pattern match may not be typesafe
+        )
+      case _ =>
+        Seq.empty
+    }),
 
     // Turning off fatal warnings for ScalaDoc, otherwise we can't release.
     scalacOptions in (Compile, doc) ~= (_ filterNot (_ == "-Xfatal-warnings")),
@@ -161,7 +171,7 @@ object Build extends SbtBuild {
       name := "monifu-core",
       testFrameworks += new TestFramework("minitest.runner.Framework"),
       libraryDependencies ++= Seq(
-        "org.monifu" %% "minitest" % "0.13" % "test"
+        "org.monifu" %% "minitest" % "0.14" % "test"
       ))
 
   lazy val monifuCoreJS = project.in(file("core/js"))
@@ -172,7 +182,7 @@ object Build extends SbtBuild {
         scalaJSStage in Test := FastOptStage,
         testFrameworks += new TestFramework("minitest.runner.Framework"),
         libraryDependencies ++= Seq(
-          "org.monifu" %%% "minitest" % "0.13" % "test"
+          "org.monifu" %%% "minitest" % "0.14" % "test"
         ))
 
   lazy val monifuJVM = project.in(file("monifu/jvm"))
@@ -183,7 +193,7 @@ object Build extends SbtBuild {
       testFrameworks += new TestFramework("minitest.runner.Framework"),
       libraryDependencies ++= Seq(
         "org.reactivestreams" % "reactive-streams" % "1.0.0",
-        "org.monifu" %% "minitest" % "0.13" % "test"
+        "org.monifu" %% "minitest" % "0.14" % "test"
       ))
 
   lazy val monifuJS = project.in(file("monifu/js"))
@@ -195,7 +205,7 @@ object Build extends SbtBuild {
       scalaJSStage in Test := FastOptStage,
       testFrameworks += new TestFramework("minitest.runner.Framework"),
       libraryDependencies ++= Seq(
-        "org.monifu" %%% "minitest" % "0.13" % "test"
+        "org.monifu" %%% "minitest" % "0.14" % "test"
       ))
 
   lazy val tckTests = project.in(file("tckTests"))

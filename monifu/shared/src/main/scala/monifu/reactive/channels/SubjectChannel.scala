@@ -26,8 +26,7 @@ import monifu.reactive.observers.BufferedSubscriber
  * Wraps any [[Subject]] into a [[Channel]].
  */
 class SubjectChannel[I,+O] private[reactive]
-    (subject: Subject[I, O], overflowStrategy: OverflowStrategy.Synchronous, onOverflow: Long => I)
-    (implicit scheduler: Scheduler)
+    (subject: Subject[I, O], overflowStrategy: OverflowStrategy.Synchronous, onOverflow: Long => I, scheduler: Scheduler)
   extends ObservableChannel[I,O] {
 
   assert(onOverflow == null || overflowStrategy.isInstanceOf[Evicted],
@@ -68,7 +67,7 @@ object SubjectChannel {
   def apply[I,O](subject: Subject[I, O], strategy: OverflowStrategy.Synchronous)
     (implicit s: Scheduler): SubjectChannel[I, O] = {
 
-    new SubjectChannel[I,O](subject, strategy, null)
+    new SubjectChannel[I,O](subject, strategy, null, s)
   }
 
   /**
@@ -90,6 +89,6 @@ object SubjectChannel {
   def apply[I,O](subject: Subject[I, O], strategy: OverflowStrategy.Evicted, onOverflow: Long => I)
     (implicit s: Scheduler): SubjectChannel[I, O] = {
 
-    new SubjectChannel[I,O](subject, strategy, onOverflow)
+    new SubjectChannel[I,O](subject, strategy, onOverflow, s)
   }
 }

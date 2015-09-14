@@ -40,8 +40,11 @@ Highlights:
 See **[monifu-sample](https://github.com/monifu/monifu-sample)** for
 a project exemplifying Monifu used both on the server and on the client.
 
-The packages are published on Maven Central. Compiled for Scala 2.11.5
-and Scala.js 0.6.0. Older versions are no longer supported.
+The packages are published on Maven Central. Currently compiled for 
+*Scala 2.10.x*, *2.11.x* and *Scala.js 0.6.x*. Monifu's compatibility extends 
+to the latest 2 major Scala versions and to the latest major Scala.js version. 
+In other words support for *Scala 2.10.x* will be kept for as long as possible, 
+but you should not rely on it after Scala 2.12 is out.
 
 - Current stable release is: `1.0-RC2`
 
