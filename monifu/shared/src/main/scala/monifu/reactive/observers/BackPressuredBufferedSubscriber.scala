@@ -160,6 +160,9 @@ private[reactive] final class BackPressuredBufferedSubscriber[-T] private
 
         if (next != null) {
           val ack = underlying.onNext(next)
+          // for establishing whether the next call is asynchronous,
+          // note that the check with batchSizeModulus is meant for splitting
+          // big synchronous loops in smaller batches
           val nextIndex = if (!ack.isCompleted) 0 else
             (syncIndex + 1) & batchSizeModulus
 
