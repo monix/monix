@@ -18,7 +18,6 @@
 package monifu.reactive.subjects
 
 import monifu.reactive.Subscriber
-import monifu.reactive.internals.GenericSubject
 
 /**
  * A `PublishSubject` emits to a subscriber only those items that are
