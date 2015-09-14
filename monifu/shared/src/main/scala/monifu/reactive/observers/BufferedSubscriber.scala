@@ -75,7 +75,7 @@ object BufferedSubscriber {
       case BackPressure(bufferSize) =>
         BackPressuredBufferedSubscriber(subscriber, bufferSize)
       case DropNew(bufferSize) =>
-        DropIncomingBufferedSubscriber.simple(subscriber, bufferSize)
+        DropNewBufferedSubscriber.simple(subscriber, bufferSize)
       case DropOld(bufferSize) =>
         EvictingBufferedSubscriber.dropOld(subscriber, bufferSize)
       case ClearBuffer(bufferSize) =>
@@ -99,7 +99,7 @@ object BufferedSubscriber {
 
     overflowStrategy match {
       case DropNew(bufferSize) =>
-        DropIncomingBufferedSubscriber.withSignal(subscriber, bufferSize, onOverflow)
+        DropNewBufferedSubscriber.withSignal(subscriber, bufferSize, onOverflow)
 
       case DropOld(bufferSize) =>
         EvictingBufferedSubscriber.dropOld(subscriber, bufferSize, onOverflow)
