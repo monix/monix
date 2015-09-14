@@ -1,6 +1,3 @@
-
-
-
 /*
  * Copyright (c) 2014-2015 by its authors. Some rights reserved.
  * See the project homepage at: http://www.monifu.org
@@ -109,7 +106,7 @@ object BufferDropNewSuite extends TestSuite[TestScheduler] {
     val underlying = new Observer[Int] {
       def onNext(elem: Int) = {
         received += elem
-        if (elem < 5) Continue else promise.future
+        promise.future
       }
 
       def onError(ex: Throwable) = ()
@@ -128,13 +125,13 @@ object BufferDropNewSuite extends TestSuite[TestScheduler] {
     assertEquals(buffer.onNext(5), Continue)
 
     s.tick()
-    assertEquals(received, 15)
+    assertEquals(received, 1)
 
     for (i <- 0 until 5)
       assertEquals(buffer.onNext(6 + i), Continue)
 
     s.tick()
-    assertEquals(received, 15)
+    assertEquals(received, 1)
 
     promise.success(Continue); s.tick()
     assertEquals(received, 15)

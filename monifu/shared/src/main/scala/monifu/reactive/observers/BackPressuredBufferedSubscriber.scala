@@ -154,59 +154,52 @@ private[reactive] final class BackPressuredBufferedSubscriber[-T] private
     // hasn't canceled, or as long as we haven't signaled an onComplete or an
     // onError event yet
     if (!state.downstreamIsDone) {
-      val next: T = queue.poll()
+      // Processing until we're hitting `itemsToPush`
+      if (processed < state.itemsToPush) {
+        val next: T = queue.poll()
 
-      if (next != null) {
-        val ack = underlying.onNext(next)
-        val nextIndex = if (!ack.isCompleted) 0 else
-          (syncIndex + 1) & batchSizeModulus
+        if (next != null) {
+          val ack = underlying.onNext(next)
+          val nextIndex = if (!ack.isCompleted) 0 else
+            (syncIndex + 1) & batchSizeModulus
 
-        if (nextIndex > 0) {
-          if (ack == Continue || ack.value.get == Continue.IsSuccess)
-            fastLoop(state, processed + 1, nextIndex)
-          else if (ack == Cancel || ack.value.get == Cancel.IsSuccess) {
-            // ending loop
-            downstreamSignalCancel()
+          if (nextIndex > 0) {
+            if (ack == Continue || ack.value.get == Continue.IsSuccess)
+              fastLoop(state, processed + 1, nextIndex)
+            else if (ack == Cancel || ack.value.get == Cancel.IsSuccess) {
+              // ending loop
+              downstreamSignalCancel()
+            }
+            else {
+              // ending loop
+              val ex = ack.value.get.failed.getOrElse(new MatchError(ack.value.get))
+              downstreamSignalComplete(ex)
+            }
           }
-          else {
-            // ending loop
-            val ex = ack.value.get.failed.getOrElse(new MatchError(ack.value.get))
-            downstreamSignalComplete(ex)
+          else ack.onComplete {
+            case Continue.IsSuccess =>
+              // re-run loop (in different thread)
+              rescheduled(processed + 1)
+
+            case Cancel.IsSuccess =>
+              // ending loop
+              downstreamSignalCancel()
+
+            case failure =>
+              // ending loop
+              val ex = failure.failed.getOrElse(new MatchError(failure))
+              downstreamSignalComplete(ex)
           }
-        }
-        else ack.onComplete {
-          case Continue.IsSuccess =>
-            // re-run loop (in different thread)
-            rescheduled(processed + 1)
-
-          case Cancel.IsSuccess =>
-            // ending loop
-            downstreamSignalCancel()
-
-          case failure =>
-            // ending loop
-            val ex = failure.failed.getOrElse(new MatchError(failure))
-            downstreamSignalComplete(ex)
-        }
-      }
-      else if (state.upstreamIsComplete || state.errorThrown != null) {
-        // Race-condition check, but if upstreamIsComplete=true is visible,
-        // then the queue should be fully published because there's a clear
-        // happens-before relationship between queue.offer() and upstreamIsComplete=true
-        // NOTE: errors have priority, so in case of an error seen, then the loop is stopped
-        if (!queue.isEmpty) {
-          fastLoop(stateRef.get, processed, syncIndex) // re-run loop
         }
         else {
-          // ending loop
+          // upstreamIsComplete=true, ending loop
+          assert(state.upstreamIsComplete, "upstreamIsComplete should be true")
           try downstreamSignalComplete(state.errorThrown) finally
             queue.clear() // for GC purposes
         }
       }
       else {
         val ref = stateRef.transformAndGet(_.declareProcessed(processed))
-        // this really has to be LESS-or-equal to zero, because we might have
-        // noticed items in the queue before noticing an incremented itemsToPush
         if (ref.itemsToPush <= 0) {
           // if in back-pressure mode, unblock
           ref.nextAckPromise.success(Continue)

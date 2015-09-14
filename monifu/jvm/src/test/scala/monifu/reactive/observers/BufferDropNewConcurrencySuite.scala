@@ -27,7 +27,6 @@ import monifu.reactive.{Observable, Subscriber, Ack, Observer}
 import scala.concurrent.{Await, Future, Promise}
 import concurrent.duration._
 
-
 object BufferDropNewConcurrencySuite extends TestSuite[Scheduler] {
   def tearDown(env: Scheduler) = ()
   

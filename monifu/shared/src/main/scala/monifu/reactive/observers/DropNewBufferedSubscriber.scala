@@ -20,7 +20,7 @@ package monifu.reactive.observers
 import monifu.collection.mutable.ConcurrentQueue
 import monifu.concurrent.atomic.padded.Atomic
 import monifu.reactive.Ack.{Cancel, Continue}
-import monifu.reactive.observers.DropIncomingBufferedSubscriber.State
+import monifu.reactive.observers.DropNewBufferedSubscriber.State
 import monifu.reactive.{Ack, Subscriber}
 import scala.annotation.tailrec
 import scala.concurrent.Future
@@ -31,7 +31,7 @@ import scala.util.control.NonFatal
  * for the [[monifu.reactive.OverflowStrategy.DropNew DropNew]]
  * overflow strategy.
  */
-private[reactive] final class DropIncomingBufferedSubscriber[-T] private
+private[reactive] final class DropNewBufferedSubscriber[-T] private
   (underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => T = null)
   extends BufferedSubscriber[T] with SynchronousSubscriber[T] { self =>
 
@@ -223,64 +223,53 @@ private[reactive] final class DropIncomingBufferedSubscriber[-T] private
     // hasn't canceled, or as long as we haven't signaled an onComplete or an
     // onError event yet
     if (!state.downstreamIsDone) {
-      val next: T = queue.poll()
+      // Processing until we're hitting `itemsToPush`
+      if (processed < state.itemsToPush) {
+        val next: T = queue.poll()
 
-      if (next != null) {
-        val ack = underlying.onNext(next)
-        val nextIndex = if (!ack.isCompleted) 0 else
-          (syncIndex + 1) & batchSizeModulus
+        if (next != null) {
+          val ack = underlying.onNext(next)
+          val nextIndex = if (!ack.isCompleted) 0 else
+            (syncIndex + 1) & batchSizeModulus
 
-        if (nextIndex > 0) {
-          if (ack == Continue || ack.value.get == Continue.IsSuccess)
-            fastLoop(state, processed + 1, nextIndex)
-          else if (ack == Cancel || ack.value.get == Cancel.IsSuccess) {
-            // ending loop
-            stateRef.transformAndGet(_.downstreamComplete)
+          if (nextIndex > 0) {
+            if (ack == Continue || ack.value.get == Continue.IsSuccess)
+              fastLoop(state, processed + 1, nextIndex)
+            else if (ack == Cancel || ack.value.get == Cancel.IsSuccess) {
+              // ending loop
+              stateRef.transformAndGet(_.downstreamComplete)
+            }
+            else {
+              // ending loop
+              val ex = ack.value.get.failed.getOrElse(new MatchError(ack.value.get))
+              downstreamSignalComplete(ex)
+            }
           }
-          else {
-            // ending loop
-            val ex = ack.value.get.failed.getOrElse(new MatchError(ack.value.get))
-            downstreamSignalComplete(ex)
+          else ack.onComplete {
+            case Continue.IsSuccess =>
+              // re-run loop (in different thread)
+              rescheduled(processed + 1)
+
+            case Cancel.IsSuccess =>
+              // ending loop
+              stateRef.transformAndGet(_.downstreamComplete)
+
+            case failure =>
+              // ending loop
+              val ex = failure.failed.getOrElse(new MatchError(failure))
+              downstreamSignalComplete(ex)
           }
-        }
-        else ack.onComplete {
-          case Continue.IsSuccess =>
-            // re-run loop (in different thread)
-            rescheduled(processed + 1)
-
-          case Cancel.IsSuccess =>
-            // ending loop
-            stateRef.transformAndGet(_.downstreamComplete)
-
-          case failure =>
-            // ending loop
-            val ex = failure.failed.getOrElse(new MatchError(failure))
-            downstreamSignalComplete(ex)
-        }
-      }
-      else if (state.upstreamIsComplete || state.errorThrown != null) {
-        // Race-condition check, but if upstreamIsComplete=true is visible,
-        // then the queue should be fully published because there's a clear
-        // happens-before relationship between queue.offer() and upstreamIsComplete=true
-        // NOTE: errors have priority, so in case of an error seen, then the loop is stopped
-        if (!queue.isEmpty) {
-          fastLoop(stateRef.get, processed, syncIndex) // re-run loop
         }
         else {
-          // ending loop
+          // upstreamIsComplete=true, ending loop
+          assert(state.upstreamIsComplete, "upstreamIsComplete should be true")
           try downstreamSignalComplete(state.errorThrown) finally
             queue.clear() // for GC purposes
         }
       }
       else {
         val ref = stateRef.transformAndGet(_.declareProcessed(processed))
-        // this really has to be LESS-or-equal
-        if (ref.itemsToPush <= 0) {
-          // race-condition check
-          if (!queue.isEmpty && stateRef.compareAndSet(ref, ref.copy(itemsToPush = 1)))
-            fastLoop(ref, 0, syncIndex)
-        }
-        else {
+        if (ref.itemsToPush > 0) {
           // if the queue is non-empty (i.e. concurrent modifications
           // might have happened) then start all over again
           fastLoop(ref, 0, syncIndex)
@@ -290,25 +279,25 @@ private[reactive] final class DropIncomingBufferedSubscriber[-T] private
   }
 }
 
-object DropIncomingBufferedSubscriber {
+object DropNewBufferedSubscriber {
   /**
-   * Returns an instance of a [[DropIncomingBufferedSubscriber]]
+   * Returns an instance of a [[DropNewBufferedSubscriber]]
    * for the [[monifu.reactive.OverflowStrategy.DropNew DropNew]]
    * overflowStrategy.
    */
-  def simple[T](underlying: Subscriber[T], bufferSize: Int): DropIncomingBufferedSubscriber[T] = {
-    new DropIncomingBufferedSubscriber[T](underlying, bufferSize, null)
+  def simple[T](underlying: Subscriber[T], bufferSize: Int): DropNewBufferedSubscriber[T] = {
+    new DropNewBufferedSubscriber[T](underlying, bufferSize, null)
   }
 
   /**
-   * Returns an instance of a [[DropIncomingBufferedSubscriber]]
+   * Returns an instance of a [[DropNewBufferedSubscriber]]
    * for the [[monifu.reactive.OverflowStrategy.DropNew DropNew]]
    * overflowStrategy.
    */
   def withSignal[T](underlying: Subscriber[T], bufferSize: Int,
-    onOverflow: Long => T): DropIncomingBufferedSubscriber[T] = {
+    onOverflow: Long => T): DropNewBufferedSubscriber[T] = {
 
-    new DropIncomingBufferedSubscriber[T](underlying, bufferSize, onOverflow)
+    new DropNewBufferedSubscriber[T](underlying, bufferSize, onOverflow)
   }
 
   /** State used in our implementation to manage concurrency */
@@ -329,8 +318,7 @@ object DropIncomingBufferedSubscriber {
     }
 
     def declareProcessed(processed: Int): State = {
-      val count = itemsToPush - (if (processed > 0) processed else 1)
-      copy(itemsToPush = if (count > 0) count else 0)
+      copy(itemsToPush = itemsToPush - processed)
     }
 
     def incrementDropped: State = {
