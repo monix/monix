@@ -105,6 +105,7 @@ protected[reactive] abstract class GenericSubject[T]
       while (iterator.hasNext) {
         val subscriber = iterator.next()
         // using the scheduler defined by each subscriber
+        import subscriber.scheduler
 
         val ack = try subscriber.onNext(elem) catch {
           case NonFatal(ex) => Future.failed(ex)
