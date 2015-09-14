@@ -24,8 +24,9 @@ import monifu.concurrent.Scheduler
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.OverflowStrategy.DropNew
 import monifu.reactive.exceptions.DummyException
-import monifu.reactive.{Subscriber, Ack, Observer}
-import scala.concurrent.{Future, Promise}
+import monifu.reactive.{Observable, Subscriber, Ack, Observer}
+import scala.concurrent.{Await, Future, Promise}
+import scala.concurrent.duration._
 
 object BufferDropNewThenSignalConcurrencySuite
   extends TestSuite[Scheduler] {
@@ -44,6 +45,17 @@ object BufferDropNewThenSignalConcurrencySuite
   def buildNewForLong(bufferSize: Int, underlying: Observer[Long])
     (implicit s: Scheduler): BufferedSubscriber[Long] = {
     BufferedSubscriber(Subscriber(underlying, s), DropNew(bufferSize), nr => nr)
+  }
+
+  test("merge test should work") { implicit s =>
+    val source = Observable.repeat(1L).take(1000000)
+    val f = Observable(source, source, source)
+      .merge(DropNew(1000), dropped => dropped)
+      .sum
+      .asFuture
+
+    val result = Await.result(f, 30.seconds)
+    assertEquals(result, Some(1000000 * 3))
   }
 
   test("should not lose events, test 1") { implicit s =>

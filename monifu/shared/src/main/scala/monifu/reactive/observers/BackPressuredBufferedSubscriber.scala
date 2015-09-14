@@ -207,8 +207,12 @@ private[reactive] final class BackPressuredBufferedSubscriber[-T] private
         val ref = stateRef.transformAndGet(_.declareProcessed(processed))
         // this really has to be LESS-or-equal
         if (ref.itemsToPush <= 0) {
-          // if in back-pressure mode, unblock
-          ref.nextAckPromise.success(Continue)
+          // race-condition check
+          if (!queue.isEmpty && stateRef.compareAndSet(ref, ref.copy(itemsToPush = 1)))
+            fastLoop(ref, 0, syncIndex)
+          else
+            // if in back-pressure mode, unblock
+            ref.nextAckPromise.success(Continue)
         }
         else {
           // if the queue is non-empty (i.e. concurrent modifications
@@ -247,7 +251,7 @@ private[reactive] object BackPressuredBufferedSubscriber {
     }
 
     def declareProcessed(processed: Int): State = {
-      val count = itemsToPush - processed
+      val count = itemsToPush - (if (processed > 0) processed else 1)
       copy(itemsToPush = if (count > 0) count else 0)
     }
   }
