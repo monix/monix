@@ -15,12 +15,13 @@
  * limitations under the License.
  */
 
-package monifu.reactive.internals
+package monifu.reactive.subjects
 
 import monifu.concurrent.atomic.padded.Atomic
 import monifu.reactive.Ack.{Cancel, Continue}
-import monifu.reactive.internals.GenericSubject.State
+import monifu.reactive.internals.PromiseCounter
 import monifu.reactive.{Ack, Subject, Subscriber}
+import monifu.reactive.subjects.GenericSubject.State
 import scala.annotation.tailrec
 import scala.concurrent.Future
 import scala.util.control.NonFatal
@@ -38,7 +39,7 @@ protected[reactive] abstract class GenericSubject[T]
    */
   private[this] val stateRef = Atomic(State[T]())
 
-  /** Invoked on each onNext, giving the posibility of caching the signal */
+  /** Invoked on each onNext, giving the possibility of caching the signal */
   protected def cacheOrIgnore(elem: T): Unit
 
   /** Invoked on a new subscriber in case the subject is already completed */
@@ -104,7 +105,6 @@ protected[reactive] abstract class GenericSubject[T]
       while (iterator.hasNext) {
         val subscriber = iterator.next()
         // using the scheduler defined by each subscriber
-        import subscriber.scheduler
 
         val ack = try subscriber.onNext(elem) catch {
           case NonFatal(ex) => Future.failed(ex)

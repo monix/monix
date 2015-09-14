@@ -19,15 +19,15 @@ package monifu.reactive.subjects
 
 import monifu.concurrent.atomic.padded.Atomic
 import monifu.reactive.Ack.{Cancel, Continue}
-import monifu.reactive.internals.GenericSubject.State
+import monifu.reactive.subjects.GenericSubject.State
 import monifu.reactive.internals._
 import monifu.reactive.{Ack, Subject, Subscriber}
 import scala.annotation.tailrec
 import scala.concurrent.Future
 
 /**
- * An `AsyncSubject` emits the last value (and only the last value) emitted by the source Observable,
- * and only after that source Observable completes.
+ * An `AsyncSubject` emits the last value (and only the last value) emitted by
+ * the source Observable, and only after that source Observable completes.
  *
  * If the source terminates with an error, the `AsyncSubject` will not emit any
  * items to subsequent subscribers, but will simply pass along the error
