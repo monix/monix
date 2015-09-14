@@ -26,9 +26,8 @@ import monifu.reactive.subjects.ReplaySubject
  * [[monifu.reactive.subjects.ReplaySubject ReplaySubject]].
  */
 final class ReplayChannel[T] private 
-    (strategy: OverflowStrategy.Synchronous, onOverflow: Long => T)
-    (implicit s: Scheduler)
-  extends SubjectChannel(ReplaySubject[T](), strategy, onOverflow)(s)
+    (strategy: OverflowStrategy.Synchronous, onOverflow: Long => T, s: Scheduler)
+  extends SubjectChannel(ReplaySubject[T](), strategy, onOverflow, s)
 
 object ReplayChannel {
   /**
@@ -46,7 +45,7 @@ object ReplayChannel {
   def apply[T](strategy: OverflowStrategy.Synchronous)
     (implicit s: Scheduler): ReplayChannel[T] = {
 
-    new ReplayChannel[T](strategy, null)
+    new ReplayChannel[T](strategy, null, s)
   }
 
   /**
@@ -69,6 +68,6 @@ object ReplayChannel {
   def apply[T](strategy: OverflowStrategy.Evicted, onOverflow: Long => T)
     (implicit s: Scheduler): ReplayChannel[T] = {
 
-    new ReplayChannel[T](strategy, onOverflow)
+    new ReplayChannel[T](strategy, onOverflow, s)
   }
 }

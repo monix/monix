@@ -26,9 +26,8 @@ import monifu.reactive.subjects.AsyncSubject
  * [[monifu.reactive.subjects.AsyncSubject AsyncSubject]].
  */
 final class AsyncChannel[T] private
-    (policy: OverflowStrategy.Synchronous,onOverflow: Long => T)
-    (implicit s: Scheduler)
-  extends SubjectChannel[T,T](AsyncSubject[T](), policy, onOverflow)(s)
+    (policy: OverflowStrategy.Synchronous, onOverflow: Long => T, s: Scheduler)
+  extends SubjectChannel[T,T](AsyncSubject[T](), policy, onOverflow, s)
 
 object AsyncChannel {
   /**
@@ -46,7 +45,7 @@ object AsyncChannel {
   def apply[T](strategy: OverflowStrategy.Synchronous)
     (implicit s: Scheduler): AsyncChannel[T] = {
 
-    new AsyncChannel[T](strategy, null)
+    new AsyncChannel[T](strategy, null, s)
   }
 
   /**
@@ -69,6 +68,6 @@ object AsyncChannel {
   def apply[T](strategy: OverflowStrategy.Evicted, onOverflow: Long => T)
     (implicit s: Scheduler): AsyncChannel[T] = {
 
-    new AsyncChannel[T](strategy, onOverflow)
+    new AsyncChannel[T](strategy, onOverflow, s)
   }
 }

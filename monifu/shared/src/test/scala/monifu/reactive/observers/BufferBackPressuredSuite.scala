@@ -52,7 +52,7 @@ object BufferBackPressuredSuite extends TestSuite[TestScheduler] {
     assertEquals(buffer.onNext(5), Continue)
 
     val async = buffer.onNext(6)
-    assert(!async.value.contains(Success(Continue)))
+    assertEquals(async.value, None)
 
     promise.success(Continue)
     s.tick()

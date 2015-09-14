@@ -17,7 +17,6 @@
  
 package monifu.reactive.observers
 
-import monifu.concurrent.Scheduler
 import monifu.reactive.OverflowStrategy._
 import monifu.reactive._
 
@@ -83,9 +82,7 @@ object BufferedSubscriber {
     }
   }
 
-  private[reactive] def apply[T](subscriber: Subscriber[T], strategy: OverflowStrategy, onOverflow: Long => T)
-    (implicit s: Scheduler): BufferedSubscriber[T] = {
-
+  private[reactive] def apply[T](subscriber: Subscriber[T], strategy: OverflowStrategy, onOverflow: Long => T): BufferedSubscriber[T] = {
     strategy match {
       case withSignal: Evicted if onOverflow != null =>
         withOverflowSignal(subscriber, withSignal)(onOverflow)
