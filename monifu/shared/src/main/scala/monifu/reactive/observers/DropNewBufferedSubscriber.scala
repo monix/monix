@@ -41,7 +41,10 @@ private[reactive] final class DropNewBufferedSubscriber[-T] private
 
   // State for managing contention between multiple producers and one consumer
   private[this] val stateRef = Atomic(State())
-  // This is a concurrent queue so we can push to it without worries
+  // Concurrent queue, producers can push into it without extra synchronization
+  // and there's a happens before relationship between `queue.offer` and
+  // incrementing `stateRef.itemsToPush`, which we are using on the consumer
+  // side in order to know how many items to process and when to stop
   private[this] val queue = ConcurrentQueue.empty[T]
   // Used on the consumer side to split big synchronous workloads in batches
   private[this] val batchSizeModulus = scheduler.env.batchSize - 1
@@ -271,11 +274,14 @@ private[reactive] final class DropNewBufferedSubscriber[-T] private
         }
       }
       else {
-        val ref = stateRef.transformAndGet(_.declareProcessed(processed))
-        if (ref.itemsToPush > 0) {
-          // if the queue is non-empty (i.e. concurrent modifications
-          // might have happened) then start all over again
-          fastLoop(ref, 0, syncIndex)
+        // at this point processed == itemsToPush
+        val ref = state.declareProcessed(processed)
+        // trying update, if it fails it probably means we've got more
+        // items to process and if it succeeds it means we are done
+        // note that we don't need to check that itemsToPush is zero
+        if (!stateRef.compareAndSet(state, ref)) {
+          // concurrent modifications happened, continuing loop
+          fastLoop(stateRef.get, processed, syncIndex)
         }
       }
     }
