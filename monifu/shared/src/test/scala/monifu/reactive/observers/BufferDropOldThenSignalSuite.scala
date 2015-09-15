@@ -33,8 +33,7 @@ object BufferDropOldThenSignalSuite extends TestSuite[TestScheduler] {
       "TestScheduler should have no pending tasks")
   }
 
-  def buildNew(bufferSize: Int, underlying: Observer[Int])
-    (implicit s: Scheduler): BufferedSubscriber[Int] = {
+  def buildNew(bufferSize: Int, underlying: Observer[Int])(implicit s: Scheduler) = {
     BufferedSubscriber.withOverflowSignal(
       Subscriber(underlying, s), DropOld(bufferSize))(nr => nr.toInt)
   }

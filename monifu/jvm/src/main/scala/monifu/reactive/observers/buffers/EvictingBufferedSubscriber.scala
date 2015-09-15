@@ -15,10 +15,11 @@
  * limitations under the License.
  */
 
-package monifu.reactive.observers
+package monifu.reactive.observers.buffers
 
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.internals.collection.{DropAllOnOverflowQueue, DropHeadOnOverflowQueue, EvictingQueue}
+import monifu.reactive.observers.{BufferedSubscriber, SynchronousSubscriber}
 import monifu.reactive.{Ack, Subscriber}
 import scala.annotation.tailrec
 import scala.util.Failure
@@ -28,7 +29,7 @@ import scala.util.control.NonFatal
  * A [[BufferedSubscriber]] implementation for the
  * [[monifu.reactive.OverflowStrategy.DropNew DropNew]] overflow strategy.
  */
-private[reactive] final class EvictingBufferedSubscriber[-T] private
+private[buffers] final class EvictingBufferedSubscriber[-T] private
   (underlying: Subscriber[T], buffer: EvictingQueue[AnyRef], onOverflow: Long => T = null)
   extends BufferedSubscriber[T] with SynchronousSubscriber[T] { self =>
 
@@ -92,10 +93,18 @@ private[reactive] final class EvictingBufferedSubscriber[-T] private
     def run(): Unit = self.synchronized {
       val count =
         if (eventsDropped > 0 && onOverflow != null) {
-          val message = onOverflow(eventsDropped).asInstanceOf[AnyRef]
-          eventsDropped = 0
-          consumerBuffer(0) = message
-          1 + buffer.pollMany(consumerBuffer, 1)
+          try {
+            val message = onOverflow(eventsDropped).asInstanceOf[AnyRef]
+            eventsDropped = 0
+            consumerBuffer(0) = message
+            1 + buffer.pollMany(consumerBuffer, 1)
+          }
+          catch {
+            case NonFatal(ex) =>
+              errorThrown = ex
+              upstreamIsComplete = true
+              0
+          }
         }
         else {
           buffer.pollMany(consumerBuffer)
@@ -196,7 +205,7 @@ private[reactive] object EvictingBufferedSubscriber {
    * for the [[monifu.reactive.OverflowStrategy.DropOld DropOld]]
    * overflow strategy.
    */
-  def dropOld[T](underlying: Subscriber[T], bufferSize: Int): EvictingBufferedSubscriber[T] = {
+  def dropOld[T](underlying: Subscriber[T], bufferSize: Int): SynchronousSubscriber[T] = {
     require(bufferSize > 1,
       "bufferSize must be a strictly positive number, bigger than 1")
 
@@ -210,7 +219,7 @@ private[reactive] object EvictingBufferedSubscriber {
    * overflow strategy, with signaling of the number of events that
    * were dropped.
    */
-  def dropOld[T](underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => T): EvictingBufferedSubscriber[T] = {
+  def dropOld[T](underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => T): SynchronousSubscriber[T] = {
     require(bufferSize > 1,
       "bufferSize must be a strictly positive number, bigger than 1")
 
@@ -223,7 +232,7 @@ private[reactive] object EvictingBufferedSubscriber {
    * [[monifu.reactive.OverflowStrategy.ClearBuffer ClearBuffer]]
    * overflow strategy.
    */
-  def clearBuffer[T](underlying: Subscriber[T], bufferSize: Int): EvictingBufferedSubscriber[T] = {
+  def clearBuffer[T](underlying: Subscriber[T], bufferSize: Int): SynchronousSubscriber[T] = {
     require(bufferSize > 1,
       "bufferSize must be a strictly positive number, bigger than 1")
 
@@ -237,7 +246,7 @@ private[reactive] object EvictingBufferedSubscriber {
    * overflow strategy, with signaling of the number of events that
    * were dropped.
    */
-  def clearBuffer[T](underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => T): EvictingBufferedSubscriber[T] = {
+  def clearBuffer[T](underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => T): SynchronousSubscriber[T] = {
     require(bufferSize > 1,
       "bufferSize must be a strictly positive number, bigger than 1")
 

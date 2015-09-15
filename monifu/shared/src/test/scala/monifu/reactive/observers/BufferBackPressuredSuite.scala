@@ -361,7 +361,7 @@ object BufferBackPressuredSuite extends TestSuite[TestScheduler] {
     var received = 0L
     var wasCompleted = false
 
-    val buffer: BufferedSubscriber[Long] = BufferedSubscriber[Long](
+    val buffer = BufferedSubscriber[Long](
       new Subscriber[Long] {
         def onNext(elem: Long) = {
           received += 1

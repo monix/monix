@@ -23,14 +23,29 @@ import minitest.TestSuite
 import monifu.concurrent.Scheduler
 import monifu.reactive.Ack.Continue
 import monifu.reactive.OverflowStrategy.Unbounded
-import monifu.reactive.{Subscriber, Ack, Observer}
-
-import scala.concurrent.{Future, Promise}
+import monifu.reactive.{Ack, Observable, Observer, Subscriber}
+import scala.concurrent.duration._
+import scala.concurrent.{Await, Future, Promise}
 
 object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
   def tearDown(env: Scheduler) = ()
   def setup() = {
     monifu.concurrent.Implicits.globalScheduler
+  }
+
+  test("merge test should work") { implicit s =>
+    val source = Observable.repeat(1L).take(2000000)
+    val o1 = source.map(_ + 2)
+    val o2 = source.map(_ + 3)
+    val o3 = source.map(_ + 4)
+
+    val f = Observable(o1, o2, o3)
+      .merge(Unbounded)
+      .sum
+      .asFuture
+
+    val result = Await.result(f, 30.seconds)
+    assertEquals(result, Some(2000000L * 3 + 2000000L * 4 + 2000000L * 5))
   }
 
   test("should not lose events, test 1") { implicit s =>
