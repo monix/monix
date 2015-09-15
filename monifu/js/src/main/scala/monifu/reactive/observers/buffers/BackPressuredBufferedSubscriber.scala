@@ -15,16 +15,16 @@
  * limitations under the License.
  */
 
-package monifu.reactive.observers
+package monifu.reactive.observers.buffers
 
-import monifu.collection.mutable.ConcurrentQueue
 import monifu.concurrent.atomic.padded.Atomic
 import monifu.reactive.Ack.{Cancel, Continue}
-import monifu.reactive.observers.BackPressuredBufferedSubscriber.State
+import monifu.reactive.observers.BufferedSubscriber
 import monifu.reactive.{Ack, Subscriber}
+import monifu.reactive.observers.buffers.BackPressuredBufferedSubscriber.State
 import scala.annotation.tailrec
 import scala.concurrent.{Future, Promise}
-
+import scala.collection.mutable
 
 /**
  * A [[BufferedSubscriber]] implementation for the
@@ -45,7 +45,7 @@ private[reactive] final class BackPressuredBufferedSubscriber[-T] private
   // and there's a happens before relationship between `queue.offer` and
   // incrementing `stateRef.itemsToPush`, which we are using on the consumer
   // side in order to know how many items to process and when to stop
-  private[this] val queue = ConcurrentQueue.empty[T]
+  private[this] val queue = mutable.Queue.empty[T]
   // Used on the consumer side to split big synchronous workloads in batches
   private[this] val batchSizeModulus = scheduler.env.batchSize - 1
 
@@ -53,7 +53,7 @@ private[reactive] final class BackPressuredBufferedSubscriber[-T] private
     val state = stateRef.get
     // if upstream has completed or downstream canceled, we should cancel
     if (state.upstreamShouldStop) Cancel else {
-      queue.offer(elem)
+      queue.enqueue(elem)
       pushToConsumer(state)
     }
   }
@@ -159,10 +159,11 @@ private[reactive] final class BackPressuredBufferedSubscriber[-T] private
     if (!state.downstreamIsDone) {
       // Processing until we're hitting `itemsToPush`
       if (processed < state.itemsToPush) {
-        val next: T = queue.poll()
 
-        if (next != null) {
+        if (queue.nonEmpty) {
+          val next = queue.dequeue()
           val ack = underlying.onNext(next)
+
           // for establishing whether the next call is asynchronous,
           // note that the check with batchSizeModulus is meant for splitting
           // big synchronous loops in smaller batches

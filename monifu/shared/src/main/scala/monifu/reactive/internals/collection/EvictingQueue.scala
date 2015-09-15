@@ -47,10 +47,8 @@ private[reactive] trait EvictingQueue[T] extends Buffer[T] {
    * Returns the first element in the queue, and removes this element
    * from the queue.
    *
-   * @throws java.util.NoSuchElementException in case the queue is empty
-   * @return the first element of the queue.
+   * @return the first element of the queue or `null` if empty
    */
-  @throws(classOf[NoSuchElementException])
   def poll(): T
 
   /**

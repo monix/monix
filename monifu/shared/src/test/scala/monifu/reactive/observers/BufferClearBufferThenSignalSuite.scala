@@ -34,8 +34,7 @@ object BufferClearBufferThenSignalSuite extends TestSuite[TestScheduler] {
       "TestScheduler should have no pending tasks")
   }
 
-  def buildNew(bufferSize: Int, underlying: Observer[Int])
-    (implicit s: Scheduler): BufferedSubscriber[Int] = {
+  def buildNew(bufferSize: Int, underlying: Observer[Int])(implicit s: Scheduler) = {
     BufferedSubscriber(Subscriber(underlying, s), ClearBuffer(bufferSize), nr => nr.toInt)
   }
 

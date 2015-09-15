@@ -18,7 +18,8 @@
 package monifu.reactive.streams
 
 import monifu.reactive.Ack.{Cancel, Continue}
-import monifu.reactive.observers.{SynchronousBufferedSubscriber, SynchronousSubscriber}
+import monifu.reactive.OverflowStrategy.Unbounded
+import monifu.reactive.observers.{BufferedSubscriber, SynchronousSubscriber}
 import org.reactivestreams.{Subscriber, Subscription}
 
 /**
@@ -65,7 +66,7 @@ final class SubscriberAsReactiveSubscriber[T] private
 
   private[this] val buffer =
     SynchronousSubscriberAsReactiveSubscriber(
-      SynchronousBufferedSubscriber.unbounded(subscriber),
+      BufferedSubscriber.synchronous(subscriber, Unbounded),
       requestCount = requestCount)
 
   def onSubscribe(s: Subscription): Unit =

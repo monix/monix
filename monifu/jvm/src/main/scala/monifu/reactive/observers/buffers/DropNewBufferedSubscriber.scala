@@ -15,12 +15,13 @@
  * limitations under the License.
  */
 
-package monifu.reactive.observers
+package monifu.reactive.observers.buffers
 
-import monifu.collection.mutable.ConcurrentQueue
+import java.util.concurrent.ConcurrentLinkedQueue
 import monifu.concurrent.atomic.padded.Atomic
 import monifu.reactive.Ack.{Cancel, Continue}
-import monifu.reactive.observers.DropNewBufferedSubscriber.State
+import monifu.reactive.observers.{BufferedSubscriber, SynchronousSubscriber}
+import monifu.reactive.observers.buffers.DropNewBufferedSubscriber.State
 import monifu.reactive.{Ack, Subscriber}
 import scala.annotation.tailrec
 import scala.concurrent.Future
@@ -31,7 +32,7 @@ import scala.util.control.NonFatal
  * for the [[monifu.reactive.OverflowStrategy.DropNew DropNew]]
  * overflow strategy.
  */
-private[reactive] final class DropNewBufferedSubscriber[-T] private
+private[buffers] final class DropNewBufferedSubscriber[-T] private
   (underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => T = null)
   extends BufferedSubscriber[T] with SynchronousSubscriber[T] { self =>
 
@@ -45,7 +46,7 @@ private[reactive] final class DropNewBufferedSubscriber[-T] private
   // and there's a happens before relationship between `queue.offer` and
   // incrementing `stateRef.itemsToPush`, which we are using on the consumer
   // side in order to know how many items to process and when to stop
-  private[this] val queue = ConcurrentQueue.empty[T]
+  private[this] val queue = new ConcurrentLinkedQueue[T]()
   // Used on the consumer side to split big synchronous workloads in batches
   private[this] val batchSizeModulus = scheduler.env.batchSize - 1
 
@@ -288,13 +289,13 @@ private[reactive] final class DropNewBufferedSubscriber[-T] private
   }
 }
 
-object DropNewBufferedSubscriber {
+private[reactive] object DropNewBufferedSubscriber {
   /**
    * Returns an instance of a [[DropNewBufferedSubscriber]]
    * for the [[monifu.reactive.OverflowStrategy.DropNew DropNew]]
    * overflowStrategy.
    */
-  def simple[T](underlying: Subscriber[T], bufferSize: Int): DropNewBufferedSubscriber[T] = {
+  def simple[T](underlying: Subscriber[T], bufferSize: Int): SynchronousSubscriber[T] = {
     new DropNewBufferedSubscriber[T](underlying, bufferSize, null)
   }
 
@@ -303,9 +304,7 @@ object DropNewBufferedSubscriber {
    * for the [[monifu.reactive.OverflowStrategy.DropNew DropNew]]
    * overflowStrategy.
    */
-  def withSignal[T](underlying: Subscriber[T], bufferSize: Int,
-    onOverflow: Long => T): DropNewBufferedSubscriber[T] = {
-
+  def withSignal[T](underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => T): SynchronousSubscriber[T] = {
     new DropNewBufferedSubscriber[T](underlying, bufferSize, onOverflow)
   }
 

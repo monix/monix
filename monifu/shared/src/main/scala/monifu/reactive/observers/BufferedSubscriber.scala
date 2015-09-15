@@ -17,8 +17,8 @@
  
 package monifu.reactive.observers
 
-import monifu.reactive.OverflowStrategy._
-import monifu.reactive._
+import monifu.reactive.Subscriber
+import monifu.reactive.observers.buffers.Builders
 
 /**
  * Interface describing [[monifu.reactive.Observer Observer]] wrappers
@@ -64,45 +64,4 @@ import monifu.reactive._
  */
 trait BufferedSubscriber[-T] extends Subscriber[T]
 
-object BufferedSubscriber {
-  def apply[T](subscriber: Subscriber[T], bufferPolicy: OverflowStrategy): BufferedSubscriber[T] = {
-    bufferPolicy match {
-      case Unbounded =>
-        SynchronousBufferedSubscriber.unbounded(subscriber)
-      case Fail(bufferSize) =>
-        SynchronousBufferedSubscriber.overflowTriggering(subscriber, bufferSize)
-      case BackPressure(bufferSize) =>
-        BackPressuredBufferedSubscriber(subscriber, bufferSize)
-      case DropNew(bufferSize) =>
-        DropNewBufferedSubscriber.simple(subscriber, bufferSize)
-      case DropOld(bufferSize) =>
-        EvictingBufferedSubscriber.dropOld(subscriber, bufferSize)
-      case ClearBuffer(bufferSize) =>
-        EvictingBufferedSubscriber.clearBuffer(subscriber, bufferSize)
-    }
-  }
-
-  private[reactive] def apply[T](subscriber: Subscriber[T], strategy: OverflowStrategy, onOverflow: Long => T): BufferedSubscriber[T] = {
-    strategy match {
-      case withSignal: Evicted if onOverflow != null =>
-        withOverflowSignal(subscriber, withSignal)(onOverflow)
-      case _ =>
-        apply(subscriber, strategy)
-    }
-  }
-
-  def withOverflowSignal[T](subscriber: Subscriber[T], overflowStrategy: OverflowStrategy.Evicted)
-    (onOverflow: Long => T): BufferedSubscriber[T] = {
-
-    overflowStrategy match {
-      case DropNew(bufferSize) =>
-        DropNewBufferedSubscriber.withSignal(subscriber, bufferSize, onOverflow)
-
-      case DropOld(bufferSize) =>
-        EvictingBufferedSubscriber.dropOld(subscriber, bufferSize, onOverflow)
-
-      case ClearBuffer(bufferSize) =>
-        EvictingBufferedSubscriber.clearBuffer(subscriber, bufferSize, onOverflow)
-    }
-  }
-}
+object BufferedSubscriber extends Builders

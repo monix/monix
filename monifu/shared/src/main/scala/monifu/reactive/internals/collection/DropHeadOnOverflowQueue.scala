@@ -62,6 +62,7 @@ private[reactive] final class DropHeadOnOverflowQueue[T : ClassTag] private (_ca
   }
 
   def offer(elem: T): Int = {
+    if (elem == null) throw null
     array(tailIdx) = elem
     tailIdx = (tailIdx + 1) & modulus
 
@@ -75,15 +76,17 @@ private[reactive] final class DropHeadOnOverflowQueue[T : ClassTag] private (_ca
   def state = {
     (headIdx, tailIdx, array.toSeq)
   }
+
   def offerMany(seq: T*): Long = {
-    seq.foldLeft(0L)((acc, e) => acc + offer(e))
+    val iterator = seq.iterator
+    var acc = 0L
+    while (iterator.hasNext)
+      acc += offer(iterator.next())
+    acc
   }
 
-  @throws(classOf[NoSuchElementException])
   def poll(): T = {
-    if (headIdx == tailIdx)
-      throw new NoSuchElementException("EvictingQueue is empty")
-    else {
+    if (headIdx == tailIdx) null.asInstanceOf[T] else {
       val elem = array(headIdx)
       // incrementing head pointer
       headIdx = (headIdx + 1) & modulus

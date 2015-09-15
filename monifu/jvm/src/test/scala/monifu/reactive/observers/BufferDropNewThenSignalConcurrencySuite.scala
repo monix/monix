@@ -37,13 +37,11 @@ object BufferDropNewThenSignalConcurrencySuite
     monifu.concurrent.Implicits.globalScheduler
   }
 
-  def buildNewForInt(bufferSize: Int, underlying: Observer[Int])
-    (implicit s: Scheduler): BufferedSubscriber[Int] = {
+  def buildNewForInt(bufferSize: Int, underlying: Observer[Int])(implicit s: Scheduler) = {
     BufferedSubscriber(Subscriber(underlying, s), DropNew(bufferSize), nr => nr.toInt)
   }
 
-  def buildNewForLong(bufferSize: Int, underlying: Observer[Long])
-    (implicit s: Scheduler): BufferedSubscriber[Long] = {
+  def buildNewForLong(bufferSize: Int, underlying: Observer[Long])(implicit s: Scheduler) = {
     BufferedSubscriber(Subscriber(underlying, s), DropNew(bufferSize), nr => nr)
   }
 

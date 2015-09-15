@@ -20,6 +20,7 @@ package monifu.reactive.observers
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive._
 import monifu.reactive.internals._
+
 import scala.collection.mutable
 import scala.concurrent.{Future, Promise}
 

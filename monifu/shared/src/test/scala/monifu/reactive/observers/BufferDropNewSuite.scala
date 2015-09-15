@@ -124,9 +124,6 @@ object BufferDropNewSuite extends TestSuite[TestScheduler] {
     assertEquals(buffer.onNext(4), Continue)
     assertEquals(buffer.onNext(5), Continue)
 
-    s.tick()
-    assertEquals(received, 1)
-
     for (i <- 0 until 5)
       assertEquals(buffer.onNext(6 + i), Continue)
 
@@ -134,7 +131,7 @@ object BufferDropNewSuite extends TestSuite[TestScheduler] {
     assertEquals(received, 1)
 
     promise.success(Continue); s.tick()
-    assertEquals(received, 15)
+    assertEquals(received, (1 to 5).sum)
 
     for (i <- 0 until 5)
       assertEquals(buffer.onNext(6 + i), Continue)

@@ -15,32 +15,27 @@
  * limitations under the License.
  */
 
-package monifu.reactive.observers
+package monifu.reactive.observers.buffers
 
-import monifu.collection.mutable.ConcurrentQueue
+import java.util.concurrent.ConcurrentLinkedQueue
 import monifu.concurrent.atomic.padded.Atomic
 import monifu.reactive.Ack.{Cancel, Continue}
-import monifu.reactive.exceptions.BufferOverflowException
-import monifu.reactive.observers.SynchronousBufferedSubscriber.State
+import monifu.reactive.observers.BufferedSubscriber
 import monifu.reactive.{Ack, Subscriber}
+import monifu.reactive.observers.buffers.BackPressuredBufferedSubscriber.State
 import scala.annotation.tailrec
-import scala.util.control.NonFatal
+import scala.concurrent.{Future, Promise}
 
 /**
- * A highly optimized [[BufferedSubscriber]] implementation. It supports 2
- * [[monifu.reactive.OverflowStrategy overflow strategies]]:
- *
- *   - [[monifu.reactive.OverflowStrategy.Unbounded Unbounded]]
- *   - [[monifu.reactive.OverflowStrategy.Fail Fail]]
- *
- * @param underlying is the underlying observer receiving the queued events
- * @param bufferSize is the maximum buffer size, or zero if unbounded
+ * A [[BufferedSubscriber]] implementation for the
+ * [[monifu.reactive.OverflowStrategy.BackPressure BackPressured]] 
+ * buffer overflowStrategy.
  */
-private[reactive] final class SynchronousBufferedSubscriber[-T] private
-  (underlying: Subscriber[T], bufferSize: Int = 0)
-  extends BufferedSubscriber[T] with SynchronousSubscriber[T] { self =>
+private[reactive] final class BackPressuredBufferedSubscriber[-T] private
+  (underlying: Subscriber[T], bufferSize: Int)
+  extends BufferedSubscriber[T] { self =>
 
-  require(bufferSize >= 0, "bufferSize must be a positive number")
+  require(bufferSize > 0, "bufferSize must be a strictly positive number")
 
   implicit val scheduler = underlying.scheduler
 
@@ -50,22 +45,17 @@ private[reactive] final class SynchronousBufferedSubscriber[-T] private
   // and there's a happens before relationship between `queue.offer` and
   // incrementing `stateRef.itemsToPush`, which we are using on the consumer
   // side in order to know how many items to process and when to stop
-  private[this] val queue = ConcurrentQueue.empty[T]
+  private[this] val queue = new ConcurrentLinkedQueue[T]()
   // Used on the consumer side to split big synchronous workloads in batches
   private[this] val batchSizeModulus = scheduler.env.batchSize - 1
 
-  def onNext(elem: T): Ack = {
+  def onNext(elem: T): Future[Ack] = {
     val state = stateRef.get
-    if (state.upstreamShouldStop) Cancel else
-      try {
-        queue.offer(elem)
-        pushToConsumer(state)
-      }
-      catch {
-        case NonFatal(ex) =>
-          onError(ex)
-          Cancel
-      }
+    // if upstream has completed or downstream canceled, we should cancel
+    if (state.upstreamShouldStop) Cancel else {
+      queue.offer(elem)
+      pushToConsumer(state)
+    }
   }
 
   /**
@@ -100,10 +90,14 @@ private[reactive] final class SynchronousBufferedSubscriber[-T] private
    * itemsToPush count. And in case we've exceeded the bufferSize, then
    * we start to apply back-pressure.
    */
-  @tailrec private def pushToConsumer(state: State): Ack = {
+  @tailrec private def pushToConsumer(state: State): Future[Ack] = {
     // no run-loop is active? then we need to start one
     if (state.itemsToPush == 0) {
-      val update = state.copy(itemsToPush = 1)
+      val update = state.copy(
+        nextAckPromise = Promise[Ack](),
+        appliesBackPressure = false,
+        itemsToPush = 1)
+
       if (!stateRef.compareAndSet(state, update)) {
         // CAS failed, retry
         pushToConsumer(stateRef.get)
@@ -114,26 +108,27 @@ private[reactive] final class SynchronousBufferedSubscriber[-T] private
       }
     }
     else {
-      val update = state.copy(itemsToPush = state.itemsToPush + 1)
+      val appliesBackPressure = state.shouldBackPressure(bufferSize)
+      val update = state.copy(
+        itemsToPush = state.itemsToPush + 1,
+        appliesBackPressure = appliesBackPressure)
+
       if (!stateRef.compareAndSet(state, update)) {
         // CAS failed, retry
         pushToConsumer(stateRef.get)
       }
-      else if (bufferSize > 0 && update.itemsToPush > bufferSize && !state.upstreamIsComplete) {
-        self.onError(new BufferOverflowException(
-          "Downstream observer is too slow, buffer over capacity with a " +
-          s"specified buffer size of $bufferSize and" +
-          s" ${state.itemsToPush} events being left for push"
-        ))
-        
-        Cancel
+      else if (appliesBackPressure) {
+        // the buffer is full, so we need to apply back-pressure
+        state.nextAckPromise.future
       }
       else {
+        // everything normal, buffer is not full
         Continue
       }
     }
   }
 
+  // Needed in fastLoop for usage in asynchronous callbacks
   private def rescheduled(processed: Int): Unit = {
     fastLoop(stateRef.get, processed, 0)
   }
@@ -143,9 +138,15 @@ private[reactive] final class SynchronousBufferedSubscriber[-T] private
    * queue, pushing those events to our downstream observer and then stops.
    */
   @tailrec private def fastLoop(state: State, processed: Int, syncIndex: Int): Unit = {
+    // should be called when downstream is canceling or triggering a failure
+    def downstreamSignalCancel(): Unit = {
+      val ref = stateRef.transformAndGet(_.downstreamComplete)
+      ref.nextAckPromise.success(Cancel)
+    }
+
     // should be called when signaling a complete
     def downstreamSignalComplete(ex: Throwable = null): Unit = {
-      stateRef.transformAndGet(_.downstreamComplete)
+      downstreamSignalCancel()
       if (ex != null)
         underlying.onError(ex)
       else
@@ -173,7 +174,7 @@ private[reactive] final class SynchronousBufferedSubscriber[-T] private
               fastLoop(state, processed + 1, nextIndex)
             else if (ack == Cancel || ack.value.get == Cancel.IsSuccess) {
               // ending loop
-              stateRef.transformAndGet(_.downstreamComplete)
+              downstreamSignalCancel()
             }
             else {
               // ending loop
@@ -188,7 +189,7 @@ private[reactive] final class SynchronousBufferedSubscriber[-T] private
 
             case Cancel.IsSuccess =>
               // ending loop
-              stateRef.transformAndGet(_.downstreamComplete)
+              downstreamSignalCancel()
 
             case failure =>
               // ending loop
@@ -203,13 +204,16 @@ private[reactive] final class SynchronousBufferedSubscriber[-T] private
             queue.clear() // for GC purposes
         }
       }
-      else {
-        // at this point processed == itemsToPush
+      else { // if processed == itemsToPush
         val ref = state.declareProcessed(processed)
-        // trying update, if it fails it probably means we've got more
-        // items to process and if it succeeds it means we are done
-        // note that we don't need to check that itemsToPush is zero
-        if (!stateRef.compareAndSet(state, ref)) {
+        // trying update, if it fails it probably means
+        // we've got more items to process
+        if (stateRef.compareAndSet(state, ref)) {
+          // if in back-pressure mode, unblock
+          // note that we don't need to check that itemsToPush is zero
+          ref.nextAckPromise.success(Continue)
+        }
+        else {
           // concurrent modifications happened, continuing loop
           fastLoop(stateRef.get, processed, syncIndex)
         }
@@ -218,16 +222,16 @@ private[reactive] final class SynchronousBufferedSubscriber[-T] private
   }
 }
 
-private[reactive] object SynchronousBufferedSubscriber {
-  def unbounded[T](underlying: Subscriber[T]): SynchronousBufferedSubscriber[T] =
-    new SynchronousBufferedSubscriber[T](underlying)
-
-  def overflowTriggering[T](underlying: Subscriber[T], bufferSize: Int): SynchronousBufferedSubscriber[T] =
-    new SynchronousBufferedSubscriber[T](underlying, bufferSize)
+private[reactive] object BackPressuredBufferedSubscriber {
+  /** Builder for [[BackPressuredBufferedSubscriber]] */
+  def apply[T](underlying: Subscriber[T], bufferSize: Int) =
+    new BackPressuredBufferedSubscriber[T](underlying, bufferSize)
 
   /** State used in our implementation to manage concurrency */
   private case class State(
     itemsToPush: Int = 0,
+    nextAckPromise: Promise[Ack] = Promise(),
+    appliesBackPressure: Boolean = false,
     upstreamIsComplete: Boolean = false,
     downstreamIsDone: Boolean = false,
     errorThrown: Throwable = null) {
@@ -236,16 +240,16 @@ private[reactive] object SynchronousBufferedSubscriber {
       upstreamIsComplete || downstreamIsDone
     }
 
+    def shouldBackPressure(bufferSize: Int): Boolean = {
+      !upstreamIsComplete && (appliesBackPressure || itemsToPush >= bufferSize)
+    }
+
     def downstreamComplete: State = {
       copy(itemsToPush = 0, downstreamIsDone = true)
     }
 
     def declareProcessed(processed: Int): State = {
       copy(itemsToPush = itemsToPush - processed)
-    }
-
-    def incrementItemsToPush: State = {
-      copy(itemsToPush = itemsToPush + 1)
     }
   }
 }
