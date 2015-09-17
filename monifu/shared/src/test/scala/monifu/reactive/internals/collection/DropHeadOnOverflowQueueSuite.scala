@@ -19,8 +19,16 @@ package monifu.reactive.internals.collection
 
 import java.util.ConcurrentModificationException
 import minitest.SimpleTestSuite
+import monifu.reactive.internals.collection.DropAllOnOverflowQueueSuite._
 
 object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
+  test("should not accept null values") {
+    val q = DropAllOnOverflowQueue[String](100)
+    intercept[NullPointerException] {
+      q.offer(null)
+    }
+  }
+
   test("capacity must be computed as a power of 2") {
     val q1 = DropHeadOnOverflowQueue[Int](1000)
     assertEquals(q1.capacity, 1023)
