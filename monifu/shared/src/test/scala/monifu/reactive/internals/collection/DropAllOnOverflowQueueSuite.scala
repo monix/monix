@@ -21,6 +21,13 @@ import java.util.ConcurrentModificationException
 import minitest.SimpleTestSuite
 
 object DropAllOnOverflowQueueSuite extends SimpleTestSuite {
+  test("should not accept null values") {
+    val q = DropAllOnOverflowQueue[String](100)
+    intercept[NullPointerException] {
+      q.offer(null)
+    }
+  }
+
   test("capacity must be computed as a power of 2") {
     val q1 = DropAllOnOverflowQueue[Int](1000)
     assertEquals(q1.capacity, 1023)
@@ -52,7 +59,7 @@ object DropAllOnOverflowQueueSuite extends SimpleTestSuite {
     val q = DropAllOnOverflowQueue[Int](7)
 
     assertEquals(q.capacity, 7)
-    intercept[NoSuchElementException](q.poll())
+    assert(q.poll().asInstanceOf[AnyRef] == null)
 
     assertEquals(q.offer(10), 0)
     assertEquals(q.offer(20), 0)
@@ -61,7 +68,7 @@ object DropAllOnOverflowQueueSuite extends SimpleTestSuite {
     assertEquals(q.poll(), 10)
     assertEquals(q.poll(), 20)
     assertEquals(q.poll(), 30)
-    intercept[NoSuchElementException](q.poll())
+    assert(q.poll().asInstanceOf[AnyRef] == null)
 
     assertEquals(q.offerMany(40, 50, 60, 70, 80, 90, 100), 0)
 
@@ -74,7 +81,7 @@ object DropAllOnOverflowQueueSuite extends SimpleTestSuite {
     val q = DropAllOnOverflowQueue[Int](7)
 
     assertEquals(q.capacity, 7)
-    intercept[NoSuchElementException](q.poll())
+    assert(q.poll().asInstanceOf[AnyRef] == null)
 
     assertEquals(q.offer(0), 0)
     assertEquals(q.poll(), 0)
@@ -91,7 +98,7 @@ object DropAllOnOverflowQueueSuite extends SimpleTestSuite {
     assertEquals(q.pollMany(array), 7)
     assertEquals(array.toList, (22 until 29).toList)
 
-    intercept[NoSuchElementException](q.poll())
+    assert(q.poll().asInstanceOf[AnyRef] == null)
   }
 
   test("size should be correct on happy path") {
