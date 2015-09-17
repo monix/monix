@@ -62,7 +62,7 @@ private[reactive] final class DropAllOnOverflowQueue[T : ClassTag] private (_cap
   }
 
   def offer(elem: T): Int = {
-    if (elem == null) throw null
+    if (elem == null) throw new NullPointerException
     array(tailIdx) = elem
     tailIdx = (tailIdx + 1) & modulus
 
