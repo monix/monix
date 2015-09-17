@@ -21,10 +21,11 @@ import monifu.concurrent.atomic.padded.Atomic
 
 /**
  * Represents an asynchronous computation whose execution can be canceled.
- * Used by [[monifu.concurrent.Scheduler]] giving you the ability to cancel scheduled units of work.
+ * Used by [[monifu.concurrent.Scheduler]] giving you the ability to cancel
+ * scheduled units of work.
  *
- * It is equivalent to `java.io.Closeable`, but without the I/O focus, or to `IDisposable` in Microsoft .NET,
- * or to `akka.actor.Cancellable`.
+ * It is equivalent to `java.io.Closeable`, but without the I/O focus, or
+ * to `IDisposable` in Microsoft .NET, or to `akka.actor.Cancellable`.
  *
  * @see [[monifu.concurrent.cancelables]]
  */
@@ -54,7 +55,7 @@ object Cancelable {
         }
         else
           false
-      }        
+      }
     }
 
   def apply(): Cancelable =
@@ -63,5 +64,10 @@ object Cancelable {
 
       def cancel(): Boolean =
         _isCanceled.compareAndSet(expect = false, update = true)
+    }
+
+  val empty: Cancelable =
+    new Cancelable {
+      def cancel() = false
     }
 }

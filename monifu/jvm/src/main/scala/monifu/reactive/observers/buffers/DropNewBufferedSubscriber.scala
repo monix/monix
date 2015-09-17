@@ -68,6 +68,7 @@ private[buffers] final class DropNewBufferedSubscriber[-T] private
         // this branch happens when the buffer is free again, but
         // we've had events dropped that have to be signaled
         val update = state.copy(eventsDropped = 0)
+
         if (!stateRef.compareAndSet(state, update))
           onNext(elem) // CAS failed, so retry
         else {

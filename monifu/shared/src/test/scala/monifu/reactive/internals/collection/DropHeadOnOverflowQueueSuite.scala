@@ -52,7 +52,7 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
     val q = DropHeadOnOverflowQueue[Int](7)
 
     assertEquals(q.capacity, 7)
-    intercept[NoSuchElementException](q.poll())
+    assert(q.poll().asInstanceOf[AnyRef] == null)
 
     assertEquals(q.offer(10), 0)
     assertEquals(q.offer(20), 0)
@@ -61,7 +61,7 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
     assertEquals(q.poll(), 10)
     assertEquals(q.poll(), 20)
     assertEquals(q.poll(), 30)
-    intercept[NoSuchElementException](q.poll())
+    assert(q.poll().asInstanceOf[AnyRef] == null)
 
     assertEquals(q.offerMany(40, 50, 60, 70, 80, 90, 100), 0)
 
@@ -74,7 +74,7 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
     val q = DropHeadOnOverflowQueue[Int](7)
 
     assertEquals(q.capacity, 7)
-    intercept[NoSuchElementException](q.poll())
+    assert(q.poll().asInstanceOf[AnyRef] == null)
 
     assertEquals(q.offer(0), 0)
     assertEquals(q.poll(), 0)
@@ -96,7 +96,7 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
     assertEquals(q.pollMany(array), 7)
     assertEquals(array.toList, (22 until 29).toList)
 
-    intercept[NoSuchElementException](q.poll())
+    assert(q.poll().asInstanceOf[AnyRef] == null)
   }
 
   test("size should be correct on happy path") {
