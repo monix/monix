@@ -69,7 +69,7 @@ libraryDependencies += "org.monifu" %%% "monifu" % "1.0-RC3"
 ### Example
 
 In order for subscriptions to work, we need an implicit
-[Scheduler](shared/src/main/scala/monifu/concurrent/Scheduler.scala#L33) imported in our
+[Scheduler](core/shared/src/main/scala/monifu/concurrent/Scheduler.scala#L34) imported in our
 context. A `Scheduler` inherits from Scala's own [ExecutionContext](http://www.scala-lang.org/api/current/index.html#scala.concurrent.ExecutionContext)
 and any `ExecutionContext` can be quickly converted into a `Scheduler`.
 And then you're off ...
