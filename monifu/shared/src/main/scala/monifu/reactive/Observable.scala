@@ -114,17 +114,18 @@ import scala.util.control.NonFatal
  * [[Observable!.flatMap]] on an Observable that emits `Future`
  * instances. And it works, because Monifu considers Scala's Futures
  * to be just a subset of Observables, see the automatic
- * [[Observable.FutureIsObservable FutureIsObservable]] conversion that
- * it defines. Or you could just use [[Observable.fromFuture]] for
- * explicit conversions, an Observable builder available
+ * [[Observable.FutureIsObservable FutureIsObservable]] conversion
+ * that it defines. Or you could just use [[Observable.fromFuture]]
+ * for explicit conversions, an Observable builder available
  * [[Observable$ amongst others]].
  *
  * ==Contract==
  *
- * Observables must obey Monifu's contract, this is why if you get away
- * with already built and tested observables, that would be better than
- * implementing your own by means of inheriting the interface or by using
- * [[Observable.create create]]. The contract is this:
+ * Observables must obey Monifu's contract, this is why if you get
+ * away with already built and tested observables, that would be
+ * better than implementing your own by means of inheriting the
+ * interface or by using [[Observable.create create]]. The contract is
+ * this:
  *
  *   - the supplied `onSubscribe` method MUST NOT throw exceptions, any
  *     unforeseen errors that happen in user-code must be emitted to
