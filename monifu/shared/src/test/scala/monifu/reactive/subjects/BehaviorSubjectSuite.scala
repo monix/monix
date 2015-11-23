@@ -56,7 +56,7 @@ object BehaviorSubjectSuite extends BaseSubjectSuite {
     subject.onComplete()
 
     s.tick()
-    assertEquals(received, 60)
+    assertEquals(received, 160)
     assertEquals(wasCompleted, 10)
   }
 
@@ -81,11 +81,11 @@ object BehaviorSubjectSuite extends BaseSubjectSuite {
       assert(!ack.isCompleted)
       s.tick()
       assert(ack.isCompleted)
-      assertEquals(received, (1 to i).sum * 10)
+      assertEquals(received, (1 to i).sum * 10 + 100)
     }
 
     subject.onComplete()
-    assertEquals(received, 5 * 11 * 10)
+    assertEquals(received, 5 * 11 * 10 + 100)
     assertEquals(wasCompleted, 10)
   }
 
@@ -134,7 +134,7 @@ object BehaviorSubjectSuite extends BaseSubjectSuite {
     })
 
     s.tick()
-    assertEquals(elemsReceived, 10)
+    assertEquals(elemsReceived, 110)
     assertEquals(errorsReceived, 11)
   }
 }
