@@ -36,7 +36,7 @@ object Build extends SbtBuild {
   val sharedSettings = Seq(
     organization := "org.monifu",
     scalaVersion := "2.11.7",
-    crossScalaVersions := Seq("2.10.5"),
+    crossScalaVersions := Seq("2.10.5", "2.11.7"),
 
     scalacOptions ++= Seq(
       "-target:jvm-1.6", // generates code with the Java 6 class format
