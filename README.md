@@ -1,12 +1,12 @@
-<img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/monifu-square.png" align="right" width="280" />
+<img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/monifu-square.png" align="right" width="280" />
 
 Idiomatic Reactive Extensions for Scala and [Scala.js](http://www.scala-js.org/).
 
-[![Build Status](https://travis-ci.org/monifu/monifu.png?branch=master)](https://travis-ci.org/monifu/monifu)
-[![Build Status](https://travis-ci.org/monifu/monifu.png?branch=v1.0-RC4)](https://travis-ci.org/monifu/monifu)
+[![Build Status](https://travis-ci.org/alexandru/monifu.png?branch=master)](https://travis-ci.org/alexandru/monifu)
+[![Build Status](https://travis-ci.org/alexandru/monifu.png?branch=v1.0-RC4)](https://travis-ci.org/alexandru/monifu)
 [![License](http://img.shields.io/:license-Apache%202-red.svg)](http://www.apache.org/licenses/LICENSE-2.0.txt)
 
-[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/monifu/monifu?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/alexandru/monifu?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 ## Overview
 
@@ -37,7 +37,7 @@ Highlights:
 
 ## Usage
 
-See **[monifu-sample](https://github.com/monifu/monifu-sample)** for
+See **[monifu-sample](https://github.com/alexandru/monifu-sample)** for
 a project exemplifying Monifu used both on the server and on the client.
 
 ### Compatibility
@@ -131,13 +131,13 @@ See [LICENCE.txt](./LICENSE.txt).
 
 ## Acknowledgements
 
-<img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/yklogo.png" align="right" />
+<img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/yklogo.png" align="right" />
 YourKit supports the Monifu project with its full-featured Java Profiler.
 YourKit, LLC is the creator [YourKit Java Profiler](http://www.yourkit.com/java/profiler/index.jsp)
 and [YourKit .NET Profiler](http://www.yourkit.com/.net/profiler/index.jsp),
 innovative and intelligent tools for profiling Java and .NET applications.
 
-<img src="https://raw.githubusercontent.com/wiki/monifu/monifu/assets/logo-eloquentix@2x.png" align="right" width="130" />
+<img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/logo-eloquentix@2x.png" align="right" width="130" />
 
 Development of Monifu has been initiated by [Eloquentix](http://eloquentix.com/)
 engineers, with Monifu being introduced at E.ON Connecting Energies,
