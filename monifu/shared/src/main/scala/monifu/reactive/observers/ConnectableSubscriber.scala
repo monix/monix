@@ -21,7 +21,6 @@ import monifu.concurrent.Scheduler
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.internals.FutureAckExtensions
 import monifu.reactive._
-import monifu.reactive.internals.collection.Buffer
 import scala.collection.mutable
 import scala.concurrent.{Future, Promise}
 
@@ -172,12 +171,12 @@ final class ConnectableSubscriber[-T] private (underlying: Subscriber[T])
     }
 
   /* Internal method for pushing a whole [[Buffer]] */
-  private[reactive] def pushBuffer[U <: T](buffer: Buffer[U]) =
+  private[reactive] def pushIterable[U <: T](iterable: Iterable[U]) =
     lock.synchronized {
       if (isConnected || isConnectionStarted)
         throw new IllegalStateException("Observer was already connected, so cannot pushNext")
       else if (!scheduledDone) {
-        val cursor = buffer.iterator
+        val cursor = iterable.iterator
         while (cursor.hasNext)
           queue.append(cursor.next())
       }

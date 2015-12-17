@@ -17,13 +17,15 @@
 
 package monifu.reactive.subjects
 
+import monifu.concurrent.atomic.padded.Atomic
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive._
 import monifu.reactive.internals._
-import monifu.reactive.internals.collection._
 import monifu.reactive.observers.ConnectableSubscriber
+import monifu.util.math._
 
-import scala.collection.mutable
+import scala.annotation.tailrec
+import scala.collection.immutable.Queue
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 
@@ -31,16 +33,14 @@ import scala.util.control.NonFatal
   * `ReplaySubject` emits to any observer all of the items that were emitted
   * by the source, regardless of when the observer subscribes.
   */
-final class ReplaySubject[T] private (initial: Buffer[T])
+final class ReplaySubject[T] private (initialState: ReplaySubject.State[T])
   extends Subject[T,T] { self =>
 
-  @volatile private[this] var isDone = false
-  private[this] var errorThrown: Throwable = null
-  private[this] val buffer = initial
-  private[this] val subscribers = mutable.LinkedHashSet.empty[ConnectableSubscriber[T]]
+  private[this] val stateRef = Atomic(initialState)
 
+  @tailrec
   def onSubscribe(subscriber: Subscriber[T]): Unit = {
-    def streamOnDone(): Unit = {
+    def streamOnDone(buffer: Iterable[T], errorThrown: Throwable): Unit = {
       implicit val s = subscriber.scheduler
 
       Observable.fromIterable(buffer).onSubscribe(new Observer[T] {
@@ -57,64 +57,79 @@ final class ReplaySubject[T] private (initial: Buffer[T])
       })
     }
 
-    // trying to take the fast path
-    if (isDone) streamOnDone() else
-      self.synchronized {
-        if (isDone) streamOnDone() else {
-          val c = ConnectableSubscriber(subscriber)
-          subscribers += c
-          c.pushBuffer(buffer)
-          c.connect()
-        }
+    val state = stateRef.get
+    val buffer = state.buffer
+
+    if (state.isDone) {
+      // fast path
+      streamOnDone(buffer, state.errorThrown)
+    }
+    else {
+      val c = ConnectableSubscriber(subscriber)
+      val newState = state.addNewSubscriber(c)
+      if (stateRef.compareAndSet(state, newState)) {
+        c.pushIterable(buffer)
+        c.connect()
       }
+      else {
+        // retry
+        onSubscribe(subscriber)
+      }
+    }
   }
 
-  def onNext(elem: T): Future[Ack] = self.synchronized {
-    if (isDone) Cancel else {
-      // caching element
-      buffer.offer(elem)
+  @tailrec
+  def onNext(elem: T): Future[Ack] = {
+    val state = stateRef.get
 
-      val iterator = subscribers.iterator
-      // counter that's only used when we go async, hence the null
-      var result: PromiseCounter[Continue.type] = null
+    if (state.isDone) Cancel else {
+      val newState = state.appendElem(elem)
+      if (!stateRef.compareAndSet(state, newState)) {
+        onNext(elem) // retry
+      }
+      else {
+        val iterator = state.subscribers.iterator
+        // counter that's only used when we go async, hence the null
+        var result: PromiseCounter[Continue.type] = null
 
-      while (iterator.hasNext) {
-        val subscriber = iterator.next()
-        // using the scheduler defined by each subscriber
-        import subscriber.scheduler
+        while (iterator.hasNext) {
+          val subscriber = iterator.next()
+          // using the scheduler defined by each subscriber
+          import subscriber.scheduler
 
-        val ack = try subscriber.onNext(elem) catch {
-          case NonFatal(ex) => Future.failed(ex)
-        }
+          val ack = try subscriber.onNext(elem) catch {
+            case NonFatal(ex) => Future.failed(ex)
+          }
 
-        // if execution is synchronous, takes the fast-path
-        if (ack.isCompleted) {
-          // subscriber canceled or triggered an error? then remove
-          if (ack != Continue && ack.value.get != Continue.IsSuccess)
-            subscribers -= subscriber
-        }
-        else {
-          // going async, so we've got to count active futures for final Ack
-          // the counter starts from 1 because zero implies isCompleted
-          if (result == null) result = PromiseCounter(Continue, 1)
-          result.acquire()
+          // if execution is synchronous, takes the fast-path
+          if (ack.isCompleted) {
+            // subscriber canceled or triggered an error? then remove
+            if (ack != Continue && ack.value.get != Continue.IsSuccess)
+              removeSubscriber(subscriber)
+          }
+          else {
+            // going async, so we've got to count active futures for final Ack
+            // the counter starts from 1 because zero implies isCompleted
+            if (result == null) result = PromiseCounter(Continue, 1)
+            result.acquire()
 
-          ack.onComplete {
-            case Continue.IsSuccess =>
-              result.countdown()
+            ack.onComplete {
+              case Continue.IsSuccess =>
+                result.countdown()
 
-            case _ =>
-              // subscriber canceled or triggered an error? then remove
-              subscribers -= subscriber
-              result.countdown()
+              case _ =>
+                // subscriber canceled or triggered an error? then remove
+                removeSubscriber(subscriber)
+                result.countdown()
+            }
           }
         }
-      }
 
-      // has fast-path for completely synchronous invocation
-      if (result == null) Continue else {
-        result.countdown()
-        result.future
+        // has fast-path for completely synchronous invocation
+        if (result == null) Continue else {
+          result.countdown()
+          result.future
+        }
       }
     }
   }
@@ -125,39 +140,45 @@ final class ReplaySubject[T] private (initial: Buffer[T])
   override def onComplete(): Unit =
     onCompleteOrError(null)
 
-  private def onCompleteOrError(ex: Throwable): Unit = self.synchronized {
-    if (!isDone) {
-      errorThrown = ex
-      isDone = true
+  @tailrec
+  private def onCompleteOrError(ex: Throwable): Unit = {
+    val state = stateRef.get
 
-      val iterator = subscribers.iterator
-      while (iterator.hasNext) {
-        val ref = iterator.next()
+    if (!state.isDone) {
+      if (!stateRef.compareAndSet(state, state.markDone(ex)))
+        onCompleteOrError(ex)
+      else {
+        val iterator = state.subscribers.iterator
+        while (iterator.hasNext) {
+          val ref = iterator.next()
 
-        if (ex != null)
-          ref.onError(ex)
-        else
-          ref.onComplete()
+          if (ex != null)
+            ref.onError(ex)
+          else
+            ref.onComplete()
+        }
       }
-
-      subscribers.clear()
     }
+  }
+
+  @tailrec
+  private def removeSubscriber(s: ConnectableSubscriber[T]): Unit = {
+    val state = stateRef.get
+    val newState = state.removeSubscriber(s)
+    if (!stateRef.compareAndSet(state, newState))
+      removeSubscriber(s)
   }
 }
 
 object ReplaySubject {
   /** Creates an unbounded replay subject. */
   def apply[T](initial: T*): ReplaySubject[T] = {
-    val buffer = UnlimitedBuffer[Any]()
-    if (initial.nonEmpty) buffer.offerMany(initial: _*)
-    new ReplaySubject[T](buffer.asInstanceOf[Buffer[T]])
+    create(initial:_*)
   }
 
   /** Creates an unbounded replay subject. */
   def create[T](initial: T*): ReplaySubject[T] = {
-    val buffer = UnlimitedBuffer[Any]()
-    if (initial.nonEmpty) buffer.offerMany(initial: _*)
-    new ReplaySubject[T](buffer.asInstanceOf[Buffer[T]])
+    new ReplaySubject[T](State(Vector(initial:_*), 0))
   }
 
   /**
@@ -171,8 +192,40 @@ object ReplaySubject {
    * underlying implementation is most likely to be a ring buffer. So give it
    * `300` and its capacity is going to be `512 - 1`
    */
-  def createWithSize[T](capacity: Int) = {
-    val buffer = DropHeadOnOverflowQueue[Any](capacity)
-    new ReplaySubject[T](buffer.asInstanceOf[Buffer[T]])
+  def createWithSize[T](capacity: Int): ReplaySubject[T] = {
+    require(capacity > 0, "capacity must be strictly positive")
+    val maxCapacity = nextPowerOf2(capacity + 1)
+    new ReplaySubject[T](State(Queue.empty, maxCapacity))
+  }
+
+  /** Internal state for [[monifu.reactive.subjects.ReplaySubject]] */
+  private final case class State[T](
+    buffer: Seq[T],
+    capacity: Int,
+    subscribers: Vector[ConnectableSubscriber[T]] = Vector.empty,
+    length: Int = 0,
+    isDone: Boolean = false,
+    errorThrown: Throwable = null) {
+
+    def appendElem(elem: T): State[T] = {
+      if (capacity == 0)
+        copy(buffer = buffer :+ elem)
+      else if (length >= capacity)
+        copy(buffer = buffer.tail :+ elem)
+      else
+        copy(buffer = buffer :+ elem, length = length + 1)
+    }
+
+    def addNewSubscriber(s: ConnectableSubscriber[T]): State[T] =
+      copy(subscribers = subscribers :+ s)
+
+    def removeSubscriber(toRemove: ConnectableSubscriber[T]): State[T] = {
+      val newSet = subscribers.filter(_ != toRemove)
+      copy(subscribers = newSet)
+    }
+
+    def markDone(ex: Throwable): State[T] = {
+      copy(subscribers = Vector.empty, isDone = true, errorThrown = ex)
+    }
   }
 }

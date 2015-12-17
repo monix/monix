@@ -18,7 +18,6 @@
 package monifu.reactive.subjects
 
 import java.util.concurrent.{TimeUnit, CountDownLatch}
-
 import minitest.TestSuite
 import monifu.concurrent.Scheduler
 import monifu.reactive.Ack.Continue
@@ -33,28 +32,30 @@ object ReplaySubjectConcurrencySuite extends TestSuite[Scheduler] {
 
   test("subscribers should get everything") { implicit s =>
     val nrOfSubscribers = 100
+    val signalsPerSubscriber = 20000L
     val completed = new CountDownLatch(nrOfSubscribers)
-    def create(expectedSum: Long) = new SynchronousObserver[Int] {
+
+    def createObserver = new SynchronousObserver[Int] {
       var received = 0L
       def onNext(elem: Int) = { received += elem; Continue }
       def onError(ex: Throwable): Unit = throw ex
       def onComplete(): Unit = {
-        assertEquals(received, expectedSum)
+        assertEquals(received, signalsPerSubscriber * 2)
         completed.countDown()
       }
     }
 
     val subject = ReplaySubject[Int]()
-    subject.onSubscribe(create(40000))
+    subject.onSubscribe(createObserver)
 
     s.execute {
-      Observable.range(0, 20000).map(_ => 2).onSubscribe(subject)
-      subject.onSubscribe(create(40000))
+      Observable.range(0, signalsPerSubscriber).map(_ => 2).onSubscribe(subject)
+      subject.onSubscribe(createObserver)
     }
 
     for (_ <- 0 until (nrOfSubscribers - 2))
-      s.execute(subject.onSubscribe(create(40000)))
+      s.execute(subject.onSubscribe(createObserver))
 
-    assert(completed.await(10, TimeUnit.SECONDS), "completed.await")
+    assert(completed.await(30, TimeUnit.SECONDS), "completed.await")
   }
 }
