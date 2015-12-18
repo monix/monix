@@ -120,9 +120,11 @@ There's actually a lot more to Monifu.
 
 ## Documentation
 
-The documentation is a work in progress.
+NOTE: The documentation is a work in progress.
 
-[API Documentation](http://monifu.org/api/current/)
+API Documentation:
+
+- [1.0](http://monifu.org/api/1.0/)
 
 ## License
 
