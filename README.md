@@ -40,8 +40,6 @@ Highlights:
 See **[monifu-sample](https://github.com/alexandru/monifu-sample)** for
 a project exemplifying Monifu used both on the server and on the client.
 
-### Compatibility
-
 Currently compiled for  *Scala 2.10.x*, *2.11.x* and *Scala.js 0.6.x*. 
 Monifu's compatibility extends to the latest 2 major Scala versions and 
 to the latest major Scala.js version. In other words support for *Scala 2.10.x* 
@@ -54,13 +52,13 @@ The packages are published on Maven Central.
 
 - Current stable release is: `1.0`
 
-#### For the JVM
+For the JVM: 
 
 ```scala
 libraryDependencies += "org.monifu" %% "monifu" % "1.0"
 ```
 
-#### For targeting Javascript runtimes with Scala.js
+For targeting Javascript runtimes with Scala.js:
 
 ```scala
 libraryDependencies += "org.monifu" %%% "monifu" % "1.0"
@@ -88,7 +86,7 @@ import monifu.reactive._
 
 val subscription = Observable.intervalAtFixedRate(1.second)
   .take(10)
-  .subscription(x => println(x))
+  .subscribe(x => println(x))
 ```
 
 We can then try out more complex things:
@@ -125,6 +123,25 @@ NOTE: The documentation is a work in progress.
 API Documentation:
 
 - [1.0](http://monifu.org/api/1.0/)
+
+## Contributing
+
+The Monifu project welcomes contributions from anybody wishing to participate.
+All code or documentation that is provided must be licensed with the same
+license that Monifu is licensed with (Apache 2.0, see LICENSE.txt). 
+
+People are expected to follow the [Typelevel Code of Conduct](http://typelevel.org/conduct.html)
+when discussing Monifu on the Github page, Gitter channel, or other venues.
+
+We hope that our community will be respectful, helpful, and kind. If you find 
+yourself embroiled in a situation that becomes heated, or that fails to live up 
+to our expectations, you should disengage and contact one of the project maintainers 
+in private. We hope to avoid letting minor aggressions and misunderstandings 
+escalate into larger problems.
+
+Feel free to open an issue if you notice a bug, have an idea for a feature, or 
+have a question about the code. Pull requests are also gladly accepted. For more information, 
+check out the [contributor guide](CONTRIBUTING.md). 
 
 ## License
 

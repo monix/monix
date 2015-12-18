@@ -4,6 +4,17 @@ The Monifu project welcomes contributions from anybody wishing to participate.
 All code or documentation that is provided must be licensed with the same
 license that Monifu is licensed with (Apache 2.0, see LICENSE.txt).
 
+## Code of Conduct
+
+People are expected to follow the [Typelevel Code of Conduct](http://typelevel.org/conduct.html)
+when discussing Monifu on the Github page, Gitter channel, or other venues.
+
+We hope that our community will be respectful, helpful, and kind. If you find 
+yourself embroiled in a situation that becomes heated, or that fails to live up 
+to our expectations, you should disengage and contact one of the project maintainers 
+in private. We hope to avoid letting minor aggressions and misunderstandings 
+escalate into larger problems.
+
 ## General Workflow
 
 1. Make sure you can license your work under Apache 2.0 
@@ -47,7 +58,7 @@ must include the following copyright header:
 
 ```
 Copyright (c) 2014-$today.year by its authors. Some rights reserved.
-See the project homepage at: http://www.monifu.org
+See the project homepage at: https://monifu.org
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
