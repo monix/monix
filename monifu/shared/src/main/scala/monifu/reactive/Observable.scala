@@ -174,7 +174,7 @@ import scala.util.control.NonFatal
  *         case Success(Continue) =>
  *           sub.onComplete()
  *         case Failed(ex) =>
- *           reportError(ex)
+ *           reportError(sub.observer, ex)
  *       }
  *     }
  *
@@ -201,7 +201,7 @@ import scala.util.control.NonFatal
  *     }
  *     catch {
  *       case NonFatal(ex) =>
- *         reportError(ex)
+ *         reportError(o, ex)
  *     }
  *   }
  *
