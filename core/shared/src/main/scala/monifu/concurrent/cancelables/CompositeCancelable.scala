@@ -75,12 +75,9 @@ trait CompositeCancelable extends BooleanCancelable {
 }
 
 object CompositeCancelable {
-  def apply(): CompositeCancelable =
-    new CompositeCancelableImpl
-
-  def apply(head: Cancelable, tail: Cancelable*): CompositeCancelable = {
+  def apply(initial: Cancelable*): CompositeCancelable = {
     val cs = new CompositeCancelableImpl
-    cs += head; for (os <- tail) cs += os
+    for (c <- initial) cs += c
     cs
   }
 

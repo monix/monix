@@ -2043,7 +2043,7 @@ trait Observable[+T] { self =>
 
   /**
    * Returns an Observable that mirrors the source Observable but
-   * applies a timeout overflowStrategy for each emitted item. If the next item
+   * applies a timeout for each emitted item. If the next item
    * isn't emitted within the specified timeout duration starting from
    * its predecessor, the resulting Observable terminates and notifies
    * observers of a TimeoutException.
