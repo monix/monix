@@ -38,12 +38,23 @@ import scala.annotation.tailrec
  *
  * Also see [[SerialCancelable]], which is similar, except that it cancels the
  * old cancelable upon assigning a new cancelable.
+ *
+ * @param collapsible specifies that in case the update is also a
+ *                    `MultiAssignmentCancelable`, then we should look at
+ *                    the underlying cancelable and use that (if not null)
  */
-final class MultiAssignmentCancelable private () extends BooleanCancelable {
+final class MultiAssignmentCancelable private (collapsible: Boolean)
+  extends BooleanCancelable {
+
   import MultiAssignmentCancelable.State
   import MultiAssignmentCancelable.State._
 
   private[this] val state = Atomic(Active(Cancelable()) : State)
+  private def underlying =
+    state.get match {
+      case Active(s) => s
+      case _ => null
+    }
 
   def isCanceled: Boolean = state.get match {
     case Cancelled => true
@@ -69,12 +80,24 @@ final class MultiAssignmentCancelable private () extends BooleanCancelable {
    * then the reference `value` will also be canceled on assignment.
    */
   @tailrec
-  def update(value: Cancelable): Unit = state.get match {
-    case Cancelled => value.cancel()
-    case current @ Active(s) =>
-      if (!state.compareAndSet(current, Active(value)))
-        update(value)
-  }
+  def update(value: Cancelable): Unit =
+    state.get match {
+      case Cancelled => value.cancel()
+      case current @ Active(s) =>
+        val newState = if (!collapsible) value else
+          value match {
+            case ref: MultiAssignmentCancelable =>
+              ref.underlying match {
+                case null => ref
+                case notNull => notNull
+              }
+            case _ =>
+              value
+          }
+
+        if (!state.compareAndSet(current, Active(newState)))
+          update(value)
+    }
 
   /**
    * Alias for `update(value)`
@@ -85,10 +108,20 @@ final class MultiAssignmentCancelable private () extends BooleanCancelable {
 
 object MultiAssignmentCancelable {
   def apply(): MultiAssignmentCancelable =
-    new MultiAssignmentCancelable()
+    new MultiAssignmentCancelable(collapsible = false)
 
   def apply(s: Cancelable): MultiAssignmentCancelable = {
-    val ms = new MultiAssignmentCancelable()
+    val ms = new MultiAssignmentCancelable(collapsible = false)
+    ms() = s
+    ms
+  }
+
+  def collapsible(): MultiAssignmentCancelable = {
+    new MultiAssignmentCancelable(collapsible = true)
+  }
+
+  def collapsible(s: Cancelable): MultiAssignmentCancelable = {
+    val ms = new MultiAssignmentCancelable(collapsible = true)
     ms() = s
     ms
   }

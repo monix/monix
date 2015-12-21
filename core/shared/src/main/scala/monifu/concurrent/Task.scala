@@ -23,7 +23,7 @@ import monifu.concurrent.atomic.padded.Atomic
 import scala.annotation.tailrec
 import scala.collection.generic.CanBuildFrom
 import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.{ExecutionContext, Future, TimeoutException}
+import scala.concurrent.{Future, TimeoutException}
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
@@ -100,14 +100,17 @@ trait Task[+T] { self =>
    * emitted Task by the source.
    */
   def flatten[U](implicit ev: T <:< Task[U]): Task[U] =
-    Task.unsafeCreate { callbackU =>
-      val cancelable = MultiAssignmentCancelable()
+    Task.unsafeCreate { cb =>
+      val cancelable = MultiAssignmentCancelable.collapsible()
+
       cancelable := self.unsafeRun(new TaskCallback[T] {
-        val scheduler = callbackU.scheduler
-        def onSuccess(value: T): Unit =
-          cancelable := value.unsafeRun(callbackU)
+        val scheduler = cb.scheduler
+        def onSuccess(value: T): Unit = {
+          cancelable := value.unsafeRun(cb)
+        }
+
         def onError(ex: Throwable): Unit =
-          callbackU.onError(ex)
+          cb.onError(ex)
       })
 
       cancelable
@@ -388,12 +391,19 @@ object Task {
    */
   def successful[T](elem: T): Task[T] =
     Task.unsafeCreate { callback =>
-      try callback.onSuccess(elem) catch {
-        case NonFatal(ex) =>
-          callback.onError(ex)
-      }
+      val cancelable = BooleanCancelable()
+      callback.scheduler.execute(
+        new Runnable {
+          override def run(): Unit =
+            if (!cancelable.isCanceled) {
+              try callback.onSuccess(elem) catch {
+                case NonFatal(ex) =>
+                  callback.onError(ex)
+              }
+            }
+        })
 
-      Cancelable.empty
+      cancelable
     }
 
   /**
@@ -401,9 +411,17 @@ object Task {
    * in error emitting the specified exception.
    */
   def error(ex: Throwable): Task[Nothing] =
-    Task.unsafeCreate { c =>
-      c.onError(ex)
-      Cancelable.empty
+    Task.unsafeCreate { callback =>
+      val cancelable = BooleanCancelable()
+      callback.scheduler.execute(
+        new Runnable {
+          override def run(): Unit =
+            if (!cancelable.isCanceled) {
+              callback.onError(ex)
+            }
+        })
+
+      cancelable
     }
 
   /**
