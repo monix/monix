@@ -20,6 +20,7 @@ package monifu.concurrent
 import language.higherKinds
 import monifu.concurrent.cancelables._
 import monifu.concurrent.atomic.padded.Atomic
+import monifu.concurrent.schedulers._
 import scala.annotation.tailrec
 import scala.collection.generic.CanBuildFrom
 import scala.concurrent.duration.FiniteDuration
@@ -38,16 +39,12 @@ trait Task[+T] { self =>
    * Method is not meant to be used directly.
    * See [[Task.unsafeRun(f* unsafeRun(f)]] as an alternative.
    *
-   * NOTE: implementors must place an upper bound on possible synchronous
-   * recursion between `unsafeRun` and [[TaskCallback.onSuccess onSuccess]] and
-   * [[TaskCallback.onError onError]] otherwise we can end up with an open
-   * synchronous recursion that can lead to stack overflow errors e.g.
-   * `unsafeRun -> onSuccess -> unsafeRun -> onSuccess -> etc`.
+   * NOTE to implementors: `unsafeRun` should always execute asynchronously.
    */
   def unsafeRun(c: TaskCallback[T]): Cancelable
 
   /**
-   * Triggers the asynchronous execution
+   * Triggers the asynchronous execution.
    *
    * @return a [[CancelableFuture]] that will complete with the
    *         result of our asynchronous computation.
@@ -76,6 +73,8 @@ trait Task[+T] { self =>
     Task.unsafeCreate[U] { callback =>
       self.unsafeRun(new TaskCallback[T] {
         val scheduler = callback.scheduler
+        def onError(ex: Throwable): Unit =
+          callback.onError(ex)
 
         def onSuccess(value: T): Unit = {
           var streamError = true
@@ -88,9 +87,6 @@ trait Task[+T] { self =>
               onError(ex)
           }
         }
-
-        def onError(ex: Throwable): Unit =
-          callback.onError(ex)
       })
     }
 
@@ -100,17 +96,15 @@ trait Task[+T] { self =>
    * emitted Task by the source.
    */
   def flatten[U](implicit ev: T <:< Task[U]): Task[U] =
-    Task.unsafeCreate { cb =>
+    Task.unsafeCreate { callback =>
       val cancelable = MultiAssignmentCancelable.collapsible()
 
       cancelable := self.unsafeRun(new TaskCallback[T] {
-        val scheduler = cb.scheduler
-        def onSuccess(value: T): Unit = {
-          cancelable := value.unsafeRun(cb)
-        }
-
+        val scheduler = callback.scheduler
+        def onSuccess(value: T): Unit =
+          cancelable := value.unsafeRun(callback)
         def onError(ex: Throwable): Unit =
-          cb.onError(ex)
+          callback.onError(ex)
       })
 
       cancelable
@@ -130,8 +124,8 @@ trait Task[+T] { self =>
     map(f).flatten
 
   /**
-   * Returns a task that on execution returns the result of the source
-   * task but delayed in time by the given `timestamp`.
+   * Returns a task that waits for the specified `timespan` before
+   * executing and mirroring the result of the source.
    */
   def delay(timespan: FiniteDuration): Task[T] =
     Task.unsafeCreate[T] { callback =>

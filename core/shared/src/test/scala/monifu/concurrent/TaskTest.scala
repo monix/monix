@@ -23,7 +23,7 @@ import monifu.concurrent.cancelables.{BooleanCancelable, CompositeCancelable}
 import monifu.concurrent.schedulers.TestScheduler
 import scala.util.Success
 
-object TaskSuite extends TestSuite[TestScheduler] {
+object TaskTest extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(env: TestScheduler): Unit = {
     assert(env.state.get.tasks.isEmpty, "should not have tasks left to execute")
@@ -97,4 +97,8 @@ object TaskSuite extends TestSuite[TestScheduler] {
     s.tick()
     assert(f.value.get.failed.get.isInstanceOf[CancellationException], "CancellationException")
   }
+
+//  test("delay") {
+//
+//  }
 }

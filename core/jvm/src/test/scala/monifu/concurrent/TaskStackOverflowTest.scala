@@ -18,27 +18,24 @@
 package monifu.concurrent
 
 import minitest.TestSuite
-import monifu.concurrent.schedulers.TestScheduler
-import scala.util.Success
+import scala.concurrent.Await
+import scala.concurrent.duration._
 
-object TaskStackOverflowTest extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(env: TestScheduler): Unit = {
-    assert(env.state.get.tasks.isEmpty, "should not have tasks left to execute")
-  }
+object TaskStackOverflowTest extends TestSuite[Scheduler] {
+  def setup() = Implicits.globalScheduler
+  def tearDown(env: Scheduler): Unit = ()
 
   test("flatten should not trigger stack overflow") { implicit s =>
     // note, this can trigger stack overflows
     def sum(n: Int, acc: Long = 0): Task[Long] = {
       if (n == 0) Task.successful(acc) else
-        Task(n).flatMap(x => sum(x-1, acc + x))
+        Task.successful(n).flatMap(x => sum(x-1, acc + x))
     }
 
-    val nr = 1000000
-    val expectedSum = nr.toLong / 2 * (nr.toLong + 1)
+    val nr = 2000000
     val f = sum(nr).asFuture
-    s.tick()
+    val result = Await.result(f, 30.seconds)
 
-    assertEquals(f.value, Some(Success(expectedSum)))
+    assertEquals(result, nr.toLong / 2 * (nr.toLong + 1))
   }
 }

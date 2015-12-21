@@ -30,12 +30,6 @@ package monifu.concurrent
  * The `onSuccess` method is called only once, with the successful
  * result of our asynchronous computation, whereas `onError` is called
  * if the result is an error.
- *
- * NOTE: implementors must place an upper bound on possible synchronous
- * recursion between [[Task.unsafeRun(c* unsafeRun]] and `onSuccess` and
- * `onError` otherwise we can end up with an open synchronous recursion that
- * can lead to stack overflow errors, e.g.
- * `unsafeRun -> onSuccess -> unsafeRun -> onSuccess -> etc`.
  */
 trait TaskCallback[-T] {
   def scheduler: Scheduler
