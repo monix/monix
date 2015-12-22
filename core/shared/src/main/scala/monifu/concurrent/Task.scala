@@ -343,6 +343,13 @@ object Task {
     }
 
   /**
+   * Returns a `Task` that produces the same result as the given `Task`,
+   * but forks its evaluation off into a separate (logical) thread.
+   */
+  def fork[T](f: => Task[T]): Task[T] =
+    Task(f).flatten
+
+  /**
    * Returns a task that on execution is always successful,
    * emitting the given element.
    */
