@@ -28,7 +28,8 @@ private[concurrent] abstract class TrampolineCompanion {
   def apply(reporter: UncaughtExceptionReporter = LogExceptionsToStandardErr): Trampoline =
     new Trampoline {
       private[this] val state = new ThreadLocal[Local] {
-        def initialState() = new Local(reporter)
+        override def initialValue(): Local =
+          new Local(reporter)
       }
 
       override def execute(r: Runnable): Boolean =
