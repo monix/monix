@@ -27,8 +27,7 @@ import scala.concurrent.duration.{FiniteDuration, TimeUnit}
 import scala.util.control.NonFatal
 
 
-final class TrampolineScheduler private
-    (reporter: UncaughtExceptionReporter)
+final class TrampolineScheduler private (reporter: UncaughtExceptionReporter)
   extends ReferenceScheduler {
 
   private[this] val immediateQueue = mutable.Queue.empty[Runnable]

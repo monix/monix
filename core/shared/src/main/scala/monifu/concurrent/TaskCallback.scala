@@ -17,6 +17,8 @@
 
 package monifu.concurrent
 
+import scala.util.control.NonFatal
+
 /**
  * Represents a callback that should be called asynchronously,
  * having the execution managed by the given `scheduler`.
@@ -32,7 +34,69 @@ package monifu.concurrent
  * if the result is an error.
  */
 trait TaskCallback[-T] {
+  def trampoline: Trampoline
   def scheduler: Scheduler
   def onSuccess(value: T): Unit
   def onError(ex: Throwable): Unit
+}
+
+object TaskCallback {
+  /** Extension methods for [[TaskCallback]] */
+  implicit class Extensions[-T](val callback: TaskCallback[T]) extends AnyVal {
+    /** Push a task in the scheduler for triggering onSuccess */
+    def asyncOnSuccess(value: T): Unit =
+      callback.scheduler.execute(new Runnable {
+        def run(): Unit = callback.onSuccess(value)
+      })
+
+    /** Push a task in the scheduler for triggering onError */
+    def asyncOnError(ex: Throwable): Unit =
+      callback.scheduler.execute(new Runnable {
+        def run(): Unit = callback.onError(ex)
+      })
+  }
+
+  /**
+   * Wraps any [[TaskCallback]] into an implementation that protects against
+   * errors being triggered by onSuccess and onError and that prevents
+   * multiple onSuccess and onError calls from being made.
+   */
+  def safe[T](callback: TaskCallback[T]): TaskCallback[T] =
+    callback match {
+      case ref: SafeCallback[_] => ref.asInstanceOf[SafeCallback[T]]
+      case _ => new SafeCallback[T](callback)
+    }
+
+  /**
+   * Implementation for a safe callback, a callback that protects against
+   * errors being triggered by onSuccess and onError and that prevents
+   * multiple onSuccess and onError calls from being made.
+   */
+  private final class SafeCallback[-T](underlying: TaskCallback[T]) extends TaskCallback[T] {
+    // very simple protection for grammar
+    private[this] var isDone = false
+    val trampoline = underlying.trampoline
+    val scheduler = underlying.scheduler
+
+    def onSuccess(value: T): Unit =
+      if (!isDone) {
+        isDone = true
+        try underlying.onSuccess(value) catch {
+          case NonFatal(ex) => pushError(ex)
+        }
+      }
+
+    def onError(ex: Throwable): Unit =
+      if (!isDone) {
+        isDone = true
+        pushError(ex)
+      }
+
+    private[this] def pushError(ex: Throwable): Unit =
+      try underlying.onError(ex) catch {
+        case NonFatal(err) =>
+          scheduler.reportFailure(ex)
+          scheduler.reportFailure(err)
+      }
+  }
 }
