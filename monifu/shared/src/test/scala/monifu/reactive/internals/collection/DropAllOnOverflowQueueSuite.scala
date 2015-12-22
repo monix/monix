@@ -19,6 +19,7 @@ package monifu.reactive.internals.collection
 
 import java.util.ConcurrentModificationException
 import minitest.SimpleTestSuite
+import monifu.internals.collection.DropAllOnOverflowQueue
 
 object DropAllOnOverflowQueueSuite extends SimpleTestSuite {
   test("should not accept null values") {

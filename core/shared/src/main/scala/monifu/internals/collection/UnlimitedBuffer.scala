@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2014-2015 by its authors. Some rights reserved.
- * See the project homepage at: http://www.monifu.org
+ * See the project homepage at: https://monifu.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package monifu.reactive.internals.collection
+package monifu.internals.collection
 
-import monifu.reactive.internals.collection.UnlimitedBuffer.Node
-import scala.reflect.ClassTag
+import monifu.internals.collection.UnlimitedBuffer.Node
 import monifu.util.math.nextPowerOf2
+import scala.reflect.ClassTag
 
-private[reactive]
+private[monifu]
 final class UnlimitedBuffer[T : ClassTag] private (initialCapacity: Int)
   extends Buffer[T] {
 
@@ -96,7 +96,7 @@ final class UnlimitedBuffer[T : ClassTag] private (initialCapacity: Int)
   }
 }
 
-private[reactive] object UnlimitedBuffer {
+private[monifu] object UnlimitedBuffer {
   def apply[T : ClassTag](): UnlimitedBuffer[T] =
     new UnlimitedBuffer[T](16)
 

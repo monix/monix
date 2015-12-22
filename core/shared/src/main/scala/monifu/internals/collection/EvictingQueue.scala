@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2014-2015 by its authors. Some rights reserved.
- * See the project homepage at: http://www.monifu.org
+ * See the project homepage at: https://monifu.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package monifu.reactive.internals.collection
+package monifu.internals.collection
 
-private[reactive] trait EvictingQueue[T] extends Buffer[T] {
+private[monifu] trait EvictingQueue[T] extends Buffer[T] {
   /**
    * Returns the capacity of this queue.
    */

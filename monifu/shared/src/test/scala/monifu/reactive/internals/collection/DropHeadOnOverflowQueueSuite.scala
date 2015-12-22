@@ -19,6 +19,7 @@ package monifu.reactive.internals.collection
 
 import java.util.ConcurrentModificationException
 import minitest.SimpleTestSuite
+import monifu.internals.collection.{DropHeadOnOverflowQueue, DropAllOnOverflowQueue}
 import monifu.reactive.internals.collection.DropAllOnOverflowQueueSuite._
 
 object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {

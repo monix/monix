@@ -17,9 +17,10 @@
 
 package monifu.reactive.observers.buffers
 
+import monifu.internals.collection.{EvictingQueue, DropHeadOnOverflowQueue, DropAllOnOverflowQueue}
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive.exceptions.BufferOverflowException
-import monifu.reactive.internals.collection.{ArrayQueue, DropAllOnOverflowQueue, DropHeadOnOverflowQueue, EvictingQueue}
+import monifu.reactive.internals.collection.ArrayQueue
 import monifu.reactive.observers.{BufferedSubscriber, SynchronousSubscriber}
 import monifu.reactive.{Ack, Subscriber}
 import scala.annotation.tailrec

@@ -17,9 +17,8 @@
 
 package monifu.concurrent
 
-import monifu.util.math.nextPowerOf2
+import monifu.internals.collection.DropHeadOnOverflowQueue
 import scala.annotation.tailrec
-import scala.collection.mutable
 import scala.util.control.NonFatal
 
 /**
@@ -42,7 +41,7 @@ object Trampoline extends internals.TrampolineCompanion {
    * A simple and non-thread safe implementation of the [[Trampoline]].
    */
   final class Local(reporter: UncaughtExceptionReporter) extends Trampoline {
-    private[this] val queue = new RunnableQueue(10000)
+    private[this] val queue = DropHeadOnOverflowQueue[Runnable](10000)
     private[this] var loopStarted = false
 
     def execute(r: Runnable): Boolean = {
@@ -73,60 +72,6 @@ object Trampoline extends internals.TrampolineCompanion {
       } else {
         loopStarted = false
       }
-    }
-  }
-
-  private final class RunnableQueue(_capacity: Int) { self =>
-    require(_capacity > 1, "minCapacity must be bigger than 1")
-
-    private[this] val maxSize = nextPowerOf2(_capacity + 1)
-    private[this] val modulus = maxSize - 1
-    def capacity = modulus
-
-    private[this] val array = new Array[Runnable](maxSize)
-    // head is incremented by `poll()`, or by `offer()` on overflow
-    private[this] var headIdx = 0
-    // tail is incremented by `offer()`
-    private[this] var tailIdx = 0
-
-    def isEmpty: Boolean = {
-      headIdx == tailIdx
-    }
-
-    def nonEmpty: Boolean = {
-      headIdx != tailIdx
-    }
-
-    def isAtCapacity: Boolean = {
-      size >= modulus
-    }
-
-    def offer(elem: Runnable): Int = {
-      if (elem == null) throw new NullPointerException
-      array(tailIdx) = elem
-      tailIdx = (tailIdx + 1) & modulus
-
-      if (tailIdx != headIdx) 0 else {
-        // overflow just happened, dropping one by incrementing head
-        headIdx = (headIdx + 1) & modulus
-        1
-      }
-    }
-
-    def poll(): Runnable = {
-      if (headIdx == tailIdx) null else {
-        val elem = array(headIdx)
-        // incrementing head pointer
-        headIdx = (headIdx + 1) & modulus
-        elem
-      }
-    }
-
-    def size: Int = {
-      if (tailIdx >= headIdx)
-        tailIdx - headIdx
-      else
-        (maxSize - headIdx) + tailIdx
     }
   }
 }

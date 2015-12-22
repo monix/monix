@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2014-2015 by its authors. Some rights reserved.
- * See the project homepage at: http://www.monifu.org
+ * See the project homepage at: https://monifu.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,10 +15,12 @@
  * limitations under the License.
  */
 
-package monifu.reactive.internals.collection
+package monifu.internals.collection
 
 import java.util.ConcurrentModificationException
+
 import monifu.util.math.nextPowerOf2
+
 import scala.reflect.ClassTag
 
 /**
@@ -34,7 +36,7 @@ import scala.reflect.ClassTag
  *                  2^30^ (the maximum positive int that can be expressed as
  *                  a power of 2)
  */
-private[reactive] final class DropAllOnOverflowQueue[T : ClassTag] private (_capacity: Int)
+private[monifu] final class DropAllOnOverflowQueue[T : ClassTag] private (_capacity: Int)
   extends EvictingQueue[T] { self =>
 
   require(_capacity > 1, "minCapacity must be bigger than 1")
@@ -172,7 +174,7 @@ private[reactive] final class DropAllOnOverflowQueue[T : ClassTag] private (_cap
   def length: Int = size
 }
 
-private[reactive] object DropAllOnOverflowQueue {
+private[monifu] object DropAllOnOverflowQueue {
   /**
    * Builder for [[DropAllOnOverflowQueue]]
    *

@@ -17,6 +17,8 @@
 
 package monifu.reactive.internals.collection
 
+import monifu.internals.collection.EvictingQueue
+
 import scala.scalajs.js
 
 /**

@@ -18,6 +18,7 @@
 package monifu.reactive.internals.collection
 
 import minitest.SimpleTestSuite
+import monifu.internals.collection.UnlimitedBuffer
 
 object UnlimitedBufferSuite extends SimpleTestSuite{
   test("should grow dynamically") {
