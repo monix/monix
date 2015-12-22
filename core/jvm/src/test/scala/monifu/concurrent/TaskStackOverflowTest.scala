@@ -29,8 +29,8 @@ object TaskStackOverflowTest extends TestSuite[Scheduler] {
   test("flatMap(self) should not trigger stack overflow") { implicit s =>
     // note, this can trigger stack overflows
     def sum(n: Int, acc: Long = 0): Task[Long] = {
-      if (n == 0) Task.success(acc) else
-        Task.success(n).flatMap(x => sum(x-1, acc + x))
+      if (n == 0) Task.now(acc) else
+        Task.now(n).flatMap(x => sum(x-1, acc + x))
     }
 
     val nr = 2000000

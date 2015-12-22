@@ -40,7 +40,7 @@ object TaskTest extends TestSuite[TestScheduler] {
   test("flatten should work") { implicit s =>
     // note, this can trigger stack overflows
     def sum(n: Int): Task[Int] = {
-      if (n == 0) Task.success(0) else
+      if (n == 0) Task.now(0) else
         Task(n).flatMap(x => sum(x-1).map(_ + x))
     }
 
