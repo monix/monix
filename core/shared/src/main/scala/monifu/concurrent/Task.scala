@@ -20,7 +20,6 @@ package monifu.concurrent
 import monifu.concurrent.Task.Callback
 import monifu.concurrent.cancelables._
 import monifu.concurrent.atomic.padded.Atomic
-import monifu.concurrent.internals.Trampoline
 import scala.annotation.tailrec
 import scala.collection.generic.CanBuildFrom
 import scala.concurrent.duration.FiniteDuration

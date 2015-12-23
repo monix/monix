@@ -15,14 +15,24 @@
  * limitations under the License.
  */
 
-package monifu.concurrent.internals
+package monifu.concurrent
 
-import monifu.concurrent.UncaughtExceptionReporter
 import monifu.internals.collection.DropHeadOnOverflowQueue
 import scala.annotation.tailrec
 import scala.util.control.NonFatal
 
-private[monifu] object Trampoline extends TrampolineCompanion {
+private[concurrent] object Trampoline {
+  private[this] val state = new Local
+
+  /**
+    * Schedules a new task for execution on the trampoline.
+    *
+    * @return true if the task was scheduled, or false if it was
+    *         rejected because the queue is full.
+    */
+  def tryExecute(r: Runnable, reporter: UncaughtExceptionReporter): Boolean =
+    state.tryExecute(r, reporter)
+
   /**
     * A simple and non-thread safe implementation of the [[Trampoline]].
     */

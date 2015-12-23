@@ -15,12 +15,15 @@
  * limitations under the License.
  */
 
-package monifu.concurrent.internals
+package monifu.concurrent
 
-import monifu.concurrent.UncaughtExceptionReporter
-import monifu.concurrent.internals.Trampoline.Local
+import monifu.internals.collection.DropHeadOnOverflowQueue
 
-private[concurrent] abstract class TrampolineCompanion {
+import scala.annotation.tailrec
+import scala.util.control.NonFatal
+
+
+private[concurrent] object Trampoline {
   private[this] val state = new ThreadLocal[Local] {
     override def initialValue(): Local =
       new Local
@@ -34,4 +37,42 @@ private[concurrent] abstract class TrampolineCompanion {
     */
   def tryExecute(r: Runnable, reporter: UncaughtExceptionReporter): Boolean =
     state.get().tryExecute(r, reporter)
+
+  /**
+    * A simple and non-thread safe implementation of the [[Trampoline]].
+    */
+  final class Local {
+    private[this] val queue = DropHeadOnOverflowQueue[Runnable](10000)
+    private[this] var loopStarted = false
+
+    def tryExecute(cb: Runnable, r: UncaughtExceptionReporter): Boolean = {
+      if (loopStarted) {
+        if (queue.isAtCapacity)
+          false
+        else {
+          queue.offer(cb)
+          true
+        }
+      }
+      else {
+        loopStarted = true
+        startLoop(cb, r)
+        true
+      }
+    }
+
+    @tailrec
+    private[this] def startLoop(cb: Runnable, r: UncaughtExceptionReporter): Unit = {
+      val toRun = if (cb != null) cb
+      else queue.poll()
+
+      if (toRun != null) {
+        try toRun.run()
+        catch { case NonFatal(ex) => r.reportFailure(ex) }
+        startLoop(null, r)
+      } else {
+        loopStarted = false
+      }
+    }
+  }
 }
