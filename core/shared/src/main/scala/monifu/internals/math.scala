@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2014-2015 by its authors. Some rights reserved.
- * See the project homepage at: http://www.monifu.org
+ * See the project homepage at: https://monifu.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package monifu.util
+package monifu.internals
 
-import scala.math.{round, ceil}
+import scala.math.{ceil, round}
 
-object math {
+private[monifu] object math {
   /** Natural log of 2 */
   final val lnOf2 = scala.math.log(2)
 

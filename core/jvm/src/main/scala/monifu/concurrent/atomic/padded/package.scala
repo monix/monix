@@ -39,7 +39,6 @@ package object padded {
   type AtomicFloat = atomic.AtomicFloat
   type AtomicNumber[T] = atomic.AtomicNumber[T]
   type AtomicNumberAny[T] = atomic.AtomicNumberAny[T]
-  type BlockableAtomic[T] = atomic.BlockableAtomic[T]
 
   /**
    * Constructs an `Atomic[T]` reference. Based on the `initialValue`, it will return the best, most specific

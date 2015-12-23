@@ -18,11 +18,12 @@
 package monifu.reactive.subjects
 
 import monifu.concurrent.atomic.padded.Atomic
+import monifu.internals.math
 import monifu.reactive.Ack.{Cancel, Continue}
 import monifu.reactive._
 import monifu.reactive.internals._
 import monifu.reactive.observers.ConnectableSubscriber
-import monifu.util.math._
+import math._
 
 import scala.annotation.tailrec
 import scala.collection.immutable.Queue

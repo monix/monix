@@ -17,9 +17,10 @@
 
 package monifu.reactive.internals.collection
 
+import monifu.internals.math
 import monifu.reactive.internals.collection.UnlimitedBuffer.Node
 import scala.reflect.ClassTag
-import monifu.util.math.nextPowerOf2
+import math.nextPowerOf2
 
 private[reactive]
 final class UnlimitedBuffer[T : ClassTag] private (initialCapacity: Int)

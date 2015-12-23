@@ -34,10 +34,10 @@ private[padded] final class PaddedJavaAtomicLong(value: Long)
   extends JavaAtomicLong(value) {
 
   @volatile
-  var p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15 = 10L
+  var p1, p2, p3, p4, p5, p6 = 7L
 
   def `$sum$` = {
-    p1 + p2 + p3 + p4 + p5 + p6 + p7 + p8 + p9 + p10 + p11 + p12 + p13 + p14 + p15
+    p1 + p2 + p3 + p4 + p5 + p6
   }
 }
 
@@ -48,10 +48,10 @@ private[padded] final class PaddedJavaAtomicInteger(value: Int)
   extends JavaAtomicInteger(value) {
 
   @volatile
-  var p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15 = 10L
+  var p1, p2, p3, p4, p5, p6 = 7L
 
   def `$sum$` = {
-    p1 + p2 + p3 + p4 + p5 + p6 + p7 + p8 + p9 + p10 + p11 + p12 + p13 + p14 + p15
+    p1 + p2 + p3 + p4 + p5 + p6 
   }
 }
 
@@ -62,10 +62,10 @@ private[padded] final class PaddedJavaAtomicBoolean(value: Boolean)
   extends JavaAtomicBoolean(value) {
 
   @volatile
-  var p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15 = 10L
+  var p1, p2, p3, p4, p5, p6 = 7L
 
   def `$sum$` = {
-    p1 + p2 + p3 + p4 + p5 + p6 + p7 + p8 + p9 + p10 + p11 + p12 + p13 + p14 + p15
+    p1 + p2 + p3 + p4 + p5 + p6
   }
 }
 
@@ -76,10 +76,10 @@ private[padded] final class PaddedJavaAtomicReference[T](value: T)
   extends JavaAtomicReference[T](value) {
 
   @volatile
-  var p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15 = 10L
+  var p1, p2, p3, p4, p5, p6 = 7L
 
   def `$sum$` = {
-    p1 + p2 + p3 + p4 + p5 + p6 + p7 + p8 + p9 + p10 + p11 + p12 + p13 + p14 + p15
+    p1 + p2 + p3 + p4 + p5 + p6
   }
 }
 
