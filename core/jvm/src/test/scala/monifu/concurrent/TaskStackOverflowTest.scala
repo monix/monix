@@ -34,7 +34,7 @@ object TaskStackOverflowTest extends TestSuite[Scheduler] {
     }
 
     val nr = 2000000
-    val f = sum(nr).asFuture
+    val f = sum(nr).runAsync
     Await.ready(f, 30.seconds)
 
     assertEquals(f.value.get, Success(nr.toLong / 2 * (nr.toLong + 1)))

@@ -15,60 +15,46 @@
  * limitations under the License.
  */
 
-package monifu.concurrent
+package monifu.concurrent.internals
 
+import monifu.concurrent.UncaughtExceptionReporter
 import monifu.internals.collection.DropHeadOnOverflowQueue
 import scala.annotation.tailrec
 import scala.util.control.NonFatal
 
-/**
- * A `Trampoline` is an `ExecutionContext` that is able to queue
- * and execute tasks on the current thread, by using a trampoline
- * as a construct.
- */
-trait Trampoline {
+private[monifu] object Trampoline extends TrampolineCompanion {
   /**
-   * Schedules a new task for execution on the trampoline.
-   *
-   * @return true if the task was scheduled, or false if it was
-   *         rejected because the queue is full.
-   */
-  def execute(r: Runnable): Boolean
-}
-
-object Trampoline extends internals.TrampolineCompanion {
-  /**
-   * A simple and non-thread safe implementation of the [[Trampoline]].
-   */
-  final class Local(reporter: UncaughtExceptionReporter) extends Trampoline {
+    * A simple and non-thread safe implementation of the [[Trampoline]].
+    */
+  final class Local {
     private[this] val queue = DropHeadOnOverflowQueue[Runnable](10000)
     private[this] var loopStarted = false
 
-    def execute(r: Runnable): Boolean = {
+    def tryExecute(cb: Runnable, r: UncaughtExceptionReporter): Boolean = {
       if (loopStarted) {
         if (queue.isAtCapacity)
           false
         else {
-          queue.offer(r)
+          queue.offer(cb)
           true
         }
       }
       else {
         loopStarted = true
-        startLoop(r)
+        startLoop(cb, r)
         true
       }
     }
 
     @tailrec
-    private[this] def startLoop(r: Runnable): Unit = {
-      val toRun = if (r != null) r
-        else queue.poll()
+    private[this] def startLoop(cb: Runnable, r: UncaughtExceptionReporter): Unit = {
+      val toRun = if (cb != null) cb
+      else queue.poll()
 
       if (toRun != null) {
         try toRun.run()
-        catch { case NonFatal(ex) => reporter.reportFailure(ex) }
-        startLoop(null)
+        catch { case NonFatal(ex) => r.reportFailure(ex) }
+        startLoop(null, r)
       } else {
         loopStarted = false
       }

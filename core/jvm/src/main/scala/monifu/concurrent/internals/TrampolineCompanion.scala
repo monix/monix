@@ -17,22 +17,21 @@
 
 package monifu.concurrent.internals
 
-import monifu.concurrent.Trampoline.Local
-import monifu.concurrent.{Trampoline, UncaughtExceptionReporter}
-import monifu.concurrent.UncaughtExceptionReporter._
+import monifu.concurrent.UncaughtExceptionReporter
+import monifu.concurrent.internals.Trampoline.Local
 
 private[concurrent] abstract class TrampolineCompanion {
-  /**
-   * Trampoline builder.
-   */
-  def apply(reporter: UncaughtExceptionReporter = LogExceptionsToStandardErr): Trampoline =
-    new Trampoline {
-      private[this] val state = new ThreadLocal[Local] {
-        override def initialValue(): Local =
-          new Local(reporter)
-      }
+  private[this] val state = new ThreadLocal[Local] {
+    override def initialValue(): Local =
+      new Local
+  }
 
-      override def execute(r: Runnable): Boolean =
-        state.get().execute(r)
-    }
+  /**
+    * Schedules a new task for execution on the trampoline.
+    *
+    * @return true if the task was scheduled, or false if it was
+    *         rejected because the queue is full.
+    */
+  def tryExecute(r: Runnable, reporter: UncaughtExceptionReporter): Boolean =
+    state.get().tryExecute(r, reporter)
 }
