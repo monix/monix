@@ -17,7 +17,7 @@
 
 package monifu.concurrent
 
-import monifu.concurrent.Task.{Memoize, Callback}
+import monifu.concurrent.Task.Callback
 import monifu.concurrent.cancelables._
 import monifu.concurrent.atomic.padded.Atomic
 import monifu.concurrent.internals.Trampoline
@@ -60,38 +60,61 @@ sealed abstract class Task[+T] { self =>
     */
   protected def unsafeRunFn(scheduler: Scheduler, callback: Callback[T]): Unit
 
-  /** Triggers the asynchronous execution. */
+  /** Triggers the asynchronous execution.
+    *
+    * To execute this, you need an implicit [[Scheduler]] in scope, so you
+    * can import the default one:
+    *
+    * {{{
+    *   import monifu.concurrent.Implicits.globalScheduler
+    * }}}
+    *
+    * NOTE: even though `Task` is describing an asynchronous computation,
+    * the execution might still be trampolined and thus it can happen on
+    * the current thread. If that's not desirable, then include an explicit
+    * fork, like so:
+    *
+    * {{{
+    *   Task.fork(task).runAsync
+    * }}}
+    */
   def runAsync(implicit s: Scheduler): Future[T] = {
     val p = Promise[T]()
-    s.execute(new Runnable {
-      override def run(): Unit =
-        unsafeRunFn(s, new Callback[T] {
-          def onSuccess(value: T) = p.trySuccess(value)
-          def onError(ex: Throwable) = p.tryFailure(ex)
-        })
-    })
+    unsafeRunFn(s, Callback.safe(new Callback[T] {
+      def onSuccess(value: T) = p.trySuccess(value)
+      def onError(ex: Throwable) = p.tryFailure(ex)
+    }))
     p.future
   }
 
   /** Triggers the asynchronous execution.
     *
+    * To execute this, you need an implicit [[Scheduler]] in scope, so you
+    * can import the default one:
+    *
+    * {{{
+    *   import monifu.concurrent.Implicits.globalScheduler
+    * }}}
+    *
+    * NOTE: even though `Task` is describing an asynchronous computation,
+    * the execution might still be trampolined and thus it can happen on
+    * the current thread. If that's not desirable, then include an explicit
+    * fork, like so:
+    *
+    * {{{
+    *   Task.fork(task).runAsync {
+    *     case Success(value) => logger.info(value)
+    *     case Failure(ex) => logger.error(ex)
+    *   }
+    * }}}
+    *
     * @param f is a function that will be called with the result on complete
     */
-  def runAsync(f: Try[T] => Unit)(implicit s: Scheduler): Unit = {
-    s.execute(new Runnable {
-      override def run(): Unit =
-        unsafeRunFn(s, new Callback[T] {
-          def onSuccess(value: T) = f(Success(value))
-          def onError(ex: Throwable) = f(Failure(ex))
-        })
-    })
-  }
-
-  /** Effect-full method that executes its source task immediately
-    * and stores the result for later use.
-    */
-  def memoize(implicit s: Scheduler): Task[T] =
-    new Memoize[T](self, s)
+  def runAsync(f: Try[T] => Unit)(implicit s: Scheduler): Unit =
+    unsafeRunFn(s, Callback.safe(new Callback[T] {
+      def onSuccess(value: T) = f(Success(value))
+      def onError(ex: Throwable) = f(Failure(ex))
+    }))
 
   /** Returns a new Task that applies the mapping function to
     * the element emitted by the source.
@@ -362,7 +385,13 @@ object Task {
     * but forks its evaluation off into a separate (logical) thread.
     */
   def fork[T](f: => Task[T]): Task[T] =
-    Task(f).flatten
+    Task.unsafeCreate { (scheduler, callback) =>
+      scheduler.execute(
+        new Runnable {
+          def run(): Unit =
+            f.unsafeRunFn(scheduler, callback)
+        })
+    }
 
   /** Returns a `Task` that on execution is always successful, emitting
     * the given strict value.
@@ -513,6 +542,36 @@ object Task {
     }
   }
 
+  private[monifu] object Callback {
+    /** Wraps a callback into an implementation that tries to protect
+      * against multiple onSuccess/onError calls and that defers failed
+      * onSuccess to onError.
+      *
+      * Should only be used at the outer edge, in the user-facing runAsync.
+      */
+    def safe[T](cb: Callback[T]): Callback[T] =
+      new Callback[T] {
+        // very simple and non thread-safe protection
+        // for our grammar
+        private[this] var isActive = true
+
+        def onSuccess(value: T): Unit =
+          if (isActive) {
+            isActive = false
+            try cb.onSuccess(value) catch {
+              case NonFatal(ex) =>
+                cb.onError(ex)
+            }
+          }
+
+        def onError(ex: Throwable): Unit =
+          if (isActive) {
+            isActive = false
+            cb.onError(ex)
+          }
+      }
+  }
+
   /** Optimized task for already known strict values.
     * Internal to Monifu, not for public consumption.
     *
@@ -540,84 +599,5 @@ object Task {
 
     override def runAsync(implicit s: Scheduler): Future[Nothing] =
       Future.failed(ex)
-  }
-
-  /** Given a `task`, this is a side-effecting `Task` that upon initialization
-    * will execute it and memoize the result for later `unsafeRun` executions.
-    *
-    * Internal to Monifu, not meant for public consumption.
-    * See [[Task.memoize]] instead.
-    */
-  private final class Memoize[+T](task: Task[T], s: Scheduler) extends Task[T] {
-    // internal state for keeping our processed value
-    private[this] val stateRef = Atomic(null : AnyRef)
-
-    // triggering execution immediately
-    s.execute(new Runnable {
-      override def run(): Unit =
-        task.unsafeRunFn(s, new Callback[T] {
-          @tailrec
-          def onSuccess(value: T): Unit =
-            stateRef.get match {
-              case null =>
-                if (!stateRef.compareAndSet(null, Success(value)))
-                  onSuccess(value)
-              case list: List[_] =>
-                val callbacks = list.asInstanceOf[List[Callback[T]]]
-                if (!stateRef.compareAndSet(list, Success(value)))
-                  onSuccess(value)
-                else
-                  for (c <- callbacks) c.asyncOnSuccess(s, value)
-              case other =>
-                throw new IllegalStateException(other.toString)
-            }
-
-          override def onError(ex: Throwable): Unit =
-            stateRef.get match {
-              case null =>
-                if (!stateRef.compareAndSet(null, Failure(ex)))
-                  onError(ex)
-              case list: List[_] =>
-                val callbacks = list.asInstanceOf[List[Callback[T]]]
-                if (!stateRef.compareAndSet(list, Failure(ex)))
-                  onError(ex)
-                else
-                  for (c <- callbacks) c.asyncOnError(s, ex)
-              case other =>
-                throw new IllegalStateException(other.toString)
-            }
-        })
-    })
-
-    override def unsafeRunFn(s: Scheduler, callback: Callback[T]): Unit = {
-      stateRef.get match {
-        case null =>
-          if (!stateRef.compareAndSet(null, List(callback)))
-            unsafeRunFn(s, callback)
-
-        case list: List[_] =>
-          val update = callback :: list.asInstanceOf[List[Callback[T]]]
-          if (!stateRef.compareAndSet(list, update)) unsafeRunFn(s, callback)
-
-        case value: Success[_] =>
-          callback.onSuccess(value.get.asInstanceOf[T])
-
-        case value: Failure[_] =>
-          callback.onError(value.failed.get)
-
-        case other =>
-          throw new IllegalStateException(other.toString)
-      }
-    }
-
-    override def runAsync(implicit s: Scheduler): Future[T] =
-      stateRef.get match {
-        case value: Success[_] =>
-          Future.successful(value.get.asInstanceOf[T])
-        case value: Failure[_] =>
-          Future.failed(value.failed.get)
-        case _ =>
-          super.runAsync(s)
-      }
   }
 }
