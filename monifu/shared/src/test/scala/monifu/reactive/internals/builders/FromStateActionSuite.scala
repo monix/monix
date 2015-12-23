@@ -21,7 +21,6 @@ import minitest.TestSuite
 import monifu.concurrent.schedulers.TestScheduler
 import monifu.reactive.Ack.Continue
 import monifu.reactive.Observable
-import monifu.util.Random
 
 object FromStateActionSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
@@ -32,7 +31,7 @@ object FromStateActionSuite extends TestSuite[TestScheduler] {
 
   test("first execution is async") { implicit s =>
     var received = 0
-    Observable.fromStateAction(Random.int)(s.currentTimeMillis())
+    Observable.fromStateAction(int)(s.currentTimeMillis())
       .take(1).foreach(x => received += 1)
 
     assertEquals(received, 0)
@@ -43,7 +42,7 @@ object FromStateActionSuite extends TestSuite[TestScheduler] {
 
   test("should do synchronous execution in batches") { implicit s =>
     var received = 0
-    Observable.fromStateAction(Random.int)(s.currentTimeMillis())
+    Observable.fromStateAction(int)(s.currentTimeMillis())
       .take(s.env.batchSize * 2)
       .subscribe { x => received += 1; Continue }
 
@@ -52,5 +51,16 @@ object FromStateActionSuite extends TestSuite[TestScheduler] {
     s.tickOne()
     assertEquals(received, s.env.batchSize * 2)
     s.tickOne()
+  }
+
+  def int(seed: Long): (Int, Long) = {
+    // `&` is bitwise AND. We use the current seed to generate a new seed.
+    val newSeed = (seed * 0x5DEECE66DL + 0xBL) & 0xFFFFFFFFFFFFL
+    // The next state, which is an `RNG` instance created from the new seed.
+    val nextRNG = newSeed
+    // `>>>` is right binary shift with zero fill. The value `n` is our new pseudo-random integer.
+    val n = (newSeed >>> 16).toInt
+    // The return value is a tuple containing both a pseudo-random integer and the next `RNG` state.
+    (n, nextRNG)
   }
 }

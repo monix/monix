@@ -17,12 +17,10 @@
  
 package monifu.concurrent.atomic
 
-import scala.annotation.tailrec
-import scala.concurrent.TimeoutException
-import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.atomic.{AtomicBoolean => JavaAtomicBoolean}
+import scala.annotation.tailrec
 
-final class AtomicBoolean private (ref: JavaAtomicBoolean) extends BlockableAtomic[Boolean] {
+final class AtomicBoolean private (ref: JavaAtomicBoolean) extends Atomic[Boolean] {
   def get: Boolean = {
     ref.get()
   }
@@ -30,9 +28,6 @@ final class AtomicBoolean private (ref: JavaAtomicBoolean) extends BlockableAtom
   def set(update: Boolean): Unit = {
     ref.set(update)
   }
-
-  def update(value: Boolean): Unit = set(value)
-  def `:=`(value: Boolean): Unit = set(value)
 
   def compareAndSet(expect: Boolean, update: Boolean): Boolean = {
     ref.compareAndSet(expect, update)
@@ -84,95 +79,8 @@ final class AtomicBoolean private (ref: JavaAtomicBoolean) extends BlockableAtom
       transform(cb)
   }
 
-  @tailrec
-  @throws(classOf[InterruptedException])
-  def waitForCompareAndSet(expect: Boolean, update: Boolean): Unit =
-    if (!compareAndSet(expect, update)) {
-      interruptedCheck()
-      waitForCompareAndSet(expect, update)
-    }
-
-  @tailrec
-  @throws(classOf[InterruptedException])
-  def waitForCompareAndSet(expect: Boolean, update: Boolean, maxRetries: Int): Boolean =
-    if (!compareAndSet(expect, update))
-      if (maxRetries > 0) {
-        interruptedCheck()
-        waitForCompareAndSet(expect, update, maxRetries - 1)
-      }
-      else
-        false
-    else
-      true
-
-  @throws(classOf[InterruptedException])
-  @throws(classOf[TimeoutException])
-  def waitForCompareAndSet(expect: Boolean, update: Boolean, waitAtMost: FiniteDuration): Unit = {
-    val waitUntil = System.nanoTime + waitAtMost.toNanos
-    waitForCompareAndSet(expect, update, waitUntil)
-  }
-
-  @tailrec
-  @throws(classOf[InterruptedException])
-  @throws(classOf[TimeoutException])
-  private[monifu] def waitForCompareAndSet(expect: Boolean, update: Boolean, waitUntil: Long): Unit =
-    if (!compareAndSet(expect, update)) {
-      interruptedCheck()
-      timeoutCheck(waitUntil)
-      waitForCompareAndSet(expect, update, waitUntil)
-    }
-
-  @tailrec
-  @throws(classOf[InterruptedException])
-  def waitForValue(expect: Boolean): Unit =
-    if (get != expect) {
-      interruptedCheck()
-      waitForValue(expect)
-    }
-
-  @throws(classOf[InterruptedException])
-  @throws(classOf[TimeoutException])
-  def waitForValue(expect: Boolean, waitAtMost: FiniteDuration): Unit = {
-    val waitUntil = System.nanoTime + waitAtMost.toNanos
-    waitForValue(expect, waitUntil)
-  }
-
-  @tailrec
-  @throws(classOf[InterruptedException])
-  @throws(classOf[TimeoutException])
-  private[monifu] def waitForValue(expect: Boolean, waitUntil: Long): Unit =
-    if (get != expect) {
-      interruptedCheck()
-      timeoutCheck(waitUntil)
-      waitForValue(expect, waitUntil)
-    }
-
-  @tailrec
-  @throws(classOf[InterruptedException])
-  def waitForCondition(p: Boolean => Boolean): Unit =
-    if (!p(get)) {
-      interruptedCheck()
-      waitForCondition(p)
-    }
-
-  @throws(classOf[InterruptedException])
-  @throws(classOf[TimeoutException])
-  def waitForCondition(waitAtMost: FiniteDuration, p: Boolean => Boolean): Unit = {
-    val waitUntil = System.nanoTime + waitAtMost.toNanos
-    waitForCondition(waitUntil, p)
-  }
-
-  @tailrec
-  @throws(classOf[InterruptedException])
-  @throws(classOf[TimeoutException])
-  private[monifu] def waitForCondition(waitUntil: Long, p: Boolean => Boolean): Unit =
-    if (!p(get)) {
-      interruptedCheck()
-      timeoutCheck(waitUntil)
-      waitForCondition(waitUntil, p)
-    }
-
-  override def toString: String = s"AtomicBoolean(${ref.get})"
+  override def toString: String =
+    s"AtomicBoolean(${ref.get})"
 }
 
 object AtomicBoolean {

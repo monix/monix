@@ -24,41 +24,47 @@ import scala.util.Try
 
 object extensions {
   /**
-   * Provides utility methods added on Scala's `concurrent.Future`
-   */
+    * Provides utility methods added on Scala's `concurrent.Future`
+    */
   implicit class FutureExtensions[T](val source: Future[T]) extends AnyVal {
-    /**
-     * Combinator that returns a new Future that either completes with
-     * the original Future's result or with a TimeoutException in case
-     * the maximum wait time was exceeded.
-     *
-     * @param atMost specifies the maximum wait time until the future is
-     *               terminated with a TimeoutException
-     * @param s is the Scheduler, needed for completing our internal promise
-     *
-     * @return a new future that will either complete with the result of our
-     *         source or fail in case the timeout is reached.
-     */
-    def withTimeout(atMost: FiniteDuration)(implicit s: Scheduler): Future[T] =
-      FutureUtils.withTimeout(source, atMost)
+    /** Utility that returns a new Future that either completes with
+      * the original Future's result or with a TimeoutException in case
+      * the maximum wait time was exceeded.
+      *
+      * @param atMost specifies the maximum wait time until the future is
+      *               terminated with a TimeoutException
+      * @param s is the Scheduler, needed for completing our internal promise
+      *
+      * @return a new future that will either complete with the result of our
+      *         source or fail in case the timeout is reached.
+      */
+    def timeout(atMost: FiniteDuration)(implicit s: Scheduler): Future[T] =
+      FutureUtils.timeout(source, atMost)
 
-    /**
-     * Utility that lifts a `Future[T]` into a `Future[Try[T]]`, just because
-     * it is useful sometimes.
-     */
+    /** Utility that returns a new Future that either completes with
+      * the source's result or after the timeout specified by
+      * `atMost` it tries to complete with the given `fallback`.
+      * Whatever `Future` finishes first after the timeout, will win.
+      *
+      * @param atMost specifies the maximum wait time until the future is
+      *               terminated with a TimeoutException
+      *
+      * @param fallback the fallback future that gets triggered after timeout
+      *
+      * @param s is the Scheduler, needed for completing our internal promise
+      *
+      * @return a new future that will either complete with the result of our
+      *         source or with the fallback in case the timeout is reached
+      */
+    def timeout[U >: T](atMost: FiniteDuration, fallback: => Future[U])
+      (implicit s: Scheduler): Future[U] =
+      FutureUtils.timeout(source, atMost, fallback)
+
+    /** Utility that lifts a `Future[T]` into a `Future[Try[T]]`, just because
+      * it is useful sometimes.
+      */
     def liftTry(implicit ec: ExecutionContext): Future[Try[T]] =
       FutureUtils.liftTry(source)
-
-    /**
-     * Returns a new `Future` that takes a minimum amount of time to execute,
-     * specified by `atLeast`.
-     *
-     * @param atLeast the minimal duration that the returned future will take to complete.
-     * @param s the implicit scheduler that handles the scheduling and the execution
-     * @return a new `Future` whose execution time is within the specified bounds
-     */
-    def withMinDuration(atLeast: FiniteDuration)(implicit s: Scheduler): Future[T] =
-      FutureUtils.withMinDuration(source, atLeast)
   }
 
   /**

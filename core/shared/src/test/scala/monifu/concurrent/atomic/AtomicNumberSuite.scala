@@ -191,25 +191,6 @@ abstract class AtomicNumberSuite[T, R <: AtomicNumber[T]]
     r.decrement()
     assert(r.get == ev.minus(minValue, ev.one))
   }
-
-  test("should countDownToZero") {
-    val r = Atomic(ev.fromInt(10))
-    var decrements = 0
-    var number = ev.zero
-    var continue = true
-
-    while (continue) {
-      val result = r.countDownToZero(ev.fromInt(2))
-      continue = ev.compare(result, ev.zero) > 0
-      if (continue) {
-        decrements += 1
-        number = ev.plus(number, result)
-      }
-    }
-
-    assert(decrements == 5)
-    assert(number == ev.fromInt(10))
-  }
 }
 
 object AtomicDoubleSuite extends AtomicNumberSuite[Double, AtomicDouble](
@@ -221,25 +202,6 @@ object AtomicDoubleSuite extends AtomicNumberSuite[Double, AtomicDouble](
     assert(Atomic(Double.NegativeInfinity).get.isNegInfinity)
     assert(Atomic(Double.PositiveInfinity).get.isPosInfinity)
   }
-
-  test("should countDownToZero(1.1)") {
-    val r = Atomic(15.0)
-    var decrements = 0
-    var number = 0.0
-    var continue = true
-
-    while (continue) {
-      val result = r.countDownToZero(1.5)
-      continue = result > 0
-      if (continue) {
-        decrements += 1
-        number += result
-      }
-    }
-
-    assert(decrements == 10)
-    assert(number == 15.0)
-  }
 }
 
 object AtomicFloatSuite extends AtomicNumberSuite[Float, AtomicFloat](
@@ -250,25 +212,6 @@ object AtomicFloatSuite extends AtomicNumberSuite[Float, AtomicFloat](
     assert(Atomic(Float.NaN).get.isNaN)
     assert(Atomic(Float.NegativeInfinity).get.isNegInfinity)
     assert(Atomic(Float.PositiveInfinity).get.isPosInfinity)
-  }
-
-  test("should countDownToZero(1.1)") {
-    val r = Atomic(15.0f)
-    var decrements = 0f
-    var number = 0.0f
-    var continue = true
-
-    while (continue) {
-      val result = r.countDownToZero(1.5f)
-      continue = result > 0
-      if (continue) {
-        decrements += 1
-        number += result
-      }
-    }
-
-    assert(decrements == 10)
-    assert(number == 15.0f)
   }
 }
 

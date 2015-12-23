@@ -43,7 +43,7 @@ object ExtensionsSuite extends TestSuite[TestScheduler] {
 
   test("withTimeout should succeed") { implicit s =>
     val f = Future.delayedResult(50.millis)("Hello world!")
-    val t = f.withTimeout(300.millis)
+    val t = f.timeout(300.millis)
 
     s.tick(10.seconds)
     assert(t.value.get.get == "Hello world!")
@@ -51,20 +51,9 @@ object ExtensionsSuite extends TestSuite[TestScheduler] {
 
   test("withTimeout should fail") { implicit s =>
     val f = Future.delayedResult(1.second)("Hello world!")
-    val t = f.withTimeout(30.millis)
+    val t = f.timeout(30.millis)
 
     s.tick(10.seconds)
     intercept[TimeoutException](t.value.get.get)
-  }
-
-  test("ensureDuration should succeed on lower time bound") { implicit s =>
-    val f = Future(1).withMinDuration(400.millis)
-
-    s.tick(200.millis)
-    assert(f.value.isEmpty)
-
-    s.tick(200.millis)
-    assert(f.value.isDefined)
-    assert(f.value.get.get == 1)
   }
 }

@@ -18,9 +18,8 @@
 package monifu.internals.collection
 
 import java.util.ConcurrentModificationException
-
-import monifu.util.math.nextPowerOf2
-
+import monifu.internals.math
+import math.nextPowerOf2
 import scala.reflect.ClassTag
 
 /**

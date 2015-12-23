@@ -23,7 +23,7 @@ import concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 import java.util.concurrent.{TimeUnit, CountDownLatch}
 
-abstract class ConcurrentAtomicNumberSuite[T, R <: AtomicNumber[T] with BlockableAtomic[T]]
+abstract class ConcurrentAtomicNumberSuite[T, R <: AtomicNumber[T]]
   (name: String, builder: AtomicBuilder[T, R],
    value: T, nan1: Option[T], maxValue: T, minValue: T)(implicit ev: Numeric[T])
   extends SimpleTestSuite {
@@ -53,18 +53,6 @@ abstract class ConcurrentAtomicNumberSuite[T, R <: AtomicNumber[T] with Blockabl
     val f = Future.sequence(futures)
     Await.result(f, 1.second)
     assert(r.get == ev.fromInt(100))
-  }
-
-  test("should waitForCompareAndSet") {
-    val r = Atomic(ev.one)
-    val start = new CountDownLatch(1)
-    val done = new CountDownLatch(1)
-    Future { start.countDown(); r.waitForCompareAndSet(ev.zero, ev.one); done.countDown() }
-
-    start.await(1, TimeUnit.SECONDS)
-    assert(done.getCount == 1)
-    r.set(ev.zero)
-    done.await(1, TimeUnit.SECONDS)
   }
 }
 

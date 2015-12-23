@@ -38,18 +38,6 @@ trait Atomic[T] extends Any {
   def set(update: T): Unit
 
   /**
-   * Alias for `set()`. Updates the current value.
-   * @param value will be the new value returned by `get()`
-   */
-  def update(value: T): Unit
-
-  /**
-   * Alias for `set()`. Updates the current value.
-   * @param value will be the new value returned by `get()`
-   */
-  def `:=`(value: T): Unit
-
-  /**
    * Does a compare-and-set operation on the current value. For more info, checkout the related
    * [[https://en.wikipedia.org/wiki/Compare-and-swap Compare-and-swap Wikipedia page]].
    *

@@ -17,22 +17,17 @@
 
 package monifu.concurrent.atomic
 
-import scala.annotation.tailrec
-import scala.concurrent.TimeoutException
-import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.atomic.{AtomicLong => JavaAtomicLong}
+import scala.annotation.tailrec
 
 final class AtomicLong private (ref: JavaAtomicLong) 
-  extends AtomicNumber[Long] with BlockableAtomic[Long] {
+  extends AtomicNumber[Long] {
   
   def get: Long = ref.get()
 
   def set(update: Long): Unit = {
     ref.set(update)
   }
-
-  def update(value: Long): Unit = set(value)
-  def `:=`(value: Long): Unit = set(value)
 
   def compareAndSet(expect: Long, update: Long): Boolean = {
     ref.compareAndSet(expect, update)
@@ -83,94 +78,6 @@ final class AtomicLong private (ref: JavaAtomicLong)
     if (!compareAndSet(current, update))
       transform(cb)
   }
-
-  @tailrec
-  @throws(classOf[InterruptedException])
-  def waitForCompareAndSet(expect: Long, update: Long): Unit =
-    if (!compareAndSet(expect, update)) {
-      interruptedCheck()
-      waitForCompareAndSet(expect, update)
-    }
-
-  @tailrec
-  @throws(classOf[InterruptedException])
-  def waitForCompareAndSet(expect: Long, update: Long, maxRetries: Int): Boolean =
-    if (!compareAndSet(expect, update))
-      if (maxRetries > 0) {
-        interruptedCheck()
-        waitForCompareAndSet(expect, update, maxRetries - 1)
-      }
-      else
-        false
-    else
-      true
-
-  @throws(classOf[InterruptedException])
-  @throws(classOf[TimeoutException])
-  def waitForCompareAndSet(expect: Long, update: Long, waitAtMost: FiniteDuration): Unit = {
-    val waitUntil = System.nanoTime + waitAtMost.toNanos
-    waitForCompareAndSet(expect, update, waitUntil)
-  }
-
-  @tailrec
-  @throws(classOf[InterruptedException])
-  @throws(classOf[TimeoutException])
-  private[monifu] def waitForCompareAndSet(expect: Long, update: Long, waitUntil: Long): Unit =
-    if (!compareAndSet(expect, update)) {
-      interruptedCheck()
-      timeoutCheck(waitUntil)
-      waitForCompareAndSet(expect, update, waitUntil)
-    }
-
-  @tailrec
-  @throws(classOf[InterruptedException])
-  def waitForValue(expect: Long): Unit =
-    if (get != expect) {
-      interruptedCheck()
-      waitForValue(expect)
-    }
-
-  @throws(classOf[InterruptedException])
-  @throws(classOf[TimeoutException])
-  def waitForValue(expect: Long, waitAtMost: FiniteDuration): Unit = {
-    val waitUntil = System.nanoTime + waitAtMost.toNanos
-    waitForValue(expect, waitUntil)
-  }
-
-  @tailrec
-  @throws(classOf[InterruptedException])
-  @throws(classOf[TimeoutException])
-  private[monifu] def waitForValue(expect: Long, waitUntil: Long): Unit =
-    if (get != expect) {
-      interruptedCheck()
-      timeoutCheck(waitUntil)
-      waitForValue(expect, waitUntil)
-    }
-
-  @tailrec
-  @throws(classOf[InterruptedException])
-  def waitForCondition(p: Long => Boolean): Unit =
-    if (!p(get)) {
-      interruptedCheck()
-      waitForCondition(p)
-    }
-
-  @throws(classOf[InterruptedException])
-  @throws(classOf[TimeoutException])
-  def waitForCondition(waitAtMost: FiniteDuration, p: Long => Boolean): Unit = {
-    val waitUntil = System.nanoTime + waitAtMost.toNanos
-    waitForCondition(waitUntil, p)
-  }
-
-  @tailrec
-  @throws(classOf[InterruptedException])
-  @throws(classOf[TimeoutException])
-  private[monifu] def waitForCondition(waitUntil: Long, p: Long => Boolean): Unit =
-    if (!p(get)) {
-      interruptedCheck()
-      timeoutCheck(waitUntil)
-      waitForCondition(waitUntil, p)
-    }
 
   @tailrec
   def increment(v: Int = 1): Unit = {
@@ -236,28 +143,12 @@ final class AtomicLong private (ref: JavaAtomicLong)
   def subtractAndGet(v: Long): Long =
     addAndGet(-v)
 
-  @tailrec
-  def countDownToZero(v: Long = 1L): Long = {
-    val current = get
-    if (current != 0L) {
-      val decrement = if (current >= v) v else current
-      val update = current - decrement
-      if (!compareAndSet(current, update))
-        countDownToZero(v)
-      else
-        decrement
-    }
-    else
-      0L
-  }
-
   def decrement(v: Int = 1): Unit = increment(-v)
   def decrementAndGet(v: Int = 1): Long = incrementAndGet(-v)
   def getAndDecrement(v: Int = 1): Long = getAndIncrement(-v)
-  def `+=`(v: Long): Unit = addAndGet(v)
-  def `-=`(v: Long): Unit = subtractAndGet(v)
 
-  override def toString: String = s"AtomicLong(${ref.get()})"
+  override def toString: String =
+    s"AtomicLong(${ref.get()})"
 }
 
 object AtomicLong {

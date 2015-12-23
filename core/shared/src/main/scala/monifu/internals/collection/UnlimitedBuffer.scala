@@ -18,7 +18,7 @@
 package monifu.internals.collection
 
 import monifu.internals.collection.UnlimitedBuffer.Node
-import monifu.util.math.nextPowerOf2
+import monifu.internals.math.nextPowerOf2
 import scala.reflect.ClassTag
 
 private[monifu]

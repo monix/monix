@@ -17,14 +17,12 @@
  
 package monifu.concurrent.atomic
 
-import scala.annotation.tailrec
-import scala.concurrent._
-import scala.concurrent.duration.FiniteDuration
-import java.lang.Double.{longBitsToDouble, doubleToLongBits}
+import java.lang.Double.{doubleToLongBits, longBitsToDouble}
 import java.util.concurrent.atomic.{AtomicLong => JavaAtomicLong}
+import scala.annotation.tailrec
 
 final class AtomicDouble private (ref: JavaAtomicLong)
-  extends AtomicNumber[Double] with BlockableAtomic[Double] {
+  extends AtomicNumber[Double] {
 
   def get: Double =
     longBitsToDouble(ref.get())
@@ -45,10 +43,6 @@ final class AtomicDouble private (ref: JavaAtomicLong)
   def getAndSet(update: Double): Double = {
     longBitsToDouble(ref.getAndSet(doubleToLongBits(update)))
   }
-
-  def update(value: Double): Unit = set(value)
-
-  def `:=`(value: Double): Unit = set(value)
 
   @tailrec
   def transformAndExtract[U](cb: (Double) => (U, Double)): U = {
@@ -87,94 +81,6 @@ final class AtomicDouble private (ref: JavaAtomicLong)
     if (!compareAndSet(current, update))
       transform(cb)
   }
-
-  @tailrec
-  @throws(classOf[InterruptedException])
-  def waitForCompareAndSet(expect: Double, update: Double): Unit =
-    if (!compareAndSet(expect, update)) {
-      interruptedCheck()
-      waitForCompareAndSet(expect, update)
-    }
-
-  @tailrec
-  @throws(classOf[InterruptedException])
-  def waitForCompareAndSet(expect: Double, update: Double, maxRetries: Int): Boolean =
-    if (!compareAndSet(expect, update))
-      if (maxRetries > 0) {
-        interruptedCheck()
-        waitForCompareAndSet(expect, update, maxRetries - 1)
-      }
-      else
-        false
-    else
-      true
-
-  @throws(classOf[InterruptedException])
-  @throws(classOf[TimeoutException])
-  def waitForCompareAndSet(expect: Double, update: Double, waitAtMost: FiniteDuration): Unit = {
-    val waitUntil = System.nanoTime + waitAtMost.toNanos
-    waitForCompareAndSet(expect, update, waitUntil)
-  }
-
-  @tailrec
-  @throws(classOf[InterruptedException])
-  @throws(classOf[TimeoutException])
-  private[monifu] def waitForCompareAndSet(expect: Double, update: Double, waitUntil: Long): Unit =
-    if (!compareAndSet(expect, update)) {
-      interruptedCheck()
-      timeoutCheck(waitUntil)
-      waitForCompareAndSet(expect, update, waitUntil)
-    }
-
-  @tailrec
-  @throws(classOf[InterruptedException])
-  def waitForValue(expect: Double): Unit =
-    if (get != expect) {
-      interruptedCheck()
-      waitForValue(expect)
-    }
-
-  @throws(classOf[InterruptedException])
-  @throws(classOf[TimeoutException])
-  def waitForValue(expect: Double, waitAtMost: FiniteDuration): Unit = {
-    val waitUntil = System.nanoTime + waitAtMost.toNanos
-    waitForValue(expect, waitUntil)
-  }
-
-  @tailrec
-  @throws(classOf[InterruptedException])
-  @throws(classOf[TimeoutException])
-  private[monifu] def waitForValue(expect: Double, waitUntil: Long): Unit =
-    if (get != expect) {
-      interruptedCheck()
-      timeoutCheck(waitUntil)
-      waitForValue(expect, waitUntil)
-    }
-
-  @tailrec
-  @throws(classOf[InterruptedException])
-  def waitForCondition(p: Double => Boolean): Unit =
-    if (!p(get)) {
-      interruptedCheck()
-      waitForCondition(p)
-    }
-
-  @throws(classOf[InterruptedException])
-  @throws(classOf[TimeoutException])
-  def waitForCondition(waitAtMost: FiniteDuration, p: Double => Boolean): Unit = {
-    val waitUntil = System.nanoTime + waitAtMost.toNanos
-    waitForCondition(waitUntil, p)
-  }
-
-  @tailrec
-  @throws(classOf[InterruptedException])
-  @throws(classOf[TimeoutException])
-  private[monifu] def waitForCondition(waitUntil: Long, p: Double => Boolean): Unit =
-    if (!p(get)) {
-      interruptedCheck()
-      timeoutCheck(waitUntil)
-      waitForCondition(waitUntil, p)
-    }
 
   @tailrec
   def increment(v: Int = 1): Unit = {
@@ -260,26 +166,9 @@ final class AtomicDouble private (ref: JavaAtomicLong)
       current
   }
 
-  @tailrec
-  def countDownToZero(v: Double = 1.0): Double = {
-    val current = get
-    if (current != 0.0) {
-      val decrement = if (current >= v) v else current
-      val update = current - decrement
-      if (!compareAndSet(current, update))
-        countDownToZero(v)
-      else
-        decrement
-    }
-    else
-      0.0
-  }
-
   def decrement(v: Int = 1): Unit = increment(-v)
   def decrementAndGet(v: Int = 1): Double = incrementAndGet(-v)
   def getAndDecrement(v: Int = 1): Double = getAndIncrement(-v)
-  def `+=`(v: Double): Unit = addAndGet(v)
-  def `-=`(v: Double): Unit = subtractAndGet(v)
 
   private[this] def plusOp(a: Double, b: Double): Double = a + b
   private[this] def minusOp(a: Double, b: Double): Double = a - b
