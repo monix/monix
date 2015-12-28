@@ -21,7 +21,7 @@ import monifu.concurrent.atomic.padded.Atomic
 import monifu.Ack.{Cancel, Continue}
 import monifu.observers.ConnectableSubscriber
 import monifu.{Ack, Observable, Subject, Subscriber}
-import monifu.internals._
+import monifu.internal._
 import scala.annotation.tailrec
 import scala.collection.{Set, mutable}
 import scala.concurrent.Future

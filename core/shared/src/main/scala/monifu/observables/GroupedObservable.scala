@@ -19,7 +19,7 @@ package monifu.observables
 
 import monifu.concurrent.{Cancelable, Scheduler}
 import monifu._
-import monifu.internals._
+import monifu.internal._
 import monifu.observers.CacheUntilConnectSubscriber
 import scala.concurrent.Future
 

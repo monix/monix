@@ -23,7 +23,7 @@ import monifu.concurrent.cancelables.BooleanCancelable
 import monifu.concurrent.{Cancelable, Scheduler}
 import monifu.Ack.{Cancel, Continue}
 import monifu.OverflowStrategy.{default => defaultStrategy}
-import monifu.internals._
+import monifu.internal._
 import monifu.observables.{CachedObservable, ConnectableObservable, GroupedObservable}
 import monifu.observers._
 import monifu.subjects.{AsyncSubject, BehaviorSubject, PublishSubject, ReplaySubject}

@@ -19,7 +19,7 @@ package monifu.subjects
 
 import monifu.concurrent.atomic.padded.Atomic
 import monifu.Ack.{Continue, Cancel}
-import monifu.internals.PromiseCounter
+import monifu.internal.PromiseCounter
 import monifu.subjects.PublishSubject.State
 import monifu.{Ack, Subject, Subscriber}
 

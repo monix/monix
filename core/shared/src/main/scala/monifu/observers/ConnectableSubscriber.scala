@@ -19,7 +19,7 @@ package monifu.observers
 
 import monifu.concurrent.Scheduler
 import monifu.Ack.{Cancel, Continue}
-import monifu.internals.FutureAckExtensions
+import monifu.internal.FutureAckExtensions
 import monifu._
 import scala.collection.mutable
 import scala.concurrent.{Future, Promise}

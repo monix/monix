@@ -20,7 +20,7 @@ package monifu.subjects
 import monifu.concurrent.atomic.padded.Atomic
 import monifu.Ack.{Cancel, Continue}
 import monifu.subjects.PublishSubject.State
-import monifu.internals._
+import monifu.internal._
 import monifu.{Ack, Subject, Subscriber}
 import scala.annotation.tailrec
 import scala.concurrent.Future

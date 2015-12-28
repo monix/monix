@@ -22,7 +22,7 @@ import monifu.concurrent.cancelables.BooleanCancelable
 import monifu.concurrent.schedulers.TestScheduler
 import monifu.Ack.{Cancel, Continue}
 import monifu.exceptions.DummyException
-import monifu.internals._
+import monifu.internal._
 import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success}
 

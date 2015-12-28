@@ -17,7 +17,7 @@
 
 package monifu.concurrent
 
-import monifu.internals.collection.DropHeadOnOverflowQueue
+import monifu.internal.collection.DropHeadOnOverflowQueue
 
 import scala.annotation.tailrec
 import scala.util.control.NonFatal

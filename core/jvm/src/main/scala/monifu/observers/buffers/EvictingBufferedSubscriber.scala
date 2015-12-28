@@ -17,7 +17,7 @@
 
 package monifu.observers.buffers
 
-import monifu.internals.collection.{EvictingQueue, DropHeadOnOverflowQueue, DropAllOnOverflowQueue}
+import monifu.internal.collection.{EvictingQueue, DropHeadOnOverflowQueue, DropAllOnOverflowQueue}
 import monifu.Ack.{Cancel, Continue}
 import monifu.observers.{BufferedSubscriber, SynchronousSubscriber}
 import monifu.{Ack, Subscriber}

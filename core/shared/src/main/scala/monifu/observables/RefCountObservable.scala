@@ -20,7 +20,7 @@ package monifu.observables
 import monifu.concurrent.atomic.padded.Atomic
 import monifu.concurrent.cancelables.BooleanCancelable
 import monifu.concurrent.{Cancelable, Scheduler}
-import monifu.internals._
+import monifu.internal._
 import monifu.{Observable, Observer, Subscriber}
 import scala.annotation.tailrec
 

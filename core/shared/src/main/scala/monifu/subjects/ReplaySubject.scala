@@ -18,10 +18,10 @@
 package monifu.subjects
 
 import monifu.concurrent.atomic.padded.Atomic
-import monifu.internals.math
+import monifu.internal.math
 import monifu.Ack.{Cancel, Continue}
 import monifu._
-import monifu.internals._
+import monifu.internal._
 import monifu.observers.ConnectableSubscriber
 import math._
 
