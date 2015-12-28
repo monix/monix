@@ -32,7 +32,7 @@ private[monifu] object switch {
     Observable.create { observerU: Subscriber[U] =>
       import observerU.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] { self =>
+      source.unsafeSubscribeFn(new Observer[T] { self =>
         // Global subscription, is canceled by the downstream
         // observer and if canceled all streaming is supposed to stop
         private[this] val upstream = SerialCancelable()
@@ -49,7 +49,7 @@ private[monifu] object switch {
 
             ack.fastFlatMap {
               case Continue =>
-                childObservable.onSubscribe(new Observer[U] {
+                childObservable.unsafeSubscribeFn(new Observer[U] {
                   def onNext(elem: U) = self.synchronized {
                     if (activeRef.isCanceled) Cancel else {
                       ack = ack.onContinueStreamOnNext(observerU, elem)

@@ -38,7 +38,7 @@ object FromFutureSuite extends TestSuite[TestScheduler] {
     var received = 0
     var wasCompleted = false
 
-    Observable.fromFuture(f).onSubscribe(
+    Observable.fromFuture(f).unsafeSubscribeFn(
       new Observer[Int] {
         def onNext(elem: Int) = {
           received += elem
@@ -61,7 +61,7 @@ object FromFutureSuite extends TestSuite[TestScheduler] {
     var received = 0
     var wasCompleted = false
 
-    Observable.fromFuture(f).onSubscribe(
+    Observable.fromFuture(f).unsafeSubscribeFn(
       new Observer[Int] {
         def onNext(elem: Int) = {
           received += elem
@@ -86,7 +86,7 @@ object FromFutureSuite extends TestSuite[TestScheduler] {
     val f = Future.failed(DummyException("dummy"))
     var errorThrown: Throwable = null
 
-    Observable.fromFuture(f).onSubscribe(
+    Observable.fromFuture(f).unsafeSubscribeFn(
       new Observer[Int] {
         def onNext(elem: Int) = Continue
         def onError(ex: Throwable): Unit = errorThrown = ex
@@ -100,7 +100,7 @@ object FromFutureSuite extends TestSuite[TestScheduler] {
     val f = Future.delayedResult(100.millis)(throw DummyException("dummy"))
     var errorThrown: Throwable = null
 
-    Observable.fromFuture(f).onSubscribe(
+    Observable.fromFuture(f).unsafeSubscribeFn(
       new Observer[Int] {
         def onNext(elem: Int) = Continue
         def onError(ex: Throwable): Unit = errorThrown = ex

@@ -41,7 +41,7 @@ final class RefCountObservable[+T] private (source: ConnectableObservable[T])
     source.connect()
 
   @tailrec
-  def onSubscribe(subscriber: Subscriber[T]): Unit = {
+  def unsafeSubscribeFn(subscriber: Subscriber[T]): Unit = {
     val current = refs.get
     val update = current match {
       case x if x < 0 => 1
@@ -50,16 +50,16 @@ final class RefCountObservable[+T] private (source: ConnectableObservable[T])
     }
 
     if (update == 0) {
-      source.onSubscribe(subscriber)
+      source.unsafeSubscribeFn(subscriber)
     }
     else if (!refs.compareAndSet(current, update)) {
       // retry
-      onSubscribe(subscriber)
+      unsafeSubscribeFn(subscriber)
     }
     else {
       implicit val s = subscriber.scheduler
       val cancelable = BooleanCancelable(cancel())
-      source.onSubscribe(observer(cancelable, subscriber))
+      source.unsafeSubscribeFn(observer(cancelable, subscriber))
       if (current == -1) connection // triggers connect()
     }
   }

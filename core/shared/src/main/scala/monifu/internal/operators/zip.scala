@@ -51,7 +51,7 @@ private[monifu] object zip {
           }
         }
 
-      first.onSubscribe(new Observer[T] {
+      first.unsafeSubscribeFn(new Observer[T] {
         def onNext(a: T): Future[Ack] =
           lock.synchronized {
             if (isCompleted)
@@ -89,7 +89,7 @@ private[monifu] object zip {
           }
       })
 
-      second.onSubscribe(new Observer[U] {
+      second.unsafeSubscribeFn(new Observer[U] {
         def onNext(b: U): Future[Ack] =
           lock.synchronized {
             if (isCompleted)
@@ -129,7 +129,7 @@ private[monifu] object zip {
     Observable.create { downstream =>
       import downstream.scheduler
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         private[this] var index = 0
 
         def onNext(elem: T): Future[Ack] = {

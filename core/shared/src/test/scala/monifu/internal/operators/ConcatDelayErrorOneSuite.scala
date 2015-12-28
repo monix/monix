@@ -68,7 +68,7 @@ object ConcatDelayErrorOneSuite extends BaseOperatorSuite {
     val Some(Sample(obs, count, sum, _, _)) =
       create(sourceCount, SomeException(100))
 
-    obs.onSubscribe(new Observer[Long] {
+    obs.unsafeSubscribeFn(new Observer[Long] {
       def onNext(elem: Long) = {
         received += 1
         receivedSum += elem

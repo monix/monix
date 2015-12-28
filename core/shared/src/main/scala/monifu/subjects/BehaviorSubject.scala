@@ -41,14 +41,14 @@ final class BehaviorSubject[T] private (initialValue: T) extends Subject[T,T] { 
   private[this] val stateRef = Atomic(BehaviorSubject.State(initialValue))
 
   @tailrec
-  def onSubscribe(subscriber: Subscriber[T]): Unit = {
+  def unsafeSubscribeFn(subscriber: Subscriber[T]): Unit = {
     val state = stateRef.get
 
     if (state.errorThrown != null)
       subscriber.onError(state.errorThrown)
     else if (state.isDone)
       Observable.unit(state.cached)
-        .onSubscribe(subscriber)
+        .unsafeSubscribeFn(subscriber)
     else {
       val c = ConnectableSubscriber(subscriber)
       val newState = state.addNewSubscriber(c)
@@ -58,7 +58,7 @@ final class BehaviorSubject[T] private (initialValue: T) extends Subject[T,T] { 
       }
       else {
         // retry
-        onSubscribe(subscriber)
+        unsafeSubscribeFn(subscriber)
       }
     }
   }

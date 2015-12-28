@@ -40,7 +40,7 @@ object FromRunnableSuite extends TestSuite[TestScheduler] {
       def run(): Unit = i += 1
     })
 
-    obs.onSubscribe(new Observer[Unit] {
+    obs.unsafeSubscribeFn(new Observer[Unit] {
       def onNext(elem: Unit): Future[Ack] = {
         received += i
         Continue
@@ -54,7 +54,7 @@ object FromRunnableSuite extends TestSuite[TestScheduler] {
     assertEquals(wasCompleted, 1)
     assertEquals(received, 1)
 
-    obs.onSubscribe(new Observer[Unit] {
+    obs.unsafeSubscribeFn(new Observer[Unit] {
       def onNext(elem: Unit): Future[Ack] = {
         received += i
         Continue

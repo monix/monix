@@ -30,7 +30,7 @@ private[monifu] object onError {
     Observable.create[T] { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         def onNext(elem: T) = subscriber.onNext(elem)
         def onComplete() = subscriber.onComplete()
 
@@ -42,7 +42,7 @@ private[monifu] object onError {
               val fallbackTo = pf(ex)
               // need asynchronous execution to avoid a synchronous loop
               // blowing out the call stack
-              s.execute(fallbackTo.onSubscribe(subscriber))
+              s.execute(fallbackTo.unsafeSubscribeFn(subscriber))
             }
             else {
               // we can't protect the onError call and if it throws
@@ -70,7 +70,7 @@ private[monifu] object onError {
     Observable.create[T] { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         def onNext(elem: T) =
           subscriber.onNext(elem)
 
@@ -79,7 +79,7 @@ private[monifu] object onError {
             val fallback = other
             // need asynchronous execution to avoid a synchronous loop
             // blowing out the call stack
-            s.execute(fallback.onSubscribe(subscriber))
+            s.execute(fallback.unsafeSubscribeFn(subscriber))
           }
           catch {
             case NonFatal(err) =>
@@ -102,7 +102,7 @@ private[monifu] object onError {
   def retryCounted[T](source: Observable[T], maxRetries: Long) = {
     // helper to subscribe in a loop when onError happens
     def subscribe(o: Observer[T], retryIdx: Long)(implicit s: Scheduler): Unit =
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         def onNext(elem: T) = o.onNext(elem)
         def onComplete() = o.onComplete()
 
@@ -129,7 +129,7 @@ private[monifu] object onError {
   def retryUnlimited[T](source: Observable[T]): Observable[T] = {
     // helper to subscribe in a loop when onError happens
     def subscribe(o: Observer[T])(implicit s: Scheduler): Unit =
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         def onNext(elem: T) = o.onNext(elem)
         def onComplete() = o.onComplete()
 
@@ -153,7 +153,7 @@ private[monifu] object onError {
     def subscribe(o: Subscriber[T]): Unit = {
       import o.scheduler
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         def onNext(elem: T) = o.onNext(elem)
         def onComplete() = o.onComplete()
 

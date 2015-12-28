@@ -35,7 +35,7 @@ private[monifu] object flatScan {
       implicit val s = subscriber.scheduler
       val o = subscriber
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         private[this] val refCount = RefCountCancelable(o.onComplete())
         private[this] var state = initial
 
@@ -49,7 +49,7 @@ private[monifu] object flatScan {
 
             val refID = refCount.acquire()
 
-            newState.onSubscribe(new Observer[R] {
+            newState.unsafeSubscribeFn(new Observer[R] {
               def onNext(elem: R): Future[Ack] = {
                 state = elem
                 o.onNext(elem)
@@ -103,7 +103,7 @@ private[monifu] object flatScan {
     Observable.create[R] { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         private[this] var state = initial
         private[this] val errors = mutable.ArrayBuffer.empty[Throwable]
         private[this] val refCount = RefCountCancelable {
@@ -123,7 +123,7 @@ private[monifu] object flatScan {
 
             val refID = refCount.acquire()
 
-            newState.onSubscribe(new Observer[R] {
+            newState.unsafeSubscribeFn(new Observer[R] {
               def onNext(elem: R): Future[Ack] = {
                 state = elem
                 subscriber.onNext(elem)

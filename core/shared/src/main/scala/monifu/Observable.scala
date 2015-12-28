@@ -60,7 +60,7 @@ import scala.util.control.NonFatal
   * being described as an interface that has to be implemented:
   * {{{
   *   class MySampleObservable(unit: Int) extends Observable[Int] {
-  *     def onSubscribe(sub: Subscriber[Int]): Unit = {
+  *     def unsafeSubscribeFn(sub: Subscriber[Int]): Unit = {
   *       implicit val s = sub.scheduler
   *       // note we must apply back-pressure
   *       // when calling `onNext`
@@ -364,8 +364,7 @@ import scala.util.control.NonFatal
   *                                  [[monifu.OverflowStrategy OverflowStrategy]] for
   *                                  options.
   */
-trait Observable[+T] {
-  self =>
+trait Observable[+T] { self =>
   /** Characteristic function for an `Observable` instance, that
     * creates the subscription and that eventually starts the streaming
     * of events to the given [[Observer]], being meant to be overridden
@@ -380,7 +379,7 @@ trait Observable[+T] {
     *
     * @see [[Observable.subscribe(observer* subscribe]].
     */
-  def onSubscribe(subscriber: Subscriber[T]): Unit
+  def unsafeSubscribeFn(subscriber: Subscriber[T]): Unit
 
   /** Subscribes to the stream.
     *
@@ -397,8 +396,8 @@ trait Observable[+T] {
     * @param s is the [[monifu.concurrent.Scheduler Scheduler]]
     *          used for creating the subscription
     */
-  def onSubscribe(observer: Observer[T])(implicit s: Scheduler): Unit = {
-    onSubscribe(Subscriber(observer, s))
+  def unsafeSubscribeFn(observer: Observer[T])(implicit s: Scheduler): Unit = {
+    unsafeSubscribeFn(Subscriber(observer, s))
   }
 
   /** Subscribes to the stream.
@@ -407,7 +406,7 @@ trait Observable[+T] {
     */
   def subscribe(subscriber: Subscriber[T]): BooleanCancelable = {
     val cancelable = BooleanCancelable()
-    takeWhileNotCanceled(cancelable).onSubscribe(SafeSubscriber[T](subscriber))
+    takeWhileNotCanceled(cancelable).unsafeSubscribeFn(SafeSubscriber[T](subscriber))
     cancelable
   }
 
@@ -463,7 +462,7 @@ trait Observable[+T] {
   def toReactive[U >: T](implicit s: Scheduler): RPublisher[U] =
     new RPublisher[U] {
       def subscribe(subscriber: RSubscriber[_ >: U]): Unit = {
-        onSubscribe(SafeSubscriber(Subscriber.fromReactiveSubscriber(subscriber)))
+        unsafeSubscribeFn(SafeSubscriber(Subscriber.fromReactiveSubscriber(subscriber)))
       }
     }
 
@@ -1656,7 +1655,7 @@ trait Observable[+T] {
     * `Scheduler` for initiating the subscription.
     */
   def subscribeOn(s: Scheduler): Observable[T] = {
-    Observable.create(o => s.execute(onSubscribe(o)))
+    Observable.create(o => s.execute(unsafeSubscribeFn(o)))
   }
 
   /** Utility that can be used for debugging purposes.
@@ -1682,7 +1681,7 @@ trait Observable[+T] {
     */
   def asyncBoundary(overflowStrategy: OverflowStrategy): Observable[T] =
     Observable.create { subscriber =>
-      onSubscribe(BufferedSubscriber(subscriber, overflowStrategy))
+      unsafeSubscribeFn(BufferedSubscriber(subscriber, overflowStrategy))
     }
 
   /** $asyncBoundaryDescription
@@ -1692,7 +1691,7 @@ trait Observable[+T] {
     */
   def asyncBoundary[U >: T](overflowStrategy: OverflowStrategy.Evicted, onOverflow: Long => U): Observable[U] =
     Observable.create { subscriber =>
-      onSubscribe(BufferedSubscriber(subscriber, overflowStrategy))
+      unsafeSubscribeFn(BufferedSubscriber(subscriber, overflowStrategy))
     }
 
   /** While the destination observer is busy, drop the incoming events.
@@ -1929,7 +1928,7 @@ trait Observable[+T] {
   def asFuture(implicit s: Scheduler): Future[Option[T]] = {
     val promise = Promise[Option[T]]()
 
-    head.onSubscribe(new Observer[T] {
+    head.unsafeSubscribeFn(new Observer[T] {
       def onNext(elem: T) = {
         promise.trySuccess(Some(elem))
         Cancel
@@ -1951,7 +1950,7 @@ trait Observable[+T] {
     * it executes the given callback.
     */
   def foreach(cb: T => Unit)(implicit s: Scheduler): Unit =
-    onSubscribe(new SynchronousObserver[T] {
+    unsafeSubscribeFn(new SynchronousObserver[T] {
       def onNext(elem: T) =
         try {
           cb(elem); Continue
@@ -1975,7 +1974,7 @@ object Observable {
     */
   def create[T](f: Subscriber[T] => Unit): Observable[T] = {
     new Observable[T] {
-      def onSubscribe(subscriber: Subscriber[T]): Unit =
+      def unsafeSubscribeFn(subscriber: Subscriber[T]): Unit =
         try f(subscriber) catch {
           case NonFatal(ex) =>
             subscriber.onError(ex)
@@ -2019,7 +2018,7 @@ object Observable {
     *                Observer that subscribes to the resulting Observable
     */
   def defer[T](factory: => Observable[T]): Observable[T] = {
-    create[T](s => factory.onSubscribe(s))
+    create[T](s => factory.unsafeSubscribeFn(s))
   }
 
   /** Creates an Observable that emits auto-incremented natural numbers
@@ -2196,7 +2195,7 @@ object Observable {
   def toReactivePublisher[T](source: Observable[T])(implicit s: Scheduler): RPublisher[T] =
     new RPublisher[T] {
       def subscribe(subscriber: RSubscriber[_ >: T]): Unit = {
-        source.onSubscribe(SafeSubscriber(Observer.fromReactiveSubscriber(subscriber)))
+        source.unsafeSubscribeFn(SafeSubscriber(Observer.fromReactiveSubscriber(subscriber)))
       }
     }
 
@@ -2209,7 +2208,7 @@ object Observable {
   def toReactivePublisher[T](source: Observable[T], requestSize: Int)(implicit s: Scheduler): RPublisher[T] =
     new RPublisher[T] {
       def subscribe(subscriber: RSubscriber[_ >: T]): Unit = {
-        source.onSubscribe(SafeSubscriber(Observer.fromReactiveSubscriber(subscriber)))
+        source.unsafeSubscribeFn(SafeSubscriber(Observer.fromReactiveSubscriber(subscriber)))
       }
     }
 

@@ -33,7 +33,7 @@ private[monifu] object doWork {
     Observable.create[T] { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         def onError(ex: Throwable) = subscriber.onError(ex)
         def onComplete() = subscriber.onComplete()
 
@@ -61,7 +61,7 @@ private[monifu] object doWork {
     Observable.create[T] { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         def onNext(elem: T) = {
           subscriber.onNext(elem)
         }
@@ -93,7 +93,7 @@ private[monifu] object doWork {
     Observable.create[T] { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         def onNext(elem: T) = {
           subscriber.onNext(elem)
         }
@@ -128,7 +128,7 @@ private[monifu] object doWork {
       import subscriber.{scheduler => s}
       val isActive = Cancelable(cb)
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         def onNext(elem: T) = {
           subscriber.onNext(elem)
             .ifCanceledDoCancel(isActive)
@@ -151,7 +151,7 @@ private[monifu] object doWork {
     Observable.create { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         private[this] var isStarted = false
 
         def onNext(elem: T) = {

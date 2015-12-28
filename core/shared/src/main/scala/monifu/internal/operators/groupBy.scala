@@ -35,7 +35,7 @@ private[monifu] object groupBy {
     Observable.create { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] { self =>
+      source.unsafeSubscribeFn(new Observer[T] { self =>
         private[this] var isDone = false
         private[this] val downstream = BufferedSubscriber(subscriber, os)
         private[this] val cacheRef = Atomic(Map.empty[K, Observer[T]])

@@ -47,7 +47,7 @@ object WhileBusyDropEventsSuite extends TestSuite[TestScheduler] {
     var received = 0L
     var wasCompleted = false
 
-    source.whileBusyDropEvents.onSubscribe(new Observer[Long] {
+    source.whileBusyDropEvents.unsafeSubscribeFn(new Observer[Long] {
       def onNext(elem: Long) = {
         received += elem
         p.future
@@ -81,7 +81,7 @@ object WhileBusyDropEventsSuite extends TestSuite[TestScheduler] {
     var wasCompleted = false
 
     source.whileBusyDropEvents
-      .onSubscribe(new Observer[Long] {
+      .unsafeSubscribeFn(new Observer[Long] {
         def onNext(elem: Long) =
           p.future.map { continue =>
             received += elem
@@ -111,7 +111,7 @@ object WhileBusyDropEventsSuite extends TestSuite[TestScheduler] {
     var received = 0L
     var wasThrown = null : Throwable
 
-    source.whileBusyDropEvents.onSubscribe(
+    source.whileBusyDropEvents.unsafeSubscribeFn(
       new Observer[Long] {
         def onNext(elem: Long) =
           p.future.map { continue =>

@@ -43,10 +43,10 @@ final class CachedObservable[+T] private (source: Observable[T], maxCapacity: In
       ReplaySubject[T]()
   }
   
-  def onSubscribe(subscriber: Subscriber[T]): Unit = {
+  def unsafeSubscribeFn(subscriber: Subscriber[T]): Unit = {
     import subscriber.scheduler
-    if (isStarted.compareAndSet(false, true)) source.onSubscribe(subject)
-    subject.onSubscribe(subscriber)
+    if (isStarted.compareAndSet(false, true)) source.unsafeSubscribeFn(subject)
+    subject.unsafeSubscribeFn(subscriber)
   }
 }
 

@@ -31,7 +31,7 @@ private[monifu] object repeat {
     // recursive function - subscribes the observer again when
     // onComplete happens
     def loop(subject: Subject[T, T], observer: Observer[T])(implicit s: Scheduler): Unit =
-      subject.onSubscribe(new Observer[T] {
+      subject.unsafeSubscribeFn(new Observer[T] {
         def onNext(elem: T) = {
           observer.onNext(elem)
         }
@@ -48,7 +48,7 @@ private[monifu] object repeat {
       val subject = ReplaySubject[T]()
       loop(subject, subscriber)
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         def onNext(elem: T): Future[Ack] = {
           subject.onNext(elem)
         }

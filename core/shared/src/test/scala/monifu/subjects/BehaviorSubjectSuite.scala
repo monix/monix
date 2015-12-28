@@ -40,7 +40,7 @@ object BehaviorSubjectSuite extends BaseSubjectSuite {
     var wasCompleted = 0
 
     for (i <- 0 until 10)
-      subject.onSubscribe(new Observer[Int] {
+      subject.unsafeSubscribeFn(new Observer[Int] {
         def onNext(elem: Int): Future[Ack] = {
           received += elem
           Continue
@@ -66,7 +66,7 @@ object BehaviorSubjectSuite extends BaseSubjectSuite {
     var wasCompleted = 0
 
     for (i <- 0 until 10)
-      subject.onSubscribe(new Observer[Int] {
+      subject.unsafeSubscribeFn(new Observer[Int] {
         def onNext(elem: Int) = Future {
           received += elem
           Continue
@@ -95,7 +95,7 @@ object BehaviorSubjectSuite extends BaseSubjectSuite {
     subject.onComplete()
 
     var wasCompleted = false
-    subject.onSubscribe(new Observer[Int] {
+    subject.unsafeSubscribeFn(new Observer[Int] {
       def onNext(elem: Int) = { received += elem; Continue }
       def onError(ex: Throwable): Unit = ()
       def onComplete(): Unit = wasCompleted = true
@@ -112,7 +112,7 @@ object BehaviorSubjectSuite extends BaseSubjectSuite {
     var errorsReceived = 0
 
     for (_ <- 0 until 10)
-      subject.onSubscribe(new Observer[Int] {
+      subject.unsafeSubscribeFn(new Observer[Int] {
         def onNext(elem: Int) = { elemsReceived += elem; Continue }
         def onComplete(): Unit = ()
         def onError(ex: Throwable): Unit = ex match {
@@ -124,7 +124,7 @@ object BehaviorSubjectSuite extends BaseSubjectSuite {
     subject.onNext(1); s.tick()
     subject.onError(dummy)
 
-    subject.onSubscribe(new Observer[Int] {
+    subject.unsafeSubscribeFn(new Observer[Int] {
       def onNext(elem: Int) = { elemsReceived += elem; Continue }
       def onComplete(): Unit = ()
       def onError(ex: Throwable): Unit = ex match {

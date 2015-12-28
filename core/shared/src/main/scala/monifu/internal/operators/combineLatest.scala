@@ -81,7 +81,7 @@ private[monifu] object combineLatest {
         }
       }
 
-      first.onSubscribe(new Observer[T] {
+      first.unsafeSubscribeFn(new Observer[T] {
         def onNext(elem: T): Future[Ack] = lock.synchronized {
           if (isDone()) Cancel else {
             elemT = elem
@@ -102,7 +102,7 @@ private[monifu] object combineLatest {
           signalOnComplete()
       })
 
-      second.onSubscribe(new Observer[U] {
+      second.unsafeSubscribeFn(new Observer[U] {
         def onNext(elem: U): Future[Ack] = lock.synchronized {
           if (isDone()) Cancel else {
             elemU = elem

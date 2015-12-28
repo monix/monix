@@ -38,7 +38,7 @@ private[monifu] object from {
       try {
         val i = iterable.iterator
         streamError = false
-        iterator(i).onSubscribe(subscriber)
+        iterator(i).unsafeSubscribeFn(subscriber)
       }
       catch {
         case NonFatal(ex) if streamError =>

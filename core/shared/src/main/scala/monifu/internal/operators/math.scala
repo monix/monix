@@ -31,7 +31,7 @@ private[monifu] object math {
     Observable.create { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         private[this] var count = 0l
 
         def onNext(elem: T): Future[Ack] = {
@@ -58,7 +58,7 @@ private[monifu] object math {
     Observable.create { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         private[this] var result = ev.zero
 
         def onNext(elem: T): Future[Ack] = {
@@ -84,7 +84,7 @@ private[monifu] object math {
     Observable.create[T] { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         private[this] var minValue: T = _
         private[this] var minValueU: U = _
         private[this] var hasValue = false
@@ -135,7 +135,7 @@ private[monifu] object math {
     Observable.create { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         private[this] var minValue: T = _
         private[this] var hasValue = false
 
@@ -168,7 +168,7 @@ private[monifu] object math {
     Observable.create[T] { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         private[this] var maxValue: T = _
         private[this] var maxValueU: U = _
         private[this] var hasValue = false
@@ -219,7 +219,7 @@ private[monifu] object math {
     Observable.create { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         private[this] var maxValue: T = _
         private[this] var hasValue = false
 

@@ -36,7 +36,7 @@ private[monifu] object flatten {
     Observable.create[U] { observerU =>
       import observerU.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         private[this] val errors = if (delayErrors)
           mutable.ArrayBuffer.empty[Throwable] else null
 
@@ -51,7 +51,7 @@ private[monifu] object flatten {
           val upstreamPromise = Promise[Ack]()
           val refID = refCount.acquire()
 
-          childObservable.onSubscribe(new Observer[U] {
+          childObservable.unsafeSubscribeFn(new Observer[U] {
             def onNext(elem: U) = {
               observerU.onNext(elem)
                 .ifCancelTryCanceling(upstreamPromise)
@@ -111,7 +111,7 @@ private[monifu] object flatten {
       import subscriber.{scheduler => s}
       val observerU = BufferedSubscriber(subscriber, overflowStrategy, onOverflow)
 
-      source.onSubscribe(new SynchronousObserver[T] {
+      source.unsafeSubscribeFn(new SynchronousObserver[T] {
         private[this] val streamActivity =
           BooleanCancelable()
         private[this] val errors = if (delayErrors)
@@ -132,7 +132,7 @@ private[monifu] object flatten {
         def onNext(childObservable: T) = {
           val refID = refCount.acquire()
 
-          childObservable.onSubscribe(new Observer[U] {
+          childObservable.unsafeSubscribeFn(new Observer[U] {
             def onNext(elem: U) = {
               if (streamActivity.isCanceled)
                 Cancel

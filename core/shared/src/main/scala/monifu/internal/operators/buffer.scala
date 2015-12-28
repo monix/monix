@@ -36,7 +36,7 @@ private[monifu] object buffer {
     Observable.create { subscriber =>
       import subscriber.{scheduler => s}
       
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         private[this] val shouldDrop = skip > count
         private[this] var leftToDrop = 0
         private[this] val shouldOverlap = skip < count
@@ -104,7 +104,7 @@ private[monifu] object buffer {
     Observable.create[Seq[T]] { subscriber =>
       implicit val s = subscriber.scheduler
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         private[this] val timespanMillis = timespan.toMillis
         private[this] var buffer = ArrayBuffer.empty[T]
         private[this] var expiresAt = s.currentTimeMillis() + timespanMillis

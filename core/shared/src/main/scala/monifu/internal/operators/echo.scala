@@ -36,7 +36,7 @@ private[monifu] object echo {
       import downstream.{scheduler => s}
       val timeoutMillis = timeout.toMillis
 
-      source.onSubscribe(new Observer[T] { lock =>
+      source.unsafeSubscribeFn(new Observer[T] { lock =>
         private[this] val task = MultiAssignmentCancelable()
         private[this] var ack: Future[Ack] = Continue
         private[this] var lastEvent: T = _

@@ -57,7 +57,7 @@ object ZipSuite extends BaseOperatorSuite {
     var received = (0, 0)
     var wasCompleted = false
 
-    obs1.zip(obs2).onSubscribe(new Observer[(Int, Int)] {
+    obs1.zip(obs2).unsafeSubscribeFn(new Observer[(Int, Int)] {
       def onNext(elem: (Int, Int)) = {
         received = elem
         Continue
@@ -91,7 +91,7 @@ object ZipSuite extends BaseOperatorSuite {
     var received = (0,0)
 
     obs1.zip(obs2.doOnCanceled { wasCanceled = true })
-      .onSubscribe(new Observer[(Int, Int)] {
+      .unsafeSubscribeFn(new Observer[(Int, Int)] {
         def onNext(elem: (Int, Int)) = { received = elem; Continue }
         def onError(ex: Throwable) = wasThrown = ex
         def onComplete() = ()
@@ -114,7 +114,7 @@ object ZipSuite extends BaseOperatorSuite {
     var received = (0,0)
 
     obs2.doOnCanceled { wasCanceled = true }.zip(obs1)
-      .onSubscribe(new Observer[(Int, Int)] {
+      .unsafeSubscribeFn(new Observer[(Int, Int)] {
       def onNext(elem: (Int, Int)) = { received = elem; Continue }
       def onError(ex: Throwable) = wasThrown = ex
       def onComplete() = ()
@@ -134,7 +134,7 @@ object ZipSuite extends BaseOperatorSuite {
 
     var wasThrown: Throwable = null
 
-    obs1.zip(obs2).onSubscribe(new Observer[(Int, Int)] {
+    obs1.zip(obs2).unsafeSubscribeFn(new Observer[(Int, Int)] {
       def onNext(elem: (Int, Int)) =
         Future.delayedResult(1.second)(Continue)
       def onComplete() = ()
@@ -159,7 +159,7 @@ object ZipSuite extends BaseOperatorSuite {
 
     var wasThrown: Throwable = null
 
-    obs1.zip(obs2).onSubscribe(new Observer[(Int, Int)] {
+    obs1.zip(obs2).unsafeSubscribeFn(new Observer[(Int, Int)] {
       def onNext(elem: (Int, Int)) =
         Future.delayedResult(1.second)(Continue)
       def onComplete() = ()

@@ -25,387 +25,383 @@ import monifu.{Notification, Observable, OverflowStrategy}
 import scala.concurrent.duration.FiniteDuration
 import scala.language.higherKinds
 
-/**
- * An interface to be extended in Observable types that want to preserve
- * the return type when applying operators. For example the result of
- * [[ConnectableObservable.map]] is still a `ConnectableObservable`
- * and this interface represents an utility to do just that.
- */
+/** An interface to be extended in Observable types that want to preserve
+  * the return type when applying operators. For example the result of
+  * [[ConnectableObservable.map]] is still a `ConnectableObservable`
+  * and this interface represents an utility to do just that.
+  */
 trait LiftOperators1[+T, Self[+U] <: Observable[U]] { self: Observable[T] =>
   protected def liftToSelf[U](f: Observable[T] => Observable[U]): Self[U]
 
   override def map[U](f: T => U): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).map(f))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).map(f))
 
   override def filter(p: (T) => Boolean): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).filter(p))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).filter(p))
 
   override def collect[U](pf: PartialFunction[T, U]): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).collect(pf))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).collect(pf))
 
   override def flatMap[U](f: (T) => Observable[U]): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).flatMap(f))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).flatMap(f))
 
   override def flatMapDelayError[U](f: (T) => Observable[U]): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).flatMapDelayError(f))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).flatMapDelayError(f))
 
   override def concatMap[U](f: (T) => Observable[U]): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).concatMap(f))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).concatMap(f))
 
   override def concatMapDelayError[U](f: (T) => Observable[U]): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).concatMapDelayError(f))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).concatMapDelayError(f))
 
   override def mergeMap[U](f: (T) => Observable[U]): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).mergeMap(f))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).mergeMap(f))
 
   override def mergeMapDelayErrors[U](f: (T) => Observable[U]): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).mergeMapDelayErrors(f))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).mergeMapDelayErrors(f))
 
   override def flatten[U](implicit ev: <:<[T, Observable[U]]): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).flatten)
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).flatten)
 
   override def flattenDelayError[U](implicit ev: <:<[T, Observable[U]]): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).flattenDelayError)
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).flattenDelayError)
 
   override def concat[U](implicit ev: <:<[T, Observable[U]]): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).concat)
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).concat)
 
   override def concatDelayError[U](implicit ev: <:<[T, Observable[U]]): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).concatDelayError)
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).concatDelayError)
 
   override def merge[U](implicit ev: <:<[T, Observable[U]]): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).merge)
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).merge)
 
   override def merge[U](overflowStrategy: OverflowStrategy)(implicit ev: <:<[T, Observable[U]]): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).merge(overflowStrategy))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).merge(overflowStrategy))
 
   override def merge[U](overflowStrategy: Evicted, onOverflow: (Long) => U)(implicit ev: <:<[T, Observable[U]]): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).merge(overflowStrategy, onOverflow))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).merge(overflowStrategy, onOverflow))
 
   override def mergeDelayErrors[U](implicit ev: <:<[T, Observable[U]]): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).mergeDelayErrors)
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).mergeDelayErrors)
 
   override def mergeDelayErrors[U](overflowStrategy: OverflowStrategy)(implicit ev: <:<[T, Observable[U]]): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).mergeDelayErrors(overflowStrategy))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).mergeDelayErrors(overflowStrategy))
 
   override def mergeDelayErrors[U](overflowStrategy: Evicted, onOverflow: (Long) => U)(implicit ev: <:<[T, Observable[U]]): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).mergeDelayErrors(overflowStrategy, onOverflow))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).mergeDelayErrors(overflowStrategy, onOverflow))
 
   override def switch[U](implicit ev: <:<[T, Observable[U]]): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).switch)
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).switch)
 
   override def flattenLatest[U](implicit ev: <:<[T, Observable[U]]): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).flattenLatest)
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).flattenLatest)
 
   override def flatMapLatest[U](f: (T) => Observable[U]): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).flatMapLatest(f))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).flatMapLatest(f))
 
   override def switchMap[U](f: (T) => Observable[U]): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).switchMap(f))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).switchMap(f))
 
   override def ambWith[U >: T](other: Observable[U]): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).ambWith(other))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).ambWith(other))
 
   override def defaultIfEmpty[U >: T](default: U): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).defaultIfEmpty(default))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).defaultIfEmpty(default))
 
   override def take(n: Long): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).take(n))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).take(n))
 
   override def take(timespan: FiniteDuration): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).take(timespan))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).take(timespan))
 
   override def takeRight(n: Int): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).takeRight(n))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).takeRight(n))
 
   override def drop(n: Int): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).drop(n))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).drop(n))
 
   override def dropByTimespan(timespan: FiniteDuration): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).dropByTimespan(timespan))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).dropByTimespan(timespan))
 
   override def dropWhile(p: (T) => Boolean): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).dropWhile(p))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).dropWhile(p))
 
   override def dropWhileWithIndex(p: (T, Int) => Boolean): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).dropWhileWithIndex(p))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).dropWhileWithIndex(p))
 
   override def takeWhile(p: (T) => Boolean): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).takeWhile(p))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).takeWhile(p))
 
   override def takeWhileNotCanceled(c: BooleanCancelable): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).takeWhileNotCanceled(c))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).takeWhileNotCanceled(c))
 
   override def count: Self[Long] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).count)
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).count)
 
   override def buffer(count: Int): Self[Seq[T]] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).buffer(count))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).buffer(count))
 
   override def buffer(count: Int, skip: Int): Self[Seq[T]] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).buffer(count, skip))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).buffer(count, skip))
 
   override def buffer(timespan: FiniteDuration): Self[Seq[T]] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).buffer(timespan))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).buffer(timespan))
 
   override def buffer(timespan: FiniteDuration, maxSize: Int): Self[Seq[T]] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).buffer(timespan, maxSize))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).buffer(timespan, maxSize))
 
   override def window(count: Int): Self[Observable[T]] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).window(count))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).window(count))
 
   override def window(count: Int, skip: Int): Self[Observable[T]] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).window(count, skip))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).window(count, skip))
 
   override def window(timespan: FiniteDuration): Self[Observable[T]] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).window(timespan))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).window(timespan))
 
   override def window(timespan: FiniteDuration, maxCount: Int): Self[Observable[T]] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).window(timespan, maxCount))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).window(timespan, maxCount))
 
   override def throttleLast(period: FiniteDuration): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).throttleLast(period))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).throttleLast(period))
 
   override def throttleFirst(interval: FiniteDuration): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).throttleFirst(interval))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).throttleFirst(interval))
 
   override def throttleWithTimeout(timeout: FiniteDuration): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).throttleWithTimeout(timeout))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).throttleWithTimeout(timeout))
 
   override def sample(delay: FiniteDuration): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).sample(delay))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).sample(delay))
 
   override def sample(initialDelay: FiniteDuration, delay: FiniteDuration): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).sample(initialDelay, delay))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).sample(initialDelay, delay))
 
   override def sample[U](sampler: Observable[U]): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).sample(sampler))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).sample(sampler))
 
   override def sampleRepeated(delay: FiniteDuration): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).sampleRepeated(delay))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).sampleRepeated(delay))
 
   override def sampleRepeated(initialDelay: FiniteDuration, delay: FiniteDuration): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).sampleRepeated(initialDelay, delay))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).sampleRepeated(initialDelay, delay))
 
   override def sampleRepeated[U](sampler: Observable[U]): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).sampleRepeated(sampler))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).sampleRepeated(sampler))
 
   override def debounce(timeout: FiniteDuration): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).debounce(timeout))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).debounce(timeout))
 
   override def debounceRepeated(period: FiniteDuration): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).debounceRepeated(period))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).debounceRepeated(period))
 
   override def debounce[U](timeout: FiniteDuration, f: (T) => Observable[U]): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).debounce(timeout, f))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).debounce(timeout, f))
 
   override def debounce(selector: (T) => Observable[Any]): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).debounce(selector))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).debounce(selector))
 
   override def debounce[U](selector: (T) => Observable[Any], f: (T) => Observable[U]): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).debounce(selector, f))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).debounce(selector, f))
 
   override def echoOnce(timeout: FiniteDuration): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).echoOnce(timeout))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).echoOnce(timeout))
 
   override def echoRepeated(timeout: FiniteDuration): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).echoRepeated(timeout))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).echoRepeated(timeout))
 
   override def delaySubscription[U](trigger: Observable[U]): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).delaySubscription(trigger))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).delaySubscription(trigger))
 
   override def delaySubscription(timespan: FiniteDuration): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).delaySubscription(timespan))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).delaySubscription(timespan))
 
   override def delay(duration: FiniteDuration): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).delay(duration))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).delay(duration))
 
   override def delay[U](selector: (T) => Observable[U]): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).delay(selector))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).delay(selector))
 
   override def foldLeft[R](initial: R)(op: (R, T) => R): Self[R] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).foldLeft(initial)(op))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).foldLeft(initial)(op))
 
   override def reduce[U >: T](op: (U, U) => U): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).reduce(op))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).reduce(op))
 
   override def scan[R](initial: R)(op: (R, T) => R): Self[R] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).scan(initial)(op))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).scan(initial)(op))
 
   override def flatScan[R](initial: R)(op: (R, T) => Observable[R]): Self[R] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).flatScan(initial)(op))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).flatScan(initial)(op))
 
   override def flatScanDelayError[R](initial: R)(op: (R, T) => Observable[R]): Self[R] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).flatScanDelayError(initial)(op))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).flatScanDelayError(initial)(op))
 
   override def doOnComplete(cb: => Unit): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).doOnComplete(cb))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).doOnComplete(cb))
 
   override def doWork(cb: (T) => Unit): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).doWork(cb))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).doWork(cb))
 
   override def doOnStart(cb: (T) => Unit): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).doOnStart(cb))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).doOnStart(cb))
 
   override def doOnCanceled(cb: => Unit): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).doOnCanceled(cb))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).doOnCanceled(cb))
 
   override def doOnError(cb: (Throwable) => Unit): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).doOnError(cb))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).doOnError(cb))
 
   override def find(p: (T) => Boolean): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).find(p))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).find(p))
 
   override def exists(p: (T) => Boolean): Self[Boolean] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).exists(p))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).exists(p))
 
   override def isEmpty: Self[Boolean] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).isEmpty)
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).isEmpty)
 
   override def nonEmpty: Self[Boolean] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).nonEmpty)
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).nonEmpty)
 
   override def forAll(p: (T) => Boolean): Self[Boolean] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).forAll(p))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).forAll(p))
 
   override def complete: Self[Nothing] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).ignoreElements)
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).ignoreElements)
 
   override def error: Self[Throwable] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).error)
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).error)
 
   override def endWithError(error: Throwable): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).endWithError(error))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).endWithError(error))
 
   override def +:[U >: T](elem: U): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).+:(elem))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).+:(elem))
 
   override def startWith[U >: T](elems: U*): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).startWith(elems:_*))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).startWith(elems:_*))
 
   override def :+[U >: T](elem: U): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).:+(elem))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).:+(elem))
 
   override def endWith[U >: T](elems: U*): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).endWith(elems:_*))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).endWith(elems:_*))
 
   override def ++[U >: T](other: => Observable[U]): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).++(other))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).++(other))
 
   override def head: Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).head)
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).head)
 
   override def tail: Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).tail)
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).tail)
 
   override def last: Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).last)
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).last)
 
   override def headOrElse[B >: T](default: => B): Self[B] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).headOrElse(default))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).headOrElse(default))
 
   override def firstOrElse[U >: T](default: => U): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).firstOrElse(default))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).firstOrElse(default))
 
   override def zip[U](other: Observable[U]): Self[(T, U)] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).zip(other))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).zip(other))
 
   override def combineLatest[U](other: Observable[U]): Self[(T, U)] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).combineLatest(other))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).combineLatest(other))
 
   override def combineLatestDelayError[U](other: Observable[U]): Self[(T, U)] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).combineLatestDelayError(other))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).combineLatestDelayError(other))
 
   override def max[U >: T](implicit ev: Ordering[U]): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).max(ev))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).max(ev))
 
   override def maxBy[U](f: (T) => U)(implicit ev: Ordering[U]): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).maxBy(f))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).maxBy(f))
 
   override def min[U >: T](implicit ev: Ordering[U]): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).min(ev))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).min(ev))
 
   override def minBy[U](f: (T) => U)(implicit ev: Ordering[U]): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).minBy(f))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).minBy(f))
 
   override def sum[U >: T](implicit ev: Numeric[U]): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).sum(ev))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).sum(ev))
 
   override def distinct: Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).distinct)
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).distinct)
 
   override def distinct[U](fn: (T) => U): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).distinct(fn))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).distinct(fn))
 
   override def distinctUntilChanged: Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).distinctUntilChanged)
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).distinctUntilChanged)
 
   override def distinctUntilChanged[U](fn: (T) => U): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).distinctUntilChanged(fn))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).distinctUntilChanged(fn))
 
   override def subscribeOn(s: Scheduler): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).subscribeOn(s))
-
-  override def materialize: Self[Notification[T]] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).materialize)
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).subscribeOn(s))
 
   override def dump(prefix: String, out: PrintStream = System.out): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).dump(prefix, out))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).dump(prefix, out))
 
   override def repeat: Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).repeat)
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).repeat)
 
   override def asyncBoundary(overflowStrategy: OverflowStrategy): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).asyncBoundary(overflowStrategy))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).asyncBoundary(overflowStrategy))
 
   override def asyncBoundary[U >: T](overflowStrategy: Evicted, onOverflow: (Long) => U): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).asyncBoundary(overflowStrategy, onOverflow))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).asyncBoundary(overflowStrategy, onOverflow))
 
   override def whileBusyDropEvents: Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).whileBusyDropEvents)
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).whileBusyDropEvents)
 
   override def whileBusyDropEvents[U >: T](onOverflow: (Long) => U): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).whileBusyDropEvents(onOverflow))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).whileBusyDropEvents(onOverflow))
 
   override def whileBusyBuffer[U >: T](overflowStrategy: Synchronous): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).whileBusyBuffer(overflowStrategy))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).whileBusyBuffer(overflowStrategy))
 
   override def whileBusyBuffer[U >: T](overflowStrategy: Evicted, onOverflow: (Long) => U): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).whileBusyBuffer(overflowStrategy, onOverflow))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).whileBusyBuffer(overflowStrategy, onOverflow))
 
   override def onErrorRecoverWith[U >: T](pf: PartialFunction[Throwable, Observable[U]]): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).onErrorRecoverWith(pf))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).onErrorRecoverWith(pf))
 
   override def onErrorFallbackTo[U >: T](that: => Observable[U]): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).onErrorFallbackTo(that))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).onErrorFallbackTo(that))
 
   override def onErrorRetryUnlimited: Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).onErrorRetryUnlimited)
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).onErrorRetryUnlimited)
 
   override def onErrorRetry(maxRetries: Long): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).onErrorRetry(maxRetries))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).onErrorRetry(maxRetries))
 
   override def onErrorRetryIf(p: (Throwable) => Boolean): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).onErrorRetryIf(p))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).onErrorRetryIf(p))
 
   override def timeout(timeout: FiniteDuration): Self[T] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).timeout(timeout))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).timeout(timeout))
 
   override def timeout[U >: T](timeout: FiniteDuration, backup: Observable[U]): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).timeout(timeout, backup))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).timeout(timeout, backup))
 
   override def lift[U](f: (Observable[T]) => Observable[U]): Self[U] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).lift(f))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).lift(f))
 
   override def groupBy[K](keySelector: (T) => K): Self[GroupedObservable[K, T]] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).groupBy(keySelector))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).groupBy(keySelector))
 
   override def groupBy[K](keyBufferSize: Int, keySelector: (T) => K): Self[GroupedObservable[K, T]] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).groupBy(keyBufferSize, keySelector))
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).groupBy(keyBufferSize, keySelector))
 
   override def ignoreElements: Self[Nothing] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).ignoreElements)
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).ignoreElements)
 
   override def zipWithIndex: Self[(T, Long)] =
-    liftToSelf(o => Observable.create[T](o.onSubscribe).zipWithIndex)
+    liftToSelf(o => Observable.create[T](o.unsafeSubscribeFn).zipWithIndex)
 }

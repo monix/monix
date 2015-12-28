@@ -33,7 +33,7 @@ private[monifu] object whileBusy {
     Observable.create { subscriber =>
       implicit val s = subscriber.scheduler
 
-      source.onSubscribe(new SynchronousObserver[T] {
+      source.unsafeSubscribeFn(new SynchronousObserver[T] {
         private[this] var lastAck = Continue : Future[Ack]
         private[this] var isDone = false
 
@@ -91,7 +91,7 @@ private[monifu] object whileBusy {
     Observable.create { subscriber =>
       implicit val s = subscriber.scheduler
 
-      source.onSubscribe(new SynchronousObserver[T] {
+      source.unsafeSubscribeFn(new SynchronousObserver[T] {
         private[this] var lastAck = Continue : Future[Ack]
         private[this] var eventsDropped = 0L
         private[this] var isDone = false

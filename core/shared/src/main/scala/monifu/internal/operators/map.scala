@@ -30,7 +30,7 @@ private[monifu] object map {
     Observable.create { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         def onNext(elem: T) = {
           // Protects calls to user code from within the operator
           var streamError = true

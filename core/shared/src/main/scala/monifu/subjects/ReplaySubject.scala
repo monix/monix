@@ -40,11 +40,11 @@ final class ReplaySubject[T] private (initialState: ReplaySubject.State[T])
   private[this] val stateRef = Atomic(initialState)
 
   @tailrec
-  def onSubscribe(subscriber: Subscriber[T]): Unit = {
+  def unsafeSubscribeFn(subscriber: Subscriber[T]): Unit = {
     def streamOnDone(buffer: Iterable[T], errorThrown: Throwable): Unit = {
       implicit val s = subscriber.scheduler
 
-      Observable.fromIterable(buffer).onSubscribe(new Observer[T] {
+      Observable.fromIterable(buffer).unsafeSubscribeFn(new Observer[T] {
         def onNext(elem: T) =
           subscriber.onNext(elem)
         def onError(ex: Throwable) =
@@ -74,7 +74,7 @@ final class ReplaySubject[T] private (initialState: ReplaySubject.State[T])
       }
       else {
         // retry
-        onSubscribe(subscriber)
+        unsafeSubscribeFn(subscriber)
       }
     }
   }

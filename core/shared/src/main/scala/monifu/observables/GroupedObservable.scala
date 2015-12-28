@@ -46,8 +46,8 @@ trait GroupedObservable[K, +V] extends Observable[V]
       val key = self.key
 
       private[this] val lifted = f(self)
-      def onSubscribe(subscriber: Subscriber[U]): Unit =
-        lifted.onSubscribe(subscriber)
+      def unsafeSubscribeFn(subscriber: Subscriber[U]): Unit =
+        lifted.unsafeSubscribeFn(subscriber)
     }
 }
 
@@ -93,7 +93,7 @@ object GroupedObservable {
     def onError(ex: Throwable): Unit = underlying.onError(ex)
     def onComplete(): Unit = underlying.onComplete()
 
-    def onSubscribe(subscriber: Subscriber[V]): Unit =
+    def unsafeSubscribeFn(subscriber: Subscriber[V]): Unit =
       self.synchronized {
         if (ref != null) {
           subscriber.onError(

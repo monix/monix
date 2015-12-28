@@ -36,7 +36,7 @@ private[monifu] object debounce {
       import downstream.{scheduler => s}
       val timeoutMillis = timeout.toMillis
 
-      source.onSubscribe(new SynchronousObserver[T] with Runnable { self =>
+      source.unsafeSubscribeFn(new SynchronousObserver[T] with Runnable { self =>
         private[this] val task = MultiAssignmentCancelable()
         private[this] var ack: Future[Ack] = Continue
         private[this] var isDone = false

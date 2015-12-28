@@ -66,9 +66,9 @@ trait BaseSubjectSuite extends TestSuite[TestScheduler] {
     val Sample(subject, expectedSum) = alreadyTerminatedTest(Seq.empty)
     subject.onComplete()
 
-    subject.onSubscribe(createObserver)
-    subject.onSubscribe(createObserver)
-    subject.onSubscribe(createObserver)
+    subject.unsafeSubscribeFn(createObserver)
+    subject.unsafeSubscribeFn(createObserver)
+    subject.unsafeSubscribeFn(createObserver)
 
     s.tick()
 
@@ -98,9 +98,9 @@ trait BaseSubjectSuite extends TestSuite[TestScheduler] {
     val Sample(subject, _) = alreadyTerminatedTest(Seq.empty)
     subject.onError(DummyException("dummy"))
 
-    subject.onSubscribe(createObserver)
-    subject.onSubscribe(createObserver)
-    subject.onSubscribe(createObserver)
+    subject.unsafeSubscribeFn(createObserver)
+    subject.unsafeSubscribeFn(createObserver)
+    subject.unsafeSubscribeFn(createObserver)
 
     s.tick()
 
@@ -126,12 +126,12 @@ trait BaseSubjectSuite extends TestSuite[TestScheduler] {
     }
 
     val Sample(subject, expectedSum) = alreadyTerminatedTest(elems)
-    Observable.fromIterable(elems).onSubscribe(subject)
+    Observable.fromIterable(elems).unsafeSubscribeFn(subject)
     s.tick()
 
-    subject.onSubscribe(createObserver)
-    subject.onSubscribe(createObserver)
-    subject.onSubscribe(createObserver)
+    subject.unsafeSubscribeFn(createObserver)
+    subject.unsafeSubscribeFn(createObserver)
+    subject.unsafeSubscribeFn(createObserver)
 
     s.tick()
 
@@ -157,13 +157,13 @@ trait BaseSubjectSuite extends TestSuite[TestScheduler] {
     val Sample(subject, _) = alreadyTerminatedTest(elems)
     Observable.fromIterable(elems)
       .endWithError(DummyException("dummy"))
-      .onSubscribe(subject)
+      .unsafeSubscribeFn(subject)
 
     s.tick()
 
-    subject.onSubscribe(createObserver)
-    subject.onSubscribe(createObserver)
-    subject.onSubscribe(createObserver)
+    subject.unsafeSubscribeFn(createObserver)
+    subject.unsafeSubscribeFn(createObserver)
+    subject.unsafeSubscribeFn(createObserver)
 
     s.tick()
     assertEquals(wereCompleted, 3)
@@ -192,12 +192,12 @@ trait BaseSubjectSuite extends TestSuite[TestScheduler] {
 
     val Sample(subject, expectedSum) = alreadyTerminatedTest(Seq(elem))
     if (expectedSum == 0) ignore() else {
-      Observable.unit(elem).onSubscribe(subject)
+      Observable.unit(elem).unsafeSubscribeFn(subject)
       s.tick()
 
       val promises = for (_ <- 0 until 3) yield {
         val (p, o) = createObserver
-        subject.onSubscribe(o)
+        subject.unsafeSubscribeFn(o)
         p
       }
 
@@ -252,7 +252,7 @@ trait BaseSubjectSuite extends TestSuite[TestScheduler] {
         subject.subscribe(createObserver)
         s.tick()
 
-        Observable.fromIterable(elems).onSubscribe(subject)
+        Observable.fromIterable(elems).unsafeSubscribeFn(subject)
         s.tick()
 
         assertEquals(wereCompleted, 3)

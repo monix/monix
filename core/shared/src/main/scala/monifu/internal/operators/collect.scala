@@ -30,7 +30,7 @@ private[monifu] object collect {
     Observable.create { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         def onNext(elem: T) = {
           // See Section 6.4. in the Rx Design Guidelines:
           // Protect calls to user code from within an operator

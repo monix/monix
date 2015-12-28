@@ -30,7 +30,7 @@ private[monifu] object foldLeft {
     Observable.create[R] { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         private[this] var state = initial
 
         def onNext(elem: T): Future[Ack] = {

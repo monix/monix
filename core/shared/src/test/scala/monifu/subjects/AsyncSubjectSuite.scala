@@ -46,9 +46,9 @@ object AsyncSubjectSuite extends BaseSubjectSuite {
     }
 
     val subject = AsyncSubject[Long]()
-    subject.onSubscribe(createObserver)
-    subject.onSubscribe(createObserver)
-    subject.onSubscribe(createObserver)
+    subject.unsafeSubscribeFn(createObserver)
+    subject.unsafeSubscribeFn(createObserver)
+    subject.unsafeSubscribeFn(createObserver)
 
     subject.onNext(10)
     subject.onNext(20)
@@ -64,7 +64,7 @@ object AsyncSubjectSuite extends BaseSubjectSuite {
     assertEquals(sum, 30 * 3)
     assertEquals(wereCompleted, 3)
 
-    subject.onSubscribe(createObserver)
+    subject.unsafeSubscribeFn(createObserver)
     assertEquals(sum, 30 * 4)
     assertEquals(wereCompleted, 4)
   }
@@ -89,9 +89,9 @@ object AsyncSubjectSuite extends BaseSubjectSuite {
     }
 
     val subject = AsyncSubject[Long]()
-    subject.onSubscribe(createObserver)
-    subject.onSubscribe(createObserver)
-    subject.onSubscribe(createObserver)
+    subject.unsafeSubscribeFn(createObserver)
+    subject.unsafeSubscribeFn(createObserver)
+    subject.unsafeSubscribeFn(createObserver)
 
     subject.onNext(10)
     subject.onNext(20)
@@ -107,7 +107,7 @@ object AsyncSubjectSuite extends BaseSubjectSuite {
     assertEquals(sum, 0)
     assertEquals(wereCompleted, 3)
 
-    subject.onSubscribe(createObserver)
+    subject.unsafeSubscribeFn(createObserver)
     assertEquals(sum, 0)
     assertEquals(wereCompleted, 4)
   }
@@ -127,16 +127,16 @@ object AsyncSubjectSuite extends BaseSubjectSuite {
     }
 
     val subject = AsyncSubject[Long]()
-    subject.onSubscribe(createObserver)
-    subject.onSubscribe(createObserver)
-    subject.onSubscribe(createObserver)
+    subject.unsafeSubscribeFn(createObserver)
+    subject.unsafeSubscribeFn(createObserver)
+    subject.unsafeSubscribeFn(createObserver)
 
     subject.onComplete()
 
     assertEquals(sum, 0)
     assertEquals(wereCompleted, 3)
 
-    subject.onSubscribe(createObserver)
+    subject.unsafeSubscribeFn(createObserver)
     assertEquals(sum, 0)
     assertEquals(wereCompleted, 4)
   }
@@ -147,7 +147,7 @@ object AsyncSubjectSuite extends BaseSubjectSuite {
     subject.onComplete()
 
     var wasCompleted = false
-    subject.onSubscribe(new Observer[Int] {
+    subject.unsafeSubscribeFn(new Observer[Int] {
       def onNext(elem: Int) = throw new IllegalStateException("onNext")
       def onError(ex: Throwable): Unit = ()
       def onComplete(): Unit = wasCompleted = true
@@ -164,7 +164,7 @@ object AsyncSubjectSuite extends BaseSubjectSuite {
     var wasCompleted = false
     var received = 0
 
-    subject.onSubscribe(new Observer[Int] {
+    subject.unsafeSubscribeFn(new Observer[Int] {
       def onNext(elem: Int) = { received += elem; Continue }
       def onError(ex: Throwable): Unit = ()
       def onComplete(): Unit = wasCompleted = true
@@ -181,7 +181,7 @@ object AsyncSubjectSuite extends BaseSubjectSuite {
     var errorsReceived = 0
 
     for (_ <- 0 until 10)
-      subject.onSubscribe(new Observer[Int] {
+      subject.unsafeSubscribeFn(new Observer[Int] {
         def onNext(elem: Int) = { elemsReceived += elem; Continue }
         def onComplete(): Unit = ()
         def onError(ex: Throwable): Unit = ex match {
@@ -193,7 +193,7 @@ object AsyncSubjectSuite extends BaseSubjectSuite {
     subject.onNext(1)
     subject.onError(dummy)
 
-    subject.onSubscribe(new Observer[Int] {
+    subject.unsafeSubscribeFn(new Observer[Int] {
       def onNext(elem: Int) = throw new IllegalStateException("onNext")
       def onComplete(): Unit = ()
       def onError(ex: Throwable): Unit = ex match {

@@ -33,7 +33,7 @@ private[monifu] object delay {
     Observable.create[T] { subscriber =>
       import subscriber.scheduler
 
-      source.onSubscribe(new Observer[T] { self =>
+      source.unsafeSubscribeFn(new Observer[T] { self =>
         private[this] var currentElem: T = _
         private[this] var ack: Promise[Ack] = null
 
@@ -62,7 +62,7 @@ private[monifu] object delay {
           try {
             val obs = selector(elem)
             streamErrors = false
-            obs.onSubscribe(delayingElement)
+            obs.unsafeSubscribeFn(delayingElement)
             ack.future
           }
           catch {
@@ -89,7 +89,7 @@ private[monifu] object delay {
     Observable.create[T] { subscriber =>
       import subscriber.scheduler
 
-      source.onSubscribe(new Observer[T] with Runnable { self =>
+      source.unsafeSubscribeFn(new Observer[T] with Runnable { self =>
         private[this] val delayMs = delay.toMillis
         private[this] var currentElem: T = _
         private[this] var ack: Promise[Ack] = null

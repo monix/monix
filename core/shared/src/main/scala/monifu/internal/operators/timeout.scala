@@ -43,7 +43,7 @@ private[monifu] object timeout {
     Observable.create[T] { downstream =>
       import downstream.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] with Runnable { self =>
+      source.unsafeSubscribeFn(new Observer[T] with Runnable { self =>
         private[this] val timeoutMillis = timeout.toMillis
         private[this] val task = MultiAssignmentCancelable()
         private[this] var ack: Future[Ack] = Continue
@@ -65,7 +65,7 @@ private[monifu] object timeout {
               isDone = true
               ack.onContinue {
                 // subscribing our downstream observer to the backup observable
-                backup.onSubscribe(downstream)
+                backup.unsafeSubscribeFn(downstream)
               }
             }
             else {

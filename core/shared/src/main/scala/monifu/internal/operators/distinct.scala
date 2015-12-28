@@ -32,7 +32,7 @@ private[monifu] object distinct {
     Observable.create[T] { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         private[this] val set = mutable.Set.empty[T]
 
         def onNext(elem: T) = {
@@ -51,7 +51,7 @@ private[monifu] object distinct {
     Observable.create[T] { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         private[this] val set = mutable.Set.empty[U]
 
         def onNext(elem: T) = {
@@ -92,7 +92,7 @@ private[monifu] object distinct {
     Observable.create[T] { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         private[this] var isFirst = true
         private[this] var lastElem: T = _
 
@@ -122,7 +122,7 @@ private[monifu] object distinct {
     Observable.create[T] { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         private[this] var isFirst = true
         private[this] var lastKey: U = _
 

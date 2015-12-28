@@ -30,7 +30,7 @@ private[monifu] object misc {
     Observable.create { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         def onNext(elem: T) = Continue
         def onError(ex: Throwable): Unit =
           subscriber.onError(ex)
@@ -46,7 +46,7 @@ private[monifu] object misc {
     Observable.create { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         def onNext(elem: T) =
           Continue
 
@@ -67,7 +67,7 @@ private[monifu] object misc {
     Observable.create { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         private[this] var isEmpty = true
 
         def onNext(elem: T): Future[Ack] = {
@@ -96,7 +96,7 @@ private[monifu] object misc {
     Observable.create { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         def onNext(elem: T) = subscriber.onNext(elem)
         def onError(ex: Throwable) = subscriber.onError(ex)
         def onComplete() = subscriber.onError(error)
@@ -110,7 +110,7 @@ private[monifu] object misc {
     Observable.create[Boolean] { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         def onNext(elem: T): Future[Ack] = {
           subscriber.onNext(false).onContinueSignalComplete(subscriber)
           Cancel

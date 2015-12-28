@@ -34,7 +34,7 @@ object MiscCompleteSuite extends TestSuite[TestScheduler] {
     var received = 0
     var wasCompleted = false
 
-    Observable.unit(1).ignoreElements.onSubscribe(new Observer[Long] {
+    Observable.unit(1).ignoreElements.unsafeSubscribeFn(new Observer[Long] {
       def onNext(elem: Long) = {
         received += 1
         Continue
@@ -51,7 +51,7 @@ object MiscCompleteSuite extends TestSuite[TestScheduler] {
   test("should signal error") { implicit s =>
     var thrown: Throwable = null
 
-    Observable.error(DummyException("dummy")).ignoreElements.onSubscribe(
+    Observable.error(DummyException("dummy")).ignoreElements.unsafeSubscribeFn(
       new Observer[Long] {
         def onError(ex: Throwable) = thrown = ex
         def onComplete() = ()

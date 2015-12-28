@@ -44,7 +44,7 @@ final class AsyncSubject[T] extends Subject[T,T] { self =>
   private[this] var cachedElem: T = _
 
   @tailrec
-  def onSubscribe(subscriber: Subscriber[T]): Unit = {
+  def unsafeSubscribeFn(subscriber: Subscriber[T]): Unit = {
     val state = stateRef.get
     val subscribers = state.subscribers
 
@@ -66,7 +66,7 @@ final class AsyncSubject[T] extends Subject[T,T] { self =>
       val update = State(subscribers :+ subscriber)
 
       if (!stateRef.compareAndSet(state, update))
-        onSubscribe(subscriber) // repeat
+        unsafeSubscribeFn(subscriber) // repeat
     }
   }
 

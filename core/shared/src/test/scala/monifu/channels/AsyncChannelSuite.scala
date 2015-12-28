@@ -49,9 +49,9 @@ object AsyncChannelSuite extends BaseChannelSuite {
     }
 
     val channel = AsyncChannel[Long](Unbounded)
-    channel.onSubscribe(createObserver)
-    channel.onSubscribe(createObserver)
-    channel.onSubscribe(createObserver)
+    channel.unsafeSubscribeFn(createObserver)
+    channel.unsafeSubscribeFn(createObserver)
+    channel.unsafeSubscribeFn(createObserver)
 
     channel.pushNext(10, 20, 30)
 
@@ -66,7 +66,7 @@ object AsyncChannelSuite extends BaseChannelSuite {
     assertEquals(sum, 30 * 3)
     assertEquals(wereCompleted, 3)
 
-    channel.onSubscribe(createObserver)
+    channel.unsafeSubscribeFn(createObserver)
     s.tick()
 
     assertEquals(sum, 30 * 4)
@@ -93,9 +93,9 @@ object AsyncChannelSuite extends BaseChannelSuite {
     }
 
     val channel = AsyncChannel[Long](Unbounded)
-    channel.onSubscribe(createObserver)
-    channel.onSubscribe(createObserver)
-    channel.onSubscribe(createObserver)
+    channel.unsafeSubscribeFn(createObserver)
+    channel.unsafeSubscribeFn(createObserver)
+    channel.unsafeSubscribeFn(createObserver)
 
     channel.pushNext(10)
     channel.pushNext(20)
@@ -112,7 +112,7 @@ object AsyncChannelSuite extends BaseChannelSuite {
     assertEquals(sum, 0)
     assertEquals(wereCompleted, 3)
 
-    channel.onSubscribe(createObserver)
+    channel.unsafeSubscribeFn(createObserver)
     assertEquals(sum, 0)
     assertEquals(wereCompleted, 4)
   }
@@ -132,9 +132,9 @@ object AsyncChannelSuite extends BaseChannelSuite {
     }
 
     val channel = AsyncChannel[Long](Unbounded)
-    channel.onSubscribe(createObserver)
-    channel.onSubscribe(createObserver)
-    channel.onSubscribe(createObserver)
+    channel.unsafeSubscribeFn(createObserver)
+    channel.unsafeSubscribeFn(createObserver)
+    channel.unsafeSubscribeFn(createObserver)
 
     channel.pushComplete()
 
@@ -142,7 +142,7 @@ object AsyncChannelSuite extends BaseChannelSuite {
     assertEquals(sum, 0)
     assertEquals(wereCompleted, 3)
 
-    channel.onSubscribe(createObserver)
+    channel.unsafeSubscribeFn(createObserver)
 
     s.tick()
     assertEquals(sum, 0)

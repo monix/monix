@@ -75,7 +75,7 @@ object WindowTimedSuite extends BaseOperatorSuite {
     var received = 0
     var total = 0L
 
-    obs.onSubscribe(new Observer[Long] {
+    obs.unsafeSubscribeFn(new Observer[Long] {
       def onNext(elem: Long) = {
         received += 1
         total += elem
@@ -107,7 +107,7 @@ object WindowTimedSuite extends BaseOperatorSuite {
     var received = 0
     var total = 0L
 
-    obs.onSubscribe(new Observer[Long] {
+    obs.unsafeSubscribeFn(new Observer[Long] {
       def onNext(elem: Long) = {
         received += 1
         total += elem

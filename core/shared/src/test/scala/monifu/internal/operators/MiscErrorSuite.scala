@@ -36,7 +36,7 @@ object MiscErrorSuite extends TestSuite[TestScheduler] {
     var received = 0
     var wasCompleted = false
 
-    Observable.unit(1).error.onSubscribe(new Observer[Throwable] {
+    Observable.unit(1).error.unsafeSubscribeFn(new Observer[Throwable] {
       def onNext(elem: Throwable) = {
         received += 1
         Continue
@@ -56,7 +56,7 @@ object MiscErrorSuite extends TestSuite[TestScheduler] {
     val p = Promise[Continue]()
 
     Observable.error(DummyException("dummy")).error
-      .onSubscribe(new Observer[Throwable] {
+      .unsafeSubscribeFn(new Observer[Throwable] {
         def onError(ex: Throwable) = ()
         def onComplete() = wasCompleted = true
         def onNext(elem: Throwable) = {

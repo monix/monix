@@ -32,7 +32,7 @@ private[monifu] object drop {
     Observable.create[T] { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         private[this] var count = 0L
 
         def onNext(elem: T) = {
@@ -59,7 +59,7 @@ private[monifu] object drop {
     Observable.create[T] { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] with Runnable {
+      source.unsafeSubscribeFn(new Observer[T] with Runnable {
         @volatile private[this] var shouldDrop = true
 
         private[this] val task =
@@ -95,7 +95,7 @@ private[monifu] object drop {
     Observable.create { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         var continueDropping = true
 
         def onNext(elem: T) = {
@@ -138,7 +138,7 @@ private[monifu] object drop {
     Observable.create { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         var continueDropping = true
         var index = 0
 

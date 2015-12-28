@@ -35,7 +35,7 @@ private[monifu] object debug {
     Observable.create[T] { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         private[this] var pos = 0
         private[this] val downstreamActive = Cancelable {
           pos += 1; out.println(s"$pos: $prefix canceled")

@@ -61,7 +61,7 @@ object TakeByTimespanSuite extends BaseOperatorSuite {
   test("should complete even if no element was emitted") { implicit s =>
     var wasCompleted = false
 
-    Observable.never.take(1.second).onSubscribe(new Observer[Any] {
+    Observable.never.take(1.second).unsafeSubscribeFn(new Observer[Any] {
       def onNext(elem: Any) = Continue
       def onError(ex: Throwable) = ()
       def onComplete() = wasCompleted = true

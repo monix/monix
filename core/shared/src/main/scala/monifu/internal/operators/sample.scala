@@ -36,7 +36,7 @@ private[monifu] object sample {
    */
   def once[T,U](source: Observable[T], sampler: Observable[U]): Observable[T] =
     Observable.create { subscriber =>
-      source.onSubscribe(new SampleObserver(
+      source.unsafeSubscribeFn(new SampleObserver(
         subscriber, sampler, shouldRepeatOnSilence = false))
     }
 
@@ -45,7 +45,7 @@ private[monifu] object sample {
    */
   def repeated[T,U](source: Observable[T], sampler: Observable[U]): Observable[T] =
     Observable.create { subscriber =>
-      source.onSubscribe(new SampleObserver(
+      source.unsafeSubscribeFn(new SampleObserver(
         subscriber, sampler, shouldRepeatOnSilence = true))
     }
 
@@ -87,7 +87,7 @@ private[monifu] object sample {
       upstreamIsDone = true
     }
 
-    sampler.onSubscribe(new Observer[U] {
+    sampler.unsafeSubscribeFn(new Observer[U] {
       private[this] var samplerIsDone = false
 
       def onNext(elem: U): Future[Ack] = {

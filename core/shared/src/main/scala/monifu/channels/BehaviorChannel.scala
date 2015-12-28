@@ -40,8 +40,8 @@ final class BehaviorChannel[T] private
   private[this] var lastValue = initialValue
   private[this] var errorThrown = null : Throwable
 
-  def onSubscribe(subscriber: Subscriber[T]): Unit = {
-    subject.onSubscribe(subscriber)
+  def unsafeSubscribeFn(subscriber: Subscriber[T]): Unit = {
+    subject.unsafeSubscribeFn(subscriber)
   }
 
   def pushNext(elems: T*): Unit = lock.synchronized {

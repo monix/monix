@@ -38,7 +38,7 @@ object RangeSuite extends TestSuite[TestScheduler] {
     var wasCompleted = false
     var sum = 0L
 
-    Observable.range(1, 10, 1).onSubscribe(new Observer[Long] {
+    Observable.range(1, 10, 1).unsafeSubscribeFn(new Observer[Long] {
       def onNext(elem: Long) = {
         sum += elem
         Continue
@@ -60,7 +60,7 @@ object RangeSuite extends TestSuite[TestScheduler] {
     var wasCompleted = false
     var sum = 0L
 
-    Observable.range(9, 0, -1).onSubscribe(new Observer[Long] {
+    Observable.range(9, 0, -1).unsafeSubscribeFn(new Observer[Long] {
       def onNext(elem: Long) = {
         sum += elem
         Continue
@@ -83,7 +83,7 @@ object RangeSuite extends TestSuite[TestScheduler] {
     var received = 0L
     var sum = 0L
 
-    Observable.range(1, 5).onSubscribe(new Observer[Long] {
+    Observable.range(1, 5).unsafeSubscribeFn(new Observer[Long] {
       def onNext(elem: Long) = {
         received += elem
         Future.delayedResult(1.second) {

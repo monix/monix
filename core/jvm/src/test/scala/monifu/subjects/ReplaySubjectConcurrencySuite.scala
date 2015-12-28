@@ -46,15 +46,15 @@ object ReplaySubjectConcurrencySuite extends TestSuite[Scheduler] {
     }
 
     val subject = ReplaySubject[Int]()
-    subject.onSubscribe(createObserver)
+    subject.unsafeSubscribeFn(createObserver)
 
     s.execute {
-      Observable.range(0, signalsPerSubscriber).map(_ => 2).onSubscribe(subject)
-      subject.onSubscribe(createObserver)
+      Observable.range(0, signalsPerSubscriber).map(_ => 2).unsafeSubscribeFn(subject)
+      subject.unsafeSubscribeFn(createObserver)
     }
 
     for (_ <- 0 until (nrOfSubscribers - 2))
-      s.execute(subject.onSubscribe(createObserver))
+      s.execute(subject.unsafeSubscribeFn(createObserver))
 
     assert(completed.await(60, TimeUnit.SECONDS), "completed.await")
   }

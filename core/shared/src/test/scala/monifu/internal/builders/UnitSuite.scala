@@ -38,7 +38,7 @@ object UnitSuite extends TestSuite[TestScheduler] {
     var received = 0
     var completed = false
 
-    Observable.unit(1).onSubscribe(new Observer[Int] {
+    Observable.unit(1).unsafeSubscribeFn(new Observer[Int] {
       def onNext(elem: Int): Future[Ack] = {
         received += 1
         Continue
@@ -60,7 +60,7 @@ object UnitSuite extends TestSuite[TestScheduler] {
     var onCompleteCalled = false
     var received = 0
 
-    Observable.unit(1).onSubscribe(new Observer[Int] {
+    Observable.unit(1).unsafeSubscribeFn(new Observer[Int] {
       def onError(ex: Throwable) = throw ex
 
       def onNext(elem: Int): Future[Ack] = {
@@ -82,7 +82,7 @@ object UnitSuite extends TestSuite[TestScheduler] {
   }
 
   test("unit should not send onComplete if canceled synchronously") { implicit s =>
-    Observable.unit(1).onSubscribe(new Observer[Int] {
+    Observable.unit(1).unsafeSubscribeFn(new Observer[Int] {
       def onError(ex: Throwable) = throw ex
       def onNext(elem: Int) = Cancel
 
@@ -95,7 +95,7 @@ object UnitSuite extends TestSuite[TestScheduler] {
   test("unit should not send onComplete if canceled asynchronously") { implicit s =>
     val p = Promise[Ack]()
 
-    Observable.unit(1).onSubscribe(new Observer[Int] {
+    Observable.unit(1).unsafeSubscribeFn(new Observer[Int] {
       def onError(ex: Throwable) = throw ex
       def onNext(elem: Int) = p.future
 
@@ -114,7 +114,7 @@ object UnitSuite extends TestSuite[TestScheduler] {
     var received = 0
     var completed = false
 
-    Observable.unitDelayed(1.second, 1).onSubscribe(new Observer[Int] {
+    Observable.unitDelayed(1.second, 1).unsafeSubscribeFn(new Observer[Int] {
       def onNext(elem: Int): Future[Ack] = {
         received += 1
         Continue
@@ -139,7 +139,7 @@ object UnitSuite extends TestSuite[TestScheduler] {
     var onCompleteCalled = false
     var received = 0
 
-    Observable.unitDelayed(1.second, 1).onSubscribe(new Observer[Int] {
+    Observable.unitDelayed(1.second, 1).unsafeSubscribeFn(new Observer[Int] {
       def onError(ex: Throwable) = throw ex
 
       def onNext(elem: Int): Future[Ack] = {
@@ -164,7 +164,7 @@ object UnitSuite extends TestSuite[TestScheduler] {
   }
 
   test("unitDelayed should not send onComplete if canceled synchronously") { implicit s =>
-    Observable.unitDelayed(1.second, 1).onSubscribe(new Observer[Int] {
+    Observable.unitDelayed(1.second, 1).unsafeSubscribeFn(new Observer[Int] {
       def onError(ex: Throwable) = throw ex
       def onNext(elem: Int) = Cancel
 
@@ -180,7 +180,7 @@ object UnitSuite extends TestSuite[TestScheduler] {
   test("unitDelayed should not send onComplete if canceled asynchronously") { implicit s =>
     val p = Promise[Ack]()
 
-    Observable.unitDelayed(1.second, 1).onSubscribe(new Observer[Int] {
+    Observable.unitDelayed(1.second, 1).unsafeSubscribeFn(new Observer[Int] {
       def onError(ex: Throwable) = throw ex
       def onNext(elem: Int) = p.future
 
@@ -198,7 +198,7 @@ object UnitSuite extends TestSuite[TestScheduler] {
 
   test("empty should complete immediately") { implicit s =>
     var wasCompleted = false
-    Observable.empty.onSubscribe(new Observer[Any] {
+    Observable.empty.unsafeSubscribeFn(new Observer[Any] {
       def onNext(elem: Any) = throw new IllegalStateException()
       def onError(ex: Throwable): Unit = throw ex
       def onComplete(): Unit = wasCompleted = true
@@ -209,7 +209,7 @@ object UnitSuite extends TestSuite[TestScheduler] {
 
   test("error should stream immediately") { implicit s =>
     var errorThrown: Throwable = null
-    Observable.error(DummyException("dummy")).onSubscribe(new Observer[Any] {
+    Observable.error(DummyException("dummy")).unsafeSubscribeFn(new Observer[Any] {
       def onError(ex: Throwable): Unit = errorThrown = ex
       def onNext(elem: Any) = throw new IllegalStateException()
       def onComplete(): Unit = throw new IllegalStateException()
@@ -219,7 +219,7 @@ object UnitSuite extends TestSuite[TestScheduler] {
   }
 
   test("never should never complete") { implicit s =>
-    Observable.never.onSubscribe(new Observer[Any] {
+    Observable.never.unsafeSubscribeFn(new Observer[Any] {
       def onNext(elem: Any) = throw new IllegalStateException()
       def onComplete(): Unit = throw new IllegalStateException()
       def onError(ex: Throwable) = new IllegalStateException()

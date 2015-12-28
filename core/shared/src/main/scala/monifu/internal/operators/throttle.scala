@@ -29,7 +29,7 @@ private[monifu] object throttle {
     Observable.create { downstream =>
       import downstream.{scheduler => s}
 
-      self.onSubscribe(new Observer[T] {
+      self.unsafeSubscribeFn(new Observer[T] {
         private[this] val intervalMs = interval.toMillis
         private[this] var nextChange = 0L
 

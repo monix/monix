@@ -31,7 +31,7 @@ private[monifu] object reduce {
     Observable.create { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         private[this] var state: T = _
         private[this] var isFirst = true
         private[this] var wasApplied = false

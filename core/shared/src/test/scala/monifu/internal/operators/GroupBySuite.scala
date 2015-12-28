@@ -65,13 +65,13 @@ object GroupBySuite extends BaseOperatorSuite {
     def fallbackObservable: Observable[Nothing] =
       Observable.create { s =>
         fallbackTick += 1
-        Observable.empty.onSubscribe(s)
+        Observable.empty.unsafeSubscribeFn(s)
       }
 
     val ch = PublishSubject[Int]().groupBy(_ % 2)
       .mergeMap(_.timeout(10.seconds, fallbackObservable))
 
-    ch.onSubscribe(new Observer[Int] {
+    ch.unsafeSubscribeFn(new Observer[Int] {
       def onNext(elem: Int): Future[Ack] =
         if (nextShouldCancel) Cancel else {
           received += elem

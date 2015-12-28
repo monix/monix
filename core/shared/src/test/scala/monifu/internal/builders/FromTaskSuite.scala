@@ -38,7 +38,7 @@ object FromTaskSuite extends TestSuite[TestScheduler] {
     var i = 0
     val obs = Observable.fromTask { i += 1; i }
 
-    obs.onSubscribe(new Observer[Int] {
+    obs.unsafeSubscribeFn(new Observer[Int] {
       def onNext(elem: Int): Future[Ack] = {
         received += elem
         Continue
@@ -52,7 +52,7 @@ object FromTaskSuite extends TestSuite[TestScheduler] {
     assertEquals(wasCompleted, 1)
     assertEquals(received, 1)
 
-    obs.onSubscribe(new Observer[Int] {
+    obs.unsafeSubscribeFn(new Observer[Int] {
       def onNext(elem: Int): Future[Ack] = {
         received += elem
         Continue

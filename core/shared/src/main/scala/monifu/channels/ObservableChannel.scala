@@ -32,7 +32,7 @@ trait ObservableChannel[I,+O]
       def pushError(ex: Throwable): Unit = self.pushError(ex)
 
       private[this] val lifted = f(self)
-      def onSubscribe(subscriber: Subscriber[U]): Unit =
-        lifted.onSubscribe(subscriber)
+      def unsafeSubscribeFn(subscriber: Subscriber[U]): Unit =
+        lifted.unsafeSubscribeFn(subscriber)
     }
 }

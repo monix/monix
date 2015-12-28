@@ -59,7 +59,7 @@ object CombineLatestSuite extends BaseOperatorSuite {
     var received = (0, 0)
     var wasCompleted = false
 
-    obs1.combineLatest(obs2).onSubscribe(new Observer[(Int, Int)] {
+    obs1.combineLatest(obs2).unsafeSubscribeFn(new Observer[(Int, Int)] {
       def onNext(elem: (Int, Int)) = {
         received = elem
         Continue
@@ -92,7 +92,7 @@ object CombineLatestSuite extends BaseOperatorSuite {
     var received = (0, 0)
     var wasCompleted = false
 
-    obs2.combineLatest(obs1).onSubscribe(new Observer[(Int, Int)] {
+    obs2.combineLatest(obs1).unsafeSubscribeFn(new Observer[(Int, Int)] {
       def onNext(elem: (Int, Int)) = {
         received = elem
         Continue
@@ -127,7 +127,7 @@ object CombineLatestSuite extends BaseOperatorSuite {
     var received = (0,0)
 
     obs1.combineLatest(obs2.doOnCanceled { wasCanceled = true })
-      .onSubscribe(new Observer[(Int, Int)] {
+      .unsafeSubscribeFn(new Observer[(Int, Int)] {
         def onNext(elem: (Int, Int)) = { received = elem; Continue }
         def onError(ex: Throwable) = wasThrown = ex
         def onComplete() = ()
@@ -151,7 +151,7 @@ object CombineLatestSuite extends BaseOperatorSuite {
     var received = (0,0)
 
     obs2.doOnCanceled { wasCanceled = true }.combineLatest(obs1)
-      .onSubscribe(new Observer[(Int, Int)] {
+      .unsafeSubscribeFn(new Observer[(Int, Int)] {
         def onNext(elem: (Int, Int)) = { received = elem; Continue }
         def onError(ex: Throwable) = wasThrown = ex
         def onComplete() = ()
@@ -172,7 +172,7 @@ object CombineLatestSuite extends BaseOperatorSuite {
 
     var wasThrown: Throwable = null
 
-    obs1.combineLatest(obs2).onSubscribe(new Observer[(Int, Int)] {
+    obs1.combineLatest(obs2).unsafeSubscribeFn(new Observer[(Int, Int)] {
       def onNext(elem: (Int, Int)) =
         Future.delayedResult(1.second)(Continue)
       def onComplete() = ()
@@ -197,7 +197,7 @@ object CombineLatestSuite extends BaseOperatorSuite {
 
     var wasThrown: Throwable = null
 
-    obs1.combineLatest(obs2).onSubscribe(new Observer[(Int, Int)] {
+    obs1.combineLatest(obs2).unsafeSubscribeFn(new Observer[(Int, Int)] {
       def onNext(elem: (Int, Int)) =
         Future.delayedResult(1.second)(Continue)
       def onComplete() = ()

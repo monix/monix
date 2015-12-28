@@ -57,7 +57,7 @@ final class PublishSubject[T] private () extends Subject[T,T] {
    * FreezeOnFirstOnNextSubscriber (the purpose of calling onSubscribeContinue)
    */
   @tailrec
-  def onSubscribe(subscriber: Subscriber[T]): Unit = {
+  def unsafeSubscribeFn(subscriber: Subscriber[T]): Unit = {
     val state = stateRef.get
     val subscribers = state.subscribers
 
@@ -71,7 +71,7 @@ final class PublishSubject[T] private () extends Subject[T,T] {
       val update = State(subscribers :+ subscriber)
 
       if (!stateRef.compareAndSet(state, update))
-        onSubscribe(subscriber) // repeat
+        unsafeSubscribeFn(subscriber) // repeat
     }
   }
 

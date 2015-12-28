@@ -30,11 +30,11 @@ object OnErrorRetryCountedSuite extends BaseOperatorSuite {
         subscriptions += 1
         Observable.range(0, sourceCount)
           .endWithError(ex)
-          .onSubscribe(subscriber)
+          .unsafeSubscribeFn(subscriber)
       }
       else {
         Observable.range(0, sourceCount)
-          .onSubscribe(subscriber)
+          .unsafeSubscribeFn(subscriber)
       }
     }
   }

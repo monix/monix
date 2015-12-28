@@ -35,8 +35,8 @@ class SubjectChannel[I,+O] private[monifu]
   private[this] val channel = BufferedSubscriber(
     Subscriber(subject, scheduler), overflowStrategy, onOverflow)
 
-  final def onSubscribe(subscriber: Subscriber[O]): Unit = {
-    subject.onSubscribe(subscriber)
+  final def unsafeSubscribeFn(subscriber: Subscriber[O]): Unit = {
+    subject.unsafeSubscribeFn(subscriber)
   }
 
   final def pushNext(elems: I*): Unit = {

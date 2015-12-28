@@ -46,7 +46,7 @@ private[monifu] object window {
     Observable.create[Observable[T]] { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         private[this] var isDone = false
         private[this] var buffer = ReplaySubject[T]()
         private[this] var ack = subscriber.onNext(buffer)
@@ -99,7 +99,7 @@ private[monifu] object window {
     Observable.create { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         private[this] var isDone = false
         private[this] var buffer = ReplaySubject[T]()
         private[this] var ack = subscriber.onNext(buffer)
@@ -158,7 +158,7 @@ private[monifu] object window {
     Observable.create { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         private[this] var isDone = false
         private[this] var buffer = ReplaySubject[T]()
         private[this] var ack = subscriber.onNext(buffer)
@@ -218,7 +218,7 @@ private[monifu] object window {
     Observable.create { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         private[this] val timespanMillis = timespan.toMillis
         private[this] var expiresAt = s.currentTimeMillis() + timespanMillis
 

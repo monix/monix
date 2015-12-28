@@ -30,9 +30,9 @@ private[monifu] object delaySubscription {
       Observable.create[T] { subscriber =>
         import subscriber.{scheduler => s}
 
-        trigger.onSubscribe(new Observer[U] {
+        trigger.unsafeSubscribeFn(new Observer[U] {
           def onNext(elem: U): Future[Ack] = {
-            source.onSubscribe(subscriber)
+            source.unsafeSubscribeFn(subscriber)
             Cancel
           }
 
@@ -41,7 +41,7 @@ private[monifu] object delaySubscription {
           }
 
           def onComplete(): Unit = {
-            source.onSubscribe(subscriber)
+            source.unsafeSubscribeFn(subscriber)
           }
         })
       }
@@ -58,6 +58,6 @@ private[monifu] object delaySubscription {
         p.future
       }
 
-      underlying.onSubscribe(subscriber)
+      underlying.unsafeSubscribeFn(subscriber)
     }
 }

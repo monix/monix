@@ -151,11 +151,10 @@ sealed abstract class Task[+T] { self =>
       })
     }
 
-  /**
-   * Creates a new Task by applying a function to the successful
-   * result of the source Task, and returns a task equivalent to
-   * the result of the function.
-   */
+  /** Creates a new Task by applying a function to the successful
+    * result of the source Task, and returns a task equivalent to
+    * the result of the function.
+    */
   def flatMap[U](f: T => Task[U]): Task[U] =
     Task.unsafeCreate[U] { (s,cb) =>
       self.unsafeRunFn(s, new Callback[T] {

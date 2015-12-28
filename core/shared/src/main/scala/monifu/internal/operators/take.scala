@@ -36,7 +36,7 @@ private[monifu] object take {
     Observable.create { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         private[this] var counter = 0L
         private[this] var isDone = false
 
@@ -91,7 +91,7 @@ private[monifu] object take {
     Observable.create { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         private[this] val queue = mutable.Queue.empty[T]
         private[this] var queued = 0
 
@@ -111,11 +111,11 @@ private[monifu] object take {
         }
 
         def onComplete(): Unit = {
-          Observable.fromIterable(queue).onSubscribe(subscriber)
+          Observable.fromIterable(queue).unsafeSubscribeFn(subscriber)
         }
 
         def onError(ex: Throwable): Unit = {
-          Observable.fromIterable(queue).onSubscribe(new Observer[T] {
+          Observable.fromIterable(queue).unsafeSubscribeFn(new Observer[T] {
             def onError(ex: Throwable) =
               subscriber.onError(ex)
 
@@ -133,7 +133,7 @@ private[monifu] object take {
     Observable.create { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] with Runnable {
+      source.unsafeSubscribeFn(new Observer[T] with Runnable {
         private[this] var isActive = true
         private[this] val task = s.scheduleOnce(timespan, this)
 
@@ -176,7 +176,7 @@ private[monifu] object take {
     Observable.create[T] { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         var shouldContinue = true
 
         def onNext(elem: T) = {
@@ -227,7 +227,7 @@ private[monifu] object take {
     Observable.create[T] { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.onSubscribe(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] {
         var shouldContinue = true
 
         def onNext(elem: T) = {

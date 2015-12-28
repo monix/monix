@@ -40,7 +40,7 @@ object MiscEndWithErrorSuite extends TestSuite[TestScheduler] {
     val source = Observable.unit(1000)
       .endWithError(DummyException("dummy"))
 
-    source.onSubscribe(new Observer[Int] {
+    source.unsafeSubscribeFn(new Observer[Int] {
       def onNext(elem: Int) = {
         received = elem
         p.future
@@ -66,7 +66,7 @@ object MiscEndWithErrorSuite extends TestSuite[TestScheduler] {
     val source = Observable.error(DummyException("unforeseen"))
       .endWithError(DummyException("expected"))
 
-    source.onSubscribe(new Observer[Int] {
+    source.unsafeSubscribeFn(new Observer[Int] {
       def onNext(elem: Int) = Continue
       def onComplete() = ()
       def onError(ex: Throwable) = {
