@@ -41,7 +41,7 @@ object Build extends SbtBuild {
     scalacOptions ++= Seq(
       "-target:jvm-1.6", // generates code with the Java 6 class format
       "-optimise", // enables optimisations
-      "-Xfatal-warnings", // turns all warnings into errors ;-)
+      // "-Xfatal-warnings", // turns all warnings into errors ;-)
       // warnings
       "-unchecked", // able additional warnings where generated code depends on assumptions
       "-deprecation", // emit warning for usages of deprecated APIs
@@ -162,7 +162,7 @@ object Build extends SbtBuild {
     .settings(doNotPublishArtifact: _*)
     .settings(
       unidocProjectFilter in (ScalaUnidoc, unidoc) := inAnyProject --
-        inProjects(monifuCoreJS, monifuJS, tckTests)
+        inProjects(monifuCoreJS, monifuJS, monifuJVM, tckTests)
     )
 
   lazy val monifuCoreJVM = project.in(file("core/jvm"))
@@ -171,6 +171,7 @@ object Build extends SbtBuild {
       name := "monifu-core",
       testFrameworks += new TestFramework("minitest.runner.Framework"),
       libraryDependencies ++= Seq(
+        "org.reactivestreams" % "reactive-streams" % "1.0.0",
         "org.monifu" %% "minitest" % "0.14" % "test"
       ))
 
@@ -187,26 +188,16 @@ object Build extends SbtBuild {
 
   lazy val monifuJVM = project.in(file("monifu/jvm"))
     .settings(crossSettings: _*)
+    .aggregate(monifuCoreJVM)
     .dependsOn(monifuCoreJVM)
-    .settings(
-      name := "monifu",
-      testFrameworks += new TestFramework("minitest.runner.Framework"),
-      libraryDependencies ++= Seq(
-        "org.reactivestreams" % "reactive-streams" % "1.0.0",
-        "org.monifu" %% "minitest" % "0.14" % "test"
-      ))
+    .settings(name := "monifu")
 
   lazy val monifuJS = project.in(file("monifu/js"))
     .settings(crossSettings: _*)
     .enablePlugins(ScalaJSPlugin)
+    .aggregate(monifuCoreJS)
     .dependsOn(monifuCoreJS)
-    .settings(
-      name := "monifu",
-      scalaJSStage in Test := FastOptStage,
-      testFrameworks += new TestFramework("minitest.runner.Framework"),
-      libraryDependencies ++= Seq(
-        "org.monifu" %%% "minitest" % "0.14" % "test"
-      ))
+    .settings(name := "monifu")
 
   lazy val tckTests = project.in(file("tckTests"))
     .settings(sharedSettings: _*)
