@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package monifu.streams
+package monifu.internal.streams
 
 import minitest.SimpleTestSuite
 import org.reactivestreams.Subscription

@@ -20,7 +20,7 @@ package monifu
 import monifu.concurrent.Scheduler
 import monifu.Ack.{Cancel, Continue}
 import monifu.observers.{SynchronousObserver, SynchronousSubscriber}
-import monifu.streams._
+import monifu.internal.streams._
 import org.reactivestreams.{Subscriber => RSubscriber}
 import scala.annotation.tailrec
 import scala.concurrent.{Future, Promise}

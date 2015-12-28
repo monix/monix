@@ -19,7 +19,7 @@ package monifu
 
 import monifu.concurrent.Scheduler
 import monifu.observers.{SynchronousObserver, SynchronousSubscriber}
-import monifu.streams.{ReactiveSubscriberAsMonifuSubscriber, SubscriberAsReactiveSubscriber, SynchronousSubscriberAsReactiveSubscriber}
+import monifu.internal.streams.{ReactiveSubscriberAsMonifuSubscriber, SubscriberAsReactiveSubscriber, SynchronousSubscriberAsReactiveSubscriber}
 import org.reactivestreams.{Subscriber => RSubscriber}
 import scala.concurrent.Future
 

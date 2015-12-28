@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package monifu.streams
+package monifu.internal.streams
 
 import monifu.Ack.{Cancel, Continue}
 import monifu.OverflowStrategy.Unbounded
@@ -58,7 +58,7 @@ import org.reactivestreams.{Subscriber, Subscription}
  * @param requestCount the parameter passed to `Subscription.request`,
  *                    also representing the buffer size; MUST BE strictly positive
  */
-final class SubscriberAsReactiveSubscriber[T] private
+private[monifu] final class SubscriberAsReactiveSubscriber[T] private
     (subscriber: monifu.Subscriber[T], requestCount: Int)
   extends Subscriber[T] {
 
@@ -85,7 +85,7 @@ final class SubscriberAsReactiveSubscriber[T] private
 }
 
 
-object SubscriberAsReactiveSubscriber {
+private[monifu] object SubscriberAsReactiveSubscriber {
   /**
    * Wraps a [[monifu.Observer Observer]] instance into a
    * `org.reactivestreams.Subscriber` instance. The resulting
@@ -160,7 +160,7 @@ object SubscriberAsReactiveSubscriber {
  *   })
  * }}}
  */
-final class SynchronousSubscriberAsReactiveSubscriber[T] private
+private[monifu] final class SynchronousSubscriberAsReactiveSubscriber[T] private
     (subscriber: SynchronousSubscriber[T], requestCount: Int)
   extends Subscriber[T] {
 
@@ -223,7 +223,7 @@ final class SynchronousSubscriberAsReactiveSubscriber[T] private
 }
 
 
-object SynchronousSubscriberAsReactiveSubscriber {
+private[monifu] object SynchronousSubscriberAsReactiveSubscriber {
   /**
    * Wraps a [[monifu.observers.SynchronousObserver SynchronousObserver]] instance into a
    * `org.reactivestreams.Subscriber` instance. The resulting

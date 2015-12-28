@@ -15,24 +15,25 @@
  * limitations under the License.
  */
 
-package monifu.streams
+package monifu.internal.streams
 
 import monifu.concurrent.atomic.Atomic
 import org.reactivestreams.Subscription
 import scala.annotation.tailrec
 
-/**
- * Represents a `org.reactivestreams.Subscription` that can be assigned
- * only once to another subscription reference.
- *
- * If the assignment happens after this subscription has been canceled, then on
- * assignment the reference will get canceled too. If the assignment
- * after `request(n)` has been called on this subscription, then
- * `request(n)` will get called immediately on the assigned reference as well.
- *
- * Useful in case you need a thread-safe forward reference.
- */
-final class SingleAssignmentSubscription private () extends Subscription {
+/** Represents a `org.reactivestreams.Subscription` that can be assigned
+  * only once to another subscription reference.
+  *
+  * If the assignment happens after this subscription has been canceled, then on
+  * assignment the reference will get canceled too. If the assignment
+  * after `request(n)` has been called on this subscription, then
+  * `request(n)` will get called immediately on the assigned reference as well.
+  *
+  * Useful in case you need a thread-safe forward reference.
+  */
+private[monifu] final class SingleAssignmentSubscription private ()
+  extends Subscription {
+
   import SingleAssignmentSubscription.State
   import SingleAssignmentSubscription.State._
 
@@ -116,7 +117,7 @@ final class SingleAssignmentSubscription private () extends Subscription {
   }
 }
 
-object SingleAssignmentSubscription {
+private[monifu] object SingleAssignmentSubscription {
   /** Builder for [[SingleAssignmentSubscription]] */
   def apply(): SingleAssignmentSubscription =
     new SingleAssignmentSubscription

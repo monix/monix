@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package monifu.streams
+package monifu.internal.streams
 
 import monifu.concurrent.Scheduler
 import monifu.concurrent.atomic.padded.Atomic
@@ -27,19 +27,18 @@ import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 import scala.concurrent.{Future, Promise}
 
-/**
- * Wraps a `org.reactivestreams.Subscriber` instance that respects the
- * [[http://www.reactive-streams.org/ Reactive Streams]] contract
- * into an [[monifu.Observer Observer]] instance that respect the `Observer`
- * contract.
- */
-final class ReactiveSubscriberAsMonifuSubscriber[T] private
+/** Wraps a `org.reactivestreams.Subscriber` instance that respects the
+  * [[http://www.reactive-streams.org/ Reactive Streams]] contract
+  * into an [[monifu.Observer Observer]] instance that respect the `Observer`
+  * contract.
+  */
+private[monifu] final class ReactiveSubscriberAsMonifuSubscriber[T] private
     (subscriber: RSubscriber[T])
     (implicit val scheduler: Scheduler)
   extends Subscriber[T] {
 
   if (subscriber == null) throw null
-  import monifu.streams.ReactiveSubscriberAsMonifuSubscriber.RequestsQueue
+  import monifu.internal.streams.ReactiveSubscriberAsMonifuSubscriber.RequestsQueue
 
   private[this] val requests = new RequestsQueue
   private[this] var leftToPush = 0L
@@ -92,7 +91,7 @@ final class ReactiveSubscriberAsMonifuSubscriber[T] private
   }
 }
 
-object ReactiveSubscriberAsMonifuSubscriber {
+private[monifu] object ReactiveSubscriberAsMonifuSubscriber {
   /**
    * Given an `org.reactivestreams.Subscriber` as defined by
    * the [[http://www.reactive-streams.org/ Reactive Streams]]
