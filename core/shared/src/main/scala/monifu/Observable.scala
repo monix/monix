@@ -1777,17 +1777,6 @@ trait Observable[+T] { self =>
   }
 
   /**
-   * Converts the source Observable that emits `T` into an Observable
-   * that emits `Notification[T]`.
-   *
-   * NOTE: `onComplete` is still emitted after an `onNext(OnComplete)` notification
-   * however an `onError(ex)` notification is emitted as an `onNext(OnError(ex))`
-   * followed by an `onComplete`.
-   */
-  def materialize: Observable[Notification[T]] =
-    operators.materialize(self)
-
-  /**
    * Utility that can be used for debugging purposes.
    */
   def dump(prefix: String, out: PrintStream = System.out): Observable[T] =
