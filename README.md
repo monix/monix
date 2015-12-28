@@ -82,7 +82,7 @@ import monifu.concurrent.Implicits.globalScheduler
 // implicit val scheduler = Scheduler(defaultContext)
 
 import concurrent.duration._
-import monifu.reactive._
+import monifu._
 
 val subscription = Observable.intervalAtFixedRate(1.second)
   .take(10)
@@ -94,7 +94,7 @@ We can then try out more complex things:
 ```scala
 import monifu.concurrent.Implicits.globalScheduler
 import play.api.libs.ws._
-import monifu.reactive._
+import monifu._
 
 // emits an auto-incremented number, every second
 Observable.interval(1.second)
