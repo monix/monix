@@ -15,15 +15,16 @@
  * limitations under the License.
  */
 
-package monifu.concurrent
+package monifu.internal.concurrent
 
+import monifu.concurrent.UncaughtExceptionReporter
 import monifu.internal.collection.DropHeadOnOverflowQueue
 
 import scala.annotation.tailrec
 import scala.util.control.NonFatal
 
 
-private[concurrent] object Trampoline {
+private[monifu] object Trampoline {
   private[this] val state = new ThreadLocal[Local] {
     override def initialValue(): Local =
       new Local
