@@ -27,7 +27,7 @@ private[monifu] object map {
    * Implementation for [[Observable.map]].
    */
   def apply[T,U](source: Observable[T])(f: T => U): Observable[U] = {
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] {

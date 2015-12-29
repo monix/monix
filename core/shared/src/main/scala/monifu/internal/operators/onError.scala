@@ -27,7 +27,7 @@ private[monifu] object onError {
    * Implementation for [[Observable.onErrorRecoverWith]].
    */
   def recoverWith[T](source: Observable[T], pf: PartialFunction[Throwable, Observable[T]]) =
-    Observable.create[T] { subscriber =>
+    Observable.unsafeCreate[T] { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] {
@@ -67,7 +67,7 @@ private[monifu] object onError {
    * Implementation for [[Observable.onErrorFallbackTo]].
    */
   def fallbackTo[T](source: Observable[T], other: => Observable[T]) =
-    Observable.create[T] { subscriber =>
+    Observable.unsafeCreate[T] { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] {
@@ -118,7 +118,7 @@ private[monifu] object onError {
         }
       })
 
-    Observable.create[T] { s =>
+    Observable.unsafeCreate[T] { s =>
       subscribe(s, 0)(s.scheduler)
     }
   }
@@ -140,7 +140,7 @@ private[monifu] object onError {
         }
       })
 
-    Observable.create[T] { s =>
+    Observable.unsafeCreate[T] { s =>
       subscribe(s)(s.scheduler)
     }
   }
@@ -181,6 +181,6 @@ private[monifu] object onError {
     }
 
 
-    Observable.create[T](subscribe)
+    Observable.unsafeCreate[T](subscribe)
   }
 }

@@ -33,7 +33,7 @@ private[monifu] object from {
    * Implementation for [[Observable.fromIterable]].
    */
   def iterable[T](iterable: Iterable[T]): Observable[T] =
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       var streamError = true
       try {
         val i = iterable.iterator
@@ -50,7 +50,7 @@ private[monifu] object from {
    * Implementation for [[Observable.fromIterator]].
    */
   def iterator[T](iterator: Iterator[T]): Observable[T] = {
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
       val modulus = s.env.batchSize - 1
 
@@ -146,7 +146,7 @@ private[monifu] object from {
    * Implementation for [[Observable.fromFuture]].
    */
   def future[T](f: Future[T]): Observable[T] =
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
 
       f.value match {
@@ -167,7 +167,7 @@ private[monifu] object from {
    * Implementation for [[Observable.fromTask]].
    */
   def task[A](t: => A): Observable[A] =
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
 
       s.execute {
@@ -190,7 +190,7 @@ private[monifu] object from {
    * Implementation for [[Observable.fromCallable]].
    */
   def callable[T](c: Callable[T]): Observable[T] =
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
 
       s.execute {
@@ -213,7 +213,7 @@ private[monifu] object from {
    * Implementation for [[Observable.fromRunable]].
    */
   def runnable[T](r: Runnable): Observable[Unit] =
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
 
       s.execute {
@@ -236,7 +236,7 @@ private[monifu] object from {
    * Implementation for [[Observable.fromStateAction]].
    */
   def stateAction[S,A](f: S => (A,S))(seed: S): Observable[A] =
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       import subscriber.scheduler
       scheduler.execute(new StateRunLoop(subscriber, seed, f))
     }

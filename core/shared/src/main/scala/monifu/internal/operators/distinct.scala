@@ -29,7 +29,7 @@ private[monifu] object distinct {
    * Implementation for [[Observable.distinct]].
    */
   def distinct[T](source: Observable[T]): Observable[T] =
-    Observable.create[T] { subscriber =>
+    Observable.unsafeCreate[T] { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] {
@@ -48,7 +48,7 @@ private[monifu] object distinct {
     }
 
   def distinctBy[T, U](source: Observable[T])(fn: T => U): Observable[T] =
-    Observable.create[T] { subscriber =>
+    Observable.unsafeCreate[T] { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] {
@@ -89,7 +89,7 @@ private[monifu] object distinct {
    * Implementation for `Observable.distinctUntilChanged`.
    */
   def untilChanged[T](source: Observable[T]): Observable[T] =
-    Observable.create[T] { subscriber =>
+    Observable.unsafeCreate[T] { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] {
@@ -119,7 +119,7 @@ private[monifu] object distinct {
    * Implementation for `Observable.distinctUntilChanged(fn)`.
    */
   def untilChangedBy[T, U](source: Observable[T])(fn: T => U): Observable[T] =
-    Observable.create[T] { subscriber =>
+    Observable.unsafeCreate[T] { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] {

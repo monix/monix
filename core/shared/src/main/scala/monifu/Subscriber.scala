@@ -25,7 +25,7 @@ import scala.concurrent.Future
 
 /**
  * A `Subscriber` value is a named tuple of an observer and a scheduler,
- * whose usage is in [[Observable.create]].
+ * whose usage is in [[Observable.unsafeCreate]].
  *
  * An `Observable.subscribe` takes as parameters both an [[Observer]]
  * and a [[monifu.concurrent.Scheduler Scheduler]] and the purpose of a

@@ -38,7 +38,7 @@ object ReduceSuite extends BaseOperatorSuite {
     sourceCount * (sourceCount + 1) / 2
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.create[Long] { subscriber =>
+    val o = Observable.unsafeCreate[Long] { subscriber =>
       implicit val s = subscriber.scheduler
       val source = createObservableEndingInError(Observable.range(0, sourceCount), ex)
         .reduce(_ + _)

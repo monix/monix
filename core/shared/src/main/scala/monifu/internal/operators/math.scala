@@ -28,7 +28,7 @@ private[monifu] object math {
    * Implementation for [[Observable.count]].
    */
   def count[T](source: Observable[T]): Observable[Long] = {
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] {
@@ -55,7 +55,7 @@ private[monifu] object math {
    * Implementation for [[Observable.sum]].
    */
   def sum[T](source: Observable[T])(implicit ev: Numeric[T]): Observable[T] = {
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] {
@@ -81,7 +81,7 @@ private[monifu] object math {
    * Implementation for [[Observable.minBy]].
    */
   def minBy[T,U](source: Observable[T])(f: T => U)(implicit ev: Ordering[U]): Observable[T] = {
-    Observable.create[T] { subscriber =>
+    Observable.unsafeCreate[T] { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] {
@@ -132,7 +132,7 @@ private[monifu] object math {
    * Implementation for [[Observable.min]].
    */
   def min[T](source: Observable[T])(implicit ev: Ordering[T]): Observable[T] = {
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] {
@@ -165,7 +165,7 @@ private[monifu] object math {
   }
 
   def maxBy[T,U](source: Observable[T])(f: T => U)(implicit ev: Ordering[U]): Observable[T] = {
-    Observable.create[T] { subscriber =>
+    Observable.unsafeCreate[T] { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] {
@@ -216,7 +216,7 @@ private[monifu] object math {
    * Implementation for [[Observable.max]].
    */
   def max[T](source: Observable[T])(implicit ev: Ordering[T]): Observable[T] = {
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] {

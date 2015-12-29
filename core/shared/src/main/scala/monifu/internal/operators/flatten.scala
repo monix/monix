@@ -33,7 +33,7 @@ private[monifu] object flatten {
   def concat[T,U](source: Observable[T], delayErrors: Boolean)
     (implicit ev: T <:< Observable[U]): Observable[U] = {
 
-    Observable.create[U] { observerU =>
+    Observable.unsafeCreate[U] { observerU =>
       import observerU.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] {
@@ -107,7 +107,7 @@ private[monifu] object flatten {
     (overflowStrategy: OverflowStrategy, onOverflow: Long => U, delayErrors: Boolean)
     (implicit ev: T <:< Observable[U]): Observable[U] = {
 
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
       val observerU = BufferedSubscriber(subscriber, overflowStrategy, onOverflow)
 

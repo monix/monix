@@ -24,7 +24,7 @@ import scala.concurrent.duration.Duration.Zero
 
 object DoWorkSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.create[Long] { s =>
+    val o = Observable.unsafeCreate[Long] { s =>
       import s.scheduler
       val buffer = BufferedSubscriber[Long](s, Unbounded)
 
@@ -40,7 +40,7 @@ object DoWorkSuite extends BaseOperatorSuite {
   def count(sourceCount: Int) = sourceCount
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.create[Long] { s =>
+    val o = Observable.unsafeCreate[Long] { s =>
       import s.scheduler
 
       val buffer = BufferedSubscriber[Long](s, Unbounded)
@@ -58,7 +58,7 @@ object DoWorkSuite extends BaseOperatorSuite {
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.create[Long] { s =>
+    val o = Observable.unsafeCreate[Long] { s =>
       import s.scheduler
 
       val buffer = BufferedSubscriber[Long](s, Unbounded)

@@ -31,7 +31,7 @@ private[monifu] object flatScan {
    * Implementation for [[Observable.flatScan]].
    */
   def apply[T,R](source: Observable[T], initial: R)(op: (R, T) => Observable[R]) =
-    Observable.create[R] { subscriber =>
+    Observable.unsafeCreate[R] { subscriber =>
       implicit val s = subscriber.scheduler
       val o = subscriber
 
@@ -100,7 +100,7 @@ private[monifu] object flatScan {
    * Implementation for [[Observable.flatScanDelayError]].
    */
   def delayError[T,R](source: Observable[T], initial: R)(op: (R, T) => Observable[R]) =
-    Observable.create[R] { subscriber =>
+    Observable.unsafeCreate[R] { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] {

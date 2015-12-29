@@ -29,7 +29,7 @@ private[monifu] object switch {
    * Implementation for [[Observable.switch]].
    */
   def apply[T,U](source: Observable[T])(implicit ev: T <:< Observable[U]): Observable[U] = {
-    Observable.create { observerU: Subscriber[U] =>
+    Observable.unsafeCreate { observerU: Subscriber[U] =>
       import observerU.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] { self =>

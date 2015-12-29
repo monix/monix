@@ -43,7 +43,7 @@ private[monifu] object repeat {
           loop(subject, observer)
       })
 
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
       val subject = ReplaySubject[T]()
       loop(subject, subscriber)

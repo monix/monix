@@ -29,7 +29,7 @@ private[monifu] object timer {
    * the underlying Observer cancels.
    */
   def repeated[T](initialDelay: FiniteDuration, period: FiniteDuration, unit: T): Observable[T] = {
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
 
       // we are deploying optimizations in order to reduce garbage allocations,

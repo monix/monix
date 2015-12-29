@@ -40,7 +40,7 @@ private[monifu] object timeout {
    * Implementation for
    */
   def switchToBackup[T](source: Observable[T], timeout: FiniteDuration, backup: Observable[T]) =
-    Observable.create[T] { downstream =>
+    Observable.unsafeCreate[T] { downstream =>
       import downstream.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] with Runnable { self =>

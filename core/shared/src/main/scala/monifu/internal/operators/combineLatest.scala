@@ -30,7 +30,7 @@ private[monifu] object combineLatest {
    * Implements [[monifu.Observable!.combineLatest]].
    */
   def apply[T, U](first: Observable[T], second: Observable[U], delayErrors: Boolean): Observable[(T, U)] = {
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
 
       val isDone = Atomic(false)

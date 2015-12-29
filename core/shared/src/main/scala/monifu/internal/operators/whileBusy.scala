@@ -30,7 +30,7 @@ private[monifu] object whileBusy {
    * While the destination subscriber is busy, drop the incoming events.
    */
   def dropEvents[T](source: Observable[T]): Observable[T] =
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       implicit val s = subscriber.scheduler
 
       source.unsafeSubscribeFn(new SynchronousObserver[T] {
@@ -88,7 +88,7 @@ private[monifu] object whileBusy {
    * where dropped.
    */
   def dropEventsThenSignalOverflow[T](source: Observable[T], onOverflow: Long => T): Observable[T] =
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       implicit val s = subscriber.scheduler
 
       source.unsafeSubscribeFn(new SynchronousObserver[T] {

@@ -35,7 +35,7 @@ private[monifu] object sample {
    * Implementation for `Observable.sample(sampler)`.
    */
   def once[T,U](source: Observable[T], sampler: Observable[U]): Observable[T] =
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       source.unsafeSubscribeFn(new SampleObserver(
         subscriber, sampler, shouldRepeatOnSilence = false))
     }
@@ -44,7 +44,7 @@ private[monifu] object sample {
    * Implementation for `Observable.sampleRepeated(sampler)`.
    */
   def repeated[T,U](source: Observable[T], sampler: Observable[U]): Observable[T] =
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       source.unsafeSubscribeFn(new SampleObserver(
         subscriber, sampler, shouldRepeatOnSilence = true))
     }

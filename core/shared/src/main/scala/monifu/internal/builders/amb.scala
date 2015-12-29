@@ -50,7 +50,7 @@ private[monifu] object amb {
         }
       })
 
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       import subscriber.scheduler
 
       val finishLine = Atomic(0)

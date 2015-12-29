@@ -28,7 +28,7 @@ private[monifu] object reduce {
    * Implementation for [[monifu.Observable.reduce]].
    */
   def apply[T](source: Observable[T])(op: (T, T) => T): Observable[T] = {
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] {

@@ -27,7 +27,7 @@ private[monifu] object foldLeft {
    * Implementation for [[Observable.foldLeft]].
    */
   def apply[T, R](source: Observable[T], initial: R)(op: (R, T) => R): Observable[R] =
-    Observable.create[R] { subscriber =>
+    Observable.unsafeCreate[R] { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] {

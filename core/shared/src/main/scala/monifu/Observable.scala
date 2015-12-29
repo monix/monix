@@ -77,7 +77,7 @@ import scala.util.control.NonFatal
   * }}}
   *
   * Of course, you don't need to inherit from this trait, as you can just
-  * use [[Observable.create]], the following example being equivalent
+  * use [[Observable.unsafeCreate]], the following example being equivalent
   * to the above:
   * {{{
   *   Observable.create[Int] { sub =>
@@ -123,7 +123,7 @@ import scala.util.control.NonFatal
   * Observables must obey Monifu's contract, this is why if you get
   * away with already built and tested observables, that would be
   * better than implementing your own by means of inheriting the
-  * interface or by using [[Observable.create create]]. The contract is
+  * interface or by using [[Observable.unsafeCreate create]]. The contract is
   * this:
   *
   * - the supplied `onSubscribe` method MUST NOT throw exceptions, any
@@ -1655,7 +1655,7 @@ trait Observable[+T] { self =>
     * `Scheduler` for initiating the subscription.
     */
   def subscribeOn(s: Scheduler): Observable[T] = {
-    Observable.create(o => s.execute(unsafeSubscribeFn(o)))
+    Observable.unsafeCreate(o => s.execute(unsafeSubscribeFn(o)))
   }
 
   /** Utility that can be used for debugging purposes.
@@ -1680,7 +1680,7 @@ trait Observable[+T] { self =>
     * @param overflowStrategy - $overflowStrategyParam
     */
   def asyncBoundary(overflowStrategy: OverflowStrategy): Observable[T] =
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       unsafeSubscribeFn(BufferedSubscriber(subscriber, overflowStrategy))
     }
 
@@ -1690,7 +1690,7 @@ trait Observable[+T] { self =>
     * @param onOverflow - $onOverflowParam
     */
   def asyncBoundary[U >: T](overflowStrategy: OverflowStrategy.Evicted, onOverflow: Long => U): Observable[U] =
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       unsafeSubscribeFn(BufferedSubscriber(subscriber, overflowStrategy))
     }
 
@@ -1972,7 +1972,7 @@ object Observable {
   /** Observable constructor for creating an [[Observable]] from the
     * specified function.
     */
-  def create[T](f: Subscriber[T] => Unit): Observable[T] = {
+  def unsafeCreate[T](f: Subscriber[T] => Unit): Observable[T] = {
     new Observable[T] {
       def unsafeSubscribeFn(subscriber: Subscriber[T]): Unit =
         try f(subscriber) catch {
@@ -2018,7 +2018,7 @@ object Observable {
     *                Observer that subscribes to the resulting Observable
     */
   def defer[T](factory: => Observable[T]): Observable[T] = {
-    create[T](s => factory.unsafeSubscribeFn(s))
+    unsafeCreate[T](s => factory.unsafeSubscribeFn(s))
   }
 
   /** Creates an Observable that emits auto-incremented natural numbers
@@ -2166,7 +2166,7 @@ object Observable {
     * @see [[Observable!.toReactive]] for converting ``
     */
   def fromReactivePublisher[T](publisher: RPublisher[T]): Observable[T] =
-    Observable.create[T] { sub =>
+    Observable.unsafeCreate[T] { sub =>
       publisher.subscribe(sub.toReactive)
     }
 

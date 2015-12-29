@@ -27,7 +27,7 @@ private[monifu] object misc {
    * Implements [[Observable.ignoreElements]].
    */
   def complete[T](source: Observable[T]): Observable[Nothing] =
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] {
@@ -43,7 +43,7 @@ private[monifu] object misc {
    * Implements [[Observable.error]].
    */
   def error[T](source: Observable[T]): Observable[Throwable] =
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] {
@@ -64,7 +64,7 @@ private[monifu] object misc {
    * Implementation for [[monifu.Observable.defaultIfEmpty]].
    */
   def defaultIfEmpty[T](source: Observable[T], default: T): Observable[T] =
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] {
@@ -93,7 +93,7 @@ private[monifu] object misc {
    * Implements [[Observable.endWithError]].
    */
   def endWithError[T](source: Observable[T])(error: Throwable): Observable[T] =
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] {
@@ -107,7 +107,7 @@ private[monifu] object misc {
    * Implements [[Observable.isEmpty]].
    */
   def isEmpty[T](source: Observable[T]): Observable[Boolean] =
-    Observable.create[Boolean] { subscriber =>
+    Observable.unsafeCreate[Boolean] { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] {

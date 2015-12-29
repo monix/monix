@@ -32,7 +32,7 @@ import scala.util.control.NonFatal
 private[monifu] object groupBy {
   /** Implementation for [[Observable.groupBy]] */
   def apply[T,K](source: Observable[T], os: OverflowStrategy.Synchronous, keyFn: T => K): Observable[GroupedObservable[K,T]] = {
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] { self =>

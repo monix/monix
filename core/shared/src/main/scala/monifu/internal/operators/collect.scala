@@ -27,7 +27,7 @@ private[monifu] object collect {
    * Implementation for [[Observable.collect]].
    */
   def apply[T,U](source: Observable[T])(pf: PartialFunction[T,U]): Observable[U] = {
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] {

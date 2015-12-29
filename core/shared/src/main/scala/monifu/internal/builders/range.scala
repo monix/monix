@@ -29,7 +29,7 @@ private[monifu] object range {
   def apply(from: Long, until: Long, step: Long = 1): Observable[Long] = {
     require(step != 0, "step must be a number different from zero")
 
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
 
       def scheduleLoop(from: Long, until: Long, step: Long): Unit =

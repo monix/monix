@@ -29,7 +29,7 @@ import scala.concurrent.duration._
 
 object TimeoutSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val source = Observable.create[Long](_.onNext(sourceCount))
+    val source = Observable.unsafeCreate[Long](_.onNext(sourceCount))
     val o = source.timeout(1.second).onErrorRecoverWith {
       case _: TimeoutException =>
         Observable.unit(20L)

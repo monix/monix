@@ -30,7 +30,7 @@ private[monifu] object delay {
    * Implementation for [[Observable.delay]].
    */
   def bySelector[T,U](source: Observable[T], selector: T => Observable[U]) =
-    Observable.create[T] { subscriber =>
+    Observable.unsafeCreate[T] { subscriber =>
       import subscriber.scheduler
 
       source.unsafeSubscribeFn(new Observer[T] { self =>
@@ -86,7 +86,7 @@ private[monifu] object delay {
    * Implementation for [[Observable.delay]].
    */
   def byDuration[T](source: Observable[T], delay: FiniteDuration) =
-    Observable.create[T] { subscriber =>
+    Observable.unsafeCreate[T] { subscriber =>
       import subscriber.scheduler
 
       source.unsafeSubscribeFn(new Observer[T] with Runnable { self =>

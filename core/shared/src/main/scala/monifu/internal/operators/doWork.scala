@@ -30,7 +30,7 @@ private[monifu] object doWork {
    * Implementation for [[Observable.doWork]].
    */
   def onNext[T](source: Observable[T])(cb: T => Unit): Observable[T] =
-    Observable.create[T] { subscriber =>
+    Observable.unsafeCreate[T] { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] {
@@ -58,7 +58,7 @@ private[monifu] object doWork {
    * Implementation for [[Observable.doOnComplete]].
    */
   def onComplete[T](source: Observable[T])(cb: => Unit): Observable[T] =
-    Observable.create[T] { subscriber =>
+    Observable.unsafeCreate[T] { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] {
@@ -90,7 +90,7 @@ private[monifu] object doWork {
    * Implementation for [[Observable.doOnError]].
    */
   def onError[T](source: Observable[T])(cb: Throwable => Unit): Observable[T] =
-    Observable.create[T] { subscriber =>
+    Observable.unsafeCreate[T] { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] {
@@ -124,7 +124,7 @@ private[monifu] object doWork {
    * Implementation for [[Observable.doOnCanceled]].
    */
   def onCanceled[T](source: Observable[T])(cb: => Unit): Observable[T] =
-    Observable.create[T] { subscriber =>
+    Observable.unsafeCreate[T] { subscriber =>
       import subscriber.{scheduler => s}
       val isActive = Cancelable(cb)
 
@@ -148,7 +148,7 @@ private[monifu] object doWork {
    * Implementation for [[Observable.doOnStart]].
    */
   def onStart[T](source: Observable[T])(cb: T => Unit): Observable[T] =
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] {

@@ -31,7 +31,7 @@ private[monifu] object repeat {
       Observable.empty
     }
     else if (elems.length == 1) {
-      Observable.create { subscriber =>
+      Observable.unsafeCreate { subscriber =>
         // first execution is always asynchronous
         subscriber.scheduler
           .execute(new RepeatOneLoop(subscriber, elems.head))

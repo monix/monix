@@ -29,7 +29,7 @@ private[monifu] object drop {
    * Implementation for [[Observable.dropByTimespan]].
    */
   def byCount[T](source: Observable[T], nr: Int): Observable[T] =
-    Observable.create[T] { subscriber =>
+    Observable.unsafeCreate[T] { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] {
@@ -56,7 +56,7 @@ private[monifu] object drop {
    * Implementation for `Observable.drop(timespan)`.
    */
   def byTimespan[T](source: Observable[T], timespan: FiniteDuration): Observable[T] =
-    Observable.create[T] { subscriber =>
+    Observable.unsafeCreate[T] { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] with Runnable {
@@ -92,7 +92,7 @@ private[monifu] object drop {
    * Implementation for [[Observable.dropWhile]].
    */
   def byPredicate[T](source: Observable[T])(p: T => Boolean): Observable[T] =
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] {
@@ -135,7 +135,7 @@ private[monifu] object drop {
    * Implementation for [[Observable.dropWhileWithIndex]].
    */
   def byPredicateWithIndex[T](source: Observable[T])(p: (T, Int) => Boolean): Observable[T] =
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] {

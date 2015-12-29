@@ -23,7 +23,7 @@ import scala.concurrent.duration._
 
 object DebounceFlattenSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.create[Long](_.onNext(1))
+    val o = Observable.unsafeCreate[Long](_.onNext(1))
       .debounce(1.second, (x: Long) => Observable.interval(1.second).map(_ + x))
       .take(sourceCount)
 

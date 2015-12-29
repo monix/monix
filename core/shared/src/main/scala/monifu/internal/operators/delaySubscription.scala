@@ -27,7 +27,7 @@ private[monifu] object delaySubscription {
    * Implementation for [[Observable.delaySubscription]].
    */
   def onTrigger[T,U](source: Observable[T], trigger: Observable[U]): Observable[T] =
-      Observable.create[T] { subscriber =>
+      Observable.unsafeCreate[T] { subscriber =>
         import subscriber.{scheduler => s}
 
         trigger.unsafeSubscribeFn(new Observer[U] {
@@ -50,7 +50,7 @@ private[monifu] object delaySubscription {
    * Implementation for [[Observable.delaySubscription]].
    */
   def onTimespan[T](source: Observable[T], timespan: FiniteDuration): Observable[T] =
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
       val underlying = source.delaySubscription {
         val p = Promise[Unit]()

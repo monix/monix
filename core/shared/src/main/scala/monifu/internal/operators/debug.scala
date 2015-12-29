@@ -32,7 +32,7 @@ private[monifu] object debug {
    * Implementation for [[Observable.dump]].
    */
   def dump[T](source: Observable[T], prefix: String, out: PrintStream): Observable[T] =
-    Observable.create[T] { subscriber =>
+    Observable.unsafeCreate[T] { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] {

@@ -27,7 +27,7 @@ object DoOnCancelSuite extends BaseOperatorSuite {
   case class DummyException(value: Long) extends RuntimeException
 
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.create[Long] { s =>
+    val o = Observable.unsafeCreate[Long] { s =>
       implicit val ec = s.scheduler
 
       val sum = Atomic(0L)

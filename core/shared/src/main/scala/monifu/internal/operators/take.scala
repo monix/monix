@@ -33,7 +33,7 @@ private[monifu] object take {
    * Implementation for [[monifu.Observable.take]].
    */
   def left[T](source: Observable[T], n: Long): Observable[T] =
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] {
@@ -88,7 +88,7 @@ private[monifu] object take {
    * Implementation for [[monifu.Observable.takeRight]].
    */
   def right[T](source: Observable[T], n: Int): Observable[T] =
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] {
@@ -130,7 +130,7 @@ private[monifu] object take {
     }
 
   def leftByTimespan[T](source: Observable[T], timespan: FiniteDuration): Observable[T] =
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] with Runnable {
@@ -173,7 +173,7 @@ private[monifu] object take {
    * Implementation for [[monifu.Observable.takeWhile]].
    */
   def byPredicate[T](source: Observable[T])(p: T => Boolean): Observable[T] =
-    Observable.create[T] { subscriber =>
+    Observable.unsafeCreate[T] { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] {
@@ -224,7 +224,7 @@ private[monifu] object take {
    * Implementation for [[monifu.Observable.takeWhileNotCanceled]].
    */
   def takeWhileNotCanceled[T](source: Observable[T], c: BooleanCancelable): Observable[T] =
-    Observable.create[T] { subscriber =>
+    Observable.unsafeCreate[T] { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] {

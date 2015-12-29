@@ -27,7 +27,7 @@ private[monifu] object filter {
    * Implementation for [[Observable.filter]].
    */
   def apply[T](source: Observable[T])(p: T => Boolean): Observable[T] = {
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] {

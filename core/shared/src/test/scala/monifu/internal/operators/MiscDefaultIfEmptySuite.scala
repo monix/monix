@@ -36,7 +36,7 @@ object MiscDefaultIfEmptySuite extends BaseOperatorSuite {
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.create[Long] { subscriber =>
+    val o = Observable.unsafeCreate[Long] { subscriber =>
       implicit val s = subscriber.scheduler
 
       subscriber.onNext(222L).onComplete {

@@ -29,7 +29,7 @@ private[monifu] object interval {
    * Implementation for [[Observable.intervalWithFixedDelay]].
    */
   def withFixedDelay(initialDelay: FiniteDuration, delay: FiniteDuration): Observable[Long] = {
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
       val o = subscriber
 
@@ -63,7 +63,7 @@ private[monifu] object interval {
    * Implementation for [[Observable.intervalAtFixedRate]].
    */
   def atFixedRate(initialDelay: FiniteDuration, period: FiniteDuration): Observable[Long] = {
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
       val o = subscriber
 

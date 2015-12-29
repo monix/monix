@@ -27,7 +27,7 @@ object OnErrorRetryIfSuite extends BaseOperatorSuite {
   def create(sourceCount: Int, maxSubscriptions: Int, ex: Throwable) = {
     var subscriptions = 0
 
-    Observable.create[Long] { subscriber =>
+    Observable.unsafeCreate[Long] { subscriber =>
       if (subscriptions < maxSubscriptions) {
         subscriptions += 1
         Observable.range(0, sourceCount)

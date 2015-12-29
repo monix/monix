@@ -33,7 +33,7 @@ private[monifu] object buffer {
     require(count > 0, "count must be strictly positive")
     require(skip > 0, "skip must be strictly positive")
 
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
       
       source.unsafeSubscribeFn(new Observer[T] {
@@ -101,7 +101,7 @@ private[monifu] object buffer {
     require(timespan >= Duration.Zero, "timespan must be positive")
     require(maxCount >= 0, "maxCount must be positive")
 
-    Observable.create[Seq[T]] { subscriber =>
+    Observable.unsafeCreate[Seq[T]] { subscriber =>
       implicit val s = subscriber.scheduler
 
       source.unsafeSubscribeFn(new Observer[T] {

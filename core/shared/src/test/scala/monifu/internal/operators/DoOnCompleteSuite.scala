@@ -24,7 +24,7 @@ import scala.concurrent.duration.Duration.Zero
 
 object DoOnCompleteSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.create[Long] { s =>
+    val o = Observable.unsafeCreate[Long] { s =>
       import s.scheduler
       val sum = Atomic(0L)
 

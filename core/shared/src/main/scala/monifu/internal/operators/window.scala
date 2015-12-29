@@ -43,7 +43,7 @@ private[monifu] object window {
   private def sizedFixed[T](source: Observable[T], count: Int) = {
     require(count > 0, "count must be strictly positive")
 
-    Observable.create[Observable[T]] { subscriber =>
+    Observable.unsafeCreate[Observable[T]] { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] {
@@ -96,7 +96,7 @@ private[monifu] object window {
     require(skip > 0, "skip must be strictly positive")
     assert(skip < count, "skip < count")
 
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] {
@@ -155,7 +155,7 @@ private[monifu] object window {
     require(skip > 0, "skip must be strictly positive")
     assert(skip > count, "skip > drop")
 
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] {
@@ -215,7 +215,7 @@ private[monifu] object window {
     require(timespan >= Duration.Zero, "timespan must be positive")
     require(maxCount >= 0, "maxCount must be positive")
 
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] {

@@ -22,7 +22,7 @@ import scala.concurrent.duration._
 
 object DebounceRepeatedSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.create[Long](_.onNext(1))
+    val o = Observable.unsafeCreate[Long](_.onNext(1))
       .debounceRepeated(1.second)
       .take(sourceCount)
 

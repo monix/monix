@@ -29,7 +29,7 @@ object SampleRepeatedSuite extends BaseOperatorSuite {
   def waitFirst = 500.millis
 
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.create[Long](_.onNext(1L))
+    val o = Observable.unsafeCreate[Long](_.onNext(1L))
       .sampleRepeated(500.millis)
       .take(sourceCount)
       .scan(0L)((acc, _) => acc + 1)

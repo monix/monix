@@ -26,7 +26,7 @@ import scala.concurrent.duration.FiniteDuration
 private[monifu] object throttle {
   /** Implementation for [[Observable.throttleFirst]] */
   def first[T](self: Observable[T], interval: FiniteDuration): Observable[T] =
-    Observable.create { downstream =>
+    Observable.unsafeCreate { downstream =>
       import downstream.{scheduler => s}
 
       self.unsafeSubscribeFn(new Observer[T] {

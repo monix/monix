@@ -32,7 +32,7 @@ private[monifu] object debounce {
    * Implementation for [[Observable.debounce]].
    */
   def timeout[T](source: Observable[T], timeout: FiniteDuration, repeat: Boolean): Observable[T] = {
-    Observable.create { downstream =>
+    Observable.unsafeCreate { downstream =>
       import downstream.{scheduler => s}
       val timeoutMillis = timeout.toMillis
 

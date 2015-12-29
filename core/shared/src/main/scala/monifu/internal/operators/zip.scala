@@ -29,7 +29,7 @@ private[monifu] object zip {
    * Implements [[Observable.zip]].
    */
   def two[T, U](first: Observable[T], second: Observable[U]) = {
-    Observable.create[(T, U)] { observerOfPairs =>
+    Observable.unsafeCreate[(T, U)] { observerOfPairs =>
       import observerOfPairs.{scheduler => s}
 
       // using mutability, receiving data from 2 producers, so must synchronize
@@ -126,7 +126,7 @@ private[monifu] object zip {
 
   /** Implementation for [[Observable.zipWithIndex]] */
   def withIndex[T](source: Observable[T]): Observable[(T, Long)] =
-    Observable.create { downstream =>
+    Observable.unsafeCreate { downstream =>
       import downstream.scheduler
 
       source.unsafeSubscribeFn(new Observer[T] {

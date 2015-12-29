@@ -32,7 +32,7 @@ private[monifu] object echo {
    * Implementation for [[Observable!.echo]].
    */
   def apply[T](source: Observable[T], timeout: FiniteDuration, onlyOnce: Boolean): Observable[T] = {
-    Observable.create { downstream =>
+    Observable.unsafeCreate { downstream =>
       import downstream.{scheduler => s}
       val timeoutMillis = timeout.toMillis
 

@@ -27,7 +27,7 @@ private[monifu] object scan {
    * Implementation for [[Observable.scan]].
    */
   def apply[T, R](source: Observable[T], initial: R)(op: (R, T) => R): Observable[R] =
-    Observable.create { subscriber =>
+    Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
 
       source.unsafeSubscribeFn(new Observer[T] {

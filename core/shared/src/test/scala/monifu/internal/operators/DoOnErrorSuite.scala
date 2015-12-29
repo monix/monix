@@ -25,7 +25,7 @@ object DoOnErrorSuite extends BaseOperatorSuite {
   case class DummyException(value: Long) extends RuntimeException
 
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.create[Long] { s =>
+    val o = Observable.unsafeCreate[Long] { s =>
       import s.scheduler
 
       Observable.range(0, sourceCount)

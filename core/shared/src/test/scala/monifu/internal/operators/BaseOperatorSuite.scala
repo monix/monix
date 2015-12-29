@@ -71,7 +71,7 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
    * Helper for quickly creating an observable ending with onError.
    */
   def createObservableEndingInError(source: Observable[Long], ex: Throwable) =
-    Observable.create[Long] { subscriber =>
+    Observable.unsafeCreate[Long] { subscriber =>
       implicit val s = subscriber.scheduler
 
       source.unsafeSubscribeFn(new Observer[Long] {
