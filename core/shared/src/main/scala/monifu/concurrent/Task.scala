@@ -19,8 +19,8 @@ package monifu.concurrent
 
 import scala.language.higherKinds
 import monifu.concurrent.Task.Callback
-import monifu.concurrent.cancelables._
 import monifu.concurrent.atomic.padded.Atomic
+import monifu.concurrent.cancelables.SingleAssignmentCancelable
 import monifu.internal.concurrent.TaskRunnable
 import scala.annotation.tailrec
 import scala.concurrent.duration.FiniteDuration
@@ -58,8 +58,6 @@ sealed abstract class Task[+T] { self =>
     *                   this call as well
     * @param callback is the pair of `onSuccess` and `onError` methods that will
     *                 be called when the execution completes
-    *
-    * @return a [[Cancelable]] that can be used to cancel the in progress async computation
     */
   def unsafeRunFn(scheduler: Scheduler, stackDepth: Int, callback: Callback[T]): Unit
 
@@ -72,11 +70,9 @@ sealed abstract class Task[+T] { self =>
     *                   this call as well
     * @param callback is the pair of `onSuccess` and `onError` methods that will
     *                 be called when the execution completes
-    *
-    * @return a [[Cancelable]] that can be used to cancel the in progress async computation
     */
   private[monifu] def stackSafeRun(scheduler: Scheduler, stackDepth: Int, callback: Callback[T]): Unit = {
-    if (stackDepth > 0 && stackDepth < 512) try {
+    if (stackDepth > 0 && stackDepth < Task.batchSize) try {
       unsafeRunFn(scheduler, stackDepth+1, callback)
     }
     catch {
@@ -143,15 +139,12 @@ sealed abstract class Task[+T] { self =>
     * }}}
     *
     * @param f is a function that will be called with the result on complete
-    *
-    * @return a [[Cancelable]] that can be used to cancel the in progress async computation
     */
-  def runAsync(f: Try[T] => Unit)(implicit s: Scheduler): Cancelable = {
+  def runAsync(f: Try[T] => Unit)(implicit s: Scheduler): Unit =
     stackSafeRun(s, -1, new Callback[T] {
       def onSuccess(value: T, stackDepth: Int) = f(Success(value))
       def onError(ex: Throwable, stackDepth: Int) = f(Failure(ex))
     })
-  }
 
   /** Returns a new Task that applies the mapping function to
     * the element emitted by the source.
@@ -373,8 +366,6 @@ sealed abstract class Task[+T] { self =>
               ()
           }
       })
-
-      composite
     }
 }
 
@@ -385,7 +376,6 @@ object Task {
   def apply[T](f: => T): Task[T] =
     Task.unsafeCreate { (scheduler, depth, callback) =>
       callback.safeOnSuccess(scheduler, depth, f)
-      Cancelable.empty
     }
 
   /** Returns a `Task` that on execution is always successful, emitting
@@ -418,26 +408,18 @@ object Task {
       } catch {
         case NonFatal(ex) =>
           cb.safeOnError(s, depth, ex)
-          Cancelable.empty
       }
     }
 
   /** Converts the given Scala `Future` into a `Task` */
   def fromFuture[T](f: => Future[T]): Task[T] =
     Task.unsafeCreate { (s, depth, callback) =>
-      val cancelable = BooleanCancelable()
       f.onComplete {
         case Success(value) =>
-          if (!cancelable.isCanceled)
-            try callback.safeOnSuccess(s, depth, value) catch {
-              case NonFatal(ex) =>
-                callback.safeOnError(s, depth, ex)
-            }
+          callback.safeOnSuccess(s, depth, value)
         case Failure(ex) =>
-          if (!cancelable.isCanceled)
-            callback.safeOnError(s, depth, ex)
+          callback.safeOnError(s, depth, ex)
       }(s)
-      cancelable
     }
 
   /** Builder for [[Task]] instances. For usage on implementing
@@ -486,7 +468,7 @@ object Task {
       * @param stackDepth is the current stack depth (this call included)
       */
     def safeOnSuccess(s: Scheduler, stackDepth: Int, value: T): Unit = {
-      if (stackDepth < 512) try {
+      if (stackDepth < batchSize) try {
         onSuccess(value, stackDepth+1)
       }
       catch {
@@ -506,7 +488,7 @@ object Task {
       * @param stackDepth is the current stack depth (this call included)
       */
     def safeOnError(s: Scheduler, stackDepth: Int, ex: Throwable): Unit = {
-      if (stackDepth < 512)
+      if (stackDepth < batchSize)
         onError(ex, stackDepth+1)
       else
         s.execute(TaskRunnable.AsyncOnError(self, ex))
@@ -519,13 +501,11 @@ object Task {
     * See [[Task.now]] instead.
     */
   private final class Now[+T](value: T) extends Task[T] {
-    def unsafeRunFn(s: Scheduler, sd: Int, cb: Callback[T]): Cancelable = {
+    def unsafeRunFn(s: Scheduler, sd: Int, cb: Callback[T]): Unit = {
       try cb.safeOnSuccess(s, sd, value) catch {
         case NonFatal(ex) =>
           cb.safeOnError(s, sd, ex)
       }
-
-      Cancelable.empty
     }
 
     override def runAsync(implicit s: Scheduler): Future[T] =
@@ -538,12 +518,13 @@ object Task {
     * See [[Task.error]] instead.
     */
   private final class Fail(ex: Throwable) extends Task[Nothing] {
-    def unsafeRunFn(s: Scheduler, sd: Int, cb: Callback[Nothing]): Cancelable = {
+    def unsafeRunFn(s: Scheduler, sd: Int, cb: Callback[Nothing]): Unit = {
       cb.safeOnError(s, sd, ex)
-      Cancelable.empty
     }
 
     override def runAsync(implicit s: Scheduler): Future[Nothing] =
       Future.failed(ex)
   }
+  
+  private final val batchSize = 512
 }
