@@ -32,7 +32,7 @@ private[monifu] class WeakBooleanCancelable private (fieldOffset: Long)
 
   private[this] var _isCanceled = 0
   def isCanceled: Boolean = {
-    _isCanceled == 0
+    _isCanceled == 1
   }
 
   def cancel(): Boolean = {
@@ -51,8 +51,8 @@ private[monifu] object WeakBooleanCancelable {
   /** Address offset of `SimpleBooleanCancelable#_isCanceled`,
     * needed in order to use `Unsafe.putOrderedInt`.
     */
-  private[this] final val addressOffset: Long = {
+  private[this] val addressOffset: Long = {
     Unsafe.objectFieldOffset(classOf[WeakBooleanCancelable]
-      .getFields.find(_.getName.endsWith("_isCanceled")).get)
+      .getDeclaredFields.find(_.getName.endsWith("_isCanceled")).get)
   }
 }

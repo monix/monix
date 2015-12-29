@@ -17,9 +17,10 @@
 
 package monifu.concurrent
 
-import java.util.concurrent.{TimeUnit, TimeoutException}
+import java.util.concurrent.{CountDownLatch, TimeUnit, TimeoutException}
 import minitest.SimpleTestSuite
-import monifu.concurrent.cancelables.SingleAssignmentCancelable
+import monifu.concurrent.atomic.Atomic
+import monifu.concurrent.cancelables.{BooleanCancelable, SingleAssignmentCancelable}
 import monifu.internal.concurrent.RunnableAction
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Promise}
@@ -93,5 +94,38 @@ object AsyncSchedulerTest extends SimpleTestSuite {
     })
 
     assert(Await.result(p.future, 5.second) == 4)
+  }
+
+  test("scheduleOnce simple runnable") {
+    val latch = new CountDownLatch(1)
+    s.scheduleOnce(RunnableAction {
+      latch.countDown()
+    })
+
+    assert(latch.await(10, TimeUnit.SECONDS), "latch.await")
+  }
+
+  test("scheduleOnce with simple runnable should cancel") {
+    val s = Scheduler.singleThread("single-threaded-test")
+    val started = new CountDownLatch(1)
+    val continue = new CountDownLatch(1)
+    val wasTriggered = new CountDownLatch(1)
+
+    s.scheduleOnce(RunnableAction {
+      started.countDown()
+      // block our thread
+      continue.await()
+    })
+
+    assert(started.await(10, TimeUnit.SECONDS), "started.await")
+    val cancelable = s.scheduleOnce(RunnableAction {
+      wasTriggered.countDown()
+    })
+
+    cancelable.cancel()
+    assert(cancelable.asInstanceOf[BooleanCancelable].isCanceled, "cancelable.isCanceled")
+    continue.countDown()
+
+    assert(!wasTriggered.await(100, TimeUnit.MILLISECONDS))
   }
 }
