@@ -35,19 +35,17 @@ import scala.util.{Failure, Success, Try}
   *
   * Compared with `Future` from Scala's standard library, `Task` does
   * not represent a running computation, as `Task` does not execute
-  * anything when working with its builders or operators, it does not
+  * anything when working with its builders or operators and it does not
   * submit any work into any thread-pool, the execution eventually
   * taking place after `runAsync` is called and not before that.
   *
-  * Also compared with Scala's `Future`, `Task` is conservative in how
-  * it spawns logical threads. Transformations like `map` and
-  * `flatMap` for example will default to being executed. But you are
-  * not guaranteed a mechanism for execution, the implementation
-  * ultimately deciding whether to
-  * execute on the local trampoline, or to spawn a thread. All you are
-  * guaranteed is that execution will be asynchronous as to not blow
-  * up the stack.  You can force the spawning of a thread by using
-  * [[Task.fork]].
+  * Note that `Task` is conservative in how it spawns logical threads.
+  * Transformations like `map` and `flatMap` for example will default
+  * to being executed on the logical thread on which the asynchronous
+  * computation was started. But one shouldn't make assumptions about
+  * how things will end up executed, as ultimately it is the
+  * implementation's job to decide on the best execution model. All
+  * you are guaranteed is asynchronous execution after executing `runAsync`.
   */
 sealed abstract class Task[+T] { self =>
   /** Characteristic function for our [[Task]]. Never use this directly.
@@ -72,16 +70,13 @@ sealed abstract class Task[+T] { self =>
     *                 be called when the execution completes
     */
   private[monifu] def stackSafeRun(scheduler: Scheduler, stackDepth: Int, callback: Callback[T]): Unit = {
-    if (stackDepth > 0 && stackDepth < Task.batchSize) try {
-      unsafeRunFn(scheduler, stackDepth+1, callback)
-    }
-    catch {
-      case NonFatal(ex) =>
-        callback.safeOnError(scheduler, stackDepth, ex)
-    }
-    else {
+    if (stackDepth > 0 && stackDepth < Scheduler.recommendedBatchSize)
+      try unsafeRunFn(scheduler, stackDepth+1, callback) catch {
+        case NonFatal(ex) =>
+          callback.safeOnError(scheduler, stackDepth, ex)
+      }
+    else
       scheduler.scheduleOnce(TaskRunnable.AsyncUnsafeRun(self, scheduler, callback))
-    }
   }
 
   /** Triggers the asynchronous execution.
@@ -468,7 +463,7 @@ object Task {
       * @param stackDepth is the current stack depth (this call included)
       */
     def safeOnSuccess(s: Scheduler, stackDepth: Int, value: T): Unit = {
-      if (stackDepth < batchSize) try {
+      if (stackDepth < Scheduler.recommendedBatchSize) try {
         onSuccess(value, stackDepth+1)
       }
       catch {
@@ -488,7 +483,7 @@ object Task {
       * @param stackDepth is the current stack depth (this call included)
       */
     def safeOnError(s: Scheduler, stackDepth: Int, ex: Throwable): Unit = {
-      if (stackDepth < batchSize)
+      if (stackDepth < Scheduler.recommendedBatchSize)
         onError(ex, stackDepth+1)
       else
         s.execute(TaskRunnable.AsyncOnError(self, ex))
@@ -501,12 +496,11 @@ object Task {
     * See [[Task.now]] instead.
     */
   private final class Now[+T](value: T) extends Task[T] {
-    def unsafeRunFn(s: Scheduler, sd: Int, cb: Callback[T]): Unit = {
+    def unsafeRunFn(s: Scheduler, sd: Int, cb: Callback[T]): Unit =
       try cb.safeOnSuccess(s, sd, value) catch {
         case NonFatal(ex) =>
           cb.safeOnError(s, sd, ex)
       }
-    }
 
     override def runAsync(implicit s: Scheduler): Future[T] =
       Future.successful(value)
@@ -525,6 +519,4 @@ object Task {
     override def runAsync(implicit s: Scheduler): Future[Nothing] =
       Future.failed(ex)
   }
-  
-  private final val batchSize = 512
 }

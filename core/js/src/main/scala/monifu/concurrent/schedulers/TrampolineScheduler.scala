@@ -18,12 +18,11 @@
 package monifu.concurrent.schedulers
 
 import java.util.concurrent.TimeUnit
-import monifu.concurrent.Scheduler.{Platform, Environment}
 import monifu.concurrent.schedulers.Timer.{clearTimeout, setTimeout}
 import monifu.concurrent.{Cancelable, UncaughtExceptionReporter}
 import scala.annotation.tailrec
 import scala.collection.mutable
-import scala.concurrent.duration.{FiniteDuration, TimeUnit}
+import scala.concurrent.duration.TimeUnit
 import scala.util.control.NonFatal
 
 
@@ -77,9 +76,6 @@ final class TrampolineScheduler private (reporter: UncaughtExceptionReporter)
 
   override def reportFailure(t: Throwable): Unit =
     reporter.reportFailure(t)
-
-  override val env =
-    Environment(256, Platform.JS)
 }
 
 object TrampolineScheduler {

@@ -18,16 +18,14 @@
 package monifu.concurrent.schedulers
 
 import java.util.concurrent.TimeUnit
-import monifu.concurrent.Scheduler.{Environment, Platform}
-import monifu.concurrent.cancelables.BooleanCancelable
 import monifu.concurrent.schedulers.Timer.{clearTimeout, setTimeout}
 import monifu.concurrent.{Cancelable, UncaughtExceptionReporter}
 
 /**
- * An `AsyncScheduler` schedules tasks to happen in the future with
- * the given `ScheduledExecutorService` and the tasks themselves are
- * executed on the given `ExecutionContext`.
- */
+  * An `AsyncScheduler` schedules tasks to happen in the future with
+  * the given `ScheduledExecutorService` and the tasks themselves are
+  * executed on the given `ExecutionContext`.
+  */
 final class AsyncScheduler private (reporter: UncaughtExceptionReporter)
   extends ReferenceScheduler {
 
@@ -52,8 +50,6 @@ final class AsyncScheduler private (reporter: UncaughtExceptionReporter)
 
   override def reportFailure(t: Throwable): Unit =
     reporter.reportFailure(t)
-
-  override val env = Environment(256, Platform.JS)
 }
 
 object AsyncScheduler {

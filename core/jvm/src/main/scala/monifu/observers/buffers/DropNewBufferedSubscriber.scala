@@ -18,6 +18,7 @@
 package monifu.observers.buffers
 
 import java.util.concurrent.ConcurrentLinkedQueue
+import monifu.concurrent.Scheduler
 import monifu.concurrent.atomic.padded.Atomic
 import monifu.Ack.{Cancel, Continue}
 import monifu.observers.{BufferedSubscriber, SynchronousSubscriber}
@@ -48,7 +49,7 @@ private[buffers] final class DropNewBufferedSubscriber[-T] private
   // side in order to know how many items to process and when to stop
   private[this] val queue = new ConcurrentLinkedQueue[T]()
   // Used on the consumer side to split big synchronous workloads in batches
-  private[this] val batchSizeModulus = scheduler.env.batchSize - 1
+  private[this] val batchSizeModulus = Scheduler.recommendedBatchSize - 1
 
   @tailrec
   def onNext(elem: T): Ack = {

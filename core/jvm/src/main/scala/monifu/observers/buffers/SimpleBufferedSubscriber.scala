@@ -19,6 +19,7 @@ package monifu.observers.buffers
 
 import java.util.concurrent.ConcurrentLinkedQueue
 
+import monifu.concurrent.Scheduler
 import monifu.concurrent.atomic.padded.Atomic
 import monifu.Ack.{Cancel, Continue}
 import monifu.exceptions.BufferOverflowException
@@ -47,7 +48,7 @@ private[buffers] final class SimpleBufferedSubscriber[-T] private
 
   implicit val scheduler = underlying.scheduler
   private[this] val queue = new ConcurrentLinkedQueue[T]()
-  private[this] val batchSizeModulus = scheduler.env.batchSize - 1
+  private[this] val batchSizeModulus = Scheduler.recommendedBatchSize - 1
 
   // to be modified only in onError, before upstreamIsComplete
   private[this] var errorThrown: Throwable = null

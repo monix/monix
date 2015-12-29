@@ -17,6 +17,7 @@
 
 package monifu.observers.buffers
 
+import monifu.concurrent.Scheduler
 import monifu.internal.collection.{EvictingQueue, DropHeadOnOverflowQueue, DropAllOnOverflowQueue}
 import monifu.Ack.{Cancel, Continue}
 import monifu.observers.{BufferedSubscriber, SynchronousSubscriber}
@@ -46,7 +47,7 @@ private[buffers] final class EvictingBufferedSubscriber[-T] private
   // events being dropped
   private[this] var eventsDropped = 0L
   // MUST only be accessed within the consumer loop
-  private[this] val consumerBuffer = new Array[AnyRef](scheduler.env.batchSize)
+  private[this] val consumerBuffer = new Array[AnyRef](Scheduler.recommendedBatchSize)
 
   def onNext(elem: T): Ack = self.synchronized {
     if (!upstreamIsComplete && !downstreamIsDone) {

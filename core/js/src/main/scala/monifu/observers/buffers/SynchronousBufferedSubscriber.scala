@@ -17,6 +17,7 @@
 
 package monifu.observers.buffers
 
+import monifu.concurrent.Scheduler
 import monifu.internal.collection.{EvictingQueue, DropHeadOnOverflowQueue, DropAllOnOverflowQueue}
 import monifu.Ack.{Cancel, Continue}
 import monifu.exceptions.BufferOverflowException
@@ -46,7 +47,7 @@ private[buffers] final class SynchronousBufferedSubscriber[-T] private
   // events being dropped
   private[this] var eventsDropped = 0L
   // Used on the consumer side to split big synchronous workloads in batches
-  private[this] val batchSizeModulus = scheduler.env.batchSize - 1
+  private[this] val batchSizeModulus = Scheduler.recommendedBatchSize - 1
 
   def onNext(elem: T): Ack = {
     if (!upstreamIsComplete && !downstreamIsDone) {

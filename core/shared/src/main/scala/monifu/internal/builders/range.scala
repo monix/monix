@@ -19,6 +19,7 @@ package monifu.internal.builders
 
 import monifu.Ack.Continue
 import monifu.Observable
+import monifu.concurrent.Scheduler
 import scala.annotation.tailrec
 import scala.util.Failure
 
@@ -34,7 +35,7 @@ private[monifu] object range {
 
       def scheduleLoop(from: Long, until: Long, step: Long): Unit =
         s.execute(new Runnable {
-          private[this] val modulus = s.env.batchSize - 1
+          private[this] val modulus = Scheduler.recommendedBatchSize - 1
 
           private[this] def isInRange(x: Long): Boolean = {
             (step > 0 && x < until) || (step < 0 && x > until)

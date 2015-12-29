@@ -45,7 +45,7 @@ trait Subject[I, +T] extends Observable[T] with Observer[I]
     }
 
   override def toReactive[U >: T](implicit s: Scheduler): Processor[I, U] =
-    Subject.toReactiveProcessor(self, s.env.batchSize)
+    Subject.toReactiveProcessor(self, Scheduler.recommendedBatchSize)
 
   def toReactive[U >: T](bufferSize: Int)(implicit s: Scheduler): Processor[I, U] =
     Subject.toReactiveProcessor(self, bufferSize)

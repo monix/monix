@@ -18,6 +18,7 @@
 package monifu.internal.builders
 
 import minitest.TestSuite
+import monifu.concurrent.Scheduler
 import monifu.concurrent.schedulers.TestScheduler
 import monifu.Ack.Continue
 import monifu.Observable
@@ -43,13 +44,13 @@ object FromStateActionSuite extends TestSuite[TestScheduler] {
   test("should do synchronous execution in batches") { implicit s =>
     var received = 0
     Observable.fromStateAction(int)(s.currentTimeMillis())
-      .take(s.env.batchSize * 2)
+      .take(Scheduler.recommendedBatchSize * 2)
       .subscribe { x => received += 1; Continue }
 
     s.tickOne()
-    assertEquals(received, s.env.batchSize)
+    assertEquals(received, Scheduler.recommendedBatchSize)
     s.tickOne()
-    assertEquals(received, s.env.batchSize * 2)
+    assertEquals(received, Scheduler.recommendedBatchSize * 2)
     s.tickOne()
   }
 

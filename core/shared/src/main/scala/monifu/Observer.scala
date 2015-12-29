@@ -27,18 +27,17 @@ import scala.concurrent.{Future, Promise}
 import scala.util.control.NonFatal
 
 
-/**
- * The Observer from the Rx pattern is the trio of callbacks that
- * get subscribed to an Observable for receiving events.
- *
- * The events received must follow the Rx grammar, which is:
- *      onNext *   (onComplete | onError)?
- *
- * That means an Observer can receive zero or multiple events, the stream
- * ending either in one or zero `onComplete` or `onError` (just one, not both),
- * and after onComplete or onError, a well behaved Observable implementation
- * shouldn't send any more onNext events.
- */
+/** The Observer from the Rx pattern is the trio of callbacks that
+  * get subscribed to an Observable for receiving events.
+  *
+  * The events received must follow the Rx grammar, which is:
+  *      onNext *   (onComplete | onError)?
+  *
+  * That means an Observer can receive zero or multiple events, the stream
+  * ending either in one or zero `onComplete` or `onError` (just one, not both),
+  * and after onComplete or onError, a well behaved Observable implementation
+  * shouldn't send any more onNext events.
+  */
 trait Observer[-T] {
   def onNext(elem: T): Future[Ack]
 
@@ -48,35 +47,32 @@ trait Observer[-T] {
 }
 
 object Observer {
-  /**
-   * Given an `org.reactivestreams.Subscriber` as defined by the 
-   * [[http://www.reactive-streams.org/ Reactive Streams]] specification, 
-   * it builds an [[Observer]] instance compliant with the 
-   * Monifu Rx implementation.
-   */
+  /** Given an `org.reactivestreams.Subscriber` as defined by the
+    * [[http://www.reactive-streams.org/ Reactive Streams]] specification,
+    * it builds an [[Observer]] instance compliant with the
+    * Monifu Rx implementation.
+    */
   def fromReactiveSubscriber[T](subscriber: RSubscriber[T])(implicit s: Scheduler): Subscriber[T] = {
     ReactiveSubscriberAsMonifuSubscriber(subscriber)
   }
 
-  /**
-   * Transforms the source [[Observer]] into a `org.reactivestreams.Subscriber`
-   * instance as defined by the [[http://www.reactive-streams.org/ Reactive Streams]]
-   * specification.
-   */
+  /** Transforms the source [[Observer]] into a `org.reactivestreams.Subscriber`
+    * instance as defined by the [[http://www.reactive-streams.org/ Reactive Streams]]
+    * specification.
+    */
   def toReactiveSubscriber[T](observer: Observer[T])(implicit s: Scheduler): RSubscriber[T] = {
-    toReactiveSubscriber(observer, s.env.batchSize)(s)
+    toReactiveSubscriber(observer, Scheduler.recommendedBatchSize)(s)
   }
 
-  /**
-   * Transforms the source [[Observer]] into a `org.reactivestreams.Subscriber`
-   * instance as defined by the [[http://www.reactive-streams.org/ Reactive Streams]]
-   * specification.
-   *
-   * @param bufferSize a strictly positive number, representing the size
-   *                   of the buffer used and the number of elements requested
-   *                   on each cycle when communicating demand, compliant with
-   *                   the reactive streams specification
-   */
+  /** Transforms the source [[Observer]] into a `org.reactivestreams.Subscriber`
+    * instance as defined by the [[http://www.reactive-streams.org/ Reactive Streams]]
+    * specification.
+    *
+    * @param bufferSize a strictly positive number, representing the size
+    *                   of the buffer used and the number of elements requested
+    *                   on each cycle when communicating demand, compliant with
+    *                   the reactive streams specification
+    */
   def toReactiveSubscriber[T](observer: Observer[T], bufferSize: Int)(implicit s: Scheduler): RSubscriber[T] = {
     require(bufferSize > 0, "requestCount > 0")
     observer match {
@@ -88,11 +84,10 @@ object Observer {
     }
   }
 
-  /**
-   * Feeds the given [[Observer]] instance with elements from the given iterable,
-   * respecting the contract and returning a `Future[Ack]` with the last
-   * acknowledgement given after the last emitted element.
-   */
+  /** Feeds the given [[Observer]] instance with elements from the given iterable,
+    * respecting the contract and returning a `Future[Ack]` with the last
+    * acknowledgement given after the last emitted element.
+    */
   def feed[T](source: Observer[T], iterable: Iterable[T])(implicit s: Scheduler): Future[Ack] = {
     try feed(source, iterable.iterator) catch {
       case NonFatal(ex) =>
@@ -101,15 +96,14 @@ object Observer {
     }
   }
 
-  /**
-   * Feeds the given [[Observer]] instance with elements from the given iterator,
-   * respecting the contract and returning a `Future[Ack]` with the last
-   * acknowledgement given after the last emitted element.
-   */
+  /** Feeds the given [[Observer]] instance with elements from the given iterator,
+    * respecting the contract and returning a `Future[Ack]` with the last
+    * acknowledgement given after the last emitted element.
+    */
   def feed[T](source: Observer[T], iterator: Iterator[T])(implicit s: Scheduler): Future[Ack] = {
     def scheduleFeedLoop(promise: Promise[Ack], iterator: Iterator[T]): Future[Ack] = {
       s.execute(new Runnable {
-        private[this] val modulus = s.env.batchSize - 1
+        private[this] val modulus = Scheduler.recommendedBatchSize - 1
 
         @tailrec
         def fastLoop(syncIndex: Int): Unit = {
@@ -163,44 +157,38 @@ object Observer {
     }
   }
 
-  /**
-   * Extension methods for [[Observer]].
-   */
+  /** Extension methods for [[Observer]]. */
   implicit class Extensions[T](val source: Observer[T]) extends AnyVal {
-    /**
-     * Transforms the source [[Observer]] into a `org.reactivestreams.Subscriber`
-     * instance as defined by the [[http://www.reactive-streams.org/ Reactive Streams]]
-     * specification.
-     */
+    /** Transforms the source [[Observer]] into a `org.reactivestreams.Subscriber`
+      * instance as defined by the [[http://www.reactive-streams.org/ Reactive Streams]]
+      * specification.
+      */
     def toReactive(implicit s: Scheduler): RSubscriber[T] =
       Observer.toReactiveSubscriber(source)
 
-    /**
-     * Transforms the source [[Observer]] into a `org.reactivestreams.Subscriber`
-     * instance as defined by the [[http://www.reactive-streams.org/ Reactive Streams]]
-     * specification.
-     *
-     * @param bufferSize a strictly positive number, representing the size
-     *                   of the buffer used and the number of elements requested
-     *                   on each cycle when communicating demand, compliant with
-     *                   the reactive streams specification
-     */
+    /** Transforms the source [[Observer]] into a `org.reactivestreams.Subscriber`
+      * instance as defined by the [[http://www.reactive-streams.org/ Reactive Streams]]
+      * specification.
+      *
+      * @param bufferSize a strictly positive number, representing the size
+      *                   of the buffer used and the number of elements requested
+      *                   on each cycle when communicating demand, compliant with
+      *                   the reactive streams specification
+      */
     def toReactive(bufferSize: Int)(implicit s: Scheduler): RSubscriber[T] =
       Observer.toReactiveSubscriber(source, bufferSize)
 
-    /**
-     * Feeds the source [[Observer]] with elements from the given iterable,
-     * respecting the contract and returning a `Future[Ack]` with the last
-     * acknowledgement given after the last emitted element.
-     */
+    /** Feeds the source [[Observer]] with elements from the given iterable,
+      * respecting the contract and returning a `Future[Ack]` with the last
+      * acknowledgement given after the last emitted element.
+      */
     def feed(iterable: Iterable[T])(implicit s: Scheduler): Future[Ack] =
       Observer.feed(source, iterable)
 
-    /**
-     * Feeds the source [[Observer]] with elements from the given iterator,
-     * respecting the contract and returning a `Future[Ack]` with the last
-     * acknowledgement given after the last emitted element.
-     */
+    /** Feeds the source [[Observer]] with elements from the given iterator,
+      * respecting the contract and returning a `Future[Ack]` with the last
+      * acknowledgement given after the last emitted element.
+      */
     def feed(iterator: Iterator[T])(implicit s: Scheduler): Future[Ack] =
       Observer.feed(source, iterator)
   }

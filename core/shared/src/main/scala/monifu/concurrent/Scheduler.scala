@@ -18,13 +18,11 @@
 package monifu.concurrent
 
 import java.util.concurrent.TimeUnit
-
-import monifu.concurrent.Scheduler.Environment
 import monifu.concurrent.schedulers.SchedulerCompanion
 import monifu.internal.math
-import math.roundToPowerOf2
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
+import scala.util.Try
 
 /** A Scheduler is an `scala.concurrent.ExecutionContext` that additionally can
   * schedule the execution of units of work to run with a delay or periodically.
@@ -140,71 +138,39 @@ trait Scheduler extends ExecutionContext with UncaughtExceptionReporter {
     * [[monifu.concurrent.schedulers.TestScheduler TestScheduler]])
     */
   def currentTimeMillis(): Long
-
-  /** Information about the environment on top of
-    * which our scheduler runs on.
-    */
-  def env: Environment
 }
 
 object Scheduler extends SchedulerCompanion {
-  /**
-   * Information about the environment on top of which
-   * our scheduler runs on.
-   */
-  final class Environment private
-    (_batchSize: Int, _platform: Platform.Value) {
-
-    /**
-     * Recommended batch size used for breaking synchronous loops in
-     * asynchronous batches. When streaming value from a producer to
-     * a synchronous consumer it's recommended to break the streaming
-     * in batches as to not hold the current thread or run-loop
-     * indefinitely.
-     *
-     * Working with power of 2, because then for applying the modulo
-     * operation we can just do:
-     * {{{
-     *   val modulus = scheduler.env.batchSize - 1
-     *   // ...
-     *   nr = (nr + 1) & modulus
-     * }}}
-     */
-    val batchSize: Int =
-      roundToPowerOf2(_batchSize)
-
-    /**
-     * Represents the platform our scheduler runs on.
-     */
-    val platform: Platform.Value =
-      _platform
-
-    override def equals(other: Any): Boolean = other match {
-      case that: Environment =>
-        batchSize == that.batchSize &&
-        platform == that.platform
-      case _ => false
-    }
-
-    override val hashCode: Int = {
-      val state = Seq(batchSize.hashCode(), platform.hashCode())
-      state.foldLeft(0)((a, b) => 31 * a + b)
-    }
-  }
-
-  object Environment {
-    /** Builder for [[Environment]] */
-    def apply(batchSize: Int, platform: Platform.Value): Environment = {
-      new Environment(batchSize, platform)
-    }
-  }
-
-  /**
-   * Represents the platform our scheduler runs on.
-   */
-  object Platform extends Enumeration {
-    val JVM = Value("JVM")
-    val JS = Value("JS")
-    val Fake = Value("Fake")
+  /** Recommended batch size used for breaking synchronous loops in
+    * asynchronous batches. When streaming value from a producer to
+    * a synchronous consumer it's recommended to break the streaming
+    * in batches as to not hold the current thread or run-loop
+    * indefinitely.
+    *
+    * Rounding up to the closest power of 2, because then for
+    * applying the modulo operation we can just do:
+    * {{{
+    *   val modulus = scheduler.env.batchSize - 1
+    *   // ...
+    *   nr = (nr + 1) & modulus
+    * }}}
+    *
+    * Can be configured by setting Java properties:
+    *
+    * <pre>
+    *   java -Dmonifu.environment.batchSize=256 \
+    *        ...
+    * </pre>
+    */
+  final val recommendedBatchSize: Int = {
+    import monifu.internal.Platform
+    if (Platform.isJVM)
+      Option(System.getProperty("monifu.environment.batchSize", ""))
+        .filter(s => s != null && s.nonEmpty)
+        .flatMap(s => Try(s.toInt).toOption)
+        .map(math.nextPowerOf2)
+        .getOrElse(512)
+    else
+      256
   }
 }

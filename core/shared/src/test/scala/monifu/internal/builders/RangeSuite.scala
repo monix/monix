@@ -18,10 +18,10 @@
 package monifu.internal.builders
 
 import minitest.TestSuite
+import monifu.Ack.Continue
+import monifu.concurrent.Scheduler
 import monifu.concurrent.extensions._
 import monifu.concurrent.schedulers.TestScheduler
-import monifu.Ack.Continue
-import monifu.internal.builders.RepeatOneSuite._
 import monifu.{Observable, Observer}
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -116,13 +116,13 @@ object RangeSuite extends TestSuite[TestScheduler] {
 
   test("should do synchronous execution in batches") { implicit s =>
     var received = 0
-    Observable.range(0, s.env.batchSize * 2).map(_ => 1)
+    Observable.range(0, Scheduler.recommendedBatchSize * 2).map(_ => 1)
       .subscribe { x => received += 1; Continue }
 
     s.tickOne()
-    assertEquals(received, s.env.batchSize)
+    assertEquals(received, Scheduler.recommendedBatchSize)
     s.tickOne()
-    assertEquals(received, s.env.batchSize * 2)
+    assertEquals(received, Scheduler.recommendedBatchSize * 2)
     s.tickOne()
   }
 }

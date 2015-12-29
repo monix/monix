@@ -18,11 +18,10 @@
 package monifu.internal.builders
 
 import java.util.concurrent.Callable
-
 import monifu.Ack.{Cancel, Continue}
+import monifu.concurrent.Scheduler
 import monifu.{Subscriber, Ack, Observable}
 import monifu.internal._
-
 import scala.annotation.tailrec
 import scala.concurrent.Future
 import scala.util.{Try, Failure, Success}
@@ -52,7 +51,7 @@ private[monifu] object from {
   def iterator[T](iterator: Iterator[T]): Observable[T] = {
     Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
-      val modulus = s.env.batchSize - 1
+      val modulus = Scheduler.recommendedBatchSize - 1
 
       def startFeedLoop(iterator: Iterator[T]): Unit = s.execute(new Runnable {
         /**
@@ -253,7 +252,7 @@ private[monifu] object from {
 
     import o.{scheduler => s}
     private[this] var seed = initialSeed
-    private[this] val modulus = s.env.batchSize - 1
+    private[this] val modulus = Scheduler.recommendedBatchSize - 1
 
     private[this] val asyncReschedule: Try[Ack] => Unit = {
       case Continue.IsSuccess =>

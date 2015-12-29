@@ -18,6 +18,7 @@
 package monifu.observers
 
 import minitest.TestSuite
+import monifu.concurrent.Scheduler
 import monifu.concurrent.schedulers.TestScheduler
 import monifu.Ack.{Cancel, Continue}
 import monifu.OverflowStrategy.DropNew
@@ -311,7 +312,7 @@ object BufferDropNewSuite extends TestSuite[TestScheduler] {
     var received = 0L
     var wasCompleted = false
 
-    val buffer = buildNew(s.env.batchSize * 3, new Observer[Int] {
+    val buffer = buildNew(Scheduler.recommendedBatchSize * 3, new Observer[Int] {
       def onNext(elem: Int) = {
         received += 1
         Continue
@@ -321,14 +322,14 @@ object BufferDropNewSuite extends TestSuite[TestScheduler] {
       def onComplete() = wasCompleted = true
     })
 
-    for (i <- 0 until (s.env.batchSize * 2)) buffer.onNext(i)
+    for (i <- 0 until (Scheduler.recommendedBatchSize * 2)) buffer.onNext(i)
     buffer.onComplete()
     assertEquals(received, 0)
 
     s.tickOne()
-    assertEquals(received, s.env.batchSize)
+    assertEquals(received, Scheduler.recommendedBatchSize)
     s.tickOne()
-    assertEquals(received, s.env.batchSize * 2)
+    assertEquals(received, Scheduler.recommendedBatchSize * 2)
     s.tickOne()
     assertEquals(wasCompleted, true)
   }

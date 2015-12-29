@@ -18,6 +18,7 @@
 package monifu.internal.builders
 
 import minitest.TestSuite
+import monifu.concurrent.Scheduler
 import monifu.concurrent.extensions._
 import monifu.concurrent.schedulers.TestScheduler
 import monifu.Ack.{Cancel, Continue}
@@ -60,7 +61,7 @@ object FromIterableSuite extends TestSuite[TestScheduler] {
     var wasCompleted = false
     var sum = 0
 
-    Observable.fromIterable(0 until (s.env.batchSize * 2)).unsafeSubscribeFn(
+    Observable.fromIterable(0 until (Scheduler.recommendedBatchSize * 2)).unsafeSubscribeFn(
       new Observer[Int] {
         def onNext(elem: Int) = {
           sum += 1
@@ -75,9 +76,9 @@ object FromIterableSuite extends TestSuite[TestScheduler] {
     assertEquals(sum, 0)
 
     assert(s.tickOne())
-    assertEquals(sum, s.env.batchSize)
+    assertEquals(sum, Scheduler.recommendedBatchSize)
     assert(s.tickOne())
-    assertEquals(sum, s.env.batchSize * 2)
+    assertEquals(sum, Scheduler.recommendedBatchSize * 2)
     s.tickOne()
     assert(wasCompleted)
   }

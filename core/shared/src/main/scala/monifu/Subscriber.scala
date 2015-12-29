@@ -66,7 +66,7 @@ object Subscriber {
    * specification.
    */
   def toReactiveSubscriber[T](subscriber: Subscriber[T]): RSubscriber[T] = {
-    toReactiveSubscriber(subscriber, subscriber.scheduler.env.batchSize)
+    toReactiveSubscriber(subscriber, Scheduler.recommendedBatchSize)
   }
 
   /**

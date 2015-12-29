@@ -18,6 +18,7 @@
 package monifu.observers
 
 import minitest.TestSuite
+import monifu.concurrent.Scheduler
 import monifu.concurrent.schedulers.TestScheduler
 import monifu.Ack.{Cancel, Continue}
 import monifu.OverflowStrategy.DropOld
@@ -305,16 +306,16 @@ object BufferDropOldSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable) = ()
         def onComplete() = wasCompleted = true
         val scheduler = s
-      }, DropOld(s.env.batchSize * 3))
+      }, DropOld(Scheduler.recommendedBatchSize * 3))
 
-    for (i <- 0 until (s.env.batchSize * 2)) buffer.onNext(i)
+    for (i <- 0 until (Scheduler.recommendedBatchSize * 2)) buffer.onNext(i)
     buffer.onComplete()
     assertEquals(received, 0)
 
     s.tickOne()
-    assertEquals(received, s.env.batchSize)
+    assertEquals(received, Scheduler.recommendedBatchSize)
     s.tickOne()
-    assertEquals(received, s.env.batchSize * 2)
+    assertEquals(received, Scheduler.recommendedBatchSize * 2)
     s.tickOne()
     assertEquals(wasCompleted, true)
   }
