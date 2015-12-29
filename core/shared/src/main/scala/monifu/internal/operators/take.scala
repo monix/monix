@@ -135,7 +135,7 @@ private[monifu] object take {
 
       source.unsafeSubscribeFn(new Observer[T] with Runnable {
         private[this] var isActive = true
-        private[this] val task = s.scheduleOnce(timespan, this)
+        private[this] val task = s.scheduleOnce(timespan.length, timespan.unit, this)
 
         def onNext(elem: T): Future[Ack] = synchronized {
           if (isActive)

@@ -29,9 +29,7 @@ import scala.concurrent.duration.{TimeUnit, Duration, FiniteDuration}
 import scala.util.Random
 import scala.util.control.NonFatal
 
-/**
- * A scheduler meant for testing purposes.
- */
+/** A scheduler meant for testing purposes. */
 final class TestScheduler private () extends ReferenceScheduler {
   /*
    * The `internalClock` is used for executing tasks. Upon calling [[tick]], the
@@ -48,20 +46,21 @@ final class TestScheduler private () extends ReferenceScheduler {
   override def currentTimeMillis(): Long =
     state.get.clock.toMillis
 
-  def scheduleOnce(initialDelay: FiniteDuration, r: Runnable): Cancelable =
-    state.transformAndExtract(_.scheduleOnce(initialDelay, r))
-
-  def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable =
+  override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable =
     state.transformAndExtract(_.scheduleOnce(FiniteDuration(initialDelay, unit), r))
 
   private[this] def cancelTask(t: Task): Unit =
     state.transform(s => s.copy(tasks = s.tasks - t))
 
-  def execute(runnable: Runnable): Unit = {
+  override def execute(runnable: Runnable): Unit = {
     state.transform(_.execute(runnable))
   }
 
-  def reportFailure(t: Throwable): Unit = {
+  override def scheduleOnce(r: Runnable): Cancelable = {
+    state.transformAndExtract(_.scheduleOnce(r))
+  }
+
+  override def reportFailure(t: Throwable): Unit = {
     state.transform(_.copy(lastReportedError = t))
   }
 
@@ -142,21 +141,19 @@ final class TestScheduler private () extends ReferenceScheduler {
     loop(time, result = false)
   }
 
-  val env = Environment(256, Platform.Fake)
+  override val env =
+    Environment(256, Platform.Fake)
 }
 
 object TestScheduler {
-  /**
-   * Builder for [[TestScheduler]].
-   */
+  /** Builder for [[TestScheduler]]. */
   def apply(): TestScheduler = {
     new TestScheduler()
   }
 
-  /**
-   * Used internally by [[TestScheduler]], represents a
-   * unit of work pending execution.
-   */
+  /** Used internally by [[TestScheduler]], represents a
+    * unit of work pending execution.
+    */
   case class Task(id: Long, task: Runnable, runsAt: FiniteDuration)
 
   object Task {
@@ -174,10 +171,9 @@ object TestScheduler {
       }
   }
 
-  /**
-   * Used internally by [[TestScheduler]], represents the internal
-   * state used for task scheduling and execution.
-   */
+  /** Used internally by [[TestScheduler]], represents the internal
+    * state used for task scheduling and execution.
+    */
   case class State(
     lastID: Long,
     clock: FiniteDuration,
@@ -188,18 +184,27 @@ object TestScheduler {
     assert(!tasks.headOption.exists(_.runsAt < clock),
       "The runsAt for any task must never be in the past")
 
-    /**
-     * Returns a new state with the runnable scheduled for execution.
-     */
+    /** Returns a new state with the runnable scheduled for execution. */
     def execute(runnable: Runnable): State = {
       val newID = lastID + 1
       val task = Task(newID, runnable, clock)
       copy(lastID = newID, tasks = tasks + task)
     }
 
-    /**
-     * Returns a new state with a scheduled task included.
-     */
+    def scheduleOnce(r: Runnable): (Cancelable, State) = {
+      val newID = lastID + 1
+      val cancelable = SingleAssignmentCancelable()
+
+      val task = Task(newID, r, clock)
+      cancelable := Cancelable { cancelTask(task) }
+
+      (cancelable, copy(
+        lastID = newID,
+        tasks = tasks + task
+      ))
+    }
+
+    /** Returns a new state with a scheduled task included. */
     def scheduleOnce(delay: FiniteDuration, r: Runnable): (Cancelable, State) = {
       require(delay >= Duration.Zero, "The given delay must be positive")
 

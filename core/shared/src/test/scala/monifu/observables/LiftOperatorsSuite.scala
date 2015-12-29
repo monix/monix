@@ -63,7 +63,7 @@ object LiftOperatorsSuite extends SimpleTestSuite {
 
   test("GroupedObservables should work") {
     implicit val s = TestScheduler()
-    val (in,out) = GroupedObservable.broadcast[Int,Int](10, Cancelable())
+    val (in,out) = GroupedObservable.broadcast[Int,Int](10, Cancelable.empty)
     val result: GroupedObservable[Int, Int] = out.sum
     val f = result.map(_ + result.key).asFuture
 

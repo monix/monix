@@ -20,6 +20,7 @@ package monifu.concurrent
 import monifu.concurrent.Task.Callback
 import monifu.concurrent.cancelables._
 import monifu.concurrent.atomic.padded.Atomic
+import monifu.internal.TaskCollapsibleCancelable
 import scala.annotation.tailrec
 import scala.collection.generic.CanBuildFrom
 import scala.concurrent.duration.FiniteDuration
@@ -56,8 +57,10 @@ sealed abstract class Task[+T] { self =>
     *                  fork threads, schedule with delay and to report errors
     * @param callback is the pair of `onSuccess` and `onError` methods that will
     *                 be called when the execution completes
+    *
+    * @return a [[Cancelable]] that can be used to cancel the in progress async computation
     */
-  protected def unsafeRunFn(scheduler: Scheduler, callback: Callback[T]): Unit
+  private[monifu] def unsafeRunFn(scheduler: Scheduler, callback: Callback[T]): Cancelable
 
   /** Triggers the asynchronous execution.
     *
@@ -76,14 +79,26 @@ sealed abstract class Task[+T] { self =>
     * {{{
     *   Task.fork(task).runAsync
     * }}}
+    *
+    * @return a [[CancelableFuture]] that can be used to extract the result or
+    *         to cancel the in progress async computation
     */
-  def runAsync(implicit s: Scheduler): Future[T] = {
+  def runAsync(implicit s: Scheduler): CancelableFuture[T] = {
     val p = Promise[T]()
-    unsafeRunFn(s, Callback.safe(new Callback[T] {
-      def onSuccess(value: T) = p.trySuccess(value)
-      def onError(ex: Throwable) = p.tryFailure(ex)
-    }))
-    p.future
+    val task = self.unsafeRunFn(s, new Callback[T] {
+      def onError(ex: Throwable): Unit =
+        p.tryFailure(ex)
+
+      def onSuccess(value: T): Unit =
+        p.trySuccess(value)
+    })
+
+    val cancelable = Cancelable {
+      p.tryFailure(new scala.concurrent.CancellationException)
+      task.cancel()
+    }
+
+    CancelableFuture(p.future, cancelable)
   }
 
   /** Triggers the asynchronous execution.
@@ -108,8 +123,10 @@ sealed abstract class Task[+T] { self =>
     * }}}
     *
     * @param f is a function that will be called with the result on complete
+    *
+    * @return a [[Cancelable]] that can be used to cancel the in progress async computation
     */
-  def runAsync(f: Try[T] => Unit)(implicit s: Scheduler): Unit =
+  def runAsync(f: Try[T] => Unit)(implicit s: Scheduler): Cancelable =
     unsafeRunFn(s, Callback.safe(new Callback[T] {
       def onSuccess(value: T) = f(Success(value))
       def onError(ex: Throwable) = f(Failure(ex))
@@ -140,15 +157,22 @@ sealed abstract class Task[+T] { self =>
     */
   def flatten[U](implicit ev: T <:< Task[U]): Task[U] =
     Task.unsafeCreate { (s,cb) =>
-      self.unsafeRunFn(s, new Callback[T] {
+      val cancelable = TaskCollapsibleCancelable()
+
+      cancelable() = self.unsafeRunFn(s, new Callback[T] {
         def onError(ex: Throwable): Unit =
           cb.asyncOnError(s, ex)
 
         def onSuccess(value: T): Unit = {
-          val r = new Runnable { def run() = value.unsafeRunFn(s,cb) }
+          val r = new Runnable { def run() =
+            cancelable() = value.unsafeRunFn(s,cb)
+          }
+
           if (!Trampoline.tryExecute(r, s)) s.execute(r)
         }
       })
+
+      cancelable
     }
 
   /** Creates a new Task by applying a function to the successful
@@ -157,7 +181,9 @@ sealed abstract class Task[+T] { self =>
     */
   def flatMap[U](f: T => Task[U]): Task[U] =
     Task.unsafeCreate[U] { (s,cb) =>
-      self.unsafeRunFn(s, new Callback[T] {
+      val cancelable = TaskCollapsibleCancelable()
+
+      cancelable() = self.unsafeRunFn(s, new Callback[T] {
         def onError(ex: Throwable): Unit =
           cb.asyncOnError(s, ex)
 
@@ -165,7 +191,8 @@ sealed abstract class Task[+T] { self =>
           // protection against user code
           try {
             val taskU = f(value)
-            val r = new Runnable { def run() = taskU.unsafeRunFn(s,cb) }
+            val r = new Runnable { def run() =
+              cancelable() = taskU.unsafeRunFn(s,cb) }
             if (!Trampoline.tryExecute(r, s)) s.execute(r)
           } catch {
             case NonFatal(ex) =>
@@ -173,6 +200,8 @@ sealed abstract class Task[+T] { self =>
           }
         }
       })
+
+      cancelable
     }
 
   /** Returns a task that waits for the specified `timespan` before
@@ -180,13 +209,15 @@ sealed abstract class Task[+T] { self =>
     */
   def delay(timespan: FiniteDuration): Task[T] =
     Task.unsafeCreate[T] { (s, callback) =>
+      val cancelable = TaskCollapsibleCancelable()
       // delaying execution
-      s.scheduleOnce(timespan,
+      cancelable() = s.scheduleOnce(timespan,
         new Runnable {
           override def run(): Unit = {
-            self.unsafeRunFn(s, callback)
+            cancelable() = self.unsafeRunFn(s, callback)
           }
         })
+      cancelable
     }
 
   /** Returns a failed projection of this task.
@@ -233,14 +264,16 @@ sealed abstract class Task[+T] { self =>
     */
   def onErrorRecoverWith[U >: T](pf: PartialFunction[Throwable, Task[U]]): Task[U] =
     Task.unsafeCreate { (s,cb) =>
-      self.unsafeRunFn(s, new Callback[T] {
+      val cancelable = TaskCollapsibleCancelable()
+
+      cancelable() = self.unsafeRunFn(s, new Callback[T] {
         def onSuccess(v: T) = cb.asyncOnSuccess(s,v)
 
         def onError(ex: Throwable): Unit =
           try {
             if (pf.isDefinedAt(ex)) {
               val newTask = pf(ex)
-              newTask.unsafeRunFn(s,cb)
+              cancelable() = newTask.unsafeRunFn(s,cb)
             } else {
               cb.asyncOnError(s,ex)
             }
@@ -250,33 +283,35 @@ sealed abstract class Task[+T] { self =>
               cb.asyncOnError(s, err)
           }
       })
+
+      cancelable
     }
 
   /** Returns a Task that mirrors the source Task but that triggers a
     * `TimeoutException` in case the given duration passes without the
     * task emitting any item.
     */
-  def timeout(after: FiniteDuration): Task[T] = {
+  def timeout(after: FiniteDuration): Task[T] =
     Task.unsafeCreate { (s,cb) =>
-      val timeoutTask = SingleAssignmentCancelable()
+      val cancelable =  CompositeCancelable()
 
-      timeoutTask := s.scheduleOnce(after,
+      cancelable add s.scheduleOnce(after.length, after.unit,
         new Runnable {
           def run(): Unit = {
-            if (timeoutTask.cancel())
-              cb.onError(
-                new TimeoutException(s"Task timed-out after $after of inactivity"))
+            if (cancelable.cancel())
+              cb.onError(new TimeoutException(s"Task timed-out after $after of inactivity"))
           }
         })
 
-      self.unsafeRunFn(s, new Callback[T] {
+      cancelable add self.unsafeRunFn(s, new Callback[T] {
         def onSuccess(v: T): Unit =
-          if (timeoutTask.cancel()) cb.asyncOnSuccess(s,v)
+          if (cancelable.cancel()) cb.asyncOnSuccess(s,v)
         def onError(ex: Throwable): Unit =
-          if (timeoutTask.cancel()) cb.asyncOnError(s,ex)
+          if (cancelable.cancel()) cb.asyncOnError(s,ex)
       })
+
+      cancelable
     }
-  }
 
   /** Returns a Task that mirrors the source Task but switches to
     * the given backup Task in case the given duration passes without the
@@ -284,32 +319,36 @@ sealed abstract class Task[+T] { self =>
     */
   def timeout[U >: T](after: FiniteDuration, backup: Task[U]): Task[U] =
     Task.unsafeCreate { (s,cb) =>
-      val timeoutTask = SingleAssignmentCancelable()
+      val composite = CompositeCancelable()
+      val cancelable = TaskCollapsibleCancelable(composite)
 
-      timeoutTask := s.scheduleOnce(after,
+      composite add self.unsafeRunFn(s, new Callback[T] {
+        def onSuccess(v: T): Unit =
+          if (composite.cancel()) cb.asyncOnSuccess(s,v)
+        def onError(ex: Throwable): Unit =
+          if (composite.cancel()) cb.asyncOnError(s,ex)
+      })
+
+      composite add s.scheduleOnce(after,
         new Runnable {
           def run(): Unit = {
-            if (timeoutTask.cancel())
-              backup.unsafeRunFn(s,cb)
+            if (composite.cancel())
+              cancelable() = backup.unsafeRunFn(s,cb)
           }
         })
 
-      self.unsafeRunFn(s, new Callback[T] {
-        def onSuccess(v: T): Unit =
-          if (timeoutTask.cancel()) cb.asyncOnSuccess(s,v)
-        def onError(ex: Throwable): Unit =
-          if (timeoutTask.cancel()) cb.asyncOnError(s,ex)
-      })
+      cancelable
     }
 
   /** Zips the values of `this` and `that` task, and creates a new task that
     * will emit the tuple of their results.
     */
-  def zip[U](that: Task[U]): Task[(T, U)] = {
+  def zip[U](that: Task[U]): Task[(T, U)] =
     Task.unsafeCreate { (s,cb) =>
       val state = Atomic(null : Either[T, U])
+      val composite = CompositeCancelable()
 
-      self.unsafeRunFn(s, new Callback[T] {
+      composite add self.unsafeRunFn(s, new Callback[T] {
         def onError(ex: Throwable) = cb.asyncOnError(s,ex)
 
         @tailrec def onSuccess(t: T): Unit =
@@ -323,7 +362,7 @@ sealed abstract class Task[+T] { self =>
           }
       })
 
-      that.unsafeRunFn(s, new Callback[U] {
+      composite add that.unsafeRunFn(s, new Callback[U] {
         def onError(ex: Throwable) = cb.asyncOnError(s,ex)
 
         @tailrec def onSuccess(u: U): Unit =
@@ -336,8 +375,9 @@ sealed abstract class Task[+T] { self =>
               ()
           }
       })
+
+      composite
     }
-  }
 }
 
 object Task {
@@ -346,7 +386,7 @@ object Task {
     */
   def apply[T](f: => T): Task[T] =
     Task.unsafeCreate { (scheduler, callback) =>
-      scheduler.execute(
+      scheduler.scheduleOnce(
         new Runnable {
           def run(): Unit = {
             // protecting against user code
@@ -376,7 +416,9 @@ object Task {
       }
 
       if (!Trampoline.tryExecute(r, scheduler))
-        scheduler.execute(r)
+        scheduler.scheduleOnce(r)
+      else
+        Cancelable.empty
     }
 
   /** Returns a `Task` that produces the same result as the given `Task`,
@@ -384,7 +426,7 @@ object Task {
     */
   def fork[T](f: => Task[T]): Task[T] =
     Task.unsafeCreate { (scheduler, callback) =>
-      scheduler.execute(
+      scheduler.scheduleOnce(
         new Runnable {
           def run(): Unit =
             f.unsafeRunFn(scheduler, callback)
@@ -422,77 +464,34 @@ object Task {
         case NonFatal(ex) =>
           cb.asyncOnError(s, ex)
       }
+
+      Cancelable.empty
     }
 
   /** Converts the given Scala `Future` into a `Task` */
   def fromFuture[T](f: => Future[T]): Task[T] =
     Task.unsafeCreate { (scheduler, callback) =>
+      val cancelable = BooleanCancelable()
       f.onComplete {
         case Success(value) =>
-          try callback.onSuccess(value) catch {
-            case NonFatal(ex) =>
-              callback.asyncOnError(scheduler, ex)
-          }
+          if (!cancelable.isCanceled)
+            try callback.onSuccess(value) catch {
+              case NonFatal(ex) =>
+                callback.asyncOnError(scheduler, ex)
+            }
         case Failure(ex) =>
-          callback.asyncOnError(scheduler, ex)
+          if (!cancelable.isCanceled)
+            callback.asyncOnError(scheduler, ex)
       }(scheduler)
-    }
-
-  /** Transforms a `TraversableOnce[Task[T]]` into a `Task[TraversableOnce[A]]`.
-    * Useful for reducing many Tasks into a single one.
-    *
-    * NOTE: the tasks will get executed in parallel if the underlying
-    * scheduler allows it.
-    */
-  def sequence[T, M[X] <: TraversableOnce[X]](in: M[Task[T]])(implicit cbf: CanBuildFrom[M[Task[T]], T, M[T]]): Task[M[T]] =
-    Task.unsafeCreate { (scheduler, cb) =>
-      implicit val s = scheduler
-
-      val futures = in.map(_.runAsync(s)).toSeq
-      val seqF = futures.foldLeft(Future.successful(cbf(in))) { (acc, f) =>
-        for (seq <- acc; elem <- f) yield seq += elem
-      }
-
-      seqF.onComplete {
-        case Failure(ex) =>
-          cb.asyncOnError(s, ex)
-
-        case Success(seq) =>
-          try cb.onSuccess(seq.result()) catch {
-            case NonFatal(ex) =>
-              cb.asyncOnError(s, ex)
-          }
-      }
-    }
-
-  /** Returns a new Task that will generate the result of the first
-    * task in the list that is completed.
-    *
-    * NOTE: the tasks will get executed in parallel if the underlying
-    * scheduler allows it.
-    */
-  def firstCompletedOf[T](tasks: TraversableOnce[Task[T]]): Task[T] =
-    Task.unsafeCreate { (scheduler, cb) =>
-      implicit val s = scheduler
-      val futures = tasks.map(_.runAsync)
-
-      Future.firstCompletedOf(futures).onComplete {
-        case Success(value) =>
-          try cb.onSuccess(value) catch {
-            case NonFatal(ex) =>
-              cb.asyncOnError(s,ex)
-          }
-        case Failure(ex) =>
-          cb.asyncOnError(s,ex)
-      }
+      cancelable
     }
 
   /** Builder for [[Task]] instances. For usage on implementing
     * operators or builders. Only use if you know what you're doing.
     */
-  def unsafeCreate[T](f: (Scheduler, Callback[T]) => Unit): Task[T] =
+  def unsafeCreate[T](f: (Scheduler, Callback[T]) => Cancelable): Task[T] =
     new Task[T] {
-      override def unsafeRunFn(s: Scheduler, cb: Callback[T]): Unit =
+      override def unsafeRunFn(s: Scheduler, cb: Callback[T]): Cancelable =
         f(s,cb)
     }
 
@@ -576,14 +575,17 @@ object Task {
     * See [[Task.now]] instead.
     */
   private final class Now[+T](value: T) extends Task[T] {
-    def unsafeRunFn(scheduler: Scheduler, callback: Callback[T]): Unit =
+    def unsafeRunFn(scheduler: Scheduler, callback: Callback[T]): Cancelable = {
       try callback.onSuccess(value) catch {
         case NonFatal(ex) =>
           callback.asyncOnError(scheduler, ex)
       }
 
-    override def runAsync(implicit s: Scheduler): Future[T] =
-      Future.successful(value)
+      Cancelable.empty
+    }
+
+    override def runAsync(implicit s: Scheduler): CancelableFuture[T] =
+      CancelableFuture(Future.successful(value), Cancelable.empty)
   }
 
   /** Optimized task for failed outcomes.
@@ -592,10 +594,12 @@ object Task {
     * See [[Task.fail]] instead.
     */
   private final class Fail(ex: Throwable) extends Task[Nothing] {
-    def unsafeRunFn(scheduler: Scheduler, callback: Callback[Nothing]): Unit =
+    override def unsafeRunFn(scheduler: Scheduler, callback: Callback[Nothing]): Cancelable = {
       callback.onError(ex)
+      Cancelable.empty
+    }
 
-    override def runAsync(implicit s: Scheduler): Future[Nothing] =
-      Future.failed(ex)
+    override def runAsync(implicit s: Scheduler): CancelableFuture[Nothing] =
+      CancelableFuture(Future.failed(ex), Cancelable.empty)
   }
 }

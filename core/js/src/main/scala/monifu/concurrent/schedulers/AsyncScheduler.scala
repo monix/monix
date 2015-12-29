@@ -18,10 +18,10 @@
 package monifu.concurrent.schedulers
 
 import java.util.concurrent.TimeUnit
-import monifu.concurrent.Scheduler.{Platform, Environment}
+import monifu.concurrent.Scheduler.{Environment, Platform}
+import monifu.concurrent.cancelables.BooleanCancelable
 import monifu.concurrent.schedulers.Timer.{clearTimeout, setTimeout}
 import monifu.concurrent.{Cancelable, UncaughtExceptionReporter}
-import scala.concurrent.duration._
 
 /**
  * An `AsyncScheduler` schedules tasks to happen in the future with
@@ -31,25 +31,29 @@ import scala.concurrent.duration._
 final class AsyncScheduler private (reporter: UncaughtExceptionReporter)
   extends ReferenceScheduler {
 
-  def scheduleOnce(initialDelay: FiniteDuration, r: Runnable): Cancelable = {
-    val task = setTimeout(initialDelay.toMillis, r, reporter)
+  override def scheduleOnce(r: Runnable): Cancelable = {
+    val task = setTimeout(0, r, reporter)
     Cancelable(clearTimeout(task))
   }
 
-  def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable) = {
-    val millis = TimeUnit.MILLISECONDS.convert(initialDelay, unit)
+  override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable) = {
+    val millis = {
+      val v = TimeUnit.MILLISECONDS.convert(initialDelay, unit)
+      if (v < 0) 0L else v
+    }
+
     val task = setTimeout(millis, r, reporter)
     Cancelable(clearTimeout(task))
   }
 
-  def execute(runnable: Runnable): Unit = {
-    setTimeout(0, runnable, reporter)
+  override def execute(runnable: Runnable): Unit = {
+    setTimeout(0L, runnable, reporter)
   }
 
-  def reportFailure(t: Throwable): Unit =
+  override def reportFailure(t: Throwable): Unit =
     reporter.reportFailure(t)
 
-  val env = Environment(256, Platform.JS)
+  override val env = Environment(256, Platform.JS)
 }
 
 object AsyncScheduler {

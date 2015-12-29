@@ -18,6 +18,7 @@
 package monifu.internal.operators
 
 import monifu.Ack.{Cancel, Continue}
+import monifu.concurrent.Cancelable
 import monifu.{Ack, Observer, Observable}
 
 import scala.concurrent.Future
@@ -59,11 +60,9 @@ private[monifu] object drop {
     Observable.unsafeCreate[T] { subscriber =>
       import subscriber.{scheduler => s}
 
-      source.unsafeSubscribeFn(new Observer[T] with Runnable {
+      source.unsafeSubscribeFn(new Observer[T] with Runnable { self =>
         @volatile private[this] var shouldDrop = true
-
-        private[this] val task =
-          s.scheduleOnce(timespan, this)
+        private[this] val task = s.scheduleOnce(timespan.length, timespan.unit, self)
 
         def onNext(elem: T): Future[Ack] = {
           if (shouldDrop)

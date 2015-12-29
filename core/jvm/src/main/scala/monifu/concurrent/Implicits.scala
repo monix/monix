@@ -18,7 +18,6 @@
 package monifu.concurrent
 
 import monifu.concurrent.schedulers.AsyncScheduler
-
 import scala.concurrent.ExecutionContext
 
 /**

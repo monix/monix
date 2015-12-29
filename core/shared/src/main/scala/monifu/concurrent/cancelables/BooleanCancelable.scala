@@ -58,6 +58,15 @@ object BooleanCancelable {
       }
     }
 
+  /** Returns a weak version of [[BooleanCancelable]] that:
+    *
+    *   - always returns false on `cancel()`
+    *   - its `isCanceled` field only has the writes ordered, so
+    *     visibility after write is not guaranteed
+    */
+  def weak(): BooleanCancelable =
+    monifu.internal.concurrent.WeakBooleanCancelable()
+
   val alreadyCanceled: BooleanCancelable =
     new BooleanCancelable {
       val isCanceled = true

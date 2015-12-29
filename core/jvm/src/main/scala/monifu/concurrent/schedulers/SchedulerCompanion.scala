@@ -19,9 +19,9 @@ package monifu.concurrent.schedulers
 
 import java.lang.Thread.UncaughtExceptionHandler
 import java.util.concurrent.{Executors, ScheduledExecutorService, ThreadFactory}
+import monifu.concurrent.UncaughtExceptionReporter._
 import monifu.concurrent.atomic.Atomic
 import monifu.concurrent.{Scheduler, UncaughtExceptionReporter}
-import monifu.concurrent.UncaughtExceptionReporter._
 import scala.concurrent.ExecutionContext
 import scala.concurrent.forkjoin.ForkJoinPool
 

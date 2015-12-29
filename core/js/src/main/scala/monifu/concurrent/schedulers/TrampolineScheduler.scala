@@ -33,18 +33,22 @@ final class TrampolineScheduler private (reporter: UncaughtExceptionReporter)
   private[this] val immediateQueue = mutable.Queue.empty[Runnable]
   private[this] var withinLoop = false
 
-  def scheduleOnce(initialDelay: FiniteDuration, r: Runnable): Cancelable = {
-    val task = setTimeout(initialDelay.toMillis, r, reporter)
-    Cancelable(clearTimeout(task))
+  override def scheduleOnce(r: Runnable): Cancelable = {
+    execute(r)
+    Cancelable.empty
   }
 
-  def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable) = {
-    val millis = TimeUnit.MILLISECONDS.convert(initialDelay, unit)
+  override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable) = {
+    val millis = {
+      val v = TimeUnit.MILLISECONDS.convert(initialDelay, unit)
+      if (v < 0) 0L else v
+    }
+
     val task = setTimeout(millis, r, reporter)
     Cancelable(clearTimeout(task))
   }
 
-  def execute(runnable: Runnable): Unit = {
+  override def execute(runnable: Runnable): Unit = {
     immediateQueue.enqueue(runnable)
     if (!withinLoop) {
       withinLoop = true
@@ -71,10 +75,11 @@ final class TrampolineScheduler private (reporter: UncaughtExceptionReporter)
     }
   }
 
-  def reportFailure(t: Throwable): Unit =
+  override def reportFailure(t: Throwable): Unit =
     reporter.reportFailure(t)
 
-  val env = Environment(256, Platform.JS)
+  override val env =
+    Environment(256, Platform.JS)
 }
 
 object TrampolineScheduler {
