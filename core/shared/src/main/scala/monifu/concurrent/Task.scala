@@ -211,7 +211,7 @@ sealed abstract class Task[+T] { self =>
     Task.unsafeCreate[T] { (s, callback) =>
       val cancelable = TaskCollapsibleCancelable()
       // delaying execution
-      cancelable() = s.scheduleOnce(timespan,
+      cancelable() = s.scheduleOnce(timespan.length, timespan.unit,
         new Runnable {
           override def run(): Unit = {
             cancelable() = self.unsafeRunFn(s, callback)
@@ -329,7 +329,7 @@ sealed abstract class Task[+T] { self =>
           if (composite.cancel()) cb.asyncOnError(s,ex)
       })
 
-      composite add s.scheduleOnce(after,
+      composite add s.scheduleOnce(after.length, after.unit,
         new Runnable {
           def run(): Unit = {
             if (composite.cancel())

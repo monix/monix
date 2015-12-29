@@ -22,6 +22,7 @@ import monifu.concurrent.schedulers.TestScheduler
 import monifu.Ack.{Cancel, Continue}
 import monifu.OverflowStrategy.BackPressure
 import monifu.exceptions.DummyException
+import monifu.internal.concurrent.RunnableAction
 import monifu.{Ack, Subscriber}
 import scala.concurrent.{Future, Promise}
 import scala.util.Success
@@ -127,7 +128,7 @@ object BufferBackPressuredSuite extends TestSuite[TestScheduler] {
 
     def loop(n: Int): Unit =
       if (n > 0)
-        s.execute { buffer.onNext(n); loop(n-1) }
+        s.execute(RunnableAction { buffer.onNext(n); loop(n-1) })
       else
         buffer.onComplete()
 

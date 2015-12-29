@@ -17,7 +17,8 @@
 
 package monifu.concurrent
 
-import java.util.concurrent.{TimeUnit, TimeoutException}
+import java.util.concurrent.TimeoutException
+import monifu.internal.concurrent.{PromiseCompleteWithRunnable, PromiseFailureRunnable, RunnableAction}
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.Try
@@ -38,7 +39,7 @@ object FutureUtils {
   def timeout[T](source: Future[T], atMost: FiniteDuration)(implicit s: Scheduler): Future[T] = {
     val err = new TimeoutException
     val promise = Promise[T]()
-    val task = s.scheduleOnce(atMost)(promise.tryFailure(err))
+    val task = s.scheduleOnce(atMost.length, atMost.unit, PromiseFailureRunnable(promise, err))
 
     source.onComplete { case r =>
       // canceling task to prevent waisted CPU resources and memory leaks
@@ -69,7 +70,8 @@ object FutureUtils {
     (implicit s: Scheduler): Future[T] = {
 
     val promise = Promise[T]()
-    val task = s.scheduleOnce(atMost)(promise.tryCompleteWith(fallback))
+    val task = s.scheduleOnce(atMost.length, atMost.unit,
+      PromiseCompleteWithRunnable(promise, fallback))
 
     source.onComplete { case r =>
       // canceling task to prevent waisted CPU resources and memory leaks
@@ -100,7 +102,7 @@ object FutureUtils {
     */
   def delayedResult[T](delay: FiniteDuration)(result: => T)(implicit s: Scheduler): Future[T] = {
     val p = Promise[T]()
-    s.scheduleOnce(delay)(p.complete(Try(result)))
+    s.scheduleOnce(delay.length, delay.unit, RunnableAction(p.complete(Try(result))))
     p.future
   }
 }

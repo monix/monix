@@ -53,7 +53,7 @@ private[monifu] object timeout {
         private[this] var lastEmittedMillis: Long = s.currentTimeMillis()
 
         locally {
-          task := s.scheduleOnce(timeout, self)
+          task := s.scheduleOnce(timeout.length, timeout.unit, self)
         }
 
         def run(): Unit = self.synchronized {

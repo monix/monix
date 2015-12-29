@@ -170,20 +170,22 @@ private[monifu] object from {
     Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
 
-      s.execute {
-        try {
-          subscriber.onNext(t)
-            .onContinueSignalComplete(subscriber)
+      s.execute(new Runnable {
+        override def run(): Unit = {
+          try {
+            subscriber.onNext(t)
+              .onContinueSignalComplete(subscriber)
+          }
+          catch {
+            case NonFatal(ex) =>
+              try subscriber.onError(ex) catch {
+                case NonFatal(err) =>
+                  s.reportFailure(ex)
+                  s.reportFailure(err)
+              }
+          }
         }
-        catch {
-          case NonFatal(ex) =>
-            try subscriber.onError(ex) catch {
-              case NonFatal(err) =>
-                s.reportFailure(ex)
-                s.reportFailure(err)
-            }
-        }
-      }
+      })
     }
 
   /**
@@ -193,43 +195,47 @@ private[monifu] object from {
     Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
 
-      s.execute {
-        try {
-          subscriber.onNext(c.call())
-            .onContinueSignalComplete(subscriber)
+      s.execute(new Runnable {
+        override def run(): Unit = {
+          try {
+            subscriber.onNext(c.call())
+              .onContinueSignalComplete(subscriber)
+          }
+          catch {
+            case NonFatal(ex) =>
+              try subscriber.onError(ex) catch {
+                case NonFatal(err) =>
+                  s.reportFailure(ex)
+                  s.reportFailure(err)
+              }
+          }
         }
-        catch {
-          case NonFatal(ex) =>
-            try subscriber.onError(ex) catch {
-              case NonFatal(err) =>
-                s.reportFailure(ex)
-                s.reportFailure(err)
-            }
-        }
-      }
+      })
     }
 
   /**
-   * Implementation for [[Observable.fromRunable]].
+   * Implementation for [[Observable.fromRunnable]].
    */
   def runnable[T](r: Runnable): Observable[Unit] =
     Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
 
-      s.execute {
-        try {
-          subscriber.onNext(r.run())
-            .onContinueSignalComplete(subscriber)
+      s.execute(new Runnable {
+        override def run(): Unit = {
+          try {
+            subscriber.onNext(r.run())
+              .onContinueSignalComplete(subscriber)
+          }
+          catch {
+            case NonFatal(ex) =>
+              try subscriber.onError(ex) catch {
+                case NonFatal(err) =>
+                  s.reportFailure(ex)
+                  s.reportFailure(err)
+              }
+          }
         }
-        catch {
-          case NonFatal(ex) =>
-            try subscriber.onError(ex) catch {
-              case NonFatal(err) =>
-                s.reportFailure(ex)
-                s.reportFailure(err)
-            }
-        }
-      }
+      })
     }
 
   /**

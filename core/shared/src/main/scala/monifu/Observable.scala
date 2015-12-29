@@ -24,6 +24,7 @@ import monifu.concurrent.{Cancelable, Scheduler}
 import monifu.Ack.{Cancel, Continue}
 import monifu.OverflowStrategy.{default => defaultStrategy}
 import monifu.internal._
+import monifu.internal.concurrent.UnsafeSubscribeRunnable
 import monifu.observables.{CachedObservable, ConnectableObservable, GroupedObservable}
 import monifu.observers._
 import monifu.subjects.{AsyncSubject, BehaviorSubject, PublishSubject, ReplaySubject}
@@ -1655,7 +1656,7 @@ trait Observable[+T] { self =>
     * `Scheduler` for initiating the subscription.
     */
   def subscribeOn(s: Scheduler): Observable[T] = {
-    Observable.unsafeCreate(o => s.execute(unsafeSubscribeFn(o)))
+    Observable.unsafeCreate(o => s.execute(UnsafeSubscribeRunnable(this, o)))
   }
 
   /** Utility that can be used for debugging purposes.

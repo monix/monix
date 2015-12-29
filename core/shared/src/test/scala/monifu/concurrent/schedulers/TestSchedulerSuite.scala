@@ -17,10 +17,10 @@
 
 package monifu.concurrent.schedulers
 
-import java.util.concurrent.TimeoutException
-
+import java.util.concurrent.{TimeUnit, TimeoutException}
 import minitest.TestSuite
 import monifu.concurrent.Scheduler
+import monifu.internal.concurrent.RunnableAction
 import concurrent.duration._
 import scala.concurrent.Promise
 import scala.util.{Success, Try}
@@ -33,7 +33,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
 
   test("should execute asynchronously") { s =>
     var wasExecuted = false
-    s.execute { wasExecuted = true }
+    s.execute(RunnableAction { wasExecuted = true })
     assert(!wasExecuted)
 
     s.tick()
@@ -43,24 +43,24 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
   test("should execute the whole stack") { s =>
     var iterations = 0
 
-    s.execute {
-      s.execute {
+    s.execute(RunnableAction {
+      s.execute(RunnableAction {
         iterations += 1
-        s.execute {
+        s.execute(RunnableAction {
           iterations += 1
-        }
-      }
+        })
+      })
 
       assert(iterations == 0)
       iterations += 1
 
-      s.execute {
+      s.execute(RunnableAction {
         iterations += 1
-        s.execute {
+        s.execute(RunnableAction {
           iterations += 1
-        }
-      }
-    }
+        })
+      })
+    })
 
     assert(iterations == 0)
 
@@ -72,21 +72,21 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     var firstBatch = 0
     var secondBatch = 0
 
-    s.scheduleOnce(10.seconds) {
+    s.scheduleOnce(10, TimeUnit.SECONDS, RunnableAction {
       firstBatch += 1
-      s.execute { firstBatch += 1 }
-      s.scheduleOnce(10.seconds) {
+      s.execute(RunnableAction { firstBatch += 1 })
+      s.scheduleOnce(10, TimeUnit.SECONDS, RunnableAction {
         firstBatch += 1
-      }
-    }
+      })
+    })
 
-    s.scheduleOnce(20.seconds) {
+    s.scheduleOnce(20, TimeUnit.SECONDS, RunnableAction {
       secondBatch += 1
-      s.execute { secondBatch += 1 }
-      s.scheduleOnce(10.seconds) {
+      s.execute(RunnableAction { secondBatch += 1 })
+      s.scheduleOnce(10, TimeUnit.SECONDS, RunnableAction {
         secondBatch += 1
-      }
-    }
+      })
+    })
 
     s.tick()
     assert(firstBatch == 0 && secondBatch == 0)
@@ -106,15 +106,15 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
 
   test("should work correctly for ticks spanning several tasks, test 1") { implicit s =>
     val f = delayedResult(50.millis, 300.millis)("hello world")
-    assert(f.value == None)
+    assertEquals(f.value, None)
 
     s.tick(10.seconds)
-    assert(f.value == Some(Success("hello world")))
+    assertEquals(f.value, Some(Success("hello world")))
   }
 
   test("should work correctly for ticks spanning several tasks, test 2") { implicit s =>
     val f = delayedResult(500.millis, 300.millis)("hello world")
-    assert(f.value == None)
+    assertEquals(f.value, None)
 
     s.tick(10.seconds)
     intercept[TimeoutException](f.value.get.get)
@@ -122,23 +122,23 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
 
   test("should work correctly for ticks spanning several tasks, test 3") { implicit s =>
     val f = delayedResult(50.millis, 300.millis)("hello world")
-    assert(f.value == None)
+    assertEquals(f.value, None)
 
     s.tick(50.seconds)
     s.tick(300.millis)
 
-    assert(f.value == Some(Success("hello world")))
+    assertEquals(f.value, Some(Success("hello world")))
   }
 
   test("should work correctly for ticks spanning several tasks, test 4") { implicit s =>
     val f = delayedResult(50.millis, 300.millis)("hello world")
-    assert(f.value == None)
+    assertEquals(f.value, None)
 
     s.tick(40.seconds)
     s.tick(10.seconds)
     s.tick(300.millis)
 
-    assert(f.value == Some(Success("hello world")))
+    assertEquals(f.value, Some(Success("hello world")))
   }
 
   test("complicated scheduling, test 1") { implicit s =>
@@ -200,7 +200,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
 
   test("tasks sharing same runsAt should execute randomly") { implicit s =>
     var seq = Seq.empty[Int]
-    for (i <- 0 until 1000) s.execute { seq = seq :+ i }
+    for (i <- 0 until 1000) s.execute(RunnableAction { seq = seq :+ i })
     s.tick()
 
     val expected = (0 until 1000).toSeq
@@ -211,14 +211,14 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
   def delayedResult[T](delay: FiniteDuration, timeout: FiniteDuration)(r: => T)(implicit s: Scheduler) = {
     val f1 = {
       val p = Promise[T]()
-      s.scheduleOnce(delay)(p.success(r))
+      s.scheduleOnce(delay.length, delay.unit, RunnableAction(p.success(r)))
       p.future
     }
 
     // catching the exception here, for non-useless stack traces
     val err = Try(throw new TimeoutException)
     val promise = Promise[T]()
-    val task = s.scheduleOnce(timeout)(promise.tryComplete(err))
+    val task = s.scheduleOnce(timeout.length, timeout.unit, RunnableAction(promise.tryComplete(err)))
 
     f1.onComplete { result =>
       // canceling task to prevent waisted CPU resources and memory leaks

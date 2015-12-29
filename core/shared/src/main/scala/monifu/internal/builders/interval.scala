@@ -33,16 +33,17 @@ private[monifu] object interval {
       import subscriber.{scheduler => s}
       val o = subscriber
 
-      s.scheduleOnce(initialDelay, new Runnable { self =>
+      s.scheduleOnce(initialDelay.length, initialDelay.unit, new Runnable { self =>
         private[this] var counter = 0L
 
         def scheduleNext(r: Try[Ack]): Unit = r match {
           case Continue.IsSuccess =>
             counter += 1
-            s.scheduleOnce(delay, self)
+            s.scheduleOnce(delay.length, delay.unit, self)
 
           case Failure(ex) =>
             s.reportFailure(ex)
+
           case _ =>
             () // do nothing
         }
@@ -67,7 +68,7 @@ private[monifu] object interval {
       import subscriber.{scheduler => s}
       val o = subscriber
 
-      s.scheduleOnce(initialDelay, new Runnable { self =>
+      s.scheduleOnce(initialDelay.length, initialDelay.unit, new Runnable { self =>
         private[this] val periodMillis = period.toMillis
         private[this] var counter = 0L
         private[this] var startedAt = 0L

@@ -23,6 +23,7 @@ import monifu.concurrent.schedulers.TestScheduler
 import monifu.Ack.{Cancel, Continue}
 import monifu.OverflowStrategy.ClearBuffer
 import monifu.exceptions.DummyException
+import monifu.internal.concurrent.RunnableAction
 import monifu.{Subscriber, Ack, Observer}
 import scala.concurrent.{Future, Promise}
 
@@ -90,7 +91,7 @@ object BufferClearBufferThenSignalSuite extends TestSuite[TestScheduler] {
 
     def loop(n: Int): Unit =
       if (n > 0)
-        s.execute { buffer.onNext(n); loop(n-1) }
+        s.execute(RunnableAction { buffer.onNext(n); loop(n-1) })
       else
         buffer.onComplete()
 

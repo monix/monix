@@ -22,6 +22,7 @@ import minitest.TestSuite
 import monifu.concurrent.Scheduler
 import monifu.Ack.Continue
 import monifu.Observable
+import monifu.internal.concurrent.RunnableAction
 import monifu.observers.SynchronousObserver
 
 object ReplaySubjectConcurrencySuite extends TestSuite[Scheduler] {
@@ -48,13 +49,13 @@ object ReplaySubjectConcurrencySuite extends TestSuite[Scheduler] {
     val subject = ReplaySubject[Int]()
     subject.unsafeSubscribeFn(createObserver)
 
-    s.execute {
+    s.execute(RunnableAction {
       Observable.range(0, signalsPerSubscriber).map(_ => 2).unsafeSubscribeFn(subject)
       subject.unsafeSubscribeFn(createObserver)
-    }
+    })
 
     for (_ <- 0 until (nrOfSubscribers - 2))
-      s.execute(subject.unsafeSubscribeFn(createObserver))
+      s.execute(RunnableAction(subject.unsafeSubscribeFn(createObserver)))
 
     assert(completed.await(60, TimeUnit.SECONDS), "completed.await")
   }

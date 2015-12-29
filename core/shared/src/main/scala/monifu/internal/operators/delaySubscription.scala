@@ -18,6 +18,7 @@
 package monifu.internal.operators
 
 import monifu.Ack.Cancel
+import monifu.internal.concurrent.PromiseSuccessRunnable
 import monifu.{Ack, Observable, Observer}
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Future, Promise}
@@ -54,7 +55,7 @@ private[monifu] object delaySubscription {
       import subscriber.{scheduler => s}
       val underlying = source.delaySubscription {
         val p = Promise[Unit]()
-        s.scheduleOnce(timespan)(p.success(()))
+        s.scheduleOnce(timespan.length, timespan.unit, PromiseSuccessRunnable(p, ()))
         p.future
       }
 

@@ -19,13 +19,14 @@ package monifu.internal.builders
 
 import monifu.Observable
 import monifu.internal._
+import monifu.internal.concurrent.NextThenCompleteRunnable
 import scala.concurrent.duration.FiniteDuration
 
 
 private[monifu] object unit {
   /**
-   * Implementation for [[Observable.unit]].
-   */
+    * Implementation for [[Observable.unit]].
+    */
   def one[A](elem: A): Observable[A] =
     Observable.unsafeCreate { s =>
       s.onNext(elem)
@@ -33,31 +34,29 @@ private[monifu] object unit {
     }
 
   /**
-   * Implementation for [[Observable.unitDelayed]].
-   */
+    * Implementation for [[Observable.unitDelayed]].
+    */
   def oneDelayed[A](delay: FiniteDuration, elem: A): Observable[A] =
     Observable.unsafeCreate { s =>
-      s.scheduler.scheduleOnce(delay) {
-        s.onNext(elem)
-          .onContinueSignalComplete(s)(s.scheduler)
-      }
+      s.scheduler.scheduleOnce(delay.length, delay.unit,
+        NextThenCompleteRunnable(s, elem))
     }
 
   /**
-   * Implementation for [[Observable.empty]].
-   */
+    * Implementation for [[Observable.empty]].
+    */
   def empty: Observable[Nothing] =
     Observable.unsafeCreate(_.onComplete())
 
   /**
-   * Implementation for [[Observable.error]].
-   */
+    * Implementation for [[Observable.error]].
+    */
   def error(ex: Throwable): Observable[Nothing] =
     Observable.unsafeCreate(_.onError(ex))
 
   /**
-   * Implementation for [[Observable.never]].
-   */
+    * Implementation for [[Observable.never]].
+    */
   def never: Observable[Nothing] =
     Observable.unsafeCreate { _ => () }
 }

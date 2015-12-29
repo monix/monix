@@ -18,7 +18,8 @@
 package monifu.internal.operators
 
 import monifu.concurrent.Scheduler
-import monifu.{Subscriber, Observer, Observable}
+import monifu.internal.concurrent.UnsafeSubscribeRunnable
+import monifu.{Observable, Observer, Subscriber}
 import scala.util.control.NonFatal
 
 
@@ -42,9 +43,8 @@ private[monifu] object onError {
               val fallbackTo = pf(ex)
               // need asynchronous execution to avoid a synchronous loop
               // blowing out the call stack
-              s.execute(fallbackTo.unsafeSubscribeFn(subscriber))
-            }
-            else {
+              s.execute(UnsafeSubscribeRunnable(fallbackTo, subscriber))
+            } else {
               // we can't protect the onError call and if it throws
               // the behavior should be undefined
               streamError = false
@@ -79,7 +79,7 @@ private[monifu] object onError {
             val fallback = other
             // need asynchronous execution to avoid a synchronous loop
             // blowing out the call stack
-            s.execute(fallback.unsafeSubscribeFn(subscriber))
+            s.execute(UnsafeSubscribeRunnable(fallback, subscriber))
           }
           catch {
             case NonFatal(err) =>
@@ -102,15 +102,19 @@ private[monifu] object onError {
   def retryCounted[T](source: Observable[T], maxRetries: Long) = {
     // helper to subscribe in a loop when onError happens
     def subscribe(o: Observer[T], retryIdx: Long)(implicit s: Scheduler): Unit =
-      source.unsafeSubscribeFn(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] with Runnable {
         def onNext(elem: T) = o.onNext(elem)
         def onComplete() = o.onComplete()
+
+        def run(): Unit = {
+          subscribe(o, retryIdx+1)
+        }
 
         def onError(ex: Throwable) = {
           if (retryIdx < maxRetries) {
             // need asynchronous execution to avoid a synchronous loop
             // blowing out the call stack
-            s.execute(subscribe(o, retryIdx+1))
+            s.execute(this)
           }
           else {
             o.onError(ex)
@@ -129,14 +133,18 @@ private[monifu] object onError {
   def retryUnlimited[T](source: Observable[T]): Observable[T] = {
     // helper to subscribe in a loop when onError happens
     def subscribe(o: Observer[T])(implicit s: Scheduler): Unit =
-      source.unsafeSubscribeFn(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] with Runnable {
         def onNext(elem: T) = o.onNext(elem)
         def onComplete() = o.onComplete()
+
+        def run(): Unit = {
+          subscribe(o)
+        }
 
         def onError(ex: Throwable) = {
           // need asynchronous execution to avoid a synchronous loop
           // blowing out the call stack
-          s.execute(subscribe(o))
+          s.execute(this)
         }
       })
 
@@ -153,9 +161,13 @@ private[monifu] object onError {
     def subscribe(o: Subscriber[T]): Unit = {
       import o.scheduler
 
-      source.unsafeSubscribeFn(new Observer[T] {
+      source.unsafeSubscribeFn(new Observer[T] with Runnable {
         def onNext(elem: T) = o.onNext(elem)
         def onComplete() = o.onComplete()
+
+        def run(): Unit = {
+          subscribe(o)
+        }
 
         def onError(ex: Throwable) = {
           // protecting against user level code
@@ -164,7 +176,7 @@ private[monifu] object onError {
             // need asynchronous execution to avoid a synchronous loop
             // blowing out the call stack
             if (shouldRetry)
-              o.scheduler.execute(subscribe(o))
+              o.scheduler.execute(this)
             else
               o.onError(ex)
           }

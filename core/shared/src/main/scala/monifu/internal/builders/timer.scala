@@ -25,9 +25,9 @@ import scala.util.{Failure, Try}
 
 private[monifu] object timer {
   /**
-   * Create an Observable that repeatedly emits the given `item`, until
-   * the underlying Observer cancels.
-   */
+    * Create an Observable that repeatedly emits the given `item`, until
+    * the underlying Observer cancels.
+    */
   def repeated[T](initialDelay: FiniteDuration, period: FiniteDuration, unit: T): Observable[T] = {
     Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
@@ -61,7 +61,7 @@ private[monifu] object timer {
         }
       }
 
-      s.scheduleOnce(initialDelay, runnable)
+      s.scheduleOnce(initialDelay.length, initialDelay.unit, runnable)
     }
   }
 }
