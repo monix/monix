@@ -18,7 +18,6 @@
 package monifu.internal.concurrent
 
 import monifu.concurrent.{Scheduler, Task}
-import monifu.internal.TaskCollapsibleCancelable
 import scala.util.control.NonFatal
 
 /** Helpers for building Task-related Runnable instances.
@@ -71,19 +70,18 @@ private[monifu] object TaskRunnable {
     * Resets the stackDepth to 1, as the call will be async
     */
   final class AsyncUnsafeRun[T] private
-    (cancelable: TaskCollapsibleCancelable, task: Task[T], scheduler: Scheduler, cb: Task.Callback[T])
+    (task: Task[T], scheduler: Scheduler, cb: Task.Callback[T])
     extends Runnable {
 
     def run(): Unit = {
-      cancelable() = task.unsafeRunFn(scheduler, stackDepth = 1, cb)
+      task.unsafeRunFn(scheduler, stackDepth = 1, cb)
     }
   }
 
   object AsyncUnsafeRun {
     /** Builder for [[AsyncUnsafeRun]] */
-    def apply[T](cancelable: TaskCollapsibleCancelable, task: Task[T],
-      scheduler: Scheduler, cb: Task.Callback[T]): Runnable = {
-      new AsyncUnsafeRun[T](cancelable, task, scheduler, cb)
+    def apply[T](task: Task[T], scheduler: Scheduler, cb: Task.Callback[T]): Runnable = {
+      new AsyncUnsafeRun[T](task, scheduler, cb)
     }
   }
 }
