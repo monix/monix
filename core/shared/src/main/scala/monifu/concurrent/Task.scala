@@ -88,15 +88,6 @@ sealed abstract class Task[+T] { self =>
     *   import monifu.concurrent.Implicits.globalScheduler
     * }}}
     *
-    * NOTE: even though `Task` is describing an asynchronous computation,
-    * the execution might still be trampolined and thus it can happen on
-    * the current thread. If that's not desirable, then include an explicit
-    * fork, like so:
-    *
-    * {{{
-    *   Task.fork(task).runAsync
-    * }}}
-    *
     * @return a [[Future]] that can be used to extract the result
     */
   def runAsync(implicit s: Scheduler): Future[T] = {
@@ -119,18 +110,6 @@ sealed abstract class Task[+T] { self =>
     *
     * {{{
     *   import monifu.concurrent.Implicits.globalScheduler
-    * }}}
-    *
-    * NOTE: even though `Task` is describing an asynchronous computation,
-    * the execution might still be trampolined and thus it can happen on
-    * the current thread. If that's not desirable, then include an explicit
-    * fork, like so:
-    *
-    * {{{
-    *   Task.fork(task).runAsync {
-    *     case Success(value) => logger.info(value)
-    *     case Failure(ex) => logger.error(ex)
-    *   }
     * }}}
     *
     * @param f is a function that will be called with the result on complete
