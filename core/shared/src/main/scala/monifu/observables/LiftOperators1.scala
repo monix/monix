@@ -21,7 +21,7 @@ import java.io.PrintStream
 import monifu.concurrent.Scheduler
 import monifu.concurrent.cancelables.BooleanCancelable
 import monifu.OverflowStrategy.{Synchronous, Evicted}
-import monifu.{Notification, Observable, OverflowStrategy}
+import monifu.{Observable, OverflowStrategy}
 import scala.concurrent.duration.FiniteDuration
 import scala.language.higherKinds
 
