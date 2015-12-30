@@ -35,7 +35,9 @@ import monifu.concurrent.Cancelable
  *
  * Useful in case you need a forward reference.
  */
-final class SingleAssignmentCancelable private () extends BooleanCancelable {
+final class SingleAssignmentCancelable private ()
+  extends AssignableCancelable {
+
   import State._
 
   def isCanceled: Boolean = state.get match {
@@ -45,29 +47,35 @@ final class SingleAssignmentCancelable private () extends BooleanCancelable {
       false
   }
 
-  /**
-   * Sets the underlying cancelable reference with `s`.
-   *
-   * In case this `SingleAssignmentCancelable` is already canceled,
-   * then the reference `value` will also be canceled on assignment.
-   *
-   * Throws `IllegalStateException` in case this cancelable has already
-   * been assigned.
-   */
+  /** Sets the underlying cancelable reference with `s`.
+    *
+    * In case this `SingleAssignmentCancelable` is already canceled,
+    * then the reference `value` will also be canceled on assignment.
+    *
+    * Throws `IllegalStateException` in case this cancelable has already
+    * been assigned.
+    *
+    * @return `this`
+    */
   @throws(classOf[IllegalStateException])
   @tailrec
-  def update(value: Cancelable): Unit = state.get match {
-    case Empty =>
-      if (!state.compareAndSet(Empty, IsNotCanceled(value)))
-        update(value)
-    case IsEmptyCanceled =>
-      if (!state.compareAndSet(IsEmptyCanceled, IsCanceled))
-        update(value)
-      else
-        value.cancel()
-    case IsCanceled | IsNotCanceled(_) =>
-      throw new IllegalStateException("Cannot assign to SingleAssignmentCancelable, as it was already assigned once")
-  }
+  override def `:=`(value: Cancelable): this.type =
+    state.get match {
+      case Empty =>
+        if (!state.compareAndSet(Empty, IsNotCanceled(value)))
+          :=(value)
+        else
+          this
+      case IsEmptyCanceled =>
+        if (!state.compareAndSet(IsEmptyCanceled, IsCanceled))
+          :=(value)
+        else {
+          value.cancel()
+          this
+        }
+      case IsCanceled | IsNotCanceled(_) =>
+        throw new IllegalStateException("Cannot assign to SingleAssignmentCancelable, as it was already assigned once")
+    }
 
   @tailrec
   def cancel(): Boolean = state.get match {
@@ -86,12 +94,6 @@ final class SingleAssignmentCancelable private () extends BooleanCancelable {
     case IsEmptyCanceled | IsCanceled =>
       false
   }
-
-  /**
-   * Alias for `update(value)`
-   */
-  def `:=`(value: Cancelable): Unit =
-    update(value)
 
   private[this] val state = AtomicAny(Empty : State)
 

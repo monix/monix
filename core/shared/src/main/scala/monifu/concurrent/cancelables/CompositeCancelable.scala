@@ -72,6 +72,11 @@ trait CompositeCancelable extends BooleanCancelable {
    * This is an alias for `remove()`.
    */
   final def -=(s: Cancelable): Unit = remove(s)
+
+  /** Resets this composite to an empty state, if not canceled,
+    * otherwise leaves it in the canceled state.
+    */
+  def reset(): Unit
 }
 
 object CompositeCancelable {
@@ -121,12 +126,21 @@ object CompositeCancelable {
       }
     }
 
+    @tailrec
+    def reset(): Unit = {
+      val oldState = state.get
+      if (!oldState.isCanceled) {
+        val newState = oldState.copy(subscriptions = Set.empty)
+        if (!state.compareAndSet(oldState, newState)) reset()
+      }
+    }
+
     private[this] val state: AtomicAny[State] =
       Atomic(State())
-
-    private[this] case class State(
-      subscriptions: Set[Cancelable] = Set.empty,
-      isCanceled: Boolean = false
-    )
   }
+
+  /** Private state of a [[CompositeCancelable]] */
+  private case class State(
+    subscriptions: Set[Cancelable] = Set.empty,
+    isCanceled: Boolean = false)
 }

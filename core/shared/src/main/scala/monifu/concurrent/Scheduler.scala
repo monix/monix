@@ -169,8 +169,8 @@ object Scheduler extends SchedulerCompanion {
         .filter(s => s != null && s.nonEmpty)
         .flatMap(s => Try(s.toInt).toOption)
         .map(math.nextPowerOf2)
-        .getOrElse(512)
+        .getOrElse(1024)
     else
-      256
+      512
   }
 }
