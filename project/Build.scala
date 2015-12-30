@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2014-2015 by its authors. Some rights reserved.
- * See the project homepage at: http://www.monifu.org
+ * See the project homepage at: http://www.monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -87,9 +87,9 @@ object Build extends SbtBuild {
     scalacOptions in (ScalaUnidoc, unidoc) +=
       "-Ymacro-expand:none",
     scalacOptions in (ScalaUnidoc, unidoc) ++=
-      Opts.doc.title(s"Monifu"),
+      Opts.doc.title(s"Monix"),
     scalacOptions in (ScalaUnidoc, unidoc) ++=
-      Opts.doc.sourceUrl(s"https://github.com/monifu/monifu/tree/v${version.value}€{FILE_PATH}.scala"),
+      Opts.doc.sourceUrl(s"https://github.com/monifu/monix/tree/v${version.value}€{FILE_PATH}.scala"),
     scalacOptions in (ScalaUnidoc, unidoc) ++=
       Seq("-doc-root-content", file("./rootdoc.txt").getAbsolutePath),
     scalacOptions in (ScalaUnidoc, unidoc) ++=
@@ -128,7 +128,7 @@ object Build extends SbtBuild {
     pomIncludeRepository := { _ => false }, // removes optional dependencies
 
     pomExtra :=
-      <url>http://www.monifu.org/</url>
+      <url>https://monix.io/</url>
         <licenses>
           <license>
             <name>Apache License, Version 2.0</name>
@@ -137,8 +137,8 @@ object Build extends SbtBuild {
           </license>
         </licenses>
         <scm>
-          <url>git@github.com:monifu/monifu.git</url>
-          <connection>scm:git:git@github.com:monifu/monifu.git</connection>
+          <url>git@github.com:monifu/monix.git</url>
+          <connection>scm:git:git@github.com:monifu/monix.git</connection>
         </scm>
         <developers>
           <developer>
@@ -155,54 +155,54 @@ object Build extends SbtBuild {
     unmanagedSourceDirectories in Test <+= baseDirectory(_ / ".." / "shared" / "src" / "test" / "scala")
   )
 
-  lazy val monifu = project.in(file("."))
-    .aggregate(monifuCoreJVM, monifuCoreJS, monifuJVM, monifuJS, tckTests)
+  lazy val monix = project.in(file("."))
+    .aggregate(monixCoreJVM, monixCoreJS, monixJVM, monixJS, tckTests)
     .settings(unidocSettings: _*)
     .settings(sharedSettings: _*)
     .settings(doNotPublishArtifact: _*)
     .settings(
       unidocProjectFilter in (ScalaUnidoc, unidoc) := inAnyProject --
-        inProjects(monifuCoreJS, monifuJS, monifuJVM, tckTests)
+        inProjects(monixCoreJS, monixJS, monixJVM, tckTests)
     )
 
-  lazy val monifuCoreJVM = project.in(file("core/jvm"))
+  lazy val monixCoreJVM = project.in(file("core/jvm"))
     .settings(crossSettings: _*)
     .settings(
-      name := "monifu-core",
+      name := "monix-core",
       testFrameworks += new TestFramework("minitest.runner.Framework"),
       libraryDependencies ++= Seq(
         "org.reactivestreams" % "reactive-streams" % "1.0.0",
         "org.monifu" %% "minitest" % "0.14" % "test"
       ))
 
-  lazy val monifuCoreJS = project.in(file("core/js"))
+  lazy val monixCoreJS = project.in(file("core/js"))
       .settings(crossSettings: _*)
       .enablePlugins(ScalaJSPlugin)
       .settings(
-        name := "monifu-core",
+        name := "monix-core",
         scalaJSStage in Test := FastOptStage,
         testFrameworks += new TestFramework("minitest.runner.Framework"),
         libraryDependencies ++= Seq(
           "org.monifu" %%% "minitest" % "0.14" % "test"
         ))
 
-  lazy val monifuJVM = project.in(file("monifu/jvm"))
+  lazy val monixJVM = project.in(file("monix/jvm"))
     .settings(crossSettings: _*)
-    .aggregate(monifuCoreJVM)
-    .dependsOn(monifuCoreJVM)
-    .settings(name := "monifu")
+    .aggregate(monixCoreJVM)
+    .dependsOn(monixCoreJVM)
+    .settings(name := "monix")
 
-  lazy val monifuJS = project.in(file("monifu/js"))
+  lazy val monixJS = project.in(file("monix/js"))
     .settings(crossSettings: _*)
     .enablePlugins(ScalaJSPlugin)
-    .aggregate(monifuCoreJS)
-    .dependsOn(monifuCoreJS)
-    .settings(name := "monifu")
+    .aggregate(monixCoreJS)
+    .dependsOn(monixCoreJS)
+    .settings(name := "monix")
 
   lazy val tckTests = project.in(file("tckTests"))
     .settings(sharedSettings: _*)
     .settings(doNotPublishArtifact: _*)
-    .dependsOn(monifuJVM)
+    .dependsOn(monixJVM)
     .settings(
       libraryDependencies ++= Seq(
         "org.reactivestreams" % "reactive-streams-tck" % "1.0.0" % "test",

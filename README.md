@@ -1,16 +1,19 @@
-<img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/monifu-square.png" align="right" width="280" />
+# Monix
 
-Idiomatic Reactive Extensions for Scala and [Scala.js](http://www.scala-js.org/).
+<img src="https://raw.githubusercontent.com/wiki/monifu/monix/assets/monix-square.png" align="right" width="280" />
 
-[![Build Status](https://travis-ci.org/alexandru/monifu.png?branch=master)](https://travis-ci.org/alexandru/monifu)
-[![Build Status](https://travis-ci.org/alexandru/monifu.png?branch=v1.0)](https://travis-ci.org/alexandru/monifu)
+Reactive Programming for Scala and [Scala.js](http://www.scala-js.org/).
+
+(Former Monifu, see [issue #91](https://github.com/monifu/monix/issues/91) for details)
+
+[![Build Status](https://travis-ci.org/monifu/monix.png?branch=master)](https://travis-ci.org/monifu/monix)
 [![License](http://img.shields.io/:license-Apache%202-red.svg)](http://www.apache.org/licenses/LICENSE-2.0.txt)
 
-[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/alexandru/monifu?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/monifu/monix?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 ## Overview
 
-Monifu is a high-performance Scala / Scala.js library for
+Monix is a high-performance Scala / Scala.js library for
 composing asynchronous and event-based programs using observable sequences
 that are exposed as asynchronous streams, expanding on the
 [observer pattern](https://en.wikipedia.org/wiki/Observer_pattern),
@@ -37,22 +40,22 @@ Highlights:
 
 ## Usage
 
-See **[monifu-sample](https://github.com/alexandru/monifu-sample)** for
-a project exemplifying Monifu used both on the server and on the client.
+See **[monix-sample](https://github.com/monifu/monix-sample)** for
+a project exemplifying Monix used both on the server and on the client.
 
-Currently compiled for  *Scala 2.10.x*, *2.11.x* and *Scala.js 0.6.x*. 
-Monifu's compatibility extends to the latest 2 major Scala versions and 
-to the latest major Scala.js version. In other words support for *Scala 2.10.x* 
-will be kept for as long as possible, but you should not rely on continued 
+Currently compiled for  *Scala 2.10.x*, *2.11.x* and *Scala.js 0.6.x*.
+Monix's compatibility extends to the latest 2 major Scala versions and
+to the latest major Scala.js version. In other words support for *Scala 2.10.x*
+will be kept for as long as possible, but you should not rely on continued
 support long after Scala 2.12 is out.
 
 ### Dependencies
 
-The packages are published on Maven Central. 
+The packages are published on Maven Central.
 
 - Current stable release is: `1.0`
 
-For the JVM: 
+For the JVM:
 
 ```scala
 libraryDependencies += "org.monifu" %% "monifu" % "1.0"
@@ -61,13 +64,13 @@ libraryDependencies += "org.monifu" %% "monifu" % "1.0"
 For targeting Javascript runtimes with Scala.js:
 
 ```scala
-libraryDependencies += "org.monifu" %%% "monifu" % "1.0"
+libraryDependencies += "org.monix" %%% "monifu" % "1.0"
 ```
 
 ### Example
 
 In order for subscriptions to work, we need an implicit
-[Scheduler](shared/src/main/scala/monifu/concurrent/Scheduler.scala#L33) imported in our
+[Scheduler](shared/src/main/scala/monix/concurrent/Scheduler.scala#L33) imported in our
 context. A `Scheduler` inherits from Scala's own [ExecutionContext](http://www.scala-lang.org/api/current/index.html#scala.concurrent.ExecutionContext)
 and any `ExecutionContext` can be quickly converted into a `Scheduler`.
 And then you're off ...
@@ -75,14 +78,14 @@ And then you're off ...
 ```scala
 // scala.concurrent.ExecutionContext.Implicits.global
 // is being used under the hood
-import monifu.concurrent.Implicits.globalScheduler
+import monix.concurrent.Implicits.globalScheduler
 
 // or we can simply convert our own execution context
 // import play.api.libs.concurrent.Execution.Implicits.defaultContext
 // implicit val scheduler = Scheduler(defaultContext)
 
 import concurrent.duration._
-import monifu._
+import monix._
 
 val subscription = Observable.intervalAtFixedRate(1.second)
   .take(10)
@@ -92,9 +95,9 @@ val subscription = Observable.intervalAtFixedRate(1.second)
 We can then try out more complex things:
 
 ```scala
-import monifu.concurrent.Implicits.globalScheduler
+import monix.concurrent.Implicits.globalScheduler
 import play.api.libs.ws._
-import monifu._
+import monix._
 
 // emits an auto-incremented number, every second
 Observable.interval(1.second)
@@ -114,34 +117,39 @@ Observable.interval(1.second)
   .foreach(x => println(x))
 ```
 
-There's actually a lot more to Monifu.
-
 ## Documentation
 
 NOTE: The documentation is a work in progress.
 
 API Documentation:
 
-- [1.0](http://monifu.org/api/1.0/)
+- [1.0](http://monix.io/api/1.0/)
+
+## Maintainers
+
+The current maintainers (people who can help you) are:
+
+- Alexandru Nedelcu ([@alexandru](https://github.com/alexandru))
+- Andrei Oprisan ([@aoprisan](https://github.com/aoprisan))
 
 ## Contributing
 
-The Monifu project welcomes contributions from anybody wishing to participate.
+The Monix project welcomes contributions from anybody wishing to participate.
 All code or documentation that is provided must be licensed with the same
-license that Monifu is licensed with (Apache 2.0, see LICENSE.txt). 
+license that Monix is licensed with (Apache 2.0, see LICENSE.txt).
 
 People are expected to follow the [Typelevel Code of Conduct](http://typelevel.org/conduct.html)
-when discussing Monifu on the Github page, Gitter channel, or other venues.
+when discussing Monix on the Github page, Gitter channel, or other venues.
 
-We hope that our community will be respectful, helpful, and kind. If you find 
-yourself embroiled in a situation that becomes heated, or that fails to live up 
-to our expectations, you should disengage and contact one of the project maintainers 
-in private. We hope to avoid letting minor aggressions and misunderstandings 
+We hope that our community will be respectful, helpful, and kind. If you find
+yourself embroiled in a situation that becomes heated, or that fails to live up
+to our expectations, you should disengage and contact one of the project maintainers
+in private. We hope to avoid letting minor aggressions and misunderstandings
 escalate into larger problems.
 
-Feel free to open an issue if you notice a bug, have an idea for a feature, or 
-have a question about the code. Pull requests are also gladly accepted. For more information, 
-check out the [contributor guide](CONTRIBUTING.md). 
+Feel free to open an issue if you notice a bug, have an idea for a feature, or
+have a question about the code. Pull requests are also gladly accepted. For more information,
+check out the [contributor guide](CONTRIBUTING.md).
 
 ## License
 
@@ -150,14 +158,14 @@ See [LICENCE.txt](./LICENSE.txt).
 
 ## Acknowledgements
 
-<img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/yklogo.png" align="right" />
-YourKit supports the Monifu project with its full-featured Java Profiler.
+<img src="https://raw.githubusercontent.com/wiki/monifu/monix/assets/yklogo.png" align="right" />
+YourKit supports the Monix project with its full-featured Java Profiler.
 YourKit, LLC is the creator [YourKit Java Profiler](http://www.yourkit.com/java/profiler/index.jsp)
 and [YourKit .NET Profiler](http://www.yourkit.com/.net/profiler/index.jsp),
 innovative and intelligent tools for profiling Java and .NET applications.
 
-<img src="https://raw.githubusercontent.com/wiki/alexandru/monifu/assets/logo-eloquentix@2x.png" align="right" width="130" />
+<img src="https://raw.githubusercontent.com/wiki/monifu/monix/assets/logo-eloquentix@2x.png" align="right" width="130" />
 
-Development of Monifu has been initiated by [Eloquentix](http://eloquentix.com/)
-engineers, with Monifu being introduced at E.ON Connecting Energies,
+Development of Monix has been initiated by [Eloquentix](http://eloquentix.com/)
+engineers, with Monix being introduced at E.ON Connecting Energies,
 powering the next generation energy grid solutions.
