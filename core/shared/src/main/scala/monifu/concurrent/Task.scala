@@ -442,13 +442,11 @@ object Task {
       * @param stackDepth is the current stack depth (this call included)
       */
     def safeOnSuccess(s: Scheduler, stackDepth: Int, value: T): Unit = {
-      if (stackDepth < Scheduler.recommendedBatchSize) try {
-        onSuccess(value, stackDepth+1)
-      }
-      catch {
-        case NonFatal(ex) =>
-          safeOnError(s, stackDepth, ex)
-      }
+      if (stackDepth < Scheduler.recommendedBatchSize)
+        try onSuccess(value, stackDepth+1) catch {
+          case NonFatal(ex) =>
+            safeOnError(s, stackDepth, ex)
+        }
       else
         s.execute(TaskRunnable.AsyncOnSuccess(self, value))
     }
