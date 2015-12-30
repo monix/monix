@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package monifu.concurrent
+package monifu
 
 import minitest.TestSuite
 import monifu.concurrent.schedulers.TestScheduler

@@ -15,9 +15,10 @@
  * limitations under the License.
  */
 
-package monifu.concurrent
+package monifu
 
 import minitest.TestSuite
+import monifu.concurrent.{Implicits, Scheduler}
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.util.Success

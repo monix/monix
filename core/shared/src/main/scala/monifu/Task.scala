@@ -15,16 +15,17 @@
  * limitations under the License.
  */
 
-package monifu.concurrent
+package monifu
 
-import scala.language.higherKinds
-import monifu.concurrent.Task.Callback
-import monifu.concurrent.atomic.padded.Atomic
+import monifu.Task.Callback
+import monifu.concurrent.Scheduler
 import monifu.concurrent.cancelables.SingleAssignmentCancelable
+import monifu.concurrent.atomic.padded.Atomic
 import monifu.internal.concurrent.TaskRunnable
 import scala.annotation.tailrec
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Future, Promise, TimeoutException}
+import scala.language.higherKinds
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
@@ -57,7 +58,7 @@ sealed abstract class Task[+T] { self =>
     * @param callback is the pair of `onSuccess` and `onError` methods that will
     *                 be called when the execution completes
     */
-  def unsafeRunFn(scheduler: Scheduler, stackDepth: Int, callback: Callback[T]): Unit
+  protected def unsafeRunFn(scheduler: Scheduler, stackDepth: Int, callback: Callback[T]): Unit
 
   /** Internal utility providing a stack-safe `unsafeExecuteFn`, to be used
     * when constructing operators and builders.
@@ -76,7 +77,10 @@ sealed abstract class Task[+T] { self =>
           callback.safeOnError(scheduler, stackDepth, ex)
       }
     else
-      scheduler.scheduleOnce(TaskRunnable.AsyncUnsafeRun(self, scheduler, callback))
+      scheduler.scheduleOnce(new Runnable {
+        override def run(): Unit =
+          self.unsafeRunFn(scheduler, stackDepth = 1, callback)
+      })
   }
 
   /** Triggers the asynchronous execution.
