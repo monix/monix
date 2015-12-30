@@ -463,9 +463,9 @@ object Task {
     }
 
   /** Builder for [[Task]] instances. For usage on implementing
-    * operators or builders. Only use if you know what you're doing.
+    * operators or builders. Internal to Monifu.
     */
-  def unsafeCreate[T](f: (Scheduler, MultiAssignmentCancelable, Int, Callback[T]) => Unit): Task[T] =
+  private def unsafeCreate[T](f: (Scheduler, MultiAssignmentCancelable, Int, Callback[T]) => Unit): Task[T] =
     new Task[T] {
       def unsafeRunFn(s: Scheduler, c: MultiAssignmentCancelable, d: Int, cb: Callback[T]): Unit =
         f(s, c, d, cb)

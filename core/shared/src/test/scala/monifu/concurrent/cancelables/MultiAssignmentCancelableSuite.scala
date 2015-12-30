@@ -43,7 +43,7 @@ object MultiAssignmentCancelableSuite extends SimpleTestSuite {
     val sub = BooleanCancelable(effect += 1)
     val mSub = MultiAssignmentCancelable(sub)
     val sub2 = BooleanCancelable(effect += 10)
-    mSub() = sub2
+    mSub := sub2
 
     assert(effect == 0)
     assert(!sub.isCanceled && !sub2.isCanceled && !mSub.isCanceled)
@@ -63,7 +63,7 @@ object MultiAssignmentCancelableSuite extends SimpleTestSuite {
     assert(effect == 0)
     assert(!sub.isCanceled && mSub.isCanceled)
 
-    mSub() = sub
+    mSub := sub
     assert(effect == 1)
     assert(sub.isCanceled)
   }

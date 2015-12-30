@@ -25,7 +25,7 @@ object SingleAssignmentCancelableSuite extends SimpleTestSuite {
     var effect = 0
     val s = SingleAssignmentCancelable()
     val b = BooleanCancelable { effect += 1 }
-    s() = b
+    s := b
 
     s.cancel()
     assert(s.isCanceled)
@@ -43,7 +43,7 @@ object SingleAssignmentCancelableSuite extends SimpleTestSuite {
 
     var effect = 0
     val b = BooleanCancelable { effect += 1 }
-    s() = b
+    s := b
 
     assert(b.isCanceled)
     assert(effect == 1)
@@ -55,11 +55,11 @@ object SingleAssignmentCancelableSuite extends SimpleTestSuite {
   test("throw exception on multi assignment") {
     val s = SingleAssignmentCancelable()
     val b1 = Cancelable()
-    s() = b1
+    s := b1
 
     intercept[IllegalStateException] {
       val b2 = Cancelable()
-      s() = b2
+      s := b2
     }
   }
 
@@ -68,11 +68,11 @@ object SingleAssignmentCancelableSuite extends SimpleTestSuite {
     s.cancel()
 
     val b1 = Cancelable()
-    s() = b1
+    s := b1
 
     intercept[IllegalStateException] {
       val b2 = Cancelable()
-      s() = b2
+      s := b2
     }
   }
 }

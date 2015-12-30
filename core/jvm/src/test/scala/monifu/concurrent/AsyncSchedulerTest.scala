@@ -63,7 +63,7 @@ object AsyncSchedulerTest extends SimpleTestSuite {
     val p = Promise[Int]()
     var value = 0
 
-    sub() = s.scheduleWithFixedDelay(10, 50, TimeUnit.MILLISECONDS, RunnableAction {
+    sub := s.scheduleWithFixedDelay(10, 50, TimeUnit.MILLISECONDS, RunnableAction {
       if (value + 1 == 4) {
         value += 1
         sub.cancel()
@@ -82,7 +82,7 @@ object AsyncSchedulerTest extends SimpleTestSuite {
     val p = Promise[Int]()
     var value = 0
 
-    sub() = s.scheduleAtFixedRate(10, 50, TimeUnit.MILLISECONDS, RunnableAction {
+    sub := s.scheduleAtFixedRate(10, 50, TimeUnit.MILLISECONDS, RunnableAction {
       if (value + 1 == 4) {
         value += 1
         sub.cancel()
