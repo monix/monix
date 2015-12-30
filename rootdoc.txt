@@ -1,4 +1,4 @@
-<img src="https://raw.githubusercontent.com/wiki/monix/monix/assets/monix-square.png" align="right" width="300" />
+<img src="https://raw.githubusercontent.com/wiki/monix/monix/assets/monifu-square.png" align="right" width="300" />
 
 This is the API documentation for the [[https://www.monix.io Monix]] library.
 

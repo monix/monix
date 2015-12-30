@@ -1,6 +1,6 @@
 # Monix
 
-<img src="https://raw.githubusercontent.com/wiki/monifu/monix/assets/monix-square.png" align="right" width="280" />
+<img src="https://raw.githubusercontent.com/wiki/monifu/monix/assets/monifu-square.png" align="right" width="280" />
 
 Reactive Programming for Scala and [Scala.js](http://www.scala-js.org/).
 
