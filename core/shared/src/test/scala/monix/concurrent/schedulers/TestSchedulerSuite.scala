@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2014-2015 by its authors. Some rights reserved.
- * See the project homepage at: http://www.monix.io
+ * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import java.util.concurrent.{TimeUnit, TimeoutException}
 import minitest.TestSuite
 import monix.concurrent.Scheduler
 import monix.internal.concurrent.RunnableAction
-import concurrent.duration._
+import scala.concurrent.duration._
 import scala.concurrent.Promise
 import scala.util.{Success, Try}
 

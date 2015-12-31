@@ -4,12 +4,13 @@
 
 Reactive Programming for Scala and [Scala.js](http://www.scala-js.org/).
 
-(Former Monifu, see [issue #91](https://github.com/monifu/monix/issues/91) for details)
-
-[![Build Status](https://travis-ci.org/monifu/monix.png?branch=master)](https://travis-ci.org/monifu/monix)
+[![Build Status](https://travis-ci.org/monifu/monix.svg?branch=master)](https://travis-ci.org/monifu/monix)
 [![License](http://img.shields.io/:license-Apache%202-red.svg)](http://www.apache.org/licenses/LICENSE-2.0.txt)
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/org.monifu/monifu_2.11/badge.svg)](https://maven-badges.herokuapp.com/maven-central/org.monifu/monifu_2.11)
 
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/monifu/monix?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
+**NOTE: renamed from Monifu, see [issue #91](https://github.com/monifu/monix/issues/91) for details.**
 
 ## Overview
 
@@ -64,10 +65,13 @@ libraryDependencies += "org.monifu" %% "monifu" % "1.0"
 For targeting Javascript runtimes with Scala.js:
 
 ```scala
-libraryDependencies += "org.monix" %%% "monifu" % "1.0"
+libraryDependencies += "org.monifu" %%% "monifu" % "1.0"
 ```
 
 ### Example
+
+**NOTE: this sample works for the upcoming 2.0 version. For the stable 1.0 version the code is
+the same, but the packages are a little different (a migration guide will follow).**
 
 In order for subscriptions to work, we need an implicit
 [Scheduler](shared/src/main/scala/monix/concurrent/Scheduler.scala#L33) imported in our
@@ -84,8 +88,8 @@ import monix.concurrent.Implicits.globalScheduler
 // import play.api.libs.concurrent.Execution.Implicits.defaultContext
 // implicit val scheduler = Scheduler(defaultContext)
 
-import concurrent.duration._
 import monix._
+import scala.concurrent.duration._
 
 val subscription = Observable.intervalAtFixedRate(1.second)
   .take(10)
@@ -95,9 +99,9 @@ val subscription = Observable.intervalAtFixedRate(1.second)
 We can then try out more complex things:
 
 ```scala
+import monix._
 import monix.concurrent.Implicits.globalScheduler
 import play.api.libs.ws._
-import monix._
 
 // emits an auto-incremented number, every second
 Observable.interval(1.second)

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2014-2015 by its authors. Some rights reserved.
- * See the project homepage at: http://www.monix.io
+ * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,18 +35,19 @@ object BufferBackPressuredConcurrencySuite extends TestSuite[Scheduler] {
   }
 
   test("merge test should work") { implicit s =>
-    val source = Observable.repeat(1L).take(2000000)
+    val num = 200000
+    val source = Observable.repeat(1L).take(num)
     val o1 = source.map(_ + 2)
     val o2 = source.map(_ + 3)
     val o3 = source.map(_ + 4)
 
     val f = Observable(o1, o2, o3)
-      .merge(BackPressure(1000))
+      .merge(BackPressure(100))
       .sum
       .asFuture
 
     val result = Await.result(f, 30.seconds)
-    assertEquals(result, Some(2000000L * 3 + 2000000L * 4 + 2000000L * 5))
+    assertEquals(result, Some(num * 3L + num * 4L + num * 5L))
   }
 
   test("should do back-pressure") { implicit s =>

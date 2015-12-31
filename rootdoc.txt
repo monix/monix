@@ -48,7 +48,7 @@ import monix.concurrent.Implicits.globalScheduler
 // import play.api.libs.concurrent.Execution.Implicits.defaultContext
 // implicit val scheduler = Scheduler(defaultContext)
 
-import concurrent.duration._
+import scala.concurrent.duration._
 import monix._
 
 val subscription = Observable.intervalAtFixedRate(1.second)

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2014-2015 by its authors. Some rights reserved.
- * See the project homepage at: http://www.monix.io
+ * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,7 +34,8 @@ object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
   }
 
   test("merge test should work") { implicit s =>
-    val source = Observable.repeat(1L).take(2000000)
+    val num = 200000L
+    val source = Observable.repeat(1L).take(num)
     val o1 = source.map(_ + 2)
     val o2 = source.map(_ + 3)
     val o3 = source.map(_ + 4)
@@ -45,7 +46,7 @@ object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
       .asFuture
 
     val result = Await.result(f, 30.seconds)
-    assertEquals(result, Some(2000000L * 3 + 2000000L * 4 + 2000000L * 5))
+    assertEquals(result, Some(num * 3 + num * 4 + num * 5))
   }
 
   test("should not lose events, test 1") { implicit s =>

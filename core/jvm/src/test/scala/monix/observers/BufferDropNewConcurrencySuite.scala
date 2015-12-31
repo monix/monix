@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2014-2015 by its authors. Some rights reserved.
- * See the project homepage at: http://www.monix.io
+ * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ import monix.OverflowStrategy.DropNew
 import monix.exceptions.DummyException
 import monix.{Observable, Subscriber, Ack, Observer}
 import scala.concurrent.{Await, Future, Promise}
-import concurrent.duration._
+import scala.concurrent.duration._
 
 object BufferDropNewConcurrencySuite extends TestSuite[Scheduler] {
   def tearDown(env: Scheduler) = ()
@@ -35,13 +35,14 @@ object BufferDropNewConcurrencySuite extends TestSuite[Scheduler] {
   }
 
   test("merge test should work") { implicit s =>
-    val source = Observable.repeat(1L).take(1000000)
+    val num = 100000
+    val source = Observable.repeat(1L).take(num)
     val o1 = source.map(_ + 2)
     val o2 = source.map(_ + 3)
     val o3 = source.map(_ + 4)
 
     val f = Observable(o1, o2, o3)
-      .merge(DropNew(1000))
+      .merge(DropNew(100))
       .sum
       .asFuture
 

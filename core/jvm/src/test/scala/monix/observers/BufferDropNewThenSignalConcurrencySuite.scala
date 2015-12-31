@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2014-2015 by its authors. Some rights reserved.
- * See the project homepage at: http://www.monix.io
+ * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,14 +46,15 @@ object BufferDropNewThenSignalConcurrencySuite
   }
 
   test("merge test should work") { implicit s =>
-    val source = Observable.repeat(1L).take(1000000)
+    val num = 100000
+    val source = Observable.repeat(1L).take(num)
     val f = Observable(source, source, source)
       .merge(DropNew(1000), dropped => dropped)
       .sum
       .asFuture
 
     val result = Await.result(f, 30.seconds)
-    assertEquals(result, Some(1000000 * 3))
+    assertEquals(result, Some(num * 3))
   }
 
   test("should not lose events, test 1") { implicit s =>

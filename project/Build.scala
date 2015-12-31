@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2014-2015 by its authors. Some rights reserved.
- * See the project homepage at: http://www.monix.io
+ * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ import sbt.{Build => SbtBuild, _}
 import sbtrelease.ReleasePlugin.autoImport._
 import sbtunidoc.Plugin._
 import sbtunidoc.Plugin.UnidocKeys._
-
+import scoverage.ScoverageSbtPlugin.autoImport._
 
 object Build extends SbtBuild {
   val doNotPublishArtifact = Seq(
@@ -104,6 +104,10 @@ object Build extends SbtBuild {
     ),
 
     parallelExecution in Test := false,
+    parallelExecution in IntegrationTest := false,
+    testForkedParallel in Test := false,
+    testForkedParallel in IntegrationTest := false,
+    concurrentRestrictions in Global += Tags.limit(Tags.Test, 1),
 
     resolvers ++= Seq(
       "Typesafe Releases" at "http://repo.typesafe.com/typesafe/releases",
@@ -151,8 +155,8 @@ object Build extends SbtBuild {
 
   val crossSettings = sharedSettings ++ Seq(
     libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _ % "compile"),
-    unmanagedSourceDirectories in Compile <+= baseDirectory(_ / ".." / "shared" / "src" / "main" / "scala"),
-    unmanagedSourceDirectories in Test <+= baseDirectory(_ / ".." / "shared" / "src" / "test" / "scala")
+    unmanagedSourceDirectories in Compile <+= baseDirectory(_.getParentFile / "shared" / "src" / "main" / "scala"),
+    unmanagedSourceDirectories in Test <+= baseDirectory(_.getParentFile / "shared" / "src" / "test" / "scala")
   )
 
   lazy val monix = project.in(file("."))
@@ -183,6 +187,7 @@ object Build extends SbtBuild {
         name := "monix-core",
         scalaJSStage in Test := FastOptStage,
         testFrameworks += new TestFramework("minitest.runner.Framework"),
+        coverageExcludedFiles := ".*",
         libraryDependencies ++= Seq(
           "org.monifu" %%% "asterix-atomic" % "0.1",
           "org.monifu" %%% "minitest" % "0.14" % "test"
