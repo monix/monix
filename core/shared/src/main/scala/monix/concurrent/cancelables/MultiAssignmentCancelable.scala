@@ -18,7 +18,7 @@
 package monix.concurrent.cancelables
 
 import monix.concurrent.Cancelable
-import monix.concurrent.atomic.Atomic
+import asterix.atomic.Atomic
 import scala.annotation.tailrec
 
 /** Represents a [[monix.concurrent.Cancelable]] whose underlying cancelable

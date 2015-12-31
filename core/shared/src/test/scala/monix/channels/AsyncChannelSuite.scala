@@ -18,7 +18,7 @@
 package monix.channels
 
 import monix.concurrent.Scheduler
-import monix.concurrent.atomic.{Atomic, AtomicLong}
+import asterix.atomic.{Atomic, AtomicLong}
 import monix.Ack.Continue
 import monix.OverflowStrategy.Unbounded
 import monix.Observer

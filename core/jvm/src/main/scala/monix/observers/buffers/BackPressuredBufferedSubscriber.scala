@@ -19,7 +19,7 @@ package monix.observers.buffers
 
 import java.util.concurrent.ConcurrentLinkedQueue
 import monix.concurrent.Scheduler
-import monix.concurrent.atomic.padded.Atomic
+import asterix.atomic.padded.Atomic
 import monix.Ack.{Cancel, Continue}
 import monix.observers.BufferedSubscriber
 import monix.{Ack, Subscriber}

@@ -18,7 +18,7 @@
 package monix.concurrent.schedulers
 
 import monix.concurrent.Cancelable
-import monix.concurrent.atomic.Atomic
+import asterix.atomic.Atomic
 import monix.concurrent.cancelables.SingleAssignmentCancelable
 import monix.concurrent.schedulers.TestScheduler._
 

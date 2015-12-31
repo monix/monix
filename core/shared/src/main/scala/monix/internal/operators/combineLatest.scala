@@ -17,7 +17,7 @@
 
 package monix.internal.operators
 
-import monix.concurrent.atomic.Atomic
+import asterix.atomic.Atomic
 import monix.Ack.{Cancel, Continue}
 import monix.exceptions.CompositeException
 import monix.internal._

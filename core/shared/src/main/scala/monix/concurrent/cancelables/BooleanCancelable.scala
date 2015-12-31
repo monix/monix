@@ -18,7 +18,7 @@
 package monix.concurrent.cancelables
 
 import monix.concurrent.Cancelable
-import monix.concurrent.atomic.padded.Atomic
+import asterix.atomic.padded.Atomic
 
 /**
  * Represents a Cancelable that can queried for the canceled status.

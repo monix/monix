@@ -17,7 +17,7 @@
  
 package monix.concurrent
 
-import monix.concurrent.atomic.padded.Atomic
+import asterix.atomic.padded.Atomic
 
 /**
  * Represents an asynchronous computation whose execution can be canceled.

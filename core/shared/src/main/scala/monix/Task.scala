@@ -20,7 +20,7 @@ package monix
 import monix.Task.Callback
 import monix.concurrent.{CancelableFuture, Cancelable, Scheduler}
 import monix.concurrent.cancelables._
-import monix.concurrent.atomic.Atomic
+import asterix.atomic.Atomic
 import monix.internal.concurrent.TaskRunnable
 import scala.annotation.tailrec
 import scala.concurrent.duration.FiniteDuration

@@ -17,8 +17,8 @@
 
 package monix.internal.concurrent
 
+import asterix.misc.Unsafe
 import monix.concurrent.cancelables.BooleanCancelable
-import monix.concurrent.misc.Unsafe
 
 /** Optimized implementation of a simple [[BooleanCancelable]],
   * a cancelable that doesn't trigger any actions on cancel, it just

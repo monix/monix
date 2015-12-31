@@ -17,7 +17,7 @@
 
 package monix.internal.operators
 
-import monix.concurrent.atomic.Atomic
+import asterix.atomic.Atomic
 import monix.concurrent.cancelables.BooleanCancelable
 import monix.Observable
 import scala.concurrent.duration.Duration.Zero

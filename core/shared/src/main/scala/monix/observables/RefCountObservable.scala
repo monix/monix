@@ -17,7 +17,7 @@
 
 package monix.observables
 
-import monix.concurrent.atomic.padded.Atomic
+import asterix.atomic.padded.Atomic
 import monix.concurrent.cancelables.BooleanCancelable
 import monix.concurrent.{Cancelable, Scheduler}
 import monix.internal._

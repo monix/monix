@@ -20,7 +20,7 @@ package monix.concurrent.schedulers
 import java.lang.Thread.UncaughtExceptionHandler
 import java.util.concurrent.{Executors, ScheduledExecutorService, ThreadFactory}
 import monix.concurrent.UncaughtExceptionReporter._
-import monix.concurrent.atomic.Atomic
+import asterix.atomic.Atomic
 import monix.concurrent.{Scheduler, UncaughtExceptionReporter}
 import scala.concurrent.ExecutionContext
 import scala.concurrent.forkjoin.ForkJoinPool

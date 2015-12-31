@@ -17,7 +17,7 @@
  
 package monix.subjects
 
-import monix.concurrent.atomic.padded.Atomic
+import asterix.atomic.padded.Atomic
 import monix.Ack.{Continue, Cancel}
 import monix.internal.PromiseCounter
 import monix.subjects.PublishSubject.State

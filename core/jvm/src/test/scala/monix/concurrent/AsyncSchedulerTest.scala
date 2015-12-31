@@ -19,7 +19,7 @@ package monix.concurrent
 
 import java.util.concurrent.{CountDownLatch, TimeUnit, TimeoutException}
 import minitest.SimpleTestSuite
-import monix.concurrent.atomic.Atomic
+import asterix.atomic.Atomic
 import monix.concurrent.cancelables.{BooleanCancelable, SingleAssignmentCancelable}
 import monix.internal.concurrent.RunnableAction
 import scala.concurrent.duration._

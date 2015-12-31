@@ -17,7 +17,7 @@
  
 package monix.concurrent.cancelables
 
-import monix.concurrent.atomic.Atomic
+import asterix.atomic.Atomic
 import monix.concurrent.Cancelable
 import scala.annotation.tailrec
 

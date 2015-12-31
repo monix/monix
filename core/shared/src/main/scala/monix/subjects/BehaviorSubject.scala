@@ -17,7 +17,7 @@
  
 package monix.subjects
 
-import monix.concurrent.atomic.padded.Atomic
+import asterix.atomic.padded.Atomic
 import monix.Ack.{Cancel, Continue}
 import monix.observers.ConnectableSubscriber
 import monix.{Ack, Observable, Subject, Subscriber}

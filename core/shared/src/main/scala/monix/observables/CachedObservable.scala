@@ -17,7 +17,7 @@
 
 package monix.observables
 
-import monix.concurrent.atomic.padded.Atomic
+import asterix.atomic.padded.Atomic
 import monix.subjects.ReplaySubject
 import monix.{Observable, Subscriber}
 
