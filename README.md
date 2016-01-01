@@ -5,6 +5,7 @@
 Reactive Programming for Scala and [Scala.js](http://www.scala-js.org/).
 
 [![Build Status](https://travis-ci.org/monifu/monix.svg?branch=master)](https://travis-ci.org/monifu/monix)
+[![codecov.io](http://codecov.io/github/monifu/monix/coverage.svg?branch=master)](http://codecov.io/github/monifu/monix?branch=master)
 [![License](http://img.shields.io/:license-Apache%202-red.svg)](http://www.apache.org/licenses/LICENSE-2.0.txt)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/org.monifu/monifu_2.11/badge.svg)](https://maven-badges.herokuapp.com/maven-central/org.monifu/monifu_2.11)
 
