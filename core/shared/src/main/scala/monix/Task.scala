@@ -91,16 +91,12 @@ sealed abstract class Task[+T] { self =>
     callback: UnsafeCallback[T]): Unit = {
 
     if (stackDepth > 0 && stackDepth < Scheduler.recommendedBatchSize)
-      try unsafeRunFn(scheduler, cancelable, stackDepth+1, callback) catch {
-        case NonFatal(ex) =>
-          callback.safeOnError(scheduler, stackDepth, ex)
-      }
-    else {
+      unsafeRunFn(scheduler, cancelable, stackDepth+1, callback)
+    else
       cancelable := scheduler.scheduleOnce(new Runnable {
         override def run(): Unit =
           self.unsafeRunFn(scheduler, cancelable, stackDepth = 1, callback)
       })
-    }
   }
 
   /** Triggers the asynchronous execution.
@@ -246,17 +242,23 @@ sealed abstract class Task[+T] { self =>
         def onSuccess(v: T, depth: Int): Unit =
           cb.safeOnSuccess(scheduler, depth, v)
 
-        def onError(ex: Throwable, depth: Int) =
+        def onError(ex: Throwable, depth: Int) = {
+          var streamError = true
           try {
-            if (pf.isDefinedAt(ex))
-              cb.safeOnSuccess(scheduler, depth, pf(ex))
-            else
+            if (pf.isDefinedAt(ex)) {
+              val r = pf(ex)
+              streamError = false
+              cb.safeOnSuccess(scheduler, depth, r)
+            } else {
+              streamError = false
               cb.safeOnError(scheduler, depth, ex)
+            }
           } catch {
-            case NonFatal(err) =>
+            case NonFatal(err) if streamError =>
               scheduler.reportFailure(ex)
               cb.safeOnError(scheduler, depth, err)
           }
+        }
       })
     }
 
@@ -269,19 +271,24 @@ sealed abstract class Task[+T] { self =>
         def onSuccess(v: T, depth: Int) =
           cb.safeOnSuccess(scheduler, depth, v)
 
-        def onError(ex: Throwable, depth: Int): Unit =
+        def onError(ex: Throwable, depth: Int): Unit = {
+          var streamError = true
           try {
             if (pf.isDefinedAt(ex)) {
               val newTask = pf(ex)
+              streamError = false
               newTask.stackSafeRun(scheduler, cancelable, depth, cb)
             }
-            else
+            else {
+              streamError = false
               cb.safeOnError(scheduler, depth, ex)
+            }
           } catch {
-            case NonFatal(err) =>
+            case NonFatal(err) if streamError =>
               scheduler.reportFailure(ex)
               cb.safeOnError(scheduler, depth, err)
           }
+        }
       })
     }
 
@@ -352,6 +359,51 @@ sealed abstract class Task[+T] { self =>
         def onError(ex: Throwable, depth: Int): Unit =
           if (timeoutTask.cancel()) {
             cancelable := activeTask
+            cb.safeOnError(scheduler, depth, ex)
+          }
+      })
+    }
+
+  /** Creates a new task that upon execution will return the result
+    * of the first task that completes, while canceling the other.
+    */
+  def ambWith[U >: T](other: Task[U]): Task[U] =
+    Task.unsafeCreate { (scheduler, cancelable, depth, cb) =>
+      val isActive = Atomic(true)
+      val firstTask = MultiAssignmentCancelable()
+      val secondTask = MultiAssignmentCancelable()
+
+      val composite = CompositeCancelable(firstTask, secondTask)
+      cancelable := composite
+
+      self.unsafeRunFn(scheduler, firstTask, depth, new UnsafeCallback[T] {
+        def onSuccess(value: T, depth: Int): Unit =
+          if (isActive.compareAndSet(expect=true, update=false)) {
+            secondTask.cancel()
+            cancelable := firstTask // GC purposes
+            cb.safeOnSuccess(scheduler, depth, value)
+          }
+
+        def onError(ex: Throwable, depth: Int): Unit =
+          if (isActive.compareAndSet(expect=true, update=false)) {
+            secondTask.cancel()
+            cancelable := firstTask
+            cb.safeOnError(scheduler, depth, ex)
+          }
+      })
+
+      other.unsafeRunFn(scheduler, secondTask, depth, new UnsafeCallback[U] {
+        def onSuccess(value: U, depth: Int): Unit =
+          if (isActive.compareAndSet(expect=true, update=false)) {
+            firstTask.cancel()
+            cancelable := secondTask
+            cb.safeOnSuccess(scheduler, depth, value)
+          }
+
+        def onError(ex: Throwable, depth: Int): Unit =
+          if (isActive.compareAndSet(expect=true, update=false)) {
+            firstTask.cancel()
+            cancelable := secondTask // GC purposes
             cb.safeOnError(scheduler, depth, ex)
           }
       })
@@ -481,6 +533,52 @@ object Task {
             callback.safeOnError(scheduler, depth, ex)
       }(scheduler)
     }
+
+  /** Creates a `Task` that upon execution will return the result
+    * of the first completed task in the given list and then
+    * cancel the rest.
+    */
+  def amb[T](tasks: Task[T]*): Task[T] = {
+    require(tasks.nonEmpty, "tasks.nonEmpty")
+
+    Task.unsafeCreate { (scheduler, cancelable, depth, cb) =>
+      val isActive = Atomic(true)
+      val composite = CompositeCancelable()
+      cancelable := composite
+
+      for (task <- tasks) {
+        val taskCancelable = MultiAssignmentCancelable()
+        composite += taskCancelable
+
+        task.unsafeRunFn(scheduler, taskCancelable, depth, new UnsafeCallback[T] {
+          def onSuccess(value: T, depth: Int): Unit =
+            if (isActive.compareAndSet(expect=true, update=false)) {
+              composite -= taskCancelable
+              composite.cancel()
+              cancelable := taskCancelable
+              cb.safeOnSuccess(scheduler, depth, value)
+            }
+
+          def onError(ex: Throwable, depth: Int): Unit =
+            if (isActive.compareAndSet(expect=true, update=false)) {
+              composite -= taskCancelable
+              composite.cancel()
+              cancelable := taskCancelable
+              cb.safeOnError(scheduler, depth, ex)
+            }
+        })
+      }
+    }
+  }
+
+  /** Creates a `Task` that upon execution will return the result
+    * of the first completed task in the given list and then
+    * cancel the rest.
+    *
+    * Alias for [[Task.amb]].
+    */
+  def firstCompletedOf[T](tasks: Task[T]*): Task[T] =
+    amb(tasks:_*)
 
   /** Builder for [[Task]] instances. For usage on implementing
     * operators or builders. Internal to Monix.
