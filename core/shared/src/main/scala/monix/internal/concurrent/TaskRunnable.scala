@@ -18,7 +18,6 @@
 package monix.internal.concurrent
 
 import monix.Task
-import monix.concurrent.Scheduler
 import scala.util.control.NonFatal
 
 /** Helpers for building Task-related Runnable instances.
@@ -32,7 +31,7 @@ private[monix] object TaskRunnable {
     * Call callback.onSuccess(value)
     * Resets the stackDepth to 1, as the call will be async
     */
-  final class AsyncOnSuccess[T] private (cb: Task.Callback[T], value: T)
+  final class AsyncOnSuccess[T] private (cb: Task.UnsafeCallback[T], value: T)
     extends Runnable {
 
     def run(): Unit =
@@ -44,7 +43,7 @@ private[monix] object TaskRunnable {
 
   object AsyncOnSuccess {
     /** Builder for [[AsyncOnSuccess]] */
-    def apply[T](cb: Task.Callback[T], value: T): Runnable =
+    def apply[T](cb: Task.UnsafeCallback[T], value: T): Runnable =
       new AsyncOnSuccess[T](cb, value)
   }
 
@@ -52,7 +51,7 @@ private[monix] object TaskRunnable {
     * Call callback.onSuccess(value)
     * Resets the stackDepth to 1, as the call will be async
     */
-  final class AsyncOnError[T] private (cb: Task.Callback[T], ex: Throwable)
+  final class AsyncOnError[T] private (cb: Task.UnsafeCallback[T], ex: Throwable)
     extends Runnable {
 
     def run(): Unit = {
@@ -62,7 +61,7 @@ private[monix] object TaskRunnable {
 
   object AsyncOnError {
     /** Builder for [[AsyncOnError]] */
-    def apply[T](cb: Task.Callback[T], ex: Throwable): Runnable =
+    def apply[T](cb: Task.UnsafeCallback[T], ex: Throwable): Runnable =
       new AsyncOnError[T](cb, ex)
   }
 }
