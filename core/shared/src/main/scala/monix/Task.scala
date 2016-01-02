@@ -23,6 +23,8 @@ import monix.concurrent.cancelables._
 import asterix.atomic.Atomic
 import monix.internal.concurrent.TaskRunnable
 import scala.annotation.tailrec
+import scala.collection.generic.CanBuildFrom
+import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Future, Promise, TimeoutException, CancellationException}
 import scala.language.higherKinds
@@ -431,8 +433,8 @@ sealed abstract class Task[+T] { self =>
               if (!state.compareAndSet(null, Left(t))) onSuccess(t, depth)
             case Right(u) =>
               cb.safeOnSuccess(scheduler, depth, (t, u))
-            case Left(_) =>
-              ()
+            case s @ Left(_) =>
+              onError(new IllegalStateException(s.toString), depth)
           }
       })
 
@@ -446,8 +448,8 @@ sealed abstract class Task[+T] { self =>
               if (!state.compareAndSet(null, Right(u))) onSuccess(u, depth)
             case Left(t) =>
               cb.safeOnSuccess(scheduler, depth, (t, u))
-            case Right(_) =>
-              ()
+            case s @ Right(_) =>
+              onError(new IllegalStateException(s.toString), depth)
           }
       })
     }
@@ -467,11 +469,8 @@ object Task {
           streamErrors = false
           callback.safeOnSuccess(scheduler, depth, result)
         } catch {
-          case NonFatal(ex) =>
-            if (streamErrors) // failure was user code, so stream it
-              callback.safeOnError(scheduler, depth, ex)
-            else // failure is in Monix
-              scheduler.reportFailure(ex)
+          case NonFatal(ex) if streamErrors =>
+            callback.safeOnError(scheduler, depth, ex)
         }
       }
     }
@@ -513,11 +512,8 @@ object Task {
         streamErrors = false
         cancelable := c
       } catch {
-        case NonFatal(ex) =>
-          if (streamErrors) // failure is in user code
-            cb.safeOnError(scheduler, depth, ex)
-          else // failure was us
-            scheduler.reportFailure(ex)
+        case NonFatal(ex) if streamErrors =>
+          cb.safeOnError(scheduler, depth, ex)
       }
     }
 
@@ -580,10 +576,42 @@ object Task {
   def firstCompletedOf[T](tasks: Task[T]*): Task[T] =
     amb(tasks:_*)
 
+  /** Transforms a `TraversableOnce[Task[A]]` into a `Task[TraversableOnce[A]]`.
+    * Useful for reducing many `Task`s into a single `Task`.
+    */
+  def sequence[A, M[X] <: TraversableOnce[X]](in: M[Task[A]])
+    (implicit cbf: CanBuildFrom[M[Task[A]], A, M[A]], scheduler: Scheduler): Task[M[A]] = {
+
+    Task.unsafeCreate { (scheduler, cancelable, depth, cb) =>
+      implicit val ec = scheduler
+      val cancelables = ArrayBuffer.empty[Cancelable]
+      var builder = Future.successful(cbf(in))
+
+      for (task <- in) {
+        val p = Promise[A]()
+        val cancelable = task.runAsync(new Callback[A] {
+          def onSuccess(value: A): Unit = p.trySuccess(value)
+          def onError(ex: Throwable): Unit = p.tryFailure(ex)
+        })
+
+        cancelables += cancelable
+        builder = for (r <- builder; a <- p.future) yield r += a
+      }
+
+      cancelable := CompositeCancelable(cancelables:_*)
+      builder.onComplete {
+        case Success(r) =>
+          cb.safeOnSuccess(scheduler, depth, r.result())
+        case Failure(ex) =>
+          cb.safeOnError(scheduler, depth, ex)
+      }
+    }
+  }
+
   /** Builder for [[Task]] instances. For usage on implementing
     * operators or builders. Internal to Monix.
     */
-  private def unsafeCreate[T](f: (Scheduler, MultiAssignmentCancelable, Int, UnsafeCallback[T]) => Unit): Task[T] =
+  private[monix] def unsafeCreate[T](f: (Scheduler, MultiAssignmentCancelable, Int, UnsafeCallback[T]) => Unit): Task[T] =
     new Task[T] {
       def unsafeRunFn(s: Scheduler, c: MultiAssignmentCancelable, d: Int, cb: UnsafeCallback[T]): Unit =
         f(s, c, d, cb)

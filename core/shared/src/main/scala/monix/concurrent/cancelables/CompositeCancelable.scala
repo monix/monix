@@ -80,13 +80,17 @@ trait CompositeCancelable extends BooleanCancelable {
 }
 
 object CompositeCancelable {
+  /** Builder for composite cancelable */
   def apply(initial: Cancelable*): CompositeCancelable = {
-    val cs = new CompositeCancelableImpl
-    for (c <- initial) cs += c
-    cs
+    if (initial.nonEmpty)
+      new CompositeCancelableImpl(initial.toSet)
+    else
+      new CompositeCancelableImpl(Set.empty)
   }
 
-  private[this] final class CompositeCancelableImpl extends CompositeCancelable {
+  private[this] final class CompositeCancelableImpl(cancelables: Set[Cancelable])
+    extends CompositeCancelable {
+
     def isCanceled =
       state.get.isCanceled
 
@@ -136,11 +140,11 @@ object CompositeCancelable {
     }
 
     private[this] val state: AtomicAny[State] =
-      Atomic(State())
+      Atomic(State(cancelables.toSet))
   }
 
   /** Private state of a [[CompositeCancelable]] */
   private case class State(
-    subscriptions: Set[Cancelable] = Set.empty,
+    subscriptions: Set[Cancelable],
     isCanceled: Boolean = false)
 }

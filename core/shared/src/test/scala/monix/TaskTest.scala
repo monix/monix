@@ -19,6 +19,7 @@ package monix
 
 import java.util.concurrent.CancellationException
 import minitest.TestSuite
+import monix.Task.UnsafeCallback
 import monix.concurrent.Cancelable
 import monix.concurrent.schedulers.TestScheduler
 import monix.exceptions.DummyException
@@ -79,7 +80,7 @@ object TaskTest extends TestSuite[TestScheduler] {
       "isInstanceOf[CancellationException]")
   }
 
-  test("Task.create should work") { implicit s =>
+  test("Task.create should work for onSuccess") { implicit s =>
     var wasTriggered = false
     def trigger() = { wasTriggered = true; "result" }
 
@@ -95,6 +96,16 @@ object TaskTest extends TestSuite[TestScheduler] {
     assertEquals(f.value, Some(Success("result")))
   }
 
+  test("Task.create should work for onError") { implicit s =>
+    val ex = DummyException("dummy")
+    val task = Task.create[String] { (cb, s) => cb.onError(ex); Cancelable.empty }
+    val f = task.runAsync
+
+    assertEquals(f.value, None)
+    s.tick()
+    assertEquals(f.value, Some(Failure(ex)))
+  }
+
   test("Task.create should protect against user code errors") { implicit s =>
     val ex = DummyException("dummy")
     val f = Task.create[Int] { (cb,s) => throw ex }.runAsync
@@ -102,6 +113,27 @@ object TaskTest extends TestSuite[TestScheduler] {
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
     assertEquals(s.state.get.lastReportedError, null)
+  }
+
+  test("Task.apply should log unexpected errors in user callbacks") { implicit s =>
+    val err1 = DummyException("err1")
+    val err2 = DummyException("err2")
+
+    val task = Task.unsafeCreate[Int] { (s, c, depth, cb) =>
+      Task(1).stackSafeRun(s, c, depth, new UnsafeCallback[Int] {
+        def onSuccess(value: Int, stackDepth: Int): Unit =
+          throw err1
+
+        def onError(ex: Throwable, stackDepth: Int): Unit =
+          throw err2
+      })
+    }
+
+    val f = task.runAsync
+    s.tick()
+    assertEquals(f.value, None)
+
+    assertEquals(s.state.get.lastReportedError, err2)
   }
 
   test("Task.fromFuture should onSuccess") { implicit s =>
@@ -576,6 +608,18 @@ object TaskTest extends TestSuite[TestScheduler] {
     assert(s.state.get.tasks.isEmpty, "timer should be canceled")
   }
 
+  test("Task#timeout should mirror the source in case of error") { implicit s =>
+    val ex = DummyException("dummy")
+    val task = Task(throw ex).delay(1.seconds).timeout(10.second)
+    val f = task.runAsync
+
+    s.tick()
+    assertEquals(f.value, None)
+    s.tick(1.second)
+    assertEquals(f.value, Some(Failure(ex)))
+    assert(s.state.get.tasks.isEmpty, "timer should be canceled")
+  }
+
   test("Task#timeout should cancel both the source and the timer") { implicit s =>
     val task = Task(1).delay(10.seconds).timeout(1.second)
     val f = task.runAsync
@@ -607,6 +651,18 @@ object TaskTest extends TestSuite[TestScheduler] {
     assertEquals(f.value, None)
     s.tick(1.second)
     assertEquals(f.value, Some(Success(1)))
+    assert(s.state.get.tasks.isEmpty, "timer should be canceled")
+  }
+
+  test("Task#timeout with backup should mirror the source in case of error") { implicit s =>
+    val ex = DummyException("dummy")
+    val task = Task(throw ex).delay(1.seconds).timeout(10.second, Task(99))
+    val f = task.runAsync
+
+    s.tick()
+    assertEquals(f.value, None)
+    s.tick(1.second)
+    assertEquals(f.value, Some(Failure(ex)))
     assert(s.state.get.tasks.isEmpty, "timer should be canceled")
   }
 
@@ -783,6 +839,36 @@ object TaskTest extends TestSuite[TestScheduler] {
     assertEquals(f.value, Some(Failure(ex)))
   }
 
+  test("Task#zip illegal state exception from source") { implicit s =>
+    val source = Task.unsafeCreate[Int] { (scheduler, cancelable, depth, cb) =>
+      cb.onSuccess(1, depth)
+      cb.onSuccess(2, depth)
+    }
+
+    val task = source.zip(Task(3).delay(1.second))
+    val f = task.runAsync
+    s.tick()
+
+    val ex = f.value.flatMap(_.failed.toOption).orNull
+    assert(ex != null && ex.isInstanceOf[IllegalStateException],
+      "should have thrown IllegalStateException")
+  }
+
+  test("Task#zip illegal state exception from other") { implicit s =>
+    val other = Task.unsafeCreate[Int] { (scheduler, cancelable, depth, cb) =>
+      cb.onSuccess(1, depth)
+      cb.onSuccess(2, depth)
+    }
+
+    val task = Task(3).delay(1.second).zip(other)
+    val f = task.runAsync
+    s.tick()
+
+    val ex = f.value.flatMap(_.failed.toOption).orNull
+    assert(ex != null && ex.isInstanceOf[IllegalStateException],
+      "should have thrown IllegalStateException")
+  }
+
   // --
 
   test("Task.firstCompletedOf should switch to other") { implicit s =>
@@ -843,4 +929,48 @@ object TaskTest extends TestSuite[TestScheduler] {
     assert(s.state.get.tasks.isEmpty, "both should be canceled")
   }
 
+  test("Task.sequence should execute in parallel") { implicit s =>
+    val seq = Seq(Task(1).delay(2.seconds), Task(2).delay(1.second), Task(3).delay(3.seconds))
+    val f = Task.sequence(seq).runAsync
+
+    s.tick()
+    assertEquals(f.value, None)
+    s.tick(2.seconds)
+    assertEquals(f.value, None)
+    s.tick(1.second)
+    assertEquals(f.value, Some(Success(Seq(1, 2, 3))))
+  }
+
+  test("Task.sequence should onError if one of the tasks terminates in error") { implicit s =>
+    val ex = DummyException("dummy")
+    val seq = Seq(
+      Task(3).delay(3.seconds),
+      Task(2).delay(1.second),
+      Task(throw ex).delay(2.seconds),
+      Task(3).delay(1.seconds))
+
+    val f = Task.sequence(seq).runAsync
+
+    s.tick()
+    assertEquals(f.value, None)
+    s.tick(2.seconds)
+    assertEquals(f.value, None)
+    s.tick(1.seconds)
+    assertEquals(f.value, Some(Failure(ex)))
+  }
+
+  test("Task.sequence should be canceled") { implicit s =>
+    val seq = Seq(Task(1).delay(2.seconds), Task(2).delay(1.second), Task(3).delay(3.seconds))
+    val f = Task.sequence(seq).runAsync
+
+    s.tick()
+    assertEquals(f.value, None)
+    s.tick(2.seconds)
+    assertEquals(f.value, None)
+
+    f.cancel()
+    s.tick(1.second)
+    assert(f.value.get.failed.get.isInstanceOf[CancellationException],
+      "isInstanceOf[CancellationException]")
+  }
 }
