@@ -33,7 +33,7 @@ import scala.util.{Failure, Success, Try}
 
 
 /** `Task` represents a specification for an asynchronous computation,
-  * which when executed will produce an `A` as a result, along with
+  * which when executed will produce an `T` as a result, along with
   * possible side-effects.
   *
   * Compared with `Future` from Scala's standard library, `Task` does
