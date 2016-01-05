@@ -46,11 +46,5 @@ private[monix] object Platform {
     *   nr = (nr + 1) & modulus
     * }}}
     */
-  final val recommendedBatchSize: Int = {
-    Option(System.getProperty("monix.environment.batchSize", ""))
-      .filter(s => s != null && s.nonEmpty)
-      .flatMap(s => Try(s.toInt).toOption)
-      .map(math.nextPowerOf2)
-      .getOrElse(1024)
-  }
+  final val recommendedBatchSize: Int = 512
 }
