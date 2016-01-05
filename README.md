@@ -71,25 +71,23 @@ libraryDependencies += "org.monifu" %%% "monifu" % "1.0"
 
 ### Example
 
-**NOTE: this sample works for the upcoming 2.0 version. For the stable 1.0 version the code is
-the same, but the packages are a little different (a migration guide will follow).**
+NOTE: this sample works for the 1.0 version.
 
 In order for subscriptions to work, we need an implicit
-[Scheduler](shared/src/main/scala/monix/concurrent/Scheduler.scala#L33) imported in our
-context. A `Scheduler` inherits from Scala's own [ExecutionContext](http://www.scala-lang.org/api/current/index.html#scala.concurrent.ExecutionContext)
+`Scheduler` imported in our context. A `Scheduler` inherits from Scala's own [ExecutionContext](http://www.scala-lang.org/api/current/index.html#scala.concurrent.ExecutionContext)
 and any `ExecutionContext` can be quickly converted into a `Scheduler`.
 And then you're off ...
 
 ```scala
 // scala.concurrent.ExecutionContext.Implicits.global
 // is being used under the hood
-import scalax.concurrent.Scheduler.Implicits.global
+import monifu.concurrent.Implicits.globalScheduler
 
 // or we can simply convert our own execution context
 // import play.api.libs.concurrent.Execution.Implicits.defaultContext
 // implicit val scheduler = Scheduler(defaultContext)
 
-import monix._
+import monifu.reactive._
 import scala.concurrent.duration._
 
 val subscription = Observable.intervalAtFixedRate(1.second)
@@ -100,8 +98,8 @@ val subscription = Observable.intervalAtFixedRate(1.second)
 We can then try out more complex things:
 
 ```scala
-import monix._
-import scalax.concurrent.Scheduler.Implicits.global
+import monifu.reactive._
+import monifu.concurrent.Implicits.globalScheduler
 import play.api.libs.ws._
 
 // emits an auto-incremented number, every second
@@ -125,7 +123,6 @@ Observable.interval(1.second)
 ## Documentation
 
 NOTE: The documentation is a work in progress.
-
 API Documentation:
 
 - [1.0](http://monix.io/api/1.0/)
