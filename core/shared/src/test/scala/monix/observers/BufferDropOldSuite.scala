@@ -18,14 +18,15 @@
 package monix.observers
 
 import minitest.TestSuite
-import monix.concurrent.Scheduler
-import monix.concurrent.schedulers.TestScheduler
+import scalax.concurrent.Scheduler
+import scalax.concurrent.schedulers.TestScheduler
 import monix.Ack.{Cancel, Continue}
 import monix.OverflowStrategy.DropOld
 import monix.exceptions.DummyException
 import monix.internal.concurrent.RunnableAction
 import monix.{Subscriber, Ack, Observer}
 import scala.concurrent.{Future, Promise}
+import monix.internal.Platform
 
 object BufferDropOldSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
@@ -306,16 +307,16 @@ object BufferDropOldSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable) = ()
         def onComplete() = wasCompleted = true
         val scheduler = s
-      }, DropOld(Scheduler.recommendedBatchSize * 3))
+      }, DropOld(Platform.recommendedBatchSize * 3))
 
-    for (i <- 0 until (Scheduler.recommendedBatchSize * 2)) buffer.onNext(i)
+    for (i <- 0 until (Platform.recommendedBatchSize * 2)) buffer.onNext(i)
     buffer.onComplete()
     assertEquals(received, 0)
 
     s.tickOne()
-    assertEquals(received, Scheduler.recommendedBatchSize)
+    assertEquals(received, Platform.recommendedBatchSize)
     s.tickOne()
-    assertEquals(received, Scheduler.recommendedBatchSize * 2)
+    assertEquals(received, Platform.recommendedBatchSize * 2)
     s.tickOne()
     assertEquals(wasCompleted, true)
   }

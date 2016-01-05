@@ -17,7 +17,7 @@
  
 package monix.channels
 
-import monix.concurrent.Scheduler
+import scalax.concurrent.Scheduler
 import monix.OverflowStrategy.Evicted
 import monix._
 import monix.observers.BufferedSubscriber

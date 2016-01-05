@@ -17,10 +17,11 @@
  
 package monix
 
-import monix.concurrent.Scheduler
+import scalax.concurrent.Scheduler
 import monix.Ack.{Cancel, Continue}
 import monix.observers.{SynchronousObserver, SynchronousSubscriber}
 import monix.internal.streams._
+import monix.internal.Platform
 import org.reactivestreams.{Subscriber => RSubscriber}
 import scala.annotation.tailrec
 import scala.concurrent.{Future, Promise}
@@ -61,7 +62,7 @@ object Observer {
     * specification.
     */
   def toReactiveSubscriber[T](observer: Observer[T])(implicit s: Scheduler): RSubscriber[T] = {
-    toReactiveSubscriber(observer, Scheduler.recommendedBatchSize)(s)
+    toReactiveSubscriber(observer, Platform.recommendedBatchSize)(s)
   }
 
   /** Transforms the source [[Observer]] into a `org.reactivestreams.Subscriber`
@@ -103,7 +104,7 @@ object Observer {
   def feed[T](source: Observer[T], iterator: Iterator[T])(implicit s: Scheduler): Future[Ack] = {
     def scheduleFeedLoop(promise: Promise[Ack], iterator: Iterator[T]): Future[Ack] = {
       s.execute(new Runnable {
-        private[this] val modulus = Scheduler.recommendedBatchSize - 1
+        private[this] val modulus = Platform.recommendedBatchSize - 1
 
         @tailrec
         def fastLoop(syncIndex: Int): Unit = {

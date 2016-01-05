@@ -83,7 +83,7 @@ And then you're off ...
 ```scala
 // scala.concurrent.ExecutionContext.Implicits.global
 // is being used under the hood
-import monix.concurrent.Implicits.globalScheduler
+import scalax.concurrent.Scheduler.Implicits.global
 
 // or we can simply convert our own execution context
 // import play.api.libs.concurrent.Execution.Implicits.defaultContext
@@ -101,7 +101,7 @@ We can then try out more complex things:
 
 ```scala
 import monix._
-import monix.concurrent.Implicits.globalScheduler
+import scalax.concurrent.Scheduler.Implicits.global
 import play.api.libs.ws._
 
 // emits an auto-incremented number, every second

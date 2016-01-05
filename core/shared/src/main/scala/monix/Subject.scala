@@ -17,8 +17,9 @@
  
 package monix
 
-import monix.concurrent.Scheduler
+import scalax.concurrent.Scheduler
 import monix.observables.LiftOperators2
+import monix.internal.Platform
 import org.reactivestreams.{Processor, Subscriber => RSubscriber, Subscription}
 import scala.concurrent.Future
 
@@ -45,7 +46,7 @@ trait Subject[I, +T] extends Observable[T] with Observer[I]
     }
 
   override def toReactive[U >: T](implicit s: Scheduler): Processor[I, U] =
-    Subject.toReactiveProcessor(self, Scheduler.recommendedBatchSize)
+    Subject.toReactiveProcessor(self, Platform.recommendedBatchSize)
 
   def toReactive[U >: T](bufferSize: Int)(implicit s: Scheduler): Processor[I, U] =
     Subject.toReactiveProcessor(self, bufferSize)

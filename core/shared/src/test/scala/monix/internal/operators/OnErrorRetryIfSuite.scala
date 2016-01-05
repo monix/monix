@@ -17,7 +17,7 @@
 
 package monix.internal.operators
 
-import asterix.atomic.Atomic
+import scalax.concurrent.atomic.Atomic
 import monix.Observable
 import monix.exceptions.DummyException
 

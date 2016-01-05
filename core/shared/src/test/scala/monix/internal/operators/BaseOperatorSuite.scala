@@ -18,8 +18,8 @@
 package monix.internal.operators
 
 import minitest.TestSuite
-import monix.concurrent.extensions._
-import monix.concurrent.schedulers.TestScheduler
+import scalax.concurrent.FutureUtils.ops._
+import scalax.concurrent.schedulers.TestScheduler
 import monix.Ack.{Cancel, Continue}
 import monix.exceptions.DummyException
 import monix.{Observable, Observer}

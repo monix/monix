@@ -17,7 +17,7 @@
 
 package monix.internal.operators
 
-import monix.concurrent.extensions._
+import scalax.concurrent.FutureUtils.ops._
 import monix.Ack.Continue
 import monix.subjects.PublishSubject
 import monix.{Observer, Observable}

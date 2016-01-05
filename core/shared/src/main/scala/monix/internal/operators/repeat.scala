@@ -17,7 +17,7 @@
 
 package monix.internal.operators
 
-import monix.concurrent.Scheduler
+import scalax.concurrent.Scheduler
 import monix.subjects.ReplaySubject
 import monix.{Ack, Observable, Observer, Subject}
 import scala.concurrent.Future

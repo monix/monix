@@ -19,7 +19,7 @@ package monix.internal.operators
 
 import java.io.PrintStream
 
-import monix.concurrent.Cancelable
+import scalax.concurrent.Cancelable
 import monix.Ack.Cancel
 import monix.{Ack, Observer, Observable}
 import monix.internal._

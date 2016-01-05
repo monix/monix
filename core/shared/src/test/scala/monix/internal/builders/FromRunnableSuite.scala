@@ -18,7 +18,7 @@
 package monix.internal.builders
 
 import minitest.TestSuite
-import monix.concurrent.schedulers.TestScheduler
+import scalax.concurrent.schedulers.TestScheduler
 import monix.Ack.Continue
 import monix.{Ack, Observer, Observable}
 

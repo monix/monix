@@ -17,11 +17,11 @@
 
 package monix.observers.buffers
 
-import monix.concurrent.Scheduler
 import monix.internal.collection.{EvictingQueue, DropHeadOnOverflowQueue, DropAllOnOverflowQueue}
 import monix.Ack.{Cancel, Continue}
 import monix.exceptions.BufferOverflowException
 import monix.internal.collection.ArrayQueue
+import monix.internal.Platform
 import monix.observers.{BufferedSubscriber, SynchronousSubscriber}
 import monix.{Ack, Subscriber}
 import scala.annotation.tailrec
@@ -47,7 +47,7 @@ private[buffers] final class SynchronousBufferedSubscriber[-T] private
   // events being dropped
   private[this] var eventsDropped = 0L
   // Used on the consumer side to split big synchronous workloads in batches
-  private[this] val batchSizeModulus = Scheduler.recommendedBatchSize - 1
+  private[this] val batchSizeModulus = Platform.recommendedBatchSize - 1
 
   def onNext(elem: T): Ack = {
     if (!upstreamIsComplete && !downstreamIsDone) {

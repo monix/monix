@@ -18,7 +18,7 @@
 package monix.internal.operators
 
 import java.util.concurrent.TimeoutException
-import monix.concurrent.extensions._
+import scalax.concurrent.FutureUtils.ops._
 import monix.Ack.Continue
 import monix.exceptions.DummyException
 import monix.observers.SynchronousObserver

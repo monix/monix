@@ -17,8 +17,8 @@
 
 package monix.observables
 
-import monix.concurrent.Scheduler
-import monix.concurrent.cancelables.BooleanCancelable
+import scalax.concurrent.Scheduler
+import scalax.concurrent.cancelables.BooleanCancelable
 import monix.observers.CacheUntilConnectSubscriber
 import monix.{Observable, Subject, Subscriber}
 

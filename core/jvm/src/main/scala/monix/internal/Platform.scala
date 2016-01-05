@@ -17,6 +17,8 @@
 
 package monix.internal
 
+import scala.util.Try
+
 private[monix] object Platform {
   /**
     * Returns `true` in case Monix is running on top of Scala.js,
@@ -29,4 +31,33 @@ private[monix] object Platform {
     * or `false` otherwise.
     */
   final val isJVM = true
+
+  /** Recommended batch size used for breaking synchronous loops in
+    * asynchronous batches. When streaming value from a producer to
+    * a synchronous consumer it's recommended to break the streaming
+    * in batches as to not hold the current thread or run-loop
+    * indefinitely.
+    *
+    * Rounding up to the closest power of 2, because then for
+    * applying the modulo operation we can just do:
+    * {{{
+    *   val modulus = Platform.recommendedBatchSize - 1
+    *   // ...
+    *   nr = (nr + 1) & modulus
+    * }}}
+    *
+    * Can be configured by setting Java properties:
+    *
+    * <pre>
+    *   java -Dmonix.environment.batchSize=256 \
+    *        ...
+    * </pre>
+    */
+  final val recommendedBatchSize: Int = {
+    Option(System.getProperty("monix.environment.batchSize", ""))
+      .filter(s => s != null && s.nonEmpty)
+      .flatMap(s => Try(s.toInt).toOption)
+      .map(math.nextPowerOf2)
+      .getOrElse(1024)
+  }
 }

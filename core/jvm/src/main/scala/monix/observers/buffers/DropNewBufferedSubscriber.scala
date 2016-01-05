@@ -18,15 +18,15 @@
 package monix.observers.buffers
 
 import java.util.concurrent.ConcurrentLinkedQueue
-import monix.concurrent.Scheduler
-import asterix.atomic.padded.Atomic
 import monix.Ack.{Cancel, Continue}
-import monix.observers.{BufferedSubscriber, SynchronousSubscriber}
+import monix.internal.Platform
 import monix.observers.buffers.DropNewBufferedSubscriber.State
+import monix.observers.{BufferedSubscriber, SynchronousSubscriber}
 import monix.{Ack, Subscriber}
 import scala.annotation.tailrec
 import scala.concurrent.Future
 import scala.util.control.NonFatal
+import scalax.concurrent.atomic.padded.Atomic
 
 /**
  * A high-performance and non-blocking [[BufferedSubscriber]] implementation
@@ -49,7 +49,7 @@ private[buffers] final class DropNewBufferedSubscriber[-T] private
   // side in order to know how many items to process and when to stop
   private[this] val queue = new ConcurrentLinkedQueue[T]()
   // Used on the consumer side to split big synchronous workloads in batches
-  private[this] val batchSizeModulus = Scheduler.recommendedBatchSize - 1
+  private[this] val batchSizeModulus = Platform.recommendedBatchSize - 1
 
   @tailrec
   def onNext(elem: T): Ack = {

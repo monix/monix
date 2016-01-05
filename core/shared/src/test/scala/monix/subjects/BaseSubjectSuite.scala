@@ -18,8 +18,8 @@
 package monix.subjects
 
 import minitest.TestSuite
-import asterix.atomic.{Atomic, AtomicLong}
-import monix.concurrent.schedulers.TestScheduler
+import scalax.concurrent.atomic.{Atomic, AtomicLong}
+import scalax.concurrent.schedulers.TestScheduler
 import monix.Ack.{Cancel, Continue}
 import monix.exceptions.DummyException
 import monix.{Observable, Observer, Subject}

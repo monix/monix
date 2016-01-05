@@ -17,7 +17,7 @@
 
 package monix.tckTests
 
-import monix.concurrent.Implicits.globalScheduler
+import scalax.concurrent.Scheduler.Implicits.global
 import monix.Ack.Continue
 import monix.tckTests.SubscriberWhiteBoxAsyncTest.Value
 import monix.{Ack, Observer}

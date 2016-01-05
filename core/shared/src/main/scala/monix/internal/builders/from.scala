@@ -19,7 +19,6 @@ package monix.internal.builders
 
 import java.util.concurrent.Callable
 import monix.Ack.{Cancel, Continue}
-import monix.concurrent.Scheduler
 import monix.{Subscriber, Ack, Observable}
 import monix.internal._
 import scala.annotation.tailrec
@@ -51,7 +50,7 @@ private[monix] object from {
   def iterator[T](iterator: Iterator[T]): Observable[T] = {
     Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
-      val modulus = Scheduler.recommendedBatchSize - 1
+      val modulus = Platform.recommendedBatchSize - 1
 
       def startFeedLoop(iterator: Iterator[T]): Unit = s.execute(new Runnable {
         /**
@@ -252,7 +251,7 @@ private[monix] object from {
 
     import o.{scheduler => s}
     private[this] var seed = initialSeed
-    private[this] val modulus = Scheduler.recommendedBatchSize - 1
+    private[this] val modulus = Platform.recommendedBatchSize - 1
 
     private[this] val asyncReschedule: Try[Ack] => Unit = {
       case Continue.IsSuccess =>

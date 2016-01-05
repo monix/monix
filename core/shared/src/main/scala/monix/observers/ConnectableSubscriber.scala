@@ -17,7 +17,7 @@
 
 package monix.observers
 
-import monix.concurrent.Scheduler
+import scalax.concurrent.Scheduler
 import monix.Ack.{Cancel, Continue}
 import monix.internal.FutureAckExtensions
 import monix._

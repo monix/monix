@@ -17,8 +17,8 @@
 
 package monix.internal.builders
 
-import monix.concurrent.Scheduler
-import asterix.atomic.{Atomic, AtomicInt}
+import scalax.concurrent.Scheduler
+import scalax.concurrent.atomic.{Atomic, AtomicInt}
 import monix.Ack.Cancel
 import monix.{Ack, Observable, Observer}
 import scala.concurrent.Future

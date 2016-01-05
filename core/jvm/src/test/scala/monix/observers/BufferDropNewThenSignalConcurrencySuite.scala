@@ -20,7 +20,7 @@ package monix.observers
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 
 import minitest.TestSuite
-import monix.concurrent.Scheduler
+import scalax.concurrent.Scheduler
 import monix.Ack.{Cancel, Continue}
 import monix.OverflowStrategy.DropNew
 import monix.exceptions.DummyException
@@ -34,7 +34,7 @@ object BufferDropNewThenSignalConcurrencySuite
   def tearDown(env: Scheduler) = ()
 
   def setup() = {
-    monix.concurrent.Implicits.globalScheduler
+    scalax.concurrent.Scheduler.Implicits.global
   }
 
   def buildNewForInt(bufferSize: Int, underlying: Observer[Int])(implicit s: Scheduler) = {

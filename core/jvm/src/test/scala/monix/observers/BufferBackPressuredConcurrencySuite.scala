@@ -19,7 +19,7 @@ package monix.observers
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 import minitest.TestSuite
-import monix.concurrent.Scheduler
+import scalax.concurrent.Scheduler
 import monix.Ack.{Cancel, Continue}
 import monix.OverflowStrategy.BackPressure
 import monix.exceptions.DummyException
@@ -31,7 +31,7 @@ import scala.concurrent.{Await, Future, Promise}
 object BufferBackPressuredConcurrencySuite extends TestSuite[Scheduler] {
   def tearDown(env: Scheduler) = ()
   def setup() = {
-    monix.concurrent.Implicits.globalScheduler
+    scalax.concurrent.Scheduler.Implicits.global
   }
 
   test("merge test should work") { implicit s =>

@@ -18,7 +18,7 @@
 package monix.observables
 
 import minitest.TestSuite
-import monix.concurrent.schedulers.TestScheduler
+import scalax.concurrent.schedulers.TestScheduler
 import monix.Ack.Continue
 import monix.OverflowStrategy.Unbounded
 import monix.channels.PublishChannel

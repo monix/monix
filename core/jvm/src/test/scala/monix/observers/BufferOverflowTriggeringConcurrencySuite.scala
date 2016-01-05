@@ -20,7 +20,7 @@ package monix.observers
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 
 import minitest.TestSuite
-import monix.concurrent.Scheduler
+import scalax.concurrent.Scheduler
 import monix.Ack.{Cancel, Continue}
 import monix.OverflowStrategy.Fail
 import monix.exceptions.{DummyException, BufferOverflowException}
@@ -32,7 +32,7 @@ import scala.concurrent.{Future, Promise}
 object BufferOverflowTriggeringConcurrencySuite extends TestSuite[Scheduler] {
   def tearDown(env: Scheduler) = ()
   def setup() = {
-    monix.concurrent.Implicits.globalScheduler
+    scalax.concurrent.Scheduler.Implicits.global
   }
 
   test("should not lose events, test 1") { implicit s =>

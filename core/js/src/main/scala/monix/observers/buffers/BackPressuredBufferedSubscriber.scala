@@ -17,9 +17,9 @@
 
 package monix.observers.buffers
 
-import monix.concurrent.Scheduler
-import asterix.atomic.padded.Atomic
+import scalax.concurrent.atomic.padded.Atomic
 import monix.Ack.{Cancel, Continue}
+import monix.internal.Platform
 import monix.observers.BufferedSubscriber
 import monix.{Ack, Subscriber}
 import monix.observers.buffers.BackPressuredBufferedSubscriber.State
@@ -48,7 +48,7 @@ private[monix] final class BackPressuredBufferedSubscriber[-T] private
   // side in order to know how many items to process and when to stop
   private[this] val queue = mutable.Queue.empty[T]
   // Used on the consumer side to split big synchronous workloads in batches
-  private[this] val batchSizeModulus = Scheduler.recommendedBatchSize - 1
+  private[this] val batchSizeModulus = Platform.recommendedBatchSize - 1
 
   def onNext(elem: T): Future[Ack] = {
     val state = stateRef.get

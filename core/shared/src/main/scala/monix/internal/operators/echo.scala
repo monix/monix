@@ -18,7 +18,7 @@
 package monix.internal.operators
 
 import java.util.concurrent.TimeUnit
-import monix.concurrent.cancelables.MultiAssignmentCancelable
+import scalax.concurrent.cancelables.MultiAssignmentCancelable
 import monix.Ack.{Cancel, Continue}
 import monix.internal._
 import monix.{Ack, Observable, Observer}

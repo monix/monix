@@ -19,8 +19,8 @@
 package monix.observers
 
 import minitest.TestSuite
-import monix.concurrent.Scheduler
-import monix.concurrent.schedulers.TestScheduler
+import scalax.concurrent.Scheduler
+import scalax.concurrent.schedulers.TestScheduler
 import monix.Ack.Continue
 import monix.exceptions.DummyException
 import monix.{Observer, Subscriber}

@@ -17,9 +17,9 @@
 
 package monix.observables
 
-import asterix.atomic.padded.Atomic
-import monix.concurrent.cancelables.BooleanCancelable
-import monix.concurrent.{Cancelable, Scheduler}
+import scalax.concurrent.atomic.padded.Atomic
+import scalax.concurrent.cancelables.BooleanCancelable
+import scalax.concurrent.{Cancelable, Scheduler}
 import monix.internal._
 import monix.{Observable, Observer, Subscriber}
 import scala.annotation.tailrec

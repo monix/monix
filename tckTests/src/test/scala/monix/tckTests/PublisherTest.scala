@@ -17,7 +17,7 @@
 
 package monix.tckTests
 
-import monix.concurrent.Implicits.globalScheduler
+import scalax.concurrent.Scheduler.Implicits.global
 import monix.Observable
 import org.reactivestreams.Publisher
 import org.reactivestreams.tck.{PublisherVerification, TestEnvironment}

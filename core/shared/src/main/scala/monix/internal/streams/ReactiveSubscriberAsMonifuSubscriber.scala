@@ -17,8 +17,8 @@
 
 package monix.internal.streams
 
-import monix.concurrent.Scheduler
-import asterix.atomic.padded.Atomic
+import scalax.concurrent.Scheduler
+import scalax.concurrent.atomic.padded.Atomic
 import monix.Ack.{Cancel, Continue}
 import monix.{Subscriber, Ack, Observer}
 import org.reactivestreams.{Subscriber => RSubscriber, Subscription}

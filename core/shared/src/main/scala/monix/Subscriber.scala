@@ -17,7 +17,8 @@
 
 package monix
 
-import monix.concurrent.Scheduler
+import scalax.concurrent.Scheduler
+import monix.internal.Platform
 import monix.observers.{SynchronousObserver, SynchronousSubscriber}
 import monix.internal.streams.{ReactiveSubscriberAsMonixSubscriber, SubscriberAsReactiveSubscriber, SynchronousSubscriberAsReactiveSubscriber}
 import org.reactivestreams.{Subscriber => RSubscriber}
@@ -28,7 +29,7 @@ import scala.concurrent.Future
  * whose usage is in [[Observable.unsafeCreate]].
  *
  * An `Observable.subscribe` takes as parameters both an [[Observer]]
- * and a [[monix.concurrent.Scheduler Scheduler]] and the purpose of a
+ * and a [[scalax.concurrent.Scheduler Scheduler]] and the purpose of a
  * `Subscriber` is convenient grouping in `Observable.create`.
  *
  * A `Subscriber` value is basically an address that the data source needs
@@ -66,7 +67,7 @@ object Subscriber {
    * specification.
    */
   def toReactiveSubscriber[T](subscriber: Subscriber[T]): RSubscriber[T] = {
-    toReactiveSubscriber(subscriber, Scheduler.recommendedBatchSize)
+    toReactiveSubscriber(subscriber, Platform.recommendedBatchSize)
   }
 
   /**

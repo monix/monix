@@ -175,7 +175,7 @@ object Build extends SbtBuild {
       name := "monix-core",
       testFrameworks += new TestFramework("minitest.runner.Framework"),
       libraryDependencies ++= Seq(
-        "org.monifu" %% "asterix-atomic" % "0.1",
+        "org.monifu" %% "scalax" % "0.3",
         "org.reactivestreams" % "reactive-streams" % "1.0.0",
         "org.monifu" %% "minitest" % "0.14" % "test"
       ))
@@ -189,7 +189,7 @@ object Build extends SbtBuild {
         testFrameworks += new TestFramework("minitest.runner.Framework"),
         coverageExcludedFiles := ".*",
         libraryDependencies ++= Seq(
-          "org.monifu" %%% "asterix-atomic" % "0.1",
+          "org.monifu" %%% "scalax" % "0.3",
           "org.monifu" %%% "minitest" % "0.14" % "test"
         ))
 

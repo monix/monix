@@ -18,9 +18,10 @@
 package monix
 
 import monix.Task.{Callback, UnsafeCallback}
-import monix.concurrent.{UncaughtExceptionReporter, CancelableFuture, Cancelable, Scheduler}
-import monix.concurrent.cancelables._
-import asterix.atomic.Atomic
+import scalax.concurrent.{UncaughtExceptionReporter, CancelableFuture, Cancelable, Scheduler}
+import scalax.concurrent.cancelables._
+import scalax.concurrent.atomic.Atomic
+import monix.internal.Platform
 import monix.internal.concurrent.TaskRunnable
 import scala.annotation.tailrec
 import scala.collection.generic.CanBuildFrom
@@ -92,7 +93,7 @@ sealed abstract class Task[+T] { self =>
     stackDepth: Int,
     callback: UnsafeCallback[T]): Unit = {
 
-    if (stackDepth > 0 && stackDepth < Scheduler.recommendedBatchSize)
+    if (stackDepth > 0 && stackDepth < Platform.recommendedBatchSize)
       unsafeRunFn(scheduler, cancelable, stackDepth+1, callback)
     else
       cancelable := scheduler.scheduleOnce(new Runnable {
@@ -703,7 +704,7 @@ object Task {
       * @param stackDepth is the current stack depth (this call included)
       */
     def safeOnSuccess(s: Scheduler, stackDepth: Int, value: T): Unit = {
-      if (stackDepth < Scheduler.recommendedBatchSize)
+      if (stackDepth < Platform.recommendedBatchSize)
         try onSuccess(value, stackDepth+1) catch {
           case NonFatal(ex) =>
             safeOnError(s, stackDepth, ex)
@@ -721,7 +722,7 @@ object Task {
       * @param stackDepth is the current stack depth (this call included)
       */
     def safeOnError(s: Scheduler, stackDepth: Int, ex: Throwable): Unit = {
-      if (stackDepth < Scheduler.recommendedBatchSize)
+      if (stackDepth < Platform.recommendedBatchSize)
         onError(ex, stackDepth+1)
       else
         s.execute(TaskRunnable.AsyncOnError(self, ex))

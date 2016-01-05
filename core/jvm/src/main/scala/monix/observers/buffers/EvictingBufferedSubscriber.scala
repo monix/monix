@@ -17,7 +17,7 @@
 
 package monix.observers.buffers
 
-import monix.concurrent.Scheduler
+import monix.internal.Platform
 import monix.internal.collection.{EvictingQueue, DropHeadOnOverflowQueue, DropAllOnOverflowQueue}
 import monix.Ack.{Cancel, Continue}
 import monix.observers.{BufferedSubscriber, SynchronousSubscriber}
@@ -47,7 +47,7 @@ private[buffers] final class EvictingBufferedSubscriber[-T] private
   // events being dropped
   private[this] var eventsDropped = 0L
   // MUST only be accessed within the consumer loop
-  private[this] val consumerBuffer = new Array[AnyRef](Scheduler.recommendedBatchSize)
+  private[this] val consumerBuffer = new Array[AnyRef](Platform.recommendedBatchSize)
 
   def onNext(elem: T): Ack = self.synchronized {
     if (!upstreamIsComplete && !downstreamIsDone) {

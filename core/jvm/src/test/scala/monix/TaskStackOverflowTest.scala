@@ -18,13 +18,13 @@
 package monix
 
 import minitest.TestSuite
-import monix.concurrent.{Implicits, Scheduler}
+import scalax.concurrent.Scheduler
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.util.Success
 
 object TaskStackOverflowTest extends TestSuite[Scheduler] {
-  def setup() = Implicits.globalScheduler
+  def setup() = Scheduler.global
   def tearDown(env: Scheduler): Unit = ()
 
   test("flatMap(self) should not trigger stack overflow") { implicit s =>

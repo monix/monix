@@ -17,7 +17,7 @@
 
 package monix.subjects
 
-import asterix.atomic.padded.Atomic
+import scalax.concurrent.atomic.padded.Atomic
 import monix.internal.math
 import monix.Ack.{Cancel, Continue}
 import monix._

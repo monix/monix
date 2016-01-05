@@ -18,8 +18,8 @@
 package monix.observers
 
 import minitest.TestSuite
-import monix.concurrent.Scheduler
-import monix.concurrent.schedulers.TestScheduler
+import monix.internal.Platform
+import scalax.concurrent.schedulers.TestScheduler
 import monix.Ack.{Cancel, Continue}
 import monix.OverflowStrategy.Unbounded
 import monix.exceptions.DummyException
@@ -284,14 +284,14 @@ object BufferUnboundedSuite extends TestSuite[TestScheduler] {
         val scheduler = s
       }, Unbounded)
 
-    for (i <- 0 until (Scheduler.recommendedBatchSize * 2)) buffer.onNext(i)
+    for (i <- 0 until (Platform.recommendedBatchSize * 2)) buffer.onNext(i)
     buffer.onComplete()
     assertEquals(received, 0)
 
     s.tickOne()
-    assertEquals(received, Scheduler.recommendedBatchSize)
+    assertEquals(received, Platform.recommendedBatchSize)
     s.tickOne()
-    assertEquals(received, Scheduler.recommendedBatchSize * 2)
+    assertEquals(received, Platform.recommendedBatchSize * 2)
     s.tickOne()
     assertEquals(wasCompleted, true)
   }

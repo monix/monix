@@ -18,8 +18,8 @@
 package monix.observers
 
 import minitest.TestSuite
-import monix.concurrent.Scheduler
-import monix.concurrent.schedulers.TestScheduler
+import scalax.concurrent.Scheduler
+import scalax.concurrent.schedulers.TestScheduler
 import monix.Ack.{Cancel, Continue}
 import monix.OverflowStrategy.DropNew
 import monix.exceptions.DummyException
@@ -27,6 +27,7 @@ import monix.internal.concurrent.RunnableAction
 import monix.observers.BufferClearBufferThenSignalSuite._
 import monix.{Ack, Observer, Subscriber}
 import scala.concurrent.{Future, Promise}
+import monix.internal.Platform
 
 object BufferDropNewSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
@@ -312,7 +313,7 @@ object BufferDropNewSuite extends TestSuite[TestScheduler] {
     var received = 0L
     var wasCompleted = false
 
-    val buffer = buildNew(Scheduler.recommendedBatchSize * 3, new Observer[Int] {
+    val buffer = buildNew(Platform.recommendedBatchSize * 3, new Observer[Int] {
       def onNext(elem: Int) = {
         received += 1
         Continue
@@ -322,14 +323,14 @@ object BufferDropNewSuite extends TestSuite[TestScheduler] {
       def onComplete() = wasCompleted = true
     })
 
-    for (i <- 0 until (Scheduler.recommendedBatchSize * 2)) buffer.onNext(i)
+    for (i <- 0 until (Platform.recommendedBatchSize * 2)) buffer.onNext(i)
     buffer.onComplete()
     assertEquals(received, 0)
 
     s.tickOne()
-    assertEquals(received, Scheduler.recommendedBatchSize)
+    assertEquals(received, Platform.recommendedBatchSize)
     s.tickOne()
-    assertEquals(received, Scheduler.recommendedBatchSize * 2)
+    assertEquals(received, Platform.recommendedBatchSize * 2)
     s.tickOne()
     assertEquals(wasCompleted, true)
   }

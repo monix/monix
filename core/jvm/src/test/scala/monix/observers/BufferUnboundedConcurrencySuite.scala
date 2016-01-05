@@ -20,7 +20,7 @@ package monix.observers
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 
 import minitest.TestSuite
-import monix.concurrent.Scheduler
+import scalax.concurrent.Scheduler
 import monix.Ack.Continue
 import monix.OverflowStrategy.Unbounded
 import monix.{Ack, Observable, Observer, Subscriber}
@@ -30,7 +30,7 @@ import scala.concurrent.{Await, Future, Promise}
 object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
   def tearDown(env: Scheduler) = ()
   def setup() = {
-    monix.concurrent.Implicits.globalScheduler
+    scalax.concurrent.Scheduler.Implicits.global
   }
 
   test("merge test should work") { implicit s =>

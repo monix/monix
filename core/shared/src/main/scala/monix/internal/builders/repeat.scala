@@ -18,8 +18,8 @@
 package monix.internal.builders
 
 import monix.Ack.Continue
-import monix.concurrent.Scheduler
 import monix.{Observable, Subscriber}
+import monix.internal.Platform
 import scala.annotation.tailrec
 import scala.util.Failure
 
@@ -47,7 +47,7 @@ private[monix] object repeat {
   final class RepeatOneLoop[T](subscriber: Subscriber[T], elem: T) extends Runnable {
     import subscriber.{scheduler => s}
     private[this] val o = subscriber
-    private[this] val modulus = Scheduler.recommendedBatchSize - 1
+    private[this] val modulus = Platform.recommendedBatchSize - 1
 
     def run(): Unit = {
       fastLoop(0)

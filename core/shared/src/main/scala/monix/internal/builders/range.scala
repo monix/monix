@@ -19,7 +19,7 @@ package monix.internal.builders
 
 import monix.Ack.Continue
 import monix.Observable
-import monix.concurrent.Scheduler
+import monix.internal.Platform
 import scala.annotation.tailrec
 import scala.util.Failure
 
@@ -35,7 +35,7 @@ private[monix] object range {
 
       def scheduleLoop(from: Long, until: Long, step: Long): Unit =
         s.execute(new Runnable {
-          private[this] val modulus = Scheduler.recommendedBatchSize - 1
+          private[this] val modulus = Platform.recommendedBatchSize - 1
 
           private[this] def isInRange(x: Long): Boolean = {
             (step > 0 && x < until) || (step < 0 && x > until)

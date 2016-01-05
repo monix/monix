@@ -19,8 +19,8 @@ package monix
 
 import java.io.PrintStream
 import java.util.concurrent.Callable
-import monix.concurrent.cancelables.BooleanCancelable
-import monix.concurrent.{Cancelable, Scheduler}
+import scalax.concurrent.cancelables.BooleanCancelable
+import scalax.concurrent.{Scheduler, Cancelable}
 import monix.Ack.{Cancel, Continue}
 import monix.OverflowStrategy.{default => defaultStrategy}
 import monix.internal._
@@ -49,7 +49,7 @@ import scala.util.control.NonFatal
   * In other words an Observable is something that provides a
   * side-effecting function that can connect a [[Subscriber]] to a
   * stream of data. A `Subscriber` is a cross between an [[Observer]]
-  * and a [[monix.concurrent.Scheduler Scheduler]].  We need a
+  * and a [[scalax.concurrent.Scheduler Scheduler]].  We need a
   * `Scheduler` when calling `subscribe` because that's when the
   * side-effects happen and a context capable of scheduling tasks for
   * asynchronous execution is needed. An [[Observer]] on the other hand
@@ -244,10 +244,10 @@ import scala.util.control.NonFatal
   *
   * @see [[monix.Observer Observer]], the interface that must be
   *      implemented by consumers
-  * @see [[monix.concurrent.Scheduler Scheduler]], our enhanced `ExecutionContext`
+  * @see [[scalax.concurrent.Scheduler Scheduler]], our enhanced `ExecutionContext`
   * @see [[monix.Subscriber Subscriber]], the cross between an
-  *      [[Observer]] and a [[monix.concurrent.Scheduler Scheduler]]
-  * @see [[monix.concurrent.Cancelable Cancelable]], the type returned by higher
+  *      [[Observer]] and a [[scalax.concurrent.Scheduler Scheduler]]
+  * @see [[scalax.concurrent.Cancelable Cancelable]], the type returned by higher
   *      level `subscribe` variants and that can be used to cancel subscriptions
   * @see [[monix.Subject Subject]], which are both Observables and Observers
   * @see [[monix.Channel Channel]], which are meant for imperatively building
@@ -394,7 +394,7 @@ trait Observable[+T] { self =>
     * @param observer is an [[monix.Observer Observer]] that respects
     *                 the Monix Rx contract
     *
-    * @param s is the [[monix.concurrent.Scheduler Scheduler]]
+    * @param s is the [[scalax.concurrent.Scheduler Scheduler]]
     *          used for creating the subscription
     */
   def unsafeSubscribeFn(observer: Observer[T])(implicit s: Scheduler): Unit = {
@@ -2128,7 +2128,7 @@ object Observable {
     * generator function.
     *
     * {{{
-    *   from monix.concurrent.Implicits.{globalScheduler => s}
+    *   from scalax.concurrent.Implicits.{globalScheduler => s}
     *   from monix.util import Random
     *
     *   def randomDoubles(): Observable[Double] =

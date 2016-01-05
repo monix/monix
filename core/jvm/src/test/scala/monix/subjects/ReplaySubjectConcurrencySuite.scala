@@ -19,7 +19,7 @@ package monix.subjects
 
 import java.util.concurrent.{TimeUnit, CountDownLatch}
 import minitest.TestSuite
-import monix.concurrent.Scheduler
+import scalax.concurrent.Scheduler
 import monix.Ack.Continue
 import monix.Observable
 import monix.internal.concurrent.RunnableAction
@@ -28,7 +28,7 @@ import monix.observers.SynchronousObserver
 object ReplaySubjectConcurrencySuite extends TestSuite[Scheduler] {
   def tearDown(env: Scheduler) = ()
   def setup() = {
-    monix.concurrent.Implicits.globalScheduler
+    scalax.concurrent.Scheduler.Implicits.global
   }
 
   test("subscribers should get everything") { implicit s =>

@@ -18,7 +18,7 @@
 package monix.internal.operators
 
 import java.io.{OutputStream, PrintStream}
-import asterix.atomic.{AtomicInt, Atomic}
+import scalax.concurrent.atomic.{AtomicInt, Atomic}
 import monix.Observable
 import monix.exceptions.DummyException
 import scala.concurrent.duration.Duration.Zero

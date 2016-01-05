@@ -18,8 +18,8 @@
 package monix.observables
 
 import minitest.SimpleTestSuite
-import monix.concurrent.Cancelable
-import monix.concurrent.schedulers.TestScheduler
+import scalax.concurrent.Cancelable
+import scalax.concurrent.schedulers.TestScheduler
 import monix.OverflowStrategy.Unbounded
 import monix.channels.{ObservableChannel, PublishChannel}
 import monix.{Subject, Observable}

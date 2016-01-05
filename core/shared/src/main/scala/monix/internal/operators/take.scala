@@ -17,7 +17,7 @@
 
 package monix.internal.operators
 
-import monix.concurrent.cancelables.BooleanCancelable
+import scalax.concurrent.cancelables.BooleanCancelable
 import monix.Ack.{Cancel, Continue}
 import monix.internal._
 import monix.{Ack, Observable, Observer}

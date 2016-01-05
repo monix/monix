@@ -18,12 +18,11 @@
 package monix.channels
 
 import minitest.TestSuite
-import monix.concurrent.Scheduler
-import monix.concurrent.schedulers.TestScheduler
+import scalax.concurrent.Scheduler
+import scalax.concurrent.schedulers.TestScheduler
 import monix.Ack.Continue
 import monix.exceptions.DummyException
 import monix.{Channel, Observable, Observer}
-
 import scala.concurrent.Promise
 import scala.util.Random
 

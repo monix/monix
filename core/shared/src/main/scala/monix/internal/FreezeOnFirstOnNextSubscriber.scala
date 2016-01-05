@@ -17,7 +17,7 @@
 
 package monix.internal
 
-import asterix.atomic.padded.Atomic
+import scalax.concurrent.atomic.padded.Atomic
 import monix.{Ack, Subscriber}
 import scala.concurrent.{Future, Promise}
 

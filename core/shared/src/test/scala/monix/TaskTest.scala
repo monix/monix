@@ -20,8 +20,8 @@ package monix
 import java.util.concurrent.CancellationException
 import minitest.TestSuite
 import monix.Task.UnsafeCallback
-import monix.concurrent.Cancelable
-import monix.concurrent.schedulers.TestScheduler
+import scalax.concurrent.Cancelable
+import scalax.concurrent.schedulers.TestScheduler
 import monix.exceptions.DummyException
 import scala.concurrent.{Future, TimeoutException}
 import scala.util.{Failure, Success}

@@ -21,7 +21,7 @@ import monix.Ack.Continue
 import monix.exceptions.DummyException
 import monix.subjects.PublishSubject
 import monix.{Observable, Observer}
-import monix.concurrent.extensions._
+import scalax.concurrent.FutureUtils.ops._
 import scala.concurrent.Future
 import scala.concurrent.duration._
 

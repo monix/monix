@@ -18,9 +18,9 @@
 package monix.internal.builders
 
 import minitest.TestSuite
-import monix.concurrent.Scheduler
-import monix.concurrent.extensions._
-import monix.concurrent.schedulers.TestScheduler
+import scalax.concurrent.FutureUtils.ops._
+import monix.internal.Platform
+import scalax.concurrent.schedulers.TestScheduler
 import monix.Ack.{Cancel, Continue}
 import monix.exceptions.DummyException
 import monix.{Observable, Observer}
@@ -61,7 +61,7 @@ object FromIterableSuite extends TestSuite[TestScheduler] {
     var wasCompleted = false
     var sum = 0
 
-    Observable.fromIterable(0 until (Scheduler.recommendedBatchSize * 2)).unsafeSubscribeFn(
+    Observable.fromIterable(0 until (Platform.recommendedBatchSize * 2)).unsafeSubscribeFn(
       new Observer[Int] {
         def onNext(elem: Int) = {
           sum += 1
@@ -76,9 +76,9 @@ object FromIterableSuite extends TestSuite[TestScheduler] {
     assertEquals(sum, 0)
 
     assert(s.tickOne())
-    assertEquals(sum, Scheduler.recommendedBatchSize)
+    assertEquals(sum, Platform.recommendedBatchSize)
     assert(s.tickOne())
-    assertEquals(sum, Scheduler.recommendedBatchSize * 2)
+    assertEquals(sum, Platform.recommendedBatchSize * 2)
     s.tickOne()
     assert(wasCompleted)
   }

@@ -18,7 +18,7 @@
 package monix.internal.streams
 
 import minitest.TestSuite
-import monix.concurrent.schedulers.TestScheduler
+import scalax.concurrent.schedulers.TestScheduler
 import monix.Ack.{Cancel, Continue}
 import monix.{Observable, Observer}
 

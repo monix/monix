@@ -19,9 +19,9 @@ package monix.internal.builders
 
 import minitest.TestSuite
 import monix.Ack.Continue
-import monix.concurrent.Scheduler
-import monix.concurrent.extensions._
-import monix.concurrent.schedulers.TestScheduler
+import monix.internal.Platform
+import scalax.concurrent.FutureUtils.ops._
+import scalax.concurrent.schedulers.TestScheduler
 import monix.{Observable, Observer}
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -116,13 +116,13 @@ object RangeSuite extends TestSuite[TestScheduler] {
 
   test("should do synchronous execution in batches") { implicit s =>
     var received = 0
-    Observable.range(0, Scheduler.recommendedBatchSize * 2).map(_ => 1)
+    Observable.range(0, Platform.recommendedBatchSize * 2).map(_ => 1)
       .subscribe { x => received += 1; Continue }
 
     s.tickOne()
-    assertEquals(received, Scheduler.recommendedBatchSize)
+    assertEquals(received, Platform.recommendedBatchSize)
     s.tickOne()
-    assertEquals(received, Scheduler.recommendedBatchSize * 2)
+    assertEquals(received, Platform.recommendedBatchSize * 2)
     s.tickOne()
   }
 }

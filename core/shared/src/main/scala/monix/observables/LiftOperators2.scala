@@ -19,8 +19,8 @@ package monix.observables
 
 import language.higherKinds
 import java.io.PrintStream
-import monix.concurrent.Scheduler
-import monix.concurrent.cancelables.BooleanCancelable
+import scalax.concurrent.Scheduler
+import scalax.concurrent.cancelables.BooleanCancelable
 import monix.OverflowStrategy.{Synchronous, Evicted}
 import monix.{Observable, OverflowStrategy}
 import scala.concurrent.duration.FiniteDuration

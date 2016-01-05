@@ -18,7 +18,7 @@
 package monix.internal
 
 import scala.concurrent.Promise
-import asterix.atomic.padded.Atomic
+import scalax.concurrent.atomic.padded.Atomic
 
 /**
  * Represents a Promise that completes with `value` after

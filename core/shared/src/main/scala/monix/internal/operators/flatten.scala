@@ -17,7 +17,7 @@
 
 package monix.internal.operators
 
-import monix.concurrent.cancelables.{BooleanCancelable, RefCountCancelable}
+import scalax.concurrent.cancelables.{BooleanCancelable, RefCountCancelable}
 import monix.Ack.{Cancel, Continue}
 import monix.exceptions.CompositeException
 import monix.internal._

@@ -17,7 +17,7 @@
 
 package monix.internal.operators
 
-import monix.concurrent.Scheduler
+import scalax.concurrent.Scheduler
 import monix.internal.concurrent.UnsafeSubscribeRunnable
 import monix.{Observable, Observer, Subscriber}
 import scala.util.control.NonFatal

@@ -17,12 +17,11 @@
 
 package monix.channels
 
-import monix.concurrent.Scheduler
-import asterix.atomic.{Atomic, AtomicLong}
 import monix.Ack.Continue
-import monix.OverflowStrategy.Unbounded
 import monix.Observer
+import monix.OverflowStrategy.Unbounded
 import monix.exceptions.DummyException
+import scalax.concurrent.Scheduler
 
 object AsyncChannelSuite extends BaseChannelSuite {
   def alreadyTerminatedTest(expectedElems: Seq[Long])(implicit s: Scheduler) = {

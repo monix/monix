@@ -17,8 +17,8 @@
 
 package monix.internal.operators
 
-import monix.concurrent.Scheduler
-import monix.concurrent.extensions._
+import scalax.concurrent.Scheduler
+import scalax.concurrent.FutureUtils.ops._
 import monix.Ack.Continue
 import monix.exceptions.DummyException
 import monix.{Observer, Observable}

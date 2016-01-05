@@ -17,7 +17,7 @@
 
 package monix.internal.streams
 
-import asterix.atomic.Atomic
+import scalax.concurrent.atomic.Atomic
 import org.reactivestreams.Subscription
 import scala.annotation.tailrec
 
