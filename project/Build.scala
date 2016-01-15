@@ -23,7 +23,7 @@ import sbt.{Build => SbtBuild, _}
 import sbtrelease.ReleasePlugin.autoImport._
 import sbtunidoc.Plugin._
 import sbtunidoc.Plugin.UnidocKeys._
-
+import scoverage.ScoverageSbtPlugin.autoImport._
 
 object Build extends SbtBuild {
   val doNotPublishArtifact = Seq(
@@ -181,6 +181,7 @@ object Build extends SbtBuild {
         name := "monifu-core",
         scalaJSStage in Test := FastOptStage,
         testFrameworks += new TestFramework("minitest.runner.Framework"),
+        coverageExcludedFiles := ".*",
         libraryDependencies ++= Seq(
           "org.monifu" %%% "minitest" % "0.14" % "test"
         ))
@@ -204,6 +205,7 @@ object Build extends SbtBuild {
       name := "monifu",
       scalaJSStage in Test := FastOptStage,
       testFrameworks += new TestFramework("minitest.runner.Framework"),
+      coverageExcludedFiles := ".*",
       libraryDependencies ++= Seq(
         "org.monifu" %%% "minitest" % "0.14" % "test"
       ))
