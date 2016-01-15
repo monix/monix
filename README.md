@@ -4,8 +4,8 @@
 
 Reactive Programming for Scala and [Scala.js](http://www.scala-js.org/).
 
-[![Build Status](https://travis-ci.org/monifu/monix.svg?branch=master)](https://travis-ci.org/monifu/monix)
-[![Coverage Status](http://codecov.io/github/monifu/monix/coverage.svg?branch=master)](http://codecov.io/github/monifu/monix?branch=master)
+[![Build Status](https://travis-ci.org/monifu/monix.svg?branch=1.x)](https://travis-ci.org/monifu/monix)
+[![Coverage Status](http://codecov.io/github/monifu/monix/coverage.svg?branch=1.x)](http://codecov.io/github/monifu/monix?branch=1.x)
 [![License](http://img.shields.io/:license-Apache%202-red.svg)](http://www.apache.org/licenses/LICENSE-2.0.txt)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/org.monifu/monifu_2.11/badge.svg)](https://maven-badges.herokuapp.com/maven-central/org.monifu/monifu_2.11)
 
@@ -70,8 +70,6 @@ libraryDependencies += "org.monifu" %%% "monifu" % "1.0"
 ```
 
 ### Example
-
-NOTE: this sample works for the 1.0 version.
 
 In order for subscriptions to work, we need an implicit
 `Scheduler` imported in our context. A `Scheduler` inherits from Scala's own [ExecutionContext](http://www.scala-lang.org/api/current/index.html#scala.concurrent.ExecutionContext)
