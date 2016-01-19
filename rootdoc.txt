@@ -33,7 +33,7 @@ Highlights:
 ==Example Usage==
 
 In order for subscriptions to work, we need an implicit
-[[scalax.concurrent.Scheduler Scheduler]] imported in our
+[[monix.execution.Scheduler Scheduler]] imported in our
 context. A `Scheduler` inherits from Scala's own
 [[http://www.scala-lang.org/api/current/index.html#scala.concurrent.ExecutionContext ExecutionContext]]
 and any `ExecutionContext` can be quickly converted into a `Scheduler`.
@@ -42,14 +42,14 @@ And then you're off ...
 {{{
 // scala.concurrent.ExecutionContext.Implicits.global
 // is being used under the hood
-import scalax.concurrent.Scheduler.Implicits.global
+import monix.execution.Scheduler.Implicits.global
 
 // or we can simply convert our own execution context
 // import play.api.libs.concurrent.Execution.Implicits.defaultContext
 // implicit val scheduler = Scheduler(defaultContext)
 
 import scala.concurrent.duration._
-import monix._
+import monix.streams._
 
 val subscription = Observable.intervalAtFixedRate(1.second)
   .take(10)
@@ -59,9 +59,9 @@ val subscription = Observable.intervalAtFixedRate(1.second)
 We can then try out more complex things:
 
 {{{
-import scalax.concurrent.Scheduler.Implicits.global
+import monix.execution.Scheduler.Implicits.global
 import play.api.libs.ws._
-import monix._
+import monix.streams._
 
 // emits an auto-incremented number, every second
 Observable.interval(1.second)

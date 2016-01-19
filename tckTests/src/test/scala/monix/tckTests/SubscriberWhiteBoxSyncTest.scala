@@ -13,14 +13,15 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
 package monix.tckTests
 
-import scalax.concurrent.Scheduler.Implicits.global
-import monix.Ack.Continue
-import monix.Observer
-import monix.observers.SynchronousObserver
+import monix.execution.Scheduler.Implicits.global
+import monix.streams.{Observer, Ack}
+import monix.streams.Ack.Continue
+import monix.streams.observers.SynchronousObserver
 import monix.tckTests.SubscriberWhiteBoxSyncTest.Value
 import org.reactivestreams.tck.SubscriberWhiteboxVerification.WhiteboxSubscriberProbe
 import org.reactivestreams.tck.{SubscriberWhiteboxVerification, TestEnvironment}

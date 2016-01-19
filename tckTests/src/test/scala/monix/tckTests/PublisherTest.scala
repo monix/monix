@@ -13,12 +13,13 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
 package monix.tckTests
 
-import scalax.concurrent.Scheduler.Implicits.global
-import monix.Observable
+import monix.execution.Scheduler.Implicits.global
+import monix.streams.Observable
 import org.reactivestreams.Publisher
 import org.reactivestreams.tck.{PublisherVerification, TestEnvironment}
 import org.scalatest.testng.TestNGSuiteLike

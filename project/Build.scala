@@ -13,6 +13,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
 import com.typesafe.sbt.pgp.PgpKeys
@@ -160,50 +161,123 @@ object Build extends SbtBuild {
   )
 
   lazy val monix = project.in(file("."))
-    .aggregate(monixCoreJVM, monixCoreJS, monixJVM, monixJS, tckTests)
+    .aggregate(
+      baseJVM, baseJS,
+      executionJVM, executionJS,
+      tasksJVM, tasksJS,
+      streamsJVM, streamsJS,
+      monixJVM, monixJS,
+      tckTests)
     .settings(unidocSettings: _*)
     .settings(sharedSettings: _*)
     .settings(doNotPublishArtifact: _*)
     .settings(
       unidocProjectFilter in (ScalaUnidoc, unidoc) := inAnyProject --
-        inProjects(monixCoreJS, monixJS, monixJVM, tckTests)
+        inProjects(baseJS, executionJS, tasksJS, streamsJS, monixJS, monixJVM, tckTests)
     )
 
-  lazy val monixCoreJVM = project.in(file("core/jvm"))
+  lazy val baseJVM = project.in(file("monix-base/jvm"))
     .settings(crossSettings: _*)
     .settings(
-      name := "monix-core",
+      name := "monix-base",
       testFrameworks += new TestFramework("minitest.runner.Framework"),
       libraryDependencies ++= Seq(
-        "org.monifu" %% "scalax" % "0.3",
+        "org.monifu" %% "minitest" % "0.14" % "test"
+      ))
+
+  lazy val baseJS = project.in(file("monix-base/js"))
+    .settings(crossSettings: _*)
+    .enablePlugins(ScalaJSPlugin)
+    .settings(
+      name := "monix-base",
+      scalaJSStage in Test := FastOptStage,
+      testFrameworks += new TestFramework("minitest.runner.Framework"),
+      coverageExcludedFiles := ".*",
+      libraryDependencies ++= Seq(
+        "org.monifu" %%% "minitest" % "0.14" % "test"
+      ))
+
+  lazy val executionJVM = project.in(file("monix-execution/jvm"))
+    .settings(crossSettings: _*)
+    .dependsOn(baseJVM)
+    .settings(
+      name := "monix-execution",
+      testFrameworks += new TestFramework("minitest.runner.Framework"),
+      libraryDependencies ++= Seq(
+        "org.monifu" %% "minitest" % "0.14" % "test"
+      ))
+
+  lazy val executionJS = project.in(file("monix-execution/js"))
+    .settings(crossSettings: _*)
+    .enablePlugins(ScalaJSPlugin)
+    .dependsOn(baseJS)
+    .settings(
+      name := "monix-execution",
+      scalaJSStage in Test := FastOptStage,
+      testFrameworks += new TestFramework("minitest.runner.Framework"),
+      coverageExcludedFiles := ".*",
+      libraryDependencies ++= Seq(
+        "org.monifu" %%% "minitest" % "0.14" % "test"
+      ))
+
+  lazy val tasksJVM = project.in(file("monix-tasks/jvm"))
+    .settings(crossSettings: _*)
+    .dependsOn(executionJVM)
+    .settings(
+      name := "monix-tasks",
+      testFrameworks += new TestFramework("minitest.runner.Framework"),
+      libraryDependencies ++= Seq(
+        "org.monifu" %% "minitest" % "0.14" % "test"
+      ))
+
+  lazy val tasksJS = project.in(file("monix-tasks/js"))
+    .settings(crossSettings: _*)
+    .dependsOn(executionJS)
+    .enablePlugins(ScalaJSPlugin)
+    .settings(
+      name := "monix-tasks",
+      scalaJSStage in Test := FastOptStage,
+      testFrameworks += new TestFramework("minitest.runner.Framework"),
+      coverageExcludedFiles := ".*",
+      libraryDependencies ++= Seq(
+        "org.monifu" %%% "minitest" % "0.14" % "test"
+      ))
+
+  lazy val streamsJVM = project.in(file("monix-streams/jvm"))
+    .settings(crossSettings: _*)
+    .dependsOn(baseJVM, tasksJVM)
+    .settings(
+      name := "monix-streams",
+      testFrameworks += new TestFramework("minitest.runner.Framework"),
+      libraryDependencies ++= Seq(
         "org.reactivestreams" % "reactive-streams" % "1.0.0",
         "org.monifu" %% "minitest" % "0.14" % "test"
       ))
 
-  lazy val monixCoreJS = project.in(file("core/js"))
-      .settings(crossSettings: _*)
-      .enablePlugins(ScalaJSPlugin)
-      .settings(
-        name := "monix-core",
-        scalaJSStage in Test := FastOptStage,
-        testFrameworks += new TestFramework("minitest.runner.Framework"),
-        coverageExcludedFiles := ".*",
-        libraryDependencies ++= Seq(
-          "org.monifu" %%% "scalax" % "0.3",
-          "org.monifu" %%% "minitest" % "0.14" % "test"
-        ))
+  lazy val streamsJS = project.in(file("monix-streams/js"))
+    .settings(crossSettings: _*)
+    .dependsOn(baseJS, tasksJS)
+    .enablePlugins(ScalaJSPlugin)
+    .settings(
+      name := "monix-streams",
+      scalaJSStage in Test := FastOptStage,
+      testFrameworks += new TestFramework("minitest.runner.Framework"),
+      coverageExcludedFiles := ".*",
+      libraryDependencies ++= Seq(
+        "org.monifu" %%% "minitest" % "0.14" % "test"
+      ))
 
   lazy val monixJVM = project.in(file("monix/jvm"))
     .settings(crossSettings: _*)
-    .aggregate(monixCoreJVM)
-    .dependsOn(monixCoreJVM)
+    .aggregate(baseJVM, executionJVM, tasksJVM, streamsJVM)
+    .dependsOn(baseJVM, executionJVM, tasksJVM, streamsJVM)
     .settings(name := "monix")
 
   lazy val monixJS = project.in(file("monix/js"))
     .settings(crossSettings: _*)
     .enablePlugins(ScalaJSPlugin)
-    .aggregate(monixCoreJS)
-    .dependsOn(monixCoreJS)
+    .aggregate(baseJS, executionJS, tasksJS, streamsJS)
+    .dependsOn(baseJS, executionJS, tasksJS, streamsJS)
     .settings(name := "monix")
 
   lazy val tckTests = project.in(file("tckTests"))
