@@ -178,6 +178,8 @@ object Build extends SbtBuild {
     site.addMappingsToSiteDir(mappings in (ScalaUnidoc, packageDoc), "api") ++
     site.addMappingsToSiteDir(tut, "_tut") ++
     Seq(
+      (test in Test) <<= (test in Test).dependsOn(tut),
+      coverageExcludedFiles := ".*",
       siteMappings += file("CONTRIBUTING.md") -> "contributing.md",
       includeFilter in makeSite :=
         "*.html" | "*.css" | "*.scss" | "*.png" | "*.jpg" | "*.jpeg" |
@@ -203,7 +205,7 @@ object Build extends SbtBuild {
       tasksJVM, tasksJS,
       streamsJVM, streamsJS,
       monixJVM, monixJS,
-      tckTests)
+      docs, tckTests)
     .settings(sharedSettings)
     .settings(doNotPublishArtifact)
 
@@ -313,7 +315,6 @@ object Build extends SbtBuild {
 
   lazy val docs = project.in(file("docs"))
     .dependsOn(baseJVM, executionJVM, tasksJVM, streamsJVM)
-    .aggregate(baseJVM, executionJVM, tasksJVM, streamsJVM)
     .settings(sharedSettings)
     .settings(doNotPublishArtifact)
     .settings(site.settings)
