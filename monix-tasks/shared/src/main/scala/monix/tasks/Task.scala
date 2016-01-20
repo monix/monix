@@ -56,16 +56,17 @@ import scala.util.{Failure, Success, Try}
 sealed abstract class Task[+T] { self =>
   /** Characteristic function for our [[Task]]. Never use this directly.
     *
-    * @param scheduler is the [[Scheduler]] under that the `Task` will use to
-    *                  fork threads, schedule with delay and to report errors
-    * @param cancelable is a [[MultiAssignmentCancelable]] that can either be used
-    *                   to check if the task is canceled or can be assigned to something
-    *                   that can eventually cancel the running computation
+    * @param scheduler is the [[monix.execution.Scheduler Scheduler]] under that the `Task`
+    *                  will use to fork threads, schedule with delay and to report errors
+    * @param cancelable is a [[monix.execution.cancelables.MultiAssignmentCancelable MultiAssignmentCancelable]]
+    *                   that can either be used to check if the task is canceled or can be assigned
+    *                   to something that can eventually cancel the running computation
     * @param stackDepth represents the current stack depth, taking into account
     *                   this call as well
     * @param callback is the pair of `onSuccess` and `onError` methods that will
     *                 be called when the execution completes
-    * @return a [[Cancelable]] that can be used to cancel the running computation
+    * @return a [[monix.execution.Cancelable Cancelable]] that can be used to
+    *         cancel the running computation
     */
   protected def unsafeRunFn(
     scheduler: Scheduler,
@@ -76,8 +77,8 @@ sealed abstract class Task[+T] { self =>
   /** Internal utility providing a stack-safe `unsafeExecuteFn`, to be used
     * when constructing operators.
     *
-    * @param scheduler is the [[Scheduler]] under that the `Task` will use to
-    *                  fork threads, schedule with delay and to report errors
+    * @param scheduler is the [[Scheduler]] that the `Task` will use to
+    *                  fork logical threads, schedule with delay and to report errors
     * @param stackDepth represents the current stack depth, taking into account
     *                   this call as well
     * @param cancelable is a [[MultiAssignmentCancelable]] that can either be used
@@ -85,7 +86,9 @@ sealed abstract class Task[+T] { self =>
     *                   that can eventually cancel the running computation
     * @param callback is the pair of `onSuccess` and `onError` methods that will
     *                 be called when the execution completes
-    * @return a [[Cancelable]] that can be used to cancel the running computation
+    *
+    * @return a [[monix.execution.Cancelable Cancelable]] that can be used
+    *         to cancel the running computation
     */
   private[monix] def stackSafeRun(
     scheduler: Scheduler,
@@ -105,7 +108,8 @@ sealed abstract class Task[+T] { self =>
   /** Triggers the asynchronous execution.
     *
     * @param cb is a callback that will be invoked upon completion.
-    * @return a [[Cancelable]] that can be used to cancel a running task
+    * @return a [[monix.execution.Cancelable Cancelable]] that can be used
+    *         to cancel a running task
     */
   def runAsync(cb: Callback[T])(implicit s: Scheduler): Cancelable = {
     val cancelable = MultiAssignmentCancelable()
@@ -122,7 +126,8 @@ sealed abstract class Task[+T] { self =>
   /** Triggers the asynchronous execution.
     *
     * @param f is a callback that will be invoked upon completion.
-    * @return a [[Cancelable]] that can be used to cancel a running task
+    * @return a [[monix.execution.Cancelable Cancelable]] that can
+    *         be used to cancel a running task
     */
   def runAsync(f: Try[T] => Unit)(implicit s: Scheduler): Cancelable =
     runAsync(new Callback[T] {
@@ -132,9 +137,8 @@ sealed abstract class Task[+T] { self =>
 
   /** Triggers the asynchronous execution.
     *
-    * @return a [[CancelableFuture]] that can be used to extract the result
-    *         or to cancel a running task. In case it is canceled, then the
-    *         future completes with a `CancellationException`.
+    * @return a [[monix.execution.CancelableFuture CancelableFuture]] that can be used
+    *         to extract the result or to cancel a running task.
     */
   def runAsync(implicit s: Scheduler): CancelableFuture[T] = {
     val p = Promise[T]()

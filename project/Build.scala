@@ -16,25 +16,32 @@
  *
  */
 
+import com.typesafe.sbt.SbtGhPages.ghpages
+import com.typesafe.sbt.SbtGit.git
+import com.typesafe.sbt.SbtSite._
 import com.typesafe.sbt.pgp.PgpKeys
 import org.scalajs.sbtplugin.ScalaJSPlugin
 import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport._
 import sbt.Keys._
 import sbt.{Build => SbtBuild, _}
 import sbtrelease.ReleasePlugin.autoImport._
-import sbtunidoc.Plugin._
 import sbtunidoc.Plugin.UnidocKeys._
+import sbtunidoc.Plugin.{ScalaUnidoc, unidocSettings => baseUnidocSettings}
 import scoverage.ScoverageSbtPlugin.autoImport._
+import tut.Plugin._
+//import com.typesafe.sbt.site.PreprocessSupport.preprocessVars
+import com.typesafe.sbt.SbtGhPages.GhPagesKeys.ghpagesNoJekyll
+import com.typesafe.sbt.SbtSite.SiteKeys._
 
 object Build extends SbtBuild {
-  val doNotPublishArtifact = Seq(
+  lazy val doNotPublishArtifact = Seq(
     publishArtifact := false,
     publishArtifact in (Compile, packageDoc) := false,
     publishArtifact in (Compile, packageSrc) := false,
     publishArtifact in (Compile, packageBin) := false
   )
 
-  val sharedSettings = Seq(
+  lazy val sharedSettings = Seq(
     organization := "org.monifu",
     scalaVersion := "2.11.7",
     crossScalaVersions := Seq("2.10.6", "2.11.7"),
@@ -83,18 +90,6 @@ object Build extends SbtBuild {
 
     // ScalaDoc settings
     autoAPIMappings := true,
-    scalacOptions in (ScalaUnidoc, unidoc) +=
-      "-Xfatal-warnings",
-    scalacOptions in (ScalaUnidoc, unidoc) +=
-      "-Ymacro-expand:none",
-    scalacOptions in (ScalaUnidoc, unidoc) ++=
-      Opts.doc.title(s"Monix"),
-    scalacOptions in (ScalaUnidoc, unidoc) ++=
-      Opts.doc.sourceUrl(s"https://github.com/monifu/monix/tree/v${version.value}€{FILE_PATH}.scala"),
-    scalacOptions in (ScalaUnidoc, unidoc) ++=
-      Seq("-doc-root-content", file("./rootdoc.txt").getAbsolutePath),
-    scalacOptions in (ScalaUnidoc, unidoc) ++=
-      Opts.doc.version(s"${version.value}"),
     scalacOptions in ThisBuild ++= Seq(
       // Note, this is used by the doc-source-url feature to determine the
       // relative path of a given source file. If it's not a prefix of a the
@@ -154,11 +149,42 @@ object Build extends SbtBuild {
         </developers>
   )
 
-  val crossSettings = sharedSettings ++ Seq(
+  lazy val crossSettings = sharedSettings ++ Seq(
     libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-reflect" % _ % "compile"),
     unmanagedSourceDirectories in Compile <+= baseDirectory(_.getParentFile / "shared" / "src" / "main" / "scala"),
     unmanagedSourceDirectories in Test <+= baseDirectory(_.getParentFile / "shared" / "src" / "test" / "scala")
   )
+
+  lazy val unidocSettings = baseUnidocSettings ++ Seq(
+    autoAPIMappings := true,
+    unidocProjectFilter in (ScalaUnidoc, unidoc) :=
+      inProjects(baseJVM, executionJVM, tasksJVM, streamsJVM),
+
+    scalacOptions in (ScalaUnidoc, unidoc) +=
+      "-Xfatal-warnings",
+    scalacOptions in (ScalaUnidoc, unidoc) +=
+      "-Ymacro-expand:none",
+    scalacOptions in (ScalaUnidoc, unidoc) ++=
+      Opts.doc.title(s"Monix"),
+    scalacOptions in (ScalaUnidoc, unidoc) ++=
+      Opts.doc.sourceUrl(s"https://github.com/monifu/monix/tree/v${version.value}€{FILE_PATH}.scala"),
+    scalacOptions in (ScalaUnidoc, unidoc) ++=
+      Seq("-doc-root-content", file("docs/rootdoc.txt").getAbsolutePath),
+    scalacOptions in (ScalaUnidoc, unidoc) ++=
+      Opts.doc.version(s"${version.value}")
+  )
+
+  lazy val docsSettings =
+    site.addMappingsToSiteDir(mappings in (ScalaUnidoc, packageDoc), "api") ++
+    site.addMappingsToSiteDir(tut, "_tut") ++
+    Seq(
+      ghpagesNoJekyll := false,
+      siteMappings += file("CONTRIBUTING.md") -> "contributing.md",
+      git.remoteRepo := "git@github.com:monifu/monix.git",
+      includeFilter in makeSite :=
+        "*.html" | "*.css" | "*.scss" | "*.png" | "*.jpg" | "*.jpeg" |
+        "*.gif" | "*.svg" | "*.js" | "*.swf" | "*.yml" | "*.md" | "*.xml"
+    )
 
   lazy val monix = project.in(file("."))
     .aggregate(
@@ -168,13 +194,8 @@ object Build extends SbtBuild {
       streamsJVM, streamsJS,
       monixJVM, monixJS,
       tckTests)
-    .settings(unidocSettings: _*)
-    .settings(sharedSettings: _*)
-    .settings(doNotPublishArtifact: _*)
-    .settings(
-      unidocProjectFilter in (ScalaUnidoc, unidoc) := inAnyProject --
-        inProjects(baseJS, executionJS, tasksJS, streamsJS, monixJS, monixJVM, tckTests)
-    )
+    .settings(sharedSettings)
+    .settings(doNotPublishArtifact)
 
   lazy val baseJVM = project.in(file("monix-base/jvm"))
     .settings(crossSettings: _*)
@@ -279,6 +300,24 @@ object Build extends SbtBuild {
     .aggregate(baseJS, executionJS, tasksJS, streamsJS)
     .dependsOn(baseJS, executionJS, tasksJS, streamsJS)
     .settings(name := "monix")
+
+  lazy val docs = project.in(file("docs"))
+    .dependsOn(baseJVM, executionJVM, tasksJVM, streamsJVM)
+    .aggregate(baseJVM, executionJVM, tasksJVM, streamsJVM)
+    .settings(sharedSettings)
+    .settings(doNotPublishArtifact)
+    .settings(site.settings)
+    .settings(ghpages.settings)
+    .settings(tutSettings)
+    .settings(unidocSettings)
+    .settings(docsSettings)
+    .settings(
+//      preprocessVars := Map(
+//        "VERSION" -> version.value,
+//        "DATE" -> new Date().toString
+//        //"SOURCE_ROOT" -> "https://github.com/monifu/monix/blob/v" + version.value
+//      )
+    )
 
   lazy val tckTests = project.in(file("tckTests"))
     .settings(sharedSettings: _*)
