@@ -16,8 +16,7 @@
  *
  */
 
-import com.typesafe.sbt.SbtGhPages.ghpages
-import com.typesafe.sbt.SbtGit.git
+
 import com.typesafe.sbt.SbtSite._
 import com.typesafe.sbt.pgp.PgpKeys
 import org.scalajs.sbtplugin.ScalaJSPlugin
@@ -29,9 +28,10 @@ import sbtunidoc.Plugin.UnidocKeys._
 import sbtunidoc.Plugin.{ScalaUnidoc, unidocSettings => baseUnidocSettings}
 import scoverage.ScoverageSbtPlugin.autoImport._
 import tut.Plugin._
-//import com.typesafe.sbt.site.PreprocessSupport.preprocessVars
-import com.typesafe.sbt.SbtGhPages.GhPagesKeys.ghpagesNoJekyll
+import com.typesafe.sbt.site.PreprocessSupport.preprocessVars
 import com.typesafe.sbt.SbtSite.SiteKeys._
+import java.text.SimpleDateFormat
+import java.util.Date
 
 object Build extends SbtBuild {
   lazy val doNotPublishArtifact = Seq(
@@ -178,12 +178,22 @@ object Build extends SbtBuild {
     site.addMappingsToSiteDir(mappings in (ScalaUnidoc, packageDoc), "api") ++
     site.addMappingsToSiteDir(tut, "_tut") ++
     Seq(
-      ghpagesNoJekyll := false,
       siteMappings += file("CONTRIBUTING.md") -> "contributing.md",
-      git.remoteRepo := "git@github.com:monifu/monix.git",
       includeFilter in makeSite :=
         "*.html" | "*.css" | "*.scss" | "*.png" | "*.jpg" | "*.jpeg" |
-        "*.gif" | "*.svg" | "*.js" | "*.swf" | "*.yml" | "*.md" | "*.xml"
+        "*.gif" | "*.svg" | "*.js" | "*.swf" | "*.yml" | "*.md" | "*.xml",
+
+      preprocessVars := {
+        val now = new Date()
+        val dayFormat = new SimpleDateFormat("yyyy-MM-dd")
+        val timeFormat = new SimpleDateFormat("HH:mm:ss")
+
+        Map(
+          "VERSION" -> version.value,
+          "DATE" -> dayFormat.format(now),
+          "TIME" -> timeFormat.format(now)
+        )
+      }
     )
 
   lazy val monix = project.in(file("."))
@@ -307,17 +317,9 @@ object Build extends SbtBuild {
     .settings(sharedSettings)
     .settings(doNotPublishArtifact)
     .settings(site.settings)
-    .settings(ghpages.settings)
     .settings(tutSettings)
     .settings(unidocSettings)
     .settings(docsSettings)
-    .settings(
-//      preprocessVars := Map(
-//        "VERSION" -> version.value,
-//        "DATE" -> new Date().toString
-//        //"SOURCE_ROOT" -> "https://github.com/monifu/monix/blob/v" + version.value
-//      )
-    )
 
   lazy val tckTests = project.in(file("tckTests"))
     .settings(sharedSettings: _*)
