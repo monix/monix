@@ -46,10 +46,17 @@ object Build extends SbtBuild {
     scalaVersion := "2.11.7",
     crossScalaVersions := Seq("2.10.6", "2.11.7"),
 
+    // Force building with Java 8
+    initialize := {
+      val required = "1.8"
+      val current  = sys.props("java.specification.version")
+      assert(current == required, s"Unsupported build JDK: java.specification.version $current != $required")
+    },
+
+    javacOptions ++= Seq("-source", "1.6", "-target", "1.6"),
     scalacOptions ++= Seq(
       "-target:jvm-1.6", // generates code with the Java 6 class format
       "-optimise", // enables optimisations
-      // "-Xfatal-warnings", // turns all warnings into errors ;-)
       // warnings
       "-unchecked", // able additional warnings where generated code depends on assumptions
       "-deprecation", // emit warning for usages of deprecated APIs
@@ -64,6 +71,8 @@ object Build extends SbtBuild {
     scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
       case Some((2, majorVersion)) if majorVersion >= 11 =>
         Seq(
+          // turns all warnings into errors ;-)
+          "-Xfatal-warnings",
           // enables linter options
           "-Xlint:adapted-args", // warn if an argument list is modified to match the receiver
           "-Xlint:nullary-unit", // warn when nullary methods return Unit

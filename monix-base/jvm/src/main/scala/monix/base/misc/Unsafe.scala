@@ -114,6 +114,79 @@ object Unsafe {
   def compareAndSwapLong(obj: AnyRef, offset: Long, expect: Long, update: Long): Boolean =
     instance.compareAndSwapLong(obj, offset, expect, update)
 
+
+  /** Performs a get-and-set operation on an `AnyRef`
+    * field (that is, a reference field) within the given object.
+    *
+    * @param obj non-null; object containing the field
+    * @param offset offset to the field within `obj`
+    * @param update new value to store in the field
+    */
+  def getAndSetObject(obj: AnyRef, offset: Long, update: AnyRef): AnyRef = {
+    if (supportsGetAndSet) {
+      instance.getAndSetObject(obj, offset, update)
+    }
+    else {
+      var continue = true
+      var current: AnyRef = null
+      
+      while (continue) {
+        current = getObjectVolatile(obj, offset)
+        continue = !compareAndSwapObject(obj, offset, current, update)
+      }
+      
+      current
+    }
+  }
+
+  /** Performs a get-and-set operation on an `Int`
+    * field (that is, a reference field) within the given object.
+    *
+    * @param obj non-null; object containing the field
+    * @param offset offset to the field within `obj`
+    * @param update new value to store in the field
+    */
+  def getAndSetInt(obj: AnyRef, offset: Long, update: Int): Int = {
+    if (supportsGetAndSet) {
+      instance.getAndSetInt(obj, offset, update)
+    }
+    else {
+      var continue = true
+      var current = 0
+
+      while (continue) {
+        current = getIntVolatile(obj, offset)
+        continue = !compareAndSwapInt(obj, offset, current, update)
+      }
+
+      current
+    }
+  }
+
+  /** Performs a get-and-set operation on an `Long`
+    * field (that is, a reference field) within the given object.
+    *
+    * @param obj non-null; object containing the field
+    * @param offset offset to the field within `obj`
+    * @param update new value to store in the field
+    */
+  def getAndSetLong(obj: AnyRef, offset: Long, update: Long): Long = {
+    if (supportsGetAndSet) {
+      instance.getAndSetLong(obj, offset, update)
+    }
+    else {
+      var continue = true
+      var current = 0L
+
+      while (continue) {
+        current = getLongVolatile(obj, offset)
+        continue = !compareAndSwapLong(obj, offset, current, update)
+      }
+
+      current
+    }
+  }
+
   /** Gets a `long` field from the given object.
     *
     * @param obj non-null; object containing the field
@@ -222,7 +295,7 @@ object Unsafe {
   def putObjectVolatile(obj: AnyRef, offset: Long, update: AnyRef): Unit =
     instance.putObjectVolatile(obj, offset, update)
 
-  private[this] val instance: sun.misc.Unsafe =
+  private[this] final val instance: sun.misc.Unsafe =
     try {
       val field = classOf[sun.misc.Unsafe].getDeclaredField("theUnsafe")
       field.setAccessible(true)
@@ -236,4 +309,13 @@ object Unsafe {
         constructor.setAccessible(true)
         constructor.newInstance()
     }
+
+  final val supportsGetAndSet = {
+    try {
+      instance.getClass.getMethod("getAndSetObject", classOf[Object], classOf[Long], classOf[Object])
+      true
+    } catch {
+      case _: NoSuchMethodException => false
+    }
+  }
 }

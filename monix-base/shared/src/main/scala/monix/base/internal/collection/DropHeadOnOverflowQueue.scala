@@ -23,24 +23,27 @@ import monix.base.internal.math.nextPowerOf2
 import scala.reflect.ClassTag
 
 /**
- * An [[EvictingQueue]] implementation that on overflow starts
- * dropping old elements.
- *
- * This implementation is not thread-safe and on the JVM it
- * needs to be synchronized.
- *
- * @param _capacity is the recommended capacity that this queue will support,
- *                  however the actual capacity will be the closest power of 2
- *                  that is bigger than the given number, or a maximum of
- *                  2^30^ (the maximum positive int that can be expressed as
- *                  a power of 2)
- */
-private[monix] final class DropHeadOnOverflowQueue[T : ClassTag] private (_capacity: Int)
+  * An [[EvictingQueue]] implementation that on overflow starts
+  * dropping old elements.
+  *
+  * This implementation is not thread-safe and on the JVM it
+  * needs to be synchronized.
+  *
+  * @param _recommendedCapacity is the recommended capacity that this queue will support,
+  *        however the actual capacity will be the closest power of 2 that is bigger than
+  *        the given number, or a maximum of 2^30^-1 (the maximum positive int that
+  *        can be expressed as a power of 2, minus 1)
+  */
+private[monix] final class DropHeadOnOverflowQueue[T : ClassTag] private (_recommendedCapacity: Int)
   extends EvictingQueue[T] { self =>
 
-  require(_capacity > 1, "minCapacity must be bigger than 1")
+  require(_recommendedCapacity > 0, "recommendedCapacity must be positive")
 
-  private[this] val maxSize = nextPowerOf2(_capacity + 1)
+  private[this] val maxSize = {
+    val v = nextPowerOf2(_recommendedCapacity)
+    if (v <= 1) 2 else v
+  }
+
   private[this] val modulus = maxSize - 1
   def capacity = modulus
 
@@ -178,16 +181,15 @@ private[monix] final class DropHeadOnOverflowQueue[T : ClassTag] private (_capac
 }
 
 private[monix] object DropHeadOnOverflowQueue {
-  /** 
-   * Builder for [[DropHeadOnOverflowQueue]]
-   * 
-   * @param capacity is the recommended capacity that this queue will support,
-   *                 however the actual capacity will be the closest power of 2
-   *                 that is bigger than the given number, or a maximum of
-   *                 2^30^ (the maximum positive int that can be expressed as
-   *                 a power of 2)
-   */
-  def apply[T : ClassTag](capacity: Int): DropHeadOnOverflowQueue[T] = {
-    new DropHeadOnOverflowQueue[T](capacity)
+  /**
+    * Builder for [[DropHeadOnOverflowQueue]]
+    *
+    * @param recommendedCapacity is the recommended capacity that this queue will support,
+    *        however the actual capacity will be the closest power of 2 that is bigger or
+    *        equal to the given number minus one, or a maximum of 2^30^-1 (the maximum
+    *        positive int that can be expressed as a power of 2, minus 1)
+    */
+  def apply[T : ClassTag](recommendedCapacity: Int): DropHeadOnOverflowQueue[T] = {
+    new DropHeadOnOverflowQueue[T](recommendedCapacity)
   }
 }

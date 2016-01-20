@@ -20,7 +20,7 @@ package monix.base.internal.collection
 
 import minitest.SimpleTestSuite
 
-object UnlimitedBufferSuite extends SimpleTestSuite{
+object UnlimitedBufferSuite extends SimpleTestSuite {
   test("should grow dynamically") {
     val b = UnlimitedBuffer[Int]()
     for (i <- 0 until 1000) b.offer(i)
@@ -33,5 +33,32 @@ object UnlimitedBufferSuite extends SimpleTestSuite{
     for (i <- 0 until (1024 - 16)) b.offer(i)
 
     assertEquals(b.toList, (0 until (1024 - 16)).toList)
+  }
+
+  test("should offer many") {
+    val b = UnlimitedBuffer[Int]()
+    b.offerMany(0 until 1000:_*)
+    assertEquals(b.toList, 0 until 1000)
+  }
+
+  test("should clear") {
+    val b = UnlimitedBuffer[Int]()
+    b.offerMany(0 until 1000:_*)
+    b.clear()
+
+    assertEquals(b.length, 0)
+    assert(b.isEmpty)
+    assertEquals(b.toList, Nil)
+
+    b.offerMany(1000 until 2000:_*)
+    assertEquals(b.toList, 1000 until 2000)
+  }
+
+  test("custom initial capacity") {
+    val b = UnlimitedBuffer[Int](1000)
+    b.offerMany(0 until 500:_*)
+    assertEquals(b.toList, 0 until 500)
+    b.offerMany(500 until 1000:_*)
+    assertEquals(b.toList, 0 until 1000)
   }
 }

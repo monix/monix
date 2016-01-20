@@ -38,17 +38,13 @@ object DropAllOnOverflowQueueSuite extends SimpleTestSuite {
     assertEquals(q2.capacity, 1023)
 
     val q3 = DropAllOnOverflowQueue[Int](1024)
-    assertEquals(q3.capacity, 2047)
+    assertEquals(q3.capacity, 1023)
 
     val q4 = DropAllOnOverflowQueue[Int](1025)
     assertEquals(q4.capacity, 2047)
 
     intercept[IllegalArgumentException] {
       DropAllOnOverflowQueue[Int](0)
-    }
-
-    intercept[IllegalArgumentException] {
-      DropAllOnOverflowQueue[Int](1)
     }
 
     intercept[IllegalArgumentException] {
@@ -165,5 +161,53 @@ object DropAllOnOverflowQueueSuite extends SimpleTestSuite {
     intercept[ConcurrentModificationException] {
       iterator.hasNext
     }
+  }
+
+  test("isEmpty && nonEmpty && head && headOption") {
+    val q = DropAllOnOverflowQueue[Int](8)
+    assert(q.isEmpty)
+    assert(!q.nonEmpty)
+
+    intercept[NoSuchElementException](q.head)
+    assertEquals(q.headOption, None)
+
+    q.offer(1)
+    assert(!q.isEmpty)
+    assert(q.nonEmpty)
+
+    assertEquals(q.head, 1)
+    assertEquals(q.headOption, Some(1))
+
+    q.poll()
+    assert(q.isEmpty)
+    assert(!q.nonEmpty)
+
+    intercept[NoSuchElementException](q.head)
+    assertEquals(q.headOption, None)
+  }
+
+  test("iterable") {
+    val q = DropAllOnOverflowQueue[Int](128)
+    q.offerMany(0 until 200:_*)
+    assertEquals(q.toList, 127 until 200)
+  }
+
+  test("should work with a capacity of 1") {
+    val q = DropAllOnOverflowQueue[Int](1)
+    assert(q.isEmpty)
+
+    q.offerMany(0 until 10:_*)
+    assertEquals(q.head, 9)
+    assertEquals(q.length, 1)
+
+    q.offerMany(10 until 20:_*)
+    assertEquals(q.head, 19)
+    assertEquals(q.length, 1)
+
+    q.offerMany(20 until 30:_*)
+    assertEquals(q.head, 29)
+    assertEquals(q.length, 1)
+    assertEquals(q.poll(), 29)
+    assertEquals(q.length, 0)
   }
 }

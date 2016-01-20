@@ -5,7 +5,7 @@ scala:
   - 2.11.7
   - 2.10.6
 jdk:
-  - openjdk7
+  - openjdk8
 
 notifications:
   webhooks:
@@ -29,6 +29,7 @@ cache:
   - $HOME/.sbt/cache
   - $HOME/.sbt/launchers
   - $HOME/.ivy2
+
 before_cache:
   - du -h -d 1 $HOME/.ivy2/
   - du -h -d 2 $HOME/.sbt/

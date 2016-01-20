@@ -66,8 +66,8 @@ private[monix] object math {
    * than our argument, or the maximum that this function can
    * return which is 2^30^ (or 1,073,741,824).
    *
-   * @return an integer that is a power of 2, that is bigger than our
-   *         argument and that is "closest" to it.
+   * @return an integer that is a power of 2, that is bigger or
+    *        equal with our argument and that is "closest" to it.
    */
   def nextPowerOf2(nr: Int): Int = {
     require(nr >= 0, "nr must be positive")
