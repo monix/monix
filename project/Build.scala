@@ -146,14 +146,14 @@ object Build extends SbtBuild {
           </license>
         </licenses>
         <scm>
-          <url>git@github.com:monifu/monix.git</url>
-          <connection>scm:git:git@github.com:monifu/monix.git</connection>
+          <url>git@github.com:monixio/monix.git</url>
+          <connection>scm:git:git@github.com:monixio/monix.git</connection>
         </scm>
         <developers>
           <developer>
             <id>alex_ndc</id>
             <name>Alexandru Nedelcu</name>
-            <url>https://www.bionicspirit.com/</url>
+            <url>https://bionicspirit.com/</url>
           </developer>
         </developers>
   )
@@ -176,7 +176,7 @@ object Build extends SbtBuild {
     scalacOptions in (ScalaUnidoc, unidoc) ++=
       Opts.doc.title(s"Monix"),
     scalacOptions in (ScalaUnidoc, unidoc) ++=
-      Opts.doc.sourceUrl(s"https://github.com/monifu/monix/tree/v${version.value}€{FILE_PATH}.scala"),
+      Opts.doc.sourceUrl(s"https://github.com/monixio/monix/tree/v${version.value}€{FILE_PATH}.scala"),
     scalacOptions in (ScalaUnidoc, unidoc) ++=
       Seq("-doc-root-content", file("docs/rootdoc.txt").getAbsolutePath),
     scalacOptions in (ScalaUnidoc, unidoc) ++=
