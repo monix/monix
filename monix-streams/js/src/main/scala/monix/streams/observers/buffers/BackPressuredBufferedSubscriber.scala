@@ -83,7 +83,7 @@ private[monix] final class BackPressuredBufferedSubscriber[-T] private
     signalCompleteOrError(ex)
   }
 
-  def onComplete() = {
+  def onComplete(): Unit = {
     signalCompleteOrError(null)
   }
 
@@ -228,7 +228,7 @@ private[monix] final class BackPressuredBufferedSubscriber[-T] private
 
 private[monix] object BackPressuredBufferedSubscriber {
   /** Builder for [[BackPressuredBufferedSubscriber]] */
-  def apply[T](underlying: Subscriber[T], bufferSize: Int) =
+  def apply[T](underlying: Subscriber[T], bufferSize: Int): BackPressuredBufferedSubscriber[T] =
     new BackPressuredBufferedSubscriber[T](underlying, bufferSize)
 
   /** State used in our implementation to manage concurrency */

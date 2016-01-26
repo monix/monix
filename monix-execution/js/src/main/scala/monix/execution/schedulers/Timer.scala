@@ -34,7 +34,7 @@ private[schedulers] object Timer {
     js.Dynamic.global.setTimeout(lambda, delayMillis)
   }
 
-  def clearTimeout(task: js.Dynamic) = {
+  def clearTimeout(task: js.Dynamic): js.Dynamic = {
     js.Dynamic.global.clearTimeout(task)
   }
 }

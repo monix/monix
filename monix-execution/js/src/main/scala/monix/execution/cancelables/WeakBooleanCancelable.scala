@@ -29,7 +29,7 @@ private[cancelables] class WeakBooleanCancelable private ()
   extends BooleanCancelable {
 
   private[this] var _isCanceled = false
-  def isCanceled = _isCanceled
+  def isCanceled: Boolean = _isCanceled
 
   def cancel(): Boolean = {
     _isCanceled = true

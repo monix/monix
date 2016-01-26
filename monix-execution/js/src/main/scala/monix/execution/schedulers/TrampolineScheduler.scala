@@ -37,7 +37,7 @@ private[schedulers] final class TrampolineScheduler private (reporter: UncaughtE
     Cancelable.empty
   }
 
-  override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable) = {
+  override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
     val millis = {
       val v = TimeUnit.MILLISECONDS.convert(initialDelay, unit)
       if (v < 0) 0L else v

@@ -38,7 +38,7 @@ private[schedulers] final class AsyncScheduler private
     cancelable
   }
 
-  override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable) = {
+  override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
     if (initialDelay <= 0)
       scheduleOnce(r)
     else {

@@ -67,7 +67,7 @@ private[buffers] final class EvictingBufferedSubscriber[-T] private
       Cancel
   }
 
-  def onError(ex: Throwable) = self.synchronized {
+  def onError(ex: Throwable): Unit = self.synchronized {
     if (!upstreamIsComplete && !downstreamIsDone) {
       errorThrown = ex
       upstreamIsComplete = true

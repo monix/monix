@@ -76,7 +76,7 @@ private[buffers] final class SimpleBufferedSubscriber[-T] private
       Cancel
   }
 
-  def onError(ex: Throwable) = {
+  def onError(ex: Throwable): Unit = {
     if (!upstreamIsComplete && !downstreamIsDone) {
       errorThrown = ex
       upstreamIsComplete = true
@@ -84,7 +84,7 @@ private[buffers] final class SimpleBufferedSubscriber[-T] private
     }
   }
 
-  def onComplete() = {
+  def onComplete(): Unit = {
     if (!upstreamIsComplete && !downstreamIsDone) {
       upstreamIsComplete = true
       pushToConsumer()

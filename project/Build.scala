@@ -212,9 +212,20 @@ object Build extends SbtBuild {
   )
 
   lazy val scalaJSSettings = Seq(
-    scalaJSStage in Test := FastOptStage,
+    scalaJSUseRhino in Global := false,
     coverageExcludedFiles := ".*"
   )
+
+
+  lazy val scalaStyleSettings = {
+    // Create a default Scala style task to run with tests
+    lazy val testScalastyle = taskKey[Unit]("testScalastyle")
+
+    Seq(
+      testScalastyle := org.scalastyle.sbt.ScalastylePlugin.scalastyle.in(Test).toTask("").value,
+      (test in Test) <<= (test in Test) dependsOn testScalastyle
+    )
+  }
 
   lazy val monix = project.in(file("."))
     .aggregate(
@@ -225,6 +236,7 @@ object Build extends SbtBuild {
       docs, tckTests)
     .settings(sharedSettings)
     .settings(doNotPublishArtifact)
+    .settings(scalaStyleSettings)
 
   lazy val executionJVM = project.in(file("monix-execution/jvm"))
     .settings(crossSettings)
