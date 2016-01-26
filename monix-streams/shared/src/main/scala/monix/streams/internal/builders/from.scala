@@ -19,7 +19,7 @@
 package monix.streams.internal.builders
 
 import java.util.concurrent.Callable
-import monix.base.internal.Platform
+import monix.execution.internal.Platform
 import monix.streams.Ack.{Cancel, Continue}
 import monix.streams.internal._
 import monix.streams.{Ack, Observable, Subscriber}

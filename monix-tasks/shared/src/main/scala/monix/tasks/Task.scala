@@ -18,9 +18,9 @@
 
 package monix.tasks
 
-import monix.base.atomic.Atomic
+import org.sincron.atomic.Atomic
 import monix.execution.cancelables._
-import monix.base.internal.Platform
+import monix.execution.internal.Platform
 import monix.execution.{Cancelable, CancelableFuture, Scheduler, UncaughtExceptionReporter}
 import monix.tasks.Task.{SafeCallback, UnsafeCallback}
 import monix.tasks.internal.TaskRunnable

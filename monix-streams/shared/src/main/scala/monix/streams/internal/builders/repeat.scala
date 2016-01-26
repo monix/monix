@@ -18,7 +18,7 @@
 
 package monix.streams.internal.builders
 
-import monix.base.internal.Platform
+import monix.execution.internal.Platform
 import monix.streams.Ack.Continue
 import monix.streams.{Observable, Subscriber}
 import scala.annotation.tailrec

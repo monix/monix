@@ -18,7 +18,8 @@
  
 package monix.streams.subjects
 
-import monix.base.atomic.padded.Atomic
+import org.sincron.atomic.Atomic
+import org.sincron.atomic.PaddingStrategy.Implicits.Right64
 import monix.streams.{Subscriber, Subject, Ack}
 import monix.streams.Ack.{Continue, Cancel}
 import monix.streams.internal.PromiseCounter

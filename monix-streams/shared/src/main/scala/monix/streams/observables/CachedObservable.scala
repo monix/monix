@@ -18,7 +18,8 @@
 
 package monix.streams.observables
 
-import monix.base.atomic.padded.Atomic
+import org.sincron.atomic.Atomic
+import org.sincron.atomic.PaddingStrategy.Implicits.Right64
 import monix.streams.{Observable, Subscriber}
 import monix.streams.subjects.ReplaySubject
 

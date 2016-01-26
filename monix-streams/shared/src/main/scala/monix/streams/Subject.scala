@@ -19,7 +19,7 @@
 package monix.streams
 
 import monix.execution.Scheduler
-import monix.base.internal.Platform
+import monix.execution.internal.Platform
 import monix.streams.observables.LiftOperators2
 import org.reactivestreams.{Processor, Subscriber => RSubscriber, Subscription}
 import scala.concurrent.Future

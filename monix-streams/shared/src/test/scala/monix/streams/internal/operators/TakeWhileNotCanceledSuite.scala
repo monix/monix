@@ -18,7 +18,7 @@
 
 package monix.streams.internal.operators
 
-import monix.base.atomic.Atomic
+import org.sincron.atomic.Atomic
 import monix.execution.cancelables.BooleanCancelable
 import monix.streams.Observable
 import scala.concurrent.duration.Duration.Zero

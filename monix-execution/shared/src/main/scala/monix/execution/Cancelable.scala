@@ -18,7 +18,8 @@
 
 package monix.execution
 
-import monix.base.atomic.padded.Atomic
+import org.sincron.atomic.Atomic
+import org.sincron.atomic.PaddingStrategy.Implicits.Right64
 
 /**
   * Represents an asynchronous computation whose execution can be canceled.

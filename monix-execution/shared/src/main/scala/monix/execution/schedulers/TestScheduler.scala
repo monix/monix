@@ -19,7 +19,7 @@
 package monix.execution.schedulers
 
 import monix.execution.Cancelable
-import monix.base.atomic.Atomic
+import org.sincron.atomic.Atomic
 import monix.execution.cancelables.SingleAssignmentCancelable
 import monix.execution.schedulers.TestScheduler._
 import scala.annotation.tailrec

@@ -18,7 +18,7 @@
 
 package monix.streams.internal.operators
 
-import monix.base.atomic.Atomic
+import org.sincron.atomic.Atomic
 import monix.streams.Observable
 import Observable.unit
 import monix.streams.Observable

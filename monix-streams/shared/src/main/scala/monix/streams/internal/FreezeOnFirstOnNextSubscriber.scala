@@ -18,7 +18,8 @@
 
 package monix.streams.internal
 
-import monix.base.atomic.padded.Atomic
+import org.sincron.atomic.Atomic
+import org.sincron.atomic.PaddingStrategy.Implicits.Right64
 import monix.streams.{Subscriber, Ack}
 import scala.concurrent.{Future, Promise}
 

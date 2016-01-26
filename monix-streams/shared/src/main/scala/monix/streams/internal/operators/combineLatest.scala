@@ -18,7 +18,7 @@
 
 package monix.streams.internal.operators
 
-import monix.base.atomic.Atomic
+import org.sincron.atomic.Atomic
 import monix.streams.Ack.{Cancel, Continue}
 import monix.streams.exceptions.CompositeException
 import monix.streams.internal._

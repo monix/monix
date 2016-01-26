@@ -19,7 +19,7 @@
 package monix.streams
 
 import monix.execution.Scheduler
-import monix.base.internal.Platform
+import monix.execution.internal.Platform
 import monix.streams.Ack.{Continue, Cancel}
 import monix.streams.internal.reactivestreams._
 import monix.streams.observers.{SynchronousObserver, SynchronousSubscriber}

@@ -19,7 +19,7 @@
 package monix.streams
 
 import monix.execution.Scheduler
-import monix.base.internal.Platform
+import monix.execution.internal.Platform
 import monix.streams.internal.reactivestreams.{ReactiveSubscriberAsMonixSubscriber, SubscriberAsReactiveSubscriber, SynchronousSubscriberAsReactiveSubscriber}
 import monix.streams.observers.{SynchronousObserver, SynchronousSubscriber}
 import monix.streams.observers.{SynchronousSubscriber, SynchronousObserver}

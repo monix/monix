@@ -19,7 +19,8 @@
 package monix.streams.internal.builders
 
 import monix.execution.Scheduler
-import monix.base.atomic.{Atomic, AtomicInt}
+import org.sincron.atomic.{AtomicInt, Atomic}
+import org.sincron.atomic.PaddingStrategy.Implicits.Right64
 import monix.streams.Ack.Cancel
 import monix.streams.{Ack, Observable, Observer}
 import scala.concurrent.Future
@@ -54,7 +55,7 @@ private[monix] object amb {
     Observable.unsafeCreate { subscriber =>
       import subscriber.scheduler
 
-      val finishLine = Atomic(0)
+      val finishLine = Atomic.withPadding(0, Right64)
       var idx = 0
       for (observable <- source) {
         createSubscription(observable, subscriber, finishLine, idx + 1)

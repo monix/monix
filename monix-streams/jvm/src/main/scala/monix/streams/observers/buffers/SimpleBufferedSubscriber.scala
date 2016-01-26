@@ -21,13 +21,14 @@ package monix.streams.observers.buffers
 import java.util.concurrent.ConcurrentLinkedQueue
 import monix.streams.{Subscriber, OverflowStrategy, Ack}
 import monix.streams.Ack.{Cancel, Continue}
-import monix.base.internal.Platform
+import monix.execution.internal.Platform
 import monix.streams.exceptions.BufferOverflowException
 import monix.streams.observers.{BufferedSubscriber, SynchronousSubscriber}
 import scala.annotation.tailrec
 import scala.util.Failure
 import scala.util.control.NonFatal
-import monix.base.atomic.padded.Atomic
+import org.sincron.atomic.Atomic
+import org.sincron.atomic.PaddingStrategy.Implicits.Right64
 
 /**
  * A highly optimized [[BufferedSubscriber]] implementation. It supports 2

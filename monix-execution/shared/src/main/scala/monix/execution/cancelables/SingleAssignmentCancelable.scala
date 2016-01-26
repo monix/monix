@@ -18,7 +18,7 @@
 
 package monix.execution.cancelables
 
-import monix.base.atomic.AtomicAny
+import org.sincron.atomic.AtomicAny
 import scala.annotation.tailrec
 import monix.execution.Cancelable
 

@@ -18,10 +18,10 @@
 
 package monix.execution.cancelables
 
-import monix.base.atomic.{AtomicAny, Atomic}
 import monix.execution.Cancelable
+import org.sincron.atomic.Atomic
+import org.sincron.atomic.PaddingStrategy.Implicits.Right64
 import scala.annotation.tailrec
-
 
 /**
  * Represents a composite of multiple cancelables. In case it is canceled, all
@@ -140,8 +140,7 @@ object CompositeCancelable {
       }
     }
 
-    private[this] val state: AtomicAny[State] =
-      Atomic(State(cancelables.toSet))
+    private[this] val state = Atomic(State(cancelables.toSet))
   }
 
   /** Private state of a [[CompositeCancelable]] */

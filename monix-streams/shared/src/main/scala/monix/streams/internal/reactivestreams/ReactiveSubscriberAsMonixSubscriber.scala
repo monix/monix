@@ -19,7 +19,8 @@
 package monix.streams.internal.reactivestreams
 
 import monix.execution.Scheduler
-import monix.base.atomic.padded.Atomic
+import org.sincron.atomic.Atomic
+import org.sincron.atomic.PaddingStrategy.Implicits.Right64
 import monix.streams.{Observer, Ack}
 import monix.streams.Ack.{Cancel, Continue}
 import monix.streams.Subscriber

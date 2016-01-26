@@ -18,7 +18,7 @@
 
 package monix.execution.cancelables
 
-import monix.base.misc.Unsafe
+import org.sincron.misc.UnsafeAccess
 
 /** Optimized implementation of a simple [[BooleanCancelable]],
   * a cancelable that doesn't trigger any actions on cancel, it just
@@ -37,7 +37,7 @@ private[cancelables] class WeakBooleanCancelable private (fieldOffset: Long)
 
   def cancel(): Boolean = {
     if (_isCanceled == 0)
-      Unsafe.putOrderedInt(this, fieldOffset, 1)
+      UnsafeAccess.UNSAFE.putOrderedInt(this, fieldOffset, 1)
     false
   }
 }
@@ -52,7 +52,7 @@ private[cancelables] object WeakBooleanCancelable {
     * needed in order to use `Unsafe.putOrderedInt`.
     */
   private[this] val addressOffset: Long = {
-    Unsafe.objectFieldOffset(classOf[WeakBooleanCancelable]
+    UnsafeAccess.UNSAFE.objectFieldOffset(classOf[WeakBooleanCancelable]
       .getDeclaredFields.find(_.getName.endsWith("_isCanceled")).get)
   }
 }

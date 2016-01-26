@@ -19,7 +19,8 @@
 package monix.streams.internal
 
 import scala.concurrent.Promise
-import monix.base.atomic.padded.Atomic
+import org.sincron.atomic.Atomic
+import org.sincron.atomic.PaddingStrategy.Implicits.Right64
 
 /**
   * Represents a Promise that completes with `value` after

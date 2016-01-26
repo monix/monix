@@ -23,8 +23,8 @@ import java.util.concurrent.{Executors, ScheduledExecutorService, ThreadFactory}
 import scala.concurrent.ExecutionContext
 import scala.concurrent.forkjoin.ForkJoinPool
 import monix.execution.UncaughtExceptionReporter._
-import monix.base.atomic.Atomic
 import monix.execution.{SchedulerCompanion, Scheduler, UncaughtExceptionReporter}
+import org.sincron.atomic.Atomic
 
 
 private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {

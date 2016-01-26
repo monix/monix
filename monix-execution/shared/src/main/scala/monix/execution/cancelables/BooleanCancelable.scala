@@ -19,7 +19,8 @@
 package monix.execution.cancelables
 
 import monix.execution.Cancelable
-import monix.base.atomic.padded.Atomic
+import org.sincron.atomic.Atomic
+import org.sincron.atomic.PaddingStrategy.Implicits.Right64
 
 /**
   * Represents a Cancelable that can queried for the canceled status.

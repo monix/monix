@@ -18,12 +18,12 @@
 
 package monix.streams.observers.buffers
 
-import monix.base.internal.Platform
-import monix.base.internal.collection.{EvictingQueue, DropHeadOnOverflowQueue, DropAllOnOverflowQueue}
+import monix.execution.internal.Platform
+import monix.execution.internal.collection.{EvictingQueue, DropHeadOnOverflowQueue, DropAllOnOverflowQueue}
 import monix.streams.{Subscriber, OverflowStrategy, Ack}
 import monix.streams.Ack.{Cancel, Continue}
 import monix.streams.exceptions.BufferOverflowException
-import monix.base.internal.collection.ArrayQueue
+import monix.execution.internal.collection.ArrayQueue
 import monix.streams.observers.{BufferedSubscriber, SynchronousSubscriber}
 import scala.annotation.tailrec
 import scala.util.control.NonFatal

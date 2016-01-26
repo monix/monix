@@ -19,12 +19,13 @@
 package monix.streams.observers.buffers
 
 import java.util.concurrent.ConcurrentLinkedQueue
-import monix.base.atomic.padded.Atomic
-import monix.base.internal.Platform
+import monix.execution.internal.Platform
 import monix.streams.Ack.{Cancel, Continue}
 import monix.streams.observers.BufferedSubscriber
 import monix.streams.observers.buffers.BackPressuredBufferedSubscriber.State
 import monix.streams.{Ack, OverflowStrategy, Subscriber}
+import org.sincron.atomic.Atomic
+import org.sincron.atomic.PaddingStrategy.Implicits.Right64
 import scala.annotation.tailrec
 import scala.concurrent.{Future, Promise}
 

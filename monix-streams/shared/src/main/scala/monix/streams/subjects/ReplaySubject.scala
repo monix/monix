@@ -18,10 +18,11 @@
 
 package monix.streams.subjects
 
-import monix.base.atomic.padded.Atomic
+import org.sincron.atomic.Atomic
+import org.sincron.atomic.PaddingStrategy.Implicits.Right64
 import monix.streams._
 import monix.streams.Ack.{Cancel, Continue}
-import monix.base.internal.math
+import monix.execution.internal.math
 import monix.streams.internal._
 import monix.streams.observers.ConnectableSubscriber
 import math._
