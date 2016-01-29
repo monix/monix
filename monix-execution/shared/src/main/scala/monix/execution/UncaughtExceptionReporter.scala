@@ -36,22 +36,15 @@ trait UncaughtExceptionReporter {
   def reportFailure(ex: Throwable): Unit
 }
 
-/**
-  * See [[UncaughtExceptionReporter]].
-  */
+/** See [[UncaughtExceptionReporter]]. */
 object UncaughtExceptionReporter {
-  /**
-    * Builds a reporter out of the provided callback.
-    */
+  /** Builds a reporter out of the provided callback. */
   def apply(reporter: Throwable => Unit): UncaughtExceptionReporter =
     new UncaughtExceptionReporter {
       def reportFailure(ex: Throwable) = reporter(ex)
     }
 
-  /**
-    * The default reporter.
-    * Simply prints stack traces on STDERR.
-    */
+  /** The default reporter. Simply prints stack traces on STDERR. */
   val LogExceptionsToStandardErr = {
     UncaughtExceptionReporter(ex => ExecutionContext.defaultReporter(ex))
   }

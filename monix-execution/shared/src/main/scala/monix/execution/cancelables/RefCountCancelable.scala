@@ -22,44 +22,39 @@ import org.sincron.atomic.Atomic
 import monix.execution.Cancelable
 import scala.annotation.tailrec
 
-/**
- * Represents a `Cancelable` that only executes the canceling logic when all
- * dependent cancelable objects have been canceled.
- *
- * After all dependent cancelables have been canceled, `onCancel` gets called.
- */
+/** Represents a `Cancelable` that only executes the canceling logic when all
+  * dependent cancelable objects have been canceled.
+  *
+  * The given callback gets called after our `RefCountCancelable` is canceled
+  * and after all dependent cancelables have been canceled as well.
+  */
 final class RefCountCancelable private (onCancel: () => Unit) extends BooleanCancelable {
   def isCanceled: Boolean =
     state.get.isCanceled
 
+  /** Acquires a new [[Cancelable]]. */
   @tailrec
-  def acquire(): BooleanCancelable = {
+  def acquire(): Cancelable = {
     val oldState = state.get
     if (oldState.isCanceled)
-      BooleanCancelable.alreadyCanceled
+      Cancelable.empty
     else if (!state.compareAndSet(oldState, oldState.copy(activeCounter = oldState.activeCounter + 1)))
       acquire()
     else
-      BooleanCancelable {
+      Cancelable {
         val newState = state.transformAndGet(s => s.copy(activeCounter = s.activeCounter - 1))
         if (newState.activeCounter == 0 && newState.isCanceled)
           onCancel()
       }
   }
 
-  def cancel(): Boolean = {
+  override def cancel(): Unit = {
     val oldState = state.get
     if (!oldState.isCanceled)
       if (!state.compareAndSet(oldState, oldState.copy(isCanceled = true)))
         cancel()
-      else if (oldState.activeCounter == 0) {
+      else if (oldState.activeCounter == 0)
         onCancel()
-        true
-      }
-      else
-        true
-    else
-      false
   }
 
   private[this] val state = Atomic(State(isCanceled = false, activeCounter = 0))

@@ -98,8 +98,8 @@ sealed abstract class Task[+T] { self =>
 
     if (stackDepth > 0 && stackDepth < Platform.recommendedBatchSize)
       unsafeRunFn(scheduler, cancelable, stackDepth+1, callback)
-    else
-      cancelable := scheduler.scheduleOnce(new Runnable {
+    else if (!cancelable.isCanceled)
+      scheduler.execute(new Runnable {
         override def run(): Unit =
           self.unsafeRunFn(scheduler, cancelable, stackDepth = 1, callback)
       })
@@ -306,29 +306,32 @@ sealed abstract class Task[+T] { self =>
   def timeout(after: FiniteDuration): Task[T] =
     Task.unsafeCreate { (scheduler, cancelable, depth, cb) =>
       val activeTask = MultiAssignmentCancelable()
-      val timeoutTask = MultiAssignmentCancelable()
+      val activeGate = Atomic(true)
+      val activeGateTask = Cancelable(activeGate.set(false))
 
-      val composite = CompositeCancelable(timeoutTask, activeTask)
-      cancelable := composite
-
-      timeoutTask := scheduler.scheduleOnce(after.length, after.unit,
+      val timeoutTask = scheduler.scheduleOnce(after.length, after.unit,
         new Runnable {
           def run(): Unit =
-            if (composite.cancel()) {
+            if (activeGate.getAndSet(false)) {
+              cancelable.cancel()
               val ex = new TimeoutException(s"Task timed-out after $after of inactivity")
               cb.safeOnError(scheduler, depth, ex)
             }
         })
 
+      cancelable := CompositeCancelable(timeoutTask, activeTask, activeGateTask)
+
       self.stackSafeRun(scheduler, activeTask, depth, new UnsafeCallback[T] {
         def onSuccess(v: T, depth: Int): Unit =
-          if (timeoutTask.cancel()) {
+          if (activeGate.getAndSet(false)) {
+            timeoutTask.cancel()
             cancelable := activeTask
             cb.safeOnSuccess(scheduler, depth, v)
           }
 
         def onError(ex: Throwable, depth: Int): Unit =
-          if (timeoutTask.cancel()) {
+          if (activeGate.getAndSet(false)) {
+            timeoutTask.cancel()
             cancelable := activeTask
             cb.safeOnError(scheduler, depth, ex)
           }
@@ -342,29 +345,31 @@ sealed abstract class Task[+T] { self =>
   def timeout[U >: T](after: FiniteDuration, backup: Task[U]): Task[U] =
     Task.unsafeCreate { (scheduler, cancelable, depth, cb) =>
       val activeTask = MultiAssignmentCancelable()
-      val timeoutTask = MultiAssignmentCancelable()
+      val gate = Atomic(true)
+      val gateTask = Cancelable(gate.set(false))
 
-      val composite = CompositeCancelable(timeoutTask, activeTask)
-      cancelable := composite
-
-      timeoutTask := scheduler.scheduleOnce(after.length, after.unit,
+      val timeoutTask = scheduler.scheduleOnce(after.length, after.unit,
         new Runnable {
           def run(): Unit =
-            if (timeoutTask.cancel()) {
-              composite.cancel() // gc purposes
+            if (gate.getAndSet(false)) {
+              activeTask.cancel()
               backup.stackSafeRun(scheduler, cancelable, depth, cb)
             }
         })
 
+      cancelable := CompositeCancelable(gateTask, timeoutTask, activeTask)
+
       self.stackSafeRun(scheduler, activeTask, depth, new UnsafeCallback[T] {
         def onSuccess(v: T, depth: Int): Unit =
-          if (timeoutTask.cancel()) {
+          if (gate.getAndSet(false)) {
+            timeoutTask.cancel()
             cancelable := activeTask
             cb.safeOnSuccess(scheduler, depth, v)
           }
 
         def onError(ex: Throwable, depth: Int): Unit =
-          if (timeoutTask.cancel()) {
+          if (gate.getAndSet(false)) {
+            timeoutTask.cancel()
             cancelable := activeTask
             cb.safeOnError(scheduler, depth, ex)
           }
@@ -377,22 +382,21 @@ sealed abstract class Task[+T] { self =>
   def ambWith[U >: T](other: Task[U]): Task[U] =
     Task.unsafeCreate { (scheduler, cancelable, depth, cb) =>
       val isActive = Atomic(true)
+
       val firstTask = MultiAssignmentCancelable()
       val secondTask = MultiAssignmentCancelable()
-
-      val composite = CompositeCancelable(firstTask, secondTask)
-      cancelable := composite
+      cancelable := CompositeCancelable(firstTask, secondTask)
 
       self.unsafeRunFn(scheduler, firstTask, depth, new UnsafeCallback[T] {
         def onSuccess(value: T, depth: Int): Unit =
-          if (isActive.compareAndSet(expect=true, update=false)) {
+          if (isActive.getAndSet(false)) {
             secondTask.cancel()
             cancelable := firstTask // GC purposes
             cb.safeOnSuccess(scheduler, depth, value)
           }
 
         def onError(ex: Throwable, depth: Int): Unit =
-          if (isActive.compareAndSet(expect=true, update=false)) {
+          if (isActive.getAndSet(false)) {
             secondTask.cancel()
             cancelable := firstTask
             cb.safeOnError(scheduler, depth, ex)
@@ -401,14 +405,14 @@ sealed abstract class Task[+T] { self =>
 
       other.unsafeRunFn(scheduler, secondTask, depth, new UnsafeCallback[U] {
         def onSuccess(value: U, depth: Int): Unit =
-          if (isActive.compareAndSet(expect=true, update=false)) {
+          if (isActive.getAndSet(false)) {
             firstTask.cancel()
             cancelable := secondTask
             cb.safeOnSuccess(scheduler, depth, value)
           }
 
         def onError(ex: Throwable, depth: Int): Unit =
-          if (isActive.compareAndSet(expect=true, update=false)) {
+          if (isActive.getAndSet(false)) {
             firstTask.cancel()
             cancelable := secondTask // GC purposes
             cb.safeOnError(scheduler, depth, ex)
@@ -425,12 +429,17 @@ sealed abstract class Task[+T] { self =>
 
       val thisTask = MultiAssignmentCancelable()
       val thatTask = MultiAssignmentCancelable()
-      val composite = CompositeCancelable(thisTask, thatTask)
-      cancelable := composite
+
+      val gate = Atomic(true)
+      val gateTask = Cancelable(gate.getAndSet(false))
+      cancelable := CompositeCancelable(thisTask, thatTask, gateTask)
 
       self.stackSafeRun(scheduler, thisTask, depth, new UnsafeCallback[T] {
         def onError(ex: Throwable, depth: Int): Unit =
-          if (composite.cancel()) cb.safeOnError(scheduler, depth, ex)
+          if (gate.getAndSet(false)) {
+            cancelable.cancel()
+            cb.safeOnError(scheduler, depth, ex)
+          }
 
         @tailrec def onSuccess(t: T, depth: Int): Unit =
           state.get match {
@@ -445,7 +454,10 @@ sealed abstract class Task[+T] { self =>
 
       that.stackSafeRun(scheduler, thatTask, depth, new UnsafeCallback[U] {
         def onError(ex: Throwable, depth: Int): Unit =
-          if (composite.cancel()) cb.safeOnError(scheduler, depth, ex)
+          if (gate.getAndSet(false)) {
+            cancelable.cancel()
+            cb.safeOnError(scheduler, depth, ex)
+          }
 
         @tailrec def onSuccess(u: U, depth: Int): Unit =
           state.get match {
@@ -501,7 +513,7 @@ object Task {
     *                 executed, receiving a callback as a parameter,
     *                 a callback that the user is supposed to call in order
     *                 to signal the desired outcome of this `Task`.
-   */
+    */
   def create[T](register: (Callback[T], Scheduler) => Cancelable): Task[T] =
     Task.unsafeCreate { (scheduler, cancelable, depth, cb) =>
       var streamErrors = true
@@ -626,7 +638,7 @@ object Task {
     * be called once, with a simple check.
     */
   private class SafeCallback[-T]
-    (underlying: Callback[T])(implicit r: UncaughtExceptionReporter)
+  (underlying: Callback[T])(implicit r: UncaughtExceptionReporter)
     extends Callback[T] {
 
     private[this] var isActive = true

@@ -22,83 +22,82 @@ import monix.execution.Cancelable
 import org.sincron.atomic.Atomic
 import scala.annotation.tailrec
 
-/**
- * Represents a [[monix.execution.Cancelable]] whose underlying cancelable
- * can be swapped for another cancelable which causes the previous underlying
- * cancelable to be canceled.
- *
- * Example:
- * {{{
- *   val s = SerialCancelable()
- *   s := c1 // sets the underlying cancelable to c1
- *   s := c2 // cancels c1 and swaps the underlying cancelable to c2
- *
- *   s.cancel() // also cancels c2
- *
- *   s() = c3 // also cancels c3, because s is already canceled
- * }}}
- *
- * Also see [[MultiAssignmentCancelable]], which is similar, but doesn't cancel
- * the old cancelable upon assignment.
- */
-final class SerialCancelable private () extends BooleanCancelable {
+/** Represents a [[monix.execution.Cancelable]] whose underlying cancelable
+  * can be swapped for another cancelable which causes the previous underlying
+  * cancelable to be canceled.
+  *
+  * Example:
+  * {{{
+  *   val s = SerialCancelable()
+  *   s := c1 // sets the underlying cancelable to c1
+  *   s := c2 // cancels c1 and swaps the underlying cancelable to c2
+  *
+  *   s.cancel() // also cancels c2
+  *
+  *   s := c3 // also cancels c3, because s is already canceled
+  * }}}
+  *
+  * Also see [[MultiAssignmentCancelable]], which is similar, but doesn't cancel
+  * the old cancelable upon assignment.
+  */
+final class SerialCancelable private (initial: Cancelable)
+  extends AssignableCancelable {
+
   import SerialCancelable.State
   import SerialCancelable.State._
 
-  private[this] val state = Atomic(Active(Cancelable()) : State)
-
-  def isCanceled: Boolean = state.get match {
-    case Cancelled => true
-    case _ => false
+  private[this] val state = {
+    val s: State = Active(if (initial != null) initial else Cancelable.empty)
+    Atomic(s)
   }
 
+  override def isCanceled: Boolean =
+    state.get match {
+      case Cancelled => true
+      case _ => false
+    }
+
   @tailrec
-  def cancel(): Boolean = state.get match {
-    case Cancelled => false
+  override def cancel(): Unit = state.get match {
+    case Cancelled => () // nothing to do
     case current @ Active(s) =>
-      if (state.compareAndSet(current, Cancelled)) {
+      if (state.compareAndSet(current, Cancelled))
         s.cancel()
-        true
-      }
       else
         cancel()
   }
 
-  /**
-   * Swaps the underlying cancelable reference with `s`.
-   *
-   * In case this `SerialCancelable` is already canceled,
-   * then the reference `value` will also be canceled on assignment.
-   */
+  /** Swaps the underlying cancelable reference with the new `value`
+    * and cancels the old cancelable that was replaced.
+    *
+    * In case this `SerialCancelable` is already canceled,
+    * then the reference `value` will also be canceled on assignment.
+    */
   @tailrec
-  def update(value: Cancelable): Unit = state.get match {
-    case Cancelled => value.cancel()
+  override def :=(value: Cancelable): this.type = state.get match {
+    case Cancelled =>
+      value.cancel()
+      this
     case current @ Active(s) =>
       if (!state.compareAndSet(current, Active(value)))
-        update(value)
-      else
+        :=(value)
+      else {
         s.cancel()
+        this
+      }
   }
-
-  /**
-   * Alias for `update(value)`
-   */
-  def `:=`(value: Cancelable): Unit =
-    update(value)
 }
 
 object SerialCancelable {
+  /** Builder for [[SerialCancelable]]. */
   def apply(): SerialCancelable =
-    new SerialCancelable()
+    new SerialCancelable(null)
 
-  def apply(s: Cancelable): SerialCancelable = {
-    val ms = new SerialCancelable()
-    ms() = s
-    ms
-  }
+  /** Builder for [[SerialCancelable]]. */
+  def apply(initial: Cancelable): SerialCancelable =
+    new SerialCancelable(initial)
 
   private sealed trait State
-
   private object State {
     case class Active(s: Cancelable) extends State
     case object Cancelled extends State

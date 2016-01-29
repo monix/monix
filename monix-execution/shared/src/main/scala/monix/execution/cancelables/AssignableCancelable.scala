@@ -27,7 +27,7 @@ import monix.execution.Cancelable
   * Examples are the [[MultiAssignmentCancelable]] and the
   * [[SingleAssignmentCancelable]].
   *
-  * NOTE that on assignment, if this cancelable is already
+  * On assignment, if this cancelable is already
   * canceled, then no assignment should happen and the update
   * reference should be canceled as well.
   */
@@ -36,7 +36,7 @@ trait AssignableCancelable extends BooleanCancelable {
     * to the given value.
     *
     * If this cancelable is already canceled, then `value` is
-    * going to be canceled on assigned as well.
+    * going to be canceled on assignment as well.
     *
     * @return `this`
     */

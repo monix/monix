@@ -95,39 +95,6 @@ object AsyncSchedulerSuite extends SimpleTestSuite {
     assert(Await.result(p.future, 5.second) == 4)
   }
 
-  test("scheduleOnce simple runnable") {
-    val latch = new CountDownLatch(1)
-    s.scheduleOnce(runnableAction {
-      latch.countDown()
-    })
-
-    assert(latch.await(10, TimeUnit.SECONDS), "latch.await")
-  }
-
-  test("scheduleOnce with simple runnable should cancel") {
-    val s = Scheduler.singleThread("single-threaded-test")
-    val started = new CountDownLatch(1)
-    val continue = new CountDownLatch(1)
-    val wasTriggered = new CountDownLatch(1)
-
-    s.scheduleOnce(runnableAction {
-      started.countDown()
-      // block our thread
-      continue.await()
-    })
-
-    assert(started.await(10, TimeUnit.SECONDS), "started.await")
-    val cancelable = s.scheduleOnce(runnableAction {
-      wasTriggered.countDown()
-    })
-
-    cancelable.cancel()
-    assert(cancelable.asInstanceOf[BooleanCancelable].isCanceled, "cancelable.isCanceled")
-    continue.countDown()
-
-    assert(!wasTriggered.await(100, TimeUnit.MILLISECONDS))
-  }
-
   def runnableAction(f: => Unit): Runnable =
     new Runnable { def run() = f }
 }

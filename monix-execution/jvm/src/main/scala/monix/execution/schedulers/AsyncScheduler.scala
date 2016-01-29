@@ -20,7 +20,6 @@ package monix.execution.schedulers
 
 import java.util.concurrent.{TimeUnit, ScheduledExecutorService}
 import scala.concurrent.ExecutionContext
-import monix.execution.cancelables.BooleanCancelable
 import monix.execution.{Cancelable, UncaughtExceptionReporter}
 
 /** An `AsyncScheduler` schedules tasks to happen in the future with the
@@ -31,17 +30,11 @@ private[schedulers] final class AsyncScheduler private
   (s: ScheduledExecutorService, ec: ExecutionContext, r: UncaughtExceptionReporter)
   extends ReferenceScheduler {
 
-  override def scheduleOnce(r: Runnable): Cancelable = {
-    val cancelable = BooleanCancelable.weak()
-    val wrapped = new Runnable { def run() = if (!cancelable.isCanceled) r.run() }
-    execute(wrapped)
-    cancelable
-  }
-
   override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
-    if (initialDelay <= 0)
-      scheduleOnce(r)
-    else {
+    if (initialDelay <= 0) {
+      execute(r)
+      Cancelable.empty
+    } else {
       val task = s.schedule(r, initialDelay, unit)
       Cancelable(task.cancel(true))
     }

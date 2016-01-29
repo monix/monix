@@ -32,11 +32,6 @@ private[schedulers] final class TrampolineScheduler private (reporter: UncaughtE
   private[this] val immediateQueue = mutable.Queue.empty[Runnable]
   private[this] var withinLoop = false
 
-  override def scheduleOnce(r: Runnable): Cancelable = {
-    execute(r)
-    Cancelable.empty
-  }
-
   override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
     val millis = {
       val v = TimeUnit.MILLISECONDS.convert(initialDelay, unit)

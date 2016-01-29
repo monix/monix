@@ -39,27 +39,29 @@ import scala.annotation.tailrec
   * Also see [[SerialCancelable]], which is similar, except that it cancels the
   * old cancelable upon assigning a new cancelable.
   */
-final class MultiAssignmentCancelable private ()
+final class MultiAssignmentCancelable private (initial: Cancelable)
   extends AssignableCancelable {
 
   import MultiAssignmentCancelable.State
   import MultiAssignmentCancelable.State._
 
-  private[this] val state = Atomic(Active(Cancelable()) : State)
-
-  def isCanceled: Boolean = state.get match {
-    case Cancelled => true
-    case _ => false
+  private[this] val state = {
+    val ref = if (initial != null) initial else Cancelable.empty
+    Atomic(Active(ref) : State)
   }
 
+  override def isCanceled: Boolean =
+    state.get match {
+      case Cancelled => true
+      case _ => false
+    }
+
   @tailrec
-  def cancel(): Boolean = state.get match {
-    case Cancelled => false
+  override def cancel(): Unit = state.get match {
+    case Cancelled => ()
     case current @ Active(s) =>
-      if (state.compareAndSet(current, Cancelled)) {
+      if (state.compareAndSet(current, Cancelled))
         s.cancel()
-        true
-      }
       else
         cancel()
   }
@@ -71,7 +73,8 @@ final class MultiAssignmentCancelable private ()
     *
     * @return `this`
     */
-  @tailrec def `:=`(value: Cancelable): this.type = {
+  @tailrec
+  override def `:=`(value: Cancelable): this.type = {
     state.get match {
       case Cancelled =>
         value.cancel()
@@ -88,12 +91,10 @@ final class MultiAssignmentCancelable private ()
 
 object MultiAssignmentCancelable {
   def apply(): MultiAssignmentCancelable =
-    new MultiAssignmentCancelable()
+    new MultiAssignmentCancelable(null)
 
-  def apply(s: Cancelable): MultiAssignmentCancelable = {
-    val ms = new MultiAssignmentCancelable()
-    ms := s
-  }
+  def apply(s: Cancelable): MultiAssignmentCancelable =
+    new MultiAssignmentCancelable(s)
 
   private[monix] sealed trait State
   private[monix] object State {

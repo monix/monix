@@ -20,11 +20,8 @@ package monix.execution.cancelables
 
 import monix.execution.Cancelable
 import org.sincron.atomic.Atomic
-import org.sincron.atomic.PaddingStrategy.Implicits.Right64
 
-/**
-  * Represents a Cancelable that can queried for the canceled status.
-  */
+/** Represents a Cancelable that can queried for the canceled status. */
 trait BooleanCancelable extends Cancelable {
   /** @return true in case this cancelable hasn't been canceled,
     *         or false otherwise.
@@ -33,14 +30,14 @@ trait BooleanCancelable extends Cancelable {
 }
 
 object BooleanCancelable {
-  /** Builder for [[BooleanCancelable]] */
+  /** Builder for [[BooleanCancelable]]. */
   def apply(): BooleanCancelable =
     new BooleanCancelable {
-      private[this] val _isCanceled = Atomic(false)
-      def isCanceled = _isCanceled.get
+      @volatile private[this] var _isCanceled = false
+      def isCanceled = _isCanceled
 
-      def cancel(): Boolean = {
-        _isCanceled.compareAndSet(expect = false, update = true)
+      def cancel(): Unit = {
+        if (!_isCanceled) _isCanceled = true
       }
     }
 
@@ -52,28 +49,13 @@ object BooleanCancelable {
   def apply(callback: => Unit): BooleanCancelable =
     new BooleanCancelable {
       private[this] val _isCanceled = Atomic(false)
+      def isCanceled = _isCanceled.get
 
-      def isCanceled =
-        _isCanceled.get
-
-      def cancel(): Boolean = {
-        if (_isCanceled.compareAndSet(expect=false, update=true)) {
+      def cancel(): Unit = {
+        if (!_isCanceled.getAndSet(true))
           callback
-          true
-        }
-        else
-          false
       }
     }
-
-  /** Returns a weak version of [[BooleanCancelable]] that:
-    *
-    *   - always returns false on `cancel()`
-    *   - its `isCanceled` field only has the writes ordered, so
-    *     visibility after cancellation is not guaranteed
-    */
-  def weak(): BooleanCancelable =
-    monix.execution.cancelables.WeakBooleanCancelable()
 
   /** Returns an instance of a [[BooleanCancelable]] that's
     * already canceled.
@@ -81,6 +63,6 @@ object BooleanCancelable {
   val alreadyCanceled: BooleanCancelable =
     new BooleanCancelable {
       val isCanceled = true
-      def cancel() = false
+      def cancel() = ()
     }
 }

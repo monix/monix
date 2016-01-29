@@ -36,20 +36,13 @@ trait Scheduler extends ExecutionContext with UncaughtExceptionReporter {
   /** Reports that an asynchronous computation failed. */
   def reportFailure(t: Throwable): Unit
 
-  /** Schedules the given `runnable` for immediate execution.
-    *
-    * @return a [[Cancelable]] that can be used to cancel the scheduled task
-    *         in case it hasn't been executed yet.
-    */
-  def scheduleOnce(r: Runnable): Cancelable
-
   /** Schedules a task to run in the future, after `initialDelay`.
     *
     * For example the following schedules a message to be printed to
     * standard output after 5 minutes:
     * {{{
     *   val task = scheduler.scheduleOnce(5.minutes, new Runnable {
-    *     def run() = println("Hello, world!")
+    *     def run() = doSomething()
     *   })
     *
     *   // later if you change your mind ...
@@ -75,7 +68,7 @@ trait Scheduler extends ExecutionContext with UncaughtExceptionReporter {
     * seconds:
     * {{{
     *   val task = s.scheduleWithFixedDelay(5.seconds, 10.seconds, new Runnable {
-    *     def run() = println("Hello, world!")
+    *     def run() = doSomething()
     *   })
     *
     *   // later if you change your mind ...
@@ -107,7 +100,7 @@ trait Scheduler extends ExecutionContext with UncaughtExceptionReporter {
     * output approximately every 10 seconds with an initial delay of 5 seconds:
     * {{{
     *   val task = scheduler.scheduleAtFixedRate(5.seconds, 10.seconds , new Runnable {
-    *     def run() = println("Hello, world!")
+    *     def run() = doSomething()
     *   })
     *
     *   // later if you change your mind ...

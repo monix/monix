@@ -82,11 +82,11 @@ object CancelableFuture {
   private final class Implementation[+T](underlying: Future[T], cancelable: Cancelable)
     extends CancelableFuture[T] {
 
-    def onComplete[U](f: (Try[T]) => U)(implicit executor: ExecutionContext): Unit =
+    override def onComplete[U](f: (Try[T]) => U)(implicit executor: ExecutionContext): Unit =
       underlying.onComplete(f)(executor)
-    def isCompleted: Boolean =
+    override def isCompleted: Boolean =
       underlying.isCompleted
-    def value: Option[Try[T]] =
+    override def value: Option[Try[T]] =
       underlying.value
 
     @throws[Exception](classOf[Exception])
@@ -100,7 +100,7 @@ object CancelableFuture {
       this
     }
 
-    def cancel(): Boolean =
+    override def cancel(): Unit =
       cancelable.cancel()
 
     // Overriding methods for getting CancelableFuture in return

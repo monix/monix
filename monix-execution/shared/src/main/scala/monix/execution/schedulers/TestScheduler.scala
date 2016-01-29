@@ -55,10 +55,6 @@ final class TestScheduler private () extends ReferenceScheduler {
     state.transform(_.execute(runnable))
   }
 
-  override def scheduleOnce(r: Runnable): Cancelable = {
-    state.transformAndExtract(_.scheduleOnce(r))
-  }
-
   override def reportFailure(t: Throwable): Unit = {
     state.transform(_.copy(lastReportedError = t))
   }
@@ -185,19 +181,6 @@ object TestScheduler {
       val newID = lastID + 1
       val task = Task(newID, runnable, clock)
       copy(lastID = newID, tasks = tasks + task)
-    }
-
-    def scheduleOnce(r: Runnable): (Cancelable, State) = {
-      val newID = lastID + 1
-      val cancelable = SingleAssignmentCancelable()
-
-      val task = Task(newID, r, clock)
-      cancelable := Cancelable { cancelTask(task) }
-
-      (cancelable, copy(
-        lastID = newID,
-        tasks = tasks + task
-      ))
     }
 
     /** Returns a new state with a scheduled task included. */
