@@ -49,7 +49,7 @@ object TakeWhileNotCanceledSuite extends BaseOperatorSuite {
     require(sourceCount > 0, "sourceCount should be strictly positive")
 
     val c = new BooleanCancelable {
-      def cancel() = false
+      def cancel(): Unit = ()
       val counter = Atomic(0)
 
       def isCanceled =

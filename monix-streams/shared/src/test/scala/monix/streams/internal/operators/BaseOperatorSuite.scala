@@ -21,10 +21,10 @@ package monix.streams.internal.operators
 import minitest.TestSuite
 import monix.execution.FutureUtils.ops._
 import monix.execution.schedulers.TestScheduler
-import monix.streams.{Observer, Observable, Ack}
 import monix.streams.Ack.{Cancel, Continue}
+import monix.streams.{Ack, Observable, Observer}
 import monix.streams.exceptions.DummyException
-import monix.streams.Observer
+
 import scala.concurrent.duration._
 import scala.concurrent.{Future, Promise}
 import scala.util.Random
@@ -38,8 +38,8 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
     waitFirst: FiniteDuration,
     waitNext: FiniteDuration)
 
-  def setup() = TestScheduler()
-  def tearDown(s: TestScheduler) = {
+  def setup(): TestScheduler = TestScheduler()
+  def tearDown(s: TestScheduler): Unit = {
     assert(s.state.get.tasks.isEmpty,
       "TestScheduler should have no pending tasks")
   }
@@ -51,7 +51,7 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
    * the resulting observable, being just a way to randomly vary
    * the events being emitted.
    */
-  def createObservable(sourceCount: Int): Option[Sample]
+  protected def createObservable(sourceCount: Int): Option[Sample]
 
   /**
    * Optionally build an observable that simulates an error in user
@@ -60,19 +60,19 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
    * It first emits elements, followed by an error triggered
    * within the user-provided portion of the operator.
    */
-  def brokenUserCodeObservable(sourceCount: Int, ex: Throwable): Option[Sample]
+  protected def brokenUserCodeObservable(sourceCount: Int, ex: Throwable): Option[Sample]
 
   /**
    * Optionally builds an observable that first emits the
    * items and then ends in error triggered by user code
    * (only for operators that execute user specified code).
    */
-  def observableInError(sourceCount: Int, ex: Throwable): Option[Sample]
+  protected def observableInError(sourceCount: Int, ex: Throwable): Option[Sample]
 
   /**
    * Helper for quickly creating an observable ending with onError.
    */
-  def createObservableEndingInError(source: Observable[Long], ex: Throwable) =
+  def createObservableEndingInError(source: Observable[Long], ex: Throwable): Observable[Long] =
     Observable.unsafeCreate[Long] { subscriber =>
       implicit val s = subscriber.scheduler
 
@@ -97,7 +97,7 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
       case None => ignore()
       case Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
         obs.unsafeSubscribeFn(new Observer[Long] {
-          def onNext(elem: Long) = {
+          def onNext(elem: Long): Ack = {
             received += 1
             Continue
           }
@@ -123,7 +123,7 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
         var onNextReceived = false
 
         obs.unsafeSubscribeFn(new Observer[Long] {
-          def onNext(elem: Long) = { onNextReceived = true; p.future }
+          def onNext(elem: Long): Future[Continue] = { onNextReceived = true; p.future }
           def onError(ex: Throwable): Unit = throw new IllegalStateException()
           def onComplete(): Unit = wasCompleted = true
         })
@@ -148,7 +148,7 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
         obs.unsafeSubscribeFn(new Observer[Long] {
           private[this] var sum = 0L
 
-          def onNext(elem: Long) = {
+          def onNext(elem: Long): Continue = {
             received += 1
             sum += elem
             Continue
@@ -175,7 +175,7 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
         obs.unsafeSubscribeFn(new Observer[Long] {
           private[this] var sum = 0L
 
-          def onNext(elem: Long) =
+          def onNext(elem: Long): Future[Continue] =
             Future.delayedResult(100.millis) {
               received += 1
               sum += elem
@@ -202,7 +202,7 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
       case None => ignore()
       case Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
         obs.unsafeSubscribeFn(new Observer[Long] {
-          def onNext(elem: Long) = {
+          def onNext(elem: Long): Future[Continue] = {
             received += 1
             p.future
           }
@@ -246,7 +246,7 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
         var receivedSum = 0L
 
         obs.unsafeSubscribeFn(new Observer[Long] {
-          def onNext(elem: Long) = {
+          def onNext(elem: Long): Continue = {
             received += 1
             receivedSum += elem
             Continue
@@ -274,7 +274,7 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
         var received = 0
 
         obs.unsafeSubscribeFn(new Observer[Long] {
-          def onNext(elem: Long) = {
+          def onNext(elem: Long): Future[Continue] = {
             received += 1
             if (received == count)
               Future.delayedResult(1.hour)(Continue)
@@ -299,7 +299,7 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
         var received = 0
 
         obs.unsafeSubscribeFn(new Observer[Long] {
-          def onNext(elem: Long) = {
+          def onNext(elem: Long): Continue = {
             received += 1
             Continue
           }
@@ -327,7 +327,7 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
         var received = 0
 
         o.unsafeSubscribeFn(new Observer[Long] {
-          def onNext(elem: Long) = {
+          def onNext(elem: Long): Cancel = {
             received += 1
             Cancel
           }

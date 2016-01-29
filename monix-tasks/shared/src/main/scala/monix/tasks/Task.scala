@@ -115,7 +115,7 @@ sealed abstract class Task[+T] { self =>
     val cancelable = MultiAssignmentCancelable()
     val safe = SafeCallback(cb)
 
-    stackSafeRun(s, cancelable, -1, new UnsafeCallback[T] {
+    stackSafeRun(s, cancelable, 1, new UnsafeCallback[T] {
       def onSuccess(value: T, stackDepth: Int) = safe.onSuccess(value)
       def onError(ex: Throwable, stackDepth: Int) = safe.onError(ex)
     })
@@ -212,7 +212,7 @@ sealed abstract class Task[+T] { self =>
   /** Returns a task that waits for the specified `timespan` before
     * executing and mirroring the result of the source.
     */
-  def delay(timespan: FiniteDuration): Task[T] =
+  def delayExecution(timespan: FiniteDuration): Task[T] =
     Task.unsafeCreate[T] { (scheduler, cancelable, depth, cb) =>
       // delaying execution
       cancelable := scheduler.scheduleOnce(timespan.length, timespan.unit,
@@ -221,6 +221,28 @@ sealed abstract class Task[+T] { self =>
             self.stackSafeRun(scheduler, cancelable, depth, cb)
           }
         })
+    }
+
+  /** Returns a task that executes the source immediately on `runAsync`,
+    * but before emitting the `onSuccess` result for the specified duration.
+    *
+    * Note that if an error happens, then it is streamed immediately
+    * with no delay.
+    */
+  def delayResult(timespan: FiniteDuration): Task[T] =
+    Task.unsafeCreate[T] { (scheduler, cancelable, depth, cb) =>
+      self.stackSafeRun(scheduler, cancelable, depth, new UnsafeCallback[T] {
+        def onSuccess(value: T, stackDepth: Int): Unit =
+          cancelable := scheduler.scheduleOnce(timespan.length, timespan.unit,
+            new Runnable {
+              override def run(): Unit = {
+                cb.safeOnSuccess(scheduler, 1, value)
+              }
+            })
+
+        def onError(ex: Throwable, stackDepth: Int): Unit =
+          cb.safeOnError(scheduler, stackDepth, ex)
+      })
     }
 
   /** Returns a failed projection of this task.
@@ -477,26 +499,44 @@ object Task {
     * result of the given function executed asynchronously.
     */
   def apply[T](f: => T): Task[T] =
-    Task.unsafeCreate { (scheduler, cancelable, depth, callback) =>
-      if (!cancelable.isCanceled) {
-        // protecting against user code errors
-        var streamErrors = true
-        try {
-          val result = f
-          streamErrors = false
-          callback.safeOnSuccess(scheduler, depth, result)
-        } catch {
-          case NonFatal(ex) if streamErrors =>
-            callback.safeOnError(scheduler, depth, ex)
-        }
-      }
-    }
+    Task.fork(Task.defer(f))
 
   /** Returns a `Task` that on execution is always successful, emitting
     * the given strict value.
     */
   def now[T](elem: T): Task[T] =
     new Now(elem)
+
+  /** Promote a non-strict value to a Task, catching exceptions in the process.
+    *
+    * Note that since `Task` is not memoized, this will recompute the value
+    * each time the `Task` is executed.
+    */
+  def defer[T](f: => T): Task[T] =
+    Task.unsafeCreate { (scheduler, cancelable, depth, callback) =>
+      // protecting against user code errors
+      var streamErrors = true
+      try {
+        val result = f
+        streamErrors = false
+        callback.safeOnSuccess(scheduler, depth, result)
+      } catch {
+        case NonFatal(ex) if streamErrors =>
+          callback.safeOnError(scheduler, depth, ex)
+      }
+    }
+
+  /** Mirrors the given source `Task`, but upon execution it
+    * forks its evaluation off into a separate (logical) thread.
+    */
+  def fork[T](source: Task[T]): Task[T] =
+    Task.unsafeCreate { (scheduler, cancelable, depth, callback) =>
+      scheduler.execute(new Runnable {
+        override def run(): Unit = {
+          source.unsafeRunFn(scheduler, cancelable, depth, callback)
+        }
+      })
+    }
 
   /** Returns a task that on execution is always finishing in error
     * emitting the specified exception.
@@ -516,7 +556,6 @@ object Task {
     */
   def create[T](register: (Callback[T], Scheduler) => Cancelable): Task[T] =
     Task.unsafeCreate { (scheduler, cancelable, depth, cb) =>
-      var streamErrors = true
       try {
         val callback = new Callback[T] {
           def onSuccess(value: T) =
@@ -525,11 +564,9 @@ object Task {
             cb.safeOnError(scheduler, depth, ex)
         }
 
-        val c = register(callback, scheduler)
-        streamErrors = false
-        cancelable := c
+        cancelable := register(callback, scheduler)
       } catch {
-        case NonFatal(ex) if streamErrors =>
+        case NonFatal(ex) =>
           cb.safeOnError(scheduler, depth, ex)
       }
     }

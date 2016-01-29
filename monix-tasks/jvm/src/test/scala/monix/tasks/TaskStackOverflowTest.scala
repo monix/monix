@@ -25,7 +25,7 @@ import scala.concurrent.duration._
 import scala.util.Success
 
 object TaskStackOverflowTest extends TestSuite[Scheduler] {
-  def setup() = Scheduler.global
+  def setup(): Scheduler = Scheduler.global
   def tearDown(env: Scheduler): Unit = ()
 
   test("flatMap(self) should not trigger stack overflow") { implicit s =>

@@ -187,7 +187,7 @@ lazy val executionJVM = project.in(file("monix-execution/jvm"))
   .settings(testSettings)
   .settings(
     name := "monix-execution",
-    libraryDependencies += "org.sincron" %%% "sincron" % "0.2"
+    libraryDependencies += "org.sincron" %%% "sincron" % "0.4"
   )
 
 lazy val executionJS = project.in(file("monix-execution/js"))
@@ -264,7 +264,7 @@ lazy val tckTests = project.in(file("tckTests"))
     ))
 
 lazy val benchmarks = project.in(file("benchmarks"))
-  .dependsOn(streamsJVM)
+  .dependsOn(tasksJVM)
   .enablePlugins(JmhPlugin)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)

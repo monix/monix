@@ -21,22 +21,23 @@ package monix.tasks
 import java.util.concurrent.CancellationException
 import minitest.TestSuite
 import monix.execution.Cancelable
+import monix.execution.cancelables.BooleanCancelable
+import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import monix.tasks.Task.UnsafeCallback
 import scala.concurrent.duration._
 import scala.concurrent.{Future, TimeoutException}
 import scala.util.{Failure, Success}
 
-
 object TaskTest extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
+  def setup(): TestScheduler = TestScheduler()
   def tearDown(env: TestScheduler): Unit = {
     assert(env.state.get.tasks.isEmpty, "should not have tasks left to execute")
   }
 
-  test("Task.apply should work, lazily") { implicit s =>
+  test("Task.apply should work, on different thread") { implicit s =>
     var wasTriggered = false
-    def trigger() = { wasTriggered = true; "result" }
+    def trigger(): String = { wasTriggered = true; "result" }
 
     val task = Task(trigger())
     assert(!wasTriggered, "!wasTriggered")
@@ -59,35 +60,28 @@ object TaskTest extends TestSuite[TestScheduler] {
     assertEquals(s.state.get.lastReportedError, null)
   }
 
-  test("Task.apply can be cancelled") { implicit s =>
+  test("Task.defer should execute on same thread") { implicit s =>
     var wasTriggered = false
-    def trigger() = {
-      wasTriggered = true; "result"
-    }
+    def trigger(): String = { wasTriggered = true; "result" }
 
-    val task = Task(trigger())
+    val task = Task.defer(trigger())
     assert(!wasTriggered, "!wasTriggered")
 
     val f = task.runAsync
-    assert(!wasTriggered, "!wasTriggered")
-    assertEquals(f.value, None)
-
-    // cancelling after scheduled for execution, but before execution
-    f.cancel()
-
-    s.tick()
-    assert(!wasTriggered, "!wasTriggered")
-    assert(f.value.get.failed.get.isInstanceOf[CancellationException],
-      "isInstanceOf[CancellationException]")
+    assert(wasTriggered, "wasTriggered")
+    assertEquals(f.value, Some(Success("result")))
   }
 
   test("Task.create should work for onSuccess") { implicit s =>
     var wasTriggered = false
-    def trigger() = { wasTriggered = true; "result" }
+    def trigger(): String = { wasTriggered = true; "result" }
 
-    val task = Task.create[String] { (cb, s) => cb.onSuccess(trigger()); Cancelable.empty }
+    val task = {
+      val ref = Task.create[String] { (cb, s) => cb.onSuccess(trigger()); Cancelable.empty }
+      Task.fork(ref)
+    }
+
     assert(!wasTriggered, "!wasTriggered")
-
     val f = task.runAsync
     assert(!wasTriggered, "!wasTriggered")
     assertEquals(f.value, None)
@@ -99,9 +93,12 @@ object TaskTest extends TestSuite[TestScheduler] {
 
   test("Task.create should work for onError") { implicit s =>
     val ex = DummyException("dummy")
-    val task = Task.create[String] { (cb, s) => cb.onError(ex); Cancelable.empty }
-    val f = task.runAsync
+    val task = {
+      val ref = Task.create[String] { (cb, s) => cb.onError(ex); Cancelable.empty }
+      Task.fork(ref)
+    }
 
+    val f = task.runAsync
     assertEquals(f.value, None)
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
@@ -208,7 +205,7 @@ object TaskTest extends TestSuite[TestScheduler] {
     val task = Task(1)
 
     task.runAsync(new Callback[Int] {
-      def onSuccess(value: Int) = {
+      def onSuccess(value: Int): Unit = {
         receivedCount += 1
         throw ex
       }
@@ -285,11 +282,21 @@ object TaskTest extends TestSuite[TestScheduler] {
 
   test("Task#map is cancelable") { implicit s =>
     var wasTriggered = false
-    def trigger() = {
-      wasTriggered = true; "result"
+    val source = Task.create[String] { (callback, s) =>
+      val cancelable = BooleanCancelable()
+      s.execute(new Runnable {
+        override def run(): Unit = {
+          if (!cancelable.isCanceled) {
+            wasTriggered = true
+            callback.onSuccess("result")
+          }
+        }
+      })
+
+      cancelable
     }
 
-    val task = Task(trigger()).map(x => x)
+    val task = source.map(x => x)
     assert(!wasTriggered, "!wasTriggered")
 
     val f = task.runAsync
@@ -368,11 +375,13 @@ object TaskTest extends TestSuite[TestScheduler] {
 
   test("Task#flatMap is cancelable") { implicit s =>
     var wasTriggered = false
-    def trigger() = {
-      wasTriggered = true; "result"
+    def sum(n: Int, acc: Long = 0): Task[Long] = {
+      if (n == 0) Task { wasTriggered = true; acc } else
+        Task(n).flatMap(x => sum(x-1, acc + x))
     }
 
-    val task = Task(trigger()).flatMap(x => Task(x))
+
+    val task = sum(Platform.recommendedBatchSize * 2)
     assert(!wasTriggered, "!wasTriggered")
 
     val f = task.runAsync
@@ -388,12 +397,11 @@ object TaskTest extends TestSuite[TestScheduler] {
       "isInstanceOf[CancellationException]")
   }
 
-
-  test("Task#delay should work") { implicit s =>
+  test("Task#delayExecution should work") { implicit s =>
     var wasTriggered = false
-    def trigger() = { wasTriggered = true; "result" }
+    def trigger(): String = { wasTriggered = true; "result" }
 
-    val task = Task(trigger()).delay(1.second)
+    val task = Task(trigger()).delayExecution(1.second)
     assert(!wasTriggered, "!wasTriggered")
 
     val f = task.runAsync
@@ -409,11 +417,11 @@ object TaskTest extends TestSuite[TestScheduler] {
     assertEquals(f.value, Some(Success("result")))
   }
 
-  test("Task#delay is cancelable") { implicit s =>
+  test("Task#delayExecution is cancelable") { implicit s =>
     var wasTriggered = false
-    def trigger() = { wasTriggered = true; "result" }
+    def trigger(): String = { wasTriggered = true; "result" }
 
-    val task = Task(trigger()).delay(1.second)
+    val task = Task(trigger()).delayExecution(1.second)
     assert(!wasTriggered, "!wasTriggered")
 
     val f = task.runAsync
@@ -427,6 +435,47 @@ object TaskTest extends TestSuite[TestScheduler] {
     f.cancel(); s.tick()
     assert(!wasTriggered, "!wasTriggered")
 
+    assert(f.value.get.failed.get.isInstanceOf[CancellationException],
+      "isInstanceOf[CancellationException]")
+    assert(s.state.get.tasks.isEmpty,
+      "should cancel the scheduleOnce(delay) as well")
+  }
+
+  test("Task#delayResult should work") { implicit s =>
+    var wasTriggered = false
+    def trigger(): String = { wasTriggered = true; "result" }
+
+    val task = Task(trigger()).delayResult(1.second)
+    assert(!wasTriggered, "!wasTriggered")
+
+    val f = task.runAsync
+    assert(!wasTriggered, "!wasTriggered")
+    assertEquals(f.value, None)
+
+    s.tick()
+    assert(wasTriggered, "wasTriggered")
+    assertEquals(f.value, None)
+
+    s.tick(1.second)
+    assertEquals(f.value, Some(Success("result")))
+  }
+
+  test("Task#delayResult is cancelable") { implicit s =>
+    var wasTriggered = false
+    def trigger(): String = { wasTriggered = true; "result" }
+
+    val task = Task(trigger()).delayResult(1.second)
+    assert(!wasTriggered, "!wasTriggered")
+
+    val f = task.runAsync
+    assert(!wasTriggered, "!wasTriggered")
+    assertEquals(f.value, None)
+
+    s.tick()
+    assert(wasTriggered, "wasTriggered")
+    assertEquals(f.value, None)
+
+    f.cancel(); s.tick()
     assert(f.value.get.failed.get.isInstanceOf[CancellationException],
       "isInstanceOf[CancellationException]")
     assert(s.state.get.tasks.isEmpty,
@@ -575,7 +624,7 @@ object TaskTest extends TestSuite[TestScheduler] {
 
   test("Task#onErrorRecoverWith has a cancelable fallback") { implicit s =>
     val task = Task[Int](throw DummyException("dummy"))
-      .onErrorRecoverWith { case _: DummyException => Task(99).delay(1.second) }
+      .onErrorRecoverWith { case _: DummyException => Task(99).delayExecution(1.second) }
 
     val f = task.runAsync
     assertEquals(f.value, None)
@@ -588,7 +637,7 @@ object TaskTest extends TestSuite[TestScheduler] {
   }
 
   test("Task#timeout should timeout") { implicit s =>
-    val task = Task(1).delay(10.seconds).timeout(1.second)
+    val task = Task(1).delayExecution(10.seconds).timeout(1.second)
     val f = task.runAsync
 
     s.tick()
@@ -599,7 +648,7 @@ object TaskTest extends TestSuite[TestScheduler] {
   }
 
   test("Task#timeout should mirror the source in case of success") { implicit s =>
-    val task = Task(1).delay(1.seconds).timeout(10.second)
+    val task = Task(1).delayExecution(1.seconds).timeout(10.second)
     val f = task.runAsync
 
     s.tick()
@@ -611,7 +660,7 @@ object TaskTest extends TestSuite[TestScheduler] {
 
   test("Task#timeout should mirror the source in case of error") { implicit s =>
     val ex = DummyException("dummy")
-    val task = Task(throw ex).delay(1.seconds).timeout(10.second)
+    val task = Task(throw ex).delayExecution(1.seconds).timeout(10.second)
     val f = task.runAsync
 
     s.tick()
@@ -622,7 +671,7 @@ object TaskTest extends TestSuite[TestScheduler] {
   }
 
   test("Task#timeout should cancel both the source and the timer") { implicit s =>
-    val task = Task(1).delay(10.seconds).timeout(1.second)
+    val task = Task(1).delayExecution(10.seconds).timeout(1.second)
     val f = task.runAsync
 
     s.tick()
@@ -635,7 +684,7 @@ object TaskTest extends TestSuite[TestScheduler] {
   }
 
   test("Task#timeout with backup should timeout") { implicit s =>
-    val task = Task(1).delay(10.seconds).timeout(1.second, Task(99))
+    val task = Task(1).delayExecution(10.seconds).timeout(1.second, Task(99))
     val f = task.runAsync
 
     s.tick()
@@ -645,7 +694,7 @@ object TaskTest extends TestSuite[TestScheduler] {
   }
 
   test("Task#timeout with backup should mirror the source in case of success") { implicit s =>
-    val task = Task(1).delay(1.seconds).timeout(10.second, Task(99))
+    val task = Task(1).delayExecution(1.seconds).timeout(10.second, Task(99))
     val f = task.runAsync
 
     s.tick()
@@ -657,7 +706,7 @@ object TaskTest extends TestSuite[TestScheduler] {
 
   test("Task#timeout with backup should mirror the source in case of error") { implicit s =>
     val ex = DummyException("dummy")
-    val task = Task(throw ex).delay(1.seconds).timeout(10.second, Task(99))
+    val task = Task(throw ex).delayExecution(1.seconds).timeout(10.second, Task(99))
     val f = task.runAsync
 
     s.tick()
@@ -668,7 +717,7 @@ object TaskTest extends TestSuite[TestScheduler] {
   }
 
   test("Task#timeout should cancel both the source and the timer") { implicit s =>
-    val task = Task(1).delay(10.seconds).timeout(1.second, Task(99))
+    val task = Task(1).delayExecution(10.seconds).timeout(1.second, Task(99))
     val f = task.runAsync
 
     s.tick()
@@ -682,7 +731,7 @@ object TaskTest extends TestSuite[TestScheduler] {
   }
 
   test("Task#timeout should cancel the backup") { implicit s =>
-    val task = Task(1).delay(10.seconds).timeout(1.second, Task(99).delay(2.seconds))
+    val task = Task(1).delayExecution(10.seconds).timeout(1.second, Task(99).delayExecution(2.seconds))
     val f = task.runAsync
 
     s.tick()
@@ -697,7 +746,7 @@ object TaskTest extends TestSuite[TestScheduler] {
   }
 
   test("Task#ambWith should switch to other") { implicit s =>
-    val task = Task(1).delay(10.seconds).ambWith(Task(99).delay(1.second))
+    val task = Task(1).delayExecution(10.seconds).ambWith(Task(99).delayExecution(1.second))
     val f = task.runAsync
 
     s.tick()
@@ -708,7 +757,7 @@ object TaskTest extends TestSuite[TestScheduler] {
 
   test("Task#ambWith should onError from other") { implicit s =>
     val ex = DummyException("dummy")
-    val task = Task(1).delay(10.seconds).ambWith(Task(throw ex).delay(1.second))
+    val task = Task(1).delayExecution(10.seconds).ambWith(Task(throw ex).delayExecution(1.second))
     val f = task.runAsync
 
     s.tick()
@@ -718,7 +767,7 @@ object TaskTest extends TestSuite[TestScheduler] {
   }
 
   test("Task#ambWith should mirror the source") { implicit s =>
-    val task = Task(1).delay(1.seconds).ambWith(Task(99).delay(10.second))
+    val task = Task(1).delayExecution(1.seconds).ambWith(Task(99).delayExecution(10.second))
     val f = task.runAsync
 
     s.tick()
@@ -730,7 +779,7 @@ object TaskTest extends TestSuite[TestScheduler] {
 
   test("Task#ambWith should onError from the source") { implicit s =>
     val ex = DummyException("dummy")
-    val task = Task(throw ex).delay(1.seconds).ambWith(Task(99).delay(10.second))
+    val task = Task(throw ex).delayExecution(1.seconds).ambWith(Task(99).delayExecution(10.second))
     val f = task.runAsync
 
     s.tick()
@@ -741,7 +790,7 @@ object TaskTest extends TestSuite[TestScheduler] {
   }
 
   test("Task#ambWith should cancel both") { implicit s =>
-    val task = Task(1).delay(10.seconds).ambWith(Task(99).delay(1.second))
+    val task = Task(1).delayExecution(10.seconds).ambWith(Task(99).delayExecution(1.second))
     val f = task.runAsync
 
     s.tick()
@@ -755,7 +804,7 @@ object TaskTest extends TestSuite[TestScheduler] {
   }
 
   test("Task#zip should work if source finishes first") { implicit s =>
-    val f = Task(1).zip(Task(2).delay(1.second)).runAsync
+    val f = Task(1).zip(Task(2).delayExecution(1.second)).runAsync
 
     s.tick()
     assertEquals(f.value, None)
@@ -764,7 +813,7 @@ object TaskTest extends TestSuite[TestScheduler] {
   }
 
   test("Task#zip should work if other finishes first") { implicit s =>
-    val f = Task(1).delay(1.second).zip(Task(2)).runAsync
+    val f = Task(1).delayExecution(1.second).zip(Task(2)).runAsync
 
     s.tick()
     assertEquals(f.value, None)
@@ -773,7 +822,7 @@ object TaskTest extends TestSuite[TestScheduler] {
   }
 
   test("Task#zip should cancel both") { implicit s =>
-    val f = Task(1).delay(1.second).zip(Task(2).delay(2.seconds)).runAsync
+    val f = Task(1).delayExecution(1.second).zip(Task(2).delayExecution(2.seconds)).runAsync
 
     s.tick()
     assertEquals(f.value, None)
@@ -785,7 +834,7 @@ object TaskTest extends TestSuite[TestScheduler] {
   }
 
   test("Task#zip should cancel just the source") { implicit s =>
-    val f = Task(1).delay(1.second).zip(Task(2).delay(2.seconds)).runAsync
+    val f = Task(1).delayExecution(1.second).zip(Task(2).delayExecution(2.seconds)).runAsync
 
     s.tick(1.second)
     assertEquals(f.value, None)
@@ -797,7 +846,7 @@ object TaskTest extends TestSuite[TestScheduler] {
   }
 
   test("Task#zip should cancel just the other") { implicit s =>
-    val f = Task(1).delay(2.second).zip(Task(2).delay(1.seconds)).runAsync
+    val f = Task(1).delayExecution(2.second).zip(Task(2).delayExecution(1.seconds)).runAsync
 
     s.tick(1.second)
     assertEquals(f.value, None)
@@ -810,7 +859,7 @@ object TaskTest extends TestSuite[TestScheduler] {
 
   test("Task#zip should onError from the source before other") { implicit s =>
     val ex = DummyException("dummy")
-    val f = Task[Int](throw ex).delay(1.second).zip(Task(2).delay(2.seconds)).runAsync
+    val f = Task[Int](throw ex).delayExecution(1.second).zip(Task(2).delayExecution(2.seconds)).runAsync
 
     s.tick(1.second)
     assertEquals(f.value, Some(Failure(ex)))
@@ -818,7 +867,7 @@ object TaskTest extends TestSuite[TestScheduler] {
 
   test("Task#zip should onError from the source after other") { implicit s =>
     val ex = DummyException("dummy")
-    val f = Task[Int](throw ex).delay(2.second).zip(Task(2).delay(1.seconds)).runAsync
+    val f = Task[Int](throw ex).delayExecution(2.second).zip(Task(2).delayExecution(1.seconds)).runAsync
 
     s.tick(2.second)
     assertEquals(f.value, Some(Failure(ex)))
@@ -826,7 +875,7 @@ object TaskTest extends TestSuite[TestScheduler] {
 
   test("Task#zip should onError from the other after the source") { implicit s =>
     val ex = DummyException("dummy")
-    val f = Task(1).delay(1.second).zip(Task(throw ex).delay(2.seconds)).runAsync
+    val f = Task(1).delayExecution(1.second).zip(Task(throw ex).delayExecution(2.seconds)).runAsync
 
     s.tick(2.second)
     assertEquals(f.value, Some(Failure(ex)))
@@ -834,7 +883,7 @@ object TaskTest extends TestSuite[TestScheduler] {
 
   test("Task#zip should onError from the other before the source") { implicit s =>
     val ex = DummyException("dummy")
-    val f = Task(1).delay(2.second).zip(Task(throw ex).delay(1.seconds)).runAsync
+    val f = Task(1).delayExecution(2.second).zip(Task(throw ex).delayExecution(1.seconds)).runAsync
 
     s.tick(1.second)
     assertEquals(f.value, Some(Failure(ex)))
@@ -846,7 +895,7 @@ object TaskTest extends TestSuite[TestScheduler] {
       cb.onSuccess(2, depth)
     }
 
-    val task = source.zip(Task(3).delay(1.second))
+    val task = source.zip(Task(3).delayExecution(1.second))
     val f = task.runAsync
     s.tick()
 
@@ -861,7 +910,7 @@ object TaskTest extends TestSuite[TestScheduler] {
       cb.onSuccess(2, depth)
     }
 
-    val task = Task(3).delay(1.second).zip(other)
+    val task = Task(3).delayExecution(1.second).zip(other)
     val f = task.runAsync
     s.tick()
 
@@ -873,7 +922,7 @@ object TaskTest extends TestSuite[TestScheduler] {
   // --
 
   test("Task.firstCompletedOf should switch to other") { implicit s =>
-    val task = Task.firstCompletedOf(Task(1).delay(10.seconds), Task(99).delay(1.second))
+    val task = Task.firstCompletedOf(Task(1).delayExecution(10.seconds), Task(99).delayExecution(1.second))
     val f = task.runAsync
 
     s.tick()
@@ -884,7 +933,7 @@ object TaskTest extends TestSuite[TestScheduler] {
 
   test("Task.firstCompletedOf should onError from other") { implicit s =>
     val ex = DummyException("dummy")
-    val task = Task.firstCompletedOf(Task(1).delay(10.seconds), Task(throw ex).delay(1.second))
+    val task = Task.firstCompletedOf(Task(1).delayExecution(10.seconds), Task(throw ex).delayExecution(1.second))
     val f = task.runAsync
 
     s.tick()
@@ -894,7 +943,7 @@ object TaskTest extends TestSuite[TestScheduler] {
   }
 
   test("Task.firstCompletedOf should mirror the source") { implicit s =>
-    val task = Task.firstCompletedOf(Task(1).delay(1.seconds), Task(99).delay(10.second))
+    val task = Task.firstCompletedOf(Task(1).delayExecution(1.seconds), Task(99).delayExecution(10.second))
     val f = task.runAsync
 
     s.tick()
@@ -906,7 +955,7 @@ object TaskTest extends TestSuite[TestScheduler] {
 
   test("Task.firstCompletedOf should onError from the source") { implicit s =>
     val ex = DummyException("dummy")
-    val task = Task.firstCompletedOf(Task(throw ex).delay(1.seconds), Task(99).delay(10.second))
+    val task = Task.firstCompletedOf(Task(throw ex).delayExecution(1.seconds), Task(99).delayExecution(10.second))
     val f = task.runAsync
 
     s.tick()
@@ -917,7 +966,7 @@ object TaskTest extends TestSuite[TestScheduler] {
   }
 
   test("Task.firstCompletedOf should cancel both") { implicit s =>
-    val task = Task.firstCompletedOf(Task(1).delay(10.seconds), Task(99).delay(1.second))
+    val task = Task.firstCompletedOf(Task(1).delayExecution(10.seconds), Task(99).delayExecution(1.second))
     val f = task.runAsync
 
     s.tick()
@@ -931,7 +980,7 @@ object TaskTest extends TestSuite[TestScheduler] {
   }
 
   test("Task.sequence should execute in parallel") { implicit s =>
-    val seq = Seq(Task(1).delay(2.seconds), Task(2).delay(1.second), Task(3).delay(3.seconds))
+    val seq = Seq(Task(1).delayExecution(2.seconds), Task(2).delayExecution(1.second), Task(3).delayExecution(3.seconds))
     val f = Task.sequence(seq).runAsync
 
     s.tick()
@@ -945,10 +994,10 @@ object TaskTest extends TestSuite[TestScheduler] {
   test("Task.sequence should onError if one of the tasks terminates in error") { implicit s =>
     val ex = DummyException("dummy")
     val seq = Seq(
-      Task(3).delay(3.seconds),
-      Task(2).delay(1.second),
-      Task(throw ex).delay(2.seconds),
-      Task(3).delay(1.seconds))
+      Task(3).delayExecution(3.seconds),
+      Task(2).delayExecution(1.second),
+      Task(throw ex).delayExecution(2.seconds),
+      Task(3).delayExecution(1.seconds))
 
     val f = Task.sequence(seq).runAsync
 
@@ -961,7 +1010,7 @@ object TaskTest extends TestSuite[TestScheduler] {
   }
 
   test("Task.sequence should be canceled") { implicit s =>
-    val seq = Seq(Task(1).delay(2.seconds), Task(2).delay(1.second), Task(3).delay(3.seconds))
+    val seq = Seq(Task(1).delayExecution(2.seconds), Task(2).delayExecution(1.second), Task(3).delayExecution(3.seconds))
     val f = Task.sequence(seq).runAsync
 
     s.tick()

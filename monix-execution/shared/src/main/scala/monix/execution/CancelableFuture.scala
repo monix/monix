@@ -28,7 +28,6 @@ import scala.util.Try
   * as long as it isn't complete.
   */
 trait CancelableFuture[+T] extends Future[T] with Cancelable {
-
   // Overriding methods for getting CancelableFuture in return
 
   override def failed: CancelableFuture[Throwable] =
