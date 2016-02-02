@@ -17,15 +17,13 @@
 
 package monix.streams
 
-/**
-  * Used by [[monix.streams.Observable.materialize Observable.materialize]].
-  */
-trait Notification[+T]
+/** Used by [[monix.streams.Observable.materialize Observable.materialize]]. */
+sealed abstract class Notification[+T]
 
 object Notification {
-  case class OnNext[+T](elem: T) extends Notification[T]
+  final case class OnNext[+T](elem: T) extends Notification[T]
 
-  case class OnError(ex: Throwable) extends Notification[Nothing]
+  final case class OnError(ex: Throwable) extends Notification[Nothing]
 
   case object OnComplete extends Notification[Nothing]
 }
