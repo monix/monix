@@ -168,7 +168,7 @@ package object internal {
 
     // -----
 
-    def onContinueStreamOnNext[T](observer: Observer[T], nextElem: T)(implicit s: Scheduler) =
+    def onContinueStreamOnNext[T](observer: Observer[T], nextElem: T)(implicit s: Scheduler): Future[Ack] =
       if (source.isCompleted) {
         if (source == Continue || source.value.get == Continue.AsSuccess)
           observer.onNext(nextElem)
@@ -191,7 +191,7 @@ package object internal {
           async.map(_ => Continue)
       }
 
-    def onCancelStreamOnNext[T](observer: Observer[T], nextElem: T)(implicit s: Scheduler) =
+    def onCancelStreamOnNext[T](observer: Observer[T], nextElem: T)(implicit s: Scheduler): Future[Ack] =
       source match {
         case sync if sync.isCompleted =>
           if (sync == Continue || sync.value.get == Continue.AsSuccess)

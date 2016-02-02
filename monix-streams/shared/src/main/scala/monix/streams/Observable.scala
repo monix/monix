@@ -1636,6 +1636,18 @@ trait Observable[+T] { self =>
     Observable.unsafeCreate(o => s.execute(UnsafeSubscribeRunnable(this, o)))
   }
 
+  /** Converts the source Observable that emits `T` into an Observable
+    * that emits `Notification[T]`.
+    */
+  def materialize: Observable[Notification[T]] =
+    operators.notification.materialize(self)
+
+  /** Converts the source Observable that emits `Notification[T]`
+    * (the result of [[materialize]]) back to an Observable that emits `T`.
+    */
+  def dematerialize[U](implicit ev: T <:< Notification[U]): Observable[U] =
+    operators.notification.dematerialize[U](self.asInstanceOf[Observable[Notification[U]]])
+
   /** Utility that can be used for debugging purposes.
     */
   def dump(prefix: String, out: PrintStream = System.out): Observable[T] =
