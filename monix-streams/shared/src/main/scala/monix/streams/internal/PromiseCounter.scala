@@ -18,9 +18,8 @@
 
 package monix.streams.internal
 
-import scala.concurrent.Promise
+import scala.concurrent.{Future, Promise}
 import org.sincron.atomic.Atomic
-import org.sincron.atomic.PaddingStrategy.Implicits.Right64
 
 /**
   * Represents a Promise that completes with `value` after
@@ -33,7 +32,7 @@ private[monix] final class PromiseCounter[T] private
   private[this] val promise = Promise[T]()
   private[this] val counter = Atomic(length)
 
-  def future = {
+  def future: Future[T] = {
     promise.future
   }
 
@@ -53,7 +52,7 @@ private[monix] final class PromiseCounter[T] private
     }
   }
 
-  def success(value: T) = {
+  def success(value: T): Unit = {
     promise.success(value)
   }
 }

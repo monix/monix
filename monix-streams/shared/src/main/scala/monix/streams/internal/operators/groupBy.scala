@@ -20,7 +20,6 @@ package monix.streams.internal.operators
 
 import monix.execution.Cancelable
 import org.sincron.atomic.Atomic
-import org.sincron.atomic.PaddingStrategy.Implicits.Right64
 import monix.streams.{OverflowStrategy, Observer, Observable, Ack}
 import monix.streams.Ack.{Continue, Cancel}
 import monix.streams.internal._

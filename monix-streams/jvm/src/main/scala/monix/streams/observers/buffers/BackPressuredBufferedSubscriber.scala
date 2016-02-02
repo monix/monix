@@ -25,7 +25,6 @@ import monix.streams.observers.BufferedSubscriber
 import monix.streams.observers.buffers.BackPressuredBufferedSubscriber.State
 import monix.streams.{Ack, OverflowStrategy, Subscriber}
 import org.sincron.atomic.Atomic
-import org.sincron.atomic.PaddingStrategy.Implicits.Right64
 import scala.annotation.tailrec
 import scala.concurrent.{Future, Promise}
 

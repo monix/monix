@@ -187,7 +187,7 @@ lazy val executionJVM = project.in(file("monix-execution/jvm"))
   .settings(testSettings)
   .settings(
     name := "monix-execution",
-    libraryDependencies += "org.sincron" %%% "sincron" % "0.4"
+    libraryDependencies += "org.sincron" %%% "sincron" % "0.5"
   )
 
 lazy val executionJS = project.in(file("monix-execution/js"))
@@ -197,7 +197,7 @@ lazy val executionJS = project.in(file("monix-execution/js"))
   .settings(testSettings)
   .settings(
     name := "monix-execution",
-    libraryDependencies += "org.sincron" %%% "sincron" % "0.2"
+    libraryDependencies += "org.sincron" %%% "sincron" % "0.5"
   )
 
 lazy val tasksJVM = project.in(file("monix-tasks/jvm"))

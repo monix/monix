@@ -19,7 +19,6 @@
 package monix.streams.subjects
 
 import org.sincron.atomic.Atomic
-import org.sincron.atomic.PaddingStrategy.Implicits.Right64
 import monix.streams._
 import monix.streams.Ack.{Cancel, Continue}
 import monix.execution.internal.math

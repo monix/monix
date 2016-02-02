@@ -19,7 +19,6 @@
 package monix.streams.observables
 
 import org.sincron.atomic.Atomic
-import org.sincron.atomic.PaddingStrategy.Implicits.Right64
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.{Cancelable, Scheduler}
 import monix.streams.{Observer, Observable}

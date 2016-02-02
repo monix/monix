@@ -19,7 +19,6 @@
 package monix.streams.internal
 
 import org.sincron.atomic.Atomic
-import org.sincron.atomic.PaddingStrategy.Implicits.Right64
 import monix.streams.{Subscriber, Ack}
 import scala.concurrent.{Future, Promise}
 
@@ -51,13 +50,13 @@ private[monix] final class FreezeOnFirstOnNextSubscriber[-T]
     }
   }
 
-  def onComplete() = {
+  def onComplete(): Unit = {
     if (!isConnected.get) firstTimePromise.trySuccess(())
     // we cannot take a fast path here
     connectedPromise.future.onContinueSignalComplete(underlying)
   }
 
-  def onError(ex: Throwable) = {
+  def onError(ex: Throwable): Unit = {
     if (!isConnected.get) firstTimePromise.trySuccess(())
     // we cannot take a fast path here
     connectedPromise.future.onContinueSignalError(underlying, ex)

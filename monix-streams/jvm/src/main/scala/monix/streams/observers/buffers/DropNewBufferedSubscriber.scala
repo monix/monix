@@ -28,7 +28,6 @@ import scala.annotation.tailrec
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 import org.sincron.atomic.Atomic
-import org.sincron.atomic.PaddingStrategy.Implicits.Right64
 
 /**
  * A high-performance and non-blocking [[BufferedSubscriber]] implementation

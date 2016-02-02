@@ -19,7 +19,6 @@
 package monix.streams.observers.buffers
 
 import org.sincron.atomic.Atomic
-import org.sincron.atomic.PaddingStrategy.Implicits.Right64
 import monix.execution.internal.Platform
 import monix.streams.Ack.{Cancel, Continue}
 import monix.streams.observers.BufferedSubscriber
