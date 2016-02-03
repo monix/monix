@@ -19,10 +19,10 @@ package monix.streams.internal.operators
 
 import java.util.concurrent.TimeUnit
 import monix.execution.cancelables.MultiAssignmentCancelable
+import monix.streams.observers.SyncObserver
 import monix.streams.{Observable, Ack}
 import monix.streams.Ack.{Cancel, Continue}
 import monix.streams.internal._
-import monix.streams.observers.SynchronousObserver
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
@@ -35,7 +35,7 @@ private[monix] object debounce {
       import downstream.{scheduler => s}
       val timeoutMillis = timeout.toMillis
 
-      source.unsafeSubscribeFn(new SynchronousObserver[T] with Runnable { self =>
+      source.unsafeSubscribeFn(new SyncObserver[T] with Runnable { self =>
         private[this] val task = MultiAssignmentCancelable()
         private[this] var ack: Future[Ack] = Continue
         private[this] var isDone = false

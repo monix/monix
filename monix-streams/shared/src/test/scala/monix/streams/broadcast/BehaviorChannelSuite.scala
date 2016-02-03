@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package monix.streams.channels
+package monix.streams.broadcast
 
 import monix.execution.Scheduler
 import monix.streams.OverflowStrategy
@@ -23,12 +23,12 @@ import OverflowStrategy.Unbounded
 
 object BehaviorChannelSuite extends BaseChannelSuite {
   def alreadyTerminatedTest(expectedElems: Seq[Long])(implicit s: Scheduler) = {
-    val c = BehaviorChannel[Long](-1, Unbounded)
+    val c = BehaviorSubject[Long](-1, Unbounded)
     Sample(c, expectedElems.lastOption.getOrElse(-1))
   }
 
   def continuousStreamingTest(expectedElems: Seq[Long])(implicit s: Scheduler) = {
-    val c = BehaviorChannel[Long](0, Unbounded)
+    val c = BehaviorSubject[Long](0, Unbounded)
     Some(Sample(c, expectedElems.sum))
   }
 }

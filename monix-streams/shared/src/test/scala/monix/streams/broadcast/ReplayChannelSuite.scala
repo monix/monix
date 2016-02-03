@@ -15,19 +15,19 @@
  * limitations under the License.
  */
 
-package monix.streams.channels
+package monix.streams.broadcast
 
 import monix.execution.Scheduler
 import monix.streams.OverflowStrategy.Unbounded
 
 object ReplayChannelSuite extends BaseChannelSuite {
   def alreadyTerminatedTest(expectedElems: Seq[Long])(implicit s: Scheduler) = {
-    val c = ReplayChannel[Long](Unbounded)
+    val c = ReplaySubject[Long](Unbounded)
     Sample(c, expectedElems.sum)
   }
 
   def continuousStreamingTest(expectedElems: Seq[Long])(implicit s: Scheduler) = {
-    val c = ReplayChannel[Long](Unbounded)
+    val c = ReplaySubject[Long](Unbounded)
     Some(Sample(c, expectedElems.sum))
   }
 }

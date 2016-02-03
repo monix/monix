@@ -14,25 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
-package monix.streams.observers
 
-import monix.streams.{Ack, Observer}
+package monix.streams.broadcast
 
-/**
- * A `SynchronousObserver` is an [[Observer]] that signals demand
- * to upstream synchronously (i.e. the upstream observable doesn't need to
- * wait on a `Future` in order to decide whether to send the next event
- * or not).
- * 
- * Can be used for optimizations.
- */
-trait SynchronousObserver[-T] extends Observer[T] {
-  /**
-   * Returns either a [[monix.streams.Ack.Continue Continue]] or a
-   * [[monix.streams.Ack.Cancel Cancel]], in response to an `elem` event
-   * being received.
-   */
-  def onNext(elem: T): Ack
+import monix.execution.Scheduler
+import monix.streams.OverflowStrategy
+import OverflowStrategy.Unbounded
+
+object PublishChannelSuite extends BaseChannelSuite {
+  def alreadyTerminatedTest(expectedElems: Seq[Long])(implicit s: Scheduler) = {
+    val c = PublishSubject[Long](Unbounded)
+    Sample(c, 0)
+  }
+
+  def continuousStreamingTest(expectedElems: Seq[Long])(implicit s: Scheduler) = {
+    val c = PublishSubject[Long](Unbounded)
+    Some(Sample(c, expectedElems.sum))
+  }
 }
-

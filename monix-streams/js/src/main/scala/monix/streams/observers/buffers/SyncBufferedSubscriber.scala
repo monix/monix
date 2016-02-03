@@ -23,7 +23,7 @@ import monix.streams.{Subscriber, OverflowStrategy, Ack}
 import monix.streams.Ack.{Cancel, Continue}
 import monix.streams.exceptions.BufferOverflowException
 import monix.execution.internal.collection.ArrayQueue
-import monix.streams.observers.{BufferedSubscriber, SynchronousSubscriber}
+import monix.streams.observers.{BufferedSubscriber, SyncSubscriber}
 import scala.annotation.tailrec
 import scala.util.control.NonFatal
 
@@ -31,9 +31,9 @@ import scala.util.control.NonFatal
   * A [[BufferedSubscriber]] implementation for the
   * [[OverflowStrategy.DropNew DropNew]] overflow strategy.
   */
-private[buffers] final class SynchronousBufferedSubscriber[-T] private
+private[buffers] final class SyncBufferedSubscriber[-T] private
 (underlying: Subscriber[T], buffer: EvictingQueue[T], onOverflow: Long => T = null)
-  extends BufferedSubscriber[T] with SynchronousSubscriber[T] {
+  extends BufferedSubscriber[T] with SyncSubscriber[T] {
 
   implicit val scheduler = underlying.scheduler
   // to be modified only in onError, before upstreamIsComplete
@@ -167,23 +167,23 @@ private[buffers] final class SynchronousBufferedSubscriber[-T] private
   }
 }
 
-private[monix] object SynchronousBufferedSubscriber {
+private[monix] object SyncBufferedSubscriber {
   /**
-    * Returns an instance of a [[SynchronousBufferedSubscriber]]
+    * Returns an instance of a [[SyncBufferedSubscriber]]
     * for the [[monix.streams.OverflowStrategy.DropNew DropNew]]
     * overflow strategy.
     */
-  def unbounded[T](underlying: Subscriber[T]): SynchronousSubscriber[T] = {
+  def unbounded[T](underlying: Subscriber[T]): SyncSubscriber[T] = {
     val buffer = ArrayQueue.unbounded[T]
-    new SynchronousBufferedSubscriber[T](underlying, buffer, null)
+    new SyncBufferedSubscriber[T](underlying, buffer, null)
   }
 
   /**
-    * Returns an instance of a [[SynchronousBufferedSubscriber]]
+    * Returns an instance of a [[SyncBufferedSubscriber]]
     * for the [[monix.streams.OverflowStrategy.DropNew DropNew]]
     * overflow strategy.
     */
-  def bounded[T](underlying: Subscriber[T], bufferSize: Int): SynchronousSubscriber[T] = {
+  def bounded[T](underlying: Subscriber[T], bufferSize: Int): SyncSubscriber[T] = {
     require(bufferSize > 1,
       "bufferSize must be a strictly positive number, bigger than 1")
 
@@ -193,86 +193,86 @@ private[monix] object SynchronousBufferedSubscriber {
           s"specified buffer size of $bufferSize")
     })
 
-    new SynchronousBufferedSubscriber[T](underlying, buffer, null)
+    new SyncBufferedSubscriber[T](underlying, buffer, null)
   }
 
   /**
-    * Returns an instance of a [[SynchronousBufferedSubscriber]]
+    * Returns an instance of a [[SyncBufferedSubscriber]]
     * for the [[monix.streams.OverflowStrategy.DropNew DropNew]]
     * overflow strategy.
     */
-  def dropNew[T](underlying: Subscriber[T], bufferSize: Int): SynchronousSubscriber[T] = {
+  def dropNew[T](underlying: Subscriber[T], bufferSize: Int): SyncSubscriber[T] = {
     require(bufferSize > 1,
       "bufferSize must be a strictly positive number, bigger than 1")
 
     val buffer = ArrayQueue.bounded[T](bufferSize)
-    new SynchronousBufferedSubscriber[T](underlying, buffer, null)
+    new SyncBufferedSubscriber[T](underlying, buffer, null)
   }
 
   /**
-    * Returns an instance of a [[SynchronousBufferedSubscriber]]
+    * Returns an instance of a [[SyncBufferedSubscriber]]
     * for the [[monix.streams.OverflowStrategy.DropNew DropNew]]
     * overflow strategy.
     */
-  def dropNew[T](underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => T): SynchronousSubscriber[T] = {
+  def dropNew[T](underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => T): SyncSubscriber[T] = {
     require(bufferSize > 1,
       "bufferSize must be a strictly positive number, bigger than 1")
 
     val buffer = ArrayQueue.bounded[T](bufferSize)
-    new SynchronousBufferedSubscriber[T](underlying, buffer, onOverflow)
+    new SyncBufferedSubscriber[T](underlying, buffer, onOverflow)
   }
 
   /**
-    * Returns an instance of a [[SynchronousBufferedSubscriber]]
+    * Returns an instance of a [[SyncBufferedSubscriber]]
     * for the [[monix.streams.OverflowStrategy.DropOld DropOld]]
     * overflow strategy.
     */
-  def dropOld[T](underlying: Subscriber[T], bufferSize: Int): SynchronousSubscriber[T] = {
+  def dropOld[T](underlying: Subscriber[T], bufferSize: Int): SyncSubscriber[T] = {
     require(bufferSize > 1,
       "bufferSize must be a strictly positive number, bigger than 1")
 
     val buffer = DropHeadOnOverflowQueue[AnyRef](bufferSize).asInstanceOf[EvictingQueue[T]]
-    new SynchronousBufferedSubscriber[T](underlying, buffer, null)
+    new SyncBufferedSubscriber[T](underlying, buffer, null)
   }
 
   /**
-    * Returns an instance of a [[SynchronousBufferedSubscriber]]
+    * Returns an instance of a [[SyncBufferedSubscriber]]
     * for the [[monix.streams.OverflowStrategy.DropOld DropOld]]
     * overflow strategy, with signaling of the number of events that
     * were dropped.
     */
-  def dropOld[T](underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => T): SynchronousSubscriber[T] = {
+  def dropOld[T](underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => T): SyncSubscriber[T] = {
     require(bufferSize > 1,
       "bufferSize must be a strictly positive number, bigger than 1")
 
     val buffer = DropHeadOnOverflowQueue[AnyRef](bufferSize).asInstanceOf[EvictingQueue[T]]
-    new SynchronousBufferedSubscriber[T](underlying, buffer, onOverflow)
+    new SyncBufferedSubscriber[T](underlying, buffer, onOverflow)
   }
 
   /**
-    * Returns an instance of a [[SynchronousBufferedSubscriber]] for the
+    * Returns an instance of a [[SyncBufferedSubscriber]] for the
     * [[monix.streams.OverflowStrategy.ClearBuffer ClearBuffer]]
     * overflow strategy.
     */
-  def clearBuffer[T](underlying: Subscriber[T], bufferSize: Int): SynchronousSubscriber[T] = {
+  def clearBuffer[T](underlying: Subscriber[T], bufferSize: Int): SyncSubscriber[T] = {
     require(bufferSize > 1,
       "bufferSize must be a strictly positive number, bigger than 1")
 
     val buffer = DropAllOnOverflowQueue[AnyRef](bufferSize).asInstanceOf[EvictingQueue[T]]
-    new SynchronousBufferedSubscriber[T](underlying, buffer, null)
+    new SyncBufferedSubscriber[T](underlying, buffer, null)
   }
 
   /**
-    * Returns an instance of a [[SynchronousBufferedSubscriber]]
+    * Returns an instance of a [[SyncBufferedSubscriber]]
     * for the [[monix.streams.OverflowStrategy.ClearBuffer ClearBuffer]]
     * overflow strategy, with signaling of the number of events that
     * were dropped.
     */
-  def clearBuffer[T](underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => T): SynchronousSubscriber[T] = {
+  def clearBuffer[T](underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => T): SyncSubscriber[T] = {
     require(bufferSize > 1,
       "bufferSize must be a strictly positive number, bigger than 1")
 
     val buffer = DropAllOnOverflowQueue[AnyRef](bufferSize).asInstanceOf[EvictingQueue[T]]
-    new SynchronousBufferedSubscriber[T](underlying, buffer, onOverflow)
+    new SyncBufferedSubscriber[T](underlying, buffer, onOverflow)
   }
 }

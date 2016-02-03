@@ -22,7 +22,7 @@ import monix.streams.{Subscriber, OverflowStrategy, Ack}
 import monix.streams.Ack.{Cancel, Continue}
 import monix.execution.internal.Platform
 import monix.streams.observers.buffers.DropNewBufferedSubscriber.State
-import monix.streams.observers.{BufferedSubscriber, SynchronousSubscriber}
+import monix.streams.observers.{BufferedSubscriber, SyncSubscriber}
 import scala.annotation.tailrec
 import scala.concurrent.Future
 import scala.util.control.NonFatal
@@ -35,7 +35,7 @@ import org.sincron.atomic.Atomic
  */
 private[buffers] final class DropNewBufferedSubscriber[-T] private
   (underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => T = null)
-  extends BufferedSubscriber[T] with SynchronousSubscriber[T] { self =>
+  extends BufferedSubscriber[T] with SyncSubscriber[T] { self =>
 
   require(bufferSize > 0, "bufferSize must be a strictly positive number")
 
@@ -297,7 +297,7 @@ private[monix] object DropNewBufferedSubscriber {
    * for the [[monix.streams.OverflowStrategy.DropNew DropNew]]
    * overflowStrategy.
    */
-  def simple[T](underlying: Subscriber[T], bufferSize: Int): SynchronousSubscriber[T] = {
+  def simple[T](underlying: Subscriber[T], bufferSize: Int): SyncSubscriber[T] = {
     new DropNewBufferedSubscriber[T](underlying, bufferSize, null)
   }
 
@@ -306,7 +306,7 @@ private[monix] object DropNewBufferedSubscriber {
    * for the [[monix.streams.OverflowStrategy.DropNew DropNew]]
    * overflowStrategy.
    */
-  def withSignal[T](underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => T): SynchronousSubscriber[T] = {
+  def withSignal[T](underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => T): SyncSubscriber[T] = {
     new DropNewBufferedSubscriber[T](underlying, bufferSize, onOverflow)
   }
 

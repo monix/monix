@@ -14,44 +14,61 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
-package monix.streams.subjects
 
-import org.sincron.atomic.Atomic
+package monix.streams.broadcast
+
+import monix.execution.internal.math._
 import monix.streams.Ack.{Cancel, Continue}
+import monix.streams._
 import monix.streams.internal._
 import monix.streams.observers.ConnectableSubscriber
-import monix.streams.{Ack, Observable, Subject, Subscriber}
+import org.sincron.atomic.Atomic
+
 import scala.annotation.tailrec
+import scala.collection.immutable.Queue
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 
-/** `BehaviorSubject` when subscribed, will emit the most recently emitted item by the source,
-  * or the `initialValue` (as the seed) in case no value has yet been emitted, then continuing
-  * to emit events subsequent to the time of invocation.
-  *
-  * When the source terminates in error, the `BehaviorSubject` will not emit any items to
-  * subsequent subscribers, but instead it will pass along the error notification.
-  *
-  * @see [[Subject]]
+/**
+  * `ReplayProcessor` emits to any observer all of the items that were emitted
+  * by the source, regardless of when the observer subscribes.
   */
-final class BehaviorSubject[T] private (initialValue: T) extends Subject[T,T] { self =>
-  private[this] val stateRef = Atomic(BehaviorSubject.State(initialValue))
+final class ReplayProcessor[T] private (initialState: ReplayProcessor.State[T])
+  extends Processor[T,T] { self =>
+
+  private[this] val stateRef = Atomic(initialState)
 
   @tailrec
   def unsafeSubscribeFn(subscriber: Subscriber[T]): Unit = {
-    val state = stateRef.get
+    def streamOnDone(buffer: Iterable[T], errorThrown: Throwable): Unit = {
+      implicit val s = subscriber.scheduler
 
-    if (state.errorThrown != null)
-      subscriber.onError(state.errorThrown)
-    else if (state.isDone)
-      Observable.unit(state.cached)
-        .unsafeSubscribeFn(subscriber)
+      Observable.fromIterable(buffer).unsafeSubscribeFn(new Observer[T] {
+        def onNext(elem: T) =
+          subscriber.onNext(elem)
+        def onError(ex: Throwable) =
+          subscriber.onError(ex)
+
+        def onComplete() =
+          if (errorThrown != null)
+            subscriber.onError(errorThrown)
+          else
+            subscriber.onComplete()
+      })
+    }
+
+    val state = stateRef.get
+    val buffer = state.buffer
+
+    if (state.isDone) {
+      // fast path
+      streamOnDone(buffer, state.errorThrown)
+    }
     else {
       val c = ConnectableSubscriber(subscriber)
       val newState = state.addNewSubscriber(c)
       if (stateRef.compareAndSet(state, newState)) {
-        c.pushNext(state.cached)
+        c.pushIterable(buffer)
         c.connect()
       }
       else {
@@ -66,7 +83,7 @@ final class BehaviorSubject[T] private (initialValue: T) extends Subject[T,T] { 
     val state = stateRef.get
 
     if (state.isDone) Cancel else {
-      val newState = state.cacheElem(elem)
+      val newState = state.appendElem(elem)
       if (!stateRef.compareAndSet(state, newState)) {
         onNext(elem) // retry
       }
@@ -153,20 +170,50 @@ final class BehaviorSubject[T] private (initialValue: T) extends Subject[T,T] { 
   }
 }
 
-object BehaviorSubject {
-  /** Builder for [[BehaviorSubject]] */
-  def apply[T](initialValue: T): BehaviorSubject[T] =
-    new BehaviorSubject[T](initialValue)
+object ReplayProcessor {
+  /** Creates an unbounded replay subject. */
+  def apply[T](initial: T*): ReplayProcessor[T] = {
+    create(initial:_*)
+  }
 
-  /** Internal state for [[monix.streams.subjects.ReplaySubject]] */
+  /** Creates an unbounded replay subject. */
+  def create[T](initial: T*): ReplayProcessor[T] = {
+    new ReplayProcessor[T](State(Vector(initial:_*), 0))
+  }
+
+  /**
+   * Creates a size-bounded replay subject.
+   *
+   * In this setting, the ReplayProcessor holds at most size items in its
+   * internal buffer and discards the oldest item.
+   *
+   * NOTE: the `capacity` is actually grown to the next power of 2 (minus 1),
+   * because buffers sized as powers of two can be more efficient and the
+   * underlying implementation is most likely to be a ring buffer. So give it
+   * `300` and its capacity is going to be `512 - 1`
+   */
+  def createWithSize[T](capacity: Int): ReplayProcessor[T] = {
+    require(capacity > 0, "capacity must be strictly positive")
+    val maxCapacity = nextPowerOf2(capacity + 1)
+    new ReplayProcessor[T](State(Queue.empty, maxCapacity))
+  }
+
+  /** Internal state for [[broadcast.ReplayProcessor]] */
   private final case class State[T](
-    cached: T,
+    buffer: Seq[T],
+    capacity: Int,
     subscribers: Vector[ConnectableSubscriber[T]] = Vector.empty,
+    length: Int = 0,
     isDone: Boolean = false,
     errorThrown: Throwable = null) {
 
-    def cacheElem(elem: T): State[T] = {
-      copy(cached = elem)
+    def appendElem(elem: T): State[T] = {
+      if (capacity == 0)
+        copy(buffer = buffer :+ elem)
+      else if (length >= capacity)
+        copy(buffer = buffer.tail :+ elem)
+      else
+        copy(buffer = buffer :+ elem, length = length + 1)
     }
 
     def addNewSubscriber(s: ConnectableSubscriber[T]): State[T] =

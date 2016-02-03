@@ -23,10 +23,10 @@ import monix.execution.cancelables.BooleanCancelable
 import monix.execution.{Cancelable, Scheduler}
 import monix.streams.Ack.{Cancel, Continue}
 import monix.streams.OverflowStrategy.{default => defaultStrategy}
+import monix.streams.broadcast._
 import monix.streams.internal.concurrent.UnsafeSubscribeRunnable
 import monix.streams.observables.{CachedObservable, ConnectableObservable, GroupedObservable}
 import monix.streams.observers._
-import monix.streams.subjects.{AsyncSubject, BehaviorSubject, PublishSubject, ReplaySubject}
 import monix.streams.internal.{operators, builders}
 import org.reactivestreams.{Publisher => RPublisher, Subscriber => RSubscriber}
 import scala.concurrent.duration.{Duration, FiniteDuration}
@@ -34,332 +34,139 @@ import scala.concurrent.{Future, Promise}
 import scala.language.implicitConversions
 import scala.util.control.NonFatal
 
-
-/** The Observable interface in the Rx pattern.
+/** The Observable type that implements the Reactive Pattern.
   *
-  * ==Interface==
+  * Provides methods of subscribing to the Observable and operators
+  * for combining observable sources, filtering, modifying,
+  * throttling, buffering, error handling and others.
   *
-  * An Observable is characterized by a `onSubscribe` method that needs
-  * to be implemented. In simple terms, an Observable might as well be
-  * just a function like:
-  * {{{
-  *   type Observable[+T] = Subscriber[T] => Unit
-  * }}}
+  * The [[Observable$ companion object]] contains builders for
+  * creating Observable instances.
   *
-  * In other words an Observable is something that provides a
-  * side-effecting function that can connect a [[Subscriber]] to a
-  * stream of data. A `Subscriber` is a cross between an [[Observer]]
-  * and a [[monix.execution.Scheduler Scheduler]].  We need a
-  * `Scheduler` when calling `subscribe` because that's when the
-  * side-effects happen and a context capable of scheduling tasks for
-  * asynchronous execution is needed. An [[Observer]] on the other hand
-  * is the interface implemented by consumer and that receives events
-  * according to the Rx grammar.
+  * See the available documentation at: [[https://monix.io]]
   *
-  * On `onSubscribe`, because we need the interesting operators and
-  * the polymorphic behavior provided by OOP, the Observable is
-  * being described as an interface that has to be implemented:
-  * {{{
-  *   class MySampleObservable(unit: Int) extends Observable[Int] {
-  *     def unsafeSubscribeFn(sub: Subscriber[Int]): Unit = {
-  *       implicit val s = sub.scheduler
-  *       // note we must apply back-pressure
-  *       // when calling `onNext`
-  *       sub.onNext(unit).onComplete {
-  *         case Success(Cancel) =>
-  *           () // do nothing
-  *         case Success(Continue) =>
-  *           sub.onComplete()
-  *         case Failure(ex) =>
-  *           sub.onError(ex)
-  *       }
-  *     }
-  *   }
-  * }}}
-  *
-  * Of course, you don't need to inherit from this trait, as you can just
-  * use [[Observable.unsafeCreate]], the following example being equivalent
-  * to the above:
-  * {{{
-  *   Observable.create[Int] { sub =>
-  *     implicit val s = sub.scheduler
-  *     // note we must apply back-pressure
-  *     // when calling `onNext`
-  *     sub.onNext(unit).onComplete {
-  *       case Success(Cancel) =>
-  *         () // do nothing
-  *       case Success(Continue) =>
-  *         sub.onComplete()
-  *       case Failure(ex) =>
-  *         sub.onError(ex)
-  *     }
-  *   }
-  * }}}
-  *
-  * The above is describing how to create your own Observables, however
-  * Monix already provides already made utilities in the
-  * [[Observable$ Observable companion object]]. For example, to
-  * periodically make a request to a web service, you could do it like
-  * this:
-  * {{{
-  *   // just some http client
-  *   import play.api.libs.ws._
-  *
-  *   // triggers an auto-incremented number every second
-  *   Observable.intervalAtFixedRate(1.second)
-  *     .flatMap(_ => WS.request(s"http://some.endpoint.com/request").get())
-  * }}}
-  *
-  * As you might notice, in the above example we are doing
-  * [[Observable!.flatMap]] on an Observable that emits `Future`
-  * instances. And it works, because Monix considers Scala's Futures
-  * to be just a subset of Observables, see the automatic
-  * [[Observable.FutureIsObservable FutureIsObservable]] conversion
-  * that it defines. Or you could just use [[Observable.fromFuture]]
-  * for explicit conversions, an Observable builder available
-  * [[Observable$ amongst others]].
-  *
-  * ==Contract==
-  *
-  * Observables must obey Monix's contract, this is why if you get
-  * away with already built and tested observables, that would be
-  * better than implementing your own by means of inheriting the
-  * interface or by using [[Observable.unsafeCreate create]]. The contract is
-  * this:
-  *
-  * - the supplied `onSubscribe` method MUST NOT throw exceptions, any
-  * unforeseen errors that happen in user-code must be emitted to
-  * the observers and the streaming closed
-  * - events MUST follow this grammar: `onNext* (onComplete | onError)`
-  * - a data source can emit zero or many `onNext` events
-  * - the stream can be infinite, but when the stream is closed
-  * (and not canceled by the observer), then
-  * it always emits a final `onComplete` or `onError`
-  * - MUST apply back-pressure when emitting events, which means that sending
-  * events is always done in response to demand signaled by observers and
-  * that observers should only receive events in response to that signaled
-  * demand
-  * - emitting a new `onNext` event must happen only after the previous
-  * `onNext` completed with a [[Ack.Continue Continue]]
-  * - streaming must stop immediately after an `onNext` event
-  * is signaling a [[Ack.Cancel Cancel]]
-  * - back-pressure must be applied for the final events as well,
-  * so `onComplete` and `onError` must happen only after the previous
-  * `onNext` was completed with a [[Ack.Continue Continue]]
-  * acknowledgement
-  * - the first `onNext` event can be sent directly, since there are no
-  * previous events
-  * - if there are no previous `onNext` events, then streams can be
-  * closed with `onComplete` and `onError` directly
-  * - if buffering of events happens, it is acceptable for events
-  * to get dropped when `onError` happens such that its delivery
-  * is prioritized
-  *
-  * ===On Dealing with the contract===
-  *
-  * Back-pressure means in essence that the speed with which the data-source
-  * produces events is adjusted to the speed with which the consumer consumes.
-  *
-  * For example, lets say we want to feed an iterator into an observer,
-  * similar to what we are doing in [[Observer.Extensions.feed(iterable* Observer.feed]],
-  * we might build a loop like this:
-  * {{{
-  *   /** Transforms any Iterable into an Observable */
-  *   def fromIterator[T](iterable: Iterable[T]): Observable[T] =
-  *     Observable.create { sub =>
-  *       implicit val s = sub.scheduler
-  *       loop(sub.observer, iterable.iterator).onComplete {
-  *         case Success(Cancel) =>
-  *           () // do nothing
-  *         case Success(Continue) =>
-  *           sub.onComplete()
-  *         case Failed(ex) =>
-  *           reportError(sub.observer, ex)
-  *       }
-  *     }
-  *
-  *   private def loop[T](o: Observer[T], iterator: Iterator[T])
-  *     (implicit s: Scheduler): Future[Ack] = {
-  *
-  *     try {
-  *       if (iterator.hasNext) {
-  *         val next = iterator.next()
-  *         // signaling event, applying back-pressure
-  *         o.onNext(next).flatMap {
-  *           case Cancel => Cancel
-  *           case Continue =>
-  *             // signal next event (recursive, but async)
-  *             loop(o, iterator)
-  *         }
-  *       }
-  *       else {
-  *         // nothing left to do, and because we are implementing
-  *         // Observer.feed, the final acknowledgement is a `Continue`
-  *         // assuming that the observer hasn't canceled or failed
-  *         Continue
-  *       }
-  *     }
-  *     catch {
-  *       case NonFatal(ex) =>
-  *         reportError(o, ex)
-  *     }
-  *   }
-  *
-  *   private def reportError[T](o: Observer[T], ex: Throwable): Cancel =
-  *     try o.onError(ex) catch {
-  *       case NonFatal(err) =>
-  *         // oops, onError failed, trying to
-  *         // report it somewhere
-  *         s.reportFailure(ex)
-  *         s.reportFailure(err)
-  *         Cancel
-  *     }
-  * }}}
-  *
-  * There are cases in which the data-source can't be slowed down in response
-  * to the demand signaled through back-pressure. For such cases buffering
-  * is needed.
-  *
-  * For example to "imperatively" build an Observable, we could use channels:
-  * {{{
-  *   val channel = PublishChannel[Int](OverflowStrategy.DropNew(bufferSize = 100))
-  *
-  *   // look mum, no back-pressure concerns
-  *   channel.pushNext(1)
-  *   channel.pushNext(2)
-  *   channel.pushNext(3)
-  *   channel.pushComplete()
-  * }}}
-  *
-  * In Monix a [[Channel]] is much like a [[Subject]], meaning that it can be
-  * used to construct observables, except that a `Channel` has a buffer
-  * attached and IS NOT an `Observer` (like the `Subject` is). In Monix
-  * (compared to Rx implementations) [[Subject Subjects]] are subject to
-  * back-pressure concerns as well, so they can't be used in an imperative way,
-  * like described above, hence the need for Channels.
-  *
-  * Or for more serious and lower level jobs, you can simply take an
-  * `Observer` and wrap it into a
-  * [[monix.streams.observers.BufferedSubscriber BufferedSubscriber]].
-  *
-  * @see [[monix.streams.Observer Observer]], the interface that must be
-  *      implemented by consumers
-  * @see [[monix.execution.Scheduler Scheduler]], our enhanced `ExecutionContext`
-  * @see [[monix.streams.Subscriber Subscriber]], the cross between an
-  *      [[Observer]] and a [[monix.execution.Scheduler Scheduler]]
-  * @see [[monix.execution.Cancelable Cancelable]], the type returned by higher
-  *      level `subscribe` variants and that can be used to cancel subscriptions
-  * @see [[monix.streams.Subject Subject]], which are both Observables and Observers
-  * @see [[Channel Channel]], which are meant for imperatively building
-  *      Observables without back-pressure concerns
   * @define concatDescription Concatenates the sequence
-  *                           of Observables emitted by the source into one Observable,
-  *                           without any transformation.
+  *         of Observables emitted by the source into one Observable,
+  *         without any transformation.
   *
-  *                           You can combine the items emitted by multiple Observables
-  *                           so that they act like a single Observable by using this
-  *                           method.
+  *         You can combine the items emitted by multiple Observables
+  *         so that they act like a single Observable by using this
+  *         operator.
   *
-  *                           The difference between the `concat` operation and
-  *                           [[Observable!.merge[U](implicit* merge]] is that `concat` cares about
-  *                           ordering of emitted items (e.g. all items emitted by the
-  *                           first observable in the sequence will come before the
-  *                           elements emitted by the second observable), whereas
-  *                           `merge` doesn't care about that (elements get emitted as
-  *                           they come). Because of back-pressure applied to
-  *                           observables, [[Observable!.concat]] is safe to use in all
-  *                           contexts, whereas `merge` requires buffering.
+  *         The difference between the `concat` operation and
+  *         [[Observable!.merge[U](implicit* merge]] is that `concat`
+  *         cares about ordering of emitted items (e.g. all items
+  *         emitted by the first observable in the sequence will come
+  *         before the elements emitted by the second observable),
+  *         whereas `merge` doesn't care about that (elements get
+  *         emitted as they come). Because of back-pressure applied to
+  *         observables, [[Observable!.concat]] is safe to use in all
+  *         contexts, whereas `merge` requires buffering.
+  *
   * @define concatReturn an Observable that emits items that are the result of
-  *                      flattening the items emitted by the Observables emitted
-  *                      by `this`
+  *         flattening the items emitted by the Observables emitted by `this`
+  *
   * @define mergeMapDescription Creates a new Observable by applying a
-  *                             function that you supply to each item emitted by the source
-  *                             Observable, where that function returns an Observable, and then
-  *                             merging those resulting Observables and emitting the
-  *                             results of this merger.
+  *         function that you supply to each item emitted by the
+  *         source Observable, where that function returns an
+  *         Observable, and then merging those resulting Observables
+  *         and emitting the results of this merger.
   *
-  *                             This function is the equivalent of `observable.map(f).merge`.
+  *         This function is the equivalent of `observable.map(f).merge`.
   *
-  *                             The difference between [[Observable!.concat concat]] and
-  *                             `merge` is that `concat` cares about ordering of emitted
-  *                             items (e.g. all items emitted by the first observable in
-  *                             the sequence will come before the elements emitted by the
-  *                             second observable), whereas `merge` doesn't care about that
-  *                             (elements get emitted as they come). Because of
-  *                             back-pressure applied to observables, [[Observable!.concat concat]]
-  *                             is safe to use in all contexts, whereas
-  *                             [[Observable!.merge[U](implicit* merge]] requires buffering.
+  *         The difference between [[Observable!.concat concat]] and
+  *         `merge` is that `concat` cares about ordering of emitted
+  *         items (e.g. all items emitted by the first observable in
+  *         the sequence will come before the elements emitted by the
+  *         second observable), whereas `merge` doesn't care about
+  *         that (elements get emitted as they come). Because of
+  *         back-pressure applied to observables, [[Observable!.concat concat]]
+  *         is safe to use in all contexts, whereas
+  *         [[Observable!.merge[U](implicit* merge]] requires
+  *         buffering.
+  *
   * @define mergeMapReturn an Observable that emits the result of applying the
-  *                        transformation function to each item emitted by the source
-  *                        Observable and merging the results of the Observables
-  *                        obtained from this transformation.
-  * @define mergeDescription Merges the sequence of Observables emitted by
-  *                          the source into one Observable, without any transformation.
+  *         transformation function to each item emitted by the source
+  *         Observable and merging the results of the Observables
+  *         obtained from this transformation.
   *
-  *                          You can combine the items emitted by multiple Observables
-  *                          so that they act like a single Observable by using this
-  *                          method.
+  * @define mergeDescription Merges the sequence of Observables emitted by
+  *         the source into one Observable, without any transformation.
+  *
+  *         You can combine the items emitted by multiple Observables
+  *         so that they act like a single Observable by using this
+  *         operator.
+  *
   * @define mergeReturn an Observable that emits items that are the
-  *                     result of flattening the items emitted by the Observables
-  *                     emitted by `this`.
+  *         result of flattening the items emitted by the Observables
+  *         emitted by `this`.
+  *
   * @define overflowStrategyParam the [[OverflowStrategy overflow strategy]]
-  *                               used for buffering, which specifies what to do in case we're
-  *                               dealing with a slow consumer - should an unbounded buffer be used,
-  *                               should back-pressure be applied, should the pipeline drop newer or
-  *                               older events, should it drop the whole buffer? See
-  *                               [[OverflowStrategy]] for more details.
+  *         used for buffering, which specifies what to do in case
+  *         we're dealing with a slow consumer - should an unbounded
+  *         buffer be used, should back-pressure be applied, should
+  *         the pipeline drop newer or older events, should it drop
+  *         the whole buffer? See [[OverflowStrategy]] for more
+  *         details.
+  *
   * @define onOverflowParam a function that is used for signaling a special
-  *                         event used to inform the consumers that an overflow event
-  *                         happened, function that receives the number of dropped events as
-  *                         a parameter (see [[OverflowStrategy.Evicted]])
+  *         event used to inform the consumers that an overflow event
+  *         happened, function that receives the number of dropped
+  *         events as a parameter (see [[OverflowStrategy.Evicted]])
+  *
   * @define delayErrorsDescription This version
-  *                                is reserving onError notifications until all of the
-  *                                Observables complete and only then passing the issued
-  *                                errors(s) along to the observers. Note that the streamed
-  *                                error is a [[monix.streams.exceptions.CompositeException CompositeException]],
-  *                                since multiple errors from multiple streams can happen.
+  *         is reserving onError notifications until all of the
+  *         Observables complete and only then passing the issued
+  *         errors(s) along to the observers. Note that the streamed
+  *         error is a [[monix.streams.exceptions.CompositeException
+  *         CompositeException]], since multiple errors from multiple
+  *         streams can happen.
+  *
   * @define defaultOverflowStrategy this operation needs to do buffering
-  *                                 and by not specifying an [[OverflowStrategy]], the
-  *                                 [[OverflowStrategy.default default strategy]] is being
-  *                                 used.
+  *         and by not specifying an [[OverflowStrategy]], the
+  *         [[OverflowStrategy.default default strategy]] is being
+  *         used.
+  *
   * @define switchDescription Convert an Observable that emits Observables
-  *                           into a single Observable that emits the items emitted by the
-  *                           most-recently-emitted of those Observables.
+  *         into a single Observable that emits the items emitted by
+  *         the most-recently-emitted of those Observables.
+  *
   * @define switchMapDescription Returns a new Observable that emits the items
-  *                              emitted by the Observable most recently generated by the mapping
-  *                              function.
+  *         emitted by the Observable most recently generated by the
+  *         mapping function.
+  *
   * @define asyncBoundaryDescription Forces a buffered asynchronous boundary.
   *
-  *                                  Internally it wraps the observer implementation given to
-  *                                  `onSubscribe` into a
-  *                                  [[monix.streams.observers.BufferedSubscriber BufferedSubscriber]].
+  *         Internally it wraps the observer implementation given to
+  *         `onSubscribe` into a
+  *         [[monix.streams.observers.BufferedSubscriber BufferedSubscriber]].
   *
-  *                                  Normally Monix's implementation guarantees that events
-  *                                  are not emitted concurrently, and that the publisher MUST
-  *                                  NOT emit the next event without acknowledgement from the
-  *                                  consumer that it may proceed, however for badly behaved
-  *                                  publishers, this wrapper provides the guarantee that the
-  *                                  downstream [[monix.streams.Observer Observer]] given in
-  *                                  `subscribe` will not receive concurrent events.
+  *         Normally Monix's implementation guarantees that events are
+  *         not emitted concurrently, and that the publisher MUST NOT
+  *         emit the next event without acknowledgement from the
+  *         consumer that it may proceed, however for badly behaved
+  *         publishers, this wrapper provides the guarantee that the
+  *         downstream [[monix.streams.Observer Observer]] given in
+  *         `subscribe` will not receive concurrent events.
   *
-  *                                  WARNING: if the buffer created by this operator is
-  *                                  unbounded, it can blow up the process if the data source
-  *                                  is pushing events faster than what the observer can
-  *                                  consume, as it introduces an asynchronous boundary that
-  *                                  eliminates the back-pressure requirements of the data
-  *                                  source. Unbounded is the default
-  *                                  [[monix.streams.OverflowStrategy overflowStrategy]], see
-  *                                  [[monix.streams.OverflowStrategy OverflowStrategy]] for
-  *                                  options.
+  *         WARNING: if the buffer created by this operator is
+  *         unbounded, it can blow up the process if the data source
+  *         is pushing events faster than what the observer can
+  *         consume, as it introduces an asynchronous boundary that
+  *         eliminates the back-pressure requirements of the data
+  *         source. Unbounded is the default
+  *         [[monix.streams.OverflowStrategy overflowStrategy]], see
+  *         [[monix.streams.OverflowStrategy OverflowStrategy]] for
+  *         options.
   */
 trait Observable[+T] { self =>
-  /** Characteristic function for an `Observable` instance, that
-    * creates the subscription and that eventually starts the streaming
-    * of events to the given [[Observer]], being meant to be overridden
-    * in custom combinators or in classes implementing Observable.
+  /** Characteristic function for an `Observable` instance, that creates
+    * the subscription and that eventually starts the streaming of
+    * events to the given [[Observer]], being meant to be overridden
+    * in custom combinators or for custom observables.
     *
-    * This function is "unsafe" to call because it does not protect the
-    * calls to the given [[Observer]] implementation in regards to
+    * This function is "unsafe" to call because it does not protect
+    * the calls to the given [[Observer]] implementation in regards to
     * unexpected exceptions that violate the contract, therefore the
     * given instance must respect its contract and not throw any
     * exceptions when the observable calls `onNext`, `onComplete` and
@@ -371,17 +178,17 @@ trait Observable[+T] { self =>
 
   /** Subscribes to the stream.
     *
-    * This function is "unsafe" to call because it does not protect the
-    * calls to the given [[Observer]] implementation in regards to
+    * This function is "unsafe" to call because it does not protect
+    * the calls to the given [[Observer]] implementation in regards to
     * unexpected exceptions that violate the contract, therefore the
     * given instance must respect its contract and not throw any
     * exceptions when the observable calls `onNext`, `onComplete` and
     * `onError`. If it does, then the behavior is undefined.
     *
-    * @param observer is an [[monix.streams.Observer Observer]] that respects
-    *                 the Monix Rx contract
-    * @param s        is the [[monix.execution.Scheduler Scheduler]]
-    *                 used for creating the subscription
+    * @param observer is an [[monix.streams.Observer Observer]] that
+    *        respects the Monix Rx contract
+    * @param s is the [[monix.execution.Scheduler Scheduler]]
+    *        used for creating the subscription
     */
   def unsafeSubscribeFn(observer: Observer[T])(implicit s: Scheduler): Unit = {
     unsafeSubscribeFn(Subscriber(observer, s))
@@ -414,9 +221,7 @@ trait Observable[+T] { self =>
 
     subscribe(new Observer[T] {
       def onNext(elem: T) = nextFn(elem)
-
       def onComplete() = completedFn()
-
       def onError(ex: Throwable) = errorFn(ex)
     })
   }
@@ -453,86 +258,108 @@ trait Observable[+T] { self =>
       }
     }
 
-  /** Returns an Observable that applies the given function to each item emitted by an
-    * Observable and emits the result.
+  /** Returns an Observable that applies the given function to each item
+    * emitted by an Observable and emits the result.
     *
     * @param f a function to apply to each item emitted by the Observable
-    * @return an Observable that emits the items from the source Observable, transformed by the given function
+    * @return an Observable that emits the items from the source Observable,
+    *         transformed by the given function
     */
   def map[U](f: T => U): Observable[U] =
     operators.map(self)(f)
 
-  /** Returns an Observable which only emits those items for which the given predicate holds.
+  /** Returns an Observable which only emits those items for which the
+    * given predicate holds.
     *
-    * @param p a function that evaluates the items emitted by the source Observable,
-    *          returning `true` if they pass the filter
+    * @param p a function that evaluates the items emitted by the source
+    *        Observable, returning `true` if they pass the filter
+    *
     * @return an Observable that emits only those items in the original Observable
     *         for which the filter evaluates as `true`
     */
   def filter(p: T => Boolean): Observable[T] =
     operators.filter(self)(p)
 
-  /** Returns an Observable by applying the given partial function to the source observable
-    * for each element for which the given partial function is defined.
+  /** Returns an Observable by applying the given partial function to
+    * the source observable for each element for which the given
+    * partial function is defined.
     *
     * Useful to be used instead of a filter & map combination.
     *
     * @param pf the function that filters and maps the resulting observable
-    * @return an Observable that emits the transformed items by the given partial function
+    * @return an Observable that emits the transformed items by the
+    *         given partial function
     */
   def collect[U](pf: PartialFunction[T, U]): Observable[U] =
     operators.collect(self)(pf)
 
-  /** Creates a new Observable by applying a function that you supply to each item emitted by
-    * the source Observable, where that function returns an Observable, and then concatenating those
-    * resulting Observables and emitting the results of this concatenation.
+  /** Creates a new Observable by applying a function that you supply to
+    * each item emitted by the source Observable, where that function
+    * returns an Observable, and then concatenating those resulting
+    * Observables and emitting the results of this concatenation.
     *
-    * @param f a function that, when applied to an item emitted by the source Observable, returns an Observable
-    * @return an Observable that emits the result of applying the transformation function to each
-    *         item emitted by the source Observable and concatenating the results of the Observables
-    *         obtained from this transformation.
+    * @param f a function that, when applied to an item emitted by the
+    *        source Observable, returns an Observable
+    *
+    * @return an Observable that emits the result of applying the
+    *         transformation function to each item emitted by the
+    *         source Observable and concatenating the results of the
+    *         Observables obtained from this transformation.
     */
   def flatMap[U](f: T => Observable[U]): Observable[U] =
     map(f).flatten
 
-  /** Creates a new Observable by applying a function that you supply to each item emitted by
-    * the source Observable, where that function returns an Observable, and then concatenating those
-    * resulting Observables and emitting the results of this concatenation.
+  /** Creates a new Observable by applying a function that you supply to
+    * each item emitted by the source Observable, where that function
+    * returns an Observable, and then concatenating those resulting
+    * Observables and emitting the results of this concatenation.
     *
     * It's an alias for [[Observable!.concatMapDelayError]].
     *
-    * @param f a function that, when applied to an item emitted by the source Observable, returns an Observable
-    * @return an Observable that emits the result of applying the transformation function to each
-    *         item emitted by the source Observable and concatenating the results of the Observables
-    *         obtained from this transformation.
+    * @param f a function that, when applied to an item emitted by
+    *        the source Observable, returns an Observable
+    *
+    * @return an Observable that emits the result of applying the
+    *         transformation function to each item emitted by the
+    *         source Observable and concatenating the results of the
+    *         Observables obtained from this transformation.
     */
   def flatMapDelayError[U](f: T => Observable[U]): Observable[U] =
     map(f).concatDelayError
 
-  /** Creates a new Observable by applying a function that you supply to each item emitted by
-    * the source Observable, where that function returns an Observable, and then concatenating those
-    * resulting Observables and emitting the results of this concatenation.
+  /** Creates a new Observable by applying a function that you supply to
+    * each item emitted by the source Observable, where that function
+    * returns an Observable, and then concatenating those resulting
+    * Observables and emitting the results of this concatenation.
     *
-    * @param f a function that, when applied to an item emitted by the source Observable, returns an Observable
-    * @return an Observable that emits the result of applying the transformation function to each
-    *         item emitted by the source Observable and concatenating the results of the Observables
-    *         obtained from this transformation.
+    * @param f a function that, when applied to an item emitted by the
+    *        source Observable, returns an Observable
+    *
+    * @return an Observable that emits the result of applying the
+    *         transformation function to each item emitted by the
+    *         source Observable and concatenating the results of the
+    *         Observables obtained from this transformation.
     */
   def concatMap[U](f: T => Observable[U]): Observable[U] =
     map(f).concat
 
-  /** Creates a new Observable by applying a function that you supply to each item emitted by
-    * the source Observable, where that function returns an Observable, and then concatenating those
-    * resulting Observables and emitting the results of this concatenation.
+  /** Creates a new Observable by applying a function that you supply to
+    * each item emitted by the source Observable, where that function
+    * returns an Observable, and then concatenating those resulting
+    * Observables and emitting the results of this concatenation.
     *
-    * It's like [[Observable!.concatMap]], except that the created observable is reserving onError
-    * notifications until all of the merged Observables complete and only then passing it along
-    * to the observers.
+    * It's like [[Observable!.concatMap]], except that the created
+    * observable is reserving onError notifications until all of the
+    * merged Observables complete and only then passing it along to
+    * the observers.
     *
-    * @param f a function that, when applied to an item emitted by the source Observable, returns an Observable
-    * @return an Observable that emits the result of applying the transformation function to each
-    *         item emitted by the source Observable and concatenating the results of the Observables
-    *         obtained from this transformation.
+    * @param f a function that, when applied to an item emitted by
+    *        the source Observable, returns an Observable
+    *
+    * @return an Observable that emits the result of applying the
+    *         transformation function to each item emitted by the
+    *         source Observable and concatenating the results of the
+    *         Observables obtained from this transformation.
     */
   def concatMapDelayError[U](f: T => Observable[U]): Observable[U] =
     map(f).concatDelayError
@@ -685,8 +512,9 @@ trait Observable[+T] { self =>
   def flatMapLatest[U](f: T => Observable[U]): Observable[U] =
     map(f).flattenLatest
 
-  /** Given the source observable and another `Observable`, emits all of the items
-    * from the first of these Observables to emit an item and cancel the other.
+  /** Given the source observable and another `Observable`, emits all of
+    * the items from the first of these Observables to emit an item
+    * and cancel the other.
     */
   def ambWith[U >: T](other: Observable[U]): Observable[U] = {
     Observable.amb(self, other)
@@ -700,8 +528,9 @@ trait Observable[+T] { self =>
 
   /** Selects the first ''n'' elements (from the start).
     *
-    * @param  n  the number of elements to take
-    * @return    a new Observable that emits only the first ''n'' elements from the source
+    * @param  n the number of elements to take
+    * @return a new Observable that emits only the first
+    *         `n` elements from the source
     */
   def take(n: Long): Observable[T] =
     operators.take.left(self, n)
@@ -710,7 +539,7 @@ trait Observable[+T] { self =>
     * for the specified `timestamp`, after which it completes.
     *
     * @param timespan the window of time during which the new Observable
-    *                 is allowed to emit the events of the source
+    *        is allowed to emit the events of the source
     */
   def take(timespan: FiniteDuration): Observable[T] =
     operators.take.leftByTimespan(self, timespan)
@@ -723,9 +552,9 @@ trait Observable[+T] { self =>
 
   /** Drops the first ''n'' elements (from the start).
     *
-    * @param  n  the number of elements to drop
-    * @return    a new Observable that drops the first ''n'' elements
-    *            emitted by the source
+    * @param n the number of elements to drop
+    * @return a new Observable that drops the first ''n'' elements
+    *         emitted by the source
     */
   def drop(n: Int): Observable[T] =
     operators.drop.byCount(self, n)
@@ -734,21 +563,22 @@ trait Observable[+T] { self =>
     * for the specified `timestamp` window.
     *
     * @param timespan the window of time during which the new Observable
-    *                 is must drop the events emitted by the source
+    *        is must drop the events emitted by the source
     */
   def dropByTimespan(timespan: FiniteDuration): Observable[T] =
     operators.drop.byTimespan(self, timespan)
 
-  /** Drops the longest prefix of elements that satisfy the given predicate
-    * and returns a new Observable that emits the rest.
+  /** Drops the longest prefix of elements that satisfy the given
+    * predicate and returns a new Observable that emits the rest.
     */
   def dropWhile(p: T => Boolean): Observable[T] =
     operators.drop.byPredicate(self)(p)
 
-  /** Drops the longest prefix of elements that satisfy the given function
-    * and returns a new Observable that emits the rest. In comparison with
-    * [[dropWhile]], this version accepts a function that takes an additional
-    * parameter: the zero-based index of the element.
+  /** Drops the longest prefix of elements that satisfy the given
+    * function and returns a new Observable that emits the rest. In
+    * comparison with [[dropWhile]], this version accepts a function
+    * that takes an additional parameter: the zero-based index of the
+    * element.
     */
   def dropWhileWithIndex(p: (T, Int) => Boolean): Observable[T] =
     operators.drop.byPredicateWithIndex(self)(p)
@@ -766,140 +596,163 @@ trait Observable[+T] { self =>
   def takeWhileNotCanceled(c: BooleanCancelable): Observable[T] =
     operators.take.takeWhileNotCanceled(self, c)
 
-  /** Creates a new Observable that emits the total number of `onNext` events
-    * that were emitted by the source.
+  /** Creates a new Observable that emits the total number of `onNext`
+    * events that were emitted by the source.
     *
-    * Note that this Observable emits only one item after the source is complete.
-    * And in case the source emits an error, then only that error will be
-    * emitted.
+    * Note that this Observable emits only one item after the source
+    * is complete.  And in case the source emits an error, then only
+    * that error will be emitted.
     */
   def count: Observable[Long] =
     operators.math.count(self)
 
-  /** Periodically gather items emitted by an Observable into bundles and emit
-    * these bundles rather than emitting the items one at a time. This version
-    * of `buffer` is emitting items once the internal buffer has the reached the
-    * given count.
+  /** Periodically gather items emitted by an Observable into bundles
+    * and emit these bundles rather than emitting the items one at a
+    * time. This version of `buffer` is emitting items once the
+    * internal buffer has the reached the given count.
     *
-    * @param count the maximum size of each buffer before it should be emitted
+    * @param count the maximum size of each buffer before it should
+    *        be emitted
     */
   def buffer(count: Int): Observable[Seq[T]] =
     operators.buffer.skipped(self, count, count)
 
-  /** Returns an Observable that emits buffers of items it collects from the
-    * source Observable. The resulting Observable emits buffers every `skip`
-    * items, each containing `count` items. When the source Observable completes
-    * or encounters an error, the resulting Observable emits the current buffer
-    * and propagates the notification from the source Observable.
+  /** Returns an Observable that emits buffers of items it collects from
+    * the source Observable. The resulting Observable emits buffers
+    * every `skip` items, each containing `count` items. When the
+    * source Observable completes or encounters an error, the
+    * resulting Observable emits the current buffer and propagates the
+    * notification from the source Observable.
     *
     * There are 3 possibilities:
     *
-    * 1. in case `skip == count`, then there are no items dropped and no overlap,
-    * the call being equivalent to `window(count)`
-    * 2. in case `skip < count`, then overlap between windows happens, with the
-    * number of elements being repeated being `count - skip`
-    * 3. in case `skip > count`, then `skip - count` elements start getting
-    * dropped between windows
+    *  1. in case `skip == count`, then there are no items dropped and
+    *      no overlap, the call being equivalent to `window(count)`
+    *  2. in case `skip < count`, then overlap between windows
+    *     happens, with the number of elements being repeated being
+    *     `count - skip`
+    *  3. in case `skip > count`, then `skip - count` elements start
+    *     getting dropped between windows
     *
-    * @param count the maximum size of each buffer before it should be emitted
-    * @param skip how many items emitted by the source Observable should be
-    *             skipped before starting a new buffer. Note that when skip and
-    *             count are equal, this is the same operation as `buffer(count)`
+    * @param count the maximum size of each buffer before it should
+    *        be emitted
+    *
+    * @param skip how many items emitted by the source Observable should
+    *        be skipped before starting a new buffer. Note that when
+    *        skip and count are equal, this is the same operation as
+    *        `buffer(count)`
     */
   def buffer(count: Int, skip: Int): Observable[Seq[T]] =
     operators.buffer.skipped(self, count, skip)
 
-  /** Periodically gather items emitted by an Observable into bundles and emit
-    * these bundles rather than emitting the items one at a time.
+  /** Periodically gather items emitted by an Observable into bundles
+    * and emit these bundles rather than emitting the items one at a
+    * time.
     *
-    * This version of `buffer` emits a new bundle of items periodically,
-    * every timespan amount of time, containing all items emitted by the
-    * source Observable since the previous bundle emission.
+    * This version of `buffer` emits a new bundle of items
+    * periodically, every timespan amount of time, containing all
+    * items emitted by the source Observable since the previous bundle
+    * emission.
     *
-    * @param timespan the interval of time at which it should emit the buffered bundle
+    * @param timespan the interval of time at which it should emit
+    *        the buffered bundle
     */
   def buffer(timespan: FiniteDuration): Observable[Seq[T]] =
     operators.buffer.timed(self, maxCount = 0, timespan = timespan)
 
-  /** Periodically gather items emitted by an Observable into bundles and emit
-    * these bundles rather than emitting the items one at a time.
+  /** Periodically gather items emitted by an Observable into bundles
+    * and emit these bundles rather than emitting the items one at a
+    * time.
     *
-    * The resulting Observable emits connected, non-overlapping buffers, each of
-    * a fixed duration specified by the `timespan` argument or a maximum size
-    * specified by the `maxSize` argument (whichever is reached first). When the
-    * source Observable completes or encounters an error, the resulting
-    * Observable emits the current buffer and propagates the notification from
-    * the source Observable.
+    * The resulting Observable emits connected, non-overlapping
+    * buffers, each of a fixed duration specified by the `timespan`
+    * argument or a maximum size specified by the `maxSize` argument
+    * (whichever is reached first). When the source Observable
+    * completes or encounters an error, the resulting Observable emits
+    * the current buffer and propagates the notification from the
+    * source Observable.
     *
-    * @param timespan the interval of time at which it should emit the buffered bundle
+    * @param timespan the interval of time at which it should emit
+    *        the buffered bundle
     * @param maxSize is the maximum bundle size
     */
   def buffer(timespan: FiniteDuration, maxSize: Int): Observable[Seq[T]] =
     operators.buffer.timed(self, timespan, maxSize)
 
-  /** Periodically subdivide items from an Observable into Observable windows and
-    * emit these windows rather than emitting the items one at a time.
+  /** Periodically subdivide items from an Observable into Observable
+    * windows and emit these windows rather than emitting the items
+    * one at a time.
     *
-    * This variant of window opens its first window immediately. It closes the
-    * currently open window and immediately opens a new one whenever the current
-    * window has emitted count items. It will also close the currently open
-    * window if it receives an onCompleted or onError notification from the
-    * source Observable. This variant of window emits a series of non-overlapping
-    * windows whose collective emissions correspond one-to-one with those of
-    * the source Observable.
+    * This variant of window opens its first window immediately. It
+    * closes the currently open window and immediately opens a new one
+    * whenever the current window has emitted count items. It will
+    * also close the currently open window if it receives an
+    * onCompleted or onError notification from the source
+    * Observable. This variant of window emits a series of
+    * non-overlapping windows whose collective emissions correspond
+    * one-to-one with those of the source Observable.
     *
     * @param count the bundle size
     */
   def window(count: Int): Observable[Observable[T]] =
     operators.window.skipped(self, count, count)
 
-  /** Returns an Observable that emits windows of items it collects from the
-    * source Observable. The resulting Observable emits windows every skip items,
-    * each containing no more than count items. When the source Observable
-    * completes or encounters an error, the resulting Observable emits the
-    * current window and propagates the notification from the source Observable.
+  /** Returns an Observable that emits windows of items it collects from
+    * the source Observable. The resulting Observable emits windows
+    * every skip items, each containing no more than count items. When
+    * the source Observable completes or encounters an error, the
+    * resulting Observable emits the current window and propagates the
+    * notification from the source Observable.
     *
     * There are 3 possibilities:
     *
-    * 1. in case `skip == count`, then there are no items dropped and no overlap,
-    * the call being equivalent to `window(count)`
-    * 2. in case `skip < count`, then overlap between windows happens, with the
-    * number of elements being repeated being `count - skip`
-    * 3. in case `skip > count`, then `skip - count` elements start getting
-    * dropped between windows
+    *  1. in case `skip == count`, then there are no items dropped and
+    *     no overlap, the call being equivalent to `window(count)`
     *
-    * @param count - the maximum size of each window before it should be emitted
-    * @param skip - how many items need to be skipped before starting a new window
+    *  2. in case `skip < count`, then overlap between windows
+    *     happens, with the number of elements being repeated being
+    *     `count - skip`
+    *
+    *  3. in case `skip > count`, then `skip - count` elements start
+    *     getting dropped between windows
+    *
+    * @param count the maximum size of each window before it should
+    *        be emitted
+    * @param skip - how many items need to be skipped before starting
+    *        a new window
     */
   def window(count: Int, skip: Int): Observable[Observable[T]] =
     operators.window.skipped(self, count, skip)
 
-  /** Periodically subdivide items from an Observable into Observable windows and
-    * emit these windows rather than emitting the items one at a time.
+  /** Periodically subdivide items from an Observable into Observable
+    * windows and emit these windows rather than emitting the items
+    * one at a time.
     *
-    * The resulting Observable emits connected, non-overlapping windows,
-    * each of a fixed duration specified by the timespan argument. When
-    * the source Observable completes or encounters an error, the resulting
-    * Observable emits the current window and propagates the notification
-    * from the source Observable.
+    * The resulting Observable emits connected, non-overlapping
+    * windows, each of a fixed duration specified by the timespan
+    * argument. When the source Observable completes or encounters an
+    * error, the resulting Observable emits the current window and
+    * propagates the notification from the source Observable.
     *
-    * @param timespan the interval of time at which it should complete the
-    *                 current window and emit a new one
+    * @param timespan the interval of time at which it should
+    *        complete the current window and emit a new one
     */
   def window(timespan: FiniteDuration): Observable[Observable[T]] =
     operators.window.timed(self, timespan, maxCount = 0)
 
-  /** Periodically subdivide items from an Observable into Observable windows and
-    * emit these windows rather than emitting the items one at a time.
+  /** Periodically subdivide items from an Observable into Observable
+    * windows and emit these windows rather than emitting the items
+    * one at a time.
     *
-    * The resulting Observable emits connected, non-overlapping windows,
-    * each of a fixed duration specified by the timespan argument. When
-    * the source Observable completes or encounters an error, the resulting
-    * Observable emits the current window and propagates the notification
-    * from the source Observable.
+    * The resulting Observable emits connected, non-overlapping
+    * windows, each of a fixed duration specified by the timespan
+    * argument. When the source Observable completes or encounters an
+    * error, the resulting Observable emits the current window and
+    * propagates the notification from the source Observable.
     *
     * @param timespan the interval of time at which it should complete the
-    *                 current window and emit a new one
+    *        current window and emit a new one.
+    *
     * @param maxCount the maximum size of each window
     */
   def window(timespan: FiniteDuration, maxCount: Int): Observable[Observable[T]] =
@@ -912,11 +765,11 @@ trait Observable[+T] { self =>
     * Note: A [[monix.streams.observables.GroupedObservable GroupedObservable]]
     * will cache the items it is to emit until such time as it is
     * subscribed to. For this reason, in order to avoid memory leaks,
-    * you should not simply ignore those GroupedObservables that do not
-    * concern you. Instead, you can signal to them that they may
+    * you should not simply ignore those GroupedObservables that do
+    * not concern you. Instead, you can signal to them that they may
     * discard their buffers by doing something like `source.take(0)`.
     *
-    * @param keySelector - a function that extracts the key for each item
+    * @param keySelector  a function that extracts the key for each item
     */
   def groupBy[K](keySelector: T => K): Observable[GroupedObservable[K, T]] =
     operators.groupBy.apply(self, OverflowStrategy.Unbounded, keySelector)
@@ -928,14 +781,15 @@ trait Observable[+T] { self =>
     * A [[monix.streams.observables.GroupedObservable GroupedObservable]]
     * will cache the items it is to emit until such time as it is
     * subscribed to. For this reason, in order to avoid memory leaks,
-    * you should not simply ignore those GroupedObservables that do not
-    * concern you. Instead, you can signal to them that they may
+    * you should not simply ignore those GroupedObservables that do
+    * not concern you. Instead, you can signal to them that they may
     * discard their buffers by doing something like `source.take(0)`.
     *
-    * This variant of `groupBy` specifies a `keyBufferSize` representing the
-    * size of the buffer that holds our keys. We cannot block when emitting
-    * new `GroupedObservable`. So by specifying a buffer size, on overflow
-    * the resulting observable will terminate with an onError.
+    * This variant of `groupBy` specifies a `keyBufferSize`
+    * representing the size of the buffer that holds our keys. We
+    * cannot block when emitting new `GroupedObservable`. So by
+    * specifying a buffer size, on overflow the resulting observable
+    * will terminate with an onError.
     *
     * @param keySelector - a function that extracts the key for each item
     * @param keyBufferSize - the buffer size used for buffering keys
@@ -943,140 +797,151 @@ trait Observable[+T] { self =>
   def groupBy[K](keyBufferSize: Int, keySelector: T => K): Observable[GroupedObservable[K, T]] =
     operators.groupBy.apply(self, OverflowStrategy.Fail(keyBufferSize), keySelector)
 
-  /** Returns an Observable that emits only the last item emitted by the source
-    * Observable during sequential time windows of a specified duration.
+  /** Returns an Observable that emits only the last item emitted by the
+    * source Observable during sequential time windows of a specified
+    * duration.
     *
-    * This differs from [[Observable!.throttleFirst]] in that this ticks along
-    * at a scheduled interval whereas `throttleFirst` does not tick, it just
-    * tracks passage of time.
+    * This differs from [[Observable!.throttleFirst]] in that this
+    * ticks along at a scheduled interval whereas `throttleFirst` does
+    * not tick, it just tracks passage of time.
     *
-    * @param period - duration of windows within which the last item
-    *               emitted by the source Observable will be emitted
+    * @param period duration of windows within which the last item
+    *        emitted by the source Observable will be emitted
     */
   def throttleLast(period: FiniteDuration): Observable[T] =
     sample(period)
 
-  /** Returns an Observable that emits only the first item emitted by the source
-    * Observable during sequential time windows of a specified duration.
+  /** Returns an Observable that emits only the first item emitted by
+    * the source Observable during sequential time windows of a
+    * specified duration.
     *
-    * This differs from [[Observable!.throttleLast]] in that this only tracks
-    * passage of time whereas `throttleLast` ticks at scheduled intervals.
+    * This differs from [[Observable!.throttleLast]] in that this only
+    * tracks passage of time whereas `throttleLast` ticks at scheduled
+    * intervals.
     *
     * @param interval time to wait before emitting another item after
-    *                 emitting the last item
+    *        emitting the last item
     */
   def throttleFirst(interval: FiniteDuration): Observable[T] =
     operators.throttle.first(self, interval)
 
   /** Alias for [[Observable!.debounce(timeout* debounce]].
     *
-    * Returns an Observable that only emits those items emitted by the source
-    * Observable that are not followed by another emitted item within a
-    * specified time window.
+    * Returns an Observable that only emits those items emitted by the
+    * source Observable that are not followed by another emitted item
+    * within a specified time window.
     *
-    * Note: If the source Observable keeps emitting items more frequently than
-    * the length of the time window then no items will be emitted by the
-    * resulting Observable.
+    * Note: If the source Observable keeps emitting items more
+    * frequently than the length of the time window then no items will
+    * be emitted by the resulting Observable.
     *
     * @param timeout - the length of the window of time that must pass after the
-    *                emission of an item from the source Observable in which that
-    *                Observable emits no items in order for the item to be
-    *                emitted by the resulting Observable
+    *        emission of an item from the source Observable in which
+    *        that Observable emits no items in order for the item to
+    *        be emitted by the resulting Observable
     */
   def throttleWithTimeout(timeout: FiniteDuration): Observable[T] =
     debounce(timeout)
 
-  /** Emit the most recent items emitted by an Observable within periodic time
-    * intervals.
+  /** Emit the most recent items emitted by an Observable within
+    * periodic time intervals.
     *
     * Use the `sample` operator to periodically look at an Observable
     * to see what item it has most recently emitted since the previous
     * sampling. Note that if the source Observable has emitted no
     * items since the last time it was sampled, the Observable that
-    * results from the sample( ) operator will emit no item for
-    * that sampling period.
+    * results from the sample( ) operator will emit no item for that
+    * sampling period.
     *
     * @param delay the timespan at which sampling occurs and note that this is
-    *              not accurate as it is subject to back-pressure concerns - as in
-    *              if the delay is 1 second and the processing of an event on `onNext`
-    *              in the observer takes one second, then the actual sampling delay
-    *              will be 2 seconds.
+    *        not accurate as it is subject to back-pressure concerns -
+    *        as in if the delay is 1 second and the processing of an
+    *        event on `onNext` in the observer takes one second, then
+    *        the actual sampling delay will be 2 seconds.
     */
   def sample(delay: FiniteDuration): Observable[T] =
     sample(delay, delay)
 
-  /** Emit the most recent items emitted by an Observable within periodic time
-    * intervals.
+  /** Emit the most recent items emitted by an Observable within
+    * periodic time intervals.
     *
-    * Use the sample() method to periodically look at an Observable
+    * Use the sample() operator to periodically look at an Observable
     * to see what item it has most recently emitted since the previous
     * sampling. Note that if the source Observable has emitted no
     * items since the last time it was sampled, the Observable that
-    * results from the sample( ) operator will emit no item for
-    * that sampling period.
+    * results from the sample( ) operator will emit no item for that
+    * sampling period.
     *
     * @param initialDelay the initial delay after which sampling can happen
+    *
     * @param delay the timespan at which sampling occurs and note that this is
-    *              not accurate as it is subject to back-pressure concerns - as in
-    *              if the delay is 1 second and the processing of an event on `onNext`
-    *              in the observer takes one second, then the actual sampling delay
-    *              will be 2 seconds.
+    *        not accurate as it is subject to back-pressure concerns -
+    *        as in if the delay is 1 second and the processing of an
+    *        event on `onNext` in the observer takes one second, then
+    *        the actual sampling delay will be 2 seconds.
     */
   def sample(initialDelay: FiniteDuration, delay: FiniteDuration): Observable[T] =
     operators.sample.once(self, initialDelay, delay)
 
-  /** Returns an Observable that, when the specified sampler Observable emits an
-    * item or completes, emits the most recently emitted item (if any) emitted
-    * by the source Observable since the previous emission from the sampler
-    * Observable.
+  /** Returns an Observable that, when the specified sampler Observable
+    * emits an item or completes, emits the most recently emitted item
+    * (if any) emitted by the source Observable since the previous
+    * emission from the sampler Observable.
     *
-    * Use the sample() method to periodically look at an Observable
+    * Use the sample() operator to periodically look at an Observable
     * to see what item it has most recently emitted since the previous
     * sampling. Note that if the source Observable has emitted no
     * items since the last time it was sampled, the Observable that
     * results from the sample( ) operator will emit no item.
     *
-    * @param sampler - the Observable to use for sampling the source Observable
+    * @param sampler - the Observable to use for sampling the
+    *        source Observable
     */
   def sample[U](sampler: Observable[U]): Observable[T] =
     operators.sample.once(self, sampler)
 
-  /** Emit the most recent items emitted by an Observable within periodic time
-    * intervals. If no new value has been emitted since the last time it
-    * was sampled, the emit the last emitted value anyway.
+  /** Emit the most recent items emitted by an Observable within
+    * periodic time intervals. If no new value has been emitted since
+    * the last time it was sampled, the emit the last emitted value
+    * anyway.
     *
     * Also see [[Observable!.sample(delay* Observable.sample]].
     *
-    * @param delay the timespan at which sampling occurs and note that this is
-    *              not accurate as it is subject to back-pressure concerns - as in
-    *              if the delay is 1 second and the processing of an event on `onNext`
-    *              in the observer takes one second, then the actual sampling delay
-    *              will be 2 seconds.
+    * @param delay the timespan at which sampling occurs and note that
+    *        this is not accurate as it is subject to back-pressure
+    *        concerns - as in if the delay is 1 second and the
+    *        processing of an event on `onNext` in the observer takes
+    *        one second, then the actual sampling delay will be 2
+    *        seconds.
     */
   def sampleRepeated(delay: FiniteDuration): Observable[T] =
     sampleRepeated(delay, delay)
 
-  /** Emit the most recent items emitted by an Observable within periodic time
-    * intervals. If no new value has been emitted since the last time it
-    * was sampled, the emit the last emitted value anyway.
+  /** Emit the most recent items emitted by an Observable within
+    * periodic time intervals. If no new value has been emitted since
+    * the last time it was sampled, the emit the last emitted value
+    * anyway.
     *
     * Also see [[Observable!.sample(initial* sample]].
     *
     * @param initialDelay the initial delay after which sampling can happen
-    * @param delay the timespan at which sampling occurs and note that this is
-    *              not accurate as it is subject to back-pressure concerns - as in
-    *              if the delay is 1 second and the processing of an event on `onNext`
-    *              in the observer takes one second, then the actual sampling delay
-    *              will be 2 seconds.
+    *
+    * @param delay the timespan at which sampling occurs and note that
+    *        this is not accurate as it is subject to back-pressure
+    *        concerns - as in if the delay is 1 second and the
+    *        processing of an event on `onNext` in the observer takes
+    *        one second, then the actual sampling delay will be 2
+    *        seconds.
     */
   def sampleRepeated(initialDelay: FiniteDuration, delay: FiniteDuration): Observable[T] =
     operators.sample.repeated(self, initialDelay, delay)
 
-  /** Returns an Observable that, when the specified sampler Observable emits an
-    * item or completes, emits the most recently emitted item (if any) emitted
-    * by the source Observable since the previous emission from the sampler
-    * Observable. If no new value has been emitted since the last time it
-    * was sampled, the emit the last emitted value anyway.
+  /** Returns an Observable that, when the specified sampler Observable
+    * emits an item or completes, emits the most recently emitted item
+    * (if any) emitted by the source Observable since the previous
+    * emission from the sampler Observable. If no new value has been
+    * emitted since the last time it was sampled, the emit the last
+    * emitted value anyway.
     *
     * @see [[Observable!.sample[U](sampler* Observable.sample]]
     * @param sampler - the Observable to use for sampling the source Observable
@@ -1084,17 +949,18 @@ trait Observable[+T] { self =>
   def sampleRepeated[U](sampler: Observable[U]): Observable[T] =
     operators.sample.repeated(self, sampler)
 
-  /** Only emit an item from an Observable if a particular
-    * timespan has passed without it emitting another item.
+  /** Only emit an item from an Observable if a particular timespan has
+    * passed without it emitting another item.
     *
-    * Note: If the source Observable keeps emitting items more frequently
-    * than the length of the time window then no items will be emitted
-    * by the resulting Observable.
+    * Note: If the source Observable keeps emitting items more
+    * frequently than the length of the time window then no items will
+    * be emitted by the resulting Observable.
     *
     * @param timeout the length of the window of time that must pass after
-    *                the emission of an item from the source Observable in which
-    *                that Observable emits no items in order for the item to
-    *                be emitted by the resulting Observable
+    *        the emission of an item from the source Observable in
+    *        which that Observable emits no items in order for the
+    *        item to be emitted by the resulting Observable
+    *
     * @see [[Observable.echoOnce echoOnce]] for a similar operator that also
     *      mirrors the source observable
     */
@@ -1102,140 +968,137 @@ trait Observable[+T] { self =>
     operators.debounce.timeout(self, timeout, repeat = false)
 
   /** Emits the last item from the source Observable if a particular
-    * timespan has passed without it emitting another item,
-    * and keeps emitting that item at regular intervals until
-    * the source breaks the silence.
+    * timespan has passed without it emitting another item, and keeps
+    * emitting that item at regular intervals until the source breaks
+    * the silence.
     *
     * So compared to regular [[Observable!.debounce(timeout* debounce]]
     * it keeps emitting the last item of the source.
     *
-    * Note: If the source Observable keeps emitting items more frequently
-    * than the length of the time window then no items will be emitted
-    * by the resulting Observable.
+    * Note: If the source Observable keeps emitting items more
+    * frequently than the length of the time window then no items will
+    * be emitted by the resulting Observable.
     *
     * @param period the length of the window of time that must pass after
-    *               the emission of an item from the source Observable in which
-    *               that Observable emits no items in order for the item to
-    *               be emitted by the resulting Observable at regular intervals,
-    *               also determined by period
+    *        the emission of an item from the source Observable in
+    *        which that Observable emits no items in order for the
+    *        item to be emitted by the resulting Observable at regular
+    *        intervals, also determined by period
+    *
     * @see [[Observable.echoRepeated echoRepeated]] for a similar operator
     *      that also mirrors the source observable
     */
   def debounceRepeated(period: FiniteDuration): Observable[T] =
     operators.debounce.timeout(self, period, repeat = true)
 
-  /** Doesn't emit anything until a `timeout` period passes without
-    * the source emitting anything. When that timeout happens,
-    * we subscribe to the observable generated by the given function,
-    * an observable that will keep emitting until the source will
-    * break the silence by emitting another event.
+  /** Doesn't emit anything until a `timeout` period passes without the
+    * source emitting anything. When that timeout happens, we
+    * subscribe to the observable generated by the given function, an
+    * observable that will keep emitting until the source will break
+    * the silence by emitting another event.
     *
-    * Note: If the source Observable keeps emitting items more frequently
-    * than the length of the time window, then no items will be emitted
-    * by the resulting Observable.
+    * Note: If the source Observable keeps emitting items more
+    * frequently than the length of the time window, then no items
+    * will be emitted by the resulting Observable.
     *
-    * @param f is a function that receives the last element generated by the
-    *          source, generating an observable to be subscribed when the
-    *          source is timing out
+    * @param f is a function that receives the last element generated
+    *        by the source, generating an observable to be subscribed
+    *        when the source is timing out
+    *
     * @param timeout the length of the window of time that must pass after
-    *                the emission of an item from the source Observable in which
-    *                that Observable emits no items in order for the item to
-    *                be emitted by the resulting Observable
+    *        the emission of an item from the source Observable in
+    *        which that Observable emits no items in order for the
+    *        item to be emitted by the resulting Observable
     */
   def debounce[U](timeout: FiniteDuration, f: T => Observable[U]): Observable[U] =
     operators.debounce.flatten(self, timeout, f)
 
-  /** Only emit an item from an Observable if a particular
-    * timespan has passed without it emitting another item,
-    * a timespan indicated by the completion of an observable
-    * generated the `selector` function.
+  /** Only emit an item from an Observable if a particular timespan has
+    * passed without it emitting another item, a timespan indicated by
+    * the completion of an observable generated the `selector`
+    * function.
     *
     * Note: If the source Observable keeps emitting items more frequently
     * than the length of the time window then no items will be emitted
     * by the resulting Observable.
     *
     * @param selector function to retrieve a sequence that indicates the
-    *                 throttle duration for each item
+    *        throttle duration for each item
     */
   def debounce(selector: T => Observable[Any]): Observable[T] =
     operators.debounce.bySelector(self, selector)
 
-  /** Only emit an item from an Observable if a particular
-    * timespan has passed without it emitting another item,
-    * a timespan indicated by the completion of an observable
-    * generated the `selector` function.
+  /** Only emit an item from an Observable if a particular timespan has
+    * passed without it emitting another item, a timespan indicated by
+    * the completion of an observable generated the `selector`
+    * function.
     *
-    * Note: If the source Observable keeps emitting items more frequently
-    * than the length of the time window then no items will be emitted
-    * by the resulting Observable.
+    * Note: If the source Observable keeps emitting items more
+    * frequently than the length of the time window then no items will
+    * be emitted by the resulting Observable.
     *
     * @param selector function to retrieve a sequence that indicates the
-    *                 throttle duration for each item
+    *        throttle duration for each item
+    *
     * @param f is a function that receives the last element generated by the
-    *          source, generating an observable to be subscribed when the
-    *          source is timing out
+    *        source, generating an observable to be subscribed when
+    *        the source is timing out
     */
   def debounce[U](selector: T => Observable[Any], f: T => Observable[U]): Observable[U] =
     operators.debounce.flattenBySelector(self, selector, f)
 
-  /** Mirror the source observable as long as the source keeps emitting items,
-    * otherwise if `timeout` passes without the source emitting anything new
-    * then the observable will emit the last item.
+  /** Mirror the source observable as long as the source keeps emitting
+    * items, otherwise if `timeout` passes without the source emitting
+    * anything new then the observable will emit the last item.
     *
     * This is the rough equivalent of:
     * {{{
     *   Observable.merge(source, source.debounce(period))
     * }}}
     *
-    * Note: If the source Observable keeps emitting items more frequently
-    * than the length of the time window then the resulting observable
-    * will mirror the source exactly.
+    * Note: If the source Observable keeps emitting items more
+    * frequently than the length of the time window then the resulting
+    * observable will mirror the source exactly.
     *
     * @param timeout the window of silence that must pass in order for the
-    *                observable to echo the last item
+    *        observable to echo the last item
     */
   def echoOnce(timeout: FiniteDuration): Observable[T] =
     operators.echo.apply(self, timeout, onlyOnce = true)
 
-  /** Mirror the source observable as long as the source keeps emitting items,
-    * otherwise if `timeout` passes without the source emitting anything new
-    * then the observable will start emitting the last item repeatedly.
+  /** Mirror the source observable as long as the source keeps emitting
+    * items, otherwise if `timeout` passes without the source emitting
+    * anything new then the observable will start emitting the last
+    * item repeatedly.
     *
-    * This is the rough equivalent of:
-    * {{{
-    *   source.switch { e =>
-    *     e +: Observable.intervalWithFixedDelay(delay, delay)
-    *   }
-    * }}}
-    *
-    * Note: If the source Observable keeps emitting items more frequently
-    * than the length of the time window then the resulting observable
-    * will mirror the source exactly.
+    * Note: If the source Observable keeps emitting items more
+    * frequently than the length of the time window then the resulting
+    * observable will mirror the source exactly.
     *
     * @param timeout the window of silence that must pass in order for the
-    *                observable to start echoing the last item
+    *        observable to start echoing the last item
     */
   def echoRepeated(timeout: FiniteDuration): Observable[T] =
     operators.echo.apply(self, timeout, onlyOnce = false)
 
   /** Hold an Observer's subscription request until the given `trigger`
-    * observable either emits an item or completes, before passing it on to
-    * the source Observable.
+    * observable either emits an item or completes, before passing it
+    * on to the source Observable.
     *
     * If the given `trigger` completes in error, then the subscription is
     * terminated with `onError`.
     *
-    * @param trigger - the observable that must either emit an item or
-    *                complete in order for the source to be subscribed.
+    * @param trigger the observable that must either emit an item or
+    *        complete in order for the source to be subscribed.
     */
   def delaySubscription[U](trigger: Observable[U]): Observable[T] =
     operators.delaySubscription.onTrigger(self, trigger)
 
-  /** Hold an Observer's subscription request for a specified
-    * amount of time before passing it on to the source Observable.
+  /** Hold an Observer's subscription request for a specified amount of
+    * time before passing it on to the source Observable.
     *
     * @param timespan is the time to wait before the subscription
-    *                 is being initiated.
+    *        is being initiated.
     */
   def delaySubscription(timespan: FiniteDuration): Observable[T] =
     operators.delaySubscription.onTimespan(self, timespan)
@@ -1243,16 +1106,16 @@ trait Observable[+T] { self =>
   /** Returns an Observable that emits the items emitted by the source
     * Observable shifted forward in time by a specified delay.
     *
-    * Each time the source Observable emits an item, delay starts a timer,
-    * and when that timer reaches the given duration, the Observable
-    * returned from delay emits the same item.
+    * Each time the source Observable emits an item, delay starts a
+    * timer, and when that timer reaches the given duration, the
+    * Observable returned from delay emits the same item.
     *
-    * NOTE: this delay refers strictly to the time between the `onNext`
-    * event coming from our source and the time it takes the downstream
-    * observer to get this event. On the other hand the operator is also
-    * applying back-pressure, so on slow observers the actual time passing
-    * between two successive events may be higher than the
-    * specified `duration`.
+    * NOTE: this delay refers strictly to the time between the
+    * `onNext` event coming from our source and the time it takes the
+    * downstream observer to get this event. On the other hand the
+    * operator is also applying back-pressure, so on slow observers
+    * the actual time passing between two successive events may be
+    * higher than the specified `duration`.
     *
     * @param duration - the delay to shift the source by
     * @return the source Observable shifted in time by the specified delay
@@ -1263,51 +1126,55 @@ trait Observable[+T] { self =>
   /** Returns an Observable that emits the items emitted by the source
     * Observable shifted forward in time.
     *
-    * This variant of `delay` sets its delay duration on a per-item basis by
-    * passing each item from the source Observable into a function that returns
-    * an Observable and then monitoring those Observables. When any such
-    * Observable emits an item or completes, the Observable returned
-    * by delay emits the associated item.
+    * This variant of `delay` sets its delay duration on a per-item
+    * basis by passing each item from the source Observable into a
+    * function that returns an Observable and then monitoring those
+    * Observables. When any such Observable emits an item or
+    * completes, the Observable returned by delay emits the associated
+    * item.
     *
     * @see [[Observable!.delay(duration* delay(duration)]] for the other variant
-    * @param selector - a function that returns an Observable for each item
-    *                 emitted by the source Observable, which is then used
-    *                 to delay the emission of that item by the resulting
-    *                 Observable until the Observable returned
-    *                 from `selector` emits an item
+    *
+    * @param selector is a function that returns an Observable for
+    *        each item emitted by the source Observable, which is then
+    *        used to delay the emission of that item by the resulting
+    *        Observable until the Observable returned from `selector`
+    *        emits an item
+    *
     * @return the source Observable shifted in time by
     *         the specified delay
     */
   def delay[U](selector: T => Observable[U]): Observable[T] =
     operators.delay.bySelector(self, selector)
 
-  /** Applies a binary operator to a start value and all elements of this Observable,
-    * going left to right and returns a new Observable that emits only one item
-    * before `onComplete`.
+  /** Applies a binary operator to a start value and all elements of
+    * this Observable, going left to right and returns a new
+    * Observable that emits only one item before `onComplete`.
     */
   def foldLeft[R](initial: R)(op: (R, T) => R): Observable[R] =
     operators.foldLeft(self, initial)(op)
 
-  /** Applies a binary operator to a start value and all elements of this Observable,
-    * going left to right and returns a new Observable that emits only one item
-    * before `onComplete`.
+  /** Applies a binary operator to a start value and all elements of
+    * this Observable, going left to right and returns a new
+    * Observable that emits only one item before `onComplete`.
     */
   def reduce[U >: T](op: (U, U) => U): Observable[U] =
     operators.reduce(self: Observable[U])(op)
 
-  /** Applies a binary operator to a start value and all elements of this Observable,
-    * going left to right and returns a new Observable that emits on each step the result
-    * of the applied function.
+  /** Applies a binary operator to a start value and all elements of
+    * this Observable, going left to right and returns a new
+    * Observable that emits on each step the result of the applied
+    * function.
     *
-    * Similar to [[foldLeft]], but emits the state on each step. Useful for modeling finite
-    * state machines.
+    * Similar to [[foldLeft]], but emits the state on each
+    * step. Useful for modeling finite state machines.
     */
   def scan[R](initial: R)(op: (R, T) => R): Observable[R] =
     operators.scan(self, initial)(op)
 
-  /** Applies a binary operator to a start value and to elements produced
-    * by the source observable, going from left to right, producing
-    * and concatenating observables along the way.
+  /** Applies a binary operator to a start value and to elements
+    * produced by the source observable, going from left to right,
+    * producing and concatenating observables along the way.
     *
     * It's the combination between [[monix.streams.Observable.scan scan]]
     * and [[monix.streams.Observable.flatten]].
@@ -1315,9 +1182,9 @@ trait Observable[+T] { self =>
   def flatScan[R](initial: R)(op: (R, T) => Observable[R]): Observable[R] =
     operators.flatScan(self, initial)(op)
 
-  /** Applies a binary operator to a start value and to elements produced
-    * by the source observable, going from left to right, producing
-    * and concatenating observables along the way.
+  /** Applies a binary operator to a start value and to elements
+    * produced by the source observable, going from left to right,
+    * producing and concatenating observables along the way.
     *
     * It's the combination between [[monix.streams.Observable.scan scan]]
     * and [[monix.streams.Observable.flattenDelayError]].
@@ -1325,80 +1192,95 @@ trait Observable[+T] { self =>
   def flatScanDelayError[R](initial: R)(op: (R, T) => Observable[R]): Observable[R] =
     operators.flatScan.delayError(self, initial)(op)
 
-  /** Executes the given callback when the stream has ended,
-    * but before the complete event is emitted.
+  /** Executes the given callback when the stream has ended, but before
+    * the complete event is emitted.
     *
     * @param cb the callback to execute when the subscription is canceled
     */
   def doOnComplete(cb: => Unit): Observable[T] =
     operators.doWork.onComplete(self)(cb)
 
-  /** Executes the given callback for each element generated by the source
-    * Observable, useful for doing side-effects.
+  /** Executes the given callback for each element generated by the
+    * source Observable, useful for doing side-effects.
     *
     * @return a new Observable that executes the specified callback for each element
     */
   def doWork(cb: T => Unit): Observable[T] =
     operators.doWork.onNext(self)(cb)
 
-  /** Executes the given callback only for the first element generated by the source
-    * Observable, useful for doing a piece of computation only when the stream started.
+  /** Executes the given callback only for the first element generated
+    * by the source Observable, useful for doing a piece of
+    * computation only when the stream started.
     *
-    * @return a new Observable that executes the specified callback only for the first element
+    * @return a new Observable that executes the specified callback
+    *         only for the first element
     */
   def doOnStart(cb: T => Unit): Observable[T] =
     operators.doWork.onStart(self)(cb)
 
-  /** Executes the given callback if the downstream observer
-    * has canceled the streaming.
+  /** Executes the given callback if the downstream observer has
+    * canceled the streaming.
     */
   def doOnCanceled(cb: => Unit): Observable[T] =
     operators.doWork.onCanceled(self)(cb)
 
-  /** Executes the given callback when the stream is interrupted
-    * with an error, before the `onError` event is emitted downstream.
+  /** Executes the given callback when the stream is interrupted with an
+    * error, before the `onError` event is emitted downstream.
     *
     * NOTE: should protect the code in this callback, because if it
-    * throws an exception the `onError` event will prefer signaling the
-    * original exception and otherwise the behavior is undefined.
+    * throws an exception the `onError` event will prefer signaling
+    * the original exception and otherwise the behavior is undefined.
     */
   def doOnError(cb: Throwable => Unit): Observable[T] =
     operators.doWork.onError(self)(cb)
 
-  /** Returns an Observable which only emits the first item for which the predicate holds.
+  /** Returns an Observable which only emits the first item for which
+    * the predicate holds.
     *
-    * @param p a function that evaluates the items emitted by the source Observable, returning `true` if they pass the filter
-    * @return an Observable that emits only the first item in the original Observable for which the filter evaluates as `true`
+    * @param p is a function that evaluates the items emitted by the
+    *        source Observable, returning `true` if they pass the filter
+    * @return an Observable that emits only the first item in the original
+    *         Observable for which the filter evaluates as `true`
     */
   def find(p: T => Boolean): Observable[T] =
     filter(p).head
 
-  /** Returns an Observable which emits a single value, either true, in case the given predicate holds for at least
-    * one item, or false otherwise.
+  /** Returns an Observable which emits a single value, either true, in
+    * case the given predicate holds for at least one item, or false
+    * otherwise.
     *
-    * @param p a function that evaluates the items emitted by the source Observable, returning `true` if they pass the filter
-    * @return an Observable that emits only true or false in case the given predicate holds or not for at least one item
+    * @param p is a function that evaluates the items emitted by the
+    *        source Observable, returning `true` if they pass the
+    *        filter
+    *
+    * @return an Observable that emits only true or false in case
+    *         the given predicate holds or not for at least one item
     */
   def exists(p: T => Boolean): Observable[Boolean] =
     find(p).foldLeft(false)((_, _) => true)
 
-  /** Returns an Observable that emits true if the source Observable
-    * is empty, otherwise false.
+  /** Returns an Observable that emits true if the source Observable is
+    * empty, otherwise false.
     */
   def isEmpty: Observable[Boolean] =
     operators.misc.isEmpty(self)
 
-  /** Returns an Observable that emits false if the source Observable
-    * is empty, otherwise true.
+  /** Returns an Observable that emits false if the source Observable is
+    * empty, otherwise true.
     */
   def nonEmpty: Observable[Boolean] =
     operators.misc.isEmpty(self).map(isEmpty => !isEmpty)
 
-  /** Returns an Observable that emits a single boolean, either true, in case the given predicate holds for all the items
-    * emitted by the source, or false in case at least one item is not verifying the given predicate.
+  /** Returns an Observable that emits a single boolean, either true, in
+    * case the given predicate holds for all the items emitted by the
+    * source, or false in case at least one item is not verifying the
+    * given predicate.
     *
-    * @param p a function that evaluates the items emitted by the source Observable, returning `true` if they pass the filter
-    * @return an Observable that emits only true or false in case the given predicate holds or not for all the items
+    * @param p is a function that evaluates the items emitted by the source
+    *        Observable, returning `true` if they pass the filter
+    *
+    * @return an Observable that emits only true or false in case the given
+    *         predicate holds or not for all the items
     */
   def forAll(p: T => Boolean): Observable[Boolean] =
     exists(e => !p(e)).map(r => !r)
@@ -1414,8 +1296,8 @@ trait Observable[+T] { self =>
   def ignoreElements: Observable[Nothing] =
     operators.misc.complete(this)
 
-  /** Ignores all items emitted by the source Observable and
-    * only calls onCompleted or onError.
+  /** Ignores all items emitted by the source Observable and only calls
+    * onCompleted or onError.
     *
     * @return an empty Observable that only calls onCompleted or onError,
     *         based on which one is called by the source Observable
@@ -1423,9 +1305,9 @@ trait Observable[+T] { self =>
   def complete: Observable[Nothing] =
     operators.misc.complete(this)
 
-  /** Returns an Observable that emits a single Throwable,
-    * in case an error was thrown by the source Observable,
-    * otherwise it isn't going to emit anything.
+  /** Returns an Observable that emits a single Throwable, in case an
+    * error was thrown by the source Observable, otherwise it isn't
+    * going to emit anything.
     */
   def error: Observable[Throwable] =
     operators.misc.error(this)
@@ -1438,89 +1320,61 @@ trait Observable[+T] { self =>
   def endWithError(error: Throwable): Observable[T] =
     operators.misc.endWithError(this)(error)
 
-  /** Creates a new Observable that emits the given element
-    * and then it also emits the events of the source (prepend operation).
-    *
-    * @example {{{
-    *             val source = 1 +: Observable(2, 3, 4)
-    *             source.dump("O").subscribe()
-    *
-    *             // 0: O-->1
-    *             // 1: O-->2
-    *             // 2: O-->3
-    *             // 3: O-->4
-    *             // 4: O completed
-    *          }}}
+  /** Creates a new Observable that emits the given element and then it
+    * also emits the events of the source (prepend operation).
     */
   def +:[U >: T](elem: U): Observable[U] =
     Observable.unit(elem) ++ this
 
-  /** Creates a new Observable that emits the given elements
-    * and then it also emits the events of the source (prepend operation).
+  /** Creates a new Observable that emits the given elements and then it
+    * also emits the events of the source (prepend operation).
     */
   def startWith[U >: T](elems: U*): Observable[U] =
     Observable.fromIterable(elems) ++ this
 
-  /** Creates a new Observable that emits the events of the source
-    * and then it also emits the given element (appended to the stream).
-    *
-    * @example {{{
-    *             val source = Observable(1, 2, 3) :+ 4
-    *             source.dump("O").subscribe()
-    *
-    *             // 0: O-->1
-    *             // 1: O-->2
-    *             // 2: O-->3
-    *             // 3: O-->4
-    *             // 4: O completed
-    *          }}}
+  /** Creates a new Observable that emits the events of the source and
+    * then it also emits the given element (appended to the stream).
     */
   def :+[U >: T](elem: U): Observable[U] =
     this ++ Observable.unit(elem)
 
-  /** Creates a new Observable that emits the events of the source
-    * and then it also emits the given elements (appended to the stream).
+  /** Creates a new Observable that emits the events of the source and
+    * then it also emits the given elements (appended to the stream).
     */
   def endWith[U >: T](elems: U*): Observable[U] =
     this ++ Observable.fromIterable(elems)
 
-  /** Concatenates the source Observable with the other Observable, as specified.
+  /** Concatenates the source Observable with the other Observable, as
+    * specified.
     *
     * Ordering of subscription is preserved, so the second observable
-    * starts only after the source observable is completed successfully with
-    * an `onComplete`. On the other hand, the second observable is never
-    * subscribed if the source completes with an error.
-    *
-    * @example {{{
-    *             val concat = Observable(1,2,3) ++ Observable(4,5)
-    *             concat.dump("O").subscribe()
-    *
-    *             // 0: O-->1
-    *             // 1: O-->2
-    *             // 2: O-->3
-    *             // 3: O-->4
-    *             // 4: O-->5
-    *             // 5: O completed
-    *          }}}
+    * starts only after the source observable is completed
+    * successfully with an `onComplete`. On the other hand, the second
+    * observable is never subscribed if the source completes with an
+    * error.
     */
   def ++[U >: T](other: => Observable[U]): Observable[U] =
     Observable.concat(this, other)
 
-  /** Only emits the first element emitted by the source observable, after which it's completed immediately.
+  /** Only emits the first element emitted by the source observable,
+    * after which it's completed immediately.
     */
   def head: Observable[T] = take(1)
 
-  /** Drops the first element of the source observable, emitting the rest.
+  /** Drops the first element of the source observable,
+    * emitting the rest.
     */
   def tail: Observable[T] = drop(1)
 
-  /** Only emits the last element emitted by the source observable, after which it's completed immediately.
+  /** Only emits the last element emitted by the source observable,
+    * after which it's completed immediately.
     */
   def last: Observable[T] =
     takeRight(1)
 
-  /** Emits the first element emitted by the source, or otherwise if the source is completed without
-    * emitting anything, then the `default` is emitted.
+  /** Emits the first element emitted by the source, or otherwise if the
+    * source is completed without emitting anything, then the
+    * `default` is emitted.
     */
   def headOrElse[B >: T](default: => B): Observable[B] =
     head.foldLeft(Option.empty[B])((_, elem) => Some(elem)) map {
@@ -1528,17 +1382,19 @@ trait Observable[+T] { self =>
       case None => default
     }
 
-  /** Emits the first element emitted by the source, or otherwise if the source is completed without
-    * emitting anything, then the `default` is emitted.
+  /** Emits the first element emitted by the source, or otherwise if the
+    * source is completed without emitting anything, then the
+    * `default` is emitted.
     *
     * Alias for `headOrElse`.
     */
   def firstOrElse[U >: T](default: => U): Observable[U] =
     headOrElse(default)
 
-  /** Creates a new Observable from this Observable and another given Observable,
-    * by emitting elements combined in pairs. If one of the Observable emits fewer
-    * events than the other, then the rest of the unpaired events are ignored.
+  /** Creates a new Observable from this Observable and another given
+    * Observable, by emitting elements combined in pairs. If one of
+    * the Observable emits fewer events than the other, then the rest
+    * of the unpaired events are ignored.
     */
   def zip[U](other: Observable[U]): Observable[(T, U)] =
     operators.zip.two(self, other)
@@ -1548,58 +1404,65 @@ trait Observable[+T] { self =>
   def zipWithIndex: Observable[(T, Long)] =
     operators.zip.withIndex(self)
 
-  /** Creates a new Observable from this Observable and another given Observable.
+  /** Creates a new Observable from this Observable and another given
+    * Observable.
     *
-    * This operator behaves in a similar way to [[zip]], but while `zip` emits items
-    * only when all of the zipped source Observables have emitted a previously unzipped item,
-    * `combine` emits an item whenever any of the source Observables emits
-    * an item (so long as each of the source Observables has emitted at least one item).
+    * This operator behaves in a similar way to [[zip]], but while
+    * `zip` emits items only when all of the zipped source Observables
+    * have emitted a previously unzipped item, `combine` emits an item
+    * whenever any of the source Observables emits an item (so long as
+    * each of the source Observables has emitted at least one item).
     */
   def combineLatest[U](other: Observable[U]): Observable[(T, U)] =
     operators.combineLatest(self, other, delayErrors = false)
 
-  /** Creates a new Observable from this Observable and another given Observable.
+  /** Creates a new Observable from this Observable and another given
+    * Observable.
     *
-    * This operator behaves in a similar way to [[zip]], but while `zip` emits items
-    * only when all of the zipped source Observables have emitted a previously unzipped item,
-    * `combine` emits an item whenever any of the source Observables emits
-    * an item (so long as each of the source Observables has emitted at least one item).
+    * This operator behaves in a similar way to [[zip]], but while
+    * `zip` emits items only when all of the zipped source Observables
+    * have emitted a previously unzipped item, `combine` emits an item
+    * whenever any of the source Observables emits an item (so long as
+    * each of the source Observables has emitted at least one item).
     *
-    * This version of [[Observable!.combineLatest combineLatest]]
-    * is reserving `onError` notifications until all of the combined Observables
-    * complete and only then passing it along to the observers.
+    * This version of [[Observable!.combineLatest combineLatest]] is
+    * reserving `onError` notifications until all of the combined
+    * Observables complete and only then passing it along to the
+    * observers.
     *
     * @see [[Observable!.combineLatest]]
     */
   def combineLatestDelayError[U](other: Observable[U]): Observable[(T, U)] =
     operators.combineLatest(self, other, delayErrors = true)
 
-  /** Takes the elements of the source Observable and emits the maximum value,
-    * after the source has completed.
+  /** Takes the elements of the source Observable and emits the maximum
+    * value, after the source has completed.
     */
   def max[U >: T](implicit ev: Ordering[U]): Observable[U] =
     operators.math.max(this: Observable[U])
 
-  /** Takes the elements of the source Observable and emits the element that has
-    * the maximum key value, where the key is generated by the given function `f`.
+  /** Takes the elements of the source Observable and emits the element
+    * that has the maximum key value, where the key is generated by
+    * the given function `f`.
     */
   def maxBy[U](f: T => U)(implicit ev: Ordering[U]): Observable[T] =
     operators.math.maxBy(this)(f)(ev)
 
-  /** Takes the elements of the source Observable and emits the minimum value,
-    * after the source has completed.
+  /** Takes the elements of the source Observable and emits the minimum
+    * value, after the source has completed.
     */
   def min[U >: T](implicit ev: Ordering[U]): Observable[U] =
     operators.math.min(this: Observable[U])
 
-  /** Takes the elements of the source Observable and emits the element that has
-    * the minimum key value, where the key is generated by the given function `f`.
+  /** Takes the elements of the source Observable and emits the element
+    * that has the minimum key value, where the key is generated by
+    * the given function `f`.
     */
   def minBy[U](f: T => U)(implicit ev: Ordering[U]): Observable[T] =
     operators.math.minBy(this)(f)
 
-  /** Given a source that emits numeric values, the `sum` operator
-    * sums up all values and at onComplete it emits the total.
+  /** Given a source that emits numeric values, the `sum` operator sums
+    * up all values and at onComplete it emits the total.
     */
   def sum[U >: T](implicit ev: Numeric[U]): Observable[U] =
     operators.math.sum(this: Observable[U])
@@ -1619,18 +1482,20 @@ trait Observable[+T] { self =>
   def distinct[U](fn: T => U): Observable[T] =
     operators.distinct.distinctBy(this)(fn)
 
-  /** Suppress duplicate consecutive items emitted by the source Observable
+  /** Suppress duplicate consecutive items emitted by the source
+    * Observable
     */
   def distinctUntilChanged: Observable[T] =
     operators.distinct.untilChanged(this)
 
-  /** Suppress duplicate consecutive items emitted by the source Observable
+  /** Suppress duplicate consecutive items emitted by the source
+    * Observable
     */
   def distinctUntilChanged[U](fn: T => U): Observable[T] =
     operators.distinct.untilChangedBy(this)(fn)
 
-  /** Returns a new Observable that uses the specified
-    * `Scheduler` for initiating the subscription.
+  /** Returns a new Observable that uses the specified `Scheduler` for
+    * initiating the subscription.
     */
   def subscribeOn(s: Scheduler): Observable[T] = {
     Observable.unsafeCreate(o => s.execute(UnsafeSubscribeRunnable(this, o)))
@@ -1642,8 +1507,8 @@ trait Observable[+T] { self =>
   def materialize: Observable[Notification[T]] =
     operators.notification.materialize(self)
 
-  /** Converts the source Observable that emits `Notification[T]`
-    * (the result of [[materialize]]) back to an Observable that emits `T`.
+  /** Converts the source Observable that emits `Notification[T]` (the
+    * result of [[materialize]]) back to an Observable that emits `T`.
     */
   def dematerialize[U](implicit ev: T <:< Notification[U]): Observable[U] =
     operators.notification.dematerialize[U](self.asInstanceOf[Observable[Notification[U]]])
@@ -1653,17 +1518,32 @@ trait Observable[+T] { self =>
   def dump(prefix: String, out: PrintStream = System.out): Observable[T] =
     operators.debug.dump(self, prefix, out)
 
-  /** Repeats the items emitted by this Observable continuously. It caches the generated items until `onComplete`
-    * and repeats them ad infinitum. On error it terminates.
+  /** Repeats the items emitted by this Observable continuously. It
+    * caches the generated items until `onComplete` and repeats them
+    * ad infinitum. On error it terminates.
     */
   def repeat: Observable[T] =
     operators.repeat.elements(self)
 
-  /** Converts this observable into a multicast observable, useful for turning a cold observable into
-    * a hot one (i.e. whose source is shared by all observers).
+  /** Converts this observable into a multicast observable, useful for
+    * turning a cold observable into a hot one (i.e. whose source is
+    * shared by all observers).
+    *
+    * This operator is unsafe because `Processor` objects are stateful
+    * and have to obey the `Observer` contract, meaning that they
+    * shouldn't be subscribed multiple times, so they are error
+    * prone. Only use if you know what you're doing, otherwise prefer
+    * the safe [[Observable!.multicast multicast]] operator.
     */
-  def multicast[U >: T, R](subject: Subject[U, R])(implicit s: Scheduler): ConnectableObservable[R] =
-    ConnectableObservable(this, subject)
+  def unsafeMulticast[U >: T, R](processor: Processor[U, R])(implicit s: Scheduler): ConnectableObservable[R] =
+    ConnectableObservable.unsafeMulticast(this, processor)
+
+  /** Converts this observable into a multicast observable, useful for
+    * turning a cold observable into a hot one (i.e. whose source is
+    * shared by all observers).
+    */
+  def multicast[U >: T, R](pipe: Pipe[U, R])(implicit s: Scheduler): ConnectableObservable[R] =
+    ConnectableObservable.multicast(this, pipe)
 
   /** $asyncBoundaryDescription
     *
@@ -1681,7 +1561,7 @@ trait Observable[+T] { self =>
     */
   def asyncBoundary[U >: T](overflowStrategy: OverflowStrategy.Evicted, onOverflow: Long => U): Observable[U] =
     Observable.unsafeCreate { subscriber =>
-      unsafeSubscribeFn(BufferedSubscriber(subscriber, overflowStrategy))
+      unsafeSubscribeFn(BufferedSubscriber.withOverflowSignal(subscriber, overflowStrategy)(onOverflow))
     }
 
   /** While the destination observer is busy, drop the incoming events.
@@ -1691,8 +1571,8 @@ trait Observable[+T] { self =>
 
   /** While the destination observer is busy, drop the incoming events.
     * When the downstream recovers, we can signal a special event
-    * meant to inform the downstream observer how many events
-    * where dropped.
+    * meant to inform the downstream observer how many events where
+    * dropped.
     *
     * @param onOverflow - $onOverflowParam
     */
@@ -1716,34 +1596,39 @@ trait Observable[+T] { self =>
   def whileBusyBuffer[U >: T](overflowStrategy: OverflowStrategy.Evicted, onOverflow: Long => U): Observable[U] =
     asyncBoundary(overflowStrategy, onOverflow)
 
-  /** Converts this observable into a multicast observable, useful for turning a cold observable into
-    * a hot one (i.e. whose source is shared by all observers). The underlying subject used is a
-    * [[monix.streams.subjects.PublishSubject PublishSubject]].
+  /** Converts this observable into a multicast observable, useful for
+    * turning a cold observable into a hot one (i.e. whose source is
+    * shared by all observers). The underlying subject used is a
+    * [[PublishProcessor PublishProcessor]].
     */
   def publish(implicit s: Scheduler): ConnectableObservable[T] =
-    multicast(PublishSubject[T]())
+    unsafeMulticast(PublishProcessor[T]())
 
-  /** Returns a new Observable that multi-casts (shares) the original Observable.
+  /** Returns a new Observable that multi-casts (shares) the original
+    * Observable.
     */
   def share(implicit s: Scheduler): Observable[T] =
     publish.refCount
 
   /** Caches the emissions from the source Observable and replays them
-    * in order to any subsequent Subscribers. This method has similar
-    * behavior to [[Observable!.replay(implicit* replay]] except that
-    * this auto-subscribes to the source Observable rather than
-    * returning a [[monix.streams.observables.ConnectableObservable ConnectableObservable]]
+    * in order to any subsequent Subscribers. This operator has
+    * similar behavior to [[Observable!.replay(implicit* replay]]
+    * except that this auto-subscribes to the source Observable rather
+    * than returning a
+    * [[monix.streams.observables.ConnectableObservable ConnectableObservable]]
     * for which you must call
     * [[monix.streams.observables.ConnectableObservable.connect connect]]
     * to activate the subscription.
     *
-    * When you call cache, it does not yet subscribe to the source Observable
-    * and so does not yet begin caching items. This only happens when the
-    * first Subscriber calls the resulting Observable's `subscribe` method.
+    * When you call cache, it does not yet subscribe to the source
+    * Observable and so does not yet begin caching items. This only
+    * happens when the first Subscriber calls the resulting
+    * Observable's `subscribe` method.
     *
-    * Note: You sacrifice the ability to cancel the origin when you use
-    * the cache operator so be careful not to use this on Observables that emit an
-    * infinite or very large number of items that will use up memory.
+    * Note: You sacrifice the ability to cancel the origin when you
+    * use the cache operator so be careful not to use this on
+    * Observables that emit an infinite or very large number of items
+    * that will use up memory.
     *
     * @return an Observable that, when first subscribed to, caches all of its
     *         items and notifications for the benefit of subsequent subscribers
@@ -1752,113 +1637,119 @@ trait Observable[+T] { self =>
     CachedObservable.create(self)
 
   /** Caches the emissions from the source Observable and replays them
-    * in order to any subsequent Subscribers. This method has similar
-    * behavior to [[Observable!.replay(implicit* replay]] except that this
-    * auto-subscribes to the source Observable rather than returning a
+    * in order to any subsequent Subscribers. This operator has
+    * similar behavior to [[Observable!.replay(implicit* replay]]
+    * except that this auto-subscribes to the source Observable rather
+    * than returning a
     * [[monix.streams.observables.ConnectableObservable ConnectableObservable]]
     * for which you must call
     * [[monix.streams.observables.ConnectableObservable.connect connect]]
     * to activate the subscription.
     *
-    * When you call cache, it does not yet subscribe to the source Observable
-    * and so does not yet begin caching items. This only happens when the
-    * first Subscriber calls the resulting Observable's `subscribe` method.
+    * When you call cache, it does not yet subscribe to the source
+    * Observable and so does not yet begin caching items. This only
+    * happens when the first Subscriber calls the resulting
+    * Observable's `subscribe` method.
     *
     * @param maxCapacity is the maximum buffer size after which old events
-    *                    start being dropped (according to what happens when using
-    *                    [[monix.streams.subjects.ReplaySubject.createWithSize ReplaySubject.createWithSize]])
+    *        start being dropped (according to what happens when using
+    *        [[ReplayProcessor.createWithSize ReplayProcessor.createWithSize]])
     * @return an Observable that, when first subscribed to, caches all of its
     *         items and notifications for the benefit of subsequent subscribers
     */
   def cache(maxCapacity: Int): Observable[T] =
     CachedObservable.create(self, maxCapacity)
 
-  /** Converts this observable into a multicast observable, useful for turning a cold observable into
-    * a hot one (i.e. whose source is shared by all observers). The underlying subject used is a
-    * [[monix.streams.subjects.BehaviorSubject BehaviorSubject]].
+  /** Converts this observable into a multicast observable, useful for
+    * turning a cold observable into a hot one (i.e. whose source is
+    * shared by all observers). The underlying subject used is a
+    * [[BehaviorProcessor BehaviorProcessor]].
     */
   def behavior[U >: T](initialValue: U)(implicit s: Scheduler): ConnectableObservable[U] =
-    multicast(BehaviorSubject[U](initialValue))
+    unsafeMulticast(BehaviorProcessor[U](initialValue))
 
-  /** Converts this observable into a multicast observable, useful for turning a cold observable into
-    * a hot one (i.e. whose source is shared by all observers). The underlying subject used is a
-    * [[monix.streams.subjects.ReplaySubject ReplaySubject]].
+  /** Converts this observable into a multicast observable, useful for
+    * turning a cold observable into a hot one (i.e. whose source is
+    * shared by all observers). The underlying subject used is a
+    * [[broadcast.ReplayProcessor ReplayProcessor]].
     */
   def replay(implicit s: Scheduler): ConnectableObservable[T] =
-    multicast(ReplaySubject[T]())
+    unsafeMulticast(ReplayProcessor[T]())
 
-  /** Converts this observable into a multicast observable, useful for turning a cold observable into
-    * a hot one (i.e. whose source is shared by all observers). The underlying subject used is a
-    * [[monix.streams.subjects.ReplaySubject ReplaySubject]].
+  /** Converts this observable into a multicast observable, useful for
+    * turning a cold observable into a hot one (i.e. whose source is
+    * shared by all observers). The underlying subject used is a
+    * [[broadcast.ReplayProcessor ReplayProcessor]].
     *
-    * @param bufferSize is the size of the buffer limiting the number of items
-    *                   that can be replayed (on overflow the head starts being
-    *                   dropped)
+    * @param bufferSize is the size of the buffer limiting the number
+    *        of items that can be replayed (on overflow the head
+    *        starts being dropped)
     */
   def replay(bufferSize: Int)(implicit s: Scheduler): ConnectableObservable[T] =
-    multicast(ReplaySubject.createWithSize[T](bufferSize))
+    unsafeMulticast(ReplayProcessor.createWithSize[T](bufferSize))
 
-  /** Converts this observable into a multicast observable, useful for turning a cold observable into
-    * a hot one (i.e. whose source is shared by all observers). The underlying subject used is a
-    * [[monix.streams.subjects.AsyncSubject AsyncSubject]].
+  /** Converts this observable into a multicast observable, useful for
+    * turning a cold observable into a hot one (i.e. whose source is
+    * shared by all observers). The underlying subject used is a
+    * [[AsyncProcessor AsyncProcessor]].
     */
   def publishLast(implicit s: Scheduler): ConnectableObservable[T] =
-    multicast(AsyncSubject[T]())
+    unsafeMulticast(AsyncProcessor[T]())
 
   /** Returns an Observable that mirrors the behavior of the source,
-    * unless the source is terminated with an `onError`, in which
-    * case the streaming of events continues with the specified
-    * backup sequence generated by the given partial function.
+    * unless the source is terminated with an `onError`, in which case
+    * the streaming of events continues with the specified backup
+    * sequence generated by the given partial function.
     *
-    * The created Observable mirrors the behavior of the source
-    * in case the source does not end with an error or if the
-    * thrown `Throwable` is not matched.
+    * The created Observable mirrors the behavior of the source in
+    * case the source does not end with an error or if the thrown
+    * `Throwable` is not matched.
     *
-    * NOTE that compared with `onErrorResumeNext` from Rx.NET,
-    * the streaming is not resumed in case the source is
-    * terminated normally with an `onComplete`.
+    * NOTE that compared with `onErrorResumeNext` from Rx.NET, the
+    * streaming is not resumed in case the source is terminated
+    * normally with an `onComplete`.
     *
-    * @param pf - a partial function that matches errors with a
-    *           backup throwable that is subscribed when the source
-    *           throws an error.
+    * @param pf is a partial function that matches errors with a
+    *        backup throwable that is subscribed when the source
+    *        throws an error.
     */
   def onErrorRecoverWith[U >: T](pf: PartialFunction[Throwable, Observable[U]]): Observable[U] =
     operators.onError.recoverWith(self, pf)
 
   /** Returns an Observable that mirrors the behavior of the source,
-    * unless the source is terminated with an `onError`, in which
-    * case the streaming of events continues with the specified
-    * backup sequence.
+    * unless the source is terminated with an `onError`, in which case
+    * the streaming of events continues with the specified backup
+    * sequence.
     *
-    * The created Observable mirrors the behavior of the source
-    * in case the source does not end with an error.
+    * The created Observable mirrors the behavior of the source in
+    * case the source does not end with an error.
     *
-    * NOTE that compared with `onErrorResumeNext` from Rx.NET,
-    * the streaming is not resumed in case the source is
-    * terminated normally with an `onComplete`.
+    * NOTE that compared with `onErrorResumeNext` from Rx.NET, the
+    * streaming is not resumed in case the source is terminated
+    * normally with an `onComplete`.
     *
-    * @param that - a backup sequence that's being subscribed
-    *             in case the source terminates with an error.
+    * @param that is a backup sequence that's being subscribed
+    *        in case the source terminates with an error.
     */
   def onErrorFallbackTo[U >: T](that: => Observable[U]): Observable[U] =
     operators.onError.fallbackTo(self, that)
 
   /** Returns an Observable that mirrors the behavior of the source,
     * unless the source is terminated with an `onError`, in which case
-    * it tries subscribing to the source again in the hope that
-    * it will complete without an error.
+    * it tries subscribing to the source again in the hope that it
+    * will complete without an error.
     *
     * NOTE: The number of retries is unlimited, so something like
-    * `Observable.error(new RuntimeException).onErrorRetryUnlimited` will loop
-    * forever.
+    * `Observable.error(new RuntimeException).onErrorRetryUnlimited`
+    * will loop forever.
     */
   def onErrorRetryUnlimited: Observable[T] =
     operators.onError.retryUnlimited(self)
 
   /** Returns an Observable that mirrors the behavior of the source,
     * unless the source is terminated with an `onError`, in which case
-    * it tries subscribing to the source again in the hope that
-    * it will complete without an error.
+    * it tries subscribing to the source again in the hope that it
+    * will complete without an error.
     *
     * The number of retries is limited by the specified `maxRetries`
     * parameter, so for an Observable that always ends in error the
@@ -1870,8 +1761,8 @@ trait Observable[+T] { self =>
 
   /** Returns an Observable that mirrors the behavior of the source,
     * unless the source is terminated with an `onError`, in which case
-    * it tries subscribing to the source again in the hope that
-    * it will complete without an error.
+    * it tries subscribing to the source again in the hope that it
+    * will complete without an error.
     *
     * The given predicate establishes if the subscription should be
     * retried or not.
@@ -1880,9 +1771,9 @@ trait Observable[+T] { self =>
     operators.onError.retryIf(self, p)
 
   /** Returns an Observable that mirrors the source Observable but
-    * applies a timeout for each emitted item. If the next item
-    * isn't emitted within the specified timeout duration starting from
-    * its predecessor, the resulting Observable terminates and notifies
+    * applies a timeout for each emitted item. If the next item isn't
+    * emitted within the specified timeout duration starting from its
+    * predecessor, the resulting Observable terminates and notifies
     * observers of a TimeoutException.
     *
     * @param timeout maximum duration between emitted items before
@@ -1892,21 +1783,22 @@ trait Observable[+T] { self =>
     operators.timeout.emitError(self, timeout)
 
   /** Returns an Observable that mirrors the source Observable but
-    * applies a timeout overflowStrategy for each emitted item. If the next item
-    * isn't emitted within the specified timeout duration starting from
-    * its predecessor, the resulting Observable begins instead to
-    * mirror a backup Observable.
+    * applies a timeout overflowStrategy for each emitted item. If the
+    * next item isn't emitted within the specified timeout duration
+    * starting from its predecessor, the resulting Observable begins
+    * instead to mirror a backup Observable.
     *
     * @param timeout maximum duration between emitted items before
-    *                a timeout occurs
+    *        a timeout occurs
     * @param backup is the backup observable to subscribe to
-    *               in case of a timeout
+    *        in case of a timeout
     */
   def timeout[U >: T](timeout: FiniteDuration, backup: Observable[U]): Observable[U] =
     operators.timeout.switchToBackup(self, timeout, backup)
 
-  /** Given a function that transforms an `Observable[T]` into an `Observable[U]`,
-    * it transforms the source observable into an `Observable[U]`.
+  /** Given a function that transforms an `Observable[T]` into an
+    * `Observable[U]`, it transforms the source observable into an
+    * `Observable[U]`.
     */
   def lift[U](f: Observable[T] => Observable[U]): Observable[U] =
     f(self)
@@ -1935,11 +1827,11 @@ trait Observable[+T] { self =>
     promise.future
   }
 
-  /** Subscribes to the source `Observable` and foreach element emitted by the source
-    * it executes the given callback.
+  /** Subscribes to the source `Observable` and foreach element emitted
+    * by the source it executes the given callback.
     */
   def foreach(cb: T => Unit)(implicit s: Scheduler): Unit =
-    unsafeSubscribeFn(new SynchronousObserver[T] {
+    unsafeSubscribeFn(new SyncObserver[T] {
       def onNext(elem: T) =
         try {
           cb(elem); Continue
@@ -1994,13 +1886,13 @@ object Observable {
     builders.unit.never
 
   /** Returns an Observable that calls an Observable factory to create
-    * an Observable for each new Observer that subscribes. That is, for
-    * each subscriber, the actual Observable that subscriber observes is
-    * determined by the factory function.
+    * an Observable for each new Observer that subscribes. That is,
+    * for each subscriber, the actual Observable that subscriber
+    * observes is determined by the factory function.
     *
     * The defer Observer allows you to defer or delay emitting items
-    * from an Observable until such time as an Observer subscribes
-    * to the Observable. This allows an Observer to easily obtain updates
+    * from an Observable until such time as an Observer subscribes to
+    * the Observable. This allows an Observer to easily obtain updates
     * or a refreshed version of the sequence.
     *
     * @param factory is the Observable factory function to invoke for each
@@ -2093,35 +1985,15 @@ object Observable {
   def range(from: Long, until: Long, step: Long = 1L): Observable[Long] =
     builders.range(from, until, step)
 
-  /** Creates an Observable that emits the given elements.
-    *
-    * Usage sample: {{{
-    *   val obs = Observable(1, 2, 3, 4)
-    *
-    *   obs.dump("MyObservable").subscribe()
-    *   //=> 0: MyObservable-->1
-    *   //=> 1: MyObservable-->2
-    *   //=> 2: MyObservable-->3
-    *   //=> 3: MyObservable-->4
-    *   //=> 4: MyObservable completed
-    * }}}
-    */
+  /** Creates an Observable that emits the given elements. */
   def apply[T](elems: T*): Observable[T] = {
     fromIterable(elems)
   }
 
-  /** Given an initial state and a generator function that produces
-    * the next state and the next element in the sequence, creates
-    * an observable that keeps generating elements produced by our
+  /** Given an initial state and a generator function that produces the
+    * next state and the next element in the sequence, creates an
+    * observable that keeps generating elements produced by our
     * generator function.
-    *
-    * {{{
-    *   from monix.execution.Implicits.{globalScheduler => s}
-    *   from monix.util import Random
-    *
-    *   def randomDoubles(): Observable[Double] =
-    *     Observable.fromStateAction(Random.double)(s.currentTimeMillis())
-    * }}}
     */
   def fromStateAction[S, A](f: S => (A, S))(initialState: S): Observable[A] =
     builders.from.stateAction(f)(initialState)
@@ -2192,7 +2064,7 @@ object Observable {
     * See the [[http://www.reactive-streams.org/ Reactive Streams]]
     * protocol that Monix implements.
     *
-    * @param requestSize is
+    * @param requestSize is the batch size to use when requesting items
     */
   def toReactivePublisher[T](source: Observable[T], requestSize: Int)(implicit s: Scheduler): RPublisher[T] =
     new RPublisher[T] {
@@ -2217,8 +2089,8 @@ object Observable {
   def flatten[T](sources: Observable[T]*): Observable[T] =
     Observable.fromIterable(sources).concat
 
-  /** Concatenates the given list of ''observables'' into a single observable.
-    * Delays errors until the end.
+  /** Concatenates the given list of ''observables'' into a single
+    * observable.  Delays errors until the end.
     */
   def flattenDelayError[T](sources: Observable[T]*): Observable[T] =
     Observable.fromIterable(sources).concatDelayError
@@ -2234,8 +2106,8 @@ object Observable {
   def mergeDelayError[T](sources: Observable[T]*): Observable[T] =
     Observable.fromIterable(sources).mergeDelayErrors
 
-
-  /** Concatenates the given list of ''observables'' into a single observable.
+  /** Concatenates the given list of ''observables'' into a single
+    * observable.
     */
   def concat[T](sources: Observable[T]*): Observable[T] =
     Observable.fromIterable(sources).concat
@@ -2296,8 +2168,8 @@ object Observable {
       .map { case (((((t1, t2), t3), t4), t5), t6) => (t1, t2, t3, t4, t5, t6) }
   }
 
-  /** Given an observable sequence, it [[Observable!.zip zips]] them together
-    * returning a new observable that generates sequences.
+  /** Given an observable sequence, it [[Observable!.zip zips]] them
+    * together returning a new observable that generates sequences.
     */
   def zipList[T](sources: Observable[T]*): Observable[Seq[T]] = {
     if (sources.isEmpty) Observable.empty
@@ -2391,8 +2263,8 @@ object Observable {
       .map { case (((((t1, t2), t3), t4), t5), t6) => (t1, t2, t3, t4, t5, t6) }
   }
 
-  /** Given an observable sequence, it [[Observable!.zip zips]] them together
-    * returning a new observable that generates sequences.
+  /** Given an observable sequence, it [[Observable!.zip zips]] them
+    * together returning a new observable that generates sequences.
     */
   def combineLatestList[T](sources: Observable[T]*): Observable[Seq[T]] = {
     if (sources.isEmpty) Observable.empty

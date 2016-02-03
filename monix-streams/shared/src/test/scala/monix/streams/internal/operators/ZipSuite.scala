@@ -17,10 +17,10 @@
 
 package monix.streams.internal.operators
 
+import monix.streams.broadcast.PublishProcessor
 import monix.streams.{Observer, Observable, Ack}
 import monix.streams.Ack.Continue
 import monix.streams.exceptions.DummyException
-import monix.streams.subjects.PublishSubject
 import monix.streams.Observer
 import monix.execution.FutureUtils.ops._
 
@@ -52,8 +52,8 @@ object ZipSuite extends BaseOperatorSuite {
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 
   test("self starts before other and finishes before other") { implicit s =>
-    val obs1 = PublishSubject[Int]()
-    val obs2 = PublishSubject[Int]()
+    val obs1 = PublishProcessor[Int]()
+    val obs2 = PublishProcessor[Int]()
 
     var received = (0, 0)
     var wasCompleted = false
@@ -84,8 +84,8 @@ object ZipSuite extends BaseOperatorSuite {
 
 
   test("self signals error and interrupts the stream before it starts") { implicit s =>
-    val obs1 = PublishSubject[Int]()
-    val obs2 = PublishSubject[Int]()
+    val obs1 = PublishProcessor[Int]()
+    val obs2 = PublishProcessor[Int]()
 
     var wasThrown: Throwable = null
     var wasCanceled = false
@@ -107,8 +107,8 @@ object ZipSuite extends BaseOperatorSuite {
   }
 
   test("other signals error and interrupts the stream before it starts") { implicit s =>
-    val obs1 = PublishSubject[Int]()
-    val obs2 = PublishSubject[Int]()
+    val obs1 = PublishProcessor[Int]()
+    val obs2 = PublishProcessor[Int]()
 
     var wasThrown: Throwable = null
     var wasCanceled = false
@@ -130,8 +130,8 @@ object ZipSuite extends BaseOperatorSuite {
   }
 
   test("back-pressure self.onError") { implicit s =>
-    val obs1 = PublishSubject[Int]()
-    val obs2 = PublishSubject[Int]()
+    val obs1 = PublishProcessor[Int]()
+    val obs2 = PublishProcessor[Int]()
 
     var wasThrown: Throwable = null
 
@@ -155,8 +155,8 @@ object ZipSuite extends BaseOperatorSuite {
   }
 
   test("back-pressure other.onError") { implicit s =>
-    val obs1 = PublishSubject[Int]()
-    val obs2 = PublishSubject[Int]()
+    val obs1 = PublishProcessor[Int]()
+    val obs2 = PublishProcessor[Int]()
 
     var wasThrown: Throwable = null
 

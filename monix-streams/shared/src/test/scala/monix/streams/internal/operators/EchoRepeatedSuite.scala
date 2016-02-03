@@ -18,10 +18,10 @@
 package monix.streams.internal.operators
 
 import monix.execution.FutureUtils.ops._
+import monix.streams.broadcast.PublishProcessor
 import monix.streams.{Observer, Observable, Ack}
 import monix.streams.Ack.Continue
 import monix.streams.Observer
-import monix.streams.subjects.PublishSubject
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
@@ -47,7 +47,7 @@ object EchoRepeatedSuite extends BaseOperatorSuite {
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 
   test("should timeout on inactivity and start emitting") { implicit s =>
-    val channel = PublishSubject[Int]()
+    val channel = PublishProcessor[Int]()
     var received = 0
     var wasCompleted = false
 
@@ -79,7 +79,7 @@ object EchoRepeatedSuite extends BaseOperatorSuite {
   }
 
   test("time for processing upstream messages should be ignored") { implicit s =>
-    val channel = PublishSubject[Int]()
+    val channel = PublishProcessor[Int]()
     var received = 0
     var wasCompleted = false
 
@@ -119,7 +119,7 @@ object EchoRepeatedSuite extends BaseOperatorSuite {
   }
 
   test("interval should be at fixed rate") { implicit s =>
-    val channel = PublishSubject[Int]()
+    val channel = PublishProcessor[Int]()
     var received = 0
     var wasCompleted = false
 
@@ -152,7 +152,7 @@ object EchoRepeatedSuite extends BaseOperatorSuite {
   }
 
   test("new item should interrupt the streaming") { implicit s =>
-    val channel = PublishSubject[Int]()
+    val channel = PublishProcessor[Int]()
     var received = 0
     var wasCompleted = false
 

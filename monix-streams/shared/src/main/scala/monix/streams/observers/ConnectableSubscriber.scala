@@ -20,13 +20,14 @@ package monix.streams.observers
 import monix.execution.Scheduler
 import monix.streams._
 import monix.streams.Ack.{Cancel, Continue}
+import monix.streams.broadcast.Subject
 import monix.streams.internal.FutureAckExtensions
 import scala.collection.mutable
 import scala.concurrent.{Future, Promise}
 
 
 /** Wraps a [[Subscriber]] into an implementation that abstains from emitting items until the call
-  * to `connect()` happens. Prior to `connect()` it's also a [[Channel]] into which you can enqueue
+  * to `connect()` happens. Prior to `connect()` it's also a [[Subject]] into which you can enqueue
   * events for delivery once `connect()` happens, but before any items
   * emitted by `onNext` / `onComplete` and `onError`.
   *
@@ -37,9 +38,9 @@ import scala.concurrent.{Future, Promise}
   *   obs.onNext("c")
   *
   *   // schedule event "a" to be emitted first
-  *   obs.pushNext("a")
+  *   obs.pushFirst("a")
   *   // schedule event "b" to be emitted second
-  *   obs.pushNext("b")
+  *   obs.pushFirst("b")
   *
   *   // underlying observer now gets events "a", "b", "c" in order
   *   obs.connect()
@@ -51,8 +52,8 @@ import scala.concurrent.{Future, Promise}
   *   // schedule onNext event, after connect()
   *   obs.onNext("c")
   *
-  *   obs.pushNext("a") // event "a" to be emitted first
-  *   obs.pushNext("b") // event "b" to be emitted first
+  *   obs.pushFirst("a") // event "a" to be emitted first
+  *   obs.pushFirst("b") // event "b" to be emitted second
   *
   *   // schedule an onError sent downstream, once connect()
   *   // happens, but after "a" and "b"
@@ -66,7 +67,7 @@ import scala.concurrent.{Future, Promise}
   * }}}
   */
 final class ConnectableSubscriber[-T] private (underlying: Subscriber[T])
-  extends Channel[T] with Subscriber[T] { self =>
+  extends Subscriber[T] { self =>
 
   private[this] val lock = new AnyRef
   implicit def scheduler: Scheduler =
@@ -158,13 +159,13 @@ final class ConnectableSubscriber[-T] private (underlying: Subscriber[T])
 
   /**
     * Emit an item immediately to the underlying observer,
-    * after previous `pushNext()` events, but before any events emitted through
+    * after previous `pushFirst()` events, but before any events emitted through
     * `onNext`.
     */
-  def pushNext(elems: T*) =
+  def pushFirst(elems: T*) =
     lock.synchronized {
       if (isConnected || isConnectionStarted)
-        throw new IllegalStateException("Observer was already connected, so cannot pushNext")
+        throw new IllegalStateException("Observer was already connected, so cannot pushFirst")
       else if (!scheduledDone)
         queue.append(elems : _*)
     }
@@ -173,7 +174,7 @@ final class ConnectableSubscriber[-T] private (underlying: Subscriber[T])
   private[monix] def pushIterable[U <: T](iterable: Iterable[U]) =
     lock.synchronized {
       if (isConnected || isConnectionStarted)
-        throw new IllegalStateException("Observer was already connected, so cannot pushNext")
+        throw new IllegalStateException("Observer was already connected, so cannot pushFirst")
       else if (!scheduledDone) {
         val cursor = iterable.iterator
         while (cursor.hasNext)
@@ -187,7 +188,7 @@ final class ConnectableSubscriber[-T] private (underlying: Subscriber[T])
   def pushComplete() =
     lock.synchronized {
       if (isConnected || isConnectionStarted)
-        throw new IllegalStateException("Observer was already connected, so cannot pushNext")
+        throw new IllegalStateException("Observer was already connected, so cannot pushFirst")
       else if (!scheduledDone) {
         scheduledDone = true
       }
@@ -196,7 +197,7 @@ final class ConnectableSubscriber[-T] private (underlying: Subscriber[T])
   def pushError(ex: Throwable) =
     lock.synchronized {
       if (isConnected || isConnectionStarted)
-        throw new IllegalStateException("Observer was already connected, so cannot pushNext")
+        throw new IllegalStateException("Observer was already connected, so cannot pushFirst")
       else if (!scheduledDone) {
         scheduledDone = true
         scheduledError = ex

@@ -51,7 +51,7 @@ object ConnectableSubscriberSuite extends TestSuite[TestScheduler] {
     s.tick()
 
     assert(!f.isCompleted, "f should not be completed")
-    for (i <- 1 until 10) downstream.pushNext(i)
+    for (i <- 1 until 10) downstream.pushFirst(i)
 
     s.tick()
     assert(!f.isCompleted, "f should not be completed")
@@ -80,8 +80,8 @@ object ConnectableSubscriberSuite extends TestSuite[TestScheduler] {
       }
     })
 
-    downstream.pushNext(1)
-    downstream.pushNext(2)
+    downstream.pushFirst(1)
+    downstream.pushFirst(2)
     downstream.connect()
     s.tick()
 
@@ -105,8 +105,8 @@ object ConnectableSubscriberSuite extends TestSuite[TestScheduler] {
     })
 
     downstream.onNext(10)
-    downstream.pushNext(1)
-    downstream.pushNext(2)
+    downstream.pushFirst(1)
+    downstream.pushFirst(2)
     downstream.pushComplete()
     downstream.connect()
     s.tick()
@@ -131,8 +131,8 @@ object ConnectableSubscriberSuite extends TestSuite[TestScheduler] {
     })
 
     downstream.onNext(10)
-    downstream.pushNext(1)
-    downstream.pushNext(2)
+    downstream.pushFirst(1)
+    downstream.pushFirst(2)
     downstream.pushError(DummyException("dummy"))
     downstream.connect()
     s.tick()

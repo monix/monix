@@ -18,11 +18,11 @@
 package monix.streams.internal.operators
 
 import monix.execution.cancelables.{BooleanCancelable, RefCountCancelable}
-import monix.streams.{OverflowStrategy, Observer, Observable, Ack}
+import monix.streams._
 import monix.streams.Ack.{Cancel, Continue}
 import monix.streams.exceptions.CompositeException
 import monix.streams.internal._
-import monix.streams.observers.{BufferedSubscriber, SynchronousObserver}
+import monix.streams.observers.{SyncObserver, BufferedSubscriber}
 import scala.collection.mutable
 import scala.concurrent.Promise
 
@@ -111,7 +111,7 @@ private[monix] object flatten {
       import subscriber.{scheduler => s}
       val observerU = BufferedSubscriber(subscriber, overflowStrategy, onOverflow)
 
-      source.unsafeSubscribeFn(new SynchronousObserver[T] {
+      source.unsafeSubscribeFn(new SyncObserver[T] {
         private[this] val streamActivity =
           BooleanCancelable()
         private[this] val errors = if (delayErrors)

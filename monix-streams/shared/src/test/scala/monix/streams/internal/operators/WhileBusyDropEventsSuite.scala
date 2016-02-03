@@ -19,11 +19,11 @@ package monix.streams.internal.operators
 
 import minitest.TestSuite
 import monix.execution.schedulers.TestScheduler
+import monix.streams.broadcast.PublishProcessor
 import monix.streams.{Observer, Observable, Ack}
 import monix.streams.Ack.Continue
 import monix.streams.exceptions.DummyException
 import monix.streams.Observer
-import monix.streams.subjects.PublishSubject
 
 import scala.concurrent.Promise
 import scala.util.Success
@@ -43,7 +43,7 @@ object WhileBusyDropEventsSuite extends TestSuite[TestScheduler] {
   }
 
   test("should drop events for busy observers") { implicit s =>
-    val source = PublishSubject[Long]()
+    val source = PublishProcessor[Long]()
     val p = Promise[Continue]()
     var received = 0L
     var wasCompleted = false
@@ -76,7 +76,7 @@ object WhileBusyDropEventsSuite extends TestSuite[TestScheduler] {
   }
 
   test("onComplete should apply back-pressure") { implicit s =>
-    val source = PublishSubject[Long]()
+    val source = PublishProcessor[Long]()
     val p = Promise[Continue]()
     var received = 0L
     var wasCompleted = false
@@ -107,7 +107,7 @@ object WhileBusyDropEventsSuite extends TestSuite[TestScheduler] {
   }
 
   test("onError should apply back-pressure") { implicit s =>
-    val source = PublishSubject[Long]()
+    val source = PublishProcessor[Long]()
     val p = Promise[Continue]()
     var received = 0L
     var wasThrown = null : Throwable

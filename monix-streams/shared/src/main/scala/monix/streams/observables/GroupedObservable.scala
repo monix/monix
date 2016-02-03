@@ -17,6 +17,7 @@
 
 package monix.streams.observables
 
+import scala.language.reflectiveCalls
 import monix.execution.{Cancelable, Scheduler}
 import monix.streams.{Subscriber, Observer, Observable, Ack}
 import monix.streams.internal._
@@ -32,12 +33,8 @@ import scala.concurrent.Future
   * - supports a single subscriber, throwing `IllegalStateException`
   *   if you attempt multiple subscriptions
   */
-trait GroupedObservable[K, +V] extends Observable[V]
-  with LiftOperators2[K,V,GroupedObservable] { self =>
-
-  /**
-    * Returns the key associated with this grouped observable.
-    */
+trait GroupedObservable[K, +V] extends Observable[V] { self =>
+  /** Returns the key associated with this grouped observable. */
   def key: K
 
   protected def liftToSelf[U](f: (Observable[V]) => Observable[U]): GroupedObservable[K, U] =

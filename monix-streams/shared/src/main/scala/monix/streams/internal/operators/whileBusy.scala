@@ -17,10 +17,10 @@
 
 package monix.streams.internal.operators
 
+import monix.streams.observers.SyncObserver
 import monix.streams.{Observable, Ack}
 import monix.streams.Ack.{Cancel, Continue}
 import monix.streams.internal._
-import monix.streams.observers.SynchronousObserver
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
@@ -33,7 +33,7 @@ private[monix] object whileBusy {
     Observable.unsafeCreate { subscriber =>
       implicit val s = subscriber.scheduler
 
-      source.unsafeSubscribeFn(new SynchronousObserver[T] {
+      source.unsafeSubscribeFn(new SyncObserver[T] {
         private[this] var lastAck = Continue : Future[Ack]
         private[this] var isDone = false
 
@@ -91,7 +91,7 @@ private[monix] object whileBusy {
     Observable.unsafeCreate { subscriber =>
       implicit val s = subscriber.scheduler
 
-      source.unsafeSubscribeFn(new SynchronousObserver[T] {
+      source.unsafeSubscribeFn(new SyncObserver[T] {
         private[this] var lastAck = Continue : Future[Ack]
         private[this] var eventsDropped = 0L
         private[this] var isDone = false

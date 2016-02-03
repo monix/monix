@@ -21,7 +21,7 @@ import monix.execution.Scheduler
 import monix.execution.internal.Platform
 import monix.streams.Ack.{Continue, Cancel}
 import monix.streams.internal.reactivestreams._
-import monix.streams.observers.{SynchronousObserver, SynchronousSubscriber}
+import monix.streams.observers.{SyncObserver, SyncSubscriber}
 import org.reactivestreams.{Subscriber => RSubscriber}
 
 import scala.annotation.tailrec
@@ -78,9 +78,9 @@ object Observer {
   def toReactiveSubscriber[T](observer: Observer[T], bufferSize: Int)(implicit s: Scheduler): RSubscriber[T] = {
     require(bufferSize > 0, "requestCount > 0")
     observer match {
-      case sync: SynchronousObserver[_] =>
-        val inst = sync.asInstanceOf[SynchronousObserver[T]]
-        SynchronousSubscriberAsReactiveSubscriber(SynchronousSubscriber(inst, s), bufferSize)
+      case sync: SyncObserver[_] =>
+        val inst = sync.asInstanceOf[SyncObserver[T]]
+        SyncSubscriberAsReactiveSubscriber(SyncSubscriber(inst, s), bufferSize)
       case async =>
         SubscriberAsReactiveSubscriber(Subscriber(async, s), bufferSize)
     }

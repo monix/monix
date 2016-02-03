@@ -21,7 +21,7 @@ import monix.execution.internal.Platform
 import monix.execution.internal.collection.{EvictingQueue, DropHeadOnOverflowQueue, DropAllOnOverflowQueue}
 import monix.streams.{Subscriber, OverflowStrategy, Ack}
 import monix.streams.Ack.{Cancel, Continue}
-import monix.streams.observers.{BufferedSubscriber, SynchronousSubscriber}
+import monix.streams.observers.{BufferedSubscriber, SyncSubscriber}
 import scala.annotation.tailrec
 import scala.util.Failure
 import scala.util.control.NonFatal
@@ -32,7 +32,7 @@ import scala.util.control.NonFatal
  */
 private[buffers] final class EvictingBufferedSubscriber[-T] private
   (underlying: Subscriber[T], buffer: EvictingQueue[AnyRef], onOverflow: Long => T = null)
-  extends BufferedSubscriber[T] with SynchronousSubscriber[T] { self =>
+  extends BufferedSubscriber[T] with SyncSubscriber[T] { self =>
 
   implicit val scheduler = underlying.scheduler
   // to be modified only in onError, before upstreamIsComplete
@@ -206,7 +206,7 @@ private[monix] object EvictingBufferedSubscriber {
    * for the [[monix.streams.OverflowStrategy.DropOld DropOld]]
    * overflow strategy.
    */
-  def dropOld[T](underlying: Subscriber[T], bufferSize: Int): SynchronousSubscriber[T] = {
+  def dropOld[T](underlying: Subscriber[T], bufferSize: Int): SyncSubscriber[T] = {
     require(bufferSize > 1,
       "bufferSize must be a strictly positive number, bigger than 1")
 
@@ -220,7 +220,7 @@ private[monix] object EvictingBufferedSubscriber {
    * overflow strategy, with signaling of the number of events that
    * were dropped.
    */
-  def dropOld[T](underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => T): SynchronousSubscriber[T] = {
+  def dropOld[T](underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => T): SyncSubscriber[T] = {
     require(bufferSize > 1,
       "bufferSize must be a strictly positive number, bigger than 1")
 
@@ -233,7 +233,7 @@ private[monix] object EvictingBufferedSubscriber {
    * [[monix.streams.OverflowStrategy.ClearBuffer ClearBuffer]]
    * overflow strategy.
    */
-  def clearBuffer[T](underlying: Subscriber[T], bufferSize: Int): SynchronousSubscriber[T] = {
+  def clearBuffer[T](underlying: Subscriber[T], bufferSize: Int): SyncSubscriber[T] = {
     require(bufferSize > 1,
       "bufferSize must be a strictly positive number, bigger than 1")
 
@@ -247,7 +247,7 @@ private[monix] object EvictingBufferedSubscriber {
    * overflow strategy, with signaling of the number of events that
    * were dropped.
    */
-  def clearBuffer[T](underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => T): SynchronousSubscriber[T] = {
+  def clearBuffer[T](underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => T): SyncSubscriber[T] = {
     require(bufferSize > 1,
       "bufferSize must be a strictly positive number, bigger than 1")
 

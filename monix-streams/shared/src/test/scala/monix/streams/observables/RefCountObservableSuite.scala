@@ -21,7 +21,7 @@ import minitest.TestSuite
 import monix.execution.schedulers.TestScheduler
 import monix.streams.Ack.Continue
 import monix.streams.OverflowStrategy.Unbounded
-import monix.streams.channels.PublishChannel
+import monix.streams.broadcast.PublishSubject
 import monix.streams.exceptions.DummyException
 import monix.streams.{Ack, Observable, Observer}
 import scala.concurrent.Future
@@ -93,16 +93,16 @@ object RefCountObservableSuite extends TestSuite[TestScheduler] {
       def onComplete(): Unit = ()
     }
 
-    val ch = PublishChannel[Long](Unbounded)
+    val ch = PublishSubject[Long](Unbounded)
     val ref = ch.publish.refCount
     ref.subscribe(createObserver)
     ref.subscribe(createObserver)
 
     assertEquals(received, 0)
-    ch.pushNext(1)
+    ch.onNext(1)
     s.tick(); assertEquals(received, 2)
 
-    ch.pushError(DummyException("dummy"))
+    ch.onError(DummyException("dummy"))
     s.tick(); assertEquals(completed, 2)
 
     ref.subscribe(createObserver)
@@ -126,13 +126,13 @@ object RefCountObservableSuite extends TestSuite[TestScheduler] {
       def onComplete(): Unit = completed += 1
     }
 
-    val ch = PublishChannel[Long](Unbounded)
+    val ch = PublishSubject[Long](Unbounded)
     val ref = ch.publish.refCount
     ref.subscribe(createObserver)
     ref.subscribe(createObserver)
 
-    ch.pushNext(1)
-    ch.pushComplete()
+    ch.onNext(1)
+    ch.onComplete()
     s.tick()
 
     assertEquals(received, 2)

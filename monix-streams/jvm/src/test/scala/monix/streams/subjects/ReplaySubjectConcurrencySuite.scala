@@ -20,10 +20,11 @@ package monix.streams.subjects
 import java.util.concurrent.{TimeUnit, CountDownLatch}
 import minitest.TestSuite
 import monix.execution.Scheduler
+import monix.streams.broadcast.ReplayProcessor
+import monix.streams.observers.SyncObserver
 import monix.streams.{Observable, Ack}
 import monix.streams.Ack.Continue
 import monix.streams.internal.concurrent.RunnableAction
-import monix.streams.observers.SynchronousObserver
 
 object ReplaySubjectConcurrencySuite extends TestSuite[Scheduler] {
   def tearDown(env: Scheduler) = ()
@@ -36,7 +37,7 @@ object ReplaySubjectConcurrencySuite extends TestSuite[Scheduler] {
     val signalsPerSubscriber = 20000L
     val completed = new CountDownLatch(nrOfSubscribers)
 
-    def createObserver = new SynchronousObserver[Int] {
+    def createObserver = new SyncObserver[Int] {
       var received = 0L
       def onNext(elem: Int) = { received += elem; Continue }
       def onError(ex: Throwable): Unit = throw ex
@@ -46,7 +47,7 @@ object ReplaySubjectConcurrencySuite extends TestSuite[Scheduler] {
       }
     }
 
-    val subject = ReplaySubject[Int]()
+    val subject = ReplayProcessor[Int]()
     subject.unsafeSubscribeFn(createObserver)
 
     s.execute(RunnableAction {

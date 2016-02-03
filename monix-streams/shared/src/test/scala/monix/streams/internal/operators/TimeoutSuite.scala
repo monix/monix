@@ -19,12 +19,11 @@ package monix.streams.internal.operators
 
 import java.util.concurrent.TimeoutException
 import monix.execution.FutureUtils.ops._
-import monix.streams.{Observer, Observable, Ack}
+import monix.streams.broadcast.PublishProcessor
+import monix.streams._
 import monix.streams.Ack.Continue
 import monix.streams.exceptions.DummyException
-import monix.streams.observers.SynchronousObserver
-import monix.streams.subjects.PublishSubject
-import monix.streams.Observer
+import monix.streams.observers.SyncObserver
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
@@ -49,11 +48,11 @@ object TimeoutSuite extends BaseOperatorSuite {
     None
 
   test("should emit timeout after time passes") { implicit s =>
-    val p = PublishSubject[Int]()
+    val p = PublishProcessor[Int]()
     var received = 0
     var errorThrown: Throwable = null
 
-    p.timeout(10.seconds).subscribe(new SynchronousObserver[Int] {
+    p.timeout(10.seconds).subscribe(new SyncObserver[Int] {
       def onComplete() = ()
       def onError(ex: Throwable) = {
         errorThrown = ex
@@ -82,7 +81,7 @@ object TimeoutSuite extends BaseOperatorSuite {
   }
 
   test("should apply back-pressure on timeout") { implicit s =>
-    val p = PublishSubject[Int]()
+    val p = PublishProcessor[Int]()
     var received = 0
     var errorThrown: Throwable = null
 

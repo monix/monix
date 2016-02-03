@@ -19,11 +19,12 @@ package monix.streams.subjects
 
 import monix.streams.Ack.Continue
 import monix.streams.Observer
+import monix.streams.broadcast.AsyncProcessor
 import monix.streams.exceptions.DummyException
 
 object AsyncSubjectSuite extends BaseSubjectSuite {
   def alreadyTerminatedTest(expectedElems: Seq[Long]) = {
-    val s = AsyncSubject[Long]()
+    val s = AsyncProcessor[Long]()
     Sample(s, expectedElems.lastOption.getOrElse(0))
   }
 
@@ -45,7 +46,7 @@ object AsyncSubjectSuite extends BaseSubjectSuite {
       }
     }
 
-    val subject = AsyncSubject[Long]()
+    val subject = AsyncProcessor[Long]()
     subject.unsafeSubscribeFn(createObserver)
     subject.unsafeSubscribeFn(createObserver)
     subject.unsafeSubscribeFn(createObserver)
@@ -88,7 +89,7 @@ object AsyncSubjectSuite extends BaseSubjectSuite {
       }
     }
 
-    val subject = AsyncSubject[Long]()
+    val subject = AsyncProcessor[Long]()
     subject.unsafeSubscribeFn(createObserver)
     subject.unsafeSubscribeFn(createObserver)
     subject.unsafeSubscribeFn(createObserver)
@@ -126,7 +127,7 @@ object AsyncSubjectSuite extends BaseSubjectSuite {
       def onError(ex: Throwable) = ()
     }
 
-    val subject = AsyncSubject[Long]()
+    val subject = AsyncProcessor[Long]()
     subject.unsafeSubscribeFn(createObserver)
     subject.unsafeSubscribeFn(createObserver)
     subject.unsafeSubscribeFn(createObserver)
@@ -143,7 +144,7 @@ object AsyncSubjectSuite extends BaseSubjectSuite {
 
 
   test("subscribe after complete should complete immediately if empty") { implicit s =>
-    val subject = AsyncSubject[Int]()
+    val subject = AsyncProcessor[Int]()
     subject.onComplete()
 
     var wasCompleted = false
@@ -157,7 +158,7 @@ object AsyncSubjectSuite extends BaseSubjectSuite {
   }
 
   test("subscribe after complete should complete immediately if non-empty") { implicit s =>
-    val subject = AsyncSubject[Int]()
+    val subject = AsyncProcessor[Int]()
     subject.onNext(10)
     subject.onComplete()
 
@@ -175,7 +176,7 @@ object AsyncSubjectSuite extends BaseSubjectSuite {
   }
 
   test("onError should terminate current and future subscribers") { implicit s =>
-    val subject = AsyncSubject[Int]()
+    val subject = AsyncProcessor[Int]()
     val dummy = DummyException("dummy")
     var elemsReceived = 0
     var errorsReceived = 0

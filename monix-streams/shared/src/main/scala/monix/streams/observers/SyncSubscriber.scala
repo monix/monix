@@ -20,27 +20,27 @@ package monix.streams.observers
 import monix.execution.Scheduler
 import monix.streams.{Subscriber, Ack}
 
-/** A `SynchronousSubscriber` is a [[Subscriber]] whose `onNext` signal
+/** A `SyncSubscriber` is a [[Subscriber]] whose `onNext` signal
   * is synchronous (i.e. the upstream observable doesn't need to
   * wait on a `Future` in order to decide whether to send the next event
   * or not).
   */
-trait SynchronousSubscriber[-T] extends Subscriber[T]
-  with SynchronousObserver[T]
+trait SyncSubscriber[-T] extends Subscriber[T]
+  with SyncObserver[T]
 
-object SynchronousSubscriber {
+object SyncSubscriber {
   /** Subscriber builder */
-  def apply[T](observer: SynchronousObserver[T], scheduler: Scheduler): SynchronousSubscriber[T] =
+  def apply[T](observer: SyncObserver[T], scheduler: Scheduler): SyncSubscriber[T] =
     observer match {
-      case ref: SynchronousSubscriber[_] if ref.scheduler == scheduler =>
-        ref.asInstanceOf[SynchronousSubscriber[T]]
+      case ref: SyncSubscriber[_] if ref.scheduler == scheduler =>
+        ref.asInstanceOf[SyncSubscriber[T]]
       case _ =>
         new Implementation[T](observer, scheduler)
     }
 
   private[this] final class Implementation[-T]
-      (observer: SynchronousObserver[T], val scheduler: Scheduler)
-    extends SynchronousSubscriber[T] {
+      (observer: SyncObserver[T], val scheduler: Scheduler)
+    extends SyncSubscriber[T] {
 
     require(observer != null, "Observer should not be null")
     require(scheduler != null, "Scheduler should not be null")

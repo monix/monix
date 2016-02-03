@@ -19,7 +19,7 @@ package monix.streams.internal.operators
 
 import monix.execution.cancelables.BooleanCancelable
 import monix.streams.Ack.{Cancel, Continue}
-import monix.streams.observers.SynchronousSubscriber
+import monix.streams.observers.SyncSubscriber
 import monix.streams.{Ack, Observable, Observer, Subscriber}
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -57,7 +57,7 @@ private[monix] object sample {
 
   private class SampleObserver[T,U]
   (downstream: Subscriber[T], sampler: Observable[U], shouldRepeatOnSilence: Boolean)
-    extends SynchronousSubscriber[T] {
+    extends SyncSubscriber[T] {
 
     implicit val scheduler = downstream.scheduler
 

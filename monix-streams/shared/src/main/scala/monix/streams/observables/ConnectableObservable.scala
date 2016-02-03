@@ -19,20 +19,18 @@ package monix.streams.observables
 
 import monix.execution.Scheduler
 import monix.execution.cancelables.BooleanCancelable
+import monix.streams.broadcast.Processor
 import monix.streams.observers.CacheUntilConnectSubscriber
-import monix.streams.{Subscriber, Subject, Observable}
-import monix.streams
+import monix.streams.{Pipe, Observable, Subscriber}
 
 /** Represents an [[Observable Observable]] that waits for
   * the call to `connect()` before
   * starting to emit elements to its subscriber(s).
   *
   * Useful for converting cold observables into hot observables and thus returned by
-  * [[monix.streams.Observable.multicast Observable.multicast]].
+  * [[monix.streams.Observable.unsafeMulticast Observable.multicast]].
   */
-trait ConnectableObservable[+T] extends Observable[T]
-  with LiftOperators1[T, ConnectableObservable] { self =>
-
+trait ConnectableObservable[+T] extends Observable[T] { self =>
   /** Starts emitting events to subscribers. */
   def connect(): BooleanCancelable
 
@@ -43,36 +41,49 @@ trait ConnectableObservable[+T] extends Observable[T]
   def refCount: Observable[T] = {
     RefCountObservable(self)
   }
-
-  protected
-  def liftToSelf[U](f: Observable[T] => Observable[U]): ConnectableObservable[U] =
-    new ConnectableObservable[U] {
-      private[this] val lifted = f(self)
-      def connect() = self.connect()
-      def unsafeSubscribeFn(subscriber: Subscriber[U]): Unit =
-        lifted.unsafeSubscribeFn(subscriber)
-    }
 }
 
 
 object ConnectableObservable {
   /** Builds a [[ConnectableObservable]] for the given observable source
-    * and a given [[Subject]].
+    * and a given [[Processor]].
     */
-  def apply[T, R](source: Observable[T], subject: Subject[T, R])
+  def unsafeMulticast[T, R](source: Observable[T], pipe: Processor[T, R])
     (implicit s: Scheduler): ConnectableObservable[R] = {
 
     new ConnectableObservable[R] {
       private[this] lazy val connection = {
-        source.subscribe(subject)
+        source.subscribe(pipe)
       }
 
-      def connect() = {
+      def connect(): BooleanCancelable = {
         connection
       }
 
       def unsafeSubscribeFn(subscriber: Subscriber[R]): Unit = {
-        subject.unsafeSubscribeFn(subscriber)
+        pipe.unsafeSubscribeFn(subscriber)
+      }
+    }
+  }
+
+  /** Builds a [[ConnectableObservable]] for the given observable source
+    * and a given [[Pipe]].
+    */
+  def multicast[T, R](source: Observable[T], recipe: Pipe[T, R])
+    (implicit s: Scheduler): ConnectableObservable[R] = {
+
+    new ConnectableObservable[R] {
+      private[this] val pipe = recipe.createProcessor()
+      private[this] lazy val connection = {
+        source.subscribe(pipe)
+      }
+
+      def connect(): BooleanCancelable = {
+        connection
+      }
+
+      def unsafeSubscribeFn(subscriber: Subscriber[R]): Unit = {
+        pipe.unsafeSubscribeFn(subscriber)
       }
     }
   }
@@ -82,7 +93,7 @@ object ConnectableObservable {
     * the events are piped through the given `subject` to the final
     * subscribers.
     */
-  def cacheUntilConnect[T, R](source: Observable[T], subject: Subject[T, R])
+  def cacheUntilConnect[T, R](source: Observable[T], subject: Processor[T, R])
     (implicit s: Scheduler): ConnectableObservable[R] = {
 
     new ConnectableObservable[R] {
@@ -97,7 +108,7 @@ object ConnectableObservable {
         BooleanCancelable { cancelRef.cancel() }
       }
 
-      def connect() = {
+      def connect(): BooleanCancelable = {
         connection
       }
 

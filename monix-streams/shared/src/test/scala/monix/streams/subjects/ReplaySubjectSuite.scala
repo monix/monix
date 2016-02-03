@@ -18,26 +18,27 @@
 package monix.streams.subjects
 
 import monix.streams.Ack.Continue
+import monix.streams.broadcast.ReplayProcessor
+import monix.streams.observers.SyncObserver
 import monix.streams.{Ack, Observer}
 import monix.streams.exceptions.DummyException
-import monix.streams.observers.SynchronousObserver
 import scala.concurrent.Future
 
 object ReplaySubjectSuite extends BaseSubjectSuite {
   def alreadyTerminatedTest(expectedElems: Seq[Long]) = {
-    val s = ReplaySubject[Long]()
+    val s = ReplayProcessor[Long]()
     Sample(s, expectedElems.sum)
   }
 
   def continuousStreamingTest(expectedElems: Seq[Long]) = {
-    val s = ReplaySubject[Long]()
+    val s = ReplayProcessor[Long]()
     Some(Sample(s, expectedElems.sum))
   }
 
   test("subscribers should get everything") { implicit s =>
     var completed = 0
 
-    def create(expectedSum: Long) = new SynchronousObserver[Int] {
+    def create(expectedSum: Long) = new SyncObserver[Int] {
       var received = 0L
       def onNext(elem: Int) = { received += elem; Continue }
       def onError(ex: Throwable): Unit = throw ex
@@ -47,7 +48,7 @@ object ReplaySubjectSuite extends BaseSubjectSuite {
       }
     }
 
-    val subject = ReplaySubject[Int]()
+    val subject = ReplayProcessor[Int]()
     subject.unsafeSubscribeFn(create(20000))
 
     s.tick(); subject.onNext(2); s.tick()
@@ -72,7 +73,7 @@ object ReplaySubjectSuite extends BaseSubjectSuite {
 
 
   test("should work synchronously for synchronous subscribers, but after first onNext") { implicit s =>
-    val subject = ReplaySubject[Int]()
+    val subject = ReplayProcessor[Int]()
     var received = 0
     var wasCompleted = 0
 
@@ -99,7 +100,7 @@ object ReplaySubjectSuite extends BaseSubjectSuite {
   }
 
   test("should work with asynchronous subscribers") { implicit s =>
-    val subject = ReplaySubject[Int]()
+    val subject = ReplayProcessor[Int]()
     var received = 0
     var wasCompleted = 0
 
@@ -128,7 +129,7 @@ object ReplaySubjectSuite extends BaseSubjectSuite {
   }
 
   test("subscribe after complete should complete immediately") { implicit s =>
-    val subject = ReplaySubject[Int]()
+    val subject = ReplayProcessor[Int]()
     subject.onComplete()
 
     var wasCompleted = false
@@ -142,7 +143,7 @@ object ReplaySubjectSuite extends BaseSubjectSuite {
   }
 
   test("onError should terminate current and future subscribers") { implicit s =>
-    val subject = ReplaySubject[Int]()
+    val subject = ReplayProcessor[Int]()
     val dummy = DummyException("dummy")
     var elemsReceived = 0
     var errorsReceived = 0

@@ -19,13 +19,11 @@ package monix.streams.internal.reactivestreams
 
 import monix.streams
 import monix.streams.Ack.{Cancel, Continue}
-import monix.streams.Observer
 import monix.streams.OverflowStrategy.Unbounded
-import monix.streams.observers.{BufferedSubscriber, SynchronousSubscriber}
+import monix.streams.observers.{BufferedSubscriber, SyncSubscriber}
 import org.reactivestreams.{Subscriber, Subscription}
 
-/**
-  * Wraps a [[Observer Observer]] instance into an
+/** Wraps a [[monix.streams.Observer Observer]] instance into an
   * `org.reactivestreams.Subscriber` instance. The resulting
   * subscriber respects the [[http://www.reactive-streams.org/ Reactive Streams]]
   * contract.
@@ -60,13 +58,13 @@ import org.reactivestreams.{Subscriber, Subscription}
   *                    also representing the buffer size; MUST BE strictly positive
   */
 private[monix] final class SubscriberAsReactiveSubscriber[T] private
-(subscriber: streams.Subscriber[T], requestCount: Int)
+  (subscriber: streams.Subscriber[T], requestCount: Int)
   extends Subscriber[T] {
 
   require(requestCount > 0, "requestCount must be strictly positive, according to the Reactive Streams contract")
 
   private[this] val buffer =
-    SynchronousSubscriberAsReactiveSubscriber(
+    SyncSubscriberAsReactiveSubscriber(
       BufferedSubscriber.synchronous(subscriber, Unbounded),
       requestCount = requestCount)
 
@@ -124,25 +122,25 @@ private[monix] object SubscriberAsReactiveSubscriber {
     */
   def apply[T](subscriber: streams.Subscriber[T], requestCount: Int = 128): Subscriber[T] =
     subscriber match {
-      case ref: SynchronousSubscriber[_] =>
-        SynchronousSubscriberAsReactiveSubscriber(ref.asInstanceOf[SynchronousSubscriber[T]], requestCount)
+      case ref: SyncSubscriber[_] =>
+        SyncSubscriberAsReactiveSubscriber(ref.asInstanceOf[SyncSubscriber[T]], requestCount)
       case _ =>
         new SubscriberAsReactiveSubscriber[T](subscriber, requestCount)
     }
 }
 
 /**
-  * Wraps a [[monix.streams.observers.SynchronousObserver SynchronousObserver]] instance into a
+  * Wraps a [[monix.streams.observers.SyncObserver SyncObserver]] instance into a
   * `org.reactivestreams.Subscriber` instance. The resulting
   * subscriber respects the [[http://www.reactive-streams.org/ Reactive Streams]]
   * contract.
   *
-  * Given that we can guarantee a [[monix.streams.observers.SynchronousObserver SynchronousObserver]]
+  * Given that we can guarantee a [[monix.streams.observers.SyncObserver SyncObserver]]
   * is used, then no buffering is needed and thus the implementation is very efficient.
   *
-  * To create an instance, [[SynchronousSubscriberAsReactiveSubscriber]] must be used: {{{
+  * To create an instance, [[SyncSubscriberAsReactiveSubscriber]] must be used: {{{
   *   // uses the default requestCount of 128
-  *   val subscriber = SynchronousSubscriberAsReactiveSubscriber(new Observer[Int] {
+  *   val subscriber = SyncSubscriberAsReactiveSubscriber(new Observer[Int] {
   *     private[this] var sum = 0
   *
   *     def onNext(elem: Int) = {
@@ -160,8 +158,8 @@ private[monix] object SubscriberAsReactiveSubscriber {
   *   })
   * }}}
   */
-private[monix] final class SynchronousSubscriberAsReactiveSubscriber[T] private
-(subscriber: SynchronousSubscriber[T], requestCount: Int)
+private[monix] final class SyncSubscriberAsReactiveSubscriber[T] private
+  (subscriber: SyncSubscriber[T], requestCount: Int)
   extends Subscriber[T] {
 
   require(requestCount > 0, "requestCount must be strictly positive, according to the Reactive Streams contract")
@@ -223,19 +221,19 @@ private[monix] final class SynchronousSubscriberAsReactiveSubscriber[T] private
 }
 
 
-private[monix] object SynchronousSubscriberAsReactiveSubscriber {
+private[monix] object SyncSubscriberAsReactiveSubscriber {
   /**
-    * Wraps a [[monix.streams.observers.SynchronousObserver SynchronousObserver]] instance into a
+    * Wraps a [[monix.streams.observers.SyncObserver SyncObserver]] instance into a
     * `org.reactivestreams.Subscriber` instance. The resulting
     * subscriber respects the [[http://www.reactive-streams.org/ Reactive Streams]]
     * contract.
     *
-    * Given that we can guarantee a [[monix.streams.observers.SynchronousObserver SynchronousObserver]]
+    * Given that we can guarantee a [[monix.streams.observers.SyncObserver SyncObserver]]
     * is used, then no buffering is needed and thus the implementation is very efficient.
     *
-    * To create an instance, [[SynchronousSubscriberAsReactiveSubscriber.apply]] must be used: {{{
+    * To create an instance, [[SyncSubscriberAsReactiveSubscriber.apply]] must be used: {{{
     *   // uses the default requestCount of 128
-    *   val subscriber = SynchronousSubscriberAsReactiveSubscriber(new Observer[Int] {
+    *   val subscriber = SyncSubscriberAsReactiveSubscriber(new Observer[Int] {
     *     private[this] var sum = 0
     *
     *     def onNext(elem: Int) = {
@@ -258,7 +256,7 @@ private[monix] object SynchronousSubscriberAsReactiveSubscriber {
     *                  used scheduler
     * @param requestCount the parameter passed to `Subscription.request`
     */
-  def apply[T](subscriber: SynchronousSubscriber[T], requestCount: Int = 128): Subscriber[T] = {
-    new SynchronousSubscriberAsReactiveSubscriber[T](subscriber, requestCount)
+  def apply[T](subscriber: SyncSubscriber[T], requestCount: Int = 128): Subscriber[T] = {
+    new SyncSubscriberAsReactiveSubscriber[T](subscriber, requestCount)
   }
 }

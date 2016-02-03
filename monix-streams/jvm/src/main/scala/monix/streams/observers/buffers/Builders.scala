@@ -19,7 +19,7 @@ package monix.streams.observers.buffers
 
 import monix.streams.OverflowStrategy._
 import monix.streams.{OverflowStrategy, Subscriber}
-import monix.streams.observers.{BufferedSubscriber, SynchronousSubscriber}
+import monix.streams.observers.{BufferedSubscriber, SyncSubscriber}
 
 trait Builders {  self: BufferedSubscriber.type =>
   def apply[T](subscriber: Subscriber[T], bufferPolicy: OverflowStrategy): Subscriber[T] = {
@@ -39,7 +39,7 @@ trait Builders {  self: BufferedSubscriber.type =>
     }
   }
 
-  def synchronous[T](subscriber: Subscriber[T], bufferPolicy: OverflowStrategy.Synchronous): SynchronousSubscriber[T] = {
+  def synchronous[T](subscriber: Subscriber[T], bufferPolicy: OverflowStrategy.Synchronous): SyncSubscriber[T] = {
     bufferPolicy match {
       case Unbounded =>
         SimpleBufferedSubscriber.unbounded(subscriber)
@@ -57,16 +57,23 @@ trait Builders {  self: BufferedSubscriber.type =>
   private[monix] def apply[T](subscriber: Subscriber[T],
     strategy: OverflowStrategy, onOverflow: Long => T): Subscriber[T] = {
 
-    strategy match {
-      case withSignal: Evicted if onOverflow != null =>
-        withOverflowSignal(subscriber, withSignal)(onOverflow)
-      case _ =>
-        apply(subscriber, strategy)
-    }
+    if (strategy.isEvicted)
+      withOverflowSignal(subscriber, strategy.asInstanceOf[Evicted])(onOverflow)
+    else
+      apply(subscriber, strategy)
+  }
+
+  private[monix] def synchronous[T](subscriber: Subscriber[T],
+    strategy: OverflowStrategy.Synchronous, onOverflow: Long => T): SyncSubscriber[T] = {
+
+    if (strategy.isEvicted)
+      withOverflowSignal(subscriber, strategy.asInstanceOf[Evicted])(onOverflow)
+    else
+      synchronous(subscriber, strategy)
   }
 
   def withOverflowSignal[T](subscriber: Subscriber[T], overflowStrategy: OverflowStrategy.Evicted)
-    (onOverflow: Long => T): SynchronousSubscriber[T] = {
+    (onOverflow: Long => T): SyncSubscriber[T] = {
 
     overflowStrategy match {
       case DropNew(bufferSize) =>

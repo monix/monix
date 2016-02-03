@@ -17,9 +17,9 @@
 
 package monix.streams.observables
 
+import monix.streams.broadcast.ReplayProcessor
 import org.sincron.atomic.Atomic
 import monix.streams.{Observable, Subscriber}
-import monix.streams.subjects.ReplaySubject
 
 /** A `CachedObservable` is an observable that wraps a regular
   * [[Observable]], initiating the connection on the first
@@ -37,13 +37,14 @@ final class CachedObservable[+T] private (source: Observable[T], maxCapacity: In
 
   private[this] val isStarted = Atomic(false)
   private[this] val subject = {
-    if (maxCapacity > 0) ReplaySubject.createWithSize[T](maxCapacity) else
-      ReplaySubject[T]()
+    if (maxCapacity > 0) ReplayProcessor.createWithSize[T](maxCapacity) else
+      ReplayProcessor[T]()
   }
 
   def unsafeSubscribeFn(subscriber: Subscriber[T]): Unit = {
     import subscriber.scheduler
-    if (isStarted.compareAndSet(false, true)) source.unsafeSubscribeFn(subject)
+    if (isStarted.compareAndSet(expect = false, update = true))
+      source.unsafeSubscribeFn(subject)
     subject.unsafeSubscribeFn(subscriber)
   }
 }

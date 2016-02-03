@@ -18,9 +18,9 @@
 package monix.streams.internal.operators
 
 import monix.execution.FutureUtils.ops._
+import monix.streams.broadcast.PublishProcessor
 import monix.streams.{Observer, Observable, Ack}
 import monix.streams.Ack.Continue
-import monix.streams.subjects.PublishSubject
 import monix.streams.Observer
 import scala.concurrent.duration._
 import scala.concurrent.Future
@@ -54,7 +54,7 @@ object SampleOnceSuite extends BaseOperatorSuite {
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 
   test("specified period should be respected if consumer is responsive") { implicit s =>
-    val sub = PublishSubject[Long]()
+    val sub = PublishProcessor[Long]()
     val obs = sub.sample(500.millis)
 
     var onNextCount = 0
@@ -97,7 +97,7 @@ object SampleOnceSuite extends BaseOperatorSuite {
   }
 
   test("specified period should not be respected if consumer is not responsive") { implicit s =>
-    val sub = PublishSubject[Long]()
+    val sub = PublishProcessor[Long]()
     val obs = sub.sample(500.millis)
 
     var onNextCount = 0

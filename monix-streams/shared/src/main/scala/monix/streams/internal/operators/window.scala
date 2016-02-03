@@ -18,8 +18,8 @@
 package monix.streams.internal.operators
 
 import monix.streams.Ack.{Cancel, Continue}
+import monix.streams.broadcast.ReplayProcessor
 import monix.streams.internal._
-import monix.streams.subjects.ReplaySubject
 import monix.streams.{Ack, Observable, Observer}
 import scala.collection.mutable
 import scala.concurrent.Future
@@ -47,7 +47,7 @@ private[monix] object window {
 
       source.unsafeSubscribeFn(new Observer[T] {
         private[this] var isDone = false
-        private[this] var buffer = ReplaySubject[T]()
+        private[this] var buffer = ReplayProcessor[T]()
         private[this] var ack = subscriber.onNext(buffer)
         private[this] var leftToPush = count
 
@@ -60,7 +60,7 @@ private[monix] object window {
             }
             else {
               buffer.onComplete()
-              buffer = ReplaySubject(elem)
+              buffer = ReplayProcessor(elem)
               leftToPush = count - 1
 
               val previousAck = ack
@@ -100,7 +100,7 @@ private[monix] object window {
 
       source.unsafeSubscribeFn(new Observer[T] {
         private[this] var isDone = false
-        private[this] var buffer = ReplaySubject[T]()
+        private[this] var buffer = ReplayProcessor[T]()
         private[this] var ack = subscriber.onNext(buffer)
         private[this] var leftToPush = count
 
@@ -117,7 +117,7 @@ private[monix] object window {
             else {
               buffer.onComplete()
               queue += elem
-              buffer = ReplaySubject(queue:_*)
+              buffer = ReplayProcessor(queue:_*)
               queue.clear()
               leftToPush = count - (overlap + 1)
               if (leftToPush <= overlap) queue += elem
@@ -159,7 +159,7 @@ private[monix] object window {
 
       source.unsafeSubscribeFn(new Observer[T] {
         private[this] var isDone = false
-        private[this] var buffer = ReplaySubject[T]()
+        private[this] var buffer = ReplayProcessor[T]()
         private[this] var ack = subscriber.onNext(buffer)
         private[this] var leftToPush = count
         private[this] var leftToDrop = 0
@@ -178,7 +178,7 @@ private[monix] object window {
               buffer.onComplete()
               leftToDrop = skip - count - 1
               leftToPush = count
-              buffer = ReplaySubject()
+              buffer = ReplayProcessor()
 
               val previousAck = ack
               ack = ack.onContinueStreamOnNext(subscriber, buffer)
@@ -223,7 +223,7 @@ private[monix] object window {
 
         private[this] var size = 0
         private[this] var isDone = false
-        private[this] var buffer = ReplaySubject[T]()
+        private[this] var buffer = ReplayProcessor[T]()
         private[this] var ack = subscriber.onNext(buffer)
 
         def onNext(elem: T): Future[Ack] =
@@ -238,7 +238,7 @@ private[monix] object window {
             }
             else {
               buffer.onComplete()
-              buffer = ReplaySubject(elem)
+              buffer = ReplayProcessor(elem)
               expiresAt = rightNow + timespanMillis
               size = 1
 
