@@ -29,12 +29,12 @@ object CombineLatestDelayErrorSuite extends BaseOperatorSuite {
       o.onErrorRecoverWith {
         case CompositeException(errors) =>
           val sum = errors.collect { case ex: SomeException => ex.value }.sum
-          Observable.unit(sum)
+          Observable.now(sum)
       }
 
-    val o1 = Observable.unit(1).endWithError(SomeException(100))
+    val o1 = Observable.now(1).endWithError(SomeException(100))
     val o2 = Observable.range(0, sourceCount).endWithError(SomeException(200))
-    val o3 = Observable.unit(2).endWithError(SomeException(300))
+    val o3 = Observable.now(2).endWithError(SomeException(300))
 
     val source1 = recovered {
       o1.combineLatestDelayError(o2)

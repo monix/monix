@@ -40,7 +40,7 @@ object ConcatDelayErrorManySuite extends BaseOperatorSuite {
           .errors.collect { case ex: SomeException => ex.value }
           .sum
 
-        Observable.unit(sum)
+        Observable.now(sum)
     }
 
     Sample(recovered, count(sourceCount), sum(sourceCount), waitFirst, waitNext)

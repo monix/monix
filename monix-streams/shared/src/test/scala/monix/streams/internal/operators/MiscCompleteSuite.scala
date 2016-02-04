@@ -35,7 +35,7 @@ object MiscCompleteSuite extends TestSuite[TestScheduler] {
     var received = 0
     var wasCompleted = false
 
-    Observable.unit(1).ignoreElements.unsafeSubscribeFn(new Observer[Long] {
+    Observable.now(1).ignoreElements.unsafeSubscribeFn(new Observer[Long] {
       def onNext(elem: Long) = {
         received += 1
         Continue

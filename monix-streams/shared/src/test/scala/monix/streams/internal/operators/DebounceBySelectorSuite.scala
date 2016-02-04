@@ -24,7 +24,7 @@ import scala.concurrent.duration._
 object DebounceBySelectorSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val o = Observable.interval(2.seconds)
-      .debounce(x => Observable.unit(0).delaySubscription(1.second))
+      .debounce(x => Observable.now(0).delaySubscription(1.second))
       .take(sourceCount)
 
     val count = sourceCount

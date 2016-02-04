@@ -39,7 +39,7 @@ object FlatScanDelayErrorSuite extends BaseOperatorSuite {
           .errors.collect { case ex: SomeException => ex.value }
           .sum
 
-        Observable.unit(sum)
+        Observable.now(sum)
     }
 
     val sum = (0 until sourceCount).map(x => (1 to x).sum + 1L).sum * 3 +

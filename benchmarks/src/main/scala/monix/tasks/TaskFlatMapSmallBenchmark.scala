@@ -43,8 +43,8 @@ class TaskFlatMapSmallBenchmark {
   def monix(): Long = {
     var result = 0L
     def sum(n: Int, acc: Long = 0): MonixTask[Long] = {
-      if (n == 0) MonixTask.defer(acc) else
-        MonixTask.defer(n).flatMap(x => sum(x-1, acc + x))
+      if (n == 0) MonixTask.eval(acc) else
+        MonixTask.eval(n).flatMap(x => sum(x-1, acc + x))
     }
 
     sum(count).runAsync(new Callback[Long] {

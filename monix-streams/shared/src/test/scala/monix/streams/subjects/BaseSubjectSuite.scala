@@ -191,7 +191,7 @@ trait BaseSubjectSuite extends TestSuite[TestScheduler] {
 
     val Sample(subject, expectedSum) = alreadyTerminatedTest(Seq(elem))
     if (expectedSum == 0) ignore() else {
-      Observable.unit(elem).unsafeSubscribeFn(subject)
+      Observable.now(elem).unsafeSubscribeFn(subject)
       s.tick()
 
       val promises = for (_ <- 0 until 3) yield {

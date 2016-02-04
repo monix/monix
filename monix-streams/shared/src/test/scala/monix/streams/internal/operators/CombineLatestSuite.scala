@@ -28,7 +28,7 @@ import scala.concurrent.duration._
 
 object CombineLatestSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o1 = Observable.unit(1)
+    val o1 = Observable.now(1)
     val o2 = Observable.range(0, sourceCount)
 
     val o = Observable.combineLatest(o1, o2)
@@ -41,7 +41,7 @@ object CombineLatestSuite extends BaseOperatorSuite {
   def sum(sourceCount: Int) = sourceCount * (sourceCount + 1) / 2
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val unit = Observable.unit(1)
+    val unit = Observable.now(1)
     val flawed = createObservableEndingInError(Observable.range(0, sourceCount), ex)
     val o = Observable.combineLatest(unit, flawed)
       .map { case (x1, x2) => x1 + x2 }

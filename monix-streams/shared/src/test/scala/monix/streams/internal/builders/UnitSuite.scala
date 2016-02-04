@@ -37,7 +37,7 @@ object UnitSuite extends TestSuite[TestScheduler] {
     var received = 0
     var completed = false
 
-    Observable.unit(1).unsafeSubscribeFn(new Observer[Int] {
+    Observable.now(1).unsafeSubscribeFn(new Observer[Int] {
       def onNext(elem: Int): Future[Ack] = {
         received += 1
         Continue
@@ -59,7 +59,7 @@ object UnitSuite extends TestSuite[TestScheduler] {
     var onCompleteCalled = false
     var received = 0
 
-    Observable.unit(1).unsafeSubscribeFn(new Observer[Int] {
+    Observable.now(1).unsafeSubscribeFn(new Observer[Int] {
       def onError(ex: Throwable) = throw ex
 
       def onNext(elem: Int): Future[Ack] = {
@@ -81,7 +81,7 @@ object UnitSuite extends TestSuite[TestScheduler] {
   }
 
   test("unit should not send onComplete if canceled synchronously") { implicit s =>
-    Observable.unit(1).unsafeSubscribeFn(new Observer[Int] {
+    Observable.now(1).unsafeSubscribeFn(new Observer[Int] {
       def onError(ex: Throwable) = throw ex
       def onNext(elem: Int) = Cancel
 
@@ -94,7 +94,7 @@ object UnitSuite extends TestSuite[TestScheduler] {
   test("unit should not send onComplete if canceled asynchronously") { implicit s =>
     val p = Promise[Ack]()
 
-    Observable.unit(1).unsafeSubscribeFn(new Observer[Int] {
+    Observable.now(1).unsafeSubscribeFn(new Observer[Int] {
       def onError(ex: Throwable) = throw ex
       def onNext(elem: Int) = p.future
 

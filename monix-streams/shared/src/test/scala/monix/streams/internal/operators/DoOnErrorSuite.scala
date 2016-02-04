@@ -18,7 +18,7 @@
 package monix.streams.internal.operators
 
 import monix.streams.Observable
-import Observable.unit
+import Observable.now
 import monix.streams.Observable
 import scala.concurrent.duration.Duration.Zero
 
@@ -32,7 +32,7 @@ object DoOnErrorSuite extends BaseOperatorSuite {
       Observable.range(0, sourceCount)
         .foldLeft(0L)(_ + _)
         .map(x => throw DummyException(x))
-        .doOnError(ex => unit(ex.asInstanceOf[DummyException].value).subscribe(s))
+        .doOnError(ex => now(ex.asInstanceOf[DummyException].value).subscribe(s))
         .subscribe()
     }
 

@@ -35,7 +35,7 @@ object FromTaskSuite extends TestSuite[TestScheduler] {
     var received = 0
 
     var i = 0
-    val obs = Observable.fromTask { i += 1; i }
+    val obs = Observable.eval { i += 1; i }
 
     obs.unsafeSubscribeFn(new Observer[Int] {
       def onNext(elem: Int): Future[Ack] = {

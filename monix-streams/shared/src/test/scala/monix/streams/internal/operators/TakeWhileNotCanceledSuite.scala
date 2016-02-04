@@ -66,7 +66,7 @@ object TakeWhileNotCanceledSuite extends BaseOperatorSuite {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     val c = BooleanCancelable()
     val o = if (sourceCount == 1)
-      createObservableEndingInError(Observable.unit(1), ex)
+      createObservableEndingInError(Observable.now(1), ex)
         .takeWhileNotCanceled(c)
     else
       createObservableEndingInError(Observable.range(1, sourceCount + 1), ex)

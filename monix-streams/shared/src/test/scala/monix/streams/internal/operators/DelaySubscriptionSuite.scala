@@ -41,7 +41,7 @@ object DelaySubscriptionSuite extends BaseOperatorSuite {
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 
   test("it delays") { implicit s =>
-    val obs = Observable.unit(1).delaySubscription(1.second)
+    val obs = Observable.now(1).delaySubscription(1.second)
     var wasCompleted = false
     var received = 0
 
@@ -63,7 +63,7 @@ object DelaySubscriptionSuite extends BaseOperatorSuite {
   }
 
   test("delaySubscription.onFuture triggering an error") { implicit s =>
-    val obs = Observable.unit(1)
+    val obs = Observable.now(1)
       .delaySubscription(Future { throw new DummyException("dummy") })
 
     var errorThrown: Throwable = null

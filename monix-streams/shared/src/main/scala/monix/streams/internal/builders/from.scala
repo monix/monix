@@ -163,31 +163,6 @@ private[monix] object from {
     }
 
   /**
-   * Implementation for [[Observable.fromTask]].
-   */
-  def task[A](t: => A): Observable[A] =
-    Observable.unsafeCreate { subscriber =>
-      import subscriber.{scheduler => s}
-
-      s.execute(new Runnable {
-        override def run(): Unit = {
-          try {
-            subscriber.onNext(t)
-              .onContinueSignalComplete(subscriber)
-          }
-          catch {
-            case NonFatal(ex) =>
-              try subscriber.onError(ex) catch {
-                case NonFatal(err) =>
-                  s.reportFailure(ex)
-                  s.reportFailure(err)
-              }
-          }
-        }
-      })
-    }
-
-  /**
    * Implementation for [[Observable.fromCallable]].
    */
   def callable[T](c: Callable[T]): Observable[T] =

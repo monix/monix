@@ -59,14 +59,29 @@ object TaskTest extends TestSuite[TestScheduler] {
     assertEquals(s.state.get.lastReportedError, null)
   }
 
-  test("Task.defer should execute on same thread") { implicit s =>
+  test("Task.eval should execute on same thread") { implicit s =>
     var wasTriggered = false
     def trigger(): String = { wasTriggered = true; "result" }
 
-    val task = Task.defer(trigger())
+    val task = Task.eval(trigger())
     assert(!wasTriggered, "!wasTriggered")
 
     val f = task.runAsync
+    assert(wasTriggered, "wasTriggered")
+    assertEquals(f.value, Some(Success("result")))
+  }
+
+  test("Task.fork should execute asynchronously") { implicit s =>
+    var wasTriggered = false
+    def trigger(): String = { wasTriggered = true; "result" }
+
+    val task = Task.fork(Task.eval(trigger()))
+    assert(!wasTriggered, "!wasTriggered")
+
+    val f = task.runAsync
+    assert(!wasTriggered, "!wasTriggered")
+
+    s.tick()
     assert(wasTriggered, "wasTriggered")
     assertEquals(f.value, Some(Success("result")))
   }
@@ -566,6 +581,125 @@ object TaskTest extends TestSuite[TestScheduler] {
       "isInstanceOf[CancellationException]")
   }
 
+  test("Task.onErrorFallbackTo should mirror source onSuccess") { implicit s =>
+    val task = Task(1).onErrorFallbackTo(Task(2))
+    val f = task.runAsync
+    s.tick()
+    assertEquals(f.value, Some(Success(1)))
+  }
+
+  test("Task.onErrorFallbackTo should fallback to backup onError") { implicit s =>
+    val ex = DummyException("dummy")
+    val task = Task(throw ex).onErrorFallbackTo(Task(2))
+    val f = task.runAsync
+    s.tick()
+    assertEquals(f.value, Some(Success(2)))
+  }
+
+  test("Task.onErrorFallbackTo should protect against user code") { implicit s =>
+    val ex = DummyException("dummy")
+    val err = DummyException("unexpected")
+    val task = Task(throw ex).onErrorFallbackTo(throw err)
+    val f = task.runAsync
+    s.tick()
+    assertEquals(f.value, Some(Failure(err)))
+  }
+
+  test("Task.onErrorFallbackTo should be cancelable") { implicit s =>
+    val task = Task[Int](throw DummyException("dummy")).onErrorFallbackTo(Task.eval(2))
+    val f = task.runAsync
+    assertEquals(f.value, None)
+
+    // cancelling after scheduled for execution, but before execution
+    f.cancel(); s.tick()
+
+    assert(f.value.get.failed.get.isInstanceOf[CancellationException],
+      "isInstanceOf[CancellationException]")
+  }
+
+  test("Task.onErrorRetry should mirror the source onSuccess") { implicit s =>
+    var tries = 0
+    val task = Task.eval { tries += 1; 1 }.onErrorRetry(10)
+    val f = task.runAsync
+
+    assertEquals(f.value, Some(Success(1)))
+    assertEquals(tries, 1)
+  }
+
+  test("Task.onErrorRetry should retry onError") { implicit s =>
+    val ex = DummyException("dummy")
+    var tries = 0
+    val task = Task.eval { tries += 1; if (tries < 5) throw ex else 1 }.onErrorRetry(10)
+    val f = task.runAsync
+
+    assertEquals(f.value, Some(Success(1)))
+    assertEquals(tries, 5)
+  }
+
+  test("Task.onErrorRetry should emit onError after max retries") { implicit s =>
+    val ex = DummyException("dummy")
+    var tries = 0
+    val task = Task.eval { tries += 1; throw ex }.onErrorRetry(10)
+    val f = task.runAsync
+
+    assertEquals(f.value, Some(Failure(ex)))
+    assertEquals(tries, 11)
+  }
+
+  test("Task.onErrorRetry should be cancelable") { implicit s =>
+    val task = Task[Int](throw DummyException("dummy")).onErrorRetry(10)
+    val f = task.runAsync
+    assertEquals(f.value, None)
+
+    // cancelling after scheduled for execution, but before execution
+    f.cancel(); s.tick()
+
+    assert(f.value.get.failed.get.isInstanceOf[CancellationException],
+      "isInstanceOf[CancellationException]")
+  }
+
+  test("Task.onErrorRetryIf should mirror the source onSuccess") { implicit s =>
+    var tries = 0
+    val task = Task.eval { tries += 1; 1 }.onErrorRetryIf(ex => tries < 10)
+    val f = task.runAsync
+
+    assertEquals(f.value, Some(Success(1)))
+    assertEquals(tries, 1)
+  }
+
+  test("Task.onErrorRetryIf should retry onError") { implicit s =>
+    val ex = DummyException("dummy")
+    var tries = 0
+    val task = Task.eval { tries += 1; if (tries < 5) throw ex else 1 }
+      .onErrorRetryIf(ex => tries <= 10)
+
+    val f = task.runAsync
+    assertEquals(f.value, Some(Success(1)))
+    assertEquals(tries, 5)
+  }
+
+  test("Task.onErrorRetryIf should emit onError") { implicit s =>
+    val ex = DummyException("dummy")
+    var tries = 0
+    val task = Task.eval { tries += 1; throw ex }
+      .onErrorRetryIf(ex => tries <= 10)
+
+    val f = task.runAsync
+    assertEquals(f.value, Some(Failure(ex)))
+    assertEquals(tries, 11)
+  }
+
+  test("Task.onErrorRetryIf should be cancelable") { implicit s =>
+    val task = Task[Int](throw DummyException("dummy")).onErrorRetryIf(ex => true)
+    val f = task.runAsync
+    assertEquals(f.value, None)
+
+    // cancelling after scheduled for execution, but before execution
+    f.cancel(); s.tick()
+
+    assert(f.value.get.failed.get.isInstanceOf[CancellationException],
+      "isInstanceOf[CancellationException]")
+  }
 
   test("Task#onErrorRecoverWith should mirror source on success") { implicit s =>
     val task = Task(1).onErrorRecoverWith { case ex: Throwable => Task(99) }

@@ -36,7 +36,7 @@ object CollectSuite extends BaseOperatorSuite {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val o = if (sourceCount == 1)
-        Observable.unit(2L)
+        Observable.now(2L)
           .collect { case x if x % 2 == 0 => x }
       else
         Observable.range(1, sourceCount * 2 + 1, 1)
@@ -51,7 +51,7 @@ object CollectSuite extends BaseOperatorSuite {
     Some {
       val ex = DummyException("dummy")
       val o = if (sourceCount == 1)
-        createObservableEndingInError(Observable.unit(2L), ex)
+        createObservableEndingInError(Observable.now(2L), ex)
           .collect { case x if x % 2 == 0 => x }
       else
         createObservableEndingInError(Observable.range(1, sourceCount * 2 + 1, 1), ex)
@@ -65,7 +65,7 @@ object CollectSuite extends BaseOperatorSuite {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val o = if (sourceCount == 1)
-        Observable.unit(1L).collect { case x => throw ex }
+        Observable.now(1L).collect { case x => throw ex }
       else
         Observable.range(1, sourceCount * 2 + 1, 1).collect {
           case x if x % 2 == 0 =>

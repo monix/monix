@@ -21,16 +21,42 @@ import monix.streams.internal._
 import monix.streams.internal.concurrent.NextThenCompleteRunnable
 import monix.streams.Observable
 import scala.concurrent.duration.FiniteDuration
+import scala.util.control.NonFatal
 
 
 private[monix] object unit {
   /**
-    * Implementation for [[Observable.unit]].
+    * Implementation for [[Observable.now]].
     */
-  def one[A](elem: A): Observable[A] =
+  def now[A](elem: A): Observable[A] =
     Observable.unsafeCreate { s =>
       s.onNext(elem)
         .onContinueSignalComplete(s)(s.scheduler)
+    }
+
+  /**
+    * Implementation for [[Observable.eval]].
+    */
+  def eval[A](t: => A): Observable[A] =
+    Observable.unsafeCreate { subscriber =>
+      import subscriber.{scheduler => s}
+
+      s.execute(new Runnable {
+        override def run(): Unit = {
+          try {
+            subscriber.onNext(t)
+              .onContinueSignalComplete(subscriber)
+          }
+          catch {
+            case NonFatal(ex) =>
+              try subscriber.onError(ex) catch {
+                case NonFatal(err) =>
+                  s.reportFailure(ex)
+                  s.reportFailure(err)
+              }
+          }
+        }
+      })
     }
 
   /**
@@ -49,7 +75,7 @@ private[monix] object unit {
     Observable.unsafeCreate(_.onComplete())
 
   /**
-    * Implementation for [[Observable.error]].
+    * Implementation for [[Observable.failed]].
     */
   def error(ex: Throwable): Observable[Nothing] =
     Observable.unsafeCreate(_.onError(ex))

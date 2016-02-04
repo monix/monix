@@ -101,8 +101,8 @@ private[monix] object debounce {
             Cancel
           }
         }
-        
-        def onError(ex: Throwable): Unit = 
+
+        def onError(ex: Throwable): Unit =
           self.synchronized {
             if (!isDone) {
               isDone = true
@@ -112,7 +112,7 @@ private[monix] object debounce {
             }
           }
 
-        def onComplete(): Unit = 
+        def onComplete(): Unit =
           self.synchronized {
             if (!isDone) {
               isDone = true
@@ -126,7 +126,7 @@ private[monix] object debounce {
   }
 
   def bySelector[T,U](source: Observable[T], selector: T => Observable[U]): Observable[T] =
-    source.flatMapLatest(t => selector(t).ignoreElements ++ Observable.unit(t))
+    source.flatMapLatest(t => selector(t).ignoreElements ++ Observable.now(t))
 
   def flatten[T,U](source: Observable[T], timeout: FiniteDuration, f: T => Observable[U]): Observable[U] =
     source.flatMapLatest(t => f(t).delaySubscription(timeout))

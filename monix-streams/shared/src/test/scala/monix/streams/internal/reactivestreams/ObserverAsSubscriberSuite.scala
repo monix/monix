@@ -248,7 +248,7 @@ object ObserverAsSubscriberSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    Observable.unit(100L)
+    Observable.now(100L)
       .subscribe(Observer.toReactiveSubscriber(observer, bufferSize = 128))
 
     s.tick()
@@ -281,7 +281,7 @@ object ObserverAsSubscriberSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    Observable.unit(100L)
+    Observable.now(100L)
       .subscribe(Observer.toReactiveSubscriber(observer, bufferSize = 1))
 
     s.tick()

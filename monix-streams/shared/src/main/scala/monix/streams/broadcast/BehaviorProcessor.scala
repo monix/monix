@@ -46,7 +46,7 @@ final class BehaviorProcessor[T] private (initialValue: T) extends Processor[T,T
     if (state.errorThrown != null)
       subscriber.onError(state.errorThrown)
     else if (state.isDone)
-      Observable.unit(state.cached)
+      Observable.now(state.cached)
         .unsafeSubscribeFn(subscriber)
     else {
       val c = ConnectableSubscriber(subscriber)

@@ -40,7 +40,7 @@ object WindowSizedOverlapSuite extends BaseOperatorSuite {
       Sample(o, count, sum, waitFirst, waitNext)
     }
     else Some {
-      val o = Observable.unit(1L).window(2,1).flatten
+      val o = Observable.now(1L).window(2,1).flatten
       Sample(o, 1, 1, waitFirst, waitNext)
     }
   }

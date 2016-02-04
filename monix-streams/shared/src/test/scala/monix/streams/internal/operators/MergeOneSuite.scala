@@ -27,11 +27,11 @@ import monix.streams.Observer
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero
-import Observable.{unit, empty}
+import Observable.{now, empty}
 
 object MergeOneSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.range(0, sourceCount).mergeMap(i => Observable.unit(i))
+    val o = Observable.range(0, sourceCount).mergeMap(i => Observable.now(i))
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 
@@ -43,7 +43,7 @@ object MergeOneSuite extends BaseOperatorSuite {
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
     val o = createObservableEndingInError(Observable.range(0, sourceCount), ex)
-      .mergeMap(i => Observable.unit(i))
+      .mergeMap(i => Observable.now(i))
 
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
@@ -57,7 +57,7 @@ object MergeOneSuite extends BaseOperatorSuite {
       if (i == sourceCount-1)
         throw ex
       else
-        Observable.unit(i)
+        Observable.now(i)
     }
 
     Sample(o, count(sourceCount-1), sum(sourceCount-1), Zero, Zero)
@@ -70,7 +70,7 @@ object MergeOneSuite extends BaseOperatorSuite {
 
   test("filter can be expressed in terms of mergeMap, without ordering") { implicit s =>
     val obs1 = Observable.range(0, 100).filter(_ % 2 == 0)
-    val obs2 = Observable.range(0, 100).mergeMap(x => if (x % 2 == 0) unit(x) else empty)
+    val obs2 = Observable.range(0, 100).mergeMap(x => if (x % 2 == 0) now(x) else empty)
 
     val lst1 = toList(obs1)
     val lst2 = toList(obs2)
@@ -82,7 +82,7 @@ object MergeOneSuite extends BaseOperatorSuite {
 
   test("map can be expressed in terms of mergeMap, without ordering") { implicit s =>
     val obs1 = Observable.range(0, 100).map(_ + 10)
-    val obs2 = Observable.range(0, 100).mergeMap(x => unit(x + 10))
+    val obs2 = Observable.range(0, 100).mergeMap(x => now(x + 10))
 
     val lst1 = toList(obs1)
     val lst2 = toList(obs2)

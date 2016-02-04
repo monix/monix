@@ -28,7 +28,7 @@ import scala.util.Success
 object LiftOperatorsSuite extends SimpleTestSuite {
   test("ConnectableObservable should work") {
     implicit val s = TestScheduler()
-    val o = Observable.unit(1).publish
+    val o = Observable.now(1).publish
     val result: ConnectableObservable[Int] = o.sum
     val f = result.asFuture
 

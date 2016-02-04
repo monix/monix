@@ -43,8 +43,8 @@ class TaskFlatMapBigBenchmark {
   @Benchmark
   def monix(): Long = {
     def sum(n: Int, acc: Long = 0): MonixTask[Long] = {
-      if (n == 0) MonixTask.defer(acc) else
-        MonixTask.defer(n).flatMap(x => sum(x-1, acc + x))
+      if (n == 0) MonixTask.eval(acc) else
+        MonixTask.eval(n).flatMap(x => sum(x-1, acc + x))
     }
 
     Await.result(MonixTask.fork(sum(count)).runAsync, Duration.Inf)

@@ -54,7 +54,7 @@ object MiscDefaultIfEmptySuite extends BaseOperatorSuite {
   }
 
   test("should not emit default if not empty") { implicit s =>
-    val obs = Observable.unit(1).defaultIfEmpty(2)
+    val obs = Observable.now(1).defaultIfEmpty(2)
     var received = 0
     var wasCompleted = false
 

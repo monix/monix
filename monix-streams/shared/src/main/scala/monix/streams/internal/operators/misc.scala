@@ -40,9 +40,9 @@ private[monix] object misc {
     }
 
   /**
-   * Implements [[Observable.error]].
+   * Implements [[Observable.failed]].
    */
-  def error[T](source: Observable[T]): Observable[Throwable] =
+  def failed[T](source: Observable[T]): Observable[Throwable] =
     Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
 

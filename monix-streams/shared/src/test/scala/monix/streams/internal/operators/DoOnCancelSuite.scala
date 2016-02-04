@@ -21,7 +21,7 @@ import org.sincron.atomic.Atomic
 import monix.streams.{Observer, Observable, Ack}
 import monix.streams.Ack.{Continue, Cancel}
 import monix.streams.Observer
-import Observable.unit
+import Observable.now
 import scala.concurrent.duration.Duration.Zero
 
 object DoOnCancelSuite extends BaseOperatorSuite {
@@ -34,7 +34,7 @@ object DoOnCancelSuite extends BaseOperatorSuite {
       val sum = Atomic(0L)
       val source = Observable.range(0, sourceCount)
         .doWork(sum.add)
-        .doOnCanceled(unit(sum.get).subscribe(s))
+        .doOnCanceled(now(sum.get).subscribe(s))
 
       source.subscribe(new Observer[Long] {
         def onError(ex: Throwable) = ()

@@ -18,14 +18,14 @@
 package monix.streams.internal.operators
 
 import monix.streams.Observable
-import Observable.unit
+import Observable.now
 import monix.streams.Observable
 import scala.concurrent.duration.Duration.Zero
 
 object CombineLatestListSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val source = Observable.range(0, sourceCount)
-    val o = Observable.combineLatestList(unit(1L), unit(2L), unit(3L), unit(4L), unit(5L), source)
+    val o = Observable.combineLatestList(now(1L), now(2L), now(3L), now(4L), now(5L), source)
       .map { case Seq(t1, t2, t3, t4, t5, t6) => t1 + t2 + t3 + t4 + t5 + t6 }
 
     val sum = (0 until sourceCount).map(_ + 15).sum

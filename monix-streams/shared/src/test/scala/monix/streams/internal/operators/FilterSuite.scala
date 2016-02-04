@@ -28,12 +28,12 @@ object FilterSuite extends BaseOperatorSuite {
 
   def sum(sourceCount: Int): Long =
     sourceCount.toLong * (sourceCount + 1)
- 
+
   def createObservable(sourceCount: Int) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val o = if (sourceCount == 1)
-        Observable.unit(2L).filter(_ % 2 == 0)
+        Observable.now(2L).filter(_ % 2 == 0)
       else
         Observable.range(1, sourceCount * 2 + 1, 1).filter(_ % 2 == 0)
 
@@ -46,7 +46,7 @@ object FilterSuite extends BaseOperatorSuite {
     Some {
       val ex = DummyException("dummy")
       val o = if (sourceCount == 1)
-        createObservableEndingInError(Observable.unit(2L), ex)
+        createObservableEndingInError(Observable.now(2L), ex)
           .filter(_ % 2 == 0)
       else
         createObservableEndingInError(Observable.range(1, sourceCount * 2 + 1, 1), ex)
@@ -60,7 +60,7 @@ object FilterSuite extends BaseOperatorSuite {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val o = if (sourceCount == 1)
-        Observable.unit(1L).filter(_ => throw ex)
+        Observable.now(1L).filter(_ => throw ex)
       else
         Observable.range(1, sourceCount * 2 + 1, 1).filter { x =>
           if (x == sourceCount * 2)

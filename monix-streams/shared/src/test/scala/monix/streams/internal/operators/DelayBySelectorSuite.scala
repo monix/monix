@@ -24,14 +24,14 @@ import scala.concurrent.duration._
 object DelayBySelectorSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val source = Observable.range(0, sourceCount)
-    val o = source.delay(x => Observable.unit(x).delaySubscription(1.second))
+    val o = source.delay(x => Observable.now(x).delaySubscription(1.second))
     val c = sourceCount
     Sample(o, c, c * (c-1) / 2, 1.second, 1.second)
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
     val source = createObservableEndingInError(Observable.range(0, sourceCount), ex)
-    val o = source.delay(x => Observable.unit(x).delaySubscription(1.second))
+    val o = source.delay(x => Observable.now(x).delaySubscription(1.second))
     val c = sourceCount
     Sample(o, c, c * (c-1) / 2, 1.second, 1.second)
   }
@@ -40,7 +40,7 @@ object DelayBySelectorSuite extends BaseOperatorSuite {
     val source = Observable.range(0, sourceCount+1)
     val o = source.delay { x =>
       if (x < sourceCount)
-        Observable.unit(x).delaySubscription(1.second)
+        Observable.now(x).delaySubscription(1.second)
       else
         throw ex
     }

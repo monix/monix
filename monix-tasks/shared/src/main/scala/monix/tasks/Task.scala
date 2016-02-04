@@ -40,8 +40,8 @@ import scala.util.{Failure, Success, Try}
   *
   * Compared with `Future` from Scala's standard library, `Task` does
   * not represent a running computation, as `Task` does not execute
-  * anything when working with its builders or operators and it does not
-  * submit any work into any thread-pool, the execution eventually
+  * anything when working with its builders or operators and it does
+  * not submit any work into any thread-pool, the execution eventually
   * taking place after `runAsync` is called and not before that.
   *
   * Note that `Task` is conservative in how it spawns logical threads.
@@ -50,20 +50,28 @@ import scala.util.{Failure, Success, Try}
   * computation was started. But one shouldn't make assumptions about
   * how things will end up executed, as ultimately it is the
   * implementation's job to decide on the best execution model. All
-  * you are guaranteed is asynchronous execution after executing `runAsync`.
+  * you are guaranteed is asynchronous execution after executing
+  * `runAsync`.
   */
 sealed abstract class Task[+T] { self =>
   /** Characteristic function for our [[Task]]. Never use this directly.
     *
-    * @param scheduler is the [[monix.execution.Scheduler Scheduler]] under that the `Task`
-    *                  will use to fork threads, schedule with delay and to report errors
-    * @param cancelable is a [[monix.execution.cancelables.MultiAssignmentCancelable MultiAssignmentCancelable]]
-    *                   that can either be used to check if the task is canceled or can be assigned
-    *                   to something that can eventually cancel the running computation
-    * @param stackDepth represents the current stack depth, taking into account
-    *                   this call as well
+    * @param scheduler is the [[monix.execution.Scheduler Scheduler]]
+    *        under that the `Task` will use to fork threads, schedule
+    *        with delay and to report errors
+    *
+    * @param cancelable is a
+    *        [[monix.execution.cancelables.MultiAssignmentCancelable MultiAssignmentCancelable]]
+    *        that can either be used to check if the task is canceled
+    *        or can be assigned to something that can eventually
+    *        cancel the running computation
+    *
+    * @param stackDepth represents the current stack depth, taking
+    *        into account this call as well
+    *
     * @param callback is the pair of `onSuccess` and `onError` methods that will
-    *                 be called when the execution completes
+    *        be called when the execution completes
+    *
     * @return a [[monix.execution.Cancelable Cancelable]] that can be used to
     *         cancel the running computation
     */
@@ -73,18 +81,22 @@ sealed abstract class Task[+T] { self =>
     stackDepth: Int,
     callback: UnsafeCallback[T]): Unit
 
-  /** Internal utility providing a stack-safe `unsafeExecuteFn`, to be used
-    * when constructing operators.
+  /** Internal utility providing a stack-safe `unsafeExecuteFn`, to be
+    * used when constructing operators.
     *
     * @param scheduler is the [[Scheduler]] that the `Task` will use to
-    *                  fork logical threads, schedule with delay and to report errors
-    * @param stackDepth represents the current stack depth, taking into account
-    *                   this call as well
-    * @param cancelable is a [[MultiAssignmentCancelable]] that can either be used
-    *                   to check if the task is canceled or can be assigned to something
-    *                   that can eventually cancel the running computation
-    * @param callback is the pair of `onSuccess` and `onError` methods that will
-    *                 be called when the execution completes
+    *        fork logical threads, schedule with delay and to report errors
+    *
+    * @param stackDepth represents the current stack depth, taking
+    *        into account this call as well
+    *
+    * @param cancelable is a [[MultiAssignmentCancelable]] that can either
+    *        be used to check if the task is canceled or can be
+    *        assigned to something that can eventually cancel the
+    *        running computation
+    *
+    * @param callback is the pair of `onSuccess` and `onError` methods
+    *        that will be called when the execution completes
     *
     * @return a [[monix.execution.Cancelable Cancelable]] that can be used
     *         to cancel the running computation
@@ -107,8 +119,8 @@ sealed abstract class Task[+T] { self =>
   /** Triggers the asynchronous execution.
     *
     * @param cb is a callback that will be invoked upon completion.
-    * @return a [[monix.execution.Cancelable Cancelable]] that can be used
-    *         to cancel a running task
+    * @return a [[monix.execution.Cancelable Cancelable]] that can
+    *         be used to cancel a running task
     */
   def runAsync(cb: Callback[T])(implicit s: Scheduler): Cancelable = {
     val cancelable = MultiAssignmentCancelable()
@@ -136,8 +148,9 @@ sealed abstract class Task[+T] { self =>
 
   /** Triggers the asynchronous execution.
     *
-    * @return a [[monix.execution.CancelableFuture CancelableFuture]] that can be used
-    *         to extract the result or to cancel a running task.
+    * @return a [[monix.execution.CancelableFuture CancelableFuture]]
+    *         that can be used to extract the result or to cancel
+    *         a running task.
     */
   def runAsync(implicit s: Scheduler): CancelableFuture[T] = {
     val p = Promise[T]()
@@ -177,15 +190,16 @@ sealed abstract class Task[+T] { self =>
       })
     }
 
-  /** Given a source Task that emits another Task, this function flattens the result,
-    * returning a Task equivalent to the emitted Task by the source.
+  /** Given a source Task that emits another Task, this function
+    * flattens the result, returning a Task equivalent to the emitted
+    * Task by the source.
     */
   def flatten[U](implicit ev: T <:< Task[U]): Task[U] =
     flatMap(t => t)
 
-  /** Creates a new Task by applying a function to the successful
-    * result of the source Task, and returns a task equivalent to
-    * the result of the function.
+  /** Creates a new Task by applying a function to the successful result
+    * of the source Task, and returns a task equivalent to the result
+    * of the function.
     */
   def flatMap[U](f: T => Task[U]): Task[U] =
     Task.unsafeCreate { (scheduler, cancelable, depth, cb) =>
@@ -223,7 +237,8 @@ sealed abstract class Task[+T] { self =>
     }
 
   /** Returns a task that executes the source immediately on `runAsync`,
-    * but before emitting the `onSuccess` result for the specified duration.
+    * but before emitting the `onSuccess` result for the specified
+    * duration.
     *
     * Note that if an error happens, then it is streamed immediately
     * with no delay.
@@ -246,10 +261,10 @@ sealed abstract class Task[+T] { self =>
 
   /** Returns a failed projection of this task.
     *
-    * The failed projection is a future holding a value of type `Throwable`,
-    * emitting a value which is the throwable of the original task in
-    * case the original task fails, otherwise if the source succeeds, then
-    * it fails with a `NoSuchElementException`.
+    * The failed projection is a future holding a value of type
+    * `Throwable`, emitting a value which is the throwable of the
+    * original task in case the original task fails, otherwise if the
+    * source succeeds, then it fails with a `NoSuchElementException`.
     */
   def failed: Task[Throwable] =
     Task.unsafeCreate { (scheduler, cancelable, depth, cb) =>
@@ -261,8 +276,8 @@ sealed abstract class Task[+T] { self =>
       })
     }
 
-  /** Creates a new task that will handle any matching throwable
-    * that this task might emit.
+  /** Creates a new task that will handle any matching throwable that
+    * this task might emit.
     */
   def onErrorRecover[U >: T](pf: PartialFunction[Throwable, U]): Task[U] =
     Task.unsafeCreate { (scheduler, cancelable, depth, cb) =>
@@ -290,8 +305,8 @@ sealed abstract class Task[+T] { self =>
       })
     }
 
-  /** Creates a new task that will handle any matching throwable that this
-    * task might emit by executing another task.
+  /** Creates a new task that will handle any matching throwable that
+    * this task might emit by executing another task.
     */
   def onErrorRecoverWith[U >: T](pf: PartialFunction[Throwable, Task[U]]): Task[U] =
     Task.unsafeCreate { (scheduler, cancelable, depth, cb) =>
@@ -318,6 +333,90 @@ sealed abstract class Task[+T] { self =>
           }
         }
       })
+    }
+
+  /** Creates a new task that in case of error will fallback to the
+    * given backup task.
+    */
+  def onErrorFallbackTo[U >: T](that: => Task[U]): Task[U] =
+    Task.unsafeCreate { (scheduler, cancelable, depth, cb) =>
+      self.stackSafeRun(scheduler, cancelable, depth, new UnsafeCallback[T] {
+        def onSuccess(v: T, depth: Int) =
+          cb.safeOnSuccess(scheduler, depth, v)
+
+        def onError(ex: Throwable, depth: Int): Unit = {
+          var streamError = true
+          try {
+            val newTask = that
+            streamError = false
+            newTask.stackSafeRun(scheduler, cancelable, depth, cb)
+          } catch {
+            case NonFatal(err) if streamError =>
+              scheduler.reportFailure(ex)
+              cb.safeOnError(scheduler, depth, err)
+          }
+        }
+      })
+    }
+
+  /** Creates a new task that in case of error will retry executing the
+    * source again and again, until it succeeds.
+    *
+    * In case of continuous failure the total number of executions
+    * will be `maxRetries + 1`.
+    */
+  def onErrorRetry[U >: T](maxRetries: Int): Task[U] =
+    Task.unsafeCreate { (scheduler, cancelable, depth, cb) =>
+      def tryExecute(depth: Int, tryIdx: Int, ex: Throwable): Unit = {
+        if (tryIdx <= maxRetries)
+          self.stackSafeRun(scheduler, cancelable, depth, new UnsafeCallback[T] {
+            def onSuccess(v: T, depth: Int) =
+              cb.safeOnSuccess(scheduler, depth, v)
+            def onError(ex: Throwable, depth: Int): Unit =
+              tryExecute(depth, tryIdx+1, ex)
+          })
+        else
+          cb.safeOnError(scheduler, depth, ex)
+      }
+
+      if (maxRetries > 0)
+        tryExecute(depth, tryIdx = 0, ex = null)
+      else
+        self.unsafeRunFn(scheduler, cancelable, depth, cb)
+    }
+
+  /** Creates a new task that in case of error will retry executing the
+    * source again and again, until it succeeds.
+    *
+    * In case of continuous failure the total number of executions
+    * will be `maxRetries + 1`.
+    */
+  def onErrorRetryIf(p: Throwable => Boolean): Task[T] =
+    Task.unsafeCreate { (scheduler, cancelable, depth, cb) =>
+      // Loops until successful, or until the predicate returns false.
+      def loop(depth: Int, ex: Throwable): Unit =
+        self.stackSafeRun(scheduler, cancelable, depth, new UnsafeCallback[T] {
+          def onSuccess(v: T, depth: Int) =
+            cb.safeOnSuccess(scheduler, depth, v)
+
+          def onError(ex: Throwable, depth: Int): Unit = {
+            var toReport = ex
+            val shouldContinue = (ex == null) || (
+              try p(ex) catch {
+                case NonFatal(err) =>
+                  toReport = err
+                  scheduler.reportFailure(ex)
+                  false
+              })
+
+            if (shouldContinue)
+              loop(depth, ex)
+            else
+              cb.safeOnError(scheduler, depth, toReport)
+          }
+        })
+
+      loop(depth, ex=null)
     }
 
   /** Returns a Task that mirrors the source Task but that triggers a
@@ -359,11 +458,11 @@ sealed abstract class Task[+T] { self =>
       })
     }
 
-  /** Returns a Task that mirrors the source Task but switches to
-    * the given backup Task in case the given duration passes without the
+  /** Returns a Task that mirrors the source Task but switches to the
+    * given backup Task in case the given duration passes without the
     * source emitting any item.
     */
-  def timeout[U >: T](after: FiniteDuration, backup: Task[U]): Task[U] =
+  def timeout[U >: T](after: FiniteDuration, backup: => Task[U]): Task[U] =
     Task.unsafeCreate { (scheduler, cancelable, depth, cb) =>
       val activeTask = MultiAssignmentCancelable()
       val gate = Atomic(true)
@@ -397,8 +496,8 @@ sealed abstract class Task[+T] { self =>
       })
     }
 
-  /** Creates a new task that upon execution will return the result
-    * of the first task that completes, while canceling the other.
+  /** Creates a new task that upon execution will return the result of
+    * the first task that completes, while canceling the other.
     */
   def ambWith[U >: T](other: Task[U]): Task[U] =
     Task.unsafeCreate { (scheduler, cancelable, depth, cb) =>
@@ -441,8 +540,8 @@ sealed abstract class Task[+T] { self =>
       })
     }
 
-  /** Zips the values of `this` and `that` task, and creates a new task that
-    * will emit the tuple of their results.
+  /** Zips the values of `this` and `that` task, and creates a new task
+    * that will emit the tuple of their results.
     */
   def zip[U](that: Task[U]): Task[(T, U)] =
     Task.unsafeCreate { (scheduler, cancelable, depth, cb) =>
@@ -494,11 +593,11 @@ sealed abstract class Task[+T] { self =>
 }
 
 object Task {
-  /** Returns a new task that, when executed, will emit the
-    * result of the given function executed asynchronously.
+  /** Returns a new task that, when executed, will emit the result of
+    * the given function executed asynchronously.
     */
   def apply[T](f: => T): Task[T] =
-    Task.fork(Task.defer(f))
+    Task.fork(Task.eval(f))
 
   /** Returns a `Task` that on execution is always successful, emitting
     * the given strict value.
@@ -506,12 +605,13 @@ object Task {
   def now[T](elem: T): Task[T] =
     new Now(elem)
 
-  /** Promote a non-strict value to a Task, catching exceptions in the process.
+  /** Promote a non-strict value to a Task, catching exceptions in the
+    * process.
     *
-    * Note that since `Task` is not memoized, this will recompute the value
-    * each time the `Task` is executed.
+    * Note that since `Task` is not memoized, this will recompute the
+    * value each time the `Task` is executed.
     */
-  def defer[T](f: => T): Task[T] =
+  def eval[T](f: => T): Task[T] =
     Task.unsafeCreate { (scheduler, cancelable, depth, callback) =>
       // protecting against user code errors
       var streamErrors = true
@@ -525,14 +625,20 @@ object Task {
       }
     }
 
-  /** Mirrors the given source `Task`, but upon execution it
-    * forks its evaluation off into a separate (logical) thread.
+  /** Promote a non-strict value representing a Task to a Task of the
+    * same type.
     */
-  def fork[T](source: Task[T]): Task[T] =
+  def defer[T](task: => Task[T]): Task[T] =
+    Task.eval(task).flatten
+
+  /** Mirrors the given source `Task`, but upon execution it forks its
+    * evaluation off into a separate (logical) thread.
+    */
+  def fork[T](task: Task[T]): Task[T] =
     Task.unsafeCreate { (scheduler, cancelable, depth, callback) =>
       scheduler.execute(new Runnable {
         override def run(): Unit = {
-          source.unsafeRunFn(scheduler, cancelable, depth, callback)
+          task.unsafeRunFn(scheduler, cancelable, depth, callback)
         }
       })
     }
@@ -543,15 +649,15 @@ object Task {
   def error(ex: Throwable): Task[Nothing] =
     new Fail(ex)
 
-  /** Create a `Task` from an asynchronous computation, which takes the form
-    * of a function with which we can register a callback. This can be used
-    * to translate from a callback-based API to a straightforward monadic
-    * version.
+  /** Create a `Task` from an asynchronous computation, which takes the
+    * form of a function with which we can register a callback. This
+    * can be used to translate from a callback-based API to a
+    * straightforward monadic version.
     *
-    * @param register is a function that will be called when this `Task` is
-    *                 executed, receiving a callback as a parameter,
-    *                 a callback that the user is supposed to call in order
-    *                 to signal the desired outcome of this `Task`.
+    * @param register is a function that will be called when this `Task`
+    *        is executed, receiving a callback as a parameter, a
+    *        callback that the user is supposed to call in order to
+    *        signal the desired outcome of this `Task`.
     */
   def create[T](register: (Callback[T], Scheduler) => Cancelable): Task[T] =
     Task.unsafeCreate { (scheduler, cancelable, depth, cb) =>
@@ -583,9 +689,8 @@ object Task {
       }(scheduler)
     }
 
-  /** Creates a `Task` that upon execution will return the result
-    * of the first completed task in the given list and then
-    * cancel the rest.
+  /** Creates a `Task` that upon execution will return the result of the
+    * first completed task in the given list and then cancel the rest.
     */
   def amb[T](tasks: Task[T]*): Task[T] = {
     require(tasks.nonEmpty, "tasks.nonEmpty")
@@ -620,17 +725,17 @@ object Task {
     }
   }
 
-  /** Creates a `Task` that upon execution will return the result
-    * of the first completed task in the given list and then
-    * cancel the rest.
+  /** Creates a `Task` that upon execution will return the result of the
+    * first completed task in the given list and then cancel the rest.
     *
     * Alias for [[Task.amb]].
     */
   def firstCompletedOf[T](tasks: Task[T]*): Task[T] =
     amb(tasks:_*)
 
-  /** Transforms a `TraversableOnce[Task[A]]` into a `Task[TraversableOnce[A]]`.
-    * Useful for reducing many `Task`s into a single `Task`.
+  /** Transforms a `TraversableOnce[Task[A]]` into a
+    * `Task[TraversableOnce[A]]`.  Useful for reducing many `Task`s
+    * into a single `Task`.
     */
   def sequence[A, M[X] <: TraversableOnce[X]](in: M[Task[A]])
     (implicit cbf: CanBuildFrom[M[Task[A]], A, M[A]], scheduler: Scheduler): Task[M[A]] = {
@@ -670,11 +775,11 @@ object Task {
         f(s, c, d, cb)
     }
 
-  /** A `SafeCallback` is a callback that ensures it can only
-    * be called once, with a simple check.
+  /** A `SafeCallback` is a callback that ensures it can only be called
+    * once, with a simple check.
     */
   private class SafeCallback[-T]
-  (underlying: Callback[T])(implicit r: UncaughtExceptionReporter)
+    (underlying: Callback[T])(implicit r: UncaughtExceptionReporter)
     extends Callback[T] {
 
     private[this] var isActive = true
@@ -702,8 +807,8 @@ object Task {
   }
 
   private object SafeCallback {
-    /** Wraps any [[Callback]] into a [[SafeCallback]].
-      * For usage in `runAsync`.
+    /** Wraps any [[Callback]] into a [[SafeCallback]]. For usage in
+      * `runAsync`.
       */
     def apply[T](cb: Callback[T])(implicit r: UncaughtExceptionReporter): Callback[T] =
       cb match {
@@ -712,11 +817,11 @@ object Task {
       }
   }
 
-  /** Not meant for usage, unless you know what you're doing.
-    * Used in the implementation of [[Task]].
+  /** Not meant for usage, unless you know what you're doing. Used in
+    * the implementation of [[Task]].
     *
-    * Represents a callback that should be called with the result
-    * of the asynchronous computation.
+    * Represents a callback that should be called with the result of
+    * the asynchronous computation.
     */
   abstract class UnsafeCallback[-T] { self =>
     /** To be called only once, on successful completion of a [[Task]].
@@ -733,9 +838,9 @@ object Task {
       */
     def onError(ex: Throwable, stackDepth: Int): Unit
 
-    /** Wraps [[onSuccess]] in a safe function that, in case the stack depth
-      * has exceeded the allowed maximum, forks a new logical thread
-      * on the given scheduler.
+    /** Wraps [[onSuccess]] in a safe function that, in case the stack
+      * depth has exceeded the allowed maximum, forks a new logical
+      * thread on the given scheduler.
       *
       * @param s is the scheduler on top of which we'll fork, if needed
       * @param value is the successful result to signal
@@ -767,8 +872,8 @@ object Task {
     }
   }
 
-  /** Optimized task for already known strict values.
-    * Internal to Monix, not for public consumption.
+  /** Optimized task for already known strict values. Internal to Monix,
+    * not for public consumption.
     *
     * See [[Task.now]] instead.
     */
@@ -780,8 +885,8 @@ object Task {
       CancelableFuture(Future.successful(value), Cancelable.empty)
   }
 
-  /** Optimized task for failed outcomes.
-    * Internal to Monix, not for public consumption.
+  /** Optimized task for failed outcomes. Internal to Monix, not for
+    * public consumption.
     *
     * See [[Task.error]] instead.
     */

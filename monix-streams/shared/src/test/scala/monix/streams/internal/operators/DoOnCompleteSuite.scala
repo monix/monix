@@ -19,7 +19,7 @@ package monix.streams.internal.operators
 
 import org.sincron.atomic.Atomic
 import monix.streams.Observable
-import Observable.unit
+import Observable.now
 import monix.streams.Observable
 import scala.concurrent.duration.Duration.Zero
 
@@ -31,7 +31,7 @@ object DoOnCompleteSuite extends BaseOperatorSuite {
 
       Observable.range(0, sourceCount)
         .doWork(sum.add)
-        .doOnComplete(unit(sum.get).subscribe(s))
+        .doOnComplete(now(sum.get).subscribe(s))
         .subscribe()
     }
 
@@ -46,7 +46,7 @@ object DoOnCompleteSuite extends BaseOperatorSuite {
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.unit((0 until sourceCount).sum.toLong).doOnComplete(throw ex)
+    val o = Observable.now((0 until sourceCount).sum.toLong).doOnComplete(throw ex)
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 }

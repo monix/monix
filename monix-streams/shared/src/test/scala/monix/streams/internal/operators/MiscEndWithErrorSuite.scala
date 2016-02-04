@@ -38,7 +38,7 @@ object MiscEndWithErrorSuite extends TestSuite[TestScheduler] {
     var wasThrown: Throwable = null
     val p = Promise[Continue]()
 
-    val source = Observable.unit(1000)
+    val source = Observable.now(1000)
       .endWithError(DummyException("dummy"))
 
     source.unsafeSubscribeFn(new Observer[Int] {

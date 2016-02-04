@@ -32,7 +32,7 @@ object TimeoutSuite extends BaseOperatorSuite {
     val source = Observable.unsafeCreate[Long](_.onNext(sourceCount))
     val o = source.timeout(1.second).onErrorRecoverWith {
       case _: TimeoutException =>
-        Observable.unit(20L)
+        Observable.now(20L)
     }
 
     Sample(o, 2, sourceCount + 20, Duration.Zero, 1.second)
