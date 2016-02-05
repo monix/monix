@@ -4,6 +4,8 @@ import java.util.Date
 import com.typesafe.sbt.SbtSite.SiteKeys._
 import com.typesafe.sbt.pgp.PgpKeys
 import com.typesafe.sbt.site.PreprocessSupport._
+import sbtunidoc.Plugin.UnidocKeys._
+import sbtunidoc.Plugin.{ScalaUnidoc, unidocSettings => baseUnidocSettings}
 
 lazy val doNotPublishArtifact = Seq(
   publishArtifact := false,
@@ -127,7 +129,26 @@ lazy val crossSettings = sharedSettings ++ Seq(
   unmanagedSourceDirectories in Test <+= baseDirectory(_.getParentFile / "shared" / "src" / "test" / "scala")
 )
 
+lazy val unidocSettings = baseUnidocSettings ++ Seq(
+  autoAPIMappings := true,
+  unidocProjectFilter in (ScalaUnidoc, unidoc) := inProjects(executionJVM, coreJVM),
+
+  scalacOptions in (ScalaUnidoc, unidoc) +=
+    "-Xfatal-warnings",
+  scalacOptions in (ScalaUnidoc, unidoc) +=
+    "-Ymacro-expand:none",
+  scalacOptions in (ScalaUnidoc, unidoc) ++=
+    Opts.doc.title(s"Sincron"),
+  scalacOptions in (ScalaUnidoc, unidoc) ++=
+    Opts.doc.sourceUrl(s"https://github.com/monixio/sincron/tree/v${version.value}€{FILE_PATH}.scala"),
+  scalacOptions in (ScalaUnidoc, unidoc) ++=
+    Seq("-doc-root-content", file("docs/rootdoc.txt").getAbsolutePath),
+  scalacOptions in (ScalaUnidoc, unidoc) ++=
+    Opts.doc.version(s"${version.value}")
+)
+
 lazy val docsSettings =
+  unidocSettings ++
   site.addMappingsToSiteDir(mappings in (ScalaUnidoc, packageDoc), "api") ++
   site.addMappingsToSiteDir(tut, "_tut") ++
   Seq(
@@ -174,9 +195,7 @@ lazy val scalaStyleSettings = {
 lazy val monix = project.in(file("."))
   .aggregate(
     executionJVM, executionJS,
-    tasksJVM, tasksJS,
-    streamsJVM, streamsJS,
-    monixJVM, monixJS,
+    coreJVM, coreJS,
     docs, tckTests)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
@@ -187,7 +206,7 @@ lazy val executionJVM = project.in(file("monix-execution/jvm"))
   .settings(testSettings)
   .settings(
     name := "monix-execution",
-    libraryDependencies += "org.sincron" %%% "sincron" % "0.5"
+    libraryDependencies += "org.sincron" %%% "sincron" % "0.6"
   )
 
 lazy val executionJS = project.in(file("monix-execution/js"))
@@ -197,64 +216,36 @@ lazy val executionJS = project.in(file("monix-execution/js"))
   .settings(testSettings)
   .settings(
     name := "monix-execution",
-    libraryDependencies += "org.sincron" %%% "sincron" % "0.5"
+    libraryDependencies += "org.sincron" %%% "sincron" % "0.6"
   )
 
-lazy val tasksJVM = project.in(file("monix-tasks/jvm"))
+lazy val coreJVM = project.in(file("monix-core/jvm"))
   .dependsOn(executionJVM)
   .settings(crossSettings)
   .settings(testSettings)
-  .settings(name := "monix-tasks")
+  .settings(
+    name := "monix-core",
+    libraryDependencies += "org.reactivestreams" % "reactive-streams" % "1.0.0"
+  )
 
-lazy val tasksJS = project.in(file("monix-tasks/js"))
+lazy val coreJS = project.in(file("monix-core/js"))
   .enablePlugins(ScalaJSPlugin)
   .dependsOn(executionJS)
   .settings(crossSettings)
   .settings(scalaJSSettings)
   .settings(testSettings)
-  .settings(name := "monix-tasks")
-
-lazy val streamsJVM = project.in(file("monix-streams/jvm"))
-  .dependsOn(tasksJVM)
-  .settings(crossSettings)
-  .settings(testSettings)
-  .settings(
-    name := "monix-streams",
-    libraryDependencies += "org.reactivestreams" % "reactive-streams" % "1.0.0"
-  )
-
-lazy val streamsJS = project.in(file("monix-streams/js"))
-  .enablePlugins(ScalaJSPlugin)
-  .dependsOn(tasksJS)
-  .settings(crossSettings)
-  .settings(scalaJSSettings)
-  .settings(testSettings)
-  .settings(name := "monix-streams")
-
-lazy val monixJVM = project.in(file("monix/jvm"))
-  .settings(crossSettings)
-  .aggregate(executionJVM, tasksJVM, streamsJVM)
-  .dependsOn(executionJVM, tasksJVM, streamsJVM)
-  .settings(name := "monix")
-
-lazy val monixJS = project.in(file("monix/js"))
-  .settings(crossSettings)
-  .enablePlugins(ScalaJSPlugin)
-  .aggregate(executionJS, tasksJS, streamsJS)
-  .dependsOn(executionJS, tasksJS, streamsJS)
-  .settings(name := "monix")
+  .settings(name := "monix-core")
 
 lazy val docs = project.in(file("docs"))
-  .dependsOn(executionJVM, tasksJVM, streamsJVM)
+  .dependsOn(coreJVM)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
   .settings(site.settings)
   .settings(tutSettings)
-  .settings(unidocSettings)
   .settings(docsSettings)
 
 lazy val tckTests = project.in(file("tckTests"))
-  .dependsOn(monixJVM)
+  .dependsOn(coreJVM)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
   .settings(
@@ -264,7 +255,7 @@ lazy val tckTests = project.in(file("tckTests"))
     ))
 
 lazy val benchmarks = project.in(file("benchmarks"))
-  .dependsOn(tasksJVM)
+  .dependsOn(coreJVM)
   .enablePlugins(JmhPlugin)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)

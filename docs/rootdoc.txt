@@ -49,7 +49,7 @@ import monix.execution.Scheduler.Implicits.global
 // implicit val scheduler = Scheduler(defaultContext)
 
 import scala.concurrent.duration._
-import monix.streams._
+import monix._
 
 val subscription = Observable.intervalAtFixedRate(1.second)
   .take(10)
@@ -61,7 +61,7 @@ We can then try out more complex things:
 {{{
 import monix.execution.Scheduler.Implicits.global
 import play.api.libs.ws._
-import monix.streams._
+import monix._
 
 // emits an auto-incremented number, every second
 Observable.interval(1.second)
