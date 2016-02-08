@@ -25,7 +25,7 @@ import monix.streams.exceptions.DummyException
 
 object AsyncChannelSuite extends BaseChannelSuite {
   def alreadyTerminatedTest(expectedElems: Seq[Long])(implicit s: Scheduler) = {
-    val c = AsyncSubject[Long](Unbounded)
+    val c = Subject.async[Long](Unbounded)
     Sample(c, expectedElems.lastOption.getOrElse(0))
   }
 
@@ -47,7 +47,7 @@ object AsyncChannelSuite extends BaseChannelSuite {
       }
     }
 
-    val channel = AsyncSubject[Long](Unbounded)
+    val channel = Subject.async[Long](Unbounded)
     channel.unsafeSubscribeFn(createObserver)
     channel.unsafeSubscribeFn(createObserver)
     channel.unsafeSubscribeFn(createObserver)
@@ -91,7 +91,7 @@ object AsyncChannelSuite extends BaseChannelSuite {
       }
     }
 
-    val channel = AsyncSubject[Long](Unbounded)
+    val channel = Subject.async[Long](Unbounded)
     channel.unsafeSubscribeFn(createObserver)
     channel.unsafeSubscribeFn(createObserver)
     channel.unsafeSubscribeFn(createObserver)
@@ -130,7 +130,7 @@ object AsyncChannelSuite extends BaseChannelSuite {
       def onError(ex: Throwable) = ()
     }
 
-    val channel = AsyncSubject[Long](Unbounded)
+    val channel = Subject.async[Long](Unbounded)
     channel.unsafeSubscribeFn(createObserver)
     channel.unsafeSubscribeFn(createObserver)
     channel.unsafeSubscribeFn(createObserver)

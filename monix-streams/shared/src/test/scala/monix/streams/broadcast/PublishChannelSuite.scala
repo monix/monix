@@ -23,12 +23,12 @@ import OverflowStrategy.Unbounded
 
 object PublishChannelSuite extends BaseChannelSuite {
   def alreadyTerminatedTest(expectedElems: Seq[Long])(implicit s: Scheduler) = {
-    val c = PublishSubject[Long](Unbounded)
+    val c = Subject.publish[Long](Unbounded)
     Sample(c, 0)
   }
 
   def continuousStreamingTest(expectedElems: Seq[Long])(implicit s: Scheduler) = {
-    val c = PublishSubject[Long](Unbounded)
+    val c = Subject.publish[Long](Unbounded)
     Some(Sample(c, expectedElems.sum))
   }
 }

@@ -68,11 +68,13 @@ object Subject {
     *        used for buffering, which specifies what to do in case
     *        we're dealing with slow consumers.
     */
-  def publish[T](strategy: Synchronous): Subject[T,T] =
+  def publish[T](strategy: Synchronous)
+    (implicit s: Scheduler): Subject[T,T] =
     fromProcessor(PublishProcessor[T](), strategy)
 
   /** Subject recipe for building [[PublishProcessor publish]] subjects. */
-  def publish[T](strategy: Evicted, onOverflow: Long => T): Subject[T,T] =
+  def publish[T](strategy: Evicted, onOverflow: Long => T)
+    (implicit s: Scheduler): Subject[T,T] =
     fromProcessor(PublishProcessor[T](), strategy, onOverflow)
 
   /** Subject recipe for building [[BehaviorProcessor behavior]] subjects.
@@ -84,7 +86,8 @@ object Subject {
     *        used for buffering, which specifies what to do in case
     *        we're dealing with slow consumers.
     */
-  def behavior[T](initial: T, strategy: Synchronous): Subject[T,T] =
+  def behavior[T](initial: T, strategy: Synchronous)
+    (implicit s: Scheduler): Subject[T,T] =
     fromProcessor(BehaviorProcessor[T](initial), strategy)
 
   /** Subject recipe for building [[BehaviorProcessor behavior]] subjects.
@@ -105,7 +108,8 @@ object Subject {
     *        happened, function that receives the number of dropped
     *        events as a parameter (see [[OverflowStrategy.Evicted]]).
     */
-  def behavior[T](initial: T, strategy: Evicted, onOverflow: Long => T): Subject[T,T] =
+  def behavior[T](initial: T, strategy: Evicted, onOverflow: Long => T)
+    (implicit s: Scheduler): Subject[T,T] =
     fromProcessor(BehaviorProcessor[T](initial), strategy, onOverflow)
 
   /** Subject recipe for building [[AsyncProcessor async]] subjects.
@@ -114,7 +118,8 @@ object Subject {
     *        used for buffering, which specifies what to do in case
     *        we're dealing with slow consumers.
     */
-  def async[T](strategy: Synchronous): Subject[T,T] =
+  def async[T](strategy: Synchronous)
+    (implicit s: Scheduler): Subject[T,T] =
     fromProcessor(AsyncProcessor[T](), strategy)
 
   /** Subject recipe for building [[AsyncProcessor async]] subjects.
@@ -132,7 +137,8 @@ object Subject {
     *        happened, function that receives the number of dropped
     *        events as a parameter (see [[OverflowStrategy.Evicted]]).
     */
-  def async[T](strategy: Evicted, onOverflow: Long => T): Subject[T,T] =
+  def async[T](strategy: Evicted, onOverflow: Long => T)
+    (implicit s: Scheduler): Subject[T,T] =
     fromProcessor(AsyncProcessor[T](), strategy, onOverflow)
 
   /** Subject recipe for building [[ReplayProcessor replay]] subjects.
@@ -141,7 +147,8 @@ object Subject {
     *        used for buffering, which specifies what to do in case
     *        we're dealing with slow consumers.
     */
-  def replay[T](strategy: Synchronous): Subject[T,T] =
+  def replay[T](strategy: Synchronous)
+   (implicit s: Scheduler): Subject[T,T] =
     fromProcessor(ReplayProcessor[T](), strategy)
 
   /** Subject recipe for building [[ReplayProcessor replay]] subjects.
@@ -159,7 +166,8 @@ object Subject {
     *        happened, function that receives the number of dropped
     *        events as a parameter (see [[OverflowStrategy.Evicted]]).
     */
-  def replay[T](strategy: Evicted, onOverflow: Long => T): Subject[T,T] =
+  def replay[T](strategy: Evicted, onOverflow: Long => T)
+    (implicit s: Scheduler): Subject[T,T] =
     fromProcessor(ReplayProcessor[T](), strategy, onOverflow)
 
   /** Subject recipe for building [[ReplayProcessor replay]] subjects.
@@ -171,7 +179,8 @@ object Subject {
     *        used for buffering, which specifies what to do in case
     *        we're dealing with slow consumers.
     */
-  def replayPopulated[T](initial: Seq[T], strategy: Synchronous): Subject[T,T] =
+  def replayPopulated[T](initial: Seq[T], strategy: Synchronous)
+    (implicit s: Scheduler): Subject[T,T] =
     fromProcessor(ReplayProcessor[T](initial:_*), strategy)
 
   /** Subject recipe for building [[ReplayProcessor replay]] subjects.
@@ -192,7 +201,8 @@ object Subject {
     *        happened, function that receives the number of dropped
     *        events as a parameter (see [[OverflowStrategy.Evicted]]).
     */
-  def replayPopulated[T](initial: Seq[T], strategy: Evicted, onOverflow: Long => T): Subject[T,T] =
+  def replayPopulated[T](initial: Seq[T], strategy: Evicted, onOverflow: Long => T)
+    (implicit s: Scheduler): Subject[T,T] =
     fromProcessor(ReplayProcessor[T](initial:_*), strategy, onOverflow)
 
   /** Subject recipe for building [[ReplayProcessor replay]] subjects.
@@ -211,7 +221,8 @@ object Subject {
     *        used for buffering, which specifies what to do in case
     *        we're dealing with slow consumers.
     */
-  def replayLimited[T](capacity: Int, strategy: Synchronous): Subject[T,T] =
+  def replayLimited[T](capacity: Int, strategy: Synchronous)
+    (implicit s: Scheduler): Subject[T,T] =
     fromProcessor(ReplayProcessor.createWithSize[T](capacity), strategy)
 
   /** Subject recipe for building [[ReplayProcessor replay]] subjects.
@@ -239,6 +250,7 @@ object Subject {
     *        happened, function that receives the number of dropped
     *        events as a parameter (see [[OverflowStrategy.Evicted]]).
     */
-  def replayLimited[T](capacity: Int, strategy: Evicted, onOverflow: Long => T): Subject[T,T] =
+  def replayLimited[T](capacity: Int, strategy: Evicted, onOverflow: Long => T)
+    (implicit s: Scheduler): Subject[T,T] =
     fromProcessor(ReplayProcessor.createWithSize[T](capacity), strategy, onOverflow)
 }

@@ -22,12 +22,12 @@ import monix.streams.OverflowStrategy.Unbounded
 
 object ReplayChannelSuite extends BaseChannelSuite {
   def alreadyTerminatedTest(expectedElems: Seq[Long])(implicit s: Scheduler) = {
-    val c = ReplaySubject[Long](Unbounded)
+    val c = Subject.replay[Long](Unbounded)
     Sample(c, expectedElems.sum)
   }
 
   def continuousStreamingTest(expectedElems: Seq[Long])(implicit s: Scheduler) = {
-    val c = ReplaySubject[Long](Unbounded)
+    val c = Subject.replay[Long](Unbounded)
     Some(Sample(c, expectedElems.sum))
   }
 }
