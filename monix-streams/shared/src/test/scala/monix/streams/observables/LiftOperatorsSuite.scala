@@ -22,7 +22,7 @@ import monix.execution.Cancelable
 import monix.execution.schedulers.TestScheduler
 import monix.streams.Observable
 import monix.streams.OverflowStrategy.Unbounded
-import monix.streams.broadcast.{Processor, PublishProcessor, PublishSubject}
+import monix.streams.broadcast.{Subject, PublishProcessor}
 import scala.util.Success
 
 object LiftOperatorsSuite extends SimpleTestSuite {
@@ -50,7 +50,7 @@ object LiftOperatorsSuite extends SimpleTestSuite {
 
   test("ObservableSubject should work") {
     implicit val s = TestScheduler()
-    val result = PublishSubject[Int](Unbounded).sum
+    val result = Subject.publish[Int](Unbounded).sum
     val f = result.asFuture
 
     result.onNext(1)
