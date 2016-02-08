@@ -28,7 +28,9 @@ import scala.util.Random
 import scala.util.control.NonFatal
 
 /** A scheduler meant for testing purposes. */
-final class TestScheduler private () extends ReferenceScheduler {
+final class TestScheduler private (override val batchedExecutionModulus: Int)
+  extends ReferenceScheduler {
+
   /*
    * The `internalClock` is used for executing tasks. Upon calling [[tick]], the
    * internal clock is advanced and pending `tasks` are executed.
@@ -139,7 +141,14 @@ final class TestScheduler private () extends ReferenceScheduler {
 object TestScheduler {
   /** Builder for [[TestScheduler]]. */
   def apply(): TestScheduler = {
-    new TestScheduler()
+    import monix.execution.internal.Platform
+    new TestScheduler(Platform.recommendedBatchSize-1)
+  }
+
+  /** Builder for [[TestScheduler]]. */
+  def apply(recommendedBatchSize: Int): TestScheduler = {
+    import monix.execution.internal.math.nextPowerOf2
+    new TestScheduler(nextPowerOf2(recommendedBatchSize)-1)
   }
 
   /** Used internally by [[TestScheduler]], represents a

@@ -18,11 +18,7 @@
 package monix.execution
 
 import java.util.concurrent.TimeUnit
-import monix.execution.Scheduler.FrameId
-import monix.execution.cancelables.BooleanCancelable
 import monix.execution.schedulers.SchedulerCompanionImpl
-import org.sincron.macros.{InlineUtil, SyntaxUtil}
-import org.sincron.macros.compat._
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
 import scala.language.experimental.macros
@@ -146,54 +142,6 @@ abstract class Scheduler extends ExecutionContext with UncaughtExceptionReporter
     * more efficient than doing a division.
     */
   val batchedExecutionModulus: Int
-
-  /** Executes the given callback, effectively starting a run-loop.
-    *
-    * Depending on the
-    * [[Scheduler.batchedExecutionModulus Scheduler's batched execution]]
-    * execution will happen either synchronously (current thread and call-stack) or
-    * scheduled for asynchronous execution (by [[Scheduler.execute]]).
-    *
-    * @param cb is a callback receiving the next `FrameId` at the time
-    *        of execution, to be used in the next `runLoop` invocation.
-    */
-  final def runLoopStart(cb: FrameId => Unit): Unit =
-    macro Scheduler.Macros.runLoopStartMacro
-
-  /** Given the current `frameId`, executes the given callback.
-    *
-    * Depending on the [
-    * [Scheduler.batchedExecutionModulus Scheduler's batched execution]]
-    * settings and the given `frameId`, execution happens either synchronously
-    * (current thread and call-stack) or scheduled for asynchronous execution
-    * (by [[Scheduler.execute]]).
-    *
-    * @param frameId is a number identifying the current stack frame.
-    *        Should start from zero.
-    * @param cb is a callback receiving the next `FrameId` at the time
-    *        of execution, to be used in the next `runLoop` invocation.
-    */
-  def runLoopStep(frameId: FrameId)(cb: FrameId => Unit): Unit =
-    macro Scheduler.Macros.runLoopStepMacro
-
-  /** Given the current `frameId`, executes the given callback. Takes
-    * a [[BooleanCancelable]] as a parameter that can be used to cancel
-    * the loop.
-    *
-    * Depending on the
-    * [[Scheduler.batchedExecutionModulus Scheduler's batched execution]]
-    * settings and the given `frameId`, execution happens either synchronously
-    * (current thread and call-stack) or scheduled for asynchronous execution
-    * (by [[Scheduler.execute]]).
-    *
-    * @param frameId is a number identifying the current stack frame.
-    *        Should start from zero.
-    * @param cb is a callback receiving the next `FrameId` at the time
-    *        of execution, to be used in the next `runLoop` invocation.
-    */
-  def runLoopStepInterruptibly(active: BooleanCancelable, frameId: FrameId)
-    (cb: FrameId => Unit): Unit =
-    macro Scheduler.Macros.runLoopStepInterruptiblyMacro
 }
 
 private[monix] trait SchedulerCompanion {
@@ -205,111 +153,6 @@ private[monix] trait SchedulerCompanion {
   def global: Scheduler
 }
 
-object Scheduler extends SchedulerCompanionImpl { self: SchedulerCompanion =>
-  /** An alias for a number representing an ID for the current stack frame. */
-  type FrameId = Int
-
-  object Macros {
-    /** Macro for [[Scheduler.runLoopStart]] */
-    def runLoopStartMacro(c: Context { type PrefixType = Scheduler })
-      (cb: c.Expr[FrameId => Unit]): c.Expr[Unit] = {
-
-      import c.universe._
-      val util = SyntaxUtil[c.type](c)
-      val selfExpr = c.prefix
-      val nextFrameId = util.name("nextFrameId")
-
-      val tree =
-        if (util.isClean(selfExpr))
-          q"""
-          val $nextFrameId = 1 & $selfExpr.batchedExecutionModulus
-          if ($nextFrameId > 0)
-            $cb($nextFrameId)
-          else
-            $selfExpr.execute(new Runnable { def run(): Unit = $cb($nextFrameId) })
-          """
-        else {
-          val scheduler = util.name("scheduler")
-          q"""
-          val $scheduler = $selfExpr
-          val $nextFrameId = 1 & $scheduler.batchedExecutionModulus
-          if ($nextFrameId > 0)
-            $cb($nextFrameId)
-          else
-            $scheduler.execute(new Runnable { def run(): Unit = $cb($nextFrameId) })
-          """
-        }
-
-
-      new InlineUtil[c.type](c).inlineAndReset[Unit](tree)
-    }
-
-    /** Macro for [[Scheduler.runLoopStep]] */
-    def runLoopStepMacro(c: Context { type PrefixType = Scheduler })
-      (frameId: c.Expr[FrameId])
-      (cb: c.Expr[FrameId => Unit]): c.Expr[Unit] = {
-
-      import c.universe._
-      val util = SyntaxUtil[c.type](c)
-      val selfExpr = c.prefix
-      val nextFrameId = util.name("nextFrameId")
-
-      val tree =
-        if (util.isClean(selfExpr)) {
-          q"""
-          val $nextFrameId = ($frameId + 1) & $selfExpr.batchedExecutionModulus
-          if ($nextFrameId > 0)
-            $cb($nextFrameId)
-          else
-            $selfExpr.execute(new Runnable { def run(): Unit = $cb($nextFrameId) })
-          """
-        } else {
-          val scheduler = util.name("scheduler")
-          q"""
-          val $scheduler = $selfExpr
-          val $nextFrameId = ($frameId + 1) & $scheduler.batchedExecutionModulus
-          if ($nextFrameId > 0)
-            $cb($nextFrameId)
-          else
-            $scheduler.execute(new Runnable { def run(): Unit = $cb($nextFrameId) })
-          """
-        }
-
-      new InlineUtil[c.type](c).inlineAndReset[Unit](tree)
-    }
-
-    /** Macro for [[Scheduler.runLoopStep]] */
-    def runLoopStepInterruptiblyMacro(c: Context { type PrefixType = Scheduler })
-      (active: c.Expr[BooleanCancelable], frameId: c.Expr[FrameId])
-      (cb: c.Expr[FrameId => Unit]): c.Expr[Unit] = {
-
-      import c.universe._
-      val util = SyntaxUtil[c.type](c)
-      val selfExpr = c.prefix
-      val nextFrameId = util.name("nextFrameId")
-
-      val tree =
-        if (util.isClean(selfExpr)) {
-          q"""
-          val $nextFrameId = ($frameId + 1) & $selfExpr.batchedExecutionModulus
-          if ($nextFrameId > 0)
-            $cb($nextFrameId)
-          else if (!$active.isCanceled)
-            $selfExpr.execute(new Runnable { def run(): Unit = $cb($nextFrameId) })
-          """
-        } else {
-          val scheduler = util.name("scheduler")
-          q"""
-          val $scheduler = $selfExpr
-          val $nextFrameId = ($frameId + 1) & $scheduler.batchedExecutionModulus
-          if ($nextFrameId > 0)
-            $cb($nextFrameId)
-          else if (!$active.isCanceled)
-            $scheduler.execute(new Runnable { def run(): Unit = $cb($nextFrameId) })
-          """
-        }
-
-      new InlineUtil[c.type](c).inlineAndReset[Unit](tree)
-    }
-  }
+object Scheduler extends SchedulerCompanionImpl {
+  self: SchedulerCompanion =>
 }

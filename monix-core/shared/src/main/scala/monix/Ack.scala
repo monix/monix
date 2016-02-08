@@ -24,13 +24,13 @@ import scala.util.{Success, Try}
 /** Represents the acknowledgement of processing that a consumer
   * sends back upstream on `Observer.onNext`
   */
-sealed trait Ack extends Future[Ack]
+sealed abstract class Ack extends Future[Ack]
 
 object Ack {
   /** Acknowledgement of processing that signals upstream that the
     * consumer is interested in receiving more events.
     */
-  sealed trait Continue extends Ack
+  sealed abstract class Continue extends Ack
 
   case object Continue extends Continue with Future[Continue] { self =>
     final val AsSuccess = Success(Continue)
@@ -49,7 +49,7 @@ object Ack {
   /** Acknowledgement or processing that signals upstream that the
     * consumer is no longer interested in receiving events.
     */
-  sealed trait Cancel extends Ack
+  sealed abstract class Cancel extends Ack
 
   case object Cancel extends Cancel with Future[Cancel] { self =>
     final val AsSuccess = Success(Cancel)

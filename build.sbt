@@ -129,9 +129,28 @@ lazy val crossSettings = sharedSettings ++ Seq(
   unmanagedSourceDirectories in Test <+= baseDirectory(_.getParentFile / "shared" / "src" / "test" / "scala")
 )
 
+lazy val scalaMacroDependencies = Seq(
+  libraryDependencies ++= Seq(
+    "org.scala-lang" % "scala-reflect" % scalaVersion.value % "provided",
+    "org.scala-lang" % "scala-compiler" % scalaVersion.value % "provided"
+  ),
+  libraryDependencies ++= {
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      // if scala 2.11+ is used, quasiquotes are merged into scala-reflect
+      case Some((2, scalaMajor)) if scalaMajor >= 11 => Seq.empty
+      // in Scala 2.10, quasiquotes are provided by macro paradise
+      case Some((2, 10)) =>
+        Seq(
+          compilerPlugin("org.scalamacros" % "paradise" % "2.0.1" cross CrossVersion.full),
+          "org.scalamacros" %% "quasiquotes" % "2.0.1" cross CrossVersion.binary
+        )
+    }
+  })
+
 lazy val unidocSettings = baseUnidocSettings ++ Seq(
   autoAPIMappings := true,
-  unidocProjectFilter in (ScalaUnidoc, unidoc) := inProjects(executionJVM, coreJVM),
+  unidocProjectFilter in (ScalaUnidoc, unidoc) :=
+    inProjects(executionJVM, coreJVM),
 
   scalacOptions in (ScalaUnidoc, unidoc) +=
     "-Xfatal-warnings",
@@ -140,7 +159,7 @@ lazy val unidocSettings = baseUnidocSettings ++ Seq(
   scalacOptions in (ScalaUnidoc, unidoc) ++=
     Opts.doc.title(s"Sincron"),
   scalacOptions in (ScalaUnidoc, unidoc) ++=
-    Opts.doc.sourceUrl(s"https://github.com/monixio/sincron/tree/v${version.value}€{FILE_PATH}.scala"),
+    Opts.doc.sourceUrl(s"https://github.com/monixio/monix/tree/v${version.value}€{FILE_PATH}.scala"),
   scalacOptions in (ScalaUnidoc, unidoc) ++=
     Seq("-doc-root-content", file("docs/rootdoc.txt").getAbsolutePath),
   scalacOptions in (ScalaUnidoc, unidoc) ++=
@@ -204,9 +223,10 @@ lazy val monix = project.in(file("."))
 lazy val executionJVM = project.in(file("monix-execution/jvm"))
   .settings(crossSettings)
   .settings(testSettings)
+  .settings(scalaMacroDependencies)
   .settings(
     name := "monix-execution",
-    libraryDependencies += "org.sincron" %%% "sincron" % "0.6"
+    libraryDependencies += "org.sincron" %%% "sincron" % "0.8"
   )
 
 lazy val executionJS = project.in(file("monix-execution/js"))
@@ -214,9 +234,10 @@ lazy val executionJS = project.in(file("monix-execution/js"))
   .settings(crossSettings)
   .settings(scalaJSSettings)
   .settings(testSettings)
+  .settings(scalaMacroDependencies)
   .settings(
     name := "monix-execution",
-    libraryDependencies += "org.sincron" %%% "sincron" % "0.6"
+    libraryDependencies += "org.sincron" %%% "sincron" % "0.8"
   )
 
 lazy val coreJVM = project.in(file("monix-core/jvm"))

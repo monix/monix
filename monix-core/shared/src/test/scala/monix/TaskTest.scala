@@ -19,12 +19,12 @@ package monix
 
 import java.util.concurrent.CancellationException
 import minitest.TestSuite
+import monix.Task.Callback
 import monix.exceptions.DummyException
 import monix.execution.Cancelable
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
-import monix.Task.UnsafeCallback
 import scala.concurrent.duration._
 import scala.concurrent.{Future, TimeoutException}
 import scala.util.{Failure, Success}
@@ -126,27 +126,6 @@ object TaskTest extends TestSuite[TestScheduler] {
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
     assertEquals(s.state.get.lastReportedError, null)
-  }
-
-  test("Task.apply should log unexpected errors in user callbacks") { implicit s =>
-    val err1 = DummyException("err1")
-    val err2 = DummyException("err2")
-
-    val task = Task.unsafeCreate[Int] { (s, c, depth, cb) =>
-      Task(1).stackSafeRun(s, c, depth, new UnsafeCallback[Int] {
-        def onSuccess(value: Int, stackDepth: Int): Unit =
-          throw err1
-
-        def onError(ex: Throwable, stackDepth: Int): Unit =
-          throw err2
-      })
-    }
-
-    val f = task.runAsync
-    s.tick()
-    assertEquals(f.value, None)
-
-    assertEquals(s.state.get.lastReportedError, err2)
   }
 
   test("Task.fromFuture should onSuccess") { implicit s =>
@@ -507,7 +486,6 @@ object TaskTest extends TestSuite[TestScheduler] {
   }
 
   test("Task#failed should fail if source is successful") { implicit s =>
-    val ex = DummyException("dummy")
     val f = Task(1).failed.runAsync
 
     s.tick()
@@ -1025,8 +1003,8 @@ object TaskTest extends TestSuite[TestScheduler] {
 
   test("Task#zip illegal state exception from source") { implicit s =>
     val source = Task.unsafeCreate[Int] { (scheduler, cancelable, depth, cb) =>
-      cb.onSuccess(1, depth)
-      cb.onSuccess(2, depth)
+      cb.onSuccess(1)
+      cb.onSuccess(2)
     }
 
     val task = source.zip(Task(3).delayExecution(1.second))
@@ -1040,8 +1018,8 @@ object TaskTest extends TestSuite[TestScheduler] {
 
   test("Task#zip illegal state exception from other") { implicit s =>
     val other = Task.unsafeCreate[Int] { (scheduler, cancelable, depth, cb) =>
-      cb.onSuccess(1, depth)
-      cb.onSuccess(2, depth)
+      cb.onSuccess(1)
+      cb.onSuccess(2)
     }
 
     val task = Task(3).delayExecution(1.second).zip(other)
@@ -1052,8 +1030,6 @@ object TaskTest extends TestSuite[TestScheduler] {
     assert(ex != null && ex.isInstanceOf[IllegalStateException],
       "should have thrown IllegalStateException")
   }
-
-  // --
 
   test("Task.firstCompletedOf should switch to other") { implicit s =>
     val task = Task.firstCompletedOf(Task(1).delayExecution(10.seconds), Task(99).delayExecution(1.second))
