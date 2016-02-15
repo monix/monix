@@ -17,9 +17,10 @@
 
 package monix.internal.operators
 
-import monix.Ack.Cancel
+import monix.execution.Ack
+import Ack.Cancel
 import monix.internal.concurrent.PromiseSuccessRunnable
-import monix.{Ack, Observable, Observer}
+import monix.{Observable, Observer}
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Future, Promise}
 

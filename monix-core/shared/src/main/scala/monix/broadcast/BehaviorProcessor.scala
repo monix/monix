@@ -17,10 +17,11 @@
 
 package monix.broadcast
 
-import monix.Ack.{Cancel, Continue}
+import monix.execution.Ack
+import Ack.{Cancel, Continue}
 import monix.internal._
 import monix.observers.ConnectableSubscriber
-import monix.{Ack, Observable, Subscriber}
+import monix.{Observable, Subscriber}
 import org.sincron.atomic.Atomic
 
 import scala.annotation.tailrec

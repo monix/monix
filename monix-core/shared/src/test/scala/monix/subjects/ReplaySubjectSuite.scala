@@ -17,10 +17,11 @@
 
 package monix.subjects
 
-import monix.Ack.Continue
+import monix.execution.Ack
+import Ack.Continue
 import monix.broadcast.ReplayProcessor
 import monix.observers.SyncObserver
-import monix.{Ack, Observer}
+import monix.Observer
 import monix.exceptions.DummyException
 import scala.concurrent.Future
 

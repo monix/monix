@@ -17,8 +17,9 @@
 
 package monix.internal.operators
 
-import monix.{Observable, Ack}
-import monix.Ack.Continue
+import monix.execution.Ack
+import monix.Observable
+import Ack.Continue
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.Duration._
 import scala.util.Success

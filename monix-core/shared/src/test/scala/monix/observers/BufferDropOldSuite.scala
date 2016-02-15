@@ -18,13 +18,14 @@
 package monix.observers
 
 import minitest.TestSuite
+import monix.execution.Ack
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
-import monix.Ack.{Cancel, Continue}
+import Ack.{Cancel, Continue}
 import monix.OverflowStrategy.DropOld
 import monix.exceptions.DummyException
 import monix.internal.concurrent.RunnableAction
-import monix.{Ack, Observer, OverflowStrategy, Subscriber}
+import monix.{Observer, OverflowStrategy, Subscriber}
 import scala.concurrent.{Future, Promise}
 
 object BufferDropOldSuite extends TestSuite[TestScheduler] {

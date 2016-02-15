@@ -18,10 +18,11 @@
 package monix.internal.operators
 
 import java.util.concurrent.TimeUnit
+import monix.execution.Ack
 import monix.execution.cancelables.MultiAssignmentCancelable
-import monix.Ack.{Cancel, Continue}
+import Ack.{Cancel, Continue}
 import monix.internal._
-import monix.{Ack, Observable, Observer}
+import monix.{Observable, Observer}
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
@@ -121,7 +122,7 @@ private[monix] object echo {
                 ack = next.fastFlatMap {
                   case Continue =>
                     // the speed with which the downstream replied with Continue
-                    // matters in this case, so we are measuring it and 
+                    // matters in this case, so we are measuring it and
                     // subtracting it from the period
                     val executionTime = s.currentTimeMillis() - rightNow
                     val delay = if (timeoutMillis > executionTime)

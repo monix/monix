@@ -17,10 +17,10 @@
 
 package monix.internal.operators
 
-import monix.execution.Cancelable
+import monix.execution.{Ack, Cancelable}
 import org.sincron.atomic.Atomic
-import monix.{OverflowStrategy, Observer, Observable, Ack}
-import monix.Ack.{Continue, Cancel}
+import monix.{OverflowStrategy, Observer, Observable}
+import Ack.{Continue, Cancel}
 import monix.internal._
 import monix.exceptions.CompositeException
 import monix.observers.BufferedSubscriber

@@ -18,10 +18,11 @@
 package monix.internal.operators
 
 import java.util.concurrent.TimeUnit
+import monix.execution.Ack
 import monix.execution.cancelables.MultiAssignmentCancelable
 import monix.observers.SyncObserver
-import monix.{Observable, Ack}
-import monix.Ack.{Cancel, Continue}
+import monix.Observable
+import Ack.{Cancel, Continue}
 import monix.internal._
 import scala.concurrent.Future
 import scala.concurrent.duration._

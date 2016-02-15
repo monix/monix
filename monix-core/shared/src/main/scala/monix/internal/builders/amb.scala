@@ -17,10 +17,10 @@
 
 package monix.internal.builders
 
-import monix.execution.Scheduler
+import monix.execution.{Ack, Scheduler}
 import org.sincron.atomic.{AtomicInt, Atomic}
-import monix.Ack.Cancel
-import monix.{Ack, Observable, Observer}
+import Ack.Cancel
+import monix.{Observable, Observer}
 import scala.concurrent.Future
 
 private[monix] object amb {

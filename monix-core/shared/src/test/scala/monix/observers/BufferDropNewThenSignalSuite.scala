@@ -19,13 +19,13 @@ package monix.observers
 
 import minitest.TestSuite
 import monix.execution.internal.Platform
-import monix.execution.Scheduler
+import monix.execution.{Ack, Scheduler}
 import monix.execution.schedulers.TestScheduler
-import monix.Ack.{Cancel, Continue}
+import Ack.{Cancel, Continue}
 import monix.OverflowStrategy.DropNew
 import monix.exceptions.DummyException
 import monix.internal.concurrent.RunnableAction
-import monix.{Ack, Observer, OverflowStrategy, Subscriber}
+import monix.{Observer, OverflowStrategy, Subscriber}
 import scala.concurrent.{Future, Promise}
 
 object BufferDropNewThenSignalSuite extends TestSuite[TestScheduler] {
@@ -42,7 +42,7 @@ object BufferDropNewThenSignalSuite extends TestSuite[TestScheduler] {
   def buildNewForLong(bufferSize: Int, underlying: Observer[Long])(implicit s: Scheduler) = {
     BufferedSubscriber(Subscriber(underlying, s), DropNew(bufferSize), nr => nr)
   }
-  
+
   test("should not lose events, test 1") { implicit s =>
     var number = 0
     var wasCompleted = false

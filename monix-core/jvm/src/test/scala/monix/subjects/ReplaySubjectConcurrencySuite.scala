@@ -19,11 +19,11 @@ package monix.subjects
 
 import java.util.concurrent.{TimeUnit, CountDownLatch}
 import minitest.TestSuite
-import monix.execution.Scheduler
+import monix.execution.{Ack, Scheduler}
 import monix.broadcast.ReplayProcessor
 import monix.observers.SyncObserver
-import monix.{Observable, Ack}
-import monix.Ack.Continue
+import monix.Observable
+import Ack.Continue
 import monix.internal.concurrent.RunnableAction
 
 object ReplaySubjectConcurrencySuite extends TestSuite[Scheduler] {

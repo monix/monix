@@ -17,8 +17,9 @@
 
 package monix.observers
 
-import monix.Ack.{Cancel, Continue}
-import monix.{Ack, Subscriber}
+import monix.execution.Ack
+import Ack.{Cancel, Continue}
+import monix.Subscriber
 import scala.concurrent.{Future, Promise}
 import scala.util.Failure
 import scala.util.control.NonFatal

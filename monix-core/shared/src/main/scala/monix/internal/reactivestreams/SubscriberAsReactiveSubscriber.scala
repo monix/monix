@@ -17,7 +17,8 @@
 
 package monix.internal.reactivestreams
 
-import monix.Ack.{Cancel, Continue}
+import monix.execution.Ack
+import Ack.{Cancel, Continue}
 import monix.OverflowStrategy.Unbounded
 import monix.Subscriber
 import monix.observers.{BufferedSubscriber, SyncSubscriber}

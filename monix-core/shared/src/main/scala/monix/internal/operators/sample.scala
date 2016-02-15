@@ -17,10 +17,11 @@
 
 package monix.internal.operators
 
+import monix.execution.Ack
 import monix.execution.cancelables.BooleanCancelable
-import monix.Ack.{Cancel, Continue}
+import Ack.{Cancel, Continue}
 import monix.observers.SyncSubscriber
-import monix.{Ack, Observable, Observer, Subscriber}
+import monix.{Observable, Observer, Subscriber}
 import scala.concurrent.Future
 import scala.concurrent.duration._
 

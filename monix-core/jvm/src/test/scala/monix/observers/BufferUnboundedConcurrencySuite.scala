@@ -20,9 +20,9 @@ package monix.observers
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 
 import minitest.TestSuite
-import monix.execution.Scheduler
+import monix.execution.{Ack, Scheduler}
 import monix._
-import monix.Ack.Continue
+import Ack.Continue
 import OverflowStrategy.Unbounded
 import monix.Subscriber
 import scala.concurrent.duration._

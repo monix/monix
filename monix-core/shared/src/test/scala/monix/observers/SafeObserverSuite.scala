@@ -18,9 +18,10 @@
 package monix.observers
 
 import minitest.TestSuite
+import monix.execution.Ack
 import monix.execution.schedulers.TestScheduler
-import monix.Ack.{Cancel, Continue}
-import monix.{Ack, Subscriber}
+import Ack.{Cancel, Continue}
+import monix.Subscriber
 import monix.exceptions.DummyException
 import scala.concurrent.{Future, Promise}
 import scala.util.Success
@@ -35,7 +36,7 @@ object SafeObserverSuite extends TestSuite[TestScheduler] {
     var errorThrown: Throwable = null
     val observer = SafeSubscriber(new Subscriber[Int] {
       val scheduler = s
-      
+
       def onNext(elem: Int): Future[Ack] = {
         throw new DummyException
       }
@@ -60,7 +61,7 @@ object SafeObserverSuite extends TestSuite[TestScheduler] {
     var errorThrown: Throwable = null
     val observer = SafeSubscriber(new Subscriber[Int] {
       val scheduler = s
-      
+
       def onNext(elem: Int): Future[Ack] = {
         Future.failed(new DummyException)
       }

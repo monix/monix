@@ -18,7 +18,8 @@
 package monix
 
 import minitest.TestSuite
-import monix.Ack.{Cancel, Continue}
+import monix.execution.Ack
+import Ack.{Cancel, Continue}
 import monix.exceptions.DummyException
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.schedulers.TestScheduler

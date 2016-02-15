@@ -17,10 +17,10 @@
 
 package monix.internal.reactivestreams
 
-import monix.execution.Scheduler
+import monix.execution.{Ack, Scheduler}
 import org.sincron.atomic.Atomic
-import monix.{Observer, Ack}
-import monix.Ack.{Cancel, Continue}
+import monix.Observer
+import Ack.{Cancel, Continue}
 import monix.Subscriber
 import org.reactivestreams.{Subscriber => RSubscriber, Subscription}
 import scala.annotation.tailrec

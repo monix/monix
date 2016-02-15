@@ -17,9 +17,10 @@
 
 package monix.internal.operators
 
+import monix.execution.Ack
 import monix.execution.cancelables.{BooleanCancelable, RefCountCancelable}
 import monix._
-import monix.Ack.{Cancel, Continue}
+import Ack.{Cancel, Continue}
 import monix.exceptions.CompositeException
 import monix.internal._
 import monix.observers.{SyncObserver, BufferedSubscriber}

@@ -18,10 +18,11 @@
 package monix.internal.builders
 
 import minitest.TestSuite
+import monix.execution.Ack
 import monix.execution.schedulers.TestScheduler
-import monix.Ack.{Cancel, Continue}
+import Ack.{Cancel, Continue}
 import monix.exceptions.DummyException
-import monix.{Ack, Observable, Observer}
+import monix.{Observable, Observer}
 import scala.concurrent.duration._
 import scala.concurrent.{Future, Promise}
 

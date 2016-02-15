@@ -18,10 +18,11 @@
 package monix.internal.operators
 
 import java.util.concurrent.TimeoutException
+import monix.execution.Ack
 import monix.execution.FutureUtils.ops._
 import monix.broadcast.PublishProcessor
 import monix._
-import monix.Ack.Continue
+import Ack.Continue
 import monix.exceptions.DummyException
 import monix.observers.SyncObserver
 import scala.concurrent.Future

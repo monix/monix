@@ -18,9 +18,10 @@
 package monix.internal.builders
 
 import minitest.TestSuite
+import monix.execution.Ack
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
-import monix.Ack.Continue
+import Ack.Continue
 import monix.Observable
 
 object RepeatOneSuite extends TestSuite[TestScheduler] {

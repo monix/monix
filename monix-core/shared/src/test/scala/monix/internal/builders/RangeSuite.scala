@@ -18,10 +18,11 @@
 package monix.internal.builders
 
 import minitest.TestSuite
+import monix.execution.Ack
 import monix.execution.internal.Platform
 import monix.execution.FutureUtils.ops._
 import monix.execution.schedulers.TestScheduler
-import monix.Ack.Continue
+import Ack.Continue
 import monix.{Observable, Observer}
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -29,7 +30,7 @@ import scala.concurrent.duration._
 object RangeSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
-    assert(s.state.get.tasks.isEmpty, 
+    assert(s.state.get.tasks.isEmpty,
       "TestScheduler should not have pending tasks left")
   }
 

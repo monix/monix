@@ -17,8 +17,9 @@
 
 package monix.internal.operators
 
-import monix.{Observer, Observable, Ack}
-import monix.Ack.Continue
+import monix.execution.Ack
+import monix.{Observer, Observable}
+import Ack.Continue
 import monix.exceptions.DummyException
 import monix.Observer
 import scala.concurrent.duration._
@@ -43,7 +44,7 @@ object BufferSizedAndTimedNr1Suite extends BaseOperatorSuite {
         .take(sourceCount * 10)
         .buffer(1.second, maxSize = 20)
         .map(_.sum)
-      
+
       Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
     }
   }

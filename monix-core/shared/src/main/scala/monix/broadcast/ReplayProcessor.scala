@@ -17,8 +17,9 @@
 
 package monix.broadcast
 
+import monix.execution.Ack
 import monix.execution.internal.math._
-import monix.Ack.{Cancel, Continue}
+import Ack.{Cancel, Continue}
 import monix._
 import monix.internal._
 import monix.observers.ConnectableSubscriber

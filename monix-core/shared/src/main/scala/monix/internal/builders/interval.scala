@@ -18,8 +18,9 @@
 package monix.internal.builders
 
 import java.util.concurrent.TimeUnit
-import monix.{Observable, Ack}
-import monix.Ack.Continue
+import monix.execution.Ack
+import monix.Observable
+import Ack.Continue
 import scala.concurrent.duration._
 import scala.util.{Try, Failure}
 

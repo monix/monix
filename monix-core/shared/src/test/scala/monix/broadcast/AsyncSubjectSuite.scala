@@ -17,8 +17,8 @@
 
 package monix.broadcast
 
-import monix.execution.Scheduler
-import monix.Ack.Continue
+import monix.execution.{Ack, Scheduler}
+import Ack.Continue
 import monix.Observer
 import monix.OverflowStrategy.Unbounded
 import monix.exceptions.DummyException

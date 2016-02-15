@@ -18,8 +18,9 @@
 package monix.observers.buffers
 
 import java.util.concurrent.ConcurrentLinkedQueue
-import monix.{Subscriber, OverflowStrategy, Ack}
-import monix.Ack.{Cancel, Continue}
+import monix.execution.Ack
+import monix.{Subscriber, OverflowStrategy}
+import Ack.{Cancel, Continue}
 import monix.execution.internal.Platform
 import monix.observers.buffers.DropNewBufferedSubscriber.State
 import monix.observers.{BufferedSubscriber, SyncSubscriber}

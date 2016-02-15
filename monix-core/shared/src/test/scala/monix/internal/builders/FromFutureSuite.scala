@@ -18,9 +18,10 @@
 package monix.internal.builders
 
 import minitest.TestSuite
+import monix.execution.Ack
 import monix.execution.FutureUtils.ops._
 import monix.execution.schedulers.TestScheduler
-import monix.Ack.Continue
+import Ack.Continue
 import monix.{Observable, Observer}
 import monix.exceptions.DummyException
 

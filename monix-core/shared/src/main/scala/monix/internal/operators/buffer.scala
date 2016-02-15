@@ -17,9 +17,10 @@
 
 package monix.internal.operators
 
-import monix.Ack.Continue
+import monix.execution.Ack
+import Ack.Continue
 import monix.internal._
-import monix.{Ack, Observable, Observer}
+import monix.{Observable, Observer}
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Future
 import scala.concurrent.duration.{Duration, FiniteDuration}
@@ -35,7 +36,7 @@ private[monix] object buffer {
 
     Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
-      
+
       source.unsafeSubscribeFn(new Observer[T] {
         private[this] val shouldDrop = skip > count
         private[this] var leftToDrop = 0

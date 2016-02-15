@@ -18,13 +18,14 @@
 package monix.observers
 
 import minitest.TestSuite
+import monix.execution.Ack
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
-import monix.Ack.{Cancel, Continue}
+import Ack.{Cancel, Continue}
 import monix.OverflowStrategy.Fail
 import monix.exceptions.{BufferOverflowException, DummyException}
 import monix.internal.concurrent.RunnableAction
-import monix.{Ack, Observer, OverflowStrategy, Subscriber}
+import monix.{Observer, OverflowStrategy, Subscriber}
 import scala.concurrent.{Future, Promise}
 
 object BufferOverflowTriggeringSuite extends TestSuite[TestScheduler] {
@@ -159,7 +160,7 @@ object BufferOverflowTriggeringSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable) = {
           errorThrown = ex
         }
-  
+
         def onNext(elem: Int) = throw new IllegalStateException()
         def onComplete() = throw new IllegalStateException()
         val scheduler = s
@@ -338,7 +339,7 @@ object BufferOverflowTriggeringSuite extends TestSuite[TestScheduler] {
           sum += elem
           startConsuming.future
         }
-        
+
         def onError(ex: Throwable) = errorThrown = ex
         def onComplete() = throw new IllegalStateException()
         val scheduler = s

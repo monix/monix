@@ -18,12 +18,13 @@
 package monix.observables
 
 import minitest.TestSuite
+import monix.execution.Ack
 import monix.execution.schedulers.TestScheduler
-import monix.Ack.Continue
+import Ack.Continue
 import monix.OverflowStrategy.Unbounded
 import monix.broadcast.Subject
 import monix.exceptions.DummyException
-import monix.{Ack, Observable, Observer}
+import monix.{Observable, Observer}
 import scala.concurrent.Future
 import scala.concurrent.duration._
 

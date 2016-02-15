@@ -17,9 +17,9 @@
 
 package monix
 
-import monix.execution.Scheduler
+import monix.execution.{Ack, Scheduler}
 import monix.execution.internal.Platform
-import monix.Ack.{Continue, Cancel}
+import Ack.{Continue, Cancel}
 import monix.internal.reactivestreams._
 import monix.observers.{SyncObserver, SyncSubscriber}
 import org.reactivestreams.{Subscriber => RSubscriber}

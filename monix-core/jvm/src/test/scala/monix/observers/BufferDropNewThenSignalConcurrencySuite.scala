@@ -20,9 +20,9 @@ package monix.observers
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 
 import minitest.TestSuite
-import monix.execution.Scheduler
+import monix.execution.{Ack, Scheduler}
 import monix._
-import monix.Ack.{Cancel, Continue}
+import Ack.{Cancel, Continue}
 import OverflowStrategy.DropNew
 import monix.exceptions.DummyException
 import monix.Subscriber

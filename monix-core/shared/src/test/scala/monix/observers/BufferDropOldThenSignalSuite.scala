@@ -19,13 +19,13 @@ package monix.observers
 
 import minitest.TestSuite
 import monix.execution.internal.Platform
-import monix.execution.Scheduler
+import monix.execution.{Ack, Scheduler}
 import monix.execution.schedulers.TestScheduler
-import monix.Ack.{Cancel, Continue}
+import Ack.{Cancel, Continue}
 import monix.OverflowStrategy.DropOld
 import monix.exceptions.DummyException
 import monix.internal.concurrent.RunnableAction
-import monix.{Ack, Observer, OverflowStrategy, Subscriber}
+import monix.{Observer, OverflowStrategy, Subscriber}
 import scala.concurrent.{Future, Promise}
 
 object BufferDropOldThenSignalSuite extends TestSuite[TestScheduler] {
@@ -39,7 +39,7 @@ object BufferDropOldThenSignalSuite extends TestSuite[TestScheduler] {
     BufferedSubscriber.withOverflowSignal(
       Subscriber(underlying, s), DropOld(bufferSize))(nr => nr.toInt)
   }
-  
+
   test("should not lose events, test 1") { implicit s =>
     var number = 0
     var wasCompleted = false
@@ -171,7 +171,7 @@ object BufferDropOldThenSignalSuite extends TestSuite[TestScheduler] {
 
     buffer.onNext(1)
     buffer.onError(DummyException("dummy"))
-    
+
     s.tick()
     assertEquals(errorThrown, DummyException("dummy"))
   }

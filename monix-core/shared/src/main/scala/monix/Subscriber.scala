@@ -17,7 +17,7 @@
 
 package monix
 
-import monix.execution.Scheduler
+import monix.execution.{Ack, Scheduler}
 import monix.execution.internal.Platform
 import monix.internal.reactivestreams.{ReactiveSubscriberAsMonixSubscriber, SubscriberAsReactiveSubscriber, SyncSubscriberAsReactiveSubscriber}
 import monix.observers.{SyncObserver, SyncSubscriber}

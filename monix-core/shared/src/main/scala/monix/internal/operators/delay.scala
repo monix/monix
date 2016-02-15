@@ -18,9 +18,10 @@
 package monix.internal.operators
 
 import java.util.concurrent.TimeUnit
-import monix.Ack.Cancel
+import monix.execution.Ack
+import Ack.Cancel
 import monix.internal._
-import monix.{Ack, Observable, Observer}
+import monix.{Observable, Observer}
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Future, Promise}
 import scala.util.control.NonFatal

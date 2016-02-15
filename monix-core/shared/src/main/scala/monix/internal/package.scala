@@ -17,8 +17,8 @@
 
 package monix
 
-import monix.execution.{Cancelable, Scheduler}
-import monix.Ack.{Cancel, Continue}
+import monix.execution.{Ack, Cancelable, Scheduler}
+import Ack.{Cancel, Continue}
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.language.implicitConversions
 import scala.util.control.NonFatal

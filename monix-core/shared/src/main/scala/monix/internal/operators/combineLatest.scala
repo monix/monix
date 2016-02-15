@@ -17,11 +17,12 @@
 
 package monix.internal.operators
 
+import monix.execution.Ack
 import org.sincron.atomic.Atomic
-import monix.Ack.{Cancel, Continue}
+import Ack.{Cancel, Continue}
 import monix.exceptions.CompositeException
 import monix.internal._
-import monix.{Ack, Observable, Observer}
+import monix.{Observable, Observer}
 import scala.collection.mutable
 import scala.concurrent.Future
 

@@ -17,8 +17,9 @@
 
 package monix.internal
 
+import monix.execution.Ack
 import org.sincron.atomic.Atomic
-import monix.{Subscriber, Ack}
+import monix.Subscriber
 import scala.concurrent.{Future, Promise}
 
 private[monix] final class FreezeOnFirstOnNextSubscriber[-T]

@@ -17,9 +17,10 @@
 
 package monix.internal.operators
 
+import monix.execution.Ack
 import org.sincron.atomic.Atomic
-import monix.{Observer, Observable, Ack}
-import monix.Ack.{Continue, Cancel}
+import monix.{Observer, Observable}
+import Ack.{Continue, Cancel}
 import monix.Observer
 import Observable.now
 import scala.concurrent.duration.Duration.Zero

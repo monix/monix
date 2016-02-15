@@ -18,9 +18,10 @@
 package monix.internal.reactivestreams
 
 import minitest.TestSuite
+import monix.execution.Ack
 import monix.execution.schedulers.TestScheduler
-import monix.{Observer, Observable, Ack}
-import monix.Ack.{Cancel, Continue}
+import monix.{Observer, Observable}
+import Ack.{Cancel, Continue}
 import monix.Observer
 
 import scala.concurrent.Future

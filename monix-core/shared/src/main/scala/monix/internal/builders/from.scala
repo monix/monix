@@ -18,10 +18,11 @@
 package monix.internal.builders
 
 import java.util.concurrent.Callable
+import monix.execution.Ack
 import monix.execution.internal.Platform
-import monix.Ack.{Cancel, Continue}
+import Ack.{Cancel, Continue}
 import monix.internal._
-import monix.{Ack, Observable, Subscriber}
+import monix.{Observable, Subscriber}
 import scala.annotation.tailrec
 import scala.concurrent.Future
 import scala.util.control.NonFatal

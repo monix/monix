@@ -17,7 +17,8 @@
 
 package monix.observers
 
-import monix.{Ack, Observer}
+import monix.execution.Ack
+import monix.{execution, Observer}
 
 /** A `SyncObserver` is an [[Observer]] that signals demand
   * to upstream synchronously (i.e. the upstream observable doesn't need to
@@ -28,8 +29,8 @@ import monix.{Ack, Observer}
   */
 trait SyncObserver[-T] extends Observer[T] {
   /**
-    * Returns either a [[monix.Ack.Continue Continue]] or a
-    * [[monix.Ack.Cancel Cancel]], in response to an `elem` event
+    * Returns either a [[Ack.Continue Continue]] or a
+    * [[execution.Ack.Cancel Cancel]], in response to an `elem` event
     * being received.
     */
   def onNext(elem: T): Ack

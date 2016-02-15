@@ -18,10 +18,10 @@
 package monix.internal.operators
 
 import java.io.PrintStream
-import monix.execution.Cancelable
-import monix.Ack.Cancel
+import monix.execution.{Ack, Cancelable}
+import Ack.Cancel
 import monix.internal._
-import monix.{Ack, Observable, Observer}
+import monix.{Observable, Observer}
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 

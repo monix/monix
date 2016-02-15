@@ -18,13 +18,14 @@
 package monix.observers
 
 import minitest.TestSuite
+import monix.execution.Ack
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
-import monix.Ack.{Cancel, Continue}
+import Ack.{Cancel, Continue}
 import monix.OverflowStrategy.BackPressure
 import monix.exceptions.DummyException
 import monix.internal.concurrent.RunnableAction
-import monix.{Ack, OverflowStrategy, Subscriber}
+import monix.{OverflowStrategy, Subscriber}
 import scala.concurrent.{Future, Promise}
 
 object BufferBackPressuredSuite extends TestSuite[TestScheduler] {

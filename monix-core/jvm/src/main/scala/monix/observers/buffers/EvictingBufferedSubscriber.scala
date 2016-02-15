@@ -17,10 +17,11 @@
 
 package monix.observers.buffers
 
+import monix.execution.Ack
 import monix.execution.internal.Platform
 import monix.execution.internal.collection.{EvictingQueue, DropHeadOnOverflowQueue, DropAllOnOverflowQueue}
-import monix.{Subscriber, OverflowStrategy, Ack}
-import monix.Ack.{Cancel, Continue}
+import monix.{Subscriber, OverflowStrategy}
+import Ack.{Cancel, Continue}
 import monix.observers.{BufferedSubscriber, SyncSubscriber}
 import scala.annotation.tailrec
 import scala.util.Failure

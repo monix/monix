@@ -17,8 +17,9 @@
 
 package monix.observers
 
-import monix.{Subscriber, Observer, Observable, Ack}
-import monix.Ack.{Cancel, Continue}
+import monix.execution.Ack
+import monix.{Subscriber, Observer, Observable}
+import Ack.{Cancel, Continue}
 import monix.internal._
 import scala.collection.mutable
 import scala.concurrent.{Future, Promise}

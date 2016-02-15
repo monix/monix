@@ -18,8 +18,9 @@
 package monix.subjects
 
 import minitest.TestSuite
+import monix.execution.Ack
 import monix.execution.schedulers.TestScheduler
-import monix.Ack.{Cancel, Continue}
+import Ack.{Cancel, Continue}
 import monix.broadcast.Processor
 import monix.exceptions.DummyException
 import monix.{Observable, Observer}

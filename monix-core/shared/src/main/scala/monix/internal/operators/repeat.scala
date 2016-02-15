@@ -17,9 +17,9 @@
 
 package monix.internal.operators
 
-import monix.execution.Scheduler
+import monix.execution.{Ack, Scheduler}
 import monix.broadcast.{Processor, ReplayProcessor}
-import monix.{Observer, Ack, Observable}
+import monix.{Observer, Observable}
 import scala.concurrent.Future
 
 private[monix] object repeat {

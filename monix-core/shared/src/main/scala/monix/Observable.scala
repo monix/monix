@@ -20,8 +20,8 @@ package monix
 import java.io.PrintStream
 import java.util.concurrent.Callable
 import monix.execution.cancelables.BooleanCancelable
-import monix.execution.{Cancelable, Scheduler}
-import monix.Ack.{Cancel, Continue}
+import monix.execution.{Ack, Cancelable, Scheduler}
+import Ack.{Cancel, Continue}
 import monix.OverflowStrategy.{default => defaultStrategy}
 import monix.broadcast._
 import monix.internal.concurrent.UnsafeSubscribeRunnable

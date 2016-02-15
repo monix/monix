@@ -17,7 +17,8 @@
 
 package monix.internal.operators
 
-import monix.Ack.Cancel
+import monix.execution.Ack
+import Ack.Cancel
 import monix._
 import monix.Notification._
 import monix.internal.FutureAckExtensions

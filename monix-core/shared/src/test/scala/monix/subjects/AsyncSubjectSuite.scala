@@ -17,7 +17,8 @@
 
 package monix.subjects
 
-import monix.Ack.Continue
+import monix.execution.Ack
+import Ack.Continue
 import monix.Observer
 import monix.broadcast.AsyncProcessor
 import monix.exceptions.DummyException

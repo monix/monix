@@ -18,9 +18,9 @@
 package monix.broadcast
 
 import minitest.TestSuite
-import monix.execution.Scheduler
+import monix.execution.{Ack, Scheduler}
 import monix.execution.schedulers.TestScheduler
-import monix.Ack.Continue
+import Ack.Continue
 import monix.exceptions.DummyException
 import monix.{Observable, Observer}
 

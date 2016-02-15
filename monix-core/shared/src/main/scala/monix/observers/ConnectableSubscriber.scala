@@ -17,9 +17,9 @@
 
 package monix.observers
 
-import monix.execution.Scheduler
+import monix.execution.{Ack, Scheduler}
 import monix._
-import monix.Ack.{Cancel, Continue}
+import Ack.{Cancel, Continue}
 import monix.broadcast.Subject
 import monix.internal.FutureAckExtensions
 import scala.collection.mutable

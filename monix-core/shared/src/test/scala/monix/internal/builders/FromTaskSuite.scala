@@ -18,9 +18,10 @@
 package monix.internal.builders
 
 import minitest.TestSuite
+import monix.execution.Ack
 import monix.execution.schedulers.TestScheduler
-import monix.Ack.Continue
-import monix.{Ack, Observable, Observer}
+import Ack.Continue
+import monix.{Observable, Observer}
 import scala.concurrent.Future
 
 object FromTaskSuite extends TestSuite[TestScheduler] {

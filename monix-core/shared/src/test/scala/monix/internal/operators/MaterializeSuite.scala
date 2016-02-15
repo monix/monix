@@ -17,10 +17,11 @@
 
 package monix.internal.operators
 
-import monix.Ack.{Continue, Cancel}
+import monix.execution.Ack
+import Ack.{Continue, Cancel}
 import monix.Notification.{OnComplete, OnError, OnNext}
 import monix.exceptions.DummyException
-import monix.{Ack, Notification, Observer, Observable}
+import monix.{Notification, Observer, Observable}
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration.Zero
 

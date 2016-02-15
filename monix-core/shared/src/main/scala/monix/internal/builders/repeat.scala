@@ -17,8 +17,9 @@
 
 package monix.internal.builders
 
+import monix.execution.Ack
 import monix.execution.internal.Platform
-import monix.Ack.Continue
+import Ack.Continue
 import monix.{Observable, Subscriber}
 import scala.annotation.tailrec
 import scala.util.Failure

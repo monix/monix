@@ -18,10 +18,11 @@
 package monix.internal.builders
 
 import minitest.SimpleTestSuite
+import monix.execution.Ack
 import monix.execution.FutureUtils.ops._
 import monix.execution.schedulers.TestScheduler
-import monix.Ack.Continue
-import monix.{Ack, Observable, Observer}
+import Ack.Continue
+import monix.{Observable, Observer}
 import scala.concurrent.Future
 import scala.concurrent.duration._
 

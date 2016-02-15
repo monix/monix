@@ -17,9 +17,9 @@
 
 package monix.internal.operators
 
-import monix.execution.Cancelable
-import monix.{Observer, Observable, Ack}
-import monix.Ack.Cancel
+import monix.execution.{Ack, Cancelable}
+import monix.{Observer, Observable}
+import Ack.Cancel
 import monix.internal._
 import monix.Observer
 import scala.concurrent.Future

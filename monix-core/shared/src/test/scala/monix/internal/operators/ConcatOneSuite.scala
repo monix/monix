@@ -17,11 +17,11 @@
 
 package monix.internal.operators
 
-import monix.execution.Scheduler
+import monix.execution.{Ack, Scheduler}
 import monix.execution.FutureUtils.ops._
 import monix.broadcast.PublishProcessor
-import monix.{Observer, Observable, Ack}
-import monix.Ack.Continue
+import monix.{Observer, Observable}
+import Ack.Continue
 import monix.exceptions.DummyException
 import monix.Observer
 import scala.concurrent.Future

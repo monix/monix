@@ -17,8 +17,8 @@
 
 package monix.broadcast
 
-import monix.execution.Scheduler
-import monix.{Ack, Subscriber, OverflowStrategy}
+import monix.execution.{Ack, Scheduler}
+import monix.{Subscriber, OverflowStrategy}
 import monix.observers.{SyncSubscriber, BufferedSubscriber}
 
 /**

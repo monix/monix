@@ -18,8 +18,9 @@
 package monix.subjects
 
 import monix.broadcast.BehaviorProcessor
-import monix.{Observer, Ack}
-import monix.Ack.Continue
+import monix.execution.Ack
+import monix.Observer
+import Ack.Continue
 import monix.exceptions.DummyException
 import monix.Observer
 import scala.concurrent.Future
