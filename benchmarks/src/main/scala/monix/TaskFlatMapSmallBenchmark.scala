@@ -18,10 +18,9 @@
 package monix
 
 import java.util.concurrent.TimeUnit
-
-import monix.{Task => MonixTask}
+import monix.tasks.{Callback, Task => MonixTask}
+import monix.execution.Scheduler.Implicits.global
 import org.openjdk.jmh.annotations._
-
 import scalaz.concurrent.{Task => ScalazTask}
 import scalaz.{-\/, \/-}
 

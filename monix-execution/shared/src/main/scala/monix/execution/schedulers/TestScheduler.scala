@@ -49,8 +49,9 @@ final class TestScheduler private (override val batchedExecutionModulus: Int)
   override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable =
     state.transformAndExtract(_.scheduleOnce(FiniteDuration(initialDelay, unit), r))
 
-  private[this] def cancelTask(t: Task): Unit =
+  private[this] def cancelTask(t: Task): Unit = {
     state.transform(s => s.copy(tasks = s.tasks - t))
+  }
 
   override def execute(runnable: Runnable): Unit = {
     state.transform(_.execute(runnable))
@@ -196,10 +197,14 @@ object TestScheduler {
       require(delay >= Duration.Zero, "The given delay must be positive")
 
       val newID = lastID + 1
-      val cancelable = SingleAssignmentCancelable()
+      SingleAssignmentCancelable()
 
       val task = Task(newID, r, this.clock + delay)
-      cancelable := Cancelable { cancelTask(task) }
+      val cancelable = new Cancelable {
+        def cancel(): Unit = cancelTask(task)
+        override def toString =
+          s"monix.execution.schedulers.TestScheduler.TaskCancelable@$hashCode"
+      }
 
       (cancelable, copy(
         lastID = newID,

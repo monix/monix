@@ -18,7 +18,8 @@
 package monix
 
 import java.util.concurrent.TimeUnit
-import monix.{Task => MonixTask}
+import monix.tasks.{Callback, Task => MonixTask}
+import monix.execution.Scheduler.Implicits.global
 import org.openjdk.jmh.annotations._
 import scalaz.concurrent.{Task => ScalazTask}
 import scalaz.{-\/, \/-}
@@ -38,10 +39,10 @@ import scalaz.{-\/, \/-}
 class TaskDeferOneBenchmark {
   @Benchmark
   def monix(): Long = {
-    var result = 0
-    MonixTask.eval(10).runAsync(new Callback[Int] {
+    var result = 0L
+    MonixTask.eval(10L).runAsync(new Callback[Long] {
       def onError(ex: Throwable): Unit = throw ex
-      def onSuccess(value: Int): Unit =
+      def onSuccess(value: Long): Unit =
         result = value
     })
     result
@@ -49,8 +50,8 @@ class TaskDeferOneBenchmark {
 
   @Benchmark
   def scalaz(): Long = {
-    var result = 0
-    ScalazTask.delay(10).unsafePerformAsync {
+    var result = 0L
+    ScalazTask.delay(10L).unsafePerformAsync {
       case -\/(ex) => throw ex
       case \/-(value) => result = value
     }

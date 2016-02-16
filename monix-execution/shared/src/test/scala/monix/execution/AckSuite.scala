@@ -1,3 +1,20 @@
+/*
+ * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * See the project homepage at: https://monix.io
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package monix.execution
 
 import minitest.TestSuite
@@ -435,5 +452,55 @@ object AckSuite extends TestSuite[TestScheduler] {
   test("syncTryFlatten(Future(Cancel))") { implicit s =>
     val f = Cancel.syncTryFlatten
     assertEquals(f, Cancel)
+  }
+
+  test("isSynchronous(Future(Continue)) == false") { implicit s =>
+    val f: Future[Ack] = Future.successful(Continue)
+    assert(!f.isSynchronous)
+  }
+
+  test("isSynchronous(Continue) == true") { implicit s =>
+    val f: Future[Ack] = Continue
+    assert(f.isSynchronous)
+  }
+
+  test("isSynchronous(Future(Cancel)) == false") { implicit s =>
+    val f: Future[Ack] = Future.successful(Cancel)
+    assert(!f.isSynchronous)
+  }
+
+  test("isSynchronous(Cancel) == true") { implicit s =>
+    val f: Future[Ack] = Cancel
+    assert(f.isSynchronous)
+  }
+
+  test("isSynchronous(failure) == false") { implicit s =>
+    val f: Future[Ack] = Future.failed(new RuntimeException)
+    assert(!f.isSynchronous)
+  }
+
+  test("isSynchronous(impure Future(Continue)) == false") { implicit s =>
+    def f: Future[Ack] = Future.successful(Continue)
+    assert(!f.isSynchronous)
+  }
+
+  test("isSynchronous(impure Continue) == true") { implicit s =>
+    def f: Future[Ack] = Continue
+    assert(f.isSynchronous)
+  }
+
+  test("isSynchronous(impure Future(Cancel)) == false") { implicit s =>
+    def f: Future[Ack] = Future.successful(Cancel)
+    assert(!f.isSynchronous)
+  }
+
+  test("isSynchronous(impure Cancel) == true") { implicit s =>
+    def f: Future[Ack] = Cancel
+    assert(f.isSynchronous)
+  }
+
+  test("isSynchronous(impure failure) == false") { implicit s =>
+    def f: Future[Ack] = Future.failed(new RuntimeException)
+    assert(!f.isSynchronous)
   }
 }

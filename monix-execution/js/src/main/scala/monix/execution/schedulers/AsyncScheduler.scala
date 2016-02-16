@@ -36,7 +36,7 @@ private[schedulers] final class AsyncScheduler private (reporter: UncaughtExcept
     }
 
     val task = setTimeout(millis, r, reporter)
-    Cancelable(clearTimeout(task))
+    Cancelable(() => clearTimeout(task))
   }
 
   override def execute(runnable: Runnable): Unit = {

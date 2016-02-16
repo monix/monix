@@ -42,18 +42,26 @@ object Cancelable {
   /** Builds a [[Cancelable]] that executes the given
     * `callback` when calling [[Cancelable.cancel cancel]].
     */
-  def apply(callback: => Unit): Cancelable =
-    new Cancelable {
-      private[this] val _isCanceled = Atomic(false)
-
-      def cancel(): Unit =
-        if (!_isCanceled.getAndSet(true)) {
-          callback
-        }
-    }
+  def apply(callback: () => Unit): Cancelable =
+    new CancelableTask(callback)
 
   val empty: Cancelable =
     new Cancelable {
       def cancel() = ()
+      override def toString = "monix.execution.Cancelable.empty"
     }
+
+  private final class CancelableTask(cb: () => Unit)
+    extends Cancelable {
+
+    private[this] val callbackRef = Atomic(cb)
+
+    def cancel(): Unit = {
+      // Setting the callback to null with a `getAndSet` is solving
+      // two problems: `cancel` is idempotent, plus we allow the garbage
+      // collector to collect the task.
+      val callback = callbackRef.getAndSet(null)
+      if (callback != null) callback()
+    }
+  }
 }

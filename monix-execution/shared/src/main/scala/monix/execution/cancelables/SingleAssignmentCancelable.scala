@@ -59,41 +59,40 @@ final class SingleAssignmentCancelable private ()
     * @return `this`
     */
   @throws(classOf[IllegalStateException])
-  @tailrec
-  override def `:=`(value: Cancelable): this.type =
-    state.get match {
-      case Empty =>
-        if (!state.compareAndSet(Empty, IsNotCanceled(value)))
-          :=(value)
-        else
-          this
-      case IsEmptyCanceled =>
-        if (!state.compareAndSet(IsEmptyCanceled, IsCanceled))
-          :=(value)
-        else {
-          value.cancel()
-          this
-        }
-      case IsCanceled | IsNotCanceled(_) =>
-        throw new IllegalStateException(
-          "Cannot assign to SingleAssignmentCancelable, " +
-          "as it was already assigned once")
+  override def `:=`(value: Cancelable): this.type = {
+    // Using getAndSet, which on Java 8 should be faster than
+    // a compare-and-set.
+    val oldState = state.getAndSet(IsActive(value))
+
+    oldState match {
+      case Empty => ()
+      case IsEmptyCanceled => value.cancel()
+      case IsCanceled | IsActive(_) =>
+        value.cancel()
+        raiseError()
     }
 
+    this
+  }
+
   @tailrec
-  override def cancel(): Unit =
+  override def cancel(): Unit = {
     state.get match {
+      case IsCanceled | IsEmptyCanceled => ()
+      case IsActive(s) =>
+        state.set(IsCanceled)
+        s.cancel()
       case Empty =>
         if (!state.compareAndSet(Empty, IsEmptyCanceled))
           cancel()
-      case old @ IsNotCanceled(s) =>
-        if (!state.compareAndSet(old, IsCanceled))
-          cancel()
-        else
-          s.cancel()
-      case IsEmptyCanceled | IsCanceled =>
-        () // do nothing
     }
+  }
+
+  private def raiseError(): Nothing = {
+    throw new IllegalStateException(
+      "Cannot assign to SingleAssignmentCancelable, " +
+      "as it was already assigned once")
+  }
 
   private[this] val state = AtomicAny(Empty : State)
 }
@@ -105,7 +104,7 @@ object SingleAssignmentCancelable {
   private sealed trait State
   private object State {
     case object Empty extends State
-    case class IsNotCanceled(s: Cancelable) extends State
+    case class IsActive(s: Cancelable) extends State
     case object IsCanceled extends State
     case object IsEmptyCanceled extends State
   }

@@ -133,14 +133,14 @@ lazy val scalaMacroDependencies = Seq(
   libraryDependencies ++= Seq(
     "org.scala-lang" % "scala-reflect" % scalaVersion.value % "provided",
     "org.scala-lang" % "scala-compiler" % scalaVersion.value % "provided",
-    "org.typelevel" %% "macro-compat" % "1.1.0" % "provided",
+    "org.typelevel" %% "macro-compat" % "1.1.1" % "provided",
     compilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
   ))
 
 lazy val unidocSettings = baseUnidocSettings ++ Seq(
   autoAPIMappings := true,
   unidocProjectFilter in (ScalaUnidoc, unidoc) :=
-    inProjects(executionJVM, coreJVM),
+    inProjects(executionJVM, tasksJVM, streamsJVM),
 
   scalacOptions in (ScalaUnidoc, unidoc) +=
     "-Xfatal-warnings",
@@ -204,7 +204,8 @@ lazy val scalaStyleSettings = {
 lazy val monix = project.in(file("."))
   .aggregate(
     executionJVM, executionJS,
-    coreJVM, coreJS,
+    tasksJVM, tasksJS,
+    streamsJVM, streamsJS,
     docs, tckTests)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
@@ -216,7 +217,7 @@ lazy val executionJVM = project.in(file("monix-execution/jvm"))
   .settings(scalaMacroDependencies)
   .settings(
     name := "monix-execution",
-    libraryDependencies += "org.sincron" %%% "sincron" % "0.9"
+    libraryDependencies += "org.sincron" %%% "sincron" % "0.10"
   )
 
 lazy val executionJS = project.in(file("monix-execution/js"))
@@ -227,28 +228,42 @@ lazy val executionJS = project.in(file("monix-execution/js"))
   .settings(scalaMacroDependencies)
   .settings(
     name := "monix-execution",
-    libraryDependencies += "org.sincron" %%% "sincron" % "0.9"
+    libraryDependencies += "org.sincron" %%% "sincron" % "0.10"
   )
 
-lazy val coreJVM = project.in(file("monix-core/jvm"))
+lazy val tasksCommon =
+  crossSettings ++ testSettings ++
+  Seq(name := "monix-tasks")
+
+lazy val tasksJVM = project.in(file("monix-tasks/jvm"))
   .dependsOn(executionJVM)
-  .settings(crossSettings)
-  .settings(testSettings)
-  .settings(
-    name := "monix-core",
-    libraryDependencies += "org.reactivestreams" % "reactive-streams" % "1.0.0"
-  )
+  .settings(tasksCommon)
 
-lazy val coreJS = project.in(file("monix-core/js"))
+lazy val tasksJS = project.in(file("monix-tasks/js"))
   .enablePlugins(ScalaJSPlugin)
   .dependsOn(executionJS)
-  .settings(crossSettings)
   .settings(scalaJSSettings)
-  .settings(testSettings)
-  .settings(name := "monix-core")
+  .settings(tasksCommon)
+
+lazy val streamsCommon =
+  crossSettings ++ testSettings ++ scalaMacroDependencies ++ Seq(
+    name := "monix-streams",
+    libraryDependencies += "com.github.mpilquist" %%% "simulacrum" % "0.7.0"
+  )
+
+lazy val streamsJVM = project.in(file("monix-streams/jvm"))
+  .dependsOn(executionJVM, tasksJVM)
+  .settings(streamsCommon)
+  .settings(libraryDependencies += "org.reactivestreams" % "reactive-streams" % "1.0.0")
+
+lazy val streamsJS = project.in(file("monix-streams/js"))
+  .enablePlugins(ScalaJSPlugin)
+  .dependsOn(executionJS, tasksJS)
+  .settings(streamsCommon)
+  .settings(scalaJSSettings)
 
 lazy val docs = project.in(file("docs"))
-  .dependsOn(coreJVM)
+  .dependsOn(executionJVM, tasksJVM, streamsJVM)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
   .settings(site.settings)
@@ -256,7 +271,7 @@ lazy val docs = project.in(file("docs"))
   .settings(docsSettings)
 
 lazy val tckTests = project.in(file("tckTests"))
-  .dependsOn(coreJVM)
+  .dependsOn(streamsJVM)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
   .settings(
@@ -266,7 +281,7 @@ lazy val tckTests = project.in(file("tckTests"))
     ))
 
 lazy val benchmarks = project.in(file("benchmarks"))
-  .dependsOn(coreJVM)
+  .dependsOn(streamsJVM)
   .enablePlugins(JmhPlugin)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)

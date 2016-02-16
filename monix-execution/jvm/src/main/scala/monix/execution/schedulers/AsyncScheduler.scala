@@ -35,18 +35,18 @@ private[schedulers] final class AsyncScheduler private
       Cancelable.empty
     } else {
       val task = s.schedule(r, initialDelay, unit)
-      Cancelable(task.cancel(true))
+      Cancelable(() => task.cancel(true))
     }
   }
 
   override def scheduleWithFixedDelay(initialDelay: Long, delay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
     val task = s.scheduleWithFixedDelay(r, initialDelay, delay, unit)
-    Cancelable(task.cancel(false))
+    Cancelable(() => task.cancel(false))
   }
 
   override def scheduleAtFixedRate(initialDelay: Long, period: Long, unit: TimeUnit, r: Runnable): Cancelable = {
     val task = s.scheduleAtFixedRate(r, initialDelay, period, unit)
-    Cancelable(task.cancel(false))
+    Cancelable(() => task.cancel(false))
   }
 
   override def execute(runnable: Runnable): Unit =

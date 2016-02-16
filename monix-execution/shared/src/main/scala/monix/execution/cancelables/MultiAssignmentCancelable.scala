@@ -18,7 +18,7 @@
 package monix.execution.cancelables
 
 import monix.execution.Cancelable
-import org.sincron.atomic.Atomic
+import org.sincron.atomic.{PaddingStrategy, Atomic}
 import scala.annotation.tailrec
 
 /** Represents a [[monix.execution.Cancelable]] whose underlying cancelable
@@ -39,14 +39,14 @@ import scala.annotation.tailrec
   * old cancelable upon assigning a new cancelable.
   */
 final class MultiAssignmentCancelable private (initial: Cancelable)
-  extends AssignableCancelable {
+  extends AssignableCancelable.Multi {
 
   import MultiAssignmentCancelable.State
   import MultiAssignmentCancelable.State._
 
   private[this] val state = {
     val ref = if (initial != null) initial else Cancelable.empty
-    Atomic(Active(ref) : State)
+    Atomic.withPadding(Active(ref,0) : State, PaddingStrategy.LeftRight128)
   }
 
   override def isCanceled: Boolean =
@@ -55,37 +55,46 @@ final class MultiAssignmentCancelable private (initial: Cancelable)
       case _ => false
     }
 
-  @tailrec
-  override def cancel(): Unit = state.get match {
-    case Cancelled => ()
-    case current @ Active(s) =>
-      if (state.compareAndSet(current, Cancelled))
-        s.cancel()
-      else
-        cancel()
+  override def cancel(): Unit = {
+    // Using getAndSet, which on Java 8 should be faster than
+    // a compare-and-set.
+    val oldState = state.getAndSet(Cancelled)
+    if (oldState ne Cancelled)
+      oldState.asInstanceOf[Active].s.cancel()
   }
 
-  /** Swaps the underlying cancelable reference with `s`.
-    *
-    * In case this `MultiAssignmentCancelable` is already canceled,
-    * then the reference `value` will also be canceled on assignment.
-    *
-    * @return `this`
-    */
-  @tailrec
-  override def `:=`(value: Cancelable): this.type = {
+  @tailrec def `:=`(value: Cancelable): this.type =
     state.get match {
       case Cancelled =>
         value.cancel()
         this
 
-      case current @ Active(_) =>
-        if (!state.compareAndSet(current, Active(value)))
-          :=(value)
+      case current @ Active(s, currentOrder) =>
+        if (!state.compareAndSet(current, Active(value, currentOrder)))
+          :=(value) // retry
         else
           this
     }
-  }
+
+  @tailrec def orderedUpdate(value: Cancelable, order: Long): this.type =
+    state.get match {
+      case Cancelled =>
+        value.cancel()
+        this
+
+      case current @ Active(s, currentOrder) =>
+        val sameSign = (currentOrder < 0) ^ (order >= 0)
+        val isOrdered =
+          (sameSign && currentOrder <= order) ||
+          (currentOrder >= 0L && order < 0L) // takes overflow into account
+
+        if (!isOrdered) this else {
+          if (!state.compareAndSet(current, Active(value, order)))
+            orderedUpdate(value, order) // retry
+          else
+            this
+        }
+    }
 }
 
 object MultiAssignmentCancelable {
@@ -97,7 +106,7 @@ object MultiAssignmentCancelable {
 
   private[monix] sealed trait State
   private[monix] object State {
-    case class Active(s: Cancelable) extends State
+    case class Active(s: Cancelable, order: Long) extends State
     case object Cancelled extends State
   }
 }

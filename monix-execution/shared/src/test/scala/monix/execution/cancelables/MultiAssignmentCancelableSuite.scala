@@ -18,11 +18,12 @@
 package monix.execution.cancelables
 
 import minitest.SimpleTestSuite
+import monix.execution.Cancelable
 
 object MultiAssignmentCancelableSuite extends SimpleTestSuite {
   test("cancel()") {
     var effect = 0
-    val sub = BooleanCancelable(effect += 1)
+    val sub = BooleanCancelable(() => effect += 1)
     val mSub = MultiAssignmentCancelable(sub)
 
     assert(effect == 0)
@@ -40,9 +41,9 @@ object MultiAssignmentCancelableSuite extends SimpleTestSuite {
 
   test("cancel() after second assignment") {
     var effect = 0
-    val sub = BooleanCancelable(effect += 1)
+    val sub = BooleanCancelable(() => effect += 1)
     val mSub = MultiAssignmentCancelable(sub)
-    val sub2 = BooleanCancelable(effect += 10)
+    val sub2 = BooleanCancelable(() => effect += 10)
     mSub := sub2
 
     assert(effect == 0)
@@ -58,7 +59,7 @@ object MultiAssignmentCancelableSuite extends SimpleTestSuite {
     mSub.cancel()
 
     var effect = 0
-    val sub = BooleanCancelable(effect += 1)
+    val sub = BooleanCancelable(() => effect += 1)
 
     assert(effect == 0)
     assert(!sub.isCanceled && mSub.isCanceled)
@@ -66,5 +67,37 @@ object MultiAssignmentCancelableSuite extends SimpleTestSuite {
     mSub := sub
     assert(effect == 1)
     assert(sub.isCanceled)
+  }
+
+  test("should do orderedUpdate") {
+    val mc = MultiAssignmentCancelable()
+    var effect = 0
+
+    val c1 = Cancelable { () => effect = 1 }
+    mc.orderedUpdate(c1, 1)
+    val c2 = Cancelable { () => effect = 2 }
+    mc.orderedUpdate(c2, 2)
+    val c3 = Cancelable { () => effect = 3 }
+    mc.orderedUpdate(c3, 1)
+
+    mc.cancel()
+    assertEquals(effect, 2)
+  }
+
+  test("orderedUpdate should work on overflow") {
+    val mc = MultiAssignmentCancelable()
+    var effect = 0
+
+    val c1 = Cancelable { () => effect = 1 }
+    mc.orderedUpdate(c1, Long.MaxValue)
+    val c2 = Cancelable { () => effect = 2 }
+    mc.orderedUpdate(c2, Long.MaxValue+1)
+    val c3 = Cancelable { () => effect = 3 }
+    mc.orderedUpdate(c3, Long.MaxValue+2)
+    val c4 = Cancelable { () => effect = 4 }
+    mc.orderedUpdate(c4, Long.MaxValue)
+
+    mc.cancel()
+    assertEquals(effect, 3)
   }
 }
