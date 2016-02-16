@@ -21,7 +21,7 @@ import monix.execution.Ack
 import monix.execution.Scheduler.Implicits.global
 import monix.observers.SyncObserver
 import monix.Observer
-import Ack.Continue
+import monix.execution.Ack.Continue
 import monix.tckTests.SubscriberWhiteBoxSyncTest.Value
 import org.reactivestreams.tck.SubscriberWhiteboxVerification.WhiteboxSubscriberProbe
 import org.reactivestreams.tck.{SubscriberWhiteboxVerification, TestEnvironment}

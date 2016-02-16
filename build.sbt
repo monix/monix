@@ -140,7 +140,7 @@ lazy val scalaMacroDependencies = Seq(
 lazy val unidocSettings = baseUnidocSettings ++ Seq(
   autoAPIMappings := true,
   unidocProjectFilter in (ScalaUnidoc, unidoc) :=
-    inProjects(executionJVM, coreJVM),
+    inProjects(executionJVM, tasksJVM, streamsJVM),
 
   scalacOptions in (ScalaUnidoc, unidoc) +=
     "-Xfatal-warnings",
@@ -204,7 +204,8 @@ lazy val scalaStyleSettings = {
 lazy val monix = project.in(file("."))
   .aggregate(
     executionJVM, executionJS,
-    coreJVM, coreJS,
+    tasksJVM, tasksJS,
+    streamsJVM, streamsJS,
     docs, tckTests)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
@@ -230,25 +231,39 @@ lazy val executionJS = project.in(file("monix-execution/js"))
     libraryDependencies += "org.sincron" %%% "sincron" % "0.9"
   )
 
-lazy val coreJVM = project.in(file("monix-core/jvm"))
+lazy val tasksJVM = project.in(file("monix-tasks/jvm"))
   .dependsOn(executionJVM)
   .settings(crossSettings)
   .settings(testSettings)
-  .settings(
-    name := "monix-core",
-    libraryDependencies += "org.reactivestreams" % "reactive-streams" % "1.0.0"
-  )
+  .settings(name := "monix-tasks")
 
-lazy val coreJS = project.in(file("monix-core/js"))
+lazy val tasksJS = project.in(file("monix-tasks/js"))
   .enablePlugins(ScalaJSPlugin)
   .dependsOn(executionJS)
   .settings(crossSettings)
   .settings(scalaJSSettings)
   .settings(testSettings)
-  .settings(name := "monix-core")
+  .settings(name := "monix-tasks")
+
+lazy val streamsJVM = project.in(file("monix-streams/jvm"))
+  .dependsOn(executionJVM, tasksJVM)
+  .settings(crossSettings)
+  .settings(testSettings)
+  .settings(
+    name := "monix-streams",
+    libraryDependencies += "org.reactivestreams" % "reactive-streams" % "1.0.0"
+  )
+
+lazy val streamsJS = project.in(file("monix-streams/js"))
+  .enablePlugins(ScalaJSPlugin)
+  .dependsOn(executionJS, tasksJS)
+  .settings(crossSettings)
+  .settings(scalaJSSettings)
+  .settings(testSettings)
+  .settings(name := "monix-streams")
 
 lazy val docs = project.in(file("docs"))
-  .dependsOn(coreJVM)
+  .dependsOn(executionJVM, tasksJVM, streamsJVM)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
   .settings(site.settings)
@@ -256,7 +271,7 @@ lazy val docs = project.in(file("docs"))
   .settings(docsSettings)
 
 lazy val tckTests = project.in(file("tckTests"))
-  .dependsOn(coreJVM)
+  .dependsOn(streamsJVM)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
   .settings(
@@ -266,7 +281,7 @@ lazy val tckTests = project.in(file("tckTests"))
     ))
 
 lazy val benchmarks = project.in(file("benchmarks"))
-  .dependsOn(coreJVM)
+  .dependsOn(tasksJVM, streamsJVM)
   .enablePlugins(JmhPlugin)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
