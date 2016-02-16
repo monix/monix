@@ -20,10 +20,11 @@ package monix
 import minitest.TestSuite
 import monix.execution.Ack
 import monix.execution.Ack.{Cancel, Continue}
-import monix.exceptions.DummyException
+import monix.streams.Observer
+import monix.streams.exceptions.DummyException
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.schedulers.TestScheduler
-import monix.internal._
+import monix.streams.internal._
 import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success}
 

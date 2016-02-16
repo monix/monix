@@ -19,9 +19,10 @@ package monix.subjects
 
 import monix.execution.Ack
 import monix.execution.Ack.Continue
-import monix.broadcast.PublishProcessor
-import monix.exceptions.DummyException
-import monix.{Observable, Observer}
+import monix.streams.{Observer, Observable}
+import monix.streams.broadcast.PublishProcessor
+import monix.streams.exceptions.DummyException
+import monix.streams.Observer
 import scala.concurrent.Future
 import scala.util.Success
 

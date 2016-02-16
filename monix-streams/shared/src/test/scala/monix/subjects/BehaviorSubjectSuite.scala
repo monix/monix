@@ -17,12 +17,11 @@
 
 package monix.subjects
 
-import monix.broadcast.BehaviorProcessor
+import monix.streams.Observer
+import monix.streams.broadcast.BehaviorProcessor
 import monix.execution.Ack
-import monix.Observer
 import monix.execution.Ack.Continue
-import monix.exceptions.DummyException
-import monix.Observer
+import monix.streams.exceptions.DummyException
 import scala.concurrent.Future
 
 object BehaviorSubjectSuite extends BaseSubjectSuite {

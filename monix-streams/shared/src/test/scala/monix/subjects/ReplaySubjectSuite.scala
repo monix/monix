@@ -19,10 +19,10 @@ package monix.subjects
 
 import monix.execution.Ack
 import monix.execution.Ack.Continue
-import monix.broadcast.ReplayProcessor
-import monix.observers.SyncObserver
-import monix.Observer
-import monix.exceptions.DummyException
+import monix.streams.Observer
+import monix.streams.broadcast.ReplayProcessor
+import monix.streams.observers.SyncObserver
+import monix.streams.exceptions.DummyException
 import scala.concurrent.Future
 
 object ReplaySubjectSuite extends BaseSubjectSuite {

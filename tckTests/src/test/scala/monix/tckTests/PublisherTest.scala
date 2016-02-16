@@ -18,7 +18,7 @@
 package monix.tckTests
 
 import monix.execution.Scheduler.Implicits.global
-import monix.Observable
+import monix.streams.Observable
 import org.reactivestreams.Publisher
 import org.reactivestreams.tck.{PublisherVerification, TestEnvironment}
 import org.scalatest.testng.TestNGSuiteLike

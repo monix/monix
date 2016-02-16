@@ -19,10 +19,9 @@ package monix.tckTests
 
 import monix.execution.Ack
 import monix.execution.Scheduler.Implicits.global
-import monix.Observer
 import monix.execution.Ack.Continue
+import monix.streams.Observer
 import monix.tckTests.SubscriberWhiteBoxAsyncTest.Value
-import monix.Observer
 import org.reactivestreams.tck.SubscriberWhiteboxVerification.WhiteboxSubscriberProbe
 import org.reactivestreams.tck.{SubscriberWhiteboxVerification, TestEnvironment}
 import org.reactivestreams.{Subscriber, Subscription}

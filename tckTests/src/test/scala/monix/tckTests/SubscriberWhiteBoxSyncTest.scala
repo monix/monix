@@ -19,8 +19,8 @@ package monix.tckTests
 
 import monix.execution.Ack
 import monix.execution.Scheduler.Implicits.global
-import monix.observers.SyncObserver
-import monix.Observer
+import monix.streams.Observer
+import monix.streams.observers.SyncObserver
 import monix.execution.Ack.Continue
 import monix.tckTests.SubscriberWhiteBoxSyncTest.Value
 import org.reactivestreams.tck.SubscriberWhiteboxVerification.WhiteboxSubscriberProbe

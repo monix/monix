@@ -21,9 +21,10 @@ import minitest.TestSuite
 import monix.execution.Ack
 import monix.execution.schedulers.TestScheduler
 import monix.execution.Ack.{Cancel, Continue}
-import monix.broadcast.Processor
-import monix.exceptions.DummyException
-import monix.{Observable, Observer}
+import monix.streams.{Observer, Observable}
+import monix.streams.broadcast.Processor
+import monix.streams.exceptions.DummyException
+import monix.streams.Observer
 import scala.concurrent.Promise
 import scala.util.Random
 

@@ -19,9 +19,9 @@ package monix.subjects
 
 import monix.execution.Ack
 import monix.execution.Ack.Continue
-import monix.Observer
-import monix.broadcast.AsyncProcessor
-import monix.exceptions.DummyException
+import monix.streams.Observer
+import monix.streams.broadcast.AsyncProcessor
+import monix.streams.exceptions.DummyException
 
 object AsyncSubjectSuite extends BaseSubjectSuite {
   def alreadyTerminatedTest(expectedElems: Seq[Long]) = {
