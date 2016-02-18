@@ -299,27 +299,6 @@ abstract class Observable[+T] extends ProducerLike[T, Observable] { self =>
   def flatMapDelayError[U](f: T => Observable[U]): Observable[U] =
     map(f).concatDelayError
 
-  /** Creates a new Observable by applying a function that you supply to
-    * each item emitted by the source Observable, where that function
-    * returns an Observable, and then concatenating those resulting
-    * Observables and emitting the results of this concatenation.
-    *
-    * It's like [[Observable!.concatMap]], except that the created
-    * observable is reserving onError notifications until all of the
-    * merged Observables complete and only then passing it along to
-    * the observers.
-    *
-    * @param f a function that, when applied to an item emitted by
-    *        the source Observable, returns an Observable
-    *
-    * @return an Observable that emits the result of applying the
-    *         transformation function to each item emitted by the
-    *         source Observable and concatenating the results of the
-    *         Observables obtained from this transformation.
-    */
-  def concatMapDelayError[U](f: T => Observable[U]): Observable[U] =
-    map(f).concatDelayError
-
   /** $mergeMapDescription
     *
     * @param f - the transformation function
@@ -349,15 +328,6 @@ abstract class Observable[+T] extends ProducerLike[T, Observable] { self =>
     */
   def flattenDelayError[U](implicit ev: T <:< Observable[U]): Observable[U] =
     concatDelayError
-
-  /** $concatDescription
-    *
-    * $delayErrorsDescription
-    *
-    * @return $concatReturn
-    */
-  def concatDelayError[U](implicit ev: T <:< Observable[U]): Observable[U] =
-    ops.flatten.concat(self, delayErrors = true)
 
   /** $mergeDescription
     *
@@ -1937,7 +1907,7 @@ object Observable {
   /** Repeats the execution of the given `task`, emitting
     * the results indefinitely.
     */
-  def repeatTask[T](task: => T): Observable[T] =
+  def repeatEval[T](task: => T): Observable[T] =
     new builders.RepeatEvalObservable(task)
 
   /** Creates an Observable that emits items in the given range.
@@ -2023,14 +1993,14 @@ object Observable {
   /** Concatenates the given list of ''observables'' into a single
     * observable.
     */
-  def concat[T](sources: Observable[T]*): Observable[T] =
-    Observable.from(sources).concat
+  def concat[T, F[_] : CanObserve](sources: F[T]*): Observable[T] =
+    Observable.from(sources).concatMapF[T,F](t => t)
 
   /** Concatenates the given list of ''observables'' into a single observable.
     * Delays errors until the end.
     */
-  def concatDelayError[T](sources: Observable[T]*): Observable[T] =
-    Observable.from(sources).concatDelayError
+  def concatDelayError[T, F[_] : CanObserve](sources: F[T]*): Observable[T] =
+    Observable.from(sources).concatMapDelayErrorF[T,F](t => t)
 
   /** Creates a new Observable from two observables, by emitting
     * elements combined in pairs. If one of the Observable emits fewer

@@ -27,14 +27,14 @@ import monix.streams.{Observable, Observer}
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-object FromIterableSuite extends TestSuite[TestScheduler] {
+object IterableAsObservableSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
     assert(s.state.get.tasks.isEmpty,
       "TestScheduler should be left with no pending tasks")
   }
 
-  test("first execution is async") { implicit s =>
+  test("first execution is sync") { implicit s =>
     var wasCompleted = false
     var sum = 0
 
@@ -49,10 +49,6 @@ object FromIterableSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable): Unit = ()
       })
 
-    assert(!wasCompleted)
-    assertEquals(sum, 0)
-
-    assert(s.tickOne())
     assert(wasCompleted)
     assertEquals(sum, 15)
   }
@@ -72,10 +68,6 @@ object FromIterableSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable): Unit = ()
       })
 
-    assert(!wasCompleted)
-    assertEquals(sum, 0)
-
-    assert(s.tickOne())
     assertEquals(sum, Platform.recommendedBatchSize)
     assert(s.tickOne())
     assertEquals(sum, Platform.recommendedBatchSize * 2)
@@ -143,9 +135,6 @@ object FromIterableSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable): Unit = ()
       })
 
-    assertEquals(sum, 0)
-
-    s.tick()
     assertEquals(sum, 6)
     assert(!wasCompleted)
   }

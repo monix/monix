@@ -24,7 +24,7 @@ object DistinctFnSuite extends BaseOperatorSuite {
   case class Val(x: Long)
   def createObservable(sourceCount: Int) = Some {
     val o = Observable.range(0, sourceCount)
-      .flatMap(i => Observable.from(Val(i), Val(i), Val(i)))
+      .flatMap(i => Observable.from(Seq(Val(i), Val(i), Val(i))))
       .distinct(_.x)
       .map(_.x)
 
@@ -33,7 +33,7 @@ object DistinctFnSuite extends BaseOperatorSuite {
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
     val source = Observable.range(0, sourceCount)
-      .flatMap(i => Observable.from(i, i, i))
+      .flatMap(i => Observable.from(Seq(i, i, i)))
 
     val o = source.endWithError(ex)
       .map(Val.apply)
@@ -45,7 +45,7 @@ object DistinctFnSuite extends BaseOperatorSuite {
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
     val o = Observable.range(0, sourceCount)
-      .flatMap(i => Observable.from(Val(i), Val(i), Val(i)))
+      .flatMap(i => Observable.from(Seq(Val(i), Val(i), Val(i))))
       .distinct(i => if (i.x == sourceCount-1) throw ex else i.x)
       .map(_.x)
 

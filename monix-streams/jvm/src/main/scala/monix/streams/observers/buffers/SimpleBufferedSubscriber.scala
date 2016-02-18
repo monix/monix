@@ -19,16 +19,14 @@ package monix.streams.observers.buffers
 
 import java.util.concurrent.ConcurrentLinkedQueue
 import monix.execution.Ack
-import monix.streams.OverflowStrategy
-import monix.streams
 import monix.execution.Ack.{Cancel, Continue}
-import monix.execution.internal.Platform
+import monix.streams.OverflowStrategy
 import monix.streams.exceptions.BufferOverflowException
-import monix.streams.observers.{Subscriber, BufferedSubscriber, SyncSubscriber}
+import monix.streams.observers.{BufferedSubscriber, Subscriber, SyncSubscriber}
+import org.sincron.atomic.Atomic
 import scala.annotation.tailrec
 import scala.util.Failure
 import scala.util.control.NonFatal
-import org.sincron.atomic.Atomic
 
 /**
  * A highly optimized [[BufferedSubscriber]] implementation. It supports 2
@@ -48,7 +46,7 @@ private[buffers] final class SimpleBufferedSubscriber[-T] private
 
   implicit val scheduler = underlying.scheduler
   private[this] val queue = new ConcurrentLinkedQueue[T]()
-  private[this] val batchSizeModulus = Platform.recommendedBatchSize - 1
+  private[this] val batchSizeModulus = scheduler.batchedExecutionModulus
 
   // to be modified only in onError, before upstreamIsComplete
   private[this] var errorThrown: Throwable = null

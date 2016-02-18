@@ -26,19 +26,19 @@ import monix.streams.{Observable, Observer}
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-object FromFutureSuite extends TestSuite[TestScheduler] {
+object FutureAsObservableSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
     assert(s.state.get.tasks.isEmpty,
       "TestScheduler should be left with no pending tasks")
   }
 
-  test("fromFuture should work for synchronous futures and synchronous observers") { implicit s =>
+  test("should work for synchronous futures and synchronous observers") { implicit s =>
     val f = Future.successful(10)
     var received = 0
     var wasCompleted = false
 
-    Observable.fromFuture(f).unsafeSubscribeFn(
+    Observable.from(f).unsafeSubscribeFn(
       new Observer[Int] {
         def onNext(elem: Int) = {
           received += elem
@@ -56,12 +56,12 @@ object FromFutureSuite extends TestSuite[TestScheduler] {
     assert(wasCompleted)
   }
 
-  test("fromFuture should work for asynchronous futures and asynchronous observers") { implicit s =>
+  test("from should work for asynchronous futures and asynchronous observers") { implicit s =>
     val f = Future.delayedResult(100.millis)(10)
     var received = 0
     var wasCompleted = false
 
-    Observable.fromFuture(f).unsafeSubscribeFn(
+    Observable.from(f).unsafeSubscribeFn(
       new Observer[Int] {
         def onNext(elem: Int) = {
           received += elem
@@ -77,7 +77,7 @@ object FromFutureSuite extends TestSuite[TestScheduler] {
 
     s.tick(100.millis)
     assertEquals(received, 10)
-    assert(!wasCompleted)
+    assert(wasCompleted)
     s.tick(100.millis)
     assert(wasCompleted)
   }
@@ -86,7 +86,7 @@ object FromFutureSuite extends TestSuite[TestScheduler] {
     val f = Future.failed(DummyException("dummy"))
     var errorThrown: Throwable = null
 
-    Observable.fromFuture(f).unsafeSubscribeFn(
+    Observable.from(f).unsafeSubscribeFn(
       new Observer[Int] {
         def onNext(elem: Int) = Continue
         def onError(ex: Throwable): Unit = errorThrown = ex
@@ -100,7 +100,7 @@ object FromFutureSuite extends TestSuite[TestScheduler] {
     val f = Future.delayedResult(100.millis)(throw DummyException("dummy"))
     var errorThrown: Throwable = null
 
-    Observable.fromFuture(f).unsafeSubscribeFn(
+    Observable.from(f).unsafeSubscribeFn(
       new Observer[Int] {
         def onNext(elem: Int) = Continue
         def onError(ex: Throwable): Unit = errorThrown = ex

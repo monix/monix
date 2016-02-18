@@ -22,8 +22,8 @@ import monix.streams.Observable
 import monix.streams.observers.Subscriber
 import scala.util.control.NonFatal
 
-/** An observable that evaluates the given by-name argument,
-  * and emits it.
+/** An observable that evaluates the given callable
+  * and emits its result.
   */
 private[streams] final class CallableAsObservable[A](cb: Callable[A])
   extends Observable[A] {

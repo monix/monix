@@ -32,7 +32,7 @@ import scala.language.implicitConversions
 
 private[streams] trait CanObserveLevel0 {
   /** Default conversion for `Iterator` */
-  implicit final val iterator: CanObserve[Iterator] =
+  implicit final val iteratorInstance: CanObserve[Iterator] =
     new CanObserve[Iterator] {
       def observable[A](fa: Iterator[A]): Observable[A] =
         new IteratorAsObservable[A](fa)

@@ -19,7 +19,7 @@ package monix.execution
 
 import org.sincron.macros.{HygieneUtilMacros, InlineMacros}
 import scala.concurrent.duration.Duration
-import scala.concurrent.{CanAwait, ExecutionContext, Future}
+import scala.concurrent.{Promise, CanAwait, ExecutionContext, Future}
 import scala.language.experimental.macros
 import scala.reflect.macros.whitebox
 import scala.util.{Failure, Success, Try}
@@ -115,6 +115,36 @@ object Ack {
       */
     def syncFlatMap(f: Ack => Future[Ack])(implicit s: Scheduler): Future[Ack] =
       macro Macros.syncFlatMap[Self]
+
+    /** If the source completes with a `Cancel`, then complete the given
+      * promise with a value.
+      */
+    def syncOnContinueFollow[T](p: Promise[T], value: T)(implicit s: Scheduler): Self = {
+      if (source eq Continue)
+        p.trySuccess(value)
+      else if (source ne Cancel)
+        source.onComplete { r =>
+          if (r.isSuccess && (r.get eq Continue))
+            p.trySuccess(value)
+        }
+
+      source
+    }
+
+    /** If the source completes with a `Cancel`, then complete the given
+      * promise with a value.
+      */
+    def syncOnCancelFollow[T](p: Promise[T], value: T)(implicit s: Scheduler): Self = {
+      if (source eq Cancel)
+        p.trySuccess(value)
+      else if (source ne Continue)
+        source.onComplete { r =>
+          if (r.isSuccess && (r.get eq Cancel))
+            p.trySuccess(value)
+        }
+
+      source
+    }
 
     /** Tries converting an already completed `Future[Ack]` into a direct
       * reference to `Continue` or `Cancel`. Useful for collapsing async

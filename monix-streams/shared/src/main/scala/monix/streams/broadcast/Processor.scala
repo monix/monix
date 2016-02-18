@@ -18,7 +18,6 @@
 package monix.streams.broadcast
 
 import monix.execution.Scheduler
-import monix.execution.internal.Platform
 import monix.streams.observers.Subscriber
 import monix.streams.{Observable, Observer}
 import org.reactivestreams.{Processor => RProcessor, Subscriber => RSubscriber, Subscription}
@@ -34,7 +33,7 @@ import scala.language.reflectiveCalls
   */
 trait Processor[I, +O] extends Observable[O] with Observer[I] {
   override def toReactive[U >: O](implicit s: Scheduler): RProcessor[I, U] =
-    Processor.toReactiveProcessor(this, Platform.recommendedBatchSize)
+    Processor.toReactiveProcessor(this, s.batchedExecutionModulus)
 
   def toReactive[U >: O](bufferSize: Int)(implicit s: Scheduler): RProcessor[I, U] =
     Processor.toReactiveProcessor(this, bufferSize)

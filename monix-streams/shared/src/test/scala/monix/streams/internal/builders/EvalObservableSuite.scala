@@ -17,7 +17,6 @@
 
 package monix.streams.internal.builders
 
-import java.util.concurrent.Callable
 import minitest.TestSuite
 import monix.execution.Ack
 import monix.execution.Ack.Continue
@@ -25,7 +24,7 @@ import monix.execution.schedulers.TestScheduler
 import monix.streams.{Observable, Observer}
 import scala.concurrent.Future
 
-object FromCallableSuite extends TestSuite[TestScheduler] {
+object EvalObservableSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler): Unit = {
     assert(s.state.get.tasks.isEmpty,
@@ -37,12 +36,7 @@ object FromCallableSuite extends TestSuite[TestScheduler] {
     var received = 0
 
     var i = 0
-    val obs = Observable.fromCallable(new Callable[Int] {
-      def call(): Int = {
-        i += 1
-        i
-      }
-    })
+    val obs = Observable.eval { i += 1; i }
 
     obs.unsafeSubscribeFn(new Observer[Int] {
       def onNext(elem: Int): Future[Ack] = {
@@ -54,7 +48,6 @@ object FromCallableSuite extends TestSuite[TestScheduler] {
       def onComplete(): Unit = wasCompleted += 1
     })
 
-    s.tickOne()
     assertEquals(wasCompleted, 1)
     assertEquals(received, 1)
 
@@ -68,7 +61,6 @@ object FromCallableSuite extends TestSuite[TestScheduler] {
       def onComplete(): Unit = wasCompleted += 1
     })
 
-    s.tickOne()
     assertEquals(wasCompleted, 2)
     assertEquals(received, 3)
   }

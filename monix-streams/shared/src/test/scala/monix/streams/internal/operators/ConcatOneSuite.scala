@@ -21,11 +21,12 @@ import monix.execution.Ack.Continue
 import monix.execution.FutureUtils.ops._
 import monix.execution.Scheduler
 import monix.streams.Observable.{empty, now}
-import monix.streams.{Observable, Observer}
 import monix.streams.broadcast.PublishProcessor
 import monix.streams.exceptions.DummyException
-import scala.concurrent.Future
+import monix.streams.{Observable, Observer}
+import scala.concurrent.{Promise, Future}
 import scala.concurrent.duration._
+import scala.util.Random
 
 object ConcatOneSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
@@ -68,6 +69,33 @@ object ConcatOneSuite extends BaseOperatorSuite {
       .map(_.getOrElse(Vector.empty))
   }
 
+
+  test("should work synchronously for synchronous observers") { implicit s =>
+    val sourceCount = Random.nextInt(300) + 100
+    var received = 0
+    var total = 0L
+
+    createObservable(sourceCount) match {
+      case Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
+        obs.unsafeSubscribeFn(new Observer[Long] {
+          private[this] var sum = 0L
+
+          def onNext(elem: Long): Continue = {
+            received += 1
+            sum += elem
+            Continue
+          }
+
+          def onError(ex: Throwable): Unit = throw new IllegalStateException()
+          def onComplete(): Unit = total = sum
+        })
+
+        assertEquals(received, count)
+        assertEquals(total, sum)
+    }
+  }
+
+
   test("filter can be expressed in terms of flatMap") { implicit s =>
     val obs1 = Observable.range(0, 100).filter(_ % 2 == 0)
     val obs2 = Observable.range(0, 100).flatMap(x => if (x % 2 == 0) now(x) else empty)
@@ -100,7 +128,7 @@ object ConcatOneSuite extends BaseOperatorSuite {
     val obs1 = PublishProcessor[Long]()
     val obs2 = Observable.range(1, 100).map { x => obs2WasStarted = true; x }
 
-    Observable.from(obs1, obs2).flatten.unsafeSubscribeFn(new Observer[Long] {
+    Observable.from(Seq(obs1, obs2)).flatten.unsafeSubscribeFn(new Observer[Long] {
       def onNext(elem: Long) = {
         received += elem
         if (elem == 1000)
@@ -139,7 +167,7 @@ object ConcatOneSuite extends BaseOperatorSuite {
     val obs1 = sub.doOnStart(_ => obs1WasStarted = true)
     val obs2 = Observable.range(1, 100).map { x => obs2WasStarted = true; x }
 
-    Observable.from(obs1, obs2).flatten.unsafeSubscribeFn(new Observer[Long] {
+    Observable.from(Seq(obs1, obs2)).flatten.unsafeSubscribeFn(new Observer[Long] {
       def onNext(elem: Long) = Continue
       def onError(ex: Throwable) = wasThrown = ex
       def onComplete() = ()
@@ -154,5 +182,27 @@ object ConcatOneSuite extends BaseOperatorSuite {
 
     assertEquals(wasThrown, DummyException("dummy"))
     assert(!obs2WasStarted)
+  }
+
+  test("should not do back-pressure for onComplete, for 1 element") { implicit s =>
+    val p = Promise[Continue]()
+    var wasCompleted = false
+
+    createObservable(1) match {
+      case ref @ Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
+        var onNextReceived = false
+
+        obs.unsafeSubscribeFn(new Observer[Long] {
+          def onNext(elem: Long): Future[Continue] = { onNextReceived = true; p.future }
+          def onError(ex: Throwable): Unit = throw new IllegalStateException()
+          def onComplete(): Unit = wasCompleted = true
+        })
+
+        s.tick(waitForFirst)
+        assert(onNextReceived)
+        assert(wasCompleted)
+        p.success(Continue)
+        s.tick(waitForNext)
+    }
   }
 }

@@ -17,10 +17,8 @@
 
 package monix.streams.internal.operators
 
-import monix.execution.Ack
-import monix.streams.{Observable, Observer}
-import monix.streams.Observer
 import monix.execution.Ack.Continue
+import monix.streams.{Observable, Observer}
 import monix.streams.exceptions.CompositeException
 import scala.concurrent.duration._
 import scala.util.Random
@@ -33,7 +31,7 @@ object ConcatDelayErrorManySuite extends BaseOperatorSuite {
     else Observable.range(0, sourceCount).endWithError(ex)
 
     val o = source.flatMapDelayError(i =>
-      Observable.from(i, i, i, i).endWithError(SomeException(10)))
+      Observable.from(Seq(i, i, i, i)).endWithError(SomeException(10)))
 
     val recovered = o.onErrorRecoverWith {
       case composite: CompositeException =>

@@ -21,7 +21,6 @@ import monix.execution.Ack
 import monix.execution.internal.Platform
 import monix.execution.internal.collection.{EvictingQueue, DropHeadOnOverflowQueue, DropAllOnOverflowQueue}
 import monix.streams.OverflowStrategy
-import monix.streams
 import monix.execution.Ack.{Cancel, Continue}
 import monix.streams.observers.{Subscriber, BufferedSubscriber, SyncSubscriber}
 import scala.annotation.tailrec

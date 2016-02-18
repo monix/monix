@@ -26,7 +26,7 @@ import monix.streams.{Observable, Observer}
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-object IntervalSuite extends SimpleTestSuite {
+object IntervalObservableSuite extends SimpleTestSuite {
   test("should do intervalWithFixedDelay") {
     implicit val s = TestScheduler()
     var received = 0
@@ -41,7 +41,6 @@ object IntervalSuite extends SimpleTestSuite {
       def onComplete(): Unit = ()
     })
 
-    s.tick()
     assertEquals(received, 1)
 
     s.tick()
@@ -70,7 +69,6 @@ object IntervalSuite extends SimpleTestSuite {
       def onComplete(): Unit = ()
     })
 
-    s.tick()
     assertEquals(received, 1)
 
     s.tick(900.millis)

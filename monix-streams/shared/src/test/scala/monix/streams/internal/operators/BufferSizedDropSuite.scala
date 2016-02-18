@@ -33,18 +33,15 @@ object BufferSizedDropSuite extends BaseOperatorSuite {
       val o = Observable.range(0, sc)
         .map(_ % 8)
         .buffer(4,8)
-        .map(Observable.fromIterable)
-        .flatten
+        .flatMapF(identity)
 
       val count = 2 + (sc - 4) / 2
       val sum = count / 4 * 6
       Sample(o, count, sum, waitFirst, waitNext)
-    }
-    else Some {
+    } else Some {
       val o = Observable.now(1L)
         .buffer(2,1)
-        .map(Observable.fromIterable)
-        .flatten
+        .flatMapF(identity)
 
       Sample(o, 1, 1, waitFirst, waitNext)
     }

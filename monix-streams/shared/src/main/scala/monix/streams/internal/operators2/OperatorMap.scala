@@ -25,7 +25,7 @@ import monix.streams.observers.Subscriber
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 
-/** Implementation for [[monix.streams.observables.ProducerLike.map2]] */
+/** Implementation for [[monix.streams.observables.ProducerLike.map]] */
 private[streams] final class OperatorMap[-A,+B](f: A => B)
   extends Operator[A,B] {
 

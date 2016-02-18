@@ -19,7 +19,6 @@ package monix.streams.internal.builders
 
 import monix.execution.Ack
 import monix.execution.Ack.{Cancel, Continue}
-import monix.execution.internal.Platform
 import monix.streams.Observable
 import monix.streams.observers.Subscriber
 
@@ -40,7 +39,7 @@ class StateActionObservable[S,A](seed: S, f: S => (A,S)) extends Observable[A] {
 
     import o.{scheduler => s}
     private[this] var seed = initialSeed
-    private[this] val modulus = Platform.recommendedBatchSize - 1
+    private[this] val modulus = s.batchedExecutionModulus
 
     private[this] val asyncReschedule: Try[Ack] => Unit = {
       case Continue.AsSuccess =>

@@ -18,39 +18,25 @@
 package monix.streams.internal.builders
 
 import minitest.TestSuite
-import monix.execution.Ack.Continue
-import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
-import monix.streams.Observable
+import monix.streams.{Observable, Observer}
 
-object RepeatTaskSuite extends TestSuite[TestScheduler] {
+object EmptyObservableSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
+
   def tearDown(s: TestScheduler): Unit = {
     assert(s.state.get.tasks.isEmpty,
-      "TestScheduler should have no pending tasks")
+      "Scheduler should be left with no pending tasks")
   }
 
-  test("first execution is async") { implicit s =>
-    var received = 0
-    Observable.repeatTask(1)
-      .take(1).foreach(x => received += x)
+  test("should complete immediately") { implicit s =>
+    var wasCompleted = false
+    Observable.empty.unsafeSubscribeFn(new Observer[Any] {
+      def onNext(elem: Any) = throw new IllegalStateException()
+      def onError(ex: Throwable): Unit = throw ex
+      def onComplete(): Unit = wasCompleted = true
+    })
 
-    assertEquals(received, 0)
-    s.tickOne()
-    assertEquals(received, 1)
-    s.tickOne()
-  }
-
-  test("should do synchronous execution in batches") { implicit s =>
-    var received = 0
-    Observable.repeatTask(1)
-      .take(Platform.recommendedBatchSize * 2)
-      .subscribe { x => received += 1; Continue }
-
-    s.tickOne()
-    assertEquals(received, Platform.recommendedBatchSize)
-    s.tickOne()
-    assertEquals(received, Platform.recommendedBatchSize * 2)
-    s.tickOne()
+    assert(wasCompleted)
   }
 }

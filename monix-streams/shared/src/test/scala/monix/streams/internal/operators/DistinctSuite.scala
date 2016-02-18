@@ -23,14 +23,14 @@ import scala.concurrent.duration.Duration.Zero
 object DistinctSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val o = Observable.range(0, sourceCount)
-      .flatMap(i => Observable.from(i, i, i))
+      .flatMap(i => Observable.from(Seq(i, i, i)))
       .distinct
 
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val source = Observable.range(0, sourceCount).flatMap(i => Observable.from(i, i, i))
+    val source = Observable.range(0, sourceCount).flatMap(i => Observable.from(Seq(i, i, i)))
     val o = createObservableEndingInError(source, ex).distinct
 
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)

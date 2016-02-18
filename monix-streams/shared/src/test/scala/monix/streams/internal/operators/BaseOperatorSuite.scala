@@ -113,30 +113,6 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
     }
   }
 
-  test("should back-pressure for onComplete, for 1 element") { implicit s =>
-    val p = Promise[Continue]()
-    var wasCompleted = false
-
-    createObservable(1) match {
-      case None => ignore()
-      case ref @ Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
-        var onNextReceived = false
-
-        obs.unsafeSubscribeFn(new Observer[Long] {
-          def onNext(elem: Long): Future[Continue] = { onNextReceived = true; p.future }
-          def onError(ex: Throwable): Unit = throw new IllegalStateException()
-          def onComplete(): Unit = wasCompleted = true
-        })
-
-        s.tick(waitForFirst)
-        assert(onNextReceived)
-        assert(!wasCompleted)
-
-        p.success(Continue); s.tick(waitForNext)
-        assert(wasCompleted)
-    }
-  }
-
   test("should work for synchronous observers") { implicit s =>
     val sourceCount = Random.nextInt(300) + 100
     var received = 0
@@ -147,6 +123,7 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
       case Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
         obs.unsafeSubscribeFn(new Observer[Long] {
           private[this] var sum = 0L
+          private[this] var ack: Future[Ack] = Continue
 
           def onNext(elem: Long): Continue = {
             received += 1
@@ -154,8 +131,10 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
             Continue
           }
 
-          def onError(ex: Throwable): Unit = throw new IllegalStateException()
-          def onComplete(): Unit = total = sum
+          def onError(ex: Throwable): Unit =
+            throw new IllegalStateException()
+          def onComplete(): Unit =
+            ack.syncOnContinue { total = sum }
         })
 
         s.tick(waitForFirst + waitForNext * count)
@@ -174,16 +153,22 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
       case Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
         obs.unsafeSubscribeFn(new Observer[Long] {
           private[this] var sum = 0L
+          private[this] var ack: Future[Ack] = Continue
 
-          def onNext(elem: Long): Future[Continue] =
-            Future.delayedResult(100.millis) {
+          def onNext(elem: Long): Future[Ack] = {
+            ack = Future.delayedResult(100.millis) {
               received += 1
               sum += elem
               Continue
             }
 
-          def onError(ex: Throwable): Unit = throw new IllegalStateException()
-          def onComplete(): Unit = total = sum
+            ack
+          }
+
+          def onError(ex: Throwable): Unit =
+            throw new IllegalStateException()
+          def onComplete(): Unit =
+            ack.syncOnContinue { total = sum }
         })
 
         s.tick(waitForFirst + waitForNext * count + 100.millis * count)
@@ -193,7 +178,8 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
   }
 
   test("should back-pressure all the way") { implicit s =>
-    val sourceCount = Random.nextInt(300) + 100
+//    val sourceCount = Random.nextInt(300) + 100
+    val sourceCount = 10
     var p = Promise[Continue]()
     var wasCompleted = false
     var received = 0
@@ -217,18 +203,15 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
           else
             s.tick(waitForNext)
 
-          assertEquals(received, index)
-
           val old = p; p = Promise()
 
           if (index == count) {
-            assert(!wasCompleted)
             old.success(Continue)
             s.tick(waitForNext)
             assert(wasCompleted)
             assertEquals(received, count)
-          }
-          else {
+          } else {
+            if (index < count-1) assertEquals(received, index)
             old.success(Continue)
           }
         }
@@ -288,10 +271,8 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
 
         s.tick(waitForFirst + waitForNext * (count - 1))
         assertEquals(received, count)
-        assertEquals(thrownError, null)
-
-        s.tick(1.hour)
         assertEquals(thrownError, DummyException("dummy"))
+        s.tick(1.hour)
 
       case Some(Sample(obs, _, _, waitForFirst, _)) =>
         // observable emits error right away, as count is zero
@@ -345,6 +326,29 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
         s.tick(waitForNext * 2)
         assertEquals(received, 1)
         assert(!wasCompleted)
+    }
+  }
+
+  test("should not back-pressure onError") { implicit s =>
+    val p = Promise[Continue]()
+    var wasCompleted = false
+
+    observableInError(1, DummyException("dummy")) match {
+      case None => ignore()
+      case ref @ Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
+        var onNextReceived = false
+
+        obs.unsafeSubscribeFn(new Observer[Long] {
+          def onNext(elem: Long): Future[Continue] = { onNextReceived = true; p.future }
+          def onError(ex: Throwable): Unit = wasCompleted = true
+          def onComplete(): Unit = throw new IllegalStateException()
+        })
+
+        s.tick()
+        assert(onNextReceived)
+        assert(wasCompleted)
+        p.success(Continue)
+        s.tick()
     }
   }
 }

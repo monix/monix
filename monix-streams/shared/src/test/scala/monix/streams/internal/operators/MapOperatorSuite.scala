@@ -17,11 +17,13 @@
 
 package monix.streams.internal.operators
 
-import monix.streams.Observable
+import monix.execution.Ack.Continue
+import monix.streams.{Observer, Observable}
 import monix.streams.exceptions.DummyException
+import scala.concurrent.{Future, Promise}
 import scala.concurrent.duration.Duration.Zero
 
-object MapSuite extends BaseOperatorSuite {
+object MapOperatorSuite extends BaseOperatorSuite {
   def sum(sourceCount: Int): Long = sourceCount.toLong * (sourceCount + 1)
   def count(sourceCount: Int) = sourceCount
 
@@ -66,6 +68,28 @@ object MapSuite extends BaseOperatorSuite {
         }
 
       Sample(o, count(sourceCount-1), sum(sourceCount-1), Zero, Zero)
+    }
+  }
+
+  test("should not do back-pressure for onComplete, for 1 element") { implicit s =>
+    val p = Promise[Continue]()
+    var wasCompleted = false
+
+    createObservable(1) match {
+      case ref @ Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
+        var onNextReceived = false
+
+        obs.unsafeSubscribeFn(new Observer[Long] {
+          def onNext(elem: Long): Future[Continue] = { onNextReceived = true; p.future }
+          def onError(ex: Throwable): Unit = throw new IllegalStateException()
+          def onComplete(): Unit = wasCompleted = true
+        })
+
+        s.tick(waitForFirst)
+        assert(onNextReceived)
+        assert(wasCompleted)
+        p.success(Continue)
+        s.tick(waitForNext)
     }
   }
 }

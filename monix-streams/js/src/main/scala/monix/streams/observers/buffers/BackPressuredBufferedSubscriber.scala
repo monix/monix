@@ -19,7 +19,6 @@ package monix.streams.observers.buffers
 
 import monix.execution.Ack
 import monix.execution.Ack.{Cancel, Continue}
-import monix.execution.internal.Platform
 import monix.streams.OverflowStrategy
 import monix.streams.observers.{Subscriber, BufferedSubscriber}
 import monix.streams.observers.buffers.BackPressuredBufferedSubscriber.State
@@ -49,7 +48,7 @@ private[monix] final class BackPressuredBufferedSubscriber[-T] private
   // side in order to know how many items to process and when to stop
   private[this] val queue = mutable.Queue.empty[T]
   // Used on the consumer side to split big synchronous workloads in batches
-  private[this] val batchSizeModulus = Platform.recommendedBatchSize - 1
+  private[this] val batchSizeModulus = scheduler.batchedExecutionModulus
 
   def onNext(elem: T): Future[Ack] = {
     val state = stateRef.get

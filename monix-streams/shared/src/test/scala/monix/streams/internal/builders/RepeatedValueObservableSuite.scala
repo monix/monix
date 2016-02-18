@@ -26,7 +26,7 @@ import monix.streams.{Observable, Observer}
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-object TimerSuite extends SimpleTestSuite {
+object RepeatedValueObservableSuite extends SimpleTestSuite {
   test("should do timerRepeated") {
     implicit val s = TestScheduler()
     var received = 0
@@ -42,7 +42,6 @@ object TimerSuite extends SimpleTestSuite {
         def onComplete(): Unit = ()
       })
 
-    s.tick()
     assertEquals(received, 1)
 
     s.tick()

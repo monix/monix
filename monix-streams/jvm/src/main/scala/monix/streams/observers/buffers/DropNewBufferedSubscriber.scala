@@ -22,7 +22,6 @@ import monix.execution.Ack
 import monix.streams.OverflowStrategy
 import monix.streams
 import monix.execution.Ack.{Cancel, Continue}
-import monix.execution.internal.Platform
 import monix.streams.observers.buffers.DropNewBufferedSubscriber.State
 import monix.streams.observers.{Subscriber, BufferedSubscriber, SyncSubscriber}
 import scala.annotation.tailrec
@@ -51,7 +50,7 @@ private[buffers] final class DropNewBufferedSubscriber[-T] private
   // side in order to know how many items to process and when to stop
   private[this] val queue = new ConcurrentLinkedQueue[T]()
   // Used on the consumer side to split big synchronous workloads in batches
-  private[this] val batchSizeModulus = Platform.recommendedBatchSize - 1
+  private[this] val batchSizeModulus = scheduler.batchedExecutionModulus
 
   @tailrec
   def onNext(elem: T): Ack = {

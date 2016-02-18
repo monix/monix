@@ -23,22 +23,18 @@ import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import monix.streams.Observable
 
-object FromStateActionSuite extends TestSuite[TestScheduler] {
+object StateActionObservableSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler): Unit = {
     assert(s.state.get.tasks.isEmpty,
       "TestScheduler should have no pending tasks")
   }
 
-  test("first execution is async") { implicit s =>
+  test("first execution is sync") { implicit s =>
     var received = 0
     Observable.fromStateAction(int)(s.currentTimeMillis())
       .take(1).foreach(x => received += 1)
-
-    assertEquals(received, 0)
-    s.tickOne()
     assertEquals(received, 1)
-    s.tickOne()
   }
 
   test("should do synchronous execution in batches") { implicit s =>
@@ -47,7 +43,6 @@ object FromStateActionSuite extends TestSuite[TestScheduler] {
       .take(Platform.recommendedBatchSize * 2)
       .subscribe { x => received += 1; Continue }
 
-    s.tickOne()
     assertEquals(received, Platform.recommendedBatchSize)
     s.tickOne()
     assertEquals(received, Platform.recommendedBatchSize * 2)

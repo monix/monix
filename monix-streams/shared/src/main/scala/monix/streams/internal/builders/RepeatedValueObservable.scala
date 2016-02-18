@@ -30,9 +30,11 @@ class RepeatedValueObservable[T](initialDelay: FiniteDuration, period: FiniteDur
   extends Observable[T] {
 
   def unsafeSubscribeFn(subscriber: Subscriber[T]): Unit = {
-    subscriber.scheduler.scheduleOnce(
-      initialDelay.length, initialDelay.unit,
-      runnable(subscriber))
+    val r = runnable(subscriber)
+    if (initialDelay.length <= 0)
+      r.run()
+    else
+      subscriber.scheduler.scheduleOnce(initialDelay.length, initialDelay.unit, r)
   }
 
   private[this] def runnable(subscriber: Subscriber[T]): Runnable =

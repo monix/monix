@@ -17,7 +17,6 @@
 
 package monix.streams.observers
 
-import monix.execution.internal.Platform
 import monix.execution.{Ack, Scheduler}
 import monix.streams.Observer
 import monix.streams.internal.reactivestreams._
@@ -59,7 +58,7 @@ object Subscriber {
     * specification.
     */
   def toReactiveSubscriber[T](subscriber: Subscriber[T]): RSubscriber[T] = {
-    toReactiveSubscriber(subscriber, Platform.recommendedBatchSize)
+    toReactiveSubscriber(subscriber, subscriber.scheduler.batchedExecutionModulus)
   }
 
   /** Transforms the source [[Subscriber]] into a `org.reactivestreams.Subscriber`

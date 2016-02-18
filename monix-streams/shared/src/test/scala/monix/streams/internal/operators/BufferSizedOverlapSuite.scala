@@ -33,7 +33,7 @@ object BufferSizedOverlapSuite extends BaseOperatorSuite {
       val o = Observable.range(0, divBy4)
         .map(_ % 4)
         .buffer(8,4)
-        .flatMap(Observable.fromIterable)
+        .flatMap(x => Observable.from(x))
 
       val count = 8 + (divBy4 - 8) * 2
       val sum = (count / 4) * 6
@@ -41,7 +41,7 @@ object BufferSizedOverlapSuite extends BaseOperatorSuite {
     }
     else Some {
       val o = Observable.now(1L)
-        .buffer(2,1).flatMap(Observable.fromIterable)
+        .buffer(2,1).flatMap(x => Observable.from(x))
       Sample(o, 1, 1, waitFirst, waitNext)
     }
   }

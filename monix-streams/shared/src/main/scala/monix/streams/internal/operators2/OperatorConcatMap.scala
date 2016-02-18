@@ -23,22 +23,22 @@ import monix.execution.cancelables.RefCountCancelable
 import monix.streams.exceptions.CompositeException
 import monix.streams.observables.ProducerLike.Operator
 import monix.streams.observers.Subscriber
-import monix.streams.{CanObserve, Observer}
+import monix.streams.{Observable, Observer}
 
 import scala.collection.mutable
 import scala.concurrent.{Future, Promise}
 import scala.language.higherKinds
 import scala.util.control.NonFatal
 
-/** Implementation for [[monix.streams.observables.ProducerLike.concatMap2]] */
-private[streams] final class OperatorConcatMap[A, B, F[_] : CanObserve]
-  (f: A => F[B], delayErrors: Boolean)
+/** Implementation for [[monix.streams.observables.ProducerLike.concatMap]] */
+private[streams] final class OperatorConcatMap[A, B](f: A => Observable[B], delayErrors: Boolean)
   extends Operator[A, B] {
 
   def apply(out: Subscriber[B]): Subscriber[A] = {
     new Subscriber[A] {
       implicit val scheduler = out.scheduler
-      private[this] val converter = implicitly[CanObserve[F]]
+
+      private[this] var ack: Future[Ack] = Continue
       private[this] val errors = if (delayErrors)
         mutable.ArrayBuffer.empty[Throwable] else null
 
@@ -62,11 +62,11 @@ private[streams] final class OperatorConcatMap[A, B, F[_] : CanObserve]
           val fb = f(a)
           streamError = false
 
-          converter.observable(fb).unsafeSubscribeFn(new Observer[B] {
-            def onNext(elem: B): Future[Ack] =
-              out.onNext(elem).syncOnCancelOrFailure {
-                upstreamPromise.trySuccess(Cancel)
-              }
+          fb.unsafeSubscribeFn(new Observer[B] {
+            def onNext(elem: B): Future[Ack] = {
+              ack = out.onNext(elem).syncOnCancelFollow(upstreamPromise, Cancel)
+              ack
+            }
 
             def onError(ex: Throwable): Unit = {
               if (delayErrors) {
@@ -82,13 +82,15 @@ private[streams] final class OperatorConcatMap[A, B, F[_] : CanObserve]
 
             def onComplete(): Unit = {
               // NOTE: we aren't sending this onComplete signal downstream to our observerU
-              // instead we are just instructing upstream to send the next observable
-              upstreamPromise.trySuccess(Continue)
+              // instead we are just instructing upstream to send the next observable.
+              // We also need to apply back-pressure on the last ack,
+              // because an onNext probably follows.
+              ack.syncOnContinueFollow(upstreamPromise, Continue)
               refID.cancel()
             }
           })
 
-          upstreamPromise.future
+          upstreamPromise.future.syncTryFlatten
         } catch {
           case NonFatal(ex) if streamError =>
             onError(ex)

@@ -18,7 +18,6 @@
 package monix.streams.observers.buffers
 
 import monix.execution.Ack
-import monix.execution.internal.Platform
 import monix.execution.internal.collection.{EvictingQueue, DropHeadOnOverflowQueue, DropAllOnOverflowQueue}
 import monix.streams.OverflowStrategy
 import monix.execution.Ack.{Cancel, Continue}
@@ -48,7 +47,7 @@ private[buffers] final class SyncBufferedSubscriber[-T] private
   // events being dropped
   private[this] var eventsDropped = 0L
   // Used on the consumer side to split big synchronous workloads in batches
-  private[this] val batchSizeModulus = Platform.recommendedBatchSize - 1
+  private[this] val batchSizeModulus = scheduler.batchedExecutionModulus
 
   def onNext(elem: T): Ack = {
     if (!upstreamIsComplete && !downstreamIsDone) {

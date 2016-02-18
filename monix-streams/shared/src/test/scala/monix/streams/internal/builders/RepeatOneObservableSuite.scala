@@ -18,55 +18,32 @@
 package monix.streams.internal.builders
 
 import minitest.TestSuite
-import monix.execution.Ack
-import monix.execution.schedulers.TestScheduler
 import monix.execution.Ack.Continue
-import monix.streams.Observer
-import monix.streams.{Observer, Observable}
-import scala.concurrent.Future
+import monix.execution.internal.Platform
+import monix.execution.schedulers.TestScheduler
+import monix.streams.Observable
 
-object FromRunnableSuite extends TestSuite[TestScheduler] {
+object RepeatOneObservableSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler): Unit = {
     assert(s.state.get.tasks.isEmpty,
       "TestScheduler should have no pending tasks")
   }
 
-  test("should work") { implicit s =>
-    var wasCompleted = 0
+  test("first execution is synchronous") { implicit s =>
     var received = 0
-
-    var i = 0
-    val obs = Observable.fromRunnable(new Runnable {
-      def run(): Unit = i += 1
-    })
-
-    obs.unsafeSubscribeFn(new Observer[Unit] {
-      def onNext(elem: Unit): Future[Ack] = {
-        received += i
-        Continue
-      }
-
-      def onError(ex: Throwable): Unit = ()
-      def onComplete(): Unit = wasCompleted += 1
-    })
-
-    s.tickOne()
-    assertEquals(wasCompleted, 1)
+    Observable.repeat(1).take(1).foreach(x => received += x)
     assertEquals(received, 1)
+  }
 
-    obs.unsafeSubscribeFn(new Observer[Unit] {
-      def onNext(elem: Unit): Future[Ack] = {
-        received += i
-        Continue
-      }
+  test("should do synchronous execution in batches") { implicit s =>
+    var received = 0
+    Observable.repeat(1).take(Platform.recommendedBatchSize * 2)
+      .subscribe { x => received += 1; Continue }
 
-      def onError(ex: Throwable): Unit = ()
-      def onComplete(): Unit = wasCompleted += 1
-    })
-
+    assertEquals(received, Platform.recommendedBatchSize)
     s.tickOne()
-    assertEquals(wasCompleted, 2)
-    assertEquals(received, 3)
+    assertEquals(received, Platform.recommendedBatchSize * 2)
+    s.tickOne()
   }
 }

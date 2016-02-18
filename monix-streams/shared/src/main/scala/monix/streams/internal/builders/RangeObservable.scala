@@ -23,15 +23,20 @@ import monix.streams.Observable
 import monix.streams.observers.Subscriber
 import scala.annotation.tailrec
 import scala.concurrent.Future
-import scala.util.Failure
+import scala.util.{Success, Failure}
 
 /** Generates ranges */
 private[streams] final class RangeObservable(from: Long, until: Long, step: Long = 1)
   extends Observable[Long] {
 
+  require(step != 0, "step != 0")
+
   def unsafeSubscribeFn(subscriber: Subscriber[Long]): Unit = {
     val s = subscriber.scheduler
-    loop(subscriber, s.batchedExecutionModulus, from, until, step, 0)(s)
+    if (!isInRange(from, until, step))
+      subscriber.onComplete()
+    else
+      loop(subscriber, s.batchedExecutionModulus, from, until, step, 0)(s)
   }
 
   @tailrec
@@ -39,20 +44,22 @@ private[streams] final class RangeObservable(from: Long, until: Long, step: Long
     from: Long, until: Long, step: Long, syncIndex: Int)
     (implicit s: Scheduler): Unit = {
 
-    if (isInRange(from)) {
-      val ack = downstream.onNext(from)
+    val ack = downstream.onNext(from)
+    val nextFrom = from+step
+
+    if (!isInRange(nextFrom, until, step))
+      downstream.onComplete()
+    else {
       val nextIndex =
         if (ack == Continue) (syncIndex + 1) & modulus
         else if (ack == Cancel) -1
         else 0
 
       if (nextIndex > 0)
-        loop(downstream, modulus, from + step, until, step, nextIndex)
+        loop(downstream, modulus, nextFrom, until, step, nextIndex)
       else if (nextIndex == 0)
-        asyncBoundary(ack, downstream, modulus, from + step, until, step)
+        asyncBoundary(ack, downstream, modulus, nextFrom, until, step)
     }
-    else
-      downstream.onComplete()
   }
 
   private def asyncBoundary(
@@ -62,16 +69,15 @@ private[streams] final class RangeObservable(from: Long, until: Long, step: Long
     (implicit s: Scheduler): Unit = {
 
     ack.onComplete {
-      case Continue.AsSuccess =>
-        loop(downstream, modulus, from + step, until, step, 0)
+      case Success(success) =>
+        if (success == Continue)
+          loop(downstream, modulus, from, until, step, 0)
       case Failure(ex) =>
         s.reportFailure(ex)
-      case _ =>
-        () // this was a Cancel, do nothing
     }
   }
 
-  private def isInRange(x: Long): Boolean = {
+  private def isInRange(x: Long, until: Long, step: Long): Boolean = {
     (step > 0 && x < until) || (step < 0 && x > until)
   }
 }

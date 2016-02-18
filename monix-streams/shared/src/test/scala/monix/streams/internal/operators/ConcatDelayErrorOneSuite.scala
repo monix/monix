@@ -30,8 +30,8 @@ object ConcatDelayErrorOneSuite extends BaseOperatorSuite {
     val source = if (ex == null) Observable.range(0, sourceCount)
       else Observable.range(0, sourceCount).endWithError(ex)
 
-    val o = source
-      .flatMapDelayError(i => Observable.now(i).endWithError(SomeException(10)))
+    val o = source.flatMapDelayError(i =>
+      Observable.now(i).endWithError(SomeException(10)))
 
     val recovered = o.onErrorRecoverWith {
       case composite: CompositeException =>

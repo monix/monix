@@ -36,7 +36,7 @@ private[streams] final class IntervalFixedRateObservable
     import subscriber.{scheduler => s}
     val o = subscriber
 
-    s.scheduleOnce(initialDelay.length, initialDelay.unit, new Runnable { self =>
+    val runnable = new Runnable { self =>
       private[this] val periodMillis = period.toMillis
       private[this] var counter = 0L
       private[this] var startedAt = 0L
@@ -69,6 +69,11 @@ private[streams] final class IntervalFixedRateObservable
         else if (ack != Cancel)
           asyncScheduleNext(ack)
       }
-    })
+    }
+
+    if (initialDelay.length <= 0)
+      runnable.run()
+    else
+      s.scheduleOnce(initialDelay.length, initialDelay.unit, runnable)
   }
 }
