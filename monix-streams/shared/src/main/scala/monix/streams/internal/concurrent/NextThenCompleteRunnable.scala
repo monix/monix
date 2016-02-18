@@ -17,8 +17,8 @@
 
 package monix.streams.internal.concurrent
 
-import monix.streams.Subscriber
 import monix.streams.internal._
+import monix.streams.observers.Subscriber
 
 private[monix] final class NextThenCompleteRunnable[T] private
   (subscriber: Subscriber[T], elem: T) extends Runnable {

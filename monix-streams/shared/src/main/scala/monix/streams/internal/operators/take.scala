@@ -20,14 +20,12 @@ package monix.streams.internal.operators
 import monix.execution.Ack
 import monix.execution.cancelables.BooleanCancelable
 import monix.streams.{Observer, Observable}
-import monix.streams
 import monix.execution.Ack.{Cancel, Continue}
 import monix.streams.internal._
 import scala.collection.mutable
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 import scala.util.control.NonFatal
-
 
 private[monix] object take {
   /**
@@ -112,11 +110,11 @@ private[monix] object take {
         }
 
         def onComplete(): Unit = {
-          Observable.fromIterable(queue).unsafeSubscribeFn(subscriber)
+          Observable.from(queue).unsafeSubscribeFn(subscriber)
         }
 
         def onError(ex: Throwable): Unit = {
-          Observable.fromIterable(queue).unsafeSubscribeFn(new Observer[T] {
+          Observable.from(queue).unsafeSubscribeFn(new Observer[T] {
             def onError(ex: Throwable) =
               subscriber.onError(ex)
 

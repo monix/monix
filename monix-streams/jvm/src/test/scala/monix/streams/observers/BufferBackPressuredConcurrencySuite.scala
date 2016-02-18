@@ -22,9 +22,9 @@ import minitest.TestSuite
 import monix.execution.{Ack, Scheduler}
 import monix._
 import monix.execution.Ack.{Cancel, Continue}
-import monix.streams.{OverflowStrategy, Observer, Observable, Subscriber}
+import monix.streams.{OverflowStrategy, Observer, Observable}
 import OverflowStrategy.BackPressure
-import monix.streams.{Observer, Observable, Subscriber}
+import monix.streams.{Observer, Observable}
 import monix.streams.exceptions.DummyException
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, Promise}
@@ -43,7 +43,7 @@ object BufferBackPressuredConcurrencySuite extends TestSuite[Scheduler] {
     val o2 = source.map(_ + 3)
     val o3 = source.map(_ + 4)
 
-    val f = Observable(o1, o2, o3)
+    val f = Observable.from(Seq(o1, o2, o3))
       .merge(BackPressure(100))
       .sum
       .asFuture

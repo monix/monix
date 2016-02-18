@@ -17,8 +17,9 @@
 
 package monix.streams.observables
 
-import monix.streams.{Observable, Subscriber}
+import monix.streams.Observable
 import monix.streams.broadcast.ReplayProcessor
+import monix.streams.observers.Subscriber
 import org.sincron.atomic.Atomic
 
 /** A `CachedObservable` is an observable that wraps a regular

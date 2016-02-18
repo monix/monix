@@ -25,7 +25,7 @@ import monix.execution.{Ack, Scheduler}
 import monix.streams.OverflowStrategy.DropOld
 import monix.streams.exceptions.DummyException
 import monix.streams.internal.concurrent.RunnableAction
-import monix.streams.{Observer, OverflowStrategy, Subscriber}
+import monix.streams.{Observer, OverflowStrategy}
 import scala.concurrent.{Future, Promise}
 
 object BufferDropOldThenSignalSuite extends TestSuite[TestScheduler] {

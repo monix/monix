@@ -19,8 +19,8 @@ package monix.streams.internal.reactivestreams
 
 import monix.execution.Ack.{Cancel, Continue}
 import monix.streams.OverflowStrategy.Unbounded
-import monix.streams.observers.{BufferedSubscriber, SyncSubscriber}
-import monix.streams.{Observer, Subscriber}
+import monix.streams.observers.{Subscriber, BufferedSubscriber, SyncSubscriber}
+import monix.streams.Observer
 import org.reactivestreams.{Subscriber => RSubscriber, Subscription => RSubscription}
 
 /** Wraps a [[Observer Observer]] instance into an

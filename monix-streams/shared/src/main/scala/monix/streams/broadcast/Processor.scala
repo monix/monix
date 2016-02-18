@@ -19,7 +19,8 @@ package monix.streams.broadcast
 
 import monix.execution.Scheduler
 import monix.execution.internal.Platform
-import monix.streams.{Observable, Observer, Subscriber}
+import monix.streams.observers.Subscriber
+import monix.streams.{Observable, Observer}
 import org.reactivestreams.{Processor => RProcessor, Subscriber => RSubscriber, Subscription}
 import scala.language.reflectiveCalls
 

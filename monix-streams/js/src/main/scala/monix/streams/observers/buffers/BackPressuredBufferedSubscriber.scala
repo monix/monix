@@ -20,8 +20,8 @@ package monix.streams.observers.buffers
 import monix.execution.Ack
 import monix.execution.Ack.{Cancel, Continue}
 import monix.execution.internal.Platform
-import monix.streams.{OverflowStrategy, Subscriber}
-import monix.streams.observers.BufferedSubscriber
+import monix.streams.OverflowStrategy
+import monix.streams.observers.{Subscriber, BufferedSubscriber}
 import monix.streams.observers.buffers.BackPressuredBufferedSubscriber.State
 import org.sincron.atomic.Atomic
 import scala.annotation.tailrec

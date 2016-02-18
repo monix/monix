@@ -25,7 +25,7 @@ import monix.execution.schedulers.TestScheduler
 import monix.streams.OverflowStrategy.Unbounded
 import monix.streams.exceptions.DummyException
 import monix.streams.internal.concurrent.RunnableAction
-import monix.streams.{Observer, Subscriber}
+import monix.streams.Observer
 import scala.concurrent.{Future, Promise}
 
 object BufferUnboundedSuite extends TestSuite[TestScheduler] {

@@ -20,15 +20,15 @@ package monix.streams.observables
 import monix.execution.Scheduler
 import monix.execution.cancelables.BooleanCancelable
 import monix.streams.broadcast.Processor
-import monix.streams.observers.CacheUntilConnectSubscriber
-import monix.streams.{Observable, Pipe, Subscriber}
+import monix.streams.observers.{Subscriber, CacheUntilConnectSubscriber}
+import monix.streams.{Observable, Pipe}
 
 /** Represents an [[Observable Observable]] that waits for
   * the call to `connect()` before
   * starting to emit elements to its subscriber(s).
   *
-  * Useful for converting cold observables into hot observables and thus returned by
-  * [[Observable.unsafeMulticast Observable.multicast]].
+  * Represents a hot observable (an observable that shares its data-source
+  * to multiple subscribers).
   */
 trait ConnectableObservable[+T] extends Observable[T] { self =>
   /** Starts emitting events to subscribers. */
@@ -73,9 +73,9 @@ object ConnectableObservable {
     (implicit s: Scheduler): ConnectableObservable[R] = {
 
     new ConnectableObservable[R] {
-      private[this] val pipe = recipe.createProcessor()
+      private[this] val (input, output) = recipe.multicast(s)
       private[this] lazy val connection = {
-        source.subscribe(pipe)
+        source.subscribe(input)
       }
 
       def connect(): BooleanCancelable = {
@@ -83,7 +83,7 @@ object ConnectableObservable {
       }
 
       def unsafeSubscribeFn(subscriber: Subscriber[R]): Unit = {
-        pipe.unsafeSubscribeFn(subscriber)
+        output.unsafeSubscribeFn(subscriber)
       }
     }
   }

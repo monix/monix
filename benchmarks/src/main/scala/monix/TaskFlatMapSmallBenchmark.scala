@@ -18,10 +18,9 @@
 package monix
 
 import java.util.concurrent.TimeUnit
-
-import monix.tasks.Task
+import monix.tasks.{Callback, Task => MonixTask}
+import monix.execution.Scheduler.Implicits.global
 import org.openjdk.jmh.annotations._
-
 import scalaz.concurrent.{Task => ScalazTask}
 import scalaz.{-\/, \/-}
 
@@ -43,7 +42,7 @@ class TaskFlatMapSmallBenchmark {
   @Benchmark
   def monix(): Long = {
     var result = 0L
-    def sum(n: Int, acc: Long = 0): Task[Long] = {
+    def sum(n: Int, acc: Long = 0): MonixTask[Long] = {
       if (n == 0) MonixTask.eval(acc) else
         MonixTask.eval(n).flatMap(x => sum(x-1, acc + x))
     }

@@ -17,7 +17,6 @@
 
 package monix.subjects
 
-import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.streams.Observer
 import monix.streams.broadcast.AsyncProcessor

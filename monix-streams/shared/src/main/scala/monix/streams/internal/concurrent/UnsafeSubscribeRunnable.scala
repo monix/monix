@@ -17,7 +17,8 @@
 
 package monix.streams.internal.concurrent
 
-import monix.streams.{Observable, Subscriber}
+import monix.streams.Observable
+import monix.streams.observers.Subscriber
 
 /** Ready-made Runnable class that triggers a
   * subscription on the given observable.

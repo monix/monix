@@ -20,7 +20,7 @@ package monix.streams.observers
 import monix.execution.Ack
 import monix.execution.Ack.{Cancel, Continue}
 import monix.streams.internal._
-import monix.streams.{Observable, Observer, Subscriber}
+import monix.streams.{Observable, Observer}
 import scala.collection.mutable
 import scala.concurrent.{Future, Promise}
 
@@ -65,7 +65,7 @@ final class CacheUntilConnectSubscriber[-T] private (downstream: Subscriber[T])
     if (!isConnected && !isConnectionStarted) {
       isConnectionStarted = true
 
-      Observable.fromIterable(queue).unsafeSubscribeFn(new Observer[T] {
+      Observable.from(queue).unsafeSubscribeFn(new Observer[T] {
         private[this] val bufferWasDrained = Promise[Ack]()
 
         bufferWasDrained.future.onSuccess {

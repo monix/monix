@@ -17,9 +17,8 @@
 
 package monix.streams.observers
 
-import monix.streams.{Subscriber, OverflowStrategy, Observer}
+import monix.streams.{OverflowStrategy, Observer}
 import monix.streams.observers.buffers.Builders
-import monix.streams.Subscriber
 
 /** Interface describing [[Observer Observer]] wrappers
   * that are thread-safe (can receive concurrent events) and that

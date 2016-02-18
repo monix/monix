@@ -18,8 +18,8 @@
 package monix.streams.broadcast
 
 import monix.execution.{Ack, Scheduler}
-import monix.streams.{Subscriber, OverflowStrategy}
-import monix.streams.observers.{SyncSubscriber, BufferedSubscriber}
+import monix.streams.OverflowStrategy
+import monix.streams.observers.{Subscriber, SyncSubscriber, BufferedSubscriber}
 
 /**
   * Wraps any [[Processor]] into a [[Subject]].

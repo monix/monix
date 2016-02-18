@@ -21,7 +21,7 @@ import monix.execution.Ack.{Cancel, Continue}
 import monix.execution.internal.Platform
 import monix.execution.{Ack, Scheduler}
 import monix.streams.internal.reactivestreams._
-import monix.streams.observers.{SyncObserver, SyncSubscriber}
+import monix.streams.observers.{Subscriber, SyncObserver, SyncSubscriber}
 import org.reactivestreams.{Subscriber => RSubscriber}
 
 import scala.annotation.tailrec
@@ -54,7 +54,7 @@ object Observer {
     * it builds an [[Observer]] instance compliant with the
     * Monix Rx implementation.
     */
-  def fromReactiveSubscriber[T](subscriber: RSubscriber[T])(implicit s: Scheduler): Subscriber[T] = {
+  def fromReactiveSubscriber[T](subscriber: RSubscriber[T])(implicit s: Scheduler): Observer[T] = {
     ReactiveSubscriberAsMonixSubscriber(subscriber)
   }
 

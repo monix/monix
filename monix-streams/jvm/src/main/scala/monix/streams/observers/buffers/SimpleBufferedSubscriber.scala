@@ -19,12 +19,12 @@ package monix.streams.observers.buffers
 
 import java.util.concurrent.ConcurrentLinkedQueue
 import monix.execution.Ack
-import monix.streams.{Subscriber, OverflowStrategy}
+import monix.streams.OverflowStrategy
 import monix.streams
 import monix.execution.Ack.{Cancel, Continue}
 import monix.execution.internal.Platform
 import monix.streams.exceptions.BufferOverflowException
-import monix.streams.observers.{BufferedSubscriber, SyncSubscriber}
+import monix.streams.observers.{Subscriber, BufferedSubscriber, SyncSubscriber}
 import scala.annotation.tailrec
 import scala.util.Failure
 import scala.util.control.NonFatal

@@ -23,7 +23,7 @@ import monix.execution.Ack.Continue
 import monix.execution.Scheduler
 import monix.execution.schedulers.TestScheduler
 import monix.streams.exceptions.DummyException
-import monix.streams.{Observer, Subscriber}
+import monix.streams.Observer
 import scala.collection.mutable.ArrayBuffer
 
 object ConnectableSubscriberSuite extends TestSuite[TestScheduler] {

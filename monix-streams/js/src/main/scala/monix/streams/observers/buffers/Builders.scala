@@ -17,10 +17,9 @@
 
 package monix.streams.observers.buffers
 
-import monix.streams.{Subscriber, OverflowStrategy}
+import monix.streams.OverflowStrategy
 import OverflowStrategy._
-import monix.streams.Subscriber
-import monix.streams.observers.{BufferedSubscriber, SyncSubscriber}
+import monix.streams.observers.{Subscriber, BufferedSubscriber, SyncSubscriber}
 
 trait Builders { self: BufferedSubscriber.type =>
   def apply[T](subscriber: Subscriber[T], bufferPolicy: OverflowStrategy): Subscriber[T] = {

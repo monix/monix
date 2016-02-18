@@ -15,24 +15,18 @@
  * limitations under the License.
  */
 
-package monix.streams
+package monix.streams.observers
 
 import monix.execution.internal.Platform
 import monix.execution.{Ack, Scheduler}
-import monix.streams.internal.reactivestreams.{ReactiveSubscriberAsMonixSubscriber, SubscriberAsReactiveSubscriber, SyncSubscriberAsReactiveSubscriber}
-import monix.streams.observers.{SyncObserver, SyncSubscriber}
+import monix.streams.Observer
+import monix.streams.internal.reactivestreams._
 import org.reactivestreams.{Subscriber => RSubscriber}
-
 import scala.concurrent.Future
 
-/** A `Subscriber` value is a named tuple of an observer and a scheduler,
-  * whose usage is in [[Observable.unsafeCreate]].
+/** A `Subscriber` is a named tuple of an observer and a scheduler.
   *
-  * An `Observable.subscribe` takes as parameters both an [[Observer]]
-  * and a [[monix.execution.Scheduler Scheduler]] and the purpose of a
-  * `Subscriber` is convenient grouping in `Observable.create`.
-  *
-  * A `Subscriber` value is basically an address that the data source needs
+  * A `Subscriber` value is an address that the data source needs
   * in order to send events.
   */
 trait Subscriber[-T] extends Observer[T] {

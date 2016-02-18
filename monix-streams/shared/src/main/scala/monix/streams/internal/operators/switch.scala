@@ -21,7 +21,8 @@ import monix.execution.Ack
 import monix.execution.Ack.{Cancel, Continue}
 import monix.execution.cancelables.{BooleanCancelable, SerialCancelable}
 import monix.streams.internal._
-import monix.streams.{Observable, Observer, Subscriber}
+import monix.streams.observers.Subscriber
+import monix.streams.{Observable, Observer}
 import scala.concurrent.Future
 
 private[monix] object switch {

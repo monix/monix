@@ -20,8 +20,8 @@ package monix.streams.internal.operators
 import monix.execution.Ack
 import monix.execution.Ack.{Cancel, Continue}
 import monix.execution.cancelables.BooleanCancelable
-import monix.streams.observers.SyncSubscriber
-import monix.streams.{Observable, Observer, Subscriber}
+import monix.streams.observers.{Subscriber, SyncSubscriber}
+import monix.streams.{Observable, Observer}
 import scala.concurrent.Future
 import scala.concurrent.duration._
 

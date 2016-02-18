@@ -19,33 +19,33 @@ package monix.streams.internal.operators
 
 import monix.execution.Ack
 import monix.execution.Ack.Cancel
-import monix.streams.{Observable, Observer}
+import monix.streams.{CanObserve, Observable, Observer}
 import monix.streams.internal.concurrent.PromiseSuccessRunnable
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Future, Promise}
+import scala.language.higherKinds
 
 private[monix] object delaySubscription {
   /**
     * Implementation for [[Observable.delaySubscription]].
     */
-  def onTrigger[T,U](source: Observable[T], trigger: Observable[U]): Observable[T] =
+  def onTrigger[T,U,F[_] : CanObserve](source: Observable[T], trigger: F[U]): Observable[T] =
     Observable.unsafeCreate[T] { subscriber =>
       import subscriber.{scheduler => s}
 
-      trigger.unsafeSubscribeFn(new Observer[U] {
-        def onNext(elem: U): Future[Ack] = {
-          source.unsafeSubscribeFn(subscriber)
-          Cancel
-        }
+      CanObserve[F].observable(trigger).unsafeSubscribeFn(
+        new Observer[U] {
+          def onNext(elem: U): Future[Ack] = {
+            source.unsafeSubscribeFn(subscriber)
+            Cancel
+          }
 
-        def onError(ex: Throwable): Unit = {
-          subscriber.onError(ex)
-        }
-
-        def onComplete(): Unit = {
-          source.unsafeSubscribeFn(subscriber)
-        }
-      })
+          def onError(ex: Throwable): Unit =
+            subscriber.onError(ex)
+          def onComplete(): Unit =
+            source
+              .unsafeSubscribeFn(subscriber)
+        })
     }
 
   /**

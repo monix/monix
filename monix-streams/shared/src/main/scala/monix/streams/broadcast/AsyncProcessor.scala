@@ -19,10 +19,9 @@ package monix.streams.broadcast
 
 import monix.execution.Ack
 import monix.execution.Ack.{Cancel, Continue}
-import monix.streams.Subscriber
 import monix.streams.broadcast.PublishProcessor.State
 import monix.streams.internal._
-import monix.streams.observers.SyncObserver
+import monix.streams.observers.{Subscriber, SyncObserver}
 import org.sincron.atomic.Atomic
 import scala.annotation.tailrec
 

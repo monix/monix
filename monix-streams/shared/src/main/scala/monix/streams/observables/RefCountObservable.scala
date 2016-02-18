@@ -20,7 +20,8 @@ package monix.streams.observables
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.{Cancelable, Scheduler}
 import monix.streams.internal._
-import monix.streams.{Observable, Observer, Subscriber}
+import monix.streams.observers.Subscriber
+import monix.streams.{Observable, Observer}
 import org.sincron.atomic.Atomic
 import scala.annotation.tailrec
 

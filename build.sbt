@@ -133,7 +133,7 @@ lazy val scalaMacroDependencies = Seq(
   libraryDependencies ++= Seq(
     "org.scala-lang" % "scala-reflect" % scalaVersion.value % "provided",
     "org.scala-lang" % "scala-compiler" % scalaVersion.value % "provided",
-    "org.typelevel" %% "macro-compat" % "1.1.0" % "provided",
+    "org.typelevel" %% "macro-compat" % "1.1.1" % "provided",
     compilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
   ))
 
@@ -217,7 +217,7 @@ lazy val executionJVM = project.in(file("monix-execution/jvm"))
   .settings(scalaMacroDependencies)
   .settings(
     name := "monix-execution",
-    libraryDependencies += "org.sincron" %%% "sincron" % "0.9"
+    libraryDependencies += "org.sincron" %%% "sincron" % "0.10"
   )
 
 lazy val executionJS = project.in(file("monix-execution/js"))
@@ -228,7 +228,7 @@ lazy val executionJS = project.in(file("monix-execution/js"))
   .settings(scalaMacroDependencies)
   .settings(
     name := "monix-execution",
-    libraryDependencies += "org.sincron" %%% "sincron" % "0.9"
+    libraryDependencies += "org.sincron" %%% "sincron" % "0.10"
   )
 
 lazy val tasksJVM = project.in(file("monix-tasks/jvm"))
@@ -245,22 +245,22 @@ lazy val tasksJS = project.in(file("monix-tasks/js"))
   .settings(testSettings)
   .settings(name := "monix-tasks")
 
+lazy val streamsCommon =
+  crossSettings ++ testSettings ++ scalaMacroDependencies ++ Seq(
+    name := "monix-streams",
+    libraryDependencies += "com.github.mpilquist" %%% "simulacrum" % "0.7.0"
+  )
+
 lazy val streamsJVM = project.in(file("monix-streams/jvm"))
   .dependsOn(executionJVM, tasksJVM)
-  .settings(crossSettings)
-  .settings(testSettings)
-  .settings(
-    name := "monix-streams",
-    libraryDependencies += "org.reactivestreams" % "reactive-streams" % "1.0.0"
-  )
+  .settings(streamsCommon)
+  .settings(libraryDependencies += "org.reactivestreams" % "reactive-streams" % "1.0.0")
 
 lazy val streamsJS = project.in(file("monix-streams/js"))
   .enablePlugins(ScalaJSPlugin)
   .dependsOn(executionJS, tasksJS)
-  .settings(crossSettings)
+  .settings(streamsCommon)
   .settings(scalaJSSettings)
-  .settings(testSettings)
-  .settings(name := "monix-streams")
 
 lazy val docs = project.in(file("docs"))
   .dependsOn(executionJVM, tasksJVM, streamsJVM)
@@ -281,7 +281,7 @@ lazy val tckTests = project.in(file("tckTests"))
     ))
 
 lazy val benchmarks = project.in(file("benchmarks"))
-  .dependsOn(tasksJVM, streamsJVM)
+  .dependsOn(streamsJVM)
   .enablePlugins(JmhPlugin)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)

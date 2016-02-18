@@ -453,4 +453,54 @@ object AckSuite extends TestSuite[TestScheduler] {
     val f = Cancel.syncTryFlatten
     assertEquals(f, Cancel)
   }
+
+  test("isSynchronous(Future(Continue)) == false") { implicit s =>
+    val f: Future[Ack] = Future.successful(Continue)
+    assert(!f.isSynchronous)
+  }
+
+  test("isSynchronous(Continue) == true") { implicit s =>
+    val f: Future[Ack] = Continue
+    assert(f.isSynchronous)
+  }
+
+  test("isSynchronous(Future(Cancel)) == false") { implicit s =>
+    val f: Future[Ack] = Future.successful(Cancel)
+    assert(!f.isSynchronous)
+  }
+
+  test("isSynchronous(Cancel) == true") { implicit s =>
+    val f: Future[Ack] = Cancel
+    assert(f.isSynchronous)
+  }
+
+  test("isSynchronous(failure) == false") { implicit s =>
+    val f: Future[Ack] = Future.failed(new RuntimeException)
+    assert(!f.isSynchronous)
+  }
+
+  test("isSynchronous(impure Future(Continue)) == false") { implicit s =>
+    def f: Future[Ack] = Future.successful(Continue)
+    assert(!f.isSynchronous)
+  }
+
+  test("isSynchronous(impure Continue) == true") { implicit s =>
+    def f: Future[Ack] = Continue
+    assert(f.isSynchronous)
+  }
+
+  test("isSynchronous(impure Future(Cancel)) == false") { implicit s =>
+    def f: Future[Ack] = Future.successful(Cancel)
+    assert(!f.isSynchronous)
+  }
+
+  test("isSynchronous(impure Cancel) == true") { implicit s =>
+    def f: Future[Ack] = Cancel
+    assert(f.isSynchronous)
+  }
+
+  test("isSynchronous(impure failure) == false") { implicit s =>
+    def f: Future[Ack] = Future.failed(new RuntimeException)
+    assert(!f.isSynchronous)
+  }
 }

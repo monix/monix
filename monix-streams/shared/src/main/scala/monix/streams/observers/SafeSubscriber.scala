@@ -19,7 +19,6 @@ package monix.streams.observers
 
 import monix.execution.Ack
 import monix.execution.Ack.{Cancel, Continue}
-import monix.streams.Subscriber
 import scala.concurrent.{Future, Promise}
 import scala.util.Failure
 import scala.util.control.NonFatal

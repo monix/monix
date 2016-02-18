@@ -62,14 +62,4 @@ private[monix] object repeat {
       })
     }
   }
-
-  /** Implementation for [[Observable.repeatTask]] */
-  def task[T](t: => T): Observable[T] = {
-    Observable.fromIterator(new TaskIterator[T](t))
-  }
-
-  private final class TaskIterator[T](t: => T) extends Iterator[T] {
-    val hasNext = true
-    def next(): T = t
-  }
 }

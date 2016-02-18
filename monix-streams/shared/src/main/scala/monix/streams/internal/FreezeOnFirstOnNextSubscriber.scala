@@ -18,7 +18,7 @@
 package monix.streams.internal
 
 import monix.execution.Ack
-import monix.streams.Subscriber
+import monix.streams.observers.Subscriber
 import org.sincron.atomic.Atomic
 import scala.concurrent.{Future, Promise}
 

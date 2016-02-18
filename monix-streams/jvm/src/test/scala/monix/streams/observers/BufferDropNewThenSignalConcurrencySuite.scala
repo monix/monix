@@ -23,9 +23,9 @@ import minitest.TestSuite
 import monix.execution.{Ack, Scheduler}
 import monix._
 import monix.execution.Ack.{Cancel, Continue}
-import monix.streams.{OverflowStrategy, Observer, Observable, Subscriber}
+import monix.streams.{OverflowStrategy, Observer, Observable}
 import OverflowStrategy.DropNew
-import monix.streams.{Observer, Observable, Subscriber}
+import monix.streams.{Observer, Observable}
 import monix.streams.exceptions.DummyException
 import scala.concurrent.{Await, Future, Promise}
 import scala.concurrent.duration._
@@ -50,7 +50,7 @@ object BufferDropNewThenSignalConcurrencySuite
   test("merge test should work") { implicit s =>
     val num = 100000
     val source = Observable.repeat(1L).take(num)
-    val f = Observable(source, source, source)
+    val f = Observable.from(Seq(source, source, source))
       .merge(DropNew(1000), dropped => dropped)
       .sum
       .asFuture

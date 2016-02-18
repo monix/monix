@@ -20,9 +20,9 @@ package monix.streams.broadcast
 import monix.execution.Ack
 import monix.execution.internal.math._
 import monix.execution.Ack.{Cancel, Continue}
-import monix.streams.{Subscriber, Observer, Observable}
+import monix.streams.{Observer, Observable}
 import monix.streams.internal._
-import monix.streams.observers.ConnectableSubscriber
+import monix.streams.observers.{Subscriber, ConnectableSubscriber}
 import org.sincron.atomic.Atomic
 
 import scala.annotation.tailrec
@@ -44,7 +44,7 @@ final class ReplayProcessor[T] private (initialState: ReplayProcessor.State[T])
     def streamOnDone(buffer: Iterable[T], errorThrown: Throwable): Unit = {
       implicit val s = subscriber.scheduler
 
-      Observable.fromIterable(buffer).unsafeSubscribeFn(new Observer[T] {
+      Observable.from(buffer).unsafeSubscribeFn(new Observer[T] {
         def onNext(elem: T) =
           subscriber.onNext(elem)
         def onError(ex: Throwable) =

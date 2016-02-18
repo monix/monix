@@ -18,13 +18,11 @@
 package monix.subjects
 
 import minitest.TestSuite
-import monix.execution.Ack
-import monix.execution.schedulers.TestScheduler
 import monix.execution.Ack.{Cancel, Continue}
-import monix.streams.{Observer, Observable}
+import monix.execution.schedulers.TestScheduler
+import monix.streams.{Observable, Observer}
 import monix.streams.broadcast.Processor
 import monix.streams.exceptions.DummyException
-import monix.streams.Observer
 import scala.concurrent.Promise
 import scala.util.Random
 
@@ -127,7 +125,7 @@ trait BaseSubjectSuite extends TestSuite[TestScheduler] {
     }
 
     val Sample(subject, expectedSum) = alreadyTerminatedTest(elems)
-    Observable.fromIterable(elems).unsafeSubscribeFn(subject)
+    Observable.from(elems).unsafeSubscribeFn(subject)
     s.tick()
 
     subject.unsafeSubscribeFn(createObserver)
@@ -156,7 +154,7 @@ trait BaseSubjectSuite extends TestSuite[TestScheduler] {
     }
 
     val Sample(subject, _) = alreadyTerminatedTest(elems)
-    Observable.fromIterable(elems)
+    Observable.from(elems)
       .endWithError(DummyException("dummy"))
       .unsafeSubscribeFn(subject)
 
@@ -253,7 +251,7 @@ trait BaseSubjectSuite extends TestSuite[TestScheduler] {
         subject.subscribe(createObserver)
         s.tick()
 
-        Observable.fromIterable(elems).unsafeSubscribeFn(subject)
+        Observable.from(elems).unsafeSubscribeFn(subject)
         s.tick()
 
         assertEquals(wereCompleted, 3)

@@ -21,8 +21,7 @@ import java.util.concurrent.{CountDownLatch, TimeUnit}
 
 import minitest.TestSuite
 import monix.execution.{Ack, Scheduler}
-import monix.streams.{OverflowStrategy, Observer, Subscriber}
-import monix.streams.Subscriber
+import monix.streams.{OverflowStrategy, Observer}
 import monix.execution.Ack.{Cancel, Continue}
 import OverflowStrategy.Fail
 import monix.streams.exceptions.{DummyException, BufferOverflowException}

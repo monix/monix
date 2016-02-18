@@ -19,8 +19,8 @@ package monix.streams.observables
 
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.streams.internal._
-import monix.streams.observers.CacheUntilConnectSubscriber
-import monix.streams.{Observable, Observer, Subscriber}
+import monix.streams.observers.{Subscriber, CacheUntilConnectSubscriber}
+import monix.streams.{Observable, Observer}
 import scala.concurrent.Future
 import scala.language.reflectiveCalls
 

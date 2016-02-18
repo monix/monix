@@ -19,7 +19,8 @@ package monix.streams.internal.operators
 
 import monix.execution.Scheduler
 import monix.streams.internal.concurrent.UnsafeSubscribeRunnable
-import monix.streams.{Observable, Observer, Subscriber}
+import monix.streams.observers.Subscriber
+import monix.streams.{Observable, Observer}
 import scala.util.control.NonFatal
 
 private[monix] object onError {

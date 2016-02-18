@@ -72,7 +72,7 @@ sealed abstract class Task[+T] { self =>
     * @return a [[monix.execution.Cancelable Cancelable]] that can be used to
     *         cancel the running computation
     */
-  protected def unsafeRun(
+  private[monix] def unsafeRun(
     isActive: MultiAssignmentCancelable,
     frameId: FrameId,
     callback: Callback[T])
@@ -372,9 +372,9 @@ sealed abstract class Task[+T] { self =>
     * In case of continuous failure the total number of executions
     * will be `maxRetries + 1`.
     */
-  def onErrorRetry[U >: T](maxRetries: Int): Task[U] =
-    new Task[U] {
-      def unsafeRun(active: MultiAssignmentCancelable, frameId: FrameId, cb: Callback[U])
+  def onErrorRetry(maxRetries: Int): Task[T] =
+    new Task[T] {
+      def unsafeRun(active: MultiAssignmentCancelable, frameId: FrameId, cb: Callback[T])
         (implicit s: Scheduler): Unit = {
 
         def loop(frameId: FrameId, runIdx: Int, ex: Throwable): Unit = {

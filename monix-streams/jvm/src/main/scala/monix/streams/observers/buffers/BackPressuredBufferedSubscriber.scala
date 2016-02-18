@@ -21,10 +21,9 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import monix.execution.Ack
 import monix.execution.internal.Platform
 import monix.execution.Ack.{Cancel, Continue}
-import monix.streams.{Subscriber, OverflowStrategy}
-import monix.streams.observers.BufferedSubscriber
+import monix.streams.OverflowStrategy
+import monix.streams.observers.{Subscriber, BufferedSubscriber}
 import monix.streams.observers.buffers.BackPressuredBufferedSubscriber.State
-import monix.streams.Subscriber
 import org.sincron.atomic.Atomic
 import scala.annotation.tailrec
 import scala.concurrent.{Future, Promise}

@@ -18,7 +18,8 @@
 package monix.streams.internal.reactivestreams
 
 import monix.execution.{Ack, Scheduler}
-import monix.streams.{Subscriber, Observer}
+import monix.streams.Observer
+import monix.streams.observers.Subscriber
 import org.sincron.atomic.Atomic
 import monix.execution.Ack.{Cancel, Continue}
 import org.reactivestreams.{Subscriber => RSubscriber, Subscription}

@@ -19,13 +19,11 @@ package monix.subjects
 
 import monix.execution.Ack
 import monix.execution.Ack.Continue
-import monix.streams.{Observer, Observable}
+import monix.streams.{Observable, Observer}
 import monix.streams.broadcast.PublishProcessor
 import monix.streams.exceptions.DummyException
-import monix.streams.Observer
 import scala.concurrent.Future
 import scala.util.Success
-
 
 object PublishSubjectSuite extends BaseSubjectSuite {
   def alreadyTerminatedTest(expectedElems: Seq[Long]) = {

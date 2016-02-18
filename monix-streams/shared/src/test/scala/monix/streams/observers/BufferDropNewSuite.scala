@@ -26,7 +26,7 @@ import monix.streams.OverflowStrategy.DropNew
 import monix.streams.exceptions.DummyException
 import monix.streams.internal.concurrent.RunnableAction
 import monix.streams.observers.BufferClearBufferThenSignalSuite._
-import monix.streams.{Observer, OverflowStrategy, Subscriber}
+import monix.streams.{Observer, OverflowStrategy}
 import scala.concurrent.{Future, Promise}
 
 object BufferDropNewSuite extends TestSuite[TestScheduler] {

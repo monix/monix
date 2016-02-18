@@ -18,7 +18,6 @@
 package monix.streams.observers
 
 import monix.execution.{Ack, Scheduler}
-import monix.streams.Subscriber
 
 /** A `SyncSubscriber` is a [[Subscriber]] whose `onNext` signal
   * is synchronous (i.e. the upstream observable doesn't need to

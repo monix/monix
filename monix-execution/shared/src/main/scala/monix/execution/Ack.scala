@@ -24,8 +24,8 @@ import scala.language.experimental.macros
 import scala.reflect.macros.whitebox
 import scala.util.{Failure, Success, Try}
 
-/** Represents the acknowledgement of processing that a consumer
-  * sends back upstream.
+/** Represents an acknowledgement of processing that a consumer
+  * sends back upstream. Useful to implement back-pressure.
   */
 sealed abstract class Ack extends Future[Ack]
 
@@ -72,6 +72,12 @@ object Ack {
     * powered by macros.
     */
   implicit class AckExtensions[Self <: Future[Ack]](val source: Self) extends AnyVal {
+    /** Returns `true` if self is a direct reference to
+      * `Continue` or `Cancel`, `false` otherwise.
+      */
+    def isSynchronous: Boolean =
+       macro Macros.isSynchronous[Self]
+
     /** Executes the given `callback` on `Continue`.
       *
       * Execution will happen synchronously if the `source` value is
@@ -132,6 +138,24 @@ object Ack {
   @macrocompat.bundle
   class Macros(override val c: whitebox.Context) extends InlineMacros with HygieneUtilMacros {
     import c.universe._
+
+    def isSynchronous[Self <: Future[Ack] : c.WeakTypeTag]: c.Expr[Boolean] = {
+      val selfExpr = sourceFrom[Self](c.prefix.tree)
+      val self = util.name("source")
+      val ContinueSymbol = c.symbolOf[Continue].companion
+      val CancelSymbol = c.symbolOf[Cancel].companion
+
+      val tree =
+        if (util.isClean(selfExpr))
+          q"""($selfExpr eq $ContinueSymbol) || ($selfExpr eq $CancelSymbol)"""
+        else
+          q"""
+          val $self = $selfExpr
+          ($self eq $ContinueSymbol) || ($self eq $CancelSymbol)
+          """
+
+      inlineAndReset[Boolean](tree)
+    }
 
     def syncOnContinue[Self <: Future[Ack] : c.WeakTypeTag](callback: Tree)(s: Tree): Tree = {
       val selfExpr = sourceFrom[Self](c.prefix.tree)
