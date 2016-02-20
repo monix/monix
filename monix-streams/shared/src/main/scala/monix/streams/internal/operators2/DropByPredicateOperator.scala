@@ -15,47 +15,49 @@
  * limitations under the License.
  */
 
-package monix.streams.internal.operators
+package monix.streams.internal.operators2
 
+import monix.execution.Ack
 import monix.execution.Ack.{Cancel, Continue}
-import monix.streams.{Observable, Observer}
+import monix.streams.ObservableLike.Operator
+import monix.streams.observers.Subscriber
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 
-private[monix] object collect {
-  /**
-    * Implementation for [[Observable.collect]].
-    */
-  def apply[T,U](source: Observable[T])(pf: PartialFunction[T,U]): Observable[U] = {
-    Observable.unsafeCreate { subscriber =>
-      import subscriber.{scheduler => s}
+private[streams] final class DropByPredicateOperator[A](p: A => Boolean)
+  extends Operator[A, A] {
 
-      source.unsafeSubscribeFn(new Observer[T] {
-        def onNext(elem: T) = {
+  def apply(out: Subscriber[A]): Subscriber[A] =
+    new Subscriber[A] {
+      implicit val scheduler = out.scheduler
+      private[this] var continueDropping = true
+
+      def onNext(elem: A): Future[Ack] = {
+        if (continueDropping) {
           // See Section 6.4. in the Rx Design Guidelines:
           // Protect calls to user code from within an operator
           var streamError = true
           try {
-            if (pf.isDefinedAt(elem)) {
-              val next = pf(elem)
-              streamError = false
-              subscriber.onNext(next)
-            }
-            else
+            val isStillInvalid = p(elem)
+            streamError = false
+
+            if (isStillInvalid)
               Continue
-          }
-          catch {
-            case NonFatal(ex) =>
-              if (streamError) { subscriber.onError(ex); Cancel } else Future.failed(ex)
+            else {
+              continueDropping = false
+              out.onNext(elem)
+            }
+          } catch {
+            case NonFatal(ex) if streamError =>
+              out.onError(ex)
+              Cancel
           }
         }
+        else
+          out.onNext(elem)
+      }
 
-        def onError(ex: Throwable) =
-          subscriber.onError(ex)
-
-        def onComplete() =
-          subscriber.onComplete()
-      })
+      def onComplete(): Unit = out.onComplete()
+      def onError(ex: Throwable): Unit = out.onError(ex)
     }
-  }
 }

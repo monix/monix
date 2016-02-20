@@ -23,7 +23,7 @@ import monix.streams.exceptions.DummyException
 import scala.concurrent.{Future, Promise}
 import scala.concurrent.duration.Duration.Zero
 
-object MapOperatorSuite extends BaseOperatorSuite {
+object MapSuite extends BaseOperatorSuite {
   def sum(sourceCount: Int): Long = sourceCount.toLong * (sourceCount + 1)
   def count(sourceCount: Int) = sourceCount
 
@@ -85,9 +85,9 @@ object MapOperatorSuite extends BaseOperatorSuite {
           def onComplete(): Unit = wasCompleted = true
         })
 
+        assert(wasCompleted)
         s.tick(waitForFirst)
         assert(onNextReceived)
-        assert(wasCompleted)
         p.success(Continue)
         s.tick(waitForNext)
     }

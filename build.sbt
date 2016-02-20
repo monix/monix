@@ -231,19 +231,19 @@ lazy val executionJS = project.in(file("monix-execution/js"))
     libraryDependencies += "org.sincron" %%% "sincron" % "0.10"
   )
 
+lazy val tasksCommon =
+  crossSettings ++ testSettings ++
+  Seq(name := "monix-tasks")
+
 lazy val tasksJVM = project.in(file("monix-tasks/jvm"))
   .dependsOn(executionJVM)
-  .settings(crossSettings)
-  .settings(testSettings)
-  .settings(name := "monix-tasks")
+  .settings(tasksCommon)
 
 lazy val tasksJS = project.in(file("monix-tasks/js"))
   .enablePlugins(ScalaJSPlugin)
   .dependsOn(executionJS)
-  .settings(crossSettings)
   .settings(scalaJSSettings)
-  .settings(testSettings)
-  .settings(name := "monix-tasks")
+  .settings(tasksCommon)
 
 lazy val streamsCommon =
   crossSettings ++ testSettings ++ scalaMacroDependencies ++ Seq(

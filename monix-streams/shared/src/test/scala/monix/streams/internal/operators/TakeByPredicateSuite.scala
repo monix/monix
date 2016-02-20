@@ -17,8 +17,11 @@
 
 package monix.streams.internal.operators
 
-import monix.streams.Observable
+import monix.execution.Ack.Continue
+import monix.streams.{Observer, Observable}
 import monix.streams.exceptions.DummyException
+import monix.streams.internal.operators.MapSuite._
+import scala.concurrent.{Future, Promise}
 import scala.concurrent.duration.Duration.Zero
 
 object TakeByPredicateSuite extends BaseOperatorSuite {
@@ -44,10 +47,8 @@ object TakeByPredicateSuite extends BaseOperatorSuite {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val ex = DummyException("dummy")
-      val o = if (sourceCount == 1)
-        createObservableEndingInError(Observable.range(1, 10).takeWhile(_ <= 1), ex)
-      else
-        createObservableEndingInError(Observable.range(1, sourceCount * 2).takeWhile(_ <= sourceCount), ex)
+      val o = createObservableEndingInError(Observable.range(1, sourceCount+1), ex)
+          .takeWhile(_ <= sourceCount * 2)
 
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }
@@ -62,6 +63,28 @@ object TakeByPredicateSuite extends BaseOperatorSuite {
       }
 
       Sample(o, count(sourceCount-1), sum(sourceCount-1), Zero, Zero)
+    }
+  }
+
+  test("should not call onComplete multiple times for 1 element") { implicit s =>
+    val p = Promise[Continue]()
+    var wasCompleted = 0
+
+    createObservable(1) match {
+      case ref @ Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
+        var onNextReceived = false
+
+        obs.unsafeSubscribeFn(new Observer[Long] {
+          def onNext(elem: Long): Future[Continue] = { onNextReceived = true; p.future }
+          def onError(ex: Throwable): Unit = throw new IllegalStateException()
+          def onComplete(): Unit = wasCompleted += 1
+        })
+
+        s.tick(waitForFirst)
+        assert(onNextReceived)
+        p.success(Continue)
+        s.tick(waitForNext)
+        assertEquals(wasCompleted, 1)
     }
   }
 }

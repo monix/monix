@@ -18,11 +18,13 @@
 package monix.streams.internal.operators
 
 import monix.execution.Ack.Continue
+import monix.streams.internal.operators.MapSuite._
 import monix.streams.{Observable, Observer}
 import monix.streams.exceptions.DummyException
+import scala.concurrent.{Future, Promise}
 import scala.concurrent.duration.Duration
 
-object BufferSizedSuite extends BaseOperatorSuite {
+object BufferCountedSuite extends BaseOperatorSuite {
   val waitNext = Duration.Zero
   val waitFirst = Duration.Zero
 
@@ -46,9 +48,9 @@ object BufferSizedSuite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) = {
     require(sourceCount > 0, "count must be strictly positive")
     Some {
-      val o = Observable.range(0, sourceCount * 10 + 1)
-        .map(x => if (x == sourceCount * 10) throw ex else x)
-        .buffer(10).map(_.sum)
+      val o = createObservableEndingInError(Observable.range(0, sourceCount * 10), ex)
+        .buffer(10)
+        .map(_.sum)
 
       Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
     }
@@ -83,10 +85,10 @@ object BufferSizedSuite extends BaseOperatorSuite {
     assert(wasCompleted)
   }
 
-  test("should emit buffer onError") { implicit s =>
+  test("should drop buffer onError") { implicit s =>
     val count = 157
-    val obs = Observable.range(0, count * 10 + 1)
-      .map(x => if (x == count * 10) throw DummyException("dummy") else x)
+    val dummy = DummyException("dummy")
+    val obs = createObservableEndingInError(Observable.range(0, count * 10), dummy)
       .buffer(20).map(_.sum)
 
     var errorThrown: Throwable = null
@@ -105,9 +107,31 @@ object BufferSizedSuite extends BaseOperatorSuite {
     })
 
     s.tick(waitFirst + waitNext * (count - 1))
-    assertEquals(received, count / 2 + 1)
-    assertEquals(total, sum(count))
+    assertEquals(received, 156 / 2)
+    assertEquals(total, sum(156))
     s.tick(waitNext)
-    assertEquals(errorThrown, DummyException("dummy"))
+    assertEquals(errorThrown, dummy)
+  }
+
+  test("should not do back-pressure for onComplete, for 1 element") { implicit s =>
+    val p = Promise[Continue]()
+    var wasCompleted = false
+
+    createObservable(1) match {
+      case ref @ Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
+        var onNextReceived = false
+
+        obs.unsafeSubscribeFn(new Observer[Long] {
+          def onNext(elem: Long): Future[Continue] = { onNextReceived = true; p.future }
+          def onError(ex: Throwable): Unit = throw new IllegalStateException()
+          def onComplete(): Unit = wasCompleted = true
+        })
+
+        assert(wasCompleted)
+        s.tick(waitForFirst)
+        assert(onNextReceived)
+        p.success(Continue)
+        s.tick(waitForNext)
+    }
   }
 }

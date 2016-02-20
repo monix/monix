@@ -17,17 +17,30 @@
 
 package monix.streams.internal.operators2
 
-import monix.streams.Pipe
-import monix.streams.observables.ProducerLike._
+import monix.execution.Ack.Continue
+import monix.streams.ObservableLike.Operator
 import monix.streams.observers.Subscriber
 
-/** Implementation for [[monix.streams.observables.ProducerLike.map2]] */
-private[streams] final class OperatorTransform[-A,+B](pipe: Pipe[A,B])
-  extends Operator[A,B] {
+private[streams] final class DropLeftOperator[A](nr: Long)
+  extends Operator[A, A] {
 
-  def apply(sb: Subscriber[B]): Subscriber[A] = {
-    val (in,out) = pipe.unicast
-    out.unsafeSubscribeFn(sb)
-    Subscriber(in, sb.scheduler)
-  }
+  def apply(out: Subscriber[A]): Subscriber[A] =
+    new Subscriber[A] {
+      implicit val scheduler = out.scheduler
+      private[this] var count = 0L
+
+      def onNext(elem: A) = {
+        if (count < nr) {
+          count += 1
+          Continue
+        } else {
+          out.onNext(elem)
+        }
+      }
+
+      def onComplete(): Unit =
+        out.onComplete()
+      def onError(ex: Throwable): Unit =
+        out.onError(ex)
+    }
 }

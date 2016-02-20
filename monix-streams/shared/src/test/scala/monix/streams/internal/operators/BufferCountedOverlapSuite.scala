@@ -22,27 +22,26 @@ import monix.streams.Observable
 import scala.concurrent.duration.Duration
 
 
-object BufferSizedDropSuite extends BaseOperatorSuite {
+object BufferCountedOverlapSuite extends BaseOperatorSuite {
   val waitNext = Duration.Zero
   val waitFirst = Duration.Zero
 
   def createObservable(sourceCount: Int) = {
     require(sourceCount > 0, "count must be strictly positive")
     if (sourceCount > 1) Some {
-      val sc = sourceCount / 8 * 8
-      val o = Observable.range(0, sc)
-        .map(_ % 8)
-        .buffer(4,8)
-        .flatMapF(identity)
+      val divBy4 = sourceCount / 4 * 4
+      val o = Observable.range(0, divBy4)
+        .map(_ % 4)
+        .bufferSkipped(8,4)
+        .flatMap(x => Observable.from(x))
 
-      val count = 2 + (sc - 4) / 2
-      val sum = count / 4 * 6
+      val count = 8 + (divBy4 - 8) * 2
+      val sum = (count / 4) * 6
       Sample(o, count, sum, waitFirst, waitNext)
-    } else Some {
+    }
+    else Some {
       val o = Observable.now(1L)
-        .buffer(2,1)
-        .flatMapF(identity)
-
+        .bufferSkipped(2,1).flatMap(x => Observable.from(x))
       Sample(o, 1, 1, waitFirst, waitNext)
     }
   }

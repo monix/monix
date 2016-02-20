@@ -25,45 +25,6 @@ import scala.util.control.NonFatal
 
 private[monix] object onError {
   /**
-   * Implementation for [[Observable.onErrorRecoverWith]].
-   */
-  def recoverWith[T](source: Observable[T], pf: PartialFunction[Throwable, Observable[T]]) =
-    Observable.unsafeCreate[T] { subscriber =>
-      import subscriber.{scheduler => s}
-
-      source.unsafeSubscribeFn(new Observer[T] {
-        def onNext(elem: T) = subscriber.onNext(elem)
-        def onComplete() = subscriber.onComplete()
-
-        def onError(ex: Throwable) = {
-          // protecting user level code
-          var streamError = true
-          try {
-            if (pf.isDefinedAt(ex)) {
-              val fallbackTo = pf(ex)
-              // need asynchronous execution to avoid a synchronous loop
-              // blowing out the call stack
-              s.execute(UnsafeSubscribeRunnable(fallbackTo, subscriber))
-            } else {
-              // we can't protect the onError call and if it throws
-              // the behavior should be undefined
-              streamError = false
-              subscriber.onError(ex)
-            }
-          }
-          catch {
-            case NonFatal(err) if streamError =>
-              // streaming the immediate exception
-              try subscriber.onError(err) finally {
-                // logging the original exception
-                s.reportFailure(ex)
-              }
-          }
-        }
-      })
-    }
-
-  /**
    * Implementation for [[Observable.onErrorFallbackTo]].
    */
   def fallbackTo[T](source: Observable[T], other: => Observable[T]) =

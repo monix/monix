@@ -19,42 +19,54 @@ package monix.streams.internal.operators2
 
 import monix.execution.Ack
 import monix.execution.Ack.Cancel
-import monix.streams.observables.ProducerLike.Operator
+import monix.streams.ObservableLike.Operator
 import monix.streams.observers.Subscriber
 
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 
-/** Implementation for [[monix.streams.observables.ProducerLike.map]] */
-private[streams] final class OperatorMap[-A,+B](f: A => B)
-  extends Operator[A,B] {
+private[streams] final class TakeByPredicateOperator[A](p: A => Boolean)
+  extends Operator[A, A] {
 
-  def apply(out: Subscriber[B]): Subscriber[A] = {
+  def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
       implicit val scheduler = out.scheduler
+      private[this] var isActive = true
 
       def onNext(elem: A): Future[Ack] = {
-        // Protects calls to user code from within the operator and
-        // stream the error downstream if it happens, but if the
-        // error happens because of calls to `onNext` or other
-        // protocol calls, then the behavior should be undefined.
-        var streamError = true
-        try {
-          val next = f(elem)
-          streamError = false
-          out.onNext(next)
-        } catch {
-          case NonFatal(ex) if streamError =>
-            out.onError(ex)
-            Cancel
+        if (!isActive) Cancel
+        else {
+          // Protects calls to user code from within an operator
+          var streamError = true
+          try {
+            val isValid = p(elem)
+            streamError = false
+
+            if (isValid) {
+              out.onNext(elem)
+            } else {
+              isActive = false
+              out.onComplete()
+              Cancel
+            }
+          } catch {
+            case NonFatal(ex) if streamError =>
+              out.onError(ex)
+              Cancel
+          }
         }
       }
 
-      def onError(ex: Throwable): Unit =
-        out.onError(ex)
+      def onComplete() =
+        if (isActive) {
+          isActive = false
+          out.onComplete()
+        }
 
-      def onComplete(): Unit =
-        out.onComplete()
+      def onError(ex: Throwable) =
+        if (isActive) {
+          isActive = false
+          out.onError(ex)
+        }
     }
-  }
 }

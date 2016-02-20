@@ -21,8 +21,7 @@ import monix.execution.Scheduler
 import monix.streams.OverflowStrategy.{Evicted, Synchronous}
 import monix.streams.Pipe.LiftedPipe
 import monix.streams.broadcast._
-import monix.streams.observables.ProducerLike
-import monix.streams.observables.ProducerLike.Operator
+import monix.streams.ObservableLike.Operator
 import monix.streams.observers.{Subscriber, BufferedSubscriber, SyncObserver}
 import scala.language.reflectiveCalls
 
@@ -30,7 +29,7 @@ import scala.language.reflectiveCalls
   * broadcasting input to multiple subscribers.
   */
 abstract class Pipe[I, +O]
-  extends ProducerLike[O, ({type λ[+α] = Pipe[I, α]})#λ] {
+  extends ObservableLike[O, ({type λ[+α] = Pipe[I, α]})#λ] {
 
   /** Returns an input/output pair that can be used to
     * push input to a single subscriber.

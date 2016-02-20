@@ -123,7 +123,6 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
       case Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
         obs.unsafeSubscribeFn(new Observer[Long] {
           private[this] var sum = 0L
-          private[this] var ack: Future[Ack] = Continue
 
           def onNext(elem: Long): Continue = {
             received += 1
@@ -134,7 +133,7 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
           def onError(ex: Throwable): Unit =
             throw new IllegalStateException()
           def onComplete(): Unit =
-            ack.syncOnContinue { total = sum }
+            total = sum
         })
 
         s.tick(waitForFirst + waitForNext * count)
@@ -178,8 +177,7 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
   }
 
   test("should back-pressure all the way") { implicit s =>
-//    val sourceCount = Random.nextInt(300) + 100
-    val sourceCount = 10
+    val sourceCount = Random.nextInt(300) + 100
     var p = Promise[Continue]()
     var wasCompleted = false
     var received = 0
@@ -259,20 +257,16 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
         obs.unsafeSubscribeFn(new Observer[Long] {
           def onNext(elem: Long): Future[Continue] = {
             received += 1
-            if (received == count)
-              Future.delayedResult(1.hour)(Continue)
-            else
-              Continue
+            Future(Continue)
           }
 
           def onError(ex: Throwable): Unit = thrownError = ex
           def onComplete(): Unit = throw new IllegalStateException()
         })
 
-        s.tick(waitForFirst + waitForNext * (count - 1))
+        s.tick(waitForFirst + waitForNext * count)
         assertEquals(received, count)
         assertEquals(thrownError, DummyException("dummy"))
-        s.tick(1.hour)
 
       case Some(Sample(obs, _, _, waitForFirst, _)) =>
         // observable emits error right away, as count is zero
@@ -336,19 +330,16 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
     observableInError(1, DummyException("dummy")) match {
       case None => ignore()
       case ref @ Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
-        var onNextReceived = false
-
         obs.unsafeSubscribeFn(new Observer[Long] {
-          def onNext(elem: Long): Future[Continue] = { onNextReceived = true; p.future }
+          def onNext(elem: Long): Future[Continue] = p.future
           def onError(ex: Throwable): Unit = wasCompleted = true
           def onComplete(): Unit = throw new IllegalStateException()
         })
 
-        s.tick()
-        assert(onNextReceived)
+        s.tick(waitForFirst)
         assert(wasCompleted)
         p.success(Continue)
-        s.tick()
+        s.tick(waitForNext)
     }
   }
 }

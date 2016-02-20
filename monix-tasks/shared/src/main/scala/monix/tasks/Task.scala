@@ -684,8 +684,12 @@ object Task {
       }
     }
 
-  /** Converts the given Scala `Future` into a `Task` */
-  def fromFuture[T](f: => Future[T]): Task[T] =
+  /** Converts the given Scala `Future` into a `Task`.
+    *
+    * NOTE: if you want to defer the creation of the future, use
+    * in combination with [[defer]].
+    */
+  def fromFuture[T](f: Future[T]): Task[T] =
     new Task[T] {
       def unsafeRun(active: MultiAssignmentCancelable, frameId: FrameId, cb: Callback[T])
         (implicit s: Scheduler): Unit = {

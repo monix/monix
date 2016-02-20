@@ -17,11 +17,11 @@
 
 package monix.streams.internal.operators
 
-import monix.execution.Ack
-import monix.streams.{Observable, Observer}
-import monix.streams.Observer
 import monix.execution.Ack.Continue
+import monix.streams.internal.operators.BufferCountedSuite._
+import monix.streams.{Observable, Observer}
 import monix.streams.exceptions.DummyException
+import scala.concurrent.{Future, Promise}
 import scala.concurrent.duration._
 
 object BufferTimedSuite extends BaseOperatorSuite {
@@ -42,25 +42,22 @@ object BufferTimedSuite extends BaseOperatorSuite {
     Some {
       val o = Observable.intervalAtFixedRate(100.millis)
         .take(sourceCount * 10)
-        .buffer(1.second)
+        .bufferTimed(1.second)
         .map(_.sum)
 
       Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
     }
   }
 
-  def observableInError(sourceCount: Int, ex: Throwable) = {
-    require(sourceCount > 0, "sourceCount must be strictly positive")
+  def observableInError(sourceCount: Int, ex: Throwable) =
     Some {
-      val o = Observable.intervalAtFixedRate(100.millis)
-        .map(x => if (x == sourceCount * 10 - 1) throw ex else x)
-        .take(sourceCount * 10)
-        .buffer(1.second)
+      val o = createObservableEndingInError(Observable
+        .intervalAtFixedRate(100.millis, 100.millis).take(sourceCount), ex)
+        .bufferTimed(1.second)
         .map(_.sum)
 
-      Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
+      Sample(o, count(sourceCount/10), sum(sourceCount/10), waitFirst, waitNext)
     }
-  }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) =
     None
@@ -70,7 +67,7 @@ object BufferTimedSuite extends BaseOperatorSuite {
 
     val obs = Observable.intervalAtFixedRate(100.millis)
       .take(count * 10)
-      .buffer(2.seconds)
+      .bufferTimed(2.seconds)
       .map(_.sum)
 
     var wasCompleted = false
@@ -95,42 +92,32 @@ object BufferTimedSuite extends BaseOperatorSuite {
     assert(wasCompleted)
   }
 
-  test("should emit buffer onError") { implicit s =>
-    val count = 157
-
-    val obs =
-      createObservableEndingInError(
-        Observable.intervalAtFixedRate(100.millis).take(count * 10),
-        DummyException("dummy"))
-      .buffer(2.seconds)
-      .map(_.sum)
-
-    var errorThrown: Throwable = null
-    var received = 0
-    var total = 0L
-
-    obs.unsafeSubscribeFn(new Observer[Long] {
-      def onNext(elem: Long) = {
-        received += 1
-        total += elem
-        Continue
-      }
-
-      def onError(ex: Throwable): Unit = errorThrown = ex
-      def onComplete(): Unit = ()
-    })
-
-    s.tick(waitNext + waitFirst * (count - 1))
-    assertEquals(received, count / 2 + 1)
-    assertEquals(total, sum(count))
-    s.tick(waitFirst)
-    assertEquals(errorThrown, DummyException("dummy"))
-  }
-
   test("should throw on negative timespan") { implicit s =>
     intercept[IllegalArgumentException] {
       Observable.intervalAtFixedRate(100.millis)
-        .buffer(Duration.Zero - 1.second)
+        .bufferTimed(Duration.Zero - 1.second)
+    }
+  }
+
+  test("should not do back-pressure for onComplete, for 1 element") { implicit s =>
+    val p = Promise[Continue]()
+    var wasCompleted = false
+
+    createObservable(1) match {
+      case ref @ Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
+        var onNextReceived = false
+
+        obs.unsafeSubscribeFn(new Observer[Long] {
+          def onNext(elem: Long): Future[Continue] = { onNextReceived = true; p.future }
+          def onError(ex: Throwable): Unit = throw new IllegalStateException()
+          def onComplete(): Unit = wasCompleted = true
+        })
+
+        s.tick(waitForFirst)
+        assert(wasCompleted)
+        assert(onNextReceived)
+        p.success(Continue)
+        s.tick(waitForNext)
     }
   }
 }

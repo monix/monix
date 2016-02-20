@@ -17,7 +17,10 @@
 
 package monix.streams.internal.operators
 
-import monix.streams.Observable
+import monix.execution.Ack.Continue
+import monix.streams.{Observer, Observable}
+import monix.streams.internal.operators.MapSuite._
+import scala.concurrent.{Future, Promise}
 import scala.concurrent.duration.Duration.Zero
 
 object TakeLeftSuite extends BaseOperatorSuite {
@@ -52,4 +55,26 @@ object TakeLeftSuite extends BaseOperatorSuite {
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) =
     None
+
+  test("should not do back-pressure for onComplete, for 1 element") { implicit s =>
+    val p = Promise[Continue]()
+    var wasCompleted = false
+
+    createObservable(1) match {
+      case ref @ Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
+        var onNextReceived = false
+
+        obs.unsafeSubscribeFn(new Observer[Long] {
+          def onNext(elem: Long): Future[Continue] = { onNextReceived = true; p.future }
+          def onError(ex: Throwable): Unit = throw new IllegalStateException()
+          def onComplete(): Unit = wasCompleted = true
+        })
+
+        assert(wasCompleted)
+        s.tick(waitForFirst)
+        assert(onNextReceived)
+        p.success(Continue)
+        s.tick(waitForNext)
+    }
+  }
 }

@@ -20,18 +20,17 @@ package monix.streams.internal.operators2
 import monix.execution.Ack
 import monix.execution.Ack.{Cancel, Continue}
 import monix.execution.cancelables.RefCountCancelable
+import monix.streams.ObservableLike.Operator
 import monix.streams.exceptions.CompositeException
-import monix.streams.observables.ProducerLike.Operator
 import monix.streams.observers.Subscriber
 import monix.streams.{Observable, Observer}
-
 import scala.collection.mutable
 import scala.concurrent.{Future, Promise}
 import scala.language.higherKinds
 import scala.util.control.NonFatal
 
-/** Implementation for [[monix.streams.observables.ProducerLike.concatMap]] */
-private[streams] final class OperatorConcatMap[A, B](f: A => Observable[B], delayErrors: Boolean)
+private[streams] final
+class ConcatMapOperator[A, B](f: A => Observable[B], delayErrors: Boolean)
   extends Operator[A, B] {
 
   def apply(out: Subscriber[B]): Subscriber[A] = {

@@ -51,7 +51,7 @@ object TakeRightSuite extends BaseOperatorSuite {
         createObservableEndingInError(Observable.range(1, sourceCount * 2), ex)
           .takeRight(sourceCount)
 
-      Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
+      Sample(o, 0, 0, Zero, Zero)
     }
   }
 

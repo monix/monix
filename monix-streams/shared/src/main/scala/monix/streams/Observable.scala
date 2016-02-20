@@ -25,7 +25,7 @@ import monix.execution.cancelables.BooleanCancelable
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.streams.internal.concurrent.UnsafeSubscribeRunnable
 import monix.streams.internal.{builders, operators => ops}
-import monix.streams.observables.ProducerLike.Operator
+import monix.streams.ObservableLike.Operator
 import monix.streams.observables._
 import monix.streams.observers._
 import org.reactivestreams.{Publisher => RPublisher, Subscriber => RSubscriber}
@@ -148,7 +148,7 @@ import scala.util.control.NonFatal
   *         [[monix.streams.OverflowStrategy OverflowStrategy]] for
   *         options.
   */
-abstract class Observable[+T] extends ProducerLike[T, Observable] { self =>
+abstract class Observable[+T] extends ObservableLike[T, Observable] { self =>
   /** Characteristic function for an `Observable` instance, that creates
     * the subscription and that eventually starts the streaming of
     * events to the given [[Observer]], being meant to be provided.
@@ -254,50 +254,6 @@ abstract class Observable[+T] extends ProducerLike[T, Observable] { self =>
         unsafeSubscribeFn(SafeSubscriber(Subscriber.fromReactiveSubscriber(subscriber)))
       }
     }
-
-  /** Returns an Observable which only emits those items for which the
-    * given predicate holds.
-    *
-    * @param p a function that evaluates the items emitted by the source
-    *        Observable, returning `true` if they pass the filter
-    *
-    * @return an Observable that emits only those items in the original Observable
-    *         for which the filter evaluates as `true`
-    */
-  def filter(p: T => Boolean): Observable[T] =
-    ops.filter(self)(p)
-
-  /** Returns an Observable by applying the given partial function to
-    * the source observable for each element for which the given
-    * partial function is defined.
-    *
-    * Useful to be used instead of a filter & map combination.
-    *
-    * @param pf the function that filters and maps the resulting observable
-    *
-    * @return an Observable that emits the transformed items by the
-    *         given partial function
-    */
-  def collect[U](pf: PartialFunction[T, U]): Observable[U] =
-    ops.collect(self)(pf)
-
-  /** Creates a new Observable by applying a function that you supply to
-    * each item emitted by the source Observable, where that function
-    * returns an Observable, and then concatenating those resulting
-    * Observables and emitting the results of this concatenation.
-    *
-    * It's an alias for [[Observable!.concatMapDelayError]].
-    *
-    * @param f a function that, when applied to an item emitted by
-    *        the source Observable, returns an Observable
-    *
-    * @return an Observable that emits the result of applying the
-    *         transformation function to each item emitted by the
-    *         source Observable and concatenating the results of the
-    *         Observables obtained from this transformation.
-    */
-  def flatMapDelayError[U](f: T => Observable[U]): Observable[U] =
-    map(f).concatDelayError
 
   /** $mergeMapDescription
     *
@@ -442,77 +398,6 @@ abstract class Observable[+T] extends ProducerLike[T, Observable] { self =>
   def defaultIfEmpty[U >: T](default: U): Observable[U] =
     ops.misc.defaultIfEmpty(self, default)
 
-  /** Selects the first ''n'' elements (from the start).
-    *
-    * @param  n the number of elements to take
-    *
-    * @return a new Observable that emits only the first
-    *         `n` elements from the source
-    */
-  def take(n: Long): Observable[T] =
-    ops.take.left(self, n)
-
-  /** Creates a new Observable that emits the events of the source, only
-    * for the specified `timestamp`, after which it completes.
-    *
-    * @param timespan the window of time during which the new Observable
-    *        is allowed to emit the events of the source
-    */
-  def take(timespan: FiniteDuration): Observable[T] =
-    ops.take.leftByTimespan(self, timespan)
-
-  /** Creates a new Observable that only emits the last `n` elements
-    * emitted by the source.
-    */
-  def takeRight(n: Int): Observable[T] =
-    ops.take.right(self, n)
-
-  /** Drops the first ''n'' elements (from the start).
-    *
-    * @param n the number of elements to drop
-    *
-    * @return a new Observable that drops the first ''n'' elements
-    *         emitted by the source
-    */
-  def drop(n: Int): Observable[T] =
-    ops.drop.byCount(self, n)
-
-  /** Creates a new Observable that drops the events of the source, only
-    * for the specified `timestamp` window.
-    *
-    * @param timespan the window of time during which the new Observable
-    *        is must drop the events emitted by the source
-    */
-  def dropByTimespan(timespan: FiniteDuration): Observable[T] =
-    ops.drop.byTimespan(self, timespan)
-
-  /** Drops the longest prefix of elements that satisfy the given
-    * predicate and returns a new Observable that emits the rest.
-    */
-  def dropWhile(p: T => Boolean): Observable[T] =
-    ops.drop.byPredicate(self)(p)
-
-  /** Drops the longest prefix of elements that satisfy the given
-    * function and returns a new Observable that emits the rest. In
-    * comparison with [[dropWhile]], this version accepts a function
-    * that takes an additional parameter: the zero-based index of the
-    * element.
-    */
-  def dropWhileWithIndex(p: (T, Int) => Boolean): Observable[T] =
-    ops.drop.byPredicateWithIndex(self)(p)
-
-  /** Takes longest prefix of elements that satisfy the given predicate
-    * and returns a new Observable that emits those elements.
-    */
-  def takeWhile(p: T => Boolean): Observable[T] =
-    ops.take.byPredicate(self)(p)
-
-  /** Takes longest prefix of elements that satisfy the given predicate
-    * and returns a new Observable that emits those elements.
-    */
-  def takeWhileNotCanceled(c: BooleanCancelable): Observable[T] =
-    ops.take.takeWhileNotCanceled(self, c)
-
   /** Creates a new Observable that emits the total number of `onNext`
     * events that were emitted by the source.
     *
@@ -522,78 +407,6 @@ abstract class Observable[+T] extends ProducerLike[T, Observable] { self =>
     */
   def count: Observable[Long] =
     ops.math.count(self)
-
-  /** Periodically gather items emitted by an Observable into bundles
-    * and emit these bundles rather than emitting the items one at a
-    * time. This version of `buffer` is emitting items once the
-    * internal buffer has the reached the given count.
-    *
-    * @param count the maximum size of each buffer before it should
-    *        be emitted
-    */
-  def buffer(count: Int): Observable[Seq[T]] =
-    ops.buffer.skipped(self, count, count)
-
-  /** Returns an Observable that emits buffers of items it collects from
-    * the source Observable. The resulting Observable emits buffers
-    * every `skip` items, each containing `count` items. When the
-    * source Observable completes or encounters an error, the
-    * resulting Observable emits the current buffer and propagates the
-    * notification from the source Observable.
-    *
-    * There are 3 possibilities:
-    *
-    *  1. in case `skip == count`, then there are no items dropped and
-    *      no overlap, the call being equivalent to `window(count)`
-    *  2. in case `skip < count`, then overlap between windows
-    *     happens, with the number of elements being repeated being
-    *     `count - skip`
-    *  3. in case `skip > count`, then `skip - count` elements start
-    *     getting dropped between windows
-    *
-    * @param count the maximum size of each buffer before it should
-    *        be emitted
-    * @param skip how many items emitted by the source Observable should
-    *        be skipped before starting a new buffer. Note that when
-    *        skip and count are equal, this is the same operation as
-    *        `buffer(count)`
-    */
-  def buffer(count: Int, skip: Int): Observable[Seq[T]] =
-    ops.buffer.skipped(self, count, skip)
-
-  /** Periodically gather items emitted by an Observable into bundles
-    * and emit these bundles rather than emitting the items one at a
-    * time.
-    *
-    * This version of `buffer` emits a new bundle of items
-    * periodically, every timespan amount of time, containing all
-    * items emitted by the source Observable since the previous bundle
-    * emission.
-    *
-    * @param timespan the interval of time at which it should emit
-    *        the buffered bundle
-    */
-  def buffer(timespan: FiniteDuration): Observable[Seq[T]] =
-    ops.buffer.timed(self, maxCount = 0, timespan = timespan)
-
-  /** Periodically gather items emitted by an Observable into bundles
-    * and emit these bundles rather than emitting the items one at a
-    * time.
-    *
-    * The resulting Observable emits connected, non-overlapping
-    * buffers, each of a fixed duration specified by the `timespan`
-    * argument or a maximum size specified by the `maxSize` argument
-    * (whichever is reached first). When the source Observable
-    * completes or encounters an error, the resulting Observable emits
-    * the current buffer and propagates the notification from the
-    * source Observable.
-    *
-    * @param timespan the interval of time at which it should emit
-    *        the buffered bundle
-    * @param maxSize is the maximum bundle size
-    */
-  def buffer(timespan: FiniteDuration, maxSize: Int): Observable[Seq[T]] =
-    ops.buffer.timed(self, timespan, maxSize)
 
   /** Periodically subdivide items from an Observable into Observable
     * windows and emit these windows rather than emitting the items
@@ -1612,42 +1425,6 @@ abstract class Observable[+T] extends ProducerLike[T, Observable] { self =>
     unsafeMulticast(AsyncProcessor[T]())
 
   /** Returns an Observable that mirrors the behavior of the source,
-    * unless the source is terminated with an `onError`, in which
-    * case the streaming of events fallbacks to a observable
-    * emitting a single element generated by the backup function.
-    *
-    * The created Observable mirrors the behavior of the source
-    * in case the source does not end with an error or if the
-    * thrown `Throwable` is not matched.
-    *
-    * @param pf - a partial function that matches errors with a
-    *           backup throwable that is subscribed when the source
-    *           throws an error.
-    */
-  def onErrorRecover[U >: T](pf: PartialFunction[Throwable, U]): Observable[U] =
-    onErrorRecoverWith { case elem if pf.isDefinedAt(elem) => Observable.now(pf(elem)) }
-
-  /** Returns an Observable that mirrors the behavior of the source,
-    * unless the source is terminated with an `onError`, in which case
-    * the streaming of events continues with the specified backup
-    * sequence generated by the given partial function.
-    *
-    * The created Observable mirrors the behavior of the source in
-    * case the source does not end with an error or if the thrown
-    * `Throwable` is not matched.
-    *
-    * NOTE that compared with `onErrorResumeNext` from Rx.NET, the
-    * streaming is not resumed in case the source is terminated
-    * normally with an `onComplete`.
-    *
-    * @param pf is a partial function that matches errors with a
-    *        backup throwable that is subscribed when the source
-    *        throws an error.
-    */
-  def onErrorRecoverWith[U >: T](pf: PartialFunction[Throwable, Observable[U]]): Observable[U] =
-    ops.onError.recoverWith(self, pf)
-
-  /** Returns an Observable that mirrors the behavior of the source,
     * unless the source is terminated with an `onError`, in which case
     * the streaming of events continues with the specified backup
     * sequence.
@@ -2172,4 +1949,7 @@ object Observable {
   implicit def ObservableIsReactive[T](source: Observable[T])
     (implicit s: Scheduler): RPublisher[T] =
     source.toReactive
+
+  /** Observables can be converted to Tasks. */
+
 }

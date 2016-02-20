@@ -18,11 +18,13 @@
 package monix.streams.internal.operators
 
 import monix.execution.Ack.Continue
+import monix.streams.internal.operators.BufferTimedSuite._
 import monix.streams.{Observable, Observer}
 import monix.streams.exceptions.DummyException
+import scala.concurrent.{Future, Promise}
 import scala.concurrent.duration._
 
-object BufferSizedAndTimedNr1Suite extends BaseOperatorSuite {
+object BufferTimedOrCountedSuite extends BaseOperatorSuite {
   val waitNext = 1.second
   val waitFirst = 1.second
 
@@ -40,7 +42,7 @@ object BufferSizedAndTimedNr1Suite extends BaseOperatorSuite {
     Some {
       val o = Observable.intervalAtFixedRate(100.millis)
         .take(sourceCount * 10)
-        .buffer(1.second, maxSize = 20)
+        .bufferTimedOrCounted(1.second, maxSize = 20)
         .map(_.sum)
 
       Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
@@ -50,13 +52,12 @@ object BufferSizedAndTimedNr1Suite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) = {
     require(sourceCount > 0, "sourceCount must be strictly positive")
     Some {
-      val o = Observable.intervalAtFixedRate(100.millis)
-        .map(x => if (x == sourceCount * 10 - 1) throw ex else x)
-        .take(sourceCount * 10)
-        .buffer(1.second, maxSize = 20)
+      val o = createObservableEndingInError(Observable
+        .intervalAtFixedRate(100.millis, 100.millis).take(sourceCount), ex)
+        .bufferTimedOrCounted(1.second, maxSize = 20)
         .map(_.sum)
 
-      Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
+      Sample(o, count(sourceCount/10), sum(sourceCount/10), waitFirst, waitNext)
     }
   }
 
@@ -68,7 +69,7 @@ object BufferSizedAndTimedNr1Suite extends BaseOperatorSuite {
 
     val obs = Observable.intervalAtFixedRate(100.millis)
       .take(sourceCount * 10)
-      .buffer(2.seconds, 100)
+      .bufferTimedOrCounted(2.seconds, 100)
       .map(_.sum)
 
     var wasCompleted = false
@@ -93,42 +94,36 @@ object BufferSizedAndTimedNr1Suite extends BaseOperatorSuite {
     assert(wasCompleted)
   }
 
-  test("should emit buffer onError") { implicit s =>
-    val sourceCount = 157
-
-    val obs =
-      createObservableEndingInError(
-        Observable.intervalAtFixedRate(100.millis).take(sourceCount * 10),
-        DummyException("dummy"))
-      .buffer(2.seconds, 100)
-      .map(_.sum)
-
-    var errorThrown: Throwable = null
-    var received = 0
-    var total = 0L
-
-    obs.unsafeSubscribeFn(new Observer[Long] {
-      def onNext(elem: Long) = {
-        received += 1
-        total += elem
-        Continue
-      }
-
-      def onError(ex: Throwable): Unit = errorThrown = ex
-      def onComplete(): Unit = ()
-    })
-
-    s.tick(waitFirst + waitNext * (sourceCount - 1))
-    assertEquals(received, sourceCount / 2 + 1)
-    assertEquals(total, sum(sourceCount))
-    s.tick(waitNext)
-    assertEquals(errorThrown, DummyException("dummy"))
-  }
-
   test("should throw on negative timespan") { implicit s =>
     intercept[IllegalArgumentException] {
       Observable.intervalAtFixedRate(100.millis)
-        .buffer(Duration.Zero - 1.second, 10)
+        .bufferTimedOrCounted(Duration.Zero - 1.second, 10)
+    }
+  }
+
+  test("should not do back-pressure for onComplete, for 1 element") { implicit s =>
+    val p = Promise[Continue]()
+    var wasCompleted = false
+
+    createObservable(1) match {
+      case ref@Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
+        var onNextReceived = false
+
+        obs.unsafeSubscribeFn(new Observer[Long] {
+          def onNext(elem: Long): Future[Continue] = {
+            onNextReceived = true; p.future
+          }
+
+          def onError(ex: Throwable): Unit = throw new IllegalStateException()
+
+          def onComplete(): Unit = wasCompleted = true
+        })
+
+        s.tick(waitForFirst)
+        assert(wasCompleted)
+        assert(onNextReceived)
+        p.success(Continue)
+        s.tick(waitForNext)
     }
   }
 }
