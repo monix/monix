@@ -23,7 +23,7 @@ import scala.concurrent.duration.Duration.Zero
 object Zip6Suite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val source = Observable.range(0, sourceCount)
-    val o = Observable.zip(source, source, source, source, source, source)
+    val o = Observable.zip6(source, source, source, source, source, source)
       .map { case (t1, t2, t3, t4, t5, t6) => t1 + t2 + t3 + t4 + t5 + t6 }
 
     val sum = (sourceCount * (sourceCount - 1)) * 3

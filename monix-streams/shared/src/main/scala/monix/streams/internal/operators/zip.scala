@@ -27,7 +27,7 @@ import scala.concurrent.{Future, Promise}
 
 private[monix] object zip {
   /**
-    * Implements [[Observable.zip]].
+    * Implements [[Observable.zip2]].
     */
   def two[T, U](first: Observable[T], second: Observable[U]) = {
     Observable.unsafeCreate[(T, U)] { observerOfPairs =>

@@ -17,14 +17,16 @@
 
 package monix.streams.internal.operators
 
-import monix.streams.Observable
+import monix.execution.Ack.Continue
+import monix.streams.exceptions.DummyException
+import monix.streams.{Observable, Observer}
+import monix.tasks.Task
 import scala.concurrent.duration._
+import scala.util.Random
 
-object DropByTimespanSuite extends BaseOperatorSuite {
+object DropUntilSuite extends BaseOperatorSuite {
   val waitFirst = 2500.millis
   val waitNext = 500.millis
-
-  def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 
   def sum(sourceCount: Int) =
     (0 until sourceCount).map(_ + 5).sum
@@ -34,9 +36,10 @@ object DropByTimespanSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     require(sourceCount > 0, "sourceCount should be strictly positive")
 
+    val signal = Task.eval(1).delayExecution(2300.millis)
     val o = Observable.intervalAtFixedRate(500.millis)
       .take(sourceCount + 5)
-      .dropByTimespan(2300.millis)
+      .dropUntil(signal)
 
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
   }
@@ -46,10 +49,43 @@ object DropByTimespanSuite extends BaseOperatorSuite {
     Some {
       val source = Observable.intervalAtFixedRate(500.millis)
         .take(sourceCount + 5)
+
+      val signal = Task.eval(1).delayExecution(2300.millis)
       val o = createObservableEndingInError(source, ex)
-        .dropByTimespan(2300.millis)
+        .dropUntil(signal)
 
       Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
     }
+  }
+
+  def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
+
+  test("if signal ends in error, then end in error") { implicit s =>
+    var received = 0
+    var errorThrown: Throwable = null
+    val sourceCount = Random.nextInt(300) + 100
+    val dummy = DummyException("dummy")
+
+    val signal = Task.error(dummy).delayExecution(2300.millis)
+    val o = Observable.intervalAtFixedRate(500.millis)
+      .take(sourceCount + 5)
+      .dropUntil(signal)
+
+    o.unsafeSubscribeFn(new Observer[Long] {
+      def onNext(elem: Long) = {
+        received += 1
+        Continue
+      }
+
+      def onError(ex: Throwable): Unit =
+        errorThrown = ex
+
+      def onComplete(): Unit =
+        throw new IllegalStateException
+    })
+
+    s.tick(2500.millis)
+    assertEquals(received, 0)
+    assertEquals(errorThrown, dummy)
   }
 }

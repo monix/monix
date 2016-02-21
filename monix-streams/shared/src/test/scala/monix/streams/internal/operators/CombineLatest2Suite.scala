@@ -18,20 +18,17 @@
 package monix.streams.internal.operators
 
 import monix.execution.Ack.Continue
-import monix.execution.FutureUtils.ops._
-import monix.streams.{Observable, Observer}
 import monix.streams.broadcast.PublishProcessor
 import monix.streams.exceptions.DummyException
-import scala.concurrent.Future
+import monix.streams.{Observable, Observer}
 import scala.concurrent.duration._
 
-object CombineLatestSuite extends BaseOperatorSuite {
-  def createObservable(sourceCount: Int) = Some {
+object CombineLatest2Suite extends BaseOperatorSuite {
+  def createObservable(sc: Int) = Some {
+    val sourceCount = 10
     val o1 = Observable.now(1)
     val o2 = Observable.range(0, sourceCount)
-
-    val o = Observable.combineLatest(o1, o2)
-      .map { case (x1, x2) => x1 + x2 }
+    val o = Observable.combineLatest2(o1, o2) { (x1, x2) => x1 + x2 }
 
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
   }
@@ -42,10 +39,9 @@ object CombineLatestSuite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
     val unit = Observable.now(1)
     val flawed = createObservableEndingInError(Observable.range(0, sourceCount), ex)
-    val o = Observable.combineLatest(unit, flawed)
-      .map { case (x1, x2) => x1 + x2 }
+    val o = Observable.combineLatest2(unit, flawed) { (x1, x2) => x1 + x2 }
 
-    Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
+    Sample(o, count(sourceCount-1), sum(sourceCount-1), waitFirst, waitNext)
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
@@ -59,15 +55,16 @@ object CombineLatestSuite extends BaseOperatorSuite {
     var received = (0, 0)
     var wasCompleted = false
 
-    obs1.combineLatest(obs2).unsafeSubscribeFn(new Observer[(Int, Int)] {
-      def onNext(elem: (Int, Int)) = {
-        received = elem
-        Continue
-      }
+    obs1.combineLatestWith(obs2)((o1,o2) => (o1,o2))
+      .unsafeSubscribeFn(new Observer[(Int, Int)] {
+        def onNext(elem: (Int, Int)) = {
+          received = elem
+          Continue
+        }
 
-      def onError(ex: Throwable) = ()
-      def onComplete() = wasCompleted = true
-    })
+        def onError(ex: Throwable) = ()
+        def onComplete() = wasCompleted = true
+      })
 
     obs1.onNext(1)
     assertEquals(received, (0,0))
@@ -92,15 +89,16 @@ object CombineLatestSuite extends BaseOperatorSuite {
     var received = (0, 0)
     var wasCompleted = false
 
-    obs2.combineLatest(obs1).unsafeSubscribeFn(new Observer[(Int, Int)] {
-      def onNext(elem: (Int, Int)) = {
-        received = elem
-        Continue
-      }
+    obs2.combineLatestWith(obs1)((o1,o2) => (o1,o2))
+      .unsafeSubscribeFn(new Observer[(Int, Int)] {
+        def onNext(elem: (Int, Int)) = {
+          received = elem
+          Continue
+        }
 
-      def onError(ex: Throwable) = ()
-      def onComplete() = wasCompleted = true
-    })
+        def onError(ex: Throwable) = ()
+        def onComplete() = wasCompleted = true
+      })
 
     obs1.onNext(1)
     assertEquals(received, (0,0))
@@ -126,7 +124,7 @@ object CombineLatestSuite extends BaseOperatorSuite {
     var wasCanceled = false
     var received = (0,0)
 
-    obs1.combineLatest(obs2.doOnCanceled { wasCanceled = true })
+    obs1.combineLatestWith(obs2.doOnCanceled { wasCanceled = true })((o1,o2) => (o1,o2))
       .unsafeSubscribeFn(new Observer[(Int, Int)] {
         def onNext(elem: (Int, Int)) = { received = elem; Continue }
         def onError(ex: Throwable) = wasThrown = ex
@@ -150,7 +148,8 @@ object CombineLatestSuite extends BaseOperatorSuite {
     var wasCanceled = false
     var received = (0,0)
 
-    obs2.doOnCanceled { wasCanceled = true }.combineLatest(obs1)
+    obs2.doOnCanceled { wasCanceled = true }
+      .combineLatestWith(obs1)((o1,o2) => (o1,o2))
       .unsafeSubscribeFn(new Observer[(Int, Int)] {
         def onNext(elem: (Int, Int)) = { received = elem; Continue }
         def onError(ex: Throwable) = wasThrown = ex
@@ -164,55 +163,5 @@ object CombineLatestSuite extends BaseOperatorSuite {
     obs2.onNext(2); s.tickOne()
     assertEquals(received, (0,0))
     assert(wasCanceled)
-  }
-
-  test("back-pressure self.onError") { implicit s =>
-    val obs1 = PublishProcessor[Int]()
-    val obs2 = PublishProcessor[Int]()
-
-    var wasThrown: Throwable = null
-
-    obs1.combineLatest(obs2).unsafeSubscribeFn(new Observer[(Int, Int)] {
-      def onNext(elem: (Int, Int)) =
-        Future.delayedResult(1.second)(Continue)
-      def onComplete() = ()
-      def onError(ex: Throwable) =
-        wasThrown = ex
-    })
-
-    obs1.onNext(1)
-    obs2.onNext(2)
-    obs1.onError(DummyException("dummy"))
-
-    s.tick()
-    assertEquals(wasThrown, null)
-
-    s.tick(1.second)
-    assertEquals(wasThrown, DummyException("dummy"))
-  }
-
-  test("back-pressure other.onError") { implicit s =>
-    val obs1 = PublishProcessor[Int]()
-    val obs2 = PublishProcessor[Int]()
-
-    var wasThrown: Throwable = null
-
-    obs1.combineLatest(obs2).unsafeSubscribeFn(new Observer[(Int, Int)] {
-      def onNext(elem: (Int, Int)) =
-        Future.delayedResult(1.second)(Continue)
-      def onComplete() = ()
-      def onError(ex: Throwable) =
-        wasThrown = ex
-    })
-
-    obs1.onNext(1)
-    obs2.onNext(2)
-    obs2.onError(DummyException("dummy"))
-
-    s.tick()
-    assertEquals(wasThrown, null)
-
-    s.tick(1.second)
-    assertEquals(wasThrown, DummyException("dummy"))
   }
 }

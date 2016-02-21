@@ -18,7 +18,8 @@
 package monix.streams
 
 import monix.execution.cancelables.BooleanCancelable
-import monix.streams.ObservableLike.Operator
+import monix.streams.ObservableLike.{Transformer, Operator}
+import monix.streams.internal.builders.CombineLatest2Observable
 import monix.streams.internal.operators2._
 import monix.streams.observers.Subscriber
 import scala.concurrent.duration.FiniteDuration
@@ -53,13 +54,16 @@ import scala.language.higherKinds
   *         flattening the items emitted by the observables emitted by the source
   */
 abstract class ObservableLike[+A, Self[+T]] { self: Self[A] =>
-  /** Transforms the source using the given operator. */
+  /** Transforms the source using the given operator function. */
   def lift[B](operator: Operator[A,B]): Self[B]
+
+  /** Transforms the source using the given transformer function. */
+  def transform[B](transformer: Transformer[A,B]): Self[B]
 
   /** Given a [[monix.streams.Pipe Pipe]], transform
     * the source observable with it.
     */
-  def transform[I >: A, B](pipe: Pipe[I,B]): Self[B] =
+  def pipeThrough[I >: A, B](pipe: Pipe[I,B]): Self[B] =
     self.lift(new TransformOperator(pipe))
 
   /** Returns a new observable that applies the given function
@@ -328,7 +332,7 @@ abstract class ObservableLike[+A, Self[+T]] { self: Self[A] =>
     *
     * If the `trigger` observable completes in error, then the
     * resulting observable will also end in error when it notices
-    * it (next time an element is emitted).
+    * it (next time an element is emitted by the source).
     *
     * @param trigger the observable that has to emit an item before the
     *        source begin to be mirrored by the resulting observable
@@ -421,6 +425,18 @@ abstract class ObservableLike[+A, Self[+T]] { self: Self[A] =>
     */
   def bufferTimedOrCounted(timespan: FiniteDuration, maxSize: Int): Self[Seq[A]] =
     self.lift(new BufferTimedOperator(timespan, maxSize))
+
+  /** Creates a new observable from this observable and another given
+    * observable by combining their latest items in pairs.
+    *
+    * This operator behaves in a similar way to [[zipWith]], but while
+    * `zip` emits items only when all of the zipped source observables
+    * have emitted a previously unzipped item, `combine` emits an item
+    * whenever any of the source Observables emits an item (so long as
+    * each of the source observables has emitted at least one item).
+    */
+  def combineLatestWith[B,R](other: Observable[B])(f: (A,B) => R): Self[R] =
+    self.transform(self => new CombineLatest2Observable[A,B,R](self, other)(f))
 }
 
 object ObservableLike {
@@ -428,4 +444,7 @@ object ObservableLike {
     * that can be used for lifting observables.
     */
   type Operator[-I,+O] = Subscriber[O] => Subscriber[I]
+
+  /** A `Transformer` is a function used for transforming observables */
+  type Transformer[-A,+B] = Observable[A] => Observable[B]
 }

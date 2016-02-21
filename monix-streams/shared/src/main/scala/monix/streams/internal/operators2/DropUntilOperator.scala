@@ -39,7 +39,7 @@ private[streams] final class DropUntilOperator[A, F[_] : CanObserve](trigger: F[
       private[this] def interruptDropMode(ex: Throwable = null): Cancel = {
         // must happen before changing shouldDrop
         errorThrown = ex
-        shouldDrop = true
+        shouldDrop = false
         Cancel
       }
 

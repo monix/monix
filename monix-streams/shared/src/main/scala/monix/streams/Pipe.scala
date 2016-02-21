@@ -19,9 +19,9 @@ package monix.streams
 
 import monix.execution.Scheduler
 import monix.streams.OverflowStrategy.{Evicted, Synchronous}
-import monix.streams.Pipe.LiftedPipe
+import monix.streams.Pipe.{TransformedPipe, LiftedPipe}
 import monix.streams.broadcast._
-import monix.streams.ObservableLike.Operator
+import monix.streams.ObservableLike.{Transformer, Operator}
 import monix.streams.observers.{Subscriber, BufferedSubscriber, SyncObserver}
 import scala.language.reflectiveCalls
 
@@ -84,6 +84,10 @@ abstract class Pipe[I, +O]
   // provides observable-like operators
   override def lift[B](op: Operator[O, B]): Pipe[I, B] =
     new LiftedPipe(this, op)
+
+  /** Transforms the source using the given transformer function. */
+  override def transform[B](transformer: Transformer[O, B]): Pipe[I, B] =
+    new TransformedPipe(this, transformer)
 }
 
 object Pipe {
@@ -181,6 +185,20 @@ object Pipe {
       val (in,out) = self.multicast(s)
       val outU = out.lift(op)
       (in, outU)
+    }
+  }
+
+  private final class TransformedPipe[I,+O,+U](self: Pipe[I,O], f: Transformer[O, U])
+    extends Pipe[I,U] {
+
+    override def unicast: (Observer[I], Observable[U]) = {
+      val (in,out) = self.unicast
+      (in, f(out))
+    }
+
+    override def multicast(implicit s: Scheduler): (Observer[I], Observable[U]) = {
+      val (in,out) = self.multicast(s)
+      (in, f(out))
     }
   }
 }

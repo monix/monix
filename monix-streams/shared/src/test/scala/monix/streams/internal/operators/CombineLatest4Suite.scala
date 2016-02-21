@@ -18,35 +18,30 @@
 package monix.streams.internal.operators
 
 import monix.streams.Observable
-
 import scala.concurrent.duration.Duration
 
-object CombineLatest6Suite extends BaseOperatorSuite {
+object CombineLatest4Suite extends BaseOperatorSuite {
   def createObservable(sc: Int) = Some {
     val sourceCount = 10
     val o1 = Observable.now(1)
     val o2 = Observable.now(2)
     val o3 = Observable.now(3)
-    val o4 = Observable.now(4)
-    val o5 = Observable.now(5)
-    val o6 = Observable.range(0, sourceCount)
-    val o = Observable.combineLatest6(o1,o2,o3,o4,o5,o6)(_+_+_+_+_+_)
+    val o4 = Observable.range(0, sourceCount)
+    val o = Observable.combineLatest4(o1,o2,o3,o4)(_+_+_+_)
 
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
   }
 
   def count(sourceCount: Int) = sourceCount
   def sum(sourceCount: Int) = sourceCount * (sourceCount + 1) / 2 +
-    (14 * sourceCount)
+    (5 * sourceCount)
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
     val o1 = Observable.now(1)
     val o2 = Observable.now(2)
     val o3 = Observable.now(3)
-    val o4 = Observable.now(4)
-    val o5 = Observable.now(5)
     val flawed = createObservableEndingInError(Observable.range(0, sourceCount), ex)
-    val o = Observable.combineLatest6(o1,o2,o3,o4,o5,flawed)(_+_+_+_+_+_)
+    val o = Observable.combineLatest4(o1,o2,o3, flawed)(_+_+_+_)
 
     Sample(o, count(sourceCount-1), sum(sourceCount-1), waitFirst, waitNext)
   }

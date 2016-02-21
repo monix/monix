@@ -31,7 +31,7 @@ object ZipSuite extends BaseOperatorSuite {
     val o1 = Observable.range(0, sourceCount)
     val o2 = Observable.range(0, sourceCount)
 
-    val o = Observable.zip(o1, o2).map { case (x1, x2) => x1 + x2 }
+    val o = Observable.zip2(o1, o2).map { case (x1, x2) => x1 + x2 }
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 
@@ -42,7 +42,7 @@ object ZipSuite extends BaseOperatorSuite {
     val o1 = createObservableEndingInError(Observable.range(0, sourceCount), ex)
     val o2 = createObservableEndingInError(Observable.range(0, sourceCount), ex)
 
-    val o = Observable.zip(o1, o2).map { case (x1, x2) => x1 + x2 }
+    val o = Observable.zip2(o1, o2).map { case (x1, x2) => x1 + x2 }
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 
@@ -55,7 +55,7 @@ object ZipSuite extends BaseOperatorSuite {
     var received = (0, 0)
     var wasCompleted = false
 
-    obs1.zip(obs2).unsafeSubscribeFn(new Observer[(Int, Int)] {
+    obs1.zipWith(obs2).unsafeSubscribeFn(new Observer[(Int, Int)] {
       def onNext(elem: (Int, Int)) = {
         received = elem
         Continue
@@ -88,7 +88,7 @@ object ZipSuite extends BaseOperatorSuite {
     var wasCanceled = false
     var received = (0,0)
 
-    obs1.zip(obs2.doOnCanceled { wasCanceled = true })
+    obs1.zipWith(obs2.doOnCanceled { wasCanceled = true })
       .unsafeSubscribeFn(new Observer[(Int, Int)] {
         def onNext(elem: (Int, Int)) = { received = elem; Continue }
         def onError(ex: Throwable) = wasThrown = ex
@@ -111,7 +111,7 @@ object ZipSuite extends BaseOperatorSuite {
     var wasCanceled = false
     var received = (0,0)
 
-    obs2.doOnCanceled { wasCanceled = true }.zip(obs1)
+    obs2.doOnCanceled { wasCanceled = true }.zipWith(obs1)
       .unsafeSubscribeFn(new Observer[(Int, Int)] {
       def onNext(elem: (Int, Int)) = { received = elem; Continue }
       def onError(ex: Throwable) = wasThrown = ex
@@ -132,7 +132,7 @@ object ZipSuite extends BaseOperatorSuite {
 
     var wasThrown: Throwable = null
 
-    obs1.zip(obs2).unsafeSubscribeFn(new Observer[(Int, Int)] {
+    obs1.zipWith(obs2).unsafeSubscribeFn(new Observer[(Int, Int)] {
       def onNext(elem: (Int, Int)) =
         Future.delayedResult(1.second)(Continue)
       def onComplete() = ()
@@ -157,7 +157,7 @@ object ZipSuite extends BaseOperatorSuite {
 
     var wasThrown: Throwable = null
 
-    obs1.zip(obs2).unsafeSubscribeFn(new Observer[(Int, Int)] {
+    obs1.zipWith(obs2).unsafeSubscribeFn(new Observer[(Int, Int)] {
       def onNext(elem: (Int, Int)) =
         Future.delayedResult(1.second)(Continue)
       def onComplete() = ()
