@@ -26,5 +26,6 @@ private[streams] final class ForkObservable[A, F[_] : CanObserve](fa: F[A])
 
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Unit = {
     CanObserve[F].observable(fa).subscribeOn(subscriber.scheduler)
+      .unsafeSubscribeFn(subscriber)
   }
 }

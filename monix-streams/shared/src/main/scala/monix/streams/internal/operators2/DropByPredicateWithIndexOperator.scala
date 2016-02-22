@@ -31,6 +31,7 @@ class DropByPredicateWithIndexOperator[A](p: (A, Int) => Boolean)
       implicit val scheduler = out.scheduler
       private[this] var continueDropping = true
       private[this] var index = 0
+      private[this] var isDone = false
 
       def onNext(elem: A) = {
         if (continueDropping) {
@@ -50,7 +51,7 @@ class DropByPredicateWithIndexOperator[A](p: (A, Int) => Boolean)
             }
           } catch {
             case NonFatal(ex) if streamError =>
-              out.onError(ex)
+              onError(ex)
               Cancel
           }
         }
@@ -58,10 +59,16 @@ class DropByPredicateWithIndexOperator[A](p: (A, Int) => Boolean)
           out.onNext(elem)
       }
 
-      def onComplete() =
-        out.onComplete()
+      def onError(ex: Throwable): Unit =
+        if (!isDone) {
+          isDone = true
+          out.onError(ex)
+        }
 
-      def onError(ex: Throwable) =
-        out.onError(ex)
+      def onComplete(): Unit =
+        if (!isDone) {
+          isDone = true
+          out.onComplete()
+        }
     }
 }

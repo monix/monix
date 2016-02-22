@@ -18,55 +18,27 @@
 package monix.streams.internal.operators2
 
 import monix.execution.Ack
-import monix.execution.Ack.Cancel
-import monix.execution.cancelables.BooleanCancelable
 import monix.streams.ObservableLike.Operator
 import monix.streams.observers.Subscriber
-
 import scala.concurrent.Future
-import scala.util.control.NonFatal
 
-private[streams] final class TakeWhileNotCanceledOperator[A](c: BooleanCancelable)
-  extends Operator[A, A] {
+private[streams] final class ZipWithIndexOperator[A]
+  extends Operator[A, (A,Long)] {
 
-  def apply(out: Subscriber[A]): Subscriber[A] =
+  def apply(out: Subscriber[(A,Long)]): Subscriber[A] =
     new Subscriber[A] {
       implicit val scheduler = out.scheduler
-      private[this] var isActive = true
+      private[this] var index = 0L
 
       def onNext(elem: A): Future[Ack] = {
-        if (!isActive) Cancel else {
-          var streamError = true
-          try {
-            val isCanceled = c.isCanceled
-            streamError = false
-
-            if (!isCanceled)
-              out.onNext(elem)
-            else {
-              isActive = false
-              out.onComplete()
-              Cancel
-            }
-          }
-          catch {
-            case NonFatal(ex) if streamError =>
-              onError(ex)
-              Cancel
-          }
-        }
+        val oldIndex = index
+        index += 1
+        out.onNext((elem, oldIndex))
       }
 
-      def onComplete(): Unit =
-        if (isActive) {
-          isActive = false
-          out.onComplete()
-        }
-
       def onError(ex: Throwable): Unit =
-        if (isActive) {
-          isActive = false
-          out.onError(ex)
-        }
+        out.onError(ex)
+      def onComplete(): Unit =
+        out.onComplete()
     }
 }

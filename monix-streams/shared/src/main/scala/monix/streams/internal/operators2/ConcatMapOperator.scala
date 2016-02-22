@@ -41,11 +41,15 @@ class ConcatMapOperator[A, B](f: A => Observable[B], delayErrors: Boolean)
       private[this] val errors = if (delayErrors)
         mutable.ArrayBuffer.empty[Throwable] else null
 
+      private[this] var isDone = false
       private[this] val refCount = RefCountCancelable {
-        if (delayErrors && errors.nonEmpty)
-          out.onError(CompositeException(errors))
-        else
-          out.onComplete()
+        if (!isDone) {
+          isDone = true
+          if (delayErrors && errors.nonEmpty)
+            out.onError(CompositeException(errors))
+          else
+            out.onComplete()
+        }
       }
 
       def onNext(a: A): Future[Ack] = {
@@ -74,6 +78,7 @@ class ConcatMapOperator[A, B](f: A => Observable[B], delayErrors: Boolean)
               } else {
                 // Error happened, so signaling both the main thread that
                 // it should stop and the downstream consumer of the error
+                isDone = true
                 upstreamPromise.trySuccess(Cancel)
                 out.onError(ex)
               }
@@ -101,9 +106,10 @@ class ConcatMapOperator[A, B](f: A => Observable[B], delayErrors: Boolean)
         if (delayErrors) {
           errors += ex
           onComplete()
-        } else {
+        } else if (!isDone) {
           // Oops, error happened on main thread, piping that
           // along should cancel everything
+          isDone = true
           out.onError(ex)
         }
       }

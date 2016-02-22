@@ -26,12 +26,12 @@ import scala.concurrent.Future
 import scala.concurrent.duration.Duration.Zero
 import scala.concurrent.duration._
 
-object ZipSuite extends BaseOperatorSuite {
+object Zip2Suite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val o1 = Observable.range(0, sourceCount)
     val o2 = Observable.range(0, sourceCount)
 
-    val o = Observable.zip2(o1, o2).map { case (x1, x2) => x1 + x2 }
+    val o = Observable.zip2(o1, o2) { (x1, x2) => x1 + x2 }
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 
@@ -42,11 +42,20 @@ object ZipSuite extends BaseOperatorSuite {
     val o1 = createObservableEndingInError(Observable.range(0, sourceCount), ex)
     val o2 = createObservableEndingInError(Observable.range(0, sourceCount), ex)
 
-    val o = Observable.zip2(o1, o2).map { case (x1, x2) => x1 + x2 }
-    Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
+    val o = Observable.zip2(o1, o2) { (x1, x2) => x1 + x2 }
+    Sample(o, count(sourceCount-1), sum(sourceCount-1), Zero, Zero)
   }
 
-  def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
+  def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
+    val o1 = Observable.range(0, sourceCount)
+    val o2 = Observable.range(0, sourceCount+100)
+
+    val o = Observable.zip2(o1, o2) { (x1, x2) =>
+      if (x2 < sourceCount-1) x1 + x2 else throw ex
+    }
+
+    Sample(o, count(sourceCount-1), sum(sourceCount-1), Zero, Zero)
+  }
 
   test("self starts before other and finishes before other") { implicit s =>
     val obs1 = PublishProcessor[Int]()
@@ -55,7 +64,7 @@ object ZipSuite extends BaseOperatorSuite {
     var received = (0, 0)
     var wasCompleted = false
 
-    obs1.zipWith(obs2).unsafeSubscribeFn(new Observer[(Int, Int)] {
+    obs1.zip(obs2).unsafeSubscribeFn(new Observer[(Int, Int)] {
       def onNext(elem: (Int, Int)) = {
         received = elem
         Continue
@@ -76,9 +85,9 @@ object ZipSuite extends BaseOperatorSuite {
     assertEquals(received, (3,4))
 
     obs1.onComplete()
+    s.tick()
     assert(wasCompleted)
   }
-
 
   test("self signals error and interrupts the stream before it starts") { implicit s =>
     val obs1 = PublishProcessor[Int]()
@@ -88,7 +97,7 @@ object ZipSuite extends BaseOperatorSuite {
     var wasCanceled = false
     var received = (0,0)
 
-    obs1.zipWith(obs2.doOnCanceled { wasCanceled = true })
+    obs1.zip(obs2.doOnCanceled { wasCanceled = true })
       .unsafeSubscribeFn(new Observer[(Int, Int)] {
         def onNext(elem: (Int, Int)) = { received = elem; Continue }
         def onError(ex: Throwable) = wasThrown = ex
@@ -111,7 +120,7 @@ object ZipSuite extends BaseOperatorSuite {
     var wasCanceled = false
     var received = (0,0)
 
-    obs2.doOnCanceled { wasCanceled = true }.zipWith(obs1)
+    obs2.doOnCanceled { wasCanceled = true }.zip(obs1)
       .unsafeSubscribeFn(new Observer[(Int, Int)] {
       def onNext(elem: (Int, Int)) = { received = elem; Continue }
       def onError(ex: Throwable) = wasThrown = ex
@@ -126,13 +135,13 @@ object ZipSuite extends BaseOperatorSuite {
     assert(wasCanceled)
   }
 
-  test("back-pressure self.onError") { implicit s =>
+  test("should not back-pressure self.onError") { implicit s =>
     val obs1 = PublishProcessor[Int]()
     val obs2 = PublishProcessor[Int]()
 
     var wasThrown: Throwable = null
 
-    obs1.zipWith(obs2).unsafeSubscribeFn(new Observer[(Int, Int)] {
+    obs1.zip(obs2).unsafeSubscribeFn(new Observer[(Int, Int)] {
       def onNext(elem: (Int, Int)) =
         Future.delayedResult(1.second)(Continue)
       def onComplete() = ()
@@ -145,19 +154,17 @@ object ZipSuite extends BaseOperatorSuite {
     obs1.onError(DummyException("dummy"))
 
     s.tick()
-    assertEquals(wasThrown, null)
-
-    s.tick(1.second)
     assertEquals(wasThrown, DummyException("dummy"))
+    s.tick(1.second)
   }
 
-  test("back-pressure other.onError") { implicit s =>
+  test("should not back-pressure other.onError") { implicit s =>
     val obs1 = PublishProcessor[Int]()
     val obs2 = PublishProcessor[Int]()
 
     var wasThrown: Throwable = null
 
-    obs1.zipWith(obs2).unsafeSubscribeFn(new Observer[(Int, Int)] {
+    obs1.zip(obs2).unsafeSubscribeFn(new Observer[(Int, Int)] {
       def onNext(elem: (Int, Int)) =
         Future.delayedResult(1.second)(Continue)
       def onComplete() = ()
@@ -170,9 +177,7 @@ object ZipSuite extends BaseOperatorSuite {
     obs2.onError(DummyException("dummy"))
 
     s.tick()
-    assertEquals(wasThrown, null)
-
-    s.tick(1.second)
     assertEquals(wasThrown, DummyException("dummy"))
+    s.tick(1.second)
   }
 }

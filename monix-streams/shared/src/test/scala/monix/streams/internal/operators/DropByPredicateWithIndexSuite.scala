@@ -47,6 +47,12 @@ object DropByPredicateWithIndexSuite extends BaseOperatorSuite {
     }
   }
 
-  def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) =
-    None
+  def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
+    val o = Observable.range(1, sourceCount * 2)
+      .dropWhileWithIndex { (e, idx) =>
+        if (e < sourceCount) true else throw ex
+      }
+
+    Sample(o, 0, 0, Zero, Zero)
+  }
 }

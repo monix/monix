@@ -18,33 +18,29 @@
 package monix.streams.internal.operators
 
 import monix.streams.Observable
-import scala.concurrent.duration.Duration.Zero
+import scala.concurrent.duration.Duration._
 
-object Zip6Suite extends BaseOperatorSuite {
+object Zip4Suite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val o1 = Observable.fork(Observable.range(0, sourceCount))
     val o2 = Observable.fork(Observable.range(0, sourceCount))
     val o3 = Observable.fork(Observable.range(0, sourceCount))
     val o4 = Observable.fork(Observable.range(0, sourceCount))
-    val o5 = Observable.fork(Observable.range(0, sourceCount))
-    val o6 = Observable.fork(Observable.range(0, sourceCount))
 
-    val o = Observable.zip6(o1,o2,o3,o4,o5,o6)(_+_+_+_+_+_)
+    val o = Observable.zip4(o1,o2,o3,o4)(_+_+_+_)
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 
   def count(sourceCount: Int) = sourceCount
-  def sum(sourceCount: Int) = (sourceCount * (sourceCount - 1)) / 2 * 6
+  def sum(sourceCount: Int) = (sourceCount * (sourceCount - 1)) / 2 * 4
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
     val o1 = createObservableEndingInError(Observable.range(0, sourceCount), ex)
     val o2 = createObservableEndingInError(Observable.range(0, sourceCount), ex)
     val o3 = createObservableEndingInError(Observable.range(0, sourceCount), ex)
     val o4 = createObservableEndingInError(Observable.range(0, sourceCount), ex)
-    val o5 = createObservableEndingInError(Observable.range(0, sourceCount), ex)
-    val o6 = createObservableEndingInError(Observable.range(0, sourceCount), ex)
 
-    val o = Observable.zip6(o1,o2,o3,o4,o5,o6)(_+_+_+_+_+_)
+    val o = Observable.zip4(o1,o2,o3,o4)(_+_+_+_)
     Sample(o, count(sourceCount - 1), sum(sourceCount - 1), Zero, Zero)
   }
 
@@ -53,12 +49,9 @@ object Zip6Suite extends BaseOperatorSuite {
     val o2 = Observable.fork(Observable.range(0, sourceCount + 100))
     val o3 = Observable.fork(Observable.range(0, sourceCount))
     val o4 = Observable.fork(Observable.range(0, sourceCount))
-    val o5 = Observable.fork(Observable.range(0, sourceCount))
-    val o6 = Observable.fork(Observable.range(0, sourceCount))
 
-    val o = Observable.zip6(o1, o2, o3, o4, o5,o6) { (x1, x2, x3, x4, x5, x6) =>
-      if (x2 < sourceCount - 1) x1 + x2 + x3 + x4 + x5 + x6
-      else throw ex
+    val o = Observable.zip4(o1, o2, o3, o4) { (x1, x2, x3, x4) =>
+      if (x2 < sourceCount - 1) x1 + x2 + x3 + x4 else throw ex
     }
 
     Sample(o, count(sourceCount - 1), sum(sourceCount - 1), Zero, Zero)

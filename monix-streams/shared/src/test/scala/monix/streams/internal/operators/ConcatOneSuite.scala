@@ -205,4 +205,72 @@ object ConcatOneSuite extends BaseOperatorSuite {
         s.tick(waitForNext)
     }
   }
+
+  test("should not break the contract on user-level error #2") { implicit s =>
+    val dummy1 = DummyException("dummy1")
+    val dummy2 = DummyException("dummy2")
+
+    val source = Observable.now(1L).endWithError(dummy1)
+    val obs: Observable[Long] = source.flatMap { i => Observable.error(dummy2) }
+
+    var thrownError: Throwable = null
+    var received = 0
+    var onCompleteReceived = false
+    var onErrorReceived = 0
+
+    obs.unsafeSubscribeFn(new Observer[Long] {
+      def onNext(elem: Long): Continue = {
+        received += 1
+        Continue
+      }
+
+      def onComplete(): Unit =
+        onCompleteReceived = true
+      def onError(ex: Throwable): Unit = {
+        onErrorReceived += 1
+        thrownError = ex
+      }
+    })
+
+    s.tick()
+    assertEquals(received, 0)
+    assertEquals(thrownError, dummy2)
+    assert(!onCompleteReceived, "!onCompleteReceived")
+    assertEquals(onErrorReceived, 1)
+  }
+
+  test("should not break the contract on user-level error #3") { implicit s =>
+    val dummy1 = DummyException("dummy1")
+    val dummy2 = DummyException("dummy2")
+
+    val source = Observable.now(1L).endWithError(dummy1)
+    val obs: Observable[Long] = source.flatMap { i =>
+      Observable.fork(Observable.error(dummy2))
+    }
+
+    var thrownError: Throwable = null
+    var received = 0
+    var onCompleteReceived = false
+    var onErrorReceived = 0
+
+    obs.unsafeSubscribeFn(new Observer[Long] {
+      def onNext(elem: Long): Continue = {
+        received += 1
+        Continue
+      }
+
+      def onComplete(): Unit =
+        onCompleteReceived = true
+      def onError(ex: Throwable): Unit = {
+        onErrorReceived += 1
+        thrownError = ex
+      }
+    })
+
+    s.tick()
+    assertEquals(received, 0)
+    assertEquals(thrownError, dummy1)
+    assert(!onCompleteReceived, "!onCompleteReceived")
+    assertEquals(onErrorReceived, 1)
+  }
 }

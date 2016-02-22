@@ -18,10 +18,14 @@
 package monix.streams.internal.operators
 
 import monix.streams.Observable
+import monix.streams.exceptions.DummyException
 
 import scala.concurrent.duration.Duration
 
 object CombineLatest6Suite extends BaseOperatorSuite {
+  def waitFirst = Duration.Zero
+  def waitNext = Duration.Zero
+
   def createObservable(sc: Int) = Some {
     val sourceCount = 10
     val o1 = Observable.now(1)
@@ -51,7 +55,19 @@ object CombineLatest6Suite extends BaseOperatorSuite {
     Sample(o, count(sourceCount-1), sum(sourceCount-1), waitFirst, waitNext)
   }
 
-  def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
-  def waitFirst = Duration.Zero
-  def waitNext = Duration.Zero
+  def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
+    val dummy = DummyException("dummy")
+    val o1 = Observable.now(1)
+    val o2 = Observable.now(2)
+    val o3 = Observable.now(3)
+    val o4 = Observable.now(4)
+    val o5 = Observable.now(5)
+    val o6 = Observable.range(0, sourceCount)
+
+    val o = Observable.combineLatest6(o1,o2,o3,o4,o5,o6) { (a1,a2,a3,a4,a5,a6) =>
+      if (a6 == sourceCount-1) throw dummy else a1+a2+a3+a4+a5+a6
+    }
+
+    Sample(o, count(sourceCount-1), sum(sourceCount-1), waitFirst, waitNext)
+  }
 }

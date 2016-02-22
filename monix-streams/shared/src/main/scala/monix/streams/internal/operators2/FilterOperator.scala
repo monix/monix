@@ -30,6 +30,7 @@ private[streams] final class FilterOperator[A](p: A => Boolean)
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
       implicit val scheduler = out.scheduler
+      private[this] var isDone = false
 
       def onNext(elem: A) = {
         // Protects calls to user code from within the operator and
@@ -46,15 +47,22 @@ private[streams] final class FilterOperator[A](p: A => Boolean)
             Continue
         }
         catch {
-          case NonFatal(ex) =>
-            if (streamError) { out.onError(ex); Cancel } else Future.failed(ex)
+          case NonFatal(ex) if streamError =>
+            onError(ex)
+            Cancel
         }
       }
 
-      def onError(ex: Throwable) =
-        out.onError(ex)
+      def onError(ex: Throwable): Unit =
+        if (!isDone) {
+          isDone = true
+          out.onError(ex)
+        }
 
-      def onComplete() =
-        out.onComplete()
+      def onComplete(): Unit =
+        if (!isDone) {
+          isDone = true
+          out.onComplete()
+        }
     }
 }

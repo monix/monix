@@ -51,7 +51,7 @@ private[streams] final class TakeByPredicateOperator[A](p: A => Boolean)
             }
           } catch {
             case NonFatal(ex) if streamError =>
-              out.onError(ex)
+              onError(ex)
               Cancel
           }
         }

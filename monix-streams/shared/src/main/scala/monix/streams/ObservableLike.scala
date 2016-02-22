@@ -18,8 +18,8 @@
 package monix.streams
 
 import monix.execution.cancelables.BooleanCancelable
-import monix.streams.ObservableLike.{Transformer, Operator}
-import monix.streams.internal.builders.CombineLatest2Observable
+import monix.streams.ObservableLike.{Operator, Transformer}
+import monix.streams.internal.builders.{CombineLatest2Observable, Zip2Observable}
 import monix.streams.internal.operators2._
 import monix.streams.observers.Subscriber
 import scala.concurrent.duration.FiniteDuration
@@ -426,17 +426,72 @@ abstract class ObservableLike[+A, Self[+T]] { self: Self[A] =>
   def bufferTimedOrCounted(timespan: FiniteDuration, maxSize: Int): Self[Seq[A]] =
     self.lift(new BufferTimedOperator(timespan, maxSize))
 
-  /** Creates a new observable from this observable and another given
-    * observable by combining their latest items in pairs.
+  /** Creates a new observable from the source and another given
+    * observable, by emitting elements combined in pairs. If one of
+    * the observables emits fewer events than the other, then the rest
+    * of the unpaired events are ignored.
     *
-    * This operator behaves in a similar way to [[zipWith]], but while
-    * `zip` emits items only when all of the zipped source observables
-    * have emitted a previously unzipped item, `combine` emits an item
-    * whenever any of the source Observables emits an item (so long as
-    * each of the source observables has emitted at least one item).
+    * See [[zip]] for an alternative that pairs the items in strict sequence.
+    *
+    * @param other is an observable that gets paired with the source
+    */
+  def combineLatest[B](other: Observable[B]): Self[(A,B)] =
+    self.transform(self => new CombineLatest2Observable[A,B,(A,B)](self, other)((a,b) => (a,b)))
+
+  /** Creates a new observable from the source and another given
+    * observable, by emitting elements combined in pairs. If one of
+    * the observables emits fewer events than the other, then the rest
+    * of the unpaired events are ignored.
+    *
+    * See [[zipWith]] for an alternative that pairs the items
+    * in strict sequence.
+    *
+    * @param other is an observable that gets paired with the source
+    * @param f is a mapping function over the generated pairs
     */
   def combineLatestWith[B,R](other: Observable[B])(f: (A,B) => R): Self[R] =
     self.transform(self => new CombineLatest2Observable[A,B,R](self, other)(f))
+
+  /** Creates a new observable from this observable and another given
+    * observable by combining their items in pairs in a strict sequence.
+    *
+    * So the first item emitted by the new observable will be the tuple of the
+    * first items emitted by each of the source observables; the second item
+    * emitted by the new observable will be a tuple with the second items
+    * emitted by each of those observables; and so forth.
+    *
+    * See [[combineLatest]] for a more relaxed alternative that doesn't
+    * combine items in strict sequence.
+    *
+    * @param other is an observable that gets paired with the source
+    * @return a new observable sequence that emits the paired items
+    *         of the source observables
+    */
+  def zip[B](other: Observable[B]): Self[(A,B)] =
+    self.transform(self => new Zip2Observable[A,B,(A,B)](self, other)((a,b) => (a,b)))
+
+  /** Creates a new observable from this observable and another given
+    * observable by combining their items in pairs in a strict sequence.
+    *
+    * So the first item emitted by the new observable will be the result
+    * of the function applied to the first item emitted by each of
+    * the source observables; the second item emitted by the new observable
+    * will be the result of the function applied to the second item
+    * emitted by each of those observables; and so forth.
+    *
+    * See [[combineLatestWith]] for a more relaxed alternative that doesn't
+    * combine items in strict sequence.
+    *
+    * @param other is an observable that gets paired with the source
+    * @param f is a mapping function over the generated pairs
+    */
+  def zipWith[B,R](other: Observable[B])(f: (A,B) => R): Self[R] =
+    self.transform(self => new Zip2Observable[A,B,R](self, other)(f))
+
+  /** Zips the emitted elements of the source with their indices.
+    */
+  def zipWithIndex: Self[(A, Long)] =
+    self.lift(new ZipWithIndexOperator[A]())
 }
 
 object ObservableLike {

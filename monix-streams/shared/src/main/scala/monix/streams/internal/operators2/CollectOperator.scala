@@ -17,9 +17,11 @@
 
 package monix.streams.internal.operators2
 
+import monix.execution.Ack
 import monix.execution.Ack.{Cancel, Continue}
 import monix.streams.ObservableLike.Operator
 import monix.streams.observers.Subscriber
+import scala.concurrent.Future
 import scala.util.control.NonFatal
 
 private[streams] final class CollectOperator[-A,+B](pf: PartialFunction[A,B])
@@ -28,8 +30,9 @@ private[streams] final class CollectOperator[-A,+B](pf: PartialFunction[A,B])
   def apply(out: Subscriber[B]): Subscriber[A] = {
     new Subscriber[A] {
       implicit val scheduler = out.scheduler
+      private[this] var isDone = false
 
-      def onNext(elem: A) = {
+      def onNext(elem: A): Future[Ack] = {
         // Protects calls to user code from within the operator and
         // stream the error downstream if it happens, but if the
         // error happens because of calls to `onNext` or other
@@ -46,16 +49,22 @@ private[streams] final class CollectOperator[-A,+B](pf: PartialFunction[A,B])
         }
         catch {
           case NonFatal(ex) if streamError =>
-            out.onError(ex)
+            onError(ex)
             Cancel
         }
       }
 
-      def onError(ex: Throwable) =
-        out.onError(ex)
+      def onError(ex: Throwable): Unit =
+        if (!isDone) {
+          isDone = true
+          out.onError(ex)
+        }
 
-      def onComplete() =
-        out.onComplete()
+      def onComplete(): Unit =
+        if (!isDone) {
+          isDone = true
+          out.onComplete()
+        }
     }
   }
 }

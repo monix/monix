@@ -225,6 +225,7 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
         var thrownError: Throwable = null
         var received = 0
         var receivedSum = 0L
+        var onCompleteReceived = false
 
         obs.unsafeSubscribeFn(new Observer[Long] {
           def onNext(elem: Long): Continue = {
@@ -233,16 +234,44 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
             Continue
           }
 
-          def onComplete(): Unit = ()
-          def onError(ex: Throwable): Unit = {
+          def onComplete(): Unit =
+            onCompleteReceived = true
+          def onError(ex: Throwable): Unit =
             thrownError = ex
-          }
         })
 
         s.tick(waitForFirst + waitForNext * (count - 1))
         assertEquals(received, count)
         assertEquals(receivedSum, sum)
         assertEquals(thrownError, DummyException("dummy"))
+        assert(!onCompleteReceived, "!onCompleteReceived")
+    }
+  }
+
+  test("should not break the contract on user-level error") { implicit s =>
+    brokenUserCodeObservable(1, DummyException("dummy")) match {
+      case None => ignore()
+      case Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
+        var thrownError: Throwable = null
+        var received = 0
+        var onCompleteReceived = false
+
+        obs.unsafeSubscribeFn(new Observer[Long] {
+          def onNext(elem: Long): Continue = {
+            received += 1
+            Continue
+          }
+
+          def onComplete(): Unit =
+            onCompleteReceived = true
+          def onError(ex: Throwable): Unit =
+            thrownError = ex
+        })
+
+        s.tick(waitForFirst + waitForNext * (count - 1))
+        assertEquals(received, count)
+        assertEquals(thrownError, DummyException("dummy"))
+        assert(!onCompleteReceived, "!onCompleteReceived")
     }
   }
 

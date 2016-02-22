@@ -31,6 +31,7 @@ private[streams] final class DropByPredicateOperator[A](p: A => Boolean)
     new Subscriber[A] {
       implicit val scheduler = out.scheduler
       private[this] var continueDropping = true
+      private[this] var isDone = false
 
       def onNext(elem: A): Future[Ack] = {
         if (continueDropping) {
@@ -49,7 +50,7 @@ private[streams] final class DropByPredicateOperator[A](p: A => Boolean)
             }
           } catch {
             case NonFatal(ex) if streamError =>
-              out.onError(ex)
+              onError(ex)
               Cancel
           }
         }
@@ -57,7 +58,16 @@ private[streams] final class DropByPredicateOperator[A](p: A => Boolean)
           out.onNext(elem)
       }
 
-      def onComplete(): Unit = out.onComplete()
-      def onError(ex: Throwable): Unit = out.onError(ex)
+      def onError(ex: Throwable): Unit =
+        if (!isDone) {
+          isDone = true
+          out.onError(ex)
+        }
+
+      def onComplete(): Unit =
+        if (!isDone) {
+          isDone = true
+          out.onComplete()
+        }
     }
 }

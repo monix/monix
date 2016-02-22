@@ -30,6 +30,7 @@ private[streams] final class MapOperator[-A,+B](f: A => B)
   def apply(out: Subscriber[B]): Subscriber[A] = {
     new Subscriber[A] {
       implicit val scheduler = out.scheduler
+      private[this] var isDone = false
 
       def onNext(elem: A): Future[Ack] = {
         // Protects calls to user code from within the operator and
@@ -43,16 +44,22 @@ private[streams] final class MapOperator[-A,+B](f: A => B)
           out.onNext(next)
         } catch {
           case NonFatal(ex) if streamError =>
-            out.onError(ex)
+            onError(ex)
             Cancel
         }
       }
 
       def onError(ex: Throwable): Unit =
-        out.onError(ex)
+        if (!isDone) {
+          isDone = true
+          out.onError(ex)
+        }
 
       def onComplete(): Unit =
-        out.onComplete()
+        if (!isDone) {
+          isDone = true
+          out.onComplete()
+        }
     }
   }
 }
