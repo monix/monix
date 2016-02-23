@@ -245,6 +245,7 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
         assertEquals(receivedSum, sum)
         assertEquals(thrownError, DummyException("dummy"))
         assert(!onCompleteReceived, "!onCompleteReceived")
+        s.tick(waitForNext)
     }
   }
 
@@ -272,6 +273,7 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
         assertEquals(received, count)
         assertEquals(thrownError, DummyException("dummy"))
         assert(!onCompleteReceived, "!onCompleteReceived")
+        s.tick(waitForNext)
     }
   }
 

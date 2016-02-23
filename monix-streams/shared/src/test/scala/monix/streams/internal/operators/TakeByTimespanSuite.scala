@@ -39,7 +39,7 @@ object TakeByTimespanSuite extends BaseOperatorSuite {
     require(sourceCount > 0, "sourceCount should be strictly positive")
 
     val o = Observable.intervalAtFixedRate(1.second)
-      .take(1.second * sourceCount - 1.milli)
+      .takeByTimespan(1.second * sourceCount - 1.milli)
 
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
   }
@@ -52,7 +52,7 @@ object TakeByTimespanSuite extends BaseOperatorSuite {
       else
         createObservableEndingInError(Observable.range(1, sourceCount * 2).take(sourceCount), ex)
 
-      val o = source.take(1.day)
+      val o = source.takeByTimespan(1.day)
       Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
     }
   }
@@ -60,7 +60,7 @@ object TakeByTimespanSuite extends BaseOperatorSuite {
   test("should complete even if no element was emitted") { implicit s =>
     var wasCompleted = false
 
-    Observable.never.take(1.second).unsafeSubscribeFn(new Observer[Any] {
+    Observable.never.takeByTimespan(1.second).unsafeSubscribeFn(new Observer[Any] {
       def onNext(elem: Any) = Continue
       def onError(ex: Throwable) = ()
       def onComplete() = wasCompleted = true
@@ -75,7 +75,7 @@ object TakeByTimespanSuite extends BaseOperatorSuite {
   test("should cancel if downstream cancels") { implicit s =>
     var received = 0
 
-    Observable.intervalAtFixedRate(1.second).take(10.seconds).subscribe(
+    Observable.intervalAtFixedRate(1.second).takeByTimespan(10.seconds).subscribe(
       new Observer[Long] {
         def onNext(elem: Long) =
           Future.delayedResult(100.millis) {

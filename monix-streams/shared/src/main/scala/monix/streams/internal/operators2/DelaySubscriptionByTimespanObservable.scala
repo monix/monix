@@ -15,22 +15,22 @@
  * limitations under the License.
  */
 
-package monix.streams.internal.operators
+package monix.streams.internal.operators2
 
 import monix.streams.Observable
-import scala.concurrent.duration._
+import monix.streams.observers.Subscriber
 
-object DebounceFlattenSuite extends BaseOperatorSuite {
-  def createObservable(sourceCount: Int) = Some {
-    val o = Observable.unsafeCreate[Long](_.onNext(1))
-      .debounceTo(1.second, (x: Long) => Observable.interval(1.second).map(_ + x))
-      .take(sourceCount)
+import scala.concurrent.duration.FiniteDuration
 
-    val count = sourceCount
-    val sum = sourceCount * (sourceCount + 1) / 2
-    Sample(o, count, sum, 1.second, 1.second)
+private[streams] final class DelaySubscriptionByTimespanObservable[A]
+  (source: Observable[A], timespan: FiniteDuration)
+  extends Observable[A] {
+
+  def unsafeSubscribeFn(subscriber: Subscriber[A]): Unit = {
+    subscriber.scheduler.scheduleOnce(timespan.length, timespan.unit,
+      new Runnable {
+        def run(): Unit =
+          source.unsafeSubscribeFn(subscriber)
+      })
   }
-
-  def observableInError(sourceCount: Int, ex: Throwable) = None
-  def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 }

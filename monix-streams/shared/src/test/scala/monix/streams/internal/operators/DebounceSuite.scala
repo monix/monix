@@ -31,6 +31,15 @@ object DebounceSuite extends BaseOperatorSuite {
     Sample(o, count, sum, 1.second, 2.second)
   }
 
-  def observableInError(sourceCount: Int, ex: Throwable) = None
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
+
+  def observableInError(sourceCount: Int, ex: Throwable) = Some {
+    val o = createObservableEndingInError(Observable
+      .interval(2.seconds).take(sourceCount), ex)
+      .debounce(1.second)
+
+    val count = sourceCount - 1
+    val sum = sourceCount * (sourceCount - 1) / 2
+    Sample(o, count, sum, 1.second, 2.second)
+  }
 }

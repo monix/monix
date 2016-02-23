@@ -27,7 +27,7 @@ import scala.language.higherKinds
 
 private[monix] object delaySubscription {
   /**
-    * Implementation for [[Observable.delaySubscription]].
+    * Implementation for [[Observable.delaySubscriptionWith]].
     */
   def onTrigger[T,U,F[_] : CanObserve](source: Observable[T], trigger: F[U]): Observable[T] =
     Observable.unsafeCreate[T] { subscriber =>
@@ -49,12 +49,12 @@ private[monix] object delaySubscription {
     }
 
   /**
-    * Implementation for [[Observable.delaySubscription]].
+    * Implementation for [[Observable.delaySubscriptionWith]].
     */
   def onTimespan[T](source: Observable[T], timespan: FiniteDuration): Observable[T] =
     Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
-      val underlying = source.delaySubscription {
+      val underlying = source.delaySubscriptionWith {
         val p = Promise[Unit]()
         s.scheduleOnce(timespan.length, timespan.unit, PromiseSuccessRunnable(p, ()))
         p.future

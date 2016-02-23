@@ -18,13 +18,14 @@
 package monix.streams.internal.operators
 
 import monix.streams.Observable
-import scala.concurrent.duration._
+import concurrent.duration._
 
-object SwitchSuite extends BaseOperatorSuite {
+object SwitchMapSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val count = sourceCount / 2 * 2 + 1
     val o = Observable.interval(2.seconds)
-      .switchMap(i => Observable.interval(1.second).map(_ => i).take(2) ++ Observable.empty.delaySubscription(1.second))
+      .switchMap(i => Observable.interval(1.second).map(_ => i).take(2) ++
+        Observable.empty.delaySubscription(1.second))
       .take(count)
 
     val sum = (0 until count).flatMap(x => Seq(x,x)).take(count).sum
@@ -35,16 +36,30 @@ object SwitchSuite extends BaseOperatorSuite {
   def waitNext = 1.second
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val count = sourceCount / 2 * 2 + 1
-    val o = createObservableEndingInError(Observable.interval(2.seconds).take(count), ex)
-      .switchMap(i => Observable.interval(1.second).map(_ => i).take(2) ++ Observable.empty.delaySubscription(1.second))
+    if (sourceCount > 1) {
+      val count = 10
+      val source = Observable.now(1).delayOnComplete(count.seconds)
+      val o = source.switchMap { x =>
+        createObservableEndingInError(
+          Observable.interval(1.seconds).take(count), ex)
+      }
 
-    val sum = (0 until count).flatMap(x => Seq(x,x)).take(count).sum
-    Sample(o, count, sum, waitFirst, 2.seconds)
+      val sum = count * (count-1) / 2
+      Sample(o, count, sum, 0.seconds, 1.seconds)
+    } else {
+      val o = Observable.now(1L).delayOnComplete(1.seconds)
+        .switchMap(x => Observable.now(x).endWithError(ex))
+      Sample(o, 1, 1, 0.seconds, 1.seconds)
+    }
   }
 
-  def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) =
-    None
+  def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
+    val o = Observable.interval(1.second).switchMap { x =>
+      if (x == 2) throw ex else Observable.now(x)
+    }
+
+    Sample(o, 2, 1, 1.seconds, 1.seconds)
+  }
 
   test("source.switchMap(unit) == source") { implicit s =>
     val source = Observable.range(0, 100)

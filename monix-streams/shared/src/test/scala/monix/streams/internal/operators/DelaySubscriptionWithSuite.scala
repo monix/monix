@@ -20,13 +20,15 @@ package monix.streams.internal.operators
 import monix.execution.Ack.Continue
 import monix.streams.exceptions.DummyException
 import monix.streams.{Observable, Observer}
+import monix.tasks.Task
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-object DelaySubscriptionSuite extends BaseOperatorSuite {
+object DelaySubscriptionWithSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
+    val trigger = Task.now(1).delayExecution(1.second)
     val o = Observable.range(0, sourceCount)
-      .delaySubscription(1.second)
+      .delaySubscriptionWith(trigger)
 
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
   }

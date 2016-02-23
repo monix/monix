@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit
 import monix.execution.Ack
 import monix.execution.cancelables.MultiAssignmentCancelable
 import monix.streams.Observable
-import monix.streams.observers.SyncObserver
+import monix.streams.observers.{SyncSubscriber, SyncObserver}
 import monix.execution.Ack.{Cancel, Continue}
 import monix.streams.internal._
 import scala.concurrent.Future
@@ -29,18 +29,19 @@ import scala.concurrent.duration._
 
 private[monix] object debounce {
   /**
-    * Implementation for [[Observable.debounce]].
+    * Implementation for [[Observable.debounceTo]].
     */
-  def timeout[T](source: Observable[T], timeout: FiniteDuration, repeat: Boolean): Observable[T] = {
+  def timeout[A](source: Observable[A], timeout: FiniteDuration, repeat: Boolean): Observable[A] = {
     Observable.unsafeCreate { downstream =>
-      import downstream.{scheduler => s}
       val timeoutMillis = timeout.toMillis
 
-      source.unsafeSubscribeFn(new SyncObserver[T] with Runnable { self =>
+      source.unsafeSubscribeFn(new SyncSubscriber[A] with Runnable { self =>
+        implicit val scheduler = downstream.scheduler
+
         private[this] val task = MultiAssignmentCancelable()
         private[this] var ack: Future[Ack] = Continue
         private[this] var isDone = false
-        private[this] var lastEvent: T = _
+        private[this] var lastEvent: A = _
         private[this] var lastTSInMillis: Long = 0L
         private[this] var hasValue = false
 
@@ -49,7 +50,7 @@ private[monix] object debounce {
         }
 
         def scheduleNext(delayMillis: Long): Unit = {
-          task := s.scheduleOnce(delayMillis, TimeUnit.MILLISECONDS, self)
+          task := scheduler.scheduleOnce(delayMillis, TimeUnit.MILLISECONDS, self)
         }
 
         def run(): Unit = self.synchronized {
@@ -61,7 +62,7 @@ private[monix] object debounce {
               scheduleNext(timeoutMillis)
             }
             else {
-              val rightNow = s.currentTimeMillis()
+              val rightNow = scheduler.currentTimeMillis()
               val sinceLastOnNext = rightNow - lastTSInMillis
 
               if (sinceLastOnNext >= timeoutMillis) {
@@ -71,7 +72,7 @@ private[monix] object debounce {
 
                 ack = downstream.onNext(lastEvent).fastFlatMap {
                   case Continue =>
-                    val executionTime = s.currentTimeMillis() - rightNow
+                    val executionTime = scheduler.currentTimeMillis() - rightNow
                     val delay = if (timeoutMillis > executionTime)
                       timeoutMillis - executionTime else 0L
 
@@ -91,14 +92,13 @@ private[monix] object debounce {
           }
         }
 
-        def onNext(elem: T): Ack = self.synchronized {
+        def onNext(elem: A): Ack = self.synchronized {
           if (!isDone) {
             lastEvent = elem
-            lastTSInMillis = s.currentTimeMillis()
+            lastTSInMillis = scheduler.currentTimeMillis()
             hasValue = true
             Continue
-          }
-          else {
+          } else {
             Cancel
           }
         }
