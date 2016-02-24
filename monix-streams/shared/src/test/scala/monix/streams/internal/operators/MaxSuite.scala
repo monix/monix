@@ -18,6 +18,7 @@
 package monix.streams.internal.operators
 
 import monix.execution.Ack.Continue
+import monix.streams.internal.operators2.BaseOperatorSuite
 import monix.streams.{Observable, Observer}
 import scala.concurrent.duration.Duration.Zero
 import scala.util.Success

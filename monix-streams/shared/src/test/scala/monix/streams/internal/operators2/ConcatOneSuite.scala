@@ -15,16 +15,17 @@
  * limitations under the License.
  */
 
-package monix.streams.internal.operators
+package monix.streams.internal.operators2
 
 import monix.execution.Ack.Continue
 import monix.execution.FutureUtils.ops._
-import monix.execution.Scheduler
+import monix.execution.{Ack, Scheduler}
 import monix.streams.Observable.{empty, now}
-import monix.streams.subjects.PublishSubject
 import monix.streams.exceptions.DummyException
+import monix.streams.observers.Subscriber
+import monix.streams.subjects.PublishSubject
 import monix.streams.{Observable, Observer}
-import scala.concurrent.{Promise, Future}
+import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Random
 
@@ -184,28 +185,6 @@ object ConcatOneSuite extends BaseOperatorSuite {
     assert(!obs2WasStarted)
   }
 
-  test("should not do back-pressure for onComplete, for 1 element") { implicit s =>
-    val p = Promise[Continue]()
-    var wasCompleted = false
-
-    createObservable(1) match {
-      case ref @ Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
-        var onNextReceived = false
-
-        obs.unsafeSubscribeFn(new Observer[Long] {
-          def onNext(elem: Long): Future[Continue] = { onNextReceived = true; p.future }
-          def onError(ex: Throwable): Unit = throw new IllegalStateException()
-          def onComplete(): Unit = wasCompleted = true
-        })
-
-        s.tick(waitForFirst)
-        assert(onNextReceived)
-        assert(wasCompleted)
-        p.success(Continue)
-        s.tick(waitForNext)
-    }
-  }
-
   test("should not break the contract on user-level error #2") { implicit s =>
     val dummy1 = DummyException("dummy1")
     val dummy2 = DummyException("dummy2")
@@ -272,5 +251,99 @@ object ConcatOneSuite extends BaseOperatorSuite {
     assertEquals(thrownError, dummy1)
     assert(!onCompleteReceived, "!onCompleteReceived")
     assertEquals(onErrorReceived, 1)
+  }
+
+  test("main observable should be cancelable") { implicit s =>
+    var onCompleteReceived = 0
+    var onNextReceived = 0
+
+    val source = Observable.range(0, 100).delaySubscription(1.second)
+      .flatMap(x => Observable.now(x).delaySubscription(1.second))
+
+    val cancelable = source.unsafeSubscribeFn(new Subscriber[Long] {
+      implicit val scheduler = s
+
+      def onError(ex: Throwable): Unit = ()
+      def onComplete(): Unit =
+        onCompleteReceived += 1
+      def onNext(elem: Long): Future[Ack] = {
+        onNextReceived += 1
+        Continue
+      }
+    })
+
+    s.tick()
+    assertEquals(onNextReceived, 0)
+    assert(s.state.get.tasks.nonEmpty, "tasks.nonEmpty")
+    cancelable.cancel()
+    s.tick()
+
+    assertEquals(onNextReceived, 0)
+    assertEquals(onCompleteReceived, 0)
+    assert(s.state.get.tasks.isEmpty, "tasks.isEmpty")
+  }
+
+  test("child observable should be cancelable") { implicit s =>
+    var onCompleteReceived = 0
+    var onNextReceived = 0
+    var onStart = 0
+
+    val source = Observable.range(0, 100).doOnStart(_ => onStart += 1)
+      .flatMap(x => Observable.now(x).delaySubscription(1.second))
+
+    val cancelable = source.unsafeSubscribeFn(new Subscriber[Long] {
+      implicit val scheduler = s
+
+      def onError(ex: Throwable): Unit = ()
+      def onComplete(): Unit =
+        onCompleteReceived += 1
+      def onNext(elem: Long): Future[Ack] = {
+        onNextReceived += 1
+        Continue
+      }
+    })
+
+    s.tick()
+    assertEquals(onStart, 1)
+    assertEquals(onNextReceived, 0)
+    assert(s.state.get.tasks.nonEmpty, "tasks.nonEmpty")
+    cancelable.cancel()
+    s.tick()
+
+    assertEquals(onNextReceived, 0)
+    assertEquals(onCompleteReceived, 0)
+    assert(s.state.get.tasks.isEmpty, "tasks.isEmpty")
+  }
+
+  test("second child observable should be cancelable") { implicit s =>
+    var onCompleteReceived = 0
+    var onNextReceived = 0
+    var onStart = 0
+
+    val source = Observable.range(0, 100).doOnStart(_ => onStart += 1)
+      .flatMap(x => Observable.now(x).delaySubscription(1.second))
+
+    val cancelable = source.unsafeSubscribeFn(new Subscriber[Long] {
+      implicit val scheduler = s
+
+      def onError(ex: Throwable): Unit = ()
+      def onComplete(): Unit =
+        onCompleteReceived += 1
+      def onNext(elem: Long): Future[Ack] = {
+        onNextReceived += 1
+        Continue
+      }
+    })
+
+    s.tick(1.second)
+    assertEquals(onStart, 1)
+    assertEquals(onNextReceived, 1)
+    assert(s.state.get.tasks.nonEmpty, "tasks.nonEmpty")
+    cancelable.cancel()
+    s.tick()
+
+    assertEquals(onNextReceived, 1)
+    assertEquals(onCompleteReceived, 0)
+    assert(s.state.get.tasks.isEmpty, "tasks.isEmpty")
   }
 }

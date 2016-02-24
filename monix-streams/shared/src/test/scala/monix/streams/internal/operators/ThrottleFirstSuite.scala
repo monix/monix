@@ -18,6 +18,7 @@
 package monix.streams.internal.operators
 
 import monix.streams.Observable
+import monix.streams.internal.operators2.BaseOperatorSuite
 import scala.concurrent.duration._
 
 object ThrottleFirstSuite extends BaseOperatorSuite {

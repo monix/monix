@@ -19,6 +19,7 @@ package monix.streams.internal.operators
 
 import monix.streams.Observable
 import monix.streams.OverflowStrategy.Unbounded
+import monix.streams.internal.operators2.BaseOperatorSuite
 import monix.streams.observers.BufferedSubscriber
 import scala.concurrent.duration.Duration.Zero
 

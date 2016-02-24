@@ -19,6 +19,7 @@ package monix.streams.internal.operators
 
 import monix.execution.Ack.{Cancel, Continue}
 import monix.execution.FutureUtils.ops._
+import monix.streams.internal.operators2.BaseOperatorSuite
 import monix.streams.{Observable, Observer}
 import scala.concurrent.Future
 import scala.concurrent.duration._

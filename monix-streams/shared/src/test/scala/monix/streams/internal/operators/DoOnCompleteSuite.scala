@@ -19,6 +19,7 @@ package monix.streams.internal.operators
 
 import monix.streams.Observable
 import monix.streams.Observable.now
+import monix.streams.internal.operators2.BaseOperatorSuite
 import org.sincron.atomic.Atomic
 import scala.concurrent.duration.Duration.Zero
 

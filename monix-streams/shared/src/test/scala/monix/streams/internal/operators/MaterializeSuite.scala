@@ -21,6 +21,7 @@ import monix.execution.Ack
 import monix.execution.Ack.{Cancel, Continue}
 import monix.streams.Notification.{OnComplete, OnError, OnNext}
 import monix.streams.exceptions.DummyException
+import monix.streams.internal.operators2.BaseOperatorSuite
 import monix.streams.{Notification, Observable, Observer}
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration.Zero

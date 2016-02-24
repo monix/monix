@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package monix.streams.internal.operators
+package monix.streams.internal.operators2
 
 import monix.streams.Observable
 import scala.concurrent.duration.Duration

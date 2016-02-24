@@ -18,11 +18,10 @@
 package monix.streams.internal.operators2
 
 import monix.execution.Ack.{Cancel, Continue}
-import monix.execution.cancelables.RefCountCancelable
-import monix.execution.{Scheduler, Ack, Cancelable}
+import monix.execution.cancelables.{CompositeCancelable, MultiAssignmentCancelable}
+import monix.execution.{Ack, Cancelable}
 import monix.streams.Observable
 import monix.streams.exceptions.CompositeException
-import monix.streams.internal.operators2.ConcatMapObservable.ConcatCancelable
 import monix.streams.observers.Subscriber
 import scala.collection.mutable
 import scala.concurrent.{Future, Promise}
@@ -35,25 +34,16 @@ class ConcatMapObservable[A, B] private
   extends Observable[B] {
 
   def unsafeSubscribeFn(out: Subscriber[B]): Cancelable = {
-    val conn = ConcatCancelable(out, delayErrors)(out.scheduler)
+    val conn = MultiAssignmentCancelable()
+    val composite = CompositeCancelable(conn)
 
-    conn := source.unsafeSubscribeFn(new Subscriber[A] {
+    composite += source.unsafeSubscribeFn(new Subscriber[A] { self =>
       implicit val scheduler = out.scheduler
 
-      private[this] var ack: Future[Ack] = Continue
+      private[this] var isDone = false
+      private[this] var upstreamAck: Future[Ack] = Continue
       private[this] val errors = if (delayErrors)
         mutable.ArrayBuffer.empty[Throwable] else null
-
-      private[this] var isDone = false
-      private[this] val refCount = RefCountCancelable {
-        if (!isDone) {
-          isDone = true
-          if (delayErrors && errors.nonEmpty)
-            out.onError(CompositeException(errors))
-          else
-            out.onComplete()
-        }
-      }
 
       def onNext(a: A): Future[Ack] = {
         val upstreamPromise = Promise[Ack]()
@@ -63,38 +53,42 @@ class ConcatMapObservable[A, B] private
         // error happens because of calls to `onNext` or other
         // protocol calls, then the behavior should be undefined.
         var streamError = true
-        try {
+        upstreamAck = try {
           val fb = f(a)
           streamError = false
 
-          conn += fb.unsafeSubscribeFn(new Subscriber[B] {
+          conn := fb.unsafeSubscribeFn(new Subscriber[B] {
             implicit val scheduler = out.scheduler
+            private[this] var childAck: Future[Ack] = Continue
 
             def onNext(elem: B): Future[Ack] = {
-              ack = out.onNext(elem).syncOnCancelFollow(upstreamPromise, Cancel)
-              ack
+              childAck = out.onNext(elem).syncOnCancelFollow(upstreamPromise, Cancel)
+              childAck
             }
 
             def onError(ex: Throwable): Unit = {
               if (delayErrors) {
                 errors += ex
                 onComplete()
-              } else {
-                // Error happened, so signaling both the main thread that
-                // it should stop and the downstream consumer of the error
-                isDone = true
-                upstreamPromise.trySuccess(Cancel)
-                out.onError(ex)
+              } else self.synchronized {
+                if (!isDone) {
+                  // Error happened, so signaling both the main thread that
+                  // it should stop and the downstream consumer of the error
+                  isDone = true
+                  upstreamPromise.trySuccess(Cancel)
+                  out.onError(ex)
+                } else {
+                  scheduler.reportFailure(ex)
+                }
               }
             }
 
             def onComplete(): Unit = {
-              // NOTE: we aren't sending this onComplete signal downstream to our observerU
+              // NOTE: we aren't sending this onComplete signal downstream
               // instead we are just instructing upstream to send the next observable.
               // We also need to apply back-pressure on the last ack,
-              // because an onNext probably follows.
-              ack.syncOnContinueFollow(upstreamPromise, Continue)
-              conn.tryOnComplete()
+              // because otherwise we'll break back-pressure
+              childAck.syncOnContinueFollow(upstreamPromise, Continue)
             }
           })
 
@@ -104,40 +98,40 @@ class ConcatMapObservable[A, B] private
             onError(ex)
             Cancel
         }
+
+        upstreamAck
       }
 
-      def onError(ex: Throwable): Unit = {
+      def onError(ex: Throwable): Unit =
         if (delayErrors) {
           errors += ex
           onComplete()
-        } else if (!isDone) {
-          // Oops, error happened on main thread, piping that
-          // along should cancel everything
-          isDone = true
-          out.onError(ex)
+        } else self.synchronized {
+          if (!isDone) {
+            // Oops, error happened on main thread, piping that
+            // along should cancel everything
+            isDone = true
+            out.onError(ex)
+          }
         }
-      }
 
-      def onComplete(): Unit = {
-        refCount.cancel()
-      }
+      def onComplete(): Unit =
+        upstreamAck.syncOnContinue {
+          if (!isDone) {
+            isDone = true
+            if (delayErrors && errors.nonEmpty)
+              out.onError(CompositeException(errors))
+            else
+              out.onComplete()
+          }
+        }
     })
+
+    composite
   }
 }
 
 private[streams] object ConcatMapObservable {
   def apply[A,B](f: A => Observable[B], delayErrors: Boolean)(source: Observable[A]): Observable[B] =
     new ConcatMapObservable(source, f, delayErrors)
-
-  trait ConcatCancelable extends Cancelable {
-    def `:=`(value: Cancelable): Cancelable
-    def `+=`(value: Cancelable): Cancelable
-    def tryOnComplete(): Unit
-  }
-
-  object ConcatCancelable {
-    def apply[B](out: Subscriber[B], delayErrors: Boolean)
-      (implicit s: Scheduler): ConcatCancelable =
-      new monix.streams.internal.operators2.ConcatCancelableImpl[B](out, delayErrors)
-  }
 }

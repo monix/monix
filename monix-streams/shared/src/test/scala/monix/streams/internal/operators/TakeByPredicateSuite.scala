@@ -18,6 +18,7 @@
 package monix.streams.internal.operators
 
 import monix.execution.Ack.Continue
+import monix.streams.internal.operators2.BaseOperatorSuite
 import monix.streams.{Observer, Observable}
 import monix.streams.exceptions.DummyException
 import monix.streams.internal.operators.MapSuite._

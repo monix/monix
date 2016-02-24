@@ -21,6 +21,7 @@ import monix.execution.Ack.Continue
 import monix.execution.FutureUtils.ops._
 import monix.execution.Scheduler
 import monix.streams.Observable.{empty, now}
+import monix.streams.internal.operators2.BaseOperatorSuite
 import monix.streams.{Observable, Observer}
 import monix.streams.subjects.PublishSubject
 import monix.streams.exceptions.DummyException

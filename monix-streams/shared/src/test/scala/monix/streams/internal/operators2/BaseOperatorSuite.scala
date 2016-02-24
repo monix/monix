@@ -15,15 +15,15 @@
  * limitations under the License.
  */
 
-package monix.streams.internal.operators
+package monix.streams.internal.operators2
 
 import minitest.TestSuite
 import monix.execution.Ack
+import monix.execution.Ack.{Cancel, Continue}
 import monix.execution.FutureUtils.ops._
 import monix.execution.schedulers.TestScheduler
-import monix.execution.Ack.{Cancel, Continue}
-import monix.streams.{Observer, Observable}
 import monix.streams.exceptions.DummyException
+import monix.streams.{Observable, Observer}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Future, Promise}

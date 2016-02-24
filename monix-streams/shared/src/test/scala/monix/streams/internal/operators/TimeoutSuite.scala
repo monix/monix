@@ -19,6 +19,7 @@ package monix.streams.internal.operators
 
 import java.util.concurrent.TimeoutException
 import monix.execution.FutureUtils.ops._
+import monix.streams.internal.operators2.BaseOperatorSuite
 import monix.streams.{Observer, Observable}
 import monix.streams.subjects.PublishSubject
 import monix.execution.Ack.Continue

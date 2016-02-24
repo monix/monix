@@ -19,6 +19,7 @@ package monix.streams.internal.operators
 
 import java.io.{OutputStream, PrintStream}
 import monix.streams.Observable
+import monix.streams.internal.operators2.BaseOperatorSuite
 import org.sincron.atomic.{AtomicInt, Atomic}
 import monix.streams.exceptions.DummyException
 import scala.concurrent.duration.Duration.Zero

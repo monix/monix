@@ -19,6 +19,7 @@ package monix.streams.internal.operators
 
 import monix.streams.Observable
 import monix.streams.exceptions.DummyException
+import monix.streams.internal.operators2.BaseOperatorSuite
 import scala.concurrent.duration.Duration.Zero
 
 object OnErrorRecoverWithSuite extends BaseOperatorSuite {
