@@ -20,7 +20,7 @@ package monix.streams.internal.operators
 import monix.execution.Ack
 import monix.execution.Ack.{Cancel, Continue}
 import monix.streams.{Observable, Observer}
-import monix.streams.broadcast.PublishProcessor
+import monix.streams.subjects.PublishSubject
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration.Zero
 import scala.concurrent.duration._
@@ -69,7 +69,7 @@ object GroupBySuite extends BaseOperatorSuite {
         Observable.empty.unsafeSubscribeFn(s)
       }
 
-    val ch = PublishProcessor[Int]()
+    val ch = PublishSubject[Int]()
     val obs = ch.groupBy(_ % 2)
       .mergeMap(_.timeout(10.seconds, fallbackObservable))
 

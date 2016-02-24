@@ -20,19 +20,19 @@ package monix.subjects
 import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.streams.Observer
-import monix.streams.broadcast.ReplayProcessor
+import monix.streams.subjects.ReplaySubject
 import monix.streams.observers.SyncObserver
 import monix.streams.exceptions.DummyException
 import scala.concurrent.Future
 
 object ReplaySubjectSuite extends BaseSubjectSuite {
   def alreadyTerminatedTest(expectedElems: Seq[Long]) = {
-    val s = ReplayProcessor[Long]()
+    val s = ReplaySubject[Long]()
     Sample(s, expectedElems.sum)
   }
 
   def continuousStreamingTest(expectedElems: Seq[Long]) = {
-    val s = ReplayProcessor[Long]()
+    val s = ReplaySubject[Long]()
     Some(Sample(s, expectedElems.sum))
   }
 
@@ -49,7 +49,7 @@ object ReplaySubjectSuite extends BaseSubjectSuite {
       }
     }
 
-    val subject = ReplayProcessor[Int]()
+    val subject = ReplaySubject[Int]()
     subject.unsafeSubscribeFn(create(20000))
 
     s.tick(); subject.onNext(2); s.tick()
@@ -74,7 +74,7 @@ object ReplaySubjectSuite extends BaseSubjectSuite {
 
 
   test("should work synchronously for synchronous subscribers, but after first onNext") { implicit s =>
-    val subject = ReplayProcessor[Int]()
+    val subject = ReplaySubject[Int]()
     var received = 0
     var wasCompleted = 0
 
@@ -101,7 +101,7 @@ object ReplaySubjectSuite extends BaseSubjectSuite {
   }
 
   test("should work with asynchronous subscribers") { implicit s =>
-    val subject = ReplayProcessor[Int]()
+    val subject = ReplaySubject[Int]()
     var received = 0
     var wasCompleted = 0
 
@@ -130,7 +130,7 @@ object ReplaySubjectSuite extends BaseSubjectSuite {
   }
 
   test("subscribe after complete should complete immediately") { implicit s =>
-    val subject = ReplayProcessor[Int]()
+    val subject = ReplaySubject[Int]()
     subject.onComplete()
 
     var wasCompleted = false
@@ -144,7 +144,7 @@ object ReplaySubjectSuite extends BaseSubjectSuite {
   }
 
   test("onError should terminate current and future subscribers") { implicit s =>
-    val subject = ReplayProcessor[Int]()
+    val subject = ReplaySubject[Int]()
     val dummy = DummyException("dummy")
     var elemsReceived = 0
     var errorsReceived = 0

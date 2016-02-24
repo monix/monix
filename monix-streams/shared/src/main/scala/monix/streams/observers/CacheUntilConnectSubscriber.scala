@@ -17,10 +17,10 @@
 
 package monix.streams.observers
 
-import monix.execution.Ack
 import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.{Ack, Cancelable}
+import monix.streams.Observable
 import monix.streams.internal._
-import monix.streams.{Observable, Observer}
 import scala.collection.mutable
 import scala.concurrent.{Future, Promise}
 
@@ -32,20 +32,17 @@ import scala.concurrent.{Future, Promise}
 final class CacheUntilConnectSubscriber[-T] private (downstream: Subscriber[T])
   extends Subscriber[T] { self =>
 
-  val scheduler = downstream.scheduler
-  private[this] implicit val s = scheduler
-  private[this] val lock = new AnyRef
-
-  // MUST BE synchronized by `lock`, only available if isConnected == false
+  implicit val scheduler = downstream.scheduler
+  // MUST BE synchronized by `self`, only available if isConnected == false
   private[this] var queue = mutable.ArrayBuffer.empty[T]
-  // MUST BE synchronized by `lock`
+  // MUST BE synchronized by `self`
   private[this] var isConnectionStarted = false
-  // MUST BE synchronized by `lock`, as long as isConnected == false
+  // MUST BE synchronized by `self`, as long as isConnected == false
   private[this] var wasCanceled = false
 
   // Promise guaranteed to be fulfilled once isConnected is
   // seen as true and used for back-pressure.
-  // MUST BE synchronized by `lock`, only available if isConnected == false
+  // MUST BE synchronized by `self`, only available if isConnected == false
   private[this] val connectedPromise = Promise[Ack]()
   private[this] var connectedFuture = connectedPromise.future
 
@@ -55,30 +52,38 @@ final class CacheUntilConnectSubscriber[-T] private (downstream: Subscriber[T])
   // can take the fast path
   @volatile private[this] var isConnected = false
 
+  // Only accessible in `connect()`
+  private[this] var connectionRef: Cancelable = null
+
   /**
     * Connects the underling observer to the upstream publisher.
     *
     * This function should be idempotent. Calling it multiple times should have the same
     * effect as calling it once.
     */
-  def connect(): Unit = lock.synchronized {
+  def connect(): Cancelable = self.synchronized {
     if (!isConnected && !isConnectionStarted) {
       isConnectionStarted = true
 
-      Observable.from(queue).unsafeSubscribeFn(new Observer[T] {
+      connectionRef = Observable.from(queue).unsafeSubscribeFn(new Subscriber[T] {
+        implicit val scheduler = downstream.scheduler
         private[this] val bufferWasDrained = Promise[Ack]()
 
         bufferWasDrained.future.onSuccess {
           case Continue =>
             connectedPromise.success(Continue)
             isConnected = true
-            queue = null // gc relief
+            // GC relief
+            queue = null
+            connectionRef = Cancelable.empty
 
           case Cancel =>
             wasCanceled = true
             connectedPromise.success(Cancel)
             isConnected = true
-            queue = null // gc relief
+            // GC relief
+            queue = null
+            connectionRef = Cancelable.empty
         }
 
         def onNext(elem: T): Future[Ack] = {
@@ -94,14 +99,16 @@ final class CacheUntilConnectSubscriber[-T] private (downstream: Subscriber[T])
           if (bufferWasDrained.trySuccess(Continue))
             self.onError(ex)
           else
-            s.reportFailure(ex)
+            scheduler.reportFailure(ex)
         }
       })
     }
+
+    connectionRef
   }
 
   def onNext(elem: T) = {
-    if (!isConnected) lock.synchronized {
+    if (!isConnected) self.synchronized {
       // checking again because of multi-threading concerns
       if (!isConnected && !isConnectionStarted) {
         // we can cache the incoming event

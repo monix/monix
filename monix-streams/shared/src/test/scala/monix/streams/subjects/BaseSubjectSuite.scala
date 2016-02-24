@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package monix.streams.broadcast
+package monix.streams.subjects
 
 import minitest.TestSuite
 import monix.execution.{Ack, Scheduler}
@@ -29,7 +29,7 @@ import scala.util.Random
 
 
 trait BaseSubjectSuite extends TestSuite[TestScheduler] {
-  case class Sample(channel: Subject[Long,Long] with Observable[Long], expectedSum: Long)
+  case class Sample(channel: ConcurrentSubject[Long,Long] with Observable[Long], expectedSum: Long)
 
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {

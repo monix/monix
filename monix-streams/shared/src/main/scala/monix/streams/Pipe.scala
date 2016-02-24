@@ -20,7 +20,7 @@ package monix.streams
 import monix.execution.Scheduler
 import monix.streams.OverflowStrategy.{Evicted, Synchronous}
 import monix.streams.Pipe.{TransformedPipe, LiftedPipe}
-import monix.streams.broadcast._
+import monix.streams.subjects._
 import monix.streams.ObservableLike.{Transformer, Operator}
 import monix.streams.observers.{Subscriber, BufferedSubscriber, SyncObserver}
 import scala.language.reflectiveCalls
@@ -47,8 +47,8 @@ abstract class Pipe[I, +O]
     */
   def multicast(implicit s: Scheduler): (Observer[I], Observable[O]) = {
     val (in,out) = unicast
-    val proc = PublishProcessor[O]()
-    out.unsafeSubscribeFn(proc)
+    val proc = PublishSubject[O]()
+    out.unsafeSubscribeFn(Subscriber(proc, s))
     (in,proc)
   }
 
@@ -91,11 +91,11 @@ abstract class Pipe[I, +O]
 }
 
 object Pipe {
-  /** Processor recipe for building [[PublishProcessor]] instances. */
+  /** Subject recipe for building [[PublishSubject]] instances. */
   def publish[T](): Pipe[T,T] =
     new Pipe[T,T] {
       def unicast: (Observer[T], Observable[T]) = {
-        val p = PublishProcessor[T]()
+        val p = PublishSubject[T]()
         (p,p)
       }
 
@@ -103,11 +103,11 @@ object Pipe {
         unicast
     }
 
-  /** Processor recipe for building [[BehaviorProcessor]] instances. */
+  /** Subject recipe for building [[BehaviorSubject]] instances. */
   def behavior[T](initial: => T): Pipe[T,T] =
     new Pipe[T,T] {
       def unicast: (Observer[T], Observable[T]) = {
-        val p = BehaviorProcessor[T](initial)
+        val p = BehaviorSubject[T](initial)
         (p,p)
       }
 
@@ -115,11 +115,11 @@ object Pipe {
         unicast
     }
 
-  /** Processor recipe for building [[AsyncProcessor]] instances. */
+  /** Subject recipe for building [[AsyncSubject]] instances. */
   def async[T](): Pipe[T,T] =
     new Pipe[T,T] {
       def unicast: (Observer[T], Observable[T]) = {
-        val p = AsyncProcessor[T]()
+        val p = AsyncSubject[T]()
         (p,p)
       }
 
@@ -127,11 +127,11 @@ object Pipe {
         unicast
     }
 
-  /** Processor recipe for building unbounded [[ReplayProcessor]] instances. */
+  /** Subject recipe for building unbounded [[ReplaySubject]] instances. */
   def replay[T](): Pipe[T,T] =
     new Pipe[T,T] {
       def unicast: (Observer[T], Observable[T]) = {
-        val p = ReplayProcessor[T]()
+        val p = ReplaySubject[T]()
         (p,p)
       }
 
@@ -139,7 +139,7 @@ object Pipe {
         unicast
     }
 
-  /** Processor recipe for building unbounded [[ReplayProcessor]] instances.
+  /** Subject recipe for building unbounded [[ReplaySubject]] instances.
     *
     * @param initial is an initial sequence of elements that will be pushed
     *        to subscribers before any elements emitted by the source.
@@ -147,7 +147,7 @@ object Pipe {
   def replayPopulated[T](initial: => Seq[T]): Pipe[T,T] =
     new Pipe[T,T] {
       def unicast: (Observer[T], Observable[T]) = {
-        val p = ReplayProcessor[T](initial:_*)
+        val p = ReplaySubject[T](initial:_*)
         (p,p)
       }
 
@@ -155,7 +155,7 @@ object Pipe {
         unicast
     }
 
-  /** Processor recipe for building [[ReplayProcessor]] instances
+  /** Subject recipe for building [[ReplaySubject]] instances
     * with a maximum `capacity` (after which old items start being dropped).
     *
     * @param capacity indicates the minimum capacity of the underlying buffer,
@@ -164,7 +164,7 @@ object Pipe {
   def replaySized[T](capacity: Int): Pipe[T,T] =
     new Pipe[T,T] {
       def unicast: (Observer[T], Observable[T]) = {
-        val p = ReplayProcessor.createWithSize[T](capacity)
+        val p = ReplaySubject.createWithSize[T](capacity)
         (p,p)
       }
 

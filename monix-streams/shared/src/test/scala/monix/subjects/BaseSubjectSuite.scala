@@ -21,13 +21,13 @@ import minitest.TestSuite
 import monix.execution.Ack.{Cancel, Continue}
 import monix.execution.schedulers.TestScheduler
 import monix.streams.{Observable, Observer}
-import monix.streams.broadcast.Processor
+import monix.streams.subjects.Subject
 import monix.streams.exceptions.DummyException
 import scala.concurrent.Promise
 import scala.util.Random
 
 trait BaseSubjectSuite extends TestSuite[TestScheduler] {
-  case class Sample(subject: Processor[Long, Long], expectedSum: Long)
+  case class Sample(subject: Subject[Long, Long], expectedSum: Long)
 
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {

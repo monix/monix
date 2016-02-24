@@ -15,35 +15,36 @@
  * limitations under the License.
  */
 
-package monix.streams.broadcast
+package monix.streams.subjects
 
-import monix.execution.Scheduler
-import monix.streams.{Observable, OverflowStrategy}
-import OverflowStrategy.{Evicted, Synchronous}
-import monix.streams.observers.SyncObserver
+import monix.execution.{Ack, Cancelable, Scheduler}
+import monix.streams.OverflowStrategy
+import monix.streams.OverflowStrategy.{Evicted, Synchronous}
+import monix.streams.observers.{BufferedSubscriber, Subscriber, SyncObserver, SyncSubscriber}
+import org.reactivestreams.{Processor => RProcessor, Subscriber => RSubscriber, Subscription}
 import scala.language.reflectiveCalls
 
-/** A subject is meant for imperative style feeding of events.
+/** A concurrent subject is meant for imperative style feeding of events.
   *
   * When emitting events, one doesn't need to follow the back-pressure contract.
   * On the other hand the grammar must still be respected:
   *
   *     (onNext)* (onComplete | onError)
   */
-trait Subject[I,+O] extends Observable[O] with SyncObserver[I]
+abstract class ConcurrentSubject[I,+O] extends Subject[I,O] with SyncObserver[I]
 
-object Subject {
-  /** Wraps any [[Processor]] into a [[Subject]].
+object ConcurrentSubject {
+  /** Wraps any [[Subject]] into a [[ConcurrentSubject]].
     *
     * @param strategy - the [[OverflowStrategy overflow strategy]]
     *        used for buffering, which specifies what to do in case
     *        we're dealing with slow consumers.
     */
-  def fromProcessor[I,O](p: Processor[I,O], strategy: Synchronous)
-    (implicit s: Scheduler): Subject[I,O] =
-    ProcessorAsSubject(p, strategy)
+  def from[I,O](p: Subject[I,O], strategy: Synchronous)
+    (implicit s: Scheduler): ConcurrentSubject[I,O] =
+    new AsyncSubjectAsConcurrent(p, strategy, null, s)
 
-  /** Wraps any [[Processor]] into a [[Subject]].
+  /** Wraps any [[Subject]] into a [[ConcurrentSubject]].
     *
     * @param strategy the [[OverflowStrategy overflow strategy]]
     *        used for buffering, which specifies what to do in case
@@ -57,25 +58,25 @@ object Subject {
     *        happened, function that receives the number of dropped
     *        events as a parameter (see [[OverflowStrategy.Evicted]]).
     */
-  def fromProcessor[I,O](p: Processor[I,O], strategy: Evicted, onOverflow: Long => I)
-    (implicit s: Scheduler): Subject[I,O] =
-    ProcessorAsSubject(p, strategy, onOverflow)
+  def from[I,O](p: Subject[I,O], strategy: Evicted, onOverflow: Long => I)
+    (implicit s: Scheduler): ConcurrentSubject[I,O] =
+    new AsyncSubjectAsConcurrent(p, strategy, onOverflow, s)
 
-  /** Subject recipe for building [[PublishProcessor publish]] subjects.
+  /** Subject recipe for building [[PublishSubject publish]] subjects.
     *
     * @param strategy - the [[monix.streams.OverflowStrategy overflow strategy]]
     *        used for buffering, which specifies what to do in case
     *        we're dealing with slow consumers.
     */
-  def publish[T](strategy: Synchronous)(implicit s: Scheduler): Subject[T,T] =
-    fromProcessor(PublishProcessor[T](), strategy)
+  def publish[T](strategy: Synchronous)(implicit s: Scheduler): ConcurrentSubject[T,T] =
+    from(PublishSubject[T](), strategy)
 
-  /** Subject recipe for building [[PublishProcessor publish]] subjects. */
+  /** Subject recipe for building [[PublishSubject publish]] subjects. */
   def publish[T](strategy: Evicted, onOverflow: Long => T)
-    (implicit s: Scheduler): Subject[T,T] =
-    fromProcessor(PublishProcessor[T](), strategy, onOverflow)
+    (implicit s: Scheduler): ConcurrentSubject[T,T] =
+    from(PublishSubject[T](), strategy, onOverflow)
 
-  /** Subject recipe for building [[BehaviorProcessor behavior]] subjects.
+  /** Subject recipe for building [[BehaviorSubject behavior]] subjects.
     *
     * @param initial the initial element to emit on subscribe,
     *        before the first `onNext` happens
@@ -84,10 +85,10 @@ object Subject {
     *        we're dealing with slow consumers.
     */
   def behavior[T](initial: T, strategy: Synchronous)
-    (implicit s: Scheduler): Subject[T,T] =
-    fromProcessor(BehaviorProcessor[T](initial), strategy)
+    (implicit s: Scheduler): ConcurrentSubject[T,T] =
+    from(BehaviorSubject[T](initial), strategy)
 
-  /** Subject recipe for building [[BehaviorProcessor behavior]] subjects.
+  /** Subject recipe for building [[BehaviorSubject behavior]] subjects.
     *
     * @param initial the initial element to emit on subscribe,
     *        before the first `onNext` happens
@@ -104,20 +105,20 @@ object Subject {
     *        events as a parameter (see [[OverflowStrategy.Evicted]]).
     */
   def behavior[T](initial: T, strategy: Evicted, onOverflow: Long => T)
-    (implicit s: Scheduler): Subject[T,T] =
-    fromProcessor(BehaviorProcessor[T](initial), strategy, onOverflow)
+    (implicit s: Scheduler): ConcurrentSubject[T,T] =
+    from(BehaviorSubject[T](initial), strategy, onOverflow)
 
-  /** Subject recipe for building [[AsyncProcessor async]] subjects.
+  /** Subject recipe for building [[AsyncSubject async]] subjects.
     *
     * @param strategy the [[monix.streams.OverflowStrategy overflow strategy]]
     *        used for buffering, which specifies what to do in case
     *        we're dealing with slow consumers.
     */
   def async[T](strategy: Synchronous)
-    (implicit s: Scheduler): Subject[T,T] =
-    fromProcessor(AsyncProcessor[T](), strategy)
+    (implicit s: Scheduler): ConcurrentSubject[T,T] =
+    from(AsyncSubject[T](), strategy)
 
-  /** Subject recipe for building [[AsyncProcessor async]] subjects.
+  /** Subject recipe for building [[AsyncSubject async]] subjects.
     *
     * @param strategy the [[OverflowStrategy overflow strategy]]
     *        used for buffering, which specifies what to do in case
@@ -132,20 +133,20 @@ object Subject {
     *        events as a parameter (see [[OverflowStrategy.Evicted]]).
     */
   def async[T](strategy: Evicted, onOverflow: Long => T)
-    (implicit s: Scheduler): Subject[T,T] =
-    fromProcessor(AsyncProcessor[T](), strategy, onOverflow)
+    (implicit s: Scheduler): ConcurrentSubject[T,T] =
+    from(AsyncSubject[T](), strategy, onOverflow)
 
-  /** Subject recipe for building [[ReplayProcessor replay]] subjects.
+  /** Subject recipe for building [[ReplaySubject replay]] subjects.
     *
     * @param strategy the [[monix.streams.OverflowStrategy overflow strategy]]
     *                 used for buffering, which specifies what to do in case
     *        we're dealing with slow consumers.
     */
   def replay[T](strategy: Synchronous)
-    (implicit s: Scheduler): Subject[T,T] =
-    fromProcessor(ReplayProcessor[T](), strategy)
+    (implicit s: Scheduler): ConcurrentSubject[T,T] =
+    from(ReplaySubject[T](), strategy)
 
-  /** Subject recipe for building [[ReplayProcessor replay]] subjects.
+  /** Subject recipe for building [[ReplaySubject replay]] subjects.
     *
     * @param strategy the [[OverflowStrategy overflow strategy]]
     *        used for buffering, which specifies what to do in case
@@ -160,10 +161,10 @@ object Subject {
     *        events as a parameter (see [[OverflowStrategy.Evicted]]).
     */
   def replay[T](strategy: Evicted, onOverflow: Long => T)
-    (implicit s: Scheduler): Subject[T,T] =
-    fromProcessor(ReplayProcessor[T](), strategy, onOverflow)
+    (implicit s: Scheduler): ConcurrentSubject[T,T] =
+    from(ReplaySubject[T](), strategy, onOverflow)
 
-  /** Subject recipe for building [[ReplayProcessor replay]] subjects.
+  /** Subject recipe for building [[ReplaySubject replay]] subjects.
     *
     * @param initial is an initial sequence of elements that will be pushed
     *        to subscribers before any elements emitted by the source.
@@ -172,10 +173,10 @@ object Subject {
     *        we're dealing with slow consumers.
     */
   def replayPopulated[T](initial: Seq[T], strategy: Synchronous)
-    (implicit s: Scheduler): Subject[T,T] =
-    fromProcessor(ReplayProcessor[T](initial:_*), strategy)
+    (implicit s: Scheduler): ConcurrentSubject[T,T] =
+    from(ReplaySubject[T](initial:_*), strategy)
 
-  /** Subject recipe for building [[ReplayProcessor replay]] subjects.
+  /** Subject recipe for building [[ReplaySubject replay]] subjects.
     *
     * @param initial is an initial sequence of elements that will be pushed
     *        to subscribers before any elements emitted by the source.
@@ -192,10 +193,10 @@ object Subject {
     *        events as a parameter (see [[OverflowStrategy.Evicted]]).
     */
   def replayPopulated[T](initial: Seq[T], strategy: Evicted, onOverflow: Long => T)
-    (implicit s: Scheduler): Subject[T,T] =
-    fromProcessor(ReplayProcessor[T](initial:_*), strategy, onOverflow)
+    (implicit s: Scheduler): ConcurrentSubject[T,T] =
+    from(ReplaySubject[T](initial:_*), strategy, onOverflow)
 
-  /** Subject recipe for building [[ReplayProcessor replay]] subjects.
+  /** Subject recipe for building [[ReplaySubject replay]] subjects.
     * This variant creates a size-bounded replay subject.
     *
     * In this setting, the replay subject with a maximum capacity for
@@ -211,10 +212,10 @@ object Subject {
     *        we're dealing with slow consumers.
     */
   def replayLimited[T](capacity: Int, strategy: Synchronous)
-    (implicit s: Scheduler): Subject[T,T] =
-    fromProcessor(ReplayProcessor.createWithSize[T](capacity), strategy)
+    (implicit s: Scheduler): ConcurrentSubject[T,T] =
+    from(ReplaySubject.createWithSize[T](capacity), strategy)
 
-  /** Subject recipe for building [[ReplayProcessor replay]] subjects.
+  /** Subject recipe for building [[ReplaySubject replay]] subjects.
     * This variant creates a size-bounded replay subject.
     *
     * In this setting, the replay subject with a maximum capacity for
@@ -238,6 +239,67 @@ object Subject {
     *        events as a parameter (see [[OverflowStrategy.Evicted]]).
     */
   def replayLimited[T](capacity: Int, strategy: Evicted, onOverflow: Long => T)
-    (implicit s: Scheduler): Subject[T,T] =
-    fromProcessor(ReplayProcessor.createWithSize[T](capacity), strategy, onOverflow)
+    (implicit s: Scheduler): ConcurrentSubject[T,T] =
+    from(ReplaySubject.createWithSize[T](capacity), strategy, onOverflow)
+
+  /** Transforms the source [[ConcurrentSubject]] into a `org.reactivestreams.Processor`
+    * instance as defined by the [[http://www.reactive-streams.org/ Reactive Streams]]
+    * specification.
+    *
+    * @param bufferSize a strictly positive number, representing the size
+    *                   of the buffer used and the number of elements requested
+    *                   on each cycle when communicating demand, compliant with
+    *                   the reactive streams specification
+    */
+  def toReactiveProcessor[I,O](source: ConcurrentSubject[I,O], bufferSize: Int)
+    (implicit s: Scheduler): RProcessor[I,O] = {
+
+    new RProcessor[I,O] {
+      private[this] val subscriber: RSubscriber[I] =
+        Subscriber(source, s).toReactive(bufferSize)
+
+      def subscribe(subscriber: RSubscriber[_ >: O]): Unit = {
+        source.unsafeSubscribeFn(Subscriber.fromReactiveSubscriber(subscriber))
+      }
+
+      def onSubscribe(s: Subscription): Unit = {
+        subscriber.onSubscribe(s)
+      }
+
+      def onNext(t: I): Unit = {
+        subscriber.onNext(t)
+      }
+
+      def onError(t: Throwable): Unit = {
+        subscriber.onError(t)
+      }
+
+      def onComplete(): Unit = {
+        subscriber.onComplete()
+      }
+    }
+  }
+
+  /** For converting normal subjects into concurrent ones */
+  private final class AsyncSubjectAsConcurrent[I,+O] (
+    subject: Subject[I, O],
+    overflowStrategy: OverflowStrategy.Synchronous,
+    onOverflow: Long => I,
+    scheduler: Scheduler)
+    extends ConcurrentSubject[I,O] {
+
+    assert(onOverflow == null || overflowStrategy.isEvicted,
+      "onOverflow is only supported for `OverflowStrategy.Evicted`")
+
+    private[this] val in: SyncSubscriber[I] =
+      BufferedSubscriber.synchronous(Subscriber(subject, scheduler),
+        overflowStrategy, onOverflow)
+
+    def unsafeSubscribeFn(subscriber: Subscriber[O]): Cancelable =
+      subject.unsafeSubscribeFn(subscriber)
+
+    def onNext(elem: I): Ack = in.onNext(elem)
+    def onError(ex: Throwable): Unit = in.onError(ex)
+    def onComplete(): Unit = in.onComplete()
+  }
 }

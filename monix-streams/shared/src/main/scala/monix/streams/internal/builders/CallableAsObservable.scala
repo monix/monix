@@ -18,6 +18,7 @@
 package monix.streams.internal.builders
 
 import java.util.concurrent.Callable
+import monix.execution.Cancelable
 import monix.streams.Observable
 import monix.streams.observers.Subscriber
 import scala.util.control.NonFatal
@@ -28,7 +29,7 @@ import scala.util.control.NonFatal
 private[streams] final class CallableAsObservable[A](cb: Callable[A])
   extends Observable[A] {
 
-  def unsafeSubscribeFn(subscriber: Subscriber[A]): Unit = {
+  def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     try {
       subscriber.onNext(cb.call())
       // No need to do back-pressure
@@ -42,5 +43,7 @@ private[streams] final class CallableAsObservable[A](cb: Callable[A])
             s.reportFailure(err)
         }
     }
+
+    Cancelable.empty
   }
 }

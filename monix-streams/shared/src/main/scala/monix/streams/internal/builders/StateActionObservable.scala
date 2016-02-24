@@ -17,7 +17,8 @@
 
 package monix.streams.internal.builders
 
-import monix.execution.Ack
+import monix.execution.cancelables.BooleanCancelable
+import monix.execution.{Cancelable, Ack}
 import monix.execution.Ack.{Cancel, Continue}
 import monix.streams.Observable
 import monix.streams.observers.Subscriber
@@ -29,12 +30,14 @@ import scala.util.{Failure, Try}
 private[streams] final
 class StateActionObservable[S,A](seed: S, f: S => (A,S)) extends Observable[A] {
 
-  def unsafeSubscribeFn(subscriber: Subscriber[A]): Unit = {
-    new StateRunLoop(subscriber, seed, f).run()
+  def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
+    val cancelable = BooleanCancelable()
+    new StateRunLoop(subscriber, cancelable, seed, f).run()
+    cancelable
   }
 
   private[this]
-  final class StateRunLoop(o: Subscriber[A], initialSeed: S, f: S => (A,S))
+  final class StateRunLoop(o: Subscriber[A], c: BooleanCancelable, initialSeed: S, f: S => (A,S))
     extends Runnable { self =>
 
     import o.{scheduler => s}
@@ -69,7 +72,7 @@ class StateActionObservable[S,A](seed: S, f: S => (A,S)) extends Observable[A] {
 
       if (nextIndex > 0)
         fastLoop(nextIndex)
-      else if (nextIndex == 0)
+      else if (nextIndex == 0 && !c.isCanceled)
         ack.onComplete(asyncReschedule)
     }
 

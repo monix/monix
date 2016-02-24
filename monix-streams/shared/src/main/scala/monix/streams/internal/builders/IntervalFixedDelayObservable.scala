@@ -17,7 +17,8 @@
 
 package monix.streams.internal.builders
 
-import monix.execution.Ack
+import monix.execution.cancelables.MultiAssignmentCancelable
+import monix.execution.{Cancelable, Ack}
 import monix.execution.Ack.{Cancel, Continue}
 import monix.streams.Observable
 import monix.streams.observers.Subscriber
@@ -29,16 +30,18 @@ private[streams] final class IntervalFixedDelayObservable
   (initialDelay: FiniteDuration, delay: FiniteDuration)
   extends Observable[Long] {
 
-  def unsafeSubscribeFn(subscriber: Subscriber[Long]): Unit = {
+  def unsafeSubscribeFn(subscriber: Subscriber[Long]): Cancelable = {
     import subscriber.{scheduler => s}
+
     val o = subscriber
+    val task = MultiAssignmentCancelable()
 
     val runnable = new Runnable { self =>
       private[this] var counter = 0L
 
-      def scheduleNext() = {
+      def scheduleNext(): Cancelable = {
         counter += 1
-        s.scheduleOnce(delay.length, delay.unit, self)
+        task := s.scheduleOnce(delay.length, delay.unit, self)
       }
 
       def asyncScheduleNext(r: Future[Ack]): Unit =
@@ -62,6 +65,8 @@ private[streams] final class IntervalFixedDelayObservable
     if (initialDelay.length <= 0)
       runnable.run()
     else
-      s.scheduleOnce(initialDelay.length, initialDelay.unit, runnable)
+      task := s.scheduleOnce(initialDelay.length, initialDelay.unit, runnable)
+
+    task
   }
 }

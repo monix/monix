@@ -17,14 +17,31 @@
 
 package monix.streams.internal.builders
 
+import monix.execution.Cancelable
 import monix.streams.Observable
+import monix.streams.internal.reactivestreams.SingleAssignmentSubscription
 import monix.streams.observers.Subscriber
-import org.reactivestreams.{Publisher => RPublisher}
+import org.reactivestreams
+import org.reactivestreams.{Publisher => RPublisher, Subscription}
 
 private[streams] final class ReactiveObservable[A](publisher: RPublisher[A])
   extends Observable[A] {
 
-  def unsafeSubscribeFn(subscriber: Subscriber[A]): Unit = {
-    publisher.subscribe(subscriber.toReactive)
+  def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
+    val sub = subscriber.toReactive
+    val subscription = SingleAssignmentSubscription()
+
+    publisher.subscribe(new reactivestreams.Subscriber[A] {
+      def onNext(t: A): Unit = sub.onNext(t)
+      def onComplete(): Unit = sub.onComplete()
+      def onError(t: Throwable): Unit = sub.onError(t)
+
+      def onSubscribe(s: Subscription): Unit = {
+        subscription := s
+        sub.onSubscribe(s)
+      }
+    })
+
+    subscription
   }
 }

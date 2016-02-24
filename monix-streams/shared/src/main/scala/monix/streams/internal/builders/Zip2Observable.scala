@@ -17,7 +17,8 @@
 
 package monix.streams.internal.builders
 
-import monix.execution.Ack
+import monix.execution.cancelables.CompositeCancelable
+import monix.execution.{Cancelable, Ack}
 import monix.execution.Ack.{Cancel, Continue}
 import monix.streams.Observable
 import monix.streams.observers.Subscriber
@@ -32,7 +33,7 @@ class Zip2Observable[A1,A2,+R]
   extends Observable[R] { self =>
 
 
-  def unsafeSubscribeFn(out: Subscriber[R]): Unit = {
+  def unsafeSubscribeFn(out: Subscriber[R]): Cancelable = {
     import out.scheduler
 
     // MUST BE synchronized by `self`
@@ -127,7 +128,9 @@ class Zip2Observable[A1,A2,+R]
       }
     }
 
-    obsA1.unsafeSubscribeFn(new Subscriber[A1] {
+    val composite = CompositeCancelable()
+
+    composite += obsA1.unsafeSubscribeFn(new Subscriber[A1] {
       implicit val scheduler = out.scheduler
 
       def onNext(elem: A1): Future[Ack] = self.synchronized {
@@ -148,7 +151,7 @@ class Zip2Observable[A1,A2,+R]
         signalOnComplete(hasElemA1)
     })
 
-    obsA2.unsafeSubscribeFn(new Subscriber[A2] {
+    composite += obsA2.unsafeSubscribeFn(new Subscriber[A2] {
       implicit val scheduler = out.scheduler
 
       def onNext(elem: A2): Future[Ack] = self.synchronized {
@@ -168,5 +171,7 @@ class Zip2Observable[A1,A2,+R]
       def onComplete(): Unit =
         signalOnComplete(hasElemA2)
     })
+
+    composite
   }
 }

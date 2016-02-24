@@ -215,7 +215,7 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
     * $concatMergeDifference
     */
   def concatMap[B](f: A => Observable[B]): Self[B] =
-    self.lift(new ConcatMapOperator[A,B](f, delayErrors = false))
+    self.transform(ConcatMapObservable[A,B](f, delayErrors = false))
 
   /** Applies a function that you supply to each item emitted by the
     * source observable, where that function returns sequences that
@@ -252,7 +252,7 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
     * @return $concatReturn
     */
   def concatMapDelayError[B](f: A => Observable[B]): Self[B] =
-    self.lift(new ConcatMapOperator[A,B](f, delayErrors = true))
+    self.transform(ConcatMapObservable[A,B](f, delayErrors = true))
 
   /** Applies a function that you supply to each item emitted by the
     * source observable, where that function returns sequences that
@@ -289,7 +289,7 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
     *     the source observable
     */
   def debounce(timeout: FiniteDuration): Self[A] =
-    self.lift(new DebounceOperator[A](timeout, repeat = false))
+    self.transform(DebounceObservable(timeout, repeat = false))
 
   /** Doesn't emit anything until a `timeout` period passes without the
     * source emitting anything. When that timeout happens, we
@@ -334,7 +334,7 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
     *      that also mirrors the source observable
     */
   def debounceRepeated(period: FiniteDuration): Self[A] =
-    self.lift(new DebounceOperator[A](period, repeat = true))
+    self.transform(DebounceObservable(period, repeat = true))
 
   /** Delays emitting the final `onComplete` event by the specified amount. */
   def delayOnComplete(delay: FiniteDuration): Self[A] =
@@ -392,7 +392,7 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
     *        source begin to be mirrored by the resulting observable
     */
   def dropUntil[F[_] : CanObserve](trigger: F[_]): Self[A] =
-    self.lift(new DropUntilOperator(trigger))
+    self.transform(self => new DropUntilObservable(self, trigger))
 
   /** Drops the longest prefix of elements that satisfy the given
     * predicate and returns a new observable that emits the rest.
@@ -531,7 +531,7 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
     *        throws an error.
     */
   def onErrorRecoverWith[B >: A](pf: PartialFunction[Throwable, Observable[B]]): Self[B] =
-    self.lift(new OnErrorRecoverWithOperator(pf))
+    self.transform(self => new OnErrorRecoverWithObservable(self, pf))
 
   /** Given a [[monix.streams.Pipe Pipe]], transform
     * the source observable with it.

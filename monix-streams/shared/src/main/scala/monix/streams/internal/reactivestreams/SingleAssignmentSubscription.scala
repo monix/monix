@@ -17,6 +17,7 @@
 
 package monix.streams.internal.reactivestreams
 
+import monix.execution.Cancelable
 import org.sincron.atomic.Atomic
 import org.reactivestreams.Subscription
 import scala.annotation.tailrec
@@ -32,7 +33,7 @@ import scala.annotation.tailrec
   * Useful in case you need a thread-safe forward reference.
   */
 private[monix] final class SingleAssignmentSubscription private ()
-  extends Subscription {
+  extends Subscription with Cancelable {
 
   import SingleAssignmentSubscription.State
   import SingleAssignmentSubscription.State._

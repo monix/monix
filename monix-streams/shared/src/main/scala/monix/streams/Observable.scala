@@ -18,11 +18,12 @@
 package monix.streams
 
 import java.io.PrintStream
+import java.util.concurrent.CancellationException
 import monix.streams.OverflowStrategy.{default => defaultStrategy}
-import monix.streams.broadcast._
+import monix.streams.subjects._
 import monix.execution.Ack.{Cancel, Continue}
 import monix.execution.cancelables.BooleanCancelable
-import monix.execution.{Ack, Cancelable, Scheduler}
+import monix.execution.{CancelableFuture, Ack, Cancelable, Scheduler}
 import monix.streams.internal.concurrent.UnsafeSubscribeRunnable
 import monix.streams.internal.{builders, operators => ops}
 import monix.streams.ObservableLike.{Transformer, Operator}
@@ -156,43 +157,25 @@ abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
     *
     * @see [[Observable.subscribe(observer* subscribe]].
     */
-  def unsafeSubscribeFn(subscriber: Subscriber[A]): Unit
+  def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable
+
+  def unsafeSubscribeFn(observer: Observer[A])(implicit s: Scheduler): Cancelable =
+    unsafeSubscribeFn(Subscriber(observer,s))
 
   /** Subscribes to the stream.
     *
-    * This function is "unsafe" to call because it does not protect
-    * the calls to the given [[Observer]] implementation in regards to
-    * unexpected exceptions that violate the contract, therefore the
-    * given instance must respect its contract and not throw any
-    * exceptions when the observable calls `onNext`, `onComplete` and
-    * `onError`. If it does, then the behavior is undefined.
-    *
-    * @param observer is an [[monix.streams.Observer Observer]] that
-    *        respects the Monix Rx contract
-    * @param s is the [[monix.execution.Scheduler Scheduler]]
-    *        used for creating the subscription
+    * @return a subscription that can be used to cancel the streaming.
     */
-  def unsafeSubscribeFn(observer: Observer[A])(implicit s: Scheduler): Unit = {
-    unsafeSubscribeFn(Subscriber(observer, s))
+  def subscribe(subscriber: Subscriber[A]): Cancelable = {
+    unsafeSubscribeFn(SafeSubscriber[A](subscriber))
   }
 
   /** Subscribes to the stream.
     *
     * @return a subscription that can be used to cancel the streaming.
     */
-  def subscribe(subscriber: Subscriber[A]): BooleanCancelable = {
-    val cancelable = BooleanCancelable()
-    takeWhileNotCanceled(cancelable).unsafeSubscribeFn(SafeSubscriber[A](subscriber))
-    cancelable
-  }
-
-  /** Subscribes to the stream.
-    *
-    * @return a subscription that can be used to cancel the streaming.
-    */
-  def subscribe(observer: Observer[A])(implicit s: Scheduler): BooleanCancelable = {
+  def subscribe(observer: Observer[A])(implicit s: Scheduler): BooleanCancelable =
     subscribe(Subscriber(observer, s))
-  }
 
   /** Subscribes to the stream.
     *
@@ -232,7 +215,7 @@ abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
   /** Transforms the source using the given operator. */
   override def lift[B](operator: Operator[A, B]): Observable[B] =
     new Observable[B] {
-      def unsafeSubscribeFn(subscriber: Subscriber[B]): Unit = {
+      def unsafeSubscribeFn(subscriber: Subscriber[B]): Cancelable = {
         val sb = operator(subscriber)
         self.unsafeSubscribeFn(sb)
       }
@@ -1090,13 +1073,13 @@ abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
     * turning a cold observable into a hot one (i.e. whose source is
     * shared by all observers).
     *
-    * This operator is unsafe because `Processor` objects are stateful
+    * This operator is unsafe because `Subject` objects are stateful
     * and have to obey the `Observer` contract, meaning that they
     * shouldn't be subscribed multiple times, so they are error
     * prone. Only use if you know what you're doing, otherwise prefer
     * the safe [[Observable!.multicast multicast]] operator.
     */
-  def unsafeMulticast[B >: A, R](processor: Processor[B, R])(implicit s: Scheduler): ConnectableObservable[R] =
+  def unsafeMulticast[B >: A, R](processor: Subject[B, R])(implicit s: Scheduler): ConnectableObservable[R] =
     ConnectableObservable.unsafeMulticast(this, processor)
 
   /** Converts this observable into a multicast observable, useful for
@@ -1161,10 +1144,10 @@ abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
   /** Converts this observable into a multicast observable, useful for
     * turning a cold observable into a hot one (i.e. whose source is
     * shared by all observers). The underlying subject used is a
-    * [[PublishProcessor PublishProcessor]].
+    * [[PublishSubject PublishSubject]].
     */
   def publish(implicit s: Scheduler): ConnectableObservable[A] =
-    unsafeMulticast(PublishProcessor[A]())
+    unsafeMulticast(PublishSubject[A]())
 
   /** Returns a new Observable that multi-casts (shares) the original
     * Observable.
@@ -1215,7 +1198,7 @@ abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
     *
     * @param maxCapacity is the maximum buffer size after which old events
     *        start being dropped (according to what happens when using
-    *        [[ReplayProcessor.createWithSize ReplayProcessor.createWithSize]])
+    *        [[ReplaySubject.createWithSize ReplaySubject.createWithSize]])
     *
     * @return an Observable that, when first subscribed to, caches all of its
     *         items and notifications for the benefit of subsequent subscribers
@@ -1226,38 +1209,38 @@ abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
   /** Converts this observable into a multicast observable, useful for
     * turning a cold observable into a hot one (i.e. whose source is
     * shared by all observers). The underlying subject used is a
-    * [[BehaviorProcessor BehaviorProcessor]].
+    * [[BehaviorSubject BehaviorSubject]].
     */
   def behavior[B >: A](initialValue: B)(implicit s: Scheduler): ConnectableObservable[B] =
-    unsafeMulticast(BehaviorProcessor[B](initialValue))
+    unsafeMulticast(BehaviorSubject[B](initialValue))
 
   /** Converts this observable into a multicast observable, useful for
     * turning a cold observable into a hot one (i.e. whose source is
     * shared by all observers). The underlying subject used is a
-    * [[monix.streams.broadcast.ReplayProcessor ReplayProcessor]].
+    * [[monix.streams.subjects.ReplaySubject ReplaySubject]].
     */
   def replay(implicit s: Scheduler): ConnectableObservable[A] =
-    unsafeMulticast(ReplayProcessor[A]())
+    unsafeMulticast(ReplaySubject[A]())
 
   /** Converts this observable into a multicast observable, useful for
     * turning a cold observable into a hot one (i.e. whose source is
     * shared by all observers). The underlying subject used is a
-    * [[monix.streams.broadcast.ReplayProcessor ReplayProcessor]].
+    * [[monix.streams.subjects.ReplaySubject ReplaySubject]].
     *
     * @param bufferSize is the size of the buffer limiting the number
     *        of items that can be replayed (on overflow the head
     *        starts being dropped)
     */
   def replay(bufferSize: Int)(implicit s: Scheduler): ConnectableObservable[A] =
-    unsafeMulticast(ReplayProcessor.createWithSize[A](bufferSize))
+    unsafeMulticast(ReplaySubject.createWithSize[A](bufferSize))
 
   /** Converts this observable into a multicast observable, useful for
     * turning a cold observable into a hot one (i.e. whose source is
     * shared by all observers). The underlying subject used is a
-    * [[AsyncProcessor AsyncProcessor]].
+    * [[AsyncSubject AsyncSubject]].
     */
   def publishLast(implicit s: Scheduler): ConnectableObservable[A] =
-    unsafeMulticast(AsyncProcessor[A]())
+    unsafeMulticast(AsyncSubject[A]())
 
   /** Returns an Observable that mirrors the behavior of the source,
     * unless the source is terminated with an `onError`, in which case
@@ -1342,10 +1325,11 @@ abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
   /** Returns the first generated result as a Future and then cancels
     * the subscription.
     */
-  def asFuture(implicit s: Scheduler): Future[Option[A]] = {
+  def asFuture(implicit s: Scheduler): CancelableFuture[Option[A]] = {
     val promise = Promise[Option[A]]()
+    val cancelable = head.unsafeSubscribeFn(new Subscriber[A] {
+      implicit val scheduler = s
 
-    head.unsafeSubscribeFn(new Observer[A] {
       def onNext(elem: A) = {
         promise.trySuccess(Some(elem))
         Cancel
@@ -1360,28 +1344,34 @@ abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
       }
     })
 
-    promise.future
+    val withTrigger = Cancelable {
+      try cancelable.cancel() finally
+        promise.tryFailure(new CancellationException("CancelableFuture.cancel"))
+    }
+
+    CancelableFuture(promise.future, withTrigger)
   }
 
   /** Subscribes to the source `Observable` and foreach element emitted
     * by the source it executes the given callback.
     */
-  def foreach(cb: A => Unit)(implicit s: Scheduler): Unit =
-    unsafeSubscribeFn(new SyncObserver[A] {
-      def onNext(elem: A) =
+  def foreach(cb: A => Unit)(implicit s: Scheduler): Cancelable =
+    unsafeSubscribeFn(new SyncSubscriber[A] {
+      implicit val scheduler = s
+
+      def onNext(elem: A): Ack =
         try {
-          cb(elem); Continue
+          cb(elem)
+          Continue
         } catch {
           case NonFatal(ex) =>
             onError(ex)
             Cancel
         }
 
-      def onComplete() = ()
-
-      def onError(ex: Throwable) = {
+      def onComplete(): Unit = ()
+      def onError(ex: Throwable): Unit =
         s.reportFailure(ex)
-      }
     })
 }
 
@@ -1391,10 +1381,11 @@ object Observable {
     */
   def unsafeCreate[A](f: Subscriber[A] => Unit): Observable[A] = {
     new Observable[A] {
-      def unsafeSubscribeFn(subscriber: Subscriber[A]): Unit =
-        try f(subscriber) catch {
+      def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable =
+        try { f(subscriber); Cancelable.empty } catch {
           case NonFatal(ex) =>
-            subscriber.onError(ex)
+            subscriber.scheduler.reportFailure(ex)
+            Cancelable.empty
         }
     }
   }

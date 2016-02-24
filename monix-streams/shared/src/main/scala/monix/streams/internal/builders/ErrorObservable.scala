@@ -17,6 +17,7 @@
 
 package monix.streams.internal.builders
 
+import monix.execution.Cancelable
 import monix.streams.Observable
 import monix.streams.observers.Subscriber
 
@@ -24,6 +25,8 @@ import monix.streams.observers.Subscriber
 private[streams] final class ErrorObservable(ex: Throwable)
   extends Observable[Nothing] {
 
-  def unsafeSubscribeFn(subscriber: Subscriber[Nothing]): Unit =
+  def unsafeSubscribeFn(subscriber: Subscriber[Nothing]): Cancelable = {
     subscriber.onError(ex)
+    Cancelable.empty
+  }
 }

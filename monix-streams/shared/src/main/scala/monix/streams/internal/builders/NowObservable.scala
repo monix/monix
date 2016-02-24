@@ -17,6 +17,7 @@
 
 package monix.streams.internal.builders
 
+import monix.execution.Cancelable
 import monix.streams.Observable
 import monix.streams.observers.Subscriber
 
@@ -24,9 +25,10 @@ import monix.streams.observers.Subscriber
 private[streams] final class NowObservable[+A](elem: A)
   extends Observable[A] {
 
-  def unsafeSubscribeFn(subscriber: Subscriber[A]): Unit = {
+  def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     // No need to back-pressure for onComplete
     subscriber.onNext(elem)
     subscriber.onComplete()
+    Cancelable.empty
   }
 }

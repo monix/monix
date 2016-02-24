@@ -19,7 +19,7 @@ package monix.streams.internal.operators
 
 import monix.execution.{Ack, Scheduler}
 import monix.streams.{Observable, Observer}
-import monix.streams.broadcast.{Processor, ReplayProcessor}
+import monix.streams.subjects.{Subject, ReplaySubject}
 import scala.concurrent.Future
 
 private[monix] object repeat {
@@ -29,7 +29,7 @@ private[monix] object repeat {
   def elements[T](source: Observable[T]): Observable[T] = {
     // recursive function - subscribes the observer again when
     // onComplete happens
-    def loop(subject: Processor[T, T], observer: Observer[T])(implicit s: Scheduler): Unit =
+    def loop(subject: Subject[T, T], observer: Observer[T])(implicit s: Scheduler): Unit =
       subject.unsafeSubscribeFn(new Observer[T] {
         def onNext(elem: T) = {
           observer.onNext(elem)
@@ -44,7 +44,7 @@ private[monix] object repeat {
 
     Observable.unsafeCreate { subscriber =>
       import subscriber.{scheduler => s}
-      val subject = ReplayProcessor[T]()
+      val subject = ReplaySubject[T]()
       loop(subject, subscriber)
 
       source.unsafeSubscribeFn(new Observer[T] {

@@ -18,33 +18,54 @@
 package monix.streams.internal.builders
 
 import monix.execution.Ack.Cancel
-import monix.execution.{Ack, Scheduler}
+import monix.execution.cancelables.{CompositeCancelable, MultiAssignmentCancelable}
+import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.streams.observers.Subscriber
-import monix.streams.{Observer, Observable}
+import monix.streams.{Observable, Observer}
 import org.sincron.atomic.{Atomic, AtomicInt}
-
-import scala.concurrent.Future
+import scala.concurrent.{Future, Promise}
 
 private[streams] final class FirstStartedObservable[T](source: Observable[T]*)
   extends Observable[T] {
 
-  override def unsafeSubscribeFn(subscriber: Subscriber[T]): Unit = {
+  override def unsafeSubscribeFn(subscriber: Subscriber[T]): Cancelable = {
     import subscriber.scheduler
     val finishLine = Atomic(0)
     var idx = 0
 
+    val cancelables = new Array[Cancelable](source.length)
+    val p = Promise[Int]()
+
     for (observable <- source) {
-      createSubscription(observable, subscriber, finishLine, idx + 1)
+      cancelables(idx) = createSubscription(observable, subscriber, finishLine, idx + 1, p)
       idx += 1
     }
 
     // if the list of observables was empty, just
     // emit `onComplete`
-    if (idx == 0) subscriber.onComplete()
+    if (idx == 0) {
+      subscriber.onComplete()
+      Cancelable.empty
+    } else {
+      val composite = CompositeCancelable(cancelables:_*)
+      val cancelable = MultiAssignmentCancelable(composite)
+
+      for (idx <- p.future) {
+        val c = cancelables(idx)
+        composite -= c
+        cancelable := c
+        composite.cancel()
+      }
+
+      cancelable
+    }
   }
 
   // Helper function used for creating a subscription that uses `finishLine` as guard
-  def createSubscription(observable: Observable[T], observer: Observer[T], finishLine: AtomicInt, idx: Int)(implicit s: Scheduler): Unit =
+  def createSubscription(observable: Observable[T], observer: Observer[T],
+    finishLine: AtomicInt, idx: Int, p: Promise[Int])
+    (implicit s: Scheduler): Cancelable = {
+
     observable.unsafeSubscribeFn(new Observer[T] {
       // for fast path
       private[this] var finishLineCache = 0
@@ -56,6 +77,7 @@ private[streams] final class FirstStartedObservable[T](source: Observable[T]*)
         else if (!finishLine.compareAndSet(0, idx))
           false
         else {
+          p.success(idx)
           finishLineCache = idx
           true
         }
@@ -68,12 +90,10 @@ private[streams] final class FirstStartedObservable[T](source: Observable[T]*)
           Cancel
       }
 
-      def onError(ex: Throwable): Unit = {
+      def onError(ex: Throwable): Unit =
         if (shouldStream()) observer.onError(ex)
-      }
-
-      def onComplete(): Unit = {
+      def onComplete(): Unit =
         if (shouldStream()) observer.onComplete()
-      }
     })
+  }
 }

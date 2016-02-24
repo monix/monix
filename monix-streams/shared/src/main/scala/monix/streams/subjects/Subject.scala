@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package monix.streams.broadcast
+package monix.streams.subjects
 
 import monix.execution.Scheduler
 import monix.streams.observers.Subscriber
@@ -23,24 +23,26 @@ import monix.streams.{Observable, Observer}
 import org.reactivestreams.{Processor => RProcessor, Subscriber => RSubscriber, Subscription}
 import scala.language.reflectiveCalls
 
-/** A `Processor` is a sort of bridge or proxy that acts both as an
-  * [[Observer]] and as an [[Observable]] and that must respect the contract of both.
+/** A `Subject` is a sort of bridge or proxy that acts both as an
+  * [[Observer]] and as an [[Observable]] and that must respect
+  * the contract of both.
   *
-  * Because it is a `Observer`, it can subscribe to an `Observable` and because it is an `Observable`,
-  * it can pass through the items it observes by re-emitting them and it can also emit new items.
+  * Because it is a `Observer`, it can subscribe to an `Observable`
+  * and because it is an `Observable`, it can pass through the items
+  * it observes by re-emitting them and it can also emit new items.
   *
   * Useful to build multicast Observables or reusable processing pipelines.
   */
-trait Processor[I, +O] extends Observable[O] with Observer[I] {
+abstract class Subject[I, +O] extends Observable[O] with Observer[I] { self =>
   override def toReactive[U >: O](implicit s: Scheduler): RProcessor[I, U] =
-    Processor.toReactiveProcessor(this, s.batchedExecutionModulus)
+    Subject.toReactiveProcessor(this, s.batchedExecutionModulus)
 
   def toReactive[U >: O](bufferSize: Int)(implicit s: Scheduler): RProcessor[I, U] =
-    Processor.toReactiveProcessor(this, bufferSize)
+    Subject.toReactiveProcessor(this, bufferSize)
 }
 
-object Processor {
-  /** Transforms the source [[Processor]] into a `org.reactivestreams.RProcesor`
+object Subject {
+  /** Transforms the source [[Subject]] into a `org.reactivestreams.Procesor`
     * instance as defined by the [[http://www.reactive-streams.org/ Reactive Streams]]
     * specification.
     *
@@ -49,14 +51,13 @@ object Processor {
     *                   on each cycle when communicating demand, compliant with
     *                   the reactive streams specification
     */
-  def toReactiveProcessor[I,O](source: Processor[I,O], bufferSize: Int)(implicit s: Scheduler): RProcessor[I,O] = {
+  def toReactiveProcessor[I,O](source: Subject[I,O], bufferSize: Int)(implicit s: Scheduler): RProcessor[I,O] = {
     new RProcessor[I,O] {
-      private[this] val subscriber =
+      private[this] val subscriber: RSubscriber[I] =
         Subscriber(source, s).toReactive(bufferSize)
 
-      def subscribe(subscriber: RSubscriber[_ >: O]): Unit = {
+      def subscribe(subscriber: RSubscriber[_ >: O]): Unit =
         source.unsafeSubscribeFn(Subscriber.fromReactiveSubscriber(subscriber))
-      }
 
       def onSubscribe(s: Subscription): Unit = {
         subscriber.onSubscribe(s)

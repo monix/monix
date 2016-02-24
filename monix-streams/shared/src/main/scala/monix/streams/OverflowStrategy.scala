@@ -17,7 +17,7 @@
 
 package monix.streams
 
-import monix.streams.broadcast.Subject
+import monix.streams.subjects.ConcurrentSubject
 
 /** Represents the buffering overflowStrategy chosen for actions that need buffering,
   * instructing the pipeline what to do when the buffer is full.
@@ -30,7 +30,7 @@ import monix.streams.broadcast.Subject
   *
   * Used in [[monix.observers.BufferedSubscriber BufferedSubscriber]]
   * to implement buffering when concurrent actions are needed, such as in
-  * [[Subject Channels]] or in [[Observable.merge Observable.merge]].
+  * [[ConcurrentSubject Channels]] or in [[Observable.merge Observable.merge]].
   */
 sealed abstract class OverflowStrategy {
   val isEvicted: Boolean = false
@@ -114,9 +114,9 @@ object OverflowStrategy {
     * synchronously, without worrying about back-pressure concerns.
     *
     * Needed such that buffer policies can safely be used
-    * in combination with [[Subject]] for publishing. For now,
+    * in combination with [[ConcurrentSubject]] for publishing. For now,
     * that's all policies except [[BackPressure]], a overflowStrategy
-    * that can't work for [[Subject]].
+    * that can't work for [[ConcurrentSubject]].
     */
   sealed abstract class Synchronous extends OverflowStrategy {
     override val isSynchronous = true

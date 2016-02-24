@@ -17,6 +17,7 @@
 
 package monix.streams.internal.builders
 
+import monix.execution.Cancelable
 import monix.streams.Observable
 import monix.streams.observers.Subscriber
 
@@ -29,6 +30,6 @@ private[streams] final class RepeatObservable[T](elems: T*) extends Observable[T
     else
       Observable.from(elems).repeat
 
-  def unsafeSubscribeFn(subscriber: Subscriber[T]): Unit =
+  def unsafeSubscribeFn(subscriber: Subscriber[T]): Cancelable =
     source.unsafeSubscribeFn(subscriber)
 }

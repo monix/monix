@@ -17,11 +17,11 @@
 
 package monix.streams.internal.builders
 
-import monix.execution.Ack
+import monix.execution.{Cancelable, Ack}
 import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.cancelables.CompositeCancelable
 import monix.streams.Observable
 import monix.streams.observers.Subscriber
-
 import scala.concurrent.Future
 import scala.util.Success
 import scala.util.control.NonFatal
@@ -33,7 +33,7 @@ class CombineLatest6Observable[A1,A2,A3,A4,A5,A6,+R]
   (f: (A1,A2,A3,A4,A5,A6) => R)
   extends Observable[R] { self =>
 
-  def unsafeSubscribeFn(out: Subscriber[R]): Unit = {
+  def unsafeSubscribeFn(out: Subscriber[R]): Cancelable = {
     import out.scheduler
 
     var isDone = false
@@ -134,7 +134,9 @@ class CombineLatest6Observable[A1,A2,A3,A4,A5,A6,+R]
       }
     }
 
-    obsA1.unsafeSubscribeFn(new Subscriber[A1] {
+    val composite = CompositeCancelable()
+
+    composite += obsA1.unsafeSubscribeFn(new Subscriber[A1] {
       implicit val scheduler = out.scheduler
 
       def onNext(elem: A1): Future[Ack] = self.synchronized {
@@ -155,7 +157,7 @@ class CombineLatest6Observable[A1,A2,A3,A4,A5,A6,+R]
         signalOnComplete()
     })
 
-    obsA2.unsafeSubscribeFn(new Subscriber[A2] {
+    composite += obsA2.unsafeSubscribeFn(new Subscriber[A2] {
       implicit val scheduler = out.scheduler
 
       def onNext(elem: A2): Future[Ack] = self.synchronized {
@@ -176,7 +178,7 @@ class CombineLatest6Observable[A1,A2,A3,A4,A5,A6,+R]
         signalOnComplete()
     })
 
-    obsA3.unsafeSubscribeFn(new Subscriber[A3] {
+    composite += obsA3.unsafeSubscribeFn(new Subscriber[A3] {
       implicit val scheduler = out.scheduler
 
       def onNext(elem: A3): Future[Ack] = self.synchronized {
@@ -197,7 +199,7 @@ class CombineLatest6Observable[A1,A2,A3,A4,A5,A6,+R]
         signalOnComplete()
     })
 
-    obsA4.unsafeSubscribeFn(new Subscriber[A4] {
+    composite += obsA4.unsafeSubscribeFn(new Subscriber[A4] {
       implicit val scheduler = out.scheduler
 
       def onNext(elem: A4): Future[Ack] = self.synchronized {
@@ -218,7 +220,7 @@ class CombineLatest6Observable[A1,A2,A3,A4,A5,A6,+R]
         signalOnComplete()
     })
 
-    obsA5.unsafeSubscribeFn(new Subscriber[A5] {
+    composite += obsA5.unsafeSubscribeFn(new Subscriber[A5] {
       implicit val scheduler = out.scheduler
 
       def onNext(elem: A5): Future[Ack] = self.synchronized {
@@ -239,7 +241,7 @@ class CombineLatest6Observable[A1,A2,A3,A4,A5,A6,+R]
         signalOnComplete()
     })
 
-    obsA6.unsafeSubscribeFn(new Subscriber[A6] {
+    composite += obsA6.unsafeSubscribeFn(new Subscriber[A6] {
       implicit val scheduler = out.scheduler
 
       def onNext(elem: A6): Future[Ack] = self.synchronized {
@@ -259,5 +261,7 @@ class CombineLatest6Observable[A1,A2,A3,A4,A5,A6,+R]
       def onComplete(): Unit =
         signalOnComplete()
     })
+
+    composite
   }
 }

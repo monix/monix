@@ -17,21 +17,23 @@
 
 package monix.streams.internal.operators2
 
-import monix.execution.Ack
+import monix.execution.cancelables.AssignableCancelable
+import monix.execution.{Cancelable, Ack}
 import monix.execution.Ack.Continue
 import monix.streams.Observable
-import monix.streams.ObservableLike.Operator
 import monix.streams.observers.Subscriber
 import scala.concurrent.Future
 import scala.language.higherKinds
 import scala.util.control.NonFatal
 
 private[streams] final
-class OnErrorRecoverWithOperator[A](pf: PartialFunction[Throwable, Observable[A]])
-  extends Operator[A, A] {
+class OnErrorRecoverWithObservable[A](source: Observable[A], pf: PartialFunction[Throwable, Observable[A]])
+  extends Observable[A] {
 
-  def apply(out: Subscriber[A]): Subscriber[A] =
-    new Subscriber[A] {
+  def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
+    val cancelable: AssignableCancelable = new OnErrorCancelable
+
+    cancelable := source.unsafeSubscribeFn(new Subscriber[A] {
       implicit val scheduler = out.scheduler
       private[this] var ack: Future[Ack] = Continue
 
@@ -53,7 +55,7 @@ class OnErrorRecoverWithOperator[A](pf: PartialFunction[Throwable, Observable[A]
             // on the last ack, otherwise we break back-pressure.
             ack.onComplete { r =>
               if (r.isSuccess && (r.get eq Continue))
-                fallbackTo.unsafeSubscribeFn(out)
+                cancelable := fallbackTo.unsafeSubscribeFn(out)
             }
           } else {
             // we can't protect the onError call and if it throws
@@ -71,5 +73,6 @@ class OnErrorRecoverWithOperator[A](pf: PartialFunction[Throwable, Observable[A]
             }
         }
       }
-    }
+    })
+  }
 }

@@ -17,9 +17,9 @@
 
 package monix.streams.observables
 
-import monix.execution.Scheduler
+import monix.execution.{Cancelable, Scheduler}
 import monix.execution.cancelables.BooleanCancelable
-import monix.streams.broadcast.Processor
+import monix.streams.subjects.Subject
 import monix.streams.observers.{Subscriber, CacheUntilConnectSubscriber}
 import monix.streams.{Observable, Pipe}
 
@@ -32,7 +32,7 @@ import monix.streams.{Observable, Pipe}
   */
 trait ConnectableObservable[+T] extends Observable[T] { self =>
   /** Starts emitting events to subscribers. */
-  def connect(): BooleanCancelable
+  def connect(): Cancelable
 
   /** Returns an [[Observable]] that stays connected to this
     * `ConnectableObservable` as long as there is at least one
@@ -46,23 +46,20 @@ trait ConnectableObservable[+T] extends Observable[T] { self =>
 
 object ConnectableObservable {
   /** Builds a [[ConnectableObservable]] for the given observable source
-    * and a given [[Processor]].
+    * and a given [[Subject]].
     */
-  def unsafeMulticast[T, R](source: Observable[T], pipe: Processor[T, R])
+  def unsafeMulticast[T, R](source: Observable[T], subject: Subject[T, R])
     (implicit s: Scheduler): ConnectableObservable[R] = {
 
     new ConnectableObservable[R] {
-      private[this] lazy val connection = {
-        source.subscribe(pipe)
-      }
+      private[this] lazy val connection: Cancelable =
+        source.unsafeSubscribeFn(Subscriber(subject, s))
 
-      def connect(): BooleanCancelable = {
+      def connect(): Cancelable =
         connection
-      }
 
-      def unsafeSubscribeFn(subscriber: Subscriber[R]): Unit = {
-        pipe.unsafeSubscribeFn(subscriber)
-      }
+      def unsafeSubscribeFn(subscriber: Subscriber[R]): Cancelable =
+        subject.unsafeSubscribeFn(subscriber)
     }
   }
 
@@ -78,13 +75,11 @@ object ConnectableObservable {
         source.subscribe(input)
       }
 
-      def connect(): BooleanCancelable = {
+      def connect(): BooleanCancelable =
         connection
-      }
 
-      def unsafeSubscribeFn(subscriber: Subscriber[R]): Unit = {
+      def unsafeSubscribeFn(subscriber: Subscriber[R]): Cancelable =
         output.unsafeSubscribeFn(subscriber)
-      }
     }
   }
 
@@ -93,28 +88,26 @@ object ConnectableObservable {
     * the events are piped through the given `subject` to the final
     * subscribers.
     */
-  def cacheUntilConnect[T, R](source: Observable[T], subject: Processor[T, R])
+  def cacheUntilConnect[T, R](source: Observable[T], subject: Subject[T, R])
     (implicit s: Scheduler): ConnectableObservable[R] = {
 
     new ConnectableObservable[R] {
       private[this] val (connectable, cancelRef) = {
         val ref = CacheUntilConnectSubscriber(Subscriber(subject, s))
-        val c = source.subscribe(ref) // connects immediately
+        val c = source.unsafeSubscribeFn(ref) // connects immediately
         (ref, c)
       }
 
       private[this] lazy val connection = {
         connectable.connect()
-        BooleanCancelable { cancelRef.cancel() }
+        cancelRef
       }
 
-      def connect(): BooleanCancelable = {
+      def connect(): Cancelable =
         connection
-      }
 
-      def unsafeSubscribeFn(subscriber: Subscriber[R]): Unit = {
+      def unsafeSubscribeFn(subscriber: Subscriber[R]): Cancelable =
         subject.unsafeSubscribeFn(subscriber)
-      }
     }
   }
 }

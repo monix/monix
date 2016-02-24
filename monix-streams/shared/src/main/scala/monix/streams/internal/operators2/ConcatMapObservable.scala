@@ -17,24 +17,27 @@
 
 package monix.streams.internal.operators2
 
-import monix.execution.Ack
 import monix.execution.Ack.{Cancel, Continue}
 import monix.execution.cancelables.RefCountCancelable
-import monix.streams.ObservableLike.Operator
+import monix.execution.{Scheduler, Ack, Cancelable}
+import monix.streams.Observable
 import monix.streams.exceptions.CompositeException
+import monix.streams.internal.operators2.ConcatMapObservable.ConcatCancelable
 import monix.streams.observers.Subscriber
-import monix.streams.{Observable, Observer}
 import scala.collection.mutable
 import scala.concurrent.{Future, Promise}
 import scala.language.higherKinds
 import scala.util.control.NonFatal
 
 private[streams] final
-class ConcatMapOperator[A, B](f: A => Observable[B], delayErrors: Boolean)
-  extends Operator[A, B] {
+class ConcatMapObservable[A, B] private
+  (source: Observable[A], f: A => Observable[B], delayErrors: Boolean)
+  extends Observable[B] {
 
-  def apply(out: Subscriber[B]): Subscriber[A] = {
-    new Subscriber[A] {
+  def unsafeSubscribeFn(out: Subscriber[B]): Cancelable = {
+    val conn = ConcatCancelable(out, delayErrors)(out.scheduler)
+
+    conn := source.unsafeSubscribeFn(new Subscriber[A] {
       implicit val scheduler = out.scheduler
 
       private[this] var ack: Future[Ack] = Continue
@@ -54,7 +57,6 @@ class ConcatMapOperator[A, B](f: A => Observable[B], delayErrors: Boolean)
 
       def onNext(a: A): Future[Ack] = {
         val upstreamPromise = Promise[Ack]()
-        val refID = refCount.acquire()
 
         // Protects calls to user code from within the operator and
         // stream the error downstream if it happens, but if the
@@ -65,7 +67,9 @@ class ConcatMapOperator[A, B](f: A => Observable[B], delayErrors: Boolean)
           val fb = f(a)
           streamError = false
 
-          fb.unsafeSubscribeFn(new Observer[B] {
+          conn += fb.unsafeSubscribeFn(new Subscriber[B] {
+            implicit val scheduler = out.scheduler
+
             def onNext(elem: B): Future[Ack] = {
               ack = out.onNext(elem).syncOnCancelFollow(upstreamPromise, Cancel)
               ack
@@ -90,7 +94,7 @@ class ConcatMapOperator[A, B](f: A => Observable[B], delayErrors: Boolean)
               // We also need to apply back-pressure on the last ack,
               // because an onNext probably follows.
               ack.syncOnContinueFollow(upstreamPromise, Continue)
-              refID.cancel()
+              conn.tryOnComplete()
             }
           })
 
@@ -117,6 +121,23 @@ class ConcatMapOperator[A, B](f: A => Observable[B], delayErrors: Boolean)
       def onComplete(): Unit = {
         refCount.cancel()
       }
-    }
+    })
+  }
+}
+
+private[streams] object ConcatMapObservable {
+  def apply[A,B](f: A => Observable[B], delayErrors: Boolean)(source: Observable[A]): Observable[B] =
+    new ConcatMapObservable(source, f, delayErrors)
+
+  trait ConcatCancelable extends Cancelable {
+    def `:=`(value: Cancelable): Cancelable
+    def `+=`(value: Cancelable): Cancelable
+    def tryOnComplete(): Unit
+  }
+
+  object ConcatCancelable {
+    def apply[B](out: Subscriber[B], delayErrors: Boolean)
+      (implicit s: Scheduler): ConcatCancelable =
+      new monix.streams.internal.operators2.ConcatCancelableImpl[B](out, delayErrors)
   }
 }

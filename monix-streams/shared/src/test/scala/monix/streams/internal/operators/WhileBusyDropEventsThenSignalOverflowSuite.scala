@@ -21,7 +21,7 @@ import minitest.TestSuite
 import monix.execution.Ack.Continue
 import monix.execution.schedulers.TestScheduler
 import monix.streams.{Observable, Observer}
-import monix.streams.broadcast.PublishProcessor
+import monix.streams.subjects.PublishSubject
 import scala.concurrent.Promise
 import scala.util.Success
 
@@ -44,7 +44,7 @@ object WhileBusyDropEventsThenSignalOverflowSuite
   }
 
   test("should drop events for busy observers") { implicit s =>
-    val source = PublishProcessor[Long]()
+    val source = PublishSubject[Long]()
     val p = Promise[Continue]()
     var received = 0L
     var wasCompleted = false
@@ -80,7 +80,7 @@ object WhileBusyDropEventsThenSignalOverflowSuite
   }
 
   test("should send number of dropped events when onComplete") { implicit s =>
-    val source = PublishProcessor[Long]()
+    val source = PublishSubject[Long]()
     val p = Promise[Continue]()
     var received = 0L
     var wasCompleted = false

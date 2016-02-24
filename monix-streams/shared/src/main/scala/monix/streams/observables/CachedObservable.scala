@@ -17,8 +17,9 @@
 
 package monix.streams.observables
 
+import monix.execution.Cancelable
 import monix.streams.Observable
-import monix.streams.broadcast.ReplayProcessor
+import monix.streams.subjects.ReplaySubject
 import monix.streams.observers.Subscriber
 import org.sincron.atomic.Atomic
 
@@ -38,14 +39,14 @@ final class CachedObservable[+T] private (source: Observable[T], maxCapacity: In
 
   private[this] val isStarted = Atomic(false)
   private[this] val subject = {
-    if (maxCapacity > 0) ReplayProcessor.createWithSize[T](maxCapacity) else
-      ReplayProcessor[T]()
+    if (maxCapacity > 0) ReplaySubject.createWithSize[T](maxCapacity) else
+      ReplaySubject[T]()
   }
 
-  def unsafeSubscribeFn(subscriber: Subscriber[T]): Unit = {
+  def unsafeSubscribeFn(subscriber: Subscriber[T]): Cancelable = {
     import subscriber.scheduler
     if (isStarted.compareAndSet(expect = false, update = true))
-      source.unsafeSubscribeFn(subject)
+      source.unsafeSubscribeFn(Subscriber(subject, scheduler))
     subject.unsafeSubscribeFn(subscriber)
   }
 }

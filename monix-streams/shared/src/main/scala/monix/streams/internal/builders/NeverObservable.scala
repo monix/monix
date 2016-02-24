@@ -17,10 +17,12 @@
 
 package monix.streams.internal.builders
 
+import monix.execution.Cancelable
 import monix.streams.Observable
 import monix.streams.observers.Subscriber
 
 /** An observable that only signals `onComplete` */
 private[streams] object NeverObservable extends Observable[Nothing] {
-  def unsafeSubscribeFn(subscriber: Subscriber[Nothing]): Unit = ()
+  def unsafeSubscribeFn(subscriber: Subscriber[Nothing]): Cancelable =
+    Cancelable.empty
 }

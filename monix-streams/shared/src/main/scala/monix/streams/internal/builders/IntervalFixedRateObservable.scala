@@ -19,8 +19,9 @@ package monix.streams.internal.builders
 
 import java.util.concurrent.TimeUnit
 
-import monix.execution.Ack
+import monix.execution.{Cancelable, Ack}
 import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.cancelables.MultiAssignmentCancelable
 import monix.streams.Observable
 import monix.streams.observers.Subscriber
 
@@ -32,9 +33,10 @@ private[streams] final class IntervalFixedRateObservable
   (initialDelay: FiniteDuration, period: FiniteDuration)
   extends Observable[Long]{
 
-  override def unsafeSubscribeFn(subscriber: Subscriber[Long]): Unit = {
+  override def unsafeSubscribeFn(subscriber: Subscriber[Long]): Cancelable = {
     import subscriber.{scheduler => s}
     val o = subscriber
+    val task = MultiAssignmentCancelable()
 
     val runnable = new Runnable { self =>
       private[this] val periodMillis = period.toMillis
@@ -49,7 +51,7 @@ private[streams] final class IntervalFixedRateObservable
           if (d >= 0L) d else 0L
         }
 
-        s.scheduleOnce(delay, TimeUnit.MILLISECONDS, self)
+        task := s.scheduleOnce(delay, TimeUnit.MILLISECONDS, self)
       }
 
       def asyncScheduleNext(r: Future[Ack]): Unit =
@@ -74,6 +76,8 @@ private[streams] final class IntervalFixedRateObservable
     if (initialDelay.length <= 0)
       runnable.run()
     else
-      s.scheduleOnce(initialDelay.length, initialDelay.unit, runnable)
+      task := s.scheduleOnce(initialDelay.length, initialDelay.unit, runnable)
+
+    task
   }
 }

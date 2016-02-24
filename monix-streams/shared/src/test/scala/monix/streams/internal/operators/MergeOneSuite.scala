@@ -22,7 +22,7 @@ import monix.execution.FutureUtils.ops._
 import monix.execution.Scheduler
 import monix.streams.Observable.{empty, now}
 import monix.streams.{Observable, Observer}
-import monix.streams.broadcast.PublishProcessor
+import monix.streams.subjects.PublishSubject
 import monix.streams.exceptions.DummyException
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration.Zero
@@ -96,7 +96,7 @@ object MergeOneSuite extends BaseOperatorSuite {
     var received = 0L
     var wasCompleted = false
 
-    val obs1 = PublishProcessor[Long]()
+    val obs1 = PublishSubject[Long]()
     val obs2 = Observable.range(1, 100).map { x => obs2WasStarted = true; x }
 
     Observable.from(Seq(obs1, obs2)).flatten.unsafeSubscribeFn(new Observer[Long] {
@@ -134,7 +134,7 @@ object MergeOneSuite extends BaseOperatorSuite {
     var obs2WasStarted = false
     var wasThrown: Throwable = null
 
-    val sub = PublishProcessor[Long]()
+    val sub = PublishSubject[Long]()
     val obs1 = sub.doOnStart(_ => obs1WasStarted = true)
     val obs2 = Observable.range(1, 100).map { x => obs2WasStarted = true; x }
 

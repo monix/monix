@@ -18,7 +18,8 @@
 package monix.streams.internal.builders
 
 import java.util.concurrent.TimeUnit
-import monix.execution.Ack
+import monix.execution.cancelables.MultiAssignmentCancelable
+import monix.execution.{Cancelable, Ack}
 import monix.execution.Ack.{Cancel, Continue}
 import monix.streams.Observable
 import monix.streams.observers.Subscriber
@@ -29,15 +30,21 @@ private[streams] final
 class RepeatedValueObservable[T](initialDelay: FiniteDuration, period: FiniteDuration, unit: T)
   extends Observable[T] {
 
-  def unsafeSubscribeFn(subscriber: Subscriber[T]): Unit = {
-    val r = runnable(subscriber)
+  def unsafeSubscribeFn(subscriber: Subscriber[T]): Cancelable = {
+    val task = MultiAssignmentCancelable()
+    val r = runnable(subscriber, task)
+
     if (initialDelay.length <= 0)
       r.run()
-    else
-      subscriber.scheduler.scheduleOnce(initialDelay.length, initialDelay.unit, r)
+    else {
+      task := subscriber.scheduler
+        .scheduleOnce(initialDelay.length, initialDelay.unit, r)
+    }
+
+    task
   }
 
-  private[this] def runnable(subscriber: Subscriber[T]): Runnable =
+  private[this] def runnable(subscriber: Subscriber[T], task: MultiAssignmentCancelable): Runnable =
     new Runnable { self =>
       private[this] implicit val s = subscriber.scheduler
       private[this] val periodMs = period.toMillis
@@ -50,7 +57,7 @@ class RepeatedValueObservable[T](initialDelay: FiniteDuration, period: FiniteDur
           if (d >= 0L) d else 0L
         }
 
-        s.scheduleOnce(initialDelay, TimeUnit.MILLISECONDS, self)
+        task := s.scheduleOnce(initialDelay, TimeUnit.MILLISECONDS, self)
       }
 
       def asyncScheduleNext(r: Try[Ack]): Unit = r match {

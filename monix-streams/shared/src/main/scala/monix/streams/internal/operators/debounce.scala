@@ -19,11 +19,11 @@ package monix.streams.internal.operators
 
 import java.util.concurrent.TimeUnit
 import monix.execution.Ack
+import monix.execution.Ack.{Cancel, Continue}
 import monix.execution.cancelables.MultiAssignmentCancelable
 import monix.streams.Observable
-import monix.streams.observers.{SyncSubscriber, SyncObserver}
-import monix.execution.Ack.{Cancel, Continue}
 import monix.streams.internal._
+import monix.streams.observers.SyncSubscriber
 import scala.concurrent.Future
 import scala.concurrent.duration._
 

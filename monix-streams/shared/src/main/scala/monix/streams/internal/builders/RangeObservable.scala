@@ -18,7 +18,8 @@
 package monix.streams.internal.builders
 
 import monix.execution.Ack.{Cancel, Continue}
-import monix.execution.{Ack, Scheduler}
+import monix.execution.cancelables.BooleanCancelable
+import monix.execution.{Cancelable, Ack, Scheduler}
 import monix.streams.Observable
 import monix.streams.observers.Subscriber
 import scala.annotation.tailrec
@@ -31,16 +32,21 @@ private[streams] final class RangeObservable(from: Long, until: Long, step: Long
 
   require(step != 0, "step != 0")
 
-  def unsafeSubscribeFn(subscriber: Subscriber[Long]): Unit = {
+  def unsafeSubscribeFn(subscriber: Subscriber[Long]): Cancelable = {
     val s = subscriber.scheduler
-    if (!isInRange(from, until, step))
+    if (!isInRange(from, until, step)) {
       subscriber.onComplete()
-    else
-      loop(subscriber, s.batchedExecutionModulus, from, until, step, 0)(s)
+      Cancelable.empty
+    }
+    else {
+      val cancelable = BooleanCancelable()
+      loop(cancelable, subscriber, s.batchedExecutionModulus, from, until, step, 0)(s)
+      cancelable
+    }
   }
 
   @tailrec
-  private def loop(downstream: Subscriber[Long], modulus: Int,
+  private def loop(c: BooleanCancelable, downstream: Subscriber[Long], modulus: Int,
     from: Long, until: Long, step: Long, syncIndex: Int)
     (implicit s: Scheduler): Unit = {
 
@@ -56,13 +62,14 @@ private[streams] final class RangeObservable(from: Long, until: Long, step: Long
         else 0
 
       if (nextIndex > 0)
-        loop(downstream, modulus, nextFrom, until, step, nextIndex)
-      else if (nextIndex == 0)
-        asyncBoundary(ack, downstream, modulus, nextFrom, until, step)
+        loop(c, downstream, modulus, nextFrom, until, step, nextIndex)
+      else if (nextIndex == 0 && !c.isCanceled)
+        asyncBoundary(c, ack, downstream, modulus, nextFrom, until, step)
     }
   }
 
   private def asyncBoundary(
+    cancelable: BooleanCancelable,
     ack: Future[Ack],
     downstream: Subscriber[Long], modulus: Int,
     from: Long, until: Long, step: Long)
@@ -71,7 +78,7 @@ private[streams] final class RangeObservable(from: Long, until: Long, step: Long
     ack.onComplete {
       case Success(success) =>
         if (success == Continue)
-          loop(downstream, modulus, from, until, step, 0)
+          loop(cancelable, downstream, modulus, from, until, step, 0)
       case Failure(ex) =>
         s.reportFailure(ex)
     }

@@ -17,13 +17,14 @@
 
 package monix.streams.internal.builders
 
+import monix.execution.Cancelable
 import monix.streams.Observable
 import monix.streams.observers.Subscriber
 
 /** Converts any `Iterable` into an observable */
 private[streams] final
 class IterableAsObservable[T](iterable: Iterable[T]) extends Observable[T] {
-  def unsafeSubscribeFn(subscriber: Subscriber[T]): Unit = {
+  def unsafeSubscribeFn(subscriber: Subscriber[T]): Cancelable = {
     new IteratorAsObservable(iterable.iterator)
       .unsafeSubscribeFn(subscriber)
   }

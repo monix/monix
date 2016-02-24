@@ -18,7 +18,8 @@
 package monix.streams.internal.builders
 
 import monix.execution.Ack.{Cancel, Continue}
-import monix.execution.{Scheduler, Ack}
+import monix.execution.cancelables.BooleanCancelable
+import monix.execution.{Cancelable, Scheduler, Ack}
 import monix.streams.Observable
 import monix.streams.observers.Subscriber
 
@@ -30,15 +31,18 @@ import scala.util.{Failure, Success}
 private[streams] final class RepeatEvalObservable[+A](eval: => A)
   extends Observable[A] {
 
-  def unsafeSubscribeFn(subscriber: Subscriber[A]): Unit = {
+  def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     val s = subscriber.scheduler
-    fastLoop(subscriber, s.batchedExecutionModulus, 0)(s)
+    val cancelable = BooleanCancelable()
+    fastLoop(subscriber, cancelable, s.batchedExecutionModulus, 0)(s)
+    cancelable
   }
 
-  def reschedule(ack: Future[Ack], o: Subscriber[A], modulus: Int)(implicit s: Scheduler): Unit =
+  def reschedule(ack: Future[Ack], o: Subscriber[A], c: BooleanCancelable, modulus: Int)
+    (implicit s: Scheduler): Unit =
     ack.onComplete {
       case Success(success) =>
-        if (success == Continue) fastLoop(o, modulus, 0)
+        if (success == Continue) fastLoop(o, c, modulus, 0)
       case Failure(ex) =>
         s.reportFailure(ex)
       case _ =>
@@ -46,7 +50,9 @@ private[streams] final class RepeatEvalObservable[+A](eval: => A)
     }
 
   @tailrec
-  def fastLoop(o: Subscriber[A], modulus: Int, syncIndex: Int)(implicit s: Scheduler): Unit = {
+  def fastLoop(o: Subscriber[A], c: BooleanCancelable,
+    modulus: Int, syncIndex: Int)(implicit s: Scheduler): Unit = {
+
     val ack = try o.onNext(eval) catch {
       case NonFatal(ex) =>
         Future.failed(ex)
@@ -58,8 +64,8 @@ private[streams] final class RepeatEvalObservable[+A](eval: => A)
       else 0
 
     if (nextIndex > 0)
-      fastLoop(o, modulus, nextIndex)
-    else if (nextIndex == 0)
-      reschedule(ack, o, modulus)
+      fastLoop(o, c, modulus, nextIndex)
+    else if (nextIndex == 0 && !c.isCanceled)
+      reschedule(ack, o, c, modulus)
   }
 }

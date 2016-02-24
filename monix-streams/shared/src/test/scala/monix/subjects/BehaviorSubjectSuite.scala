@@ -18,7 +18,7 @@
 package monix.subjects
 
 import monix.streams.Observer
-import monix.streams.broadcast.BehaviorProcessor
+import monix.streams.subjects.BehaviorSubject
 import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.streams.exceptions.DummyException
@@ -26,18 +26,18 @@ import scala.concurrent.Future
 
 object BehaviorSubjectSuite extends BaseSubjectSuite {
   def alreadyTerminatedTest(expectedElems: Seq[Long]) = {
-    val s = BehaviorProcessor[Long](-1)
+    val s = BehaviorSubject[Long](-1)
     Sample(s, expectedElems.lastOption.getOrElse(-1))
   }
 
   def continuousStreamingTest(expectedElems: Seq[Long]) = {
-    val s = BehaviorProcessor[Long](0)
+    val s = BehaviorSubject[Long](0)
     Some(Sample(s, expectedElems.sum))
   }
 
 
   test("should work synchronously for synchronous subscribers") { implicit s =>
-    val subject = BehaviorProcessor[Int](10)
+    val subject = BehaviorSubject[Int](10)
     var received = 0
     var wasCompleted = 0
 
@@ -63,7 +63,7 @@ object BehaviorSubjectSuite extends BaseSubjectSuite {
   }
 
   test("should work with asynchronous subscribers") { implicit s =>
-    val subject = BehaviorProcessor[Int](10)
+    val subject = BehaviorSubject[Int](10)
     var received = 0
     var wasCompleted = 0
 
@@ -92,7 +92,7 @@ object BehaviorSubjectSuite extends BaseSubjectSuite {
   }
 
   test("subscribe after complete should complete immediately") { implicit s =>
-    val subject = BehaviorProcessor[Int](10)
+    val subject = BehaviorSubject[Int](10)
     var received = 0
     subject.onComplete()
 
@@ -108,7 +108,7 @@ object BehaviorSubjectSuite extends BaseSubjectSuite {
   }
 
   test("onError should terminate current and future subscribers") { implicit s =>
-    val subject = BehaviorProcessor[Int](10)
+    val subject = BehaviorSubject[Int](10)
     val dummy = DummyException("dummy")
     var elemsReceived = 0
     var errorsReceived = 0

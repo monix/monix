@@ -20,24 +20,24 @@ package monix.subjects
 import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.streams.{Observable, Observer}
-import monix.streams.broadcast.PublishProcessor
+import monix.streams.subjects.PublishSubject
 import monix.streams.exceptions.DummyException
 import scala.concurrent.Future
 import scala.util.Success
 
 object PublishSubjectSuite extends BaseSubjectSuite {
   def alreadyTerminatedTest(expectedElems: Seq[Long]) = {
-    val s = PublishProcessor[Long]()
+    val s = PublishSubject[Long]()
     Sample(s, 0)
   }
 
   def continuousStreamingTest(expectedElems: Seq[Long]) = {
-    val s = PublishProcessor[Long]()
+    val s = PublishSubject[Long]()
     Some(Sample(s, expectedElems.sum))
   }
 
   test("issue #50") { implicit s =>
-    val p = PublishProcessor[Int]()
+    val p = PublishSubject[Int]()
     var received = 0
 
     Observable.merge(p).subscribe(new Observer[Int] {
@@ -61,7 +61,7 @@ object PublishSubjectSuite extends BaseSubjectSuite {
   }
 
   test("should emit from the point of subscription forward") { implicit s =>
-    val subject = PublishProcessor[Int]()
+    val subject = PublishSubject[Int]()
     assertEquals(subject.onNext(1), Continue)
     assertEquals(subject.onNext(2), Continue)
     assertEquals(subject.onNext(3), Continue)
@@ -88,7 +88,7 @@ object PublishSubjectSuite extends BaseSubjectSuite {
   }
 
   test("should work synchronously for synchronous subscribers") { implicit s =>
-    val subject = PublishProcessor[Int]()
+    val subject = PublishSubject[Int]()
     var received = 0
     var wasCompleted = 0
 
@@ -113,7 +113,7 @@ object PublishSubjectSuite extends BaseSubjectSuite {
   }
 
   test("should work with asynchronous subscribers") { implicit s =>
-    val subject = PublishProcessor[Int]()
+    val subject = PublishSubject[Int]()
     var received = 0
     var wasCompleted = 0
 
@@ -142,7 +142,7 @@ object PublishSubjectSuite extends BaseSubjectSuite {
   }
 
   test("subscribe after complete should complete immediately") { implicit s =>
-    val subject = PublishProcessor[Int]()
+    val subject = PublishSubject[Int]()
     subject.onComplete()
 
     var wasCompleted = false
@@ -156,7 +156,7 @@ object PublishSubjectSuite extends BaseSubjectSuite {
   }
 
   test("onError should terminate current and future subscribers") { implicit s =>
-    val subject = PublishProcessor[Int]()
+    val subject = PublishSubject[Int]()
     val dummy = DummyException("dummy")
     var elemsReceived = 0
     var errorsReceived = 0

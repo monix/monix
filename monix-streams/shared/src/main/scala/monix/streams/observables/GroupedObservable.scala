@@ -36,15 +36,6 @@ import scala.language.reflectiveCalls
 trait GroupedObservable[K, +V] extends Observable[V] { self =>
   /** Returns the key associated with this grouped observable. */
   def key: K
-
-  protected def liftToSelf[U](f: (Observable[V]) => Observable[U]): GroupedObservable[K, U] =
-    new GroupedObservable[K, U] {
-      val key = self.key
-
-      private[this] val lifted = f(self)
-      def unsafeSubscribeFn(subscriber: Subscriber[U]): Unit =
-        lifted.unsafeSubscribeFn(subscriber)
-    }
 }
 
 object GroupedObservable {
@@ -89,12 +80,13 @@ object GroupedObservable {
     def onError(ex: Throwable): Unit = underlying.onError(ex)
     def onComplete(): Unit = underlying.onComplete()
 
-    def unsafeSubscribeFn(subscriber: Subscriber[V]): Unit =
+    def unsafeSubscribeFn(subscriber: Subscriber[V]): Cancelable =
       self.synchronized {
         if (ref != null) {
           subscriber.onError(
             new IllegalStateException(
               s"Cannot subscribe twice to a GroupedObservable"))
+          Cancelable.empty
         }
         else {
           ref = subscriber

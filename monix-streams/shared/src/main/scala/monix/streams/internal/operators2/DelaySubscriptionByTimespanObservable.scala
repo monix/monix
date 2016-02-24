@@ -17,20 +17,24 @@
 
 package monix.streams.internal.operators2
 
+import monix.execution.Cancelable
+import monix.execution.cancelables.MultiAssignmentCancelable
 import monix.streams.Observable
 import monix.streams.observers.Subscriber
-
 import scala.concurrent.duration.FiniteDuration
 
 private[streams] final class DelaySubscriptionByTimespanObservable[A]
   (source: Observable[A], timespan: FiniteDuration)
   extends Observable[A] {
 
-  def unsafeSubscribeFn(subscriber: Subscriber[A]): Unit = {
-    subscriber.scheduler.scheduleOnce(timespan.length, timespan.unit,
+  def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
+    val cancelable = MultiAssignmentCancelable()
+
+    cancelable := subscriber.scheduler.scheduleOnce(
+      timespan.length, timespan.unit,
       new Runnable {
         def run(): Unit =
-          source.unsafeSubscribeFn(subscriber)
+          cancelable := source.unsafeSubscribeFn(subscriber)
       })
   }
 }

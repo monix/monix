@@ -17,6 +17,7 @@
 
 package monix.streams.internal.builders
 
+import monix.execution.{CancelableFuture, Cancelable}
 import monix.streams.Observable
 import monix.streams.observers.Subscriber
 import scala.concurrent.Future
@@ -26,22 +27,30 @@ import scala.util.{Failure, Success}
 private[streams] final class FutureAsObservable[T](source: Future[T])
   extends Observable[T] {
 
-  override def unsafeSubscribeFn(subscriber: Subscriber[T]): Unit = {
+  def unsafeSubscribeFn(subscriber: Subscriber[T]): Cancelable = {
     import subscriber.{scheduler => s}
 
     source.value match {
       case Some(Success(value)) =>
         subscriber.onNext(value)
         subscriber.onComplete()
+        Cancelable.empty
       case Some(Failure(ex)) =>
         subscriber.onError(ex)
-      case None => source.onComplete {
-        case Success(value) =>
-          subscriber.onNext(value)
-          subscriber.onComplete()
-        case Failure(ex) =>
-          subscriber.onError(ex)
-      }
+        Cancelable.empty
+      case None =>
+        source.onComplete {
+          case Success(value) =>
+            subscriber.onNext(value)
+            subscriber.onComplete()
+          case Failure(ex) =>
+            subscriber.onError(ex)
+        }
+
+        source match {
+          case c: CancelableFuture[_] => c
+          case _ => Cancelable.empty
+        }
     }
   }
 }

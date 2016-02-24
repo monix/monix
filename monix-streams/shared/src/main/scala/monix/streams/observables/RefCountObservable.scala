@@ -17,13 +17,12 @@
 
 package monix.streams.observables
 
-import monix.execution.cancelables.BooleanCancelable
-import monix.execution.{Cancelable, Scheduler}
-import monix.streams.internal._
+import monix.execution.{Ack, Cancelable}
+import monix.streams.Observable
 import monix.streams.observers.Subscriber
-import monix.streams.{Observable, Observer}
 import org.sincron.atomic.Atomic
 import scala.annotation.tailrec
+import scala.concurrent.Future
 
 /** A `RefCountObservable` is an observable that wraps a
   * [[ConnectableObservable]], initiating the connection on the first
@@ -36,11 +35,11 @@ final class RefCountObservable[+T] private (source: ConnectableObservable[T])
   extends Observable[T] {
 
   private[this] val refs = Atomic(-1)
-  private[this] lazy val connection =
+  private[this] lazy val connection: Cancelable =
     source.connect()
 
   @tailrec
-  def unsafeSubscribeFn(subscriber: Subscriber[T]): Unit = {
+  def unsafeSubscribeFn(subscriber: Subscriber[T]): Cancelable = {
     val current = refs.get
     val update = current match {
       case x if x < 0 => 1
@@ -57,35 +56,35 @@ final class RefCountObservable[+T] private (source: ConnectableObservable[T])
     }
     else {
       implicit val s = subscriber.scheduler
-      val cancelable = BooleanCancelable(cancel())
-      source.unsafeSubscribeFn(observer(cancelable, subscriber))
+      val ret = source.unsafeSubscribeFn(wrap(subscriber))
       if (current == -1) connection // triggers connect()
+
+      Cancelable {
+        try ret.cancel() finally
+          cancel()
+      }
     }
   }
 
-  private def observer[U >: T](cancelable: Cancelable, downstream: Observer[U])
-    (implicit s: Scheduler): Observer[U]  = {
+  private def wrap[U >: T](downstream: Subscriber[U]): Subscriber[U]  = {
+    new Subscriber[U] {
+      implicit val scheduler = downstream.scheduler
 
-    new Observer[U] {
-      def onNext(elem: U) = {
+      def onNext(elem: U): Future[Ack] = {
         downstream.onNext(elem)
-          .ifCanceledDoCancel(cancelable)
+          .syncOnCancelOrFailure(cancel())
       }
 
       def onError(ex: Throwable): Unit = {
         try downstream.onError(ex) finally
-          cancelAll()
+          cancel()
       }
 
       def onComplete(): Unit = {
         try downstream.onComplete() finally
-          cancelAll()
+          cancel()
       }
     }
-  }
-
-  private def cancelAll(): Unit = {
-    while (cancel()) {}
   }
 
   @tailrec

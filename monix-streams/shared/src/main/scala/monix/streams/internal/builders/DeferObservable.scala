@@ -17,6 +17,7 @@
 
 package monix.streams.internal.builders
 
+import monix.execution.Cancelable
 import monix.streams.observers.Subscriber
 import monix.streams.{Observable, CanObserve}
 import language.higherKinds
@@ -25,7 +26,7 @@ import scala.util.control.NonFatal
 private[streams] final class DeferObservable[+A, F[_] : CanObserve](fa: => F[A])
   extends Observable[A] {
 
-  def unsafeSubscribeFn(subscriber: Subscriber[A]): Unit = {
+  def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     // Protect against user code, but if the subscription fails
     // then the behavior should be left undefined, otherwise we
     // can get weird effects.
@@ -37,6 +38,7 @@ private[streams] final class DeferObservable[+A, F[_] : CanObserve](fa: => F[A])
     } catch {
       case NonFatal(ex) if streamErrors =>
         subscriber.onError(ex)
+        Cancelable.empty
     }
   }
 }

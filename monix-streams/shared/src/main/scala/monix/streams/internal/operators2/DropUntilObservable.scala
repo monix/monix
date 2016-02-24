@@ -17,19 +17,23 @@
 
 package monix.streams.internal.operators2
 
-import monix.execution.Ack
 import monix.execution.Ack.{Cancel, Continue}
-import monix.streams.CanObserve
-import monix.streams.ObservableLike.Operator
+import monix.execution.cancelables.{CompositeCancelable, SingleAssignmentCancelable}
+import monix.execution.{Ack, Cancelable}
 import monix.streams.observers.{Subscriber, SyncSubscriber}
+import monix.streams.{CanObserve, Observable}
 import scala.concurrent.Future
 import scala.language.higherKinds
 
-private[streams] final class DropUntilOperator[A, F[_] : CanObserve](trigger: F[_])
-  extends Operator[A, A] {
+private[streams] final class DropUntilObservable[A, F[_] : CanObserve]
+  (source: Observable[A], trigger: F[_])
+  extends Observable[A] {
 
-  def apply(out: Subscriber[A]): Subscriber[A] =
-    new Subscriber[A] {
+  def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
+    val task = SingleAssignmentCancelable()
+    val composite = CompositeCancelable(task)
+
+    composite += source.unsafeSubscribeFn(    new Subscriber[A] {
       implicit val scheduler = out.scheduler
 
       private[this] var isActive = true
@@ -43,7 +47,7 @@ private[streams] final class DropUntilOperator[A, F[_] : CanObserve](trigger: F[
         Cancel
       }
 
-      CanObserve[F].observable(trigger).unsafeSubscribeFn(
+      task := CanObserve[F].observable(trigger).unsafeSubscribeFn(
         new SyncSubscriber[Any] {
           implicit val scheduler = out.scheduler
           def onNext(elem: Any) = interruptDropMode(null)
@@ -67,13 +71,20 @@ private[streams] final class DropUntilOperator[A, F[_] : CanObserve](trigger: F[
       def onError(ex: Throwable): Unit =
         if (isActive) {
           isActive = false
-          out.onError(ex)
+          try out.onError(ex) finally {
+            task.cancel()
+          }
         }
 
       def onComplete(): Unit =
         if (isActive) {
           isActive = false
-          out.onComplete()
+          try out.onComplete() finally {
+            task.cancel()
+          }
         }
-    }
+    })
+
+    composite
+  }
 }

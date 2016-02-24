@@ -17,8 +17,9 @@
 
 package monix.streams.internal.builders
 
-import monix.execution.Ack
+import monix.execution.{Cancelable, Ack}
 import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.cancelables.CompositeCancelable
 import monix.streams.Observable
 import monix.streams.observers.Subscriber
 import scala.concurrent.Future
@@ -31,7 +32,7 @@ class CombineLatest2Observable[A1,A2,+R]
   (f: (A1,A2) => R)
   extends Observable[R] { self =>
 
-  def unsafeSubscribeFn(out: Subscriber[R]): Unit = {
+  def unsafeSubscribeFn(out: Subscriber[R]): Cancelable = {
     import out.scheduler
 
     var isDone = false
@@ -90,7 +91,7 @@ class CombineLatest2Observable[A1,A2,+R]
 
     def signalOnComplete(): Unit = self.synchronized  {
       completedCount += 1
-      
+
       if (completedCount == 2 && !isDone) {
         lastAck match {
           case Continue =>
@@ -116,7 +117,9 @@ class CombineLatest2Observable[A1,A2,+R]
       }
     }
 
-    obsA1.unsafeSubscribeFn(new Subscriber[A1] {
+    val composite = CompositeCancelable()
+
+    composite += obsA1.unsafeSubscribeFn(new Subscriber[A1] {
       implicit val scheduler = out.scheduler
 
       def onNext(elem: A1): Future[Ack] = self.synchronized {
@@ -137,7 +140,7 @@ class CombineLatest2Observable[A1,A2,+R]
         signalOnComplete()
     })
 
-    obsA2.unsafeSubscribeFn(new Subscriber[A2] {
+    composite += obsA2.unsafeSubscribeFn(new Subscriber[A2] {
       implicit val scheduler = out.scheduler
 
       def onNext(elem: A2): Future[Ack] = self.synchronized {
@@ -157,5 +160,7 @@ class CombineLatest2Observable[A1,A2,+R]
       def onComplete(): Unit =
         signalOnComplete()
     })
+
+    composite
   }
 }

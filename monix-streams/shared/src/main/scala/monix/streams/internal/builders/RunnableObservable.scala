@@ -17,6 +17,7 @@
 
 package monix.streams.internal.builders
 
+import monix.execution.Cancelable
 import monix.streams.Observable
 import monix.streams.observers.Subscriber
 import scala.util.control.NonFatal
@@ -27,7 +28,7 @@ import scala.util.control.NonFatal
 private[streams] final class RunnableObservable(r: Runnable)
   extends Observable[Unit] {
 
-  def unsafeSubscribeFn(subscriber: Subscriber[Unit]): Unit = {
+  def unsafeSubscribeFn(subscriber: Subscriber[Unit]): Cancelable = {
     try {
       subscriber.onNext(r.run())
       // No need to do back-pressure
@@ -41,5 +42,7 @@ private[streams] final class RunnableObservable(r: Runnable)
             s.reportFailure(err)
         }
     }
+
+    Cancelable.empty
   }
 }

@@ -17,11 +17,11 @@
 
 package monix.streams.internal.builders
 
-import monix.execution.Ack
+import monix.execution.{Cancelable, Ack}
 import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.cancelables.CompositeCancelable
 import monix.streams.Observable
 import monix.streams.observers.Subscriber
-
 import scala.concurrent.{Promise, Future}
 import scala.util.Success
 import scala.util.control.NonFatal
@@ -33,7 +33,7 @@ class Zip4Observable[A1,A2,A3,A4,+R]
   extends Observable[R] {
   self =>
 
-  def unsafeSubscribeFn(out: Subscriber[R]): Unit = {
+  def unsafeSubscribeFn(out: Subscriber[R]): Cancelable = {
     import out.scheduler
 
     // MUST BE synchronized by `self`
@@ -139,7 +139,9 @@ class Zip4Observable[A1,A2,A3,A4,+R]
       }
     }
 
-    obsA1.unsafeSubscribeFn(new Subscriber[A1] {
+    val composite = CompositeCancelable()
+
+    composite += obsA1.unsafeSubscribeFn(new Subscriber[A1] {
       implicit val scheduler = out.scheduler
 
       def onNext(elem: A1): Future[Ack] = self.synchronized {
@@ -162,7 +164,7 @@ class Zip4Observable[A1,A2,A3,A4,+R]
         signalOnComplete(hasElemA1)
     })
 
-    obsA2.unsafeSubscribeFn(new Subscriber[A2] {
+    composite += obsA2.unsafeSubscribeFn(new Subscriber[A2] {
       implicit val scheduler = out.scheduler
 
       def onNext(elem: A2): Future[Ack] = self.synchronized {
@@ -185,7 +187,7 @@ class Zip4Observable[A1,A2,A3,A4,+R]
         signalOnComplete(hasElemA2)
     })
 
-    obsA3.unsafeSubscribeFn(new Subscriber[A3] {
+    composite += obsA3.unsafeSubscribeFn(new Subscriber[A3] {
       implicit val scheduler = out.scheduler
 
       def onNext(elem: A3): Future[Ack] = self.synchronized {
@@ -208,7 +210,7 @@ class Zip4Observable[A1,A2,A3,A4,+R]
         signalOnComplete(hasElemA3)
     })
 
-    obsA4.unsafeSubscribeFn(new Subscriber[A4] {
+    composite += obsA4.unsafeSubscribeFn(new Subscriber[A4] {
       implicit val scheduler = out.scheduler
 
       def onNext(elem: A4): Future[Ack] = self.synchronized {
@@ -230,5 +232,7 @@ class Zip4Observable[A1,A2,A3,A4,+R]
       def onComplete(): Unit =
         signalOnComplete(hasElemA4)
     })
+
+    composite
   }
 }

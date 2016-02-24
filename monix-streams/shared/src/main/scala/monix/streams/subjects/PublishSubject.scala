@@ -15,29 +15,28 @@
  * limitations under the License.
  */
 
-package monix.streams.broadcast
+package monix.streams.subjects
 
-import monix.execution.Ack
 import monix.execution.Ack.{Cancel, Continue}
-import monix.streams.broadcast.PublishProcessor.State
+import monix.execution.{Ack, Cancelable}
 import monix.streams.internal.PromiseCounter
 import monix.streams.observers.Subscriber
+import monix.streams.subjects.PublishSubject.State
 import org.sincron.atomic.Atomic
-
 import scala.annotation.tailrec
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 
-/** A `PublishProcessor` emits to a subscriber only those items that are
+/** A `PublishSubject` emits to a subscriber only those items that are
   * emitted by the source subsequent to the time of the subscription
   *
-  * If the source terminates with an error, the `PublishProcessor` will not emit any
+  * If the source terminates with an error, the `PublishSubject` will not emit any
   * items to subsequent subscribers, but will simply pass along the error
   * notification from the source Observable.
   *
-  * @see [[Processor]]
+  * @see [[Subject]]
   */
-final class PublishProcessor[T] private () extends Processor[T,T] {
+final class PublishSubject[T] private () extends Subject[T,T] { self =>
   /*
    * NOTE: the stored vector value can be null and if it is, then
    * that means our subject has been terminated.
@@ -45,9 +44,10 @@ final class PublishProcessor[T] private () extends Processor[T,T] {
   private[this] val stateRef = Atomic(State[T]())
 
   private
-  def onSubscribeCompleted(subscriber: Subscriber[T], ex: Throwable): Unit = {
+  def onSubscribeCompleted(subscriber: Subscriber[T], ex: Throwable): Cancelable = {
     if (ex != null) subscriber.onError(ex) else
       subscriber.onComplete()
+    Cancelable.empty
   }
 
   /*
@@ -58,7 +58,7 @@ final class PublishProcessor[T] private () extends Processor[T,T] {
    * FreezeOnFirstOnNextSubscriber (the purpose of calling onSubscribeContinue)
    */
   @tailrec
-  def unsafeSubscribeFn(subscriber: Subscriber[T]): Unit = {
+  def unsafeSubscribeFn(subscriber: Subscriber[T]): Cancelable = {
     val state = stateRef.get
     val subscribers = state.subscribers
 
@@ -69,10 +69,12 @@ final class PublishProcessor[T] private () extends Processor[T,T] {
     else {
       // this subscriber type can freeze our `onNext` until
       // it's been fed with our buffer
-      val update = State(subscribers :+ subscriber)
+      val update = State(subscribers + subscriber)
 
       if (!stateRef.compareAndSet(state, update))
         unsafeSubscribeFn(subscriber) // repeat
+      else
+        Cancelable(unsubscribe(subscriber))
     }
   }
 
@@ -175,20 +177,20 @@ final class PublishProcessor[T] private () extends Processor[T,T] {
   }
 }
 
-object PublishProcessor {
-  /** Builder for [[PublishProcessor]] */
-  def apply[T](): PublishProcessor[T] =
-    new PublishProcessor[T]()
+object PublishSubject {
+  /** Builder for [[PublishSubject]] */
+  def apply[T](): PublishSubject[T] =
+    new PublishSubject[T]()
 
-  /** Synchronized state for [[PublishProcessor]].
+  /** Synchronized state for [[PublishSubject]].
     *
     * NOTE: `subscribers` can be `null`.
     *
     * @param subscribers is the set of subscribers that are currently subscribed
     * @param errorThrown is the error received in `onError`, or `null` if no error
     */
-  private[broadcast] final case class State[-T](
-    subscribers: Vector[Subscriber[T]] = Vector.empty,
+  private[subjects] final case class State[T](
+    subscribers: Set[Subscriber[T]] = Set.empty[Subscriber[T]],
     errorThrown: Throwable = null) {
 
     def isDone: Boolean = {

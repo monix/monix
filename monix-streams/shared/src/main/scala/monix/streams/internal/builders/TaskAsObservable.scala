@@ -17,13 +17,14 @@
 
 package monix.streams.internal.builders
 
+import monix.execution.Cancelable
 import monix.streams.Observable
 import monix.streams.observers.Subscriber
 import monix.tasks.{Callback, Task}
 
 private[streams] final
 class TaskAsObservable[+A](task: Task[A]) extends Observable[A] {
-  def unsafeSubscribeFn(subscriber: Subscriber[A]): Unit = {
+  def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     import subscriber.scheduler
 
     task.runAsync(new Callback[A] {

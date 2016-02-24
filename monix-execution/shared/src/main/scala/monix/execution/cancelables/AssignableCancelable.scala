@@ -41,3 +41,13 @@ trait AssignableCancelable extends BooleanCancelable {
     */
   def `:=`(value: Cancelable): this.type
 }
+
+object AssignableCancelable {
+  /** Builds a [[MultiAssignmentCancelable]] */
+  def multi(initial: Cancelable = Cancelable.empty): AssignableCancelable =
+    MultiAssignmentCancelable(initial)
+
+  /** Builds a [[SingleAssignmentCancelable]] */
+  def single(): AssignableCancelable =
+    SingleAssignmentCancelable()
+}

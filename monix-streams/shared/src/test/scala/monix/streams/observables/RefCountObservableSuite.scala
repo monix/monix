@@ -22,9 +22,9 @@ import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.schedulers.TestScheduler
 import monix.streams.OverflowStrategy.Unbounded
-import monix.streams.broadcast.Subject
 import monix.streams.exceptions.DummyException
-import monix.streams.{Observable, Observer, OverflowStrategy}
+import monix.streams.subjects.ConcurrentSubject
+import monix.streams.{Observable, Observer}
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
@@ -94,7 +94,7 @@ object RefCountObservableSuite extends TestSuite[TestScheduler] {
       def onComplete(): Unit = ()
     }
 
-    val ch = Subject.publish[Long](Unbounded)
+    val ch = ConcurrentSubject.publish[Long](Unbounded)
     val ref = ch.publish.refCount
     ref.subscribe(createObserver)
     ref.subscribe(createObserver)
@@ -127,7 +127,7 @@ object RefCountObservableSuite extends TestSuite[TestScheduler] {
       def onComplete(): Unit = completed += 1
     }
 
-    val ch = Subject.publish[Long](Unbounded)
+    val ch = ConcurrentSubject.publish[Long](Unbounded)
     val ref = ch.publish.refCount
     ref.subscribe(createObserver)
     ref.subscribe(createObserver)

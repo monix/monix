@@ -15,24 +15,24 @@
  * limitations under the License.
  */
 
-package monix.streams.broadcast
+package monix.streams.subjects
 
-import monix.execution.Ack
 import monix.execution.Ack.{Cancel, Continue}
-import monix.streams.broadcast.PublishProcessor.State
+import monix.execution.{Ack, Cancelable}
 import monix.streams.internal._
-import monix.streams.observers.{Subscriber, SyncObserver}
+import monix.streams.observers.Subscriber
+import monix.streams.subjects.PublishSubject.State
 import org.sincron.atomic.Atomic
 import scala.annotation.tailrec
 
-/** An `AsyncProcessor` emits the last value (and only the last value) emitted by
+/** An `AsyncSubject` emits the last value (and only the last value) emitted by
   * the source Observable, and only after that source Observable completes.
   *
-  * If the source terminates with an error, the `AsyncProcessor` will not emit any
+  * If the source terminates with an error, the `AsyncSubject` will not emit any
   * items to subsequent subscribers, but will simply pass along the error
   * notification from the source Observable.
   */
-final class AsyncProcessor[T] extends Processor[T,T] with SyncObserver[T] { self =>
+final class AsyncSubject[T] extends Subject[T,T] { self =>
   /*
    * NOTE: the stored vector value can be null and if it is, then
    * that means our subject has been terminated.
@@ -41,33 +41,6 @@ final class AsyncProcessor[T] extends Processor[T,T] with SyncObserver[T] { self
 
   private[this] var onNextHappened = false
   private[this] var cachedElem: T = _
-
-  @tailrec
-  def unsafeSubscribeFn(subscriber: Subscriber[T]): Unit = {
-    val state = stateRef.get
-    val subscribers = state.subscribers
-
-    if (subscribers eq null) {
-      // our subject was completed, taking fast path
-      val errorThrown = state.errorThrown
-      if (errorThrown != null)
-        subscriber.onError(errorThrown)
-      else if (onNextHappened) {
-        import subscriber.scheduler
-        subscriber.onNext(cachedElem)
-          .onContinueSignalComplete(subscriber)
-      }
-      else {
-        subscriber.onComplete()
-      }
-    }
-    else {
-      val update = State(subscribers :+ subscriber)
-
-      if (!stateRef.compareAndSet(state, update))
-        unsafeSubscribeFn(subscriber) // repeat
-    }
-  }
 
   def onNext(elem: T): Ack = {
     if (stateRef.get.isDone) Cancel else {
@@ -83,6 +56,36 @@ final class AsyncProcessor[T] extends Processor[T,T] with SyncObserver[T] { self
 
   def onComplete(): Unit = {
     onCompleteOrError(null)
+  }
+
+  @tailrec
+  def unsafeSubscribeFn(subscriber: Subscriber[T]): Cancelable = {
+    val state = stateRef.get
+    val subscribers = state.subscribers
+
+    if (subscribers eq null) {
+      // our subject was completed, taking fast path
+      val errorThrown = state.errorThrown
+      if (errorThrown != null) {
+        subscriber.onError(errorThrown)
+        Cancelable.empty
+      }
+      else if (onNextHappened) {
+        subscriber.onNext(cachedElem)
+        subscriber.onComplete()
+        Cancelable.empty
+      }
+      else {
+        subscriber.onComplete()
+        Cancelable.empty
+      }
+    } else {
+      val update = State(subscribers + subscriber)
+      if (!stateRef.compareAndSet(state, update))
+        unsafeSubscribeFn(subscriber) // repeat
+      else
+        Cancelable(unsubscribe(subscriber))
+    }
   }
 
   @tailrec
@@ -110,9 +113,16 @@ final class AsyncProcessor[T] extends Processor[T,T] with SyncObserver[T] { self
       }
     }
   }
+
+  @tailrec private def unsubscribe(s: Subscriber[T]): Unit = {
+    val current = stateRef.get
+    val update = current.copy(subscribers = current.subscribers - s)
+    if (!stateRef.compareAndSet(current, update))
+      unsubscribe(s)
+  }
 }
 
-object AsyncProcessor {
-  def apply[T](): AsyncProcessor[T] =
-    new AsyncProcessor[T]()
+object AsyncSubject {
+  def apply[T](): AsyncSubject[T] =
+    new AsyncSubject[T]()
 }

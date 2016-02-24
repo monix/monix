@@ -21,7 +21,7 @@ import java.util.concurrent.{TimeUnit, CountDownLatch}
 import minitest.TestSuite
 import monix.execution.{Ack, Scheduler}
 import monix.streams.Observable
-import monix.streams.broadcast.ReplayProcessor
+import monix.streams.subjects.ReplaySubject
 import monix.streams.observers.SyncObserver
 import monix.execution.Ack.Continue
 import monix.streams.internal.concurrent.RunnableAction
@@ -47,7 +47,7 @@ object ReplaySubjectConcurrencySuite extends TestSuite[Scheduler] {
       }
     }
 
-    val subject = ReplayProcessor[Int]()
+    val subject = ReplaySubject[Int]()
     subject.unsafeSubscribeFn(createObserver)
 
     s.execute(RunnableAction {

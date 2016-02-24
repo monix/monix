@@ -59,41 +59,54 @@ final class SingleAssignmentCancelable private ()
     * @return `this`
     */
   @throws(classOf[IllegalStateException])
-  @tailrec
   override def `:=`(value: Cancelable): this.type =
     state.get match {
       case Empty =>
-        if (!state.compareAndSet(Empty, IsNotCanceled(value)))
-          :=(value)
-        else
-          this
-      case IsEmptyCanceled =>
-        if (!state.compareAndSet(IsEmptyCanceled, IsCanceled))
-          :=(value)
+        val oldState = state.getAndSet(IsActive(value))
+        if (oldState eq Empty) this
         else {
           value.cancel()
-          this
+
+          if (oldState eq IsEmptyCanceled) {
+            state.set(IsCanceled)
+            this
+          } else {
+            raiseError()
+          }
         }
-      case IsCanceled | IsNotCanceled(_) =>
-        throw new IllegalStateException(
-          "Cannot assign to SingleAssignmentCancelable, " +
-          "as it was already assigned once")
+      case IsEmptyCanceled =>
+        val oldState = state.getAndSet(IsCanceled)
+        value.cancel()
+
+        if (oldState eq IsEmptyCanceled)
+          this
+        else
+          raiseError()
+
+      case IsCanceled | IsActive(_) =>
+        raiseError()
     }
 
-  @tailrec
-  override def cancel(): Unit =
+  @tailrec override def cancel(): Unit =
     state.get match {
       case Empty =>
         if (!state.compareAndSet(Empty, IsEmptyCanceled))
           cancel()
-      case old @ IsNotCanceled(s) =>
-        if (!state.compareAndSet(old, IsCanceled))
-          cancel()
-        else
-          s.cancel()
-      case IsEmptyCanceled | IsCanceled =>
-        () // do nothing
+      case _ =>
+        val oldState = state.getAndSet(IsCanceled)
+        oldState match {
+          case IsActive(s) =>
+            s.cancel()
+          case _ =>
+            () // do nothing
+        }
     }
+
+  private[this] def raiseError(): Nothing = {
+    throw new IllegalStateException(
+      "Cannot assign to SingleAssignmentCancelable, " +
+        "as it was already assigned once")
+  }
 
   private[this] val state = AtomicAny(Empty : State)
 }
@@ -105,7 +118,7 @@ object SingleAssignmentCancelable {
   private sealed trait State
   private object State {
     case object Empty extends State
-    case class IsNotCanceled(s: Cancelable) extends State
+    case class IsActive(s: Cancelable) extends State
     case object IsCanceled extends State
     case object IsEmptyCanceled extends State
   }

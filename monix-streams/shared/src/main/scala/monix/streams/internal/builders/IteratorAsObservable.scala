@@ -18,7 +18,8 @@
 package monix.streams.internal.builders
 
 import monix.execution.Ack.{Continue, Cancel}
-import monix.execution.{Ack, Scheduler}
+import monix.execution.cancelables.BooleanCancelable
+import monix.execution.{Cancelable, Ack, Scheduler}
 import monix.streams.Observable
 import monix.streams.observers.Subscriber
 import scala.annotation.tailrec
@@ -30,7 +31,7 @@ import scala.util.control.NonFatal
 private[streams] final
 class IteratorAsObservable[T](iterator: Iterator[T]) extends Observable[T] {
 
-  def unsafeSubscribeFn(subscriber: Subscriber[T]): Unit = {
+  def unsafeSubscribeFn(subscriber: Subscriber[T]): Cancelable = {
     import subscriber.{scheduler => s}
     var streamError = true
 
@@ -38,30 +39,36 @@ class IteratorAsObservable[T](iterator: Iterator[T]) extends Observable[T] {
       val isEmpty = iterator.isEmpty
       streamError = false
 
-      if (isEmpty)
+      if (isEmpty) {
         subscriber.onComplete()
-      else
-        fastLoop(iterator, subscriber, s.batchedExecutionModulus, 0)(s)
+        Cancelable.empty
+      }
+      else {
+        val cancelable = BooleanCancelable()
+        fastLoop(iterator, subscriber, cancelable, s.batchedExecutionModulus, 0)(s)
+        cancelable
+      }
     } catch {
       case NonFatal(ex) if streamError =>
         subscriber.onError(ex)
+        Cancelable.empty
     }
   }
 
   private def reschedule(ack: Future[Ack], iter: Iterator[T],
-    out: Subscriber[T], s: Scheduler, modulus: Int): Unit = {
+    out: Subscriber[T], c: BooleanCancelable, s: Scheduler, modulus: Int): Unit = {
 
     ack.onComplete {
       case Success(next) =>
         if (next == Continue)
-          fastLoop(iter, out, modulus, 0)(s)
+          fastLoop(iter, out, c, modulus, 0)(s)
       case Failure(ex) =>
         s.reportFailure(ex)
     }(s)
   }
 
   @tailrec
-  private def fastLoop(iter: Iterator[T], out: Subscriber[T],
+  private def fastLoop(iter: Iterator[T], out: Subscriber[T], c: BooleanCancelable,
     modulus: Int, syncIndex: Int)(implicit s: Scheduler): Unit = {
 
     // the result of onNext calls, on which we must do back-pressure
@@ -99,9 +106,9 @@ class IteratorAsObservable[T](iterator: Iterator[T]) extends Observable[T] {
         else 0
 
       if (nextIndex > 0)
-        fastLoop(iter, out, modulus, nextIndex)
-      else if (nextIndex == 0)
-        reschedule(ack, iter, out, s, modulus)
+        fastLoop(iter, out, c, modulus, nextIndex)
+      else if (nextIndex == 0 && !c.isCanceled)
+        reschedule(ack, iter, out, c, s, modulus)
     }
   }
 }

@@ -17,8 +17,9 @@
 
 package monix.streams.internal.operators2
 
-import monix.execution.Ack
+import monix.execution.{Cancelable, Ack}
 import monix.execution.Ack.Cancel
+import monix.execution.cancelables.MultiAssignmentCancelable
 import monix.streams.observers.Subscriber
 import monix.streams.{CanObserve, Observable}
 import scala.concurrent.Future
@@ -29,8 +30,10 @@ class DelaySubscriptionWithTriggerObservable[A, F[_] : CanObserve]
   (source: Observable[A], trigger: F[_])
   extends Observable[A] {
 
-  def unsafeSubscribeFn(subscriber: Subscriber[A]): Unit = {
-    CanObserve[F].observable(trigger).unsafeSubscribeFn(
+  def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
+    val cancelable = MultiAssignmentCancelable()
+
+    cancelable := CanObserve[F].observable(trigger).unsafeSubscribeFn(
       new Subscriber[Any] {
         implicit val scheduler = subscriber.scheduler
         private[this] var isDone = false
@@ -38,7 +41,7 @@ class DelaySubscriptionWithTriggerObservable[A, F[_] : CanObserve]
         def onNext(elem: Any): Future[Ack] = {
           if (isDone) Cancel else {
             isDone = true
-            source.unsafeSubscribeFn(subscriber)
+            cancelable := source.unsafeSubscribeFn(subscriber)
             Cancel
           }
         }
@@ -52,7 +55,7 @@ class DelaySubscriptionWithTriggerObservable[A, F[_] : CanObserve]
         def onComplete(): Unit =
           if (!isDone) {
             isDone = true
-            source.unsafeSubscribeFn(subscriber)
+            cancelable := source.unsafeSubscribeFn(subscriber)
           }
       })
   }

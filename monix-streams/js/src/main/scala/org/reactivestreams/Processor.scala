@@ -18,10 +18,10 @@
 package org.reactivestreams
 
 /**
- * Mirrors the `Processor` interface from the
+ * Mirrors the `Subject` interface from the
  * [[http://www.reactive-streams.org/ Reactive Streams]] project.
  *
- * A Processor represents a processing stage—which is both a [[Subscriber]]
+ * A Subject represents a processing stage—which is both a [[Subscriber]]
  * and a [[Publisher]] and obeys the contracts of both.
  */
 trait Processor[T,R] extends Subscriber[T] with Publisher[R]

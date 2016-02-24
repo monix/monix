@@ -17,6 +17,7 @@
 
 package monix.streams.internal.builders
 
+import monix.execution.Cancelable
 import monix.streams.observers.Subscriber
 import monix.streams.{Observable, CanObserve}
 import scala.language.higherKinds
@@ -24,7 +25,7 @@ import scala.language.higherKinds
 private[streams] final class ForkObservable[A, F[_] : CanObserve](fa: F[A])
   extends Observable[A] {
 
-  def unsafeSubscribeFn(subscriber: Subscriber[A]): Unit = {
+  def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     CanObserve[F].observable(fa).subscribeOn(subscriber.scheduler)
       .unsafeSubscribeFn(subscriber)
   }

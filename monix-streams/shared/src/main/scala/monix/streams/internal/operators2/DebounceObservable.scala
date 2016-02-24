@@ -19,23 +19,25 @@ package monix.streams.internal.operators2
 
 import java.util.concurrent.TimeUnit
 
-import monix.execution.Ack
+import monix.execution.{Cancelable, Ack}
 import monix.execution.Ack.{Cancel, Continue}
-import monix.execution.cancelables.MultiAssignmentCancelable
-import monix.streams.ObservableLike.Operator
+import monix.execution.cancelables.{CompositeCancelable, MultiAssignmentCancelable}
+import monix.streams.Observable
 import monix.streams.observers.{Subscriber, SyncSubscriber}
 import scala.concurrent.duration.FiniteDuration
 
 private[streams] final
-class DebounceOperator[A](timeout: FiniteDuration, repeat: Boolean)
-  extends Operator[A,A] {
+class DebounceObservable[A] private (source: Observable[A], timeout: FiniteDuration, repeat: Boolean)
+  extends Observable[A] {
 
-  def apply(out: Subscriber[A]): SyncSubscriber[A] =
-    new SyncSubscriber[A] with Runnable { self =>
+  def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
+    val task = MultiAssignmentCancelable()
+    val composite = CompositeCancelable(task)
+
+    composite += source.unsafeSubscribeFn(new SyncSubscriber[A] with Runnable { self =>
       implicit val scheduler = out.scheduler
 
       private[this] val timeoutMillis = timeout.toMillis
-      private[this] val task = MultiAssignmentCancelable()
       private[this] var isDone = false
       private[this] var lastEvent: A = _
       private[this] var lastTSInMillis: Long = 0L
@@ -115,5 +117,13 @@ class DebounceOperator[A](timeout: FiniteDuration, repeat: Boolean)
             out.onComplete()
           }
         }
-    }
+    })
+
+    composite
+  }
+}
+
+private[streams] object DebounceObservable {
+  def apply[A](timeout: FiniteDuration, repeat: Boolean)(source: Observable[A]): Observable[A] =
+    new DebounceObservable[A](source, timeout, repeat)
 }

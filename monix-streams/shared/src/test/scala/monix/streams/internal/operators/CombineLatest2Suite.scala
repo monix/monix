@@ -18,7 +18,7 @@
 package monix.streams.internal.operators
 
 import monix.execution.Ack.Continue
-import monix.streams.broadcast.PublishProcessor
+import monix.streams.subjects.PublishSubject
 import monix.streams.exceptions.DummyException
 import monix.streams.{Observable, Observer}
 import scala.concurrent.duration._
@@ -59,8 +59,8 @@ object CombineLatest2Suite extends BaseOperatorSuite {
   }
 
   test("self starts before other and finishes before other") { implicit s =>
-    val obs1 = PublishProcessor[Int]()
-    val obs2 = PublishProcessor[Int]()
+    val obs1 = PublishSubject[Int]()
+    val obs2 = PublishSubject[Int]()
 
     var received = (0, 0)
     var wasCompleted = false
@@ -93,8 +93,8 @@ object CombineLatest2Suite extends BaseOperatorSuite {
   }
 
   test("self starts after other and finishes after other") { implicit s =>
-    val obs1 = PublishProcessor[Int]()
-    val obs2 = PublishProcessor[Int]()
+    val obs1 = PublishSubject[Int]()
+    val obs2 = PublishSubject[Int]()
 
     var received = (0, 0)
     var wasCompleted = false
@@ -127,8 +127,8 @@ object CombineLatest2Suite extends BaseOperatorSuite {
   }
 
   test("self signals error and interrupts the stream before it starts") { implicit s =>
-    val obs1 = PublishProcessor[Int]()
-    val obs2 = PublishProcessor[Int]()
+    val obs1 = PublishSubject[Int]()
+    val obs2 = PublishSubject[Int]()
 
     var wasThrown: Throwable = null
     var wasCanceled = false
@@ -151,8 +151,8 @@ object CombineLatest2Suite extends BaseOperatorSuite {
   }
 
   test("other signals error and interrupts the stream before it starts") { implicit s =>
-    val obs1 = PublishProcessor[Int]()
-    val obs2 = PublishProcessor[Int]()
+    val obs1 = PublishSubject[Int]()
+    val obs2 = PublishSubject[Int]()
 
     var wasThrown: Throwable = null
     var wasCanceled = false

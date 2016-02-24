@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package monix.streams.broadcast
+package monix.streams.subjects
 
 import monix.execution.Scheduler
 import monix.streams.OverflowStrategy
@@ -23,12 +23,12 @@ import monix.streams.OverflowStrategy.Unbounded
 
 object ReplaySubjectSuite extends BaseSubjectSuite {
   def alreadyTerminatedTest(expectedElems: Seq[Long])(implicit s: Scheduler) = {
-    val c = Subject.replay[Long](Unbounded)
+    val c = ConcurrentSubject.replay[Long](Unbounded)
     Sample(c, expectedElems.sum)
   }
 
   def continuousStreamingTest(expectedElems: Seq[Long])(implicit s: Scheduler) = {
-    val c = Subject.replay[Long](Unbounded)
+    val c = ConcurrentSubject.replay[Long](Unbounded)
     Some(Sample(c, expectedElems.sum))
   }
 }

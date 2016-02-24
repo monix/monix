@@ -17,17 +17,17 @@
 
 package monix.streams.observers
 
-import monix.execution.{Ack, Scheduler}
 import monix.execution.Ack.{Cancel, Continue}
-import monix.streams.{Observer, Observable}
-import monix.streams.broadcast.Subject
+import monix.execution.{Ack, Cancelable, Scheduler}
+import monix.streams.Observable
+import monix.streams.subjects.ConcurrentSubject
 import monix.streams.internal.FutureAckExtensions
 import scala.collection.mutable
 import scala.concurrent.{Future, Promise}
 
 
 /** Wraps a [[Subscriber]] into an implementation that abstains from emitting items until the call
-  * to `connect()` happens. Prior to `connect()` it's also a [[Subject]] into which you can enqueue
+  * to `connect()` happens. Prior to `connect()` it's also a [[ConcurrentSubject]] into which you can enqueue
   * events for delivery once `connect()` happens, but before any items
   * emitted by `onNext` / `onComplete` and `onError`.
   *
@@ -70,7 +70,7 @@ final class ConnectableSubscriber[-T] private (underlying: Subscriber[T])
   extends Subscriber[T] { self =>
 
   private[this] val lock = new AnyRef
-  implicit def scheduler: Scheduler =
+  implicit val scheduler: Scheduler =
     underlying.scheduler
 
   // MUST BE synchronized by `lock`, only available if isConnected == false
@@ -96,31 +96,39 @@ final class ConnectableSubscriber[-T] private (underlying: Subscriber[T])
   // can take the fast path
   @volatile private[this] var isConnected = false
 
+  // Only accessible in `connect()`
+  private[this] var connectionRef: Cancelable = null
+
   /**
     * Connects the underling observer to the upstream publisher.
     *
     * This function should be idempotent. Calling it multiple times should have the same
     * effect as calling it once.
     */
-  def connect(): Unit =
+  def connect(): Cancelable =
     lock.synchronized {
       if (!isConnected && !isConnectionStarted) {
         isConnectionStarted = true
 
-        Observable.from(queue).unsafeSubscribeFn(new Observer[T] {
+        connectionRef = Observable.from(queue).unsafeSubscribeFn(new Subscriber[T] {
+          implicit val scheduler = underlying.scheduler
           private[this] val bufferWasDrained = Promise[Ack]()
 
           bufferWasDrained.future.onSuccess {
             case Continue =>
               connectedPromise.success(Continue)
               isConnected = true
-              queue = null // gc relief
+              // GC relief
+              queue = null
+              connectionRef = Cancelable.empty
 
             case Cancel =>
               wasCanceled = true
               connectedPromise.success(Cancel)
               isConnected = true
-              queue = null // gc relief
+              // GC relief
+              queue = null
+              connectionRef = Cancelable.empty
           }
 
           def onNext(elem: T): Future[Ack] = {
@@ -155,10 +163,11 @@ final class ConnectableSubscriber[-T] private (underlying: Subscriber[T])
           }
         })
       }
+
+      connectionRef
     }
 
-  /**
-    * Emit an item immediately to the underlying observer,
+  /** Emit an item immediately to the underlying observer,
     * after previous `pushFirst()` events, but before any events emitted through
     * `onNext`.
     */
