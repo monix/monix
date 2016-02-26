@@ -487,6 +487,33 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
   def doOnStart(cb: A => Unit): Self[A] =
     self.lift(new DoOnStartOperator[A](cb))
 
+  /** Suppress the duplicate elements emitted by the source Observable.
+    *
+    * WARNING: this requires unbounded buffering.
+    */
+  def distinct: Self[A] =
+    self.lift(new DistinctOperator[A])
+
+  /** Given a function that returns a key for each element emitted by
+    * the source Observable, suppress duplicates items.
+    *
+    * WARNING: this requires unbounded buffering.
+    */
+  def distinctByKey[K](key: A => K): Self[A] =
+    self.lift(new DistinctByKeyOperator(key))
+
+  /** Suppress duplicate consecutive items emitted by the source
+    * Observable
+    */
+  def distinctUntilChanged: Self[A] =
+    self.lift(new DistinctUntilChangedOperator[A])
+
+  /** Suppress duplicate consecutive items emitted by the source
+    * Observable
+    */
+  def distinctUntilChangedByKey[K](key: A => K): Self[A] =
+    self.lift(new DistinctUntilChangedByKeyOperator(key))
+
   /** Drops the first `n` elements (from the start).
     *
     * @param n the number of elements to drop

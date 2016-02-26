@@ -15,39 +15,44 @@
  * limitations under the License.
  */
 
-package monix.streams.internal.operators
+package monix.streams.internal.operators2
 
 import monix.streams.Observable
-import monix.streams.internal.operators2.BaseOperatorSuite
+import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero
 
-object DistinctFnUntilChangedSuite extends BaseOperatorSuite {
+object DistinctUntilChangedByKeySuite extends BaseOperatorSuite {
   case class Val(x: Long)
   def createObservable(sourceCount: Int) = Some {
     val o = Observable.range(0, sourceCount)
       .flatMap(i => Observable.from(Seq(Val(i), Val(i), Val(i))))
-      .distinctUntilChanged(_.x)
+      .distinctUntilChangedByKey(_.x)
       .map(_.x)
 
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val source = Observable.range(0, sourceCount)
-      .flatMap(i => Observable.from(Seq(i, i, i)))
+    if (sourceCount == 1) {
+      val o = Observable.now(1L).endWithError(ex).distinctUntilChangedByKey(x => x)
+      Sample(o,1,1,Zero,Zero)
+    } else {
+      val source = Observable.range(0, sourceCount)
+        .flatMap(i => Observable.from(Seq(i, i, i)))
 
-    val o = createObservableEndingInError(source, ex)
-      .map(Val.apply)
-      .distinctUntilChanged(_.x)
-      .map(_.x)
+      val o = createObservableEndingInError(source, ex)
+        .map(Val.apply)
+        .distinctUntilChangedByKey(_.x)
+        .map(_.x)
 
-    Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
+      Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
+    }
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
     val o = Observable.range(0, sourceCount)
       .flatMap(i => Observable.from(Seq(Val(i), Val(i), Val(i))))
-      .distinctUntilChanged(i => if (i.x == sourceCount-1) throw ex else i.x)
+      .distinctUntilChangedByKey(i => if (i.x == sourceCount-1) throw ex else i.x)
       .map(_.x)
 
     Sample(o, count(sourceCount-1), sum(sourceCount-1), Zero, Zero)
@@ -55,4 +60,9 @@ object DistinctFnUntilChangedSuite extends BaseOperatorSuite {
 
   def count(sourceCount: Int) = sourceCount
   def sum(sourceCount: Int) = sourceCount * (sourceCount - 1) / 2
+
+  override def cancelableObservables() = {
+    val o = Observable.now(1L).delayOnNext(1.second).distinctUntilChangedByKey(x => x)
+    Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
+  }
 }

@@ -837,33 +837,6 @@ abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
   def sum[B >: A](implicit ev: Numeric[B]): Observable[B] =
     ops.math.sum(this: Observable[B])
 
-  /** Suppress the duplicate elements emitted by the source Observable.
-    *
-    * WARNING: this requires unbounded buffering.
-    */
-  def distinct: Observable[A] =
-    ops.distinct.distinct(this)
-
-  /** Given a function that returns a key for each element emitted by
-    * the source Observable, suppress duplicates items.
-    *
-    * WARNING: this requires unbounded buffering.
-    */
-  def distinct[B](fn: A => B): Observable[A] =
-    ops.distinct.distinctBy(this)(fn)
-
-  /** Suppress duplicate consecutive items emitted by the source
-    * Observable
-    */
-  def distinctUntilChanged: Observable[A] =
-    ops.distinct.untilChanged(this)
-
-  /** Suppress duplicate consecutive items emitted by the source
-    * Observable
-    */
-  def distinctUntilChanged[B](fn: A => B): Observable[A] =
-    ops.distinct.untilChangedBy(this)(fn)
-
   /** Returns a new Observable that uses the specified `Scheduler` for
     * initiating the subscription.
     */

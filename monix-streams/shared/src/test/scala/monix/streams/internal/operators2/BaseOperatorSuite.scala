@@ -25,11 +25,9 @@ import monix.execution.schedulers.TestScheduler
 import monix.streams.exceptions.DummyException
 import monix.streams.observers.Subscriber
 import monix.streams.{Observable, Observer}
-
 import scala.concurrent.duration._
 import scala.concurrent.{Future, Promise}
 import scala.util.Random
-
 
 abstract class BaseOperatorSuite extends TestSuite[TestScheduler] {
   case class Sample(
@@ -76,20 +74,7 @@ abstract class BaseOperatorSuite extends TestSuite[TestScheduler] {
    * Helper for quickly creating an observable ending with onError.
    */
   def createObservableEndingInError(source: Observable[Long], ex: Throwable): Observable[Long] =
-    Observable.unsafeCreate[Long] { subscriber =>
-      implicit val s = subscriber.scheduler
-
-      source.unsafeSubscribeFn(new Observer[Long] {
-        def onNext(elem: Long) =
-          subscriber.onNext(elem)
-
-        def onError(ex: Throwable) =
-          subscriber.onError(ex)
-
-        def onComplete() =
-          subscriber.onError(ex)
-      })
-    }
+    source.endWithError(ex)
 
   test("should emit exactly the requested elements") { implicit s =>
     val sourceCount = Random.nextInt(300) + 100
@@ -331,7 +316,7 @@ abstract class BaseOperatorSuite extends TestSuite[TestScheduler] {
 
     createObservable(sourceCount) match {
       case None => ignore()
-      case Some(Sample(_, count, _, _, _)) if count <= 1 => ignore()
+      case Some(Sample(_, count, _, _, _)) if count <= 1 =>ignore()
       case Some(Sample(o, count, sum, waitForFirst, waitForNext)) =>
         var wasCompleted = false
         var received = 0

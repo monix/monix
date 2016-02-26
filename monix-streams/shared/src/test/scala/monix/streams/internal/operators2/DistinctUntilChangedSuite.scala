@@ -15,29 +15,38 @@
  * limitations under the License.
  */
 
-package monix.streams.internal.operators
+package monix.streams.internal.operators2
 
 import monix.streams.Observable
-import monix.streams.internal.operators2.BaseOperatorSuite
+import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero
 
-object DistinctSuite extends BaseOperatorSuite {
+object DistinctUntilChangedSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val o = Observable.range(0, sourceCount)
       .flatMap(i => Observable.from(Seq(i, i, i)))
-      .distinct
+      .distinctUntilChanged
 
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val source = Observable.range(0, sourceCount).flatMap(i => Observable.from(Seq(i, i, i)))
-    val o = createObservableEndingInError(source, ex).distinct
-
-    Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
+    if (sourceCount == 1) {
+      val o = Observable.now(1L).endWithError(ex).distinctUntilChanged
+      Sample(o,1,1,Zero,Zero)
+    } else {
+      val source = Observable.range(0, sourceCount).flatMap(i => Observable.from(Seq(i, i, i)))
+      val o = createObservableEndingInError(source, ex).distinctUntilChanged
+      Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
+    }
   }
 
   def count(sourceCount: Int) = sourceCount
   def sum(sourceCount: Int) = sourceCount * (sourceCount - 1) / 2
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
+
+  override def cancelableObservables() = {
+    val o = Observable.now(1L).delayOnNext(1.second).distinctUntilChanged
+    Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
+  }
 }
