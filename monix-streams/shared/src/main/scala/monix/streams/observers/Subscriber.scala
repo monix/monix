@@ -17,7 +17,7 @@
 
 package monix.streams.observers
 
-import monix.execution.{Ack, Scheduler}
+import monix.execution.{Cancelable, Ack, Scheduler}
 import monix.streams.Observer
 import monix.streams.internal.reactivestreams._
 import org.reactivestreams.{Subscriber => RSubscriber}
@@ -30,6 +30,8 @@ import scala.concurrent.Future
   */
 trait Subscriber[-T] extends Observer[T] {
   implicit def scheduler: Scheduler
+
+//  def onSubscribe(s: Cancelable): Unit
 }
 
 object Subscriber {

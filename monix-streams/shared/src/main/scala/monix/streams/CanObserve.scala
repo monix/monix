@@ -62,13 +62,6 @@ private[streams] trait CanObserveLevel2 extends CanObserveLevel1 {
       def observable[A](fa: Future[A]): Observable[A] =
         new FutureAsObservable(fa)
     }
-
-  /** Default conversion for `Callable` */
-  implicit final val callableInstance: CanObserve[Callable] =
-    new CanObserve[Callable] {
-      def observable[A](fa: Callable[A]): Observable[A] =
-        new CallableAsObservable[A](fa)
-    }
 }
 
 object CanObserve extends CanObserveLevel2 {

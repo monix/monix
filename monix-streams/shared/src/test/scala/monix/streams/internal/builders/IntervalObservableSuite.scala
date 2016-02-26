@@ -55,6 +55,31 @@ object IntervalObservableSuite extends SimpleTestSuite {
     assertEquals(received, 3)
   }
 
+  test("intervalWithFixedDelay should be cancelable") {
+    implicit val s = TestScheduler()
+    var received = 0
+    var wasCompleted = false
+
+    val cancelable = Observable.intervalWithFixedDelay(1.second)
+      .unsafeSubscribeFn(new Observer[Long] {
+        def onNext(elem: Long): Future[Ack] = {
+          received += 1
+          Continue
+        }
+
+        def onError(ex: Throwable) = wasCompleted = false
+        def onComplete() = wasCompleted = false
+      })
+
+    s.tick(1.second)
+    assertEquals(received, 2)
+
+    cancelable.cancel()
+    assertEquals(received, 2)
+    assert(!wasCompleted)
+    assert(s.state.get.tasks.isEmpty, "tasks.isEmpty")
+  }
+
   test("should do intervalAtFixedRate") {
     implicit val s = TestScheduler()
     var received = 0

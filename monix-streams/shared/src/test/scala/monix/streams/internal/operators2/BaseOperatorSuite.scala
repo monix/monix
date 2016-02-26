@@ -23,6 +23,7 @@ import monix.execution.Ack.{Cancel, Continue}
 import monix.execution.FutureUtils.ops._
 import monix.execution.schedulers.TestScheduler
 import monix.streams.exceptions.DummyException
+import monix.streams.observers.Subscriber
 import monix.streams.{Observable, Observer}
 
 import scala.concurrent.duration._
@@ -30,7 +31,7 @@ import scala.concurrent.{Future, Promise}
 import scala.util.Random
 
 
-trait BaseOperatorSuite extends TestSuite[TestScheduler] {
+abstract class BaseOperatorSuite extends TestSuite[TestScheduler] {
   case class Sample(
     observable: Observable[Long],
     count: Int,
@@ -44,30 +45,32 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
       "TestScheduler should have no pending tasks")
   }
 
-  /**
-   * Returns an observable that emits from its data-source
-   * the specified `sourceCount` number of items. The `sourceCount`
-   * is not necessarily equal to the number of elements emitted by
-   * the resulting observable, being just a way to randomly vary
-   * the events being emitted.
-   */
+  /** Returns an observable that emits from its data-source
+    * the specified `sourceCount` number of items. The `sourceCount`
+    * is not necessarily equal to the number of elements emitted by
+    * the resulting observable, being just a way to randomly vary
+    * the events being emitted.
+    */
   protected def createObservable(sourceCount: Int): Option[Sample]
 
-  /**
-   * Optionally build an observable that simulates an error in user
-   * code (if such a thing is possible for the tested operator.
-   *
-   * It first emits elements, followed by an error triggered
-   * within the user-provided portion of the operator.
-   */
+  /** Optionally build an observable that simulates an error in user
+    * code (if such a thing is possible for the tested operator.
+    *
+    * It first emits elements, followed by an error triggered
+    * within the user-provided portion of the operator.
+    */
   protected def brokenUserCodeObservable(sourceCount: Int, ex: Throwable): Option[Sample]
 
-  /**
-   * Optionally builds an observable that first emits the
-   * items and then ends in error triggered by user code
-   * (only for operators that execute user specified code).
-   */
+  /** Optionally builds an observable that first emits the
+    * items and then ends in error triggered by user code
+    * (only for operators that execute user specified code).
+    */
   protected def observableInError(sourceCount: Int, ex: Throwable): Option[Sample]
+
+  /** Optionally return a sequence of observables
+    * that can be canceled.
+    */
+  protected def cancelableObservables(): Seq[Sample] = Seq.empty
 
   /**
    * Helper for quickly creating an observable ending with onError.
@@ -328,6 +331,7 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
 
     createObservable(sourceCount) match {
       case None => ignore()
+      case Some(Sample(_, count, _, _, _)) if count <= 1 => ignore()
       case Some(Sample(o, count, sum, waitForFirst, waitForNext)) =>
         var wasCompleted = false
         var received = 0
@@ -371,6 +375,40 @@ trait BaseOperatorSuite extends TestSuite[TestScheduler] {
         assert(wasCompleted)
         p.success(Continue)
         s.tick(waitForNext)
+    }
+  }
+
+  test("should be cancelable") { implicit s =>
+    val observables = cancelableObservables()
+    if (observables.isEmpty) ignore()
+
+    for (Sample(obs, count, sum, waitFirst, waitNext) <- observables) {
+      var wasCompleted = 0
+      var received = 0L
+
+      val cancelable = obs.unsafeSubscribeFn(new Subscriber[Long] {
+        implicit val scheduler = s
+
+        def onError(ex: Throwable) = wasCompleted += 1
+        def onComplete() = wasCompleted += 1
+
+        def onNext(elem: Long) = {
+          received += 1
+          Continue
+        }
+      })
+
+      s.tick(waitFirst)
+      assertEquals(received, count)
+      assertEquals(wasCompleted, 0)
+      assert(s.state.get.tasks.nonEmpty, "tasks.nonEmpty")
+
+      cancelable.cancel()
+      s.tick(waitNext)
+
+      assertEquals(received, count)
+      assertEquals(wasCompleted, 0)
+      assert(s.state.get.tasks.isEmpty, "tasks.isEmpty")
     }
   }
 }

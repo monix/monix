@@ -29,7 +29,7 @@ import scala.language.higherKinds
 import scala.util.control.NonFatal
 
 private[streams] final
-class ConcatMapObservable[A, B] private
+class ConcatMapObservable[A, B]
   (source: Observable[A], f: A => Observable[B], delayErrors: Boolean)
   extends Observable[B] {
 
@@ -129,9 +129,4 @@ class ConcatMapObservable[A, B] private
 
     composite
   }
-}
-
-private[streams] object ConcatMapObservable {
-  def apply[A,B](f: A => Observable[B], delayErrors: Boolean)(source: Observable[A]): Observable[B] =
-    new ConcatMapObservable(source, f, delayErrors)
 }

@@ -57,6 +57,8 @@ class RepeatedValueObservable[T](initialDelay: FiniteDuration, period: FiniteDur
           if (d >= 0L) d else 0L
         }
 
+        // No need to synchronize, since we have a happens-before
+        // relationship between scheduleOnce invocations.
         task := s.scheduleOnce(initialDelay, TimeUnit.MILLISECONDS, self)
       }
 

@@ -33,7 +33,7 @@ class DelaySubscriptionWithTriggerObservable[A, F[_] : CanObserve]
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     val cancelable = MultiAssignmentCancelable()
 
-    cancelable := CanObserve[F].observable(trigger).unsafeSubscribeFn(
+    val main = CanObserve[F].observable(trigger).unsafeSubscribeFn(
       new Subscriber[Any] {
         implicit val scheduler = subscriber.scheduler
         private[this] var isDone = false
@@ -41,7 +41,7 @@ class DelaySubscriptionWithTriggerObservable[A, F[_] : CanObserve]
         def onNext(elem: Any): Future[Ack] = {
           if (isDone) Cancel else {
             isDone = true
-            cancelable := source.unsafeSubscribeFn(subscriber)
+            cancelable.orderedUpdate(source.unsafeSubscribeFn(subscriber), order=2)
             Cancel
           }
         }
@@ -55,8 +55,10 @@ class DelaySubscriptionWithTriggerObservable[A, F[_] : CanObserve]
         def onComplete(): Unit =
           if (!isDone) {
             isDone = true
-            cancelable := source.unsafeSubscribeFn(subscriber)
+            cancelable.orderedUpdate(source.unsafeSubscribeFn(subscriber), order=2)
           }
       })
+
+    cancelable.orderedUpdate(main, order=1)
   }
 }

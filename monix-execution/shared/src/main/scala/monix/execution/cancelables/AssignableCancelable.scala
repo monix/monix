@@ -16,7 +16,6 @@
  */
 
 package monix.execution.cancelables
-
 import monix.execution.Cancelable
 
 /** Represents a class of cancelables that can hold
@@ -43,6 +42,17 @@ trait AssignableCancelable extends BooleanCancelable {
 }
 
 object AssignableCancelable {
+  /** Interface for [[AssignableCancelable]] types that can be
+    * assigned multiple times.
+    */
+  trait Multi extends AssignableCancelable {
+    /** An ordered update is an update with an order attached and if
+      * the currently stored reference has on order that is greater
+      * than the update, then the update is ignored.
+      */
+    def orderedUpdate(value: Cancelable, order: Long): this.type
+  }
+
   /** Builds a [[MultiAssignmentCancelable]] */
   def multi(initial: Cancelable = Cancelable.empty): AssignableCancelable =
     MultiAssignmentCancelable(initial)

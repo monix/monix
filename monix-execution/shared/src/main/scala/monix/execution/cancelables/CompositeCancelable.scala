@@ -55,36 +55,30 @@ final class CompositeCancelable private (cancelables: Set[Cancelable])
   override def isCanceled: Boolean =
     state.get.isCanceled
 
-  @tailrec
   override def cancel(): Unit = {
-    val oldState = state.get
+    // Using getAndSet, which on Java 8 should be faster than
+    // a compare-and-set.
+    val oldState = state.getAndSet(State(Set.empty, isCanceled = true))
     if (!oldState.isCanceled)
-      if (!state.compareAndSet(oldState, State(Set.empty, isCanceled = true)))
-        cancel()
-      else {
-        for (s <- oldState.subscriptions) s.cancel()
-      }
+      for (s <- oldState.subscriptions) s.cancel()
   }
-
-  /** Adds a cancelable reference to this composite.
-    * Alias for [[add]].
-    */
-  def +=(other: Cancelable): Unit = add(other)
 
   /** Adds a cancelable reference to this composite.
     *
     * If this cancelable is already canceled, then the given
     * reference will be canceled as well.
     */
-  @tailrec
-  def add(s: Cancelable): Unit = {
+  @tailrec def +=(other: Cancelable): this.type = {
     val oldState = state.get
-    if (oldState.isCanceled)
-      s.cancel()
-    else {
-      val newState = oldState.copy(subscriptions = oldState.subscriptions + s)
+    if (oldState.isCanceled) {
+      other.cancel()
+      this
+    } else {
+      val newState = oldState.copy(subscriptions = oldState.subscriptions + other)
       if (!state.compareAndSet(oldState, newState))
-        add(s)
+        +=(other)
+      else
+        this
     }
   }
 

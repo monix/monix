@@ -34,7 +34,7 @@ private[streams] final class TakeWhileNotCanceledOperator[A](c: BooleanCancelabl
       implicit val scheduler = out.scheduler
       private[this] var isActive = true
 
-      def onNext(elem: A): Future[Ack] = {
+      def onNext(elem: A): Future[Ack] =
         if (!isActive) Cancel else {
           var streamError = true
           try {
@@ -48,14 +48,12 @@ private[streams] final class TakeWhileNotCanceledOperator[A](c: BooleanCancelabl
               out.onComplete()
               Cancel
             }
-          }
-          catch {
+          } catch {
             case NonFatal(ex) if streamError =>
               onError(ex)
               Cancel
           }
         }
-      }
 
       def onComplete(): Unit =
         if (isActive) {

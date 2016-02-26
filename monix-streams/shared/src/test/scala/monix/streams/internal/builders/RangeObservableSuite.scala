@@ -18,10 +18,12 @@
 package monix.streams.internal.builders
 
 import minitest.TestSuite
+import monix.execution.{Scheduler, Ack}
 import monix.execution.Ack.Continue
 import monix.execution.FutureUtils.ops._
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
+import monix.streams.observers.Subscriber
 import monix.streams.{Observable, Observer}
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -102,13 +104,39 @@ object RangeObservableSuite extends TestSuite[TestScheduler] {
   }
 
   test("should do synchronous execution in batches") { implicit s =>
+    val batchSize = s.batchedExecutionModulus+1
     var received = 0
-    Observable.range(0, Platform.recommendedBatchSize * 2).map(_ => 1)
+
+    Observable.range(0, batchSize * 20).map(_ => 1)
       .subscribe { x => received += 1; Continue }
 
-    assertEquals(received, Platform.recommendedBatchSize)
-    s.tickOne()
-    assertEquals(received, Platform.recommendedBatchSize * 2)
-    s.tickOne()
+    for (idx <- 1 to 20) {
+      assertEquals(received, Platform.recommendedBatchSize * idx)
+      s.tickOne()
+    }
+  }
+
+  test("should be cancelable") { implicit s =>
+    var received = 0
+    var wasCompleted = 0
+    val source = Observable.range(0, Platform.recommendedBatchSize * 10)
+
+    val cancelable = source.unsafeSubscribeFn(new Subscriber[Long] {
+      implicit val scheduler = s
+
+      def onNext(elem: Long) = {
+        received += 1
+        Continue
+      }
+
+      def onError(ex: Throwable) = wasCompleted += 1
+      def onComplete() = wasCompleted += 1
+    })
+
+    cancelable.cancel()
+    s.tick()
+
+    assertEquals(received, (s.batchedExecutionModulus+1) * 2)
+    assertEquals(wasCompleted, 0)
   }
 }

@@ -59,53 +59,39 @@ final class SingleAssignmentCancelable private ()
     * @return `this`
     */
   @throws(classOf[IllegalStateException])
-  override def `:=`(value: Cancelable): this.type =
-    state.get match {
-      case Empty =>
-        val oldState = state.getAndSet(IsActive(value))
-        if (oldState eq Empty) this
-        else {
-          value.cancel()
+  override def `:=`(value: Cancelable): this.type = {
+    // Using getAndSet, which on Java 8 should be faster than
+    // a compare-and-set.
+    val oldState = state.getAndSet(IsActive(value))
 
-          if (oldState eq IsEmptyCanceled) {
-            state.set(IsCanceled)
-            this
-          } else {
-            raiseError()
-          }
-        }
-      case IsEmptyCanceled =>
-        val oldState = state.getAndSet(IsCanceled)
-        value.cancel()
-
-        if (oldState eq IsEmptyCanceled)
-          this
-        else
-          raiseError()
-
+    oldState match {
+      case Empty => ()
+      case IsEmptyCanceled => value.cancel()
       case IsCanceled | IsActive(_) =>
+        value.cancel()
         raiseError()
     }
 
-  @tailrec override def cancel(): Unit =
+    this
+  }
+
+  @tailrec
+  override def cancel(): Unit = {
     state.get match {
+      case IsCanceled | IsEmptyCanceled => ()
+      case IsActive(s) =>
+        state.set(IsCanceled)
+        s.cancel()
       case Empty =>
         if (!state.compareAndSet(Empty, IsEmptyCanceled))
           cancel()
-      case _ =>
-        val oldState = state.getAndSet(IsCanceled)
-        oldState match {
-          case IsActive(s) =>
-            s.cancel()
-          case _ =>
-            () // do nothing
-        }
     }
+  }
 
-  private[this] def raiseError(): Nothing = {
+  private def raiseError(): Nothing = {
     throw new IllegalStateException(
       "Cannot assign to SingleAssignmentCancelable, " +
-        "as it was already assigned once")
+      "as it was already assigned once")
   }
 
   private[this] val state = AtomicAny(Empty : State)

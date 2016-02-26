@@ -55,4 +55,27 @@ object RepeatedValueObservableSuite extends SimpleTestSuite {
     s.tick(1.second)
     assertEquals(received, 3)
   }
+
+  test("timerRepeated should be cancelable") {
+    implicit val s = TestScheduler()
+    var received = 0
+
+    val cancelable = Observable.timerRepeated(0.seconds, 1.second, 1L)
+      .unsafeSubscribeFn(new Observer[Long] {
+        def onNext(elem: Long): Future[Ack] = {
+          received += 1
+          Future.delayedResult(100.millis)(Continue)
+        }
+
+        def onError(ex: Throwable): Unit = ()
+        def onComplete(): Unit = ()
+      })
+
+    assertEquals(received, 1)
+    cancelable.cancel()
+    s.tick(100.millis)
+
+    assertEquals(received, 1)
+    assert(s.state.get.tasks.isEmpty)
+  }
 }

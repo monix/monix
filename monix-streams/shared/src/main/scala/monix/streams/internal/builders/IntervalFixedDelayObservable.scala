@@ -41,6 +41,8 @@ private[streams] final class IntervalFixedDelayObservable
 
       def scheduleNext(): Cancelable = {
         counter += 1
+        // No need to synchronize, since we have a happens-before
+        // relationship between scheduleOnce invocations.
         task := s.scheduleOnce(delay.length, delay.unit, self)
       }
 

@@ -25,16 +25,17 @@ import scala.concurrent.duration.FiniteDuration
 
 private[streams] final class DelaySubscriptionByTimespanObservable[A]
   (source: Observable[A], timespan: FiniteDuration)
-  extends Observable[A] {
+  extends Observable[A] { self =>
 
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     val cancelable = MultiAssignmentCancelable()
-
-    cancelable := subscriber.scheduler.scheduleOnce(
+    val main = subscriber.scheduler.scheduleOnce(
       timespan.length, timespan.unit,
       new Runnable {
         def run(): Unit =
-          cancelable := source.unsafeSubscribeFn(subscriber)
+          cancelable.orderedUpdate(source.unsafeSubscribeFn(subscriber), order=2)
       })
+
+    cancelable.orderedUpdate(main, order=1)
   }
 }

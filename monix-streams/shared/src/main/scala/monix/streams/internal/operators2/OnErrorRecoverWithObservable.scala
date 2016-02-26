@@ -17,9 +17,9 @@
 
 package monix.streams.internal.operators2
 
-import monix.execution.cancelables.AssignableCancelable
-import monix.execution.{Cancelable, Ack}
 import monix.execution.Ack.Continue
+import monix.execution.cancelables.MultiAssignmentCancelable
+import monix.execution.{Ack, Cancelable}
 import monix.streams.Observable
 import monix.streams.observers.Subscriber
 import scala.concurrent.Future
@@ -31,9 +31,9 @@ class OnErrorRecoverWithObservable[A](source: Observable[A], pf: PartialFunction
   extends Observable[A] {
 
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
-    val cancelable: AssignableCancelable = new OnErrorCancelable
+    val cancelable = MultiAssignmentCancelable()
 
-    cancelable := source.unsafeSubscribeFn(new Subscriber[A] {
+    val main = source.unsafeSubscribeFn(new Subscriber[A] {
       implicit val scheduler = out.scheduler
       private[this] var ack: Future[Ack] = Continue
 
@@ -50,12 +50,13 @@ class OnErrorRecoverWithObservable[A](source: Observable[A], pf: PartialFunction
         try {
           if (pf.isDefinedAt(ex)) {
             val fallbackTo = pf(ex)
+            streamError = false
             // We need asynchronous execution to avoid a synchronous loop
             // blowing out the call stack. We also need to apply back-pressure
             // on the last ack, otherwise we break back-pressure.
             ack.onComplete { r =>
               if (r.isSuccess && (r.get eq Continue))
-                cancelable := fallbackTo.unsafeSubscribeFn(out)
+                cancelable.orderedUpdate(fallbackTo.unsafeSubscribeFn(out), order=2)
             }
           } else {
             // we can't protect the onError call and if it throws
@@ -74,5 +75,7 @@ class OnErrorRecoverWithObservable[A](source: Observable[A], pf: PartialFunction
         }
       }
     })
+
+    cancelable.orderedUpdate(main, order=1)
   }
 }

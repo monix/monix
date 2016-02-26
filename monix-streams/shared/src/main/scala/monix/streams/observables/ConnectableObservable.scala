@@ -75,7 +75,7 @@ object ConnectableObservable {
         source.subscribe(input)
       }
 
-      def connect(): BooleanCancelable =
+      def connect(): Cancelable =
         connection
 
       def unsafeSubscribeFn(subscriber: Subscriber[R]): Cancelable =

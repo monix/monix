@@ -22,6 +22,7 @@ import monix.execution.Ack.Continue
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import monix.streams.Observable
+import monix.streams.observers.Subscriber
 
 object StateActionObservableSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
@@ -47,6 +48,30 @@ object StateActionObservableSuite extends TestSuite[TestScheduler] {
     s.tickOne()
     assertEquals(received, Platform.recommendedBatchSize * 2)
     s.tickOne()
+  }
+
+  test("fromStateAction should be cancelable") { implicit s =>
+    var wasCompleted = false
+    var sum = 0
+
+    val cancelable = Observable.fromStateAction(int)(s.currentTimeMillis())
+      .unsafeSubscribeFn(
+        new Subscriber[Int] {
+          implicit val scheduler = s
+          def onNext(elem: Int) = {
+            sum += 1
+            Continue
+          }
+
+          def onComplete() = wasCompleted = true
+          def onError(ex: Throwable) = wasCompleted = true
+        })
+
+    cancelable.cancel()
+    s.tick()
+
+    assertEquals(sum, (s.batchedExecutionModulus+1) * 2)
+    assert(!wasCompleted)
   }
 
   def int(seed: Long): (Int, Long) = {

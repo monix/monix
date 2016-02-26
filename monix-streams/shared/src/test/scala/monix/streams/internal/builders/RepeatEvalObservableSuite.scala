@@ -22,6 +22,7 @@ import monix.execution.Ack.Continue
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import monix.streams.Observable
+import monix.streams.observers.Subscriber
 
 object RepeatEvalObservableSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
@@ -47,5 +48,29 @@ object RepeatEvalObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(received, Platform.recommendedBatchSize)
     s.tickOne()
     assertEquals(received, Platform.recommendedBatchSize * 2)
+  }
+
+  test("repeatEval should be cancelable") { implicit s =>
+    var wasCompleted = false
+    var sum = 0
+
+    val cancelable = Observable.repeatEval(1)
+      .unsafeSubscribeFn(
+        new Subscriber[Int] {
+          implicit val scheduler = s
+          def onNext(elem: Int) = {
+            sum += elem
+            Continue
+          }
+
+          def onComplete() = wasCompleted = true
+          def onError(ex: Throwable) = wasCompleted = true
+        })
+
+    cancelable.cancel()
+    s.tick()
+
+    assertEquals(sum, (s.batchedExecutionModulus+1) * 2)
+    assert(!wasCompleted)
   }
 }

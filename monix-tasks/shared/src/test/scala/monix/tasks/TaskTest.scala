@@ -17,7 +17,6 @@
 
 package monix.tasks
 
-import java.util.concurrent.CancellationException
 import minitest.TestSuite
 import monix.execution.Cancelable
 import monix.execution.cancelables.BooleanCancelable
@@ -300,8 +299,7 @@ object TaskTest extends TestSuite[TestScheduler] {
 
     s.tick()
     assert(!wasTriggered, "!wasTriggered")
-    assert(f.value.get.failed.get.isInstanceOf[CancellationException],
-      "isInstanceOf[CancellationException]")
+    assertEquals(f.value, None)
   }
 
   test("Task#flatten should work") { implicit s =>
@@ -385,8 +383,7 @@ object TaskTest extends TestSuite[TestScheduler] {
 
     s.tick()
     assert(!wasTriggered, "!wasTriggered")
-    assert(f.value.get.failed.get.isInstanceOf[CancellationException],
-      "isInstanceOf[CancellationException]")
+    assertEquals(f.value, None)
   }
 
   test("Task#delayExecution should work") { implicit s =>
@@ -427,8 +424,7 @@ object TaskTest extends TestSuite[TestScheduler] {
     f.cancel(); s.tick()
     assert(!wasTriggered, "!wasTriggered")
 
-    assert(f.value.get.failed.get.isInstanceOf[CancellationException],
-      "isInstanceOf[CancellationException]")
+    assertEquals(f.value, None)
     assert(s.state.get.tasks.isEmpty,
       "should cancel the scheduleOnce(delay) as well")
   }
@@ -468,8 +464,7 @@ object TaskTest extends TestSuite[TestScheduler] {
     assertEquals(f.value, None)
 
     f.cancel(); s.tick()
-    assert(f.value.get.failed.get.isInstanceOf[CancellationException],
-      "isInstanceOf[CancellationException]")
+    assertEquals(f.value, None)
     assert(s.state.get.tasks.isEmpty,
       "should cancel the scheduleOnce(delay) as well")
   }
@@ -492,16 +487,16 @@ object TaskTest extends TestSuite[TestScheduler] {
     assertEquals(s.state.get.lastReportedError, null)
   }
 
-  test("Task#failed is cancelable") { implicit s =>
-    val task = Task(throw DummyException("dummy")).failed
+  test("Task#failed is not cancelable") { implicit s =>
+    val dummy = DummyException("dummy")
+    val task = Task(throw dummy).failed
 
     val f = task.runAsync
     assertEquals(f.value, None)
     // cancelling after scheduled for execution, but before execution
     f.cancel(); s.tick()
 
-    assert(f.value.get.failed.get.isInstanceOf[CancellationException],
-      "isInstanceOf[CancellationException]")
+    assertEquals(f.value, Some(Success(dummy)))
   }
 
   test("Task#onErrorRecover should mirror source on success") { implicit s =>
@@ -545,7 +540,7 @@ object TaskTest extends TestSuite[TestScheduler] {
     assertEquals(s.state.get.lastReportedError, ex1)
   }
 
-  test("Task#onErrorRecover is cancelable") { implicit s =>
+  test("Task#onErrorRecover is not cancelable") { implicit s =>
     val task = Task[Int](throw DummyException("dummy"))
       .onErrorRecover { case _: DummyException => 99 }
 
@@ -554,8 +549,7 @@ object TaskTest extends TestSuite[TestScheduler] {
     // cancelling after scheduled for execution, but before execution
     f.cancel(); s.tick()
 
-    assert(f.value.get.failed.get.isInstanceOf[CancellationException],
-      "isInstanceOf[CancellationException]")
+    assertEquals(f.value, Some(Success(99)))
   }
 
   test("Task.onErrorFallbackTo should mirror source onSuccess") { implicit s =>
@@ -583,15 +577,17 @@ object TaskTest extends TestSuite[TestScheduler] {
   }
 
   test("Task.onErrorFallbackTo should be cancelable") { implicit s =>
-    val task = Task[Int](throw DummyException("dummy")).onErrorFallbackTo(Task.eval(2))
+    def recursive(): Task[Int] = {
+      Task[Int](throw DummyException("dummy")).onErrorFallbackTo(recursive())
+    }
+
+    val task = recursive()
     val f = task.runAsync
     assertEquals(f.value, None)
 
     // cancelling after scheduled for execution, but before execution
     f.cancel(); s.tick()
-
-    assert(f.value.get.failed.get.isInstanceOf[CancellationException],
-      "isInstanceOf[CancellationException]")
+    assertEquals(f.value, None)
   }
 
   test("Task.onErrorRetry should mirror the source onSuccess") { implicit s =>
@@ -623,16 +619,16 @@ object TaskTest extends TestSuite[TestScheduler] {
     assertEquals(tries, 11)
   }
 
-  test("Task.onErrorRetry should be cancelable") { implicit s =>
-    val task = Task[Int](throw DummyException("dummy")).onErrorRetry(10)
+  test("Task.onErrorRetry should not be cancelable") { implicit s =>
+    val task = Task[Int](throw DummyException("dummy"))
+      .onErrorRetry(s.batchedExecutionModulus+2)
+
     val f = task.runAsync
     assertEquals(f.value, None)
 
     // cancelling after scheduled for execution, but before execution
     f.cancel(); s.tick()
-
-    assert(f.value.get.failed.get.isInstanceOf[CancellationException],
-      "isInstanceOf[CancellationException]")
+    assertEquals(f.value, None)
   }
 
   test("Task.onErrorRetryIf should mirror the source onSuccess") { implicit s =>
@@ -674,8 +670,7 @@ object TaskTest extends TestSuite[TestScheduler] {
     // cancelling after scheduled for execution, but before execution
     f.cancel(); s.tick()
 
-    assert(f.value.get.failed.get.isInstanceOf[CancellationException],
-      "isInstanceOf[CancellationException]")
+    assertEquals(f.value, None)
   }
 
   test("Task#onErrorRecoverWith should mirror source on success") { implicit s =>
@@ -720,16 +715,17 @@ object TaskTest extends TestSuite[TestScheduler] {
   }
 
   test("Task#onErrorRecoverWith is cancelable") { implicit s =>
-    val task = Task[Int](throw DummyException("dummy"))
-      .onErrorRecoverWith { case _: DummyException => Task(99) }
+    def recursive(): Task[Int] = {
+      Task[Int](throw DummyException("dummy"))
+        .onErrorRecoverWith { case _: DummyException => recursive() }
+    }
 
+    val task = recursive()
     val f = task.runAsync
     assertEquals(f.value, None)
     // cancelling after scheduled for execution, but before execution
     f.cancel(); s.tick()
-
-    assert(f.value.get.failed.get.isInstanceOf[CancellationException],
-      "isInstanceOf[CancellationException]")
+    assertEquals(f.value, None)
   }
 
   test("Task#onErrorRecoverWith has a cancelable fallback") { implicit s =>
@@ -742,8 +738,7 @@ object TaskTest extends TestSuite[TestScheduler] {
     s.tick(); assertEquals(f.value, None)
 
     f.cancel(); s.tick()
-    assert(f.value.get.failed.get.isInstanceOf[CancellationException],
-      "isInstanceOf[CancellationException]")
+    assertEquals(f.value, None)
   }
 
   test("Task#timeout should timeout") { implicit s =>
@@ -789,8 +784,7 @@ object TaskTest extends TestSuite[TestScheduler] {
     f.cancel()
     s.tick()
 
-    assert(f.value.get.failed.get.isInstanceOf[CancellationException],
-      "isInstanceOf[CancellationException]")
+    assertEquals(f.value, None)
   }
 
   test("Task#timeout with backup should timeout") { implicit s =>
@@ -835,8 +829,7 @@ object TaskTest extends TestSuite[TestScheduler] {
     f.cancel()
     s.tick()
 
-    assert(f.value.get.failed.get.isInstanceOf[CancellationException],
-      "isInstanceOf[CancellationException]")
+    assertEquals(f.value, None)
     assert(s.state.get.tasks.isEmpty, "timer should be canceled")
   }
 
@@ -850,8 +843,7 @@ object TaskTest extends TestSuite[TestScheduler] {
     assertEquals(f.value, None)
 
     f.cancel(); s.tick()
-    assert(f.value.get.failed.get.isInstanceOf[CancellationException],
-      "isInstanceOf[CancellationException]")
+    assertEquals(f.value, None)
     assert(s.state.get.tasks.isEmpty, "backup should be canceled")
   }
 
@@ -908,8 +900,7 @@ object TaskTest extends TestSuite[TestScheduler] {
     f.cancel()
     s.tick()
 
-    assert(f.value.get.failed.get.isInstanceOf[CancellationException],
-      "isInstanceOf[CancellationException]")
+    assertEquals(f.value, None)
     assert(s.state.get.tasks.isEmpty, "both should be canceled")
   }
 
@@ -939,8 +930,7 @@ object TaskTest extends TestSuite[TestScheduler] {
     f.cancel()
 
     s.tick()
-    assert(f.value.get.failed.get.isInstanceOf[CancellationException],
-      "isInstanceOf[CancellationException]")
+    assertEquals(f.value, None)
   }
 
   test("Task#zip should cancel just the source") { implicit s =>
@@ -951,8 +941,7 @@ object TaskTest extends TestSuite[TestScheduler] {
     f.cancel()
 
     s.tick()
-    assert(f.value.get.failed.get.isInstanceOf[CancellationException],
-      "isInstanceOf[CancellationException]")
+    assertEquals(f.value, None)
   }
 
   test("Task#zip should cancel just the other") { implicit s =>
@@ -963,8 +952,7 @@ object TaskTest extends TestSuite[TestScheduler] {
     f.cancel()
 
     s.tick()
-    assert(f.value.get.failed.get.isInstanceOf[CancellationException],
-      "isInstanceOf[CancellationException]")
+    assertEquals(f.value, None)
   }
 
   test("Task#zip should onError from the source before other") { implicit s =>
@@ -1082,8 +1070,7 @@ object TaskTest extends TestSuite[TestScheduler] {
     f.cancel()
     s.tick()
 
-    assert(f.value.get.failed.get.isInstanceOf[CancellationException],
-      "isInstanceOf[CancellationException]")
+    assertEquals(f.value, None)
     assert(s.state.get.tasks.isEmpty, "both should be canceled")
   }
 
@@ -1128,8 +1115,7 @@ object TaskTest extends TestSuite[TestScheduler] {
 
     f.cancel()
     s.tick(1.second)
-    assert(f.value.get.failed.get.isInstanceOf[CancellationException],
-      "isInstanceOf[CancellationException]")
+    assertEquals(f.value, None)
   }
 
   case class DummyException(message: String) extends RuntimeException(message) {

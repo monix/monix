@@ -17,23 +17,21 @@
 
 package monix.streams
 
-import java.io.PrintStream
 import java.util.concurrent.CancellationException
-import monix.streams.OverflowStrategy.{default => defaultStrategy}
-import monix.streams.subjects._
 import monix.execution.Ack.{Cancel, Continue}
-import monix.execution.cancelables.BooleanCancelable
-import monix.execution.{CancelableFuture, Ack, Cancelable, Scheduler}
+import monix.execution.{Ack, Cancelable, CancelableFuture, Scheduler}
+import monix.streams.ObservableLike.{Operator, Transformer}
+import monix.streams.OverflowStrategy.{default => defaultStrategy}
 import monix.streams.internal.concurrent.UnsafeSubscribeRunnable
 import monix.streams.internal.{builders, operators => ops}
-import monix.streams.ObservableLike.{Transformer, Operator}
 import monix.streams.observables._
 import monix.streams.observers._
+import monix.streams.subjects._
 import org.reactivestreams.{Publisher => RPublisher, Subscriber => RSubscriber}
+
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent.{Future, Promise}
-import scala.language.implicitConversions
-import scala.language.higherKinds
+import scala.language.{higherKinds, implicitConversions}
 import scala.util.control.NonFatal
 
 /** The Observable type that implements the Reactive Pattern.
@@ -174,7 +172,7 @@ abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
     *
     * @return a subscription that can be used to cancel the streaming.
     */
-  def subscribe(observer: Observer[A])(implicit s: Scheduler): BooleanCancelable =
+  def subscribe(observer: Observer[A])(implicit s: Scheduler): Cancelable =
     subscribe(Subscriber(observer, s))
 
   /** Subscribes to the stream.
@@ -182,9 +180,10 @@ abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
     * @return a subscription that can be used to cancel the streaming.
     */
   def subscribe(nextFn: A => Future[Ack], errorFn: Throwable => Unit, completedFn: () => Unit)
-    (implicit s: Scheduler): BooleanCancelable = {
+    (implicit s: Scheduler): Cancelable = {
 
-    subscribe(new Observer[A] {
+    subscribe(new Subscriber[A] {
+      implicit val scheduler = s
       def onNext(elem: A) = nextFn(elem)
       def onComplete() = completedFn()
       def onError(ex: Throwable) = errorFn(ex)
@@ -195,7 +194,7 @@ abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
     *
     * @return a subscription that can be used to cancel the streaming.
     */
-  def subscribe(nextFn: A => Future[Ack], errorFn: Throwable => Unit)(implicit s: Scheduler): BooleanCancelable =
+  def subscribe(nextFn: A => Future[Ack], errorFn: Throwable => Unit)(implicit s: Scheduler): Cancelable =
     subscribe(nextFn, errorFn, () => ())
 
   /** Subscribes to the stream.
@@ -209,7 +208,7 @@ abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
     *
     * @return a subscription that can be used to cancel the streaming.
     */
-  def subscribe(nextFn: A => Future[Ack])(implicit s: Scheduler): BooleanCancelable =
+  def subscribe(nextFn: A => Future[Ack])(implicit s: Scheduler): Cancelable =
     subscribe(nextFn, error => s.reportFailure(error), () => ())
 
   /** Transforms the source using the given operator. */
@@ -350,12 +349,6 @@ abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
   def ambWith[B >: A](other: Observable[B]): Observable[B] = {
     Observable.amb(self, other)
   }
-
-  /** Emit items from the source Observable, or emit a default item if
-    * the source Observable completes after emitting no items.
-    */
-  def defaultIfEmpty[B >: A](default: B): Observable[B] =
-    ops.misc.defaultIfEmpty(self, default)
 
   /** Creates a new Observable that emits the total number of `onNext`
     * events that were emitted by the source.
@@ -668,83 +661,6 @@ abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
   def echoRepeated(timeout: FiniteDuration): Observable[A] =
     ops.echo.apply(self, timeout, onlyOnce = false)
 
-  /** Only emit an item from an Observable if a particular timespan has
-    * passed without it emitting another item, a timespan indicated by
-    * the completion of an observable generated the `selector`
-    * function.
-    *
-    * Note: If the source Observable keeps emitting items more frequently
-    * than the length of the time window then no items will be emitted
-    * by the resulting Observable.
-    *
-    * @param selector function to retrieve a sequence that indicates the
-    *        throttle duration for each item
-    */
-  def debounce(selector: A => Observable[Any]): Observable[A] =
-    ops.debounce.bySelector(self, selector)
-
-  /** Only emit an item from an Observable if a particular timespan has
-    * passed without it emitting another item, a timespan indicated by
-    * the completion of an observable generated the `selector`
-    * function.
-    *
-    * Note: If the source Observable keeps emitting items more
-    * frequently than the length of the time window then no items will
-    * be emitted by the resulting Observable.
-    *
-    * @param selector function to retrieve a sequence that indicates the
-    *        throttle duration for each item
-    * @param f is a function that receives the last element generated by the
-    *        source, generating an observable to be subscribed when
-    *        the source is timing out
-    */
-  def debounce[B](selector: A => Observable[Any], f: A => Observable[B]): Observable[B] =
-    ops.debounce.flattenBySelector(self, selector, f)
-
-  /** Returns an Observable that emits the items emitted by the source
-    * Observable shifted forward in time by a specified delay.
-    *
-    * Each time the source Observable emits an item, delay starts a
-    * timer, and when that timer reaches the given duration, the
-    * Observable returned from delay emits the same item.
-    *
-    * NOTE: this delay refers strictly to the time between the
-    * `onNext` event coming from our source and the time it takes the
-    * downstream observer to get this event. On the other hand the
-    * operator is also applying back-pressure, so on slow observers
-    * the actual time passing between two successive events may be
-    * higher than the specified `duration`.
-    *
-    * @param duration - the delay to shift the source by
-    *
-    * @return the source Observable shifted in time by the specified delay
-    */
-  def delay(duration: FiniteDuration): Observable[A] =
-    ops.delay.byDuration(self, duration)
-
-  /** Returns an Observable that emits the items emitted by the source
-    * Observable shifted forward in time.
-    *
-    * This variant of `delay` sets its delay duration on a per-item
-    * basis by passing each item from the source Observable into a
-    * function that returns an Observable and then monitoring those
-    * Observables. When any such Observable emits an item or
-    * completes, the Observable returned by delay emits the associated
-    * item.
-    *
-    * @see [[Observable!.delay(duration* delay(duration)]] for the other variant
-    * @param selector is a function that returns an Observable for
-    *        each item emitted by the source Observable, which is then
-    *        used to delay the emission of that item by the resulting
-    *        Observable until the Observable returned from `selector`
-    *        emits an item
-    *
-    * @return the source Observable shifted in time by
-    *         the specified delay
-    */
-  def delay[B](selector: A => Observable[B]): Observable[A] =
-    ops.delay.bySelector(self, selector)
-
   /** Applies a binary operator to a start value and all elements of
     * this Observable, going left to right and returns a new
     * Observable that emits only one item before `onComplete`.
@@ -858,18 +774,6 @@ abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
   def exists(p: A => Boolean): Observable[Boolean] =
     find(p).foldLeft(false)((_, _) => true)
 
-  /** Returns an Observable that emits true if the source Observable is
-    * empty, otherwise false.
-    */
-  def isEmpty: Observable[Boolean] =
-    ops.misc.isEmpty(self)
-
-  /** Returns an Observable that emits false if the source Observable is
-    * empty, otherwise true.
-    */
-  def nonEmpty: Observable[Boolean] =
-    ops.misc.isEmpty(self).map(isEmpty => !isEmpty)
-
   /** Returns an Observable that emits a single boolean, either true, in
     * case the given predicate holds for all the items emitted by the
     * source, or false in case at least one item is not verifying the
@@ -883,42 +787,6 @@ abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
     */
   def forAll(p: A => Boolean): Observable[Boolean] =
     exists(e => !p(e)).map(r => !r)
-
-  /** Alias for [[Observable!.complete]].
-    *
-    * Ignores all items emitted by the source Observable and
-    * only calls onCompleted or onError.
-    *
-    * @return an empty Observable that only calls onCompleted or onError,
-    *         based on which one is called by the source Observable
-    */
-  def ignoreElements: Observable[Nothing] =
-    ops.misc.complete(this)
-
-  /** Ignores all items emitted by the source Observable and only calls
-    * onCompleted or onError.
-    *
-    * @return an empty Observable that only calls onCompleted or onError,
-    *         based on which one is called by the source Observable
-    */
-  def complete: Observable[Nothing] =
-    ops.misc.complete(this)
-
-  /** Returns an Observable that emits a single Throwable, in case an
-    * error was thrown by the source Observable, otherwise it isn't
-    * going to emit anything.
-    */
-  def failed: Observable[Throwable] =
-    ops.misc.failed(this)
-
-  /** Emits the given exception instead of `onComplete`.
-    *
-    * @param error the exception to emit onComplete
-    *
-    * @return a new Observable that emits an exception onComplete
-    */
-  def endWithError(error: Throwable): Observable[A] =
-    ops.misc.endWithError(this)(error)
 
   /** Creates a new Observable that emits the given element and then it
     * also emits the events of the source (prepend operation).
@@ -1056,11 +924,6 @@ abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
     */
   def dematerialize[B](implicit ev: A <:< Notification[B]): Observable[B] =
     ops.notification.dematerialize[B](self.asInstanceOf[Observable[Notification[B]]])
-
-  /** Utility that can be used for debugging purposes.
-    */
-  def dump(prefix: String, out: PrintStream = System.out): Observable[A] =
-    ops.debug.dump(self, prefix, out)
 
   /** Repeats the items emitted by this Observable continuously. It
     * caches the generated items until `onComplete` and repeats them

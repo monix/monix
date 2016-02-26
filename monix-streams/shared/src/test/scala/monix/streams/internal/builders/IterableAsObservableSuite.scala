@@ -23,6 +23,8 @@ import monix.execution.FutureUtils.ops._
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import monix.streams.exceptions.DummyException
+import monix.streams.internal.builders.RangeObservableSuite._
+import monix.streams.observers.Subscriber
 import monix.streams.{Observable, Observer}
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -57,7 +59,7 @@ object IterableAsObservableSuite extends TestSuite[TestScheduler] {
     var wasCompleted = false
     var sum = 0
 
-    Observable.from(0 until (Platform.recommendedBatchSize * 2)).unsafeSubscribeFn(
+    Observable.from(0 until (Platform.recommendedBatchSize * 20)).unsafeSubscribeFn(
       new Observer[Int] {
         def onNext(elem: Int) = {
           sum += 1
@@ -68,10 +70,11 @@ object IterableAsObservableSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable): Unit = ()
       })
 
-    assertEquals(sum, Platform.recommendedBatchSize)
-    assert(s.tickOne())
-    assertEquals(sum, Platform.recommendedBatchSize * 2)
-    s.tickOne()
+    for (idx <- 1 to 20) {
+      assertEquals(sum, Platform.recommendedBatchSize * idx)
+      s.tickOne()
+    }
+
     assert(wasCompleted)
   }
 
@@ -293,5 +296,30 @@ object IterableAsObservableSuite extends TestSuite[TestScheduler] {
 
     s.tick()
     assertEquals(errorThrown, DummyException("dummy"))
+  }
+
+  test("fromIterable should be cancelable") { implicit s =>
+    var wasCompleted = false
+    var sum = 0
+
+    val seq = 0 until (Platform.recommendedBatchSize * 20)
+    val cancelable = Observable.from(seq)
+      .unsafeSubscribeFn(
+        new Subscriber[Int] {
+          implicit val scheduler = s
+          def onNext(elem: Int) = {
+            sum += 1
+            Continue
+          }
+
+          def onComplete() = wasCompleted = true
+          def onError(ex: Throwable) = wasCompleted = true
+        })
+
+    cancelable.cancel()
+    s.tick()
+
+    assertEquals(sum, (s.batchedExecutionModulus+1) * 2)
+    assert(!wasCompleted)
   }
 }

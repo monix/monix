@@ -161,8 +161,7 @@ private[monix] object doWork {
               cb(elem)
               streamError = false
               subscriber.onNext(elem)
-            }
-            catch {
+            } catch {
               case NonFatal(ex) =>
                 subscriber.onError(ex)
                 Cancel

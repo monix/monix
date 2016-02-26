@@ -17,6 +17,8 @@
 
 package monix.streams
 
+import java.io.PrintStream
+
 import monix.execution.cancelables.BooleanCancelable
 import monix.streams.ObservableLike.{Operator, Transformer}
 import monix.streams.internal.builders.{CombineLatest2Observable, Zip2Observable}
@@ -200,6 +202,15 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
   def combineLatestWith[B,R](other: Observable[B])(f: (A,B) => R): Self[R] =
     self.transform(self => new CombineLatest2Observable[A,B,R](self, other)(f))
 
+  /** Ignores all items emitted by the source Observable and only calls
+    * onCompleted or onError.
+    *
+    * @return an empty Observable that only calls onCompleted or onError,
+    *         based on which one is called by the source Observable
+    */
+  def completed: Self[Nothing] =
+    self.lift(CompletedOperator)
+
   /** $concatDescription
     *
     * @return $concatReturn
@@ -215,7 +226,7 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
     * $concatMergeDifference
     */
   def concatMap[B](f: A => Observable[B]): Self[B] =
-    self.transform(ConcatMapObservable[A,B](f, delayErrors = false))
+    self.transform(self => new ConcatMapObservable[A,B](self, f, delayErrors = false))
 
   /** Applies a function that you supply to each item emitted by the
     * source observable, where that function returns sequences that
@@ -252,7 +263,7 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
     * @return $concatReturn
     */
   def concatMapDelayError[B](f: A => Observable[B]): Self[B] =
-    self.transform(ConcatMapObservable[A,B](f, delayErrors = true))
+    self.transform(self => new ConcatMapObservable[A,B](self, f, delayErrors = true))
 
   /** Applies a function that you supply to each item emitted by the
     * source observable, where that function returns sequences that
@@ -289,7 +300,7 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
     *     the source observable
     */
   def debounce(timeout: FiniteDuration): Self[A] =
-    self.transform(DebounceObservable(timeout, repeat = false))
+    self.transform(self => new DebounceObservable(self, timeout, repeat = false))
 
   /** Doesn't emit anything until a `timeout` period passes without the
     * source emitting anything. When that timeout happens, we
@@ -310,7 +321,7 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
     *        item to be emitted by the resulting Observable
     */
   def debounceTo[B](timeout: FiniteDuration, f: A => Observable[B]): Self[B] =
-    self.debounce(timeout).flatMapLatest(f)
+    self.debounce(timeout).flatMapLatest(t => f(t))
 
   /** Emits the last item from the source Observable if a particular
     * timespan has passed without it emitting another item, and keeps
@@ -334,11 +345,82 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
     *      that also mirrors the source observable
     */
   def debounceRepeated(period: FiniteDuration): Self[A] =
-    self.transform(DebounceObservable(period, repeat = true))
+    self.transform(self => new DebounceObservable(self, period, repeat = true))
+
+  /** Emit items from the source, or emit a default item if
+    * the source completes after emitting no items.
+    */
+  def defaultIfEmpty[B >: A](default: => B): Self[B] =
+    self.lift(new DefaultIfEmptyOperator[B](default))
 
   /** Delays emitting the final `onComplete` event by the specified amount. */
   def delayOnComplete(delay: FiniteDuration): Self[A] =
-    self.lift(new DelayOnCompleteOperator[A](delay))
+    self.transform(self => new DelayOnCompleteObservable(self, delay))
+
+  /** Returns an Observable that emits the items emitted by the source
+    * Observable shifted forward in time by a specified delay.
+    *
+    * Each time the source Observable emits an item, delay starts a
+    * timer, and when that timer reaches the given duration, the
+    * Observable returned from delay emits the same item.
+    *
+    * NOTE: this delay refers strictly to the time between the
+    * `onNext` event coming from our source and the time it takes the
+    * downstream observer to get this event. On the other hand the
+    * operator is also applying back-pressure, so on slow observers
+    * the actual time passing between two successive events may be
+    * higher than the specified `duration`.
+    *
+    * @param duration - the delay to shift the source by
+    *
+    * @return the source Observable shifted in time by the specified delay
+    */
+  def delayOnNext(duration: FiniteDuration): Self[A] =
+    self.transform(self => new DelayByTimespanObservable[A](self, duration))
+
+  /** Returns an Observable that emits the items emitted by the source
+    * Observable shifted forward in time.
+    *
+    * This variant of `delay` sets its delay duration on a per-item
+    * basis by passing each item from the source Observable into a
+    * function that returns an Observable and then monitoring those
+    * Observables. When any such Observable emits an item or
+    * completes, the Observable returned by delay emits the associated
+    * item.
+    *
+    * @param selector is a function that returns an Observable for
+    *        each item emitted by the source Observable, which is then
+    *        used to delay the emission of that item by the resulting
+    *        Observable until the Observable returned from `selector`
+    *        emits an item
+    *
+    * @return the source Observable shifted in time by
+    *         the specified delay
+    */
+  def delayOnNextBySelector[B](selector: A => Observable[B]): Self[A] =
+    self.transform(self => new DelayBySelectorObservable[A,B](self, selector))
+
+  /** Returns an observable that emits the items emitted by the source
+    * observable shifted forward in time.
+    *
+    * This variant of `delay` sets its delay duration on a per-item
+    * basis by passing each item from the source Observable into a
+    * function that returns an Observable and then monitoring those
+    * Observables. When any such Observable emits an item or
+    * completes, the Observable returned by delay emits the associated
+    * item.
+    *
+    * @param selector is a function that returns an Observable for
+    *        each item emitted by the source Observable, which is then
+    *        used to delay the emission of that item by the resulting
+    *        Observable until the Observable returned from `selector`
+    *        completes
+    *
+    * @return the source Observable shifted in time by
+    *         the specified delay
+    */
+  def delayOnNextBySelectorF[B, F[_] : CanObserve](selector: A => F[B]): Self[A] =
+    delayOnNextBySelector(a => CanObserve[F].observable(selector(a)))
 
   /** Hold an Observer's subscription request for a specified amount of
     * time before passing it on to the source Observable.
@@ -379,7 +461,7 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
     *        must drop events emitted by the source
     */
   def dropByTimespan(timespan: FiniteDuration): Self[A] =
-    self.lift(new DropByTimespanOperator(timespan))
+    self.transform(self => new DropByTimespanObservable(self, timespan))
 
   /** Discard items emitted by the source until a second
     * observable emits an item or completes.
@@ -408,6 +490,27 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
     */
   def dropWhileWithIndex(p: (A, Int) => Boolean): Self[A] =
     self.lift(new DropByPredicateWithIndexOperator(p))
+
+  /** Utility that can be used for debugging purposes.
+    */
+  def dump(prefix: String, out: PrintStream = System.out): Self[A] =
+    self.transform(self => new DumpObservable[A](self, prefix, out))
+
+  /** Emits the given exception instead of `onComplete`.
+    *
+    * @param error the exception to emit onComplete
+    *
+    * @return a new Observable that emits an exception onComplete
+    */
+  def endWithError(error: Throwable): Self[A] =
+    self.lift(new EndWithErrorOperator[A](error))
+
+  /** Returns an observable that emits a single Throwable, in case an
+    * error was thrown by the source, otherwise it isn't
+    * going to emit anything.
+    */
+  def failed: Self[Throwable] =
+    self.lift(FailedOperator)
 
   /** Only emits those items for which the given predicate holds.
     *
@@ -495,6 +598,27 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
   def flattenLatest[B](implicit ev: A <:< Observable[B]): Self[B] =
     self.switch
 
+  /** Alias for [[completed]]. Ignores all items emitted by
+    * the source and only calls onCompleted or onError.
+    *
+    * @return an empty sequence that only calls onCompleted or onError,
+    *         based on which one is called by the source Observable
+    */
+  def ignoreElements: Self[Nothing] =
+    self.lift(CompletedOperator)
+
+  /** Returns an Observable that emits true if the source Observable is
+    * empty, otherwise false.
+    */
+  def isEmpty: Self[Boolean] =
+    self.lift(IsEmptyOperator)
+
+  /** Returns an Observable that emits false if the source Observable is
+    * empty, otherwise true.
+    */
+  def nonEmpty: Self[Boolean] =
+    self.lift(IsEmptyOperator).map(b => !b)
+
   /** Returns a new observable that applies the given function
     * to each item emitted by the source and emits the result.
     */
@@ -545,11 +669,11 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
 
   /** $switchMapDescription */
   def switchMap[B](f: A => Observable[B]): Self[B] =
-    self.lift(new SwitchMapOperator[A,B](f))
+    self.transform(self => new SwitchMapObservable[A,B](self, f))
 
   /** $switchMapDescription */
   def switchMapF[B, F[_] : CanObserve](f: A => F[B]): Self[B] =
-    self.lift(new SwitchMapOperator[A,B](a => CanObserve[F].observable(f(a))))
+    self.switchMap(a => CanObserve[F].observable(f(a)))
 
   /** Selects the first `n` elements (from the start).
     *
@@ -568,7 +692,7 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
     *        is allowed to emit the events of the source
     */
   def takeByTimespan(timespan: FiniteDuration): Self[A] =
-    self.lift(new TakeLeftByTimespanOperator(timespan))
+    self.transform(self => new TakeLeftByTimespanObservable(self, timespan))
 
   /** Creates a new observable that only emits the last `n` elements
     * emitted by the source.
@@ -630,7 +754,7 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
 
   /** Zips the emitted elements of the source with their indices. */
   def zipWithIndex: Self[(A, Long)] =
-    self.lift(new ZipWithIndexOperator[A]())
+    self.lift(new ZipWithIndexOperator[A])
 }
 
 object ObservableLike {

@@ -19,12 +19,39 @@ package monix.streams.internal.operators2
 
 import monix.execution.Ack.Cancel
 import monix.streams.ObservableLike.Operator
-import monix.streams.observers.Subscriber
+import monix.streams.observers.{SyncSubscriber, Subscriber}
 
 private[streams] final class TakeLeftOperator[A](n: Long)
   extends Operator[A, A] {
 
-  def apply(out: Subscriber[A]): Subscriber[A] =
+  def apply(out: Subscriber[A]): Subscriber[A] = {
+    if (n <= 0) zero(out) else positive(out)
+  }
+
+  private def zero(out: Subscriber[A]): SyncSubscriber[A] =
+    new SyncSubscriber[A] {
+      implicit val scheduler = out.scheduler
+      private[this] var isDone = false
+
+      def onNext(elem: A): Cancel = {
+        onComplete()
+        Cancel
+      }
+
+      def onError(ex: Throwable): Unit =
+        if (!isDone) {
+          isDone = true
+          out.onError(ex)
+        }
+
+      def onComplete(): Unit =
+        if (!isDone) {
+          isDone = true
+          out.onComplete()
+        }
+    }
+
+  private def positive(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
       implicit val scheduler = out.scheduler
 
@@ -32,11 +59,7 @@ private[streams] final class TakeLeftOperator[A](n: Long)
       private[this] var isActive = true
 
       def onNext(elem: A) = {
-        if (n <= 0 && isActive) {
-          isActive = false
-          out.onComplete()
-          Cancel
-        } else if (isActive && counter < n) {
+        if (isActive && counter < n) {
           // ^^ short-circuit for not endlessly incrementing that number
           counter += 1
 

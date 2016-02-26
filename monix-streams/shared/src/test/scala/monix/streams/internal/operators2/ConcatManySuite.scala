@@ -17,8 +17,9 @@
 
 package monix.streams.internal.operators2
 
+import monix.execution.internal.Platform
 import monix.streams.Observable
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration._
 
 object ConcatManySuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
@@ -54,5 +55,16 @@ object ConcatManySuite extends BaseOperatorSuite {
     }
 
     Sample(o, count(sourceCount-1), sum(sourceCount-1), waitFirst, waitNext)
+  }
+
+  override def cancelableObservables(): Seq[Sample] = {
+    val sourceCount = Platform.recommendedBatchSize*3
+    val o = Observable.range(0, sourceCount)
+      .flatMap(i => Observable
+        .range(0, sourceCount).map(_ => 1L)
+        .delaySubscription(1.second))
+
+    val count = Platform.recommendedBatchSize*3
+    Seq(Sample(o, count, count, 1.seconds, 0.seconds))
   }
 }

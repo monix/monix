@@ -37,17 +37,16 @@ private[streams] final class RangeObservable(from: Long, until: Long, step: Long
     if (!isInRange(from, until, step)) {
       subscriber.onComplete()
       Cancelable.empty
-    }
-    else {
+    } else {
       val cancelable = BooleanCancelable()
-      loop(cancelable, subscriber, s.batchedExecutionModulus, from, until, step, 0)(s)
+      loop(cancelable, subscriber, s.batchedExecutionModulus, from, 0)(s)
       cancelable
     }
   }
 
   @tailrec
-  private def loop(c: BooleanCancelable, downstream: Subscriber[Long], modulus: Int,
-    from: Long, until: Long, step: Long, syncIndex: Int)
+  private def loop(c: BooleanCancelable, downstream: Subscriber[Long],
+    modulus: Int, from: Long, syncIndex: Int)
     (implicit s: Scheduler): Unit = {
 
     val ack = downstream.onNext(from)
@@ -62,23 +61,24 @@ private[streams] final class RangeObservable(from: Long, until: Long, step: Long
         else 0
 
       if (nextIndex > 0)
-        loop(c, downstream, modulus, nextFrom, until, step, nextIndex)
+        loop(c, downstream, modulus, nextFrom, nextIndex)
       else if (nextIndex == 0 && !c.isCanceled)
-        asyncBoundary(c, ack, downstream, modulus, nextFrom, until, step)
+        asyncBoundary(c, ack, downstream, modulus, nextFrom)
     }
   }
 
   private def asyncBoundary(
     cancelable: BooleanCancelable,
     ack: Future[Ack],
-    downstream: Subscriber[Long], modulus: Int,
-    from: Long, until: Long, step: Long)
+    downstream: Subscriber[Long],
+    modulus: Int,
+    from: Long)
     (implicit s: Scheduler): Unit = {
 
     ack.onComplete {
       case Success(success) =>
         if (success == Continue)
-          loop(cancelable, downstream, modulus, from, until, step, 0)
+          loop(cancelable, downstream, modulus, from, 0)
       case Failure(ex) =>
         s.reportFailure(ex)
     }

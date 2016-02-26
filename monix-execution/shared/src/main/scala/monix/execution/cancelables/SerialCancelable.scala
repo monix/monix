@@ -18,7 +18,7 @@
 package monix.execution.cancelables
 
 import monix.execution.Cancelable
-import org.sincron.atomic.Atomic
+import org.sincron.atomic.{PaddingStrategy, Atomic}
 import scala.annotation.tailrec
 
 /** Represents a [[monix.execution.Cancelable]] whose underlying cancelable
@@ -40,14 +40,14 @@ import scala.annotation.tailrec
   * the old cancelable upon assignment.
   */
 final class SerialCancelable private (initial: Cancelable)
-  extends AssignableCancelable {
+  extends AssignableCancelable.Multi {
 
   import SerialCancelable.State
   import SerialCancelable.State._
 
   private[this] val state = {
-    val s: State = Active(if (initial != null) initial else Cancelable.empty)
-    Atomic(s)
+    val s: State = Active(if (initial != null) initial else Cancelable.empty,0)
+    Atomic.withPadding(s, PaddingStrategy.LeftRight128)
   }
 
   override def isCanceled: Boolean =
@@ -56,15 +56,11 @@ final class SerialCancelable private (initial: Cancelable)
       case _ => false
     }
 
-  @tailrec
-  override def cancel(): Unit = state.get match {
-    case Cancelled => () // nothing to do
-    case current @ Active(s) =>
-      if (state.compareAndSet(current, Cancelled))
-        s.cancel()
-      else
-        cancel()
-  }
+  def cancel(): Unit =
+    state.getAndSet(Cancelled) match {
+      case Cancelled => () // nothing to do
+      case current @ Active(s,_) => s.cancel()
+    }
 
   /** Swaps the underlying cancelable reference with the new `value`
     * and cancels the old cancelable that was replaced.
@@ -72,18 +68,33 @@ final class SerialCancelable private (initial: Cancelable)
     * In case this `SerialCancelable` is already canceled,
     * then the reference `value` will also be canceled on assignment.
     */
+  def `:=`(value: Cancelable): this.type =
+    updateRef(value, updateOrder = -1)
+
+  def orderedUpdate(value: Cancelable, order: Long): this.type =
+    updateRef(value, updateOrder = order)
+
   @tailrec
-  override def :=(value: Cancelable): this.type = state.get match {
-    case Cancelled =>
-      value.cancel()
-      this
-    case current @ Active(s) =>
-      if (!state.compareAndSet(current, Active(value)))
-        :=(value)
-      else {
-        s.cancel()
+  private def updateRef(value: Cancelable, updateOrder: Long): this.type = {
+    state.get match {
+      case Cancelled =>
+        value.cancel()
         this
-      }
+
+      case current @ Active(s, currentOrder) =>
+        val order = if (updateOrder >= 0) updateOrder else currentOrder
+        if (order < currentOrder) {
+          value.cancel()
+          this
+        } else {
+          if (!state.compareAndSet(current, Active(value, order)))
+            updateRef(value, updateOrder)
+          else {
+            s.cancel()
+            this
+          }
+        }
+    }
   }
 }
 
@@ -98,7 +109,7 @@ object SerialCancelable {
 
   private sealed trait State
   private object State {
-    case class Active(s: Cancelable) extends State
+    case class Active(s: Cancelable, order: Long) extends State
     case object Cancelled extends State
   }
 }

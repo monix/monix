@@ -253,97 +253,16 @@ object ConcatOneSuite extends BaseOperatorSuite {
     assertEquals(onErrorReceived, 1)
   }
 
-  test("main observable should be cancelable") { implicit s =>
-    var onCompleteReceived = 0
-    var onNextReceived = 0
-
-    val source = Observable.range(0, 100).delaySubscription(1.second)
+  override def cancelableObservables(): Seq[Sample] = {
+    val sample1 =  Observable.range(1, 100)
+      .flatMap(x => Observable.now(x).delaySubscription(1.second))
+    val sample2 = Observable.range(0, 100).delayOnNext(1.second)
       .flatMap(x => Observable.now(x).delaySubscription(1.second))
 
-    val cancelable = source.unsafeSubscribeFn(new Subscriber[Long] {
-      implicit val scheduler = s
-
-      def onError(ex: Throwable): Unit = ()
-      def onComplete(): Unit =
-        onCompleteReceived += 1
-      def onNext(elem: Long): Future[Ack] = {
-        onNextReceived += 1
-        Continue
-      }
-    })
-
-    s.tick()
-    assertEquals(onNextReceived, 0)
-    assert(s.state.get.tasks.nonEmpty, "tasks.nonEmpty")
-    cancelable.cancel()
-    s.tick()
-
-    assertEquals(onNextReceived, 0)
-    assertEquals(onCompleteReceived, 0)
-    assert(s.state.get.tasks.isEmpty, "tasks.isEmpty")
-  }
-
-  test("child observable should be cancelable") { implicit s =>
-    var onCompleteReceived = 0
-    var onNextReceived = 0
-    var onStart = 0
-
-    val source = Observable.range(0, 100).doOnStart(_ => onStart += 1)
-      .flatMap(x => Observable.now(x).delaySubscription(1.second))
-
-    val cancelable = source.unsafeSubscribeFn(new Subscriber[Long] {
-      implicit val scheduler = s
-
-      def onError(ex: Throwable): Unit = ()
-      def onComplete(): Unit =
-        onCompleteReceived += 1
-      def onNext(elem: Long): Future[Ack] = {
-        onNextReceived += 1
-        Continue
-      }
-    })
-
-    s.tick()
-    assertEquals(onStart, 1)
-    assertEquals(onNextReceived, 0)
-    assert(s.state.get.tasks.nonEmpty, "tasks.nonEmpty")
-    cancelable.cancel()
-    s.tick()
-
-    assertEquals(onNextReceived, 0)
-    assertEquals(onCompleteReceived, 0)
-    assert(s.state.get.tasks.isEmpty, "tasks.isEmpty")
-  }
-
-  test("second child observable should be cancelable") { implicit s =>
-    var onCompleteReceived = 0
-    var onNextReceived = 0
-    var onStart = 0
-
-    val source = Observable.range(0, 100).doOnStart(_ => onStart += 1)
-      .flatMap(x => Observable.now(x).delaySubscription(1.second))
-
-    val cancelable = source.unsafeSubscribeFn(new Subscriber[Long] {
-      implicit val scheduler = s
-
-      def onError(ex: Throwable): Unit = ()
-      def onComplete(): Unit =
-        onCompleteReceived += 1
-      def onNext(elem: Long): Future[Ack] = {
-        onNextReceived += 1
-        Continue
-      }
-    })
-
-    s.tick(1.second)
-    assertEquals(onStart, 1)
-    assertEquals(onNextReceived, 1)
-    assert(s.state.get.tasks.nonEmpty, "tasks.nonEmpty")
-    cancelable.cancel()
-    s.tick()
-
-    assertEquals(onNextReceived, 1)
-    assertEquals(onCompleteReceived, 0)
-    assert(s.state.get.tasks.isEmpty, "tasks.isEmpty")
+    Seq(
+      Sample(sample1, 0, 0, 0.seconds, 0.seconds),
+      Sample(sample1, 1, 1, 1.seconds, 0.seconds),
+      Sample(sample2, 0, 0, 0.seconds, 0.seconds)
+    )
   }
 }

@@ -47,13 +47,15 @@ private[streams] final class DropUntilObservable[A, F[_] : CanObserve]
         Cancel
       }
 
-      task := CanObserve[F].observable(trigger).unsafeSubscribeFn(
-        new SyncSubscriber[Any] {
-          implicit val scheduler = out.scheduler
-          def onNext(elem: Any) = interruptDropMode(null)
-          def onComplete(): Unit = interruptDropMode(null)
-          def onError(ex: Throwable): Unit = interruptDropMode(ex)
-        })
+      locally {
+        task := CanObserve[F].observable(trigger).unsafeSubscribeFn(
+          new SyncSubscriber[Any] {
+            implicit val scheduler = out.scheduler
+            def onNext(elem: Any) = interruptDropMode(null)
+            def onComplete(): Unit = interruptDropMode(null)
+            def onError(ex: Throwable): Unit = interruptDropMode(ex)
+          })
+      }
 
       def onNext(elem: A): Future[Ack] = {
         if (!isActive)
@@ -65,6 +67,7 @@ private[streams] final class DropUntilObservable[A, F[_] : CanObserve]
           Cancel
         } else {
           out.onNext(elem)
+            .syncOnCancelOrFailure(task.cancel())
         }
       }
 

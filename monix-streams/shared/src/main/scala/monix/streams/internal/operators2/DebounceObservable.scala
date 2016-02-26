@@ -18,23 +18,23 @@
 package monix.streams.internal.operators2
 
 import java.util.concurrent.TimeUnit
-
-import monix.execution.{Cancelable, Ack}
 import monix.execution.Ack.{Cancel, Continue}
-import monix.execution.cancelables.{CompositeCancelable, MultiAssignmentCancelable}
+import monix.execution.cancelables.{CompositeCancelable, MultiAssignmentCancelable, SingleAssignmentCancelable}
+import monix.execution.{Ack, Cancelable}
 import monix.streams.Observable
 import monix.streams.observers.{Subscriber, SyncSubscriber}
 import scala.concurrent.duration.FiniteDuration
 
 private[streams] final
-class DebounceObservable[A] private (source: Observable[A], timeout: FiniteDuration, repeat: Boolean)
+class DebounceObservable[A](source: Observable[A], timeout: FiniteDuration, repeat: Boolean)
   extends Observable[A] {
 
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
     val task = MultiAssignmentCancelable()
-    val composite = CompositeCancelable(task)
+    val mainTask = SingleAssignmentCancelable()
+    val composite = CompositeCancelable(mainTask, task)
 
-    composite += source.unsafeSubscribeFn(new SyncSubscriber[A] with Runnable { self =>
+    mainTask := source.unsafeSubscribeFn(new SyncSubscriber[A] with Runnable { self =>
       implicit val scheduler = out.scheduler
 
       private[this] val timeoutMillis = timeout.toMillis
@@ -48,6 +48,8 @@ class DebounceObservable[A] private (source: Observable[A], timeout: FiniteDurat
       }
 
       def scheduleNext(delayMillis: Long): Unit = {
+        // No need to synchronize this assignment, since we have a
+        // happens-before relationship between scheduleOnce invocations.
         task := scheduler.scheduleOnce(delayMillis, TimeUnit.MILLISECONDS, self)
       }
 
@@ -77,7 +79,10 @@ class DebounceObservable[A] private (source: Observable[A], timeout: FiniteDurat
                   Continue
 
                 case Cancel =>
-                  self.synchronized { isDone = true }
+                  self.synchronized {
+                    isDone = true
+                    mainTask.cancel()
+                  }
                   Cancel
               }
             }
@@ -121,9 +126,4 @@ class DebounceObservable[A] private (source: Observable[A], timeout: FiniteDurat
 
     composite
   }
-}
-
-private[streams] object DebounceObservable {
-  def apply[A](timeout: FiniteDuration, repeat: Boolean)(source: Observable[A]): Observable[A] =
-    new DebounceObservable[A](source, timeout, repeat)
 }

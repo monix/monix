@@ -26,7 +26,7 @@ import scala.annotation.tailrec
 import scala.collection.generic.CanBuildFrom
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.{CancellationException, Future, Promise, TimeoutException}
+import scala.concurrent.{Future, Promise, TimeoutException}
 import scala.language.higherKinds
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
@@ -59,9 +59,7 @@ sealed abstract class Task[+T] { self =>
     *        that can either be used to check if the task is canceled
     *        or can be assigned to something that can eventually
     *        cancel the running computation
-    *
     * @param frameId represents the current stack depth
-    *
     * @param callback is the pair of `onSuccess` and `onError` methods that will
     *        be called when the execution completes
 
@@ -81,6 +79,7 @@ sealed abstract class Task[+T] { self =>
   /** Triggers the asynchronous execution.
     *
     * @param cb is a callback that will be invoked upon completion.
+    *
     * @return a [[monix.execution.Cancelable Cancelable]] that can
     *         be used to cancel a running task
     */
@@ -95,6 +94,7 @@ sealed abstract class Task[+T] { self =>
   /** Triggers the asynchronous execution.
     *
     * @param f is a callback that will be invoked upon completion.
+    *
     * @return a [[monix.execution.Cancelable Cancelable]] that can
     *         be used to cancel a running task
     */
@@ -117,12 +117,7 @@ sealed abstract class Task[+T] { self =>
       def onError(ex: Throwable): Unit = p.tryFailure(ex)
     })
 
-    val withTrigger = Cancelable {
-      try cancelable.cancel() finally
-        p.tryFailure(new CancellationException("CancelableFuture.cancel"))
-    }
-
-    CancelableFuture(p.future, withTrigger)
+    CancelableFuture(p.future, cancelable)
   }
 
   /** Returns a new Task that applies the mapping function to
@@ -197,15 +192,22 @@ sealed abstract class Task[+T] { self =>
     * executing and mirroring the result of the source.
     */
   def delayExecution(timespan: FiniteDuration): Task[T] =
-    new Task[T] {
+    new Task[T] { delayed =>
       def unsafeRun(active: MultiAssignmentCancelable, frameId: FrameId, cb: Callback[T])
-        (implicit s: Scheduler): Unit = {
+        (implicit s: Scheduler): Unit = delayed.synchronized {
 
+        // Unfortunately we have to synchronize, otherwise we can have a race
+        // condition on assignment (the cancelable for scheduleOnce to be assigned
+        // after whatever happens in unsafeRun)
         active := s.scheduleOnce(timespan.length, timespan.unit,
           new Runnable {
             def run(): Unit = {
               // At this point it's OK to restart the runLoop.
-              RunLoop.startNow(frameId => self.unsafeRun(active, frameId, cb))
+              RunLoop.startNow { frameId =>
+                // Must synchronize because of a possible race condition on
+                // the assignment of `active`.
+                delayed.synchronized(self.unsafeRun(active, frameId, cb))
+              }
             }
           })
       }

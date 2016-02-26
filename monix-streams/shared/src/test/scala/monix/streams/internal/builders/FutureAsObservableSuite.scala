@@ -23,7 +23,8 @@ import monix.execution.FutureUtils.ops._
 import monix.execution.schedulers.TestScheduler
 import monix.streams.exceptions.DummyException
 import monix.streams.{Observable, Observer}
-import scala.concurrent.Future
+import monix.tasks.Task
+import scala.concurrent.{CancellationException, Future}
 import scala.concurrent.duration._
 
 object FutureAsObservableSuite extends TestSuite[TestScheduler] {
@@ -109,5 +110,25 @@ object FutureAsObservableSuite extends TestSuite[TestScheduler] {
 
     s.tick(100.millis)
     assertEquals(errorThrown, DummyException("dummy"))
+  }
+
+  test("CancelableFuture should be cancelable") { implicit s =>
+    val f = Task(1).delayExecution(1.second).runAsync
+    var received = 0
+    var wasCompleted = false
+
+    val cancelable = Observable.from(f).unsafeSubscribeFn(
+      new Observer[Int] {
+        def onNext(elem: Int) = { received += 1; Continue }
+        def onError(ex: Throwable) = wasCompleted = true
+        def onComplete() = wasCompleted = true
+      })
+
+    cancelable.cancel()
+    s.tick()
+
+    assertEquals(received, 0)
+    assert(!wasCompleted)
+    assert(s.state.get.tasks.isEmpty)
   }
 }

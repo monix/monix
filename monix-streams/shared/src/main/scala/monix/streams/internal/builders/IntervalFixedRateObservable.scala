@@ -51,6 +51,8 @@ private[streams] final class IntervalFixedRateObservable
           if (d >= 0L) d else 0L
         }
 
+        // No need to synchronize, since we have a happens-before
+        // relationship between scheduleOnce invocations.
         task := s.scheduleOnce(delay, TimeUnit.MILLISECONDS, self)
       }
 

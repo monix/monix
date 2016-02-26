@@ -55,5 +55,6 @@ object Cancelable {
   val empty: Cancelable =
     new Cancelable {
       def cancel() = ()
+      override def toString = "monix.execution.Cancelable.empty"
     }
 }

@@ -21,20 +21,19 @@ import monix.execution.Ack
 import monix.execution.Ack.{Cancel, Continue}
 import monix.streams.Observable
 import monix.streams.ObservableLike.Operator
-import monix.streams.observers.Subscriber
+import monix.streams.observers.{Subscriber, SyncSubscriber}
 import scala.collection.mutable
-import scala.concurrent.Future
 
 private[streams] final class TakeRightOperator[A](n: Int)
   extends Operator[A, A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
-    new Subscriber[A] {
+    new SyncSubscriber[A] {
       implicit val scheduler = out.scheduler
       private[this] val queue = mutable.Queue.empty[A]
       private[this] var queued = 0
 
-      def onNext(elem: A): Future[Ack] = {
+      def onNext(elem: A): Ack = {
         if (n <= 0)
           Cancel
         else if (queued < n) {
