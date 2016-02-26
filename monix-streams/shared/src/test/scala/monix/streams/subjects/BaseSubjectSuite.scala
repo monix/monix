@@ -245,7 +245,7 @@ trait BaseSubjectSuite extends TestSuite[TestScheduler] {
       case None => ignore()
       case Some(Sample(channel, expectedSum)) =>
         var totalEmitted = 0L
-        channel.doWork(totalEmitted += _).subscribe()
+        channel.doOnNext(totalEmitted += _).subscribe()
 
         channel.subscribe(createObserver)
         channel.subscribe(createObserver)

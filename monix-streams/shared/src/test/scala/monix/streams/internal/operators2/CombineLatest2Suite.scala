@@ -147,7 +147,7 @@ object CombineLatest2Suite extends BaseOperatorSuite {
     var wasCanceled = false
     var received = (0,0)
 
-    obs1.combineLatestWith(obs2.doOnCanceled { wasCanceled = true })((o1,o2) => (o1,o2))
+    obs1.combineLatestWith(obs2.doOnCancel { wasCanceled = true })((o1,o2) => (o1,o2))
       .unsafeSubscribeFn(new Observer[(Int, Int)] {
         def onNext(elem: (Int, Int)) = { received = elem; Continue }
         def onError(ex: Throwable) = wasThrown = ex
@@ -171,7 +171,7 @@ object CombineLatest2Suite extends BaseOperatorSuite {
     var wasCanceled = false
     var received = (0,0)
 
-    obs2.doOnCanceled { wasCanceled = true }
+    obs2.doOnCancel { wasCanceled = true }
       .combineLatestWith(obs1)((o1,o2) => (o1,o2))
       .unsafeSubscribeFn(new Observer[(Int, Int)] {
         def onNext(elem: (Int, Int)) = { received = elem; Continue }

@@ -25,7 +25,7 @@ import scala.concurrent.Future
 import scala.util.control.NonFatal
 
 private[streams] final
-class DoWorkOnErrorOperator[A](cb: Throwable => Unit)
+class DoOnErrorOperator[A](cb: Throwable => Unit)
   extends Operator[A,A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =

@@ -18,22 +18,46 @@
 package monix.streams.internal.operators2
 
 import monix.execution.Ack
+import monix.execution.Ack.Cancel
 import monix.streams.ObservableLike.Operator
 import monix.streams.observers.Subscriber
 import scala.concurrent.Future
+import scala.util.control.NonFatal
 
 private[streams] final
-class DoWorkOnCancelOperator[A](callback: => Unit)
-  extends Operator[A,A] {
-
+class DoOnNextOperator[A](cb: A => Unit) extends Operator[A,A] {
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
       implicit val scheduler = out.scheduler
+      private[this] var isDone = false
 
-      def onError(ex: Throwable): Unit = out.onError(ex)
-      def onComplete(): Unit = out.onComplete()
+      def onNext(elem: A): Future[Ack] = {
+        // Protects calls to user code from within the operator and
+        // stream the error downstream if it happens, but if the
+        // error happens because of calls to `onNext` or other
+        // protocol calls, then the behavior should be undefined.
+        var streamError = true
+        try {
+          cb(elem)
+          streamError = false
+          out.onNext(elem)
+        } catch {
+          case NonFatal(ex) if streamError =>
+            onError(ex)
+            Cancel
+        }
+      }
 
-      def onNext(elem: A): Future[Ack] =
-        out.onNext(elem).syncOnCancelOrFailure(callback)
+      def onError(ex: Throwable): Unit =
+        if (!isDone) {
+          isDone = true
+          out.onError(ex)
+        }
+
+      def onComplete(): Unit =
+        if (!isDone) {
+          isDone = true
+          out.onComplete()
+        }
     }
 }

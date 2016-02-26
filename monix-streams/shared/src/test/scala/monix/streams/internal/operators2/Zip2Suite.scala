@@ -108,7 +108,7 @@ object Zip2Suite extends BaseOperatorSuite {
     var wasCanceled = false
     var received = (0,0)
 
-    obs1.zip(obs2.doOnCanceled { wasCanceled = true })
+    obs1.zip(obs2.doOnCancel { wasCanceled = true })
       .unsafeSubscribeFn(new Observer[(Int, Int)] {
         def onNext(elem: (Int, Int)) = { received = elem; Continue }
         def onError(ex: Throwable) = wasThrown = ex
@@ -131,7 +131,7 @@ object Zip2Suite extends BaseOperatorSuite {
     var wasCanceled = false
     var received = (0,0)
 
-    obs2.doOnCanceled { wasCanceled = true }.zip(obs1)
+    obs2.doOnCancel { wasCanceled = true }.zip(obs1)
       .unsafeSubscribeFn(new Observer[(Int, Int)] {
       def onNext(elem: (Int, Int)) = { received = elem; Continue }
       def onError(ex: Throwable) = wasThrown = ex
