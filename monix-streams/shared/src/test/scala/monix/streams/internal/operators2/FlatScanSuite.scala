@@ -15,28 +15,28 @@
  * limitations under the License.
  */
 
-package monix.streams.internal.operators
+package monix.streams.internal.operators2
 
 import monix.streams.Observable
-import monix.streams.internal.operators2.BaseOperatorSuite
+import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero
 
 object FlatScanSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val o = Observable.range(0, sourceCount)
-      .flatScan(1L)((acc, elem) => Observable.repeat(acc + elem).take(3))
+      .flatScanF(1L)((acc, elem) => Observable.repeat(acc + elem).take(3))
 
     val sum = (0 until sourceCount).map(x => (1 to x).sum + 1L).sum * 3
     Sample(o, sourceCount * 3, sum, Zero, Zero)
   }
 
-  def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.range(0, sourceCount+1).endWithError(ex)
-      .flatScan(1L)((acc, elem) => Observable.repeat(acc + elem).take(3))
+  def observableInError(sourceCount: Int, ex: Throwable) =
+    if (sourceCount == 1) None else Some {
+      val o = Observable.range(0, sourceCount).endWithError(ex)
+        .flatScan(1L)((acc, elem) => Observable.from(Seq(1L,1L,1L)))
 
-    val sum = (0 until sourceCount).map(x => (1 to x).sum + 1L).sum * 3
-    Sample(o, sourceCount * 3, sum, Zero, Zero)
-  }
+      Sample(o, sourceCount * 3 - 2, sourceCount * 3 - 2, Zero, Zero)
+    }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
     val o = Observable.range(0, sourceCount+1).flatScan(1L) { (acc, elem) =>
@@ -46,5 +46,17 @@ object FlatScanSuite extends BaseOperatorSuite {
 
     val sum = (0 until sourceCount).map(x => (1 to x).sum + 1L).sum * 3
     Sample(o, sourceCount * 3, sum, Zero, Zero)
+  }
+
+  override def cancelableObservables() = {
+    val sample1 = Observable.range(0, 10)
+      .flatScan(1L)((acc,e) => Observable.now(acc+e).delaySubscription(1.second))
+    val sample2 = Observable.range(0, 10).delayOnNext(1.second)
+      .flatScan(1L)((acc,e) => Observable.now(acc+e).delaySubscription(1.second))
+
+    Seq(
+      Sample(sample1,0,0,0.seconds,0.seconds),
+      Sample(sample2,0,0,0.seconds,0.seconds)
+    )
   }
 }

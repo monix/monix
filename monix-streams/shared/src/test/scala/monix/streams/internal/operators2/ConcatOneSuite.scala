@@ -19,10 +19,9 @@ package monix.streams.internal.operators2
 
 import monix.execution.Ack.Continue
 import monix.execution.FutureUtils.ops._
-import monix.execution.{Ack, Scheduler}
+import monix.execution.Scheduler
 import monix.streams.Observable.{empty, now}
 import monix.streams.exceptions.DummyException
-import monix.streams.observers.Subscriber
 import monix.streams.subjects.PublishSubject
 import monix.streams.{Observable, Observer}
 import scala.concurrent.Future
@@ -43,12 +42,13 @@ object ConcatOneSuite extends BaseOperatorSuite {
   def waitFirst = Duration.Zero
   def waitNext = Duration.Zero
 
-  def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val o = createObservableEndingInError(Observable.range(0, sourceCount), ex)
-      .flatMap(i => Observable.now(i))
+  def observableInError(sourceCount: Int, ex: Throwable) =
+    if (sourceCount == 1) None else Some {
+      val o = createObservableEndingInError(Observable.range(0, sourceCount), ex)
+        .flatMap(i => Observable.now(i))
 
-    Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
-  }
+      Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
+    }
 
   def sum(sourceCount: Int) = {
     sourceCount * (sourceCount - 1) / 2
@@ -70,6 +70,18 @@ object ConcatOneSuite extends BaseOperatorSuite {
       .map(_.getOrElse(Vector.empty))
   }
 
+  override def cancelableObservables(): Seq[Sample] = {
+    val sample1 =  Observable.range(1, 100)
+      .flatMap(x => Observable.now(x).delaySubscription(1.second))
+    val sample2 = Observable.range(0, 100).delayOnNext(1.second)
+      .flatMap(x => Observable.now(x).delaySubscription(1.second))
+
+    Seq(
+      Sample(sample1, 0, 0, 0.seconds, 0.seconds),
+      Sample(sample1, 1, 1, 1.seconds, 0.seconds),
+      Sample(sample2, 0, 0, 0.seconds, 0.seconds)
+    )
+  }
 
   test("should work synchronously for synchronous observers") { implicit s =>
     val sourceCount = Random.nextInt(300) + 100
@@ -248,21 +260,8 @@ object ConcatOneSuite extends BaseOperatorSuite {
 
     s.tick()
     assertEquals(received, 0)
-    assertEquals(thrownError, dummy1)
+    assertEquals(thrownError, dummy2)
     assert(!onCompleteReceived, "!onCompleteReceived")
     assertEquals(onErrorReceived, 1)
-  }
-
-  override def cancelableObservables(): Seq[Sample] = {
-    val sample1 =  Observable.range(1, 100)
-      .flatMap(x => Observable.now(x).delaySubscription(1.second))
-    val sample2 = Observable.range(0, 100).delayOnNext(1.second)
-      .flatMap(x => Observable.now(x).delaySubscription(1.second))
-
-    Seq(
-      Sample(sample1, 0, 0, 0.seconds, 0.seconds),
-      Sample(sample1, 1, 1, 1.seconds, 0.seconds),
-      Sample(sample2, 0, 0, 0.seconds, 0.seconds)
-    )
   }
 }

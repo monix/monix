@@ -25,15 +25,14 @@ import monix.streams.exceptions.CompositeException
 import monix.streams.observers.Subscriber
 import scala.collection.mutable
 import scala.concurrent.{Future, Promise}
-import scala.language.higherKinds
 import scala.util.control.NonFatal
 
 private[streams] final
-class ConcatMapObservable[A, B]
-  (source: Observable[A], f: A => Observable[B], delayErrors: Boolean)
-  extends Observable[B] {
+class FlatScanObservable[A,R](
+  source: Observable[A], initial: R, f: (R,A) => Observable[R], delayErrors: Boolean)
+  extends Observable[R] {
 
-  def unsafeSubscribeFn(out: Subscriber[B]): Cancelable = {
+  def unsafeSubscribeFn(out: Subscriber[R]): Cancelable = {
     val conn = MultiAssignmentCancelable()
     val composite = CompositeCancelable(conn)
 
@@ -41,12 +40,13 @@ class ConcatMapObservable[A, B]
       implicit val scheduler = out.scheduler
 
       private[this] var isDone = false
+      private[this] var currentState = initial
       private[this] var upstreamWantsOnError = false
       private[this] var upstreamAck: Future[Ack] = Continue
       private[this] val errors = if (delayErrors)
         mutable.ArrayBuffer.empty[Throwable] else null
 
-      def onNext(a: A): Future[Ack] = {
+      def onNext(elem: A): Future[Ack] = {
         val upstreamPromise = Promise[Ack]()
 
         // Protects calls to user code from within the operator and
@@ -55,18 +55,19 @@ class ConcatMapObservable[A, B]
         // protocol calls, then the behavior should be undefined.
         var streamError = true
         upstreamAck = try {
-          val fb = f(a)
+          val newStateObservable = f(currentState, elem)
           streamError = false
 
-          conn := fb.unsafeSubscribeFn(new Subscriber[B] {
+          conn := newStateObservable.unsafeSubscribeFn(new Subscriber[R] {
             implicit val scheduler = out.scheduler
             private[this] var childAck: Future[Ack] = Continue
 
-            def onNext(elem: B): Future[Ack] = {
+            def onNext(elem: R): Future[Ack] = {
               if (upstreamWantsOnError) {
                 upstreamPromise.trySuccess(Continue)
                 childAck = Cancel
               } else {
+                currentState = elem
                 childAck = out.onNext(elem).syncOnCancelFollow(upstreamPromise, Cancel)
               }
 

@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package monix.streams.internal.operators
+package monix.streams.internal.operators2
 
 import monix.streams.Observable
 import monix.streams.exceptions.CompositeException
-import monix.streams.internal.operators2.BaseOperatorSuite
+import scala.concurrent.duration._
 import scala.concurrent.duration.Duration._
 
 object FlatScanDelayErrorSuite extends BaseOperatorSuite {
@@ -29,7 +29,7 @@ object FlatScanDelayErrorSuite extends BaseOperatorSuite {
     val source = if (ex == null) Observable.range(0, sourceCount)
       else Observable.range(0, sourceCount).endWithError(ex)
 
-    val o = source.flatScanDelayError(1L)((acc, elem) =>
+    val o = source.flatScanDelayErrorF(1L)((acc, elem) =>
       Observable.repeat(acc + elem).take(3)
         .endWithError(SomeException(10)))
 
@@ -51,4 +51,16 @@ object FlatScanDelayErrorSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = create(sourceCount)
   def observableInError(sourceCount: Int, ex: Throwable) = None
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
+
+  override def cancelableObservables() = {
+    val sample1 = Observable.range(0, 10)
+      .flatScanDelayError(1L)((acc,e) => Observable.now(acc+e).delaySubscription(1.second))
+    val sample2 = Observable.range(0, 10).delayOnNext(1.second)
+      .flatScanDelayError(1L)((acc,e) => Observable.now(acc+e).delaySubscription(1.second))
+
+    Seq(
+      Sample(sample1,0,0,0.seconds,0.seconds),
+      Sample(sample2,0,0,0.seconds,0.seconds)
+    )
+  }
 }

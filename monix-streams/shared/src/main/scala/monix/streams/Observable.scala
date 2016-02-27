@@ -665,46 +665,8 @@ abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
     * this Observable, going left to right and returns a new
     * Observable that emits only one item before `onComplete`.
     */
-  def foldLeft[R](initial: R)(op: (R, A) => R): Observable[R] =
-    ops.foldLeft(self, initial)(op)
-
-  /** Applies a binary operator to a start value and all elements of
-    * this Observable, going left to right and returns a new
-    * Observable that emits only one item before `onComplete`.
-    */
   def reduce[B >: A](op: (B, B) => B): Observable[B] =
     ops.reduce(self: Observable[B])(op)
-
-  /** Applies a binary operator to a start value and all elements of
-    * this Observable, going left to right and returns a new
-    * Observable that emits on each step the result of the applied
-    * function.
-    *
-    * Similar to [[foldLeft]], but emits the state on each
-    * step. Useful for modeling finite state machines.
-    */
-  def scan[R](initial: R)(op: (R, A) => R): Observable[R] =
-    ops.scan(self, initial)(op)
-
-  /** Applies a binary operator to a start value and to elements
-    * produced by the source observable, going from left to right,
-    * producing and concatenating observables along the way.
-    *
-    * It's the combination between [[monix.streams.Observable.scan scan]]
-    * and [[monix.streams.Observable.flatten]].
-    */
-  def flatScan[R](initial: R)(op: (R, A) => Observable[R]): Observable[R] =
-    ops.flatScan(self, initial)(op)
-
-  /** Applies a binary operator to a start value and to elements
-    * produced by the source observable, going from left to right,
-    * producing and concatenating observables along the way.
-    *
-    * It's the combination between [[monix.streams.Observable.scan scan]]
-    * and [[monix.streams.Observable.flattenDelayError]].
-    */
-  def flatScanDelayError[R](initial: R)(op: (R, A) => Observable[R]): Observable[R] =
-    ops.flatScan.delayError(self, initial)(op)
 
   /** Returns an Observable which only emits the first item for which
     * the predicate holds.

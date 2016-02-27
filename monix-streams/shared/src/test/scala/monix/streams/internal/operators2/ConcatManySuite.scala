@@ -35,12 +35,13 @@ object ConcatManySuite extends BaseOperatorSuite {
   def waitFirst = Duration.Zero
   def waitNext = Duration.Zero
 
-  def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val o = createObservableEndingInError(Observable.range(0, sourceCount), ex)
-      .flatMap(i => Observable.from(Seq(i, i, i)))
+  def observableInError(sourceCount: Int, ex: Throwable) =
+    if (sourceCount == 1) None else Some {
+      val o = createObservableEndingInError(Observable.range(0, sourceCount), ex)
+        .flatMap(i => Observable.from(Seq(1L, 1L, 1L)))
 
-    Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
-  }
+      Sample(o, count(sourceCount)-2, count(sourceCount)-2, waitFirst, waitNext)
+    }
 
   def sum(sourceCount: Int) = {
     3L * sourceCount * (sourceCount - 1) / 2

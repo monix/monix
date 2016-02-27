@@ -22,6 +22,7 @@ import java.io.PrintStream
 import monix.execution.cancelables.BooleanCancelable
 import monix.streams.ObservableLike.{Operator, Transformer}
 import monix.streams.internal.builders.{CombineLatest2Observable, Zip2Observable}
+import monix.streams.internal.operators
 import monix.streams.internal.operators2._
 import monix.streams.observers.Subscriber
 import scala.concurrent.duration.FiniteDuration
@@ -341,8 +342,8 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
     *        item to be emitted by the resulting Observable at regular
     *        intervals, also determined by period
     *
-    * @see [[Observable.echoRepeated echoRepeated]] for a similar operator
-    *      that also mirrors the source observable
+    * @see [[echoRepeated]] for a similar operator that also mirrors
+    *     the source observable
     */
   def debounceRepeated(period: FiniteDuration): Self[A] =
     self.transform(self => new DebounceObservable(self, period, repeat = true))
@@ -652,6 +653,46 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
   def flatMapLatestF[B, F[_] : CanObserve](f: A => F[B]): Self[B] =
     self.switchMapF(f)
 
+  /** Applies a binary operator to a start value and to elements
+    * produced by the source observable, going from left to right,
+    * producing and concatenating observables along the way.
+    *
+    * It's the combination between [[scan]] and [[flatMap]].
+    */
+  def flatScan[R](initial: R)(op: (R, A) => Observable[R]): Self[R] =
+    self.transform(self => new FlatScanObservable[A,R](self, initial, op, delayErrors = false))
+
+  /** Applies a binary operator to a start value and to elements
+    * produced by the source observable, going from left to right,
+    * producing and concatenating observables along the way.
+    *
+    * It's the combination between [[scan]] and [[flatMap]].
+    */
+  def flatScanF[R,F[_] : CanObserve](initial: R)(op: (R, A) => F[R]): Self[R] =
+    self.flatScan(initial)((state, a) => CanObserve[F].observable(op(state,a)))
+
+  /** Applies a binary operator to a start value and to elements
+    * produced by the source observable, going from left to right,
+    * producing and concatenating observables along the way.
+    *
+    * This version of [[flatScan]] delays all errors until `onComplete`,
+    * when it will finally emit a `CompositeException`.
+    * It's the combination between [[scan]] and [[flatMapDelayError]].
+    */
+  def flatScanDelayError[R](initial: R)(op: (R, A) => Observable[R]): Self[R] =
+    self.transform(self => new FlatScanObservable[A,R](self, initial, op, delayErrors = true))
+
+  /** Applies a binary operator to a start value and to elements
+    * produced by the source observable, going from left to right,
+    * producing and concatenating observables along the way.
+    *
+    * This version of [[flatScan]] delays all errors until `onComplete`,
+    * when it will finally emit a `CompositeException`.
+    * It's the combination between [[scan]] and [[flatMapDelayError]].
+    */
+  def flatScanDelayErrorF[R, F[_]: CanObserve](initial: R)(op: (R, A) => F[R]): Self[R] =
+    self.flatScanDelayError(initial)((state, a) => CanObserve[F].observable(op(state,a)))
+
   /** $concatDescription
     *
     * Alias for [[concat]].
@@ -667,6 +708,13 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
     */
   def flattenLatest[B](implicit ev: A <:< Observable[B]): Self[B] =
     self.switch
+
+  /** Applies a binary operator to a start value and all elements of
+    * this Observable, going left to right and returns a new
+    * Observable that emits only one item before `onComplete`.
+    */
+  def foldLeft[R](initial: R)(op: (R, A) => R): Self[R] =
+    self.lift(new FoldLeftOperator(initial, op))
 
   /** Alias for [[completed]]. Ignores all items emitted by
     * the source and only calls onCompleted or onError.
@@ -732,6 +780,17 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
     */
   def pipeThrough[I >: A, B](pipe: Pipe[I,B]): Self[B] =
     self.lift(new TransformOperator(pipe))
+
+  /** Applies a binary operator to a start value and all elements of
+    * this Observable, going left to right and returns a new
+    * Observable that emits on each step the result of the applied
+    * function.
+    *
+    * Similar to [[foldLeft]], but emits the state on each
+    * step. Useful for modeling finite state machines.
+    */
+  def scan[R](initial: R)(f: (R, A) => R): Self[R] =
+    self.lift(new ScanOperator(initial, f))
 
   /** $switchDescription */
   def switch[B](implicit ev: A <:< Observable[B]): Self[B] =
