@@ -15,13 +15,11 @@
  * limitations under the License.
  */
 
-package monix.streams.internal.operators
+package monix.streams.internal.operators2
 
-import monix.execution.Ack.Continue
 import monix.streams.Observable
-import monix.streams.internal.operators2.BaseOperatorSuite
 import scala.concurrent.duration.Duration.Zero
-import scala.util.Success
+import scala.concurrent.duration._
 
 object ReduceSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
@@ -35,28 +33,16 @@ object ReduceSuite extends BaseOperatorSuite {
     }
   }
 
-  def sum(sourceCount: Int) =
+  def sum(sourceCount: Int): Int =
     sourceCount * (sourceCount + 1) / 2
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.unsafeCreate[Long] { subscriber =>
-      implicit val s = subscriber.scheduler
-      val source = createObservableEndingInError(Observable.range(0, sourceCount), ex)
-        .reduce(_ + _)
-
-      subscriber.onNext(sum(sourceCount)).onComplete {
-        case Success(Continue) =>
-          source.subscribe(subscriber)
-        case _ =>
-          ()
-      }
-    }
-
-    Sample(o, 1, sum(sourceCount), Zero, Zero)
+    val o = Observable.range(1, sourceCount+1).endWithError(ex).reduce(_ + _)
+    Sample(o, 0, 0, Zero, Zero)
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.range(1, sourceCount+1).reduce { (acc, elem) =>
+    val o = Observable.range(0, sourceCount+1).reduce { (acc, elem) =>
       if (elem == sourceCount)
         throw ex
       else
@@ -64,5 +50,10 @@ object ReduceSuite extends BaseOperatorSuite {
     }
 
     Sample(o, 0, 0, Zero, Zero)
+  }
+
+  override def cancelableObservables(): Seq[Sample] = {
+    val o = Observable.range(0, 100).delayOnNext(1.second).reduce(_ + _)
+    Seq(Sample(o,0,0,0.seconds,0.seconds))
   }
 }

@@ -123,6 +123,10 @@ import scala.language.higherKinds
   *         [[monix.streams.OverflowStrategy overflowStrategy]], see
   *         [[monix.streams.OverflowStrategy OverflowStrategy]] for
   *         options.
+  * @define onOverflowParam a function that is used for signaling a special
+  *         event used to inform the consumers that an overflow event
+  *         happened, function that receives the number of dropped
+  *         events as a parameter (see [[OverflowStrategy.Evicted]])
   */
 abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: Self[A] =>
   /** Transforms the source using the given operator function. */
@@ -524,6 +528,39 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
   def delaySubscriptionWith[B, F[_] : CanObserve](trigger: F[B]): Self[A] =
     self.transform(self => new DelaySubscriptionWithTriggerObservable(self, trigger))
 
+  /** Converts the source Observable that emits `Notification[A]` (the
+    * result of [[materialize]]) back to an Observable that emits `A`.
+    */
+  def dematerialize[B](implicit ev: A <:< Notification[B]): Self[B] =
+    self.asInstanceOf[Self[Notification[B]]].lift(new DematerializeOperator[B])
+
+  /** Suppress the duplicate elements emitted by the source Observable.
+    *
+    * WARNING: this requires unbounded buffering.
+    */
+  def distinct: Self[A] =
+    self.lift(new DistinctOperator[A])
+
+  /** Given a function that returns a key for each element emitted by
+    * the source Observable, suppress duplicates items.
+    *
+    * WARNING: this requires unbounded buffering.
+    */
+  def distinctByKey[K](key: A => K): Self[A] =
+    self.lift(new DistinctByKeyOperator(key))
+
+  /** Suppress duplicate consecutive items emitted by the source
+    * Observable
+    */
+  def distinctUntilChanged: Self[A] =
+    self.lift(new DistinctUntilChangedOperator[A])
+
+  /** Suppress duplicate consecutive items emitted by the source
+    * Observable
+    */
+  def distinctUntilChangedByKey[K](key: A => K): Self[A] =
+    self.lift(new DistinctUntilChangedByKeyOperator(key))
+
   /** Executes the given callback if the downstream observer has
     * canceled the streaming by returning `Cancel` as a result of `onNext`.
     */
@@ -566,33 +603,6 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
     */
   def doOnStart(cb: A => Unit): Self[A] =
     self.lift(new DoOnStartOperator[A](cb))
-
-  /** Suppress the duplicate elements emitted by the source Observable.
-    *
-    * WARNING: this requires unbounded buffering.
-    */
-  def distinct: Self[A] =
-    self.lift(new DistinctOperator[A])
-
-  /** Given a function that returns a key for each element emitted by
-    * the source Observable, suppress duplicates items.
-    *
-    * WARNING: this requires unbounded buffering.
-    */
-  def distinctByKey[K](key: A => K): Self[A] =
-    self.lift(new DistinctByKeyOperator(key))
-
-  /** Suppress duplicate consecutive items emitted by the source
-    * Observable
-    */
-  def distinctUntilChanged: Self[A] =
-    self.lift(new DistinctUntilChangedOperator[A])
-
-  /** Suppress duplicate consecutive items emitted by the source
-    * Observable
-    */
-  def distinctUntilChangedByKey[K](key: A => K): Self[A] =
-    self.lift(new DistinctUntilChangedByKeyOperator(key))
 
   /** Drops the first `n` elements (from the start).
     *
@@ -860,6 +870,12 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
   def map[B](f: A => B): Self[B] =
     self.lift(new MapOperator(f))
 
+  /** Converts the source Observable that emits `A` into an Observable
+    * that emits `Notification[A]`.
+    */
+  def materialize: Self[Notification[A]] =
+    self.lift(new MaterializeOperator[A])
+
   /** Takes the elements of the source Observable and emits the maximum
     * value, after the source has completed.
     */
@@ -974,6 +990,13 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
 
   /** Applies a binary operator to a start value and all elements of
     * this Observable, going left to right and returns a new
+    * Observable that emits only one item before `onComplete`.
+    */
+  def reduce[B >: A](op: (B, B) => B): Self[B] =
+    self.lift(new ReduceOperator[B](op))
+
+  /** Applies a binary operator to a start value and all elements of
+    * this Observable, going left to right and returns a new
     * Observable that emits on each step the result of the applied
     * function.
     *
@@ -1048,6 +1071,21 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
     */
   def whileBusyBuffer[B >: A](overflowStrategy: OverflowStrategy.Synchronous[B]): Self[B] =
     asyncBoundary(overflowStrategy)
+
+  /** While the destination observer is busy, drop the incoming events.
+    */
+  def whileBusyDropEvents: Self[A] =
+    self.lift(new WhileBusyDropEventsOperator[A])
+
+  /** While the destination observer is busy, drop the incoming events.
+    * When the downstream recovers, we can signal a special event
+    * meant to inform the downstream observer how many events where
+    * dropped.
+    *
+    * @param onOverflow - $onOverflowParam
+    */
+  def whileBusyDropEventsAndSignal[B >: A](onOverflow: Long => B): Self[B] =
+    self.lift(new WhileBusyDropEventsAndSignalOperator[B](onOverflow))
 
   /** Creates a new observable from this observable and another given
     * observable by combining their items in pairs in a strict sequence.

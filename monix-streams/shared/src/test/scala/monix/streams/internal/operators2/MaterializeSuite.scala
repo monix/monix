@@ -15,50 +15,43 @@
  * limitations under the License.
  */
 
-package monix.streams.internal.operators
+package monix.streams.internal.operators2
 
 import monix.execution.Ack
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.Continue
 import monix.streams.Notification.{OnComplete, OnError, OnNext}
 import monix.streams.exceptions.DummyException
-import monix.streams.internal.operators2.BaseOperatorSuite
 import monix.streams.{Notification, Observable, Observer}
 import scala.concurrent.Future
+import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero
 
 object MaterializeSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.unsafeCreate[Long] { subscriber =>
-      import subscriber.scheduler
-
-      val source: Observable[Notification[Long]] =
-        Observable.range(0, sourceCount).materialize
-
-      source.subscribe(new Observer[Notification[Long]] {
-        def onError(ex: Throwable) = ()
-        def onComplete() = ()
-
-        def onNext(elem: Notification[Long]) = elem match {
-          case OnNext(e) =>
-            subscriber.onNext(e)
-          case OnError(ex) =>
-            subscriber.onError(ex)
-            Cancel
-          case OnComplete =>
-            subscriber.onComplete()
-            Cancel
-        }
-      })
+    val o = Observable.range(0, sourceCount).materialize.map {
+      case OnNext(x) => x
+      case OnComplete => 10L
+      case OnError(ex) => throw ex
     }
 
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 
-  def sum(sourceCount: Int): Long = sourceCount.toLong * (sourceCount - 1) / 2
-  def count(sourceCount: Int) = sourceCount
+  def sum(sourceCount: Int): Long = sourceCount.toLong * (sourceCount - 1) / 2 + 10
+  def count(sourceCount: Int) = sourceCount + 1
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
   def observableInError(sourceCount: Int, ex: Throwable) = None
+
+  override def cancelableObservables(): Seq[MaterializeSuite.Sample] = {
+    val o = Observable.range(0, 100).delayOnNext(1.second).materialize.map {
+      case OnNext(x) => x
+      case OnComplete => 10L
+      case OnError(ex) => throw ex
+    }
+
+    Seq(Sample(o,0,0,0.seconds,0.seconds))
+  }
 
   test("materialize error") { implicit s =>
     val dummyEx = DummyException("dummy")

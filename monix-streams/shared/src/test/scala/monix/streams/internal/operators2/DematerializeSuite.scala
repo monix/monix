@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package monix.streams.internal.operators
+package monix.streams.internal.operators2
 
 import monix.execution.Ack
 import monix.execution.Ack.Continue
-import monix.streams.internal.operators2.BaseOperatorSuite
-import monix.streams.{Observer, Observable}
 import monix.streams.exceptions.DummyException
+import monix.streams.{Observable, Observer}
 import scala.concurrent.Future
+import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero
 
 object DematerializeSuite extends BaseOperatorSuite {
@@ -38,6 +38,12 @@ object DematerializeSuite extends BaseOperatorSuite {
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
   def observableInError(sourceCount: Int, ex: Throwable) = None
+
+  override def cancelableObservables(): Seq[Sample] = {
+    val obs = Observable.range(0, 1000).materialize
+      .delayOnNext(1.second).dematerialize
+    Seq(Sample(obs, 0, 0, 0.seconds, 0.seconds))
+  }
 
   test("dematerialize error") { implicit s =>
     val dummyEx = DummyException("dummy")

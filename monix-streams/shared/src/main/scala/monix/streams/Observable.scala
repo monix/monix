@@ -508,13 +508,6 @@ abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
   def sampleRepeated[B](sampler: Observable[B]): Observable[A] =
     ops.sample.repeated(self, sampler)
 
-  /** Applies a binary operator to a start value and all elements of
-    * this Observable, going left to right and returns a new
-    * Observable that emits only one item before `onComplete`.
-    */
-  def reduce[B >: A](op: (B, B) => B): Observable[B] =
-    ops.reduce(self: Observable[B])(op)
-
   /** Returns an Observable which only emits the first item for which
     * the predicate holds.
     *
@@ -621,18 +614,6 @@ abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
     Observable.unsafeCreate(o => s.execute(UnsafeSubscribeRunnable(this, o)))
   }
 
-  /** Converts the source Observable that emits `A` into an Observable
-    * that emits `Notification[A]`.
-    */
-  def materialize: Observable[Notification[A]] =
-    ops.notification.materialize(self)
-
-  /** Converts the source Observable that emits `Notification[A]` (the
-    * result of [[materialize]]) back to an Observable that emits `A`.
-    */
-  def dematerialize[B](implicit ev: A <:< Notification[B]): Observable[B] =
-    ops.notification.dematerialize[B](self.asInstanceOf[Observable[Notification[B]]])
-
   /** Repeats the items emitted by this Observable continuously. It
     * caches the generated items until `onComplete` and repeats them
     * ad infinitum. On error it terminates.
@@ -659,21 +640,6 @@ abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
     */
   def multicast[B >: A, R](pipe: Pipe[B, R])(implicit s: Scheduler): ConnectableObservable[R] =
     ConnectableObservable.multicast(this, pipe)
-
-  /** While the destination observer is busy, drop the incoming events.
-    */
-  def whileBusyDropEvents: Observable[A] =
-    ops.whileBusy.dropEvents(self)
-
-  /** While the destination observer is busy, drop the incoming events.
-    * When the downstream recovers, we can signal a special event
-    * meant to inform the downstream observer how many events where
-    * dropped.
-    *
-    * @param onOverflow - $onOverflowParam
-    */
-  def whileBusyDropEvents[B >: A](onOverflow: Long => B): Observable[B] =
-    ops.whileBusy.dropEventsThenSignalOverflow(self, onOverflow)
 
   /** Converts this observable into a multicast observable, useful for
     * turning a cold observable into a hot one (i.e. whose source is
