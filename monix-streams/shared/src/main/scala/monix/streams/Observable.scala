@@ -703,60 +703,6 @@ abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
   def publishLast(implicit s: Scheduler): ConnectableObservable[A] =
     unsafeMulticast(AsyncSubject[A]())
 
-  /** Returns an Observable that mirrors the behavior of the source,
-    * unless the source is terminated with an `onError`, in which case
-    * the streaming of events continues with the specified backup
-    * sequence.
-    *
-    * The created Observable mirrors the behavior of the source in
-    * case the source does not end with an error.
-    *
-    * NOTE that compared with `onErrorResumeNext` from Rx.NET, the
-    * streaming is not resumed in case the source is terminated
-    * normally with an `onComplete`.
-    *
-    * @param that is a backup sequence that's being subscribed
-    *        in case the source terminates with an error.
-    */
-  def onErrorFallbackTo[B >: A](that: => Observable[B]): Observable[B] =
-    ops.onError.fallbackTo(self, that)
-
-  /** Returns an Observable that mirrors the behavior of the source,
-    * unless the source is terminated with an `onError`, in which case
-    * it tries subscribing to the source again in the hope that it
-    * will complete without an error.
-    *
-    * NOTE: The number of retries is unlimited, so something like
-    * `Observable.error(new RuntimeException).onErrorRetryUnlimited`
-    * will loop forever.
-    */
-  def onErrorRetryUnlimited: Observable[A] =
-    ops.onError.retryUnlimited(self)
-
-  /** Returns an Observable that mirrors the behavior of the source,
-    * unless the source is terminated with an `onError`, in which case
-    * it tries subscribing to the source again in the hope that it
-    * will complete without an error.
-    *
-    * The number of retries is limited by the specified `maxRetries`
-    * parameter, so for an Observable that always ends in error the
-    * total number of subscriptions that will eventually happen is
-    * `maxRetries + 1`.
-    */
-  def onErrorRetry(maxRetries: Long): Observable[A] =
-    ops.onError.retryCounted(self, maxRetries)
-
-  /** Returns an Observable that mirrors the behavior of the source,
-    * unless the source is terminated with an `onError`, in which case
-    * it tries subscribing to the source again in the hope that it
-    * will complete without an error.
-    *
-    * The given predicate establishes if the subscription should be
-    * retried or not.
-    */
-  def onErrorRetryIf(p: Throwable => Boolean): Observable[A] =
-    ops.onError.retryIf(self, p)
-
   /** Returns an Observable that mirrors the source Observable but
     * applies a timeout for each emitted item. If the next item isn't
     * emitted within the specified timeout duration starting from its

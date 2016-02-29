@@ -15,28 +15,29 @@
  * limitations under the License.
  */
 
-package monix.streams.internal.operators
+package monix.streams.internal.operators2
 
+import monix.execution.Cancelable
 import monix.streams.Observable
 import monix.streams.exceptions.DummyException
-import monix.streams.internal.operators2.BaseOperatorSuite
-import scala.concurrent.duration.Duration
+import monix.streams.observers.Subscriber
+import scala.concurrent.duration._
 
 object OnErrorRetryUnlimitedSuite extends BaseOperatorSuite {
   def create(sourceCount: Int, maxSubscriptions: Int, ex: Throwable) = {
     var subscriptions = 0
-
-    Observable.unsafeCreate[Long] { subscriber =>
-      if (subscriptions < maxSubscriptions) {
-        subscriptions += 1
-        Observable.range(0, sourceCount)
-          .endWithError(ex)
-          .unsafeSubscribeFn(subscriber)
-      }
-      else {
-        Observable.range(0, sourceCount)
-          .unsafeSubscribeFn(subscriber)
-      }
+    new Observable[Long] {
+      def unsafeSubscribeFn(subscriber: Subscriber[Long]): Cancelable =
+        if (subscriptions < maxSubscriptions) {
+          subscriptions += 1
+          Observable.range(0, sourceCount)
+            .endWithError(ex)
+            .unsafeSubscribeFn(subscriber)
+        }
+        else {
+          Observable.range(0, sourceCount)
+            .unsafeSubscribeFn(subscriber)
+        }
     }
   }
 
@@ -51,4 +52,17 @@ object OnErrorRetryUnlimitedSuite extends BaseOperatorSuite {
 
   def observableInError(sourceCount: Int, ex: Throwable) = None
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
+
+  override def cancelableObservables() = {
+    val dummy = DummyException("dummy")
+    val sample = Observable.range(0, 20).map(_ => 1L)
+      .endWithError(dummy).delaySubscription(1.second)
+      .onErrorRetryUnlimited
+
+    Seq(
+      Sample(sample, 0, 0, 0.seconds, 0.seconds),
+      Sample(sample, 20, 20, 1.seconds, 0.seconds),
+      Sample(sample, 40, 40, 2.seconds, 0.seconds)
+    )
+  }
 }

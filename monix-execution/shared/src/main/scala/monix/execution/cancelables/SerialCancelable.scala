@@ -62,40 +62,45 @@ final class SerialCancelable private (initial: Cancelable)
       case current @ Active(s,_) => s.cancel()
     }
 
-  /** Swaps the underlying cancelable reference with the new `value`
-    * and cancels the old cancelable that was replaced.
-    *
-    * In case this `SerialCancelable` is already canceled,
-    * then the reference `value` will also be canceled on assignment.
-    */
-  def `:=`(value: Cancelable): this.type =
-    updateRef(value, updateOrder = -1)
-
-  def orderedUpdate(value: Cancelable, order: Long): this.type =
-    updateRef(value, updateOrder = order)
-
-  @tailrec
-  private def updateRef(value: Cancelable, updateOrder: Long): this.type = {
+  @tailrec def `:=`(value: Cancelable): this.type =
     state.get match {
       case Cancelled =>
         value.cancel()
         this
 
-      case current @ Active(s, currentOrder) =>
-        val order = if (updateOrder >= 0) updateOrder else currentOrder
-        if (order < currentOrder) {
+      case current @ Active(old, currentOrder) =>
+        if (!state.compareAndSet(current, Active(value, currentOrder)))
+          :=(value) // retry
+        else {
+          old.cancel()
+          this
+        }
+    }
+
+  @tailrec def orderedUpdate(value: Cancelable, order: Long): this.type =
+    state.get match {
+      case Cancelled =>
+        value.cancel()
+        this
+
+      case current @ Active(oldRef, currentOrder) =>
+        val sameSign = (currentOrder < 0) ^ (order >= 0)
+        val isOrdered =
+          (sameSign && currentOrder <= order) ||
+            (currentOrder >= 0L && order < 0L) // takes overflow into account
+
+        if (!isOrdered) {
           value.cancel()
           this
         } else {
           if (!state.compareAndSet(current, Active(value, order)))
-            updateRef(value, updateOrder)
+            orderedUpdate(value, order) // retry
           else {
-            s.cancel()
+            oldRef.cancel()
             this
           }
         }
     }
-  }
 }
 
 object SerialCancelable {

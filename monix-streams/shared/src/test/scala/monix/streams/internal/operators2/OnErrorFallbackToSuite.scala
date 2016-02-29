@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package monix.streams.internal.operators
+package monix.streams.internal.operators2
 
 import monix.streams.Observable
 import monix.streams.exceptions.DummyException
-import monix.streams.internal.operators2.BaseOperatorSuite
+import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero
 
 object OnErrorFallbackToSuite extends BaseOperatorSuite {
@@ -41,5 +41,18 @@ object OnErrorFallbackToSuite extends BaseOperatorSuite {
 
     val sum = 1L * sourceCount * (sourceCount-1) / 2
     Sample(obs, sourceCount, sum, Zero, Zero)
+  }
+
+  override def cancelableObservables() = {
+    val fallback = Observable.range(0, 10).delayOnNext(1.second)
+    val sample = Observable.range(0, 10).map(_ => 1L)
+      .delayOnNext(1.second)
+      .endWithError(DummyException("expected"))
+      .onErrorFallbackTo(fallback)
+
+    Seq(
+      Sample(sample, 0, 0, 0.seconds, 0.seconds),
+      Sample(sample, 10, 10, 10.seconds, 0.seconds)
+    )
   }
 }

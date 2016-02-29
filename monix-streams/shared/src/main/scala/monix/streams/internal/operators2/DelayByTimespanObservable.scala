@@ -24,6 +24,7 @@ import monix.execution.cancelables.{CompositeCancelable, MultiAssignmentCancelab
 import monix.execution.{Ack, Cancelable}
 import monix.streams.Observable
 import monix.streams.observers.Subscriber
+import org.sincron.atomic.Atomic
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Future, Promise}
 
@@ -37,7 +38,8 @@ class DelayByTimespanObservable[A](source: Observable[A], delay: FiniteDuration)
 
     composite += source.unsafeSubscribeFn(new Subscriber[A] with Runnable { self =>
       implicit val scheduler = out.scheduler
-      private[this] var isDone = false
+      private[this] var hasError = false
+      private[this] val isDone = Atomic(false)
       private[this] var completeTriggered = false
       private[this] val delayMs = delay.toMillis
       private[this] var currentElem: A = _
@@ -50,10 +52,25 @@ class DelayByTimespanObservable[A](source: Observable[A], delay: FiniteDuration)
         ack.future
       }
 
+      // Method `onComplete` is ordered to execute after run() by means of
+      // `ack`, however access to `completeTriggered` is concurrent,
+      // but that's OK, because it's a shortcut meant to finish the stream
+      // earlier if possible.
+      def onComplete(): Unit = {
+        completeTriggered = true
+        val lastAck = if (ack eq null) Continue else ack.future
+
+        lastAck.syncTryFlatten.syncOnContinue {
+          if (!isDone.getAndSet(true)) out.onComplete()
+        }
+      }
+
+      // Method `onError` is concurrent with run(), so we need to synchronize
+      // in order to avoid a breach of the contract
       def onError(ex: Throwable): Unit =
         self.synchronized {
-          if (!isDone) {
-            isDone = true
+          if (!isDone.getAndSet(true)) {
+            hasError = true
             try out.onError(ex) finally {
               if (ack != null) ack.trySuccess(Cancel)
               task.cancel()
@@ -61,26 +78,14 @@ class DelayByTimespanObservable[A](source: Observable[A], delay: FiniteDuration)
           }
         }
 
-      def onComplete(): Unit = {
-        completeTriggered = true
-        val lastAck = if (ack eq null) Continue else ack.future
-
-        lastAck.syncTryFlatten.syncOnContinue {
-          if (!isDone) {
-            isDone = true
-            out.onComplete()
-          }
-        }
-      }
-
+      // Method `run` needs to be synchronized because it is concurrent
+      // with `onError`.
       def run(): Unit = self.synchronized {
-        if (!isDone) {
+        if (!hasError) {
           val next = out.onNext(currentElem)
 
-          if (completeTriggered) {
-            isDone = true
+          if (completeTriggered && !isDone.getAndSet(true))
             out.onComplete()
-          }
 
           next match {
             case Continue => ack.success(Continue)

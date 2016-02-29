@@ -63,38 +63,38 @@ final class MultiAssignmentCancelable private (initial: Cancelable)
       oldState.asInstanceOf[Active].s.cancel()
   }
 
-  /** Swaps the underlying cancelable reference with `s`.
-    *
-    * In case this `MultiAssignmentCancelable` is already canceled,
-    * then the reference `value` will also be canceled on assignment.
-    *
-    * @return `this`
-    */
-  def `:=`(value: Cancelable): this.type = {
-    updateRef(value, updateOrder = -1)
-  }
-
-  def orderedUpdate(value: Cancelable, order: Long): this.type = {
-    updateRef(value, updateOrder = order)
-  }
-
-  @tailrec
-  private def updateRef(value: Cancelable, updateOrder: Long): this.type = {
+  @tailrec def `:=`(value: Cancelable): this.type =
     state.get match {
       case Cancelled =>
         value.cancel()
         this
 
       case current @ Active(s, currentOrder) =>
-        val order = if (updateOrder >= 0) updateOrder else currentOrder
-        if (order < currentOrder) this else {
+        if (!state.compareAndSet(current, Active(value, currentOrder)))
+          :=(value) // retry
+        else
+          this
+    }
+
+  @tailrec def orderedUpdate(value: Cancelable, order: Long): this.type =
+    state.get match {
+      case Cancelled =>
+        value.cancel()
+        this
+
+      case current @ Active(s, currentOrder) =>
+        val sameSign = (currentOrder < 0) ^ (order >= 0)
+        val isOrdered =
+          (sameSign && currentOrder <= order) ||
+          (currentOrder >= 0L && order < 0L) // takes overflow into account
+
+        if (!isOrdered) this else {
           if (!state.compareAndSet(current, Active(value, order)))
-            updateRef(value, updateOrder)
+            orderedUpdate(value, order) // retry
           else
             this
         }
     }
-  }
 }
 
 object MultiAssignmentCancelable {
