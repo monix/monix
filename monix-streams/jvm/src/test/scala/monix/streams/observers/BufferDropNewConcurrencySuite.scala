@@ -19,15 +19,13 @@ package monix.streams.observers
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 import minitest.TestSuite
-import monix.execution.{Ack, Scheduler}
-import monix._
 import monix.execution.Ack.{Cancel, Continue}
-import monix.streams.{OverflowStrategy, Observer, Observable}
-import OverflowStrategy.DropNew
-import monix.streams.{Observer, Observable}
+import monix.execution.{Ack, Scheduler}
+import monix.streams.OverflowStrategy.DropNew
 import monix.streams.exceptions.DummyException
-import scala.concurrent.{Await, Future, Promise}
+import monix.streams.{Observable, Observer, OverflowStrategy}
 import scala.concurrent.duration._
+import scala.concurrent.{Await, Future, Promise}
 
 object BufferDropNewConcurrencySuite extends TestSuite[Scheduler] {
   def tearDown(env: Scheduler) = ()
@@ -44,7 +42,7 @@ object BufferDropNewConcurrencySuite extends TestSuite[Scheduler] {
     val o3 = source.map(_ + 4)
 
     val f = Observable.from(Seq(o1, o2, o3))
-      .merge(DropNew(100))
+      .mergeMap(x => x)(DropNew(100))
       .sum
       .asFuture
 

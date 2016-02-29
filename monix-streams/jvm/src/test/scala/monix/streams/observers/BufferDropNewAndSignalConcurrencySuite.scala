@@ -20,17 +20,15 @@ package monix.streams.observers
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 
 import minitest.TestSuite
-import monix.execution.{Ack, Scheduler}
-import monix._
 import monix.execution.Ack.{Cancel, Continue}
-import monix.streams.{OverflowStrategy, Observer, Observable}
-import OverflowStrategy.DropNew
-import monix.streams.{Observer, Observable}
+import monix.execution.{Ack, Scheduler}
+import monix.streams.OverflowStrategy.DropNewAndSignal
 import monix.streams.exceptions.DummyException
-import scala.concurrent.{Await, Future, Promise}
+import monix.streams.{Observable, Observer}
 import scala.concurrent.duration._
+import scala.concurrent.{Await, Future, Promise}
 
-object BufferDropNewThenSignalConcurrencySuite
+object BufferDropNewAndSignalConcurrencySuite
   extends TestSuite[Scheduler] {
 
   def tearDown(env: Scheduler) = ()
@@ -40,18 +38,18 @@ object BufferDropNewThenSignalConcurrencySuite
   }
 
   def buildNewForInt(bufferSize: Int, underlying: Observer[Int])(implicit s: Scheduler) = {
-    BufferedSubscriber(Subscriber(underlying, s), DropNew(bufferSize), nr => nr.toInt)
+    BufferedSubscriber(Subscriber(underlying, s), DropNewAndSignal(bufferSize, nr => nr.toInt))
   }
 
   def buildNewForLong(bufferSize: Int, underlying: Observer[Long])(implicit s: Scheduler) = {
-    BufferedSubscriber(Subscriber(underlying, s), DropNew(bufferSize), nr => nr)
+    BufferedSubscriber(Subscriber(underlying, s), DropNewAndSignal(bufferSize, nr => nr))
   }
 
   test("merge test should work") { implicit s =>
     val num = 100000
     val source = Observable.repeat(1L).take(num)
     val f = Observable.from(Seq(source, source, source))
-      .merge(DropNew(1000), dropped => dropped)
+      .mergeMap(x => x)(DropNewAndSignal(1000, dropped => dropped))
       .sum
       .asFuture
 

@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package monix.streams.internal.operators
+package monix.streams.internal.operators2
 
 import monix.streams.Observable
-import monix.streams.internal.operators2.BaseOperatorSuite
+import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero
 
 object MergeManySuite extends BaseOperatorSuite {
@@ -31,10 +31,9 @@ object MergeManySuite extends BaseOperatorSuite {
   def count(sourceCount: Int) =
     4 * sourceCount
 
-  def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val o = createObservableEndingInError(Observable.range(0, sourceCount), ex)
-      .mergeMap(i => Observable.now(i))
-    Sample(o, sourceCount, sourceCount * (sourceCount - 1) / 2, Zero, Zero)
+  def observableInError(sourceCount: Int, ex: Throwable) = {
+    val o = Observable.range(0, sourceCount).mergeMap(_ => Observable.error(ex))
+    Some(Sample(o, 0, 0, Zero, Zero))
   }
 
   def sum(sourceCount: Int) = {
@@ -42,9 +41,21 @@ object MergeManySuite extends BaseOperatorSuite {
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.range(0, sourceCount)
-      .mergeMap(x => if (x == 1) throw ex else Observable.now(1L))
-    Sample(o, 1, 1, Zero, Zero)
+    val o = Observable.range(0, sourceCount).mergeMap(x => throw ex)
+    Sample(o, 0, 0, Zero, Zero)
+  }
+
+  override def cancelableObservables(): Seq[Sample] = {
+    val sample1 =  Observable.range(1, 100)
+      .mergeMap(x => Observable.range(0,100).delaySubscription(2.second))
+    val sample2 = Observable.range(0, 100).delayOnNext(1.second)
+      .mergeMap(x => Observable.range(0,100).delaySubscription(2.second))
+
+    Seq(
+      Sample(sample1, 0, 0, 0.seconds, 0.seconds),
+      Sample(sample1, 0, 0, 1.seconds, 0.seconds),
+      Sample(sample2, 0, 0, 0.seconds, 0.seconds),
+      Sample(sample2, 0, 0, 1.seconds, 0.seconds)
+    )
   }
 }
-

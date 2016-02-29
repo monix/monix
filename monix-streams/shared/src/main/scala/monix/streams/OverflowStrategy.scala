@@ -17,22 +17,24 @@
 
 package monix.streams
 
-import monix.streams.subjects.ConcurrentSubject
+import monix.execution.internal.Platform
 
-/** Represents the buffering overflowStrategy chosen for actions that need buffering,
-  * instructing the pipeline what to do when the buffer is full.
+/** Represents the buffering overflowStrategy chosen for actions that
+  * need buffering, instructing the pipeline what to do when
+  * the buffer is full.
   *
   * For the available policies, see:
   *
-  * - [[OverflowStrategy.Unbounded Unbounded]]
-  * - [[OverflowStrategy.Fail OverflowTriggering]]
-  * - [[OverflowStrategy.BackPressure BackPressured]]
+  * - [[monix.streams.OverflowStrategy.Unbounded Unbounded]]
+  * - [[monix.streams.OverflowStrategy.Fail Fail]]
+  * - [[monix.streams.OverflowStrategy.BackPressure BackPressure]]
   *
-  * Used in [[monix.observers.BufferedSubscriber BufferedSubscriber]]
+  * Used in [[monix.streams.observers.BufferedSubscriber BufferedSubscriber]]
   * to implement buffering when concurrent actions are needed, such as in
-  * [[ConcurrentSubject Channels]] or in [[Observable.merge Observable.merge]].
+  * [[monix.streams.subjects.ConcurrentSubject Channels]] or in
+  * [[monix.streams.Observable.merge Observable.merge]].
   */
-sealed abstract class OverflowStrategy {
+sealed abstract class OverflowStrategy[+A] {
   val isEvicted: Boolean = false
   val isSynchronous: Boolean = false
 }
@@ -42,7 +44,7 @@ object OverflowStrategy {
     * Using this overflowStrategy implies that with a fast data source, the system's
     * memory can be exhausted and the process might blow up on lack of memory.
     */
-  case object Unbounded extends Synchronous
+  case object Unbounded extends Synchronous[Nothing]
 
   /** A [[OverflowStrategy]] specifying that on reaching the maximum size,
     * the pipeline should cancel the subscription and send an `onError`
@@ -52,7 +54,7 @@ object OverflowStrategy {
     *                   before overflowing
     */
   final case class Fail(bufferSize: Int)
-    extends Synchronous {
+    extends Synchronous[Nothing] {
 
     require(bufferSize > 1, "bufferSize must be strictly greater than 1")
   }
@@ -66,7 +68,7 @@ object OverflowStrategy {
     *                   before overflowing
     */
   final case class BackPressure(bufferSize: Int)
-    extends OverflowStrategy {
+    extends OverflowStrategy[Nothing] {
 
     require(bufferSize > 1, "bufferSize should be strictly greater than 1")
   }
@@ -79,7 +81,23 @@ object OverflowStrategy {
     *                   before overflowing
     */
   final case class DropNew(bufferSize: Int)
-    extends Evicted {
+    extends Evicted[Nothing] {
+
+    require(bufferSize > 1, "bufferSize should be strictly greater than 1")
+  }
+
+  /** A [[OverflowStrategy]] specifying that on reaching the maximum size,
+    * the pipeline should begin dropping incoming events until the buffer
+    * has room in it again and is free to process more elements.
+    *
+    * @param bufferSize specifies how many events our buffer can hold
+    *        before overflowing.
+    * @param onOverflow is a function that can get called on overflow with
+    *        a number of messages that were dropped, a function that builds
+    *        a new message that will be sent to downstream.
+    */
+  final case class DropNewAndSignal[+A](bufferSize: Int, onOverflow: Long => A)
+    extends Evicted[A] {
 
     require(bufferSize > 1, "bufferSize should be strictly greater than 1")
   }
@@ -92,7 +110,23 @@ object OverflowStrategy {
     *                   before overflowing
     */
   final case class DropOld(bufferSize: Int)
-    extends Evicted {
+    extends Evicted[Nothing] {
+
+    require(bufferSize > 1, "bufferSize should be strictly greater than 1")
+  }
+
+  /** A [[OverflowStrategy]] specifying that on reaching the maximum size,
+    * the currently buffered events should start being dropped in a FIFO order,
+    * so the oldest events from the buffer will be dropped first.
+    *
+    * @param bufferSize specifies how many events our buffer can hold
+    *        before overflowing
+    * @param onOverflow is a function that can get called on overflow with
+    *        a number of messages that were dropped, a function that builds
+    *        a new message that will be sent to downstream.
+    */
+  final case class DropOldAndSignal[+A](bufferSize: Int, onOverflow: Long => A)
+    extends Evicted[A] {
 
     require(bufferSize > 1, "bufferSize should be strictly greater than 1")
   }
@@ -102,40 +136,50 @@ object OverflowStrategy {
     * new events.
     *
     * @param bufferSize specifies how many events our buffer can hold
-    *                   before overflowing
+    *        before overflowing
     */
   final case class ClearBuffer(bufferSize: Int)
-    extends Evicted {
+    extends Evicted[Nothing] {
 
     require(bufferSize > 1, "bufferSize should be strictly greater than 1")
   }
 
+  /** A [[OverflowStrategy]] specifying that on reaching the maximum size,
+    * the current buffer should be dropped completely to make room for
+    * new events.
+    *
+    * @param bufferSize specifies how many events our buffer can hold
+    *        before overflowing
+    * @param onOverflow is a function that can get called on overflow with
+    *        a number of messages that were dropped, a function that builds
+    *        a new message that will be sent to downstream.
+    */
+  final case class ClearBufferAndSignal[+A](bufferSize: Int, onOverflow: Long => A)
+    extends Evicted[A] {
+
+    require(bufferSize > 1, "bufferSize should be strictly greater than 1")
+  }
+
+
   /** A category of [[OverflowStrategy]] for buffers that can be used
     * synchronously, without worrying about back-pressure concerns.
-    *
-    * Needed such that buffer policies can safely be used
-    * in combination with [[ConcurrentSubject]] for publishing. For now,
-    * that's all policies except [[BackPressure]], a overflowStrategy
-    * that can't work for [[ConcurrentSubject]].
     */
-  sealed abstract class Synchronous extends OverflowStrategy {
+  sealed abstract class Synchronous[+A] extends OverflowStrategy[A] {
     override val isSynchronous = true
   }
 
   /** A sub-category of [[OverflowStrategy overflow strategies]]
     * that are [[Synchronous synchronous]] and that represent
     * eviction policies, meaning that on buffer overflows events
-    * start being dropped. Using these policies one can also signal
-    * a message informing downstream of dropped events.
+    * start being dropped.
     */
-  sealed abstract class Evicted extends Synchronous {
+  sealed abstract class Evicted[+A] extends Synchronous[A] {
     override val isEvicted = true
   }
 
-  /** The default library-wide overflowStrategy used whenever a default argument
-    * value is needed. Currently set to [[BackPressure]] with a buffer size
-    * of 2048.
+  /** The default library-wide overflowStrategy used whenever
+    * a default argument value is needed.
     */
-  val default: OverflowStrategy =
-    BackPressure(bufferSize = 2048)
+  final val Default: OverflowStrategy[Nothing] =
+    BackPressure(bufferSize = Platform.recommendedBatchSize * 2)
 }

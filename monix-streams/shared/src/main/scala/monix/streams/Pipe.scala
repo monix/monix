@@ -18,11 +18,11 @@
 package monix.streams
 
 import monix.execution.Scheduler
-import monix.streams.OverflowStrategy.{Evicted, Synchronous}
-import monix.streams.Pipe.{TransformedPipe, LiftedPipe}
+import monix.streams.ObservableLike.{Operator, Transformer}
+import monix.streams.OverflowStrategy.Synchronous
+import monix.streams.Pipe.{LiftedPipe, TransformedPipe}
+import monix.streams.observers.{BufferedSubscriber, Subscriber, SyncObserver}
 import monix.streams.subjects._
-import monix.streams.ObservableLike.{Transformer, Operator}
-import monix.streams.observers.{Subscriber, BufferedSubscriber, SyncObserver}
 import scala.language.reflectiveCalls
 
 /** Represents a factory for an input/output channel for
@@ -59,25 +59,9 @@ abstract class Pipe[I, +O]
     * @param strategy is the [[OverflowStrategy]] used for the underlying
     *                 multi-producer/single-consumer buffer
     */
-  def concurrent(strategy: Synchronous)(implicit s: Scheduler): (SyncObserver[I], Observable[O]) = {
+  def concurrent(strategy: Synchronous[I])(implicit s: Scheduler): (SyncObserver[I], Observable[O]) = {
     val (in,out) = multicast(s)
-    val buffer = BufferedSubscriber.synchronous[I](Subscriber(in, s), strategy, null)
-    (buffer, out)
-  }
-
-  /** Returns an input/output pair with an input that can be
-    * used synchronously and concurrently (without back-pressure or
-    * multi-threading issues) to push signals to multiple subscribers.
-    *
-    * @param strategy is the [[OverflowStrategy]] used for the underlying
-    *                 multi-producer/single-consumer buffer
-    * @param onOverflow is a callback called in case of dropped signals
-    */
-  def concurrent(strategy: Evicted, onOverflow: Long => I)
-    (implicit s: Scheduler): (SyncObserver[I], Observable[O]) = {
-
-    val (in,out) = multicast(s)
-    val buffer = BufferedSubscriber.synchronous[I](Subscriber(in, s), strategy, onOverflow)
+    val buffer = BufferedSubscriber.synchronous[I](Subscriber(in, s), strategy)
     (buffer, out)
   }
 

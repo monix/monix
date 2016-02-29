@@ -207,12 +207,12 @@ private[monix] object EvictingBufferedSubscriber {
    * for the [[OverflowStrategy.DropOld DropOld]]
    * overflow strategy.
    */
-  def dropOld[T](underlying: Subscriber[T], bufferSize: Int): SyncSubscriber[T] = {
+  def dropOld[A](underlying: Subscriber[A], bufferSize: Int): SyncSubscriber[A] = {
     require(bufferSize > 1,
       "bufferSize must be a strictly positive number, bigger than 1")
 
     val buffer = DropHeadOnOverflowQueue[AnyRef](bufferSize)
-    new EvictingBufferedSubscriber[T](underlying, buffer, null)
+    new EvictingBufferedSubscriber[A](underlying, buffer, null)
   }
 
   /**
@@ -221,12 +221,14 @@ private[monix] object EvictingBufferedSubscriber {
    * overflow strategy, with signaling of the number of events that
    * were dropped.
    */
-  def dropOld[T](underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => T): SyncSubscriber[T] = {
+  def dropOldAndSignal[A](underlying: Subscriber[A],
+    bufferSize: Int, onOverflow: Long => A): SyncSubscriber[A] = {
+
     require(bufferSize > 1,
       "bufferSize must be a strictly positive number, bigger than 1")
 
     val buffer = DropHeadOnOverflowQueue[AnyRef](bufferSize)
-    new EvictingBufferedSubscriber[T](underlying, buffer, onOverflow)
+    new EvictingBufferedSubscriber[A](underlying, buffer, onOverflow)
   }
 
   /**
@@ -234,12 +236,12 @@ private[monix] object EvictingBufferedSubscriber {
    * [[monix.streams.OverflowStrategy.ClearBuffer ClearBuffer]]
    * overflow strategy.
    */
-  def clearBuffer[T](underlying: Subscriber[T], bufferSize: Int): SyncSubscriber[T] = {
+  def clearBuffer[A](underlying: Subscriber[A], bufferSize: Int): SyncSubscriber[A] = {
     require(bufferSize > 1,
       "bufferSize must be a strictly positive number, bigger than 1")
 
     val buffer = DropAllOnOverflowQueue[AnyRef](bufferSize)
-    new EvictingBufferedSubscriber[T](underlying, buffer, null)
+    new EvictingBufferedSubscriber[A](underlying, buffer, null)
   }
 
   /**
@@ -248,11 +250,13 @@ private[monix] object EvictingBufferedSubscriber {
    * overflow strategy, with signaling of the number of events that
    * were dropped.
    */
-  def clearBuffer[T](underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => T): SyncSubscriber[T] = {
+  def clearBufferAndSignal[A](underlying: Subscriber[A],
+    bufferSize: Int, onOverflow: Long => A): SyncSubscriber[A] = {
+
     require(bufferSize > 1,
       "bufferSize must be a strictly positive number, bigger than 1")
 
     val buffer = DropAllOnOverflowQueue[AnyRef](bufferSize)
-    new EvictingBufferedSubscriber[T](underlying, buffer, onOverflow)
+    new EvictingBufferedSubscriber[A](underlying, buffer, onOverflow)
   }
 }

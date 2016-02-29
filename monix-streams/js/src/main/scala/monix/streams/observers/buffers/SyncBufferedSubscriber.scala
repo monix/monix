@@ -214,7 +214,7 @@ private[monix] object SyncBufferedSubscriber {
     * for the [[monix.streams.OverflowStrategy.DropNew DropNew]]
     * overflow strategy.
     */
-  def dropNew[T](underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => T): SyncSubscriber[T] = {
+  def dropNewAndSignal[T](underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => T): SyncSubscriber[T] = {
     require(bufferSize > 1,
       "bufferSize must be a strictly positive number, bigger than 1")
 
@@ -241,7 +241,7 @@ private[monix] object SyncBufferedSubscriber {
     * overflow strategy, with signaling of the number of events that
     * were dropped.
     */
-  def dropOld[T](underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => T): SyncSubscriber[T] = {
+  def dropOldAndSignal[T](underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => T): SyncSubscriber[T] = {
     require(bufferSize > 1,
       "bufferSize must be a strictly positive number, bigger than 1")
 
@@ -268,7 +268,7 @@ private[monix] object SyncBufferedSubscriber {
     * overflow strategy, with signaling of the number of events that
     * were dropped.
     */
-  def clearBuffer[T](underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => T): SyncSubscriber[T] = {
+  def clearBufferAndSignal[T](underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => T): SyncSubscriber[T] = {
     require(bufferSize > 1,
       "bufferSize must be a strictly positive number, bigger than 1")
 

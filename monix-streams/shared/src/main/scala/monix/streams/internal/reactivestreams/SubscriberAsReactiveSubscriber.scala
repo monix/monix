@@ -63,7 +63,7 @@ private[monix] final class SubscriberAsReactiveSubscriber[T] private
 
   require(requestCount > 0, "requestCount must be strictly positive, according to the Reactive Streams contract")
 
-  private[this] val buffer =
+  private[this] val buffer: RSubscriber[T] =
     SyncSubscriberAsReactiveSubscriber(
       BufferedSubscriber.synchronous(subscriber, Unbounded),
       requestCount = requestCount)

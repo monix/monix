@@ -21,14 +21,12 @@ import java.util.concurrent.CancellationException
 import monix.execution.Ack.{Cancel, Continue}
 import monix.execution.{Ack, Cancelable, CancelableFuture, Scheduler}
 import monix.streams.ObservableLike.{Operator, Transformer}
-import monix.streams.OverflowStrategy.{default => defaultStrategy}
 import monix.streams.internal.concurrent.UnsafeSubscribeRunnable
 import monix.streams.internal.{builders, operators => ops}
 import monix.streams.observables._
 import monix.streams.observers._
 import monix.streams.subjects._
 import org.reactivestreams.{Publisher => RPublisher, Subscriber => RSubscriber}
-
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent.{Future, Promise}
 import scala.language.{higherKinds, implicitConversions}
@@ -115,7 +113,7 @@ import scala.util.control.NonFatal
   *         since multiple errors from multiple streams can happen.
   * @define defaultOverflowStrategy this operation needs to do buffering
   *         and by not specifying an [[OverflowStrategy]], the
-  *         [[OverflowStrategy.default default strategy]] is being
+  *         [[OverflowStrategy.Default default strategy]] is being
   *         used.
   * @define asyncBoundaryDescription Forces a buffered asynchronous boundary.
   *
@@ -235,113 +233,6 @@ abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
       }
     }
 
-  /** $mergeMapDescription
-    *
-    * @param f - the transformation function
-    *
-    * @return $mergeMapReturn
-    */
-  def mergeMap[B](f: A => Observable[B]): Observable[B] =
-    map(f).merge
-
-  /** $mergeMapDescription
-    *
-    * $delayErrorsDescription
-    *
-    * @param f - the transformation function
-    *
-    * @return $mergeMapReturn
-    */
-  def mergeMapDelayErrors[B](f: A => Observable[B]): Observable[B] =
-    map(f).mergeDelayErrors
-
-  /** Alias for [[Observable!.concatDelayError]].
-    *
-    * $concatDescription
-    * $delayErrorsDescription
-    *
-    * @return $concatReturn
-    */
-  def flattenDelayError[B](implicit ev: A <:< Observable[B]): Observable[B] =
-    concatDelayError
-
-  /** $mergeDescription
-    *
-    * @note $defaultOverflowStrategy
-    * @return $mergeReturn
-    */
-  def merge[B](implicit ev: A <:< Observable[B]): Observable[B] = {
-    ops.flatten.merge(self)(defaultStrategy,
-      onOverflow = null, delayErrors = false)
-  }
-
-  /** $mergeDescription
-    *
-    * @param overflowStrategy - $overflowStrategyParam
-    *
-    * @return $mergeReturn
-    */
-  def merge[B](overflowStrategy: OverflowStrategy)
-    (implicit ev: A <:< Observable[B]): Observable[B] = {
-
-    ops.flatten.merge(self)(overflowStrategy,
-      onOverflow = null, delayErrors = false)
-  }
-
-  /** $mergeDescription
-    *
-    * @param overflowStrategy - $overflowStrategyParam
-    * @param onOverflow - $onOverflowParam
-    *
-    * @return $mergeReturn
-    */
-  def merge[B](overflowStrategy: OverflowStrategy.Evicted, onOverflow: Long => B)
-    (implicit ev: A <:< Observable[B]): Observable[B] = {
-
-    ops.flatten.merge(self)(overflowStrategy,
-      onOverflow, delayErrors = false)
-  }
-
-  /** $mergeDescription
-    *
-    * $delayErrorsDescription
-    *
-    * @note $defaultOverflowStrategy
-    * @return $mergeReturn
-    */
-  def mergeDelayErrors[B](implicit ev: A <:< Observable[B]): Observable[B] = {
-    ops.flatten.merge(self)(defaultStrategy, null, delayErrors = true)
-  }
-
-  /** $mergeDescription
-    *
-    * $delayErrorsDescription
-    *
-    * @param overflowStrategy - $overflowStrategyParam
-    *
-    * @return $mergeReturn
-    */
-  def mergeDelayErrors[B](overflowStrategy: OverflowStrategy)
-    (implicit ev: A <:< Observable[B]): Observable[B] = {
-
-    ops.flatten.merge(self)(overflowStrategy, null, delayErrors = true)
-  }
-
-  /** $mergeDescription
-    *
-    * $delayErrorsDescription
-    *
-    * @param overflowStrategy - $overflowStrategyParam
-    * @param onOverflow - $onOverflowParam
-    *
-    * @return $mergeReturn
-    */
-  def mergeDelayErrors[B](overflowStrategy: OverflowStrategy.Evicted, onOverflow: Long => B)
-    (implicit ev: A <:< Observable[B]): Observable[B] = {
-
-    ops.flatten.merge(self)(overflowStrategy, onOverflow, delayErrors = true)
-  }
-
   /** Given the source observable and another `Observable`, emits all of
     * the items from the first of these Observables to emit an item
     * and cancel the other.
@@ -349,16 +240,6 @@ abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
   def ambWith[B >: A](other: Observable[B]): Observable[B] = {
     Observable.amb(self, other)
   }
-
-  /** Creates a new Observable that emits the total number of `onNext`
-    * events that were emitted by the source.
-    *
-    * Note that this Observable emits only one item after the source
-    * is complete.  And in case the source emits an error, then only
-    * that error will be emitted.
-    */
-  def count: Observable[Long] =
-    ops.math.count(self)
 
   /** Periodically subdivide items from an Observable into Observable
     * windows and emit these windows rather than emitting the items
@@ -627,40 +508,6 @@ abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
   def sampleRepeated[B](sampler: Observable[B]): Observable[A] =
     ops.sample.repeated(self, sampler)
 
-  /** Mirror the source observable as long as the source keeps emitting
-    * items, otherwise if `timeout` passes without the source emitting
-    * anything new then the observable will emit the last item.
-    *
-    * This is the rough equivalent of:
-    * {{{
-    *   Observable.merge(source, source.debounce(period))
-    * }}}
-    *
-    * Note: If the source Observable keeps emitting items more
-    * frequently than the length of the time window then the resulting
-    * observable will mirror the source exactly.
-    *
-    * @param timeout the window of silence that must pass in order for the
-    *        observable to echo the last item
-    */
-  def echoOnce(timeout: FiniteDuration): Observable[A] =
-    ops.echo.apply(self, timeout, onlyOnce = true)
-
-  /** Mirror the source observable as long as the source keeps emitting
-    * items, otherwise if `timeout` passes without the source emitting
-    * anything new then the observable will start emitting the last
-    * item repeatedly.
-    *
-    * Note: If the source Observable keeps emitting items more
-    * frequently than the length of the time window then the resulting
-    * observable will mirror the source exactly.
-    *
-    * @param timeout the window of silence that must pass in order for the
-    *        observable to start echoing the last item
-    */
-  def echoRepeated(timeout: FiniteDuration): Observable[A] =
-    ops.echo.apply(self, timeout, onlyOnce = false)
-
   /** Applies a binary operator to a start value and all elements of
     * this Observable, going left to right and returns a new
     * Observable that emits only one item before `onComplete`.
@@ -767,38 +614,6 @@ abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
   def firstOrElse[B >: A](default: => B): Observable[B] =
     headOrElse(default)
 
-  /** Takes the elements of the source Observable and emits the maximum
-    * value, after the source has completed.
-    */
-  def max[B >: A](implicit ev: Ordering[B]): Observable[B] =
-    ops.math.max(this: Observable[B])
-
-  /** Takes the elements of the source Observable and emits the element
-    * that has the maximum key value, where the key is generated by
-    * the given function `f`.
-    */
-  def maxBy[B](f: A => B)(implicit ev: Ordering[B]): Observable[A] =
-    ops.math.maxBy(this)(f)(ev)
-
-  /** Takes the elements of the source Observable and emits the minimum
-    * value, after the source has completed.
-    */
-  def min[B >: A](implicit ev: Ordering[B]): Observable[B] =
-    ops.math.min(this: Observable[B])
-
-  /** Takes the elements of the source Observable and emits the element
-    * that has the minimum key value, where the key is generated by
-    * the given function `f`.
-    */
-  def minBy[B](f: A => B)(implicit ev: Ordering[B]): Observable[A] =
-    ops.math.minBy(this)(f)
-
-  /** Given a source that emits numeric values, the `sum` operator sums
-    * up all values and at onComplete it emits the total.
-    */
-  def sum[B >: A](implicit ev: Numeric[B]): Observable[B] =
-    ops.math.sum(this: Observable[B])
-
   /** Returns a new Observable that uses the specified `Scheduler` for
     * initiating the subscription.
     */
@@ -845,26 +660,6 @@ abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
   def multicast[B >: A, R](pipe: Pipe[B, R])(implicit s: Scheduler): ConnectableObservable[R] =
     ConnectableObservable.multicast(this, pipe)
 
-  /** $asyncBoundaryDescription
-    *
-    * @param overflowStrategy - $overflowStrategyParam
-    */
-  def asyncBoundary(overflowStrategy: OverflowStrategy): Observable[A] =
-    Observable.unsafeCreate { subscriber =>
-      unsafeSubscribeFn(BufferedSubscriber(subscriber, overflowStrategy))
-    }
-
-  /** $asyncBoundaryDescription
-    *
-    * @param overflowStrategy - $overflowStrategyParam
-    * @param onOverflow - $onOverflowParam
-    */
-  def asyncBoundary[B >: A](overflowStrategy: OverflowStrategy.Evicted, onOverflow: Long => B): Observable[B] =
-    Observable.unsafeCreate { subscriber =>
-      unsafeSubscribeFn(BufferedSubscriber
-        .withOverflowSignal(subscriber, overflowStrategy)(onOverflow))
-    }
-
   /** While the destination observer is busy, drop the incoming events.
     */
   def whileBusyDropEvents: Observable[A] =
@@ -879,23 +674,6 @@ abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
     */
   def whileBusyDropEvents[B >: A](onOverflow: Long => B): Observable[B] =
     ops.whileBusy.dropEventsThenSignalOverflow(self, onOverflow)
-
-  /** While the destination observer is busy, buffers events, applying
-    * the given overflowStrategy.
-    *
-    * @param overflowStrategy - $overflowStrategyParam
-    */
-  def whileBusyBuffer[B >: A](overflowStrategy: OverflowStrategy.Synchronous): Observable[B] =
-    asyncBoundary(overflowStrategy)
-
-  /** While the destination observer is busy, buffers events, applying
-    * the given overflowStrategy.
-    *
-    * @param overflowStrategy - $overflowStrategyParam
-    * @param onOverflow - $onOverflowParam
-    */
-  def whileBusyBuffer[B >: A](overflowStrategy: OverflowStrategy.Evicted, onOverflow: Long => B): Observable[B] =
-    asyncBoundary(overflowStrategy, onOverflow)
 
   /** Converts this observable into a multicast observable, useful for
     * turning a cold observable into a hot one (i.e. whose source is
@@ -1339,14 +1117,16 @@ object Observable {
 
   /** Merges the given list of ''observables'' into a single observable.
     */
-  def merge[A](sources: Observable[A]*): Observable[A] =
-    Observable.from(sources).merge
+  def merge[A](sources: Observable[A]*)
+    (implicit os: OverflowStrategy[A] = OverflowStrategy.Default): Observable[A] =
+    Observable.from(sources).mergeMap(o => o)(os)
 
   /** Merges the given list of ''observables'' into a single observable.
     * Delays errors until the end.
     */
-  def mergeDelayError[A](sources: Observable[A]*): Observable[A] =
-    Observable.from(sources).mergeDelayErrors
+  def mergeDelayError[A](sources: Observable[A]*)
+    (implicit os: OverflowStrategy[A] = OverflowStrategy.Default): Observable[A] =
+    Observable.from(sources).mergeMapDelayErrors(o => o)(os)
 
   /** Concatenates the given list of ''observables'' into a single
     * observable.

@@ -18,7 +18,7 @@
 package monix.streams.observers
 
 import monix.streams.{OverflowStrategy, Observer}
-import monix.streams.observers.buffers.Builders
+import monix.streams.observers.buffers.BuildersImpl
 
 /** Interface describing [[Observer Observer]] wrappers
   * that are thread-safe (can receive concurrent events) and that
@@ -63,4 +63,16 @@ import monix.streams.observers.buffers.Builders
   */
 trait BufferedSubscriber[-T] extends Subscriber[T]
 
-object BufferedSubscriber extends Builders
+private[streams] trait Builders {
+  /** Given an [[OverflowStrategy]] wraps a [[Subscriber]] into a
+    * buffered subscriber.
+    */
+  def apply[A](subscriber: Subscriber[A], bufferPolicy: OverflowStrategy[A]): Subscriber[A]
+
+  /** Given an synchronous [[OverflowStrategy overflow strategy]] wraps
+    * a [[Subscriber]] into a buffered subscriber.
+    */
+  def synchronous[A](subscriber: Subscriber[A], bufferPolicy: OverflowStrategy.Synchronous[A]): SyncSubscriber[A]
+}
+
+object BufferedSubscriber extends Builders with BuildersImpl

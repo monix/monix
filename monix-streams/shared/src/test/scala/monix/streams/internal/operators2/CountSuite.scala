@@ -15,11 +15,10 @@
  * limitations under the License.
  */
 
-package monix.streams.internal.operators
+package monix.streams.internal.operators2
 
 import monix.streams.Observable
-import monix.streams.internal.operators2.BaseOperatorSuite
-
+import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero
 
 object CountSuite extends BaseOperatorSuite {
@@ -35,4 +34,9 @@ object CountSuite extends BaseOperatorSuite {
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) =
     None
+
+  override def cancelableObservables() = {
+    val o = Observable.now(1L).delayOnNext(1.second).count
+    Seq(Sample(o,0,0,0.seconds,0.seconds))
+  }
 }

@@ -15,14 +15,11 @@
  * limitations under the License.
  */
 
-package monix.streams.internal.operators
+package monix.streams.internal.operators2
 
-import monix.execution.Ack.Continue
 import monix.streams.Observable
-import monix.streams.internal.operators2.BaseOperatorSuite
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration._
 import scala.concurrent.duration.Duration._
-import scala.util.Success
 
 object SumSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
@@ -30,25 +27,37 @@ object SumSuite extends BaseOperatorSuite {
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 
-  def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.unsafeCreate[Long] { subscriber =>
-      implicit val s = subscriber.scheduler
-      val source = createObservableEndingInError(Observable.range(0, sourceCount), ex).sum
-
-      subscriber.onNext(sum(sourceCount)).onComplete {
-        case Success(Continue) =>
-          source.subscribe(subscriber)
-        case _ => ()
-      }
-    }
-
-    Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
+  def observableInError(sourceCount: Int, ex: Throwable) = {
+    val o = Observable.range(0, sourceCount+1).endWithError(ex).sum
+    Some(Sample(o, 0, 0, Zero, Zero))
   }
 
   def count(sourceCount: Int) = 1
   def sum(sourceCount: Int) = (0 until sourceCount).sum
-  def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
+
+  def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = {
+    val num = new Numeric[Long] {
+      def plus(x: Long, y: Long): Long = throw ex
+      def toDouble(x: Long): Double = throw ex
+      def toFloat(x: Long): Float = throw ex
+      def toInt(x: Long): Int = throw ex
+      def negate(x: Long): Long = throw ex
+      def fromInt(x: Int): Long = throw ex
+      def toLong(x: Long): Long = throw ex
+      def times(x: Long, y: Long): Long = throw ex
+      def minus(x: Long, y: Long): Long = throw ex
+      def compare(x: Long, y: Long): Int = throw ex
+    }
+
+    val o = Observable.range(0, sourceCount+1).sum(num)
+    Some(Sample(o, 0, 0, Zero, Zero))
+  }
 
   def waitForNext = Duration.Zero
   def waitForFirst = Duration.Zero
+
+  override def cancelableObservables() = {
+    val o = Observable.now(1L).delayOnNext(1.second).sum
+    Seq(Sample(o,0,0,0.seconds,0.seconds))
+  }
 }

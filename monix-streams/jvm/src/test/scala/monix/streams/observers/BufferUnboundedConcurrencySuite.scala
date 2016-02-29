@@ -20,12 +20,10 @@ package monix.streams.observers
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 
 import minitest.TestSuite
-import monix.execution.{Ack, Scheduler}
-import monix._
 import monix.execution.Ack.Continue
-import monix.streams.{OverflowStrategy, Observer, Observable}
-import OverflowStrategy.Unbounded
-import monix.streams.{Observer, Observable}
+import monix.execution.{Ack, Scheduler}
+import monix.streams.OverflowStrategy.Unbounded
+import monix.streams.{Observable, Observer}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, Promise}
 
@@ -43,7 +41,7 @@ object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
     val o3 = source.map(_ + 4)
 
     val f = Observable.from(Seq(o1, o2, o3))
-      .merge(Unbounded)
+      .mergeMap(x => x)(Unbounded)
       .sum
       .asFuture
 

@@ -15,16 +15,16 @@
  * limitations under the License.
  */
 
-package monix.streams.internal.operators
+package monix.streams.internal.operators2
 
 import monix.execution.Ack.Continue
 import monix.execution.FutureUtils.ops._
 import monix.execution.Scheduler
 import monix.streams.Observable.{empty, now}
-import monix.streams.internal.operators2.BaseOperatorSuite
-import monix.streams.{Observable, Observer}
-import monix.streams.subjects.PublishSubject
 import monix.streams.exceptions.DummyException
+import monix.streams.subjects.PublishSubject
+import monix.streams.{Observable, Observer}
+
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration.Zero
 import scala.concurrent.duration._
@@ -41,12 +41,17 @@ object MergeOneSuite extends BaseOperatorSuite {
   def waitForFirst = Duration.Zero
   def waitForNext = Duration.Zero
 
-  def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val o = createObservableEndingInError(Observable.range(0, sourceCount), ex)
-      .mergeMap(i => Observable.now(i))
+  def observableInError(sourceCount: Int, ex: Throwable) =
+    if (sourceCount <= 1) {
+      val o = Observable.now(1L).mergeMap(x => Observable.error(ex))
+      Some(Sample(o, 0, 0, Zero, Zero))
+    } else Some {
+      val o = Observable.range(0, sourceCount)
+        .endWithError(ex)
+        .mergeMap(i => Observable.now(i))
 
-    Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
-  }
+      Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
+    }
 
   def sum(sourceCount: Int) = {
     sourceCount * (sourceCount - 1) / 2
@@ -66,6 +71,20 @@ object MergeOneSuite extends BaseOperatorSuite {
   def toList[T](o: Observable[T])(implicit s: Scheduler) = {
     o.foldLeft(Vector.empty[T])(_ :+ _).asFuture
       .map(_.getOrElse(Vector.empty))
+  }
+
+  override def cancelableObservables(): Seq[Sample] = {
+    val sample1 =  Observable.range(1, 100)
+      .mergeMap(x => Observable.now(x).delaySubscription(2.second))
+    val sample2 = Observable.range(0, 100).delayOnNext(1.second)
+      .mergeMap(x => Observable.now(x).delaySubscription(2.second))
+
+    Seq(
+      Sample(sample1, 0, 0, 0.seconds, 0.seconds),
+      Sample(sample1, 0, 0, 1.seconds, 0.seconds),
+      Sample(sample2, 0, 0, 0.seconds, 0.seconds),
+      Sample(sample2, 0, 0, 1.seconds, 0.seconds)
+    )
   }
 
   test("filter can be expressed in terms of mergeMap, without ordering") { implicit s =>

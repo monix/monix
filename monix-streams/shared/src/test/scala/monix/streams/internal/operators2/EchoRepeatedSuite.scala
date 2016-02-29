@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package monix.streams.internal.operators
+package monix.streams.internal.operators2
 
 import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.FutureUtils.ops._
-import monix.streams.internal.operators2.BaseOperatorSuite
-import monix.streams.{Observable, Observer}
 import monix.streams.subjects.PublishSubject
+import monix.streams.{Observable, Observer}
+
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
@@ -31,7 +31,7 @@ object EchoRepeatedSuite extends BaseOperatorSuite {
   def waitNext = 1.second
 
   def createObservable(sourceCount: Int) = Some {
-    val source = Observable.unsafeCreate[Long](_.onNext(1L))
+    val source = Observable.now(1L).delayOnComplete(sourceCount.seconds * 2)
     val o = source.echoRepeated(1.second).drop(1).take(sourceCount)
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
   }
@@ -44,8 +44,24 @@ object EchoRepeatedSuite extends BaseOperatorSuite {
     sourceCount
   }
 
-  def observableInError(sourceCount: Int, ex: Throwable) = None
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
+
+  def observableInError(sourceCount: Int, ex: Throwable) = Some {
+    if (sourceCount > 1) {
+      val source = Observable.now(1L)
+        .delayOnComplete((sourceCount - 1).seconds + 500.millis)
+        .endWithError(ex)
+
+      val o = source.echoRepeated(1.second)
+      Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
+    } else {
+      val source = Observable.now(1L).endWithError(ex)
+      val o = source.echoRepeated(1.second)
+      Sample(o, 1, 1, waitFirst, waitNext)
+    }
+  }
+
+
 
   test("should timeout on inactivity and start emitting") { implicit s =>
     val channel = PublishSubject[Int]()
@@ -193,4 +209,21 @@ object EchoRepeatedSuite extends BaseOperatorSuite {
 
     channel.onComplete()
     assertEquals(wasCompleted, true)
-  }}
+  }
+
+  /** Optionally return a sequence of observables
+    * that can be canceled.
+    */
+  override def cancelableObservables() = {
+    val sample = Observable.now(1L)
+      .delayOnNext(1.second)
+      .delayOnComplete(10.seconds)
+      .echoRepeated(1.second)
+
+    Seq(
+      Sample(sample, 0, 0, 0.seconds, 0.seconds)
+//      Sample(sample, 1, 1, 1.seconds, 0.seconds),
+//      Sample(sample, 2, 2, 2.seconds, 0.seconds)
+    )
+  }
+}

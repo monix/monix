@@ -22,13 +22,13 @@ import monix.execution.Ack.{Cancel, Continue}
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import monix.execution.{Ack, Scheduler}
-import monix.streams.OverflowStrategy.DropNew
+import monix.streams.Observer
+import monix.streams.OverflowStrategy.DropNewAndSignal
 import monix.streams.exceptions.DummyException
 import monix.streams.internal.concurrent.RunnableAction
-import monix.streams.{Observer, OverflowStrategy}
 import scala.concurrent.{Future, Promise}
 
-object BufferDropNewThenSignalSuite extends TestSuite[TestScheduler] {
+object BufferDropNewAndSignalSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
     assert(s.state.get.tasks.isEmpty,
@@ -36,11 +36,11 @@ object BufferDropNewThenSignalSuite extends TestSuite[TestScheduler] {
   }
 
   def buildNewForInt(bufferSize: Int, underlying: Observer[Int])(implicit s: Scheduler) = {
-    BufferedSubscriber(Subscriber(underlying, s), DropNew(bufferSize), nr => nr.toInt)
+    BufferedSubscriber(Subscriber(underlying, s), DropNewAndSignal(bufferSize, nr => nr.toInt))
   }
 
   def buildNewForLong(bufferSize: Int, underlying: Observer[Long])(implicit s: Scheduler) = {
-    BufferedSubscriber(Subscriber(underlying, s), DropNew(bufferSize), nr => nr)
+    BufferedSubscriber(Subscriber(underlying, s), DropNewAndSignal(bufferSize, nr => nr))
   }
 
   test("should not lose events, test 1") { implicit s =>

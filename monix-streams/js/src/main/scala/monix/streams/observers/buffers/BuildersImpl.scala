@@ -18,11 +18,11 @@
 package monix.streams.observers.buffers
 
 import monix.streams.OverflowStrategy
-import OverflowStrategy._
+import monix.streams.OverflowStrategy._
 import monix.streams.observers.{Subscriber, BufferedSubscriber, SyncSubscriber}
 
-trait Builders { self: BufferedSubscriber.type =>
-  def apply[T](subscriber: Subscriber[T], bufferPolicy: OverflowStrategy): Subscriber[T] = {
+private[observers] trait BuildersImpl { self: BufferedSubscriber.type =>
+  def apply[A](subscriber: Subscriber[A], bufferPolicy: OverflowStrategy[A]): Subscriber[A] = {
     bufferPolicy match {
       case Unbounded =>
         SyncBufferedSubscriber.unbounded(subscriber)
@@ -30,60 +30,45 @@ trait Builders { self: BufferedSubscriber.type =>
         SyncBufferedSubscriber.bounded(subscriber, bufferSize)
       case BackPressure(bufferSize) =>
         BackPressuredBufferedSubscriber(subscriber, bufferSize)
+
       case DropNew(bufferSize) =>
         SyncBufferedSubscriber.dropNew(subscriber, bufferSize)
+      case DropNewAndSignal(bufferSize, f) =>
+        SyncBufferedSubscriber.dropNewAndSignal(subscriber, bufferSize, f)
+
       case DropOld(bufferSize) =>
         SyncBufferedSubscriber.dropOld(subscriber, bufferSize)
+      case DropOldAndSignal(bufferSize,f) =>
+        SyncBufferedSubscriber.dropOldAndSignal(subscriber, bufferSize, f)
+
       case ClearBuffer(bufferSize) =>
         SyncBufferedSubscriber.clearBuffer(subscriber, bufferSize)
+      case ClearBufferAndSignal(bufferSize,f) =>
+        SyncBufferedSubscriber.clearBufferAndSignal(subscriber, bufferSize, f)
     }
   }
 
-  def synchronous[T](subscriber: Subscriber[T], bufferPolicy: OverflowStrategy.Synchronous): SyncSubscriber[T] = {
+  def synchronous[A](subscriber: Subscriber[A], bufferPolicy: OverflowStrategy.Synchronous[A]): SyncSubscriber[A] = {
     bufferPolicy match {
       case Unbounded =>
         SyncBufferedSubscriber.unbounded(subscriber)
       case Fail(bufferSize) =>
         SyncBufferedSubscriber.bounded(subscriber, bufferSize)
+
       case DropNew(bufferSize) =>
         SyncBufferedSubscriber.dropNew(subscriber, bufferSize)
+      case DropNewAndSignal(bufferSize, f) =>
+        SyncBufferedSubscriber.dropNewAndSignal(subscriber, bufferSize, f)
+
       case DropOld(bufferSize) =>
         SyncBufferedSubscriber.dropOld(subscriber, bufferSize)
+      case DropOldAndSignal(bufferSize,f) =>
+        SyncBufferedSubscriber.dropOldAndSignal(subscriber, bufferSize, f)
+
       case ClearBuffer(bufferSize) =>
         SyncBufferedSubscriber.clearBuffer(subscriber, bufferSize)
-    }
-  }
-
-  private[monix] def apply[T](subscriber: Subscriber[T],
-    strategy: OverflowStrategy, onOverflow: Long => T): Subscriber[T] = {
-
-    if (strategy.isEvicted)
-      withOverflowSignal(subscriber, strategy.asInstanceOf[Evicted])(onOverflow)
-    else
-      apply(subscriber, strategy)
-  }
-
-  private[monix] def synchronous[T](subscriber: Subscriber[T],
-    strategy: OverflowStrategy.Synchronous, onOverflow: Long => T): SyncSubscriber[T] = {
-
-    if (strategy.isEvicted)
-      withOverflowSignal(subscriber, strategy.asInstanceOf[Evicted])(onOverflow)
-    else
-      synchronous(subscriber, strategy)
-  }
-
-  def withOverflowSignal[T](subscriber: Subscriber[T], overflowStrategy: OverflowStrategy.Evicted)
-    (onOverflow: Long => T): SyncSubscriber[T] = {
-
-    overflowStrategy match {
-      case DropNew(bufferSize) =>
-        SyncBufferedSubscriber.dropNew(subscriber, bufferSize, onOverflow)
-
-      case DropOld(bufferSize) =>
-        SyncBufferedSubscriber.dropOld(subscriber, bufferSize, onOverflow)
-
-      case ClearBuffer(bufferSize) =>
-        SyncBufferedSubscriber.clearBuffer(subscriber, bufferSize, onOverflow)
+      case ClearBufferAndSignal(bufferSize,f) =>
+        SyncBufferedSubscriber.clearBufferAndSignal(subscriber, bufferSize, f)
     }
   }
 }

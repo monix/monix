@@ -73,7 +73,6 @@ class ConcatMapObservable[A, B]
               childAck
             }
 
-
             def onError(ex: Throwable): Unit = {
               if (delayErrors) {
                 errors += ex

@@ -22,7 +22,7 @@ import monix.execution.{Ack, Cancelable}
 import monix.streams.exceptions.CompositeException
 import monix.streams.internal._
 import monix.streams.observables.GroupedObservable
-import monix.streams.observers.BufferedSubscriber
+import monix.streams.observers.{Subscriber, BufferedSubscriber}
 import monix.streams.{Observable, Observer, OverflowStrategy}
 import org.sincron.atomic.Atomic
 import scala.annotation.tailrec
@@ -31,14 +31,14 @@ import scala.util.control.NonFatal
 
 private[monix] object groupBy {
   /** Implementation for [[Observable.groupBy]] */
-  def apply[T,K](source: Observable[T], os: OverflowStrategy.Synchronous, keyFn: T => K): Observable[GroupedObservable[K,T]] = {
-    Observable.unsafeCreate { subscriber =>
+  def apply[A,K](source: Observable[A], os: OverflowStrategy.Synchronous[GroupedObservable[K,A]], keyFn: A => K): Observable[GroupedObservable[K,A]] = {
+    Observable.unsafeCreate { (subscriber: Subscriber[GroupedObservable[K,A]]) =>
       import subscriber.{scheduler => s}
 
-      source.unsafeSubscribeFn(new Observer[T] { self =>
+      source.unsafeSubscribeFn(new Observer[A] { self =>
         private[this] var isDone = false
         private[this] val downstream = BufferedSubscriber(subscriber, os)
-        private[this] val cacheRef = Atomic(Map.empty[K, Observer[T]])
+        private[this] val cacheRef = Atomic(Map.empty[K, Observer[A]])
 
         @tailrec
         private[this] def recycleKey(key: K): Unit = {
@@ -48,7 +48,7 @@ private[monix] object groupBy {
         }
 
         @tailrec
-        def onNext(elem: T): Future[Ack] = {
+        def onNext(elem: A): Future[Ack] = {
           if (isDone) Cancel else {
             val cache = cacheRef.get
             var streamError = true
@@ -65,7 +65,7 @@ private[monix] object groupBy {
               else {
                 val onCancel = Cancelable(recycleKey(key))
                 val (observer, observable) =
-                  GroupedObservable.broadcast[K,T](key, onCancel)
+                  GroupedObservable.broadcast[K,A](key, onCancel)
 
                 if (cacheRef.compareAndSet(cache, cache.updated(key, observer)))
                   downstream.onNext(observable).fastFlatMap {

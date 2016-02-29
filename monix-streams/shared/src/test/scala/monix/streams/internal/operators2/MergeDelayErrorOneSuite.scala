@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-package monix.streams.internal.operators
+package monix.streams.internal.operators2
 
 import monix.execution.Ack.Continue
-import monix.streams.internal.operators2.BaseOperatorSuite
-import monix.streams.{Observable, Observer}
 import monix.streams.exceptions.CompositeException
+import monix.streams.{Observable, Observer}
+
 import scala.concurrent.duration._
 import scala.util.Random
 
@@ -59,6 +59,20 @@ object MergeDelayErrorOneSuite extends BaseOperatorSuite {
 
   def waitFirst = Duration.Zero
   def waitNext = Duration.Zero
+
+  override def cancelableObservables(): Seq[Sample] = {
+    val sample1 =  Observable.range(1, 100)
+      .mergeMapDelayErrors(x => Observable.now(x).delaySubscription(2.second))
+    val sample2 = Observable.range(0, 100).delayOnNext(1.second)
+      .mergeMapDelayErrors(x => Observable.now(x).delaySubscription(2.second))
+
+    Seq(
+      Sample(sample1, 0, 0, 0.seconds, 0.seconds),
+      Sample(sample1, 0, 0, 1.seconds, 0.seconds),
+      Sample(sample2, 0, 0, 0.seconds, 0.seconds),
+      Sample(sample2, 0, 0, 1.seconds, 0.seconds)
+    )
+  }
 
   test("error emitted by the source should also be delayed") { implicit s =>
     val sourceCount = Random.nextInt(300) + 100

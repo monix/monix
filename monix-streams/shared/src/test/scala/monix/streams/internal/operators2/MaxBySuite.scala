@@ -15,45 +15,45 @@
  * limitations under the License.
  */
 
-package monix.streams.internal.operators
+package monix.streams.internal.operators2
 
 import monix.execution.Ack.Continue
-import monix.streams.internal.operators2.BaseOperatorSuite
 import monix.streams.{Observable, Observer}
+
 import scala.concurrent.duration.Duration.Zero
 import scala.util.Success
 
-object MinSuite extends BaseOperatorSuite {
+object MaxBySuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.range(sourceCount, 0, -1).min
-    Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
-  }
-
-  def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.unsafeCreate[Long] { subscriber =>
-      implicit val s = subscriber.scheduler
-      val source = createObservableEndingInError(Observable.range(0, sourceCount), ex).min
-
-      subscriber.onNext(sum(sourceCount)).onComplete {
-        case Success(Continue) =>
-          source.subscribe(subscriber)
-        case _ => ()
-      }
-    }
-
+    val o = Observable.range(0, sourceCount+1).maxBy(x => x + 1)
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 
   def count(sourceCount: Int) = 1
-  def sum(sourceCount: Int) = 1
-  def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
+  def sum(sourceCount: Int) = sourceCount
+
+  def observableInError(sourceCount: Int, ex: Throwable) = Some {
+    val o = Observable.range(0, sourceCount).endWithError(ex).maxBy(x => x)
+    Sample(o, 0, 0, Zero, Zero)
+  }
+
+  def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = {
+    val o = Observable.range(0, sourceCount+1).maxBy(x => throw ex)
+    Some(Sample(o, 0, 0, Zero, Zero))
+  }
+
+  override def cancelableObservables() = {
+    import scala.concurrent.duration._
+    val o = Observable.now(1L).delayOnNext(1.second).maxBy(x => x)
+    Seq(Sample(o,0,0,0.seconds,0.seconds))
+  }
 
   test("empty observable should be empty") { implicit s =>
     val source: Observable[Long] = Observable.empty
     var received = 0
     var wasCompleted = false
 
-    source.min.unsafeSubscribeFn(new Observer[Long] {
+    source.maxBy(x => 100 - x).unsafeSubscribeFn(new Observer[Long] {
       def onNext(elem: Long) = { received += 1; Continue }
       def onError(ex: Throwable) = ()
       def onComplete() = { wasCompleted = true }

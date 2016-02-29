@@ -22,10 +22,10 @@ import monix.execution.Ack.{Cancel, Continue}
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import monix.execution.{Ack, Scheduler}
-import monix.streams.OverflowStrategy.ClearBuffer
+import monix.streams.Observer
+import monix.streams.OverflowStrategy.ClearBufferAndSignal
 import monix.streams.exceptions.DummyException
 import monix.streams.internal.concurrent.RunnableAction
-import monix.streams.{Observer, OverflowStrategy}
 import scala.concurrent.{Future, Promise}
 
 object BufferClearBufferThenSignalSuite extends TestSuite[TestScheduler] {
@@ -36,7 +36,7 @@ object BufferClearBufferThenSignalSuite extends TestSuite[TestScheduler] {
   }
 
   def buildNew(bufferSize: Int, underlying: Observer[Int])(implicit s: Scheduler) = {
-    BufferedSubscriber(Subscriber(underlying, s), ClearBuffer(bufferSize), nr => nr.toInt)
+    BufferedSubscriber(Subscriber(underlying, s), ClearBufferAndSignal(bufferSize, nr => nr.toInt))
   }
 
   test("should not lose events, test 1") { implicit s =>

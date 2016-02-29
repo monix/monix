@@ -15,13 +15,11 @@
  * limitations under the License.
  */
 
-package monix.streams.internal.operators
+package monix.streams.internal.operators2
 
 import monix.execution.Ack.Continue
-import monix.streams.internal.operators2.BaseOperatorSuite
 import monix.streams.{Observable, Observer}
 import scala.concurrent.duration.Duration.Zero
-import scala.util.Success
 
 object MinBySuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
@@ -30,30 +28,24 @@ object MinBySuite extends BaseOperatorSuite {
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.unsafeCreate[Long] { subscriber =>
-      implicit val s = subscriber.scheduler
-      val source = createObservableEndingInError(Observable.range(sourceCount, 0, -1), ex)
-        .minBy(x => sourceCount - x)
-
-      subscriber.onNext(sum(sourceCount)).onComplete {
-        case Success(Continue) =>
-          source.subscribe(subscriber)
-        case _ =>
-          ()
-      }
-    }
-
-    Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
+    val o = Observable.range(0, sourceCount).endWithError(ex).minBy(x => x)
+    Sample(o, 0, 0, Zero, Zero)
   }
 
   def count(sourceCount: Int) = 1
   def sum(sourceCount: Int) = sourceCount
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.range(0, sourceCount)
+    val o = Observable.range(0, sourceCount+1)
       .minBy(x => if (x == sourceCount-1) throw ex else x)
 
     Sample(o, 0, 0, Zero, Zero)
+  }
+
+  override def cancelableObservables() = {
+    import scala.concurrent.duration._
+    val o = Observable.now(1L).delayOnNext(1.second).minBy(x => x)
+    Seq(Sample(o,0,0,0.seconds,0.seconds))
   }
 
   test("empty observable should be empty") { implicit s =>

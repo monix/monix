@@ -19,7 +19,7 @@ package monix.streams.subjects
 
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.streams.OverflowStrategy
-import monix.streams.OverflowStrategy.{Evicted, Synchronous}
+import monix.streams.OverflowStrategy.Synchronous
 import monix.streams.observers.{BufferedSubscriber, Subscriber, SyncObserver, SyncSubscriber}
 import org.reactivestreams.{Processor => RProcessor, Subscriber => RSubscriber, Subscription}
 import scala.language.reflectiveCalls
@@ -40,27 +40,9 @@ object ConcurrentSubject {
     *        used for buffering, which specifies what to do in case
     *        we're dealing with slow consumers.
     */
-  def from[I,O](p: Subject[I,O], strategy: Synchronous)
+  def from[I,O](p: Subject[I,O], strategy: Synchronous[I])
     (implicit s: Scheduler): ConcurrentSubject[I,O] =
-    new AsyncSubjectAsConcurrent(p, strategy, null, s)
-
-  /** Wraps any [[Subject]] into a [[ConcurrentSubject]].
-    *
-    * @param strategy the [[OverflowStrategy overflow strategy]]
-    *        used for buffering, which specifies what to do in case
-    *        we're dealing with slow consumers: should an unbounded
-    *        buffer be used, should back-pressure be applied, should
-    *        the pipeline drop newer or older events, should it drop
-    *        the whole buffer?  See [[OverflowStrategy]] for more
-    *        details.
-    * @param onOverflow a function that is used for signaling a special
-    *        event used to inform the consumers that an overflow event
-    *        happened, function that receives the number of dropped
-    *        events as a parameter (see [[OverflowStrategy.Evicted]]).
-    */
-  def from[I,O](p: Subject[I,O], strategy: Evicted, onOverflow: Long => I)
-    (implicit s: Scheduler): ConcurrentSubject[I,O] =
-    new AsyncSubjectAsConcurrent(p, strategy, onOverflow, s)
+    new AsyncSubjectAsConcurrent(p, strategy, s)
 
   /** Subject recipe for building [[PublishSubject publish]] subjects.
     *
@@ -68,13 +50,8 @@ object ConcurrentSubject {
     *        used for buffering, which specifies what to do in case
     *        we're dealing with slow consumers.
     */
-  def publish[T](strategy: Synchronous)(implicit s: Scheduler): ConcurrentSubject[T,T] =
-    from(PublishSubject[T](), strategy)
-
-  /** Subject recipe for building [[PublishSubject publish]] subjects. */
-  def publish[T](strategy: Evicted, onOverflow: Long => T)
-    (implicit s: Scheduler): ConcurrentSubject[T,T] =
-    from(PublishSubject[T](), strategy, onOverflow)
+  def publish[A](strategy: Synchronous[A])(implicit s: Scheduler): ConcurrentSubject[A,A] =
+    from(PublishSubject[A](), strategy)
 
   /** Subject recipe for building [[BehaviorSubject behavior]] subjects.
     *
@@ -84,29 +61,9 @@ object ConcurrentSubject {
     *        used for buffering, which specifies what to do in case
     *        we're dealing with slow consumers.
     */
-  def behavior[T](initial: T, strategy: Synchronous)
-    (implicit s: Scheduler): ConcurrentSubject[T,T] =
-    from(BehaviorSubject[T](initial), strategy)
-
-  /** Subject recipe for building [[BehaviorSubject behavior]] subjects.
-    *
-    * @param initial the initial element to emit on subscribe,
-    *        before the first `onNext` happens
-    * @param strategy the [[OverflowStrategy overflow strategy]]
-    *        used for buffering, which specifies what to do in case
-    *        we're dealing with slow consumers: should an unbounded
-    *        buffer be used, should back-pressure be applied, should
-    *        the pipeline drop newer or older events, should it drop
-    *        the whole buffer?  See [[OverflowStrategy]] for more
-    *        details.
-    * @param onOverflow a function that is used for signaling a special
-    *        event used to inform the consumers that an overflow event
-    *        happened, function that receives the number of dropped
-    *        events as a parameter (see [[OverflowStrategy.Evicted]]).
-    */
-  def behavior[T](initial: T, strategy: Evicted, onOverflow: Long => T)
-    (implicit s: Scheduler): ConcurrentSubject[T,T] =
-    from(BehaviorSubject[T](initial), strategy, onOverflow)
+  def behavior[A](initial: A, strategy: Synchronous[A])
+    (implicit s: Scheduler): ConcurrentSubject[A,A] =
+    from(BehaviorSubject[A](initial), strategy)
 
   /** Subject recipe for building [[AsyncSubject async]] subjects.
     *
@@ -114,27 +71,9 @@ object ConcurrentSubject {
     *        used for buffering, which specifies what to do in case
     *        we're dealing with slow consumers.
     */
-  def async[T](strategy: Synchronous)
-    (implicit s: Scheduler): ConcurrentSubject[T,T] =
-    from(AsyncSubject[T](), strategy)
-
-  /** Subject recipe for building [[AsyncSubject async]] subjects.
-    *
-    * @param strategy the [[OverflowStrategy overflow strategy]]
-    *        used for buffering, which specifies what to do in case
-    *        we're dealing with slow consumers: should an unbounded
-    *        buffer be used, should back-pressure be applied, should
-    *        the pipeline drop newer or older events, should it drop
-    *        the whole buffer?  See [[OverflowStrategy]] for more
-    *        details.
-    * @param onOverflow a function that is used for signaling a special
-    *        event used to inform the consumers that an overflow event
-    *        happened, function that receives the number of dropped
-    *        events as a parameter (see [[OverflowStrategy.Evicted]]).
-    */
-  def async[T](strategy: Evicted, onOverflow: Long => T)
-    (implicit s: Scheduler): ConcurrentSubject[T,T] =
-    from(AsyncSubject[T](), strategy, onOverflow)
+  def async[A](strategy: Synchronous[A])
+    (implicit s: Scheduler): ConcurrentSubject[A,A] =
+    from(AsyncSubject[A](), strategy)
 
   /** Subject recipe for building [[ReplaySubject replay]] subjects.
     *
@@ -142,27 +81,9 @@ object ConcurrentSubject {
     *                 used for buffering, which specifies what to do in case
     *        we're dealing with slow consumers.
     */
-  def replay[T](strategy: Synchronous)
-    (implicit s: Scheduler): ConcurrentSubject[T,T] =
-    from(ReplaySubject[T](), strategy)
-
-  /** Subject recipe for building [[ReplaySubject replay]] subjects.
-    *
-    * @param strategy the [[OverflowStrategy overflow strategy]]
-    *        used for buffering, which specifies what to do in case
-    *        we're dealing with slow consumers: should an unbounded
-    *        buffer be used, should back-pressure be applied, should
-    *        the pipeline drop newer or older events, should it drop
-    *        the whole buffer?  See [[OverflowStrategy]] for more
-    *        details.
-    * @param onOverflow a function that is used for signaling a special
-    *        event used to inform the consumers that an overflow event
-    *        happened, function that receives the number of dropped
-    *        events as a parameter (see [[OverflowStrategy.Evicted]]).
-    */
-  def replay[T](strategy: Evicted, onOverflow: Long => T)
-    (implicit s: Scheduler): ConcurrentSubject[T,T] =
-    from(ReplaySubject[T](), strategy, onOverflow)
+  def replay[A](strategy: Synchronous[A])
+    (implicit s: Scheduler): ConcurrentSubject[A,A] =
+    from(ReplaySubject[A](), strategy)
 
   /** Subject recipe for building [[ReplaySubject replay]] subjects.
     *
@@ -172,29 +93,9 @@ object ConcurrentSubject {
     * used for buffering, which specifies what to do in case
     *        we're dealing with slow consumers.
     */
-  def replayPopulated[T](initial: Seq[T], strategy: Synchronous)
-    (implicit s: Scheduler): ConcurrentSubject[T,T] =
-    from(ReplaySubject[T](initial:_*), strategy)
-
-  /** Subject recipe for building [[ReplaySubject replay]] subjects.
-    *
-    * @param initial is an initial sequence of elements that will be pushed
-    *        to subscribers before any elements emitted by the source.
-    * @param strategy the [[OverflowStrategy overflow strategy]]
-    *        used for buffering, which specifies what to do in case
-    *        we're dealing with slow consumers: should an unbounded
-    *        buffer be used, should back-pressure be applied, should
-    *        the pipeline drop newer or older events, should it drop
-    *        the whole buffer?  See [[OverflowStrategy]] for more
-    *        details.
-    * @param onOverflow a function that is used for signaling a special
-    *        event used to inform the consumers that an overflow event
-    *        happened, function that receives the number of dropped
-    *        events as a parameter (see [[OverflowStrategy.Evicted]]).
-    */
-  def replayPopulated[T](initial: Seq[T], strategy: Evicted, onOverflow: Long => T)
-    (implicit s: Scheduler): ConcurrentSubject[T,T] =
-    from(ReplaySubject[T](initial:_*), strategy, onOverflow)
+  def replayPopulated[A](initial: Seq[A], strategy: Synchronous[A])
+    (implicit s: Scheduler): ConcurrentSubject[A,A] =
+    from(ReplaySubject[A](initial:_*), strategy)
 
   /** Subject recipe for building [[ReplaySubject replay]] subjects.
     * This variant creates a size-bounded replay subject.
@@ -211,36 +112,9 @@ object ConcurrentSubject {
     *        used for buffering, which specifies what to do in case
     *        we're dealing with slow consumers.
     */
-  def replayLimited[T](capacity: Int, strategy: Synchronous)
-    (implicit s: Scheduler): ConcurrentSubject[T,T] =
-    from(ReplaySubject.createWithSize[T](capacity), strategy)
-
-  /** Subject recipe for building [[ReplaySubject replay]] subjects.
-    * This variant creates a size-bounded replay subject.
-    *
-    * In this setting, the replay subject with a maximum capacity for
-    * its internal buffer and discards the oldest item. The `capacity`
-    * given is a guideline. The underlying implementation may decide
-    * to optimize it (e.g. use the next power of 2 greater or equal to
-    * the given value).
-    *
-    * @param capacity indicates the minimum capacity of the underlying buffer,
-    *        with the implementation being free to increase it.
-    * @param strategy the [[OverflowStrategy overflow strategy]]
-    *        used for buffering, which specifies what to do in case
-    *        we're dealing with slow consumers: should an unbounded
-    *        buffer be used, should back-pressure be applied, should
-    *        the pipeline drop newer or older events, should it drop
-    *        the whole buffer?  See [[OverflowStrategy]] for more
-    *        details.
-    * @param onOverflow a function that is used for signaling a special
-    *        event used to inform the consumers that an overflow event
-    *        happened, function that receives the number of dropped
-    *        events as a parameter (see [[OverflowStrategy.Evicted]]).
-    */
-  def replayLimited[T](capacity: Int, strategy: Evicted, onOverflow: Long => T)
-    (implicit s: Scheduler): ConcurrentSubject[T,T] =
-    from(ReplaySubject.createWithSize[T](capacity), strategy, onOverflow)
+  def replayLimited[A](capacity: Int, strategy: Synchronous[A])
+    (implicit s: Scheduler): ConcurrentSubject[A,A] =
+    from(ReplaySubject.createWithSize[A](capacity), strategy)
 
   /** Transforms the source [[ConcurrentSubject]] into a `org.reactivestreams.Processor`
     * instance as defined by the [[http://www.reactive-streams.org/ Reactive Streams]]
@@ -283,17 +157,12 @@ object ConcurrentSubject {
   /** For converting normal subjects into concurrent ones */
   private final class AsyncSubjectAsConcurrent[I,+O] (
     subject: Subject[I, O],
-    overflowStrategy: OverflowStrategy.Synchronous,
-    onOverflow: Long => I,
+    overflowStrategy: OverflowStrategy.Synchronous[I],
     scheduler: Scheduler)
     extends ConcurrentSubject[I,O] {
 
-    assert(onOverflow == null || overflowStrategy.isEvicted,
-      "onOverflow is only supported for `OverflowStrategy.Evicted`")
-
     private[this] val in: SyncSubscriber[I] =
-      BufferedSubscriber.synchronous(Subscriber(subject, scheduler),
-        overflowStrategy, onOverflow)
+      BufferedSubscriber.synchronous(Subscriber(subject, scheduler), overflowStrategy)
 
     def unsafeSubscribeFn(subscriber: Subscriber[O]): Cancelable =
       subject.unsafeSubscribeFn(subscriber)
