@@ -696,32 +696,6 @@ abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
   def publishLast(implicit s: Scheduler): ConnectableObservable[A] =
     unsafeMulticast(AsyncSubject[A]())
 
-  /** Returns an Observable that mirrors the source Observable but
-    * applies a timeout for each emitted item. If the next item isn't
-    * emitted within the specified timeout duration starting from its
-    * predecessor, the resulting Observable terminates and notifies
-    * observers of a TimeoutException.
-    *
-    * @param timeout maximum duration between emitted items before
-    *                a timeout occurs
-    */
-  def timeout(timeout: FiniteDuration): Observable[A] =
-    ops.timeout.emitError(self, timeout)
-
-  /** Returns an Observable that mirrors the source Observable but
-    * applies a timeout overflowStrategy for each emitted item. If the
-    * next item isn't emitted within the specified timeout duration
-    * starting from its predecessor, the resulting Observable begins
-    * instead to mirror a backup Observable.
-    *
-    * @param timeout maximum duration between emitted items before
-    *        a timeout occurs
-    * @param backup is the backup observable to subscribe to
-    *        in case of a timeout
-    */
-  def timeout[B >: A](timeout: FiniteDuration, backup: Observable[B]): Observable[B] =
-    ops.timeout.switchToBackup(self, timeout, backup)
-
   /** Returns the first generated result as a Future and then cancels
     * the subscription.
     */
@@ -744,7 +718,7 @@ abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
       }
     })
 
-    val withTrigger = Cancelable {
+    val withTrigger = Cancelable { () =>
       try cancelable.cancel() finally
         promise.tryFailure(new CancellationException("CancelableFuture.cancel"))
     }

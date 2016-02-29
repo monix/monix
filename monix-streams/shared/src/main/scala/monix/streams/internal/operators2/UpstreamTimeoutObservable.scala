@@ -17,11 +17,12 @@
 
 package monix.streams.internal.operators2
 
-import java.util.concurrent.{TimeUnit, TimeoutException}
-import monix.execution.Ack.{Continue, Cancel}
-import monix.execution.cancelables.{CompositeCancelable, MultiAssignmentCancelable}
+import java.util.concurrent.TimeUnit
+import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.cancelables.{CompositeCancelable, MultiAssignmentCancelable, SingleAssignmentCancelable}
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.streams.Observable
+import monix.streams.exceptions.UpstreamTimeoutException
 import monix.streams.observers.Subscriber
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
@@ -32,8 +33,10 @@ private[streams] final class UpstreamTimeoutObservable[+A](
 
   def unsafeSubscribeFn(downstream: Subscriber[A]): Cancelable = {
     val timeoutCheck = MultiAssignmentCancelable()
+    val mainTask = SingleAssignmentCancelable()
+    val composite = CompositeCancelable(mainTask, timeoutCheck)
 
-    val mainTask = source.unsafeSubscribeFn(new Subscriber[A] with Runnable { self =>
+    mainTask := source.unsafeSubscribeFn(new Subscriber[A] with Runnable { self =>
       implicit val scheduler: Scheduler = downstream.scheduler
 
       private[this] val timeoutMillis = timeout.toMillis
@@ -57,9 +60,7 @@ private[streams] final class UpstreamTimeoutObservable[+A](
 
           if (sinceLastOnNextInMillis >= timeoutMillis) {
             // Oops, timeout happened, triggering error.
-            self.onError(new TimeoutException(
-              s"Observable timed-out after $timeout of inactivity"
-            ))
+            triggerTimeout()
           }
           else {
             val remainingTimeMillis = timeoutMillis - sinceLastOnNextInMillis
@@ -87,18 +88,32 @@ private[streams] final class UpstreamTimeoutObservable[+A](
             // Shenanigans for avoiding an unnecessary synchronize
             downstream.onNext(elem) match {
               case Continue => unfreeze()
-              case Cancel => Cancel
+              case Cancel =>
+                timeoutCheck.cancel()
+                Cancel
+
               case async =>
                 async.flatMap {
                   case Continue => self.synchronized(unfreeze())
-                  case Cancel => Cancel
+                  case Cancel =>
+                    timeoutCheck.cancel()
+                    Cancel
                 }
             }
           }
         }
       }
 
-      def onError(ex: Throwable) = self.synchronized {
+      def triggerTimeout(): Unit = self.synchronized {
+        if (!isDone) {
+          isDone = true
+          val ex = UpstreamTimeoutException(timeout)
+          try downstream.onError(ex) finally
+            mainTask.cancel()
+        }
+      }
+
+      def onError(ex: Throwable): Unit = self.synchronized {
         if (!isDone) {
           isDone = true
           try downstream.onError(ex) finally
@@ -106,7 +121,7 @@ private[streams] final class UpstreamTimeoutObservable[+A](
         }
       }
 
-      def onComplete() = self.synchronized {
+      def onComplete(): Unit = self.synchronized {
         if (!isDone) {
           isDone = true
           try downstream.onComplete() finally
@@ -115,6 +130,6 @@ private[streams] final class UpstreamTimeoutObservable[+A](
       }
     })
 
-    CompositeCancelable(mainTask, timeoutCheck)
+    composite
   }
 }

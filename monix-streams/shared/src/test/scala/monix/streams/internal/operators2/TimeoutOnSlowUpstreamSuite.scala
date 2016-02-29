@@ -15,24 +15,21 @@
  * limitations under the License.
  */
 
-package monix.streams.internal.operators
+package monix.streams.internal.operators2
 
-import java.util.concurrent.TimeoutException
-import monix.execution.FutureUtils.ops._
-import monix.streams.internal.operators2.BaseOperatorSuite
-import monix.streams.{Observer, Observable}
-import monix.streams.subjects.PublishSubject
 import monix.execution.Ack.Continue
-import monix.streams.exceptions.DummyException
+import monix.streams.Observable
+import monix.streams.exceptions.{UpstreamTimeoutException, DummyException}
 import monix.streams.observers.SyncObserver
-import scala.concurrent.Future
+import monix.streams.subjects.PublishSubject
+import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
 
-object TimeoutSuite extends BaseOperatorSuite {
+object TimeoutOnSlowUpstreamSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val source = Observable.unsafeCreate[Long](_.onNext(sourceCount))
-    val o = source.timeout(1.second).onErrorRecoverWith {
-      case _: TimeoutException =>
+    val source = Observable.now(sourceCount.toLong).delayOnComplete(1.hour)
+    val o = source.timeoutOnSlowUpstream(1.second).onErrorRecoverWith {
+      case UpstreamTimeoutException(_) =>
         Observable.now(20L)
     }
 
@@ -41,19 +38,25 @@ object TimeoutSuite extends BaseOperatorSuite {
 
   def observableInError(sourceCount: Int, ex: Throwable) = {
     val ex = DummyException("dummy")
-    createObservable(sourceCount).map(s => s.copy(observable =
-      createObservableEndingInError(s.observable, ex)))
+    val source = Observable.now(sourceCount.toLong).endWithError(ex)
+    val o = source.timeoutOnSlowUpstream(1.second)
+    Some(Sample(o, 1, 1, Duration.Zero, 1.second))
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) =
     None
+
+  override def cancelableObservables() = {
+    val o = Observable.now(1L).delayOnComplete(1.hour).timeoutOnSlowUpstream(1.second)
+    Seq(Sample(o,1,1,0.seconds,0.seconds))
+  }
 
   test("should emit timeout after time passes") { implicit s =>
     val p = PublishSubject[Int]()
     var received = 0
     var errorThrown: Throwable = null
 
-    p.timeout(10.seconds).subscribe(new SyncObserver[Int] {
+    p.timeoutOnSlowUpstream(10.seconds).subscribe(new SyncObserver[Int] {
       def onComplete() = ()
       def onError(ex: Throwable) = {
         errorThrown = ex
@@ -77,37 +80,6 @@ object TimeoutSuite extends BaseOperatorSuite {
     assertEquals(errorThrown, null)
 
     s.tick(1.second)
-    assert(errorThrown != null && errorThrown.isInstanceOf[TimeoutException],
-      "errorThrown should be a TimeoutException")
-  }
-
-  test("should apply back-pressure on timeout") { implicit s =>
-    val p = PublishSubject[Int]()
-    var received = 0
-    var errorThrown: Throwable = null
-
-    p.timeout(10.seconds).subscribe(new Observer[Int] {
-      def onComplete() = ()
-      def onError(ex: Throwable) = {
-        errorThrown = ex
-      }
-
-      def onNext(elem: Int) =
-        Future.delayedResult(15.second) {
-          received += elem
-          Continue
-        }
-    })
-
-    p.onNext(1)
-    assertEquals(received, 0)
-    s.tick(10.second)
-
-    assertEquals(received, 0)
-    assertEquals(errorThrown, null)
-
-    s.tick(5.second)
-    assertEquals(received, 1)
     assert(errorThrown != null && errorThrown.isInstanceOf[TimeoutException],
       "errorThrown should be a TimeoutException")
   }

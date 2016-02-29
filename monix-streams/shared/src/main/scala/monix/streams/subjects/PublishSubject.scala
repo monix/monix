@@ -74,7 +74,7 @@ final class PublishSubject[T] private () extends Subject[T,T] { self =>
       if (!stateRef.compareAndSet(state, update))
         unsafeSubscribeFn(subscriber) // repeat
       else
-        Cancelable(unsubscribe(subscriber))
+        Cancelable(() => unsubscribe(subscriber))
     }
   }
 

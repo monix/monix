@@ -316,7 +316,7 @@ abstract class BaseOperatorSuite extends TestSuite[TestScheduler] {
 
     createObservable(sourceCount) match {
       case None => ignore()
-      case Some(Sample(_, count, _, _, _)) if count <= 1 =>ignore()
+      case Some(Sample(_, count, _, _, _)) if count <= 1 => ignore()
       case Some(Sample(o, count, sum, waitForFirst, waitForNext)) =>
         var wasCompleted = false
         var received = 0

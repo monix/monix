@@ -71,7 +71,8 @@ object GroupBySuite extends BaseOperatorSuite {
 
     val ch = PublishSubject[Int]()
     val obs = ch.groupBy(_ % 2)
-      .mergeMap(_.timeout(10.seconds, fallbackObservable))
+      .mergeMap(_.timeoutOnSlowUpstream(10.seconds)
+        .onErrorFallbackTo(fallbackObservable))
 
     obs.unsafeSubscribeFn(new Observer[Int] {
       def onNext(elem: Int): Future[Ack] =

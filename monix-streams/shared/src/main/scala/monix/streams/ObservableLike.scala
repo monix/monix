@@ -22,10 +22,12 @@ import java.io.PrintStream
 import monix.execution.cancelables.BooleanCancelable
 import monix.streams.ObservableLike.{Operator, Transformer}
 import monix.streams.OverflowStrategy.Synchronous
+import monix.streams.exceptions.UpstreamTimeoutException
 import monix.streams.internal.builders.{CombineLatest2Observable, Zip2Observable}
 import monix.streams.internal.operators2._
 import monix.streams.observables.GroupedObservable
 import monix.streams.observers.Subscriber
+import scala.concurrent.TimeoutException
 import scala.concurrent.duration.FiniteDuration
 import scala.language.higherKinds
 
@@ -1144,6 +1146,34 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
     */
   def takeWhileNotCanceled(c: BooleanCancelable): Self[A] =
     self.lift(new TakeWhileNotCanceledOperator(c))
+
+  /** Returns an observable that mirrors the source but that will trigger a
+    * [[monix.streams.exceptions.DownstreamTimeoutException DownstreamTimeoutException]]
+    * in case the downstream subscriber takes more than the given timespan
+    * to process an `onNext` message.
+    *
+    * Note that this ignores the time it takes for the upstream to send
+    * `onNext` messages. For detecting slow producers see [[timeoutOnSlowUpstream]].
+    *
+    * @param timeout maximum duration for `onNext`.
+    */
+  def timeoutOnSlowDownstream(timeout: FiniteDuration): Self[A] =
+    self.transform(self => new DownstreamTimeoutObservable[A](self, timeout))
+
+  /** Returns an observable that mirrors the source but applies a timeout
+    * for each emitted item by the upstream. If the next item isn't
+    * emitted within the specified timeout duration starting from its
+    * predecessor, the resulting Observable terminates and notifies
+    * observers of a TimeoutException.
+    *
+    * Note that this ignores the time it takes to process `onNext`.
+    * If dealing with a slow consumer, see [[timeoutOnSlowDownstream]].
+    *
+    * @param timeout maximum duration between emitted items before
+    *        a timeout occurs (ignoring the time it takes to process `onNext`)
+    */
+  def timeoutOnSlowUpstream(timeout: FiniteDuration): Self[A] =
+    self.transform(self => new UpstreamTimeoutObservable[A](self, timeout))
 
   /** While the destination observer is busy, buffers events, applying
     * the given overflowStrategy.

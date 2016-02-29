@@ -60,7 +60,7 @@ final class BehaviorSubject[T] private (initialValue: T)
       if (stateRef.compareAndSet(state, newState)) {
         c.pushFirst(state.cached)
         c.connect()
-        Cancelable(removeSubscriber(c))
+        Cancelable(() => removeSubscriber(c))
       }
       else {
         // retry

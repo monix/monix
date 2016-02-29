@@ -17,11 +17,12 @@
 
 package monix.streams.internal.operators2
 
-import java.util.concurrent.{TimeUnit, TimeoutException}
+import java.util.concurrent.TimeUnit
 import monix.execution.Ack.{Cancel, Continue}
-import monix.execution.cancelables.{SingleAssignmentCancelable, CompositeCancelable, MultiAssignmentCancelable}
+import monix.execution.cancelables.{CompositeCancelable, MultiAssignmentCancelable, SingleAssignmentCancelable}
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.streams.Observable
+import monix.streams.exceptions.DownstreamTimeoutException
 import monix.streams.observers.Subscriber
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
@@ -88,11 +89,16 @@ private[streams] final class DownstreamTimeoutObservable[+A](
             // Shenanigans for avoiding an unnecessary synchronize
             downstream.onNext(elem) match {
               case Continue => unfreeze()
-              case Cancel => Cancel
+              case Cancel =>
+                timeoutCheck.cancel()
+                Cancel
+
               case async =>
                 async.flatMap {
                   case Continue => self.synchronized(unfreeze())
-                  case Cancel => Cancel
+                  case Cancel =>
+                    timeoutCheck.cancel()
+                    Cancel
                 }
             }
           }
@@ -102,7 +108,7 @@ private[streams] final class DownstreamTimeoutObservable[+A](
       def triggerTimeout(): Unit = self.synchronized {
         if (!isDone) {
           isDone = true
-          val ex = new TimeoutException(s"Observable timed-out after $timeout of inactivity")
+          val ex = DownstreamTimeoutException(timeout)
           try downstream.onError(ex) finally
             mainTask.cancel()
         }

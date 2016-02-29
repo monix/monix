@@ -72,7 +72,7 @@ final class ReplaySubject[T] private (initialState: ReplaySubject.State[T])
       if (stateRef.compareAndSet(state, newState)) {
         c.pushIterable(buffer)
         val connecting = c.connect()
-        val cancelable = Cancelable(removeSubscriber(c))
+        val cancelable = Cancelable(() => removeSubscriber(c))
         CompositeCancelable(connecting, cancelable)
       } else {
         // retry

@@ -58,7 +58,7 @@ final class RefCountObservable[+T] private (source: ConnectableObservable[T])
       val ret = source.unsafeSubscribeFn(wrap(subscriber))
       if (current == -1) connection // triggers connect()
 
-      Cancelable {
+      Cancelable { () =>
         try ret.cancel() finally tryCancel()
       }
     }

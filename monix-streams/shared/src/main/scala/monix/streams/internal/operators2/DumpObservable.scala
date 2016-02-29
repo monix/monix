@@ -36,7 +36,7 @@ class DumpObservable[T](source: Observable[T], prefix: String, out: PrintStream)
     val upstream = source.unsafeSubscribeFn(new Subscriber[T] {
       implicit val scheduler = subscriber.scheduler
 
-      private[this] val downstreamActive = Cancelable {
+      private[this] val downstreamActive = Cancelable { () =>
         pos += 1
         out.println(s"$pos: $prefix downstream canceled")
       }
@@ -77,7 +77,7 @@ class DumpObservable[T](source: Observable[T], prefix: String, out: PrintStream)
       }
     })
 
-    Cancelable {
+    Cancelable { () =>
       upstream.cancel()
       pos += 1
       out.println(s"$pos: $prefix upstream canceled")

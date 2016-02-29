@@ -70,7 +70,7 @@ private[streams] final class GroupByOperator[A,K](
                 case Cancel => retryOnNext(elem)
               }
             } else {
-              val onCancel = Cancelable(recycleKey(key))
+              val onCancel = Cancelable(() => recycleKey(key))
               val (observer, observable) =
                 GroupedObservable.broadcast[K,A](key, onCancel)
 
