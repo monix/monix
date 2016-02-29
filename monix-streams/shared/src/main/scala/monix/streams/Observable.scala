@@ -319,45 +319,6 @@ abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
   def window(timespan: FiniteDuration, maxCount: Int): Observable[Observable[A]] =
     ops.window.timed(self, timespan, maxCount)
 
-  /** Groups the items emitted by an Observable according to a specified
-    * criterion, and emits these grouped items as GroupedObservables,
-    * one GroupedObservable per group.
-    *
-    * Note: A [[monix.streams.observables.GroupedObservable GroupedObservable]]
-    * will cache the items it is to emit until such time as it is
-    * subscribed to. For this reason, in order to avoid memory leaks,
-    * you should not simply ignore those GroupedObservables that do
-    * not concern you. Instead, you can signal to them that they may
-    * discard their buffers by doing something like `source.take(0)`.
-    *
-    * @param keySelector  a function that extracts the key for each item
-    */
-  def groupBy[K](keySelector: A => K): Observable[GroupedObservable[K, A]] =
-    ops.groupBy.apply(self, OverflowStrategy.Unbounded, keySelector)
-
-  /** Groups the items emitted by an Observable according to a specified
-    * criterion, and emits these grouped items as GroupedObservables,
-    * one GroupedObservable per group.
-    *
-    * A [[monix.streams.observables.GroupedObservable GroupedObservable]]
-    * will cache the items it is to emit until such time as it is
-    * subscribed to. For this reason, in order to avoid memory leaks,
-    * you should not simply ignore those GroupedObservables that do
-    * not concern you. Instead, you can signal to them that they may
-    * discard their buffers by doing something like `source.take(0)`.
-    *
-    * This variant of `groupBy` specifies a `keyBufferSize`
-    * representing the size of the buffer that holds our keys. We
-    * cannot block when emitting new `GroupedObservable`. So by
-    * specifying a buffer size, on overflow the resulting observable
-    * will terminate with an onError.
-    *
-    * @param keySelector - a function that extracts the key for each item
-    * @param keyBufferSize - the buffer size used for buffering keys
-    */
-  def groupBy[K](keyBufferSize: Int, keySelector: A => K): Observable[GroupedObservable[K, A]] =
-    ops.groupBy.apply(self, OverflowStrategy.Fail(keyBufferSize), keySelector)
-
   /** Returns an Observable that emits only the last item emitted by the
     * source Observable during sequential time windows of a specified
     * duration.

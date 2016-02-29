@@ -18,9 +18,8 @@
 package monix.streams.observables
 
 import monix.execution.{Ack, Cancelable, Scheduler}
-import monix.streams.internal._
-import monix.streams.observers.{Subscriber, CacheUntilConnectSubscriber}
-import monix.streams.{Observable, Observer}
+import monix.streams.Observable
+import monix.streams.observers.{CacheUntilConnectSubscriber, Subscriber}
 import scala.concurrent.Future
 import scala.language.reflectiveCalls
 
@@ -55,25 +54,34 @@ object GroupedObservable {
     // needs to be set upon subscription
     private[this] var ref: Subscriber[V] = null
     private[this] val underlying = {
-      val o = new Observer[V] {
+      val o = new Subscriber[V] {
+        implicit val scheduler = self.scheduler
+        private[this] var isDone = false
+
         def onNext(elem: V) = {
-          val downstream = if (ref == null) self.synchronized(ref) else ref
-          downstream.onNext(elem)
-            .ifCanceledDoCancel(onCancel)
+          val cache = ref
+          val downstream = if (cache == null) self.synchronized(ref) else cache
+          downstream.onNext(elem).syncOnCancelOrFailure(onCancel.cancel())
         }
 
-        def onError(ex: Throwable): Unit = {
-          val downstream = if (ref == null) self.synchronized(ref) else ref
-          downstream.onError(ex)
-        }
+        def onError(ex: Throwable): Unit =
+          if (!isDone) {
+            isDone = true
+            val cache = ref
+            val downstream = if (cache == null) self.synchronized(ref) else cache
+            downstream.onError(ex)
+          }
 
-        def onComplete(): Unit = {
-          val downstream = if (ref == null) self.synchronized(ref) else ref
-          downstream.onComplete()
-        }
+        def onComplete(): Unit =
+          if (!isDone) {
+            isDone = true
+            val cache = ref
+            val downstream = if (cache == null) self.synchronized(ref) else cache
+            downstream.onComplete()
+          }
       }
 
-      CacheUntilConnectSubscriber(Subscriber(o, scheduler))
+      CacheUntilConnectSubscriber(o)
     }
 
     def onNext(elem: V): Future[Ack] = underlying.onNext(elem)
@@ -83,14 +91,13 @@ object GroupedObservable {
     def unsafeSubscribeFn(subscriber: Subscriber[V]): Cancelable =
       self.synchronized {
         if (ref != null) {
-          subscriber.onError(
-            new IllegalStateException(
-              s"Cannot subscribe twice to a GroupedObservable"))
+          subscriber.onError(new IllegalStateException(
+            s"Cannot subscribe twice to a GroupedObservable"))
           Cancelable.empty
-        }
-        else {
+        } else {
           ref = subscriber
           underlying.connect()
+          onCancel
         }
       }
   }

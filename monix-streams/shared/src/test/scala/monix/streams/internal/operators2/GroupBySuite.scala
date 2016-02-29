@@ -15,13 +15,12 @@
  * limitations under the License.
  */
 
-package monix.streams.internal.operators
+package monix.streams.internal.operators2
 
 import monix.execution.Ack
 import monix.execution.Ack.{Cancel, Continue}
-import monix.streams.internal.operators2.BaseOperatorSuite
-import monix.streams.{Observable, Observer}
 import monix.streams.subjects.PublishSubject
+import monix.streams.{Observable, Observer}
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration.Zero
 import scala.concurrent.duration._
@@ -42,20 +41,20 @@ object GroupBySuite extends BaseOperatorSuite {
     (0 until sourceCount).map(x => x + x % 5).sum
   }
 
-  def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val o = createObservableEndingInError(Observable.range(0, sourceCount), ex)
-      .groupBy(_ % 5)
-      .flatMap(o => o.map(x => o.key + x))
+  def observableInError(sourceCount: Int, ex: Throwable) =
+    if (sourceCount <= 1) None else {
+      val source = Observable.range(0, sourceCount) ++ Observable.fork(Observable.error(ex))
+      val o = source
+        .groupBy(_ % 5)
+        .flatMap(o => o.map(x => o.key + x))
 
-    Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
-  }
+      Some(Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero))
+    }
+
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.range(1, sourceCount)
-      .groupBy(x => if (x == 2) throw ex else x)
-      .concat
-
-    Sample(o, 1, 1, Zero, Zero)
+    val o = Observable.range(0, sourceCount).groupBy(x => (throw ex) : Long).concat
+    Sample(o, 0, 0, Zero, Zero)
   }
 
   test("on complete the key should get recycled") { implicit s =>
@@ -106,6 +105,11 @@ object GroupBySuite extends BaseOperatorSuite {
     assertEquals(received, 12)
     s.tick(10.second)
     assertEquals(fallbackTick, 3)
+  }
+
+  override def cancelableObservables() = {
+    val sample = Observable.range(0, 100).delayOnNext(1.second).groupBy(_ % 5).concat
+    Seq(Sample(sample,0,0,0.second,0.second))
   }
 }
 

@@ -53,15 +53,13 @@ final class RefCountObservable[+T] private (source: ConnectableObservable[T])
     else if (!refs.compareAndSet(current, update)) {
       // retry
       unsafeSubscribeFn(subscriber)
-    }
-    else {
+    } else {
       implicit val s = subscriber.scheduler
       val ret = source.unsafeSubscribeFn(wrap(subscriber))
       if (current == -1) connection // triggers connect()
 
       Cancelable {
-        try ret.cancel() finally
-          cancel()
+        try ret.cancel() finally tryCancel()
       }
     }
   }
@@ -72,27 +70,27 @@ final class RefCountObservable[+T] private (source: ConnectableObservable[T])
 
       def onNext(elem: U): Future[Ack] = {
         downstream.onNext(elem)
-          .syncOnCancelOrFailure(cancel())
+          .syncOnCancelOrFailure(tryCancel())
       }
 
       def onError(ex: Throwable): Unit = {
         try downstream.onError(ex) finally
-          cancel()
+          tryCancel()
       }
 
       def onComplete(): Unit = {
         try downstream.onComplete() finally
-          cancel()
+          tryCancel()
       }
     }
   }
 
   @tailrec
-  private def cancel(): Boolean = refs.get match {
+  private def tryCancel(): Boolean = refs.get match {
     case x if x > 0 =>
       val update = x-1
       if (!refs.compareAndSet(x, update))
-        cancel()
+        tryCancel()
       else if (update == 0) {
         connection.cancel()
         true

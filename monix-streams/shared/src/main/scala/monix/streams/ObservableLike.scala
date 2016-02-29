@@ -21,8 +21,10 @@ import java.io.PrintStream
 
 import monix.execution.cancelables.BooleanCancelable
 import monix.streams.ObservableLike.{Operator, Transformer}
+import monix.streams.OverflowStrategy.Synchronous
 import monix.streams.internal.builders.{CombineLatest2Observable, Zip2Observable}
 import monix.streams.internal.operators2._
+import monix.streams.observables.GroupedObservable
 import monix.streams.observers.Subscriber
 import scala.concurrent.duration.FiniteDuration
 import scala.language.higherKinds
@@ -99,7 +101,6 @@ import scala.language.higherKinds
   * @define mergeReturn an Observable that emits items that are the
   *         result of flattening the items emitted by the Observables
   *         emitted by `this`.
-  *
   * @define asyncBoundaryDescription Forces a buffered asynchronous boundary.
   *
   *         Internally it wraps the observer implementation given to
@@ -848,6 +849,23 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
     */
   def foldLeft[R](initial: R)(op: (R, A) => R): Self[R] =
     self.lift(new FoldLeftOperator(initial, op))
+
+  /** Groups the items emitted by an Observable according to a specified
+    * criterion, and emits these grouped items as GroupedObservables,
+    * one GroupedObservable per group.
+    *
+    * Note: A [[monix.streams.observables.GroupedObservable GroupedObservable]]
+    * will cache the items it is to emit until such time as it is
+    * subscribed to. For this reason, in order to avoid memory leaks,
+    * you should not simply ignore those GroupedObservables that do
+    * not concern you. Instead, you can signal to them that they may
+    * discard their buffers by doing something like `source.take(0)`.
+    *
+    * @param keySelector  a function that extracts the key for each item
+    */
+  def groupBy[K](keySelector: A => K)
+    (implicit keysBuffer: Synchronous[Nothing] = OverflowStrategy.Unbounded): Self[GroupedObservable[K, A]] =
+    self.lift(new GroupByOperator[A,K](keysBuffer, keySelector))
 
   /** Alias for [[completed]]. Ignores all items emitted by
     * the source and only calls onCompleted or onError.
