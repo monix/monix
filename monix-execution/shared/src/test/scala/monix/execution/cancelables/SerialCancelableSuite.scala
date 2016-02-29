@@ -22,7 +22,7 @@ import minitest.SimpleTestSuite
 object SerialCancelableSuite extends SimpleTestSuite {
   test("cancel()") {
     var effect = 0
-    val sub = BooleanCancelable(effect += 1)
+    val sub = BooleanCancelable(() => effect += 1)
     val mSub = SerialCancelable(sub)
 
     assert(effect == 0)
@@ -40,9 +40,9 @@ object SerialCancelableSuite extends SimpleTestSuite {
 
   test("cancel() after second assignment") {
     var effect = 0
-    val sub = BooleanCancelable(effect += 1)
+    val sub = BooleanCancelable(() => effect += 1)
     val mSub = SerialCancelable(sub)
-    val sub2 = BooleanCancelable(effect += 10)
+    val sub2 = BooleanCancelable(() => effect += 10)
     mSub := sub2
 
     assert(effect == 1)
@@ -58,7 +58,7 @@ object SerialCancelableSuite extends SimpleTestSuite {
     mSub.cancel()
 
     var effect = 0
-    val sub = BooleanCancelable(effect += 1)
+    val sub = BooleanCancelable(() => effect += 1)
 
     assert(effect == 0)
     assert(!sub.isCanceled && mSub.isCanceled)

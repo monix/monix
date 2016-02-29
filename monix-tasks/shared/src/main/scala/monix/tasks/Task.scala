@@ -444,7 +444,7 @@ sealed abstract class Task[+T] { self =>
         (implicit s: Scheduler): Unit = {
 
         val activeGate = Atomic(true)
-        val activeGateTask = Cancelable(activeGate.set(false))
+        val activeGateTask = Cancelable(() => activeGate.set(false))
 
         val timeoutTask = s.scheduleOnce(after.length, after.unit,
           new Runnable {
@@ -491,7 +491,7 @@ sealed abstract class Task[+T] { self =>
 
         val mainTask = MultiAssignmentCancelable()
         val gate = Atomic(true)
-        val gateTask = Cancelable(gate.set(false))
+        val gateTask = Cancelable(() => gate.set(false))
 
         val timeoutTask = s.scheduleOnce(after.length, after.unit,
           new Runnable {
@@ -537,7 +537,7 @@ sealed abstract class Task[+T] { self =>
         val isActive = Atomic(true)
         val firstTask = MultiAssignmentCancelable()
         val secondTask = MultiAssignmentCancelable()
-        active := CompositeCancelable(firstTask, secondTask, Cancelable(isActive.set(false)))
+        active := CompositeCancelable(firstTask, secondTask, Cancelable(() => isActive.set(false)))
 
         RunLoop.stepInterruptibly(firstTask, frameId)(frameId =>
           self.unsafeRun(firstTask, frameId, new Callback[T] {
@@ -771,7 +771,7 @@ object Task {
         val thatTask = MultiAssignmentCancelable()
 
         val gate = Atomic(true)
-        val gateTask = Cancelable(gate.getAndSet(false))
+        val gateTask = Cancelable(() => gate.getAndSet(false))
         active := CompositeCancelable(thisTask, thatTask, gateTask)
 
         RunLoop.stepInterruptibly(active, frameId)(frameId =>

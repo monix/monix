@@ -24,7 +24,7 @@ object SingleAssignmentCancelableSuite extends SimpleTestSuite {
   test("cancel()") {
     var effect = 0
     val s = SingleAssignmentCancelable()
-    val b = BooleanCancelable { effect += 1 }
+    val b = BooleanCancelable { () => effect += 1 }
     s := b
 
     s.cancel()
@@ -42,7 +42,7 @@ object SingleAssignmentCancelableSuite extends SimpleTestSuite {
     assert(s.isCanceled)
 
     var effect = 0
-    val b = BooleanCancelable { effect += 1 }
+    val b = BooleanCancelable { () => effect += 1 }
     s := b
 
     assert(b.isCanceled)

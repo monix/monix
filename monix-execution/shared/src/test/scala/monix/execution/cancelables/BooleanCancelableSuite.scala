@@ -22,7 +22,7 @@ import minitest.SimpleTestSuite
 object BooleanCancelableSuite extends SimpleTestSuite {
   test("cancel()") {
     var effect = 0
-    val sub = BooleanCancelable(effect += 1)
+    val sub = BooleanCancelable(() => effect += 1)
     assert(effect == 0)
     assert(!sub.isCanceled)
 

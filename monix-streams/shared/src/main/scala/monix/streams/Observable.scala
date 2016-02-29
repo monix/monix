@@ -575,13 +575,6 @@ abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
     Observable.unsafeCreate(o => s.execute(UnsafeSubscribeRunnable(this, o)))
   }
 
-  /** Repeats the items emitted by this Observable continuously. It
-    * caches the generated items until `onComplete` and repeats them
-    * ad infinitum. On error it terminates.
-    */
-  def repeat: Observable[A] =
-    ops.repeat.elements(self)
-
   /** Converts this observable into a multicast observable, useful for
     * turning a cold observable into a hot one (i.e. whose source is
     * shared by all observers).

@@ -57,7 +57,7 @@ private[monix] object sample {
     repeated(source, Observable.intervalAtFixedRate(initialDelay, delay))
 
   private class SampleObserver[T,U]
-  (downstream: Subscriber[T], sampler: Observable[U], shouldRepeatOnSilence: Boolean)
+    (downstream: Subscriber[T], sampler: Observable[U], shouldRepeatOnSilence: Boolean)
     extends SyncSubscriber[T] {
 
     implicit val scheduler = downstream.scheduler

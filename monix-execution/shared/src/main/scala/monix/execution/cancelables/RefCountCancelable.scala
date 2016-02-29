@@ -40,7 +40,7 @@ final class RefCountCancelable private (onCancel: () => Unit) extends BooleanCan
     else if (!state.compareAndSet(oldState, oldState.copy(activeCounter = oldState.activeCounter + 1)))
       acquire()
     else
-      Cancelable {
+      Cancelable { () =>
         val newState = state.transformAndGet(s => s.copy(activeCounter = s.activeCounter - 1))
         if (newState.activeCounter == 0 && newState.isCanceled)
           onCancel()

@@ -38,7 +38,7 @@ private[schedulers] final class TrampolineScheduler private (reporter: UncaughtE
     }
 
     val task = setTimeout(millis, r, reporter)
-    Cancelable(clearTimeout(task))
+    Cancelable(() => clearTimeout(task))
   }
 
   override def execute(runnable: Runnable): Unit = {

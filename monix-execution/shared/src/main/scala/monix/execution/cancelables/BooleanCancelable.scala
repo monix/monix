@@ -45,16 +45,8 @@ object BooleanCancelable {
     * @param callback is a function that will execute exactly once
     *                 on canceling.
     */
-  def apply(callback: => Unit): BooleanCancelable =
-    new BooleanCancelable {
-      private[this] val _isCanceled = Atomic(false)
-      def isCanceled = _isCanceled.get
-
-      def cancel(): Unit = {
-        if (!_isCanceled.getAndSet(true))
-          callback
-      }
-    }
+  def apply(callback: () => Unit): BooleanCancelable =
+    new BooleanCancelableTask(callback)
 
   /** Returns an instance of a [[BooleanCancelable]] that's
     * already canceled.
@@ -64,4 +56,19 @@ object BooleanCancelable {
       val isCanceled = true
       def cancel() = ()
     }
+
+  private final class BooleanCancelableTask(cb: () => Unit)
+    extends BooleanCancelable {
+
+    private[this] val callbackRef = Atomic(cb)
+    def isCanceled: Boolean = callbackRef.get eq null
+
+    def cancel(): Unit = {
+      // Setting the callback to null with a `getAndSet` is solving
+      // two problems: `cancel` is thus idempotent, plus we allow
+      // the garbage collector to collect the task.
+      val callback = callbackRef.getAndSet(null)
+      if (callback != null) callback()
+    }
+  }
 }

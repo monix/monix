@@ -1069,6 +1069,13 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
   def reduce[B >: A](op: (B, B) => B): Self[B] =
     self.lift(new ReduceOperator[B](op))
 
+  /** Repeats the items emitted by the source continuously. It
+    * caches the generated items until `onComplete` and repeats them
+    * forever. On error it terminates.
+    */
+  def repeat: Self[A] =
+    self.transform(self => new RepeatObservable[A](self))
+
   /** Applies a binary operator to a start value and all elements of
     * this Observable, going left to right and returns a new
     * Observable that emits on each step the result of the applied
