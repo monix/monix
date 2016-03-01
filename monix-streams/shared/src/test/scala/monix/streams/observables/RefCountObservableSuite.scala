@@ -52,8 +52,7 @@ object RefCountObservableSuite extends TestSuite[TestScheduler] {
     val ref = Observable.interval(2.seconds).publish.refCount
     val s1 = ref.subscribe(createObserver)
 
-    assertEquals(received, 0)
-    s.tick(); assertEquals(received, 1)
+    assertEquals(received, 1)
     s.tick(2.seconds); assertEquals(received, 2)
 
     val s2 = ref.subscribe(createObserver)
@@ -64,20 +63,20 @@ object RefCountObservableSuite extends TestSuite[TestScheduler] {
     s1.cancel()
     s.tick(); assertEquals(received, 6)
     s.tick(2.seconds); assertEquals(received, 7)
-    assertEquals(completed, 1)
+    assertEquals(completed, 0)
 
     s2.cancel()
     s.tick(2.seconds); assertEquals(received, 7)
-    assertEquals(completed, 2)
+    assertEquals(completed, 0)
     s.tick(2.seconds)
 
     ref.subscribe(createObserver)
     s.tick(2.seconds); assertEquals(received, 7)
-    assertEquals(completed, 3)
+    assertEquals(completed, 0)
 
     ref.subscribe(createObserver)
     s.tick(2.seconds); assertEquals(received, 7)
-    assertEquals(completed, 4)
+    assertEquals(completed, 0)
   }
 
   test("onError should stop everything") { implicit s =>

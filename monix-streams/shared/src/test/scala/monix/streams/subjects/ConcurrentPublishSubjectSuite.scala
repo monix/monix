@@ -15,18 +15,20 @@
  * limitations under the License.
  */
 
-package monix.streams.internal.operators
+package monix.streams.subjects
 
-import monix.streams.Observable
-import monix.streams.internal.operators2.BaseOperatorSuite
-import scala.concurrent.duration.Duration.Zero
+import monix.execution.Scheduler
+import monix.streams.OverflowStrategy
+import OverflowStrategy.Unbounded
 
-object CacheSuite extends BaseOperatorSuite {
-  def createObservable(c: Int) = Some {
-    val o = Observable.range(0, c).cache
-    Sample(o, c, c * (c-1) / 2, Zero, Zero)
+object ConcurrentPublishSubjectSuite extends BaseConcurrentSubjectSuite {
+  def alreadyTerminatedTest(expectedElems: Seq[Long])(implicit s: Scheduler) = {
+    val c = ConcurrentSubject.publish[Long](Unbounded)
+    Sample(c, 0)
   }
 
-  def observableInError(sourceCount: Int, ex: Throwable) = None
-  def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
+  def continuousStreamingTest(expectedElems: Seq[Long])(implicit s: Scheduler) = {
+    val c = ConcurrentSubject.publish[Long](Unbounded)
+    Some(Sample(c, expectedElems.sum))
+  }
 }

@@ -15,16 +15,15 @@
  * limitations under the License.
  */
 
-package monix.subjects
+package monix.streams.subjects
 
-import java.util.concurrent.{TimeUnit, CountDownLatch}
+import java.util.concurrent.{CountDownLatch, TimeUnit}
 import minitest.TestSuite
-import monix.execution.{Ack, Scheduler}
-import monix.streams.Observable
-import monix.streams.subjects.ReplaySubject
-import monix.streams.observers.SyncObserver
 import monix.execution.Ack.Continue
+import monix.execution.Scheduler
+import monix.streams.Observable
 import monix.streams.internal.concurrent.RunnableAction
+import monix.streams.observers.SyncObserver
 
 object ReplaySubjectConcurrencySuite extends TestSuite[Scheduler] {
   def tearDown(env: Scheduler) = ()

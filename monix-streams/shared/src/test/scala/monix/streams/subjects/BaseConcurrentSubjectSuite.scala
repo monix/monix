@@ -18,16 +18,17 @@
 package monix.streams.subjects
 
 import minitest.TestSuite
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.Continue
+import monix.execution.Scheduler
 import monix.execution.schedulers.TestScheduler
-import monix.streams.exceptions.DummyException
 import monix.streams.{Observable, Observer}
-
+import monix.streams.exceptions.DummyException
 import scala.concurrent.Promise
 import scala.util.Random
 
-trait BaseSubjectSuite extends TestSuite[TestScheduler] {
-  case class Sample(subject: Subject[Long, Long], expectedSum: Long)
+
+trait BaseConcurrentSubjectSuite extends TestSuite[TestScheduler] {
+  case class Sample(channel: ConcurrentSubject[Long,Long] with Observable[Long], expectedSum: Long)
 
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
@@ -36,17 +37,17 @@ trait BaseSubjectSuite extends TestSuite[TestScheduler] {
   }
 
   /**
-   * Returns a sample subject that needs testing.
+   * Returns a sample channel that needs testing.
    */
-  def alreadyTerminatedTest(expectedElems: Seq[Long]): Sample
+  def alreadyTerminatedTest(expectedElems: Seq[Long])(implicit s: Scheduler): Sample
 
   /**
-   * Returns a sample subject for the test of
+   * Returns a sample channel for the test of
    * continuous streaming.
    */
-  def continuousStreamingTest(expectedElems: Seq[Long]): Option[Sample]
+  def continuousStreamingTest(expectedElems: Seq[Long])(implicit s: Scheduler): Option[Sample]
 
-  test("already completed and empty subject terminates observers") { implicit s =>
+  test("already completed and empty channel terminates observers") { implicit s =>
     var wereCompleted = 0
     var sum = 0L
 
@@ -62,12 +63,12 @@ trait BaseSubjectSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    val Sample(subject, expectedSum) = alreadyTerminatedTest(Seq.empty)
-    subject.onComplete()
+    val Sample(channel, expectedSum) = alreadyTerminatedTest(Seq.empty)
+    channel.onComplete()
 
-    subject.unsafeSubscribeFn(createObserver)
-    subject.unsafeSubscribeFn(createObserver)
-    subject.unsafeSubscribeFn(createObserver)
+    channel.unsafeSubscribeFn(createObserver)
+    channel.unsafeSubscribeFn(createObserver)
+    channel.unsafeSubscribeFn(createObserver)
 
     s.tick()
 
@@ -75,7 +76,7 @@ trait BaseSubjectSuite extends TestSuite[TestScheduler] {
     assertEquals(wereCompleted, 3)
   }
 
-  test("failed empty subject terminates observers with an error") { implicit s =>
+  test("failed empty channel terminates observers with an error") { implicit s =>
     var wereCompleted = 0
     var sum = 0L
 
@@ -94,12 +95,13 @@ trait BaseSubjectSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    val Sample(subject, _) = alreadyTerminatedTest(Seq.empty)
-    subject.onError(DummyException("dummy"))
+    val Sample(channel, _) = alreadyTerminatedTest(Seq.empty)
+    channel.onError(DummyException("dummy"))
+    s.tick()
 
-    subject.unsafeSubscribeFn(createObserver)
-    subject.unsafeSubscribeFn(createObserver)
-    subject.unsafeSubscribeFn(createObserver)
+    channel.unsafeSubscribeFn(createObserver)
+    channel.unsafeSubscribeFn(createObserver)
+    channel.unsafeSubscribeFn(createObserver)
 
     s.tick()
 
@@ -107,7 +109,7 @@ trait BaseSubjectSuite extends TestSuite[TestScheduler] {
     assertEquals(wereCompleted, 3)
   }
 
-  test("already completed but non-empty subject terminates new observers") { implicit s =>
+  test("already completed but non-empty channel terminates new observers") { implicit s =>
     val elems = (0 until 20).map(_ => Random.nextLong())
     var wereCompleted = 0
     var sum = 0L
@@ -124,13 +126,13 @@ trait BaseSubjectSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    val Sample(subject, expectedSum) = alreadyTerminatedTest(elems)
-    Observable.from(elems).unsafeSubscribeFn(subject)
+    val Sample(channel, expectedSum) = alreadyTerminatedTest(elems)
+    for (e <- elems) channel.onNext(e); channel.onComplete()
     s.tick()
 
-    subject.unsafeSubscribeFn(createObserver)
-    subject.unsafeSubscribeFn(createObserver)
-    subject.unsafeSubscribeFn(createObserver)
+    channel.unsafeSubscribeFn(createObserver)
+    channel.unsafeSubscribeFn(createObserver)
+    channel.unsafeSubscribeFn(createObserver)
 
     s.tick()
 
@@ -138,7 +140,7 @@ trait BaseSubjectSuite extends TestSuite[TestScheduler] {
     assertEquals(wereCompleted, 3)
   }
 
-  test("already failed but non-empty subject terminates new observers") { implicit s =>
+  test("already failed but non-empty channel terminates new observers") { implicit s =>
     val elems = (0 until 20).map(_ => Random.nextLong())
     var wereCompleted = 0
 
@@ -153,37 +155,34 @@ trait BaseSubjectSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    val Sample(subject, _) = alreadyTerminatedTest(elems)
-    Observable.from(elems)
-      .endWithError(DummyException("dummy"))
-      .unsafeSubscribeFn(subject)
+    val Sample(channel, _) = alreadyTerminatedTest(elems)
+    for (e <- elems) channel.onNext(e)
+    channel.onError(DummyException("dummy"))
 
     s.tick()
 
-    subject.unsafeSubscribeFn(createObserver)
-    subject.unsafeSubscribeFn(createObserver)
-    subject.unsafeSubscribeFn(createObserver)
+    channel.unsafeSubscribeFn(createObserver)
+    channel.unsafeSubscribeFn(createObserver)
+    channel.unsafeSubscribeFn(createObserver)
 
     s.tick()
     assertEquals(wereCompleted, 3)
   }
 
   test("should remove subscribers that triggered errors") { implicit s =>
-    val elemsLength = Random.nextInt(300) + 100
-    val elems = (0 until elemsLength).map(_.toLong).toSeq
+    val elems = (0 until Random.nextInt(300) + 100).map(_.toLong).toSeq
     var wereCompleted = 0
-    var totalReceived = 0
+    var totalOnNext = 0L
 
     def createObserver =
       new Observer[Long] {
-        var received = 0
         def onNext(elem: Long) = {
-          totalReceived += 1
-          received += 1
-          if (received > 10)
+          if (elem > 10)
             throw DummyException("dummy")
-          else
+          else {
+            totalOnNext += elem
             Continue
+          }
         }
 
         def onComplete() = ()
@@ -197,39 +196,21 @@ trait BaseSubjectSuite extends TestSuite[TestScheduler] {
 
     continuousStreamingTest(elems) match {
       case None => ignore()
-      case Some(Sample(subject, expectedSum)) =>
+      case Some(Sample(channel, expectedSum)) =>
         var totalEmitted = 0L
-        subject.doOnNext(totalEmitted += _).subscribe()
+        channel.doOnNext(totalEmitted += _).subscribe()
 
-        subject.subscribe(createObserver)
-        subject.subscribe(createObserver)
-        subject.subscribe(createObserver)
+        channel.subscribe(createObserver)
+        channel.subscribe(createObserver)
+        channel.subscribe(createObserver)
         s.tick()
 
-        Observable.from(elems).unsafeSubscribeFn(subject)
+        for (e <- elems) channel.onNext(e); channel.onComplete()
         s.tick()
 
         assertEquals(wereCompleted, 3)
         assertEquals(totalEmitted, expectedSum)
-        assertEquals(totalReceived, 33)
+        assertEquals(totalOnNext, 11 * 5 * 3)
     }
-  }
-
-  test("should protect onNext after onCompleted") { implicit s =>
-    val Sample(subject, _) = alreadyTerminatedTest(Seq.empty)
-    subject.onComplete()
-
-    assertEquals(subject.onNext(1), Cancel)
-    assertEquals(subject.onNext(2), Cancel)
-    assertEquals(subject.onNext(2), Cancel)
-  }
-
-  test("should protect onNext after onError") { implicit s =>
-    val Sample(subject, _) = alreadyTerminatedTest(Seq.empty)
-    subject.onError(DummyException("dummy"))
-
-    assertEquals(subject.onNext(1), Cancel)
-    assertEquals(subject.onNext(2), Cancel)
-    assertEquals(subject.onNext(2), Cancel)
   }
 }

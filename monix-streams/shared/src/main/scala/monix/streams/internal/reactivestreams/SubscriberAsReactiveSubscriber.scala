@@ -212,12 +212,11 @@ private[monix] final class SyncSubscriberAsReactiveSubscriber[T] private
     }
   }
 
-  def onComplete(): Unit = {
+  def onComplete(): Unit =
     if (!isCanceled) {
       isCanceled = true
       subscriber.onComplete()
     }
-  }
 }
 
 

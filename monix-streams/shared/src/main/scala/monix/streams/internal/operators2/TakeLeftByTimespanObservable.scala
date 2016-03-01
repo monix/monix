@@ -38,7 +38,7 @@ class TakeLeftByTimespanObservable[A](source: Observable[A], timespan: FiniteDur
 
       private[this] var isActive = true
       // triggers completion
-      val task = {
+      private[this] val task: Cancelable = {
         val ref = scheduler.scheduleOnce(timespan.length, timespan.unit, this)
         composite += ref
         ref

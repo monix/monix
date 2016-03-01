@@ -18,18 +18,16 @@
 package monix.streams.subjects
 
 import monix.execution.Ack.Continue
-import monix.execution.Scheduler
-import monix.streams.{Observer, OverflowStrategy}
-import monix.streams.OverflowStrategy.Unbounded
+import monix.streams.Observer
 import monix.streams.exceptions.DummyException
 
 object AsyncSubjectSuite extends BaseSubjectSuite {
-  def alreadyTerminatedTest(expectedElems: Seq[Long])(implicit s: Scheduler) = {
-    val c = ConcurrentSubject.async[Long](Unbounded)
-    Sample(c, expectedElems.lastOption.getOrElse(0))
+  def alreadyTerminatedTest(expectedElems: Seq[Long]) = {
+    val s = AsyncSubject[Long]()
+    Sample(s, expectedElems.lastOption.getOrElse(0))
   }
 
-  def continuousStreamingTest(expectedElems: Seq[Long])(implicit s: Scheduler) = None
+  def continuousStreamingTest(expectedElems: Seq[Long]) = None
 
   test("while active, keep adding subscribers, but don't emit anything") { implicit s =>
     var wereCompleted = 0
@@ -47,27 +45,26 @@ object AsyncSubjectSuite extends BaseSubjectSuite {
       }
     }
 
-    val channel = ConcurrentSubject.async[Long](Unbounded)
-    channel.unsafeSubscribeFn(createObserver)
-    channel.unsafeSubscribeFn(createObserver)
-    channel.unsafeSubscribeFn(createObserver)
+    val subject = AsyncSubject[Long]()
+    subject.unsafeSubscribeFn(createObserver)
+    subject.unsafeSubscribeFn(createObserver)
+    subject.unsafeSubscribeFn(createObserver)
 
-    for (x <- Seq(10, 20, 30)) channel.onNext(x)
+    subject.onNext(10)
+    subject.onNext(20)
+    subject.onNext(30)
 
     s.tick()
     assertEquals(sum, 0)
     assertEquals(wereCompleted, 0)
 
-    channel.onComplete()
-    channel.onComplete()
-    s.tick()
+    subject.onComplete()
+    subject.onComplete()
 
     assertEquals(sum, 30 * 3)
     assertEquals(wereCompleted, 3)
 
-    channel.unsafeSubscribeFn(createObserver)
-    s.tick()
-
+    subject.unsafeSubscribeFn(createObserver)
     assertEquals(sum, 30 * 4)
     assertEquals(wereCompleted, 4)
   }
@@ -91,27 +88,26 @@ object AsyncSubjectSuite extends BaseSubjectSuite {
       }
     }
 
-    val channel = ConcurrentSubject.async[Long](Unbounded)
-    channel.unsafeSubscribeFn(createObserver)
-    channel.unsafeSubscribeFn(createObserver)
-    channel.unsafeSubscribeFn(createObserver)
+    val subject = AsyncSubject[Long]()
+    subject.unsafeSubscribeFn(createObserver)
+    subject.unsafeSubscribeFn(createObserver)
+    subject.unsafeSubscribeFn(createObserver)
 
-    channel.onNext(10)
-    channel.onNext(20)
-    channel.onNext(30)
+    subject.onNext(10)
+    subject.onNext(20)
+    subject.onNext(30)
 
     s.tick()
     assertEquals(sum, 0)
     assertEquals(wereCompleted, 0)
 
-    channel.onError(DummyException("dummy1"))
-    channel.onError(DummyException("dummy2"))
+    subject.onError(DummyException("dummy1"))
+    subject.onError(DummyException("dummy2"))
 
-    s.tick()
     assertEquals(sum, 0)
     assertEquals(wereCompleted, 3)
 
-    channel.unsafeSubscribeFn(createObserver)
+    subject.unsafeSubscribeFn(createObserver)
     assertEquals(sum, 0)
     assertEquals(wereCompleted, 4)
   }
@@ -130,21 +126,83 @@ object AsyncSubjectSuite extends BaseSubjectSuite {
       def onError(ex: Throwable) = ()
     }
 
-    val channel = ConcurrentSubject.async[Long](Unbounded)
-    channel.unsafeSubscribeFn(createObserver)
-    channel.unsafeSubscribeFn(createObserver)
-    channel.unsafeSubscribeFn(createObserver)
+    val subject = AsyncSubject[Long]()
+    subject.unsafeSubscribeFn(createObserver)
+    subject.unsafeSubscribeFn(createObserver)
+    subject.unsafeSubscribeFn(createObserver)
 
-    channel.onComplete()
+    subject.onComplete()
 
-    s.tick()
     assertEquals(sum, 0)
     assertEquals(wereCompleted, 3)
 
-    channel.unsafeSubscribeFn(createObserver)
-
-    s.tick()
+    subject.unsafeSubscribeFn(createObserver)
     assertEquals(sum, 0)
     assertEquals(wereCompleted, 4)
+  }
+
+
+  test("subscribe after complete should complete immediately if empty") { implicit s =>
+    val subject = AsyncSubject[Int]()
+    subject.onComplete()
+
+    var wasCompleted = false
+    subject.unsafeSubscribeFn(new Observer[Int] {
+      def onNext(elem: Int) = throw new IllegalStateException("onNext")
+      def onError(ex: Throwable): Unit = ()
+      def onComplete(): Unit = wasCompleted = true
+    })
+
+    assert(wasCompleted)
+  }
+
+  test("subscribe after complete should complete immediately if non-empty") { implicit s =>
+    val subject = AsyncSubject[Int]()
+    subject.onNext(10)
+    subject.onComplete()
+
+    var wasCompleted = false
+    var received = 0
+
+    subject.unsafeSubscribeFn(new Observer[Int] {
+      def onNext(elem: Int) = { received += elem; Continue }
+      def onError(ex: Throwable): Unit = ()
+      def onComplete(): Unit = wasCompleted = true
+    })
+
+    assert(wasCompleted)
+    assertEquals(received, 10)
+  }
+
+  test("onError should terminate current and future subscribers") { implicit s =>
+    val subject = AsyncSubject[Int]()
+    val dummy = DummyException("dummy")
+    var elemsReceived = 0
+    var errorsReceived = 0
+
+    for (_ <- 0 until 10)
+      subject.unsafeSubscribeFn(new Observer[Int] {
+        def onNext(elem: Int) = { elemsReceived += elem; Continue }
+        def onComplete(): Unit = ()
+        def onError(ex: Throwable): Unit = ex match {
+          case `dummy` => errorsReceived += 1
+          case _ => ()
+        }
+      })
+
+    subject.onNext(1)
+    subject.onError(dummy)
+
+    subject.unsafeSubscribeFn(new Observer[Int] {
+      def onNext(elem: Int) = throw new IllegalStateException("onNext")
+      def onComplete(): Unit = ()
+      def onError(ex: Throwable): Unit = ex match {
+        case `dummy` => errorsReceived += 1
+        case _ => ()
+      }
+    })
+
+    assertEquals(elemsReceived, 0)
+    assertEquals(errorsReceived, 11)
   }
 }

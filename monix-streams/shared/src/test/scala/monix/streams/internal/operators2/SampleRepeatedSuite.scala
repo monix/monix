@@ -15,29 +15,33 @@
  * limitations under the License.
  */
 
-package monix.streams.internal.operators
+package monix.streams.internal.operators2
 
 import monix.streams.Observable
-import monix.streams.internal.operators2.BaseOperatorSuite
 import scala.concurrent.duration._
 
-object ThrottleFirstSuite extends BaseOperatorSuite {
-  def createObservable(sourceCount: Int) = Some {
-    if (sourceCount == 1) {
-      val o = Observable.now(100L).delaySubscription(500.millis).throttleFirst(1.second)
-      Sample(o, 1, 100, 500.millis, 1.second)
-    }
-    else {
-      val div2 = sourceCount / 2 * 2
-      val o = Observable.intervalAtFixedRate(500.millis)
-        .take(div2)
-        .throttleFirst(1.second)
+object SampleRepeatedSuite extends BaseOperatorSuite {
+  def waitNext = 500.millis
+  def waitFirst = 500.millis
 
-      val count = div2 / 2
-      Sample(o, count, count * (count - 1), Duration.Zero, 1.second)
-    }
+  def createObservable(sourceCount: Int) = Some {
+    val o = Observable.now(1L).delayOnComplete(sourceCount.minutes)
+      .sampleRepeated(500.millis)
+      .take(sourceCount)
+
+    Sample(o, sourceCount, sourceCount, waitFirst, waitNext)
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = None
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
+
+  override def cancelableObservables() = {
+    val o = Observable.now(1L).delayOnComplete(1.hour)
+      .sampleRepeated(500.millis)
+
+    Seq(
+      Sample(o, 0, 0, 0.seconds, 0.seconds),
+      Sample(o, 2, 2, 1.seconds, 0.seconds)
+    )
+  }
 }

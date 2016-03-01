@@ -22,12 +22,10 @@ import java.io.PrintStream
 import monix.execution.cancelables.BooleanCancelable
 import monix.streams.ObservableLike.{Operator, Transformer}
 import monix.streams.OverflowStrategy.Synchronous
-import monix.streams.exceptions.UpstreamTimeoutException
 import monix.streams.internal.builders.{CombineLatest2Observable, Zip2Observable}
 import monix.streams.internal.operators2._
 import monix.streams.observables.GroupedObservable
 import monix.streams.observers.Subscriber
-import scala.concurrent.TimeoutException
 import scala.concurrent.duration.FiniteDuration
 import scala.language.higherKinds
 
@@ -1078,6 +1076,71 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
   def repeat: Self[A] =
     self.transform(self => new RepeatObservable[A](self))
 
+  /** Emit the most recent items emitted by the source within
+    * periodic time intervals.
+    *
+    * Use the `sample` operator to periodically look at an observable
+    * to see what item it has most recently emitted since the previous
+    * sampling. Note that if the source observable has emitted no
+    * items since the last time it was sampled, the observable that
+    * results from the `sample` operator will emit no item for that
+    * sampling period.
+    *
+    * @see [[sampleBy]] for fine control
+    * @see [[sampleRepeated]] for repeating the last value on silence
+    *
+    * @param period the timespan at which sampling occurs
+    */
+  def sample(period: FiniteDuration): Self[A] =
+    self.sampleBy(Observable.intervalAtFixedRate(period, period))
+
+  /** Returns an observable that, when the specified sampler
+    * emits an item or completes, emits the most recently emitted item
+    * (if any) emitted by the source since the previous
+    * emission from the sampler.
+    *
+    * Use the `sampleBy` operator to periodically look at an observable
+    * to see what item it has most recently emitted since the previous
+    * sampling. Note that if the source observable has emitted no
+    * items since the last time it was sampled, the observable that
+    * results from the `sampleBy` operator will emit no item.
+    *
+    * @see [[sample]] for periodic sampling
+    * @see [[sampleRepeatedBy]] for repeating the last value on silence
+    *
+    * @param sampler - the observable to use for sampling the source
+    */
+  def sampleBy[B](sampler: Observable[B]): Self[A] =
+    self.transform(self => new ThrottleLastObservable[A,B](self, sampler, shouldRepeatOnSilence = false))
+
+  /** Emit the most recent items emitted by an observable within
+    * periodic time intervals. If no new value has been emitted since
+    * the last time it was sampled, it signals the last emitted value
+    * anyway.
+    *
+    * @see [[sample]] for a variant that doesn't repeat the last value on silence
+    * @see [[sampleRepeatedBy]] for fine control
+    *
+    * @param period the timespan at which sampling occurs
+    */
+  def sampleRepeated(period: FiniteDuration): Self[A] =
+    self.sampleRepeatedBy(Observable.intervalAtFixedRate(period, period))
+
+  /** Returns an observable that, when the specified sampler observable
+    * emits an item or completes, emits the most recently emitted item
+    * (if any) emitted by the source Observable since the previous
+    * emission from the sampler observable. If no new value has been
+    * emitted since the last time it was sampled, it signals the last
+    * emitted value anyway.
+    *
+    * @see [[sampleBy]] for a variant that doesn't repeat the last value on silence
+    * @see [[sampleRepeated]] for a periodic sampling
+    *
+    * @param sampler - the Observable to use for sampling the source Observable
+    */
+  def sampleRepeatedBy[B](sampler: Observable[B]): Self[A] =
+    self.transform(self => new ThrottleLastObservable[A,B](self, sampler, shouldRepeatOnSilence = true))
+
   /** Applies a binary operator to a start value and all elements of
     * this Observable, going left to right and returns a new
     * Observable that emits on each step the result of the applied
@@ -1146,6 +1209,51 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
     */
   def takeWhileNotCanceled(c: BooleanCancelable): Self[A] =
     self.lift(new TakeWhileNotCanceledOperator(c))
+
+  /** Returns an Observable that emits only the first item emitted by
+    * the source Observable during sequential time windows of a
+    * specified duration.
+    *
+    * This differs from [[Observable!.throttleLast]] in that this only
+    * tracks passage of time whereas `throttleLast` ticks at scheduled
+    * intervals.
+    *
+    * @param interval time to wait before emitting another item after
+    *        emitting the last item
+    */
+  def throttleFirst(interval: FiniteDuration): Self[A] =
+    self.lift(new ThrottleFirstOperator[A](interval))
+
+  /** Emit the most recent items emitted by the source within
+    * periodic time intervals.
+    *
+    * Alias for [[sample]].
+    *
+    * @param period duration of windows within which the last item
+    *        emitted by the source Observable will be emitted
+    */
+  def throttleLast(period: FiniteDuration): Self[A] =
+    sample(period)
+
+  /** Only emit an item from an observable if a particular timespan has
+    * passed without it emitting another item.
+    *
+    * Note: If the source observable keeps emitting items more
+    * frequently than the length of the time window, then no items will
+    * be emitted by the resulting observable.
+    *
+    * Alias for [[debounce]].
+    *
+    * @param timeout the length of the window of time that must pass after
+    *        the emission of an item from the source observable in
+    *        which that observable emits no items in order for the
+    *        item to be emitted by the resulting observable
+    *
+    * @see [[echoOnce]] for a similar operator that also mirrors
+    *     the source observable
+    */
+  def throttleWithTimeout(timeout: FiniteDuration): Self[A] =
+    debounce(timeout)
 
   /** Returns an observable that mirrors the source but that will trigger a
     * [[monix.streams.exceptions.DownstreamTimeoutException DownstreamTimeoutException]]

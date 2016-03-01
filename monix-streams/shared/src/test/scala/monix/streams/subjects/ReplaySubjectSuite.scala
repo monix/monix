@@ -17,18 +17,163 @@
 
 package monix.streams.subjects
 
-import monix.execution.Scheduler
-import monix.streams.OverflowStrategy
-import monix.streams.OverflowStrategy.Unbounded
+import monix.execution.Ack
+import monix.execution.Ack.Continue
+import monix.streams.Observer
+import monix.streams.exceptions.DummyException
+import monix.streams.observers.SyncObserver
+
+import scala.concurrent.Future
 
 object ReplaySubjectSuite extends BaseSubjectSuite {
-  def alreadyTerminatedTest(expectedElems: Seq[Long])(implicit s: Scheduler) = {
-    val c = ConcurrentSubject.replay[Long](Unbounded)
-    Sample(c, expectedElems.sum)
+  def alreadyTerminatedTest(expectedElems: Seq[Long]) = {
+    val s = ReplaySubject[Long]()
+    Sample(s, expectedElems.sum)
   }
 
-  def continuousStreamingTest(expectedElems: Seq[Long])(implicit s: Scheduler) = {
-    val c = ConcurrentSubject.replay[Long](Unbounded)
-    Some(Sample(c, expectedElems.sum))
+  def continuousStreamingTest(expectedElems: Seq[Long]) = {
+    val s = ReplaySubject[Long]()
+    Some(Sample(s, expectedElems.sum))
+  }
+
+  test("subscribers should get everything") { implicit s =>
+    var completed = 0
+
+    def create(expectedSum: Long) = new SyncObserver[Int] {
+      var received = 0L
+      def onNext(elem: Int) = { received += elem; Continue }
+      def onError(ex: Throwable): Unit = throw ex
+      def onComplete(): Unit = {
+        assertEquals(received, expectedSum)
+        completed += 1
+      }
+    }
+
+    val subject = ReplaySubject[Int]()
+    subject.unsafeSubscribeFn(create(20000))
+
+    s.tick(); subject.onNext(2); s.tick()
+
+    for (_ <- 1 until 5000) assertEquals(subject.onNext(2), Continue)
+
+    subject.unsafeSubscribeFn(create(20000))
+    s.tick(); subject.onNext(2); s.tick()
+
+    for (_ <- 1 until 5000) assertEquals(subject.onNext(2), Continue)
+
+    subject.unsafeSubscribeFn(create(20000))
+    s.tick()
+
+    subject.onComplete()
+    s.tick()
+    subject.unsafeSubscribeFn(create(20000))
+    s.tick()
+
+    assertEquals(completed, 4)
+  }
+
+
+  test("should work synchronously for synchronous subscribers, but after first onNext") { implicit s =>
+    val subject = ReplaySubject[Int]()
+    var received = 0
+    var wasCompleted = 0
+
+    for (i <- 0 until 10)
+      subject.unsafeSubscribeFn(new Observer[Int] {
+        def onNext(elem: Int): Future[Ack] = {
+          received += elem
+          Continue
+        }
+
+        def onError(ex: Throwable): Unit = ()
+        def onComplete(): Unit = wasCompleted += 1
+      })
+
+    assert(subject.onNext(1) != Continue)
+    s.tick()
+
+    assertEquals(subject.onNext(2), Continue)
+    assertEquals(subject.onNext(3), Continue)
+    subject.onComplete()
+
+    assertEquals(received, 60); s.tick()
+    assertEquals(wasCompleted, 10)
+  }
+
+  test("should work with asynchronous subscribers") { implicit s =>
+    val subject = ReplaySubject[Int]()
+    var received = 0
+    var wasCompleted = 0
+
+    for (i <- 0 until 10)
+      subject.unsafeSubscribeFn(new Observer[Int] {
+        def onNext(elem: Int) = Future {
+          received += elem
+          Continue
+        }
+
+        def onError(ex: Throwable): Unit = ()
+        def onComplete(): Unit = wasCompleted += 1
+      })
+
+    for (i <- 1 to 10) {
+      val ack = subject.onNext(i)
+      assert(!ack.isCompleted)
+      s.tick()
+      assert(ack.isCompleted)
+      assertEquals(received, (1 to i).sum * 10)
+    }
+
+    subject.onComplete()
+    assertEquals(received, 5 * 11 * 10)
+    assertEquals(wasCompleted, 10)
+  }
+
+  test("subscribe after complete should complete immediately") { implicit s =>
+    val subject = ReplaySubject[Int]()
+    subject.onComplete()
+
+    var wasCompleted = false
+    subject.unsafeSubscribeFn(new Observer[Int] {
+      def onNext(elem: Int) = throw new IllegalStateException("onNext")
+      def onError(ex: Throwable): Unit = ()
+      def onComplete(): Unit = wasCompleted = true
+    })
+
+    assert(wasCompleted)
+  }
+
+  test("onError should terminate current and future subscribers") { implicit s =>
+    val subject = ReplaySubject[Int]()
+    val dummy = DummyException("dummy")
+    var elemsReceived = 0
+    var errorsReceived = 0
+
+    for (_ <- 0 until 10)
+      subject.unsafeSubscribeFn(new Observer[Int] {
+        def onNext(elem: Int) = { elemsReceived += elem; Continue }
+        def onComplete(): Unit = ()
+        def onError(ex: Throwable): Unit = ex match {
+          case `dummy` => errorsReceived += 1
+          case _ => ()
+        }
+      })
+
+    subject.onNext(1)
+    subject.onError(dummy)
+    s.tick()
+
+    subject.unsafeSubscribeFn(new Observer[Int] {
+      def onNext(elem: Int) = { elemsReceived += elem; Continue }
+      def onComplete(): Unit = ()
+      def onError(ex: Throwable): Unit = ex match {
+        case `dummy` => errorsReceived += 1
+        case _ => ()
+      }
+    })
+
+    s.tick()
+    assertEquals(elemsReceived, 11)
+    assertEquals(errorsReceived, 11)
   }
 }

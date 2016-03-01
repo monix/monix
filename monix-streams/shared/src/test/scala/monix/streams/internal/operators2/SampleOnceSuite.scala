@@ -15,24 +15,24 @@
  * limitations under the License.
  */
 
-package monix.streams.internal.operators
+package monix.streams.internal.operators2
 
 import monix.execution.Ack.Continue
 import monix.execution.FutureUtils.ops._
-import monix.streams.internal.operators2.BaseOperatorSuite
-import monix.streams.{Observable, Observer}
 import monix.streams.subjects.PublishSubject
+import monix.streams.{Observable, Observer}
+
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
 object SampleOnceSuite extends BaseOperatorSuite {
-  def waitFirst = 500.millis
+  def waitFirst = 1.second
   def waitNext = 1.second
 
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.intervalAtFixedRate(1.second)
-      .take(sourceCount+1)
-      .sample(500.millis)
+    val o = Observable.intervalAtFixedRate(500.millis, 1.second)
+      .sample(1.second)
+      .take(sourceCount)
 
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
   }
@@ -52,6 +52,8 @@ object SampleOnceSuite extends BaseOperatorSuite {
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
+
+
 
   test("specified period should be respected if consumer is responsive") { implicit s =>
     val sub = PublishSubject[Long]()
@@ -141,5 +143,15 @@ object SampleOnceSuite extends BaseOperatorSuite {
 
     s.tick(1.second)
     assert(wasCompleted)
+  }
+
+  override def cancelableObservables() = {
+    val o = Observable.intervalAtFixedRate(500.millis, 1.second).sample(1.second)
+    Seq(
+      Sample(o, 0, 0, 0.seconds, 0.seconds),
+      Sample(o, 1, 0, 1.seconds, 0.seconds),
+      Sample(o, 2, 1, 2.seconds, 0.seconds),
+      Sample(o, 2, 1, 2.seconds + 500.millis, 0.seconds)
+    )
   }
 }

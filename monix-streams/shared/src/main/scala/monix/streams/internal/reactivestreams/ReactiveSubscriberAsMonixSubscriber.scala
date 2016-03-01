@@ -43,6 +43,7 @@ private[monix] final class ReactiveSubscriberAsMonixSubscriber[T] private
   private[this] val requests = new RequestsQueue
   private[this] var leftToPush = 0L
   private[this] var firstEvent = true
+  private[this] var ack: Future[Ack] = Continue
 
   @tailrec
   def onNext(elem: T): Future[Ack] = {
@@ -54,16 +55,19 @@ private[monix] final class ReactiveSubscriberAsMonixSubscriber[T] private
     else if (leftToPush > 0) {
       leftToPush -= 1
       subscriber.onNext(elem)
-      Continue
+      ack = Continue
+      ack
     }
     else {
-      requests.await().flatMap { requested =>
+      ack = requests.await().flatMap { requested =>
         if (requested <= 0) Cancel else {
           leftToPush += (requested - 1)
           subscriber.onNext(elem)
           Continue
         }
       }
+
+      ack
     }
   }
 
@@ -74,7 +78,7 @@ private[monix] final class ReactiveSubscriberAsMonixSubscriber[T] private
 
   def onComplete(): Unit = {
     if (firstEvent) subscriber.onSubscribe(createSubscription())
-    subscriber.onComplete()
+    ack.syncOnContinue(subscriber.onComplete())
   }
 
   private def createSubscription() = new Subscription {

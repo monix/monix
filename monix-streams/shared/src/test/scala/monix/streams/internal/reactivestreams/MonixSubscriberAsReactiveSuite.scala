@@ -23,7 +23,7 @@ import monix.execution.schedulers.TestScheduler
 import monix.streams.{Observable, Observer}
 import scala.concurrent.Future
 
-object ObserverAsSubscriberSuite extends TestSuite[TestScheduler] {
+object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
     s.state.get.lastReportedError match {
@@ -35,31 +35,31 @@ object ObserverAsSubscriberSuite extends TestSuite[TestScheduler] {
     }
   }
 
-  test("should work synchronously with batched requests") { implicit scheduler =>
-    var sum = 0L
-    var completed = false
-
-    val observer = new Observer[Long] {
-      def onNext(elem: Long) = {
-        sum += elem
-        Continue
-      }
-
-      def onError(ex: Throwable): Unit = {
-        scheduler.reportFailure(ex)
-      }
-
-      def onComplete(): Unit = {
-        completed = true
-      }
-    }
-
-    Observable.range(0, 10000)
-      .subscribe(Observer.toReactiveSubscriber(observer, bufferSize = 128))
-
-    scheduler.tick()
-    assertEquals(sum, 5000L * 9999)
-  }
+//  test("should work synchronously with batched requests") { implicit scheduler =>
+//    var sum = 0L
+//    var completed = false
+//
+//    val observer = new Observer[Long] {
+//      def onNext(elem: Long) = {
+//        sum += elem
+//        Continue
+//      }
+//
+//      def onError(ex: Throwable): Unit = {
+//        scheduler.reportFailure(ex)
+//      }
+//
+//      def onComplete(): Unit = {
+//        completed = true
+//      }
+//    }
+//
+//    Observable.range(0, 10000)
+//      .subscribe(Observer.toReactiveSubscriber(observer, bufferSize = 128))
+//
+//    scheduler.tick()
+//    assertEquals(sum, 5000L * 9999)
+//  }
 
   test("should work synchronously and with requests of size 1") { implicit s =>
     var completed = false
@@ -80,11 +80,12 @@ object ObserverAsSubscriberSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    Observable.range(0, 10000)
+    val requested = 100
+    Observable.range(0, requested)
       .subscribe(Observer.toReactiveSubscriber(observer, bufferSize = 1))
 
     s.tick()
-    assertEquals(sum, 5000L * 9999)
+    assertEquals(sum, requested * (requested-1) / 2)
   }
 
   test("should work with asynchronous boundaries and batched requests") { implicit s =>
