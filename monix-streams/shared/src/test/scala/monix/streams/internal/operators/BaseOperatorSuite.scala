@@ -143,6 +143,8 @@ abstract class BaseOperatorSuite extends TestSuite[TestScheduler] {
           private[this] var ack: Future[Ack] = Continue
 
           def onNext(elem: Long): Future[Ack] = {
+            assert(ack.isCompleted, "Contact breach, last ack is not completed")
+
             ack = Future.delayedResult(100.millis) {
               received += 1
               sum += elem
@@ -153,7 +155,7 @@ abstract class BaseOperatorSuite extends TestSuite[TestScheduler] {
           }
 
           def onError(ex: Throwable): Unit =
-            throw new IllegalStateException()
+            throw ex
           def onComplete(): Unit =
             ack.syncOnContinue { total = sum }
         })
