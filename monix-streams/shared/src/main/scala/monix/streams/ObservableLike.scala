@@ -23,7 +23,7 @@ import monix.execution.cancelables.BooleanCancelable
 import monix.streams.ObservableLike.{Operator, Transformer}
 import monix.streams.OverflowStrategy.Synchronous
 import monix.streams.internal.builders.{CombineLatest2Observable, Zip2Observable}
-import monix.streams.internal.operators2._
+import monix.streams.internal.operators._
 import monix.streams.observables.GroupedObservable
 import monix.streams.observers.Subscriber
 import scala.concurrent.duration.FiniteDuration

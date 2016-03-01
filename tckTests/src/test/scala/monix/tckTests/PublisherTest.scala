@@ -31,11 +31,11 @@ class PublisherTest
   def createPublisher(elements: Long): Publisher[Long] = {
     if (elements == Long.MaxValue)
       Observable.repeat(1L)
-        .flatMap(x => Future(x))
+        .flatMapF(x => Future(x))
         .toReactive
     else
       Observable.range(0, elements)
-        .flatMap(x => Future(x))
+        .flatMapF(x => Future(x))
         .toReactive
   }
 

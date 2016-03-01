@@ -20,6 +20,7 @@ package monix.streams
 import java.util.concurrent.CancellationException
 
 import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.cancelables.SingleAssignmentCancelable
 import monix.execution.{Ack, Cancelable, CancelableFuture, Scheduler}
 import monix.streams.ObservableLike.{Operator, Transformer}
 import monix.streams.internal.concurrent.UnsafeSubscribeRunnable
@@ -230,7 +231,10 @@ abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
   def toReactive[B >: A](implicit s: Scheduler): RPublisher[B] =
     new RPublisher[B] {
       def subscribe(subscriber: RSubscriber[_ >: B]): Unit = {
-        unsafeSubscribeFn(SafeSubscriber(Subscriber.fromReactiveSubscriber(subscriber)))
+        val subscription = SingleAssignmentCancelable()
+        subscription := unsafeSubscribeFn(SafeSubscriber(
+          Subscriber.fromReactiveSubscriber(subscriber, subscription)
+        ))
       }
     }
 
@@ -692,24 +696,7 @@ object Observable {
     * protocol that Monix implements.
     */
   def toReactivePublisher[A](source: Observable[A])(implicit s: Scheduler): RPublisher[A] =
-    new RPublisher[A] {
-      def subscribe(subscriber: RSubscriber[_ >: A]): Unit = {
-        source.unsafeSubscribeFn(Subscriber.fromReactiveSubscriber(subscriber))
-      }
-    }
-
-  /** Wraps this Observable into a `org.reactivestreams.Publisher`.
-    * See the [[http://www.reactive-streams.org/ Reactive Streams]]
-    * protocol that Monix implements.
-    *
-    * @param requestSize is the batch size to use when requesting items
-    */
-  def toReactivePublisher[A](source: Observable[A], requestSize: Int)(implicit s: Scheduler): RPublisher[A] =
-    new RPublisher[A] {
-      def subscribe(subscriber: RSubscriber[_ >: A]): Unit = {
-        source.unsafeSubscribeFn(Subscriber.fromReactiveSubscriber(subscriber))
-      }
-    }
+    source.toReactive[A](s)
 
   /** Create an Observable that repeatedly emits the given `item`, until
     * the underlying Observer cancels.

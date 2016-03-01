@@ -51,9 +51,9 @@ object Subscriber {
     * it builds an [[Subscriber]] instance compliant with the
     * Monix Rx implementation.
     */
-  def fromReactiveSubscriber[T](subscriber: RSubscriber[T])(implicit s: Scheduler): Subscriber[T] = {
-    ReactiveSubscriberAsMonixSubscriber(subscriber)
-  }
+  def fromReactiveSubscriber[T](subscriber: RSubscriber[T], subscription: Cancelable)
+    (implicit s: Scheduler): Subscriber[T] =
+    ReactiveSubscriberAsMonixSubscriber(subscriber, subscription)
 
   /** Transforms the source [[Subscriber]] into a `org.reactivestreams.Subscriber`
     * instance as defined by the [[http://www.reactive-streams.org/ Reactive Streams]]

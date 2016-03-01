@@ -17,7 +17,7 @@
 
 package monix.streams.internal.reactivestreams
 
-import monix.execution.{Ack, Scheduler}
+import monix.execution.{Cancelable, Ack, Scheduler}
 import monix.streams.Observer
 import monix.streams.observers.Subscriber
 import org.sincron.atomic.Atomic
@@ -33,9 +33,9 @@ import scala.concurrent.{Future, Promise}
   * contract.
   */
 private[monix] final class ReactiveSubscriberAsMonixSubscriber[T] private
-    (subscriber: RSubscriber[T])
+    (subscriber: RSubscriber[T], subscription: Cancelable)
     (implicit val scheduler: Scheduler)
-  extends Subscriber[T] {
+  extends Subscriber[T] with Cancelable { self =>
 
   if (subscriber == null) throw null
   import monix.streams.internal.reactivestreams.ReactiveSubscriberAsMonixSubscriber.RequestsQueue
@@ -44,6 +44,11 @@ private[monix] final class ReactiveSubscriberAsMonixSubscriber[T] private
   private[this] var leftToPush = 0L
   private[this] var firstEvent = true
   private[this] var ack: Future[Ack] = Continue
+
+  def cancel(): Unit = {
+    requests.cancel()
+    subscription.cancel()
+  }
 
   @tailrec
   def onNext(elem: T): Future[Ack] = {
@@ -82,9 +87,7 @@ private[monix] final class ReactiveSubscriberAsMonixSubscriber[T] private
   }
 
   private def createSubscription() = new Subscription {
-    def cancel(): Unit = {
-      requests.cancel()
-    }
+    def cancel(): Unit = self.cancel()
 
     def request(n: Long): Unit = {
       try requests.request(n) catch {
@@ -102,9 +105,9 @@ private[monix] object ReactiveSubscriberAsMonixSubscriber {
    * specification, it builds an [[Observer]] instance compliant
    * with the Monix Rx implementation.
    */
-  def apply[T](subscriber: RSubscriber[T])(implicit s: Scheduler): ReactiveSubscriberAsMonixSubscriber[T] = {
-    new ReactiveSubscriberAsMonixSubscriber[T](subscriber)
-  }
+  def apply[T](subscriber: RSubscriber[T], subscription: Cancelable)
+    (implicit s: Scheduler): ReactiveSubscriberAsMonixSubscriber[T] =
+    new ReactiveSubscriberAsMonixSubscriber[T](subscriber, subscription)
 
   /**
    * An asynchronous queue implementation for dealing with

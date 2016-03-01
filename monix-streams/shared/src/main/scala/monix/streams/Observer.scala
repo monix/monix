@@ -18,7 +18,7 @@
 package monix.streams
 
 import monix.execution.Ack.{Cancel, Continue}
-import monix.execution.{Ack, Scheduler}
+import monix.execution.{Cancelable, Ack, Scheduler}
 import monix.streams.internal.reactivestreams._
 import monix.streams.observers.{Subscriber, SyncObserver, SyncSubscriber}
 import org.reactivestreams.{Subscriber => RSubscriber}
@@ -53,9 +53,9 @@ object Observer {
     * it builds an [[Observer]] instance compliant with the
     * Monix Rx implementation.
     */
-  def fromReactiveSubscriber[T](subscriber: RSubscriber[T])(implicit s: Scheduler): Observer[T] = {
-    ReactiveSubscriberAsMonixSubscriber(subscriber)
-  }
+  def fromReactiveSubscriber[T](subscriber: RSubscriber[T], subscription: Cancelable)
+    (implicit s: Scheduler): Observer[T] =
+    ReactiveSubscriberAsMonixSubscriber(subscriber, subscription)
 
   /** Transforms the source [[Observer]] into a `org.reactivestreams.Subscriber`
     * instance as defined by the [[http://www.reactive-streams.org/ Reactive Streams]]

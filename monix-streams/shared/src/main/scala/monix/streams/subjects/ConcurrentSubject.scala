@@ -17,6 +17,7 @@
 
 package monix.streams.subjects
 
+import monix.execution.cancelables.SingleAssignmentCancelable
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.streams.OverflowStrategy
 import monix.streams.OverflowStrategy.Synchronous
@@ -133,7 +134,8 @@ object ConcurrentSubject {
         Subscriber(source, s).toReactive(bufferSize)
 
       def subscribe(subscriber: RSubscriber[_ >: O]): Unit = {
-        source.unsafeSubscribeFn(Subscriber.fromReactiveSubscriber(subscriber))
+        val sub = SingleAssignmentCancelable()
+        sub := source.unsafeSubscribeFn(Subscriber.fromReactiveSubscriber(subscriber, sub))
       }
 
       def onSubscribe(s: Subscription): Unit = {
