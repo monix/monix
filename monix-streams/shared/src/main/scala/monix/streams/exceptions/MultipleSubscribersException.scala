@@ -15,18 +15,10 @@
  * limitations under the License.
  */
 
-package monix.streams.internal.concurrent
+package monix.streams.exceptions
 
-/** Helper for converting any expression into a runnable */
-private[monix] final class RunnableAction private (action: => Unit)
-  extends Runnable {
-
-  override def run(): Unit =
-    action
-}
-
-private[monix] object RunnableAction {
-  /** Builder for [[RunnableAction]] */
-  def apply(action: => Unit): Runnable =
-    new RunnableAction(action)
-}
+/** The `MultipleSubscribersException` happens for hot observables
+  * that support a single subscriber.
+  */
+final case class MultipleSubscribersException(observableType: String)
+  extends RuntimeException(s"$observableType does not support multiple subscribers")

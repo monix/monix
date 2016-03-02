@@ -21,10 +21,8 @@ import monix.execution.Ack.{Cancel, Continue}
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.streams.Observable
 import monix.streams.subjects.ConcurrentSubject
-import monix.streams.internal.FutureAckExtensions
 import scala.collection.mutable
 import scala.concurrent.{Future, Promise}
-
 
 /** Wraps a [[Subscriber]] into an implementation that abstains from emitting items until the call
   * to `connect()` happens. Prior to `connect()` it's also a [[ConcurrentSubject]] into which you can enqueue
@@ -113,6 +111,7 @@ final class ConnectableSubscriber[-T] private (underlying: Subscriber[T])
         connectionRef = Observable.from(queue).unsafeSubscribeFn(new Subscriber[T] {
           implicit val scheduler = underlying.scheduler
           private[this] val bufferWasDrained = Promise[Ack]()
+          private[this] var ack: Future[Ack] = Continue
 
           bufferWasDrained.future.onSuccess {
             case Continue =>
@@ -132,13 +131,13 @@ final class ConnectableSubscriber[-T] private (underlying: Subscriber[T])
           }
 
           def onNext(elem: T): Future[Ack] = {
-            underlying.onNext(elem)
-              .ifCancelTryCanceling(bufferWasDrained)
+            ack = underlying.onNext(elem).syncOnCancelFollow(bufferWasDrained, Cancel)
+            ack
           }
 
           def onComplete(): Unit = {
             if (!scheduledDone) {
-              bufferWasDrained.trySuccess(Continue)
+              ack.syncOnContinue(bufferWasDrained.trySuccess(Continue))
             }
             else if (scheduledError ne null) {
               if (bufferWasDrained.trySuccess(Cancel))
@@ -219,9 +218,8 @@ final class ConnectableSubscriber[-T] private (underlying: Subscriber[T])
       // before the subscription happens and because it gets written only in
       // onNext / onComplete, which are non-concurrent clauses
       connectedFuture = connectedFuture.flatMap {
+        case Continue => underlying.onNext(elem)
         case Cancel => Cancel
-        case Continue =>
-          underlying.onNext(elem)
       }
       connectedFuture
     }
@@ -238,12 +236,14 @@ final class ConnectableSubscriber[-T] private (underlying: Subscriber[T])
 
   def onComplete() = {
     // we cannot take a fast path here
-    connectedFuture.onContinueSignalComplete(underlying)
+    connectedFuture.syncTryFlatten
+      .syncOnContinue(underlying.onComplete())
   }
 
   def onError(ex: Throwable) = {
     // we cannot take a fast path here
-    connectedFuture.onContinueSignalError(underlying, ex)
+    connectedFuture.syncTryFlatten
+      .syncOnContinue(underlying.onError(ex))
   }
 }
 

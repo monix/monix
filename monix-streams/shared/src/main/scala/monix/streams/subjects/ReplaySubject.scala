@@ -23,6 +23,7 @@ import monix.execution.internal.math._
 import monix.execution.{Ack, Cancelable}
 import monix.streams.Observable
 import monix.streams.internal._
+import monix.streams.internal.util.PromiseCounter
 import monix.streams.observers.{ConnectableSubscriber, Subscriber}
 import org.sincron.atomic.Atomic
 import scala.annotation.tailrec

@@ -41,7 +41,7 @@ object BufferTimedOrCountedSuite extends BaseOperatorSuite {
     Some {
       val o = Observable.intervalAtFixedRate(100.millis)
         .take(sourceCount * 10)
-        .bufferTimedOrCounted(1.second, maxSize = 20)
+        .bufferTimed(1.second, maxSize = 20)
         .map(_.sum)
 
       Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
@@ -53,7 +53,7 @@ object BufferTimedOrCountedSuite extends BaseOperatorSuite {
     Some {
       val o = createObservableEndingInError(Observable
         .intervalAtFixedRate(100.millis, 100.millis).take(sourceCount), ex)
-        .bufferTimedOrCounted(1.second, maxSize = 20)
+        .bufferTimed(1.second, maxSize = 20)
         .map(_.sum)
 
       Sample(o, count(sourceCount/10), sum(sourceCount/10), waitFirst, waitNext)
@@ -66,7 +66,7 @@ object BufferTimedOrCountedSuite extends BaseOperatorSuite {
   override def cancelableObservables(): Seq[Sample] = {
     val o = Observable.range(0, Platform.recommendedBatchSize)
       .delayOnNext(1.second)
-      .bufferTimedOrCounted(1.second, maxSize = 20)
+      .bufferTimed(1.second, maxSize = 20)
       .map(_.sum)
 
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
@@ -77,7 +77,7 @@ object BufferTimedOrCountedSuite extends BaseOperatorSuite {
 
     val obs = Observable.intervalAtFixedRate(100.millis)
       .take(sourceCount * 10)
-      .bufferTimedOrCounted(2.seconds, 100)
+      .bufferTimed(2.seconds, 100)
       .map(_.sum)
 
     var wasCompleted = false
@@ -105,7 +105,7 @@ object BufferTimedOrCountedSuite extends BaseOperatorSuite {
   test("should throw on negative timespan") { implicit s =>
     intercept[IllegalArgumentException] {
       Observable.intervalAtFixedRate(100.millis)
-        .bufferTimedOrCounted(Duration.Zero - 1.second, 10)
+        .bufferTimed(Duration.Zero - 1.second, 10)
     }
   }
 

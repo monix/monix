@@ -43,7 +43,7 @@ object ConcurrentSubject {
     */
   def from[I,O](p: Subject[I,O], strategy: Synchronous[I])
     (implicit s: Scheduler): ConcurrentSubject[I,O] =
-    new AsyncSubjectAsConcurrent(p, strategy, s)
+    new SubjectAsConcurrent(p, strategy, s)
 
   /** Subject recipe for building [[PublishSubject publish]] subjects.
     *
@@ -53,6 +53,15 @@ object ConcurrentSubject {
     */
   def publish[A](strategy: Synchronous[A])(implicit s: Scheduler): ConcurrentSubject[A,A] =
     from(PublishSubject[A](), strategy)
+
+  /** Subject recipe for building [[PublishToOneSubject]].
+    *
+    * @param strategy - the [[monix.streams.OverflowStrategy overflow strategy]]
+    *        used for buffering, which specifies what to do in case
+    *        we're dealing with slow consumers.
+    */
+  def publishToOne[A](strategy: Synchronous[A])(implicit s: Scheduler): ConcurrentSubject[A,A] =
+    from(PublishToOneSubject[A](), strategy)
 
   /** Subject recipe for building [[BehaviorSubject behavior]] subjects.
     *
@@ -157,7 +166,7 @@ object ConcurrentSubject {
   }
 
   /** For converting normal subjects into concurrent ones */
-  private final class AsyncSubjectAsConcurrent[I,+O] (
+  private final class SubjectAsConcurrent[I,+O] (
     subject: Subject[I, O],
     overflowStrategy: OverflowStrategy.Synchronous[I],
     scheduler: Scheduler)

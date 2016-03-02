@@ -19,6 +19,7 @@ package monix.streams.observables
 
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.streams.Observable
+import monix.streams.exceptions.MultipleSubscribersException
 import monix.streams.observers.{CacheUntilConnectSubscriber, Subscriber}
 import scala.concurrent.Future
 import scala.language.reflectiveCalls
@@ -91,8 +92,7 @@ object GroupedObservable {
     def unsafeSubscribeFn(subscriber: Subscriber[V]): Cancelable =
       self.synchronized {
         if (ref != null) {
-          subscriber.onError(new IllegalStateException(
-            s"Cannot subscribe twice to a GroupedObservable"))
+          subscriber.onError(MultipleSubscribersException("GroupedObservable"))
           Cancelable.empty
         } else {
           ref = subscriber

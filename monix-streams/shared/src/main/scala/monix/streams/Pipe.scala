@@ -87,6 +87,15 @@ object Pipe {
         unicast
     }
 
+  /** Subject recipe for building [[PublishToOneSubject]] instances. */
+  def publishToOne[T](): Pipe[T,T] =
+    new Pipe[T,T] {
+      def unicast: (Observer[T], Observable[T]) = {
+        val p = PublishToOneSubject[T]()
+        (p,p)
+      }
+    }
+
   /** Subject recipe for building [[BehaviorSubject]] instances. */
   def behavior[T](initial: => T): Pipe[T,T] =
     new Pipe[T,T] {

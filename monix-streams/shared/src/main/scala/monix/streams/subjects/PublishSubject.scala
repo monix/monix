@@ -19,7 +19,7 @@ package monix.streams.subjects
 
 import monix.execution.Ack.{Cancel, Continue}
 import monix.execution.{Ack, Cancelable}
-import monix.streams.internal.PromiseCounter
+import monix.streams.internal.util.PromiseCounter
 import monix.streams.observers.Subscriber
 import monix.streams.subjects.PublishSubject.State
 import org.sincron.atomic.Atomic

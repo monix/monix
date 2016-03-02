@@ -15,21 +15,27 @@
  * limitations under the License.
  */
 
-package monix.streams.internal.concurrent
+package monix.streams.internal.operators
 
-import monix.streams.internal._
+import monix.execution.Cancelable
+import monix.streams.Observable
 import monix.streams.observers.Subscriber
+import scala.util.control.NonFatal
 
-private[monix] final class NextThenCompleteRunnable[T] private
-  (subscriber: Subscriber[T], elem: T) extends Runnable {
+private[streams] final
+class DoOnSubscribeObservable[+A](source: Observable[A], callback: => Unit)
+  extends Observable[A] {
 
-  def run(): Unit = {
-    subscriber.onNext(elem)
-      .onContinueSignalComplete(subscriber)(subscriber.scheduler)
+  def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
+    var streamError = true
+    try {
+      callback
+      streamError = false
+      source.unsafeSubscribeFn(subscriber)
+    } catch {
+      case NonFatal(ex) if streamError =>
+        subscriber.onError(ex)
+        Cancelable.empty
+    }
   }
-}
-
-private[monix] object NextThenCompleteRunnable {
-  def apply[T](subscriber: Subscriber[T], elem: T): Runnable =
-    new NextThenCompleteRunnable[T](subscriber, elem)
 }

@@ -25,7 +25,7 @@ import monix.execution.schedulers.TestScheduler
 import monix.streams.OverflowStrategy.BackPressure
 import monix.streams.OverflowStrategy
 import monix.streams.exceptions.DummyException
-import monix.streams.internal.concurrent.RunnableAction
+import monix.streams.internal.util.RunnableAction
 import scala.concurrent.{Future, Promise}
 
 object BufferBackPressuredSuite extends TestSuite[TestScheduler] {

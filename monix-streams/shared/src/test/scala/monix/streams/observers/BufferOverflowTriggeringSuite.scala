@@ -24,7 +24,7 @@ import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import monix.streams.OverflowStrategy.Fail
 import monix.streams.exceptions.{BufferOverflowException, DummyException}
-import monix.streams.internal.concurrent.RunnableAction
+import monix.streams.internal.util.RunnableAction
 import monix.streams.{Observer, OverflowStrategy}
 import scala.concurrent.{Future, Promise}
 

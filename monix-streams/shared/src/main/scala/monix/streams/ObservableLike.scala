@@ -19,6 +19,7 @@ package monix.streams
 
 import java.io.PrintStream
 
+import monix.execution.Scheduler
 import monix.execution.cancelables.BooleanCancelable
 import monix.streams.ObservableLike.{Operator, Transformer}
 import monix.streams.OverflowStrategy.Synchronous
@@ -147,6 +148,25 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
   def ++[B >: A](other: => Observable[B]): Self[B] =
     self.transform(self => Observable.concat(self, other))
 
+  /** Creates a new Observable that emits the given element and then it
+    * also emits the events of the source (prepend operation).
+    */
+  def +:[B >: A](elem: B): Self[B] =
+    self.transform(self => Observable.now(elem) ++ self)
+
+  /** Creates a new Observable that emits the events of the source and
+    * then it also emits the given element (appended to the stream).
+    */
+  def :+[B >: A](elem: B): Self[B] =
+    self.transform(self => self ++ Observable.now(elem))
+
+  /** Given the source observable and another `Observable`, emits all of
+    * the items from the first of these Observables to emit an item
+    * and cancel the other.
+    */
+  def ambWith[B >: A](other: Observable[B]): Self[B] =
+    self.transform(self => Observable.amb(self, other))
+
   /** $asyncBoundaryDescription
     *
     * @param overflowStrategy - $overflowStrategyParam
@@ -168,7 +188,7 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
     *        be emitted
     */
   def buffer(count: Int): Self[Seq[A]] =
-    bufferSkipped(count, count)
+    buffer(count, count)
 
   /** Returns an observable that emits buffers of items it collects from
     * the source observable. The resulting observable emits buffers
@@ -196,7 +216,7 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
     *        skip and count are equal, this is the same operation as
     *        `buffer(count)`
     */
-  def bufferSkipped(count: Int, skip: Int): Self[Seq[A]] =
+  def buffer(count: Int, skip: Int): Self[Seq[A]] =
     self.lift(new BufferOperator(count, skip))
 
   /** Periodically gather items emitted by an observable into bundles
@@ -216,8 +236,8 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
     * @param timespan the interval of time at which it should emit
     *        the buffered bundle
     */
-  def bufferTimed(timespan: FiniteDuration) =
-    bufferTimedOrCounted(timespan, 0)
+  def bufferTimed(timespan: FiniteDuration): Self[Seq[A]] =
+    bufferTimed(timespan, 0)
 
   /** Periodically gather items emitted by an observable into bundles
     * and emit these bundles rather than emitting the items one at a
@@ -237,7 +257,7 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
     *        the buffered bundle
     * @param maxSize is the maximum bundle size
     */
-  def bufferTimedOrCounted(timespan: FiniteDuration, maxSize: Int): Self[Seq[A]] =
+  def bufferTimed(timespan: FiniteDuration, maxSize: Int): Self[Seq[A]] =
     self.lift(new BufferTimedOperator(timespan, maxSize))
 
   /** Applies the given partial function to the source
@@ -605,6 +625,10 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
   def doOnStart(cb: A => Unit): Self[A] =
     self.lift(new DoOnStartOperator[A](cb))
 
+  /** Executes the given callback before the subscription happens. */
+  def doOnSubscribe(cb: => Unit): Self[A] =
+    self.transform(self => new DoOnSubscribeObservable[A](self, cb))
+
   /** Drops the first `n` elements (from the start).
     *
     * @param n the number of elements to drop
@@ -691,6 +715,13 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
   def echoRepeated(timeout: FiniteDuration): Self[A] =
     self.transform(self => new EchoObservable(self, timeout, onlyOnce = false))
 
+
+  /** Creates a new Observable that emits the events of the source and
+    * then it also emits the given elements (appended to the stream).
+    */
+  def endWith[B >: A](elems: B*): Self[B] =
+    self.transform(self => self ++ Observable.from(elems))
+
   /** Emits the given exception instead of `onComplete`.
     *
     * @param error the exception to emit onComplete
@@ -699,6 +730,20 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
     */
   def endWithError(error: Throwable): Self[A] =
     self.lift(new EndWithErrorOperator[A](error))
+
+  /** Returns an Observable which emits a single value, either true, in
+    * case the given predicate holds for at least one item, or false
+    * otherwise.
+    *
+    * @param p is a function that evaluates the items emitted by the
+    *        source Observable, returning `true` if they pass the
+    *        filter
+    *
+    * @return an Observable that emits only true or false in case
+    *         the given predicate holds or not for at least one item
+    */
+  def exists(p: A => Boolean): Self[Boolean] =
+    find(p).foldLeft(false)((_, _) => true)
 
   /** Returns an observable that emits a single Throwable, in case an
     * error was thrown by the source, otherwise it isn't
@@ -717,6 +762,27 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
     */
   def filter(p: A => Boolean): Self[A] =
     self.lift(new FilterOperator(p))
+
+  /** Returns an Observable which only emits the first item for which
+    * the predicate holds.
+    *
+    * @param p is a function that evaluates the items emitted by the
+    *        source Observable, returning `true` if they pass the filter
+    *
+    * @return an Observable that emits only the first item in the original
+    *         Observable for which the filter evaluates as `true`
+    */
+  def find(p: A => Boolean): Self[A] =
+    filter(p).head
+
+  /** Emits the first element emitted by the source, or otherwise if the
+    * source is completed without emitting anything, then the
+    * `default` is emitted.
+    *
+    * Alias for `headOrElse`.
+    */
+  def firstOrElse[B >: A](default: => B): Self[B] =
+    headOrElse(default)
 
   /** Applies a function that you supply to each item emitted by the
     * source observable, where that function returns sequences that
@@ -850,6 +916,20 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
   def foldLeft[R](initial: R)(op: (R, A) => R): Self[R] =
     self.lift(new FoldLeftOperator(initial, op))
 
+  /** Returns an Observable that emits a single boolean, either true, in
+    * case the given predicate holds for all the items emitted by the
+    * source, or false in case at least one item is not verifying the
+    * given predicate.
+    *
+    * @param p is a function that evaluates the items emitted by the source
+    *        Observable, returning `true` if they pass the filter
+    *
+    * @return an Observable that emits only true or false in case the given
+    *         predicate holds or not for all the items
+    */
+  def forAll(p: A => Boolean): Self[Boolean] =
+    exists(e => !p(e)).map(r => !r)
+
   /** Groups the items emitted by an Observable according to a specified
     * criterion, and emits these grouped items as GroupedObservables,
     * one GroupedObservable per group.
@@ -867,6 +947,21 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
     (implicit keysBuffer: Synchronous[Nothing] = OverflowStrategy.Unbounded): Self[GroupedObservable[K, A]] =
     self.lift(new GroupByOperator[A,K](keysBuffer, keySelector))
 
+  /** Only emits the first element emitted by the source observable,
+    * after which it's completed immediately.
+    */
+  def head: Self[A] = take(1)
+
+  /** Emits the first element emitted by the source, or otherwise if the
+    * source is completed without emitting anything, then the
+    * `default` is emitted.
+    */
+  def headOrElse[B >: A](default: => B): Self[B] =
+    head.foldLeft(Option.empty[B])((_, elem) => Some(elem)) map {
+      case Some(elem) => elem
+      case None => default
+    }
+
   /** Alias for [[completed]]. Ignores all items emitted by
     * the source and only calls onCompleted or onError.
     *
@@ -881,6 +976,11 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
     */
   def isEmpty: Self[Boolean] =
     self.lift(IsEmptyOperator)
+
+  /** Only emits the last element emitted by the source observable,
+    * after which it's completed immediately.
+    */
+  def last: Self[A] = takeRight(1)
 
   /** Returns a new observable that applies the given function
     * to each item emitted by the source and emits the result.
@@ -1088,7 +1188,6 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
     *
     * @see [[sampleBy]] for fine control
     * @see [[sampleRepeated]] for repeating the last value on silence
-    *
     * @param period the timespan at which sampling occurs
     */
   def sample(period: FiniteDuration): Self[A] =
@@ -1107,7 +1206,6 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
     *
     * @see [[sample]] for periodic sampling
     * @see [[sampleRepeatedBy]] for repeating the last value on silence
-    *
     * @param sampler - the observable to use for sampling the source
     */
   def sampleBy[B](sampler: Observable[B]): Self[A] =
@@ -1120,7 +1218,6 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
     *
     * @see [[sample]] for a variant that doesn't repeat the last value on silence
     * @see [[sampleRepeatedBy]] for fine control
-    *
     * @param period the timespan at which sampling occurs
     */
   def sampleRepeated(period: FiniteDuration): Self[A] =
@@ -1135,7 +1232,6 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
     *
     * @see [[sampleBy]] for a variant that doesn't repeat the last value on silence
     * @see [[sampleRepeated]] for a periodic sampling
-    *
     * @param sampler - the Observable to use for sampling the source Observable
     */
   def sampleRepeatedBy[B](sampler: Observable[B]): Self[A] =
@@ -1151,6 +1247,18 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
     */
   def scan[R](initial: R)(f: (R, A) => R): Self[R] =
     self.lift(new ScanOperator(initial, f))
+
+  /** Creates a new Observable that emits the given elements and then it
+    * also emits the events of the source (prepend operation).
+    */
+  def startWith[B >: A](elems: B*): Self[B] =
+    self.transform(self => Observable.from(elems) ++ self)
+
+  /** Returns a new Observable that uses the specified `Scheduler` for
+    * initiating the subscription.
+    */
+  def subscribeOn(scheduler: Scheduler): Self[A] =
+    self.transform(self => new SubscribeOnObservable[A](self, scheduler))
 
   /** Given a source that emits numeric values, the `sum` operator sums
     * up all values and at onComplete it emits the total.
@@ -1169,6 +1277,11 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
   /** $switchMapDescription */
   def switchMapF[B, F[_] : CanObserve](f: A => F[B]): Self[B] =
     self.switchMap(a => CanObserve[F].observable(f(a)))
+
+  /** Drops the first element of the source observable,
+    * emitting the rest.
+    */
+  def tail: Self[A] = drop(1)
 
   /** Selects the first `n` elements (from the start).
     *

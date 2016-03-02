@@ -19,7 +19,6 @@ package monix.streams.subjects
 
 import monix.execution.Ack.{Cancel, Continue}
 import monix.execution.{Ack, Cancelable}
-import monix.streams.internal._
 import monix.streams.observers.Subscriber
 import monix.streams.subjects.PublishSubject.State
 import org.sincron.atomic.Atomic
@@ -101,12 +100,13 @@ final class AsyncSubject[T] extends Subject[T,T] { self =>
         val iterator = subscribers.iterator
         while (iterator.hasNext) {
           val ref = iterator.next()
-          import ref.scheduler
 
           if (ex != null)
             ref.onError(ex)
-          else if (onNextHappened)
-            ref.onNext(cachedElem).onContinueSignalComplete(ref)
+          else if (onNextHappened) {
+            ref.onNext(cachedElem)
+            ref.onComplete()
+          }
           else
             ref.onComplete()
         }

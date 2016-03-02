@@ -30,7 +30,7 @@ object BufferCountedOverlapSuite extends BaseOperatorSuite {
       val divBy4 = sourceCount / 4 * 4
       val o = Observable.range(0, divBy4)
         .map(_ % 4)
-        .bufferSkipped(8,4)
+        .buffer(8,4)
         .flatMap(x => Observable.from(x))
 
       val count = 8 + (divBy4 - 8) * 2
@@ -39,7 +39,7 @@ object BufferCountedOverlapSuite extends BaseOperatorSuite {
     }
     else Some {
       val o = Observable.now(1L)
-        .bufferSkipped(2,1).flatMap(x => Observable.from(x))
+        .buffer(2,1).flatMap(x => Observable.from(x))
       Sample(o, 1, 1, waitFirst, waitNext)
     }
   }
@@ -49,7 +49,7 @@ object BufferCountedOverlapSuite extends BaseOperatorSuite {
 
   override def cancelableObservables() = {
     val o = Observable.range(0,1000).delayOnNext(1.second)
-      .bufferSkipped(2,1).flatMap(x => Observable.from(x))
+      .buffer(2,1).flatMap(x => Observable.from(x))
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 }

@@ -15,25 +15,18 @@
  * limitations under the License.
  */
 
-package monix.streams.internal.concurrent
+package monix.streams.internal.util
 
-import monix.streams.Observable
-import monix.streams.observers.Subscriber
-
-/** Ready-made Runnable class that triggers a
-  * subscription on the given observable.
-  */
-private[monix] final class UnsafeSubscribeRunnable[T] private
-  (obs: Observable[T], subscriber: Subscriber[T])
+/** Helper for converting any expression into a runnable */
+private[monix] final class RunnableAction private (action: => Unit)
   extends Runnable {
 
-  def run(): Unit = {
-    obs.unsafeSubscribeFn(subscriber)
-  }
+  override def run(): Unit =
+    action
 }
 
-private[monix] object UnsafeSubscribeRunnable {
-  /** Builder for [[UnsafeSubscribeRunnable]] */
-  def apply[T](obs: Observable[T], subscriber: Subscriber[T]): Runnable =
-    new UnsafeSubscribeRunnable[T](obs, subscriber)
+private[monix] object RunnableAction {
+  /** Builder for [[RunnableAction]] */
+  def apply(action: => Unit): Runnable =
+    new RunnableAction(action)
 }

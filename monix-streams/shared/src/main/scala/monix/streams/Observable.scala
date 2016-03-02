@@ -17,20 +17,19 @@
 
 package monix.streams
 
-import java.util.concurrent.CancellationException
-
 import monix.execution.Ack.{Cancel, Continue}
+import monix.execution._
 import monix.execution.cancelables.SingleAssignmentCancelable
-import monix.execution.{Ack, Cancelable, CancelableFuture, Scheduler}
 import monix.streams.ObservableLike.{Operator, Transformer}
-import monix.streams.internal.concurrent.UnsafeSubscribeRunnable
 import monix.streams.internal.builders
 import monix.streams.observables._
 import monix.streams.observers._
 import monix.streams.subjects._
+import monix.tasks.Task
 import org.reactivestreams.{Publisher => RPublisher, Subscriber => RSubscriber}
+
+import scala.concurrent.Future
 import scala.concurrent.duration.{Duration, FiniteDuration}
-import scala.concurrent.{Future, Promise}
 import scala.language.{higherKinds, implicitConversions}
 import scala.util.control.NonFatal
 
@@ -40,106 +39,7 @@ import scala.util.control.NonFatal
   * for combining observable sources, filtering, modifying,
   * throttling, buffering, error handling and others.
   *
-  * The [[Observable$ companion object]] contains builders for
-  * creating Observable instances.
-  *
   * See the available documentation at: [[https://monix.io]]
-  *
-  * @define concatDescription Concatenates the sequence
-  *         of Observables emitted by the source into one Observable,
-  *         without any transformation.
-  *
-  *         You can combine the items emitted by multiple Observables
-  *         so that they act like a single Observable by using this
-  *         operator.
-  *
-  *         The difference between the `concat` operation and
-  *         [[Observable!.merge[B](implicit* merge]] is that `concat`
-  *         cares about ordering of emitted items (e.g. all items
-  *         emitted by the first observable in the sequence will come
-  *         before the elements emitted by the second observable),
-  *         whereas `merge` doesn't care about that (elements get
-  *         emitted as they come). Because of back-pressure applied to
-  *         observables, [[Observable!.concat]] is safe to use in all
-  *         contexts, whereas `merge` requires buffering.
-  * @define concatReturn an Observable that emits items that are the result of
-  *         flattening the items emitted by the Observables emitted by `this`
-  * @define mergeMapDescription Creates a new Observable by applying a
-  *         function that you supply to each item emitted by the
-  *         source Observable, where that function returns an
-  *         Observable, and then merging those resulting Observables
-  *         and emitting the results of this merger.
-  *
-  *         This function is the equivalent of `observable.map(f).merge`.
-  *
-  *         The difference between [[Observable!.concat concat]] and
-  *         `merge` is that `concat` cares about ordering of emitted
-  *         items (e.g. all items emitted by the first observable in
-  *         the sequence will come before the elements emitted by the
-  *         second observable), whereas `merge` doesn't care about
-  *         that (elements get emitted as they come). Because of
-  *         back-pressure applied to observables, [[Observable!.concat concat]]
-  *         is safe to use in all contexts, whereas
-  *         [[Observable!.merge[B](implicit* merge]] requires
-  *         buffering.
-  * @define mergeMapReturn an Observable that emits the result of applying the
-  *         transformation function to each item emitted by the source
-  *         Observable and merging the results of the Observables
-  *         obtained from this transformation.
-  * @define mergeDescription Merges the sequence of Observables emitted by
-  *         the source into one Observable, without any transformation.
-  *
-  *         You can combine the items emitted by multiple Observables
-  *         so that they act like a single Observable by using this
-  *         operator.
-  * @define mergeReturn an Observable that emits items that are the
-  *         result of flattening the items emitted by the Observables
-  *         emitted by `this`.
-  * @define overflowStrategyParam the [[OverflowStrategy overflow strategy]]
-  *         used for buffering, which specifies what to do in case
-  *         we're dealing with a slow consumer - should an unbounded
-  *         buffer be used, should back-pressure be applied, should
-  *         the pipeline drop newer or older events, should it drop
-  *         the whole buffer? See [[OverflowStrategy]] for more
-  *         details.
-  * @define onOverflowParam a function that is used for signaling a special
-  *         event used to inform the consumers that an overflow event
-  *         happened, function that receives the number of dropped
-  *         events as a parameter (see [[OverflowStrategy.Evicted]])
-  * @define delayErrorsDescription This version
-  *         is reserving onError notifications until all of the
-  *         Observables complete and only then passing the issued
-  *         errors(s) along to the observers. Note that the streamed
-  *         error is a
-  *         [[monix.streams.exceptions.CompositeException CompositeException]],
-  *         since multiple errors from multiple streams can happen.
-  * @define defaultOverflowStrategy this operation needs to do buffering
-  *         and by not specifying an [[OverflowStrategy]], the
-  *         [[OverflowStrategy.Default default strategy]] is being
-  *         used.
-  * @define asyncBoundaryDescription Forces a buffered asynchronous boundary.
-  *
-  *         Internally it wraps the observer implementation given to
-  *         `onSubscribe` into a
-  *         [[monix.streams.observers.BufferedSubscriber BufferedSubscriber]].
-  *
-  *         Normally Monix's implementation guarantees that events are
-  *         not emitted concurrently, and that the publisher MUST NOT
-  *         emit the next event without acknowledgement from the
-  *         consumer that it may proceed, however for badly behaved
-  *         publishers, this wrapper provides the guarantee that the
-  *         downstream [[monix.streams.Observer Observer]] given in
-  *         `subscribe` will not receive concurrent events.
-  *
-  *         WARNING: if the buffer created by this operator is
-  *         unbounded, it can blow up the process if the data source
-  *         is pushing events faster than what the observer can
-  *         consume, as it introduces an asynchronous boundary that
-  *         eliminates the back-pressure requirements of the data
-  *         source. Unbounded is the default
-  *         [[monix.streams.OverflowStrategy overflowStrategy]], see
-  *         [[monix.streams.OverflowStrategy OverflowStrategy]] for
-  *         options.
   */
 abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
   /** Characteristic function for an `Observable` instance, that creates
@@ -237,120 +137,6 @@ abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
         ))
       }
     }
-
-  /** Given the source observable and another `Observable`, emits all of
-    * the items from the first of these Observables to emit an item
-    * and cancel the other.
-    */
-  def ambWith[B >: A](other: Observable[B]): Observable[B] = {
-    Observable.amb(self, other)
-  }
-
-  /** Returns an Observable which only emits the first item for which
-    * the predicate holds.
-    *
-    * @param p is a function that evaluates the items emitted by the
-    *        source Observable, returning `true` if they pass the filter
-    *
-    * @return an Observable that emits only the first item in the original
-    *         Observable for which the filter evaluates as `true`
-    */
-  def find(p: A => Boolean): Observable[A] =
-    filter(p).head
-
-  /** Returns an Observable which emits a single value, either true, in
-    * case the given predicate holds for at least one item, or false
-    * otherwise.
-    *
-    * @param p is a function that evaluates the items emitted by the
-    *        source Observable, returning `true` if they pass the
-    *        filter
-    *
-    * @return an Observable that emits only true or false in case
-    *         the given predicate holds or not for at least one item
-    */
-  def exists(p: A => Boolean): Observable[Boolean] =
-    find(p).foldLeft(false)((_, _) => true)
-
-  /** Returns an Observable that emits a single boolean, either true, in
-    * case the given predicate holds for all the items emitted by the
-    * source, or false in case at least one item is not verifying the
-    * given predicate.
-    *
-    * @param p is a function that evaluates the items emitted by the source
-    *        Observable, returning `true` if they pass the filter
-    *
-    * @return an Observable that emits only true or false in case the given
-    *         predicate holds or not for all the items
-    */
-  def forAll(p: A => Boolean): Observable[Boolean] =
-    exists(e => !p(e)).map(r => !r)
-
-  /** Creates a new Observable that emits the given element and then it
-    * also emits the events of the source (prepend operation).
-    */
-  def +:[B >: A](elem: B): Observable[B] =
-    Observable.now(elem) ++ this
-
-  /** Creates a new Observable that emits the given elements and then it
-    * also emits the events of the source (prepend operation).
-    */
-  def startWith[B >: A](elems: B*): Observable[B] =
-    Observable.from(elems) ++ this
-
-  /** Creates a new Observable that emits the events of the source and
-    * then it also emits the given element (appended to the stream).
-    */
-  def :+[B >: A](elem: B): Observable[B] =
-    this ++ Observable.now(elem)
-
-  /** Creates a new Observable that emits the events of the source and
-    * then it also emits the given elements (appended to the stream).
-    */
-  def endWith[B >: A](elems: B*): Observable[B] =
-    this ++ Observable.from(elems)
-
-  /** Only emits the first element emitted by the source observable,
-    * after which it's completed immediately.
-    */
-  def head: Observable[A] = take(1)
-
-  /** Drops the first element of the source observable,
-    * emitting the rest.
-    */
-  def tail: Observable[A] = drop(1)
-
-  /** Only emits the last element emitted by the source observable,
-    * after which it's completed immediately.
-    */
-  def last: Observable[A] =
-    takeRight(1)
-
-  /** Emits the first element emitted by the source, or otherwise if the
-    * source is completed without emitting anything, then the
-    * `default` is emitted.
-    */
-  def headOrElse[B >: A](default: => B): Observable[B] =
-    head.foldLeft(Option.empty[B])((_, elem) => Some(elem)) map {
-      case Some(elem) => elem
-      case None => default
-    }
-
-  /** Emits the first element emitted by the source, or otherwise if the
-    * source is completed without emitting anything, then the
-    * `default` is emitted.
-    *
-    * Alias for `headOrElse`.
-    */
-  def firstOrElse[B >: A](default: => B): Observable[B] =
-    headOrElse(default)
-
-  /** Returns a new Observable that uses the specified `Scheduler` for
-    * initiating the subscription.
-    */
-  def subscribeOn(s: Scheduler): Observable[A] = {
-    Observable.unsafeCreate(o => s.execute(UnsafeSubscribeRunnable(this, o)))
-  }
 
   /** Converts this observable into a multicast observable, useful for
     * turning a cold observable into a hot one (i.e. whose source is
@@ -473,35 +259,37 @@ abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
   def publishLast(implicit s: Scheduler): ConnectableObservable[A] =
     unsafeMulticast(AsyncSubject[A]())
 
-  /** Returns the first generated result as a Future and then cancels
-    * the subscription.
+  /** Creates a new [[monix.tasks.Task Task]] that upon execution
+    * will signal the first generated element of the source observable
+    * and then it will stop the stream. Returns an `Option` because
+    * the source can be empty.
     */
-  def asFuture(implicit s: Scheduler): CancelableFuture[Option[A]] = {
-    val promise = Promise[Option[A]]()
-    val cancelable = head.unsafeSubscribeFn(new Subscriber[A] {
-      implicit val scheduler = s
+  def asTask: Task[Option[A]] =
+    Task.unsafeCreate { (s, c, frameId, cb) =>
+      c := unsafeSubscribeFn(new SyncSubscriber[A] {
+        implicit val scheduler: Scheduler = s
+        private[this] var isDone = false
 
-      def onNext(elem: A) = {
-        promise.trySuccess(Some(elem))
-        Cancel
-      }
+        def onNext(elem: A): Cancel = {
+          isDone = true
+          cb.onSuccess(Some(elem))
+          Cancel
+        }
 
-      def onComplete() = {
-        promise.trySuccess(None)
-      }
+        def onError(ex: Throwable): Unit =
+          if (!isDone) { isDone = true; cb.onError(ex) }
 
-      def onError(ex: Throwable) = {
-        promise.tryFailure(ex)
-      }
-    })
-
-    val withTrigger = Cancelable { () =>
-      try cancelable.cancel() finally
-        promise.tryFailure(new CancellationException("CancelableFuture.cancel"))
+        def onComplete(): Unit =
+          if (!isDone) { isDone = true; cb.onSuccess(None) }
+      })
     }
 
-    CancelableFuture(promise.future, withTrigger)
-  }
+  /** Returns the first generated result as a
+    * [[monix.execution.CancelableFuture CancelableFuture]], returning
+    * an `Option` because the source can be empty.
+    */
+  def asFuture(implicit s: Scheduler): CancelableFuture[Option[A]] =
+    asTask.runAsync(s)
 
   /** Subscribes to the source `Observable` and foreach element emitted
     * by the source it executes the given callback.
@@ -527,20 +315,6 @@ abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
 }
 
 object Observable {
-  /** Observable constructor for creating an [[Observable]] from the
-    * specified function.
-    */
-  def unsafeCreate[A](f: Subscriber[A] => Unit): Observable[A] = {
-    new Observable[A] {
-      def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable =
-        try { f(subscriber); Cancelable.empty } catch {
-          case NonFatal(ex) =>
-            subscriber.scheduler.reportFailure(ex)
-            Cancelable.empty
-        }
-    }
-  }
-
   /** Given a factory of streams that can be observed, converts it
     * to an Observable, making sure to start execution on another
     * logical thread.
@@ -942,7 +716,4 @@ object Observable {
   implicit def ObservableIsReactive[A](source: Observable[A])
     (implicit s: Scheduler): RPublisher[A] =
     source.toReactive
-
-  /** Observables can be converted to Tasks. */
-
 }

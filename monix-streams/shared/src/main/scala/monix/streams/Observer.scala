@@ -18,6 +18,7 @@
 package monix.streams
 
 import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.cancelables.BooleanCancelable
 import monix.execution.{Cancelable, Ack, Scheduler}
 import monix.streams.internal.reactivestreams._
 import monix.streams.observers.{Subscriber, SyncObserver, SyncSubscriber}
@@ -25,6 +26,7 @@ import org.reactivestreams.{Subscriber => RSubscriber}
 
 import scala.annotation.tailrec
 import scala.concurrent.{Future, Promise}
+import scala.util.Success
 import scala.util.control.NonFatal
 
 
@@ -89,8 +91,10 @@ object Observer {
     * respecting the contract and returning a `Future[Ack]` with the last
     * acknowledgement given after the last emitted element.
     */
-  def feed[T](source: Observer[T], iterable: Iterable[T])(implicit s: Scheduler): Future[Ack] = {
-    try feed(source, iterable.iterator) catch {
+  def feed[T](source: Observer[T], subscription: BooleanCancelable, iterable: Iterable[T])
+    (implicit s: Scheduler): Future[Ack] = {
+
+    try feed(source, subscription, iterable.iterator) catch {
       case NonFatal(ex) =>
         source.onError(ex)
         Cancel
@@ -101,7 +105,9 @@ object Observer {
     * respecting the contract and returning a `Future[Ack]` with the last
     * acknowledgement given after the last emitted element.
     */
-  def feed[T](source: Observer[T], iterator: Iterator[T])(implicit s: Scheduler): Future[Ack] = {
+  def feed[T](source: Observer[T], subscription: BooleanCancelable, iterator: Iterator[T])
+    (implicit s: Scheduler): Future[Ack] = {
+
     def scheduleFeedLoop(promise: Promise[Ack], iterator: Iterator[T]): Future[Ack] = {
       s.execute(new Runnable {
         private[this] val modulus = s.batchedExecutionModulus
@@ -111,24 +117,25 @@ object Observer {
           val ack = source.onNext(iterator.next())
 
           if (iterator.hasNext) {
-            val nextIndex = if (!ack.isCompleted) 0 else
-              (syncIndex + 1) & modulus
+            val nextIndex =
+              if (ack == Continue) (syncIndex + 1) & modulus
+              else if (ack == Cancel) -1
+              else 0
 
-            if (nextIndex != 0) {
-              if (ack == Continue || ack.value.get == Continue.AsSuccess)
-                fastLoop(nextIndex)
-              else
-                promise.complete(ack.value.get)
-            }
-            else ack.onComplete {
-              case Continue.AsSuccess =>
-                run()
-              case other =>
-                promise.complete(other)
-            }
-          }
-          else {
-            promise.completeWith(ack)
+            if (nextIndex > 0)
+              fastLoop(nextIndex)
+            else if (nextIndex == 0 && !subscription.isCanceled)
+              ack.onComplete {
+                case Success(Continue) => run()
+                case other => promise.complete(other)
+              }
+            else
+              promise.success(Cancel)
+          } else {
+            if ((ack eq Continue) || (ack eq Cancel))
+              promise.success(ack.asInstanceOf[Ack])
+            else
+              promise.completeWith(ack)
           }
         }
 
@@ -142,7 +149,7 @@ object Observer {
         }
       })
 
-      promise.future
+      promise.future.syncTryFlatten
     }
 
     try {
@@ -150,8 +157,7 @@ object Observer {
         scheduleFeedLoop(Promise[Ack](), iterator)
       else
         Continue
-    }
-    catch {
+    } catch {
       case NonFatal(ex) =>
         source.onError(ex)
         Cancel
@@ -183,14 +189,16 @@ object Observer {
       * respecting the contract and returning a `Future[Ack]` with the last
       * acknowledgement given after the last emitted element.
       */
-    def feed(iterable: Iterable[T])(implicit s: Scheduler): Future[Ack] =
-      Observer.feed(source, iterable)
+    def feed(subscription: BooleanCancelable, iterable: Iterable[T])
+      (implicit s: Scheduler): Future[Ack] =
+      Observer.feed(source, subscription, iterable)
 
     /** Feeds the source [[Observer]] with elements from the given iterator,
       * respecting the contract and returning a `Future[Ack]` with the last
       * acknowledgement given after the last emitted element.
       */
-    def feed(iterator: Iterator[T])(implicit s: Scheduler): Future[Ack] =
-      Observer.feed(source, iterator)
+    def feed(subscription: BooleanCancelable, iterator: Iterator[T])
+      (implicit s: Scheduler): Future[Ack] =
+      Observer.feed(source, subscription, iterator)
   }
 }

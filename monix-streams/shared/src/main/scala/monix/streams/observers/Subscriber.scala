@@ -17,6 +17,8 @@
 
 package monix.streams.observers
 
+import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.cancelables.BooleanCancelable
 import monix.execution.{Cancelable, Ack, Scheduler}
 import monix.streams.Observer
 import monix.streams.internal.reactivestreams._
@@ -30,8 +32,6 @@ import scala.concurrent.Future
   */
 trait Subscriber[-T] extends Observer[T] {
   implicit def scheduler: Scheduler
-
-//  def onSubscribe(s: Cancelable): Unit
 }
 
 object Subscriber {
@@ -107,15 +107,15 @@ object Subscriber {
       * respecting the contract and returning a `Future[Ack]` with the last
       * acknowledgement given after the last emitted element.
       */
-    def feed(iterable: Iterable[T]): Future[Ack] =
-      Observer.feed(source, iterable)(source.scheduler)
+    def feed(subscription: BooleanCancelable, iterable: Iterable[T]): Future[Ack] =
+      Observer.feed(source, subscription, iterable)(source.scheduler)
 
     /** Feeds the source [[Subscriber]] with elements from the given iterator,
       * respecting the contract and returning a `Future[Ack]` with the last
       * acknowledgement given after the last emitted element.
       */
-    def feed(iterator: Iterator[T]): Future[Ack] =
-      Observer.feed(source, iterator)(source.scheduler)
+    def feed(subscription: BooleanCancelable, iterator: Iterator[T]): Future[Ack] =
+      Observer.feed(source, subscription, iterator)(source.scheduler)
   }
 
   private[this] final class Implementation[-T]
@@ -140,4 +140,26 @@ object Subscriber {
       31 * underlying.hashCode() + scheduler.hashCode()
     }
   }
+
+  /** Helper for building an empty subscriber that doesn't do anything,
+    * besides logging errors in case they happen.
+    */
+  def empty[A](implicit s: Scheduler): SyncSubscriber[A] =
+    new SyncSubscriber[A] {
+      implicit val scheduler: Scheduler = s
+      def onError(ex: Throwable): Unit = s.reportFailure(ex)
+      def onComplete(): Unit = ()
+      def onNext(elem: A): Continue = Continue
+    }
+
+  /** Helper for building an empty subscriber that doesn't do anything,
+    * but that returns `Cancel` on `onNext`.
+    */
+  def canceled[A](implicit s: Scheduler): SyncSubscriber[A] =
+    new SyncSubscriber[A] {
+      implicit val scheduler: Scheduler = s
+      def onError(ex: Throwable): Unit = s.reportFailure(ex)
+      def onComplete(): Unit = ()
+      def onNext(elem: A): Cancel = Cancel
+    }
 }

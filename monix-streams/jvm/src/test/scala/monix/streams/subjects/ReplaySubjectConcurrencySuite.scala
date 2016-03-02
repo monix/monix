@@ -22,7 +22,7 @@ import minitest.TestSuite
 import monix.execution.Ack.Continue
 import monix.execution.Scheduler
 import monix.streams.Observable
-import monix.streams.internal.concurrent.RunnableAction
+import monix.streams.internal.util.RunnableAction
 import monix.streams.observers.SyncObserver
 
 object ReplaySubjectConcurrencySuite extends TestSuite[Scheduler] {

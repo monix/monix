@@ -15,11 +15,24 @@
  * limitations under the License.
  */
 
-package monix.streams.internal
+package monix.streams.internal.operators
 
-/** Models the state of an observer, used for modeling Runnable instances
-  * as an optimization technique - for internal usage only.
-  */
-private[monix] object ObserverState extends Enumeration {
-  val ON_NEXT, ON_CONTINUE = Value
+import monix.execution.cancelables.SingleAssignmentCancelable
+import monix.execution.{Cancelable, Scheduler}
+import monix.streams.Observable
+import monix.streams.observers.Subscriber
+
+private[streams] final
+class SubscribeOnObservable[+A](source: Observable[A], s: Scheduler)
+  extends Observable[A] {
+
+  def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
+    val subscription = SingleAssignmentCancelable()
+    s.execute(new Runnable {
+      def run(): Unit =
+        subscription := source.unsafeSubscribeFn(subscriber)
+    })
+
+    subscription
+  }
 }

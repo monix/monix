@@ -15,17 +15,16 @@
  * limitations under the License.
  */
 
-package monix.streams.internal
+package monix.streams.internal.util
 
-import scala.concurrent.{Future, Promise}
 import org.sincron.atomic.Atomic
+import scala.concurrent.{Future, Promise}
 
 /**
   * Represents a Promise that completes with `value` after
   * receiving a `countdownUntil` number of `countdown()` calls.
   */
-private[monix] final class PromiseCounter[T] private
-(value: T, length: Int) {
+private[monix] final class PromiseCounter[T] private (value: T, length: Int) {
   require(length > 0, "length must be strictly positive")
 
   private[this] val promise = Promise[T]()

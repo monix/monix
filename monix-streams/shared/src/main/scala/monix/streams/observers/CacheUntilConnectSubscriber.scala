@@ -20,7 +20,6 @@ package monix.streams.observers
 import monix.execution.Ack.{Cancel, Continue}
 import monix.execution.{Ack, Cancelable}
 import monix.streams.Observable
-import monix.streams.internal._
 import scala.collection.mutable
 import scala.concurrent.{Future, Promise}
 
@@ -55,8 +54,7 @@ final class CacheUntilConnectSubscriber[-T] private (downstream: Subscriber[T])
   // Only accessible in `connect()`
   private[this] var connectionRef: Cancelable = null
 
-  /**
-    * Connects the underling observer to the upstream publisher.
+  /** Connects the underling observer to the upstream publisher.
     *
     * This function should be idempotent. Calling it multiple times should have the same
     * effect as calling it once.
@@ -68,6 +66,7 @@ final class CacheUntilConnectSubscriber[-T] private (downstream: Subscriber[T])
       connectionRef = Observable.from(queue).unsafeSubscribeFn(new Subscriber[T] {
         implicit val scheduler = downstream.scheduler
         private[this] val bufferWasDrained = Promise[Ack]()
+        private[this] var ack: Future[Ack] = Continue
 
         bufferWasDrained.future.onSuccess {
           case Continue =>
@@ -87,17 +86,19 @@ final class CacheUntilConnectSubscriber[-T] private (downstream: Subscriber[T])
         }
 
         def onNext(elem: T): Future[Ack] = {
-          downstream.onNext(elem)
-            .ifCancelTryCanceling(bufferWasDrained)
+          ack = downstream.onNext(elem).syncOnCancelFollow(bufferWasDrained, Cancel)
+          ack
         }
 
         def onComplete(): Unit = {
-          bufferWasDrained.trySuccess(Continue)
+          // Applying back-pressure, otherwise the next onNext might
+          // break the back-pressure contract.
+          ack.syncOnContinue(bufferWasDrained.trySuccess(Continue))
         }
 
         def onError(ex: Throwable): Unit = {
-          if (bufferWasDrained.trySuccess(Continue))
-            self.onError(ex)
+          if (bufferWasDrained.trySuccess(Cancel))
+            downstream.onError(ex)
           else
             scheduler.reportFailure(ex)
         }
@@ -107,7 +108,7 @@ final class CacheUntilConnectSubscriber[-T] private (downstream: Subscriber[T])
     connectionRef
   }
 
-  def onNext(elem: T) = {
+  def onNext(elem: T): Future[Ack] = {
     if (!isConnected) self.synchronized {
       // checking again because of multi-threading concerns
       if (!isConnected && !isConnectionStarted) {
@@ -138,14 +139,16 @@ final class CacheUntilConnectSubscriber[-T] private (downstream: Subscriber[T])
     }
   }
 
-  def onComplete() = {
+  def onComplete(): Unit = {
     // we cannot take a fast path here
-    connectedFuture.onContinueSignalComplete(downstream)
+    connectedFuture.syncTryFlatten
+      .syncOnContinue(downstream.onComplete())
   }
 
-  def onError(ex: Throwable) = {
+  def onError(ex: Throwable): Unit = {
     // we cannot take a fast path here
-    connectedFuture.onContinueSignalError(downstream, ex)
+    connectedFuture.syncTryFlatten
+      .syncOnContinue(downstream.onError(ex))
   }
 }
 
