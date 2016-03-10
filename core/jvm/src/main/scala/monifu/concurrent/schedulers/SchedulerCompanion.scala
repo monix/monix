@@ -62,6 +62,15 @@ private[concurrent] abstract class SchedulerCompanion {
   def apply(ec: ExecutionContext, r: UncaughtExceptionReporter): Scheduler =
     AsyncScheduler(defaultScheduledExecutor, ec, r)
 
+  /** [[Scheduler]] builder that converts a Java `ScheduledExecutorService` into
+    * a scheduler.
+    *
+    * @param executor is the executor under which all tasks will run.
+    * @param r is the [[UncaughtExceptionReporter]] that logs uncaught exceptions.
+    */
+  def apply(executor: ScheduledExecutorService, r: UncaughtExceptionReporter): Scheduler =
+    ExecutorScheduler(defaultScheduledExecutor, r)
+
   /**
    * [[Scheduler]] builder - uses Monifu's default `ScheduledExecutorService` for
    * handling the scheduling of tasks.
@@ -73,7 +82,6 @@ private[concurrent] abstract class SchedulerCompanion {
       defaultScheduledExecutor, ec,
       UncaughtExceptionReporter(ec.reportFailure)
     )
-
 
   /**
    * Creates a [[Scheduler]] meant for computational heavy tasks.
@@ -153,14 +161,12 @@ private[concurrent] abstract class SchedulerCompanion {
    *   block on the result of other tasks scheduled to run on this same thread
    *
    * @param name is the name of the created thread, for easy identification
-   *
    * @param daemonic specifies whether the created thread should be daemonic
-   *                 (non-daemonic threads are blocking the JVM process on exit)
-   *
    * @param r is the [[UncaughtExceptionReporter]] that logs uncaught exceptions.
    */
   def singleThread(name: String, daemonic: Boolean = true,
     r: UncaughtExceptionReporter = LogExceptionsToStandardErr): Scheduler = {
+
     val executor =
       Executors.newSingleThreadScheduledExecutor(new ThreadFactory {
         def newThread(r: Runnable) = {
@@ -171,12 +177,37 @@ private[concurrent] abstract class SchedulerCompanion {
         }
       })
 
-    val context = new ExecutionContext {
-      def reportFailure(t: Throwable) = r.reportFailure(t)
-      def execute(runnable: Runnable) = executor.execute(runnable)
-    }
+    ExecutorScheduler(executor, r)
+  }
 
-    AsyncScheduler(executor, context, r)
+  /**
+   * Builds a [[Scheduler]] with a fixed thread-pool.
+   *
+   * Characteristics:
+   *
+   * - backed by a fixed pool `ScheduledExecutorService` that takes care
+   *   of both scheduling tasks in the future and of executing immediate tasks
+   * - does not cooperate with Scala's `BlockingContext`, so tasks should not
+   *   block on the result of other tasks scheduled to run on this same thread
+   *
+   * @param name is the name of the created thread, for easy identification
+   * @param daemonic specifies whether the created thread should be daemonic
+   * @param r is the [[UncaughtExceptionReporter]] that logs uncaught exceptions.
+   */
+  def fixedPool(name: String, poolSize: Int, daemonic: Boolean = true,
+    r: UncaughtExceptionReporter = LogExceptionsToStandardErr): Scheduler = {
+
+    val executor =
+      Executors.newScheduledThreadPool(poolSize, new ThreadFactory {
+        def newThread(r: Runnable) = {
+          val th = new Thread(r)
+          th.setName(name)
+          th.setDaemon(daemonic)
+          th
+        }
+      })
+
+    ExecutorScheduler(executor, r)
   }
 
   /**
