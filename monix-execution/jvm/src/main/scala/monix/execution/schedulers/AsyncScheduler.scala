@@ -18,6 +18,7 @@
 package monix.execution.schedulers
 
 import java.util.concurrent.{TimeUnit, ScheduledExecutorService}
+import monix.execution.schedulers.AsyncScheduler.DeferredRunnable
 import scala.concurrent.ExecutionContext
 import monix.execution.{Cancelable, UncaughtExceptionReporter}
 
@@ -25,27 +26,30 @@ import monix.execution.{Cancelable, UncaughtExceptionReporter}
   * given `ScheduledExecutorService` and the tasks themselves are executed on
   * the given `ExecutionContext`.
   */
-private[schedulers] final class AsyncScheduler private
+final class AsyncScheduler private
   (s: ScheduledExecutorService, ec: ExecutionContext, r: UncaughtExceptionReporter)
   extends ReferenceScheduler {
 
   override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
     if (initialDelay <= 0) {
-      execute(r)
+      ec.execute(r)
       Cancelable.empty
     } else {
-      val task = s.schedule(r, initialDelay, unit)
+      val deferred = new DeferredRunnable(r, ec)
+      val task = s.schedule(deferred, initialDelay, unit)
       Cancelable(() => task.cancel(true))
     }
   }
 
   override def scheduleWithFixedDelay(initialDelay: Long, delay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
-    val task = s.scheduleWithFixedDelay(r, initialDelay, delay, unit)
+    val deferred = new DeferredRunnable(r, ec)
+    val task = s.scheduleWithFixedDelay(deferred, initialDelay, delay, unit)
     Cancelable(() => task.cancel(false))
   }
 
   override def scheduleAtFixedRate(initialDelay: Long, period: Long, unit: TimeUnit, r: Runnable): Cancelable = {
-    val task = s.scheduleAtFixedRate(r, initialDelay, period, unit)
+    val deferred = new DeferredRunnable(r, ec)
+    val task = s.scheduleAtFixedRate(deferred, initialDelay, period, unit)
     Cancelable(() => task.cancel(false))
   }
 
@@ -56,8 +60,16 @@ private[schedulers] final class AsyncScheduler private
     r.reportFailure(t)
 }
 
-private[schedulers] object AsyncScheduler {
+object AsyncScheduler {
+  /** Builder for [[AsyncScheduler]]. */
   def apply(schedulerService: ScheduledExecutorService,
     ec: ExecutionContext, reporter: UncaughtExceptionReporter): AsyncScheduler =
     new AsyncScheduler(schedulerService, ec, reporter)
+
+  /** Runnable that defers the execution of the given runnable to the
+    * given execution context.
+    */
+  private class DeferredRunnable(r: Runnable, ec: ExecutionContext) extends Runnable {
+    def run(): Unit = ec.execute(r)
+  }
 }

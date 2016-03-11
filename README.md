@@ -55,23 +55,23 @@ support long after Scala 2.12 is out.
 
 The packages are published on Maven Central.
 
-- Current stable release is: `1.0`
+- Current stable release is: `1.1`
 
 For the JVM:
 
 ```scala
-libraryDependencies += "org.monifu" %% "monifu" % "1.0"
+libraryDependencies += "org.monifu" %% "monifu" % "1.1"
 ```
 
 For targeting Javascript runtimes with Scala.js:
 
 ```scala
-libraryDependencies += "org.monifu" %%% "monifu" % "1.0"
+libraryDependencies += "org.monifu" %%% "monifu" % "1.1"
 ```
 
 ### Example
 
-NOTE: this sample works for the 1.0 version.
+NOTE: this sample works for the 1.1 version.
 
 In order for subscriptions to work, we need an implicit
 `Scheduler` imported in our context. A `Scheduler` inherits from Scala's own [ExecutionContext](http://www.scala-lang.org/api/current/index.html#scala.concurrent.ExecutionContext)
@@ -125,7 +125,7 @@ Observable.interval(1.second)
 NOTE: The documentation is a work in progress.
 API Documentation:
 
-- [1.0](https://monix.io/docs/1.0/api/)
+- [1.1](https://monix.io/docs/1.1/api/)
 
 ## Maintainers
 

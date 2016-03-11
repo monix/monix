@@ -25,7 +25,11 @@ import scala.collection.mutable
 import scala.concurrent.duration.TimeUnit
 import scala.util.control.NonFatal
 
-private[schedulers] final class TrampolineScheduler private (reporter: UncaughtExceptionReporter)
+/** A [[TrampolineScheduler]] executes immediate tasks on the current call-stack
+  * by using an internal trampoline and schedules tasks for execution in the future
+  * by means of Javascript's `setTimeout`.
+  */
+final class TrampolineScheduler private (reporter: UncaughtExceptionReporter)
   extends ReferenceScheduler {
 
   private[this] val immediateQueue = mutable.Queue.empty[Runnable]
@@ -72,7 +76,8 @@ private[schedulers] final class TrampolineScheduler private (reporter: UncaughtE
     reporter.reportFailure(t)
 }
 
-private[schedulers] object TrampolineScheduler {
+object TrampolineScheduler {
+  /** Builder for [[TrampolineScheduler]] */
   def apply(reporter: UncaughtExceptionReporter): TrampolineScheduler =
     new TrampolineScheduler(reporter)
 }

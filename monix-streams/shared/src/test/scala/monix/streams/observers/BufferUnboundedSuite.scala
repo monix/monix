@@ -20,11 +20,10 @@ package monix.streams.observers
 import minitest.TestSuite
 import monix.execution.Ack
 import monix.execution.Ack.{Cancel, Continue}
-import monix.execution.internal.Platform
+import monix.execution.internal.{RunnableAction, Platform}
 import monix.execution.schedulers.TestScheduler
 import monix.streams.OverflowStrategy.Unbounded
 import monix.streams.exceptions.DummyException
-import monix.streams.internal.util.RunnableAction
 import monix.streams.Observer
 import scala.concurrent.{Future, Promise}
 

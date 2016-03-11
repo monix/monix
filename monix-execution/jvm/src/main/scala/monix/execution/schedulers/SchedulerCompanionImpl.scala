@@ -27,8 +27,7 @@ import org.sincron.atomic.Atomic
 
 
 private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
-  /**
-    * [[Scheduler]] builder.
+  /** [[Scheduler]] builder.
     *
     * @param executor is the `ScheduledExecutorService` that handles the scheduling
     *                 of tasks into the future.
@@ -40,8 +39,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     AsyncScheduler(executor, ec, r)
   }
 
-  /**
-    * [[Scheduler]] builder.
+  /** [[Scheduler]] builder.
     *
     * @param executor is the `ScheduledExecutorService` that handles the scheduling
     *                 of tasks into the future.
@@ -52,8 +50,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     AsyncScheduler(executor, ec, UncaughtExceptionReporter(ec.reportFailure))
   }
 
-  /**
-    * [[Scheduler]] builder - uses Scalax's default `ScheduledExecutorService` for
+  /** [[Scheduler]] builder - uses monix's default `ScheduledExecutorService` for
     * handling the scheduling of tasks.
     *
     * @param ec is the execution context in which all tasks will run.
@@ -62,8 +59,25 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
   def apply(ec: ExecutionContext, r: UncaughtExceptionReporter): Scheduler =
     AsyncScheduler(defaultScheduledExecutor, ec, r)
 
+  /** [[Scheduler]] builder that converts a Java `ScheduledExecutorService` into
+    * a scheduler.
+    *
+    * @param executor is the executor under which all tasks will run.
+    * @param r is the [[UncaughtExceptionReporter]] that logs uncaught exceptions.
+    */
+  def apply(executor: ScheduledExecutorService, r: UncaughtExceptionReporter): Scheduler =
+    ExecutorScheduler(defaultScheduledExecutor, r)
+
+  /** [[Scheduler]] builder that converts a Java `ScheduledExecutorService` into
+    * a scheduler.
+    *
+    * @param executor is the executor under which all tasks will run.
+    */
+  def apply(executor: ScheduledExecutorService): Scheduler =
+    ExecutorScheduler(defaultScheduledExecutor, LogExceptionsToStandardErr)
+
   /**
-    * [[Scheduler]] builder - uses Scalax's default `ScheduledExecutorService` for
+    * [[Scheduler]] builder - uses monix's default `ScheduledExecutorService` for
     * handling the scheduling of tasks.
     *
     * @param ec is the execution context in which all tasks will run.
@@ -80,7 +94,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     * Characteristics:
     *
     * - backed by Scala's `ForkJoinPool` for the task execution, in async mode
-    * - uses Scalax's default `ScheduledExecutorService` instance for scheduling
+    * - uses monix's default `ScheduledExecutorService` instance for scheduling
     * - all created threads are daemonic
     * - cooperates with Scala's `BlockContext`
     *
@@ -110,7 +124,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     *
     * - backed by a cached `ThreadPool` executor with 60 seconds of keep-alive
     * - the maximum number of threads is unbounded, as recommended for blocking I/O
-    * - uses Scalax's default `ScheduledExecutorService` instance for scheduling
+    * - uses monix's default `ScheduledExecutorService` instance for scheduling
     * - doesn't cooperate with Scala's `BlockContext` because it is unbounded
     *
     * @param name the created threads name prefix, for easy identification.
@@ -120,7 +134,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     *
     * @param r is the [[UncaughtExceptionReporter]] that logs uncaught exceptions.
     */
-  def io(name: String = "scalax-io", daemonic: Boolean = true,
+  def io(name: String = "monix-io", daemonic: Boolean = true,
     r: UncaughtExceptionReporter = LogExceptionsToStandardErr): Scheduler = {
     val threadFactory = new ThreadFactory {
       private[this] val counter = Atomic(0L)
@@ -177,13 +191,42 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     AsyncScheduler(executor, context, r)
   }
 
+  /** Builds a [[Scheduler]] with a fixed thread-pool.
+    *
+    * Characteristics:
+    *
+    * - backed by a fixed pool `ScheduledExecutorService` that takes care
+    *   of both scheduling tasks in the future and of executing immediate tasks
+    * - does not cooperate with Scala's `BlockingContext`, so tasks should not
+    *   block on the result of other tasks scheduled to run on this same thread
+    *
+    * @param name is the name of the created thread, for easy identification
+    * @param daemonic specifies whether the created thread should be daemonic
+    * @param r is the [[UncaughtExceptionReporter]] that logs uncaught exceptions.
+    */
+  def fixedPool(name: String, poolSize: Int, daemonic: Boolean = true,
+    r: UncaughtExceptionReporter = LogExceptionsToStandardErr): Scheduler = {
+
+    val executor =
+      Executors.newScheduledThreadPool(poolSize, new ThreadFactory {
+        def newThread(r: Runnable) = {
+          val th = new Thread(r)
+          th.setName(name)
+          th.setDaemon(daemonic)
+          th
+        }
+      })
+
+    ExecutorScheduler(executor, r)
+  }
+
   /** The default `ScheduledExecutor` instance. */
   private[execution] lazy val defaultScheduledExecutor =
     Executors.newSingleThreadScheduledExecutor(new ThreadFactory {
       def newThread(r: Runnable): Thread = {
         val th = new Thread(r)
         th.setDaemon(true)
-        th.setName("scalax-scheduler")
+        th.setName("monix-scheduler")
         th
       }
     })
@@ -239,7 +282,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
       * that is optimal for doing blocking operations, so for example if you want
       * to do a lot of blocking I/O, then use a Scheduler backed by a
       * thread-pool that is more optimal for blocking. See for example
-      * [[Scheduler.io]].
+      * [[io]].
       */
     implicit lazy val global: Scheduler =
       AsyncScheduler(

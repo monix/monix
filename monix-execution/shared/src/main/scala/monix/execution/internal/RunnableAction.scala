@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package monix.streams.internal.util
+package monix.execution.internal
 
 /** Helper for converting any expression into a runnable */
 private[monix] final class RunnableAction private (action: => Unit)

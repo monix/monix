@@ -21,8 +21,8 @@ import java.util.concurrent.{CountDownLatch, TimeUnit}
 import minitest.TestSuite
 import monix.execution.Ack.Continue
 import monix.execution.Scheduler
+import monix.execution.internal.RunnableAction
 import monix.streams.Observable
-import monix.streams.internal.util.RunnableAction
 import monix.streams.observers.SyncObserver
 
 object ReplaySubjectConcurrencySuite extends TestSuite[Scheduler] {

@@ -21,12 +21,10 @@ import java.util.concurrent.TimeUnit
 import monix.execution.schedulers.Timer.{clearTimeout, setTimeout}
 import monix.execution.{Cancelable, UncaughtExceptionReporter}
 
-/**
-  * An `AsyncScheduler` schedules tasks to happen in the future with
-  * the given `ScheduledExecutorService` and the tasks themselves are
-  * executed on the given `ExecutionContext`.
+/** An `AsyncScheduler` schedules tasks to be executed asynchronously,
+  * either now or in the future, by means of Javascript's `setTimeout`.
   */
-private[schedulers] final class AsyncScheduler private (reporter: UncaughtExceptionReporter)
+final class AsyncScheduler private (reporter: UncaughtExceptionReporter)
   extends ReferenceScheduler {
 
   override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
@@ -47,7 +45,8 @@ private[schedulers] final class AsyncScheduler private (reporter: UncaughtExcept
     reporter.reportFailure(t)
 }
 
-private[schedulers] object AsyncScheduler {
+object AsyncScheduler {
+  /** Builder for [[AsyncScheduler]]. */
   def apply(reporter: UncaughtExceptionReporter): AsyncScheduler =
     new AsyncScheduler(reporter)
 }
