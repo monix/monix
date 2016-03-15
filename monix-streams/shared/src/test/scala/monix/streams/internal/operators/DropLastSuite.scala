@@ -35,13 +35,13 @@ object DropLastSuite extends BaseOperatorSuite {
   }
 
   def count(sourceCount: Int) =
-    sourceCount - 10
+    sourceCount
 
   def observableInError(sourceCount: Int, ex: Throwable) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val o = Observable.range(0, sourceCount).endWithError(ex).dropLast(1)
-      Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
+      Sample(o, count(sourceCount-1), sum(sourceCount-1), Zero, Zero)
     }
   }
 
