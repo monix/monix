@@ -32,7 +32,7 @@ object BufferCountedDropSuite extends BaseOperatorSuite {
       val o = Observable.range(0, sc)
         .map(_ % 8)
         .buffer(4,8)
-        .flatMapF(identity)
+        .flatMap(Observable.fromIterable)
 
       val count = 2 + (sc - 4) / 2
       val sum = count / 4 * 6
@@ -40,7 +40,7 @@ object BufferCountedDropSuite extends BaseOperatorSuite {
     } else Some {
       val o = Observable.now(1L)
         .buffer(2,1)
-        .flatMapF(identity)
+        .flatMap(Observable.fromIterable)
 
       Sample(o, 1, 1, waitFirst, waitNext)
     }
@@ -54,7 +54,7 @@ object BufferCountedDropSuite extends BaseOperatorSuite {
       .delayOnNext(1.second)
       .map(_ % 8)
       .buffer(4,8)
-      .flatMapF(identity)
+      .flatMap(Observable.fromIterable)
 
 
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))

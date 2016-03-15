@@ -21,7 +21,7 @@ import monix.streams.Observable
 import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero
 
-object DropLeftSuite extends BaseOperatorSuite {
+object DropFirstSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {

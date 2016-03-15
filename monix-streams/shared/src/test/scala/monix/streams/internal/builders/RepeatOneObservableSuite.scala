@@ -47,6 +47,7 @@ object RepeatOneObservableSuite extends TestSuite[TestScheduler] {
     s.tickOne()
     assertEquals(received, Platform.recommendedBatchSize * 2)
     s.tickOne()
+    ()
   }
 
   test("repeatOne should be cancelable") { implicit s =>

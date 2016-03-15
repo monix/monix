@@ -63,7 +63,7 @@ final class CacheUntilConnectSubscriber[-T] private (downstream: Subscriber[T])
     if (!isConnected && !isConnectionStarted) {
       isConnectionStarted = true
 
-      connectionRef = Observable.from(queue).unsafeSubscribeFn(new Subscriber[T] {
+      connectionRef = Observable.fromIterable(queue).unsafeSubscribeFn(new Subscriber[T] {
         implicit val scheduler = downstream.scheduler
         private[this] val bufferWasDrained = Promise[Ack]()
         private[this] var ack: Future[Ack] = Continue

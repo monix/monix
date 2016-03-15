@@ -17,23 +17,22 @@
 
 package monix.streams.internal.operators
 
-import monix.execution.{Cancelable, Ack}
 import monix.execution.Ack.Cancel
 import monix.execution.cancelables.MultiAssignmentCancelable
+import monix.execution.{Ack, Cancelable}
+import monix.streams.Observable
 import monix.streams.observers.Subscriber
-import monix.streams.{CanObserve, Observable}
 import scala.concurrent.Future
 import scala.language.higherKinds
 
 private[streams] final
-class DelaySubscriptionWithTriggerObservable[A, F[_] : CanObserve]
-  (source: Observable[A], trigger: F[_])
+class DelaySubscriptionWithTriggerObservable[A](source: Observable[A], trigger: Observable[Any])
   extends Observable[A] {
 
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     val cancelable = MultiAssignmentCancelable()
 
-    val main = CanObserve[F].observable(trigger).unsafeSubscribeFn(
+    val main = trigger.unsafeSubscribeFn(
       new Subscriber[Any] {
         implicit val scheduler = subscriber.scheduler
         private[this] var isDone = false

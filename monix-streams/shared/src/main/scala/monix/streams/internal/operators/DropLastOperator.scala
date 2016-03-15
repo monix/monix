@@ -17,30 +17,40 @@
 
 package monix.streams.internal.operators
 
+import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.streams.ObservableLike.Operator
 import monix.streams.observers.Subscriber
 
-private[streams] final class DropLeftOperator[A](nr: Long)
-  extends Operator[A, A] {
+import scala.collection.mutable
+import scala.concurrent.Future
 
+private[streams] final
+class DropLastOperator[A](n: Long) extends Operator[A,A] {
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
       implicit val scheduler = out.scheduler
-      private[this] var count = 0L
+      private[this] var queue = mutable.Queue.empty[A]
+      private[this] var length = 0
 
-      def onNext(elem: A) = {
-        if (count < nr) {
-          count += 1
+      override def onNext(elem: A): Future[Ack] = {
+        queue.enqueue(elem)
+        if (length >= n)
+          out.onNext(queue.dequeue())
+        else {
+          length += 1
           Continue
-        } else {
-          out.onNext(elem)
         }
       }
 
-      def onComplete(): Unit =
-        out.onComplete()
-      def onError(ex: Throwable): Unit =
+      def onError(ex: Throwable): Unit = {
+        queue = null // GC purposes
         out.onError(ex)
+      }
+
+      def onComplete(): Unit = {
+        queue = null // GC purposes
+        out.onComplete()
+      }
     }
 }

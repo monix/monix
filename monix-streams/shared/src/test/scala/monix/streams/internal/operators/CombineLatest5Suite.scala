@@ -32,7 +32,7 @@ object CombineLatest5Suite extends BaseOperatorSuite {
     val o3 = Observable.now(3)
     val o4 = Observable.now(4)
     val o5 = Observable.range(0, sourceCount)
-    val o = Observable.combineLatest5(o1,o2,o3,o4,o5)(_+_+_+_+_)
+    val o = Observable.combineLatestWith5(o1,o2,o3,o4,o5)(_+_+_+_+_)
 
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
   }
@@ -47,7 +47,7 @@ object CombineLatest5Suite extends BaseOperatorSuite {
     val o3 = Observable.now(3)
     val o4 = Observable.now(4)
     val flawed = createObservableEndingInError(Observable.range(0, sourceCount), ex)
-    val o = Observable.combineLatest5(o1,o2,o3,o4, flawed)(_+_+_+_+_)
+    val o = Observable.combineLatestWith5(o1,o2,o3,o4, flawed)(_+_+_+_+_)
 
     Sample(o, count(sourceCount-1), sum(sourceCount-1), waitFirst, waitNext)
   }
@@ -60,7 +60,7 @@ object CombineLatest5Suite extends BaseOperatorSuite {
     val o4 = Observable.now(4)
     val o5 = Observable.range(0, sourceCount)
 
-    val o = Observable.combineLatest5(o1,o2,o3,o4,o5) { (a1,a2,a3,a4,a5) =>
+    val o = Observable.combineLatestWith5(o1,o2,o3,o4,o5) { (a1,a2,a3,a4,a5) =>
       if (a5 == sourceCount-1) throw dummy else a1+a2+a3+a4+a5
     }
 
@@ -74,7 +74,7 @@ object CombineLatest5Suite extends BaseOperatorSuite {
       val o3 = Observable.range(0, 10).delayOnNext(1.second)
       val o4 = Observable.range(0, 10).delayOnNext(1.second)
       val o5 = Observable.range(0, 10).delayOnNext(1.second)
-      Observable.combineLatest5(o1,o2,o3,o4, o5)(_+_+_+_+_)
+      Observable.combineLatestWith5(o1,o2,o3,o4, o5)(_+_+_+_+_)
     }
 
     Seq(Sample(sample1, 0, 0, 0.seconds, 0.seconds))

@@ -24,7 +24,7 @@ import scala.concurrent.duration.Duration.Zero
 object MergeManySuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val o = Observable.range(0, sourceCount)
-      .mergeMap(i => Observable.from(Seq(i,i,i,i)))
+      .mergeMap(i => Observable.fromIterable(Seq(i,i,i,i)))
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 

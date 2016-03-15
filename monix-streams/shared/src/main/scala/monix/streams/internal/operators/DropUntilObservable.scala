@@ -20,13 +20,12 @@ package monix.streams.internal.operators
 import monix.execution.Ack.{Cancel, Continue}
 import monix.execution.cancelables.{CompositeCancelable, SingleAssignmentCancelable}
 import monix.execution.{Ack, Cancelable}
+import monix.streams.Observable
 import monix.streams.observers.{Subscriber, SyncSubscriber}
-import monix.streams.{CanObserve, Observable}
 import scala.concurrent.Future
 import scala.language.higherKinds
 
-private[streams] final class DropUntilObservable[A, F[_] : CanObserve]
-  (source: Observable[A], trigger: F[_])
+private[streams] final class DropUntilObservable[A](source: Observable[A], trigger: Observable[Any])
   extends Observable[A] {
 
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
@@ -48,7 +47,7 @@ private[streams] final class DropUntilObservable[A, F[_] : CanObserve]
       }
 
       locally {
-        task := CanObserve[F].observable(trigger).unsafeSubscribeFn(
+        task := trigger.unsafeSubscribeFn(
           new SyncSubscriber[Any] {
             implicit val scheduler = out.scheduler
             def onNext(elem: Any) = interruptDropMode(null)

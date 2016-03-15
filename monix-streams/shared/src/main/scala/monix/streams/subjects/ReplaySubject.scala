@@ -22,7 +22,6 @@ import monix.execution.cancelables.CompositeCancelable
 import monix.execution.internal.math._
 import monix.execution.{Ack, Cancelable}
 import monix.streams.Observable
-import monix.streams.internal._
 import monix.streams.internal.util.PromiseCounter
 import monix.streams.observers.{ConnectableSubscriber, Subscriber}
 import org.sincron.atomic.Atomic
@@ -44,7 +43,7 @@ final class ReplaySubject[T] private (initialState: ReplaySubject.State[T])
     def streamOnDone(buffer: Iterable[T], errorThrown: Throwable): Cancelable = {
       implicit val s = subscriber.scheduler
 
-      Observable.from(buffer).unsafeSubscribeFn(new Subscriber[T] {
+      Observable.fromIterable(buffer).unsafeSubscribeFn(new Subscriber[T] {
         implicit val scheduler = subscriber.scheduler
 
         def onNext(elem: T) =

@@ -16,8 +16,8 @@ lazy val doNotPublishArtifact = Seq(
 
 lazy val sharedSettings = Seq(
   organization := "org.monifu",
-  scalaVersion := "2.11.7",
-  crossScalaVersions := Seq("2.11.7", "2.10.6"),
+  scalaVersion := "2.11.8",
+  crossScalaVersions := Seq("2.11.8", "2.10.6"),
   javacOptions ++= Seq("-source", "1.6", "-target", "1.6"),
   scalacOptions ++= Seq(
     "-target:jvm-1.6", // generates code with the Java 6 class format
@@ -183,7 +183,7 @@ lazy val docsSettings =
 
 lazy val testSettings = Seq(
   testFrameworks += new TestFramework("minitest.runner.Framework"),
-  libraryDependencies += "io.monix" %%% "minitest" % "0.16" % "test"
+  libraryDependencies += "io.monix" %%% "minitest-laws" % "0.19" % "test"
 )
 
 lazy val scalaJSSettings = Seq(
@@ -217,7 +217,7 @@ lazy val executionJVM = project.in(file("monix-execution/jvm"))
   .settings(scalaMacroDependencies)
   .settings(
     name := "monix-execution",
-    libraryDependencies += "org.sincron" %%% "sincron" % "0.10"
+    libraryDependencies += "org.sincron" %%% "sincron" % "0.11"
   )
 
 lazy val executionJS = project.in(file("monix-execution/js"))
@@ -228,7 +228,7 @@ lazy val executionJS = project.in(file("monix-execution/js"))
   .settings(scalaMacroDependencies)
   .settings(
     name := "monix-execution",
-    libraryDependencies += "org.sincron" %%% "sincron" % "0.10"
+    libraryDependencies += "org.sincron" %%% "sincron" % "0.11"
   )
 
 lazy val tasksCommon =

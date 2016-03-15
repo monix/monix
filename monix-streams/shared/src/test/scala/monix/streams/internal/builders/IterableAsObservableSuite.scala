@@ -40,7 +40,7 @@ object IterableAsObservableSuite extends TestSuite[TestScheduler] {
     var wasCompleted = false
     var sum = 0
 
-    Observable.from(Seq(1,2,3,4,5)).unsafeSubscribeFn(
+    Observable.fromIterable(Seq(1,2,3,4,5)).unsafeSubscribeFn(
       new Observer[Int] {
         def onNext(elem: Int) = {
           sum += elem
@@ -59,7 +59,7 @@ object IterableAsObservableSuite extends TestSuite[TestScheduler] {
     var wasCompleted = false
     var sum = 0
 
-    Observable.from(0 until (Platform.recommendedBatchSize * 20)).unsafeSubscribeFn(
+    Observable.fromIterable(0 until (Platform.recommendedBatchSize * 20)).unsafeSubscribeFn(
       new Observer[Int] {
         def onNext(elem: Int) = {
           sum += 1
@@ -82,7 +82,7 @@ object IterableAsObservableSuite extends TestSuite[TestScheduler] {
     var wasCompleted = false
     var sum = 0
 
-    Observable.from(Seq(1,2,3,4,5)).unsafeSubscribeFn(
+    Observable.fromIterable(Seq(1,2,3,4,5)).unsafeSubscribeFn(
       new Observer[Int] {
         def onNext(elem: Int) =
           Future.delayedResult(100.millis) {
@@ -113,7 +113,7 @@ object IterableAsObservableSuite extends TestSuite[TestScheduler] {
   test("fromIterable should do empty iterables synchronously") { implicit s =>
     var wasCompleted = false
 
-    Observable.from(Seq.empty).unsafeSubscribeFn(
+    Observable.fromIterable(Seq.empty).unsafeSubscribeFn(
       new Observer[Int] {
         def onComplete(): Unit = wasCompleted = true
         def onNext(elem: Int) = throw new IllegalStateException()
@@ -127,7 +127,7 @@ object IterableAsObservableSuite extends TestSuite[TestScheduler] {
     var wasCompleted = false
     var sum = 0
 
-    Observable.from(Seq(1,2,3,4,5)).unsafeSubscribeFn(
+    Observable.fromIterable(Seq(1,2,3,4,5)).unsafeSubscribeFn(
       new Observer[Int] {
         def onNext(elem: Int) = {
           sum += elem
@@ -161,7 +161,7 @@ object IterableAsObservableSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    Observable.from(iterable).unsafeSubscribeFn(
+    Observable.fromIterable(iterable).unsafeSubscribeFn(
       new Observer[Int] {
         def onNext(elem: Int) = {
           sum += elem
@@ -196,7 +196,7 @@ object IterableAsObservableSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    Observable.from(iterable).unsafeSubscribeFn(
+    Observable.fromIterable(iterable).unsafeSubscribeFn(
       new Observer[Int] {
         def onNext(elem: Int) = {
           sum += elem
@@ -227,7 +227,7 @@ object IterableAsObservableSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    Observable.from(iterable).unsafeSubscribeFn(
+    Observable.fromIterable(iterable).unsafeSubscribeFn(
       new Observer[Int] {
         def onNext(elem: Int) = {
           sum += elem
@@ -258,7 +258,7 @@ object IterableAsObservableSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    Observable.from(iterable).unsafeSubscribeFn(
+    Observable.fromIterable(iterable).unsafeSubscribeFn(
       new Observer[Int] {
         def onNext(elem: Int) = {
           sum += elem
@@ -284,7 +284,7 @@ object IterableAsObservableSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    Observable.from(iterable).unsafeSubscribeFn(
+    Observable.fromIterable(iterable).unsafeSubscribeFn(
       new Observer[Int] {
         def onNext(elem: Int) = {
           Future.delayedResult(100.millis)(Continue)
@@ -303,7 +303,7 @@ object IterableAsObservableSuite extends TestSuite[TestScheduler] {
     var sum = 0
 
     val seq = 0 until (Platform.recommendedBatchSize * 20)
-    val cancelable = Observable.from(seq)
+    val cancelable = Observable.fromIterable(seq)
       .unsafeSubscribeFn(
         new Subscriber[Int] {
           implicit val scheduler = s

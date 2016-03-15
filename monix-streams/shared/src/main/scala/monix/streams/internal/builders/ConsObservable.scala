@@ -18,18 +18,17 @@
 package monix.streams.internal.builders
 
 import monix.execution.Cancelable
+import monix.execution.cancelables.SingleAssignmentCancelable
 import monix.streams.Observable
 import monix.streams.observers.Subscriber
 
-/** Repeats the given elements */
-private[streams] final class RepeatObservable[T](elems: T*) extends Observable[T] {
-  private[this] val source =
-    if (elems.isEmpty) Observable.empty
-    else if (elems.length == 1)
-      new RepeatOneObservable(elems.head)
-    else
-      Observable.fromIterable(elems).repeat
+private[streams] final class ConsObservable[+A](head: A, tail: => Observable[A])
+  extends Observable[A] {
 
-  def unsafeSubscribeFn(subscriber: Subscriber[T]): Cancelable =
-    source.unsafeSubscribeFn(subscriber)
+  override def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
+    val cancelable = SingleAssignmentCancelable()
+    val ack = subscriber.onNext(head)
+    ack.syncOnContinue { cancelable := tail.unsafeSubscribeFn(subscriber) }(subscriber.scheduler)
+    cancelable
+  }
 }

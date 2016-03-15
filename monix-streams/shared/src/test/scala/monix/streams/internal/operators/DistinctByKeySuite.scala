@@ -27,7 +27,7 @@ object DistinctByKeySuite extends BaseOperatorSuite {
     val seq = (0 until sourceCount)
       .flatMap(i => Seq(Val(i),Val(i),Val(i)))
 
-    val o = Observable.from(seq).distinctByKey(_.x).map(_.x)
+    val o = Observable.fromIterable(seq).distinctByKey(_.x).map(_.x)
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 
@@ -39,14 +39,14 @@ object DistinctByKeySuite extends BaseOperatorSuite {
       val seq = (0 until sourceCount)
         .flatMap(i => Seq(Val(i),Val(i),Val(i)))
 
-      val o = Observable.from(seq).endWithError(ex).distinctByKey(_.x).map(_.x)
+      val o = Observable.fromIterable(seq).endWithError(ex).distinctByKey(_.x).map(_.x)
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
     val o = Observable.range(0, sourceCount)
-      .flatMap(i => Observable.from(Seq(Val(i), Val(i), Val(i))))
+      .flatMap(i => Observable.fromIterable(Seq(Val(i), Val(i), Val(i))))
       .distinctByKey(i => if (i.x == sourceCount-1) throw ex else i.x)
       .map(_.x)
 

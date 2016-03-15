@@ -24,7 +24,7 @@ import scala.concurrent.duration._
 object ConcatManySuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val o = Observable.range(0, sourceCount)
-      .flatMap(i => Observable.from(Seq(i,i,i)))
+      .flatMap(i => Observable.fromIterable(Seq(i,i,i)))
 
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
   }
@@ -38,7 +38,7 @@ object ConcatManySuite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) =
     if (sourceCount == 1) None else Some {
       val o = createObservableEndingInError(Observable.range(0, sourceCount), ex)
-        .flatMap(i => Observable.from(Seq(1L, 1L, 1L)))
+        .flatMap(i => Observable.fromIterable(Seq(1L, 1L, 1L)))
 
       Sample(o, count(sourceCount)-2, count(sourceCount)-2, waitFirst, waitNext)
     }
@@ -52,7 +52,7 @@ object ConcatManySuite extends BaseOperatorSuite {
       if (i == sourceCount-1)
         throw ex
       else
-        Observable.from(Seq(i,i,i))
+        Observable.fromIterable(Seq(i,i,i))
     }
 
     Sample(o, count(sourceCount-1), sum(sourceCount-1), waitFirst, waitNext)

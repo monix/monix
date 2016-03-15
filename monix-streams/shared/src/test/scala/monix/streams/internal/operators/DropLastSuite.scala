@@ -21,41 +21,35 @@ import monix.streams.Observable
 import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero
 
-object MiscIsEmptySuite extends BaseOperatorSuite {
-  def createObservable(sourceCount: Int) = Some {
-    val shouldBeEmpty = (sourceCount % 2) == 0
-    val sum = if (shouldBeEmpty) 2L else 1L
-
-    val source = if (shouldBeEmpty)
-      Observable.empty
-    else
-      Observable.range(0, sourceCount)
-
-    val o = source.isEmptyF.map(x => if (x) 2L else 1L)
-    Sample(o, 1, sum, Zero, Zero)
+object DropLastSuite extends BaseOperatorSuite {
+  def createObservable(sourceCount: Int) = {
+    require(sourceCount > 0, "sourceCount should be strictly positive")
+    Some {
+      val o = Observable.range(0, sourceCount).dropLast(10)
+      Sample(o, count(sourceCount-10), sum(sourceCount-10), Zero, Zero)
+    }
   }
 
-  def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.error(ex)
-      .isEmptyF.map(x => if (x) 1L else 0L)
+  def sum(sourceCount: Int): Long = {
+    sourceCount * (sourceCount - 1) / 2
+  }
 
-    Sample(o, 0, 0, Zero, Zero)
+  def count(sourceCount: Int) =
+    sourceCount - 10
+
+  def observableInError(sourceCount: Int, ex: Throwable) = {
+    require(sourceCount > 0, "sourceCount should be strictly positive")
+    Some {
+      val o = Observable.range(0, sourceCount).endWithError(ex).dropLast(1)
+      Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
+    }
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) =
     None
 
   override def cancelableObservables() = {
-    val source1 = Observable.empty
-      .delayOnComplete(1.second)
-      .isEmptyF.map(x => if (x) 2L else 1L)
-
-    val source2 = Observable.now(1)
-      .delayOnNext(1.second)
-      .isEmptyF.map(x => if (x) 2L else 1L)
-
-    Seq(
-      Sample(source1, 0, 0, Zero, Zero),
-      Sample(source2, 0, 0, Zero, Zero))
+    val o = Observable.range(1, 10).delayOnNext(1.second).dropLast(5)
+    Seq(Sample(o, 0, 0, Zero, Zero))
   }
 }

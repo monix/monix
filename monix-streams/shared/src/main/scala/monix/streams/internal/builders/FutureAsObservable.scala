@@ -21,36 +21,47 @@ import monix.execution.{CancelableFuture, Cancelable}
 import monix.streams.Observable
 import monix.streams.observers.Subscriber
 import scala.concurrent.Future
+import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
 /** Converts any `Future` into an observable */
-private[streams] final class FutureAsObservable[T](source: Future[T])
+private[streams] final class FutureAsObservable[T](factory: => Future[T])
   extends Observable[T] {
 
   def unsafeSubscribeFn(subscriber: Subscriber[T]): Cancelable = {
     import subscriber.{scheduler => s}
+    // Protects calls to user code
+    var streamErrors = true
+    try {
+      val evaluated = factory
+      streamErrors = false
 
-    source.value match {
-      case Some(Success(value)) =>
-        subscriber.onNext(value)
-        subscriber.onComplete()
-        Cancelable.empty
-      case Some(Failure(ex)) =>
+      evaluated.value match {
+        case Some(Success(value)) =>
+          subscriber.onNext(value)
+          subscriber.onComplete()
+          Cancelable.empty
+        case Some(Failure(ex)) =>
+          subscriber.onError(ex)
+          Cancelable.empty
+        case None =>
+          evaluated.onComplete {
+            case Success(value) =>
+              subscriber.onNext(value)
+              subscriber.onComplete()
+            case Failure(ex) =>
+              subscriber.onError(ex)
+          }
+
+          evaluated match {
+            case c: CancelableFuture[_] => c
+            case _ => Cancelable.empty
+          }
+      }
+    } catch {
+      case NonFatal(ex) if streamErrors =>
         subscriber.onError(ex)
         Cancelable.empty
-      case None =>
-        source.onComplete {
-          case Success(value) =>
-            subscriber.onNext(value)
-            subscriber.onComplete()
-          case Failure(ex) =>
-            subscriber.onError(ex)
-        }
-
-        source match {
-          case c: CancelableFuture[_] => c
-          case _ => Cancelable.empty
-        }
     }
   }
 }

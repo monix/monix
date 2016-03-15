@@ -29,7 +29,7 @@ object Zip5Suite extends BaseOperatorSuite {
     val o4 = Observable.fork(Observable.range(0, sourceCount))
     val o5 = Observable.fork(Observable.range(0, sourceCount))
 
-    val o = Observable.zip5(o1,o2,o3,o4,o5)(_+_+_+_+_)
+    val o = Observable.zipWith5(o1,o2,o3,o4,o5)(_+_+_+_+_)
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 
@@ -43,7 +43,7 @@ object Zip5Suite extends BaseOperatorSuite {
     val o4 = createObservableEndingInError(Observable.range(0, sourceCount), ex)
     val o5 = createObservableEndingInError(Observable.range(0, sourceCount), ex)
 
-    val o = Observable.zip5(o1,o2,o3,o4,o5)(_+_+_+_+_)
+    val o = Observable.zipWith5(o1,o2,o3,o4,o5)(_+_+_+_+_)
     Sample(o, count(sourceCount - 1), sum(sourceCount - 1), Zero, Zero)
   }
 
@@ -54,7 +54,7 @@ object Zip5Suite extends BaseOperatorSuite {
     val o4 = Observable.fork(Observable.range(0, sourceCount))
     val o5 = Observable.fork(Observable.range(0, sourceCount))
 
-    val o = Observable.zip5(o1, o2, o3, o4, o5) { (x1, x2, x3, x4, x5) =>
+    val o = Observable.zipWith5(o1, o2, o3, o4, o5) { (x1, x2, x3, x4, x5) =>
       if (x2 < sourceCount - 1) x1 + x2 + x3 + x4 + x5
       else throw ex
     }
@@ -69,7 +69,7 @@ object Zip5Suite extends BaseOperatorSuite {
       val o3 = Observable.range(0, 10).delayOnNext(1.second)
       val o4 = Observable.range(0, 10).delayOnNext(1.second)
       val o5 = Observable.range(0, 10).delayOnNext(1.second)
-      Observable.zip5(o1,o2,o3,o4,o5)(_+_+_+_+_)
+      Observable.zipWith5(o1,o2,o3,o4,o5)(_+_+_+_+_)
     }
 
     Seq(Sample(sample1, 0, 0, 0.seconds, 0.seconds))

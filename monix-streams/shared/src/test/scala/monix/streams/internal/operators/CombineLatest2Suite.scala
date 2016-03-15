@@ -32,7 +32,7 @@ object CombineLatest2Suite extends BaseOperatorSuite {
     val sourceCount = 10
     val o1 = Observable.now(1)
     val o2 = Observable.range(0, sourceCount)
-    val o = Observable.combineLatest2(o1, o2) { (x1, x2) => x1 + x2 }
+    val o = Observable.combineLatestWith2(o1, o2) { (x1, x2) => x1 + x2 }
 
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
   }
@@ -43,7 +43,7 @@ object CombineLatest2Suite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
     val unit = Observable.now(1)
     val flawed = createObservableEndingInError(Observable.range(0, sourceCount), ex)
-    val o = Observable.combineLatest2(unit, flawed) { (x1, x2) => x1 + x2 }
+    val o = Observable.combineLatestWith2(unit, flawed) { (x1, x2) => x1 + x2 }
 
     Sample(o, count(sourceCount-1), sum(sourceCount-1), waitFirst, waitNext)
   }
@@ -52,7 +52,7 @@ object CombineLatest2Suite extends BaseOperatorSuite {
     val dummy = DummyException("dummy")
     val o1 = Observable.now(1)
     val o2 = Observable.range(0, sourceCount)
-    val o = Observable.combineLatest2(o1,o2) { (a1,a2) =>
+    val o = Observable.combineLatestWith2(o1,o2) { (a1,a2) =>
       if (a2 == sourceCount-1) throw dummy else a1+a2
     }
 
@@ -63,7 +63,7 @@ object CombineLatest2Suite extends BaseOperatorSuite {
     val sample1 = {
       val o1 = Observable.range(0, 10).delayOnNext(1.second)
       val o2 = Observable.range(0, 10).delayOnNext(1.second)
-      Observable.combineLatest2(o1, o2) { (x1, x2) => x1 + x2 }
+      Observable.combineLatestWith2(o1, o2) { (x1, x2) => x1 + x2 }
     }
 
     Seq(

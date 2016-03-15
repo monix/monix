@@ -17,43 +17,30 @@
 
 package monix.streams.internal.operators
 
-import monix.execution.Ack
-import monix.execution.Ack.{Cancel, Continue}
-import monix.streams.Observable
+import monix.execution.Ack.Continue
 import monix.streams.ObservableLike.Operator
-import monix.streams.observers.{Subscriber, SyncSubscriber}
-import scala.collection.mutable
+import monix.streams.observers.Subscriber
 
-private[streams] final class TakeRightOperator[A](n: Int)
+private[streams] final class DropFirstOperator[A](nr: Long)
   extends Operator[A, A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
-    new SyncSubscriber[A] {
+    new Subscriber[A] {
       implicit val scheduler = out.scheduler
-      private[this] val queue = mutable.Queue.empty[A]
-      private[this] var queued = 0
+      private[this] var count = 0L
 
-      def onNext(elem: A): Ack = {
-        if (n <= 0)
-          Cancel
-        else if (queued < n) {
-          queue.enqueue(elem)
-          queued += 1
+      def onNext(elem: A) = {
+        if (count < nr) {
+          count += 1
           Continue
-        }
-        else {
-          queue.enqueue(elem)
-          queue.dequeue()
-          Continue
+        } else {
+          out.onNext(elem)
         }
       }
 
-      def onComplete(): Unit = {
-        Observable.from(queue).unsafeSubscribeFn(out)
-      }
-
-      def onError(ex: Throwable): Unit = {
+      def onComplete(): Unit =
+        out.onComplete()
+      def onError(ex: Throwable): Unit =
         out.onError(ex)
-      }
     }
 }

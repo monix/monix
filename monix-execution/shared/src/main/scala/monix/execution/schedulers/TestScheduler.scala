@@ -105,9 +105,9 @@ final class TestScheduler private (override val batchedExecutionModulus: Int)
     }
   }
 
-  def tick(time: FiniteDuration = Duration.Zero): Boolean = {
+  def tick(time: FiniteDuration = Duration.Zero): Unit = {
     @tailrec
-    def loop(time: FiniteDuration, result: Boolean): Boolean = {
+    def loop(time: FiniteDuration, result: Boolean): Unit = {
       val current = state.get
       val currentClock = current.clock + time
 
@@ -130,8 +130,6 @@ final class TestScheduler private (override val batchedExecutionModulus: Int)
         case None =>
           if (!state.compareAndSet(current, current.copy(clock = currentClock)))
             loop(time, result)
-          else
-            result
       }
     }
 

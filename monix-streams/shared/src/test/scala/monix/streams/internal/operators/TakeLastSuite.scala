@@ -22,7 +22,7 @@ import monix.streams.exceptions.DummyException
 import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero
 
-object TakeRightSuite extends BaseOperatorSuite {
+object TakeLastSuite extends BaseOperatorSuite {
   def sum(sourceCount: Int) =
     if (sourceCount == 1) 9 else (1 until sourceCount * 2).takeRight(sourceCount).sum
 
@@ -33,9 +33,9 @@ object TakeRightSuite extends BaseOperatorSuite {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val o = if (sourceCount == 1)
-        Observable.range(1, 10).takeRight(1)
+        Observable.range(1, 10).takeLast(1)
       else
-        Observable.range(1, sourceCount * 2).takeRight(sourceCount)
+        Observable.range(1, sourceCount * 2).takeLast(sourceCount)
 
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }
@@ -47,17 +47,17 @@ object TakeRightSuite extends BaseOperatorSuite {
       val ex = DummyException("dummy")
       val o = if (sourceCount == 1)
         createObservableEndingInError(Observable.range(1, 10), ex)
-          .takeRight(1)
+          .takeLast(1)
       else
         createObservableEndingInError(Observable.range(1, sourceCount * 2), ex)
-          .takeRight(sourceCount)
+          .takeLast(sourceCount)
 
       Sample(o, 0, 0, Zero, Zero)
     }
   }
 
   override def cancelableObservables() = {
-    val sample = Observable.range(0,20).delayOnNext(1.second).takeRight(10)
+    val sample = Observable.range(0,20).delayOnNext(1.second).takeLast(10)
     Seq(Sample(sample, 0, 0, 0.second, 0.seconds))
   }
 

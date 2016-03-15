@@ -64,7 +64,7 @@ object DelaySubscriptionSuite extends BaseOperatorSuite {
 
   test("delaySubscription.onFuture triggering an error") { implicit s =>
     val obs = Observable.now(1)
-      .delaySubscriptionWith(Future { throw new DummyException("dummy") })
+      .delaySubscriptionWith(Observable.fromFuture(Future { throw new DummyException("dummy") }))
 
     var errorThrown: Throwable = null
     obs.unsafeSubscribeFn(new Observer[Int] {

@@ -22,7 +22,6 @@ import monix.streams.Observable
 import org.reactivestreams.Publisher
 import org.reactivestreams.tck.{PublisherVerification, TestEnvironment}
 import org.scalatest.testng.TestNGSuiteLike
-import scala.concurrent.Future
 
 class PublisherTest
   extends PublisherVerification[Long](new TestEnvironment(1000))
@@ -31,11 +30,11 @@ class PublisherTest
   def createPublisher(elements: Long): Publisher[Long] = {
     if (elements == Long.MaxValue)
       Observable.repeat(1L)
-        .flatMapF(x => Future(x))
+        .flatMap(x => Observable.fork(Observable.now(x)))
         .toReactive
     else
       Observable.range(0, elements)
-        .flatMapF(x => Future(x))
+        .flatMap(x => Observable.fork(Observable.now(x)))
         .toReactive
   }
 

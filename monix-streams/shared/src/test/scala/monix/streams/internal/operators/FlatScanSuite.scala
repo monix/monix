@@ -24,7 +24,7 @@ import scala.concurrent.duration.Duration.Zero
 object FlatScanSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val o = Observable.range(0, sourceCount)
-      .flatScanF(1L)((acc, elem) => Observable.repeat(acc + elem).take(3))
+      .flatScan(1L)((acc, elem) => Observable.repeat(acc + elem).take(3))
 
     val sum = (0 until sourceCount).map(x => (1 to x).sum + 1L).sum * 3
     Sample(o, sourceCount * 3, sum, Zero, Zero)
@@ -33,7 +33,7 @@ object FlatScanSuite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) =
     if (sourceCount == 1) None else Some {
       val o = Observable.range(0, sourceCount).endWithError(ex)
-        .flatScan(1L)((acc, elem) => Observable.from(Seq(1L,1L,1L)))
+        .flatScan(1L)((acc, elem) => Observable.fromIterable(Seq(1L,1L,1L)))
 
       Sample(o, sourceCount * 3 - 2, sourceCount * 3 - 2, Zero, Zero)
     }

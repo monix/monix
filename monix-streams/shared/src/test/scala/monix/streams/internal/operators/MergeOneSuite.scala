@@ -69,7 +69,7 @@ object MergeOneSuite extends BaseOperatorSuite {
   }
 
   def toList[T](o: Observable[T])(implicit s: Scheduler) = {
-    o.foldLeft(Vector.empty[T])(_ :+ _).asFuture
+    o.foldLeftF(Vector.empty[T])(_ :+ _).asFuture
       .map(_.getOrElse(Vector.empty))
   }
 
@@ -119,7 +119,7 @@ object MergeOneSuite extends BaseOperatorSuite {
     val obs1 = PublishSubject[Long]()
     val obs2 = Observable.range(1, 100).map { x => obs2WasStarted = true; x }
 
-    Observable.from(Seq(obs1, obs2)).flatten.unsafeSubscribeFn(new Observer[Long] {
+    Observable.fromIterable(Seq(obs1, obs2)).flatten.unsafeSubscribeFn(new Observer[Long] {
       def onNext(elem: Long) = {
         received += elem
         if (elem == 1000)
@@ -158,7 +158,7 @@ object MergeOneSuite extends BaseOperatorSuite {
     val obs1 = sub.doOnStart(_ => obs1WasStarted = true)
     val obs2 = Observable.range(1, 100).map { x => obs2WasStarted = true; x }
 
-    Observable.from(Seq(obs1, obs2)).flatten.unsafeSubscribeFn(new Observer[Long] {
+    Observable.fromIterable(Seq(obs1, obs2)).flatten.unsafeSubscribeFn(new Observer[Long] {
       def onNext(elem: Long) = Continue
       def onError(ex: Throwable) = wasThrown = ex
       def onComplete() = ()

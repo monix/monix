@@ -27,7 +27,7 @@ object DistinctSuite extends BaseOperatorSuite {
       .flatMap(i => Seq(i, i, i))
       .map(_.toLong)
 
-    val o = Observable.from(seq).distinct
+    val o = Observable.fromIterable(seq).distinct
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 
@@ -40,7 +40,7 @@ object DistinctSuite extends BaseOperatorSuite {
         .flatMap(i => Seq(i, i, i))
         .map(_.toLong)
 
-      val source = Observable.from(seq)
+      val source = Observable.fromIterable(seq)
       val o = createObservableEndingInError(source, ex).distinct
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }

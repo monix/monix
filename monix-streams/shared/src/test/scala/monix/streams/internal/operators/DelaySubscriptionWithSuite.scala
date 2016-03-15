@@ -29,7 +29,7 @@ object DelaySubscriptionWithSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val trigger = Task.now(1).delayExecution(1.second)
     val o = Observable.range(0, sourceCount)
-      .delaySubscriptionWith(trigger)
+      .delaySubscriptionWith(Observable.fromTask(trigger))
 
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
   }
@@ -66,7 +66,7 @@ object DelaySubscriptionWithSuite extends BaseOperatorSuite {
 
   test("delaySubscription.onFuture triggering an error") { implicit s =>
     val obs = Observable.now(1)
-      .delaySubscriptionWith(Future { throw new DummyException("dummy") })
+      .delaySubscriptionWith(Observable.fromFuture(Future { throw new DummyException("dummy") }))
 
     var errorThrown: Throwable = null
     obs.unsafeSubscribeFn(new Observer[Int] {

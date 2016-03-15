@@ -108,7 +108,7 @@ final class ConnectableSubscriber[-T] private (underlying: Subscriber[T])
       if (!isConnected && !isConnectionStarted) {
         isConnectionStarted = true
 
-        connectionRef = Observable.from(queue).unsafeSubscribeFn(new Subscriber[T] {
+        connectionRef = Observable.fromIterable(queue).unsafeSubscribeFn(new Subscriber[T] {
           implicit val scheduler = underlying.scheduler
           private[this] val bufferWasDrained = Promise[Ack]()
           private[this] var ack: Future[Ack] = Continue

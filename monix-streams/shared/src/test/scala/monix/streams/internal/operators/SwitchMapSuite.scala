@@ -74,8 +74,8 @@ object SwitchMapSuite extends BaseOperatorSuite {
     val source = Observable.range(0, 100)
     val switched = source.switchMap(i => Observable.now(i))
 
-    val r1 = source.foldLeft(Seq.empty[Long])(_ :+ _).asFuture
-    val r2 = switched.foldLeft(Seq.empty[Long])(_ :+ _).asFuture
+    val r1 = source.foldLeftF(Seq.empty[Long])(_ :+ _).asFuture
+    val r2 = switched.foldLeftF(Seq.empty[Long])(_ :+ _).asFuture
     s.tick()
 
     assertEquals(r2.value.get, r1.value.get)

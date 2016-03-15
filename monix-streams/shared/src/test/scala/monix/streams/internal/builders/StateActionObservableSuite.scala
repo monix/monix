@@ -48,6 +48,7 @@ object StateActionObservableSuite extends TestSuite[TestScheduler] {
     s.tickOne()
     assertEquals(received, Platform.recommendedBatchSize * 2)
     s.tickOne()
+    ()
   }
 
   test("fromStateAction should be cancelable") { implicit s =>

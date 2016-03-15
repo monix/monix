@@ -25,7 +25,7 @@ object DistinctUntilChangedByKeySuite extends BaseOperatorSuite {
   case class Val(x: Long)
   def createObservable(sourceCount: Int) = Some {
     val o = Observable.range(0, sourceCount)
-      .flatMap(i => Observable.from(Seq(Val(i), Val(i), Val(i))))
+      .flatMap(i => Observable.fromIterable(Seq(Val(i), Val(i), Val(i))))
       .distinctUntilChangedByKey(_.x)
       .map(_.x)
 
@@ -38,7 +38,7 @@ object DistinctUntilChangedByKeySuite extends BaseOperatorSuite {
       Sample(o,1,1,Zero,Zero)
     } else {
       val source = Observable.range(0, sourceCount)
-        .flatMap(i => Observable.from(Seq(i, i, i)))
+        .flatMap(i => Observable.fromIterable(Seq(i, i, i)))
 
       val o = createObservableEndingInError(source, ex)
         .map(Val.apply)
@@ -51,7 +51,7 @@ object DistinctUntilChangedByKeySuite extends BaseOperatorSuite {
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
     val o = Observable.range(0, sourceCount)
-      .flatMap(i => Observable.from(Seq(Val(i), Val(i), Val(i))))
+      .flatMap(i => Observable.fromIterable(Seq(Val(i), Val(i), Val(i))))
       .distinctUntilChangedByKey(i => if (i.x == sourceCount-1) throw ex else i.x)
       .map(_.x)
 

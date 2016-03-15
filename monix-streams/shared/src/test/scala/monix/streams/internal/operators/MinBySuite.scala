@@ -23,12 +23,12 @@ import scala.concurrent.duration.Duration.Zero
 
 object MinBySuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.range(sourceCount, 0, -1).minBy(x => sourceCount - x)
+    val o = Observable.range(sourceCount, 0, -1).minByF(x => sourceCount - x)
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.range(0, sourceCount).endWithError(ex).minBy(x => x)
+    val o = Observable.range(0, sourceCount).endWithError(ex).minByF(x => x)
     Sample(o, 0, 0, Zero, Zero)
   }
 
@@ -37,14 +37,14 @@ object MinBySuite extends BaseOperatorSuite {
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
     val o = Observable.range(0, sourceCount+1)
-      .minBy(x => if (x == sourceCount-1) throw ex else x)
+      .minByF(x => if (x == sourceCount-1) throw ex else x)
 
     Sample(o, 0, 0, Zero, Zero)
   }
 
   override def cancelableObservables() = {
     import scala.concurrent.duration._
-    val o = Observable.now(1L).delayOnNext(1.second).minBy(x => x)
+    val o = Observable.now(1L).delayOnNext(1.second).minByF(x => x)
     Seq(Sample(o,0,0,0.seconds,0.seconds))
   }
 
@@ -53,7 +53,7 @@ object MinBySuite extends BaseOperatorSuite {
     var received = 0
     var wasCompleted = false
 
-    source.minBy(x => 100 - x).unsafeSubscribeFn(new Observer[Long] {
+    source.minByF(x => 100 - x).unsafeSubscribeFn(new Observer[Long] {
       def onNext(elem: Long) = { received += 1; Continue }
       def onError(ex: Throwable) = ()
       def onComplete() = { wasCompleted = true }

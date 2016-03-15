@@ -66,7 +66,7 @@ abstract class Pipe[I, +O]
   }
 
   // provides observable-like operators
-  override def lift[B](op: Operator[O, B]): Pipe[I, B] =
+  override def liftByOperator[B](op: Operator[O, B]): Pipe[I, B] =
     new LiftedPipe(this, op)
 
   /** Transforms the source using the given transformer function. */
@@ -170,13 +170,13 @@ object Pipe {
 
     def unicast: (Observer[I], Observable[U]) = {
       val (in,out) = self.unicast
-      val outU = out.lift(op)
+      val outU = out.liftByOperator(op)
       (in, outU)
     }
 
     override def multicast(implicit s: Scheduler): (Observer[I], Observable[U]) = {
       val (in,out) = self.multicast(s)
-      val outU = out.lift(op)
+      val outU = out.liftByOperator(op)
       (in, outU)
     }
   }

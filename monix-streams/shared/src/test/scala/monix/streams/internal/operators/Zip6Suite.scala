@@ -30,7 +30,7 @@ object Zip6Suite extends BaseOperatorSuite {
     val o5 = Observable.fork(Observable.range(0, sourceCount))
     val o6 = Observable.fork(Observable.range(0, sourceCount))
 
-    val o = Observable.zip6(o1,o2,o3,o4,o5,o6)(_+_+_+_+_+_)
+    val o = Observable.zipWith6(o1,o2,o3,o4,o5,o6)(_+_+_+_+_+_)
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 
@@ -45,7 +45,7 @@ object Zip6Suite extends BaseOperatorSuite {
     val o5 = createObservableEndingInError(Observable.range(0, sourceCount), ex)
     val o6 = createObservableEndingInError(Observable.range(0, sourceCount), ex)
 
-    val o = Observable.zip6(o1,o2,o3,o4,o5,o6)(_+_+_+_+_+_)
+    val o = Observable.zipWith6(o1,o2,o3,o4,o5,o6)(_+_+_+_+_+_)
     Sample(o, count(sourceCount - 1), sum(sourceCount - 1), Zero, Zero)
   }
 
@@ -57,7 +57,7 @@ object Zip6Suite extends BaseOperatorSuite {
     val o5 = Observable.fork(Observable.range(0, sourceCount))
     val o6 = Observable.fork(Observable.range(0, sourceCount))
 
-    val o = Observable.zip6(o1, o2, o3, o4, o5,o6) { (x1, x2, x3, x4, x5, x6) =>
+    val o = Observable.zipWith6(o1, o2, o3, o4, o5,o6) { (x1, x2, x3, x4, x5, x6) =>
       if (x2 < sourceCount - 1) x1 + x2 + x3 + x4 + x5 + x6
       else throw ex
     }
@@ -73,7 +73,7 @@ object Zip6Suite extends BaseOperatorSuite {
       val o4 = Observable.range(0, 10).delayOnNext(1.second)
       val o5 = Observable.range(0, 10).delayOnNext(1.second)
       val o6 = Observable.range(0, 10).delayOnNext(1.second)
-      Observable.zip6(o1,o2,o3,o4,o5,o6)(_+_+_+_+_+_)
+      Observable.zipWith6(o1,o2,o3,o4,o5,o6)(_+_+_+_+_+_)
     }
 
     Seq(Sample(sample1, 0, 0, 0.seconds, 0.seconds))

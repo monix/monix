@@ -31,7 +31,7 @@ object CombineLatest3Suite extends BaseOperatorSuite {
     val o1 = Observable.now(1)
     val o2 = Observable.now(2)
     val o3 = Observable.range(0, sourceCount)
-    val o = Observable.combineLatest3(o1, o2, o3)(_+_+_)
+    val o = Observable.combineLatestWith3(o1, o2, o3)(_+_+_)
 
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
   }
@@ -44,7 +44,7 @@ object CombineLatest3Suite extends BaseOperatorSuite {
     val o1 = Observable.now(1)
     val o2 = Observable.now(2)
     val flawed = createObservableEndingInError(Observable.range(0, sourceCount), ex)
-    val o = Observable.combineLatest3(o1,o2, flawed)(_+_+_)
+    val o = Observable.combineLatestWith3(o1,o2, flawed)(_+_+_)
 
     Sample(o, count(sourceCount-1), sum(sourceCount-1), waitFirst, waitNext)
   }
@@ -54,7 +54,7 @@ object CombineLatest3Suite extends BaseOperatorSuite {
     val o1 = Observable.now(1)
     val o2 = Observable.now(2)
     val o3 = Observable.range(0, sourceCount)
-    val o = Observable.combineLatest3(o1,o2,o3) { (a1,a2,a3) =>
+    val o = Observable.combineLatestWith3(o1,o2,o3) { (a1,a2,a3) =>
       if (a3 == sourceCount-1) throw dummy else a1+a2+a3
     }
 
@@ -66,7 +66,7 @@ object CombineLatest3Suite extends BaseOperatorSuite {
       val o1 = Observable.range(0, 10).delayOnNext(1.second)
       val o2 = Observable.range(0, 10).delayOnNext(1.second)
       val o3 = Observable.range(0, 10).delayOnNext(1.second)
-      Observable.combineLatest3(o1, o2, o3) { (x1, x2, x3) => x1 + x2 + x3 }
+      Observable.combineLatestWith3(o1, o2, o3) { (x1, x2, x3) => x1 + x2 + x3 }
     }
 
     Seq(Sample(sample1, 0, 0, 0.seconds, 0.seconds))

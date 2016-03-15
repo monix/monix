@@ -23,12 +23,12 @@ import scala.concurrent.duration.Duration._
 
 object SumSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.range(0, sourceCount).sum
+    val o = Observable.range(0, sourceCount).sumF
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = {
-    val o = Observable.range(0, sourceCount+1).endWithError(ex).sum
+    val o = Observable.range(0, sourceCount+1).endWithError(ex).sumF
     Some(Sample(o, 0, 0, Zero, Zero))
   }
 
@@ -49,7 +49,7 @@ object SumSuite extends BaseOperatorSuite {
       def compare(x: Long, y: Long): Int = throw ex
     }
 
-    val o = Observable.range(0, sourceCount+1).sum(num)
+    val o = Observable.range(0, sourceCount+1).sumF(num)
     Some(Sample(o, 0, 0, Zero, Zero))
   }
 
@@ -57,7 +57,7 @@ object SumSuite extends BaseOperatorSuite {
   def waitForFirst = Duration.Zero
 
   override def cancelableObservables() = {
-    val o = Observable.now(1L).delayOnNext(1.second).sum
+    val o = Observable.now(1L).delayOnNext(1.second).sumF
     Seq(Sample(o,0,0,0.seconds,0.seconds))
   }
 }

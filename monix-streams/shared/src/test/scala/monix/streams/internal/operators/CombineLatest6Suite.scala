@@ -33,7 +33,7 @@ object CombineLatest6Suite extends BaseOperatorSuite {
     val o4 = Observable.now(4)
     val o5 = Observable.now(5)
     val o6 = Observable.range(0, sourceCount)
-    val o = Observable.combineLatest6(o1,o2,o3,o4,o5,o6)(_+_+_+_+_+_)
+    val o = Observable.combineLatestWith6(o1,o2,o3,o4,o5,o6)(_+_+_+_+_+_)
 
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
   }
@@ -49,7 +49,7 @@ object CombineLatest6Suite extends BaseOperatorSuite {
     val o4 = Observable.now(4)
     val o5 = Observable.now(5)
     val flawed = createObservableEndingInError(Observable.range(0, sourceCount), ex)
-    val o = Observable.combineLatest6(o1,o2,o3,o4,o5,flawed)(_+_+_+_+_+_)
+    val o = Observable.combineLatestWith6(o1,o2,o3,o4,o5,flawed)(_+_+_+_+_+_)
 
     Sample(o, count(sourceCount-1), sum(sourceCount-1), waitFirst, waitNext)
   }
@@ -63,7 +63,7 @@ object CombineLatest6Suite extends BaseOperatorSuite {
     val o5 = Observable.now(5)
     val o6 = Observable.range(0, sourceCount)
 
-    val o = Observable.combineLatest6(o1,o2,o3,o4,o5,o6) { (a1,a2,a3,a4,a5,a6) =>
+    val o = Observable.combineLatestWith6(o1,o2,o3,o4,o5,o6) { (a1,a2,a3,a4,a5,a6) =>
       if (a6 == sourceCount-1) throw dummy else a1+a2+a3+a4+a5+a6
     }
 
@@ -78,7 +78,7 @@ object CombineLatest6Suite extends BaseOperatorSuite {
       val o4 = Observable.range(0, 10).delayOnNext(1.second)
       val o5 = Observable.range(0, 10).delayOnNext(1.second)
       val o6 = Observable.range(0, 10).delayOnNext(1.second)
-      Observable.combineLatest6(o1,o2,o3,o4,o5,o6)(_+_+_+_+_+_)
+      Observable.combineLatestWith6(o1,o2,o3,o4,o5,o6)(_+_+_+_+_+_)
     }
 
     Seq(Sample(sample1, 0, 0, 0.seconds, 0.seconds))

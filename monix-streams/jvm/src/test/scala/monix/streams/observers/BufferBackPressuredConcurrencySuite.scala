@@ -41,9 +41,9 @@ object BufferBackPressuredConcurrencySuite extends TestSuite[Scheduler] {
     val o2 = source.map(_ + 3)
     val o3 = source.map(_ + 4)
 
-    val f = Observable.from(Seq(o1, o2, o3))
+    val f = Observable.fromIterable(Seq(o1, o2, o3))
       .mergeMap(x => x)(BackPressure(100))
-      .sum
+      .sumF
       .asFuture
 
     val result = Await.result(f, 30.seconds)

@@ -29,7 +29,7 @@ object FlatScanDelayErrorSuite extends BaseOperatorSuite {
     val source = if (ex == null) Observable.range(0, sourceCount)
       else Observable.range(0, sourceCount).endWithError(ex)
 
-    val o = source.flatScanDelayErrorF(1L)((acc, elem) =>
+    val o = source.flatScanDelayError(1L)((acc, elem) =>
       Observable.repeat(acc + elem).take(3)
         .endWithError(SomeException(10)))
 

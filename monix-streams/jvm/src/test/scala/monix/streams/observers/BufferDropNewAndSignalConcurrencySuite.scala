@@ -18,7 +18,6 @@
 package monix.streams.observers
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
-
 import minitest.TestSuite
 import monix.execution.Ack.{Cancel, Continue}
 import monix.execution.{Ack, Scheduler}
@@ -48,9 +47,9 @@ object BufferDropNewAndSignalConcurrencySuite
   test("merge test should work") { implicit s =>
     val num = 100000
     val source = Observable.repeat(1L).take(num)
-    val f = Observable.from(Seq(source, source, source))
+    val f = Observable.fromIterable(Seq(source, source, source))
       .mergeMap(x => x)(DropNewAndSignal(1000, dropped => dropped))
-      .sum
+      .sumF
       .asFuture
 
     val result = Await.result(f, 30.seconds)

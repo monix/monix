@@ -28,7 +28,7 @@ object Zip4Suite extends BaseOperatorSuite {
     val o3 = Observable.fork(Observable.range(0, sourceCount))
     val o4 = Observable.fork(Observable.range(0, sourceCount))
 
-    val o = Observable.zip4(o1,o2,o3,o4)(_+_+_+_)
+    val o = Observable.zipWith4(o1,o2,o3,o4)(_+_+_+_)
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 
@@ -41,7 +41,7 @@ object Zip4Suite extends BaseOperatorSuite {
     val o3 = createObservableEndingInError(Observable.range(0, sourceCount), ex)
     val o4 = createObservableEndingInError(Observable.range(0, sourceCount), ex)
 
-    val o = Observable.zip4(o1,o2,o3,o4)(_+_+_+_)
+    val o = Observable.zipWith4(o1,o2,o3,o4)(_+_+_+_)
     Sample(o, count(sourceCount - 1), sum(sourceCount - 1), Zero, Zero)
   }
 
@@ -51,7 +51,7 @@ object Zip4Suite extends BaseOperatorSuite {
     val o3 = Observable.fork(Observable.range(0, sourceCount))
     val o4 = Observable.fork(Observable.range(0, sourceCount))
 
-    val o = Observable.zip4(o1, o2, o3, o4) { (x1, x2, x3, x4) =>
+    val o = Observable.zipWith4(o1, o2, o3, o4) { (x1, x2, x3, x4) =>
       if (x2 < sourceCount - 1) x1 + x2 + x3 + x4 else throw ex
     }
 
@@ -64,7 +64,7 @@ object Zip4Suite extends BaseOperatorSuite {
       val o2 = Observable.range(0, 10).delayOnNext(1.second)
       val o3 = Observable.range(0, 10).delayOnNext(1.second)
       val o4 = Observable.range(0, 10).delayOnNext(1.second)
-      Observable.zip4(o1,o2,o3,o4)(_+_+_+_)
+      Observable.zipWith4(o1,o2,o3,o4)(_+_+_+_)
     }
 
     Seq(Sample(sample1, 0, 0, 0.seconds, 0.seconds))
