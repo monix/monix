@@ -666,7 +666,7 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
   /** Creates a new Observable that emits the events of the source and
     * then it also emits the given elements (appended to the stream).
     */
-  def endWith[B >: A](elems: B*): Self[B] =
+  def endWith[B >: A](elems: Seq[B]): Self[B] =
     self.transform(self => self ++ Observable.fromIterable(elems))
 
   /** Emits the given exception instead of `onComplete`.
@@ -1148,7 +1148,7 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
   /** Creates a new Observable that emits the given elements and then it
     * also emits the events of the source (prepend operation).
     */
-  def startWith[B >: A](elems: B*): Self[B] =
+  def startWith[B >: A](elems: Seq[B]): Self[B] =
     self.transform(self => Observable.fromIterable(elems) ++ self)
 
   /** Returns a new Observable that uses the specified `Scheduler` for

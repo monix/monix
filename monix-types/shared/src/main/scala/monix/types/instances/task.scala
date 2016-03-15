@@ -1,0 +1,73 @@
+/*
+ * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * See the project homepage at: https://monix.io
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package monix.types.instances
+
+import cats.Eval
+import monix.tasks.Task
+import monix.types.{Zippable, Recoverable, Nondeterminism}
+import scala.concurrent.duration.FiniteDuration
+
+object task extends TaskInstances
+
+trait TaskInstances {
+  /** Type-class instances for [[Task]]. */
+  implicit val taskInstances: Nondeterminism[Task] with Recoverable[Task,Throwable] with Zippable[Task] =
+    new Nondeterminism[Task] with Recoverable[Task,Throwable] with Zippable[Task] {
+      override def pure[A](x: A): Task[A] =
+        Task.now(x)
+      override def pureEval[A](x: Eval[A]): Task[A] =
+        Task.eval(x.value)
+
+      override def firstStartedOf[A](seq: Seq[Task[A]]): Task[A] =
+        Task.firstCompletedOf(seq:_*)
+      override def delayExecution[A](fa: Task[A], timespan: FiniteDuration): Task[A] =
+        fa.delayExecution(timespan)
+      override def delayExecutionWith[A, B](fa: Task[A], trigger: Task[B]): Task[A] =
+        fa.delayExecutionWith(trigger)
+      override def delayResult[A](fa: Task[A], timespan: FiniteDuration): Task[A] =
+        fa.delayResult(timespan)
+      override def delayResultBySelector[A, B](fa: Task[A])(selector: (A) => Task[B]): Task[A] =
+        fa.delayResultBySelector(selector)
+
+      override def onErrorRecoverWith[A](fa: Task[A])(pf: PartialFunction[Throwable, Task[A]]): Task[A] =
+        fa.onErrorRecoverWith(pf)
+      override def onErrorRecover[A](fa: Task[A])(pf: PartialFunction[Throwable, A]): Task[A] =
+        fa.onErrorRecover(pf)
+      override def onErrorFallbackTo[A](fa: Task[A])(other: => Task[A]): Task[A] =
+        fa.onErrorFallbackTo(other)
+      override def onErrorRetry[A](fa: Task[A], maxRetries: Long): Task[A] =
+        fa.onErrorRetry(maxRetries)
+      override def onErrorRetryIf[A](fa: Task[A])(p: (Throwable) => Boolean): Task[A] =
+        fa.onErrorRetryIf(p)
+      override def failed[A](fa: Task[A]): Task[Throwable] =
+        fa.failed
+
+      override def zipList[A](sources: Seq[Task[A]]): Task[Seq[A]] =
+        Task.sequence(sources)
+      override def zipWith2[A1, A2, R](fa1: Task[A1], fa2: Task[A2])(f: (A1, A2) => R): Task[R] =
+        Task.map2(fa1, fa2)(f)
+      override def flatMap[A, B](fa: Task[A])(f: (A) => Task[B]): Task[B] =
+        fa.flatMap(f)
+      override def raiseError[A](e: Throwable): Task[A] =
+        Task.error(e)
+      override def map[A, B](fa: Task[A])(f: (A) => B): Task[B] =
+        fa.map(f)
+      override def flatten[A](ffa: Task[Task[A]]): Task[A] =
+        ffa.flatten
+    }
+}

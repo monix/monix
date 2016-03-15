@@ -140,7 +140,7 @@ lazy val scalaMacroDependencies = Seq(
 lazy val unidocSettings = baseUnidocSettings ++ Seq(
   autoAPIMappings := true,
   unidocProjectFilter in (ScalaUnidoc, unidoc) :=
-    inProjects(executionJVM, tasksJVM, streamsJVM),
+    inProjects(executionJVM, tasksJVM, streamsJVM, typesJVM),
 
   scalacOptions in (ScalaUnidoc, unidoc) +=
     "-Xfatal-warnings",
@@ -206,10 +206,26 @@ lazy val monix = project.in(file("."))
     executionJVM, executionJS,
     tasksJVM, tasksJS,
     streamsJVM, streamsJS,
+    typesJVM, typesJS,
+    monixJVM, monixJS,
     docs, tckTests)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
   .settings(scalaStyleSettings)
+
+lazy val monixJVM = project.in(file("monix/jvm"))
+  .dependsOn(executionJVM, tasksJVM, streamsJVM, typesJVM)
+  .aggregate(executionJVM, tasksJVM, streamsJVM, typesJVM)
+  .settings(crossSettings)
+  .settings(name := "monix")
+
+lazy val monixJS = project.in(file("monix/js"))
+  .enablePlugins(ScalaJSPlugin)
+  .dependsOn(executionJS, tasksJS, streamsJS, typesJS)
+  .aggregate(executionJS, tasksJS, streamsJS, typesJS)
+  .settings(crossSettings)
+  .settings(scalaJSSettings)
+  .settings(name := "monix")
 
 lazy val executionJVM = project.in(file("monix-execution/jvm"))
   .settings(crossSettings)
@@ -246,10 +262,7 @@ lazy val tasksJS = project.in(file("monix-tasks/js"))
   .settings(tasksCommon)
 
 lazy val streamsCommon =
-  crossSettings ++ testSettings ++ scalaMacroDependencies ++ Seq(
-    name := "monix-streams",
-    libraryDependencies += "com.github.mpilquist" %%% "simulacrum" % "0.7.0"
-  )
+  crossSettings ++ testSettings ++ Seq(name := "monix-streams")
 
 lazy val streamsJVM = project.in(file("monix-streams/jvm"))
   .dependsOn(executionJVM, tasksJVM)
@@ -262,8 +275,27 @@ lazy val streamsJS = project.in(file("monix-streams/js"))
   .settings(streamsCommon)
   .settings(scalaJSSettings)
 
+lazy val typesCommon =
+  crossSettings ++ testSettings ++ scalaMacroDependencies ++ Seq(
+    name := "monix-types",
+    libraryDependencies ++= Seq(
+      "com.github.mpilquist" %%% "simulacrum" % "0.7.0",
+      "org.typelevel" %% "cats-core" % "0.4.1"
+    )
+  )
+
+lazy val typesJVM = project.in(file("monix-types/jvm"))
+  .dependsOn(tasksJVM, streamsJVM)
+  .settings(typesCommon)
+
+lazy val typesJS = project.in(file("monix-types/js"))
+  .enablePlugins(ScalaJSPlugin)
+  .dependsOn(tasksJS, streamsJS)
+  .settings(typesCommon)
+  .settings(scalaJSSettings)
+
 lazy val docs = project.in(file("docs"))
-  .dependsOn(executionJVM, tasksJVM, streamsJVM)
+  .dependsOn(executionJVM, tasksJVM, streamsJVM, typesJVM)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
   .settings(site.settings)
@@ -271,7 +303,7 @@ lazy val docs = project.in(file("docs"))
   .settings(docsSettings)
 
 lazy val tckTests = project.in(file("tckTests"))
-  .dependsOn(streamsJVM)
+  .dependsOn(monixJVM)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
   .settings(
@@ -281,7 +313,7 @@ lazy val tckTests = project.in(file("tckTests"))
     ))
 
 lazy val benchmarks = project.in(file("benchmarks"))
-  .dependsOn(streamsJVM)
+  .dependsOn(monixJVM)
   .enablePlugins(JmhPlugin)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
