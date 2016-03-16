@@ -35,11 +35,11 @@ trait Cancelable {
 }
 
 object Cancelable {
-  /** Builds a [[Cancelable]]. */
+  /** Builds a [[monix.execution.Cancelable Cancelable]]. */
   def apply(): Cancelable =
     empty
 
-  /** Builds a [[Cancelable]] that executes the given
+  /** Builds a [[monix.execution.Cancelable Cancelable]] that executes the given
     * `callback` when calling [[Cancelable.cancel cancel]].
     */
   def apply(callback: () => Unit): Cancelable =

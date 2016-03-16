@@ -18,7 +18,7 @@
 package monix
 
 import java.util.concurrent.TimeUnit
-import monix.tasks.{Callback, Task => MonixTask}
+import monix.async.{Callback, Task => MonixTask}
 import monix.execution.Scheduler.Implicits.global
 import org.openjdk.jmh.annotations._
 import scalaz.concurrent.{Task => ScalazTask}
@@ -33,6 +33,7 @@ import scalaz.{-\/, \/-}
  * Please note that benchmarks should be usually executed at least in
  * 10 iterations (as a rule of thumb), but more is better.
  */
+
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)

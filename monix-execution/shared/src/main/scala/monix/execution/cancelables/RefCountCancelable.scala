@@ -31,7 +31,7 @@ final class RefCountCancelable private (onCancel: () => Unit) extends BooleanCan
   def isCanceled: Boolean =
     state.get.isCanceled
 
-  /** Acquires a new [[Cancelable]]. */
+  /** Acquires a new [[monix.execution.Cancelable Cancelable]]. */
   @tailrec
   def acquire(): Cancelable = {
     val oldState = state.get

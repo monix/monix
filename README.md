@@ -55,70 +55,31 @@ support long after Scala 2.12 is out.
 
 The packages are published on Maven Central.
 
-- Current stable release is: `1.1`
+- Current stable release: `1.1`
+- Current beta release: `2.0-M1`
 
-For the JVM:
+For the stable release (use the `%%%` for Scala.js): 
 
 ```scala
 libraryDependencies += "org.monifu" %% "monifu" % "1.1"
 ```
 
-For targeting Javascript runtimes with Scala.js:
+For the beta/preview release (use at your own risk):
 
 ```scala
-libraryDependencies += "org.monifu" %%% "monifu" % "1.1"
+libraryDependencies += "io.monix" %% "monix" % "2.0-M1"
 ```
 
-### Example
+### Sub-projects
 
-NOTE: this sample works for the 1.1 version.
+Monix 2.0 is modular by design, so you can pick and choose:
 
-In order for subscriptions to work, we need an implicit
-`Scheduler` imported in our context. A `Scheduler` inherits from Scala's own [ExecutionContext](http://www.scala-lang.org/api/current/index.html#scala.concurrent.ExecutionContext)
-and any `ExecutionContext` can be quickly converted into a `Scheduler`.
-And then you're off ...
-
-```scala
-// scala.concurrent.ExecutionContext.Implicits.global
-// is being used under the hood
-import monifu.concurrent.Implicits.globalScheduler
-
-// or we can simply convert our own execution context
-// import play.api.libs.concurrent.Execution.Implicits.defaultContext
-// implicit val scheduler = Scheduler(defaultContext)
-
-import monifu.reactive._
-import scala.concurrent.duration._
-
-val subscription = Observable.intervalAtFixedRate(1.second)
-  .take(10)
-  .subscribe(x => println(x))
-```
-
-We can then try out more complex things:
-
-```scala
-import monifu.reactive._
-import monifu.concurrent.Implicits.globalScheduler
-import play.api.libs.ws._
-
-// emits an auto-incremented number, every second
-Observable.interval(1.second)
-  // drops the items emitted over the first 5 secs
-  .dropByTimespan(5.seconds)
-  // takes the first 100 emitted events  
-  .take(100)
-  // per second, makes requests and concatenates the results
-  .flatMap(x => WS.request(s"http://some.endpoint.com/request?tick=$x").get())
-  // filters only valid responses
-  .filter(response => response.status == 200)
-  // samples by 3 seconds, repeating previous results in case of nothing new
-  .sampleRepeated(3.seconds)
-  // processes response, selecting the body
-  .map(response => response.body)
-  // creates subscription, foreach response print it
-  .foreach(x => println(x))
-```
+- `monix-execution` exposes the low-level execution environment, or more precisely 
+  `Scheduler`, `Cancelable` and `RunLoop`
+- `monix-async` exposes `Task` and depends on `monix-execution`
+- `monix-reactive` exposes `Observable` streams and depends on `monix-async`
+- `monix-types` exposes type-classes, integrated with Cats and depends on `monix-reactive`
+- `monix` has everything
 
 ## Documentation
 
@@ -126,6 +87,7 @@ NOTE: The documentation is a work in progress.
 API Documentation:
 
 - [1.1](https://monix.io/docs/1.1/api/)
+- [2.0-M1](https://monix.io/docs/2.0-M1/api/)
 
 ## Maintainers
 

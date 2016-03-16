@@ -63,7 +63,7 @@ object CancelableFuture {
     * Also, canceling an already complete future should do nothing.
     *
     * @param underlying is an underlying `Future` reference that will respond to `onComplete` calls
-    * @param cancelable is a [[Cancelable]] that can be used to cancel the active computation
+    * @param cancelable is a [[monix.execution.Cancelable Cancelable]] that can be used to cancel the active computation
     *                   and that will complete the future with a `CancellationException`
     */
   def apply[T](underlying: Future[T], cancelable: Cancelable): CancelableFuture[T] =
