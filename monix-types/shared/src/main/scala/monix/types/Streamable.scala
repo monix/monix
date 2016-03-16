@@ -132,11 +132,11 @@ import scala.language.{higherKinds, implicitConversions}
 
   /** Ends the sequence with the given elements. */
   def endWith[A](fa: F[A])(elems: Seq[A]): F[A] =
-    followWith(fa, Eval.now(fromIterable(elems)))
+    followWith(fa, fromIterable(elems))
 
   /** Starts the sequence with the given elements. */
   def startWith[A](fa: F[A])(elems: Seq[A]): F[A] =
-    followWith(fromIterable(elems), Eval.now(fa))
+    followWith(fromIterable(elems), fa)
 
   /** Given an `Ordering` returns the maximum element of the source. */
   def maxF[A](fa: F[A])(implicit A: Ordering[A]): F[A] = {

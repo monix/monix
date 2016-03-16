@@ -23,6 +23,14 @@ import scala.language.{higherKinds, implicitConversions}
 
 /** Type-class for monadic data-structures that can expose
   * multiple `A` elements.
+  *
+  * Instances of this type have a `cons` operation for building
+  * sequences of elements by appending a lazy `tail` to a `head`.
+  *
+  * The `flatMap` operation is henceforth known as `concatMap`
+  * because in effect it will produce concatenation and it's good
+  * to precisely differentiate from other non-deterministic ways
+  * of merging sequences and that might cause confusion.
   */
 @typeclass trait MonadCons[F[_]] extends Monad[F] {
   /** Builds an instance by joining a head and a lazy tail. */
@@ -36,21 +44,24 @@ import scala.language.{higherKinds, implicitConversions}
     concatMap(ffa)(fa => fa)
 
   /** Concatenates the source with `other`. */
-  @op("++") def followWith[A](fa: F[A], other: Eval[F[A]]): F[A] =
-    flatMap(cons(fa, other.map(fa => pure(fa))))(fa => fa)
+  @op("++") def followWith[A](fa: F[A], other: => F[A]): F[A] =
+    concat(cons(fa, Eval.always(pure(other))))
+
   /** Appends the given `elem` at the end. */
   @op(":+") def endWithElem[A](fa: F[A])(elem: A): F[A] =
-    followWith(fa, Eval.now(pure(elem)))
+    followWith(fa, pure(elem))
+
   /** Prepends the given `elem` at the start. */
   @op("+:") def startWithElem[A](fa: F[A])(elem: A): F[A] =
-    followWith(pure(elem), Eval.now(fa))
+    followWith(pure(elem), fa)
 
   /** Repeats the source, continuously. */
   def repeat[A](fa: F[A]): F[A] =
-    followWith(fa, Eval.always(repeat(fa)))
+    followWith(fa, repeat(fa))
 
-  override def flatten[A](ffa: F[F[A]]): F[A] =
+  final override def flatten[A](ffa: F[F[A]]): F[A] =
     concat(ffa)
-  override def flatMap[A, B](fa: F[A])(f: (A) => F[B]): F[B] =
+
+  final override def flatMap[A, B](fa: F[A])(f: (A) => F[B]): F[B] =
     concatMap(fa)(f)
 }

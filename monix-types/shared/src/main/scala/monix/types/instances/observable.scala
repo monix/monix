@@ -50,8 +50,8 @@ trait ObservableInstances {
         fa.concatMapDelayError(f)
       override def concatDelayError[A](ffa: Observable[Observable[A]]): Observable[A] =
         ffa.concatDelayError
-      override def followWith[A](fa: Observable[A], other: Eval[Observable[A]]): Observable[A] =
-        Observable.concat(fa, Observable.defer(other.value))
+      override def followWith[A](fa: Observable[A], other: => Observable[A]): Observable[A] =
+        fa ++ other
       override def startWith[A](fa: Observable[A])(elems: Seq[A]): Observable[A] =
         fa.startWith(elems)
       override def startWithElem[A](fa: Observable[A])(elem: A): Observable[A] =
@@ -66,8 +66,6 @@ trait ObservableInstances {
       override def endWithError[A](fa: Observable[A], error: Throwable): Observable[A] =
         fa.endWithError(error)
 
-      override def flatMap[A, B](fa: Observable[A])(f: (A) => Observable[B]): Observable[B] =
-        fa.flatMap(f)
       override def filter[A](fa: Observable[A])(f: (A) => Boolean): Observable[A] =
         fa.filter(f)
       override def collect[A, B](fa: Observable[A])(pf: PartialFunction[A, B]): Observable[B] =
@@ -88,9 +86,6 @@ trait ObservableInstances {
 
       override def map[A, B](fa: Observable[A])(f: (A) => B): Observable[B] =
         fa.map(f)
-      override def flatten[A](ffa: Observable[Observable[A]]): Observable[A] =
-        ffa.flatten
-
       override def take[A](fa: Observable[A], n: Int): Observable[A] =
         fa.take(n)
       override def takeWhile[A](fa: Observable[A])(f: (A) => Boolean): Observable[A] =
