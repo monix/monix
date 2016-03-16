@@ -15,7 +15,7 @@ lazy val doNotPublishArtifact = Seq(
 )
 
 lazy val sharedSettings = Seq(
-  organization := "org.monifu",
+  organization := "io.monix",
   scalaVersion := "2.11.8",
   crossScalaVersions := Seq("2.11.8", "2.10.6"),
   javacOptions ++= Seq("-source", "1.6", "-target", "1.6"),
@@ -131,9 +131,9 @@ lazy val crossSettings = sharedSettings ++ Seq(
 
 lazy val scalaMacroDependencies = Seq(
   libraryDependencies ++= Seq(
-    "org.scala-lang" % "scala-reflect" % scalaVersion.value % "provided",
-    "org.scala-lang" % "scala-compiler" % scalaVersion.value % "provided",
-    "org.typelevel" %%% "macro-compat" % "1.1.1" % "provided",
+    "org.scala-lang" % "scala-reflect" % scalaVersion.value % "compile",
+    "org.scala-lang" % "scala-compiler" % scalaVersion.value % "compile",
+    "org.typelevel" %%% "macro-compat" % "1.1.1" % "compile",
     compilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
   ))
 

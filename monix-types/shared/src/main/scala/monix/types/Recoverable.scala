@@ -18,10 +18,9 @@
 package monix.types
 
 import cats.Eval
-
 import scala.language.{higherKinds, implicitConversions}
 
-/** Enhancements for `MonadError`. */
+/** Enhancements for the `MonadError` type-class from Cats. */
 trait Recoverable[F[_], E] extends MonadError[F, E] {
   /** In case the source emits an error, then emit that error. */
   def failed[A](fa: F[A]): F[E]

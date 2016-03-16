@@ -104,7 +104,7 @@ sealed abstract class Task[+A] { self =>
 
   /** Triggers the asynchronous execution.
     *
-    * @return a [[CancelableFuture CancelableFuture]]
+    * @return a [[monix.execution.CancelableFuture CancelableFuture]]
     *         that can be used to extract the result or to cancel
     *         a running task.
     */

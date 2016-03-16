@@ -21,6 +21,7 @@ import cats.{Eval, CoflatMap}
 import simulacrum.typeclass
 import scala.language.{higherKinds, implicitConversions}
 
+/** Type-class describing operations for streams. */
 @typeclass trait Streamable[F[_]]
   extends MonadFilter[F] with MonadConsError[F,Throwable]
     with Recoverable[F, Throwable] with Scannable[F] with FFoldable[F]

@@ -23,6 +23,7 @@ import simulacrum.typeclass
 import scala.concurrent.duration.FiniteDuration
 import scala.language.{higherKinds, implicitConversions}
 
+/** Type-class for things that can return results asynchronously. */
 @typeclass trait Async[F[_]] extends Recoverable[F,Throwable] with Zippable[F] {
   /** Builds an instance by evaluating the given expression with a delay applied. */
   def delayedEval[A](delay: FiniteDuration, a: Eval[A]): F[A]

@@ -26,19 +26,15 @@ with Scala's standard library and compatible out-of-the-box with the
 
 Highlights:
 
-- zero dependencies
-- clean and user-friendly API, with the observer interface using `Future` for back-pressure purposes
-- Observable operators exposed in a way that's idiomatic to Scala
-- compatible with for-comprehensions
-- compatible with [Scalaz](https://github.com/scalaz/scalaz)
-- designed to be completely asynchronous - Rx operators that are
-  blocking or that are not compatible with back-pressure semantics  
-  are not going to be supported
-- does not depend on any particular mechanism for asynchronous
-  execution and can be made to work with threads, actors, event loops,
-  or whatnot, running perfectly both on top of the JVM or in Node.js
-  or the browser
-- really good test coverage as a project policy
+- in addition to `Observable`, exposes a kick-ass `Task`
+- modular, only use what you need
+- strives to be idiomatic Scala and encourages referential transparency, 
+  but is built to be faster than alternatives
+- provides integration with [Cats](http://typelevel.org/cats/) 
+- accepted in the [Typelevel incubator](http://typelevel.org/projects/)
+- designed for true asynchronicity, running on both the 
+  JVM and [Scala.js](scala-js.org), 
+- really good test coverage and API documentation as a project policy
 
 ## Usage
 
@@ -79,7 +75,7 @@ Monix 2.0 is modular by design, so you can pick and choose:
 - `monix-async` exposes `Task` and depends on `monix-execution`
 - `monix-reactive` exposes `Observable` streams and depends on `monix-async`
 - `monix-types` exposes type-classes, integrated with Cats and depends on `monix-reactive`
-- `monix` has everything
+- `monix` provides all of the above
 
 ## Documentation
 
@@ -104,12 +100,6 @@ license that Monix is licensed with (Apache 2.0, see LICENSE.txt).
 
 People are expected to follow the [Typelevel Code of Conduct](http://typelevel.org/conduct.html)
 when discussing Monix on the Github page, Gitter channel, or other venues.
-
-We hope that our community will be respectful, helpful, and kind. If you find
-yourself embroiled in a situation that becomes heated, or that fails to live up
-to our expectations, you should disengage and contact one of the project maintainers
-in private. We hope to avoid letting minor aggressions and misunderstandings
-escalate into larger problems.
 
 Feel free to open an issue if you notice a bug, have an idea for a feature, or
 have a question about the code. Pull requests are also gladly accepted. For more information,
