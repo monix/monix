@@ -227,14 +227,16 @@ lazy val monixJS = project.in(file("monix/js"))
   .settings(scalaJSSettings)
   .settings(name := "monix")
 
+lazy val executionCommon = Seq(
+  name := "monix-execution",
+  libraryDependencies += "org.sincron" %%% "sincron" % "0.11"
+)
+
 lazy val executionJVM = project.in(file("monix-execution/jvm"))
   .settings(crossSettings)
   .settings(testSettings)
   .settings(scalaMacroDependencies)
-  .settings(
-    name := "monix-execution",
-    libraryDependencies += "org.sincron" %%% "sincron" % "0.11"
-  )
+  .settings(executionCommon)
 
 lazy val executionJS = project.in(file("monix-execution/js"))
   .enablePlugins(ScalaJSPlugin)
@@ -242,10 +244,7 @@ lazy val executionJS = project.in(file("monix-execution/js"))
   .settings(scalaJSSettings)
   .settings(testSettings)
   .settings(scalaMacroDependencies)
-  .settings(
-    name := "monix-execution",
-    libraryDependencies += "org.sincron" %%% "sincron" % "0.11"
-  )
+  .settings(executionCommon)
 
 lazy val asyncCommon =
   crossSettings ++ testSettings ++

@@ -26,7 +26,7 @@ with Scala's standard library and compatible out-of-the-box with the
 
 Highlights:
 
-- in addition to `Observable`, exposes a kick-ass `Task`
+- exposes the kick-ass `Observable` and `Task`
 - modular, only use what you need
 - strives to be idiomatic Scala and encourages referential transparency, 
   but is built to be faster than alternatives
