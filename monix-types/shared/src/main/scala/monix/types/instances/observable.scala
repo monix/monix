@@ -25,7 +25,7 @@ import scala.language.{higherKinds, implicitConversions}
 
 trait ObservableInstances {
   /** The [[Streamable]] type-class implemented for [[monix.reactive.Observable]]. */
-  val observableInstances: Async[Observable] with Async[Observable] =
+  implicit val observableInstances: Streamable[Observable] with Async[Observable] =
     new Streamable[Observable] with Async[Observable] {
       override def raiseError[A](e: Throwable): Observable[A] =
         Observable.error(e)

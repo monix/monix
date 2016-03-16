@@ -280,7 +280,8 @@ lazy val typesCommon =
     name := "monix-types",
     libraryDependencies ++= Seq(
       "com.github.mpilquist" %%% "simulacrum" % "0.7.0",
-      "org.typelevel" %% "cats-core" % "0.4.1"
+      "org.typelevel" %% "cats-core" % "0.4.1",
+      "org.typelevel" %% "cats-laws" % "0.4.1" % "test"
     )
   )
 
