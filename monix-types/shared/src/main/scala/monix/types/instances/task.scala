@@ -18,14 +18,14 @@
 package monix.types.instances
 
 import cats.Eval
-import monix.tasks.Task
+import monix.async.Task
 import monix.types.{Zippable, Recoverable, Nondeterminism}
 import scala.concurrent.duration.FiniteDuration
 
 object task extends TaskInstances
 
 trait TaskInstances {
-  /** Type-class instances for [[Task]]. */
+  /** Type-class instances for [[monix.async.Task]]. */
   implicit val taskInstances: Nondeterminism[Task] with Recoverable[Task,Throwable] with Zippable[Task] =
     new Nondeterminism[Task] with Recoverable[Task,Throwable] with Zippable[Task] {
       override def pure[A](x: A): Task[A] =
@@ -69,5 +69,10 @@ trait TaskInstances {
         fa.map(f)
       override def flatten[A](ffa: Task[Task[A]]): Task[A] =
         ffa.flatten
+
+      override def timeout[A](fa: Task[A], timespan: FiniteDuration): Task[A] =
+        fa.timeout(timespan)
+      override def timeoutTo[A](fa: Task[A], timespan: FiniteDuration, backup: => Task[A]): Task[A] =
+        fa.timeoutTo(timespan, backup)
     }
 }

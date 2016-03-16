@@ -17,7 +17,6 @@
 
 package monix.types
 
-import simulacrum.typeclass
 import scala.language.{higherKinds, implicitConversions}
 
 /** Enhancements for `MonadError`. */

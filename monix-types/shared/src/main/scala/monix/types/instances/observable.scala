@@ -18,13 +18,13 @@
 package monix.types.instances
 
 import _root_.cats.Eval
-import monix.streams.Observable
+import monix.reactive.Observable
 import monix.types.{Nondeterminism, Streamable}
 import scala.concurrent.duration.FiniteDuration
 import scala.language.{higherKinds, implicitConversions}
 
 trait ObservableInstances {
-  /** The [[Streamable]] type-class implemented for [[Observable]]. */
+  /** The [[Streamable]] type-class implemented for [[monix.reactive.Observable]]. */
   val observableInstances: Streamable[Observable] with Nondeterminism[Observable] =
     new Streamable[Observable] with Nondeterminism[Observable] {
       override def raiseError[A](e: Throwable): Observable[A] =
@@ -190,6 +190,11 @@ trait ObservableInstances {
         fa.delayOnNext(timespan)
       override def delayResultBySelector[A, B](fa: Observable[A])(selector: (A) => Observable[B]): Observable[A] =
         fa.delayOnNextBySelector(selector)
+
+      override def timeout[A](fa: Observable[A], timespan: FiniteDuration): Observable[A] =
+        fa.timeoutOnSlowUpstream(timespan)
+      override def timeoutTo[A](fa: Observable[A], timespan: FiniteDuration, backup: => Observable[A]): Observable[A] =
+        fa.timeoutOnSlowUpstreamTo(timespan, backup)
     }
 }
 
