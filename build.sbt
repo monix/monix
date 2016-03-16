@@ -285,12 +285,12 @@ lazy val typesCommon =
   )
 
 lazy val typesJVM = project.in(file("monix-types/jvm"))
-  .dependsOn(tasksJVM, streamsJVM)
+  .dependsOn(asyncJVM, reactiveJVM)
   .settings(typesCommon)
 
 lazy val typesJS = project.in(file("monix-types/js"))
   .enablePlugins(ScalaJSPlugin)
-  .dependsOn(tasksJS, streamsJS)
+  .dependsOn(asyncJS, reactiveJS)
   .settings(typesCommon)
   .settings(scalaJSSettings)
 
