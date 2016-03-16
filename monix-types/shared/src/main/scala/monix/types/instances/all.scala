@@ -19,6 +19,7 @@ package monix.types.instances
 
 /** Helper for importing all known type-class instances. */
 object all extends AllInstances
+
 /** Alias for `cats.std.AllInstances` */
 trait AllStdInstances extends _root_.cats.std.AllInstances
 

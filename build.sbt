@@ -21,7 +21,7 @@ lazy val sharedSettings = Seq(
   javacOptions ++= Seq("-source", "1.6", "-target", "1.6"),
   scalacOptions ++= Seq(
     "-target:jvm-1.6", // generates code with the Java 6 class format
-    "-optimise", // enables optimisations
+     "-optimise", // enables optimisations
     // warnings
     "-unchecked", // able additional warnings where generated code depends on assumptions
     "-deprecation", // emit warning for usages of deprecated APIs
@@ -131,9 +131,9 @@ lazy val crossSettings = sharedSettings ++ Seq(
 
 lazy val scalaMacroDependencies = Seq(
   libraryDependencies ++= Seq(
-    "org.scala-lang" % "scala-reflect" % scalaVersion.value % "compile",
-    "org.scala-lang" % "scala-compiler" % scalaVersion.value % "compile",
-    "org.typelevel" %% "macro-compat" % "1.1.1" % "compile",
+    "org.scala-lang" % "scala-reflect" % scalaVersion.value % "provided",
+    "org.scala-lang" % "scala-compiler" % scalaVersion.value % "provided",
+    "org.typelevel" %%% "macro-compat" % "1.1.1" % "provided",
     compilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
   ))
 
@@ -280,8 +280,8 @@ lazy val typesCommon =
     name := "monix-types",
     libraryDependencies ++= Seq(
       "com.github.mpilquist" %%% "simulacrum" % "0.7.0",
-      "org.typelevel" %% "cats-core" % "0.4.1",
-      "org.typelevel" %% "cats-laws" % "0.4.1" % "test"
+      "org.typelevel" %%% "cats-core" % "0.4.1",
+      "org.typelevel" %%% "cats-laws" % "0.4.1" % "test"
     )
   )
 

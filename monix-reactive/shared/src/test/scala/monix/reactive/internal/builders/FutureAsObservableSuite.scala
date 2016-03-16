@@ -18,12 +18,13 @@
 package monix.reactive.internal.builders
 
 import minitest.TestSuite
+import monix.async.Task
 import monix.execution.Ack.Continue
+import monix.execution.FutureUtils
 import monix.execution.FutureUtils.ops._
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.exceptions.DummyException
 import monix.reactive.{Observable, Observer}
-import monix.async.Task
 import scala.concurrent.Future
 import scala.concurrent.duration._
 

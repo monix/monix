@@ -20,15 +20,31 @@ package monix.types
 import cats.Eq
 import minitest.SimpleTestSuite
 import minitest.laws.Discipline
-import monix.async.{Task, Callback}
+import monix.async.{Callback, Task}
+import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
 import monix.types.instances.AllInstances
 import org.scalacheck.Arbitrary
+import org.scalacheck.Test.Parameters
+import org.scalacheck.Test.Parameters.Default
 import scala.concurrent.duration._
-import scala.util.{Success, Failure, Try}
+import scala.util.{Failure, Success, Try}
 
 trait BaseRulesTestSuite extends SimpleTestSuite with Discipline with AllInstances {
+  override val checkConfig: Parameters = new Default {
+    override val minSuccessfulTests: Int =
+      if (Platform.isJVM) 100 else 10
+    override val maxDiscardRatio: Float =
+      if (Platform.isJVM) 5.0f else 50.0f
+  }
+
+  val slowCheckConfig = if (Platform.isJVM) checkConfig else
+    new Default {
+      override val maxSize: Int = 1
+      override val minSuccessfulTests: Int = 1
+    }
+
   implicit def arbitraryObs[A : Arbitrary]: Arbitrary[Observable[A]] =
     Arbitrary {
       implicitly[Arbitrary[List[A]]].arbitrary

@@ -22,8 +22,9 @@ import simulacrum.typeclass
 import scala.language.{higherKinds, implicitConversions}
 
 @typeclass trait Streamable[F[_]]
-  extends MonadFilter[F] with MonadConsError[F,Throwable] with Recoverable[F, Throwable]
-  with Scannable[F] with FFoldable[F] with Zippable[F] with CoflatMap[F] {
+  extends MonadFilter[F] with MonadConsError[F,Throwable]
+    with Recoverable[F, Throwable] with Scannable[F] with FFoldable[F]
+    with Zippable[F] with CoflatMap[F] {
 
   /** Lifts any `Iterable` into a `Sequenceable` type. */
   def fromIterable[A](ia: Iterable[A]): F[A]

@@ -23,7 +23,6 @@ import monix.execution.FutureUtils.ops._
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.exceptions.DummyException
-import monix.reactive.internal.builders.RangeObservableSuite._
 import monix.reactive.observers.Subscriber
 import monix.reactive.{Observable, Observer}
 import scala.concurrent.Future

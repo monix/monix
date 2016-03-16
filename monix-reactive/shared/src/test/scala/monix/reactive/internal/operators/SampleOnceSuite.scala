@@ -18,10 +18,10 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack.Continue
+import monix.execution.FutureUtils
 import monix.execution.FutureUtils.ops._
 import monix.reactive.subjects.PublishSubject
 import monix.reactive.{Observable, Observer}
-
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
