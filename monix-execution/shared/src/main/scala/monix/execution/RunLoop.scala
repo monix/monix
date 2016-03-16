@@ -98,8 +98,8 @@ object RunLoop {
     macro Macros.step
 
   /** Given the current `frameId`, executes the given callback. Takes
-    * a [[BooleanCancelable]] as a parameter that can be used to cancel
-    * the loop.
+    * a [[monix.execution.cancelables.BooleanCancelable BooleanCancelable]]
+    * as a parameter that can be used to cancel the loop.
     *
     * Depending on [[Scheduler.batchedExecutionModulus]],
     * execution will happen either synchronously (current thread and call-stack) or

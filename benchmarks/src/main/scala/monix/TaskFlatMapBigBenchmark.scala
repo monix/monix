@@ -18,7 +18,7 @@
 package monix
 
 import java.util.concurrent.TimeUnit
-import monix.tasks.{Task => MonixTask}
+import monix.async.{Task => MonixTask}
 import monix.execution.Scheduler.Implicits.global
 import org.openjdk.jmh.annotations._
 import scala.concurrent.Await

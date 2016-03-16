@@ -172,8 +172,8 @@ object Ack {
     def isSynchronous[Self <: Future[Ack] : c.WeakTypeTag]: c.Expr[Boolean] = {
       val selfExpr = sourceFrom[Self](c.prefix.tree)
       val self = util.name("source")
-      val ContinueSymbol = c.symbolOf[Continue].companion
-      val CancelSymbol = c.symbolOf[Cancel].companion
+      val ContinueSymbol = symbolOf[Continue].companion
+      val CancelSymbol = symbolOf[Cancel].companion
 
       val tree =
         if (util.isClean(selfExpr))
@@ -193,10 +193,10 @@ object Ack {
       val scheduler = c.Expr[Scheduler](s)
 
       val execute = c.Expr[Unit](callback)
-      val ContinueSymbol = c.symbolOf[Continue].companion
-      val CancelSymbol = c.symbolOf[Cancel].companion
-      val AckSymbol = c.symbolOf[Ack]
-      val FutureSymbol = c.symbolOf[Future[_]]
+      val ContinueSymbol = symbolOf[Continue].companion
+      val CancelSymbol = symbolOf[Cancel].companion
+      val AckSymbol = symbolOf[Ack]
+      val FutureSymbol = symbolOf[Future[_]]
 
       val tree =
         q"""
@@ -227,10 +227,10 @@ object Ack {
       val scheduler = c.Expr[Scheduler](s)
 
       val execute = c.Expr[Unit](callback)
-      val ContinueSymbol = c.symbolOf[Continue].companion
-      val CancelSymbol = c.symbolOf[Cancel].companion
-      val AckSymbol = c.symbolOf[Ack]
-      val FutureSymbol = c.symbolOf[Future[_]]
+      val ContinueSymbol = symbolOf[Continue].companion
+      val CancelSymbol = symbolOf[Cancel].companion
+      val AckSymbol = symbolOf[Ack]
+      val FutureSymbol = symbolOf[Future[_]]
 
       val tree =
         q"""
@@ -261,9 +261,9 @@ object Ack {
       val self = util.name("source")
       val fn = util.name("fn")
 
-      val ContinueSymbol = c.symbolOf[Continue].companion
-      val CancelSymbol = c.symbolOf[Cancel].companion
-      val AckSymbol = c.symbolOf[Ack]
+      val ContinueSymbol = symbolOf[Continue].companion
+      val CancelSymbol = symbolOf[Cancel].companion
+      val AckSymbol = symbolOf[Ack]
 
       val tree =
         if (util.isClean(f)) {
@@ -317,10 +317,10 @@ object Ack {
       val schedulerExpr = s
       val self = util.name("source")
 
-      val ContinueSymbol = c.symbolOf[Continue].companion
-      val CancelSymbol = c.symbolOf[Cancel].companion
-      val AckSymbol = c.symbolOf[Ack]
-      val FutureSymbol = c.symbolOf[Future[_]]
+      val ContinueSymbol = symbolOf[Continue].companion
+      val CancelSymbol = symbolOf[Cancel].companion
+      val AckSymbol = symbolOf[Ack]
+      val FutureSymbol = symbolOf[Future[_]]
 
       val tree =
         if (util.isClean(f))
@@ -371,7 +371,7 @@ object Ack {
     }
 
     private[monix] def sourceFrom[Source : c.WeakTypeTag](tree: Tree): c.Expr[Source] = {
-      val ackExtensions = c.symbolOf[AckExtensions[_]].name.toTermName
+      val ackExtensions = symbolOf[AckExtensions[_]].name.toTermName
       tree match {
         case Apply(TypeApply(Select(_, `ackExtensions`), _), List(expr)) =>
           c.Expr[Source](expr)
