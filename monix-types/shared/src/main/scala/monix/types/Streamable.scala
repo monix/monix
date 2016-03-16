@@ -17,14 +17,13 @@
 
 package monix.types
 
-import monix.types.internal.{DistinctByKeyState, DistinctState}
+import cats.{Eval, CoflatMap}
 import simulacrum.typeclass
-import scala.collection.immutable.Queue
 import scala.language.{higherKinds, implicitConversions}
 
 @typeclass trait Streamable[F[_]]
   extends MonadFilter[F] with MonadConsError[F,Throwable] with Recoverable[F, Throwable]
-  with Scannable[F] with FFoldable[F] with Zippable[F] {
+  with Scannable[F] with FFoldable[F] with Zippable[F] with CoflatMap[F] {
 
   /** Lifts any `Iterable` into a `Sequenceable` type. */
   def fromIterable[A](ia: Iterable[A]): F[A]
@@ -42,50 +41,19 @@ import scala.language.{higherKinds, implicitConversions}
     completed(fa)
 
   /** Creates a sequence that eliminates duplicates from the source. */
-  def distinct[A](fa: F[A]): F[A] = {
-    val set = scan(fa, Set.empty[A])((acc, elem) => acc + elem)
-    flatMap(set)(fromIterable)
-  }
+  def distinct[A](fa: F[A]): F[A]
 
   /** Creates a sequence that eliminates duplicates from the source,
     * as determined by the given selector function that returns keys
     * for comparison.
     */
-  def distinctByKey[A,Key](fa: F[A])(key: A => Key): F[A] = {
-    val scanned = scan(fa, (Queue.empty[A], Set.empty[Key])) { (acc, elem) =>
-      val (queue, set) = acc
-      val id = key(elem)
-      if (set(id)) acc else
-        (queue.enqueue(elem), set + id)
-    }
-
-    flatMap(map(scanned)(_._1))(fromIterable)
-  }
+  def distinctByKey[A,Key](fa: F[A])(key: A => Key): F[A]
 
   /** Suppress duplicate consecutive items emitted by the source. */
-  def distinctUntilChanged[A](fa: F[A]): F[A] = {
-    val scanned = scan(fa, null : DistinctState[A]) { (previous, elem) =>
-      if (previous == null || previous.state != elem)
-        DistinctState.Emit(elem)
-      else
-        DistinctState.Wait(elem)
-    }
-
-    collect(scanned) { case DistinctState.Emit(elem) => elem }
-  }
+  def distinctUntilChanged[A](fa: F[A]): F[A]
 
   /** Suppress duplicate consecutive items emitted by the source. */
-  def distinctUntilChangedByKey[A,Key](fa: F[A])(key: A => Key): F[A] = {
-    val scanned = scan(fa, null : DistinctByKeyState[A,Key]) { (previous, elem) =>
-      val newKey = key(elem)
-      if (previous == null || previous.key != newKey)
-        DistinctByKeyState.Emit(elem, newKey)
-      else
-        DistinctByKeyState.Wait(elem, newKey)
-    }
-
-    collect(scanned) { case DistinctByKeyState.Emit(elem,_) => elem }
-  }
+  def distinctUntilChangedByKey[A,Key](fa: F[A])(key: A => Key): F[A]
 
   /** Returns a new sequence that will drop a maximum of
     * `n` elements from the start of the source sequence.
@@ -106,9 +74,9 @@ import scala.language.{higherKinds, implicitConversions}
     take(fa, 1)
 
   /** Returns the first element in a sequence. */
-  def headOrElseF[A](fa: F[A])(default: => A): F[A] =
+  def headOrElseF[A](fa: F[A], default: Eval[A]): F[A] =
     map(foldLeftF(take(fa, 1), Option.empty[A])((_,a) => Some(a))) {
-      case None => default
+      case None => default.value
       case Some(a) => a
     }
 
@@ -116,8 +84,8 @@ import scala.language.{higherKinds, implicitConversions}
     *
     * Alias for [[headOrElseF]].
     */
-  def firstOrElseF[A](fa: F[A])(default: => A): F[A] =
-    headOrElseF(fa)(default)
+  def firstOrElseF[A](fa: F[A], default: Eval[A]): F[A] =
+    headOrElseF(fa, default)
 
   /** Returns the last element in a sequence. */
   def lastF[A](fa: F[A]): F[A] =
@@ -164,11 +132,11 @@ import scala.language.{higherKinds, implicitConversions}
 
   /** Ends the sequence with the given elements. */
   def endWith[A](fa: F[A])(elems: Seq[A]): F[A] =
-    followWith(fa)(fromIterable(elems))
+    followWith(fa, Eval.now(fromIterable(elems)))
 
   /** Starts the sequence with the given elements. */
   def startWith[A](fa: F[A])(elems: Seq[A]): F[A] =
-    followWith(fromIterable(elems))(fa)
+    followWith(fromIterable(elems), Eval.now(fa))
 
   /** Given an `Ordering` returns the maximum element of the source. */
   def maxF[A](fa: F[A])(implicit A: Ordering[A]): F[A] = {
@@ -219,4 +187,26 @@ import scala.language.{higherKinds, implicitConversions}
 
     collect(folded) { case Some((a,_)) => a }
   }
+
+  /** Check whether at least one element satisfies the predicate.
+    *
+    * If there are no elements, the result is `false`.
+    */
+  def existsF[A](fa: F[A])(p: A => Boolean): F[Boolean]
+
+  /** Find the first element matching the predicate, if one exists. */
+  def findOptF[A](fa: F[A])(p: A => Boolean): F[Option[A]]
+
+  /** Check whether all elements satisfies the predicate.
+    *
+    * If at least one element doesn't satisfy the predicate,
+    * the result is `false`.
+    */
+  def forAllF[A](fa: F[A])(p: A => Boolean): F[Boolean]
+
+  /** Checks if the source sequence is empty. */
+  def isEmptyF[A](fa: F[A]): F[Boolean]
+
+  /** Checks if the source sequence is non-empty. */
+  def nonEmptyF[A](fa: F[A]): F[Boolean]
 }

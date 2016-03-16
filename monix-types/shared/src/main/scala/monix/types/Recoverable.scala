@@ -17,6 +17,8 @@
 
 package monix.types
 
+import cats.Eval
+
 import scala.language.{higherKinds, implicitConversions}
 
 /** Enhancements for `MonadError`. */
@@ -39,8 +41,8 @@ trait Recoverable[F[_], E] extends MonadError[F, E] {
     onErrorRecoverWith(fa) { case ex if pf.isDefinedAt(ex) => pure(pf(ex)) }
 
   /** Mirrors the source, but if an error happens, then fallback to `other`. */
-  def onErrorFallbackTo[A](fa: F[A])(other: => F[A]): F[A] =
-    onErrorRecoverWith(fa) { case _ => other }
+  def onErrorFallbackTo[A](fa: F[A], other: Eval[F[A]]): F[A] =
+    onErrorRecoverWith(fa) { case _ => other.value }
 
   /** In case an error happens, keeps retrying iterating the source from the start
     * for `maxRetries` times.

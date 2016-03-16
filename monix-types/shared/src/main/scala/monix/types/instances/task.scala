@@ -19,19 +19,21 @@ package monix.types.instances
 
 import cats.Eval
 import monix.async.Task
-import monix.types.{Zippable, Recoverable, Nondeterminism}
+import monix.types.Async
 import scala.concurrent.duration.FiniteDuration
 
 object task extends TaskInstances
 
 trait TaskInstances {
   /** Type-class instances for [[monix.async.Task]]. */
-  implicit val taskInstances: Nondeterminism[Task] with Recoverable[Task,Throwable] with Zippable[Task] =
-    new Nondeterminism[Task] with Recoverable[Task,Throwable] with Zippable[Task] {
+  implicit val taskInstances: Async[Task] =
+    new Async[Task] {
       override def pure[A](x: A): Task[A] =
         Task.now(x)
       override def pureEval[A](x: Eval[A]): Task[A] =
         Task.eval(x.value)
+      override def delayedEval[A](delay: FiniteDuration, a: Eval[A]): Task[A] =
+        Task.eval(a.value).delayExecution(delay)
 
       override def firstStartedOf[A](seq: Seq[Task[A]]): Task[A] =
         Task.firstCompletedOf(seq:_*)
@@ -48,8 +50,8 @@ trait TaskInstances {
         fa.onErrorRecoverWith(pf)
       override def onErrorRecover[A](fa: Task[A])(pf: PartialFunction[Throwable, A]): Task[A] =
         fa.onErrorRecover(pf)
-      override def onErrorFallbackTo[A](fa: Task[A])(other: => Task[A]): Task[A] =
-        fa.onErrorFallbackTo(other)
+      override def onErrorFallbackTo[A](fa: Task[A], other: Eval[Task[A]]): Task[A] =
+        fa.onErrorFallbackTo(other.value)
       override def onErrorRetry[A](fa: Task[A], maxRetries: Long): Task[A] =
         fa.onErrorRetry(maxRetries)
       override def onErrorRetryIf[A](fa: Task[A])(p: (Throwable) => Boolean): Task[A] =
@@ -72,7 +74,7 @@ trait TaskInstances {
 
       override def timeout[A](fa: Task[A], timespan: FiniteDuration): Task[A] =
         fa.timeout(timespan)
-      override def timeoutTo[A](fa: Task[A], timespan: FiniteDuration, backup: => Task[A]): Task[A] =
-        fa.timeoutTo(timespan, backup)
+      override def timeoutTo[A](fa: Task[A], timespan: FiniteDuration, backup: Eval[Task[A]]): Task[A] =
+        fa.timeoutTo(timespan, backup.value)
     }
 }

@@ -17,6 +17,7 @@
 
 package monix.types
 
+import cats.Eval
 import scala.language.{higherKinds, implicitConversions}
 
 /** Type-class for monadic data-structures that can expose
@@ -46,5 +47,5 @@ trait MonadConsError[F[_],E] extends MonadCons[F] with Recoverable[F,E] {
 
   /** Mirrors the source, but ends it in error. */
   def endWithError[A](fa: F[A], error: E): F[A] =
-    followWith(fa)(raiseError(error))
+    followWith(fa, Eval.now(raiseError(error)))
 }

@@ -46,22 +46,6 @@ import scala.language.{higherKinds, implicitConversions}
   def countF[A](fa: F[A]): F[Long] =
     foldLeftF(fa, 0L)((acc,_) => acc + 1)
 
-  /** Check whether at least one element satisfies the predicate.
-    *
-    * If there are no elements, the result is `false`.
-    */
-  def existsF[A](fa: F[A])(p: A => Boolean): F[Boolean] =
-    foldLeftF(fa, false) { (acc, elem) => acc || p(elem) }
-
-  /** Find the first element matching the predicate, if one exists. */
-  def findOptF[A](fa: F[A])(p: A => Boolean): F[Option[A]] =
-    foldLeftF(fa, Option.empty[A]) {
-      (acc, elem) => acc match {
-        case None => if (p(elem)) Some(elem) else None
-        case ref @ Some(_) => ref
-      }
-    }
-
   /** Folds a `Monoid`. */
   def foldF[A](fa: F[A])(implicit A: Monoid[A]): F[A] =
     foldLeftF(fa, A.empty)(A.combine)
@@ -71,22 +55,6 @@ import scala.language.{higherKinds, implicitConversions}
     */
   def foldMapF[A, B](fa: F[A])(f: A => B)(implicit B: Monoid[B]): F[B] =
     foldLeftF(fa, B.empty)((b, a) => B.combine(b, f(a)))
-
-  /** Check whether all elements satisfies the predicate.
-    *
-    * If at least one element doesn't satisfy the predicate,
-    * the result is `false`.
-    */
-  def forAllF[A](fa: F[A])(p: A => Boolean): F[Boolean] =
-    foldLeftF(fa, true) { (acc, elem) => acc && p(elem) }
-
-  /** Checks if the source sequence is empty. */
-  def isEmptyF[A](fa: F[A]): F[Boolean] =
-    foldLeftF(fa, true)((_,_) => false)
-
-  /** Checks if the source sequence is non-empty. */
-  def nonEmptyF[A](fa: F[A]): F[Boolean] =
-    foldLeftF(fa, false)((_,_) => true)
 
   /** Given a sequence of numbers, calculates a sum. */
   def sumF[A](fa: F[A])(implicit A: Numeric[A]): F[A] =

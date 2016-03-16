@@ -17,13 +17,15 @@
 
 package monix.types
 
-import java.util.concurrent.TimeoutException
-
+import cats.Eval
 import simulacrum.typeclass
 import scala.concurrent.duration.FiniteDuration
 import scala.language.{higherKinds, implicitConversions}
 
-@typeclass trait Nondeterminism[F[_]] extends Recoverable[F, Throwable] {
+@typeclass trait Nondeterminism[F[_]] extends Monad[F] {
+  /** Builds an instance by evaluating the given expression with a delay applied. */
+  def delayedEval[A](delay: FiniteDuration, a: Eval[A]): F[A]
+
   /** Given a list of non-deterministic structures, mirrors the
     * first that manages to emit an element or that completes and
     * ignore or cancel the rest.
@@ -58,11 +60,5 @@ import scala.language.{higherKinds, implicitConversions}
   /** In case the given `timespan` passes without the source emitting any
     * signals, then switch to evaluating the `backup`.
     */
-  def timeoutTo[A](fa: F[A], timespan: FiniteDuration, backup: => F[A]): F[A]
-
-  /** Trigger a `TimeoutException` after the given `timespan` has passed without
-    * the source emitting anything.
-    */
-  def timeout[A](fa: F[A], timespan: FiniteDuration): F[A] =
-    timeoutTo(fa, timespan, raiseError(new TimeoutException))
+  def timeoutTo[A](fa: F[A], timespan: FiniteDuration, backup: Eval[F[A]]): F[A]
 }

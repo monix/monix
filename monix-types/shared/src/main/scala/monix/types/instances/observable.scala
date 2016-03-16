@@ -19,14 +19,14 @@ package monix.types.instances
 
 import _root_.cats.Eval
 import monix.reactive.Observable
-import monix.types.{Nondeterminism, Streamable}
+import monix.types.{Async, Streamable}
 import scala.concurrent.duration.FiniteDuration
 import scala.language.{higherKinds, implicitConversions}
 
 trait ObservableInstances {
   /** The [[Streamable]] type-class implemented for [[monix.reactive.Observable]]. */
-  val observableInstances: Streamable[Observable] with Nondeterminism[Observable] =
-    new Streamable[Observable] with Nondeterminism[Observable] {
+  val observableInstances: Async[Observable] with Async[Observable] =
+    new Streamable[Observable] with Async[Observable] {
       override def raiseError[A](e: Throwable): Observable[A] =
         Observable.error(e)
       override def pure[A](x: A): Observable[A] =
@@ -37,8 +37,10 @@ trait ObservableInstances {
         Observable.eval(x.value)
       override def empty[A]: Observable[A] =
         Observable.empty
-      override def cons[A](head: A, tail: => Observable[A]): Observable[A] =
-        Observable.cons(head, tail)
+      override def cons[A](head: A, tail: Eval[Observable[A]]): Observable[A] =
+        Observable.cons(head, tail.value)
+      override def delayedEval[A](delay: FiniteDuration, a: Eval[A]): Observable[A] =
+        Observable.eval(a.value)
 
       override def concatMap[A, B](fa: Observable[A])(f: (A) => Observable[B]): Observable[B] =
         fa.concatMap(f)
@@ -48,8 +50,8 @@ trait ObservableInstances {
         fa.concatMapDelayError(f)
       override def concatDelayError[A](ffa: Observable[Observable[A]]): Observable[A] =
         ffa.concatDelayError
-      override def followWith[A](fa: Observable[A])(other: => Observable[A]): Observable[A] =
-        Observable.concat(fa, Observable.defer(other))
+      override def followWith[A](fa: Observable[A], other: Eval[Observable[A]]): Observable[A] =
+        Observable.concat(fa, Observable.defer(other.value))
       override def startWith[A](fa: Observable[A])(elems: Seq[A]): Observable[A] =
         fa.startWith(elems)
       override def startWithElem[A](fa: Observable[A])(elem: A): Observable[A] =
@@ -75,8 +77,8 @@ trait ObservableInstances {
         fa.onErrorRecoverWith(pf)
       override def onErrorRecover[A](fa: Observable[A])(pf: PartialFunction[Throwable, A]): Observable[A] =
         fa.onErrorRecover(pf)
-      override def onErrorFallbackTo[A](fa: Observable[A])(other: => Observable[A]): Observable[A] =
-        fa.onErrorFallbackTo(other)
+      override def onErrorFallbackTo[A](fa: Observable[A], other: Eval[Observable[A]]): Observable[A] =
+        fa.onErrorFallbackTo(other.value)
       override def onErrorRetry[A](fa: Observable[A], maxRetries: Long): Observable[A] =
         fa.onErrorRetry(maxRetries)
       override def onErrorRetryIf[A](fa: Observable[A])(p: (Throwable) => Boolean): Observable[A] =
@@ -140,10 +142,10 @@ trait ObservableInstances {
         fa.distinctUntilChangedByKey(key)
       override def headF[A](fa: Observable[A]): Observable[A] =
         fa.headF
-      override def headOrElseF[A](fa: Observable[A])(default: => A): Observable[A] =
-        fa.headOrElseF(default)
-      override def firstOrElseF[A](fa: Observable[A])(default: => A): Observable[A] =
-        fa.headOrElseF(default)
+      override def headOrElseF[A](fa: Observable[A], default: Eval[A]): Observable[A] =
+        fa.headOrElseF(default.value)
+      override def firstOrElseF[A](fa: Observable[A], default: Eval[A]): Observable[A] =
+        fa.headOrElseF(default.value)
       override def lastF[A](fa: Observable[A]): Observable[A] =
         fa.lastF
       override def tail[A](fa: Observable[A]): Observable[A] =
@@ -193,8 +195,13 @@ trait ObservableInstances {
 
       override def timeout[A](fa: Observable[A], timespan: FiniteDuration): Observable[A] =
         fa.timeoutOnSlowUpstream(timespan)
-      override def timeoutTo[A](fa: Observable[A], timespan: FiniteDuration, backup: => Observable[A]): Observable[A] =
-        fa.timeoutOnSlowUpstreamTo(timespan, backup)
+      override def timeoutTo[A](fa: Observable[A], timespan: FiniteDuration, backup: Eval[Observable[A]]): Observable[A] =
+        fa.timeoutOnSlowUpstreamTo(timespan, backup.value)
+
+      override def coflatMap[A, B](fa: Observable[A])(f: (Observable[A]) => B): Observable[B] =
+        Observable.eval(f(fa))
+      override def coflatten[A](fa: Observable[A]): Observable[Observable[A]] =
+        Observable.now(fa)
     }
 }
 
