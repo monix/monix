@@ -147,7 +147,7 @@ lazy val unidocSettings = baseUnidocSettings ++ Seq(
   scalacOptions in (ScalaUnidoc, unidoc) +=
     "-Ymacro-expand:none",
   scalacOptions in (ScalaUnidoc, unidoc) ++=
-    Opts.doc.title(s"Sincron"),
+    Opts.doc.title(s"Monix"),
   scalacOptions in (ScalaUnidoc, unidoc) ++=
     Opts.doc.sourceUrl(s"https://github.com/monixio/monix/tree/v${version.value}€{FILE_PATH}.scala"),
   scalacOptions in (ScalaUnidoc, unidoc) ++=
