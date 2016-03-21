@@ -18,12 +18,10 @@
 package monix.reactive.internal.operators
 
 import minitest.TestSuite
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.Continue
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
-import monix.reactive.exceptions.DummyException
 import monix.reactive.observers.Subscriber
-import scala.concurrent.Future
 import scala.concurrent.duration._
 
 object DoOnCancelSuite extends TestSuite[TestScheduler] {
@@ -33,111 +31,45 @@ object DoOnCancelSuite extends TestSuite[TestScheduler] {
       "TestScheduler should have no pending tasks")
   }
 
-  test("should execute for synchronous subscribers") { implicit s =>
+  test("should work") { implicit s =>
     var wasCanceled = 0
     var wasCompleted = 0
 
-    Observable.now(1).doOnCancel(wasCanceled += 1)
-      .unsafeSubscribeFn(new Subscriber[Int] {
-        val scheduler = s
-        def onNext(elem: Int) = Cancel
-        def onError(ex: Throwable): Unit = ()
-        def onComplete(): Unit = wasCompleted += 1
-      })
-
-    assertEquals(wasCanceled, 1)
-    assertEquals(wasCompleted, 1)
-  }
-
-  test("should execute for asynchronous subscribers") { implicit s =>
-    var wasCanceled = 0
-    var wasCompleted = 0
-
-    Observable.now(1).doOnCancel(wasCanceled += 1)
-      .unsafeSubscribeFn(new Subscriber[Int] {
-        val scheduler = s
-        def onNext(elem: Int) = Future(Cancel)
-        def onError(ex: Throwable): Unit = ()
-        def onComplete(): Unit = wasCompleted += 1
-      })
-
-    s.tick()
-    assertEquals(wasCanceled, 1)
-    assertEquals(wasCompleted, 1)
-  }
-
-  test("should not execute if cancel does not happen") { implicit s =>
-    var wasCanceled = 0
-    var wasCompleted = 0
-
-    Observable.range(0,10).doOnCancel(wasCanceled += 1)
-      .unsafeSubscribeFn(new Subscriber[Long] {
-        val scheduler = s
-        def onNext(elem: Long): Future[Continue] =
-          if (elem % 2 == 0) Continue else Future(Continue)
-
-        def onError(ex: Throwable): Unit = ()
-        def onComplete(): Unit = wasCompleted += 1
-      })
-
-    s.tick()
-    assertEquals(wasCanceled, 0)
-    assertEquals(wasCompleted, 1)
-  }
-
-  test("should stream onError") { implicit s =>
-    val dummy = DummyException("ex")
-    var wasCanceled = 0
-    var wasCompleted = 0
-    var errorThrown: Throwable = null
-
-    Observable.error(dummy).doOnCancel(wasCanceled += 1)
-      .unsafeSubscribeFn(new Subscriber[Long] {
-        val scheduler = s
-        def onNext(elem: Long): Future[Continue] =
-          if (elem % 2 == 0) Continue else Future(Continue)
-
-        def onError(ex: Throwable): Unit =
-          errorThrown = ex
-        def onComplete(): Unit =
-          wasCompleted += 1
-      })
-
-    s.tick()
-    assertEquals(wasCanceled, 0)
-    assertEquals(wasCompleted, 0)
-    assertEquals(errorThrown, dummy)
-  }
-
-  test("should be cancelable from outside") { implicit s =>
-    var wasCanceled = 0
-    val cancelable = Observable.now(1).delayOnNext(1.second)
+    val c = Observable.now(1).delaySubscription(1.second)
       .doOnCancel(wasCanceled += 1)
-      .subscribe()
+      .unsafeSubscribeFn(new Subscriber[Int] {
+        val scheduler = s
+        def onNext(elem: Int) = Continue
+        def onError(ex: Throwable): Unit = ()
+        def onComplete(): Unit = wasCompleted += 1
+      })
 
-    s.tick()
-    assert(s.state.get.tasks.nonEmpty, "tasks.nonEmpty")
+    assertEquals(wasCanceled, 0)
 
-    cancelable.cancel()
-    assert(s.state.get.tasks.isEmpty, "tasks.isEmpty")
+    c.cancel()
     assertEquals(wasCanceled, 1)
+    assertEquals(wasCompleted, 0)
+    assert(s.state.get.tasks.isEmpty, "tasks.isEmpty")
   }
 
   test("should protect against user code") { implicit s =>
-    val dummy = DummyException("dummy")
-    var hasError = false
+    var wasCanceled = 0
+    var wasCompleted = 0
 
-    Observable.now(1).doOnCancel(throw dummy)
+    val c = Observable.now(1).delaySubscription(1.second)
+      .doOnCancel(wasCanceled += 1)
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
-
-        def onNext(elem: Int) = Cancel
-        def onError(ex: Throwable) = hasError = true
-        def onComplete() = ()
+        def onNext(elem: Int) = Continue
+        def onError(ex: Throwable): Unit = ()
+        def onComplete(): Unit = wasCompleted += 1
       })
 
-    s.tick()
-    assertEquals(s.state.get.lastReportedError, dummy)
-    assertEquals(hasError, false)
+    assertEquals(wasCanceled, 0)
+
+    c.cancel()
+    assertEquals(wasCanceled, 1)
+    assertEquals(wasCompleted, 0)
+    assert(s.state.get.tasks.isEmpty, "tasks.isEmpty")
   }
 }

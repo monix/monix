@@ -20,7 +20,7 @@ package monix.reactive.internal.operators
 import minitest.TestSuite
 import monix.async.FutureUtils
 import monix.execution.Ack
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import FutureUtils.extensions._
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.exceptions.DummyException
@@ -325,9 +325,9 @@ abstract class BaseOperatorSuite extends TestSuite[TestScheduler] {
         var received = 0
 
         o.unsafeSubscribeFn(new Observer[Long] {
-          def onNext(elem: Long): Cancel = {
+          def onNext(elem: Long): Stop = {
             received += 1
-            Cancel
+            Stop
           }
 
           def onError(ex: Throwable): Unit = ()

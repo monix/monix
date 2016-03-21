@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.builders
 
-import monix.execution.Ack.{Continue, Cancel}
+import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.{Cancelable, Ack, Scheduler}
 import monix.reactive.Observable
@@ -102,7 +102,7 @@ class IteratorAsObservable[T](iterator: Iterator[T]) extends Observable[T] {
     else {
       val nextIndex =
         if (ack == Continue) (syncIndex + 1) & modulus
-        else if (ack == Cancel) -1
+        else if (ack == Stop) -1
         else 0
 
       if (nextIndex > 0)

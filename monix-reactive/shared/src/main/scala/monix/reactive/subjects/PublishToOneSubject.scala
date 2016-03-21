@@ -17,7 +17,7 @@
 
 package monix.reactive.subjects
 
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.{Cancelable, Ack, Scheduler}
 import monix.reactive.exceptions.MultipleSubscribersException
@@ -47,7 +47,7 @@ final class PublishToOneSubject[A] private () extends Subject[A,A] with BooleanC
   private[this] val ref = Atomic(null : Subscriber[A])
 
   /** A `Future` that signals when the subscription happened
-    * with a `Continue`, or with a `Cancel` if the subscription
+    * with a `Continue`, or with a `Stop` if the subscription
     * happened but the subject was already completed.
     */
   val subscription = subscriptionP.future
@@ -67,11 +67,11 @@ final class PublishToOneSubject[A] private () extends Subject[A,A] with BooleanC
           unsafeSubscribeFn(subscriber)
         else if (errorThrown != null) {
           subscriber.onError(errorThrown)
-          subscriptionP.success(Cancel)
+          subscriptionP.success(Stop)
           Cancelable.empty
         } else {
           subscriber.onComplete()
-          subscriptionP.success(Cancel)
+          subscriptionP.success(Stop)
           Cancelable.empty
         }
 
@@ -129,7 +129,7 @@ object PublishToOneSubject {
     implicit def scheduler: Scheduler =
       throw new IllegalStateException("EmptySubscriber.scheduler")
 
-    def onNext(elem: A): Cancel = Cancel
+    def onNext(elem: A): Stop = Stop
     def onError(ex: Throwable): Unit = ()
     def onComplete(): Unit = ()
   }

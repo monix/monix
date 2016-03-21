@@ -17,35 +17,28 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack.Stop
-import monix.reactive.observables.ObservableLike
-import ObservableLike.Operator
+import monix.execution.Cancelable
+import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
-private[reactive] object IsEmptyOperator extends Operator[Any,Boolean] {
-  def apply(out: Subscriber[Boolean]): Subscriber[Any] =
-    new Subscriber[Any] {
-      implicit val scheduler = out.scheduler
-      private[this] var isDone = false
-      private[this] var isEmpty = true
+import scala.util.control.NonFatal
 
-      def onNext(elem: Any): Stop = {
-        isEmpty = false
-        onComplete()
-        Stop
+private[reactive] final
+class DoWorkOnSubscriptionCancelObservable[+A](source: Observable[A], cb: => Unit)
+  extends Observable[A] {
+
+  def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
+    val subscription = source.unsafeSubscribeFn(subscriber)
+
+    Cancelable(() => {
+      // First cancel the source
+      try subscription.cancel() finally {
+        // Then execute the callback, protected
+        try cb catch {
+          case NonFatal(ex) =>
+            subscriber.scheduler.reportFailure(ex)
+        }
       }
-
-      def onError(ex: Throwable): Unit =
-        if (!isDone) {
-          isDone = true
-          out.onError(ex)
-        }
-
-      def onComplete(): Unit =
-        if (!isDone) {
-          isDone = true
-          out.onNext(isEmpty)
-          out.onComplete()
-        }
-    }
+    })
+  }
 }

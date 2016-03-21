@@ -17,7 +17,7 @@
 
 package monix.reactive.observers
 
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.reactive.Observable
 import scala.collection.mutable
@@ -121,9 +121,9 @@ final class ConnectableSubscriber[-T] private (underlying: Subscriber[T])
               queue = null
               connectionRef = Cancelable.empty
 
-            case Cancel =>
+            case Stop =>
               wasCanceled = true
-              connectedPromise.success(Cancel)
+              connectedPromise.success(Stop)
               isConnected = true
               // GC relief
               queue = null
@@ -131,7 +131,7 @@ final class ConnectableSubscriber[-T] private (underlying: Subscriber[T])
           }
 
           def onNext(elem: T): Future[Ack] = {
-            ack = underlying.onNext(elem).syncOnCancelFollow(bufferWasDrained, Cancel)
+            ack = underlying.onNext(elem).syncOnStopFollow(bufferWasDrained, Stop)
             ack
           }
 
@@ -140,10 +140,10 @@ final class ConnectableSubscriber[-T] private (underlying: Subscriber[T])
               ack.syncOnContinue(bufferWasDrained.trySuccess(Continue))
             }
             else if (scheduledError ne null) {
-              if (bufferWasDrained.trySuccess(Cancel))
+              if (bufferWasDrained.trySuccess(Stop))
                 underlying.onError(scheduledError)
             }
-            else if (bufferWasDrained.trySuccess(Cancel))
+            else if (bufferWasDrained.trySuccess(Stop))
               underlying.onComplete()
           }
 
@@ -154,7 +154,7 @@ final class ConnectableSubscriber[-T] private (underlying: Subscriber[T])
               scheduledDone = true
               scheduledError = ex
 
-              if (bufferWasDrained.trySuccess(Cancel))
+              if (bufferWasDrained.trySuccess(Stop))
                 underlying.onError(ex)
               else
                 scheduler.reportFailure(ex)
@@ -219,7 +219,7 @@ final class ConnectableSubscriber[-T] private (underlying: Subscriber[T])
       // onNext / onComplete, which are non-concurrent clauses
       connectedFuture = connectedFuture.flatMap {
         case Continue => underlying.onNext(elem)
-        case Cancel => Cancel
+        case Stop => Stop
       }
       connectedFuture
     }
@@ -230,7 +230,7 @@ final class ConnectableSubscriber[-T] private (underlying: Subscriber[T])
     else {
       // was canceled either during connect, or the upstream publisher
       // sent an onNext event after onComplete / onError
-      Cancel
+      Stop
     }
   }
 

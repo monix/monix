@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.builders
 
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.reactive.Observable
 import monix.reactive.internal.builders.UnsafeCreateObservable.SafeSubscriber
@@ -48,18 +48,18 @@ private[reactive] object UnsafeCreateObservable {
     private[this] var isDone = false
 
     def onNext(elem: A): Future[Ack] =
-      if (isDone) Cancel else {
+      if (isDone) Stop else {
         val ack = try underlying.onNext(elem) catch {
           case NonFatal(ex) =>
             self.onError(ex)
-            Cancel
+            Stop
         }
 
         if (ack eq Continue)
           Continue
-        else if (ack eq Cancel) {
+        else if (ack eq Stop) {
           isDone = true
-          Cancel
+          Stop
         }
         else
           ack

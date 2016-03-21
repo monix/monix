@@ -19,7 +19,7 @@ package monix.reactive.internal.operators
 
 import java.util.concurrent.TimeUnit
 
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.execution.cancelables.{CompositeCancelable, MultiAssignmentCancelable, SingleAssignmentCancelable}
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
@@ -63,7 +63,7 @@ class EchoObservable[+A](source: Observable[A], timeout: FiniteDuration, onlyOnc
           self.synchronized {
             isDone = true
             mainTask.cancel()
-            Cancel
+            Stop
           }
 
         self.synchronized {
@@ -100,7 +100,7 @@ class EchoObservable[+A](source: Observable[A], timeout: FiniteDuration, onlyOnc
 
               // this call is actually synchronous because we're testing
               // for ack.isCompleted above, but doing it nonetheless because
-              // of safety and because last ack might have been a Cancel
+              // of safety and because last ack might have been a Stop
               ack = ack.syncTryFlatten.syncFlatMap {
                 case Continue =>
                   out.onNext(lastEvent).syncFlatMap {
@@ -115,10 +115,10 @@ class EchoObservable[+A](source: Observable[A], timeout: FiniteDuration, onlyOnc
                       scheduleNext(delay)
                       Continue
 
-                    case Cancel =>
+                    case Stop =>
                       cancelMainTask()
                   }
-                case Cancel =>
+                case Stop =>
                   cancelMainTask()
               }
             }
@@ -142,22 +142,22 @@ class EchoObservable[+A](source: Observable[A], timeout: FiniteDuration, onlyOnc
         def signalNext(ack: Future[Ack]): Future[Ack] =
           ack match {
             case Continue =>
-              if (isDone) Cancel else
+              if (isDone) Stop else
                 out.onNext(elem) match {
                   case Continue => unfreeze()
-                  case Cancel => Cancel
+                  case Stop => Stop
                   case async => async.flatMap {
                     case Continue => self.synchronized(unfreeze())
-                    case Cancel => Cancel
+                    case Stop => Stop
                   }
                 }
-            case Cancel => Cancel
+            case Stop => Stop
             case async =>
               async.flatMap(signalNext)
           }
 
         self.synchronized {
-          if (isDone) Cancel else {
+          if (isDone) Stop else {
             lastEvent = elem
             ack = signalNext(ack.syncTryFlatten)
             ack
@@ -175,22 +175,22 @@ class EchoObservable[+A](source: Observable[A], timeout: FiniteDuration, onlyOnc
         }
 
       def onComplete(): Unit = {
-        def signal(): Cancel = {
+        def signal(): Stop = {
           if (!isDone) {
             isDone = true
             task.cancel()
             out.onComplete()
           }
-          Cancel
+          Stop
         }
 
         self.synchronized {
           ack = ack.syncTryFlatten match {
-            case Cancel => Cancel
+            case Stop => Stop
             case Continue => signal()
             case async => async.flatMap {
               case Continue => self.synchronized(signal())
-              case Cancel => Cancel
+              case Stop => Stop
             }
           }
         }

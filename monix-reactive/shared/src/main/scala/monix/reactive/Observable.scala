@@ -18,7 +18,7 @@
 package monix.reactive
 
 import monix.async.{CancelableFuture, Task}
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.execution._
 import monix.execution.cancelables.SingleAssignmentCancelable
 import monix.reactive.observables.ObservableLike.{Operator, Transformer}
@@ -280,9 +280,9 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
         implicit val scheduler: Scheduler = s
         private[this] var isDone = false
 
-        def onNext(elem: A): Cancel = {
+        def onNext(elem: A): Stop = {
           cb.onSuccess(Some(elem))
-          Cancel
+          Stop
         }
 
         def onError(ex: Throwable): Unit =
@@ -324,10 +324,10 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
           implicit val scheduler = s
           private[this] var isDone = false
 
-          def onNext(elem: S): Cancel = {
+          def onNext(elem: S): Stop = {
             isDone = true
             cb.onSuccess(elem)
-            Cancel
+            Stop
           }
 
           def onError(ex: Throwable): Unit =
@@ -391,7 +391,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
         } catch {
           case NonFatal(ex) =>
             onError(ex)
-            Cancel
+            Stop
         }
 
       def onComplete(): Unit = ()

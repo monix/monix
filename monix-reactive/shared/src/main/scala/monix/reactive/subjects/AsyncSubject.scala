@@ -17,7 +17,7 @@
 
 package monix.reactive.subjects
 
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.observers.Subscriber
 import monix.reactive.subjects.PublishSubject.State
@@ -42,7 +42,7 @@ final class AsyncSubject[T] extends Subject[T,T] { self =>
   private[this] var cachedElem: T = _
 
   def onNext(elem: T): Ack = {
-    if (stateRef.get.isDone) Cancel else {
+    if (stateRef.get.isDone) Stop else {
       if (!onNextHappened) onNextHappened = true
       cachedElem = elem
       Continue

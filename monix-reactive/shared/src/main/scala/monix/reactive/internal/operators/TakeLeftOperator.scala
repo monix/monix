@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack.Cancel
+import monix.execution.Ack.Stop
 import monix.reactive.observables.ObservableLike
 import ObservableLike.Operator
 import monix.reactive.observers.{SyncSubscriber, Subscriber}
@@ -34,9 +34,9 @@ private[reactive] final class TakeLeftOperator[A](n: Long)
       implicit val scheduler = out.scheduler
       private[this] var isDone = false
 
-      def onNext(elem: A): Cancel = {
+      def onNext(elem: A): Stop = {
         onComplete()
-        Cancel
+        Stop
       }
 
       def onError(ex: Throwable): Unit =
@@ -74,12 +74,12 @@ private[reactive] final class TakeLeftOperator[A](n: Long)
 
             out.onNext(elem)
             out.onComplete()
-            Cancel
+            Stop
           }
         } else {
           // we already emitted the maximum number of events, so signal upstream
           // to the producer that it should stop sending events
-          Cancel
+          Stop
         }
       }
 

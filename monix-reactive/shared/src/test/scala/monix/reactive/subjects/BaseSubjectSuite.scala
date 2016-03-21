@@ -18,7 +18,7 @@
 package monix.reactive.subjects
 
 import minitest.TestSuite
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.exceptions.DummyException
 import monix.reactive.{Observable, Observer}
@@ -217,17 +217,17 @@ trait BaseSubjectSuite extends TestSuite[TestScheduler] {
     val Sample(subject, _) = alreadyTerminatedTest(Seq.empty)
     subject.onComplete()
 
-    assertEquals(subject.onNext(1), Cancel)
-    assertEquals(subject.onNext(2), Cancel)
-    assertEquals(subject.onNext(2), Cancel)
+    assertEquals(subject.onNext(1), Stop)
+    assertEquals(subject.onNext(2), Stop)
+    assertEquals(subject.onNext(2), Stop)
   }
 
   test("should protect onNext after onError") { implicit s =>
     val Sample(subject, _) = alreadyTerminatedTest(Seq.empty)
     subject.onError(DummyException("dummy"))
 
-    assertEquals(subject.onNext(1), Cancel)
-    assertEquals(subject.onNext(2), Cancel)
-    assertEquals(subject.onNext(2), Cancel)
+    assertEquals(subject.onNext(1), Stop)
+    assertEquals(subject.onNext(2), Stop)
+    assertEquals(subject.onNext(2), Stop)
   }
 }

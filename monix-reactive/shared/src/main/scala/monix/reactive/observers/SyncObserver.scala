@@ -30,7 +30,7 @@ import monix.reactive.Observer
 trait SyncObserver[-T] extends Observer[T] {
   /**
     * Returns either a [[monix.execution.Ack.Continue Continue]] or a
-    * [[monix.execution.Ack.Cancel Cancel]], in response to an `elem` event
+    * [[monix.execution.Ack.Stop Stop]], in response to an `elem` event
     * being received.
     */
   def onNext(elem: T): Ack

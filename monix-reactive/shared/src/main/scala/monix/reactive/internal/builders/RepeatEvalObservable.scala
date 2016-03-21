@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.builders
 
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.{Cancelable, Scheduler, Ack}
 import monix.reactive.Observable
@@ -46,7 +46,7 @@ private[reactive] final class RepeatEvalObservable[+A](eval: => A)
       case Failure(ex) =>
         s.reportFailure(ex)
       case _ =>
-        () // this was a Cancel, do nothing
+        () // this was a Stop, do nothing
     }
 
   @tailrec
@@ -60,7 +60,7 @@ private[reactive] final class RepeatEvalObservable[+A](eval: => A)
 
     val nextIndex =
       if (ack == Continue) (syncIndex + 1) & modulus
-      else if (ack == Cancel) -1
+      else if (ack == Stop) -1
       else 0
 
     if (nextIndex > 0)

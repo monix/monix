@@ -17,7 +17,7 @@
 
 package monix.reactive.subjects
 
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.internal.util.PromiseCounter
@@ -73,7 +73,7 @@ final class BehaviorSubject[T] private (initialValue: T)
   def onNext(elem: T): Future[Ack] = {
     val state = stateRef.get
 
-    if (state.isDone) Cancel else {
+    if (state.isDone) Stop else {
       val newState = state.cacheElem(elem)
       if (!stateRef.compareAndSet(state, newState)) {
         onNext(elem) // retry

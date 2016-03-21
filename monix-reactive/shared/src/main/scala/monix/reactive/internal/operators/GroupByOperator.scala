@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.reactive.observables.{ObservableLike, GroupedObservable}
 import ObservableLike.Operator
@@ -53,7 +53,7 @@ private[reactive] final class GroupByOperator[A,K](
         onNext(elem)
 
       @tailrec def onNext(elem: A): Future[Ack] =
-        if (isDone) Cancel else {
+        if (isDone) Stop else {
           val cache = cacheRef.get
           var streamError = true
 
@@ -68,7 +68,7 @@ private[reactive] final class GroupByOperator[A,K](
               // returns `Continue` or the cache no longer has our key.
               cache(key).onNext(elem).syncFlatMap {
                 case Continue => Continue
-                case Cancel => retryOnNext(elem)
+                case Stop => retryOnNext(elem)
               }
             } else {
               val onCancel = Cancelable(() => recycleKey(key))
@@ -81,11 +81,11 @@ private[reactive] final class GroupByOperator[A,K](
                     // pushing the first element
                     observer.onNext(elem).syncMap(_ => Continue)
 
-                  case Cancel =>
+                  case Stop =>
                     val errors = completeAll()
                     if (errors.nonEmpty)
                       self.onError(CompositeException(errors))
-                    Cancel
+                    Stop
                 }
               else
                 null // this will trigger a tailrec retry
@@ -93,7 +93,7 @@ private[reactive] final class GroupByOperator[A,K](
           } catch {
             case NonFatal(ex) if streamError =>
               self.onError(ex)
-              Cancel
+              Stop
           }
 
           if (result == null)

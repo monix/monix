@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.execution.cancelables.{CompositeCancelable, SingleAssignmentCancelable}
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
@@ -38,11 +38,11 @@ private[reactive] final class DropUntilObservable[A](source: Observable[A], trig
       private[this] var errorThrown: Throwable = null
       @volatile private[this] var shouldDrop = true
 
-      private[this] def interruptDropMode(ex: Throwable = null): Cancel = {
+      private[this] def interruptDropMode(ex: Throwable = null): Stop = {
         // must happen before changing shouldDrop
         errorThrown = ex
         shouldDrop = false
-        Cancel
+        Stop
       }
 
       locally {
@@ -57,15 +57,15 @@ private[reactive] final class DropUntilObservable[A](source: Observable[A], trig
 
       def onNext(elem: A): Future[Ack] = {
         if (!isActive)
-          Cancel
+          Stop
         else if (shouldDrop)
           Continue
         else if (errorThrown != null) {
           onError(errorThrown)
-          Cancel
+          Stop
         } else {
           out.onNext(elem)
-            .syncOnCancelOrFailure(task.cancel())
+            .syncOnStopOrFailure(task.cancel())
         }
       }
 

@@ -20,7 +20,7 @@ package monix.reactive.internal.builders
 import java.util.concurrent.TimeUnit
 
 import monix.execution.{Cancelable, Ack}
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.execution.cancelables.MultiAssignmentCancelable
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
@@ -70,7 +70,7 @@ private[reactive] final class IntervalFixedRateObservable
 
         if (ack == Continue)
           scheduleNext()
-        else if (ack != Cancel)
+        else if (ack != Stop)
           asyncScheduleNext(ack)
       }
     }

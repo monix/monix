@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.execution.cancelables.{CompositeCancelable, SingleAssignmentCancelable}
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
@@ -49,7 +49,7 @@ private[reactive] final class ThrottleLastObservable[+A, S](
         private[this] var downstreamIsDone = false
 
         def onNext(elem: A): Ack =
-          if (downstreamIsDone) Cancel else {
+          if (downstreamIsDone) Stop else {
             lastValue = elem
             hasValue = true
             Continue
@@ -85,11 +85,11 @@ private[reactive] final class ThrottleLastObservable[+A, S](
             }
 
           def signalNext(): Future[Ack] =
-            if (downstreamIsDone) Cancel else {
+            if (downstreamIsDone) Stop else {
               val next = if (!hasValue) Continue else {
                 hasValue = shouldRepeatOnSilence
                 val ack = downstream.onNext(lastValue)
-                ack.syncOnCancelOrFailure {
+                ack.syncOnStopOrFailure {
                   downstreamIsDone = true
                   upstreamSubscription.cancel()
                 }
@@ -98,8 +98,8 @@ private[reactive] final class ThrottleLastObservable[+A, S](
               if (!upstreamIsDone) next else {
                 downstreamIsDone = true
                 upstreamSubscription.cancel()
-                if (next ne Cancel) downstream.onComplete()
-                Cancel
+                if (next ne Stop) downstream.onComplete()
+                Stop
               }
             }
         })

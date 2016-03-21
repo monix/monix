@@ -19,7 +19,7 @@ package monix.reactive.observers.buffers
 
 import java.util.concurrent.ConcurrentLinkedQueue
 import monix.execution.Ack
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.reactive.observers.buffers.DropNewBufferedSubscriber.State
 import monix.reactive.observers.{Subscriber, BufferedSubscriber, SyncSubscriber}
 import scala.annotation.tailrec
@@ -54,7 +54,7 @@ private[buffers] final class DropNewBufferedSubscriber[-T] private
   def onNext(elem: T): Ack = {
     val state = stateRef.get
     // if upstream has completed or downstream canceled, we should cancel
-    if (state.upstreamShouldStop) Cancel else {
+    if (state.upstreamShouldStop) Stop else {
       // itemsToPush is our current count of active (unprocessed) events
       // and if it exceeds the bufferSize, then we've got an overflow
       if (state.itemsToPush >= bufferSize) {
@@ -89,7 +89,7 @@ private[buffers] final class DropNewBufferedSubscriber[-T] private
           if (shouldContinue)
             onNext(elem)
           else
-            Cancel
+            Stop
         }
       }
       else {
@@ -243,7 +243,7 @@ private[buffers] final class DropNewBufferedSubscriber[-T] private
           if (nextIndex > 0) {
             if (ack == Continue || ack.value.get == Continue.AsSuccess)
               fastLoop(state, processed + 1, nextIndex)
-            else if (ack == Cancel || ack.value.get == Cancel.AsSuccess) {
+            else if (ack == Stop || ack.value.get == Stop.AsSuccess) {
               // ending loop
               stateRef.transformAndGet(_.downstreamComplete)
             }
@@ -258,7 +258,7 @@ private[buffers] final class DropNewBufferedSubscriber[-T] private
               // re-run loop (in different thread)
               rescheduled(processed + 1)
 
-            case Cancel.AsSuccess =>
+            case Stop.AsSuccess =>
               // ending loop
               stateRef.transformAndGet(_.downstreamComplete)
 

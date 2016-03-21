@@ -18,48 +18,35 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack
-import monix.execution.Ack.{Stop, Continue}
-import monix.reactive.observables.ObservableLike
-import ObservableLike.Operator
+import monix.execution.Ack.{Continue, Stop}
+import monix.reactive.observables.ObservableLike.Operator
 import monix.reactive.observers.Subscriber
-
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 
 private[reactive] final
-class FoldLeftOperator[A,R](initial: R, f: (R,A) => R)
-  extends Operator[A,R] {
+class DoWorkOnDownstreamStopOperator[A](callback: => Unit) extends Operator[A,A] {
 
-  def apply(out: Subscriber[R]): Subscriber[A] =
+  def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
       implicit val scheduler = out.scheduler
-      private[this] var isDone = false
-      private[this] var state = initial
+
+      private def execute(): Unit =
+        try callback catch { case NonFatal(ex) => out.scheduler.reportFailure(ex) }
 
       def onNext(elem: A): Future[Ack] = {
-        // Protects calls to user code from within the operator,
-        // as a matter of contract.
-        try {
-          state = f(state, elem)
-          Continue
-        } catch {
-          case NonFatal(ex) =>
-            onError(ex)
-            Stop
+        val ack = out.onNext(elem)
+        if (ack eq Continue) Continue
+        else if (ack eq Stop) {
+          execute()
+          Stop
+        } else {
+          ack.onComplete(result => if (result.isFailure || (result.get eq Stop)) execute())
+          ack
         }
       }
 
-      def onComplete(): Unit =
-        if (!isDone) {
-          isDone = true
-          out.onNext(state)
-          out.onComplete()
-        }
-
-      def onError(ex: Throwable): Unit =
-        if (!isDone) {
-          isDone = true
-          out.onError(ex)
-        }
+      def onError(ex: Throwable): Unit = out.onError(ex)
+      def onComplete(): Unit = out.onComplete()
     }
 }

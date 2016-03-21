@@ -20,7 +20,7 @@ package monix.reactive.internal.builders
 import java.util.concurrent.TimeUnit
 import monix.execution.cancelables.MultiAssignmentCancelable
 import monix.execution.{Cancelable, Ack}
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.concurrent.duration.FiniteDuration
@@ -74,7 +74,7 @@ class RepeatedValueObservable[T](initialDelay: FiniteDuration, period: FiniteDur
         val ack = subscriber.onNext(unit)
         if (ack == Continue)
           syncScheduleNext()
-        else if (ack != Cancel)
+        else if (ack != Stop)
           ack.onComplete(asyncScheduleNext)
       }
     }

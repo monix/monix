@@ -18,7 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.reactive.subjects.PublishSubject
 import monix.reactive.{Observable, Observer}
 import scala.concurrent.Future
@@ -75,7 +75,7 @@ object GroupBySuite extends BaseOperatorSuite {
 
     obs.unsafeSubscribeFn(new Observer[Int] {
       def onNext(elem: Int): Future[Ack] =
-        if (nextShouldCancel) Cancel else {
+        if (nextShouldCancel) Stop else {
           received += elem
           Continue
         }

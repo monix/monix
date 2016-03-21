@@ -18,7 +18,7 @@
 package monix.reactive.internal.reactivestreams
 
 import minitest.TestSuite
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.{Observable, Observer}
 import scala.concurrent.Future
@@ -157,7 +157,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
           Continue
         else if (received == 10) {
           completed -= 1
-          Cancel
+          Stop
         }
         else
           throw new IllegalStateException(s"onNext($elem)")
@@ -197,7 +197,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
           Continue
         else if (received == 10) {
           completed -= 1
-          Cancel
+          Stop
         }
         else
           throw new IllegalStateException(s"onNext($elem)")
@@ -233,7 +233,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
         received += 1
         sum += elem
         completed -= 1
-        Cancel
+        Stop
       }
 
       def onError(ex: Throwable): Unit = {
@@ -266,7 +266,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
         received += 1
         sum += elem
         completed -= 1
-        Cancel
+        Stop
       }
 
       def onError(ex: Throwable): Unit = {

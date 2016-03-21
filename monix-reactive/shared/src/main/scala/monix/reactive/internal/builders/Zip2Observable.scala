@@ -19,7 +19,7 @@ package monix.reactive.internal.builders
 
 import monix.execution.cancelables.CompositeCancelable
 import monix.execution.{Cancelable, Ack}
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.concurrent.{Promise, Future}
@@ -55,7 +55,7 @@ class Zip2Observable[A1,A2,+R]
 
     // MUST BE synchronized by `self`
     def rawOnNext(a1: A1, a2: A2): Future[Ack] =
-      if (isDone) Cancel else {
+      if (isDone) Stop else {
         var streamError = true
         try {
           val c = f(a1,a2)
@@ -65,7 +65,7 @@ class Zip2Observable[A1,A2,+R]
           case NonFatal(ex) if streamError =>
             isDone = true
             out.onError(ex)
-            Cancel
+            Stop
         } finally {
           hasElemA1 = false
           hasElemA2 = false
@@ -76,12 +76,12 @@ class Zip2Observable[A1,A2,+R]
     def signalOnNext(a1: A1, a2: A2): Future[Ack] = {
       lastAck = lastAck match {
         case Continue => rawOnNext(a1,a2)
-        case Cancel => Cancel
+        case Stop => Stop
         case async =>
           async.flatMap {
             // async execution, we have to re-sync
             case Continue => self.synchronized(rawOnNext(a1,a2))
-            case Cancel => Cancel
+            case Stop => Stop
           }
       }
 
@@ -94,7 +94,7 @@ class Zip2Observable[A1,A2,+R]
       if (!isDone) {
         isDone = true
         out.onError(ex)
-        lastAck = Cancel
+        lastAck = Stop
       }
     }
 
@@ -113,7 +113,7 @@ class Zip2Observable[A1,A2,+R]
       if (shouldComplete) {
         lastAck match {
           case Continue => rawOnComplete()
-          case Cancel => () // do nothing
+          case Stop => () // do nothing
           case async =>
             async.onComplete {
               case Success(Continue) =>
@@ -123,8 +123,8 @@ class Zip2Observable[A1,A2,+R]
             }
         }
 
-        continueP.success(Cancel)
-        lastAck = Cancel
+        continueP.success(Stop)
+        lastAck = Stop
       }
     }
 
@@ -134,7 +134,7 @@ class Zip2Observable[A1,A2,+R]
       implicit val scheduler = out.scheduler
 
       def onNext(elem: A1): Future[Ack] = self.synchronized {
-        if (isDone) Cancel else {
+        if (isDone) Stop else {
           elemA1 = elem
           if (!hasElemA1) hasElemA1 = true
 
@@ -155,7 +155,7 @@ class Zip2Observable[A1,A2,+R]
       implicit val scheduler = out.scheduler
 
       def onNext(elem: A2): Future[Ack] = self.synchronized {
-        if (isDone) Cancel else {
+        if (isDone) Stop else {
           elemA2 = elem
           if (!hasElemA2) hasElemA2 = true
 

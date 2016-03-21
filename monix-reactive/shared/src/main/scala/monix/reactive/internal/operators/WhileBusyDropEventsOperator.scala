@@ -18,7 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.reactive.observables.ObservableLike
 import ObservableLike.Operator
 import monix.reactive.observers.{Subscriber, SyncSubscriber}
@@ -36,12 +36,12 @@ class WhileBusyDropEventsOperator[A] extends Operator[A,A] {
       private[this] var isDone = false
 
       def onNext(elem: A) =
-        if (isDone) Cancel else
+        if (isDone) Stop else
           ack.syncTryFlatten match {
             case Continue =>
               ack = out.onNext(elem)
               Continue
-            case Cancel => Cancel
+            case Stop => Stop
             case async => Continue
           }
 

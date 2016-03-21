@@ -17,7 +17,7 @@
 
 package monix.reactive.observers
 
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.{Cancelable, Ack, Scheduler}
 import monix.reactive.Observer
@@ -153,13 +153,13 @@ object Subscriber {
     }
 
   /** Helper for building an empty subscriber that doesn't do anything,
-    * but that returns `Cancel` on `onNext`.
+    * but that returns `Stop` on `onNext`.
     */
   def canceled[A](implicit s: Scheduler): SyncSubscriber[A] =
     new SyncSubscriber[A] {
       implicit val scheduler: Scheduler = s
       def onError(ex: Throwable): Unit = s.reportFailure(ex)
       def onComplete(): Unit = ()
-      def onNext(elem: A): Cancel = Cancel
+      def onNext(elem: A): Stop = Stop
     }
 }

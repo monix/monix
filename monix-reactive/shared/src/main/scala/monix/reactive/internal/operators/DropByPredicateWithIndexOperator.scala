@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.reactive.observables.ObservableLike
 import ObservableLike.Operator
 import monix.reactive.observers.Subscriber
@@ -53,7 +53,7 @@ class DropByPredicateWithIndexOperator[A](p: (A, Int) => Boolean)
           } catch {
             case NonFatal(ex) if streamError =>
               onError(ex)
-              Cancel
+              Stop
           }
         }
         else

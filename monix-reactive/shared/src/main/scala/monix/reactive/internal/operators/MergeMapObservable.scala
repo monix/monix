@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.execution.Cancelable
 import monix.execution.cancelables._
 import monix.reactive.exceptions.CompositeException
@@ -61,9 +61,9 @@ private[reactive] final class MergeMapObservable[A,B](
         }
       }
 
-      private def cancelUpstream(): Cancel = {
+      private def cancelUpstream(): Stop = {
         if (!upstreamIsDone.getAndSet(true)) composite.cancel()
-        Cancel
+        Stop
       }
 
       def onNext(elem: A) = {
@@ -85,7 +85,7 @@ private[reactive] final class MergeMapObservable[A,B](
 
             def onNext(elem: B) = {
               subscriberB.onNext(elem)
-                .syncOnCancelOrFailure(cancelUpstream())
+                .syncOnStopOrFailure(cancelUpstream())
             }
 
             def onError(ex: Throwable): Unit = {
@@ -112,7 +112,7 @@ private[reactive] final class MergeMapObservable[A,B](
         } catch {
           case NonFatal(ex) if streamError =>
             onError(ex)
-            Cancel
+            Stop
         }
       }
 

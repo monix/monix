@@ -18,7 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.async.FutureUtils
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import FutureUtils.extensions._
 import monix.reactive.{Observable, Observer}
 import scala.concurrent.Future
@@ -86,7 +86,7 @@ object TakeByTimespanSuite extends BaseOperatorSuite {
         def onNext(elem: Long) =
           Future.delayedResult(100.millis) {
             received += 1
-            if (received < 3) Continue else Cancel
+            if (received < 3) Continue else Stop
           }
 
         def onError(ex: Throwable) =

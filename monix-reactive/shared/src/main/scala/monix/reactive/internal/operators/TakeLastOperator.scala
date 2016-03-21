@@ -18,7 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.reactive.Observable
 import monix.reactive.observables.ObservableLike
 import ObservableLike.Operator
@@ -36,7 +36,7 @@ private[reactive] final class TakeLastOperator[A](n: Int)
 
       def onNext(elem: A): Ack = {
         if (n <= 0)
-          Cancel
+          Stop
         else if (queued < n) {
           queue.enqueue(elem)
           queued += 1

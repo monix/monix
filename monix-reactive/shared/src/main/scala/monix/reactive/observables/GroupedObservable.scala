@@ -61,7 +61,7 @@ object GroupedObservable {
         def onNext(elem: V) = {
           val cache = ref
           val downstream = if (cache == null) self.synchronized(ref) else cache
-          downstream.onNext(elem).syncOnCancelOrFailure(onCancel.cancel())
+          downstream.onNext(elem).syncOnStopOrFailure(onCancel.cancel())
         }
 
         def onError(ex: Throwable): Unit =

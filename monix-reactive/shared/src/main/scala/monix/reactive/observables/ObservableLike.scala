@@ -522,17 +522,18 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: Self[A] =>
   def distinctUntilChangedByKey[K](key: A => K): Self[A] =
     self.liftByOperator(new DistinctUntilChangedByKeyOperator(key))
 
-  /** Executes the given callback when a subscription gets canceled.
-    *
-    * A subscription can get canceled if:
-    *
-    *   1. the subscriber returns `Cancel` as a result of `onNext`
-    *   2. the [[monix.execution.Cancelable.cancel cancel()]] operation gets called on the subscription
-    *
-    * The callback is guaranteed to be executed one time at most.
+  /** Executes the given callback when the streaming is stopped
+    * due to a downstream [[monix.execution.Ack.Stop Stop]] signal
+    * returned by [[monix.reactive.Observer.onNext onNext]].
+    */
+  def doOnDownstreamStop(cb: => Unit): Self[A] =
+    self.liftByOperator(new DoWorkOnDownstreamStopOperator[A](cb))
+
+  /** Executes the given callback when the connection is
+    * being [[monix.execution.Cancelable.cancel cancelled]].
     */
   def doOnCancel(cb: => Unit): Self[A] =
-    self.transform(self => new DoWorkOnCancelObservable[A](self, cb))
+    self.transform(self => new DoWorkOnSubscriptionCancelObservable[A](self, cb))
 
   /** Executes the given callback when the stream has ended, but before
     * the complete event is emitted.
@@ -971,6 +972,31 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: Self[A] =>
     */
   def nonEmptyF: Self[Boolean] =
     self.liftByOperator(IsEmptyOperator).map(b => !b)
+
+  /** If the connection is [[monix.execution.Cancelable.cancel cancelled]]
+    * then trigger a `CancellationException`.
+    *
+    * A connection can be cancelled with the help of the
+    * [[monix.execution.Cancelable Cancelable]]
+    * returned on [[Observable.subscribe(subscriber* subscribe]].
+    *
+    * Because the cancellation is effectively concurrent with the
+    * signals the [[monix.reactive.Observer Observer]] receives and because
+    * we need to uphold the contract, this operator will effectively
+    * synchronize access to [[monix.reactive.Observer.onNext onNext]],
+    * [[monix.reactive.Observer.onComplete onComplete]] and
+    * [[monix.reactive.Observer.onError onError]]. It will also watch
+    * out for asynchronous [[monix.execution.Ack.Stop Stop]] events.
+    *
+    * In other words, this operator does heavy synchronization, can
+    * prove to be inefficient and you should avoid using it because
+    * the signaled error can interfere with functionality from other
+    * operators that use cancelation internally and cancellation in
+    * general is a side-effecting operation that should be avoided,
+    * unless it's necessary.
+    */
+  def onCancelTriggerError: Self[A] =
+    self.transform(self => new OnCancelTriggerErrorObservable[A](self))
 
   /** Returns an Observable that mirrors the behavior of the source,
     * unless the source is terminated with an `onError`, in which case

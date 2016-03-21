@@ -19,7 +19,7 @@ package monix.reactive.internal.builders
 
 import minitest.TestSuite
 import monix.execution.Ack
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.{Observer, Observable}
 import scala.concurrent.{Promise, Future}
@@ -82,7 +82,7 @@ object NowObservableSuite extends TestSuite[TestScheduler] {
     var onCompleteCalled = false
     Observable.now(1).unsafeSubscribeFn(new Observer[Int] {
       def onError(ex: Throwable) = throw ex
-      def onNext(elem: Int) = Cancel
+      def onNext(elem: Int) = Stop
       def onComplete(): Unit =
         onCompleteCalled = true
     })
@@ -102,7 +102,7 @@ object NowObservableSuite extends TestSuite[TestScheduler] {
         onCompleteCalled = true
     })
 
-    p.success(Cancel)
+    p.success(Stop)
     s.tick()
 
     assert(onCompleteCalled)

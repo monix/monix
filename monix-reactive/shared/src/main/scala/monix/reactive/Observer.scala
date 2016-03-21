@@ -17,7 +17,7 @@
 
 package monix.reactive
 
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.{Cancelable, Ack, Scheduler}
 import monix.reactive.internal.reactivestreams._
@@ -97,7 +97,7 @@ object Observer {
     try feed(source, subscription, iterable.iterator) catch {
       case NonFatal(ex) =>
         source.onError(ex)
-        Cancel
+        Stop
     }
   }
 
@@ -119,7 +119,7 @@ object Observer {
           if (iterator.hasNext) {
             val nextIndex =
               if (ack == Continue) (syncIndex + 1) & modulus
-              else if (ack == Cancel) -1
+              else if (ack == Stop) -1
               else 0
 
             if (nextIndex > 0)
@@ -130,9 +130,9 @@ object Observer {
                 case other => promise.complete(other)
               }
             else
-              promise.success(Cancel)
+              promise.success(Stop)
           } else {
-            if ((ack eq Continue) || (ack eq Cancel))
+            if ((ack eq Continue) || (ack eq Stop))
               promise.success(ack.asInstanceOf[Ack])
             else
               promise.completeWith(ack)
@@ -160,7 +160,7 @@ object Observer {
     } catch {
       case NonFatal(ex) =>
         source.onError(ex)
-        Cancel
+        Stop
     }
   }
 

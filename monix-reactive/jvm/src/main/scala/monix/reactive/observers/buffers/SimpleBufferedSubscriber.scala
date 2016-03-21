@@ -19,7 +19,7 @@ package monix.reactive.observers.buffers
 
 import java.util.concurrent.ConcurrentLinkedQueue
 import monix.execution.Ack
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.reactive.exceptions.BufferOverflowException
 import monix.reactive.observers.{BufferedSubscriber, Subscriber, SyncSubscriber}
 import org.sincron.atomic.Atomic
@@ -66,11 +66,11 @@ private[buffers] final class SimpleBufferedSubscriber[-T] private
       catch {
         case NonFatal(ex) =>
           onError(ex)
-          Cancel
+          Stop
       }
     }
     else
-      Cancel
+      Stop
   }
 
   def onError(ex: Throwable): Unit = {
@@ -137,7 +137,7 @@ private[buffers] final class SimpleBufferedSubscriber[-T] private
             // process next
             fastLoop(processed + 1, nextIndex)
           }
-          else if (ack == Cancel || ack.value.get == Cancel.AsSuccess) {
+          else if (ack == Stop || ack.value.get == Stop.AsSuccess) {
             // ending loop
             downstreamIsDone = true
             itemsToPush.set(0)
@@ -160,7 +160,7 @@ private[buffers] final class SimpleBufferedSubscriber[-T] private
             // re-run loop (in different thread)
             rescheduled(processed + 1)
 
-          case Cancel.AsSuccess =>
+          case Stop.AsSuccess =>
             // ending loop
             downstreamIsDone = true
             itemsToPush.set(0)

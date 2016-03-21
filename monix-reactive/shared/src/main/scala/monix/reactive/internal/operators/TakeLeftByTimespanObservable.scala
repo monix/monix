@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack.Cancel
+import monix.execution.Ack.Stop
 import monix.execution.cancelables.CompositeCancelable
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
@@ -52,10 +52,10 @@ class TakeLeftByTimespanObservable[A](source: Observable[A], timespan: FiniteDur
 
       def onNext(elem: A): Future[Ack] = synchronized {
         if (isActive)
-          out.onNext(elem).syncOnCancelOrFailure(deactivate())
+          out.onNext(elem).syncOnStopOrFailure(deactivate())
         else {
           onComplete()
-          Cancel
+          Stop
         }
       }
 

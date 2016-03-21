@@ -19,7 +19,7 @@ package monix.reactive.internal.builders
 
 import monix.execution.cancelables.CompositeCancelable
 import monix.execution.{Cancelable, Ack}
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
@@ -74,7 +74,7 @@ class Zip6Observable[A1,A2,A3,A4,A5,A6,+R]
 
     // MUST BE synchronized by `self`
     def rawOnNext(a1: A1, a2: A2, a3: A3, a4: A4, a5: A5, a6: A6): Future[Ack] =
-      if (isDone) Cancel
+      if (isDone) Stop
       else {
         var streamError = true
         try {
@@ -85,7 +85,7 @@ class Zip6Observable[A1,A2,A3,A4,A5,A6,+R]
           case NonFatal(ex) if streamError =>
             isDone = true
             out.onError(ex)
-            Cancel
+            Stop
         } finally {
           hasElemA1 = false
           hasElemA2 = false
@@ -100,12 +100,12 @@ class Zip6Observable[A1,A2,A3,A4,A5,A6,+R]
     def signalOnNext(a1: A1, a2: A2, a3: A3, a4: A4, a5: A5, a6: A6): Future[Ack] = {
       lastAck = lastAck match {
         case Continue => rawOnNext(a1, a2, a3, a4, a5, a6)
-        case Cancel => Cancel
+        case Stop => Stop
         case async =>
           async.flatMap {
             // async execution, we have to re-sync
             case Continue => self.synchronized(rawOnNext(a1, a2, a3, a4, a5, a6))
-            case Cancel => Cancel
+            case Stop => Stop
           }
       }
 
@@ -118,7 +118,7 @@ class Zip6Observable[A1,A2,A3,A4,A5,A6,+R]
       if (!isDone) {
         isDone = true
         out.onError(ex)
-        lastAck = Cancel
+        lastAck = Stop
       }
     }
 
@@ -137,7 +137,7 @@ class Zip6Observable[A1,A2,A3,A4,A5,A6,+R]
       if (shouldComplete) {
         lastAck match {
           case Continue => rawOnComplete()
-          case Cancel => () // do nothing
+          case Stop => () // do nothing
           case async =>
             async.onComplete {
               case Success(Continue) =>
@@ -147,8 +147,8 @@ class Zip6Observable[A1,A2,A3,A4,A5,A6,+R]
             }
         }
 
-        continueP.success(Cancel)
-        lastAck = Cancel
+        continueP.success(Stop)
+        lastAck = Stop
       }
     }
 
@@ -158,7 +158,7 @@ class Zip6Observable[A1,A2,A3,A4,A5,A6,+R]
       implicit val scheduler = out.scheduler
 
       def onNext(elem: A1): Future[Ack] = self.synchronized {
-        if (isDone) Cancel
+        if (isDone) Stop
         else {
           elemA1 = elem
           if (!hasElemA1) hasElemA1 = true
@@ -181,7 +181,7 @@ class Zip6Observable[A1,A2,A3,A4,A5,A6,+R]
       implicit val scheduler = out.scheduler
 
       def onNext(elem: A2): Future[Ack] = self.synchronized {
-        if (isDone) Cancel
+        if (isDone) Stop
         else {
           elemA2 = elem
           if (!hasElemA2) hasElemA2 = true
@@ -204,7 +204,7 @@ class Zip6Observable[A1,A2,A3,A4,A5,A6,+R]
       implicit val scheduler = out.scheduler
 
       def onNext(elem: A3): Future[Ack] = self.synchronized {
-        if (isDone) Cancel
+        if (isDone) Stop
         else {
           elemA3 = elem
           if (!hasElemA3) hasElemA3 = true
@@ -227,7 +227,7 @@ class Zip6Observable[A1,A2,A3,A4,A5,A6,+R]
       implicit val scheduler = out.scheduler
 
       def onNext(elem: A4): Future[Ack] = self.synchronized {
-        if (isDone) Cancel
+        if (isDone) Stop
         else {
           elemA4 = elem
           if (!hasElemA4) hasElemA4 = true
@@ -250,7 +250,7 @@ class Zip6Observable[A1,A2,A3,A4,A5,A6,+R]
       implicit val scheduler = out.scheduler
 
       def onNext(elem: A5): Future[Ack] = self.synchronized {
-        if (isDone) Cancel
+        if (isDone) Stop
         else {
           elemA5 = elem
           if (!hasElemA5) hasElemA5 = true
@@ -273,7 +273,7 @@ class Zip6Observable[A1,A2,A3,A4,A5,A6,+R]
       implicit val scheduler = out.scheduler
 
       def onNext(elem: A6): Future[Ack] = self.synchronized {
-        if (isDone) Cancel
+        if (isDone) Stop
         else {
           elemA6 = elem
           if (!hasElemA6) hasElemA6 = true

@@ -19,7 +19,7 @@ package monix.reactive.internal.builders
 
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.{Cancelable, Ack}
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
@@ -62,12 +62,12 @@ class StateActionObservable[S,A](seed: S, f: S => (A,S)) extends Observable[A] {
       } catch {
         case NonFatal(ex) =>
           o.onError(ex)
-          Cancel
+          Stop
       }
 
       val nextIndex =
         if (ack == Continue) (syncIndex + 1) & modulus
-        else if (ack == Cancel) -1
+        else if (ack == Stop) -1
         else 0
 
       if (nextIndex > 0)

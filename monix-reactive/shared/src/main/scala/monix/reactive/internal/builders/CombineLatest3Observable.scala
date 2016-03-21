@@ -18,7 +18,7 @@
 package monix.reactive.internal.builders
 
 import monix.execution.{Cancelable, Ack}
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.execution.cancelables.CompositeCancelable
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
@@ -56,7 +56,7 @@ class CombineLatest3Observable[A1,A2,A3,+R]
 
     // MUST BE synchronized by `self`
     def rawOnNext(a1: A1, a2: A2, a3: A3): Future[Ack] =
-      if (isDone) Cancel else {
+      if (isDone) Stop else {
         var streamError = true
         try {
           val c = f(a1,a2,a3)
@@ -66,7 +66,7 @@ class CombineLatest3Observable[A1,A2,A3,+R]
           case NonFatal(ex) if streamError =>
             isDone = true
             out.onError(ex)
-            Cancel
+            Stop
         }
       }
 
@@ -74,12 +74,12 @@ class CombineLatest3Observable[A1,A2,A3,+R]
     def signalOnNext(a1: A1, a2: A2, a3: A3): Future[Ack] = {
       lastAck = lastAck match {
         case Continue => rawOnNext(a1,a2,a3)
-        case Cancel => Cancel
+        case Stop => Stop
         case async =>
           async.flatMap {
             // async execution, we have to re-sync
             case Continue => self.synchronized(rawOnNext(a1,a2,a3))
-            case Cancel => Cancel
+            case Stop => Stop
           }
       }
 
@@ -90,7 +90,7 @@ class CombineLatest3Observable[A1,A2,A3,+R]
       if (!isDone) {
         isDone = true
         out.onError(ex)
-        lastAck = Cancel
+        lastAck = Stop
       }
     }
 
@@ -102,7 +102,7 @@ class CombineLatest3Observable[A1,A2,A3,+R]
           case Continue =>
             isDone = true
             out.onComplete()
-          case Cancel =>
+          case Stop =>
             () // do nothing
           case async =>
             async.onComplete {
@@ -118,7 +118,7 @@ class CombineLatest3Observable[A1,A2,A3,+R]
             }
         }
 
-        lastAck = Cancel
+        lastAck = Stop
       }
     }
 
@@ -128,7 +128,7 @@ class CombineLatest3Observable[A1,A2,A3,+R]
       implicit val scheduler = out.scheduler
 
       def onNext(elem: A1): Future[Ack] = self.synchronized {
-        if (isDone) Cancel else {
+        if (isDone) Stop else {
           elemA1 = elem
           if (!hasElemA1) hasElemA1 = true
 
@@ -149,7 +149,7 @@ class CombineLatest3Observable[A1,A2,A3,+R]
       implicit val scheduler = out.scheduler
 
       def onNext(elem: A2): Future[Ack] = self.synchronized {
-        if (isDone) Cancel else {
+        if (isDone) Stop else {
           elemA2 = elem
           if (!hasElemA2) hasElemA2 = true
 
@@ -170,7 +170,7 @@ class CombineLatest3Observable[A1,A2,A3,+R]
       implicit val scheduler = out.scheduler
 
       def onNext(elem: A3): Future[Ack] = self.synchronized {
-        if (isDone) Cancel else {
+        if (isDone) Stop else {
           elemA3 = elem
           if (!hasElemA3) hasElemA3 = true
 

@@ -20,7 +20,7 @@ package monix.reactive.internal.reactivestreams
 import monix.execution.{Cancelable, Ack, Scheduler}
 import monix.reactive.observers.Subscriber
 import org.sincron.atomic.Atomic
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import org.reactivestreams.{Subscriber => RSubscriber, Subscription}
 import scala.annotation.tailrec
 import scala.collection.immutable.Queue
@@ -64,7 +64,7 @@ private[monix] final class ReactiveSubscriberAsMonixSubscriber[T] private
     }
     else {
       ack = requests.await().flatMap { requested =>
-        if (requested <= 0) Cancel else {
+        if (requested <= 0) Stop else {
           leftToPush += (requested - 1)
           subscriber.onNext(elem)
           Continue

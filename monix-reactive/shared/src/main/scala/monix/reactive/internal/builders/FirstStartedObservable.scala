@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.builders
 
-import monix.execution.Ack.Cancel
+import monix.execution.Ack.Stop
 import monix.execution.cancelables.{CompositeCancelable, MultiAssignmentCancelable}
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.reactive.observers.Subscriber
@@ -87,7 +87,7 @@ private[reactive] final class FirstStartedObservable[T](source: Observable[T]*)
         if (shouldStream())
           observer.onNext(elem)
         else
-          Cancel
+          Stop
       }
 
       def onError(ex: Throwable): Unit =

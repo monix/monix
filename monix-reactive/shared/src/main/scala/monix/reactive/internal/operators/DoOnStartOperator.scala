@@ -18,7 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack
-import monix.execution.Ack.Cancel
+import monix.execution.Ack.Stop
 import monix.reactive.observables.ObservableLike
 import ObservableLike.Operator
 import monix.reactive.observers.Subscriber
@@ -52,7 +52,7 @@ class DoOnStartOperator[A](cb: A => Unit)
         } catch {
           case NonFatal(ex) if isStart =>
             onError(ex)
-            Cancel
+            Stop
         }
       }
 

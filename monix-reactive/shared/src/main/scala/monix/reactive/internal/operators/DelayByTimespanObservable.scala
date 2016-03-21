@@ -19,7 +19,7 @@ package monix.reactive.internal.operators
 
 import java.util.concurrent.TimeUnit
 
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.execution.cancelables.{CompositeCancelable, MultiAssignmentCancelable}
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
@@ -72,7 +72,7 @@ class DelayByTimespanObservable[A](source: Observable[A], delay: FiniteDuration)
           if (!isDone.getAndSet(true)) {
             hasError = true
             try out.onError(ex) finally {
-              if (ack != null) ack.trySuccess(Cancel)
+              if (ack != null) ack.trySuccess(Stop)
               task.cancel()
             }
           }
@@ -89,7 +89,7 @@ class DelayByTimespanObservable[A](source: Observable[A], delay: FiniteDuration)
 
           next match {
             case Continue => ack.success(Continue)
-            case Cancel => ack.success(Cancel)
+            case Stop => ack.success(Stop)
             case async => ack.completeWith(async)
           }
         }

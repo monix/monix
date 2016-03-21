@@ -18,7 +18,7 @@
 package monix.reactive.observers
 
 import monix.execution.Ack
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import scala.concurrent.{Future, Promise}
 import scala.util.Try
 import scala.util.control.NonFatal
@@ -28,10 +28,10 @@ import scala.util.control.NonFatal
   *
   *  - the `onComplete` and `onError` signals are back-pressured
   *  - errors triggered by downstream observers are caught and logged,
-  *    while the upstream gets an `Ack.Cancel`, to stop sending events
+  *    while the upstream gets an `Ack.Stop`, to stop sending events
   *  - once an `onError` or `onComplete` was emitted, the observer no longer accepts
   *    `onNext` events, ensuring that the grammar is respected
-  *  - if downstream signals a `Cancel`, the observer no longer accepts any events,
+  *  - if downstream signals a `Stop`, the observer no longer accepts any events,
   *    ensuring that the grammar is respected
   */
 final class SafeSubscriber[-T] private (subscriber: Subscriber[T])
@@ -48,12 +48,12 @@ final class SafeSubscriber[-T] private (subscriber: Subscriber[T])
       } catch {
         case NonFatal(ex) =>
           onError(ex)
-          Cancel
+          Stop
       }
 
       ack
     } else {
-      Cancel
+      Stop
     }
   }
 
@@ -98,12 +98,12 @@ final class SafeSubscriber[-T] private (subscriber: Subscriber[T])
   private def handleFailure(value: Try[Ack]): Ack =
     try {
       val ack = value.get
-      if (ack eq Cancel) isDone = true
+      if (ack eq Stop) isDone = true
       ack
     } catch {
       case NonFatal(ex) =>
         signalError(value.failed.get)
-        Cancel
+        Stop
     }
 }
 

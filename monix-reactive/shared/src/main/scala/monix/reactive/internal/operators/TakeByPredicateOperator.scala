@@ -18,7 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack
-import monix.execution.Ack.Cancel
+import monix.execution.Ack.Stop
 import monix.reactive.observables.ObservableLike
 import ObservableLike.Operator
 import monix.reactive.observers.Subscriber
@@ -35,7 +35,7 @@ private[reactive] final class TakeByPredicateOperator[A](p: A => Boolean)
       private[this] var isActive = true
 
       def onNext(elem: A): Future[Ack] = {
-        if (!isActive) Cancel
+        if (!isActive) Stop
         else {
           // Protects calls to user code from within an operator
           var streamError = true
@@ -48,12 +48,12 @@ private[reactive] final class TakeByPredicateOperator[A](p: A => Boolean)
             } else {
               isActive = false
               out.onComplete()
-              Cancel
+              Stop
             }
           } catch {
             case NonFatal(ex) if streamError =>
               onError(ex)
-              Cancel
+              Stop
           }
         }
       }

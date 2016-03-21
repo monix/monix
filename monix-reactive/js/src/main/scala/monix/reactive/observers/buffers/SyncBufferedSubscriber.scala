@@ -19,7 +19,7 @@ package monix.reactive.observers.buffers
 
 import monix.execution.Ack
 import monix.execution.internal.collection._
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.reactive.exceptions.BufferOverflowException
 import monix.execution.internal.collection.ArrayQueue
 import monix.reactive.observers.{Subscriber, BufferedSubscriber, SyncSubscriber}
@@ -58,11 +58,11 @@ private[buffers] final class SyncBufferedSubscriber[-T] private
       catch {
         case NonFatal(ex) =>
           onError(ex)
-          Cancel
+          Stop
       }
     }
     else
-      Cancel
+      Stop
   }
 
   def onError(ex: Throwable): Unit = {
@@ -147,7 +147,7 @@ private[buffers] final class SyncBufferedSubscriber[-T] private
             // re-run loop (in different thread)
             run()
 
-          case Cancel.AsSuccess =>
+          case Stop.AsSuccess =>
             // ending loop
             downstreamIsDone = true
 

@@ -18,7 +18,7 @@
 package monix.reactive.internal.operators
 
 import java.util.concurrent.TimeUnit
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.execution.cancelables.{CompositeCancelable, MultiAssignmentCancelable, SingleAssignmentCancelable}
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.reactive.Observable
@@ -82,23 +82,23 @@ private[reactive] final class DownstreamTimeoutObservable[+A](
         // we don't synchronize, then we can break the contract by sending
         // an `onNext` concurrently with an `onError` :-(
         self.synchronized {
-          if (isDone) Cancel else {
+          if (isDone) Stop else {
             isProcessingOnNext = true
             lastEmittedMillis = scheduler.currentTimeMillis()
 
             // Shenanigans for avoiding an unnecessary synchronize
             downstream.onNext(elem) match {
               case Continue => unfreeze()
-              case Cancel =>
+              case Stop =>
                 timeoutCheck.cancel()
-                Cancel
+                Stop
 
               case async =>
                 async.flatMap {
                   case Continue => self.synchronized(unfreeze())
-                  case Cancel =>
+                  case Stop =>
                     timeoutCheck.cancel()
-                    Cancel
+                    Stop
                 }
             }
           }

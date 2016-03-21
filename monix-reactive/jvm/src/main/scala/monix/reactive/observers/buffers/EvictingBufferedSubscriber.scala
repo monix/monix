@@ -20,7 +20,7 @@ package monix.reactive.observers.buffers
 import monix.execution.Ack
 import monix.execution.internal.Platform
 import monix.execution.internal.collection.{EvictingQueue, DropHeadOnOverflowQueue, DropAllOnOverflowQueue}
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.reactive.observers.{Subscriber, BufferedSubscriber, SyncSubscriber}
 import scala.annotation.tailrec
 import scala.util.Failure
@@ -59,11 +59,11 @@ private[buffers] final class EvictingBufferedSubscriber[-T] private
       catch {
         case NonFatal(ex) =>
           onError(ex)
-          Cancel
+          Stop
       }
     }
     else
-      Cancel
+      Stop
   }
 
   def onError(ex: Throwable): Unit = self.synchronized {
@@ -146,7 +146,7 @@ private[buffers] final class EvictingBufferedSubscriber[-T] private
                 // process next
                 fastLoop(array, arrayLength, processed + 1)
 
-              case done if done == Cancel || done.value.get == Cancel.AsSuccess =>
+              case done if done == Stop || done.value.get == Stop.AsSuccess =>
                 self.synchronized {
                   // ending loop
                   downstreamIsDone = true
@@ -168,7 +168,7 @@ private[buffers] final class EvictingBufferedSubscriber[-T] private
                 // re-run loop (in different thread)
                 loop(array, arrayLength, processed + 1)
 
-              case Cancel.AsSuccess =>
+              case Stop.AsSuccess =>
                 self.synchronized {
                   // ending loop
                   downstreamIsDone = true

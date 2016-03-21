@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.execution.cancelables.{MultiAssignmentCancelable, CompositeCancelable}
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
@@ -58,7 +58,7 @@ class DelayBySelectorObservable[A,S](source: Observable[A], selector: A => Obser
 
           next match {
             case Continue => ack.success(Continue)
-            case Cancel => ack.success(Cancel)
+            case Stop => ack.success(Stop)
             case async => ack.completeWith(async)
           }
         }
@@ -78,7 +78,7 @@ class DelayBySelectorObservable[A,S](source: Observable[A], selector: A => Obser
         catch {
           case NonFatal(ex) if streamErrors =>
             onError(ex)
-            Cancel
+            Stop
         }
       }
 

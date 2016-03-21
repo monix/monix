@@ -18,7 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.reactive.observables.ObservableLike
 import ObservableLike.Operator
 import monix.reactive.observers.Subscriber
@@ -60,7 +60,7 @@ class DistinctUntilChangedByKeyOperator[A,K](key: A => K) extends Operator[A,A] 
         } catch {
           case NonFatal(ex) if streamError =>
             onError(ex)
-            Cancel
+            Stop
         }
       }
 

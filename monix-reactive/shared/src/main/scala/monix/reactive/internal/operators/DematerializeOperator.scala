@@ -18,7 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack
-import monix.execution.Ack.Cancel
+import monix.execution.Ack.Stop
 import monix.reactive.Notification
 import monix.reactive.Notification.{OnComplete, OnError, OnNext}
 import monix.reactive.observables.ObservableLike
@@ -36,16 +36,16 @@ class DematerializeOperator[A] extends Operator[Notification[A],A] {
       private[this] var isDone = false
 
       def onNext(elem: Notification[A]): Future[Ack] = {
-        if (isDone) Cancel else
+        if (isDone) Stop else
           elem match {
             case OnNext(e) =>
               out.onNext(e)
             case OnError(ex) =>
               onError(ex)
-              Cancel
+              Stop
             case OnComplete =>
               onComplete()
-              Cancel
+              Stop
           }
       }
 

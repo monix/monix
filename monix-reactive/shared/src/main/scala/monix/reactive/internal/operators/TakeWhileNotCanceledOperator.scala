@@ -18,7 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack
-import monix.execution.Ack.Cancel
+import monix.execution.Ack.Stop
 import monix.execution.cancelables.BooleanCancelable
 import monix.reactive.observables.ObservableLike
 import ObservableLike.Operator
@@ -36,7 +36,7 @@ private[reactive] final class TakeWhileNotCanceledOperator[A](c: BooleanCancelab
       private[this] var isActive = true
 
       def onNext(elem: A): Future[Ack] =
-        if (!isActive) Cancel else {
+        if (!isActive) Stop else {
           var streamError = true
           try {
             val isCanceled = c.isCanceled
@@ -47,12 +47,12 @@ private[reactive] final class TakeWhileNotCanceledOperator[A](c: BooleanCancelab
             else {
               isActive = false
               out.onComplete()
-              Cancel
+              Stop
             }
           } catch {
             case NonFatal(ex) if streamError =>
               onError(ex)
-              Cancel
+              Stop
           }
         }
 

@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.execution.cancelables.{CompositeCancelable, MultiAssignmentCancelable}
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
@@ -65,10 +65,10 @@ class FlatScanObservable[A,R](
             def onNext(elem: R): Future[Ack] = {
               if (upstreamWantsOnError) {
                 upstreamPromise.trySuccess(Continue)
-                childAck = Cancel
+                childAck = Stop
               } else {
                 currentState = elem
-                childAck = out.onNext(elem).syncOnCancelFollow(upstreamPromise, Cancel)
+                childAck = out.onNext(elem).syncOnStopFollow(upstreamPromise, Stop)
               }
 
               childAck
@@ -82,7 +82,7 @@ class FlatScanObservable[A,R](
               } else {
                 // Error happened, so signaling both the main thread that
                 // it should stop and the downstream consumer of the error
-                upstreamPromise.trySuccess(Cancel)
+                upstreamPromise.trySuccess(Stop)
                 self.signalOnError(ex)
               }
             }
@@ -100,7 +100,7 @@ class FlatScanObservable[A,R](
         } catch {
           case NonFatal(ex) if streamError =>
             onError(ex)
-            Cancel
+            Stop
         }
 
         upstreamAck

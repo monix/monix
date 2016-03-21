@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.execution.cancelables.{SingleAssignmentCancelable, CompositeCancelable, SerialCancelable}
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.observers.{SyncSubscriber, Subscriber}
@@ -43,7 +43,7 @@ private[reactive] final class SwitchMapObservable[A,B](source: Observable[A], f:
       private[this] var upstreamIsDone: Boolean = false
 
       def onNext(elem: A): Ack = self.synchronized {
-        if (upstreamIsDone) Cancel else {
+        if (upstreamIsDone) Stop else {
           // Protects calls to user code from within the operator.
           val childObservable =
             try f(elem) catch {
@@ -59,9 +59,9 @@ private[reactive] final class SwitchMapObservable[A,B](source: Observable[A], f:
             def onNext(elem: B) =
               self.synchronized {
                 if (upstreamIsDone || myChildIndex != activeChildIndex)
-                  Cancel
+                  Stop
                 else {
-                  ack = out.onNext(elem).syncOnCancelOrFailure(cancelFromDownstream())
+                  ack = out.onNext(elem).syncOnStopOrFailure(cancelFromDownstream())
                   ack
                 }
               }
@@ -78,13 +78,13 @@ private[reactive] final class SwitchMapObservable[A,B](source: Observable[A], f:
         }
       }
 
-      def cancelFromDownstream(): Cancel = self.synchronized {
-        if (upstreamIsDone) Cancel else {
+      def cancelFromDownstream(): Stop = self.synchronized {
+        if (upstreamIsDone) Stop else {
           upstreamIsDone = true
           activeChildIndex = -1
-          ack = Cancel
+          ack = Stop
           mainTask.cancel()
-          Cancel
+          Stop
         }
       }
 

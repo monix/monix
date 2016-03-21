@@ -17,7 +17,7 @@
 
 package monix.reactive.observers
 
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
 import scala.collection.mutable
@@ -76,9 +76,9 @@ final class CacheUntilConnectSubscriber[-T] private (downstream: Subscriber[T])
             queue = null
             connectionRef = Cancelable.empty
 
-          case Cancel =>
+          case Stop =>
             wasCanceled = true
-            connectedPromise.success(Cancel)
+            connectedPromise.success(Stop)
             isConnected = true
             // GC relief
             queue = null
@@ -86,7 +86,7 @@ final class CacheUntilConnectSubscriber[-T] private (downstream: Subscriber[T])
         }
 
         def onNext(elem: T): Future[Ack] = {
-          ack = downstream.onNext(elem).syncOnCancelFollow(bufferWasDrained, Cancel)
+          ack = downstream.onNext(elem).syncOnStopFollow(bufferWasDrained, Stop)
           ack
         }
 
@@ -97,7 +97,7 @@ final class CacheUntilConnectSubscriber[-T] private (downstream: Subscriber[T])
         }
 
         def onError(ex: Throwable): Unit = {
-          if (bufferWasDrained.trySuccess(Cancel))
+          if (bufferWasDrained.trySuccess(Stop))
             downstream.onError(ex)
           else
             scheduler.reportFailure(ex)
@@ -120,7 +120,7 @@ final class CacheUntilConnectSubscriber[-T] private (downstream: Subscriber[T])
         // if the connection started, we cannot modify the queue anymore
         // so we must be patient and apply back-pressure
         connectedFuture = connectedFuture.flatMap {
-          case Cancel => Cancel
+          case Stop => Stop
           case Continue =>
             downstream.onNext(elem)
         }
@@ -135,7 +135,7 @@ final class CacheUntilConnectSubscriber[-T] private (downstream: Subscriber[T])
     else {
       // was canceled either during connect, or the upstream publisher
       // sent an onNext event after onComplete / onError
-      Cancel
+      Stop
     }
   }
 

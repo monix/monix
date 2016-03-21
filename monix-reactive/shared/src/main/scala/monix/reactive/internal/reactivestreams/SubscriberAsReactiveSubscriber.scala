@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.reactivestreams
 
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.reactive.OverflowStrategy.Unbounded
 import monix.reactive.observers.{Subscriber, BufferedSubscriber, SyncSubscriber}
 import org.reactivestreams.{Subscriber => RSubscriber, Subscription => RSubscription}
@@ -194,7 +194,7 @@ private[monix] final class SyncSubscriberAsReactiveSubscriber[T] private
             expectingCount = requestCount
             subscription.request(requestCount)
           }
-        case Cancel =>
+        case Stop =>
           // downstream canceled, so we MUST cancel too
           isCanceled = true
           subscription.cancel()

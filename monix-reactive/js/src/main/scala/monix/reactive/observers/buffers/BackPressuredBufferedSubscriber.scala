@@ -18,7 +18,7 @@
 package monix.reactive.observers.buffers
 
 import monix.execution.Ack
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.reactive.observers.{Subscriber, BufferedSubscriber}
 import monix.reactive.observers.buffers.BackPressuredBufferedSubscriber.State
 import org.sincron.atomic.Atomic
@@ -52,7 +52,7 @@ private[monix] final class BackPressuredBufferedSubscriber[-T] private
   def onNext(elem: T): Future[Ack] = {
     val state = stateRef.get
     // if upstream has completed or downstream canceled, we should cancel
-    if (state.upstreamShouldStop) Cancel else {
+    if (state.upstreamShouldStop) Stop else {
       queue.enqueue(elem)
       pushToConsumer(state)
     }
@@ -141,7 +141,7 @@ private[monix] final class BackPressuredBufferedSubscriber[-T] private
     // should be called when downstream is canceling or triggering a failure
     def downstreamSignalCancel(): Unit = {
       val ref = stateRef.transformAndGet(_.downstreamComplete)
-      ref.nextAckPromise.success(Cancel)
+      ref.nextAckPromise.success(Stop)
     }
 
     // should be called when signaling a complete
@@ -173,7 +173,7 @@ private[monix] final class BackPressuredBufferedSubscriber[-T] private
           if (nextIndex > 0) {
             if (ack == Continue || ack.value.get == Continue.AsSuccess)
               fastLoop(state, processed + 1, nextIndex)
-            else if (ack == Cancel || ack.value.get == Cancel.AsSuccess) {
+            else if (ack == Stop || ack.value.get == Stop.AsSuccess) {
               // ending loop
               downstreamSignalCancel()
             }
@@ -188,7 +188,7 @@ private[monix] final class BackPressuredBufferedSubscriber[-T] private
               // re-run loop (in different thread)
               rescheduled(processed + 1)
 
-            case Cancel.AsSuccess =>
+            case Stop.AsSuccess =>
               // ending loop
               downstreamSignalCancel()
 

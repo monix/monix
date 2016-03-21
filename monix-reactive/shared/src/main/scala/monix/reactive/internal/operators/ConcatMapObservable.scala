@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.execution.cancelables.{CompositeCancelable, MultiAssignmentCancelable}
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
@@ -64,9 +64,9 @@ class ConcatMapObservable[A, B]
             def onNext(elem: B): Future[Ack] = {
               if (upstreamWantsOnError) {
                 upstreamPromise.trySuccess(Continue)
-                childAck = Cancel
+                childAck = Stop
               } else {
-                childAck = out.onNext(elem).syncOnCancelFollow(upstreamPromise, Cancel)
+                childAck = out.onNext(elem).syncOnStopFollow(upstreamPromise, Stop)
               }
 
               childAck
@@ -79,7 +79,7 @@ class ConcatMapObservable[A, B]
               } else {
                 // Error happened, so signaling both the main thread that
                 // it should stop and the downstream consumer of the error
-                upstreamPromise.trySuccess(Cancel)
+                upstreamPromise.trySuccess(Stop)
                 self.signalOnError(ex)
               }
             }
@@ -97,7 +97,7 @@ class ConcatMapObservable[A, B]
         } catch {
           case NonFatal(ex) if streamError =>
             onError(ex)
-            Cancel
+            Stop
         }
 
         upstreamAck

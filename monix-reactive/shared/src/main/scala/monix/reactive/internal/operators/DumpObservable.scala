@@ -36,7 +36,7 @@ class DumpObservable[T](source: Observable[T], prefix: String, out: PrintStream)
 
       private[this] val downstreamActive = Cancelable { () =>
         pos += 1
-        out.println(s"$pos: $prefix downstream canceled")
+        out.println(s"$pos: $prefix stopped")
       }
 
       def onNext(elem: T): Future[Ack] = {
@@ -48,7 +48,7 @@ class DumpObservable[T](source: Observable[T], prefix: String, out: PrintStream)
         }
 
         subscriber.onNext(elem)
-          .syncOnCancelOrFailure(downstreamActive.cancel())
+          .syncOnStopOrFailure(downstreamActive.cancel())
       }
 
       def onError(ex: Throwable) = {
@@ -78,7 +78,7 @@ class DumpObservable[T](source: Observable[T], prefix: String, out: PrintStream)
     Cancelable { () =>
       upstream.cancel()
       pos += 1
-      out.println(s"$pos: $prefix upstream canceled")
+      out.println(s"$pos: $prefix canceled")
     }
   }
 }

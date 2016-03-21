@@ -19,7 +19,7 @@ package monix.reactive.observers
 
 import minitest.TestSuite
 import monix.execution.Ack
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.execution.internal.{RunnableAction, Platform}
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.OverflowStrategy.Unbounded
@@ -117,7 +117,7 @@ object BufferUnboundedSuite extends TestSuite[TestScheduler] {
 
     assertEquals(errorThrown, DummyException("dummy"))
     val r = buffer.onNext(1)
-    assertEquals(r, Cancel)
+    assertEquals(r, Stop)
   }
 
   test("should send onError when in flight") { implicit s =>

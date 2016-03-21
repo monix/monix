@@ -18,7 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack
-import monix.execution.Ack.Cancel
+import monix.execution.Ack.Stop
 import monix.reactive.observables.ObservableLike
 import ObservableLike.Operator
 import monix.reactive.observers.Subscriber
@@ -45,7 +45,7 @@ class DoOnNextOperator[A](cb: A => Unit) extends Operator[A,A] {
         } catch {
           case NonFatal(ex) if streamError =>
             onError(ex)
-            Cancel
+            Stop
         }
       }
 

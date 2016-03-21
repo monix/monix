@@ -18,7 +18,7 @@
 package monix.reactive.internal.builders
 
 import minitest.TestSuite
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.execution.schedulers.TestScheduler
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.exceptions.DummyException
@@ -96,7 +96,7 @@ object UnsafeCreateObservableSuite extends TestSuite[TestScheduler] {
       def onComplete(): Unit = effect += 1
       def onNext(elem: Int): Future[Ack] = {
         effect += 10
-        Cancel
+        Stop
       }
     })
 

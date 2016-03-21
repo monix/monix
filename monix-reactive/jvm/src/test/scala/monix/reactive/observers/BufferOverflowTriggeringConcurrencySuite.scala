@@ -22,7 +22,7 @@ import java.util.concurrent.{CountDownLatch, TimeUnit}
 import minitest.TestSuite
 import monix.execution.{Ack, Scheduler}
 import monix.reactive.{OverflowStrategy, Observer}
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import OverflowStrategy.Fail
 import monix.reactive.exceptions.{DummyException, BufferOverflowException}
 
@@ -162,7 +162,7 @@ object BufferOverflowTriggeringConcurrencySuite extends TestSuite[Scheduler] {
     assert(latch.await(5, TimeUnit.SECONDS), "latch.await should have succeeded")
 
     val r = buffer.onNext(1)
-    assertEquals(r, Cancel)
+    assertEquals(r, Stop)
   }
 
   test("should send onError when in flight") { implicit s =>

@@ -20,7 +20,7 @@ package monix.reactive.observers
 import minitest.TestSuite
 import monix.execution.Ack
 import monix.execution.schedulers.TestScheduler
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.reactive.exceptions.DummyException
 import scala.concurrent.{Future, Promise}
 import scala.util.Success
@@ -48,11 +48,11 @@ object SafeSubscriberSuite extends TestSuite[TestScheduler] {
     })
 
     val r = observer.onNext(1)
-    assertEquals(r, Cancel)
+    assertEquals(r, Stop)
     assert(errorThrown.isInstanceOf[DummyException])
 
     val r2 = observer.onNext(1)
-    assertEquals(r2, Cancel)
+    assertEquals(r2, Stop)
     assert(s.state.get.lastReportedError == null)
   }
 
@@ -73,11 +73,11 @@ object SafeSubscriberSuite extends TestSuite[TestScheduler] {
     })
 
     val r = observer.onNext(1)
-    assertEquals(r, Cancel)
+    assertEquals(r, Stop)
     assert(errorThrown.isInstanceOf[DummyException], "should receive DummyException")
 
     val r2 = observer.onNext(1)
-    assertEquals(r2, Cancel)
+    assertEquals(r2, Stop)
     assert(s.state.get.lastReportedError == null)
   }
 
@@ -100,11 +100,11 @@ object SafeSubscriberSuite extends TestSuite[TestScheduler] {
     val r = observer.onNext(1)
     s.tick()
 
-    assertEquals(r.value, Some(Success(Cancel)))
+    assertEquals(r.value, Some(Success(Stop)))
     assert(errorThrown.isInstanceOf[DummyException])
 
     val r2 = observer.onNext(1); s.tick()
-    assertEquals(r2.value, Some(Success(Cancel)))
+    assertEquals(r2.value, Some(Success(Stop)))
     assert(s.state.get.lastReportedError == null)
   }
 
@@ -155,7 +155,7 @@ object SafeSubscriberSuite extends TestSuite[TestScheduler] {
 
       def onNext(elem: Int) = {
         received += 1
-        Cancel
+        Stop
       }
       def onComplete(): Unit = {
         received += 1
@@ -165,9 +165,9 @@ object SafeSubscriberSuite extends TestSuite[TestScheduler] {
       }
     })
 
-    assertEquals(observer.onNext(1), Cancel)
+    assertEquals(observer.onNext(1), Stop)
     assertEquals(received, 1)
-    assertEquals(observer.onNext(1), Cancel)
+    assertEquals(observer.onNext(1), Stop)
     assertEquals(received, 1)
     observer.onComplete()
     assertEquals(received, 1)
@@ -176,7 +176,7 @@ object SafeSubscriberSuite extends TestSuite[TestScheduler] {
   }
 
   test("on asynchronous cancel should block further signals") { implicit s =>
-    val p = Promise[Cancel]()
+    val p = Promise[Stop]()
     var received = 0
 
     val observer = SafeSubscriber(new Subscriber[Int] {
@@ -200,10 +200,10 @@ object SafeSubscriberSuite extends TestSuite[TestScheduler] {
     assertEquals(r.value, None)
     s.tick()
 
-    p.success(Cancel)
+    p.success(Stop)
     s.tick()
 
-    assertEquals(r.value, Some(Success(Cancel)))
+    assertEquals(r.value, Some(Success(Stop)))
     assertEquals(received, 1)
 
     observer.onComplete()

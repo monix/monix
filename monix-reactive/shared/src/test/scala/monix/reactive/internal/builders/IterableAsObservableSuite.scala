@@ -19,7 +19,7 @@ package monix.reactive.internal.builders
 
 import minitest.TestSuite
 import monix.async.FutureUtils
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import FutureUtils.extensions._
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
@@ -123,7 +123,7 @@ object IterableAsObservableSuite extends TestSuite[TestScheduler] {
     assert(wasCompleted)
   }
 
-  test("fromIterable should stop streaming on Cancel") { implicit s =>
+  test("fromIterable should stop streaming on Stop") { implicit s =>
     var wasCompleted = false
     var sum = 0
 
@@ -131,7 +131,7 @@ object IterableAsObservableSuite extends TestSuite[TestScheduler] {
       new Observer[Int] {
         def onNext(elem: Int) = {
           sum += elem
-          if (elem == 3) Cancel else Continue
+          if (elem == 3) Stop else Continue
         }
 
         def onComplete(): Unit = wasCompleted = true

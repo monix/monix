@@ -19,7 +19,7 @@ package monix.reactive.internal.builders
 
 import monix.execution.cancelables.MultiAssignmentCancelable
 import monix.execution.{Cancelable, Ack}
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
@@ -59,7 +59,7 @@ private[reactive] final class IntervalFixedDelayObservable
 
         if (ack == Continue)
           scheduleNext()
-        else if (ack != Cancel)
+        else if (ack != Stop)
           asyncScheduleNext(ack)
       }
     }

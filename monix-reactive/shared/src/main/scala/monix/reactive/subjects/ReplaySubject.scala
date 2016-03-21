@@ -17,7 +17,7 @@
 
 package monix.reactive.subjects
 
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.execution.cancelables.CompositeCancelable
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
@@ -84,7 +84,7 @@ final class ReplaySubject[T] private (initialState: ReplaySubject.State[T])
   def onNext(elem: T): Future[Ack] = {
     val state = stateRef.get
 
-    if (state.isDone) Cancel else {
+    if (state.isDone) Stop else {
       val newState = state.appendElem(elem)
       if (!stateRef.compareAndSet(state, newState)) {
         onNext(elem) // retry

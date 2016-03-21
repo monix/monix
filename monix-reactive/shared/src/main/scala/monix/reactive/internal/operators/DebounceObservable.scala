@@ -18,7 +18,7 @@
 package monix.reactive.internal.operators
 
 import java.util.concurrent.TimeUnit
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.execution.cancelables.{CompositeCancelable, MultiAssignmentCancelable, SingleAssignmentCancelable}
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
@@ -78,12 +78,12 @@ class DebounceObservable[A](source: Observable[A], timeout: FiniteDuration, repe
                   scheduleNext(delay)
                   Continue
 
-                case Cancel =>
+                case Stop =>
                   self.synchronized {
                     isDone = true
                     mainTask.cancel()
                   }
-                  Cancel
+                  Stop
               }
             }
             else {
@@ -101,7 +101,7 @@ class DebounceObservable[A](source: Observable[A], timeout: FiniteDuration, repe
           hasValue = true
           Continue
         } else {
-          Cancel
+          Stop
         }
       }
 

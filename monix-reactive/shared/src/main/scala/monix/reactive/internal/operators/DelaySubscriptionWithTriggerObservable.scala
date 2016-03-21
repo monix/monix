@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack.Cancel
+import monix.execution.Ack.Stop
 import monix.execution.cancelables.MultiAssignmentCancelable
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
@@ -37,10 +37,10 @@ class DelaySubscriptionWithTriggerObservable[A](source: Observable[A], trigger: 
         private[this] var isDone = false
 
         def onNext(elem: Any): Future[Ack] = {
-          if (isDone) Cancel else {
+          if (isDone) Stop else {
             isDone = true
             cancelable.orderedUpdate(source.unsafeSubscribeFn(subscriber), order=2)
-            Cancel
+            Stop
           }
         }
 

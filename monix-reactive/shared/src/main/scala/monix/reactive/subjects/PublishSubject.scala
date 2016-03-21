@@ -17,7 +17,7 @@
 
 package monix.reactive.subjects
 
-import monix.execution.Ack.{Cancel, Continue}
+import monix.execution.Ack.{Stop, Continue}
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.internal.util.PromiseCounter
 import monix.reactive.observers.Subscriber
@@ -83,7 +83,7 @@ final class PublishSubject[T] private () extends Subject[T,T] { self =>
     // at some point we are going to notice the most recent subscribers
     val subscribers = state.subscribers
 
-    if (subscribers eq null) Cancel else {
+    if (subscribers eq null) Stop else {
       val iterator = subscribers.iterator
       // counter that's only used when we go async, hence the null
       var result: PromiseCounter[Continue.type] = null
