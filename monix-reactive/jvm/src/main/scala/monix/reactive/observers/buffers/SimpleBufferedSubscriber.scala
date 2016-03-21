@@ -20,7 +20,6 @@ package monix.reactive.observers.buffers
 import java.util.concurrent.ConcurrentLinkedQueue
 import monix.execution.Ack
 import monix.execution.Ack.{Cancel, Continue}
-import monix.reactive.OverflowStrategy
 import monix.reactive.exceptions.BufferOverflowException
 import monix.reactive.observers.{BufferedSubscriber, Subscriber, SyncSubscriber}
 import org.sincron.atomic.Atomic
@@ -30,9 +29,9 @@ import scala.util.control.NonFatal
 
 /**
  * A highly optimized [[BufferedSubscriber]] implementation. It supports 2
- * [[OverflowStrategy overflow strategies]]:
+ * [[monix.reactive.OverflowStrategy overflow strategies]]:
  *
- *   - [[OverflowStrategy.Unbounded Unbounded]]
+ *   - [[monix.reactive.OverflowStrategy.Unbounded Unbounded]]
  *   - [[monix.reactive.OverflowStrategy.Fail Fail]]
  *
  * @param underlying is the underlying observer receiving the queued events

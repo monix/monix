@@ -23,7 +23,6 @@ import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
-import scala.language.higherKinds
 
 private[reactive] final
 class DelaySubscriptionWithTriggerObservable[A](source: Observable[A], trigger: Observable[Any])

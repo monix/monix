@@ -20,18 +20,16 @@ package monix.reactive.observers.buffers
 import java.util.concurrent.ConcurrentLinkedQueue
 import monix.execution.Ack
 import monix.execution.Ack.{Cancel, Continue}
-import monix.reactive.OverflowStrategy
 import monix.reactive.observers.{Subscriber, BufferedSubscriber}
 import monix.reactive.observers.buffers.BackPressuredBufferedSubscriber.State
 import org.sincron.atomic.Atomic
 import scala.annotation.tailrec
 import scala.concurrent.{Future, Promise}
 
-/**
- * A [[BufferedSubscriber]] implementation for the
- * [[OverflowStrategy.BackPressure BackPressured]]
- * buffer overflowStrategy.
- */
+/** A [[BufferedSubscriber]] implementation for the
+  * [[monix.reactive.OverflowStrategy.BackPressure BackPressured]]
+  * buffer overflowStrategy.
+  */
 private[monix] final class BackPressuredBufferedSubscriber[-T] private
   (underlying: Subscriber[T], bufferSize: Int)
   extends BufferedSubscriber[T] { self =>

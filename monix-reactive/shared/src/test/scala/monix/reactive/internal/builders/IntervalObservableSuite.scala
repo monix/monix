@@ -18,9 +18,10 @@
 package monix.reactive.internal.builders
 
 import minitest.SimpleTestSuite
+import monix.async.FutureUtils
 import monix.execution.Ack
 import monix.execution.Ack.Continue
-import monix.execution.FutureUtils.ops._
+import FutureUtils.extensions._
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.{Observable, Observer}
 import scala.concurrent.Future

@@ -23,7 +23,6 @@ import monix.reactive.OverflowStrategy
 import monix.reactive.OverflowStrategy.Synchronous
 import monix.reactive.observers.{BufferedSubscriber, Subscriber, SyncObserver, SyncSubscriber}
 import org.reactivestreams.{Processor => RProcessor, Subscriber => RSubscriber, Subscription}
-import scala.language.reflectiveCalls
 
 /** A concurrent subject is meant for imperative style feeding of events.
   *

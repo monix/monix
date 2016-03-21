@@ -17,10 +17,8 @@
 
 package monix.reactive.exceptions
 
-import monix.reactive.OverflowStrategy
-
 /** An exception emitted on buffer overflow, like when
-  * using [[OverflowStrategy.Fail OverflowStrategy.Fail]].
+  * using [[monix.reactive.OverflowStrategy.Fail OverflowStrategy.Fail]].
   */
 class BufferOverflowException(msg: String)
   extends RuntimeException(msg)

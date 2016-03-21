@@ -43,7 +43,7 @@ object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
     val f = Observable.fromIterable(Seq(o1, o2, o3))
       .mergeMap(x => x)(Unbounded)
       .sumF
-      .asFuture
+      .runAsyncGetFirst
 
     val result = Await.result(f, 30.seconds)
     assertEquals(result, Some(num * 3 + num * 4 + num * 5))

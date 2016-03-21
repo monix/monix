@@ -23,7 +23,6 @@ import monix.execution.internal.RunnableAction
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
-import scala.language.experimental.macros
 
 /** A Scheduler is an `scala.concurrent.ExecutionContext` that additionally can
   * schedule the execution of units of work to run with a delay or periodically.

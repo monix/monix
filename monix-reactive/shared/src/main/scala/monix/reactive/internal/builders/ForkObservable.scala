@@ -20,7 +20,6 @@ package monix.reactive.internal.builders
 import monix.execution.Cancelable
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
-import scala.language.higherKinds
 
 private[reactive] final class ForkObservable[A](source: Observable[A])
   extends Observable[A] {

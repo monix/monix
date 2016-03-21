@@ -21,9 +21,8 @@ import minitest.TestSuite
 import monix.execution.Ack.Continue
 import monix.execution.Scheduler
 import monix.execution.schedulers.TestScheduler
-import monix.reactive.{Observable, Observer}
 import monix.reactive.exceptions.DummyException
-import scala.concurrent.Promise
+import monix.reactive.{Observable, Observer}
 import scala.util.Random
 
 

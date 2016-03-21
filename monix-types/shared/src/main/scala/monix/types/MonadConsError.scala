@@ -17,7 +17,7 @@
 
 package monix.types
 
-import scala.language.{higherKinds, implicitConversions}
+import scala.language.higherKinds
 
 /** Type-class for monadic data-structures that can expose
   * multiple `A` elements.

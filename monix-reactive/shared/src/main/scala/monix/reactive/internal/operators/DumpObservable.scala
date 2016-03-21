@@ -18,8 +18,6 @@
 package monix.reactive.internal.operators
 
 import java.io.PrintStream
-
-import monix.execution.Ack.Cancel
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber

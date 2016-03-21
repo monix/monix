@@ -24,7 +24,7 @@ import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import scala.concurrent.duration._
 import scala.concurrent.{Future, TimeoutException}
-import scala.util.{Failure, Success}
+import scala.util.{Try, Failure, Success}
 
 object TaskTest extends TestSuite[TestScheduler] {
   def setup(): TestScheduler = TestScheduler()
@@ -517,17 +517,6 @@ object TaskTest extends TestSuite[TestScheduler] {
     assertEquals(f.value, Some(Success(99)))
   }
 
-  test("Task#onErrorRecover should not recover if pf not defined") { implicit s =>
-    val ex = DummyException("dummy")
-    val task = Task[Int](throw ex).onErrorRecover {
-      case ex: TimeoutException => 99
-    }
-
-    val f = task.runAsync
-    s.tick()
-    assertEquals(f.value, Some(Failure(ex)))
-  }
-
   test("Task#onErrorRecover should protect against user code") { implicit s =>
     val ex1 = DummyException("one")
     val ex2 = DummyException("two")
@@ -689,17 +678,6 @@ object TaskTest extends TestSuite[TestScheduler] {
     val f = task.runAsync
     s.tick()
     assertEquals(f.value, Some(Success(99)))
-  }
-
-  test("Task#onErrorRecoverWith should not recover if pf not defined") { implicit s =>
-    val ex = DummyException("dummy")
-    val task = Task[Int](throw ex).onErrorRecoverWith {
-      case ex: TimeoutException => Task(99)
-    }
-
-    val f = task.runAsync
-    s.tick()
-    assertEquals(f.value, Some(Failure(ex)))
   }
 
   test("Task#onErrorRecoverWith should protect against user code") { implicit s =>
@@ -1018,7 +996,7 @@ object TaskTest extends TestSuite[TestScheduler] {
   }
 
   test("Task.firstCompletedOf should switch to other") { implicit s =>
-    val task = Task.firstCompletedOf(Task(1).delayExecution(10.seconds), Task(99).delayExecution(1.second))
+    val task = Task.firstCompletedOf(Seq(Task(1).delayExecution(10.seconds), Task(99).delayExecution(1.second)))
     val f = task.runAsync
 
     s.tick()
@@ -1029,7 +1007,7 @@ object TaskTest extends TestSuite[TestScheduler] {
 
   test("Task.firstCompletedOf should onError from other") { implicit s =>
     val ex = DummyException("dummy")
-    val task = Task.firstCompletedOf(Task(1).delayExecution(10.seconds), Task(throw ex).delayExecution(1.second))
+    val task = Task.firstCompletedOf(Seq(Task(1).delayExecution(10.seconds), Task(throw ex).delayExecution(1.second)))
     val f = task.runAsync
 
     s.tick()
@@ -1039,7 +1017,7 @@ object TaskTest extends TestSuite[TestScheduler] {
   }
 
   test("Task.firstCompletedOf should mirror the source") { implicit s =>
-    val task = Task.firstCompletedOf(Task(1).delayExecution(1.seconds), Task(99).delayExecution(10.second))
+    val task = Task.firstCompletedOf(Seq(Task(1).delayExecution(1.seconds), Task(99).delayExecution(10.second)))
     val f = task.runAsync
 
     s.tick()
@@ -1051,7 +1029,7 @@ object TaskTest extends TestSuite[TestScheduler] {
 
   test("Task.firstCompletedOf should onError from the source") { implicit s =>
     val ex = DummyException("dummy")
-    val task = Task.firstCompletedOf(Task(throw ex).delayExecution(1.seconds), Task(99).delayExecution(10.second))
+    val task = Task.firstCompletedOf(Seq(Task(throw ex).delayExecution(1.seconds), Task(99).delayExecution(10.second)))
     val f = task.runAsync
 
     s.tick()
@@ -1062,7 +1040,7 @@ object TaskTest extends TestSuite[TestScheduler] {
   }
 
   test("Task.firstCompletedOf should cancel both") { implicit s =>
-    val task = Task.firstCompletedOf(Task(1).delayExecution(10.seconds), Task(99).delayExecution(1.second))
+    val task = Task.firstCompletedOf(Seq(Task(1).delayExecution(10.seconds), Task(99).delayExecution(1.second)))
     val f = task.runAsync
 
     s.tick()
@@ -1116,6 +1094,79 @@ object TaskTest extends TestSuite[TestScheduler] {
     f.cancel()
     s.tick(1.second)
     assertEquals(f.value, None)
+  }
+
+
+  test("Task.memoize should work synchronously for first subscriber") { implicit s =>
+    val task = Task.eval(1).memoize
+    val f = task.runAsync
+    assertEquals(f.value, Some(Success(1)))
+  }
+
+  test("Task.memoize should work synchronously for subsequent subscribers after complete") { implicit s =>
+    var effect = 0
+    val task = Task.eval { effect += 1; effect }.memoize
+    task.runAsync
+
+    val f1 = task.runAsync
+    assertEquals(f1.value, Some(Success(1)))
+    assertEquals(effect, 1)
+
+    val f2 = task.runAsync
+    assertEquals(f2.value, Some(Success(1)))
+    assertEquals(effect, 1)
+  }
+
+  test("Task.memoize should queue subscribers while running") { implicit s =>
+    var effect = 0
+    val task = Task.eval { effect += 1; effect }.delayExecution(1.second).memoize
+    task.runAsync
+
+    val f1 = task.runAsync
+    assertEquals(f1.value, None)
+    assertEquals(effect, 0)
+
+    val f2 = task.runAsync
+    assertEquals(f2.value, None)
+    assertEquals(effect, 0)
+
+    s.tick(1.second)
+    assertEquals(f1.value, Some(Success(1)))
+    assertEquals(f2.value, Some(Success(1)))
+    assertEquals(effect, 1)
+  }
+
+  test("Task.memoize should be cancelable, test 1") { implicit s =>
+    var effect = 0
+    val task = Task.eval { effect += 1; effect }.delayExecution(1.second).memoize
+    val f = task.runAsync
+
+    val f1 = task.runAsync
+    assertEquals(f1.value, None)
+    assertEquals(effect, 0)
+
+    f1.cancel()
+    s.tick()
+
+    assertEquals(f.value, None)
+    assertEquals(f1.value, None)
+  }
+
+  test("Task.memoize should be cancelable, test 2") { implicit s =>
+    var effect = 0
+    val task = Task.eval { effect += 1; effect }.delayExecution(1.second).memoize
+    val f = task.runAsync
+
+    var f1 = Option.empty[Try[Int]]
+    val c1 = task.runAsync{ result => f1 = Some(result) }
+    assertEquals(f1, None)
+    assertEquals(effect, 0)
+
+    c1.cancel()
+    s.tick()
+
+    assertEquals(f.value, None)
+    assertEquals(f1, None)
   }
 
   case class DummyException(message: String) extends RuntimeException(message) {

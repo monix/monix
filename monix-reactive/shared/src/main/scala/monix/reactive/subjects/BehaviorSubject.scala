@@ -20,7 +20,6 @@ package monix.reactive.subjects
 import monix.execution.Ack.{Cancel, Continue}
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
-import monix.reactive.internal._
 import monix.reactive.internal.util.PromiseCounter
 import monix.reactive.observers.{ConnectableSubscriber, Subscriber}
 import org.sincron.atomic.Atomic

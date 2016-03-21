@@ -22,7 +22,6 @@ import monix.execution.cancelables.SingleAssignmentCancelable
 import monix.reactive.observers.Subscriber
 import monix.reactive.{Observable, Observer}
 import org.reactivestreams.{Processor => RProcessor, Subscriber => RSubscriber, Subscription}
-import scala.language.reflectiveCalls
 
 /** A `Subject` is a sort of bridge or proxy that acts both as an
   * [[Observer]] and as an [[Observable]] and that must respect
@@ -35,7 +34,7 @@ import scala.language.reflectiveCalls
   * Useful to build multicast Observables or reusable processing pipelines.
   */
 abstract class Subject[I, +O] extends Observable[O] with Observer[I] { self =>
-  override def toReactive[U >: O](implicit s: Scheduler): RProcessor[I, U] =
+  override def toReactivePublisher[U >: O](implicit s: Scheduler): RProcessor[I, U] =
     Subject.toReactiveProcessor(this, s.batchedExecutionModulus)
 
   def toReactive[U >: O](bufferSize: Int)(implicit s: Scheduler): RProcessor[I, U] =

@@ -36,7 +36,7 @@ trait TaskInstances {
         Task.eval(a.value).delayExecution(delay)
 
       override def firstStartedOf[A](seq: Seq[Task[A]]): Task[A] =
-        Task.firstCompletedOf(seq:_*)
+        Task.firstCompletedOf(seq)
       override def delayExecution[A](fa: Task[A], timespan: FiniteDuration): Task[A] =
         fa.delayExecution(timespan)
       override def delayExecutionWith[A, B](fa: Task[A], trigger: Task[B]): Task[A] =
@@ -46,10 +46,10 @@ trait TaskInstances {
       override def delayResultBySelector[A, B](fa: Task[A])(selector: (A) => Task[B]): Task[A] =
         fa.delayResultBySelector(selector)
 
-      override def onErrorRecoverWith[A](fa: Task[A])(pf: PartialFunction[Throwable, Task[A]]): Task[A] =
-        fa.onErrorRecoverWith(pf)
-      override def onErrorRecover[A](fa: Task[A])(pf: PartialFunction[Throwable, A]): Task[A] =
-        fa.onErrorRecover(pf)
+      override def onErrorRecoverWith[A](fa: Task[A])(f: Throwable => Task[A]): Task[A] =
+        fa.onErrorRecoverWith(f)
+      override def onErrorRecover[A](fa: Task[A])(f: Throwable => A): Task[A] =
+        fa.onErrorRecover(f)
       override def onErrorFallbackTo[A](fa: Task[A], other: Eval[Task[A]]): Task[A] =
         fa.onErrorFallbackTo(other.value)
       override def onErrorRetry[A](fa: Task[A], maxRetries: Long): Task[A] =

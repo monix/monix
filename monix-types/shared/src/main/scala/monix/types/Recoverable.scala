@@ -18,7 +18,8 @@
 package monix.types
 
 import cats.Eval
-import scala.language.{higherKinds, implicitConversions}
+import cats.data.Xor
+import scala.language.higherKinds
 
 /** Enhancements for the `MonadError` type-class from Cats. */
 trait Recoverable[F[_], E] extends MonadError[F, E] {
@@ -30,14 +31,14 @@ trait Recoverable[F[_], E] extends MonadError[F, E] {
     *
     * Obviously, the implementation needs to be stack-safe.
     */
-  def onErrorRecoverWith[A](fa: F[A])(pf: PartialFunction[E, F[A]]): F[A]
+  def onErrorRecoverWith[A](fa: F[A])(f: E => F[A]): F[A]
 
   /** Mirrors the source, but in case an error happens then use the
     * given partial function to fallback to a given element for certain
     * errors.
     */
-  def onErrorRecover[A](fa: F[A])(pf: PartialFunction[E, A]): F[A] =
-    onErrorRecoverWith(fa) { case ex if pf.isDefinedAt(ex) => pure(pf(ex)) }
+  def onErrorRecover[A](fa: F[A])(f: E => A): F[A] =
+    onErrorRecoverWith(fa) { case ex => pure(f(ex)) }
 
   /** Mirrors the source, but if an error happens, then fallback to `other`. */
   def onErrorFallbackTo[A](fa: F[A], other: Eval[F[A]]): F[A] =
@@ -60,6 +61,15 @@ trait Recoverable[F[_], E] extends MonadError[F, E] {
     */
   def onErrorRetryIf[A](fa: F[A])(p: E => Boolean): F[A] =
     onErrorRecoverWith(fa) { case ex if p(ex) => onErrorRetryIf(fa)(p) }
+
+  /** Applies the mapping function on the attempted source. */
+  def mapAttempt[A,S](fa: F[A])(f: Xor[E,A] => Xor[E,S]): F[S] =
+    flatMap(attempt(fa)) { source =>
+      f(source) match {
+        case Xor.Left(error) => raiseError(error)
+        case Xor.Right(result) => pure(result)
+      }
+    }
 
   // From ApplicativeError
   final override def handleErrorWith[A](fa: F[A])(f: (E) => F[A]): F[A] =

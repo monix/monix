@@ -17,10 +17,10 @@
 
 package monix.reactive.observers
 
-import monix.reactive.{OverflowStrategy, Observer}
+import monix.reactive.OverflowStrategy
 import monix.reactive.observers.buffers.BuildersImpl
 
-/** Interface describing [[Observer Observer]] wrappers
+/** Interface describing [[monix.reactive.Observer Observer]] wrappers
   * that are thread-safe (can receive concurrent events) and that
   * return an immediate `Continue` when receiving `onNext`
   * events. Meant to be used by data sources that cannot uphold the

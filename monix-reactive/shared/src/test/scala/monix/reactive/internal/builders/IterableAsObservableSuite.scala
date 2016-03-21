@@ -18,8 +18,9 @@
 package monix.reactive.internal.builders
 
 import minitest.TestSuite
+import monix.async.FutureUtils
 import monix.execution.Ack.{Cancel, Continue}
-import monix.execution.FutureUtils.ops._
+import FutureUtils.extensions._
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.exceptions.DummyException

@@ -20,10 +20,9 @@ package monix.reactive.internal.reactivestreams
 import monix.execution.Ack.{Cancel, Continue}
 import monix.reactive.OverflowStrategy.Unbounded
 import monix.reactive.observers.{Subscriber, BufferedSubscriber, SyncSubscriber}
-import monix.reactive.Observer
 import org.reactivestreams.{Subscriber => RSubscriber, Subscription => RSubscription}
 
-/** Wraps a [[Observer Observer]] instance into an
+/** Wraps a [[monix.reactive.Observer Observer]] instance into an
   * `org.reactiveSubscriber` instance. The resulting
   * subscriber respects the [[http://www.reactive-streams.org/ Reactive Streams]]
   * contract.

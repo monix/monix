@@ -22,7 +22,6 @@ import monix.execution.Ack.Continue
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
-import monix.reactive.internal.builders.RepeatEvalObservableSuite._
 import monix.reactive.observers.Subscriber
 
 object RepeatOneObservableSuite extends TestSuite[TestScheduler] {

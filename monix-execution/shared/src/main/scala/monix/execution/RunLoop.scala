@@ -22,6 +22,13 @@ import monix.execution.cancelables.BooleanCancelable
 import scala.reflect.macros.whitebox
 import scala.language.experimental.macros
 
+/** Provides macro utilities for building a run-loop by means of the [[Scheduler]].
+  *
+  * These are just a higher-level interface for the Scheduler's [[Scheduler.execute execute]]
+  * and [[Scheduler.batchedExecutionModulus batchedExecutionModulus]], which can be used
+  * in combination to execute recursive tasks immediately using the normal call stack
+  * and then to introduce asynchronous boundaries when the call stack gets too big.
+  */
 object RunLoop {
   /** An alias for a number representing an ID for the current stack frame. */
   type FrameId = Int
@@ -121,17 +128,14 @@ object RunLoop {
     (runnable: FrameId => Unit)(implicit s: Scheduler): Unit =
     macro Macros.stepInterruptibly
 
-  /** Macro implementations for [[RunLoop]]. */
   @macrocompat.bundle
   class Macros(override val c: whitebox.Context) extends HygieneUtilMacros with InlineMacros {
     import c.universe._
 
-    /** Macro implementation for [[RunLoop.isAlwaysAsync]]. */
     def isAlwaysAsync(s: c.Expr[Scheduler]): c.Expr[Boolean] = {
       reify(s.splice.batchedExecutionModulus == 0)
     }
 
-    /** Macro for [[RunLoop.start]] */
     def start(runnable: c.Expr[FrameId => Unit])(s: c.Expr[Scheduler]): c.Expr[Unit] = {
       val nextFrameId = util.name("nextFrameId")
       val ec = util.name("s")
@@ -162,19 +166,16 @@ object RunLoop {
       inlineAndReset[Unit](tree)
     }
 
-    /** Macro for [[RunLoop.startAsync]] */
     def startAsync(runnable: c.Expr[FrameId => Unit])(s: c.Expr[Scheduler]): c.Expr[Unit] = {
       val tree = q"""$s.execute(new Runnable { def run(): Unit = $runnable(0) })"""
       inlineAndReset[Unit](tree)
     }
 
-    /** Macro for [[RunLoop.startNow]] */
     def startNow(runnable: c.Expr[FrameId => Unit])(s: c.Expr[Scheduler]): c.Expr[Unit] = {
       val tree = q"""$runnable(1)"""
       inlineAndReset[Unit](tree)
     }
 
-    /** Macro for [[RunLoop.step]] */
     def step(frameId: c.Expr[FrameId])
       (runnable: c.Expr[FrameId => Unit])(s: c.Expr[Scheduler]): c.Expr[Unit] = {
 
@@ -207,7 +208,6 @@ object RunLoop {
       inlineAndReset[Unit](tree)
     }
 
-    /** Macro for [[RunLoop.stepInterruptibly]] */
     def stepInterruptibly(active: c.Expr[BooleanCancelable], frameId: c.Expr[FrameId])
       (runnable: c.Expr[FrameId => Unit])(s: c.Expr[Scheduler]): c.Expr[Unit] = {
 

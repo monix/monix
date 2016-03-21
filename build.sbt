@@ -14,7 +14,20 @@ lazy val doNotPublishArtifact = Seq(
   publishArtifact in (Compile, packageBin) := false
 )
 
-lazy val sharedSettings = Seq(
+lazy val warnUnusedImport = Seq(
+  scalacOptions ++= {
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((2, 10)) =>
+        Seq()
+      case Some((2, n)) if n >= 11 =>
+        Seq("-Ywarn-unused-import")
+    }
+  },
+  scalacOptions in (Compile, console) ~= {_.filterNot("-Ywarn-unused-import" == _)},
+  scalacOptions in (Test, console) <<= (scalacOptions in (Compile, console))
+)
+
+lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
   scalaVersion := "2.11.8",
   crossScalaVersions := Seq("2.11.8", "2.10.6"),
@@ -183,7 +196,7 @@ lazy val docsSettings =
 
 lazy val testSettings = Seq(
   testFrameworks += new TestFramework("minitest.runner.Framework"),
-  libraryDependencies += "io.monix" %%% "minitest-laws" % "0.19" % "test"
+  libraryDependencies += "io.monix" %%% "minitest-laws" % "0.20" % "test"
 )
 
 lazy val scalaJSSettings = Seq(

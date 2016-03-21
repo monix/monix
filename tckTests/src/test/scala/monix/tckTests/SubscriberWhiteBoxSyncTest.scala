@@ -17,7 +17,6 @@
 
 package monix.tckTests
 
-import monix.execution.Ack
 import monix.execution.Scheduler.Implicits.global
 import monix.reactive.Observer
 import monix.reactive.observers.SyncObserver

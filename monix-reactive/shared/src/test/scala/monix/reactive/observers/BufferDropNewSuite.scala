@@ -20,12 +20,12 @@ package monix.reactive.observers
 import minitest.TestSuite
 import monix.execution.Ack
 import monix.execution.Ack.{Cancel, Continue}
-import monix.execution.internal.{RunnableAction, Platform}
+import monix.execution.internal.{Platform, RunnableAction}
 import monix.execution.schedulers.TestScheduler
+import monix.reactive.Observer
 import monix.reactive.OverflowStrategy.DropNew
 import monix.reactive.exceptions.DummyException
 import monix.reactive.observers.BufferClearBufferThenSignalSuite._
-import monix.reactive.{Observer, OverflowStrategy}
 import scala.concurrent.{Future, Promise}
 
 object BufferDropNewSuite extends TestSuite[TestScheduler] {

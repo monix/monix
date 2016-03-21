@@ -31,16 +31,16 @@ class PublisherTest
     if (elements == Long.MaxValue)
       Observable.repeat(1L)
         .flatMap(x => Observable.fork(Observable.now(x)))
-        .toReactive
+        .toReactivePublisher
     else
       Observable.range(0, elements)
         .flatMap(x => Observable.fork(Observable.now(x)))
-        .toReactive
+        .toReactivePublisher
   }
 
   def createFailedPublisher(): Publisher[Long] = {
     Observable.error(new RuntimeException("dummy"))
       .asInstanceOf[Observable[Long]]
-      .toReactive
+      .toReactivePublisher
   }
 }

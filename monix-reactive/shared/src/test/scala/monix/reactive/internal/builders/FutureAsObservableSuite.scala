@@ -18,10 +18,9 @@
 package monix.reactive.internal.builders
 
 import minitest.TestSuite
-import monix.async.Task
+import monix.async.{FutureUtils, Task}
 import monix.execution.Ack.Continue
-import monix.execution.FutureUtils
-import monix.execution.FutureUtils.ops._
+import FutureUtils.extensions._
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.exceptions.DummyException
 import monix.reactive.{Observable, Observer}

@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package monix.execution
+package monix.async
 
 import minitest.TestSuite
-import monix.execution.FutureUtils.ops._
 import monix.execution.schedulers.TestScheduler
+import monix.async.FutureUtils.extensions._
 import scala.concurrent.duration._
 import scala.concurrent.{Future, TimeoutException}
 

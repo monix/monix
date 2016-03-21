@@ -18,7 +18,6 @@
 package monix.reactive.internal.reactivestreams
 
 import monix.execution.{Cancelable, Ack, Scheduler}
-import monix.reactive.Observer
 import monix.reactive.observers.Subscriber
 import org.sincron.atomic.Atomic
 import monix.execution.Ack.{Cancel, Continue}
@@ -29,8 +28,8 @@ import scala.concurrent.{Future, Promise}
 
 /** Wraps a `org.reactivestreams.Subscriber` instance that respects the
   * [[http://www.reactive-streams.org/ Reactive Streams]] contract
-  * into an [[Observer Observer]] instance that respect the `Observer`
-  * contract.
+  * into an [[monix.reactive.Observer Observer]] instance that
+  * respect the `Observer` contract.
   */
 private[monix] final class ReactiveSubscriberAsMonixSubscriber[T] private
     (subscriber: RSubscriber[T], subscription: Cancelable)
@@ -99,20 +98,18 @@ private[monix] final class ReactiveSubscriberAsMonixSubscriber[T] private
 }
 
 private[monix] object ReactiveSubscriberAsMonixSubscriber {
-  /**
-   * Given an `org.reactivestreams.Subscriber` as defined by
-   * the [[http://www.reactive-streams.org/ Reactive Streams]]
-   * specification, it builds an [[Observer]] instance compliant
-   * with the Monix Rx implementation.
-   */
+  /** Given an `org.reactivestreams.Subscriber` as defined by
+    * the [[http://www.reactive-streams.org/ Reactive Streams]]
+    * specification, it builds an [[monix.reactive.Observer]]
+    * instance compliant with the Monix Rx implementation.
+    */
   def apply[T](subscriber: RSubscriber[T], subscription: Cancelable)
     (implicit s: Scheduler): ReactiveSubscriberAsMonixSubscriber[T] =
     new ReactiveSubscriberAsMonixSubscriber[T](subscriber, subscription)
 
-  /**
-   * An asynchronous queue implementation for dealing with
-   * requests from a Subscriber.
-   */
+  /** An asynchronous queue implementation for dealing with
+    * requests from a Subscriber.
+    */
   private final class RequestsQueue {
     private[this] val state = Atomic(ActiveState(Queue.empty, Queue.empty) : State)
 

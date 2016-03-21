@@ -18,45 +18,46 @@
 package monix.types
 
 import algebra.Monoid
+import monix.async.Task
 import simulacrum.typeclass
 import scala.language.{higherKinds, implicitConversions}
 
-/** Data structures that can be folded to a summary value,
-  * possibly lazily or asynchronously.
+/** Data structures that can be folded to an asynchronous
+  * summary value.
   *
-  * The main operation is `foldLeftF` that folds `fa`
-  * from left to right, or from first to last. Beyond this it
-  * provides many other useful methods related to
-  * folding over `F[A]` values.
+  * The main operation is `foldLeftT` that folds `fa`
+  * from left to right, or from first to last, returning a
+  * `Task` as a result.
   *
-  * Note that a corresponding `foldRight` is not provided,
+  * Note that a corresponding `foldLeft` is not provided,
   * because that would be incompatible with large or infinite
   * streams.
-  *
-  * See: [[http://www.cs.nott.ac.uk/~pszgmh/fold.pdf A tutorial on the universality and expressiveness of fold]].
   */
-
-@typeclass trait FFoldable[F[_]] {
+@typeclass trait FoldableT[F[_]] {
   /** Left associative asynchronous fold on 'F' using the function 'f'. */
-  def foldLeftF[A, S](fa: F[A], seed: S)(f: (S, A) => S): F[S]
+  def foldLeftT[A, S](fa: F[A], seed: S)(f: (S, A) => S): Task[S]
 
   /** Given a sequences, produces a new sequence that will expose the
     * count of the source.
     */
-  def countF[A](fa: F[A]): F[Long] =
-    foldLeftF(fa, 0L)((acc,_) => acc + 1)
+  def countT[A](fa: F[A]): Task[Long] =
+    foldLeftT(fa, 0L)((acc,_) => acc + 1)
 
   /** Folds a `Monoid`. */
-  def foldF[A](fa: F[A])(implicit A: Monoid[A]): F[A] =
-    foldLeftF(fa, A.empty)(A.combine)
+  def foldT[A](fa: F[A])(implicit A: Monoid[A]): Task[A] =
+    foldLeftT(fa, A.empty)(A.combine)
 
   /** Fold implemented by mapping `A` values into `B` and then
     * combining them using the given `Monoid[B]` instance.
     */
-  def foldMapF[A, B](fa: F[A])(f: A => B)(implicit B: Monoid[B]): F[B] =
-    foldLeftF(fa, B.empty)((b, a) => B.combine(b, f(a)))
+  def foldMapT[A, B](fa: F[A])(f: A => B)(implicit B: Monoid[B]): Task[B] =
+    foldLeftT(fa, B.empty)((b, a) => B.combine(b, f(a)))
 
   /** Given a sequence of numbers, calculates a sum. */
-  def sumF[A](fa: F[A])(implicit A: Numeric[A]): F[A] =
-    foldLeftF(fa, A.zero)(A.plus)
+  def sumT[A](fa: F[A])(implicit A: Numeric[A]): Task[A] =
+    foldLeftT(fa, A.zero)(A.plus)
+
+  /** Given a sequence, return a Task. */
+  def completedT[A](fa: F[A]): Task[Unit] =
+    foldLeftT(fa, ())((_,_) => ())
 }

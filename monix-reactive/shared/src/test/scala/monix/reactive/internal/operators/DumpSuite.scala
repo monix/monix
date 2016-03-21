@@ -21,9 +21,9 @@ import java.io.{OutputStream, PrintStream}
 
 import monix.reactive.Observable
 import monix.reactive.exceptions.DummyException
-import org.sincron.atomic.{Atomic, AtomicInt}
-import scala.concurrent.duration._
+import org.sincron.atomic.AtomicInt
 import scala.concurrent.duration.Duration.Zero
+import scala.concurrent.duration._
 
 object DumpSuite extends BaseOperatorSuite {
   def dummyOut(count: AtomicInt = null) = {

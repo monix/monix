@@ -89,7 +89,7 @@ trait BaseRulesTestSuite extends SimpleTestSuite with Discipline with AllInstanc
         var valueA = Option.empty[Try[Option[List[A]]]]
         var valueB = Option.empty[Try[Option[List[A]]]]
 
-        x.foldLeftF(List.empty[A])((acc,e) => e :: acc).asTask.runAsync(
+        x.foldLeftF(List.empty[A])((acc,e) => e :: acc).firstT.runAsync(
           new Callback[Option[List[A]]] {
             def onError(ex: Throwable): Unit =
               valueA = Some(Failure(ex))
@@ -97,7 +97,7 @@ trait BaseRulesTestSuite extends SimpleTestSuite with Discipline with AllInstanc
               valueA = Some(Success(value))
           })
 
-        y.foldLeftF(List.empty[A])((acc,e) => e :: acc).asTask.runAsync(
+        y.foldLeftF(List.empty[A])((acc,e) => e :: acc).firstT.runAsync(
           new Callback[Option[List[A]]] {
             def onError(ex: Throwable): Unit =
               valueB = Some(Failure(ex))

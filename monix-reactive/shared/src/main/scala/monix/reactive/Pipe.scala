@@ -23,7 +23,6 @@ import monix.reactive.OverflowStrategy.Synchronous
 import monix.reactive.Pipe.{LiftedPipe, TransformedPipe}
 import monix.reactive.observers.{BufferedSubscriber, Subscriber, SyncObserver}
 import monix.reactive.subjects._
-import scala.language.reflectiveCalls
 
 /** Represents a factory for an input/output channel for
   * broadcasting input to multiple subscribers.

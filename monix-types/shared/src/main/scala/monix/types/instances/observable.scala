@@ -18,10 +18,10 @@
 package monix.types.instances
 
 import _root_.cats.Eval
+import monix.async.Task
 import monix.reactive.Observable
 import monix.types.{Async, Streamable}
 import scala.concurrent.duration.FiniteDuration
-import scala.language.{higherKinds, implicitConversions}
 
 trait ObservableInstances {
   /** The [[Streamable]] type-class implemented for [[monix.reactive.Observable]]. */
@@ -71,10 +71,10 @@ trait ObservableInstances {
       override def collect[A, B](fa: Observable[A])(pf: PartialFunction[A, B]): Observable[B] =
         fa.collect(pf)
 
-      override def onErrorRecoverWith[A](fa: Observable[A])(pf: PartialFunction[Throwable, Observable[A]]): Observable[A] =
-        fa.onErrorRecoverWith(pf)
-      override def onErrorRecover[A](fa: Observable[A])(pf: PartialFunction[Throwable, A]): Observable[A] =
-        fa.onErrorRecover(pf)
+      override def onErrorRecoverWith[A](fa: Observable[A])(f: Throwable => Observable[A]): Observable[A] =
+        fa.onErrorRecoverWith(f)
+      override def onErrorRecover[A](fa: Observable[A])(f: Throwable => A): Observable[A] =
+        fa.onErrorRecover(f)
       override def onErrorFallbackTo[A](fa: Observable[A], other: Eval[Observable[A]]): Observable[A] =
         fa.onErrorFallbackTo(other.value)
       override def onErrorRetry[A](fa: Observable[A], maxRetries: Long): Observable[A] =
@@ -197,6 +197,11 @@ trait ObservableInstances {
         Observable.eval(f(fa))
       override def coflatten[A](fa: Observable[A]): Observable[Observable[A]] =
         Observable.now(fa)
+
+      override def foldLeftT[A, S](fa: Observable[A], seed: S)(f: (S, A) => S): Task[S] =
+        fa.foldLeftT(seed)(f)
+      override def completedT[A](fa: Observable[A]): Task[Unit] =
+        fa.completedT
     }
 }
 

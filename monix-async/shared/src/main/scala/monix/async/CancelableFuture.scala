@@ -15,12 +15,13 @@
  * limitations under the License.
  */
 
-package monix.execution
+package monix.async
 
+import monix.execution.Cancelable
 import scala.concurrent._
 import scala.concurrent.duration.Duration
 import scala.reflect.ClassTag
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 /**
   * Represents an asynchronous computation that can be canceled
@@ -58,16 +59,27 @@ trait CancelableFuture[+T] extends Future[T] with Cancelable {
 object CancelableFuture {
   /** Builder for a [[CancelableFuture]].
     *
-    * N.B. The behavior on `cancelable.cancel()` should be for the `underlying`
-    * future to be failed with `scala.concurrent.CancellationException`.
-    * Also, canceling an already complete future should do nothing.
-    *
     * @param underlying is an underlying `Future` reference that will respond to `onComplete` calls
-    * @param cancelable is a [[monix.execution.Cancelable Cancelable]] that can be used to cancel the active computation
-    *                   and that will complete the future with a `CancellationException`
+    * @param cancelable is a [[monix.execution.Cancelable Cancelable]]
+    *        that can be used to cancel the active computation
     */
   def apply[T](underlying: Future[T], cancelable: Cancelable): CancelableFuture[T] =
     new Implementation[T](underlying, cancelable)
+
+  /** Promotes a strict `value` to a [[CancelableFuture]] that's already complete. */
+  def success[T](value: T): CancelableFuture[T] =
+    apply(Future.successful(value), Cancelable.empty)
+
+  /** Promotes a strict `Throwable` to a [[CancelableFuture]] that's already complete. */
+  def failure[T](ex: Throwable): CancelableFuture[T] =
+    apply(Future.failed(ex), Cancelable.empty)
+
+  /** Promotes a strict `Try[T]` to a [[CancelableFuture]] that's already complete. */
+  def fromTry[T](value: Try[T]): CancelableFuture[T] =
+    value match {
+      case Success(v) => success(v)
+      case Failure(ex) => failure(ex)
+    }
 
   /** Internal; wraps any cancelable future `ref` into an [[Implementation]] */
   private def wrap[T](ref: CancelableFuture[T]): Implementation[T] =

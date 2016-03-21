@@ -17,12 +17,12 @@
 
 package monix.execution.schedulers
 
-import java.util.concurrent.{CountDownLatch, TimeUnit, TimeoutException}
+import java.util.concurrent.{TimeUnit, TimeoutException}
 import minitest.SimpleTestSuite
-import scala.concurrent.{Await, Promise}
+import monix.execution.cancelables.SingleAssignmentCancelable
+import monix.execution.{Cancelable, Scheduler}
 import scala.concurrent.duration._
-import monix.execution.cancelables.{BooleanCancelable, SingleAssignmentCancelable}
-import monix.execution.{Scheduler, Cancelable}
+import scala.concurrent.{Await, Promise}
 
 object AsyncSchedulerSuite extends SimpleTestSuite {
   val s = monix.execution.Scheduler.global

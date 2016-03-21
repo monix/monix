@@ -18,8 +18,7 @@
 package monix.reactive.observers.buffers
 
 import monix.execution.Ack
-import monix.execution.internal.collection.{EvictingQueue, DropHeadOnOverflowQueue, DropAllOnOverflowQueue}
-import monix.reactive.OverflowStrategy
+import monix.execution.internal.collection._
 import monix.execution.Ack.{Cancel, Continue}
 import monix.reactive.exceptions.BufferOverflowException
 import monix.execution.internal.collection.ArrayQueue
@@ -29,10 +28,10 @@ import scala.util.control.NonFatal
 
 /**
   * A [[BufferedSubscriber]] implementation for the
-  * [[OverflowStrategy.DropNew DropNew]] overflow strategy.
+  * [[monix.reactive.OverflowStrategy.DropNew DropNew]] overflow strategy.
   */
 private[buffers] final class SyncBufferedSubscriber[-T] private
-(underlying: Subscriber[T], buffer: EvictingQueue[T], onOverflow: Long => T = null)
+  (underlying: Subscriber[T], buffer: EvictingQueue[T], onOverflow: Long => T = null)
   extends BufferedSubscriber[T] with SyncSubscriber[T] {
 
   implicit val scheduler = underlying.scheduler
@@ -170,7 +169,7 @@ private[buffers] final class SyncBufferedSubscriber[-T] private
 private[monix] object SyncBufferedSubscriber {
   /**
     * Returns an instance of a [[SyncBufferedSubscriber]]
-    * for the [[OverflowStrategy.DropNew DropNew]]
+    * for the [[monix.reactive.OverflowStrategy.DropNew DropNew]]
     * overflow strategy.
     */
   def unbounded[T](underlying: Subscriber[T]): SyncSubscriber[T] = {

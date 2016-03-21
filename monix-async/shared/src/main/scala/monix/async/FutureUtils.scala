@@ -15,13 +15,15 @@
  * limitations under the License.
  */
 
-package monix.execution
+package monix.async
 
 import java.util.concurrent.TimeoutException
+import monix.execution.Scheduler
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
+/** Utilities for Scala's standard `concurrent.Future`. */
 object FutureUtils {
   /** Utility that returns a new Future that either completes with
     * the original Future's result or with a TimeoutException in case
@@ -29,9 +31,7 @@ object FutureUtils {
     *
     * @param atMost specifies the maximum wait time until the future is
     *               terminated with a TimeoutException
-    *
     * @param s is the Scheduler, needed for completing our internal promise
-    *
     * @return a new future that will either complete with the result of our
     *         source or fail in case the timeout is reached.
     */
@@ -58,15 +58,12 @@ object FutureUtils {
     *
     * @param atMost specifies the maximum wait time until the future is
     *               terminated with a TimeoutException
-    *
     * @param fallback the fallback future that gets triggered after timeout
-    *
     * @param s is the Scheduler, needed for completing our internal promise
-    *
     * @return a new future that will either complete with the result of our
     *         source or with the fallback in case the timeout is reached
     */
-  def timeout[T](source: Future[T], atMost: FiniteDuration, fallback: => Future[T])
+  def timeoutTo[T](source: Future[T], atMost: FiniteDuration, fallback: => Future[T])
     (implicit s: Scheduler): Future[T] = {
 
     val promise = Promise[T]()
@@ -83,16 +80,38 @@ object FutureUtils {
     promise.future
   }
 
-  /** Utility that lifts a `Future[T]` into a `Future[Try[T]]`, just because
-    * it is useful sometimes.
+  /** Utility that lifts a `Future[T]` into a `Future[Try[T]]`, exposing
+    * error explicitly.
     */
-  def liftTry[T](source: Future[T])(implicit ec: ExecutionContext): Future[Try[T]] = {
+  def materialize[T](source: Future[T])(implicit ec: ExecutionContext): Future[Try[T]] = {
     if (source.isCompleted) {
       Future.successful(source.value.get)
     }
     else {
       val p = Promise[Try[T]]()
       source.onComplete { case result => p.success(result) }
+      p.future
+    }
+  }
+
+  /** Utility that transforms a `Future[Try[T]]` into a `Future[T]`,
+    * hiding errors, being the opposite of [[materialize]].
+    */
+  def dematerialize[T](source: Future[Try[T]])(implicit ec: ExecutionContext): Future[T] = {
+    if (source.isCompleted)
+      source.value.get match {
+        case Failure(error) => Future.failed(error)
+        case Success(value) => value match {
+          case Success(success) => Future.successful(success)
+          case Failure(error) => Future.failed(error)
+        }
+      }
+    else {
+      val p = Promise[T]()
+      source.onComplete {
+        case Failure(error) => p.failure(error)
+        case Success(result) => p.complete(result)
+      }
       p.future
     }
   }
@@ -107,62 +126,31 @@ object FutureUtils {
     p.future
   }
 
-  /** Provides extension methods for `Future`.
-    *
-    * Just import it into scope like so:
-    * {{{
-    *   import monix.execution.FutureUtils.ops._
-    * }}}
-    */
-  object ops {
+  /** Provides extension methods for `Future`. */
+  object extensions {
     /** Provides utility methods added on Scala's `concurrent.Future` */
     implicit class FutureExtensions[T](val source: Future[T]) extends AnyVal {
-      /** Utility that returns a new Future that either completes with
-        * the original Future's result or with a TimeoutException in case
-        * the maximum wait time was exceeded.
-        *
-        * @param atMost specifies the maximum wait time until the future is
-        *               terminated with a TimeoutException
-        * @param s is the Scheduler, needed for completing our internal promise
-        *
-        * @return a new future that will either complete with the result of our
-        *         source or fail in case the timeout is reached.
-        */
+      /** [[FutureUtils.timeout]] exposed as an extension method. */
       def timeout(atMost: FiniteDuration)(implicit s: Scheduler): Future[T] =
         FutureUtils.timeout(source, atMost)
 
-      /** Utility that returns a new Future that either completes with
-        * the source's result or after the timeout specified by
-        * `atMost` it tries to complete with the given `fallback`.
-        * Whatever `Future` finishes first after the timeout, will win.
-        *
-        * @param atMost specifies the maximum wait time until the future is
-        *               terminated with a TimeoutException
-        *
-        * @param fallback the fallback future that gets triggered after timeout
-        *
-        * @param s is the Scheduler, needed for completing our internal promise
-        *
-        * @return a new future that will either complete with the result of our
-        *         source or with the fallback in case the timeout is reached
-        */
-      def timeout[U >: T](atMost: FiniteDuration, fallback: => Future[U])
+      /** [[FutureUtils.timeoutTo]] exposed as an extension method. */
+      def timeoutTo[U >: T](atMost: FiniteDuration, fallback: => Future[U])
         (implicit s: Scheduler): Future[U] =
-        FutureUtils.timeout(source, atMost, fallback)
+        FutureUtils.timeoutTo(source, atMost, fallback)
 
-      /** Utility that lifts a `Future[T]` into a `Future[Try[T]]`, just because
-        * it is useful sometimes.
-        */
-      def liftTry(implicit ec: ExecutionContext): Future[Try[T]] =
-        FutureUtils.liftTry(source)
+      /** [[FutureUtils.materialize]] exposed as an extension method. */
+      def materialize(implicit ec: ExecutionContext): Future[Try[T]] =
+        FutureUtils.materialize(source)
+
+      /** [[FutureUtils.dematerialize]] exposed as an extension method. */
+      def materialize[U](implicit ev: T <:< Try[U], ec: ExecutionContext): Future[U] =
+        FutureUtils.dematerialize(source.asInstanceOf[Future[Try[U]]])
     }
 
     /** Provides utility methods for Scala's `concurrent.Future` companion object. */
     implicit class FutureCompanionExtensions(val f: Future.type) extends AnyVal {
-      /**
-        * Creates a future that completes with the specified `result`, but only
-        * after the specified `delay`.
-        */
+      /** [[FutureUtils.delayedResult]] exposed as an extension method. */
       def delayedResult[T](delay: FiniteDuration)(result: => T)(implicit s: Scheduler): Future[T] =
         FutureUtils.delayedResult(delay)(result)
     }

@@ -25,7 +25,6 @@ import monix.reactive.exceptions.CompositeException
 import monix.reactive.observers.Subscriber
 import scala.collection.mutable
 import scala.concurrent.{Future, Promise}
-import scala.language.higherKinds
 import scala.util.control.NonFatal
 
 private[reactive] final

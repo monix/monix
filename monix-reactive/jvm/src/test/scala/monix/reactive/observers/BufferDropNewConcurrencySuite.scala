@@ -23,7 +23,7 @@ import monix.execution.Ack.{Cancel, Continue}
 import monix.execution.{Ack, Scheduler}
 import monix.reactive.OverflowStrategy.DropNew
 import monix.reactive.exceptions.DummyException
-import monix.reactive.{Observable, Observer, OverflowStrategy}
+import monix.reactive.{Observable, Observer}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, Promise}
 
@@ -44,7 +44,7 @@ object BufferDropNewConcurrencySuite extends TestSuite[Scheduler] {
     val f = Observable.fromIterable(Seq(o1, o2, o3))
       .mergeMap(x => x)(DropNew(100))
       .sumF
-      .asFuture
+      .runAsyncGetFirst
 
     val result = Await.result(f, 30.seconds)
     assert(result.exists(_ > 0))

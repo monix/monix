@@ -24,7 +24,8 @@ import scala.language.{higherKinds, implicitConversions}
 /** Type-class describing operations for streams. */
 @typeclass trait Streamable[F[_]]
   extends MonadFilter[F] with MonadConsError[F,Throwable]
-    with Recoverable[F, Throwable] with Scannable[F] with FFoldable[F]
+    with Recoverable[F, Throwable] with Scannable[F]
+    with FoldableF[F] with FoldableT[F]
     with Zippable[F] with CoflatMap[F] {
 
   /** Lifts any `Iterable` into a `Sequenceable` type. */

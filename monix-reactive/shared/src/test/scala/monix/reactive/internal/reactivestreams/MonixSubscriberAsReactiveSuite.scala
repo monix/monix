@@ -81,7 +81,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
     }
 
     val requested = 100
-    Observable.range(0, requested)
+    Observable.range(0, requested).toReactivePublisher
       .subscribe(Observer.toReactiveSubscriber(observer, bufferSize = 1))
 
     s.tick()
@@ -108,7 +108,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    Observable.range(0, 10000)
+    Observable.range(0, 10000).toReactivePublisher
       .subscribe(Observer.toReactiveSubscriber(observer, bufferSize = 128))
 
     s.tick()
@@ -135,7 +135,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    Observable.range(0, 10000)
+    Observable.range(0, 10000).toReactivePublisher
       .subscribe(Observer.toReactiveSubscriber(observer, bufferSize = 1))
 
     scheduler.tick()
@@ -174,7 +174,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    Observable.range(1, 10000)
+    Observable.range(1, 10000).toReactivePublisher
       .subscribe(Observer.toReactiveSubscriber(observer, bufferSize = 128))
 
     s.tick()
@@ -214,7 +214,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    Observable.range(1, 10000)
+    Observable.range(1, 10000).toReactivePublisher
       .subscribe(Observer.toReactiveSubscriber(observer, bufferSize = 1))
 
     s.tick()
@@ -247,7 +247,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    Observable.now(100L)
+    Observable.now(100L).toReactivePublisher
       .subscribe(Observer.toReactiveSubscriber(observer, bufferSize = 128))
 
     s.tick()
@@ -280,7 +280,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    Observable.now(100L)
+    Observable.now(100L).toReactivePublisher
       .subscribe(Observer.toReactiveSubscriber(observer, bufferSize = 1))
 
     s.tick()

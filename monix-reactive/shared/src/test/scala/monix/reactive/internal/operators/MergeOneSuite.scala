@@ -17,9 +17,10 @@
 
 package monix.reactive.internal.operators
 
+import monix.async.FutureUtils
 import monix.execution.Ack.Continue
-import monix.execution.FutureUtils.ops._
-import monix.execution.{FutureUtils, Scheduler}
+import FutureUtils.extensions._
+import monix.execution.Scheduler
 import monix.reactive.Observable.{empty, now}
 import monix.reactive.exceptions.DummyException
 import monix.reactive.subjects.PublishSubject
@@ -68,7 +69,7 @@ object MergeOneSuite extends BaseOperatorSuite {
   }
 
   def toList[T](o: Observable[T])(implicit s: Scheduler) = {
-    o.foldLeftF(Vector.empty[T])(_ :+ _).asFuture
+    o.foldLeftF(Vector.empty[T])(_ :+ _).runAsyncGetLast
       .map(_.getOrElse(Vector.empty))
   }
 

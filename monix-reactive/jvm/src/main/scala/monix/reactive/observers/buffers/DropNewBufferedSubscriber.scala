@@ -19,8 +19,6 @@ package monix.reactive.observers.buffers
 
 import java.util.concurrent.ConcurrentLinkedQueue
 import monix.execution.Ack
-import monix.reactive.OverflowStrategy
-import monix.reactive
 import monix.execution.Ack.{Cancel, Continue}
 import monix.reactive.observers.buffers.DropNewBufferedSubscriber.State
 import monix.reactive.observers.{Subscriber, BufferedSubscriber, SyncSubscriber}
@@ -31,7 +29,7 @@ import org.sincron.atomic.Atomic
 
 /**
  * A high-performance and non-blocking [[BufferedSubscriber]] implementation
- * for the [[OverflowStrategy.DropNew DropNew]]
+ * for the [[monix.reactive.OverflowStrategy.DropNew DropNew]]
  * overflow strategy.
  */
 private[buffers] final class DropNewBufferedSubscriber[-T] private

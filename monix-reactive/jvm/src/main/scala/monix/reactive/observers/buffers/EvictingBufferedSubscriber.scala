@@ -20,7 +20,6 @@ package monix.reactive.observers.buffers
 import monix.execution.Ack
 import monix.execution.internal.Platform
 import monix.execution.internal.collection.{EvictingQueue, DropHeadOnOverflowQueue, DropAllOnOverflowQueue}
-import monix.reactive.OverflowStrategy
 import monix.execution.Ack.{Cancel, Continue}
 import monix.reactive.observers.{Subscriber, BufferedSubscriber, SyncSubscriber}
 import scala.annotation.tailrec
@@ -29,7 +28,7 @@ import scala.util.control.NonFatal
 
 /**
  * A [[BufferedSubscriber]] implementation for the
- * [[OverflowStrategy.DropNew DropNew]] overflow strategy.
+ * [[monix.reactive.OverflowStrategy.DropNew DropNew]] overflow strategy.
  */
 private[buffers] final class EvictingBufferedSubscriber[-T] private
   (underlying: Subscriber[T], buffer: EvictingQueue[AnyRef], onOverflow: Long => T = null)

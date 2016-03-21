@@ -17,6 +17,7 @@
 
 package monix.async
 
+import monix.async.Task.MemoizedTask
 import monix.execution.RunLoop.FrameId
 import monix.execution._
 import monix.execution.cancelables._
@@ -104,7 +105,7 @@ sealed abstract class Task[+A] { self =>
 
   /** Triggers the asynchronous execution.
     *
-    * @return a [[monix.execution.CancelableFuture CancelableFuture]]
+    * @return a [[monix.async.CancelableFuture CancelableFuture]]
     *         that can be used to extract the result or to cancel
     *         a running task.
     */
@@ -147,6 +148,45 @@ sealed abstract class Task[+A] { self =>
       }
     }
 
+  /** Materializes the source's result into a `Try`. */
+  def materialize: Task[Try[A]] =
+    new Task[Try[A]] {
+      def unsafeRun(active: MultiAssignmentCancelable, frameId: FrameId, callback: Callback[Try[A]])
+        (implicit s: Scheduler): Unit = {
+
+        RunLoop.stepInterruptibly(active, frameId) { frameId =>
+          self.unsafeRun(active, frameId, new Callback[A] {
+            def onError(ex: Throwable): Unit = callback.onSuccess(Failure(ex))
+            def onSuccess(value: A): Unit = callback.onSuccess(Success(value))
+          })
+        }
+      }
+    }
+
+  /** Dematerializes the source's result from a `Try`. */
+  def dematerialize[B](implicit ev: A <:< Try[B]): Task[B] =
+    new Task[B] {
+      def unsafeRun(active: MultiAssignmentCancelable, frameId: FrameId, callback: Callback[B])
+        (implicit s: Scheduler): Unit = {
+
+        RunLoop.stepInterruptibly(active, frameId) { frameId =>
+          self.unsafeRun(active, frameId, new Callback[A] {
+            def onError(ex: Throwable): Unit = callback.onError(ex)
+            def onSuccess(value: A): Unit =
+              value.asInstanceOf[Try[B]] match {
+                case Success(b) => callback.onSuccess(b)
+                case Failure(ex) => callback.onError(ex)
+              }
+          })
+        }
+      }
+    }
+
+  /** Returns a new Task that applies the mapping function to
+    * the element emitted by the source.
+    */
+  def mapTry[B](f: Try[A] => Try[B]): Task[B] =
+    materialize.map(f).dematerialize
 
   /** Given a source Task that emits another Task, this function
     * flattens the result, returning a Task equivalent to the emitted
@@ -333,27 +373,17 @@ sealed abstract class Task[+A] { self =>
           }))
       }
     }
-
-  /** Lifts the source into one that exposes possible errors. */
-  def liftTry: Task[Try[A]] =
-    new Task[Try[A]] {
-      def unsafeRun(active: MultiAssignmentCancelable, frameId: FrameId, cb: Callback[Try[A]])
-        (implicit s: Scheduler): Unit = {
-
-        RunLoop.stepInterruptibly(active, frameId)(frameId =>
-          self.unsafeRun(active, frameId, new Callback[A] {
-            def onSuccess(value: A): Unit =
-              cb.onSuccess(Success(value))
-            def onError(ex: Throwable): Unit =
-              cb.onSuccess(Failure(ex))
-          }))
-      }
-    }
+  
+  /** Memoizes the result on the computation and reuses it on subsequent
+    * invocations of `runAsync`.
+    */
+  def memoize: Task[A] =
+    new MemoizedTask[A](this)
 
   /** Creates a new task that will handle any matching throwable that
     * this task might emit.
     */
-  def onErrorRecover[U >: A](pf: PartialFunction[Throwable, U]): Task[U] =
+  def onErrorRecover[U >: A](f: Throwable => U): Task[U] =
     new Task[U] {
       def unsafeRun(active: MultiAssignmentCancelable, frameId: FrameId, cb: Callback[U])
         (implicit s: Scheduler): Unit = {
@@ -366,14 +396,9 @@ sealed abstract class Task[+A] { self =>
             def onError(ex: Throwable): Unit = {
               var streamError = true
               try {
-                if (pf.isDefinedAt(ex)) {
-                  val r = pf(ex)
-                  streamError = false
-                  cb.onSuccess(r)
-                } else {
-                  streamError = false
-                  cb.onError(ex)
-                }
+                val r = f(ex)
+                streamError = false
+                cb.onSuccess(r)
               } catch {
                 case NonFatal(err) if streamError =>
                   s.reportFailure(ex)
@@ -387,7 +412,7 @@ sealed abstract class Task[+A] { self =>
   /** Creates a new task that will handle any matching throwable that
     * this task might emit by executing another task.
     */
-  def onErrorRecoverWith[B >: A](pf: PartialFunction[Throwable, Task[B]]): Task[B] =
+  def onErrorRecoverWith[B >: A](f: Throwable => Task[B]): Task[B] =
     new Task[B] {
       def unsafeRun(active: MultiAssignmentCancelable, frameId: FrameId, cb: Callback[B])
         (implicit s: Scheduler): Unit = {
@@ -401,17 +426,11 @@ sealed abstract class Task[+A] { self =>
             def onError(ex: Throwable): Unit = {
               var streamError = true
               try {
-                if (pf.isDefinedAt(ex)) {
-                  val newTask = pf(ex)
-                  streamError = false
-                  // Fallback to produced task
-                  RunLoop.stepInterruptibly(active, frameId)(frameId =>
-                    newTask.unsafeRun(active, frameId, cb))
-                }
-                else {
-                  streamError = false
-                  cb.onError(ex)
-                }
+                val newTask = f(ex)
+                streamError = false
+                // Fallback to produced task
+                RunLoop.stepInterruptibly(active, frameId)(frameId =>
+                  newTask.unsafeRun(active, frameId, cb))
               } catch {
                 case NonFatal(err) if streamError =>
                   s.reportFailure(ex)
@@ -666,6 +685,12 @@ sealed abstract class Task[+A] { self =>
     */
   def zip[B](that: Task[B]): Task[(A, B)] =
     Task.map2(this, that)((a,b) => (a,b))
+
+  /** Zips the values of `this` and `that` and applies the given
+    * mapping function on their results.
+    */
+  def zipWith[B,C](that: Task[B])(f: (A,B) => C): Task[C] =
+    Task.map2(this, that)(f)
 }
 
 object Task {
@@ -680,6 +705,12 @@ object Task {
     */
   def now[A](elem: A): Task[A] =
     new Now(elem)
+
+  /** A `Task[Unit]` provided for convenience. */
+  val unit: Task[Unit] = now(())
+
+  /** A [[Task]] instance that upon evaluation will never complete. */
+  def never[A]: Task[A] = Never
 
   /** Promote a non-strict value to a Task, catching exceptions in the
     * process.
@@ -792,45 +823,6 @@ object Task {
       }
     }
 
-  /** Creates a `Task` that upon execution will return the result of the
-    * first completed task in the given list and then cancel the rest.
-    */
-  def amb[A](tasks: Task[A]*): Task[A] = new Task[A] {
-    require(tasks.nonEmpty, "tasks.nonEmpty")
-
-    def unsafeRun(active: MultiAssignmentCancelable, frameId: FrameId, cb: Callback[A])
-      (implicit s: Scheduler): Unit = {
-
-      val isActive = Atomic(true)
-      val composite = CompositeCancelable()
-      active := composite
-
-      for (task <- tasks) {
-        val taskCancelable = MultiAssignmentCancelable()
-        composite += taskCancelable
-
-        RunLoop.stepInterruptibly(taskCancelable, frameId)(frameId =>
-          task.unsafeRun(taskCancelable, frameId, new Callback[A] {
-            def onSuccess(value: A): Unit =
-              if (isActive.compareAndSet(expect=true, update=false)) {
-                composite -= taskCancelable
-                composite.cancel()
-                active := taskCancelable
-                cb.onSuccess(value)
-              }
-
-            def onError(ex: Throwable): Unit =
-              if (isActive.compareAndSet(expect=true, update=false)) {
-                composite -= taskCancelable
-                composite.cancel()
-                active := taskCancelable
-                cb.onError(ex)
-              }
-          }))
-      }
-    }
-  }
-
   /** Given two tasks and a mapping function, returns a new Task that will
     * be the result of the mapping function applied to their results.
     */
@@ -903,11 +895,41 @@ object Task {
 
   /** Creates a `Task` that upon execution will return the result of the
     * first completed task in the given list and then cancel the rest.
-    *
-    * Alias for [[Task.amb]].
     */
-  def firstCompletedOf[T](tasks: Task[T]*): Task[T] =
-    amb(tasks:_*)
+  def firstCompletedOf[A](tasks: TraversableOnce[Task[A]]): Task[A] =
+    new Task[A] {
+      def unsafeRun(active: MultiAssignmentCancelable, frameId: FrameId, cb: Callback[A])
+        (implicit s: Scheduler): Unit = {
+
+        val isActive = Atomic(true)
+        val composite = CompositeCancelable()
+        active := composite
+
+        for (task <- tasks) {
+          val taskCancelable = MultiAssignmentCancelable()
+          composite += taskCancelable
+
+          RunLoop.stepInterruptibly(taskCancelable, frameId)(frameId =>
+            task.unsafeRun(taskCancelable, frameId, new Callback[A] {
+              def onSuccess(value: A): Unit =
+                if (isActive.compareAndSet(expect=true, update=false)) {
+                  composite -= taskCancelable
+                  composite.cancel()
+                  active := taskCancelable
+                  cb.onSuccess(value)
+                }
+
+              def onError(ex: Throwable): Unit =
+                if (isActive.compareAndSet(expect=true, update=false)) {
+                  composite -= taskCancelable
+                  composite.cancel()
+                  active := taskCancelable
+                  cb.onError(ex)
+                }
+            }))
+        }
+      }
+    }
 
   /** Transforms a `TraversableOnce[Task[A]]` into a
     * `Task[TraversableOnce[A]]`.  Useful for reducing many `Task`s
@@ -971,5 +993,77 @@ object Task {
 
     override def runAsync(implicit s: Scheduler): CancelableFuture[Nothing] =
       CancelableFuture(Future.failed(ex), Cancelable.empty)
+  }
+
+  /** A task that upon evaluation will never complete. */
+  private object Never extends Task[Nothing] {
+    def unsafeRun(a: MultiAssignmentCancelable, fid: FrameId, cb: Callback[Nothing])
+      (implicit s: Scheduler): Unit = ()
+  }
+
+  /** A task implementation that stores the result on the first `unsafeRun` call
+    * and reuses it on subsequent invocations.
+    */
+  private final class MemoizedTask[A](underlying: Task[A]) extends Task[A] {
+    private[this] val state = Atomic(null : AnyRef)
+
+    override def runAsync(implicit s: Scheduler): CancelableFuture[A] =
+      state.get match {
+        case null => super.runAsync(s)
+        case (p: Promise[_], c: MultiAssignmentCancelable) =>
+          val f = p.asInstanceOf[Promise[A]].future
+          CancelableFuture(f, c)
+        case result: Try[_] =>
+          CancelableFuture.fromTry(result.asInstanceOf[Try[A]])
+      }
+
+    def unsafeRun(active: MultiAssignmentCancelable, frameId: FrameId, cb: Callback[A])
+      (implicit s: Scheduler): Unit = {
+
+      state.get match {
+        case null =>
+          val p = Promise[A]()
+
+          if (state.compareAndSet(null, (p, active)))
+            RunLoop.stepInterruptibly(active, frameId) { frameId =>
+              underlying.unsafeRun(active, frameId, new Callback[A] {
+                def onError(ex: Throwable): Unit = {
+                  try cb.onError(ex) finally
+                    memoizeValue(Failure(ex))
+                }
+
+                def onSuccess(value: A): Unit = {
+                  try cb.onSuccess(value) finally
+                    memoizeValue(Success(value))
+                }
+              })
+            }
+          else {
+            unsafeRun(active, frameId, cb) // retry
+          }
+
+        case (p: Promise[_], cancelable: MultiAssignmentCancelable) =>
+          // execution is pending completion
+          active := cancelable
+          p.asInstanceOf[Promise[A]].future.onComplete { r =>
+            if (r.isSuccess) cb.onSuccess(r.get)
+            else cb.onError(r.failed.get)
+          }
+
+        case result: Try[_] =>
+          val r = result.asInstanceOf[Try[A]]
+          if (r.isSuccess) cb.onSuccess(r.get)
+          else cb.onError(r.failed.get)
+      }
+    }
+
+    private def memoizeValue(value: Try[A]): Unit = {
+      state.getAndSet(value) match {
+        case (p: Promise[_], _) =>
+          p.asInstanceOf[Promise[A]].complete(value)
+        case _ =>
+          () // do nothing
+      }
+    }
   }
 }

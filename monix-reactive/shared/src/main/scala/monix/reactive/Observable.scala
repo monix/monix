@@ -17,6 +17,7 @@
 
 package monix.reactive
 
+import monix.async.{CancelableFuture, Task}
 import monix.execution.Ack.{Cancel, Continue}
 import monix.execution._
 import monix.execution.cancelables.SingleAssignmentCancelable
@@ -25,11 +26,9 @@ import monix.reactive.internal.builders
 import monix.reactive.observables._
 import monix.reactive.observers._
 import monix.reactive.subjects._
-import monix.async.Task
 import org.reactivestreams.{Publisher => RPublisher, Subscriber => RSubscriber}
 import scala.concurrent.Future
 import scala.concurrent.duration.{Duration, FiniteDuration}
-import scala.language.{higherKinds, implicitConversions}
 import scala.util.control.NonFatal
 
 /** The Observable type that implements the Reactive Pattern.
@@ -127,7 +126,7 @@ abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
     * See the [[http://www.reactive-streams.org/ Reactive Streams]]
     * protocol that Monix implements.
     */
-  def toReactive[B >: A](implicit s: Scheduler): RPublisher[B] =
+  def toReactivePublisher[B >: A](implicit s: Scheduler): RPublisher[B] =
     new RPublisher[B] {
       def subscribe(subscriber: RSubscriber[_ >: B]): Unit = {
         val subscription = SingleAssignmentCancelable()
@@ -257,37 +256,126 @@ abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
   def publishLast(implicit s: Scheduler): ConnectableObservable[A] =
     unsafeMulticast(AsyncSubject[A]())
 
-  /** Creates a new [[monix.async.Task Task]] that upon execution
-    * will signal the first generated element of the source observable
-    * and then it will stop the stream. Returns an `Option` because
-    * the source can be empty.
+  /** Creates a new [[CancelableFuture CancelableFuture]]
+    * that upon execution will signal the last generated element of the
+    * source observable. Returns an `Option` because the source can be empty.
     */
-  def asTask: Task[Option[A]] =
+  def runAsyncGetFirst(implicit s: Scheduler): CancelableFuture[Option[A]] =
+    firstT.runAsync(s)
+
+  /** Creates a new [[monix.async.CancelableFuture CancelableFuture]]
+    * that upon execution will signal the last generated element of the
+    * source observable. Returns an `Option` because the source can be empty.
+    */
+  def runAsyncGetLast(implicit s: Scheduler): CancelableFuture[Option[A]] =
+    lastT.runAsync(s)
+
+  /** Creates a new [[monix.async.Task Task]] that upon execution
+    * will signal the first generated element of the source observable.
+    * Returns an `Option` because the source can be empty.
+    */
+  def firstT: Task[Option[A]] =
     Task.unsafeCreate { (s, c, frameId, cb) =>
       c := unsafeSubscribeFn(new SyncSubscriber[A] {
         implicit val scheduler: Scheduler = s
         private[this] var isDone = false
 
         def onNext(elem: A): Cancel = {
-          isDone = true
           cb.onSuccess(Some(elem))
           Cancel
         }
 
         def onError(ex: Throwable): Unit =
           if (!isDone) { isDone = true; cb.onError(ex) }
-
         def onComplete(): Unit =
           if (!isDone) { isDone = true; cb.onSuccess(None) }
       })
     }
 
-  /** Returns the first generated result as a
-    * [[monix.execution.CancelableFuture CancelableFuture]], returning
-    * an `Option` because the source can be empty.
+  /** Returns a [[monix.async.Task Task]] that upon execution
+    * will signal the last generated element of the source observable.
+    * Returns an `Option` because the source can be empty.
     */
-  def asFuture(implicit s: Scheduler): CancelableFuture[Option[A]] =
-    asTask.runAsync(s)
+  def lastT: Task[Option[A]] =
+    Task.unsafeCreate { (s, c, frameId, cb) =>
+      c := unsafeSubscribeFn(new SyncSubscriber[A] {
+        implicit val scheduler: Scheduler = s
+        private[this] var value: A = _
+        private[this] var isEmpty = true
+
+        def onNext(elem: A): Continue = {
+          if (isEmpty) isEmpty = false
+          value = elem
+          Continue
+        }
+
+        def onError(ex: Throwable): Unit =
+          cb.onError(ex)
+        def onComplete(): Unit =
+          cb.onSuccess(if (isEmpty) None else Some(value))
+      })
+    }
+
+  /** Folds the source observable into an asynchronous summary value. */
+  def foldLeftT[S](seed: S)(f: (S, A) => S): Task[S] =
+    Task.unsafeCreate { (s, c, frameId, cb) =>
+      c := self.foldLeftF(seed)(f).unsafeSubscribeFn(
+        new SyncSubscriber[S] {
+          implicit val scheduler = s
+          private[this] var isDone = false
+
+          def onNext(elem: S): Cancel = {
+            isDone = true
+            cb.onSuccess(elem)
+            Cancel
+          }
+
+          def onError(ex: Throwable): Unit =
+            if (!isDone) {
+              isDone = true
+              cb.onError(ex)
+            } else {
+              s.reportFailure(ex)
+            }
+
+          def onComplete(): Unit =
+            if (!isDone) {
+              isDone = true
+              cb.onSuccess(seed)
+            }
+        })
+    }
+
+  /** Creates a [[monix.async.Task Task]] that on execution emits the
+    * total number of `onNext` events that were emitted by the source.
+    */
+  def countT: Task[Long] =
+    foldLeftT(0L)((acc,_) => acc+1)
+
+  /** If the source is a stream of numbers, creates a new
+    * [[monix.async.Task Task]] that upon execution will
+    * calculate their sum.
+    */
+  def sumT[B >: A](implicit ev: Numeric[B]): Task[B] =
+    foldLeftT(ev.zero)(ev.plus)
+
+  /** Creates a new [[monix.async.Task Task]] that upon execution
+    * will signal `Unit`.
+    */
+  def completedT: Task[Unit] =
+    Task.unsafeCreate { (s, c, frameId, cb) =>
+      c := unsafeSubscribeFn(new SyncSubscriber[A] {
+        implicit val scheduler: Scheduler = s
+        private[this] var isDone = false
+
+        def onNext(elem: A): Continue = Continue
+        def onError(ex: Throwable): Unit =
+          if (!isDone) { isDone = true; cb.onError(ex) }
+
+        def onComplete(): Unit =
+          if (!isDone) { isDone = true; cb.onSuccess(()) }
+      })
+    }
 
   /** Subscribes to the source `Observable` and foreach element emitted
     * by the source it executes the given callback.
@@ -359,8 +447,8 @@ object Observable {
     * See the [[http://www.reactive-streams.org/ Reactive Streams]]
     * protocol that Monix implements.
     *
-    * @see [[Observable.toReactive]] for converting an `Observable` to
-    *     a reactive publisher.
+    * @see [[Observable.toReactivePublisher]] for converting an `Observable` to
+    *      a reactive publisher.
     */
   def fromReactivePublisher[A](publisher: RPublisher[A]): Observable[A] =
     new builders.ReactiveObservable[A](publisher)
@@ -368,7 +456,7 @@ object Observable {
   /** Converts a Scala `Future` provided into an [[Observable]].
     *
     * If the created instance is a
-    * [[monix.execution.CancelableFuture CancelableFuture]],
+    * [[monix.async.CancelableFuture CancelableFuture]],
     * then it will be used for the returned
     * [[monix.execution.Cancelable Cancelable]] on `subscribe`.
     */
@@ -486,7 +574,7 @@ object Observable {
     * protocol that Monix implements.
     */
   def toReactivePublisher[A](source: Observable[A])(implicit s: Scheduler): RPublisher[A] =
-    source.toReactive[A](s)
+    source.toReactivePublisher[A](s)
 
   /** Create an Observable that repeatedly emits the given `item`, until
     * the underlying Observer cancels.
@@ -873,10 +961,4 @@ object Observable {
     */
   def firstStartedOf[A](source: Observable[A]*): Observable[A] =
     new builders.FirstStartedObservable(source: _*)
-
-  /** Implicit conversion from Observable to Publisher.
-    */
-  implicit def ObservableIsReactive[A](source: Observable[A])
-    (implicit s: Scheduler): RPublisher[A] =
-    source.toReactive
 }

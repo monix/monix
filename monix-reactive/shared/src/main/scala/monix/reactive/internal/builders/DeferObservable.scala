@@ -20,7 +20,6 @@ package monix.reactive.internal.builders
 import monix.execution.Cancelable
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
-import scala.language.higherKinds
 import scala.util.control.NonFatal
 
 private[reactive] final class DeferObservable[+A](factory: => Observable[A])

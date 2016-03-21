@@ -23,7 +23,6 @@ import monix.execution.Ack.{Cancel, Continue}
 import monix.execution.internal.{RunnableAction, Platform}
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.OverflowStrategy.BackPressure
-import monix.reactive.OverflowStrategy
 import monix.reactive.exceptions.DummyException
 import scala.concurrent.{Future, Promise}
 

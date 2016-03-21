@@ -22,7 +22,6 @@ import monix.reactive.Observable
 import monix.reactive.exceptions.MultipleSubscribersException
 import monix.reactive.observers.{CacheUntilConnectSubscriber, Subscriber}
 import scala.concurrent.Future
-import scala.language.reflectiveCalls
 
 /** A `GroupedObservable` is an observable type generated
   * by `Observable.groupBy`. It has the following properties:

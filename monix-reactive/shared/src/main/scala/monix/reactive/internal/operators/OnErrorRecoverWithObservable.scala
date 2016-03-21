@@ -23,11 +23,10 @@ import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
-import scala.language.higherKinds
 import scala.util.control.NonFatal
 
 private[reactive] final
-class OnErrorRecoverWithObservable[A](source: Observable[A], pf: PartialFunction[Throwable, Observable[A]])
+class OnErrorRecoverWithObservable[A](source: Observable[A], f: Throwable => Observable[A])
   extends Observable[A] {
 
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
@@ -48,21 +47,14 @@ class OnErrorRecoverWithObservable[A](source: Observable[A], pf: PartialFunction
         // protecting user level code
         var streamError = true
         try {
-          if (pf.isDefinedAt(ex)) {
-            val fallbackTo = pf(ex)
-            streamError = false
-            // We need asynchronous execution to avoid a synchronous loop
-            // blowing out the call stack. We also need to apply back-pressure
-            // on the last ack, otherwise we break back-pressure.
-            ack.onComplete { r =>
-              if (r.isSuccess && (r.get eq Continue))
-                cancelable.orderedUpdate(fallbackTo.unsafeSubscribeFn(out), order=2)
-            }
-          } else {
-            // we can't protect the onError call and if it throws
-            // the behavior should be undefined
-            streamError = false
-            out.onError(ex)
+          val fallbackTo = f(ex)
+          streamError = false
+          // We need asynchronous execution to avoid a synchronous loop
+          // blowing out the call stack. We also need to apply back-pressure
+          // on the last ack, otherwise we break back-pressure.
+          ack.onComplete { r =>
+            if (r.isSuccess && (r.get eq Continue))
+              cancelable.orderedUpdate(fallbackTo.unsafeSubscribeFn(out), order=2)
           }
         }
         catch {

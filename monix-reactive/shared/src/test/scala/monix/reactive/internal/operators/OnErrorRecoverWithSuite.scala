@@ -31,24 +31,29 @@ object OnErrorRecoverWithSuite extends BaseOperatorSuite {
     val obs = source.onErrorRecoverWith {
       case DummyException("expected") =>
         fallback
+      case other =>
+        Observable.error(other)
     }
 
     val sum = sourceCount * (sourceCount-1) / 2 + 9 * 5
     Sample(obs, sourceCount+10, sum, Zero, Zero)
   }
 
-  def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val fallback = Observable.range(0, 10)
-    val source = Observable.range(0, sourceCount).endWithError(ex)
+  def observableInError(sourceCount: Int, ex: Throwable) =
+    if (sourceCount <= 1) None else Some {
+      val fallback = Observable.range(0, 10)
+      val source = Observable.range(0, sourceCount).endWithError(ex)
 
-    val obs = source.onErrorRecoverWith {
-      case DummyException("not happening") =>
-        fallback
+      val obs = source.onErrorRecoverWith {
+        case DummyException("not happening") =>
+          fallback
+        case other =>
+          Observable.error(other)
+      }
+
+      val sum = sourceCount * (sourceCount-1) / 2
+      Sample(obs, sourceCount, sum, Zero, Zero)
     }
-
-    val sum = sourceCount * (sourceCount-1) / 2
-    Sample(obs, sourceCount, sum, Zero, Zero)
-  }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
     val source = Observable.range(0, sourceCount)
@@ -57,6 +62,8 @@ object OnErrorRecoverWithSuite extends BaseOperatorSuite {
     val obs = source.onErrorRecoverWith {
       case DummyException("expected") =>
         throw ex
+      case other =>
+        Observable.error(other)
     }
 
     val sum = sourceCount * (sourceCount-1) / 2
@@ -68,7 +75,10 @@ object OnErrorRecoverWithSuite extends BaseOperatorSuite {
     val sample = Observable.range(0, 10).map(_ => 1L)
       .delayOnNext(1.second)
       .endWithError(DummyException("expected"))
-      .onErrorRecoverWith { case DummyException("expected") => fallback }
+      .onErrorRecoverWith {
+        case DummyException("expected") => fallback
+        case other => Observable.error(other)
+      }
 
     Seq(
       Sample(sample, 0, 0, 0.seconds, 0.seconds),
