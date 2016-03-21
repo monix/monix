@@ -96,7 +96,7 @@ object OverflowStrategy {
     *        a number of messages that were dropped, a function that builds
     *        a new message that will be sent to downstream.
     */
-  final case class DropNewAndSignal[+A](bufferSize: Int, onOverflow: Long => A)
+  final case class DropNewAndSignal[A](bufferSize: Int, onOverflow: Long => A)
     extends Evicted[A] {
 
     require(bufferSize > 1, "bufferSize should be strictly greater than 1")
@@ -125,7 +125,7 @@ object OverflowStrategy {
     *        a number of messages that were dropped, a function that builds
     *        a new message that will be sent to downstream.
     */
-  final case class DropOldAndSignal[+A](bufferSize: Int, onOverflow: Long => A)
+  final case class DropOldAndSignal[A](bufferSize: Int, onOverflow: Long => A)
     extends Evicted[A] {
 
     require(bufferSize > 1, "bufferSize should be strictly greater than 1")
@@ -154,7 +154,7 @@ object OverflowStrategy {
     *        a number of messages that were dropped, a function that builds
     *        a new message that will be sent to downstream.
     */
-  final case class ClearBufferAndSignal[+A](bufferSize: Int, onOverflow: Long => A)
+  final case class ClearBufferAndSignal[A](bufferSize: Int, onOverflow: Long => A)
     extends Evicted[A] {
 
     require(bufferSize > 1, "bufferSize should be strictly greater than 1")
@@ -173,13 +173,16 @@ object OverflowStrategy {
     * eviction policies, meaning that on buffer overflows events
     * start being dropped.
     */
-  sealed abstract class Evicted[+A] extends Synchronous[A] {
+  sealed abstract class Evicted[A] extends Synchronous[A] {
     override val isEvicted = true
   }
 
   /** The default library-wide overflowStrategy used whenever
     * a default argument value is needed.
     */
-  final val Default: OverflowStrategy[Nothing] =
+  final def Default[A]: OverflowStrategy[A] =
+    defaultInstance
+
+  private[this] val defaultInstance: OverflowStrategy[Nothing] =
     BackPressure(bufferSize = Platform.recommendedBatchSize * 2)
 }

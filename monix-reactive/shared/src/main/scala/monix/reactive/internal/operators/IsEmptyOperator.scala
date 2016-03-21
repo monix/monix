@@ -18,7 +18,8 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack.Cancel
-import monix.reactive.ObservableLike.Operator
+import monix.reactive.observables.ObservableLike
+import ObservableLike.Operator
 import monix.reactive.observers.Subscriber
 
 private[reactive] object IsEmptyOperator extends Operator[Any,Boolean] {

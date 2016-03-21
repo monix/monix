@@ -19,7 +19,7 @@ package monix.reactive.subjects
 
 import monix.execution.cancelables.SingleAssignmentCancelable
 import monix.execution.{Ack, Cancelable, Scheduler}
-import monix.reactive.OverflowStrategy
+import monix.reactive.{MulticastStrategy, OverflowStrategy}
 import monix.reactive.OverflowStrategy.Synchronous
 import monix.reactive.observers.{BufferedSubscriber, Subscriber, SyncObserver, SyncSubscriber}
 import org.reactivestreams.{Processor => RProcessor, Subscriber => RSubscriber, Subscription}
@@ -34,15 +34,26 @@ import org.reactivestreams.{Processor => RProcessor, Subscriber => RSubscriber, 
 abstract class ConcurrentSubject[I,+O] extends Subject[I,O] with SyncObserver[I]
 
 object ConcurrentSubject {
+  def apply[A](multicast: MulticastStrategy[A], overflow: OverflowStrategy.Synchronous[A])
+    (implicit s: Scheduler): ConcurrentSubject[A,A] =
+    multicast match {
+      case MulticastStrategy.Publish => ConcurrentSubject.publish[A](overflow)
+      case MulticastStrategy.Behavior(initial) => ConcurrentSubject.behavior[A](initial, overflow)
+      case MulticastStrategy.Async => ConcurrentSubject.async[A](overflow)
+      case MulticastStrategy.Replay => ConcurrentSubject.replay[A](overflow)
+      case MulticastStrategy.ReplayPopulated(initial) => ConcurrentSubject.replayPopulated[A](initial, overflow)
+      case MulticastStrategy.ReplayLimited(capacity) => ConcurrentSubject.replayLimited[A](capacity, overflow)
+    }
+
   /** Wraps any [[Subject]] into a [[ConcurrentSubject]].
     *
-    * @param strategy - the [[OverflowStrategy overflow strategy]]
+    * @param overflowStrategy - the [[OverflowStrategy overflow strategy]]
     *        used for buffering, which specifies what to do in case
     *        we're dealing with slow consumers.
     */
-  def from[I,O](p: Subject[I,O], strategy: Synchronous[I])
+  def from[I,O](p: Subject[I,O], overflowStrategy: Synchronous[I])
     (implicit s: Scheduler): ConcurrentSubject[I,O] =
-    new SubjectAsConcurrent(p, strategy, s)
+    new SubjectAsConcurrent(p, overflowStrategy, s)
 
   /** Subject recipe for building [[PublishSubject publish]] subjects.
     *

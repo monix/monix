@@ -20,47 +20,72 @@ package monix.reactive.observers
 import monix.execution.Ack
 import monix.execution.Ack.{Cancel, Continue}
 import scala.concurrent.{Future, Promise}
-import scala.util.Failure
+import scala.util.Try
 import scala.util.control.NonFatal
 
 
-/** A safe observer ensures too things:
+/** A safe subscriber safe guards subscriber implementations, such that:
   *
-  * - errors triggered by downstream observers are caught and streamed to `onError`,
-  *   while the upstream gets an `Ack.Cancel`, to stop sending events
-  *
-  * - once an `onError` or `onComplete` was emitted, the observer no longer accepts
-  *   `onNext` events, ensuring that the Rx grammar is respected.
-  *
-  * - if downstream signals a `Cancel`, the observer no longer accepts any events,
-  *   ensuring that the Rx grammar is respected.
-  *
-  * This implementation doesn't address multi-threading concerns in any way.
+  *  - the `onComplete` and `onError` signals are back-pressured
+  *  - errors triggered by downstream observers are caught and logged,
+  *    while the upstream gets an `Ack.Cancel`, to stop sending events
+  *  - once an `onError` or `onComplete` was emitted, the observer no longer accepts
+  *    `onNext` events, ensuring that the grammar is respected
+  *  - if downstream signals a `Cancel`, the observer no longer accepts any events,
+  *    ensuring that the grammar is respected
   */
 final class SafeSubscriber[-T] private (subscriber: Subscriber[T])
   extends Subscriber[T] {
 
   implicit val scheduler = subscriber.scheduler
-
-  @volatile
   private[this] var isDone = false
+  private[this] var ack: Future[Ack] = Continue
 
   def onNext(elem: T): Future[Ack] = {
-    if (!isDone)
-      try {
-        val r = subscriber.onNext(elem)
-        onCancelMarkDone(r)
-      }
-      catch {
+    if (!isDone) {
+      ack = try {
+        flattenAndCatchFailures(subscriber.onNext(elem))
+      } catch {
         case NonFatal(ex) =>
           onError(ex)
           Cancel
       }
-    else
+
+      ack
+    } else {
       Cancel
+    }
   }
 
-  def onError(ex: Throwable) = {
+  def onError(ex: Throwable): Unit =
+    ack.syncOnContinue(signalError(ex))
+
+  def onComplete(): Unit =
+    ack.syncOnContinue {
+      if (!isDone) {
+        isDone = true
+
+        try subscriber.onComplete() catch {
+          case NonFatal(err) =>
+            scheduler.reportFailure(err)
+        }
+      }
+    }
+
+  private def flattenAndCatchFailures(ack: Future[Ack]): Future[Ack] = {
+    // Fast path.
+    if (ack eq Continue) Continue
+    else if (ack.isCompleted)
+      handleFailure(ack.value.get)
+    else {
+      // Protecting against asynchronous errors
+      val p = Promise[Ack]()
+      ack.onComplete { result => p.success(handleFailure(result)) }
+      p.future
+    }
+  }
+
+  private def signalError(ex: Throwable): Unit =
     if (!isDone) {
       isDone = true
 
@@ -69,64 +94,17 @@ final class SafeSubscriber[-T] private (subscriber: Subscriber[T])
           scheduler.reportFailure(err)
       }
     }
-  }
 
-  def onComplete() = {
-    if (!isDone) {
-      isDone = true
-
-      try subscriber.onComplete() catch {
-        case NonFatal(ex) =>
-          try subscriber.onError(ex) catch {
-            case NonFatal(err) =>
-              scheduler.reportFailure(ex)
-              scheduler.reportFailure(err)
-          }
-      }
+  private def handleFailure(value: Try[Ack]): Ack =
+    try {
+      val ack = value.get
+      if (ack eq Cancel) isDone = true
+      ack
+    } catch {
+      case NonFatal(ex) =>
+        signalError(value.failed.get)
+        Cancel
     }
-  }
-
-  private[this] def onCancelMarkDone(source: Future[Ack]): Future[Ack] = {
-    source match {
-      case sync if sync.isCompleted =>
-        sync.value.get match {
-          case Continue.AsSuccess =>
-            Continue
-
-          case Cancel.AsSuccess =>
-            isDone = true
-            Cancel
-
-          case Failure(ex) =>
-            onError(sync.value.get.failed.get)
-            Cancel
-
-          case _ =>
-            Continue
-        }
-
-      case async =>
-        val p = Promise[Ack]()
-
-        source.onComplete {
-          case Continue.AsSuccess =>
-            p.success(Continue)
-
-          case Cancel.AsSuccess =>
-            isDone = true
-            p.success(Cancel)
-
-          case Failure(ex) =>
-            onError(ex)
-            p.success(Cancel)
-
-          case _ =>
-            p.success(Continue)
-        }
-
-        p.future
-    }
-  }
 }
 
 object SafeSubscriber {

@@ -17,7 +17,8 @@
 
 package monix.reactive.internal.operators
 
-import monix.reactive.ObservableLike.Operator
+import monix.reactive.observables.ObservableLike
+import ObservableLike.Operator
 import monix.reactive.OverflowStrategy
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 

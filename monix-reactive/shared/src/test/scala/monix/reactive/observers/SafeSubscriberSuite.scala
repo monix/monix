@@ -25,7 +25,7 @@ import monix.reactive.exceptions.DummyException
 import scala.concurrent.{Future, Promise}
 import scala.util.Success
 
-object SafeObserverSuite extends TestSuite[TestScheduler] {
+object SafeSubscriberSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
     assert(s.state.get.tasks.isEmpty)
@@ -74,7 +74,7 @@ object SafeObserverSuite extends TestSuite[TestScheduler] {
 
     val r = observer.onNext(1)
     assertEquals(r, Cancel)
-    assert(errorThrown.isInstanceOf[DummyException])
+    assert(errorThrown.isInstanceOf[DummyException], "should receive DummyException")
 
     val r2 = observer.onNext(1)
     assertEquals(r2, Cancel)
@@ -109,7 +109,6 @@ object SafeObserverSuite extends TestSuite[TestScheduler] {
   }
 
   test("should protect against errors in onComplete") { implicit s =>
-    var errorThrown: Throwable = null
     val observer = SafeSubscriber(new Subscriber[Int] {
       val scheduler = s
 
@@ -118,17 +117,13 @@ object SafeObserverSuite extends TestSuite[TestScheduler] {
         throw new DummyException()
       }
 
-      def onError(ex: Throwable): Unit = {
-        assert(errorThrown == null)
-        errorThrown = ex
-      }
+      def onError(ex: Throwable): Unit =
+        fail("onError")
     })
 
     observer.onComplete()
-    assert(errorThrown.isInstanceOf[DummyException])
-
-    observer.onComplete()
-    assert(s.state.get.lastReportedError == null)
+    assert(s.state.get.lastReportedError.isInstanceOf[DummyException],
+      "lastReportedError.isInstanceOf[DummyException]")
   }
 
   test("should protect against errors in onError") { implicit s =>
@@ -151,27 +146,6 @@ object SafeObserverSuite extends TestSuite[TestScheduler] {
 
     observer.onError(new DummyException("external 2"))
     assertEquals(errorThrown, DummyException("external"))
-  }
-
-  test("should protect against total collapse") { implicit s =>
-    var errorThrown: Throwable = null
-    val observer = SafeSubscriber(new Subscriber[Int] {
-      val scheduler = s
-
-      def onNext(elem: Int) = Continue
-      def onComplete(): Unit = {
-        throw new DummyException("onComplete")
-      }
-      def onError(ex: Throwable): Unit = {
-        assert(errorThrown == null)
-        errorThrown = ex
-        throw new DummyException("onError")
-      }
-    })
-
-    observer.onComplete()
-    assertEquals(errorThrown, DummyException("onComplete"))
-    assertEquals(s.state.get.lastReportedError, DummyException("onError"))
   }
 
   test("on synchronous cancel should block further signals") { implicit s =>
@@ -234,6 +208,8 @@ object SafeObserverSuite extends TestSuite[TestScheduler] {
 
     observer.onComplete()
     observer.onError(new DummyException)
+
+    s.tick()
     assertEquals(received, 1)
   }
 }

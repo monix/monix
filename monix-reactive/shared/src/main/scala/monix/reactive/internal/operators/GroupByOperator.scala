@@ -19,7 +19,8 @@ package monix.reactive.internal.operators
 
 import monix.execution.Ack.{Cancel, Continue}
 import monix.execution.{Ack, Cancelable, Scheduler}
-import monix.reactive.ObservableLike.Operator
+import monix.reactive.observables.{ObservableLike, GroupedObservable}
+import ObservableLike.Operator
 import monix.reactive.exceptions.CompositeException
 import monix.reactive.observables.GroupedObservable
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}

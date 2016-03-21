@@ -15,18 +15,18 @@
  * limitations under the License.
  */
 
-package monix.reactive
+package monix.reactive.observables
 
 import java.io.PrintStream
 import monix.execution.Scheduler
 import monix.execution.cancelables.BooleanCancelable
-import monix.reactive.ObservableLike.{Operator, Transformer}
 import monix.reactive.OverflowStrategy.Synchronous
 import monix.reactive.exceptions.UpstreamTimeoutException
 import monix.reactive.internal.builders.{CombineLatest2Observable, Zip2Observable}
 import monix.reactive.internal.operators._
-import monix.reactive.observables.GroupedObservable
+import monix.reactive.observables.ObservableLike.{Transformer, Operator}
 import monix.reactive.observers.Subscriber
+import monix.reactive.{Notification, Observable, OverflowStrategy, Pipe}
 import scala.concurrent.duration.FiniteDuration
 import scala.language.higherKinds
 
@@ -80,7 +80,7 @@ import scala.language.higherKinds
   *         observable, and then merging those resulting observable
   *         and emitting the results of this merger.
   *
-  *         The difference between this and [[concatMap]] is that
+  *         The difference between this and `concatMap` is that
   *         `concatMap` cares about ordering of emitted
   *         items (e.g. all items emitted by the first observable in
   *         the sequence will come before the elements emitted by the
@@ -130,7 +130,7 @@ import scala.language.higherKinds
   *         happened, function that receives the number of dropped
   *         events as a parameter (see [[OverflowStrategy.Evicted]])
   */
-abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: Self[A] =>
+trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: Self[A] =>
   /** Transforms the source using the given operator function. */
   def liftByOperator[B](operator: Operator[A,B]): Self[B]
 
@@ -522,11 +522,17 @@ abstract class ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: S
   def distinctUntilChangedByKey[K](key: A => K): Self[A] =
     self.liftByOperator(new DistinctUntilChangedByKeyOperator(key))
 
-  /** Executes the given callback if the downstream observer has
-    * canceled the streaming by returning `Cancel` as a result of `onNext`.
+  /** Executes the given callback when a subscription gets canceled.
+    *
+    * A subscription can get canceled if:
+    *
+    *   1. the subscriber returns `Cancel` as a result of `onNext`
+    *   2. the [[monix.execution.Cancelable.cancel cancel()]] operation gets called on the subscription
+    *
+    * The callback is guaranteed to be executed one time at most.
     */
   def doOnCancel(cb: => Unit): Self[A] =
-    self.liftByOperator(new DoWorkOnCancelOperator[A](cb))
+    self.transform(self => new DoWorkOnCancelObservable[A](self, cb))
 
   /** Executes the given callback when the stream has ended, but before
     * the complete event is emitted.

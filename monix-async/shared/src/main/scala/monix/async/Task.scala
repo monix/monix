@@ -373,7 +373,7 @@ sealed abstract class Task[+A] { self =>
           }))
       }
     }
-  
+
   /** Memoizes the result on the computation and reuses it on subsequent
     * invocations of `runAsync`.
     */

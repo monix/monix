@@ -18,7 +18,8 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack.Cancel
-import monix.reactive.ObservableLike.Operator
+import monix.reactive.observables.ObservableLike
+import ObservableLike.Operator
 import monix.reactive.observers.{SyncSubscriber, Subscriber}
 
 private[reactive] final class TakeLeftOperator[A](n: Long)

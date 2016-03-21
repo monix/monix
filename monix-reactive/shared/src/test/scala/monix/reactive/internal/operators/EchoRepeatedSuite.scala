@@ -69,7 +69,7 @@ object EchoRepeatedSuite extends BaseOperatorSuite {
     var wasCompleted = false
 
     channel.echoRepeated(1.second)
-      .subscribe(new Observer[Int] {
+      .unsafeSubscribeFn(new Observer[Int] {
         def onNext(elem: Int): Future[Ack] = {
           received += elem
           Continue
@@ -101,7 +101,7 @@ object EchoRepeatedSuite extends BaseOperatorSuite {
     var wasCompleted = false
 
     channel.echoRepeated(1.second)
-      .subscribe(new Observer[Int] {
+      .unsafeSubscribeFn(new Observer[Int] {
         def onNext(elem: Int): Future[Ack] = {
           received += 1
           if (received % 2 == 1)
@@ -141,16 +141,16 @@ object EchoRepeatedSuite extends BaseOperatorSuite {
     var wasCompleted = false
 
     channel.echoRepeated(1.second)
-      .subscribe(new Observer[Int] {
-      def onNext(elem: Int): Future[Ack] =
-        Future.delayedResult(500.millis) {
-          received += 1
-          Continue
-        }
+      .unsafeSubscribeFn(new Observer[Int] {
+        def onNext(elem: Int): Future[Ack] =
+          Future.delayedResult(500.millis) {
+            received += 1
+            Continue
+          }
 
-      def onError(ex: Throwable): Unit = ()
-      def onComplete(): Unit = wasCompleted = true
-    })
+        def onError(ex: Throwable): Unit = ()
+        def onComplete(): Unit = wasCompleted = true
+      })
 
     channel.onNext(1)
     assertEquals(received, 0)
@@ -173,17 +173,17 @@ object EchoRepeatedSuite extends BaseOperatorSuite {
     var received = 0
     var wasCompleted = false
 
-    channel.echoRepeated(1.second)
-      .subscribe(new Observer[Int] {
-      def onNext(elem: Int): Future[Ack] =
-        Future.delayedResult(500.millis) {
-          received += elem
-          Continue
-        }
+    channel.echoRepeated(1.second).unsafeSubscribeFn(
+      new Observer[Int] {
+        def onNext(elem: Int): Future[Ack] =
+          Future.delayedResult(500.millis) {
+            received += elem
+            Continue
+          }
 
-      def onError(ex: Throwable): Unit = ()
-      def onComplete(): Unit = wasCompleted = true
-    })
+        def onError(ex: Throwable): Unit = ()
+        def onComplete(): Unit = wasCompleted = true
+      })
 
     channel.onNext(1)
     assertEquals(received, 0)

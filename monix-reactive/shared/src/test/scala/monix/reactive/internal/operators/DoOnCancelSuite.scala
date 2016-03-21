@@ -109,7 +109,7 @@ object DoOnCancelSuite extends TestSuite[TestScheduler] {
     assertEquals(errorThrown, dummy)
   }
 
-  test("should be cancelable") { implicit s =>
+  test("should be cancelable from outside") { implicit s =>
     var wasCanceled = 0
     val cancelable = Observable.now(1).delayOnNext(1.second)
       .doOnCancel(wasCanceled += 1)
@@ -117,9 +117,10 @@ object DoOnCancelSuite extends TestSuite[TestScheduler] {
 
     s.tick()
     assert(s.state.get.tasks.nonEmpty, "tasks.nonEmpty")
+
     cancelable.cancel()
     assert(s.state.get.tasks.isEmpty, "tasks.isEmpty")
-    assertEquals(wasCanceled, 0)
+    assertEquals(wasCanceled, 1)
   }
 
   test("should protect against user code") { implicit s =>

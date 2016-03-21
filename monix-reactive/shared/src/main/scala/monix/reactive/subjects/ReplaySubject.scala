@@ -19,7 +19,6 @@ package monix.reactive.subjects
 
 import monix.execution.Ack.{Cancel, Continue}
 import monix.execution.cancelables.CompositeCancelable
-import monix.execution.internal.math._
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.internal.util.PromiseCounter
@@ -175,29 +174,21 @@ final class ReplaySubject[T] private (initialState: ReplaySubject.State[T])
 
 object ReplaySubject {
   /** Creates an unbounded replay subject. */
-  def apply[T](initial: T*): ReplaySubject[T] = {
-    create(initial:_*)
-  }
+  def apply[T](initial: T*): ReplaySubject[T] =
+    create(initial)
 
   /** Creates an unbounded replay subject. */
-  def create[T](initial: T*): ReplaySubject[T] = {
-    new ReplaySubject[T](State[T](Vector(initial:_*), 0))
-  }
+  def create[T](initial: Seq[T]): ReplaySubject[T] =
+    new ReplaySubject[T](State[T](initial.toVector, 0))
 
   /** Creates a size-bounded replay subject.
     *
     * In this setting, the ReplaySubject holds at most size items in its
     * internal buffer and discards the oldest item.
-    *
-    * NOTE: the `capacity` is actually grown to the next power of 2 (minus 1),
-    * because buffers sized as powers of two can be more efficient and the
-    * underlying implementation is most likely to be a ring buffer. So give it
-    * `300` and its capacity is going to be `512 - 1`
     */
   def createWithSize[T](capacity: Int): ReplaySubject[T] = {
     require(capacity > 0, "capacity must be strictly positive")
-    val maxCapacity = nextPowerOf2(capacity + 1)
-    new ReplaySubject[T](State[T](Queue.empty, maxCapacity))
+    new ReplaySubject[T](State[T](Queue.empty, capacity))
   }
 
   /** Internal state for [[monix.reactive.subjects.ReplaySubject]] */

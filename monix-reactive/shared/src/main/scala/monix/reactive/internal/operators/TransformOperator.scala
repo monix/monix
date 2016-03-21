@@ -18,7 +18,8 @@
 package monix.reactive.internal.operators
 
 import monix.reactive.Pipe
-import monix.reactive.ObservableLike._
+import monix.reactive.observables.ObservableLike
+import ObservableLike._
 import monix.reactive.observers.Subscriber
 
 private[reactive] final class TransformOperator[-A,+B](pipe: Pipe[A,B])

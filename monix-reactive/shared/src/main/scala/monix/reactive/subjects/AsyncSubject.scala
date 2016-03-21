@@ -25,7 +25,7 @@ import org.sincron.atomic.Atomic
 import scala.annotation.tailrec
 
 /** An `AsyncSubject` emits the last value (and only the last value) emitted by
-  * the source Observable, and only after that source Observable completes.
+  * the source and only after the source completes.
   *
   * If the source terminates with an error, the `AsyncSubject` will not emit any
   * items to subsequent subscribers, but will simply pass along the error

@@ -18,7 +18,8 @@
 package monix.reactive
 
 import monix.execution.Scheduler
-import monix.reactive.ObservableLike.{Operator, Transformer}
+import monix.reactive.observables.ObservableLike
+import monix.reactive.observables.ObservableLike.{Operator, Transformer}
 import monix.reactive.OverflowStrategy.Synchronous
 import monix.reactive.Pipe.{LiftedPipe, TransformedPipe}
 import monix.reactive.observers.{BufferedSubscriber, Subscriber, SyncObserver}
@@ -74,6 +75,17 @@ abstract class Pipe[I, +O]
 }
 
 object Pipe {
+  /** Given a [[MulticastStrategy]] returns the corresponding [[Pipe]]. */
+  def apply[A](strategy: MulticastStrategy[A]): Pipe[A,A] =
+    strategy match {
+      case MulticastStrategy.Publish => Pipe.publish[A]()
+      case MulticastStrategy.Behavior(initial) => Pipe.behavior[A](initial)
+      case MulticastStrategy.Async => Pipe.async[A]()
+      case MulticastStrategy.Replay => Pipe.replay[A]()
+      case MulticastStrategy.ReplayPopulated(initial) => Pipe.replayPopulated[A](initial)
+      case MulticastStrategy.ReplayLimited(capacity) => Pipe.replayLimited[A](capacity)
+    }
+
   /** Subject recipe for building
     * [[monix.reactive.subjects.PublishSubject PublishSubject]] instances.
     */
@@ -142,15 +154,16 @@ object Pipe {
     }
 
   /** Subject recipe for building unbounded
-    * [[monix.reactive.subjects.ReplaySubject ReplaySubject]] instances.
+    * [[monix.reactive.subjects.ReplaySubject ReplaySubject]]
+    * instances.
     *
     * @param initial is an initial sequence of elements that will be pushed
     *        to subscribers before any elements emitted by the source.
     */
-  def replayPopulated[T](initial: => Seq[T]): Pipe[T,T] =
+  def replayPopulated[T](initial: Seq[T]): Pipe[T,T] =
     new Pipe[T,T] {
       def unicast: (Observer[T], Observable[T]) = {
-        val p = ReplaySubject[T](initial:_*)
+        val p = ReplaySubject.create[T](initial)
         (p,p)
       }
 
@@ -165,7 +178,7 @@ object Pipe {
     * @param capacity indicates the minimum capacity of the underlying buffer,
     *        with the implementation being free to increase it.
     */
-  def replaySized[T](capacity: Int): Pipe[T,T] =
+  def replayLimited[T](capacity: Int): Pipe[T,T] =
     new Pipe[T,T] {
       def unicast: (Observer[T], Observable[T]) = {
         val p = ReplaySubject.createWithSize[T](capacity)

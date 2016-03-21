@@ -21,7 +21,7 @@ import monix.async.{CancelableFuture, Task}
 import monix.execution.Ack.{Cancel, Continue}
 import monix.execution._
 import monix.execution.cancelables.SingleAssignmentCancelable
-import monix.reactive.ObservableLike.{Operator, Transformer}
+import monix.reactive.observables.ObservableLike.{Operator, Transformer}
 import monix.reactive.internal.builders
 import monix.reactive.observables._
 import monix.reactive.observers._
@@ -39,7 +39,7 @@ import scala.util.control.NonFatal
   *
   * See the available documentation at: [[https://monix.io]]
   */
-abstract class Observable[+A] extends ObservableLike[A, Observable] { self =>
+trait Observable[+A] extends ObservableLike[A, Observable] { self =>
   /** Characteristic function for an `Observable` instance, that creates
     * the subscription and that eventually starts the streaming of
     * events to the given [[Observer]], being meant to be provided.
@@ -433,6 +433,42 @@ object Observable {
   def fork[A](fa: Observable[A]): Observable[A] =
     new builders.ForkObservable(fa)
 
+  /** Given a subscribe function, lifts it into an [[Observable]].
+    *
+    * This function is unsafe to use because users have to know and apply
+    * the Monix communication contract, related to thread-safety, communicating
+    * demand (back-pressure) and error handling.
+    *
+    * Only use if you know what you're doing. Otherwise prefer [[create]].
+    */
+  def unsafeCreate[A](f: Subscriber[A] => Cancelable): Observable[A] =
+    new builders.UnsafeCreateObservable(f)
+
+  /** Creates an observable from a function that receives a
+    * concurrent and safe [[SyncSubscriber]].
+    *
+    * This builder represents the safe way of building observables
+    * from data-sources that cannot be back-pressured.
+    */
+  def create[A](overflowStrategy: OverflowStrategy.Synchronous[A])
+    (f: SyncSubscriber[A] => Cancelable): Observable[A] =
+    new builders.CreateObservable(overflowStrategy, f)
+
+  /** Creates an input channel and an output observable pair for
+    * building a [[MulticastStrategy multicast]] data-source.
+    *
+    * Useful for building [[MulticastStrategy multicast]] observables
+    * from data-sources that cannot be back-pressured.
+    *
+    * Prefer [[create]] when possible.
+    */
+  def multicast[A](multicast: MulticastStrategy[A], overflow: OverflowStrategy.Synchronous[A])
+    (implicit s: Scheduler): (SyncObserver[A], Observable[A]) = {
+
+    val ref = ConcurrentSubject(multicast, overflow)
+    (ref, ref)
+  }
+
   /** Converts any `Iterator` into an [[Observable]]. */
   def fromIterator[A](iterator: Iterator[A]): Observable[A] =
     new builders.IteratorAsObservable[A](iterator)
@@ -447,7 +483,7 @@ object Observable {
     * See the [[http://www.reactive-streams.org/ Reactive Streams]]
     * protocol that Monix implements.
     *
-    * @see [[Observable.toReactivePublisher]] for converting an `Observable` to
+    * @see [[Observable.toReactive]] for converting an `Observable` to
     *      a reactive publisher.
     */
   def fromReactivePublisher[A](publisher: RPublisher[A]): Observable[A] =
@@ -573,7 +609,7 @@ object Observable {
     * See the [[http://www.reactive-streams.org/ Reactive Streams]]
     * protocol that Monix implements.
     */
-  def toReactivePublisher[A](source: Observable[A])(implicit s: Scheduler): RPublisher[A] =
+  def toReactive[A](source: Observable[A])(implicit s: Scheduler): RPublisher[A] =
     source.toReactivePublisher[A](s)
 
   /** Create an Observable that repeatedly emits the given `item`, until
