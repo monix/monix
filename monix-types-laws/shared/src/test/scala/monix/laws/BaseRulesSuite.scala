@@ -15,15 +15,16 @@
  * limitations under the License.
  */
 
-package monix.types
+package monix.laws
 
-import cats.Eq
+import cats.{Eval, Eq}
 import minitest.SimpleTestSuite
 import minitest.laws.Discipline
 import monix.async.{Callback, Task}
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
+import monix.reactive.exceptions.DummyException
 import monix.types.instances.AllInstances
 import org.scalacheck.Arbitrary
 import org.scalacheck.Test.Parameters
@@ -31,7 +32,7 @@ import org.scalacheck.Test.Parameters.Default
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
-trait BaseRulesTestSuite extends SimpleTestSuite with Discipline with AllInstances {
+trait BaseRulesSuite extends SimpleTestSuite with Discipline with AllInstances {
   override val checkConfig: Parameters = new Default {
     override val minSuccessfulTests: Int =
       if (Platform.isJVM) 100 else 10
@@ -54,7 +55,24 @@ trait BaseRulesTestSuite extends SimpleTestSuite with Discipline with AllInstanc
   implicit def arbitraryTask[A : Arbitrary]: Arbitrary[Task[A]] =
     Arbitrary {
       implicitly[Arbitrary[A]].arbitrary
-        .map(a => Task.eval(a))
+        .map(a => Task.evalAlways(a))
+    }
+
+  implicit def arbitraryEval[A : Arbitrary]: Arbitrary[Eval[A]] =
+    Arbitrary {
+      val int = implicitly[Arbitrary[Int]].arbitrary
+      val aa = implicitly[Arbitrary[A]].arbitrary
+
+      int.flatMap(chance => aa.map(a =>
+        if (chance % 3 == 0) Eval.now(a)
+        else if (chance % 3 == 1) Eval.always(a)
+        else Eval.later(a)))
+    }
+
+  implicit val arbitraryThrowable: Arbitrary[Throwable] =
+    Arbitrary {
+      implicitly[Arbitrary[Int]].arbitrary
+        .map(number => DummyException(number.toString))
     }
 
   implicit val throwableEq = new Eq[Throwable] {

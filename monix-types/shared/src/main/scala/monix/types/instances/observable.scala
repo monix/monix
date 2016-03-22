@@ -20,13 +20,13 @@ package monix.types.instances
 import _root_.cats.Eval
 import monix.async.Task
 import monix.reactive.Observable
-import monix.types.{Async, Streamable}
+import monix.types.Reactive
 import scala.concurrent.duration.FiniteDuration
 
 trait ObservableInstances {
-  /** The [[Streamable]] type-class implemented for [[monix.reactive.Observable]]. */
-  implicit val observableInstances: Streamable[Observable] with Async[Observable] =
-    new Streamable[Observable] with Async[Observable] {
+  /** The [[Reactive]] type-class implemented for [[monix.reactive.Observable]]. */
+  implicit val observableInstances: Reactive[Observable] =
+    new Reactive[Observable] {
       override def raiseError[A](e: Throwable): Observable[A] =
         Observable.error(e)
       override def pure[A](x: A): Observable[A] =
@@ -34,13 +34,20 @@ trait ObservableInstances {
       override def fromIterable[A](fa: Iterable[A]): Observable[A] =
         Observable.fromIterable(fa)
       override def pureEval[A](x: Eval[A]): Observable[A] =
-        Observable.eval(x.value)
+        Observable.evalAlways(x.value)
       override def empty[A]: Observable[A] =
         Observable.empty
       override def cons[A](head: A, tail: Eval[Observable[A]]): Observable[A] =
         Observable.cons(head, tail.value)
       override def delayedEval[A](delay: FiniteDuration, a: Eval[A]): Observable[A] =
-        Observable.eval(a.value)
+        Observable.evalAlways(a.value)
+
+      override def now[A](a: A): Observable[A] =
+        Observable.now(a)
+      override def evalAlways[A](a: => A): Observable[A] =
+        Observable.evalAlways(a)
+      override def evalOnce[A](a: => A): Observable[A] =
+        Observable.evalOnce(a)
 
       override def concatMap[A, B](fa: Observable[A])(f: (A) => Observable[B]): Observable[B] =
         fa.concatMap(f)
@@ -71,16 +78,20 @@ trait ObservableInstances {
       override def collect[A, B](fa: Observable[A])(pf: PartialFunction[A, B]): Observable[B] =
         fa.collect(pf)
 
-      override def onErrorRecoverWith[A](fa: Observable[A])(f: Throwable => Observable[A]): Observable[A] =
-        fa.onErrorRecoverWith(f)
-      override def onErrorRecover[A](fa: Observable[A])(f: Throwable => A): Observable[A] =
-        fa.onErrorRecover(f)
+      override def onErrorHandleWith[A](fa: Observable[A])(f: Throwable => Observable[A]): Observable[A] =
+        fa.onErrorHandleWith(f)
+      override def onErrorHandle[A](fa: Observable[A])(f: Throwable => A): Observable[A] =
+        fa.onErrorHandle(f)
       override def onErrorFallbackTo[A](fa: Observable[A], other: Eval[Observable[A]]): Observable[A] =
         fa.onErrorFallbackTo(other.value)
       override def onErrorRetry[A](fa: Observable[A], maxRetries: Long): Observable[A] =
         fa.onErrorRetry(maxRetries)
       override def onErrorRetryIf[A](fa: Observable[A])(p: (Throwable) => Boolean): Observable[A] =
         fa.onErrorRetryIf(p)
+      override def onErrorRecoverWith[A](fa: Observable[A])(pf: PartialFunction[Throwable, Observable[A]]): Observable[A] =
+        fa.onErrorRecoverWith(pf)
+      override def onErrorRecover[A](fa: Observable[A])(pf: PartialFunction[Throwable, A]): Observable[A] =
+        fa.onErrorRecover(pf)
       override def failed[A](fa: Observable[A]): Observable[Throwable] =
         fa.failed
 
@@ -194,7 +205,7 @@ trait ObservableInstances {
         fa.timeoutOnSlowUpstreamTo(timespan, backup.value)
 
       override def coflatMap[A, B](fa: Observable[A])(f: (Observable[A]) => B): Observable[B] =
-        Observable.eval(f(fa))
+        Observable.evalAlways(f(fa))
       override def coflatten[A](fa: Observable[A]): Observable[Observable[A]] =
         Observable.now(fa)
 

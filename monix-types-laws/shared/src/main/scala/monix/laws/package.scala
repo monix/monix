@@ -15,14 +15,12 @@
  * limitations under the License.
  */
 
-package monix.types.instances
+package monix
 
-/** Helper for importing all known type-class instances. */
-object all extends AllInstances
+import cats.laws.IsEq
 
-/** Alias for `cats.std.AllInstances` */
-trait AllStdInstances extends _root_.cats.std.AllInstances
-
-/** Exposes all type-class instances defined by Monix. */
-trait AllInstances extends ObservableInstances with TaskInstances
-  with EvalInstances with AllStdInstances
+package object laws {
+  implicit final class IsEqArrow[A](val lhs: A) extends AnyVal {
+    def <->(rhs: A): IsEq[A] = IsEq(lhs, rhs)
+  }
+}

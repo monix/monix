@@ -28,12 +28,14 @@ trait TaskInstances {
   /** Type-class instances for [[monix.async.Task]]. */
   implicit val taskInstances: Async[Task] =
     new Async[Task] {
-      override def pure[A](x: A): Task[A] =
-        Task.now(x)
-      override def pureEval[A](x: Eval[A]): Task[A] =
-        Task.eval(x.value)
+      override def pure[A](x: A): Task[A] = Task.now(x)
+      override def pureEval[A](x: Eval[A]): Task[A] = Task.evalAlways(x.value)
       override def delayedEval[A](delay: FiniteDuration, a: Eval[A]): Task[A] =
-        Task.eval(a.value).delayExecution(delay)
+        Task.evalAlways(a.value).delayExecution(delay)
+
+      override def now[A](a: A): Task[A] = Task.now(a)
+      override def evalAlways[A](a: => A): Task[A] = Task.evalAlways(a)
+      override def evalOnce[A](a: => A): Task[A] = Task.evalOnce(a)
 
       override def firstStartedOf[A](seq: Seq[Task[A]]): Task[A] =
         Task.firstCompletedOf(seq)
@@ -46,10 +48,10 @@ trait TaskInstances {
       override def delayResultBySelector[A, B](fa: Task[A])(selector: (A) => Task[B]): Task[A] =
         fa.delayResultBySelector(selector)
 
-      override def onErrorRecoverWith[A](fa: Task[A])(f: Throwable => Task[A]): Task[A] =
-        fa.onErrorRecoverWith(f)
-      override def onErrorRecover[A](fa: Task[A])(f: Throwable => A): Task[A] =
-        fa.onErrorRecover(f)
+      override def onErrorHandleWith[A](fa: Task[A])(f: Throwable => Task[A]): Task[A] =
+        fa.onErrorHandleWith(f)
+      override def onErrorHandle[A](fa: Task[A])(f: Throwable => A): Task[A] =
+        fa.onErrorHandle(f)
       override def onErrorFallbackTo[A](fa: Task[A], other: Eval[Task[A]]): Task[A] =
         fa.onErrorFallbackTo(other.value)
       override def onErrorRetry[A](fa: Task[A], maxRetries: Long): Task[A] =
@@ -58,6 +60,10 @@ trait TaskInstances {
         fa.onErrorRetryIf(p)
       override def failed[A](fa: Task[A]): Task[Throwable] =
         fa.failed
+      override def onErrorRecoverWith[A](fa: Task[A])(pf: PartialFunction[Throwable, Task[A]]): Task[A] =
+        fa.onErrorRecoverWith(pf)
+      override def onErrorRecover[A](fa: Task[A])(pf: PartialFunction[Throwable, A]): Task[A] =
+        fa.onErrorRecover(pf)
 
       override def zipList[A](sources: Seq[Task[A]]): Task[Seq[A]] =
         Task.sequence(sources)

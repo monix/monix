@@ -57,7 +57,7 @@ import scala.language.{higherKinds, implicitConversions}
   def sumT[A](fa: F[A])(implicit A: Numeric[A]): Task[A] =
     foldLeftT(fa, A.zero)(A.plus)
 
-  /** Given a sequence, return a Task. */
+  /** Given a sequence, return a Task that will signal its completion. */
   def completedT[A](fa: F[A]): Task[Unit] =
     foldLeftT(fa, ())((_,_) => ())
 }

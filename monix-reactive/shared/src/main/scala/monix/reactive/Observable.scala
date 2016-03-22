@@ -412,11 +412,18 @@ object Observable {
   def now[A](elem: A): Observable[A] =
     new builders.NowObservable(elem)
 
-  /** Given a lazy by-name argument, converts it into an Observable
+  /** Given a non-strict value, converts it into an Observable
     * that emits a single element.
     */
-  def eval[A](f: => A): Observable[A] =
-    new builders.EvalObservable(f)
+  def evalAlways[A](a: => A): Observable[A] =
+    new builders.EvalAlwaysObservable(a)
+
+  /** Given a non-strict value, converts it into an Observable
+    * that emits a single element and that memoizes the value
+    * for subsequent invocations.
+    */
+  def evalOnce[A](f: => A): Observable[A] =
+    new builders.EvalOnceObservable(f)
 
   /** Creates an Observable that emits an error.
     */

@@ -10,19 +10,21 @@
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KINDither express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
 
-package monix.types.instances
+package monix.laws
 
-/** Helper for importing all known type-class instances. */
-object all extends AllInstances
+import monix.types.Async
+import scala.language.higherKinds
 
-/** Alias for `cats.std.AllInstances` */
-trait AllStdInstances extends _root_.cats.std.AllInstances
+trait AsyncLaws[F[_]] extends RecoverableLaws[F, Throwable] with EvaluableLaws[F] {
+  implicit def F: Async[F]
+}
 
-/** Exposes all type-class instances defined by Monix. */
-trait AllInstances extends ObservableInstances with TaskInstances
-  with EvalInstances with AllStdInstances
+object AsyncLaws {
+  def apply[F[_] : Async]: AsyncLaws[F] =
+    new AsyncLaws[F] { def F: Async[F] = implicitly[Async[F]] }
+}

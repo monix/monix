@@ -25,6 +25,7 @@ package object types {
     * The name is short for "covariant functor".
     */
   type Functor[F[_]] = _root_.cats.Functor[F]
+
   /** Alias for the Cats `Functor` companion. */
   val Functor = _root_.cats.Functor
 
@@ -33,6 +34,7 @@ package object types {
     * Allows composition of dependent effectful functions.
     */
   type Monad[F[_]] = _root_.cats.Monad[F]
+
   /** Alias for the Cats `Monad` companion. */
   val Monad = _root_.cats.Monad
 
@@ -41,6 +43,7 @@ package object types {
     * It's a [[Monad]] that also allows you to raise and or handle an error value.
     */
   type MonadError[F[_],E] = _root_.cats.MonadError[F,E]
+
   /** Alias for the Cats `MonadError` companion. */
   val MonadError = _root_.cats.MonadError
 
@@ -49,6 +52,7 @@ package object types {
     * It's a [[Monad]] that can be empty and filterable.
     */
   type MonadFilter[F[_]] = _root_.cats.MonadFilter[F]
+
   /** Alias for the Cats `MonadFilter` companion. */
   val MonadFilter = _root_.cats.MonadFilter
 }

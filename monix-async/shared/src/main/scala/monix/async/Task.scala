@@ -382,8 +382,10 @@ sealed abstract class Task[+A] { self =>
 
   /** Creates a new task that will handle any matching throwable that
     * this task might emit.
+    *
+    * See [[onErrorRecover]] for the version that takes a partial function.
     */
-  def onErrorRecover[U >: A](f: Throwable => U): Task[U] =
+  def onErrorHandle[U >: A](f: Throwable => U): Task[U] =
     new Task[U] {
       def unsafeRun(active: MultiAssignmentCancelable, frameId: FrameId, cb: Callback[U])
         (implicit s: Scheduler): Unit = {
@@ -409,10 +411,20 @@ sealed abstract class Task[+A] { self =>
       }
     }
 
+  /** Creates a new task that on error will try to map the error
+    * to another value using the provided partial function.
+    *
+    * See [[onErrorHandle]] for the version that takes a total function.
+    */
+  def onErrorRecover[U >: A](pf: PartialFunction[Throwable, U]): Task[U] =
+    onErrorRecoverWith(pf.andThen(Task.now))
+
   /** Creates a new task that will handle any matching throwable that
     * this task might emit by executing another task.
+    *
+    * See [[onErrorRecoverWith]] for the version that takes a partial function.
     */
-  def onErrorRecoverWith[B >: A](f: Throwable => Task[B]): Task[B] =
+  def onErrorHandleWith[B >: A](f: Throwable => Task[B]): Task[B] =
     new Task[B] {
       def unsafeRun(active: MultiAssignmentCancelable, frameId: FrameId, cb: Callback[B])
         (implicit s: Scheduler): Unit = {
@@ -440,6 +452,14 @@ sealed abstract class Task[+A] { self =>
           }))
       }
     }
+
+  /** Creates a new task that will try recovering from an error by
+    * matching it with another task using the given partial function.
+    *
+    * See [[onErrorHandleWith]] for the version that takes a total function.
+    */
+  def onErrorRecoverWith[B >: A](pf: PartialFunction[Throwable, Task[B]]): Task[B] =
+    onErrorHandleWith(ex => pf.applyOrElse(ex, Task.error))
 
   /** Creates a new task that in case of error will fallback to the
     * given backup task.
@@ -698,7 +718,7 @@ object Task {
     * the given function executed asynchronously.
     */
   def apply[A](f: => A): Task[A] =
-    Task.fork(Task.eval(f))
+    Task.fork(Task.evalAlways(f))
 
   /** Returns a `Task` that on execution is always successful, emitting
     * the given strict value.
@@ -718,7 +738,7 @@ object Task {
     * Note that since `Task` is not memoized, this will recompute the
     * value each time the `Task` is executed.
     */
-  def eval[A](f: => A): Task[A] =
+  def evalAlways[A](f: => A): Task[A] =
     new Task[A] {
       def unsafeRun(c: MultiAssignmentCancelable, fid: FrameId, cb: Callback[A])
         (implicit s: Scheduler): Unit = {
@@ -735,11 +755,17 @@ object Task {
       }
     }
 
+  /** Promote a non-strict value to a Task that is memoized on the first
+    * evaluation, the result being then available on subsequent evaluations.
+    */
+  def evalOnce[A](f: => A): Task[A] =
+    evalAlways(f).memoize
+
   /** Promote a non-strict value representing a Task to a Task of the
     * same type.
     */
   def defer[A](task: => Task[A]): Task[A] =
-    Task.eval(task).flatten
+    Task.evalAlways(task).flatten
 
   /** Mirrors the given source `Task`, but upon execution it forks its
     * evaluation off into a separate (logical) thread.

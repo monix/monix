@@ -15,14 +15,26 @@
  * limitations under the License.
  */
 
-package monix.types.instances
+package monix.laws
 
-/** Helper for importing all known type-class instances. */
-object all extends AllInstances
+import cats.laws.IsEq
+import monix.types.Nonstrict
+import scala.language.higherKinds
 
-/** Alias for `cats.std.AllInstances` */
-trait AllStdInstances extends _root_.cats.std.AllInstances
+trait NonstrictLaws[F[_]] extends EvaluableLaws[F] {
+  implicit def F: Nonstrict[F]
 
-/** Exposes all type-class instances defined by Monix. */
-trait AllInstances extends ObservableInstances with TaskInstances
-  with EvalInstances with AllStdInstances
+  def nowCanEvaluate[A](a: A): IsEq[A] =
+    a <-> F.value(F.now(a))
+
+  def evalAlwaysCanEvaluate[A](a: A): IsEq[A] =
+    a <-> F.value(F.evalAlways(a))
+
+  def evalOnceCanEvaluate[A](a: A): IsEq[A] =
+    a <-> F.value(F.evalOnce(a))
+}
+
+object NonstrictLaws {
+  def apply[F[_] : Nonstrict]: NonstrictLaws[F] =
+    new NonstrictLaws[F] { def F: Nonstrict[F] = implicitly[Nonstrict[F]] }
+}

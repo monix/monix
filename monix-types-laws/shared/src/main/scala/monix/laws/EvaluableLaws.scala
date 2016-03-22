@@ -15,10 +15,26 @@
  * limitations under the License.
  */
 
-package monix.reactive.exceptions
+package monix.laws
 
-case class DummyException(message: String)
-  extends RuntimeException(message) {
+import cats.laws.{MonadLaws, IsEq}
+import monix.types.Evaluable
+import scala.language.higherKinds
 
-  def this() = this(null)
+trait EvaluableLaws[F[_]] extends MonadLaws[F] {
+  implicit def F: Evaluable[F]
+
+  def evaluableAlwaysEquivalence[A](a: A): IsEq[F[A]] =
+    F.now(a) <-> F.evalAlways(a)
+
+  def evaluableOnceEquivalence[A](a: A): IsEq[F[A]] =
+    F.now(a) <-> F.evalOnce(a)
+
+  def evaluableDeferEquivalence[A](a: A): IsEq[F[A]] =
+    F.now(a) <-> F.defer(F.now(a))
+}
+
+object EvaluableLaws {
+  def apply[F[_] : Evaluable]: EvaluableLaws[F] =
+    new EvaluableLaws[F] { def F: Evaluable[F] = implicitly[Evaluable[F]] }
 }

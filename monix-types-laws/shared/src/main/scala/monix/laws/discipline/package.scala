@@ -15,14 +15,15 @@
  * limitations under the License.
  */
 
-package monix.types.instances
+package monix.laws
 
-/** Helper for importing all known type-class instances. */
-object all extends AllInstances
+import algebra.laws._
+import cats.Eq
+import cats.laws.IsEq
+import org.scalacheck.Prop
+import scala.language.implicitConversions
 
-/** Alias for `cats.std.AllInstances` */
-trait AllStdInstances extends _root_.cats.std.AllInstances
-
-/** Exposes all type-class instances defined by Monix. */
-trait AllInstances extends ObservableInstances with TaskInstances
-  with EvalInstances with AllStdInstances
+package object discipline {
+  implicit def isEqToProp[A: Eq](isEq: IsEq[A]): Prop =
+    isEq.lhs ?== isEq.rhs
+}

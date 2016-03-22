@@ -26,7 +26,7 @@ object OnErrorRetryCountedSuite extends BaseOperatorSuite {
     val ex = DummyException("expected")
     val o = Observable.range(0, sourceCount).endWithError(ex)
       .onErrorRetry(3)
-      .onErrorRecover { case _ => 10L }
+      .onErrorHandle { case _ => 10L }
 
     val count = sourceCount * 4 + 1
     val sum = 1L * sourceCount * (sourceCount-1) / 2 * 4 + 10

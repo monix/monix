@@ -26,7 +26,7 @@ object TimeoutOnSlowDownstreamSuite extends BaseOperatorSuite {
     val source = Observable.now(sourceCount.toLong).delayOnComplete(1.hour)
     val o = source.timeoutOnSlowDownstream(1.second)
       .delayOnNext(30.minutes)
-      .onErrorRecoverWith { case DownstreamTimeoutException(_) => Observable.now(20L) }
+      .onErrorHandleWith { case DownstreamTimeoutException(_) => Observable.now(20L) }
 
     Sample(o, 1, 20, 1.second, 0.seconds)
   }

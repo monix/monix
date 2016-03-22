@@ -15,14 +15,22 @@
  * limitations under the License.
  */
 
-package monix.types.instances
+package monix.reactive.exceptions
 
-/** Helper for importing all known type-class instances. */
-object all extends AllInstances
+/** A fake exception type to throw around during testing. */
+class DummyException(message: String)
+  extends RuntimeException(message) {
 
-/** Alias for `cats.std.AllInstances` */
-trait AllStdInstances extends _root_.cats.std.AllInstances
+  def this() = this(null)
+}
 
-/** Exposes all type-class instances defined by Monix. */
-trait AllInstances extends ObservableInstances with TaskInstances
-  with EvalInstances with AllStdInstances
+object DummyException {
+  def apply(message: String): DummyException =
+    new DummyException(message)
+
+  def unapply(ref: Throwable): Option[DummyException] =
+    ref match {
+      case ex: DummyException => Some(ex)
+      case _ => None
+    }
+}

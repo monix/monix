@@ -23,26 +23,42 @@ import scala.language.higherKinds
 
 /** Enhancements for the `MonadError` type-class from Cats. */
 trait Recoverable[F[_], E] extends MonadError[F, E] {
-  /** In case the source emits an error, then emit that error. */
-  def failed[A](fa: F[A]): F[E]
+  /** Mirrors the source, until the source throws an error, after which
+    * it tries to fallback to the output of the given total function.
+    *
+    * See [[onErrorRecoverWith]] for the alternative accepting a partial function.
+    */
+  def onErrorHandleWith[A](fa: F[A])(f: E => F[A]): F[A]
+
+  /** Mirrors the source, but in case an error happens then use the
+    * given total function to fallback to a given element for certain
+    * errors.
+    *
+    * See [[onErrorRecover]] for the alternative accepting a partial function.
+    */
+  def onErrorHandle[A](fa: F[A])(f: E => A): F[A] =
+    onErrorHandleWith(fa) { case ex => pure(f(ex)) }
 
   /** Mirrors the source, until the source throws an error, after which
     * it tries to fallback to the output of the given partial function.
     *
-    * Obviously, the implementation needs to be stack-safe.
+    * See [[onErrorHandleWith]] for the alternative accepting a total function.
     */
-  def onErrorRecoverWith[A](fa: F[A])(f: E => F[A]): F[A]
+  def onErrorRecoverWith[A](fa: F[A])(pf: PartialFunction[E, F[A]]): F[A] =
+    onErrorHandleWith(fa)(e => pf.applyOrElse(e, raiseError))
 
   /** Mirrors the source, but in case an error happens then use the
     * given partial function to fallback to a given element for certain
     * errors.
+    *
+    * See [[onErrorHandle]] for the alternative accepting a total function.
     */
-  def onErrorRecover[A](fa: F[A])(f: E => A): F[A] =
-    onErrorRecoverWith(fa) { case ex => pure(f(ex)) }
+  def onErrorRecover[A](fa: F[A])(pf: PartialFunction[E, A]): F[A] =
+    onErrorHandleWith(fa)(e => (pf andThen pure).applyOrElse(e, raiseError))
 
   /** Mirrors the source, but if an error happens, then fallback to `other`. */
   def onErrorFallbackTo[A](fa: F[A], other: Eval[F[A]]): F[A] =
-    onErrorRecoverWith(fa) { case _ => other.value }
+    onErrorHandleWith(fa) { case _ => other.value }
 
   /** In case an error happens, keeps retrying iterating the source from the start
     * for `maxRetries` times.
@@ -53,14 +69,14 @@ trait Recoverable[F[_], E] extends MonadError[F, E] {
     require(maxRetries >= 0, "maxRetries should be positive")
 
     if (maxRetries == 0) fa
-    else onErrorRecoverWith(fa) { case _ => onErrorRetry(fa, maxRetries-1) }
+    else onErrorHandleWith(fa) { case _ => onErrorRetry(fa, maxRetries-1) }
   }
 
   /** In case an error happens, retries iterating the source from the
     * start for as long as the given predicate returns true.
     */
   def onErrorRetryIf[A](fa: F[A])(p: E => Boolean): F[A] =
-    onErrorRecoverWith(fa) { case ex if p(ex) => onErrorRetryIf(fa)(p) }
+    onErrorHandleWith(fa) { case ex if p(ex) => onErrorRetryIf(fa)(p) }
 
   /** Applies the mapping function on the attempted source. */
   def mapAttempt[A,S](fa: F[A])(f: Xor[E,A] => Xor[E,S]): F[S] =
@@ -73,10 +89,10 @@ trait Recoverable[F[_], E] extends MonadError[F, E] {
 
   // From ApplicativeError
   final override def handleErrorWith[A](fa: F[A])(f: (E) => F[A]): F[A] =
-    onErrorRecoverWith(fa) { case ex => f(ex) }
+    onErrorHandleWith(fa)(f)
   // From ApplicativeError
   final override def handleError[A](fa: F[A])(f: (E) => A): F[A] =
-    onErrorRecover(fa) { case ex => f(ex) }
+    onErrorHandle(fa)(f)
   // From ApplicativeError
   final override def recover[A](fa: F[A])(pf: PartialFunction[E, A]): F[A] =
     onErrorRecover(fa)(pf)

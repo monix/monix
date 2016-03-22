@@ -15,12 +15,16 @@
  * limitations under the License.
  */
 
-package monix.types.instances
+package monix.laws
 
-import cats.laws.discipline.MonadErrorTests
-import monix.async.Task
-import monix.types.BaseRulesTestSuite
+import monix.types.Reactive
+import scala.language.higherKinds
 
-object TaskSuite extends BaseRulesTestSuite {
-  checkAll("MonadError[Task]", MonadErrorTests[Task, Throwable].monadError[Int, Int, Int])
+trait ReactiveLaws[F[_]] extends AsyncLaws[F] {
+  implicit def F: Reactive[F]
+}
+
+object ReactiveLaws {
+  def apply[F[_] : Reactive]: ReactiveLaws[F] =
+    new ReactiveLaws[F] { def F: Reactive[F] = implicitly[Reactive[F]] }
 }

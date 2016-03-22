@@ -24,7 +24,7 @@ import monix.execution.schedulers.TestScheduler
 import monix.reactive.{Observable, Observer}
 import scala.concurrent.Future
 
-object EvalObservableSuite extends TestSuite[TestScheduler] {
+object EvalAlwaysObservableSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler): Unit = {
     assert(s.state.get.tasks.isEmpty,
@@ -36,7 +36,7 @@ object EvalObservableSuite extends TestSuite[TestScheduler] {
     var received = 0
 
     var i = 0
-    val obs = Observable.eval { i += 1; i }
+    val obs = Observable.evalAlways { i += 1; i }
 
     obs.unsafeSubscribeFn(new Observer[Int] {
       def onNext(elem: Int): Future[Ack] = {

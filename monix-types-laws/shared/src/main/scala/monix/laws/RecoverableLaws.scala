@@ -15,14 +15,17 @@
  * limitations under the License.
  */
 
-package monix.types.instances
+package monix.laws
 
-/** Helper for importing all known type-class instances. */
-object all extends AllInstances
+import cats.laws.MonadErrorLaws
+import monix.types.Recoverable
+import scala.language.higherKinds
 
-/** Alias for `cats.std.AllInstances` */
-trait AllStdInstances extends _root_.cats.std.AllInstances
+trait RecoverableLaws[F[_],E] extends MonadErrorLaws[F,E] {
+  implicit def F: Recoverable[F,E]
+}
 
-/** Exposes all type-class instances defined by Monix. */
-trait AllInstances extends ObservableInstances with TaskInstances
-  with EvalInstances with AllStdInstances
+object RecoverableLaws {
+  def apply[F[_], E](implicit ev: Recoverable[F,E]): RecoverableLaws[F, E] =
+    new RecoverableLaws[F, E] { def F: Recoverable[F, E] = ev }
+}

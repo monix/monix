@@ -17,11 +17,20 @@
 
 package monix.types.instances
 
-import cats.laws.discipline.{MonadErrorTests, MonadFilterTests}
-import monix.reactive.Observable
-import monix.types.BaseRulesTestSuite
+import cats.Eval
+import monix.types.Nonstrict
 
-object ObservableSuite extends BaseRulesTestSuite {
-  checkAll("MonadError[Observable]", MonadErrorTests[Observable, Throwable].monadError[Int, Int, Int])
-  checkAll("MonadFilter[Observable]", MonadFilterTests[Observable].monadFilter[Int, Int, Int])
+trait EvalInstances {
+  implicit val nonstrictEval: Nonstrict[Eval] =
+    new Nonstrict[Eval] {
+      def value[A](fa: Eval[A]): A = fa.value
+      def now[A](a: A): Eval[A] = Eval.now(a)
+      def flatMap[A, B](fa: Eval[A])(f: (A) => Eval[B]): Eval[B] = fa.flatMap(f)
+
+      override def evalAlways[A](a: => A): Eval[A] = Eval.always(a)
+      override def evalOnce[A](a: => A): Eval[A] = Eval.later(a)
+      override def pureEval[A](x: Eval[A]): Eval[A] = x
+    }
 }
+
+object eval extends EvalInstances

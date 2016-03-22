@@ -15,14 +15,11 @@
  * limitations under the License.
  */
 
-package monix.types.instances
+package monix.laws
 
-/** Helper for importing all known type-class instances. */
-object all extends AllInstances
+import monix.async.Task
+import monix.laws.discipline.AsyncTests
 
-/** Alias for `cats.std.AllInstances` */
-trait AllStdInstances extends _root_.cats.std.AllInstances
-
-/** Exposes all type-class instances defined by Monix. */
-trait AllInstances extends ObservableInstances with TaskInstances
-  with EvalInstances with AllStdInstances
+object TaskRulesSuite extends BaseRulesSuite {
+  checkAll("Async[Task]", AsyncTests[Task].async[Int, Int, Int])
+}

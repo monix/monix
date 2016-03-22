@@ -28,7 +28,7 @@ object OnErrorRecoverWithSuite extends BaseOperatorSuite {
     val source = Observable.range(0, sourceCount)
       .endWithError(DummyException("expected"))
 
-    val obs = source.onErrorRecoverWith {
+    val obs = source.onErrorHandleWith {
       case DummyException("expected") =>
         fallback
       case other =>
@@ -44,7 +44,7 @@ object OnErrorRecoverWithSuite extends BaseOperatorSuite {
       val fallback = Observable.range(0, 10)
       val source = Observable.range(0, sourceCount).endWithError(ex)
 
-      val obs = source.onErrorRecoverWith {
+      val obs = source.onErrorHandleWith {
         case DummyException("not happening") =>
           fallback
         case other =>
@@ -59,7 +59,7 @@ object OnErrorRecoverWithSuite extends BaseOperatorSuite {
     val source = Observable.range(0, sourceCount)
       .endWithError(DummyException("expected"))
 
-    val obs = source.onErrorRecoverWith {
+    val obs = source.onErrorHandleWith {
       case DummyException("expected") =>
         throw ex
       case other =>
@@ -75,7 +75,7 @@ object OnErrorRecoverWithSuite extends BaseOperatorSuite {
     val sample = Observable.range(0, 10).map(_ => 1L)
       .delayOnNext(1.second)
       .endWithError(DummyException("expected"))
-      .onErrorRecoverWith {
+      .onErrorHandleWith {
         case DummyException("expected") => fallback
         case other => Observable.error(other)
       }

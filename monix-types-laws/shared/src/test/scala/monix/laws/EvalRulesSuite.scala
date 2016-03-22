@@ -15,14 +15,11 @@
  * limitations under the License.
  */
 
-package monix.types.instances
+package monix.laws
 
-/** Helper for importing all known type-class instances. */
-object all extends AllInstances
+import cats.Eval
+import monix.laws.discipline.NonstrictTests
 
-/** Alias for `cats.std.AllInstances` */
-trait AllStdInstances extends _root_.cats.std.AllInstances
-
-/** Exposes all type-class instances defined by Monix. */
-trait AllInstances extends ObservableInstances with TaskInstances
-  with EvalInstances with AllStdInstances
+object EvalRulesSuite extends BaseRulesSuite {
+  checkAll("Nonstrict[Eval]", NonstrictTests[Eval].nonstrict[Int, Int, Int])
+}

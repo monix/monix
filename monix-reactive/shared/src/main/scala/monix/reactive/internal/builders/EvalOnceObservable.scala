@@ -25,23 +25,38 @@ import scala.util.control.NonFatal
 /** An observable that evaluates the given by-name argument,
   * and emits it.
   */
-private[reactive] final class EvalObservable[+A](f: => A)
+private[reactive] final class EvalOnceObservable[A](a: => A)
   extends Observable[A] {
 
-  def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
-    try {
-      subscriber.onNext(f)
-      // No need to do back-pressure
-      subscriber.onComplete()
+  private[this] var result: A = _
+  private[this] var errorThrown: Throwable = null
+  @volatile private[this] var hasResult = false
+
+  private def signalResult(out: Subscriber[A], value: A, ex: Throwable): Unit = {
+    if (ex != null)
+      try out.onError(ex) catch {
+        case NonFatal(err) =>
+          out.scheduler.reportFailure(err)
+          out.scheduler.reportFailure(ex)
+      }
+    else try {
+      out.onNext(value)
+      out.onComplete()
     } catch {
-      case NonFatal(ex) =>
-        try subscriber.onError(ex) catch {
-          case NonFatal(err) =>
-            val s = subscriber.scheduler
-            s.reportFailure(ex)
-            s.reportFailure(err)
-        }
+      case NonFatal(err) =>
+        out.scheduler.reportFailure(err)
     }
+  }
+
+  def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
+    if (hasResult) signalResult(subscriber, result, errorThrown) else
+      synchronized {
+        if (hasResult) signalResult(subscriber, result, errorThrown) else {
+          try result = a catch { case NonFatal(ex) => errorThrown = ex }
+          hasResult = true
+          signalResult(subscriber, result, errorThrown)
+        }
+      }
 
     Cancelable.empty
   }

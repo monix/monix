@@ -22,9 +22,10 @@ import cats.Eval
 import simulacrum.typeclass
 import scala.concurrent.duration.FiniteDuration
 import scala.language.{higherKinds, implicitConversions}
+import scala.util.{Failure, Success, Try}
 
 /** Type-class for things that can return results asynchronously. */
-@typeclass trait Async[F[_]] extends Recoverable[F,Throwable] with Zippable[F] {
+@typeclass trait Async[F[_]] extends Evaluable[F] with Recoverable[F,Throwable] with Zippable[F] {
   /** Builds an instance by evaluating the given expression with a delay applied. */
   def delayedEval[A](delay: FiniteDuration, a: Eval[A]): F[A]
 
@@ -63,6 +64,17 @@ import scala.language.{higherKinds, implicitConversions}
     * signals, then switch to evaluating the `backup`.
     */
   def timeoutTo[A](fa: F[A], timespan: FiniteDuration, backup: Eval[F[A]]): F[A]
+
+  /** In case the source emits an error, then emit that error. */
+  def failed[A](fa: F[A]): F[Throwable] =
+    flatMap(liftTry(fa)) {
+      case Success(_) => raiseError(new NoSuchElementException("Async.failed"))
+      case Failure(ex) => now(ex)
+    }
+
+  /** Exposes errors if any. */
+  def liftTry[A](fa: F[A]): F[Try[A]] =
+    onErrorHandle(map(fa)(a => Success(a) : Try[A]))(ex => Failure(ex))
 
   /** Trigger a `TimeoutException` after the given `timespan` has passed without
     * the source emitting anything.

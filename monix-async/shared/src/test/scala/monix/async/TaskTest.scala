@@ -61,7 +61,7 @@ object TaskTest extends TestSuite[TestScheduler] {
     var wasTriggered = false
     def trigger(): String = { wasTriggered = true; "result" }
 
-    val task = Task.eval(trigger())
+    val task = Task.evalAlways(trigger())
     assert(!wasTriggered, "!wasTriggered")
 
     val f = task.runAsync
@@ -73,7 +73,7 @@ object TaskTest extends TestSuite[TestScheduler] {
     var wasTriggered = false
     def trigger(): String = { wasTriggered = true; "result" }
 
-    val task = Task.fork(Task.eval(trigger()))
+    val task = Task.fork(Task.evalAlways(trigger()))
     assert(!wasTriggered, "!wasTriggered")
 
     val f = task.runAsync
@@ -500,7 +500,7 @@ object TaskTest extends TestSuite[TestScheduler] {
   }
 
   test("Task#onErrorRecover should mirror source on success") { implicit s =>
-    val task = Task(1).onErrorRecover { case ex: Throwable => 99 }
+    val task = Task(1).onErrorHandle { case ex: Throwable => 99 }
     val f = task.runAsync
     s.tick()
     assertEquals(f.value, Some(Success(1)))
@@ -508,7 +508,7 @@ object TaskTest extends TestSuite[TestScheduler] {
 
   test("Task#onErrorRecover should recover") { implicit s =>
     val ex = DummyException("dummy")
-    val task = Task[Int](throw ex).onErrorRecover {
+    val task = Task[Int](throw ex).onErrorHandle {
       case ex: DummyException => 99
     }
 
@@ -522,7 +522,7 @@ object TaskTest extends TestSuite[TestScheduler] {
     val ex2 = DummyException("two")
 
     val task = Task[Int](throw ex1)
-      .onErrorRecover { case ex => throw ex2 }
+      .onErrorHandle { case ex => throw ex2 }
 
     val f = task.runAsync; s.tick()
     assertEquals(f.value, Some(Failure(ex2)))
@@ -531,7 +531,7 @@ object TaskTest extends TestSuite[TestScheduler] {
 
   test("Task#onErrorRecover is not cancelable") { implicit s =>
     val task = Task[Int](throw DummyException("dummy"))
-      .onErrorRecover { case _: DummyException => 99 }
+      .onErrorHandle { case _: DummyException => 99 }
 
     val f = task.runAsync
     assertEquals(f.value, None)
@@ -581,7 +581,7 @@ object TaskTest extends TestSuite[TestScheduler] {
 
   test("Task.onErrorRetry should mirror the source onSuccess") { implicit s =>
     var tries = 0
-    val task = Task.eval { tries += 1; 1 }.onErrorRetry(10)
+    val task = Task.evalAlways { tries += 1; 1 }.onErrorRetry(10)
     val f = task.runAsync
 
     assertEquals(f.value, Some(Success(1)))
@@ -591,7 +591,7 @@ object TaskTest extends TestSuite[TestScheduler] {
   test("Task.onErrorRetry should retry onError") { implicit s =>
     val ex = DummyException("dummy")
     var tries = 0
-    val task = Task.eval { tries += 1; if (tries < 5) throw ex else 1 }.onErrorRetry(10)
+    val task = Task.evalAlways { tries += 1; if (tries < 5) throw ex else 1 }.onErrorRetry(10)
     val f = task.runAsync
 
     assertEquals(f.value, Some(Success(1)))
@@ -601,7 +601,7 @@ object TaskTest extends TestSuite[TestScheduler] {
   test("Task.onErrorRetry should emit onError after max retries") { implicit s =>
     val ex = DummyException("dummy")
     var tries = 0
-    val task = Task.eval { tries += 1; throw ex }.onErrorRetry(10)
+    val task = Task.evalAlways { tries += 1; throw ex }.onErrorRetry(10)
     val f = task.runAsync
 
     assertEquals(f.value, Some(Failure(ex)))
@@ -622,7 +622,7 @@ object TaskTest extends TestSuite[TestScheduler] {
 
   test("Task.onErrorRetryIf should mirror the source onSuccess") { implicit s =>
     var tries = 0
-    val task = Task.eval { tries += 1; 1 }.onErrorRetryIf(ex => tries < 10)
+    val task = Task.evalAlways { tries += 1; 1 }.onErrorRetryIf(ex => tries < 10)
     val f = task.runAsync
 
     assertEquals(f.value, Some(Success(1)))
@@ -632,7 +632,7 @@ object TaskTest extends TestSuite[TestScheduler] {
   test("Task.onErrorRetryIf should retry onError") { implicit s =>
     val ex = DummyException("dummy")
     var tries = 0
-    val task = Task.eval { tries += 1; if (tries < 5) throw ex else 1 }
+    val task = Task.evalAlways { tries += 1; if (tries < 5) throw ex else 1 }
       .onErrorRetryIf(ex => tries <= 10)
 
     val f = task.runAsync
@@ -643,7 +643,7 @@ object TaskTest extends TestSuite[TestScheduler] {
   test("Task.onErrorRetryIf should emit onError") { implicit s =>
     val ex = DummyException("dummy")
     var tries = 0
-    val task = Task.eval { tries += 1; throw ex }
+    val task = Task.evalAlways { tries += 1; throw ex }
       .onErrorRetryIf(ex => tries <= 10)
 
     val f = task.runAsync
@@ -663,7 +663,7 @@ object TaskTest extends TestSuite[TestScheduler] {
   }
 
   test("Task#onErrorRecoverWith should mirror source on success") { implicit s =>
-    val task = Task(1).onErrorRecoverWith { case ex: Throwable => Task(99) }
+    val task = Task(1).onErrorHandleWith { case ex: Throwable => Task(99) }
     val f = task.runAsync
     s.tick()
     assertEquals(f.value, Some(Success(1)))
@@ -671,7 +671,7 @@ object TaskTest extends TestSuite[TestScheduler] {
 
   test("Task#onErrorRecoverWith should recover") { implicit s =>
     val ex = DummyException("dummy")
-    val task = Task[Int](throw ex).onErrorRecoverWith {
+    val task = Task[Int](throw ex).onErrorHandleWith {
       case ex: DummyException => Task(99)
     }
 
@@ -685,7 +685,7 @@ object TaskTest extends TestSuite[TestScheduler] {
     val ex2 = DummyException("two")
 
     val task = Task[Int](throw ex1)
-      .onErrorRecoverWith { case ex => throw ex2 }
+      .onErrorHandleWith { case ex => throw ex2 }
 
     val f = task.runAsync; s.tick()
     assertEquals(f.value, Some(Failure(ex2)))
@@ -695,7 +695,7 @@ object TaskTest extends TestSuite[TestScheduler] {
   test("Task#onErrorRecoverWith is cancelable") { implicit s =>
     def recursive(): Task[Int] = {
       Task[Int](throw DummyException("dummy"))
-        .onErrorRecoverWith { case _: DummyException => recursive() }
+        .onErrorHandleWith { case _: DummyException => recursive() }
     }
 
     val task = recursive()
@@ -708,7 +708,7 @@ object TaskTest extends TestSuite[TestScheduler] {
 
   test("Task#onErrorRecoverWith has a cancelable fallback") { implicit s =>
     val task = Task[Int](throw DummyException("dummy"))
-      .onErrorRecoverWith { case _: DummyException => Task(99).delayExecution(1.second) }
+      .onErrorHandleWith { case _: DummyException => Task(99).delayExecution(1.second) }
 
     val f = task.runAsync
     assertEquals(f.value, None)
@@ -1098,14 +1098,14 @@ object TaskTest extends TestSuite[TestScheduler] {
 
 
   test("Task.memoize should work synchronously for first subscriber") { implicit s =>
-    val task = Task.eval(1).memoize
+    val task = Task.evalAlways(1).memoize
     val f = task.runAsync
     assertEquals(f.value, Some(Success(1)))
   }
 
   test("Task.memoize should work synchronously for subsequent subscribers after complete") { implicit s =>
     var effect = 0
-    val task = Task.eval { effect += 1; effect }.memoize
+    val task = Task.evalAlways { effect += 1; effect }.memoize
     task.runAsync
 
     val f1 = task.runAsync
@@ -1119,7 +1119,7 @@ object TaskTest extends TestSuite[TestScheduler] {
 
   test("Task.memoize should queue subscribers while running") { implicit s =>
     var effect = 0
-    val task = Task.eval { effect += 1; effect }.delayExecution(1.second).memoize
+    val task = Task.evalAlways { effect += 1; effect }.delayExecution(1.second).memoize
     task.runAsync
 
     val f1 = task.runAsync
@@ -1138,7 +1138,7 @@ object TaskTest extends TestSuite[TestScheduler] {
 
   test("Task.memoize should be cancelable, test 1") { implicit s =>
     var effect = 0
-    val task = Task.eval { effect += 1; effect }.delayExecution(1.second).memoize
+    val task = Task.evalAlways { effect += 1; effect }.delayExecution(1.second).memoize
     val f = task.runAsync
 
     val f1 = task.runAsync
@@ -1154,7 +1154,7 @@ object TaskTest extends TestSuite[TestScheduler] {
 
   test("Task.memoize should be cancelable, test 2") { implicit s =>
     var effect = 0
-    val task = Task.eval { effect += 1; effect }.delayExecution(1.second).memoize
+    val task = Task.evalAlways { effect += 1; effect }.delayExecution(1.second).memoize
     val f = task.runAsync
 
     var f1 = Option.empty[Try[Int]]

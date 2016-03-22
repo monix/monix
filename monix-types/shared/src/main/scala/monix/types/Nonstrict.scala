@@ -15,14 +15,11 @@
  * limitations under the License.
  */
 
-package monix.types.instances
+package monix.types
 
-/** Helper for importing all known type-class instances. */
-object all extends AllInstances
+import simulacrum.typeclass
+import scala.language.{higherKinds, implicitConversions}
 
-/** Alias for `cats.std.AllInstances` */
-trait AllStdInstances extends _root_.cats.std.AllInstances
-
-/** Exposes all type-class instances defined by Monix. */
-trait AllInstances extends ObservableInstances with TaskInstances
-  with EvalInstances with AllStdInstances
+@typeclass trait Nonstrict[F[_]] extends Evaluable[F] {
+  def value[A](fa: F[A]): A
+}
