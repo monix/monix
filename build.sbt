@@ -310,7 +310,7 @@ lazy val typesJS = project.in(file("monix-types/js"))
 lazy val typesLawsCommon =
   crossSettings ++ testSettings ++ Seq(
     name := "monix-types-laws",
-    libraryDependencies += "org.typelevel" %% "cats-laws" % "0.4.1"
+    libraryDependencies += "org.typelevel" %%% "cats-laws" % "0.4.1"
   )
 
 lazy val typesLawsJVM = project.in(file("monix-types-laws/jvm"))

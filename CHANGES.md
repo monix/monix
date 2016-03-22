@@ -1,3 +1,9 @@
+## Version 2.0-M2
+
+(work in progress)
+
+- [Issue #134](https://github.com/monixio/monix/issues/134): new operator `Observable.switchIfEmpty`
+
 ## Version 2.0-M1
 
 Milestone release for version 2.0, supplied as a preview.
