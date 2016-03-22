@@ -36,10 +36,12 @@ private[reactive] final class RepeatObservable[A](source: Observable[A])
 
     val cancelable = subject.unsafeSubscribeFn(new Subscriber[A] {
       implicit val scheduler = out.scheduler
+      private[this] var isEmpty = true
       private[this] var isDone = false
       private[this] var ack: Future[Ack] = Continue
 
       def onNext(elem: A): Future[Ack] = {
+        if (isEmpty) isEmpty = false
         ack = out.onNext(elem)
         ack
       }
@@ -55,11 +57,13 @@ private[reactive] final class RepeatObservable[A](source: Observable[A])
           isDone = true
           // Creating an asynchronous boundary, otherwise we might
           // blow up the stack.
-          ack.onComplete {
+          if (!isEmpty) ack.onComplete {
             case Success(Continue) =>
               loop(subject, out, task, index + 1)
             case _ =>
               () // do nothing
+          } else {
+            out.onComplete()
           }
         }
     })

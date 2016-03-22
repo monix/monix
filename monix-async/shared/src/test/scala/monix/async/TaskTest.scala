@@ -50,7 +50,7 @@ object TaskTest extends TestSuite[TestScheduler] {
 
   test("Task.apply should protect against user code errors") { implicit s =>
     val ex = DummyException("dummy")
-    val f = Task[Int](throw ex).runAsync
+    val f = Task[Int](if (1 == 1) throw ex else 1).runAsync
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
@@ -118,7 +118,7 @@ object TaskTest extends TestSuite[TestScheduler] {
 
   test("Task.create should protect against user code errors") { implicit s =>
     val ex = DummyException("dummy")
-    val f = Task.create[Int] { (cb,s) => throw ex }.runAsync
+    val f = Task.create[Int] { (cb,s) => if (1 == 1) throw ex else Cancelable.empty }.runAsync
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
@@ -133,7 +133,7 @@ object TaskTest extends TestSuite[TestScheduler] {
 
   test("Task.fromFuture should onError") { implicit s =>
     val ex = DummyException("dummy")
-    val f = Task.fromFuture(Future { throw ex }).runAsync
+    val f = Task.fromFuture(Future { if (1 == 1) throw ex else 1 }).runAsync
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
   }
@@ -178,7 +178,7 @@ object TaskTest extends TestSuite[TestScheduler] {
 
   test("Task#runAsync should signal error") { implicit s =>
     val ex = DummyException("dummy")
-    val task = Task(throw ex)
+    val task = Task(if (1 == 1) throw ex else 1)
     var received: Throwable = null
 
     task.runAsync.onFailure {
@@ -198,7 +198,7 @@ object TaskTest extends TestSuite[TestScheduler] {
     task.runAsync(new Callback[Int] {
       def onSuccess(value: Int): Unit = {
         receivedCount += 1
-        throw ex
+        if (1 == 1) throw ex
       }
       def onError(ex: Throwable): Unit = {
         receivedCount += 1
@@ -222,7 +222,7 @@ object TaskTest extends TestSuite[TestScheduler] {
 
   test("Task#runAsync(Try[T] => Unit) should signal error") { implicit s =>
     val ex = DummyException("dummy")
-    val task = Task(throw ex)
+    val task = Task(if (1 == 1) throw ex else 1)
     var received: Throwable = null
 
     task.runAsync(_.failed.foreach(x => received = x))
@@ -246,7 +246,7 @@ object TaskTest extends TestSuite[TestScheduler] {
   test("Task#map should work onError") { implicit s =>
     val ex = DummyException("dummy")
     var received: Throwable = null
-    val task = Task[Int](throw ex).map(_ * 2)
+    val task = Task[Int](if (1 == 1) throw ex else 1).map(_ * 2)
 
     task.runAsync.onFailure {
       case error => received = error
@@ -260,7 +260,7 @@ object TaskTest extends TestSuite[TestScheduler] {
   test("Task#map should protect against user code") { implicit s =>
     val ex = DummyException("dummy")
     var received: Throwable = null
-    val task = Task(1).map(x => throw ex)
+    val task = Task(1).map(x => if (x == 1) throw ex else 1)
 
     task.runAsync.onFailure {
       case error => received = error
@@ -337,7 +337,7 @@ object TaskTest extends TestSuite[TestScheduler] {
   test("Task#flatMap should work onError") { implicit s =>
     val ex = DummyException("dummy")
     var received: Throwable = null
-    val task = Task[Int](throw ex)
+    val task = Task[Int](if (1 == 1) throw ex else 1)
       .flatMap(x => Task.now(x * 2))
 
     task.runAsync.onFailure {
@@ -352,7 +352,7 @@ object TaskTest extends TestSuite[TestScheduler] {
   test("Task#flatMap should protect against user code") { implicit s =>
     val ex = DummyException("dummy")
     var received: Throwable = null
-    val task = Task(1).flatMap(x => throw ex)
+    val task = Task(1).flatMap(x => if (x == 1) throw ex else Task.now(x))
 
     task.runAsync.onFailure {
       case error => received = error
@@ -471,7 +471,7 @@ object TaskTest extends TestSuite[TestScheduler] {
 
   test("Task#failed should project the failure") { implicit s =>
     val ex = DummyException("dummy")
-    val f = Task[Int](throw ex).failed.runAsync
+    val f = Task[Int](if (1 == 1) throw ex else 1).failed.runAsync
 
     s.tick()
     assertEquals(f.value, Some(Success(ex)))
@@ -508,7 +508,7 @@ object TaskTest extends TestSuite[TestScheduler] {
 
   test("Task#onErrorRecover should recover") { implicit s =>
     val ex = DummyException("dummy")
-    val task = Task[Int](throw ex).onErrorHandle {
+    val task = Task[Int](if (1 == 1) throw ex else 1).onErrorHandle {
       case ex: DummyException => 99
     }
 
@@ -521,7 +521,7 @@ object TaskTest extends TestSuite[TestScheduler] {
     val ex1 = DummyException("one")
     val ex2 = DummyException("two")
 
-    val task = Task[Int](throw ex1)
+    val task = Task[Int](if (1 == 1) throw ex1 else 1)
       .onErrorHandle { case ex => throw ex2 }
 
     val f = task.runAsync; s.tick()
@@ -559,7 +559,7 @@ object TaskTest extends TestSuite[TestScheduler] {
   test("Task.onErrorFallbackTo should protect against user code") { implicit s =>
     val ex = DummyException("dummy")
     val err = DummyException("unexpected")
-    val task = Task(throw ex).onErrorFallbackTo(throw err)
+    val task = Task(throw ex).onErrorFallbackTo(Task.defer(throw err))
     val f = task.runAsync
     s.tick()
     assertEquals(f.value, Some(Failure(err)))
@@ -567,7 +567,7 @@ object TaskTest extends TestSuite[TestScheduler] {
 
   test("Task.onErrorFallbackTo should be cancelable") { implicit s =>
     def recursive(): Task[Int] = {
-      Task[Int](throw DummyException("dummy")).onErrorFallbackTo(recursive())
+      Task[Int](throw DummyException("dummy")).onErrorFallbackTo(Task.defer(recursive()))
     }
 
     val task = recursive()

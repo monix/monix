@@ -34,6 +34,8 @@ trait AsyncTests[F[_]] extends EvaluableTests[F] with RecoverableTests[F,Throwab
     ArbFC: Arbitrary[F[C]],
     ArbFAtoB: Arbitrary[F[A => B]],
     ArbFBtoC: Arbitrary[F[B => C]],
+    ArbEXorA: Arbitrary[Throwable Xor A],
+    ArbFEXorA: Arbitrary[F[Throwable Xor A]],
     ArbE: Arbitrary[Throwable],
     EqFA: Eq[F[A]],
     EqFB: Eq[F[B]],

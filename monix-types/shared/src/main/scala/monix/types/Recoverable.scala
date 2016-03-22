@@ -17,7 +17,6 @@
 
 package monix.types
 
-import cats.Eval
 import cats.data.Xor
 import scala.language.higherKinds
 
@@ -57,8 +56,8 @@ trait Recoverable[F[_], E] extends MonadError[F, E] {
     onErrorHandleWith(fa)(e => (pf andThen pure).applyOrElse(e, raiseError))
 
   /** Mirrors the source, but if an error happens, then fallback to `other`. */
-  def onErrorFallbackTo[A](fa: F[A], other: Eval[F[A]]): F[A] =
-    onErrorHandleWith(fa) { case _ => other.value }
+  def onErrorFallbackTo[A](fa: F[A], other: F[A]): F[A] =
+    onErrorHandleWith(fa) { case _ => other }
 
   /** In case an error happens, keeps retrying iterating the source from the start
     * for `maxRetries` times.
@@ -76,7 +75,7 @@ trait Recoverable[F[_], E] extends MonadError[F, E] {
     * start for as long as the given predicate returns true.
     */
   def onErrorRetryIf[A](fa: F[A])(p: E => Boolean): F[A] =
-    onErrorHandleWith(fa) { case ex if p(ex) => onErrorRetryIf(fa)(p) }
+    onErrorRecoverWith(fa) { case ex if p(ex) => onErrorRetryIf(fa)(p) }
 
   /** Applies the mapping function on the attempted source. */
   def mapAttempt[A,S](fa: F[A])(f: Xor[E,A] => Xor[E,S]): F[S] =

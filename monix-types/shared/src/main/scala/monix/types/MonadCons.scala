@@ -17,7 +17,6 @@
 
 package monix.types
 
-import cats.Eval
 import simulacrum._
 import scala.language.{higherKinds, implicitConversions}
 
@@ -32,33 +31,40 @@ import scala.language.{higherKinds, implicitConversions}
   * to precisely differentiate from other non-deterministic ways
   * of merging sequences and that might cause confusion.
   */
-@typeclass trait MonadCons[F[_]] extends Monad[F] {
+@typeclass trait MonadCons[F[_]] extends Evaluable[F] with MonadFilter[F] {
   /** Builds an instance by joining a head and a lazy tail. */
-  def cons[A](head: A, tail: Eval[F[A]]): F[A]
+  def cons[A](head: A, tail: F[A]): F[A]
 
   /** Alias for `flatMap`. */
   def concatMap[A,B](fa: F[A])(f: A => F[B]): F[B]
+
+  /** Given a partial function, filters and transforms the source by it. */
+  def collect[A,B](fa: F[A])(pf: PartialFunction[A,B]): F[B] =
+    map(filter(fa)(pf.isDefinedAt))(a => pf(a))
 
   /** Alias for `flatten`. */
   def concat[A](ffa: F[F[A]]): F[A] =
     concatMap(ffa)(fa => fa)
 
   /** Concatenates the source with `other`. */
-  @op("++") def followWith[A](fa: F[A], other: => F[A]): F[A] =
-    concat(cons(fa, Eval.always(pure(other))))
+  @op("++") def followWith[A](fa: F[A], other: F[A]): F[A] =
+    concat(cons(fa, pure(other)))
 
   /** Appends the given `elem` at the end. */
-  @op(":+") def endWithElem[A](fa: F[A])(elem: A): F[A] =
+  @op(":+") def endWithElem[A](fa: F[A], elem: A): F[A] =
     followWith(fa, pure(elem))
 
   /** Prepends the given `elem` at the start. */
-  @op("+:") def startWithElem[A](fa: F[A])(elem: A): F[A] =
+  @op("+:") def startWithElem[A](fa: F[A], elem: A): F[A] =
     followWith(pure(elem), fa)
 
-  /** Repeats the source, continuously. */
-  def repeat[A](fa: F[A]): F[A] =
-    followWith(fa, repeat(fa))
-
+  /** Lifts a `List` into a `Sequenceable` */
+  def fromList[A](list: List[A]): F[A] =
+    list match {
+      case head :: tail => cons(head, defer(fromList(list)))
+      case Nil => empty
+    }
+  
   final override def flatten[A](ffa: F[F[A]]): F[A] =
     concat(ffa)
 

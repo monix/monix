@@ -17,23 +17,54 @@
 
 package monix.types
 
-import cats.{Eval, CoflatMap}
+import cats.CoflatMap
 import simulacrum.typeclass
 import scala.language.{higherKinds, implicitConversions}
+import scala.util.control.NonFatal
 
 /** Type-class describing operations for streams. */
 @typeclass trait Streamable[F[_]]
   extends MonadFilter[F] with MonadConsError[F,Throwable]
     with Recoverable[F, Throwable] with Scannable[F]
     with FoldableF[F] with FoldableT[F]
-    with Zippable[F] with CoflatMap[F] {
+    with Zippable[F] with CoflatMap[F]
+    with Evaluable[F] {
 
   /** Lifts any `Iterable` into a `Sequenceable` type. */
-  def fromIterable[A](ia: Iterable[A]): F[A]
+  def fromIterable[A](iterable: Iterable[A]): F[A] =
+    defer(try fromIterator(iterable.iterator) catch {
+      case NonFatal(ex) => raiseError(ex)
+    })
 
-  /** Given a partial function, filters and transforms the source by it. */
-  def collect[A,B](fa: F[A])(pf: PartialFunction[A,B]): F[B] =
-    map(filter(fa)(pf.isDefinedAt))(a => pf(a))
+  /** Lifts any `Iterator` into a `Sequenceable` type. */
+  def fromIterator[A](iterator: Iterator[A]): F[A] =
+    try {
+      if (!iterator.hasNext) empty
+      else cons(iterator.next(), defer(fromIterator(iterator)))
+    } catch {
+      case NonFatal(ex) =>
+        raiseError(ex)
+    }
+
+  /** Builds a value out of a `Seq` */
+  def fromSeq[A](seq: Seq[A]): F[A] =
+    try {
+      if (seq.isEmpty) empty
+      else cons(seq.head, defer(fromSeq(seq.tail)))
+    } catch {
+      case NonFatal(ex) => raiseError(ex)
+    }
+
+  /** Ends the sequence with the given elements. */
+  def endWith[A](fa: F[A], elems: Seq[A]): F[A] =
+    followWith(fa, fromSeq(elems))
+
+  /** Starts the sequence with the given elements. */
+  def startWith[A](fa: F[A], elems: Seq[A]): F[A] =
+    followWith(fromSeq(elems), fa)
+
+  /** Repeats the source stream, continuously. */
+  def repeat[A](fa: F[A]): F[A]
 
   /** Builds an empty instance that completes when the source completes. */
   def completed[A](fa: F[A]): F[A] =
@@ -77,9 +108,9 @@ import scala.language.{higherKinds, implicitConversions}
     take(fa, 1)
 
   /** Returns the first element in a sequence. */
-  def headOrElseF[A](fa: F[A], default: Eval[A]): F[A] =
+  def headOrElseF[A](fa: F[A], default: => A): F[A] =
     map(foldLeftF(take(fa, 1), Option.empty[A])((_,a) => Some(a))) {
-      case None => default.value
+      case None => default
       case Some(a) => a
     }
 
@@ -87,7 +118,7 @@ import scala.language.{higherKinds, implicitConversions}
     *
     * Alias for [[headOrElseF]].
     */
-  def firstOrElseF[A](fa: F[A], default: Eval[A]): F[A] =
+  def firstOrElseF[A](fa: F[A], default: => A): F[A] =
     headOrElseF(fa, default)
 
   /** Returns the last element in a sequence. */
@@ -132,14 +163,6 @@ import scala.language.{higherKinds, implicitConversions}
     *     getting dropped between windows
     */
   def bufferSkipped[A](fa: F[A], count: Int, skip: Int): F[Seq[A]]
-
-  /** Ends the sequence with the given elements. */
-  def endWith[A](fa: F[A])(elems: Seq[A]): F[A] =
-    followWith(fa, fromIterable(elems))
-
-  /** Starts the sequence with the given elements. */
-  def startWith[A](fa: F[A])(elems: Seq[A]): F[A] =
-    followWith(fromIterable(elems), fa)
 
   /** Given an `Ordering` returns the maximum element of the source. */
   def maxF[A](fa: F[A])(implicit A: Ordering[A]): F[A] = {

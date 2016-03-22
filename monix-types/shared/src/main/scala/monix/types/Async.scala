@@ -18,7 +18,6 @@
 package monix.types
 
 import java.util.concurrent.TimeoutException
-import cats.Eval
 import simulacrum.typeclass
 import scala.concurrent.duration.FiniteDuration
 import scala.language.{higherKinds, implicitConversions}
@@ -29,7 +28,7 @@ import scala.util.{Failure, Success, Try}
   extends Monad[F] with Evaluable[F] with Recoverable[F,Throwable] with Zippable[F] {
 
   /** Builds an instance by evaluating the given expression with a delay applied. */
-  def delayedEval[A](delay: FiniteDuration, a: Eval[A]): F[A]
+  def delayedEval[A](delay: FiniteDuration, a: => A): F[A]
 
   /** Given a list of non-deterministic structures, mirrors the
     * first that manages to emit an element or that completes and
@@ -65,7 +64,7 @@ import scala.util.{Failure, Success, Try}
   /** In case the given `timespan` passes without the source emitting any
     * signals, then switch to evaluating the `backup`.
     */
-  def timeoutTo[A](fa: F[A], timespan: FiniteDuration, backup: Eval[F[A]]): F[A]
+  def timeoutTo[A](fa: F[A], timespan: FiniteDuration, backup: F[A]): F[A]
 
   /** In case the source emits an error, then emit that error. */
   def failed[A](fa: F[A]): F[Throwable] =
@@ -82,5 +81,5 @@ import scala.util.{Failure, Success, Try}
     * the source emitting anything.
     */
   def timeout[A](fa: F[A], timespan: FiniteDuration): F[A] =
-    timeoutTo(fa, timespan, Eval.now(raiseError(new TimeoutException(s"After $timespan"))))
+    timeoutTo(fa, timespan, raiseError(new TimeoutException(s"After $timespan")))
 }

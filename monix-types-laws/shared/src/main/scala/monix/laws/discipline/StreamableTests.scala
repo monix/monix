@@ -18,23 +18,25 @@
 package monix.laws.discipline
 
 import cats.Eq
-import cats.data.{XorT, Xor}
+import cats.data.{Xor, XorT}
 import cats.laws.discipline.CartesianTests.Isomorphisms
-import monix.laws.ReactiveLaws
-import monix.types.Reactive
+import monix.laws.StreamableLaws
 import org.scalacheck.Arbitrary
+import org.scalacheck.Prop._
 import scala.language.higherKinds
 
-trait ReactiveTests[F[_]] extends AsyncTests[F] with StreamableTests[F] {
-  def laws: ReactiveLaws[F]
+trait StreamableTests[F[_]]
+  extends MonadConsTests[F]
+    with RecoverableTests[F, Throwable] {
 
-  def reactive[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](implicit
+  def laws: StreamableLaws[F]
+
+  def streamable[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](implicit
     ArbFA: Arbitrary[F[A]],
     ArbFB: Arbitrary[F[B]],
     ArbFC: Arbitrary[F[C]],
     ArbFAtoB: Arbitrary[F[A => B]],
     ArbFBtoC: Arbitrary[F[B => C]],
-    ArbE: Arbitrary[Throwable],
     ArbEXorA: Arbitrary[Throwable Xor A],
     ArbFEXorA: Arbitrary[F[Throwable Xor A]],
     EqFA: Eq[F[A]],
@@ -49,14 +51,13 @@ trait ReactiveTests[F[_]] extends AsyncTests[F] with StreamableTests[F] {
   ): RuleSet = {
     new RuleSet {
       val bases = Nil
-      val name = "reactive"
-      val parents = Seq(async[A,B,C], streamable[A,B,C])
-      def props = Seq.empty
+      val name = "streamable"
+      val parents = Seq(monadCons[A,B,C], recoverable[A,B,C])
+      val props = Seq(
+        "streamable endWith consistent with followWith" -> forAll(laws.streamableEndWithConsistentWithFollowWith[A] _),
+        "streamable startWith consistent with followWith" -> forAll(laws.streamableStartWithConsistentWithFollowWith[A] _),
+        "streamable repeat is consistent with fromList" -> forAll(laws.streamableRepeatIsConsistentWithFromList[A] _)
+      )
     }
   }
-}
-
-object ReactiveTests {
-  def apply[F[_]](implicit F: Reactive[F]): ReactiveTests[F] =
-    new ReactiveTests[F] { def laws: ReactiveLaws[F] = ReactiveLaws[F] }
 }

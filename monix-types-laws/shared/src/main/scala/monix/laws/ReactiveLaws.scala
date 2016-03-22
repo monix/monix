@@ -20,7 +20,7 @@ package monix.laws
 import monix.types.Reactive
 import scala.language.higherKinds
 
-trait ReactiveLaws[F[_]] extends AsyncLaws[F] {
+trait ReactiveLaws[F[_]] extends AsyncLaws[F] with StreamableLaws[F] {
   implicit def F: Reactive[F]
 }
 

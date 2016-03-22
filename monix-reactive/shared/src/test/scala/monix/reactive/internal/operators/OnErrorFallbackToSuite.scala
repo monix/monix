@@ -33,15 +33,7 @@ object OnErrorFallbackToSuite extends BaseOperatorSuite {
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = None
-
-  def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val obs = Observable.range(0, sourceCount)
-      .endWithError(DummyException("expected"))
-      .onErrorFallbackTo { throw ex }
-
-    val sum = 1L * sourceCount * (sourceCount-1) / 2
-    Sample(obs, sourceCount, sum, Zero, Zero)
-  }
+  def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 
   override def cancelableObservables() = {
     val fallback = Observable.range(0, 10).delayOnNext(1.second)

@@ -31,16 +31,18 @@ trait ObservableInstances {
         Observable.error(e)
       override def pure[A](x: A): Observable[A] =
         Observable.now(x)
-      override def fromIterable[A](fa: Iterable[A]): Observable[A] =
-        Observable.fromIterable(fa)
+      override def fromIterable[A](iterable: Iterable[A]): Observable[A] =
+        Observable.fromIterable(iterable)
+      override def fromIterator[A](iterator: Iterator[A]): Observable[A] =
+        Observable.fromIterator(iterator)
       override def pureEval[A](x: Eval[A]): Observable[A] =
         Observable.evalAlways(x.value)
       override def empty[A]: Observable[A] =
         Observable.empty
-      override def cons[A](head: A, tail: Eval[Observable[A]]): Observable[A] =
-        Observable.cons(head, tail.value)
-      override def delayedEval[A](delay: FiniteDuration, a: Eval[A]): Observable[A] =
-        Observable.evalAlways(a.value)
+      override def cons[A](head: A, tail: Observable[A]): Observable[A] =
+        Observable.cons(head, tail)
+      override def delayedEval[A](delay: FiniteDuration, a: => A): Observable[A] =
+        Observable.evalAlways(a)
 
       override def now[A](a: A): Observable[A] =
         Observable.now(a)
@@ -51,6 +53,13 @@ trait ObservableInstances {
       override def memoize[A](fa: Observable[A]): Observable[A] =
         fa.cache
 
+      override def fromList[A](list: List[A]): Observable[A] =
+        Observable.fromIterable(list)
+      override def fromSeq[A](seq: Seq[A]): Observable[A] =
+        Observable.fromIterable(seq)
+      override def defer[A](fa: => Observable[A]): Observable[A] =
+        Observable.defer(fa)
+
       override def concatMap[A, B](fa: Observable[A])(f: (A) => Observable[B]): Observable[B] =
         fa.concatMap(f)
       override def concat[A](ffa: Observable[Observable[A]]): Observable[A] =
@@ -59,15 +68,15 @@ trait ObservableInstances {
         fa.concatMapDelayError(f)
       override def concatDelayError[A](ffa: Observable[Observable[A]]): Observable[A] =
         ffa.concatDelayError
-      override def followWith[A](fa: Observable[A], other: => Observable[A]): Observable[A] =
+      override def followWith[A](fa: Observable[A], other: Observable[A]): Observable[A] =
         fa ++ other
-      override def startWith[A](fa: Observable[A])(elems: Seq[A]): Observable[A] =
+      override def startWith[A](fa: Observable[A], elems: Seq[A]): Observable[A] =
         fa.startWith(elems)
-      override def startWithElem[A](fa: Observable[A])(elem: A): Observable[A] =
+      override def startWithElem[A](fa: Observable[A], elem: A): Observable[A] =
         Observable.concat(Observable.now(elem), fa)
-      override def endWith[A](fa: Observable[A])(elems: Seq[A]): Observable[A] =
+      override def endWith[A](fa: Observable[A], elems: Seq[A]): Observable[A] =
         fa.endWith(elems)
-      override def endWithElem[A](fa: Observable[A])(elem: A): Observable[A] =
+      override def endWithElem[A](fa: Observable[A], elem: A): Observable[A] =
         Observable.concat(fa, Observable.now(elem))
 
       override def repeat[A](fa: Observable[A]): Observable[A] =
@@ -84,8 +93,8 @@ trait ObservableInstances {
         fa.onErrorHandleWith(f)
       override def onErrorHandle[A](fa: Observable[A])(f: Throwable => A): Observable[A] =
         fa.onErrorHandle(f)
-      override def onErrorFallbackTo[A](fa: Observable[A], other: Eval[Observable[A]]): Observable[A] =
-        fa.onErrorFallbackTo(other.value)
+      override def onErrorFallbackTo[A](fa: Observable[A], other: Observable[A]): Observable[A] =
+        fa.onErrorFallbackTo(other)
       override def onErrorRetry[A](fa: Observable[A], maxRetries: Long): Observable[A] =
         fa.onErrorRetry(maxRetries)
       override def onErrorRetryIf[A](fa: Observable[A])(p: (Throwable) => Boolean): Observable[A] =
@@ -150,10 +159,10 @@ trait ObservableInstances {
         fa.distinctUntilChangedByKey(key)
       override def headF[A](fa: Observable[A]): Observable[A] =
         fa.headF
-      override def headOrElseF[A](fa: Observable[A], default: Eval[A]): Observable[A] =
-        fa.headOrElseF(default.value)
-      override def firstOrElseF[A](fa: Observable[A], default: Eval[A]): Observable[A] =
-        fa.headOrElseF(default.value)
+      override def headOrElseF[A](fa: Observable[A], default: => A): Observable[A] =
+        fa.headOrElseF(default)
+      override def firstOrElseF[A](fa: Observable[A], default: => A): Observable[A] =
+        fa.headOrElseF(default)
       override def lastF[A](fa: Observable[A]): Observable[A] =
         fa.lastF
       override def tail[A](fa: Observable[A]): Observable[A] =
@@ -203,8 +212,8 @@ trait ObservableInstances {
 
       override def timeout[A](fa: Observable[A], timespan: FiniteDuration): Observable[A] =
         fa.timeoutOnSlowUpstream(timespan)
-      override def timeoutTo[A](fa: Observable[A], timespan: FiniteDuration, backup: Eval[Observable[A]]): Observable[A] =
-        fa.timeoutOnSlowUpstreamTo(timespan, backup.value)
+      override def timeoutTo[A](fa: Observable[A], timespan: FiniteDuration, backup: Observable[A]): Observable[A] =
+        fa.timeoutOnSlowUpstreamTo(timespan, backup)
 
       override def coflatMap[A, B](fa: Observable[A])(f: (Observable[A]) => B): Observable[B] =
         Observable.evalAlways(f(fa))

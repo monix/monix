@@ -17,6 +17,7 @@
 
 package monix.laws
 
+import cats.data.Xor
 import cats.{Eval, Eq}
 import minitest.SimpleTestSuite
 import minitest.laws.Discipline
@@ -24,7 +25,6 @@ import monix.async.{Callback, Task}
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
-import monix.reactive.exceptions.DummyException
 import monix.types.instances.AllInstances
 import org.scalacheck.Arbitrary
 import org.scalacheck.Test.Parameters
@@ -72,7 +72,17 @@ trait BaseRulesSuite extends SimpleTestSuite with Discipline with AllInstances {
   implicit val arbitraryThrowable: Arbitrary[Throwable] =
     Arbitrary {
       implicitly[Arbitrary[Int]].arbitrary
-        .map(number => DummyException(number.toString))
+        .map(number => new RuntimeException(number.toString))
+    }
+
+  implicit def arbitrary[E : Arbitrary, A : Arbitrary]: Arbitrary[E Xor A] =
+    Arbitrary {
+      val int = implicitly[Arbitrary[Int]].arbitrary
+      val aa = implicitly[Arbitrary[A]].arbitrary
+      val ae = implicitly[Arbitrary[E]].arbitrary
+
+      for (i <- int; a <- aa; e <- ae) yield
+        if (i % 2 == 0) Xor.left(e) else Xor.right(a)
     }
 
   implicit val throwableEq = new Eq[Throwable] {

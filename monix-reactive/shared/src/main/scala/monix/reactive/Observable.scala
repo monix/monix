@@ -519,7 +519,7 @@ object Observable {
   /** Builds a new observable from a strict `head` and a lazily
     * evaluated head.
     */
-  def cons[A](head: A, tail: => Observable[A]): Observable[A] =
+  def cons[A](head: A, tail: Observable[A]): Observable[A] =
     new builders.ConsObservable[A](head, tail)
 
   /** Creates an Observable that emits auto-incremented natural numbers

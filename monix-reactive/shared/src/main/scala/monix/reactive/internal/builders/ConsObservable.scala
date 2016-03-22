@@ -17,18 +17,31 @@
 
 package monix.reactive.internal.builders
 
+import monix.execution.Ack.{Stop, Continue}
 import monix.execution.Cancelable
 import monix.execution.cancelables.SingleAssignmentCancelable
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
+import scala.util.{Failure, Success}
 
-private[reactive] final class ConsObservable[+A](head: A, tail: => Observable[A])
+private[reactive] final class ConsObservable[+A](head: A, tail: Observable[A])
   extends Observable[A] {
 
   override def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
+    import subscriber.scheduler
     val cancelable = SingleAssignmentCancelable()
-    val ack = subscriber.onNext(head)
-    ack.syncOnContinue { cancelable := tail.unsafeSubscribeFn(subscriber) }(subscriber.scheduler)
+
+    // Need an explicit asynchronous boundary because cons is used
+    // in recursive contexts.
+    subscriber.onNext(head).onComplete {
+      case Success(Continue) =>
+        cancelable := tail.unsafeSubscribeFn(subscriber)
+      case Success(Stop) =>
+        () // do nothing
+      case Failure(ex) =>
+        subscriber.onError(ex)
+    }
+
     cancelable
   }
 }

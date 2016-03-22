@@ -30,13 +30,15 @@ trait TaskInstances {
     new Async[Task] {
       override def pure[A](x: A): Task[A] = Task.now(x)
       override def pureEval[A](x: Eval[A]): Task[A] = Task.evalAlways(x.value)
-      override def delayedEval[A](delay: FiniteDuration, a: Eval[A]): Task[A] =
-        Task.evalAlways(a.value).delayExecution(delay)
+
+      override def delayedEval[A](delay: FiniteDuration, a: => A): Task[A] =
+        Task.evalAlways(a).delayExecution(delay)
 
       override def now[A](a: A): Task[A] = Task.now(a)
       override def evalAlways[A](a: => A): Task[A] = Task.evalAlways(a)
       override def evalOnce[A](a: => A): Task[A] = Task.evalOnce(a)
       override def memoize[A](fa: Task[A]): Task[A] = fa.memoize
+      override def defer[A](fa: => Task[A]): Task[A] = Task.defer(fa)
 
       override def firstStartedOf[A](seq: Seq[Task[A]]): Task[A] =
         Task.firstCompletedOf(seq)
@@ -53,8 +55,8 @@ trait TaskInstances {
         fa.onErrorHandleWith(f)
       override def onErrorHandle[A](fa: Task[A])(f: Throwable => A): Task[A] =
         fa.onErrorHandle(f)
-      override def onErrorFallbackTo[A](fa: Task[A], other: Eval[Task[A]]): Task[A] =
-        fa.onErrorFallbackTo(other.value)
+      override def onErrorFallbackTo[A](fa: Task[A], other: Task[A]): Task[A] =
+        fa.onErrorFallbackTo(other)
       override def onErrorRetry[A](fa: Task[A], maxRetries: Long): Task[A] =
         fa.onErrorRetry(maxRetries)
       override def onErrorRetryIf[A](fa: Task[A])(p: (Throwable) => Boolean): Task[A] =
@@ -81,7 +83,7 @@ trait TaskInstances {
 
       override def timeout[A](fa: Task[A], timespan: FiniteDuration): Task[A] =
         fa.timeout(timespan)
-      override def timeoutTo[A](fa: Task[A], timespan: FiniteDuration, backup: Eval[Task[A]]): Task[A] =
-        fa.timeoutTo(timespan, backup.value)
+      override def timeoutTo[A](fa: Task[A], timespan: FiniteDuration, backup: Task[A]): Task[A] =
+        fa.timeoutTo(timespan, backup)
     }
 }

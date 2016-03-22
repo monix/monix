@@ -464,7 +464,7 @@ sealed abstract class Task[+A] { self =>
   /** Creates a new task that in case of error will fallback to the
     * given backup task.
     */
-  def onErrorFallbackTo[B >: A](that: => Task[B]): Task[B] =
+  def onErrorFallbackTo[B >: A](that: Task[B]): Task[B] =
     new Task[B] {
       def unsafeRun(active: MultiAssignmentCancelable, frameId: FrameId, cb: Callback[B])
         (implicit s: Scheduler): Unit = {
@@ -608,7 +608,7 @@ sealed abstract class Task[+A] { self =>
     * given backup Task in case the given duration passes without the
     * source emitting any item.
     */
-  def timeoutTo[B >: A](after: FiniteDuration, backup: => Task[B]): Task[B] =
+  def timeoutTo[B >: A](after: FiniteDuration, backup: Task[B]): Task[B] =
     new Task[B] {
       def unsafeRun(active: MultiAssignmentCancelable, frameId: FrameId, cb: Callback[B])
         (implicit s: Scheduler): Unit = {

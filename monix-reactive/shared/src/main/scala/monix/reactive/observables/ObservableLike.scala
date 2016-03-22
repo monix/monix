@@ -145,8 +145,8 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: Self[A] =>
     * observable is never subscribed if the source completes with an
     * error.
     */
-  def ++[B >: A](other: => Observable[B]): Self[B] =
-    self.transform(self => Observable.concat(self, Observable.defer(other)))
+  def ++[B >: A](other: Observable[B]): Self[B] =
+    self.transform(self => Observable.concat(self, other))
 
   /** Creates a new Observable that emits the given element and then it
     * also emits the events of the source (prepend operation).
@@ -1013,7 +1013,7 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: Self[A] =>
     * @param that is a backup sequence that's being subscribed
     *        in case the source terminates with an error.
     */
-  def onErrorFallbackTo[B >: A](that: => Observable[B]): Self[B] =
+  def onErrorFallbackTo[B >: A](that: Observable[B]): Self[B] =
     self.onErrorHandleWith(_ => that)
 
   /** Returns an observable that mirrors the behavior of the source,
@@ -1058,7 +1058,7 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: Self[A] =>
     * See [[onErrorHandle]] for the version that takes a
     * total function as a parameter.
     *
-    * @param f - a function that matches errors with a
+    * @param pf - a function that matches errors with a
     *        backup element that is emitted when the source
     *        throws an error.
     */
@@ -1077,7 +1077,7 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: Self[A] =>
     * See [[onErrorHandleWith]] for the version that takes a
     * total function as a parameter.
     *
-    * @param f is a function that matches errors with a
+    * @param pf is a function that matches errors with a
     *        backup throwable that is subscribed when the source
     *        throws an error.
     */
@@ -1137,7 +1137,9 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: Self[A] =>
 
   /** Repeats the items emitted by the source continuously. It
     * caches the generated items until `onComplete` and repeats them
-    * forever. On error it terminates.
+    * forever.
+    *
+    * It terminates either on error or if the source is empty.
     */
   def repeat: Self[A] =
     self.transform(self => new RepeatObservable[A](self))
@@ -1239,6 +1241,10 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: Self[A] =>
   /** $switchMapDescription */
   def switchMap[B](f: A => Observable[B]): Self[B] =
     self.transform(self => new SwitchMapObservable[A,B](self, f))
+
+  /** In case the source is empty, switch to the given backup. */
+  def switchIfEmpty[B >: A](backup: Observable[B]): Self[B] =
+    self.transform(self => new SwitchIfEmptyObservable[B](self, backup))
 
   /** Drops the first element of the source observable,
     * emitting the rest.
@@ -1369,7 +1375,7 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: Self[A] =>
     *        a timeout occurs (ignoring the time it takes to process `onNext`)
     * @param backup is the alternative data source to subscribe to on timeout
     */
-  def timeoutOnSlowUpstreamTo[B >: A](timeout: FiniteDuration, backup: => Observable[B]): Self[B] =
+  def timeoutOnSlowUpstreamTo[B >: A](timeout: FiniteDuration, backup: Observable[B]): Self[B] =
     self.timeoutOnSlowUpstream(timeout).onErrorHandleWith {
       case UpstreamTimeoutException(`timeout`) => backup
       case other => Observable.error(other)

@@ -24,6 +24,7 @@ import cats.laws.discipline.MonadErrorTests
 import monix.laws.RecoverableLaws
 import monix.types.Recoverable
 import org.scalacheck.Arbitrary
+import org.scalacheck.Prop._
 import scala.language.higherKinds
 
 trait RecoverableTests[F[_],E] extends MonadErrorTests[F,E] {
@@ -35,6 +36,8 @@ trait RecoverableTests[F[_],E] extends MonadErrorTests[F,E] {
     ArbFC: Arbitrary[F[C]],
     ArbFAtoB: Arbitrary[F[A => B]],
     ArbFBtoC: Arbitrary[F[B => C]],
+    ArbEXorA: Arbitrary[E Xor A],
+    ArbFEXorA: Arbitrary[F[E Xor A]],
     ArbE: Arbitrary[E],
     EqFA: Eq[F[A]],
     EqFB: Eq[F[B]],
@@ -48,7 +51,18 @@ trait RecoverableTests[F[_],E] extends MonadErrorTests[F,E] {
   ): RuleSet = {
     new DefaultRuleSet(
       name = "recoverable",
-      parent = Some(monadError[A,B,C])
+      parent = Some(monadError[A,B,C]),
+      "recoverable handleErrorWith is aliased" -> forAll(laws.recoverableHandleErrorWithIsAliased[A] _),
+      "recoverable handleError is aliased" -> forAll(laws.recoverableHandleErrorIsAliased[A] _),
+      "recoverable recover is aliased" -> forAll(laws.recoverableRecoverIsAliased[A] _),
+      "recoverable recoverWith is aliased" -> forAll(laws.recoverableRecoverWithIsAliased[A] _),
+      "recoverable fallbackTo is consistent with handleErrorWith" -> forAll(laws.recoverableOnErrorFallbackToConsistentWithOnErrorHandleWith[A] _),
+      "recoverable onErrorRetry mirrors source on success" -> forAll(laws.recoverableRetryMirrorsSourceOnSuccess[A] _),
+      "recoverable onErrorRetry mirrors error on failure" -> forAll(laws.recoverableRetryMirrorsErrorOnFailure[A] _),
+      "recoverable retryIf mirrors source on false predicate" -> forAll(laws.recoverableRetryIfMirrorsSourceOnFalsePredicate[A] _),
+      "recoverable retryIf mirrors success on true predicate" -> forAll(laws.recoverableRetryIfMirrorsSuccessOnTruePredicate[A] _),
+      "recoverable mapAttempt identity" -> forAll(laws.recoverableMapAttemptIdentity[A] _),
+      "recoverable mapAttempt composition" -> forAll(laws.recoverableMapAttemptComposition[A,B,C] _)
     )
   }
 }

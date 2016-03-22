@@ -17,20 +17,6 @@
 
 package monix.reactive.exceptions
 
-/** A fake exception type to throw around during testing. */
-class DummyException(message: String)
-  extends RuntimeException(message) {
-
-  def this() = this(null)
-}
-
-object DummyException {
-  def apply(message: String): DummyException =
-    new DummyException(message)
-
-  def unapply(ref: Throwable): Option[DummyException] =
-    ref match {
-      case ex: DummyException => Some(ex)
-      case _ => None
-    }
-}
+/** Used in testing to trigger dummy exceptions. */
+case class DummyException(message: String = "")
+  extends RuntimeException(message)
