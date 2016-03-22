@@ -17,7 +17,7 @@
 
 package monix.laws
 
-import cats.laws.{MonadLaws, IsEq}
+import cats.laws.{IsEq, MonadLaws}
 import monix.types.Evaluable
 import scala.language.higherKinds
 
@@ -32,6 +32,9 @@ trait EvaluableLaws[F[_]] extends MonadLaws[F] {
 
   def evaluableDeferEquivalence[A](a: A): IsEq[F[A]] =
     F.now(a) <-> F.defer(F.now(a))
+
+  def evaluableMemoizeEquivalence[A](fa: F[A]): IsEq[F[A]] =
+    fa <-> F.memoize(fa)
 }
 
 object EvaluableLaws {

@@ -30,6 +30,7 @@ trait EvalInstances {
       override def evalAlways[A](a: => A): Eval[A] = Eval.always(a)
       override def evalOnce[A](a: => A): Eval[A] = Eval.later(a)
       override def pureEval[A](x: Eval[A]): Eval[A] = x
+      override def memoize[A](fa: Eval[A]): Eval[A] = fa.memoize
     }
 }
 

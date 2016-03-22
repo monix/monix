@@ -25,7 +25,9 @@ import scala.language.{higherKinds, implicitConversions}
 import scala.util.{Failure, Success, Try}
 
 /** Type-class for things that can return results asynchronously. */
-@typeclass trait Async[F[_]] extends Evaluable[F] with Recoverable[F,Throwable] with Zippable[F] {
+@typeclass trait Async[F[_]]
+  extends Monad[F] with Evaluable[F] with Recoverable[F,Throwable] with Zippable[F] {
+
   /** Builds an instance by evaluating the given expression with a delay applied. */
   def delayedEval[A](delay: FiniteDuration, a: Eval[A]): F[A]
 

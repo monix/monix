@@ -20,8 +20,8 @@ package monix.laws.discipline
 import cats.Eq
 import cats.laws.discipline.CartesianTests.Isomorphisms
 import cats.laws.discipline.MonadTests
-import monix.types.Evaluable
 import monix.laws.EvaluableLaws
+import monix.types.Evaluable
 import org.scalacheck.Arbitrary
 import org.scalacheck.Prop._
 import scala.language.higherKinds
@@ -46,7 +46,8 @@ trait EvaluableTests[F[_]] extends MonadTests[F] {
       parent = Some(monad[A,B,C]),
       "evaluable evalOnce equivalence" -> forAll(laws.evaluableOnceEquivalence[A] _),
       "evaluable evalAlways equivalence" -> forAll(laws.evaluableAlwaysEquivalence[A] _),
-      "evaluable defer equivalence" -> forAll(laws.evaluableDeferEquivalence[A] _)
+      "evaluable defer equivalence" -> forAll(laws.evaluableDeferEquivalence[A] _),
+      "evaluable memoize equivalence" -> forAll(laws.evaluableMemoizeEquivalence[A] _)
     )
   }
 }

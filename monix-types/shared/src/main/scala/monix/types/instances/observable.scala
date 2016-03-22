@@ -48,6 +48,8 @@ trait ObservableInstances {
         Observable.evalAlways(a)
       override def evalOnce[A](a: => A): Observable[A] =
         Observable.evalOnce(a)
+      override def memoize[A](fa: Observable[A]): Observable[A] =
+        fa.cache
 
       override def concatMap[A, B](fa: Observable[A])(f: (A) => Observable[B]): Observable[B] =
         fa.concatMap(f)

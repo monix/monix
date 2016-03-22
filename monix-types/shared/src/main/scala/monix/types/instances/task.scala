@@ -36,6 +36,7 @@ trait TaskInstances {
       override def now[A](a: A): Task[A] = Task.now(a)
       override def evalAlways[A](a: => A): Task[A] = Task.evalAlways(a)
       override def evalOnce[A](a: => A): Task[A] = Task.evalOnce(a)
+      override def memoize[A](fa: Task[A]): Task[A] = fa.memoize
 
       override def firstStartedOf[A](seq: Seq[Task[A]]): Task[A] =
         Task.firstCompletedOf(seq)

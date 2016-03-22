@@ -21,7 +21,16 @@ import cats.Eval
 import simulacrum.typeclass
 import scala.language.{higherKinds, implicitConversions}
 
+/** A monad that can memoize non-strict values such that
+  * evaluation only happens once.
+  */
 @typeclass trait Evaluable[F[_]] extends Monad[F] {
+  /** Given an evaluable value, applies memoization such that
+    * it gets evaluated only the first time and then the result
+    * gets reused on subsequent evaluations.
+    */
+  def memoize[A](fa: F[A]): F[A]
+
   /** Lifts a strict value into an evaluable. */
   def now[A](a: A): F[A]
 
@@ -35,7 +44,8 @@ import scala.language.{higherKinds, implicitConversions}
     * memoizes it for subsequent evaluations such that
     * the given expression is evaluated only once.
     */
-  def evalOnce[A](a: => A): F[A] = now(a)
+  def evalOnce[A](a: => A): F[A] =
+    memoize(evalAlways(a))
 
   /** Promotes a non-strict value to a value of the same type. */
   def defer[A](fa: => F[A]): F[A] = flatten(evalAlways(fa))
