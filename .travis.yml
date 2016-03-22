@@ -16,7 +16,7 @@ notifications:
     on_start: false     # default: false
 
 script:
-  - sbt clean coverage test
+  - sbt ++$TRAVIS_SCALA_VERSION clean coverage test
 before_install:
   - pip install --user codecov
 after_success:
