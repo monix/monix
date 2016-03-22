@@ -34,13 +34,11 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
   javacOptions ++= Seq("-source", "1.6", "-target", "1.6"),
   scalacOptions ++= Seq(
     "-target:jvm-1.6", // generates code with the Java 6 class format
-     "-optimise", // enables optimisations
     // warnings
     "-unchecked", // able additional warnings where generated code depends on assumptions
     "-deprecation", // emit warning for usages of deprecated APIs
     "-feature", // emit warning usages of features that should be imported explicitly
     // possibly deprecated options
-    "-Yinline-warnings",
     "-Ywarn-dead-code",
     "-Ywarn-inaccessible"
   ),
@@ -49,9 +47,11 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
   scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, majorVersion)) if majorVersion >= 11 =>
       Seq(
-        // turns all warnings into errors ;-)
+        // Enables optimisations, but only for 2.11, because 2.10 isn't to be trusted
+        "-optimise",
+        // Turns all warnings into errors ;-)
         "-Xfatal-warnings",
-        // enables linter options
+        // Enables linter options
         "-Xlint:adapted-args", // warn if an argument list is modified to match the receiver
         "-Xlint:nullary-unit", // warn when nullary methods return Unit
         "-Xlint:inaccessible", // warn about inaccessible types in method signatures
@@ -142,12 +142,22 @@ lazy val crossSettings = sharedSettings ++ Seq(
 )
 
 lazy val scalaMacroDependencies = Seq(
-  libraryDependencies ++= Seq(
-    "org.scala-lang" % "scala-reflect" % scalaVersion.value % "provided",
-    "org.scala-lang" % "scala-compiler" % scalaVersion.value % "provided",
-    "org.typelevel" %%% "macro-compat" % "1.1.1" % "provided",
-    compilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
-  ))
+  libraryDependencies ++= (CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, majorVersion)) if majorVersion >= 11 =>
+      Seq(
+        "org.scala-lang" % "scala-reflect" % scalaVersion.value % "provided",
+        "org.scala-lang" % "scala-compiler" % scalaVersion.value % "provided",
+        "org.typelevel" %%% "macro-compat" % "1.1.1" % "provided",
+        compilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
+      )
+    case _ =>
+      Seq(
+        "org.scala-lang" % "scala-reflect" % scalaVersion.value % "compile",
+        "org.scala-lang" % "scala-compiler" % scalaVersion.value % "compile",
+        "org.typelevel" %%% "macro-compat" % "1.1.1" % "compile",
+        compilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
+      )
+  }))
 
 lazy val unidocSettings = baseUnidocSettings ++ Seq(
   autoAPIMappings := true,
@@ -291,7 +301,7 @@ lazy val typesCommon =
   crossSettings ++ testSettings ++ scalaMacroDependencies ++ Seq(
     name := "monix-types",
     libraryDependencies ++= Seq(
-      "com.github.mpilquist" %%% "simulacrum" % "0.7.0",
+      "com.github.mpilquist" %%% "simulacrum" % "0.7.0" % "provided",
       "org.typelevel" %%% "cats-core" % "0.4.1",
       "org.typelevel" %%% "cats-laws" % "0.4.1" % "test"
     )
