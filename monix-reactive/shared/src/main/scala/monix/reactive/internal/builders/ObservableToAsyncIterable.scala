@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.builders
 
-import monix.async.AsyncIterator.{Empty, Error, NextSeq, Next}
+import monix.async.AsyncIterable.{Empty, Error, NextSeq, Next}
 import monix.async._
 import monix.execution.Ack
 import monix.execution.Ack.Continue
@@ -29,8 +29,8 @@ import scala.concurrent.{Future, Promise}
 private[reactive] object ObservableToAsyncIterable {
   /** Conversion from observable to async iterable. */
   def apply[A](source: Observable[A], batchSize: Int): AsyncIterable[A] =
-    AsyncIterable(Task.unsafeCreate { (context, cancelable, _, cb) =>
-      val initial = Promise[AsyncIterator[A]]()
+    AsyncIterable.Wait(Task.unsafeCreate { (context, cancelable, _, cb) =>
+      val initial = Promise[AsyncIterable[A]]()
       initial.future.onComplete(cb)(context)
 
       val mainTask = SingleAssignmentCancelable()
@@ -46,12 +46,12 @@ private[reactive] object ObservableToAsyncIterable {
           def onNext(elems: List[A]): Future[Ack] = {
             val acknowledgement = Promise[Ack]()
             val currentPromise = this.currentPromise
-            val restPromise = Promise[AsyncIterator[A]]()
+            val restPromise = Promise[AsyncIterable[A]]()
             this.currentPromise = restPromise
 
             // Task execution must be idempotent ;-)
             // When this executes, it means that the client wants more.
-            val restTask: Task[AsyncIterator[A]] =
+            val restTask: Task[AsyncIterable[A]] =
               Task.unsafeCreate { (scheduler, c, _, cb) =>
                 // Executing task means continuing Observer
                 restPromise.future.onComplete(cb)(scheduler)
