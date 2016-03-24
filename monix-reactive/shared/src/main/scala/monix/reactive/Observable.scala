@@ -17,10 +17,11 @@
 
 package monix.reactive
 
-import monix.async.{CancelableFuture, Task}
+import monix.async.{AsyncIterable, CancelableFuture, Task}
 import monix.execution.Ack.{Stop, Continue}
 import monix.execution._
 import monix.execution.cancelables.SingleAssignmentCancelable
+import monix.reactive.internal.builders.ObservableToAsyncIterable
 import monix.reactive.observables.ObservableLike.{Operator, Transformer}
 import monix.reactive.internal.builders
 import monix.reactive.observables._
@@ -276,19 +277,24 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     */
   def firstT: Task[Option[A]] =
     Task.unsafeCreate { (s, c, frameId, cb) =>
-      c := unsafeSubscribeFn(new SyncSubscriber[A] {
+      val task = SingleAssignmentCancelable()
+      c push task
+
+      task := unsafeSubscribeFn(new SyncSubscriber[A] {
         implicit val scheduler: Scheduler = s
         private[this] var isDone = false
 
         def onNext(elem: A): Stop = {
+          c.pop()
           cb.onSuccess(Some(elem))
+          isDone = true
           Stop
         }
 
         def onError(ex: Throwable): Unit =
-          if (!isDone) { isDone = true; cb.onError(ex) }
+          if (!isDone) { isDone = true; c.pop(); cb.onError(ex) }
         def onComplete(): Unit =
-          if (!isDone) { isDone = true; cb.onSuccess(None) }
+          if (!isDone) { isDone = true; c.pop(); cb.onSuccess(None) }
       })
     }
 
@@ -298,7 +304,10 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     */
   def lastT: Task[Option[A]] =
     Task.unsafeCreate { (s, c, frameId, cb) =>
-      c := unsafeSubscribeFn(new SyncSubscriber[A] {
+      val task = SingleAssignmentCancelable()
+      c push task
+
+      task := unsafeSubscribeFn(new SyncSubscriber[A] {
         implicit val scheduler: Scheduler = s
         private[this] var value: A = _
         private[this] var isEmpty = true
@@ -309,73 +318,47 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
           Continue
         }
 
-        def onError(ex: Throwable): Unit =
+        def onError(ex: Throwable): Unit = {
+          c.pop()
           cb.onError(ex)
-        def onComplete(): Unit =
+        }
+
+        def onComplete(): Unit = {
+          c.pop()
           cb.onSuccess(if (isEmpty) None else Some(value))
+        }
       })
     }
-
-  /** Folds the source observable into an asynchronous summary value. */
-  def foldLeftT[S](seed: S)(f: (S, A) => S): Task[S] =
-    Task.unsafeCreate { (s, c, frameId, cb) =>
-      c := self.foldLeftF(seed)(f).unsafeSubscribeFn(
-        new SyncSubscriber[S] {
-          implicit val scheduler = s
-          private[this] var isDone = false
-
-          def onNext(elem: S): Stop = {
-            isDone = true
-            cb.onSuccess(elem)
-            Stop
-          }
-
-          def onError(ex: Throwable): Unit =
-            if (!isDone) {
-              isDone = true
-              cb.onError(ex)
-            } else {
-              s.reportFailure(ex)
-            }
-
-          def onComplete(): Unit =
-            if (!isDone) {
-              isDone = true
-              cb.onSuccess(seed)
-            }
-        })
-    }
-
-  /** Creates a [[monix.async.Task Task]] that on execution emits the
-    * total number of `onNext` events that were emitted by the source.
-    */
-  def countT: Task[Long] =
-    foldLeftT(0L)((acc,_) => acc+1)
-
-  /** If the source is a stream of numbers, creates a new
-    * [[monix.async.Task Task]] that upon execution will
-    * calculate their sum.
-    */
-  def sumT[B >: A](implicit ev: Numeric[B]): Task[B] =
-    foldLeftT(ev.zero)(ev.plus)
 
   /** Creates a new [[monix.async.Task Task]] that upon execution
     * will signal `Unit`.
     */
   def completedT: Task[Unit] =
     Task.unsafeCreate { (s, c, frameId, cb) =>
-      c := unsafeSubscribeFn(new SyncSubscriber[A] {
+      val task = SingleAssignmentCancelable()
+      c push task
+
+      task := unsafeSubscribeFn(new SyncSubscriber[A] {
         implicit val scheduler: Scheduler = s
         private[this] var isDone = false
 
         def onNext(elem: A): Continue = Continue
         def onError(ex: Throwable): Unit =
-          if (!isDone) { isDone = true; cb.onError(ex) }
+          if (!isDone) { isDone = true; c.pop(); cb.onError(ex) }
 
         def onComplete(): Unit =
-          if (!isDone) { isDone = true; cb.onSuccess(()) }
+          if (!isDone) { isDone = true; c.pop(); cb.onSuccess(()) }
       })
     }
+
+  /** Converts the source observable into an [[AsyncIterable]].
+    *
+    * @param batchSize is the maximum batch size that the iterator
+    *        will emit and also a recommendation for the size
+    *        of the underlying buffer.
+    */
+  def toAsyncIterable(batchSize: Int): AsyncIterable[A] =
+    ObservableToAsyncIterable(self, batchSize)
 
   /** Subscribes to the source `Observable` and foreach element emitted
     * by the source it executes the given callback.
@@ -424,6 +407,12 @@ object Observable {
     */
   def evalOnce[A](f: => A): Observable[A] =
     new builders.EvalOnceObservable(f)
+
+  /** Lifts a non-strict value into an observable that emits a single element,
+    * but upon subscription delay its evaluation by the specified timespan
+    */
+  def evalDelayed[A](delay: FiniteDuration, a: => A): Observable[A] =
+    evalAlways(a).delaySubscription(delay)
 
   /** Creates an Observable that emits an error.
     */

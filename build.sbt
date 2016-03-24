@@ -162,7 +162,7 @@ lazy val scalaMacroDependencies = Seq(
 lazy val unidocSettings = baseUnidocSettings ++ Seq(
   autoAPIMappings := true,
   unidocProjectFilter in (ScalaUnidoc, unidoc) :=
-    inProjects(executionJVM, asyncJVM, reactiveJVM, typesJVM, typesLawsJVM),
+    inProjects(executionJVM, asyncJVM, reactiveJVM, typesJVM, lawsJVM),
 
   scalacOptions in (ScalaUnidoc, unidoc) +=
     "-Xfatal-warnings",
@@ -229,7 +229,7 @@ lazy val monix = project.in(file("."))
     asyncJVM, asyncJS,
     reactiveJVM, reactiveJS,
     typesJVM, typesJS,
-    typesLawsJVM, typesLawsJS,
+    lawsJVM, lawsJS,
     monixJVM, monixJS,
     docs, tckTests)
   .settings(sharedSettings)
@@ -238,14 +238,14 @@ lazy val monix = project.in(file("."))
 
 lazy val monixJVM = project.in(file("monix/jvm"))
   .dependsOn(executionJVM, asyncJVM, reactiveJVM, typesJVM)
-  .aggregate(executionJVM, asyncJVM, reactiveJVM, typesJVM, typesLawsJVM)
+  .aggregate(executionJVM, asyncJVM, reactiveJVM, typesJVM, lawsJVM)
   .settings(crossSettings)
   .settings(name := "monix")
 
 lazy val monixJS = project.in(file("monix/js"))
   .enablePlugins(ScalaJSPlugin)
   .dependsOn(executionJS, asyncJS, reactiveJS, typesJS)
-  .aggregate(executionJS, asyncJS, reactiveJS, typesJS, typesLawsJS)
+  .aggregate(executionJS, asyncJS, reactiveJS, typesJS, lawsJS)
   .settings(crossSettings)
   .settings(scalaJSSettings)
   .settings(name := "monix")
@@ -317,20 +317,20 @@ lazy val typesJS = project.in(file("monix-types/js"))
   .settings(typesCommon)
   .settings(scalaJSSettings)
 
-lazy val typesLawsCommon =
+lazy val lawsCommon =
   crossSettings ++ testSettings ++ Seq(
-    name := "monix-types-laws",
+    name := "monix-laws",
     libraryDependencies += "org.typelevel" %%% "cats-laws" % "0.4.1"
   )
 
-lazy val typesLawsJVM = project.in(file("monix-types-laws/jvm"))
-  .settings(typesLawsCommon)
+lazy val lawsJVM = project.in(file("monix-laws/jvm"))
+  .settings(lawsCommon)
   .dependsOn(typesJVM)
 
-lazy val typesLawsJS = project.in(file("monix-types-laws/js"))
+lazy val lawsJS = project.in(file("monix-laws/js"))
   .enablePlugins(ScalaJSPlugin)
   .dependsOn(typesJS)
-  .settings(typesLawsCommon)
+  .settings(lawsCommon)
   .settings(scalaJSSettings)
 
 lazy val docs = project.in(file("docs"))

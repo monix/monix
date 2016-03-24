@@ -20,7 +20,10 @@ package monix.types
 import scala.language.higherKinds
 
 /** Type-class for monadic data-structures that can expose
-  * multiple `A` elements.
+  * multiple `A` elements and that can end in errors.
+  *
+  * Note that errors should interrupt whatever computation
+  * or streaming is executed, being the last thing that happens.
   */
 trait MonadConsError[F[_],E] extends MonadCons[F] with Recoverable[F,E] {
   /** A variant of [[concatMap]] that delays any triggered errors

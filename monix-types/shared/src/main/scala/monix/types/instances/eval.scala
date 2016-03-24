@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package monix.types.instances
+package monix.types
+package instances
 
 import cats.Eval
-import monix.types.Nonstrict
 
 trait EvalInstances {
-  implicit val nonstrictEval: Nonstrict[Eval] =
-    new Nonstrict[Eval] {
+  implicit val nonstrictEval: Evaluable[Eval] =
+    new Evaluable[Eval] {
       def value[A](fa: Eval[A]): A = fa.value
       def now[A](a: A): Eval[A] = Eval.now(a)
       def flatMap[A, B](fa: Eval[A])(f: (A) => Eval[B]): Eval[B] = fa.flatMap(f)
@@ -31,6 +31,9 @@ trait EvalInstances {
       override def evalOnce[A](a: => A): Eval[A] = Eval.later(a)
       override def pureEval[A](x: Eval[A]): Eval[A] = x
       override def memoize[A](fa: Eval[A]): Eval[A] = fa.memoize
+
+      override def map[A, B](fa: Eval[A])(f: A => B): Eval[B] = fa.map(f)
+      override def coflatMap[A, B](fa: Eval[A])(f: Eval[A] => B): Eval[B] = Eval.later(f(fa))
     }
 }
 

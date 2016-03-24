@@ -17,39 +17,20 @@
 
 package monix.types
 
-import cats.Eval
+import cats.Bimonad
 import simulacrum.typeclass
 import scala.language.{higherKinds, implicitConversions}
 
-/** A monad that can memoize non-strict values such that
-  * evaluation only happens once.
+/** Type-class for representing values with non-strict semantics.
+  *
+  * This type implies synchronous execution.
+  *
+  * Must obey the laws defined in `monix.laws.EvaluableLaws`.
   */
-@typeclass trait Evaluable[F[_]] extends Monad[F] {
-  /** Given an evaluable value, applies memoization such that
-    * it gets evaluated only the first time and then the result
-    * gets reused on subsequent evaluations.
-    */
-  def memoize[A](fa: F[A]): F[A]
+@typeclass trait Evaluable[F[_]] extends Nonstrict[F] with Bimonad[F] {
+  /** Evaluate the computation and return an A value. */
+  def value[A](fa: F[A]): A
 
-  /** Lifts a strict value into an evaluable. */
-  def now[A](a: A): F[A]
-
-  /** Lifts a non-strict value into an evaluable,
-    * with the value being evaluated every time the
-    * returned instance is evaluated.
-    */
-  def evalAlways[A](a: => A): F[A] = now(a)
-
-  /** Lifts a non-strict value into an evaluable and
-    * memoizes it for subsequent evaluations such that
-    * the given expression is evaluated only once.
-    */
-  def evalOnce[A](a: => A): F[A] =
-    memoize(evalAlways(a))
-
-  /** Promotes a non-strict value to a value of the same type. */
-  def defer[A](fa: => F[A]): F[A] = flatten(evalAlways(fa))
-
-  override def pure[A](a: A): F[A] = now(a)
-  override def pureEval[A](x: Eval[A]): F[A] = evalAlways(x.value)
+  // From Comonad
+  final override def extract[A](fa: F[A]): A = value(fa)
 }

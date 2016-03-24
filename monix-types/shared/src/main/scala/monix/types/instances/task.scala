@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package monix.types.instances
+package monix.types
+package instances
 
 import cats.Eval
 import monix.async.Task
-import monix.types.Async
 import scala.concurrent.duration.FiniteDuration
 
 object task extends TaskInstances
@@ -31,8 +31,8 @@ trait TaskInstances {
       override def pure[A](x: A): Task[A] = Task.now(x)
       override def pureEval[A](x: Eval[A]): Task[A] = Task.evalAlways(x.value)
 
-      override def delayedEval[A](delay: FiniteDuration, a: => A): Task[A] =
-        Task.evalAlways(a).delayExecution(delay)
+      override def evalDelayed[A](delay: FiniteDuration, a: => A): Task[A] =
+        Task.evalDelayed(delay, a)
 
       override def now[A](a: A): Task[A] = Task.now(a)
       override def evalAlways[A](a: => A): Task[A] = Task.evalAlways(a)

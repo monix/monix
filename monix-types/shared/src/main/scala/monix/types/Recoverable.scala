@@ -17,6 +17,7 @@
 
 package monix.types
 
+import cats.MonadError
 import cats.data.Xor
 import scala.language.higherKinds
 

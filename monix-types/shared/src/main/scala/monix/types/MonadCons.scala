@@ -17,6 +17,7 @@
 
 package monix.types
 
+import cats.MonadFilter
 import simulacrum._
 import scala.language.{higherKinds, implicitConversions}
 
@@ -24,15 +25,20 @@ import scala.language.{higherKinds, implicitConversions}
   * multiple `A` elements.
   *
   * Instances of this type have a `cons` operation for building
-  * sequences of elements by appending a lazy `tail` to a `head`.
+  * sequences of elements by appending a `tail` to a
+  * strict `head` value.
   *
   * The `flatMap` operation is henceforth known as `concatMap`
   * because in effect it will produce concatenation and it's good
   * to precisely differentiate from other non-deterministic ways
   * of merging sequences and that might cause confusion.
+  *
+  * Must obey the laws defined in `monix.laws.MonadConsLaws`.
   */
-@typeclass trait MonadCons[F[_]] extends Evaluable[F] with MonadFilter[F] {
-  /** Builds an instance by joining a head and a lazy tail. */
+@typeclass trait MonadCons[F[_]] extends MonadFilter[F] with FoldableF[F] {
+  /** Builds an instance by lifting a head in the monadic context
+    * and joining it with a tail.
+    */
   def cons[A](head: A, tail: F[A]): F[A]
 
   /** Alias for `flatMap`. */
@@ -58,13 +64,6 @@ import scala.language.{higherKinds, implicitConversions}
   @op("+:") def startWithElem[A](fa: F[A], elem: A): F[A] =
     followWith(pure(elem), fa)
 
-  /** Lifts a `List` into a `Sequenceable` */
-  def fromList[A](list: List[A]): F[A] =
-    list match {
-      case head :: tail => cons(head, defer(fromList(list)))
-      case Nil => empty
-    }
-  
   final override def flatten[A](ffa: F[F[A]]): F[A] =
     concat(ffa)
 

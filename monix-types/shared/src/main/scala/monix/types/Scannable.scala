@@ -21,8 +21,8 @@ import simulacrum.typeclass
 import scala.language.{higherKinds, implicitConversions}
 
 /** Represents data-structures that support the `scan` operation. */
-@typeclass trait Scannable[F[_]] {
+@typeclass trait Scannable[F[_]] extends cats.Applicative[F] {
   def scan[A, S](fa: F[A], seed: S)(f: (S, A) => S): F[S]
+
+  def flatScan[A,S](fa: F[A], seed: S)(f: (S,A) => F[S]): F[S]
 }
-
-

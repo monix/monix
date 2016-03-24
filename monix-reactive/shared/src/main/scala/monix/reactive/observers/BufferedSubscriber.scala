@@ -73,6 +73,14 @@ private[reactive] trait Builders {
     * a [[Subscriber]] into a buffered subscriber.
     */
   def synchronous[A](subscriber: Subscriber[A], bufferPolicy: OverflowStrategy.Synchronous[A]): SyncSubscriber[A]
+
+  /** Builds a batched buffered subscriber.
+    *
+    * A batched buffered subscriber buffers incoming events while
+    * the `underlying` is busy and then sends a whole sequence at once.
+    * At this point only the back-pressure policy is supported.
+    */
+  def batched[A](underlying: Subscriber[List[A]], bufferSize: Int): Subscriber[A]
 }
 
 object BufferedSubscriber extends Builders with BuildersImpl

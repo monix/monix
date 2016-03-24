@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package monix.types.instances
+package monix.types
+package instances
 
-import _root_.cats.Eval
-import monix.async.Task
+import cats.Eval
 import monix.reactive.Observable
 import monix.types.Reactive
 import scala.concurrent.duration.FiniteDuration
@@ -41,8 +41,8 @@ trait ObservableInstances {
         Observable.empty
       override def cons[A](head: A, tail: Observable[A]): Observable[A] =
         Observable.cons(head, tail)
-      override def delayedEval[A](delay: FiniteDuration, a: => A): Observable[A] =
-        Observable.evalAlways(a)
+      override def evalDelayed[A](delay: FiniteDuration, a: => A): Observable[A] =
+        Observable.evalDelayed(delay, a)
 
       override def now[A](a: A): Observable[A] =
         Observable.now(a)
@@ -53,8 +53,6 @@ trait ObservableInstances {
       override def memoize[A](fa: Observable[A]): Observable[A] =
         fa.cache
 
-      override def fromList[A](list: List[A]): Observable[A] =
-        Observable.fromIterable(list)
       override def fromSeq[A](seq: Seq[A]): Observable[A] =
         Observable.fromIterable(seq)
       override def defer[A](fa: => Observable[A]): Observable[A] =
@@ -122,6 +120,11 @@ trait ObservableInstances {
         fa.dropLast(n)
       override def foldLeftF[A, S](fa: Observable[A], seed: S)(f: (S, A) => S): Observable[S] =
         fa.foldLeftF(seed)(f)
+      override def foldWhileF[A, S](fa: Observable[A], seed: S)(f: (S, A) => (Boolean, S)): Observable[S] =
+        fa.foldWhileF(seed)(f)
+
+      override def flatScan[A, S](fa: Observable[A], seed: S)(f: (S, A) => Observable[S]): Observable[S] =
+        fa.flatScan(seed)(f)
 
       override def zip2[A1, A2](fa1: Observable[A1], fa2: Observable[A2]): Observable[(A1, A2)] =
         Observable.zip2(fa1, fa2)
@@ -219,11 +222,6 @@ trait ObservableInstances {
         Observable.evalAlways(f(fa))
       override def coflatten[A](fa: Observable[A]): Observable[Observable[A]] =
         Observable.now(fa)
-
-      override def foldLeftT[A, S](fa: Observable[A], seed: S)(f: (S, A) => S): Task[S] =
-        fa.foldLeftT(seed)(f)
-      override def completedT[A](fa: Observable[A]): Task[Unit] =
-        fa.completedT
     }
 }
 

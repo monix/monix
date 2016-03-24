@@ -18,17 +18,26 @@
 package monix.types
 
 import java.util.concurrent.TimeoutException
+import cats.Monad
 import simulacrum.typeclass
 import scala.concurrent.duration.FiniteDuration
 import scala.language.{higherKinds, implicitConversions}
 import scala.util.{Failure, Success, Try}
 
-/** Type-class for things that can return results asynchronously. */
+/** Type-class representing a context for asynchronous computations.
+  *
+  * Asynchronous execution implies non-determinism, because you cannot
+  * control the time it takes for an asynchronous computation to finish,
+  * therefore the `Async` context is about dealing with time and with
+  * making non-deterministic choices.
+  *
+  * Must obey the laws defined in `monix.laws.AsyncLaws`.
+  */
 @typeclass trait Async[F[_]]
-  extends Monad[F] with Evaluable[F] with Recoverable[F,Throwable] with Zippable[F] {
+  extends Monad[F] with Nonstrict[F] with Recoverable[F,Throwable] with Zippable[F] {
 
   /** Builds an instance by evaluating the given expression with a delay applied. */
-  def delayedEval[A](delay: FiniteDuration, a: => A): F[A]
+  def evalDelayed[A](delay: FiniteDuration, a: => A): F[A]
 
   /** Given a list of non-deterministic structures, mirrors the
     * first that manages to emit an element or that completes and

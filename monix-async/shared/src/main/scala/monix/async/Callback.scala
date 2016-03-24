@@ -19,6 +19,7 @@ package monix.async
 
 import monix.execution.UncaughtExceptionReporter
 
+import scala.util.{Failure, Success, Try}
 import scala.util.control.NonFatal
 
 /** Represents a callback that should be called asynchronously
@@ -28,9 +29,15 @@ import scala.util.control.NonFatal
   * The `onSuccess` method should be called only once, with the successful
   * result, whereas `onError` should be called if the result is an error.
   */
-abstract class Callback[-T] {
+abstract class Callback[-T] extends ((Try[T]) => Unit) {
   def onSuccess(value: T): Unit
   def onError(ex: Throwable): Unit
+
+  def apply(result: Try[T]): Unit =
+    result match {
+      case Success(value) => onSuccess(value)
+      case Failure(ex) => onError(ex)
+    }
 }
 
 object Callback {

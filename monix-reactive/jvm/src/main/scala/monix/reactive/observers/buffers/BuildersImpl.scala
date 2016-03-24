@@ -71,4 +71,7 @@ private[observers] trait BuildersImpl {  self: BufferedSubscriber.type =>
         EvictingBufferedSubscriber.clearBufferAndSignal(subscriber, bufferSize, f)
     }
   }
+
+  def batched[A](underlying: Subscriber[List[A]], bufferSize: Int): Subscriber[A] =
+    BatchedBufferedSubscriber(underlying, bufferSize)
 }

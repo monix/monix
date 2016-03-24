@@ -370,7 +370,6 @@ object TaskTest extends TestSuite[TestScheduler] {
         Task(n).flatMap(x => sum(x-1, acc + x))
     }
 
-
     val task = sum(Platform.recommendedBatchSize * 2)
     assert(!wasTriggered, "!wasTriggered")
 

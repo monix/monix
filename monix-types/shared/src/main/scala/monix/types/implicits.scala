@@ -17,5 +17,4 @@
 
 package monix.types
 
-object implicits extends instances.AllInstances
-  with _root_.cats.syntax.AllSyntax
+object implicits extends instances.AllInstances with syntax.AllSyntax

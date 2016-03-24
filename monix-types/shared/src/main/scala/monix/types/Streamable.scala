@@ -17,18 +17,16 @@
 
 package monix.types
 
-import cats.CoflatMap
 import simulacrum.typeclass
 import scala.language.{higherKinds, implicitConversions}
 import scala.util.control.NonFatal
 
 /** Type-class describing operations for streams. */
 @typeclass trait Streamable[F[_]]
-  extends MonadFilter[F] with MonadConsError[F,Throwable]
-    with Recoverable[F, Throwable] with Scannable[F]
-    with FoldableF[F] with FoldableT[F]
-    with Zippable[F] with CoflatMap[F]
-    with Evaluable[F] {
+  extends MonadConsError[F,Throwable]
+    with Scannable[F]
+    with Zippable[F]
+    with Nonstrict[F] {
 
   /** Lifts any `Iterable` into a `Sequenceable` type. */
   def fromIterable[A](iterable: Iterable[A]): F[A] =
