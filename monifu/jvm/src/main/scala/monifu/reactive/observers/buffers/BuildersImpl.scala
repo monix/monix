@@ -21,40 +21,42 @@ import monifu.reactive.OverflowStrategy._
 import monifu.reactive.observers.{BufferedSubscriber, SynchronousSubscriber}
 import monifu.reactive.{OverflowStrategy, Subscriber}
 
-trait Builders { self: BufferedSubscriber.type =>
+trait BuildersImpl {  self: BufferedSubscriber.type =>
   def apply[T](subscriber: Subscriber[T], bufferPolicy: OverflowStrategy): Subscriber[T] = {
     bufferPolicy match {
       case Unbounded =>
-        SynchronousBufferedSubscriber.unbounded(subscriber)
+        SimpleBufferedSubscriber.unbounded(subscriber)
       case Fail(bufferSize) =>
-        SynchronousBufferedSubscriber.bounded(subscriber, bufferSize)
+        SimpleBufferedSubscriber.overflowTriggering(subscriber, bufferSize)
       case BackPressure(bufferSize) =>
         BackPressuredBufferedSubscriber(subscriber, bufferSize)
       case DropNew(bufferSize) =>
-        SynchronousBufferedSubscriber.dropNew(subscriber, bufferSize)
+        DropNewBufferedSubscriber.simple(subscriber, bufferSize)
       case DropOld(bufferSize) =>
-        SynchronousBufferedSubscriber.dropOld(subscriber, bufferSize)
+        EvictingBufferedSubscriber.dropOld(subscriber, bufferSize)
       case ClearBuffer(bufferSize) =>
-        SynchronousBufferedSubscriber.clearBuffer(subscriber, bufferSize)
+        EvictingBufferedSubscriber.clearBuffer(subscriber, bufferSize)
     }
   }
 
   def synchronous[T](subscriber: Subscriber[T], bufferPolicy: OverflowStrategy.Synchronous): SynchronousSubscriber[T] = {
     bufferPolicy match {
       case Unbounded =>
-        SynchronousBufferedSubscriber.unbounded(subscriber)
+        SimpleBufferedSubscriber.unbounded(subscriber)
       case Fail(bufferSize) =>
-        SynchronousBufferedSubscriber.bounded(subscriber, bufferSize)
+        SimpleBufferedSubscriber.overflowTriggering(subscriber, bufferSize)
       case DropNew(bufferSize) =>
-        SynchronousBufferedSubscriber.dropNew(subscriber, bufferSize)
+        DropNewBufferedSubscriber.simple(subscriber, bufferSize)
       case DropOld(bufferSize) =>
-        SynchronousBufferedSubscriber.dropOld(subscriber, bufferSize)
+        EvictingBufferedSubscriber.dropOld(subscriber, bufferSize)
       case ClearBuffer(bufferSize) =>
-        SynchronousBufferedSubscriber.clearBuffer(subscriber, bufferSize)
+        EvictingBufferedSubscriber.clearBuffer(subscriber, bufferSize)
     }
   }
 
-  private[reactive] def apply[T](subscriber: Subscriber[T], strategy: OverflowStrategy, onOverflow: Long => T): Subscriber[T] = {
+  private[reactive] def apply[T](subscriber: Subscriber[T],
+    strategy: OverflowStrategy, onOverflow: Long => T): Subscriber[T] = {
+
     strategy match {
       case withSignal: Evicted if onOverflow != null =>
         withOverflowSignal(subscriber, withSignal)(onOverflow)
@@ -68,13 +70,16 @@ trait Builders { self: BufferedSubscriber.type =>
 
     overflowStrategy match {
       case DropNew(bufferSize) =>
-        SynchronousBufferedSubscriber.dropNew(subscriber, bufferSize, onOverflow)
+        DropNewBufferedSubscriber.withSignal(subscriber, bufferSize, onOverflow)
 
       case DropOld(bufferSize) =>
-        SynchronousBufferedSubscriber.dropOld(subscriber, bufferSize, onOverflow)
+        EvictingBufferedSubscriber.dropOld(subscriber, bufferSize, onOverflow)
 
       case ClearBuffer(bufferSize) =>
-        SynchronousBufferedSubscriber.clearBuffer(subscriber, bufferSize, onOverflow)
+        EvictingBufferedSubscriber.clearBuffer(subscriber, bufferSize, onOverflow)
     }
   }
+
+  def batched[A](underlying: Subscriber[List[A]], bufferSize: Int): Subscriber[A] =
+    BatchedBufferedSubscriber(underlying, bufferSize)
 }

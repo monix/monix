@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
+
 package monifu.reactive.observers
 
-import monifu.reactive.Subscriber
-import monifu.reactive.observers.buffers.Builders
+import monifu.reactive.{OverflowStrategy, Subscriber}
+import monifu.reactive.observers.buffers.BuildersImpl
 
 /**
  * Interface describing [[monifu.reactive.Observer Observer]] wrappers
@@ -64,4 +64,31 @@ import monifu.reactive.observers.buffers.Builders
  */
 trait BufferedSubscriber[-T] extends Subscriber[T]
 
-object BufferedSubscriber extends Builders
+private[reactive] trait Builders {
+  /** Given an [[monifu.reactive.OverflowStrategy OverflowStrategy]]
+    * wraps a [[Subscriber]] into a buffered subscriber.
+    */
+  def apply[T](subscriber: Subscriber[T], bufferPolicy: OverflowStrategy): Subscriber[T]
+
+  /** Given an [[OverflowStrategy.Synchronous synchronous overflow strategy]]
+    * wraps a [[Subscriber]] into a buffered subscriber.
+    */
+  def synchronous[T](subscriber: Subscriber[T], bufferPolicy: OverflowStrategy.Synchronous): SynchronousSubscriber[T]
+
+  /** Given an [[OverflowStrategy.Evicted evicting overflow strategy]]
+    * and a callback to be called in case an element is being evicted,
+    * wraps a [[Subscriber]] into a buffered subscriber.
+    */
+  def withOverflowSignal[T](subscriber: Subscriber[T], overflowStrategy: OverflowStrategy.Evicted)
+    (onOverflow: Long => T): SynchronousSubscriber[T]
+
+  /** Builds a batched buffered subscriber.
+    *
+    * A batched buffered subscriber buffers incoming events while
+    * the `underlying` is busy and then sends a whole sequence at once.
+    * At this point only the back-pressure policy is supported.
+    */
+  def batched[A](underlying: Subscriber[List[A]], bufferSize: Int): Subscriber[A]
+}
+
+object BufferedSubscriber extends Builders with BuildersImpl

@@ -38,6 +38,7 @@ object RepeatTaskSuite extends TestSuite[TestScheduler] {
     s.tickOne()
     assertEquals(received, 1)
     s.tickOne()
+    ()
   }
 
   test("should do synchronous execution in batches") { implicit s =>
@@ -51,5 +52,6 @@ object RepeatTaskSuite extends TestSuite[TestScheduler] {
     s.tickOne()
     assertEquals(received, s.env.batchSize * 2)
     s.tickOne()
+    ()
   }
 }

@@ -30,7 +30,7 @@ import scala.concurrent.duration._
 object RangeSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
-    assert(s.state.get.tasks.isEmpty, 
+    assert(s.state.get.tasks.isEmpty,
       "TestScheduler should not have pending tasks left")
   }
 
@@ -109,9 +109,7 @@ object RangeSuite extends TestSuite[TestScheduler] {
   }
 
   test("should throw if step is zero") { implicit s =>
-    intercept[IllegalArgumentException] {
-      Observable.range(0, 10, 0)
-    }
+    intercept[IllegalArgumentException] { Observable.range(0, 10, 0) }
   }
 
   test("should do synchronous execution in batches") { implicit s =>
@@ -124,5 +122,6 @@ object RangeSuite extends TestSuite[TestScheduler] {
     s.tickOne()
     assertEquals(received, s.env.batchSize * 2)
     s.tickOne()
+    ()
   }
 }

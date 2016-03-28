@@ -19,6 +19,7 @@ package monifu.reactive.internals.operators
 
 import monifu.reactive.Ack.Continue
 import monifu.reactive.internals._
+import monifu.reactive.observers.BufferedSubscriber
 import monifu.reactive.{Ack, Observable, Observer}
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Future
@@ -35,7 +36,7 @@ private[reactive] object buffer {
 
     Observable.create { subscriber =>
       import subscriber.{scheduler => s}
-      
+
       source.onSubscribe(new Observer[T] {
         private[this] val shouldDrop = skip > count
         private[this] var leftToDrop = 0
@@ -141,6 +142,15 @@ private[reactive] object buffer {
             subscriber.onComplete()
         }
       })
+    }
+  }
+
+  /** Implementation for `bufferIntrospective`. */
+  def introspective[A](source: Observable[A], maxSize: Int): Observable[List[A]] = {
+    require(maxSize > 0, "maxSize should be strictly positive")
+
+    Observable.create { subscriber =>
+      source.onSubscribe(BufferedSubscriber.batched(subscriber, maxSize))
     }
   }
 }

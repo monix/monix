@@ -35,8 +35,8 @@ object Build extends SbtBuild {
 
   val sharedSettings = Seq(
     organization := "org.monifu",
-    scalaVersion := "2.11.7",
-    crossScalaVersions := Seq("2.10.6", "2.11.7"),
+    scalaVersion := "2.11.8",
+    crossScalaVersions := Seq("2.10.6", "2.11.8"),
 
     scalacOptions ++= Seq(
       "-target:jvm-1.6", // generates code with the Java 6 class format
@@ -171,7 +171,7 @@ object Build extends SbtBuild {
       name := "monifu-core",
       testFrameworks += new TestFramework("minitest.runner.Framework"),
       libraryDependencies ++= Seq(
-        "org.monifu" %% "minitest" % "0.14" % "test"
+        "io.monix" %%% "minitest" % "0.20" % "test"
       ))
 
   lazy val monifuCoreJS = project.in(file("core/js"))
@@ -183,7 +183,7 @@ object Build extends SbtBuild {
         testFrameworks += new TestFramework("minitest.runner.Framework"),
         coverageExcludedFiles := ".*",
         libraryDependencies ++= Seq(
-          "org.monifu" %%% "minitest" % "0.14" % "test"
+          "io.monix" %%% "minitest" % "0.20" % "test"
         ))
 
   lazy val monifuJVM = project.in(file("monifu/jvm"))
@@ -194,7 +194,7 @@ object Build extends SbtBuild {
       testFrameworks += new TestFramework("minitest.runner.Framework"),
       libraryDependencies ++= Seq(
         "org.reactivestreams" % "reactive-streams" % "1.0.0",
-        "org.monifu" %% "minitest" % "0.14" % "test"
+        "io.monix" %%% "minitest" % "0.20" % "test"
       ))
 
   lazy val monifuJS = project.in(file("monifu/js"))
@@ -207,7 +207,7 @@ object Build extends SbtBuild {
       testFrameworks += new TestFramework("minitest.runner.Framework"),
       coverageExcludedFiles := ".*",
       libraryDependencies ++= Seq(
-        "org.monifu" %%% "minitest" % "0.14" % "test"
+        "io.monix" %%% "minitest" % "0.20" % "test"
       ))
 
   lazy val tckTests = project.in(file("tckTests"))
