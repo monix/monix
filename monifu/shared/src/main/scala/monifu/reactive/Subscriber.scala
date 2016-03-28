@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2014-2015 by its authors. Some rights reserved.
- * See the project homepage at: http://www.monifu.org
+ * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -51,8 +51,8 @@ object Subscriber {
     }
 
   /**
-   * Given an `org.reactivestreams.Subscriber` as defined by the 
-   * [[http://www.reactive-streams.org/ Reactive Streams]] specification, 
+   * Given an `org.reactivestreams.Subscriber` as defined by the
+   * [[http://www.reactive-streams.org/ Reactive Streams]] specification,
    * it builds an [[Subscriber]] instance compliant with the
    * Monifu Rx implementation.
    */
@@ -73,7 +73,7 @@ object Subscriber {
    * Transforms the source [[Subscriber]] into a `org.reactivestreams.Subscriber`
    * instance as defined by the [[http://www.reactive-streams.org/ Reactive Streams]]
    * specification.
-   * 
+   *
    * @param bufferSize a strictly positive number, representing the size
    *                   of the buffer used and the number of elements requested
    *                   on each cycle when communicating demand, compliant with
@@ -88,7 +88,7 @@ object Subscriber {
         SubscriberAsReactiveSubscriber(async, bufferSize)
     }
   }
-  
+
   /**
    * Extension methods for [[Subscriber]].
    */

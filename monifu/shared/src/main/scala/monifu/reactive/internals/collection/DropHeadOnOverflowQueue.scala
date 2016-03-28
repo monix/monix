@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2014-2015 by its authors. Some rights reserved.
- * See the project homepage at: http://www.monifu.org
+ * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -177,9 +177,9 @@ private[reactive] final class DropHeadOnOverflowQueue[T : ClassTag] private (_ca
 }
 
 private[reactive] object DropHeadOnOverflowQueue {
-  /** 
+  /**
    * Builder for [[DropHeadOnOverflowQueue]]
-   * 
+   *
    * @param capacity is the recommended capacity that this queue will support,
    *                 however the actual capacity will be the closest power of 2
    *                 that is bigger than the given number, or a maximum of

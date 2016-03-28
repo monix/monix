@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2014-2015 by its authors. Some rights reserved.
- * See the project homepage at: http://www.monifu.org
+ * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
+
 package monifu.reactive.channels
 
 import monifu.concurrent.Scheduler
@@ -26,7 +26,7 @@ import monifu.reactive.subjects.BehaviorSubject
  * A `BehaviorChannel` is a [[Channel]] that uses an underlying
  * [[monifu.reactive.subjects.BehaviorSubject BehaviorSubject]].
  */
-final class BehaviorChannel[T] private 
+final class BehaviorChannel[T] private
   (initialValue: T, strategy: OverflowStrategy.Synchronous, onOverflow: Long => T)
   (implicit val scheduler: Scheduler)
   extends ObservableChannel[T,T] {

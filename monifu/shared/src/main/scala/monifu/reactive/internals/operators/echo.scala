@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2014-2015 by its authors. Some rights reserved.
- * See the project homepage at: http://www.monifu.org
+ * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -116,13 +116,13 @@ private[reactive] object echo {
                 // for ack.isCompleted above, but doing it nonetheless because
                 // of safety and because last ack might have been a Cancel
                 val next = ack.onContinueStreamOnNext(downstream, lastEvent)
-                
+
                 // applying back-pressure again, this time on a result
                 // that might or might not be completed
                 ack = next.fastFlatMap {
                   case Continue =>
                     // the speed with which the downstream replied with Continue
-                    // matters in this case, so we are measuring it and 
+                    // matters in this case, so we are measuring it and
                     // subtracting it from the period
                     val executionTime = s.currentTimeMillis() - rightNow
                     val delay = if (timeoutMillis > executionTime)

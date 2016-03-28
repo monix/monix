@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2014-2015 by its authors. Some rights reserved.
- * See the project homepage at: http://www.monifu.org
+ * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,21 +31,21 @@ import org.reactivestreams.{Subscriber, Subscription}
  * Given that when emitting [[monifu.reactive.Observer.onNext Observer.onNext]] calls,
  * the call may pass asynchronous boundaries, the emitted events need to be buffered.
  * The `requestCount` constructor parameter also represents the buffer size.
- * 
+ *
  * To create an instance, [[SubscriberAsReactiveSubscriber]] must be used: {{{
  *   // uses the default requestCount of 128
  *   val subscriber = SubscriberAsReactiveSubscriber(new Observer[Int] {
  *     private[this] var sum = 0
- *     
+ *
  *     def onNext(elem: Int) = {
  *       sum += elem
  *       Continue
  *     }
- *     
+ *
  *     def onError(ex: Throwable) = {
  *       logger.error(ex)
  *     }
- *     
+ *
  *     def onComplete() = {
  *       logger.info("Stream completed")
  *     }

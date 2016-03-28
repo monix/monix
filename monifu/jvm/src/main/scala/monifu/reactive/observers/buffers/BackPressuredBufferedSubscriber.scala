@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2014-2015 by its authors. Some rights reserved.
- * See the project homepage at: http://www.monifu.org
+ * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ import scala.concurrent.{Future, Promise}
 
 /**
  * A [[BufferedSubscriber]] implementation for the
- * [[monifu.reactive.OverflowStrategy.BackPressure BackPressured]] 
+ * [[monifu.reactive.OverflowStrategy.BackPressure BackPressured]]
  * buffer overflowStrategy.
  */
 private[reactive] final class BackPressuredBufferedSubscriber[-T] private

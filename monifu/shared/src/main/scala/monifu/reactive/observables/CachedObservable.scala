@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2014-2015 by its authors. Some rights reserved.
- * See the project homepage at: http://www.monifu.org
+ * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ import monifu.reactive.{Observable, Subscriber}
  * [[Observable]], initiating the connection on the first
  * `subscribe()` and then staying connected for as long as
  * the source is emitting.
- * 
+ *
  * NOTE: this is NOT a [[ConnectableObservable]] and being a hot
  * data-source you've got no way to cancel the source.
  *
@@ -36,13 +36,13 @@ import monifu.reactive.{Observable, Subscriber}
  */
 final class CachedObservable[+T] private (source: Observable[T], maxCapacity: Int)
   extends Observable[T] {
-  
+
   private[this] val isStarted = Atomic(false)
   private[this] val subject = {
     if (maxCapacity > 0) ReplaySubject.createWithSize[T](maxCapacity) else
       ReplaySubject[T]()
   }
-  
+
   def onSubscribe(subscriber: Subscriber[T]): Unit = {
     import subscriber.scheduler
     if (isStarted.compareAndSet(false, true)) source.onSubscribe(subject)

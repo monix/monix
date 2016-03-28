@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2014-2015 by its authors. Some rights reserved.
- * See the project homepage at: http://www.monifu.org
+ * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
+
 package monifu.concurrent.atomic
 
 import scala.annotation.tailrec
@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.{AtomicReference => JavaAtomicReference}
 
 final class AtomicNumberAny[T : Numeric] private (ref: JavaAtomicReference[T])
   extends AtomicNumber[T] with BlockableAtomic[T] {
-  
+
   private[this] val ev = implicitly[Numeric[T]]
 
   def get: T = ref.get()

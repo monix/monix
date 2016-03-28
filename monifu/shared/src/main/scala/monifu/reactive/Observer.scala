@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2014-2015 by its authors. Some rights reserved.
- * See the project homepage at: http://www.monifu.org
+ * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
+
 package monifu.reactive
 
 import monifu.concurrent.Scheduler
@@ -49,9 +49,9 @@ trait Observer[-T] {
 
 object Observer {
   /**
-   * Given an `org.reactivestreams.Subscriber` as defined by the 
-   * [[http://www.reactive-streams.org/ Reactive Streams]] specification, 
-   * it builds an [[Observer]] instance compliant with the 
+   * Given an `org.reactivestreams.Subscriber` as defined by the
+   * [[http://www.reactive-streams.org/ Reactive Streams]] specification,
+   * it builds an [[Observer]] instance compliant with the
    * Monifu Rx implementation.
    */
   def fromReactiveSubscriber[T](subscriber: RSubscriber[T])(implicit s: Scheduler): Subscriber[T] = {

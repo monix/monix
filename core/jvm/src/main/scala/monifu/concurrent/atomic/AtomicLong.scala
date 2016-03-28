@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2014-2015 by its authors. Some rights reserved.
- * See the project homepage at: http://www.monifu.org
+ * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,9 +22,9 @@ import scala.concurrent.TimeoutException
 import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.atomic.{AtomicLong => JavaAtomicLong}
 
-final class AtomicLong private (ref: JavaAtomicLong) 
+final class AtomicLong private (ref: JavaAtomicLong)
   extends AtomicNumber[Long] with BlockableAtomic[Long] {
-  
+
   def get: Long = ref.get()
 
   def set(update: Long): Unit = {

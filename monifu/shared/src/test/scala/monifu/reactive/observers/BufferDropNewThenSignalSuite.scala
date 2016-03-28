@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2014-2015 by its authors. Some rights reserved.
- * See the project homepage at: http://www.monifu.org
+ * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,7 +42,7 @@ object BufferDropNewThenSignalSuite extends TestSuite[TestScheduler] {
   def buildNewForLong(bufferSize: Int, underlying: Observer[Long])(implicit s: Scheduler) = {
     BufferedSubscriber(Subscriber(underlying, s), DropNew(bufferSize), nr => nr)
   }
-  
+
   test("should not lose events, test 1") { implicit s =>
     var number = 0
     var wasCompleted = false

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2014-2015 by its authors. Some rights reserved.
- * See the project homepage at: http://www.monifu.org
+ * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -130,7 +130,7 @@ abstract class ReferenceScheduler extends Scheduler {
 
     val initialMs = TimeUnit.MILLISECONDS.convert(initialDelay, unit)
     val periodMs = TimeUnit.MILLISECONDS.convert(period, unit)
-    
+
     loop(initialMs, periodMs)
     sub
   }

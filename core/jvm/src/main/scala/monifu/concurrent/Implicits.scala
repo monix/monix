@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2014-2015 by its authors. Some rights reserved.
- * See the project homepage at: http://www.monifu.org
+ * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,9 +22,9 @@ import monifu.concurrent.schedulers.AsyncScheduler
 import scala.concurrent.ExecutionContext
 
 /**
- * Defines implicit values that can be used by importing in the 
+ * Defines implicit values that can be used by importing in the
  * current context.
- * 
+ *
  * Example:
  * {{{
  *   import monifu.concurrent.Implicits.globalScheduler

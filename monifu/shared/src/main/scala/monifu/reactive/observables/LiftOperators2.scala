@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2014-2015 by its authors. Some rights reserved.
- * See the project homepage at: http://www.monifu.org
+ * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,7 +34,7 @@ import scala.concurrent.duration.FiniteDuration
  */
 trait LiftOperators2[I, +T, Self[A,+B] <: Observable[B]] { self: Observable[T] =>
   protected def liftToSelf[U](f: Observable[T] => Observable[U]): Self[I,U]
-  
+
   override def map[U](f: T => U): Self[I,U] =
     liftToSelf(o => Observable.create[T](o.onSubscribe).map(f))
 

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2014-2015 by its authors. Some rights reserved.
- * See the project homepage at: http://www.monifu.org
+ * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -60,7 +60,7 @@ object OverflowStrategy {
    * the pipeline should try to apply back-pressure (i.e. it should try
    * delaying the data source in producing more elements, until the
    * the consumer has drained the buffer and space is available).
-   * 
+   *
    * @param bufferSize specifies how many events our buffer can hold
    *                   before overflowing
    */

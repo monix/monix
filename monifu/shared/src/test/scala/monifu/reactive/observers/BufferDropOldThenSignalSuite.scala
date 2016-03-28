@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2014-2015 by its authors. Some rights reserved.
- * See the project homepage at: http://www.monifu.org
+ * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ object BufferDropOldThenSignalSuite extends TestSuite[TestScheduler] {
     BufferedSubscriber.withOverflowSignal(
       Subscriber(underlying, s), DropOld(bufferSize))(nr => nr.toInt)
   }
-  
+
   test("should not lose events, test 1") { implicit s =>
     var number = 0
     var wasCompleted = false
@@ -169,7 +169,7 @@ object BufferDropOldThenSignalSuite extends TestSuite[TestScheduler] {
 
     buffer.onNext(1)
     buffer.onError(DummyException("dummy"))
-    
+
     s.tick()
     assertEquals(errorThrown, DummyException("dummy"))
   }
