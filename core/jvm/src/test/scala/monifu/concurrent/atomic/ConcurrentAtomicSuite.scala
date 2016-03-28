@@ -120,7 +120,7 @@ abstract class ConcurrentAtomicSuite[T, R <: Atomic[T] with BlockableAtomic[T]]
     start.await(5, TimeUnit.SECONDS)
     assert(done.getCount == 1)
     a.set(one)
-    done.await(5, TimeUnit.SECONDS)
+    assert(done.await(5, TimeUnit.SECONDS), "done.await")
   }
 
   test("should fail on waitForValue with duration") {
@@ -149,7 +149,7 @@ abstract class ConcurrentAtomicSuite[T, R <: Atomic[T] with BlockableAtomic[T]]
     start.await(5, TimeUnit.SECONDS)
     assert(done.getCount == 1)
     a.set(one)
-    done.await(5, TimeUnit.SECONDS)
+    assert(done.await(5, TimeUnit.SECONDS), "done.await")
   }
 
   test("should waitForCondition") {
@@ -166,7 +166,7 @@ abstract class ConcurrentAtomicSuite[T, R <: Atomic[T] with BlockableAtomic[T]]
     start.await(5, TimeUnit.SECONDS)
     assert(done.getCount == 1)
     a.set(one)
-    done.await(5, TimeUnit.SECONDS)
+    assert(done.await(5, TimeUnit.SECONDS), "done.await")
   }
 
   test("should fail on waitForCondition with duration") {
@@ -195,7 +195,7 @@ abstract class ConcurrentAtomicSuite[T, R <: Atomic[T] with BlockableAtomic[T]]
     start.await(5, TimeUnit.SECONDS)
     assert(done.getCount == 1)
     a.set(one)
-    done.await(5, TimeUnit.SECONDS)
+    assert(done.await(5, TimeUnit.SECONDS), "done.await")
   }
 }
 

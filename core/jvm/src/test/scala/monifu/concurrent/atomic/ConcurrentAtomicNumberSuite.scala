@@ -64,7 +64,7 @@ abstract class ConcurrentAtomicNumberSuite[T, R <: AtomicNumber[T] with Blockabl
     start.await(1, TimeUnit.SECONDS)
     assert(done.getCount == 1)
     r.set(ev.zero)
-    done.await(1, TimeUnit.SECONDS)
+    assert(done.await(1, TimeUnit.SECONDS), "done.await")
   }
 }
 
