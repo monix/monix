@@ -55,18 +55,18 @@ support long after Scala 2.12 is out.
 
 The packages are published on Maven Central.
 
-- Current stable release is: `1.0`
+- Current stable release is: `1.2`
 
 For the JVM:
 
 ```scala
-libraryDependencies += "org.monifu" %% "monifu" % "1.0"
+libraryDependencies += "org.monifu" %% "monifu" % "1.2"
 ```
 
 For targeting Javascript runtimes with Scala.js:
 
 ```scala
-libraryDependencies += "org.monifu" %%% "monifu" % "1.0"
+libraryDependencies += "org.monifu" %%% "monifu" % "1.2"
 ```
 
 ### Example
@@ -123,7 +123,7 @@ Observable.interval(1.second)
 NOTE: The documentation is a work in progress.
 API Documentation:
 
-- [1.0](http://monix.io/api/1.0/)
+- [1.2](http://monix.io/api/1.2/)
 
 ## Maintainers
 
