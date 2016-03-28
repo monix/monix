@@ -26,7 +26,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{Future, TimeoutException}
 import scala.util.{Try, Failure, Success}
 
-object TaskTest extends TestSuite[TestScheduler] {
+object TaskSanitySuite extends TestSuite[TestScheduler] {
   def setup(): TestScheduler = TestScheduler()
   def tearDown(env: TestScheduler): Unit = {
     assert(env.state.get.tasks.isEmpty, "should not have tasks left to execute")
@@ -428,6 +428,51 @@ object TaskTest extends TestSuite[TestScheduler] {
       "should cancel the scheduleOnce(delay) as well")
   }
 
+  test("Task#delayExecutionWith should work") { implicit s =>
+    var wasTriggered = false
+    def trigger(): String = { wasTriggered = true; "result" }
+
+    val delayTask = Task.now(0).delayExecution(1.second)
+    val task = Task(trigger()).delayExecutionWith(delayTask)
+    assert(!wasTriggered, "!wasTriggered")
+
+    val f = task.runAsync
+    assert(!wasTriggered, "!wasTriggered")
+    assertEquals(f.value, None)
+
+    s.tick()
+    assert(!wasTriggered, "!wasTriggered")
+    assertEquals(f.value, None)
+
+    s.tick(1.second)
+    assert(wasTriggered, "wasTriggered")
+    assertEquals(f.value, Some(Success("result")))
+  }
+
+  test("Task#delayExecutionWith is cancelable") { implicit s =>
+    var wasTriggered = false
+    def trigger(): String = { wasTriggered = true; "result" }
+
+    val delayTask = Task.now(0).delayExecution(1.second)
+    val task = Task(trigger()).delayExecutionWith(delayTask)
+    assert(!wasTriggered, "!wasTriggered")
+
+    val f = task.runAsync
+    assert(!wasTriggered, "!wasTriggered")
+    assertEquals(f.value, None)
+
+    s.tick()
+    assert(!wasTriggered, "!wasTriggered")
+    assertEquals(f.value, None)
+
+    f.cancel(); s.tick()
+    assert(!wasTriggered, "!wasTriggered")
+
+    assertEquals(f.value, None)
+    assert(s.state.get.tasks.isEmpty,
+      "should cancel the scheduleOnce(delay) as well")
+  }
+
   test("Task#delayResult should work") { implicit s =>
     var wasTriggered = false
     def trigger(): String = { wasTriggered = true; "result" }
@@ -452,6 +497,48 @@ object TaskTest extends TestSuite[TestScheduler] {
     def trigger(): String = { wasTriggered = true; "result" }
 
     val task = Task(trigger()).delayResult(1.second)
+    assert(!wasTriggered, "!wasTriggered")
+
+    val f = task.runAsync
+    assert(!wasTriggered, "!wasTriggered")
+    assertEquals(f.value, None)
+
+    s.tick()
+    assert(wasTriggered, "wasTriggered")
+    assertEquals(f.value, None)
+
+    f.cancel(); s.tick()
+    assertEquals(f.value, None)
+    assert(s.state.get.tasks.isEmpty,
+      "should cancel the scheduleOnce(delay) as well")
+  }
+
+  test("Task#delayResultBySelector should work") { implicit s =>
+    var wasTriggered = false
+    def trigger(): String = { wasTriggered = true; "result" }
+
+    val delayTask = Task.now(0).delayExecution(1.second)
+    val task = Task(trigger()).delayResultBySelector(a => delayTask)
+    assert(!wasTriggered, "!wasTriggered")
+
+    val f = task.runAsync
+    assert(!wasTriggered, "!wasTriggered")
+    assertEquals(f.value, None)
+
+    s.tick()
+    assert(wasTriggered, "wasTriggered")
+    assertEquals(f.value, None)
+
+    s.tick(1.second)
+    assertEquals(f.value, Some(Success("result")))
+  }
+
+  test("Task#delayResultBySelector is cancelable") { implicit s =>
+    var wasTriggered = false
+    def trigger(): String = { wasTriggered = true; "result" }
+
+    val delayTask = Task.now(0).delayExecution(1.second)
+    val task = Task(trigger()).delayResultBySelector(a => delayTask)
     assert(!wasTriggered, "!wasTriggered")
 
     val f = task.runAsync
@@ -609,7 +696,7 @@ object TaskTest extends TestSuite[TestScheduler] {
 
   test("Task.onErrorRetry should not be cancelable") { implicit s =>
     val task = Task[Int](throw DummyException("dummy"))
-      .onErrorRetry(s.batchedExecutionModulus+2)
+      .onErrorRetry(s.executionModel.batchedExecutionModulus+2)
 
     val f = task.runAsync
     assertEquals(f.value, None)
@@ -994,6 +1081,13 @@ object TaskTest extends TestSuite[TestScheduler] {
       "should have thrown IllegalStateException")
   }
 
+  test("Task#zipWith works") { implicit s =>
+    val f1 = Task(1).zip(Task(2)).runAsync
+    val f2 = Task(1).zipWith(Task(2))((a,b) => (a,b)).runAsync
+    s.tick()
+    assertEquals(f1.value.get, f2.value.get)
+  }
+
   test("Task.firstCompletedOf should switch to other") { implicit s =>
     val task = Task.firstCompletedOf(Seq(Task(1).delayExecution(10.seconds), Task(99).delayExecution(1.second)))
     val f = task.runAsync
@@ -1105,7 +1199,9 @@ object TaskTest extends TestSuite[TestScheduler] {
   test("Task.memoize should work synchronously for subsequent subscribers after complete") { implicit s =>
     var effect = 0
     val task = Task.evalAlways { effect += 1; effect }.memoize
+
     task.runAsync
+    s.tick()
 
     val f1 = task.runAsync
     assertEquals(f1.value, Some(Success(1)))
@@ -1166,6 +1262,53 @@ object TaskTest extends TestSuite[TestScheduler] {
 
     assertEquals(f.value, None)
     assertEquals(f1, None)
+  }
+
+  test("Task.materialize should work for success") { implicit s =>
+    val f = Task.evalAlways(10).materialize.runAsync
+    assertEquals(f.value.get, Success(Success(10)))
+  }
+
+  test("Task.materialize should work for failure") { implicit s =>
+    val dummy = DummyException("dummy")
+    val f = Task.error(dummy).materialize.runAsync
+    assertEquals(f.value.get, Success(Failure(dummy)))
+  }
+
+  test("Task.dematerialize should work for success") { implicit s =>
+    val f = Task.evalAlways(10).materialize.dematerialize.runAsync
+    assertEquals(f.value.get, Success(10))
+  }
+
+  test("Task.dematerialize should work for failure") { implicit s =>
+    val dummy = DummyException("dummy")
+    val f = Task.error(dummy).materialize.dematerialize.runAsync
+    assertEquals(f.value.get, Failure(dummy))
+  }
+
+  test("Task.mapTry should work for success") { implicit s =>
+    val t = Task.evalAlways(10).mapTry {
+      case Success(x) => Success(x + 10)
+      case other => other
+    }
+
+    assertEquals(t.runAsync.value.get, Success(20))
+  }
+
+  test("Task.mapTry should work for success") { implicit s =>
+    val dummy = DummyException("dummy")
+    val t = Task.error[Int](dummy).mapTry {
+      case Success(x) => Success(x + 10)
+      case other => Success(100)
+    }
+
+    assertEquals(t.runAsync.value.get, Success(100))
+  }
+
+  test("Task.never should never complete") { implicit s =>
+    val never = Task.never[Int].runAsync
+    s.tick(10.hours)
+    assertEquals(never.value, None)
   }
 
   case class DummyException(message: String) extends RuntimeException(message) {

@@ -18,9 +18,8 @@
 package monix.execution.schedulers
 
 import java.util.concurrent.TimeUnit
-import monix.execution.{Scheduler, Cancelable}
 import monix.execution.cancelables.MultiAssignmentCancelable
-import monix.execution.internal.Platform
+import monix.execution.{Cancelable, Scheduler}
 
 /** Helper for building a [[Scheduler]].
   *
@@ -32,9 +31,6 @@ import monix.execution.internal.Platform
 private[schedulers] abstract class ReferenceScheduler extends Scheduler {
   override def currentTimeMillis(): Long =
     System.currentTimeMillis()
-
-  override val batchedExecutionModulus: Int =
-    Platform.recommendedBatchSize-1
 
   override def scheduleWithFixedDelay(initialDelay: Long, delay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
     val sub = MultiAssignmentCancelable()

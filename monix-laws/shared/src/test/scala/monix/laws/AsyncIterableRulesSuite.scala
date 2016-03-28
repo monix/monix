@@ -15,16 +15,12 @@
  * limitations under the License.
  */
 
-package monix.types.instances
+package monix.laws
 
-/** Helper for importing all known type-class instances. */
-object all extends AllInstances
+import monix.async.AsyncIterable
+import monix.laws.discipline.{MonadConsTests, NonstrictTests}
 
-/** Alias for `cats.std.AllInstances` */
-trait AllStdInstances extends _root_.cats.std.AllInstances
-
-/** Exposes all type-class instances defined by Monix. */
-trait AllInstances extends ObservableInstances
-  with TaskInstances
-  with AsyncIterableInstances
-  with EvalInstances with AllStdInstances
+object AsyncIterableRulesSuite extends BaseRulesSuite {
+  checkAll("Nonstrict[AsyncIterable]", NonstrictTests[AsyncIterable].nonstrict[Int, Int, Int])
+  checkAll("MonadCons[AsyncIterable]", MonadConsTests[AsyncIterable].monadCons[Int, Int, Int])
+}

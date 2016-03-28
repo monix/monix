@@ -29,7 +29,9 @@ import scala.util.control.NonFatal
   * by using an internal trampoline and schedules tasks for execution in the future
   * by means of Javascript's `setTimeout`.
   */
-final class TrampolineScheduler private (reporter: UncaughtExceptionReporter)
+final class TrampolineScheduler private (
+  reporter: UncaughtExceptionReporter,
+  override val executionModel: ExecutionModel)
   extends ReferenceScheduler {
 
   private[this] val immediateQueue = mutable.Queue.empty[Runnable]
@@ -77,7 +79,14 @@ final class TrampolineScheduler private (reporter: UncaughtExceptionReporter)
 }
 
 object TrampolineScheduler {
-  /** Builder for [[TrampolineScheduler]] */
-  def apply(reporter: UncaughtExceptionReporter): TrampolineScheduler =
-    new TrampolineScheduler(reporter)
+  /** Builder for [[TrampolineScheduler]].
+    *
+    * @param reporter is the [[UncaughtExceptionReporter]] that logs uncaught exceptions.
+    * @param executionModel is the preferred [[ExecutionModel]], a guideline
+    *        for run-loops and producers of data.
+    */
+  def apply(
+    reporter: UncaughtExceptionReporter,
+    executionModel: ExecutionModel): TrampolineScheduler =
+    new TrampolineScheduler(reporter, executionModel)
 }

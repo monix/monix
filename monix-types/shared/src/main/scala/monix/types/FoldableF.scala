@@ -56,8 +56,8 @@ import scala.language.{higherKinds, implicitConversions}
     *
     * @note [[foldLeftF]] can be described in terms of [[foldWhileF]] by always
     *       returning `true` in the resulting tuple of the provided function
-    * @param f is the folding function, returning `Right(state)` if the fold has
-    *          to be continued, or `Left(state)` if the fold has to be stopped
+    * @param f is the folding function, returning `(true, state)` if the fold has
+    *          to be continued, or `(false, state)` if the fold has to be stopped
     *          and the rest of the values to be ignored.
     */
   def foldWhileF[A, S](fa: F[A], seed: S)(f: (S, A) => (Boolean, S)): F[S]

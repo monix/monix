@@ -18,7 +18,7 @@
 package monix.execution
 
 import java.util.concurrent.TimeUnit
-import monix.execution.schedulers.SchedulerCompanionImpl
+import monix.execution.schedulers.{ExecutionModel, SchedulerCompanionImpl}
 import monix.execution.internal.RunnableAction
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
@@ -129,20 +129,11 @@ abstract class Scheduler extends ExecutionContext with UncaughtExceptionReporter
     */
   def currentTimeMillis(): Long
 
-  /** The number of tasks that a run-loop can execute synchronously,
-    * before forking into a new logical thread, or zero if batched
-    * execution is not supported by this scheduler.
-    *
-    * The value must be greater or equal to zero and must have the
-    * form `2^n - 1`. Valid values are 0, 1, 3, 7, 15 ... 511, 1023, etc.
-    *
-    * The number always has the form `2^n - 1` because then you
-    * can do `index = (index + 1) & batchedExecutionModulus` in
-    * order to find out whether the next task should execute
-    * synchronously or not. This because doing a bitwise and is
-    * more efficient than doing a division.
+  /** The [[ExecutionModel]] is a specification of how run-loops and
+    * producers should behave in regards to executing tasks either
+    * synchronously or asynchronously.
     */
-  val batchedExecutionModulus: Int
+  def executionModel: ExecutionModel
 }
 
 private[monix] trait SchedulerCompanion {

@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package monix.async.internal
+package monix.execution.cancelables
 
 import monix.execution.Cancelable
-import monix.execution.cancelables.BooleanCancelable
 import org.sincron.atomic.{Atomic, PaddingStrategy}
+
 import scala.annotation.tailrec
 
-final class TaskCancelable private (initial: Cancelable)
+final class StackedCancelable private (initial: Cancelable)
   extends BooleanCancelable {
 
   private def underlying: List[Cancelable] = state.get
@@ -41,7 +41,7 @@ final class TaskCancelable private (initial: Cancelable)
     if (oldState ne null) oldState.foreach(_.cancel())
   }
 
-  @tailrec def popAndCollapse(value: TaskCancelable): Cancelable = {
+  @tailrec def popAndCollapse(value: StackedCancelable): Cancelable = {
     val other = value.underlying
     if (other == null) {
       this.cancel()
@@ -64,15 +64,21 @@ final class TaskCancelable private (initial: Cancelable)
     }
   }
 
-  @tailrec def popAndPush(value: Cancelable): Unit = {
+  @tailrec def popAndPush(value: Cancelable): Cancelable = {
     state.get match {
-      case null => value.cancel()
+      case null =>
+        value.cancel()
+        Cancelable.empty
       case Nil =>
         if (!state.compareAndSet(Nil, value :: Nil))
           popAndPush(value)
+        else
+          Cancelable.empty
       case ref @ (head :: tail) =>
         if (!state.compareAndSet(ref, value :: tail))
           popAndPush(value) // retry
+        else
+          head
     }
   }
 
@@ -99,10 +105,10 @@ final class TaskCancelable private (initial: Cancelable)
   }
 }
 
-object TaskCancelable {
-  def apply(): TaskCancelable =
-    new TaskCancelable(null)
+object StackedCancelable {
+  def apply(): StackedCancelable =
+    new StackedCancelable(null)
 
-  def apply(s: Cancelable): TaskCancelable =
-    new TaskCancelable(s)
+  def apply(s: Cancelable): StackedCancelable =
+    new StackedCancelable(s)
 }

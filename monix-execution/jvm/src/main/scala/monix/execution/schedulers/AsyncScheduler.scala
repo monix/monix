@@ -26,8 +26,11 @@ import monix.execution.{Cancelable, UncaughtExceptionReporter}
   * given `ScheduledExecutorService` and the tasks themselves are executed on
   * the given `ExecutionContext`.
   */
-final class AsyncScheduler private
-  (s: ScheduledExecutorService, ec: ExecutionContext, r: UncaughtExceptionReporter)
+final class AsyncScheduler private (
+  scheduler: ScheduledExecutorService,
+  ec: ExecutionContext,
+  r: UncaughtExceptionReporter,
+  val executionModel: ExecutionModel)
   extends ReferenceScheduler {
 
   override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
@@ -36,20 +39,20 @@ final class AsyncScheduler private
       Cancelable.empty
     } else {
       val deferred = new DeferredRunnable(r, ec)
-      val task = s.schedule(deferred, initialDelay, unit)
+      val task = scheduler.schedule(deferred, initialDelay, unit)
       Cancelable(() => task.cancel(true))
     }
   }
 
   override def scheduleWithFixedDelay(initialDelay: Long, delay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
     val deferred = new DeferredRunnable(r, ec)
-    val task = s.scheduleWithFixedDelay(deferred, initialDelay, delay, unit)
+    val task = scheduler.scheduleWithFixedDelay(deferred, initialDelay, delay, unit)
     Cancelable(() => task.cancel(false))
   }
 
   override def scheduleAtFixedRate(initialDelay: Long, period: Long, unit: TimeUnit, r: Runnable): Cancelable = {
     val deferred = new DeferredRunnable(r, ec)
-    val task = s.scheduleAtFixedRate(deferred, initialDelay, period, unit)
+    val task = scheduler.scheduleAtFixedRate(deferred, initialDelay, period, unit)
     Cancelable(() => task.cancel(false))
   }
 
@@ -61,10 +64,21 @@ final class AsyncScheduler private
 }
 
 object AsyncScheduler {
-  /** Builder for [[AsyncScheduler]]. */
-  def apply(schedulerService: ScheduledExecutorService,
-    ec: ExecutionContext, reporter: UncaughtExceptionReporter): AsyncScheduler =
-    new AsyncScheduler(schedulerService, ec, reporter)
+  /** Builder for [[AsyncScheduler]].
+    *
+    * @param schedulerService is the Java `ScheduledExecutorService` that will take
+    *        care of scheduling tasks for execution with a delay.
+    * @param ec is the execution context that will execute all runnables
+    * @param reporter is the [[UncaughtExceptionReporter]] that logs uncaught exceptions.
+    * @param executionModel is the preferred [[ExecutionModel]], a guideline
+    *        for run-loops and producers of data.
+    */
+  def apply(
+    schedulerService: ScheduledExecutorService,
+    ec: ExecutionContext,
+    reporter: UncaughtExceptionReporter,
+    executionModel: ExecutionModel): AsyncScheduler =
+    new AsyncScheduler(schedulerService, ec, reporter, executionModel)
 
   /** Runnable that defers the execution of the given runnable to the
     * given execution context.

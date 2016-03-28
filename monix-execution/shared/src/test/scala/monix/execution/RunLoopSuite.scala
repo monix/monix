@@ -18,7 +18,7 @@
 package monix.execution
 
 import minitest.SimpleTestSuite
-import monix.execution.schedulers.TestScheduler
+import monix.execution.schedulers.{ExecutionModel, TestScheduler}
 import scala.util.control.NonFatal
 
 object RunLoopSuite extends SimpleTestSuite {
@@ -45,7 +45,7 @@ object RunLoopSuite extends SimpleTestSuite {
     assert(!RunLoop.isAlwaysAsync, "!isAlwaysAsync")
 
     var triggered = 0
-    val barrier = s.batchedExecutionModulus
+    val barrier = s.executionModel.batchedExecutionModulus
 
     RunLoop.step(1) { frameId =>
       try {
@@ -88,7 +88,7 @@ object RunLoopSuite extends SimpleTestSuite {
   }
 
   test("RunLoop should always execute async if recommendedBatchSize == 1") {
-    implicit val s = TestScheduler(recommendedBatchSize = 1)
+    implicit val s = TestScheduler(ExecutionModel.AlwaysAsyncExecution)
     assert(RunLoop.isAlwaysAsync, "isAlwaysAsync")
 
     var triggered = 0
@@ -107,7 +107,7 @@ object RunLoopSuite extends SimpleTestSuite {
   }
 
   test("RunLoop.startAsync should work") {
-    implicit val s = TestScheduler(recommendedBatchSize = 1)
+    implicit val s = TestScheduler(ExecutionModel.AlwaysAsyncExecution)
     assert(RunLoop.isAlwaysAsync, "isAlwaysAsync")
 
     var triggered = 0

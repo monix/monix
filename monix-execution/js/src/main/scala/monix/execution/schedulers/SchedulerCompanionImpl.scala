@@ -25,19 +25,25 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     * [[Scheduler]] builder.
     *
     * @param reporter is the [[UncaughtExceptionReporter]] that logs uncaught exceptions.
+    * @param executionModel is the preferred [[ExecutionModel]], a guideline
+    *        for run-loops and producers of data.
     */
-  def apply(reporter: UncaughtExceptionReporter = LogExceptionsToStandardErr): Scheduler = {
-    AsyncScheduler(reporter)
-  }
+  def apply(
+    reporter: UncaughtExceptionReporter = LogExceptionsToStandardErr,
+    executionModel: ExecutionModel = ExecutionModel.Default): Scheduler =
+    AsyncScheduler(reporter, executionModel)
 
   /**
     * Builds a [[monix.execution.schedulers.TrampolineScheduler TrampolineScheduler]].
     *
     * @param reporter is the [[UncaughtExceptionReporter]] that logs uncaught exceptions.
+    * @param executionModel is the preferred [[ExecutionModel]], a guideline
+    *        for run-loops and producers of data.
     */
-  def trampoline(reporter: UncaughtExceptionReporter = LogExceptionsToStandardErr): Scheduler = {
-    TrampolineScheduler(reporter)
-  }
+  def trampoline(
+    reporter: UncaughtExceptionReporter = LogExceptionsToStandardErr,
+    executionModel: ExecutionModel = ExecutionModel.Default): Scheduler =
+    TrampolineScheduler(reporter, executionModel)
 
   /** The explicit global `Scheduler`. Invoke `global` when you want to provide the global
     * `Scheduler` explicitly.
@@ -50,6 +56,8 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
       * on top of `global.setTimeout`.
       */
     implicit lazy val global: Scheduler =
-      AsyncScheduler(UncaughtExceptionReporter.LogExceptionsToStandardErr)
+      AsyncScheduler(
+        UncaughtExceptionReporter.LogExceptionsToStandardErr,
+        ExecutionModel.Default)
   }
 }

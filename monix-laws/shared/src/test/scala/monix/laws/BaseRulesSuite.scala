@@ -21,7 +21,7 @@ import cats.data.Xor
 import cats.{Eval, Eq}
 import minitest.SimpleTestSuite
 import minitest.laws.Discipline
-import monix.async.{Callback, Task}
+import monix.async.{AsyncIterable, Callback, Task}
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
@@ -56,6 +56,12 @@ trait BaseRulesSuite extends SimpleTestSuite with Discipline with AllInstances {
     Arbitrary {
       implicitly[Arbitrary[A]].arbitrary
         .map(a => Task.evalAlways(a))
+    }
+
+  implicit def arbitraryAsyncIterable[A : Arbitrary] : Arbitrary[AsyncIterable[A]] =
+    Arbitrary {
+      implicitly[Arbitrary[List[A]]].arbitrary
+        .map(list => AsyncIterable.fromIterable(list, 20))
     }
 
   implicit def arbitraryEval[A : Arbitrary]: Arbitrary[Eval[A]] =
@@ -160,6 +166,36 @@ trait BaseRulesSuite extends SimpleTestSuite with Discipline with AllInstances {
           def onError(ex: Throwable): Unit =
             valueB = Some(Failure(ex))
           def onSuccess(value: A): Unit =
+            valueB = Some(Success(value))
+        })
+
+        // simulate synchronous execution
+        scheduler.tick(1.hour)
+        listEq.eqv(valueA, valueB)
+      }
+    }
+
+  implicit def equalityAsyncIterable[A : Eq]: Eq[AsyncIterable[A]] =
+    new Eq[AsyncIterable[A]] {
+      val listEq = implicitly[Eq[Option[Try[List[A]]]]]
+
+      def eqv(x: AsyncIterable[A], y: AsyncIterable[A]): Boolean = {
+        implicit val scheduler = TestScheduler()
+
+        var valueA = Option.empty[Try[List[A]]]
+        var valueB = Option.empty[Try[List[A]]]
+
+        x.toListA.runAsync(new Callback[List[A]] {
+          def onError(ex: Throwable): Unit =
+            valueA = Some(Failure(ex))
+          def onSuccess(value: List[A]): Unit =
+            valueA = Some(Success(value))
+        })
+
+        y.toListA.runAsync(new Callback[List[A]] {
+          def onError(ex: Throwable): Unit =
+            valueB = Some(Failure(ex))
+          def onSuccess(value: List[A]): Unit =
             valueB = Some(Success(value))
         })
 

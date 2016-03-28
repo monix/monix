@@ -7,7 +7,10 @@ import scala.concurrent.duration.{FiniteDuration, TimeUnit}
 /** An [[ExecutorScheduler]] is for building a
   * [[monix.execution.Scheduler Scheduler]] out of a `ScheduledExecutorService`.
   */
-final class ExecutorScheduler private (s: ScheduledExecutorService, r: UncaughtExceptionReporter)
+final class ExecutorScheduler private (
+  s: ScheduledExecutorService,
+  r: UncaughtExceptionReporter,
+  override val executionModel: ExecutionModel)
   extends ReferenceScheduler {
 
   def executor: ScheduledExecutorService = s
@@ -45,8 +48,17 @@ final class ExecutorScheduler private (s: ScheduledExecutorService, r: UncaughtE
 }
 
 object ExecutorScheduler {
-  /** Builder for [[ExecutorScheduler]]. */
-  def apply(schedulerService: ScheduledExecutorService,
-    reporter: UncaughtExceptionReporter): ExecutorScheduler =
-    new ExecutorScheduler(schedulerService, reporter)
+  /** Builder for [[AsyncScheduler]].
+    *
+    * @param schedulerService is the Java `ScheduledExecutorService` that will take
+    *        care of scheduling and execution of all runnables.
+    * @param reporter is the [[UncaughtExceptionReporter]] that logs uncaught exceptions.
+    * @param executionModel is the preferred [[ExecutionModel]], a guideline
+    *        for run-loops and producers of data.
+    */
+  def apply(
+    schedulerService: ScheduledExecutorService,
+    reporter: UncaughtExceptionReporter,
+    executionModel: ExecutionModel): ExecutorScheduler =
+    new ExecutorScheduler(schedulerService, reporter, executionModel)
 }

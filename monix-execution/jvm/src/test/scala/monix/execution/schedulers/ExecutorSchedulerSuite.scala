@@ -19,7 +19,9 @@ object ExecutorSchedulerSuite extends TestSuite[ExecutorScheduler] {
       }
     })
 
-    ExecutorScheduler(executor, UncaughtExceptionReporter.LogExceptionsToStandardErr)
+    ExecutorScheduler(executor,
+      UncaughtExceptionReporter.LogExceptionsToStandardErr,
+      ExecutionModel.Default)
   }
 
   override def tearDown(env: ExecutorScheduler): Unit = {

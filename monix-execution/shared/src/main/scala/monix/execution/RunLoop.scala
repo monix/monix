@@ -25,7 +25,7 @@ import scala.language.experimental.macros
 /** Provides macro utilities for building a run-loop by means of the [[Scheduler]].
   *
   * These are just a higher-level interface for the Scheduler's [[Scheduler.execute execute]]
-  * and [[Scheduler.batchedExecutionModulus batchedExecutionModulus]], which can be used
+  * and [[Scheduler.executionModel.batchedExecutionModulus batchedExecutionModulus]], which can be used
   * in combination to execute recursive tasks immediately using the normal call stack
   * and then to introduce asynchronous boundaries when the call stack gets too big.
   */
@@ -46,7 +46,7 @@ object RunLoop {
 
   /** Executes the given callback, effectively starting a run-loop.
     *
-    * Depending on [[Scheduler.batchedExecutionModulus]],
+    * Depending on [[Scheduler.executionModel.batchedExecutionModulus]],
     * execution will happen either synchronously (current thread and call-stack) or
     * scheduled for asynchronous execution (by [[Scheduler.execute]]).
     * To find out what will happen before calling `start`, you can
@@ -89,7 +89,7 @@ object RunLoop {
 
   /** Given the current `frameId`, executes the given callback.
     *
-    * Depending on [[Scheduler.batchedExecutionModulus]],
+    * Depending on [[Scheduler.executionModel.batchedExecutionModulus]],
     * execution will happen either synchronously (current thread and call-stack) or
     * scheduled for asynchronous execution (by [[Scheduler.execute]]).
     *
@@ -108,7 +108,7 @@ object RunLoop {
     * a [[monix.execution.cancelables.BooleanCancelable BooleanCancelable]]
     * as a parameter that can be used to cancel the loop.
     *
-    * Depending on [[Scheduler.batchedExecutionModulus]],
+    * Depending on [[Scheduler.executionModel.batchedExecutionModulus]],
     * execution will happen either synchronously (current thread and call-stack) or
     * scheduled for asynchronous execution (by [[Scheduler.execute]]).
     *
@@ -133,7 +133,7 @@ object RunLoop {
     import c.universe._
 
     def isAlwaysAsync(s: c.Expr[Scheduler]): c.Expr[Boolean] = {
-      reify(s.splice.batchedExecutionModulus == 0)
+      reify(s.splice.executionModel.batchedExecutionModulus == 0)
     }
 
     def start(runnable: c.Expr[FrameId => Unit])(s: c.Expr[Scheduler]): c.Expr[Unit] = {
@@ -144,7 +144,7 @@ object RunLoop {
         if (util.isClean(runnable))
           q"""
           val $ec = $s
-          val $nextFrameId = 1 & $ec.batchedExecutionModulus
+          val $nextFrameId = 1 & $ec.executionModel.batchedExecutionModulus
           if ($nextFrameId > 0)
             $runnable($nextFrameId)
           else
@@ -155,7 +155,7 @@ object RunLoop {
           q"""
           val $ec = $s
           val $fn = $runnable
-          val $nextFrameId = 1 & $ec.batchedExecutionModulus
+          val $nextFrameId = 1 & $ec.executionModel.batchedExecutionModulus
           if ($nextFrameId > 0)
             $fn($nextFrameId)
           else
@@ -186,7 +186,7 @@ object RunLoop {
         if (util.isClean(runnable)) {
           q"""
           val $ec = $s
-          val $nextFrameId = ($frameId + 1) & $ec.batchedExecutionModulus
+          val $nextFrameId = ($frameId + 1) & $ec.executionModel.batchedExecutionModulus
           if ($nextFrameId > 0)
             $runnable($nextFrameId)
           else
@@ -197,7 +197,7 @@ object RunLoop {
           q"""
           val $ec = $s
           val $fn = $runnable
-          val $nextFrameId = ($frameId + 1) & $ec.batchedExecutionModulus
+          val $nextFrameId = ($frameId + 1) & $ec.executionModel.batchedExecutionModulus
           if ($nextFrameId > 0)
             $fn($nextFrameId)
           else
@@ -219,7 +219,7 @@ object RunLoop {
         if (util.isClean(runnable)) {
           q"""
           val $ec = $s
-          val $nextFrameId = ($frameId + 1) & $ec.batchedExecutionModulus
+          val $nextFrameId = ($frameId + 1) & $ec.executionModel.batchedExecutionModulus
 
           if ($nextFrameId > 0) {
             $runnable($nextFrameId)
@@ -235,7 +235,7 @@ object RunLoop {
           val $ec = $s
           val $fn = $runnable
 
-          val $nextFrameId = ($frameId + 1) & $ec.batchedExecutionModulus
+          val $nextFrameId = ($frameId + 1) & $ec.executionModel.batchedExecutionModulus
           if ($nextFrameId > 0) {
             $fn($nextFrameId)
           } else {

@@ -18,7 +18,6 @@
 package monix.async
 
 import monix.async.Task.MemoizedTask
-import monix.async.internal.TaskCancelable
 import monix.execution.RunLoop.FrameId
 import monix.execution._
 import monix.execution.cancelables._
@@ -72,7 +71,7 @@ sealed abstract class Task[+A] { self =>
     *         cancel the running computation
     */
   private[monix] def unsafeRun(
-    isActive: TaskCancelable,
+    isActive: StackedCancelable,
     frameId: FrameId,
     callback: Callback[A])
     (implicit s: Scheduler): Unit
@@ -84,7 +83,7 @@ sealed abstract class Task[+A] { self =>
     *         be used to cancel a running task
     */
   def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable = {
-    val isActive = TaskCancelable()
+    val isActive = StackedCancelable()
     val safe = Callback.safe(cb)
     // Schedule stack frame to run, prevents stack-overflows.
     RunLoop.start(frameId => self.unsafeRun(isActive, frameId, safe)(s))(s)
@@ -124,9 +123,10 @@ sealed abstract class Task[+A] { self =>
     */
   def map[B](f: A => B): Task[B] =
     new Task[B] {
-      def unsafeRun(active: TaskCancelable, frameId: FrameId, cb: Callback[B])
+      def unsafeRun(active: StackedCancelable, frameId: FrameId, cb: Callback[B])
         (implicit s: Scheduler): Unit = {
 
+        println(s"map -> $frameId")
         RunLoop.stepInterruptibly(active, frameId)(frameId =>
           self.unsafeRun(active, frameId,
             new Callback[A] {
@@ -134,6 +134,7 @@ sealed abstract class Task[+A] { self =>
                 cb.onError(ex)
 
               def onSuccess(value: A): Unit = {
+                println(s"map onSuccess -> $frameId")
                 var streamError = true
                 try {
                   val b = f(value)
@@ -151,7 +152,7 @@ sealed abstract class Task[+A] { self =>
   /** Materializes the source's result into a `Try`. */
   def materialize: Task[Try[A]] =
     new Task[Try[A]] {
-      def unsafeRun(active: TaskCancelable, frameId: FrameId, callback: Callback[Try[A]])
+      def unsafeRun(active: StackedCancelable, frameId: FrameId, callback: Callback[Try[A]])
         (implicit s: Scheduler): Unit = {
 
         RunLoop.stepInterruptibly(active, frameId) { frameId =>
@@ -166,7 +167,7 @@ sealed abstract class Task[+A] { self =>
   /** Dematerializes the source's result from a `Try`. */
   def dematerialize[B](implicit ev: A <:< Try[B]): Task[B] =
     new Task[B] {
-      def unsafeRun(active: TaskCancelable, frameId: FrameId, callback: Callback[B])
+      def unsafeRun(active: StackedCancelable, frameId: FrameId, callback: Callback[B])
         (implicit s: Scheduler): Unit = {
 
         RunLoop.stepInterruptibly(active, frameId) { frameId =>
@@ -201,15 +202,17 @@ sealed abstract class Task[+A] { self =>
     */
   def flatMap[B](f: A => Task[B]): Task[B] =
     new Task[B] {
-      def unsafeRun(active: TaskCancelable, frameId: FrameId, cb: Callback[B])
+      def unsafeRun(active: StackedCancelable, frameId: FrameId, cb: Callback[B])
         (implicit s: Scheduler): Unit = {
 
+        println(s"flatMap -> $frameId")
         RunLoop.stepInterruptibly(active, frameId)(frameId =>
           self.unsafeRun(active, frameId, new Callback[A] {
             def onError(ex: Throwable): Unit =
               cb.onError(ex)
 
             def onSuccess(value: A): Unit = {
+              println(s"flatMap onSuccess -> $frameId")
               var streamError = true
               try {
                 val taskU = f(value)
@@ -231,7 +234,7 @@ sealed abstract class Task[+A] { self =>
     */
   def delayExecution(timespan: FiniteDuration): Task[A] =
     new Task[A] { delayed =>
-      def unsafeRun(active: TaskCancelable, frameId: FrameId, cb: Callback[A])
+      def unsafeRun(active: StackedCancelable, frameId: FrameId, cb: Callback[A])
         (implicit s: Scheduler): Unit = {
 
         val task = SingleAssignmentCancelable()
@@ -258,7 +261,7 @@ sealed abstract class Task[+A] { self =>
     */
   def delayExecutionWith(trigger: Task[Any]): Task[A] =
     new Task[A] { delayed =>
-      def unsafeRun(active: TaskCancelable, frameId: FrameId, cb: Callback[A])
+      def unsafeRun(active: StackedCancelable, frameId: FrameId, cb: Callback[A])
         (implicit s: Scheduler): Unit = delayed.synchronized {
 
         // Unfortunately we have to synchronize, otherwise we can have a race
@@ -289,7 +292,7 @@ sealed abstract class Task[+A] { self =>
     */
   def delayResult(timespan: FiniteDuration): Task[A] =
     new Task[A] {
-      def unsafeRun(active: TaskCancelable, frameId: FrameId, cb: Callback[A])
+      def unsafeRun(active: StackedCancelable, frameId: FrameId, cb: Callback[A])
         (implicit s: Scheduler): Unit = {
 
         RunLoop.stepInterruptibly(active, frameId)(frameId =>
@@ -324,7 +327,7 @@ sealed abstract class Task[+A] { self =>
     */
   def delayResultBySelector[B](selector: A => Task[B]): Task[A] =
     new Task[A] {
-      def unsafeRun(active: TaskCancelable, frameId: FrameId, cb: Callback[A])
+      def unsafeRun(active: StackedCancelable, frameId: FrameId, cb: Callback[A])
         (implicit s: Scheduler): Unit = {
 
         RunLoop.stepInterruptibly(active, frameId)(frameId =>
@@ -365,7 +368,7 @@ sealed abstract class Task[+A] { self =>
     */
   def failed: Task[Throwable] =
     new Task[Throwable] {
-      def unsafeRun(active: TaskCancelable, frameId: FrameId, cb: Callback[Throwable])
+      def unsafeRun(active: StackedCancelable, frameId: FrameId, cb: Callback[Throwable])
         (implicit s: Scheduler): Unit = {
 
         RunLoop.stepInterruptibly(active, frameId)(frameId =>
@@ -392,7 +395,7 @@ sealed abstract class Task[+A] { self =>
     */
   def onErrorHandle[U >: A](f: Throwable => U): Task[U] =
     new Task[U] {
-      def unsafeRun(active: TaskCancelable, frameId: FrameId, cb: Callback[U])
+      def unsafeRun(active: StackedCancelable, frameId: FrameId, cb: Callback[U])
         (implicit s: Scheduler): Unit = {
 
         RunLoop.stepInterruptibly(active, frameId)(frameId =>
@@ -431,7 +434,7 @@ sealed abstract class Task[+A] { self =>
     */
   def onErrorHandleWith[B >: A](f: Throwable => Task[B]): Task[B] =
     new Task[B] {
-      def unsafeRun(active: TaskCancelable, frameId: FrameId, cb: Callback[B])
+      def unsafeRun(active: StackedCancelable, frameId: FrameId, cb: Callback[B])
         (implicit s: Scheduler): Unit = {
 
         RunLoop.stepInterruptibly(active, frameId)(frameId =>
@@ -471,7 +474,7 @@ sealed abstract class Task[+A] { self =>
     */
   def onErrorFallbackTo[B >: A](that: Task[B]): Task[B] =
     new Task[B] {
-      def unsafeRun(active: TaskCancelable, frameId: FrameId, cb: Callback[B])
+      def unsafeRun(active: StackedCancelable, frameId: FrameId, cb: Callback[B])
         (implicit s: Scheduler): Unit = {
 
         RunLoop.stepInterruptibly(active, frameId)(frameId =>
@@ -505,7 +508,7 @@ sealed abstract class Task[+A] { self =>
     */
   def onErrorRetry(maxRetries: Long): Task[A] =
     new Task[A] {
-      def unsafeRun(active: TaskCancelable, frameId: FrameId, cb: Callback[A])
+      def unsafeRun(active: StackedCancelable, frameId: FrameId, cb: Callback[A])
         (implicit s: Scheduler): Unit = {
 
         def loop(frameId: FrameId, runIdx: Long, ex: Throwable): Unit = {
@@ -533,7 +536,7 @@ sealed abstract class Task[+A] { self =>
     */
   def onErrorRetryIf(p: Throwable => Boolean): Task[A] =
     new Task[A] {
-      def unsafeRun(active: TaskCancelable, frameId: FrameId, cb: Callback[A])
+      def unsafeRun(active: StackedCancelable, frameId: FrameId, cb: Callback[A])
         (implicit s: Scheduler): Unit = {
 
         def loop(frameId: FrameId, ex: Throwable): Unit =
@@ -569,7 +572,7 @@ sealed abstract class Task[+A] { self =>
     */
   def timeout(after: FiniteDuration): Task[A] =
     new Task[A] {
-      def unsafeRun(active: TaskCancelable, frameId: FrameId, cb: Callback[A])
+      def unsafeRun(active: StackedCancelable, frameId: FrameId, cb: Callback[A])
         (implicit s: Scheduler): Unit = {
 
         val activeGate = Atomic(true)
@@ -585,7 +588,7 @@ sealed abstract class Task[+A] { self =>
               }
           })
 
-        val mainTask = TaskCancelable()
+        val mainTask = StackedCancelable()
         active push CompositeCancelable(timeoutTask, mainTask, activeGateTask)
 
         RunLoop.stepInterruptibly(active, frameId) { frameId =>
@@ -615,10 +618,10 @@ sealed abstract class Task[+A] { self =>
     */
   def timeoutTo[B >: A](after: FiniteDuration, backup: Task[B]): Task[B] =
     new Task[B] {
-      def unsafeRun(active: TaskCancelable, frameId: FrameId, cb: Callback[B])
+      def unsafeRun(active: StackedCancelable, frameId: FrameId, cb: Callback[B])
         (implicit s: Scheduler): Unit = {
 
-        val mainTask = TaskCancelable()
+        val mainTask = StackedCancelable()
         val gate = Atomic(true)
         val gateTask = Cancelable(() => gate.set(false))
 
@@ -660,12 +663,12 @@ sealed abstract class Task[+A] { self =>
     */
   def ambWith[B >: A](other: Task[B]): Task[B] =
     new Task[B] {
-      def unsafeRun(active: TaskCancelable, frameId: FrameId, cb: Callback[B])
+      def unsafeRun(active: StackedCancelable, frameId: FrameId, cb: Callback[B])
         (implicit s: Scheduler): Unit = {
 
         val isActive = Atomic(true)
-        val firstTask = TaskCancelable()
-        val secondTask = TaskCancelable()
+        val firstTask = StackedCancelable()
+        val secondTask = StackedCancelable()
 
         active push CompositeCancelable(firstTask, secondTask, Cancelable(() => isActive.set(false)))
 
@@ -746,7 +749,7 @@ object Task {
     */
   def evalAlways[A](f: => A): Task[A] =
     new Task[A] {
-      def unsafeRun(c: TaskCancelable, fid: FrameId, cb: Callback[A])
+      def unsafeRun(c: StackedCancelable, fid: FrameId, cb: Callback[A])
         (implicit s: Scheduler): Unit = {
         // protecting against user code errors
         var streamErrors = true
@@ -784,7 +787,7 @@ object Task {
     */
   def fork[A](task: Task[A]): Task[A] =
     new Task[A] {
-      def unsafeRun(active: TaskCancelable, frameId: FrameId, cb: Callback[A])
+      def unsafeRun(active: StackedCancelable, frameId: FrameId, cb: Callback[A])
         (implicit s: Scheduler): Unit = {
 
         if (RunLoop.isAlwaysAsync)
@@ -797,15 +800,15 @@ object Task {
   /** Returns a task that on execution is always finishing in error
     * emitting the specified exception.
     */
-  def error(ex: Throwable): Task[Nothing] =
+  def error[A](ex: Throwable): Task[A] =
     new Error(ex)
 
   /** Builder for [[monix.async.Task Task]] instances. For usage on implementing
     * operators or builders. Internal to Monix.
     */
-  private[monix] def unsafeCreate[A](f: (Scheduler, TaskCancelable, FrameId, Callback[A]) => Unit): Task[A] =
+  private[monix] def unsafeCreate[A](f: (Scheduler, StackedCancelable, FrameId, Callback[A]) => Unit): Task[A] =
     new Task[A] {
-      def unsafeRun(active: TaskCancelable, frameId: FrameId, cb: Callback[A])
+      def unsafeRun(active: StackedCancelable, frameId: FrameId, cb: Callback[A])
         (implicit s: Scheduler): Unit = f(s, active, frameId, cb)
     }
 
@@ -821,7 +824,7 @@ object Task {
     */
   def create[A](register: (Callback[A], Scheduler) => Cancelable): Task[A] =
     new Task[A] {
-      def unsafeRun(active: TaskCancelable, frameId: FrameId, cb: Callback[A])
+      def unsafeRun(active: StackedCancelable, frameId: FrameId, cb: Callback[A])
         (implicit s: Scheduler): Unit = {
 
         try {
@@ -852,7 +855,7 @@ object Task {
     */
   def fromFuture[A](f: Future[A]): Task[A] =
     new Task[A] {
-      def unsafeRun(active: TaskCancelable, frameId: FrameId, cb: Callback[A])
+      def unsafeRun(active: StackedCancelable, frameId: FrameId, cb: Callback[A])
         (implicit s: Scheduler): Unit = {
 
         f.onComplete {
@@ -870,7 +873,7 @@ object Task {
     * be the result of the mapping function applied to their results.
     */
   def map2[A,B,R](taskA: Task[A], taskB: Task[B])(f: (A,B) => R): Task[R] = {
-    def sendSignal(active: TaskCancelable, cb: Callback[R], a: A, b: B): Unit = {
+    def sendSignal(active: StackedCancelable, cb: Callback[R], a: A, b: B): Unit = {
       var streamErrors = true
       try {
         val r = f(a,b)
@@ -885,12 +888,12 @@ object Task {
     }
 
     new Task[R] {
-      def unsafeRun(active: TaskCancelable, frameId: FrameId, cb: Callback[R])
+      def unsafeRun(active: StackedCancelable, frameId: FrameId, cb: Callback[R])
         (implicit scheduler: Scheduler): Unit = {
 
         val state = Atomic(null : Either[A,B])
-        val thisTask = TaskCancelable()
-        val thatTask = TaskCancelable()
+        val thisTask = StackedCancelable()
+        val thatTask = StackedCancelable()
 
         val gate = Atomic(true)
         val gateTask = Cancelable(() => gate.getAndSet(false))
@@ -943,7 +946,7 @@ object Task {
     */
   def firstCompletedOf[A](tasks: TraversableOnce[Task[A]]): Task[A] =
     new Task[A] {
-      def unsafeRun(active: TaskCancelable, frameId: FrameId, cb: Callback[A])
+      def unsafeRun(active: StackedCancelable, frameId: FrameId, cb: Callback[A])
         (implicit s: Scheduler): Unit = {
 
         val isActive = Atomic(true)
@@ -951,7 +954,7 @@ object Task {
         active push composite
 
         for (task <- tasks) {
-          val taskCancelable = TaskCancelable()
+          val taskCancelable = StackedCancelable()
           composite += taskCancelable
 
           RunLoop.stepInterruptibly(taskCancelable, frameId)(frameId =>
@@ -984,7 +987,7 @@ object Task {
     (implicit cbf: CanBuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] = {
 
     new Task[M[A]] {
-      def unsafeRun(cancelable: TaskCancelable, frameId: FrameId, cb: Callback[M[A]])
+      def unsafeRun(cancelable: StackedCancelable, frameId: FrameId, cb: Callback[M[A]])
         (implicit scheduler: Scheduler): Unit = {
 
         val cancelables = ArrayBuffer.empty[Cancelable]
@@ -1020,7 +1023,7 @@ object Task {
     * See [[Task.now]] instead.
     */
   private final class Now[+A](value: A) extends Task[A] {
-    def unsafeRun(c: TaskCancelable, fid: FrameId, cb: Callback[A])
+    def unsafeRun(c: StackedCancelable, fid: FrameId, cb: Callback[A])
       (implicit s: Scheduler): Unit =
       cb.onSuccess(value)
 
@@ -1034,7 +1037,7 @@ object Task {
     * See [[Task.error]] instead.
     */
   private final class Error(ex: Throwable) extends Task[Nothing] {
-    def unsafeRun(c: TaskCancelable, fid: FrameId, cb: Callback[Nothing])
+    def unsafeRun(c: StackedCancelable, fid: FrameId, cb: Callback[Nothing])
       (implicit s: Scheduler): Unit =
       cb.onError(ex)
 
@@ -1044,7 +1047,7 @@ object Task {
 
   /** A task that upon evaluation will never complete. */
   private object Never extends Task[Nothing] {
-    def unsafeRun(a: TaskCancelable, fid: FrameId, cb: Callback[Nothing])
+    def unsafeRun(a: StackedCancelable, fid: FrameId, cb: Callback[Nothing])
       (implicit s: Scheduler): Unit = ()
   }
 
@@ -1057,14 +1060,14 @@ object Task {
     override def runAsync(implicit s: Scheduler): CancelableFuture[A] =
       state.get match {
         case null => super.runAsync(s)
-        case (p: Promise[_], c: TaskCancelable) =>
+        case (p: Promise[_], c: StackedCancelable) =>
           val f = p.asInstanceOf[Promise[A]].future
           CancelableFuture(f, c)
         case result: Try[_] =>
           CancelableFuture.fromTry(result.asInstanceOf[Try[A]])
       }
 
-    def unsafeRun(active: TaskCancelable, frameId: FrameId, cb: Callback[A])
+    def unsafeRun(active: StackedCancelable, frameId: FrameId, cb: Callback[A])
       (implicit s: Scheduler): Unit = {
 
       state.get match {
@@ -1089,7 +1092,7 @@ object Task {
             unsafeRun(active, frameId, cb) // retry
           }
 
-        case (p: Promise[_], cancelable: TaskCancelable) =>
+        case (p: Promise[_], cancelable: StackedCancelable) =>
           // execution is pending completion
           active push cancelable
           p.asInstanceOf[Promise[A]].future.onComplete { r =>
