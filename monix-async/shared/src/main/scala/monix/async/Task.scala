@@ -27,9 +27,9 @@ import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Success, Try}
 import scala.util.control.NonFatal
 
-/** `Task` represents a specification for an asynchronous computation,
-  * which when executed will produce an `A` as a result, along with
-  * possible side-effects.
+/** `Task` represents a specification for a possibly non-strict or
+  * asynchronous computation, which when executed will produce
+  * an `A` as a result, along with possible side-effects.
   *
   * Compared with `Future` from Scala's standard library, `Task` does
   * not represent a running computation or a value detached from time,
@@ -88,6 +88,13 @@ sealed abstract class Task[+A] { self =>
     CancelableFuture(p.future, cancelable)
   }
 
+  /** Creates a new `Eval` by applying a function to the successful result
+    * of the source, and returns a new instance equivalent
+    * to the result of the function.
+    */
+  def flatMapEval[B](f: A => Eval[B]): Task[B] =
+    flatMap(f)
+
   /** Creates a new Task by applying a function to the successful result
     * of the source Task, and returns a task equivalent to the result
     * of the function.
@@ -98,8 +105,8 @@ sealed abstract class Task[+A] { self =>
         Suspend(() => try f(a) catch { case NonFatal(ex) => Error(ex) })
       case EvalOnce(result) =>
         Suspend(() => result match {
-          case Success(a) => try f(a) catch { case NonFatal(ex) => Error(ex) }
-          case Failure(ex) => Error(ex)
+          case Now(a) => try f(a) catch { case NonFatal(ex) => Error(ex) }
+          case error @ Error(_) => error
         })
       case EvalAlways(thunk) =>
         Suspend(() => try f(thunk()) catch {
@@ -124,6 +131,13 @@ sealed abstract class Task[+A] { self =>
     * Task by the source.
     */
   def flatten[B](implicit ev: A <:< Task[B]): Task[B] =
+    flatMap(a => a)
+
+  /** Given a source that emits an `Eval`, this function
+    * flattens the result, returning an equivalent to the emitted
+    * `Eval` by the source.
+    */
+  def flattenEval[B](implicit ev: A <:< Eval[B]): Task[B] =
     flatMap(a => a)
 
   /** Returns a task that waits for the specified `timespan` before
@@ -248,14 +262,14 @@ sealed abstract class Task[+A] { self =>
     *
     * See [[onErrorRecoverWith]] for the version that takes a partial function.
     */
-  def materialize: Task[Materialized[A]] = {
+  def materialize: Task[Attempt[A]] = {
     self match {
       case now @ Now(_) =>
         Now(now)
       case EvalOnce(result) =>
-        Suspend(() => Now(Materialized.fromTry(result)))
+        Suspend(() => Now(result))
       case EvalAlways(thunk) =>
-        Suspend(() => Now(Materialized(thunk())))
+        Suspend(() => Now(Attempt(thunk())))
       case Error(ex) =>
         Now(Error(ex))
       case Suspend(thunk) =>
@@ -263,7 +277,7 @@ sealed abstract class Task[+A] { self =>
       case task @ MemoizeSuspend(_) =>
         Suspend(() => task.materialize)
       case BindSuspend(thunk, g) =>
-        BindSuspend[Materialized[Any], Materialized[A]](
+        BindSuspend[Attempt[Any], Attempt[A]](
           () => try thunk().materialize catch { case NonFatal(ex) => Now(Error(ex)) },
           result => result match {
             case Now(any) =>
@@ -278,7 +292,7 @@ sealed abstract class Task[+A] { self =>
           def onError(ex: Throwable): Unit = cb.onSuccess(Error(ex))
         }))
       case BindAsync(onFinish, g) =>
-        BindAsync[Materialized[Any], Materialized[A]](
+        BindAsync[Attempt[Any], Attempt[A]](
           (s, conn, cb) => onFinish(s, conn, new Callback[Any] {
             def onSuccess(value: Any): Unit = cb.onSuccess(Now(value))
             def onError(ex: Throwable): Unit = cb.onSuccess(Error(ex))
@@ -294,8 +308,8 @@ sealed abstract class Task[+A] { self =>
   }
 
   /** Dematerializes the source's result from a `Try`. */
-  def dematerialize[B](implicit ev: A <:< Materialized[B]): Task[B] =
-    self.asInstanceOf[Task[Materialized[B]]].flatMap(identity)
+  def dematerialize[B](implicit ev: A <:< Attempt[B]): Task[B] =
+    self.asInstanceOf[Task[Attempt[B]]].flatMap(identity)
 
   /** Creates a new task that will try recovering from an error by
     * matching it with another task using the given partial function.
@@ -370,6 +384,239 @@ sealed abstract class Task[+A] { self =>
       case eval: EvalOnce[_] => self
       case memoized: MemoizeSuspend[_] => self
       case other => new MemoizeSuspend[A](() => other)
+    }
+}
+
+/** `Eval` is a type of [[Task]] that can execute synchronously,
+  * by means of its `value` property.
+  *
+  * There are three evaluation strategies:
+  *
+  *  - [[Task.Now Now]]: evaluated immediately
+  *  - [[Task.Error Error]]: evaluated immediately, representing an error
+  *  - [[Task.EvalOnce EvalOnce]]: evaluated a single time
+  *  - [[Task.EvalAlways EvalAlways]]: evaluated every time the value is needed
+  *
+  * The `EvalOnce` and `EvalAlways` are both lazy strategies while
+  * `Now` and `Error` are eager. `EvalOnce` and `EvalAlways` are
+  * distinguished from each other only by memoization: once evaluated
+  * `EvalOnce` will save the value to be returned immediately if it is
+  * needed again. `EvalAlways` will run its computation every time.
+  *
+  * Eval supports stack-safe lazy computation via the .map and .flatMap
+  * methods, which use an internal trampoline to avoid stack overflows.
+  * Computation done within .map and .flatMap is always done lazily,
+  * even when applied to a `Now` instance.
+  */
+sealed abstract class Eval[+A] extends Task[A] { self =>
+  /** Evaluates the underlying computation and returns the result.
+    *
+    * NOTE: this can throw exceptions.
+    */
+  def value: A = run match {
+    case Now(value) => value
+    case Error(ex) => throw ex
+  }
+
+  /** Evaluates the underlying computation and returns the
+    * result or any triggered errors as an [[Attempt]].
+    */
+  def run: Attempt[A] =
+    Task.trampoline(this, Nil)
+
+  override def map[B](f: (A) => B): Eval[B] =
+    flatMapEval(a => try Now(f(a)) catch { case NonFatal(ex) => Error(ex) })
+
+  override def flatMapEval[B](f: A => Eval[B]): Eval[B] =
+    self match {
+      case Now(a) =>
+        EvalSuspend(() => try f(a) catch { case NonFatal(ex) => Error(ex) })
+      case EvalOnce(result) =>
+        EvalSuspend(() => result match {
+          case Now(a) => try f(a) catch { case NonFatal(ex) => Error(ex) }
+          case error @ Error(_) => error
+        })
+      case EvalAlways(thunk) =>
+        EvalSuspend(() => try f(thunk()) catch {
+          case NonFatal(ex) => Error(ex)
+        })
+      case EvalSuspend(thunk) =>
+        EvalBindSuspend(thunk, f)
+      case EvalBindSuspend(thunk, g) =>
+        EvalSuspend(() => EvalBindSuspend(thunk, g andThen (_ flatMapEval f)))
+      case error @ Error(_) =>
+        error
+    }
+
+  override def flattenEval[B](implicit ev: <:<[A, Eval[B]]) =
+    flatMapEval(x => x)
+
+  override def materialize: Eval[Attempt[A]] =
+    self match {
+      case now @ Now(_) =>
+        Now(now)
+      case EvalOnce(result) =>
+        EvalSuspend(() => Now(result))
+      case EvalAlways(thunk) =>
+        EvalSuspend(() => Now(Attempt(thunk())))
+      case Error(ex) =>
+        Now(Error(ex))
+      case EvalSuspend(thunk) =>
+        EvalSuspend(() => thunk().materialize)
+      case EvalBindSuspend(thunk, g) =>
+        EvalBindSuspend[Attempt[Any], Attempt[A]](
+          () => try thunk().materialize catch { case NonFatal(ex) => Now(Error(ex)) },
+          result => result match {
+            case Now(any) =>
+              try { g.asInstanceOf[Any => Eval[A]](any).materialize }
+              catch { case NonFatal(ex) => Now(Error(ex)) }
+            case Error(ex) =>
+              Now(Error(ex))
+          })
+    }
+
+  override def dematerialize[B](implicit ev: <:<[A, Attempt[B]]): Eval[B] =
+    self.asInstanceOf[Eval[Attempt[B]]].flatMapEval(identity)
+
+  override def failed: Eval[Throwable] =
+    EvalSuspend(() => self.run.failed)
+
+  override def memoize: Eval[A] =
+    self match {
+      case ref @ Now(_) => ref
+      case error @ Error(_) => error
+      case EvalAlways(thunk) => new EvalOnce[A](thunk)
+      case eval: EvalOnce[_] => self
+      case EvalSuspend(thunk) => EvalSuspend(() => thunk().memoize)
+      case EvalBindSuspend(thunk, f) => EvalBindSuspend(() => thunk().memoize, f)
+    }
+}
+
+object Eval {
+  /** Returns an `Eval` that on execution is always successful, emitting
+    * the given strict value.
+    */
+  def now[A](a: A): Eval[A] = Now(a)
+
+  /** Returns an `Eval` that on execution is always finishing in error
+    * emitting the specified exception.
+    */
+  def error[A](ex: Throwable): Eval[A] =
+    Error(ex)
+
+  /** Promote a non-strict value representing a `Eval` to a `Eval` of the
+    * same type.
+    */
+  def defer[A](task: => Eval[A]): Eval[A] =
+    EvalSuspend(() => task)
+
+  /** Promote a non-strict value to a `Eval` that is memoized on the first
+    * evaluation, the result being then available on subsequent evaluations.
+    */
+  def evalOnce[A](f: => A): Eval[A] =
+    EvalOnce(f)
+
+  /** Promote a non-strict value to an `Eval`, catching exceptions in the
+    * process.
+    *
+    * Note that since `Eval` is not memoized, this will recompute the
+    * value each time the `Eval` is executed.
+    */
+  def evalAlways[A](f: => A): Eval[A] =
+    EvalAlways(f _)
+
+  /** A `Eval[Unit]` provided for convenience. */
+  val unit: Eval[Unit] = Now(())
+}
+
+/** The `Attempt` represents a strict, already evaluated result of a
+  * computation that either resulted in success, wrapped in a
+  * [[Task.Now Now]], or in an error, wrapped in a [[Task.Error Error]].
+  *
+  * It's the moral equivalent of `scala.util.Try`.
+  */
+sealed abstract class Attempt[+A] extends Eval[A] { self =>
+  /** Returns true if value is a successful one. */
+  def isNow: Boolean = this match { case Now(_) => true; case _ => false }
+
+  /** Returns true if result is an error. */
+  def isError: Boolean = this match { case Error(_) => true; case _ => false }
+
+  override def failed: Attempt[Throwable] =
+    self match {
+      case Now(_) => Error(new NoSuchElementException("failed"))
+      case Error(ex) => Now(ex)
+    }
+
+  /** Converts this attempt into a `scala.util.Try`. */
+  def asScala: Try[A] =
+    this match {
+      case Now(a) => Success(a)
+      case Error(ex) => Failure(ex)
+    }
+
+  override def materialize: Attempt[Attempt[A]] =
+    self match {
+      case now @ Now(_) =>
+        Now(now)
+      case Error(ex) =>
+        Now(Error(ex))
+    }
+
+  override def dematerialize[B](implicit ev: <:<[A, Attempt[B]]): Attempt[B] =
+    self match {
+      case Now(now) => now
+      case error @ Error(_) => error
+    }
+
+  override def memoize: Attempt[A] = this
+}
+
+object Attempt {
+  /** Type-alias for [[Task.Now]]. */
+  type Now[+A] = Task.Now[A]
+
+  /** Type-alias for [[Task.Now]]. */
+  object Now {
+    def apply[A](a: A): Now[A] =
+      Task.Now(a)
+
+    def unapply[A](ref: Now[A]): Option[A] =
+      Task.Now.unapply(ref)
+  }
+
+  /** Type-alias for [[Task.Error]]. */
+  type Error = Task.Error
+
+  /** Type-alias for [[Task.Error]]. */
+  object Error {
+    def apply(ex: Throwable): Error =
+      Task.Error(ex)
+
+    def unapply(ref: Error): Option[Throwable] =
+      Task.Error.unapply(ref)
+  }
+
+  /** Evaluates the non-strict argument. */
+  def apply[A](f: => A): Attempt[A] =
+    try Now(f) catch { case NonFatal(ex) => Error(ex) }
+
+  /** Returns a `Eval` that on execution is always successful, emitting
+    * the given strict value.
+    */
+  def now[A](a: A): Attempt[A] = Now(a)
+
+  /** Returns a task that on execution is always finishing in error
+    * emitting the specified exception.
+    */
+  def error[A](ex: Throwable): Attempt[A] =
+    Error(ex)
+
+  /** Builds a [[Attempt]] instanced from a `Try`. */
+  def fromTry[A](value: Try[A]): Attempt[A] =
+    value match {
+      case Success(a) => Now(a)
+      case Failure(ex) => Error(ex)
     }
 }
 
@@ -505,65 +752,17 @@ object Task {
   /** Type alias representing callbacks for [[async]] tasks. */
   type OnFinish[+A] = (Scheduler, StackedCancelable, Callback[A]) => Unit
 
-  /** A `Sync` task represents tasks that can be evaluated synchronously,
-    * without forking logical threads.
-    *
-    * Can only be of 4 types:
-    *
-    *   1. [[Now]], for successful values, the equivalent of `scala.util.Success`
-    *   2. [[Error]] for failures, the equivalent of `scala.util.Failure`
-    *   3. [[EvalOnce]] (the result of the [[evalOnce]] builder)
-    *   4. [[EvalAlways]] (the result of the [[evalAlways]] builder)
-    */
-  sealed abstract class Sync[+A] extends Task[A] {
-
-  }
-
-  /** A `Materialized` task represents a strict value, or the result of
-    * a computation that has already been evaluated.
-    *
-    * Can only be of 2 types:
-    *
-    *   1. [[Now]], for successful values, the equivalent of `scala.util.Success`
-    *   2. [[Error]] for failures, the equivalent of `scala.util.Failure`
-    */
-  sealed abstract class Materialized[+A] extends Sync[A] {
-    /** Returns true if value is a successful one. */
-    def isNow: Boolean = this match { case Now(_) => true; case _ => false }
-
-    /** Returns true if result is an error. */
-    def isError: Boolean = this match { case Error(_) => true; case _ => false }
-
-    /** Converts this attempt into a `scala.util.Try`. */
-    def asScala: Try[A] =
-      this match {
-        case Now(a) => Success(a)
-        case Error(ex) => Failure(ex)
-      }
-  }
-
-  object Materialized {
-    /** Evaluates the non-strict argument. */
-    def apply[A](f: => A): Materialized[A] =
-      try Now(f) catch { case NonFatal(ex) => Error(ex) }
-
-    /** Builds a [[Materialized]] instanced from a `Try`. */
-    def fromTry[A](value: Try[A]): Materialized[A] =
-      value match {
-        case Success(a) => Now(a)
-        case Failure(ex) => Error(ex)
-      }
-  }
-
   /** Constructs an eager [[Task]] instance whose result is already known.
     *
-    * `Now` is a [[Materialized]] task state that represents a strict
+    * `Now` is a [[Attempt]] task state that represents a strict
     * successful value.
     */
-  final case class Now[+A](a: A) extends Materialized[A] {
+  final case class Now[+A](override val value: A) extends Attempt[A] {
+    override def run: Attempt[A] = this
+
     // Overriding runAsync for efficiency reasons
     override def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable = {
-      try cb.onSuccess(a) catch { case NonFatal(ex) => s.reportFailure(ex) }
+      try cb.onSuccess(value) catch { case NonFatal(ex) => s.reportFailure(ex) }
       Cancelable.empty
     }
   }
@@ -571,10 +770,13 @@ object Task {
   /** Constructs an eager [[Task]] instance for a result that represents
     * an error.
     *
-    * `Error` is a [[Materialized]] task state that represents a
+    * `Error` is a [[Attempt]] task state that represents a
     * computation that terminated in error.
     */
-  final case class Error(ex: Throwable) extends Materialized[Nothing] {
+  final case class Error(ex: Throwable) extends Attempt[Nothing] {
+    override def value: Nothing = throw ex
+    override def run: Attempt[Nothing] = this
+
     // Overriding runAsync for efficiency reasons
     override def runAsync(cb: Callback[Nothing])(implicit s: Scheduler): Cancelable = {
       try cb.onError(ex) catch { case NonFatal(err) => s.reportFailure(err) }
@@ -589,27 +791,28 @@ object Task {
     * When caching is not required or desired,
     * prefer [[EvalAlways]] or [[Now]].
     */
-  final class EvalOnce[+A](f: () => A) extends Sync[A] {
+  final class EvalOnce[+A](f: () => A) extends Eval[A] {
     private[this] var thunk: () => A = f
-    lazy val value: Try[A] = {
-      val result = Try(thunk())
+
+    override lazy val run: Attempt[A] = {
+      val result = try Now(thunk()) catch { case NonFatal(ex) => Error(ex) }
       thunk = null
       result
     }
 
     // Overriding runAsync for efficiency reasons
     override def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable = {
-      try cb(value) catch { case NonFatal(ex) => s.reportFailure(ex) }
+      try cb(run) catch { case NonFatal(ex) => s.reportFailure(ex) }
       Cancelable.empty
     }
 
     override def equals(other: Any): Boolean = other match {
-      case that: EvalOnce[_] => value == that.value
+      case that: EvalOnce[_] => run == that.run
       case _ => false
     }
 
     override def hashCode(): Int =
-      value.hashCode()
+      run.hashCode()
   }
 
   object EvalOnce {
@@ -618,9 +821,9 @@ object Task {
       new EvalOnce[A](a _)
 
     /** Deconstructs an [[EvalOnce]] instance. */
-    def unapply[A](task: Task[A]): Option[Try[A]] =
+    def unapply[A](task: Task[A]): Option[Attempt[A]] =
       task match {
-        case ref: EvalOnce[_] => Some(ref.asInstanceOf[EvalOnce[A]].value)
+        case ref: EvalOnce[_] => Some(ref.asInstanceOf[EvalOnce[A]].run)
         case _ => None
       }
   }
@@ -630,7 +833,11 @@ object Task {
     * This type can be used for "lazy" values. In some sense it is
     * equivalent to using a Function0 value.
     */
-  final case class EvalAlways[+A](f: () => A) extends Sync[A] {
+  final case class EvalAlways[+A](f: () => A) extends Eval[A] {
+    override def value: A = f()
+    override def run: Attempt[A] =
+      try Now(f()) catch { case NonFatal(ex) => Error(ex) }
+
     // Overriding runAsync for efficiency reasons
     override def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable = {
       var streamErrors = true
@@ -654,14 +861,14 @@ object Task {
     */
   private final case class Async[+A](onFinish: OnFinish[A]) extends Task[A]
 
-  /** Defers the evaluation of a [[Task]].
-    *
-    * @see [[defer]]
-    */
-  final case class Suspend[+A](thunk: () => Task[A]) extends Task[A]
-
+  /** Internal state, the result of [[Task.defer]] */
+  private final case class Suspend[+A](thunk: () => Task[A]) extends Task[A]
   /** Internal [[Task]] state that is the result of applying `flatMap`. */
   private final case class BindSuspend[A,B](thunk: () => Task[A], f: A => Task[B]) extends Task[B]
+  /** Internal state, the result of [[Eval.defer]] */
+  private[async] final case class EvalSuspend[+A](thunk: () => Eval[A]) extends Eval[A]
+  /** Internal [[Eval]] state that is the result of applying `flatMap`. */
+  private[async] final case class EvalBindSuspend[A,B](thunk: () => Eval[A], f: A => Eval[B]) extends Eval[B]
 
   /** Internal [[Task]] state that is the result of applying `flatMap`
     * over an [[Async]] value.
@@ -679,16 +886,16 @@ object Task {
     def isStarted: Boolean =
       state.get != null
 
-    def value: Option[Materialized[A]] =
+    def value: Option[Attempt[A]] =
       state.get match {
         case null => None
         case (p: Promise[_], _) =>
           p.asInstanceOf[Promise[A]].future.value match {
             case None => None
-            case Some(value) => Some(Materialized.fromTry(value))
+            case Some(value) => Some(Attempt.fromTry(value))
           }
         case result: Try[_] =>
-          Some(Materialized.fromTry(result.asInstanceOf[Try[A]]))
+          Some(Attempt.fromTry(result.asInstanceOf[Try[A]]))
       }
 
     override def runAsync(implicit s: Scheduler): CancelableFuture[A] =
@@ -714,7 +921,7 @@ object Task {
       thunk = null
     }
 
-    def runnable(scheduler: Scheduler, active: StackedCancelable, cb: Callback[A], binds: List[Bind]): Runnable =
+    def runnable(scheduler: Scheduler, active: StackedCancelable, cb: Callback[A], binds: List[BindTask]): Runnable =
       new Runnable {
         @tailrec def run(): Unit = {
           implicit val s = scheduler
@@ -763,12 +970,14 @@ object Task {
 
   object MemoizeSuspend {
     /** Extracts the memoized value, if available. */
-    def unapply[A](source: Task.MemoizeSuspend[A]): Option[Option[Materialized[A]]] =
+    def unapply[A](source: Task.MemoizeSuspend[A]): Option[Option[Attempt[A]]] =
       Some(source.value)
   }
 
-  private type Current = Task[Any]
-  private type Bind = Any => Task[Any]
+  private type CurrentTask = Task[Any]
+  private type CurrentEval = Eval[Any]
+  private type BindTask = Any => Task[Any]
+  private type BindEval = Any => Eval[Any]
 
   /** Internal utility, starts the run-loop. */
   private def startAsync[A](scheduler: Scheduler, conn: StackedCancelable, source: Task[A], cb: Callback[A]): Unit =
@@ -781,14 +990,14 @@ object Task {
     */
   private def resume[A](
     scheduler: Scheduler, conn: StackedCancelable,
-    source: Task[A], cb: Callback[A], binds: List[Bind]): Unit = {
+    source: Task[A], cb: Callback[A], binds: List[BindTask]): Unit = {
 
     @tailrec  def reduceTask(
       scheduler: Scheduler,
       conn: StackedCancelable,
-      source: Current,
+      source: CurrentTask,
       cb: Callback[Any],
-      binds: List[Bind]): Runnable = {
+      binds: List[BindTask]): Runnable = {
 
       source match {
         case Now(a) =>
@@ -803,7 +1012,7 @@ object Task {
 
         case EvalOnce(result) =>
           result match {
-            case Success(a) =>
+            case Now(a) =>
               binds match {
                 case Nil =>
                   cb.onSuccess(a)
@@ -812,8 +1021,8 @@ object Task {
                   val fa = try f(a) catch { case NonFatal(ex) => Error(ex) }
                   reduceTask(scheduler, conn, fa, cb, rest)
               }
-            case Failure(ex) =>
-              Error(ex)
+            case error @ Error(ex) =>
+              cb.onError(ex)
               null // we are done
           }
 
@@ -829,6 +1038,10 @@ object Task {
           val fa = try thunk() catch { case NonFatal(ex) => Error(ex) }
           reduceTask(scheduler, conn, fa, cb, binds)
 
+        case EvalSuspend(thunk) =>
+          val fa = try thunk() catch { case NonFatal(ex) => Error(ex) }
+          reduceTask(scheduler, conn, fa, cb, binds)
+
         case MemoizeSuspend(value) =>
           value match {
             case Some(materialized) => reduceTask(scheduler, conn, materialized, cb, binds)
@@ -837,10 +1050,14 @@ object Task {
 
         case BindSuspend(thunk, f) =>
           val fa = try thunk() catch { case NonFatal(ex) => Error(ex) }
-          reduceTask(scheduler, conn, fa, cb, f.asInstanceOf[Bind] :: binds)
+          reduceTask(scheduler, conn, fa, cb, f.asInstanceOf[BindTask] :: binds)
+
+        case EvalBindSuspend(thunk, f) =>
+          val fa = try thunk() catch { case NonFatal(ex) => Error(ex) }
+          reduceTask(scheduler, conn, fa, cb, f.asInstanceOf[BindTask] :: binds)
 
         case BindAsync(onFinish, f) =>
-          new AsyncRunnable(scheduler, conn, cb, f.asInstanceOf[Bind] :: binds, onFinish)
+          new AsyncRunnable(scheduler, conn, cb, f.asInstanceOf[BindTask] :: binds, onFinish)
 
         case Async(onFinish) =>
           new AsyncRunnable(scheduler, conn, cb, binds, onFinish)
@@ -855,7 +1072,7 @@ object Task {
     scheduler: Scheduler,
     conn: StackedCancelable,
     cb: Callback[Any],
-    fs: List[Bind],
+    fs: List[BindTask],
     onFinish: OnFinish[Any])
     extends Runnable {
 
@@ -869,4 +1086,48 @@ object Task {
             cb.onError(ex)
         })
       }
-  }}
+  }
+
+  /** Trampoline for lazy evaluation. */
+  private[async] def trampoline[A](source: Eval[A], binds: List[BindEval]): Attempt[A] = {
+    @tailrec  def reduceTask(source: Eval[Any], binds: List[BindEval]): Attempt[Any] = {
+      source match {
+        case error @ Error(_) => error
+        case now @ Now(a) =>
+          binds match {
+            case Nil => now
+            case f :: rest =>
+              val fa = try f(a) catch { case NonFatal(ex) => Error(ex) }
+              reduceTask(fa, rest)
+          }
+
+        case EvalOnce(result) =>
+          result match {
+            case Now(a) =>
+              binds match {
+                case Nil => Now(a)
+                case f :: rest =>
+                  val fa = try f(a) catch { case NonFatal(ex) => Error(ex) }
+                  reduceTask(fa, rest)
+              }
+            case error @ Error(_) =>
+              error
+          }
+
+        case EvalAlways(thunk) =>
+          val fa = try Now(thunk()) catch { case NonFatal(ex) => Error(ex) }
+          reduceTask(fa, binds)
+
+        case EvalSuspend(thunk) =>
+          val fa = try thunk() catch { case NonFatal(ex) => Error(ex) }
+          reduceTask(fa, binds)
+
+        case EvalBindSuspend(thunk, f) =>
+          val fa = try thunk() catch { case NonFatal(ex) => Error(ex) }
+          reduceTask(fa, f.asInstanceOf[BindEval] :: binds)
+      }
+    }
+
+    reduceTask(source, Nil).asInstanceOf[Attempt[A]]
+  }
+}
