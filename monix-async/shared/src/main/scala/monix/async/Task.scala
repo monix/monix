@@ -88,11 +88,11 @@ sealed abstract class Task[+A] { self =>
     CancelableFuture(p.future, cancelable)
   }
 
-  /** Creates a new `Eval` by applying a function to the successful result
+  /** Creates a new `Lazy` by applying a function to the successful result
     * of the source, and returns a new instance equivalent
     * to the result of the function.
     */
-  def flatMapEval[B](f: A => Eval[B]): Task[B] =
+  def flatMapEval[B](f: A => Lazy[B]): Task[B] =
     flatMap(f)
 
   /** Creates a new Task by applying a function to the successful result
@@ -133,11 +133,11 @@ sealed abstract class Task[+A] { self =>
   def flatten[B](implicit ev: A <:< Task[B]): Task[B] =
     flatMap(a => a)
 
-  /** Given a source that emits an `Eval`, this function
+  /** Given a source that emits an `Lazy`, this function
     * flattens the result, returning an equivalent to the emitted
-    * `Eval` by the source.
+    * `Lazy` by the source.
     */
-  def flattenEval[B](implicit ev: A <:< Eval[B]): Task[B] =
+  def flattenEval[B](implicit ev: A <:< Lazy[B]): Task[B] =
     flatMap(a => a)
 
   /** Returns a task that waits for the specified `timespan` before
@@ -387,7 +387,7 @@ sealed abstract class Task[+A] { self =>
     }
 }
 
-/** `Eval` is a type of [[Task]] that can execute synchronously,
+/** `Lazy` is a type of [[Task]] that can execute synchronously,
   * by means of its `value` property.
   *
   * There are three evaluation strategies:
@@ -403,12 +403,12 @@ sealed abstract class Task[+A] { self =>
   * `EvalOnce` will save the value to be returned immediately if it is
   * needed again. `EvalAlways` will run its computation every time.
   *
-  * Eval supports stack-safe lazy computation via the .map and .flatMap
+  * `Lazy` supports stack-safe lazy computation via the .map and .flatMap
   * methods, which use an internal trampoline to avoid stack overflows.
   * Computation done within .map and .flatMap is always done lazily,
   * even when applied to a `Now` instance.
   */
-sealed abstract class Eval[+A] extends Task[A] { self =>
+sealed abstract class Lazy[+A] extends Task[A] { self =>
   /** Evaluates the underlying computation and returns the result.
     *
     * NOTE: this can throw exceptions.
@@ -424,10 +424,10 @@ sealed abstract class Eval[+A] extends Task[A] { self =>
   def run: Attempt[A] =
     Task.trampoline(this, Nil)
 
-  override def map[B](f: (A) => B): Eval[B] =
+  override def map[B](f: (A) => B): Lazy[B] =
     flatMapEval(a => try Now(f(a)) catch { case NonFatal(ex) => Error(ex) })
 
-  override def flatMapEval[B](f: A => Eval[B]): Eval[B] =
+  override def flatMapEval[B](f: A => Lazy[B]): Lazy[B] =
     self match {
       case Now(a) =>
         EvalSuspend(() => try f(a) catch { case NonFatal(ex) => Error(ex) })
@@ -448,10 +448,10 @@ sealed abstract class Eval[+A] extends Task[A] { self =>
         error
     }
 
-  override def flattenEval[B](implicit ev: <:<[A, Eval[B]]) =
+  override def flattenEval[B](implicit ev: <:<[A, Lazy[B]]) =
     flatMapEval(x => x)
 
-  override def materialize: Eval[Attempt[A]] =
+  override def materialize: Lazy[Attempt[A]] =
     self match {
       case now @ Now(_) =>
         Now(now)
@@ -468,20 +468,20 @@ sealed abstract class Eval[+A] extends Task[A] { self =>
           () => try thunk().materialize catch { case NonFatal(ex) => Now(Error(ex)) },
           result => result match {
             case Now(any) =>
-              try { g.asInstanceOf[Any => Eval[A]](any).materialize }
+              try { g.asInstanceOf[Any => Lazy[A]](any).materialize }
               catch { case NonFatal(ex) => Now(Error(ex)) }
             case Error(ex) =>
               Now(Error(ex))
           })
     }
 
-  override def dematerialize[B](implicit ev: <:<[A, Attempt[B]]): Eval[B] =
-    self.asInstanceOf[Eval[Attempt[B]]].flatMapEval(identity)
+  override def dematerialize[B](implicit ev: <:<[A, Attempt[B]]): Lazy[B] =
+    self.asInstanceOf[Lazy[Attempt[B]]].flatMapEval(identity)
 
-  override def failed: Eval[Throwable] =
+  override def failed: Lazy[Throwable] =
     EvalSuspend(() => self.run.failed)
 
-  override def memoize: Eval[A] =
+  override def memoize: Lazy[A] =
     self match {
       case ref @ Now(_) => ref
       case error @ Error(_) => error
@@ -492,41 +492,41 @@ sealed abstract class Eval[+A] extends Task[A] { self =>
     }
 }
 
-object Eval {
-  /** Returns an `Eval` that on execution is always successful, emitting
+object Lazy {
+  /** Returns an `Lazy` that on execution is always successful, emitting
     * the given strict value.
     */
-  def now[A](a: A): Eval[A] = Now(a)
+  def now[A](a: A): Lazy[A] = Now(a)
 
-  /** Returns an `Eval` that on execution is always finishing in error
+  /** Returns an `Lazy` that on execution is always finishing in error
     * emitting the specified exception.
     */
-  def error[A](ex: Throwable): Eval[A] =
+  def error[A](ex: Throwable): Lazy[A] =
     Error(ex)
 
-  /** Promote a non-strict value representing a `Eval` to a `Eval` of the
+  /** Promote a non-strict value representing a `Lazy` to a `Lazy` of the
     * same type.
     */
-  def defer[A](task: => Eval[A]): Eval[A] =
+  def defer[A](task: => Lazy[A]): Lazy[A] =
     EvalSuspend(() => task)
 
-  /** Promote a non-strict value to a `Eval` that is memoized on the first
+  /** Promote a non-strict value to a `Lazy` that is memoized on the first
     * evaluation, the result being then available on subsequent evaluations.
     */
-  def evalOnce[A](f: => A): Eval[A] =
+  def evalOnce[A](f: => A): Lazy[A] =
     EvalOnce(f)
 
-  /** Promote a non-strict value to an `Eval`, catching exceptions in the
+  /** Promote a non-strict value to an `Lazy`, catching exceptions in the
     * process.
     *
-    * Note that since `Eval` is not memoized, this will recompute the
-    * value each time the `Eval` is executed.
+    * Note that since `Lazy` is not memoized, this will recompute the
+    * value each time the `Lazy` is executed.
     */
-  def evalAlways[A](f: => A): Eval[A] =
+  def evalAlways[A](f: => A): Lazy[A] =
     EvalAlways(f _)
 
-  /** A `Eval[Unit]` provided for convenience. */
-  val unit: Eval[Unit] = Now(())
+  /** A `Lazy[Unit]` provided for convenience. */
+  val unit: Lazy[Unit] = Now(())
 }
 
 /** The `Attempt` represents a strict, already evaluated result of a
@@ -535,12 +535,12 @@ object Eval {
   *
   * It's the moral equivalent of `scala.util.Try`.
   */
-sealed abstract class Attempt[+A] extends Eval[A] { self =>
+sealed abstract class Attempt[+A] extends Lazy[A] { self =>
   /** Returns true if value is a successful one. */
-  def isNow: Boolean = this match { case Now(_) => true; case _ => false }
+  def isSuccess: Boolean = this match { case Now(_) => true; case _ => false }
 
   /** Returns true if result is an error. */
-  def isError: Boolean = this match { case Error(_) => true; case _ => false }
+  def isFailure: Boolean = this match { case Error(_) => true; case _ => false }
 
   override def failed: Attempt[Throwable] =
     self match {
@@ -601,7 +601,7 @@ object Attempt {
   def apply[A](f: => A): Attempt[A] =
     try Now(f) catch { case NonFatal(ex) => Error(ex) }
 
-  /** Returns a `Eval` that on execution is always successful, emitting
+  /** Returns a `Lazy` that on execution is always successful, emitting
     * the given strict value.
     */
   def now[A](a: A): Attempt[A] = Now(a)
@@ -791,7 +791,7 @@ object Task {
     * When caching is not required or desired,
     * prefer [[EvalAlways]] or [[Now]].
     */
-  final class EvalOnce[+A](f: () => A) extends Eval[A] {
+  final class EvalOnce[+A](f: () => A) extends Lazy[A] {
     private[this] var thunk: () => A = f
 
     override lazy val run: Attempt[A] = {
@@ -833,7 +833,7 @@ object Task {
     * This type can be used for "lazy" values. In some sense it is
     * equivalent to using a Function0 value.
     */
-  final case class EvalAlways[+A](f: () => A) extends Eval[A] {
+  final case class EvalAlways[+A](f: () => A) extends Lazy[A] {
     override def value: A = f()
     override def run: Attempt[A] =
       try Now(f()) catch { case NonFatal(ex) => Error(ex) }
@@ -865,10 +865,10 @@ object Task {
   private final case class Suspend[+A](thunk: () => Task[A]) extends Task[A]
   /** Internal [[Task]] state that is the result of applying `flatMap`. */
   private final case class BindSuspend[A,B](thunk: () => Task[A], f: A => Task[B]) extends Task[B]
-  /** Internal state, the result of [[Eval.defer]] */
-  private[async] final case class EvalSuspend[+A](thunk: () => Eval[A]) extends Eval[A]
-  /** Internal [[Eval]] state that is the result of applying `flatMap`. */
-  private[async] final case class EvalBindSuspend[A,B](thunk: () => Eval[A], f: A => Eval[B]) extends Eval[B]
+  /** Internal state, the result of [[Lazy.defer]] */
+  private[async] final case class EvalSuspend[+A](thunk: () => Lazy[A]) extends Lazy[A]
+  /** Internal [[Lazy]] state that is the result of applying `flatMap`. */
+  private[async] final case class EvalBindSuspend[A,B](thunk: () => Lazy[A], f: A => Lazy[B]) extends Lazy[B]
 
   /** Internal [[Task]] state that is the result of applying `flatMap`
     * over an [[Async]] value.
@@ -975,9 +975,9 @@ object Task {
   }
 
   private type CurrentTask = Task[Any]
-  private type CurrentEval = Eval[Any]
+  private type CurrentEval = Lazy[Any]
   private type BindTask = Any => Task[Any]
-  private type BindEval = Any => Eval[Any]
+  private type BindEval = Any => Lazy[Any]
 
   /** Internal utility, starts the run-loop. */
   private def startAsync[A](scheduler: Scheduler, conn: StackedCancelable, source: Task[A], cb: Callback[A]): Unit =
@@ -1089,8 +1089,8 @@ object Task {
   }
 
   /** Trampoline for lazy evaluation. */
-  private[async] def trampoline[A](source: Eval[A], binds: List[BindEval]): Attempt[A] = {
-    @tailrec  def reduceTask(source: Eval[Any], binds: List[BindEval]): Attempt[Any] = {
+  private[async] def trampoline[A](source: Lazy[A], binds: List[BindEval]): Attempt[A] = {
+    @tailrec  def reduceTask(source: Lazy[Any], binds: List[BindEval]): Attempt[Any] = {
       source match {
         case error @ Error(_) => error
         case now @ Now(a) =>
