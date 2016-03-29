@@ -93,13 +93,13 @@ sealed abstract class Task[+A] { self =>
     * to the result of the function.
     */
   def flatMapEval[B](f: A => Lazy[B]): Task[B] =
-    flatMap(f)
+    flatMapAsync(f)
 
   /** Creates a new Task by applying a function to the successful result
     * of the source Task, and returns a task equivalent to the result
     * of the function.
     */
-  def flatMap[B](f: A => Task[B]): Task[B] =
+  def flatMapAsync[B](f: A => Task[B]): Task[B] =
     self match {
       case Now(a) =>
         Suspend(() => try f(a) catch { case NonFatal(ex) => Error(ex) })
@@ -117,11 +117,11 @@ sealed abstract class Task[+A] { self =>
       case task @ MemoizeSuspend(_) =>
         BindSuspend(() => task, f)
       case BindSuspend(thunk, g) =>
-        Suspend(() => BindSuspend(thunk, g andThen (_ flatMap f)))
+        Suspend(() => BindSuspend(thunk, g andThen (_ flatMapAsync f)))
       case Async(onFinish) =>
         BindAsync(onFinish, f)
       case BindAsync(listen, g) =>
-        Suspend(() => BindAsync(listen, g andThen (_ flatMap f)))
+        Suspend(() => BindAsync(listen, g andThen (_ flatMapAsync f)))
       case error @ Error(_) =>
         error
     }
@@ -130,15 +130,15 @@ sealed abstract class Task[+A] { self =>
     * flattens the result, returning a Task equivalent to the emitted
     * Task by the source.
     */
-  def flatten[B](implicit ev: A <:< Task[B]): Task[B] =
-    flatMap(a => a)
+  def flattenAsync[B](implicit ev: A <:< Task[B]): Task[B] =
+    flatMapAsync(a => a)
 
   /** Given a source that emits an `Lazy`, this function
     * flattens the result, returning an equivalent to the emitted
     * `Lazy` by the source.
     */
   def flattenEval[B](implicit ev: A <:< Lazy[B]): Task[B] =
-    flatMap(a => a)
+    flatMapAsync(a => a)
 
   /** Returns a task that waits for the specified `timespan` before
     * executing and mirroring the result of the source.
@@ -246,7 +246,7 @@ sealed abstract class Task[+A] { self =>
     * source succeeds, then it fails with a `NoSuchElementException`.
     */
   def failed: Task[Throwable] =
-    materialize.flatMap {
+    materialize.flatMapAsync {
       case Error(ex) => Now(ex)
       case Now(_) => Error(new NoSuchElementException("failed"))
     }
@@ -255,7 +255,7 @@ sealed abstract class Task[+A] { self =>
     * the element emitted by the source.
     */
   def map[B](f: A => B): Task[B] =
-    flatMap(a => try Now(f(a)) catch { case NonFatal(ex) => Error(ex) })
+    flatMapAsync(a => try Now(f(a)) catch { case NonFatal(ex) => Error(ex) })
 
   /** Creates a new task that will handle any matching throwable that
     * this task might emit by executing another task.
@@ -309,7 +309,7 @@ sealed abstract class Task[+A] { self =>
 
   /** Dematerializes the source's result from a `Try`. */
   def dematerialize[B](implicit ev: A <:< Attempt[B]): Task[B] =
-    self.asInstanceOf[Task[Attempt[B]]].flatMap(identity)
+    self.asInstanceOf[Task[Attempt[B]]].flatMapAsync(identity)
 
   /** Creates a new task that will try recovering from an error by
     * matching it with another task using the given partial function.
@@ -325,7 +325,7 @@ sealed abstract class Task[+A] { self =>
     * See [[onErrorRecoverWith]] for the version that takes a partial function.
     */
   def onErrorHandleWith[B >: A](f: Throwable => Task[B]): Task[B] =
-    self.materialize.flatMap {
+    self.materialize.flatMapAsync {
       case now @ Now(_) => now
       case Error(ex) => try f(ex) catch { case NonFatal(err) => Error(err) }
     }

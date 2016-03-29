@@ -110,13 +110,13 @@ object TaskApplySuite extends BaseTestSuite {
 
   test("Task.apply.flatMap should protect against user code") { implicit s =>
     val ex = DummyException("dummy")
-    val t = Task(1).flatMap[Int](_ => throw ex)
+    val t = Task(1).flatMapAsync[Int](_ => throw ex)
     check(t === Task.error(ex))
   }
 
   test("Task.apply should be tail recursive") { implicit s =>
     def loop(n: Int, idx: Int): Task[Int] =
-      Task.apply(idx).flatMap { a =>
+      Task.apply(idx).flatMapAsync { a =>
         if (idx < n) loop(n, idx + 1).map(_ + 1) else
           Task.apply(idx)
       }
@@ -130,7 +130,7 @@ object TaskApplySuite extends BaseTestSuite {
   test("Task.apply.memoize should work asynchronously for first subscriber") { implicit s =>
     var effect = 0
     val task = Task { effect += 1; effect }.memoize
-      .flatMap(Task.now).flatMap(Task.now)
+      .flatMapAsync(Task.now).flatMapAsync(Task.now)
 
     val f = task.runAsync
     assertEquals(f.value, None)
@@ -141,7 +141,7 @@ object TaskApplySuite extends BaseTestSuite {
   test("Task.apply.memoize should work synchronously for next subscribers") { implicit s =>
     var effect = 0
     val task = Task { effect += 1; effect }.memoize
-      .flatMap(Task.now).flatMap(Task.now)
+      .flatMapAsync(Task.now).flatMapAsync(Task.now)
 
     task.runAsync
     s.tick()
@@ -156,7 +156,7 @@ object TaskApplySuite extends BaseTestSuite {
     var effect = 0
     val dummy = DummyException("dummy")
     val task = Task.apply[Int] { effect += 1; throw dummy }.memoize
-      .flatMap(Task.now).flatMap(Task.now)
+      .flatMapAsync(Task.now).flatMapAsync(Task.now)
 
     val f1 = task.runAsync; s.tick()
     assertEquals(f1.value, Some(Failure(dummy)))
@@ -183,7 +183,7 @@ object TaskApplySuite extends BaseTestSuite {
   test("Task.apply.flatten is equivalent with flatMap") { implicit s =>
     check1 { a: Int =>
       val t = Task(Task.evalAlways(a))
-      t.flatMap(identity) === t.flatten
+      t.flatMapAsync(identity) === t.flattenAsync
     }
   }
 }

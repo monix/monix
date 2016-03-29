@@ -60,7 +60,7 @@ object TaskNowSuite extends BaseTestSuite {
   test("Task.error.flatMap should be the same as Task.flatMap") { implicit s =>
     check {
       val dummy = DummyException("dummy")
-      Task.error[Int](dummy).flatMap(Task.now) === Task.error(dummy)
+      Task.error[Int](dummy).flatMapAsync(Task.now) === Task.error(dummy)
     }
   }
 
@@ -68,19 +68,19 @@ object TaskNowSuite extends BaseTestSuite {
     check {
       val dummy = DummyException("dummy")
       val err = DummyException("err")
-      Task.error[Int](dummy).flatMap[Int](_ => throw err) === Task.error(dummy)
+      Task.error[Int](dummy).flatMapAsync[Int](_ => throw err) === Task.error(dummy)
     }
   }
 
   test("Task.now.flatMap should protect against user code") { implicit s =>
     val ex = DummyException("dummy")
-    val t = Task.now(1).flatMap[Int](_ => throw ex)
+    val t = Task.now(1).flatMapAsync[Int](_ => throw ex)
     check(t === Task.error(ex))
   }
 
   test("Task.now should be tail recursive") { implicit s =>
     def loop(n: Int, idx: Int): Task[Int] =
-      Task.now(idx).flatMap { a =>
+      Task.now(idx).flatMapAsync { a =>
         if (idx < n) loop(n, idx + 1).map(_ + 1) else
           Task.now(idx)
       }

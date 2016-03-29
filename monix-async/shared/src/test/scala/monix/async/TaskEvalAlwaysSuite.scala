@@ -80,19 +80,19 @@ object TaskEvalAlwaysSuite extends BaseTestSuite {
 
   test("Task.evalAlways.flatMap should be equivalent with Task.evalAlways") { implicit s =>
     val ex = DummyException("dummy")
-    val t = Task.evalAlways[Int](if (1 == 1) throw ex else 1).flatMap(Task.now)
+    val t = Task.evalAlways[Int](if (1 == 1) throw ex else 1).flatMapAsync(Task.now)
     check(t === Task.error(ex))
   }
 
   test("Task.evalAlways.flatMap should protect against user code") { implicit s =>
     val ex = DummyException("dummy")
-    val t = Task.evalAlways(1).flatMap[Int](_ => throw ex)
+    val t = Task.evalAlways(1).flatMapAsync[Int](_ => throw ex)
     check(t === Task.error(ex))
   }
 
   test("Task.evalAlways should be tail recursive") { implicit s =>
     def loop(n: Int, idx: Int): Task[Int] =
-      Task.evalAlways(idx).flatMap { a =>
+      Task.evalAlways(idx).flatMapAsync { a =>
         if (idx < n) loop(n, idx + 1).map(_ + 1) else
           Task.evalAlways(idx)
       }

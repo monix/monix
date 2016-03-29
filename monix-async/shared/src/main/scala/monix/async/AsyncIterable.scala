@@ -51,7 +51,6 @@ sealed trait AsyncIterable[+A] {
     * over the elements of the source.
     */
   final def map[B](f: A => B): AsyncIterable[B] = {
-    println("---------> iterable map")
     this match {
       case Next(head, tail: Task[AsyncIterable[A]]) =>
         try { Next(f(head), tail.map(_.map(f))) }
@@ -70,7 +69,6 @@ sealed trait AsyncIterable[+A] {
     * and concatenates the results.
     */
   final def flatMap[B](f: A => AsyncIterable[B]): AsyncIterable[B] = {
-    println("---------> iterable flatMap")
     this match {
       case Next(head, tail) =>
         try { f(head) concatTask tail.map(_.flatMap(f)) }
@@ -108,20 +106,19 @@ sealed trait AsyncIterable[+A] {
   /** Appends the given iterable to the end of the source,
     * effectively concatenating them.
     */
-//  final def ++[B >: A](rhs: AsyncIterable[B]): AsyncIterable[B] =
-//    this match {
-//      case Wait(task) =>
-//        Wait(task.map(_ ++ rhs))
-//      case Next(a, lt) =>
-//        Next(a, lt.map(_ ++ rhs))
-//      case NextSeq(head, lt) =>
-//        NextSeq(head, lt.map(_ ++ rhs))
-//      case Empty => rhs
-//      case Error(ex) => Error(ex)
-//    }
+  final def ++[B >: A](rhs: AsyncIterable[B]): AsyncIterable[B] =
+    this match {
+      case Wait(task) =>
+        Wait(task.map(_ ++ rhs))
+      case Next(a, lt) =>
+        Next(a, lt.map(_ ++ rhs))
+      case NextSeq(head, lt) =>
+        NextSeq(head, lt.map(_ ++ rhs))
+      case Empty => rhs
+      case Error(ex) => Error(ex)
+    }
 
   private final def concatTask[B >: A](rhs: Task[AsyncIterable[B]]): AsyncIterable[B] = {
-    println("------> iterator concatTask")
     this match {
       case Wait(task) =>
         Wait(task.map(_ concatTask rhs))
@@ -145,18 +142,18 @@ sealed trait AsyncIterable[+A] {
       case Empty => Task.now(seed)
       case Error(ex) => Task.error(ex)
       case Wait(next) =>
-        next.flatMap(_.foldLeftA(seed)(f))
+        next.flatMapAsync(_.foldLeftA(seed)(f))
       case Next(a, next) =>
         try {
           val state = f(seed, a)
-          next.flatMap(_.foldLeftA(state)(f))
+          next.flatMapAsync(_.foldLeftA(state)(f))
         } catch {
           case NonFatal(ex) => Task.error(ex)
         }
       case NextSeq(list, next) =>
         try {
           val state = list.foldLeft(seed)(f)
-          next.flatMap(_.foldLeftA(state)(f))
+          next.flatMapAsync(_.foldLeftA(state)(f))
         } catch {
           case NonFatal(ex) => Task.error(ex)
         }
@@ -179,12 +176,12 @@ sealed trait AsyncIterable[+A] {
       case Empty => Task.now(seed)
       case Error(ex) => Task.error(ex)
       case Wait(next) =>
-        next.flatMap(_.foldWhileA(seed)(f))
+        next.flatMapAsync(_.foldWhileA(seed)(f))
       case Next(a, next) =>
         try {
           val (continue, state) = f(seed, a)
           if (!continue) Task.now(state) else
-            next.flatMap(_.foldWhileA(state)(f))
+            next.flatMapAsync(_.foldWhileA(state)(f))
         } catch {
           case NonFatal(ex) => Task.error(ex)
         }
@@ -201,7 +198,7 @@ sealed trait AsyncIterable[+A] {
           }
 
           if (!continue) Task.now(state) else
-            next.flatMap(_.foldWhileA(state)(f))
+            next.flatMapAsync(_.foldWhileA(state)(f))
         } catch {
           case NonFatal(ex) => Task.error(ex)
         }
@@ -223,17 +220,17 @@ sealed trait AsyncIterable[+A] {
       case Empty => lb
       case Error(ex) => Task.error(ex)
       case Wait(next) =>
-        next.flatMap(_.foldRightA(lb)(f))
+        next.flatMapAsync(_.foldRightA(lb)(f))
       case Next(a, next) =>
-        f(a, next.flatMap(_.foldRightA(lb)(f)))
+        f(a, next.flatMapAsync(_.foldRightA(lb)(f)))
 
       case NextSeq(list, next) =>
-        if (list.isEmpty) next.flatMap(_.foldRightA(lb)(f))
+        if (list.isEmpty) next.flatMapAsync(_.foldRightA(lb)(f))
         else {
           val a = list.head
           val tail = list.tail
           val rest = Task.now(NextSeq(tail, next))
-          f(a, rest.flatMap(_.foldRightA(lb)(f)))
+          f(a, rest.flatMapAsync(_.foldRightA(lb)(f)))
         }
     }
 
@@ -274,7 +271,7 @@ sealed trait AsyncIterable[+A] {
   /** Returns the first element in the iterable, as an option. */
   def headA: Task[Option[A]] =
     this match {
-      case Wait(next) => next.flatMap(_.headA)
+      case Wait(next) => next.flatMapAsync(_.headA)
       case Empty => Task.now(None)
       case Error(ex) => Task.error(ex)
       case Next(a, _) => Task.now(Some(a))
@@ -368,7 +365,7 @@ sealed trait AsyncIterable[+A] {
     *         cancel the streaming.
     */
   def foreach(f: A => Unit)(implicit s: Scheduler): CancelableFuture[Unit] = {
-    def loop(task: Task[AsyncIterable[A]]): Task[Unit] = task.flatMap {
+    def loop(task: Task[AsyncIterable[A]]): Task[Unit] = task.flatMapAsync {
       case Next(elem, rest) =>
         try { f(elem); loop(rest) }
         catch { case NonFatal(ex) => s.reportFailure(ex); Task.unit }
@@ -439,7 +436,7 @@ object AsyncIterable {
   }
 
   def fuckingLoop(x: Long): Task[Long] = {
-    Task.now(x).map(_ + 1).flatMap(fuckingLoop)
+    Task.now(x).map(_ + 1).flatMapAsync(fuckingLoop)
   }
 
   /** Converts any sequence into an async iterable.
@@ -453,11 +450,11 @@ object AsyncIterable {
 
   /** Converts an iterable into an async iterator. */
   def fromIterable[A](iterable: Iterable[A], batchSize: Int): AsyncIterable[A] =
-    Wait(Task.now(iterable).flatMap { iter => fromIterator(iter.iterator, batchSize) })
+    Wait(Task.now(iterable).flatMapAsync { iter => fromIterator(iter.iterator, batchSize) })
 
   /** Converts an iterator into an async iterator. */
   def fromIterator[A](iterator: Iterator[A], batchSize: Int): Task[AsyncIterable[A]] =
-    Task.now(iterator).flatMap { iterator =>
+    Task.now(iterator).flatMapAsync { iterator =>
       try {
         val buffer = mutable.ListBuffer.empty[A]
         var processed = 0
@@ -466,11 +463,8 @@ object AsyncIterable {
           processed += 1
         }
 
-        val result = if (processed == 0) EmptyTask else
+        if (processed == 0) EmptyTask else
           Task.evalAlways(NextSeq(buffer.toList, fromIterator(iterator, batchSize)))
-
-        println(s"---------> iterator (${buffer.headOption.getOrElse(0)})")
-        result
       } catch {
         case NonFatal(ex) => Task.now(Error(ex))
       }

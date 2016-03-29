@@ -73,13 +73,13 @@ trait TaskInstances {
       override def zipWith2[A1, A2, R](fa1: Task[A1], fa2: Task[A2])(f: (A1, A2) => R): Task[R] =
         Task.map2(fa1, fa2)(f)
       override def flatMap[A, B](fa: Task[A])(f: (A) => Task[B]): Task[B] =
-        fa.flatMap(f)
+        fa.flatMapAsync(f)
       override def raiseError[A](e: Throwable): Task[A] =
         Task.error(e)
       override def map[A, B](fa: Task[A])(f: (A) => B): Task[B] =
         fa.map(f)
       override def flatten[A](ffa: Task[Task[A]]): Task[A] =
-        ffa.flatten
+        ffa.flattenAsync
 
       override def timeout[A](fa: Task[A], timespan: FiniteDuration): Task[A] =
         fa.timeout(timespan)

@@ -32,7 +32,7 @@ object TaskStackOverflowTest extends TestSuite[Scheduler] {
     // note, this can trigger stack overflows
     def sum(n: Int, acc: Long = 0): Task[Long] = {
       if (n == 0) Task.now(acc) else
-        Task.now(n).flatMap(x => sum(x-1, acc + x))
+        Task.now(n).flatMapAsync(x => sum(x-1, acc + x))
     }
 
     val nr = 2000000

@@ -114,7 +114,7 @@ object TaskDelaySuite extends BaseTestSuite {
     def trigger(): String = { wasTriggered = true; "result" }
 
     val dummy = DummyException("dummy")
-    val delayTask = Task(Task.error[Int](dummy)).flatten
+    val delayTask = Task(Task.error[Int](dummy)).flattenAsync
     val task = Task(trigger()).delayExecutionWith(delayTask)
     assert(!wasTriggered, "!wasTriggered")
 
@@ -214,7 +214,7 @@ object TaskDelaySuite extends BaseTestSuite {
     def trigger(): String = { wasTriggered = true; "result" }
 
     val dummy = DummyException("dummy")
-    val delayTask = Task(Task.error[Int](dummy)).flatten
+    val delayTask = Task(Task.error[Int](dummy)).flattenAsync
     val task = Task(trigger()).delayResultBySelector(a => delayTask)
 
     val f = task.runAsync
