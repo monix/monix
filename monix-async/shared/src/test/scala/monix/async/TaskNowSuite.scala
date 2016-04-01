@@ -44,7 +44,7 @@ object TaskNowSuite extends BaseTestSuite {
   }
 
   test("Task.now.map should work") { implicit s =>
-    Lazy.now(1).map(_ + 1).value
+    Coeval.now(1).map(_ + 1).value
     check1 { a: Int =>
       Task.now(a).map(_ + 1) === Task.now(a + 1)
     }

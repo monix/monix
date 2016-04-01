@@ -18,14 +18,16 @@
 package monix.async
 
 import monix.async.Task._
+import monix.execution.Ack.Stop
+import monix.execution.cancelables.{CompositeCancelable, SingleAssignmentCancelable, StackedCancelable}
 import monix.execution.{Cancelable, Scheduler}
-import monix.execution.cancelables.{SingleAssignmentCancelable, StackedCancelable}
-import org.sincron.atomic.Atomic
+import org.sincron.atomic.{Atomic, AtomicAny}
 import scala.annotation.tailrec
-import scala.concurrent.{Future, Promise}
+import scala.collection.mutable
 import scala.concurrent.duration.FiniteDuration
-import scala.util.{Failure, Success, Try}
+import scala.concurrent.{Future, Promise}
 import scala.util.control.NonFatal
+import scala.util.{Failure, Success, Try}
 
 /** `Task` represents a specification for a possibly non-strict or
   * asynchronous computation, which when executed will produce
@@ -88,11 +90,11 @@ sealed abstract class Task[+A] { self =>
     CancelableFuture(p.future, cancelable)
   }
 
-  /** Creates a new `Lazy` by applying a function to the successful result
+  /** Creates a new `Coeval` by applying a function to the successful result
     * of the source, and returns a new instance equivalent
     * to the result of the function.
     */
-  def flatMapEval[B](f: A => Lazy[B]): Task[B] =
+  def flatMapEval[B](f: A => Coeval[B]): Task[B] =
     flatMapAsync(f)
 
   /** Creates a new Task by applying a function to the successful result
@@ -133,11 +135,11 @@ sealed abstract class Task[+A] { self =>
   def flattenAsync[B](implicit ev: A <:< Task[B]): Task[B] =
     flatMapAsync(a => a)
 
-  /** Given a source that emits an `Lazy`, this function
+  /** Given a source that emits an `Coeval`, this function
     * flattens the result, returning an equivalent to the emitted
-    * `Lazy` by the source.
+    * `Coeval` by the source.
     */
-  def flattenEval[B](implicit ev: A <:< Lazy[B]): Task[B] =
+  def flattenEval[B](implicit ev: A <:< Coeval[B]): Task[B] =
     flatMapAsync(a => a)
 
   /** Returns a task that waits for the specified `timespan` before
@@ -385,9 +387,33 @@ sealed abstract class Task[+A] { self =>
       case memoized: MemoizeSuspend[_] => self
       case other => new MemoizeSuspend[A](() => other)
     }
+
+  /** Zips the values of `this` and `that` task, and creates a new task
+    * that will emit the tuple of their results.
+    */
+  def zipAsync[B](that: Task[B]): Task[(A, B)] =
+    Task.mapBoth(this, that)((a,b) => (a,b))
+
+  /** Zips the values of `this` and `that` and applies the given
+    * mapping function on their results.
+    */
+  def zipAsyncWith[B,C](that: Task[B])(f: (A,B) => C): Task[C] =
+    Task.mapBoth(this, that)(f)
+
+  /** Zips the values of `this` and `that` task, and creates a new task
+    * that will emit the tuple of their results.
+    */
+  def zipEval[B](that: Coeval[B]): Task[(A, B)] =
+    zipEvalWith(that)((_,_))
+
+  /** Zips the values of `this` and `that` and applies the given
+    * mapping function on their results.
+    */
+  def zipEvalWith[B,C](that: Coeval[B])(f: (A,B) => C): Task[C] =
+    this.map(a => f(a, that.value))
 }
 
-/** `Lazy` is a type of [[Task]] that can execute synchronously,
+/** `Coeval` is a type of [[Task]] that can execute synchronously,
   * by means of its `value` property.
   *
   * There are three evaluation strategies:
@@ -403,12 +429,12 @@ sealed abstract class Task[+A] { self =>
   * `EvalOnce` will save the value to be returned immediately if it is
   * needed again. `EvalAlways` will run its computation every time.
   *
-  * `Lazy` supports stack-safe lazy computation via the .map and .flatMap
+  * `Coeval` supports stack-safe lazy computation via the .map and .flatMap
   * methods, which use an internal trampoline to avoid stack overflows.
   * Computation done within .map and .flatMap is always done lazily,
   * even when applied to a `Now` instance.
   */
-sealed abstract class Lazy[+A] extends Task[A] { self =>
+sealed abstract class Coeval[+A] extends Task[A] { self =>
   /** Evaluates the underlying computation and returns the result.
     *
     * NOTE: this can throw exceptions.
@@ -424,10 +450,10 @@ sealed abstract class Lazy[+A] extends Task[A] { self =>
   def run: Attempt[A] =
     Task.trampoline(this, Nil)
 
-  override def map[B](f: (A) => B): Lazy[B] =
+  override def map[B](f: (A) => B): Coeval[B] =
     flatMapEval(a => try Now(f(a)) catch { case NonFatal(ex) => Error(ex) })
 
-  override def flatMapEval[B](f: A => Lazy[B]): Lazy[B] =
+  override def flatMapEval[B](f: A => Coeval[B]): Coeval[B] =
     self match {
       case Now(a) =>
         EvalSuspend(() => try f(a) catch { case NonFatal(ex) => Error(ex) })
@@ -448,10 +474,10 @@ sealed abstract class Lazy[+A] extends Task[A] { self =>
         error
     }
 
-  override def flattenEval[B](implicit ev: <:<[A, Lazy[B]]) =
+  override def flattenEval[B](implicit ev: <:<[A, Coeval[B]]) =
     flatMapEval(x => x)
 
-  override def materialize: Lazy[Attempt[A]] =
+  override def materialize: Coeval[Attempt[A]] =
     self match {
       case now @ Now(_) =>
         Now(now)
@@ -468,20 +494,20 @@ sealed abstract class Lazy[+A] extends Task[A] { self =>
           () => try thunk().materialize catch { case NonFatal(ex) => Now(Error(ex)) },
           result => result match {
             case Now(any) =>
-              try { g.asInstanceOf[Any => Lazy[A]](any).materialize }
+              try { g.asInstanceOf[Any => Coeval[A]](any).materialize }
               catch { case NonFatal(ex) => Now(Error(ex)) }
             case Error(ex) =>
               Now(Error(ex))
           })
     }
 
-  override def dematerialize[B](implicit ev: <:<[A, Attempt[B]]): Lazy[B] =
-    self.asInstanceOf[Lazy[Attempt[B]]].flatMapEval(identity)
+  override def dematerialize[B](implicit ev: <:<[A, Attempt[B]]): Coeval[B] =
+    self.asInstanceOf[Coeval[Attempt[B]]].flatMapEval(identity)
 
-  override def failed: Lazy[Throwable] =
+  override def failed: Coeval[Throwable] =
     EvalSuspend(() => self.run.failed)
 
-  override def memoize: Lazy[A] =
+  override def memoize: Coeval[A] =
     self match {
       case ref @ Now(_) => ref
       case error @ Error(_) => error
@@ -490,43 +516,49 @@ sealed abstract class Lazy[+A] extends Task[A] { self =>
       case EvalSuspend(thunk) => EvalSuspend(() => thunk().memoize)
       case EvalBindSuspend(thunk, f) => EvalBindSuspend(() => thunk().memoize, f)
     }
+
+  override def zipEval[B](that: Coeval[B]): Coeval[(A, B)] =
+    zipEvalWith(that)((_,_))
+
+  override def zipEvalWith[B, C](that: Coeval[B])(f: (A, B) => C): Coeval[C] =
+    this.flatMapEval(a => that.map(b => f(a,b)))
 }
 
-object Lazy {
-  /** Returns an `Lazy` that on execution is always successful, emitting
+object Coeval {
+  /** Returns an `Coeval` that on execution is always successful, emitting
     * the given strict value.
     */
-  def now[A](a: A): Lazy[A] = Now(a)
+  def now[A](a: A): Coeval[A] = Now(a)
 
-  /** Returns an `Lazy` that on execution is always finishing in error
+  /** Returns an `Coeval` that on execution is always finishing in error
     * emitting the specified exception.
     */
-  def error[A](ex: Throwable): Lazy[A] =
+  def error[A](ex: Throwable): Coeval[A] =
     Error(ex)
 
-  /** Promote a non-strict value representing a `Lazy` to a `Lazy` of the
+  /** Promote a non-strict value representing a `Coeval` to a `Coeval` of the
     * same type.
     */
-  def defer[A](task: => Lazy[A]): Lazy[A] =
+  def defer[A](task: => Coeval[A]): Coeval[A] =
     EvalSuspend(() => task)
 
-  /** Promote a non-strict value to a `Lazy` that is memoized on the first
+  /** Promote a non-strict value to a `Coeval` that is memoized on the first
     * evaluation, the result being then available on subsequent evaluations.
     */
-  def evalOnce[A](f: => A): Lazy[A] =
+  def evalOnce[A](f: => A): Coeval[A] =
     EvalOnce(f)
 
-  /** Promote a non-strict value to an `Lazy`, catching exceptions in the
+  /** Promote a non-strict value to an `Coeval`, catching exceptions in the
     * process.
     *
-    * Note that since `Lazy` is not memoized, this will recompute the
-    * value each time the `Lazy` is executed.
+    * Note that since `Coeval` is not memoized, this will recompute the
+    * value each time the `Coeval` is executed.
     */
-  def evalAlways[A](f: => A): Lazy[A] =
+  def evalAlways[A](f: => A): Coeval[A] =
     EvalAlways(f _)
 
-  /** A `Lazy[Unit]` provided for convenience. */
-  val unit: Lazy[Unit] = Now(())
+  /** A `Coeval[Unit]` provided for convenience. */
+  val unit: Coeval[Unit] = Now(())
 }
 
 /** The `Attempt` represents a strict, already evaluated result of a
@@ -535,7 +567,7 @@ object Lazy {
   *
   * It's the moral equivalent of `scala.util.Try`.
   */
-sealed abstract class Attempt[+A] extends Lazy[A] { self =>
+sealed abstract class Attempt[+A] extends Coeval[A] { self =>
   /** Returns true if value is a successful one. */
   def isSuccess: Boolean = this match { case Now(_) => true; case _ => false }
 
@@ -601,7 +633,7 @@ object Attempt {
   def apply[A](f: => A): Attempt[A] =
     try Now(f) catch { case NonFatal(ex) => Error(ex) }
 
-  /** Returns a `Lazy` that on execution is always successful, emitting
+  /** Returns a `Coeval` that on execution is always successful, emitting
     * the given strict value.
     */
   def now[A](a: A): Attempt[A] = Now(a)
@@ -749,6 +781,172 @@ object Task {
       }(s)
     }
 
+  /** Creates a `Task` that upon execution will return the result of the
+    * first completed task in the given list and then cancel the rest.
+    */
+  def firstCompletedOf[A](tasks: TraversableOnce[Task[A]]): Task[A] =
+    Async { (scheduler, conn, cb) =>
+      val isActive = Atomic(true)
+      val composite = CompositeCancelable()
+      conn.push(composite)
+
+      for (task <- tasks) {
+        val taskCancelable = StackedCancelable()
+        composite += taskCancelable
+
+        Task.startAsync(scheduler, taskCancelable, task, new Callback[A] {
+          def onSuccess(value: A): Unit =
+            if (isActive.getAndSet(false)) {
+              composite -= taskCancelable
+              composite.cancel()
+              conn.popAndCollapse(taskCancelable)
+              cb.onSuccess(value)
+            }
+
+          def onError(ex: Throwable): Unit =
+            if (isActive.getAndSet(false)) {
+              composite -= taskCancelable
+              composite.cancel()
+              conn.popAndCollapse(taskCancelable)
+              cb.onError(ex)
+            }
+        })
+      }
+    }
+
+  /** Gathers the results from a sequence of tasks into a single list.
+    * The effects are not ordered, but the results are.
+    */
+  def sequence[A](in: Seq[Task[A]]): Task[List[A]] =
+    Async { (scheduler, conn, cb) =>
+      implicit val s = scheduler
+      val composite = CompositeCancelable()
+      conn push composite
+
+      var builder = Future.successful(mutable.ListBuffer.empty[A])
+
+      for (task <- in) {
+        val p = Promise[A]()
+        val cancelable = StackedCancelable()
+        composite += cancelable
+
+        // Ensures async execution
+        Task.startAsync(scheduler, cancelable, task, new Callback[A] {
+          def onSuccess(value: A): Unit = p.trySuccess(value)
+          def onError(ex: Throwable): Unit = p.tryFailure(ex)
+        })
+
+        builder = for (r <- builder; a <- p.future) yield r += a
+      }
+
+      builder.onComplete {
+        case Success(r) =>
+          conn.pop()
+          cb.onSuccess(r.result())
+        case Failure(ex) =>
+          conn.pop().cancel()
+          cb.onError(ex)
+      }
+    }
+
+  /** Obtain results from both `a` and `b`, nondeterministically ordering
+    * their effects.
+    *
+    * The two tasks are both executed asynchronously. In a multi-threading
+    * environment this means that the tasks will get executed in parallel and
+    * their results synchronized.
+    */
+  def both[A,B](a: Task[A], b: Task[B]): Task[(A,B)] = mapBoth(a,b)((_,_))
+
+  /** Apply a mapping functions to the results of two tasks, nondeterministically
+    * ordering their effects.
+    *
+    * The two tasks are both executed asynchronously. In a multi-threading
+    * environment this means that the tasks will get executed in parallel and
+    * their results synchronized.
+    */
+  def mapBoth[A1,A2,R](fa1: Task[A1], fa2: Task[A2])(f: (A1,A2) => R): Task[R] = {
+    /** For signaling the values after the successful completion of both tasks. */
+    def sendSignal(conn: StackedCancelable, cb: Callback[R], a1: A1, a2: A2): Unit = {
+      var streamErrors = true
+      try {
+        val r = f(a1,a2)
+        streamErrors = false
+        conn.pop()
+        cb.onSuccess(r)
+      } catch {
+        case NonFatal(ex) if streamErrors =>
+          conn.pop()
+          cb.onError(ex)
+      }
+    }
+
+    /** For signaling an error. */
+    @tailrec def sendError(conn: StackedCancelable, state: AtomicAny[AnyRef], s: Scheduler,
+      cb: Callback[R], ex: Throwable): Unit =
+      state.get match {
+        case Stop =>
+          // We've got nowhere to send the error, so report it
+          s.reportFailure(ex)
+        case other =>
+          if (!state.compareAndSet(other, Stop))
+            sendError(conn, state, s, cb, ex) // retry
+          else {
+            conn.pop().cancel()
+            cb.onError(ex)
+          }
+      }
+
+    // The resulting task will be executed asynchronously
+    Async { (scheduler, conn, cb) =>
+      // for synchronizing the results
+      val state = Atomic(null : AnyRef)
+      val task1 = StackedCancelable()
+      val task2 = StackedCancelable()
+      conn push CompositeCancelable(task1, task2)
+
+      // Starts task1, ensuring asynchronous execution
+      Task.startAsync(scheduler, task1, fa1, new Callback[A1] {
+        @tailrec def onSuccess(a1: A1): Unit =
+          state.get match {
+            case null => // null means this is the first task to complete
+              if (!state.compareAndSet(null, Left(a1))) onSuccess(a1)
+            case ref @ Right(a2) => // the other task completed, so we can send
+              sendSignal(conn, cb, a1, a2.asInstanceOf[A2])
+            case Stop => // the other task triggered an error
+              () // do nothing
+            case s @ Left(_) =>
+              // This task has triggered multiple onSuccess calls
+              // violating the protocol. Should never happen.
+              onError(new IllegalStateException(s.toString))
+          }
+
+        def onError(ex: Throwable): Unit =
+          sendError(conn, state, scheduler, cb, ex)
+      })
+
+      // Starts task2, ensuring asynchronous execution
+      Task.startAsync(scheduler, task2, fa2, new Callback[A2] {
+        @tailrec def onSuccess(a2: A2): Unit =
+          state.get match {
+            case null => // null means this is the first task to complete
+              if (!state.compareAndSet(null, Right(a2))) onSuccess(a2)
+            case ref @ Left(a1) => // the other task completed, so we can send
+              sendSignal(conn, cb, a1.asInstanceOf[A1], a2)
+            case Stop => // the other task triggered an error
+              () // do nothing
+            case s @ Right(_) =>
+              // This task has triggered multiple onSuccess calls
+              // violating the protocol. Should never happen.
+              onError(new IllegalStateException(s.toString))
+          }
+
+        def onError(ex: Throwable): Unit =
+          sendError(conn, state, scheduler, cb, ex)
+      })
+    }
+  }
+
   /** Type alias representing callbacks for [[async]] tasks. */
   type OnFinish[+A] = (Scheduler, StackedCancelable, Callback[A]) => Unit
 
@@ -791,7 +989,7 @@ object Task {
     * When caching is not required or desired,
     * prefer [[EvalAlways]] or [[Now]].
     */
-  final class EvalOnce[+A](f: () => A) extends Lazy[A] {
+  final class EvalOnce[+A](f: () => A) extends Coeval[A] {
     private[this] var thunk: () => A = f
 
     override lazy val run: Attempt[A] = {
@@ -833,7 +1031,7 @@ object Task {
     * This type can be used for "lazy" values. In some sense it is
     * equivalent to using a Function0 value.
     */
-  final case class EvalAlways[+A](f: () => A) extends Lazy[A] {
+  final case class EvalAlways[+A](f: () => A) extends Coeval[A] {
     override def value: A = f()
     override def run: Attempt[A] =
       try Now(f()) catch { case NonFatal(ex) => Error(ex) }
@@ -865,10 +1063,10 @@ object Task {
   private final case class Suspend[+A](thunk: () => Task[A]) extends Task[A]
   /** Internal [[Task]] state that is the result of applying `flatMap`. */
   private final case class BindSuspend[A,B](thunk: () => Task[A], f: A => Task[B]) extends Task[B]
-  /** Internal state, the result of [[Lazy.defer]] */
-  private[async] final case class EvalSuspend[+A](thunk: () => Lazy[A]) extends Lazy[A]
-  /** Internal [[Lazy]] state that is the result of applying `flatMap`. */
-  private[async] final case class EvalBindSuspend[A,B](thunk: () => Lazy[A], f: A => Lazy[B]) extends Lazy[B]
+  /** Internal state, the result of [[Coeval.defer]] */
+  private[async] final case class EvalSuspend[+A](thunk: () => Coeval[A]) extends Coeval[A]
+  /** Internal [[Coeval]] state that is the result of applying `flatMap`. */
+  private[async] final case class EvalBindSuspend[A,B](thunk: () => Coeval[A], f: A => Coeval[B]) extends Coeval[B]
 
   /** Internal [[Task]] state that is the result of applying `flatMap`
     * over an [[Async]] value.
@@ -975,15 +1173,23 @@ object Task {
   }
 
   private type CurrentTask = Task[Any]
-  private type CurrentEval = Lazy[Any]
+  private type CurrentEval = Coeval[Any]
   private type BindTask = Any => Task[Any]
-  private type BindEval = Any => Lazy[Any]
+  private type BindEval = Any => Coeval[Any]
 
-  /** Internal utility, starts the run-loop. */
+  /** Internal utility, starts the run-loop, ensuring an asynchronous boundary. */
   private def startAsync[A](scheduler: Scheduler, conn: StackedCancelable, source: Task[A], cb: Callback[A]): Unit =
-    scheduler.execute(new Runnable {
-      def run(): Unit = resume(scheduler, conn, source, cb, Nil)
-    })
+    source match {
+      case Async(_) | BindAsync(_,_) | Suspend(_) =>
+        // The task is already known to execute asynchronously,
+        // so don't do anything special
+        resume(scheduler, conn, source, cb, Nil)
+      case _ =>
+        // Create an asynchronous boundary
+        scheduler.execute(new Runnable {
+          def run(): Unit = resume(scheduler, conn, source, cb, Nil)
+        })
+    }
 
   /** Internal utility, resumes evaluation of the run-loop
     * from where it left off.
@@ -1089,8 +1295,8 @@ object Task {
   }
 
   /** Trampoline for lazy evaluation. */
-  private[async] def trampoline[A](source: Lazy[A], binds: List[BindEval]): Attempt[A] = {
-    @tailrec  def reduceTask(source: Lazy[Any], binds: List[BindEval]): Attempt[Any] = {
+  private[async] def trampoline[A](source: Coeval[A], binds: List[BindEval]): Attempt[A] = {
+    @tailrec  def reduceTask(source: Coeval[Any], binds: List[BindEval]): Attempt[Any] = {
       source match {
         case error @ Error(_) => error
         case now @ Now(a) =>

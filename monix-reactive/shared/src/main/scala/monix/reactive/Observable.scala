@@ -276,7 +276,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     * Returns an `Option` because the source can be empty.
     */
   def firstT: Task[Option[A]] =
-    Task.unsafeCreate { (s, c, frameId, cb) =>
+    Task.unsafeAsync { (s, c, cb) =>
       val task = SingleAssignmentCancelable()
       c push task
 
@@ -303,7 +303,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     * Returns an `Option` because the source can be empty.
     */
   def lastT: Task[Option[A]] =
-    Task.unsafeCreate { (s, c, frameId, cb) =>
+    Task.unsafeAsync { (s, c, cb) =>
       val task = SingleAssignmentCancelable()
       c push task
 
@@ -334,7 +334,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     * will signal `Unit`.
     */
   def completedT: Task[Unit] =
-    Task.unsafeCreate { (s, c, frameId, cb) =>
+    Task.unsafeAsync { (s, c, cb) =>
       val task = SingleAssignmentCancelable()
       c push task
 
@@ -345,7 +345,6 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
         def onNext(elem: A): Continue = Continue
         def onError(ex: Throwable): Unit =
           if (!isDone) { isDone = true; c.pop(); cb.onError(ex) }
-
         def onComplete(): Unit =
           if (!isDone) { isDone = true; c.pop(); cb.onSuccess(()) }
       })
