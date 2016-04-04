@@ -70,7 +70,7 @@ object RepeatEvalObservableSuite extends TestSuite[TestScheduler] {
     cancelable.cancel()
     s.tick()
 
-    assertEquals(sum, (s.batchedExecutionModulus+1) * 2)
+    assertEquals(sum, s.executionModel.recommendedBatchSize * 2)
     assert(!wasCompleted)
   }
 }

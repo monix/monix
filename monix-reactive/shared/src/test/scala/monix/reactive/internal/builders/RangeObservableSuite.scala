@@ -18,9 +18,10 @@
 package monix.reactive.internal.builders
 
 import minitest.TestSuite
-import monix.async.FutureUtils
 import monix.execution.Ack.Continue
+import monix.execution.FutureUtils
 import FutureUtils.extensions._
+import monix.execution.FutureUtils
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.observers.Subscriber
@@ -104,7 +105,7 @@ object RangeObservableSuite extends TestSuite[TestScheduler] {
   }
 
   test("should do synchronous execution in batches") { implicit s =>
-    val batchSize = s.batchedExecutionModulus+1
+    val batchSize = s.executionModel.recommendedBatchSize
     var received = 0
 
     Observable.range(0, batchSize * 20).map(_ => 1)
@@ -136,7 +137,7 @@ object RangeObservableSuite extends TestSuite[TestScheduler] {
     cancelable.cancel()
     s.tick()
 
-    assertEquals(received, (s.batchedExecutionModulus+1) * 2)
+    assertEquals(received, s.executionModel.recommendedBatchSize * 2)
     assertEquals(wasCompleted, 0)
   }
 }

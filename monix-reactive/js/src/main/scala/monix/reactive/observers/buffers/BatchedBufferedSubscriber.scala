@@ -19,6 +19,7 @@ package monix.reactive.observers.buffers
 
 import monix.execution.Ack
 import monix.execution.Ack.{Stop, Continue}
+import monix.execution.internal.Platform
 import monix.reactive.observers.{Subscriber, BufferedSubscriber}
 import monix.reactive.observers.buffers.BatchedBufferedSubscriber.State
 import org.sincron.atomic.Atomic
@@ -46,7 +47,7 @@ private[monix] final class BatchedBufferedSubscriber[-T] private
   // side in order to know how many items to process and when to stop
   private[this] val queue = mutable.Queue.empty[T]
   // Used on the consumer side to split big synchronous workloads in batches
-  private[this] val batchSizeModulus = scheduler.batchedExecutionModulus
+  private[this] val em = scheduler.executionModel
 
   def onNext(elem: T): Future[Ack] = {
     val state = stateRef.get
@@ -162,7 +163,7 @@ private[monix] final class BatchedBufferedSubscriber[-T] private
         if (queue.nonEmpty) {
           val ack = {
             val buffer = mutable.ListBuffer.empty[T]
-            val maxToConsume = batchSizeModulus + 1 - syncIndex
+            val maxToConsume = Platform.recommendedBatchSize
             var consumed = 0
             do {
               val next = queue.dequeue()
@@ -178,7 +179,7 @@ private[monix] final class BatchedBufferedSubscriber[-T] private
           // note that the check with batchSizeModulus is meant for splitting
           // big synchronous loops in smaller batches
           val nextIndex = if (!ack.isCompleted) 0 else
-            (syncIndex + consumed) & batchSizeModulus
+            em.nextFrameIndex(syncIndex)
 
           if (nextIndex > 0) {
             if (ack == Continue || ack.value.get == Continue.AsSuccess)

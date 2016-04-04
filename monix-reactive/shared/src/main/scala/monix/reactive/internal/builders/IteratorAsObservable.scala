@@ -19,6 +19,7 @@ package monix.reactive.internal.builders
 
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.BooleanCancelable
+import monix.execution.schedulers.ExecutionModel
 import monix.execution.{Cancelable, Ack, Scheduler}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
@@ -45,7 +46,7 @@ class IteratorAsObservable[T](iterator: Iterator[T]) extends Observable[T] {
       }
       else {
         val cancelable = BooleanCancelable()
-        fastLoop(iterator, subscriber, cancelable, s.batchedExecutionModulus, 0)(s)
+        fastLoop(iterator, subscriber, cancelable, s.executionModel, 0)(s)
         cancelable
       }
     } catch {
@@ -56,12 +57,12 @@ class IteratorAsObservable[T](iterator: Iterator[T]) extends Observable[T] {
   }
 
   private def reschedule(ack: Future[Ack], iter: Iterator[T],
-    out: Subscriber[T], c: BooleanCancelable, s: Scheduler, modulus: Int): Unit = {
+    out: Subscriber[T], c: BooleanCancelable, s: Scheduler, em: ExecutionModel): Unit = {
 
     ack.onComplete {
       case Success(next) =>
         if (next == Continue)
-          fastLoop(iter, out, c, modulus, 0)(s)
+          fastLoop(iter, out, c, em, 0)(s)
       case Failure(ex) =>
         s.reportFailure(ex)
     }(s)
@@ -69,7 +70,7 @@ class IteratorAsObservable[T](iterator: Iterator[T]) extends Observable[T] {
 
   @tailrec
   private def fastLoop(iter: Iterator[T], out: Subscriber[T], c: BooleanCancelable,
-    modulus: Int, syncIndex: Int)(implicit s: Scheduler): Unit = {
+    em: ExecutionModel, syncIndex: Int)(implicit s: Scheduler): Unit = {
 
     // the result of onNext calls, on which we must do back-pressure
     var ack: Future[Ack] = Continue
@@ -101,14 +102,14 @@ class IteratorAsObservable[T](iterator: Iterator[T]) extends Observable[T] {
       out.onError(iteratorTriggeredError)
     else {
       val nextIndex =
-        if (ack == Continue) (syncIndex + 1) & modulus
+        if (ack == Continue) em.nextFrameIndex(syncIndex)
         else if (ack == Stop) -1
         else 0
 
       if (nextIndex > 0)
-        fastLoop(iter, out, c, modulus, nextIndex)
+        fastLoop(iter, out, c, em, nextIndex)
       else if (nextIndex == 0 && !c.isCanceled)
-        reschedule(ack, iter, out, c, s, modulus)
+        reschedule(ack, iter, out, c, s, em)
     }
   }
 }

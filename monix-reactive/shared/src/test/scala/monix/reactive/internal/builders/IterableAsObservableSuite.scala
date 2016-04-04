@@ -18,9 +18,10 @@
 package monix.reactive.internal.builders
 
 import minitest.TestSuite
-import monix.async.FutureUtils
 import monix.execution.Ack.{Stop, Continue}
+import monix.execution.FutureUtils
 import FutureUtils.extensions._
+import monix.execution.FutureUtils
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.exceptions.DummyException
@@ -319,7 +320,7 @@ object IterableAsObservableSuite extends TestSuite[TestScheduler] {
     cancelable.cancel()
     s.tick()
 
-    assertEquals(sum, (s.batchedExecutionModulus+1) * 2)
+    assertEquals(sum, s.executionModel.recommendedBatchSize * 2)
     assert(!wasCompleted)
   }
 }

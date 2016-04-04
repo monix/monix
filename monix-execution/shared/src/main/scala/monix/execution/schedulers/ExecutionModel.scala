@@ -59,17 +59,18 @@ sealed abstract class ExecutionModel {
     */
   val recommendedBatchSize: Int
 
-  /** Specifies whether the first task in a batch should execute
-    * asynchronously on a different logical thread, or not. This is desirable
-    * sometimes in order to ensure that the current thread is never blocked.
-    */
-  val firstIsAsync: Boolean
-
   /** Always equal to `recommendedBatchSize-1`.
     *
     * Provided for convenience.
     */
   val batchedExecutionModulus: Int
+
+  /** Returns the next frame index in the run-loop.
+    *
+    * If the returned integer is zero, then the next
+    * cycle in the run-loop should execute asynchronously.
+    */
+  def nextFrameIndex(current: Int): Int
 }
 
 object ExecutionModel {
@@ -84,11 +85,12 @@ object ExecutionModel {
     val recommendedBatchSize = math.roundToPowerOf2(Int.MaxValue) - 1
     val batchedExecutionModulus = recommendedBatchSize-1
 
-    /** For the synchronous [[ExecutionModel]] the first task in a batch
-      * shouldn't be asynchronous, therefore [[ExecutionModel.firstIsAsync]]
-      * is always `false`.
+    /** Returns the next frame index in the run-loop.
+      *
+      * For `SynchronousExecution` this function always returns
+      * a positive constant.
       */
-    val firstIsAsync = false
+    def nextFrameIndex(current: Int): Int = 1
   }
 
   /** [[ExecutionModel]] that specifies a [[monix.execution.RunLoop RunLoop]]
@@ -102,11 +104,13 @@ object ExecutionModel {
     val recommendedBatchSize = 1
     val batchedExecutionModulus = 0
 
-    /** For the asynchronous [[ExecutionModel]] the first task in a batch
-      * should be asynchronous, therefore [[ExecutionModel.firstIsAsync]]
-      * is always `true`.
+    /** Returns the next frame index in the run-loop.
+      *
+      * For `AlwaysAsyncExecution` this function always returns
+      * zero, signaling that the next cycle in the run-loop
+      * should always be async.
       */
-    val firstIsAsync = false
+    def nextFrameIndex(current: Int): Int = 0
   }
 
   /** [[ExecutionModel]] specifying an mixed execution mode under
@@ -118,17 +122,19 @@ object ExecutionModel {
     * executed, the next execution should be asynchronous,
     * forked on a different logical thread.
     *
-    * By specifying the [[ExecutionModel.recommendedBatchSize]] and
-    * the [[ExecutionModel.firstIsAsync]] parameters, the configuration
-    * can be fine-tuned.
+    * By specifying the [[ExecutionModel.recommendedBatchSize]],
+    * the configuration can be fine-tuned.
     */
-  final case class BatchedExecution(private val batchSize: Int, firstIsAsync: Boolean)
+  final case class BatchedExecution(private val batchSize: Int)
     extends ExecutionModel {
+
     val recommendedBatchSize = math.nextPowerOf2(batchSize)
     val batchedExecutionModulus = recommendedBatchSize-1
+
+    def nextFrameIndex(current: Int): Int =
+      (current + 1) & batchedExecutionModulus
   }
 
-  final val Default: ExecutionModel = {
-    BatchedExecution(Platform.recommendedBatchSize, firstIsAsync = false)
-  }
+  final val Default: ExecutionModel =
+    BatchedExecution(Platform.recommendedBatchSize)
 }

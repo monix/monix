@@ -46,7 +46,7 @@ private[monix] final class BackPressuredBufferedSubscriber[-T] private
   // side in order to know how many items to process and when to stop
   private[this] val queue = new ConcurrentLinkedQueue[T]()
   // Used on the consumer side to split big synchronous workloads in batches
-  private[this] val batchSizeModulus = scheduler.batchedExecutionModulus
+  private[this] val em = scheduler.executionModel
 
   def onNext(elem: T): Future[Ack] = {
     val state = stateRef.get
@@ -166,7 +166,7 @@ private[monix] final class BackPressuredBufferedSubscriber[-T] private
           // note that the check with batchSizeModulus is meant for splitting
           // big synchronous loops in smaller batches
           val nextIndex = if (!ack.isCompleted) 0 else
-            (syncIndex + 1) & batchSizeModulus
+            em.nextFrameIndex(syncIndex)
 
           if (nextIndex > 0) {
             if (ack == Continue || ack.value.get == Continue.AsSuccess)

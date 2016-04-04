@@ -45,7 +45,7 @@ private[buffers] final class SimpleBufferedSubscriber[-T] private
 
   implicit val scheduler = underlying.scheduler
   private[this] val queue = new ConcurrentLinkedQueue[T]()
-  private[this] val batchSizeModulus = scheduler.batchedExecutionModulus
+  private[this] val em = scheduler.executionModel
 
   // to be modified only in onError, before upstreamIsComplete
   private[this] var errorThrown: Throwable = null
@@ -130,7 +130,7 @@ private[buffers] final class SimpleBufferedSubscriber[-T] private
       if (next != null) {
         val ack = underlying.onNext(next)
         val nextIndex = if (!ack.isCompleted) 0 else
-          (syncIndex + 1) & batchSizeModulus
+          em.nextFrameIndex(syncIndex)
 
         if (nextIndex > 0) {
           if (ack == Continue || ack.value.get == Continue.AsSuccess) {

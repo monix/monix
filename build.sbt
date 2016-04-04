@@ -153,10 +153,16 @@ lazy val macroCompatDeps = scalaReflectDeps ++ Seq(
     compilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
   ))
 
+lazy val simulacrumDeps = Seq(
+  libraryDependencies ++= Seq(
+    "com.github.mpilquist" %% "simulacrum" % "0.7.0" % "provided",
+    compilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
+  ))
+
 lazy val unidocSettings = baseUnidocSettings ++ Seq(
   autoAPIMappings := true,
   unidocProjectFilter in (ScalaUnidoc, unidoc) :=
-    inProjects(executionJVM, asyncJVM, reactiveJVM, catsJVM),
+    inProjects(executionJVM, evalJVM, reactiveJVM, catsJVM),
 
   scalacOptions in (ScalaUnidoc, unidoc) +=
     "-Xfatal-warnings",
@@ -220,7 +226,7 @@ lazy val scalaStyleSettings = {
 lazy val monix = project.in(file("."))
   .aggregate(
     executionJVM, executionJS,
-    asyncJVM, asyncJS,
+    evalJVM, evalJS,
     reactiveJVM, reactiveJS,
     catsJVM, catsJS,
     monixJVM, monixJS,
@@ -230,15 +236,15 @@ lazy val monix = project.in(file("."))
   .settings(scalaStyleSettings)
 
 lazy val monixJVM = project.in(file("monix/jvm"))
-  .dependsOn(executionJVM, asyncJVM, reactiveJVM, catsJVM)
-  .aggregate(executionJVM, asyncJVM, reactiveJVM, catsJVM)
+  .dependsOn(executionJVM, evalJVM, reactiveJVM)
+  .aggregate(executionJVM, evalJVM, reactiveJVM, catsJVM)
   .settings(crossSettings)
   .settings(name := "monix")
 
 lazy val monixJS = project.in(file("monix/js"))
   .enablePlugins(ScalaJSPlugin)
-  .dependsOn(executionJS, asyncJS, reactiveJS, catsJS)
-  .aggregate(executionJS, asyncJS, reactiveJS, catsJS)
+  .dependsOn(executionJS, evalJS, reactiveJS)
+  .aggregate(executionJS, evalJS, reactiveJS, catsJS)
   .settings(crossSettings)
   .settings(scalaJSSettings)
   .settings(name := "monix")
@@ -262,32 +268,32 @@ lazy val executionJS = project.in(file("monix-execution/js"))
   .settings(macroCompatDeps)
   .settings(executionCommon)
 
-lazy val asyncCommon =
-  crossSettings ++ testSettings ++
-  Seq(name := "monix-async")
+lazy val evalCommon =
+  crossSettings ++ testSettings ++ simulacrumDeps ++
+  Seq(name := "monix-eval")
 
-lazy val asyncJVM = project.in(file("monix-async/jvm"))
+lazy val evalJVM = project.in(file("monix-eval/jvm"))
   .dependsOn(executionJVM)
-  .settings(asyncCommon)
+  .settings(evalCommon)
 
-lazy val asyncJS = project.in(file("monix-async/js"))
+lazy val evalJS = project.in(file("monix-eval/js"))
   .enablePlugins(ScalaJSPlugin)
   .dependsOn(executionJS)
   .settings(scalaJSSettings)
-  .settings(asyncCommon)
+  .settings(evalCommon)
 
 lazy val reactiveCommon =
   crossSettings ++ testSettings ++ scalaReflectDeps ++
     Seq(name := "monix-reactive")
 
 lazy val reactiveJVM = project.in(file("monix-reactive/jvm"))
-  .dependsOn(executionJVM, asyncJVM)
+  .dependsOn(executionJVM, evalJVM)
   .settings(reactiveCommon)
   .settings(libraryDependencies += "org.reactivestreams" % "reactive-streams" % "1.0.0")
 
 lazy val reactiveJS = project.in(file("monix-reactive/js"))
   .enablePlugins(ScalaJSPlugin)
-  .dependsOn(executionJS, asyncJS)
+  .dependsOn(executionJS, evalJS)
   .settings(reactiveCommon)
   .settings(scalaJSSettings)
 
@@ -296,21 +302,22 @@ lazy val catsCommon =
     name := "monix-cats",
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-core" % "0.4.1",
-      "org.typelevel" %%% "cats-laws" % "0.4.1" % "test"
+      "org.typelevel" %%% "cats-laws" % "0.4.1" % "test",
+      "org.spire-math" %%% "algebra-laws" % "0.3.1" % "test"
     ))
 
 lazy val catsJVM = project.in(file("monix-cats/jvm"))
-  .dependsOn(asyncJVM, reactiveJVM)
+  .dependsOn(evalJVM, reactiveJVM)
   .settings(catsCommon)
 
 lazy val catsJS = project.in(file("monix-cats/js"))
   .enablePlugins(ScalaJSPlugin)
-  .dependsOn(asyncJS, reactiveJS)
+  .dependsOn(evalJS, reactiveJS)
   .settings(catsCommon)
   .settings(scalaJSSettings)
 
 lazy val docs = project.in(file("docs"))
-  .dependsOn(executionJVM, asyncJVM, reactiveJVM, catsJVM)
+  .dependsOn(executionJVM, evalJVM, reactiveJVM, catsJVM)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
   .settings(site.settings)

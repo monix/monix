@@ -42,7 +42,7 @@ class StateActionObservable[S,A](seed: S, f: S => (A,S)) extends Observable[A] {
 
     import o.{scheduler => s}
     private[this] var seed = initialSeed
-    private[this] val modulus = s.batchedExecutionModulus
+    private[this] val em = s.executionModel
 
     private[this] val asyncReschedule: Try[Ack] => Unit = {
       case Continue.AsSuccess =>
@@ -66,7 +66,7 @@ class StateActionObservable[S,A](seed: S, f: S => (A,S)) extends Observable[A] {
       }
 
       val nextIndex =
-        if (ack == Continue) (syncIndex + 1) & modulus
+        if (ack == Continue) em.nextFrameIndex(syncIndex)
         else if (ack == Stop) -1
         else 0
 

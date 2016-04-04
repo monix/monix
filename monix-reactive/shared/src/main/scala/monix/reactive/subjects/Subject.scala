@@ -35,7 +35,7 @@ import org.reactivestreams.{Processor => RProcessor, Subscriber => RSubscriber, 
   */
 abstract class Subject[I, +O] extends Observable[O] with Observer[I] { self =>
   override def toReactivePublisher[U >: O](implicit s: Scheduler): RProcessor[I, U] =
-    Subject.toReactiveProcessor(this, s.batchedExecutionModulus)
+    Subject.toReactiveProcessor(this, s.executionModel.recommendedBatchSize)
 
   def toReactive[U >: O](bufferSize: Int)(implicit s: Scheduler): RProcessor[I, U] =
     Subject.toReactiveProcessor(this, bufferSize)

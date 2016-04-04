@@ -59,9 +59,8 @@ object Subscriber {
     * instance as defined by the [[http://www.reactive-streams.org/ Reactive Streams]]
     * specification.
     */
-  def toReactiveSubscriber[T](subscriber: Subscriber[T]): RSubscriber[T] = {
-    toReactiveSubscriber(subscriber, subscriber.scheduler.batchedExecutionModulus)
-  }
+  def toReactiveSubscriber[T](subscriber: Subscriber[T]): RSubscriber[T] =
+    toReactiveSubscriber(subscriber, subscriber.scheduler.executionModel.recommendedBatchSize)
 
   /** Transforms the source [[Subscriber]] into a `org.reactivestreams.Subscriber`
     * instance as defined by the [[http://www.reactive-streams.org/ Reactive Streams]]

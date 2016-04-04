@@ -17,9 +17,10 @@
 
 package monix.reactive.internal.operators
 
-import monix.async.FutureUtils
 import monix.execution.Ack.Continue
+import monix.execution.FutureUtils
 import FutureUtils.extensions._
+import monix.execution.FutureUtils
 import monix.reactive.exceptions.DummyException
 import monix.reactive.subjects.PublishSubject
 import monix.reactive.{Observable, Observer}

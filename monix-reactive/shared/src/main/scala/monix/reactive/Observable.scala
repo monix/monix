@@ -17,11 +17,11 @@
 
 package monix.reactive
 
-import monix.async.{AsyncIterable, CancelableFuture, Task}
+import monix.eval.{AsyncIterable, AsyncIterator, Task}
 import monix.execution.Ack.{Stop, Continue}
 import monix.execution._
 import monix.execution.cancelables.SingleAssignmentCancelable
-import monix.reactive.internal.builders.ObservableToAsyncIterable
+import monix.reactive.internal.builders.ObservableToAsyncIterator
 import monix.reactive.observables.ObservableLike.{Operator, Transformer}
 import monix.reactive.internal.builders
 import monix.reactive.observables._
@@ -40,7 +40,7 @@ import scala.util.control.NonFatal
   *
   * See the available documentation at: [[https://monix.io]]
   */
-trait Observable[+A] extends ObservableLike[A, Observable] { self =>
+trait Observable[+A] extends ObservableLike[A, Observable] with AsyncIterable[A] { self =>
   /** Characteristic function for an `Observable` instance, that creates
     * the subscription and that eventually starts the streaming of
     * events to the given [[Observer]], being meant to be provided.
@@ -262,20 +262,20 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     * source observable. Returns an `Option` because the source can be empty.
     */
   def runAsyncGetFirst(implicit s: Scheduler): CancelableFuture[Option[A]] =
-    firstT.runAsync(s)
+    firstL.runAsync(s)
 
-  /** Creates a new [[monix.async.CancelableFuture CancelableFuture]]
+  /** Creates a new [[monix.execution.CancelableFuture CancelableFuture]]
     * that upon execution will signal the last generated element of the
     * source observable. Returns an `Option` because the source can be empty.
     */
   def runAsyncGetLast(implicit s: Scheduler): CancelableFuture[Option[A]] =
-    lastT.runAsync(s)
+    lastL.runAsync(s)
 
-  /** Creates a new [[monix.async.Task Task]] that upon execution
+  /** Creates a new [[monix.eval.Task Task]] that upon execution
     * will signal the first generated element of the source observable.
     * Returns an `Option` because the source can be empty.
     */
-  def firstT: Task[Option[A]] =
+  def firstL: Task[Option[A]] =
     Task.unsafeAsync { (s, c, cb) =>
       val task = SingleAssignmentCancelable()
       c push task
@@ -298,11 +298,11 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
       })
     }
 
-  /** Returns a [[monix.async.Task Task]] that upon execution
+  /** Returns a [[monix.eval.Task Task]] that upon execution
     * will signal the last generated element of the source observable.
     * Returns an `Option` because the source can be empty.
     */
-  def lastT: Task[Option[A]] =
+  def lastL: Task[Option[A]] =
     Task.unsafeAsync { (s, c, cb) =>
       val task = SingleAssignmentCancelable()
       c push task
@@ -330,10 +330,11 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
       })
     }
 
-  /** Creates a new [[monix.async.Task Task]] that upon execution
-    * will signal `Unit`.
+  /** Creates a new [[monix.eval.Task Task]] that will consume the
+    * source observable and upon completion of the source it will
+    * complete with `Unit`.
     */
-  def completedT: Task[Unit] =
+  def completedL: Task[Unit] =
     Task.unsafeAsync { (s, c, cb) =>
       val task = SingleAssignmentCancelable()
       c push task
@@ -350,14 +351,11 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
       })
     }
 
-  /** Converts the source observable into an [[AsyncIterable]].
-    *
-    * @param batchSize is the maximum batch size that the iterator
-    *        will emit and also a recommendation for the size
-    *        of the underlying buffer.
+  /** Builds an [[monix.eval.AsyncIterator AsyncIterator]] from the
+    * source observable.
     */
-  def toAsyncIterable(batchSize: Int): AsyncIterable[A] =
-    ObservableToAsyncIterable(self, batchSize)
+  def asyncIterator(batchSize: Int): Task[AsyncIterator[A]] =
+    ObservableToAsyncIterator(self, batchSize)
 
   /** Subscribes to the source `Observable` and foreach element emitted
     * by the source it executes the given callback.
@@ -386,7 +384,7 @@ object Observable {
   /** Creates an observable that doesn't emit anything, but immediately
     * calls `onComplete` instead.
     */
-  def empty: Observable[Nothing] =
+  def empty[A]: Observable[A] =
     builders.EmptyObservable
 
   /** Returns an `Observable` that on execution emits the given strict value.
@@ -487,14 +485,14 @@ object Observable {
   /** Converts a Scala `Future` provided into an [[Observable]].
     *
     * If the created instance is a
-    * [[monix.async.CancelableFuture CancelableFuture]],
+    * [[monix.execution.CancelableFuture CancelableFuture]],
     * then it will be used for the returned
     * [[monix.execution.Cancelable Cancelable]] on `subscribe`.
     */
   def fromFuture[A](factory: => Future[A]): Observable[A] =
     new builders.FutureAsObservable(factory)
 
-  /** Converts any [[monix.async.Task Task]] into an [[Observable]]. */
+  /** Converts any [[monix.eval.Task Task]] into an [[Observable]]. */
   def fromTask[A](task: Task[A]): Observable[A] =
     new builders.TaskAsObservable(task)
 

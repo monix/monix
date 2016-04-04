@@ -19,6 +19,7 @@ package monix.reactive.internal.builders
 
 import monix.execution.Ack.{Stop, Continue}
 import monix.execution.cancelables.BooleanCancelable
+import monix.execution.schedulers.ExecutionModel
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
@@ -31,15 +32,15 @@ class RepeatOneObservable[A](elem: A) extends Observable[A] {
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     val s = subscriber.scheduler
     val cancelable = BooleanCancelable()
-    fastLoop(subscriber, cancelable, s.batchedExecutionModulus, 0)(s)
+    fastLoop(subscriber, cancelable, s.executionModel, 0)(s)
     cancelable
   }
 
-  def reschedule(ack: Future[Ack], o: Subscriber[A], c: BooleanCancelable, modulus: Int)
+  def reschedule(ack: Future[Ack], o: Subscriber[A], c: BooleanCancelable, em: ExecutionModel)
     (implicit s: Scheduler): Unit =
     ack.onComplete {
       case Success(success) =>
-        if (success == Continue) fastLoop(o, c, modulus, 0)
+        if (success == Continue) fastLoop(o, c, em, 0)
       case Failure(ex) =>
         s.reportFailure(ex)
       case _ =>
@@ -47,18 +48,18 @@ class RepeatOneObservable[A](elem: A) extends Observable[A] {
     }
 
   @tailrec
-  def fastLoop(o: Subscriber[A], c: BooleanCancelable, modulus: Int, syncIndex: Int)
+  def fastLoop(o: Subscriber[A], c: BooleanCancelable, em: ExecutionModel, syncIndex: Int)
     (implicit s: Scheduler): Unit = {
 
     val ack = o.onNext(elem)
     val nextIndex =
-      if (ack == Continue) (syncIndex + 1) & modulus
+      if (ack == Continue) em.nextFrameIndex(syncIndex)
       else if (ack == Stop) -1
       else 0
 
     if (nextIndex > 0)
-      fastLoop(o, c, modulus, nextIndex)
+      fastLoop(o, c, em, nextIndex)
     else if (nextIndex == 0 && !c.isCanceled)
-      reschedule(ack, o, c, modulus)
+      reschedule(ack, o, c, em)
   }
 }

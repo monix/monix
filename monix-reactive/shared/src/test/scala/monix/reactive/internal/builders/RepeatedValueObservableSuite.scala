@@ -18,8 +18,7 @@
 package monix.reactive.internal.builders
 
 import minitest.SimpleTestSuite
-import monix.async.FutureUtils
-import monix.execution.Ack
+import monix.execution.{FutureUtils, Ack}
 import monix.execution.Ack.Continue
 import FutureUtils.extensions._
 import monix.execution.schedulers.TestScheduler

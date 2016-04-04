@@ -46,7 +46,7 @@ private[buffers] final class SyncBufferedSubscriber[-T] private
   // events being dropped
   private[this] var eventsDropped = 0L
   // Used on the consumer side to split big synchronous workloads in batches
-  private[this] val batchSizeModulus = scheduler.batchedExecutionModulus
+  private[this] val em = scheduler.executionModel
 
   def onNext(elem: T): Ack = {
     if (!upstreamIsComplete && !downstreamIsDone) {
@@ -131,7 +131,7 @@ private[buffers] final class SyncBufferedSubscriber[-T] private
         // note that the check with batchSizeModulus is meant for splitting
         // big synchronous loops in smaller batches
         val nextIndex = if (!ack.isCompleted) 0 else
-          (syncIndex + 1) & batchSizeModulus
+          em.nextFrameIndex(syncIndex)
 
         if (nextIndex > 0) {
           if (ack == Continue || ack.value.get == Continue.AsSuccess)
