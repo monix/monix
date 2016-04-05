@@ -152,4 +152,15 @@ object TaskNowSuite extends BaseTestSuite {
     val f = task.runAsync
     assertEquals(f.value, Some(Success(Error(dummy))))
   }
+
+  test("Task.now.coeval") { implicit s =>
+    val result = Task.now(100).coeval.value
+    assertEquals(result, Right(100))
+  }
+
+  test("Task.error.coeval") { implicit s =>
+    val dummy = DummyException("dummy")
+    val result = Task.error(dummy).coeval.runTry
+    assertEquals(result, Failure(dummy))
+  }
 }

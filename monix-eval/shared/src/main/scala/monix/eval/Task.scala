@@ -274,16 +274,21 @@ sealed abstract class Task[+A] extends Serializable with Product { self =>
       case Error(ex) =>
         Now(Error(ex))
       case Suspend(thunk) =>
-        Suspend(() => thunk().materializeAttempt)
+        Suspend(() => try thunk().materializeAttempt catch { case NonFatal(ex) => Now(Error(ex)) })
       case task @ MemoizeSuspend(_) =>
-        Suspend(() => task.materializeAttempt)
+        Async[Attempt[A]] { (s, conn, cb) =>
+          Task.startNow[A](s, conn, task, new Callback[A] {
+            def onSuccess(value: A): Unit = cb.onSuccess(Now(value))
+            def onError(ex: Throwable): Unit = cb.onSuccess(Error(ex))
+          })
+        }
       case BindSuspend(thunk, g) =>
         BindSuspend[Attempt[Any], Attempt[A]](
           () => try thunk().materializeAttempt catch { case NonFatal(ex) => Now(Error(ex)) },
           result => result match {
             case Now(any) =>
-              try { g.asInstanceOf[Any => Task[A]](any).materializeAttempt }
-              catch { case NonFatal(ex) => Now(Error(ex)) }
+              // Bind function is already protected with try/catch
+              g.asInstanceOf[Any => Task[A]](any).materializeAttempt
             case Error(ex) =>
               Now(Error(ex))
           })
@@ -300,8 +305,8 @@ sealed abstract class Task[+A] extends Serializable with Product { self =>
           }),
           result => result match {
             case Now(any) =>
-              try { g.asInstanceOf[Any => Task[A]](any).materializeAttempt }
-              catch { case NonFatal(ex) => Now(Error(ex)) }
+              // Bind function is already protected with try/catch
+              g.asInstanceOf[Any => Task[A]](any).materializeAttempt
             case Error(ex) =>
               Now(Error(ex))
           })
@@ -385,8 +390,10 @@ sealed abstract class Task[+A] extends Serializable with Product { self =>
       case ref @ Now(_) => ref
       case error @ Error(_) => error
       case EvalAlways(thunk) => new EvalOnce[A](thunk)
-      case Suspend(thunk) => Suspend(() => thunk().memoize)
       case eval: EvalOnce[_] => self
+      case Suspend(thunk) =>
+        val evalOnce = EvalOnce(() => thunk().memoize)
+        Suspend(evalOnce)
       case memoized: MemoizeSuspend[_] => self
       case other => new MemoizeSuspend[A](() => other)
     }
@@ -394,26 +401,14 @@ sealed abstract class Task[+A] extends Serializable with Product { self =>
   /** Zips the values of `this` and `that` task, and creates a new task
     * that will emit the tuple of their results.
     */
-  def zipAsync[B](that: Task[B]): Task[(A, B)] =
+  def zip[B](that: Task[B]): Task[(A, B)] =
     Task.mapBoth(this, that)((a,b) => (a,b))
 
   /** Zips the values of `this` and `that` and applies the given
     * mapping function on their results.
     */
-  def zipAsyncWith[B,C](that: Task[B])(f: (A,B) => C): Task[C] =
+  def zipWith[B,C](that: Task[B])(f: (A,B) => C): Task[C] =
     Task.mapBoth(this, that)(f)
-
-  /** Zips the values of `this` and `that` task, and creates a new task
-    * that will emit the tuple of their results.
-    */
-  def zipEval[B](that: Coeval[B]): Task[(A, B)] =
-    zipEvalWith(that)((_,_))
-
-  /** Zips the values of `this` and `that` and applies the given
-    * mapping function on their results.
-    */
-  def zipEvalWith[B,C](that: Coeval[B])(f: (A,B) => C): Task[C] =
-    this.map(a => f(a, that.value))
 }
 
 
@@ -827,8 +822,6 @@ object Task {
         case Now(now) => now
         case error @ Error(_) => error
       }
-
-    override def memoize: Attempt[A] = this
   }
 
   object Attempt {
@@ -902,6 +895,8 @@ object Task {
       } catch { case NonFatal(ex) => s.reportFailure(ex) }
       Cancelable.empty
     }
+
+    override def toString = s"EvalOnce($thunk)"
 
     override def equals(other: Any): Boolean = other match {
       case that: EvalOnce[_] => runAttempt == that.runAttempt
@@ -998,7 +993,6 @@ object Task {
         case result: Try[_] =>
           CancelableFuture.fromTry(result.asInstanceOf[Try[A]])
       }
-
 
     private def memoizeValue(value: Try[A]): Unit = {
       state.getAndSet(value) match {

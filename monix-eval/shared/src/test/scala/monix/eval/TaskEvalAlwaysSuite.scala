@@ -154,4 +154,35 @@ object TaskEvalAlwaysSuite extends BaseTestSuite {
     val f = task.runAsync
     assertEquals(f.value, Some(Success(Error(dummy))))
   }
+
+  test("Task.evalAlways.coeval") { implicit s =>
+    val result = Task.evalAlways(100).coeval.value
+    assertEquals(result, Right(100))
+  }
+
+  test("Task.evalAlways.memoize") { implicit s =>
+    var effect = 0
+    val task = Task.evalAlways { effect += 1; effect }.memoize
+
+    val r1 = task.runAsync
+    val r2 = task.runAsync
+    val r3 = task.runAsync
+
+    assertEquals(r1.value, Some(Success(1)))
+    assertEquals(r2.value, Some(Success(1)))
+    assertEquals(r3.value, Some(Success(1)))
+  }
+
+  test("Task.defer(evalAlways).memoize") { implicit s =>
+    var effect = 0
+    val task = Task.defer(Task.evalAlways { effect += 1; effect }).memoize
+
+    val r1 = task.runAsync
+    val r2 = task.runAsync
+    val r3 = task.runAsync
+
+    assertEquals(r1.value, Some(Success(1)))
+    assertEquals(r2.value, Some(Success(1)))
+    assertEquals(r3.value, Some(Success(1)))
+  }
 }

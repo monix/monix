@@ -125,4 +125,9 @@ object TaskEvalOnceSuite extends BaseTestSuite {
     val f = task.runAsync
     assertEquals(f.value, Some(Success(Error(dummy))))
   }
+
+  test("Task.evalOnce.coeval") { implicit s =>
+    val result = Task.evalOnce(100).coeval.value
+    assertEquals(result, Right(100))
+  }
 }

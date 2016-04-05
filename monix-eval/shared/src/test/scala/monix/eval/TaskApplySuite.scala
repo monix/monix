@@ -185,4 +185,12 @@ object TaskApplySuite extends BaseTestSuite {
       t.flatMap(identity) === t.flatten
     }
   }
+
+  test("Task.apply.coeval") { implicit s =>
+    val result = Task(100).coeval.value
+    assert(result.isLeft, "result.isLeft")
+    assertEquals(result.left.map(_.value), Left(None))
+    s.tick()
+    assertEquals(result.left.map(_.value), Left(Some(Success(100))))
+  }
 }

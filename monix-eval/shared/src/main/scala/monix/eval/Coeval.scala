@@ -245,7 +245,9 @@ sealed abstract class Coeval[+A] extends Serializable with Product { self =>
       case ref @ Now(_) => ref
       case error @ Error(_) => error
       case EvalAlways(thunk) => new EvalOnce[A](thunk)
-      case Suspend(thunk) => Suspend(() => thunk().memoize)
+      case Suspend(thunk) =>
+        val evalOnce = EvalOnce(() => thunk().memoize)
+        Suspend(evalOnce)
       case eval: EvalOnce[_] => self
       case BindSuspend(_,_) =>
         new EvalOnce[A](() => self.value)
@@ -286,7 +288,7 @@ object Coeval {
     * evaluation, the result being then available on subsequent evaluations.
     */
   def evalOnce[A](f: => A): Coeval[A] =
-    EvalOnce(f)
+    EvalOnce(f _)
 
   /** Promote a non-strict value to an `Coeval`, catching exceptions in the
     * process.
@@ -469,8 +471,8 @@ object Coeval {
 
   object EvalOnce {
     /** Builder for an [[EvalOnce]] instance. */
-    def apply[A](a: => A): EvalOnce[A] =
-      new EvalOnce[A](a _)
+    def apply[A](a: () => A): EvalOnce[A] =
+      new EvalOnce[A](a)
 
     /** Deconstructs an [[EvalOnce]] instance. */
     def unapply[A](coeval: EvalOnce[A]): Some[() => A] =

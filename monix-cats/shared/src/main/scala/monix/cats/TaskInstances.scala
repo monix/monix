@@ -52,7 +52,7 @@ private[cats] trait TaskInstances2 extends TaskInstances1 {
     new Group[Task[A]] {
       val empty: Task[A] = Task.now(A.empty)
       def combine(x: Task[A], y: Task[A]): Task[A] =
-        x.zipAsyncWith(y)(A.combine)
+        x.zipWith(y)(A.combine)
       def inverse(a: Task[A]): Task[A] =
         a.map(A.inverse)
     }
@@ -63,7 +63,7 @@ private[cats] trait TaskInstances1 extends TaskInstances0 {
     new Monoid[Task[A]] {
       val empty: Task[A] = Task.now(A.empty)
       def combine(x: Task[A], y: Task[A]): Task[A] =
-        x.zipAsyncWith(y)(A.combine)
+        x.zipWith(y)(A.combine)
     }
 }
 
@@ -71,6 +71,6 @@ private[cats] trait TaskInstances0 {
   implicit def taskSemigroup[A](implicit A: Semigroup[A]): Semigroup[Task[A]] =
     new Semigroup[Task[A]] {
       def combine(x: Task[A], y: Task[A]): Task[A] =
-        x.zipAsyncWith(y)(A.combine)
+        x.zipWith(y)(A.combine)
     }
 }
