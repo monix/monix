@@ -22,8 +22,8 @@ import _root_.algebra.{Group, Monoid, Semigroup}
 import monix.eval.Task
 
 /** Provides Cats compatibility for the [[Task]] type. */
-trait TaskInstances extends TaskInstances2 {
-  implicit val taskInstances: Deferrable[Task] =
+trait TaskInstances {
+  implicit val taskInstances: MonadError[Task, Throwable] with CoflatMap[Task] =
     new MonadError[Task, Throwable] with CoflatMap[Task] {
       def flatMap[A, B](fa: Task[A])(f: (A) => Task[B]): Task[B] =
         fa.flatMap(f)
@@ -67,7 +67,7 @@ private[cats] trait TaskInstances1 extends TaskInstances0 {
     }
 }
 
-private[cats] trait TaskInstances0 {
+private[cats] trait TaskInstances0 extends EvaluableInstances {
   implicit def taskSemigroup[A](implicit A: Semigroup[A]): Semigroup[Task[A]] =
     new Semigroup[Task[A]] {
       def combine(x: Task[A], y: Task[A]): Task[A] =

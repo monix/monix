@@ -78,13 +78,13 @@ trait BaseLawsSuiteInstances0 extends AllInstances with cats.std.AllInstances {
   implicit def arbitraryAsyncIterator[A : Arbitrary]: Arbitrary[AsyncIterator[A]] =
     Arbitrary {
       val listA = implicitly[Arbitrary[List[A]]].arbitrary
-      for (list <- listA) yield AsyncIterator.Wait(AsyncIterator.fromList(list, 16))
+      for (list <- listA) yield AsyncIterator.wait(AsyncIterator.fromList(list, 16))
     }
 
   implicit def arbitraryLazyIterator[A : Arbitrary]: Arbitrary[LazyIterator[A]] =
     Arbitrary {
       val listA = implicitly[Arbitrary[List[A]]].arbitrary
-      for (list <- listA) yield LazyIterator.Wait(LazyIterator.fromList(list, 16))
+      for (list <- listA) yield LazyIterator.wait(LazyIterator.fromList(list, 16))
     }
 
   implicit def arbitraryTask[A : Arbitrary]: Arbitrary[Task[A]] =

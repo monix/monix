@@ -17,7 +17,7 @@
 
 package monix.reactive
 
-import monix.eval.{AsyncIterable, AsyncIterator, Task}
+import monix.eval.{AsyncIterator, Task}
 import monix.execution.Ack.{Stop, Continue}
 import monix.execution._
 import monix.execution.cancelables.SingleAssignmentCancelable
@@ -40,7 +40,7 @@ import scala.util.control.NonFatal
   *
   * See the available documentation at: [[https://monix.io]]
   */
-trait Observable[+A] extends ObservableLike[A, Observable] with AsyncIterable[A] { self =>
+trait Observable[+A] extends ObservableLike[A, Observable] { self =>
   /** Characteristic function for an `Observable` instance, that creates
     * the subscription and that eventually starts the streaming of
     * events to the given [[Observer]], being meant to be provided.

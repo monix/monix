@@ -540,4 +540,86 @@ object Coeval {
 
     reduceCoeval(source, Nil).asInstanceOf[Attempt[A]]
   }
+
+  /** Implicit instance for the [[Evaluable]] type-class. */
+  implicit val taskEvaluable: Evaluable[Task] =
+    new Evaluable[Task] {
+      def now[A](a: A): Task[A] = Task.now(a)
+      def unit: Task[Unit] = Task.unit
+      def evalAlways[A](f: => A): Task[A] = Task.evalAlways(f)
+      def evalOnce[A](f: => A): Task[A] = Task.evalOnce(f)
+      def error[A](ex: Throwable): Task[A] = Task.error(ex)
+      def defer[A](fa: => Task[A]): Task[A] = Task.defer(fa)
+      def memoize[A](fa: Task[A]): Task[A] = fa.memoize
+
+      def flatten[A](ffa: Task[Task[A]]): Task[A] = ffa.flatten
+      def flatMap[A, B](fa: Task[A])(f: (A) => Task[B]): Task[B] = fa.flatMap(f)
+      def map[A, B](fa: Task[A])(f: (A) => B): Task[B] = fa.map(f)
+
+      def onErrorRetryIf[A](fa: Task[A])(p: (Throwable) => Boolean): Task[A] =
+        fa.onErrorRetryIf(p)
+      def onErrorRetry[A](fa: Task[A], maxRetries: Long): Task[A] =
+        fa.onErrorRetry(maxRetries)
+      def onErrorRecover[A](fa: Task[A])(pf: PartialFunction[Throwable, A]): Task[A] =
+        fa.onErrorRecover(pf)
+      def onErrorRecoverWith[A](fa: Task[A])(pf: PartialFunction[Throwable, Task[A]]): Task[A] =
+        fa.onErrorRecoverWith(pf)
+      def onErrorHandle[A](fa: Task[A])(f: (Throwable) => A): Task[A] =
+        fa.onErrorHandle(f)
+      def onErrorHandleWith[A](fa: Task[A])(f: (Throwable) => Task[A]): Task[A] =
+        fa.onErrorHandleWith(f)
+      def onErrorFallbackTo[A](fa: Task[A], fallback: Task[A]): Task[A] =
+        fa.onErrorFallbackTo(fallback)
+
+      def failed[A](fa: Task[A]): Task[Throwable] = fa.failed
+      def materialize[A](fa: Task[A]): Task[Try[A]] = fa.materialize
+      def dematerialize[A](fa: Task[Try[A]]): Task[A] = fa.dematerialize
+
+      def zipList[A](sources: Seq[Task[A]]): Task[Seq[A]] = Task.zipList(sources)
+      def zipWith2[A1, A2, R](fa1: Task[A1], fa2: Task[A2])(f: (A1, A2) => R): Task[R] =
+        Task.zipWith2(fa1, fa2)(f)
+      override def zip2[A1, A2](fa1: Task[A1], fa2: Task[A2]): Task[(A1, A2)] =
+        Task.zip2(fa1, fa2)
+    }
+
+  /** Implicit instance for the [[Evaluable]] type-class. */
+  implicit val instances: Evaluable[Coeval] =
+    new Evaluable[Coeval] {
+      def now[A](a: A): Coeval[A] = Coeval.now(a)
+      def unit: Coeval[Unit] = Coeval.unit
+      def evalAlways[A](f: => A): Coeval[A] = Coeval.evalAlways(f)
+      def evalOnce[A](f: => A): Coeval[A] = Coeval.evalOnce(f)
+      def error[A](ex: Throwable): Coeval[A] = Coeval.error(ex)
+      def defer[A](fa: => Coeval[A]): Coeval[A] = Coeval.defer(fa)
+      def memoize[A](fa: Coeval[A]): Coeval[A] = fa.memoize
+
+      def flatten[A](ffa: Coeval[Coeval[A]]): Coeval[A] = ffa.flatten
+      def flatMap[A, B](fa: Coeval[A])(f: (A) => Coeval[B]): Coeval[B] = fa.flatMap(f)
+      def map[A, B](fa: Coeval[A])(f: (A) => B): Coeval[B] = fa.map(f)
+
+      def onErrorRetryIf[A](fa: Coeval[A])(p: (Throwable) => Boolean): Coeval[A] =
+        fa.onErrorRetryIf(p)
+      def onErrorRetry[A](fa: Coeval[A], maxRetries: Long): Coeval[A] =
+        fa.onErrorRetry(maxRetries)
+      def onErrorRecover[A](fa: Coeval[A])(pf: PartialFunction[Throwable, A]): Coeval[A] =
+        fa.onErrorRecover(pf)
+      def onErrorRecoverWith[A](fa: Coeval[A])(pf: PartialFunction[Throwable, Coeval[A]]): Coeval[A] =
+        fa.onErrorRecoverWith(pf)
+      def onErrorHandle[A](fa: Coeval[A])(f: (Throwable) => A): Coeval[A] =
+        fa.onErrorHandle(f)
+      def onErrorHandleWith[A](fa: Coeval[A])(f: (Throwable) => Coeval[A]): Coeval[A] =
+        fa.onErrorHandleWith(f)
+      def onErrorFallbackTo[A](fa: Coeval[A], fallback: Coeval[A]): Coeval[A] =
+        fa.onErrorFallbackTo(fallback)
+
+      def failed[A](fa: Coeval[A]): Coeval[Throwable] = fa.failed
+      def materialize[A](fa: Coeval[A]): Coeval[Try[A]] = fa.materialize
+      def dematerialize[A](fa: Coeval[Try[A]]): Coeval[A] = fa.dematerialize
+
+      def zipList[A](sources: Seq[Coeval[A]]): Coeval[Seq[A]] = Coeval.zipList(sources)
+      def zipWith2[A1, A2, R](fa1: Coeval[A1], fa2: Coeval[A2])(f: (A1, A2) => R): Coeval[R] =
+        Coeval.zipWith2(fa1, fa2)(f)
+      override def zip2[A1, A2](fa1: Coeval[A1], fa2: Coeval[A2]): Coeval[(A1, A2)] =
+        Coeval.zip2(fa1, fa2)
+    }
 }

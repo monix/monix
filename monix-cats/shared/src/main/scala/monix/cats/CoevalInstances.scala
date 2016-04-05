@@ -23,7 +23,7 @@ import monix.eval.Coeval
 
 /** Provides Cats compatibility for the [[Coeval]] type. */
 trait CoevalInstances extends CoevalInstances2 {
-  implicit val coevalInstances: Evaluable[Coeval] =
+  implicit val coevalInstances: MonadError[Coeval, Throwable] with Bimonad[Coeval] =
     new MonadError[Coeval, Throwable] with Bimonad[Coeval] {
       def extract[A](x: Coeval[A]): A = x.value
       def flatMap[A, B](fa: Coeval[A])(f: (A) => Coeval[B]): Coeval[B] =
@@ -67,7 +67,7 @@ private[cats] trait CoevalInstances1 extends CoevalInstances0 {
     }
 }
 
-private[cats] trait CoevalInstances0 {
+private[cats] trait CoevalInstances0 extends EvaluableInstances {
   implicit def coevalSemigroup[A](implicit A: Semigroup[A]): Semigroup[Coeval[A]] =
     new Semigroup[Coeval[A]] {
       def combine(x: Coeval[A], y: Coeval[A]): Coeval[A] =

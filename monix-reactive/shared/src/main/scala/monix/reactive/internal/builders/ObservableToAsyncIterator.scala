@@ -17,8 +17,8 @@
 
 package monix.reactive.internal.builders
 
-import monix.eval.AsyncIterator.{Empty, Error, NextSeq, Next}
 import monix.eval._
+import monix.eval.ConsStream.{Empty, Error, NextSeq, Next}
 import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.cancelables.SingleAssignmentCancelable
@@ -27,10 +27,12 @@ import monix.reactive.observers.Subscriber
 import scala.concurrent.{Future, Promise}
 
 private[reactive] object ObservableToAsyncIterator {
-  /** Conversion from observable to async iterable. */
   def apply[A](source: Observable[A], batchSize: Int): Task[AsyncIterator[A]] =
+    buildStream(source, batchSize).map(AsyncIterator.fromStream)
+
+  def buildStream[A](source: Observable[A], batchSize: Int): Task[ConsStream[A,Task]] =
     Task.unsafeAsync { (context, cancelable, cb) =>
-      val initial = Promise[AsyncIterator[A]]()
+      val initial = Promise[ConsStream[A,Task]]()
       initial.future.onComplete(cb)(context)
 
       val mainTask = SingleAssignmentCancelable()
@@ -46,12 +48,12 @@ private[reactive] object ObservableToAsyncIterator {
           def onNext(elems: List[A]): Future[Ack] = {
             val acknowledgement = Promise[Ack]()
             val currentPromise = this.currentPromise
-            val restPromise = Promise[AsyncIterator[A]]()
+            val restPromise = Promise[ConsStream[A,Task]]()
             this.currentPromise = restPromise
 
             // Task execution must be idempotent ;-)
             // When this executes, it means that the client wants more.
-            val restTask: Task[AsyncIterator[A]] =
+            val restTask: Task[ConsStream[A,Task]] =
               Task.unsafeAsync { (scheduler, c, cb) =>
                 // Executing task means continuing Observer
                 restPromise.future.onComplete(cb)(scheduler)
@@ -81,7 +83,7 @@ private[reactive] object ObservableToAsyncIterator {
             ack.syncOnContinue {
               if (!isDone) {
                 isDone = true
-                currentPromise.success(Empty)
+                currentPromise.success(Empty[Task]())
               }
             }
         })

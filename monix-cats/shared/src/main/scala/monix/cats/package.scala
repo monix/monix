@@ -25,9 +25,6 @@ import scala.language.higherKinds
   * See: [[http://typelevel.org/cats/ typelevel.org/cats/]]
   */
 package object cats extends AllInstances {
-  type Deferrable[F[_]] = MonadError[F, Throwable] with CoflatMap[F]
-  type Evaluable[F[_]] = Deferrable[F] with Bimonad[F]
-
   type Sequenceable[F[_]] = MonadFilter[F]
     with MonadError[F, Throwable]
     with CoflatMap[F]

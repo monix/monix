@@ -18,9 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack.{Stop, Continue}
-import monix.execution.FutureUtils
-import FutureUtils.extensions._
-import monix.execution.FutureUtils
+import monix.execution.FutureUtils.extensions._
 import monix.reactive.{Observable, Observer}
 import scala.concurrent.Future
 import scala.concurrent.duration._

@@ -1303,4 +1303,45 @@ object Task {
         })
       }
   }
+
+  /** Implicit instance for the [[Evaluable]] type-class. */
+  implicit val instances: Evaluable[Task] =
+    new Evaluable[Task] {
+      def now[A](a: A): Task[A] = Task.now(a)
+      def unit: Task[Unit] = Task.unit
+      def evalAlways[A](f: => A): Task[A] = Task.evalAlways(f)
+      def evalOnce[A](f: => A): Task[A] = Task.evalOnce(f)
+      def error[A](ex: Throwable): Task[A] = Task.error(ex)
+      def defer[A](fa: => Task[A]): Task[A] = Task.defer(fa)
+      def memoize[A](fa: Task[A]): Task[A] = fa.memoize
+
+      def flatten[A](ffa: Task[Task[A]]): Task[A] = ffa.flatten
+      def flatMap[A, B](fa: Task[A])(f: (A) => Task[B]): Task[B] = fa.flatMap(f)
+      def map[A, B](fa: Task[A])(f: (A) => B): Task[B] = fa.map(f)
+
+      def onErrorRetryIf[A](fa: Task[A])(p: (Throwable) => Boolean): Task[A] =
+        fa.onErrorRetryIf(p)
+      def onErrorRetry[A](fa: Task[A], maxRetries: Long): Task[A] =
+        fa.onErrorRetry(maxRetries)
+      def onErrorRecover[A](fa: Task[A])(pf: PartialFunction[Throwable, A]): Task[A] =
+        fa.onErrorRecover(pf)
+      def onErrorRecoverWith[A](fa: Task[A])(pf: PartialFunction[Throwable, Task[A]]): Task[A] =
+        fa.onErrorRecoverWith(pf)
+      def onErrorHandle[A](fa: Task[A])(f: (Throwable) => A): Task[A] =
+        fa.onErrorHandle(f)
+      def onErrorHandleWith[A](fa: Task[A])(f: (Throwable) => Task[A]): Task[A] =
+        fa.onErrorHandleWith(f)
+      def onErrorFallbackTo[A](fa: Task[A], fallback: Task[A]): Task[A] =
+        fa.onErrorFallbackTo(fallback)
+
+      def failed[A](fa: Task[A]): Task[Throwable] = fa.failed
+      def materialize[A](fa: Task[A]): Task[Try[A]] = fa.materialize
+      def dematerialize[A](fa: Task[Try[A]]): Task[A] = fa.dematerialize
+
+      def zipList[A](sources: Seq[Task[A]]): Task[Seq[A]] = Task.zipList(sources)
+      def zipWith2[A1, A2, R](fa1: Task[A1], fa2: Task[A2])(f: (A1, A2) => R): Task[R] =
+        Task.zipWith2(fa1, fa2)(f)
+      override def zip2[A1, A2](fa1: Task[A1], fa2: Task[A2]): Task[(A1, A2)] =
+        Task.zip2(fa1, fa2)
+    }
 }
