@@ -75,16 +75,16 @@ trait BaseLawsSuiteInstances0 extends AllInstances with cats.std.AllInstances {
         .map(Observable.fromIterable)
     }
 
-  implicit def arbitraryAsyncIterator[A : Arbitrary]: Arbitrary[AsyncIterator[A]] =
+  implicit def arbitraryAsyncIterator[A : Arbitrary]: Arbitrary[TaskIterator[A]] =
     Arbitrary {
       val listA = implicitly[Arbitrary[List[A]]].arbitrary
-      for (list <- listA) yield AsyncIterator.wait(AsyncIterator.fromList(list, 16))
+      for (list <- listA) yield TaskIterator.wait(TaskIterator.fromList(list, 16))
     }
 
-  implicit def arbitraryLazyIterator[A : Arbitrary]: Arbitrary[LazyIterator[A]] =
+  implicit def arbitraryLazyIterator[A : Arbitrary]: Arbitrary[CoevalIterator[A]] =
     Arbitrary {
       val listA = implicitly[Arbitrary[List[A]]].arbitrary
-      for (list <- listA) yield LazyIterator.wait(LazyIterator.fromList(list, 16))
+      for (list <- listA) yield CoevalIterator.wait(CoevalIterator.fromList(list, 16))
     }
 
   implicit def arbitraryTask[A : Arbitrary]: Arbitrary[Task[A]] =
@@ -200,9 +200,9 @@ trait BaseLawsSuiteInstances0 extends AllInstances with cats.std.AllInstances {
       }
     }
 
-  implicit def equalityAsyncIterator[A : Eq]: Eq[AsyncIterator[A]] =
-    new Eq[AsyncIterator[A]] {
-      def eqv(x: AsyncIterator[A], y: AsyncIterator[A]): Boolean = {
+  implicit def equalityAsyncIterator[A : Eq]: Eq[TaskIterator[A]] =
+    new Eq[TaskIterator[A]] {
+      def eqv(x: TaskIterator[A], y: TaskIterator[A]): Boolean = {
         implicit val scheduler = TestScheduler()
 
         var valueA = Option.empty[Try[List[A]]]
@@ -230,9 +230,9 @@ trait BaseLawsSuiteInstances0 extends AllInstances with cats.std.AllInstances {
       }
     }
 
-  implicit def equalityLazyIterator[A : Eq]: Eq[LazyIterator[A]] =
-    new Eq[LazyIterator[A]] {
-      def eqv(x: LazyIterator[A], y: LazyIterator[A]): Boolean =
+  implicit def equalityLazyIterator[A : Eq]: Eq[CoevalIterator[A]] =
+    new Eq[CoevalIterator[A]] {
+      def eqv(x: CoevalIterator[A], y: CoevalIterator[A]): Boolean =
         x.toListL.runTry == y.toListL.runTry
     }
 }

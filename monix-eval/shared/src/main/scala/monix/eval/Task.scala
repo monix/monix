@@ -21,12 +21,15 @@ import monix.eval.Task._
 import monix.execution.Ack.Stop
 import monix.execution.cancelables.{CompositeCancelable, SingleAssignmentCancelable, StackedCancelable}
 import monix.execution.schedulers.ExecutionModel
-import monix.execution.{CancelableFuture, Cancelable, Scheduler}
+import monix.execution.{Cancelable, CancelableFuture, Scheduler}
+import monix.types.shims.syntax._
+import monix.types.{Asynchronous, Evaluable}
 import org.sincron.atomic.{Atomic, AtomicAny}
+
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{Future, Promise, TimeoutException}
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
@@ -398,6 +401,27 @@ sealed abstract class Task[+A] extends Serializable with Product { self =>
       case other => new MemoizeSuspend[A](() => other)
     }
 
+  /** Returns a Task that mirrors the source Task but that triggers a
+    * `TimeoutException` in case the given duration passes without the
+    * task emitting any item.
+    */
+  def timeout(after: FiniteDuration): Task[A] =
+    timeoutTo(after, error(new TimeoutException(s"Task timed-out after $after of inactivity")))
+
+  /** Returns a Task that mirrors the source Task but switches to the
+    * given backup Task in case the given duration passes without the
+    * source emitting any item.
+    */
+  def timeoutTo[B >: A](after: FiniteDuration, backup: Task[B]): Task[B] =
+    Task.chooseFirstOf(self, backup.delayExecution(after)).map {
+      case Left(((a, futureB))) =>
+        futureB.cancel()
+        a
+      case Right((futureA, b)) =>
+        futureA.cancel()
+        b
+    }
+
   /** Zips the values of `this` and `that` task, and creates a new task
     * that will emit the tuple of their results.
     */
@@ -545,10 +569,63 @@ object Task {
       }(s)
     }
 
+  /** Creates a `Task` that upon execution will execute both given tasks
+    * (possibly in parallel in case the tasks are asynchronous) and will
+    * return the result of the task that manages to complete first,
+    * along with a cancelable future of the other task.
+    */
+  def chooseFirstOf[A,B](fa: Task[A], fb: Task[B]): Task[(A, CancelableFuture[B]) \/ (CancelableFuture[A], B)] =
+    Async { (scheduler, conn, cb) =>
+      val pa = Promise[A]()
+      val pb = Promise[B]()
+
+      val isActive = Atomic(true)
+      val connA = StackedCancelable()
+      val connB = StackedCancelable()
+      conn push CompositeCancelable(connA, connB)
+
+      Task.startNow(scheduler, connA, fa, new Callback[A] {
+        def onSuccess(value: A): Unit =
+          if (isActive.getAndSet(false)) {
+            val resultB = CancelableFuture(pb.future, connB)
+            conn.popAndCollapse(connB)
+            cb.onSuccess(Left((value, resultB)))
+          } else {
+            pa.success(value)
+          }
+
+        def onError(ex: Throwable): Unit =
+          if (isActive.getAndSet(false)) {
+            conn.pop()
+            connB.cancel()
+            cb.onError(ex)
+          }
+      })
+
+      Task.startNow(scheduler, connB, fb, new Callback[B] {
+        def onSuccess(value: B): Unit =
+          if (isActive.getAndSet(false)) {
+            val resultA = CancelableFuture(pa.future, connA)
+            conn.popAndCollapse(connA)
+            cb.onSuccess(Right((resultA, value)))
+          } else {
+            pb.success(value)
+          }
+
+        def onError(ex: Throwable): Unit =
+          if (isActive.getAndSet(false)) {
+            conn.pop()
+            connA.cancel()
+            cb.onError(ex)
+          }
+      })
+    }
+
+
   /** Creates a `Task` that upon execution will return the result of the
     * first completed task in the given list and then cancel the rest.
     */
-  def firstCompletedOf[A](tasks: TraversableOnce[Task[A]]): Task[A] =
+  def chooseFirstOfList[A](tasks: TraversableOnce[Task[A]]): Task[A] =
     Async { (scheduler, conn, cb) =>
       val isActive = Atomic(true)
       val composite = CompositeCancelable()
@@ -1304,9 +1381,10 @@ object Task {
       }
   }
 
-  /** Implicit instance for the [[Evaluable]] type-class. */
-  implicit val instances: Evaluable[Task] =
-    new Evaluable[Task] {
+  /** Type-class instances for [[Task]]. */
+  implicit val instances: Evaluable[Task] with Asynchronous[Task] =
+    new Evaluable[Task] with Asynchronous[Task] {
+      def point[A](a: A): Task[A] = Task.now(a)
       def now[A](a: A): Task[A] = Task.now(a)
       def unit: Task[Unit] = Task.unit
       def evalAlways[A](f: => A): Task[A] = Task.evalAlways(f)
@@ -1314,6 +1392,7 @@ object Task {
       def error[A](ex: Throwable): Task[A] = Task.error(ex)
       def defer[A](fa: => Task[A]): Task[A] = Task.defer(fa)
       def memoize[A](fa: Task[A]): Task[A] = fa.memoize
+      def task[A](fa: Task[A]): Task[A] = fa
 
       def flatten[A](ffa: Task[Task[A]]): Task[A] = ffa.flatten
       def flatMap[A, B](fa: Task[A])(f: (A) => Task[B]): Task[B] = fa.flatMap(f)
@@ -1343,5 +1422,23 @@ object Task {
         Task.zipWith2(fa1, fa2)(f)
       override def zip2[A1, A2](fa1: Task[A1], fa2: Task[A2]): Task[(A1, A2)] =
         Task.zip2(fa1, fa2)
+
+      def delayedEval[A](delay: FiniteDuration, a: =>A): Task[A] =
+        Task.evalAlways(a).delayExecution(delay)
+      def delayExecution[A](fa: Task[A], timespan: FiniteDuration): Task[A] =
+        fa.delayExecution(timespan)
+      def chooseFirstOf[A](seq: Seq[Task[A]]): Task[A] =
+        Task.chooseFirstOfList(seq)
+      def delayExecutionWith[A, B](fa: Task[A], trigger: Task[B]): Task[A] =
+        fa.delayExecutionWith(trigger)
+      def delayResult[A](fa: Task[A], timespan: FiniteDuration): Task[A] =
+        fa.delayResult(timespan)
+      def delayResultBySelector[A, B](fa: Task[A])(selector: (A) => Task[B]): Task[A] =
+        fa.delayResultBySelector(selector)
+
+      def timeoutTo[A](fa: Task[A], timespan: FiniteDuration, backup: Task[A]): Task[A] =
+        fa.timeoutTo(timespan, backup)
+      override def timeout[A](fa: Task[A], timespan: FiniteDuration): Task[A] =
+        fa.timeout(timespan)
     }
 }

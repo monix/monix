@@ -19,7 +19,7 @@ package monix.cats
 
 import algebra.Eq
 import algebra.laws.GroupLaws
-import monix.cats.tests.BimonadEvaluableTests
+import monix.cats.tests.BimonadDeferrableTests
 import monix.eval.Coeval
 import org.scalacheck.Arbitrary
 
@@ -31,6 +31,5 @@ object CoevalLawsSuite extends BaseLawsSuite with GroupLaws[Coeval[Int]] {
   checkAll("Group[Coeval[Int]]", GroupLaws[Coeval[Int]].group)
   checkAll("Monoid[Coeval[Int]]", GroupLaws[Coeval[Int]].monoid)
   checkAll("Semigroup[Coeval[Int]]", GroupLaws[Coeval[Int]].semigroup)
-
-  checkAll("Evaluable[Coeval]", BimonadEvaluableTests[Coeval].evaluable[Int,Int,Int])
+  checkAll("BimonadDeferrable[Coeval]", BimonadDeferrableTests[Coeval].deferrable[Int,Int,Int])
 }

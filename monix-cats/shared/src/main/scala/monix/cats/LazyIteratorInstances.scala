@@ -18,39 +18,39 @@
 package monix.cats
 
 import cats._
-import monix.eval.LazyIterator
+import monix.eval.CoevalIterator
 
 trait LazyIteratorInstances {
-  implicit val lazyIteratorInstances: Sequenceable[LazyIterator] =
-    new MonadFilter[LazyIterator] with MonadError[LazyIterator, Throwable]
-      with CoflatMap[LazyIterator] with MonadCombine[LazyIterator] {
+  implicit val lazyIteratorInstances: Sequenceable[CoevalIterator] =
+    new MonadFilter[CoevalIterator] with MonadError[CoevalIterator, Throwable]
+      with CoflatMap[CoevalIterator] with MonadCombine[CoevalIterator] {
 
-      def empty[A]: LazyIterator[A] =
-        LazyIterator.empty[A]
-      def raiseError[A](e: Throwable): LazyIterator[A] =
-        LazyIterator.error(e)
-      def pure[A](x: A): LazyIterator[A] =
-        LazyIterator.now(x)
-      override def pureEval[A](x: Eval[A]): LazyIterator[A] =
-        LazyIterator.evalAlways(x.value)
+      def empty[A]: CoevalIterator[A] =
+        CoevalIterator.empty[A]
+      def raiseError[A](e: Throwable): CoevalIterator[A] =
+        CoevalIterator.error(e)
+      def pure[A](x: A): CoevalIterator[A] =
+        CoevalIterator.now(x)
+      override def pureEval[A](x: Eval[A]): CoevalIterator[A] =
+        CoevalIterator.evalAlways(x.value)
 
-      def flatMap[A, B](fa: LazyIterator[A])(f: (A) => LazyIterator[B]): LazyIterator[B] =
+      def flatMap[A, B](fa: CoevalIterator[A])(f: (A) => CoevalIterator[B]): CoevalIterator[B] =
         fa.flatMap(f)
-      def coflatMap[A, B](fa: LazyIterator[A])(f: (LazyIterator[A]) => B): LazyIterator[B] =
-        LazyIterator.evalAlways(f(fa))
-      override def coflatten[A](fa: LazyIterator[A]): LazyIterator[LazyIterator[A]] =
-        LazyIterator.now(fa)
-      def handleErrorWith[A](fa: LazyIterator[A])(f: (Throwable) => LazyIterator[A]): LazyIterator[A] =
+      def coflatMap[A, B](fa: CoevalIterator[A])(f: (CoevalIterator[A]) => B): CoevalIterator[B] =
+        CoevalIterator.evalAlways(f(fa))
+      override def coflatten[A](fa: CoevalIterator[A]): CoevalIterator[CoevalIterator[A]] =
+        CoevalIterator.now(fa)
+      def handleErrorWith[A](fa: CoevalIterator[A])(f: (Throwable) => CoevalIterator[A]): CoevalIterator[A] =
         fa.onErrorHandleWith(f)
 
-      override def filter[A](fa: LazyIterator[A])(f: (A) => Boolean): LazyIterator[A] =
+      override def filter[A](fa: CoevalIterator[A])(f: (A) => Boolean): CoevalIterator[A] =
         fa.filter(f)
-      override def map[A, B](fa: LazyIterator[A])(f: (A) => B): LazyIterator[B] =
+      override def map[A, B](fa: CoevalIterator[A])(f: (A) => B): CoevalIterator[B] =
         fa.map(f)
-      override def handleError[A](fa: LazyIterator[A])(f: (Throwable) => A): LazyIterator[A] =
+      override def handleError[A](fa: CoevalIterator[A])(f: (Throwable) => A): CoevalIterator[A] =
         fa.onErrorHandle(f)
 
-      def combineK[A](x: LazyIterator[A], y: LazyIterator[A]): LazyIterator[A] =
+      def combineK[A](x: CoevalIterator[A], y: CoevalIterator[A]): CoevalIterator[A] =
         x ++ y
     }
 }

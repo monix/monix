@@ -15,12 +15,17 @@
  * limitations under the License.
  */
 
-package monix.cats
+package monix.types
 
-import cats.laws.discipline.CartesianTests.Isomorphisms.invariant
-import monix.cats.tests.SequenceableTests
-import monix.reactive.Observable
+import simulacrum.typeclass
+import scala.language.{higherKinds, implicitConversions}
 
-object ObservableLawsSuite extends BaseLawsSuite {
-  checkAll("Sequenceable[Observable]", SequenceableTests[Observable].sequenceable[Int,Int,Int])
+/** A type-class describing computations that can be deferred. */
+@typeclass trait Deferrable[F[_]] extends Zippable[F] with Recoverable[F] {
+  def now[A](a: A): F[A]
+  def defer[A](fa: => F[A]): F[A]
+  def evalOnce[A](f: => A): F[A]
+  def evalAlways[A](f: => A): F[A]
+  def unit: F[Unit]
+  def memoize[A](fa: F[A]): F[A]
 }

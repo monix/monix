@@ -27,8 +27,8 @@ import monix.reactive.observers.Subscriber
 import scala.concurrent.{Future, Promise}
 
 private[reactive] object ObservableToAsyncIterator {
-  def apply[A](source: Observable[A], batchSize: Int): Task[AsyncIterator[A]] =
-    buildStream(source, batchSize).map(AsyncIterator.fromStream)
+  def apply[A](source: Observable[A], batchSize: Int): Task[TaskIterator[A]] =
+    buildStream(source, batchSize).map(TaskIterator.fromStream)
 
   def buildStream[A](source: Observable[A], batchSize: Int): Task[ConsStream[A,Task]] =
     Task.unsafeAsync { (context, cancelable, cb) =>

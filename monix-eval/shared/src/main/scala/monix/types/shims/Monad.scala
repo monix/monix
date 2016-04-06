@@ -15,12 +15,18 @@
  * limitations under the License.
  */
 
-package monix.cats
+package monix.types.shims
 
-import cats.laws.discipline.CartesianTests.Isomorphisms.invariant
-import monix.cats.tests.SequenceableTests
-import monix.reactive.Observable
+import simulacrum.typeclass
+import scala.language.{higherKinds,implicitConversions}
 
-object ObservableLawsSuite extends BaseLawsSuite {
-  checkAll("Sequenceable[Observable]", SequenceableTests[Observable].sequenceable[Int,Int,Int])
+/** Placeholder for a `Monad` type, to be provided by
+  * libraries such as Cats or Scalaz.
+  */
+@typeclass trait Monad[F[_]] {
+  def ap[A, B](fa: F[A])(f: F[A => B]): F[B] = flatMap(f)(map(fa))
+  def map[A, B](fa: F[A])(f: (A) => B): F[B]
+  def flatMap[A, B](fa: F[A])(f: (A) => F[B]): F[B]
+  def flatten[A](ffa: F[F[A]]): F[A]
+  def point[A](a: A): F[A]
 }

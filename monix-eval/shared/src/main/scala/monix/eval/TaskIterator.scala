@@ -17,24 +17,32 @@
 
 package monix.eval
 
-import monix.eval.internal.{IteratorLikeBuilders, IteratorLike}
+import monix.eval.internal.{IteratorLike, IteratorLikeBuilders}
+import monix.execution.{CancelableFuture, Scheduler}
 import scala.util.control.NonFatal
 
-/** An `AsyncIterator` represents a [[Task]] based asynchronous iterator.
+/** An `TaskIterator` represents a [[Task]] based asynchronous iterator.
   *
   * The implementation is practically wrapping
   * a [[ConsStream]] of [[Task]], provided for convenience.
   */
-final case class AsyncIterator[+A](stream: ConsStream[A,Task])
-  extends IteratorLike[A, Task, AsyncIterator] {
+final case class TaskIterator[+A](stream: ConsStream[A,Task])
+  extends IteratorLike[A, Task, TaskIterator] {
 
-  def transform[B](f: (ConsStream[A, Task]) => ConsStream[B, Task]): AsyncIterator[B] = {
+  protected override
+  def transform[B](f: (ConsStream[A, Task]) => ConsStream[B, Task]): TaskIterator[B] = {
     val next = try f(stream) catch { case NonFatal(ex) => ConsStream.Error[Task](ex) }
-    AsyncIterator(next)
+    TaskIterator(next)
   }
+
+  /** Consumes the stream and for each element
+    * execute the given function.
+    */
+  def foreach(f: A => Unit)(implicit s: Scheduler): CancelableFuture[Unit] =
+    foreachL(f).runAsync
 }
 
-object AsyncIterator extends IteratorLikeBuilders[Task, AsyncIterator] {
-  def fromStream[A](stream: ConsStream[A, Task]): AsyncIterator[A] =
-    AsyncIterator(stream)
+object TaskIterator extends IteratorLikeBuilders[Task, TaskIterator] {
+  def fromStream[A](stream: ConsStream[A, Task]): TaskIterator[A] =
+    TaskIterator(stream)
 }

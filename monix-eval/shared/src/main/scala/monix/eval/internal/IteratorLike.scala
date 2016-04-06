@@ -17,10 +17,14 @@
 
 package monix.eval.internal
 
-import monix.eval.{ConsStream, Evaluable}
+import monix.eval.ConsStream
+import monix.types.Evaluable
 import scala.collection.{LinearSeq, immutable}
 import language.higherKinds
 
+/** Common implementation between [[monix.eval.TaskIterator]]
+  * and [[monix.eval.CoevalIterator]].
+  */
 private[eval] abstract
 class IteratorLike[+A, F[_] : Evaluable, Self[+T] <: IteratorLike[T, F, Self]] {
   self: Self[A] =>
@@ -198,6 +202,12 @@ class IteratorLike[+A, F[_] : Evaluable, Self[+T] <: IteratorLike[T, F, Self]] {
     */
   def completedL: F[Unit] =
     stream.completedL
+
+  /** On evaluation it consumes the stream and for each element
+    * execute the given function.
+    */
+  def foreachL(cb: A => Unit): F[Unit] =
+    stream.foreachL(cb)
 }
 
 private[eval] abstract
@@ -247,7 +257,7 @@ class IteratorLikeBuilders[F[_], Self[+T] <: IteratorLike[T, F, Self]](implicit 
   def defer[A](fa: => Self[A]): Self[A] =
     fromStream(ConsStream.defer[A,F](fa.stream))
 
-  /** Generages a range between `from` (inclusive) and `until` (exclusive),
+  /** Generates a range between `from` (inclusive) and `until` (exclusive),
     * with `step` as the increment.
     */
   def range(from: Long, until: Long, step: Long = 1L): Self[Long] =

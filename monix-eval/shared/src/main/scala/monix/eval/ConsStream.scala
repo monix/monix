@@ -17,9 +17,10 @@
 
 package monix.eval
 
-import monix.eval.Evaluable.ops._
+import monix.types.Evaluable
 import monix.eval.ConsStream._
-import scala.collection.{mutable, LinearSeq, immutable}
+
+import scala.collection.{LinearSeq, immutable, mutable}
 import scala.util.control.NonFatal
 import language.higherKinds
 
@@ -32,17 +33,17 @@ sealed abstract class ConsStream[+A, F[_]](implicit F: Evaluable[F])
   final def filter(p: A => Boolean): ConsStream[A,F] =
     this match {
       case ref @ Next(head, tail) =>
-        try { if (p(head)) ref else Wait[A,F](tail.map(_.filter(p))) }
+        try { if (p(head)) ref else Wait[A,F](F.map(tail)(_.filter(p))) }
         catch { case NonFatal(ex) => Error(ex) }
       case NextSeq(head, tail) =>
-        val rest = tail.map(_.filter(p))
+        val rest = F.map(tail)(_.filter(p))
         try head.filter(p) match {
           case Nil => Wait[A,F](rest)
           case filtered => NextSeq[A,F](filtered, rest)
         } catch {
           case NonFatal(ex) => Error(ex)
         }
-      case Wait(rest) => Wait[A,F](rest.map(_.filter(p)))
+      case Wait(rest) => Wait[A,F](F.map(rest)(_.filter(p)))
       case empty @ Empty() => empty
       case error @ Error(ex) => error
     }
@@ -53,13 +54,13 @@ sealed abstract class ConsStream[+A, F[_]](implicit F: Evaluable[F])
   final def map[B](f: A => B): ConsStream[B,F] = {
     this match {
       case Next(head, tail) =>
-        try { Next[B,F](f(head), tail.map(_.map(f))) }
+        try { Next[B,F](f(head), F.map(tail)(_.map(f))) }
         catch { case NonFatal(ex) => Error(ex) }
       case NextSeq(head, rest) =>
-        try { NextSeq[B,F](head.map(f), rest.map(_.map(f))) }
+        try { NextSeq[B,F](head.map(f), F.map(rest)(_.map(f))) }
         catch { case NonFatal(ex) => Error(ex) }
 
-      case Wait(rest) => Wait[B,F](rest.map(_.map(f)))
+      case Wait(rest) => Wait[B,F](F.map(rest)(_.map(f)))
       case empty @ Empty() => empty
       case error @ Error(_) => error
     }
@@ -71,20 +72,20 @@ sealed abstract class ConsStream[+A, F[_]](implicit F: Evaluable[F])
   final def flatMap[B](f: A => ConsStream[B,F]): ConsStream[B,F] = {
     this match {
       case Next(head, tail) =>
-        try { f(head) concatF tail.map(_.flatMap(f)) }
+        try { f(head) concatF F.map(tail)(_.flatMap(f)) }
         catch { case NonFatal(ex) => Error(ex) }
 
       case NextSeq(list, rest) =>
         try {
           if (list.isEmpty)
-            Wait[B,F](rest.map(_.flatMap(f)))
+            Wait[B,F](F.map(rest)(_.flatMap(f)))
           else
             f(list.head) concatF F.evalAlways(NextSeq[A,F](list.tail, rest).flatMap(f))
         } catch {
           case NonFatal(ex) => Error(ex)
         }
 
-      case Wait(rest) => Wait[B,F](rest.map(_.flatMap(f)))
+      case Wait(rest) => Wait[B,F](F.map(rest)(_.flatMap(f)))
       case empty @ Empty() => empty
       case error @ Error(_) => error
     }
@@ -110,11 +111,11 @@ sealed abstract class ConsStream[+A, F[_]](implicit F: Evaluable[F])
   final def ++[B >: A](rhs: ConsStream[B,F]): ConsStream[B,F] =
     this match {
       case Wait(task) =>
-        Wait[B,F](task.map(_ ++ rhs))
+        Wait[B,F](F.map(task)(_ ++ rhs))
       case Next(a, lt) =>
-        Next[B,F](a, lt.map(_ ++ rhs))
+        Next[B,F](a, F.map(lt)(_ ++ rhs))
       case NextSeq(head, lt) =>
-        NextSeq[B,F](head, lt.map(_ ++ rhs))
+        NextSeq[B,F](head, F.map(lt)(_ ++ rhs))
       case Empty() => rhs
       case error @ Error(_) => error
     }
@@ -122,11 +123,11 @@ sealed abstract class ConsStream[+A, F[_]](implicit F: Evaluable[F])
   private final def concatF[B >: A](rhs: F[ConsStream[B,F]]): ConsStream[B,F] = {
     this match {
       case Wait(task) =>
-        Wait[B,F](task.map(_ concatF rhs))
+        Wait[B,F](F.map(task)(_ concatF rhs))
       case Next(a, lt) =>
-        Next[B,F](a, lt.map(_ concatF rhs))
+        Next[B,F](a, F.map(lt)(_ concatF rhs))
       case NextSeq(head, lt) =>
-        NextSeq[B,F](head, lt.map(_ concatF rhs))
+        NextSeq[B,F](head, F.map(lt)(_ concatF rhs))
       case Empty() => Wait[B,F](rhs)
       case Error(ex) => Error(ex)
     }
@@ -143,18 +144,18 @@ sealed abstract class ConsStream[+A, F[_]](implicit F: Evaluable[F])
       case Empty() => F.now(seed)
       case Error(ex) => F.error(ex)
       case Wait(next) =>
-        next.flatMap(_.foldLeftL(seed)(f))
+        F.flatMap(next)(_.foldLeftL(seed)(f))
       case Next(a, next) =>
         try {
           val state = f(seed, a)
-          next.flatMap(_.foldLeftL(state)(f))
+          F.flatMap(next)(_.foldLeftL(state)(f))
         } catch {
           case NonFatal(ex) => F.error(ex)
         }
       case NextSeq(list, next) =>
         try {
           val state = list.foldLeft(seed)(f)
-          next.flatMap(_.foldLeftL(state)(f))
+          F.flatMap(next)(_.foldLeftL(state)(f))
         } catch {
           case NonFatal(ex) => F.error(ex)
         }
@@ -177,12 +178,12 @@ sealed abstract class ConsStream[+A, F[_]](implicit F: Evaluable[F])
       case Empty() => F.now(seed)
       case Error(ex) => F.error(ex)
       case Wait(next) =>
-        next.flatMap(_.foldWhileL(seed)(f))
+        F.flatMap(next)(_.foldWhileL(seed)(f))
       case Next(a, next) =>
         try {
           val (continue, state) = f(seed, a)
           if (!continue) F.now(state) else
-            next.flatMap(_.foldWhileL(state)(f))
+            F.flatMap(next)(_.foldWhileL(state)(f))
         } catch {
           case NonFatal(ex) => F.error(ex)
         }
@@ -199,7 +200,7 @@ sealed abstract class ConsStream[+A, F[_]](implicit F: Evaluable[F])
           }
 
           if (!continue) F.now(state) else
-            next.flatMap(_.foldWhileL(state)(f))
+            F.flatMap(next)(_.foldWhileL(state)(f))
         } catch {
           case NonFatal(ex) => F.error(ex)
         }
@@ -221,17 +222,17 @@ sealed abstract class ConsStream[+A, F[_]](implicit F: Evaluable[F])
       case Empty() => lb
       case Error(ex) => F.error(ex)
       case Wait(next) =>
-        next.flatMap(_.foldRightL(lb)(f))
+        F.flatMap(next)(_.foldRightL(lb)(f))
       case Next(a, next) =>
-        f(a, next.flatMap(_.foldRightL(lb)(f)))
+        f(a, F.flatMap(next)(_.foldRightL(lb)(f)))
 
       case NextSeq(list, next) =>
-        if (list.isEmpty) next.flatMap(_.foldRightL(lb)(f))
+        if (list.isEmpty) F.flatMap(next)(_.foldRightL(lb)(f))
         else {
           val a = list.head
           val tail = list.tail
-          val rest = F.now(NextSeq(tail, next))
-          f(a, rest.flatMap(_.foldRightL(lb)(f)))
+          val rest = F.now(NextSeq[A,F](tail, next))
+          f(a, F.flatMap(rest)(_.foldRightL(lb)(f)))
         }
     }
 
@@ -257,8 +258,8 @@ sealed abstract class ConsStream[+A, F[_]](implicit F: Evaluable[F])
 
   /** Aggregates elements in a `List` and preserves order. */
   final def toListL[B >: A]: F[List[B]] = {
-    foldLeftL(mutable.ListBuffer.empty[A]) { (acc, a) => acc += a }
-      .map(_.toList)
+    val folded = foldLeftL(mutable.ListBuffer.empty[A]) { (acc, a) => acc += a }
+    F.map(folded)(_.toList)
   }
 
   /** Returns true if there are no elements, false otherwise. */
@@ -272,7 +273,7 @@ sealed abstract class ConsStream[+A, F[_]](implicit F: Evaluable[F])
   /** Returns the first element in the iterable, as an option. */
   final def headL[B >: A]: F[Option[B]] =
     this match {
-      case Wait(next) => next.flatMap(_.headL)
+      case Wait(next) => F.flatMap(next)(_.headL)
       case Empty() => F.now(None)
       case Error(ex) => F.error(ex)
       case Next(a, _) => F.now(Some(a))
@@ -287,12 +288,12 @@ sealed abstract class ConsStream[+A, F[_]](implicit F: Evaluable[F])
     */
   final def take(n: Int): ConsStream[A,F] =
     if (n <= 0) Empty() else this match {
-      case Wait(next) => Wait[A,F](next.map(_.take(n)))
+      case Wait(next) => Wait[A,F](F.map(next)(_.take(n)))
       case empty @ Empty() => empty
       case error @ Error(_) => error
       case Next(a, next) =>
         if (n - 1 > 0)
-          Next[A,F](a, next.map(_.take(n-1)))
+          Next[A,F](a, F.map(next)(_.take(n-1)))
         else
           Next[A,F](a, F.now(Empty()))
 
@@ -301,7 +302,7 @@ sealed abstract class ConsStream[+A, F[_]](implicit F: Evaluable[F])
         if (length == n)
           NextSeq[A,F](list, F.now(Empty()))
         else if (length < n)
-          NextSeq[A,F](list, rest.map(_.take(n-length)))
+          NextSeq[A,F](list, F.map(rest)(_.take(n-length)))
         else
           NextSeq[A,F](list.take(n), F.now(Empty()))
     }
@@ -312,11 +313,11 @@ sealed abstract class ConsStream[+A, F[_]](implicit F: Evaluable[F])
     */
   final def takeWhile(p: A => Boolean): ConsStream[A,F] =
     this match {
-      case Wait(next) => Wait[A,F](next.map(_.takeWhile(p)))
+      case Wait(next) => Wait[A,F](F.map(next)(_.takeWhile(p)))
       case empty @ Empty() => empty
       case error @ Error(_) => error
       case Next(a, next) =>
-        try { if (p(a)) Next[A,F](a, next.map(_.takeWhile(p))) else Empty() }
+        try { if (p(a)) Next[A,F](a, F.map(next)(_.takeWhile(p))) else Empty() }
         catch { case NonFatal(ex) => Error(ex) }
       case NextSeq(list, rest) =>
         try {
@@ -324,7 +325,7 @@ sealed abstract class ConsStream[+A, F[_]](implicit F: Evaluable[F])
           if (filtered.length < list.length)
             NextSeq[A,F](filtered, F.now(Empty()))
           else
-            NextSeq[A,F](filtered, rest.map(_.takeWhile(p)))
+            NextSeq[A,F](filtered, F.map(rest)(_.takeWhile(p)))
         } catch {
           case NonFatal(ex) => Error(ex)
         }
@@ -336,9 +337,9 @@ sealed abstract class ConsStream[+A, F[_]](implicit F: Evaluable[F])
   final def onErrorHandleWith[B >: A](f: Throwable => ConsStream[B,F]): ConsStream[B,F] =
     this match {
       case empty @ Empty() => empty
-      case Wait(next) => Wait[B,F](next.map(_.onErrorHandleWith(f)))
-      case Next(a, next) => Next[B,F](a, next.map(_.onErrorHandleWith(f)))
-      case NextSeq(seq, next) => NextSeq[B,F](seq, next.map(_.onErrorHandleWith(f)))
+      case Wait(next) => Wait[B,F](F.map(next)(_.onErrorHandleWith(f)))
+      case Next(a, next) => Next[B,F](a, F.map(next)(_.onErrorHandleWith(f)))
+      case NextSeq(seq, next) => NextSeq[B,F](seq, F.map(next)(_.onErrorHandleWith(f)))
       case Error(ex) => try f(ex) catch { case NonFatal(err) => Error(err) }
     }
 
@@ -369,10 +370,10 @@ sealed abstract class ConsStream[+A, F[_]](implicit F: Evaluable[F])
   /** Drops the first `n` elements, from left to right. */
   final def drop(n: Int): ConsStream[A,F] =
     if (n <= 0) this else this match {
-      case Wait(next) => Wait[A,F](next.map(_.drop(n)))
+      case Wait(next) => Wait[A,F](F.map(next)(_.drop(n)))
       case empty @ Empty() => empty
       case error @ Error(_) => error
-      case Next(a, next) => Wait[A,F](next.map(_.drop(n-1)))
+      case Next(a, next) => Wait[A,F](F.map(next)(_.drop(n-1)))
       case NextSeq(list, rest) =>
         val length = list.length
         if (length == n)
@@ -380,7 +381,7 @@ sealed abstract class ConsStream[+A, F[_]](implicit F: Evaluable[F])
         else if (length > n)
           NextSeq[A,F](list.drop(n), rest)
         else
-          Wait[A,F](rest.map(_.drop(n - length)))
+          Wait[A,F](F.map(rest)(_.drop(n - length)))
     }
 
   /** Triggers memoization of the iterable on the first traversal,
@@ -388,10 +389,10 @@ sealed abstract class ConsStream[+A, F[_]](implicit F: Evaluable[F])
     */
   final def memoize: ConsStream[A,F] =
     this match {
-      case Wait(next) => Wait[A,F](next.memoize.map(_.memoize))
+      case Wait(next) => Wait[A,F](F.map(F.memoize(next))(_.memoize))
       case ref @ (Empty() | Error(_)) => ref
-      case Next(a, rest) => Next[A,F](a, rest.memoize.map(_.memoize))
-      case NextSeq(list, rest) => NextSeq[A,F](list, rest.memoize.map(_.memoize))
+      case Next(a, rest) => Next[A,F](a, F.map(F.memoize(rest))(_.memoize))
+      case NextSeq(list, rest) => NextSeq[A,F](list, F.map(F.memoize(rest))(_.memoize))
     }
 
   /** Creates a new evaluable that will consume the
@@ -399,10 +400,31 @@ sealed abstract class ConsStream[+A, F[_]](implicit F: Evaluable[F])
     * complete with `Unit`.
     */
   final def completedL: F[Unit] = {
-    def loop(task: F[ConsStream[A,F]]): F[Unit] = task.flatMap {
+    def loop(tail: F[ConsStream[A,F]]): F[Unit] = F.flatMap(tail) {
       case Next(elem, rest) => loop(rest)
       case NextSeq(elems, rest) => loop(rest)
       case Wait(rest) => loop(rest)
+      case Empty() => F.unit
+      case Error(ex) => F.error(ex)
+    }
+
+    loop(F.now(this))
+  }
+
+  /** On evaluation it consumes the stream and for each element
+    * execute the given function.
+    */
+  final def foreachL(cb: A => Unit): F[Unit] = {
+    def loop(tail: F[ConsStream[A,F]]): F[Unit] = F.flatMap(tail) {
+      case Next(elem, rest) =>
+        try { cb(elem); loop(rest) }
+        catch { case NonFatal(ex) => F.error(ex) }
+
+      case NextSeq(elems, rest) =>
+        try { elems.foreach(cb); loop(rest) }
+        catch { case NonFatal(ex) => F.error(ex) }
+
+      case Wait(rest) => loop(F.defer(rest))
       case Empty() => F.unit
       case Error(ex) => F.error(ex)
     }
@@ -487,12 +509,12 @@ object ConsStream {
   /** Converts an iterable into an async iterator. */
   def fromIterable[A, F[_]](iterable: Iterable[A], batchSize: Int)
     (implicit F: Evaluable[F]): F[ConsStream[A,F]] =
-    F.now(iterable).flatMap { iter => fromIterator(iter.iterator, batchSize) }
+    F.flatMap(F.now(iterable)) { iter => fromIterator(iter.iterator, batchSize) }
 
   /** Converts an iterable into an async iterator. */
   def fromIterable[A, F[_]](iterable: java.lang.Iterable[A], batchSize: Int)
     (implicit F: Evaluable[F]): F[ConsStream[A,F]] =
-    F.now(iterable).flatMap { iter => fromIterator(iter.iterator, batchSize) }
+    F.flatMap(F.now(iterable)) { iter => fromIterator(iter.iterator, batchSize) }
 
   /** Converts a `scala.collection.Iterator` into an async iterator. */
   def fromIterator[A, F[_]](iterator: scala.collection.Iterator[A], batchSize: Int)
@@ -547,9 +569,9 @@ object ConsStream {
   /** A state of the [[ConsStream]] representing a head/tail decomposition.
     *
     * @param head is the next element to be processed
-    * @param rest is the next state in the sequence
+    * @param tail is the next state in the sequence
     */
-  final case class Next[A, F[_] : Evaluable](head: A, rest: F[ConsStream[A,F]])
+  final case class Next[A, F[_] : Evaluable](head: A, tail: F[ConsStream[A,F]])
     extends ConsStream[A,F]
 
   /** A state of the [[ConsStream]] representing a head/tail decomposition.
@@ -559,9 +581,9 @@ object ConsStream {
     * Meant for doing buffering.
     *
     * @param headSeq is a sequence of the next elements to be processed, can be empty
-    * @param rest is the next state in the sequence
+    * @param tail is the next state in the sequence
     */
-  final case class NextSeq[A, F[_] : Evaluable](headSeq: LinearSeq[A], rest: F[ConsStream[A,F]])
+  final case class NextSeq[A, F[_] : Evaluable](headSeq: LinearSeq[A], tail: F[ConsStream[A,F]])
     extends ConsStream[A,F]
 
   /** Represents an error state in the iterator.

@@ -17,10 +17,19 @@
 
 package monix.cats
 
-import cats.laws.discipline.CartesianTests.Isomorphisms.invariant
-import monix.cats.tests.SequenceableTests
-import monix.reactive.Observable
+import monix.types.shims.Monad
+import language.higherKinds
 
-object ObservableLawsSuite extends BaseLawsSuite {
-  checkAll("Sequenceable[Observable]", SequenceableTests[Observable].sequenceable[Int,Int,Int])
+/** Converts Monix's Monad into the Cats monad. */
+trait MonadInstances {
+  implicit def monixMonadInstances[F[_] : Monad]: _root_.cats.Monad[F] =
+    new ConvertMonixMonadToCats[F]()
+
+  class ConvertMonixMonadToCats[F[_]](implicit F: Monad[F]) extends _root_.cats.Monad[F] {
+    def pure[A](x: A): F[A] = F.point(x)
+    def flatMap[A, B](fa: F[A])(f: (A) => F[B]): F[B] = F.flatMap(fa)(f)
+    override def map[A, B](fa: F[A])(f: (A) => B): F[B] = F.map(fa)(f)
+    override def flatten[A](ffa: F[F[A]]): F[A] = F.flatten(ffa)
+    override def ap[A, B](ff: F[(A) => B])(fa: F[A]): F[B] = F.ap(fa)(ff)
+  }
 }
