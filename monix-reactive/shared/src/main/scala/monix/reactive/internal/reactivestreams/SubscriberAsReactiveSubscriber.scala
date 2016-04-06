@@ -31,7 +31,7 @@ import org.reactivestreams.{Subscriber => RSubscriber, Subscription => RSubscrip
   * the call may pass asynchronous boundaries, the emitted events need to be buffered.
   * The `requestCount` constructor parameter also represents the buffer size.
   *
-  * To create an instance, [[SubscriberAsReactiveSubscriber]] must be used: {{{
+  * To async an instance, [[SubscriberAsReactiveSubscriber]] must be used: {{{
   *   // uses the default requestCount of 128
   *   val subscriber = SubscriberAsReactiveSubscriber(new Observer[Int] {
   *     private[this] var sum = 0
@@ -94,7 +94,7 @@ private[monix] object SubscriberAsReactiveSubscriber {
     * the call may pass asynchronous boundaries, the emitted events need to be buffered.
     * The `requestCount` constructor parameter also represents the buffer size.
     *
-    * To create an instance, [[SubscriberAsReactiveSubscriber.apply]] must be used: {{{
+    * To async an instance, [[SubscriberAsReactiveSubscriber.apply]] must be used: {{{
     *   // uses the default requestCount of 128
     *   val subscriber = SubscriberAsReactiveSubscriber(new Observer[Int] {
     *     private[this] var sum = 0
@@ -137,7 +137,7 @@ private[monix] object SubscriberAsReactiveSubscriber {
   * Given that we can guarantee a [[monix.reactive.observers.SyncObserver SyncObserver]]
   * is used, then no buffering is needed and thus the implementation is very efficient.
   *
-  * To create an instance, [[SyncSubscriberAsReactiveSubscriber]] must be used: {{{
+  * To async an instance, [[SyncSubscriberAsReactiveSubscriber]] must be used: {{{
   *   // uses the default requestCount of 128
   *   val subscriber = SyncSubscriberAsReactiveSubscriber(new Observer[Int] {
   *     private[this] var sum = 0
@@ -229,7 +229,7 @@ private[monix] object SyncSubscriberAsReactiveSubscriber {
     * Given that we can guarantee a [[monix.reactive.observers.SyncObserver SyncObserver]]
     * is used, then no buffering is needed and thus the implementation is very efficient.
     *
-    * To create an instance, [[SyncSubscriberAsReactiveSubscriber.apply]] must be used: {{{
+    * To async an instance, [[SyncSubscriberAsReactiveSubscriber.apply]] must be used: {{{
     *   // uses the default requestCount of 128
     *   val subscriber = SyncSubscriberAsReactiveSubscriber(new Observer[Int] {
     *     private[this] var sum = 0

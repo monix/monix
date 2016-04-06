@@ -17,8 +17,7 @@
 
 package monix.reactive.internal.builders
 
-import monix.async.CancelableFuture
-import monix.execution.Cancelable
+import monix.execution.{CancelableFuture, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future

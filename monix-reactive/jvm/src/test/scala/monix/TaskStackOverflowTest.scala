@@ -19,7 +19,7 @@ package monix
 
 import minitest.TestSuite
 import monix.execution.Scheduler
-import monix.async.Task
+import monix.eval.Task
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.util.Success

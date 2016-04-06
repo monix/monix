@@ -17,16 +17,19 @@
 
 package monix.reactive
 
-import monix.async.{CancelableFuture, Task}
-import monix.execution.Ack.{Stop, Continue}
+import monix.eval.{Task, TaskIterator}
+import monix.execution.Ack.{Continue, Stop}
 import monix.execution._
 import monix.execution.cancelables.SingleAssignmentCancelable
+import monix.reactive.internal.builders.ObservableToAsyncIterator
 import monix.reactive.observables.ObservableLike.{Operator, Transformer}
 import monix.reactive.internal.builders
 import monix.reactive.observables._
 import monix.reactive.observers._
 import monix.reactive.subjects._
+import monix.types.Asynchronous
 import org.reactivestreams.{Publisher => RPublisher, Subscriber => RSubscriber}
+
 import scala.concurrent.Future
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.control.NonFatal
@@ -261,44 +264,52 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     * source observable. Returns an `Option` because the source can be empty.
     */
   def runAsyncGetFirst(implicit s: Scheduler): CancelableFuture[Option[A]] =
-    firstT.runAsync(s)
+    firstL.runAsync(s)
 
-  /** Creates a new [[monix.async.CancelableFuture CancelableFuture]]
+  /** Creates a new [[monix.execution.CancelableFuture CancelableFuture]]
     * that upon execution will signal the last generated element of the
     * source observable. Returns an `Option` because the source can be empty.
     */
   def runAsyncGetLast(implicit s: Scheduler): CancelableFuture[Option[A]] =
-    lastT.runAsync(s)
+    lastL.runAsync(s)
 
-  /** Creates a new [[monix.async.Task Task]] that upon execution
+  /** Creates a new [[monix.eval.Task Task]] that upon execution
     * will signal the first generated element of the source observable.
     * Returns an `Option` because the source can be empty.
     */
-  def firstT: Task[Option[A]] =
-    Task.unsafeCreate { (s, c, frameId, cb) =>
-      c := unsafeSubscribeFn(new SyncSubscriber[A] {
+  def firstL: Task[Option[A]] =
+    Task.unsafeAsync { (s, c, cb) =>
+      val task = SingleAssignmentCancelable()
+      c push task
+
+      task := unsafeSubscribeFn(new SyncSubscriber[A] {
         implicit val scheduler: Scheduler = s
         private[this] var isDone = false
 
         def onNext(elem: A): Stop = {
+          c.pop()
           cb.onSuccess(Some(elem))
+          isDone = true
           Stop
         }
 
         def onError(ex: Throwable): Unit =
-          if (!isDone) { isDone = true; cb.onError(ex) }
+          if (!isDone) { isDone = true; c.pop(); cb.onError(ex) }
         def onComplete(): Unit =
-          if (!isDone) { isDone = true; cb.onSuccess(None) }
+          if (!isDone) { isDone = true; c.pop(); cb.onSuccess(None) }
       })
     }
 
-  /** Returns a [[monix.async.Task Task]] that upon execution
+  /** Returns a [[monix.eval.Task Task]] that upon execution
     * will signal the last generated element of the source observable.
     * Returns an `Option` because the source can be empty.
     */
-  def lastT: Task[Option[A]] =
-    Task.unsafeCreate { (s, c, frameId, cb) =>
-      c := unsafeSubscribeFn(new SyncSubscriber[A] {
+  def lastL: Task[Option[A]] =
+    Task.unsafeAsync { (s, c, cb) =>
+      val task = SingleAssignmentCancelable()
+      c push task
+
+      task := unsafeSubscribeFn(new SyncSubscriber[A] {
         implicit val scheduler: Scheduler = s
         private[this] var value: A = _
         private[this] var isEmpty = true
@@ -309,73 +320,44 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
           Continue
         }
 
-        def onError(ex: Throwable): Unit =
+        def onError(ex: Throwable): Unit = {
+          c.pop()
           cb.onError(ex)
-        def onComplete(): Unit =
+        }
+
+        def onComplete(): Unit = {
+          c.pop()
           cb.onSuccess(if (isEmpty) None else Some(value))
+        }
       })
     }
 
-  /** Folds the source observable into an asynchronous summary value. */
-  def foldLeftT[S](seed: S)(f: (S, A) => S): Task[S] =
-    Task.unsafeCreate { (s, c, frameId, cb) =>
-      c := self.foldLeftF(seed)(f).unsafeSubscribeFn(
-        new SyncSubscriber[S] {
-          implicit val scheduler = s
-          private[this] var isDone = false
-
-          def onNext(elem: S): Stop = {
-            isDone = true
-            cb.onSuccess(elem)
-            Stop
-          }
-
-          def onError(ex: Throwable): Unit =
-            if (!isDone) {
-              isDone = true
-              cb.onError(ex)
-            } else {
-              s.reportFailure(ex)
-            }
-
-          def onComplete(): Unit =
-            if (!isDone) {
-              isDone = true
-              cb.onSuccess(seed)
-            }
-        })
-    }
-
-  /** Creates a [[monix.async.Task Task]] that on execution emits the
-    * total number of `onNext` events that were emitted by the source.
+  /** Creates a new [[monix.eval.Task Task]] that will consume the
+    * source observable and upon completion of the source it will
+    * complete with `Unit`.
     */
-  def countT: Task[Long] =
-    foldLeftT(0L)((acc,_) => acc+1)
+  def completedL: Task[Unit] =
+    Task.unsafeAsync { (s, c, cb) =>
+      val task = SingleAssignmentCancelable()
+      c push task
 
-  /** If the source is a stream of numbers, creates a new
-    * [[monix.async.Task Task]] that upon execution will
-    * calculate their sum.
-    */
-  def sumT[B >: A](implicit ev: Numeric[B]): Task[B] =
-    foldLeftT(ev.zero)(ev.plus)
-
-  /** Creates a new [[monix.async.Task Task]] that upon execution
-    * will signal `Unit`.
-    */
-  def completedT: Task[Unit] =
-    Task.unsafeCreate { (s, c, frameId, cb) =>
-      c := unsafeSubscribeFn(new SyncSubscriber[A] {
+      task := unsafeSubscribeFn(new SyncSubscriber[A] {
         implicit val scheduler: Scheduler = s
         private[this] var isDone = false
 
         def onNext(elem: A): Continue = Continue
         def onError(ex: Throwable): Unit =
-          if (!isDone) { isDone = true; cb.onError(ex) }
-
+          if (!isDone) { isDone = true; c.pop(); cb.onError(ex) }
         def onComplete(): Unit =
-          if (!isDone) { isDone = true; cb.onSuccess(()) }
+          if (!isDone) { isDone = true; c.pop(); cb.onSuccess(()) }
       })
     }
+
+  /** Builds an [[monix.eval.TaskIterator TaskIterator]] from the
+    * source observable.
+    */
+  def asyncIterator(batchSize: Int): Task[TaskIterator[A]] =
+    ObservableToAsyncIterator(self, batchSize)
 
   /** Subscribes to the source `Observable` and foreach element emitted
     * by the source it executes the given callback.
@@ -404,7 +386,7 @@ object Observable {
   /** Creates an observable that doesn't emit anything, but immediately
     * calls `onComplete` instead.
     */
-  def empty: Observable[Nothing] =
+  def empty[A]: Observable[A] =
     builders.EmptyObservable
 
   /** Returns an `Observable` that on execution emits the given strict value.
@@ -424,6 +406,12 @@ object Observable {
     */
   def evalOnce[A](f: => A): Observable[A] =
     new builders.EvalOnceObservable(f)
+
+  /** Lifts a non-strict value into an observable that emits a single element,
+    * but upon subscription delay its evaluation by the specified timespan
+    */
+  def evalDelayed[A](delay: FiniteDuration, a: => A): Observable[A] =
+    evalAlways(a).delaySubscription(delay)
 
   /** Creates an Observable that emits an error.
     */
@@ -499,14 +487,14 @@ object Observable {
   /** Converts a Scala `Future` provided into an [[Observable]].
     *
     * If the created instance is a
-    * [[monix.async.CancelableFuture CancelableFuture]],
+    * [[monix.execution.CancelableFuture CancelableFuture]],
     * then it will be used for the returned
     * [[monix.execution.Cancelable Cancelable]] on `subscribe`.
     */
   def fromFuture[A](factory: => Future[A]): Observable[A] =
     new builders.FutureAsObservable(factory)
 
-  /** Converts any [[monix.async.Task Task]] into an [[Observable]]. */
+  /** Converts any [[monix.eval.Task Task]] into an [[Observable]]. */
   def fromTask[A](task: Task[A]): Observable[A] =
     new builders.TaskAsObservable(task)
 
@@ -1004,4 +992,91 @@ object Observable {
     */
   def firstStartedOf[A](source: Observable[A]*): Observable[A] =
     new builders.FirstStartedObservable(source: _*)
+
+  /** Type-class instances for [[Observable]]. */
+  implicit val instances: Asynchronous[Observable] =
+    new Asynchronous[Observable] {
+      override def error[A](e: Throwable): Observable[A] =
+        Observable.error(e)
+      override def point[A](x: A): Observable[A] =
+        Observable.now(x)
+      override def delayedEval[A](delay: FiniteDuration, a: => A): Observable[A] =
+        Observable.evalAlways(a)
+
+      override def now[A](a: A): Observable[A] =
+        Observable.now(a)
+      override def evalAlways[A](a: => A): Observable[A] =
+        Observable.evalAlways(a)
+      override def evalOnce[A](a: => A): Observable[A] =
+        Observable.evalOnce(a)
+      override def memoize[A](fa: Observable[A]): Observable[A] =
+        fa.cache
+      override def defer[A](fa: => Observable[A]): Observable[A] =
+        Observable.defer(fa)
+
+      override def onErrorHandleWith[A](fa: Observable[A])(f: Throwable => Observable[A]): Observable[A] =
+        fa.onErrorHandleWith(f)
+      override def onErrorHandle[A](fa: Observable[A])(f: Throwable => A): Observable[A] =
+        fa.onErrorHandle(f)
+      override def onErrorFallbackTo[A](fa: Observable[A], other: Observable[A]): Observable[A] =
+        fa.onErrorFallbackTo(other)
+      override def onErrorRetry[A](fa: Observable[A], maxRetries: Long): Observable[A] =
+        fa.onErrorRetry(maxRetries)
+      override def onErrorRetryIf[A](fa: Observable[A])(p: (Throwable) => Boolean): Observable[A] =
+        fa.onErrorRetryIf(p)
+      override def onErrorRecoverWith[A](fa: Observable[A])(pf: PartialFunction[Throwable, Observable[A]]): Observable[A] =
+        fa.onErrorRecoverWith(pf)
+      override def onErrorRecover[A](fa: Observable[A])(pf: PartialFunction[Throwable, A]): Observable[A] =
+        fa.onErrorRecover(pf)
+      override def failed[A](fa: Observable[A]): Observable[Throwable] =
+        fa.failed
+      override def map[A, B](fa: Observable[A])(f: (A) => B): Observable[B] =
+        fa.map(f)
+
+      override def zip2[A1, A2](fa1: Observable[A1], fa2: Observable[A2]): Observable[(A1, A2)] =
+        Observable.zip2(fa1, fa2)
+      override def zipWith2[A1, A2, R](fa1: Observable[A1], fa2: Observable[A2])(f: (A1, A2) => R): Observable[R] =
+        Observable.zipWith2(fa1, fa2)(f)
+      override def zip3[A1, A2, A3](fa1: Observable[A1], fa2: Observable[A2], fa3: Observable[A3]): Observable[(A1, A2, A3)] =
+        Observable.zip3(fa1,fa2,fa3)
+      override def zipWith3[A1, A2, A3, R](fa1: Observable[A1], fa2: Observable[A2], fa3: Observable[A3])(f: (A1, A2, A3) => R): Observable[R] =
+        Observable.zipWith3(fa1,fa2,fa3)(f)
+      override def zip4[A1, A2, A3, A4](fa1: Observable[A1], fa2: Observable[A2], fa3: Observable[A3], fa4: Observable[A4]): Observable[(A1, A2, A3, A4)] =
+        Observable.zip4(fa1,fa2,fa3,fa4)
+      override def zipWith4[A1, A2, A3, A4, R](fa1: Observable[A1], fa2: Observable[A2], fa3: Observable[A3], fa4: Observable[A4])(f: (A1, A2, A3, A4) => R): Observable[R] =
+        Observable.zipWith4(fa1,fa2,fa3,fa4)(f)
+      override def zip5[A1, A2, A3, A4, A5](fa1: Observable[A1], fa2: Observable[A2], fa3: Observable[A3], fa4: Observable[A4], fa5: Observable[A5]): Observable[(A1, A2, A3, A4, A5)] =
+        Observable.zip5(fa1,fa2,fa3,fa4,fa5)
+      override def zipWith5[A1, A2, A3, A4, A5, R](fa1: Observable[A1], fa2: Observable[A2], fa3: Observable[A3], fa4: Observable[A4], fa5: Observable[A5])(f: (A1, A2, A3, A4, A5) => R): Observable[R] =
+        Observable.zipWith5(fa1,fa2,fa3,fa4,fa5)(f)
+      override def zip6[A1, A2, A3, A4, A5, A6](fa1: Observable[A1], fa2: Observable[A2], fa3: Observable[A3], fa4: Observable[A4], fa5: Observable[A5], fa6: Observable[A6]): Observable[(A1, A2, A3, A4, A5, A6)] =
+        Observable.zip6(fa1,fa2,fa3,fa4,fa5,fa6)
+      override def zipWith6[A1, A2, A3, A4, A5, A6, R](fa1: Observable[A1], fa2: Observable[A2], fa3: Observable[A3], fa4: Observable[A4], fa5: Observable[A5], fa6: Observable[A6])(f: (A1, A2, A3, A4, A5, A6) => R): Observable[R] =
+        Observable.zipWith6(fa1,fa2,fa3,fa4,fa5,fa6)(f)
+      override def zipList[A](sources: Seq[Observable[A]]): Observable[Seq[A]] =
+        Observable.zipList(sources:_*)
+
+      override def delayExecution[A](fa: Observable[A], timespan: FiniteDuration): Observable[A] =
+        fa.delaySubscription(timespan)
+      override def delayExecutionWith[A, B](fa: Observable[A], trigger: Observable[B]): Observable[A] =
+        fa.delaySubscriptionWith(trigger)
+      override def delayResult[A](fa: Observable[A], timespan: FiniteDuration): Observable[A] =
+        fa.delayOnNext(timespan)
+      override def delayResultBySelector[A, B](fa: Observable[A])(selector: (A) => Observable[B]): Observable[A] =
+        fa.delayOnNextBySelector(selector)
+
+      override def timeout[A](fa: Observable[A], timespan: FiniteDuration): Observable[A] =
+        fa.timeoutOnSlowUpstream(timespan)
+      override def timeoutTo[A](fa: Observable[A], timespan: FiniteDuration, backup: Observable[A]): Observable[A] =
+        fa.timeoutOnSlowUpstreamTo(timespan, backup)
+
+      override def chooseFirstOf[A](seq: Seq[Observable[A]]): Observable[A] =
+        Observable.firstStartedOf(seq:_*)
+      override def unit: Observable[Unit] =
+        Observable.now(())
+      override def flatten[A](ffa: Observable[Observable[A]]): Observable[A] =
+        ffa.flatten
+      override def flatMap[A, B](fa: Observable[A])(f: (A) => Observable[B]): Observable[B] =
+        fa.flatMap(f)
+    }
 }

@@ -20,7 +20,7 @@ package monix.reactive.internal.builders
 import monix.execution.Cancelable
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
-import monix.async.{Callback, Task}
+import monix.eval.{Callback, Task}
 
 private[reactive] final
 class TaskAsObservable[+A](task: Task[A]) extends Observable[A] {

@@ -141,28 +141,28 @@ lazy val crossSettings = sharedSettings ++ Seq(
   unmanagedSourceDirectories in Test <+= baseDirectory(_.getParentFile / "shared" / "src" / "test" / "scala")
 )
 
-lazy val scalaMacroDependencies = Seq(
-  libraryDependencies ++= (CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, majorVersion)) if majorVersion >= 11 =>
-      Seq(
-        "org.scala-lang" % "scala-reflect" % scalaVersion.value % "provided",
-        "org.scala-lang" % "scala-compiler" % scalaVersion.value % "provided",
-        "org.typelevel" %%% "macro-compat" % "1.1.1" % "provided",
-        compilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
-      )
-    case _ =>
-      Seq(
-        "org.scala-lang" % "scala-reflect" % scalaVersion.value % "compile",
-        "org.scala-lang" % "scala-compiler" % scalaVersion.value % "compile",
-        "org.typelevel" %%% "macro-compat" % "1.1.1" % "compile",
-        compilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
-      )
-  }))
+lazy val scalaReflectDeps = Seq(
+  libraryDependencies ++= Seq(
+    "org.scala-lang" % "scala-reflect" % scalaVersion.value % "provided",
+    "org.scala-lang" % "scala-compiler" % scalaVersion.value % "provided"
+  ))
+
+lazy val macroCompatDeps = scalaReflectDeps ++ Seq(
+  libraryDependencies ++= Seq(
+    "org.typelevel" %%% "macro-compat" % "1.1.1" % "provided",
+    compilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
+  ))
+
+lazy val simulacrumDeps = Seq(
+  libraryDependencies ++= Seq(
+    "com.github.mpilquist" %% "simulacrum" % "0.7.0" % "provided",
+    compilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
+  ))
 
 lazy val unidocSettings = baseUnidocSettings ++ Seq(
   autoAPIMappings := true,
   unidocProjectFilter in (ScalaUnidoc, unidoc) :=
-    inProjects(executionJVM, asyncJVM, reactiveJVM, typesJVM, typesLawsJVM),
+    inProjects(executionJVM, evalJVM, reactiveJVM, catsJVM),
 
   scalacOptions in (ScalaUnidoc, unidoc) +=
     "-Xfatal-warnings",
@@ -226,10 +226,9 @@ lazy val scalaStyleSettings = {
 lazy val monix = project.in(file("."))
   .aggregate(
     executionJVM, executionJS,
-    asyncJVM, asyncJS,
+    evalJVM, evalJS,
     reactiveJVM, reactiveJS,
-    typesJVM, typesJS,
-    typesLawsJVM, typesLawsJS,
+    catsJVM, catsJS,
     monixJVM, monixJS,
     docs, tckTests)
   .settings(sharedSettings)
@@ -237,15 +236,15 @@ lazy val monix = project.in(file("."))
   .settings(scalaStyleSettings)
 
 lazy val monixJVM = project.in(file("monix/jvm"))
-  .dependsOn(executionJVM, asyncJVM, reactiveJVM, typesJVM)
-  .aggregate(executionJVM, asyncJVM, reactiveJVM, typesJVM, typesLawsJVM)
+  .dependsOn(executionJVM, evalJVM, reactiveJVM)
+  .aggregate(executionJVM, evalJVM, reactiveJVM, catsJVM)
   .settings(crossSettings)
   .settings(name := "monix")
 
 lazy val monixJS = project.in(file("monix/js"))
   .enablePlugins(ScalaJSPlugin)
-  .dependsOn(executionJS, asyncJS, reactiveJS, typesJS)
-  .aggregate(executionJS, asyncJS, reactiveJS, typesJS, typesLawsJS)
+  .dependsOn(executionJS, evalJS, reactiveJS)
+  .aggregate(executionJS, evalJS, reactiveJS, catsJS)
   .settings(crossSettings)
   .settings(scalaJSSettings)
   .settings(name := "monix")
@@ -258,7 +257,7 @@ lazy val executionCommon = Seq(
 lazy val executionJVM = project.in(file("monix-execution/jvm"))
   .settings(crossSettings)
   .settings(testSettings)
-  .settings(scalaMacroDependencies)
+  .settings(macroCompatDeps)
   .settings(executionCommon)
 
 lazy val executionJS = project.in(file("monix-execution/js"))
@@ -266,75 +265,59 @@ lazy val executionJS = project.in(file("monix-execution/js"))
   .settings(crossSettings)
   .settings(scalaJSSettings)
   .settings(testSettings)
-  .settings(scalaMacroDependencies)
+  .settings(macroCompatDeps)
   .settings(executionCommon)
 
-lazy val asyncCommon =
-  crossSettings ++ testSettings ++
-  Seq(name := "monix-async")
+lazy val evalCommon =
+  crossSettings ++ testSettings ++ simulacrumDeps ++
+  Seq(name := "monix-eval")
 
-lazy val asyncJVM = project.in(file("monix-async/jvm"))
+lazy val evalJVM = project.in(file("monix-eval/jvm"))
   .dependsOn(executionJVM)
-  .settings(asyncCommon)
+  .settings(evalCommon)
 
-lazy val asyncJS = project.in(file("monix-async/js"))
+lazy val evalJS = project.in(file("monix-eval/js"))
   .enablePlugins(ScalaJSPlugin)
   .dependsOn(executionJS)
   .settings(scalaJSSettings)
-  .settings(asyncCommon)
+  .settings(evalCommon)
 
 lazy val reactiveCommon =
-  crossSettings ++ testSettings ++ Seq(name := "monix-reactive")
+  crossSettings ++ testSettings ++ scalaReflectDeps ++
+    Seq(name := "monix-reactive")
 
 lazy val reactiveJVM = project.in(file("monix-reactive/jvm"))
-  .dependsOn(executionJVM, asyncJVM)
+  .dependsOn(executionJVM, evalJVM)
   .settings(reactiveCommon)
   .settings(libraryDependencies += "org.reactivestreams" % "reactive-streams" % "1.0.0")
 
 lazy val reactiveJS = project.in(file("monix-reactive/js"))
   .enablePlugins(ScalaJSPlugin)
-  .dependsOn(executionJS, asyncJS)
+  .dependsOn(executionJS, evalJS)
   .settings(reactiveCommon)
   .settings(scalaJSSettings)
 
-lazy val typesCommon =
-  crossSettings ++ testSettings ++ scalaMacroDependencies ++ Seq(
-    name := "monix-types",
-    libraryDependencies ++= Seq(
-      "com.github.mpilquist" %%% "simulacrum" % "0.7.0" % "provided",
-      "org.typelevel" %%% "cats-core" % "0.4.1",
-      "org.typelevel" %%% "cats-laws" % "0.4.1" % "test"
-    )
-  )
-
-lazy val typesJVM = project.in(file("monix-types/jvm"))
-  .dependsOn(asyncJVM, reactiveJVM)
-  .settings(typesCommon)
-
-lazy val typesJS = project.in(file("monix-types/js"))
-  .enablePlugins(ScalaJSPlugin)
-  .dependsOn(asyncJS, reactiveJS)
-  .settings(typesCommon)
-  .settings(scalaJSSettings)
-
-lazy val typesLawsCommon =
+lazy val catsCommon =
   crossSettings ++ testSettings ++ Seq(
-    name := "monix-types-laws",
-    libraryDependencies += "org.typelevel" %%% "cats-laws" % "0.4.1"
-  )
+    name := "monix-cats",
+    libraryDependencies ++= Seq(
+      "org.typelevel" %%% "cats-core" % "0.4.1",
+      "org.typelevel" %%% "cats-laws" % "0.4.1" % "test",
+      "org.spire-math" %%% "algebra-laws" % "0.3.1" % "test"
+    ))
 
-lazy val typesLawsJVM = project.in(file("monix-types-laws/jvm"))
-  .settings(typesLawsCommon)
-  .dependsOn(typesJVM)
+lazy val catsJVM = project.in(file("monix-cats/jvm"))
+  .dependsOn(evalJVM, reactiveJVM)
+  .settings(catsCommon)
 
-lazy val typesLawsJS = project.in(file("monix-types-laws/js"))
+lazy val catsJS = project.in(file("monix-cats/js"))
   .enablePlugins(ScalaJSPlugin)
-  .dependsOn(typesJS)
-  .settings(typesLawsCommon)
+  .dependsOn(evalJS, reactiveJS)
+  .settings(catsCommon)
   .settings(scalaJSSettings)
 
 lazy val docs = project.in(file("docs"))
-  .dependsOn(executionJVM, asyncJVM, reactiveJVM, typesJVM)
+  .dependsOn(executionJVM, evalJVM, reactiveJVM, catsJVM)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
   .settings(site.settings)

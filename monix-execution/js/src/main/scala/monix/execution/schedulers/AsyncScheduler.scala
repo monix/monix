@@ -24,7 +24,9 @@ import monix.execution.{Cancelable, UncaughtExceptionReporter}
 /** An `AsyncScheduler` schedules tasks to be executed asynchronously,
   * either now or in the future, by means of Javascript's `setTimeout`.
   */
-final class AsyncScheduler private (reporter: UncaughtExceptionReporter)
+final class AsyncScheduler private (
+  reporter: UncaughtExceptionReporter,
+  override val executionModel: ExecutionModel)
   extends ReferenceScheduler {
 
   override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
@@ -46,8 +48,14 @@ final class AsyncScheduler private (reporter: UncaughtExceptionReporter)
 }
 
 object AsyncScheduler {
-  /** Builder for [[AsyncScheduler]]. */
-  def apply(reporter: UncaughtExceptionReporter): AsyncScheduler =
-    new AsyncScheduler(reporter)
+  /** Builder for [[AsyncScheduler]].
+    *
+    * @param reporter is the [[UncaughtExceptionReporter]] that logs uncaught exceptions.
+    * @param executionModel is the preferred [[ExecutionModel]], a guideline
+    *        for run-loops and producers of data.
+    */
+  def apply(reporter: UncaughtExceptionReporter,
+    executionModel: ExecutionModel): AsyncScheduler =
+    new AsyncScheduler(reporter, executionModel)
 }
 

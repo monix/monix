@@ -260,6 +260,15 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: Self[A] =>
   def bufferTimed(timespan: FiniteDuration, maxSize: Int): Self[Seq[A]] =
     self.liftByOperator(new BufferTimedOperator(timespan, maxSize))
 
+  /** Buffers signals while busy, after which it emits the
+    * buffered events as a single bundle.
+    *
+    * This operator starts applying back-pressure when the
+    * underlying buffer's size is exceeded.
+    */
+  def bufferIntrospective(maxSize: Int): Self[List[A]] =
+    self.transform(self => new BufferIntrospectiveObservable[A](self, maxSize))
+
   /** Applies the given partial function to the source
     * for each element for which the given partial function is defined.
     *
@@ -823,6 +832,22 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: Self[A] =>
     */
   def foldLeftF[R](initial: R)(op: (R, A) => R): Self[R] =
     self.liftByOperator(new FoldLeftOperator(initial, op))
+
+  /** Folds the source observable, from start to finish, until the
+    * source completes, or until the operator short-circuits the
+    * process by returns `false`.
+    *
+    * Note that a call to [[foldLeftF]] is equivalent to this function
+    * being called with an operator always returning `true` as the first
+    * member of its result.
+    *
+    * @param op is an operator that will fold the signals of the source
+    *           observable, returning either a new state along with a boolean
+    *           that should become false in case the folding must be
+    *           interrupted.
+    */
+  def foldWhileF[R](initial: R)(op: (R,A) => (Boolean, R)): Self[R] =
+    self.liftByOperator(new FoldWhileOperator[A,R](initial, op))
 
   /** Returns an Observable that emits a single boolean, either true, in
     * case the given predicate holds for all the items emitted by the

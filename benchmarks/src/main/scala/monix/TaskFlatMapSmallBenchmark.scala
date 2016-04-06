@@ -18,7 +18,7 @@
 package monix
 
 import java.util.concurrent.TimeUnit
-import monix.async.{Callback, Task => MonixTask}
+import monix.eval.{Callback, Task => MonixTask}
 import monix.execution.Scheduler.Implicits.global
 import org.openjdk.jmh.annotations._
 import scalaz.concurrent.{Task => ScalazTask}

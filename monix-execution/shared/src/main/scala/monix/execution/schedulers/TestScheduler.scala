@@ -28,7 +28,7 @@ import scala.util.Random
 import scala.util.control.NonFatal
 
 /** A scheduler meant for testing purposes. */
-final class TestScheduler private (override val batchedExecutionModulus: Int)
+final class TestScheduler private (override val executionModel: ExecutionModel)
   extends ReferenceScheduler {
 
   /*
@@ -139,16 +139,12 @@ final class TestScheduler private (override val batchedExecutionModulus: Int)
 
 object TestScheduler {
   /** Builder for [[TestScheduler]]. */
-  def apply(): TestScheduler = {
-    import monix.execution.internal.Platform
-    new TestScheduler(Platform.recommendedBatchSize-1)
-  }
+  def apply(): TestScheduler =
+    new TestScheduler(ExecutionModel.Default)
 
   /** Builder for [[TestScheduler]]. */
-  def apply(recommendedBatchSize: Int): TestScheduler = {
-    import monix.execution.internal.math.nextPowerOf2
-    new TestScheduler(nextPowerOf2(recommendedBatchSize)-1)
-  }
+  def apply(executionModel: ExecutionModel): TestScheduler =
+    new TestScheduler(executionModel)
 
   /** Used internally by [[TestScheduler]], represents a
     * unit of work pending execution.

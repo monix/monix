@@ -19,6 +19,7 @@ package monix.reactive.internal.builders
 
 import monix.execution.Ack.{Stop, Continue}
 import monix.execution.cancelables.BooleanCancelable
+import monix.execution.schedulers.ExecutionModel
 import monix.execution.{Cancelable, Ack, Scheduler}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
@@ -39,14 +40,14 @@ private[reactive] final class RangeObservable(from: Long, until: Long, step: Lon
       Cancelable.empty
     } else {
       val cancelable = BooleanCancelable()
-      loop(cancelable, subscriber, s.batchedExecutionModulus, from, 0)(s)
+      loop(cancelable, subscriber, s.executionModel, from, 0)(s)
       cancelable
     }
   }
 
   @tailrec
   private def loop(c: BooleanCancelable, downstream: Subscriber[Long],
-    modulus: Int, from: Long, syncIndex: Int)
+    em: ExecutionModel, from: Long, syncIndex: Int)
     (implicit s: Scheduler): Unit = {
 
     val ack = downstream.onNext(from)
@@ -56,14 +57,14 @@ private[reactive] final class RangeObservable(from: Long, until: Long, step: Lon
       downstream.onComplete()
     else {
       val nextIndex =
-        if (ack == Continue) (syncIndex + 1) & modulus
+        if (ack == Continue) em.nextFrameIndex(syncIndex)
         else if (ack == Stop) -1
         else 0
 
       if (nextIndex > 0)
-        loop(c, downstream, modulus, nextFrom, nextIndex)
+        loop(c, downstream, em, nextFrom, nextIndex)
       else if (nextIndex == 0 && !c.isCanceled)
-        asyncBoundary(c, ack, downstream, modulus, nextFrom)
+        asyncBoundary(c, ack, downstream, em, nextFrom)
     }
   }
 
@@ -71,14 +72,14 @@ private[reactive] final class RangeObservable(from: Long, until: Long, step: Lon
     cancelable: BooleanCancelable,
     ack: Future[Ack],
     downstream: Subscriber[Long],
-    modulus: Int,
+    em: ExecutionModel,
     from: Long)
     (implicit s: Scheduler): Unit = {
 
     ack.onComplete {
       case Success(success) =>
         if (success == Continue)
-          loop(cancelable, downstream, modulus, from, 0)
+          loop(cancelable, downstream, em, from, 0)
       case Failure(ex) =>
         s.reportFailure(ex)
     }

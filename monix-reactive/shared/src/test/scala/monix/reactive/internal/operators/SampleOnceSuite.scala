@@ -17,9 +17,8 @@
 
 package monix.reactive.internal.operators
 
-import monix.async.FutureUtils
 import monix.execution.Ack.Continue
-import FutureUtils.extensions._
+import monix.execution.FutureUtils.extensions._
 import monix.reactive.subjects.PublishSubject
 import monix.reactive.{Observable, Observer}
 import scala.concurrent.Future

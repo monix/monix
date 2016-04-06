@@ -17,9 +17,8 @@
 
 package monix.reactive.internal.operators
 
-import monix.async.FutureUtils
 import monix.execution.Ack.Continue
-import FutureUtils.extensions._
+import monix.execution.FutureUtils.extensions._
 import monix.execution.Scheduler
 import monix.reactive.Observable.{empty, now}
 import monix.reactive.exceptions.DummyException

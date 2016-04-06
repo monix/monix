@@ -42,9 +42,9 @@ object CreateObservableSuite extends TestSuite[TestScheduler] {
       Cancelable.empty
     }
 
-    val sum = o.sumT.runAsync
+    val sum = o.sumF.runAsyncGetFirst
     s.tick()
-    assertEquals(sum.value.get, Success(10))
+    assertEquals(sum.value.get, Success(Some(10)))
   }
 
   test("should protect against user error") { implicit s =>
@@ -53,7 +53,7 @@ object CreateObservableSuite extends TestSuite[TestScheduler] {
       throw ex
     }
 
-    val sum = o.sumT.runAsync
+    val sum = o.sumF.runAsyncGetFirst
     s.tick()
 
     assertEquals(sum.value, None)

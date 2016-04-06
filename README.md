@@ -72,8 +72,8 @@ Monix 2.0 is modular by design, so you can pick and choose:
 
 - `monix-execution` exposes the low-level execution environment, or more precisely 
   `Scheduler`, `Cancelable` and `RunLoop`
-- `monix-async` exposes `Task` and depends on `monix-execution`
-- `monix-reactive` exposes `Observable` streams and depends on `monix-async`
+- `monix-eval` exposes `Task`, `Coeval`, `AsyncIterator`, `LazyIterator` and depends on `monix-execution`
+- `monix-reactive` exposes `Observable` streams and depends on `monix-eval`
 - `monix-types` exposes type-classes, integrated with Cats and depends on `monix-reactive`
 - `monix` provides all of the above
 
