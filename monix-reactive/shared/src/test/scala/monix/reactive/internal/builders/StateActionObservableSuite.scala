@@ -34,7 +34,7 @@ object StateActionObservableSuite extends TestSuite[TestScheduler] {
   test("first execution is sync") { implicit s =>
     var received = 0
     Observable.fromStateAction(int)(s.currentTimeMillis())
-      .take(1).foreach(x => received += 1)
+      .take(1).subscribe { x => received += 1; Continue }
     assertEquals(received, 1)
   }
 

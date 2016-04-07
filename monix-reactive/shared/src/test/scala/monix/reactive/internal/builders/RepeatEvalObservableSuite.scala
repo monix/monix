@@ -33,9 +33,7 @@ object RepeatEvalObservableSuite extends TestSuite[TestScheduler] {
 
   test("first execution is sync") { implicit s =>
     var received = 0
-    Observable.repeatEval(1)
-      .take(1).foreach(x => received += x)
-
+    Observable.repeatEval(1).take(1).subscribe { x => received += x; Continue }
     assertEquals(received, 1)
   }
 
