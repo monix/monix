@@ -76,7 +76,7 @@ object Ack {
   /** Helpers for dealing with synchronous `Future[Ack]` results,
     * powered by macros.
     */
-  implicit class AckExtensions[Self <: Future[Ack]](val source: Self) extends AnyVal {
+  private[monix] implicit class AckExtensions[Self <: Future[Ack]](val source: Self) extends AnyVal {
     /** Returns `true` if self is a direct reference to
       * `Continue` or `Stop`, `false` otherwise.
       */
@@ -170,6 +170,7 @@ object Ack {
   }
 
   /** Macro implementations for [[AckExtensions]]. */
+  @macrocompat.bundle private[monix]
   class Macros(override val c: whitebox.Context) extends InlineMacros with HygieneUtilMacros {
     import c.universe._
 

@@ -15,7 +15,14 @@ lazy val doNotPublishArtifact = Seq(
 )
 
 lazy val warnUnusedImport = Seq(
-  scalacOptions += "-Ywarn-unused-import",
+  scalacOptions ++= {
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((2, 10)) =>
+        Seq()
+      case Some((2, n)) if n >= 11 =>
+        Seq("-Ywarn-unused-import")
+    }
+  },
   scalacOptions in (Compile, console) ~= {_.filterNot("-Ywarn-unused-import" == _)},
   scalacOptions in (Test, console) <<= (scalacOptions in (Compile, console))
 )
@@ -23,44 +30,53 @@ lazy val warnUnusedImport = Seq(
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
   scalaVersion := "2.11.8",
-  // crossScalaVersions := Seq("2.11.8", "2.12.0-M4"),
+  crossScalaVersions := Seq("2.11.8", "2.10.6"),
   javacOptions ++= Seq("-source", "1.6", "-target", "1.6"),
   scalacOptions ++= Seq(
     "-target:jvm-1.6", // generates code with the Java 6 class format
-    // Enables optimisations
-    "-optimise",
     // warnings
     "-unchecked", // able additional warnings where generated code depends on assumptions
     "-deprecation", // emit warning for usages of deprecated APIs
     "-feature", // emit warning usages of features that should be imported explicitly
-    // possibly deprecated options
-    "-Ywarn-dead-code",
-    "-Ywarn-inaccessible",
-
     // Features enabled by default
     "-language:higherKinds",
     "-language:implicitConversions",
     "-language:experimental.macros",
-
-    // Turns all warnings into errors ;-)
-    "-Xfatal-warnings",
-    // Enables linter options
-    "-Xlint:adapted-args", // warn if an argument list is modified to match the receiver
-    "-Xlint:nullary-unit", // warn when nullary methods return Unit
-    "-Xlint:inaccessible", // warn about inaccessible types in method signatures
-    "-Xlint:nullary-override", // warn when non-nullary `def f()' overrides nullary `def f'
-    "-Xlint:infer-any", // warn when a type argument is inferred to be `Any`
-    "-Xlint:missing-interpolator", // a string literal appears to be missing an interpolator id
-    "-Xlint:doc-detached", // a ScalaDoc comment appears to be detached from its element
-    "-Xlint:private-shadow", // a private field (or class parameter) shadows a superclass field
-    "-Xlint:type-parameter-shadow", // a local type parameter shadows a type already in scope
-    "-Xlint:poly-implicit-overload", // parameterized overloaded implicit methods are not visible as view bounds
-    "-Xlint:option-implicit", // Option.apply used implicit view
-    "-Xlint:delayedinit-select", // Selecting member of DelayedInit
-    "-Xlint:by-name-right-associative", // By-name parameter of right associative operator
-    "-Xlint:package-object-classes", // Class or object defined in package object
-    "-Xlint:unsound-match" // Pattern match may not be typesafe
+    // possibly deprecated options
+    "-Ywarn-dead-code",
+    "-Ywarn-inaccessible"
   ),
+
+  // version specific compiler options
+  scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, majorVersion)) if majorVersion >= 11 =>
+      Seq(
+        // Enables optimisations, but only for 2.11, because 2.10 isn't to be trusted
+        "-optimise",
+        // Turns all warnings into errors ;-)
+        "-Xfatal-warnings",
+        // For ScalaDoc
+        "-Ymacro-expand:discard",
+        // Enables linter options
+        "-Xlint:adapted-args", // warn if an argument list is modified to match the receiver
+        "-Xlint:nullary-unit", // warn when nullary methods return Unit
+        "-Xlint:inaccessible", // warn about inaccessible types in method signatures
+        "-Xlint:nullary-override", // warn when non-nullary `def f()' overrides nullary `def f'
+        "-Xlint:infer-any", // warn when a type argument is inferred to be `Any`
+        "-Xlint:missing-interpolator", // a string literal appears to be missing an interpolator id
+        "-Xlint:doc-detached", // a ScalaDoc comment appears to be detached from its element
+        "-Xlint:private-shadow", // a private field (or class parameter) shadows a superclass field
+        "-Xlint:type-parameter-shadow", // a local type parameter shadows a type already in scope
+        "-Xlint:poly-implicit-overload", // parameterized overloaded implicit methods are not visible as view bounds
+        "-Xlint:option-implicit", // Option.apply used implicit view
+        "-Xlint:delayedinit-select", // Selecting member of DelayedInit
+        "-Xlint:by-name-right-associative", // By-name parameter of right associative operator
+        "-Xlint:package-object-classes", // Class or object defined in package object
+        "-Xlint:unsound-match" // Pattern match may not be typesafe
+      )
+    case _ =>
+      Seq("-Ymacro-no-expand")
+  }),
 
   // Turning off fatal warnings for ScalaDoc, otherwise we can't release.
   scalacOptions in (Compile, doc) ~= (_ filterNot (_ == "-Xfatal-warnings")),
@@ -106,24 +122,24 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
 
   pomExtra :=
     <url>https://monix.io/</url>
-    <licenses>
-      <license>
-        <name>Apache License, Version 2.0</name>
-        <url>https://www.apache.org/licenses/LICENSE-2.0</url>
-        <distribution>repo</distribution>
-      </license>
-    </licenses>
-    <scm>
-      <url>git@github.com:monixio/monix.git</url>
-      <connection>scm:git:git@github.com:monixio/monix.git</connection>
-    </scm>
-    <developers>
-      <developer>
-        <id>alex_ndc</id>
-        <name>Alexandru Nedelcu</name>
-        <url>https://bionicspirit.com/</url>
-      </developer>
-    </developers>
+      <licenses>
+        <license>
+          <name>Apache License, Version 2.0</name>
+          <url>https://www.apache.org/licenses/LICENSE-2.0</url>
+          <distribution>repo</distribution>
+        </license>
+      </licenses>
+      <scm>
+        <url>git@github.com:monixio/monix.git</url>
+        <connection>scm:git:git@github.com:monixio/monix.git</connection>
+      </scm>
+      <developers>
+        <developer>
+          <id>alex_ndc</id>
+          <name>Alexandru Nedelcu</name>
+          <url>https://bionicspirit.com/</url>
+        </developer>
+      </developers>
 )
 
 lazy val crossSettings = sharedSettings ++ Seq(
@@ -131,13 +147,29 @@ lazy val crossSettings = sharedSettings ++ Seq(
   unmanagedSourceDirectories in Test <+= baseDirectory(_.getParentFile / "shared" / "src" / "test" / "scala")
 )
 
-lazy val scalaReflectDeps = Seq(
-  libraryDependencies ++= Seq(
-    "org.scala-lang" % "scala-reflect" % scalaVersion.value % "provided"
-  ))
+lazy val optionalMacroCompatDeps = Seq(
+  libraryDependencies ++= (CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, majorVersion)) if majorVersion >= 11 => Seq.empty
+    case _ => // 2.10
+      Seq("org.typelevel" %%% "macro-compat" % "1.1.1" % "provided")
+  }))
 
-lazy val scalaParadiseDeps = scalaReflectDeps ++ Seq(
-  addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full))
+lazy val requiredMacroCompatDeps = Seq(
+  libraryDependencies ++= (CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, majorVersion)) if majorVersion >= 11 =>
+      Seq(
+        "org.scala-lang" % "scala-reflect" % scalaVersion.value % "provided",
+        "org.typelevel" %%% "macro-compat" % "1.1.1" % "provided",
+        compilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
+      )
+    case _ =>
+      Seq(
+        "org.scala-lang" % "scala-reflect" % scalaVersion.value % "provided",
+        "org.scala-lang" % "scala-compiler" % scalaVersion.value % "provided",
+        "org.typelevel" %%% "macro-compat" % "1.1.1" % "provided",
+        compilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
+      )
+  }))
 
 lazy val unidocSettings = baseUnidocSettings ++ Seq(
   autoAPIMappings := true,
@@ -146,8 +178,6 @@ lazy val unidocSettings = baseUnidocSettings ++ Seq(
 
   scalacOptions in (ScalaUnidoc, unidoc) +=
     "-Xfatal-warnings",
-  scalacOptions in (ScalaUnidoc, unidoc) +=
-    "-Ymacro-expand:discard",
   scalacOptions in (ScalaUnidoc, unidoc) ++=
     Opts.doc.title(s"Monix"),
   scalacOptions in (ScalaUnidoc, unidoc) ++=
@@ -160,28 +190,28 @@ lazy val unidocSettings = baseUnidocSettings ++ Seq(
 
 lazy val docsSettings =
   unidocSettings ++
-  site.addMappingsToSiteDir(mappings in (ScalaUnidoc, packageDoc), "api") ++
-  site.addMappingsToSiteDir(tut, "_tut") ++
-  Seq(
-    (test in Test) <<= (test in Test).dependsOn(tut),
-    coverageExcludedFiles := ".*",
-    siteMappings += file("CONTRIBUTING.md") -> "contributing.md",
-    includeFilter in makeSite :=
-      "*.html" | "*.css" | "*.scss" | "*.png" | "*.jpg" | "*.jpeg" |
-        "*.gif" | "*.svg" | "*.js" | "*.swf" | "*.yml" | "*.md" | "*.xml",
+    site.addMappingsToSiteDir(mappings in (ScalaUnidoc, packageDoc), "api") ++
+    site.addMappingsToSiteDir(tut, "_tut") ++
+    Seq(
+      (test in Test) <<= (test in Test).dependsOn(tut),
+      coverageExcludedFiles := ".*",
+      siteMappings += file("CONTRIBUTING.md") -> "contributing.md",
+      includeFilter in makeSite :=
+        "*.html" | "*.css" | "*.scss" | "*.png" | "*.jpg" | "*.jpeg" |
+          "*.gif" | "*.svg" | "*.js" | "*.swf" | "*.yml" | "*.md" | "*.xml",
 
-    preprocessVars := {
-      val now = new Date()
-      val dayFormat = new SimpleDateFormat("yyyy-MM-dd")
-      val timeFormat = new SimpleDateFormat("HH:mm:ss")
+      preprocessVars := {
+        val now = new Date()
+        val dayFormat = new SimpleDateFormat("yyyy-MM-dd")
+        val timeFormat = new SimpleDateFormat("HH:mm:ss")
 
-      Map(
-        "VERSION" -> version.value,
-        "DATE" -> dayFormat.format(now),
-        "TIME" -> timeFormat.format(now)
-      )
-    }
-  )
+        Map(
+          "VERSION" -> version.value,
+          "DATE" -> dayFormat.format(now),
+          "TIME" -> timeFormat.format(now)
+        )
+      }
+    )
 
 lazy val testSettings = Seq(
   testFrameworks += new TestFramework("minitest.runner.Framework"),
@@ -228,7 +258,7 @@ lazy val monixJS = project.in(file("monix/js"))
   .settings(scalaJSSettings)
   .settings(name := "monix")
 
-lazy val executionCommon = scalaParadiseDeps ++ Seq(
+lazy val executionCommon = Seq(
   name := "monix-execution",
   libraryDependencies += "org.sincron" %%% "sincron" % "0.11"
 )
@@ -236,6 +266,7 @@ lazy val executionCommon = scalaParadiseDeps ++ Seq(
 lazy val executionJVM = project.in(file("monix-execution/jvm"))
   .settings(crossSettings)
   .settings(testSettings)
+  .settings(requiredMacroCompatDeps)
   .settings(executionCommon)
 
 lazy val executionJS = project.in(file("monix-execution/js"))
@@ -243,11 +274,12 @@ lazy val executionJS = project.in(file("monix-execution/js"))
   .settings(crossSettings)
   .settings(scalaJSSettings)
   .settings(testSettings)
+  .settings(requiredMacroCompatDeps)
   .settings(executionCommon)
 
 lazy val evalCommon =
-  crossSettings ++ testSettings ++
-  Seq(name := "monix-eval")
+  crossSettings ++ testSettings ++ optionalMacroCompatDeps ++
+    Seq(name := "monix-eval")
 
 lazy val evalJVM = project.in(file("monix-eval/jvm"))
   .dependsOn(executionJVM)
@@ -260,7 +292,7 @@ lazy val evalJS = project.in(file("monix-eval/js"))
   .settings(evalCommon)
 
 lazy val reactiveCommon =
-  crossSettings ++ testSettings ++ scalaReflectDeps ++
+  crossSettings ++ testSettings ++ optionalMacroCompatDeps ++
     Seq(name := "monix-reactive")
 
 lazy val reactiveJVM = project.in(file("monix-reactive/jvm"))

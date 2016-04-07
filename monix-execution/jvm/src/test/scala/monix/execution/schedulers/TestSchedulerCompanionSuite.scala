@@ -136,7 +136,7 @@ object TestSchedulerCompanionSuite extends SimpleTestSuite {
   }
 
   test("scheduler builder, fixed pool") {
-    val s = Scheduler.fixedPool(name="monix-tests-fixed-pool", 1)
+    val s = Scheduler.fixedPool(name="monix-tests-fixed-pool", poolSize=1)
     val latch = new CountDownLatch(2)
     val r = new Runnable { def run() = latch.countDown() }
     s.execute(r)
