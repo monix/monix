@@ -28,12 +28,12 @@ Highlights:
 
 - exposes the kick-ass `Observable` and `Task`
 - modular, only use what you need
-- strives to be idiomatic Scala and encourages referential transparency, 
+- strives to be idiomatic Scala and encourages referential transparency,
   but is built to be faster than alternatives
-- provides integration with [Cats](http://typelevel.org/cats/) 
+- provides integration with [Cats](http://typelevel.org/cats/)
 - accepted in the [Typelevel incubator](http://typelevel.org/projects/)
-- designed for true asynchronicity, running on both the 
-  JVM and [Scala.js](scala-js.org), 
+- designed for true asynchronicity, running on both the
+  JVM and [Scala.js](scala-js.org),
 - really good test coverage and API documentation as a project policy
 
 ## Usage
@@ -52,9 +52,9 @@ support long after Scala 2.12 is out.
 The packages are published on Maven Central.
 
 - Current stable release: `1.1`
-- Current beta release: `2.0-M1`
+- Current beta release: `2.0-M2`
 
-For the stable release (use the `%%%` for Scala.js): 
+For the stable release (use the `%%%` for Scala.js):
 
 ```scala
 libraryDependencies += "org.monifu" %% "monifu" % "1.1"
@@ -63,14 +63,14 @@ libraryDependencies += "org.monifu" %% "monifu" % "1.1"
 For the beta/preview release (use at your own risk):
 
 ```scala
-libraryDependencies += "io.monix" %% "monix" % "2.0-M1"
+libraryDependencies += "io.monix" %% "monix" % "2.0-M2"
 ```
 
 ### Sub-projects
 
 Monix 2.0 is modular by design, so you can pick and choose:
 
-- `monix-execution` exposes the low-level execution environment, or more precisely 
+- `monix-execution` exposes the low-level execution environment, or more precisely
   `Scheduler`, `Cancelable` and `RunLoop`
 - `monix-eval` exposes `Task`, `Coeval`, `AsyncIterator`, `LazyIterator` and depends on `monix-execution`
 - `monix-reactive` exposes `Observable` streams and depends on `monix-eval`
@@ -83,7 +83,7 @@ NOTE: The documentation is a work in progress.
 API Documentation:
 
 - [1.1](https://monix.io/docs/1.1/api/)
-- [2.0-M1](https://monix.io/docs/2.0-M1/api/)
+- [2.0-M2](https://monix.io/docs/2.0-M2/api/)
 
 ## Maintainers
 
