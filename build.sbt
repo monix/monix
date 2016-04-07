@@ -194,7 +194,6 @@ lazy val docsSettings =
     site.addMappingsToSiteDir(tut, "_tut") ++
     Seq(
       (test in Test) <<= (test in Test).dependsOn(tut),
-      coverageExcludedFiles := ".*",
       siteMappings += file("CONTRIBUTING.md") -> "contributing.md",
       includeFilter in makeSite :=
         "*.html" | "*.css" | "*.scss" | "*.png" | "*.jpg" | "*.jpeg" |
@@ -219,8 +218,7 @@ lazy val testSettings = Seq(
 )
 
 lazy val scalaJSSettings = Seq(
-  scalaJSUseRhino in Global := false,
-  coverageExcludedFiles := ".*"
+  scalaJSUseRhino in Global := false
 )
 
 lazy val scalaStyleSettings = {
