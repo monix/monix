@@ -18,39 +18,39 @@
 package monix.cats
 
 import cats._
-import monix.eval.CoevalIterator
+import monix.eval.CoevalEnumerator
 
 trait LazyIteratorInstances {
-  implicit val lazyIteratorInstances: Sequenceable[CoevalIterator] =
-    new MonadFilter[CoevalIterator] with MonadError[CoevalIterator, Throwable]
-      with CoflatMap[CoevalIterator] with MonadCombine[CoevalIterator] {
+  implicit val lazyIteratorInstances: Sequenceable[CoevalEnumerator] =
+    new MonadFilter[CoevalEnumerator] with MonadError[CoevalEnumerator, Throwable]
+      with CoflatMap[CoevalEnumerator] with MonadCombine[CoevalEnumerator] {
 
-      def empty[A]: CoevalIterator[A] =
-        CoevalIterator.empty[A]
-      def raiseError[A](e: Throwable): CoevalIterator[A] =
-        CoevalIterator.error(e)
-      def pure[A](x: A): CoevalIterator[A] =
-        CoevalIterator.now(x)
-      override def pureEval[A](x: Eval[A]): CoevalIterator[A] =
-        CoevalIterator.evalAlways(x.value)
+      def empty[A]: CoevalEnumerator[A] =
+        CoevalEnumerator.empty[A]
+      def raiseError[A](e: Throwable): CoevalEnumerator[A] =
+        CoevalEnumerator.error(e)
+      def pure[A](x: A): CoevalEnumerator[A] =
+        CoevalEnumerator.now(x)
+      override def pureEval[A](x: Eval[A]): CoevalEnumerator[A] =
+        CoevalEnumerator.evalAlways(x.value)
 
-      def flatMap[A, B](fa: CoevalIterator[A])(f: (A) => CoevalIterator[B]): CoevalIterator[B] =
+      def flatMap[A, B](fa: CoevalEnumerator[A])(f: (A) => CoevalEnumerator[B]): CoevalEnumerator[B] =
         fa.flatMap(f)
-      def coflatMap[A, B](fa: CoevalIterator[A])(f: (CoevalIterator[A]) => B): CoevalIterator[B] =
-        CoevalIterator.evalAlways(f(fa))
-      override def coflatten[A](fa: CoevalIterator[A]): CoevalIterator[CoevalIterator[A]] =
-        CoevalIterator.now(fa)
-      def handleErrorWith[A](fa: CoevalIterator[A])(f: (Throwable) => CoevalIterator[A]): CoevalIterator[A] =
+      def coflatMap[A, B](fa: CoevalEnumerator[A])(f: (CoevalEnumerator[A]) => B): CoevalEnumerator[B] =
+        CoevalEnumerator.evalAlways(f(fa))
+      override def coflatten[A](fa: CoevalEnumerator[A]): CoevalEnumerator[CoevalEnumerator[A]] =
+        CoevalEnumerator.now(fa)
+      def handleErrorWith[A](fa: CoevalEnumerator[A])(f: (Throwable) => CoevalEnumerator[A]): CoevalEnumerator[A] =
         fa.onErrorHandleWith(f)
 
-      override def filter[A](fa: CoevalIterator[A])(f: (A) => Boolean): CoevalIterator[A] =
+      override def filter[A](fa: CoevalEnumerator[A])(f: (A) => Boolean): CoevalEnumerator[A] =
         fa.filter(f)
-      override def map[A, B](fa: CoevalIterator[A])(f: (A) => B): CoevalIterator[B] =
+      override def map[A, B](fa: CoevalEnumerator[A])(f: (A) => B): CoevalEnumerator[B] =
         fa.map(f)
-      override def handleError[A](fa: CoevalIterator[A])(f: (Throwable) => A): CoevalIterator[A] =
+      override def handleError[A](fa: CoevalEnumerator[A])(f: (Throwable) => A): CoevalEnumerator[A] =
         fa.onErrorHandle(f)
 
-      def combineK[A](x: CoevalIterator[A], y: CoevalIterator[A]): CoevalIterator[A] =
+      def combineK[A](x: CoevalEnumerator[A], y: CoevalEnumerator[A]): CoevalEnumerator[A] =
         x ++ y
     }
 }

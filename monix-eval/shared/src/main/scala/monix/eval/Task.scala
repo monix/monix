@@ -22,7 +22,6 @@ import monix.execution.Ack.Stop
 import monix.execution.cancelables.{CompositeCancelable, SingleAssignmentCancelable, StackedCancelable}
 import monix.execution.schedulers.ExecutionModel
 import monix.execution.{Cancelable, CancelableFuture, Scheduler}
-import monix.types.shims.syntax._
 import monix.types.{Asynchronous, Evaluable}
 import org.sincron.atomic.{Atomic, AtomicAny}
 
@@ -518,40 +517,40 @@ object Task {
     *        callback that the user is supposed to call in order to
     *        signal the desired outcome of this `Task`.
     */
-  def async[A](register: (Scheduler, Callback[A]) => Cancelable): Task[A] =
+  def create[A](register: (Scheduler, Callback[A]) => Cancelable): Task[A] =
     Async { (scheduler, conn, cb) =>
-      // Forced asynchronous execution.
-      scheduler.execute(new Runnable {
-        def run(): Unit = try {
-          val c = SingleAssignmentCancelable()
-          conn push c
+      try {
+        val c = SingleAssignmentCancelable()
+        conn push c
 
-          c := register(scheduler, new Callback[A] {
-            def onError(ex: Throwable): Unit = {
-              conn.pop()
-              cb.onError(ex)
-            }
-
-            def onSuccess(value: A): Unit = {
-              conn.pop()
-              cb.onSuccess(value)
-            }
-          })
-        } catch {
-          case NonFatal(ex) =>
+        c := register(scheduler, new Callback[A] {
+          def onError(ex: Throwable): Unit = {
             conn.pop()
-            scheduler.reportFailure(ex)
-        }
-      })
+            cb.onError(ex)
+          }
+
+          def onSuccess(value: A): Unit = {
+            conn.pop()
+            cb.onSuccess(value)
+          }
+        })
+      } catch {
+        case NonFatal(ex) =>
+          conn.pop()
+          // We cannot stream the error, because the callback might have
+          // been called already and we'd be violating its contract,
+          // hence the only thing possible is to log the error.
+          scheduler.reportFailure(ex)
+      }
     }
 
   /** Constructs a lazy [[Task]] instance whose result
     * will be computed asynchronously.
     *
-    * Unsafe to build directly, only use if you know what you're doing.
-    * For building `Task` instances safely see [[async]].
+    * Unsafe to use directly, only use if you know what you're doing.
+    * For building `Task` instances safely see [[create]].
     */
-  def unsafeAsync[A](onFinish: OnFinish[A]): Task[A] =
+  def unsafeCreate[A](onFinish: OnFinish[A]): Task[A] =
     Async(onFinish)
 
   /** Converts the given Scala `Future` into a `Task`.
@@ -559,22 +558,48 @@ object Task {
     * NOTE: if you want to defer the creation of the future, use
     * in combination with [[defer]].
     */
-  def fromFuture[A](f: Future[A]): Task[A] =
-    Async { (s, conn, cb) =>
-      f.onComplete {
-        case Success(a) =>
-          if (!conn.isCanceled) cb.onSuccess(a)
-        case Failure(ex) =>
-          if (!conn.isCanceled) cb.onError(ex)
-      }(s)
+  def fromFuture[A](f: Future[A]): Task[A] = {
+    if (f.isCompleted) {
+      // Ready result gets synchronous treatment
+      Attempt.fromTry(f.value.get)
     }
+    else f match {
+      // Do we have a CancelableFuture?
+      case c: Cancelable =>
+        // Cancelable future, needs canceling
+        Async { (s, conn, cb) =>
+          // Already completed future avoids
+          // forking another thread, as one
+          // was already forked
+          if (f.isCompleted) cb(f.value.get) else {
+            conn.push(c)
+            f.onComplete {
+              case Success(a) =>
+                conn.pop()
+                cb.onSuccess(a)
+              case Failure(ex) =>
+                conn.pop()
+                cb.onError(ex)
+            }(s)
+          }
+        }
+      case _ =>
+        // Simple future, convert directly
+        Async { (s, conn, cb) =>
+          if (f.isCompleted) cb(f.value.get) else
+            f.onComplete(cb)(s)
+        }
+    }
+  }
 
   /** Creates a `Task` that upon execution will execute both given tasks
     * (possibly in parallel in case the tasks are asynchronous) and will
     * return the result of the task that manages to complete first,
     * along with a cancelable future of the other task.
+    *
+    * If the first task that completes
     */
-  def chooseFirstOf[A,B](fa: Task[A], fb: Task[B]): Task[(A, CancelableFuture[B]) \/ (CancelableFuture[A], B)] =
+  def chooseFirstOf[A,B](fa: Task[A], fb: Task[B]): Task[Either[(A, CancelableFuture[B]), (CancelableFuture[A], B)]] =
     Async { (scheduler, conn, cb) =>
       val pa = Promise[A]()
       val pb = Promise[B]()
@@ -584,14 +609,15 @@ object Task {
       val connB = StackedCancelable()
       conn push CompositeCancelable(connA, connB)
 
+      // First task: A
       Task.startNow(scheduler, connA, fa, new Callback[A] {
-        def onSuccess(value: A): Unit =
+        def onSuccess(valueA: A): Unit =
           if (isActive.getAndSet(false)) {
-            val resultB = CancelableFuture(pb.future, connB)
-            conn.popAndCollapse(connB)
-            cb.onSuccess(Left((value, resultB)))
+            val futureB = CancelableFuture(pb.future, connB)
+            conn.pop()
+            cb.onSuccess(Left((valueA, futureB)))
           } else {
-            pa.success(value)
+            pa.success(valueA)
           }
 
         def onError(ex: Throwable): Unit =
@@ -599,17 +625,20 @@ object Task {
             conn.pop()
             connB.cancel()
             cb.onError(ex)
+          } else {
+            pa.failure(ex)
           }
       })
 
+      // Second task: B
       Task.startNow(scheduler, connB, fb, new Callback[B] {
-        def onSuccess(value: B): Unit =
+        def onSuccess(valueB: B): Unit =
           if (isActive.getAndSet(false)) {
-            val resultA = CancelableFuture(pa.future, connA)
-            conn.popAndCollapse(connA)
-            cb.onSuccess(Right((resultA, value)))
+            val futureA = CancelableFuture(pa.future, connA)
+            conn.pop()
+            cb.onSuccess(Right((futureA, valueB)))
           } else {
-            pb.success(value)
+            pb.success(valueB)
           }
 
         def onError(ex: Throwable): Unit =
@@ -617,6 +646,8 @@ object Task {
             conn.pop()
             connA.cancel()
             cb.onError(ex)
+          } else {
+            pb.failure(ex)
           }
       })
     }
@@ -631,11 +662,11 @@ object Task {
       val composite = CompositeCancelable()
       conn.push(composite)
 
-      for (task <- tasks) {
+      for (task <- tasks; if isActive.get) {
         val taskCancelable = StackedCancelable()
         composite += taskCancelable
 
-        Task.startAsync(scheduler, taskCancelable, task, new Callback[A] {
+        Task.startNow(scheduler, taskCancelable, task, new Callback[A] {
           def onSuccess(value: A): Unit =
             if (isActive.getAndSet(false)) {
               composite -= taskCancelable
@@ -657,38 +688,11 @@ object Task {
 
   /** Gathers the results from a sequence of tasks into a single list.
     * The effects are not ordered, but the results are.
+    *
+    * Alias for [[zipList]].
     */
   def sequence[A](in: Seq[Task[A]]): Task[List[A]] =
-    Async { (scheduler, conn, cb) =>
-      implicit val s = scheduler
-      val composite = CompositeCancelable()
-      conn push composite
-
-      var builder = Future.successful(mutable.ListBuffer.empty[A])
-
-      for (task <- in) {
-        val p = Promise[A]()
-        val cancelable = StackedCancelable()
-        composite += cancelable
-
-        // Ensures async execution
-        Task.startAsync(scheduler, cancelable, task, new Callback[A] {
-          def onSuccess(value: A): Unit = p.trySuccess(value)
-          def onError(ex: Throwable): Unit = p.tryFailure(ex)
-        })
-
-        builder = for (r <- builder; a <- p.future) yield r += a
-      }
-
-      builder.onComplete {
-        case Success(r) =>
-          conn.pop()
-          cb.onSuccess(r.result())
-        case Failure(ex) =>
-          conn.pop().cancel()
-          cb.onError(ex)
-      }
-    }
+    zipList(in)
 
   /** Obtain results from both `a` and `b`, nondeterministically ordering
     * their effects.
@@ -702,9 +706,11 @@ object Task {
   /** Apply a mapping functions to the results of two tasks, nondeterministically
     * ordering their effects.
     *
-    * The two tasks are both executed asynchronously. In a multi-threading
-    * environment this means that the tasks will get executed in parallel and
-    * their results synchronized.
+    * If the two tasks are synchronous, they'll get executed immediately, one
+    * after the other, with the result being available synchronously.
+    * If the two tasks are asynchronous, they'll get scheduled for execution
+    * at the same time and in a multi-threading environment they'll execute
+    * in parallel and have their results synchronized.
     */
   def mapBoth[A1,A2,R](fa1: Task[A1], fa2: Task[A2])(f: (A1,A2) => R): Task[R] = {
     /** For signaling the values after the successful completion of both tasks. */
@@ -746,8 +752,7 @@ object Task {
       val task2 = StackedCancelable()
       conn push CompositeCancelable(task1, task2)
 
-      // Starts task1, ensuring asynchronous execution
-      Task.startAsync(scheduler, task1, fa1, new Callback[A1] {
+      Task.startNow(scheduler, task1, fa1, new Callback[A1] {
         @tailrec def onSuccess(a1: A1): Unit =
           state.get match {
             case null => // null means this is the first task to complete
@@ -766,8 +771,7 @@ object Task {
           sendError(conn, state, scheduler, cb, ex)
       })
 
-      // Starts task2, ensuring asynchronous execution
-      Task.startAsync(scheduler, task2, fa2, new Callback[A2] {
+      Task.startNow(scheduler, task2, fa2, new Callback[A2] {
         @tailrec def onSuccess(a2: A2): Unit =
           state.get match {
             case null => // null means this is the first task to complete
@@ -788,6 +792,9 @@ object Task {
     }
   }
 
+  /** Gathers the results from a sequence of tasks into a single list.
+    * The effects are not ordered, but the results are.
+    */
   def zipList[A](sources: Seq[Task[A]]): Task[List[A]] = {
     val init = mutable.ListBuffer.empty[A]
     val r = sources.foldLeft(now(init))((acc,elem) => Task.mapBoth(acc,elem)(_ += _))
@@ -848,7 +855,7 @@ object Task {
     zipWith2(fa12345, fa6) { case ((a1,a2,a3,a4,a5), a6) => f(a1,a2,a3,a4,a5,a6) }
   }
 
-  /** Type alias representing callbacks for [[async]] tasks. */
+  /** Type alias representing callbacks for [[create]] tasks. */
   type OnFinish[+A] = (Scheduler, StackedCancelable, Callback[A]) => Unit
 
   /** The `Attempt` represents a strict, already evaluated result
@@ -959,18 +966,14 @@ object Task {
     }
 
     lazy val runAttempt: Attempt[A] = {
-      val result = try Now(thunk()) catch { case NonFatal(ex) => Error(ex) }
-      thunk = null
-      result
-    }
-
-    // Overriding runAsync for efficiency reasons
-    override def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable = {
-      try runAttempt match {
-        case Now(a) => cb.onSuccess(a)
-        case Error(ex) => cb.onError(ex)
-      } catch { case NonFatal(ex) => s.reportFailure(ex) }
-      Cancelable.empty
+      try {
+        Now(thunk())
+      } catch {
+        case NonFatal(ex) => Error(ex)
+      } finally {
+        // GC purposes
+        thunk = null
+      }
     }
 
     override def toString = s"EvalOnce($thunk)"
@@ -1004,27 +1007,13 @@ object Task {
     * This type can be used for "lazy" values. In some sense it is
     * equivalent to using a Function0 value.
     */
-  final case class EvalAlways[+A](f: () => A) extends Task[A] {
-    // Overriding runAsync for efficiency reasons
-    override def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable = {
-      var streamErrors = true
-      try {
-        val result = f()
-        streamErrors = false
-        cb.onSuccess(result)
-      } catch {
-        case NonFatal(ex) if streamErrors =>
-          cb.onError(ex)
-      }
-      Cancelable.empty
-    }
-  }
+  final case class EvalAlways[+A](f: () => A) extends Task[A]
 
   /** Constructs a lazy [[Task]] instance whose result will
     * be computed asynchronously.
     *
     * Unsafe to build directly, only use if you know what you're doing.
-    * For building `Async` instances safely, see [[async]].
+    * For building `Async` instances safely, see [[create]].
     */
   private final case class Async[+A](onFinish: OnFinish[A]) extends Task[A]
 
@@ -1201,7 +1190,7 @@ object Task {
               trampoline(scheduler, em, conn, fa, cb, rest, em.nextFrameIndex(frameIndex))
           }
 
-        case eval @ EvalOnce(_) =>
+        case eval: EvalOnce[_] =>
           eval.runAttempt match {
             case Now(a) =>
               binds match {
@@ -1268,7 +1257,7 @@ object Task {
     source: Task[A],
     binds: List[Bind]): CancelableFuture[A] = {
 
-    def goAsync(scheduler: Scheduler, source: Current, binds: List[Bind]): CancelableFuture[Any] = {
+    def goAsync(scheduler: Scheduler, source: Current, binds: List[Bind], isNextAsync: Boolean): CancelableFuture[Any] = {
       val p = Promise[Any]()
       val cb: Callback[Any] = new Callback[Any] {
         def onSuccess(value: Any): Unit = p.trySuccess(value)
@@ -1276,7 +1265,11 @@ object Task {
       }
 
       val conn = StackedCancelable()
-      scheduler.execute(new AsyncResumeRunnable(scheduler, conn, source, cb, binds))
+      if (!isNextAsync)
+        scheduler.execute(new AsyncResumeRunnable(scheduler, conn, source, cb, binds))
+      else
+        resume(scheduler, conn, source, cb, binds)
+
       CancelableFuture(p.future, conn)
     }
 
@@ -1288,31 +1281,31 @@ object Task {
       frameIndex: Int): CancelableFuture[Any] = {
 
       if (frameIndex == 0 && !Task.isNextAsync(source)) {
-        // Asynchronous boundary is forced because of the Scheduler's ExecutionModel
-        goAsync(scheduler, source, binds)
+        // Asynchronous boundary is forced
+        goAsync(scheduler, source, binds, isNextAsync = false)
       }
       else source match {
         case Now(a) =>
           binds match {
             case Nil =>
-              CancelableFuture.success(a)
+              CancelableFuture.successful(a)
             case f :: rest =>
               val fa = try f(a) catch { case NonFatal(ex) => Error(ex) }
               trampoline(scheduler, em, fa, rest, em.nextFrameIndex(frameIndex))
           }
 
-        case eval @ EvalOnce(_) =>
+        case eval: EvalOnce[_] =>
           eval.runAttempt match {
             case Now(a) =>
               binds match {
                 case Nil =>
-                  CancelableFuture.success(a)
+                  CancelableFuture.successful(a)
                 case f :: rest =>
                   val fa = try f(a) catch { case NonFatal(ex) => Error(ex) }
                   trampoline(scheduler, em, fa, rest, em.nextFrameIndex(frameIndex))
               }
             case error @ Error(ex) =>
-              CancelableFuture.failure(ex)
+              CancelableFuture.failed(ex)
           }
 
         case EvalAlways(thunk) =>
@@ -1320,7 +1313,7 @@ object Task {
           trampoline(scheduler, em, fa, binds, em.nextFrameIndex(frameIndex))
 
         case Error(ex) =>
-          CancelableFuture.failure(ex)
+          CancelableFuture.failed(ex)
 
         case Suspend(thunk) =>
           val fa = try thunk() catch { case NonFatal(ex) => Error(ex) }
@@ -1336,11 +1329,11 @@ object Task {
             case Some(materialized) =>
               trampoline(scheduler, em, materialized, binds, em.nextFrameIndex(frameIndex))
             case None =>
-              goAsync(scheduler, source, binds)
+              goAsync(scheduler, source, binds, isNextAsync = true)
           }
 
         case async =>
-          goAsync(scheduler, async, binds)
+          goAsync(scheduler, async, binds, isNextAsync = true)
       }
     }
 

@@ -17,12 +17,14 @@
 
 package monix.eval
 
+import monix.execution.CancelableFuture
+
+import scala.util.{Failure, Success}
 import concurrent.duration._
 import scala.concurrent.TimeoutException
-import scala.util.{Failure, Success}
 
-object TaskFirstCompletedOfSuite extends BaseTestSuite {
-  test("Task.firstCompletedOf should switch to other") { implicit s =>
+object TaskChooseFirstOfSuite extends BaseTestSuite {
+  test("Task.chooseFirstOfList should switch to other") { implicit s =>
     val task = Task.chooseFirstOfList(Seq(Task(1).delayExecution(10.seconds), Task(99).delayExecution(1.second)))
     val f = task.runAsync
 
@@ -32,7 +34,7 @@ object TaskFirstCompletedOfSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(99)))
   }
 
-  test("Task.firstCompletedOf should onError from other") { implicit s =>
+  test("Task.chooseFirstOfList should onError from other") { implicit s =>
     val ex = DummyException("dummy")
     val task = Task.chooseFirstOfList(Seq(Task(1).delayExecution(10.seconds), Task(throw ex).delayExecution(1.second)))
     val f = task.runAsync
@@ -43,7 +45,7 @@ object TaskFirstCompletedOfSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(ex)))
   }
 
-  test("Task.firstCompletedOf should mirror the source") { implicit s =>
+  test("Task.chooseFirstOfList should mirror the source") { implicit s =>
     val task = Task.chooseFirstOfList(Seq(Task(1).delayExecution(1.seconds), Task(99).delayExecution(10.second)))
     val f = task.runAsync
 
@@ -54,7 +56,7 @@ object TaskFirstCompletedOfSuite extends BaseTestSuite {
     assert(s.state.get.tasks.isEmpty, "other should be canceled")
   }
 
-  test("Task.firstCompletedOf should onError from the source") { implicit s =>
+  test("Task.chooseFirstOfList should onError from the source") { implicit s =>
     val ex = DummyException("dummy")
     val task = Task.chooseFirstOfList(Seq(Task(throw ex).delayExecution(1.seconds), Task(99).delayExecution(10.second)))
     val f = task.runAsync
@@ -66,7 +68,7 @@ object TaskFirstCompletedOfSuite extends BaseTestSuite {
     assert(s.state.get.tasks.isEmpty, "other should be canceled")
   }
 
-  test("Task.firstCompletedOf should cancel both") { implicit s =>
+  test("Task.chooseFirstOfList should cancel both") { implicit s =>
     val task = Task.chooseFirstOfList(Seq(Task(1).delayExecution(10.seconds), Task(99).delayExecution(1.second)))
     val f = task.runAsync
 
@@ -183,5 +185,161 @@ object TaskFirstCompletedOfSuite extends BaseTestSuite {
     f.cancel(); s.tick()
     assertEquals(f.value, None)
     assert(s.state.get.tasks.isEmpty, "backup should be canceled")
+  }
+
+  test("Task.chooseFirstOf(a,b) should work if a completes first") { implicit s =>
+    val ta = Task.now(10).delayExecution(1.second)
+    val tb = Task.now(20).delayExecution(2.seconds)
+
+    val t = Task.chooseFirstOf(ta, tb).flatMap {
+      case Left((a, futureB)) =>
+        Task.fromFuture(futureB).map(b => a + b)
+      case Right((futureA, b)) =>
+        Task.fromFuture(futureA).map(a => a + b)
+    }
+
+    val f = t.runAsync
+    s.tick(1.second)
+    assertEquals(f.value, None)
+    s.tick(1.second)
+    assertEquals(f.value, Some(Success(30)))
+  }
+
+  test("Task.chooseFirstOf(a,b) should cancel both") { implicit s =>
+    val ta = Task.now(10).delayExecution(2.second)
+    val tb = Task.now(20).delayExecution(1.seconds)
+
+    val t = Task.chooseFirstOf(ta, tb)
+    val f = t.runAsync
+    s.tick()
+    f.cancel()
+    assertEquals(f.value, None)
+    assert(s.state.get.tasks.isEmpty, "tasks.isEmpty")
+  }
+
+  test("Task.chooseFirstOf(A,B) should not cancel B if A completes first") { implicit s =>
+    val ta = Task.now(10).delayExecution(1.second)
+    val tb = Task.now(20).delayExecution(2.seconds)
+    var future = Option.empty[CancelableFuture[Int]]
+
+    val t = Task.chooseFirstOf(ta, tb).map {
+      case Left((a, futureB)) =>
+        future = Some(futureB)
+        a
+      case Right((futureA, b)) =>
+        future = Some(futureA)
+        b
+    }
+
+    val f = t.runAsync
+    s.tick(1.second)
+    f.cancel()
+
+    assertEquals(f.value, Some(Success(10)))
+    assert(future.isDefined, "future.isDefined")
+    assertEquals(future.flatMap(_.value), None)
+
+    s.tick(1.second)
+    assertEquals(future.flatMap(_.value), Some(Success(20)))
+  }
+
+  test("Task.chooseFirstOf(A,B) should not cancel A if B completes first") { implicit s =>
+    val ta = Task.now(10).delayExecution(2.second)
+    val tb = Task.now(20).delayExecution(1.seconds)
+    var future = Option.empty[CancelableFuture[Int]]
+
+    val t = Task.chooseFirstOf(ta, tb).map {
+      case Left((a, futureB)) =>
+        future = Some(futureB)
+        a
+      case Right((futureA, b)) =>
+        future = Some(futureA)
+        b
+    }
+
+    val f = t.runAsync
+    s.tick(1.second)
+    f.cancel()
+
+    assertEquals(f.value, Some(Success(20)))
+    assert(future.isDefined, "future.isDefined")
+    assertEquals(future.flatMap(_.value), None)
+
+    s.tick(1.second)
+    assertEquals(future.flatMap(_.value), Some(Success(10)))
+  }
+
+  test("Task.chooseFirstOf(A,B) should end both in error if A completes first in error") { implicit s =>
+    val dummy = DummyException("dummy")
+    val ta = Task.error[Int](dummy).delayExecution(1.second)
+    val tb = Task.now(20).delayExecution(2.seconds)
+
+    val t = Task.chooseFirstOf(ta, tb)
+    val f = t.runAsync
+    s.tick(1.second)
+    assertEquals(f.value, Some(Failure(dummy)))
+    assert(s.state.get.tasks.isEmpty, "tasks.isEmpty")
+  }
+
+  test("Task.chooseFirstOf(A,B) should end both in error if B completes first in error") { implicit s =>
+    val dummy = DummyException("dummy")
+    val ta = Task.now(10).delayExecution(2.seconds)
+    val tb = Task.error[Int](dummy).delayExecution(1.second)
+
+    val t = Task.chooseFirstOf(ta, tb)
+    val f = t.runAsync
+    s.tick(1.second)
+    assertEquals(f.value, Some(Failure(dummy)))
+    assert(s.state.get.tasks.isEmpty, "tasks.isEmpty")
+  }
+
+  test("Task.chooseFirstOf(A,B) should work if A completes second in error") { implicit s =>
+    val dummy = DummyException("dummy")
+    val ta = Task.error[Int](dummy).delayExecution(2.second)
+    val tb = Task.now(20).delayExecution(1.seconds)
+
+    val t1 = Task.chooseFirstOf(ta, tb).flatMap {
+      case Left((a, futureB)) =>
+        Task.fromFuture(futureB).map(b => a + b)
+      case Right((futureA, b)) =>
+        Task.fromFuture(futureA).map(a => a + b)
+    }
+
+    val t2 = Task.chooseFirstOf(ta, tb).map {
+      case Left((a, futureB)) => a
+      case Right((futureA, b)) => b
+    }
+
+    val f1 = t1.runAsync
+    val f2 = t2.runAsync
+    s.tick(2.seconds)
+
+    assertEquals(f1.value, Some(Failure(dummy)))
+    assertEquals(f2.value, Some(Success(20)))
+  }
+
+  test("Task.chooseFirstOf(A,B) should work if B completes second in error") { implicit s =>
+    val dummy = DummyException("dummy")
+    val ta = Task.now(10).delayExecution(1.seconds)
+    val tb = Task.error[Int](dummy).delayExecution(2.second)
+
+    val t1 = Task.chooseFirstOf(ta, tb).flatMap {
+      case Left((a, futureB)) =>
+        Task.fromFuture(futureB).map(b => a + b)
+      case Right((futureA, b)) =>
+        Task.fromFuture(futureA).map(a => a + b)
+    }
+
+    val t2 = Task.chooseFirstOf(ta, tb).map {
+      case Left((a, futureB)) => a
+      case Right((futureA, b)) => b
+    }
+
+    val f1 = t1.runAsync
+    val f2 = t2.runAsync
+    s.tick(2.seconds)
+
+    assertEquals(f1.value, Some(Failure(dummy)))
+    assertEquals(f2.value, Some(Success(10)))
   }
 }

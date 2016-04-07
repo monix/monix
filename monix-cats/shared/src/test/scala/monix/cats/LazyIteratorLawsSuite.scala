@@ -18,8 +18,8 @@
 package monix.cats
 
 import monix.cats.tests.SequenceableTests
-import monix.eval.CoevalIterator
+import monix.eval.CoevalEnumerator
 
 object LazyIteratorLawsSuite extends BaseLawsSuite {
-  checkAll("Sequenceable[CoevalIterator]", SequenceableTests[CoevalIterator].sequenceable[Int,Int,Int])
+  checkAll("Sequenceable[CoevalEnumerator]", SequenceableTests[CoevalEnumerator].sequenceable[Int,Int,Int])
 }

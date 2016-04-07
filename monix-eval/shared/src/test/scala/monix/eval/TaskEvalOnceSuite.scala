@@ -130,4 +130,11 @@ object TaskEvalOnceSuite extends BaseTestSuite {
     val result = Task.evalOnce(100).coeval.value
     assertEquals(result, Right(100))
   }
+
+  test("Task.EvalOnce.runAsync override") { implicit s =>
+    val dummy = DummyException("dummy")
+    val task = Task.EvalOnce { () => if (1 == 1) throw dummy }
+    val f = task.runAsync
+    assertEquals(f.value, Some(Failure(dummy)))
+  }
 }

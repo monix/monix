@@ -22,11 +22,11 @@ import monix.types.Evaluable
 import scala.collection.{LinearSeq, immutable}
 import language.higherKinds
 
-/** Common implementation between [[monix.eval.TaskIterator]]
-  * and [[monix.eval.CoevalIterator]].
+/** Common implementation between [[monix.eval.TaskEnumerator]]
+  * and [[monix.eval.CoevalEnumerator]].
   */
 private[eval] abstract
-class IteratorLike[+A, F[_] : Evaluable, Self[+T] <: IteratorLike[T, F, Self]] {
+class EnumeratorLike[+A, F[_] : Evaluable, Self[+T] <: EnumeratorLike[T, F, Self]] {
   self: Self[A] =>
 
   def stream: ConsStream[A,F]
@@ -211,7 +211,7 @@ class IteratorLike[+A, F[_] : Evaluable, Self[+T] <: IteratorLike[T, F, Self]] {
 }
 
 private[eval] abstract
-class IteratorLikeBuilders[F[_], Self[+T] <: IteratorLike[T, F, Self]](implicit F: Evaluable[F]) {
+class EnumeratorLikeBuilders[F[_], Self[+T] <: EnumeratorLike[T, F, Self]](implicit F: Evaluable[F]) {
   import Evaluable.ops._
 
   /** Lifts a [[ConsStream]] into an iterator. */

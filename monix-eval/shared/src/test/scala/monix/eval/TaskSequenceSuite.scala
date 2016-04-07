@@ -46,8 +46,6 @@ object TaskSequenceSuite extends BaseTestSuite {
     s.tick()
     assertEquals(f.value, None)
     s.tick(2.seconds)
-    assertEquals(f.value, None)
-    s.tick(1.seconds)
     assertEquals(f.value, Some(Failure(ex)))
   }
 

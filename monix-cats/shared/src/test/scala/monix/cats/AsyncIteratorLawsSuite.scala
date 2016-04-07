@@ -18,8 +18,8 @@
 package monix.cats
 
 import monix.cats.tests.SequenceableTests
-import monix.eval.TaskIterator
+import monix.eval.TaskEnumerator
 
 object AsyncIteratorLawsSuite extends BaseLawsSuite {
-  checkAll("Sequenceable[TaskIterator]", SequenceableTests[TaskIterator].sequenceable[Int,Int,Int])
+  checkAll("Sequenceable[TaskEnumerator]", SequenceableTests[TaskEnumerator].sequenceable[Int,Int,Int])
 }

@@ -66,18 +66,18 @@ object CancelableFuture {
     new Implementation[T](underlying, cancelable)
 
   /** Promotes a strict `value` to a [[CancelableFuture]] that's already complete. */
-  def success[T](value: T): CancelableFuture[T] =
+  def successful[T](value: T): CancelableFuture[T] =
     new Now[T](Success(value))
 
   /** Promotes a strict `Throwable` to a [[CancelableFuture]] that's already complete. */
-  def failure[T](ex: Throwable): CancelableFuture[T] =
+  def failed[T](ex: Throwable): CancelableFuture[T] =
     new Now[T](Failure(ex))
 
   /** Promotes a strict `Try[T]` to a [[CancelableFuture]] that's already complete. */
   def fromTry[T](value: Try[T]): CancelableFuture[T] =
     value match {
-      case Success(v) => success(v)
-      case Failure(ex) => failure(ex)
+      case Success(v) => successful(v)
+      case Failure(ex) => failed(ex)
     }
 
   /** Internal; wraps any cancelable future `ref` into an [[Implementation]] */

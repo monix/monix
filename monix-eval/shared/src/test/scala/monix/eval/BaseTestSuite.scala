@@ -53,7 +53,7 @@ abstract class BaseTestSuite extends TestSuite[TestScheduler] with Checkers {
 
   def arbitraryAsync[A](implicit A: Arbitrary[A]): Arbitrary[Task[A]] =
     Arbitrary(A.arbitrary.map(a =>
-      Task.async { (s,cb) =>
+      Task.create { (s,cb) =>
         cb.onSuccess(a)
         Cancelable.empty
       }
@@ -61,7 +61,7 @@ abstract class BaseTestSuite extends TestSuite[TestScheduler] with Checkers {
 
   def arbitraryAsyncError[A](implicit ev: Arbitrary[Int]): Arbitrary[Task[A]] =
     Arbitrary(ev.arbitrary.map(nr =>
-      Task.async { (s,cb) =>
+      Task.create { (s,cb) =>
         cb.onError(DummyException(s"dummy $nr"))
         Cancelable.empty
       }
@@ -126,6 +126,22 @@ abstract class BaseTestSuite extends TestSuite[TestScheduler] with Checkers {
             Prop(result)
         }
     }
+
+  /** Implicitly map [[IsEquiv]] to a [[Prop]]. */
+  implicit def isEqCoevalProp[A](isEq: IsEquiv[Coeval[A]]): Prop =
+    Prop { isEq.lh.runTry == isEq.rh.runTry }
+
+  /** Implicitly map [[IsNotEquiv]] to a [[Prop]]. */
+  implicit def isNotEqCoevalProp[A](isNotEq: IsNotEquiv[Coeval[A]]): Prop =
+    Prop { isNotEq.lh.runTry != isNotEq.rh.runTry }
+
+  /** Implicitly map [[IsEquiv]] to a [[Prop]]. */
+  implicit def isEqSeqCoevalProp[A](list: List[IsEquiv[Coeval[A]]]): Prop =
+    Prop { list.forall(isEq => isEq.lh.runTry == isEq.rh.runTry ) }
+
+  /** Implicitly map [[IsNotEquiv]] to a [[Prop]]. */
+  implicit def isNotEqSeqCoevalProp[A](list: List[IsNotEquiv[Coeval[A]]]): Prop =
+    Prop { list.forall(isNotEq => isNotEq.lh.runTry != isNotEq.rh.runTry ) }
 }
 
 

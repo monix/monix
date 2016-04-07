@@ -163,4 +163,47 @@ object TaskNowSuite extends BaseTestSuite {
     val result = Task.error(dummy).coeval.runTry
     assertEquals(result, Failure(dummy))
   }
+
+  test("Task.Now overrides") { implicit s =>
+    val dummy = DummyException("dummy")
+    assert(Task.Now(1).isSuccess)
+    assert(!Task.Now(1).isFailure)
+    assertEquals(Task.Now(1).value, 1)
+
+    var result = 0
+
+    Task.Now(1).runAsync(new Callback[Int] {
+      def onSuccess(value: Int): Unit = {
+        result = value
+        throw dummy
+      }
+      def onError(ex: Throwable): Unit =
+        throw ex
+    })
+
+    assertEquals(result, 1)
+    assertEquals(s.state.get.lastReportedError, dummy)
+  }
+
+  test("Task.Error overrides") { implicit s =>
+    val dummy = DummyException("dummy")
+    val dummy2 = DummyException("dummy2")
+
+    assert(!Task.Error(dummy).isSuccess)
+    assert(Task.Error(dummy).isFailure)
+    intercept[DummyException]((Task.Error(dummy) : Task.Attempt[Int]).value)
+
+    var result: Throwable = null
+
+    Task.Error(dummy).runAsync(new Callback[Int] {
+      def onSuccess(value: Int): Unit = fail("onSuccess")
+      def onError(ex: Throwable): Unit = {
+        result = ex
+        throw dummy2
+      }
+    })
+
+    assertEquals(result, dummy)
+    assertEquals(s.state.get.lastReportedError, dummy2)
+  }
 }

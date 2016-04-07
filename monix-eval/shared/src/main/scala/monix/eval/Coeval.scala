@@ -156,7 +156,7 @@ sealed abstract class Coeval[+A] extends Serializable with Product { self =>
       case Error(ex) =>
         Now(Error(ex))
       case Suspend(thunk) =>
-        Suspend(() => thunk().materializeAttempt)
+        Suspend(() => try thunk().materializeAttempt catch { case NonFatal(ex) => Now(Error(ex)) })
       case BindSuspend(thunk, g) =>
         BindSuspend[Attempt[Any], Attempt[A]](
           () => try thunk().materializeAttempt catch { case NonFatal(ex) => Now(Error(ex)) },
@@ -268,6 +268,13 @@ sealed abstract class Coeval[+A] extends Serializable with Product { self =>
 }
 
 object Coeval {
+  /** Promotes a non-strict value to a [[Coeval]].
+    *
+    * Alias of [[evalAlways]].
+    */
+  def apply[A](f: => A): Coeval[A] =
+    EvalAlways(f _)
+
   /** Returns an `Coeval` that on execution is always successful, emitting
     * the given strict value.
     */
@@ -542,7 +549,7 @@ object Coeval {
     reduceCoeval(source, Nil).asInstanceOf[Attempt[A]]
   }
 
-  /** Implicit instance for the [[Deferrable]] type-class. */
+  /** Implicit type-class instances of [[Coeval]]. */
   implicit val instances: Evaluable[Coeval] =
     new Evaluable[Coeval] {
       def point[A](a: A): Coeval[A] = Coeval.now(a)

@@ -26,12 +26,12 @@ import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.concurrent.{Future, Promise}
 
-private[reactive] object ObservableToAsyncIterator {
-  def apply[A](source: Observable[A], batchSize: Int): Task[TaskIterator[A]] =
-    buildStream(source, batchSize).map(TaskIterator.fromStream)
+private[reactive] object ObservableToTaskEnumerator {
+  def apply[A](source: Observable[A], batchSize: Int): Task[TaskEnumerator[A]] =
+    buildStream(source, batchSize).map(TaskEnumerator.fromStream)
 
   def buildStream[A](source: Observable[A], batchSize: Int): Task[ConsStream[A,Task]] =
-    Task.unsafeAsync { (context, cancelable, cb) =>
+    Task.unsafeCreate { (context, cancelable, cb) =>
       val initial = Promise[ConsStream[A,Task]]()
       initial.future.onComplete(cb)(context)
 
@@ -54,7 +54,7 @@ private[reactive] object ObservableToAsyncIterator {
             // Task execution must be idempotent ;-)
             // When this executes, it means that the client wants more.
             val restTask: Task[ConsStream[A,Task]] =
-              Task.unsafeAsync { (scheduler, c, cb) =>
+              Task.unsafeCreate { (scheduler, c, cb) =>
                 // Executing task means continuing Observer
                 restPromise.future.onComplete(cb)(scheduler)
                 // The acknowledgement unfreezes the observer, allowing it

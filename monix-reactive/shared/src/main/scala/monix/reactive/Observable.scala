@@ -17,13 +17,13 @@
 
 package monix.reactive
 
-import monix.eval.{Task, TaskIterator}
+import monix.eval.{Task, TaskEnumerator}
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution._
 import monix.execution.cancelables.SingleAssignmentCancelable
-import monix.reactive.internal.builders.ObservableToAsyncIterator
-import monix.reactive.observables.ObservableLike.{Operator, Transformer}
 import monix.reactive.internal.builders
+import monix.reactive.internal.builders.ObservableToTaskEnumerator
+import monix.reactive.observables.ObservableLike.{Operator, Transformer}
 import monix.reactive.observables._
 import monix.reactive.observers._
 import monix.reactive.subjects._
@@ -278,7 +278,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     * Returns an `Option` because the source can be empty.
     */
   def firstL: Task[Option[A]] =
-    Task.unsafeAsync { (s, c, cb) =>
+    Task.unsafeCreate { (s, c, cb) =>
       val task = SingleAssignmentCancelable()
       c push task
 
@@ -305,7 +305,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     * Returns an `Option` because the source can be empty.
     */
   def lastL: Task[Option[A]] =
-    Task.unsafeAsync { (s, c, cb) =>
+    Task.unsafeCreate { (s, c, cb) =>
       val task = SingleAssignmentCancelable()
       c push task
 
@@ -337,7 +337,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     * complete with `Unit`.
     */
   def completedL: Task[Unit] =
-    Task.unsafeAsync { (s, c, cb) =>
+    Task.unsafeCreate { (s, c, cb) =>
       val task = SingleAssignmentCancelable()
       c push task
 
@@ -353,33 +353,47 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
       })
     }
 
-  /** Builds an [[monix.eval.TaskIterator TaskIterator]] from the
+  /** Builds an [[monix.eval.TaskEnumerator TaskEnumerator]] from the
     * source observable.
     */
-  def asyncIterator(batchSize: Int): Task[TaskIterator[A]] =
-    ObservableToAsyncIterator(self, batchSize)
+  def taskEnumerator(batchSize: Int): Task[TaskEnumerator[A]] =
+    ObservableToTaskEnumerator(self, batchSize)
+
+  /** Creates a new [[monix.eval.Task Task]] that will consume the
+    * source observable, executing the given callback for each element.
+    */
+  def foreachL(cb: A => Unit): Task[Unit] =
+    Task.unsafeCreate { (s, c, onFinish) =>
+      val task = SingleAssignmentCancelable()
+      c push task
+
+      task := unsafeSubscribeFn(new SyncSubscriber[A] {
+        implicit val scheduler: Scheduler = s
+        private[this] var isDone = false
+
+        def onNext(elem: A): Ack = {
+          try {
+            cb(elem)
+            Continue
+          } catch {
+            case NonFatal(ex) =>
+              onError(ex)
+              Stop
+          }
+        }
+
+        def onError(ex: Throwable): Unit =
+          if (!isDone) { isDone = true; c.pop(); onFinish.onError(ex) }
+        def onComplete(): Unit =
+          if (!isDone) { isDone = true; c.pop(); onFinish.onSuccess(()) }
+      })
+    }
 
   /** Subscribes to the source `Observable` and foreach element emitted
     * by the source it executes the given callback.
     */
-  def foreach(cb: A => Unit)(implicit s: Scheduler): Cancelable =
-    unsafeSubscribeFn(new SyncSubscriber[A] {
-      implicit val scheduler = s
-
-      def onNext(elem: A): Ack =
-        try {
-          cb(elem)
-          Continue
-        } catch {
-          case NonFatal(ex) =>
-            onError(ex)
-            Stop
-        }
-
-      def onComplete(): Unit = ()
-      def onError(ex: Throwable): Unit =
-        s.reportFailure(ex)
-    })
+  def foreach(cb: A => Unit)(implicit s: Scheduler): CancelableFuture[Unit] =
+    foreachL(cb).runAsync
 }
 
 object Observable {

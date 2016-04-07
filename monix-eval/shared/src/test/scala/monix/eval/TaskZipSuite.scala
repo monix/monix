@@ -18,7 +18,7 @@
 package monix.eval
 
 import concurrent.duration._
-import scala.util.{Success, Failure}
+import scala.util.{Failure, Random, Success}
 
 object TaskZipSuite extends BaseTestSuite{
   test("Task#zip should work if source finishes first") { implicit s =>
@@ -109,5 +109,80 @@ object TaskZipSuite extends BaseTestSuite{
     val f2 = Task(1).zipWith(Task(2))((a,b) => (a,b)).runAsync
     s.tick()
     assertEquals(f1.value.get, f2.value.get)
+  }
+
+  test("Task#zipWith2 should protect against user code") { implicit s =>
+    val dummy = DummyException("dummy")
+    val ta = Task.now(10).delayExecution(1.second)
+    val tb = Task.now(20).delayExecution(1.second)
+    val task = Task.zipWith2(ta, tb)((a,b) => (throw dummy) : Int)
+
+    val f = task.runAsync
+    s.tick(1.second)
+    assertEquals(f.value, Some(Failure(dummy)))
+  }
+
+  test("Task#zip3 works") { implicit s =>
+    def n(n: Int) = Task.now(n).delayExecution(Random.nextInt(n).seconds)
+    val t = Task.zip3(n(1),n(2),n(3))
+    val r = t.runAsync
+    s.tick(3.seconds)
+    assertEquals(r.value, Some(Success((1,2,3))))
+  }
+
+  test("Task#zipWith3 works") { implicit s =>
+    def n(n: Int) = Task.now(n).delayExecution(Random.nextInt(n).seconds)
+    val t = Task.zipWith3(n(1),n(2),n(3))((_,_,_))
+    val r = t.runAsync
+    s.tick(3.seconds)
+    assertEquals(r.value, Some(Success((1,2,3))))
+  }
+
+  test("Task#zip4 works") { implicit s =>
+    def n(n: Int) = Task.now(n).delayExecution(Random.nextInt(n).seconds)
+    val t = Task.zip4(n(1),n(2),n(3),n(4))
+    val r = t.runAsync
+    s.tick(4.seconds)
+    assertEquals(r.value, Some(Success((1,2,3,4))))
+  }
+
+  test("Task#zipWith4 works") { implicit s =>
+    def n(n: Int) = Task.now(n).delayExecution(Random.nextInt(n).seconds)
+    val t = Task.zipWith4(n(1),n(2),n(3),n(4))((_,_,_,_))
+    val r = t.runAsync
+    s.tick(4.seconds)
+    assertEquals(r.value, Some(Success((1,2,3,4))))
+  }
+
+  test("Task#zip5 works") { implicit s =>
+    def n(n: Int) = Task.now(n).delayExecution(Random.nextInt(n).seconds)
+    val t = Task.zip5(n(1),n(2),n(3),n(4),n(5))
+    val r = t.runAsync
+    s.tick(5.seconds)
+    assertEquals(r.value, Some(Success((1,2,3,4,5))))
+  }
+
+  test("Task#zipWith5 works") { implicit s =>
+    def n(n: Int) = Task.now(n).delayExecution(Random.nextInt(n).seconds)
+    val t = Task.zipWith5(n(1),n(2),n(3),n(4),n(5))((_,_,_,_,_))
+    val r = t.runAsync
+    s.tick(5.seconds)
+    assertEquals(r.value, Some(Success((1,2,3,4,5))))
+  }
+
+  test("Task#zip6 works") { implicit s =>
+    def n(n: Int) = Task.now(n).delayExecution(Random.nextInt(n).seconds)
+    val t = Task.zip6(n(1),n(2),n(3),n(4),n(5),n(6))
+    val r = t.runAsync
+    s.tick(6.seconds)
+    assertEquals(r.value, Some(Success((1,2,3,4,5,6))))
+  }
+
+  test("Task#zipWith6 works") { implicit s =>
+    def n(n: Int) = Task.now(n).delayExecution(Random.nextInt(n).seconds)
+    val t = Task.zipWith6(n(1),n(2),n(3),n(4),n(5),n(6))((_,_,_,_,_,_))
+    val r = t.runAsync
+    s.tick(6.seconds)
+    assertEquals(r.value, Some(Success((1,2,3,4,5,6))))
   }
 }

@@ -18,39 +18,39 @@
 package monix.cats
 
 import cats._
-import monix.eval.TaskIterator
+import monix.eval.TaskEnumerator
 
 trait AsyncIteratorInstances {
-  implicit val asyncIteratorInstances: Sequenceable[TaskIterator] =
-    new MonadFilter[TaskIterator] with MonadError[TaskIterator, Throwable]
-      with CoflatMap[TaskIterator] with MonadCombine[TaskIterator] {
+  implicit val asyncIteratorInstances: Sequenceable[TaskEnumerator] =
+    new MonadFilter[TaskEnumerator] with MonadError[TaskEnumerator, Throwable]
+      with CoflatMap[TaskEnumerator] with MonadCombine[TaskEnumerator] {
 
-      def empty[A]: TaskIterator[A] =
-        TaskIterator.empty[A]
-      def raiseError[A](e: Throwable): TaskIterator[A] =
-        TaskIterator.error(e)
-      def pure[A](x: A): TaskIterator[A] =
-        TaskIterator.now(x)
-      override def pureEval[A](x: Eval[A]): TaskIterator[A] =
-        TaskIterator.evalAlways(x.value)
+      def empty[A]: TaskEnumerator[A] =
+        TaskEnumerator.empty[A]
+      def raiseError[A](e: Throwable): TaskEnumerator[A] =
+        TaskEnumerator.error(e)
+      def pure[A](x: A): TaskEnumerator[A] =
+        TaskEnumerator.now(x)
+      override def pureEval[A](x: Eval[A]): TaskEnumerator[A] =
+        TaskEnumerator.evalAlways(x.value)
 
-      def flatMap[A, B](fa: TaskIterator[A])(f: (A) => TaskIterator[B]): TaskIterator[B] =
+      def flatMap[A, B](fa: TaskEnumerator[A])(f: (A) => TaskEnumerator[B]): TaskEnumerator[B] =
         fa.flatMap(f)
-      def coflatMap[A, B](fa: TaskIterator[A])(f: (TaskIterator[A]) => B): TaskIterator[B] =
-        TaskIterator.evalAlways(f(fa))
-      override def coflatten[A](fa: TaskIterator[A]): TaskIterator[TaskIterator[A]] =
-        TaskIterator.now(fa)
-      def handleErrorWith[A](fa: TaskIterator[A])(f: (Throwable) => TaskIterator[A]): TaskIterator[A] =
+      def coflatMap[A, B](fa: TaskEnumerator[A])(f: (TaskEnumerator[A]) => B): TaskEnumerator[B] =
+        TaskEnumerator.evalAlways(f(fa))
+      override def coflatten[A](fa: TaskEnumerator[A]): TaskEnumerator[TaskEnumerator[A]] =
+        TaskEnumerator.now(fa)
+      def handleErrorWith[A](fa: TaskEnumerator[A])(f: (Throwable) => TaskEnumerator[A]): TaskEnumerator[A] =
         fa.onErrorHandleWith(f)
 
-      override def filter[A](fa: TaskIterator[A])(f: (A) => Boolean): TaskIterator[A] =
+      override def filter[A](fa: TaskEnumerator[A])(f: (A) => Boolean): TaskEnumerator[A] =
         fa.filter(f)
-      override def map[A, B](fa: TaskIterator[A])(f: (A) => B): TaskIterator[B] =
+      override def map[A, B](fa: TaskEnumerator[A])(f: (A) => B): TaskEnumerator[B] =
         fa.map(f)
-      override def handleError[A](fa: TaskIterator[A])(f: (Throwable) => A): TaskIterator[A] =
+      override def handleError[A](fa: TaskEnumerator[A])(f: (Throwable) => A): TaskEnumerator[A] =
         fa.onErrorHandle(f)
 
-      def combineK[A](x: TaskIterator[A], y: TaskIterator[A]): TaskIterator[A] =
+      def combineK[A](x: TaskEnumerator[A], y: TaskEnumerator[A]): TaskEnumerator[A] =
         x ++ y
     }
 }

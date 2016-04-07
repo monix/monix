@@ -19,6 +19,7 @@ package monix.eval
 
 import scala.util.{Failure, Success}
 import concurrent.duration._
+import scala.concurrent.TimeoutException
 
 object TaskErrorSuite extends BaseTestSuite {
   test("Task.failed should expose error") { implicit s =>
@@ -397,5 +398,19 @@ object TaskErrorSuite extends BaseTestSuite {
 
     f.cancel(); s.tick()
     assertEquals(f.value, None)
+  }
+
+  test("Task#onErrorRecover should emit error if not matches") { implicit s =>
+    val dummy = DummyException("dummy")
+    val task = Task[Int](throw dummy).onErrorRecover { case _: TimeoutException => 10 }
+    val f = task.runAsync; s.tick()
+    assertEquals(f.value, Some(Failure(dummy)))
+  }
+
+  test("Task#onErrorRecoverWith should emit error if not matches") { implicit s =>
+    val dummy = DummyException("dummy")
+    val task = Task[Int](throw dummy).onErrorRecoverWith { case _: TimeoutException => Task.now(10) }
+    val f = task.runAsync; s.tick()
+    assertEquals(f.value, Some(Failure(dummy)))
   }
 }

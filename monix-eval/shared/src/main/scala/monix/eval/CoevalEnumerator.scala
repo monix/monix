@@ -18,25 +18,25 @@
 package monix.eval
 
 import monix.eval.ConsStream._
-import monix.eval.internal.{IteratorLike, IteratorLikeBuilders}
+import monix.eval.internal.{EnumeratorLike, EnumeratorLikeBuilders}
 import scala.util.control.NonFatal
 
-/** An `CoevalIterator` represents a [[Coeval]] based synchronous
+/** An `CoevalEnumerator` represents a [[Coeval]] based synchronous
   * iterator.
   *
   * The implementation is practically wrapping
   * a [[ConsStream]] of [[Coeval]], provided for convenience.
   */
-final case class CoevalIterator[+A](stream: ConsStream[A,Coeval])
-  extends IteratorLike[A, Coeval, CoevalIterator] {
+final case class CoevalEnumerator[+A](stream: ConsStream[A,Coeval])
+  extends EnumeratorLike[A, Coeval, CoevalEnumerator] {
 
-  def transform[B](f: (ConsStream[A, Coeval]) => ConsStream[B, Coeval]): CoevalIterator[B] = {
+  def transform[B](f: (ConsStream[A, Coeval]) => ConsStream[B, Coeval]): CoevalEnumerator[B] = {
     val next = try f(stream) catch { case NonFatal(ex) => ConsStream.Error[Coeval](ex) }
-    CoevalIterator(next)
+    CoevalEnumerator(next)
   }
 
   /** Converts this lazy iterator into an async iterator. */
-  def toAsyncIterator: TaskIterator[A] = {
+  def toAsyncIterator: TaskEnumerator[A] = {
     def convert(stream: ConsStream[A, Coeval]): ConsStream[A, Task] =
       stream match {
         case Next(elem, rest) =>
@@ -50,7 +50,7 @@ final case class CoevalIterator[+A](stream: ConsStream[A,Coeval])
         case Error(ex) => Error[Task](ex)
       }
 
-    TaskIterator(convert(stream))
+    TaskEnumerator(convert(stream))
   }
 
   /** Consumes the stream and for each element execute the given function. */
@@ -58,7 +58,7 @@ final case class CoevalIterator[+A](stream: ConsStream[A,Coeval])
     foreachL(f).value
 }
 
-object CoevalIterator extends IteratorLikeBuilders[Coeval, CoevalIterator] {
-  def fromStream[A](stream: ConsStream[A, Coeval]): CoevalIterator[A] =
-    CoevalIterator(stream)
+object CoevalEnumerator extends EnumeratorLikeBuilders[Coeval, CoevalEnumerator] {
+  def fromStream[A](stream: ConsStream[A, Coeval]): CoevalEnumerator[A] =
+    CoevalEnumerator(stream)
 }
