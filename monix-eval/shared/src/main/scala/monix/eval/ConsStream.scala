@@ -17,9 +17,8 @@
 
 package monix.eval
 
-import monix.types.Evaluable
+import monix.eval.types.Evaluable
 import monix.eval.ConsStream._
-
 import scala.collection.{LinearSeq, immutable, mutable}
 import scala.util.control.NonFatal
 

@@ -18,7 +18,7 @@
 package monix.eval.internal
 
 import monix.eval.ConsStream
-import monix.types.Evaluable
+import monix.eval.types.Evaluable
 import scala.collection.{LinearSeq, immutable}
 
 /** Common implementation between [[monix.eval.TaskEnumerator]]

@@ -26,15 +26,18 @@ with Scala's standard library and compatible out-of-the-box with the
 
 Highlights:
 
-- exposes the kick-ass `Observable` and `Task`
+- exposes the kick-ass `Observable`, `Task` and `Coeval`
 - modular, only use what you need
+- the core has no third-party dependencies
 - strives to be idiomatic Scala and encourages referential transparency,
   but is built to be faster than alternatives
-- provides integration with [Cats](http://typelevel.org/cats/)
 - accepted in the [Typelevel incubator](http://typelevel.org/projects/)
 - designed for true asynchronicity, running on both the
   JVM and [Scala.js](scala-js.org),
 - really good test coverage and API documentation as a project policy
+- provides integration with [Cats](http://typelevel.org/cats/)
+  and with [Scalaz](https://github.com/scalaz/scalaz/) in the 
+  [monix-extra](https://github.com/monixio/monix-extra) project
 
 ## Usage
 

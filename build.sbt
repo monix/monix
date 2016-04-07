@@ -139,14 +139,10 @@ lazy val scalaReflectDeps = Seq(
 lazy val scalaParadiseDeps = scalaReflectDeps ++ Seq(
   addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full))
 
-lazy val simulacrumDeps = scalaParadiseDeps ++ Seq(
-  libraryDependencies +=
-    "com.github.mpilquist" %% "simulacrum" % "0.7.0" % "provided")
-
 lazy val unidocSettings = baseUnidocSettings ++ Seq(
   autoAPIMappings := true,
   unidocProjectFilter in (ScalaUnidoc, unidoc) :=
-    inProjects(executionJVM, evalJVM, reactiveJVM, catsJVM),
+    inProjects(executionJVM, evalJVM, reactiveJVM),
 
   scalacOptions in (ScalaUnidoc, unidoc) +=
     "-Xfatal-warnings",
@@ -212,7 +208,6 @@ lazy val monix = project.in(file("."))
     executionJVM, executionJS,
     evalJVM, evalJS,
     reactiveJVM, reactiveJS,
-    catsJVM, catsJS,
     monixJVM, monixJS,
     docs, tckTests)
   .settings(sharedSettings)
@@ -221,14 +216,14 @@ lazy val monix = project.in(file("."))
 
 lazy val monixJVM = project.in(file("monix/jvm"))
   .dependsOn(executionJVM, evalJVM, reactiveJVM)
-  .aggregate(executionJVM, evalJVM, reactiveJVM, catsJVM)
+  .aggregate(executionJVM, evalJVM, reactiveJVM)
   .settings(crossSettings)
   .settings(name := "monix")
 
 lazy val monixJS = project.in(file("monix/js"))
   .enablePlugins(ScalaJSPlugin)
   .dependsOn(executionJS, evalJS, reactiveJS)
-  .aggregate(executionJS, evalJS, reactiveJS, catsJS)
+  .aggregate(executionJS, evalJS, reactiveJS)
   .settings(crossSettings)
   .settings(scalaJSSettings)
   .settings(name := "monix")
@@ -251,7 +246,7 @@ lazy val executionJS = project.in(file("monix-execution/js"))
   .settings(executionCommon)
 
 lazy val evalCommon =
-  crossSettings ++ testSettings ++ simulacrumDeps ++
+  crossSettings ++ testSettings ++
   Seq(name := "monix-eval")
 
 lazy val evalJVM = project.in(file("monix-eval/jvm"))
@@ -279,27 +274,8 @@ lazy val reactiveJS = project.in(file("monix-reactive/js"))
   .settings(reactiveCommon)
   .settings(scalaJSSettings)
 
-lazy val catsCommon =
-  crossSettings ++ testSettings ++ Seq(
-    name := "monix-cats",
-    libraryDependencies ++= Seq(
-      "org.typelevel" %%% "cats-core" % "0.4.1",
-      "org.typelevel" %%% "cats-laws" % "0.4.1" % "test",
-      "org.spire-math" %%% "algebra-laws" % "0.3.1" % "test"
-    ))
-
-lazy val catsJVM = project.in(file("monix-cats/jvm"))
-  .dependsOn(evalJVM, reactiveJVM)
-  .settings(catsCommon)
-
-lazy val catsJS = project.in(file("monix-cats/js"))
-  .enablePlugins(ScalaJSPlugin)
-  .dependsOn(evalJS, reactiveJS)
-  .settings(catsCommon)
-  .settings(scalaJSSettings)
-
 lazy val docs = project.in(file("docs"))
-  .dependsOn(executionJVM, evalJVM, reactiveJVM, catsJVM)
+  .dependsOn(executionJVM, evalJVM, reactiveJVM)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
   .settings(site.settings)

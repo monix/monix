@@ -15,12 +15,22 @@
  * limitations under the License.
  */
 
-package monix.cats
+package monix.eval.types
 
-import cats.laws.discipline.CartesianTests.Isomorphisms.invariant
-import monix.cats.tests.SequenceableTests
-import monix.reactive.Observable
+import monix.eval.Task
+import scala.util.Try
 
-object ObservableLawsSuite extends BaseLawsSuite {
-  checkAll("Sequenceable[Observable]", SequenceableTests[Observable].sequenceable[Int,Int,Int])
+/** Type-class for computations that can be materialized
+  * to a single result.
+  */
+trait Evaluable[F[_]] extends Deferrable[F] {
+  /** Converts this context into a `Task`. */
+  def task[A](fa: F[A]): Task[A]
+
+  def materialize[A](fa: F[A]): F[Try[A]]
+  def dematerialize[A](fa: F[Try[A]]): F[A]
+}
+
+object Evaluable {
+  def apply[F[_]](implicit F: Evaluable[F]) = F
 }

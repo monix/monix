@@ -27,7 +27,7 @@ import monix.reactive.observables.ObservableLike.{Operator, Transformer}
 import monix.reactive.observables._
 import monix.reactive.observers._
 import monix.reactive.subjects._
-import monix.types.Asynchronous
+import monix.eval.types.Asynchronous
 import org.reactivestreams.{Publisher => RPublisher, Subscriber => RSubscriber}
 
 import scala.concurrent.Future
@@ -1013,8 +1013,6 @@ object Observable {
     new Asynchronous[Observable] {
       override def error[A](e: Throwable): Observable[A] =
         Observable.error(e)
-      override def point[A](x: A): Observable[A] =
-        Observable.now(x)
       override def delayedEval[A](delay: FiniteDuration, a: => A): Observable[A] =
         Observable.evalAlways(a)
 

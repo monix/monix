@@ -15,10 +15,8 @@
  * limitations under the License.
  */
 
-package monix.types
+package monix.eval.types
 
-import monix.types.shims.Monad
-import simulacrum.typeclass
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration.FiniteDuration
 
@@ -27,9 +25,7 @@ import scala.concurrent.duration.FiniteDuration
   *
   * Note that this includes asynchronous streams.
   */
-@typeclass trait Asynchronous[F[_]]
-  extends Monad[F] with Deferrable[F] with Recoverable[F] with Zippable[F] {
-
+trait Asynchronous[F[_]] extends Deferrable[F] {
   /** Builds an instance by evaluating the given expression with a delay applied. */
   def delayedEval[A](delay: FiniteDuration, a: => A): F[A]
 
@@ -74,4 +70,8 @@ import scala.concurrent.duration.FiniteDuration
     */
   def timeout[A](fa: F[A], timespan: FiniteDuration): F[A] =
     timeoutTo(fa, timespan, error(new TimeoutException(s"After $timespan")))
+}
+
+object Asynchronous {
+  def apply[F[_]](implicit F: Asynchronous[F]) = F
 }
