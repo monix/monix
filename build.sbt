@@ -75,7 +75,7 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
         "-Xlint:unsound-match" // Pattern match may not be typesafe
       )
     case _ =>
-      Seq("-Ymacro-no-expand")
+      Seq.empty
   }),
 
   // Turning off fatal warnings for ScalaDoc, otherwise we can't release.
