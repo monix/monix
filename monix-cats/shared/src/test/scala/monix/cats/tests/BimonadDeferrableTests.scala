@@ -24,7 +24,6 @@ import cats.laws.discipline.{BimonadTests, MonadErrorTests}
 import cats.laws.{BimonadLaws, MonadErrorLaws}
 import monix.cats.DeferrableInstances
 import org.scalacheck.Arbitrary
-import scala.language.higherKinds
 
 trait BimonadDeferrableTests[F[_]] extends MonadErrorTests[F, Throwable] with BimonadTests[F]  {
   implicit def iso: Isomorphisms[F]

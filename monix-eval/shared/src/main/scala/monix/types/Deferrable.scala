@@ -18,7 +18,7 @@
 package monix.types
 
 import simulacrum.typeclass
-import scala.language.{higherKinds, implicitConversions}
+
 
 /** A type-class describing computations that can be deferred. */
 @typeclass trait Deferrable[F[_]] extends Zippable[F] with Recoverable[F] {

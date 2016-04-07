@@ -18,7 +18,6 @@
 package monix.cats
 
 import monix.types.shims.Monad
-import language.higherKinds
 
 /** Converts Monix's Monad into the Cats monad. */
 trait MonadInstances {

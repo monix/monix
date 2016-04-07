@@ -18,7 +18,7 @@
 package monix.types
 
 import simulacrum.typeclass
-import scala.language.{higherKinds, implicitConversions}
+
 
 /** A type-class for data structures that can be zipped together.
   *

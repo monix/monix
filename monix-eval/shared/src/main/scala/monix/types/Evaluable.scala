@@ -19,7 +19,7 @@ package monix.types
 
 import monix.eval.Task
 import simulacrum.typeclass
-import scala.language.{higherKinds, implicitConversions}
+
 import scala.util.Try
 
 /** Type-class for computations that can be materialized

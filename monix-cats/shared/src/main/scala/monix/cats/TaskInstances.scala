@@ -21,7 +21,7 @@ import _root_.cats._
 import _root_.algebra.{Group, Monoid, Semigroup}
 import monix.eval.Task
 
-/** Provides Cats compatibility for the [[Task]] type. */
+/** Provides Cats compatibility for the [[monix.eval.Task]] type. */
 trait TaskInstances extends TaskInstances2 {
   implicit val taskInstances: MonadError[Task, Throwable] with CoflatMap[Task] =
     new ConvertMonixDeferrableToCats[Task]()

@@ -81,10 +81,10 @@ object MulticastStrategy {
   /** $behavior */
   case class Behavior[A](initial: A) extends MulticastStrategy[A]
 
-  /** $create */
+  /** $async */
   def async[A]: MulticastStrategy[A] = Async
 
-  /** $create */
+  /** $async */
   case object Async extends MulticastStrategy[Nothing]
 
   /** $replay */

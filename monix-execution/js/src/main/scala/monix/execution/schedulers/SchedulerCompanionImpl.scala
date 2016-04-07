@@ -22,11 +22,12 @@ import monix.execution.UncaughtExceptionReporter.LogExceptionsToStandardErr
 
 private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
   /**
-    * [[Scheduler]] builder.
+    * [[monix.execution.Scheduler Scheduler]] builder.
     *
     * @param reporter is the [[UncaughtExceptionReporter]] that logs uncaught exceptions.
-    * @param executionModel is the preferred [[ExecutionModel]], a guideline
-    *        for run-loops and producers of data.
+    * @param executionModel is the preferred
+    *        [[monix.execution.schedulers.ExecutionModel ExecutionModel]],
+    *        a guideline for run-loops and producers of data.
     */
   def apply(
     reporter: UncaughtExceptionReporter = LogExceptionsToStandardErr,
@@ -37,8 +38,9 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     * Builds a [[monix.execution.schedulers.TrampolineScheduler TrampolineScheduler]].
     *
     * @param reporter is the [[UncaughtExceptionReporter]] that logs uncaught exceptions.
-    * @param executionModel is the preferred [[ExecutionModel]], a guideline
-    *        for run-loops and producers of data.
+    * @param executionModel is the preferred
+    *        [[monix.execution.schedulers.ExecutionModel ExecutionModel]],
+    *        a guideline for run-loops and producers of data.
     */
   def trampoline(
     reporter: UncaughtExceptionReporter = LogExceptionsToStandardErr,
@@ -52,7 +54,8 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
 
   object Implicits extends ImplicitsLike {
     /**
-      * A global [[Scheduler]] instance, provided for convenience, piggy-backing
+      * A global [[monix.execution.Scheduler Scheduler]] instance,
+      * provided for convenience, piggy-backing
       * on top of `global.setTimeout`.
       */
     implicit lazy val global: Scheduler =

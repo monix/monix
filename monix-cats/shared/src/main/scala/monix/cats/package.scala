@@ -18,7 +18,6 @@
 package monix
 
 import _root_.cats._
-import scala.language.higherKinds
 
 /** Package exposing integration with the Cats library.
   *

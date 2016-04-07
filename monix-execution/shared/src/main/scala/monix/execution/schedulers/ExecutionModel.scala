@@ -31,8 +31,7 @@ import monix.execution.internal.Platform
   * The specification is considered a recommendation for how
   * run loops should behave, but ultimately it's up to the client
   * to choose the best execution model. This can be related to
-  * recursive loops, as executed by the [[monix.execution.RunLoop]],
-  * or to events pushed into consumers.
+  * recursive loops or to events pushed into consumers.
   */
 sealed abstract class ExecutionModel {
   /** Recommended batch size used for breaking synchronous loops in
@@ -93,8 +92,8 @@ object ExecutionModel {
     def nextFrameIndex(current: Int): Int = 1
   }
 
-  /** [[ExecutionModel]] that specifies a [[monix.execution.RunLoop RunLoop]]
-    * should always do async execution of tasks, forking logical threads
+  /** [[ExecutionModel]] that specifies a run-loop should always do
+    * async execution of tasks, forking logical threads
     * on each step.
     */
   case object AlwaysAsyncExecution extends ExecutionModel {

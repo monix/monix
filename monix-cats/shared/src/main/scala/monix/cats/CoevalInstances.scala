@@ -21,7 +21,7 @@ import algebra.{Group, Monoid, Semigroup}
 import cats.{Bimonad, MonadError}
 import monix.eval.Coeval
 
-/** Provides Cats compatibility for the [[Coeval]] type. */
+/** Provides Cats compatibility for the [[monix.eval.Coeval]] type. */
 trait CoevalInstances extends CoevalInstances2 {
   implicit val coevalInstances: MonadError[Coeval, Throwable] with Bimonad[Coeval] =
     new ConvertMonixDeferrableToCats[Coeval]()(Coeval.instances) with Bimonad[Coeval] {

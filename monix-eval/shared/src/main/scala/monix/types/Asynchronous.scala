@@ -21,7 +21,7 @@ import monix.types.shims.Monad
 import simulacrum.typeclass
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration.FiniteDuration
-import scala.language.{higherKinds, implicitConversions}
+
 
 /** Type-class for monadic contexts whose evaluation can be delayed.
   *

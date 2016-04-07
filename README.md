@@ -41,23 +41,17 @@ Highlights:
 See **[monix-sample](https://github.com/monixio/monix-sample)** for
 a project exemplifying Monix used both on the server and on the client.
 
-Currently compiled for  *Scala 2.10.x*, *2.11.x* and *Scala.js 0.6.x*.
-Monix's compatibility extends to the latest 2 major Scala versions and
-to the latest major Scala.js version. In other words support for *Scala 2.10.x*
-will be kept for as long as possible, but you should not rely on continued
-support long after Scala 2.12 is out.
-
 ### Dependencies
 
 The packages are published on Maven Central.
 
-- Current stable release: `1.1`
+- Current stable release: `1.2`
 - Current beta release: `2.0-M2`
 
 For the stable release (use the `%%%` for Scala.js):
 
 ```scala
-libraryDependencies += "org.monifu" %% "monifu" % "1.1"
+libraryDependencies += "org.monifu" %% "monifu" % "1.2"
 ```
 
 For the beta/preview release (use at your own risk):
@@ -71,10 +65,12 @@ libraryDependencies += "io.monix" %% "monix" % "2.0-M2"
 Monix 2.0 is modular by design, so you can pick and choose:
 
 - `monix-execution` exposes the low-level execution environment, or more precisely
-  `Scheduler`, `Cancelable` and `RunLoop`
-- `monix-eval` exposes `Task`, `Coeval`, `AsyncIterator`, `LazyIterator` and depends on `monix-execution`
+  `Scheduler`, `Cancelable` and `CancelableFuture`
+- `monix-eval` exposes `Task`, `Coeval`, `ConsStream` and depends on `monix-execution`
 - `monix-reactive` exposes `Observable` streams and depends on `monix-eval`
-- `monix-types` exposes type-classes, integrated with Cats and depends on `monix-reactive`
+- `monix-cats` is the integration with the 
+   [Cats library](https://github.com/typelevel/cats) 
+   and depends on `monix-reactive`
 - `monix` provides all of the above
 
 ## Documentation
@@ -82,7 +78,7 @@ Monix 2.0 is modular by design, so you can pick and choose:
 NOTE: The documentation is a work in progress.
 API Documentation:
 
-- [1.1](https://monix.io/docs/1.1/api/)
+- [1.2](https://monix.io/docs/1.2/api/)
 - [2.0-M2](https://monix.io/docs/2.0-M2/api/)
 
 ## Maintainers

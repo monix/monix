@@ -19,7 +19,6 @@ package monix.types
 
 import monix.types.shims.Monad
 import simulacrum.typeclass
-import scala.language.{higherKinds,implicitConversions}
 
 /** A type-class for monadic contexts that can trigger `Throwable` errors
   * and that are recoverable.

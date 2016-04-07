@@ -79,7 +79,7 @@ sealed abstract class Task[+A] extends Serializable with Product { self =>
 
   /** Triggers the asynchronous execution.
     *
-    * @return a [[CancelableFuture CancelableFuture]]
+    * @return a [[monix.execution.CancelableFuture CancelableFuture]]
     *         that can be used to extract the result or to cancel
     *         a running task.
     */
@@ -713,7 +713,7 @@ object Task {
     * in parallel and have their results synchronized.
     */
   def mapBoth[A1,A2,R](fa1: Task[A1], fa2: Task[A2])(f: (A1,A2) => R): Task[R] = {
-    /** For signaling the values after the successful completion of both tasks. */
+    /* For signaling the values after the successful completion of both tasks. */
     def sendSignal(conn: StackedCancelable, cb: Callback[R], a1: A1, a2: A2): Unit = {
       var streamErrors = true
       try {
@@ -728,7 +728,7 @@ object Task {
       }
     }
 
-    /** For signaling an error. */
+    /* For signaling an error. */
     @tailrec def sendError(conn: StackedCancelable, state: AtomicAny[AnyRef], s: Scheduler,
       cb: Callback[R], ex: Throwable): Unit =
       state.get match {

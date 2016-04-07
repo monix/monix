@@ -20,8 +20,6 @@ package monix.cats
 import _root_.cats.{CoflatMap, Eval, Later, MonadError, Now}
 import monix.types.Deferrable
 
-import language.higherKinds
-
 /** Converts Monix's Monad into the Cats monad. */
 trait DeferrableInstances extends RecoverableInstances {
   implicit def monixDeferrableToCats[F[_] : Deferrable]: MonadError[F,Throwable] with CoflatMap[F] =

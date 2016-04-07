@@ -28,7 +28,6 @@ import monix.reactive.observables.ObservableLike.{Transformer, Operator}
 import monix.reactive.observers.Subscriber
 import monix.reactive.{Notification, Observable, OverflowStrategy, Pipe}
 import scala.concurrent.duration.FiniteDuration
-import scala.language.higherKinds
 
 /** Defines the available operations for observable-like instances.
   *

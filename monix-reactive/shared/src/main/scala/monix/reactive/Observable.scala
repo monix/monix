@@ -259,7 +259,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
   def publishLast(implicit s: Scheduler): ConnectableObservable[A] =
     unsafeMulticast(AsyncSubject[A]())
 
-  /** Creates a new [[CancelableFuture CancelableFuture]]
+  /** Creates a new [[monix.execution.CancelableFuture CancelableFuture]]
     * that upon execution will signal the last generated element of the
     * source observable. Returns an `Option` because the source can be empty.
     */
@@ -454,7 +454,8 @@ object Observable {
     new builders.UnsafeCreateObservable(f)
 
   /** Creates an observable from a function that receives a
-    * concurrent and safe [[SyncSubscriber]].
+    * concurrent and safe
+    * [[monix.reactive.observers.SyncSubscriber SyncSubscriber]].
     *
     * This builder represents the safe way of building observables
     * from data-sources that cannot be back-pressured.

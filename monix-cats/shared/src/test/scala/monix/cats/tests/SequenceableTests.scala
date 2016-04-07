@@ -24,7 +24,6 @@ import cats.laws.discipline.{CoflatMapTests, MonadCombineTests, MonadErrorTests,
 import cats.laws.{CoflatMapLaws, MonadCombineLaws, MonadErrorLaws, MonadFilterLaws}
 import monix.cats.Sequenceable
 import org.scalacheck.Arbitrary
-import scala.language.higherKinds
 
 trait SequenceableTests[F[_]] extends MonadFilterTests[F]
   with MonadErrorTests[F, Throwable]

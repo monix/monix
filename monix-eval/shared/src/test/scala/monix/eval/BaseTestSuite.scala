@@ -24,7 +24,6 @@ import monix.execution.schedulers.TestScheduler
 import org.scalacheck.Prop.{False, Proof, True}
 import org.scalacheck.{Arbitrary, Prop}
 import scala.concurrent.duration._
-import scala.language.implicitConversions
 import scala.util.{Failure, Success, Try}
 
 abstract class BaseTestSuite extends TestSuite[TestScheduler] with Checkers {

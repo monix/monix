@@ -22,7 +22,6 @@ import monix.eval.ConsStream._
 
 import scala.collection.{LinearSeq, immutable, mutable}
 import scala.util.control.NonFatal
-import language.higherKinds
 
 sealed abstract class ConsStream[+A, F[_]](implicit F: Evaluable[F])
   extends Product with Serializable {

@@ -25,7 +25,6 @@ import cats.laws.{CoflatMapLaws, MonadErrorLaws}
 import monix.cats.DeferrableInstances
 import monix.types.Deferrable
 import org.scalacheck.Arbitrary
-import scala.language.higherKinds
 
 trait DeferrableTests[F[_]] extends MonadErrorTests[F, Throwable] with CoflatMapTests[F]  {
   implicit def iso: Isomorphisms[F]

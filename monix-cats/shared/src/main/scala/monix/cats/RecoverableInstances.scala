@@ -18,7 +18,6 @@
 package monix.cats
 
 import monix.types.Recoverable
-import language.higherKinds
 
 /** Converts Monix's Recoverable into the Cats MonadError. */
 trait RecoverableInstances extends MonadInstances {

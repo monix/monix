@@ -18,7 +18,6 @@
 package monix.types.shims
 
 import simulacrum.typeclass
-import scala.language.{higherKinds,implicitConversions}
 
 /** Placeholder for a `Monad` type, to be provided by
   * libraries such as Cats or Scalaz.

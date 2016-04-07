@@ -19,9 +19,7 @@ package monix.eval.internal
 
 import monix.eval.ConsStream
 import monix.types.Evaluable
-import monix.types.Evaluable.ops._
 import scala.collection.{LinearSeq, immutable}
-import language.higherKinds
 
 /** Common implementation between [[monix.eval.TaskEnumerator]]
   * and [[monix.eval.CoevalEnumerator]].
@@ -230,15 +228,15 @@ class EnumeratorLikeBuilders[F[_], Self[+T] <: EnumeratorLike[T, F, Self]](impli
 
   /** Builder for a wait iterator state. */
   def wait[A](rest: F[Self[A]]): Self[A] =
-    fromStream(ConsStream.Wait[A,F](rest.map(_.stream)))
+    fromStream(ConsStream.Wait[A,F](F.map(rest)(_.stream)))
 
   /** Builds a next iterator state. */
   def next[A](head: A, rest: F[Self[A]]): Self[A] =
-    fromStream(ConsStream.next[A,F](head, rest.map(_.stream)))
+    fromStream(ConsStream.next[A,F](head, F.map(rest)(_.stream)))
 
   /** Builds a next iterator state. */
   def nextSeq[A](headSeq: LinearSeq[A], rest: F[Self[A]]): Self[A] =
-    fromStream(ConsStream.nextSeq[A,F](headSeq, rest.map(_.stream)))
+    fromStream(ConsStream.nextSeq[A,F](headSeq, F.map(rest)(_.stream)))
 
   /** Lifts a strict value into an stream */
   def evalAlways[A](a: => A): Self[A] =
@@ -269,21 +267,21 @@ class EnumeratorLikeBuilders[F[_], Self[+T] <: EnumeratorLike[T, F, Self]](impli
     * a strict state.
     */
   def fromList[A](list: immutable.LinearSeq[A], batchSize: Int): F[Self[A]] =
-    ConsStream.fromList[A,F](list, batchSize).map(fromStream)
+    F.map(ConsStream.fromList[A,F](list, batchSize))(fromStream)
 
   /** Converts an iterable into an async iterator. */
   def fromIterable[A](iterable: Iterable[A], batchSize: Int): F[Self[A]] =
-    ConsStream.fromIterable[A,F](iterable, batchSize).map(fromStream)
+    F.map(ConsStream.fromIterable[A,F](iterable, batchSize))(fromStream)
 
   /** Converts an iterable into an async iterator. */
   def fromIterable[A](iterable: java.lang.Iterable[A], batchSize: Int): F[Self[A]] =
-    ConsStream.fromIterable[A,F](iterable, batchSize).map(fromStream)
+    F.map(ConsStream.fromIterable[A,F](iterable, batchSize))(fromStream)
 
   /** Converts a `scala.collection.Iterator` into an async iterator. */
   def fromIterator[A](iterator: scala.collection.Iterator[A], batchSize: Int): F[Self[A]] =
-    ConsStream.fromIterator[A,F](iterator, batchSize).map(fromStream)
+    F.map(ConsStream.fromIterator[A,F](iterator, batchSize))(fromStream)
 
   /** Converts a `java.util.Iterator` into an async iterator. */
   def fromIterator[A](iterator: java.util.Iterator[A], batchSize: Int): F[Self[A]] =
-    ConsStream.fromIterator[A,F](iterator, batchSize).map(fromStream)
+    F.map(ConsStream.fromIterator[A,F](iterator, batchSize))(fromStream)
 }

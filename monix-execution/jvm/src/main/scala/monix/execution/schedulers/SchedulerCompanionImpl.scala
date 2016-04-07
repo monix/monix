@@ -35,8 +35,10 @@ import org.sincron.atomic.Atomic
   *         Use `scala.concurrent.ExecutionContext.Implicits.global`
   *         for the default.
   *
-  * @define executionModel is the preferred [[ExecutionModel]], a guideline
-  *         for run-loops and producers of data. Use [[ExecutionModel.Default]]
+  * @define executionModel is the preferred
+  *         [[monix.execution.schedulers.ExecutionModel ExecutionModel]],
+  *         a guideline for run-loops and producers of data. Use
+  *         [[monix.execution.schedulers.ExecutionModel.Default ExecutionModel.Default]]
   *         for the default.
   *
   * @define reporter is the [[UncaughtExceptionReporter]] that logs uncaught exceptions.
@@ -45,7 +47,7 @@ import org.sincron.atomic.Atomic
   *         the default.
   */
 private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
-  /** [[Scheduler]] builder.
+  /** [[monix.execution.Scheduler Scheduler]] builder.
     *
     * @param executor $executorService
     * @param ec $executionContext
@@ -59,7 +61,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     AsyncScheduler(executor, ec, r, executionModel)
 
 
-  /** [[Scheduler]] builder.
+  /** [[monix.execution.Scheduler Scheduler]] builder.
     *
     * @param executor $executorService
     * @param ec $executionContext
@@ -68,7 +70,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     AsyncScheduler(executor, ec, UncaughtExceptionReporter(ec.reportFailure), ExecutionModel.Default)
 
 
-  /** [[Scheduler]] builder.
+  /** [[monix.execution.Scheduler Scheduler]] builder.
     *
     * @param ec $executionContext
     * @param r $reporter
@@ -76,7 +78,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
   def apply(ec: ExecutionContext, r: UncaughtExceptionReporter): Scheduler =
     AsyncScheduler(defaultScheduledExecutor, ec, r, ExecutionModel.Default)
 
-  /** [[Scheduler]] builder .
+  /** [[monix.execution.Scheduler Scheduler]] builder .
     *
     * @param ec $executionContext
     * @param r $reporter
@@ -85,7 +87,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
   def apply(ec: ExecutionContext, r: UncaughtExceptionReporter, executionModel: ExecutionModel): Scheduler =
     AsyncScheduler(defaultScheduledExecutor, ec, r, executionModel)
 
-  /** [[Scheduler]] builder that converts a Java `ScheduledExecutorService` into
+  /** [[monix.execution.Scheduler Scheduler]] builder that converts a Java `ScheduledExecutorService` into
     * a scheduler.
     *
     * @param executor $executorService
@@ -94,7 +96,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
   def apply(executor: ScheduledExecutorService, r: UncaughtExceptionReporter): Scheduler =
     ExecutorScheduler(executor, r, ExecutionModel.Default)
 
-  /** [[Scheduler]] builder that converts a Java `ScheduledExecutorService` into
+  /** [[monix.execution.Scheduler Scheduler]] builder that converts a Java `ScheduledExecutorService` into
     * a scheduler.
     *
     * @param executor $executorService
@@ -104,7 +106,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
   def apply(executor: ScheduledExecutorService, r: UncaughtExceptionReporter, executionModel: ExecutionModel): Scheduler =
     ExecutorScheduler(executor, r, executionModel)
 
-  /** [[Scheduler]] builder that converts a Java `ScheduledExecutorService` into
+  /** [[monix.execution.Scheduler Scheduler]] builder that converts a Java `ScheduledExecutorService` into
     * a scheduler.
     *
     * @param executor $executorService
@@ -112,7 +114,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
   def apply(executor: ScheduledExecutorService): Scheduler =
     ExecutorScheduler(executor, LogExceptionsToStandardErr, ExecutionModel.Default)
 
-  /** [[Scheduler]] builder that converts a Java `ScheduledExecutorService` into
+  /** [[monix.execution.Scheduler Scheduler]] builder that converts a Java `ScheduledExecutorService` into
     * a scheduler.
     *
     * @param executor $executorService
@@ -122,7 +124,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     ExecutorScheduler(executor, LogExceptionsToStandardErr, executionModel)
 
   /**
-    * [[Scheduler]] builder - uses monix's default `ScheduledExecutorService` for
+    * [[monix.execution.Scheduler Scheduler]] builder - uses monix's default `ScheduledExecutorService` for
     * handling the scheduling of tasks.
     *
     * @param ec is the execution context in which all tasks will run.
@@ -135,7 +137,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     )
 
   /**
-    * Creates a [[Scheduler]] meant for computational heavy tasks.
+    * Creates a [[monix.execution.Scheduler Scheduler]] meant for computational heavy tasks.
     *
     * Characteristics:
     *
@@ -167,7 +169,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     AsyncScheduler(defaultScheduledExecutor, context, r, executionModel)
   }
 
-  /** Creates a [[Scheduler]] meant for blocking I/O tasks.
+  /** Creates a [[monix.execution.Scheduler Scheduler]] meant for blocking I/O tasks.
     *
     * Characteristics:
     *
@@ -205,7 +207,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     AsyncScheduler(defaultScheduledExecutor, context, r, executionModel)
   }
 
-  /** Builds a [[Scheduler]] that schedules and executes tasks on its own thread.
+  /** Builds a [[monix.execution.Scheduler Scheduler]] that schedules and executes tasks on its own thread.
     *
     * Characteristics:
     *
@@ -244,7 +246,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     AsyncScheduler(executor, context, r, executionModel)
   }
 
-  /** Builds a [[Scheduler]] with a fixed thread-pool.
+  /** Builds a [[monix.execution.Scheduler Scheduler]] with a fixed thread-pool.
     *
     * Characteristics:
     *
@@ -298,7 +300,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
   def global: Scheduler = Implicits.global
 
   object Implicits extends ImplicitsLike {
-    /** A global [[Scheduler]] instance, provided for convenience, piggy-backing
+    /** A global [[monix.execution.Scheduler Scheduler]] instance, provided for convenience, piggy-backing
       * on top of Scala's own `concurrent.ExecutionContext.global`, which is a
       * `ForkJoinPool`.
       *
