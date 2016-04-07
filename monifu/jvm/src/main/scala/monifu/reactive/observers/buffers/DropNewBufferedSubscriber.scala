@@ -37,7 +37,6 @@ private[buffers] final class DropNewBufferedSubscriber[-T] private
   extends BufferedSubscriber[T] with SynchronousSubscriber[T] { self =>
 
   require(bufferSize > 0, "bufferSize must be a strictly positive number")
-
   implicit val scheduler = underlying.scheduler
 
   // State for managing contention between multiple producers and one consumer
@@ -79,8 +78,7 @@ private[buffers] final class DropNewBufferedSubscriber[-T] private
             queue.offer(message)
             pushToConsumer(update)
             true
-          }
-          catch {
+          } catch {
             case NonFatal(ex) =>
               onError(ex)
               false

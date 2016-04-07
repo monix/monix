@@ -1834,7 +1834,7 @@ trait Observable[+T] { self =>
    */
   def asyncBoundary[U >: T](overflowStrategy: OverflowStrategy.Evicted, onOverflow: Long => U): Observable[U] =
     Observable.create { subscriber =>
-      onSubscribe(BufferedSubscriber(subscriber, overflowStrategy))
+      onSubscribe(BufferedSubscriber.withOverflowSignal(subscriber, overflowStrategy)(onOverflow))
     }
 
   /**
