@@ -214,7 +214,7 @@ lazy val docsSettings =
 
 lazy val testSettings = Seq(
   testFrameworks += new TestFramework("minitest.runner.Framework"),
-  libraryDependencies += "io.monix" %%% "minitest-laws" % "0.20" % "test"
+  libraryDependencies += "io.monix" %%% "minitest-laws" % "0.21" % "test"
 )
 
 lazy val scalaJSSettings = Seq(
