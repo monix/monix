@@ -142,22 +142,46 @@ lazy val crossSettings = sharedSettings ++ Seq(
 )
 
 lazy val scalaReflectDeps = Seq(
-  libraryDependencies ++= Seq(
-    "org.scala-lang" % "scala-reflect" % scalaVersion.value % "provided",
-    "org.scala-lang" % "scala-compiler" % scalaVersion.value % "provided"
-  ))
+  libraryDependencies ++= (CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, majorVersion)) if majorVersion >= 11 =>
+      Seq(
+        "org.scala-lang" % "scala-reflect" % scalaVersion.value % "provided",
+        "org.scala-lang" % "scala-compiler" % scalaVersion.value % "provided"
+      )
+    case _ =>
+      Seq(
+        "org.scala-lang" % "scala-reflect" % scalaVersion.value % "compile",
+        "org.scala-lang" % "scala-compiler" % scalaVersion.value % "compile"
+      )
+  }))
 
 lazy val macroCompatDeps = scalaReflectDeps ++ Seq(
-  libraryDependencies ++= Seq(
-    "org.typelevel" %%% "macro-compat" % "1.1.1" % "provided",
-    compilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
-  ))
+  libraryDependencies ++= (CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, majorVersion)) if majorVersion >= 11 =>
+      Seq(
+        "org.typelevel" %%% "macro-compat" % "1.1.1" % "provided",
+        compilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
+      )
+    case _ =>
+      Seq(
+        "org.typelevel" %%% "macro-compat" % "1.1.1" % "compile",
+        compilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
+      )
+  }))
 
 lazy val simulacrumDeps = Seq(
-  libraryDependencies ++= Seq(
-    "com.github.mpilquist" %% "simulacrum" % "0.7.0" % "provided",
-    compilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
-  ))
+  libraryDependencies ++= (CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, majorVersion)) if majorVersion >= 11 =>
+      Seq(
+        "com.github.mpilquist" %% "simulacrum" % "0.7.0" % "provided",
+        compilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
+      )
+    case _ =>
+      Seq(
+        "com.github.mpilquist" %% "simulacrum" % "0.7.0" % "compile",
+        compilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
+      )
+  }))
 
 lazy val unidocSettings = baseUnidocSettings ++ Seq(
   autoAPIMappings := true,

@@ -19,6 +19,7 @@ package monix.eval.internal
 
 import monix.eval.ConsStream
 import monix.types.Evaluable
+import monix.types.Evaluable.ops._
 import scala.collection.{LinearSeq, immutable}
 import language.higherKinds
 
@@ -212,8 +213,6 @@ class EnumeratorLike[+A, F[_] : Evaluable, Self[+T] <: EnumeratorLike[T, F, Self
 
 private[eval] abstract
 class EnumeratorLikeBuilders[F[_], Self[+T] <: EnumeratorLike[T, F, Self]](implicit F: Evaluable[F]) {
-  import Evaluable.ops._
-
   /** Lifts a [[ConsStream]] into an iterator. */
   def fromStream[A](stream: ConsStream[A,F]): Self[A]
 
