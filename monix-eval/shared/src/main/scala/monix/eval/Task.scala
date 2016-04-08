@@ -20,9 +20,11 @@ package monix.eval
 import monix.eval.Task._
 import monix.execution.Ack.Stop
 import monix.execution.cancelables.{CompositeCancelable, SingleAssignmentCancelable, StackedCancelable}
+import monix.execution.rstreams.Subscription
 import monix.execution.schedulers.ExecutionModel
 import monix.execution.{Cancelable, CancelableFuture, Scheduler}
-import monix.types.{Asynchronous, Evaluable}
+import monix.types.{Asynchronous, Evaluable, ReactivePublisher}
+import org.reactivestreams.{Publisher, Subscriber}
 import org.sincron.atomic.{Atomic, AtomicAny}
 
 import scala.annotation.tailrec
@@ -404,6 +406,43 @@ sealed abstract class Task[+A] extends Serializable with Product { self =>
         Suspend(evalOnce)
       case memoized: MemoizeSuspend[_] => self
       case other => new MemoizeSuspend[A](() => other)
+    }
+
+  /** Converts a [[Task]] to an `org.reactivestreams.Publisher` that
+    * emits a single item on success, or just the error on failure.
+    *
+    * See [[http://www.reactive-streams.org/ reactive-streams.org]] for the
+    * Reactive Streams specification.
+    */
+  def toReactivePublisher[B >: A](implicit s: Scheduler): org.reactivestreams.Publisher[B] =
+    new org.reactivestreams.Publisher[B] {
+      def subscribe(out: Subscriber[_ >: B]): Unit = {
+        out.onSubscribe(new Subscription {
+          private[this] var isActive = true
+          private[this] val conn = StackedCancelable()
+
+          def request(n: Long): Unit = {
+            require(n > 0, "n must be strictly positive, according to " +
+              "the Reactive Streams contract, rule 3.9")
+
+            if (isActive) Task.startNow[A](s, conn, self, Callback.safe(
+              new Callback[A] {
+                def onError(ex: Throwable): Unit =
+                  out.onError(ex)
+
+                def onSuccess(value: A): Unit = {
+                  out.onNext(value)
+                  out.onComplete()
+                }
+              }))
+          }
+
+          def cancel(): Unit = {
+            isActive = false
+            conn.cancel()
+          }
+        })
+      }
     }
 
   /** Returns a Task that mirrors the source Task but that triggers a
@@ -1385,7 +1424,7 @@ object Task {
 
   /** Type-class instances for [[Task]]. */
   implicit val instances: Evaluable[Task] with Asynchronous[Task] =
-    new Evaluable[Task] with Asynchronous[Task] {
+    new Evaluable[Task] with Asynchronous[Task] with ReactivePublisher[Task] {
       override def now[A](a: A): Task[A] = Task.now(a)
       override def unit: Task[Unit] = Task.unit
       override def evalAlways[A](f: => A): Task[A] = Task.evalAlways(f)
@@ -1421,6 +1460,9 @@ object Task {
       override def failed[A](fa: Task[A]): Task[Throwable] = fa.failed
       override def materialize[A](fa: Task[A]): Task[Try[A]] = fa.materialize
       override def dematerialize[A](fa: Task[Try[A]]): Task[A] = fa.dematerialize
+
+      override def toReactivePublisher[A](fa: Task[A])(implicit s: Scheduler): Publisher[A] =
+        fa.toReactivePublisher
 
       override def zipList[A](sources: Seq[Task[A]]): Task[Seq[A]] = Task.zipList(sources)
       override def zipWith2[A1, A2, R](fa1: Task[A1], fa2: Task[A2])(f: (A1, A2) => R): Task[R] =

@@ -15,10 +15,9 @@
  * limitations under the License.
  */
 
-package monix.reactive.internal.reactivestreams
+package monix.execution.rstreams
 
 import minitest.SimpleTestSuite
-import org.reactivestreams.Subscription
 
 object SingleAssignmentSubscriptionSuite extends SimpleTestSuite {
   test("should call cancel on assignment") {

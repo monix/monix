@@ -19,7 +19,6 @@ package monix.eval
 
 import monix.eval.Coeval._
 import monix.types.Evaluable
-
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.util.control.NonFatal
@@ -575,7 +574,6 @@ object Coeval {
       override def flatten[A](ffa: Coeval[Coeval[A]]): Coeval[A] = ffa.flatten
       override def flatMap[A, B](fa: Coeval[A])(f: (A) => Coeval[B]): Coeval[B] = fa.flatMap(f)
       override def map[A, B](fa: Coeval[A])(f: (A) => B): Coeval[B] = fa.map(f)
-
 
       override def restartUntil[A](fa: Coeval[A])(p: (A) => Boolean): Coeval[A] =
         fa.restartUntil(p)

@@ -18,11 +18,11 @@
 package monix.reactive.internal.builders
 
 import monix.execution.Cancelable
+import monix.execution.rstreams.SingleAssignmentSubscription
 import monix.reactive.Observable
-import monix.reactive.internal.reactivestreams.SingleAssignmentSubscription
 import monix.reactive.observers.Subscriber
 import org.reactivestreams
-import org.reactivestreams.{Publisher => RPublisher, Subscription}
+import org.reactivestreams.{Subscription, Publisher => RPublisher}
 
 private[reactive] final class ReactiveObservable[A](publisher: RPublisher[A])
   extends Observable[A] {

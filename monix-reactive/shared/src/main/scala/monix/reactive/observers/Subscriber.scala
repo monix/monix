@@ -21,7 +21,7 @@ import monix.execution.Ack.{Stop, Continue}
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.{Cancelable, Ack, Scheduler}
 import monix.reactive.Observer
-import monix.reactive.internal.reactivestreams._
+import monix.reactive.internal.rstreams._
 import org.reactivestreams.{Subscriber => RSubscriber}
 import scala.concurrent.Future
 

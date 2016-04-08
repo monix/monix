@@ -265,6 +265,7 @@ lazy val executionJVM = project.in(file("monix-execution/jvm"))
   .settings(testSettings)
   .settings(requiredMacroCompatDeps)
   .settings(executionCommon)
+  .settings(libraryDependencies += "org.reactivestreams" % "reactive-streams" % "1.0.0")
 
 lazy val executionJS = project.in(file("monix-execution/js"))
   .enablePlugins(ScalaJSPlugin)
@@ -295,7 +296,6 @@ lazy val reactiveCommon =
 lazy val reactiveJVM = project.in(file("monix-reactive/jvm"))
   .dependsOn(executionJVM, evalJVM)
   .settings(reactiveCommon)
-  .settings(libraryDependencies += "org.reactivestreams" % "reactive-streams" % "1.0.0")
 
 lazy val reactiveJS = project.in(file("monix-reactive/js"))
   .enablePlugins(ScalaJSPlugin)

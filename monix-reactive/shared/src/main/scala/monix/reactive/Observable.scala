@@ -26,7 +26,7 @@ import monix.reactive.observables.ObservableLike.{Operator, Transformer}
 import monix.reactive.observables._
 import monix.reactive.observers._
 import monix.reactive.subjects._
-import monix.types.{Asynchronous, Restartable}
+import monix.types.{Asynchronous, ReactivePublisher, Restartable}
 import org.reactivestreams.{Publisher => RPublisher, Subscriber => RSubscriber}
 
 import scala.concurrent.Future
@@ -1009,8 +1009,8 @@ object Observable {
     new builders.FirstStartedObservable(source: _*)
 
   /** Type-class instances for [[Observable]]. */
-  implicit val instances: Asynchronous[Observable] with Restartable[Observable] =
-    new Asynchronous[Observable] with Restartable[Observable] {
+  implicit val instances: Asynchronous[Observable] with Restartable[Observable] with ReactivePublisher[Observable] =
+    new Asynchronous[Observable] with Restartable[Observable] with ReactivePublisher[Observable] {
       override def raiseError[A](e: Throwable): Observable[A] =
         Observable.raiseError(e)
       override def delayedEval[A](delay: FiniteDuration, a: => A): Observable[A] =
@@ -1052,6 +1052,8 @@ object Observable {
         fa.failed
       override def map[A, B](fa: Observable[A])(f: (A) => B): Observable[B] =
         fa.map(f)
+      override def toReactivePublisher[A](fa: Observable[A])(implicit s: Scheduler): RPublisher[A] =
+        fa.toReactivePublisher
 
       override def zip2[A1, A2](fa1: Observable[A1], fa2: Observable[A2]): Observable[(A1, A2)] =
         Observable.zip2(fa1, fa2)

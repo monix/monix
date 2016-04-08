@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package monix.reactive.internal.reactivestreams
+package monix.reactive.internal.rstreams
 
 import minitest.TestSuite
 import monix.execution.Ack.{Stop, Continue}

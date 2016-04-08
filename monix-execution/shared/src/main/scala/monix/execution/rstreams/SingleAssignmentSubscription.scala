@@ -15,11 +15,9 @@
  * limitations under the License.
  */
 
-package monix.reactive.internal.reactivestreams
+package monix.execution.rstreams
 
-import monix.execution.Cancelable
 import org.sincron.atomic.Atomic
-import org.reactivestreams.Subscription
 import scala.annotation.tailrec
 
 /** Represents a `org.reactivestreams.Subscription` that can be assigned
@@ -32,17 +30,17 @@ import scala.annotation.tailrec
   *
   * Useful in case you need a thread-safe forward reference.
   */
-private[monix] final class SingleAssignmentSubscription private ()
-  extends Subscription with Cancelable {
+final class SingleAssignmentSubscription private ()
+  extends Subscription {
 
   import SingleAssignmentSubscription.State
   import SingleAssignmentSubscription.State._
 
   private[this] val state = Atomic(Empty : State)
 
-  def :=(s: Subscription): Unit = set(s)
+  def :=(s: org.reactivestreams.Subscription): Unit = set(s)
 
-  def set(s: Subscription): Unit = {
+  def set(s: org.reactivestreams.Subscription): Unit = {
     val current = state.get
 
     current match {
@@ -118,7 +116,7 @@ private[monix] final class SingleAssignmentSubscription private ()
   }
 }
 
-private[monix] object SingleAssignmentSubscription {
+object SingleAssignmentSubscription {
   /** Builder for [[SingleAssignmentSubscription]] */
   def apply(): SingleAssignmentSubscription =
     new SingleAssignmentSubscription
@@ -129,7 +127,7 @@ private[monix] object SingleAssignmentSubscription {
     case object Empty extends State
     case class EmptyRequest(nr: Long) extends State
     case object EmptyCanceled extends State
-    case class WithSubscription(s: Subscription) extends State
+    case class WithSubscription(s: org.reactivestreams.Subscription) extends State
     case object Canceled extends State
   }
 }

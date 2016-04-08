@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package monix.reactive.internal.reactivestreams
+package monix.reactive.internal.rstreams
 
 import monix.execution.{Cancelable, Ack, Scheduler}
 import monix.reactive.observers.Subscriber
@@ -37,7 +37,7 @@ private[monix] final class ReactiveSubscriberAsMonixSubscriber[T] private
   extends Subscriber[T] with Cancelable { self =>
 
   if (subscriber == null) throw null
-  import monix.reactive.internal.reactivestreams.ReactiveSubscriberAsMonixSubscriber.RequestsQueue
+  import monix.reactive.internal.rstreams.ReactiveSubscriberAsMonixSubscriber.RequestsQueue
 
   private[this] val requests = new RequestsQueue
   private[this] var leftToPush = 0L
