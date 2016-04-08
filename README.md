@@ -5,7 +5,6 @@
 Reactive Programming for Scala and [Scala.js](http://www.scala-js.org/).
 
 [![Build Status](https://travis-ci.org/monixio/monix.svg?branch=master)](https://travis-ci.org/monixio/monix)
-[![Coverage Status](http://codecov.io/github/monixio/monix/coverage.svg?branch=master)](http://codecov.io/github/monixio/monix?branch=master)
 [![Scala.js](http://scala-js.org/assets/badges/scalajs-0.6.8.svg)](http://scala-js.org)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/org.monifu/monifu_2.11/badge.svg)](https://maven-badges.herokuapp.com/maven-central/org.monifu/monifu_2.11)
 
@@ -35,9 +34,6 @@ Highlights:
 - designed for true asynchronicity, running on both the
   JVM and [Scala.js](scala-js.org),
 - really good test coverage and API documentation as a project policy
-- provides integration with [Cats](http://typelevel.org/cats/)
-  and with [Scalaz](https://github.com/scalaz/scalaz/) in the 
-  [monix-extra](https://github.com/monixio/monix-extra) project
 
 ## Usage
 
@@ -69,11 +65,9 @@ Monix 2.0 is modular by design, so you can pick and choose:
 
 - `monix-execution` exposes the low-level execution environment, or more precisely
   `Scheduler`, `Cancelable` and `CancelableFuture`
-- `monix-eval` exposes `Task`, `Coeval`, `ConsStream` and depends on `monix-execution`
+- `monix-eval` exposes `Task`, `Coeval`, the base type-classes of `monix.types` 
+   and depends on `monix-execution`
 - `monix-reactive` exposes `Observable` streams and depends on `monix-eval`
-- `monix-cats` is the integration with the 
-   [Cats library](https://github.com/typelevel/cats) 
-   and depends on `monix-reactive`
 - `monix` provides all of the above
 
 ## Documentation
