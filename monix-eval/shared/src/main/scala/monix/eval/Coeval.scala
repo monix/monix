@@ -18,7 +18,8 @@
 package monix.eval
 
 import monix.eval.Coeval._
-import monix.eval.types.Evaluable
+import monix.types.Evaluable
+
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.util.control.NonFatal
@@ -108,7 +109,6 @@ sealed abstract class Coeval[+A] extends Serializable with Product { self =>
         error
     }
 
-
   /** Given a source Coeval that emits another Coeval, this function
     * flattens the result, returning a Coeval equivalent to the emitted
     * Coeval by the source.
@@ -177,13 +177,19 @@ sealed abstract class Coeval[+A] extends Serializable with Product { self =>
   def dematerializeAttempt[B](implicit ev: A <:< Attempt[B]): Coeval[B] =
     self.asInstanceOf[Coeval[Attempt[B]]].flatMap(identity)
 
+  /** Given a predicate function, keep retrying the
+    * coeval until the function returns true.
+    */
+  def restartUntil(p: (A) => Boolean): Coeval[A] =
+    self.flatMap(a => if (p(a)) Coeval.now(a) else self.restartUntil(p))
+
   /** Creates a new coeval that will try recovering from an error by
     * matching it with another coeval using the given partial function.
     *
     * See [[onErrorHandleWith]] for the version that takes a total function.
     */
   def onErrorRecoverWith[B >: A](pf: PartialFunction[Throwable, Coeval[B]]): Coeval[B] =
-    onErrorHandleWith(ex => pf.applyOrElse(ex, Coeval.error))
+    onErrorHandleWith(ex => pf.applyOrElse(ex, Coeval.raiseError))
 
   /** Creates a new coeval that will handle any matching throwable that
     * this coeval might emit by executing another coeval.
@@ -208,9 +214,9 @@ sealed abstract class Coeval[+A] extends Serializable with Product { self =>
     * In case of continuous failure the total number of executions
     * will be `maxRetries + 1`.
     */
-  def onErrorRetry(maxRetries: Long): Coeval[A] =
+  def onErrorRestart(maxRetries: Long): Coeval[A] =
     self.onErrorHandleWith(ex =>
-      if (maxRetries > 0) self.onErrorRetry(maxRetries-1)
+      if (maxRetries > 0) self.onErrorRestart(maxRetries-1)
       else Error(ex))
 
   /** Creates a new coeval that in case of error will retry executing the
@@ -219,8 +225,8 @@ sealed abstract class Coeval[+A] extends Serializable with Product { self =>
     * In case of continuous failure the total number of executions
     * will be `maxRetries + 1`.
     */
-  def onErrorRetryIf(p: Throwable => Boolean): Coeval[A] =
-    self.onErrorHandleWith(ex => if (p(ex)) self.onErrorRetryIf(p) else Error(ex))
+  def onErrorRestartIf(p: Throwable => Boolean): Coeval[A] =
+    self.onErrorHandleWith(ex => if (p(ex)) self.onErrorRestartIf(p) else Error(ex))
 
   /** Creates a new coeval that will handle any matching throwable that
     * this coeval might emit.
@@ -280,10 +286,13 @@ object Coeval {
     */
   def now[A](a: A): Coeval[A] = Now(a)
 
+  /** Lifts a value into the coeval context. Alias for [[now]]. */
+  def pure[A](a: A): Coeval[A] = Now(a)
+
   /** Returns an `Coeval` that on execution is always finishing in error
     * emitting the specified exception.
     */
-  def error[A](ex: Throwable): Coeval[A] =
+  def raiseError[A](ex: Throwable): Coeval[A] =
     Error(ex)
 
   /** Promote a non-strict value representing a `Coeval` to a `Coeval` of the
@@ -556,19 +565,24 @@ object Coeval {
       override def unit: Coeval[Unit] = Coeval.unit
       override def evalAlways[A](f: => A): Coeval[A] = Coeval.evalAlways(f)
       override def evalOnce[A](f: => A): Coeval[A] = Coeval.evalOnce(f)
-      override def error[A](ex: Throwable): Coeval[A] = Coeval.error(ex)
+      override def raiseError[A](ex: Throwable): Coeval[A] = Coeval.raiseError(ex)
       override def defer[A](fa: => Coeval[A]): Coeval[A] = Coeval.defer(fa)
       override def memoize[A](fa: Coeval[A]): Coeval[A] = fa.memoize
       override def task[A](fa: Coeval[A]): Task[A] = fa.task
 
+      override def pure[A](a: A): Coeval[A] = Coeval.now(a)
+      override def ap[A, B](fa: Coeval[A])(ff: Coeval[(A) => B]): Coeval[B] = ff.flatMap(fa.map)
       override def flatten[A](ffa: Coeval[Coeval[A]]): Coeval[A] = ffa.flatten
       override def flatMap[A, B](fa: Coeval[A])(f: (A) => Coeval[B]): Coeval[B] = fa.flatMap(f)
       override def map[A, B](fa: Coeval[A])(f: (A) => B): Coeval[B] = fa.map(f)
 
-      override def onErrorRetryIf[A](fa: Coeval[A])(p: (Throwable) => Boolean): Coeval[A] =
-        fa.onErrorRetryIf(p)
-      override def onErrorRetry[A](fa: Coeval[A], maxRetries: Long): Coeval[A] =
-        fa.onErrorRetry(maxRetries)
+
+      override def restartUntil[A](fa: Coeval[A])(p: (A) => Boolean): Coeval[A] =
+        fa.restartUntil(p)
+      override def onErrorRestartIf[A](fa: Coeval[A])(p: (Throwable) => Boolean): Coeval[A] =
+        fa.onErrorRestartIf(p)
+      override def onErrorRestart[A](fa: Coeval[A], maxRetries: Long): Coeval[A] =
+        fa.onErrorRestart(maxRetries)
       override def onErrorRecover[A](fa: Coeval[A])(pf: PartialFunction[Throwable, A]): Coeval[A] =
         fa.onErrorRecover(pf)
       override def onErrorRecoverWith[A](fa: Coeval[A])(pf: PartialFunction[Throwable, Coeval[A]]): Coeval[A] =

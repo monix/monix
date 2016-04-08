@@ -39,7 +39,7 @@ class PublisherTest
   }
 
   def createFailedPublisher(): Publisher[Long] = {
-    Observable.error(new RuntimeException("dummy"))
+    Observable.raiseError(new RuntimeException("dummy"))
       .asInstanceOf[Observable[Long]]
       .toReactivePublisher
   }

@@ -36,7 +36,7 @@ object MiscIsEmptySuite extends BaseOperatorSuite {
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.error(ex)
+    val o = Observable.raiseError(ex)
       .isEmptyF.map(x => if (x) 1L else 0L)
 
     Sample(o, 0, 0, Zero, Zero)

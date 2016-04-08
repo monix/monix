@@ -75,7 +75,7 @@ object DropUntilSuite extends BaseOperatorSuite {
     val sourceCount = Random.nextInt(300) + 100
     val dummy = DummyException("dummy")
 
-    val signal = Task.error(dummy).delayExecution(2300.millis)
+    val signal = Task.raiseError(dummy).delayExecution(2300.millis)
     val o = Observable.intervalAtFixedRate(500.millis)
       .take(sourceCount + 5)
       .dropUntil(Observable.fromTask(signal))

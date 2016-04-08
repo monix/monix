@@ -24,7 +24,7 @@ import scala.concurrent.TimeoutException
 object TaskErrorSuite extends BaseTestSuite {
   test("Task.failed should expose error") { implicit s =>
     val dummy = DummyException("ex")
-    val r = Task.error[Int](dummy).failed.coeval.runTry
+    val r = Task.raiseError[Int](dummy).failed.coeval.runTry
     assertEquals(r, Success(Right(dummy)))
   }
 
@@ -40,7 +40,7 @@ object TaskErrorSuite extends BaseTestSuite {
 
   test("Task.error.materialize") { implicit s =>
     val dummy = DummyException("dummy")
-    assertEquals(Task.error[Int](dummy).materialize.runAsync.value, Some(Success(Failure(dummy))))
+    assertEquals(Task.raiseError[Int](dummy).materialize.runAsync.value, Some(Success(Failure(dummy))))
   }
 
   test("Task.evalOnce.materialize") { implicit s =>
@@ -61,7 +61,7 @@ object TaskErrorSuite extends BaseTestSuite {
 
   test("Task.error.materialize") { implicit s =>
     val dummy = DummyException("dummy")
-    assertEquals(Task.error[Int](dummy).materialize.coeval.value, Right(Failure(dummy)))
+    assertEquals(Task.raiseError[Int](dummy).materialize.coeval.value, Right(Failure(dummy)))
   }
 
   test("Task.flatMap.materialize") { implicit s =>
@@ -126,7 +126,7 @@ object TaskErrorSuite extends BaseTestSuite {
 
   test("Task.error.dematerialize") { implicit s =>
     val dummy = DummyException("dummy")
-    val result = Task.error[Int](dummy).materialize.dematerialize.runAsync.value
+    val result = Task.raiseError[Int](dummy).materialize.dematerialize.runAsync.value
     assertEquals(result, Some(Failure(dummy)))
   }
 
@@ -137,7 +137,7 @@ object TaskErrorSuite extends BaseTestSuite {
 
   test("Task.error.dematerializeAttempt") { implicit s =>
     val dummy = DummyException("dummy")
-    val result = Task.error[Int](dummy).materializeAttempt.dematerializeAttempt.runAsync.value
+    val result = Task.raiseError[Int](dummy).materializeAttempt.dematerializeAttempt.runAsync.value
     assertEquals(result, Some(Failure(dummy)))
   }
 
@@ -172,7 +172,7 @@ object TaskErrorSuite extends BaseTestSuite {
 
   test("Task#onErrorRecover is cancelable") { implicit s =>
     val dummy = DummyException("dummy")
-    val task = Task.fork(Task.error[Int](dummy))
+    val task = Task.fork(Task.raiseError[Int](dummy))
       .onErrorRecover { case _: DummyException => 99 }
 
     val f = task.runAsync
@@ -213,7 +213,7 @@ object TaskErrorSuite extends BaseTestSuite {
 
   test("Task#onErrorHandle is cancelable") { implicit s =>
     val dummy = DummyException("dummy")
-    val task = Task.fork(Task.error[Int](dummy))
+    val task = Task.fork(Task.raiseError[Int](dummy))
       .onErrorHandle { case _: DummyException => 99 }
 
     val f = task.runAsync
@@ -261,38 +261,38 @@ object TaskErrorSuite extends BaseTestSuite {
     assertEquals(f.value, None)
   }
 
-  test("Task.onErrorRetry should mirror the source onSuccess") { implicit s =>
+  test("Task.onErrorRestart should mirror the source onSuccess") { implicit s =>
     var tries = 0
-    val task = Task.evalAlways { tries += 1; 1 }.onErrorRetry(10)
+    val task = Task.evalAlways { tries += 1; 1 }.onErrorRestart(10)
     val f = task.runAsync
 
     assertEquals(f.value, Some(Success(1)))
     assertEquals(tries, 1)
   }
 
-  test("Task.onErrorRetry should retry onError") { implicit s =>
+  test("Task.onErrorRestart should retry onError") { implicit s =>
     val ex = DummyException("dummy")
     var tries = 0
-    val task = Task.evalAlways { tries += 1; if (tries < 5) throw ex else 1 }.onErrorRetry(10)
+    val task = Task.evalAlways { tries += 1; if (tries < 5) throw ex else 1 }.onErrorRestart(10)
     val f = task.runAsync
 
     assertEquals(f.value, Some(Success(1)))
     assertEquals(tries, 5)
   }
 
-  test("Task.onErrorRetry should emit onError after max retries") { implicit s =>
+  test("Task.onErrorRestart should emit onError after max retries") { implicit s =>
     val ex = DummyException("dummy")
     var tries = 0
-    val task = Task.evalAlways { tries += 1; throw ex }.onErrorRetry(10)
+    val task = Task.evalAlways { tries += 1; throw ex }.onErrorRestart(10)
     val f = task.runAsync
 
     assertEquals(f.value, Some(Failure(ex)))
     assertEquals(tries, 11)
   }
 
-  test("Task.onErrorRetry should not be cancelable") { implicit s =>
+  test("Task.onErrorRestart should not be cancelable") { implicit s =>
     val task = Task[Int](throw DummyException("dummy"))
-      .onErrorRetry(s.executionModel.recommendedBatchSize*2)
+      .onErrorRestart(s.executionModel.recommendedBatchSize*2)
 
     val f = task.runAsync
     assertEquals(f.value, None)
@@ -302,39 +302,39 @@ object TaskErrorSuite extends BaseTestSuite {
     assertEquals(f.value, None)
   }
 
-  test("Task.onErrorRetryIf should mirror the source onSuccess") { implicit s =>
+  test("Task.onErrorRestartIf should mirror the source onSuccess") { implicit s =>
     var tries = 0
-    val task = Task.evalAlways { tries += 1; 1 }.onErrorRetryIf(ex => tries < 10)
+    val task = Task.evalAlways { tries += 1; 1 }.onErrorRestartIf(ex => tries < 10)
     val f = task.runAsync
 
     assertEquals(f.value, Some(Success(1)))
     assertEquals(tries, 1)
   }
 
-  test("Task.onErrorRetryIf should retry onError") { implicit s =>
+  test("Task.onErrorRestartIf should retry onError") { implicit s =>
     val ex = DummyException("dummy")
     var tries = 0
     val task = Task.evalAlways { tries += 1; if (tries < 5) throw ex else 1 }
-      .onErrorRetryIf(ex => tries <= 10)
+      .onErrorRestartIf(ex => tries <= 10)
 
     val f = task.runAsync
     assertEquals(f.value, Some(Success(1)))
     assertEquals(tries, 5)
   }
 
-  test("Task.onErrorRetryIf should emit onError") { implicit s =>
+  test("Task.onErrorRestartIf should emit onError") { implicit s =>
     val ex = DummyException("dummy")
     var tries = 0
     val task = Task.evalAlways { tries += 1; throw ex }
-      .onErrorRetryIf(ex => tries <= 10)
+      .onErrorRestartIf(ex => tries <= 10)
 
     val f = task.runAsync
     assertEquals(f.value, Some(Failure(ex)))
     assertEquals(tries, 11)
   }
 
-  test("Task.onErrorRetryIf should be cancelable") { implicit s =>
-    val task = Task[Int](throw DummyException("dummy")).onErrorRetryIf(ex => true)
+  test("Task.onErrorRestartIf should be cancelable") { implicit s =>
+    val task = Task[Int](throw DummyException("dummy")).onErrorRestartIf(ex => true)
     val f = task.runAsync
     assertEquals(f.value, None)
 

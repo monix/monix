@@ -55,8 +55,6 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
         "-optimise",
         // Turns all warnings into errors ;-)
         "-Xfatal-warnings",
-        // For ScalaDoc
-        "-Ymacro-expand:discard",
         // Enables linter options
         "-Xlint:adapted-args", // warn if an argument list is modified to match the receiver
         "-Xlint:nullary-unit", // warn when nullary methods return Unit
@@ -159,6 +157,7 @@ lazy val requiredMacroCompatDeps = Seq(
     case Some((2, majorVersion)) if majorVersion >= 11 =>
       Seq(
         "org.scala-lang" % "scala-reflect" % scalaVersion.value % "provided",
+        "org.scala-lang" % "scala-compiler" % scalaVersion.value % "provided",
         "org.typelevel" %%% "macro-compat" % "1.1.1" % "provided",
         compilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
       )
@@ -213,7 +212,7 @@ lazy val docsSettings =
     )
 
 lazy val testSettings = Seq(
-  testFrameworks += new TestFramework("minitest.runner.Framework"),
+  testFrameworks := Seq(new TestFramework("minitest.runner.Framework")),
   libraryDependencies += "io.monix" %%% "minitest-laws" % "0.21" % "test"
 )
 

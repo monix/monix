@@ -1087,7 +1087,7 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: Self[A] =>
     *        throws an error.
     */
   def onErrorRecover[B >: A](pf: PartialFunction[Throwable, B]): Self[B] =
-    onErrorHandleWith(ex => (pf andThen Observable.now).applyOrElse(ex, Observable.error))
+    onErrorHandleWith(ex => (pf andThen Observable.now).applyOrElse(ex, Observable.raiseError))
 
   /** Returns an Observable that mirrors the behavior of the source,
     * unless the source is terminated with an `onError`, in which case
@@ -1106,7 +1106,7 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: Self[A] =>
     *        throws an error.
     */
   def onErrorRecoverWith[B >: A](pf: PartialFunction[Throwable, Observable[B]]): Self[B] =
-    onErrorHandleWith(ex => pf.applyOrElse(ex, Observable.error))
+    onErrorHandleWith(ex => pf.applyOrElse(ex, Observable.raiseError))
 
   /** Returns an Observable that mirrors the behavior of the source,
     * unless the source is terminated with an `onError`, in which case
@@ -1118,7 +1118,7 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: Self[A] =>
     * total number of subscriptions that will eventually happen is
     * `maxRetries + 1`.
     */
-  def onErrorRetry(maxRetries: Long): Self[A] = {
+  def onErrorRestart(maxRetries: Long): Self[A] = {
     require(maxRetries >= 0, "maxRetries should be positive")
     self.transform(self => new OnErrorRetryCountedObservable(self, maxRetries))
   }
@@ -1131,7 +1131,7 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: Self[A] =>
     * The given predicate establishes if the subscription should be
     * retried or not.
     */
-  def onErrorRetryIf(p: Throwable => Boolean): Self[A] =
+  def onErrorRestartIf(p: Throwable => Boolean): Self[A] =
     self.transform(self => new OnErrorRetryIfObservable[A](self, p))
 
   /** Returns an Observable that mirrors the behavior of the source,
@@ -1140,10 +1140,10 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: Self[A] =>
     * will complete without an error.
     *
     * NOTE: The number of retries is unlimited, so something like
-    * `Observable.error(new RuntimeException).onErrorRetryUnlimited`
+    * `Observable.error(new RuntimeException).onErrorRestartUnlimited`
     * will loop forever.
     */
-  def onErrorRetryUnlimited: Self[A] =
+  def onErrorRestartUnlimited: Self[A] =
     self.transform(self => new OnErrorRetryCountedObservable(self, -1))
 
   /** Given a [[monix.reactive.Pipe Pipe]], transform
@@ -1167,6 +1167,13 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: Self[A] =>
     */
   def repeat: Self[A] =
     self.transform(self => new RepeatObservable[A](self))
+
+  /** Keeps restarting / resubscribing the source until the predicate
+    * returns `true` for the the first emitted element, after which
+    * it starts mirroring the source.
+    */
+  def restartUntil(p: A => Boolean): Self[A] =
+    self.transform(self => new RestartUntilObservable[A](self, p))
 
   /** Emit the most recent items emitted by the source within
     * periodic time intervals.
@@ -1402,7 +1409,7 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: Self[A] =>
   def timeoutOnSlowUpstreamTo[B >: A](timeout: FiniteDuration, backup: Observable[B]): Self[B] =
     self.timeoutOnSlowUpstream(timeout).onErrorHandleWith {
       case UpstreamTimeoutException(`timeout`) => backup
-      case other => Observable.error(other)
+      case other => Observable.raiseError(other)
     }
 
   /** While the destination observer is busy, buffers events, applying

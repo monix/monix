@@ -43,7 +43,7 @@ object OnErrorRetryUnlimitedSuite extends BaseOperatorSuite {
 
   def createObservable(sourceCount: Int) = Some {
     val o = create(sourceCount, 3, DummyException("expected"))
-      .onErrorRetryUnlimited
+      .onErrorRestartUnlimited
 
     val count = sourceCount * 4
     val sum = 1L * sourceCount * (sourceCount-1) / 2 * 4
@@ -57,7 +57,7 @@ object OnErrorRetryUnlimitedSuite extends BaseOperatorSuite {
     val dummy = DummyException("dummy")
     val sample = Observable.range(0, 20).map(_ => 1L)
       .endWithError(dummy).delaySubscription(1.second)
-      .onErrorRetryUnlimited
+      .onErrorRestartUnlimited
 
     Seq(
       Sample(sample, 0, 0, 0.seconds, 0.seconds),

@@ -42,7 +42,7 @@ object MergeOneSuite extends BaseOperatorSuite {
 
   def observableInError(sourceCount: Int, ex: Throwable) =
     if (sourceCount <= 1) {
-      val o = Observable.now(1L).mergeMap(x => Observable.error(ex))
+      val o = Observable.now(1L).mergeMap(x => Observable.raiseError(ex))
       Some(Sample(o, 0, 0, Zero, Zero))
     } else Some {
       val o = Observable.range(0, sourceCount)

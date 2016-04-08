@@ -32,7 +32,7 @@ object OnErrorRecoverWithSuite extends BaseOperatorSuite {
       case DummyException("expected") =>
         fallback
       case other =>
-        Observable.error(other)
+        Observable.raiseError(other)
     }
 
     val sum = sourceCount * (sourceCount-1) / 2 + 9 * 5
@@ -48,7 +48,7 @@ object OnErrorRecoverWithSuite extends BaseOperatorSuite {
         case DummyException("not happening") =>
           fallback
         case other =>
-          Observable.error(other)
+          Observable.raiseError(other)
       }
 
       val sum = sourceCount * (sourceCount-1) / 2
@@ -63,7 +63,7 @@ object OnErrorRecoverWithSuite extends BaseOperatorSuite {
       case DummyException("expected") =>
         throw ex
       case other =>
-        Observable.error(other)
+        Observable.raiseError(other)
     }
 
     val sum = sourceCount * (sourceCount-1) / 2
@@ -77,7 +77,7 @@ object OnErrorRecoverWithSuite extends BaseOperatorSuite {
       .endWithError(DummyException("expected"))
       .onErrorHandleWith {
         case DummyException("expected") => fallback
-        case other => Observable.error(other)
+        case other => Observable.raiseError(other)
       }
 
     Seq(

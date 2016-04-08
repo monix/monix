@@ -36,7 +36,7 @@ object TaskNowSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     def trigger(): Throwable = { wasTriggered = true; dummy }
 
-    val task = Task.error(trigger())
+    val task = Task.raiseError(trigger())
     assert(wasTriggered, "wasTriggered")
     val f = task.runAsync
     assertEquals(f.value, Some(Failure(dummy)))
@@ -52,14 +52,14 @@ object TaskNowSuite extends BaseTestSuite {
   test("Task.error.map should be the same as Task.error") { implicit s =>
     check {
       val dummy = DummyException("dummy")
-      Task.error[Int](dummy).map(_ + 1) === Task.error(dummy)
+      Task.raiseError[Int](dummy).map(_ + 1) === Task.raiseError(dummy)
     }
   }
 
   test("Task.error.flatMap should be the same as Task.flatMap") { implicit s =>
     check {
       val dummy = DummyException("dummy")
-      Task.error[Int](dummy).flatMap(Task.now) === Task.error(dummy)
+      Task.raiseError[Int](dummy).flatMap(Task.now) === Task.raiseError(dummy)
     }
   }
 
@@ -67,14 +67,14 @@ object TaskNowSuite extends BaseTestSuite {
     check {
       val dummy = DummyException("dummy")
       val err = DummyException("err")
-      Task.error[Int](dummy).flatMap[Int](_ => throw err) === Task.error(dummy)
+      Task.raiseError[Int](dummy).flatMap[Int](_ => throw err) === Task.raiseError(dummy)
     }
   }
 
   test("Task.now.flatMap should protect against user code") { implicit s =>
     val ex = DummyException("dummy")
     val t = Task.now(1).flatMap[Int](_ => throw ex)
-    check(t === Task.error(ex))
+    check(t === Task.raiseError(ex))
   }
 
   test("Task.now.flatMap should be tail recursive") { implicit s =>
@@ -103,7 +103,7 @@ object TaskNowSuite extends BaseTestSuite {
 
   test("Task.error should not be cancelable") { implicit s =>
     val dummy = DummyException("dummy")
-    val t = Task.error(dummy)
+    val t = Task.raiseError(dummy)
     val f = t.runAsync
     f.cancel()
     s.tick()
@@ -132,7 +132,7 @@ object TaskNowSuite extends BaseTestSuite {
 
   test("Task.error.memoize should work") { implicit s =>
     val dummy = DummyException("dummy")
-    val task = Task.error(dummy).memoize
+    val task = Task.raiseError(dummy).memoize
 
     val f1 = task.runAsync
     assertEquals(f1.value, Some(Failure(dummy)))
@@ -148,7 +148,7 @@ object TaskNowSuite extends BaseTestSuite {
 
   test("Task.error.materializeAttempt should work") { implicit s =>
     val dummy = DummyException("dummy")
-    val task = Task.error(dummy).materializeAttempt
+    val task = Task.raiseError(dummy).materializeAttempt
     val f = task.runAsync
     assertEquals(f.value, Some(Success(Error(dummy))))
   }
@@ -160,7 +160,7 @@ object TaskNowSuite extends BaseTestSuite {
 
   test("Task.error.coeval") { implicit s =>
     val dummy = DummyException("dummy")
-    val result = Task.error(dummy).coeval.runTry
+    val result = Task.raiseError(dummy).coeval.runTry
     assertEquals(result, Failure(dummy))
   }
 

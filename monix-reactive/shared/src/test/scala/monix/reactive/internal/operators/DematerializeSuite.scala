@@ -47,7 +47,7 @@ object DematerializeSuite extends BaseOperatorSuite {
 
   test("dematerializeAttempt error") { implicit s =>
     val dummyEx = DummyException("dummy")
-    val o = (Observable.now(1) ++ Observable.error(dummyEx)).materialize.dematerialize
+    val o = (Observable.now(1) ++ Observable.raiseError(dummyEx)).materialize.dematerialize
     var received = 0
     var errorThrown: Throwable = null
 

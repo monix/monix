@@ -72,7 +72,7 @@ object DoOnCompleteSuite extends TestSuite[TestScheduler] {
     var wasCompleted = 0
     var errorThrown: Throwable = null
 
-    Observable.error(dummy).doOnComplete(wasTriggered += 1)
+    Observable.raiseError(dummy).doOnComplete(wasTriggered += 1)
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onNext(elem: Long): Future[Continue] =

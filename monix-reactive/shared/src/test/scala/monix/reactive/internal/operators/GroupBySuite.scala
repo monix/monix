@@ -43,7 +43,7 @@ object GroupBySuite extends BaseOperatorSuite {
 
   def observableInError(sourceCount: Int, ex: Throwable) =
     if (sourceCount <= 1) None else {
-      val source = Observable.range(0, sourceCount) ++ Observable.fork(Observable.error(ex))
+      val source = Observable.range(0, sourceCount) ++ Observable.fork(Observable.raiseError(ex))
       val o = source
         .groupBy(_ % 5)
         .flatMap(o => o.map(x => o.key + x))

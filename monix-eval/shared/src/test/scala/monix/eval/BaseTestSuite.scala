@@ -48,7 +48,7 @@ abstract class BaseTestSuite extends TestSuite[TestScheduler] with Checkers {
     Arbitrary { A.arbitrary.map(a => Task.evalAlways(a)) }
 
   def arbitraryError[A](implicit ev: Arbitrary[Int]): Arbitrary[Task[A]] =
-    Arbitrary { ev.arbitrary.map(nr => Task.error(DummyException(s"dummy $nr"))) }
+    Arbitrary { ev.arbitrary.map(nr => Task.raiseError(DummyException(s"dummy $nr"))) }
 
   def arbitraryAsync[A](implicit A: Arbitrary[A]): Arbitrary[Task[A]] =
     Arbitrary(A.arbitrary.map(a =>

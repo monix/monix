@@ -271,7 +271,7 @@ object TaskChooseFirstOfSuite extends BaseTestSuite {
 
   test("Task.chooseFirstOf(A,B) should end both in error if A completes first in error") { implicit s =>
     val dummy = DummyException("dummy")
-    val ta = Task.error[Int](dummy).delayExecution(1.second)
+    val ta = Task.raiseError[Int](dummy).delayExecution(1.second)
     val tb = Task.now(20).delayExecution(2.seconds)
 
     val t = Task.chooseFirstOf(ta, tb)
@@ -284,7 +284,7 @@ object TaskChooseFirstOfSuite extends BaseTestSuite {
   test("Task.chooseFirstOf(A,B) should end both in error if B completes first in error") { implicit s =>
     val dummy = DummyException("dummy")
     val ta = Task.now(10).delayExecution(2.seconds)
-    val tb = Task.error[Int](dummy).delayExecution(1.second)
+    val tb = Task.raiseError[Int](dummy).delayExecution(1.second)
 
     val t = Task.chooseFirstOf(ta, tb)
     val f = t.runAsync
@@ -295,7 +295,7 @@ object TaskChooseFirstOfSuite extends BaseTestSuite {
 
   test("Task.chooseFirstOf(A,B) should work if A completes second in error") { implicit s =>
     val dummy = DummyException("dummy")
-    val ta = Task.error[Int](dummy).delayExecution(2.second)
+    val ta = Task.raiseError[Int](dummy).delayExecution(2.second)
     val tb = Task.now(20).delayExecution(1.seconds)
 
     val t1 = Task.chooseFirstOf(ta, tb).flatMap {
@@ -321,7 +321,7 @@ object TaskChooseFirstOfSuite extends BaseTestSuite {
   test("Task.chooseFirstOf(A,B) should work if B completes second in error") { implicit s =>
     val dummy = DummyException("dummy")
     val ta = Task.now(10).delayExecution(1.seconds)
-    val tb = Task.error[Int](dummy).delayExecution(2.second)
+    val tb = Task.raiseError[Int](dummy).delayExecution(2.second)
 
     val t1 = Task.chooseFirstOf(ta, tb).flatMap {
       case Left((a, futureB)) =>

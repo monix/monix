@@ -28,7 +28,7 @@ object OnErrorRetryIfSuite extends BaseOperatorSuite {
     val ex = DummyException("expected")
 
     val o = Observable.range(0, sourceCount).endWithError(ex)
-      .onErrorRetryIf { case DummyException("expected") => retriesCount.incrementAndGet() <= 3 }
+      .onErrorRestartIf { case DummyException("expected") => retriesCount.incrementAndGet() <= 3 }
       .onErrorHandle { case _ => 10L }
 
     val count = sourceCount * 4 + 1
@@ -38,12 +38,12 @@ object OnErrorRetryIfSuite extends BaseOperatorSuite {
 
   def observableInError(sourceCount: Int, ex: Throwable) =
     if (sourceCount == 1) {
-      val o = Observable.now(1L).endWithError(ex).onErrorRetryIf(_ => false)
+      val o = Observable.now(1L).endWithError(ex).onErrorRestartIf(_ => false)
       Some(Sample(o,1,1,Duration.Zero,Duration.Zero))
     } else {
       val retriesCount = Atomic(0)
 
-      val o = Observable.range(0, sourceCount).endWithError(ex).onErrorRetryIf {
+      val o = Observable.range(0, sourceCount).endWithError(ex).onErrorRestartIf {
         case _ => retriesCount.incrementAndGet() <= 3
       }
 
@@ -55,7 +55,7 @@ object OnErrorRetryIfSuite extends BaseOperatorSuite {
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
     val retriesCount = Atomic(0)
     val o = Observable.range(0, sourceCount).endWithError(DummyException("unexpected"))
-      .onErrorRetryIf { _ =>
+      .onErrorRestartIf { _ =>
         if (retriesCount.incrementAndGet() <= 3)
           true
         else
@@ -71,7 +71,7 @@ object OnErrorRetryIfSuite extends BaseOperatorSuite {
     val dummy = DummyException("dummy")
     val sample = Observable.range(0, 20).map(_ => 1L)
       .endWithError(dummy).delaySubscription(1.second)
-      .onErrorRetryIf(ex => true)
+      .onErrorRestartIf(ex => true)
 
     Seq(
       Sample(sample, 0, 0, 0.seconds, 0.seconds),

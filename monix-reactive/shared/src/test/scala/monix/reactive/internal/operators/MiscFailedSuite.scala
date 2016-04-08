@@ -54,7 +54,7 @@ object MiscFailedSuite extends TestSuite[TestScheduler] {
     var thrown: Throwable = null
     val p = Promise[Continue]()
 
-    Observable.error(DummyException("dummy")).failed
+    Observable.raiseError(DummyException("dummy")).failed
       .unsafeSubscribeFn(new Observer[Throwable] {
         def onError(ex: Throwable) = ()
         def onComplete() = wasCompleted = true

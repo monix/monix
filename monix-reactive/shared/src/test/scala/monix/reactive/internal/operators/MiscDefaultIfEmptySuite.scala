@@ -35,7 +35,7 @@ object MiscDefaultIfEmptySuite extends BaseOperatorSuite {
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.error(ex).defaultIfEmpty(10L)
+    val o = Observable.raiseError(ex).defaultIfEmpty(10L)
     Sample(o, 0, 0, Zero, Zero)
   }
 

@@ -17,17 +17,16 @@
 
 package monix.reactive
 
-import monix.eval.{Task, TaskEnumerator}
+import monix.eval.Task
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution._
 import monix.execution.cancelables.SingleAssignmentCancelable
 import monix.reactive.internal.builders
-import monix.reactive.internal.builders.ObservableToTaskEnumerator
 import monix.reactive.observables.ObservableLike.{Operator, Transformer}
 import monix.reactive.observables._
 import monix.reactive.observers._
 import monix.reactive.subjects._
-import monix.eval.types.Asynchronous
+import monix.types.{Asynchronous, Restartable}
 import org.reactivestreams.{Publisher => RPublisher, Subscriber => RSubscriber}
 
 import scala.concurrent.Future
@@ -353,12 +352,6 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
       })
     }
 
-  /** Builds an [[monix.eval.TaskEnumerator TaskEnumerator]] from the
-    * source observable.
-    */
-  def taskEnumerator(batchSize: Int): Task[TaskEnumerator[A]] =
-    ObservableToTaskEnumerator(self, batchSize)
-
   /** Creates a new [[monix.eval.Task Task]] that will consume the
     * source observable, executing the given callback for each element.
     */
@@ -408,6 +401,13 @@ object Observable {
   def now[A](elem: A): Observable[A] =
     new builders.NowObservable(elem)
 
+  /** Lifts an element into the `Observable` context.
+    *
+    * Alias for [[now]].
+    */
+  def pure[A](elem: A): Observable[A] =
+    new builders.NowObservable(elem)
+
   /** Given a non-strict value, converts it into an Observable
     * that emits a single element.
     */
@@ -429,7 +429,7 @@ object Observable {
 
   /** Creates an Observable that emits an error.
     */
-  def error(ex: Throwable): Observable[Nothing] =
+  def raiseError(ex: Throwable): Observable[Nothing] =
     new builders.ErrorObservable(ex)
 
   /** Creates an Observable that doesn't emit anything and that never
@@ -1009,10 +1009,10 @@ object Observable {
     new builders.FirstStartedObservable(source: _*)
 
   /** Type-class instances for [[Observable]]. */
-  implicit val instances: Asynchronous[Observable] =
-    new Asynchronous[Observable] {
-      override def error[A](e: Throwable): Observable[A] =
-        Observable.error(e)
+  implicit val instances: Asynchronous[Observable] with Restartable[Observable] =
+    new Asynchronous[Observable] with Restartable[Observable] {
+      override def raiseError[A](e: Throwable): Observable[A] =
+        Observable.raiseError(e)
       override def delayedEval[A](delay: FiniteDuration, a: => A): Observable[A] =
         Observable.evalAlways(a)
 
@@ -1033,10 +1033,17 @@ object Observable {
         fa.onErrorHandle(f)
       override def onErrorFallbackTo[A](fa: Observable[A], other: Observable[A]): Observable[A] =
         fa.onErrorFallbackTo(other)
-      override def onErrorRetry[A](fa: Observable[A], maxRetries: Long): Observable[A] =
-        fa.onErrorRetry(maxRetries)
-      override def onErrorRetryIf[A](fa: Observable[A])(p: (Throwable) => Boolean): Observable[A] =
-        fa.onErrorRetryIf(p)
+      override def onErrorRestart[A](fa: Observable[A], maxRetries: Long): Observable[A] =
+        fa.onErrorRestart(maxRetries)
+      override def onErrorRestartIf[A](fa: Observable[A])(p: (Throwable) => Boolean): Observable[A] =
+        fa.onErrorRestartIf(p)
+
+      override def restartUntil[A](fa: Observable[A])(p: (A) => Boolean): Observable[A] =
+        fa.restartUntil(p)
+
+      override def pure[A](a: A): Observable[A] = Observable.pure(a)
+      override def ap[A, B](fa: Observable[A])(ff: Observable[(A) => B]): Observable[B] = ff.flatMap(fa.map)
+
       override def onErrorRecoverWith[A](fa: Observable[A])(pf: PartialFunction[Throwable, Observable[A]]): Observable[A] =
         fa.onErrorRecoverWith(pf)
       override def onErrorRecover[A](fa: Observable[A])(pf: PartialFunction[Throwable, A]): Observable[A] =

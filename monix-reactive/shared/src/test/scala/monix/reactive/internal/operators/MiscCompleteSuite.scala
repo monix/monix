@@ -51,7 +51,7 @@ object MiscCompleteSuite extends TestSuite[TestScheduler] {
   test("should signal error") { implicit s =>
     var thrown: Throwable = null
 
-    Observable.error(DummyException("dummy")).ignoreElements.unsafeSubscribeFn(
+    Observable.raiseError(DummyException("dummy")).ignoreElements.unsafeSubscribeFn(
       new Observer[Long] {
         def onError(ex: Throwable) = thrown = ex
         def onComplete() = ()

@@ -31,7 +31,7 @@ object ErrorObservableSuite extends TestSuite[TestScheduler] {
 
   test("should stream immediately") { implicit s =>
     var errorThrown: Throwable = null
-    Observable.error(DummyException("dummy")).unsafeSubscribeFn(new Observer[Any] {
+    Observable.raiseError(DummyException("dummy")).unsafeSubscribeFn(new Observer[Any] {
       def onError(ex: Throwable): Unit = errorThrown = ex
       def onNext(elem: Any) = throw new IllegalStateException()
       def onComplete(): Unit = throw new IllegalStateException()

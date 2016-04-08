@@ -37,7 +37,7 @@ object CoevalNowSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     def trigger(): Throwable = { wasTriggered = true; dummy }
 
-    val task = Coeval.error(trigger())
+    val task = Coeval.raiseError(trigger())
     assert(wasTriggered, "wasTriggered")
     val r = task.runTry
     assertEquals(r, Failure(dummy))
@@ -53,14 +53,14 @@ object CoevalNowSuite extends BaseTestSuite {
   test("Coeval.error.map should be the same as Coeval.error") { implicit s =>
     check {
       val dummy = DummyException("dummy")
-      Coeval.error[Int](dummy).map(_ + 1) === Coeval.error[Int](dummy)
+      Coeval.raiseError[Int](dummy).map(_ + 1) === Coeval.raiseError[Int](dummy)
     }
   }
 
   test("Coeval.error.flatMap should be the same as Coeval.flatMap") { implicit s =>
     check {
       val dummy = DummyException("dummy")
-      Coeval.error[Int](dummy).flatMap(Coeval.now) === Coeval.error(dummy)
+      Coeval.raiseError[Int](dummy).flatMap(Coeval.now) === Coeval.raiseError(dummy)
     }
   }
 
@@ -68,14 +68,14 @@ object CoevalNowSuite extends BaseTestSuite {
     check {
       val dummy = DummyException("dummy")
       val err = DummyException("err")
-      Coeval.error[Int](dummy).flatMap[Int](_ => throw err) === Coeval.error(dummy)
+      Coeval.raiseError[Int](dummy).flatMap[Int](_ => throw err) === Coeval.raiseError(dummy)
     }
   }
 
   test("Coeval.now.flatMap should protect against user code") { implicit s =>
     val ex = DummyException("dummy")
     val t = Coeval.now(1).flatMap[Int](_ => throw ex)
-    check(t === Coeval.error(ex))
+    check(t === Coeval.raiseError(ex))
   }
 
   test("Coeval.now.flatMap should be tail recursive") { implicit s =>
@@ -96,7 +96,7 @@ object CoevalNowSuite extends BaseTestSuite {
 
   test("Coeval.error.memoize should return self") { implicit s =>
     val dummy = DummyException("dummy")
-    assertEquals(Coeval.error(dummy), Coeval.error(dummy).memoize)
+    assertEquals(Coeval.raiseError(dummy), Coeval.raiseError(dummy).memoize)
   }
 
   test("Coeval.now.materialize should work") { implicit s =>
@@ -111,13 +111,13 @@ object CoevalNowSuite extends BaseTestSuite {
 
   test("Coeval.error.materialize should work") { implicit s =>
     val dummy = DummyException("dummy")
-    val task = Coeval.error(dummy).materialize
+    val task = Coeval.raiseError(dummy).materialize
     assertEquals(task.value, Failure(dummy))
   }
 
   test("Coeval.error.materializeAttempt should work") { implicit s =>
     val dummy = DummyException("dummy")
-    val task = Coeval.error(dummy).materializeAttempt
+    val task = Coeval.raiseError(dummy).materializeAttempt
     assertEquals(task.value, Error(dummy))
   }
 
@@ -129,8 +129,8 @@ object CoevalNowSuite extends BaseTestSuite {
 
   test("Coeval.error.task should equal Task.error") { implicit s =>
     val dummy = DummyException("dummy")
-    val coeval = Coeval.error(dummy).task
-    val task = Task.error(dummy)
+    val coeval = Coeval.raiseError(dummy).task
+    val task = Task.raiseError(dummy)
     assertEquals(coeval, task)
   }
 }

@@ -54,7 +54,7 @@ object DelayByTimespanSuite extends BaseOperatorSuite {
     source.unsafeSubscribeFn(new Subscriber[Long] {
       val scheduler = s
       def onNext(elem: Long) = {
-        fail("onNext should not happen")
+        if (1==1) fail("onNext should not happen")
         Continue
       }
       def onError(ex: Throwable): Unit =
@@ -68,13 +68,13 @@ object DelayByTimespanSuite extends BaseOperatorSuite {
 
   test("works for empty observables triggering onError") { implicit s =>
     val dummy = DummyException("dummy")
-    val source: Observable[Long] = Observable.error(dummy).delayOnNext(1.second)
+    val source: Observable[Long] = Observable.raiseError(dummy).delayOnNext(1.second)
     var errorThrown: Throwable = null
 
     source.unsafeSubscribeFn(new Subscriber[Long] {
       val scheduler = s
       def onNext(elem: Long) = {
-        fail("onNext should not happen")
+        if (1==1) fail("onNext should not happen")
         Continue
       }
 

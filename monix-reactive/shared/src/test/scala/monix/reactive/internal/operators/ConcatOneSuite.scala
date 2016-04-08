@@ -202,7 +202,7 @@ object ConcatOneSuite extends BaseOperatorSuite {
     val dummy2 = DummyException("dummy2")
 
     val source = Observable.now(1L).endWithError(dummy1)
-    val obs: Observable[Long] = source.flatMap { i => Observable.error(dummy2) }
+    val obs: Observable[Long] = source.flatMap { i => Observable.raiseError(dummy2) }
 
     var thrownError: Throwable = null
     var received = 0
@@ -236,7 +236,7 @@ object ConcatOneSuite extends BaseOperatorSuite {
 
     val source = Observable.now(1L).endWithError(dummy1)
     val obs: Observable[Long] = source.flatMap { i =>
-      Observable.fork(Observable.error(dummy2))
+      Observable.fork(Observable.raiseError(dummy2))
     }
 
     var thrownError: Throwable = null

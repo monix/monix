@@ -25,7 +25,7 @@ object OnErrorRetryCountedSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val ex = DummyException("expected")
     val o = Observable.range(0, sourceCount).endWithError(ex)
-      .onErrorRetry(3)
+      .onErrorRestart(3)
       .onErrorHandle { case _ => 10L }
 
     val count = sourceCount * 4 + 1
@@ -35,7 +35,7 @@ object OnErrorRetryCountedSuite extends BaseOperatorSuite {
 
   def observableInError(sourceCount: Int, ex: Throwable) =
     if (sourceCount <= 1) None else Some {
-      val o = Observable.range(0, sourceCount).endWithError(ex).onErrorRetry(3)
+      val o = Observable.range(0, sourceCount).endWithError(ex).onErrorRestart(3)
 
       val count = sourceCount * 4
       val sum = 1L * sourceCount * (sourceCount-1) / 2 * 4
@@ -48,7 +48,7 @@ object OnErrorRetryCountedSuite extends BaseOperatorSuite {
     val dummy = DummyException("dummy")
     val sample = Observable.range(0, 20).map(_ => 1L)
       .endWithError(dummy).delaySubscription(1.second)
-      .onErrorRetry(100)
+      .onErrorRestart(100)
 
     Seq(
       Sample(sample, 0, 0, 0.seconds, 0.seconds),

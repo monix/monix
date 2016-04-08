@@ -15,22 +15,18 @@
  * limitations under the License.
  */
 
-package monix.eval.types
+package monix.types.shims
 
-import monix.eval.Task
-import scala.util.Try
-
-/** Type-class for computations that can be materialized
-  * to a single result.
+/** A shim for a `Monad` type-class, to be supplied by / translated to
+  * libraries such as Cats or Scalaz.
+  *
+  * See: [[http://homepages.inf.ed.ac.uk/wadler/papers/marktoberdorf/baastad.pdf Monads for functional programming]]
   */
-trait Evaluable[F[_]] extends Deferrable[F] {
-  /** Converts this context into a `Task`. */
-  def task[A](fa: F[A]): Task[A]
-
-  def materialize[A](fa: F[A]): F[Try[A]]
-  def dematerialize[A](fa: F[Try[A]]): F[A]
+trait Monad[F[_]] extends Applicative[F] {
+  def flatMap[A, B](fa: F[A])(f: A => F[B]): F[B]
+  def flatten[A](ffa: F[F[A]]): F[A]
 }
 
-object Evaluable {
-  def apply[F[_]](implicit F: Evaluable[F]) = F
+object Monad {
+  @inline def apply[F[_]](implicit F: Monad[F]): Monad[F] = F
 }

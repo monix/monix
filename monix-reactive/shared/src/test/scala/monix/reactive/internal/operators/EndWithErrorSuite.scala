@@ -59,7 +59,7 @@ object EndWithErrorSuite extends TestSuite[TestScheduler] {
 
   test("can end in another unforeseen error") { implicit s =>
     var wasThrown: Throwable = null
-    val source = Observable.error(DummyException("unforeseen"))
+    val source = Observable.raiseError(DummyException("unforeseen"))
       .endWithError(DummyException("expected"))
 
     source.unsafeSubscribeFn(new Observer[Int] {

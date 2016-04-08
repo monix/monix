@@ -48,7 +48,7 @@ private[reactive] final class SwitchMapObservable[A,B](source: Observable[A], f:
           val childObservable =
             try f(elem) catch {
               case NonFatal(ex) =>
-                Observable.error(ex)
+                Observable.raiseError(ex)
             }
 
           ack = ack.syncTryFlatten

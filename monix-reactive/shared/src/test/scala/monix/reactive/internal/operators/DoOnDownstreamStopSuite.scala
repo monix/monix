@@ -90,7 +90,7 @@ object DoOnDownstreamStopSuite extends TestSuite[TestScheduler] {
     var wasCompleted = 0
     var errorThrown: Throwable = null
 
-    Observable.error(dummy).doOnDownstreamStop(wasCanceled += 1)
+    Observable.raiseError(dummy).doOnDownstreamStop(wasCanceled += 1)
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onNext(elem: Long): Future[Continue] =

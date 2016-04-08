@@ -70,7 +70,7 @@ object OnCancelTriggerErrorSuite extends TestSuite[TestScheduler] {
     var errorThrow: Throwable = null
     var effect = 0
 
-    val obs: Observable[Int] = Observable.error(dummy).onCancelTriggerError
+    val obs: Observable[Int] = Observable.raiseError(dummy).onCancelTriggerError
 
     val c = obs.unsafeSubscribeFn(new Observer[Int] {
       def onNext(elem: Int) = { effect += elem; Continue }

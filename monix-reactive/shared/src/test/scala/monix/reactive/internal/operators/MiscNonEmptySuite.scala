@@ -36,7 +36,7 @@ object MiscNonEmptySuite extends BaseOperatorSuite {
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.error(ex)
+    val o = Observable.raiseError(ex)
       .nonEmptyF.map(x => if (x) 1L else 2L)
 
     Sample(o, 0, 0, Zero, Zero)

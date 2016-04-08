@@ -110,7 +110,7 @@ object TaskApplySuite extends BaseTestSuite {
   test("Task.apply.flatMap should protect against user code") { implicit s =>
     val ex = DummyException("dummy")
     val t = Task(1).flatMap[Int](_ => throw ex)
-    check(t === Task.error(ex))
+    check(t === Task.raiseError(ex))
   }
 
   test("Task.apply should be tail recursive") { implicit s =>

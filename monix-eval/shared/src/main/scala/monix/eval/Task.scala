@@ -22,7 +22,7 @@ import monix.execution.Ack.Stop
 import monix.execution.cancelables.{CompositeCancelable, SingleAssignmentCancelable, StackedCancelable}
 import monix.execution.schedulers.ExecutionModel
 import monix.execution.{Cancelable, CancelableFuture, Scheduler}
-import monix.eval.types.{Asynchronous, Evaluable}
+import monix.types.{Asynchronous, Evaluable}
 import org.sincron.atomic.{Atomic, AtomicAny}
 
 import scala.annotation.tailrec
@@ -329,7 +329,7 @@ sealed abstract class Task[+A] extends Serializable with Product { self =>
     * See [[onErrorHandleWith]] for the version that takes a total function.
     */
   def onErrorRecoverWith[B >: A](pf: PartialFunction[Throwable, Task[B]]): Task[B] =
-    onErrorHandleWith(ex => pf.applyOrElse(ex, Task.error))
+    onErrorHandleWith(ex => pf.applyOrElse(ex, Task.raiseError))
 
   /** Creates a new task that will handle any matching throwable that
     * this task might emit by executing another task.
@@ -348,15 +348,21 @@ sealed abstract class Task[+A] extends Serializable with Product { self =>
   def onErrorFallbackTo[B >: A](that: Task[B]): Task[B] =
     onErrorHandleWith(ex => that)
 
+  /** Given a predicate function, keep retrying the
+    * task until the function returns true.
+    */
+  def restartUntil(p: (A) => Boolean): Task[A] =
+    self.flatMap(a => if (p(a)) Task.now(a) else self.restartUntil(p))
+
   /** Creates a new task that in case of error will retry executing the
     * source again and again, until it succeeds.
     *
     * In case of continuous failure the total number of executions
     * will be `maxRetries + 1`.
     */
-  def onErrorRetry(maxRetries: Long): Task[A] =
+  def onErrorRestart(maxRetries: Long): Task[A] =
     self.onErrorHandleWith(ex =>
-      if (maxRetries > 0) self.onErrorRetry(maxRetries-1)
+      if (maxRetries > 0) self.onErrorRestart(maxRetries-1)
       else Error(ex))
 
   /** Creates a new task that in case of error will retry executing the
@@ -365,8 +371,8 @@ sealed abstract class Task[+A] extends Serializable with Product { self =>
     * In case of continuous failure the total number of executions
     * will be `maxRetries + 1`.
     */
-  def onErrorRetryIf(p: Throwable => Boolean): Task[A] =
-    self.onErrorHandleWith(ex => if (p(ex)) self.onErrorRetryIf(p) else Error(ex))
+  def onErrorRestartIf(p: Throwable => Boolean): Task[A] =
+    self.onErrorHandleWith(ex => if (p(ex)) self.onErrorRestartIf(p) else Error(ex))
 
   /** Creates a new task that will handle any matching throwable that
     * this task might emit.
@@ -405,7 +411,7 @@ sealed abstract class Task[+A] extends Serializable with Product { self =>
     * task emitting any item.
     */
   def timeout(after: FiniteDuration): Task[A] =
-    timeoutTo(after, error(new TimeoutException(s"Task timed-out after $after of inactivity")))
+    timeoutTo(after, raiseError(new TimeoutException(s"Task timed-out after $after of inactivity")))
 
   /** Returns a Task that mirrors the source Task but switches to the
     * given backup Task in case the given duration passes without the
@@ -447,10 +453,13 @@ object Task {
     */
   def now[A](a: A): Task[A] = Now(a)
 
+  /** Lifts a value into the task context. Alias for [[now]]. */
+  def pure[A](a: A): Task[A] = Now(a)
+
   /** Returns a task that on execution is always finishing in error
     * emitting the specified exception.
     */
-  def error[A](ex: Throwable): Task[A] =
+  def raiseError[A](ex: Throwable): Task[A] =
     Error(ex)
 
   /** Promote a non-strict value representing a Task to a Task of the
@@ -1381,19 +1390,23 @@ object Task {
       override def unit: Task[Unit] = Task.unit
       override def evalAlways[A](f: => A): Task[A] = Task.evalAlways(f)
       override def evalOnce[A](f: => A): Task[A] = Task.evalOnce(f)
-      override def error[A](ex: Throwable): Task[A] = Task.error(ex)
+      override def raiseError[A](ex: Throwable): Task[A] = Task.raiseError(ex)
       override def defer[A](fa: => Task[A]): Task[A] = Task.defer(fa)
       override def memoize[A](fa: Task[A]): Task[A] = fa.memoize
       override def task[A](fa: Task[A]): Task[A] = fa
 
+      override def pure[A](a: A): Task[A] = now(a)
+      override def ap[A, B](fa: Task[A])(ff: Task[(A) => B]): Task[B] = ff.flatMap(fa.map)
       override def flatten[A](ffa: Task[Task[A]]): Task[A] = ffa.flatten
       override def flatMap[A, B](fa: Task[A])(f: (A) => Task[B]): Task[B] = fa.flatMap(f)
       override def map[A, B](fa: Task[A])(f: (A) => B): Task[B] = fa.map(f)
 
-      override def onErrorRetryIf[A](fa: Task[A])(p: (Throwable) => Boolean): Task[A] =
-        fa.onErrorRetryIf(p)
-      override def onErrorRetry[A](fa: Task[A], maxRetries: Long): Task[A] =
-        fa.onErrorRetry(maxRetries)
+      override def restartUntil[A](fa: Task[A])(p: (A) => Boolean): Task[A] =
+        fa.restartUntil(p)
+      override def onErrorRestart[A](fa: Task[A], maxRetries: Long): Task[A] =
+        fa.onErrorRestart(maxRetries)
+      override def onErrorRestartIf[A](fa: Task[A])(p: (Throwable) => Boolean): Task[A] =
+        fa.onErrorRestartIf(p)
       override def onErrorRecover[A](fa: Task[A])(pf: PartialFunction[Throwable, A]): Task[A] =
         fa.onErrorRecover(pf)
       override def onErrorRecoverWith[A](fa: Task[A])(pf: PartialFunction[Throwable, Task[A]]): Task[A] =

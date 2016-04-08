@@ -23,7 +23,7 @@ import scala.util.{Failure, Success}
 object CoevalErrorSuite extends BaseTestSuite {
   test("Coeval.failed should expose error") { implicit s =>
     val dummy = DummyException("ex")
-    val r = Coeval.error[Int](dummy).failed.runTry
+    val r = Coeval.raiseError[Int](dummy).failed.runTry
     assertEquals(r, Success(dummy))
   }
 
@@ -39,7 +39,7 @@ object CoevalErrorSuite extends BaseTestSuite {
 
   test("Coeval.error.materialize") { implicit s =>
     val dummy = DummyException("dummy")
-    assertEquals(Coeval.error[Int](dummy).materialize.value, Failure(dummy))
+    assertEquals(Coeval.raiseError[Int](dummy).materialize.value, Failure(dummy))
   }
 
   test("Coeval.evalOnce.materialize") { implicit s =>
@@ -60,7 +60,7 @@ object CoevalErrorSuite extends BaseTestSuite {
 
   test("Coeval.error.materialize") { implicit s =>
     val dummy = DummyException("dummy")
-    assertEquals(Coeval.error[Int](dummy).materialize.value, Failure(dummy))
+    assertEquals(Coeval.raiseError[Int](dummy).materialize.value, Failure(dummy))
   }
 
   test("Coeval.flatMap.materialize") { implicit s =>
@@ -93,7 +93,7 @@ object CoevalErrorSuite extends BaseTestSuite {
 
   test("Coeval.error.dematerialize") { implicit s =>
     val dummy = DummyException("dummy")
-    val result = Coeval.error[Int](dummy).materialize.dematerialize.runTry
+    val result = Coeval.raiseError[Int](dummy).materialize.dematerialize.runTry
     assertEquals(result, Failure(dummy))
   }
 
@@ -104,7 +104,7 @@ object CoevalErrorSuite extends BaseTestSuite {
 
   test("Coeval.error.dematerializeAttempt") { implicit s =>
     val dummy = DummyException("dummy")
-    val result = Coeval.error[Int](dummy).materializeAttempt.dematerializeAttempt.runTry
+    val result = Coeval.raiseError[Int](dummy).materializeAttempt.dematerializeAttempt.runTry
     assertEquals(result, Failure(dummy))
   }
 
@@ -173,53 +173,53 @@ object CoevalErrorSuite extends BaseTestSuite {
     assertEquals(f.runTry, Failure(err))
   }
 
-  test("Coeval.onErrorRetry should mirror the source onSuccess") { implicit s =>
+  test("Coeval.onErrorRestart should mirror the source onSuccess") { implicit s =>
     var tries = 0
-    val f = Coeval.evalAlways { tries += 1; 1 }.onErrorRetry(10)
+    val f = Coeval.evalAlways { tries += 1; 1 }.onErrorRestart(10)
     assertEquals(f.runTry, Success(1))
     assertEquals(tries, 1)
   }
 
-  test("Coeval.onErrorRetry should retry onError") { implicit s =>
+  test("Coeval.onErrorRestart should retry onError") { implicit s =>
     val ex = DummyException("dummy")
     var tries = 0
-    val f = Coeval.evalAlways { tries += 1; if (tries < 5) throw ex else 1 }.onErrorRetry(10)
+    val f = Coeval.evalAlways { tries += 1; if (tries < 5) throw ex else 1 }.onErrorRestart(10)
 
     assertEquals(f.runTry, Success(1))
     assertEquals(tries, 5)
   }
 
-  test("Coeval.onErrorRetry should emit onError after max retries") { implicit s =>
+  test("Coeval.onErrorRestart should emit onError after max retries") { implicit s =>
     val ex = DummyException("dummy")
     var tries = 0
-    val f = Coeval.evalAlways { tries += 1; throw ex }.onErrorRetry(10)
+    val f = Coeval.evalAlways { tries += 1; throw ex }.onErrorRestart(10)
 
     assertEquals(f.runTry, Failure(ex))
     assertEquals(tries, 11)
   }
 
-  test("Coeval.onErrorRetryIf should mirror the source onSuccess") { implicit s =>
+  test("Coeval.onErrorRestartIf should mirror the source onSuccess") { implicit s =>
     var tries = 0
-    val f = Coeval.evalAlways { tries += 1; 1 }.onErrorRetryIf(ex => tries < 10)
+    val f = Coeval.evalAlways { tries += 1; 1 }.onErrorRestartIf(ex => tries < 10)
     assertEquals(f.runTry, Success(1))
     assertEquals(tries, 1)
   }
 
-  test("Coeval.onErrorRetryIf should retry onError") { implicit s =>
+  test("Coeval.onErrorRestartIf should retry onError") { implicit s =>
     val ex = DummyException("dummy")
     var tries = 0
     val f = Coeval.evalAlways { tries += 1; if (tries < 5) throw ex else 1 }
-      .onErrorRetryIf(ex => tries <= 10)
+      .onErrorRestartIf(ex => tries <= 10)
 
     assertEquals(f.runTry, Success(1))
     assertEquals(tries, 5)
   }
 
-  test("Coeval.onErrorRetryIf should emit onError") { implicit s =>
+  test("Coeval.onErrorRestartIf should emit onError") { implicit s =>
     val ex = DummyException("dummy")
     var tries = 0
     val f = Coeval.evalAlways { tries += 1; throw ex }
-      .onErrorRetryIf(ex => tries <= 10)
+      .onErrorRestartIf(ex => tries <= 10)
 
     assertEquals(f.runTry, Failure(ex))
     assertEquals(tries, 11)

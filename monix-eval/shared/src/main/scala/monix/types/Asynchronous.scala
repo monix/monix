@@ -15,11 +15,9 @@
  * limitations under the License.
  */
 
-package monix.eval.types
+package monix.types
 
-import scala.concurrent.TimeoutException
 import scala.concurrent.duration.FiniteDuration
-
 
 /** Type-class for monadic contexts whose evaluation can be delayed.
   *
@@ -68,10 +66,9 @@ trait Asynchronous[F[_]] extends Deferrable[F] {
   /** Trigger a `TimeoutException` after the given `timespan` has passed without
     * the source emitting anything.
     */
-  def timeout[A](fa: F[A], timespan: FiniteDuration): F[A] =
-    timeoutTo(fa, timespan, error(new TimeoutException(s"After $timespan")))
+  def timeout[A](fa: F[A], timespan: FiniteDuration): F[A]
 }
 
 object Asynchronous {
-  def apply[F[_]](implicit F: Asynchronous[F]) = F
+  @inline def apply[F[_]](implicit F: Asynchronous[F]) = F
 }
