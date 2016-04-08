@@ -43,3 +43,7 @@ trait Restartable[F[_]] extends Deferrable[F] {
     */
   def onErrorRestartIf[A](fa: F[A])(p: Throwable => Boolean): F[A]
 }
+
+object Restartable {
+  @inline def apply[F[_]](implicit F: Restartable[F]): Restartable[F] = F
+}
