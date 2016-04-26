@@ -1,3 +1,13 @@
+## Version 2.0-RC1
+
+Feature freeze. There's lots of interesting stuff to work on, but I'd rather have
+a stable 2.0 release first.
+
+Bug fix:
+
+- Issue #143 - on RefCountObservable cancel and stop should be idempotent
+
+
 ## Version 2.0-M2
 
 The theme and the big issue of this release has been redesigning `Task`'s 
