@@ -138,4 +138,42 @@ object RefCountObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(received, 2)
     assertEquals(completed, 2)
   }
+
+  test("cancel and stop should be idempotent") { implicit s =>
+    val ch = ConcurrentSubject.publish[Long](Unbounded)
+    var received = 0L
+    var completed = 0
+
+    def createObserver = new Observer[Long] {
+      def onNext(elem: Long): Future[Ack] = {
+        received += 1
+        Continue
+      }
+
+      def onError(ex: Throwable): Unit = ()
+      def onComplete(): Unit = completed += 1
+    }
+
+    val ref = ch.publish.refCount
+    val s1 = ref.subscribe(createObserver)
+    // Subscriber that cancels immediately after the first elem
+    val s2 = ref.take(0).subscribe(createObserver)
+
+    ch.onNext(10); s.tick()
+    assertEquals(received, 1)
+    assertEquals(completed, 1)
+
+    s2.cancel(); s.tick()
+    assertEquals(completed, 1)
+
+    ch.onNext(20); s.tick()
+    assertEquals(received, 2)
+    assertEquals(completed, 1)
+
+    s1.cancel(); s.tick()
+    ch.onNext(30); s.tick()
+
+    assertEquals(received, 2)
+    assertEquals(completed, 1)
+  }
 }

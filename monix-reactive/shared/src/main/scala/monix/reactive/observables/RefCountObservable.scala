@@ -55,49 +55,46 @@ final class RefCountObservable[+T] private (source: ConnectableObservable[T])
       unsafeSubscribeFn(subscriber)
     } else {
       implicit val s = subscriber.scheduler
-      val ret = source.unsafeSubscribeFn(wrap(subscriber))
+      // Protecting the countdown call is important, otherwise canceling this
+      // subscription can be concurrent with a downstream stop.
+      val countdown = Cancelable(() => countDownToConnectionCancel())
+      // Subscribing and triggering connect() if this is the first subscription
+      val ret = source.unsafeSubscribeFn(wrap(subscriber, countdown))
       if (current == -1) connection // triggers connect()
-
-      Cancelable { () =>
-        try ret.cancel() finally tryCancel()
-      }
+      // A composite that both cancels this subscription and does the countdown
+      Cancelable { () => try ret.cancel() finally countdown.cancel() }
     }
   }
 
-  private def wrap[U >: T](downstream: Subscriber[U]): Subscriber[U]  = {
+  private def wrap[U >: T](downstream: Subscriber[U], subscription: Cancelable): Subscriber[U] =
     new Subscriber[U] {
       implicit val scheduler = downstream.scheduler
 
       def onNext(elem: U): Future[Ack] = {
         downstream.onNext(elem)
-          .syncOnStopOrFailure(tryCancel())
+          .syncOnStopOrFailure(subscription.cancel())
       }
 
       def onError(ex: Throwable): Unit = {
         try downstream.onError(ex) finally
-          tryCancel()
+          subscription.cancel()
       }
 
       def onComplete(): Unit = {
         try downstream.onComplete() finally
-          tryCancel()
+          subscription.cancel()
       }
     }
-  }
 
   @tailrec
-  private def tryCancel(): Boolean = refs.get match {
+  private[this] def countDownToConnectionCancel(): Unit = refs.get match {
     case x if x > 0 =>
       val update = x-1
       if (!refs.compareAndSet(x, update))
-        tryCancel()
-      else if (update == 0) {
+        countDownToConnectionCancel()
+      else if (update == 0)
         connection.cancel()
-        true
-      }
-      else
-        true
-    case 0 => false
+    case 0 => ()
     case negative =>
       throw new IllegalStateException(s"refs=$negative (after init)")
   }
