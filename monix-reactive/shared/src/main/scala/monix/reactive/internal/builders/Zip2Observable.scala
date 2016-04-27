@@ -98,33 +98,36 @@ class Zip2Observable[A1,A2,+R]
       }
     }
 
-    def rawOnComplete(): Unit =
-      if (!isDone) {
-        isDone = true
-        out.onComplete()
-      }
-
-    def signalOnComplete(hasElem: Boolean): Unit = self.synchronized  {
-      val shouldComplete = !hasElem || {
-        completedCount += 1
-        completedCount == 2
-      }
-
-      if (shouldComplete) {
-        lastAck match {
-          case Continue => rawOnComplete()
-          case Stop => () // do nothing
-          case async =>
-            async.onComplete {
-              case Success(Continue) =>
-                self.synchronized(rawOnComplete())
-              case _ =>
-                () // do nothing
-            }
+    def signalOnComplete(hasElem: Boolean): Unit = {
+      @inline def rawOnComplete(): Unit =
+        if (!isDone) {
+          isDone = true
+          out.onComplete()
         }
 
-        continueP.success(Stop)
-        lastAck = Stop
+      self.synchronized  {
+        val shouldComplete = !isDone && (
+          !hasElem || {
+            completedCount += 1
+            completedCount == 2
+          })
+
+        if (shouldComplete) {
+          lastAck match {
+            case Continue => rawOnComplete()
+            case Stop => () // do nothing
+            case async =>
+              async.onComplete {
+                case Success(Continue) =>
+                  self.synchronized(rawOnComplete())
+                case _ =>
+                  () // do nothing
+              }
+          }
+
+          continueP.trySuccess(Stop)
+          lastAck = Stop
+        }
       }
     }
 
