@@ -1,3 +1,9 @@
+## Version 2.0-RC2
+
+Minor release with a single bug fix:
+
+- [Issue #144](https://github.com/monixio/monix/issues/144) - fix Observable.zip
+
 ## Version 2.0-RC1
 
 Feature freeze. There's lots of interesting stuff to work on, but I'd rather have
@@ -5,7 +11,7 @@ a stable 2.0 release first.
 
 Bug fix:
 
-- Issue #143 - on RefCountObservable cancel and stop should be idempotent
+- [Issue #143](https://github.com/monixio/monix/issues/143) - on RefCountObservable cancel and stop should be idempotent
 
 
 ## Version 2.0-M2
