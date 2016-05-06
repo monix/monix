@@ -1435,6 +1435,123 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: Self[A] =>
   def whileBusyDropEventsAndSignal[B >: A](onOverflow: Long => B): Self[B] =
     self.liftByOperator(new WhileBusyDropEventsAndSignalOperator[B](onOverflow))
 
+  /** Combines the elements emitted by the source with the latest element
+    * emitted by another observable.
+    *
+    * Similar with `combineLatest`, but only emits items when the single source
+    * emits an item (not when any of the Observables that are passed to the operator
+    * do, as combineLatest does).
+    *
+    * @param other is an observable that gets paired with the source
+    * @param f is a mapping function over the generated pairs
+    */
+  def withLatestFrom[B,R](other: Observable[B])(f: (A,B) => R): Self[R] =
+    self.transform(source => new WithLatestFromObservable[A,B,R](source, other, f))
+
+  /** Combines the elements emitted by the source with the latest elements
+    * emitted by two observables.
+    *
+    * Similar with `combineLatest`, but only emits items when the single source
+    * emits an item (not when any of the Observables that are passed to the operator
+    * do, as combineLatest does).
+    *
+    * @param o1 is the first observable that gets paired with the source
+    * @param o2 is the second observable that gets paired with the source
+    * @param f is a mapping function over the generated pairs
+    */
+  def withLatestFrom2[B1,B2,R](o1: Observable[B1], o2: Observable[B2])(f: (A,B1,B2) => R): Self[R] =
+    self.transform(source =>
+      source.withLatestFrom(Observable.combineLatest2(o1,o2)) { (a, tuple) =>
+        f(a, tuple._1, tuple._2)
+      })
+
+  /** Combines the elements emitted by the source with the latest elements
+    * emitted by three observables.
+    *
+    * Similar with `combineLatest`, but only emits items when the single source
+    * emits an item (not when any of the Observables that are passed to the operator
+    * do, as combineLatest does).
+    *
+    * @param o1 is the first observable that gets paired with the source
+    * @param o2 is the second observable that gets paired with the source
+    * @param o3 is the third observable that gets paired with the source
+    * @param f is a mapping function over the generated pairs
+    */
+  def withLatestFrom3[B1,B2,B3,R](o1: Observable[B1], o2: Observable[B2], o3: Observable[B3])
+    (f: (A,B1,B2,B3) => R): Self[R] =
+    self.transform(source =>
+      source.withLatestFrom(Observable.combineLatest3(o1,o2,o3)) { (a, o) =>
+        f(a,o._1,o._2,o._3)
+      })
+
+  /** Combines the elements emitted by the source with the latest elements
+    * emitted by four observables.
+    *
+    * Similar with `combineLatest`, but only emits items when the single source
+    * emits an item (not when any of the Observables that are passed to the operator
+    * do, as combineLatest does).
+    *
+    * @param o1 is the first observable that gets paired with the source
+    * @param o2 is the second observable that gets paired with the source
+    * @param o3 is the third observable that gets paired with the source
+    * @param o4 is the fourth observable that gets paired with the source
+    * @param f is a mapping function over the generated pairs
+    */
+  def withLatestFrom4[B1,B2,B3,B4,R](
+    o1: Observable[B1], o2: Observable[B2], o3: Observable[B3], o4: Observable[B4])
+    (f: (A,B1,B2,B3,B4) => R): Self[R] =
+    self.transform(source =>
+      source.withLatestFrom(Observable.combineLatest4(o1,o2,o3,o4)) { (a, o) =>
+        f(a,o._1,o._2,o._3,o._4)
+      })
+
+  /** Combines the elements emitted by the source with the latest elements
+    * emitted by five observables.
+    *
+    * Similar with `combineLatest`, but only emits items when the single source
+    * emits an item (not when any of the Observables that are passed to the operator
+    * do, as combineLatest does).
+    *
+    * @param o1 is the first observable that gets paired with the source
+    * @param o2 is the second observable that gets paired with the source
+    * @param o3 is the third observable that gets paired with the source
+    * @param o4 is the fourth observable that gets paired with the source
+    * @param o5 is the fifth observable that gets paired with the source
+    * @param f is a mapping function over the generated pairs
+    */
+  def withLatestFrom5[B1,B2,B3,B4,B5,R](
+    o1: Observable[B1], o2: Observable[B2], o3: Observable[B3],
+    o4: Observable[B4], o5: Observable[B5])
+    (f: (A,B1,B2,B3,B4,B5) => R): Self[R] =
+    self.transform(source =>
+      source.withLatestFrom(Observable.combineLatest5(o1,o2,o3,o4,o5)) { (a, o) =>
+        f(a,o._1,o._2,o._3,o._4,o._5)
+      })
+
+  /** Combines the elements emitted by the source with the latest elements
+    * emitted by six observables.
+    *
+    * Similar with `combineLatest`, but only emits items when the single source
+    * emits an item (not when any of the Observables that are passed to the operator
+    * do, as combineLatest does).
+    *
+    * @param o1 is the first observable that gets paired with the source
+    * @param o2 is the second observable that gets paired with the source
+    * @param o3 is the third observable that gets paired with the source
+    * @param o4 is the fourth observable that gets paired with the source
+    * @param o5 is the fifth observable that gets paired with the source
+    * @param o6 is the sixth observable that gets paired with the source
+    * @param f is a mapping function over the generated pairs
+    */
+  def withLatestFrom6[B1,B2,B3,B4,B5,B6,R](
+    o1: Observable[B1], o2: Observable[B2], o3: Observable[B3],
+    o4: Observable[B4], o5: Observable[B5], o6: Observable[B6])
+    (f: (A,B1,B2,B3,B4,B5,B6) => R): Self[R] =
+    self.transform(source =>
+      source.withLatestFrom(Observable.combineLatest6(o1,o2,o3,o4,o5,o6)) { (a, o) =>
+        f(a,o._1,o._2,o._3,o._4,o._5,o._6)
+      })
+
   /** Creates a new observable from this observable and another given
     * observable by combining their items in pairs in a strict sequence.
     *
