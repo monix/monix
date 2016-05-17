@@ -78,6 +78,11 @@ API Documentation:
 - [1.2](https://monix.io/docs/1.2/api/)
 - [2.0-RC2](https://monix.io/docs/2.0-RC2/api/)
 
+Presentations:
+
+- [Monix Task: Lazy, Async &amp; Awesome](https://alexn.org/blog/2016/05/10/monix-task.html), flatMap(Oslo), 2016
+- [Akka &amp; Monix](https://alexn.org/blog/2016/05/15/monix-observable.html), Typelevel Summit, Oslo, 2016
+
 ## Maintainers
 
 The current maintainers (people who can help you) are:
