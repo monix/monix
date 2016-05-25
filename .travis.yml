@@ -20,7 +20,7 @@ script:
 before_install:
   - pip install --user codecov
 after_success:
-  - sbt coverageAggregate coverageReport && codecov
+  - project/upload-coverage.sh 2.11.8
     
 cache:
   directories:
