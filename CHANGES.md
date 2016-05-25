@@ -1,3 +1,13 @@
+## Version 2.0-RC3
+
+- [Issue #147](https://github.com/monixio/monix/issues/147) - Make `BehaviorSubject` and `ReplaySubject` 
+  remove subscribers that triggered `Stop` while connecting, thus freeing
+  the memory sooner, otherwise the GC cannot free the subscriber because
+  its reference is kept captive until the next `Subject.onNext`
+- Remove `tut` and `site` from `project/plugins`, as the documentation will
+  be handled in the [monix.io](https://github.com/monixio/monix.io) repository
+- Re-enable code coverage in Travis and fix the build to actually test Scala 2.10.6
+
 ## Version 2.0-RC2
 
 Minor release with a single bug fix:
