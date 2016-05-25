@@ -1,1 +1,0 @@
-scalacOptions := Seq("-feature", "-deprecation")

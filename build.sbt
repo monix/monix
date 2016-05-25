@@ -1,9 +1,7 @@
 import java.text.SimpleDateFormat
 import java.util.Date
 
-import com.typesafe.sbt.SbtSite.SiteKeys._
 import com.typesafe.sbt.pgp.PgpKeys
-import com.typesafe.sbt.site.PreprocessSupport._
 import sbtunidoc.Plugin.UnidocKeys._
 import sbtunidoc.Plugin.{ScalaUnidoc, unidocSettings => baseUnidocSettings}
 
@@ -203,31 +201,6 @@ lazy val unidocSettings = baseUnidocSettings ++ Seq(
     Opts.doc.version(s"${version.value}")
 )
 
-lazy val docsSettings =
-  unidocSettings ++
-    site.addMappingsToSiteDir(mappings in (ScalaUnidoc, packageDoc), "api") ++
-    site.addMappingsToSiteDir(tut, "_tut") ++
-    Seq(
-      (test in Test) <<= (test in Test).dependsOn(tut),
-      coverageExcludedFiles := ".*",      
-      siteMappings += file("CONTRIBUTING.md") -> "contributing.md",
-      includeFilter in makeSite :=
-        "*.html" | "*.css" | "*.scss" | "*.png" | "*.jpg" | "*.jpeg" |
-          "*.gif" | "*.svg" | "*.js" | "*.swf" | "*.yml" | "*.md" | "*.xml",
-
-      preprocessVars := {
-        val now = new Date()
-        val dayFormat = new SimpleDateFormat("yyyy-MM-dd")
-        val timeFormat = new SimpleDateFormat("HH:mm:ss")
-
-        Map(
-          "VERSION" -> version.value,
-          "DATE" -> dayFormat.format(now),
-          "TIME" -> timeFormat.format(now)
-        )
-      }
-    )
-
 lazy val testSettings = Seq(
   testFrameworks := Seq(new TestFramework("minitest.runner.Framework")),
   libraryDependencies += "io.monix" %%% "minitest-laws" % "0.22" % "test"
@@ -254,10 +227,11 @@ lazy val monix = project.in(file("."))
     evalJVM, evalJS,
     reactiveJVM, reactiveJS,
     monixJVM, monixJS,
-    docs, tckTests)
+    tckTests)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
   .settings(scalaStyleSettings)
+  .settings(unidocSettings)
 
 lazy val monixJVM = project.in(file("monix/jvm"))
   .dependsOn(executionJVM, evalJVM, reactiveJVM)
@@ -320,14 +294,6 @@ lazy val reactiveJS = project.in(file("monix-reactive/js"))
   .dependsOn(executionJS, evalJS)
   .settings(reactiveCommon)
   .settings(scalaJSSettings)
-
-lazy val docs = project.in(file("docs"))
-  .dependsOn(executionJVM, evalJVM, reactiveJVM)
-  .settings(sharedSettings)
-  .settings(doNotPublishArtifact)
-  .settings(site.settings)
-  .settings(tutSettings)
-  .settings(docsSettings)
 
 lazy val tckTests = project.in(file("tckTests"))
   .dependsOn(monixJVM)

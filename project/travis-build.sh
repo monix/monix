@@ -7,6 +7,6 @@ if [ "$TRAVIS_SCALA_VERSION" = "$MAIN_VERSION" ]; then
     echo "Testing with coverage for Scala $MAIN_VERSION"
     exec sbt clean coverage test
 else
-    echo "Testing without coverage for overriden Scala $MAIN_VERSION"
-    exec sbt clean test
+    echo "Testing without coverage for overriden Scala $TRAVIS_SCALA_VERSION"
+    exec sbt ++$TRAVIS_SCALA_VERSION clean test
 fi

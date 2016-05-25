@@ -1,1 +1,0 @@
-API documentation for the [[https://www.monix.io Monix]] library.
