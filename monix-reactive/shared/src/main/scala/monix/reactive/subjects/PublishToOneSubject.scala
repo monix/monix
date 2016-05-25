@@ -17,15 +17,14 @@
 
 package monix.reactive.subjects
 
-import monix.execution.Ack.{Stop, Continue}
+import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.BooleanCancelable
-import monix.execution.{Cancelable, Ack, Scheduler}
+import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.reactive.exceptions.MultipleSubscribersException
-import monix.reactive.observers.{SyncSubscriber, Subscriber}
-import monix.reactive.subjects.PublishToOneSubject.EmptySubscriber
+import monix.reactive.observers.{Subscriber, SyncSubscriber}
 import org.sincron.atomic.Atomic
 import scala.annotation.tailrec
-import scala.concurrent.{Promise, Future}
+import scala.concurrent.{Future, Promise}
 
 /** `PublishToOneSubject` is a [[monix.reactive.subjects.PublishSubject]]
   * that can be subscribed at most once.
@@ -39,8 +38,7 @@ import scala.concurrent.{Promise, Future}
   * one can also be notified when the subscription finally happens.
   */
 final class PublishToOneSubject[A] private () extends Subject[A,A] with BooleanCancelable {
-  private[this] val canceledState = new EmptySubscriber[A]
-  private[this] val pendingCompleteState = new EmptySubscriber[A]
+  import PublishToOneSubject.{canceledState, pendingCompleteState}
 
   private[this] val subscriptionP = Promise[Ack]()
   private[this] var errorThrown: Throwable = null
@@ -51,6 +49,12 @@ final class PublishToOneSubject[A] private () extends Subject[A,A] with BooleanC
     * happened but the subject was already completed.
     */
   val subscription = subscriptionP.future
+
+  def size: Int =
+    ref.get match {
+      case null | `pendingCompleteState` | `canceledState` => 0
+      case _ => 1
+    }
 
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable =
     ref.get match {
@@ -123,6 +127,9 @@ object PublishToOneSubject {
   /** Builder for a [[PublishToOneSubject]]. */
   def apply[A](): PublishToOneSubject[A] =
     new PublishToOneSubject[A]()
+
+  private final val canceledState = new EmptySubscriber[Any]
+  private final val pendingCompleteState = new EmptySubscriber[Any]
 
   /** Helper for managing state in the `PublishToOneSubject` */
   private final class EmptySubscriber[-A] extends SyncSubscriber[A] {

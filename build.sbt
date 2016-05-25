@@ -7,6 +7,10 @@ import com.typesafe.sbt.site.PreprocessSupport._
 import sbtunidoc.Plugin.UnidocKeys._
 import sbtunidoc.Plugin.{ScalaUnidoc, unidocSettings => baseUnidocSettings}
 
+// For getting Scoverage out of the generated POM
+import scala.xml.Elem
+import scala.xml.transform.{RewriteRule, RuleTransformer}
+
 lazy val doNotPublishArtifact = Seq(
   publishArtifact := false,
   publishArtifact in (Compile, packageDoc) := false,
@@ -118,6 +122,18 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
   publishArtifact in Test := false,
   pomIncludeRepository := { _ => false }, // removes optional dependencies
 
+  // For evicting Scoverage out of the generated POM
+  // See: https://github.com/scoverage/sbt-scoverage/issues/153
+  pomPostProcess := { (node: xml.Node) =>
+    new RuleTransformer(new RewriteRule {
+      override def transform(node: xml.Node): Seq[xml.Node] = node match {
+        case e: Elem
+            if e.label == "dependency" && e.child.exists(child => child.label == "groupId" && child.text == "org.scoverage") => Nil
+        case _ => Seq(node)
+      }
+    }).transform(node).head
+  },
+
   pomExtra :=
     <url>https://monix.io/</url>
       <licenses>
@@ -193,6 +209,7 @@ lazy val docsSettings =
     site.addMappingsToSiteDir(tut, "_tut") ++
     Seq(
       (test in Test) <<= (test in Test).dependsOn(tut),
+      coverageExcludedFiles := ".*",      
       siteMappings += file("CONTRIBUTING.md") -> "contributing.md",
       includeFilter in makeSite :=
         "*.html" | "*.css" | "*.scss" | "*.png" | "*.jpg" | "*.jpeg" |
@@ -213,11 +230,12 @@ lazy val docsSettings =
 
 lazy val testSettings = Seq(
   testFrameworks := Seq(new TestFramework("minitest.runner.Framework")),
-  libraryDependencies += "io.monix" %%% "minitest-laws" % "0.21" % "test"
+  libraryDependencies += "io.monix" %%% "minitest-laws" % "0.22" % "test"
 )
 
 lazy val scalaJSSettings = Seq(
-  scalaJSUseRhino in Global := false
+  scalaJSUseRhino in Global := false,
+  coverageExcludedFiles := ".*"
 )
 
 lazy val scalaStyleSettings = {
@@ -257,7 +275,7 @@ lazy val monixJS = project.in(file("monix/js"))
 
 lazy val executionCommon = Seq(
   name := "monix-execution",
-  libraryDependencies += "org.sincron" %%% "sincron" % "0.11"
+  libraryDependencies += "org.sincron" %%% "sincron" % "0.14"
 )
 
 lazy val executionJVM = project.in(file("monix-execution/jvm"))

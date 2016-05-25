@@ -17,8 +17,8 @@
 
 package monix.reactive.observers
 
-import monix.execution.Ack.{Stop, Continue}
-import monix.execution.{Ack, Cancelable}
+import monix.execution.Ack.{Continue, Stop}
+import monix.execution.{Ack, CancelableFuture}
 import monix.reactive.Observable
 import scala.collection.mutable
 import scala.concurrent.{Future, Promise}
@@ -42,7 +42,7 @@ final class CacheUntilConnectSubscriber[-T] private (downstream: Subscriber[T])
   // Promise guaranteed to be fulfilled once isConnected is
   // seen as true and used for back-pressure.
   // MUST BE synchronized by `self`, only available if isConnected == false
-  private[this] val connectedPromise = Promise[Ack]()
+  private[this] var connectedPromise = Promise[Ack]()
   private[this] var connectedFuture = connectedPromise.future
 
   // Volatile that is set to true once the buffer is drained.
@@ -52,20 +52,26 @@ final class CacheUntilConnectSubscriber[-T] private (downstream: Subscriber[T])
   @volatile private[this] var isConnected = false
 
   // Only accessible in `connect()`
-  private[this] var connectionRef: Cancelable = null
+  private[this] var connectionRef: CancelableFuture[Ack] = null
 
   /** Connects the underling observer to the upstream publisher.
     *
-    * This function should be idempotent. Calling it multiple times should have the same
-    * effect as calling it once.
+    * Until this call happens, the underlying observer will not receive
+    * any events. Instead all incoming events are cached. And after
+    * `connect` the cached events will be fed in the underlying
+    * subscriber and afterwards we connect the underlying subscriber
+    * directly to the upstream source.
+    *
+    * This function should be idempotent. Calling it multiple times
+    * should have the same effect as calling it once.
     */
-  def connect(): Cancelable = self.synchronized {
+  def connect(): CancelableFuture[Ack] = self.synchronized {
     if (!isConnected && !isConnectionStarted) {
       isConnectionStarted = true
+      val bufferWasDrained = Promise[Ack]()
 
-      connectionRef = Observable.fromIterable(queue).unsafeSubscribeFn(new Subscriber[T] {
+      val cancelable = Observable.fromIterable(queue).unsafeSubscribeFn(new Subscriber[T] {
         implicit val scheduler = downstream.scheduler
-        private[this] val bufferWasDrained = Promise[Ack]()
         private[this] var ack: Future[Ack] = Continue
 
         bufferWasDrained.future.onSuccess {
@@ -74,7 +80,10 @@ final class CacheUntilConnectSubscriber[-T] private (downstream: Subscriber[T])
             isConnected = true
             // GC relief
             queue = null
-            connectionRef = Cancelable.empty
+            connectedPromise = null
+            // This might be a race condition problem, but it only
+            // matters for GC relief purposes
+            connectionRef = CancelableFuture.successful(Continue)
 
           case Stop =>
             wasCanceled = true
@@ -82,7 +91,10 @@ final class CacheUntilConnectSubscriber[-T] private (downstream: Subscriber[T])
             isConnected = true
             // GC relief
             queue = null
-            connectionRef = Cancelable.empty
+            connectedPromise = null
+            // This might be a race condition problem, but it only
+            // matters for GC relief purposes
+            connectionRef = CancelableFuture.successful(Stop)
         }
 
         def onNext(elem: T): Future[Ack] = {
@@ -103,11 +115,20 @@ final class CacheUntilConnectSubscriber[-T] private (downstream: Subscriber[T])
             scheduler.reportFailure(ex)
         }
       })
+
+      connectionRef = CancelableFuture(bufferWasDrained.future, cancelable)
     }
 
     connectionRef
   }
 
+  /** The [[Subscriber.onNext]] method that pushes events to
+    * the underlying subscriber.
+    *
+    * It will back-pressure by means of its `Future[Ack]` result
+    * until [[connect]] happens and the underlying queue of
+    * cached events have been drained.
+    */
   def onNext(elem: T): Future[Ack] = {
     if (!isConnected) self.synchronized {
       // checking again because of multi-threading concerns
@@ -139,12 +160,24 @@ final class CacheUntilConnectSubscriber[-T] private (downstream: Subscriber[T])
     }
   }
 
+  /** The [[Subscriber.onComplete]] method that pushes the
+    * complete event to the underlying observer.
+    *
+    * It will wait for [[connect]] to happen and the queue of
+    * cached events to be drained.
+    */
   def onComplete(): Unit = {
     // we cannot take a fast path here
     connectedFuture.syncTryFlatten
       .syncOnContinue(downstream.onComplete())
   }
 
+  /** The [[Subscriber.onError]] method that pushes an
+    * error event to the underlying observer.
+    *
+    * It will wait for [[connect]] to happen and the queue of
+    * cached events to be drained.
+    */
   def onError(ex: Throwable): Unit = {
     // we cannot take a fast path here
     connectedFuture.syncTryFlatten

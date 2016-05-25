@@ -17,8 +17,7 @@
 
 package monix.reactive.subjects
 
-import monix.execution.Ack.{Stop, Continue}
-import monix.execution.cancelables.CompositeCancelable
+import monix.execution.Ack.{Continue, Stop}
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.internal.util.PromiseCounter
@@ -36,6 +35,9 @@ final class ReplaySubject[T] private (initialState: ReplaySubject.State[T])
   extends Subject[T,T] { self =>
 
   private[this] val stateRef = Atomic(initialState)
+
+  def size: Int =
+    stateRef.get.subscribers.size
 
   @tailrec
   def unsafeSubscribeFn(subscriber: Subscriber[T]): Cancelable = {
@@ -69,10 +71,16 @@ final class ReplaySubject[T] private (initialState: ReplaySubject.State[T])
       val c = ConnectableSubscriber(subscriber)
       val newState = state.addNewSubscriber(c)
       if (stateRef.compareAndSet(state, newState)) {
-        c.pushIterable(buffer)
+        c.pushFirstAll(buffer)
+
+        import subscriber.scheduler
         val connecting = c.connect()
-        val cancelable = Cancelable(() => removeSubscriber(c))
-        CompositeCancelable(connecting, cancelable)
+        connecting.syncOnStopOrFailure(removeSubscriber(c))
+
+        Cancelable { () =>
+          try removeSubscriber(c)
+          finally connecting.cancel()
+        }
       } else {
         // retry
         unsafeSubscribeFn(subscriber)

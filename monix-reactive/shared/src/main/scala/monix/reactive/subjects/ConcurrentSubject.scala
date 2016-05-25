@@ -185,6 +185,8 @@ object ConcurrentSubject {
     private[this] val in: SyncSubscriber[I] =
       BufferedSubscriber.synchronous(Subscriber(subject, scheduler), overflowStrategy)
 
+    def size: Int =
+      subject.size
     def unsafeSubscribeFn(subscriber: Subscriber[O]): Cancelable =
       subject.unsafeSubscribeFn(subscriber)
 

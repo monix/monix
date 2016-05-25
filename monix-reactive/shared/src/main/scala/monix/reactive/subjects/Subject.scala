@@ -34,6 +34,17 @@ import org.reactivestreams.{Processor => RProcessor, Subscriber => RSubscriber, 
   * Useful to build multicast Observables or reusable processing pipelines.
   */
 abstract class Subject[I, +O] extends Observable[O] with Observer[I] { self =>
+  /** Returns the number of connected subscribers.
+
+    * Note this might be an expensive operation.
+    *
+    * Should be used for debugging purposes or for collecting
+    * metrics, but don't overuse because the accessed state is
+    * a volatile read, and counting subscribers might have linear
+    * complexity, depending on the underlying data-structure.
+    */
+  def size: Int
+
   override def toReactivePublisher[U >: O](implicit s: Scheduler): RProcessor[I, U] =
     Subject.toReactiveProcessor(this, s.executionModel.recommendedBatchSize)
 

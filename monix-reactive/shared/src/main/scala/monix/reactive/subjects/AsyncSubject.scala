@@ -41,6 +41,9 @@ final class AsyncSubject[T] extends Subject[T,T] { self =>
   private[this] var onNextHappened = false
   private[this] var cachedElem: T = _
 
+  def size: Int =
+    stateRef.get.subscribers.size
+
   def onNext(elem: T): Ack = {
     if (stateRef.get.isDone) Stop else {
       if (!onNextHappened) onNextHappened = true

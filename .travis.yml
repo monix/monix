@@ -15,6 +15,13 @@ notifications:
     on_failure: always  # options: [always|never|change] default: always
     on_start: false     # default: false
 
+script:
+  - sbt ++$TRAVIS_SCALA_VERSION clean coverage test
+before_install:
+  - pip install --user codecov
+after_success:
+  - sbt coverageAggregate coverageReport && codecov
+    
 cache:
   directories:
   - $HOME/.sbt/0.13

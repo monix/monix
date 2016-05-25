@@ -73,11 +73,29 @@ object CancelableFuture {
   def failed[T](ex: Throwable): CancelableFuture[T] =
     new Now[T](Failure(ex))
 
+  /** An already completed [[CancelableFuture]]. */
+  final val unit: CancelableFuture[Unit] =
+    successful(())
+
   /** Promotes a strict `Try[T]` to a [[CancelableFuture]] that's already complete. */
   def fromTry[T](value: Try[T]): CancelableFuture[T] =
     value match {
       case Success(v) => successful(v)
       case Failure(ex) => failed(ex)
+    }
+
+  /** An empty [[CancelableFuture]] that never completes. */
+  val never: CancelableFuture[Nothing] =
+    new CancelableFuture[Nothing] {
+      def result(atMost: Duration)(implicit permit: CanAwait): Nothing =
+        throw new TimeoutException("CancelableFuture.never")
+      def ready(atMost: Duration)(implicit permit: CanAwait): this.type =
+        throw new TimeoutException("CancelableFuture.never")
+
+      def cancel(): Unit = ()
+      def isCompleted: Boolean = false
+      def onComplete[U](f: (Try[Nothing]) => U)(implicit executor: ExecutionContext): Unit = ()
+      def value: Option[Try[Nothing]] = None
     }
 
   /** Internal; wraps any cancelable future `ref` into an [[Implementation]] */

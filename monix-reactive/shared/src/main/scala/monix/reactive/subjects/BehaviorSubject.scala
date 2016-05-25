@@ -42,8 +42,12 @@ final class BehaviorSubject[T] private (initialValue: T)
   private[this] val stateRef =
     Atomic(BehaviorSubject.State[T](initialValue))
 
+  def size: Int =
+    stateRef.get.subscribers.size
+
   @tailrec
   def unsafeSubscribeFn(subscriber: Subscriber[T]): Cancelable = {
+    import subscriber.scheduler
     val state = stateRef.get
 
     if (state.errorThrown != null) {
@@ -57,10 +61,14 @@ final class BehaviorSubject[T] private (initialValue: T)
     else {
       val c = ConnectableSubscriber(subscriber)
       val newState = state.addNewSubscriber(c)
+
       if (stateRef.compareAndSet(state, newState)) {
         c.pushFirst(state.cached)
-        c.connect()
-        Cancelable(() => removeSubscriber(c))
+        val connecting = c.connect()
+
+        val cancelable = Cancelable { () => removeSubscriber(c) }
+        connecting.syncOnStopOrFailure(cancelable.cancel())
+        cancelable
       }
       else {
         // retry
@@ -130,6 +138,7 @@ final class BehaviorSubject[T] private (initialValue: T)
 
   override def onComplete(): Unit =
     onCompleteOrError(null)
+
   @tailrec
   private def onCompleteOrError(ex: Throwable): Unit = {
     val state = stateRef.get

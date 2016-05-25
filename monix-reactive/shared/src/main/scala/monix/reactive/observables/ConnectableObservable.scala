@@ -97,8 +97,11 @@ object ConnectableObservable {
       }
 
       private[this] lazy val connection = {
-        connectable.connect()
-        cancelRef
+        val connecting = connectable.connect()
+        Cancelable { () =>
+          try cancelRef.cancel()
+          finally connecting.cancel()
+        }
       }
 
       def connect(): Cancelable =

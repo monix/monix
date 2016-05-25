@@ -17,8 +17,8 @@
 
 package monix.reactive.observers
 
-import monix.execution.Ack.{Stop, Continue}
-import monix.execution.{Ack, Cancelable, Scheduler}
+import monix.execution.Ack.{Continue, Stop}
+import monix.execution.{Ack, CancelableFuture, Scheduler}
 import monix.reactive.Observable
 import scala.collection.mutable
 import scala.concurrent.{Future, Promise}
@@ -67,25 +67,24 @@ import scala.concurrent.{Future, Promise}
 final class ConnectableSubscriber[-T] private (underlying: Subscriber[T])
   extends Subscriber[T] { self =>
 
-  private[this] val lock = new AnyRef
   implicit val scheduler: Scheduler =
     underlying.scheduler
 
-  // MUST BE synchronized by `lock`, only available if isConnected == false
+  // MUST BE synchronized by `self`, only available if isConnected == false
   private[this] var queue = mutable.ArrayBuffer.empty[T]
-  // MUST BE synchronized by `lock`, only available if isConnected == false
+  // MUST BE synchronized by `self`, only available if isConnected == false
   private[this] var scheduledDone = false
-  // MUST BE synchronized by `lock`, only available if isConnected == false
+  // MUST BE synchronized by `self`, only available if isConnected == false
   private[this] var scheduledError = null : Throwable
-  // MUST BE synchronized by `lock`
+  // MUST BE synchronized by `self`
   private[this] var isConnectionStarted = false
-  // MUST BE synchronized by `lock`, as long as isConnected == false
+  // MUST BE synchronized by `self`, as long as isConnected == false
   private[this] var wasCanceled = false
 
   // Promise guaranteed to be fulfilled once isConnected is
   // seen as true and used for back-pressure.
-  // MUST BE synchronized by `lock`, only available if isConnected == false
-  private[this] val connectedPromise = Promise[Ack]()
+  // MUST BE synchronized by `self`, only available if isConnected == false
+  private[this] var connectedPromise = Promise[Ack]()
   private[this] var connectedFuture = connectedPromise.future
 
   // Volatile that is set to true once the buffer is drained.
@@ -95,22 +94,21 @@ final class ConnectableSubscriber[-T] private (underlying: Subscriber[T])
   @volatile private[this] var isConnected = false
 
   // Only accessible in `connect()`
-  private[this] var connectionRef: Cancelable = null
+  private[this] var connectionRef: CancelableFuture[Ack] = null
 
-  /**
-    * Connects the underling observer to the upstream publisher.
+  /** Connects the underling observer to the upstream publisher.
     *
-    * This function should be idempotent. Calling it multiple times should have the same
-    * effect as calling it once.
+    * This function should be idempotent. Calling it multiple times
+    * should have the same effect as calling it once.
     */
-  def connect(): Cancelable =
-    lock.synchronized {
+  def connect(): CancelableFuture[Ack] =
+    self.synchronized {
       if (!isConnected && !isConnectionStarted) {
         isConnectionStarted = true
+        val bufferWasDrained = Promise[Ack]()
 
-        connectionRef = Observable.fromIterable(queue).unsafeSubscribeFn(new Subscriber[T] {
+        val cancelable = Observable.fromIterable(queue).unsafeSubscribeFn(new Subscriber[T] {
           implicit val scheduler = underlying.scheduler
-          private[this] val bufferWasDrained = Promise[Ack]()
           private[this] var ack: Future[Ack] = Continue
 
           bufferWasDrained.future.onSuccess {
@@ -119,7 +117,10 @@ final class ConnectableSubscriber[-T] private (underlying: Subscriber[T])
               isConnected = true
               // GC relief
               queue = null
-              connectionRef = Cancelable.empty
+              connectedPromise = null
+              // This might be a race condition problem, but it only
+              // matters for GC relief purposes
+              connectionRef = CancelableFuture.successful(Continue)
 
             case Stop =>
               wasCanceled = true
@@ -127,7 +128,10 @@ final class ConnectableSubscriber[-T] private (underlying: Subscriber[T])
               isConnected = true
               // GC relief
               queue = null
-              connectionRef = Cancelable.empty
+              connectedPromise = null
+              // This might be a race condition problem, but it only
+              // matters for GC relief purposes
+              connectionRef = CancelableFuture.successful(Stop)
           }
 
           def onNext(elem: T): Future[Ack] = {
@@ -161,40 +165,60 @@ final class ConnectableSubscriber[-T] private (underlying: Subscriber[T])
             }
           }
         })
+
+        connectionRef = CancelableFuture(bufferWasDrained.future, cancelable)
       }
 
       connectionRef
     }
 
-  /** Emit an item immediately to the underlying observer,
-    * after previous `pushFirst()` events, but before any events emitted through
-    * `onNext`.
+  /** Schedule one element to be pushed to the underlying subscriber
+    * when [[connect]] happens.
+    *
+    * The given elements are appended to a queue that will be
+    * drained on [[connect]]. Afterwards no more elements are
+    * allowed to be pushed in the queue.
+    *
+    * These elements are streamed before any elements that will
+    * eventually get streamed with [[onNext]], because of
+    * the applied back-pressure from `onNext`.
     */
-  def pushFirst(elems: T*) =
-    lock.synchronized {
+  def pushFirst(elem: T): Unit =
+    self.synchronized {
       if (isConnected || isConnectionStarted)
         throw new IllegalStateException("Observer was already connected, so cannot pushFirst")
       else if (!scheduledDone)
-        queue.append(elems : _*)
+        queue += elem
     }
 
-  /* Internal method for pushing a whole [[Buffer]] */
-  private[monix] def pushIterable[U <: T](iterable: Iterable[U]) =
-    lock.synchronized {
+  /** Schedule elements to be pushed to the underlying subscriber
+    * when [[connect]] happens.
+    *
+    * The given elements are appended to a queue that will be
+    * drained on [[connect]]. Afterwards no more elements are
+    * allowed to be pushed in the queue.
+    *
+    * These elements are streamed before any elements that will
+    * eventually get streamed with [[onNext]], because of
+    * the applied back-pressure from `onNext`.
+    */
+  def pushFirstAll[U <: T](xs: TraversableOnce[U]): Unit =
+    self.synchronized {
       if (isConnected || isConnectionStarted)
         throw new IllegalStateException("Observer was already connected, so cannot pushFirst")
-      else if (!scheduledDone) {
-        val cursor = iterable.iterator
-        while (cursor.hasNext)
-          queue.append(cursor.next())
-      }
+      else if (!scheduledDone)
+        queue.appendAll(xs)
     }
 
-  /**
-    * Emit an item
+  /** Schedule a complete event when [[connect]] happens,
+    * but before any elements scheduled with [[pushFirst]]
+    * or [[pushFirstAll]].
+    *
+    * After `pushComplete` no more [[pushFirst]] or [[onNext]]
+    * events are accepted.
     */
-  def pushComplete() =
-    lock.synchronized {
+  def pushComplete(): Unit =
+    self.synchronized {
       if (isConnected || isConnectionStarted)
         throw new IllegalStateException("Observer was already connected, so cannot pushFirst")
       else if (!scheduledDone) {
@@ -202,8 +226,15 @@ final class ConnectableSubscriber[-T] private (underlying: Subscriber[T])
       }
     }
 
-  def pushError(ex: Throwable) =
-    lock.synchronized {
+  /** Schedule an error event when [[connect]] happens,
+    * but before any elements scheduled with [[pushFirst]]
+    * or [[pushFirstAll]].
+    *
+    * After `pushError` no more [[pushFirst]] or [[onNext]]
+    * events are accepted.
+    */
+  def pushError(ex: Throwable): Unit =
+    self.synchronized {
       if (isConnected || isConnectionStarted)
         throw new IllegalStateException("Observer was already connected, so cannot pushFirst")
       else if (!scheduledDone) {
@@ -212,7 +243,14 @@ final class ConnectableSubscriber[-T] private (underlying: Subscriber[T])
       }
     }
 
-  def onNext(elem: T) = {
+  /** The [[Subscriber.onNext]] method that pushes events to
+    * the underlying subscriber.
+    *
+    * It will back-pressure by means of its `Future[Ack]` result
+    * until [[connect]] happens and the underlying queue of
+    * scheduled events have been drained.
+    */
+  def onNext(elem: T): Future[Ack] = {
     if (!isConnected) {
       // no need for synchronization here, since this reference is initialized
       // before the subscription happens and because it gets written only in
@@ -234,13 +272,25 @@ final class ConnectableSubscriber[-T] private (underlying: Subscriber[T])
     }
   }
 
-  def onComplete() = {
+  /** The [[Subscriber.onComplete]] method that pushes the
+    * complete event to the underlying observer.
+    *
+    * It will wait for [[connect]] to happen and the queue of
+    * scheduled events to be drained.
+    */
+  def onComplete(): Unit = {
     // we cannot take a fast path here
     connectedFuture.syncTryFlatten
       .syncOnContinue(underlying.onComplete())
   }
 
-  def onError(ex: Throwable) = {
+  /** The [[Subscriber.onError]] method that pushes an
+    * error event to the underlying observer.
+    *
+    * It will wait for [[connect]] to happen and the queue of
+    * scheduled events to be drained.
+    */
+  def onError(ex: Throwable): Unit = {
     // we cannot take a fast path here
     connectedFuture.syncTryFlatten
       .syncOnContinue(underlying.onError(ex))

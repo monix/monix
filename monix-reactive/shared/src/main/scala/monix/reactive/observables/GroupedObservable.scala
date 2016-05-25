@@ -95,8 +95,11 @@ object GroupedObservable {
           Cancelable.empty
         } else {
           ref = subscriber
-          underlying.connect()
-          onCancel
+          val connecting = underlying.connect()
+          Cancelable { () =>
+            try onCancel.cancel()
+            finally connecting.cancel()
+          }
         }
       }
   }

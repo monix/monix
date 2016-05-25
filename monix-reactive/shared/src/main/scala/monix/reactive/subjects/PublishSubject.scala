@@ -50,13 +50,16 @@ final class PublishSubject[T] private () extends Subject[T,T] { self =>
     Cancelable.empty
   }
 
+  def size: Int =
+    stateRef.get.subscribers.size
+
   /*
-   * NOTE: onSubscribe is in contention with onNext, onComplete and onError,
-   * thus access to the subscribers/isDone state is done through CAS on an
-   * Atomic and if the new subscriber must be fed an initial set of events,
-   * then we enforce a happens-before relationship by means of the
-   * FreezeOnFirstOnNextSubscriber (the purpose of calling onSubscribeContinue)
-   */
+     * NOTE: onSubscribe is in contention with onNext, onComplete and onError,
+     * thus access to the subscribers/isDone state is done through CAS on an
+     * Atomic and if the new subscriber must be fed an initial set of events,
+     * then we enforce a happens-before relationship by means of the
+     * FreezeOnFirstOnNextSubscriber (the purpose of calling onSubscribeContinue)
+     */
   @tailrec
   def unsafeSubscribeFn(subscriber: Subscriber[T]): Cancelable = {
     val state = stateRef.get

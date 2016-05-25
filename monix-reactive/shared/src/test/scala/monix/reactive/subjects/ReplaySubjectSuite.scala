@@ -24,6 +24,7 @@ import monix.reactive.exceptions.DummyException
 import monix.reactive.observers.SyncObserver
 
 import scala.concurrent.Future
+import scala.util.Success
 
 object ReplaySubjectSuite extends BaseSubjectSuite {
   def alreadyTerminatedTest(expectedElems: Seq[Long]) = {
@@ -175,5 +176,20 @@ object ReplaySubjectSuite extends BaseSubjectSuite {
     s.tick()
     assertEquals(elemsReceived, 11)
     assertEquals(errorsReceived, 11)
+  }
+
+  test("can stop streaming while connecting") { implicit s =>
+    val subject = ReplaySubject[Int](10, 20, 30)
+
+    val future1 = subject.take(3).sumF.runAsyncGetFirst
+    val future2 = subject.drop(1).take(3).sumF.runAsyncGetFirst
+
+    s.tick()
+    assertEquals(future1.value, Some(Success(Some(10 + 20 + 30))))
+    assertEquals(subject.size, 1)
+
+    assertEquals(subject.onNext(40), Continue)
+    assertEquals(future2.value, Some(Success(Some(20 + 30 + 40))))
+    assertEquals(subject.size, 0)
   }
 }
