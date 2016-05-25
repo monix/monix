@@ -16,11 +16,11 @@ notifications:
     on_start: false     # default: false
 
 script:
-  - sbt ++$TRAVIS_SCALA_VERSION clean coverage test
+  - project/travis-build.sh
 before_install:
   - pip install --user codecov
 after_success:
-  - project/upload-coverage.sh 2.11.8
+  - project/travis-post-build.sh
     
 cache:
   directories:
