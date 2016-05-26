@@ -19,7 +19,9 @@ package monix.execution
 
 import org.sincron.atomic.Atomic
 
-/** Represents an asynchronous computation whose execution can be canceled.
+/** Represents a one-time idempotent action that can be used
+  * to cancel async computations, or to release resources that
+  * active data sources are holding.
   *
   * It is equivalent to `java.io.Closeable`, but without the I/O focus, or
   * to `IDisposable` in Microsoft .NET, or to `akka.actor.Cancellable`.

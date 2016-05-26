@@ -19,9 +19,17 @@ package monix.execution.cancelables
 
 import monix.execution.Cancelable
 import org.sincron.atomic.{Atomic, PaddingStrategy}
-
 import scala.annotation.tailrec
 
+/** Represents a composite of cancelables that are stacked,
+  * so you can push a new reference, or pop an existing one and
+  * when it gets canceled, then the whole stack gets canceled.
+  *
+  * Similar in spirit with [[CompositeCancelable]], except that
+  * you can only pull out references in a FIFO fashion.
+  *
+  * Used in the implementation of `monix.eval.Task`.
+  */
 final class StackedCancelable private (initial: Cancelable)
   extends BooleanCancelable {
 
