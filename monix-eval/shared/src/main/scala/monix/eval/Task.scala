@@ -63,7 +63,7 @@ sealed abstract class Task[+A] extends Serializable with Product { self =>
     */
   def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable = {
     val conn = StackedCancelable()
-    Task.unsafeStartNow[A](s, conn, this, Callback.safe(cb))
+    Task.unsafeStartNow[A](this, s, conn, Callback.safe(cb))
     conn
   }
 
@@ -166,7 +166,7 @@ sealed abstract class Task[+A] extends Serializable with Product { self =>
   def delayExecutionWith(trigger: Task[Any]): Task[A] =
     Async { (scheduler, conn, cb) =>
       implicit val s = scheduler
-      Task.unsafeStartNow(scheduler, conn, trigger, new Callback[Any] {
+      Task.unsafeStartNow(trigger, scheduler, conn, new Callback[Any] {
         def onSuccess(value: Any): Unit =
           // Async boundary forced, prevents stack-overflows
           Task.unsafeStartAsync(self, scheduler, conn, cb)
@@ -186,7 +186,7 @@ sealed abstract class Task[+A] extends Serializable with Product { self =>
     Async { (scheduler, conn, cb) =>
       implicit val s = scheduler
       // Executing source
-      Task.unsafeStartNow(scheduler, conn, self, new Callback[A] {
+      Task.unsafeStartNow(self, scheduler, conn, new Callback[A] {
         def onSuccess(value: A): Unit = {
           val task = SingleAssignmentCancelable()
           conn push task
@@ -217,7 +217,7 @@ sealed abstract class Task[+A] extends Serializable with Product { self =>
     Async { (scheduler, conn, cb) =>
       implicit val s = scheduler
       // Executing source
-      Task.unsafeStartNow(scheduler, conn, self, new Callback[A] {
+      Task.unsafeStartNow(self, scheduler, conn, new Callback[A] {
         def onSuccess(value: A): Unit = {
           var streamErrors = true
           try {
@@ -281,7 +281,7 @@ sealed abstract class Task[+A] extends Serializable with Product { self =>
         Suspend(() => try thunk().materializeAttempt catch { case NonFatal(ex) => Now(Error(ex)) })
       case task @ MemoizeSuspend(_) =>
         Async[Attempt[A]] { (s, conn, cb) =>
-          Task.unsafeStartNow[A](s, conn, task, new Callback[A] {
+          Task.unsafeStartNow[A](task, s, conn, new Callback[A] {
             def onSuccess(value: A): Unit = cb.onSuccess(Now(value))
             def onError(ex: Throwable): Unit = cb.onSuccess(Error(ex))
           })
@@ -425,7 +425,7 @@ sealed abstract class Task[+A] extends Serializable with Product { self =>
             require(n > 0, "n must be strictly positive, according to " +
               "the Reactive Streams contract, rule 3.9")
 
-            if (isActive) Task.unsafeStartNow[A](s, conn, self, Callback.safe(
+            if (isActive) Task.unsafeStartNow[A](self, s, conn, Callback.safe(
               new Callback[A] {
                 def onError(ex: Throwable): Unit =
                   out.onError(ex)
@@ -547,12 +547,12 @@ object Task {
 
       case memoize: MemoizeSuspend[_] =>
         if (memoize.isStarted)
-          Async { (s, conn, cb) => Task.unsafeStartNow(s, conn, memoize, cb) }
+          Async { (s, conn, cb) => Task.unsafeStartNow(memoize, s, conn, cb) }
         else
           memoize
 
       case other =>
-        Async { (s, conn, cb) => Task.unsafeStartNow(s, conn, other, cb) }
+        Async { (s, conn, cb) => Task.unsafeStartNow(other, s, conn, cb) }
     }
 
   /** Create a `Task` from an asynchronous computation, which takes the
@@ -660,7 +660,7 @@ object Task {
       conn push CompositeCancelable(connA, connB)
 
       // First task: A
-      Task.unsafeStartNow(scheduler, connA, fa, new Callback[A] {
+      Task.unsafeStartNow(fa, scheduler, connA, new Callback[A] {
         def onSuccess(valueA: A): Unit =
           if (isActive.getAndSet(false)) {
             val futureB = CancelableFuture(pb.future, connB)
@@ -681,7 +681,7 @@ object Task {
       })
 
       // Second task: B
-      Task.unsafeStartNow(scheduler, connB, fb, new Callback[B] {
+      Task.unsafeStartNow(fb, scheduler, connB, new Callback[B] {
         def onSuccess(valueB: B): Unit =
           if (isActive.getAndSet(false)) {
             val futureA = CancelableFuture(pa.future, connA)
@@ -716,7 +716,7 @@ object Task {
         val taskCancelable = StackedCancelable()
         composite += taskCancelable
 
-        Task.unsafeStartNow(scheduler, taskCancelable, task, new Callback[A] {
+        Task.unsafeStartNow(task, scheduler, taskCancelable, new Callback[A] {
           def onSuccess(value: A): Unit =
             if (isActive.getAndSet(false)) {
               composite -= taskCancelable
@@ -802,7 +802,7 @@ object Task {
       val task2 = StackedCancelable()
       conn push CompositeCancelable(task1, task2)
 
-      Task.unsafeStartNow(scheduler, task1, fa1, new Callback[A1] {
+      Task.unsafeStartNow(fa1, scheduler, task1, new Callback[A1] {
         @tailrec def onSuccess(a1: A1): Unit =
           state.get match {
             case null => // null means this is the first task to complete
@@ -821,7 +821,7 @@ object Task {
           sendError(conn, state, scheduler, cb, ex)
       })
 
-      Task.unsafeStartNow(scheduler, task2, fa2, new Callback[A2] {
+      Task.unsafeStartNow(fa2, scheduler, task2, new Callback[A2] {
         @tailrec def onSuccess(a2: A2): Unit =
           state.get match {
             case null => // null means this is the first task to complete
@@ -1206,7 +1206,7 @@ object Task {
     * DO NOT use directly, as it is UNSAFE to use, unless you know
     * what you're doing. Prefer [[Task.runAsync(cb* Task.runAsync]].
     */
-  def unsafeStartNow[A](scheduler: Scheduler, conn: StackedCancelable, source: Task[A], cb: Callback[A]): Unit =
+  def unsafeStartNow[A](source: Task[A], scheduler: Scheduler, conn: StackedCancelable, cb: Callback[A]): Unit =
     resume(scheduler, conn, source, cb, Nil)
 
   /** Internal utility, returns true if the current state
