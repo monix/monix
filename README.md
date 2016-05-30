@@ -19,7 +19,7 @@ Monix is a high-performance Scala / Scala.js library for
 composing asynchronous and event-based programs using observable sequences
 that are exposed as asynchronous streams, expanding on the
 [observer pattern](https://en.wikipedia.org/wiki/Observer_pattern),
-strongly inspired by [Reactive Extensions (Rx)](http://reactivex.io/),
+strongly inspired by [ReactiveX](http://reactivex.io/),
 but designed from the ground up  for back-pressure and made to cleanly interact
 with Scala's standard library and compatible out-of-the-box with the
 [Reactive Streams](http://www.reactive-streams.org/) protocol.
@@ -73,11 +73,16 @@ Monix 2.0 is modular by design, so you can pick and choose:
 
 ## Documentation
 
-NOTE: The documentation is a work in progress.
+NOTE: The documentation is a work in progress.  All documentation is
+hosted at,
+[contributions are welcome](https://github.com/monixio/monix.io):
+
+- [Monix.io](https://monix.io/)
+
 API Documentation:
 
-- [1.2](https://monix.io/docs/1.2/api/)
-- [2.0-RC3](https://monix.io/docs/2.0-RC3/api/)
+- [1.2](https://monix.io/api/1.2/)
+- [2.0-RC3](https://monix.io/api/2.0-RC3/)
 
 Presentations:
 

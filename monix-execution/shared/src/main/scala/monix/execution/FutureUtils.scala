@@ -144,7 +144,7 @@ object FutureUtils {
         FutureUtils.materialize(source)
 
       /** [[FutureUtils.dematerialize]] exposed as an extension method. */
-      def materialize[U](implicit ev: T <:< Try[U], ec: ExecutionContext): Future[U] =
+      def dematerialize[U](implicit ev: T <:< Try[U], ec: ExecutionContext): Future[U] =
         FutureUtils.dematerialize(source.asInstanceOf[Future[Try[U]]])
     }
 
