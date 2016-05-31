@@ -22,7 +22,6 @@ import minitest.SimpleTestSuite
 import monix.cats.implicits._
 import monix.eval.Task
 import monix.execution.schedulers.TestScheduler
-import scala.util.Success
 
 object TaskCatsSanitySuite extends SimpleTestSuite {
   test("Task is Monad") {
