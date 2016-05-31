@@ -1267,8 +1267,10 @@ object Task {
   private type Bind = Any => Task[Any]
 
   /** Unsafe utility - starts the execution of a Task with a guaranteed
-    * asynchronous boundary, by providing the needed [[Scheduler]],
-    * [[StackedCancelable]] and [[Callback]].
+    * asynchronous boundary, by providing
+    * the needed [[monix.execution.Scheduler Scheduler]],
+    * [[monix.execution.cancelables.StackedCancelable StackedCancelable]]
+    * and [[Callback]].
     *
     * DO NOT use directly, as it is UNSAFE to use, unless you know
     * what you're doing. Prefer [[Task.runAsync(cb* Task.runAsync]]
@@ -1283,7 +1285,9 @@ object Task {
   }
 
   /** Unsafe utility - starts the execution of a Task, by providing
-    * the needed [[Scheduler]], [[StackedCancelable]] and [[Callback]].
+    * the needed [[monix.execution.Scheduler Scheduler]],
+    * [[monix.execution.cancelables.StackedCancelable StackedCancelable]]
+    * and [[Callback]].
     *
     * DO NOT use directly, as it is UNSAFE to use, unless you know
     * what you're doing. Prefer [[Task.runAsync(cb* Task.runAsync]].

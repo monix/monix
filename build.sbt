@@ -184,7 +184,7 @@ lazy val requiredMacroCompatDeps = Seq(
 lazy val unidocSettings = baseUnidocSettings ++ Seq(
   autoAPIMappings := true,
   unidocProjectFilter in (ScalaUnidoc, unidoc) :=
-    inProjects(executionJVM, evalJVM, reactiveJVM),
+    inProjects(typesJVM, executionJVM, evalJVM, reactiveJVM, catsJVM),
 
   scalacOptions in (ScalaUnidoc, unidoc) +=
     "-Xfatal-warnings",
