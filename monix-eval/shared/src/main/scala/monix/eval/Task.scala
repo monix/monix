@@ -54,7 +54,7 @@ import scala.util.{Failure, Success, Try}
   * you are guaranteed is asynchronous execution after executing
   * `runAsync`.
   */
-sealed abstract class Task[+A] extends Serializable with Product { self =>
+sealed abstract class Task[+A] extends Serializable { self =>
   /** Triggers the asynchronous execution.
     *
     * @param cb is a callback that will be invoked upon completion.
