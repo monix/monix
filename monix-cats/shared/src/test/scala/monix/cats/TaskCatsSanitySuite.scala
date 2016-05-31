@@ -47,14 +47,6 @@ object TaskCatsSanitySuite extends SimpleTestSuite {
     assert(ref != null)
   }
 
-  test("Task has ApplicativeError syntax") {
-    implicit val s = TestScheduler()
-    val task = Task(1)
-    val result = task.handleError(_ => 2)
-    val f = result.runAsync; s.tick()
-    assertEquals(f.value, Some(Success(1)))
-  }
-
   test("Task is Semigroup") {
     val ref = implicitly[Semigroup[Task[Int]]]
     assert(ref != null)

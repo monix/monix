@@ -44,12 +44,6 @@ object CoevalCatsSanitySuite extends SimpleTestSuite {
     assert(ref != null)
   }
 
-  test("Coeval has ApplicativeError syntax") {
-    val coeval = Coeval(1)
-    val result = coeval.handleError(_ => 2)
-    assertEquals(result.value, 1)
-  }
-
   test("Coeval is Semigroup") {
     val ref = implicitly[Semigroup[Coeval[Int]]]
     assert(ref != null)

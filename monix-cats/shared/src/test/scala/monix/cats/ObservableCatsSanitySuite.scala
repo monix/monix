@@ -47,12 +47,4 @@ object ObservableCatsSanitySuite extends SimpleTestSuite {
     val ref = implicitly[CoflatMap[Observable]]
     assert(ref != null)
   }
-
-  test("Observable has ApplicativeError syntax") {
-    implicit val s = TestScheduler()
-    val observable = Observable.now(1)
-    val result = observable.handleError(_ => 2)
-    val f = result.runAsyncGetFirst; s.tick()
-    assertEquals(f.value, Some(Success(Some(1))))
-  }
 }

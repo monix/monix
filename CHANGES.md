@@ -1,3 +1,27 @@
+## Version 2.0-RC4
+
+- [Issue #89](https://github.com/monixio/monix/issues/149) - reintroducing a minimal 
+  Cats integration, along with tests based on `cats-laws`. We are splitting `monix.type` 
+  into its own sub-project and `monix-cats` depends on it. This ensures that the pick what
+  you use approach also works with `monix-cats`, as people wanting just `Task` should not
+  get `Observable`, yet `Observable` needs integration as well.
+- [Issue #149](https://github.com/monixio/monix/issues/149) - documentation related fixes
+  - Improved the description of `Task`
+  - `Task.unit` is now a final val
+  - `Task.never` now shares the reference instead of building a new instance every time
+  - Exposing `Task.unsafeStartNow` and `Task.unsafeStartAsync`, as otherwise `Task.unsafeCreate` 
+    is useless. So we should expose all of them, or none at all.
+  - `FutureUtils.Extensions.dematerialize` was named "materialize" (WTF!) and is renamed
+  - Task should inherit just from `Serializable` and not from `Product`
+- [Issue #150](https://github.com/monixio/monix/issues/150) - add a new `Task.doOnFinish` 
+  operator that executes once a task is finished.
+- [Issue #151](https://github.com/monixio/monix/issues/151) - changing `Future.sequence` to be 
+  ordered in both execution and effects
+- [Issue #152](https://github.com/monixio/monix/issues/152) - introduce `Task.gather` which 
+  behaves like the previous `sequence` and `Task.gatherUnordered` which doesn't do ordering
+  for results either.  
+
+
 ## Version 2.0-RC3
 
 - [Issue #147](https://github.com/monixio/monix/issues/147) - Make `BehaviorSubject` and `ReplaySubject` 
