@@ -21,7 +21,7 @@ package monix.cats
   * syntax and standard instances.
   *
   * {{{
-  *   import monix.cats.instances._
+  *   import monix.cats.implicits._
   * }}}
   */
 object implicits extends monix.cats.AllInstances

@@ -18,14 +18,16 @@
 package monix.cats
 
 import _root_.cats.{CoflatMap, Eval, Later, MonadError, Now}
-import monix.types.Deferrable
+import monix.types.{Deferrable, Recoverable}
 
-/** Converts Monix's Monad into the Cats monad. */
-trait DeferrableInstances extends RecoverableInstances {
+/** Converts Monix's [[monix.types.Deferrable Deferrable]]
+  * instances into Cats type-classes.
+  */
+trait DeferrableInstances extends ShimsInstances {
   implicit def monixDeferrableToCats[F[_] : Deferrable]: MonadError[F,Throwable] with CoflatMap[F] =
     new ConvertMonixDeferrableToCats[F]()
 
-  class ConvertMonixDeferrableToCats[F[_]](implicit F: Deferrable[F])
+  private[cats] class ConvertMonixDeferrableToCats[F[_]](implicit F: Deferrable[F])
     extends ConvertMonixRecoverableToCats[F,Throwable]
       with MonadError[F,Throwable] with CoflatMap[F] {
 
@@ -38,5 +40,19 @@ trait DeferrableInstances extends RecoverableInstances {
         case later: Later[_] => F.evalOnce(later.asInstanceOf[Eval[A]].value)
         case other => F.evalAlways(other.value)
       }
+  }
+
+  private[cats] class ConvertMonixRecoverableToCats[F[_],E](implicit F: Recoverable[F,E])
+    extends ConvertMonixMonadToCats[F] with _root_.cats.MonadError[F,E] {
+
+    def raiseError[A](e: E): F[A] = F.raiseError(e)
+    def handleErrorWith[A](fa: F[A])(f: (E) => F[A]): F[A] =
+      F.onErrorHandleWith(fa)(f)
+    override def handleError[A](fa: F[A])(f: (E) => A): F[A] =
+      F.onErrorHandle(fa)(f)
+    override def recover[A](fa: F[A])(pf: PartialFunction[E, A]): F[A] =
+      F.onErrorRecover(fa)(pf)
+    override def recoverWith[A](fa: F[A])(pf: PartialFunction[E, F[A]]): F[A] =
+      F.onErrorRecoverWith(fa)(pf)
   }
 }

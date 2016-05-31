@@ -20,17 +20,19 @@ package monix.cats
 import cats.{CoflatMap, Group, MonadError, Monoid, Semigroup}
 import monix.types.Evaluable
 
-/** Converts Monix's [[Evaluable]] into Cats equivalents. */
+/** Converts Monix's [[monix.types.Evaluable Evaluable]]
+  * instances into Cats type-classes.
+  */
 trait EvaluableInstances extends EvaluableInstances2 {
   implicit def monixEvaluableToCats[F[_] : Evaluable]: MonadError[F,Throwable] with CoflatMap[F] =
     new ConvertMonixEvaluableToCats[F]()
 
-  class ConvertMonixEvaluableToCats[F[_]](implicit F: Evaluable[F])
+  private[cats] class ConvertMonixEvaluableToCats[F[_]](implicit F: Evaluable[F])
     extends ConvertMonixDeferrableToCats[F]
 }
 
 private[cats] trait EvaluableInstances2 extends EvaluableInstances1 {
-  implicit def evaluableGroup[F[_], A](implicit F: Evaluable[F], A: Group[A]): Group[F[A]] =
+  implicit def monixEvaluableGroup[F[_], A](implicit F: Evaluable[F], A: Group[A]): Group[F[A]] =
     new Group[F[A]] {
       def empty: F[A] = F.now(A.empty)
       def combine(x: F[A], y: F[A]): F[A] =
@@ -41,7 +43,7 @@ private[cats] trait EvaluableInstances2 extends EvaluableInstances1 {
 }
 
 private[cats] trait EvaluableInstances1 extends EvaluableInstances0 {
-  implicit def evaluableMonoid[F[_], A](implicit F: Evaluable[F], A: Monoid[A]): Monoid[F[A]] =
+  implicit def monixEvaluableMonoid[F[_], A](implicit F: Evaluable[F], A: Monoid[A]): Monoid[F[A]] =
     new Monoid[F[A]] {
       def empty: F[A] = F.now(A.empty)
       def combine(x: F[A], y: F[A]): F[A] =
@@ -50,7 +52,7 @@ private[cats] trait EvaluableInstances1 extends EvaluableInstances0 {
 }
 
 private[cats] trait EvaluableInstances0 extends DeferrableInstances {
-  implicit def evaluableSemigroup[F[_], A](implicit F: Evaluable[F], A: Semigroup[A]): Semigroup[F[A]] =
+  implicit def monixEvaluableSemigroup[F[_], A](implicit F: Evaluable[F], A: Semigroup[A]): Semigroup[F[A]] =
     new Semigroup[F[A]] {
       def combine(x: F[A], y: F[A]): F[A] =
         F.zipWith2(x,y)(A.combine)

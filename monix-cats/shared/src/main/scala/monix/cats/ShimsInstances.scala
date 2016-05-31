@@ -22,12 +22,14 @@ import monix.types.shims._
 /** Groups all shim instances together. */
 trait ShimsInstances extends BimonadInstances
 
-/** Converts Monix's [[Bimonad]] into the Cats Bimonad. */
+/** Converts Monix's [[monix.types.shims.Bimonad Bimonad]]
+  * instances into the Cats `Bimonad`.
+  */
 trait BimonadInstances extends MonadInstances with ComonadInstances {
   implicit def monixBimonadInstancesToCats[F[_] : Bimonad]: _root_.cats.Bimonad[F] =
     new ConvertMonixBimonadToCats[F]()
 
-  class ConvertMonixBimonadToCats[F[_]](implicit F: Bimonad[F])
+  private[cats] class ConvertMonixBimonadToCats[F[_]](implicit F: Bimonad[F])
     extends ConvertMonixMonadToCats[F] with _root_.cats.Bimonad[F] {
 
     override def extract[A](x: F[A]): A = F.extract(x)
@@ -36,24 +38,28 @@ trait BimonadInstances extends MonadInstances with ComonadInstances {
   }
 }
 
-/** Converts Monix's [[Comonad]] into the Cats Comonad. */
+/** Converts Monix's [[monix.types.shims.Comonad Comonad]]
+  * instances into the Cats `Comonad`.
+  */
 trait ComonadInstances extends CoflatMapInstances {
   implicit def monixComonadInstancesToCats[F[_] : Comonad]: _root_.cats.Comonad[F] =
     new ConvertMonixComonadToCats[F]()
 
-  class ConvertMonixComonadToCats[F[_]](implicit F: Comonad[F])
+  private[cats] class ConvertMonixComonadToCats[F[_]](implicit F: Comonad[F])
     extends ConvertMonixCoflatMapToCats[F] with _root_.cats.Comonad[F] {
 
     override def extract[A](x: F[A]): A = F.extract(x)
   }
 }
 
-/** Converts Monix's [[CoflatMap]] into the Cats CoflatMap. */
+/** Converts Monix's [[monix.types.shims.CoflatMap CoflatMap]]
+  * instances into the Cats `CoflatMap`.
+  */
 trait CoflatMapInstances extends FunctorInstances {
   implicit def monixCoflatMapInstancesToCats[F[_] : CoflatMap]: _root_.cats.CoflatMap[F] =
     new ConvertMonixCoflatMapToCats[F]()
 
-  class ConvertMonixCoflatMapToCats[F[_]](implicit F: CoflatMap[F])
+  private[cats] class ConvertMonixCoflatMapToCats[F[_]](implicit F: CoflatMap[F])
     extends ConvertMonixFunctorToCats[F] with _root_.cats.CoflatMap[F] {
 
     override def coflatMap[A, B](fa: F[A])(f: (F[A]) => B): F[B] = F.coflatMap(fa)(f)
@@ -61,12 +67,14 @@ trait CoflatMapInstances extends FunctorInstances {
   }
 }
 
-/** Converts Monix's Monad into the Cats monad. */
+/** Converts Monix's [[monix.types.shims.Monad Monad]]
+  * instances into the Cats `Monad`.
+  */
 trait MonadInstances extends ApplicativeInstances {
   implicit def monixMonadInstancesToCats[F[_] : Monad]: _root_.cats.Monad[F] =
     new ConvertMonixMonadToCats[F]()
 
-  class ConvertMonixMonadToCats[F[_]](implicit F: Monad[F])
+  private[cats] class ConvertMonixMonadToCats[F[_]](implicit F: Monad[F])
     extends ConvertMonixApplicativeToCats[F] with _root_.cats.Monad[F] {
 
     override def flatMap[A, B](fa: F[A])(f: (A) => F[B]): F[B] = F.flatMap(fa)(f)
@@ -74,12 +82,14 @@ trait MonadInstances extends ApplicativeInstances {
   }
 }
 
-/** Converts Monix's Applicative into the Cats Applicative. */
+/** Converts Monix's [[monix.types.shims.Applicative Applicative]]
+  * instances into the Cats `Applicative`.
+  */
 trait ApplicativeInstances extends FunctorInstances {
   implicit def monixApplicativeInstancesToCats[F[_] : Applicative]: _root_.cats.Applicative[F] =
     new ConvertMonixApplicativeToCats[F]()
 
-  class ConvertMonixApplicativeToCats[F[_]](implicit F: Applicative[F])
+  private[cats] class ConvertMonixApplicativeToCats[F[_]](implicit F: Applicative[F])
     extends ConvertMonixFunctorToCats[F] with _root_.cats.Applicative[F] {
 
     override def pure[A](x: A): F[A] = F.pure(x)
@@ -87,12 +97,15 @@ trait ApplicativeInstances extends FunctorInstances {
   }
 }
 
-/** Converts Monix's [[Functor]] into the Cats Functor. */
+/** Converts Monix's [[monix.types.shims.Functor Functor]]
+  * instances into the Cats `Functor`.
+  */
 trait FunctorInstances {
   implicit def monixFunctorInstancesToCats[F[_] : Functor]: _root_.cats.Functor[F] =
     new ConvertMonixFunctorToCats[F]()
 
-  class ConvertMonixFunctorToCats[F[_]](implicit F: Functor[F]) extends _root_.cats.Functor[F] {
+  private[cats] class ConvertMonixFunctorToCats[F[_]](implicit F: Functor[F])
+    extends _root_.cats.Functor[F] {
     override def map[A, B](fa: F[A])(f: (A) => B): F[B] = F.map(fa)(f)
   }
 }
