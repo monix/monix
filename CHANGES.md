@@ -1,4 +1,11 @@
-## Version 2.0-RC4
+## Version 2.0-RC5 (May 31, 2016)
+
+Critical bug fix:
+
+- [Bug 153](https://github.com/monixio/monix/issues/153) - Task.sequence and Task.gather 
+  return a shared mutable.ListBuffer
+
+## Version 2.0-RC4 (May 31, 2016)
 
 - [Issue #89](https://github.com/monixio/monix/issues/149) - reintroducing a minimal 
   Cats integration, along with tests based on `cats-laws`. We are splitting `monix.type` 
@@ -20,7 +27,6 @@
 - [Issue #152](https://github.com/monixio/monix/issues/152) - introduce `Task.gather` which 
   behaves like the previous `sequence` and `Task.gatherUnordered` which doesn't do ordering
   for results either.  
-
 
 ## Version 2.0-RC3
 
