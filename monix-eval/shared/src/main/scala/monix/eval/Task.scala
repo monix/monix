@@ -759,8 +759,8 @@ object Task {
     * for unordered results or effects, and thus potential of running in paralel.
     */
   def sequence[A](in: Seq[Task[A]]): Task[List[A]] = {
-    val init = mutable.ListBuffer.empty[A]
-    val r = in.foldLeft(now(init))((acc,elem) => acc.flatMap(lb => elem.map(e => lb += e)))
+    val r = in.foldLeft(evalAlways(mutable.ListBuffer.empty[A]))(
+      (acc,elem) => acc.flatMap(lb => elem.map(e => lb += e)))
     r.map(_.toList)
   }
 
@@ -928,8 +928,8 @@ object Task {
     * The effects are not ordered, but the results are.
     */
   def zipList[A](sources: Seq[Task[A]]): Task[List[A]] = {
-    val init = mutable.ListBuffer.empty[A]
-    val r = sources.foldLeft(now(init))((acc,elem) => Task.mapBoth(acc,elem)(_ += _))
+    val r = sources.foldLeft(evalAlways(mutable.ListBuffer.empty[A]))((acc,elem) =>
+      Task.mapBoth(acc,elem)(_ += _))
     r.map(_.toList)
   }
 
