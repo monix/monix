@@ -21,7 +21,7 @@ import scala.concurrent.duration.FiniteDuration
 
 /** Type-class for monadic contexts whose evaluation can be delayed.
   *
-  * Note that this includes asynchronous streams.
+  * Note this includes asynchronous streams.
   */
 trait Asynchronous[F[_]] extends Deferrable[F] {
   /** Builds an instance by evaluating the given expression with a delay applied. */

@@ -23,10 +23,9 @@ import monix.execution.cancelables.{CompositeCancelable, SingleAssignmentCancela
 import monix.execution.rstreams.Subscription
 import monix.execution.schedulers.ExecutionModel
 import monix.execution.{Cancelable, CancelableFuture, Scheduler}
-import monix.types.{Asynchronous, Evaluable, ReactivePublisher}
-import org.reactivestreams.{Publisher, Subscriber}
+import monix.types.{Asynchronous, Evaluable}
+import org.reactivestreams.Subscriber
 import org.sincron.atomic.{Atomic, AtomicAny}
-
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.concurrent.duration.FiniteDuration
@@ -1438,7 +1437,7 @@ object Task {
 
   /** Type-class instances for [[Task]]. */
   implicit val instances: Evaluable[Task] with Asynchronous[Task] =
-    new Evaluable[Task] with Asynchronous[Task] with ReactivePublisher[Task] {
+    new Evaluable[Task] with Asynchronous[Task] {
       override def now[A](a: A): Task[A] = Task.now(a)
       override def unit: Task[Unit] = Task.unit
       override def evalAlways[A](f: => A): Task[A] = Task.evalAlways(f)
@@ -1446,13 +1445,13 @@ object Task {
       override def raiseError[A](ex: Throwable): Task[A] = Task.raiseError(ex)
       override def defer[A](fa: => Task[A]): Task[A] = Task.defer(fa)
       override def memoize[A](fa: Task[A]): Task[A] = fa.memoize
-      override def task[A](fa: Task[A]): Task[A] = fa
 
       override def pure[A](a: A): Task[A] = now(a)
       override def ap[A, B](fa: Task[A])(ff: Task[(A) => B]): Task[B] = ff.flatMap(fa.map)
       override def flatten[A](ffa: Task[Task[A]]): Task[A] = ffa.flatten
       override def flatMap[A, B](fa: Task[A])(f: (A) => Task[B]): Task[B] = fa.flatMap(f)
       override def map[A, B](fa: Task[A])(f: (A) => B): Task[B] = fa.map(f)
+      override def coflatMap[A, B](fa: Task[A])(f: (Task[A]) => B): Task[B] = Task.evalAlways(f(fa))
 
       override def restartUntil[A](fa: Task[A])(p: (A) => Boolean): Task[A] =
         fa.restartUntil(p)
@@ -1472,12 +1471,6 @@ object Task {
         fa.onErrorFallbackTo(fallback)
 
       override def failed[A](fa: Task[A]): Task[Throwable] = fa.failed
-      override def materialize[A](fa: Task[A]): Task[Try[A]] = fa.materialize
-      override def dematerialize[A](fa: Task[Try[A]]): Task[A] = fa.dematerialize
-
-      override def toReactivePublisher[A](fa: Task[A])(implicit s: Scheduler): Publisher[A] =
-        fa.toReactivePublisher
-
       override def zipList[A](sources: Seq[Task[A]]): Task[Seq[A]] = Task.zipList(sources)
       override def zipWith2[A1, A2, R](fa1: Task[A1], fa2: Task[A2])(f: (A1, A2) => R): Task[R] =
         Task.zipWith2(fa1, fa2)(f)
@@ -1497,6 +1490,8 @@ object Task {
       override def delayResultBySelector[A, B](fa: Task[A])(selector: (A) => Task[B]): Task[A] =
         fa.delayResultBySelector(selector)
 
+      override def materialize[A](fa: Task[A]): Task[Try[A]] = fa.materialize
+      override def dematerialize[A](fa: Task[Try[A]]): Task[A] = fa.dematerialize
       override def timeoutTo[A](fa: Task[A], timespan: FiniteDuration, backup: Task[A]): Task[A] =
         fa.timeoutTo(timespan, backup)
       override def timeout[A](fa: Task[A], timespan: FiniteDuration): Task[A] =

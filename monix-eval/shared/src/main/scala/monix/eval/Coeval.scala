@@ -19,6 +19,7 @@ package monix.eval
 
 import monix.eval.Coeval._
 import monix.types.Evaluable
+import monix.types.shims.Bimonad
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.util.control.NonFatal
@@ -50,7 +51,7 @@ import scala.util.{Failure, Success, Try}
   * Computation done within .map and .flatMap is always done lazily,
   * even when applied to a `Now` instance.
   */
-sealed abstract class Coeval[+A] extends Serializable with Product { self =>
+sealed abstract class Coeval[+A] extends Serializable { self =>
   /** Evaluates the underlying computation and returns the result.
     *
     * NOTE: this can throw exceptions.
@@ -558,8 +559,8 @@ object Coeval {
   }
 
   /** Implicit type-class instances of [[Coeval]]. */
-  implicit val instances: Evaluable[Coeval] =
-    new Evaluable[Coeval] {
+  implicit val instances: Evaluable[Coeval] with Bimonad[Coeval] =
+    new Evaluable[Coeval] with Bimonad[Coeval] {
       override def now[A](a: A): Coeval[A] = Coeval.now(a)
       override def unit: Coeval[Unit] = Coeval.unit
       override def evalAlways[A](f: => A): Coeval[A] = Coeval.evalAlways(f)
@@ -567,13 +568,17 @@ object Coeval {
       override def raiseError[A](ex: Throwable): Coeval[A] = Coeval.raiseError(ex)
       override def defer[A](fa: => Coeval[A]): Coeval[A] = Coeval.defer(fa)
       override def memoize[A](fa: Coeval[A]): Coeval[A] = fa.memoize
-      override def task[A](fa: Coeval[A]): Task[A] = fa.task
 
       override def pure[A](a: A): Coeval[A] = Coeval.now(a)
       override def ap[A, B](fa: Coeval[A])(ff: Coeval[(A) => B]): Coeval[B] = ff.flatMap(fa.map)
       override def flatten[A](ffa: Coeval[Coeval[A]]): Coeval[A] = ffa.flatten
       override def flatMap[A, B](fa: Coeval[A])(f: (A) => Coeval[B]): Coeval[B] = fa.flatMap(f)
       override def map[A, B](fa: Coeval[A])(f: (A) => B): Coeval[B] = fa.map(f)
+
+      override def coflatMap[A, B](fa: Coeval[A])(f: (Coeval[A]) => B): Coeval[B] =
+        Coeval.evalAlways(f(fa))
+      override def extract[A](x: Coeval[A]): A =
+        x.value
 
       override def restartUntil[A](fa: Coeval[A])(p: (A) => Boolean): Coeval[A] =
         fa.restartUntil(p)

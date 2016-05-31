@@ -17,12 +17,12 @@
 
 package monix.types
 
-import monix.types.shims.Applicative
+import monix.types.shims.{Applicative, Monad}
 
 /** A type-class for monadic contexts that can trigger `E` errors
   * and that are recoverable.
   */
-trait Recoverable[F[_], E] extends Applicative[F] {
+trait Recoverable[F[_], E] extends Applicative[F] with Monad[F] {
   /** Lifts an error into context. */
   def raiseError[A](e: E): F[A]
 

@@ -1,6 +1,3 @@
-import java.text.SimpleDateFormat
-import java.util.Date
-
 import com.typesafe.sbt.pgp.PgpKeys
 import sbtunidoc.Plugin.UnidocKeys._
 import sbtunidoc.Plugin.{ScalaUnidoc, unidocSettings => baseUnidocSettings}
@@ -203,7 +200,7 @@ lazy val unidocSettings = baseUnidocSettings ++ Seq(
 
 lazy val testSettings = Seq(
   testFrameworks := Seq(new TestFramework("minitest.runner.Framework")),
-  libraryDependencies += "io.monix" %%% "minitest-laws" % "0.22" % "test"
+  libraryDependencies += "io.monix" %%% "minitest-laws" % "0.21" % "test"
 )
 
 lazy val scalaJSSettings = Seq(
@@ -223,9 +220,11 @@ lazy val scalaStyleSettings = {
 
 lazy val monix = project.in(file("."))
   .aggregate(
+    typesJVM, typesJS,
     executionJVM, executionJS,
     evalJVM, evalJS,
     reactiveJVM, reactiveJS,
+    catsJVM, catsJS,
     monixJVM, monixJS,
     tckTests)
   .settings(sharedSettings)
@@ -234,18 +233,30 @@ lazy val monix = project.in(file("."))
   .settings(unidocSettings)
 
 lazy val monixJVM = project.in(file("monix/jvm"))
-  .dependsOn(executionJVM, evalJVM, reactiveJVM)
-  .aggregate(executionJVM, evalJVM, reactiveJVM)
+  .dependsOn(typesJVM, executionJVM, evalJVM, reactiveJVM)
+  .aggregate(typesJVM, executionJVM, evalJVM, reactiveJVM)
   .settings(crossSettings)
   .settings(name := "monix")
 
 lazy val monixJS = project.in(file("monix/js"))
   .enablePlugins(ScalaJSPlugin)
-  .dependsOn(executionJS, evalJS, reactiveJS)
-  .aggregate(executionJS, evalJS, reactiveJS)
+  .dependsOn(typesJS, executionJS, evalJS, reactiveJS)
+  .aggregate(typesJS, executionJS, evalJS, reactiveJS)
   .settings(crossSettings)
   .settings(scalaJSSettings)
   .settings(name := "monix")
+
+lazy val typesCommon = crossSettings ++ testSettings ++ Seq(
+  name := "monix-types"
+)
+
+lazy val typesJVM = project.in(file("monix-types/jvm"))
+  .settings(typesCommon)
+
+lazy val typesJS = project.in(file("monix-types/js"))
+  .enablePlugins(ScalaJSPlugin)
+  .settings(typesCommon)
+  .settings(scalaJSSettings)
 
 lazy val executionCommon = Seq(
   name := "monix-execution",
@@ -272,12 +283,12 @@ lazy val evalCommon =
     Seq(name := "monix-eval")
 
 lazy val evalJVM = project.in(file("monix-eval/jvm"))
-  .dependsOn(executionJVM)
+  .dependsOn(typesJVM, executionJVM)
   .settings(evalCommon)
 
 lazy val evalJS = project.in(file("monix-eval/js"))
   .enablePlugins(ScalaJSPlugin)
-  .dependsOn(executionJS)
+  .dependsOn(typesJS, executionJS)
   .settings(scalaJSSettings)
   .settings(evalCommon)
 
@@ -286,13 +297,33 @@ lazy val reactiveCommon =
     Seq(name := "monix-reactive")
 
 lazy val reactiveJVM = project.in(file("monix-reactive/jvm"))
-  .dependsOn(executionJVM, evalJVM)
+  .dependsOn(typesJVM, executionJVM, evalJVM)
   .settings(reactiveCommon)
 
 lazy val reactiveJS = project.in(file("monix-reactive/js"))
   .enablePlugins(ScalaJSPlugin)
-  .dependsOn(executionJS, evalJS)
+  .dependsOn(typesJS, executionJS, evalJS)
   .settings(reactiveCommon)
+  .settings(scalaJSSettings)
+
+lazy val catsCommon =
+  crossSettings ++ testSettings ++ Seq(
+    name := "monix-cats",
+    libraryDependencies ++= Seq(
+      "org.typelevel" %%% "cats-core" % "0.6.0",
+      "org.typelevel" %%% "cats-laws" % "0.6.0" % "test"
+    ))
+
+lazy val catsJVM = project.in(file("monix-cats/jvm"))
+  .dependsOn(typesJVM)
+  .dependsOn(reactiveJVM % "test")
+  .settings(catsCommon)
+
+lazy val catsJS = project.in(file("monix-cats/js"))
+  .enablePlugins(ScalaJSPlugin)
+  .dependsOn(typesJS)
+  .dependsOn(reactiveJS % "test")
+  .settings(catsCommon)
   .settings(scalaJSSettings)
 
 lazy val tckTests = project.in(file("tckTests"))

@@ -64,12 +64,20 @@ libraryDependencies += "io.monix" %% "monix" % "2.0-RC3"
 
 Monix 2.0 is modular by design, so you can pick and choose:
 
+- `monix-types` exposes type-classes and shims needed for 
+  integration with other FP libraries (Cats, Scalaz)
 - `monix-execution` exposes the low-level execution environment, or more precisely
   `Scheduler`, `Cancelable` and `CancelableFuture`
-- `monix-eval` exposes `Task`, `Coeval`, the base type-classes of `monix.types` 
-   and depends on `monix-execution`
-- `monix-reactive` exposes `Observable` streams and depends on `monix-eval`
+- `monix-eval` exposes `Task`, `Coeval` 
+   and depends on `monix-execution` and `monix-types`
+- `monix-reactive` exposes `Observable` streams 
+   and depends on `monix-eval` and `monix-types`
 - `monix` provides all of the above
+
+Optional packages:
+
+- `monix-cats` provides integration with [Cats](http://typelevel.org/cats) and
+   depends on `monix-types`
 
 ## Documentation
 

@@ -15,27 +15,13 @@
  * limitations under the License.
  */
 
-package monix.types
+package monix.types.shims
 
-import monix.eval.Task
-import scala.util.Try
-
-/** Type-class for computations that can be materialized
-  * to a single result.
+/** A shim for the `Bimonad` type-class,
+  * to be supplied by libraries such as Cats or Scalaz.
   */
-trait Evaluable[F[_]] extends Deferrable[F] with Restartable[F] {
-  /** Converts this context into a `Task`. */
-  def task[A](fa: F[A]): Task[A]
+trait Bimonad[F[_]] extends Monad[F] with Comonad[F]
 
-  /** Exposes both successful results and potential errors by
-    * in the evaluable context.
-    */
-  def materialize[A](fa: F[A]): F[Try[A]]
-
-  /** Hides errors in the context that expressed as `Try`. */
-  def dematerialize[A](fa: F[Try[A]]): F[A]
-}
-
-object Evaluable {
-  @inline def apply[F[_]](implicit F: Evaluable[F]) = F
+object Bimonad {
+  @inline def apply[F[_]](implicit F: Bimonad[F]): Bimonad[F] = F
 }

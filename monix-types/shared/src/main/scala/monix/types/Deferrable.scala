@@ -17,13 +17,13 @@
 
 package monix.types
 
-import monix.types.shims.Monad
+import monix.types.shims.{CoflatMap, Monad}
 
 /** A type-class describing computations that can be deferred. */
-trait Deferrable[F[_]] extends Monad[F] with Recoverable[F,Throwable] with Zippable[F] {
+trait Deferrable[F[_]] extends Monad[F] with Recoverable[F,Throwable] with Zippable[F] with CoflatMap[F] {
   /** Lifts a strict value into the deferrable context.
     *
-    * Alias for [[monix.types.shims.Applicative.pure Applicative.pure]].
+    * Alias for `Applicative.pure`.
     */
   def now[A](a: A): F[A]
 

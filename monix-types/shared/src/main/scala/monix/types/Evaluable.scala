@@ -17,18 +17,21 @@
 
 package monix.types
 
-import monix.execution.Scheduler
+import scala.util.Try
 
-/** Type-class for data-sources that can be converted to
-  * a reactive publisher from the Reactive Streams specification.
-  *
-  * See: [[http://www.reactive-streams.org/ reactive-streams.org]]
+/** Type-class for computations that can be materialized
+  * to a single result.
   */
-trait ReactivePublisher[F[_]] {
-  /** Convert the instance to a reactive publisher. */
-  def toReactivePublisher[A](fa: F[A])(implicit s: Scheduler): org.reactivestreams.Publisher[A]
+trait Evaluable[F[_]] extends Deferrable[F] with Restartable[F] {
+  /** Exposes both successful results and potential errors by
+    * in the evaluable context.
+    */
+  def materialize[A](fa: F[A]): F[Try[A]]
+
+  /** Hides errors in the context that expressed as `Try`. */
+  def dematerialize[A](fa: F[Try[A]]): F[A]
 }
 
-object ReactivePublisher {
-  @inline def apply[F[_]](implicit F: ReactivePublisher[F]): ReactivePublisher[F] = F
+object Evaluable {
+  @inline def apply[F[_]](implicit F: Evaluable[F]) = F
 }
