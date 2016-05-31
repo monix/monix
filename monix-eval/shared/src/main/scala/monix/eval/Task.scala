@@ -26,6 +26,7 @@ import monix.execution.{Cancelable, CancelableFuture, Scheduler}
 import monix.types.{Asynchronous, Evaluable}
 import org.reactivestreams.Subscriber
 import org.sincron.atomic.{Atomic, AtomicAny}
+
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.concurrent.duration.FiniteDuration
@@ -256,6 +257,21 @@ sealed abstract class Task[+A] extends Serializable { self =>
     */
   def map[B](f: A => B): Task[B] =
     flatMap(a => try Now(f(a)) catch { case NonFatal(ex) => Error(ex) })
+
+  /** Returns a new `Task` in which `f` is scheduled to be run on completion.
+    * This would typically be used to release any resources acquired by this
+    * `Task`.
+    *
+    * The returned `Task` completes when both the source and the
+    * task returned by `f` complete.
+    */
+  def doOnFinish(f: Option[Throwable] => Task[Unit]): Task[A] =
+    materializeAttempt.flatMap {
+      case Task.Now(value) =>
+        f(None).map(_ => value)
+      case Task.Error(ex) =>
+        f(Some(ex)).flatMap(_ => Task.raiseError(ex))
+    }
 
   /** Creates a new [[Task]] that will expose any triggered error from
     * the source.
@@ -735,13 +751,80 @@ object Task {
       }
     }
 
-  /** Gathers the results from a sequence of tasks into a single list.
-    * The effects are not ordered, but the results are.
+  /** Given a sequence of tasks, transforms it to a task signaling a sequence,
+    * executing the tasks one by one and gathering their results in a list.
+    *
+    * This operation will execute the tasks one by one, in order, which means that
+    * both effects and results will be ordered. See [[gather]] and [[gatherUnordered]]
+    * for unordered results or effects, and thus potential of running in paralel.
+    */
+  def sequence[A](in: Seq[Task[A]]): Task[List[A]] = {
+    val init = mutable.ListBuffer.empty[A]
+    val r = in.foldLeft(now(init))((acc,elem) => acc.flatMap(lb => elem.map(e => lb += e)))
+    r.map(_.toList)
+  }
+
+  /** Nondeterministically gather results from the given sequence of tasks,
+    * returning a task that will signal a sequence of results once all
+    * tasks are finished.
+    *
+    * This function is the nondeterministic analogue of `sequence` and should
+    * behave identically to `sequence` so long as there is no interaction between
+    * the effects being gathered. However, unlike `sequence`, which decides on
+    * a total order of effects, the effects in a `gather` are unordered with
+    * respect to each other.
+    *
+    * Although the effects are unordered, we ensure the order of results
+    * matches the order of the input sequence. Also see [[gatherUnordered]].
     *
     * Alias for [[zipList]].
     */
-  def sequence[A](in: Seq[Task[A]]): Task[List[A]] =
+  def gather[A](in: Seq[Task[A]]): Task[List[A]] =
     zipList(in)
+
+  /** Nondeterministically gather results from the given sequence of tasks
+    * to a sequence, without keeping the original ordering of results.
+    *
+    * This function is similar to [[gather]], but neither the effects nor the
+    * results will be ordered. Useful when you don't need ordering because it
+    * can be more efficient than `gather`.
+    */
+  def gatherUnordered[A](in: Seq[Task[A]]): Task[Seq[A]] =
+    Async { (scheduler, conn, finalCallback) =>
+      val atom = Atomic(Vector.empty[A])
+      val expected = in.length
+
+      val composite = CompositeCancelable()
+      conn.push(composite)
+
+      for (task <- in; if !composite.isCanceled) yield {
+        val stacked = StackedCancelable()
+        composite += stacked
+
+        Task.unsafeStartNow(task, scheduler, stacked,
+          new Callback[A] {
+            @tailrec def onSuccess(value: A): Unit =
+              atom.get match {
+                case null => ()
+                case current =>
+                  val update = current :+ value
+                  if (!atom.compareAndSet(current, update))
+                    onSuccess(value)
+                  else if (update.length == expected) {
+                    conn.pop()
+                    finalCallback.onSuccess(update)
+                  }
+              }
+
+            def onError(ex: Throwable): Unit = {
+              if (atom.getAndSet(null) != null) {
+                conn.pop().cancel()
+                finalCallback.onError(ex)
+              }
+            }
+          })
+      }
+    }
 
   /** Obtain results from both `a` and `b`, nondeterministically ordering
     * their effects.
