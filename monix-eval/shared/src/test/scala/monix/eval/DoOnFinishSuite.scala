@@ -20,7 +20,7 @@ package monix.eval
 import scala.concurrent.Promise
 import scala.util.{Failure, Success}
 
-object TaskDoOnFinishSuite extends BaseTestSuite {
+object DoOnFinishSuite extends BaseTestSuite {
   test("Task.doOnFinish should work for successful values") { implicit s =>
     val p = Promise[Option[Throwable]]()
 
@@ -39,6 +39,27 @@ object TaskDoOnFinishSuite extends BaseTestSuite {
     val f = task.runAsync; s.tick()
 
     assertEquals(f.value, Some(Failure(ex)))
+    assertEquals(p.future.value, Some(Success(Some(ex))))
+  }
+
+  test("Coeval.doOnFinish should work for successful values") { implicit s =>
+    val p = Promise[Option[Throwable]]()
+
+    val coeval = Coeval(10).doOnFinish(s => Coeval(p.success(s)))
+    val result = coeval.runTry
+
+    assertEquals(result, Success(10))
+    assertEquals(p.future.value, Some(Success(None)))
+  }
+
+  test("Coeval.doOnFinish should work for failures values") { implicit s =>
+    val ex = DummyException("dummy")
+    val p = Promise[Option[Throwable]]()
+
+    val coeval = Coeval.raiseError[Int](ex).doOnFinish(s => Coeval(p.success(s)))
+    val result = coeval.runTry
+
+    assertEquals(result, Failure(ex))
     assertEquals(p.future.value, Some(Success(Some(ex))))
   }
 }

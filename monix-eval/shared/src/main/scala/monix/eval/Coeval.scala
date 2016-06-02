@@ -260,6 +260,18 @@ sealed abstract class Coeval[+A] extends Serializable { self =>
         new EvalOnce[A](() => self.value)
     }
 
+  /** Returns a new `Coeval` in which `f` is scheduled to be run on completion.
+    * This would typically be used to release any resources acquired by this
+    * `Coeval`.
+    */
+  def doOnFinish(f: Option[Throwable] => Coeval[Unit]): Coeval[A] =
+    materializeAttempt.flatMap {
+      case Coeval.Now(value) =>
+        f(None).map(_ => value)
+      case Coeval.Error(ex) =>
+        f(Some(ex)).flatMap(_ => Coeval.raiseError(ex))
+    }
+
   /** Zips the values of `this` and `that` coeval, and creates a new coeval
     * that will emit the tuple of their results.
     */
@@ -319,10 +331,18 @@ object Coeval {
   /** A `Coeval[Unit]` provided for convenience. */
   val unit: Coeval[Unit] = Now(())
 
+  /** Transforms a sequence of coevals into a coeval producing
+    * a list of gathered results.
+    *
+    * For [[Coeval]] this has the same behavior as [[zipList]].
+    */
+  def sequence[A](sources: Seq[Coeval[A]]): Coeval[List[A]] =
+    zipList(sources)
+
   /** Zips together multiple [[Coeval]] instances. */
   def zipList[A](sources: Seq[Coeval[A]]): Coeval[List[A]] = {
-    val init = mutable.ListBuffer.empty[A]
-    val r = sources.foldLeft(now(init))((acc,elem) => acc.zipWith(elem)(_ += _))
+    val init = evalAlways(mutable.ListBuffer.empty[A])
+    val r = sources.foldLeft(init)((acc,elem) => acc.zipWith(elem)(_ += _))
     r.map(_.toList)
   }
 
@@ -467,10 +487,21 @@ object Coeval {
     }
 
     override lazy val runAttempt: Attempt[A] = {
-      val result = try Now(thunk()) catch { case NonFatal(ex) => Error(ex) }
-      thunk = null
-      result
+      try {
+        Now(thunk())
+      } catch {
+        case NonFatal(ex) => Error(ex)
+      } finally {
+        // GC relief
+        thunk = null
+      }
     }
+
+    override def toString =
+      synchronized {
+        if (thunk != null) s"EvalOnce($thunk)"
+        else s"EvalOnce($runAttempt)"
+      }
 
     override def equals(other: Any): Boolean = other match {
       case that: EvalOnce[_] => runAttempt == that.runAttempt

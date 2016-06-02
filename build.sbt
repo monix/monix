@@ -43,7 +43,8 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
     "-language:experimental.macros",
     // possibly deprecated options
     "-Ywarn-dead-code",
-    "-Ywarn-inaccessible"
+    "-Ywarn-inaccessible",
+    "-Yinline-warnings"
   ),
 
   // version specific compiler options

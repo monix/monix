@@ -759,8 +759,8 @@ object Task {
     * for unordered results or effects, and thus potential of running in paralel.
     */
   def sequence[A](in: Seq[Task[A]]): Task[List[A]] = {
-    val r = in.foldLeft(evalAlways(mutable.ListBuffer.empty[A]))(
-      (acc,elem) => acc.flatMap(lb => elem.map(e => lb += e)))
+    val init = evalAlways(mutable.ListBuffer.empty[A])
+    val r = in.foldLeft(init)((acc,elem) => acc.flatMap(lb => elem.map(e => lb += e)))
     r.map(_.toList)
   }
 
@@ -928,8 +928,8 @@ object Task {
     * The effects are not ordered, but the results are.
     */
   def zipList[A](sources: Seq[Task[A]]): Task[List[A]] = {
-    val r = sources.foldLeft(evalAlways(mutable.ListBuffer.empty[A]))((acc,elem) =>
-      Task.mapBoth(acc,elem)(_ += _))
+    val init = evalAlways(mutable.ListBuffer.empty[A])
+    val r = sources.foldLeft(init)((acc,elem) => Task.mapBoth(acc,elem)(_ += _))
     r.map(_.toList)
   }
 
@@ -1103,12 +1103,16 @@ object Task {
       } catch {
         case NonFatal(ex) => Error(ex)
       } finally {
-        // GC purposes
+        // GC relief
         thunk = null
       }
     }
 
-    override def toString = s"EvalOnce($thunk)"
+    override def toString =
+      synchronized {
+        if (thunk != null) s"EvalOnce($thunk)"
+        else s"EvalOnce($runAttempt)"
+      }
 
     override def equals(other: Any): Boolean = other match {
       case that: EvalOnce[_] => runAttempt == that.runAttempt
