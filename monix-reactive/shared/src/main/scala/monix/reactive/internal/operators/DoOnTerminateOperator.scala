@@ -17,36 +17,54 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.{Ack, Cancelable}
 import monix.reactive.observables.ObservableLike.Operator
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 
 private[reactive] final
-class DoWorkOnDownstreamStopOperator[A](callback: => Unit) extends Operator[A,A] {
+class DoOnTerminateOperator[A](onTerminate: () => Unit)
+  extends Operator[A,A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
+      // Wrapping in a cancelable in order to protect it from
+      // being called multiple times
+      private[this] val active = Cancelable(onTerminate)
       implicit val scheduler = out.scheduler
 
-      private def execute(): Unit =
-        try callback catch { case NonFatal(ex) => out.scheduler.reportFailure(ex) }
-
       def onNext(elem: A): Future[Ack] = {
-        val ack = out.onNext(elem)
-        if (ack eq Continue) Continue
-        else if (ack eq Stop) {
-          execute()
-          Stop
-        } else {
-          ack.onComplete(result => if (result.isFailure || (result.get eq Stop)) execute())
-          ack
+        out.onNext(elem).syncOnStopOrFailure {
+          try active.cancel() catch {
+            case NonFatal(ex) =>
+              scheduler.reportFailure(ex)
+          }
         }
       }
 
-      def onError(ex: Throwable): Unit = out.onError(ex)
-      def onComplete(): Unit = out.onComplete()
+      def onComplete(): Unit = {
+        var streamErrors = true
+        try {
+          active.cancel()
+          streamErrors = false
+          out.onComplete()
+        } catch {
+          case NonFatal(ex) =>
+            if (streamErrors) out.onError(ex)
+            else scheduler.reportFailure(ex)
+        }
+      }
+
+      def onError(ex: Throwable): Unit = {
+        // In case our callback throws an error the behavior
+        // is undefined, so we just log it.
+        try active.cancel() catch {
+          case NonFatal(err) =>
+            scheduler.reportFailure(err)
+        } finally {
+          out.onError(ex)
+        }
+      }
     }
 }

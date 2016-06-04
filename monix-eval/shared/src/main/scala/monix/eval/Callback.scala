@@ -51,10 +51,29 @@ object Callback {
       case _ => new SafeCallback[T](cb)
     }
 
+  /** Creates an empty [[Callback]], a callback that doesn't do
+    * anything in `onNext` and that logs errors in `onError` with
+    * the provided [[UncaughtExceptionReporter]].
+    */
+  def empty[T](implicit r: UncaughtExceptionReporter): Callback[T] =
+    new EmptyCallback(r)
+
+  /** An "empty" callback instance doesn't do anything `onSuccess` and
+    * only logs exceptions `onError`.
+    */
+  private final class EmptyCallback(r: UncaughtExceptionReporter)
+    extends Callback[Any] {
+
+    def onSuccess(value: Any): Unit = ()
+    def onError(ex: Throwable): Unit =
+      r.reportFailure(ex)
+  }
+
   /** A `SafeCallback` is a callback that ensures it can only be called
     * once, with a simple check.
     */
-  private class SafeCallback[-T](underlying: Callback[T])(implicit r: UncaughtExceptionReporter)
+  private final class SafeCallback[-T](underlying: Callback[T])
+    (implicit r: UncaughtExceptionReporter)
     extends Callback[T] {
 
     private[this] var isActive = true

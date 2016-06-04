@@ -24,7 +24,7 @@ import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.concurrent.duration._
 
-object DoOnCancelSuite extends TestSuite[TestScheduler] {
+object DoOnSubscriptionCancelSuite extends TestSuite[TestScheduler] {
   def setup(): TestScheduler = TestScheduler()
   def tearDown(s: TestScheduler): Unit = {
     assert(s.state.get.tasks.isEmpty,
@@ -36,7 +36,7 @@ object DoOnCancelSuite extends TestSuite[TestScheduler] {
     var wasCompleted = 0
 
     val c = Observable.now(1).delaySubscription(1.second)
-      .doOnCancel(wasCanceled += 1)
+      .doOnSubscriptionCancel(wasCanceled += 1)
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
         def onNext(elem: Int) = Continue
@@ -57,7 +57,7 @@ object DoOnCancelSuite extends TestSuite[TestScheduler] {
     var wasCompleted = 0
 
     val c = Observable.now(1).delaySubscription(1.second)
-      .doOnCancel(wasCanceled += 1)
+      .doOnSubscriptionCancel(wasCanceled += 1)
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
         def onNext(elem: Int) = Continue

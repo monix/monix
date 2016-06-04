@@ -17,28 +17,29 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Cancelable
-import monix.reactive.Observable
+import monix.execution.Ack
+import monix.reactive.observables.ObservableLike.Operator
 import monix.reactive.observers.Subscriber
-
+import scala.concurrent.Future
 import scala.util.control.NonFatal
 
 private[reactive] final
-class DoWorkOnSubscriptionCancelObservable[+A](source: Observable[A], cb: => Unit)
-  extends Observable[A] {
+class DoOnDownstreamStopOperator[A](callback: => Unit) extends Operator[A,A] {
 
-  def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
-    val subscription = source.unsafeSubscribeFn(subscriber)
+  def apply(out: Subscriber[A]): Subscriber[A] =
+    new Subscriber[A] {
+      implicit val scheduler = out.scheduler
 
-    Cancelable(() => {
-      // First cancel the source
-      try subscription.cancel() finally {
-        // Then execute the callback, protected
-        try cb catch {
-          case NonFatal(ex) =>
-            subscriber.scheduler.reportFailure(ex)
+      private def execute(): Unit =
+        try callback catch { case NonFatal(ex) =>
+          out.scheduler.reportFailure(ex)
         }
+
+      def onNext(elem: A): Future[Ack] = {
+        out.onNext(elem).syncOnStopOrFailure(execute())
       }
-    })
-  }
+
+      def onError(ex: Throwable): Unit = out.onError(ex)
+      def onComplete(): Unit = out.onComplete()
+    }
 }

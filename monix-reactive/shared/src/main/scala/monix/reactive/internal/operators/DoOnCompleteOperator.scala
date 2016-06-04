@@ -26,7 +26,7 @@ import scala.concurrent.Future
 import scala.util.control.NonFatal
 
 private[reactive] final
-class DoWorkOnCompleteOperator[A](callback: => Unit)
+class DoOnCompleteOperator[A](callback: => Unit)
   extends Operator[A,A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
