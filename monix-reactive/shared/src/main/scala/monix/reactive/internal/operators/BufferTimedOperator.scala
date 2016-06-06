@@ -42,7 +42,7 @@ private[reactive] final class BufferTimedOperator[A](timespan: FiniteDuration, m
       private[this] var buffer = ArrayBuffer.empty[A]
       private[this] var expiresAt = scheduler.currentTimeMillis() + timespanMillis
 
-      def onNext(elem: A) = {
+      def onNext(elem: A): Future[Ack] = {
         val rightNow = scheduler.currentTimeMillis()
         buffer.append(elem)
 
@@ -72,7 +72,6 @@ private[reactive] final class BufferTimedOperator[A](timespan: FiniteDuration, m
           buffer = null
           out.onComplete()
         } else {
-          buffer = null
           out.onComplete()
         }
       }

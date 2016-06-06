@@ -203,7 +203,7 @@ private[buffers] final class EvictingBufferedSubscriber[-T] private
 private[monix] object EvictingBufferedSubscriber {
   /**
    * Returns an instance of a [[EvictingBufferedSubscriber]]
-   * for the [[OverflowStrategy.DropOld DropOld]]
+   * for the [[monix.reactive.OverflowStrategy.DropOld DropOld]]
    * overflow strategy.
    */
   def dropOld[A](underlying: Subscriber[A], bufferSize: Int): SyncSubscriber[A] = {
