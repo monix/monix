@@ -479,9 +479,32 @@ object Observable {
     (ref, ref)
   }
 
-  /** Converts any `Iterator` into an [[Observable]]. */
+  /** Converts any `Iterator` into an [[Observable]].
+    *
+    * @param iterator to transform into an observable
+    */
   def fromIterator[A](iterator: Iterator[A]): Observable[A] =
-    new builders.IteratorAsObservable[A](iterator)
+    new builders.IteratorAsObservable[A](iterator, Cancelable.empty)
+
+  /** Converts any `Iterator` into an [[Observable]].
+    *
+    * This variant of `fromIterator` takes an `onFinish` callback that
+    * will be called when the streaming is finished, either with
+    * `onComplete`, `onError`, when the downstream signals a `Stop` or
+    * when the subscription gets canceled.
+    *
+    * This `onFinish` callback is guaranteed to be called only once.
+    *
+    * Useful for controlling resource deallocation (e.g. closing file
+    * handles).
+    *
+    * @param iterator to transform into an observable
+    * @param onFinish a callback that will be called for resource deallocation
+    *        whenever the iterator is complete, or when the stream is
+    *        canceled
+    */
+  def fromIterator[A](iterator: Iterator[A], onFinish: () => Unit): Observable[A] =
+    new builders.IteratorAsObservable[A](iterator, Cancelable(onFinish))
 
   /** Converts any `Iterable` into an [[Observable]]. */
   def fromIterable[A](iterable: Iterable[A]): Observable[A] =

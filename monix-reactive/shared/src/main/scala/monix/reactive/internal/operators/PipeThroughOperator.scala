@@ -22,7 +22,7 @@ import monix.reactive.observables.ObservableLike
 import ObservableLike._
 import monix.reactive.observers.Subscriber
 
-private[reactive] final class TransformOperator[-A,+B](pipe: Pipe[A,B])
+private[reactive] final class PipeThroughOperator[-A,+B](pipe: Pipe[A,B])
   extends Operator[A,B] {
 
   def apply(sb: Subscriber[B]): Subscriber[A] = {

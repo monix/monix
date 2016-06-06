@@ -51,8 +51,6 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
   scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, majorVersion)) if majorVersion >= 11 =>
       Seq(
-        // Enables optimisations, but only for 2.11, because 2.10 isn't to be trusted
-        "-optimise",
         // Turns all warnings into errors ;-)
         "-Xfatal-warnings",
         // Enables linter options

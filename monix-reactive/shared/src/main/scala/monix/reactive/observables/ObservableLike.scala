@@ -1165,7 +1165,7 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: Self[A] =>
     * the source observable with it.
     */
   def pipeThrough[I >: A, B](pipe: Pipe[I,B]): Self[B] =
-    self.liftByOperator(new TransformOperator(pipe))
+    self.liftByOperator(new PipeThroughOperator(pipe))
 
   /** Applies a binary operator to a start value and all elements of
     * this Observable, going left to right and returns a new

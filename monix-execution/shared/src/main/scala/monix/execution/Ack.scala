@@ -27,7 +27,7 @@ import scala.util.{Failure, Success, Try}
 /** Represents an acknowledgement of processing that a consumer
   * sends back upstream. Useful to implement back-pressure.
   */
-sealed abstract class Ack extends Future[Ack]
+sealed abstract class Ack extends Future[Ack] with Serializable
 
 object Ack {
   /** Acknowledgement of processing that signals upstream that the
