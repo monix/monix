@@ -17,7 +17,7 @@
 
 package monix.reactive.observers
 
-import monix.reactive.OverflowStrategy
+import monix.reactive.{Observable, OverflowStrategy}
 import monix.reactive.observers.buffers.BuildersImpl
 
 /** Interface describing [[monix.reactive.Observer Observer]] wrappers
@@ -78,7 +78,13 @@ private[reactive] trait Builders {
     *
     * A batched buffered subscriber buffers incoming events while
     * the `underlying` is busy and then sends a whole sequence at once.
-    * At this point only the back-pressure policy is supported.
+    *
+    * The underlying buffer size will be able to support at least
+    * `maxSize` items. When the `maxSize` is reached, the subscriber
+    * will back-pressure the source.
+    *
+    * So a batched buffered subscriber is implicitly delivering
+    * the back-pressure overflow strategy.
     */
   def batched[A](underlying: Subscriber[List[A]], bufferSize: Int): Subscriber[A]
 }
