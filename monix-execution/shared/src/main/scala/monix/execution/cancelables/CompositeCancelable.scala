@@ -110,7 +110,7 @@ final class CompositeCancelable private (cancelables: Set[Cancelable])
     }
   }
 
-  private[this] val state = Atomic(State(cancelables.toSet))
+  private[this] val state = Atomic(State(cancelables))
 }
 
 object CompositeCancelable {
@@ -121,7 +121,6 @@ object CompositeCancelable {
     else
       new CompositeCancelable(Set.empty)
   }
-
 
   /** Private state of a [[CompositeCancelable]]. */
   private case class State(

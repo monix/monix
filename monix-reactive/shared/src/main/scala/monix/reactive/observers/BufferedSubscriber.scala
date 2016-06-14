@@ -17,7 +17,7 @@
 
 package monix.reactive.observers
 
-import monix.reactive.{Observable, OverflowStrategy}
+import monix.reactive.OverflowStrategy
 import monix.reactive.observers.buffers.BuildersImpl
 
 /** Interface describing [[monix.reactive.Observer Observer]] wrappers

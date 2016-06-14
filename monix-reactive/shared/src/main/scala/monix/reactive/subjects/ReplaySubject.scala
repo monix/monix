@@ -193,10 +193,26 @@ object ReplaySubject {
     *
     * In this setting, the ReplaySubject holds at most size items in its
     * internal buffer and discards the oldest item.
+    *
+    * @param capacity is the maximum size of the internal buffer
     */
-  def createWithSize[T](capacity: Int): ReplaySubject[T] = {
+  def createLimited[T](capacity: Int): ReplaySubject[T] = {
     require(capacity > 0, "capacity must be strictly positive")
     new ReplaySubject[T](State[T](Queue.empty, capacity))
+  }
+
+  /** Creates a size-bounded replay subject, prepopulated.
+    *
+    * In this setting, the ReplaySubject holds at most size items in its
+    * internal buffer and discards the oldest item.
+    *
+    * @param capacity is the maximum size of the internal buffer
+    * @param initial is an initial sequence of elements to prepopulate the buffer
+    */
+  def createLimited[T](capacity: Int, initial: Seq[T]): ReplaySubject[T] = {
+    require(capacity > 0, "capacity must be strictly positive")
+    val elems = initial.takeRight(capacity)
+    new ReplaySubject[T](State[T](Queue(elems:_*), capacity))
   }
 
   /** Internal state for [[monix.reactive.subjects.ReplaySubject]] */

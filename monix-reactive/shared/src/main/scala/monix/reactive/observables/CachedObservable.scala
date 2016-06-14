@@ -39,7 +39,7 @@ final class CachedObservable[+T] private (source: Observable[T], maxCapacity: In
 
   private[this] val isStarted = Atomic(false)
   private[this] val subject = {
-    if (maxCapacity > 0) ReplaySubject.createWithSize[T](maxCapacity) else
+    if (maxCapacity > 0) ReplaySubject.createLimited[T](maxCapacity) else
       ReplaySubject[T]()
   }
 

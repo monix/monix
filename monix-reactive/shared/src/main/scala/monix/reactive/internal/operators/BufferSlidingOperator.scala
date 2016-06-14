@@ -19,13 +19,12 @@ package monix.reactive.internal.operators
 
 import monix.execution.Ack
 import monix.execution.Ack.Continue
-import monix.reactive.observables.ObservableLike
-import ObservableLike.Operator
+import monix.reactive.observables.ObservableLike.Operator
 import monix.reactive.observers.Subscriber
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
 
-private[reactive] final class BufferOperator[A](count: Int, skip: Int)
+private[reactive] final class BufferSlidingOperator[A](count: Int, skip: Int)
   extends Operator[A, Seq[A]] {
 
   require(count > 0, "count must be strictly positive")
@@ -39,8 +38,8 @@ private[reactive] final class BufferOperator[A](count: Int, skip: Int)
       private[this] val shouldDrop = skip > count
       private[this] var leftToDrop = 0
       private[this] val shouldOverlap = skip < count
-      private[this] var nextBuffer = ArrayBuffer.empty[A]
-      private[this] var buffer = null : ArrayBuffer[A]
+      private[this] var nextBuffer = ListBuffer.empty[A]
+      private[this] var buffer = null : ListBuffer[A]
       private[this] var size = 0
 
       def onNext(elem: A): Future[Ack] = {
@@ -51,16 +50,16 @@ private[reactive] final class BufferOperator[A](count: Int, skip: Int)
           if (buffer == null) {
             buffer = nextBuffer
             size = nextBuffer.length
-            nextBuffer = ArrayBuffer.empty[A]
+            nextBuffer = ListBuffer.empty[A]
           }
 
           size += 1
-          buffer.append(elem)
+          buffer += elem
           if (shouldOverlap && size - skip > 0) nextBuffer += elem
 
           if (size >= count) {
             if (shouldDrop) leftToDrop = skip - count
-            ack = out.onNext(buffer)
+            ack = out.onNext(buffer.toList)
             buffer = null
           } else {
             ack = Continue

@@ -20,7 +20,7 @@ package monix.reactive
 import monix.execution.Scheduler
 import monix.reactive.observables.ObservableLike
 import monix.reactive.observables.ObservableLike.{Operator, Transformer}
-import monix.reactive.OverflowStrategy.Synchronous
+import monix.reactive.OverflowStrategy.{Synchronous, Unbounded}
 import monix.reactive.Pipe.{LiftedPipe, TransformedPipe}
 import monix.reactive.observers.{BufferedSubscriber, Subscriber, SyncObserver}
 import monix.reactive.subjects._
@@ -55,6 +55,13 @@ abstract class Pipe[I, +O]
   /** Returns an input/output pair with an input that can be
     * used synchronously and concurrently (without back-pressure or
     * multi-threading issues) to push signals to multiple subscribers.
+    */
+  def concurrent(implicit s: Scheduler): (SyncObserver[I], Observable[O]) =
+    concurrent(Unbounded)(s)
+
+  /** Returns an input/output pair with an input that can be
+    * used synchronously and concurrently (without back-pressure or
+    * multi-threading issues) to push signals to multiple subscribers.
     *
     * @param strategy is the [[OverflowStrategy]] used for the underlying
     *                 multi-producer/single-consumer buffer
@@ -78,80 +85,78 @@ object Pipe {
   /** Given a [[MulticastStrategy]] returns the corresponding [[Pipe]]. */
   def apply[A](strategy: MulticastStrategy[A]): Pipe[A,A] =
     strategy match {
-      case MulticastStrategy.Publish => Pipe.publish[A]()
-      case MulticastStrategy.Behavior(initial) => Pipe.behavior[A](initial)
-      case MulticastStrategy.Async => Pipe.async[A]()
-      case MulticastStrategy.Replay => Pipe.replay[A]()
-      case MulticastStrategy.ReplayPopulated(initial) => Pipe.replayPopulated[A](initial)
-      case MulticastStrategy.ReplayLimited(capacity) => Pipe.replayLimited[A](capacity)
+      case MulticastStrategy.Publish =>
+        Pipe.publish[A]
+      case MulticastStrategy.Behavior(initial) =>
+        Pipe.behavior[A](initial)
+      case MulticastStrategy.Async =>
+        Pipe.async[A]
+      case MulticastStrategy.Replay(initial) =>
+        Pipe.replay[A](initial)
+      case MulticastStrategy.ReplayLimited(capacity, initial) =>
+        Pipe.replayLimited[A](capacity, initial)
     }
 
   /** Subject recipe for building
     * [[monix.reactive.subjects.PublishSubject PublishSubject]] instances.
     */
-  def publish[T](): Pipe[T,T] =
-    new Pipe[T,T] {
-      def unicast: (Observer[T], Observable[T]) = {
-        val p = PublishSubject[T]()
+  def publish[A]: Pipe[A,A] =
+    new Pipe[A,A] {
+      def unicast: (Observer[A], Observable[A]) = {
+        val p = PublishSubject[A]()
         (p,p)
       }
 
-      override def multicast(implicit s: Scheduler): (Observer[T], Observable[T]) =
+      override def multicast(implicit s: Scheduler): (Observer[A], Observable[A]) =
         unicast
     }
 
   /** Subject recipe for building
-    * [[monix.reactive.subjects.PublishToOneSubject PublishToOneSubject]] instances.
+    * [[monix.reactive.subjects.PublishToOneSubject PublishToOneSubject]]
+    * instances.
     */
-  def publishToOne[T](): Pipe[T,T] =
-    new Pipe[T,T] {
-      def unicast: (Observer[T], Observable[T]) = {
-        val p = PublishToOneSubject[T]()
+  def publishToOne[A]: Pipe[A,A] =
+    new Pipe[A,A] {
+      def unicast: (Observer[A], Observable[A]) = {
+        val p = PublishToOneSubject[A]()
         (p,p)
       }
     }
 
   /** Subject recipe for building
-    * [[monix.reactive.subjects.BehaviorSubject BehaviorSubject]] instances.
+    * [[monix.reactive.subjects.BehaviorSubject BehaviorSubject]]
+    * instances.
     */
-  def behavior[T](initial: => T): Pipe[T,T] =
-    new Pipe[T,T] {
-      def unicast: (Observer[T], Observable[T]) = {
-        val p = BehaviorSubject[T](initial)
+  def behavior[A](initial: A): Pipe[A,A] =
+    new Pipe[A,A] {
+      def unicast: (Observer[A], Observable[A]) = {
+        val p = BehaviorSubject[A](initial)
         (p,p)
       }
 
-      override def multicast(implicit s: Scheduler): (Observer[T], Observable[T]) =
+      override def multicast(implicit s: Scheduler): (Observer[A], Observable[A]) =
         unicast
     }
 
   /** Subject recipe for building
     * [[monix.reactive.subjects.AsyncSubject AsyncSubject]] instances.
     */
-  def async[T](): Pipe[T,T] =
-    new Pipe[T,T] {
-      def unicast: (Observer[T], Observable[T]) = {
-        val p = AsyncSubject[T]()
+  def async[A]: Pipe[A,A] =
+    new Pipe[A,A] {
+      def unicast: (Observer[A], Observable[A]) = {
+        val p = AsyncSubject[A]()
         (p,p)
       }
 
-      override def multicast(implicit s: Scheduler): (Observer[T], Observable[T]) =
+      override def multicast(implicit s: Scheduler): (Observer[A], Observable[A]) =
         unicast
     }
 
   /** Subject recipe for building unbounded
     * [[monix.reactive.subjects.ReplaySubject monix.reactive.subjects.]] instances.
     */
-  def replay[T](): Pipe[T,T] =
-    new Pipe[T,T] {
-      def unicast: (Observer[T], Observable[T]) = {
-        val p = ReplaySubject[T]()
-        (p,p)
-      }
-
-      override def multicast(implicit s: Scheduler): (Observer[T], Observable[T]) =
-        unicast
-    }
+  def replay[A]: Pipe[A,A] =
+    replay(Seq.empty)
 
   /** Subject recipe for building unbounded
     * [[monix.reactive.subjects.ReplaySubject ReplaySubject]]
@@ -160,14 +165,14 @@ object Pipe {
     * @param initial is an initial sequence of elements that will be pushed
     *        to subscribers before any elements emitted by the source.
     */
-  def replayPopulated[T](initial: Seq[T]): Pipe[T,T] =
-    new Pipe[T,T] {
-      def unicast: (Observer[T], Observable[T]) = {
-        val p = ReplaySubject.create[T](initial)
+  def replay[A](initial: Seq[A]): Pipe[A,A] =
+    new Pipe[A,A] {
+      def unicast: (Observer[A], Observable[A]) = {
+        val p = ReplaySubject.create[A](initial)
         (p,p)
       }
 
-      override def multicast(implicit s: Scheduler): (Observer[T], Observable[T]) =
+      override def multicast(implicit s: Scheduler): (Observer[A], Observable[A]) =
         unicast
     }
 
@@ -178,14 +183,26 @@ object Pipe {
     * @param capacity indicates the minimum capacity of the underlying buffer,
     *        with the implementation being free to increase it.
     */
-  def replayLimited[T](capacity: Int): Pipe[T,T] =
-    new Pipe[T,T] {
-      def unicast: (Observer[T], Observable[T]) = {
-        val p = ReplaySubject.createWithSize[T](capacity)
+  def replayLimited[A](capacity: Int): Pipe[A,A] =
+    replayLimited(capacity, Seq.empty)
+
+  /** Subject recipe for building
+    * [[monix.reactive.subjects.ReplaySubject ReplaySubject]] instances
+    * with a maximum `capacity` (after which old items start being dropped).
+    *
+    * @param capacity indicates the minimum capacity of the underlying buffer,
+    *        with the implementation being free to increase it.
+    * @param initial is an initial sequence of elements that will be pushed
+    *        to subscribers before any elements emitted by the source.
+    */
+  def replayLimited[A](capacity: Int, initial: Seq[A]): Pipe[A,A] =
+    new Pipe[A,A] {
+      def unicast: (Observer[A], Observable[A]) = {
+        val p = ReplaySubject.createLimited[A](capacity, initial)
         (p,p)
       }
 
-      override def multicast(implicit s: Scheduler): (Observer[T], Observable[T]) =
+      override def multicast(implicit s: Scheduler): (Observer[A], Observable[A]) =
         unicast
     }
 

@@ -215,7 +215,8 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     *
     * @param maxCapacity is the maximum buffer size after which old events
     *        start being dropped (according to what happens when using
-    *        [[monix.reactive.subjects.ReplaySubject.createWithSize ReplaySubject.createWithSize]])
+    *        [[monix.reactive.subjects.ReplaySubject.createLimited[T](capacity:Int,initial* ReplaySubject.createLimited]])
+    *
     * @return an Observable that, when first subscribed to, caches all of its
     *         items and notifications for the benefit of subsequent subscribers
     */
@@ -248,7 +249,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     *        starts being dropped)
     */
   def replay(bufferSize: Int)(implicit s: Scheduler): ConnectableObservable[A] =
-    unsafeMulticast(ReplaySubject.createWithSize[A](bufferSize))
+    unsafeMulticast(ReplaySubject.createLimited[A](bufferSize))
 
   /** Converts this observable into a multicast observable, useful for
     * turning a cold observable into a hot one (i.e. whose source is

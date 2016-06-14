@@ -24,7 +24,7 @@ import monix.reactive.{Observable, Observer}
 import scala.concurrent.duration._
 import scala.concurrent.{Future, Promise}
 
-object BufferCountedSuite extends BaseOperatorSuite {
+object BufferTumblingSuite extends BaseOperatorSuite {
   val waitNext = Duration.Zero
   val waitFirst = Duration.Zero
 
@@ -40,7 +40,7 @@ object BufferCountedSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = {
     require(sourceCount > 0, "count must be strictly positive")
     Some {
-      val o = Observable.range(0, sourceCount * 10).buffer(10).map(_.sum)
+      val o = Observable.range(0, sourceCount * 10).bufferTumbling(10).map(_.sum)
       Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
     }
   }
@@ -49,7 +49,7 @@ object BufferCountedSuite extends BaseOperatorSuite {
     require(sourceCount > 0, "count must be strictly positive")
     Some {
       val o = createObservableEndingInError(Observable.range(0, sourceCount * 10), ex)
-        .buffer(10)
+        .bufferTumbling(10)
         .map(_.sum)
 
       Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
@@ -59,17 +59,17 @@ object BufferCountedSuite extends BaseOperatorSuite {
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) =
     None
 
-  override def cancelableObservables(): Seq[BufferCountedSuite.Sample] = {
+  override def cancelableObservables(): Seq[BufferTumblingSuite.Sample] = {
     val o = Observable.range(0, Platform.recommendedBatchSize)
       .delayOnNext(1.second)
-      .buffer(10).map(_.sum)
+      .bufferTumbling(10).map(_.sum)
 
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 
   test("should emit buffer onComplete") { implicit s =>
     val count = 157
-    val obs = Observable.range(0, count * 10).buffer(20).map(_.sum)
+    val obs = Observable.range(0, count * 10).bufferTumbling(20).map(_.sum)
 
     var wasCompleted = false
     var received = 0
@@ -97,7 +97,7 @@ object BufferCountedSuite extends BaseOperatorSuite {
     val count = 157
     val dummy = DummyException("dummy")
     val obs = createObservableEndingInError(Observable.range(0, count * 10), dummy)
-      .buffer(20).map(_.sum)
+      .bufferTumbling(20).map(_.sum)
 
     var errorThrown: Throwable = null
     var received = 0

@@ -26,7 +26,7 @@ import monix.reactive.observers.{Subscriber, SyncSubscriber}
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 
-final class WithLatestFromObservable[A,B,+R](
+private[reactive] final class WithLatestFromObservable[A,B,+R](
   source: Observable[A], other: Observable[B], f: (A,B) => R)
   extends Observable[R] {
 

@@ -20,12 +20,11 @@ package monix.reactive.subjects
 import monix.execution.Ack.Continue
 import monix.execution.Scheduler
 import monix.reactive.Observer
-import monix.reactive.OverflowStrategy.Unbounded
 import monix.reactive.exceptions.DummyException
 
 object ConcurrentAsyncSubjectSuite extends BaseConcurrentSubjectSuite {
   def alreadyTerminatedTest(expectedElems: Seq[Long])(implicit s: Scheduler) = {
-    val c = ConcurrentSubject.async[Long](Unbounded)
+    val c = ConcurrentSubject.async[Long]
     Sample(c, expectedElems.lastOption.getOrElse(0))
   }
 
@@ -47,7 +46,7 @@ object ConcurrentAsyncSubjectSuite extends BaseConcurrentSubjectSuite {
       }
     }
 
-    val channel = ConcurrentSubject.async[Long](Unbounded)
+    val channel = ConcurrentSubject.async[Long]
     channel.unsafeSubscribeFn(createObserver)
     channel.unsafeSubscribeFn(createObserver)
     channel.unsafeSubscribeFn(createObserver)
@@ -91,7 +90,7 @@ object ConcurrentAsyncSubjectSuite extends BaseConcurrentSubjectSuite {
       }
     }
 
-    val channel = ConcurrentSubject.async[Long](Unbounded)
+    val channel = ConcurrentSubject.async[Long]
     channel.unsafeSubscribeFn(createObserver)
     channel.unsafeSubscribeFn(createObserver)
     channel.unsafeSubscribeFn(createObserver)
@@ -130,7 +129,7 @@ object ConcurrentAsyncSubjectSuite extends BaseConcurrentSubjectSuite {
       def onError(ex: Throwable) = ()
     }
 
-    val channel = ConcurrentSubject.async[Long](Unbounded)
+    val channel = ConcurrentSubject.async[Long]
     channel.unsafeSubscribeFn(createObserver)
     channel.unsafeSubscribeFn(createObserver)
     channel.unsafeSubscribeFn(createObserver)

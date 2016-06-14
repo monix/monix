@@ -17,11 +17,15 @@
 
 package monix.reactive.internal.operators
 
+import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.internal.Platform
+import monix.reactive.observers.Subscriber
 import monix.reactive.{Observable, Observer}
+
 import scala.concurrent.duration._
 import scala.concurrent.{Future, Promise}
+import scala.util.Success
 
 object BufferTimedSuite extends BaseOperatorSuite {
   val waitFirst = 1.second
@@ -126,6 +130,51 @@ object BufferTimedSuite extends BaseOperatorSuite {
         assert(onNextReceived)
         p.success(Continue)
         s.tick(waitForNext)
+    }
+  }
+
+  test("should emit everything onComplete") { implicit s =>
+    val f = Observable.range(0, 1000)
+      .bufferTimedAndCounted(10.seconds, 10000)
+      .map(_.sum)
+      .sumF
+      .runAsyncGetFirst
+
+    s.tick()
+    assertEquals(f.value, Some(Success(Some(500 * 999))))
+  }
+
+  test("should not emit anything onComplete if buffer is empty") { implicit s =>
+    var received: Long = 0
+    var isCompleted: Long = 0
+
+    val obs = Observable.range(0, 1000)
+      .bufferTimedAndCounted(10.seconds, 1000)
+      .map(_.sum)
+
+    obs.unsafeSubscribeFn(new Subscriber[Long] {
+      implicit val scheduler = s
+
+      def onNext(elem: Long): Future[Ack] = {
+        received += elem
+        Continue
+      }
+
+      def onComplete(): Unit =
+        isCompleted += 1
+      def onError(ex: Throwable): Unit =
+        throw new IllegalStateException("onError")
+    })
+
+    s.tick()
+    assertEquals(received, 500 * 999)
+    assertEquals(isCompleted, 1)
+  }
+
+  test("trigger IllegalArgumentException on maxCount < 0") { implicit s =>
+    intercept[IllegalArgumentException] {
+      Observable.range(0, 1000)
+        .bufferTimedAndCounted(10.seconds, -1)
     }
   }
 }

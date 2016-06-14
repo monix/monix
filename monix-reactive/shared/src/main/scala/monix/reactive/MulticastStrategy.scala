@@ -48,16 +48,9 @@ sealed abstract class MulticastStrategy[+A]
   *         that repeat all the generated items by the source, regardless of
   *         when the source is subscribed.
   *
-  *         Corresponds to [[Pipe.replay]].
+  *         Corresponds to [[Pipe.replay[A](initial:Seq[A]* Pipe.replay]].
   *
-  * @define replayPopulated The `ReplayPopulated` strategy is for building multicast observables
-  *         that repeat all the generated items by the source, regardless of
-  *         when the source is subscribed, with the prepended `initial`
-  *         sequence of values.
-  *
-  *         Corresponds to [[Pipe.replayPopulated]].
-  *
-  * @define replayLimited The `ReplayLimited` strategy is for building multicast
+  * @define replayLimited   The `ReplayLimited` strategy is for building multicast
   *         observables that repeat the generated items by the source, but limited by the
   *         maximum size of the underlying buffer.
   *
@@ -66,7 +59,7 @@ sealed abstract class MulticastStrategy[+A]
   *         the given capacity, as the implementation may choose to increase it for optimisation
   *         purposes.
   *
-  *         Corresponds to [[Pipe.replayLimited]].
+  *         Corresponds to [[Pipe.replayLimited[A](capacity:Int,initial* Pipe.replayLimited]].
   */
 object MulticastStrategy {
   /** $publish */
@@ -88,20 +81,23 @@ object MulticastStrategy {
   case object Async extends MulticastStrategy[Nothing]
 
   /** $replay */
-  def replay[A]: MulticastStrategy[A] = Replay
+  def replay[A]: MulticastStrategy[A] = Replay(Seq.empty)
 
   /** $replay */
-  case object Replay extends MulticastStrategy[Nothing]
+  def replay[A](initial: Seq[A]): MulticastStrategy[A] = Replay(initial)
 
-  /** $replayPopulated */
-  def replayPopulated[A](initial: Seq[A]): MulticastStrategy[A] = ReplayPopulated(initial)
-
-  /** $replayPopulated */
-  case class ReplayPopulated[A](initial: Seq[A]) extends MulticastStrategy[A]
+  /** $replay */
+  case class Replay[A](initial: Seq[A]) extends MulticastStrategy[A]
 
   /** $replayLimited */
-  def replayLimited[A](capacity: Int): MulticastStrategy[A] = ReplayLimited(capacity)
+  def replayLimited[A](capacity: Int): MulticastStrategy[A] =
+    ReplayLimited(capacity, Seq.empty)
 
   /** $replayLimited */
-  case class ReplayLimited(capacity: Int) extends MulticastStrategy[Nothing]
+  def replayLimited[A](capacity: Int, initial: Seq[A]): MulticastStrategy[A] =
+    ReplayLimited(capacity, initial)
+
+  /** $replayLimited */
+  case class ReplayLimited[A](capacity: Int, initial: Seq[A])
+    extends MulticastStrategy[A]
 }

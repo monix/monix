@@ -53,7 +53,7 @@ object Callback {
 
   /** Creates an empty [[Callback]], a callback that doesn't do
     * anything in `onNext` and that logs errors in `onError` with
-    * the provided [[UncaughtExceptionReporter]].
+    * the provided [[monix.execution.UncaughtExceptionReporter]].
     */
   def empty[T](implicit r: UncaughtExceptionReporter): Callback[T] =
     new EmptyCallback(r)

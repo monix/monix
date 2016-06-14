@@ -21,7 +21,7 @@ import monix.execution.Scheduler
 import monix.execution.cancelables.SingleAssignmentCancelable
 import monix.reactive.observers.Subscriber
 import monix.reactive.{Observable, Observer}
-import org.reactivestreams.{Processor => RProcessor, Subscriber => RSubscriber, Subscription}
+import org.reactivestreams.{Subscription, Processor => RProcessor, Subscriber => RSubscriber}
 
 /** A `Subject` is a sort of bridge or proxy that acts both as an
   * [[Observer]] and as an [[Observable]] and that must respect

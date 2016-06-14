@@ -17,29 +17,31 @@
 
 package monix.reactive.internal.operators
 
+import monix.execution.internal.Platform
 import monix.reactive.Observable
 import scala.concurrent.duration._
 
-object BufferCountedOverlapSuite extends BaseOperatorSuite {
+object BufferSlidingDropSuite extends BaseOperatorSuite {
   val waitNext = Duration.Zero
   val waitFirst = Duration.Zero
 
   def createObservable(sourceCount: Int) = {
     require(sourceCount > 0, "count must be strictly positive")
     if (sourceCount > 1) Some {
-      val divBy4 = sourceCount / 4 * 4
-      val o = Observable.range(0, divBy4)
-        .map(_ % 4)
-        .buffer(8,4)
-        .flatMap(x => Observable.fromIterable(x))
+      val sc = sourceCount / 8 * 8
+      val o = Observable.range(0, sc)
+        .map(_ % 8)
+        .bufferSliding(4,8)
+        .flatMap(Observable.fromIterable)
 
-      val count = 8 + (divBy4 - 8) * 2
-      val sum = (count / 4) * 6
+      val count = 2 + (sc - 4) / 2
+      val sum = count / 4 * 6
       Sample(o, count, sum, waitFirst, waitNext)
-    }
-    else Some {
+    } else Some {
       val o = Observable.now(1L)
-        .buffer(2,1).flatMap(x => Observable.fromIterable(x))
+        .bufferSliding(2,1)
+        .flatMap(Observable.fromIterable)
+
       Sample(o, 1, 1, waitFirst, waitNext)
     }
   }
@@ -48,8 +50,13 @@ object BufferCountedOverlapSuite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) = None
 
   override def cancelableObservables() = {
-    val o = Observable.range(0,1000).delayOnNext(1.second)
-      .buffer(2,1).flatMap(x => Observable.fromIterable(x))
+    val o = Observable.range(0, Platform.recommendedBatchSize)
+      .delayOnNext(1.second)
+      .map(_ % 8)
+      .bufferSliding(4,8)
+      .flatMap(Observable.fromIterable)
+
+
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 }

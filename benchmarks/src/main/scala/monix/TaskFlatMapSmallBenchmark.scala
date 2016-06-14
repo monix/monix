@@ -27,7 +27,7 @@ import scalaz.{-\/, \/-}
 /*
  * Sample run:
  *
- *     sbt "benchmarks/jmh:run -i 10 -wi 10 -f 1 -t 1 monix.benchmarks.TaskFlatMapSmallBenchmark"
+ *     sbt "benchmarks/jmh:run -i 10 -wi 10 -f 1 -t 1 monix.TaskFlatMapSmallBenchmark"
  *
  * Which means "10 iterations" "5 warmup iterations" "1 fork" "1 thread".
  * Please note that benchmarks should be usually executed at least in

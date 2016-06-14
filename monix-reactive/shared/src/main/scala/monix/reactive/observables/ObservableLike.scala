@@ -128,6 +128,28 @@ import scala.concurrent.duration.FiniteDuration
   *         event used to inform the consumers that an overflow event
   *         happened, function that receives the number of dropped
   *         events as a parameter (see [[OverflowStrategy.Evicted]])
+  *
+  * @define bufferWithSelectorDesc Periodically gather items emitted by
+  *         an observable into bundles and emit these bundles rather than
+  *         emitting the items one at a time, whenever the `selector`
+  *         observable signals an event.
+  *
+  *         The resulting observable collects the elements of the source
+  *         in a buffer and emits that buffer whenever the given `selector`
+  *         observable emits an `onNext` event, when the buffer is emitted
+  *         as a sequence downstream and then reset. Thus the resulting
+  *         observable emits connected, non-overlapping bundles triggered
+  *         by the given `selector`.
+  *
+  *         If `selector` terminates with an `onComplete`, then the resulting
+  *         observable also terminates normally. If `selector` terminates with
+  *         an `onError`, then the resulting observable also terminates with an
+  *         error.
+  *
+  *         If the source observable completes, then the current buffer gets
+  *         signaled downstream. If the source triggers an error then the
+  *         current buffer is being dropped and the error gets propagated
+  *         immediately.
   */
 trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: Self[A] =>
   /** Transforms the source using the given operator function. */
@@ -186,8 +208,8 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: Self[A] =>
     * @param count the maximum size of each buffer before it should
     *        be emitted
     */
-  def buffer(count: Int): Self[Seq[A]] =
-    buffer(count, count)
+  def bufferTumbling(count: Int): Self[Seq[A]] =
+    bufferSliding(count, count)
 
   /** Returns an observable that emits buffers of items it collects from
     * the source observable. The resulting observable emits buffers
@@ -200,15 +222,15 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: Self[A] =>
     *
     * For `count` and `skip` there are 3 possibilities:
     *
-    *  1. in case `skip == count`, then there are no items dropped and
-    *      no overlap, the call being equivalent to `buffer(count)`
+    * 1. in case `skip == count`, then there are no items dropped and
+    *    no overlap, the call being equivalent to `buffer(count)`
     *
-    *  2. in case `skip < count`, then overlap between buffers
-    *     happens, with the number of elements being repeated being
-    *     `count - skip`
+    * 2. in case `skip < count`, then overlap between buffers
+    *    happens, with the number of elements being repeated being
+    *    `count - skip`
     *
-    *  3. in case `skip > count`, then `skip - count` elements start
-    *     getting dropped between windows
+    * 3. in case `skip > count`, then `skip - count` elements start
+    *    getting dropped between windows
     *
     * @param count the maximum size of each buffer before it should
     *        be emitted
@@ -217,8 +239,8 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: Self[A] =>
     *        skip and count are equal, this is the same operation as
     *        `buffer(count)`
     */
-  def buffer(count: Int, skip: Int): Self[Seq[A]] =
-    self.liftByOperator(new BufferOperator(count, skip))
+  def bufferSliding(count: Int, skip: Int): Self[Seq[A]] =
+    self.liftByOperator(new BufferSlidingOperator(count, skip))
 
   /** Periodically gather items emitted by an observable into bundles
     * and emit these bundles rather than emitting the items one at a
@@ -238,7 +260,7 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: Self[A] =>
     *        the buffered bundle
     */
   def bufferTimed(timespan: FiniteDuration): Self[Seq[A]] =
-    bufferTimed(timespan, 0)
+    bufferTimedAndCounted(timespan, 0)
 
   /** Periodically gather items emitted by an observable into bundles
     * and emit these bundles rather than emitting the items one at a
@@ -246,7 +268,7 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: Self[A] =>
     *
     * The resulting observable emits connected, non-overlapping
     * buffers, each of a fixed duration specified by the `timespan`
-    * argument or a maximum size specified by the `maxSize` argument
+    * argument or a maximum size specified by the `maxCount` argument
     * (whichever is reached first).
     *
     * If the source observable completes, then the current buffer gets
@@ -256,10 +278,72 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: Self[A] =>
     *
     * @param timespan the interval of time at which it should emit
     *        the buffered bundle
-    * @param maxSize is the maximum bundle size
+    * @param maxCount is the maximum bundle size, after which the
+    *        buffered bundle gets forcefully emitted
     */
-  def bufferTimed(timespan: FiniteDuration, maxSize: Int): Self[Seq[A]] =
-    self.liftByOperator(new BufferTimedOperator(timespan, maxSize))
+  def bufferTimedAndCounted(timespan: FiniteDuration, maxCount: Int): Self[Seq[A]] =
+    transform(self => new BufferTimedObservable[A](self, timespan, maxCount))
+
+  /** Periodically gather items emitted by an observable into bundles
+    * and emit these bundles rather than emitting the items one at a
+    * time. Back-pressure the source when the buffer is full.
+    *
+    * The resulting observable emits connected, non-overlapping
+    * buffers, each of a fixed duration specified by the `period`
+    * argument.
+    *
+    * The bundles are emitted at a fixed rate. If the source is
+    * silent, then the resulting observable will start emitting empty
+    * sequences.
+    *
+    * If the source observable completes, then the current buffer gets
+    * signaled downstream. If the source triggers an error then the
+    * current buffer is being dropped and the error gets propagated
+    * immediately.
+    *
+    * A `maxSize` argument is specified as the capacity of the
+    * bundle. In case the source is too fast and `maxSize` is reached,
+    * then the source will be back-pressured.
+    *
+    * The difference with [[bufferTimedAndCounted]] is that
+    * [[bufferTimedWithPressure]] applies back-pressure from the time
+    * when the buffer is full until the buffer is emitted, whereas
+    * [[bufferTimedAndCounted]] will forcefully emit the buffer when
+    * it's full.
+    *
+    * @param period the interval of time at which it should emit
+    *        the buffered bundle
+    * @param maxSize is the maximum buffer size, after which the
+    *        source starts being back-pressured
+    */
+  def bufferTimedWithPressure(period: FiniteDuration, maxSize: Int): Self[Seq[A]] =
+    self.transform { source =>
+      val sampler = Observable.intervalAtFixedRate(period, period)
+      new BufferWithSelectorObservable(source, sampler, maxSize)
+    }
+
+  /** $bufferWithSelectorDesc
+    *
+    * @param selector is the observable that triggers the
+    *        signaling of the current buffer
+    */
+
+  def bufferWithSelector[S](selector: Observable[S]): Self[Seq[A]] =
+    self.transform(source => new BufferWithSelectorObservable[A,S](source, selector, 0))
+
+  /** $bufferWithSelectorDesc
+    *
+    * A `maxSize` argument is specified as the capacity of the
+    * bundle. In case the source is too fast and `maxSize` is reached,
+    * then the source will be back-pressured.
+    *
+    * @param selector is the observable that triggers the signaling of the
+    *        current buffer
+    * @param maxSize is the maximum bundle size, after which the
+    *        source starts being back-pressured
+    */
+  def bufferWithSelector[S](selector: Observable[S], maxSize: Int): Self[Seq[A]] =
+    self.transform(source => new BufferWithSelectorObservable[A,S](source, selector, maxSize))
 
   /** Buffers signals while busy, after which it emits the
     * buffered events as a single bundle.
