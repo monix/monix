@@ -1116,7 +1116,7 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: Self[A] =>
     *
     * IMPORTANT: This operator is a replacement for the
     * [[http://reactivex.io/documentation/operators/observeon.html observeOn operator]]
-    * from ReactiveX, but does not work in the same way. The observeOn`
+    * from ReactiveX, but does not work in the same way. The `observeOn`
     * operator forces the signaling to happen on a given `Scheduler`, but
     * `executeOn` is more relaxed, usage is not forced, the source just
     * gets injected with a different scheduler and it's up to the source
