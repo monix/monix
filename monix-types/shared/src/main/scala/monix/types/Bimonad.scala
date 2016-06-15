@@ -17,11 +17,11 @@
 
 package monix.types
 
-/** Groups common type-classes for things that can be evaluated
-  * and that yield a single result (i.e. `Task`, `Coeval`)
+/** A shim for the `Bimonad` type-class,
+  * to be supplied by libraries such as Cats or Scalaz.
   */
-trait Evaluable[F[_]] extends MonadError[F, Throwable] with CoflatMap[F]
+trait Bimonad[F[_]] extends Monad[F] with Comonad[F]
 
-object Evaluable {
-  @inline def apply[F[_]](implicit F: Evaluable[F]): Evaluable[F] = F
+object Bimonad {
+  @inline def apply[F[_]](implicit F: Bimonad[F]): Bimonad[F] = F
 }

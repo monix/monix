@@ -17,11 +17,16 @@
 
 package monix.types
 
-/** Groups common type-classes for things that can be evaluated
-  * and that yield a single result (i.e. `Task`, `Coeval`)
+/** A shim for the `Functor` type-class, to be supplied by / translated to
+  * libraries such as Cats or Scalaz.
+  *
+  * A functor provides the `map` operation that allows lifting
+  * an `f` function into the functor context and applying it.
   */
-trait Evaluable[F[_]] extends MonadError[F, Throwable] with CoflatMap[F]
+trait Functor[F[_]] {
+  def map[A, B](fa: F[A])(f: A => B): F[B]
+}
 
-object Evaluable {
-  @inline def apply[F[_]](implicit F: Evaluable[F]): Evaluable[F] = F
+object Functor {
+  @inline def apply[F[_]](implicit F: Functor[F]): Functor[F] = F
 }

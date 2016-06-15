@@ -23,10 +23,9 @@ import monix.execution.cancelables.{CompositeCancelable, SingleAssignmentCancela
 import monix.execution.rstreams.Subscription
 import monix.execution.schedulers.ExecutionModel
 import monix.execution.{Cancelable, CancelableFuture, Scheduler}
-import monix.types.{Asynchronous, Evaluable}
+import monix.types.Evaluable
 import org.reactivestreams.Subscriber
 import org.sincron.atomic.{Atomic, AtomicAny}
-
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.concurrent.duration.FiniteDuration
@@ -495,7 +494,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
 }
 
 
-object Task {
+object Task extends TaskInstances {
   /** Returns a new task that, when executed, will emit the result of
     * the given function executed asynchronously.
     */
@@ -1527,65 +1526,51 @@ object Task {
   }
 
   /** Type-class instances for [[Task]]. */
-  implicit val instances: Evaluable[Task] with Asynchronous[Task] =
-    new Evaluable[Task] with Asynchronous[Task] {
-      override def now[A](a: A): Task[A] = Task.now(a)
-      override def unit: Task[Unit] = Task.unit
-      override def evalAlways[A](f: => A): Task[A] = Task.evalAlways(f)
-      override def evalOnce[A](f: => A): Task[A] = Task.evalOnce(f)
-      override def raiseError[A](ex: Throwable): Task[A] = Task.raiseError(ex)
-      override def defer[A](fa: => Task[A]): Task[A] = Task.defer(fa)
-      override def memoize[A](fa: Task[A]): Task[A] = fa.memoize
+  implicit val typeClassInstances: TypeClassInstances = new TypeClassInstances
+}
 
-      override def pure[A](a: A): Task[A] = now(a)
-      override def ap[A, B](fa: Task[A])(ff: Task[(A) => B]): Task[B] = ff.flatMap(fa.map)
-      override def flatten[A](ffa: Task[Task[A]]): Task[A] = ffa.flatten
-      override def flatMap[A, B](fa: Task[A])(f: (A) => Task[B]): Task[B] = fa.flatMap(f)
-      override def map[A, B](fa: Task[A])(f: (A) => B): Task[B] = fa.map(f)
-      override def coflatMap[A, B](fa: Task[A])(f: (Task[A]) => B): Task[B] = Task.evalAlways(f(fa))
-
-      override def restartUntil[A](fa: Task[A])(p: (A) => Boolean): Task[A] =
-        fa.restartUntil(p)
-      override def onErrorRestart[A](fa: Task[A], maxRetries: Long): Task[A] =
-        fa.onErrorRestart(maxRetries)
-      override def onErrorRestartIf[A](fa: Task[A])(p: (Throwable) => Boolean): Task[A] =
-        fa.onErrorRestartIf(p)
-      override def onErrorRecover[A](fa: Task[A])(pf: PartialFunction[Throwable, A]): Task[A] =
-        fa.onErrorRecover(pf)
-      override def onErrorRecoverWith[A](fa: Task[A])(pf: PartialFunction[Throwable, Task[A]]): Task[A] =
-        fa.onErrorRecoverWith(pf)
-      override def onErrorHandle[A](fa: Task[A])(f: (Throwable) => A): Task[A] =
-        fa.onErrorHandle(f)
-      override def onErrorHandleWith[A](fa: Task[A])(f: (Throwable) => Task[A]): Task[A] =
-        fa.onErrorHandleWith(f)
-      override def onErrorFallbackTo[A](fa: Task[A], fallback: Task[A]): Task[A] =
-        fa.onErrorFallbackTo(fallback)
-
-      override def failed[A](fa: Task[A]): Task[Throwable] = fa.failed
-      override def zipList[A](sources: Seq[Task[A]]): Task[Seq[A]] = Task.zipList(sources)
-      override def zipWith2[A1, A2, R](fa1: Task[A1], fa2: Task[A2])(f: (A1, A2) => R): Task[R] =
-        Task.zipWith2(fa1, fa2)(f)
-      override def zip2[A1, A2](fa1: Task[A1], fa2: Task[A2]): Task[(A1, A2)] =
-        Task.zip2(fa1, fa2)
-
-      override def delayedEval[A](delay: FiniteDuration, a: =>A): Task[A] =
-        Task.evalAlways(a).delayExecution(delay)
-      override def delayExecution[A](fa: Task[A], timespan: FiniteDuration): Task[A] =
-        fa.delayExecution(timespan)
-      override def chooseFirstOf[A](seq: Seq[Task[A]]): Task[A] =
-        Task.chooseFirstOfList(seq)
-      override def delayExecutionWith[A, B](fa: Task[A], trigger: Task[B]): Task[A] =
-        fa.delayExecutionWith(trigger)
-      override def delayResult[A](fa: Task[A], timespan: FiniteDuration): Task[A] =
-        fa.delayResult(timespan)
-      override def delayResultBySelector[A, B](fa: Task[A])(selector: (A) => Task[B]): Task[A] =
-        fa.delayResultBySelector(selector)
-
-      override def materialize[A](fa: Task[A]): Task[Try[A]] = fa.materialize
-      override def dematerialize[A](fa: Task[Try[A]]): Task[A] = fa.dematerialize
-      override def timeoutTo[A](fa: Task[A], timespan: FiniteDuration, backup: Task[A]): Task[A] =
-        fa.timeoutTo(timespan, backup)
-      override def timeout[A](fa: Task[A], timespan: FiniteDuration): Task[A] =
-        fa.timeout(timespan)
+private[eval] trait TaskInstances {
+  /** Type-class instances for [[Task]] that have
+    * nondeterministic effects for [[monix.types.Applicative Applicative]].
+    *
+    * It can be optionally imported in scope to make `map2` and `ap` to
+    * potentially run tasks in parallel.
+    */
+  implicit val nondeterminism: TypeClassInstances =
+    new TypeClassInstances {
+      override def ap[A, B](fa: Task[A])(ff: Task[(A) => B]): Task[B] =
+        Task.mapBoth(ff,fa)(_(_))
+      override def map2[A, B, Z](fa: Task[A], fb: Task[B])(f: (A, B) => Z): Task[Z] =
+        Task.mapBoth(fa, fb)(f)
     }
+
+  /** Groups the implementation for the type-classes defined in [[monix.types]]. */
+  class TypeClassInstances extends Evaluable[Task] {
+    override def flatMap[A, B](fa: Task[A])(f: (A) => Task[B]): Task[B] =
+      fa.flatMap(f)
+    override def flatten[A](ffa: Task[Task[A]]): Task[A] =
+      ffa.flatten
+    override def coflatMap[A, B](fa: Task[A])(f: (Task[A]) => B): Task[B] =
+      Task.evalAlways(f(fa))
+    override def pure[A](a: A): Task[A] =
+      Task.now(a)
+    override def pureEval[A](a: => A): Task[A] =
+      Task.evalAlways(a)
+    override def ap[A, B](fa: Task[A])(ff: Task[(A) => B]): Task[B] =
+      for (f <- ff; a <- fa) yield f(a)
+    override def map2[A, B, Z](fa: Task[A], fb: Task[B])(f: (A, B) => Z): Task[Z] =
+      for (a <- fa; b <- fb) yield f(a,b)
+    override def map[A, B](fa: Task[A])(f: (A) => B): Task[B] =
+      fa.map(f)
+    override def raiseError[A](e: Throwable): Task[A] =
+      Task.raiseError(e)
+    override def handleError[A](fa: Task[A])(f: (Throwable) => A): Task[A] =
+      fa.onErrorHandle(f)
+    override def handleErrorWith[A](fa: Task[A])(f: (Throwable) => Task[A]): Task[A] =
+      fa.onErrorHandleWith(f)
+    override def recover[A](fa: Task[A])(pf: PartialFunction[Throwable, A]): Task[A] =
+      fa.onErrorRecover(pf)
+    override def recoverWith[A](fa: Task[A])(pf: PartialFunction[Throwable, Task[A]]): Task[A] =
+      fa.onErrorRecoverWith(pf)
+  }
 }

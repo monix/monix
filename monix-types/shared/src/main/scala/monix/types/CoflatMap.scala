@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package monix.types.shims
+package monix.types
 
 /** A shim for the `CoflatMap` type-class,
   * to be supplied by libraries such as Cats or Scalaz.

@@ -18,8 +18,7 @@
 package monix.eval
 
 import monix.eval.Coeval._
-import monix.types.Evaluable
-import monix.types.shims.Bimonad
+import monix.types.{Bimonad, Evaluable}
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.util.control.NonFatal
@@ -590,52 +589,38 @@ object Coeval {
   }
 
   /** Implicit type-class instances of [[Coeval]]. */
-  implicit val instances: Evaluable[Coeval] with Bimonad[Coeval] =
-    new Evaluable[Coeval] with Bimonad[Coeval] {
-      override def now[A](a: A): Coeval[A] = Coeval.now(a)
-      override def unit: Coeval[Unit] = Coeval.unit
-      override def evalAlways[A](f: => A): Coeval[A] = Coeval.evalAlways(f)
-      override def evalOnce[A](f: => A): Coeval[A] = Coeval.evalOnce(f)
-      override def raiseError[A](ex: Throwable): Coeval[A] = Coeval.raiseError(ex)
-      override def defer[A](fa: => Coeval[A]): Coeval[A] = Coeval.defer(fa)
-      override def memoize[A](fa: Coeval[A]): Coeval[A] = fa.memoize
+  implicit val typeClassInstances: TypeClassInstances = new TypeClassInstances
 
-      override def pure[A](a: A): Coeval[A] = Coeval.now(a)
-      override def ap[A, B](fa: Coeval[A])(ff: Coeval[(A) => B]): Coeval[B] = ff.flatMap(fa.map)
-      override def flatten[A](ffa: Coeval[Coeval[A]]): Coeval[A] = ffa.flatten
-      override def flatMap[A, B](fa: Coeval[A])(f: (A) => Coeval[B]): Coeval[B] = fa.flatMap(f)
-      override def map[A, B](fa: Coeval[A])(f: (A) => B): Coeval[B] = fa.map(f)
-
-      override def coflatMap[A, B](fa: Coeval[A])(f: (Coeval[A]) => B): Coeval[B] =
-        Coeval.evalAlways(f(fa))
-      override def extract[A](x: Coeval[A]): A =
-        x.value
-
-      override def restartUntil[A](fa: Coeval[A])(p: (A) => Boolean): Coeval[A] =
-        fa.restartUntil(p)
-      override def onErrorRestartIf[A](fa: Coeval[A])(p: (Throwable) => Boolean): Coeval[A] =
-        fa.onErrorRestartIf(p)
-      override def onErrorRestart[A](fa: Coeval[A], maxRetries: Long): Coeval[A] =
-        fa.onErrorRestart(maxRetries)
-      override def onErrorRecover[A](fa: Coeval[A])(pf: PartialFunction[Throwable, A]): Coeval[A] =
-        fa.onErrorRecover(pf)
-      override def onErrorRecoverWith[A](fa: Coeval[A])(pf: PartialFunction[Throwable, Coeval[A]]): Coeval[A] =
-        fa.onErrorRecoverWith(pf)
-      override def onErrorHandle[A](fa: Coeval[A])(f: (Throwable) => A): Coeval[A] =
-        fa.onErrorHandle(f)
-      override def onErrorHandleWith[A](fa: Coeval[A])(f: (Throwable) => Coeval[A]): Coeval[A] =
-        fa.onErrorHandleWith(f)
-      override def onErrorFallbackTo[A](fa: Coeval[A], fallback: Coeval[A]): Coeval[A] =
-        fa.onErrorFallbackTo(fallback)
-
-      override def failed[A](fa: Coeval[A]): Coeval[Throwable] = fa.failed
-      override def materialize[A](fa: Coeval[A]): Coeval[Try[A]] = fa.materialize
-      override def dematerialize[A](fa: Coeval[Try[A]]): Coeval[A] = fa.dematerialize
-
-      override def zipList[A](sources: Seq[Coeval[A]]): Coeval[Seq[A]] = Coeval.zipList(sources)
-      override def zipWith2[A1, A2, R](fa1: Coeval[A1], fa2: Coeval[A2])(f: (A1, A2) => R): Coeval[R] =
-        Coeval.zipWith2(fa1, fa2)(f)
-      override def zip2[A1, A2](fa1: Coeval[A1], fa2: Coeval[A2]): Coeval[(A1, A2)] =
-        Coeval.zip2(fa1, fa2)
-    }
+  /** Groups the implementation for the type-classes defined in [[monix.types]]. */
+  class TypeClassInstances extends Evaluable[Coeval] with Bimonad[Coeval] {
+    override def extract[A](x: Coeval[A]): A =
+      x.value
+    override def flatMap[A, B](fa: Coeval[A])(f: (A) => Coeval[B]): Coeval[B] =
+      fa.flatMap(f)
+    override def flatten[A](ffa: Coeval[Coeval[A]]): Coeval[A] =
+      ffa.flatten
+    override def coflatMap[A, B](fa: Coeval[A])(f: (Coeval[A]) => B): Coeval[B] =
+      Coeval.evalAlways(f(fa))
+    override def pure[A](a: A): Coeval[A] =
+      Coeval.now(a)
+    override def pureEval[A](a: => A): Coeval[A] =
+      Coeval.evalAlways(a)
+    override def ap[A, B](fa: Coeval[A])(ff: Coeval[(A) => B]): Coeval[B] =
+      for (f <- ff; a <- fa) yield f(a)
+    override def map2[A, B, Z](fa: Coeval[A], fb: Coeval[B])(f: (A, B) => Z): Coeval[Z] =
+      for (a <- fa; b <- fb) yield f(a,b)
+    override def map[A, B](fa: Coeval[A])(f: (A) => B): Coeval[B] =
+      fa.map(f)
+    override def raiseError[A](e: Throwable): Coeval[A] =
+      Coeval.raiseError(e)
+    override def handleError[A](fa: Coeval[A])(f: (Throwable) => A): Coeval[A] =
+      fa.onErrorHandle(f)
+    override def handleErrorWith[A](fa: Coeval[A])(f: (Throwable) => Coeval[A]): Coeval[A] =
+      fa.onErrorHandleWith(f)
+    override def recover[A](fa: Coeval[A])(pf: PartialFunction[Throwable, A]): Coeval[A] =
+      fa.onErrorRecover(pf)
+    override def recoverWith[A](fa: Coeval[A])(pf: PartialFunction[Throwable, Coeval[A]]): Coeval[A] =
+      fa.onErrorRecoverWith(pf)
+  }
 }
+

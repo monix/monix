@@ -24,17 +24,21 @@ import monix.types.Evaluable
   * instances into Cats type-classes.
   */
 trait EvaluableInstances extends EvaluableInstances2 {
-  implicit def monixEvaluableToCats[F[_] : Evaluable]: MonadError[F,Throwable] with CoflatMap[F] =
-    new ConvertMonixEvaluableToCats[F]()
+  implicit def monixEvaluableToCats[F[_]]
+    (implicit ev: Evaluable[F]): MonadError[F,Throwable] with CoflatMap[F] =
+    new ConvertMonixEvaluableToCats[F] { override val F = ev }
 
-  private[cats] class ConvertMonixEvaluableToCats[F[_]](implicit F: Evaluable[F])
-    extends ConvertMonixDeferrableToCats[F]
+  private[cats] trait ConvertMonixEvaluableToCats[F[_]]
+    extends ConvertMonixMonadErrorToCats[F,Throwable] with ConvertMonixCoflatMapToCats[F] {
+
+    override val F: Evaluable[F]
+  }
 }
 
 private[cats] trait EvaluableInstances2 extends EvaluableInstances1 {
   implicit def monixEvaluableGroup[F[_], A](implicit F: Evaluable[F], A: Group[A]): Group[F[A]] =
     new Group[F[A]] {
-      def empty: F[A] = F.now(A.empty)
+      def empty: F[A] = F.pure(A.empty)
       def combine(x: F[A], y: F[A]): F[A] =
         F.flatMap(x)(a => F.map(y)(b => A.combine(a,b)))
       def inverse(a: F[A]): F[A] =
@@ -45,16 +49,16 @@ private[cats] trait EvaluableInstances2 extends EvaluableInstances1 {
 private[cats] trait EvaluableInstances1 extends EvaluableInstances0 {
   implicit def monixEvaluableMonoid[F[_], A](implicit F: Evaluable[F], A: Monoid[A]): Monoid[F[A]] =
     new Monoid[F[A]] {
-      def empty: F[A] = F.now(A.empty)
+      def empty: F[A] = F.pure(A.empty)
       def combine(x: F[A], y: F[A]): F[A] =
-        F.zipWith2(x,y)(A.combine)
+        F.map2(x,y)(A.combine)
     }
 }
 
-private[cats] trait EvaluableInstances0 extends DeferrableInstances {
+private[cats] trait EvaluableInstances0 extends ShimsInstances {
   implicit def monixEvaluableSemigroup[F[_], A](implicit F: Evaluable[F], A: Semigroup[A]): Semigroup[F[A]] =
     new Semigroup[F[A]] {
       def combine(x: F[A], y: F[A]): F[A] =
-        F.zipWith2(x,y)(A.combine)
+        F.map2(x,y)(A.combine)
     }
 }

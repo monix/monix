@@ -28,7 +28,7 @@ import monix.reactive.observables.ObservableLike.{Operator, Transformer}
 import monix.reactive.observables._
 import monix.reactive.observers._
 import monix.reactive.subjects._
-import monix.types.{Asynchronous, Restartable}
+import monix.types.Streamable
 import org.reactivestreams.{Publisher => RPublisher, Subscriber => RSubscriber}
 
 import scala.concurrent.Future
@@ -450,6 +450,10 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
   *         by means of [[Observable!.multicast multicast]].
   */
 object Observable {
+  /** Given a sequence of elements, builds an observable from it. */
+  def apply[A](elems: A*): Observable[A] =
+    Observable.fromIterable(elems)
+
   /** Creates an observable that doesn't emit anything, but immediately
     * calls `onComplete` instead.
     */
@@ -796,26 +800,33 @@ object Observable {
     */
   def merge[A](sources: Observable[A]*)
     (implicit os: OverflowStrategy[A] = OverflowStrategy.Default): Observable[A] =
-    Observable.fromIterable(sources).mergeMap(o => o)(os)
+    Observable.fromIterable(sources).mergeMap(identity)(os)
 
   /** Merges the given list of ''observables'' into a single observable.
     * Delays errors until the end.
     */
   def mergeDelayError[A](sources: Observable[A]*)
     (implicit os: OverflowStrategy[A] = OverflowStrategy.Default): Observable[A] =
-    Observable.fromIterable(sources).mergeMapDelayErrors(o => o)(os)
+    Observable.fromIterable(sources).mergeMapDelayErrors(identity)(os)
 
   /** Concatenates the given list of ''observables'' into a single
     * observable.
     */
   def concat[A](sources: Observable[A]*): Observable[A] =
-    Observable.fromIterable(sources).concatMap[A](t => t)
+    Observable.fromIterable(sources).concatMap[A](identity)
 
   /** Concatenates the given list of ''observables'' into a single observable.
     * Delays errors until the end.
     */
   def concatDelayError[A](sources: Observable[A]*): Observable[A] =
-    Observable.fromIterable(sources).concatMapDelayError[A](t => t)
+    Observable.fromIterable(sources).concatMapDelayError[A](identity)
+
+  /** Given a sequence of observables, builds an observable
+    * that emits the elements of the most recently emitted
+    * observable.
+    */
+  def switch[A](sources: Observable[A]*): Observable[A] =
+    Observable.fromIterable(sources).switch
 
   /** Creates a new observable from two observable sequences
     * by combining their items in pairs in a strict sequence.
@@ -1161,97 +1172,44 @@ object Observable {
   def firstStartedOf[A](source: Observable[A]*): Observable[A] =
     new builders.FirstStartedObservable(source: _*)
 
+  /** Implicit type-class instances for [[Observable]]. */
+  implicit val typeClassInstances: TypeClassInstances = new TypeClassInstances
+
   /** Type-class instances for [[Observable]]. */
-  implicit val instances: Asynchronous[Observable] with Restartable[Observable] =
-    new Asynchronous[Observable] with Restartable[Observable] {
-      override def raiseError[A](e: Throwable): Observable[A] =
-        Observable.raiseError(e)
-      override def delayedEval[A](delay: FiniteDuration, a: => A): Observable[A] =
-        Observable.evalAlways(a)
-
-      override def now[A](a: A): Observable[A] =
-        Observable.now(a)
-      override def evalAlways[A](a: => A): Observable[A] =
-        Observable.evalAlways(a)
-      override def evalOnce[A](a: => A): Observable[A] =
-        Observable.evalOnce(a)
-      override def memoize[A](fa: Observable[A]): Observable[A] =
-        fa.cache
-      override def defer[A](fa: => Observable[A]): Observable[A] =
-        Observable.defer(fa)
-
-      override def onErrorHandleWith[A](fa: Observable[A])(f: Throwable => Observable[A]): Observable[A] =
-        fa.onErrorHandleWith(f)
-      override def onErrorHandle[A](fa: Observable[A])(f: Throwable => A): Observable[A] =
-        fa.onErrorHandle(f)
-      override def onErrorFallbackTo[A](fa: Observable[A], other: Observable[A]): Observable[A] =
-        fa.onErrorFallbackTo(other)
-      override def onErrorRestart[A](fa: Observable[A], maxRetries: Long): Observable[A] =
-        fa.onErrorRestart(maxRetries)
-      override def onErrorRestartIf[A](fa: Observable[A])(p: (Throwable) => Boolean): Observable[A] =
-        fa.onErrorRestartIf(p)
-
-      override def restartUntil[A](fa: Observable[A])(p: (A) => Boolean): Observable[A] =
-        fa.restartUntil(p)
-
-      override def pure[A](a: A): Observable[A] = Observable.pure(a)
-      override def ap[A, B](fa: Observable[A])(ff: Observable[(A) => B]): Observable[B] = ff.flatMap(fa.map)
-
-      override def onErrorRecoverWith[A](fa: Observable[A])(pf: PartialFunction[Throwable, Observable[A]]): Observable[A] =
-        fa.onErrorRecoverWith(pf)
-      override def onErrorRecover[A](fa: Observable[A])(pf: PartialFunction[Throwable, A]): Observable[A] =
-        fa.onErrorRecover(pf)
-      override def failed[A](fa: Observable[A]): Observable[Throwable] =
-        fa.failed
-      override def map[A, B](fa: Observable[A])(f: (A) => B): Observable[B] =
-        fa.map(f)
-      override def coflatMap[A, B](fa: Observable[A])(f: (Observable[A]) => B): Observable[B] =
-        Observable.evalAlways(f(fa))
-
-      override def zip2[A1, A2](fa1: Observable[A1], fa2: Observable[A2]): Observable[(A1, A2)] =
-        Observable.zip2(fa1, fa2)
-      override def zipWith2[A1, A2, R](fa1: Observable[A1], fa2: Observable[A2])(f: (A1, A2) => R): Observable[R] =
-        Observable.zipWith2(fa1, fa2)(f)
-      override def zip3[A1, A2, A3](fa1: Observable[A1], fa2: Observable[A2], fa3: Observable[A3]): Observable[(A1, A2, A3)] =
-        Observable.zip3(fa1,fa2,fa3)
-      override def zipWith3[A1, A2, A3, R](fa1: Observable[A1], fa2: Observable[A2], fa3: Observable[A3])(f: (A1, A2, A3) => R): Observable[R] =
-        Observable.zipWith3(fa1,fa2,fa3)(f)
-      override def zip4[A1, A2, A3, A4](fa1: Observable[A1], fa2: Observable[A2], fa3: Observable[A3], fa4: Observable[A4]): Observable[(A1, A2, A3, A4)] =
-        Observable.zip4(fa1,fa2,fa3,fa4)
-      override def zipWith4[A1, A2, A3, A4, R](fa1: Observable[A1], fa2: Observable[A2], fa3: Observable[A3], fa4: Observable[A4])(f: (A1, A2, A3, A4) => R): Observable[R] =
-        Observable.zipWith4(fa1,fa2,fa3,fa4)(f)
-      override def zip5[A1, A2, A3, A4, A5](fa1: Observable[A1], fa2: Observable[A2], fa3: Observable[A3], fa4: Observable[A4], fa5: Observable[A5]): Observable[(A1, A2, A3, A4, A5)] =
-        Observable.zip5(fa1,fa2,fa3,fa4,fa5)
-      override def zipWith5[A1, A2, A3, A4, A5, R](fa1: Observable[A1], fa2: Observable[A2], fa3: Observable[A3], fa4: Observable[A4], fa5: Observable[A5])(f: (A1, A2, A3, A4, A5) => R): Observable[R] =
-        Observable.zipWith5(fa1,fa2,fa3,fa4,fa5)(f)
-      override def zip6[A1, A2, A3, A4, A5, A6](fa1: Observable[A1], fa2: Observable[A2], fa3: Observable[A3], fa4: Observable[A4], fa5: Observable[A5], fa6: Observable[A6]): Observable[(A1, A2, A3, A4, A5, A6)] =
-        Observable.zip6(fa1,fa2,fa3,fa4,fa5,fa6)
-      override def zipWith6[A1, A2, A3, A4, A5, A6, R](fa1: Observable[A1], fa2: Observable[A2], fa3: Observable[A3], fa4: Observable[A4], fa5: Observable[A5], fa6: Observable[A6])(f: (A1, A2, A3, A4, A5, A6) => R): Observable[R] =
-        Observable.zipWith6(fa1,fa2,fa3,fa4,fa5,fa6)(f)
-      override def zipList[A](sources: Seq[Observable[A]]): Observable[Seq[A]] =
-        Observable.zipList(sources:_*)
-
-      override def delayExecution[A](fa: Observable[A], timespan: FiniteDuration): Observable[A] =
-        fa.delaySubscription(timespan)
-      override def delayExecutionWith[A, B](fa: Observable[A], trigger: Observable[B]): Observable[A] =
-        fa.delaySubscriptionWith(trigger)
-      override def delayResult[A](fa: Observable[A], timespan: FiniteDuration): Observable[A] =
-        fa.delayOnNext(timespan)
-      override def delayResultBySelector[A, B](fa: Observable[A])(selector: (A) => Observable[B]): Observable[A] =
-        fa.delayOnNextBySelector(selector)
-
-      override def timeout[A](fa: Observable[A], timespan: FiniteDuration): Observable[A] =
-        fa.timeoutOnSlowUpstream(timespan)
-      override def timeoutTo[A](fa: Observable[A], timespan: FiniteDuration, backup: Observable[A]): Observable[A] =
-        fa.timeoutOnSlowUpstreamTo(timespan, backup)
-
-      override def chooseFirstOf[A](seq: Seq[Observable[A]]): Observable[A] =
-        Observable.firstStartedOf(seq:_*)
-      override def unit: Observable[Unit] =
-        Observable.now(())
-      override def flatten[A](ffa: Observable[Observable[A]]): Observable[A] =
-        ffa.flatten
-      override def flatMap[A, B](fa: Observable[A])(f: (A) => Observable[B]): Observable[B] =
-        fa.flatMap(f)
-    }
+  class TypeClassInstances extends Streamable[Observable] {
+    override def combineK[A](x: Observable[A], y: Observable[A]): Observable[A] =
+      x ++ y
+    override def flatMap[A, B](fa: Observable[A])(f: (A) => Observable[B]): Observable[B] =
+      fa.flatMap(f)
+    override def flatten[A](ffa: Observable[Observable[A]]): Observable[A] =
+      ffa.flatten
+    override def coflatMap[A, B](fa: Observable[A])(f: (Observable[A]) => B): Observable[B] =
+      Observable.evalAlways(f(fa))
+    override def pure[A](a: A): Observable[A] =
+      Observable.now(a)
+    override def pureEval[A](a: => A): Observable[A] =
+      Observable.evalAlways(a)
+    override def ap[A, B](fa: Observable[A])(ff: Observable[(A) => B]): Observable[B] =
+      for (f <- ff; a <- fa) yield f(a)
+    override def map2[A, B, Z](fa: Observable[A], fb: Observable[B])(f: (A, B) => Z): Observable[Z] =
+      for (a <- fa; b <- fb) yield f(a,b)
+    override def map[A, B](fa: Observable[A])(f: (A) => B): Observable[B] =
+      fa.map(f)
+    override def raiseError[A](e: Throwable): Observable[A] =
+      Observable.raiseError(e)
+    override def handleError[A](fa: Observable[A])(f: (Throwable) => A): Observable[A] =
+      fa.onErrorHandle(f)
+    override def handleErrorWith[A](fa: Observable[A])(f: (Throwable) => Observable[A]): Observable[A] =
+      fa.onErrorHandleWith(f)
+    override def recover[A](fa: Observable[A])(pf: PartialFunction[Throwable, A]): Observable[A] =
+      fa.onErrorRecover(pf)
+    override def recoverWith[A](fa: Observable[A])(pf: PartialFunction[Throwable, Observable[A]]): Observable[A] =
+      fa.onErrorRecoverWith(pf)
+    override def empty[A]: Observable[A] =
+      Observable.empty[A]
+    override def filter[A](fa: Observable[A])(f: (A) => Boolean): Observable[A] =
+      fa.filter(f)
+    override def filterM[A](fa: Observable[A])(f: (A) => Observable[Boolean]): Observable[A] =
+      flatMap(fa)(a => flatMap(f(a))(b => if (b) pure(a) else empty[A]))
+  }
 }

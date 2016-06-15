@@ -17,95 +17,197 @@
 
 package monix.cats
 
-import monix.types.shims._
+import cats.Eval
+import monix.types._
 
-/** Groups all shim instances together. */
-trait ShimsInstances extends BimonadInstances
+/** Groups all shim type-class conversions together. */
+trait ShimsInstances extends ShimsLevel10
 
-/** Converts Monix's [[monix.types.shims.Bimonad Bimonad]]
-  * instances into the Cats `Bimonad`.
-  */
-trait BimonadInstances extends MonadInstances with ComonadInstances {
-  implicit def monixBimonadInstancesToCats[F[_] : Bimonad]: _root_.cats.Bimonad[F] =
-    new ConvertMonixBimonadToCats[F]()
+private[cats] trait ShimsLevel10 extends ShimsLevel9 {
+  /** Converts Monix's [[monix.types.MonoidK MonoidK]]
+    * instances into the Cats `MonoidK`.
+    */
+  implicit def monixMonoidKInstancesToCats[F[_]]
+    (implicit ev: MonoidK[F]): _root_.cats.MonoidK[F] =
+    new ConvertMonixMonoidKToCats[F] { override val F = ev }
 
-  private[cats] class ConvertMonixBimonadToCats[F[_]](implicit F: Bimonad[F])
+  private[cats] trait ConvertMonixMonoidKToCats[F[_]]
+    extends ConvertMonixSemigroupKToCats[F] with _root_.cats.MonoidK[F] {
+
+    override val F: MonoidK[F]
+    override def empty[A]: F[A] = F.empty[A]
+  }
+}
+
+private[cats] trait ShimsLevel9 extends ShimsLevel8 {
+  /** Converts Monix's [[monix.types.SemigroupK SemigroupK]]
+    * instances into the Cats `SemigroupK`.
+    */
+  implicit def monixSemigroupKInstancesToCats[F[_]]
+    (implicit ev: SemigroupK[F]): _root_.cats.SemigroupK[F] =
+    new ConvertMonixSemigroupKToCats[F] { override val F = ev }
+
+  private[cats] trait ConvertMonixSemigroupKToCats[F[_]]
+    extends _root_.cats.SemigroupK[F] {
+
+    val F: SemigroupK[F]
+    override def combineK[A](x: F[A], y: F[A]): F[A] = F.combineK(x,y)
+  }
+}
+
+private[cats] trait ShimsLevel8 extends ShimsLevel7 {
+  /** Converts Monix's [[monix.types.MonadFilter MonadFilter]]
+    * instances into the Cats `MonadFilter`.
+    */
+  implicit def monixMonadFilterInstancesToCats[F[_]]
+    (implicit ev: MonadFilter[F]): _root_.cats.MonadFilter[F] =
+    new ConvertMonixMonadFilterToCats[F] { override val F = ev }
+
+  private[cats] trait ConvertMonixMonadFilterToCats[F[_]]
+    extends ConvertMonixMonadToCats[F] with _root_.cats.MonadFilter[F] {
+
+    override val F: MonadFilter[F]
+    override def empty[A]: F[A] = F.empty[A]
+    override def filter[A](fa: F[A])(f: (A) => Boolean): F[A] = F.filter(fa)(f)
+    override def filterM[A](fa: F[A])(f: (A) => F[Boolean]): F[A] = F.filterM(fa)(f)
+  }
+}
+
+private[cats] trait ShimsLevel7 extends ShimsLevel6 {
+  /** Converts Monix's [[monix.types.Bimonad Bimonad]]
+    * instances into the Cats `Bimonad`.
+    */
+  implicit def monixBimonadInstancesToCats[F[_]]
+    (implicit ev: Bimonad[F]): _root_.cats.Bimonad[F] =
+    new ConvertMonixBimonadToCats[F] { override val F = ev }
+
+  private[cats] trait ConvertMonixBimonadToCats[F[_]]
     extends ConvertMonixMonadToCats[F] with _root_.cats.Bimonad[F] {
 
+    override val F: Bimonad[F]
     override def extract[A](x: F[A]): A = F.extract(x)
     override def coflatMap[A, B](fa: F[A])(f: (F[A]) => B): F[B] = F.coflatMap(fa)(f)
     override def coflatten[A](fa: F[A]): F[F[A]] = F.coflatten(fa)
   }
 }
 
-/** Converts Monix's [[monix.types.shims.Comonad Comonad]]
-  * instances into the Cats `Comonad`.
-  */
-trait ComonadInstances extends CoflatMapInstances {
-  implicit def monixComonadInstancesToCats[F[_] : Comonad]: _root_.cats.Comonad[F] =
-    new ConvertMonixComonadToCats[F]()
+private[cats] trait ShimsLevel6 extends ShimsLevel5 {
+  /** Converts Monix's [[monix.types.Comonad Comonad]]
+    * instances into the Cats `Comonad`.
+    */
+  implicit def monixComonadInstancesToCats[F[_]]
+    (implicit ev: Comonad[F]): _root_.cats.Comonad[F] =
+    new ConvertMonixComonadToCats[F] { override val F = ev }
 
-  private[cats] class ConvertMonixComonadToCats[F[_]](implicit F: Comonad[F])
+  private[cats] trait ConvertMonixComonadToCats[F[_]]
     extends ConvertMonixCoflatMapToCats[F] with _root_.cats.Comonad[F] {
 
+    override val F: Comonad[F]
     override def extract[A](x: F[A]): A = F.extract(x)
   }
 }
 
-/** Converts Monix's [[monix.types.shims.CoflatMap CoflatMap]]
-  * instances into the Cats `CoflatMap`.
-  */
-trait CoflatMapInstances extends FunctorInstances {
-  implicit def monixCoflatMapInstancesToCats[F[_] : CoflatMap]: _root_.cats.CoflatMap[F] =
-    new ConvertMonixCoflatMapToCats[F]()
+private[cats] trait ShimsLevel5 extends ShimsLevel4 {
+  /** Converts Monix's [[monix.types.CoflatMap CoflatMap]]
+    * instances into the Cats `CoflatMap`.
+    */
+  implicit def monixCoflatMapInstancesToCats[F[_]]
+    (implicit ev: CoflatMap[F]): _root_.cats.CoflatMap[F] =
+    new ConvertMonixCoflatMapToCats[F] { override val F = ev }
 
-  private[cats] class ConvertMonixCoflatMapToCats[F[_]](implicit F: CoflatMap[F])
+  private[cats] trait ConvertMonixCoflatMapToCats[F[_]]
     extends ConvertMonixFunctorToCats[F] with _root_.cats.CoflatMap[F] {
 
+    override val F: CoflatMap[F]
     override def coflatMap[A, B](fa: F[A])(f: (F[A]) => B): F[B] = F.coflatMap(fa)(f)
     override def coflatten[A](fa: F[A]): F[F[A]] = F.coflatten(fa)
   }
 }
 
-/** Converts Monix's [[monix.types.shims.Monad Monad]]
-  * instances into the Cats `Monad`.
-  */
-trait MonadInstances extends ApplicativeInstances {
-  implicit def monixMonadInstancesToCats[F[_] : Monad]: _root_.cats.Monad[F] =
-    new ConvertMonixMonadToCats[F]()
+private[cats] trait ShimsLevel4 extends ShimsLevel3  {
+  /** Converts Monix's [[monix.types.MonadError MonadError]]
+    * instances into the Cats `MonadError`.
+    */
+  implicit def monixMonadErrorInstancesToCats[F[_],E]
+    (implicit ev: MonadError[F,E]): _root_.cats.MonadError[F,E] =
+    new ConvertMonixMonadErrorToCats[F,E] { override val F: MonadError[F,E] = ev }
 
-  private[cats] class ConvertMonixMonadToCats[F[_]](implicit F: Monad[F])
+  private[cats] trait ConvertMonixMonadErrorToCats[F[_],E]
+    extends ConvertMonixMonadToCats[F] with ConvertMonixApplicativeErrorToCats[F,E]
+    with _root_.cats.MonadError[F,E] {
+
+    override val F: MonadError[F,E]
+  }
+}
+
+private[cats] trait ShimsLevel3 extends ShimsLevel2 {
+  /** Converts Monix's [[monix.types.Monad Monad]]
+    * instances into the Cats `Monad`.
+    */
+  implicit def monixMonadInstancesToCats[F[_]](implicit ev: Monad[F]): _root_.cats.Monad[F] =
+    new ConvertMonixMonadToCats[F] { override val F = ev }
+
+  private[cats] trait ConvertMonixMonadToCats[F[_]]
     extends ConvertMonixApplicativeToCats[F] with _root_.cats.Monad[F] {
 
+    override val F: Monad[F]
     override def flatMap[A, B](fa: F[A])(f: (A) => F[B]): F[B] = F.flatMap(fa)(f)
     override def flatten[A](ffa: F[F[A]]): F[A] = F.flatten(ffa)
   }
 }
 
-/** Converts Monix's [[monix.types.shims.Applicative Applicative]]
-  * instances into the Cats `Applicative`.
-  */
-trait ApplicativeInstances extends FunctorInstances {
-  implicit def monixApplicativeInstancesToCats[F[_] : Applicative]: _root_.cats.Applicative[F] =
-    new ConvertMonixApplicativeToCats[F]()
+private[cats] trait ShimsLevel2 extends ShimsLevel1 {
+  /** Converts Monix's [[monix.types.ApplicativeError ApplicativeError]]
+    * instances into the Cats `ApplicativeError`.
+    */
+  implicit def monixApplicativeErrorInstancesToCats[F[_],E]
+    (implicit ev: ApplicativeError[F,E]): _root_.cats.ApplicativeError[F,E] =
+    new ConvertMonixApplicativeErrorToCats[F,E] { override val F = ev }
 
-  private[cats] class ConvertMonixApplicativeToCats[F[_]](implicit F: Applicative[F])
-    extends ConvertMonixFunctorToCats[F] with _root_.cats.Applicative[F] {
+  private[cats] trait ConvertMonixApplicativeErrorToCats[F[_],E]
+    extends ConvertMonixApplicativeToCats[F]
+      with _root_.cats.ApplicativeError[F,E] {
 
-    override def pure[A](x: A): F[A] = F.pure(x)
-    override def ap[A, B](ff: F[(A) => B])(fa: F[A]): F[B] = F.ap(fa)(ff)
+    override val F: ApplicativeError[F,E]
+    override def raiseError[A](e: E): F[A] = F.raiseError(e)
+    override def handleErrorWith[A](fa: F[A])(f: (E) => F[A]): F[A] = F.handleErrorWith(fa)(f)
+    override def handleError[A](fa: F[A])(f: (E) => A): F[A] = F.handleError(fa)(f)
+    override def recover[A](fa: F[A])(pf: PartialFunction[E, A]): F[A] = F.recover(fa)(pf)
+    override def recoverWith[A](fa: F[A])(pf: PartialFunction[E, F[A]]): F[A] = F.recoverWith(fa)(pf)
   }
 }
 
-/** Converts Monix's [[monix.types.shims.Functor Functor]]
-  * instances into the Cats `Functor`.
-  */
-trait FunctorInstances {
-  implicit def monixFunctorInstancesToCats[F[_] : Functor]: _root_.cats.Functor[F] =
-    new ConvertMonixFunctorToCats[F]()
+private[cats] trait ShimsLevel1 extends ShimsLevel0 {
+  /** Converts Monix's [[monix.types.Applicative Applicative]]
+    * instances into the Cats `Applicative`.
+    */
+  implicit def monixApplicativeInstancesToCats[F[_]]
+    (implicit ev: Applicative[F]): _root_.cats.Applicative[F] =
+    new ConvertMonixApplicativeToCats[F] { override val F = ev }
 
-  private[cats] class ConvertMonixFunctorToCats[F[_]](implicit F: Functor[F])
+  private[cats] trait ConvertMonixApplicativeToCats[F[_]]
+    extends ConvertMonixFunctorToCats[F] with _root_.cats.Applicative[F] {
+
+    override val F: Applicative[F]
+    override def pure[A](x: A): F[A] = F.pure(x)
+    override def pureEval[A](x: Eval[A]): F[A] = F.pureEval(x.value)
+    override def ap[A, B](ff: F[(A) => B])(fa: F[A]): F[B] = F.ap(fa)(ff)
+    override def map2[A, B, Z](fa: F[A], fb: F[B])(f: (A, B) => Z): F[Z] = F.map2(fa,fb)(f)
+  }
+}
+
+private[cats] trait ShimsLevel0 {
+  /** Converts Monix's [[monix.types.Functor Functor]]
+    * instances into the Cats `Functor`.
+    */
+  implicit def monixFunctorInstancesToCats[F[_]]
+    (implicit ev: Functor[F]): _root_.cats.Functor[F] =
+    new ConvertMonixFunctorToCats[F] { override val F = ev }
+
+  private[cats] trait ConvertMonixFunctorToCats[F[_]]
     extends _root_.cats.Functor[F] {
+
+    val F: Functor[F]
     override def map[A, B](fa: F[A])(f: (A) => B): F[B] = F.map(fa)(f)
   }
 }

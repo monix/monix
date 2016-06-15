@@ -15,18 +15,20 @@
  * limitations under the License.
  */
 
-package monix.types.shims
+package monix.types
 
-/** A shim for the `Functor` type-class, to be supplied by / translated to
+/** A shim for a `SemigroupK` type-class, to be supplied by / translated to
   * libraries such as Cats or Scalaz.
   *
-  * A functor provides the `map` operation that allows lifting
-  * an `f` function into the functor context and applying it.
+  * `SemigroupK` is a universal semigroup which operates on kinds.
   */
-trait Functor[F[_]] {
-  def map[A, B](fa: F[A])(f: A => B): F[B]
+trait SemigroupK[F[_]] { self =>
+  /**
+    * Combine two F[A] values.
+    */
+  def combineK[A](x: F[A], y: F[A]): F[A]
 }
 
-object Functor {
-  @inline def apply[F[_]](implicit F: Functor[F]): Functor[F] = F
+object SemigroupK {
+  @inline def apply[F[_]](implicit F: SemigroupK[F]): SemigroupK[F] = F
 }

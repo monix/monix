@@ -15,21 +15,13 @@
  * limitations under the License.
  */
 
-package monix.types.shims
+package monix.types
 
-/** A shim for the Applicative Functor type-class,
-  * to be supplied by libraries such as Cats or Scalaz.
-  *
-  * Described in [[http://www.soi.city.ac.uk/~ross/papers/Applicative.html Applicative Programming with Effects]].
-  *
-  * The [[Functor]] allows mapping of a pure function to a value, the `Applicative`
-  * also adds the capability of lifting a value in the context.
+/** A shim for an `MonadError` type-class, to be supplied by / translated to
+  * libraries such as Cats or Scalaz.
   */
-trait Applicative[F[_]] extends Functor[F] {
-  def pure[A](a: A): F[A]
-  def ap[A, B](fa: F[A])(ff: F[A => B]): F[B]
-}
+trait MonadError[F[_],E] extends ApplicativeError[F,E] with Monad[F]
 
-object Applicative {
-  @inline def apply[F[_]](implicit F: Applicative[F]): Applicative[F] = F
+object MonadError {
+  @inline def apply[F[_],E](implicit F: MonadError[F,E]): MonadError[F,E] = F
 }

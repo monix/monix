@@ -1,3 +1,34 @@
+## Version 2.0-RC6 (Jun 15, 2016)
+
+**Breaking changes:**
+
+- [Issue #157](https://github.com/monixio/monix/issues/157): Renaming 
+  `Observable.doOnCancel` to `doOnSubscriptionCancel`
+  because its meaning has changed since Monifu 1.x and it will cause pain
+- [Issue #160](https://github.com/monixio/monix/issues/160) (**breaking change**): 
+  Revamp the buffer operators on `Observable`
+- [Issue #161](https://github.com/monixio/monix/issues/161) (**breaking change**):
+  Revamp the ConcurrentSubject and Pipe constructors
+
+Bug fixes and enhancements:
+
+- [Bug #153](https://github.com/monixio/monix/issues/153): already fixed in 
+   `2.0-RC5` for `Task`, but now also fixed for `Coeval`
+- [Issue #155](https://github.com/monixio/monix/issues/155): Coeval enhancements 
+   and fixes
+- [Issue #156](https://github.com/monixio/monix/issues/156): Adding `Observable.doOnTerminate`
+  for executing a piece of logic when `onComplete` or `onError` happens, or
+  when the subscriber stops the streaming with `Stop`
+- [Issue #158](https://github.com/monixio/monix/issues/158): `Observable.fromIterator`
+  takes now an optional `onFinish` callback for resource deallocation, because
+  the `Iterator` interface doesn't provide a `close()` that could be used
+- [Issue #163](https://github.com/monixio/monix/issues/163): added 
+  `Observable.fromInputStream`, `fromCharsReader` and `fromLinesReader` for
+  reading from `java.io.InputStream`, `java.io.Reader` and `java.io.BufferedReader`
+  data sources
+- [Issue #164](https://github.com/monixio/monix/issues/164): Add 
+  `Observable.executeOn`, as alternative to `observeOn`
+
 ## Version 2.0-RC5 (May 31, 2016)
 
 Critical bug fix:

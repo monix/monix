@@ -15,13 +15,14 @@
  * limitations under the License.
  */
 
-package monix.types.shims
+package monix.types
 
-/** A shim for the `Bimonad` type-class,
-  * to be supplied by libraries such as Cats or Scalaz.
+/** Groups common type-classes for things that represent
+  * (possibly asynchronous) streams (e.g. `Observable`).
   */
-trait Bimonad[F[_]] extends Monad[F] with Comonad[F]
+trait Streamable[F[_]] extends MonadError[F, Throwable]
+  with MonadFilter[F] with CoflatMap[F] with MonoidK[F]
 
-object Bimonad {
-  @inline def apply[F[_]](implicit F: Bimonad[F]): Bimonad[F] = F
+object Streamable {
+  @inline def apply[F[_]](implicit F: Streamable[F]): Streamable[F] = F
 }
