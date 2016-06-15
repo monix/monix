@@ -28,6 +28,8 @@ Bug fixes and enhancements:
   data sources
 - [Issue #164](https://github.com/monixio/monix/issues/164): Add 
   `Observable.executeOn`, as alternative to `observeOn`
+- [Issue #165](https://github.com/monixio/monix/issues/165): Simplification
+  of the Cats integration
 
 ## Version 2.0-RC5 (May 31, 2016)
 
