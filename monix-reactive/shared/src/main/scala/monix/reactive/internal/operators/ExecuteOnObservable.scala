@@ -18,12 +18,13 @@
 package monix.reactive.internal.operators
 
 import monix.execution.cancelables.SingleAssignmentCancelable
-import monix.execution.{Cancelable, Scheduler}
+import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
+import scala.concurrent.Future
 
 private[reactive] final
-class SubscribeOnObservable[+A](source: Observable[A], s: Scheduler)
+class ExecuteOnObservable[+A](source: Observable[A], s: Scheduler)
   extends Observable[A] {
 
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
@@ -31,7 +32,13 @@ class SubscribeOnObservable[+A](source: Observable[A], s: Scheduler)
 
     s.execute(new Runnable {
       def run(): Unit =
-        subscription := source.unsafeSubscribeFn(out)
+        subscription := source.unsafeSubscribeFn(
+          new Subscriber[A] {
+            implicit val scheduler: Scheduler = s
+            def onError(ex: Throwable): Unit = out.onError(ex)
+            def onComplete(): Unit = out.onComplete()
+            def onNext(elem: A): Future[Ack] = out.onNext(elem)
+        })
     })
 
     subscription

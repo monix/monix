@@ -1096,6 +1096,36 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: Self[A] =>
   def nonEmptyF: Self[Boolean] =
     self.liftByOperator(IsEmptyOperator).map(b => !b)
 
+  /** Specify an override for the [[monix.execution.Scheduler Scheduler]]
+    * that will be used for subscribing and for observing the source.
+    *
+    * Normally the [[monix.execution.Scheduler Scheduler]] gets injected
+    * implicitly when doing `subscribe`, but this operator overrides
+    * the injected subscriber for the given source. And if the source is
+    * normally using that injected scheduler (given by `subscribe`),
+    * then the effect will be that all processing will now happen
+    * on the override.
+    *
+    * To put it in other words, in Monix it's usually the consumer and
+    * not the producer that specifies the scheduler and this operator
+    * allows for a different behavior.
+    *
+    * This operator also includes the effects of [[subscribeOn]],
+    * meaning that the subscription logic itself will start on
+    * the provided scheduler.
+    *
+    * IMPORTANT: This operator is a replacement for the
+    * [[http://reactivex.io/documentation/operators/observeon.html observeOn operator]]
+    * from ReactiveX, but does not work in the same way. The observeOn`
+    * operator forces the signaling to happen on a given `Scheduler`, but
+    * `executeOn` is more relaxed, usage is not forced, the source just
+    * gets injected with a different scheduler and it's up to the source
+    * to actually use it. This also means the effects are more far reaching,
+    * because the whole chain until the call of this operator is affected.
+    */
+  def executeOn(scheduler: Scheduler): Self[A] =
+    self.transform(source => new ExecuteOnObservable[A](source, scheduler))
+
   /** If the connection is [[monix.execution.Cancelable.cancel cancelled]]
     * then trigger a `CancellationException`.
     *
