@@ -21,4 +21,10 @@ This is the API documentation for the [[https://monix.io Monix]] library.
      implementations
    - [[monix.reactive.subjects]] exposes [[monix.reactive.subjects.Subject Subject]]
      and [[monix.reactive.subjects.ConcurrentSubject ConcurrentSubject]],
-     which are implementations of hot observables that function both as input and output
+     which are implementations of hot observables that function both as input and output     
+ - [[monix.types]] implements type-class shims, to be translated to
+   type-classes provided by libraries such as
+   [[http://typelevel.org/cats/ Cats]] or [[http://scalaz.org/ Scalaz]]
+ - [[monix.cats]] is the optional integration with the
+   [[http://typelevel.org/cats/ Cats]] library, providing translations
+   for the types described in `monix.types`
