@@ -17,6 +17,8 @@
 
 package monix.reactive
 
+import java.io.{BufferedReader, InputStream, Reader}
+
 import monix.eval.Task
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution._
@@ -390,6 +392,63 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     foreachL(cb).runAsync
 }
 
+/** Observable builders.
+  *
+  * @define multicastDesc Creates an input channel and an output observable
+  *         pair for building a [[MulticastStrategy multicast]] data-source.
+  *
+  *         Useful for building [[MulticastStrategy multicast]] observables
+  *         from data-sources that cannot be back-pressured.
+  *
+  *         Prefer [[Observable.create]] when possible.
+  *
+  * @define fromIteratorDesc Converts any `Iterator` into an observable.
+  *
+  *         WARNING: reading from an `Iterator` is a destructive process.
+  *         Therefore only a single subscriber is supported, the result being
+  *         a single-subscriber observable. If multiple subscribers are attempted,
+  *         all subscribers, except for the first one, will be terminated with a
+  *         [[monix.reactive.exceptions.MultipleSubscribersException MultipleSubscribersException]].
+  *
+  *         Therefore, if you need a factory of data sources, from a cold source
+  *         from which you can open how many iterators you want,
+  *         you can use [[Observable.defer]] to build such a factory. Or you can share
+  *         the resulting observable by converting it into a
+  *         [[monix.reactive.observables.ConnectableObservable ConnectableObservable]]
+  *         by means of [[Observable!.multicast multicast]].
+  *
+  * @define fromInputStreamDesc Converts a `java.io.InputStream` into an
+  *         observable that will emit `Array[Byte]` elements.
+  *
+  *         WARNING: reading from the input stream is a destructive process.
+  *         Therefore only a single subscriber is supported, the result being
+  *         a single-subscriber observable. If multiple subscribers are attempted,
+  *         all subscribers, except for the first one, will be terminated with a
+  *         [[monix.reactive.exceptions.MultipleSubscribersException MultipleSubscribersException]].
+  *
+  *         Therefore, if you need a factory of data sources, from a cold source such
+  *         as a `java.io.File` from which you can open how many file handles you want,
+  *         you can use [[Observable.defer]] to build such a factory. Or you can share
+  *         the resulting observable by converting it into a
+  *         [[monix.reactive.observables.ConnectableObservable ConnectableObservable]]
+  *         by means of [[Observable!.multicast multicast]].
+  *
+  * @define fromCharsReaderDesc Converts a `java.io.Reader` into an observable
+  *         that will emit `Array[Char]` elements.
+  *
+  *         WARNING: reading from a reader is a destructive process.
+  *         Therefore only a single subscriber is supported, the result being
+  *         a single-subscriber observable. If multiple subscribers are attempted,
+  *         all subscribers, except for the first one, will be terminated with a
+  *         [[monix.reactive.exceptions.MultipleSubscribersException MultipleSubscribersException]].
+  *
+  *         Therefore, if you need a factory of data sources, from a cold source such
+  *         as a `java.io.File` from which you can open how many file handles you want,
+  *         you can use [[Observable.defer]] to build such a factory. Or you can share
+  *         the resulting observable by converting it into a
+  *         [[monix.reactive.observables.ConnectableObservable ConnectableObservable]]
+  *         by means of [[Observable!.multicast multicast]].
+  */
 object Observable {
   /** Creates an observable that doesn't emit anything, but immediately
     * calls `onComplete` instead.
@@ -465,13 +524,25 @@ object Observable {
     (f: SyncSubscriber[A] => Cancelable): Observable[A] =
     new builders.CreateObservable(overflowStrategy, f)
 
-  /** Creates an input channel and an output observable pair for
-    * building a [[MulticastStrategy multicast]] data-source.
+  /** $multicastDesc
     *
-    * Useful for building [[MulticastStrategy multicast]] observables
-    * from data-sources that cannot be back-pressured.
+    * @param multicast is the multicast strategy to use (e.g. publish, behavior,
+    *        reply, async)
+    */
+  def multicast[A](multicast: MulticastStrategy[A])
+    (implicit s: Scheduler): (SyncObserver[A], Observable[A]) = {
+
+    val ref = ConcurrentSubject(multicast)
+    (ref, ref)
+  }
+
+  /** $multicastDesc
     *
-    * Prefer [[create]] when possible.
+    * @param multicast is the multicast strategy to use (e.g. publish, behavior,
+    *        reply, async)
+    * @param overflow is the overflow strategy for the buffer that gets placed
+    *        in front (since this will be a hot data-source that cannot be
+    *        back-pressured)
     */
   def multicast[A](multicast: MulticastStrategy[A], overflow: OverflowStrategy.Synchronous[A])
     (implicit s: Scheduler): (SyncObserver[A], Observable[A]) = {
@@ -480,14 +551,14 @@ object Observable {
     (ref, ref)
   }
 
-  /** Converts any `Iterator` into an [[Observable]].
+  /** $fromIteratorDesc
     *
     * @param iterator to transform into an observable
     */
   def fromIterator[A](iterator: Iterator[A]): Observable[A] =
     new builders.IteratorAsObservable[A](iterator, Cancelable.empty)
 
-  /** Converts any `Iterator` into an [[Observable]].
+  /** $fromIteratorDesc
     *
     * This variant of `fromIterator` takes an `onFinish` callback that
     * will be called when the streaming is finished, either with
@@ -510,6 +581,64 @@ object Observable {
   /** Converts any `Iterable` into an [[Observable]]. */
   def fromIterable[A](iterable: Iterable[A]): Observable[A] =
     new builders.IterableAsObservable[A](iterable)
+
+  /** $fromInputStreamDesc
+    *
+    * @param in is the `InputStream` to convert into an observable
+    */
+  def fromInputStream(in: InputStream): Observable[Array[Byte]] =
+    fromInputStream(in, chunkSize = 4096)
+
+  /** $fromInputStreamDesc
+    *
+    * @param in is the `InputStream` to convert into an observable
+    * @param chunkSize is the maximum length of the emitted arrays of bytes.
+    *        It's also used when reading from the input stream.
+    */
+  def fromInputStream(in: InputStream, chunkSize: Int): Observable[Array[Byte]] =
+    new builders.InputStreamObservable(in, chunkSize)
+
+  /** $fromCharsReaderDesc
+    *
+    * @param in is the `Reader` to convert into an observable
+    */
+  def fromCharsReader(in: Reader): Observable[Array[Char]] =
+    fromCharsReader(in, chunkSize = 4096)
+
+  /** $fromCharsReaderDesc
+    *
+    * @param in is the `Reader` to convert into an observable
+    * @param chunkSize is the maximum length of the emitted arrays of chars.
+    *        It's also used when reading from the reader.
+    */
+  def fromCharsReader(in: Reader, chunkSize: Int): Observable[Array[Char]] =
+    new builders.CharsReaderObservable(in, chunkSize)
+
+  /** Converts a `java.io.BufferedReader` into an
+    * observable that will emit `String` text lines from the input.
+    *
+    * Note that according to the specification of `BufferedReader`, a
+    * line is considered to be terminated by any one of a line
+    * feed (`\n`), a carriage return (`\r`), or a carriage return
+    * followed immediately by a linefeed.
+    *
+    * WARNING: reading from a reader is a destructive process.
+    * Therefore only a single subscriber is supported, the result being
+    * a single-subscriber observable. If multiple subscribers are attempted,
+    * all subscribers, except for the first one, will be terminated with a
+    * [[monix.reactive.exceptions.MultipleSubscribersException MultipleSubscribersException]].
+    *
+    * Therefore, if you need a factory of data sources, from a cold source such
+    * as a `java.io.File` from which you can open how many file handles you want,
+    * you can use [[Observable.defer]] to build such a factory. Or you can share
+    * the resulting observable by converting it into a
+    * [[monix.reactive.observables.ConnectableObservable ConnectableObservable]]
+    * by means of [[Observable!.multicast multicast]].
+    *
+    * @param in is the `Reader` to convert into an observable
+    */
+  def fromLinesReader(in: BufferedReader): Observable[String] =
+    new builders.LinesReaderObservable(in)
 
   /** Given a `org.reactivestreams.Publisher`, converts it into a
     * Monix / Rx Observable.

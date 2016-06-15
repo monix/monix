@@ -20,20 +20,34 @@ package monix.reactive.internal.builders
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.schedulers.ExecutionModel
-import monix.execution.{Cancelable, Ack, Scheduler}
+import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.reactive.Observable
+import monix.reactive.exceptions.MultipleSubscribersException
 import monix.reactive.observers.Subscriber
+import org.sincron.atomic.Atomic
+
 import scala.annotation.tailrec
 import scala.concurrent.Future
 import scala.util.control.NonFatal
-import scala.util.{Success, Failure}
+import scala.util.{Failure, Success}
 
 /** Converts any `Iterator` into an observable */
 private[reactive] final class IteratorAsObservable[T](
   iterator: Iterator[T],
   onFinish: Cancelable) extends Observable[T] {
 
-  def unsafeSubscribeFn(subscriber: Subscriber[T]): Cancelable = {
+  private[this] val wasSubscribed = Atomic(false)
+
+  def unsafeSubscribeFn(out: Subscriber[T]): Cancelable = {
+    if (wasSubscribed.getAndSet(true)) {
+      out.onError(new MultipleSubscribersException("InputStreamObservable"))
+      Cancelable.empty
+    } else {
+      startLoop(out)
+    }
+  }
+
+  private def startLoop(subscriber: Subscriber[T]): Cancelable = {
     import subscriber.{scheduler => s}
     // Protect against contract violations - we are only allowed to
     // call onError if no other terminal event has been called.

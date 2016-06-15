@@ -22,8 +22,9 @@ import monix.execution.Ack.Continue
 import monix.execution.{Ack, Scheduler}
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
-import monix.reactive.exceptions.DummyException
+import monix.reactive.exceptions.{DummyException, MultipleSubscribersException}
 import monix.reactive.observers.Subscriber
+
 import scala.concurrent.Future
 
 object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
@@ -31,6 +32,25 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
   def tearDown(s: TestScheduler) = {
     assert(s.state.get.tasks.isEmpty,
       "TestScheduler should be left with no pending tasks")
+  }
+
+  test("yields a single subscriber observable") { implicit s =>
+    var errorThrown: Throwable = null
+    val obs = Observable.fromIterator(Seq(1,2,3).iterator)
+    obs.unsafeSubscribeFn(Subscriber.empty(s))
+
+    obs.unsafeSubscribeFn(new Subscriber[Int] {
+      implicit val scheduler = s
+
+      def onNext(elem: Int): Ack =
+        throw new IllegalStateException("onNext")
+      def onComplete(): Unit =
+        throw new IllegalStateException("onComplete")
+      def onError(ex: Throwable): Unit =
+        errorThrown = ex
+    })
+
+    assert(errorThrown.isInstanceOf[MultipleSubscribersException])
   }
 
   test("onFinish should be called upon onComplete") { implicit s =>
