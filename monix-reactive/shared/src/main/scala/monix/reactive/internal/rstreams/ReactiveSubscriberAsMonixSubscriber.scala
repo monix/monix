@@ -21,6 +21,7 @@ import monix.execution.{Cancelable, Ack, Scheduler}
 import monix.reactive.observers.Subscriber
 import org.sincron.atomic.Atomic
 import monix.execution.Ack.{Stop, Continue}
+import monix.reactive.internal.rstreams.ReactiveSubscriberAsMonixSubscriber.RequestsQueue
 import org.reactivestreams.{Subscriber => RSubscriber, Subscription}
 import scala.annotation.tailrec
 import scala.collection.immutable.Queue
@@ -37,8 +38,8 @@ private[monix] final class ReactiveSubscriberAsMonixSubscriber[T] private
   extends Subscriber[T] with Cancelable { self =>
 
   if (subscriber == null) throw null
-  import monix.reactive.internal.rstreams.ReactiveSubscriberAsMonixSubscriber.RequestsQueue
 
+  private[this] var isComplete = false
   private[this] val requests = new RequestsQueue
   private[this] var leftToPush = 0L
   private[this] var firstEvent = true
@@ -51,7 +52,9 @@ private[monix] final class ReactiveSubscriberAsMonixSubscriber[T] private
 
   @tailrec
   def onNext(elem: T): Future[Ack] = {
-    if (firstEvent) {
+    if (isComplete)
+      Stop
+    else if (firstEvent) {
       firstEvent = false
       subscriber.onSubscribe(createSubscription())
       onNext(elem) // retry
@@ -75,15 +78,19 @@ private[monix] final class ReactiveSubscriberAsMonixSubscriber[T] private
     }
   }
 
-  def onError(ex: Throwable): Unit = {
-    if (firstEvent) subscriber.onSubscribe(createSubscription())
-    subscriber.onError(ex)
-  }
+  def onError(ex: Throwable): Unit =
+    if (!isComplete) {
+      isComplete = true
+      if (firstEvent) subscriber.onSubscribe(createSubscription())
+      subscriber.onError(ex)
+    }
 
-  def onComplete(): Unit = {
-    if (firstEvent) subscriber.onSubscribe(createSubscription())
-    ack.syncOnContinue(subscriber.onComplete())
-  }
+  def onComplete(): Unit =
+    if (!isComplete) {
+      isComplete = true
+      if (firstEvent) subscriber.onSubscribe(createSubscription())
+      ack.syncOnContinue(subscriber.onComplete())
+    }
 
   private def createSubscription() = new Subscription {
     def cancel(): Unit = self.cancel()

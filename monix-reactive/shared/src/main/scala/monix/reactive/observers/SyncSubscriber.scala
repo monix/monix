@@ -17,7 +17,11 @@
 
 package monix.reactive.observers
 
+import java.io.PrintStream
+
+import monix.execution.Ack.{Continue, Stop}
 import monix.execution.{Ack, Scheduler}
+import monix.reactive.Observer
 
 /** A `SyncSubscriber` is a [[Subscriber]] whose `onNext` signal
   * is synchronous (i.e. the upstream observable doesn't need to
@@ -36,6 +40,37 @@ object SyncSubscriber {
       case _ =>
         new Implementation[T](observer, scheduler)
     }
+
+  /** Helper for building an empty `SyncSubscriber` that doesn't
+    * do anything, besides logging errors in case they happen.
+    */
+  def empty[A](implicit s: Scheduler): SyncSubscriber[A] =
+    new SyncSubscriber[A] {
+      implicit val scheduler = s
+      def onNext(elem: A): Continue = Continue
+      def onError(ex: Throwable): Unit = s.reportFailure(ex)
+      def onComplete(): Unit = ()
+    }
+
+  /** Helper for building an empty subscriber that doesn't do anything,
+    * but that returns `Stop` on `onNext`.
+    */
+  def canceled[A](implicit s: Scheduler): SyncSubscriber[A] =
+    new SyncSubscriber[A] {
+      implicit val scheduler: Scheduler = s
+      def onError(ex: Throwable): Unit = s.reportFailure(ex)
+      def onComplete(): Unit = ()
+      def onNext(elem: A): Stop = Stop
+    }
+
+  /** Builds an [[Subscriber]] that just logs incoming events. */
+  def dump[A](prefix: String, out: PrintStream = System.out)
+    (implicit s: Scheduler): SyncSubscriber[A] = {
+
+    new Observer.DumpObserver[A](prefix, out) with SyncSubscriber[A] {
+      val scheduler = s
+    }
+  }
 
   private[this] final class Implementation[-T]
       (observer: SyncObserver[T], val scheduler: Scheduler)

@@ -17,9 +17,9 @@
 
 package monix.reactive.observers
 
-import monix.execution.Ack.{Stop, Continue}
+import java.io.PrintStream
 import monix.execution.cancelables.BooleanCancelable
-import monix.execution.{Cancelable, Ack, Scheduler}
+import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.reactive.Observer
 import monix.reactive.internal.rstreams._
 import org.reactivestreams.{Subscriber => RSubscriber}
@@ -45,6 +45,23 @@ object Subscriber {
       case _ =>
         new Implementation[T](observer, scheduler)
     }
+
+  /** Helper for building an empty subscriber that doesn't do anything,
+    * besides logging errors in case they happen.
+    */
+  def empty[A](implicit s: Scheduler): SyncSubscriber[A] =
+    SyncSubscriber.empty
+
+  /** Helper for building an empty subscriber that doesn't do anything,
+    * but that returns `Stop` on `onNext`.
+    */
+  def canceled[A](implicit s: Scheduler): SyncSubscriber[A] =
+    SyncSubscriber.canceled[A](s)
+
+  /** Builds an [[Subscriber]] that just logs incoming events. */
+  def dump[A](prefix: String, out: PrintStream = System.out)
+    (implicit s: Scheduler): SyncSubscriber[A] =
+    SyncSubscriber.dump[A](prefix, out)
 
   /** Given an `org.reactivestreams.Subscriber` as defined by the
     * [[http://www.reactive-streams.org/ Reactive Streams]] specification,
@@ -139,26 +156,4 @@ object Subscriber {
       31 * underlying.hashCode() + scheduler.hashCode()
     }
   }
-
-  /** Helper for building an empty subscriber that doesn't do anything,
-    * besides logging errors in case they happen.
-    */
-  def empty[A](implicit s: Scheduler): SyncSubscriber[A] =
-    new SyncSubscriber[A] {
-      implicit val scheduler: Scheduler = s
-      def onError(ex: Throwable): Unit = s.reportFailure(ex)
-      def onComplete(): Unit = ()
-      def onNext(elem: A): Continue = Continue
-    }
-
-  /** Helper for building an empty subscriber that doesn't do anything,
-    * but that returns `Stop` on `onNext`.
-    */
-  def canceled[A](implicit s: Scheduler): SyncSubscriber[A] =
-    new SyncSubscriber[A] {
-      implicit val scheduler: Scheduler = s
-      def onError(ex: Throwable): Unit = s.reportFailure(ex)
-      def onComplete(): Unit = ()
-      def onNext(elem: A): Stop = Stop
-    }
 }

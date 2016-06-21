@@ -24,42 +24,41 @@ import scala.collection.mutable
 import scala.concurrent.{Future, Promise}
 
 /** Wraps a [[Subscriber]] into an implementation that abstains from emitting items until the call
-  * to `connect()` happens. Prior to `connect()` it's also a
-  * [[monix.reactive.subjects.ConcurrentSubject ConcurrentSubject]] into which you can enqueue
+  * to `connect()` happens. Prior to `connect()` you can enqueue
   * events for delivery once `connect()` happens, but before any items
   * emitted by `onNext` / `onComplete` and `onError`.
   *
   * Example: {{{
-  *   val obs = ConnectableObserver(observer)
+  *   val out = ConnectableSubscriber(subscriber)
   *
   *   // schedule onNext event, after connect()
-  *   obs.onNext("c")
+  *   out.onNext("c")
   *
   *   // schedule event "a" to be emitted first
-  *   obs.pushFirst("a")
+  *   out.pushFirst("a")
   *   // schedule event "b" to be emitted second
-  *   obs.pushFirst("b")
+  *   out.pushFirst("b")
   *
   *   // underlying observer now gets events "a", "b", "c" in order
-  *   obs.connect()
+  *   out.connect()
   * }}}
   *
   * Example of an observer ended in error: {{{
-  *   val obs = ConnectableObserver(observer)
+  *   val out = ConnectableSubscriber(subscriber)
   *
   *   // schedule onNext event, after connect()
-  *   obs.onNext("c")
+  *   out.onNext("c")
   *
-  *   obs.pushFirst("a") // event "a" to be emitted first
-  *   obs.pushFirst("b") // event "b" to be emitted second
+  *   out.pushFirst("a") // event "a" to be emitted first
+  *   out.pushFirst("b") // event "b" to be emitted second
   *
   *   // schedule an onError sent downstream, once connect()
   *   // happens, but after "a" and "b"
-  *   obs.pushError(new RuntimeException())
+  *   out.pushError(new RuntimeException())
   *
   *   // underlying observer receives ...
   *   // onNext("a") -> onNext("b") -> onError(RuntimeException)
-  *   obs.connect()
+  *   out.connect()
   *
   *   // NOTE: that onNext("c") never happens
   * }}}

@@ -17,9 +17,11 @@
 
 package monix.reactive
 
-import monix.execution.Ack.{Stop, Continue}
+import java.io.PrintStream
+
+import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.BooleanCancelable
-import monix.execution.{Cancelable, Ack, Scheduler}
+import monix.execution.{Ack, Cancelable, Scheduler, UncaughtExceptionReporter}
 import monix.reactive.internal.rstreams._
 import monix.reactive.observers.{Subscriber, SyncObserver, SyncSubscriber}
 import org.reactivestreams.{Subscriber => RSubscriber}
@@ -50,6 +52,20 @@ trait Observer[-T] {
 }
 
 object Observer {
+  /** Helper for building an empty observer that doesn't do anything,
+    * besides logging errors in case they happen.
+    */
+  def empty[A](implicit r: UncaughtExceptionReporter): SyncObserver[A] =
+    new SyncObserver[A] {
+      def onNext(elem: A): Continue = Continue
+      def onError(ex: Throwable): Unit = r.reportFailure(ex)
+      def onComplete(): Unit = ()
+    }
+
+  /** Builds an [[Observer]] that just logs incoming events. */
+  def dump[A](prefix: String, out: PrintStream = System.out): SyncObserver[A] =
+    new DumpObserver[A](prefix, out)
+
   /** Given an `org.reactivestreams.Subscriber` as defined by the
     * [[http://www.reactive-streams.org/ Reactive Streams]] specification,
     * it builds an [[Observer]] instance compliant with the
@@ -200,5 +216,27 @@ object Observer {
     def feed(subscription: BooleanCancelable, iterator: Iterator[T])
       (implicit s: Scheduler): Future[Ack] =
       Observer.feed(source, subscription, iterator)
+  }
+
+  private[reactive] class DumpObserver[-A](prefix: String, out: PrintStream)
+    extends SyncObserver[A] {
+
+    private[this] var pos = 0
+
+    def onNext(elem: A): Ack = {
+      out.println(s"$pos: $prefix-->$elem")
+      pos += 1
+      Continue
+    }
+
+    def onError(ex: Throwable) = {
+      out.println(s"$pos: $prefix-->$ex")
+      pos += 1
+    }
+
+    def onComplete() = {
+      out.println(s"$pos: $prefix completed")
+      pos += 1
+    }
   }
 }
