@@ -25,15 +25,15 @@ package monix.execution.atomic
   * just a recommendation, plus it's nice to provide backwards
   * compatibility.
   *
-  * See: http://mail.openjdk.java.net/pipermail/hotspot-dev/2012-November/007309.html
+  * See: [[http://mail.openjdk.java.net/pipermail/hotspot-dev/2012-November/007309.html]]
   *
   * The default strategy is [[PaddingStrategy.NoPadding NoPadding]].
-  * In order to apply padding, you can import an implicit into scope:
+  * In order to apply padding:
   * {{{
-  *   import import monix.execution.atomic.Atomic
+  *   import monix.execution.atomic.Atomic
   *   import monix.execution.atomic.PaddingStrategy.Right64
   *
-  *   val paddedAtomic = Atomic(10)
+  *   val paddedAtomic = Atomic.withPadding(10, Right64)
   * }}}
   *
   * @see [[PaddingStrategy.NoPadding]]

@@ -83,8 +83,6 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
 
   // Turning off fatal warnings for ScalaDoc, otherwise we can't release.
   scalacOptions in (Compile, doc) ~= (_ filterNot (_ == "-Xfatal-warnings")),
-  // Never include Java classes in ScalaDoc
-  sources in (Compile, doc) ~= (_ filter (_.getName endsWith ".scala")),
 
   // ScalaDoc settings
   autoAPIMappings := true,
