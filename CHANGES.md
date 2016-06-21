@@ -1,3 +1,28 @@
+## Version 2.0-RC7 (Jun 21, 2016)
+
+**Bug fixes:**
+
+- [BUG #170](https://github.com/monixio/monix/issues/170): 
+  `Task.materializeAttempt` doesn't work for `BindAsync`, leading to `onErrorHandleWith`
+  not working with errors triggered in `flatMap` on async tasks
+ 
+New Features:
+
+- [Issue #171](https://github.com/monixio/monix/issues/171): 
+   Add Scheduler builder on the JVM that allows specifying 
+   just the `ExecutionModel`, falling back `global` otherwise   
+- [Issue #174](https://github.com/monixio/monix/issues/174): 
+  [Scalaz](https://github.com/scalaz/scalaz) integration (in addition to the 
+  Cats integration) for FP goddess
+- [Issue #175](https://github.com/monixio/monix/issues/175):
+  Reintroduce all of project `Sincron` into `monix-execution`, which means
+  that now `monix-execution` exposes `Atomic` references. This project
+  was split from Monix, but the decision didn't make sense and the exposed
+  functionality is super useful and in the spirit of `monix-execution`
+- [Issue #176](https://github.com/monixio/monix/issues/176): now that we
+  have `Task`, we introduce `TaskApp`, a safe `App` type that allows one
+  to specify pure programs
+  
 ## Version 2.0-RC6 (Jun 15, 2016)
 
 **Breaking changes:**
