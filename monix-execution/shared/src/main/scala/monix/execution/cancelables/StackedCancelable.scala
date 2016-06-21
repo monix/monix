@@ -18,7 +18,7 @@
 package monix.execution.cancelables
 
 import monix.execution.Cancelable
-import org.sincron.atomic.{Atomic, PaddingStrategy}
+import monix.execution.atomic.{AtomicAny, PaddingStrategy}
 import scala.annotation.tailrec
 
 /** Represents a composite of cancelables that are stacked,
@@ -36,7 +36,7 @@ final class StackedCancelable private (initial: Cancelable)
   private def underlying: List[Cancelable] = state.get
   private[this] val state = {
     val ref = if (initial != null) initial :: Nil else Nil
-    Atomic.withPadding(ref, PaddingStrategy.LeftRight128)
+    AtomicAny.withPadding(ref, PaddingStrategy.LeftRight128)
   }
 
   override def isCanceled: Boolean =

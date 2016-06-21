@@ -20,7 +20,7 @@ package monix.reactive.observables
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
-import org.sincron.atomic.Atomic
+import monix.execution.atomic.Atomic
 import scala.annotation.tailrec
 import scala.concurrent.Future
 

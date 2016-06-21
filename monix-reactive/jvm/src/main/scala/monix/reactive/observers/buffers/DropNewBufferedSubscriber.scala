@@ -25,7 +25,7 @@ import monix.reactive.observers.{Subscriber, BufferedSubscriber, SyncSubscriber}
 import scala.annotation.tailrec
 import scala.concurrent.Future
 import scala.util.control.NonFatal
-import org.sincron.atomic.Atomic
+import monix.execution.atomic.Atomic
 
 /**
  * A high-performance and non-blocking [[BufferedSubscriber]] implementation

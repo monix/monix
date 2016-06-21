@@ -24,7 +24,7 @@ import monix.execution.cancelables.{CompositeCancelable, MultiAssignmentCancelab
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
-import org.sincron.atomic.Atomic
+import monix.execution.atomic.Atomic
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Future, Promise}
 

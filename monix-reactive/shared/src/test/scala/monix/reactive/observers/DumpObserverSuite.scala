@@ -24,7 +24,7 @@ import monix.execution.Ack.Continue
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observer
 import monix.reactive.exceptions.DummyException
-import org.sincron.atomic.AtomicInt
+import monix.execution.atomic.AtomicInt
 
 object DumpObserverSuite extends SimpleTestSuite {
   def dummyOut(count: AtomicInt = null) = {

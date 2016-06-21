@@ -18,7 +18,7 @@
 package monix.execution.cancelables
 
 import monix.execution.Cancelable
-import org.sincron.atomic.{PaddingStrategy, Atomic}
+import monix.execution.atomic.{PaddingStrategy, AtomicAny}
 import scala.annotation.tailrec
 
 /** Represents a [[monix.execution.Cancelable]] whose underlying cancelable
@@ -46,7 +46,7 @@ final class MultiAssignmentCancelable private (initial: Cancelable)
 
   private[this] val state = {
     val ref = if (initial != null) initial else Cancelable.empty
-    Atomic.withPadding(Active(ref,0) : State, PaddingStrategy.LeftRight128)
+    AtomicAny.withPadding(Active(ref,0) : State, PaddingStrategy.LeftRight128)
   }
 
   override def isCanceled: Boolean =

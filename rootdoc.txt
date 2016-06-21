@@ -6,6 +6,8 @@ This is the API documentation for the [[https://monix.io Monix]] library.
 
  - [[monix.execution]] exposes lower level primitives for dealing
     with asynchronous execution
+   - [[monix.execution.atomic]] exposes the `Atomic` types, as alternative
+     to `java.util.concurrent.atomic`
    - [[monix.execution.cancelables]] contains several
      useful [[monix.execution.Cancelable Cancelable]] implementations
    - [[monix.execution.schedulers]] contains several
@@ -21,7 +23,7 @@ This is the API documentation for the [[https://monix.io Monix]] library.
      implementations
    - [[monix.reactive.subjects]] exposes [[monix.reactive.subjects.Subject Subject]]
      and [[monix.reactive.subjects.ConcurrentSubject ConcurrentSubject]],
-     which are implementations of hot observables that function both as input and output     
+     which are implementations of hot observables that function both as input and output
  - [[monix.types]] implements type-class shims, to be translated to
    type-classes provided by libraries such as
    [[http://typelevel.org/cats/ Cats]] or [[http://scalaz.org/ Scalaz]]

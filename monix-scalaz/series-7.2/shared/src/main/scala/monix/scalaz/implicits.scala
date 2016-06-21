@@ -17,6 +17,14 @@
 
 package monix.scalaz
 
+/** Provided for convenience, for importing everything from ''Scalaz''
+  * (all instances, syntax, etc), as well as all defined instances
+  * from ''Monix''.
+  *
+  * {{{
+  *   import monix.scalaz.implicits._
+  * }}}
+  */
 object implicits
   extends monix.scalaz.AllInstances
     with _root_.scalaz.StateFunctions           // Functions related to the state monad

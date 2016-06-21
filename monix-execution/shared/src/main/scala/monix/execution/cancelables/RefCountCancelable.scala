@@ -17,7 +17,7 @@
 
 package monix.execution.cancelables
 
-import org.sincron.atomic.Atomic
+import monix.execution.atomic.AtomicAny
 import monix.execution.Cancelable
 import scala.annotation.tailrec
 
@@ -34,6 +34,15 @@ final class RefCountCancelable private (onCancel: () => Unit) extends BooleanCan
   /** Acquires a new [[monix.execution.Cancelable Cancelable]]. */
   @tailrec
   def acquire(): Cancelable = {
+    @tailrec def decrementCounter(): State = {
+      val oldState = state.get
+      val newState = oldState.copy(activeCounter = oldState.activeCounter - 1)
+      if (state.compareAndSet(oldState, newState))
+        newState
+      else
+        decrementCounter()
+    }
+
     val oldState = state.get
     if (oldState.isCanceled)
       Cancelable.empty
@@ -41,7 +50,7 @@ final class RefCountCancelable private (onCancel: () => Unit) extends BooleanCan
       acquire()
     else
       Cancelable { () =>
-        val newState = state.transformAndGet(s => s.copy(activeCounter = s.activeCounter - 1))
+        val newState = decrementCounter()
         if (newState.activeCounter == 0 && newState.isCanceled)
           onCancel()
       }
@@ -56,7 +65,7 @@ final class RefCountCancelable private (onCancel: () => Unit) extends BooleanCan
         onCancel()
   }
 
-  private[this] val state = Atomic(State(isCanceled = false, activeCounter = 0))
+  private[this] val state = AtomicAny(State(isCanceled = false, activeCounter = 0))
   private[this] case class State(
     isCanceled: Boolean,
     activeCounter: Int

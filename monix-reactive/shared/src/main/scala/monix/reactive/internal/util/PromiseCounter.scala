@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.util
 
-import org.sincron.atomic.Atomic
+import monix.execution.atomic.Atomic
 import scala.concurrent.{Future, Promise}
 
 /**

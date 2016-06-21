@@ -25,7 +25,7 @@ import monix.reactive.exceptions.CompositeException
 import monix.reactive.observables.GroupedObservable
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 import monix.reactive.{Observer, OverflowStrategy}
-import org.sincron.atomic.Atomic
+import monix.execution.atomic.Atomic
 import scala.annotation.tailrec
 import scala.concurrent.Future
 import scala.util.control.NonFatal

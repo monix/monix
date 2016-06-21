@@ -19,7 +19,7 @@ package monix.reactive.internal.rstreams
 
 import monix.execution.{Cancelable, Ack, Scheduler}
 import monix.reactive.observers.Subscriber
-import org.sincron.atomic.Atomic
+import monix.execution.atomic.Atomic
 import monix.execution.Ack.{Stop, Continue}
 import monix.reactive.internal.rstreams.ReactiveSubscriberAsMonixSubscriber.RequestsQueue
 import org.reactivestreams.{Subscriber => RSubscriber, Subscription}

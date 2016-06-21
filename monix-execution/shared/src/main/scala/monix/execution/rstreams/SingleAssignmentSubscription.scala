@@ -17,7 +17,7 @@
 
 package monix.execution.rstreams
 
-import org.sincron.atomic.Atomic
+import monix.execution.atomic.AtomicAny
 import scala.annotation.tailrec
 
 /** Represents a `org.reactivestreams.Subscription` that can be assigned
@@ -36,7 +36,7 @@ final class SingleAssignmentSubscription private ()
   import SingleAssignmentSubscription.State
   import SingleAssignmentSubscription.State._
 
-  private[this] val state = Atomic(Empty : State)
+  private[this] val state = AtomicAny(Empty : State)
 
   def :=(s: org.reactivestreams.Subscription): Unit = set(s)
 

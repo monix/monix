@@ -22,7 +22,7 @@ import monix.execution.cancelables.BooleanCancelable
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.reactive.exceptions.MultipleSubscribersException
 import monix.reactive.observers.{Subscriber, SyncSubscriber}
-import org.sincron.atomic.Atomic
+import monix.execution.atomic.Atomic
 import scala.annotation.tailrec
 import scala.concurrent.{Future, Promise}
 

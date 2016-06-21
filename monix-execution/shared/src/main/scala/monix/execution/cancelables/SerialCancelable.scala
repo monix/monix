@@ -18,7 +18,7 @@
 package monix.execution.cancelables
 
 import monix.execution.Cancelable
-import org.sincron.atomic.{PaddingStrategy, Atomic}
+import monix.execution.atomic.{PaddingStrategy, AtomicAny}
 import scala.annotation.tailrec
 
 /** Represents a [[monix.execution.Cancelable]] whose underlying cancelable
@@ -47,7 +47,7 @@ final class SerialCancelable private (initial: Cancelable)
 
   private[this] val state = {
     val s: State = Active(if (initial != null) initial else Cancelable.empty,0)
-    Atomic.withPadding(s, PaddingStrategy.LeftRight128)
+    AtomicAny.withPadding(s, PaddingStrategy.LeftRight128)
   }
 
   override def isCanceled: Boolean =

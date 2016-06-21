@@ -22,7 +22,7 @@ import monix.execution.Ack
 import monix.execution.Ack.{Stop, Continue}
 import monix.reactive.exceptions.BufferOverflowException
 import monix.reactive.observers.{BufferedSubscriber, Subscriber, SyncSubscriber}
-import org.sincron.atomic.Atomic
+import monix.execution.atomic.Atomic
 import scala.annotation.tailrec
 import scala.util.Failure
 import scala.util.control.NonFatal

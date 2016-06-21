@@ -25,7 +25,7 @@ import monix.execution.schedulers.ExecutionModel
 import monix.execution.{Cancelable, CancelableFuture, Scheduler}
 import monix.types.Evaluable
 import org.reactivestreams.Subscriber
-import org.sincron.atomic.{Atomic, AtomicAny}
+import monix.execution.atomic.{Atomic, AtomicAny}
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.concurrent.duration.FiniteDuration

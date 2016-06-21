@@ -47,6 +47,13 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
     "-Yinline-warnings"
   ),
 
+  // Force building with Java 8
+  initialize := {
+    val required = "1.8"
+    val current  = sys.props("java.specification.version")
+    assert(current == required, s"Unsupported build JDK: java.specification.version $current != $required")
+  },
+
   // version specific compiler options
   scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, majorVersion)) if majorVersion >= 11 =>
@@ -76,6 +83,8 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
 
   // Turning off fatal warnings for ScalaDoc, otherwise we can't release.
   scalacOptions in (Compile, doc) ~= (_ filterNot (_ == "-Xfatal-warnings")),
+  // Never include Java classes in ScalaDoc
+  sources in (Compile, doc) ~= (_ filter (_.getName endsWith ".scala")),
 
   // ScalaDoc settings
   autoAPIMappings := true,
@@ -155,12 +164,18 @@ lazy val crossSettings = sharedSettings ++ Seq(
   unmanagedSourceDirectories in Test <+= baseDirectory(_.getParentFile / "shared" / "src" / "test" / "scala")
 )
 
-lazy val optionalMacroCompatDeps = Seq(
-  libraryDependencies ++= (CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, majorVersion)) if majorVersion >= 11 => Seq.empty
-    case _ => // 2.10
-      Seq("org.typelevel" %%% "macro-compat" % "1.1.1" % "provided")
-  }))
+def scalaPartV = Def setting (CrossVersion partialVersion scalaVersion.value)
+lazy val crossVersionSharedSources: Seq[Setting[_]] =
+  Seq(Compile, Test).map { sc =>
+    (unmanagedSourceDirectories in sc) ++= {
+      (unmanagedSourceDirectories in sc).value.map { dir =>
+        scalaPartV.value match {
+          case Some((2, y)) if y == 10 => new File(dir.getPath + "_2.10")
+          case Some((2, y)) if y >= 11 => new File(dir.getPath + "_2.11+")
+        }
+      }
+    }
+  }
 
 lazy val requiredMacroCompatDeps = Seq(
   libraryDependencies ++= (CrossVersion.partialVersion(scalaVersion.value) match {
@@ -175,7 +190,7 @@ lazy val requiredMacroCompatDeps = Seq(
       Seq(
         "org.scala-lang" % "scala-reflect" % scalaVersion.value % "provided",
         "org.scala-lang" % "scala-compiler" % scalaVersion.value % "provided",
-        "org.typelevel" %%% "macro-compat" % "1.1.1" % "provided",
+        "org.typelevel" %%% "macro-compat" % "1.1.1",
         compilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
       )
   }))
@@ -184,6 +199,9 @@ lazy val unidocSettings = baseUnidocSettings ++ Seq(
   autoAPIMappings := true,
   unidocProjectFilter in (ScalaUnidoc, unidoc) :=
     inProjects(typesJVM, executionJVM, evalJVM, reactiveJVM, catsJVM, scalaz72JVM),
+
+  // Never include Java classes in ScalaDoc
+  sources in (ScalaUnidoc, unidoc) ~= (_ filter (_.getName endsWith ".scala")),
 
   scalacOptions in (ScalaUnidoc, unidoc) +=
     "-Xfatal-warnings",
@@ -207,16 +225,6 @@ lazy val scalaJSSettings = Seq(
   coverageExcludedFiles := ".*"
 )
 
-lazy val scalaStyleSettings = {
-  // Create a default Scala style task to run with tests
-  lazy val testScalastyle = taskKey[Unit]("testScalastyle")
-
-  Seq(
-    testScalastyle := org.scalastyle.sbt.ScalastylePlugin.scalastyle.in(Test).toTask("").value,
-    (test in Test) <<= (test in Test) dependsOn testScalastyle
-  )
-}
-
 lazy val monix = project.in(file("."))
   .aggregate(
     typesJVM, typesJS,
@@ -229,19 +237,18 @@ lazy val monix = project.in(file("."))
     tckTests)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
-  .settings(scalaStyleSettings)
   .settings(unidocSettings)
 
 lazy val monixJVM = project.in(file("monix/jvm"))
   .dependsOn(typesJVM, executionJVM, evalJVM, reactiveJVM)
-  .aggregate(typesJVM, executionJVM, evalJVM, reactiveJVM)
+  .aggregate(typesJVM, executionJVM, evalJVM, reactiveJVM, catsJVM, scalaz72JVM)
   .settings(crossSettings)
   .settings(name := "monix")
 
 lazy val monixJS = project.in(file("monix/js"))
   .enablePlugins(ScalaJSPlugin)
   .dependsOn(typesJS, executionJS, evalJS, reactiveJS)
-  .aggregate(typesJS, executionJS, evalJS, reactiveJS)
+  .aggregate(typesJS, executionJS, evalJS, reactiveJS, catsJS, scalaz72JS)
   .settings(crossSettings)
   .settings(scalaJSSettings)
   .settings(name := "monix")
@@ -258,9 +265,8 @@ lazy val typesJS = project.in(file("monix-types/js"))
   .settings(typesCommon)
   .settings(scalaJSSettings)
 
-lazy val executionCommon = Seq(
-  name := "monix-execution",
-  libraryDependencies += "org.sincron" %%% "sincron" % "0.14"
+lazy val executionCommon = crossVersionSharedSources ++ Seq(
+  name := "monix-execution"
 )
 
 lazy val executionJVM = project.in(file("monix-execution/jvm"))
@@ -279,7 +285,7 @@ lazy val executionJS = project.in(file("monix-execution/js"))
   .settings(executionCommon)
 
 lazy val evalCommon =
-  crossSettings ++ testSettings ++ optionalMacroCompatDeps ++
+  crossSettings ++ testSettings ++
     Seq(name := "monix-eval")
 
 lazy val evalJVM = project.in(file("monix-eval/jvm"))
@@ -293,7 +299,7 @@ lazy val evalJS = project.in(file("monix-eval/js"))
   .settings(evalCommon)
 
 lazy val reactiveCommon =
-  crossSettings ++ testSettings ++ optionalMacroCompatDeps ++
+  crossSettings ++ testSettings ++
     Seq(name := "monix-reactive")
 
 lazy val reactiveJVM = project.in(file("monix-reactive/jvm"))

@@ -67,7 +67,7 @@ Monix 2.0 is modular by design, so you can pick and choose:
 - `monix-types` exposes type-classes and shims needed for 
   integration with other FP libraries (Cats, Scalaz)
 - `monix-execution` exposes the low-level execution environment, or more precisely
-  `Scheduler`, `Cancelable` and `CancelableFuture`
+  `Scheduler`, `Cancelable`, `Atomic` and `CancelableFuture`
 - `monix-eval` exposes `Task`, `Coeval` 
    and depends on `monix-execution` and `monix-types`
 - `monix-reactive` exposes `Observable` streams 
@@ -77,7 +77,9 @@ Monix 2.0 is modular by design, so you can pick and choose:
 Optional packages:
 
 - `monix-cats` provides integration with [Cats](http://typelevel.org/cats) and
-   depends on `monix-types`
+   depends on `monix-types` and `org.typelevel.cats-core`
+- `monix-scalaz-72` provides integration with [Scalaz](http://scalaz.org) and
+   depends on `monix-types` and `org.scalaz.scalaz-core` version 7.2.x
 
 ## Documentation
 

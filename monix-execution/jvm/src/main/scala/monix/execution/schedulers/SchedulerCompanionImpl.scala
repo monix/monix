@@ -19,11 +19,11 @@ package monix.execution.schedulers
 
 import java.lang.Thread.UncaughtExceptionHandler
 import java.util.concurrent.{Executors, ScheduledExecutorService, ThreadFactory}
+import monix.execution.UncaughtExceptionReporter._
+import monix.execution.atomic.AtomicLong
+import monix.execution.{Scheduler, SchedulerCompanion, UncaughtExceptionReporter}
 import scala.concurrent.ExecutionContext
 import scala.concurrent.forkjoin.ForkJoinPool
-import monix.execution.UncaughtExceptionReporter._
-import monix.execution.{SchedulerCompanion, Scheduler, UncaughtExceptionReporter}
-import org.sincron.atomic.Atomic
 
 
 /** @define applyDesc The resulting [[Scheduler]] will piggyback on top of a Java
@@ -235,7 +235,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     reporter: UncaughtExceptionReporter = LogExceptionsToStandardErr,
     executionModel: ExecutionModel = ExecutionModel.Default): Scheduler = {
     val threadFactory = new ThreadFactory {
-      private[this] val counter = Atomic(0L)
+      private[this] val counter = AtomicLong(0L)
       def newThread(r: Runnable): Thread = {
         val th = new Thread(r)
         th.setDaemon(daemonic)

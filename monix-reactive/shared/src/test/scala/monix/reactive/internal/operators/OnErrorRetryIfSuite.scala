@@ -19,7 +19,7 @@ package monix.reactive.internal.operators
 
 import monix.reactive.Observable
 import monix.reactive.exceptions.DummyException
-import org.sincron.atomic.Atomic
+import monix.execution.atomic.Atomic
 import scala.concurrent.duration.{Duration, _}
 
 object OnErrorRetryIfSuite extends BaseOperatorSuite {

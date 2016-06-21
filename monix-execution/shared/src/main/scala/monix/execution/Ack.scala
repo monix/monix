@@ -17,12 +17,12 @@
 
 package monix.execution
 
-import org.sincron.macros.{HygieneUtilMacros, InlineMacros}
+import monix.execution.misc.{HygieneUtilMacros, InlineMacros}
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Promise, CanAwait, ExecutionContext, Future}
-import scala.language.experimental.macros
 import scala.reflect.macros.whitebox
 import scala.util.{Failure, Success, Try}
+import scala.language.experimental.macros
 
 /** Represents an acknowledgement of processing that a consumer
   * sends back upstream. Useful to implement back-pressure.

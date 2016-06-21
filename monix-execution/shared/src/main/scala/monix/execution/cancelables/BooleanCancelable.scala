@@ -18,7 +18,7 @@
 package monix.execution.cancelables
 
 import monix.execution.Cancelable
-import org.sincron.atomic.Atomic
+import monix.execution.atomic.AtomicAny
 
 /** Represents a Cancelable that can queried for the canceled status. */
 trait BooleanCancelable extends Cancelable {
@@ -60,7 +60,7 @@ object BooleanCancelable {
   private final class BooleanCancelableTask(cb: () => Unit)
     extends BooleanCancelable {
 
-    private[this] val callbackRef = Atomic(cb)
+    private[this] val callbackRef = AtomicAny(cb)
     def isCanceled: Boolean = callbackRef.get eq null
 
     def cancel(): Unit = {
