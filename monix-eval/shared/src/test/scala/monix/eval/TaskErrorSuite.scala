@@ -413,4 +413,22 @@ object TaskErrorSuite extends BaseTestSuite {
     val f = task.runAsync; s.tick()
     assertEquals(f.value, Some(Failure(dummy)))
   }
+
+  test("Task.evalAlways.flatMap.onErrorRecoverWith should work") { implicit s =>
+    val dummy = DummyException("dummy")
+    val task = Task.evalAlways(1).flatMap(_ => throw dummy)
+      .onErrorRecoverWith { case `dummy` => Task.now(10) }
+
+    val f = task.runAsync
+    assertEquals(f.value, Some(Success(10)))
+  }
+
+  test("Task.apply.flatMap.onErrorRecoverWith should work") { implicit s =>
+    val dummy = DummyException("dummy")
+    val task = Task(1).flatMap(_ => throw dummy)
+      .onErrorRecoverWith { case `dummy` => Task.now(10) }
+
+    val f = task.runAsync; s.tick()
+    assertEquals(f.value, Some(Success(10)))
+  }
 }

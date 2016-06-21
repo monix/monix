@@ -167,7 +167,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
       implicit val s = scheduler
       Task.unsafeStartNow(trigger, scheduler, conn, new Callback[Any] {
         def onSuccess(value: Any): Unit =
-          // Async boundary forced, prevents stack-overflows
+        // Async boundary forced, prevents stack-overflows
           Task.unsafeStartAsync(self, scheduler, conn, cb)
         def onError(ex: Throwable): Unit =
           cb.onError(ex)
@@ -292,7 +292,11 @@ sealed abstract class Task[+A] extends Serializable { self =>
       case Error(ex) =>
         Now(Error(ex))
       case Suspend(thunk) =>
-        Suspend(() => try thunk().materializeAttempt catch { case NonFatal(ex) => Now(Error(ex)) })
+        Suspend(() => try {
+          thunk().materializeAttempt
+        } catch { case NonFatal(ex) =>
+          Now(Error(ex))
+        })
       case task @ MemoizeSuspend(_) =>
         Async[Attempt[A]] { (s, conn, cb) =>
           Task.unsafeStartNow[A](task, s, conn, new Callback[A] {
@@ -302,11 +306,18 @@ sealed abstract class Task[+A] extends Serializable { self =>
         }
       case BindSuspend(thunk, g) =>
         BindSuspend[Attempt[Any], Attempt[A]](
-          () => try thunk().materializeAttempt catch { case NonFatal(ex) => Now(Error(ex)) },
+          () => try thunk().materializeAttempt catch {
+            case NonFatal(ex) => Now(Error(ex))
+          },
           result => result match {
             case Now(any) =>
-              // Bind function is already protected with try/catch
-              g.asInstanceOf[Any => Task[A]](any).materializeAttempt
+              try {
+                g.asInstanceOf[Any => Task[A]](any)
+                  .materializeAttempt
+              } catch {
+                case NonFatal(ex) =>
+                  Now(Error(ex))
+              }
             case Error(ex) =>
               Now(Error(ex))
           })
@@ -317,14 +328,21 @@ sealed abstract class Task[+A] extends Serializable { self =>
         }))
       case BindAsync(onFinish, g) =>
         BindAsync[Attempt[Any], Attempt[A]](
-          (s, conn, cb) => onFinish(s, conn, new Callback[Any] {
-            def onSuccess(value: Any): Unit = cb.onSuccess(Now(value))
-            def onError(ex: Throwable): Unit = cb.onSuccess(Error(ex))
-          }),
+          (s, conn, cb) =>
+            onFinish(s, conn, new Callback[Any] {
+              def onSuccess(value: Any): Unit = cb.onSuccess(Now(value))
+              def onError(ex: Throwable): Unit = cb.onSuccess(Error(ex))
+            }),
           result => result match {
             case Now(any) =>
-              // Bind function is already protected with try/catch
-              g.asInstanceOf[Any => Task[A]](any).materializeAttempt
+              try {
+                g.asInstanceOf[Any => Task[A]](any)
+                  .materializeAttempt
+              }
+              catch {
+                case NonFatal(ex) =>
+                  Now(Error(ex))
+              }
             case Error(ex) =>
               Now(Error(ex))
           })
