@@ -183,7 +183,7 @@ lazy val requiredMacroCompatDeps = Seq(
 lazy val unidocSettings = baseUnidocSettings ++ Seq(
   autoAPIMappings := true,
   unidocProjectFilter in (ScalaUnidoc, unidoc) :=
-    inProjects(typesJVM, executionJVM, evalJVM, reactiveJVM, catsJVM),
+    inProjects(typesJVM, executionJVM, evalJVM, reactiveJVM, catsJVM, scalaz72JVM),
 
   scalacOptions in (ScalaUnidoc, unidoc) +=
     "-Xfatal-warnings",
@@ -224,6 +224,7 @@ lazy val monix = project.in(file("."))
     evalJVM, evalJS,
     reactiveJVM, reactiveJS,
     catsJVM, catsJS,
+    scalaz72JVM, scalaz72JS,
     monixJVM, monixJS,
     tckTests)
   .settings(sharedSettings)
@@ -325,6 +326,26 @@ lazy val catsJS = project.in(file("monix-cats/js"))
   .settings(catsCommon)
   .settings(scalaJSSettings)
 
+lazy val scalaz72Common =
+  crossSettings ++ testSettings ++ Seq(
+    name := "monix-scalaz-72",
+    libraryDependencies ++= Seq(
+      "org.scalaz" %%% "scalaz-core" % "7.2.4",
+      "org.scalaz" %%% "scalaz-scalacheck-binding" % "7.2.4" % "test"
+    ))
+
+lazy val scalaz72JVM = project.in(file("monix-scalaz/series-7.2/jvm"))
+  .dependsOn(typesJVM)
+  .dependsOn(reactiveJVM % "test")
+  .settings(scalaz72Common)
+
+lazy val scalaz72JS = project.in(file("monix-scalaz/series-7.2/js"))
+  .enablePlugins(ScalaJSPlugin)
+  .dependsOn(typesJS)
+  .dependsOn(reactiveJS % "test")
+  .settings(scalaz72Common)
+  .settings(scalaJSSettings)
+
 lazy val tckTests = project.in(file("tckTests"))
   .dependsOn(monixJVM)
   .settings(sharedSettings)
@@ -342,7 +363,7 @@ lazy val benchmarks = project.in(file("benchmarks"))
   .settings(doNotPublishArtifact)
   .settings(
     libraryDependencies ++= Seq(
-      "org.monifu" %% "monifu" % "1.0",
-      "org.scalaz" %% "scalaz-concurrent" % "7.2.0",
+      "org.monifu" %% "monifu" % "1.2",
+      "org.scalaz" %% "scalaz-concurrent" % "7.2.4",
       "io.reactivex" %% "rxscala" % "0.26.0"
     ))

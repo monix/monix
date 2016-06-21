@@ -15,14 +15,10 @@
  * limitations under the License.
  */
 
-package monix.types
+package monix
 
-/** Groups common type-classes for things that represent
-  * (possibly asynchronous) streams (e.g. `Observable`).
+/** Package exposing integration with the Scalaz library.
+  *
+  * See: [[http://scalaz.org scalaz.org]]
   */
-trait Streamable[F[_]] extends MonadError[F, Throwable]
-  with MonadPlus[F] with CoflatMap[F]
-
-object Streamable {
-  @inline def apply[F[_]](implicit F: Streamable[F]): Streamable[F] = F
-}
+package object scalaz extends AllInstances

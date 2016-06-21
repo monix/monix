@@ -17,12 +17,13 @@
 
 package monix.types
 
-/** Groups common type-classes for things that represent
-  * (possibly asynchronous) streams (e.g. `Observable`).
+/** A shim for a `MonadPlus` type-class, to be supplied by / translated to
+  * libraries such as Cats or Scalaz.
+  *
+  * This is a [[MonadFilter]] instance that's also a [[MonoidK]].
   */
-trait Streamable[F[_]] extends MonadError[F, Throwable]
-  with MonadPlus[F] with CoflatMap[F]
+trait MonadPlus[F[_]] extends MonadFilter[F] with MonoidK[F]
 
-object Streamable {
-  @inline def apply[F[_]](implicit F: Streamable[F]): Streamable[F] = F
+object MonadPlus {
+  @inline def apply[F[_]](implicit F: MonadPlus[F]): MonadPlus[F] = F
 }
