@@ -22,37 +22,36 @@ import scala.concurrent.duration.Duration
 import scala.reflect.ClassTag
 import scala.util.{Failure, Success, Try}
 
-/**
-  * Represents an asynchronous computation that can be canceled
+/** Represents an asynchronous computation that can be canceled
   * as long as it isn't complete.
   */
 trait CancelableFuture[+T] extends Future[T] with Cancelable {
   // Overriding methods for getting CancelableFuture in return
 
   override def failed: CancelableFuture[Throwable] =
-    CancelableFuture.wrap(this).failed
+    CancelableFuture(super.failed, this)
   override def transform[S](s: (T) => S, f: (Throwable) => Throwable)(implicit executor: ExecutionContext): CancelableFuture[S] =
-    CancelableFuture.wrap(this).transform(s, f)
+    CancelableFuture(super.transform(s, f), this)
   override def map[S](f: (T) => S)(implicit executor: ExecutionContext): CancelableFuture[S] =
-    CancelableFuture.wrap(this).map(f)
+    CancelableFuture(super.map(f), this)
   override def flatMap[S](f: (T) => Future[S])(implicit executor: ExecutionContext): CancelableFuture[S] =
-    CancelableFuture.wrap(this).flatMap(f)
+    CancelableFuture(super.flatMap(f), this)
   override def filter(p: (T) => Boolean)(implicit executor: ExecutionContext): CancelableFuture[T] =
-    CancelableFuture.wrap(this).filter(p)
+    CancelableFuture(super.filter(p), this)
   override def collect[S](pf: PartialFunction[T, S])(implicit executor: ExecutionContext): CancelableFuture[S] =
-    CancelableFuture.wrap(this).collect(pf)
+    CancelableFuture(super.collect(pf), this)
   override def recover[U >: T](pf: PartialFunction[Throwable, U])(implicit executor: ExecutionContext): CancelableFuture[U] =
-    CancelableFuture.wrap(this).recover(pf)
+    CancelableFuture(super.recover(pf), this)
   override def recoverWith[U >: T](pf: PartialFunction[Throwable, Future[U]])(implicit executor: ExecutionContext): CancelableFuture[U] =
-    CancelableFuture.wrap(this).recoverWith(pf)
+    CancelableFuture(super.recoverWith(pf), this)
   override def zip[U](that: Future[U]): CancelableFuture[(T, U)] =
-    CancelableFuture.wrap(this).zip(that)
+    CancelableFuture(super.zip(that), this)
   override def fallbackTo[U >: T](that: Future[U]): CancelableFuture[U] =
-    CancelableFuture.wrap(this).fallbackTo(that)
+    CancelableFuture(super.fallbackTo(that), this)
   override def mapTo[S](implicit tag: ClassTag[S]): CancelableFuture[S] =
-    CancelableFuture.wrap(this).mapTo(tag)
+    CancelableFuture(super.mapTo(tag), this)
   override def andThen[U](pf: PartialFunction[Try[T], U])(implicit executor: ExecutionContext): CancelableFuture[T] =
-    CancelableFuture.wrap(this).andThen(pf)
+    CancelableFuture(super.andThen(pf), this)
 }
 
 object CancelableFuture {
@@ -82,27 +81,6 @@ object CancelableFuture {
     value match {
       case Success(v) => successful(v)
       case Failure(ex) => failed(ex)
-    }
-
-  /** An empty [[CancelableFuture]] that never completes. */
-  val never: CancelableFuture[Nothing] =
-    new CancelableFuture[Nothing] {
-      def result(atMost: Duration)(implicit permit: CanAwait): Nothing =
-        throw new TimeoutException("CancelableFuture.never")
-      def ready(atMost: Duration)(implicit permit: CanAwait): this.type =
-        throw new TimeoutException("CancelableFuture.never")
-
-      def cancel(): Unit = ()
-      def isCompleted: Boolean = false
-      def onComplete[U](f: (Try[Nothing]) => U)(implicit executor: ExecutionContext): Unit = ()
-      def value: Option[Try[Nothing]] = None
-    }
-
-  /** Internal; wraps any cancelable future `ref` into an [[Implementation]] */
-  private def wrap[T](ref: CancelableFuture[T]): Implementation[T] =
-    ref match {
-      case _: Implementation[_] => ref.asInstanceOf[Implementation[T]]
-      case _ => new Implementation[T](ref, ref)
     }
 
   /** An internal [[CancelableFuture]] implementation. */
