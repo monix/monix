@@ -18,14 +18,12 @@
 package monix.reactive
 
 import java.io.PrintStream
-
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.{Ack, Cancelable, Scheduler, UncaughtExceptionReporter}
 import monix.reactive.internal.rstreams._
-import monix.reactive.observers.{Subscriber, SyncObserver, SyncSubscriber}
+import monix.reactive.observers.Subscriber
 import org.reactivestreams.{Subscriber => RSubscriber}
-
 import scala.annotation.tailrec
 import scala.concurrent.{Future, Promise}
 import scala.util.Success
@@ -52,18 +50,35 @@ trait Observer[-T] {
 }
 
 object Observer {
+  /** An `Observer.Sync` is an [[Observer]] that signals demand
+    * to upstream synchronously (i.e. the upstream observable doesn't need to
+    * wait on a `Future` in order to decide whether to send the next event
+    * or not).
+    *
+    * Can be used for optimizations.
+    */
+  trait Sync[-T] extends Observer[T] {
+    /**
+      * Returns either a [[monix.execution.Ack.Continue Continue]] or a
+      * [[monix.execution.Ack.Stop Stop]], in response to an `elem` event
+      * being received.
+      */
+    def onNext(elem: T): Ack
+  }
+
+
   /** Helper for building an empty observer that doesn't do anything,
     * besides logging errors in case they happen.
     */
-  def empty[A](implicit r: UncaughtExceptionReporter): SyncObserver[A] =
-    new SyncObserver[A] {
+  def empty[A](implicit r: UncaughtExceptionReporter): Observer.Sync[A] =
+    new Observer.Sync[A] {
       def onNext(elem: A): Continue = Continue
       def onError(ex: Throwable): Unit = r.reportFailure(ex)
       def onComplete(): Unit = ()
     }
 
   /** Builds an [[Observer]] that just logs incoming events. */
-  def dump[A](prefix: String, out: PrintStream = System.out): SyncObserver[A] =
+  def dump[A](prefix: String, out: PrintStream = System.out): Observer.Sync[A] =
     new DumpObserver[A](prefix, out)
 
   /** Given an `org.reactivestreams.Subscriber` as defined by the
@@ -95,9 +110,9 @@ object Observer {
   def toReactiveSubscriber[T](observer: Observer[T], bufferSize: Int)(implicit s: Scheduler): RSubscriber[T] = {
     require(bufferSize > 0, "requestCount > 0")
     observer match {
-      case sync: SyncObserver[_] =>
-        val inst = sync.asInstanceOf[SyncObserver[T]]
-        SyncSubscriberAsReactiveSubscriber(SyncSubscriber(inst, s), bufferSize)
+      case sync: Observer.Sync[_] =>
+        val inst = sync.asInstanceOf[Observer.Sync[T]]
+        SyncSubscriberAsReactiveSubscriber(Subscriber.Sync(inst, s), bufferSize)
       case async =>
         SubscriberAsReactiveSubscriber(Subscriber(async, s), bufferSize)
     }
@@ -219,7 +234,7 @@ object Observer {
   }
 
   private[reactive] class DumpObserver[-A](prefix: String, out: PrintStream)
-    extends SyncObserver[A] {
+    extends Observer.Sync[A] {
 
     private[this] var pos = 0
 

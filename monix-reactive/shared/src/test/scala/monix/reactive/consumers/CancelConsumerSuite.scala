@@ -43,8 +43,12 @@ object CancelConsumerSuite extends TestSuite[TestScheduler] {
 
     var wasCancelled = false
     c := Cancelable(() => wasCancelled = true)
+    // Cancellation happens immediately
     assert(wasCancelled, "wasCancelled")
+    // But the callback is asynchronous
+    assertEquals(p.future.value, None)
 
+    s.tick()
     assertEquals(p.future.value, Some(Success(())))
     assertEquals(out.onNext(1), Stop)
   }
@@ -64,5 +68,6 @@ object CancelConsumerSuite extends TestSuite[TestScheduler] {
     val ex = DummyException("ex")
     out.onError(ex)
     assertEquals(s.state.get.lastReportedError, ex)
+    s.tick()
   }
 }

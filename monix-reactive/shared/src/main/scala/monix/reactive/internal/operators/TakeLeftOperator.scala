@@ -18,9 +18,8 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack.Stop
-import monix.reactive.observables.ObservableLike
-import ObservableLike.Operator
-import monix.reactive.observers.{SyncSubscriber, Subscriber}
+import monix.reactive.observables.ObservableLike.Operator
+import monix.reactive.observers.Subscriber
 
 private[reactive] final class TakeLeftOperator[A](n: Long)
   extends Operator[A, A] {
@@ -29,8 +28,8 @@ private[reactive] final class TakeLeftOperator[A](n: Long)
     if (n <= 0) zero(out) else positive(out)
   }
 
-  private def zero(out: Subscriber[A]): SyncSubscriber[A] =
-    new SyncSubscriber[A] {
+  private def zero(out: Subscriber[A]): Subscriber.Sync[A] =
+    new Subscriber.Sync[A] {
       implicit val scheduler = out.scheduler
       private[this] var isDone = false
 

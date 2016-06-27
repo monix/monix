@@ -22,7 +22,7 @@ import monix.reactive.observables.ObservableLike
 import monix.reactive.observables.ObservableLike.{Operator, Transformer}
 import monix.reactive.OverflowStrategy.{Synchronous, Unbounded}
 import monix.reactive.Pipe.{LiftedPipe, TransformedPipe}
-import monix.reactive.observers.{BufferedSubscriber, Subscriber, SyncObserver}
+import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 import monix.reactive.subjects._
 
 /** Represents a factory for an input/output channel for
@@ -56,7 +56,7 @@ abstract class Pipe[I, +O]
     * used synchronously and concurrently (without back-pressure or
     * multi-threading issues) to push signals to multiple subscribers.
     */
-  def concurrent(implicit s: Scheduler): (SyncObserver[I], Observable[O]) =
+  def concurrent(implicit s: Scheduler): (Observer.Sync[I], Observable[O]) =
     concurrent(Unbounded)(s)
 
   /** Returns an input/output pair with an input that can be
@@ -66,7 +66,7 @@ abstract class Pipe[I, +O]
     * @param strategy is the [[OverflowStrategy]] used for the underlying
     *                 multi-producer/single-consumer buffer
     */
-  def concurrent(strategy: Synchronous[I])(implicit s: Scheduler): (SyncObserver[I], Observable[O]) = {
+  def concurrent(strategy: Synchronous[I])(implicit s: Scheduler): (Observer.Sync[I], Observable[O]) = {
     val (in,out) = multicast(s)
     val buffer = BufferedSubscriber.synchronous[I](Subscriber(in, s), strategy)
     (buffer, out)

@@ -18,14 +18,14 @@
 package monix.reactive.internal.builders
 
 import monix.execution.Cancelable
-import monix.reactive.observers.{BufferedSubscriber, Subscriber, SyncSubscriber}
+import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 import monix.reactive.{Observable, OverflowStrategy}
 import scala.util.control.NonFatal
 
 /** Implementation for [[monix.reactive.Observable.create]]. */
 private[reactive] final class CreateObservable[+A](
   overflowStrategy: OverflowStrategy.Synchronous[A],
-  f: SyncSubscriber[A] => Cancelable)
+  f: Subscriber.Sync[A] => Cancelable)
   extends Observable[A] {
 
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {

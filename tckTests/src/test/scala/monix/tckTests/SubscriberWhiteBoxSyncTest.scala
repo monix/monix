@@ -19,7 +19,6 @@ package monix.tckTests
 
 import monix.execution.Scheduler.Implicits.global
 import monix.reactive.Observer
-import monix.reactive.observers.SyncObserver
 import monix.execution.Ack.Continue
 import monix.tckTests.SubscriberWhiteBoxSyncTest.Value
 import org.reactivestreams.tck.SubscriberWhiteboxVerification.WhiteboxSubscriberProbe
@@ -32,7 +31,7 @@ class SubscriberWhiteBoxSyncTest
   with TestNGSuiteLike {
 
   def createSubscriber(probe: WhiteboxSubscriberProbe[Value]): Subscriber[Value] = {
-    val underlying = Observer.toReactiveSubscriber(new SyncObserver[Value] {
+    val underlying = Observer.toReactiveSubscriber(new Observer.Sync[Value] {
       def onNext(elem: Value) = {
         probe.registerOnNext(elem)
         Continue

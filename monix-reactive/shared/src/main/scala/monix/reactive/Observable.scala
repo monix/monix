@@ -18,7 +18,6 @@
 package monix.reactive
 
 import java.io.{BufferedReader, InputStream, Reader}
-
 import monix.eval.Task
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution._
@@ -30,7 +29,6 @@ import monix.reactive.observers._
 import monix.reactive.subjects._
 import monix.types.Streamable
 import org.reactivestreams.{Publisher => RPublisher, Subscriber => RSubscriber}
-
 import scala.concurrent.Future
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.control.NonFatal
@@ -297,7 +295,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
       val task = SingleAssignmentCancelable()
       c push task
 
-      task := unsafeSubscribeFn(new SyncSubscriber[A] {
+      task := unsafeSubscribeFn(new Subscriber.Sync[A] {
         implicit val scheduler: Scheduler = s
         private[this] var isDone = false
 
@@ -324,7 +322,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
       val task = SingleAssignmentCancelable()
       c push task
 
-      task := unsafeSubscribeFn(new SyncSubscriber[A] {
+      task := unsafeSubscribeFn(new Subscriber.Sync[A] {
         implicit val scheduler: Scheduler = s
         private[this] var value: A = _
         private[this] var isEmpty = true
@@ -356,7 +354,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
       val task = SingleAssignmentCancelable()
       c push task
 
-      task := unsafeSubscribeFn(new SyncSubscriber[A] {
+      task := unsafeSubscribeFn(new Subscriber.Sync[A] {
         implicit val scheduler: Scheduler = s
         private[this] var isDone = false
 
@@ -376,7 +374,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
       val task = SingleAssignmentCancelable()
       c push task
 
-      task := unsafeSubscribeFn(new SyncSubscriber[A] {
+      task := unsafeSubscribeFn(new Subscriber.Sync[A] {
         implicit val scheduler: Scheduler = s
         private[this] var isDone = false
 
@@ -532,13 +530,13 @@ object Observable {
 
   /** Creates an observable from a function that receives a
     * concurrent and safe
-    * [[monix.reactive.observers.SyncSubscriber SyncSubscriber]].
+    * [[monix.reactive.observers.Subscriber.Sync Subscriber.Sync]].
     *
     * This builder represents the safe way of building observables
     * from data-sources that cannot be back-pressured.
     */
   def create[A](overflowStrategy: OverflowStrategy.Synchronous[A])
-    (f: SyncSubscriber[A] => Cancelable): Observable[A] =
+    (f: Subscriber.Sync[A] => Cancelable): Observable[A] =
     new builders.CreateObservable(overflowStrategy, f)
 
   /** $multicastDesc
@@ -547,7 +545,7 @@ object Observable {
     *        reply, async)
     */
   def multicast[A](multicast: MulticastStrategy[A])
-    (implicit s: Scheduler): (SyncObserver[A], Observable[A]) = {
+    (implicit s: Scheduler): (Observer.Sync[A], Observable[A]) = {
 
     val ref = ConcurrentSubject(multicast)
     (ref, ref)
@@ -562,7 +560,7 @@ object Observable {
     *        back-pressured)
     */
   def multicast[A](multicast: MulticastStrategy[A], overflow: OverflowStrategy.Synchronous[A])
-    (implicit s: Scheduler): (SyncObserver[A], Observable[A]) = {
+    (implicit s: Scheduler): (Observer.Sync[A], Observable[A]) = {
 
     val ref = ConcurrentSubject(multicast, overflow)
     (ref, ref)

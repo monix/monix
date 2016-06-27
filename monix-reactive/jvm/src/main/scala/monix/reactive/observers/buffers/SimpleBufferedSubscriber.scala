@@ -19,10 +19,10 @@ package monix.reactive.observers.buffers
 
 import java.util.concurrent.ConcurrentLinkedQueue
 import monix.execution.Ack
-import monix.execution.Ack.{Stop, Continue}
-import monix.reactive.exceptions.BufferOverflowException
-import monix.reactive.observers.{BufferedSubscriber, Subscriber, SyncSubscriber}
+import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.Atomic
+import monix.reactive.exceptions.BufferOverflowException
+import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 import scala.annotation.tailrec
 import scala.util.Failure
 import scala.util.control.NonFatal
@@ -39,7 +39,7 @@ import scala.util.control.NonFatal
  */
 private[buffers] final class SimpleBufferedSubscriber[-T] private
   (underlying: Subscriber[T], bufferSize: Int = 0)
-  extends BufferedSubscriber[T] with SyncSubscriber[T] { self =>
+  extends BufferedSubscriber[T] with Subscriber.Sync[T] { self =>
 
   require(bufferSize >= 0, "bufferSize must be a positive number")
 
@@ -208,9 +208,9 @@ private[buffers] final class SimpleBufferedSubscriber[-T] private
 }
 
 private[monix] object SimpleBufferedSubscriber {
-  def unbounded[T](underlying: Subscriber[T]): SyncSubscriber[T] =
+  def unbounded[T](underlying: Subscriber[T]): Subscriber.Sync[T] =
     new SimpleBufferedSubscriber[T](underlying)
 
-  def overflowTriggering[T](underlying: Subscriber[T], bufferSize: Int): SyncSubscriber[T] =
+  def overflowTriggering[T](underlying: Subscriber[T], bufferSize: Int): Subscriber.Sync[T] =
     new SimpleBufferedSubscriber[T](underlying, bufferSize)
 }

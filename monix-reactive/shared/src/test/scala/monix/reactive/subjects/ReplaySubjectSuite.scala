@@ -21,8 +21,6 @@ import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.reactive.Observer
 import monix.reactive.exceptions.DummyException
-import monix.reactive.observers.SyncObserver
-
 import scala.concurrent.Future
 import scala.util.Success
 
@@ -40,7 +38,7 @@ object ReplaySubjectSuite extends BaseSubjectSuite {
   test("subscribers should get everything") { implicit s =>
     var completed = 0
 
-    def create(expectedSum: Long) = new SyncObserver[Int] {
+    def create(expectedSum: Long) = new Observer.Sync[Int] {
       var received = 0L
       def onNext(elem: Int) = { received += elem; Continue }
       def onError(ex: Throwable): Unit = throw ex

@@ -22,10 +22,12 @@ import monix.eval.{Callback, Coeval, Task}
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.{Atomic, PaddingStrategy}
 import monix.execution.cancelables.{AssignableCancelable, SingleAssignmentCancelable}
-import monix.execution.{Ack, Scheduler}
+import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.reactive.Consumer.{ContraMapConsumer, MapAsyncConsumer, MapConsumer}
-import monix.reactive.observers.{Subscriber, SyncSubscriber}
+import monix.reactive.observers.Subscriber
+
 import scala.collection.immutable.Queue
+import scala.collection.mutable.ListBuffer
 import scala.concurrent.{Future, Promise}
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
@@ -122,10 +124,58 @@ trait Consumer[-In, +R] extends ((Observable[In]) => Task[R])
     new MapAsyncConsumer[In,R,R2](self, f)
 }
 
+/** The companion object of [[Consumer]], defines consumer builders.
+  *
+  * @define loadBalanceDesc Creates a consumer that, when consuming
+  *         the stream, will start multiple subscribers corresponding
+  *         and distribute the load between them.
+  *
+  *         Once each subscriber emits a final result, this consumer will
+  *         return a list of aggregated results.
+  *
+  *         Has the following rules:
+  *
+  *          - items are pushed on free subscribers, respecting their
+  *            contract, each item being pushed to the first available
+  *            subscriber in the queue
+  *          - in case no free subscribers are available, then the
+  *            source gets back-pressured until free subscribers are
+  *            available
+  *          - in case of `onComplete` or `onError`, all subscribers
+  *            that are still active will receive the event
+  *          - the `onSuccess` callback of individual subscribers is
+  *            aggregated in a list buffer and once the aggregate contains
+  *            results from all subscribers, the load-balancing consumer
+  *            will emit the aggregate
+  *          - the `onError` callback triggered by individual subscribers will
+  *            signal that error upstream and cancel the streaming for
+  *            every other subscriber
+  *          - in case any of the subscribers cancels its subscription
+  *            (either returning `Stop` in `onNext` or canceling its assigned
+  *             cancelable), it gets excluded from the pool of active
+  *            subscribers, but the other active subscribers will still
+  *            receive notifications
+  *          - if all subscribers canceled (either by returning `Stop`
+  *            or by canceling their assignable cancelable reference),
+  *            then streaming stops as well
+  *
+  *         In other words the `Task`, created by applying this consumer to
+  *         an observable, will complete once all the subscribers emit a result
+  *         or as soon as an error happens.
+  *
+  * @define loadBalanceReturn a list of aggregated results that
+  *         were computed by all of the subscribers as their result
+  */
 object Consumer {
-  /** Given an [[Observer]] expression, builds a consumer from it. */
-  def fromObserver[In](observer: Coeval[Observer[In]]): Consumer[In, Unit] =
-    new FromObserverConsumer[In](observer)
+  /** Given a function taking a `Scheduler` and returning an [[Observer]],
+    * builds a consumer from it.
+    *
+    * You can use the `Scheduler` as the execution context, for working
+    * with `Future`, for forcing asynchronous boundaries or for executing
+    * tasks with a delay.
+    */
+  def fromObserver[In](f: Scheduler => Observer[In]): Consumer[In, Unit] =
+    new FromObserverConsumer[In](f)
 
   /** A consumer that immediately cancels its upstream after subscription. */
   def cancel[A]: Consumer.Sync[A, Unit] =
@@ -172,6 +222,16 @@ object Consumer {
     */
   def head[A]: Consumer.Sync[A, A] =
     new HeadConsumer[A]
+
+  /** A consumer that will produce the first streamed value on
+    * `onNext` after which the streaming gets cancelled.
+    *
+    * In case the stream is empty and so no `onNext` happen before
+    * `onComplete`, then the a `NoSuchElementException` will get
+    * triggered.
+    */
+  def headOption[A]: Consumer.Sync[A, Option[A]] =
+    new HeadOptionConsumer[A]
 
   /** A consumer that will produce a [[Notification]] of the first value
     * received (`onNext`, `onComplete` or `onError`), after which the
@@ -220,7 +280,7 @@ object Consumer {
     * @param cb is the function that will be called for each element
     */
   def foreachParallel[A](parallelism: Int)(cb: A => Unit): Consumer[A, Unit] =
-    loadBalance(parallelism, foreach(cb))
+    loadBalance(parallelism, foreach(cb)).map(_ => ())
 
   /** Builds a consumer that will consume the stream, applying the given
     * function to each element, in parallel, then finally signaling its
@@ -234,37 +294,38 @@ object Consumer {
     * @param cb is the function that will be called for each element
     */
   def foreachParallelAsync[A](parallelism: Int)(cb: A => Task[Unit]): Consumer[A, Unit] =
-    loadBalance(parallelism, foreachAsync(cb))
+    loadBalance(parallelism, foreachAsync(cb)).map(_ => ())
 
-  /** Creates a consumer that when consuming the stream it will
-    * start multiple subscribers and distribute the load between them,
-    * with the following rules:
+  /** $loadBalanceDesc
     *
-    *  - items are pushed on free subscribers, respecting their contract,
-    *    each item being pushed to the first available subscriber
-    *  - in case no free subscribers are available, then the source
-    *    gets back-pressured until free subscribers are available
-    *  - in case of `onComplete` or `onError` only a single subscriber
-    *    will receive the event, while the others will not
-    *  - in case any of the subscribers returns `Stop` from `onNext`
-    *    all streaming is stopped, including for the other subscribers
-    *  - in case any of the subscribers triggers an error,
-    *    all streaming is stopped, including for the other subscribers
-    *  - so one subscriber canceling the streaming will cancel it for
-    *    all the rest
+    * @param parallelism is the number of subscribers that will get
+    *        initialized to process incoming events in parallel.
+    * @param consumer is the subscriber factory that will initialize
+    *        all needed subscribers, in number equal to the specified
+    *        parallelism and thus that will be fed in parallel
     *
-    * Also, the `Task` will complete when the streaming stops, either
-    * because the upstream completes, or because one of the subscribers has
-    * stopped the stream.
+    * @return $loadBalanceReturn
     */
-  def loadBalance[A,R](parallelism: Int, consumer: Consumer[A,R]): Consumer[A, Unit] =
-    new LoadBalanceConsumer[A,R](parallelism, consumer)
+  def loadBalance[A,R](parallelism: Int, consumer: Consumer[A,R]): Consumer[A, List[R]] =
+    new LoadBalanceConsumer[A,R](parallelism, Array(consumer))
+
+  /** $loadBalanceDesc
+    *
+    * @param consumers is a list of consumers that will initialize
+    *        the subscribers that will process events in parallel,
+    *        with the parallelism factor being equal to the number
+    *        of consumers specified in this list.
+    *
+    * @return $loadBalanceReturn
+    */
+  def loadBalance[A,R](consumers: Consumer[A,R]*): Consumer[A, List[R]] =
+    new LoadBalanceConsumer[A,R](consumers.length, consumers.toArray)
 
   /** Defines a synchronous [[Consumer]] that builds
-    * [[monix.reactive.observers.SyncSubscriber synchronous subscribers]].
+    * [[monix.reactive.observers.Subscriber.Sync synchronous subscribers]].
     */
   trait Sync[-In, +R] extends Consumer[In, R] {
-    override def createSubscriber(cb: Callback[R], s: Scheduler): (SyncSubscriber[In], AssignableCancelable)
+    override def createSubscriber(cb: Callback[R], s: Scheduler): (Subscriber.Sync[In], AssignableCancelable)
   }
 
   /** Implementation for [[Consumer.contramap]]. */
@@ -315,6 +376,8 @@ object Consumer {
       val cb1 = new Callback[R] {
         def onSuccess(value: R): Unit =
           s.execute(new Runnable {
+            // Forcing an asynchronous boundary, otherwise
+            // this isn't a safe operation.
             def run(): Unit = {
               var streamErrors = true
               try {
@@ -344,9 +407,11 @@ object Consumer {
     extends Consumer[In, R2] {
 
     def createSubscriber(cb: Callback[R2], s: Scheduler): (Subscriber[In], AssignableCancelable) = {
-      val cb1 = new Callback[R] {
+      val asyncCallback = new Callback[R] {
         def onSuccess(value: R): Unit =
           s.execute(new Runnable {
+            // Forcing async boundary, otherwise we might
+            // end up with stack-overflows or other problems
             def run(): Unit = {
               implicit val scheduler = s
               // For protecting the contract, as if a call was already made to
@@ -354,15 +419,8 @@ object Consumer {
               var streamErrors = true
               try {
                 val task = f(value)
-                // result might be available immediately
-                task.coeval.value match {
-                  case Right(immediate) =>
-                    streamErrors = false
-                    cb.onSuccess(immediate)
-                  case Left(async) =>
-                    streamErrors = false
-                    async.onComplete(cb)
-                }
+                streamErrors = false
+                task.runAsync(cb)
               } catch {
                 case NonFatal(ex) =>
                   if (streamErrors) cb.onError(ex)
@@ -371,33 +429,67 @@ object Consumer {
             }
           })
 
-        def onError(ex: Throwable): Unit =
+        def onError(ex: Throwable): Unit = {
+          // Forcing async boundary, otherwise we might
+          // end up with stack-overflows or other problems
           s.execute(new Runnable { def run(): Unit = cb.onError(ex) })
+        }
       }
 
-      source.createSubscriber(cb1, s)
+      source.createSubscriber(asyncCallback, s)
     }
   }
 
   /** Implementation for [[cancel]]. */
   private object CancelledConsumer extends Consumer.Sync[Any, Unit] {
-    def createSubscriber(cb: Callback[Unit], s: Scheduler): (SyncSubscriber[Any], AssignableCancelable) = {
-      val out = new SyncSubscriber[Any] {
+    def createSubscriber(cb: Callback[Unit], s: Scheduler): (Subscriber.Sync[Any], AssignableCancelable) = {
+      val out = new Subscriber.Sync[Any] {
         implicit val scheduler = s
         def onNext(elem: Any): Ack = Stop
         def onComplete(): Unit = ()
         def onError(ex: Throwable): Unit = scheduler.reportFailure(ex)
       }
 
-      cb.onSuccess(())
+      // Forcing async boundary to prevent problems
+      s.execute(new Runnable { def run() = cb.onSuccess(()) })
       (out, AssignableCancelable.alreadyCanceled)
+    }
+  }
+
+  /** Implementation for [[headOption]] */
+  private class HeadOptionConsumer[A] extends Consumer.Sync[A, Option[A]] {
+    override def createSubscriber(cb: Callback[Option[A]], s: Scheduler): (Subscriber.Sync[A], AssignableCancelable) = {
+      val out = new Subscriber.Sync[A] {
+        implicit val scheduler = s
+        private[this] var isDone = false
+
+        def onNext(elem: A): Ack = {
+          isDone = true
+          cb.onSuccess(Some(elem))
+          Stop
+        }
+
+        def onComplete(): Unit =
+          if (!isDone) {
+            isDone = true
+            cb.onSuccess(None)
+          }
+
+        def onError(ex: Throwable): Unit =
+          if (!isDone) {
+            isDone = true
+            cb.onError(ex)
+          }
+      }
+
+      (out, AssignableCancelable.dummy)
     }
   }
 
   /** Implementation for [[head]] */
   private class HeadConsumer[A] extends Consumer.Sync[A, A] {
-    override def createSubscriber(cb: Callback[A], s: Scheduler): (SyncSubscriber[A], AssignableCancelable) = {
-      val out = new SyncSubscriber[A] {
+    override def createSubscriber(cb: Callback[A], s: Scheduler): (Subscriber.Sync[A], AssignableCancelable) = {
+      val out = new Subscriber.Sync[A] {
         implicit val scheduler = s
         private[this] var isDone = false
 
@@ -426,8 +518,8 @@ object Consumer {
 
   /** Implementation for [[firstNotification]] */
   private class FirstNotificationConsumer[A] extends Consumer.Sync[A, Notification[A]] {
-    override def createSubscriber(cb: Callback[Notification[A]], s: Scheduler): (SyncSubscriber[A], AssignableCancelable) = {
-      val out = new SyncSubscriber[A] {
+    override def createSubscriber(cb: Callback[Notification[A]], s: Scheduler): (Subscriber.Sync[A], AssignableCancelable) = {
+      val out = new Subscriber.Sync[A] {
         implicit val scheduler = s
         private[this] var isDone = false
 
@@ -458,8 +550,8 @@ object Consumer {
   private final class FoldLeftConsumer[A,R](initial: Coeval[R], f: (R,A) => R)
     extends Consumer.Sync[A,R] {
 
-    def createSubscriber(cb: Callback[R], s: Scheduler): (SyncSubscriber[A], AssignableCancelable) = {
-      val out = new SyncSubscriber[A] {
+    def createSubscriber(cb: Callback[R], s: Scheduler): (Subscriber.Sync[A], AssignableCancelable) = {
+      val out = new Subscriber.Sync[A] {
         implicit val scheduler = s
         private[this] var isDone = false
         private[this] var state = initial.value
@@ -553,8 +645,8 @@ object Consumer {
 
   /** Implementation for [[complete]] */
   private object CompleteConsumer extends Consumer.Sync[Any, Unit] {
-    override def createSubscriber(cb: Callback[Unit], s: Scheduler): (SyncSubscriber[Any], AssignableCancelable) = {
-      val out = new SyncSubscriber[Any] {
+    override def createSubscriber(cb: Callback[Unit], s: Scheduler): (Subscriber.Sync[Any], AssignableCancelable) = {
+      val out = new Subscriber.Sync[Any] {
         implicit val scheduler = s
         def onNext(elem: Any): Ack = Continue
         def onComplete(): Unit = cb.onSuccess(())
@@ -569,8 +661,8 @@ object Consumer {
   private final class ForeachConsumer[A](f: A => Unit)
     extends Consumer.Sync[A, Unit] {
 
-    def createSubscriber(cb: Callback[Unit], s: Scheduler): (SyncSubscriber[A], AssignableCancelable) = {
-      val out = new SyncSubscriber[A] {
+    def createSubscriber(cb: Callback[Unit], s: Scheduler): (Subscriber.Sync[A], AssignableCancelable) = {
+      val out = new Subscriber.Sync[A] {
         implicit val scheduler = s
         private[this] var isDone = false
 
@@ -647,8 +739,8 @@ object Consumer {
   private final class RaiseErrorConsumer[-In,R](ex: Throwable)
     extends Consumer.Sync[In,R] {
 
-    def createSubscriber(cb: Callback[R], s: Scheduler): (SyncSubscriber[In], AssignableCancelable) = {
-      val out = new SyncSubscriber[Any] {
+    def createSubscriber(cb: Callback[R], s: Scheduler): (Subscriber.Sync[In], AssignableCancelable) = {
+      val out = new Subscriber.Sync[Any] {
         implicit val scheduler = s
         def onNext(elem: Any): Ack = Stop
         def onComplete(): Unit = ()
@@ -661,11 +753,11 @@ object Consumer {
   }
 
   /** Implementation for [[Consumer.fromObserver]]. */
-  private final class FromObserverConsumer[In](obs: Coeval[Observer[In]])
+  private final class FromObserverConsumer[In](f: Scheduler => Observer[In])
     extends Consumer[In, Unit] {
 
     def createSubscriber(cb: Callback[Unit], s: Scheduler): (Subscriber[In], AssignableCancelable) = {
-      obs.runAttempt match {
+      Coeval.Attempt(f(s)) match {
         case Error(ex) =>
           Consumer.raiseError(ex).createSubscriber(cb,s)
 
@@ -676,8 +768,14 @@ object Consumer {
             private[this] val isDone = Atomic(false)
             private def signal(ex: Throwable): Unit =
               if (!isDone.getAndSet(true)) {
-                if (ex == null) cb.onSuccess(())
-                else cb.onError(ex)
+                if (ex == null) {
+                  try out.onComplete()
+                  finally cb.onSuccess(())
+                }
+                else {
+                  try out.onError(ex)
+                  finally cb.onError(ex)
+                }
               }
 
             def onNext(elem: In): Future[Ack] = {
@@ -705,45 +803,95 @@ object Consumer {
   }
 
   /** Implementation for [[monix.reactive.Consumer.loadBalance]]. */
-  private[reactive] final class LoadBalanceConsumer[-In, U]
-    (parallelism: Int, consumer: Consumer[In, U])
-    extends Consumer[In, Unit] {
+  private[reactive] final class LoadBalanceConsumer[-In, R]
+    (parallelism: Int, consumers: Array[Consumer[In, R]])
+    extends Consumer[In, List[R]] {
 
-    require(parallelism > 1, s"parallelism = $parallelism, should be > 1")
+    require(parallelism > 0, s"parallelism = $parallelism, should be > 0")
+    require(consumers.length > 0, "consumers list must not be empty")
 
     // NOTE: onFinish MUST BE synchronized by `self` and
     // double-checked by means of `isDone`
-    def createSubscriber(onFinish: Callback[Unit], s: Scheduler): (Subscriber[In], AssignableCancelable) = {
+    def createSubscriber(onFinish: Callback[List[R]], s: Scheduler): (Subscriber[In], AssignableCancelable) = {
       // Assignable cancelable returned, can be used to cancel everything
       // since it will be assigned the stream subscription
       val mainCancelable = SingleAssignmentCancelable()
 
       val balanced = new Subscriber[In] { self =>
         implicit val scheduler = s
+
         // Trying to prevent contract violations, once this turns
         // true, then no final events are allowed to happen.
         // MUST BE synchronized by `self`.
-        private[this] var isDone = false
+        private[this] var isUpstreamComplete = false
+
+        // Trying to prevent contract violations. Turns true in case
+        // we already signaled a result upstream.
+        // MUST BE synchronized by `self`.
+        private[this] var isDownstreamDone = false
+
+        // Stores the error that was reported upstream - basically
+        // multiple subscribers can report multiple errors, but we
+        // emit the first one, so in case multiple errors happen we
+        // want to log them, but only if they aren't the same reference
+        // MUST BE synchronized by `self`
+        private[this] var reportedError: Throwable = null
+
+        // Results accumulator - when length == parallelism,
+        // that's when we need to trigger `onFinish.onSuccess`.
+        // MUST BE synchronized by `self`
+        private[this] val accumulator = ListBuffer.empty[R]
+
+        /** Builds cancelables for subscribers. */
+        private def newCancelableFor(out: Subscriber[In]): Cancelable =
+          new Cancelable {
+            private[this] var isCanceled = false
+            // Forcing an asynchronous boundary, to avoid any possible
+            // initialization issues (in building subscribersQueue) or
+            // stack overflows and other problems
+            def cancel(): Unit = scheduler.execute(
+              new Runnable {
+                // We are required to synchronize, because we need to
+                // make sure that subscribersQueue is fully created before
+                // triggering any cancellation!
+                def run(): Unit = self.synchronized {
+                  // Guards the idempotency contract of cancel(); not really
+                  // required, because `deactivate()` should be idempotent, but
+                  // since we are doing an expensive synchronize, we might as well
+                  if (!isCanceled) {
+                    isCanceled = true
+                    // Deactivating the subscriber. In case all subscribers
+                    // have been deactivated, then we are done
+                    if (subscribersQueue.deactivate(out))
+                      interruptAll(null)
+                  }
+                }
+              })
+          }
 
         // Asynchronous queue that serves idle subscribers waiting
         // for something to process, or that puts the stream on wait
         // until there are subscribers available
-        private[this] val subscribersQueue = {
+        private[this] val subscribersQueue = self.synchronized {
           var initial = Queue.empty[Subscriber[In]]
           // When the callback gets called by each subscriber, on success we
           // do nothing because for normal completion we are listing on
           // `Stop` events from onNext, but on failure we deactivate all.
-          val callback = new Callback[U] {
-            def onSuccess(value: U) = ()
-            def onError(ex: Throwable) = interruptAll(ex)
+          val callback = new Callback[R] {
+            def onSuccess(value: R): Unit =
+              accumulate(value)
+            def onError(ex: Throwable): Unit =
+              interruptAll(ex)
           }
 
+          val arrLen = consumers.length
           var i = 0
+
           while (i < parallelism) {
-            val (out, c) = consumer.createSubscriber(callback, s)
+            val (out, c) = consumers(i % arrLen).createSubscriber(callback, s)
             // Every created subscriber has the opportunity to cancel the
             // main subscription if needed, cancellation thus happening globally
-            c := mainCancelable
+            c := newCancelableFor(out)
             initial = initial.enqueue(out)
             i += 1
           }
@@ -755,12 +903,7 @@ object Consumer {
           // Declares a stop event, completing the callback
           def stop(): Stop = self.synchronized {
             // Protecting against contract violations
-            if (!isDone) {
-              isDone = true
-              // Sending completion event, since we are done
-              onFinish.onSuccess(())
-            }
-
+            isUpstreamComplete = true
             Stop
           }
 
@@ -785,19 +928,45 @@ object Consumer {
           }
         }
 
+        /** Triggered whenever the subscribers are finishing with onSuccess */
+        private def accumulate(value: R): Unit = self.synchronized {
+          if (!isDownstreamDone) {
+            accumulator += value
+            if (accumulator.length == parallelism) {
+              isDownstreamDone = true
+              onFinish.onSuccess(accumulator.toList)
+              // GC relief
+              accumulator.clear()
+            }
+          }
+        }
+
+        /** Triggered whenever we need to signal an `onError` upstream */
+        private def reportErrorUpstream(ex: Throwable) = self.synchronized {
+          if (isDownstreamDone) {
+            // We only report errors that we haven't
+            // reported to upstream by means of `onError`!
+            if (reportedError != ex)
+              scheduler.reportFailure(ex)
+          } else {
+            isDownstreamDone = true
+            reportedError = ex
+            onFinish.onError(ex)
+            // GC relief
+            accumulator.clear()
+          }
+        }
+
         /** When Stop or error is received, this makes sure the
           * streaming gets interrupted!
           */
-        private def interruptAll(ex: Throwable): Unit = synchronized {
-          if (!isDone) {
-            isDone = true
-            mainCancelable.cancel()
-            subscribersQueue.deactivateAll()
-            if (ex == null) onFinish.onSuccess(())
-            else onFinish.onError(ex)
-          } else if (ex != null) {
-            scheduler.reportFailure(ex)
-          }
+        private def interruptAll(ex: Throwable): Unit = self.synchronized {
+          // All the following operations are idempotent!
+          isUpstreamComplete = true
+          mainCancelable.cancel()
+          subscribersQueue.deactivateAll()
+          // Is this an error to signal?
+          if (ex != null) reportErrorUpstream(ex)
         }
 
         /** Given a subscriber, signals the given element, then return
@@ -818,7 +987,7 @@ object Consumer {
                     case Stop =>
                       // Deactivating the subscriber. In case all subscribers
                       // have been deactivated, then we are done
-                      if (subscribersQueue.deactivate())
+                      if (subscribersQueue.deactivate(out))
                         interruptAll(null)
                   }
                 case Failure(ex) =>
@@ -861,18 +1030,18 @@ object Consumer {
 
           self.synchronized {
             // Protecting against contract violations.
-            if (!isDone) {
-              isDone = true
+            if (!isUpstreamComplete) {
+              isUpstreamComplete = true
+
               // Starting the loop
               loop(subscribersQueue.activeCount).onComplete {
                 case Success(()) =>
-                  if (ex != null) onFinish.onError(ex)
-                  else onFinish.onSuccess(())
+                  if (ex != null) reportErrorUpstream(ex)
                 case Failure(err) =>
-                  onFinish.onError(err)
+                  reportErrorUpstream(err)
               }
             } else if (ex != null) {
-              scheduler.reportFailure(ex)
+              reportErrorUpstream(ex)
             }
           }
         }
@@ -887,7 +1056,7 @@ object Consumer {
       initialQueue: Queue[Subscriber[In]], parallelism: Int) {
 
       private[this] val stateRef = {
-        val initial = Available(initialQueue, parallelism) : State[In]
+        val initial: State[In] = Available(initialQueue, Set.empty, parallelism)
         Atomic.withPadding(initial, PaddingStrategy.LeftRight256)
       }
 
@@ -896,16 +1065,16 @@ object Consumer {
 
       def offer(value: Subscriber[In]): Unit =
         stateRef.get match {
-          case current @ Available(queue, ac) =>
+          case current @ Available(queue, busy, ac) =>
             if (ac <= 0)
               throw new IllegalStateException("offer after activeCount is zero")
 
-            val update = Available(queue.enqueue(value), ac)
+            val update = Available(queue.enqueue(value), busy-value, ac)
             if (!stateRef.compareAndSet(current, update))
               offer(value)
 
-          case current @ Waiting(promise, ac) =>
-            val update = Available[In](Queue.empty, ac)
+          case current @ Waiting(promise, busy, ac) =>
+            val update = Available[In](Queue.empty, busy+value, ac)
             if (!stateRef.compareAndSet(current, update))
               offer(value)
             else
@@ -914,68 +1083,97 @@ object Consumer {
 
       def poll(): Future[Subscriber[In]] =
         stateRef.get match {
-          case current @ Available(queue, ac) =>
+          case current @ Available(queue, busy, ac) =>
             if (ac <= 0)
               Future.successful(null)
             else if (queue.isEmpty) {
               val p = Promise[Subscriber[In]]()
-              val update = Waiting(p, ac)
+              val update = Waiting(p, busy, ac)
               if (!stateRef.compareAndSet(current, update))
                 poll()
               else
                 p.future
-            } else {
-              val (s, newQueue) = queue.dequeue
-              if (!stateRef.compareAndSet(current, Available(newQueue, ac)))
+            }
+            else {
+              val (ref, newQueue) = queue.dequeue
+              val update = Available(newQueue, busy+ref, ac)
+              if (!stateRef.compareAndSet(current, update))
                 poll()
               else
-                Future.successful(s)
+                Future.successful(ref)
             }
-          case Waiting(_,_) =>
+          case Waiting(_,_,_) =>
             Future.failed(new IllegalStateException("waiting in poll()"))
         }
 
       def deactivateAll(): Unit =
-        stateRef.set(Available(Queue.empty, 0))
-
-      def deactivate(): Boolean =
         stateRef.get match {
-          case current @ Available(queue, count) =>
-            if (count <= 0) true else {
-              val update = Available(queue, count-1)
-              if (!stateRef.compareAndSet(current, update))
-                deactivate()
-              else
-                count == 1
-            }
-
-          case current @ Waiting(promise, count) =>
-            val update =
-              if (count - 1 > 0) Waiting(promise, count-1)
-              else Available[In](Queue.empty, 0)
-
+          case current @ Available(_,_,_) =>
+            val update: State[In] = Available(Queue.empty, Set.empty, 0)
             if (!stateRef.compareAndSet(current, update))
-              deactivate()
-            else if (count == 1) {
-              promise.success(null)
-              true
-            }
+              deactivateAll()
+          case current @ Waiting(promise, _, _) =>
+            val update: State[In] = Available(Queue.empty, Set.empty, 0)
+            if (!stateRef.compareAndSet(current, update))
+              deactivateAll()
             else
-              false
+              promise.success(null)
+        }
+
+      def deactivate(ref: Subscriber[In]): Boolean =
+        stateRef.get match {
+          case current @ Available(queue, busy, count) =>
+            if (count <= 0) true else {
+              val update =
+                if (busy(ref))
+                  Available(queue, busy - ref, count-1)
+                else {
+                  // Oops, expensive operation!
+                  val newQueue = queue.filter(_ != ref)
+                  if (queue == newQueue) current else
+                    Available(newQueue, busy, count-1)
+                }
+
+              if (update.activeCount == current.activeCount)
+                false // nothing to update
+              else if (!stateRef.compareAndSet(current, update))
+                deactivate(ref) // retry
+              else
+                update.activeCount == 0
+            }
+
+          case current @ Waiting(promise, busy, count) =>
+            if (!busy(ref)) count == 0 else {
+              val update =
+                if (count - 1 > 0) Waiting(promise, busy - ref, count-1)
+                else Available[In](Queue.empty, busy - ref, 0)
+
+              if (!stateRef.compareAndSet(current, update))
+                deactivate(ref)
+              else if (update.activeCount == 0) {
+                promise.success(null)
+                true
+              }
+              else
+                false
+            }
         }
     }
 
-    private sealed trait State[In] {
+    private[reactive] sealed trait State[In] {
       def activeCount: Int
+      def busySubscribers: Set[Subscriber[In]]
     }
 
-    private final case class Available[In](
+    private[reactive] final case class Available[In](
       available: Queue[Subscriber[In]],
+      busySubscribers: Set[Subscriber[In]],
       activeCount: Int)
       extends State[In]
 
-    private final case class Waiting[In](
+    private[reactive] final case class Waiting[In](
       promise: Promise[Subscriber[In]],
+      busySubscribers: Set[Subscriber[In]],
       activeCount: Int)
       extends State[In]
   }
