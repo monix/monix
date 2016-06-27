@@ -18,7 +18,6 @@
 package monix.reactive.observers
 
 import java.io.PrintStream
-
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.{Ack, Scheduler}
 import monix.reactive.Observer

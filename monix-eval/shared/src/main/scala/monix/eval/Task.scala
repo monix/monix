@@ -604,21 +604,9 @@ object Task extends TaskInstances {
       try {
         val c = SingleAssignmentCancelable()
         conn push c
-
-        c := register(scheduler, new Callback[A] {
-          def onError(ex: Throwable): Unit = {
-            conn.pop()
-            cb.onError(ex)
-          }
-
-          def onSuccess(value: A): Unit = {
-            conn.pop()
-            cb.onSuccess(value)
-          }
-        })
+        c := register(scheduler, Callback.popBeforeCall(cb, conn))
       } catch {
         case NonFatal(ex) =>
-          conn.pop()
           // We cannot stream the error, because the callback might have
           // been called already and we'd be violating its contract,
           // hence the only thing possible is to log the error.

@@ -65,6 +65,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
   /** Subscribes to the stream.
     *
     * @return a subscription that can be used to cancel the streaming.
+    * @see [[runWith]] for another way of consuming observables
     */
   def subscribe(subscriber: Subscriber[A]): Cancelable = {
     unsafeSubscribeFn(SafeSubscriber[A](subscriber))
@@ -73,6 +74,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
   /** Subscribes to the stream.
     *
     * @return a subscription that can be used to cancel the streaming.
+    * @see [[runWith]] for another way of consuming observables
     */
   def subscribe(observer: Observer[A])(implicit s: Scheduler): Cancelable =
     subscribe(Subscriber(observer, s))
@@ -80,6 +82,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
   /** Subscribes to the stream.
     *
     * @return a subscription that can be used to cancel the streaming.
+    * @see [[runWith]] for another way of consuming observables
     */
   def subscribe(nextFn: A => Future[Ack], errorFn: Throwable => Unit, completedFn: () => Unit)
     (implicit s: Scheduler): Cancelable = {
@@ -95,6 +98,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
   /** Subscribes to the stream.
     *
     * @return a subscription that can be used to cancel the streaming.
+    * @see [[runWith]] for another way of consuming observables
     */
   def subscribe(nextFn: A => Future[Ack], errorFn: Throwable => Unit)(implicit s: Scheduler): Cancelable =
     subscribe(nextFn, errorFn, () => ())
@@ -102,6 +106,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
   /** Subscribes to the stream.
     *
     * @return a subscription that can be used to cancel the streaming.
+    * @see [[runWith]] for another way of consuming observables
     */
   def subscribe()(implicit s: Scheduler): Cancelable =
     subscribe(elem => Continue)
@@ -109,9 +114,17 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
   /** Subscribes to the stream.
     *
     * @return a subscription that can be used to cancel the streaming.
+    * @see [[runWith]] for another way of consuming observables
     */
   def subscribe(nextFn: A => Future[Ack])(implicit s: Scheduler): Cancelable =
     subscribe(nextFn, error => s.reportFailure(error), () => ())
+
+  /** On execution, consumes the source observable with the
+    * given [[Consumer]], effectively transforming the source observable
+    * into a [[monix.eval.Task Task]].
+    */
+  def runWith[R](f: Consumer[A, R]): Task[R] =
+    f(self)
 
   /** Transforms the source using the given operator. */
   override def liftByOperator[B](operator: Operator[A, B]): Observable[B] =
