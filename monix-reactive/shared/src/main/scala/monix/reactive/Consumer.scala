@@ -23,10 +23,12 @@ import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.{Atomic, PaddingStrategy}
 import monix.execution.cancelables.{AssignableCancelable, SingleAssignmentCancelable}
 import monix.execution.{Ack, Cancelable, Scheduler}
+import monix.reactive.Consumer.LoadBalanceConsumer.IndexedSubscriber
 import monix.reactive.Consumer.{ContraMapConsumer, MapAsyncConsumer, MapConsumer}
 import monix.reactive.observers.Subscriber
 
-import scala.collection.immutable.Queue
+import scala.annotation.tailrec
+import scala.collection.immutable.{BitSet, Queue}
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.{Future, Promise}
 import scala.util.control.NonFatal
@@ -181,9 +183,9 @@ object Consumer {
   def cancel[A]: Consumer.Sync[A, Unit] =
     CancelledConsumer
 
-  /** A consumer that triggers an error immediately after subscribtion. */
+  /** A consumer that triggers an error immediately after subscription. */
   def raiseError[In, R](ex: Throwable): Consumer.Sync[In,R] =
-    new RaiseErrorConsumer[In,R](ex)
+    new RaiseErrorConsumer(ex)
 
   /** Given a fold function and an initial state value, applies the
     * fold function to every element of the stream and finally signaling
@@ -736,10 +738,10 @@ object Consumer {
   }
 
   /** Implementation for [[Consumer.raiseError]]. */
-  private final class RaiseErrorConsumer[-In,R](ex: Throwable)
-    extends Consumer.Sync[In,R] {
+  private final class RaiseErrorConsumer(ex: Throwable)
+    extends Consumer.Sync[Any,Nothing] {
 
-    def createSubscriber(cb: Callback[R], s: Scheduler): (Subscriber.Sync[In], AssignableCancelable) = {
+    def createSubscriber(cb: Callback[Nothing], s: Scheduler): (Subscriber.Sync[Any], AssignableCancelable) = {
       val out = new Subscriber.Sync[Any] {
         implicit val scheduler = s
         def onNext(elem: Any): Ack = Stop
@@ -747,7 +749,8 @@ object Consumer {
         def onError(ex: Throwable): Unit = scheduler.reportFailure(ex)
       }
 
-      cb.onError(ex)
+      // Forcing async boundary to prevent problems
+      s.execute(new Runnable { def run() = cb.onError(ex) })
       (out, AssignableCancelable.alreadyCanceled)
     }
   }
@@ -843,7 +846,7 @@ object Consumer {
         private[this] val accumulator = ListBuffer.empty[R]
 
         /** Builds cancelables for subscribers. */
-        private def newCancelableFor(out: Subscriber[In]): Cancelable =
+        private def newCancelableFor(out: IndexedSubscriber[In]): Cancelable =
           new Cancelable {
             private[this] var isCanceled = false
             // Forcing an asynchronous boundary, to avoid any possible
@@ -873,7 +876,7 @@ object Consumer {
         // for something to process, or that puts the stream on wait
         // until there are subscribers available
         private[this] val subscribersQueue = self.synchronized {
-          var initial = Queue.empty[Subscriber[In]]
+          var initial = Queue.empty[IndexedSubscriber[In]]
           // When the callback gets called by each subscriber, on success we
           // do nothing because for normal completion we are listing on
           // `Stop` events from onNext, but on failure we deactivate all.
@@ -889,10 +892,11 @@ object Consumer {
 
           while (i < parallelism) {
             val (out, c) = consumers(i % arrLen).createSubscriber(callback, s)
+            val indexed = new IndexedSubscriber(i, out)
             // Every created subscriber has the opportunity to cancel the
             // main subscription if needed, cancellation thus happening globally
-            c := newCancelableFor(out)
-            initial = initial.enqueue(out)
+            c := newCancelableFor(indexed)
+            initial = initial.enqueue(indexed)
             i += 1
           }
 
@@ -972,7 +976,7 @@ object Consumer {
         /** Given a subscriber, signals the given element, then return
           * the subscriber to the queue if possible.
           */
-        private def signalNext(out: Subscriber[In], elem: In): Unit = {
+        private def signalNext(out: IndexedSubscriber[In], elem: In): Unit = {
           // We are forcing an asynchronous boundary here, since we
           // don't want to block the main thread!
           scheduler.execute(new Runnable {
@@ -1052,43 +1056,62 @@ object Consumer {
   }
 
   private[reactive] object LoadBalanceConsumer {
+    /** Wraps a subscriber implementation into one
+      * that exposes an ID.
+      */
+    private[reactive] final
+    class IndexedSubscriber[-In](val id: Int, underlying: Subscriber[In])
+      extends Subscriber[In] {
+
+      implicit def scheduler = underlying.scheduler
+      def onNext(elem: In) = underlying.onNext(elem)
+      def onError(ex: Throwable) = underlying.onError(ex)
+      def onComplete() = underlying.onComplete()
+    }
+
     private final class AsyncQueue[In](
-      initialQueue: Queue[Subscriber[In]], parallelism: Int) {
+      initialQueue: Queue[IndexedSubscriber[In]], parallelism: Int) {
 
       private[this] val stateRef = {
-        val initial: State[In] = Available(initialQueue, Set.empty, parallelism)
+        val initial: State[In] = Available(initialQueue, BitSet.empty, parallelism)
         Atomic.withPadding(initial, PaddingStrategy.LeftRight256)
       }
 
       def activeCount: Int =
         stateRef.get.activeCount
 
-      def offer(value: Subscriber[In]): Unit =
+      @tailrec
+      def offer(value: IndexedSubscriber[In]): Unit =
         stateRef.get match {
-          case current @ Available(queue, busy, ac) =>
+          case current @ Available(queue, canceledIDs, ac) =>
             if (ac <= 0)
               throw new IllegalStateException("offer after activeCount is zero")
 
-            val update = Available(queue.enqueue(value), busy-value, ac)
-            if (!stateRef.compareAndSet(current, update))
-              offer(value)
+            if (!canceledIDs(value.id)) {
+              val update = Available(queue.enqueue(value), canceledIDs, ac)
+              if (!stateRef.compareAndSet(current, update))
+                offer(value)
+            }
 
-          case current @ Waiting(promise, busy, ac) =>
-            val update = Available[In](Queue.empty, busy+value, ac)
-            if (!stateRef.compareAndSet(current, update))
-              offer(value)
-            else
-              promise.success(value)
+          case current @ Waiting(promise, canceledIDs, ac) =>
+            if (!canceledIDs(value.id)) {
+              val update = Available[In](Queue.empty, canceledIDs, ac)
+              if (!stateRef.compareAndSet(current, update))
+                offer(value)
+              else
+                promise.success(value)
+            }
         }
 
-      def poll(): Future[Subscriber[In]] =
+      @tailrec
+      def poll(): Future[IndexedSubscriber[In]] =
         stateRef.get match {
-          case current @ Available(queue, busy, ac) =>
+          case current @ Available(queue, canceledIDs, ac) =>
             if (ac <= 0)
               Future.successful(null)
             else if (queue.isEmpty) {
-              val p = Promise[Subscriber[In]]()
-              val update = Waiting(p, busy, ac)
+              val p = Promise[IndexedSubscriber[In]]()
+              val update = Waiting(p, canceledIDs, ac)
               if (!stateRef.compareAndSet(current, update))
                 poll()
               else
@@ -1096,7 +1119,7 @@ object Consumer {
             }
             else {
               val (ref, newQueue) = queue.dequeue
-              val update = Available(newQueue, busy+ref, ac)
+              val update = Available(newQueue, canceledIDs, ac)
               if (!stateRef.compareAndSet(current, update))
                 poll()
               else
@@ -1106,33 +1129,30 @@ object Consumer {
             Future.failed(new IllegalStateException("waiting in poll()"))
         }
 
+      @tailrec
       def deactivateAll(): Unit =
         stateRef.get match {
-          case current @ Available(_,_,_) =>
-            val update: State[In] = Available(Queue.empty, Set.empty, 0)
+          case current @ Available(_,canceledIDs,_) =>
+            val update: State[In] = Available(Queue.empty, canceledIDs, 0)
             if (!stateRef.compareAndSet(current, update))
               deactivateAll()
-          case current @ Waiting(promise, _, _) =>
-            val update: State[In] = Available(Queue.empty, Set.empty, 0)
+          case current @ Waiting(promise, canceledIDs, _) =>
+            val update: State[In] = Available(Queue.empty, canceledIDs, 0)
             if (!stateRef.compareAndSet(current, update))
               deactivateAll()
             else
               promise.success(null)
         }
 
-      def deactivate(ref: Subscriber[In]): Boolean =
+      @tailrec
+      def deactivate(ref: IndexedSubscriber[In]): Boolean =
         stateRef.get match {
-          case current @ Available(queue, busy, count) =>
+          case current @ Available(queue, canceledIDs, count) =>
             if (count <= 0) true else {
-              val update =
-                if (busy(ref))
-                  Available(queue, busy - ref, count-1)
-                else {
-                  // Oops, expensive operation!
-                  val newQueue = queue.filter(_ != ref)
-                  if (queue == newQueue) current else
-                    Available(newQueue, busy, count-1)
-                }
+              val update = if (canceledIDs(ref.id)) current else {
+                val newQueue = queue.filterNot(_.id == ref.id)
+                Available(newQueue, canceledIDs+ref.id, count-1)
+              }
 
               if (update.activeCount == current.activeCount)
                 false // nothing to update
@@ -1142,15 +1162,15 @@ object Consumer {
                 update.activeCount == 0
             }
 
-          case current @ Waiting(promise, busy, count) =>
-            if (!busy(ref)) count == 0 else {
+          case current @ Waiting(promise, canceledIDs, count) =>
+            if (canceledIDs(ref.id)) count <= 0 else {
               val update =
-                if (count - 1 > 0) Waiting(promise, busy - ref, count-1)
-                else Available[In](Queue.empty, busy - ref, 0)
+                if (count - 1 > 0) Waiting(promise, canceledIDs+ref.id, count-1)
+                else Available[In](Queue.empty, canceledIDs+ref.id, 0)
 
               if (!stateRef.compareAndSet(current, update))
                 deactivate(ref)
-              else if (update.activeCount == 0) {
+              else if (update.activeCount <= 0) {
                 promise.success(null)
                 true
               }
@@ -1162,18 +1182,18 @@ object Consumer {
 
     private[reactive] sealed trait State[In] {
       def activeCount: Int
-      def busySubscribers: Set[Subscriber[In]]
+      def canceledIDs: Set[Int]
     }
 
     private[reactive] final case class Available[In](
-      available: Queue[Subscriber[In]],
-      busySubscribers: Set[Subscriber[In]],
+      available: Queue[IndexedSubscriber[In]],
+      canceledIDs: BitSet,
       activeCount: Int)
       extends State[In]
 
     private[reactive] final case class Waiting[In](
-      promise: Promise[Subscriber[In]],
-      busySubscribers: Set[Subscriber[In]],
+      promise: Promise[IndexedSubscriber[In]],
+      canceledIDs: BitSet,
       activeCount: Int)
       extends State[In]
   }

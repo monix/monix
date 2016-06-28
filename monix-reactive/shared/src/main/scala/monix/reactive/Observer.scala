@@ -41,7 +41,7 @@ import scala.util.control.NonFatal
   * and after onComplete or onError, a well behaved Observable implementation
   * shouldn't send any more onNext events.
   */
-trait Observer[-T] {
+trait Observer[-T] extends Any with Serializable {
   def onNext(elem: T): Future[Ack]
 
   def onError(ex: Throwable): Unit
