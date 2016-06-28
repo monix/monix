@@ -22,7 +22,7 @@ import monix.execution.Scheduler
 import monix.execution.cancelables.BooleanCancelable
 import monix.reactive.OverflowStrategy.Synchronous
 import monix.reactive.exceptions.UpstreamTimeoutException
-import monix.reactive.internal.builders.{CombineLatest2Observable, Zip2Observable}
+import monix.reactive.internal.builders.{CombineLatest2Observable, Zip2Observable, Interleave2Observable}
 import monix.reactive.internal.operators._
 import monix.reactive.observables.ObservableLike.{Transformer, Operator}
 import monix.reactive.observers.Subscriber
@@ -1006,7 +1006,23 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: Self[A] =>
     */
   def isEmptyF: Self[Boolean] =
     self.liftByOperator(IsEmptyOperator)
-
+  /** Creates a new observable from this observable and another given
+    * observable by interleaving their items into a strictly alternating sequence.
+    *
+    * So the first item emitted by the new observable will be the item emitted by
+    * `self`, the second item will be emitted by the other observable, and so forth;
+    * when either `self` or `other` calls `onCompletes`, the items will then be
+    * directly coming from the observable that has not completed; when `onError` is
+    * called by either `self` or `other`, the new observable will call `onError` and halt.
+    *
+    * See [[merge]] for a more relaxed alternative that doesn't
+    * emit items in strict alternating sequence.
+    *
+    * @param other is an observable that interleaves with the source
+    * @return a new observable sequence that alternates emission of the items from both child streams
+    */
+  def interleave[B >: A](other: Observable[B]): Self[B] =
+    self.transform(self ⇒ new Interleave2Observable(self, other))
   /** Only emits the last element emitted by the source observable,
     * after which it's completed immediately.
     */
