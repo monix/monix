@@ -28,6 +28,7 @@ import org.reactivestreams.Subscriber
 import monix.execution.atomic.{Atomic, AtomicAny}
 import scala.annotation.tailrec
 import scala.collection.mutable
+import scala.collection.generic.CanBuildFrom
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Future, Promise, TimeoutException}
 import scala.util.control.NonFatal
@@ -765,10 +766,19 @@ object Task extends TaskInstances {
     * both effects and results will be ordered. See [[gather]] and [[gatherUnordered]]
     * for unordered results or effects, and thus potential of running in paralel.
     */
-  def sequence[A](in: Seq[Task[A]]): Task[List[A]] = {
-    val init = evalAlways(mutable.ListBuffer.empty[A])
+  def sequence[A, M[X] <: TraversableOnce[X]](in: M[Task[A]])
+                                             (implicit cbf: CanBuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] = {
+    val init = evalAlways(cbf(in))
     val r = in.foldLeft(init)((acc,elem) => acc.flatMap(lb => elem.map(e => lb += e)))
-    r.map(_.toList)
+    r.map(_.result())
+  }
+
+  def traverse[A, B, M[X] <: TraversableOnce[X]](in: M[A])
+                                                (f: A => Task[B])
+                                                (implicit cbf: CanBuildFrom[M[A], B, M[B]]): Task[M[B]] = {
+    val init = evalAlways(cbf(in))
+    val r = in.foldLeft(init)((acc,elem) => acc.flatMap(lb => f(elem).map(e => lb += e)))
+    r.map(_.result())
   }
 
   /** Nondeterministically gather results from the given sequence of tasks,
@@ -783,11 +793,13 @@ object Task extends TaskInstances {
     *
     * Although the effects are unordered, we ensure the order of results
     * matches the order of the input sequence. Also see [[gatherUnordered]].
-    *
-    * Alias for [[zipList]].
     */
-  def gather[A](in: Seq[Task[A]]): Task[List[A]] =
-    zipList(in)
+  def gather[A, M[X] <: TraversableOnce[X]](in: M[Task[A]])
+                                           (implicit cbf: CanBuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] = {
+    val init = evalAlways(cbf(in))
+    val r = in.foldLeft(init)((acc,elem) => Task.mapBoth(acc,elem)(_ += _))
+    r.map(_.result())
+  }
 
   /** Nondeterministically gather results from the given sequence of tasks
     * to a sequence, without keeping the original ordering of results.
@@ -796,15 +808,16 @@ object Task extends TaskInstances {
     * results will be ordered. Useful when you don't need ordering because it
     * can be more efficient than `gather`.
     */
-  def gatherUnordered[A](in: Seq[Task[A]]): Task[Seq[A]] =
+  def gatherUnordered[A](in: Seq[Task[A]]): Task[List[A]] =
     Async { (scheduler, conn, finalCallback) =>
-      val atom = Atomic(Vector.empty[A])
+      val atom = Atomic(List.empty[A])
+      // TODO better completion detection which does not rely on length
       val expected = in.length
 
       val composite = CompositeCancelable()
       conn.push(composite)
 
-      val cursor = in.iterator
+      val cursor = in.toIterator
       while (cursor.hasNext && !composite.isCanceled) {
         val task = cursor.next()
         val stacked = StackedCancelable()
@@ -816,7 +829,7 @@ object Task extends TaskInstances {
               atom.get match {
                 case null => ()
                 case current =>
-                  val update = current :+ value
+                  val update = value :: current
                   if (!atom.compareAndSet(current, update))
                     onSuccess(value)
                   else if (update.length == expected) {

@@ -30,7 +30,7 @@ object TaskGatherUnorderedSuite extends BaseTestSuite {
     s.tick(2.seconds)
     assertEquals(f.value, None)
     s.tick(1.second)
-    assertEquals(f.value, Some(Success(Seq(2, 1, 3))))
+    assertEquals(f.value, Some(Success(List(3, 1, 2))))
   }
 
   test("Task.gatherUnordered should onError if one of the tasks terminates in error") { implicit s =>

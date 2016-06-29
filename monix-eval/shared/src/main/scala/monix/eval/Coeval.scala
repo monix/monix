@@ -21,6 +21,7 @@ import monix.eval.Coeval._
 import monix.types.{Bimonad, Evaluable}
 import scala.annotation.tailrec
 import scala.collection.mutable
+import scala.collection.generic.CanBuildFrom
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 import scala.language.implicitConversions
@@ -336,8 +337,20 @@ object Coeval {
     *
     * For [[Coeval]] this has the same behavior as [[zipList]].
     */
-  def sequence[A](sources: Seq[Coeval[A]]): Coeval[List[A]] =
-    zipList(sources)
+  def sequence[A, M[X] <: TraversableOnce[X]](sources: M[Coeval[A]])
+                                             (implicit cbf: CanBuildFrom[M[Coeval[A]], A, M[A]]): Coeval[M[A]] = {
+    val init = evalAlways(cbf(sources))
+    val r = sources.foldLeft(init)((acc,elem) => acc.zipWith(elem)(_ += _))
+    r.map(_.result())
+  }
+
+  def traverse[A, B, M[X] <: TraversableOnce[X]](sources: M[A])
+                                                (f: A => Coeval[B])
+                                                (implicit cbf: CanBuildFrom[M[A], B, M[B]]): Coeval[M[B]] = {
+    val init = evalAlways(cbf(sources))
+    val r = sources.foldLeft(init)((acc,elem) => acc.zipWith(f(elem))(_ += _))
+    r.map(_.result())
+  }
 
   /** Zips together multiple [[Coeval]] instances. */
   def zipList[A](sources: Seq[Coeval[A]]): Coeval[List[A]] = {
