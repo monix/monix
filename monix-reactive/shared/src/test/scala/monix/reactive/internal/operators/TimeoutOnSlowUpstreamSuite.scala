@@ -18,9 +18,8 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack.Continue
-import monix.reactive.Observable
-import monix.reactive.exceptions.{UpstreamTimeoutException, DummyException}
-import monix.reactive.observers.SyncObserver
+import monix.reactive.{Observable, Observer}
+import monix.reactive.exceptions.{DummyException, UpstreamTimeoutException}
 import monix.reactive.subjects.PublishSubject
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
@@ -56,7 +55,7 @@ object TimeoutOnSlowUpstreamSuite extends BaseOperatorSuite {
     var received = 0
     var errorThrown: Throwable = null
 
-    p.timeoutOnSlowUpstream(10.seconds).subscribe(new SyncObserver[Int] {
+    p.timeoutOnSlowUpstream(10.seconds).subscribe(new Observer.Sync[Int] {
       def onComplete() = ()
       def onError(ex: Throwable) = {
         errorThrown = ex

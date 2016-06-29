@@ -15,24 +15,12 @@
  * limitations under the License.
  */
 
-package monix.reactive.observers
+package monix.reactive
 
-import monix.execution.Ack
-import monix.reactive.Observer
+package object observers {
+  @deprecated("Use monix.reactive.Observer.Sync", since="2.0")
+  type SyncObserver[-A] = monix.reactive.Observer.Sync[A]
 
-/** A `SyncObserver` is an [[Observer]] that signals demand
-  * to upstream synchronously (i.e. the upstream observable doesn't need to
-  * wait on a `Future` in order to decide whether to send the next event
-  * or not).
-  *
-  * Can be used for optimizations.
-  */
-trait SyncObserver[-T] extends Observer[T] {
-  /**
-    * Returns either a [[monix.execution.Ack.Continue Continue]] or a
-    * [[monix.execution.Ack.Stop Stop]], in response to an `elem` event
-    * being received.
-    */
-  def onNext(elem: T): Ack
+  @deprecated("Use monix.reactive.observers.Subscriber.Sync", since="2.0")
+  type SyncSubscriber[-A] = monix.reactive.observers.Subscriber.Sync[A]
 }
-

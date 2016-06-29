@@ -18,7 +18,6 @@
 package monix.reactive
 
 import java.io.{BufferedReader, InputStream, Reader}
-
 import monix.eval.Task
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution._
@@ -30,7 +29,6 @@ import monix.reactive.observers._
 import monix.reactive.subjects._
 import monix.types.Streamable
 import org.reactivestreams.{Publisher => RPublisher, Subscriber => RSubscriber}
-
 import scala.concurrent.Future
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.control.NonFatal
@@ -65,6 +63,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
   /** Subscribes to the stream.
     *
     * @return a subscription that can be used to cancel the streaming.
+    * @see [[runWith]] for another way of consuming observables
     */
   def subscribe(subscriber: Subscriber[A]): Cancelable = {
     unsafeSubscribeFn(SafeSubscriber[A](subscriber))
@@ -73,6 +72,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
   /** Subscribes to the stream.
     *
     * @return a subscription that can be used to cancel the streaming.
+    * @see [[runWith]] for another way of consuming observables
     */
   def subscribe(observer: Observer[A])(implicit s: Scheduler): Cancelable =
     subscribe(Subscriber(observer, s))
@@ -80,6 +80,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
   /** Subscribes to the stream.
     *
     * @return a subscription that can be used to cancel the streaming.
+    * @see [[runWith]] for another way of consuming observables
     */
   def subscribe(nextFn: A => Future[Ack], errorFn: Throwable => Unit, completedFn: () => Unit)
     (implicit s: Scheduler): Cancelable = {
@@ -95,6 +96,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
   /** Subscribes to the stream.
     *
     * @return a subscription that can be used to cancel the streaming.
+    * @see [[runWith]] for another way of consuming observables
     */
   def subscribe(nextFn: A => Future[Ack], errorFn: Throwable => Unit)(implicit s: Scheduler): Cancelable =
     subscribe(nextFn, errorFn, () => ())
@@ -102,6 +104,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
   /** Subscribes to the stream.
     *
     * @return a subscription that can be used to cancel the streaming.
+    * @see [[runWith]] for another way of consuming observables
     */
   def subscribe()(implicit s: Scheduler): Cancelable =
     subscribe(elem => Continue)
@@ -109,9 +112,17 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
   /** Subscribes to the stream.
     *
     * @return a subscription that can be used to cancel the streaming.
+    * @see [[runWith]] for another way of consuming observables
     */
   def subscribe(nextFn: A => Future[Ack])(implicit s: Scheduler): Cancelable =
     subscribe(nextFn, error => s.reportFailure(error), () => ())
+
+  /** On execution, consumes the source observable with the
+    * given [[Consumer]], effectively transforming the source observable
+    * into a [[monix.eval.Task Task]].
+    */
+  def runWith[R](f: Consumer[A, R]): Task[R] =
+    f(self)
 
   /** Transforms the source using the given operator. */
   override def liftByOperator[B](operator: Operator[A, B]): Observable[B] =
@@ -284,7 +295,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
       val task = SingleAssignmentCancelable()
       c push task
 
-      task := unsafeSubscribeFn(new SyncSubscriber[A] {
+      task := unsafeSubscribeFn(new Subscriber.Sync[A] {
         implicit val scheduler: Scheduler = s
         private[this] var isDone = false
 
@@ -311,7 +322,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
       val task = SingleAssignmentCancelable()
       c push task
 
-      task := unsafeSubscribeFn(new SyncSubscriber[A] {
+      task := unsafeSubscribeFn(new Subscriber.Sync[A] {
         implicit val scheduler: Scheduler = s
         private[this] var value: A = _
         private[this] var isEmpty = true
@@ -343,7 +354,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
       val task = SingleAssignmentCancelable()
       c push task
 
-      task := unsafeSubscribeFn(new SyncSubscriber[A] {
+      task := unsafeSubscribeFn(new Subscriber.Sync[A] {
         implicit val scheduler: Scheduler = s
         private[this] var isDone = false
 
@@ -363,7 +374,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
       val task = SingleAssignmentCancelable()
       c push task
 
-      task := unsafeSubscribeFn(new SyncSubscriber[A] {
+      task := unsafeSubscribeFn(new Subscriber.Sync[A] {
         implicit val scheduler: Scheduler = s
         private[this] var isDone = false
 
@@ -519,13 +530,13 @@ object Observable {
 
   /** Creates an observable from a function that receives a
     * concurrent and safe
-    * [[monix.reactive.observers.SyncSubscriber SyncSubscriber]].
+    * [[monix.reactive.observers.Subscriber.Sync Subscriber.Sync]].
     *
     * This builder represents the safe way of building observables
     * from data-sources that cannot be back-pressured.
     */
   def create[A](overflowStrategy: OverflowStrategy.Synchronous[A])
-    (f: SyncSubscriber[A] => Cancelable): Observable[A] =
+    (f: Subscriber.Sync[A] => Cancelable): Observable[A] =
     new builders.CreateObservable(overflowStrategy, f)
 
   /** $multicastDesc
@@ -534,7 +545,7 @@ object Observable {
     *        reply, async)
     */
   def multicast[A](multicast: MulticastStrategy[A])
-    (implicit s: Scheduler): (SyncObserver[A], Observable[A]) = {
+    (implicit s: Scheduler): (Observer.Sync[A], Observable[A]) = {
 
     val ref = ConcurrentSubject(multicast)
     (ref, ref)
@@ -549,7 +560,7 @@ object Observable {
     *        back-pressured)
     */
   def multicast[A](multicast: MulticastStrategy[A], overflow: OverflowStrategy.Synchronous[A])
-    (implicit s: Scheduler): (SyncObserver[A], Observable[A]) = {
+    (implicit s: Scheduler): (Observer.Sync[A], Observable[A]) = {
 
     val ref = ConcurrentSubject(multicast, overflow)
     (ref, ref)

@@ -18,10 +18,10 @@
 package monix.reactive.observers.buffers
 
 import monix.execution.Ack
+import monix.execution.Ack.{Continue, Stop}
 import monix.execution.internal.Platform
-import monix.execution.internal.collection.{EvictingQueue, DropHeadOnOverflowQueue, DropAllOnOverflowQueue}
-import monix.execution.Ack.{Stop, Continue}
-import monix.reactive.observers.{Subscriber, BufferedSubscriber, SyncSubscriber}
+import monix.execution.internal.collection.{DropAllOnOverflowQueue, DropHeadOnOverflowQueue, EvictingQueue}
+import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 import scala.annotation.tailrec
 import scala.util.Failure
 import scala.util.control.NonFatal
@@ -32,7 +32,7 @@ import scala.util.control.NonFatal
  */
 private[buffers] final class EvictingBufferedSubscriber[-T] private
   (underlying: Subscriber[T], buffer: EvictingQueue[AnyRef], onOverflow: Long => T = null)
-  extends BufferedSubscriber[T] with SyncSubscriber[T] { self =>
+  extends BufferedSubscriber[T] with Subscriber.Sync[T] { self =>
 
   implicit val scheduler = underlying.scheduler
   // to be modified only in onError, before upstreamIsComplete
@@ -206,7 +206,7 @@ private[monix] object EvictingBufferedSubscriber {
    * for the [[monix.reactive.OverflowStrategy.DropOld DropOld]]
    * overflow strategy.
    */
-  def dropOld[A](underlying: Subscriber[A], bufferSize: Int): SyncSubscriber[A] = {
+  def dropOld[A](underlying: Subscriber[A], bufferSize: Int): Subscriber.Sync[A] = {
     require(bufferSize > 1,
       "bufferSize must be a strictly positive number, bigger than 1")
 
@@ -221,7 +221,7 @@ private[monix] object EvictingBufferedSubscriber {
    * were dropped.
    */
   def dropOldAndSignal[A](underlying: Subscriber[A],
-    bufferSize: Int, onOverflow: Long => A): SyncSubscriber[A] = {
+    bufferSize: Int, onOverflow: Long => A): Subscriber.Sync[A] = {
 
     require(bufferSize > 1,
       "bufferSize must be a strictly positive number, bigger than 1")
@@ -235,7 +235,7 @@ private[monix] object EvictingBufferedSubscriber {
    * [[monix.reactive.OverflowStrategy.ClearBuffer ClearBuffer]]
    * overflow strategy.
    */
-  def clearBuffer[A](underlying: Subscriber[A], bufferSize: Int): SyncSubscriber[A] = {
+  def clearBuffer[A](underlying: Subscriber[A], bufferSize: Int): Subscriber.Sync[A] = {
     require(bufferSize > 1,
       "bufferSize must be a strictly positive number, bigger than 1")
 
@@ -250,7 +250,7 @@ private[monix] object EvictingBufferedSubscriber {
    * were dropped.
    */
   def clearBufferAndSignal[A](underlying: Subscriber[A],
-    bufferSize: Int, onOverflow: Long => A): SyncSubscriber[A] = {
+    bufferSize: Int, onOverflow: Long => A): Subscriber.Sync[A] = {
 
     require(bufferSize > 1,
       "bufferSize must be a strictly positive number, bigger than 1")

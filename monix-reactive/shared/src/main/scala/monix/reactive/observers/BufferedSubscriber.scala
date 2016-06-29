@@ -72,7 +72,7 @@ private[reactive] trait Builders {
   /** Given an synchronous [[OverflowStrategy overflow strategy]] wraps
     * a [[Subscriber]] into a buffered subscriber.
     */
-  def synchronous[A](subscriber: Subscriber[A], bufferPolicy: OverflowStrategy.Synchronous[A]): SyncSubscriber[A]
+  def synchronous[A](subscriber: Subscriber[A], bufferPolicy: OverflowStrategy.Synchronous[A]): Subscriber.Sync[A]
 
   /** Builds a batched buffered subscriber.
     *

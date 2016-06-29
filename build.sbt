@@ -224,15 +224,7 @@ lazy val scalaJSSettings = Seq(
 )
 
 lazy val monix = project.in(file("."))
-  .aggregate(
-    typesJVM, typesJS,
-    executionJVM, executionJS,
-    evalJVM, evalJS,
-    reactiveJVM, reactiveJS,
-    catsJVM, catsJS,
-    scalaz72JVM, scalaz72JS,
-    monixJVM, monixJS,
-    tckTests)
+  .aggregate(monixJVM, monixJS, tckTests)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
   .settings(unidocSettings)

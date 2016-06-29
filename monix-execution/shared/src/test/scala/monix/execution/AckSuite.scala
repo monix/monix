@@ -18,10 +18,10 @@
 package monix.execution
 
 import minitest.TestSuite
-import monix.execution.Ack.{Stop, Continue}
+import monix.execution.Ack.{Continue, Stop}
 import monix.execution.schedulers.TestScheduler
-
 import scala.concurrent.Future
+import scala.util.{Success, Try}
 
 object AckSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
@@ -503,4 +503,115 @@ object AckSuite extends TestSuite[TestScheduler] {
     def f: Future[Ack] = Future.failed(new RuntimeException)
     assert(!f.isSynchronous)
   }
+
+  test("continue.syncOnComplete(clean)") { implicit s =>
+    val ack: Ack = Continue
+    var triggered = false
+
+    ack.syncOnComplete {
+      case Success(Continue) => triggered = true
+      case _ => ()
+    }
+
+    assert(triggered, "should have been sync")
+  }
+
+  test("stop.syncOnComplete(clean)") { implicit s =>
+    val ack: Ack = Stop
+    var triggered = false
+
+    ack.syncOnComplete {
+      case Success(Stop) => triggered = true
+      case _ => ()
+    }
+
+    assert(triggered, "should have been sync")
+  }
+
+  test("continue.syncOnComplete(unclean)") { implicit s =>
+    val ack: Ack = Continue
+    var triggered = false
+
+    val fn = (x: Try[Ack]) => x match {
+      case Success(Continue) => triggered = true
+      case _ => ()
+    }
+
+    ack.syncOnComplete(fn)
+    assert(triggered, "should have been sync")
+  }
+
+  test("stop.syncOnComplete(unclean)") { implicit s =>
+    val ack: Ack = Stop
+    var triggered = false
+
+    val fn = (x: Try[Ack]) => x match {
+      case Success(Stop) => triggered = true
+      case _ => ()
+    }
+
+    ack.syncOnComplete(fn)
+    assert(triggered, "should have been sync")
+  }
+
+  test("future(continue).syncOnComplete(clean)") { implicit s =>
+    val ack: Future[Ack] = Future(Continue)
+    var triggered = false
+
+    ack.syncOnComplete {
+      case Success(Continue) => triggered = true
+      case _ => ()
+    }
+
+    assert(!triggered, "!triggered")
+    s.tick()
+    assert(triggered, "should have been async")
+  }
+
+  test("future(stop).syncOnComplete(clean)") { implicit s =>
+    val ack: Future[Ack] = Future(Stop)
+    var triggered = false
+
+    ack.syncOnComplete {
+      case Success(Stop) => triggered = true
+      case _ => ()
+    }
+
+    assert(!triggered, "!triggered")
+    s.tick()
+    assert(triggered, "should have been async")
+  }
+
+  test("future(continue).syncOnComplete(unclean)") { implicit s =>
+    val ack: Future[Ack] = Future(Continue)
+    var triggered = false
+
+    val fn = (x: Try[Ack]) => x match {
+      case Success(Continue) => triggered = true
+      case _ => ()
+    }
+
+    ack.syncOnComplete(fn)
+
+    assert(!triggered, "!triggered")
+    s.tick()
+    assert(triggered, "should have been async")
+  }
+
+  test("future(stop).syncOnComplete(unclean)") { implicit s =>
+    val ack: Future[Ack] = Future(Stop)
+    var triggered = false
+
+    val fn = (x: Try[Ack]) => x match {
+      case Success(Stop) => triggered = true
+      case _ => ()
+    }
+
+    ack.syncOnComplete(fn)
+
+    assert(!triggered, "!triggered")
+    s.tick()
+    assert(triggered, "should have been async")
+  }
+
 }

@@ -76,7 +76,7 @@ object Ack {
   /** Helpers for dealing with synchronous `Future[Ack]` results,
     * powered by macros.
     */
-  private[monix] implicit class AckExtensions[Self <: Future[Ack]](val source: Self) extends AnyVal {
+  implicit class AckExtensions[Self <: Future[Ack]](val source: Self) extends AnyVal {
     /** Returns `true` if self is a direct reference to
       * `Continue` or `Stop`, `false` otherwise.
       */
@@ -120,6 +120,16 @@ object Ack {
       */
     def syncFlatMap(f: Ack => Future[Ack])(implicit s: Scheduler): Future[Ack] =
       macro Macros.syncFlatMap[Self]
+
+    /** When the source future is completed, either through an exception,
+      * or a value, apply the provided function.
+      *
+      * Execution will happen synchronously if the `source` value is
+      * a direct reference to `Continue` or `Stop`, or asynchronously
+      * otherwise.
+      */
+    def syncOnComplete(f: Try[Ack] => Unit)(implicit s: Scheduler): Unit =
+      macro Macros.syncOnComplete[Self]
 
     /** If the source completes with a `Stop`, then complete the given
       * promise with a value.
@@ -373,6 +383,69 @@ object Ack {
         }
 
       inlineAndReset[Future[Ack]](tree)
+    }
+
+    def syncOnComplete[Self <: Future[Ack] : c.WeakTypeTag](f: c.Expr[scala.util.Try[Ack] => Unit])
+      (s: c.Expr[Scheduler]): c.Expr[Unit] = {
+
+      val selfExpr = sourceFrom[Self](c.prefix.tree)
+      val schedulerExpr = s
+      val self = util.name("source")
+
+      val SuccessObject = symbolOf[scala.util.Success[_]].companion
+      val ContinueObject = symbolOf[Continue].companion
+      val StopObject = symbolOf[Stop].companion
+      val AckSymbol = symbolOf[Ack]
+      val TrySymbol = symbolOf[scala.util.Try[_]]
+      val UnitSymbol = symbolOf[Unit]
+      val FutureSymbol = symbolOf[Future[_]]
+
+      val tree =
+        if (util.isClean(f))
+          q"""
+          val $self: $FutureSymbol[$AckSymbol] = $selfExpr
+
+          if (($self eq $ContinueObject) || ($self eq $StopObject))
+            try {
+              $f($SuccessObject($self.asInstanceOf[$AckSymbol]) : $TrySymbol[$AckSymbol])
+              ()
+            } catch {
+              case ex: Throwable =>
+                if (_root_.scala.util.control.NonFatal(ex)) {
+                  $schedulerExpr.reportFailure(ex)
+                } else {
+                  throw ex
+                }
+            }
+          else {
+            $self.onComplete($f)
+          }
+          """
+        else {
+          val fn = util.name("fn")
+          q"""
+          val $self: $FutureSymbol[$AckSymbol]  = $selfExpr
+          val $fn: _root_.scala.Function1[$TrySymbol[$AckSymbol],$UnitSymbol] = $f
+
+          if (($self eq $ContinueObject) || ($self eq $StopObject))
+            try {
+              $fn($SuccessObject($self.asInstanceOf[$AckSymbol]))
+              ()
+            } catch {
+              case ex: Throwable =>
+                if (_root_.scala.util.control.NonFatal(ex)) {
+                  $schedulerExpr.reportFailure(ex)
+                } else {
+                  throw ex
+                }
+            }
+          else {
+            $self.onComplete($fn)
+          }
+          """
+        }
+
+      inlineAndReset[Unit](tree)
     }
 
     private[monix] def sourceFrom[Source : c.WeakTypeTag](tree: Tree): c.Expr[Source] = {

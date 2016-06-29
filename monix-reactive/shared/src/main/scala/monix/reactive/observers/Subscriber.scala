@@ -18,6 +18,7 @@
 package monix.reactive.observers
 
 import java.io.PrintStream
+import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.reactive.Observer
@@ -25,10 +26,10 @@ import monix.reactive.internal.rstreams._
 import org.reactivestreams.{Subscriber => RSubscriber}
 import scala.concurrent.Future
 
-/** A `Subscriber` is a named tuple of an observer and a scheduler.
+/** A `Subscriber` is an `Observer` with an attached `Scheduler`.
   *
-  * A `Subscriber` value is an address that the data source needs
-  * in order to send events.
+  * A `Subscriber` can be seen as an address that the data source needs
+  * in order to send events, along with an execution context.
   */
 trait Subscriber[-T] extends Observer[T] {
   implicit def scheduler: Scheduler
@@ -40,28 +41,60 @@ object Subscriber {
     observer match {
       case ref: Subscriber[_] if ref.scheduler == scheduler =>
         ref.asInstanceOf[Subscriber[T]]
-      case ref: SyncObserver[_] =>
-        SyncSubscriber(ref.asInstanceOf[SyncObserver[T]], scheduler)
+      case ref: Observer.Sync[_] =>
+        Subscriber.Sync(ref.asInstanceOf[Observer.Sync[T]], scheduler)
       case _ =>
         new Implementation[T](observer, scheduler)
     }
 
+  /** A `Subscriber.Sync` is a [[Subscriber]] whose `onNext` signal
+    * is synchronous (i.e. the upstream observable doesn't need to
+    * wait on a `Future` in order to decide whether to send the next event
+    * or not).
+    */
+  trait Sync[-T] extends Subscriber[T] with Observer.Sync[T]
+
+  object Sync {
+    /** `Subscriber.Sync` builder */
+    def apply[T](observer: Observer.Sync[T], scheduler: Scheduler): Subscriber.Sync[T] =
+      observer match {
+        case ref: Subscriber.Sync[_] if ref.scheduler == scheduler =>
+          ref.asInstanceOf[Subscriber.Sync[T]]
+        case _ =>
+          new SyncImplementation[T](observer, scheduler)
+      }
+  }
+
   /** Helper for building an empty subscriber that doesn't do anything,
     * besides logging errors in case they happen.
     */
-  def empty[A](implicit s: Scheduler): SyncSubscriber[A] =
-    SyncSubscriber.empty
+  def empty[A](implicit s: Scheduler): Subscriber.Sync[A] =
+    new Subscriber.Sync[A] {
+      implicit val scheduler = s
+      def onNext(elem: A): Continue = Continue
+      def onError(ex: Throwable): Unit = s.reportFailure(ex)
+      def onComplete(): Unit = ()
+    }
 
   /** Helper for building an empty subscriber that doesn't do anything,
     * but that returns `Stop` on `onNext`.
     */
-  def canceled[A](implicit s: Scheduler): SyncSubscriber[A] =
-    SyncSubscriber.canceled[A](s)
+  def canceled[A](implicit s: Scheduler): Subscriber.Sync[A] =
+    new Subscriber.Sync[A] {
+      implicit val scheduler: Scheduler = s
+      def onError(ex: Throwable): Unit = s.reportFailure(ex)
+      def onComplete(): Unit = ()
+      def onNext(elem: A): Stop = Stop
+    }
 
   /** Builds an [[Subscriber]] that just logs incoming events. */
   def dump[A](prefix: String, out: PrintStream = System.out)
-    (implicit s: Scheduler): SyncSubscriber[A] =
-    SyncSubscriber.dump[A](prefix, out)
+    (implicit s: Scheduler): Subscriber.Sync[A] = {
+
+    new Observer.DumpObserver[A](prefix, out) with Subscriber.Sync[A] {
+      val scheduler = s
+    }
+  }
 
   /** Given an `org.reactivestreams.Subscriber` as defined by the
     * [[http://www.reactive-streams.org/ Reactive Streams]] specification,
@@ -90,8 +123,8 @@ object Subscriber {
     */
   def toReactiveSubscriber[T](source: Subscriber[T], bufferSize: Int): RSubscriber[T] = {
     source match {
-      case sync: SyncSubscriber[_] =>
-        val inst = sync.asInstanceOf[SyncSubscriber[T]]
+      case sync: Subscriber.Sync[_] =>
+        val inst = sync.asInstanceOf[Subscriber.Sync[T]]
         SyncSubscriberAsReactiveSubscriber(inst, bufferSize)
       case async =>
         SubscriberAsReactiveSubscriber(async, bufferSize)
@@ -144,16 +177,17 @@ object Subscriber {
     def onNext(elem: T): Future[Ack] = underlying.onNext(elem)
     def onError(ex: Throwable): Unit = underlying.onError(ex)
     def onComplete(): Unit = underlying.onComplete()
+  }
 
-    override def equals(other: Any): Boolean = other match {
-      case that: Implementation[_] =>
-        underlying == that.underlying && scheduler == that.scheduler
-      case _ =>
-        false
-    }
+  private[this] final class SyncImplementation[-T]
+    (observer: Observer.Sync[T], val scheduler: Scheduler)
+    extends Subscriber.Sync[T] {
 
-    override def hashCode(): Int = {
-      31 * underlying.hashCode() + scheduler.hashCode()
-    }
+    require(observer != null, "Observer should not be null")
+    require(scheduler != null, "Scheduler should not be null")
+
+    def onNext(elem: T): Ack = observer.onNext(elem)
+    def onError(ex: Throwable): Unit = observer.onError(ex)
+    def onComplete(): Unit = observer.onComplete()
   }
 }

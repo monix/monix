@@ -22,7 +22,6 @@ import monix.execution.atomic.AtomicAny
 import scala.annotation.tailrec
 import monix.execution.Cancelable
 
-
 /** Represents a [[monix.execution.Cancelable]] that can be assigned only
   * once to another cancelable reference.
   *
@@ -36,7 +35,7 @@ import monix.execution.Cancelable
   * Useful in case you need a forward reference.
   */
 final class SingleAssignmentCancelable private ()
-  extends AssignableCancelable {
+  extends AssignableCancelable.Bool {
 
   import State._
 

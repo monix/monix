@@ -19,13 +19,13 @@ package monix.reactive.observers.buffers
 
 import java.util.concurrent.ConcurrentLinkedQueue
 import monix.execution.Ack
-import monix.execution.Ack.{Stop, Continue}
+import monix.execution.Ack.{Continue, Stop}
+import monix.execution.atomic.Atomic
 import monix.reactive.observers.buffers.DropNewBufferedSubscriber.State
-import monix.reactive.observers.{Subscriber, BufferedSubscriber, SyncSubscriber}
+import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 import scala.annotation.tailrec
 import scala.concurrent.Future
 import scala.util.control.NonFatal
-import monix.execution.atomic.Atomic
 
 /**
  * A high-performance and non-blocking [[BufferedSubscriber]] implementation
@@ -34,7 +34,7 @@ import monix.execution.atomic.Atomic
  */
 private[buffers] final class DropNewBufferedSubscriber[-T] private
   (underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => T = null)
-  extends BufferedSubscriber[T] with SyncSubscriber[T] { self =>
+  extends BufferedSubscriber[T] with Subscriber.Sync[T] { self =>
 
   require(bufferSize > 0, "bufferSize must be a strictly positive number")
 
@@ -296,7 +296,7 @@ private[monix] object DropNewBufferedSubscriber {
    * for the [[monix.reactive.OverflowStrategy.DropNew DropNew]]
    * overflowStrategy.
    */
-  def simple[T](underlying: Subscriber[T], bufferSize: Int): SyncSubscriber[T] = {
+  def simple[T](underlying: Subscriber[T], bufferSize: Int): Subscriber.Sync[T] = {
     new DropNewBufferedSubscriber[T](underlying, bufferSize, null)
   }
 
@@ -305,7 +305,7 @@ private[monix] object DropNewBufferedSubscriber {
    * for the [[monix.reactive.OverflowStrategy.DropNew DropNew]]
    * overflowStrategy.
    */
-  def withSignal[T](underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => T): SyncSubscriber[T] = {
+  def withSignal[T](underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => T): Subscriber.Sync[T] = {
     new DropNewBufferedSubscriber[T](underlying, bufferSize, onOverflow)
   }
 

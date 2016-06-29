@@ -17,11 +17,11 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack.{Stop, Continue}
+import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.{CompositeCancelable, SingleAssignmentCancelable}
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
-import monix.reactive.observers.{Subscriber, SyncSubscriber}
+import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
 private[reactive] final class DropUntilObservable[A](source: Observable[A], trigger: Observable[Any])
@@ -47,7 +47,7 @@ private[reactive] final class DropUntilObservable[A](source: Observable[A], trig
 
       locally {
         task := trigger.unsafeSubscribeFn(
-          new SyncSubscriber[Any] {
+          new Subscriber.Sync[Any] {
             implicit val scheduler = out.scheduler
             def onNext(elem: Any) = interruptDropMode(null)
             def onComplete(): Unit = interruptDropMode(null)
