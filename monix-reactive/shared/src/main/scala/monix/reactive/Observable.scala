@@ -23,6 +23,7 @@ import monix.eval.Task
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution._
 import monix.execution.cancelables.SingleAssignmentCancelable
+import monix.eval.Coeval
 import monix.reactive.internal.builders
 import monix.reactive.observables.ObservableLike.{Operator, Transformer}
 import monix.reactive.observables._
@@ -835,6 +836,24 @@ object Observable {
     */
   def concatDelayError[A](sources: Observable[A]*): Observable[A] =
     Observable.fromIterable(sources).concatMapDelayError[A](identity)
+
+  /**
+    * like `zipWith2`, but when `oa1` completes before `oa2` does, the new observable will
+    * continue emitting items as `f(paddingA1, oa2.onNext())` until `oa2` completes;
+    * and vice versa, when `oa2` completes before `oa1` does, the new observable will
+    * continue emitting items as `f(oa1.onNext(), paddingA2)` until `oa1` completes.
+    */
+  def padWith2[A1,A2,R](oa1: Observable[A1], oa2: Observable[A2], paddingA1: Coeval[A1], paddingA2: Coeval[A2])(f: (A1,A2) ⇒ R): Observable[R] =
+    new builders.Pad2Observable(oa1, oa2, paddingA1, paddingA2)(f)
+
+  /**
+    * like `zip2`, but when `oa1` completes before `oa2` does, the new observable will
+    * continue emitting pairs as (`paddingA1`, `oa2`.onNext()) until `oa2` completes;
+    * and vice versa, when `oa2` completes before `oa1` does, the new observable will
+    * continue emitting pairs as (`oa1`.onNext(), `paddingA2`) until `oa1` completes.
+    */
+  def pad2[A1, A2](oa1: Observable[A1], oa2: Observable[A2], paddingA1: Coeval[A1], paddingA2: Coeval[A2]): Observable[(A1,A2)] =
+    padWith2(oa1, oa2, paddingA1, paddingA2)((a1,a2) ⇒ (a1,a2))
 
   /** Given a sequence of observables, builds an observable
     * that emits the elements of the most recently emitted
