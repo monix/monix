@@ -44,10 +44,20 @@ object MapAsyncConsumerSuite extends BaseLawsTestSuite {
     }
   }
 
-  test("consumer.mapAsync protects against user code") { implicit s =>
+  test("consumer.mapAsync handles task errors") { implicit s =>
     val ex = DummyException("dummy")
     val f = Observable(1)
       .runWith(Consumer.head[Int].mapAsync(_ => Task(throw ex)))
+      .runAsync
+
+    s.tick()
+    assertEquals(f.value, Some(Failure(ex)))
+  }
+
+  test("consumer.mapAsync protects against user code") { implicit s =>
+    val ex = DummyException("dummy")
+    val f = Observable(1)
+      .runWith(Consumer.head[Int].mapAsync(_ => throw ex))
       .runAsync
 
     s.tick()

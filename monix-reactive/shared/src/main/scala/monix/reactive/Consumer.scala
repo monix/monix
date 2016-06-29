@@ -981,7 +981,7 @@ object Consumer {
           // don't want to block the main thread!
           scheduler.execute(new Runnable {
             def run(): Unit = {
-              try out.onNext(elem).syncOnComplete {
+              try out.out.onNext(elem).syncOnComplete {
                 case Success(ack) =>
                   ack match {
                     case Continue =>
@@ -1019,10 +1019,10 @@ object Consumer {
               // By protocol, if a null happens, then there are
               // no more active subscribers available
               case null => Future.successful(())
-              case out =>
+              case subscriber =>
                 try {
-                  if (ex == null) out.onComplete()
-                  else out.onError(ex)
+                  if (ex == null) subscriber.out.onComplete()
+                  else subscriber.out.onError(ex)
                 } catch {
                   case NonFatal(err) => s.reportFailure(err)
                 }
@@ -1060,14 +1060,7 @@ object Consumer {
       * that exposes an ID.
       */
     private[reactive] final
-    class IndexedSubscriber[-In](val id: Int, underlying: Subscriber[In])
-      extends Subscriber[In] {
-
-      implicit def scheduler = underlying.scheduler
-      def onNext(elem: In) = underlying.onNext(elem)
-      def onError(ex: Throwable) = underlying.onError(ex)
-      def onComplete() = underlying.onComplete()
-    }
+    case class IndexedSubscriber[-In](id: Int, out: Subscriber[In])
 
     private final class AsyncQueue[In](
       initialQueue: Queue[IndexedSubscriber[In]], parallelism: Int) {
