@@ -25,7 +25,16 @@ import scala.annotation.tailrec
   * dependent cancelable objects have been canceled.
   *
   * The given callback gets called after our `RefCountCancelable` is canceled
-  * and after all dependent cancelables have been canceled as well.
+  * and after all dependent cancelables have been canceled along with the
+  * main cancelable.
+  *
+  * In other words, lets say for example that we have `acquired` 2 children.
+  * In order for the cancelable to get canceled, we need to:
+  *
+  *  - cancel both children
+  *  - cancel the main `RefCountCancelable`
+  *
+  * The implementation is thread-safe and cancellation order doesn't matter.
   */
 final class RefCountCancelable private (onCancel: () => Unit) extends BooleanCancelable {
   def isCanceled: Boolean =
