@@ -693,6 +693,21 @@ object Observable {
   def cons[A](head: A, tail: Observable[A]): Observable[A] =
     new builders.ConsObservable[A](head, tail)
 
+  /** Creates a new observable from this observable and another given
+    * observable by interleaving their items into a strictly alternating sequence.
+    *
+    * So the first item emitted by the new observable will be the item emitted by
+    * `self`, the second item will be emitted by the other observable, and so forth;
+    * when either `self` or `other` calls `onCompletes`, the items will then be
+    * directly coming from the observable that has not completed; when `onError` is
+    * called by either `self` or `other`, the new observable will call `onError` and halt.
+    *
+    * See [[merge]] for a more relaxed alternative that doesn't
+    * emit items in strict alternating sequence.
+    */
+  def interleave2[A](oa1: Observable[A], oa2: Observable[A]): Observable[A] =
+    new builders.Interleave2Observable(oa1, oa2)
+
   /** Creates an Observable that emits auto-incremented natural numbers
     * (longs) spaced by a given time interval. Starts from 0 with no
     * delay, after which it emits incremented numbers spaced by the
