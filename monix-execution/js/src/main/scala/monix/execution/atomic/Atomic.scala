@@ -26,7 +26,7 @@ import scala.language.experimental.macros
 /**
   * Base trait of all atomic references, no matter the type.
   */
-abstract class Atomic[T] {
+abstract class Atomic[T] extends Serializable {
   /** Get the current value persisted by this Atomic. */
   def get: T
 

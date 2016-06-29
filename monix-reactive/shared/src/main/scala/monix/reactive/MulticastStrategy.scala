@@ -22,7 +22,7 @@ package monix.reactive
   *
   * By default observables tend to be cold.
   */
-sealed abstract class MulticastStrategy[+A]
+sealed abstract class MulticastStrategy[+A] extends Serializable
 
 /** The [[MulticastStrategy]] enumerated.
   *

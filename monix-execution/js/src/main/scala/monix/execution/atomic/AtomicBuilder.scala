@@ -23,7 +23,7 @@ package monix.execution.atomic
   * In essence this is implementing a form of specialization
   * driven by implicits.
   */
-trait AtomicBuilder[T, R <: Atomic[T]] {
+trait AtomicBuilder[T, R <: Atomic[T]] extends Serializable {
   def buildInstance(initialValue: T, strategy: PaddingStrategy): R
 }
 

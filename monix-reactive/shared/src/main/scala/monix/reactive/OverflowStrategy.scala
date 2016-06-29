@@ -34,7 +34,7 @@ import monix.execution.internal.Platform
   * [[monix.reactive.subjects.ConcurrentSubject Channels]] or in
   * [[monix.reactive.Observable.merge Observable.merge]].
   */
-sealed abstract class OverflowStrategy[+A] {
+sealed abstract class OverflowStrategy[+A] extends Serializable {
   val isEvicted: Boolean = false
   val isSynchronous: Boolean = false
 }

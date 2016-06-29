@@ -21,7 +21,25 @@ import cats.Eval
 import monix.types._
 
 /** Groups all shim type-class conversions together. */
-trait ShimsInstances extends ShimsLevel10
+trait ShimsInstances extends ShimsLevel11
+
+private[cats] trait ShimsLevel11 extends  ShimsLevel10 {
+  /** Converts Monix's [[monix.types.MonadPlus]]
+    * instances into the Cats `MonadCombine`.
+    */
+  implicit def monixMonadPlusInstancesToCats[F[_]]
+    (implicit ev: MonadPlus[F]): _root_.cats.MonadCombine[F] =
+    new ConvertMonixMonadPlusToCats[F] { override val F = ev }
+
+  private[cats] trait ConvertMonixMonadPlusToCats[F[_]]
+    extends ConvertMonixMonoidKToCats[F]
+      with ConvertMonixMonadFilterToCats[F]
+      with _root_.cats.MonadCombine[F] {
+
+    override val F: MonadPlus[F]
+    override def empty[A]: F[A] = F.empty[A]
+  }
+}
 
 private[cats] trait ShimsLevel10 extends ShimsLevel9 {
   /** Converts Monix's [[monix.types.MonoidK MonoidK]]

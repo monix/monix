@@ -151,7 +151,9 @@ import scala.concurrent.duration.FiniteDuration
   *         current buffer is being dropped and the error gets propagated
   *         immediately.
   */
-trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: Self[A] =>
+trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
+  extends Serializable { self: Self[A] =>
+  
   /** Transforms the source using the given operator function. */
   def liftByOperator[B](operator: Operator[A,B]): Self[B]
 
@@ -1023,7 +1025,7 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]] { self: Self[A] =>
     * items in strict alternating sequence.
     *
     * @param other is an observable that interleaves with the source
-    * @return a new observable sequence that alternates emission of 
+    * @return a new observable sequence that alternates emission of
     *         the items from both child streams
     */
   def interleave[B >: A](other: Observable[B]): Self[B] =

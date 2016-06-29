@@ -25,7 +25,7 @@ import scala.reflect.macros.whitebox
 /**
   * Base trait of all atomic references, no matter the type.
   */
-abstract class Atomic[A] {
+abstract class Atomic[A] extends Serializable {
   /** Get the current value persisted by this Atomic. */
   def get: A
 

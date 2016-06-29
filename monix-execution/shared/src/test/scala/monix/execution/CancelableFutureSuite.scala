@@ -43,7 +43,7 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
     val f = CancelableFuture.successful(1)
     assertEquals(f.isCompleted, true)
     assertEquals(f.value, Some(Success(1)))
-    assertEquals(f.cancel(), ())
+    f.cancel()
     val f2 = f.failed.value
     assert(f2.isDefined && f2.get.isFailure, "f.failed should be completed as well")
   }
