@@ -353,7 +353,7 @@ object Coeval {
   }
 
   /** Zips together multiple [[Coeval]] instances. */
-  def zipList[A](sources: Seq[Coeval[A]]): Coeval[List[A]] = {
+  def zipList[A](sources: Coeval[A]*): Coeval[List[A]] = {
     val init = evalAlways(mutable.ListBuffer.empty[A])
     val r = sources.foldLeft(init)((acc, elem) => acc.zipWith(elem)(_ += _))
     r.map(_.toList)

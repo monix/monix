@@ -969,7 +969,7 @@ object Task extends TaskInstances {
   /** Gathers the results from a sequence of tasks into a single list.
     * The effects are not ordered, but the results are.
     */
-  def zipList[A](sources: Seq[Task[A]]): Task[List[A]] = {
+  def zipList[A](sources: Task[A]*): Task[List[A]] = {
     val init = evalAlways(mutable.ListBuffer.empty[A])
     val r = sources.foldLeft(init)((acc,elem) => Task.mapBoth(acc,elem)(_ += _))
     r.map(_.toList)
