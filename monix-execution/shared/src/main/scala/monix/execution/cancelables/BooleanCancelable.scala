@@ -59,6 +59,17 @@ object BooleanCancelable {
       def cancel() = ()
     }
 
+  /** Returns a [[BooleanCancelable]] that can never be canceled.
+    *
+    * Useful as a low-overhead instance whose `isCanceled` value
+    * is always `false`, thus similar in spirit with [[alreadyCanceled]].
+    */
+  val dummy: BooleanCancelable =
+    new BooleanCancelable {
+      val isCanceled = false
+      def cancel() = ()
+    }
+
   private final class BooleanCancelableTask(cb: () => Unit)
     extends BooleanCancelable {
 

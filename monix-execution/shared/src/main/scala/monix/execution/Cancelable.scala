@@ -26,7 +26,7 @@ import monix.execution.atomic.AtomicAny
   * It is equivalent to `java.io.Closeable`, but without the I/O focus, or
   * to `IDisposable` in Microsoft .NET, or to `akka.actor.Cancellable`.
   */
-trait Cancelable {
+trait Cancelable extends Any with Serializable {
   /** Cancels the unit of work represented by this reference.
     *
     * Guaranteed idempotency - calling it multiple times should have the

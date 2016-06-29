@@ -131,14 +131,26 @@ object Subscriber {
     }
   }
 
-  /** Extension methods for [[Subscriber]]. */
-  implicit class Extensions[T](val source: Subscriber[T]) extends AnyVal {
+  /** Extension methods for [[Subscriber]].
+    *
+    * @define feedCollectionDesc Feeds the source [[Subscriber]] with elements
+    *         from the given collection, respecting the contract and returning
+    *         a `Future[Ack]` with the last acknowledgement given after
+    *         the last emitted element.
+    *
+    * @define feedCancelableDesc is a
+    *         [[monix.execution.cancelables.BooleanCancelable BooleanCancelable]]
+    *         that will be queried for its cancellation status, but only on
+    *         asynchronous boundaries, and when it is seen as being `isCanceled`,
+    *         streaming is stopped.
+    */
+  implicit class Extensions[T](val target: Subscriber[T]) extends AnyVal {
     /** Transforms the source [[Subscriber]] into a `org.reactivestreams.Subscriber`
       * instance as defined by the [[http://www.reactive-streams.org/ Reactive Streams]]
       * specification.
       */
     def toReactive: RSubscriber[T] =
-      Subscriber.toReactiveSubscriber(source)
+      Subscriber.toReactiveSubscriber(target)
 
     /** Transforms the source [[Subscriber]] into a `org.reactivestreams.Subscriber`
       * instance as defined by the [[http://www.reactive-streams.org/ Reactive Streams]]
@@ -150,21 +162,45 @@ object Subscriber {
       *                   the reactive streams specification
       */
     def toReactive(bufferSize: Int): RSubscriber[T] =
-      Subscriber.toReactiveSubscriber(source, bufferSize)
+      Subscriber.toReactiveSubscriber(target, bufferSize)
 
-    /** Feeds the source [[Subscriber]] with elements from the given iterable,
-      * respecting the contract and returning a `Future[Ack]` with the last
-      * acknowledgement given after the last emitted element.
+    /** $feedCollectionDesc
+      *
+      * @param xs the traversable object containing the elements to feed
+      *        into our subscriber
+      */
+    def onNextAll(xs: TraversableOnce[T]): Future[Ack] =
+      Observer.feed(target, xs.toIterator)(target.scheduler)
+
+    /** $feedCollectionDesc
+      *
+      * @param iterable is the collection of items to push downstream
+      */
+    def feed(iterable: Iterable[T]): Future[Ack] =
+      Observer.feed(target, iterable)(target.scheduler)
+
+    /** $feedCollectionDesc
+      *
+      * @param subscription $feedCancelableDesc
+      * @param iterable is the collection of items to push downstream
       */
     def feed(subscription: BooleanCancelable, iterable: Iterable[T]): Future[Ack] =
-      Observer.feed(source, subscription, iterable)(source.scheduler)
+      Observer.feed(target, subscription, iterable)(target.scheduler)
 
-    /** Feeds the source [[Subscriber]] with elements from the given iterator,
-      * respecting the contract and returning a `Future[Ack]` with the last
-      * acknowledgement given after the last emitted element.
+    /** $feedCollectionDesc
+      *
+      * @param iterator is the iterator of items to push downstream
+      */
+    def feed(iterator: Iterator[T]): Future[Ack] =
+      Observer.feed(target, iterator)(target.scheduler)
+
+    /** $feedCollectionDesc
+      *
+      * @param subscription $feedCancelableDesc
+      * @param iterator is the iterator of items to push downstream
       */
     def feed(subscription: BooleanCancelable, iterator: Iterator[T]): Future[Ack] =
-      Observer.feed(source, subscription, iterator)(source.scheduler)
+      Observer.feed(target, subscription, iterator)(target.scheduler)
   }
 
   private[this] final class Implementation[-T]
