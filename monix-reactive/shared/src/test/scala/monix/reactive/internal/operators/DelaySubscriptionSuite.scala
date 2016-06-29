@@ -40,6 +40,8 @@ object DelaySubscriptionSuite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) = None
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 
+
+
   test("it delays") { implicit s =>
     val obs = Observable.now(1).delaySubscription(1.second)
     var wasCompleted = false
@@ -78,5 +80,10 @@ object DelaySubscriptionSuite extends BaseOperatorSuite {
 
     s.tick()
     assertEquals(errorThrown, DummyException("dummy"))
+  }
+
+  def cancelableObservables() = {
+    val o = Observable.range(0, 10).delaySubscription(1.second)
+    Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 }

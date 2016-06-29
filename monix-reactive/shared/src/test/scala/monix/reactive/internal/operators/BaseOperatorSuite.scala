@@ -17,19 +17,17 @@
 
 package monix.reactive.internal.operators
 
-import minitest.TestSuite
 import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.FutureUtils.extensions._
-import monix.execution.schedulers.TestScheduler
 import monix.reactive.exceptions.DummyException
 import monix.reactive.observers.Subscriber
-import monix.reactive.{Observable, Observer}
+import monix.reactive.{BaseLawsTestSuite, Observable, Observer}
 import scala.concurrent.duration._
 import scala.concurrent.{Future, Promise}
 import scala.util.Random
 
-abstract class BaseOperatorSuite extends TestSuite[TestScheduler] {
+abstract class BaseOperatorSuite extends BaseLawsTestSuite {
   case class Sample(
     observable: Observable[Long],
     count: Int,
@@ -37,19 +35,13 @@ abstract class BaseOperatorSuite extends TestSuite[TestScheduler] {
     waitFirst: FiniteDuration,
     waitNext: FiniteDuration)
 
-  def setup(): TestScheduler = TestScheduler()
-  def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.get.tasks.isEmpty,
-      "TestScheduler should have no pending tasks")
-  }
-
   /** Returns an observable that emits from its data-source
     * the specified `sourceCount` number of items. The `sourceCount`
     * is not necessarily equal to the number of elements emitted by
     * the resulting observable, being just a way to randomly vary
     * the events being emitted.
     */
-  protected def createObservable(sourceCount: Int): Option[Sample]
+  def createObservable(sourceCount: Int): Option[Sample]
 
   /** Optionally build an observable that simulates an error in user
     * code (if such a thing is possible for the tested operator.
@@ -57,18 +49,18 @@ abstract class BaseOperatorSuite extends TestSuite[TestScheduler] {
     * It first emits elements, followed by an error triggered
     * within the user-provided portion of the operator.
     */
-  protected def brokenUserCodeObservable(sourceCount: Int, ex: Throwable): Option[Sample]
+  def brokenUserCodeObservable(sourceCount: Int, ex: Throwable): Option[Sample]
 
   /** Optionally builds an observable that first emits the
     * items and then ends in error triggered by user code
     * (only for operators that execute user specified code).
     */
-  protected def observableInError(sourceCount: Int, ex: Throwable): Option[Sample]
+  def observableInError(sourceCount: Int, ex: Throwable): Option[Sample]
 
   /** Optionally return a sequence of observables
     * that can be canceled.
     */
-  protected def cancelableObservables(): Seq[Sample] = Seq.empty
+  def cancelableObservables(): Seq[Sample]
 
   /**
    * Helper for quickly creating an observable ending with onError.
@@ -342,26 +334,6 @@ abstract class BaseOperatorSuite extends TestSuite[TestScheduler] {
         s.tick(waitForNext * 2)
         assertEquals(received, 1)
         assert(!wasCompleted)
-    }
-  }
-
-  test("should not back-pressure onError") { implicit s =>
-    val p = Promise[Continue]()
-    var wasCompleted = false
-
-    observableInError(1, DummyException("dummy")) match {
-      case None => ignore()
-      case ref @ Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
-        obs.unsafeSubscribeFn(new Observer[Long] {
-          def onNext(elem: Long): Future[Continue] = p.future
-          def onError(ex: Throwable): Unit = wasCompleted = true
-          def onComplete(): Unit = throw new IllegalStateException()
-        })
-
-        s.tick(waitForFirst)
-        assert(wasCompleted)
-        p.success(Continue)
-        s.tick(waitForNext)
     }
   }
 

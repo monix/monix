@@ -28,4 +28,5 @@ object CacheSuite extends BaseOperatorSuite {
 
   def observableInError(sourceCount: Int, ex: Throwable) = None
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
+  def cancelableObservables() = Seq.empty
 }

@@ -153,7 +153,7 @@ import scala.concurrent.duration.FiniteDuration
   */
 trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
   extends Serializable { self: Self[A] =>
-  
+
   /** Transforms the source using the given operator function. */
   def liftByOperator[B](operator: Operator[A,B]): Self[B]
 
@@ -1461,6 +1461,21 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     */
   def takeLast(n: Int): Self[A] =
     self.liftByOperator(new TakeLastOperator(n))
+
+  /** Creates a new observable that mirrors the source until
+    * the given `trigger` emits either an element or `onComplete`,
+    * after which it is completed.
+    *
+    * The resulting observable is completed as soon as `trigger`
+    * emits either an `onNext` or `onComplete`. If `trigger`
+    * emits an `onError`, then the resulting observable is also
+    * completed with error.
+    *
+    * @param trigger is an observable that will cancel the
+    *        streaming as soon as it emits an event
+    */
+  def takeUntil(trigger: Observable[Any]): Self[A] =
+    self.transform(source => new TakeUntilObservable[A](source, trigger))
 
   /** Takes longest prefix of elements that satisfy the given predicate
     * and returns a new Observable that emits those elements.
