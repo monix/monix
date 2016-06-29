@@ -20,54 +20,33 @@ package monix.reactive.internal.operators
 import monix.eval.Coeval
 import monix.reactive.Observable
 import monix.reactive.exceptions.DummyException
-
 import scala.concurrent.duration._
-import scala.concurrent.duration.Duration.Zero
 import scala.util.Failure
 
-object ScanSuite extends BaseOperatorSuite {
+object FoldLeftObservableSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.range(0, sourceCount).scan(0L)(_ + _)
-    Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
+    val obs = Observable.range(0, sourceCount).foldLeftF(0L)(_+_)
+    Sample(obs, 1, (sourceCount-1) * sourceCount / 2, 0.seconds, 0.seconds)
   }
-
-  def count(sourceCount: Int) =
-    sourceCount
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val o = createObservableEndingInError(Observable.range(0, sourceCount), ex)
-      .scan(0L)(_ + _)
-
-    Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
+    val obs = Observable.range(0, sourceCount).endWithError(ex).foldLeftF(Coeval(0L))(_+_)
+    Sample(obs, 0, 0, 0.seconds, 0.seconds)
   }
 
-  def sum(sourceCount: Int) = {
-    (0 until sourceCount)
-      .map(c => (0 to c).map(_.toLong).sum)
-      .sum
+  def cancelableObservables() = {
+    val obs = Observable.range(0, 1000).delaySubscription(1.seconds).foldLeftF(Coeval(0L))(_+_)
+    Seq(Sample(obs, 0, 0, 0.seconds, 0.seconds))
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.range(0, sourceCount).scan(0L) { (acc, elem) =>
-      if (elem == sourceCount - 1)
-        throw ex
-      else
-        acc + elem
-    }
-
-    Sample(o, count(sourceCount-1), sum(sourceCount-1), Zero, Zero)
-  }
-
-  override def cancelableObservables() = {
-    val sample =  Observable.range(1, 100)
-      .delayOnNext(1.second).scan(0L)(_ + _)
-
-    Seq(Sample(sample, 0, 0, 0.seconds, 0.seconds))
+    val obs = Observable.range(0, sourceCount).endWithError(ex).foldLeftF(Coeval(0L))((_,_) => throw ex)
+    Sample(obs, 0, 0, 0.seconds, 0.seconds)
   }
 
   test("should trigger error if the initial state triggers errors") { implicit s =>
     val ex = DummyException("dummy")
-    val obs = Observable(1,2,3,4).scan[Int](Coeval.raiseError(ex))(_+_)
+    val obs = Observable(1,2,3,4).foldLeftF[Int](Coeval.raiseError(ex))(_+_)
     val f = obs.runAsyncGetFirst; s.tick()
     assertEquals(f.value, Some(Failure(ex)))
   }

@@ -18,7 +18,9 @@
 package monix.reactive.internal.builders
 
 import java.io.{ByteArrayInputStream, InputStream}
+
 import minitest.SimpleTestSuite
+import monix.eval.Coeval
 import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.schedulers.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
@@ -26,6 +28,7 @@ import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
 import monix.reactive.exceptions.{DummyException, MultipleSubscribersException}
 import monix.reactive.observers.Subscriber
+
 import scala.collection.mutable.ListBuffer
 import scala.util.{Failure, Random, Success}
 
@@ -58,7 +61,7 @@ object InputStreamObservableSuite extends SimpleTestSuite {
     val in = new ByteArrayInputStream(array)
 
     val result = Observable.fromInputStream(in, 40)
-      .foldLeftF(Array.empty[Byte])(_ ++ _)
+      .foldLeftF(Coeval(Array.empty[Byte]))(_ ++ _)
       .runAsyncGetFirst
       .map(_.map(_.toList))
 
@@ -73,7 +76,7 @@ object InputStreamObservableSuite extends SimpleTestSuite {
     val in = new ByteArrayInputStream(array)
 
     val result = Observable.fromInputStream(in, 40)
-      .foldLeftF(Array.empty[Byte])(_ ++ _)
+      .foldLeftF(Coeval(Array.empty[Byte]))(_ ++ _)
       .runAsyncGetFirst
       .map(_.map(_.toList))
 
@@ -90,8 +93,9 @@ object InputStreamObservableSuite extends SimpleTestSuite {
     val array = randomByteArray()
     val in = new ByteArrayInputStream(array)
 
-    val obs = Observable.fromInputStream(in)
-      .foldLeftF(Array.empty[Byte])(_ ++ _)
+    val obs: Observable[Array[Byte]] = Observable
+      .fromInputStream(in)
+      .foldLeftF(Coeval(Array.empty[Byte]))(_ ++ _)
 
     obs.unsafeSubscribeFn(new Subscriber[Array[Byte]] {
       implicit val scheduler = s

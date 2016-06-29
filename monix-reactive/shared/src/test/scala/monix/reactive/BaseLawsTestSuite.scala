@@ -23,6 +23,7 @@ import monix.eval.{Callback, Coeval, Task}
 import monix.execution.schedulers.TestScheduler
 import org.scalacheck.{Arbitrary, Prop}
 
+import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.implicitConversions
 import scala.util.{Failure, Success, Try}
@@ -54,28 +55,11 @@ trait BaseLawsTestSuite extends TestSuite[TestScheduler] with Checkers {
   /** Implicitly map [[IsEquiv]] to a [[Prop]]. */
   implicit def isEqObservableProp[A](isEq: IsEquiv[Observable[A]])(implicit s: TestScheduler): Prop =
     Prop {
-      var valueA = Option.empty[Try[Option[List[A]]]]
-      var valueB = Option.empty[Try[Option[List[A]]]]
-
-      isEq.lh.foldLeftF(List.empty[A])((acc,e) => e :: acc).firstL.runAsync(
-        new Callback[Option[List[A]]] {
-          def onError(ex: Throwable): Unit =
-            valueA = Some(Failure(ex))
-          def onSuccess(value: Option[List[A]]): Unit =
-            valueA = Some(Success(value))
-        })
-
-      isEq.rh.foldLeftF(List.empty[A])((acc,e) => e :: acc).firstL.runAsync(
-        new Callback[Option[List[A]]] {
-          def onError(ex: Throwable): Unit =
-            valueB = Some(Failure(ex))
-          def onSuccess(value: Option[List[A]]): Unit =
-            valueB = Some(Success(value))
-        })
-
-      // simulate synchronous execution
+      val fa = isEq.lh.foldLeftF(Coeval(List.empty[A]))((acc,e) => e :: acc).firstOptionL.runAsync
+      val fb = isEq.rh.foldLeftF(Coeval(List.empty[A]))((acc,e) => e :: acc).firstOptionL.runAsync
+      // simulate asynchronous execution
       s.tick(1.hour)
-      valueA == valueB
+      fa.value == fb.value
     }
 
   /** Implicitly map [[IsEquiv]] to a [[Prop]]. */
@@ -98,9 +82,16 @@ trait BaseLawsTestSuite extends TestSuite[TestScheduler] with Checkers {
           valueB = Some(Success(value))
       })
 
-      // simulate synchronous execution
+      // simulate asynchronous execution
       s.tick(1.hour)
       valueA == valueB
+    }
+
+  implicit def isEqFutureProp[A](isEq: IsEquiv[Future[A]])(implicit s: TestScheduler): Prop =
+    Prop {
+      // simulate asynchronous execution
+      s.tick(1.hour)
+      isEq.lh.value == isEq.rh.value
     }
 
   /** Implicitly map [[IsEquiv]] to a [[Prop]]. */

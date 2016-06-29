@@ -17,9 +17,12 @@
 
 package monix.reactive.internal.operators
 
+import monix.eval.Coeval
 import monix.reactive.Observable
+import monix.reactive.exceptions.DummyException
 import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero
+import scala.util.Failure
 
 object FlatScanSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
@@ -58,5 +61,12 @@ object FlatScanSuite extends BaseOperatorSuite {
       Sample(sample1,0,0,0.seconds,0.seconds),
       Sample(sample2,0,0,0.seconds,0.seconds)
     )
+  }
+
+  test("should trigger error if the initial state triggers errors") { implicit s =>
+    val ex = DummyException("dummy")
+    val obs = Observable(1,2,3,4).flatScan[Int](Coeval.raiseError(ex))((_,e) => Observable(e))
+    val f = obs.runAsyncGetFirst; s.tick()
+    assertEquals(f.value, Some(Failure(ex)))
   }
 }

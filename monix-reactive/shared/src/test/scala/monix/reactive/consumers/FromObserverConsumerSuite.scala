@@ -28,7 +28,7 @@ import scala.util.{Failure, Success}
 object FromObserverConsumerSuite extends BaseLawsTestSuite {
   test("convert an observer into a consumer") { implicit s =>
     check1 { (source: Observable[Int]) =>
-      val lh = source.sumF.firstL.map(_.getOrElse(0))
+      val lh = source.sumL
       val rh = Task.create[Int] { (s, cb) =>
         implicit val scheduler = s
         var sum = 0

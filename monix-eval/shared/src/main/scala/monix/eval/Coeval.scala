@@ -23,6 +23,7 @@ import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
+import scala.language.implicitConversions
 
 /** `Coeval` represents lazy computations that can execute synchronously.
   *
@@ -341,62 +342,65 @@ object Coeval {
   /** Zips together multiple [[Coeval]] instances. */
   def zipList[A](sources: Seq[Coeval[A]]): Coeval[List[A]] = {
     val init = evalAlways(mutable.ListBuffer.empty[A])
-    val r = sources.foldLeft(init)((acc,elem) => acc.zipWith(elem)(_ += _))
+    val r = sources.foldLeft(init)((acc, elem) => acc.zipWith(elem)(_ += _))
     r.map(_.toList)
   }
 
   /** Pairs two [[Coeval]] instances. */
-  def zip2[A1,A2,R](fa1: Coeval[A1], fa2: Coeval[A2]): Coeval[(A1,A2)] =
-    fa1.zipWith(fa2)((_,_))
+  def zip2[A1, A2, R](fa1: Coeval[A1], fa2: Coeval[A2]): Coeval[(A1, A2)] =
+    fa1.zipWith(fa2)((_, _))
 
   /** Pairs two [[Coeval]] instances, creating a new instance that will apply
     * the given mapping function to the resulting pair. */
-  def zipWith2[A1,A2,R](fa1: Coeval[A1], fa2: Coeval[A2])(f: (A1,A2) => R): Coeval[R] =
+  def zipWith2[A1, A2, R](fa1: Coeval[A1], fa2: Coeval[A2])(f: (A1, A2) => R): Coeval[R] =
     fa1.zipWith(fa2)(f)
 
   /** Pairs three [[Coeval]] instances. */
-  def zip3[A1,A2,A3](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3]): Coeval[(A1,A2,A3)] =
-    zipWith3(fa1,fa2,fa3)((a1,a2,a3) => (a1,a2,a3))
+  def zip3[A1, A2, A3](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3]): Coeval[(A1, A2, A3)] =
+    zipWith3(fa1, fa2, fa3)((a1, a2, a3) => (a1, a2, a3))
+
   /** Pairs four [[Coeval]] instances. */
-  def zip4[A1,A2,A3,A4](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3], fa4: Coeval[A4]): Coeval[(A1,A2,A3,A4)] =
-    zipWith4(fa1,fa2,fa3,fa4)((a1,a2,a3,a4) => (a1,a2,a3,a4))
+  def zip4[A1, A2, A3, A4](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3], fa4: Coeval[A4]): Coeval[(A1, A2, A3, A4)] =
+    zipWith4(fa1, fa2, fa3, fa4)((a1, a2, a3, a4) => (a1, a2, a3, a4))
+
   /** Pairs five [[Coeval]] instances. */
-  def zip5[A1,A2,A3,A4,A5](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3], fa4: Coeval[A4], fa5: Coeval[A5]): Coeval[(A1,A2,A3,A4,A5)] =
-    zipWith5(fa1,fa2,fa3,fa4,fa5)((a1,a2,a3,a4,a5) => (a1,a2,a3,a4,a5))
+  def zip5[A1, A2, A3, A4, A5](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3], fa4: Coeval[A4], fa5: Coeval[A5]): Coeval[(A1, A2, A3, A4, A5)] =
+    zipWith5(fa1, fa2, fa3, fa4, fa5)((a1, a2, a3, a4, a5) => (a1, a2, a3, a4, a5))
+
   /** Pairs six [[Coeval]] instances. */
-  def zip6[A1,A2,A3,A4,A5,A6](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3], fa4: Coeval[A4], fa5: Coeval[A5], fa6: Coeval[A6]): Coeval[(A1,A2,A3,A4,A5,A6)] =
-    zipWith6(fa1,fa2,fa3,fa4,fa5,fa6)((a1,a2,a3,a4,a5,a6) => (a1,a2,a3,a4,a5,a6))
+  def zip6[A1, A2, A3, A4, A5, A6](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3], fa4: Coeval[A4], fa5: Coeval[A5], fa6: Coeval[A6]): Coeval[(A1, A2, A3, A4, A5, A6)] =
+    zipWith6(fa1, fa2, fa3, fa4, fa5, fa6)((a1, a2, a3, a4, a5, a6) => (a1, a2, a3, a4, a5, a6))
 
   /** Pairs three [[Coeval]] instances,
     * applying the given mapping function to the result.
     */
-  def zipWith3[A1,A2,A3,R](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3])(f: (A1,A2,A3) => R): Coeval[R] = {
+  def zipWith3[A1, A2, A3, R](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3])(f: (A1, A2, A3) => R): Coeval[R] = {
     val fa12 = zip2(fa1, fa2)
-    zipWith2(fa12, fa3) { case ((a1,a2), a3) => f(a1,a2,a3) }
+    zipWith2(fa12, fa3) { case ((a1, a2), a3) => f(a1, a2, a3) }
   }
 
   /** Pairs four [[Coeval]] instances,
     * applying the given mapping function to the result.
     */
-  def zipWith4[A1,A2,A3,A4,R](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3], fa4: Coeval[A4])(f: (A1,A2,A3,A4) => R): Coeval[R] = {
+  def zipWith4[A1, A2, A3, A4, R](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3], fa4: Coeval[A4])(f: (A1, A2, A3, A4) => R): Coeval[R] = {
     val fa123 = zip3(fa1, fa2, fa3)
-    zipWith2(fa123, fa4) { case ((a1,a2,a3), a4) => f(a1,a2,a3,a4) }
+    zipWith2(fa123, fa4) { case ((a1, a2, a3), a4) => f(a1, a2, a3, a4) }
   }
 
   /** Pairs five [[Coeval]] instances,
     * applying the given mapping function to the result.
     */
-  def zipWith5[A1,A2,A3,A4,A5,R](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3], fa4: Coeval[A4], fa5: Coeval[A5])(f: (A1,A2,A3,A4,A5) => R): Coeval[R] = {
+  def zipWith5[A1, A2, A3, A4, A5, R](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3], fa4: Coeval[A4], fa5: Coeval[A5])(f: (A1, A2, A3, A4, A5) => R): Coeval[R] = {
     val fa1234 = zip4(fa1, fa2, fa3, fa4)
-    zipWith2(fa1234, fa5) { case ((a1,a2,a3,a4), a5) => f(a1,a2,a3,a4,a5) }
+    zipWith2(fa1234, fa5) { case ((a1, a2, a3, a4), a5) => f(a1, a2, a3, a4, a5) }
   }
 
   /** Pairs six [[Coeval]] instances,
     * applying the given mapping function to the result.
     */
-  def zipWith6[A1,A2,A3,A4,A5,A6,R](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3], fa4: Coeval[A4], fa5: Coeval[A5], fa6: Coeval[A6])(f: (A1,A2,A3,A4,A5,A6) => R): Coeval[R] = {
+  def zipWith6[A1, A2, A3, A4, A5, A6, R](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3], fa4: Coeval[A4], fa5: Coeval[A5], fa6: Coeval[A6])(f: (A1, A2, A3, A4, A5, A6) => R): Coeval[R] = {
     val fa12345 = zip5(fa1, fa2, fa3, fa4, fa5)
-    zipWith2(fa12345, fa6) { case ((a1,a2,a3,a4,a5), a6) => f(a1,a2,a3,a4,a5,a6) }
+    zipWith2(fa12345, fa6) { case ((a1, a2, a3, a4, a5), a6) => f(a1, a2, a3, a4, a5, a6) }
   }
 
   /** The `Attempt` represents a strict, already evaluated result
@@ -405,12 +409,19 @@ object Coeval {
     *
     * It's the moral equivalent of `scala.util.Try`.
     */
-  sealed abstract class Attempt[+A] extends Coeval[A] { self =>
+  sealed abstract class Attempt[+A] extends Coeval[A] {
+    self =>
     /** Returns true if value is a successful one. */
-    def isSuccess: Boolean = this match { case Now(_) => true; case _ => false }
+    def isSuccess: Boolean = this match {
+      case Now(_) => true;
+      case _ => false
+    }
 
     /** Returns true if result is an error. */
-    def isFailure: Boolean = this match { case Error(_) => true; case _ => false }
+    def isFailure: Boolean = this match {
+      case Error(_) => true;
+      case _ => false
+    }
 
     override def failed: Attempt[Throwable] =
       self match {
@@ -427,7 +438,7 @@ object Coeval {
 
     override def materializeAttempt: Attempt[Attempt[A]] =
       self match {
-        case now @ Now(_) =>
+        case now@Now(_) =>
           Now(now)
         case Error(ex) =>
           Now(Error(ex))
@@ -436,7 +447,7 @@ object Coeval {
     override def dematerializeAttempt[B](implicit ev: <:<[A, Attempt[B]]): Attempt[B] =
       self match {
         case Now(now) => now
-        case error @ Error(_) => error
+        case error@Error(_) => error
       }
 
     override def memoize: Attempt[A] = this
@@ -445,7 +456,9 @@ object Coeval {
   object Attempt {
     /** Promotes a non-strict value to a [[Coeval.Attempt]]. */
     def apply[A](f: => A): Attempt[A] =
-      try Now(f) catch { case NonFatal(ex) => Error(ex) }
+      try Now(f) catch {
+        case NonFatal(ex) => Error(ex)
+      }
 
     /** Builds a [[Task.Attempt]] from a `scala.util.Try` */
     def fromTry[A](value: Try[A]): Attempt[A] =
@@ -467,6 +480,7 @@ object Coeval {
     */
   final case class Error(ex: Throwable) extends Attempt[Nothing] {
     override def value: Nothing = throw ex
+
     override def runAttempt: Error = this
   }
 
@@ -511,7 +525,9 @@ object Coeval {
       runAttempt.hashCode()
 
     def productArity: Int = 1
+
     def productElement(n: Int): Any = runAttempt
+
     def canEqual(that: Any): Boolean =
       that.isInstanceOf[EvalOnce[_]]
   }
@@ -533,54 +549,68 @@ object Coeval {
     */
   final case class EvalAlways[+A](f: () => A) extends Coeval[A] {
     override def value: A = f()
+
     override def runAttempt: Attempt[A] =
-      try Now(f()) catch { case NonFatal(ex) => Error(ex) }
+      try Now(f()) catch {
+        case NonFatal(ex) => Error(ex)
+      }
   }
 
   /** Internal state, the result of [[Coeval.defer]] */
   private[eval] final case class Suspend[+A](thunk: () => Coeval[A]) extends Coeval[A]
+
   /** Internal [[Coeval]] state that is the result of applying `flatMap`. */
-  private[eval] final case class BindSuspend[A,B](thunk: () => Coeval[A], f: A => Coeval[B]) extends Coeval[B]
+  private[eval] final case class BindSuspend[A, B](thunk: () => Coeval[A], f: A => Coeval[B]) extends Coeval[B]
 
   private type Current = Coeval[Any]
   private type Bind = Any => Coeval[Any]
 
   /** Trampoline for lazy evaluation. */
   private[eval] def trampoline[A](source: Coeval[A], binds: List[Bind]): Attempt[A] = {
-    @tailrec  def reduceCoeval(source: Coeval[Any], binds: List[Bind]): Attempt[Any] = {
+    @tailrec def reduceCoeval(source: Coeval[Any], binds: List[Bind]): Attempt[Any] = {
       source match {
-        case error @ Error(_) => error
-        case now @ Now(a) =>
+        case error@Error(_) => error
+        case now@Now(a) =>
           binds match {
             case Nil => now
             case f :: rest =>
-              val fa = try f(a) catch { case NonFatal(ex) => Error(ex) }
+              val fa = try f(a) catch {
+                case NonFatal(ex) => Error(ex)
+              }
               reduceCoeval(fa, rest)
           }
 
-        case eval @ EvalOnce(_) =>
+        case eval@EvalOnce(_) =>
           eval.runAttempt match {
-            case now @ Now(a) =>
+            case now@Now(a) =>
               binds match {
                 case Nil => now
                 case f :: rest =>
-                  val fa = try f(a) catch { case NonFatal(ex) => Error(ex) }
+                  val fa = try f(a) catch {
+                    case NonFatal(ex) => Error(ex)
+                  }
                   reduceCoeval(fa, rest)
               }
-            case error @ Error(_) =>
+            case error@Error(_) =>
               error
           }
 
         case EvalAlways(thunk) =>
-          val fa = try Now(thunk()) catch { case NonFatal(ex) => Error(ex) }
+          val fa = try Now(thunk()) catch {
+            case NonFatal(ex) => Error(ex)
+          }
           reduceCoeval(fa, binds)
 
         case Suspend(thunk) =>
-          val fa = try thunk() catch { case NonFatal(ex) => Error(ex) }
+          val fa = try thunk() catch {
+            case NonFatal(ex) => Error(ex)
+          }
           reduceCoeval(fa, binds)
 
         case BindSuspend(thunk, f) =>
-          val fa = try thunk() catch { case NonFatal(ex) => Error(ex) }
+          val fa = try thunk() catch {
+            case NonFatal(ex) => Error(ex)
+          }
           reduceCoeval(fa, f.asInstanceOf[Bind] :: binds)
       }
     }
@@ -595,32 +625,54 @@ object Coeval {
   class TypeClassInstances extends Evaluable[Coeval] with Bimonad[Coeval] {
     override def extract[A](x: Coeval[A]): A =
       x.value
+
     override def flatMap[A, B](fa: Coeval[A])(f: (A) => Coeval[B]): Coeval[B] =
       fa.flatMap(f)
+
     override def flatten[A](ffa: Coeval[Coeval[A]]): Coeval[A] =
       ffa.flatten
+
     override def coflatMap[A, B](fa: Coeval[A])(f: (Coeval[A]) => B): Coeval[B] =
       Coeval.evalAlways(f(fa))
+
     override def pure[A](a: A): Coeval[A] =
       Coeval.now(a)
+
     override def pureEval[A](a: => A): Coeval[A] =
       Coeval.evalAlways(a)
+
     override def ap[A, B](fa: Coeval[A])(ff: Coeval[(A) => B]): Coeval[B] =
       for (f <- ff; a <- fa) yield f(a)
+
     override def map2[A, B, Z](fa: Coeval[A], fb: Coeval[B])(f: (A, B) => Z): Coeval[Z] =
-      for (a <- fa; b <- fb) yield f(a,b)
+      for (a <- fa; b <- fb) yield f(a, b)
+
     override def map[A, B](fa: Coeval[A])(f: (A) => B): Coeval[B] =
       fa.map(f)
+
     override def raiseError[A](e: Throwable): Coeval[A] =
       Coeval.raiseError(e)
+
     override def handleError[A](fa: Coeval[A])(f: (Throwable) => A): Coeval[A] =
       fa.onErrorHandle(f)
+
     override def handleErrorWith[A](fa: Coeval[A])(f: (Throwable) => Coeval[A]): Coeval[A] =
       fa.onErrorHandleWith(f)
+
     override def recover[A](fa: Coeval[A])(pf: PartialFunction[Throwable, A]): Coeval[A] =
       fa.onErrorRecover(pf)
+
     override def recoverWith[A](fa: Coeval[A])(pf: PartialFunction[Throwable, Coeval[A]]): Coeval[A] =
       fa.onErrorRecoverWith(pf)
   }
+
+  /** Implicit conversion from anything to [[Coeval.Now]].
+    *
+    * WARNING: the given `value` is strict so any expression
+    * implicitly converted into a [[Coeval]] will have been
+    * evaluated already.
+    */
+  implicit def anyToCoevalNow[A](value: A): Coeval[A] =
+    Coeval.now(value)
 }
 

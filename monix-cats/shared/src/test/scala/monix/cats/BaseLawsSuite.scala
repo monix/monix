@@ -124,7 +124,7 @@ trait BaseLawsSuiteInstances extends AllInstances with cats.std.AllInstances {
         var valueA = Option.empty[Try[Option[List[A]]]]
         var valueB = Option.empty[Try[Option[List[A]]]]
 
-        x.foldLeftF(List.empty[A])((acc,e) => e :: acc).firstL.runAsync(
+        x.foldLeftF(Coeval(List.empty[A]))((acc,e) => e :: acc).firstOptionL.runAsync(
           new Callback[Option[List[A]]] {
             def onError(ex: Throwable): Unit =
               valueA = Some(Failure(ex))
@@ -132,7 +132,7 @@ trait BaseLawsSuiteInstances extends AllInstances with cats.std.AllInstances {
               valueA = Some(Success(value))
           })
 
-        y.foldLeftF(List.empty[A])((acc,e) => e :: acc).firstL.runAsync(
+        y.foldLeftF(Coeval(List.empty[A]))((acc,e) => e :: acc).firstOptionL.runAsync(
           new Callback[Option[List[A]]] {
             def onError(ex: Throwable): Unit =
               valueB = Some(Failure(ex))

@@ -49,9 +49,9 @@ trait BaseConcurrencySuite extends TestSuite[Scheduler] with Checkers {
       val promiseLeft = Promise[Option[List[A]]]()
       val promiseRight = Promise[Option[List[A]]]()
 
-      isEq.lh.foldLeftF(List.empty[A])((acc,e) => e :: acc).firstL
+      isEq.lh.foldLeftF(List.empty[A])((acc,e) => e :: acc).firstOptionL
         .runAsync(Callback.fromPromise(promiseLeft))
-      isEq.rh.foldLeftF(List.empty[A])((acc,e) => e :: acc).firstL
+      isEq.rh.foldLeftF(List.empty[A])((acc,e) => e :: acc).firstOptionL
         .runAsync(Callback.fromPromise(promiseRight))
 
       val valueLeft = Await.result(promiseLeft.future, 5.minutes)

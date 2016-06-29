@@ -40,6 +40,12 @@ trait Callback[-T] extends ((Try[T]) => Unit) with Serializable {
       case Success(value) => onSuccess(value)
       case Failure(ex) => onError(ex)
     }
+
+  def apply(result: Coeval[T]): Unit =
+    result.runAttempt match {
+      case Coeval.Now(value) => onSuccess(value)
+      case Coeval.Error(ex) => onError(ex)
+    }
 }
 
 object Callback {

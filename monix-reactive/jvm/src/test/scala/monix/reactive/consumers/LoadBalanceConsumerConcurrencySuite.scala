@@ -33,7 +33,7 @@ object LoadBalanceConsumerConcurrencySuite extends BaseConcurrencySuite {
       val consumer = Consumer.loadBalance(parallelism,
         Consumer.foldLeft[Long,Int](Coeval(0L))(_+_))
 
-      val task1 = source.foldLeftF(0L)(_+_).firstL.map(_.getOrElse(0L))
+      val task1 = source.foldLeftF(0L)(_+_).firstL
       val task2 = source.runWith(consumer).map(_.sum)
       task1 === task2
     }
@@ -54,7 +54,7 @@ object LoadBalanceConsumerConcurrencySuite extends BaseConcurrencySuite {
         if (i % 2 == 0) fold else justOne
 
       val consumer = Consumer.loadBalance(allConsumers:_*)
-      val task1 = source.foldLeftF(0L)(_+_).firstL.map(_.getOrElse(0L))
+      val task1 = source.foldLeftF(0L)(_+_).firstL
       val task2 = source.runWith(consumer).map(_.sum)
       task1 === task2
     }
