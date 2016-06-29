@@ -17,12 +17,11 @@
 
 package monix.cats
 
-import cats.laws.discipline.{CoflatMapTests, MonadErrorTests, MonadFilterTests, MonoidKTests}
+import cats.laws.discipline.{CoflatMapTests, MonadCombineTests, MonadErrorTests}
 import monix.reactive.Observable
 
 object ObservableLawsSuite extends BaseLawsSuite {
   checkAll("MonadError[Observable[Int]]", MonadErrorTests[Observable, Throwable].monadError[Int,Int,Int])
   checkAll("CoflatMap[Observable[Int]]", CoflatMapTests[Observable].coflatMap[Int,Int,Int])
-  checkAll("MonadFilter[Observable[Int]]", MonadFilterTests[Observable].monadFilter[Int,Int,Int])
-  checkAll("MonoidK[Observable[Int]]", MonoidKTests[Observable].monoidK[Int])
+  checkAll("MonadCombine[Observable[Int]]", MonadCombineTests[Observable].monadCombine[Int,Int,Int])
 }

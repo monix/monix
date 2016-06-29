@@ -23,7 +23,7 @@ package monix.types
   * A functor provides the `map` operation that allows lifting
   * an `f` function into the functor context and applying it.
   */
-trait Functor[F[_]] {
+trait Functor[F[_]] extends Any with Serializable {
   def map[A, B](fa: F[A])(f: A => B): F[B]
 }
 

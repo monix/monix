@@ -19,7 +19,7 @@ package monix.reactive.observers.buffers
 
 import monix.reactive.OverflowStrategy
 import monix.reactive.OverflowStrategy._
-import monix.reactive.observers.{Subscriber, BufferedSubscriber, SyncSubscriber}
+import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 
 private[observers] trait BuildersImpl {  self: BufferedSubscriber.type =>
   def apply[A](subscriber: Subscriber[A], bufferPolicy: OverflowStrategy[A]): Subscriber[A] = {
@@ -48,7 +48,7 @@ private[observers] trait BuildersImpl {  self: BufferedSubscriber.type =>
     }
   }
 
-  def synchronous[A](subscriber: Subscriber[A], bufferPolicy: OverflowStrategy.Synchronous[A]): SyncSubscriber[A] = {
+  def synchronous[A](subscriber: Subscriber[A], bufferPolicy: OverflowStrategy.Synchronous[A]): Subscriber.Sync[A] = {
     bufferPolicy match {
       case Unbounded =>
         SimpleBufferedSubscriber.unbounded(subscriber)

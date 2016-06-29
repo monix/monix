@@ -46,7 +46,7 @@ a project exemplifying Monix used both on the server and on the client.
 The packages are published on Maven Central.
 
 - Current stable release: `1.2`
-- Current beta release: `2.0-RC6`
+- Current beta release: `2.0-RC8`
 
 For the stable release (use the `%%%` for Scala.js):
 
@@ -57,7 +57,7 @@ libraryDependencies += "org.monifu" %% "monifu" % "1.2"
 For the beta/preview release (use at your own risk):
 
 ```scala
-libraryDependencies += "io.monix" %% "monix" % "2.0-RC6"
+libraryDependencies += "io.monix" %% "monix" % "2.0-RC8"
 ```
 
 ### Sub-projects
@@ -67,7 +67,7 @@ Monix 2.0 is modular by design, so you can pick and choose:
 - `monix-types` exposes type-classes and shims needed for 
   integration with other FP libraries (Cats, Scalaz)
 - `monix-execution` exposes the low-level execution environment, or more precisely
-  `Scheduler`, `Cancelable` and `CancelableFuture`
+  `Scheduler`, `Cancelable`, `Atomic` and `CancelableFuture`
 - `monix-eval` exposes `Task`, `Coeval` 
    and depends on `monix-execution` and `monix-types`
 - `monix-reactive` exposes `Observable` streams 
@@ -77,7 +77,9 @@ Monix 2.0 is modular by design, so you can pick and choose:
 Optional packages:
 
 - `monix-cats` provides integration with [Cats](http://typelevel.org/cats) and
-   depends on `monix-types`
+   depends on `monix-types` and `org.typelevel.cats-core`
+- `monix-scalaz-72` provides integration with [Scalaz](http://scalaz.org) and
+   depends on `monix-types` and `org.scalaz.scalaz-core` version 7.2.x
 
 ## Documentation
 
@@ -90,7 +92,7 @@ hosted at,
 API Documentation:
 
 - [1.2](https://monix.io/api/1.2/)
-- [2.0-RC6](https://monix.io/api/2.0-RC6/)
+- [2.0-RC8](https://monix.io/api/2.0-RC8/)
 
 Presentations:
 

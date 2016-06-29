@@ -22,7 +22,7 @@ import monix.execution.cancelables.{CompositeCancelable, MultiAssignmentCancelab
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.reactive.observers.Subscriber
 import monix.reactive.{Observable, Observer}
-import org.sincron.atomic.{Atomic, AtomicInt}
+import monix.execution.atomic.{Atomic, AtomicInt}
 import scala.concurrent.{Future, Promise}
 
 private[reactive] final class FirstStartedObservable[T](source: Observable[T]*)

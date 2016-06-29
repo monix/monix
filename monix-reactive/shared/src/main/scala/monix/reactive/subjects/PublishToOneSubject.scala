@@ -18,11 +18,11 @@
 package monix.reactive.subjects
 
 import monix.execution.Ack.{Continue, Stop}
+import monix.execution.atomic.Atomic
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.reactive.exceptions.MultipleSubscribersException
-import monix.reactive.observers.{Subscriber, SyncSubscriber}
-import org.sincron.atomic.Atomic
+import monix.reactive.observers.Subscriber
 import scala.annotation.tailrec
 import scala.concurrent.{Future, Promise}
 
@@ -132,7 +132,7 @@ object PublishToOneSubject {
   private final val pendingCompleteState = new EmptySubscriber[Any]
 
   /** Helper for managing state in the `PublishToOneSubject` */
-  private final class EmptySubscriber[-A] extends SyncSubscriber[A] {
+  private final class EmptySubscriber[-A] extends Subscriber.Sync[A] {
     implicit def scheduler: Scheduler =
       throw new IllegalStateException("EmptySubscriber.scheduler")
 

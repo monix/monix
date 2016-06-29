@@ -18,7 +18,7 @@
 package monix.reactive
 
 /** Used by [[Observable.materialize]]. */
-sealed abstract class Notification[+T]
+sealed abstract class Notification[+T] extends Serializable
 
 object Notification {
   final case class OnNext[+T](elem: T) extends Notification[T]

@@ -18,6 +18,9 @@
 package monix.eval
 
 import monix.execution.UncaughtExceptionReporter
+import monix.execution.cancelables.StackedCancelable
+
+import scala.concurrent.Promise
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
@@ -28,7 +31,7 @@ import scala.util.{Failure, Success, Try}
   * The `onSuccess` method should be called only once, with the successful
   * result, whereas `onError` should be called if the result is an error.
   */
-abstract class Callback[-T] extends ((Try[T]) => Unit) {
+trait Callback[-T] extends ((Try[T]) => Unit) with Serializable {
   def onSuccess(value: T): Unit
   def onError(ex: Throwable): Unit
 
@@ -36,6 +39,12 @@ abstract class Callback[-T] extends ((Try[T]) => Unit) {
     result match {
       case Success(value) => onSuccess(value)
       case Failure(ex) => onError(ex)
+    }
+
+  def apply(result: Coeval[T]): Unit =
+    result.runAttempt match {
+      case Coeval.Now(value) => onSuccess(value)
+      case Coeval.Error(ex) => onError(ex)
     }
 }
 
@@ -57,6 +66,22 @@ object Callback {
     */
   def empty[T](implicit r: UncaughtExceptionReporter): Callback[T] =
     new EmptyCallback(r)
+
+  /** Wraps a [[Callback]] into an implementation that pops the
+    * stack of the given
+    * [[monix.execution.cancelables.StackedCancelable StackedCancelable]].
+    */
+  def popBeforeCall[A](cb: Callback[A], stack: StackedCancelable): Callback[A] =
+    new PopOnCallback[A](cb, stack)
+
+  /** Returns a [[Callback]] instance that will complete the given
+    * promise.
+    */
+  def fromPromise[A](p: Promise[A]): Callback[A] =
+    new Callback[A] {
+      def onError(ex: Throwable): Unit = p.failure(ex)
+      def onSuccess(value: A): Unit = p.success(value)
+    }
 
   /** An "empty" callback instance doesn't do anything `onSuccess` and
     * only logs exceptions `onError`.
@@ -98,5 +123,19 @@ object Callback {
             r.reportFailure(err)
         }
       }
+  }
+
+  private final class PopOnCallback[-A](cb: Callback[A], stack: StackedCancelable)
+    extends Callback[A] {
+
+    def onSuccess(value: A): Unit = {
+      stack.pop()
+      cb.onSuccess(value)
+    }
+
+    def onError(ex: Throwable): Unit = {
+      stack.pop()
+      cb.onError(ex)
+    }
   }
 }

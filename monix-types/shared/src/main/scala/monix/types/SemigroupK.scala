@@ -22,7 +22,7 @@ package monix.types
   *
   * `SemigroupK` is a universal semigroup which operates on kinds.
   */
-trait SemigroupK[F[_]] { self =>
+trait SemigroupK[F[_]] extends Any with Serializable { self =>
   /**
     * Combine two F[A] values.
     */

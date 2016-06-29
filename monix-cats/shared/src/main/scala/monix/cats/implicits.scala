@@ -17,8 +17,9 @@
 
 package monix.cats
 
-/** Provided for convenience, for importing everything from Cats as well,
-  * syntax and standard instances.
+/** Provided for convenience, for importing everything from ''Cats''
+  * (all instances, syntax, etc), as well as all defined instances
+  * from ''Monix''.
   *
   * {{{
   *   import monix.cats.implicits._

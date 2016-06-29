@@ -18,18 +18,17 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack
-import monix.execution.Ack.{Stop, Continue}
+import monix.execution.Ack.{Continue, Stop}
 import monix.reactive.Observable
-import monix.reactive.observables.ObservableLike
-import ObservableLike.Operator
-import monix.reactive.observers.{Subscriber, SyncSubscriber}
+import monix.reactive.observables.ObservableLike.Operator
+import monix.reactive.observers.Subscriber
 import scala.collection.mutable
 
 private[reactive] final class TakeLastOperator[A](n: Int)
   extends Operator[A, A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
-    new SyncSubscriber[A] {
+    new Subscriber.Sync[A] {
       implicit val scheduler = out.scheduler
       private[this] val queue = mutable.Queue.empty[A]
       private[this] var queued = 0

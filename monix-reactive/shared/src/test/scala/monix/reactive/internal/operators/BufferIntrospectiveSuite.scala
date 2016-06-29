@@ -23,7 +23,7 @@ import monix.execution.Ack.Continue
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.observers.Subscriber
 import monix.reactive.subjects.PublishSubject
-import org.sincron.atomic.Atomic
+import monix.execution.atomic.Atomic
 import scala.concurrent.{Future, Promise}
 
 object BufferIntrospectiveSuite extends TestSuite[TestScheduler] {

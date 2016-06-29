@@ -18,9 +18,11 @@
 package monix.execution.cancelables
 
 import monix.execution.Cancelable
-import org.sincron.atomic.Atomic
+import monix.execution.atomic.AtomicAny
 
-/** Represents a Cancelable that can queried for the canceled status. */
+/** Represents a Cancelable that can be queried
+  * for the canceled status.
+  */
 trait BooleanCancelable extends Cancelable {
   /** @return true in case this cancelable hasn't been canceled,
     *         or false otherwise.
@@ -57,10 +59,21 @@ object BooleanCancelable {
       def cancel() = ()
     }
 
+  /** Returns a [[BooleanCancelable]] that can never be canceled.
+    *
+    * Useful as a low-overhead instance whose `isCanceled` value
+    * is always `false`, thus similar in spirit with [[alreadyCanceled]].
+    */
+  val dummy: BooleanCancelable =
+    new BooleanCancelable {
+      val isCanceled = false
+      def cancel() = ()
+    }
+
   private final class BooleanCancelableTask(cb: () => Unit)
     extends BooleanCancelable {
 
-    private[this] val callbackRef = Atomic(cb)
+    private[this] val callbackRef = AtomicAny(cb)
     def isCanceled: Boolean = callbackRef.get eq null
 
     def cancel(): Unit = {

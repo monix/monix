@@ -30,7 +30,7 @@ import org.scalacheck.Test.Parameters
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
-trait BaseLawsSuite extends SimpleTestSuite with Discipline with BaseLawsSuiteInstances1 {
+trait BaseLawsSuite extends SimpleTestSuite with Discipline with BaseLawsSuiteInstances {
   override lazy val checkConfig: Parameters =
     Parameters.default
       .withMinSuccessfulTests(if (Platform.isJVM) 100 else 10)
@@ -42,7 +42,7 @@ trait BaseLawsSuite extends SimpleTestSuite with Discipline with BaseLawsSuiteIn
       .withMinSuccessfulTests(1)
 }
 
-trait BaseLawsSuiteInstances1 extends BaseLawsSuiteInstances0 {
+trait BaseLawsSuiteInstances extends AllInstances with cats.std.AllInstances {
   implicit def arbitraryCoeval[A : Arbitrary]: Arbitrary[Coeval[A]] =
     Arbitrary {
       val int = implicitly[Arbitrary[Int]].arbitrary
@@ -55,16 +55,6 @@ trait BaseLawsSuiteInstances1 extends BaseLawsSuiteInstances0 {
           Coeval.evalOnce(a)
     }
 
-  implicit def equalityCoeval[A : Eq]: Eq[Coeval[A]] =
-    new Eq[Coeval[A]] {
-      val eqA = implicitly[Eq[Try[A]]]
-
-      def eqv(x: Coeval[A], y: Coeval[A]): Boolean =
-        eqA.eqv(x.runAttempt.asScala, y.runAttempt.asScala)
-    }
-}
-
-trait BaseLawsSuiteInstances0 extends AllInstances with cats.std.AllInstances {
   implicit def arbitraryObservable[A : Arbitrary]: Arbitrary[Observable[A]] =
     Arbitrary {
       implicitly[Arbitrary[List[A]]].arbitrary
@@ -134,7 +124,7 @@ trait BaseLawsSuiteInstances0 extends AllInstances with cats.std.AllInstances {
         var valueA = Option.empty[Try[Option[List[A]]]]
         var valueB = Option.empty[Try[Option[List[A]]]]
 
-        x.foldLeftF(List.empty[A])((acc,e) => e :: acc).firstL.runAsync(
+        x.foldLeftF(Coeval(List.empty[A]))((acc,e) => e :: acc).firstOptionL.runAsync(
           new Callback[Option[List[A]]] {
             def onError(ex: Throwable): Unit =
               valueA = Some(Failure(ex))
@@ -142,7 +132,7 @@ trait BaseLawsSuiteInstances0 extends AllInstances with cats.std.AllInstances {
               valueA = Some(Success(value))
           })
 
-        y.foldLeftF(List.empty[A])((acc,e) => e :: acc).firstL.runAsync(
+        y.foldLeftF(Coeval(List.empty[A]))((acc,e) => e :: acc).firstOptionL.runAsync(
           new Callback[Option[List[A]]] {
             def onError(ex: Throwable): Unit =
               valueB = Some(Failure(ex))
@@ -154,6 +144,14 @@ trait BaseLawsSuiteInstances0 extends AllInstances with cats.std.AllInstances {
         scheduler.tick(1.hour)
         valueA == valueB
       }
+    }
+
+  implicit def equalityCoeval[A : Eq]: Eq[Coeval[A]] =
+    new Eq[Coeval[A]] {
+      val eqA = implicitly[Eq[Try[A]]]
+
+      def eqv(x: Coeval[A], y: Coeval[A]): Boolean =
+        eqA.eqv(x.runAttempt.asScala, y.runAttempt.asScala)
     }
 
   implicit def equalityTask[A : Eq]: Eq[Task[A]] =

@@ -18,8 +18,7 @@
 package monix.reactive
 
 import java.io.{BufferedReader, InputStream, Reader}
-
-import monix.eval.Task
+import monix.eval.{Coeval, Task}
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution._
 import monix.execution.cancelables.SingleAssignmentCancelable
@@ -31,7 +30,7 @@ import monix.reactive.observers._
 import monix.reactive.subjects._
 import monix.types.Streamable
 import org.reactivestreams.{Publisher => RPublisher, Subscriber => RSubscriber}
-
+import scala.collection.mutable
 import scala.concurrent.Future
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.control.NonFatal
@@ -66,6 +65,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
   /** Subscribes to the stream.
     *
     * @return a subscription that can be used to cancel the streaming.
+    * @see [[runWith]] for another way of consuming observables
     */
   def subscribe(subscriber: Subscriber[A]): Cancelable = {
     unsafeSubscribeFn(SafeSubscriber[A](subscriber))
@@ -74,6 +74,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
   /** Subscribes to the stream.
     *
     * @return a subscription that can be used to cancel the streaming.
+    * @see [[runWith]] for another way of consuming observables
     */
   def subscribe(observer: Observer[A])(implicit s: Scheduler): Cancelable =
     subscribe(Subscriber(observer, s))
@@ -81,6 +82,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
   /** Subscribes to the stream.
     *
     * @return a subscription that can be used to cancel the streaming.
+    * @see [[runWith]] for another way of consuming observables
     */
   def subscribe(nextFn: A => Future[Ack], errorFn: Throwable => Unit, completedFn: () => Unit)
     (implicit s: Scheduler): Cancelable = {
@@ -96,6 +98,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
   /** Subscribes to the stream.
     *
     * @return a subscription that can be used to cancel the streaming.
+    * @see [[runWith]] for another way of consuming observables
     */
   def subscribe(nextFn: A => Future[Ack], errorFn: Throwable => Unit)(implicit s: Scheduler): Cancelable =
     subscribe(nextFn, errorFn, () => ())
@@ -103,6 +106,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
   /** Subscribes to the stream.
     *
     * @return a subscription that can be used to cancel the streaming.
+    * @see [[runWith]] for another way of consuming observables
     */
   def subscribe()(implicit s: Scheduler): Cancelable =
     subscribe(elem => Continue)
@@ -110,9 +114,17 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
   /** Subscribes to the stream.
     *
     * @return a subscription that can be used to cancel the streaming.
+    * @see [[runWith]] for another way of consuming observables
     */
   def subscribe(nextFn: A => Future[Ack])(implicit s: Scheduler): Cancelable =
     subscribe(nextFn, error => s.reportFailure(error), () => ())
+
+  /** On execution, consumes the source observable with the
+    * given [[Consumer]], effectively transforming the source observable
+    * into a [[monix.eval.Task Task]].
+    */
+  def runWith[R](f: Consumer[A, R]): Task[R] =
+    f(self)
 
   /** Transforms the source using the given operator. */
   override def liftByOperator[B](operator: Operator[A, B]): Observable[B] =
@@ -267,52 +279,147 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     * source observable. Returns an `Option` because the source can be empty.
     */
   def runAsyncGetFirst(implicit s: Scheduler): CancelableFuture[Option[A]] =
-    firstL.runAsync(s)
+    firstOptionL.runAsync(s)
 
   /** Creates a new [[monix.execution.CancelableFuture CancelableFuture]]
     * that upon execution will signal the last generated element of the
     * source observable. Returns an `Option` because the source can be empty.
     */
   def runAsyncGetLast(implicit s: Scheduler): CancelableFuture[Option[A]] =
-    lastL.runAsync(s)
+    lastOptionL.runAsync(s)
+
+  /** Creates a task that emits the total number of `onNext`
+    * events that were emitted by the source.
+    */
+  def countL: Task[Long] =
+    countF.headL
+
+  /** Returns a `Task` which emits either `true`, in case the given predicate
+    * holds for at least one item, or `false` otherwise.
+    *
+    * @param p is a function that evaluates the items emitted by the
+    *        source, returning `true` if they pass the filter
+    * @return a task that emits `true` or `false` in case
+    *         the given predicate holds or not for at least one item
+    */
+  def existsL(p: A => Boolean): Task[Boolean] =
+    findF(p).foldLeftL(Coeval.now(false))((_, _) => true)
+
+  /** Returns a task which emits the first item for which
+    * the predicate holds.
+    *
+    * @param p is a function that evaluates the items emitted by the
+    *        source observable, returning `true` if they pass the filter
+    * @return a task that emits the first item in the source
+    *         observable for which the filter evaluates as `true`
+    */
+  def findL(p: A => Boolean): Task[Option[A]] =
+    findF(p).headOptionL
+
+  /** Applies a binary operator to a start value and all elements of
+    * the source, going left to right and returns a new `Task` that
+    * upon evaluation will eventually emit the final result.
+    */
+  def foldLeftL[R](initial: Coeval[R])(op: (R, A) => R): Task[R] =
+    foldLeftF(initial)(op).headL
+
+  /** Folds the source observable, from start to finish, until the
+    * source completes, or until the operator short-circuits the
+    * process by returning `false`.
+    *
+    * Note that a call to [[foldLeftL]] is equivalent to this function
+    * being called with an operator always returning `true` as the first
+    * member of its result.
+    *
+    * @param op is an operator that will fold the signals of the source
+    *           observable, returning either a new state along with a boolean
+    *           that should become false in case the folding must be
+    *           interrupted.
+    */
+  def foldWhileL[R](initial: Coeval[R])(op: (R,A) => (Boolean, R)): Task[R] =
+    foldWhileF(initial)(op).headL
+
+  /** Returns a `Task` that emits a single boolean, either true, in
+    * case the given predicate holds for all the items emitted by the
+    * source, or false in case at least one item is not verifying the
+    * given predicate.
+    *
+    * @param p is a function that evaluates the items emitted by the source
+    *        observable, returning `true` if they pass the filter
+    * @return a task that emits only true or false in case the given
+    *         predicate holds or not for all the items
+    */
+  def forAllL(p: A => Boolean): Task[Boolean] =
+    existsL(e => !p(e)).map(r => !r)
 
   /** Creates a new [[monix.eval.Task Task]] that upon execution
     * will signal the first generated element of the source observable.
+    *
+    * In case the stream was empty, then the `Task` gets completed
+    * in error with a `NoSuchElementException`.
+    */
+  def firstL: Task[A] =
+    firstOrElseL(Coeval.raiseError(
+      new NoSuchElementException("firstL on empty observable")
+    ))
+
+  /** Creates a new [[monix.eval.Task Task]] that upon execution
+    * will signal the first generated element of the source observable.
+    *
     * Returns an `Option` because the source can be empty.
     */
-  def firstL: Task[Option[A]] =
+  def firstOptionL: Task[Option[A]] =
+    map(Some.apply).firstOrElseL(Coeval.now(None))
+
+  /** Creates a new [[monix.eval.Task Task]] that upon execution
+    * will signal the first generated element of the source observable.
+    *
+    * In case the stream was empty, then the given default
+    * [[monix.eval.Coeval Coeval]] gets evaluated and emitted.
+    */
+  def firstOrElseL[B >: A](default: Coeval[B]): Task[B] =
     Task.unsafeCreate { (s, c, cb) =>
       val task = SingleAssignmentCancelable()
       c push task
 
-      task := unsafeSubscribeFn(new SyncSubscriber[A] {
+      task := unsafeSubscribeFn(new Subscriber.Sync[A] {
         implicit val scheduler: Scheduler = s
         private[this] var isDone = false
 
         def onNext(elem: A): Stop = {
           c.pop()
-          cb.onSuccess(Some(elem))
+          cb.onSuccess(elem)
           isDone = true
           Stop
         }
 
         def onError(ex: Throwable): Unit =
           if (!isDone) { isDone = true; c.pop(); cb.onError(ex) }
+
         def onComplete(): Unit =
-          if (!isDone) { isDone = true; c.pop(); cb.onSuccess(None) }
+          if (!isDone) { isDone = true; c.pop(); cb(default) }
       })
     }
 
-  /** Returns a [[monix.eval.Task Task]] that upon execution
+  /** Alias for [[firstOptionL]]. */
+  def headOptionL: Task[Option[A]] = firstOptionL
+  /** Alias for [[firstL]]. */
+  def headL: Task[A] = firstL
+  /** Alias for [[firstOrElseL]]. */
+  def headOrElseL[B >: A](default: Coeval[B]): Task[B] = firstOrElseL(default)
+
+  /** Creates a new [[monix.eval.Task Task]] that upon execution
     * will signal the last generated element of the source observable.
-    * Returns an `Option` because the source can be empty.
+    *
+    * In case the stream was empty, then the given default
+    * [[monix.eval.Coeval Coeval]] gets evaluated and emitted.
     */
-  def lastL: Task[Option[A]] =
+  def lastOrElseL[B >: A](default: Coeval[B]): Task[B] =
     Task.unsafeCreate { (s, c, cb) =>
       val task = SingleAssignmentCancelable()
       c push task
 
-      task := unsafeSubscribeFn(new SyncSubscriber[A] {
+      task := unsafeSubscribeFn(new Subscriber.Sync[A] {
         implicit val scheduler: Scheduler = s
         private[this] var value: A = _
         private[this] var isEmpty = true
@@ -330,10 +437,40 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
 
         def onComplete(): Unit = {
           c.pop()
-          cb.onSuccess(if (isEmpty) None else Some(value))
+
+          if (isEmpty)
+            default.runAttempt match {
+              case Coeval.Now(v) => cb.onSuccess(v)
+              case Coeval.Error(ex) => cb.onError(ex)
+            }
+          else
+            cb.onSuccess(value)
         }
       })
     }
+
+  /** Returns a [[monix.eval.Task Task]] that upon execution
+    * will signal the last generated element of the source observable.
+    *
+    * Returns an `Option` because the source can be empty.
+    */
+  def lastOptionL: Task[Option[A]] =
+    map(Some.apply).lastOrElseL(Coeval.now(None))
+
+  /** Returns a [[monix.eval.Task Task]] that upon execution
+    * will signal the last generated element of the source observable.
+    *
+    * In case the stream was empty, then the `Task` gets completed
+    * in error with a `NoSuchElementException`.
+    */
+  def lastL: Task[A] =
+    lastOrElseL(Coeval.raiseError(new NoSuchElementException("lastL")))
+
+  /** Returns a task that emits `true` if the source observable is
+    * empty, otherwise `false`.
+    */
+  def isEmptyL: Task[Boolean] =
+    isEmptyF.headL
 
   /** Creates a new [[monix.eval.Task Task]] that will consume the
     * source observable and upon completion of the source it will
@@ -344,7 +481,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
       val task = SingleAssignmentCancelable()
       c push task
 
-      task := unsafeSubscribeFn(new SyncSubscriber[A] {
+      task := unsafeSubscribeFn(new Subscriber.Sync[A] {
         implicit val scheduler: Scheduler = s
         private[this] var isDone = false
 
@@ -356,6 +493,55 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
       })
     }
 
+  /** Takes the elements of the source and emits the maximum
+    * value, after the source has completed.
+    */
+  def maxL[B >: A](implicit ev: Ordering[B]): Task[Option[B]] =
+    maxF(ev).headOptionL
+
+  /** Takes the elements of the source and emits the element
+    * that has the maximum key value, where the key is generated by
+    * the given function `f`.
+    */
+  def maxByL[B](f: A => B)(implicit ev: Ordering[B]): Task[Option[A]] =
+    maxByF(f)(ev).headOptionL
+
+  /** Takes the elements of the source and emits the minimum
+    * value, after the source has completed.
+    */
+  def minL[B >: A](implicit ev: Ordering[B]): Task[Option[B]] =
+    minF(ev).headOptionL
+
+  /** Takes the elements of the source and emits the element
+    * that has the minimum key value, where the key is generated by
+    * the given function `f`.
+    */
+  def minByL[B](f: A => B)(implicit ev: Ordering[B]): Task[Option[A]] =
+    minByF(f)(ev).headOptionL
+
+  /** Returns a task that emits `false` if the source observable is
+    * empty, otherwise `true`.
+    */
+  def nonEmptyL: Task[Boolean] =
+    nonEmptyF.headL
+
+  /** Given a source that emits numeric values, the `sum` operator sums
+    * up all values and returns the result.
+    */
+  def sumL[B >: A](implicit B: Numeric[B]): Task[B] =
+    sumF(B).headL
+
+  /** Returns a `Task` that upon evaluation will collect all items from
+    * the source in a Scala `List` and return this list instead.
+    *
+    * WARNING: for infinite streams the process will eventually blow up
+    * with an out of memory error.
+    */
+  def toListL: Task[List[A]] = {
+    val initial = Coeval(mutable.ListBuffer.empty[A])
+    foldLeftL(initial)(_ += _).map(_.toList)
+  }
+
   /** Creates a new [[monix.eval.Task Task]] that will consume the
     * source observable, executing the given callback for each element.
     */
@@ -364,7 +550,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
       val task = SingleAssignmentCancelable()
       c push task
 
-      task := unsafeSubscribeFn(new SyncSubscriber[A] {
+      task := unsafeSubscribeFn(new Subscriber.Sync[A] {
         implicit val scheduler: Scheduler = s
         private[this] var isDone = false
 
@@ -486,6 +672,16 @@ object Observable {
   def evalOnce[A](f: => A): Observable[A] =
     new builders.EvalOnceObservable(f)
 
+  /** Transforms a non-strict [[monix.eval.Coeval Coeval]] value
+    * into an `Observable` that emits a single element.
+    */
+  def eval[A](value: Coeval[A]): Observable[A] =
+    value match {
+      case Coeval.Now(v) => Observable.now(v)
+      case Coeval.Error(ex) => Observable.raiseError(ex)
+      case other => Observable.evalAlways(other.value)
+    }
+
   /** Lifts a non-strict value into an observable that emits a single element,
     * but upon subscription delay its evaluation by the specified timespan
     */
@@ -520,13 +716,13 @@ object Observable {
 
   /** Creates an observable from a function that receives a
     * concurrent and safe
-    * [[monix.reactive.observers.SyncSubscriber SyncSubscriber]].
+    * [[monix.reactive.observers.Subscriber.Sync Subscriber.Sync]].
     *
     * This builder represents the safe way of building observables
     * from data-sources that cannot be back-pressured.
     */
   def create[A](overflowStrategy: OverflowStrategy.Synchronous[A])
-    (f: SyncSubscriber[A] => Cancelable): Observable[A] =
+    (f: Subscriber.Sync[A] => Cancelable): Observable[A] =
     new builders.CreateObservable(overflowStrategy, f)
 
   /** $multicastDesc
@@ -535,7 +731,7 @@ object Observable {
     *        reply, async)
     */
   def multicast[A](multicast: MulticastStrategy[A])
-    (implicit s: Scheduler): (SyncObserver[A], Observable[A]) = {
+    (implicit s: Scheduler): (Observer.Sync[A], Observable[A]) = {
 
     val ref = ConcurrentSubject(multicast)
     (ref, ref)
@@ -550,7 +746,7 @@ object Observable {
     *        back-pressured)
     */
   def multicast[A](multicast: MulticastStrategy[A], overflow: OverflowStrategy.Synchronous[A])
-    (implicit s: Scheduler): (SyncObserver[A], Observable[A]) = {
+    (implicit s: Scheduler): (Observer.Sync[A], Observable[A]) = {
 
     val ref = ConcurrentSubject(multicast, overflow)
     (ref, ref)

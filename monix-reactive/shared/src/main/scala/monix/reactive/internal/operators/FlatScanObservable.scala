@@ -17,22 +17,33 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack.{Stop, Continue}
+import monix.eval.Coeval
+import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.{CompositeCancelable, MultiAssignmentCancelable}
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.exceptions.CompositeException
 import monix.reactive.observers.Subscriber
+
 import scala.collection.mutable
 import scala.concurrent.{Future, Promise}
 import scala.util.control.NonFatal
 
 private[reactive] final
 class FlatScanObservable[A,R](
-  source: Observable[A], initial: R, f: (R,A) => Observable[R], delayErrors: Boolean)
+  source: Observable[A], initial: Coeval[R], f: (R,A) => Observable[R], delayErrors: Boolean)
   extends Observable[R] {
 
-  def unsafeSubscribeFn(out: Subscriber[R]): Cancelable = {
+  def unsafeSubscribeFn(out: Subscriber[R]): Cancelable =
+    initial.runAttempt match {
+      case Coeval.Error(ex) =>
+        out.onError(ex)
+        Cancelable.empty
+      case Coeval.Now(value) =>
+        subscribeWithState(out, value)
+    }
+
+  def subscribeWithState(out: Subscriber[R], initial: R): Cancelable = {
     val conn = MultiAssignmentCancelable()
     val composite = CompositeCancelable(conn)
 

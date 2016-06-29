@@ -19,9 +19,9 @@ package monix.reactive.subjects
 
 import monix.execution.cancelables.SingleAssignmentCancelable
 import monix.execution.{Ack, Cancelable, Scheduler}
-import monix.reactive.{MulticastStrategy, OverflowStrategy}
 import monix.reactive.OverflowStrategy.{Synchronous, Unbounded}
-import monix.reactive.observers.{BufferedSubscriber, Subscriber, SyncObserver, SyncSubscriber}
+import monix.reactive.observers.{BufferedSubscriber, Subscriber}
+import monix.reactive.{MulticastStrategy, Observer, OverflowStrategy}
 import org.reactivestreams.{Subscription, Processor => RProcessor, Subscriber => RSubscriber}
 
 /** A concurrent subject is meant for imperative style feeding of events.
@@ -31,7 +31,7 @@ import org.reactivestreams.{Subscription, Processor => RProcessor, Subscriber =>
   *
   *     (onNext)* (onComplete | onError)
   */
-abstract class ConcurrentSubject[I,+O] extends Subject[I,O] with SyncObserver[I]
+abstract class ConcurrentSubject[I,+O] extends Subject[I,O] with Observer.Sync[I]
 
 object ConcurrentSubject {
   def apply[A](multicast: MulticastStrategy[A])(implicit s: Scheduler): ConcurrentSubject[A,A] =
@@ -261,7 +261,7 @@ object ConcurrentSubject {
     scheduler: Scheduler)
     extends ConcurrentSubject[I,O] {
 
-    private[this] val in: SyncSubscriber[I] =
+    private[this] val in: Subscriber.Sync[I] =
       BufferedSubscriber.synchronous(Subscriber(subject, scheduler), overflowStrategy)
 
     def size: Int =

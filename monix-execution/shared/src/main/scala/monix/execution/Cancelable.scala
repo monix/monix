@@ -17,7 +17,7 @@
 
 package monix.execution
 
-import org.sincron.atomic.Atomic
+import monix.execution.atomic.AtomicAny
 
 /** Represents a one-time idempotent action that can be used
   * to cancel async computations, or to release resources that
@@ -26,7 +26,7 @@ import org.sincron.atomic.Atomic
   * It is equivalent to `java.io.Closeable`, but without the I/O focus, or
   * to `IDisposable` in Microsoft .NET, or to `akka.actor.Cancellable`.
   */
-trait Cancelable {
+trait Cancelable extends Any with Serializable {
   /** Cancels the unit of work represented by this reference.
     *
     * Guaranteed idempotency - calling it multiple times should have the
@@ -56,7 +56,7 @@ object Cancelable {
   private final class CancelableTask(cb: () => Unit)
     extends Cancelable {
 
-    private[this] val callbackRef = Atomic(cb)
+    private[this] val callbackRef = AtomicAny(cb)
 
     def cancel(): Unit = {
       // Setting the callback to null with a `getAndSet` is solving

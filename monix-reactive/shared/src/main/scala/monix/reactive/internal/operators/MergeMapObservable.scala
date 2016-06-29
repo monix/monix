@@ -23,7 +23,7 @@ import monix.execution.cancelables._
 import monix.reactive.exceptions.CompositeException
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 import monix.reactive.{Observable, OverflowStrategy}
-import org.sincron.atomic.Atomic
+import monix.execution.atomic.Atomic
 import scala.collection.mutable
 import scala.util.control.NonFatal
 

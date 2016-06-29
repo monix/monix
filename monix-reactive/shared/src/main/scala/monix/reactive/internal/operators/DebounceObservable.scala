@@ -18,11 +18,11 @@
 package monix.reactive.internal.operators
 
 import java.util.concurrent.TimeUnit
-import monix.execution.Ack.{Stop, Continue}
+import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.{CompositeCancelable, MultiAssignmentCancelable, SingleAssignmentCancelable}
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
-import monix.reactive.observers.{Subscriber, SyncSubscriber}
+import monix.reactive.observers.Subscriber
 import scala.concurrent.duration.FiniteDuration
 
 private[reactive] final
@@ -34,7 +34,7 @@ class DebounceObservable[A](source: Observable[A], timeout: FiniteDuration, repe
     val mainTask = SingleAssignmentCancelable()
     val composite = CompositeCancelable(mainTask, task)
 
-    mainTask := source.unsafeSubscribeFn(new SyncSubscriber[A] with Runnable { self =>
+    mainTask := source.unsafeSubscribeFn(new Subscriber.Sync[A] with Runnable { self =>
       implicit val scheduler = out.scheduler
 
       private[this] val timeoutMillis = timeout.toMillis

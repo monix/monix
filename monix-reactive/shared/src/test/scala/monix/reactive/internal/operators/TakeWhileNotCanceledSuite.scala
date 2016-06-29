@@ -19,7 +19,7 @@ package monix.reactive.internal.operators
 
 import monix.execution.cancelables.BooleanCancelable
 import monix.reactive.Observable
-import org.sincron.atomic.Atomic
+import monix.execution.atomic.Atomic
 import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero
 

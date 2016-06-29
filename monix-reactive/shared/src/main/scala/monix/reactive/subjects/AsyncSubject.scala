@@ -21,7 +21,7 @@ import monix.execution.Ack.{Stop, Continue}
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.observers.Subscriber
 import monix.reactive.subjects.PublishSubject.State
-import org.sincron.atomic.Atomic
+import monix.execution.atomic.Atomic
 import scala.annotation.tailrec
 
 /** An `AsyncSubject` emits the last value (and only the last value) emitted by

@@ -1,3 +1,75 @@
+## Version 2.0-RC8 (Jun 29, 2016)
+
+**Critical bug fix:**
+
+- [BUG #181](https://github.com/monixio/monix/issues/181): the default operators
+  on `CancelableFuture` are triggering `StackOverflow` exceptions
+  
+New Features:
+
+- [Issue #184](https://github.com/monixio/monix/pull/184): introducing the
+  `Consumer` type, a factory of subscribers that makes it easier to specify 
+  reusable and composable consumers and for example, it makes it possible, 
+  out of the box, to load-balance the workload between multiple subscribers in
+  parallel; see the description
+- [Issue #186](https://github.com/monixio/monix/pull/186) (related to 
+  [issue #168](https://github.com/monixio/monix/issues/168)): adds the 
+  `Observable.interleave2` operator, similar with the one in `FS2` 
+  (former scalaz-streams)
+- [Issue #180](https://github.com/monixio/monix/issues/180): the `Observer.feed`
+  function now has an overload that does not take a cancelable, because
+  it's awkward coming up with one if it isn't needed; there's also a 
+  `onNextAll` extension for both `Observer` and `Subscriber` which can push
+  a whole collection of events
+- [Issue #187](https://github.com/monixio/monix/issues/187): integrates
+  the `MonadCombine` type-class from [Cats](http://typelevel.org/cats/),
+  being similar to the Scalaz `MonadPlus`, as somehow this was missed in 
+  the initial integration
+- [Issue #177](https://github.com/monixio/monix/issues/177) reviews exposed
+  traits and abstract classes, making sure they inherit from `Serializable` 
+- [Issue #85](https://github.com/monixio/monix/issues/85): small change,  
+  clarifies the ScalaDoc on the `RefCountCancelable` type
+- [Issue #162](https://github.com/monixio/monix/issues/162): implements
+  the `Observable.takeUntil(trigger: Observable[Any])` operator, an operator
+  that takes from the source until another observable triggers an event
+- [Issue #189](https://github.com/monixio/monix/issues/189): for `Observable`
+  operators that return a single item (e.g. `sumF`, `foldLeftF`, etc.) adds
+  variants that do the same thing, but return `Task` results instead, so now
+  we have `foldLeftL`, `sumL`, etc. that return tasks
+- [Issue #190](https://github.com/monixio/monix/issues/190): changes many 
+  observable operators, that were taking by-name parameters or initial state
+  parameters (e.g. `headOrElseF`, `foldLeftF`, etc), to take `Coeval` params
+  instead, in order to have fine control over the evaluation model
+- [Issue #191](https://github.com/monixio/monix/issues/191): introduces 
+  by default an implicit conversion from `Any` to `Coeval.Now`, to make it 
+  easier to use `Coeval` as function parameters - the default will thus 
+  simply be strict evaluation, strictness being usually the default in Scala
+
+## Version 2.0-RC7 (Jun 21, 2016)
+
+**Bug fixes:**
+
+- [BUG #170](https://github.com/monixio/monix/issues/170): 
+  `Task.materializeAttempt` doesn't work for `BindAsync`, leading to `onErrorHandleWith`
+  not working with errors triggered in `flatMap` on async tasks
+ 
+New Features:
+
+- [Issue #171](https://github.com/monixio/monix/issues/171): 
+   Add Scheduler builder on the JVM that allows specifying 
+   just the `ExecutionModel`, falling back `global` otherwise   
+- [Issue #174](https://github.com/monixio/monix/issues/174): 
+  [Scalaz](https://github.com/scalaz/scalaz) integration (in addition to the 
+  Cats integration) for FP goddess
+- [Issue #175](https://github.com/monixio/monix/issues/175):
+  Reintroduce all of project `Sincron` into `monix-execution`, which means
+  that now `monix-execution` exposes `Atomic` references. This project
+  was split from Monix, but the decision didn't make sense and the exposed
+  functionality is super useful and in the spirit of `monix-execution`
+- [Issue #176](https://github.com/monixio/monix/issues/176): now that we
+  have `Task`, we introduce `TaskApp`, a safe `App` type that allows one
+  to specify pure programs
+  
 ## Version 2.0-RC6 (Jun 15, 2016)
 
 **Breaking changes:**

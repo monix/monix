@@ -18,7 +18,7 @@
 package monix.execution.schedulers
 
 import monix.execution.Cancelable
-import org.sincron.atomic.Atomic
+import monix.execution.atomic.AtomicAny
 import monix.execution.cancelables.SingleAssignmentCancelable
 import monix.execution.schedulers.TestScheduler._
 import scala.annotation.tailrec
@@ -35,7 +35,7 @@ final class TestScheduler private (override val executionModel: ExecutionModel)
    * The `internalClock` is used for executing tasks. Upon calling [[tick]], the
    * internal clock is advanced and pending `tasks` are executed.
    */
-  val state = Atomic(State(
+  val state = AtomicAny(State(
     lastID = 0,
     clock = Duration.Zero,
     tasks = SortedSet.empty[Task],
@@ -46,19 +46,34 @@ final class TestScheduler private (override val executionModel: ExecutionModel)
   override def currentTimeMillis(): Long =
     state.get.clock.toMillis
 
-  override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable =
-    state.transformAndExtract(_.scheduleOnce(FiniteDuration(initialDelay, unit), r))
+  @tailrec
+  override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
+    val current: State = state.get
+    val (cancelable, newState) =
+      current.scheduleOnce(FiniteDuration(initialDelay, unit), r)
+    if (state.compareAndSet(current, newState)) cancelable else
+      scheduleOnce(initialDelay, unit, r)
+  }
 
+  @tailrec
   private[this] def cancelTask(t: Task): Unit = {
-    state.transform(s => s.copy(tasks = s.tasks - t))
+    val current: State = state.get
+    val update = current.copy(tasks = current.tasks - t)
+    if (!state.compareAndSet(current, update)) cancelTask(t)
   }
 
+  @tailrec
   override def execute(runnable: Runnable): Unit = {
-    state.transform(_.execute(runnable))
+    val current: State = state.get
+    val update = current.execute(runnable)
+    if (!state.compareAndSet(current, update)) execute(runnable)
   }
 
+  @tailrec
   override def reportFailure(t: Throwable): Unit = {
-    state.transform(_.copy(lastReportedError = t))
+    val current: State = state.get
+    val update = current.copy(lastReportedError = t)
+    if (!state.compareAndSet(current, update)) reportFailure(t)
   }
 
   private[this] def extractOneTask(current: State, clock: FiniteDuration) = {

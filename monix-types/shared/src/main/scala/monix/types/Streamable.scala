@@ -21,7 +21,7 @@ package monix.types
   * (possibly asynchronous) streams (e.g. `Observable`).
   */
 trait Streamable[F[_]] extends MonadError[F, Throwable]
-  with MonadFilter[F] with CoflatMap[F] with MonoidK[F]
+  with MonadPlus[F] with CoflatMap[F]
 
 object Streamable {
   @inline def apply[F[_]](implicit F: Streamable[F]): Streamable[F] = F

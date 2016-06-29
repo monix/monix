@@ -22,7 +22,7 @@ import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.internal.util.PromiseCounter
 import monix.reactive.observers.{ConnectableSubscriber, Subscriber}
-import org.sincron.atomic.Atomic
+import monix.execution.atomic.Atomic
 import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 import scala.concurrent.Future

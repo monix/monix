@@ -21,7 +21,7 @@ import java.io.{OutputStream, PrintStream}
 
 import monix.reactive.Observable
 import monix.reactive.exceptions.DummyException
-import org.sincron.atomic.AtomicInt
+import monix.execution.atomic.AtomicInt
 import scala.concurrent.duration.Duration.Zero
 import scala.concurrent.duration._
 

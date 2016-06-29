@@ -17,11 +17,11 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack.{Stop, Continue}
-import monix.execution.cancelables.{MultiAssignmentCancelable, CompositeCancelable}
+import monix.execution.Ack.{Continue, Stop}
+import monix.execution.cancelables.{CompositeCancelable, MultiAssignmentCancelable}
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
-import monix.reactive.observers.{SyncSubscriber, Subscriber}
+import monix.reactive.observers.Subscriber
 import scala.concurrent.{Future, Promise}
 import scala.util.control.NonFatal
 
@@ -41,7 +41,7 @@ class DelayBySelectorObservable[A,S](source: Observable[A], selector: A => Obser
       private[this] var currentElem: A = _
       private[this] var ack: Promise[Ack] = null
 
-      private[this] val trigger = new SyncSubscriber[Any] {
+      private[this] val trigger = new Subscriber.Sync[Any] {
         implicit val scheduler = out.scheduler
         def onNext(elem: Any): Ack = throw new IllegalStateException
         def onError(ex: Throwable): Unit = self.onError(ex)

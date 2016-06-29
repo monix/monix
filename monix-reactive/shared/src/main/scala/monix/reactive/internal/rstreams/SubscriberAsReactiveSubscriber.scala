@@ -17,9 +17,9 @@
 
 package monix.reactive.internal.rstreams
 
-import monix.execution.Ack.{Stop, Continue}
+import monix.execution.Ack.{Continue, Stop}
 import monix.reactive.OverflowStrategy.Unbounded
-import monix.reactive.observers.{Subscriber, BufferedSubscriber, SyncSubscriber}
+import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 import org.reactivestreams.{Subscriber => RSubscriber, Subscription => RSubscription}
 
 /** Wraps a [[monix.reactive.Observer Observer]] instance into an
@@ -121,20 +121,20 @@ private[monix] object SubscriberAsReactiveSubscriber {
     */
   def apply[T](subscriber: Subscriber[T], requestCount: Int = 128): RSubscriber[T] =
     subscriber match {
-      case ref: SyncSubscriber[_] =>
-        SyncSubscriberAsReactiveSubscriber(ref.asInstanceOf[SyncSubscriber[T]], requestCount)
+      case ref: Subscriber.Sync[_] =>
+        SyncSubscriberAsReactiveSubscriber(ref.asInstanceOf[Subscriber.Sync[T]], requestCount)
       case _ =>
         new SubscriberAsReactiveSubscriber[T](subscriber, requestCount)
     }
 }
 
 /**
-  * Wraps a [[monix.reactive.observers.SyncObserver SyncObserver]] instance into a
+  * Wraps a [[monix.reactive.observers.Observer.Sync Observer.Sync]] instance into a
   * `org.reactiveSubscriber` instance. The resulting
   * subscriber respects the [[http://www.reactive-streams.org/ Reactive Streams]]
   * contract.
   *
-  * Given that we can guarantee a [[monix.reactive.observers.SyncObserver SyncObserver]]
+  * Given that we can guarantee a [[monix.reactive.observers.Observer.Sync Observer.Sync]]
   * is used, then no buffering is needed and thus the implementation is very efficient.
   *
   * To async an instance, [[SyncSubscriberAsReactiveSubscriber]] must be used: {{{
@@ -158,7 +158,7 @@ private[monix] object SubscriberAsReactiveSubscriber {
   * }}}
   */
 private[monix] final class SyncSubscriberAsReactiveSubscriber[T] private
-  (subscriber: SyncSubscriber[T], requestCount: Int)
+  (subscriber: Subscriber.Sync[T], requestCount: Int)
   extends RSubscriber[T] {
 
   require(requestCount > 0, "requestCount must be strictly positive, according to the Reactive Streams contract")
@@ -221,12 +221,12 @@ private[monix] final class SyncSubscriberAsReactiveSubscriber[T] private
 
 private[monix] object SyncSubscriberAsReactiveSubscriber {
   /**
-    * Wraps a [[monix.reactive.observers.SyncObserver SyncObserver]] instance into a
+    * Wraps a [[monix.reactive.observers.Observer.Sync Observer.Sync]] instance into a
     * `org.reactiveSubscriber` instance. The resulting
     * subscriber respects the [[http://www.reactive-streams.org/ Reactive Streams]]
     * contract.
     *
-    * Given that we can guarantee a [[monix.reactive.observers.SyncObserver SyncObserver]]
+    * Given that we can guarantee a [[monix.reactive.observers.Observer.Sync Observer.Sync]]
     * is used, then no buffering is needed and thus the implementation is very efficient.
     *
     * To async an instance, [[SyncSubscriberAsReactiveSubscriber.apply]] must be used: {{{
@@ -254,7 +254,7 @@ private[monix] object SyncSubscriberAsReactiveSubscriber {
     *                  used scheduler
     * @param requestCount the parameter passed to `Subscription.request`
     */
-  def apply[T](subscriber: SyncSubscriber[T], requestCount: Int = 128): RSubscriber[T] = {
+  def apply[T](subscriber: Subscriber.Sync[T], requestCount: Int = 128): RSubscriber[T] = {
     new SyncSubscriberAsReactiveSubscriber[T](subscriber, requestCount)
   }
 }

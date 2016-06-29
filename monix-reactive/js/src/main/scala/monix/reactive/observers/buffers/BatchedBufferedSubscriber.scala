@@ -22,7 +22,7 @@ import monix.execution.Ack.{Stop, Continue}
 import monix.execution.internal.Platform
 import monix.reactive.observers.{Subscriber, BufferedSubscriber}
 import monix.reactive.observers.buffers.BatchedBufferedSubscriber.State
-import org.sincron.atomic.Atomic
+import monix.execution.atomic.Atomic
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.concurrent.{Future, Promise}

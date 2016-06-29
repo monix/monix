@@ -8,9 +8,7 @@ import monix.reactive.observers.Subscriber
 import scala.concurrent.{Future, Promise}
 
 private[reactive] final class Interleave2Observable[+A]
-(obsA1: Observable[A], obsA2: Observable[A]) extends Observable[A] { self =>
-
-  val idx = new java.util.concurrent.atomic.AtomicInteger(0)
+  (obsA1: Observable[A], obsA2: Observable[A]) extends Observable[A] { self =>
 
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
     import out.scheduler

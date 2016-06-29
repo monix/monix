@@ -21,8 +21,7 @@ import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.CompositeCancelable
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
-import monix.reactive.observers.{Subscriber, SyncSubscriber}
-
+import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 
@@ -43,7 +42,7 @@ private[reactive] final class WithLatestFromObservable[A,B,+R](
 
         private[this] val otherConnection = {
           val ref = other.unsafeSubscribeFn(
-            new SyncSubscriber[B] {
+            new Subscriber.Sync[B] {
               implicit val scheduler = out.scheduler
 
               def onNext(elem: B): Ack =

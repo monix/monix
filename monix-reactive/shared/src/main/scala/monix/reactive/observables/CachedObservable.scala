@@ -21,7 +21,7 @@ import monix.execution.Cancelable
 import monix.reactive.Observable
 import monix.reactive.subjects.ReplaySubject
 import monix.reactive.observers.Subscriber
-import org.sincron.atomic.Atomic
+import monix.execution.atomic.Atomic
 
 /** A `CachedObservable` is an observable that wraps a regular
   * [[Observable]], initiating the connection on the first
