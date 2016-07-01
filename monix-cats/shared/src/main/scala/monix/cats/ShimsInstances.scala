@@ -32,9 +32,9 @@ private[cats] trait ShimsLevel11 extends  ShimsLevel10 {
     new ConvertMonixMonadPlusToCats[F] { override val F = ev }
 
   private[cats] trait ConvertMonixMonadPlusToCats[F[_]]
-    extends ConvertMonixMonoidKToCats[F]
-      with ConvertMonixMonadFilterToCats[F]
-      with _root_.cats.MonadCombine[F] {
+    extends _root_.cats.MonadCombine[F]
+      with ConvertMonixMonoidKToCats[F]
+      with ConvertMonixMonadFilterToCats[F] {
 
     override val F: MonadPlus[F]
     override def empty[A]: F[A] = F.empty[A]
@@ -50,10 +50,11 @@ private[cats] trait ShimsLevel10 extends ShimsLevel9 {
     new ConvertMonixMonoidKToCats[F] { override val F = ev }
 
   private[cats] trait ConvertMonixMonoidKToCats[F[_]]
-    extends ConvertMonixSemigroupKToCats[F] with _root_.cats.MonoidK[F] {
+    extends _root_.cats.MonoidK[F] with ConvertMonixSemigroupKToCats[F] {
 
     override val F: MonoidK[F]
     override def empty[A]: F[A] = F.empty[A]
+    override def combineK[A](x: F[A], y: F[A]): F[A] = F.combineK(x,y)
   }
 }
 
@@ -82,7 +83,7 @@ private[cats] trait ShimsLevel8 extends ShimsLevel7 {
     new ConvertMonixMonadFilterToCats[F] { override val F = ev }
 
   private[cats] trait ConvertMonixMonadFilterToCats[F[_]]
-    extends ConvertMonixMonadToCats[F] with _root_.cats.MonadFilter[F] {
+    extends _root_.cats.MonadFilter[F] with ConvertMonixMonadToCats[F] {
 
     override val F: MonadFilter[F]
     override def empty[A]: F[A] = F.empty[A]
@@ -100,7 +101,7 @@ private[cats] trait ShimsLevel7 extends ShimsLevel6 {
     new ConvertMonixBimonadToCats[F] { override val F = ev }
 
   private[cats] trait ConvertMonixBimonadToCats[F[_]]
-    extends ConvertMonixMonadToCats[F] with _root_.cats.Bimonad[F] {
+    extends _root_.cats.Bimonad[F] with ConvertMonixMonadToCats[F] {
 
     override val F: Bimonad[F]
     override def extract[A](x: F[A]): A = F.extract(x)
@@ -118,7 +119,7 @@ private[cats] trait ShimsLevel6 extends ShimsLevel5 {
     new ConvertMonixComonadToCats[F] { override val F = ev }
 
   private[cats] trait ConvertMonixComonadToCats[F[_]]
-    extends ConvertMonixCoflatMapToCats[F] with _root_.cats.Comonad[F] {
+    extends _root_.cats.Comonad[F] with ConvertMonixCoflatMapToCats[F] {
 
     override val F: Comonad[F]
     override def extract[A](x: F[A]): A = F.extract(x)
@@ -134,7 +135,7 @@ private[cats] trait ShimsLevel5 extends ShimsLevel4 {
     new ConvertMonixCoflatMapToCats[F] { override val F = ev }
 
   private[cats] trait ConvertMonixCoflatMapToCats[F[_]]
-    extends ConvertMonixFunctorToCats[F] with _root_.cats.CoflatMap[F] {
+    extends _root_.cats.CoflatMap[F] with ConvertMonixFunctorToCats[F] {
 
     override val F: CoflatMap[F]
     override def coflatMap[A, B](fa: F[A])(f: (F[A]) => B): F[B] = F.coflatMap(fa)(f)
@@ -151,8 +152,9 @@ private[cats] trait ShimsLevel4 extends ShimsLevel3  {
     new ConvertMonixMonadErrorToCats[F,E] { override val F: MonadError[F,E] = ev }
 
   private[cats] trait ConvertMonixMonadErrorToCats[F[_],E]
-    extends ConvertMonixMonadToCats[F] with ConvertMonixApplicativeErrorToCats[F,E]
-    with _root_.cats.MonadError[F,E] {
+    extends _root_.cats.MonadError[F,E]
+      with ConvertMonixMonadToCats[F]
+      with ConvertMonixApplicativeErrorToCats[F,E] {
 
     override val F: MonadError[F,E]
   }
@@ -166,7 +168,7 @@ private[cats] trait ShimsLevel3 extends ShimsLevel2 {
     new ConvertMonixMonadToCats[F] { override val F = ev }
 
   private[cats] trait ConvertMonixMonadToCats[F[_]]
-    extends ConvertMonixApplicativeToCats[F] with _root_.cats.Monad[F] {
+    extends _root_.cats.Monad[F] with ConvertMonixApplicativeToCats[F] {
 
     override val F: Monad[F]
     override def flatMap[A, B](fa: F[A])(f: (A) => F[B]): F[B] = F.flatMap(fa)(f)
@@ -183,8 +185,8 @@ private[cats] trait ShimsLevel2 extends ShimsLevel1 {
     new ConvertMonixApplicativeErrorToCats[F,E] { override val F = ev }
 
   private[cats] trait ConvertMonixApplicativeErrorToCats[F[_],E]
-    extends ConvertMonixApplicativeToCats[F]
-      with _root_.cats.ApplicativeError[F,E] {
+    extends _root_.cats.ApplicativeError[F,E]
+      with ConvertMonixApplicativeToCats[F] {
 
     override val F: ApplicativeError[F,E]
     override def raiseError[A](e: E): F[A] = F.raiseError(e)
@@ -204,13 +206,14 @@ private[cats] trait ShimsLevel1 extends ShimsLevel0 {
     new ConvertMonixApplicativeToCats[F] { override val F = ev }
 
   private[cats] trait ConvertMonixApplicativeToCats[F[_]]
-    extends ConvertMonixFunctorToCats[F] with _root_.cats.Applicative[F] {
+    extends _root_.cats.Applicative[F] with ConvertMonixFunctorToCats[F] {
 
     override val F: Applicative[F]
     override def pure[A](x: A): F[A] = F.pure(x)
     override def pureEval[A](x: Eval[A]): F[A] = F.pureEval(x.value)
     override def ap[A, B](ff: F[(A) => B])(fa: F[A]): F[B] = F.ap(fa)(ff)
     override def map2[A, B, Z](fa: F[A], fb: F[B])(f: (A, B) => Z): F[Z] = F.map2(fa,fb)(f)
+    override def product[A, B](fa: F[A], fb: F[B]): F[(A, B)] = F.map2(fa,fb)((a,b) => (a,b))
   }
 }
 

@@ -15,35 +15,24 @@
  * limitations under the License.
  */
 
-package monix.cats
+package monix.scalaz
 
-import cats.Eq
-import cats.kernel.laws.GroupLaws
-import cats.laws.discipline.ApplicativeTests
+import minitest.SimpleTestSuite
 import monix.eval.Task
 import monix.eval.Task.nondeterminism
 import monix.execution.schedulers.TestScheduler
-import org.scalacheck.Arbitrary
-import scala.concurrent.duration._
+import scalaz._
+import Scalaz._
 import scala.util.Success
-import cats.implicits._
+import scala.concurrent.duration._
 
-object ParallelTaskLawsSuite extends BaseLawsSuite with GroupLaws[Task[Int]] {
-  // for GroupLaws
-  override def Equ: Eq[Task[Int]] = equalityTask[Int]
-  override def Arb: Arbitrary[Task[Int]] = arbitraryTask[Int]
-
-  checkAll("Group[ParallelTask[Int]]", GroupLaws[Task[Int]].group)
-  checkAll("Monoid[ParallelTask[Int]]", GroupLaws[Task[Int]].monoid)
-  checkAll("Semigroup[ParallelTask[Int]]", GroupLaws[Task[Int]].semigroup)
-  checkAll("Applicative[ParallelTask[Int]]", ApplicativeTests[Task].applicative[Int,Int,Int])
-
+object TaskSuite extends SimpleTestSuite {
   test("tasks should execute in parallel") {
     implicit val s = TestScheduler()
 
     val task1 = Task(1).delayExecution(1.second)
     val task2 = Task(2).delayExecution(1.second)
-    val both = (task1 |@| task2).map(_ + _)
+    val both = (task1 |@| task2)(_ + _)
 
     val f = both.runAsync
     s.tick(1.second)
