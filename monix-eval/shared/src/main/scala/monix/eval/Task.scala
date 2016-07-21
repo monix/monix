@@ -759,12 +759,15 @@ object Task extends TaskInstances {
       }
     }
 
-  /** Given a sequence of tasks, transforms it to a task signaling a sequence,
-    * executing the tasks one by one and gathering their results in a list.
+  /** Given a `TraversableOnce` of tasks, transforms it to a task signaling
+    * the collection, executing the tasks one by one and gathering their
+    * results in the same collection.
     *
     * This operation will execute the tasks one by one, in order, which means that
     * both effects and results will be ordered. See [[gather]] and [[gatherUnordered]]
-    * for unordered results or effects, and thus potential of running in paralel.
+    * for unordered results or effects, and thus potential of running in parallel.
+    *
+    *  It's a simple version of [[traverse]].
     */
   def sequence[A, M[X] <: TraversableOnce[X]](in: M[Task[A]])
                                              (implicit cbf: CanBuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] = {
@@ -773,6 +776,12 @@ object Task extends TaskInstances {
     r.map(_.result())
   }
 
+  /** Given a `TraversableOnce[A]` and a function `A => Task[B]`, sequentially
+   *  apply the function to each element of the collection and gather their
+   *  results in the same collection.
+   *
+   *  It's a generalized version of [[sequence]].
+   */
   def traverse[A, B, M[X] <: TraversableOnce[X]](in: M[A])
                                                 (f: A => Task[B])
                                                 (implicit cbf: CanBuildFrom[M[A], B, M[B]]): Task[M[B]] = {
@@ -781,9 +790,9 @@ object Task extends TaskInstances {
     r.map(_.result())
   }
 
-  /** Nondeterministically gather results from the given sequence of tasks,
-    * returning a task that will signal a sequence of results once all
-    * tasks are finished.
+  /** Nondeterministically gather results from the given collection of tasks,
+    * returning a task that will signal the same type of collection of results
+    * once all tasks are finished.
     *
     * This function is the nondeterministic analogue of `sequence` and should
     * behave identically to `sequence` so long as there is no interaction between
@@ -802,7 +811,7 @@ object Task extends TaskInstances {
   }
 
   /** Nondeterministically gather results from the given sequence of tasks
-    * to a sequence, without keeping the original ordering of results.
+    * to a list, without keeping the original ordering of results.
     *
     * This function is similar to [[gather]], but neither the effects nor the
     * results will be ordered. Useful when you don't need ordering because it

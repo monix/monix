@@ -332,10 +332,10 @@ object Coeval {
   /** A `Coeval[Unit]` provided for convenience. */
   val unit: Coeval[Unit] = Now(())
 
-  /** Transforms a sequence of coevals into a coeval producing
-    * a list of gathered results.
+  /** Transforms a `TraversableOnce` of coevals into a coeval producing
+    * the same collection of gathered results.
     *
-    * For [[Coeval]] this has the same behavior as [[zipList]].
+    * It's a simple version of [[traverse]].
     */
   def sequence[A, M[X] <: TraversableOnce[X]](sources: M[Coeval[A]])
                                              (implicit cbf: CanBuildFrom[M[Coeval[A]], A, M[A]]): Coeval[M[A]] = {
@@ -344,6 +344,11 @@ object Coeval {
     r.map(_.result())
   }
 
+  /** Transforms a `TraversableOnce[A]` into a coeval of the same collection
+    * using the provided function `A => Coeval[B]`.
+    *
+    * It's a generalized version of [[sequence]].
+    */
   def traverse[A, B, M[X] <: TraversableOnce[X]](sources: M[A])
                                                 (f: A => Coeval[B])
                                                 (implicit cbf: CanBuildFrom[M[A], B, M[B]]): Coeval[M[B]] = {
