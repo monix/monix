@@ -28,6 +28,7 @@ import org.reactivestreams.Subscriber
 import monix.execution.atomic.{Atomic, AtomicAny}
 import scala.annotation.tailrec
 import scala.collection.mutable
+import scala.collection.generic.CanBuildFrom
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Future, Promise, TimeoutException}
 import scala.util.control.NonFatal
@@ -751,27 +752,46 @@ object Task extends TaskInstances {
               composite.cancel()
               conn.popAndCollapse(taskCancelable)
               cb.onError(ex)
+            } else {
+              scheduler.reportFailure(ex)
             }
         })
       }
     }
 
-  /** Given a sequence of tasks, transforms it to a task signaling a sequence,
-    * executing the tasks one by one and gathering their results in a list.
+  /** Given a `TraversableOnce` of tasks, transforms it to a task signaling
+    * the collection, executing the tasks one by one and gathering their
+    * results in the same collection.
     *
     * This operation will execute the tasks one by one, in order, which means that
     * both effects and results will be ordered. See [[gather]] and [[gatherUnordered]]
-    * for unordered results or effects, and thus potential of running in paralel.
+    * for unordered results or effects, and thus potential of running in parallel.
+    *
+    *  It's a simple version of [[traverse]].
     */
-  def sequence[A](in: Seq[Task[A]]): Task[List[A]] = {
-    val init = evalAlways(mutable.ListBuffer.empty[A])
+  def sequence[A, M[X] <: TraversableOnce[X]](in: M[Task[A]])
+    (implicit cbf: CanBuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] = {
+    val init = evalAlways(cbf(in))
     val r = in.foldLeft(init)((acc,elem) => acc.flatMap(lb => elem.map(e => lb += e)))
-    r.map(_.toList)
+    r.map(_.result())
   }
 
-  /** Nondeterministically gather results from the given sequence of tasks,
-    * returning a task that will signal a sequence of results once all
-    * tasks are finished.
+  /** Given a `TraversableOnce[A]` and a function `A => Task[B]`, sequentially
+   *  apply the function to each element of the collection and gather their
+   *  results in the same collection.
+   *
+   *  It's a generalized version of [[sequence]].
+   */
+  def traverse[A, B, M[X] <: TraversableOnce[X]](in: M[A])(f: A => Task[B])
+    (implicit cbf: CanBuildFrom[M[A], B, M[B]]): Task[M[B]] = {
+    val init = evalAlways(cbf(in))
+    val r = in.foldLeft(init)((acc,elem) => acc.flatMap(lb => f(elem).map(e => lb += e)))
+    r.map(_.result())
+  }
+
+  /** Nondeterministically gather results from the given collection of tasks,
+    * returning a task that will signal the same type of collection of results
+    * once all tasks are finished.
     *
     * This function is the nondeterministic analogue of `sequence` and should
     * behave identically to `sequence` so long as there is no interaction between
@@ -781,53 +801,68 @@ object Task extends TaskInstances {
     *
     * Although the effects are unordered, we ensure the order of results
     * matches the order of the input sequence. Also see [[gatherUnordered]].
-    *
-    * Alias for [[zipList]].
     */
-  def gather[A](in: Seq[Task[A]]): Task[List[A]] =
-    zipList(in)
+  def gather[A, M[X] <: TraversableOnce[X]](in: M[Task[A]])
+    (implicit cbf: CanBuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] = {
+    val init = evalAlways(cbf(in))
+    val r = in.foldLeft(init)((acc,elem) => Task.mapBoth(acc,elem)(_ += _))
+    r.map(_.result())
+  }
 
-  /** Nondeterministically gather results from the given sequence of tasks
-    * to a sequence, without keeping the original ordering of results.
+  /** Nondeterministically gather results from the given collection of tasks,
+    * without keeping the original ordering of results.
     *
     * This function is similar to [[gather]], but neither the effects nor the
     * results will be ordered. Useful when you don't need ordering because it
     * can be more efficient than `gather`.
     */
-  def gatherUnordered[A](in: Seq[Task[A]]): Task[Seq[A]] =
+  def gatherUnordered[A, M[X] <: TraversableOnce[X]](in: M[Task[A]])
+    (implicit cbf: CanBuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] =
     Async { (scheduler, conn, finalCallback) =>
-      val atom = Atomic(Vector.empty[A])
-      val expected = in.length
+      var remaining = 1
+      val builder = cbf(in)
+      val lock = new AnyRef
+      val isActive = Atomic(true)
 
       val composite = CompositeCancelable()
       conn.push(composite)
 
-      for (task <- in; if !composite.isCanceled) yield {
-        val stacked = StackedCancelable()
-        composite += stacked
+      val cursor = in.toIterator
 
-        Task.unsafeStartNow(task, scheduler, stacked,
-          new Callback[A] {
-            @tailrec def onSuccess(value: A): Unit =
-              atom.get match {
-                case null => ()
-                case current =>
-                  val update = current :+ value
-                  if (!atom.compareAndSet(current, update))
-                    onSuccess(value)
-                  else if (update.length == expected) {
+      lock.synchronized {
+        while (cursor.hasNext && !composite.isCanceled) {
+          remaining += 1
+          val task = cursor.next()
+          val stacked = StackedCancelable()
+          composite += stacked
+
+          Task.unsafeStartNow(task, scheduler, stacked,
+            new Callback[A] {
+              def onSuccess(value: A): Unit =
+                lock.synchronized {
+                  builder += value
+                  remaining -= 1
+                  if (remaining == 0) {
                     conn.pop()
-                    finalCallback.onSuccess(update)
+                    finalCallback.onSuccess(builder.result())
                   }
-              }
+                }
 
-            def onError(ex: Throwable): Unit = {
-              if (atom.getAndSet(null) != null) {
-                conn.pop().cancel()
-                finalCallback.onError(ex)
-              }
-            }
-          })
+              def onError(ex: Throwable): Unit =
+                if (isActive.getAndSet(false)) {
+                  conn.pop().cancel()
+                  finalCallback.onError(ex)
+                } else {
+                  scheduler.reportFailure(ex)
+                }
+            })
+        }
+
+        remaining -= 1
+        if (remaining == 0) {
+          conn.pop()
+          finalCallback.onSuccess(builder.result())
+        }
       }
     }
 
@@ -851,23 +886,34 @@ object Task extends TaskInstances {
     */
   def mapBoth[A1,A2,R](fa1: Task[A1], fa2: Task[A2])(f: (A1,A2) => R): Task[R] = {
     /* For signaling the values after the successful completion of both tasks. */
-    def sendSignal(conn: StackedCancelable, cb: Callback[R], a1: A1, a2: A2): Unit = {
-      var streamErrors = true
-      try {
-        val r = f(a1,a2)
-        streamErrors = false
-        conn.pop()
-        cb.onSuccess(r)
-      } catch {
-        case NonFatal(ex) if streamErrors =>
-          conn.pop()
-          cb.onError(ex)
-      }
+    def sendSignal(conn: StackedCancelable, s: Scheduler, cb: Callback[R], a1: A1, a2: A2): Unit = {
+      // Forcing an asynchronous boundary, because we can have
+      // a whole chain of synchronous onSuccess calls (e.g. in Task.gather)
+      // that can trigger a stack-overflow exception
+      s.execute(new Runnable {
+        def run() = {
+          var streamErrors = true
+          try {
+            val r = f(a1,a2)
+            streamErrors = false
+            conn.pop()
+            cb.onSuccess(r)
+          } catch {
+            case NonFatal(ex) if streamErrors =>
+              // Both tasks completed by this point, so we don't need
+              // to worry about the `state` being a `Stop`
+              conn.pop()
+              cb.onError(ex)
+          }
+        }
+      })
     }
 
     /* For signaling an error. */
     @tailrec def sendError(conn: StackedCancelable, state: AtomicAny[AnyRef], s: Scheduler,
-      cb: Callback[R], ex: Throwable): Unit =
+      cb: Callback[R], ex: Throwable): Unit = {
+      // Guarding the contract of the callback, as we cannot send an error
+      // if an error has already happened because of the other task
       state.get match {
         case Stop =>
           // We've got nowhere to send the error, so report it
@@ -876,10 +922,19 @@ object Task extends TaskInstances {
           if (!state.compareAndSet(other, Stop))
             sendError(conn, state, s, cb, ex) // retry
           else {
-            conn.pop().cancel()
-            cb.onError(ex)
+            // Forcing asynchronous boundary, mirroring `onSuccess`, in order
+            // to have consistent behavior and because it is possible to have
+            // a whole chain of `onError` callbacks executed synchronously
+            // that could trigger a stack-overflow exception
+            s.execute(new Runnable {
+              def run(): Unit = {
+                conn.pop().cancel()
+                cb.onError(ex)
+              }
+            })
           }
       }
+    }
 
     // The resulting task will be executed asynchronously
     Async { (scheduler, conn, cb) =>
@@ -895,7 +950,7 @@ object Task extends TaskInstances {
             case null => // null means this is the first task to complete
               if (!state.compareAndSet(null, Left(a1))) onSuccess(a1)
             case ref @ Right(a2) => // the other task completed, so we can send
-              sendSignal(conn, cb, a1, a2.asInstanceOf[A2])
+              sendSignal(conn, scheduler, cb, a1, a2.asInstanceOf[A2])
             case Stop => // the other task triggered an error
               () // do nothing
             case s @ Left(_) =>
@@ -914,7 +969,7 @@ object Task extends TaskInstances {
             case null => // null means this is the first task to complete
               if (!state.compareAndSet(null, Right(a2))) onSuccess(a2)
             case ref @ Left(a1) => // the other task completed, so we can send
-              sendSignal(conn, cb, a1.asInstanceOf[A1], a2)
+              sendSignal(conn, scheduler, cb, a1.asInstanceOf[A1], a2)
             case Stop => // the other task triggered an error
               () // do nothing
             case s @ Right(_) =>
@@ -932,7 +987,7 @@ object Task extends TaskInstances {
   /** Gathers the results from a sequence of tasks into a single list.
     * The effects are not ordered, but the results are.
     */
-  def zipList[A](sources: Seq[Task[A]]): Task[List[A]] = {
+  def zipList[A](sources: Task[A]*): Task[List[A]] = {
     val init = evalAlways(mutable.ListBuffer.empty[A])
     val r = sources.foldLeft(init)((acc,elem) => Task.mapBoth(acc,elem)(_ += _))
     r.map(_.toList)
