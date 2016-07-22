@@ -821,7 +821,7 @@ object Task extends TaskInstances {
     Async { (scheduler, conn, finalCallback) =>
       var remaining = in.size
       val builder = cbf(in)
-      val lock = new Object()
+      val lock = new AnyRef
       val isActive = Atomic(true)
 
       val composite = CompositeCancelable()
