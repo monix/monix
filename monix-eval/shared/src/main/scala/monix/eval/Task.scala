@@ -819,7 +819,7 @@ object Task extends TaskInstances {
   def gatherUnordered[A, M[X] <: TraversableOnce[X]](in: M[Task[A]])
     (implicit cbf: CanBuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] =
     Async { (scheduler, conn, finalCallback) =>
-      var remaining = in.size
+      var remaining = 1
       val builder = cbf(in)
       val lock = new AnyRef
       val isActive = Atomic(true)
@@ -828,31 +828,41 @@ object Task extends TaskInstances {
       conn.push(composite)
 
       val cursor = in.toIterator
-      while (cursor.hasNext && !composite.isCanceled) {
-        val task = cursor.next()
-        val stacked = StackedCancelable()
-        composite += stacked
 
-        Task.unsafeStartNow(task, scheduler, stacked,
-          new Callback[A] {
-            def onSuccess(value: A): Unit =
-              lock.synchronized {
-                builder += value
-                remaining -= 1
-                if (remaining == 0) {
-                  conn.pop()
-                  finalCallback.onSuccess(builder.result())
+      lock.synchronized {
+        while (cursor.hasNext && !composite.isCanceled) {
+          remaining += 1
+          val task = cursor.next()
+          val stacked = StackedCancelable()
+          composite += stacked
+
+          Task.unsafeStartNow(task, scheduler, stacked,
+            new Callback[A] {
+              def onSuccess(value: A): Unit =
+                lock.synchronized {
+                  builder += value
+                  remaining -= 1
+                  if (remaining == 0) {
+                    conn.pop()
+                    finalCallback.onSuccess(builder.result())
+                  }
                 }
-              }
 
-            def onError(ex: Throwable): Unit =
-              if (isActive.getAndSet(false)) {
-                conn.pop().cancel()
-                finalCallback.onError(ex)
-              } else {
-                scheduler.reportFailure(ex)
-              }
-          })
+              def onError(ex: Throwable): Unit =
+                if (isActive.getAndSet(false)) {
+                  conn.pop().cancel()
+                  finalCallback.onError(ex)
+                } else {
+                  scheduler.reportFailure(ex)
+                }
+            })
+        }
+
+        remaining -= 1
+        if (remaining == 0) {
+          conn.pop()
+          finalCallback.onSuccess(builder.result())
+        }
       }
     }
 

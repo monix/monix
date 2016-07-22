@@ -71,4 +71,14 @@ object TaskGatherUnorderedSuite extends BaseTestSuite {
     val result = sum.runAsync; s.tick()
     assertEquals(result.value.get, Success(count * (count-1) / 2))
   }
+
+  test("Task.gatherUnordered should run over an iterator") { implicit s =>
+    val count = 10
+    val seq = (0 until count).toSeq
+    val it = seq.iterator.map(x => Task.evalAlways(x + 1))
+    val sum = Task.gatherUnordered(it).map(_.sum)
+
+    val result = sum.runAsync; s.tick()
+    assertEquals(result.value.get, Success((count+1) * count / 2))
+  }
 }
