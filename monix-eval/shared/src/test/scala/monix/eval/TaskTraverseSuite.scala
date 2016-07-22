@@ -21,7 +21,7 @@ import concurrent.duration._
 import scala.util.{Success, Failure}
 
 object TaskTraverseSuite extends BaseTestSuite {
-  test("Task.traverse should execute in parallel") { implicit s =>
+  test("Task.traverse should not execute in parallel") { implicit s =>
     val seq = Seq((1, 2), (2, 1), (3, 3))
     val f = Task.traverse(seq) {
       case (i, d) =>

@@ -21,7 +21,7 @@ import concurrent.duration._
 import scala.util.{Success, Failure}
 
 object TaskSequenceSuite extends BaseTestSuite {
-  test("Task.sequence should execute in parallel") { implicit s =>
+  test("Task.sequence should not execute in parallel") { implicit s =>
     val seq = Seq(Task(1).delayExecution(2.seconds), Task(2).delayExecution(1.second), Task(3).delayExecution(3.seconds))
     val f = Task.sequence(seq).runAsync
 
