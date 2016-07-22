@@ -30,7 +30,7 @@ object TaskGatherUnorderedSuite extends BaseTestSuite {
     s.tick(2.seconds)
     assertEquals(f.value, None)
     s.tick(1.second)
-    assertEquals(f.value, Some(Success(Seq(2, 1, 3))))
+    assertEquals(f.value, Some(Success(List(2, 1, 3))))
   }
 
   test("Task.gatherUnordered should onError if one of the tasks terminates in error") { implicit s =>
@@ -70,5 +70,15 @@ object TaskGatherUnorderedSuite extends BaseTestSuite {
 
     val result = sum.runAsync; s.tick()
     assertEquals(result.value.get, Success(count * (count-1) / 2))
+  }
+
+  test("Task.gatherUnordered should run over an iterator") { implicit s =>
+    val count = 10
+    val seq = (0 until count).toSeq
+    val it = seq.iterator.map(x => Task.evalAlways(x + 1))
+    val sum = Task.gatherUnordered(it).map(_.sum)
+
+    val result = sum.runAsync; s.tick()
+    assertEquals(result.value.get, Success((count+1) * count / 2))
   }
 }

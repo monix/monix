@@ -20,10 +20,13 @@ package monix.eval
 import concurrent.duration._
 import scala.util.{Success, Failure}
 
-object TaskSequenceSuite extends BaseTestSuite {
-  test("Task.sequence should not execute in parallel") { implicit s =>
-    val seq = Seq(Task(1).delayExecution(2.seconds), Task(2).delayExecution(1.second), Task(3).delayExecution(3.seconds))
-    val f = Task.sequence(seq).runAsync
+object TaskTraverseSuite extends BaseTestSuite {
+  test("Task.traverse should not execute in parallel") { implicit s =>
+    val seq = Seq((1, 2), (2, 1), (3, 3))
+    val f = Task.traverse(seq) {
+      case (i, d) =>
+        Task(i + 1).delayExecution(d.seconds)
+    }.runAsync
 
     s.tick()
     assertEquals(f.value, None)
@@ -32,18 +35,17 @@ object TaskSequenceSuite extends BaseTestSuite {
     s.tick(1.second)
     assertEquals(f.value, None)
     s.tick(3.second)
-    assertEquals(f.value, Some(Success(Seq(1, 2, 3))))
+    assertEquals(f.value, Some(Success(Seq(2, 3, 4))))
   }
 
-  test("Task.sequence should onError if one of the tasks terminates in error") { implicit s =>
+  test("Task.traverse should onError if one of the tasks terminates in error") { implicit s =>
     val ex = DummyException("dummy")
-    val seq = Seq(
-      Task(2).delayExecution(1.second),
-      Task(throw ex).delayExecution(2.seconds),
-      Task(3).delayExecution(3.seconds),
-      Task(3).delayExecution(1.seconds))
-
-    val f = Task.sequence(seq).runAsync
+    val seq = Seq((1, 2), (-1, 0), (3, 3), (3, 1))
+    val f = Task.traverse(seq) {
+      case (i, d) => 
+        Task(if (i < 0) throw ex else i + 1)
+          .delayExecution(d.seconds)
+    }.runAsync
 
     // First
     s.tick(1.second)
@@ -53,9 +55,11 @@ object TaskSequenceSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(ex)))
   }
 
-  test("Task.sequence should be canceled") { implicit s =>
-    val seq = Seq(Task(1).delayExecution(2.seconds), Task(2).delayExecution(1.second), Task(3).delayExecution(3.seconds))
-    val f = Task.sequence(seq).runAsync
+  test("Task.traverse should be canceled") { implicit s =>
+    val seq = Seq((1, 2), (2, 1), (3, 3))
+    val f = Task.traverse(seq) {
+      case (i, d) => Task(i + 1).delayExecution(d.seconds)
+    }.runAsync
 
     s.tick()
     assertEquals(f.value, None)
