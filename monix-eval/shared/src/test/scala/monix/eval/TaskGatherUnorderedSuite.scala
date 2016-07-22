@@ -62,4 +62,13 @@ object TaskGatherUnorderedSuite extends BaseTestSuite {
     s.tick(1.second)
     assertEquals(f.value, None)
   }
+
+  test("Task.gatherUnordered should be stack-safe") { implicit s =>
+    val count = 10000
+    val tasks = (0 until count).map(x => Task.evalAlways(x))
+    val sum = Task.gatherUnordered(tasks).map(_.sum)
+
+    val result = sum.runAsync; s.tick()
+    assertEquals(result.value.get, Success(count * (count-1) / 2))
+  }
 }

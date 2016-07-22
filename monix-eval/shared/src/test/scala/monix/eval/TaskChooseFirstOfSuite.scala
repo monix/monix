@@ -81,6 +81,15 @@ object TaskChooseFirstOfSuite extends BaseTestSuite {
     assert(s.state.get.tasks.isEmpty, "both should be canceled")
   }
 
+  test("Task.chooseFirstOfList should be stack safe") { implicit s =>
+    val count = 1000
+    val tasks = (0 until count).map(x => Task(x))
+    val sum = Task.chooseFirstOfList(tasks)
+
+    sum.runAsync
+    s.tick()
+  }
+
   test("Task#timeout should timeout") { implicit s =>
     val task = Task(1).delayExecution(10.seconds).timeout(1.second)
     val f = task.runAsync
@@ -341,5 +350,19 @@ object TaskChooseFirstOfSuite extends BaseTestSuite {
 
     assertEquals(f1.value, Some(Failure(dummy)))
     assertEquals(f2.value, Some(Success(10)))
+  }
+
+  test("Task.chooseFirstOf should be stack safe") { implicit s =>
+    val count = 10000
+    val tasks = (0 until count).map(x => Task(x))
+    val init = Task.never[Int]
+
+    val sum = tasks.foldLeft(init)((acc,t) => Task.chooseFirstOf(acc,t).map {
+      case Left((a,fb)) => fb.cancel(); a
+      case Right((fa, b)) => fa.cancel(); b
+    })
+
+    sum.runAsync
+    s.tick()
   }
 }
