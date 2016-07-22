@@ -17,7 +17,7 @@ notifications:
 
 env:
   global:
-    - PUBLISHER_REFERENCE_GC_TIMEOUT_MILLIS=500
+    - PUBLISHER_REFERENCE_GC_TIMEOUT_MILLIS=900
 
 script:
   - project/travis-build.sh
