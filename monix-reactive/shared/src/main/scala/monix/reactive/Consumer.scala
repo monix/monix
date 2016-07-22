@@ -169,6 +169,25 @@ trait Consumer[-In, +R] extends ((Observable[In]) => Task[R])
   *         were computed by all of the subscribers as their result
   */
 object Consumer {
+  /** Creates a [[Consumer]] out of the given function.
+    *
+    * The function returns an [[Observer]] and takes as input:
+    *
+    *  - a [[monix.execution.Scheduler Scheduler]] for any asynchronous
+    *    execution needs the returned observer might have
+    *  - a [[monix.execution.Cancelable Cancelable]] that can be used for
+    *    concurrently canceling the stream (in addition to being able to
+    *    return `Stop` from `onNext`)
+    *  - a [[monix.eval.Callback Callback]] that must be called to signal
+    *    the final result, after the observer finished processing the
+    *    stream, or an error if the processing finished in error
+    *
+    * @param f is the input function with an injected `Scheduler`,
+    *        `Cancelable`, `Callback` and that returns an `Observer`
+    */
+  def create[In,Out](f: (Scheduler, Cancelable, Callback[Out]) => Observer[In]): Consumer[In,Out] =
+    new CreateConsumer[In,Out](f)
+
   /** Given a function taking a `Scheduler` and returning an [[Observer]],
     * builds a consumer from it.
     *
@@ -183,7 +202,9 @@ object Consumer {
   def cancel[A]: Consumer.Sync[A, Unit] =
     CancelledConsumer
 
-  /** A consumer that triggers an error immediately after subscription. */
+  /** A consumer that triggers an error and immediately cancels its
+    * upstream after subscription.
+    */
   def raiseError[In, R](ex: Throwable): Consumer.Sync[In,R] =
     new RaiseErrorConsumer(ex)
 
@@ -328,6 +349,25 @@ object Consumer {
     */
   trait Sync[-In, +R] extends Consumer[In, R] {
     override def createSubscriber(cb: Callback[R], s: Scheduler): (Subscriber.Sync[In], AssignableCancelable)
+  }
+
+  /** Implementation for [[Consumer.create]]. */
+  private final class CreateConsumer[-In,+Out](
+    f: (Scheduler, Cancelable, Callback[Out]) => Observer[In])
+    extends Consumer[In,Out] {
+
+    def createSubscriber(cb: Callback[Out], s: Scheduler): (Subscriber[In], AssignableCancelable) = {
+      val conn = SingleAssignmentCancelable()
+
+      Coeval.Attempt(f(s, conn, cb)) match {
+        case Error(ex) =>
+          Consumer.raiseError(ex).createSubscriber(cb,s)
+
+        case Now(out) =>
+          val sub = Subscriber(out, s)
+          (sub, conn)
+      }
+    }
   }
 
   /** Implementation for [[Consumer.contramap]]. */

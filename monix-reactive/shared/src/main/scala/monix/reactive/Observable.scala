@@ -118,11 +118,11 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
   def subscribe(nextFn: A => Future[Ack])(implicit s: Scheduler): Cancelable =
     subscribe(nextFn, error => s.reportFailure(error), () => ())
 
-  /** On execution, consumes the source observable with the
-    * given [[Consumer]], effectively transforming the source observable
-    * into a [[monix.eval.Task Task]].
+  /** On execution, consumes the source observable
+    * with the given [[Consumer]], effectively transforming the
+    * source observable into a [[monix.eval.Task Task]].
     */
-  def runWith[R](f: Consumer[A, R]): Task[R] =
+  def runWith[R](f: Consumer[A,R]): Task[R] =
     f(self)
 
   /** Transforms the source using the given operator. */
