@@ -770,7 +770,7 @@ object Task extends TaskInstances {
     *  It's a simple version of [[traverse]].
     */
   def sequence[A, M[X] <: TraversableOnce[X]](in: M[Task[A]])
-                                             (implicit cbf: CanBuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] = {
+    (implicit cbf: CanBuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] = {
     val init = evalAlways(cbf(in))
     val r = in.foldLeft(init)((acc,elem) => acc.flatMap(lb => elem.map(e => lb += e)))
     r.map(_.result())
@@ -782,9 +782,8 @@ object Task extends TaskInstances {
    *
    *  It's a generalized version of [[sequence]].
    */
-  def traverse[A, B, M[X] <: TraversableOnce[X]](in: M[A])
-                                                (f: A => Task[B])
-                                                (implicit cbf: CanBuildFrom[M[A], B, M[B]]): Task[M[B]] = {
+  def traverse[A, B, M[X] <: TraversableOnce[X]](in: M[A])(f: A => Task[B])
+    (implicit cbf: CanBuildFrom[M[A], B, M[B]]): Task[M[B]] = {
     val init = evalAlways(cbf(in))
     val r = in.foldLeft(init)((acc,elem) => acc.flatMap(lb => f(elem).map(e => lb += e)))
     r.map(_.result())
@@ -804,24 +803,26 @@ object Task extends TaskInstances {
     * matches the order of the input sequence. Also see [[gatherUnordered]].
     */
   def gather[A, M[X] <: TraversableOnce[X]](in: M[Task[A]])
-                                           (implicit cbf: CanBuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] = {
+    (implicit cbf: CanBuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] = {
     val init = evalAlways(cbf(in))
     val r = in.foldLeft(init)((acc,elem) => Task.mapBoth(acc,elem)(_ += _))
     r.map(_.result())
   }
 
-  /** Nondeterministically gather results from the given sequence of tasks
-    * to a list, without keeping the original ordering of results.
+  /** Nondeterministically gather results from the given collection of tasks,
+    * without keeping the original ordering of results.
     *
     * This function is similar to [[gather]], but neither the effects nor the
     * results will be ordered. Useful when you don't need ordering because it
     * can be more efficient than `gather`.
     */
-  def gatherUnordered[A](in: Seq[Task[A]]): Task[List[A]] =
+  def gatherUnordered[A, M[X] <: TraversableOnce[X]](in: M[Task[A]])
+    (implicit cbf: CanBuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] =
     Async { (scheduler, conn, finalCallback) =>
-      val atom = Atomic(List.empty[A])
-      // TODO better completion detection which does not rely on length
-      val expected = in.length
+      var remaining = in.size
+      val builder = cbf(in)
+      val lock = new Object()
+      val isActive = Atomic(true)
 
       val composite = CompositeCancelable()
       conn.push(composite)
@@ -834,25 +835,23 @@ object Task extends TaskInstances {
 
         Task.unsafeStartNow(task, scheduler, stacked,
           new Callback[A] {
-            @tailrec def onSuccess(value: A): Unit =
-              atom.get match {
-                case null => ()
-                case current =>
-                  val update = value :: current
-                  if (!atom.compareAndSet(current, update))
-                    onSuccess(value)
-                  else if (update.length == expected) {
-                    conn.pop()
-                    finalCallback.onSuccess(update)
-                  }
+            def onSuccess(value: A): Unit =
+              lock.synchronized {
+                builder += value
+                remaining -= 1
+                if (remaining == 0) {
+                  conn.pop()
+                  finalCallback.onSuccess(builder.result())
+                }
               }
 
-            def onError(ex: Throwable): Unit = {
-              if (atom.getAndSet(null) != null) {
+            def onError(ex: Throwable): Unit =
+              if (isActive.getAndSet(false)) {
                 conn.pop().cancel()
                 finalCallback.onError(ex)
+              } else {
+                scheduler.reportFailure(ex)
               }
-            }
           })
       }
     }

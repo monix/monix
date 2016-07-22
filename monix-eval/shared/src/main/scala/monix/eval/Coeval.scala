@@ -338,7 +338,7 @@ object Coeval {
     * It's a simple version of [[traverse]].
     */
   def sequence[A, M[X] <: TraversableOnce[X]](sources: M[Coeval[A]])
-                                             (implicit cbf: CanBuildFrom[M[Coeval[A]], A, M[A]]): Coeval[M[A]] = {
+    (implicit cbf: CanBuildFrom[M[Coeval[A]], A, M[A]]): Coeval[M[A]] = {
     val init = evalAlways(cbf(sources))
     val r = sources.foldLeft(init)((acc,elem) => acc.zipWith(elem)(_ += _))
     r.map(_.result())
@@ -349,9 +349,8 @@ object Coeval {
     *
     * It's a generalized version of [[sequence]].
     */
-  def traverse[A, B, M[X] <: TraversableOnce[X]](sources: M[A])
-                                                (f: A => Coeval[B])
-                                                (implicit cbf: CanBuildFrom[M[A], B, M[B]]): Coeval[M[B]] = {
+  def traverse[A, B, M[X] <: TraversableOnce[X]](sources: M[A])(f: A => Coeval[B])
+    (implicit cbf: CanBuildFrom[M[A], B, M[B]]): Coeval[M[B]] = {
     val init = evalAlways(cbf(sources))
     val r = sources.foldLeft(init)((acc,elem) => acc.zipWith(f(elem))(_ += _))
     r.map(_.result())
