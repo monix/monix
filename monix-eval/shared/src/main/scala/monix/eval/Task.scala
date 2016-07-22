@@ -751,6 +751,8 @@ object Task extends TaskInstances {
               composite.cancel()
               conn.popAndCollapse(taskCancelable)
               cb.onError(ex)
+            } else {
+              scheduler.reportFailure(ex)
             }
         })
       }
@@ -802,7 +804,9 @@ object Task extends TaskInstances {
       val composite = CompositeCancelable()
       conn.push(composite)
 
-      for (task <- in; if !composite.isCanceled) yield {
+      val cursor = in.iterator
+      while (cursor.hasNext && !composite.isCanceled) {
+        val task = cursor.next()
         val stacked = StackedCancelable()
         composite += stacked
 
@@ -851,23 +855,34 @@ object Task extends TaskInstances {
     */
   def mapBoth[A1,A2,R](fa1: Task[A1], fa2: Task[A2])(f: (A1,A2) => R): Task[R] = {
     /* For signaling the values after the successful completion of both tasks. */
-    def sendSignal(conn: StackedCancelable, cb: Callback[R], a1: A1, a2: A2): Unit = {
-      var streamErrors = true
-      try {
-        val r = f(a1,a2)
-        streamErrors = false
-        conn.pop()
-        cb.onSuccess(r)
-      } catch {
-        case NonFatal(ex) if streamErrors =>
-          conn.pop()
-          cb.onError(ex)
-      }
+    def sendSignal(conn: StackedCancelable, s: Scheduler, cb: Callback[R], a1: A1, a2: A2): Unit = {
+      // Forcing an asynchronous boundary, because we can have
+      // a whole chain of synchronous onSuccess calls (e.g. in Task.gather)
+      // that can trigger a stack-overflow exception
+      s.execute(new Runnable {
+        def run() = {
+          var streamErrors = true
+          try {
+            val r = f(a1,a2)
+            streamErrors = false
+            conn.pop()
+            cb.onSuccess(r)
+          } catch {
+            case NonFatal(ex) if streamErrors =>
+              // Both tasks completed by this point, so we don't need
+              // to worry about the `state` being a `Stop`
+              conn.pop()
+              cb.onError(ex)
+          }
+        }
+      })
     }
 
     /* For signaling an error. */
     @tailrec def sendError(conn: StackedCancelable, state: AtomicAny[AnyRef], s: Scheduler,
-      cb: Callback[R], ex: Throwable): Unit =
+      cb: Callback[R], ex: Throwable): Unit = {
+      // Guarding the contract of the callback, as we cannot send an error
+      // if an error has already happened because of the other task
       state.get match {
         case Stop =>
           // We've got nowhere to send the error, so report it
@@ -876,10 +891,19 @@ object Task extends TaskInstances {
           if (!state.compareAndSet(other, Stop))
             sendError(conn, state, s, cb, ex) // retry
           else {
-            conn.pop().cancel()
-            cb.onError(ex)
+            // Forcing asynchronous boundary, mirroring `onSuccess`, in order
+            // to have consistent behavior and because it is possible to have
+            // a whole chain of `onError` callbacks executed synchronously
+            // that could trigger a stack-overflow exception
+            s.execute(new Runnable {
+              def run(): Unit = {
+                conn.pop().cancel()
+                cb.onError(ex)
+              }
+            })
           }
       }
+    }
 
     // The resulting task will be executed asynchronously
     Async { (scheduler, conn, cb) =>
@@ -895,7 +919,7 @@ object Task extends TaskInstances {
             case null => // null means this is the first task to complete
               if (!state.compareAndSet(null, Left(a1))) onSuccess(a1)
             case ref @ Right(a2) => // the other task completed, so we can send
-              sendSignal(conn, cb, a1, a2.asInstanceOf[A2])
+              sendSignal(conn, scheduler, cb, a1, a2.asInstanceOf[A2])
             case Stop => // the other task triggered an error
               () // do nothing
             case s @ Left(_) =>
@@ -914,7 +938,7 @@ object Task extends TaskInstances {
             case null => // null means this is the first task to complete
               if (!state.compareAndSet(null, Right(a2))) onSuccess(a2)
             case ref @ Left(a1) => // the other task completed, so we can send
-              sendSignal(conn, cb, a1.asInstanceOf[A1], a2)
+              sendSignal(conn, scheduler, cb, a1.asInstanceOf[A1], a2)
             case Stop => // the other task triggered an error
               () // do nothing
             case s @ Right(_) =>
