@@ -108,6 +108,10 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
 
   // -- Settings meant for deployment on oss.sonatype.org
 
+  useGpg := true,
+  useGpgAgent := true,
+  usePgpKeyHex("2673B174C4071B0E"),
+
   publishMavenStyle := true,
   releasePublishArtifactsAction := PgpKeys.publishSigned.value,
   releaseCrossBuild := true,
@@ -152,7 +156,7 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
         <developer>
           <id>alex_ndc</id>
           <name>Alexandru Nedelcu</name>
-          <url>https://bionicspirit.com/</url>
+          <url>https://alexn.org</url>
         </developer>
       </developers>
 )
@@ -306,8 +310,8 @@ lazy val catsCommon =
   crossSettings ++ testSettings ++ Seq(
     name := "monix-cats",
     libraryDependencies ++= Seq(
-      "org.typelevel" %%% "cats-core" % "0.6.0",
-      "org.typelevel" %%% "cats-laws" % "0.6.0" % "test"
+      "org.typelevel" %%% "cats-core" % "0.6.1",
+      "org.typelevel" %%% "cats-laws" % "0.6.1" % "test"
     ))
 
 lazy val catsJVM = project.in(file("monix-cats/jvm"))

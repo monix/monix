@@ -1,3 +1,26 @@
+## Version 2.0-RC9 (Jul 31, 2016)
+
+Bug fixes:
+
+- [Issue #193](https://github.com/monixio/monix/issues/193): Task Applicative 
+  instance doesn't run the tasks in parallel
+- [Issue #194](https://github.com/monixio/monix/issues/194): `Task.mapBoth` is 
+  not stack-safe
+
+Enhancements:
+
+- [Issue #196](https://github.com/monixio/monix/issues/196): Add the 
+  `Consumer.create` builder
+- [Issue #166](https://github.com/monixio/monix/issues/166): Generalize 
+  `Task.sequence`, `Task.gather` and `Task.gatherUnordered` for arbitrary 
+  collections
+  
+Misc:
+
+- updated Scala.js version to 0.6.11
+- updated Cats version to 0.6.1
+- changed PGP signing key
+
 ## Version 2.0-RC8 (Jun 29, 2016)
 
 **Critical bug fix:**
