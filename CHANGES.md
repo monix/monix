@@ -20,6 +20,7 @@ Misc:
 - updated Scala.js version to 0.6.11
 - updated Cats version to 0.6.1
 - changed PGP signing key
+- increased timeout on the reactive streams publisher tests 
 
 ## Version 2.0-RC8 (Jun 29, 2016)
 

@@ -24,7 +24,7 @@ import org.reactivestreams.tck.{PublisherVerification, TestEnvironment}
 import org.scalatest.testng.TestNGSuiteLike
 
 class PublisherTest
-  extends PublisherVerification[Long](new TestEnvironment(1000))
+  extends PublisherVerification[Long](new TestEnvironment(3000))
   with TestNGSuiteLike {
 
   def createPublisher(elements: Long): Publisher[Long] = {
