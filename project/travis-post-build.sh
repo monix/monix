@@ -1,4 +1,6 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
+
+set -e
 
 cd `dirname $0`/..
 
@@ -9,7 +11,8 @@ fi
 
 if [ "$TRAVIS_SCALA_VERSION" = "$MAIN_SCALA_VERSION" ]; then
     echo "Uploading coverage for Scala $TRAVIS_SCALA_VERSION"
-    exec sbt coverageAggregate coverageReport && codecov
+    sbt ";coverageAggregate;coverageReport"
+    bash <(curl -s https://codecov.io/bash)
 else
     echo "Skipping uploading coverage for Scala $TRAVIS_SCALA_VERSION"
 fi

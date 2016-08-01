@@ -22,8 +22,6 @@ env:
 
 script:
   - project/travis-build.sh
-before_install:
-  - pip install --user codecov
 after_success:
   - project/travis-post-build.sh
     
