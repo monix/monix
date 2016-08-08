@@ -25,8 +25,7 @@ import monix.execution.schedulers.ExecutionModel
 import monix.execution.{Cancelable, CancelableFuture, Scheduler}
 import monix.types.Evaluable
 import org.reactivestreams.Subscriber
-import monix.execution.atomic.{Atomic, AtomicAny}
-
+import monix.execution.atomic.{Atomic, AtomicAny, PaddingStrategy}
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.collection.generic.CanBuildFrom
@@ -596,20 +595,47 @@ object Task extends TaskInstances {
     * This can be used to translate from a callback-based API to a
     * straightforward monadic version.
     *
-    * The execution of the `register` callback always happens asynchronously,
-    * meaning a (logical) thread will get forked.
+    * Contract:
+    *
+    *  1. execution of the `register` callback is async, forking a (logical) thread
+    *  2. execution of the `onSuccess` and `onError` callbacks, is async, forking another (logical) thread
+    *
+    * Point number 2 happens because [[create]] is supposed to be safe
+    * or otherwise, depending on the executed logic, one can end up with
+    * a stack overflow exception. So this contract happens in order to
+    * guarantee safety. In order to bypass rule number 2, one can use
+    * [[unsafeCreate]], but that's for people knowing what they are doing.
     *
     * @param register is a function that will be called when this `Task`
     *        is executed, receiving a callback as a parameter, a
     *        callback that the user is supposed to call in order to
     *        signal the desired outcome of this `Task`.
     */
-  def create[A](register: (Scheduler, Callback[A]) => Cancelable): Task[A] =
+  def create[A](register: (Scheduler, Callback[A]) => Cancelable): Task[A] = {
+    // Wraps a callback into an implementation that pops the stack
+    // before calling onSuccess/onError and that introduces an
+    // asynchronous boundary to avoid stack overflows
+    final class CreateCallback(conn: StackedCancelable, s: Scheduler, cb: Callback[A])
+      extends Callback[A] {
+
+      def onSuccess(value: A): Unit = {
+        conn.pop()
+        // Async boundary to avoid stack overflows
+        cb.asyncOnSuccess(value)(s)
+      }
+
+      def onError(ex: Throwable): Unit = {
+        conn.pop()
+        // Async boundary to avoid stack overflows
+        cb.asyncOnError(ex)(s)
+      }
+    }
+
     Async { (scheduler, conn, cb) =>
       try {
         val c = SingleAssignmentCancelable()
         conn push c
-        c := register(scheduler, Callback.popBeforeCall(cb, conn))
+        c := register(scheduler, new CreateCallback(conn, scheduler, cb))
       } catch {
         case NonFatal(ex) =>
           // We cannot stream the error, because the callback might have
@@ -618,6 +644,8 @@ object Task extends TaskInstances {
           scheduler.reportFailure(ex)
       }
     }
+  }
+
 
   /** Constructs a lazy [[Task]] instance whose result
     * will be computed asynchronously.
@@ -733,33 +761,50 @@ object Task extends TaskInstances {
     */
   def chooseFirstOfList[A](tasks: TraversableOnce[Task[A]]): Task[A] =
     Async { (scheduler, conn, cb) =>
-      val isActive = Atomic(true)
+      val isActive = Atomic.withPadding(true, PaddingStrategy.LeftRight128)
       val composite = CompositeCancelable()
       conn.push(composite)
 
-      for (task <- tasks; if isActive.get) {
-        val taskCancelable = StackedCancelable()
-        composite += taskCancelable
+      var streamError = true
+      try {
+        val cursor = tasks.toIterator
 
-        Task.unsafeStartNow(task, scheduler, taskCancelable, new Callback[A] {
-          def onSuccess(value: A): Unit =
-            if (isActive.getAndSet(false)) {
-              composite -= taskCancelable
-              composite.cancel()
-              conn.popAndCollapse(taskCancelable)
-              cb.onSuccess(value)
-            }
+        while (isActive.get && cursor.hasNext) {
+          val task = cursor.next()
+          val taskCancelable = StackedCancelable()
+          composite += taskCancelable
 
-          def onError(ex: Throwable): Unit =
-            if (isActive.getAndSet(false)) {
-              composite -= taskCancelable
-              composite.cancel()
-              conn.popAndCollapse(taskCancelable)
-              cb.onError(ex)
-            } else {
-              scheduler.reportFailure(ex)
-            }
-        })
+          streamError = false
+          Task.unsafeStartNow(task, scheduler, taskCancelable, new Callback[A] {
+            def onSuccess(value: A): Unit =
+              if (isActive.getAndSet(false)) {
+                composite -= taskCancelable
+                composite.cancel()
+                conn.popAndCollapse(taskCancelable)
+                cb.onSuccess(value)
+              }
+
+            def onError(ex: Throwable): Unit =
+              if (isActive.getAndSet(false)) {
+                composite -= taskCancelable
+                composite.cancel()
+                conn.popAndCollapse(taskCancelable)
+                cb.onError(ex)
+              } else {
+                scheduler.reportFailure(ex)
+              }
+          })
+
+          streamError = true
+        }
+      } catch {
+        case NonFatal(ex) =>
+          if (streamError && isActive.getAndSet(false)) {
+            cb.asyncOnError(ex)(scheduler)
+            composite.cancel()
+          } else {
+            scheduler.reportFailure(ex)
+          }
       }
     }
 
@@ -851,18 +896,21 @@ object Task extends TaskInstances {
       // MUST BE synchronized by `self`!
       // MUST NOT BE called if isActive == false!
       @inline private
-      def maybeSignalFinal(conn: StackedCancelable, asyncFinalCallback: Callback[M[A]]): Unit = {
+      def maybeSignalFinal(conn: StackedCancelable, finalCallback: Callback[M[A]])
+        (implicit s: Scheduler): Unit = {
+
         remaining -= 1
         if (remaining == 0) {
           isActive = false
           conn.pop()
           val result = builder.result()
           builder = null // GC relief
-          asyncFinalCallback.onSuccess(result)
+          // OnSuccess must be async, or we can get a stack overflow
+          finalCallback.asyncOnSuccess(result)
         }
       }
 
-      def apply(scheduler: Scheduler, conn: StackedCancelable, unsafeCallback: Callback[M[A]]): Unit = {
+      def apply(scheduler: Scheduler, conn: StackedCancelable, finalCallback: Callback[M[A]]): Unit = {
         self.synchronized {
           // Represents the collection of cancelables for all started tasks
           val composite = CompositeCancelable()
@@ -873,10 +921,6 @@ object Task extends TaskInstances {
           // expensive, so we do it at the end
           val allCancelables = ListBuffer.empty[StackedCancelable]
           val cursor = in.toIterator
-
-          // Makes invoking the callback asynchronous because otherwise
-          // we can end up with a stack-overflow exception!
-          val asyncFinalCallback = Callback.async(unsafeCallback)(scheduler)
 
           // The `isActive` check short-circuits the process in case
           // we have a synchronous task that just completed in error
@@ -894,7 +938,7 @@ object Task extends TaskInstances {
                   self.synchronized {
                     if (isActive) {
                       builder += value
-                      maybeSignalFinal(conn, asyncFinalCallback)
+                      maybeSignalFinal(conn, finalCallback)(scheduler)
                     }
                   }
 
@@ -904,7 +948,7 @@ object Task extends TaskInstances {
                       isActive = false
                       // This should cancel our CompositeCancelable
                       conn.pop().cancel()
-                      asyncFinalCallback.onError(ex)
+                      finalCallback.asyncOnError(ex)(scheduler)
                       builder = null // GC relief
                     } else {
                       scheduler.reportFailure(ex)
@@ -915,7 +959,7 @@ object Task extends TaskInstances {
 
           // All tasks could have executed synchronously, so we might be
           // finished already. If so, then trigger the final callback.
-          maybeSignalFinal(conn, asyncFinalCallback)
+          maybeSignalFinal(conn, finalCallback)(scheduler)
 
           // Note that if an error happened, this should cancel all
           // other active tasks.

@@ -95,7 +95,7 @@ object TaskForkSuite extends BaseTestSuite {
     val t = Task.fork(source)
     val f = t.runAsync
     assertEquals(f.value, None)
-    s.tickOne()
+    s.tick()
     assertEquals(f.value, Some(Success(10)))
   }
 }

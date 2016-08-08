@@ -17,6 +17,8 @@
 
 package monix.eval
 
+import monix.execution.internal.Platform
+
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
@@ -101,7 +103,7 @@ object TaskGatherUnorderedSuite extends BaseTestSuite {
       r.map(_.result())
     }
 
-    val count = 100000
+    val count = if (Platform.isJVM) 100000 else 10000
     val tasks = (0 until count).map(n => Task.evalAlways(n))
     var result = Option.empty[Try[Int]]
 

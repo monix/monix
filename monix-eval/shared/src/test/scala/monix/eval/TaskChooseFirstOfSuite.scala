@@ -18,10 +18,11 @@
 package monix.eval
 
 import monix.execution.CancelableFuture
+import monix.execution.internal.Platform
 
-import scala.util.{Failure, Success}
-import concurrent.duration._
 import scala.concurrent.TimeoutException
+import scala.concurrent.duration._
+import scala.util.{Failure, Success}
 
 object TaskChooseFirstOfSuite extends BaseTestSuite {
   test("Task.chooseFirstOfList should switch to other") { implicit s =>
@@ -81,9 +82,18 @@ object TaskChooseFirstOfSuite extends BaseTestSuite {
     assert(s.state.get.tasks.isEmpty, "both should be canceled")
   }
 
-  test("Task.chooseFirstOfList should be stack safe") { implicit s =>
-    val count = 1000
+  test("Task.chooseFirstOfList should be stack safe, take 1") { implicit s =>
+    val count = if (Platform.isJVM) 100000 else 10000
     val tasks = (0 until count).map(x => Task(x))
+    val sum = Task.chooseFirstOfList(tasks)
+
+    sum.runAsync
+    s.tick()
+  }
+
+  test("Task.chooseFirstOfList should be stack safe, take 2") { implicit s =>
+    val count = if (Platform.isJVM) 100000 else 10000
+    val tasks = (0 until count).map(x => Task.evalAlways(x))
     val sum = Task.chooseFirstOfList(tasks)
 
     sum.runAsync
@@ -352,9 +362,23 @@ object TaskChooseFirstOfSuite extends BaseTestSuite {
     assertEquals(f2.value, Some(Success(10)))
   }
 
-  test("Task.chooseFirstOf should be stack safe") { implicit s =>
-    val count = 100000
+  test("Task.chooseFirstOf should be stack safe, take 1") { implicit s =>
+    val count = if (Platform.isJVM) 100000 else 10000
     val tasks = (0 until count).map(x => Task(x))
+    val init = Task.never[Int]
+
+    val sum = tasks.foldLeft(init)((acc,t) => Task.chooseFirstOf(acc,t).map {
+      case Left((a,fb)) => a
+      case Right((fa, b)) => b
+    })
+
+    sum.runAsync
+    s.tick()
+  }
+
+  test("Task.chooseFirstOf should be stack safe, take 2") { implicit s =>
+    val count = if (Platform.isJVM) 100000 else 10000
+    val tasks = (0 until count).map(x => Task.evalAlways(x))
     val init = Task.never[Int]
 
     val sum = tasks.foldLeft(init)((acc,t) => Task.chooseFirstOf(acc,t).map {
