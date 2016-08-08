@@ -18,13 +18,13 @@ notifications:
 env:
   global:
     - MAIN_SCALA_VERSION=2.11.8
-    - PUBLISHER_REFERENCE_GC_TIMEOUT_MILLIS=900
+    - PUBLISHER_REFERENCE_GC_TIMEOUT_MILLIS=2000
 
 script:
   - project/travis-build.sh
 after_success:
   - project/travis-post-build.sh
-    
+
 cache:
   directories:
   - $HOME/.sbt/0.13

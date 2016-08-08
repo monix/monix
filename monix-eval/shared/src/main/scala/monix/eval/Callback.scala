@@ -20,7 +20,7 @@ package monix.eval
 import monix.execution.UncaughtExceptionReporter
 import monix.execution.cancelables.StackedCancelable
 
-import scala.concurrent.Promise
+import scala.concurrent.{ExecutionContext, Promise}
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
@@ -74,6 +74,12 @@ object Callback {
   def popBeforeCall[A](cb: Callback[A], stack: StackedCancelable): Callback[A] =
     new PopOnCallback[A](cb, stack)
 
+  /** Wraps a [[Callback]] into an implementation that forks
+    * a (logical) thread when calling `onSuccess` and `onError`.
+    */
+  def async[A](cb: Callback[A])(implicit ec: ExecutionContext): Callback[A] =
+    new AsyncCallback[A](cb)(ec)
+
   /** Returns a [[Callback]] instance that will complete the given
     * promise.
     */
@@ -123,6 +129,20 @@ object Callback {
             r.reportFailure(err)
         }
       }
+  }
+
+  private final class AsyncCallback[-A](cb: Callback[A])
+    (implicit ec: ExecutionContext) extends Callback[A] {
+
+    def onSuccess(value: A): Unit =
+      ec.execute(new Runnable {
+        def run(): Unit = cb.onSuccess(value)
+      })
+
+    def onError(ex: Throwable): Unit =
+      ec.execute(new Runnable {
+        def run(): Unit = cb.onError(ex)
+      })
   }
 
   private final class PopOnCallback[-A](cb: Callback[A], stack: StackedCancelable)

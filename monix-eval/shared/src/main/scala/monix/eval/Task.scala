@@ -26,9 +26,11 @@ import monix.execution.{Cancelable, CancelableFuture, Scheduler}
 import monix.types.Evaluable
 import org.reactivestreams.Subscriber
 import monix.execution.atomic.{Atomic, AtomicAny}
+
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.collection.generic.CanBuildFrom
+import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Future, Promise, TimeoutException}
 import scala.util.control.NonFatal
@@ -592,8 +594,10 @@ object Task extends TaskInstances {
     * form of a function with which we can register a callback.
     *
     * This can be used to translate from a callback-based API to a
-    * straightforward monadic version. Note that execution of
-    * the `register` callback always happens asynchronously.
+    * straightforward monadic version.
+    *
+    * The execution of the `register` callback always happens asynchronously,
+    * meaning a (logical) thread will get forked.
     *
     * @param register is a function that will be called when this `Task`
     *        is executed, receiving a callback as a parameter, a
@@ -800,7 +804,13 @@ object Task extends TaskInstances {
     * respect to each other.
     *
     * Although the effects are unordered, we ensure the order of results
-    * matches the order of the input sequence. Also see [[gatherUnordered]].
+    * matches the order of the input sequence. Also see [[gatherUnordered]]
+    * for a more efficient alternative.
+    *
+    * In other words, the `gather` operation has the potential to start
+    * the given tasks in parallel, whereas [[sequence]] does not. Note that
+    * this doesn't necessarily mean that `gather` is more efficient. Don't
+    * assume that running things in parallel can make your code more efficient.
     */
   def gather[A, M[X] <: TraversableOnce[X]](in: M[Task[A]])
     (implicit cbf: CanBuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] = {
@@ -814,57 +824,106 @@ object Task extends TaskInstances {
     *
     * This function is similar to [[gather]], but neither the effects nor the
     * results will be ordered. Useful when you don't need ordering because it
-    * can be more efficient than `gather`.
+    * can be dramatically more efficient than `gather`.
     */
   def gatherUnordered[A, M[X] <: TraversableOnce[X]](in: M[Task[A]])
-    (implicit cbf: CanBuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] =
-    Async { (scheduler, conn, finalCallback) =>
-      var remaining = 1
-      val builder = cbf(in)
-      val lock = new AnyRef
-      val isActive = Atomic(true)
+    (implicit cbf: CanBuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] = {
 
-      val composite = CompositeCancelable()
-      conn.push(composite)
+    // We are using OOP for initializing this `OnFinish` callback because we
+    // need something to synchronize on and because it's better for making the
+    // state explicit (e.g. the builder, remaining, isActive vars)
+    Async(new OnFinish[M[A]] { self =>
+      // Aggregates all results into a buffer.
+      // MUST BE synchronized by `self`!
+      private[this] var builder = cbf(in)
 
-      val cursor = in.toIterator
+      // Keeps track of tasks remaining to be completed.
+      // Is initialized by 1 because of the logic - tasks can run synchronously,
+      // and we decrement this value whenever one finishes, so we must prevent
+      // zero values before the loop is done.
+      // MUST BE synchronized by `self`!
+      private[this] var remaining = 1
 
-      lock.synchronized {
-        while (cursor.hasNext && !composite.isCanceled) {
-          remaining += 1
-          val task = cursor.next()
-          val stacked = StackedCancelable()
-          composite += stacked
+      // If this variable is false, then a task ended in error.
+      // MUST BE synchronized by `self`!
+      private[this] var isActive = true
 
-          Task.unsafeStartNow(task, scheduler, stacked,
-            new Callback[A] {
-              def onSuccess(value: A): Unit =
-                lock.synchronized {
-                  builder += value
-                  remaining -= 1
-                  if (remaining == 0) {
-                    conn.pop()
-                    finalCallback.onSuccess(builder.result())
-                  }
-                }
-
-              def onError(ex: Throwable): Unit =
-                if (isActive.getAndSet(false)) {
-                  conn.pop().cancel()
-                  finalCallback.onError(ex)
-                } else {
-                  scheduler.reportFailure(ex)
-                }
-            })
-        }
-
+      // MUST BE synchronized by `self`!
+      // MUST NOT BE called if isActive == false!
+      @inline private
+      def maybeSignalFinal(conn: StackedCancelable, asyncFinalCallback: Callback[M[A]]): Unit = {
         remaining -= 1
         if (remaining == 0) {
+          isActive = false
           conn.pop()
-          finalCallback.onSuccess(builder.result())
+          val result = builder.result()
+          builder = null // GC relief
+          asyncFinalCallback.onSuccess(result)
         }
       }
-    }
+
+      def apply(scheduler: Scheduler, conn: StackedCancelable, unsafeCallback: Callback[M[A]]): Unit = {
+        self.synchronized {
+          // Represents the collection of cancelables for all started tasks
+          val composite = CompositeCancelable()
+          conn.push(composite)
+
+          // Collecting all cancelables in a buffer, because adding
+          // cancelables one by one in our `CompositeCancelable` is
+          // expensive, so we do it at the end
+          val allCancelables = ListBuffer.empty[StackedCancelable]
+          val cursor = in.toIterator
+
+          // Makes invoking the callback asynchronous because otherwise
+          // we can end up with a stack-overflow exception!
+          val asyncFinalCallback = Callback.async(unsafeCallback)(scheduler)
+
+          // The `isActive` check short-circuits the process in case
+          // we have a synchronous task that just completed in error
+          while (cursor.hasNext && isActive) {
+            remaining += 1
+            val task = cursor.next()
+            val stacked = StackedCancelable()
+            allCancelables += stacked
+
+            // NOTE: Can run synchronously (immediately), depending
+            // on the task's type. The user should `fork` to ensure async!
+            Task.unsafeStartNow(task, scheduler, stacked,
+              new Callback[A] {
+                def onSuccess(value: A): Unit =
+                  self.synchronized {
+                    if (isActive) {
+                      builder += value
+                      maybeSignalFinal(conn, asyncFinalCallback)
+                    }
+                  }
+
+                def onError(ex: Throwable): Unit =
+                  self.synchronized {
+                    if (isActive) {
+                      isActive = false
+                      // This should cancel our CompositeCancelable
+                      conn.pop().cancel()
+                      asyncFinalCallback.onError(ex)
+                      builder = null // GC relief
+                    } else {
+                      scheduler.reportFailure(ex)
+                    }
+                  }
+              })
+          }
+
+          // All tasks could have executed synchronously, so we might be
+          // finished already. If so, then trigger the final callback.
+          maybeSignalFinal(conn, asyncFinalCallback)
+
+          // Note that if an error happened, this should cancel all
+          // other active tasks.
+          composite ++= allCancelables
+        }
+      }
+    })
+  }
 
   /** Obtain results from both `a` and `b`, nondeterministically ordering
     * their effects.
