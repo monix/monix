@@ -18,8 +18,6 @@
 package monix.eval
 
 import monix.execution.UncaughtExceptionReporter
-import monix.execution.cancelables.StackedCancelable
-
 import scala.concurrent.{ExecutionContext, Promise}
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
@@ -67,19 +65,6 @@ object Callback {
   def empty[T](implicit r: UncaughtExceptionReporter): Callback[T] =
     new EmptyCallback(r)
 
-  /** Wraps a [[Callback]] into an implementation that pops the
-    * stack of the given
-    * [[monix.execution.cancelables.StackedCancelable StackedCancelable]].
-    */
-  def popBeforeCall[A](cb: Callback[A], stack: StackedCancelable): Callback[A] =
-    new PopOnCallback[A](cb, stack)
-
-  /** Wraps a [[Callback]] into an implementation that forks
-    * a (logical) thread when calling `onSuccess` and `onError`.
-    */
-  def async[A](cb: Callback[A])(implicit ec: ExecutionContext): Callback[A] =
-    new AsyncCallback[A](cb)(ec)
-
   /** Returns a [[Callback]] instance that will complete the given
     * promise.
     */
@@ -88,6 +73,17 @@ object Callback {
       def onError(ex: Throwable): Unit = p.failure(ex)
       def onSuccess(value: A): Unit = p.success(value)
     }
+
+  /** Useful extension methods for [[Callback]]. */
+  implicit final class Extensions[-A](val source: Callback[A]) extends AnyVal {
+    /** Extension method that calls `onSuccess` asynchronously. */
+    def asyncOnSuccess(value: A)(implicit ec: ExecutionContext): Unit =
+      ec.execute(new Runnable { def run() = source.onSuccess(value) })
+
+    /** Extension method that calls `onError` asynchronously. */
+    def asyncOnError(ex: Throwable)(implicit ec: ExecutionContext): Unit =
+      ec.execute(new Runnable { def run() = source.onError(ex) })
+  }
 
   /** An "empty" callback instance doesn't do anything `onSuccess` and
     * only logs exceptions `onError`.
@@ -129,33 +125,5 @@ object Callback {
             r.reportFailure(err)
         }
       }
-  }
-
-  private final class AsyncCallback[-A](cb: Callback[A])
-    (implicit ec: ExecutionContext) extends Callback[A] {
-
-    def onSuccess(value: A): Unit =
-      ec.execute(new Runnable {
-        def run(): Unit = cb.onSuccess(value)
-      })
-
-    def onError(ex: Throwable): Unit =
-      ec.execute(new Runnable {
-        def run(): Unit = cb.onError(ex)
-      })
-  }
-
-  private final class PopOnCallback[-A](cb: Callback[A], stack: StackedCancelable)
-    extends Callback[A] {
-
-    def onSuccess(value: A): Unit = {
-      stack.pop()
-      cb.onSuccess(value)
-    }
-
-    def onError(ex: Throwable): Unit = {
-      stack.pop()
-      cb.onError(ex)
-    }
   }
 }

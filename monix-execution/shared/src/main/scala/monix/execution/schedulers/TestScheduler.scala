@@ -76,19 +76,16 @@ final class TestScheduler private (override val executionModel: ExecutionModel)
     if (!state.compareAndSet(current, update)) reportFailure(t)
   }
 
-  private[this] def extractOneTask(current: State, clock: FiniteDuration) = {
+  private[this] def extractOneTask(current: State, clock: FiniteDuration): Option[(Task, SortedSet[Task])] = {
     current.tasks.headOption.filter(_.runsAt <= clock) match {
       case Some(value) =>
         val firstTick = value.runsAt
-        val immediateT = current.tasks.takeWhile(_.runsAt == firstTick)
-        val shuffled = Random.shuffle(immediateT.toVector)
+        val forExecution = {
+          val arr = current.tasks.iterator.takeWhile(_.runsAt == firstTick).take(10).toArray
+          arr(Random.nextInt(arr.length))
+        }
 
-        val forExecution = shuffled.head
-        val remaining = (current.tasks -- immediateT) ++ shuffled.drop(1)
-
-        assert(!remaining.contains(forExecution), "contract breach")
-        assert(remaining.size == current.tasks.size - 1, "contract breach")
-
+        val remaining = current.tasks - forExecution
         Some((forExecution, remaining))
 
       case None =>
@@ -123,7 +120,7 @@ final class TestScheduler private (override val executionModel: ExecutionModel)
   def tick(time: FiniteDuration = Duration.Zero): Unit = {
     @tailrec
     def loop(time: FiniteDuration, result: Boolean): Unit = {
-      val current = state.get
+      val current: State = state.get
       val currentClock = current.clock + time
 
       extractOneTask(current, currentClock) match {
