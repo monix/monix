@@ -353,13 +353,13 @@ object TaskChooseFirstOfSuite extends BaseTestSuite {
   }
 
   test("Task.chooseFirstOf should be stack safe") { implicit s =>
-    val count = 10000
+    val count = 100000
     val tasks = (0 until count).map(x => Task(x))
     val init = Task.never[Int]
 
     val sum = tasks.foldLeft(init)((acc,t) => Task.chooseFirstOf(acc,t).map {
-      case Left((a,fb)) => fb.cancel(); a
-      case Right((fa, b)) => fa.cancel(); b
+      case Left((a,fb)) => a
+      case Right((fa, b)) => b
     })
 
     sum.runAsync

@@ -594,8 +594,10 @@ object Task extends TaskInstances {
     * form of a function with which we can register a callback.
     *
     * This can be used to translate from a callback-based API to a
-    * straightforward monadic version. Note that execution of
-    * the `register` callback always happens asynchronously.
+    * straightforward monadic version.
+    *
+    * The execution of the `register` callback always happens asynchronously,
+    * meaning a (logical) thread will get forked.
     *
     * @param register is a function that will be called when this `Task`
     *        is executed, receiving a callback as a parameter, a
@@ -802,7 +804,13 @@ object Task extends TaskInstances {
     * respect to each other.
     *
     * Although the effects are unordered, we ensure the order of results
-    * matches the order of the input sequence. Also see [[gatherUnordered]].
+    * matches the order of the input sequence. Also see [[gatherUnordered]]
+    * for a more efficient alternative.
+    *
+    * In other words, the `gather` operation has the potential to start
+    * the given tasks in parallel, whereas [[sequence]] does not. Note that
+    * this doesn't necessarily mean that `gather` is more efficient. Don't
+    * assume that running things in parallel can make your code more efficient.
     */
   def gather[A, M[X] <: TraversableOnce[X]](in: M[Task[A]])
     (implicit cbf: CanBuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] = {
@@ -816,7 +824,7 @@ object Task extends TaskInstances {
     *
     * This function is similar to [[gather]], but neither the effects nor the
     * results will be ordered. Useful when you don't need ordering because it
-    * can be more efficient than `gather`.
+    * can be dramatically more efficient than `gather`.
     */
   def gatherUnordered[A, M[X] <: TraversableOnce[X]](in: M[Task[A]])
     (implicit cbf: CanBuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] = {
@@ -842,19 +850,19 @@ object Task extends TaskInstances {
 
       // MUST BE synchronized by `self`!
       // MUST NOT BE called if isActive == false!
-      private def maybeSignalFinal(
-        conn: StackedCancelable, finalCallback: Callback[M[A]]): Unit = {
-
+      @inline private
+      def maybeSignalFinal(conn: StackedCancelable, asyncFinalCallback: Callback[M[A]]): Unit = {
         remaining -= 1
         if (remaining == 0) {
           isActive = false
           conn.pop()
-          finalCallback.onSuccess(builder.result())
+          val result = builder.result()
           builder = null // GC relief
+          asyncFinalCallback.onSuccess(result)
         }
       }
 
-      def apply(scheduler: Scheduler, conn: StackedCancelable, finalCallback: Callback[M[A]]): Unit = {
+      def apply(scheduler: Scheduler, conn: StackedCancelable, unsafeCallback: Callback[M[A]]): Unit = {
         self.synchronized {
           // Represents the collection of cancelables for all started tasks
           val composite = CompositeCancelable()
@@ -865,6 +873,10 @@ object Task extends TaskInstances {
           // expensive, so we do it at the end
           val allCancelables = ListBuffer.empty[StackedCancelable]
           val cursor = in.toIterator
+
+          // Makes invoking the callback asynchronous because otherwise
+          // we can end up with a stack-overflow exception!
+          val asyncFinalCallback = Callback.async(unsafeCallback)(scheduler)
 
           // The `isActive` check short-circuits the process in case
           // we have a synchronous task that just completed in error
@@ -882,7 +894,7 @@ object Task extends TaskInstances {
                   self.synchronized {
                     if (isActive) {
                       builder += value
-                      maybeSignalFinal(conn, finalCallback)
+                      maybeSignalFinal(conn, asyncFinalCallback)
                     }
                   }
 
@@ -892,7 +904,7 @@ object Task extends TaskInstances {
                       isActive = false
                       // This should cancel our CompositeCancelable
                       conn.pop().cancel()
-                      finalCallback.onError(ex)
+                      asyncFinalCallback.onError(ex)
                       builder = null // GC relief
                     } else {
                       scheduler.reportFailure(ex)
@@ -903,7 +915,7 @@ object Task extends TaskInstances {
 
           // All tasks could have executed synchronously, so we might be
           // finished already. If so, then trigger the final callback.
-          maybeSignalFinal(conn, finalCallback)
+          maybeSignalFinal(conn, asyncFinalCallback)
 
           // Note that if an error happened, this should cancel all
           // other active tasks.
