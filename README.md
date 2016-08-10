@@ -1,5 +1,5 @@
 # Monix
-    
+
 <img src="https://monix.io/public/images/monix-logo.png" align="right" width="280" />
 
 Reactive Programming for Scala and [Scala.js](http://www.scala-js.org/).
@@ -46,7 +46,7 @@ a project exemplifying Monix used both on the server and on the client.
 The packages are published on Maven Central.
 
 - Current stable release: `1.2`
-- Current beta release: `2.0-RC9`
+- Current beta release: `2.0-RC10`
 
 For the stable release (use the `%%%` for Scala.js):
 
@@ -57,20 +57,20 @@ libraryDependencies += "org.monifu" %% "monifu" % "1.2"
 For the beta/preview release (use at your own risk):
 
 ```scala
-libraryDependencies += "io.monix" %% "monix" % "2.0-RC9"
+libraryDependencies += "io.monix" %% "monix" % "2.0-RC10"
 ```
 
 ### Sub-projects
 
 Monix 2.0 is modular by design, so you can pick and choose:
 
-- `monix-types` exposes type-classes and shims needed for 
+- `monix-types` exposes type-classes and shims needed for
   integration with other FP libraries (Cats, Scalaz)
 - `monix-execution` exposes the low-level execution environment, or more precisely
   `Scheduler`, `Cancelable`, `Atomic` and `CancelableFuture`
-- `monix-eval` exposes `Task`, `Coeval` 
+- `monix-eval` exposes `Task`, `Coeval`
    and depends on `monix-execution` and `monix-types`
-- `monix-reactive` exposes `Observable` streams 
+- `monix-reactive` exposes `Observable` streams
    and depends on `monix-eval` and `monix-types`
 - `monix` provides all of the above
 
@@ -92,7 +92,7 @@ hosted at,
 API Documentation:
 
 - [1.2](https://monix.io/api/1.2/)
-- [2.0-RC9](https://monix.io/api/2.0-RC9/)
+- [2.0-RC10](https://monix.io/api/2.0-RC10/)
 
 Presentations:
 
