@@ -26,12 +26,11 @@ import scala.annotation.tailrec
 import scala.util.Failure
 import scala.util.control.NonFatal
 
-/**
- * A [[BufferedSubscriber]] implementation for the
- * [[monix.reactive.OverflowStrategy.DropNew DropNew]] overflow strategy.
- */
+/** A [[BufferedSubscriber]] implementation for the
+  * [[monix.reactive.OverflowStrategy.DropNew DropNew]] overflow strategy.
+  */
 private[buffers] final class EvictingBufferedSubscriber[-T] private
-  (underlying: Subscriber[T], buffer: EvictingQueue[AnyRef], onOverflow: Long => T = null)
+  (underlying: Subscriber[T], buffer: EvictingQueue[AnyRef], onOverflow: Long => Option[T] = null)
   extends BufferedSubscriber[T] with Subscriber.Sync[T] { self =>
 
   implicit val scheduler = underlying.scheduler
@@ -95,12 +94,15 @@ private[buffers] final class EvictingBufferedSubscriber[-T] private
       val count =
         if (eventsDropped > 0 && onOverflow != null) {
           try {
-            val message = onOverflow(eventsDropped).asInstanceOf[AnyRef]
-            eventsDropped = 0
-            consumerBuffer(0) = message
-            1 + buffer.pollMany(consumerBuffer, 1)
-          }
-          catch {
+            onOverflow(eventsDropped) match {
+              case Some(message) =>
+                eventsDropped = 0
+                consumerBuffer(0) = message.asInstanceOf[AnyRef]
+                1 + buffer.pollMany(consumerBuffer, 1)
+              case None =>
+                buffer.pollMany(consumerBuffer)
+            }
+          } catch {
             case NonFatal(ex) =>
               errorThrown = ex
               upstreamIsComplete = true
@@ -221,7 +223,7 @@ private[monix] object EvictingBufferedSubscriber {
    * were dropped.
    */
   def dropOldAndSignal[A](underlying: Subscriber[A],
-    bufferSize: Int, onOverflow: Long => A): Subscriber.Sync[A] = {
+    bufferSize: Int, onOverflow: Long => Option[A]): Subscriber.Sync[A] = {
 
     require(bufferSize > 1,
       "bufferSize must be a strictly positive number, bigger than 1")
@@ -250,7 +252,7 @@ private[monix] object EvictingBufferedSubscriber {
    * were dropped.
    */
   def clearBufferAndSignal[A](underlying: Subscriber[A],
-    bufferSize: Int, onOverflow: Long => A): Subscriber.Sync[A] = {
+    bufferSize: Int, onOverflow: Long => Option[A]): Subscriber.Sync[A] = {
 
     require(bufferSize > 1,
       "bufferSize must be a strictly positive number, bigger than 1")

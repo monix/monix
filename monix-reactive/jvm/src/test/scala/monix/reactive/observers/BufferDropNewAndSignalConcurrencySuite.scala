@@ -37,18 +37,18 @@ object BufferDropNewAndSignalConcurrencySuite
   }
 
   def buildNewForInt(bufferSize: Int, underlying: Observer[Int])(implicit s: Scheduler) = {
-    BufferedSubscriber(Subscriber(underlying, s), DropNewAndSignal(bufferSize, nr => nr.toInt))
+    BufferedSubscriber(Subscriber(underlying, s), DropNewAndSignal(bufferSize, nr => Some(nr.toInt)))
   }
 
   def buildNewForLong(bufferSize: Int, underlying: Observer[Long])(implicit s: Scheduler) = {
-    BufferedSubscriber(Subscriber(underlying, s), DropNewAndSignal(bufferSize, nr => nr))
+    BufferedSubscriber(Subscriber(underlying, s), DropNewAndSignal(bufferSize, nr => Some(nr)))
   }
 
   test("merge test should work") { implicit s =>
     val num = 100000
     val source = Observable.repeat(1L).take(num)
     val f = Observable.fromIterable(Seq(source, source, source))
-      .mergeMap(x => x)(DropNewAndSignal(1000, dropped => dropped))
+      .mergeMap(x => x)(DropNewAndSignal(1000, dropped => Some(dropped)))
       .sumF
       .runAsyncGetFirst
 

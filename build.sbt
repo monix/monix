@@ -106,6 +106,9 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
     Resolver.sonatypeRepo("releases")
   ),
 
+  // https://github.com/sbt/sbt/issues/2654
+  incOptions := incOptions.value.withLogRecompileOnMacro(false),
+
   // -- Settings meant for deployment on oss.sonatype.org
 
   useGpg := true,
@@ -260,9 +263,7 @@ lazy val typesJS = project.in(file("monix-types/js"))
   .settings(scalaJSSettings)
 
 lazy val executionCommon = crossVersionSharedSources ++ Seq(
-  name := "monix-execution",
-  // https://github.com/sbt/sbt/issues/2654
-  incOptions := incOptions.value.withLogRecompileOnMacro(false)
+  name := "monix-execution"
 )
 
 lazy val executionJVM = project.in(file("monix-execution/jvm"))

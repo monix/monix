@@ -27,13 +27,12 @@ import scala.annotation.tailrec
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 
-/**
- * A high-performance and non-blocking [[BufferedSubscriber]] implementation
- * for the [[monix.reactive.OverflowStrategy.DropNew DropNew]]
- * overflow strategy.
- */
+/** A high-performance and non-blocking [[BufferedSubscriber]] implementation
+  * for the [[monix.reactive.OverflowStrategy.DropNew DropNew]]
+  * overflow strategy.
+  */
 private[buffers] final class DropNewBufferedSubscriber[-T] private
-  (underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => T = null)
+  (underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => Option[T] = null)
   extends BufferedSubscriber[T] with Subscriber.Sync[T] { self =>
 
   require(bufferSize > 0, "bufferSize must be a strictly positive number")
@@ -75,12 +74,14 @@ private[buffers] final class DropNewBufferedSubscriber[-T] private
           // composing the overflow message; we've got to do error handling
           // because this is a user supplied function
           val shouldContinue = try {
-            val message = onOverflow(state.eventsDropped)
-            queue.offer(message)
-            pushToConsumer(update)
+            onOverflow(state.eventsDropped) match {
+              case None => ()
+              case Some(message) =>
+                queue.offer(message)
+                pushToConsumer(update)
+            }
             true
-          }
-          catch {
+          } catch {
             case NonFatal(ex) =>
               onError(ex)
               false
@@ -147,12 +148,12 @@ private[buffers] final class DropNewBufferedSubscriber[-T] private
           // composing the overflow message; we've got to do error handling
           // because this is a user supplied function
           val ex = try {
-            val message = onOverflow(state.eventsDropped)
-            queue.offer(message)
-            pushToConsumer(state)
+            for (message <- onOverflow(state.eventsDropped)) {
+              queue.offer(message)
+              pushToConsumer(state)
+            }
             null
-          }
-          catch {
+          } catch {
             case NonFatal(ref) => ref
           }
 
@@ -291,21 +292,19 @@ private[buffers] final class DropNewBufferedSubscriber[-T] private
 }
 
 private[monix] object DropNewBufferedSubscriber {
-  /**
-   * Returns an instance of a [[DropNewBufferedSubscriber]]
-   * for the [[monix.reactive.OverflowStrategy.DropNew DropNew]]
-   * overflowStrategy.
-   */
+  /** Returns an instance of a [[DropNewBufferedSubscriber]]
+    * for the [[monix.reactive.OverflowStrategy.DropNew DropNew]]
+    * overflowStrategy.
+    */
   def simple[T](underlying: Subscriber[T], bufferSize: Int): Subscriber.Sync[T] = {
     new DropNewBufferedSubscriber[T](underlying, bufferSize, null)
   }
 
-  /**
-   * Returns an instance of a [[DropNewBufferedSubscriber]]
-   * for the [[monix.reactive.OverflowStrategy.DropNew DropNew]]
-   * overflowStrategy.
-   */
-  def withSignal[T](underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => T): Subscriber.Sync[T] = {
+  /** Returns an instance of a [[DropNewBufferedSubscriber]]
+    * for the [[monix.reactive.OverflowStrategy.DropNew DropNew]]
+    * overflowStrategy.
+    */
+  def withSignal[T](underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => Option[T]): Subscriber.Sync[T] = {
     new DropNewBufferedSubscriber[T](underlying, bufferSize, onOverflow)
   }
 
@@ -318,24 +317,19 @@ private[monix] object DropNewBufferedSubscriber {
     isDoneInProgress: Boolean = false,
     errorThrown: Throwable = null) {
 
-    def upstreamShouldStop: Boolean = {
+    def upstreamShouldStop: Boolean =
       upstreamIsComplete || downstreamIsDone || isDoneInProgress
-    }
 
-    def downstreamComplete: State = {
+    def downstreamComplete: State =
       copy(itemsToPush = 0, downstreamIsDone = true)
-    }
 
-    def declareProcessed(processed: Int): State = {
+    def declareProcessed(processed: Int): State =
       copy(itemsToPush = itemsToPush - processed)
-    }
 
-    def incrementDropped: State = {
+    def incrementDropped: State =
       copy(eventsDropped = eventsDropped + 1)
-    }
 
-    def incrementItemsToPush: State = {
+    def incrementItemsToPush: State =
       copy(itemsToPush = itemsToPush + 1)
-    }
   }
 }
