@@ -152,8 +152,8 @@ object Scheduler extends SchedulerCompanionImpl {
   /** Utilities complementing the `Scheduler` interface. */
   implicit final class Extensions(val source: Scheduler) extends AnyVal {
     /** Schedules the given `action` for immediate execution. */
-    def execute(action: => Unit): Unit =
-      source.execute(RunnableAction(action))
+    def executeNow(f: => Unit): Unit =
+      source.execute(RunnableAction.from(f _))
 
     /** Schedules a task to run in the future, after `initialDelay`.
       *

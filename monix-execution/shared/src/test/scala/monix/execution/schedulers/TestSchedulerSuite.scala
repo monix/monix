@@ -207,6 +207,15 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     assertEquals(seq.sum, expected.sum)
   }
 
+  test("execute extension method") { implicit s =>
+    var wasExecuted = false
+    s.executeNow { wasExecuted = true }
+
+    assert(!wasExecuted, "should not be executed yet")
+    s.tick()
+    assert(wasExecuted, "was executed")
+  }
+
   def action(f: => Unit): Runnable =
     new Runnable { def run() = f }
 
