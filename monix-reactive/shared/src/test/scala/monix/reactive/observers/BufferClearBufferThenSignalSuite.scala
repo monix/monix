@@ -18,8 +18,9 @@
 package monix.reactive.observers
 
 import minitest.TestSuite
-import monix.execution.Ack.{Stop, Continue}
-import monix.execution.internal.{RunnableAction, Platform}
+import monix.execution.Ack.{Continue, Stop}
+import monix.execution.atomic.AtomicLong
+import monix.execution.internal.{Platform, RunnableAction}
 import monix.execution.schedulers.TestScheduler
 import monix.execution.{Ack, Scheduler}
 import monix.reactive.Observer
@@ -34,8 +35,18 @@ object BufferClearBufferThenSignalSuite extends TestSuite[TestScheduler] {
       "TestScheduler should have no pending tasks")
   }
 
-  def buildNew(bufferSize: Int, underlying: Observer[Int])(implicit s: Scheduler) = {
-    BufferedSubscriber(Subscriber(underlying, s), ClearBufferAndSignal(bufferSize, nr => nr.toInt))
+  def buildNewWithSignal(bufferSize: Int, underlying: Observer[Int])
+    (implicit s: Scheduler) = {
+
+    BufferedSubscriber(Subscriber(underlying, s),
+      ClearBufferAndSignal(bufferSize, nr => Some(nr.toInt)))
+  }
+
+  def buildNewWithLog(bufferSize: Int, underlying: Observer[Int], log: AtomicLong)
+    (implicit s: Scheduler) = {
+
+    BufferedSubscriber[Int](Subscriber(underlying, s),
+      ClearBufferAndSignal(bufferSize, { nr => log.set(nr); None }))
   }
 
   test("should not lose events, test 1") { implicit s =>
@@ -57,7 +68,7 @@ object BufferClearBufferThenSignalSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    val buffer = buildNew(1000, underlying)
+    val buffer = buildNewWithSignal(1000, underlying)
     for (i <- 0 until 1000) buffer.onNext(i)
     buffer.onComplete()
 
@@ -86,7 +97,7 @@ object BufferClearBufferThenSignalSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    val buffer = buildNew(1000, underlying)
+    val buffer = buildNewWithSignal(1000, underlying)
 
     def loop(n: Int): Unit =
       if (n > 0)
@@ -103,7 +114,7 @@ object BufferClearBufferThenSignalSuite extends TestSuite[TestScheduler] {
     assertEquals(number, 10000)
   }
 
-  test("should drop old events when over capacity") { implicit s =>
+  test("should drop old events when over capacity and signal") { implicit s =>
     var received = 0
     var wasCompleted = false
     val promise = Promise[Ack]()
@@ -115,13 +126,12 @@ object BufferClearBufferThenSignalSuite extends TestSuite[TestScheduler] {
       }
 
       def onError(ex: Throwable) = ()
-
       def onComplete() = {
         wasCompleted = true
       }
     }
 
-    val buffer = buildNew(5, underlying)
+    val buffer = buildNewWithSignal(5, underlying)
 
     for (i <- 1 to 7) assertEquals(buffer.onNext(i), Continue)
     s.tick()
@@ -140,9 +150,50 @@ object BufferClearBufferThenSignalSuite extends TestSuite[TestScheduler] {
     assert(wasCompleted, "wasCompleted should be true")
   }
 
+  test("should drop old events when over capacity and log") { implicit s =>
+    var received = 0
+    var wasCompleted = false
+    val promise = Promise[Ack]()
+
+    val underlying = new Observer[Int] {
+      def onNext(elem: Int) = {
+        received += elem
+        if (elem < 7) Continue else promise.future
+      }
+
+      def onError(ex: Throwable) = ()
+      def onComplete() = {
+        wasCompleted = true
+      }
+    }
+
+    val log = AtomicLong(0)
+    val buffer = buildNewWithLog(5, underlying, log)
+
+    for (i <- 1 to 7) assertEquals(buffer.onNext(i), Continue)
+    s.tick()
+    assertEquals(received, 28)
+
+    for (i <- 0 to 150) {
+      assertEquals(buffer.onNext(100 + i), Continue)
+      s.tick()
+    }
+
+    assertEquals(received, 28)
+    promise.success(Continue); s.tick()
+    assertEquals(received, 28 + (247 to 250).sum)
+    assertEquals(log.get, 147)
+
+    buffer.onNext(10); s.tick()
+    assertEquals(received, 28 + (247 to 250).sum + 10)
+
+    buffer.onComplete(); s.tick()
+    assert(wasCompleted, "wasCompleted should be true")
+  }
+
   test("should send onError when empty") { implicit s =>
     var errorThrown: Throwable = null
-    val buffer = buildNew(5, new Observer[Int] {
+    val buffer = buildNewWithSignal(5, new Observer[Int] {
       def onError(ex: Throwable) = {
         errorThrown = ex
       }
@@ -161,7 +212,7 @@ object BufferClearBufferThenSignalSuite extends TestSuite[TestScheduler] {
 
   test("should send onError when in flight") { implicit s =>
     var errorThrown: Throwable = null
-    val buffer = buildNew(5, new Observer[Int] {
+    val buffer = buildNewWithSignal(5, new Observer[Int] {
       def onError(ex: Throwable) = {
         errorThrown = ex
       }
@@ -180,7 +231,7 @@ object BufferClearBufferThenSignalSuite extends TestSuite[TestScheduler] {
     var errorThrown: Throwable = null
     val promise = Promise[Ack]()
 
-    val buffer = buildNew(5, new Observer[Int] {
+    val buffer = buildNewWithSignal(5, new Observer[Int] {
       def onError(ex: Throwable) = {
         errorThrown = ex
       }
@@ -202,7 +253,7 @@ object BufferClearBufferThenSignalSuite extends TestSuite[TestScheduler] {
     var wasCompleted = false
     val startConsuming = Promise[Continue]()
 
-    val buffer = buildNew(10000, new Observer[Int] {
+    val buffer = buildNewWithSignal(10000, new Observer[Int] {
       def onNext(elem: Int) = {
         sum += elem
         startConsuming.future
@@ -224,7 +275,7 @@ object BufferClearBufferThenSignalSuite extends TestSuite[TestScheduler] {
     var sum = 0L
     var wasCompleted = false
 
-    val buffer = buildNew(10000, new Observer[Int] {
+    val buffer = buildNewWithSignal(10000, new Observer[Int] {
       def onNext(elem: Int) = {
         sum += elem
         Continue
@@ -246,7 +297,7 @@ object BufferClearBufferThenSignalSuite extends TestSuite[TestScheduler] {
     var errorThrown: Throwable = null
     val startConsuming = Promise[Continue]()
 
-    val buffer = buildNew(10000, new Observer[Int] {
+    val buffer = buildNewWithSignal(10000, new Observer[Int] {
       def onNext(elem: Int) = {
         sum += elem
         startConsuming.future
@@ -268,7 +319,7 @@ object BufferClearBufferThenSignalSuite extends TestSuite[TestScheduler] {
     var sum = 0L
     var errorThrown: Throwable = null
 
-    val buffer = buildNew(10000, new Observer[Int] {
+    val buffer = buildNewWithSignal(10000, new Observer[Int] {
       def onNext(elem: Int) = {
         sum += elem
         Continue
@@ -289,7 +340,7 @@ object BufferClearBufferThenSignalSuite extends TestSuite[TestScheduler] {
     var received = 0L
     var wasCompleted = false
 
-    val buffer = buildNew(Platform.recommendedBatchSize * 3, new Observer[Int] {
+    val buffer = buildNewWithSignal(Platform.recommendedBatchSize * 3, new Observer[Int] {
       def onNext(elem: Int) = {
         received += 1
         Continue

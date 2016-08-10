@@ -312,7 +312,7 @@ object BufferDropNewSuite extends TestSuite[TestScheduler] {
     var received = 0L
     var wasCompleted = false
 
-    val buffer = buildNew(Platform.recommendedBatchSize * 3, new Observer[Int] {
+    val buffer = buildNewWithSignal(Platform.recommendedBatchSize * 3, new Observer[Int] {
       def onNext(elem: Int) = {
         received += 1
         Continue

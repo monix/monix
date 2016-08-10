@@ -90,13 +90,20 @@ object OverflowStrategy {
     * the pipeline should begin dropping incoming events until the buffer
     * has room in it again and is free to process more elements.
     *
+    * The given `onOverflow` function get be used for logging the event
+    * and for sending a message to the downstream consumers to inform
+    * them of dropped messages. The function can return `None` in which
+    * case no message is sent and thus you can use it just to log a warning.
+    *
     * @param bufferSize specifies how many events our buffer can hold
     *        before overflowing.
+    *
     * @param onOverflow is a function that can get called on overflow with
     *        a number of messages that were dropped, a function that builds
-    *        a new message that will be sent to downstream.
+    *        a new message that will be sent to downstream. If it returns
+    *        `None`, then no message gets sent to downstream.
     */
-  final case class DropNewAndSignal[A](bufferSize: Int, onOverflow: Long => A)
+  final case class DropNewAndSignal[A](bufferSize: Int, onOverflow: Long => Option[A])
     extends Evicted[A] {
 
     require(bufferSize > 1, "bufferSize should be strictly greater than 1")
@@ -119,13 +126,20 @@ object OverflowStrategy {
     * the currently buffered events should start being dropped in a FIFO order,
     * so the oldest events from the buffer will be dropped first.
     *
+    * The given `onOverflow` function get be used for logging the event
+    * and for sending a message to the downstream consumers to inform
+    * them of dropped messages. The function can return `None` in which
+    * case no message is sent and thus you can use it just to log a warning.
+    *
     * @param bufferSize specifies how many events our buffer can hold
     *        before overflowing
+    *
     * @param onOverflow is a function that can get called on overflow with
     *        a number of messages that were dropped, a function that builds
-    *        a new message that will be sent to downstream.
+    *        a new message that will be sent to downstream. If it returns
+    *        `None`, then no message gets sent to downstream.
     */
-  final case class DropOldAndSignal[A](bufferSize: Int, onOverflow: Long => A)
+  final case class DropOldAndSignal[A](bufferSize: Int, onOverflow: Long => Option[A])
     extends Evicted[A] {
 
     require(bufferSize > 1, "bufferSize should be strictly greater than 1")
@@ -148,18 +162,23 @@ object OverflowStrategy {
     * the current buffer should be dropped completely to make room for
     * new events.
     *
+    * The given `onOverflow` function get be used for logging the event
+    * and for sending a message to the downstream consumers to inform
+    * them of dropped messages. The function can return `None` in which
+    * case no message is sent and thus you can use it just to log a warning.
+    *
     * @param bufferSize specifies how many events our buffer can hold
     *        before overflowing
+    *
     * @param onOverflow is a function that can get called on overflow with
     *        a number of messages that were dropped, a function that builds
     *        a new message that will be sent to downstream.
     */
-  final case class ClearBufferAndSignal[A](bufferSize: Int, onOverflow: Long => A)
+  final case class ClearBufferAndSignal[A](bufferSize: Int, onOverflow: Long => Option[A])
     extends Evicted[A] {
 
     require(bufferSize > 1, "bufferSize should be strictly greater than 1")
   }
-
 
   /** A category of [[OverflowStrategy]] for buffers that can be used
     * synchronously, without worrying about back-pressure concerns.

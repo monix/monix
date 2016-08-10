@@ -30,7 +30,7 @@ import scala.util.control.NonFatal
   * [[monix.reactive.OverflowStrategy.DropNew DropNew]] overflow strategy.
   */
 private[buffers] final class SyncBufferedSubscriber[-T] private
-  (underlying: Subscriber[T], buffer: EvictingQueue[T], onOverflow: Long => T = null)
+  (underlying: Subscriber[T], buffer: EvictingQueue[T], onOverflow: Long => Option[T] = null)
   extends BufferedSubscriber[T] with Subscriber.Sync[T] {
 
   implicit val scheduler = underlying.scheduler
@@ -107,11 +107,14 @@ private[buffers] final class SyncBufferedSubscriber[-T] private
       val nextEvent =
         if (eventsDropped > 0 && onOverflow != null) {
           try {
-            val message = onOverflow(eventsDropped).asInstanceOf[AnyRef]
-            eventsDropped = 0
-            message
-          }
-          catch {
+            onOverflow(eventsDropped) match {
+              case Some(message) =>
+                eventsDropped = 0
+                message.asInstanceOf[AnyRef]
+              case None =>
+                buffer.poll()
+            }
+          } catch {
             case NonFatal(ex) =>
               errorThrown = ex
               upstreamIsComplete = true
@@ -212,7 +215,7 @@ private[monix] object SyncBufferedSubscriber {
     * for the [[monix.reactive.OverflowStrategy.DropNew DropNew]]
     * overflow strategy.
     */
-  def dropNewAndSignal[T](underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => T): Subscriber.Sync[T] = {
+  def dropNewAndSignal[T](underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => Option[T]): Subscriber.Sync[T] = {
     require(bufferSize > 1,
       "bufferSize must be a strictly positive number, bigger than 1")
 
@@ -239,7 +242,7 @@ private[monix] object SyncBufferedSubscriber {
     * overflow strategy, with signaling of the number of events that
     * were dropped.
     */
-  def dropOldAndSignal[T](underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => T): Subscriber.Sync[T] = {
+  def dropOldAndSignal[T](underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => Option[T]): Subscriber.Sync[T] = {
     require(bufferSize > 1,
       "bufferSize must be a strictly positive number, bigger than 1")
 
@@ -266,7 +269,7 @@ private[monix] object SyncBufferedSubscriber {
     * overflow strategy, with signaling of the number of events that
     * were dropped.
     */
-  def clearBufferAndSignal[T](underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => T): Subscriber.Sync[T] = {
+  def clearBufferAndSignal[T](underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => Option[T]): Subscriber.Sync[T] = {
     require(bufferSize > 1,
       "bufferSize must be a strictly positive number, bigger than 1")
 
