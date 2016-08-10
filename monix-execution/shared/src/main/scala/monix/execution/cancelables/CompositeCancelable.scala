@@ -18,9 +18,7 @@
 package monix.execution.cancelables
 
 import monix.execution.Cancelable
-import monix.execution.cancelables.CompositeCancelable.State
-import monix.execution.atomic.AtomicAny
-import scala.annotation.tailrec
+import scala.collection.{GenTraversableOnce, mutable}
 
 /** Represents a composite of multiple cancelables. In case it is canceled, all
   * contained cancelables will be canceled too, e.g...
@@ -48,82 +46,126 @@ import scala.annotation.tailrec
   * }}}
   *
   * Adding and removing references from this composite is thread-safe.
+  *
+  * @define addOp Adds a cancelable reference to this composite.
+  *
+  *         If this composite is already canceled, then the given
+  *         reference will be canceled as well.
+  *
+  * @define addAllOp Adds a collection of cancelables to this composite.
+  *
+  *         If this composite is already canceled, then all the
+  *         cancelables in the given collection will get canceled
+  *         as well.
+  *
+  * @define removeOp Removes a cancelable reference from this composite.
+  *
+  *         By removing references from the composite, we ensure that
+  *         the removed references don't get canceled when the composite
+  *         gets canceled. Also useful for garbage collecting purposes.
+  *
+  * @define removeAllOp Removes a collection of cancelables from this composite.
+  *
+  *         By removing references from the composite, we ensure that
+  *         the removed references don't get canceled when the composite
+  *         gets canceled. Also useful for garbage collecting purposes.
   */
-final class CompositeCancelable private (cancelables: Set[Cancelable])
-  extends BooleanCancelable {
+final class CompositeCancelable private (cancelables: TraversableOnce[Cancelable])
+  extends BooleanCancelable { self =>
+
+  private[this] var isCanceledRef = false
+  private[this] var subscriptions = self.synchronized {
+    mutable.HashSet.empty[Cancelable] ++ cancelables
+  }
 
   override def isCanceled: Boolean =
-    state.get.isCanceled
+    isCanceledRef
 
-  override def cancel(): Unit = {
-    // Using getAndSet, which on Java 8 should be faster than
-    // a compare-and-set.
-    val oldState = state.getAndSet(State(Set.empty, isCanceled = true))
-    if (!oldState.isCanceled)
-      for (s <- oldState.subscriptions) s.cancel()
-  }
+  override def cancel(): Unit = self.synchronized {
+    if (!isCanceledRef) {
+      isCanceledRef = true
 
-  /** Adds a cancelable reference to this composite.
-    *
-    * If this cancelable is already canceled, then the given
-    * reference will be canceled as well.
-    */
-  @tailrec def +=(other: Cancelable): this.type = {
-    val oldState = state.get
-    if (oldState.isCanceled) {
-      other.cancel()
-      this
-    } else {
-      val newState = oldState.copy(subscriptions = oldState.subscriptions + other)
-      if (!state.compareAndSet(oldState, newState))
-        +=(other)
-      else
-        this
+      val cursor = subscriptions.iterator
+      while (cursor.hasNext) { cursor.next().cancel() }
+      subscriptions = null // GC relief
     }
   }
 
-  /** Removes a cancelable reference from this composite.
+  /** $addOp
+    *
+    * Alias for [[add]].
+    */
+  def +=(other: Cancelable): this.type =
+    add(other)
+
+  /** $addOp */
+  def add(other: Cancelable): this.type = self.synchronized {
+    if (isCanceledRef) other.cancel() else subscriptions.add(other)
+    this
+  }
+
+  /** $addAllOp
+    *
+    * Alias for [[addAll]].
+    */
+  def ++=(that: GenTraversableOnce[Cancelable]): this.type =
+    addAll(that)
+
+  /** $addAllOp */
+  def addAll(that: GenTraversableOnce[Cancelable]): this.type =
+    self.synchronized {
+      if (!isCanceledRef) {
+        subscriptions ++= that.seq
+      } else {
+        // Canceling everything
+        val cursor = that.toIterator
+        while (cursor.hasNext) { cursor.next().cancel() }
+      }
+
+      this
+    }
+
+  /** $removeOp
+    *
     * Alias for [[remove]].
     */
-  def -=(s: Cancelable): Unit = remove(s)
+  def -=(s: Cancelable): this.type = remove(s)
 
-  /** Removes a cancelable reference from this composite. */
-  @tailrec
-  def remove(s: Cancelable): Unit = {
-    val oldState = state.get
-    if (!oldState.isCanceled) {
-      val newState = oldState.copy(subscriptions = oldState.subscriptions - s)
-      if (!state.compareAndSet(oldState, newState))
-        remove(s)
-    }
+  /** $removeOp */
+  def remove(s: Cancelable): this.type = self.synchronized {
+    if (!isCanceledRef) subscriptions.add(s)
+    this
   }
+
+  /** $removeAllOp
+    *
+    * Alias for [[removeAll]].
+    */
+  def --=(that: GenTraversableOnce[Cancelable]): this.type =
+    removeAll(that)
+
+  /** $removeAllOp */
+  def removeAll(that: GenTraversableOnce[Cancelable]): this.type =
+    self.synchronized {
+      if (!isCanceledRef && that.nonEmpty) subscriptions ++= that.seq
+      this
+    }
 
   /** Resets this composite to an empty state, if not canceled,
     * otherwise leaves it in the canceled state.
     */
-  @tailrec
-  def reset(): Unit = {
-    val oldState = state.get
-    if (!oldState.isCanceled) {
-      val newState = oldState.copy(subscriptions = Set.empty)
-      if (!state.compareAndSet(oldState, newState)) reset()
-    }
+  def reset(): this.type = self.synchronized {
+    if (!isCanceledRef) subscriptions.clear()
+    this
   }
-
-  private[this] val state = AtomicAny(State(cancelables))
 }
 
 object CompositeCancelable {
   /** Builder for [[CompositeCancelable]]. */
   def apply(initial: Cancelable*): CompositeCancelable = {
     if (initial.nonEmpty)
-      new CompositeCancelable(initial.toSet)
+      new CompositeCancelable(initial)
     else
-      new CompositeCancelable(Set.empty)
+      new CompositeCancelable(Nil)
   }
-
-  /** Private state of a [[CompositeCancelable]]. */
-  private case class State(
-    subscriptions: Set[Cancelable],
-    isCanceled: Boolean = false)
 }

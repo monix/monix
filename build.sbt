@@ -260,7 +260,9 @@ lazy val typesJS = project.in(file("monix-types/js"))
   .settings(scalaJSSettings)
 
 lazy val executionCommon = crossVersionSharedSources ++ Seq(
-  name := "monix-execution"
+  name := "monix-execution",
+  // https://github.com/sbt/sbt/issues/2654
+  incOptions := incOptions.value.withLogRecompileOnMacro(false)
 )
 
 lazy val executionJVM = project.in(file("monix-execution/jvm"))

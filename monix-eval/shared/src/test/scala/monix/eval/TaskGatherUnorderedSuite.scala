@@ -17,8 +17,11 @@
 
 package monix.eval
 
-import concurrent.duration._
-import scala.util.{Success, Failure}
+import monix.execution.internal.Platform
+
+import scala.collection.mutable.ListBuffer
+import scala.concurrent.duration._
+import scala.util.{Failure, Success, Try}
 
 object TaskGatherUnorderedSuite extends BaseTestSuite {
   test("Task.gatherUnordered should execute in parallel") { implicit s =>
@@ -63,7 +66,17 @@ object TaskGatherUnorderedSuite extends BaseTestSuite {
     assertEquals(f.value, None)
   }
 
-  test("Task.gatherUnordered should be stack-safe") { implicit s =>
+  test("Task.gatherUnordered should run over an iterator") { implicit s =>
+    val count = 10
+    val seq = 0 until count
+    val it = seq.iterator.map(x => Task.evalAlways(x + 1))
+    val sum = Task.gatherUnordered(it).map(_.sum)
+
+    val result = sum.runAsync; s.tick()
+    assertEquals(result.value.get, Success((count+1) * count / 2))
+  }
+
+  test("Task.gatherUnordered should be stack-safe on handling many tasks") { implicit s =>
     val count = 10000
     val tasks = (0 until count).map(x => Task.evalAlways(x))
     val sum = Task.gatherUnordered(tasks).map(_.sum)
@@ -72,13 +85,37 @@ object TaskGatherUnorderedSuite extends BaseTestSuite {
     assertEquals(result.value.get, Success(count * (count-1) / 2))
   }
 
-  test("Task.gatherUnordered should run over an iterator") { implicit s =>
-    val count = 10
-    val seq = (0 until count).toSeq
-    val it = seq.iterator.map(x => Task.evalAlways(x + 1))
-    val sum = Task.gatherUnordered(it).map(_.sum)
+  test("Task.gatherUnordered should be stack safe on success") { implicit s =>
+    def fold[A,B](ta: Task[ListBuffer[A]], tb: Task[A]): Task[ListBuffer[A]] =
+      Task.gatherUnordered(List(ta, tb)).map {
+        case a :: b :: Nil =>
+          val (accR, valueR) = if (a.isInstanceOf[ListBuffer[_]]) (a,b) else (b,a)
+          val acc = accR.asInstanceOf[ListBuffer[A]]
+          val value = valueR.asInstanceOf[A]
+          acc += value
+        case _ =>
+          throw new RuntimeException("Oops!")
+      }
 
-    val result = sum.runAsync; s.tick()
-    assertEquals(result.value.get, Success((count+1) * count / 2))
+    def gatherSpecial[A](in: Seq[Task[A]]): Task[List[A]] = {
+      val init = Task.evalAlways(ListBuffer.empty[A])
+      val r = in.foldLeft(init)(fold)
+      r.map(_.result())
+    }
+
+    val count = if (Platform.isJVM) 100000 else 10000
+    val tasks = (0 until count).map(n => Task.evalAlways(n))
+    var result = Option.empty[Try[Int]]
+
+    gatherSpecial(tasks).map(_.sum).runAsync(
+      new Callback[Int] {
+        def onSuccess(value: Int): Unit =
+          result = Some(Success(value))
+        def onError(ex: Throwable): Unit =
+          result = Some(Failure(ex))
+      })
+
+    s.tick()
+    assertEquals(result, Some(Success(count * (count - 1) / 2)))
   }
 }
