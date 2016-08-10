@@ -18,15 +18,19 @@
 package monix.execution.internal
 
 /** Helper for converting any expression into a runnable */
-private[monix] final class RunnableAction private (action: => Unit)
+private[monix] final class RunnableAction private (action: () => Unit)
   extends Runnable {
 
   override def run(): Unit =
-    action
+    action()
 }
 
 private[monix] object RunnableAction {
   /** Builder for [[RunnableAction]] */
   def apply(action: => Unit): Runnable =
-    new RunnableAction(action)
+    new RunnableAction(action _)
+
+  /** Builder for [[RunnableAction]] */
+  def from(f: () => Unit): Runnable =
+    new RunnableAction(f)
 }
