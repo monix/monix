@@ -109,6 +109,9 @@ object TaskChooseFirstOfSuite extends BaseTestSuite {
     s.tick(1.second)
     assert(f.value.isDefined && f.value.get.failed.get.isInstanceOf[TimeoutException],
       "isInstanceOf[TimeoutException]")
+
+    assert(s.state.get.tasks.isEmpty,
+      "Main task was not canceled!")
   }
 
   test("Task#timeout should mirror the source in case of success") { implicit s =>
