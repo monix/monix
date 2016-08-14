@@ -1665,7 +1665,8 @@ object Task extends TaskInstances {
     extends Runnable {
 
     def run(): Unit = {
-      resume(scheduler, conn, source, cb, binds)
+      if (!conn.isCanceled)
+        resume(scheduler, conn, source, cb, binds)
     }
   }
 

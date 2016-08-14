@@ -76,12 +76,36 @@ object CancelableFuture {
   final val unit: CancelableFuture[Unit] =
     successful(())
 
+  /** Returns a [[CancelableFuture]] instance that will never complete. */
+  final def never[T]: CancelableFuture[T] =
+    Never
+
   /** Promotes a strict `Try[T]` to a [[CancelableFuture]] that's already complete. */
   def fromTry[T](value: Try[T]): CancelableFuture[T] =
     value match {
       case Success(v) => successful(v)
       case Failure(ex) => failed(ex)
     }
+
+  /** A [[CancelableFuture]] instance that will never complete. */
+  private object Never extends CancelableFuture[Nothing] {
+    def onComplete[U](f: (Try[Nothing]) => U)
+      (implicit executor: ExecutionContext): Unit = ()
+
+    val isCompleted = false
+    val value = None
+
+    @scala.throws[Exception](classOf[Exception])
+    def result(atMost: Duration)(implicit permit: CanAwait): Nothing =
+      throw new TimeoutException("This CancelableFuture will never finish!")
+
+    @scala.throws[InterruptedException](classOf[InterruptedException])
+    @scala.throws[TimeoutException](classOf[TimeoutException])
+    def ready(atMost: Duration)(implicit permit: CanAwait): this.type =
+      throw new TimeoutException("This CancelableFuture will never finish!")
+
+    def cancel(): Unit = ()
+  }
 
   /** An internal [[CancelableFuture]] implementation. */
   private final class Now[+T](immediate: Try[T]) extends CancelableFuture[T] {
