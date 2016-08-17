@@ -18,9 +18,8 @@
 package monix.execution.schedulers
 
 import java.lang.Thread.UncaughtExceptionHandler
-import java.util.concurrent.{Executors, ScheduledExecutorService, ThreadFactory}
+import java.util.concurrent.{Executors, ScheduledExecutorService}
 import monix.execution.UncaughtExceptionReporter._
-import monix.execution.atomic.AtomicLong
 import monix.execution.{Scheduler, SchedulerCompanion, UncaughtExceptionReporter}
 import scala.concurrent.ExecutionContext
 import scala.concurrent.forkjoin.ForkJoinPool
@@ -234,15 +233,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
   def io(name: String = "monix-io", daemonic: Boolean = true,
     reporter: UncaughtExceptionReporter = LogExceptionsToStandardErr,
     executionModel: ExecutionModel = ExecutionModel.Default): Scheduler = {
-    val threadFactory = new ThreadFactory {
-      private[this] val counter = AtomicLong(0L)
-      def newThread(r: Runnable): Thread = {
-        val th = new Thread(r)
-        th.setDaemon(daemonic)
-        th.setName(name + "-" + counter.getAndIncrement().toString)
-        th
-      }
-    }
+    val threadFactory = ThreadFactoryBuilder(name, daemonic)
 
     val context = ExecutionContext.fromExecutor(
       Executors.newCachedThreadPool(threadFactory),
@@ -272,14 +263,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     executionModel: ExecutionModel = ExecutionModel.Default): Scheduler = {
 
     val executor =
-      Executors.newSingleThreadScheduledExecutor(new ThreadFactory {
-        def newThread(r: Runnable) = {
-          val th = new Thread(r)
-          th.setName(name)
-          th.setDaemon(daemonic)
-          th
-        }
-      })
+      Executors.newSingleThreadScheduledExecutor(ThreadFactoryBuilder(name, daemonic))
 
     val context = new ExecutionContext {
       def reportFailure(t: Throwable) = reporter.reportFailure(t)
@@ -298,7 +282,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     * - does not cooperate with Scala's `BlockingContext`, so tasks should not
     *   block on the result of other tasks scheduled to run on this same thread
     *
-    * @param name is the name of the created thread, for easy identification
+    * @param name the created threads name prefix, for easy identification.
     * @param daemonic specifies whether the created thread should be daemonic
     * @param reporter is the [[UncaughtExceptionReporter]] that logs uncaught exceptions.
     */
@@ -307,14 +291,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     executionModel: ExecutionModel = ExecutionModel.Default): Scheduler = {
 
     val executor =
-      Executors.newScheduledThreadPool(poolSize, new ThreadFactory {
-        def newThread(r: Runnable) = {
-          val th = new Thread(r)
-          th.setName(name)
-          th.setDaemon(daemonic)
-          th
-        }
-      })
+      Executors.newScheduledThreadPool(poolSize, ThreadFactoryBuilder(name, daemonic))
 
     ExecutorScheduler(executor, reporter, executionModel)
   }
@@ -327,14 +304,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     * you can just reuse this one for all your scheduling needs.
     */
   lazy val DefaultScheduledExecutor: ScheduledExecutorService =
-    Executors.newSingleThreadScheduledExecutor(new ThreadFactory {
-      def newThread(r: Runnable): Thread = {
-        val th = new Thread(r)
-        th.setDaemon(true)
-        th.setName("monix-scheduler")
-        th
-      }
-    })
+    Executors.newSingleThreadScheduledExecutor(ThreadFactoryBuilder("monix-scheduler"))
 
   /** The explicit global `Scheduler`. Invoke `global` when you want to provide the global
     * `Scheduler` explicitly.
