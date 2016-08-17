@@ -17,7 +17,9 @@
 
 package monix.eval
 
-import monix.eval.Task.{Now, Error}
+import monix.eval.Task.{Error, Now}
+import monix.execution.internal.Platform
+
 import scala.util.{Failure, Success}
 
 object TaskNowSuite extends BaseTestSuite {
@@ -140,6 +142,26 @@ object TaskNowSuite extends BaseTestSuite {
     assertEquals(f2.value, Some(Failure(dummy)))
   }
 
+  test("Task.now.memoize should be stack safe") { implicit s =>
+    val count = if (Platform.isJVM) 50000 else 5000
+    var task = Task.now(1)
+    for (i <- 0 until count) task = task.memoize
+
+    val f = task.runAsync
+    assertEquals(f.value, Some(Success(1)))
+  }
+
+  test("Task.now.flatMap.memoize should be stack safe") { implicit s =>
+    val count = if (Platform.isJVM) 50000 else 5000
+    var task = Task.now(1)
+    for (i <- 0 until count) task = task.memoize.flatMap(x => Task.now(x))
+
+    val f = task.runAsync
+    assertEquals(f.value, None)
+    s.tick()
+    assertEquals(f.value, Some(Success(1)))
+  }
+
   test("Task.now.materializeAttempt should work") { implicit s =>
     val task = Task.now(1).materializeAttempt
     val f = task.runAsync
@@ -151,6 +173,19 @@ object TaskNowSuite extends BaseTestSuite {
     val task = Task.raiseError(dummy).materializeAttempt
     val f = task.runAsync
     assertEquals(f.value, Some(Success(Error(dummy))))
+  }
+
+  test("Task.now.materialize should be stack safe") { implicit s =>
+    def loop(n: Int): Task[Int] =
+      if (n <= 0) Task.now(n)
+      else Task.now(n).materialize.flatMap {
+        case Success(v) => loop(n-1)
+        case Failure(ex) => Task.raiseError(ex)
+      }
+
+    val count = if (Platform.isJVM) 50000 else 5000
+    val result = loop(count).runAsync; s.tick()
+    assertEquals(result.value, Some(Success(0)))
   }
 
   test("Task.now.coeval") { implicit s =>

@@ -15,18 +15,13 @@
  * limitations under the License.
  */
 
-package monix.types
+package monix.types.shims
 
-/** A shim for a `Monad` type-class, to be supplied by / translated to
-  * libraries such as Cats or Scalaz.
-  *
-  * See: [[http://homepages.inf.ed.ac.uk/wadler/papers/marktoberdorf/baastad.pdf Monads for functional programming]]
+/** A shim for the `Bimonad` type-class,
+  * to be supplied by libraries such as Cats or Scalaz.
   */
-trait Monad[F[_]] extends Applicative[F] {
-  def flatMap[A, B](fa: F[A])(f: A => F[B]): F[B]
-  def flatten[A](ffa: F[F[A]]): F[A]
-}
+trait Bimonad[F[_]] extends Monad[F] with Comonad[F]
 
-object Monad {
-  @inline def apply[F[_]](implicit F: Monad[F]): Monad[F] = F
+object Bimonad {
+  @inline def apply[F[_]](implicit F: Bimonad[F]): Bimonad[F] = F
 }

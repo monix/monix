@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.operators
 
-import monix.eval.{Coeval, Task}
+import monix.eval.Task
 import monix.execution.Ack.Stop
 import monix.execution.FutureUtils.extensions._
 import monix.execution.Scheduler
@@ -173,8 +173,8 @@ object ObservableOpsReturningTaskSuite extends BaseLawsTestSuite {
   test("headOrElseL is equivalent with firstOrElseL") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
-      obs.map(Some.apply).headOrElseL(Coeval(None)) ===
-        obs.map(Some.apply).firstOrElseL(Coeval(None))
+      obs.map(Some.apply).headOrElseL(None) ===
+        obs.map(Some.apply).firstOrElseL(None)
     }
   }
 
@@ -192,7 +192,7 @@ object ObservableOpsReturningTaskSuite extends BaseLawsTestSuite {
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result: Future[Try[Option[Int]]] =
-        obs.map(Some.apply).lastOrElseL(Coeval(None))
+        obs.map(Some.apply).lastOrElseL(None)
           .materialize.runAsync
 
       result === first(obs.lastF)

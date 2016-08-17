@@ -15,15 +15,20 @@
  * limitations under the License.
  */
 
-package monix.types
+package monix.types.shims
 
-/** A shim for the `Comonad` type-class,
-  * to be supplied by libraries such as Cats or Scalaz.
+/** A shim for a `MonoidK` type-class, to be supplied by / translated to
+  * libraries such as Cats or Scalaz.
+  *
+  * `MonoidK` is a universal monoid which operates on kinds.
   */
-trait Comonad[F[_]] extends CoflatMap[F] {
-  def extract[A](x: F[A]): A
+trait MonoidK[F[_]] extends SemigroupK[F] {
+  /**
+    * Given a type A, create an "empty" F[A] value.
+    */
+  def empty[A]: F[A]
 }
 
-object Comonad {
-  @inline def apply[F[_]](implicit F: Comonad[F]): Comonad[F] = F
+object MonoidK {
+  @inline def apply[F[_]](implicit F: MonoidK[F]): MonoidK[F] = F
 }

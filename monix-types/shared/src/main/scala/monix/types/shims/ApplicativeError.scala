@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package monix.types
+package monix.types.shims
 
 /** A shim for an `ApplicativeError` type-class, to be supplied by / translated to
   * libraries such as Cats or Scalaz.

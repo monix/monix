@@ -17,6 +17,7 @@
 
 package monix.eval
 
+import monix.execution.internal.Platform
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
@@ -39,6 +40,27 @@ object TaskDelaySuite extends BaseTestSuite {
     s.tick(1.second)
     assert(wasTriggered, "wasTriggered")
     assertEquals(f.value, Some(Success("result")))
+  }
+
+  test("Task#delayExecution is stack safe, test 1") { implicit s =>
+    def loop(n: Int): Task[Int] =
+      if (n <= 0) Task.now(n) else
+        Task.now(n).delayExecution(1.second)
+          .flatMap(n => loop(n - 1))
+
+    val count = if (Platform.isJVM) 50000 else 5000
+    val result = loop(count).runAsync
+    s.tick(count.seconds)
+    assertEquals(result.value, Some(Success(0)))
+  }
+
+  test("Task#delayExecution is stack safe, test 2") { implicit s =>
+    val count = if (Platform.isJVM) 50000 else 5000
+    var task = Task.now(0)
+    for (i <- 0 until count) task = task.delayExecution(1.second)
+    val result = task.runAsync
+    s.tick(count.seconds)
+    assertEquals(result.value, Some(Success(0)))
   }
 
   test("Task#delayExecution is cancelable") { implicit s =>
@@ -83,6 +105,28 @@ object TaskDelaySuite extends BaseTestSuite {
     s.tick(1.second)
     assert(wasTriggered, "wasTriggered")
     assertEquals(f.value, Some(Success("result")))
+  }
+
+  test("Task#delayExecutionWith is stack safe, test 1") { implicit s =>
+    def loop(n: Int): Task[Int] = {
+      if (n <= 0) Task.now(n) else
+        Task.now(n).delayExecutionWith(Task.unit)
+          .flatMap(n => loop(n - 1))
+    }
+
+    val count = if (Platform.isJVM) 50000 else 5000
+    val result = loop(count).runAsync
+    s.tick(count.seconds)
+    assertEquals(result.value, Some(Success(0)))
+  }
+
+  test("Task#delayExecutionWith is stack safe, test 2") { implicit s =>
+    val count = if (Platform.isJVM) 50000 else 5000
+    var task = Task.now(0)
+    for (i <- 0 until count) task = task.delayExecutionWith(Task.unit)
+    val result = task.runAsync
+    s.tick(count.seconds)
+    assertEquals(result.value, Some(Success(0)))
   }
 
   test("Task#delayExecutionWith is cancelable") { implicit s =>
@@ -144,6 +188,27 @@ object TaskDelaySuite extends BaseTestSuite {
 
     s.tick(1.second)
     assertEquals(f.value, Some(Success("result")))
+  }
+
+  test("Task#delayResult is stack safe, test 1") { implicit s =>
+    def loop(n: Int): Task[Int] =
+      if (n <= 0) Task.now(n) else
+        Task.now(n).delayResult(1.second)
+          .flatMap(n => loop(n - 1))
+
+    val count = if (Platform.isJVM) 50000 else 5000
+    val result = loop(count).runAsync
+    s.tick(count.seconds)
+    assertEquals(result.value, Some(Success(0)))
+  }
+
+  test("Task#delayResult is stack safe, test 2") { implicit s =>
+    val count = if (Platform.isJVM) 50000 else 5000
+    var task = Task.now(0)
+    for (i <- 0 until count) task = task.delayResult(1.second)
+    val result = task.runAsync
+    s.tick(count.seconds)
+    assertEquals(result.value, Some(Success(0)))
   }
 
   test("Task#delayResult is cancelable") { implicit s =>
@@ -256,5 +321,26 @@ object TaskDelaySuite extends BaseTestSuite {
     s.tick()
     assert(wasTriggered, "wasTriggered")
     assertEquals(f.value, Some(Failure(dummy)))
+  }
+
+  test("Task#delayResultBySelector is stack safe, test 1") { implicit s =>
+    def loop(n: Int): Task[Int] =
+      if (n <= 0) Task.now(n) else
+        Task.now(n).delayResultBySelector(_ => Task.unit)
+          .flatMap(n => loop(n - 1))
+
+    val count = if (Platform.isJVM) 50000 else 5000
+    val result = loop(count).runAsync
+    s.tick(count.seconds)
+    assertEquals(result.value, Some(Success(0)))
+  }
+
+  test("Task#delayResultBySelector is stack safe, test 2") { implicit s =>
+    val count = if (Platform.isJVM) 50000 else 5000
+    var task = Task.now(0)
+    for (i <- 0 until count) task = task.delayResultBySelector(_ => Task.unit)
+    val result = task.runAsync
+    s.tick(count.seconds)
+    assertEquals(result.value, Some(Success(0)))
   }
 }

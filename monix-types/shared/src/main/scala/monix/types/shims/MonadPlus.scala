@@ -15,18 +15,15 @@
  * limitations under the License.
  */
 
-package monix.types
+package monix.types.shims
 
-/** A shim for the `CoflatMap` type-class,
-  * to be supplied by libraries such as Cats or Scalaz.
+/** A shim for a `MonadPlus` type-class, to be supplied by / translated to
+  * libraries such as Cats or Scalaz.
+  *
+  * This is a [[MonadFilter]] instance that's also a [[MonoidK]].
   */
-trait CoflatMap[F[_]] extends Functor[F] {
-  def coflatMap[A, B](fa: F[A])(f: F[A] => B): F[B]
+trait MonadPlus[F[_]] extends MonadFilter[F] with MonoidK[F]
 
-  def coflatten[A](fa: F[A]): F[F[A]] =
-    coflatMap(fa)(fa => fa)
-}
-
-object CoflatMap {
-  @inline def apply[F[_]](implicit F: CoflatMap[F]): CoflatMap[F] = F
+object MonadPlus {
+  @inline def apply[F[_]](implicit F: MonadPlus[F]): MonadPlus[F] = F
 }

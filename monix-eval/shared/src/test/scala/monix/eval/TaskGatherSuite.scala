@@ -17,8 +17,10 @@
 
 package monix.eval
 
+import monix.execution.internal.Platform
+
 import concurrent.duration._
-import scala.util.{Success, Failure}
+import scala.util.{Failure, Success}
 
 object TaskGatherSuite extends BaseTestSuite {
   test("Task.gather should execute in parallel") { implicit s =>
@@ -61,5 +63,14 @@ object TaskGatherSuite extends BaseTestSuite {
     f.cancel()
     s.tick(1.second)
     assertEquals(f.value, None)
+  }
+
+  test("Task.gather should be stack safe for synchronous tasks") { implicit s =>
+    val count = if (Platform.isJVM) 100000 else 5000
+    val tasks = for (i <- 0 until count) yield Task.now(1)
+    val composite = Task.gather(tasks).map(_.sum)
+    val result = composite.runAsync
+    s.tick()
+    assertEquals(result.value, Some(Success(count)))
   }
 }

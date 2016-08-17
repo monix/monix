@@ -29,7 +29,7 @@ import scala.util.control.NonFatal
 
 /** A scheduler meant for testing purposes. */
 final class TestScheduler private (override val executionModel: ExecutionModel)
-  extends ReferenceScheduler {
+  extends ReferenceScheduler with LocalBatchingExecutor {
 
   /*
    * The `internalClock` is used for executing tasks. Upon calling [[tick]], the
@@ -63,10 +63,10 @@ final class TestScheduler private (override val executionModel: ExecutionModel)
   }
 
   @tailrec
-  override def execute(runnable: Runnable): Unit = {
+  override def executeAsync(r: Runnable): Unit = {
     val current: State = state.get
-    val update = current.execute(runnable)
-    if (!state.compareAndSet(current, update)) execute(runnable)
+    val update = current.execute(r)
+    if (!state.compareAndSet(current, update)) executeAsync(r)
   }
 
   @tailrec

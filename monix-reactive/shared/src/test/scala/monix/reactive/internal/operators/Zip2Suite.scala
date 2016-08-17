@@ -31,7 +31,7 @@ object Zip2Suite extends BaseOperatorSuite {
     val o1 = Observable.range(0, sourceCount)
     val o2 = Observable.range(0, sourceCount)
 
-    val o = Observable.zipWith2(o1, o2) { (x1, x2) => x1 + x2 }
+    val o = Observable.zipMap2(o1, o2) { (x1, x2) => x1 + x2 }
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 
@@ -42,7 +42,7 @@ object Zip2Suite extends BaseOperatorSuite {
     val o1 = createObservableEndingInError(Observable.range(0, sourceCount), ex)
     val o2 = createObservableEndingInError(Observable.range(0, sourceCount), ex)
 
-    val o = Observable.zipWith2(o1, o2) { (x1, x2) => x1 + x2 }
+    val o = Observable.zipMap2(o1, o2) { (x1, x2) => x1 + x2 }
     Sample(o, count(sourceCount-1), sum(sourceCount-1), Zero, Zero)
   }
 
@@ -50,7 +50,7 @@ object Zip2Suite extends BaseOperatorSuite {
     val o1 = Observable.range(0, sourceCount)
     val o2 = Observable.range(0, sourceCount+100)
 
-    val o = Observable.zipWith2(o1, o2) { (x1, x2) =>
+    val o = Observable.zipMap2(o1, o2) { (x1, x2) =>
       if (x2 < sourceCount-1) x1 + x2 else throw ex
     }
 
@@ -61,7 +61,7 @@ object Zip2Suite extends BaseOperatorSuite {
     val sample1 = {
       val o1 = Observable.range(0, 10).delayOnNext(1.second)
       val o2 = Observable.range(0, 10).delayOnNext(1.second)
-      Observable.zipWith2(o1, o2)(_+_)
+      Observable.zipMap2(o1, o2)(_+_)
     }
 
     Seq(Sample(sample1, 0, 0, 0.seconds, 0.seconds))

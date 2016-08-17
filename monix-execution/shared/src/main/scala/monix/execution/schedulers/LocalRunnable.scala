@@ -15,13 +15,16 @@
  * limitations under the License.
  */
 
-package monix.types
+package monix.execution.schedulers
 
-/** A shim for the `Bimonad` type-class,
-  * to be supplied by libraries such as Cats or Scalaz.
+import scala.concurrent.OnCompleteRunnable
+
+/** A marker for callbacks that can be batched and
+  * executed locally.
+  *
+  * Idea was taken from the `scala.concurrent.Future`
+  * implementation. Credit should be given where due.
+  *
+  * DO NOT use unless you know what you're doing.
   */
-trait Bimonad[F[_]] extends Monad[F] with Comonad[F]
-
-object Bimonad {
-  @inline def apply[F[_]](implicit F: Bimonad[F]): Bimonad[F] = F
-}
+abstract class LocalRunnable extends Runnable with OnCompleteRunnable

@@ -55,8 +55,8 @@ trait BaseLawsTestSuite extends TestSuite[TestScheduler] with Checkers {
   /** Implicitly map [[IsEquiv]] to a [[Prop]]. */
   implicit def isEqObservableProp[A](isEq: IsEquiv[Observable[A]])(implicit s: TestScheduler): Prop =
     Prop {
-      val fa = isEq.lh.foldLeftF(Coeval(List.empty[A]))((acc,e) => e :: acc).firstOptionL.runAsync
-      val fb = isEq.rh.foldLeftF(Coeval(List.empty[A]))((acc,e) => e :: acc).firstOptionL.runAsync
+      val fa = isEq.lh.foldLeftF(List.empty[A])((acc,e) => e :: acc).firstOptionL.runAsync
+      val fb = isEq.rh.foldLeftF(List.empty[A])((acc,e) => e :: acc).firstOptionL.runAsync
       // simulate asynchronous execution
       s.tick(1.hour)
       fa.value == fb.value

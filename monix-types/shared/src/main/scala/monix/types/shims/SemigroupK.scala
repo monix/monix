@@ -15,20 +15,20 @@
  * limitations under the License.
  */
 
-package monix.types
+package monix.types.shims
 
-/** A shim for a `MonoidK` type-class, to be supplied by / translated to
+/** A shim for a `SemigroupK` type-class, to be supplied by / translated to
   * libraries such as Cats or Scalaz.
   *
-  * `MonoidK` is a universal monoid which operates on kinds.
+  * `SemigroupK` is a universal semigroup which operates on kinds.
   */
-trait MonoidK[F[_]] extends SemigroupK[F] {
+trait SemigroupK[F[_]] extends Any with Serializable { self =>
   /**
-    * Given a type A, create an "empty" F[A] value.
+    * Combine two F[A] values.
     */
-  def empty[A]: F[A]
+  def combineK[A](x: F[A], y: F[A]): F[A]
 }
 
-object MonoidK {
-  @inline def apply[F[_]](implicit F: MonoidK[F]): MonoidK[F] = F
+object SemigroupK {
+  @inline def apply[F[_]](implicit F: SemigroupK[F]): SemigroupK[F] = F
 }

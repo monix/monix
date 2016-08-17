@@ -17,56 +17,60 @@
 
 package monix.reactive.internal.operators
 
-import monix.eval.Coeval
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
+
 import scala.util.control.NonFatal
 
 private[reactive] final
-class FoldLeftObservable[A,R](source: Observable[A], initial: Coeval[R], f: (R,A) => R)
+class FoldLeftObservable[A,R](source: Observable[A], initial: () => R, f: (R,A) => R)
   extends Observable[R] {
 
   def unsafeSubscribeFn(out: Subscriber[R]): Cancelable = {
-    initial.runAttempt match {
-      case Coeval.Error(ex) =>
-        out.onError(ex)
-        Cancelable.empty
+    var streamErrors = true
+    try {
+      val initialState = initial()
+      streamErrors = false
 
-      case Coeval.Now(initialState) =>
-        source.unsafeSubscribeFn(
-          new Subscriber.Sync[A] {
-            implicit val scheduler = out.scheduler
-            private[this] var isDone = false
-            private[this] var state: R = initialState
+      source.unsafeSubscribeFn(
+        new Subscriber.Sync[A] {
+          implicit val scheduler = out.scheduler
+          private[this] var isDone = false
+          private[this] var state: R = initialState
 
-            def onNext(elem: A): Ack = {
-              // Protects calls to user code from within the operator,
-              // as a matter of contract.
-              try {
-                state = f(state, elem)
-                Continue
-              } catch {
-                case NonFatal(ex) =>
-                  onError(ex)
-                  Stop
-              }
+          def onNext(elem: A): Ack = {
+            // Protects calls to user code from within the operator,
+            // as a matter of contract.
+            try {
+              state = f(state, elem)
+              Continue
+            } catch {
+              case NonFatal(ex) =>
+                onError(ex)
+                Stop
+            }
+          }
+
+          def onComplete(): Unit =
+            if (!isDone) {
+              isDone = true
+              out.onNext(state)
+              out.onComplete()
             }
 
-            def onComplete(): Unit =
-              if (!isDone) {
-                isDone = true
-                out.onNext(state)
-                out.onComplete()
-              }
-
-            def onError(ex: Throwable): Unit =
-              if (!isDone) {
-                isDone = true
-                out.onError(ex)
-              }
-          })
+          def onError(ex: Throwable): Unit =
+            if (!isDone) {
+              isDone = true
+              out.onError(ex)
+            }
+        })
+    }
+    catch {
+      case NonFatal(ex) if streamErrors =>
+        out.onError(ex)
+        Cancelable.empty
     }
   }
 }

@@ -15,20 +15,13 @@
  * limitations under the License.
  */
 
-package monix.types
+package monix.types.shims
 
-/** A shim for a `SemigroupK` type-class, to be supplied by / translated to
+/** A shim for an `MonadError` type-class, to be supplied by / translated to
   * libraries such as Cats or Scalaz.
-  *
-  * `SemigroupK` is a universal semigroup which operates on kinds.
   */
-trait SemigroupK[F[_]] extends Any with Serializable { self =>
-  /**
-    * Combine two F[A] values.
-    */
-  def combineK[A](x: F[A], y: F[A]): F[A]
-}
+trait MonadError[F[_],E] extends ApplicativeError[F,E] with Monad[F]
 
-object SemigroupK {
-  @inline def apply[F[_]](implicit F: SemigroupK[F]): SemigroupK[F] = F
+object MonadError {
+  @inline def apply[F[_],E](implicit F: MonadError[F,E]): MonadError[F,E] = F
 }

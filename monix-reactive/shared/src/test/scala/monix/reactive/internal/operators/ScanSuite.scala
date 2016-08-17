@@ -17,10 +17,8 @@
 
 package monix.reactive.internal.operators
 
-import monix.eval.Coeval
 import monix.reactive.Observable
 import monix.reactive.exceptions.DummyException
-
 import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero
 import scala.util.Failure
@@ -67,7 +65,7 @@ object ScanSuite extends BaseOperatorSuite {
 
   test("should trigger error if the initial state triggers errors") { implicit s =>
     val ex = DummyException("dummy")
-    val obs = Observable(1,2,3,4).scan[Int](Coeval.raiseError(ex))(_+_)
+    val obs = Observable(1,2,3,4).scan[Int](throw ex)(_+_)
     val f = obs.runAsyncGetFirst; s.tick()
     assertEquals(f.value, Some(Failure(ex)))
   }

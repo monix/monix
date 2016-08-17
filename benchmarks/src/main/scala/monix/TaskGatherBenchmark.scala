@@ -22,7 +22,8 @@ import java.util.concurrent.TimeUnit
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
 import org.openjdk.jmh.annotations._
-import scala.concurrent.Await
+
+import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.Duration
 
 /*
@@ -41,43 +42,50 @@ import scala.concurrent.duration.Duration
 class TaskGatherBenchmark {
   @Benchmark
   def sequenceA(): Long = {
-    val tasks = (0 until 10000).map(_ => Task(1)).toList
+    val tasks = (0 until 1000).map(_ => Task(1)).toList
     val f = Task.sequence(tasks).map(_.sum.toLong).runAsync
     Await.result(f, Duration.Inf)
   }
 
   @Benchmark
   def sequenceS(): Long = {
-    val tasks = (0 until 10000).map(_ => Task.evalAlways(1)).toList
+    val tasks = (0 until 1000).map(_ => Task.evalAlways(1)).toList
     val f = Task.sequence(tasks).map(_.sum.toLong).runAsync
     Await.result(f, Duration.Inf)
   }
 
-  @Benchmark
-  def gatherA(): Long = {
-    val tasks = (0 until 10000).map(_ => Task(1)).toList
-    val f = Task.gather(tasks).map(_.sum.toLong).runAsync
-    Await.result(f, Duration.Inf)
-  }
+   @Benchmark
+   def gatherA(): Long = {
+     val tasks = (0 until 1000).map(_ => Task(1)).toList
+     val f = Task.gather(tasks).map(_.sum.toLong).runAsync
+     Await.result(f, Duration.Inf)
+   }
+
+   @Benchmark
+   def gatherS(): Long = {
+     val tasks = (0 until 1000).map(_ => Task.evalAlways(1)).toList
+     val f = Task.gather(tasks).map(_.sum.toLong).runAsync
+     Await.result(f, Duration.Inf)
+   }
+
+   @Benchmark
+   def unorderedA(): Long = {
+     val tasks = (0 until 1000).map(_ => Task(1)).toList
+     val f = Task.gatherUnordered(tasks).map(_.sum.toLong).runAsync
+     Await.result(f, Duration.Inf)
+   }
+
+   @Benchmark
+   def unorderedS(): Long = {
+     val tasks = (0 until 1000).map(_ => Task.evalAlways(1)).toList
+     val f = Task.gatherUnordered(tasks).map(_.sum.toLong).runAsync
+     Await.result(f, Duration.Inf)
+   }
 
   @Benchmark
-  def gatherS(): Long = {
-    val tasks = (0 until 10000).map(_ => Task.evalAlways(1)).toList
-    val f = Task.gather(tasks).map(_.sum.toLong).runAsync
-    Await.result(f, Duration.Inf)
-  }
-
-  @Benchmark
-  def unorderedA(): Long = {
-    val tasks = (0 until 10000).map(_ => Task(1)).toList
-    val f = Task.gatherUnordered(tasks).map(_.sum.toLong).runAsync
-    Await.result(f, Duration.Inf)
-  }
-
-  @Benchmark
-  def unorderedS(): Long = {
-    val tasks = (0 until 10000).map(_ => Task.evalAlways(1)).toList
-    val f = Task.gatherUnordered(tasks).map(_.sum.toLong).runAsync
+  def futures(): Long = {
+    val futures = (0 until 1000).map(_ => Future(1)).toList
+    val f: Future[Long] = Future.sequence(futures).map(_.sum.toLong)
     Await.result(f, Duration.Inf)
   }
 }

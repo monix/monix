@@ -22,18 +22,26 @@ import monix.execution.{Cancelable, Ack}
 import monix.execution.Ack.{Stop, Continue}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
-
 import scala.annotation.tailrec
 import scala.util.control.NonFatal
 import scala.util.{Failure, Try}
 
 private[reactive] final
-class StateActionObservable[S,A](seed: S, f: S => (A,S)) extends Observable[A] {
-
+class StateActionObservable[S,A](seed: => S, f: S => (A,S)) extends Observable[A] {
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
-    val cancelable = BooleanCancelable()
-    new StateRunLoop(subscriber, cancelable, seed, f).run()
-    cancelable
+    var streamErrors = true
+    try {
+      val init = seed
+      val cancelable = BooleanCancelable()
+      streamErrors = false
+      new StateRunLoop(subscriber, cancelable, init, f).run()
+      cancelable
+    } catch {
+      case NonFatal(ex) =>
+        if (streamErrors) subscriber.onError(ex)
+        else subscriber.scheduler.reportFailure(ex)
+        Cancelable.empty
+    }
   }
 
   private[this]

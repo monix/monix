@@ -31,7 +31,10 @@ final class AsyncScheduler private (
   ec: ExecutionContext,
   r: UncaughtExceptionReporter,
   val executionModel: ExecutionModel)
-  extends ReferenceScheduler {
+  extends ReferenceScheduler with LocalBatchingExecutor {
+
+  protected def executeAsync(r: Runnable): Unit =
+    ec.execute(r)
 
   override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
     if (initialDelay <= 0) {
@@ -55,9 +58,6 @@ final class AsyncScheduler private (
     val task = scheduler.scheduleAtFixedRate(deferred, initialDelay, period, unit)
     Cancelable(() => task.cancel(false))
   }
-
-  override def execute(runnable: Runnable): Unit =
-    ec.execute(runnable)
 
   override def reportFailure(t: Throwable): Unit =
     r.reportFailure(t)

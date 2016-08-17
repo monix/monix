@@ -15,23 +15,15 @@
  * limitations under the License.
  */
 
-package monix.types
+package monix.types.shims
 
-/** A shim for the Applicative Functor type-class,
+/** A shim for the `Comonad` type-class,
   * to be supplied by libraries such as Cats or Scalaz.
-  *
-  * Described in [[http://www.soi.city.ac.uk/~ross/papers/Applicative.html Applicative Programming with Effects]].
-  *
-  * The [[Functor]] allows mapping of a pure function to a value, the `Applicative`
-  * also adds the capability of lifting a value in the context.
   */
-trait Applicative[F[_]] extends Functor[F] {
-  def pure[A](a: A): F[A]
-  def pureEval[A](a: => A): F[A]
-  def ap[A, B](fa: F[A])(ff: F[A => B]): F[B]
-  def map2[A, B, Z](fa: F[A], fb: F[B])(f: (A, B) => Z): F[Z]
+trait Comonad[F[_]] extends CoflatMap[F] {
+  def extract[A](x: F[A]): A
 }
 
-object Applicative {
-  @inline def apply[F[_]](implicit F: Applicative[F]): Applicative[F] = F
+object Comonad {
+  @inline def apply[F[_]](implicit F: Comonad[F]): Comonad[F] = F
 }

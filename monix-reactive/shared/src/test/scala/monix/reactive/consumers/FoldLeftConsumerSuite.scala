@@ -18,7 +18,6 @@
 package monix.reactive.consumers
 
 import minitest.TestSuite
-import monix.eval.Coeval
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.exceptions.DummyException
 import monix.reactive.{Consumer, Observable}
@@ -34,7 +33,7 @@ object FoldLeftConsumerSuite extends TestSuite[TestScheduler] {
   test("should sum a long stream") { implicit s =>
     val count = 10000L
     val obs = Observable.range(0, count)
-    val f = obs.runWith(Consumer.foldLeft(Coeval.now(0L))(_+_)).runAsync
+    val f = obs.runWith(Consumer.foldLeft(0L)(_+_)).runAsync
 
     s.tick()
     assertEquals(f.value, Some(Success(count * (count - 1) / 2)))
@@ -43,7 +42,7 @@ object FoldLeftConsumerSuite extends TestSuite[TestScheduler] {
   test("should interrupt with error") { implicit s =>
     val ex = DummyException("dummy")
     val obs = Observable.range(0, 10000).endWithError(ex)
-    val f = obs.runWith(Consumer.foldLeft(Coeval.now(0L))(_+_)).runAsync
+    val f = obs.runWith(Consumer.foldLeft(0L)(_+_)).runAsync
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
@@ -52,7 +51,7 @@ object FoldLeftConsumerSuite extends TestSuite[TestScheduler] {
   test("should protect against user error") { implicit s =>
     val ex = DummyException("dummy")
     val f = Observable.now(1)
-      .runWith(Consumer.foldLeft(Coeval(0))((_,_) => throw ex))
+      .runWith(Consumer.foldLeft(0L)((_,_) => throw ex))
       .runAsync
 
     s.tick()

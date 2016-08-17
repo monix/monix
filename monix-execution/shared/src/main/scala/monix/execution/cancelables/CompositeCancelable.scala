@@ -133,7 +133,7 @@ final class CompositeCancelable private (cancelables: TraversableOnce[Cancelable
 
   /** $removeOp */
   def remove(s: Cancelable): this.type = self.synchronized {
-    if (!isCanceledRef) subscriptions.add(s)
+    if (!isCanceledRef) subscriptions.remove(s)
     this
   }
 
@@ -147,7 +147,7 @@ final class CompositeCancelable private (cancelables: TraversableOnce[Cancelable
   /** $removeAllOp */
   def removeAll(that: GenTraversableOnce[Cancelable]): this.type =
     self.synchronized {
-      if (!isCanceledRef && that.nonEmpty) subscriptions ++= that.seq
+      if (!isCanceledRef && that.nonEmpty) subscriptions --= that.seq
       this
     }
 
