@@ -979,8 +979,16 @@ object Observable {
     * observable that keeps generating elements produced by our
     * generator function.
     */
-  def fromStateAction[S, A](f: S => (A, S))(initialState: S): Observable[A] =
+  def fromStateAction[S, A](f: S => (A, S))(initialState: => S): Observable[A] =
     new builders.StateActionObservable(initialState, f)
+
+  /** Given an initial state and a generator function that produces the
+    * next state and the next element in the sequence, creates an
+    * observable that keeps generating elements produced by our
+    * generator function.
+    */
+  def fromAsyncStateAction[S, A](f: S => Task[(A, S)])(initialState: => S): Observable[A] =
+    new builders.AsyncStateActionObservable(initialState, f)
 
   /** Wraps this Observable into a `org.reactivestreams.Publisher`.
     * See the [[http://www.reactive-streams.org/ Reactive Streams]]

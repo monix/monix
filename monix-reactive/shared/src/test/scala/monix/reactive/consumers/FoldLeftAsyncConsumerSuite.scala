@@ -53,10 +53,20 @@ object FoldLeftAsyncConsumerSuite extends TestSuite[TestScheduler] {
     assertEquals(f.value, Some(Failure(ex)))
   }
 
-  test("should protect against user error") { implicit s =>
+  test("should protect against user simple error") { implicit s =>
     val ex = DummyException("dummy")
     val f = Observable.now(1)
       .runWith(Consumer.foldLeftAsync(0L)((s,a) => throw ex))
+      .runAsync
+
+    s.tick()
+    assertEquals(f.value, Some(Failure(ex)))
+  }
+
+  test("should protect against user task error") { implicit s =>
+    val ex = DummyException("dummy")
+    val f = Observable.now(1)
+      .runWith(Consumer.foldLeftAsync(0L)((s,a) => Task.raiseError(ex)))
       .runAsync
 
     s.tick()

@@ -248,7 +248,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     *
     * The given [[monix.execution.Scheduler Scheduler]]  will be
     * used for execution of the [[Task]], effectively overriding the
-    * `Scheduler` that's passed in [[Task.runAsync]]. Thus you can
+    * `Scheduler` that's passed in `runAsync`. Thus you can
     * execute a whole `Task` on a separate thread-pool, useful for
     * example in case of doing I/O.
     *
@@ -598,7 +598,7 @@ object Task extends TaskInstances {
     * that evaluation forks into a separate (logical) thread.
     *
     * The [[monix.execution.Scheduler Scheduler]] used will be
-    * the one that is used to start the run-loop in [[Task.runAsync]].
+    * the one that is used to start the run-loop in `runAsync`.
     *
     * @param fa is the task that will get executed asynchronously
     */
@@ -613,7 +613,7 @@ object Task extends TaskInstances {
     *
     * The given [[monix.execution.Scheduler Scheduler]]  will be
     * used for execution of the [[Task]], effectively overriding the
-    * `Scheduler` that's passed in [[Task.runAsync]]. Thus you can
+    * `Scheduler` that's passed in `runAsync`. Thus you can
     * execute a whole `Task` on a separate thread-pool, useful for
     * example in case of doing I/O.
     *
@@ -1460,7 +1460,7 @@ object Task extends TaskInstances {
     *
     * DO NOT use directly, as it is UNSAFE to use, unless you know
     * what you're doing. Prefer [[Task.runAsync(cb* Task.runAsync]]
-    * and [[Task.fork]].
+    * and `Task.fork`.
     */
   def unsafeStartAsync[A](source: Task[A], scheduler: Scheduler, conn: StackedCancelable, cb: Callback[A]): Unit = {
     // Task is already known to execute asynchronously

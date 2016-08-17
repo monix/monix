@@ -17,6 +17,7 @@
 
 package monix.reactive
 
+import monix.eval.Task.{Error, Now}
 import monix.eval.{Callback, Task}
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.{Atomic, PaddingStrategy}
@@ -636,47 +637,39 @@ object Consumer {
         implicit val scheduler = s
         private[this] var isDone = false
         private[this] var state = initial()
-        private[this] var ack: Future[Ack] = Continue
 
         def onNext(elem: A): Future[Ack] = {
           // Protects calls to user code from within the operator,
           // as a matter of contract.
-          ack = try {
-            f(state, elem).coeval.value match {
-              case Left(future) =>
-                future.map { update =>
-                  state = update
-                  Continue
-                }
-              case Right(update) =>
+          try {
+            val task = f(state, elem).materializeAttempt.map {
+              case Now(update) =>
                 state = update
                 Continue
+              case Error(ex) =>
+                onError(ex)
+                Stop
             }
-          } catch {
+
+            task.runAsync
+          }
+          catch {
             case NonFatal(ex) =>
               onError(ex)
               Stop
           }
-
-          // Need to store ack on each onNext, because we need
-          // to back-pressure onComplete and onError
-          ack
         }
 
         def onComplete(): Unit =
-          ack.syncOnContinue {
-            if (!isDone) {
-              isDone = true
-              cb.onSuccess(state)
-            }
+          if (!isDone) {
+            isDone = true
+            cb.onSuccess(state)
           }
 
         def onError(ex: Throwable): Unit =
-          ack.syncOnContinue {
-            if (!isDone) {
-              isDone = true
-              cb.onError(ex)
-            }
+          if (!isDone) {
+            isDone = true
+            cb.onError(ex)
           }
       }
 

@@ -61,18 +61,6 @@ trait BaseLawsSuiteInstances extends AllInstances with cats.std.AllInstances {
         .map(Observable.fromIterable)
     }
 
-  implicit def arbitraryTaskStream[A : Arbitrary]: Arbitrary[TaskStream[A]] =
-    Arbitrary {
-      implicitly[Arbitrary[List[A]]].arbitrary
-        .map(list => TaskStream.fromList(list, 32))
-    }
-
-  implicit def arbitraryCoevalStream[A : Arbitrary]: Arbitrary[CoevalStream[A]] =
-    Arbitrary {
-      implicitly[Arbitrary[List[A]]].arbitrary
-        .map(list => CoevalStream.fromList(list, 32))
-    }
-
   implicit def arbitraryTask[A : Arbitrary]: Arbitrary[Task[A]] =
     Arbitrary {
       implicitly[Arbitrary[A]].arbitrary
@@ -156,18 +144,6 @@ trait BaseLawsSuiteInstances extends AllInstances with cats.std.AllInstances {
         scheduler.tick(1.hour)
         valueA == valueB
       }
-    }
-
-  implicit def equalityTaskStream[A : Eq]: Eq[TaskStream[A]] =
-    new Eq[TaskStream[A]] {
-      def eqv(x: TaskStream[A], y: TaskStream[A]): Boolean =
-        equalityTask[List[A]].eqv(x.toListL, y.toListL)
-    }
-
-  implicit def equalityCoevalStream[A : Eq]: Eq[CoevalStream[A]] =
-    new Eq[CoevalStream[A]] {
-      def eqv(x: CoevalStream[A], y: CoevalStream[A]): Boolean =
-        equalityCoeval[List[A]].eqv(x.toListL, y.toListL)
     }
 
   implicit def equalityCoeval[A : Eq]: Eq[Coeval[A]] =
