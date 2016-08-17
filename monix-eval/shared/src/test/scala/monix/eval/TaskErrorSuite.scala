@@ -170,18 +170,6 @@ object TaskErrorSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(ex2)))
   }
 
-  test("Task#onErrorRecover is cancelable") { implicit s =>
-    val dummy = DummyException("dummy")
-    val task = Task.fork(Task.raiseError[Int](dummy))
-      .onErrorRecover { case _: DummyException => 99 }
-
-    val f = task.runAsync
-    assertEquals(f.value, None)
-    // cancelling after scheduled for execution, but before execution
-    f.cancel(); s.tick()
-    assertEquals(f.value, None)
-  }
-
   test("Task#onErrorHandle should mirror source on success") { implicit s =>
     val task = Task(1).onErrorHandle { case ex: Throwable => 99 }
     val f = task.runAsync
@@ -209,18 +197,6 @@ object TaskErrorSuite extends BaseTestSuite {
 
     val f = task.runAsync; s.tick()
     assertEquals(f.value, Some(Failure(ex2)))
-  }
-
-  test("Task#onErrorHandle is cancelable") { implicit s =>
-    val dummy = DummyException("dummy")
-    val task = Task.fork(Task.raiseError[Int](dummy))
-      .onErrorHandle { case _: DummyException => 99 }
-
-    val f = task.runAsync
-    assertEquals(f.value, None)
-    // cancelling after scheduled for execution, but before execution
-    f.cancel(); s.tick()
-    assertEquals(f.value, None)
   }
 
   test("Task.onErrorFallbackTo should mirror source onSuccess") { implicit s =>
@@ -371,20 +347,6 @@ object TaskErrorSuite extends BaseTestSuite {
 
     val f = task.runAsync; s.tick()
     assertEquals(f.value, Some(Failure(ex2)))
-  }
-
-  test("Task#onErrorRecoverWith is cancelable") { implicit s =>
-    def recursive(): Task[Int] = {
-      Task[Int](throw DummyException("dummy"))
-        .onErrorRecoverWith { case _: DummyException => recursive() }
-    }
-
-    val task = recursive()
-    val f = task.runAsync
-    assertEquals(f.value, None)
-    // cancelling after scheduled for execution, but before execution
-    f.cancel(); s.tick()
-    assertEquals(f.value, None)
   }
 
   test("Task#onErrorRecoverWith has a cancelable fallback") { implicit s =>

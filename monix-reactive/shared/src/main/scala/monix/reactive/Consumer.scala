@@ -17,8 +17,7 @@
 
 package monix.reactive
 
-import monix.eval.Coeval.{Error, Now}
-import monix.eval.{Callback, Coeval, Task}
+import monix.eval.{Callback, Task}
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.{Atomic, PaddingStrategy}
 import monix.execution.cancelables.{AssignableCancelable, SingleAssignmentCancelable}
@@ -32,7 +31,7 @@ import scala.collection.immutable.{BitSet, Queue}
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.{Future, Promise}
 import scala.util.control.NonFatal
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 /** The `Consumer` is a specification of how to consume an observable.
   *
@@ -217,8 +216,8 @@ object Consumer {
     * @param f is the function that calculates a new state on each
     *        emitted value by the stream, for accumulating state
     */
-  def foldLeft[S,A](initial: Coeval[S])(f: (S,A) => S): Consumer.Sync[A,S] =
-    new FoldLeftConsumer[A,S](initial, f)
+  def foldLeft[S,A](initial: => S)(f: (S,A) => S): Consumer.Sync[A,S] =
+    new FoldLeftConsumer[A,S](initial _, f)
 
   /** Given a fold function and an initial state value, applies the
     * fold function to every element of the stream and finally signaling
@@ -233,8 +232,8 @@ object Consumer {
     *        emitted value by the stream, for accumulating state,
     *        returning a `Task` capable of asynchronous execution.
     */
-  def foldLeftAsync[S,A](initial: Coeval[S])(f: (S,A) => Task[S]): Consumer[A,S] =
-    new FoldLeftAsyncConsumer[A,S](initial, f)
+  def foldLeftAsync[S,A](initial: => S)(f: (S,A) => Task[S]): Consumer[A,S] =
+    new FoldLeftAsyncConsumer[A,S](initial _, f)
 
   /** A consumer that will produce the first streamed value on
     * `onNext` after which the streaming gets cancelled.
@@ -359,11 +358,11 @@ object Consumer {
     def createSubscriber(cb: Callback[Out], s: Scheduler): (Subscriber[In], AssignableCancelable) = {
       val conn = SingleAssignmentCancelable()
 
-      Coeval.Attempt(f(s, conn, cb)) match {
-        case Error(ex) =>
+      Try(f(s, conn, cb)) match {
+        case Failure(ex) =>
           Consumer.raiseError(ex).createSubscriber(cb,s)
 
-        case Now(out) =>
+        case Success(out) =>
           val sub = Subscriber(out, s)
           (sub, conn)
       }
@@ -589,14 +588,14 @@ object Consumer {
   }
 
   /** Implementation for [[foldLeft]]. */
-  private final class FoldLeftConsumer[A,R](initial: Coeval[R], f: (R,A) => R)
+  private final class FoldLeftConsumer[A,R](initial: () => R, f: (R,A) => R)
     extends Consumer.Sync[A,R] {
 
     def createSubscriber(cb: Callback[R], s: Scheduler): (Subscriber.Sync[A], AssignableCancelable) = {
       val out = new Subscriber.Sync[A] {
         implicit val scheduler = s
         private[this] var isDone = false
-        private[this] var state = initial.value
+        private[this] var state = initial()
 
         def onNext(elem: A): Ack = {
           // Protects calls to user code from within the operator,
@@ -629,14 +628,14 @@ object Consumer {
   }
 
   /** Implementation for [[foldLeftAsync]]. */
-  private final class FoldLeftAsyncConsumer[A,R](initial: Coeval[R], f: (R,A) => Task[R])
+  private final class FoldLeftAsyncConsumer[A,R](initial: () => R, f: (R,A) => Task[R])
     extends Consumer[A,R] {
 
     def createSubscriber(cb: Callback[R], s: Scheduler): (Subscriber[A], AssignableCancelable) = {
       val out = new Subscriber[A] {
         implicit val scheduler = s
         private[this] var isDone = false
-        private[this] var state = initial.value
+        private[this] var state = initial()
         private[this] var ack: Future[Ack] = Continue
 
         def onNext(elem: A): Future[Ack] = {
@@ -800,11 +799,11 @@ object Consumer {
     extends Consumer[In, Unit] {
 
     def createSubscriber(cb: Callback[Unit], s: Scheduler): (Subscriber[In], AssignableCancelable) = {
-      Coeval.Attempt(f(s)) match {
-        case Error(ex) =>
+      Try(f(s)) match {
+        case Failure(ex) =>
           Consumer.raiseError(ex).createSubscriber(cb,s)
 
-        case Now(out) =>
+        case Success(out) =>
           val sub = new Subscriber[In] { self =>
             implicit val scheduler = s
 

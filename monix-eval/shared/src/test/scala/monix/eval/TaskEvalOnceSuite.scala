@@ -18,7 +18,9 @@
 package monix.eval
 
 
-import monix.eval.Task.{Now, Error}
+import monix.eval.Task.{Error, Now}
+import monix.execution.internal.Platform
+
 import scala.util.{Failure, Success}
 
 object TaskEvalOnceSuite extends BaseTestSuite {
@@ -113,6 +115,26 @@ object TaskEvalOnceSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
+  test("Task.evalOnce.memoize should be stack safe") { implicit s =>
+    val count = if (Platform.isJVM) 50000 else 5000
+    var task = Task.evalAlways(1)
+    for (i <- 0 until count) task = task.memoize
+
+    val f = task.runAsync
+    assertEquals(f.value, Some(Success(1)))
+  }
+
+  test("Task.evalOnce.flatMap.memoize should be stack safe") { implicit s =>
+    val count = if (Platform.isJVM) 50000 else 5000
+    var task = Task.evalAlways(1)
+    for (i <- 0 until count) task = task.memoize.flatMap(x => Task.evalOnce(x))
+
+    val f = task.runAsync
+    assertEquals(f.value, None)
+    s.tick()
+    assertEquals(f.value, Some(Success(1)))
+  }
+
   test("Task.evalOnce.materializeAttempt should work for success") { implicit s =>
     val task = Task.evalOnce(1).materializeAttempt
     val f = task.runAsync
@@ -124,6 +146,19 @@ object TaskEvalOnceSuite extends BaseTestSuite {
     val task = Task.evalOnce[Int](throw dummy).materializeAttempt
     val f = task.runAsync
     assertEquals(f.value, Some(Success(Error(dummy))))
+  }
+
+  test("Task.evalOnce.materialize should be stack safe") { implicit s =>
+    def loop(n: Int): Task[Int] =
+      if (n <= 0) Task.evalOnce(n)
+      else Task.evalOnce(n).materialize.flatMap {
+        case Success(v) => loop(n-1)
+        case Failure(ex) => Task.raiseError(ex)
+      }
+
+    val count = if (Platform.isJVM) 50000 else 5000
+    val result = loop(count).runAsync; s.tick()
+    assertEquals(result.value, Some(Success(0)))
   }
 
   test("Task.evalOnce.coeval") { implicit s =>

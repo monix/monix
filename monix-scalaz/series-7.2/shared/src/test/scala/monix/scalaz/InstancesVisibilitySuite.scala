@@ -21,6 +21,7 @@ import minitest.SimpleTestSuite
 import monix.eval.{Coeval, Task}
 import monix.reactive.Observable
 import monix.types._
+import monix.types.shims._
 
 object InstancesVisibilitySuite extends SimpleTestSuite {
   test("Functor instance is visible") {

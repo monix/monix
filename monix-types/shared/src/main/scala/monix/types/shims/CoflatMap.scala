@@ -15,15 +15,18 @@
  * limitations under the License.
  */
 
-package monix.types
+package monix.types.shims
 
-import monix.types.shims.{CoflatMap, MonadError}
-import simulacrum.typeclass
-
-/** Groups common type-classes for things that can be evaluated
-  * and that yield a single result (i.e. `Task`, `Coeval`)
+/** A shim for the `CoflatMap` type-class,
+  * to be supplied by libraries such as Cats or Scalaz.
   */
-@typeclass(excludeParents = List("CoflatMap"))
-trait Evaluable[F[_]] extends Deferrable[F]
-  with MonadError[F, Throwable] with CoflatMap[F]
+trait CoflatMap[F[_]] extends Functor[F] {
+  def coflatMap[A, B](fa: F[A])(f: F[A] => B): F[B]
 
+  def coflatten[A](fa: F[A]): F[F[A]] =
+    coflatMap(fa)(fa => fa)
+}
+
+object CoflatMap {
+  @inline def apply[F[_]](implicit F: CoflatMap[F]): CoflatMap[F] = F
+}

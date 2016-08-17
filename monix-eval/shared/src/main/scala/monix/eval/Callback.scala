@@ -17,7 +17,8 @@
 
 package monix.eval
 
-import monix.execution.UncaughtExceptionReporter
+import monix.execution.{Scheduler, UncaughtExceptionReporter}
+
 import scala.concurrent.{ExecutionContext, Promise}
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
@@ -74,6 +75,18 @@ object Callback {
       def onSuccess(value: A): Unit = p.success(value)
     }
 
+  /** Given a [[Callback]] wraps it into an implementation that
+    * calls `onSuccess` and `onError` asynchronously, using the
+    * given [[Scheduler]].
+    */
+  def async[A](cb: Callback[A])(implicit s: Scheduler): Callback[A] =
+    new Callback[A] {
+      def onSuccess(value: A): Unit =
+        cb.asyncOnSuccess(value)
+      def onError(ex: Throwable): Unit =
+        cb.asyncOnError(ex)
+    }
+
   /** Useful extension methods for [[Callback]]. */
   implicit final class Extensions[-A](val source: Callback[A]) extends AnyVal {
     /** Extension method that calls `onSuccess` asynchronously. */
@@ -83,6 +96,10 @@ object Callback {
     /** Extension method that calls `onError` asynchronously. */
     def asyncOnError(ex: Throwable)(implicit ec: ExecutionContext): Unit =
       ec.execute(new Runnable { def run() = source.onError(ex) })
+
+    /** Extension method that calls `apply` asynchronously. */
+    def asyncApply(value: Try[A])(implicit ec: ExecutionContext): Unit =
+      ec.execute(new Runnable { def run() = source(value) })
   }
 
   /** An "empty" callback instance doesn't do anything `onSuccess` and

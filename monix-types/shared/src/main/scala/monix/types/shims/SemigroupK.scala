@@ -15,15 +15,20 @@
  * limitations under the License.
  */
 
-package monix.types
+package monix.types.shims
 
-import monix.types.shims.{CoflatMap, MonadError}
-import simulacrum.typeclass
-
-/** Groups common type-classes for things that can be evaluated
-  * and that yield a single result (i.e. `Task`, `Coeval`)
+/** A shim for a `SemigroupK` type-class, to be supplied by / translated to
+  * libraries such as Cats or Scalaz.
+  *
+  * `SemigroupK` is a universal semigroup which operates on kinds.
   */
-@typeclass(excludeParents = List("CoflatMap"))
-trait Evaluable[F[_]] extends Deferrable[F]
-  with MonadError[F, Throwable] with CoflatMap[F]
+trait SemigroupK[F[_]] extends Any with Serializable { self =>
+  /**
+    * Combine two F[A] values.
+    */
+  def combineK[A](x: F[A], y: F[A]): F[A]
+}
 
+object SemigroupK {
+  @inline def apply[F[_]](implicit F: SemigroupK[F]): SemigroupK[F] = F
+}

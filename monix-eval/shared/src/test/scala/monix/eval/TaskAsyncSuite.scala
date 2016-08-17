@@ -18,9 +18,9 @@
 package monix.eval
 
 import monix.execution.{Cancelable, CancelableFuture}
-import concurrent.duration._
 import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success}
+import concurrent.duration._
 
 object TaskAsyncSuite extends BaseTestSuite {
   test("Task.never should never complete") { implicit s =>
@@ -127,12 +127,14 @@ object TaskAsyncSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(10)))
   }
 
-  test("Task.fromFuture(cancelable) should be onError") { implicit s =>
+  test("Task.fromFuture(cancelable) should work onError") { implicit s =>
     val dummy = DummyException("dummy")
     val p = Promise[Int]()
     val t = Task.fromFuture(CancelableFuture(p.future, Cancelable.empty))
     val f = t.runAsync
-    s.tick(); p.failure(dummy); s.tickOne()
+    s.tick()
+    p.failure(dummy)
+    s.tickOne()
     assertEquals(f.value, Some(Failure(dummy)))
   }
 

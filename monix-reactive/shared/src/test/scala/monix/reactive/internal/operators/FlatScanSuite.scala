@@ -17,7 +17,6 @@
 
 package monix.reactive.internal.operators
 
-import monix.eval.Coeval
 import monix.reactive.Observable
 import monix.reactive.exceptions.DummyException
 import scala.concurrent.duration._
@@ -65,7 +64,7 @@ object FlatScanSuite extends BaseOperatorSuite {
 
   test("should trigger error if the initial state triggers errors") { implicit s =>
     val ex = DummyException("dummy")
-    val obs = Observable(1,2,3,4).flatScan[Int](Coeval.raiseError(ex))((_,e) => Observable(e))
+    val obs = Observable(1,2,3,4).flatScan[Int](throw ex)((_,e) => Observable(e))
     val f = obs.runAsyncGetFirst; s.tick()
     assertEquals(f.value, Some(Failure(ex)))
   }

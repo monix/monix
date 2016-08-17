@@ -26,9 +26,9 @@ object CoevalZipSuite extends BaseTestSuite{
     assertEquals(t.runTry, Success((1,2)))
   }
 
-  test("Coeval#zipWith works") { implicit s =>
+  test("Coeval#zipMap works") { implicit s =>
     def n(n: Int) = Coeval.now(n)
-    val t = n(1).zipWith(n(2))((_,_))
+    val t = n(1).zipMap(n(2))((_,_))
     assertEquals(t.runTry, Success((1,2)))
   }
 
@@ -40,7 +40,7 @@ object CoevalZipSuite extends BaseTestSuite{
 
   test("Coeval#zipWith2 works") { implicit s =>
     def n(n: Int) = Coeval.now(n)
-    val t = Coeval.zipWith2(n(1),n(2))((_,_))
+    val t = Coeval.zipMap2(n(1),n(2))((_,_))
     assertEquals(t.runTry, Success((1,2)))
   }
 
@@ -50,9 +50,9 @@ object CoevalZipSuite extends BaseTestSuite{
     assertEquals(t.runTry, Success((1,2,3)))
   }
 
-  test("Coeval#zipWith3 works") { implicit s =>
+  test("Coeval#zipMap3 works") { implicit s =>
     def n(n: Int) = Coeval.now(n)
-    val t = Coeval.zipWith3(n(1),n(2),n(3))((_,_,_))
+    val t = Coeval.zipMap3(n(1),n(2),n(3))((_,_,_))
     assertEquals(t.runTry, Success((1,2,3)))
   }
 
@@ -62,9 +62,9 @@ object CoevalZipSuite extends BaseTestSuite{
     assertEquals(t.runTry, Success((1,2,3,4)))
   }
 
-  test("Coeval#zipWith4 works") { implicit s =>
+  test("Coeval#zipMap4 works") { implicit s =>
     def n(n: Int) = Coeval.now(n)
-    val t = Coeval.zipWith4(n(1),n(2),n(3),n(4))((_,_,_,_))
+    val t = Coeval.zipMap4(n(1),n(2),n(3),n(4))((_,_,_,_))
     assertEquals(t.runTry, Success((1,2,3,4)))
   }
 
@@ -74,9 +74,9 @@ object CoevalZipSuite extends BaseTestSuite{
     assertEquals(t.runTry, Success((1,2,3,4,5)))
   }
 
-  test("Coeval#zipWith5 works") { implicit s =>
+  test("Coeval#zipMap5 works") { implicit s =>
     def n(n: Int) = Coeval.now(n)
-    val t = Coeval.zipWith5(n(1),n(2),n(3),n(4),n(5))((_,_,_,_,_))
+    val t = Coeval.zipMap5(n(1),n(2),n(3),n(4),n(5))((_,_,_,_,_))
     assertEquals(t.runTry, Success((1,2,3,4,5)))
   }
 
@@ -86,9 +86,9 @@ object CoevalZipSuite extends BaseTestSuite{
     assertEquals(t.runTry, Success((1,2,3,4,5,6)))
   }
 
-  test("Coeval#zipWith6 works") { implicit s =>
+  test("Coeval#zipMap6 works") { implicit s =>
     def n(n: Int) = Coeval.now(n)
-    val t = Coeval.zipWith6(n(1),n(2),n(3),n(4),n(5),n(6))((_,_,_,_,_,_))
+    val t = Coeval.zipMap6(n(1),n(2),n(3),n(4),n(5),n(6))((_,_,_,_,_,_))
     assertEquals(t.runTry, Success((1,2,3,4,5,6)))
   }
 }

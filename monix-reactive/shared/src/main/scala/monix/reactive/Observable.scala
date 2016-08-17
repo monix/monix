@@ -18,6 +18,7 @@
 package monix.reactive
 
 import java.io.{BufferedReader, InputStream, Reader}
+
 import monix.eval.{Coeval, Task}
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution._
@@ -29,9 +30,11 @@ import monix.reactive.observers._
 import monix.reactive.subjects._
 import monix.types.Streamable
 import org.reactivestreams.{Publisher => RPublisher, Subscriber => RSubscriber}
+
 import scala.collection.mutable
 import scala.concurrent.Future
 import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.util.Try
 import scala.util.control.NonFatal
 
 /** The Observable type that implements the Reactive Pattern.
@@ -302,7 +305,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     *         the given predicate holds or not for at least one item
     */
   def existsL(p: A => Boolean): Task[Boolean] =
-    findF(p).foldLeftL(Coeval.now(false))((_, _) => true)
+    findF(p).foldLeftL(false)((_, _) => true)
 
   /** Returns a task which emits the first item for which
     * the predicate holds.
@@ -319,7 +322,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     * the source, going left to right and returns a new `Task` that
     * upon evaluation will eventually emit the final result.
     */
-  def foldLeftL[R](initial: Coeval[R])(op: (R, A) => R): Task[R] =
+  def foldLeftL[R](initial: => R)(op: (R, A) => R): Task[R] =
     foldLeftF(initial)(op).headL
 
   /** Folds the source observable, from start to finish, until the
@@ -335,7 +338,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     *           that should become false in case the folding must be
     *           interrupted.
     */
-  def foldWhileL[R](initial: Coeval[R])(op: (R,A) => (Boolean, R)): Task[R] =
+  def foldWhileL[R](initial: => R)(op: (R,A) => (Boolean, R)): Task[R] =
     foldWhileF(initial)(op).headL
 
   /** Returns a `Task` that emits a single boolean, either true, in
@@ -358,9 +361,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     * in error with a `NoSuchElementException`.
     */
   def firstL: Task[A] =
-    firstOrElseL(Coeval.raiseError(
-      new NoSuchElementException("firstL on empty observable")
-    ))
+    firstOrElseL(throw new NoSuchElementException("firstL on empty observable"))
 
   /** Creates a new [[monix.eval.Task Task]] that upon execution
     * will signal the first generated element of the source observable.
@@ -368,15 +369,15 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     * Returns an `Option` because the source can be empty.
     */
   def firstOptionL: Task[Option[A]] =
-    map(Some.apply).firstOrElseL(Coeval.now(None))
+    map(Some.apply).firstOrElseL(None)
 
   /** Creates a new [[monix.eval.Task Task]] that upon execution
     * will signal the first generated element of the source observable.
     *
     * In case the stream was empty, then the given default
-    * [[monix.eval.Coeval Coeval]] gets evaluated and emitted.
+    * gets evaluated and emitted.
     */
-  def firstOrElseL[B >: A](default: Coeval[B]): Task[B] =
+  def firstOrElseL[B >: A](default: => B): Task[B] =
     Task.unsafeCreate { (s, c, cb) =>
       val task = SingleAssignmentCancelable()
       c push task
@@ -396,7 +397,11 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
           if (!isDone) { isDone = true; c.pop(); cb.onError(ex) }
 
         def onComplete(): Unit =
-          if (!isDone) { isDone = true; c.pop(); cb(default) }
+          if (!isDone) {
+            isDone = true
+            c.pop()
+            cb(Try(default))
+          }
       })
     }
 
@@ -405,15 +410,15 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
   /** Alias for [[firstL]]. */
   def headL: Task[A] = firstL
   /** Alias for [[firstOrElseL]]. */
-  def headOrElseL[B >: A](default: Coeval[B]): Task[B] = firstOrElseL(default)
+  def headOrElseL[B >: A](default: => B): Task[B] = firstOrElseL(default)
 
   /** Creates a new [[monix.eval.Task Task]] that upon execution
     * will signal the last generated element of the source observable.
     *
-    * In case the stream was empty, then the given default
-    * [[monix.eval.Coeval Coeval]] gets evaluated and emitted.
+    * In case the stream was empty, then the given default gets
+    * evaluated and emitted.
     */
-  def lastOrElseL[B >: A](default: Coeval[B]): Task[B] =
+  def lastOrElseL[B >: A](default: => B): Task[B] =
     Task.unsafeCreate { (s, c, cb) =>
       val task = SingleAssignmentCancelable()
       c push task
@@ -436,12 +441,8 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
 
         def onComplete(): Unit = {
           c.pop()
-
           if (isEmpty)
-            default.runAttempt match {
-              case Coeval.Now(v) => cb.onSuccess(v)
-              case Coeval.Error(ex) => cb.onError(ex)
-            }
+            cb(Try(default))
           else
             cb.onSuccess(value)
         }
@@ -454,7 +455,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     * Returns an `Option` because the source can be empty.
     */
   def lastOptionL: Task[Option[A]] =
-    map(Some.apply).lastOrElseL(Coeval.now(None))
+    map(Some.apply).lastOrElseL(None)
 
   /** Returns a [[monix.eval.Task Task]] that upon execution
     * will signal the last generated element of the source observable.
@@ -463,7 +464,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     * in error with a `NoSuchElementException`.
     */
   def lastL: Task[A] =
-    lastOrElseL(Coeval.raiseError(new NoSuchElementException("lastL")))
+    lastOrElseL(throw new NoSuchElementException("lastL"))
 
   /** Returns a task that emits `true` if the source observable is
     * empty, otherwise `false`.
@@ -536,10 +537,8 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     * WARNING: for infinite streams the process will eventually blow up
     * with an out of memory error.
     */
-  def toListL: Task[List[A]] = {
-    val initial = Coeval(mutable.ListBuffer.empty[A])
-    foldLeftL(initial)(_ += _).map(_.toList)
-  }
+  def toListL: Task[List[A]] =
+    foldLeftL(mutable.ListBuffer.empty[A])(_ += _).map(_.toList)
 
   /** Creates a new [[monix.eval.Task Task]] that will consume the
     * source observable, executing the given callback for each element.
@@ -1048,7 +1047,7 @@ object Observable {
     * will be the result of the function applied to the second items
     * emitted by each of those observables; and so forth.
     *
-    * See [[combineLatestWith2]] for a more relaxed alternative that doesn't
+    * See [[combineLatestMap2]] for a more relaxed alternative that doesn't
     * combine items in strict sequence.
     */
   def zip2[A1,A2](oa1: Observable[A1], oa2: Observable[A2]): Observable[(A1,A2)] =
@@ -1063,12 +1062,12 @@ object Observable {
     * will be the result of the function applied to the second items
     * emitted by each of those observables; and so forth.
     *
-    * See [[combineLatestWith2]] for a more relaxed alternative that doesn't
+    * See [[combineLatestMap2]] for a more relaxed alternative that doesn't
     * combine items in strict sequence.
     *
     * @param f is the mapping function applied over the generated pairs
     */
-  def zipWith2[A1,A2,R](oa1: Observable[A1], oa2: Observable[A2])(f: (A1,A2) => R): Observable[R] =
+  def zipMap2[A1,A2,R](oa1: Observable[A1], oa2: Observable[A2])(f: (A1,A2) => R): Observable[R] =
     new builders.Zip2Observable[A1,A2,R](oa1,oa2)(f)
 
   /** Creates a new observable from three observable sequences
@@ -1080,7 +1079,7 @@ object Observable {
     * will be the result of the function applied to the second items
     * emitted by each of those observables; and so forth.
     *
-    * See [[combineLatestWith3]] for a more relaxed alternative that doesn't
+    * See [[combineLatestMap3]] for a more relaxed alternative that doesn't
     * combine items in strict sequence.
     */
   def zip3[A1,A2,A3](oa1: Observable[A1], oa2: Observable[A2], oa3: Observable[A3]): Observable[(A1,A2,A3)] =
@@ -1095,12 +1094,12 @@ object Observable {
     * will be the result of the function applied to the second items
     * emitted by each of those observables; and so forth.
     *
-    * See [[combineLatestWith3]] for a more relaxed alternative that doesn't
+    * See [[combineLatestMap3]] for a more relaxed alternative that doesn't
     * combine items in strict sequence.
     *
     * @param f is the mapping function applied over the generated pairs
     */
-  def zipWith3[A1,A2,A3,R](oa1: Observable[A1], oa2: Observable[A2], oa3: Observable[A3])
+  def zipMap3[A1,A2,A3,R](oa1: Observable[A1], oa2: Observable[A2], oa3: Observable[A3])
     (f: (A1,A2,A3) => R): Observable[R] =
     new builders.Zip3Observable(oa1,oa2,oa3)(f)
 
@@ -1113,7 +1112,7 @@ object Observable {
     * will be the result of the function applied to the second items
     * emitted by each of those observables; and so forth.
     *
-    * See [[combineLatestWith4]] for a more relaxed alternative that doesn't
+    * See [[combineLatestMap4]] for a more relaxed alternative that doesn't
     * combine items in strict sequence.
     */
   def zip4[A1,A2,A3,A4]
@@ -1129,12 +1128,12 @@ object Observable {
     * will be the result of the function applied to the second items
     * emitted by each of those observables; and so forth.
     *
-    * See [[combineLatestWith4]] for a more relaxed alternative that doesn't
+    * See [[combineLatestMap4]] for a more relaxed alternative that doesn't
     * combine items in strict sequence.
     *
     * @param f is the mapping function applied over the generated pairs
     */
-  def zipWith4[A1,A2,A3,A4,R]
+  def zipMap4[A1,A2,A3,A4,R]
     (oa1: Observable[A1], oa2: Observable[A2], oa3: Observable[A3], oa4: Observable[A4])
     (f: (A1,A2,A3,A4) => R): Observable[R] =
     new builders.Zip4Observable(oa1,oa2,oa3,oa4)(f)
@@ -1148,7 +1147,7 @@ object Observable {
     * will be the result of the function applied to the second items
     * emitted by each of those observables; and so forth.
     *
-    * See [[combineLatestWith5]] for a more relaxed alternative that doesn't
+    * See [[combineLatestMap5]] for a more relaxed alternative that doesn't
     * combine items in strict sequence.
     */
   def zip5[A1,A2,A3,A4,A5](
@@ -1165,12 +1164,12 @@ object Observable {
     * will be the result of the function applied to the second items
     * emitted by each of those observables; and so forth.
     *
-    * See [[combineLatestWith5]] for a more relaxed alternative that doesn't
+    * See [[combineLatestMap5]] for a more relaxed alternative that doesn't
     * combine items in strict sequence.
     *
     * @param f is the mapping function applied over the generated pairs
     */
-  def zipWith5[A1,A2,A3,A4,A5,R]
+  def zipMap5[A1,A2,A3,A4,A5,R]
     (oa1: Observable[A1], oa2: Observable[A2], oa3: Observable[A3],
      oa4: Observable[A4], oa5: Observable[A5])
     (f: (A1,A2,A3,A4,A5) => R): Observable[R] =
@@ -1185,7 +1184,7 @@ object Observable {
     * will be the result of the function applied to the second items
     * emitted by each of those observables; and so forth.
     *
-    * See [[combineLatestWith5]] for a more relaxed alternative that doesn't
+    * See [[combineLatestMap5]] for a more relaxed alternative that doesn't
     * combine items in strict sequence.
     */
   def zip6[A1,A2,A3,A4,A5,A6](
@@ -1202,12 +1201,12 @@ object Observable {
     * will be the result of the function applied to the second items
     * emitted by each of those observables; and so forth.
     *
-    * See [[combineLatestWith5]] for a more relaxed alternative that doesn't
+    * See [[combineLatestMap5]] for a more relaxed alternative that doesn't
     * combine items in strict sequence.
     *
     * @param f is the mapping function applied over the generated pairs
     */
-  def zipWith6[A1,A2,A3,A4,A5,A6,R]
+  def zipMap6[A1,A2,A3,A4,A5,A6,R]
     (oa1: Observable[A1], oa2: Observable[A2], oa3: Observable[A3],
      oa4: Observable[A4], oa5: Observable[A5], oa6: Observable[A6])
     (f: (A1,A2,A3,A4,A5,A6) => R): Observable[R] =
@@ -1221,7 +1220,7 @@ object Observable {
     else {
       val seed = sources.head.map(t => Vector(t))
       sources.tail.foldLeft(seed) { (acc, obs) =>
-        acc.zipWith(obs)((seq, elem) => seq :+ elem)
+        acc.zipMap(obs)((seq, elem) => seq :+ elem)
       }
     }
   }
@@ -1240,14 +1239,14 @@ object Observable {
 
   /** Creates a combined observable from 2 source observables.
     *
-    * This operator behaves in a similar way to [[zipWith2]],
+    * This operator behaves in a similar way to [[zipMap2]],
     * but while `zip` emits items only when all of the zipped source
     * observables have emitted a previously unzipped item, `combine`
     * emits an item whenever any of the source Observables emits an
     * item (so long as each of the source Observables has emitted at
     * least one item).
     */
-  def combineLatestWith2[A1,A2,R](oa1: Observable[A1], oa2: Observable[A2])
+  def combineLatestMap2[A1,A2,R](oa1: Observable[A1], oa2: Observable[A2])
     (f: (A1,A2) => R): Observable[R] =
     new builders.CombineLatest2Observable[A1,A2,R](oa1,oa2)(f)
 
@@ -1266,14 +1265,14 @@ object Observable {
 
   /** Creates a combined observable from 3 source observables.
     *
-    * This operator behaves in a similar way to [[zipWith3]],
+    * This operator behaves in a similar way to [[zipMap3]],
     * but while `zip` emits items only when all of the zipped source
     * observables have emitted a previously unzipped item, `combine`
     * emits an item whenever any of the source Observables emits an
     * item (so long as each of the source Observables has emitted at
     * least one item).
     */
-  def combineLatestWith3[A1,A2,A3,R](a1: Observable[A1], a2: Observable[A2], a3: Observable[A3])
+  def combineLatestMap3[A1,A2,A3,R](a1: Observable[A1], a2: Observable[A2], a3: Observable[A3])
     (f: (A1,A2,A3) => R): Observable[R] =
     new builders.CombineLatest3Observable[A1,A2,A3,R](a1,a2,a3)(f)
 
@@ -1293,14 +1292,14 @@ object Observable {
 
   /** Creates a combined observable from 4 source observables.
     *
-    * This operator behaves in a similar way to [[zipWith4]],
+    * This operator behaves in a similar way to [[zipMap4]],
     * but while `zip` emits items only when all of the zipped source
     * observables have emitted a previously unzipped item, `combine`
     * emits an item whenever any of the source Observables emits an
     * item (so long as each of the source Observables has emitted at
     * least one item).
     */
-  def combineLatestWith4[A1,A2,A3,A4,R]
+  def combineLatestMap4[A1,A2,A3,A4,R]
     (a1: Observable[A1], a2: Observable[A2], a3: Observable[A3], a4: Observable[A4])
     (f: (A1,A2,A3,A4) => R): Observable[R] =
     new builders.CombineLatest4Observable[A1,A2,A3,A4,R](a1,a2,a3,a4)(f)
@@ -1321,14 +1320,14 @@ object Observable {
 
   /** Creates a combined observable from 5 source observables.
     *
-    * This operator behaves in a similar way to [[zipWith5]],
+    * This operator behaves in a similar way to [[zipMap5]],
     * but while `zip` emits items only when all of the zipped source
     * observables have emitted a previously unzipped item, `combine`
     * emits an item whenever any of the source Observables emits an
     * item (so long as each of the source Observables has emitted at
     * least one item).
     */
-  def combineLatestWith5[A1,A2,A3,A4,A5,R]
+  def combineLatestMap5[A1,A2,A3,A4,A5,R]
     (a1: Observable[A1], a2: Observable[A2], a3: Observable[A3], a4: Observable[A4], a5: Observable[A5])
     (f: (A1,A2,A3,A4,A5) => R): Observable[R] =
     new builders.CombineLatest5Observable[A1,A2,A3,A4,A5,R](a1,a2,a3,a4,a5)(f)
@@ -1349,21 +1348,21 @@ object Observable {
 
   /** Creates a combined observable from 6 source observables.
     *
-    * This operator behaves in a similar way to [[zipWith6]],
+    * This operator behaves in a similar way to [[zipMap6]],
     * but while `zip` emits items only when all of the zipped source
     * observables have emitted a previously unzipped item, `combine`
     * emits an item whenever any of the source Observables emits an
     * item (so long as each of the source Observables has emitted at
     * least one item).
     */
-  def combineLatestWith6[A1,A2,A3,A4,A5,A6,R]
+  def combineLatestMap6[A1,A2,A3,A4,A5,A6,R]
     (a1: Observable[A1], a2: Observable[A2], a3: Observable[A3],
      a4: Observable[A4], a5: Observable[A5], a6: Observable[A6])
     (f: (A1,A2,A3,A4,A5,A6) => R): Observable[R] =
     new builders.CombineLatest6Observable[A1,A2,A3,A4,A5,A6,R](a1,a2,a3,a4,a5,a6)(f)
 
   /** Given an observable sequence, it combines them together
-    * (using [[combineLatestWith2 combineLatest]])
+    * (using [[combineLatestMap2 combineLatest]])
     * returning a new observable that generates sequences.
     */
   def combineLatestList[A](sources: Observable[A]*): Observable[Seq[A]] = {
@@ -1371,7 +1370,7 @@ object Observable {
     else {
       val seed = sources.head.map(t => Vector(t))
       sources.tail.foldLeft(seed) { (acc, obs) =>
-        acc.combineLatestWith(obs) { (seq, elem) => seq :+ elem }
+        acc.combineLatestMap(obs) { (seq, elem) => seq :+ elem }
       }
     }
   }
@@ -1388,6 +1387,13 @@ object Observable {
 
   /** Type-class instances for [[Observable]]. */
   class TypeClassInstances extends Streamable[Observable] {
+    override def now[A](a: A): Observable[A] = Observable.now(a)
+    override def evalAlways[A](f: => A): Observable[A] = Observable.evalAlways(f)
+    override def defer[A](fa: => Observable[A]): Observable[A] = Observable.defer(fa)
+    override def memoize[A](fa: Observable[A]): Observable[A] = fa.cache
+    override def evalOnce[A](f: => A): Observable[A] = Observable.evalOnce(f)
+    override def unit: Observable[Unit] = Observable.now(())
+
     override def combineK[A](x: Observable[A], y: Observable[A]): Observable[A] =
       x ++ y
     override def flatMap[A, B](fa: Observable[A])(f: (A) => Observable[B]): Observable[B] =

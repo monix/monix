@@ -18,7 +18,7 @@
 package monix.reactive.consumers
 
 import minitest.TestSuite
-import monix.eval.{Coeval, Task}
+import monix.eval.Task
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.exceptions.DummyException
 import monix.reactive.{Consumer, Observable}
@@ -35,7 +35,7 @@ object FoldLeftAsyncConsumerSuite extends TestSuite[TestScheduler] {
     val count = 10000L
     val obs = Observable.range(0, count)
     val f = obs.runWith(Consumer
-      .foldLeftAsync(Coeval.now(0L))((s,a) => Task(s+a)))
+      .foldLeftAsync(0L)((s,a) => Task(s+a)))
       .runAsync
 
     s.tick()
@@ -46,7 +46,7 @@ object FoldLeftAsyncConsumerSuite extends TestSuite[TestScheduler] {
     val ex = DummyException("dummy")
     val obs = Observable.range(0, 10000).endWithError(ex)
     val f = obs.runWith(Consumer
-      .foldLeftAsync(Coeval.now(0L))((s,a) => Task(s+a)))
+      .foldLeftAsync(0L)((s,a) => Task(s+a)))
       .runAsync
 
     s.tick()
@@ -56,7 +56,7 @@ object FoldLeftAsyncConsumerSuite extends TestSuite[TestScheduler] {
   test("should protect against user error") { implicit s =>
     val ex = DummyException("dummy")
     val f = Observable.now(1)
-      .runWith(Consumer.foldLeftAsync(Coeval.now(0L))((s,a) => throw ex))
+      .runWith(Consumer.foldLeftAsync(0L)((s,a) => throw ex))
       .runAsync
 
     s.tick()

@@ -17,7 +17,6 @@
 
 package monix.reactive.internal.operators
 
-import monix.eval.Coeval
 import monix.reactive.Observable
 import monix.reactive.exceptions.DummyException
 import scala.concurrent.duration._
@@ -30,23 +29,23 @@ object FoldLeftObservableSuite extends BaseOperatorSuite {
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val obs = Observable.range(0, sourceCount).endWithError(ex).foldLeftF(Coeval(0L))(_+_)
+    val obs = Observable.range(0, sourceCount).endWithError(ex).foldLeftF(0L)(_+_)
     Sample(obs, 0, 0, 0.seconds, 0.seconds)
   }
 
   def cancelableObservables() = {
-    val obs = Observable.range(0, 1000).delaySubscription(1.seconds).foldLeftF(Coeval(0L))(_+_)
+    val obs = Observable.range(0, 1000).delaySubscription(1.seconds).foldLeftF(0L)(_+_)
     Seq(Sample(obs, 0, 0, 0.seconds, 0.seconds))
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val obs = Observable.range(0, sourceCount).endWithError(ex).foldLeftF(Coeval(0L))((_,_) => throw ex)
+    val obs = Observable.range(0, sourceCount).endWithError(ex).foldLeftF(0L)((_,_) => throw ex)
     Sample(obs, 0, 0, 0.seconds, 0.seconds)
   }
 
   test("should trigger error if the initial state triggers errors") { implicit s =>
     val ex = DummyException("dummy")
-    val obs = Observable(1,2,3,4).foldLeftF[Int](Coeval.raiseError(ex))(_+_)
+    val obs = Observable(1,2,3,4).foldLeftF[Int](throw ex)(_+_)
     val f = obs.runAsyncGetFirst; s.tick()
     assertEquals(f.value, Some(Failure(ex)))
   }

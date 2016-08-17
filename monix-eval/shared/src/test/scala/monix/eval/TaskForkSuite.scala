@@ -18,6 +18,7 @@
 package monix.eval
 
 import monix.execution.Cancelable
+import monix.execution.internal.Platform
 
 import scala.util.Success
 
@@ -26,7 +27,7 @@ object TaskForkSuite extends BaseTestSuite {
     val t = Task.fork(Task.now(10))
     val f = t.runAsync
     assertEquals(f.value, None)
-    s.tickOne()
+    s.tick()
     assertEquals(f.value, Some(Success(10)))
   }
 
@@ -34,7 +35,7 @@ object TaskForkSuite extends BaseTestSuite {
     val t = Task.fork(Task.evalOnce(10))
     val f = t.runAsync
     assertEquals(f.value, None)
-    s.tickOne()
+    s.tick()
     assertEquals(f.value, Some(Success(10)))
   }
 
@@ -42,7 +43,7 @@ object TaskForkSuite extends BaseTestSuite {
     val t = Task.fork(Task.evalAlways(10))
     val f = t.runAsync
     assertEquals(f.value, None)
-    s.tickOne()
+    s.tick()
     assertEquals(f.value, Some(Success(10)))
   }
 
@@ -50,7 +51,7 @@ object TaskForkSuite extends BaseTestSuite {
     val t = Task.fork(Task.defer(Task.now(10)))
     val f = t.runAsync
     assertEquals(f.value, None)
-    s.tickOne()
+    s.tick()
     assertEquals(f.value, Some(Success(10)))
   }
 
@@ -59,7 +60,7 @@ object TaskForkSuite extends BaseTestSuite {
     val t = Task.fork(source)
     val f = t.runAsync
     assertEquals(f.value, None)
-    s.tickOne()
+    s.tick()
     assertEquals(f.value, Some(Success(10)))
   }
 
@@ -68,16 +69,16 @@ object TaskForkSuite extends BaseTestSuite {
     val t = Task.fork(Task.defer(source))
     val f = t.runAsync
     assertEquals(f.value, None)
-    s.tickOne()
+    s.tick()
     assertEquals(f.value, Some(Success(10)))
   }
 
   test("Task.async.flatMap.fork should execute async") { implicit s =>
-    val source = Task.unsafeCreate[Int]((s, conn, cb) => cb.onSuccess(10)).flatMap(x => Task.now(x))
+    val source = Task.unsafeCreate[Int]((s, conn, cb) => cb.onSuccess(10)).flatMap(Task.now)
     val t = Task.fork(source)
     val f = t.runAsync
     assertEquals(f.value, None)
-    s.tickOne()
+    s.tick()
     assertEquals(f.value, Some(Success(10)))
   }
 
@@ -97,5 +98,37 @@ object TaskForkSuite extends BaseTestSuite {
     assertEquals(f.value, None)
     s.tick()
     assertEquals(f.value, Some(Success(10)))
+  }
+
+  test("Task.fork should be stack safe, test 1") { implicit s =>
+    val count = if (Platform.isJVM) 100000 else 5000
+    var task = Task.evalAlways(1)
+    for (i <- 0 until count) task = Task.fork(task)
+
+    val result = task.runAsync
+    s.tick()
+    assertEquals(result.value, Some(Success(1)))
+  }
+
+  test("Task.executeOn should be stack safe, test 2") { implicit s =>
+    val count = if (Platform.isJVM) 100000 else 5000
+    var task = Task.evalAlways(1)
+    for (i <- 0 until count) task = task.executeOn(s)
+
+    val result = task.runAsync
+    s.tick()
+    assertEquals(result.value, Some(Success(1)))
+  }
+
+  test("Task.fork should be stack safe, test 3") { implicit s =>
+    val count = if (Platform.isJVM) 100000 else 5000
+
+    def loop(n: Int): Task[Int] =
+      if (n <= 0) Task.fork(Task.now(0))
+      else Task.fork(Task.now(n)).flatMap(_ => loop(n-1))
+
+    val result = loop(count).runAsync
+    s.tick()
+    assertEquals(result.value, Some(Success(0)))
   }
 }

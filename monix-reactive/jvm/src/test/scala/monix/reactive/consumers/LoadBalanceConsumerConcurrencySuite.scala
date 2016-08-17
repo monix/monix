@@ -17,7 +17,6 @@
 
 package monix.reactive.consumers
 
-import monix.eval.Coeval
 import monix.reactive.{BaseConcurrencySuite, Consumer, Observable}
 
 object LoadBalanceConsumerConcurrencySuite extends BaseConcurrencySuite {
@@ -31,7 +30,7 @@ object LoadBalanceConsumerConcurrencySuite extends BaseConcurrencySuite {
       }
 
       val consumer = Consumer.loadBalance(parallelism,
-        Consumer.foldLeft[Long,Int](Coeval(0L))(_+_))
+        Consumer.foldLeft[Long,Int](0L)(_+_))
 
       val task1 = source.foldLeftF(0L)(_+_).firstL
       val task2 = source.runWith(consumer).map(_.sum)
@@ -48,7 +47,7 @@ object LoadBalanceConsumerConcurrencySuite extends BaseConcurrencySuite {
         (pos % 15) + 1
       }
 
-      val fold = Consumer.foldLeft[Long,Int](Coeval(0L))(_+_)
+      val fold = Consumer.foldLeft[Long,Int](0L)(_+_)
       val justOne = Consumer.headOption[Int].map(_.getOrElse(0).toLong)
       val allConsumers = for (i <- 0 until parallelism) yield
         if (i % 2 == 0) fold else justOne

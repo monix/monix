@@ -88,7 +88,11 @@ abstract class BaseTestSuite extends TestSuite[TestScheduler] with Checkers {
 
       // simulate synchronous execution
       s.tick(1.hour)
-      valueA == valueB
+
+      valueA == valueB || {
+        valueA.isDefined && valueB.isDefined &&
+        valueA.get.isFailure && valueB.get.isFailure
+      }
     }
 
   /** Implicitly map [[IsNotEquiv]] to a [[Prop]]. */
@@ -128,7 +132,11 @@ abstract class BaseTestSuite extends TestSuite[TestScheduler] with Checkers {
 
   /** Implicitly map [[IsEquiv]] to a [[Prop]]. */
   implicit def isEqCoevalProp[A](isEq: IsEquiv[Coeval[A]]): Prop =
-    Prop { isEq.lh.runTry == isEq.rh.runTry }
+    Prop {
+      val valueA = isEq.lh.runTry
+      val valueB = isEq.rh.runTry
+      valueA == valueB || valueA.isFailure == valueB.isFailure
+    }
 
   /** Implicitly map [[IsNotEquiv]] to a [[Prop]]. */
   implicit def isNotEqCoevalProp[A](isNotEq: IsNotEquiv[Coeval[A]]): Prop =

@@ -18,9 +18,7 @@
 package monix.reactive.internal.builders
 
 import java.io.{Reader, StringReader}
-
 import minitest.SimpleTestSuite
-import monix.eval.Coeval
 import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.schedulers.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
@@ -28,7 +26,6 @@ import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
 import monix.reactive.exceptions.{DummyException, MultipleSubscribersException}
 import monix.reactive.observers.Subscriber
-
 import scala.collection.mutable.ArrayBuffer
 import scala.util.{Failure, Random, Success}
 
@@ -61,7 +58,7 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
     val in = new StringReader(string)
 
     val result = Observable.fromCharsReader(in, 40)
-      .foldLeftF(Coeval(Array.empty[Char]))(_ ++ _)
+      .foldLeftF(Array.empty[Char])(_ ++ _)
       .runAsyncGetFirst
       .map(_.map(arr => new String(arr)))
 
@@ -76,7 +73,7 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
     val in = new StringReader(string)
 
     val result = Observable.fromCharsReader(in, 40)
-      .foldLeftF(Coeval(Array.empty[Char]))(_ ++ _)
+      .foldLeftF(Array.empty[Char])(_ ++ _)
       .runAsyncGetFirst
       .map(_.map(arr => new String(arr)))
 
@@ -95,7 +92,7 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
 
     val obs: Observable[Array[Char]] = Observable
       .fromCharsReader(in)
-      .foldLeftF(Coeval(Array.empty[Char]))(_ ++ _)
+      .foldLeftF(Array.empty[Char])(_ ++ _)
 
     obs.unsafeSubscribeFn(new Subscriber[Array[Char]] {
       implicit val scheduler = s

@@ -15,15 +15,15 @@
  * limitations under the License.
  */
 
-package monix.types
+package monix.types.shims
 
-import monix.types.shims.{CoflatMap, MonadError}
-import simulacrum.typeclass
-
-/** Groups common type-classes for things that can be evaluated
-  * and that yield a single result (i.e. `Task`, `Coeval`)
+/** A shim for a `MonadPlus` type-class, to be supplied by / translated to
+  * libraries such as Cats or Scalaz.
+  *
+  * This is a [[MonadFilter]] instance that's also a [[MonoidK]].
   */
-@typeclass(excludeParents = List("CoflatMap"))
-trait Evaluable[F[_]] extends Deferrable[F]
-  with MonadError[F, Throwable] with CoflatMap[F]
+trait MonadPlus[F[_]] extends MonadFilter[F] with MonoidK[F]
 
+object MonadPlus {
+  @inline def apply[F[_]](implicit F: MonadPlus[F]): MonadPlus[F] = F
+}

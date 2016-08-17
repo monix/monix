@@ -18,7 +18,9 @@
 package monix.eval
 
 import monix.eval.Task.{Error, Now}
-import scala.util.{Try, Failure, Success}
+import monix.execution.internal.Platform
+
+import scala.util.{Failure, Success}
 
 object TaskApplySuite extends BaseTestSuite {
   test("Task.apply should work, on different thread") { implicit s =>
@@ -98,15 +100,6 @@ object TaskApplySuite extends BaseTestSuite {
     }
   }
 
-  test("Task.apply should be cancelable") { implicit s =>
-    val t = Task(10)
-    var result = Option.empty[Try[Int]]
-    val c = t.runAsync(value => result = Some(value))
-    c.cancel()
-    s.tick()
-    assertEquals(result, None)
-  }
-
   test("Task.apply.flatMap should protect against user code") { implicit s =>
     val ex = DummyException("dummy")
     val t = Task(1).flatMap[Int](_ => throw ex)
@@ -151,6 +144,40 @@ object TaskApplySuite extends BaseTestSuite {
     assertEquals(f2.value, Some(Success(1)))
   }
 
+
+  test("Task.apply.memoize should be stack safe") { implicit s =>
+    val count = if (Platform.isJVM) 50000 else 5000
+    var task = Task(1)
+    for (i <- 0 until count) task = task.memoize
+
+    val f = task.runAsync
+    assertEquals(f.value, None)
+    s.tick()
+    assertEquals(f.value, Some(Success(1)))
+  }
+
+  test("Task.apply.flatMap.memoize should be stack safe, test 1") { implicit s =>
+    val count = if (Platform.isJVM) 50000 else 5000
+    var task = Task(1)
+    for (i <- 0 until count) task = task.memoize.flatMap(x => Task.now(x))
+
+    val f = task.runAsync
+    assertEquals(f.value, None)
+    s.tick()
+    assertEquals(f.value, Some(Success(1)))
+  }
+
+  test("Task.apply.flatMap.memoize should be stack safe, test 2") { implicit s =>
+    val count = if (Platform.isJVM) 50000 else 5000
+    var task = Task(1)
+    for (i <- 0 until count) task = task.memoize.flatMap(x => Task(x))
+
+    val f = task.runAsync
+    assertEquals(f.value, None)
+    s.tick()
+    assertEquals(f.value, Some(Success(1)))
+  }
+
   test("Task.apply(error).memoize should work") { implicit s =>
     var effect = 0
     val dummy = DummyException("dummy")
@@ -173,10 +200,24 @@ object TaskApplySuite extends BaseTestSuite {
 
   test("Task.apply.materializeAttempt should work for failure") { implicit s =>
     val dummy = DummyException("dummy")
-    val task = Task.apply[Int](throw dummy).materializeAttempt
+    val task = Task.apply[Int] { throw dummy }.materializeAttempt
     val f = task.runAsync
     s.tick()
     assertEquals(f.value, Some(Success(Error(dummy))))
+  }
+
+  test("Task.apply.materialize should be stack safe") { implicit s =>
+    def loop(n: Int): Task[Int] =
+      if (n <= 0) Task.apply(n)
+      else Task.apply(n).materialize.flatMap {
+        case Success(v) => loop(n-1)
+        case Failure(ex) => Task.raiseError(ex)
+      }
+
+    val count = if (Platform.isJVM) 50000 else 5000
+    val result = loop(count).runAsync
+    s.tick()
+    assertEquals(result.value, Some(Success(0)))
   }
 
   test("Task.apply.flatten is equivalent with flatMap") { implicit s =>

@@ -24,7 +24,7 @@ import scala.util.{Failure, Success, Try}
 
 object TaskFlatMapSuite extends BaseTestSuite {
   test("runAsync flatMap loop is cancelable") { implicit s =>
-    val maxCount = Platform.recommendedBatchSize * 3
+    val maxCount = Platform.recommendedBatchSize * 4
     val expected = Platform.recommendedBatchSize * 2 - 1
 
     def loop(count: AtomicInt): Task[Unit] =
@@ -34,9 +34,10 @@ object TaskFlatMapSuite extends BaseTestSuite {
     val atomic = Atomic(0)
     val f = loop(atomic).runAsync
 
+    assertEquals(atomic.get, Platform.recommendedBatchSize)
+    f.cancel()
     s.tickOne()
     assertEquals(atomic.get, expected)
-    f.cancel()
 
     s.tick()
     assertEquals(atomic.get, expected)
@@ -44,7 +45,7 @@ object TaskFlatMapSuite extends BaseTestSuite {
   }
 
   test("runAsync(callback) flatMap loop is cancelable") { implicit s =>
-    val maxCount = Platform.recommendedBatchSize * 3
+    val maxCount = Platform.recommendedBatchSize * 4
     val expected = Platform.recommendedBatchSize * 2 - 1
 
     def loop(count: AtomicInt): Task[Unit] =
@@ -61,9 +62,9 @@ object TaskFlatMapSuite extends BaseTestSuite {
         result = Some(Failure(ex))
     })
 
+    c.cancel()
     s.tickOne()
     assertEquals(atomic.get, expected)
-    c.cancel()
 
     s.tick()
     assertEquals(atomic.get, expected)

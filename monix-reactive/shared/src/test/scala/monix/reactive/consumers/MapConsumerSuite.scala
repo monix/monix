@@ -17,7 +17,6 @@
 
 package monix.reactive.consumers
 
-import monix.eval.Coeval
 import monix.reactive.exceptions.DummyException
 import monix.reactive.{BaseLawsTestSuite, Consumer, Observable}
 import scala.util.Failure
@@ -25,7 +24,7 @@ import scala.util.Failure
 object MapConsumerSuite extends BaseLawsTestSuite {
   test("consumer.map equivalence with task.map") { implicit s =>
     check1 { (obs: Observable[Int]) =>
-      val consumer = Consumer.foldLeft[Long,Int](Coeval(0L))(_ + _)
+      val consumer = Consumer.foldLeft[Long,Int](0L)(_ + _)
       val t1 = obs.runWith(consumer.map(_ + 100))
       val t2 = obs.runWith(consumer).map(_ + 100)
       t1 === t2
@@ -35,7 +34,7 @@ object MapConsumerSuite extends BaseLawsTestSuite {
   test("consumer.map streams error") { implicit s =>
     check2 { (obs: Observable[Int], ex: Throwable) =>
       val withError = obs.endWithError(ex)
-      val consumer = Consumer.foldLeft[Long,Int](Coeval(0L))(_ + _)
+      val consumer = Consumer.foldLeft[Long,Int](0L)(_ + _)
 
       val t1 = withError.runWith(consumer.map(_+100))
       val t2 = withError.runWith(consumer).map(_+100)

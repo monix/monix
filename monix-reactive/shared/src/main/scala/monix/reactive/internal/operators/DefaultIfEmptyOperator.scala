@@ -18,15 +18,13 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack
-import monix.reactive.observables.ObservableLike
-import ObservableLike.Operator
-import monix.eval.Coeval
+import monix.reactive.observables.ObservableLike.Operator
 import monix.reactive.observers.Subscriber
-
 import scala.concurrent.Future
+import scala.util.control.NonFatal
 
 private[reactive] final
-class DefaultIfEmptyOperator[A](default: Coeval[A])
+class DefaultIfEmptyOperator[A](default: () => A)
   extends Operator[A,A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
@@ -39,21 +37,22 @@ class DefaultIfEmptyOperator[A](default: Coeval[A])
         out.onNext(elem)
       }
 
-      def onError(ex: Throwable): Unit = {
+      def onError(ex: Throwable): Unit =
         out.onError(ex)
-      }
 
       def onComplete(): Unit = {
-        if (isEmpty)
-          default.runAttempt match {
-            case Coeval.Now(value) =>
-              out.onNext(value)
-              out.onComplete()
-            case Coeval.Error(ex) =>
+        if (!isEmpty) out.onComplete() else {
+          var streamErrors = true
+          try {
+            val value = default()
+            streamErrors = false
+            out.onNext(value)
+            out.onComplete()
+          } catch {
+            case NonFatal(ex) if streamErrors =>
               out.onError(ex)
           }
-        else
-          out.onComplete()
+        }
       }
     }
 }

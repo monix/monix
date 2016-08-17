@@ -44,6 +44,8 @@ class DoOnTerminateOperator[A](onTerminate: () => Unit)
       }
 
       def onComplete(): Unit = {
+        println("WTF!")
+        onTerminate()
         var streamErrors = true
         try {
           active.cancel()

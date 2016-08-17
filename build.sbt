@@ -251,7 +251,9 @@ lazy val monixJS = project.in(file("monix/js"))
   .settings(name := "monix")
 
 lazy val typesCommon = crossSettings ++ testSettings ++ Seq(
-  name := "monix-types"
+  name := "monix-types",
+  libraryDependencies += "com.github.mpilquist" %%% "simulacrum" % "0.8.0" % "compile",
+  addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
 )
 
 lazy val typesJVM = project.in(file("monix-types/jvm"))

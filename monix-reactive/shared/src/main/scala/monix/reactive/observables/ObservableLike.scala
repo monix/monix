@@ -18,8 +18,6 @@
 package monix.reactive.observables
 
 import java.io.PrintStream
-
-import monix.eval.Coeval
 import monix.execution.Scheduler
 import monix.execution.cancelables.BooleanCancelable
 import monix.reactive.OverflowStrategy.Synchronous
@@ -29,7 +27,6 @@ import monix.reactive.internal.operators._
 import monix.reactive.observables.ObservableLike.{Operator, Transformer}
 import monix.reactive.observers.Subscriber
 import monix.reactive.{Notification, Observable, OverflowStrategy, Pipe}
-
 import scala.concurrent.duration.FiniteDuration
 
 /** Defines the available operations for observable-like instances.
@@ -386,13 +383,13 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * the observables emits fewer events than the other, then the rest
     * of the unpaired events are ignored.
     *
-    * See [[zipWith]] for an alternative that pairs the items
+    * See [[zipMap]] for an alternative that pairs the items
     * in strict sequence.
     *
     * @param other is an observable that gets paired with the source
     * @param f is a mapping function over the generated pairs
     */
-  def combineLatestWith[B,R](other: Observable[B])(f: (A,B) => R): Self[R] =
+  def combineLatestMap[B,R](other: Observable[B])(f: (A,B) => R): Self[R] =
     self.transform(self => new CombineLatest2Observable[A,B,R](self, other)(f))
 
   /** Ignores all items emitted by the source Observable and only calls
@@ -518,8 +515,8 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
   /** Emit items from the source, or emit a default item if
     * the source completes after emitting no items.
     */
-  def defaultIfEmpty[B >: A](default: Coeval[B]): Self[B] =
-    self.liftByOperator(new DefaultIfEmptyOperator[B](default))
+  def defaultIfEmpty[B >: A](default: => B): Self[B] =
+    self.liftByOperator(new DefaultIfEmptyOperator[B](default _))
 
   /** Delays emitting the final `onComplete` event by the specified amount. */
   def delayOnComplete(delay: FiniteDuration): Self[A] =
@@ -808,7 +805,7 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     *         the given predicate holds or not for at least one item
     */
   def existsF(p: A => Boolean): Self[Boolean] =
-    findF(p).foldLeftF(Coeval.now(false))((_, _) => true)
+    findF(p).foldLeftF(false)((_, _) => true)
 
   /** Returns an observable that emits a single Throwable, in case an
     * error was thrown by the source, otherwise it isn't
@@ -844,7 +841,7 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     *
     * Alias for `headOrElse`.
     */
-  def firstOrElseF[B >: A](default: Coeval[B]): Self[B] =
+  def firstOrElseF[B >: A](default: => B): Self[B] =
     headOrElseF(default)
 
   /** Applies a function that you supply to each item emitted by the
@@ -889,8 +886,8 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     *
     * It's the combination between [[scan]] and [[flatMap]].
     */
-  def flatScan[R](initial: Coeval[R])(op: (R, A) => Observable[R]): Self[R] =
-    self.transform(self => new FlatScanObservable[A,R](self, initial, op, delayErrors = false))
+  def flatScan[R](initial: => R)(op: (R, A) => Observable[R]): Self[R] =
+    self.transform(self => new FlatScanObservable[A,R](self, initial _, op, delayErrors = false))
 
   /** Applies a binary operator to a start value and to elements
     * produced by the source observable, going from left to right,
@@ -900,8 +897,8 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * when it will finally emit a `CompositeException`.
     * It's the combination between [[scan]] and [[flatMapDelayError]].
     */
-  def flatScanDelayError[R](initial: Coeval[R])(op: (R, A) => Observable[R]): Self[R] =
-    self.transform(self => new FlatScanObservable[A,R](self, initial, op, delayErrors = true))
+  def flatScanDelayError[R](initial: => R)(op: (R, A) => Observable[R]): Self[R] =
+    self.transform(self => new FlatScanObservable[A,R](self, initial _, op, delayErrors = true))
 
   /** $concatDescription
     *
@@ -933,16 +930,16 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * this Observable, going left to right and returns a new
     * Observable that emits only one item before `onComplete`.
     *
-    * @param initial is the initial state, specified as a possibly lazy value
-    *        by means of [[monix.eval.Coeval Coeval]]; it gets evaluated when
-    *        the subscription happens and if it triggers an error then the
-    *        subscriber will get immediately terminated with an error
+    * @param initial is the initial state, specified as a possibly lazy value;
+    *        it gets evaluated when the subscription happens and if it triggers
+    *        an error then the subscriber will get immediately terminated
+    *        with an error
     *
     * @param op is an operator that will fold the signals of the source
     *        observable, returning the next state
     */
-  def foldLeftF[R](initial: Coeval[R])(op: (R, A) => R): Self[R] =
-    self.transform(source => new FoldLeftObservable[A,R](source, initial, op))
+  def foldLeftF[R](initial: => R)(op: (R, A) => R): Self[R] =
+    self.transform(source => new FoldLeftObservable[A,R](source, initial _, op))
 
   /** Folds the source observable, from start to finish, until the
     * source completes, or until the operator short-circuits the
@@ -952,18 +949,18 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * being called with an operator always returning `true` as the first
     * member of its result.
     *
-    * @param initial is the initial state, specified as a possibly lazy value
-    *        by means of [[monix.eval.Coeval Coeval]]; it gets evaluated when
-    *        the subscription happens and if it triggers an error then the
-    *        subscriber will get immediately terminated with an error
+    * @param initial is the initial state, specified as a possibly lazy value;
+    *        it gets evaluated when the subscription happens and if it
+    *        triggers an error then the subscriber will get immediately
+    *        terminated with an error
     *
     * @param op is an operator that will fold the signals of the source
     *        observable, returning either a new state along with a boolean
     *        that should become false in case the folding must be
     *        interrupted.
     */
-  def foldWhileF[R](initial: Coeval[R])(op: (R,A) => (Boolean, R)): Self[R] =
-    self.transform(source => new FoldWhileObservable[A,R](source, initial, op))
+  def foldWhileF[R](initial: => R)(op: (R,A) => (Boolean, R)): Self[R] =
+    self.transform(source => new FoldWhileObservable[A,R](source, initial _, op))
 
   /** Returns an Observable that emits a single boolean, either true, in
     * case the given predicate holds for all the items emitted by the
@@ -1004,10 +1001,10 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * source is completed without emitting anything, then the
     * `default` is emitted.
     */
-  def headOrElseF[B >: A](default: Coeval[B]): Self[B] =
-    headF.foldLeftF(Coeval.now(Option.empty[B]))((_, elem) => Some(elem)).map {
+  def headOrElseF[B >: A](default: => B): Self[B] =
+    headF.foldLeftF(Option.empty[B])((_, elem) => Some(elem)).map {
       case Some(elem) => elem
-      case None => default.value
+      case None => default
     }
 
   /** Alias for [[completed]]. Ignores all items emitted by
@@ -1413,8 +1410,8 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * Similar to [[foldLeftF]], but emits the state on each
     * step. Useful for modeling finite state machines.
     */
-  def scan[R](initial: Coeval[R])(f: (R, A) => R): Self[R] =
-    self.transform(source => new ScanObservable[A,R](source, initial, f))
+  def scan[R](initial: => R)(f: (R, A) => R): Self[R] =
+    self.transform(source => new ScanObservable[A,R](source, initial _, f))
 
   /** Creates a new Observable that emits the given elements and then it
     * also emits the events of the source (prepend operation).
@@ -1763,13 +1760,13 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * will be the result of the function applied to the second item
     * emitted by each of those observables; and so forth.
     *
-    * See [[combineLatestWith]] for a more relaxed alternative that doesn't
+    * See [[combineLatestMap]] for a more relaxed alternative that doesn't
     * combine items in strict sequence.
     *
     * @param other is an observable that gets paired with the source
     * @param f is a mapping function over the generated pairs
     */
-  def zipWith[B,R](other: Observable[B])(f: (A,B) => R): Self[R] =
+  def zipMap[B,R](other: Observable[B])(f: (A,B) => R): Self[R] =
     self.transform(self => new Zip2Observable[A,B,R](self, other)(f))
 
   /** Zips the emitted elements of the source with their indices. */

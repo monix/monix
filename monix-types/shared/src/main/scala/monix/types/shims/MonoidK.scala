@@ -15,15 +15,20 @@
  * limitations under the License.
  */
 
-package monix.types
+package monix.types.shims
 
-import monix.types.shims.{CoflatMap, MonadError}
-import simulacrum.typeclass
-
-/** Groups common type-classes for things that can be evaluated
-  * and that yield a single result (i.e. `Task`, `Coeval`)
+/** A shim for a `MonoidK` type-class, to be supplied by / translated to
+  * libraries such as Cats or Scalaz.
+  *
+  * `MonoidK` is a universal monoid which operates on kinds.
   */
-@typeclass(excludeParents = List("CoflatMap"))
-trait Evaluable[F[_]] extends Deferrable[F]
-  with MonadError[F, Throwable] with CoflatMap[F]
+trait MonoidK[F[_]] extends SemigroupK[F] {
+  /**
+    * Given a type A, create an "empty" F[A] value.
+    */
+  def empty[A]: F[A]
+}
 
+object MonoidK {
+  @inline def apply[F[_]](implicit F: MonoidK[F]): MonoidK[F] = F
+}

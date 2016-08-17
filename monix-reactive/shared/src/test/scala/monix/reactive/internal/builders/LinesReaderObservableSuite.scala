@@ -18,9 +18,7 @@
 package monix.reactive.internal.builders
 
 import java.io.{BufferedReader, Reader, StringReader}
-
 import minitest.SimpleTestSuite
-import monix.eval.Coeval
 import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.schedulers.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
@@ -28,7 +26,6 @@ import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
 import monix.reactive.exceptions.{DummyException, MultipleSubscribersException}
 import monix.reactive.observers.Subscriber
-
 import scala.util.{Failure, Random, Success}
 
 object LinesReaderObservableSuite extends SimpleTestSuite {
@@ -60,7 +57,7 @@ object LinesReaderObservableSuite extends SimpleTestSuite {
     val in = new BufferedReader(new StringReader(string))
 
     val result = Observable.fromLinesReader(in)
-      .foldLeftF(Coeval(""))(_ + "\n" + _)
+      .foldLeftF("")(_ + "\n" + _)
       .map(_.trim)
       .runAsyncGetFirst
 
@@ -75,7 +72,7 @@ object LinesReaderObservableSuite extends SimpleTestSuite {
     val in = new BufferedReader(new StringReader(string))
 
     val result = Observable.fromLinesReader(in)
-      .foldLeftF(Coeval.now(""))(_ + "\n" + _)
+      .foldLeftF("")(_ + "\n" + _)
       .map(_.trim)
       .runAsyncGetFirst
 
@@ -93,7 +90,7 @@ object LinesReaderObservableSuite extends SimpleTestSuite {
     val in = new BufferedReader(new StringReader(string))
 
     val obs = Observable.fromLinesReader(in)
-      .foldLeftF(Coeval(""))(_ + "\n" + _)
+      .foldLeftF("")(_ + "\n" + _)
       .map(_.trim)
 
     obs.unsafeSubscribeFn(new Subscriber[String] {

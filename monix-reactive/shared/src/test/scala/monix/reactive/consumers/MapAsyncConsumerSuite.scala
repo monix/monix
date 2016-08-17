@@ -17,16 +17,15 @@
 
 package monix.reactive.consumers
 
-import monix.eval.{Coeval, Task}
+import monix.eval.Task
 import monix.reactive.exceptions.DummyException
 import monix.reactive.{BaseLawsTestSuite, Consumer, Observable}
-
 import scala.util.Failure
 
 object MapAsyncConsumerSuite extends BaseLawsTestSuite {
   test("consumer.mapAsync equivalence with task.map") { implicit s =>
     check1 { (obs: Observable[Int]) =>
-      val consumer = Consumer.foldLeft[Long,Int](Coeval(0L))(_ + _)
+      val consumer = Consumer.foldLeft[Long,Int](0L)(_ + _)
       val t1 = obs.runWith(consumer.mapAsync(x => Task(x + 100)))
       val t2 = obs.runWith(consumer).map(_ + 100)
       t1 === t2
@@ -36,7 +35,7 @@ object MapAsyncConsumerSuite extends BaseLawsTestSuite {
   test("consumer.mapAsync streams error") { implicit s =>
     check2 { (obs: Observable[Int], ex: Throwable) =>
       val withError = obs.endWithError(ex)
-      val consumer = Consumer.foldLeft[Long,Int](Coeval(0L))(_ + _)
+      val consumer = Consumer.foldLeft[Long,Int](0L)(_ + _)
 
       val t1 = withError.runWith(consumer.mapAsync(x => Task(x + 100)))
       val t2 = withError.runWith(consumer).map(_+100)
@@ -66,7 +65,7 @@ object MapAsyncConsumerSuite extends BaseLawsTestSuite {
 
   test("consumer.mapAsync(sync) equivalence with task.map") { implicit s =>
     check1 { (obs: Observable[Int]) =>
-      val consumer = Consumer.foldLeft[Long,Int](Coeval(0L))(_ + _)
+      val consumer = Consumer.foldLeft[Long,Int](0L)(_ + _)
       val t1 = obs.runWith(consumer.mapAsync(x => Task.evalAlways(x + 100)))
       val t2 = obs.runWith(consumer).map(_ + 100)
       t1 === t2
@@ -76,7 +75,7 @@ object MapAsyncConsumerSuite extends BaseLawsTestSuite {
   test("consumer.mapAsync(sync) streams error") { implicit s =>
     check2 { (obs: Observable[Int], ex: Throwable) =>
       val withError = obs.endWithError(ex)
-      val consumer = Consumer.foldLeft[Long,Int](Coeval(0L))(_ + _)
+      val consumer = Consumer.foldLeft[Long,Int](0L)(_ + _)
 
       val t1 = withError.runWith(consumer.mapAsync(x => Task.evalAlways(x + 100)))
       val t2 = withError.runWith(consumer).map(_+100)
