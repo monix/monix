@@ -27,4 +27,4 @@ import scala.concurrent.OnCompleteRunnable
   *
   * DO NOT use unless you know what you're doing.
   */
-abstract class CallbackRunnable extends Runnable with OnCompleteRunnable
+abstract class LocalRunnable extends Runnable with OnCompleteRunnable

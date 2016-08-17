@@ -17,7 +17,7 @@
 
 package monix.eval
 
-import monix.execution.schedulers.CallbackRunnable
+import monix.execution.schedulers.LocalRunnable
 import monix.execution.UncaughtExceptionReporter
 import scala.concurrent.{ExecutionContext, Promise}
 import scala.util.control.NonFatal
@@ -82,24 +82,24 @@ object Callback {
   def async[A](cb: Callback[A])(implicit ec: ExecutionContext): Callback[A] =
     new Callback[A] {
       def onSuccess(value: A): Unit =
-        ec.execute(new CallbackRunnable { def run() = cb.onSuccess(value) })
+        ec.execute(new LocalRunnable { def run() = cb.onSuccess(value) })
       def onError(ex: Throwable): Unit =
-        ec.execute(new CallbackRunnable { def run() = cb.onError(ex) })
+        ec.execute(new LocalRunnable { def run() = cb.onError(ex) })
     }
 
   /** Useful extension methods for [[Callback]]. */
   implicit final class Extensions[-A](val source: Callback[A]) extends AnyVal {
     /** Extension method that calls `onSuccess` asynchronously. */
     def asyncOnSuccess(value: A)(implicit ec: ExecutionContext): Unit =
-      ec.execute(new CallbackRunnable { def run() = source.onSuccess(value) })
+      ec.execute(new LocalRunnable { def run() = source.onSuccess(value) })
 
     /** Extension method that calls `onError` asynchronously. */
     def asyncOnError(ex: Throwable)(implicit ec: ExecutionContext): Unit =
-      ec.execute(new CallbackRunnable { def run() = source.onError(ex) })
+      ec.execute(new LocalRunnable { def run() = source.onError(ex) })
 
     /** Extension method that calls `apply` asynchronously. */
     def asyncApply(value: Try[A])(implicit ec: ExecutionContext): Unit =
-      ec.execute(new CallbackRunnable { def run() = source(value) })
+      ec.execute(new LocalRunnable { def run() = source(value) })
   }
 
   /** An "empty" callback instance doesn't do anything `onSuccess` and
