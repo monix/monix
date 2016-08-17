@@ -17,8 +17,8 @@
 
 package monix.eval
 
-import monix.execution.{Scheduler, UncaughtExceptionReporter}
-
+import monix.execution.schedulers.CallbackRunnable
+import monix.execution.UncaughtExceptionReporter
 import scala.concurrent.{ExecutionContext, Promise}
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
@@ -77,29 +77,29 @@ object Callback {
 
   /** Given a [[Callback]] wraps it into an implementation that
     * calls `onSuccess` and `onError` asynchronously, using the
-    * given [[Scheduler]].
+    * given `ExecutionContext`.
     */
-  def async[A](cb: Callback[A])(implicit s: Scheduler): Callback[A] =
+  def async[A](cb: Callback[A])(implicit ec: ExecutionContext): Callback[A] =
     new Callback[A] {
       def onSuccess(value: A): Unit =
-        cb.asyncOnSuccess(value)
+        ec.execute(new CallbackRunnable { def run() = cb.onSuccess(value) })
       def onError(ex: Throwable): Unit =
-        cb.asyncOnError(ex)
+        ec.execute(new CallbackRunnable { def run() = cb.onError(ex) })
     }
 
   /** Useful extension methods for [[Callback]]. */
   implicit final class Extensions[-A](val source: Callback[A]) extends AnyVal {
     /** Extension method that calls `onSuccess` asynchronously. */
     def asyncOnSuccess(value: A)(implicit ec: ExecutionContext): Unit =
-      ec.execute(new Runnable { def run() = source.onSuccess(value) })
+      ec.execute(new CallbackRunnable { def run() = source.onSuccess(value) })
 
     /** Extension method that calls `onError` asynchronously. */
     def asyncOnError(ex: Throwable)(implicit ec: ExecutionContext): Unit =
-      ec.execute(new Runnable { def run() = source.onError(ex) })
+      ec.execute(new CallbackRunnable { def run() = source.onError(ex) })
 
     /** Extension method that calls `apply` asynchronously. */
     def asyncApply(value: Try[A])(implicit ec: ExecutionContext): Unit =
-      ec.execute(new Runnable { def run() = source(value) })
+      ec.execute(new CallbackRunnable { def run() = source(value) })
   }
 
   /** An "empty" callback instance doesn't do anything `onSuccess` and

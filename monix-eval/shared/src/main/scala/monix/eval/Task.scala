@@ -19,17 +19,16 @@ package monix.eval
 
 import monix.eval.Task._
 import monix.execution.Ack.Stop
+import monix.execution.atomic.{Atomic, AtomicAny, PaddingStrategy}
 import monix.execution.cancelables.{CompositeCancelable, SingleAssignmentCancelable, StackedCancelable}
 import monix.execution.rstreams.Subscription
 import monix.execution.schedulers.ExecutionModel
 import monix.execution.{Cancelable, CancelableFuture, Scheduler}
-import org.reactivestreams.Subscriber
-import monix.execution.atomic.{Atomic, AtomicAny, PaddingStrategy}
 import monix.types.Evaluable
-
+import org.reactivestreams.Subscriber
 import scala.annotation.tailrec
-import scala.collection.mutable
 import scala.collection.generic.CanBuildFrom
+import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Future, Promise, TimeoutException}
@@ -723,8 +722,7 @@ object Task extends TaskInstances {
       case c: Cancelable =>
         // Cancelable future, needs canceling
         Async { (s, conn, cb) =>
-          // Already completed future avoids forking another thread,
-          // as one was already forked
+          // Already completed future?
           if (f.isCompleted) cb.asyncApply(f.value.get)(s) else {
             conn.push(c)
             f.onComplete { result =>
