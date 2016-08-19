@@ -483,7 +483,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
             require(n > 0, "n must be strictly positive, according to " +
               "the Reactive Streams contract, rule 3.9")
 
-            if (isActive) Task.unsafeStartNow[A](self, s, conn, Callback.safe(
+            if (isActive) Task.unsafeStartAsync[A](self, s, conn, Callback.safe(
               new Callback[A] {
                 def onError(ex: Throwable): Unit =
                   out.onError(ex)

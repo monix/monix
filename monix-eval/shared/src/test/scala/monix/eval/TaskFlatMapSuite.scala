@@ -19,7 +19,6 @@ package monix.eval
 
 import monix.execution.atomic.{Atomic, AtomicInt}
 import monix.execution.internal.Platform
-
 import scala.util.{Failure, Success, Try}
 
 object TaskFlatMapSuite extends BaseTestSuite {
