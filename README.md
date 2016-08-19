@@ -46,7 +46,7 @@ a project exemplifying Monix used both on the server and on the client.
 The packages are published on Maven Central.
 
 - Current stable release: `1.2`
-- Current beta release: `2.0-RC10`
+- Current beta release: `2.0-RC11`
 
 For the stable release (use the `%%%` for Scala.js):
 
@@ -57,7 +57,7 @@ libraryDependencies += "org.monifu" %% "monifu" % "1.2"
 For the beta/preview release (use at your own risk):
 
 ```scala
-libraryDependencies += "io.monix" %% "monix" % "2.0-RC10"
+libraryDependencies += "io.monix" %% "monix" % "2.0-RC11"
 ```
 
 ### Sub-projects
@@ -92,7 +92,7 @@ hosted at,
 API Documentation:
 
 - [1.2](https://monix.io/api/1.2/)
-- [2.0-RC10](https://monix.io/api/2.0-RC10/)
+- [2.0-RC11](https://monix.io/api/2.0-RC11/)
 
 Presentations:
 

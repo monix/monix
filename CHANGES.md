@@ -1,3 +1,70 @@
+## Version 2.0-RC11 (Aug 19, 2016)
+
+Bug fixes:
+
+- [Issue #207](https://github.com/monixio/monix/issues/207): Task
+  flatMap loop isn't cancelable  
+- [Issue #210](https://github.com/monixio/monix/pull/210): Fixed
+  `CompositeCancelable.remove`, a bug introduced in the last release
+  (RC10)
+
+Enhancements:
+
+- [Issue #208](https://github.com/monixio/monix/pull/208): Uniquely
+  name threads generated from ThreadFactory
+- [Issue #210](https://github.com/monixio/monix/pull/210): Refactorings
+  for performance and coherence reasons, described below
+
+Issue #210 changes for the `monix-execution` sub-project:
+
+- introduced the `CallbackRunnable` interface for marking `Runnable`
+  instances that could be executed on the current thread, on a local
+  trampoline, as an optimization
+- introduced `LocalBatchingExecutor`, a mixin for schedulers that can
+  execute `CallbackRunnable` locally, using a trampoline
+- made `AsyncScheduler` for the JVM be able to execute
+  `CallbackRunnable` instances by inheriting from
+  `LocalBatchingExecutor`; but not on top of Javascript
+- fixed critical bug in `CompositeCancelable` that was introduced in
+  the last release
+
+Issue #210 changes for the `monix-eval` sub-project:
+
+- optimized `Task.fromFuture` to the point that it has near zero
+  overhead
+
+- optimized `Task.gather`, `Task.gatherUnordered`, `Task.sequence`
+- `Task.gather` now forces asynchronous execution for the given tasks
+- `Task.gatherUnordered` also forces asynchronous execution
+- optimized the `Task` trampoline in general
+- introduced `Callback.async` wrapper and `asyncApply` extension
+  method
+- renamed `Task.zipWith` to `Task.zipMap` (rename across the board,
+  also for `Observable`)
+- added `Task.executeOn` for overriding the `Scheduler`
+- added `Task.fork` overload with a scheduler override
+- added `Task.async` as an alias of `Task.create`
+
+Issue #210 changes for the `monix-types` sub-project:
+
+- moved all shims to `monix.types.shims`, in order to differentiate
+  them from type-classes that are not shims  
+- added the `Deferrable` type-class, to express lazy evaluation
+  concerns (e.g. `evalOnce`, `evalAlways`, `defer`, `memoize`)
+- added the `Evaluable` type-class, for computations that will
+  eventually produce a value
+
+Issue #210 changes for the `monix-reactive` project:
+
+- for `foldLeft` methods, make the seed be just a normal
+  by-name parameter instead of a `Coeval`, because otherwise
+  it isn't compatible with other type-classes / interfaces
+- affected methods are `foldLeft`, `foldLeftAsync`
+- rename `zipWith` to `zipMap`
+- rename `combineLatestWith` to `combineLatestMap`
+- add `Observable.fromAsyncStateAction`
+- fix `Consumer.foldLeftAsync`
+
 ## Version 2.0-RC10 (Aug 10, 2016)
 
 Enhancements:
