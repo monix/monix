@@ -81,6 +81,37 @@ object CompositeCancelableSuite extends SimpleTestSuite with Checkers {
     for (c <- seq) assert(c.isCanceled, "c.isCanceled")
   }
 
+  test("remove should work") {
+    val s = CompositeCancelable()
+
+    val c1 = BooleanCancelable()
+    s += c1
+    val c2 = BooleanCancelable()
+    s += c2
+
+    s -= c1
+    s.cancel()
+
+    assert(!c1.isCanceled, "!c1.isCanceled")
+    assert(c2.isCanceled, "c2.isCanceled")
+  }
+
+  test("removeAll should work") {
+    val s = CompositeCancelable()
+
+    val c1 = BooleanCancelable()
+    val c2 = BooleanCancelable()
+    val c3 = BooleanCancelable()
+    s ++= Seq(c1,c2,c3)
+
+    s --= Seq(c1,c2)
+    s.cancel()
+
+    assert(!c1.isCanceled, "!c1.isCanceled")
+    assert(!c2.isCanceled, "!c2.isCanceled")
+    assert(c3.isCanceled,  "c3.isCanceled")
+  }
+
   test("removeAll should be equivalent with repeated remove") {
     check2 { (numbers: List[Int], preCancel: Boolean) =>
       val s1 = CompositeCancelable()
@@ -104,5 +135,14 @@ object CompositeCancelableSuite extends SimpleTestSuite with Checkers {
 
       r1.toList.sorted == r2.toList.sorted
     }
+  }
+
+  test("reset") {
+    val seq = for (_ <- 0 until 10) yield BooleanCancelable()
+    val cc = CompositeCancelable(seq:_*)
+
+    cc.reset()
+    cc.cancel()
+    assert(seq.forall(!_.isCanceled))
   }
 }

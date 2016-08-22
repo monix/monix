@@ -69,8 +69,8 @@ object AssignableCancelable {
   /** A reusable [[AssignableCancelable]] instance that's already
     * canceled and that's going to cancel given values on assignment.
     */
-  val alreadyCanceled: AssignableCancelable =
-    new AssignableCancelable {
+  val alreadyCanceled: Bool =
+    new Bool {
       def isCanceled = true
       def cancel(): Unit = ()
       def `:=`(value: Cancelable): this.type = {

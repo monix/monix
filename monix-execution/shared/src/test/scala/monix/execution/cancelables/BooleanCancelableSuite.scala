@@ -20,7 +20,7 @@ package monix.execution.cancelables
 import minitest.SimpleTestSuite
 
 object BooleanCancelableSuite extends SimpleTestSuite {
-  test("cancel()") {
+  test("BooleanCancelable.cancel()") {
     var effect = 0
     val sub = BooleanCancelable(() => effect += 1)
     assert(effect == 0)
@@ -33,5 +33,19 @@ object BooleanCancelableSuite extends SimpleTestSuite {
     sub.cancel()
     assert(sub.isCanceled)
     assert(effect == 1)
+  }
+
+  test("BooleanCancelable.alreadyCanceled") {
+    val c = BooleanCancelable.alreadyCanceled
+    assert(c.isCanceled, "c.isCanceled")
+    c.cancel()
+    assert(c.isCanceled, "c.isCanceled")
+  }
+
+  test("BooleanCancelable.dummy") {
+    val c = BooleanCancelable.dummy
+    assert(!c.isCanceled, "!c.isCanceled")
+    c.cancel()
+    assert(!c.isCanceled, "!c.isCanceled")
   }
 }

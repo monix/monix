@@ -91,6 +91,41 @@ object StackedCancelableSuite extends SimpleTestSuite {
     assertEquals(effect, 4)
   }
 
+  test("pop and push when self is canceled") {
+    val sc = StackedCancelable()
+    sc.cancel()
+
+    val c = BooleanCancelable()
+    val r = sc.popAndPush(c)
+
+    assertEquals(r, Cancelable.empty)
+    assert(c.isCanceled, "c.isCanceled")
+  }
+
+  test("pop and push when self is empty") {
+    val sc = StackedCancelable()
+    val c = BooleanCancelable()
+    val r = sc.popAndPush(c)
+
+    assertEquals(r, Cancelable.empty)
+    assert(!c.isCanceled, "!c.isCanceled")
+
+    sc.cancel()
+    assert(c.isCanceled, "c.isCanceled")
+    assert(sc.isCanceled, "sc.isCanceled")
+  }
+
+  test("pop when self is empty") {
+    val sc = StackedCancelable()
+    assertEquals(sc.pop(), Cancelable.empty)
+  }
+
+  test("pop when self is canceled") {
+    val sc = StackedCancelable()
+    sc.cancel()
+    assertEquals(sc.pop(), Cancelable.empty)
+  }
+
   test("pop and collapse") {
     var effect = 0
 
@@ -108,5 +143,41 @@ object StackedCancelableSuite extends SimpleTestSuite {
     c2.cancel()
 
     assertEquals(effect, 13)
+  }
+
+  test("pop and collapse a ref that's canceled") {
+    val sc = StackedCancelable()
+    val sc2 = StackedCancelable()
+    sc2.cancel()
+
+    sc.popAndCollapse(sc2)
+    assert(sc.isCanceled, "sc.isCanceled")
+  }
+
+  test("pop and collapse when self is empty") {
+    val sc = StackedCancelable()
+
+    val c = BooleanCancelable()
+    val sc2 = StackedCancelable(c)
+
+    sc.popAndCollapse(sc2)
+    assert(!sc.isCanceled, "!sc.isCanceled")
+    assert(!c.isCanceled, "!c.isCanceled")
+
+    sc.cancel()
+    assert(c.isCanceled, "c.isCanceled")
+  }
+
+  test("pop and collapse when self is canceled") {
+    val sc = StackedCancelable()
+    sc.cancel()
+
+    val c = BooleanCancelable()
+    val sc2 = StackedCancelable(c)
+
+    sc.popAndCollapse(sc2)
+    assert(sc.isCanceled, "sc.isCanceled")
+    assert(sc2.isCanceled, "sc2.isCanceled")
+    assert(c.isCanceled, "c.isCanceled")
   }
 }
