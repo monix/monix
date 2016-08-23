@@ -81,19 +81,6 @@ object TaskErrorSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(Success(10))))
   }
 
-  test("Task.apply.memoize.materialize") { implicit s =>
-    val f = Task(10).memoize.materialize.runAsync
-    s.tick()
-    assertEquals(f.value, Some(Success(Success(10))))
-  }
-
-  test("Task.apply(error).memoize.materialize") { implicit s =>
-    val dummy = DummyException("dummy")
-    val f = Task[Int](throw dummy).memoize.materialize.runAsync
-    s.tick()
-    assertEquals(f.value, Some(Success(Failure(dummy))))
-  }
-
   test("Task.apply(error).flatMap.materialize") { implicit s =>
     val dummy = DummyException("dummy")
     val f = Task[Int](throw dummy).flatMap(Task.now).materialize.runAsync

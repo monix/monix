@@ -79,9 +79,8 @@ sealed abstract class Coeval[+A] extends Serializable { self =>
     self match {
       case Now(a) => Task.Now(a)
       case Error(ex) => Task.Error(ex)
-      case EvalOnce(thunk) => Task.EvalOnce(thunk)
-      case EvalAlways(thunk) => Task.EvalAlways(thunk)
-      case Suspend(thunk) => Task.Suspend(() => thunk().task)
+      case EvalOnce(thunk) => Task.evalOnce(thunk())
+      case EvalAlways(thunk) => Task.evalAlways(thunk())
       case other => Task.evalAlways(other.value)
     }
 
@@ -252,13 +251,11 @@ sealed abstract class Coeval[+A] extends Serializable { self =>
     self match {
       case ref @ Now(_) => ref
       case error @ Error(_) => error
-      case EvalAlways(thunk) => new EvalOnce[A](thunk)
-      case Suspend(thunk) =>
-        val evalOnce = EvalOnce(() => thunk().memoize)
-        Suspend(evalOnce)
+      case EvalAlways(thunk) =>
+        new EvalOnce[A](thunk)
       case eval: EvalOnce[_] => self
-      case BindSuspend(_,_) =>
-        new EvalOnce[A](() => self.value)
+      case other =>
+        new EvalOnce[A](() => other.value)
     }
 
   /** Returns a new `Coeval` in which `f` is scheduled to be run on completion.

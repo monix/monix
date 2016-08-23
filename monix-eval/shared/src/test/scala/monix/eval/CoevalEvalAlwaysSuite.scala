@@ -72,26 +72,6 @@ object CoevalEvalAlwaysSuite extends BaseTestSuite {
     assertEquals(f, Success(iterations * 2))
   }
 
-  test("Coeval.evalAlways.memoize should work for first subscriber") { implicit s =>
-    var effect = 0
-    val task = Coeval.evalAlways { effect += 1; effect }.memoize
-
-    val f = task.runTry
-    assertEquals(f, Success(1))
-  }
-
-  test("Coeval.evalAlways.memoize should work for next subscribers") { implicit s =>
-    var effect = 0
-    val task = Coeval.evalAlways { effect += 1; effect }.memoize
-    task.runTry
-    s.tick()
-
-    val f1 = task.runTry
-    assertEquals(f1, Success(1))
-    val f2 = task.runTry
-    assertEquals(f2, Success(1))
-  }
-
   test("Coeval.evalAlways(error).memoize should work") { implicit s =>
     var effect = 0
     val dummy = DummyException("dummy")
@@ -119,13 +99,12 @@ object CoevalEvalAlwaysSuite extends BaseTestSuite {
 
   test("Coeval.evalAlways.task") { implicit s =>
     val task = Coeval.evalAlways(100).task
-    assert(task.isInstanceOf[Task.EvalAlways[_]], "should be Task.EvalAlways")
     assertEquals(task.coeval.value, Right(100))
   }
 
   test("Coeval.EvalAlways.runTry override") { implicit s =>
     val dummy = DummyException("dummy")
-    val task = Coeval.EvalAlways { () => if (1 == 1) throw dummy }
+    val task = Coeval.evalAlways { if (1 == 1) throw dummy else 10 }
     val f = task.runTry
     assertEquals(f, Failure(dummy))
   }
