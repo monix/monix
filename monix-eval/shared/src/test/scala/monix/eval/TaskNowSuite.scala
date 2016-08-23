@@ -112,56 +112,6 @@ object TaskNowSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("Task.now.memoize should work synchronously for first subscriber") { implicit s =>
-    var effect = 0
-    val task = Task.now { effect += 1; effect }.memoize
-
-    val f = task.runAsync
-    assertEquals(f.value, Some(Success(1)))
-  }
-
-  test("Task.now.memoize should work synchronously for next subscribers") { implicit s =>
-    var effect = 0
-    val task = Task.now { effect += 1; effect }.memoize
-    task.runAsync
-    s.tick()
-
-    val f1 = task.runAsync
-    assertEquals(f1.value, Some(Success(1)))
-    val f2 = task.runAsync
-    assertEquals(f2.value, Some(Success(1)))
-  }
-
-  test("Task.error.memoize should work") { implicit s =>
-    val dummy = DummyException("dummy")
-    val task = Task.raiseError(dummy).memoize
-
-    val f1 = task.runAsync
-    assertEquals(f1.value, Some(Failure(dummy)))
-    val f2 = task.runAsync
-    assertEquals(f2.value, Some(Failure(dummy)))
-  }
-
-  test("Task.now.memoize should be stack safe") { implicit s =>
-    val count = if (Platform.isJVM) 50000 else 5000
-    var task = Task.now(1)
-    for (i <- 0 until count) task = task.memoize
-
-    val f = task.runAsync
-    assertEquals(f.value, Some(Success(1)))
-  }
-
-  test("Task.now.flatMap.memoize should be stack safe") { implicit s =>
-    val count = if (Platform.isJVM) 50000 else 5000
-    var task = Task.now(1)
-    for (i <- 0 until count) task = task.memoize.flatMap(x => Task.now(x))
-
-    val f = task.runAsync
-    assertEquals(f.value, None)
-    s.tick()
-    assertEquals(f.value, Some(Success(1)))
-  }
-
   test("Task.now.materializeAttempt should work") { implicit s =>
     val task = Task.now(1).materializeAttempt
     val f = task.runAsync

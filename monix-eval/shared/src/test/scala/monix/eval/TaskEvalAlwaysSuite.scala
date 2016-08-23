@@ -113,38 +113,6 @@ object TaskEvalAlwaysSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(10)))
   }
 
-  test("Task.evalAlways.memoize should work synchronously for first subscriber") { implicit s =>
-    var effect = 0
-    val task = Task.evalAlways { effect += 1; effect }.memoize
-
-    val f = task.runAsync
-    assertEquals(f.value, Some(Success(1)))
-  }
-
-  test("Task.evalAlways.memoize should work synchronously for next subscribers") { implicit s =>
-    var effect = 0
-    val task = Task.evalAlways { effect += 1; effect }.memoize
-    task.runAsync
-    s.tick()
-
-    val f1 = task.runAsync
-    assertEquals(f1.value, Some(Success(1)))
-    val f2 = task.runAsync
-    assertEquals(f2.value, Some(Success(1)))
-  }
-
-  test("Task.evalAlways(error).memoize should work") { implicit s =>
-    var effect = 0
-    val dummy = DummyException("dummy")
-    val task = Task.evalAlways[Int] { effect += 1; throw dummy }.memoize
-
-    val f1 = task.runAsync
-    assertEquals(f1.value, Some(Failure(dummy)))
-    val f2 = task.runAsync
-    assertEquals(f2.value, Some(Failure(dummy)))
-    assertEquals(effect, 1)
-  }
-
   test("Task.evalAlways.materializeAttempt should work for success") { implicit s =>
     val task = Task.evalAlways(1).materializeAttempt
     val f = task.runAsync
@@ -174,51 +142,5 @@ object TaskEvalAlwaysSuite extends BaseTestSuite {
   test("Task.evalAlways.coeval") { implicit s =>
     val result = Task.evalAlways(100).coeval.value
     assertEquals(result, Right(100))
-  }
-
-  test("Task.evalAlways.memoize") { implicit s =>
-    var effect = 0
-    val task = Task.evalAlways { effect += 1; effect }.memoize
-
-    val r1 = task.runAsync
-    val r2 = task.runAsync
-    val r3 = task.runAsync
-
-    assertEquals(r1.value, Some(Success(1)))
-    assertEquals(r2.value, Some(Success(1)))
-    assertEquals(r3.value, Some(Success(1)))
-  }
-
-  test("Task.evalAlways.memoize should be stack safe") { implicit s =>
-    val count = if (Platform.isJVM) 50000 else 5000
-    var task = Task.evalAlways(1)
-    for (i <- 0 until count) task = task.memoize
-
-    val f = task.runAsync
-    assertEquals(f.value, Some(Success(1)))
-  }
-
-  test("Task.evalAlways.flatMap.memoize should be stack safe") { implicit s =>
-    val count = if (Platform.isJVM) 50000 else 5000
-    var task = Task.evalAlways(1)
-    for (i <- 0 until count) task = task.memoize.flatMap(x => Task.evalAlways(x))
-
-    val f = task.runAsync
-    assertEquals(f.value, None)
-    s.tick()
-    assertEquals(f.value, Some(Success(1)))
-  }
-
-  test("Task.defer(evalAlways).memoize") { implicit s =>
-    var effect = 0
-    val task = Task.defer(Task.evalAlways { effect += 1; effect }).memoize
-
-    val r1 = task.runAsync
-    val r2 = task.runAsync
-    val r3 = task.runAsync
-
-    assertEquals(r1.value, Some(Success(1)))
-    assertEquals(r2.value, Some(Success(1)))
-    assertEquals(r3.value, Some(Success(1)))
   }
 }

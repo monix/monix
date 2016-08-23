@@ -83,58 +83,6 @@ object TaskEvalOnceSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(10)))
   }
 
-  test("Task.evalOnce.memoize should work synchronously for first subscriber") { implicit s =>
-    var effect = 0
-    val task = Task.evalOnce { effect += 1; effect }.memoize
-
-    val f = task.runAsync
-    assertEquals(f.value, Some(Success(1)))
-  }
-
-  test("Task.evalOnce.memoize should work synchronously for next subscribers") { implicit s =>
-    var effect = 0
-    val task = Task.evalOnce { effect += 1; effect }.memoize
-    task.runAsync
-    s.tick()
-
-    val f1 = task.runAsync
-    assertEquals(f1.value, Some(Success(1)))
-    val f2 = task.runAsync
-    assertEquals(f2.value, Some(Success(1)))
-  }
-
-  test("Task.evalAlways(error).memoize should work") { implicit s =>
-    var effect = 0
-    val dummy = DummyException("dummy")
-    val task = Task.evalOnce[Int] { effect += 1; throw dummy }.memoize
-
-    val f1 = task.runAsync
-    assertEquals(f1.value, Some(Failure(dummy)))
-    val f2 = task.runAsync
-    assertEquals(f2.value, Some(Failure(dummy)))
-    assertEquals(effect, 1)
-  }
-
-  test("Task.evalOnce.memoize should be stack safe") { implicit s =>
-    val count = if (Platform.isJVM) 50000 else 5000
-    var task = Task.evalAlways(1)
-    for (i <- 0 until count) task = task.memoize
-
-    val f = task.runAsync
-    assertEquals(f.value, Some(Success(1)))
-  }
-
-  test("Task.evalOnce.flatMap.memoize should be stack safe") { implicit s =>
-    val count = if (Platform.isJVM) 50000 else 5000
-    var task = Task.evalAlways(1)
-    for (i <- 0 until count) task = task.memoize.flatMap(x => Task.evalOnce(x))
-
-    val f = task.runAsync
-    assertEquals(f.value, None)
-    s.tick()
-    assertEquals(f.value, Some(Success(1)))
-  }
-
   test("Task.evalOnce.materializeAttempt should work for success") { implicit s =>
     val task = Task.evalOnce(1).materializeAttempt
     val f = task.runAsync
@@ -168,7 +116,7 @@ object TaskEvalOnceSuite extends BaseTestSuite {
 
   test("Task.EvalOnce.runAsync override") { implicit s =>
     val dummy = DummyException("dummy")
-    val task = Task.EvalOnce { () => if (1 == 1) throw dummy }
+    val task = Task.evalOnce { if (1 == 1) throw dummy else 10 }
     val f = task.runAsync
     assertEquals(f.value, Some(Failure(dummy)))
   }

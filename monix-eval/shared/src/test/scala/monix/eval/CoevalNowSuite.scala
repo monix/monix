@@ -90,15 +90,6 @@ object CoevalNowSuite extends BaseTestSuite {
     assertEquals(r, Success(iterations * 2))
   }
 
-  test("Coeval.now.memoize should return self") { implicit s =>
-    assertEquals(Coeval.now(10), Coeval.now(10).memoize)
-  }
-
-  test("Coeval.error.memoize should return self") { implicit s =>
-    val dummy = DummyException("dummy")
-    assertEquals(Coeval.raiseError(dummy), Coeval.raiseError(dummy).memoize)
-  }
-
   test("Coeval.now.materialize should work") { implicit s =>
     val task = Coeval.now(1).materialize
     assertEquals(task.value, Success(1))
