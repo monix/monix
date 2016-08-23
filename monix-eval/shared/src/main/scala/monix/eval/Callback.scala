@@ -98,6 +98,10 @@ object Callback {
       ec.execute(new LocalRunnable { def run() = source.onError(ex) })
 
     /** Extension method that calls `apply` asynchronously. */
+    def asyncApply(value: Coeval[A])(implicit ec: ExecutionContext): Unit =
+      ec.execute(new LocalRunnable { def run() = source(value) })
+
+    /** Extension method that calls `apply` asynchronously. */
     def asyncApply(value: Try[A])(implicit ec: ExecutionContext): Unit =
       ec.execute(new LocalRunnable { def run() = source(value) })
   }

@@ -102,7 +102,7 @@ object CoevalEvalOnceSuite extends BaseTestSuite {
     assertEquals(task.coeval.value, Right(100))
   }
 
-  test("Coeval.EvalOnce.runTry override") { implicit s =>
+  test("Coeval.evalOnce.runTry override") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Coeval.evalOnce { if (1 == 1) throw dummy else 10 }
     val f = task.runTry

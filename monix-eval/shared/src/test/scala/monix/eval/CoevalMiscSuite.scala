@@ -58,4 +58,17 @@ object CoevalMiscSuite extends BaseTestSuite {
   test("Coeval.pure is an alias of now") { implicit s =>
     assertEquals(Coeval.pure(1), Coeval.now(1))
   }
+
+  test("Coeval.flatten is equivalent with flatMap") { implicit s =>
+    check1 { (nr: Int) =>
+      val ref = Coeval(Coeval(nr))
+      ref.flatten === ref.flatMap(x => x)
+    }
+  }
+
+  test("Coeval.error.flatten is equivalent with flatMap") { implicit s =>
+    val ex = DummyException("dummy")
+    val ref = Coeval(Coeval.raiseError[Int](ex))
+    assertEquals(ref.flatten.runTry, ref.flatMap(x => x).runTry)
+  }
 }

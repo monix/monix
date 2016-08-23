@@ -18,9 +18,7 @@
 package monix.eval
 
 
-import monix.eval.Task.{Error, Now}
-import monix.execution.internal.Platform
-
+import monix.eval.Coeval.{Error, Now}
 import scala.util.{Failure, Success}
 
 object TaskEvalOnceSuite extends BaseTestSuite {
@@ -83,6 +81,18 @@ object TaskEvalOnceSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(10)))
   }
 
+  test("Task.evalOnce.coeval") { implicit s =>
+    val result = Task.evalOnce(100).coeval.value
+    assertEquals(result, Right(100))
+  }
+
+  test("Task.EvalOnce.runAsync override") { implicit s =>
+    val dummy = DummyException("dummy")
+    val task = Task.evalOnce { if (1 == 1) throw dummy else 10 }
+    val f = task.runAsync
+    assertEquals(f.value, Some(Failure(dummy)))
+  }
+
   test("Task.evalOnce.materializeAttempt should work for success") { implicit s =>
     val task = Task.evalOnce(1).materializeAttempt
     val f = task.runAsync
@@ -94,30 +104,5 @@ object TaskEvalOnceSuite extends BaseTestSuite {
     val task = Task.evalOnce[Int](throw dummy).materializeAttempt
     val f = task.runAsync
     assertEquals(f.value, Some(Success(Error(dummy))))
-  }
-
-  test("Task.evalOnce.materialize should be stack safe") { implicit s =>
-    def loop(n: Int): Task[Int] =
-      if (n <= 0) Task.evalOnce(n)
-      else Task.evalOnce(n).materialize.flatMap {
-        case Success(v) => loop(n-1)
-        case Failure(ex) => Task.raiseError(ex)
-      }
-
-    val count = if (Platform.isJVM) 50000 else 5000
-    val result = loop(count).runAsync; s.tick()
-    assertEquals(result.value, Some(Success(0)))
-  }
-
-  test("Task.evalOnce.coeval") { implicit s =>
-    val result = Task.evalOnce(100).coeval.value
-    assertEquals(result, Right(100))
-  }
-
-  test("Task.EvalOnce.runAsync override") { implicit s =>
-    val dummy = DummyException("dummy")
-    val task = Task.evalOnce { if (1 == 1) throw dummy else 10 }
-    val f = task.runAsync
-    assertEquals(f.value, Some(Failure(dummy)))
   }
 }

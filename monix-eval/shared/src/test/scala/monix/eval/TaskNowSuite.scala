@@ -17,9 +17,6 @@
 
 package monix.eval
 
-import monix.eval.Task.{Error, Now}
-import monix.execution.internal.Platform
-
 import scala.util.{Failure, Success}
 
 object TaskNowSuite extends BaseTestSuite {
@@ -112,32 +109,6 @@ object TaskNowSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("Task.now.materializeAttempt should work") { implicit s =>
-    val task = Task.now(1).materializeAttempt
-    val f = task.runAsync
-    assertEquals(f.value, Some(Success(Now(1))))
-  }
-
-  test("Task.error.materializeAttempt should work") { implicit s =>
-    val dummy = DummyException("dummy")
-    val task = Task.raiseError(dummy).materializeAttempt
-    val f = task.runAsync
-    assertEquals(f.value, Some(Success(Error(dummy))))
-  }
-
-  test("Task.now.materialize should be stack safe") { implicit s =>
-    def loop(n: Int): Task[Int] =
-      if (n <= 0) Task.now(n)
-      else Task.now(n).materialize.flatMap {
-        case Success(v) => loop(n-1)
-        case Failure(ex) => Task.raiseError(ex)
-      }
-
-    val count = if (Platform.isJVM) 50000 else 5000
-    val result = loop(count).runAsync; s.tick()
-    assertEquals(result.value, Some(Success(0)))
-  }
-
   test("Task.now.coeval") { implicit s =>
     val result = Task.now(100).coeval.value
     assertEquals(result, Right(100))
@@ -147,48 +118,5 @@ object TaskNowSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     val result = Task.raiseError(dummy).coeval.runTry
     assertEquals(result, Failure(dummy))
-  }
-
-  test("Task.Now overrides") { implicit s =>
-    val dummy = DummyException("dummy")
-    assert(Task.Now(1).isSuccess)
-    assert(!Task.Now(1).isFailure)
-    assertEquals(Task.Now(1).value, 1)
-
-    var result = 0
-
-    Task.Now(1).runAsync(new Callback[Int] {
-      def onSuccess(value: Int): Unit = {
-        result = value
-        throw dummy
-      }
-      def onError(ex: Throwable): Unit =
-        throw ex
-    })
-
-    assertEquals(result, 1)
-    assertEquals(s.state.get.lastReportedError, dummy)
-  }
-
-  test("Task.Error overrides") { implicit s =>
-    val dummy = DummyException("dummy")
-    val dummy2 = DummyException("dummy2")
-
-    assert(!Task.Error(dummy).isSuccess)
-    assert(Task.Error(dummy).isFailure)
-    intercept[DummyException]((Task.Error(dummy) : Task.Attempt[Int]).value)
-
-    var result: Throwable = null
-
-    Task.Error(dummy).runAsync(new Callback[Int] {
-      def onSuccess(value: Int): Unit = fail("onSuccess")
-      def onError(ex: Throwable): Unit = {
-        result = ex
-        throw dummy2
-      }
-    })
-
-    assertEquals(result, dummy)
-    assertEquals(s.state.get.lastReportedError, dummy2)
   }
 }

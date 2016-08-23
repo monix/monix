@@ -18,7 +18,7 @@
 package monix.eval
 
 import monix.execution.internal.Platform
-
+import scala.concurrent.Promise
 import scala.util.{Failure, Success}
 
 object TaskMemoizeSuite extends BaseTestSuite {
@@ -356,5 +356,166 @@ object TaskMemoizeSuite extends BaseTestSuite {
     val result2 = task2.runAsync; s.tick()
     assertEquals(effect, 3)
     assertEquals(result2.value, Some(Success(4)))
+
+    val result3 = task2.runAsync; s.tick()
+    assertEquals(effect, 4)
+    assertEquals(result3.value, Some(Success(4)))
+  }
+
+  test("Task.memoize should make subsequent subscribers wait for the result, as future") { implicit s =>
+    import concurrent.duration._
+
+    var effect = 0
+    val task = Task { effect += 1; effect }.delayExecution(1.second).map(_ + 1).memoize
+    val first = task.runAsync
+
+    s.tick()
+    assertEquals(first.value, None)
+
+    val second = task.runAsync
+    val third = task.runAsync
+
+    s.tick()
+    assertEquals(second.value, None)
+    assertEquals(third.value, None)
+
+    s.tick(1.second)
+    assertEquals(first.value, Some(Success(2)))
+    assertEquals(second.value, Some(Success(2)))
+    assertEquals(third.value, Some(Success(2)))
+  }
+
+  test("Task.memoize should make subsequent subscribers wait for the result, as callback") { implicit s =>
+    import concurrent.duration._
+
+    var effect = 0
+    val task = Task { effect += 1; effect }.delayExecution(1.second).map(_ + 1).memoize
+    val first = Promise[Int]()
+    task.runAsync(Callback.fromPromise(first))
+
+    s.tick()
+    assertEquals(first.future.value, None)
+
+    val second = Promise[Int](); task.runAsync(Callback.fromPromise(second))
+    val third = Promise[Int](); task.runAsync(Callback.fromPromise(third))
+
+    s.tick()
+    assertEquals(second.future.value, None)
+    assertEquals(third.future.value, None)
+
+    s.tick(1.second)
+    assertEquals(first.future.value, Some(Success(2)))
+    assertEquals(second.future.value, Some(Success(2)))
+    assertEquals(third.future.value, Some(Success(2)))
+  }
+
+  test("Task.memoize should be synchronous for subsequent subscribers, as callback") { implicit s =>
+    import concurrent.duration._
+
+    var effect = 0
+    val task = Task { effect += 1; effect }.delayExecution(1.second).map(_ + 1).memoize
+    val first = Promise[Int]()
+    task.runAsync(Callback.fromPromise(first))
+
+    s.tick()
+    assertEquals(first.future.value, None)
+
+    s.tick(1.second)
+    assertEquals(first.future.value, Some(Success(2)))
+
+    val second = Promise[Int](); task.runAsync(Callback.fromPromise(second))
+    val third = Promise[Int](); task.runAsync(Callback.fromPromise(third))
+    assertEquals(second.future.value, Some(Success(2)))
+    assertEquals(third.future.value, Some(Success(2)))
+  }
+
+  test("Task.memoize should be cancelable for subsequent subscribers, as future") { implicit s =>
+    import concurrent.duration._
+
+    var effect = 0
+    val task = Task { effect += 1; effect }.delayExecution(1.second).map(_ + 1).memoize
+    val first = task.runAsync
+
+    s.tick()
+    assertEquals(first.value, None)
+
+    val second = task.runAsync
+    val third = task.runAsync
+
+    s.tick()
+    assertEquals(second.value, None)
+    assertEquals(third.value, None)
+
+    third.cancel()
+    s.tick()
+    assert(s.state.get.tasks.isEmpty, "tasks.isEmpty")
+
+    s.tick(1.second)
+    assertEquals(first.value, None)
+    assertEquals(second.value, None)
+    assertEquals(third.value, None)
+    assertEquals(effect, 0)
+  }
+
+  test("Task.memoize should be cancelable for subsequent subscribers, as callback, test 1") { implicit s =>
+    import concurrent.duration._
+
+    var effect = 0
+    val task = Task { effect += 1; effect }.delayExecution(1.second).map(_ + 1).memoize
+    val first = Promise[Int]()
+    task.runAsync(Callback.fromPromise(first))
+
+    s.tick()
+    assertEquals(first.future.value, None)
+
+    val second = Promise[Int]()
+    val c2 = task.runAsync(Callback.fromPromise(second))
+    val third = Promise[Int]()
+    val c3 = task.runAsync(Callback.fromPromise(third))
+
+    s.tick()
+    assertEquals(second.future.value, None)
+    assertEquals(third.future.value, None)
+
+    c3.cancel()
+    s.tick()
+    assert(s.state.get.tasks.isEmpty, "tasks.isEmpty")
+
+    s.tick(1.second)
+    assertEquals(first.future.value, None)
+    assertEquals(second.future.value, None)
+    assertEquals(third.future.value, None)
+    assertEquals(effect, 0)
+  }
+
+  test("Task.memoize should be cancelable for subsequent subscribers, as callback, test 2") { implicit s =>
+    import concurrent.duration._
+
+    var effect = 0
+    val task = Task { effect += 1; effect }.delayExecution(1.second).map(_ + 1).memoize.map(x => x)
+    val first = Promise[Int]()
+    task.runAsync(Callback.fromPromise(first))
+
+    s.tick()
+    assertEquals(first.future.value, None)
+
+    val second = Promise[Int]()
+    val c2 = task.runAsync(Callback.fromPromise(second))
+    val third = Promise[Int]()
+    val c3 = task.runAsync(Callback.fromPromise(third))
+
+    s.tick()
+    assertEquals(second.future.value, None)
+    assertEquals(third.future.value, None)
+
+    c3.cancel()
+    s.tick()
+    assert(s.state.get.tasks.isEmpty, "tasks.isEmpty")
+
+    s.tick(1.second)
+    assertEquals(first.future.value, None)
+    assertEquals(second.future.value, None)
+    assertEquals(third.future.value, None)
+    assertEquals(effect, 0)
   }
 }

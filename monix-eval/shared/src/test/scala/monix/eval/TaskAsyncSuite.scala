@@ -157,4 +157,12 @@ object TaskAsyncSuite extends BaseTestSuite {
     for (i <- 0 until count) result = Task.fromFuture(result).runAsync
     assertEquals(result.value, Some(Success(1)))
   }
+
+  test("Task.async should log errors") { implicit s =>
+    val ex = DummyException("dummy")
+    val task = Task.create[Int]((_,_) => throw ex)
+    val result = task.runAsync; s.tick()
+    assertEquals(result.value, None)
+    assertEquals(s.state.get.lastReportedError, ex)
+  }
 }

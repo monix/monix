@@ -232,6 +232,15 @@ object TaskDelaySuite extends BaseTestSuite {
       "should cancel the scheduleOnce(delay) as well")
   }
 
+  test("Task#delayResult should not delay in case of error") { implicit s =>
+    val ex = DummyException("dummy")
+    val task = Task.raiseError[Int](ex).delayResult(1.second)
+    val result = task.runAsync
+
+    s.tick()
+    assertEquals(result.value, Some(Failure(ex)))
+  }
+
   test("Task#delayResultBySelector should work") { implicit s =>
     var wasTriggered = false
     def trigger(): String = { wasTriggered = true; "result" }

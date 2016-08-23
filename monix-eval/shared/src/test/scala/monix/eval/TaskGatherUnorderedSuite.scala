@@ -118,4 +118,21 @@ object TaskGatherUnorderedSuite extends BaseTestSuite {
     s.tick()
     assertEquals(result, Some(Success(count * (count - 1) / 2)))
   }
+
+  test("Task.gatherUnordered should log errors if multiple errors happen") { implicit s =>
+    val ex = DummyException("dummy1")
+    var errorsThrow = 0
+    val task1 = Task.raiseError[Int](ex)
+      .doOnFinish { x => if (x.isDefined) errorsThrow += 1; Task.unit }
+    val task2 = Task.raiseError[Int](ex)
+      .doOnFinish { x => if (x.isDefined) errorsThrow += 1; Task.unit }
+
+    val gather = Task.gatherUnordered(Seq(task1, task2))
+    val result = gather.runAsync
+    s.tick()
+
+    assertEquals(result.value, Some(Failure(ex)))
+    assertEquals(s.state.get.lastReportedError, ex)
+    assertEquals(errorsThrow, 2)
+  }
 }
