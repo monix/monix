@@ -75,4 +75,47 @@ object CoevalMemoizeSuite extends BaseTestSuite {
     for (_ <- 0 until count) coeval = coeval.memoize
     assertEquals(coeval.runTry, Success(1))
   }
+
+  test("Coeval.apply.memoize effects") { implicit s =>
+    var effect = 0
+    val coeval1 = Coeval { effect += 1; 3 }.memoize
+    val coeval2 = coeval1.map { x => effect += 1; x + 1 }
+
+    val result1 = coeval2.runTry
+    assertEquals(effect, 2)
+    assertEquals(result1, Success(4))
+
+    val result2 = coeval2.runTry
+    assertEquals(effect, 3)
+    assertEquals(result2, Success(4))
+  }
+
+  test("Coeval.suspend.memoize effects") { implicit s =>
+    var effect = 0
+    val coeval1 = Coeval.defer { effect += 1; Coeval.now(3) }.memoize
+    val coeval2 = coeval1.map { x => effect += 1; x + 1 }
+
+    val result1 = coeval2.runTry
+    assertEquals(effect, 2)
+    assertEquals(result1, Success(4))
+
+    val result2 = coeval2.runTry
+    assertEquals(effect, 3)
+    assertEquals(result2, Success(4))
+  }
+
+  test("Coeval.suspend.flatMap.memoize effects") { implicit s =>
+    var effect = 0
+    val coeval1 = Coeval.defer { effect += 1; Coeval.now(2) }
+      .flatMap(x => Coeval.now(x + 1)).memoize
+    val coeval2 = coeval1.map { x => effect += 1; x + 1 }
+
+    val result1 = coeval2.runTry
+    assertEquals(effect, 2)
+    assertEquals(result1, Success(4))
+
+    val result2 = coeval2.runTry
+    assertEquals(effect, 3)
+    assertEquals(result2, Success(4))
+  }
 }

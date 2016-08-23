@@ -297,4 +297,64 @@ object TaskMemoizeSuite extends BaseTestSuite {
     val f = task.runAsync
     assertEquals(f.value, Some(Success(1)))
   }
+
+  test("Task.apply.memoize effects, sequential") { implicit s =>
+    var effect = 0
+    val task1 = Task { effect += 1; 3 }.memoize
+    val task2 = task1.map { x => effect += 1; x + 1 }
+
+    val result1 = task2.runAsync; s.tick()
+    assertEquals(effect, 2)
+    assertEquals(result1.value, Some(Success(4)))
+
+    val result2 = task2.runAsync; s.tick()
+    assertEquals(effect, 3)
+    assertEquals(result2.value, Some(Success(4)))
+  }
+
+  test("Task.apply.memoize effects, parallel") { implicit s =>
+    var effect = 0
+    val task1 = Task { effect += 1; 3 }.memoize
+    val task2 = task1.map { x => effect += 1; x + 1 }
+
+    val result1 = task2.runAsync
+    val result2 = task2.runAsync
+
+    assertEquals(result1.value, None)
+    assertEquals(result2.value, None)
+
+    s.tick()
+    assertEquals(effect, 3)
+    assertEquals(result1.value, Some(Success(4)))
+    assertEquals(result2.value, Some(Success(4)))
+  }
+
+  test("Task.suspend.memoize effects") { implicit s =>
+    var effect = 0
+    val task1 = Task.defer { effect += 1; Task.now(3) }.memoize
+    val task2 = task1.map { x => effect += 1; x + 1 }
+
+    val result1 = task2.runAsync; s.tick()
+    assertEquals(effect, 2)
+    assertEquals(result1.value, Some(Success(4)))
+
+    val result2 = task2.runAsync; s.tick()
+    assertEquals(effect, 3)
+    assertEquals(result2.value, Some(Success(4)))
+  }
+
+  test("Task.suspend.flatMap.memoize effects") { implicit s =>
+    var effect = 0
+    val task1 = Task.defer { effect += 1; Task.now(2) }
+      .flatMap(x => Task.now(x + 1)).memoize
+    val task2 = task1.map { x => effect += 1; x + 1 }
+
+    val result1 = task2.runAsync; s.tick()
+    assertEquals(effect, 2)
+    assertEquals(result1.value, Some(Success(4)))
+
+    val result2 = task2.runAsync; s.tick()
+    assertEquals(effect, 3)
+    assertEquals(result2.value, Some(Success(4)))
+  }
 }
