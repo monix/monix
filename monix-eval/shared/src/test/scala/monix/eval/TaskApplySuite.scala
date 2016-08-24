@@ -45,7 +45,7 @@ object TaskApplySuite extends BaseTestSuite {
     assertEquals(s.state.get.lastReportedError, null)
   }
 
-  test("Task.apply is equivalent with Task.evalAlways") { implicit s =>
+  test("Task.apply is equivalent with Task.eval") { implicit s =>
     check1 { a: Int =>
       val t1 = {
         var effect = 100
@@ -54,7 +54,7 @@ object TaskApplySuite extends BaseTestSuite {
 
       val t2 = {
         var effect = 100
-        Task.evalAlways { effect += 100; effect + a }
+        Task.eval { effect += 100; effect + a }
       }
 
       List(t1 === t2, t2 === t1)
@@ -119,7 +119,7 @@ object TaskApplySuite extends BaseTestSuite {
 
   test("Task.apply.flatten is equivalent with flatMap") { implicit s =>
     check1 { a: Int =>
-      val t = Task(Task.evalAlways(a))
+      val t = Task(Task.eval(a))
       t.flatMap(identity) === t.flatten
     }
   }

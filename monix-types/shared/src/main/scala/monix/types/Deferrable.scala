@@ -17,36 +17,21 @@
 
 package monix.types
 
-import monix.types.shims.Applicative
-import simulacrum.typeclass
-
-@typeclass(excludeParents = List("Applicative"))
+/** Type-class describing an [[Applicative]] which supports
+  * capturing a deferred evaluation of a by-name `F[A]`.
+  *
+  * Evaluation can be suspended until a value is extracted.
+  * The `suspend` operation can be thought of as a factory
+  * of `F[A]` instances, that will produce fresh instances,
+  * along with possible side-effects, on each evaluation.
+  */
 trait Deferrable[F[_]] extends Applicative[F] {
-  /** Lifts a strict value into the deferrable context.
-    *
-    * Alias for `Applicative.pure`.
-    */
-  def now[A](a: A): F[A]
-
-  /** Builds deferrable instances from the given factory. */
   def defer[A](fa: => F[A]): F[A]
 
-  /** Lifts a non-strict value into the deferrable context,
-    * but memoizes it for subsequent evaluations.
-    */
-  def evalOnce[A](f: => A): F[A]
+  def eval[A](a: => A): F[A] =
+    defer(pure(a))
+}
 
-  /** Lifts a non-strict value into the deferrable context. */
-  def evalAlways[A](f: => A): F[A]
-
-  /** The `Unit` lifted into the deferrable context. */
-  def unit: F[Unit]
-
-  /** Given a deferrable, memoizes its result on the first evaluation,
-    * to be reused for subsequent evaluations.
-    */
-  def memoize[A](fa: F[A]): F[A]
-
-  override def pure[A](a: A): F[A] = now(a)
-  override def pureEval[A](a: => A): F[A] = evalAlways(a)
+object Deferrable {
+  @inline def apply[F[_]](implicit F: Deferrable[F]): Deferrable[F] = F
 }

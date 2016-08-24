@@ -76,7 +76,7 @@ object TaskGatherSuite extends BaseTestSuite {
 
   test("Task.zipList should be equivalent with gather") { implicit s =>
     check2 { (list: List[Int], i: Int) =>
-      val tasks = list.map(x => if (i % 2 == 0) Task.evalAlways(i) else Task(i))
+      val tasks = list.map(x => if (i % 2 == 0) Task.eval(i) else Task(i))
       val gather = Task.gather(tasks)
       val zipList = Task.zipList(tasks:_*)
       zipList === gather

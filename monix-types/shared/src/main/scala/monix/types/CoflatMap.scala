@@ -15,18 +15,18 @@
  * limitations under the License.
  */
 
-package monix.types.shims
+package monix.types
 
-/** A shim for a `Monad` type-class, to be supplied by / translated to
-  * libraries such as Cats or Scalaz.
-  *
-  * See: [[http://homepages.inf.ed.ac.uk/wadler/papers/marktoberdorf/baastad.pdf Monads for functional programming]]
+/** A shim for the `CoflatMap` type-class,
+  * to be supplied by libraries such as Cats or Scalaz.
   */
-trait Monad[F[_]] extends Applicative[F] {
-  def flatMap[A, B](fa: F[A])(f: A => F[B]): F[B]
-  def flatten[A](ffa: F[F[A]]): F[A]
+trait CoflatMap[F[_]] extends Functor[F] {
+  def coflatMap[A, B](fa: F[A])(f: F[A] => B): F[B]
+
+  def coflatten[A](fa: F[A]): F[F[A]] =
+    coflatMap(fa)(fa => fa)
 }
 
-object Monad {
-  @inline def apply[F[_]](implicit F: Monad[F]): Monad[F] = F
+object CoflatMap {
+  @inline def apply[F[_]](implicit F: CoflatMap[F]): CoflatMap[F] = F
 }

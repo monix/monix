@@ -15,10 +15,12 @@
  * limitations under the License.
  */
 
-package monix.types.shims
+package monix.types
 
 /** A shim for an `MonadError` type-class, to be supplied by / translated to
   * libraries such as Cats or Scalaz.
+  *
+  * This type class allows one to abstract over error-handling monads.
   */
 trait MonadError[F[_],E] extends ApplicativeError[F,E] with Monad[F]
 

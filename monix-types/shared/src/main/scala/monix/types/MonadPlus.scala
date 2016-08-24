@@ -17,16 +17,13 @@
 
 package monix.types
 
-/** Groups common type-classes for things that can be evaluated
-  * and that yield a single result (i.e. `Task`, `Coeval`)
+/** A shim for a `MonadPlus` type-class, to be supplied by / translated to
+  * libraries such as Cats or Scalaz.
+  *
+  * This is a [[MonadFilter]] instance that's also a [[MonoidK]].
   */
-trait Evaluable[F[_]]
-  extends Deferrable[F]
-  with Memoizable[F]
-  with MonadError[F, Throwable]
-  with CoflatMap[F]
-  with TailRecMonad[F]
+trait MonadPlus[F[_]] extends MonadFilter[F] with MonoidK[F]
 
-object Evaluable {
-  @inline def apply[F[_]](implicit F: Evaluable[F]): Evaluable[F] = F
+object MonadPlus {
+  @inline def apply[F[_]](implicit F: MonadPlus[F]): MonadPlus[F] = F
 }

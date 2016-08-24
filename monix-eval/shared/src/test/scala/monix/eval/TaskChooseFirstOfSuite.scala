@@ -93,7 +93,7 @@ object TaskChooseFirstOfSuite extends BaseTestSuite {
 
   test("Task.chooseFirstOfList should be stack safe, take 2") { implicit s =>
     val count = if (Platform.isJVM) 100000 else 10000
-    val tasks = (0 until count).map(x => Task.evalAlways(x))
+    val tasks = (0 until count).map(x => Task.eval(x))
     val sum = Task.chooseFirstOfList(tasks)
 
     sum.runAsync
@@ -381,7 +381,7 @@ object TaskChooseFirstOfSuite extends BaseTestSuite {
 
   test("Task.chooseFirstOf should be stack safe, take 2") { implicit s =>
     val count = if (Platform.isJVM) 100000 else 10000
-    val tasks = (0 until count).map(x => Task.evalAlways(x))
+    val tasks = (0 until count).map(x => Task.eval(x))
     val init = Task.never[Int]
 
     val sum = tasks.foldLeft(init)((acc,t) => Task.chooseFirstOf(acc,t).map {

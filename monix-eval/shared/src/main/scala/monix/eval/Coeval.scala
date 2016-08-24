@@ -19,7 +19,7 @@ package monix.eval
 
 import monix.eval.Coeval._
 import monix.types.Evaluable
-import monix.types.shims.Bimonad
+import monix.types.Bimonad
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.collection.generic.CanBuildFrom
@@ -81,7 +81,7 @@ sealed abstract class Coeval[+A] extends Serializable { self =>
 
   /** Converts the source [[Coeval]] into a [[Task]]. */
   def task: Task[A] =
-    Task.eval(self)
+    Task.coeval(self)
 
   /** Creates a new `Coeval` by applying a function to the successful result
     * of the source, and returns a new instance equivalent
@@ -285,7 +285,7 @@ sealed abstract class Coeval[+A] extends Serializable { self =>
 object Coeval {
   /** Promotes a non-strict value to a [[Coeval]].
     *
-    * Alias of [[evalAlways]].
+    * Alias of [[eval]].
     */
   def apply[A](f: => A): Coeval[A] =
     Always(f _)
@@ -304,17 +304,19 @@ object Coeval {
   def raiseError[A](ex: Throwable): Coeval[A] =
     Error(ex)
 
-  /** Promote a non-strict value representing a `Coeval` to a `Coeval` of the
-    * same type.
+  /** Promote a non-strict value representing a `Coeval`
+    * to a `Coeval` of the same type.
     */
-  def defer[A](coeval: => Coeval[A]): Coeval[A] =
-    Suspend(() => coeval)
+  def defer[A](fa: => Coeval[A]): Coeval[A] =
+    Suspend(() => fa)
+
+  /** Alias for [[defer]]. */
+  def suspend[A](fa: => Coeval[A]): Coeval[A] = defer(fa)
 
   /** Promote a non-strict value to a `Coeval` that is memoized on the first
     * evaluation, the result being then available on subsequent evaluations.
     */
-  def evalOnce[A](f: => A): Coeval[A] =
-    Once(f _)
+  def evalOnce[A](a: => A): Coeval[A] = Once(a _)
 
   /** Promote a non-strict value to an `Coeval`, catching exceptions in the
     * process.
@@ -322,8 +324,14 @@ object Coeval {
     * Note that since `Coeval` is not memoized, this will recompute the
     * value each time the `Coeval` is executed.
     */
-  def evalAlways[A](f: => A): Coeval[A] =
-    Always(f _)
+  def eval[A](a: => A): Coeval[A] = Always(a _)
+
+  /** Alias for [[eval]]. */
+  def delay[A](a: => A): Coeval[A] = eval(a)
+
+  /** Alias for [[eval]]. Deprecated. */
+  @deprecated("Renamed, please use Coeval.apply or Coeval.eval", since="2.0-RC12")
+  def evalAlways[A](a: => A): Coeval[A] = eval(a)
 
   /** A `Coeval[Unit]` provided for convenience. */
   val unit: Coeval[Unit] = Now(())
@@ -339,7 +347,7 @@ object Coeval {
     */
   def sequence[A, M[X] <: TraversableOnce[X]](sources: M[Coeval[A]])
     (implicit cbf: CanBuildFrom[M[Coeval[A]], A, M[A]]): Coeval[M[A]] = {
-    val init = evalAlways(cbf(sources))
+    val init = eval(cbf(sources))
     val r = sources.foldLeft(init)((acc,elem) => acc.zipMap(elem)(_ += _))
     r.map(_.result())
   }
@@ -351,14 +359,14 @@ object Coeval {
     */
   def traverse[A, B, M[X] <: TraversableOnce[X]](sources: M[A])(f: A => Coeval[B])
     (implicit cbf: CanBuildFrom[M[A], B, M[B]]): Coeval[M[B]] = {
-    val init = evalAlways(cbf(sources))
+    val init = eval(cbf(sources))
     val r = sources.foldLeft(init)((acc,elem) => acc.zipMap(f(elem))(_ += _))
     r.map(_.result())
   }
 
   /** Zips together multiple [[Coeval]] instances. */
   def zipList[A](sources: Coeval[A]*): Coeval[List[A]] = {
-    val init = evalAlways(mutable.ListBuffer.empty[A])
+    val init = eval(mutable.ListBuffer.empty[A])
     val r = sources.foldLeft(init)((acc, elem) => acc.zipMap(elem)(_ += _))
     r.map(_.toList)
   }
@@ -639,12 +647,11 @@ object Coeval {
 
   /** Groups the implementation for the type-classes defined in [[monix.types]]. */
   class TypeClassInstances extends Evaluable[Coeval] with Bimonad[Coeval] {
-    override def now[A](a: A): Coeval[A] = Coeval.now(a)
-    override def evalAlways[A](f: =>A): Coeval[A] = Coeval.evalAlways(f)
-    override def defer[A](fa: =>Coeval[A]): Coeval[A] = Coeval.defer(fa)
+    override def pure[A](a: A): Coeval[A] = Coeval.now(a)
+    override def defer[A](fa: => Coeval[A]): Coeval[A] = Coeval.defer(fa)
+    override def evalOnce[A](a: => A): Coeval[A] = Coeval.evalOnce(a)
+    override def eval[A](a: => A): Coeval[A] = Coeval.eval(a)
     override def memoize[A](fa: Coeval[A]): Coeval[A] = fa.memoize
-    override def evalOnce[A](f: =>A): Coeval[A] = Coeval.evalOnce(f)
-    override def unit: Coeval[Unit] = Coeval.unit
 
     override def extract[A](x: Coeval[A]): A =
       x.value
@@ -653,7 +660,7 @@ object Coeval {
     override def flatten[A](ffa: Coeval[Coeval[A]]): Coeval[A] =
       ffa.flatten
     override def coflatMap[A, B](fa: Coeval[A])(f: (Coeval[A]) => B): Coeval[B] =
-      Coeval.evalAlways(f(fa))
+      Coeval.eval(f(fa))
     override def ap[A, B](fa: Coeval[A])(ff: Coeval[(A) => B]): Coeval[B] =
       for (f <- ff; a <- fa) yield f(a)
     override def map2[A, B, Z](fa: Coeval[A], fb: Coeval[B])(f: (A, B) => Z): Coeval[Z] =

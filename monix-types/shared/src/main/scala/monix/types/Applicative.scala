@@ -15,20 +15,22 @@
  * limitations under the License.
  */
 
-package monix.types.shims
+package monix.types
 
-/** A shim for a `MonoidK` type-class, to be supplied by / translated to
-  * libraries such as Cats or Scalaz.
+/** A shim for the Applicative Functor type-class,
+  * to be supplied by libraries such as Cats or Scalaz.
   *
-  * `MonoidK` is a universal monoid which operates on kinds.
+  * Described in [[http://www.soi.city.ac.uk/~ross/papers/Applicative.html Applicative Programming with Effects]].
+  *
+  * The [[Functor]] allows mapping of a pure function to a value, the `Applicative`
+  * also adds the capability of lifting a value in the context.
   */
-trait MonoidK[F[_]] extends SemigroupK[F] {
-  /**
-    * Given a type A, create an "empty" F[A] value.
-    */
-  def empty[A]: F[A]
+trait Applicative[F[_]] extends Functor[F] {
+  def pure[A](a: A): F[A]
+  def ap[A, B](fa: F[A])(ff: F[A => B]): F[B]
+  def map2[A, B, Z](fa: F[A], fb: F[B])(f: (A, B) => Z): F[Z]
 }
 
-object MonoidK {
-  @inline def apply[F[_]](implicit F: MonoidK[F]): MonoidK[F] = F
+object Applicative {
+  @inline def apply[F[_]](implicit F: Applicative[F]): Applicative[F] = F
 }

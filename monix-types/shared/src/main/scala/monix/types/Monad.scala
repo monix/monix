@@ -17,16 +17,21 @@
 
 package monix.types
 
-/** Groups common type-classes for things that can be evaluated
-  * and that yield a single result (i.e. `Task`, `Coeval`)
+/** A shim for a `Monad` type-class, to be supplied by / translated to
+  * libraries such as Cats or Scalaz.
+  *
+  * The monad type-class is a structure that represents
+  * computations defined as sequences of steps: : a type with
+  * a monad structure defines what it means to chain operations
+  * together, or nest functions of that type.
+  *
+  * See: [[http://homepages.inf.ed.ac.uk/wadler/papers/marktoberdorf/baastad.pdf Monads for functional programming]]
   */
-trait Evaluable[F[_]]
-  extends Deferrable[F]
-  with Memoizable[F]
-  with MonadError[F, Throwable]
-  with CoflatMap[F]
-  with TailRecMonad[F]
+trait Monad[F[_]] extends Applicative[F] {
+  def flatMap[A, B](fa: F[A])(f: A => F[B]): F[B]
+  def flatten[A](ffa: F[F[A]]): F[A]
+}
 
-object Evaluable {
-  @inline def apply[F[_]](implicit F: Evaluable[F]): Evaluable[F] = F
+object Monad {
+  @inline def apply[F[_]](implicit F: Monad[F]): Monad[F] = F
 }

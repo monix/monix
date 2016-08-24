@@ -15,18 +15,15 @@
  * limitations under the License.
  */
 
-package monix.types.shims
+package monix.types
 
-/** A shim for the `CoflatMap` type-class,
+/** A shim for the `Bimonad` type-class,
   * to be supplied by libraries such as Cats or Scalaz.
+  *
+  * A type-class that describes monads that are also comonads.
   */
-trait CoflatMap[F[_]] extends Functor[F] {
-  def coflatMap[A, B](fa: F[A])(f: F[A] => B): F[B]
+trait Bimonad[F[_]] extends Monad[F] with Comonad[F]
 
-  def coflatten[A](fa: F[A]): F[F[A]] =
-    coflatMap(fa)(fa => fa)
-}
-
-object CoflatMap {
-  @inline def apply[F[_]](implicit F: CoflatMap[F]): CoflatMap[F] = F
+object Bimonad {
+  @inline def apply[F[_]](implicit F: Bimonad[F]): Bimonad[F] = F
 }

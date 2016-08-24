@@ -15,13 +15,18 @@
  * limitations under the License.
  */
 
-package monix.types.shims
+package monix.types
 
-/** A shim for the `Bimonad` type-class,
-  * to be supplied by libraries such as Cats or Scalaz.
+/** A shim for the `Functor` type-class, to be supplied by / translated to
+  * libraries such as Cats or Scalaz.
+  *
+  * A functor provides the `map` operation that allows lifting
+  * an `f` function into the functor context and applying it.
   */
-trait Bimonad[F[_]] extends Monad[F] with Comonad[F]
+trait Functor[F[_]] extends Any with Serializable {
+  def map[A, B](fa: F[A])(f: A => B): F[B]
+}
 
-object Bimonad {
-  @inline def apply[F[_]](implicit F: Bimonad[F]): Bimonad[F] = F
+object Functor {
+  @inline def apply[F[_]](implicit F: Functor[F]): Functor[F] = F
 }

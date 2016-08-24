@@ -39,8 +39,8 @@ object TaskForkSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(10)))
   }
 
-  test("Task.evalAlways.fork should execute async") { implicit s =>
-    val t = Task.fork(Task.evalAlways(10))
+  test("Task.eval.fork should execute async") { implicit s =>
+    val t = Task.fork(Task.eval(10))
     val f = t.runAsync
     assertEquals(f.value, None)
     s.tick()
@@ -102,7 +102,7 @@ object TaskForkSuite extends BaseTestSuite {
 
   test("Task.fork should be stack safe, test 1") { implicit s =>
     val count = if (Platform.isJVM) 100000 else 5000
-    var task = Task.evalAlways(1)
+    var task = Task.eval(1)
     for (i <- 0 until count) task = Task.fork(task)
 
     val result = task.runAsync
@@ -112,7 +112,7 @@ object TaskForkSuite extends BaseTestSuite {
 
   test("Task.executeOn should be stack safe, test 2") { implicit s =>
     val count = if (Platform.isJVM) 100000 else 5000
-    var task = Task.evalAlways(1)
+    var task = Task.eval(1)
     for (i <- 0 until count) task = task.executeOn(s)
 
     val result = task.runAsync

@@ -15,15 +15,25 @@
  * limitations under the License.
  */
 
-package monix.types.shims
+package monix.types
 
-/** A shim for the `Comonad` type-class,
-  * to be supplied by libraries such as Cats or Scalaz.
+/** A type-class for `F[A]` suspendable applicatives
+  * whose evaluation can be memoized, along with a guarantee
+  * that the side-effects only happen once.
+  *
+  * The `memoize` operation takes an `F[_]` instance and
+  * returns a new `F` that guarantees that its evaluation and
+  * all related side-effects only happen once, with the results
+  * to be reused on subsequent evaluations.
   */
-trait Comonad[F[_]] extends CoflatMap[F] {
-  def extract[A](x: F[A]): A
+trait Memoizable[F[_]] extends Deferrable[F] {
+  def memoize[A](fa: F[A]): F[A]
+
+  def evalOnce[A](a: => A): F[A] =
+    memoize(eval(a))
 }
 
-object Comonad {
-  @inline def apply[F[_]](implicit F: Comonad[F]): Comonad[F] = F
+object Memoizable {
+  @inline def apply[F[_]](implicit F: Memoizable[F]): Memoizable[F] = F
 }
+

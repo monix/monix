@@ -40,7 +40,6 @@ import scala.annotation.tailrec
   */
 trait LocalBatchingExecutor extends Scheduler {
   private[this] val localTasks = new ThreadLocal[List[Runnable]]()
-
   protected def executeAsync(r: Runnable): Unit
 
   override final def execute(runnable: Runnable): Unit =

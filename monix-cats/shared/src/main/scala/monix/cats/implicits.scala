@@ -26,4 +26,4 @@ package monix.cats
   * }}}
   */
 object implicits extends monix.cats.AllInstances
-  with cats.syntax.AllSyntax with cats.std.AllInstances
+  with cats.syntax.AllSyntax with cats.instances.AllInstances

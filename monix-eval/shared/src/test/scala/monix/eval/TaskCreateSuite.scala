@@ -98,7 +98,7 @@ object TaskCreateSuite extends BaseTestSuite {
       tasks.foldLeft(Task(0))(sum)
 
     val count = if (Platform.isJVM) 100000 else 10000
-    val receivedT = sumAll((0 until count).map(n => Task.evalAlways(n)))
+    val receivedT = sumAll((0 until count).map(n => Task.eval(n)))
     val receivedF = receivedT.runAsync
 
     s.tick()

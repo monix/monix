@@ -15,15 +15,20 @@
  * limitations under the License.
  */
 
-package monix.types.shims
+package monix.types
 
-/** A shim for a `MonadPlus` type-class, to be supplied by / translated to
-  * libraries such as Cats or Scalaz.
+/** A shim for the `Comonad` type-class,
+  * to be supplied by libraries such as Cats or Scalaz.
   *
-  * This is a [[MonadFilter]] instance that's also a [[MonoidK]].
+  * Comonad is the dual of Monad. Whereas Monads allow for
+  * the composition of effectful functions, Comonads allow for
+  * composition of functions that extract the value from
+  * their context.
   */
-trait MonadPlus[F[_]] extends MonadFilter[F] with MonoidK[F]
+trait Comonad[F[_]] extends CoflatMap[F] {
+  def extract[A](x: F[A]): A
+}
 
-object MonadPlus {
-  @inline def apply[F[_]](implicit F: MonadPlus[F]): MonadPlus[F] = F
+object Comonad {
+  @inline def apply[F[_]](implicit F: Comonad[F]): Comonad[F] = F
 }

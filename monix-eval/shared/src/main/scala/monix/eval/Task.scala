@@ -97,7 +97,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * we have an asynchronous boundary.
     */
   def coeval(implicit s: Scheduler): Coeval[Either[CancelableFuture[A], A]] =
-    Coeval.evalAlways {
+    Coeval.eval {
       val f = this.runAsync(s)
       f.value match {
         case None => Left(f)
@@ -534,7 +534,7 @@ object Task extends TaskInstances {
     * @param f is the callback to execute asynchronously
     */
   def apply[A](f: => A): Task[A] =
-    fork(evalAlways(f))
+    fork(eval(f))
 
   /** Returns a `Task` that on execution is always successful, emitting
     * the given strict value.
@@ -554,8 +554,12 @@ object Task extends TaskInstances {
   /** Promote a non-strict value representing a Task to a Task of the
     * same type.
     */
-  def defer[A](task: => Task[A]): Task[A] =
-    Suspend(() => task)
+  def defer[A](fa: => Task[A]): Task[A] =
+    Suspend(fa _)
+
+  /** Alias for [[defer]]. */
+  def suspend[A](fa: => Task[A]): Task[A] =
+    Suspend(fa _)
 
   /** Promote a non-strict value to a Task that is memoized on the first
     * evaluation, the result being then available on subsequent evaluations.
@@ -569,8 +573,15 @@ object Task extends TaskInstances {
     * Note that since `Task` is not memoized, this will recompute the
     * value each time the `Task` is executed.
     */
-  def evalAlways[A](a: => A): Task[A] =
+  def eval[A](a: => A): Task[A] =
     Delay(Coeval.Always(a _))
+
+  /** Alias for [[coeval]]. */
+  def delay[A](a: => A): Task[A] = eval(a)
+
+  /** Alias for [[coeval]]. Deprecated. */
+  @deprecated("Renamed, please use Task.eval", since="2.0-RC12")
+  def evalAlways[A](a: => A): Task[A] = eval(a)
 
   /** A [[Task]] instance that upon evaluation will never complete. */
   def never[A]: Task[A] = neverRef
@@ -586,8 +597,7 @@ object Task extends TaskInstances {
   final val unit: Task[Unit] = Delay(Coeval.unit)
 
   /** Transforms a [[Coeval]] into a [[Task]]. */
-  def eval[A](eval: Coeval[A]): Task[A] =
-    Delay(eval)
+  def coeval[A](a: Coeval[A]): Task[A] = Delay(a)
 
   /** Mirrors the given source `Task`, but upon execution ensure
     * that evaluation forks into a separate (logical) thread.
@@ -691,7 +701,6 @@ object Task extends TaskInstances {
       })
     }
   }
-
 
   /** Constructs a lazy [[Task]] instance whose result
     * will be computed asynchronously.
@@ -850,7 +859,7 @@ object Task extends TaskInstances {
     */
   def sequence[A, M[X] <: TraversableOnce[X]](in: M[Task[A]])
     (implicit cbf: CanBuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] = {
-    val init = evalAlways(cbf(in))
+    val init = eval(cbf(in))
     val r = in.foldLeft(init)((acc,elem) => acc.flatMap(lb => elem.map(e => lb += e)))
     r.map(_.result())
   }
@@ -863,7 +872,7 @@ object Task extends TaskInstances {
    */
   def traverse[A, B, M[X] <: TraversableOnce[X]](in: M[A])(f: A => Task[B])
     (implicit cbf: CanBuildFrom[M[A], B, M[B]]): Task[M[B]] = {
-    val init = evalAlways(cbf(in))
+    val init = eval(cbf(in))
     val r = in.foldLeft(init)((acc,elem) => acc.flatMap(lb => f(elem).map(e => lb += e)))
     r.map(_.result())
   }
@@ -889,7 +898,7 @@ object Task extends TaskInstances {
     */
   def gather[A, M[X] <: TraversableOnce[X]](in: M[Task[A]])
     (implicit cbf: CanBuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] = {
-    val init = evalAlways(cbf(in))
+    val init = eval(cbf(in))
     val r = in.foldLeft(init)((acc,elem) => Task.mapBoth(acc,elem)(_ += _))
     r.map(_.result())
   }
@@ -1101,7 +1110,7 @@ object Task extends TaskInstances {
     * The effects are not ordered, but the results are.
     */
   def zipList[A](sources: Task[A]*): Task[List[A]] = {
-    val init = evalAlways(mutable.ListBuffer.empty[A])
+    val init = eval(mutable.ListBuffer.empty[A])
     val r = sources.foldLeft(init)((acc,elem) => Task.mapBoth(acc,elem)(_ += _))
     r.map(_.toList)
   }
@@ -1456,7 +1465,7 @@ object Task extends TaskInstances {
         case ref: MemoizeSuspend[_] =>
           ref.value match {
             case Some(materialized) =>
-              loop(scheduler, em, conn, eval(materialized), cb, binds, em.nextFrameIndex(frameIndex))
+              loop(scheduler, em, conn, coeval(materialized), cb, binds, em.nextFrameIndex(frameIndex))
             case None =>
               val success = source.asInstanceOf[MemoizeSuspend[Any]].execute(conn, cb, binds)(scheduler)
               if (!success) // retry?
@@ -1547,7 +1556,7 @@ object Task extends TaskInstances {
           val task = ref.asInstanceOf[MemoizeSuspend[A]]
           task.value match {
             case Some(materialized) =>
-              loop(scheduler, em, eval(materialized), binds, em.nextFrameIndex(frameIndex))
+              loop(scheduler, em, coeval(materialized), binds, em.nextFrameIndex(frameIndex))
             case None =>
               goAsync(scheduler, source, binds, isNextAsync = true)
           }
@@ -1567,7 +1576,7 @@ object Task extends TaskInstances {
 
 private[eval] trait TaskInstances {
   /** Type-class instances for [[Task]] that have
-    * nondeterministic effects for [[monix.types.shims.Applicative Applicative]].
+    * nondeterministic effects for [[monix.types.Applicative Applicative]].
     *
     * It can be optionally imported in scope to make `map2` and `ap` to
     * potentially run tasks in parallel.
@@ -1582,19 +1591,18 @@ private[eval] trait TaskInstances {
 
   /** Groups the implementation for the type-classes defined in [[monix.types]]. */
   class TypeClassInstances extends Evaluable[Task] {
-    override def now[A](a: A): Task[A] = Task.now(a)
-    override def evalAlways[A](f: =>A): Task[A] = Task.evalAlways(f)
-    override def defer[A](fa: =>Task[A]): Task[A] = Task.defer(fa)
+    override def pure[A](a: A): Task[A] = Task.now(a)
+    override def defer[A](fa: => Task[A]): Task[A] = Task.defer(fa)
+    override def evalOnce[A](a: => A): Task[A] = Task.evalOnce(a)
+    override def eval[A](a: => A): Task[A] = Task.eval(a)
     override def memoize[A](fa: Task[A]): Task[A] = fa.memoize
-    override def evalOnce[A](f: =>A): Task[A] = Task.evalOnce(f)
-    override def unit: Task[Unit] = Task.unit
 
     override def flatMap[A, B](fa: Task[A])(f: (A) => Task[B]): Task[B] =
       fa.flatMap(f)
     override def flatten[A](ffa: Task[Task[A]]): Task[A] =
       ffa.flatten
     override def coflatMap[A, B](fa: Task[A])(f: (Task[A]) => B): Task[B] =
-      Task.evalAlways(f(fa))
+      Task.eval(f(fa))
     override def ap[A, B](fa: Task[A])(ff: Task[(A) => B]): Task[B] =
       for (f <- ff; a <- fa) yield f(a)
     override def map2[A, B, Z](fa: Task[A], fb: Task[B])(f: (A, B) => Z): Task[Z] =

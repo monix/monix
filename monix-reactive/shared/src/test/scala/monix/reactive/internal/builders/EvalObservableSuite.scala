@@ -22,7 +22,7 @@ import monix.reactive.exceptions.DummyException
 import monix.reactive.{BaseLawsTestSuite, Observable}
 
 object EvalObservableSuite extends BaseLawsTestSuite {
-  test("eval(now(value)) should work") { implicit s =>
+  test("Observable.eval(now(value)) should work") { implicit s =>
     check1 { (value: Int) =>
       val obs1 = Observable.eval(Coeval.now(value))
       val obs2 = Observable.now(value)
@@ -30,15 +30,15 @@ object EvalObservableSuite extends BaseLawsTestSuite {
     }
   }
 
-  test("eval(evalAlways(value)) should work") { implicit s =>
+  test("Observable.eval(eval(value)) should work") { implicit s =>
     check1 { (value: Int) =>
-      val obs1 = Observable.eval(Coeval.evalAlways(value))
-      val obs2 = Observable.evalAlways(value)
+      val obs1 = Observable.eval(Coeval.eval(value))
+      val obs2 = Observable.eval(value)
       obs1 === obs2
     }
   }
 
-  test("eval(evalOnce(value)) should work") { implicit s =>
+  test("Observable.eval(evalOnce(value)) should work") { implicit s =>
     check1 { (value: Int) =>
       val obs1 = Observable.eval(Coeval.evalOnce(value))
       val obs2 = Observable.evalOnce(value)
@@ -46,7 +46,7 @@ object EvalObservableSuite extends BaseLawsTestSuite {
     }
   }
 
-  test("eval(raiseError(value)) should work") { implicit s =>
+  test("Observable.eval(raiseError(value)) should work") { implicit s =>
     check1 { (value: Int) =>
       val ex = DummyException(s"dummy $value")
       val obs1 = Observable.eval(Coeval.raiseError(ex))

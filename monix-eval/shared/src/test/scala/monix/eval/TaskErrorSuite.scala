@@ -62,8 +62,8 @@ object TaskErrorSuite extends BaseTestSuite {
     assertEquals(result.value, Some(Success(0)))
   }
 
-  test("Task.evalAlways.materialize") { implicit s =>
-    assertEquals(Task.evalAlways(10).materialize.coeval.value, Right(Success(10)))
+  test("Task.eval.materialize") { implicit s =>
+    assertEquals(Task.eval(10).materialize.coeval.value, Right(Success(10)))
   }
 
   test("Task.defer.materialize") { implicit s =>
@@ -80,7 +80,7 @@ object TaskErrorSuite extends BaseTestSuite {
   }
 
   test("Task.flatMap.materialize") { implicit s =>
-    assertEquals(Task.evalAlways(10).flatMap(x => Task.now(x))
+    assertEquals(Task.eval(10).flatMap(x => Task.now(x))
       .materialize.coeval.value, Right(Success(10)))
   }
 
@@ -241,7 +241,7 @@ object TaskErrorSuite extends BaseTestSuite {
 
   test("Task.onErrorRestart should mirror the source onSuccess") { implicit s =>
     var tries = 0
-    val task = Task.evalAlways { tries += 1; 1 }.onErrorRestart(10)
+    val task = Task.eval { tries += 1; 1 }.onErrorRestart(10)
     val f = task.runAsync
 
     assertEquals(f.value, Some(Success(1)))
@@ -251,7 +251,7 @@ object TaskErrorSuite extends BaseTestSuite {
   test("Task.onErrorRestart should retry onError") { implicit s =>
     val ex = DummyException("dummy")
     var tries = 0
-    val task = Task.evalAlways { tries += 1; if (tries < 5) throw ex else 1 }.onErrorRestart(10)
+    val task = Task.eval { tries += 1; if (tries < 5) throw ex else 1 }.onErrorRestart(10)
     val f = task.runAsync
 
     assertEquals(f.value, Some(Success(1)))
@@ -261,7 +261,7 @@ object TaskErrorSuite extends BaseTestSuite {
   test("Task.onErrorRestart should emit onError after max retries") { implicit s =>
     val ex = DummyException("dummy")
     var tries = 0
-    val task = Task.evalAlways { tries += 1; throw ex }.onErrorRestart(10)
+    val task = Task.eval { tries += 1; throw ex }.onErrorRestart(10)
     val f = task.runAsync
 
     assertEquals(f.value, Some(Failure(ex)))
@@ -282,7 +282,7 @@ object TaskErrorSuite extends BaseTestSuite {
 
   test("Task.onErrorRestartIf should mirror the source onSuccess") { implicit s =>
     var tries = 0
-    val task = Task.evalAlways { tries += 1; 1 }.onErrorRestartIf(ex => tries < 10)
+    val task = Task.eval { tries += 1; 1 }.onErrorRestartIf(ex => tries < 10)
     val f = task.runAsync
 
     assertEquals(f.value, Some(Success(1)))
@@ -292,7 +292,7 @@ object TaskErrorSuite extends BaseTestSuite {
   test("Task.onErrorRestartIf should retry onError") { implicit s =>
     val ex = DummyException("dummy")
     var tries = 0
-    val task = Task.evalAlways { tries += 1; if (tries < 5) throw ex else 1 }
+    val task = Task.eval { tries += 1; if (tries < 5) throw ex else 1 }
       .onErrorRestartIf(ex => tries <= 10)
 
     val f = task.runAsync
@@ -303,7 +303,7 @@ object TaskErrorSuite extends BaseTestSuite {
   test("Task.onErrorRestartIf should emit onError") { implicit s =>
     val ex = DummyException("dummy")
     var tries = 0
-    val task = Task.evalAlways { tries += 1; throw ex }
+    val task = Task.eval { tries += 1; throw ex }
       .onErrorRestartIf(ex => tries <= 10)
 
     val f = task.runAsync
@@ -378,9 +378,9 @@ object TaskErrorSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("Task.evalAlways.flatMap.onErrorRecoverWith should work") { implicit s =>
+  test("Task.eval.flatMap.onErrorRecoverWith should work") { implicit s =>
     val dummy = DummyException("dummy")
-    val task = Task.evalAlways(1).flatMap(_ => throw dummy)
+    val task = Task.eval(1).flatMap(_ => throw dummy)
       .onErrorRecoverWith { case `dummy` => Task.now(10) }
 
     val f = task.runAsync
@@ -425,23 +425,23 @@ object TaskErrorSuite extends BaseTestSuite {
     assertEquals(result.value, Some(Success(0)))
   }
 
-  test("Task.evalAlways.materializeAttempt should work for success") { implicit s =>
-    val task = Task.evalAlways(1).materializeAttempt
+  test("Task.eval.materializeAttempt should work for success") { implicit s =>
+    val task = Task.eval(1).materializeAttempt
     val f = task.runAsync
     assertEquals(f.value, Some(Success(Now(1))))
   }
 
-  test("Task.evalAlways.materializeAttempt should work for failure") { implicit s =>
+  test("Task.eval.materializeAttempt should work for failure") { implicit s =>
     val dummy = DummyException("dummy")
-    val task = Task.evalAlways[Int](throw dummy).materializeAttempt
+    val task = Task.eval[Int](throw dummy).materializeAttempt
     val f = task.runAsync
     assertEquals(f.value, Some(Success(Error(dummy))))
   }
 
-  test("Task.evalAlways.materialize should be stack safe") { implicit s =>
+  test("Task.eval.materialize should be stack safe") { implicit s =>
     def loop(n: Int): Task[Int] =
-      if (n <= 0) Task.evalAlways(n)
-      else Task.evalAlways(n).materialize.flatMap {
+      if (n <= 0) Task.eval(n)
+      else Task.eval(n).materialize.flatMap {
         case Success(v) => loop(n-1)
         case Failure(ex) => Task.raiseError(ex)
       }

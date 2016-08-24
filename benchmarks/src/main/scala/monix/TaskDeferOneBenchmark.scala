@@ -41,7 +41,7 @@ class TaskDeferOneBenchmark {
   @Benchmark
   def monix(): Long = {
     var result = 0L
-    MonixTask.evalAlways(10L).runAsync(new Callback[Long] {
+    MonixTask.eval(10L).runAsync(new Callback[Long] {
       def onError(ex: Throwable): Unit = throw ex
       def onSuccess(value: Long): Unit =
         result = value

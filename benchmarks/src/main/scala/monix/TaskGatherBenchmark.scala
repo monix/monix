@@ -49,7 +49,7 @@ class TaskGatherBenchmark {
 
   @Benchmark
   def sequenceS(): Long = {
-    val tasks = (0 until 1000).map(_ => Task.evalAlways(1)).toList
+    val tasks = (0 until 1000).map(_ => Task.eval(1)).toList
     val f = Task.sequence(tasks).map(_.sum.toLong).runAsync
     Await.result(f, Duration.Inf)
   }
@@ -63,7 +63,7 @@ class TaskGatherBenchmark {
 
    @Benchmark
    def gatherS(): Long = {
-     val tasks = (0 until 1000).map(_ => Task.evalAlways(1)).toList
+     val tasks = (0 until 1000).map(_ => Task.eval(1)).toList
      val f = Task.gather(tasks).map(_.sum.toLong).runAsync
      Await.result(f, Duration.Inf)
    }
@@ -77,7 +77,7 @@ class TaskGatherBenchmark {
 
    @Benchmark
    def unorderedS(): Long = {
-     val tasks = (0 until 1000).map(_ => Task.evalAlways(1)).toList
+     val tasks = (0 until 1000).map(_ => Task.eval(1)).toList
      val f = Task.gatherUnordered(tasks).map(_.sum.toLong).runAsync
      Await.result(f, Duration.Inf)
    }

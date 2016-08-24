@@ -15,10 +15,13 @@
  * limitations under the License.
  */
 
-package monix.types.shims
+package monix.types
 
-/** A shim for an `ApplicativeError` type-class, to be supplied by / translated to
-  * libraries such as Cats or Scalaz.
+/** A shim for an `ApplicativeError` type-class, to be supplied
+  * by / translated to libraries such as Cats or Scalaz.
+  *
+  * This type class allows one to abstract over error-handling
+  * applicatives.
   */
 trait ApplicativeError[F[_],E] extends Applicative[F] {
   /** Lift an error into the `F` context. */

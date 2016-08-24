@@ -19,9 +19,14 @@ package monix.cats
 
 import cats.laws.discipline.{CoflatMapTests, MonadCombineTests, MonadErrorTests}
 import monix.reactive.Observable
+import org.scalacheck.Test.Parameters
 
 object ObservableLawsSuite extends BaseLawsSuite {
-  checkAll("MonadError[Observable[Int]]", MonadErrorTests[Observable, Throwable].monadError[Int,Int,Int])
+  // https://github.com/typelevel/cats/issues/1329
+  override lazy val checkConfig: Parameters =
+    slowCheckConfig
+
+  checkAll("MonadError[Observable[Int]]", MonadErrorTests[Observable, Throwable].flatMap[Int,Int,Int])
   checkAll("CoflatMap[Observable[Int]]", CoflatMapTests[Observable].coflatMap[Int,Int,Int])
   checkAll("MonadCombine[Observable[Int]]", MonadCombineTests[Observable].monadCombine[Int,Int,Int])
 }

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package monix.types.shims
+package monix.types
 
 /** A shim for a `MonadFilter` type-class, to be supplied by / translated to
   * libraries such as Cats or Scalaz.
