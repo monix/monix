@@ -21,7 +21,6 @@ import monix.execution.Ack.{AckExtensions, Continue, Stop}
 import monix.execution.misc.{HygieneUtilMacros, InlineMacros}
 import monix.execution.schedulers.LocalRunnable
 import scala.concurrent.Future
-import scala.language.experimental.macros
 import scala.reflect.macros.whitebox
 
 /** Various implementations for
