@@ -135,4 +135,19 @@ object TaskGatherUnorderedSuite extends BaseTestSuite {
     assertEquals(s.state.get.lastReportedError, ex)
     assertEquals(errorsThrow, 2)
   }
+
+  test("Task.gatherUnordered runAsync multiple times") { implicit s =>
+    var effect = 0
+    val task1 = Task { effect += 1; 3 }.memoize
+    val task2 = task1 map { x => effect += 1; x + 1 }
+    val task3 = Task.gatherUnordered(List(task2, task2, task2))
+
+    val result1 = task3.runAsync; s.tick()
+    assertEquals(result1.value, Some(Success(List(4,4,4))))
+    assertEquals(effect, 1 + 3)
+
+    val result2 = task3.runAsync; s.tick()
+    assertEquals(result2.value, Some(Success(List(4,4,4))))
+    assertEquals(effect, 1 + 3 + 3)
+  }
 }

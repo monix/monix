@@ -891,7 +891,9 @@ object Task extends TaskInstances {
         if (x._2 < y._2) -1 else if (x._2 > y._2) 1 else 0
     }
 
-    val tasks = in.toIterator.zipWithIndex.map { case (t,i) => t.map(a => (a,i)) }
+    val tasks = in.toIterable
+      .zipWithIndex.map { case (t,i) => t.map(a => (a,i)) }
+
     for (result <- gatherUnordered(tasks)) yield {
       val array = result.toArray
       // In place, because we're creating enough junk already
@@ -916,98 +918,97 @@ object Task extends TaskInstances {
     // We are using OOP for initializing this `OnFinish` callback because we
     // need something to synchronize on and because it's better for making the
     // state explicit (e.g. the builder, remaining, isActive vars)
-    Async(new OnFinish[M[A]] { self =>
-      // Aggregates all results into a buffer.
-      // MUST BE synchronized by `self`!
-      private[this] var builder = cbf(in)
+    Async { (scheduler, conn, finalCallback) =>
+      // We need a monitor to synchronize on, per evaluation!
+      val lock = new AnyRef
+      // Forces a fork on another (logical) thread!
+      scheduler.executeAsync(lock.synchronized {
+        // Aggregates all results into a buffer.
+        // MUST BE synchronized by `lock`!
+        var builder = cbf(in)
 
-      // Keeps track of tasks remaining to be completed.
-      // Is initialized by 1 because of the logic - tasks can run synchronously,
-      // and we decrement this value whenever one finishes, so we must prevent
-      // zero values before the loop is done.
-      // MUST BE synchronized by `self`!
-      private[this] var remaining = 1
+        // Keeps track of tasks remaining to be completed.
+        // Is initialized by 1 because of the logic - tasks can run synchronously,
+        // and we decrement this value whenever one finishes, so we must prevent
+        // zero values before the loop is done.
+        // MUST BE synchronized by `lock`!
+        var remaining = 1
 
-      // If this variable is false, then a task ended in error.
-      // MUST BE synchronized by `self`!
-      private[this] var isActive = true
+        // If this variable is false, then a task ended in error.
+        // MUST BE synchronized by `lock`!
+        var isActive = true
 
-      // MUST BE synchronized by `self`!
-      // MUST NOT BE called if isActive == false!
-      @inline private
-      def maybeSignalFinal(conn: StackedCancelable, finalCallback: Callback[M[A]])
-        (implicit s: Scheduler): Unit = {
+        // MUST BE synchronized by `lock`!
+        // MUST NOT BE called if isActive == false!
+        @inline def maybeSignalFinal(conn: StackedCancelable, finalCallback: Callback[M[A]])
+          (implicit s: Scheduler): Unit = {
 
-        remaining -= 1
-        if (remaining == 0) {
-          isActive = false
-          conn.pop()
-          val result = builder.result()
-          builder = null // GC relief
-          finalCallback.asyncOnSuccess(result)
-        }
-      }
-
-      def apply(scheduler: Scheduler, conn: StackedCancelable, finalCallback: Callback[M[A]]): Unit = {
-        // Forces a fork on another (logical) thread!
-        scheduler.executeAsync(self.synchronized {
-          implicit val s = scheduler
-          // Represents the collection of cancelables for all started tasks
-          val composite = CompositeCancelable()
-          conn.push(composite)
-
-          // Collecting all cancelables in a buffer, because adding
-          // cancelables one by one in our `CompositeCancelable` is
-          // expensive, so we do it at the end
-          val allCancelables = ListBuffer.empty[StackedCancelable]
-          val cursor = in.toIterator
-
-          // The `isActive` check short-circuits the process in case
-          // we have a synchronous task that just completed in error
-          while (cursor.hasNext && isActive) {
-            remaining += 1
-            val task = cursor.next()
-            val stacked = StackedCancelable()
-            allCancelables += stacked
-
-            // Light asynchronous boundary; with most scheduler implementations
-            // it will not fork a new (logical) thread!
-            scheduler.executeLocal(
-              Task.unsafeStartNow(task, scheduler, stacked,
-                new Callback[A] {
-                  def onSuccess(value: A): Unit =
-                    self.synchronized {
-                      if (isActive) {
-                        builder += value
-                        maybeSignalFinal(conn, finalCallback)
-                      }
-                    }
-
-                  def onError(ex: Throwable): Unit =
-                    self.synchronized {
-                      if (isActive) {
-                        isActive = false
-                        // This should cancel our CompositeCancelable
-                        conn.pop().cancel()
-                        finalCallback.asyncOnError(ex)
-                        builder = null // GC relief
-                      } else {
-                        scheduler.reportFailure(ex)
-                      }
-                    }
-                }))
+          remaining -= 1
+          if (remaining == 0) {
+            isActive = false
+            conn.pop()
+            val result = builder.result()
+            builder = null // GC relief
+            finalCallback.asyncOnSuccess(result)
           }
+        }
 
-          // All tasks could have executed synchronously, so we might be
-          // finished already. If so, then trigger the final callback.
-          maybeSignalFinal(conn, finalCallback)
+        implicit val s = scheduler
+        // Represents the collection of cancelables for all started tasks
+        val composite = CompositeCancelable()
+        conn.push(composite)
 
-          // Note that if an error happened, this should cancel all
-          // other active tasks.
-          composite ++= allCancelables
-        })
-      }
-    })
+        // Collecting all cancelables in a buffer, because adding
+        // cancelables one by one in our `CompositeCancelable` is
+        // expensive, so we do it at the end
+        val allCancelables = ListBuffer.empty[StackedCancelable]
+        val cursor = in.toIterator
+
+        // The `isActive` check short-circuits the process in case
+        // we have a synchronous task that just completed in error
+        while (cursor.hasNext && isActive) {
+          remaining += 1
+          val task = cursor.next()
+          val stacked = StackedCancelable()
+          allCancelables += stacked
+
+          // Light asynchronous boundary; with most scheduler implementations
+          // it will not fork a new (logical) thread!
+          scheduler.executeLocal(
+            Task.unsafeStartNow(task, scheduler, stacked,
+              new Callback[A] {
+                def onSuccess(value: A): Unit =
+                  lock.synchronized {
+                    if (isActive) {
+                      builder += value
+                      maybeSignalFinal(conn, finalCallback)
+                    }
+                  }
+
+                def onError(ex: Throwable): Unit =
+                  lock.synchronized {
+                    if (isActive) {
+                      isActive = false
+                      // This should cancel our CompositeCancelable
+                      conn.pop().cancel()
+                      finalCallback.asyncOnError(ex)
+                      builder = null // GC relief
+                    } else {
+                      scheduler.reportFailure(ex)
+                    }
+                  }
+              }))
+        }
+
+        // All tasks could have executed synchronously, so we might be
+        // finished already. If so, then trigger the final callback.
+        maybeSignalFinal(conn, finalCallback)
+
+        // Note that if an error happened, this should cancel all
+        // other active tasks.
+        composite ++= allCancelables
+      })
+    }
   }
 
   /** Apply a mapping functions to the results of two tasks, nondeterministically
