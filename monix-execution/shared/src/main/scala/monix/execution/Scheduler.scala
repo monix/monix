@@ -18,15 +18,12 @@
 package monix.execution
 
 import java.util.concurrent.TimeUnit
-
-import monix.execution.schedulers.{ExecutionModel, LocalRunnable, SchedulerCompanionImpl}
 import monix.execution.internal.RunnableAction
-import monix.execution.misc.{HygieneUtilMacros, InlineMacros}
-
+import monix.execution.schedulers.ExecutionModel
+import monix.execution.schedulers.SchedulerCompanionImpl
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
-import scala.reflect.macros.whitebox
 import scala.language.experimental.macros
 
 /** A Scheduler is an `scala.concurrent.ExecutionContext` that additionally can
@@ -265,41 +262,6 @@ object Scheduler extends SchedulerCompanionImpl {
 
       source.scheduleAtFixedRate(initialDelay.toMillis, period.toMillis, TimeUnit.MILLISECONDS,
         RunnableAction(action))
-    }
-  }
-
-  @macrocompat.bundle
-  class Macros(override val c: whitebox.Context) extends InlineMacros with HygieneUtilMacros {
-    import c.universe._
-
-    def executeAsync(cb: c.Tree): c.Tree = {
-      val selfExpr = schedulerFrom(c.prefix.tree)
-      val RunnableSymbol = symbolOf[Runnable]
-      val execute = c.Expr[Unit](cb)
-
-      val tree = q"""($selfExpr).execute(new $RunnableSymbol { def run(): Unit = { $execute } })"""
-      inlineAndResetTree(tree)
-    }
-
-    def executeLocal(cb: c.Tree): c.Tree = {
-      val selfExpr = schedulerFrom(c.prefix.tree)
-      val LocalRunnableSymbol = symbolOf[LocalRunnable]
-      val execute = c.Expr[Unit](cb)
-
-      val tree = q"""($selfExpr).execute(new $LocalRunnableSymbol { def run(): Unit = { $execute } })"""
-      inlineAndResetTree(tree)
-    }
-
-    private[monix] def schedulerFrom(tree: Tree): c.Expr[Scheduler] = {
-      val extensions = symbolOf[Extensions].name.toTermName
-
-      tree match {
-        case Apply(Select(_, `extensions`), List(expr)) =>
-          c.Expr[Scheduler](expr)
-        case _ =>
-          c.warning(tree.pos, "Could not infer the implicit class source, please report a bug!")
-          c.Expr[Scheduler](q"$tree.source")
-      }
     }
   }
 }
