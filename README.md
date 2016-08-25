@@ -57,7 +57,7 @@ libraryDependencies += "org.monifu" %% "monifu" % "1.2"
 For the beta/preview release (use at your own risk):
 
 ```scala
-libraryDependencies += "io.monix" %% "monix" % "2.0-RC12"
+libraryDependencies += "io.monix" %% "monix" % "2.0-RC13"
 ```
 
 ### Sub-projects
@@ -92,7 +92,7 @@ hosted at,
 API Documentation:
 
 - [1.2](https://monix.io/api/1.2/)
-- [2.0-RC12](https://monix.io/api/2.0-RC12/)
+- [2.0-RC13](https://monix.io/api/2.0-RC13/)
 
 Presentations:
 

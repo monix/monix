@@ -1,3 +1,12 @@
+## Version 2.0-RC13 (Aug 19, 2016)
+
+Emergency bug fix:
+
+- [Issue #215](https://github.com/monixio/monix/issues/215): 
+  the instance created by `Task.gatherUnordered` keeps state and
+  has problems running (with `runAsync`) a second time
+  
+
 ## Version 2.0-RC12 (Aug 19, 2016)
 
 Bug fixes:
