@@ -111,6 +111,19 @@ object AsyncSchedulerSuite extends SimpleTestSuite {
     assert(latch.await(1, TimeUnit.MINUTES), "latch.await")
   }
 
+  test("execute local") {
+    var result = 0
+    def loop(n: Int): Unit =
+      s.executeLocal {
+        result += 1
+        if (n-1 > 0) loop(n-1)
+      }
+
+    val count = 100000
+    loop(count)
+    assertEquals(result, count)
+  }
+
   def runnableAction(f: => Unit): Runnable =
     new Runnable { def run() = f }
 }

@@ -69,7 +69,7 @@ object TaskGatherUnorderedSuite extends BaseTestSuite {
   test("Task.gatherUnordered should run over an iterator") { implicit s =>
     val count = 10
     val seq = 0 until count
-    val it = seq.iterator.map(x => Task.evalAlways(x + 1))
+    val it = seq.iterator.map(x => Task.eval(x + 1))
     val sum = Task.gatherUnordered(it).map(_.sum)
 
     val result = sum.runAsync; s.tick()
@@ -78,7 +78,7 @@ object TaskGatherUnorderedSuite extends BaseTestSuite {
 
   test("Task.gatherUnordered should be stack-safe on handling many tasks") { implicit s =>
     val count = 10000
-    val tasks = (0 until count).map(x => Task.evalAlways(x))
+    val tasks = (0 until count).map(x => Task.eval(x))
     val sum = Task.gatherUnordered(tasks).map(_.sum)
 
     val result = sum.runAsync; s.tick()
@@ -98,13 +98,13 @@ object TaskGatherUnorderedSuite extends BaseTestSuite {
       }
 
     def gatherSpecial[A](in: Seq[Task[A]]): Task[List[A]] = {
-      val init = Task.evalAlways(ListBuffer.empty[A])
+      val init = Task.eval(ListBuffer.empty[A])
       val r = in.foldLeft(init)(fold)
       r.map(_.result())
     }
 
     val count = if (Platform.isJVM) 100000 else 10000
-    val tasks = (0 until count).map(n => Task.evalAlways(n))
+    val tasks = (0 until count).map(n => Task.eval(n))
     var result = Option.empty[Try[Int]]
 
     gatherSpecial(tasks).map(_.sum).runAsync(
@@ -117,5 +117,22 @@ object TaskGatherUnorderedSuite extends BaseTestSuite {
 
     s.tick()
     assertEquals(result, Some(Success(count * (count - 1) / 2)))
+  }
+
+  test("Task.gatherUnordered should log errors if multiple errors happen") { implicit s =>
+    val ex = DummyException("dummy1")
+    var errorsThrow = 0
+    val task1 = Task.fork(Task.raiseError[Int](ex))
+      .doOnFinish { x => if (x.isDefined) errorsThrow += 1; Task.unit }
+    val task2 = Task.fork(Task.raiseError[Int](ex))
+      .doOnFinish { x => if (x.isDefined) errorsThrow += 1; Task.unit }
+
+    val gather = Task.gatherUnordered(Seq(task1, task2))
+    val result = gather.runAsync
+    s.tick()
+
+    assertEquals(result.value, Some(Failure(ex)))
+    assertEquals(s.state.get.lastReportedError, ex)
+    assertEquals(errorsThrow, 2)
   }
 }

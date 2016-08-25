@@ -17,17 +17,14 @@
 
 package monix.eval
 
-import monix.eval.Task.{Error, Now}
-import monix.execution.internal.Platform
-
 import scala.util.{Failure, Success}
 
 object TaskEvalAlwaysSuite extends BaseTestSuite {
-  test("Task.evalAlways should work synchronously") { implicit s =>
+  test("Task.eval should work synchronously") { implicit s =>
     var wasTriggered = false
     def trigger(): String = { wasTriggered = true; "result" }
 
-    val task = Task.evalAlways(trigger())
+    val task = Task.eval(trigger())
     assert(!wasTriggered, "!wasTriggered")
 
     val f = task.runAsync
@@ -35,19 +32,19 @@ object TaskEvalAlwaysSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success("result")))
   }
 
-  test("Task.evalAlways should protect against user code errors") { implicit s =>
+  test("Task.eval should protect against user code errors") { implicit s =>
     val ex = DummyException("dummy")
-    val f = Task.evalAlways[Int](if (1 == 1) throw ex else 1).runAsync
+    val f = Task.eval[Int](if (1 == 1) throw ex else 1).runAsync
 
     assertEquals(f.value, Some(Failure(ex)))
     assertEquals(s.state.get.lastReportedError, null)
   }
 
-  test("Task.evalAlways is equivalent with Task.evalOnce on first run") { implicit s =>
+  test("Task.eval is equivalent with Task.evalOnce on first run") { implicit s =>
     check1 { a: Int =>
       val t1 = {
         var effect = 100
-        Task.evalAlways { effect += 100; effect + a }
+        Task.eval { effect += 100; effect + a }
       }
 
       val t2 = {
@@ -59,11 +56,11 @@ object TaskEvalAlwaysSuite extends BaseTestSuite {
     }
   }
 
-  test("Task.evalAlways is not equivalent with Task.evalOnce on second run") { implicit s =>
+  test("Task.eval is not equivalent with Task.evalOnce on second run") { implicit s =>
     check1 { a: Int =>
       val t1 = {
         var effect = 100
-        Task.evalAlways { effect += 100; effect + a }
+        Task.eval { effect += 100; effect + a }
       }
 
       val t2 = {
@@ -80,23 +77,23 @@ object TaskEvalAlwaysSuite extends BaseTestSuite {
     }
   }
 
-  test("Task.evalAlways.flatMap should be equivalent with Task.evalAlways") { implicit s =>
+  test("Task.eval.flatMap should be equivalent with Task.eval") { implicit s =>
     val ex = DummyException("dummy")
-    val t = Task.evalAlways[Int](if (1 == 1) throw ex else 1).flatMap(Task.now)
+    val t = Task.eval[Int](if (1 == 1) throw ex else 1).flatMap(Task.now)
     check(t === Task.raiseError(ex))
   }
 
-  test("Task.evalAlways.flatMap should protect against user code") { implicit s =>
+  test("Task.eval.flatMap should protect against user code") { implicit s =>
     val ex = DummyException("dummy")
-    val t = Task.evalAlways(1).flatMap[Int](_ => throw ex)
+    val t = Task.eval(1).flatMap[Int](_ => throw ex)
     check(t === Task.raiseError(ex))
   }
 
-  test("Task.evalAlways.flatMap should be tail recursive") { implicit s =>
+  test("Task.eval.flatMap should be tail recursive") { implicit s =>
     def loop(n: Int, idx: Int): Task[Int] =
-      Task.evalAlways(idx).flatMap { a =>
+      Task.eval(idx).flatMap { a =>
         if (idx < n) loop(n, idx + 1).map(_ + 1) else
-          Task.evalAlways(idx)
+          Task.eval(idx)
       }
 
     val iterations = s.executionModel.recommendedBatchSize * 20
@@ -105,42 +102,16 @@ object TaskEvalAlwaysSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(iterations * 2)))
   }
 
-  test("Task.evalAlways should not be cancelable") { implicit s =>
-    val t = Task.evalAlways(10)
+  test("Task.eval should not be cancelable") { implicit s =>
+    val t = Task.eval(10)
     val f = t.runAsync
     f.cancel()
     s.tick()
     assertEquals(f.value, Some(Success(10)))
   }
 
-  test("Task.evalAlways.materializeAttempt should work for success") { implicit s =>
-    val task = Task.evalAlways(1).materializeAttempt
-    val f = task.runAsync
-    assertEquals(f.value, Some(Success(Now(1))))
-  }
-
-  test("Task.evalAlways.materializeAttempt should work for failure") { implicit s =>
-    val dummy = DummyException("dummy")
-    val task = Task.evalAlways[Int](throw dummy).materializeAttempt
-    val f = task.runAsync
-    assertEquals(f.value, Some(Success(Error(dummy))))
-  }
-
-  test("Task.evalAlways.materialize should be stack safe") { implicit s =>
-    def loop(n: Int): Task[Int] =
-      if (n <= 0) Task.evalAlways(n)
-      else Task.evalAlways(n).materialize.flatMap {
-        case Success(v) => loop(n-1)
-        case Failure(ex) => Task.raiseError(ex)
-      }
-
-    val count = if (Platform.isJVM) 50000 else 5000
-    val result = loop(count).runAsync; s.tick()
-    assertEquals(result.value, Some(Success(0)))
-  }
-
-  test("Task.evalAlways.coeval") { implicit s =>
-    val result = Task.evalAlways(100).coeval.value
+  test("Task.eval.coeval") { implicit s =>
+    val result = Task.eval(100).coeval.value
     assertEquals(result, Right(100))
   }
 }

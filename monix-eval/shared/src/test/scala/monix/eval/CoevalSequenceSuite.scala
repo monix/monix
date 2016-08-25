@@ -15,13 +15,27 @@
  * limitations under the License.
  */
 
-package monix.types.shims
+package monix.eval
 
-/** A shim for the `Bimonad` type-class,
-  * to be supplied by libraries such as Cats or Scalaz.
-  */
-trait Bimonad[F[_]] extends Monad[F] with Comonad[F]
+object CoevalSequenceSuite extends BaseTestSuite {
+  test("Coeval.sequence") { implicit s =>
+    check1 { (numbers: List[Int]) =>
+      val coeval = Coeval.sequence(numbers.map(x => Coeval(x)))
+      coeval === Coeval(numbers)
+    }
+  }
 
-object Bimonad {
-  @inline def apply[F[_]](implicit F: Bimonad[F]): Bimonad[F] = F
+  test("Coeval.traverse") { implicit s =>
+    check1 { (numbers: List[Int]) =>
+      val coeval = Coeval.traverse(numbers)(x => Coeval(x))
+      coeval === Coeval(numbers)
+    }
+  }
+
+  test("Coeval.zipList") { implicit s =>
+    check1 { (numbers: List[Int]) =>
+      val coeval = Coeval.zipList(numbers.map(x => Coeval(x)):_*)
+      coeval === Coeval(numbers)
+    }
+  }
 }

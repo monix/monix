@@ -21,17 +21,17 @@ import monix.execution.internal.Platform
 import scala.util.Success
 
 object CoevalMemoizeSuite extends BaseTestSuite {
-  test("Coeval.evalAlways.memoize should work for first subscriber") { implicit s =>
+  test("Coeval.eval.memoize should work for first subscriber") { implicit s =>
     var effect = 0
-    val coeval = Coeval.evalAlways { effect += 1; effect }.memoize
+    val coeval = Coeval.eval { effect += 1; effect }.memoize
 
     val f = coeval.runTry
     assertEquals(f, Success(1))
   }
 
-  test("Coeval.evalAlways.memoize should work for next subscribers") { implicit s =>
+  test("Coeval.eval.memoize should work for next subscribers") { implicit s =>
     var effect = 0
-    val coeval = Coeval.evalAlways { effect += 1; effect }.memoize
+    val coeval = Coeval.eval { effect += 1; effect }.memoize
     coeval.runTry
 
     val f1 = coeval.runTry

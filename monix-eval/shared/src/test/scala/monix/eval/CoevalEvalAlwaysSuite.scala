@@ -21,11 +21,11 @@ import monix.eval.Coeval.{Error, Now}
 import scala.util.{Failure, Success}
 
 object CoevalEvalAlwaysSuite extends BaseTestSuite {
-  test("Coeval.evalAlways should work synchronously") { implicit s =>
+  test("Coeval.eval should work synchronously") { implicit s =>
     var wasTriggered = false
     def trigger(): String = { wasTriggered = true; "result" }
 
-    val task = Coeval.evalAlways(trigger())
+    val task = Coeval.eval(trigger())
     assert(!wasTriggered, "!wasTriggered")
 
     val f = task.runTry
@@ -33,37 +33,37 @@ object CoevalEvalAlwaysSuite extends BaseTestSuite {
     assertEquals(f, Success("result"))
   }
 
-  test("Coeval.evalAlways should protect against user code errors") { implicit s =>
+  test("Coeval.eval should protect against user code errors") { implicit s =>
     val ex = DummyException("dummy")
-    val f = Coeval.evalAlways[Int](if (1 == 1) throw ex else 1).runTry
+    val f = Coeval.eval[Int](if (1 == 1) throw ex else 1).runTry
 
     assertEquals(f, Failure(ex))
     assertEquals(s.state.get.lastReportedError, null)
   }
 
-  test("Coeval.evalAlways.flatMap should be equivalent with Coeval.evalAlways") { implicit s =>
+  test("Coeval.eval.flatMap should be equivalent with Coeval.eval") { implicit s =>
     val ex = DummyException("dummy")
-    val t = Coeval.evalAlways[Int](if (1 == 1) throw ex else 1).flatMap(Coeval.now)
+    val t = Coeval.eval[Int](if (1 == 1) throw ex else 1).flatMap(Coeval.now)
     check(t === Coeval.raiseError(ex))
   }
 
-  test("Coeval.evalAlways.flatMap should protect against user code") { implicit s =>
+  test("Coeval.eval.flatMap should protect against user code") { implicit s =>
     val ex = DummyException("dummy")
-    val t = Coeval.evalAlways(1).flatMap[Int](_ => throw ex)
+    val t = Coeval.eval(1).flatMap[Int](_ => throw ex)
     check(t === Coeval.raiseError(ex))
   }
 
-  test("Coeval.evalAlways.map should work") { implicit s =>
+  test("Coeval.eval.map should work") { implicit s =>
     check1 { a: Int =>
-      Coeval.evalAlways(a).map(_ + 1) === Coeval.evalAlways(a + 1)
+      Coeval.eval(a).map(_ + 1) === Coeval.eval(a + 1)
     }
   }
 
-  test("Coeval.evalAlways.flatMap should be tail recursive") { implicit s =>
+  test("Coeval.eval.flatMap should be tail recursive") { implicit s =>
     def loop(n: Int, idx: Int): Coeval[Int] =
-      Coeval.evalAlways(idx).flatMap { a =>
+      Coeval.eval(idx).flatMap { a =>
         if (idx < n) loop(n, idx + 1).map(_ + 1) else
-          Coeval.evalAlways(idx)
+          Coeval.eval(idx)
       }
 
     val iterations = s.executionModel.recommendedBatchSize * 20
@@ -72,10 +72,10 @@ object CoevalEvalAlwaysSuite extends BaseTestSuite {
     assertEquals(f, Success(iterations * 2))
   }
 
-  test("Coeval.evalAlways(error).memoize should work") { implicit s =>
+  test("Coeval.eval(error).memoize should work") { implicit s =>
     var effect = 0
     val dummy = DummyException("dummy")
-    val task = Coeval.evalAlways[Int] { effect += 1; throw dummy }.memoize
+    val task = Coeval.eval[Int] { effect += 1; throw dummy }.memoize
 
     val f1 = task.runTry
     assertEquals(f1, Failure(dummy))
@@ -84,36 +84,36 @@ object CoevalEvalAlwaysSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("Coeval.evalAlways.materializeAttempt should work for success") { implicit s =>
-    val task = Coeval.evalAlways(1).materializeAttempt
+  test("Coeval.eval.materializeAttempt should work for success") { implicit s =>
+    val task = Coeval.eval(1).materializeAttempt
     val f = task.runTry
     assertEquals(f, Success(Now(1)))
   }
 
-  test("Coeval.evalAlways.materializeAttempt should work for failure") { implicit s =>
+  test("Coeval.eval.materializeAttempt should work for failure") { implicit s =>
     val dummy = DummyException("dummy")
-    val task = Coeval.evalAlways[Int](throw dummy).materializeAttempt
+    val task = Coeval.eval[Int](throw dummy).materializeAttempt
     val f = task.runTry
     assertEquals(f, Success(Error(dummy)))
   }
 
-  test("Coeval.evalAlways.task") { implicit s =>
-    val task = Coeval.evalAlways(100).task
+  test("Coeval.eval.task") { implicit s =>
+    val task = Coeval.eval(100).task
     assertEquals(task.coeval.value, Right(100))
   }
 
   test("Coeval.EvalAlways.runTry override") { implicit s =>
     val dummy = DummyException("dummy")
-    val task = Coeval.evalAlways { if (1 == 1) throw dummy else 10 }
+    val task = Coeval.eval { if (1 == 1) throw dummy else 10 }
     val f = task.runTry
     assertEquals(f, Failure(dummy))
   }
 
-  test("Coeval.evalAlways is equivalent with Coeval.evalOnce on first run") { implicit s =>
+  test("Coeval.eval is equivalent with Coeval.evalOnce on first run") { implicit s =>
     check1 { a: Int =>
       val t1 = {
         var effect = 100
-        Coeval.evalAlways { effect += 100; effect + a }
+        Coeval.eval { effect += 100; effect + a }
       }
 
       val t2 = {
@@ -125,11 +125,11 @@ object CoevalEvalAlwaysSuite extends BaseTestSuite {
     }
   }
 
-  test("Coeval.evalAlways is not equivalent with Coeval.evalOnce on second run") { implicit s =>
+  test("Coeval.eval is not equivalent with Coeval.evalOnce on second run") { implicit s =>
     check1 { a: Int =>
       val t1 = {
         var effect = 100
-        Coeval.evalAlways { effect += 100; effect + a }
+        Coeval.eval { effect += 100; effect + a }
       }
 
       val t2 = {

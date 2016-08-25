@@ -30,8 +30,8 @@ object TaskMapBothSuite extends BaseTestSuite {
   }
 
   test("sum two synchronous tasks") { implicit s =>
-    val ta = Task.evalAlways(1)
-    val tb = Task.evalAlways(2)
+    val ta = Task.eval(1)
+    val tb = Task.eval(2)
 
     val r = Task.mapBoth(ta, tb)(_ + _)
     val f = r.runAsync; s.tick()
@@ -40,8 +40,8 @@ object TaskMapBothSuite extends BaseTestSuite {
 
   test("should be stack-safe for synchronous tasks") { implicit s =>
     val count = 10000
-    val tasks = (0 until count).map(x => Task.evalAlways(x))
-    val init = Task.evalAlways(0L)
+    val tasks = (0 until count).map(x => Task.eval(x))
+    val init = Task.eval(0L)
 
     val sum = tasks.foldLeft(init)((acc,t) => Task.mapBoth(acc, t)(_ + _))
     val result = sum.runAsync
@@ -53,7 +53,7 @@ object TaskMapBothSuite extends BaseTestSuite {
   test("should be stack-safe for asynchronous tasks") { implicit s =>
     val count = 10000
     val tasks = (0 until count).map(x => Task(x))
-    val init = Task.evalAlways(0L)
+    val init = Task.eval(0L)
 
     val sum = tasks.foldLeft(init)((acc,t) => Task.mapBoth(acc, t)(_ + _))
     val result = sum.runAsync
@@ -64,7 +64,7 @@ object TaskMapBothSuite extends BaseTestSuite {
 
   test("sum random synchronous tasks") { implicit s =>
     check1 { (numbers: List[Int]) =>
-      val sum = numbers.foldLeft(Task.now(0))((acc,t) => Task.mapBoth(acc, Task.evalAlways(t))(_+_))
+      val sum = numbers.foldLeft(Task.now(0))((acc,t) => Task.mapBoth(acc, Task.eval(t))(_+_))
       sum === Task.now(numbers.sum)
     }
   }

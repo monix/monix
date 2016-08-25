@@ -72,7 +72,7 @@ object CoevalEvalOnceSuite extends BaseTestSuite {
     assertEquals(f, Success(iterations * 2))
   }
 
-  test("Coeval.evalAlways(error).memoize should work") { implicit s =>
+  test("Coeval.eval(error).memoize should work") { implicit s =>
     var effect = 0
     val dummy = DummyException("dummy")
     val task = Coeval.evalOnce[Int] { effect += 1; throw dummy }.memoize
@@ -102,7 +102,7 @@ object CoevalEvalOnceSuite extends BaseTestSuite {
     assertEquals(task.coeval.value, Right(100))
   }
 
-  test("Coeval.EvalOnce.runTry override") { implicit s =>
+  test("Coeval.evalOnce.runTry override") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Coeval.evalOnce { if (1 == 1) throw dummy else 10 }
     val f = task.runTry

@@ -18,7 +18,7 @@
 package monix.reactive
 
 import java.io.{BufferedReader, InputStream, Reader}
-
+import monix.eval.Coeval.Attempt
 import monix.eval.{Coeval, Task}
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution._
@@ -30,11 +30,9 @@ import monix.reactive.observers._
 import monix.reactive.subjects._
 import monix.types.Streamable
 import org.reactivestreams.{Publisher => RPublisher, Subscriber => RSubscriber}
-
 import scala.collection.mutable
 import scala.concurrent.Future
 import scala.concurrent.duration.{Duration, FiniteDuration}
-import scala.util.Try
 import scala.util.control.NonFatal
 
 /** The Observable type that implements the Reactive Pattern.
@@ -378,29 +376,27 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     * gets evaluated and emitted.
     */
   def firstOrElseL[B >: A](default: => B): Task[B] =
-    Task.unsafeCreate { (s, c, cb) =>
-      val task = SingleAssignmentCancelable()
-      c push task
-
-      task := unsafeSubscribeFn(new Subscriber.Sync[A] {
+    Task.create { (s, cb) =>
+      unsafeSubscribeFn(new Subscriber.Sync[A] {
         implicit val scheduler: Scheduler = s
         private[this] var isDone = false
 
         def onNext(elem: A): Stop = {
-          c.pop()
           cb.onSuccess(elem)
           isDone = true
           Stop
         }
 
         def onError(ex: Throwable): Unit =
-          if (!isDone) { isDone = true; c.pop(); cb.onError(ex) }
+          if (!isDone) {
+            isDone = true
+            cb.onError(ex)
+          }
 
         def onComplete(): Unit =
           if (!isDone) {
             isDone = true
-            c.pop()
-            cb(Try(default))
+            cb(Attempt(default))
           }
       })
     }
@@ -419,11 +415,8 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     * evaluated and emitted.
     */
   def lastOrElseL[B >: A](default: => B): Task[B] =
-    Task.unsafeCreate { (s, c, cb) =>
-      val task = SingleAssignmentCancelable()
-      c push task
-
-      task := unsafeSubscribeFn(new Subscriber.Sync[A] {
+    Task.create { (s, cb) =>
+      unsafeSubscribeFn(new Subscriber.Sync[A] {
         implicit val scheduler: Scheduler = s
         private[this] var value: A = _
         private[this] var isEmpty = true
@@ -435,14 +428,12 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
         }
 
         def onError(ex: Throwable): Unit = {
-          c.pop()
           cb.onError(ex)
         }
 
         def onComplete(): Unit = {
-          c.pop()
           if (isEmpty)
-            cb(Try(default))
+            cb(Attempt(default))
           else
             cb.onSuccess(value)
         }
@@ -477,19 +468,16 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     * complete with `Unit`.
     */
   def completedL: Task[Unit] =
-    Task.unsafeCreate { (s, c, cb) =>
-      val task = SingleAssignmentCancelable()
-      c push task
-
-      task := unsafeSubscribeFn(new Subscriber.Sync[A] {
+    Task.create { (s, cb) =>
+      unsafeSubscribeFn(new Subscriber.Sync[A] {
         implicit val scheduler: Scheduler = s
         private[this] var isDone = false
 
         def onNext(elem: A): Continue = Continue
         def onError(ex: Throwable): Unit =
-          if (!isDone) { isDone = true; c.pop(); cb.onError(ex) }
+          if (!isDone) { isDone = true; cb.onError(ex) }
         def onComplete(): Unit =
-          if (!isDone) { isDone = true; c.pop(); cb.onSuccess(()) }
+          if (!isDone) { isDone = true; cb.onSuccess(()) }
       })
     }
 
@@ -544,11 +532,8 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     * source observable, executing the given callback for each element.
     */
   def foreachL(cb: A => Unit): Task[Unit] =
-    Task.unsafeCreate { (s, c, onFinish) =>
-      val task = SingleAssignmentCancelable()
-      c push task
-
-      task := unsafeSubscribeFn(new Subscriber.Sync[A] {
+    Task.create { (s, onFinish) =>
+      unsafeSubscribeFn(new Subscriber.Sync[A] {
         implicit val scheduler: Scheduler = s
         private[this] var isDone = false
 
@@ -564,9 +549,9 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
         }
 
         def onError(ex: Throwable): Unit =
-          if (!isDone) { isDone = true; c.pop(); onFinish.onError(ex) }
+          if (!isDone) { isDone = true; onFinish.onError(ex) }
         def onComplete(): Unit =
-          if (!isDone) { isDone = true; c.pop(); onFinish.onSuccess(()) }
+          if (!isDone) { isDone = true; onFinish.onSuccess(()) }
       })
     }
 
@@ -658,10 +643,18 @@ object Observable {
     new builders.NowObservable(elem)
 
   /** Given a non-strict value, converts it into an Observable
-    * that emits a single element.
+    * that upon subscription, evaluates the expression and
+    * emits a single element.
     */
-  def evalAlways[A](a: => A): Observable[A] =
+  def eval[A](a: => A): Observable[A] =
     new builders.EvalAlwaysObservable(a)
+
+  /** Alias for [[eval]]. */
+  def delay[A](a: => A): Observable[A] = eval(a)
+
+  /** Alias for [[eval]]. Deprecated. */
+  @deprecated("Renamed, please use Observable.eval", since="2.0-RC12")
+  def evalAlways[A](a: => A): Observable[A] = eval(a)
 
   /** Given a non-strict value, converts it into an Observable
     * that emits a single element and that memoizes the value
@@ -673,18 +666,18 @@ object Observable {
   /** Transforms a non-strict [[monix.eval.Coeval Coeval]] value
     * into an `Observable` that emits a single element.
     */
-  def eval[A](value: Coeval[A]): Observable[A] =
+  def coeval[A](value: Coeval[A]): Observable[A] =
     value match {
       case Coeval.Now(v) => Observable.now(v)
       case Coeval.Error(ex) => Observable.raiseError(ex)
-      case other => Observable.evalAlways(other.value)
+      case other => Observable.eval(other.value)
     }
 
   /** Lifts a non-strict value into an observable that emits a single element,
     * but upon subscription delay its evaluation by the specified timespan
     */
   def evalDelayed[A](delay: FiniteDuration, a: => A): Observable[A] =
-    evalAlways(a).delaySubscription(delay)
+    eval(a).delaySubscription(delay)
 
   /** Creates an Observable that emits an error.
     */
@@ -868,8 +861,11 @@ object Observable {
   /** Returns a new observable that creates a sequence from the
     * given factory on each subscription.
     */
-  def defer[A](factory: => Observable[A]): Observable[A] =
-    new builders.DeferObservable(factory)
+  def defer[A](fa: => Observable[A]): Observable[A] =
+    new builders.DeferObservable(fa)
+
+  /** Alias for [[defer]]. */
+  def suspend[A](fa: => Observable[A]): Observable[A] = defer(fa)
 
   /** Builds a new observable from a strict `head` and a lazily
     * evaluated head.
@@ -1395,12 +1391,11 @@ object Observable {
 
   /** Type-class instances for [[Observable]]. */
   class TypeClassInstances extends Streamable[Observable] {
-    override def now[A](a: A): Observable[A] = Observable.now(a)
-    override def evalAlways[A](f: => A): Observable[A] = Observable.evalAlways(f)
-    override def defer[A](fa: => Observable[A]): Observable[A] = Observable.defer(fa)
+    override def pure[A](a: A): Observable[A] = Observable.now(a)
+    override def suspend[A](fa: => Observable[A]): Observable[A] = Observable.suspend(fa)
+    override def eval[A](a: => A): Observable[A] = Observable.eval(a)
+    override def evalOnce[A](a: => A): Observable[A] = Observable.evalOnce(a)
     override def memoize[A](fa: Observable[A]): Observable[A] = fa.cache
-    override def evalOnce[A](f: => A): Observable[A] = Observable.evalOnce(f)
-    override def unit: Observable[Unit] = Observable.now(())
 
     override def combineK[A](x: Observable[A], y: Observable[A]): Observable[A] =
       x ++ y
@@ -1409,11 +1404,7 @@ object Observable {
     override def flatten[A](ffa: Observable[Observable[A]]): Observable[A] =
       ffa.flatten
     override def coflatMap[A, B](fa: Observable[A])(f: (Observable[A]) => B): Observable[B] =
-      Observable.evalAlways(f(fa))
-    override def pure[A](a: A): Observable[A] =
-      Observable.now(a)
-    override def pureEval[A](a: => A): Observable[A] =
-      Observable.evalAlways(a)
+      Observable.eval(f(fa))
     override def ap[A, B](fa: Observable[A])(ff: Observable[(A) => B]): Observable[B] =
       for (f <- ff; a <- fa) yield f(a)
     override def map2[A, B, Z](fa: Observable[A], fb: Observable[B])(f: (A, B) => Z): Observable[Z] =

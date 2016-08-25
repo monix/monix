@@ -15,15 +15,25 @@
  * limitations under the License.
  */
 
-package monix.types.shims
+package monix.types
 
-/** A shim for a `MonadPlus` type-class, to be supplied by / translated to
-  * libraries such as Cats or Scalaz.
+/** A type-class for `F[A]` suspendable applicatives
+  * whose evaluation can be memoized, along with a guarantee
+  * that the side-effects only happen once.
   *
-  * This is a [[MonadFilter]] instance that's also a [[MonoidK]].
+  * The `memoize` operation takes an `F[_]` instance and
+  * returns a new `F` that guarantees that its evaluation and
+  * all related side-effects only happen once, with the results
+  * to be reused on subsequent evaluations.
   */
-trait MonadPlus[F[_]] extends MonadFilter[F] with MonoidK[F]
+trait Memoizable[F[_]] extends Suspendable[F] {
+  def memoize[A](fa: F[A]): F[A]
 
-object MonadPlus {
-  @inline def apply[F[_]](implicit F: MonadPlus[F]): MonadPlus[F] = F
+  def evalOnce[A](a: => A): F[A] =
+    memoize(eval(a))
 }
+
+object Memoizable {
+  @inline def apply[F[_]](implicit F: Memoizable[F]): Memoizable[F] = F
+}
+

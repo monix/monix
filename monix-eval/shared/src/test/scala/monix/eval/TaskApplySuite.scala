@@ -17,9 +17,6 @@
 
 package monix.eval
 
-import monix.eval.Task.{Error, Now}
-import monix.execution.internal.Platform
-
 import scala.util.{Failure, Success}
 
 object TaskApplySuite extends BaseTestSuite {
@@ -48,7 +45,7 @@ object TaskApplySuite extends BaseTestSuite {
     assertEquals(s.state.get.lastReportedError, null)
   }
 
-  test("Task.apply is equivalent with Task.evalAlways") { implicit s =>
+  test("Task.apply is equivalent with Task.eval") { implicit s =>
     check1 { a: Int =>
       val t1 = {
         var effect = 100
@@ -57,7 +54,7 @@ object TaskApplySuite extends BaseTestSuite {
 
       val t2 = {
         var effect = 100
-        Task.evalAlways { effect += 100; effect + a }
+        Task.eval { effect += 100; effect + a }
       }
 
       List(t1 === t2, t2 === t1)
@@ -119,38 +116,10 @@ object TaskApplySuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(iterations * 2)))
   }
 
-  test("Task.apply.materializeAttempt should work for success") { implicit s =>
-    val task = Task.apply(1).materializeAttempt
-    val f = task.runAsync
-    s.tick()
-    assertEquals(f.value, Some(Success(Now(1))))
-  }
-
-  test("Task.apply.materializeAttempt should work for failure") { implicit s =>
-    val dummy = DummyException("dummy")
-    val task = Task.apply[Int] { throw dummy }.materializeAttempt
-    val f = task.runAsync
-    s.tick()
-    assertEquals(f.value, Some(Success(Error(dummy))))
-  }
-
-  test("Task.apply.materialize should be stack safe") { implicit s =>
-    def loop(n: Int): Task[Int] =
-      if (n <= 0) Task.apply(n)
-      else Task.apply(n).materialize.flatMap {
-        case Success(v) => loop(n-1)
-        case Failure(ex) => Task.raiseError(ex)
-      }
-
-    val count = if (Platform.isJVM) 50000 else 5000
-    val result = loop(count).runAsync
-    s.tick()
-    assertEquals(result.value, Some(Success(0)))
-  }
 
   test("Task.apply.flatten is equivalent with flatMap") { implicit s =>
     check1 { a: Int =>
-      val t = Task(Task.evalAlways(a))
+      val t = Task(Task.eval(a))
       t.flatMap(identity) === t.flatten
     }
   }

@@ -15,18 +15,22 @@
  * limitations under the License.
  */
 
-package monix.types.shims
+package monix.types
 
-/** A shim for the `CoflatMap` type-class,
+/** A shim for the Applicative Functor type-class,
   * to be supplied by libraries such as Cats or Scalaz.
+  *
+  * Described in [[http://www.soi.city.ac.uk/~ross/papers/Applicative.html Applicative Programming with Effects]].
+  *
+  * The [[Functor]] allows mapping of a pure function to a value, the `Applicative`
+  * also adds the capability of lifting a value in the context.
   */
-trait CoflatMap[F[_]] extends Functor[F] {
-  def coflatMap[A, B](fa: F[A])(f: F[A] => B): F[B]
-
-  def coflatten[A](fa: F[A]): F[F[A]] =
-    coflatMap(fa)(fa => fa)
+trait Applicative[F[_]] extends Functor[F] {
+  def pure[A](a: A): F[A]
+  def ap[A, B](fa: F[A])(ff: F[A => B]): F[B]
+  def map2[A, B, Z](fa: F[A], fb: F[B])(f: (A, B) => Z): F[Z]
 }
 
-object CoflatMap {
-  @inline def apply[F[_]](implicit F: CoflatMap[F]): CoflatMap[F] = F
+object Applicative {
+  @inline def apply[F[_]](implicit F: Applicative[F]): Applicative[F] = F
 }

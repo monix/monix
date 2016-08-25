@@ -45,7 +45,7 @@ abstract class BaseTestSuite extends TestSuite[TestScheduler] with Checkers {
     Arbitrary { A.arbitrary.map(a => Coeval.evalOnce(a)) }
 
   def arbitraryEvalAlways[A](implicit A: Arbitrary[A]): Arbitrary[Task[A]] =
-    Arbitrary { A.arbitrary.map(a => Task.evalAlways(a)) }
+    Arbitrary { A.arbitrary.map(a => Task.eval(a)) }
 
   def arbitraryError[A](implicit ev: Arbitrary[Int]): Arbitrary[Task[A]] =
     Arbitrary { ev.arbitrary.map(nr => Task.raiseError(DummyException(s"dummy $nr"))) }

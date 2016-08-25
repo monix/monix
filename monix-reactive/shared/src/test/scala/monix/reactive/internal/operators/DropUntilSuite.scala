@@ -37,7 +37,7 @@ object DropUntilSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     require(sourceCount > 0, "sourceCount should be strictly positive")
 
-    val signal = Task.evalAlways(1).delayExecution(2300.millis)
+    val signal = Task.eval(1).delayExecution(2300.millis)
     val o = Observable.intervalAtFixedRate(500.millis)
       .take(sourceCount + 5)
       .dropUntil(Observable.fromTask(signal))
@@ -51,7 +51,7 @@ object DropUntilSuite extends BaseOperatorSuite {
       val source = Observable.intervalAtFixedRate(500.millis)
         .take(sourceCount + 5)
 
-      val signal = Task.evalAlways(1).delayExecution(2300.millis)
+      val signal = Task.eval(1).delayExecution(2300.millis)
       val o = createObservableEndingInError(source, ex)
         .dropUntil(Observable.fromTask(signal))
 
@@ -62,7 +62,7 @@ object DropUntilSuite extends BaseOperatorSuite {
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 
   override def cancelableObservables(): Seq[Sample] = {
-    val signal = Task.evalAlways(1).delayExecution(2300.millis)
+    val signal = Task.eval(1).delayExecution(2300.millis)
     val o = Observable.intervalAtFixedRate(500.millis)
       .dropUntil(Observable.fromTask(signal))
 

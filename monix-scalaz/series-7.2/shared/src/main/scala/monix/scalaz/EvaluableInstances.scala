@@ -29,7 +29,9 @@ trait EvaluableInstances extends EvaluableInstances1 {
     new ConvertMonixEvaluableToScalaz[F] { override val F = ev }
 
   private[scalaz] trait ConvertMonixEvaluableToScalaz[F[_]]
-    extends ConvertMonixMonadErrorToScalaz[F,Throwable] with ConvertMonixCoflatMapToScalaz[F] {
+    extends ConvertMonixMonadErrorToScalaz[F,Throwable]
+      with ConvertMonixCoflatMapToScalaz[F]
+      with ConvertMonixTailRecMonadToScalaz[F] {
 
     override val F: Evaluable[F]
   }

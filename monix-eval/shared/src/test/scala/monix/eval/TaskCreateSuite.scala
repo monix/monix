@@ -25,10 +25,10 @@ import monix.execution.internal.Platform
 import scala.util.{Failure, Success}
 
 object TaskCreateSuite extends BaseTestSuite {
-  test("Task.async should be stack safe, take 1") { implicit s =>
+  test("Task.create should be stack safe, take 1") { implicit s =>
     // Describing basically mapBoth
     def sum(t1: Task[Int], t2: Task[Int]): Task[Int] =
-      Task.async { (s, cb) =>
+      Task.create { (s, cb) =>
         implicit val scheduler = s
         val state = Atomic(null : Either[Int,Int])
         val composite = CompositeCancelable()
@@ -75,10 +75,10 @@ object TaskCreateSuite extends BaseTestSuite {
     assertEquals(receivedF.value, Some(Success(count * (count - 1) / 2)))
   }
 
-  test("Task.async should be stack safe, take 2") { implicit s =>
+  test("Task.create should be stack safe, take 2") { implicit s =>
     // Describing basically mapBoth
     def sum(t1: Task[Int], t2: Task[Int]): Task[Int] =
-      Task.async { (s, cb) =>
+      Task.create { (s, cb) =>
         implicit val scheduler = s
         val c = MultiAssignmentCancelable()
 
@@ -98,23 +98,23 @@ object TaskCreateSuite extends BaseTestSuite {
       tasks.foldLeft(Task(0))(sum)
 
     val count = if (Platform.isJVM) 100000 else 10000
-    val receivedT = sumAll((0 until count).map(n => Task.evalAlways(n)))
+    val receivedT = sumAll((0 until count).map(n => Task.eval(n)))
     val receivedF = receivedT.runAsync
 
     s.tick()
     assertEquals(receivedF.value, Some(Success(count * (count - 1) / 2)))
   }
 
-  test("Task.async should work onSuccess") { implicit s =>
-    val t = Task.async[Int] { (s,cb) => cb.onSuccess(10); Cancelable.empty }
+  test("Task.create should work onSuccess") { implicit s =>
+    val t = Task.create[Int] { (s,cb) => cb.onSuccess(10); Cancelable.empty }
     val f = t.runAsync
     s.tick()
     assertEquals(f.value, Some(Success(10)))
   }
 
-  test("Task.async should work onError") { implicit s =>
+  test("Task.create should work onError") { implicit s =>
     val dummy = DummyException("dummy")
-    val t = Task.async[Int] { (s,cb) => cb.onError(dummy); Cancelable.empty }
+    val t = Task.create[Int] { (s,cb) => cb.onError(dummy); Cancelable.empty }
     val f = t.runAsync
     s.tick()
     assertEquals(f.value, Some(Failure(dummy)))

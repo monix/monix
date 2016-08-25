@@ -15,15 +15,15 @@
  * limitations under the License.
  */
 
-package monix.types.shims
+package monix.types
 
-/** A shim for the `Comonad` type-class,
-  * to be supplied by libraries such as Cats or Scalaz.
+/** A shim for an `MonadError` type-class, to be supplied by / translated to
+  * libraries such as Cats or Scalaz.
+  *
+  * This type class allows one to abstract over error-handling monads.
   */
-trait Comonad[F[_]] extends CoflatMap[F] {
-  def extract[A](x: F[A]): A
-}
+trait MonadError[F[_],E] extends ApplicativeError[F,E] with Monad[F]
 
-object Comonad {
-  @inline def apply[F[_]](implicit F: Comonad[F]): Comonad[F] = F
+object MonadError {
+  @inline def apply[F[_],E](implicit F: MonadError[F,E]): MonadError[F,E] = F
 }

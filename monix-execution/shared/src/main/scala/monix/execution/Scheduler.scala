@@ -18,11 +18,13 @@
 package monix.execution
 
 import java.util.concurrent.TimeUnit
-import monix.execution.schedulers.{ExecutionModel, SchedulerCompanionImpl}
 import monix.execution.internal.RunnableAction
+import monix.execution.schedulers.ExecutionModel
+import monix.execution.schedulers.SchedulerCompanionImpl
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
+import scala.language.experimental.macros
 
 /** A Scheduler is an `scala.concurrent.ExecutionContext` that additionally can
   * schedule the execution of units of work to run with a delay or periodically.
@@ -151,9 +153,30 @@ object Scheduler extends SchedulerCompanionImpl {
 
   /** Utilities complementing the `Scheduler` interface. */
   implicit final class Extensions(val source: Scheduler) extends AnyVal {
-    /** Schedules the given `action` for immediate execution. */
-    def executeNow(f: => Unit): Unit =
-      source.execute(RunnableAction.from(f _))
+    /** Schedules the given callback for immediate asynchronous
+      * execution in the thread-pool.
+      *
+      * Described as a macro, thus it has zero overhead compared
+      * to doing `execute(new Runnable { ... })`
+      *
+      * @param cb the callback to execute asynchronously
+      */
+    def executeAsync(cb: => Unit): Unit =
+      macro Macros.executeAsync
+
+    /** Schedules the given callback for immediate execution as a
+      * [[monix.execution.schedulers.LocalRunnable LocalRunnable]].
+      * Depending on the execution context, it might
+      * get executed on the current thread by using an internal
+      * trampoline, so it is still safe from stack-overflow exceptions.
+      *
+      * Described as a macro, thus it has zero overhead compared
+      * to doing `execute(new LocalRunnable { ... })`
+      *
+      * @param cb the callback to execute asynchronously
+      */
+    def executeLocal(cb: => Unit): Unit =
+      macro Macros.executeLocal
 
     /** Schedules a task to run in the future, after `initialDelay`.
       *

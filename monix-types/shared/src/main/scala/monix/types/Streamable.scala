@@ -17,13 +17,16 @@
 
 package monix.types
 
-import monix.types.shims.{CoflatMap, MonadError, MonadPlus}
-import simulacrum.typeclass
-
 /** Groups common type-classes for things that represent
   * (possibly asynchronous) streams (e.g. `Observable`).
   */
-@typeclass(excludeParents = List("MonadPlus", "CoflatMap"))
-trait Streamable[F[_]] extends Deferrable[F]
+trait Streamable[F[_]]
+  extends Suspendable[F]
+  with Memoizable[F]
   with MonadError[F, Throwable]
-  with MonadPlus[F] with CoflatMap[F]
+  with MonadPlus[F]
+  with CoflatMap[F]
+
+object Streamable {
+  @inline def apply[F[_]](implicit F: Streamable[F]): Streamable[F] = F
+}

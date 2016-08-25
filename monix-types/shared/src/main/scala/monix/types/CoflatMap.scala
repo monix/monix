@@ -15,20 +15,18 @@
  * limitations under the License.
  */
 
-package monix.types.shims
+package monix.types
 
-/** A shim for a `SemigroupK` type-class, to be supplied by / translated to
-  * libraries such as Cats or Scalaz.
-  *
-  * `SemigroupK` is a universal semigroup which operates on kinds.
+/** A shim for the `CoflatMap` type-class,
+  * to be supplied by libraries such as Cats or Scalaz.
   */
-trait SemigroupK[F[_]] extends Any with Serializable { self =>
-  /**
-    * Combine two F[A] values.
-    */
-  def combineK[A](x: F[A], y: F[A]): F[A]
+trait CoflatMap[F[_]] extends Functor[F] {
+  def coflatMap[A, B](fa: F[A])(f: F[A] => B): F[B]
+
+  def coflatten[A](fa: F[A]): F[F[A]] =
+    coflatMap(fa)(fa => fa)
 }
 
-object SemigroupK {
-  @inline def apply[F[_]](implicit F: SemigroupK[F]): SemigroupK[F] = F
+object CoflatMap {
+  @inline def apply[F[_]](implicit F: CoflatMap[F]): CoflatMap[F] = F
 }

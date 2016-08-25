@@ -17,16 +17,25 @@
 
 package monix.types
 
-/** Groups common type-classes for things that can be evaluated
-  * and that yield a single result (i.e. `Task`, `Coeval`)
+/** A shim for a `MonadRec` type-class, to be supplied
+  * by / translated to libraries such as Cats or Scalaz.
+  *
+  * This type-class represents monads with a tail-recursive
+  * flatMap implementation.
   */
-trait Evaluable[F[_]]
-  extends Suspendable[F]
-  with Memoizable[F]
-  with MonadError[F, Throwable]
-  with CoflatMap[F]
-  with MonadRec[F]
+trait MonadRec[F[_]] extends Monad[F] {
+  /** Keeps calling `f` until a `scala.util.Right[B]` is returned.
+    *
+    * Based on Phil Freeman's
+    * [[http://functorial.com/stack-safety-for-free/index.pdf Stack Safety for Free]].
+    */
+  def tailRecM[A, B](a: A)(f: A => F[Either[A, B]]): F[B] =
+    flatMap(f(a)) {
+      case Right(b) => pure(b)
+      case Left(nextA) => tailRecM(nextA)(f)
+    }
+}
 
-object Evaluable {
-  @inline def apply[F[_]](implicit F: Evaluable[F]): Evaluable[F] = F
+object MonadRec {
+  @inline def apply[F[_]](implicit F: MonadRec[F]): MonadRec[F] = F
 }

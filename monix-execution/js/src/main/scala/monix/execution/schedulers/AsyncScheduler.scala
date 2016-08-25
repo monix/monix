@@ -27,7 +27,10 @@ import monix.execution.{Cancelable, UncaughtExceptionReporter}
 final class AsyncScheduler private (
   reporter: UncaughtExceptionReporter,
   override val executionModel: ExecutionModel)
-  extends ReferenceScheduler {
+  extends ReferenceScheduler with LocalBatchingExecutor {
+
+  protected def executeAsync(r: Runnable): Unit =
+    setTimeout(0L, r, reporter)
 
   override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
     val millis = {
@@ -37,10 +40,6 @@ final class AsyncScheduler private (
 
     val task = setTimeout(millis, r, reporter)
     Cancelable(() => clearTimeout(task))
-  }
-
-  override def execute(runnable: Runnable): Unit = {
-    setTimeout(0L, runnable, reporter)
   }
 
   override def reportFailure(t: Throwable): Unit =

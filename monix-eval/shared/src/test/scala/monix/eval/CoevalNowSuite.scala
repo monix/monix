@@ -32,6 +32,11 @@ object CoevalNowSuite extends BaseTestSuite {
     assertEquals(r, Success("result"))
   }
 
+  test("Coeval.now.isSuccess") { implicit s =>
+    assert(Coeval.Now(1).isSuccess, "isSuccess")
+    assert(!Coeval.Now(1).isFailure, "!isFailure")
+  }
+
   test("Coeval.error should work synchronously") { implicit s =>
     var wasTriggered = false
     val dummy = DummyException("dummy")

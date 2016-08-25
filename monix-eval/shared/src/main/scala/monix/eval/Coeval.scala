@@ -19,7 +19,7 @@ package monix.eval
 
 import monix.eval.Coeval._
 import monix.types.Evaluable
-import monix.types.shims.Bimonad
+import monix.types.Bimonad
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.collection.generic.CanBuildFrom
@@ -36,16 +36,21 @@ import scala.util.{Failure, Success, Try}
   *
   * There are three evaluation strategies:
   *
-  *  - [[monix.eval.Coeval.Now Now]]: evaluated immediately
-  *  - [[monix.eval.Coeval.Error Error]]: evaluated immediately, representing an error
-  *  - [[monix.eval.Coeval.EvalOnce EvalOnce]]: evaluated a single time
-  *  - [[monix.eval.Coeval.EvalAlways EvalAlways]]: evaluated every time the value is needed
+  *  - [[monix.eval.Coeval.Now Now]] or [[monix.eval.Coeval.Error Error]]:
+  *    for describing strict values, evaluated immediately
+  *  - [[monix.eval.Coeval.Once Once]]: expressions evaluated a single time
+  *  - [[monix.eval.Coeval.Always Always]]: expressions evaluated every time
+  *    the value is needed
   *
-  * The `EvalOnce` and `EvalAlways` are both lazy strategies while
-  * `Now` and `Error` are eager. `EvalOnce` and `EvalAlways` are
+  * The `Once` and `Always` are both lazy strategies while
+  * `Now` and `Error` are eager. `Once` and `Always` are
   * distinguished from each other only by memoization: once evaluated
-  * `EvalOnce` will save the value to be returned immediately if it is
-  * needed again. `EvalAlways` will run its computation every time.
+  * `Once` will save the value to be returned immediately if it is
+  * needed again. `Always` will run its computation every time.
+  *
+  * Both `Now` and `Error` are represented by the
+  * [[monix.eval.Coeval.Attempt Attempt]] trait, a sub-type of [[Coeval]]
+  * that can be used as a replacement for Scala's own `Try` type.
   *
   * `Coeval` supports stack-safe lazy computation via the .map and .flatMap
   * methods, which use an internal trampoline to avoid stack overflows.
@@ -76,13 +81,7 @@ sealed abstract class Coeval[+A] extends Serializable { self =>
 
   /** Converts the source [[Coeval]] into a [[Task]]. */
   def task: Task[A] =
-    self match {
-      case Now(a) => Task.Now(a)
-      case Error(ex) => Task.Error(ex)
-      case EvalOnce(thunk) => Task.evalOnce(thunk())
-      case EvalAlways(thunk) => Task.evalAlways(thunk())
-      case other => Task.evalAlways(other.value)
-    }
+    Task.coeval(self)
 
   /** Creates a new `Coeval` by applying a function to the successful result
     * of the source, and returns a new instance equivalent
@@ -92,12 +91,12 @@ sealed abstract class Coeval[+A] extends Serializable { self =>
     self match {
       case Now(a) =>
         Suspend(() => try f(a) catch { case NonFatal(ex) => Error(ex) })
-      case eval @ EvalOnce(_) =>
+      case eval @ Once(_) =>
         Suspend(() => eval.runAttempt match {
           case Now(a) => try f(a) catch { case NonFatal(ex) => Error(ex) }
           case error @ Error(_) => error
         })
-      case EvalAlways(thunk) =>
+      case Always(thunk) =>
         Suspend(() => try f(thunk()) catch {
           case NonFatal(ex) => Error(ex)
         })
@@ -149,9 +148,9 @@ sealed abstract class Coeval[+A] extends Serializable { self =>
     self match {
       case now @ Now(_) =>
         Now(now)
-      case eval @ EvalOnce(_) =>
+      case eval @ Once(_) =>
         Suspend(() => Now(eval.runAttempt))
-      case EvalAlways(thunk) =>
+      case Always(thunk) =>
         Suspend(() => Now(try Now(thunk()) catch { case NonFatal(ex) => Error(ex) }))
       case Error(ex) =>
         Now(Error(ex))
@@ -251,11 +250,11 @@ sealed abstract class Coeval[+A] extends Serializable { self =>
     self match {
       case ref @ Now(_) => ref
       case error @ Error(_) => error
-      case EvalAlways(thunk) =>
-        new EvalOnce[A](thunk)
-      case eval: EvalOnce[_] => self
+      case Always(thunk) =>
+        new Once[A](thunk)
+      case eval: Once[_] => self
       case other =>
-        new EvalOnce[A](() => other.value)
+        new Once[A](() => other.value)
     }
 
   /** Returns a new `Coeval` in which `f` is scheduled to be run on completion.
@@ -286,10 +285,10 @@ sealed abstract class Coeval[+A] extends Serializable { self =>
 object Coeval {
   /** Promotes a non-strict value to a [[Coeval]].
     *
-    * Alias of [[evalAlways]].
+    * Alias of [[eval]].
     */
   def apply[A](f: => A): Coeval[A] =
-    EvalAlways(f _)
+    Always(f _)
 
   /** Returns an `Coeval` that on execution is always successful, emitting
     * the given strict value.
@@ -305,17 +304,19 @@ object Coeval {
   def raiseError[A](ex: Throwable): Coeval[A] =
     Error(ex)
 
-  /** Promote a non-strict value representing a `Coeval` to a `Coeval` of the
-    * same type.
+  /** Promote a non-strict value representing a `Coeval`
+    * to a `Coeval` of the same type.
     */
-  def defer[A](coeval: => Coeval[A]): Coeval[A] =
-    Suspend(() => coeval)
+  def defer[A](fa: => Coeval[A]): Coeval[A] =
+    Suspend(() => fa)
+
+  /** Alias for [[defer]]. */
+  def suspend[A](fa: => Coeval[A]): Coeval[A] = defer(fa)
 
   /** Promote a non-strict value to a `Coeval` that is memoized on the first
     * evaluation, the result being then available on subsequent evaluations.
     */
-  def evalOnce[A](f: => A): Coeval[A] =
-    EvalOnce(f _)
+  def evalOnce[A](a: => A): Coeval[A] = Once(a _)
 
   /** Promote a non-strict value to an `Coeval`, catching exceptions in the
     * process.
@@ -323,11 +324,21 @@ object Coeval {
     * Note that since `Coeval` is not memoized, this will recompute the
     * value each time the `Coeval` is executed.
     */
-  def evalAlways[A](f: => A): Coeval[A] =
-    EvalAlways(f _)
+  def eval[A](a: => A): Coeval[A] = Always(a _)
+
+  /** Alias for [[eval]]. */
+  def delay[A](a: => A): Coeval[A] = eval(a)
+
+  /** Alias for [[eval]]. Deprecated. */
+  @deprecated("Renamed, please use Coeval.apply or Coeval.eval", since="2.0-RC12")
+  def evalAlways[A](a: => A): Coeval[A] = eval(a)
 
   /** A `Coeval[Unit]` provided for convenience. */
   val unit: Coeval[Unit] = Now(())
+
+  /** Builds a `Coeval` out of a Scala `Try` value. */
+  def fromTry[A](a: Try[A]): Coeval[A] =
+    Attempt.fromTry(a)
 
   /** Transforms a `TraversableOnce` of coevals into a coeval producing
     * the same collection of gathered results.
@@ -336,7 +347,7 @@ object Coeval {
     */
   def sequence[A, M[X] <: TraversableOnce[X]](sources: M[Coeval[A]])
     (implicit cbf: CanBuildFrom[M[Coeval[A]], A, M[A]]): Coeval[M[A]] = {
-    val init = evalAlways(cbf(sources))
+    val init = eval(cbf(sources))
     val r = sources.foldLeft(init)((acc,elem) => acc.zipMap(elem)(_ += _))
     r.map(_.result())
   }
@@ -348,14 +359,14 @@ object Coeval {
     */
   def traverse[A, B, M[X] <: TraversableOnce[X]](sources: M[A])(f: A => Coeval[B])
     (implicit cbf: CanBuildFrom[M[A], B, M[B]]): Coeval[M[B]] = {
-    val init = evalAlways(cbf(sources))
+    val init = eval(cbf(sources))
     val r = sources.foldLeft(init)((acc,elem) => acc.zipMap(f(elem))(_ += _))
     r.map(_.result())
   }
 
   /** Zips together multiple [[Coeval]] instances. */
   def zipList[A](sources: Coeval[A]*): Coeval[List[A]] = {
-    val init = evalAlways(mutable.ListBuffer.empty[A])
+    val init = eval(mutable.ListBuffer.empty[A])
     val r = sources.foldLeft(init)((acc, elem) => acc.zipMap(elem)(_ += _))
     r.map(_.toList)
   }
@@ -431,17 +442,17 @@ object Coeval {
     *
     * It's the moral equivalent of `scala.util.Try`.
     */
-  sealed abstract class Attempt[+A] extends Coeval[A] {
+  sealed abstract class Attempt[+A] extends Coeval[A] with Product {
     self =>
     /** Returns true if value is a successful one. */
     def isSuccess: Boolean = this match {
-      case Now(_) => true;
+      case Now(_) => true
       case _ => false
     }
 
     /** Returns true if result is an error. */
     def isFailure: Boolean = this match {
-      case Error(_) => true;
+      case Error(_) => true
       case _ => false
     }
 
@@ -482,7 +493,7 @@ object Coeval {
         case NonFatal(ex) => Error(ex)
       }
 
-    /** Builds a [[Task.Attempt]] from a `scala.util.Try` */
+    /** Builds an [[Coeval.Attempt Attempt]] from a `scala.util.Try` */
     def fromTry[A](value: Try[A]): Attempt[A] =
       value match {
         case Success(a) => Now(a)
@@ -506,14 +517,17 @@ object Coeval {
     override def runAttempt: Error = this
   }
 
+  @deprecated("Type renamed, use Eval.Once", since="2.0-RC12")
+  type EvalOnce[+A] = Once[A]
+
   /** Constructs a lazy [[Coeval]] instance that gets evaluated
     * only once.
     *
     * In some sense it is equivalent to using a lazy val.
     * When caching is not required or desired,
-    * prefer [[EvalAlways]] or [[Now]].
+    * prefer [[Always]] or [[Now]].
     */
-  final class EvalOnce[+A](f: () => A) extends Coeval[A] with (() => A) {
+  final class Once[+A](f: () => A) extends Coeval[A] with (() => A) {
     private[this] var thunk: () => A = f
 
     def apply(): A = runAttempt match {
@@ -534,42 +548,30 @@ object Coeval {
 
     override def toString =
       synchronized {
-        if (thunk != null) s"EvalOnce($thunk)"
-        else s"EvalOnce($runAttempt)"
+        if (thunk != null) s"Once($thunk)"
+        else s"Once($runAttempt)"
       }
-
-    override def equals(other: Any): Boolean = other match {
-      case that: EvalOnce[_] => runAttempt == that.runAttempt
-      case _ => false
-    }
-
-    override def hashCode(): Int =
-      runAttempt.hashCode()
-
-    def productArity: Int = 1
-
-    def productElement(n: Int): Any = runAttempt
-
-    def canEqual(that: Any): Boolean =
-      that.isInstanceOf[EvalOnce[_]]
   }
 
-  object EvalOnce {
-    /** Builder for an [[EvalOnce]] instance. */
-    def apply[A](a: () => A): EvalOnce[A] =
-      new EvalOnce[A](a)
+  object Once {
+    /** Builder for an [[Once]] instance. */
+    def apply[A](a: () => A): Once[A] =
+      new Once[A](a)
 
-    /** Deconstructs an [[EvalOnce]] instance. */
-    def unapply[A](coeval: EvalOnce[A]): Some[() => A] =
+    /** Deconstructs an [[Once]] instance. */
+    def unapply[A](coeval: Once[A]): Some[() => A] =
       Some(coeval)
   }
+
+  @deprecated("Type renamed, use Eval.Always", since="2.0-RC12")
+  type EvalAlways[+A] = Always[A]
 
   /** Constructs a lazy [[Coeval]] instance.
     *
     * This type can be used for "lazy" values. In some sense it is
     * equivalent to using a Function0 value.
     */
-  final case class EvalAlways[+A](f: () => A) extends Coeval[A] {
+  final case class Always[+A](f: () => A) extends Coeval[A] {
     override def value: A = f()
 
     override def runAttempt: Attempt[A] =
@@ -602,7 +604,7 @@ object Coeval {
               reduceCoeval(fa, rest)
           }
 
-        case eval@EvalOnce(_) =>
+        case eval@Once(_) =>
           eval.runAttempt match {
             case now@Now(a) =>
               binds match {
@@ -617,7 +619,7 @@ object Coeval {
               error
           }
 
-        case EvalAlways(thunk) =>
+        case Always(thunk) =>
           val fa = try Now(thunk()) catch {
             case NonFatal(ex) => Error(ex)
           }
@@ -645,12 +647,11 @@ object Coeval {
 
   /** Groups the implementation for the type-classes defined in [[monix.types]]. */
   class TypeClassInstances extends Evaluable[Coeval] with Bimonad[Coeval] {
-    override def now[A](a: A): Coeval[A] = Coeval.now(a)
-    override def evalAlways[A](f: =>A): Coeval[A] = Coeval.evalAlways(f)
-    override def defer[A](fa: =>Coeval[A]): Coeval[A] = Coeval.defer(fa)
+    override def pure[A](a: A): Coeval[A] = Coeval.now(a)
+    override def suspend[A](fa: => Coeval[A]): Coeval[A] = Coeval.defer(fa)
+    override def evalOnce[A](a: => A): Coeval[A] = Coeval.evalOnce(a)
+    override def eval[A](a: => A): Coeval[A] = Coeval.eval(a)
     override def memoize[A](fa: Coeval[A]): Coeval[A] = fa.memoize
-    override def evalOnce[A](f: =>A): Coeval[A] = Coeval.evalOnce(f)
-    override def unit: Coeval[Unit] = Coeval.unit
 
     override def extract[A](x: Coeval[A]): A =
       x.value
@@ -659,7 +660,7 @@ object Coeval {
     override def flatten[A](ffa: Coeval[Coeval[A]]): Coeval[A] =
       ffa.flatten
     override def coflatMap[A, B](fa: Coeval[A])(f: (Coeval[A]) => B): Coeval[B] =
-      Coeval.evalAlways(f(fa))
+      Coeval.eval(f(fa))
     override def ap[A, B](fa: Coeval[A])(ff: Coeval[(A) => B]): Coeval[B] =
       for (f <- ff; a <- fa) yield f(a)
     override def map2[A, B, Z](fa: Coeval[A], fb: Coeval[B])(f: (A, B) => Z): Coeval[Z] =

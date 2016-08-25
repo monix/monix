@@ -30,19 +30,40 @@ import org.scalacheck.Test.Parameters
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
-trait BaseLawsSuite extends SimpleTestSuite with Discipline with BaseLawsSuiteInstances {
+trait BaseLawsSuite extends SimpleTestSuite with Discipline with BaseLawsSuiteInstances2 {
   override lazy val checkConfig: Parameters =
     Parameters.default
       .withMinSuccessfulTests(if (Platform.isJVM) 100 else 10)
       .withMaxDiscardRatio(if (Platform.isJVM) 5.0f else 50.0f)
 
-  lazy val slowCheckConfig = if (Platform.isJVM) checkConfig else
+  lazy val slowCheckConfig =
     Parameters.default
-      .withMaxSize(1)
-      .withMinSuccessfulTests(1)
+      .withMinSuccessfulTests(10)
+      .withMaxDiscardRatio(50.0f)
+      .withMaxSize(6)
 }
 
-trait BaseLawsSuiteInstances extends AllInstances with cats.std.AllInstances {
+trait BaseLawsSuiteInstances2 extends BaseLawsSuiteInstances1 {
+  implicit def equalityObsObs[A : Eq]: Eq[Observable[Observable[A]]] =
+    new Eq[Observable[Observable[A]]] {
+      def eqv(x: Observable[Observable[A]], y: Observable[Observable[A]]): Boolean =
+        equalityObservable[A].eqv(x.flatten, y.flatten)
+    }
+
+  implicit def equalityCoevalCoeval[A : Eq]: Eq[Coeval[Coeval[A]]] =
+    new Eq[Coeval[Coeval[A]]] {
+      def eqv(x: Coeval[Coeval[A]], y: Coeval[Coeval[A]]): Boolean =
+        equalityCoeval[A].eqv(x.flatten, y.flatten)
+    }
+
+  implicit def equalityTaskTask[A : Eq]: Eq[Task[Task[A]]] =
+    new Eq[Task[Task[A]]] {
+      def eqv(x: Task[Task[A]], y: Task[Task[A]]): Boolean =
+        equalityTask[A].eqv(x.flatten, y.flatten)
+    }
+}
+
+trait BaseLawsSuiteInstances1 extends AllInstances with cats.instances.AllInstances {
   implicit def arbitraryCoeval[A : Arbitrary]: Arbitrary[Coeval[A]] =
     Arbitrary {
       val int = implicitly[Arbitrary[Int]].arbitrary
@@ -50,7 +71,7 @@ trait BaseLawsSuiteInstances extends AllInstances with cats.std.AllInstances {
         if (chance % 3 == 0)
           Coeval.now(a)
         else if (chance % 3 == 1)
-          Coeval.evalAlways(a)
+          Coeval.eval(a)
         else
           Coeval.evalOnce(a)
     }
@@ -63,8 +84,13 @@ trait BaseLawsSuiteInstances extends AllInstances with cats.std.AllInstances {
 
   implicit def arbitraryTask[A : Arbitrary]: Arbitrary[Task[A]] =
     Arbitrary {
-      implicitly[Arbitrary[A]].arbitrary
-        .map(a => Task.evalAlways(a))
+      val aa = implicitly[Arbitrary[A]].arbitrary
+      val ai = implicitly[Arbitrary[Int]].arbitrary
+      for (a <- aa; i <- ai) yield {
+        if (math.abs(i % 5) == 0) Task.now(a)
+        else if (math.abs(i % 5) == 1 || math.abs(i % 5) == 2) Task.evalOnce(a)
+        else Task.eval(a)
+      }
     }
 
   implicit def arbitraryEval[A : Arbitrary]: Arbitrary[Eval[A]] =

@@ -17,7 +17,7 @@
 
 package monix.reactive
 
-import monix.eval.Task.{Error, Now}
+import monix.eval.Coeval.{Error, Now}
 import monix.eval.{Callback, Task}
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.{Atomic, PaddingStrategy}

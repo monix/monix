@@ -46,8 +46,8 @@ object CoevalErrorSuite extends BaseTestSuite {
     assertEquals(Coeval.evalOnce(10).materialize.value, Success(10))
   }
 
-  test("Coeval.evalAlways.materialize") { implicit s =>
-    assertEquals(Coeval.evalAlways(10).materialize.value, Success(10))
+  test("Coeval.eval.materialize") { implicit s =>
+    assertEquals(Coeval.eval(10).materialize.value, Success(10))
   }
 
   test("Coeval.defer.materialize") { implicit s =>
@@ -64,7 +64,7 @@ object CoevalErrorSuite extends BaseTestSuite {
   }
 
   test("Coeval.flatMap.materialize") { implicit s =>
-    assertEquals(Coeval.evalAlways(10).flatMap(x => Coeval.now(x))
+    assertEquals(Coeval.eval(10).flatMap(x => Coeval.now(x))
       .materialize.runTry, Success(Success(10)))
   }
 
@@ -175,7 +175,7 @@ object CoevalErrorSuite extends BaseTestSuite {
 
   test("Coeval.onErrorRestart should mirror the source onSuccess") { implicit s =>
     var tries = 0
-    val f = Coeval.evalAlways { tries += 1; 1 }.onErrorRestart(10)
+    val f = Coeval.eval { tries += 1; 1 }.onErrorRestart(10)
     assertEquals(f.runTry, Success(1))
     assertEquals(tries, 1)
   }
@@ -183,7 +183,7 @@ object CoevalErrorSuite extends BaseTestSuite {
   test("Coeval.onErrorRestart should retry onError") { implicit s =>
     val ex = DummyException("dummy")
     var tries = 0
-    val f = Coeval.evalAlways { tries += 1; if (tries < 5) throw ex else 1 }.onErrorRestart(10)
+    val f = Coeval.eval { tries += 1; if (tries < 5) throw ex else 1 }.onErrorRestart(10)
 
     assertEquals(f.runTry, Success(1))
     assertEquals(tries, 5)
@@ -192,7 +192,7 @@ object CoevalErrorSuite extends BaseTestSuite {
   test("Coeval.onErrorRestart should emit onError after max retries") { implicit s =>
     val ex = DummyException("dummy")
     var tries = 0
-    val f = Coeval.evalAlways { tries += 1; throw ex }.onErrorRestart(10)
+    val f = Coeval.eval { tries += 1; throw ex }.onErrorRestart(10)
 
     assertEquals(f.runTry, Failure(ex))
     assertEquals(tries, 11)
@@ -200,7 +200,7 @@ object CoevalErrorSuite extends BaseTestSuite {
 
   test("Coeval.onErrorRestartIf should mirror the source onSuccess") { implicit s =>
     var tries = 0
-    val f = Coeval.evalAlways { tries += 1; 1 }.onErrorRestartIf(ex => tries < 10)
+    val f = Coeval.eval { tries += 1; 1 }.onErrorRestartIf(ex => tries < 10)
     assertEquals(f.runTry, Success(1))
     assertEquals(tries, 1)
   }
@@ -208,7 +208,7 @@ object CoevalErrorSuite extends BaseTestSuite {
   test("Coeval.onErrorRestartIf should retry onError") { implicit s =>
     val ex = DummyException("dummy")
     var tries = 0
-    val f = Coeval.evalAlways { tries += 1; if (tries < 5) throw ex else 1 }
+    val f = Coeval.eval { tries += 1; if (tries < 5) throw ex else 1 }
       .onErrorRestartIf(ex => tries <= 10)
 
     assertEquals(f.runTry, Success(1))
@@ -218,7 +218,7 @@ object CoevalErrorSuite extends BaseTestSuite {
   test("Coeval.onErrorRestartIf should emit onError") { implicit s =>
     val ex = DummyException("dummy")
     var tries = 0
-    val f = Coeval.evalAlways { tries += 1; throw ex }
+    val f = Coeval.eval { tries += 1; throw ex }
       .onErrorRestartIf(ex => tries <= 10)
 
     assertEquals(f.runTry, Failure(ex))
