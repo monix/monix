@@ -26,7 +26,7 @@ package monix.types
   * all related side-effects only happen once, with the results
   * to be reused on subsequent evaluations.
   */
-trait Memoizable[F[_]] extends Deferrable[F] {
+trait Memoizable[F[_]] extends Suspendable[F] {
   def memoize[A](fa: F[A]): F[A]
 
   def evalOnce[A](a: => A): F[A] =

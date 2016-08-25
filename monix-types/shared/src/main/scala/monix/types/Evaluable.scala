@@ -21,7 +21,7 @@ package monix.types
   * and that yield a single result (i.e. `Task`, `Coeval`)
   */
 trait Evaluable[F[_]]
-  extends Deferrable[F]
+  extends Suspendable[F]
   with Memoizable[F]
   with MonadError[F, Throwable]
   with CoflatMap[F]

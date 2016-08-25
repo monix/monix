@@ -25,13 +25,13 @@ package monix.types
   * of `F[A]` instances, that will produce fresh instances,
   * along with possible side-effects, on each evaluation.
   */
-trait Deferrable[F[_]] extends Applicative[F] {
-  def defer[A](fa: => F[A]): F[A]
+trait Suspendable[F[_]] extends Applicative[F] {
+  def suspend[A](fa: => F[A]): F[A]
 
   def eval[A](a: => A): F[A] =
-    defer(pure(a))
+    suspend(pure(a))
 }
 
-object Deferrable {
-  @inline def apply[F[_]](implicit F: Deferrable[F]): Deferrable[F] = F
+object Suspendable {
+  @inline def apply[F[_]](implicit F: Suspendable[F]): Suspendable[F] = F
 }

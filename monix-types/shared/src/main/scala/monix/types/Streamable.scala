@@ -21,7 +21,7 @@ package monix.types
   * (possibly asynchronous) streams (e.g. `Observable`).
   */
 trait Streamable[F[_]]
-  extends Deferrable[F]
+  extends Suspendable[F]
   with Memoizable[F]
   with MonadError[F, Throwable]
   with MonadPlus[F]

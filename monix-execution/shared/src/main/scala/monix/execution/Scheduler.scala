@@ -168,7 +168,8 @@ object Scheduler extends SchedulerCompanionImpl {
       macro Macros.executeAsync
 
     /** Schedules the given callback for immediate execution as a
-      * [[LocalRunnable]]. Depending on the execution context, it might
+      * [[monix.execution.schedulers.LocalRunnable LocalRunnable]].
+      * Depending on the execution context, it might
       * get executed on the current thread by using an internal
       * trampoline, so it is still safe from stack-overflow exceptions.
       *

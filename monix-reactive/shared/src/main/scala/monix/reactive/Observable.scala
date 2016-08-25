@@ -666,7 +666,7 @@ object Observable {
   /** Transforms a non-strict [[monix.eval.Coeval Coeval]] value
     * into an `Observable` that emits a single element.
     */
-  def eval[A](value: Coeval[A]): Observable[A] =
+  def coeval[A](value: Coeval[A]): Observable[A] =
     value match {
       case Coeval.Now(v) => Observable.now(v)
       case Coeval.Error(ex) => Observable.raiseError(ex)
@@ -1392,9 +1392,9 @@ object Observable {
   /** Type-class instances for [[Observable]]. */
   class TypeClassInstances extends Streamable[Observable] {
     override def pure[A](a: A): Observable[A] = Observable.now(a)
-    override def defer[A](fa: => Observable[A]): Observable[A] = Observable.defer(fa)
-    override def evalOnce[A](a: => A): Observable[A] = Observable.evalOnce(a)
+    override def suspend[A](fa: => Observable[A]): Observable[A] = Observable.suspend(fa)
     override def eval[A](a: => A): Observable[A] = Observable.eval(a)
+    override def evalOnce[A](a: => A): Observable[A] = Observable.evalOnce(a)
     override def memoize[A](fa: Observable[A]): Observable[A] = fa.cache
 
     override def combineK[A](x: Observable[A], y: Observable[A]): Observable[A] =

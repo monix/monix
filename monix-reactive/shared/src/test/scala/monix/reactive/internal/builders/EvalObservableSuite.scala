@@ -24,7 +24,7 @@ import monix.reactive.{BaseLawsTestSuite, Observable}
 object EvalObservableSuite extends BaseLawsTestSuite {
   test("Observable.eval(now(value)) should work") { implicit s =>
     check1 { (value: Int) =>
-      val obs1 = Observable.eval(Coeval.now(value))
+      val obs1 = Observable.coeval(Coeval.now(value))
       val obs2 = Observable.now(value)
       obs1 === obs2
     }
@@ -32,7 +32,7 @@ object EvalObservableSuite extends BaseLawsTestSuite {
 
   test("Observable.eval(eval(value)) should work") { implicit s =>
     check1 { (value: Int) =>
-      val obs1 = Observable.eval(Coeval.eval(value))
+      val obs1 = Observable.coeval(Coeval.eval(value))
       val obs2 = Observable.eval(value)
       obs1 === obs2
     }
@@ -40,7 +40,7 @@ object EvalObservableSuite extends BaseLawsTestSuite {
 
   test("Observable.eval(evalOnce(value)) should work") { implicit s =>
     check1 { (value: Int) =>
-      val obs1 = Observable.eval(Coeval.evalOnce(value))
+      val obs1 = Observable.coeval(Coeval.evalOnce(value))
       val obs2 = Observable.evalOnce(value)
       obs1 === obs2
     }
@@ -49,7 +49,7 @@ object EvalObservableSuite extends BaseLawsTestSuite {
   test("Observable.eval(raiseError(value)) should work") { implicit s =>
     check1 { (value: Int) =>
       val ex = DummyException(s"dummy $value")
-      val obs1 = Observable.eval(Coeval.raiseError(ex))
+      val obs1 = Observable.coeval(Coeval.raiseError(ex))
       val obs2 = Observable.raiseError(ex)
       obs1 === obs2
     }
