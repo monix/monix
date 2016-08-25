@@ -180,7 +180,7 @@ object Ack {
   }
 
   /** Macro implementations for [[AckExtensions]]. */
-  @macrocompat.bundle private[monix]
+  @macrocompat.bundle
   class Macros(override val c: whitebox.Context) extends InlineMacros with HygieneUtilMacros {
     import c.universe._
 
@@ -454,7 +454,7 @@ object Ack {
         case Apply(TypeApply(Select(_, `ackExtensions`), _), List(expr)) =>
           c.Expr[Source](expr)
         case _ =>
-          c.warning(tree.pos, "Could not infer the implicit class source")
+          c.warning(tree.pos, "Could not infer the implicit class source, please report a bug!")
           c.Expr[Source](q"$tree.source")
       }
     }

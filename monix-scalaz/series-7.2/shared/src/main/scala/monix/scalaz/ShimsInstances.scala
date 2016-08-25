@@ -24,17 +24,17 @@ import scalaz.\/
 trait ShimsInstances extends ShimsLevel9
 
 private[scalaz] trait ShimsLevel9 extends ShimsLevel8 {
-  /** Converts Monix's [[monix.types.TailRecMonad TailRecMonad]]
+  /** Converts Monix's [[monix.types.MonadRec TailRecMonad]]
     * instances into the Scalaz `BindRec` + `Monad`.
     */
   implicit def monixTailRecMonadInstancesToScalaz[F[_]]
-    (implicit ev: TailRecMonad[F]): _root_.scalaz.Monad[F] with _root_.scalaz.BindRec[F] =
+    (implicit ev: MonadRec[F]): _root_.scalaz.Monad[F] with _root_.scalaz.BindRec[F] =
     new ConvertMonixTailRecMonadToScalaz[F] { override val F = ev }
 
   private[scalaz] trait ConvertMonixTailRecMonadToScalaz[F[_]]
     extends ConvertMonixMonadToScalaz[F] with _root_.scalaz.BindRec[F] {
 
-    override val F: TailRecMonad[F]
+    override val F: MonadRec[F]
     override def tailrecM[A, B](f: (A) => F[\/[A, B]])(a: A): F[B] =
       F.tailRecM(a)(a => F.map(f(a))(_.toEither))
   }

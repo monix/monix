@@ -17,19 +17,17 @@
 
 package monix.types
 
-/** A shim for a `TailRecMonad` type-class, to be supplied
+/** A shim for a `MonadRec` type-class, to be supplied
   * by / translated to libraries such as Cats or Scalaz.
   *
-  * This type-class representing monads with a tail-recursive
+  * This type-class represents monads with a tail-recursive
   * flatMap implementation.
   */
-trait TailRecMonad[F[_]] extends Monad[F] {
+trait MonadRec[F[_]] extends Monad[F] {
   /** Keeps calling `f` until a `scala.util.Right[B]` is returned.
     *
     * Based on Phil Freeman's
     * [[http://functorial.com/stack-safety-for-free/index.pdf Stack Safety for Free]].
-    *
-    * Implementations of this method should use constant stack AND heap space.
     */
   def tailRecM[A, B](a: A)(f: A => F[Either[A, B]]): F[B] =
     flatMap(f(a)) {
@@ -38,6 +36,6 @@ trait TailRecMonad[F[_]] extends Monad[F] {
     }
 }
 
-object TailRecMonad {
-  @inline def apply[F[_]](implicit F: TailRecMonad[F]): TailRecMonad[F] = F
+object MonadRec {
+  @inline def apply[F[_]](implicit F: MonadRec[F]): MonadRec[F] = F
 }

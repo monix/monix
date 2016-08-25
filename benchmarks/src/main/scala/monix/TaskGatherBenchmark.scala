@@ -22,7 +22,10 @@ import java.util.concurrent.TimeUnit
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
 import org.openjdk.jmh.annotations._
+import scalaz.Nondeterminism
+import scalaz.concurrent.{Task => ScalazTask}
 
+import scala.collection.mutable.ListBuffer
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.Duration
 
@@ -41,51 +44,91 @@ import scala.concurrent.duration.Duration
 @OutputTimeUnit(TimeUnit.SECONDS)
 class TaskGatherBenchmark {
   @Benchmark
-  def sequenceA(): Long = {
+  def sequenceFutureA(): Long = {
+    val futures = (0 until 1000).map(_ => Future(1)).toList
+    val f: Future[Long] = Future.sequence(futures).map(_.sum.toLong)
+    Await.result(f, Duration.Inf)
+  }
+
+  @Benchmark
+  def sequenceMonixA(): Long = {
     val tasks = (0 until 1000).map(_ => Task(1)).toList
     val f = Task.sequence(tasks).map(_.sum.toLong).runAsync
     Await.result(f, Duration.Inf)
   }
 
   @Benchmark
-  def sequenceS(): Long = {
+  def sequenceMonixS(): Long = {
     val tasks = (0 until 1000).map(_ => Task.eval(1)).toList
     val f = Task.sequence(tasks).map(_.sum.toLong).runAsync
     Await.result(f, Duration.Inf)
   }
 
-   @Benchmark
-   def gatherA(): Long = {
+  @Benchmark
+  def sequenceScalazA(): Long = {
+    val tasks = (0 until 1000).map(_ => ScalazTask(1)).toList
+    val init = ScalazTask.delay(ListBuffer.empty[Int])
+    tasks.foldLeft(init)((acc,elem) => acc.flatMap(lb => elem.map(e => lb += e)))
+      .map(_.toList.sum.toLong).unsafePerformSync
+  }
+
+  @Benchmark
+  def sequenceScalazS(): Long = {
+    val tasks = (0 until 1000).map(_ => ScalazTask.delay(1)).toList
+    val init = ScalazTask.delay(ListBuffer.empty[Int])
+    tasks.foldLeft(init)((acc,elem) => acc.flatMap(lb => elem.map(e => lb += e)))
+      .map(_.toList.sum.toLong).unsafePerformSync
+  }
+
+  @Benchmark
+   def gatherMonixA(): Long = {
      val tasks = (0 until 1000).map(_ => Task(1)).toList
      val f = Task.gather(tasks).map(_.sum.toLong).runAsync
      Await.result(f, Duration.Inf)
    }
 
    @Benchmark
-   def gatherS(): Long = {
+   def gatherMonixS(): Long = {
      val tasks = (0 until 1000).map(_ => Task.eval(1)).toList
      val f = Task.gather(tasks).map(_.sum.toLong).runAsync
      Await.result(f, Duration.Inf)
    }
 
+  @Benchmark
+  def gatherScalazA(): Long = {
+    val tasks = (0 until 1000).map(_ => ScalazTask(1)).toList
+    Nondeterminism[ScalazTask].gather(tasks).map(_.sum.toLong).unsafePerformSync
+  }
+
+  @Benchmark
+  def gatherScalazS(): Long = {
+    val tasks = (0 until 1000).map(_ => ScalazTask.delay(1)).toList
+    Nondeterminism[ScalazTask].gather(tasks).map(_.sum.toLong).unsafePerformSync
+  }
+
    @Benchmark
-   def unorderedA(): Long = {
+   def unorderedMonixA(): Long = {
      val tasks = (0 until 1000).map(_ => Task(1)).toList
      val f = Task.gatherUnordered(tasks).map(_.sum.toLong).runAsync
      Await.result(f, Duration.Inf)
    }
 
    @Benchmark
-   def unorderedS(): Long = {
+   def unorderedMonixS(): Long = {
      val tasks = (0 until 1000).map(_ => Task.eval(1)).toList
      val f = Task.gatherUnordered(tasks).map(_.sum.toLong).runAsync
      Await.result(f, Duration.Inf)
    }
 
   @Benchmark
-  def futures(): Long = {
-    val futures = (0 until 1000).map(_ => Future(1)).toList
-    val f: Future[Long] = Future.sequence(futures).map(_.sum.toLong)
-    Await.result(f, Duration.Inf)
+  def unorderedScalazA(): Long = {
+    val tasks = (0 until 1000).map(_ => ScalazTask(1)).toList
+    Nondeterminism[ScalazTask].gatherUnordered(tasks).map(_.sum.toLong).unsafePerformSync
+  }
+
+  @Benchmark
+  def unorderedScalazS(): Long = {
+    val tasks = (0 until 1000).map(_ => ScalazTask.delay(1)).toList
+    Nondeterminism[ScalazTask].gatherUnordered(tasks).map(_.sum.toLong).unsafePerformSync
   }
 }

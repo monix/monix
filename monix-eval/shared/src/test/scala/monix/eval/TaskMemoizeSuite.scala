@@ -18,6 +18,7 @@
 package monix.eval
 
 import monix.execution.internal.Platform
+
 import scala.concurrent.Promise
 import scala.util.{Failure, Success}
 
@@ -46,7 +47,6 @@ object TaskMemoizeSuite extends BaseTestSuite {
     val f2 = task.runAsync
     assertEquals(f2.value, Some(Success(1)))
   }
-
 
   test("Task.apply.memoize should be stack safe") { implicit s =>
     val count = if (Platform.isJVM) 50000 else 5000
@@ -292,9 +292,9 @@ object TaskMemoizeSuite extends BaseTestSuite {
   test("Task.suspend.memoize should be stack safe") { implicit s =>
     val count = if (Platform.isJVM) 50000 else 5000
     var task = Task.defer(Task.now(1))
-    for (i <- 0 until count) task = task.memoize
+    for (i <- 0 until count) task = task.memoize.map(x => x)
 
-    val f = task.runAsync
+    val f = task.runAsync; s.tick()
     assertEquals(f.value, Some(Success(1)))
   }
 

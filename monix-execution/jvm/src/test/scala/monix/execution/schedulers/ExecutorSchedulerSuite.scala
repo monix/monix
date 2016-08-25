@@ -107,4 +107,17 @@ object ExecutorSchedulerSuite extends TestSuite[ExecutorScheduler] {
 
     assert(Await.result(p.future, 5.second) == 4)
   }
+
+  test("execute local") { implicit s =>
+    var result = 0
+    def loop(n: Int): Unit =
+      s.executeLocal {
+        result += 1
+        if (n-1 > 0) loop(n-1)
+      }
+
+    val count = 100000
+    loop(count)
+    assertEquals(result, count)
+  }
 }

@@ -25,7 +25,7 @@ trait Evaluable[F[_]]
   with Memoizable[F]
   with MonadError[F, Throwable]
   with CoflatMap[F]
-  with TailRecMonad[F]
+  with MonadRec[F]
 
 object Evaluable {
   @inline def apply[F[_]](implicit F: Evaluable[F]): Evaluable[F] = F

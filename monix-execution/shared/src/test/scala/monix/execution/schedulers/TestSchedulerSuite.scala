@@ -20,6 +20,9 @@ package monix.execution.schedulers
 import java.util.concurrent.{TimeUnit, TimeoutException}
 import minitest.TestSuite
 import monix.execution.Scheduler
+import monix.execution.misc.InlineMacrosTest.DummyException
+import monix.execution.internal.Platform
+
 import scala.concurrent.duration._
 import scala.concurrent.Promise
 import scala.util.{Success, Try}
@@ -209,11 +212,66 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
 
   test("execute extension method") { implicit s =>
     var wasExecuted = false
-    s.executeNow { wasExecuted = true }
+    s.executeAsync { wasExecuted = true }
 
     assert(!wasExecuted, "should not be executed yet")
     s.tick()
     assert(wasExecuted, "was executed")
+  }
+
+  test("execute local") { implicit s =>
+    var effect = 1
+    s.executeLocal {
+      effect += 1
+
+      s.executeLocal(effect += 2)
+      s.executeLocal {
+        effect += 3
+        s.executeLocal {
+          effect += 4
+        }
+      }
+    }
+
+    // No tick allowed here
+    assertEquals(effect, 1 + 1 + 2 + 3 + 4)
+  }
+
+  test("execute local should fork on error") { implicit s =>
+    val ex = DummyException("dummy")
+    var effect = 0
+
+    s.executeLocal {
+      effect += 1
+      // Scheduling for execution
+      s.executeLocal(effect += 2)
+      s.executeLocal(effect += 3)
+      // Subsequent effects not executed yet
+      assertEquals(effect, 1)
+      throw ex
+    }
+
+    // No tick allowed here
+    assertEquals(effect, 1)
+    assertEquals(s.state.get.lastReportedError, ex)
+
+    // Other runnables have been rescheduled async
+    s.tickOne()
+    assertEquals(effect, 1 + 2 + 3)
+  }
+
+  test("execute local should be stack safe") { implicit s =>
+    var result = 0
+    def loop(n: Int): Unit =
+      s.executeLocal {
+        result += 1
+        if (n-1 > 0) loop(n-1)
+      }
+
+    val count = if (Platform.isJVM) 100000 else 10000
+    loop(count)
+
+    assertEquals(result, count)
   }
 
   def action(f: => Unit): Runnable =

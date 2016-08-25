@@ -23,17 +23,17 @@ import monix.types._
 trait ShimsInstances extends ShimsLevel12
 
 private[cats] trait ShimsLevel12 extends ShimsLevel11 {
-  /** Converts Monix's [[monix.types.TailRecMonad TailRecMonad]]
+  /** Converts Monix's [[monix.types.MonadRec TailRecMonad]]
     * instances into the Cats `Monad`.
     */
   implicit def monixTailRecMonadInstancesToCats[F[_]]
-    (implicit ev: TailRecMonad[F]): _root_.cats.Monad[F] with _root_.cats.RecursiveTailRecM[F] =
+    (implicit ev: MonadRec[F]): _root_.cats.Monad[F] with _root_.cats.RecursiveTailRecM[F] =
     new ConvertTailRecMonixMonadToCats[F] { override val F = ev }
 
   private[cats] trait ConvertTailRecMonixMonadToCats[F[_]]
     extends _root_.cats.RecursiveTailRecM[F] with ConvertMonixMonadToCats[F] {
 
-    override val F: TailRecMonad[F]
+    override val F: MonadRec[F]
     override def tailRecM[A, B](a: A)(f: (A) => F[Either[A, B]]): F[B] =
       F.tailRecM(a)(f)
   }

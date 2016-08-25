@@ -18,7 +18,9 @@
 package monix.execution.schedulers
 
 import monix.execution.Scheduler
+
 import scala.annotation.tailrec
+import scala.util.control.NonFatal
 
 /** Adds trampoline execution capabilities to
   * [[monix.execution.Scheduler schedulers]], when
@@ -49,7 +51,7 @@ trait LocalBatchingExecutor extends Scheduler {
           case null =>
             // If we aren't in local mode yet, start local loop
             localTasks = Nil
-            localRunLoop(runnable)
+            localRunLoop(runnable, Nil)
           case some =>
             // If we are already in batching mode, add to stack
             localTasks = runnable :: some
@@ -59,24 +61,44 @@ trait LocalBatchingExecutor extends Scheduler {
         executeAsync(runnable)
     }
 
-  @tailrec private def localRunLoop(current: Runnable): Unit = {
+  @tailrec private def localRunLoop(head: Runnable, tail: List[Runnable]): Unit = {
     try {
-      current.run()
+      head.run()
     } catch {
       case ex: Throwable =>
         // Sending everything to the underlying context,
         // so that we can throw
-        localTasks.foreach(executeAsync)
+        val remaining = tail ::: localTasks
         localTasks = null
-        throw ex
+        forkTheRest(remaining)
+        if (NonFatal(ex)) reportFailure(ex) else throw ex
     }
 
-    localTasks match {
-      case null => ()
-      case Nil => localTasks = null
-      case other :: tail =>
-        localTasks = tail
-        localRunLoop(other)
+    tail match {
+      case h2 :: t2 => localRunLoop(h2, t2)
+      case Nil =>
+        localTasks match {
+          case null => ()
+          case Nil =>
+            localTasks = null
+          case h2 :: t2 =>
+            localTasks = Nil
+            localRunLoop(h2, t2)
+        }
+    }
+  }
+
+  private def forkTheRest(rest: List[Runnable]): Unit = {
+    final class ResumeRun(head: Runnable, tail: List[Runnable]) extends Runnable {
+      def run(): Unit = {
+        localTasks = Nil
+        localRunLoop(head,tail)
+      }
+    }
+
+    rest match {
+      case null | Nil => ()
+      case head :: tail => executeAsync(new ResumeRun(head, tail))
     }
   }
 }
