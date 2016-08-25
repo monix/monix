@@ -1,3 +1,54 @@
+## Version 2.0-RC12 (Aug 19, 2016)
+
+Bug fixes:
+
+- [Issue #211](https://github.com/monixio/monix/issues/211):
+  `CompositeCancelable.remove` wasn't working after the changes in
+  RC10, fixed it in RC11 and now added some more tests
+- [Issue #213](https://github.com/monixio/monix/pull/213): Fixes
+  `Task` / `Coeval` memoize operation
+  
+Enhancements:
+
+- [Issue #212](https://github.com/monixio/monix/issues/212): Upgraded
+  Cats to version 0.7.0
+- [PR #214](https://github.com/monixio/monix/pull/214): optimize Task,
+  refactorings, some deprecations (details below)
+
+Details on [PR #214](https://github.com/monixio/monix/pull/214):
+
+- Upgraded the Cats dependency to version 0.7.0. Had some trouble with
+  that (see
+  [cats#1329](https://github.com/typelevel/cats/issues/1329)), but it
+  is now functional
+- Renamed `eval` to `evalAlways` across the board (in `Task`, `Coeval`
+  and `Observable`), but kept `evalAlways` with the `@deprecated`
+  sign, so upgrade should be smooth. The reason is that `evalAlways`
+  is an often used operation and deserves a shorter name  
+- For Scalaz converts introduced `Task.delay` as an alias of
+  `Task.eval`, `Task.suspend` as an alias of `Task.defer` and
+  `Task.async` as an alias of `Task.create`
+- Renamed `Task.eval(Coeval)` to `Task.coeval(Coeval)` and
+  `Observable.eval(Coeval)` to `Observable.coeval(Coeval)` in order to
+  avoid a conflict
+- Refactor the `Task` internals again, for optimizations and simplifications:  
+  - Simplified the internal states, e.g. instead of having `Now`,
+    `Error`, `Always` and `Once`, we now have a single
+    `Delay(coeval)`, thus reusing the `Coeval` type for computing
+    asynchronous values  
+  - Get rid of the `Task.Attempt` type, it never made any sense that
+    one. People can use `Coeval.Attempt` if they need a `Try`
+    alternative (and convert to `Task` if they end up needing a
+    `Task`)
+  - Introduced `Scheduler.executeAsync` and `Scheduler.executeLocal`
+    as extension methods powered by macros, for zero-overhead, because
+    building `Runnable` instances is too annoying
+  - Used `Scheduler.executeLocal` and `LocalRunnable` in key points in
+    the `Task` implementation to reduce forking    
+  - Made `Task.gather` be based on `Task.gatherUnordered` and it is
+    now way faster
+- Moved everything from `monix.types.shims` to `monix.types`
+
 ## Version 2.0-RC11 (Aug 19, 2016)
 
 Bug fixes:

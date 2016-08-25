@@ -894,6 +894,7 @@ object Task extends TaskInstances {
     val tasks = in.toIterator.zipWithIndex.map { case (t,i) => t.map(a => (a,i)) }
     for (result <- gatherUnordered(tasks)) yield {
       val array = result.toArray
+      // In place, because we're creating enough junk already
       Sorting.quickSort(array)(sortKey)
       val builder = cbf(in)
       var idx = 0
@@ -1176,6 +1177,26 @@ object Task extends TaskInstances {
     val fa12345 = zip5(fa1, fa2, fa3, fa4, fa5)
     zipMap2(fa12345, fa6) { case ((a1,a2,a3,a4,a5), a6) => f(a1,a2,a3,a4,a5,a6) }
   }
+
+  @deprecated("Renamed to Task.zipMap2", since="2.0-RC12")
+  def zipWith2[A1,A2,R](fa1: Task[A1], fa2: Task[A2])(f: (A1,A2) => R): Task[R] =
+    zipMap2(fa1, fa2)(f)
+
+  @deprecated("Renamed to Task.zipMap3", since="2.0-RC12")
+  def zipWith3[A1,A2,A3,R](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3])(f: (A1,A2,A3) => R): Task[R] =
+    zipMap3(fa1, fa2, fa3)(f)
+
+  @deprecated("Renamed to Task.zipMap4", since="2.0-RC12")
+  def zipWith4[A1,A2,A3,A4,R](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4])(f: (A1,A2,A3,A4) => R): Task[R] =
+    zipMap4(fa1, fa2, fa3, fa4)(f)
+
+  @deprecated("Renamed to Task.zipMap5", since="2.0-RC12")
+  def zipWith5[A1,A2,A3,A4,A5,R](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4], fa5: Task[A5])(f: (A1,A2,A3,A4,A5) => R): Task[R] =
+    zipMap5(fa1, fa2, fa3, fa4, fa5)(f)
+
+  @deprecated("Renamed to Task.zipMap6", since="2.0-RC12")
+  def zipWith6[A1,A2,A3,A4,A5,A6,R](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4], fa5: Task[A5], fa6: Task[A6])(f: (A1,A2,A3,A4,A5,A6) => R): Task[R] =
+    zipMap6(fa1, fa2, fa3, fa4, fa5, fa6)(f)
 
   /** Type alias representing callbacks for [[create]] tasks. */
   type OnFinish[+A] = (Scheduler, StackedCancelable, Callback[A]) => Unit

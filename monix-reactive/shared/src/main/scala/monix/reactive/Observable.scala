@@ -1229,6 +1229,26 @@ object Observable {
     }
   }
 
+  @deprecated("Renamed to Observable.zipMap2", since="2.0-RC12")
+  def zipWith2[A1,A2,R](fa1: Observable[A1], fa2: Observable[A2])(f: (A1,A2) => R): Observable[R] =
+    zipMap2(fa1, fa2)(f)
+
+  @deprecated("Renamed to Observable.zipMap3", since="2.0-RC12")
+  def zipWith3[A1,A2,A3,R](fa1: Observable[A1], fa2: Observable[A2], fa3: Observable[A3])(f: (A1,A2,A3) => R): Observable[R] =
+    zipMap3(fa1, fa2, fa3)(f)
+
+  @deprecated("Renamed to Observable.zipMap4", since="2.0-RC12")
+  def zipWith4[A1,A2,A3,A4,R](fa1: Observable[A1], fa2: Observable[A2], fa3: Observable[A3], fa4: Observable[A4])(f: (A1,A2,A3,A4) => R): Observable[R] =
+    zipMap4(fa1, fa2, fa3, fa4)(f)
+
+  @deprecated("Renamed to Observable.zipMap5", since="2.0-RC12")
+  def zipWith5[A1,A2,A3,A4,A5,R](fa1: Observable[A1], fa2: Observable[A2], fa3: Observable[A3], fa4: Observable[A4], fa5: Observable[A5])(f: (A1,A2,A3,A4,A5) => R): Observable[R] =
+    zipMap5(fa1, fa2, fa3, fa4, fa5)(f)
+
+  @deprecated("Renamed to Observable.zipMap6", since="2.0-RC12")
+  def zipWith6[A1,A2,A3,A4,A5,A6,R](fa1: Observable[A1], fa2: Observable[A2], fa3: Observable[A3], fa4: Observable[A4], fa5: Observable[A5], fa6: Observable[A6])(f: (A1,A2,A3,A4,A5,A6) => R): Observable[R] =
+    zipMap6(fa1, fa2, fa3, fa4, fa5, fa6)(f)
+
   /** Creates a combined observable from 2 source observables.
     *
     * This operator behaves in a similar way to [[zip2]],
@@ -1378,6 +1398,26 @@ object Observable {
       }
     }
   }
+
+  @deprecated("Renamed to Observable.combineLatestMap2", since="2.0-RC12")
+  def combineLatestWith2[A1,A2,R](fa1: Observable[A1], fa2: Observable[A2])(f: (A1,A2) => R): Observable[R] =
+    combineLatestMap2(fa1, fa2)(f)
+
+  @deprecated("Renamed to Observable.combineLatestMap3", since="2.0-RC12")
+  def combineLatestWith3[A1,A2,A3,R](fa1: Observable[A1], fa2: Observable[A2], fa3: Observable[A3])(f: (A1,A2,A3) => R): Observable[R] =
+    combineLatestMap3(fa1, fa2, fa3)(f)
+
+  @deprecated("Renamed to Observable.combineLatestMap4", since="2.0-RC12")
+  def combineLatestWith4[A1,A2,A3,A4,R](fa1: Observable[A1], fa2: Observable[A2], fa3: Observable[A3], fa4: Observable[A4])(f: (A1,A2,A3,A4) => R): Observable[R] =
+    combineLatestMap4(fa1, fa2, fa3, fa4)(f)
+
+  @deprecated("Renamed to Observable.combineLatestMap5", since="2.0-RC12")
+  def combineLatestWith5[A1,A2,A3,A4,A5,R](fa1: Observable[A1], fa2: Observable[A2], fa3: Observable[A3], fa4: Observable[A4], fa5: Observable[A5])(f: (A1,A2,A3,A4,A5) => R): Observable[R] =
+    combineLatestMap5(fa1, fa2, fa3, fa4, fa5)(f)
+
+  @deprecated("Renamed to Observable.combineLatestMap6", since="2.0-RC12")
+  def combineLatestWith6[A1,A2,A3,A4,A5,A6,R](fa1: Observable[A1], fa2: Observable[A2], fa3: Observable[A3], fa4: Observable[A4], fa5: Observable[A5], fa6: Observable[A6])(f: (A1,A2,A3,A4,A5,A6) => R): Observable[R] =
+    combineLatestMap6(fa1, fa2, fa3, fa4, fa5, fa6)(f)
 
   /** Given a list of source Observables, emits all of the items from
     * the first of these Observables to emit an item or to complete,
