@@ -40,6 +40,10 @@ Details on [PR #214](https://github.com/monixio/monix/pull/214):
 - Renamed `Task.eval(Coeval)` to `Task.coeval(Coeval)` and
   `Observable.eval(Coeval)` to `Observable.coeval(Coeval)` in order to
   avoid a conflict
+- Removed `Task.both` because it is just an alias for `Task.mapBoth`. Judging
+  in retrospective, we probably should've added it a `@deprecated` warning
+  instead; on the other hand `both` and `mapBoth` are so close that the IDE
+  will probably suggest `mapBoth` (at least IntelliJ IDEA does)
 - Refactor the `Task` internals again, for optimizations and simplifications:  
   - Simplified the internal states, e.g. instead of having `Now`,
     `Error`, `Always` and `Once`, we now have a single
