@@ -72,7 +72,7 @@ object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
     for (i <- 0 until 100000) buffer.onNext(i)
     buffer.onComplete()
 
-    assert(completed.await(20, TimeUnit.SECONDS), "completed.await should have succeeded")
+    assert(completed.await(60, TimeUnit.SECONDS), "completed.await should have succeeded")
     assertEquals(number, 100000)
   }
 
@@ -104,7 +104,7 @@ object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
       else buffer.onComplete()
 
     loop(10000)
-    assert(completed.await(20, TimeUnit.SECONDS), "completed.await should have succeeded")
+    assert(completed.await(60, TimeUnit.SECONDS), "completed.await should have succeeded")
     assertEquals(number, 10000)
   }
 
@@ -122,7 +122,7 @@ object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
     val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), Unbounded)
 
     buffer.onError(new RuntimeException("dummy"))
-    assert(latch.await(5, TimeUnit.SECONDS), "latch.await should have succeeded")
+    assert(latch.await(60, TimeUnit.SECONDS), "latch.await should have succeeded")
   }
 
   test("should send onError when in flight") { implicit s =>
@@ -140,7 +140,7 @@ object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
 
     buffer.onNext(1)
     buffer.onError(new RuntimeException("dummy"))
-    assert(latch.await(5, TimeUnit.SECONDS), "latch.await should have succeeded")
+    assert(latch.await(60, TimeUnit.SECONDS), "latch.await should have succeeded")
   }
 
   test("should send onComplete when empty") { implicit s =>
@@ -154,7 +154,7 @@ object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
     val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), Unbounded)
 
     buffer.onComplete()
-    assert(latch.await(5, TimeUnit.SECONDS), "latch.await should have succeeded")
+    assert(latch.await(60, TimeUnit.SECONDS), "latch.await should have succeeded")
   }
 
   test("should send onComplete when in flight") { implicit s =>
@@ -173,7 +173,7 @@ object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
     assert(!latch.await(1, TimeUnit.SECONDS), "latch.await should have failed")
 
     promise.success(Continue)
-    assert(latch.await(5, TimeUnit.SECONDS), "latch.await should have succeeded")
+    assert(latch.await(60, TimeUnit.SECONDS), "latch.await should have succeeded")
   }
 
   test("should do onComplete only after all the queue was drained") { implicit s =>
@@ -195,7 +195,7 @@ object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
     buffer.onComplete()
     startConsuming.success(Continue)
 
-    assert(complete.await(10, TimeUnit.SECONDS), "complete.await should have succeeded")
+    assert(complete.await(60, TimeUnit.SECONDS), "complete.await should have succeeded")
     assert(sum == (0 until 9999).sum)
   }
 
@@ -216,7 +216,7 @@ object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onComplete()
 
-    assert(complete.await(10, TimeUnit.SECONDS), "complete.await should have succeeded")
+    assert(complete.await(60, TimeUnit.SECONDS), "complete.await should have succeeded")
     assert(sum == (0 until 9999).sum)
   }
 
@@ -240,7 +240,7 @@ object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
     buffer.onError(new RuntimeException)
     startConsuming.success(Continue)
 
-    assert(complete.await(10, TimeUnit.SECONDS), "complete.await should have succeeded")
+    assert(complete.await(60, TimeUnit.SECONDS), "complete.await should have succeeded")
     assertEquals(sum, (0 until 9999).sum)
   }
 
@@ -261,7 +261,7 @@ object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onError(new RuntimeException)
 
-    assert(complete.await(10, TimeUnit.SECONDS), "complete.await should have succeeded")
+    assert(complete.await(60, TimeUnit.SECONDS), "complete.await should have succeeded")
     assertEquals(sum, (0 until 9999).sum)
   }
 }
