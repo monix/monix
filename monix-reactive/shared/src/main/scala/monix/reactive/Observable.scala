@@ -28,7 +28,7 @@ import monix.reactive.observables.ObservableLike.{Operator, Transformer}
 import monix.reactive.observables._
 import monix.reactive.observers._
 import monix.reactive.subjects._
-import monix.types.Streamable
+import monix.types._
 import org.reactivestreams.{Publisher => RPublisher, Subscriber => RSubscriber}
 import scala.collection.mutable
 import scala.concurrent.Future
@@ -1430,7 +1430,11 @@ object Observable {
   implicit val typeClassInstances: TypeClassInstances = new TypeClassInstances
 
   /** Type-class instances for [[Observable]]. */
-  class TypeClassInstances extends Streamable[Observable] {
+  class TypeClassInstances extends SuspendableClass[Observable]
+    with MemoizableClass[Observable] with RecoverableClass[Observable,Throwable]
+    with MonadFilterClass[Observable] with MonoidKClass[Observable]
+    with CoflatMapClass[Observable] {
+
     override def pure[A](a: A): Observable[A] = Observable.now(a)
     override def suspend[A](fa: => Observable[A]): Observable[A] = Observable.suspend(fa)
     override def eval[A](a: => A): Observable[A] = Observable.eval(a)
@@ -1453,13 +1457,13 @@ object Observable {
       fa.map(f)
     override def raiseError[A](e: Throwable): Observable[A] =
       Observable.raiseError(e)
-    override def handleError[A](fa: Observable[A])(f: (Throwable) => A): Observable[A] =
+    override def onErrorHandle[A](fa: Observable[A])(f: (Throwable) => A): Observable[A] =
       fa.onErrorHandle(f)
-    override def handleErrorWith[A](fa: Observable[A])(f: (Throwable) => Observable[A]): Observable[A] =
+    override def onErrorHandleWith[A](fa: Observable[A])(f: (Throwable) => Observable[A]): Observable[A] =
       fa.onErrorHandleWith(f)
-    override def recover[A](fa: Observable[A])(pf: PartialFunction[Throwable, A]): Observable[A] =
+    override def onErrorRecover[A](fa: Observable[A])(pf: PartialFunction[Throwable, A]): Observable[A] =
       fa.onErrorRecover(pf)
-    override def recoverWith[A](fa: Observable[A])(pf: PartialFunction[Throwable, Observable[A]]): Observable[A] =
+    override def onErrorRecoverWith[A](fa: Observable[A])(pf: PartialFunction[Throwable, Observable[A]]): Observable[A] =
       fa.onErrorRecoverWith(pf)
     override def empty[A]: Observable[A] =
       Observable.empty[A]

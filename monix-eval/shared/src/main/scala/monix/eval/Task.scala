@@ -17,6 +17,7 @@
 
 package monix.eval
 
+import monix.types._
 import monix.eval.Coeval.{Attempt, Error, Now}
 import monix.eval.Task._
 import monix.execution.Ack.Stop
@@ -25,7 +26,6 @@ import monix.execution.cancelables.{CompositeCancelable, SingleAssignmentCancela
 import monix.execution.rstreams.Subscription
 import monix.execution.schedulers.ExecutionModel
 import monix.execution.{Cancelable, CancelableFuture, Scheduler}
-import monix.types.Evaluable
 import org.reactivestreams.Subscriber
 
 import scala.annotation.tailrec
@@ -1583,7 +1583,10 @@ private[eval] trait TaskInstances {
     }
 
   /** Groups the implementation for the type-classes defined in [[monix.types]]. */
-  class TypeClassInstances extends Evaluable[Task] {
+  class TypeClassInstances extends SuspendableClass[Task]
+    with MemoizableClass[Task] with RecoverableClass[Task,Throwable]
+    with CoflatMapClass[Task] with MonadRecClass[Task] {
+
     override def pure[A](a: A): Task[A] = Task.now(a)
     override def suspend[A](fa: => Task[A]): Task[A] = Task.defer(fa)
     override def evalOnce[A](a: => A): Task[A] = Task.evalOnce(a)
@@ -1604,13 +1607,13 @@ private[eval] trait TaskInstances {
       fa.map(f)
     override def raiseError[A](e: Throwable): Task[A] =
       Task.raiseError(e)
-    override def handleError[A](fa: Task[A])(f: (Throwable) => A): Task[A] =
+    override def onErrorHandle[A](fa: Task[A])(f: (Throwable) => A): Task[A] =
       fa.onErrorHandle(f)
-    override def handleErrorWith[A](fa: Task[A])(f: (Throwable) => Task[A]): Task[A] =
+    override def onErrorHandleWith[A](fa: Task[A])(f: (Throwable) => Task[A]): Task[A] =
       fa.onErrorHandleWith(f)
-    override def recover[A](fa: Task[A])(pf: PartialFunction[Throwable, A]): Task[A] =
+    override def onErrorRecover[A](fa: Task[A])(pf: PartialFunction[Throwable, A]): Task[A] =
       fa.onErrorRecover(pf)
-    override def recoverWith[A](fa: Task[A])(pf: PartialFunction[Throwable, Task[A]]): Task[A] =
+    override def onErrorRecoverWith[A](fa: Task[A])(pf: PartialFunction[Throwable, Task[A]]): Task[A] =
       fa.onErrorRecoverWith(pf)
   }
 }

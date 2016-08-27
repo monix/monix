@@ -24,14 +24,39 @@ package monix.types
   * The `suspend` operation can be thought of as a factory
   * of `F[A]` instances, that will produce fresh instances,
   * along with possible side-effects, on each evaluation.
+  * 
+  * The purpose of this type-class is to support the data-types in the
+  * Monix library and it is considered a shim for a lawful type-class
+  * to be supplied by libraries such as Cats or Scalaz or equivalent.
+  * 
+  * To implement it in instances, inherit from [[SuspendableClass]].
+  * 
+  * Credit should be given where it is due. The type-class encoding has
+  * been copied from the Scado project and
+  * [[https://github.com/scalaz/scalaz/ Scalaz 8]] and the type has
+  * been inspired by [[http://typelevel.org/cats/ Cats]] and
+  * [[https://github.com/functional-streams-for-scala/fs2 FS2]].
   */
-trait Suspendable[F[_]] extends Applicative[F] {
+trait Suspendable[F[_]] extends Serializable {
+  def applicative: Applicative[F]
+
   def suspend[A](fa: => F[A]): F[A]
 
   def eval[A](a: => A): F[A] =
-    suspend(pure(a))
+    suspend(applicative.pure(a))
 }
 
 object Suspendable {
   @inline def apply[F[_]](implicit F: Suspendable[F]): Suspendable[F] = F
+}
+
+/** The `SuspendableClass` provides the means to combine
+  * [[Suspendable]] instances with other type-classes.
+  * 
+  * To be inherited by `Suspendable` instances.
+  */
+trait SuspendableClass[F[_]] extends Suspendable[F]
+  with ApplicativeClass[F] {
+
+  final def suspendable: Suspendable[F] = this
 }

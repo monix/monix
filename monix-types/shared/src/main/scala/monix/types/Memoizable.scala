@@ -26,14 +26,27 @@ package monix.types
   * all related side-effects only happen once, with the results
   * to be reused on subsequent evaluations.
   */
-trait Memoizable[F[_]] extends Suspendable[F] {
-  def memoize[A](fa: F[A]): F[A]
+trait Memoizable[F[_]] extends Serializable {
+  def suspendable: Suspendable[F]
 
+  def memoize[A](fa: F[A]): F[A]
   def evalOnce[A](a: => A): F[A] =
-    memoize(eval(a))
+    memoize(suspendable.eval(a))
 }
 
 object Memoizable {
   @inline def apply[F[_]](implicit F: Memoizable[F]): Memoizable[F] = F
 }
+
+/** The `MemoizableClass` provides the means to combine
+  * [[Memoizable]] instances with other type-classes.
+  * 
+  * To be inherited by `Memoizable` instances.
+  */
+trait MemoizableClass[F[_]] extends Memoizable[F]
+  with SuspendableClass[F] {
+
+  final def memoizable: Memoizable[F] = this
+}
+
 

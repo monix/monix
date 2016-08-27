@@ -17,24 +17,58 @@
 
 package monix.types
 
-/** A shim for a `MonadFilter` type-class, to be supplied by / translated to
-  * libraries such as Cats or Scalaz.
-  *
-  * A Monad equipped with an additional method which allows us to
-  * create an "Empty" value for the Monad (for whatever "empty" makes
-  * sense for that particular monad). This is of particular interest to
-  * us since it allows us to add a `filter` method to a Monad, which is
-  * used when pattern matching or using guards in for comprehensions.
+/** The `MonadFilter` type-class is equipped with an additional
+  * operation which allows us to create an "Empty" value for the Monad
+  * (for whatever "empty" makes sense for that particular monad). This
+  * is of particular interest to us since it allows us to add a
+  * `filter` method to a Monad, which is used when pattern matching or
+  * using guards in for comprehensions.
+  * 
+  * The purpose of this type-class is to support the data-types in the
+  * Monix library and it is considered a shim for a lawful type-class
+  * to be supplied by libraries such as Cats or Scalaz or equivalent.
+  * 
+  * To implement it in instances, inherit from [[MonadFilterClass]].
+  * 
+  * Credit should be given where it is due.The type-class encoding has
+  * been copied from the Scado project and
+  * [[https://github.com/scalaz/scalaz/ Scalaz 8]] and the type has
+  * been extracted from [[http://typelevel.org/cats/ Cats]].
   */
-trait MonadFilter[F[_]] extends Monad[F] {
+trait MonadFilter[F[_]] extends Serializable {
+  def monad: Monad[F]
+
   def empty[A]: F[A]
-
   def filter[A](fa: F[A])(f: A => Boolean): F[A]
-
-  // flatMap(fa)(a => flatMap(f(a))(b => if (b) pure(a) else empty[A]))
   def filterM[A](fa: F[A])(f: A => F[Boolean]): F[A]
 }
 
-object MonadFilter {
+object MonadFilter extends MonadFilterSyntax {
   @inline def apply[F[_]](implicit F: MonadFilter[F]): MonadFilter[F] = F
 }
+
+/** The `MonadFilterClass` provides the means to combine
+  * [[MonadFilter]] instances with other type-classes.
+  * 
+  * To be inherited by `MonadFilter` instances.
+  */
+trait MonadFilterClass[F[_]] extends MonadFilter[F] with MonadClass[F] {
+  final def monadFilter: MonadFilter[F] = this
+}
+
+/** Provides syntax for [[MonadFilter]]. */
+trait MonadFilterSyntax {
+  implicit def monadFilterOps[F[_], A](fa: F[A])
+    (implicit F: MonadFilter[F]): MonadFilterSyntax.Ops[F, A] =
+    new MonadFilterSyntax.Ops(fa)
+}
+
+object MonadFilterSyntax {
+  class Ops[F[_], A](self: F[A])(implicit F: MonadFilter[F]) {    
+    def filter(f: A => Boolean): F[A] =
+      F.filter(self)(f)
+    def filterM(f: A => F[Boolean]): F[A] =
+      F.filterM(self)(f)
+  }
+}
+

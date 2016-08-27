@@ -17,21 +17,60 @@
 
 package monix.types
 
-/** A shim for a `Monad` type-class, to be supplied by / translated to
-  * libraries such as Cats or Scalaz.
-  *
-  * The monad type-class is a structure that represents
+/** The `Monad` type-class is a structure that represents
   * computations defined as sequences of steps: : a type with
   * a monad structure defines what it means to chain operations
   * together, or nest functions of that type.
   *
-  * See: [[http://homepages.inf.ed.ac.uk/wadler/papers/marktoberdorf/baastad.pdf Monads for functional programming]]
+  * See:
+  * [[http://homepages.inf.ed.ac.uk/wadler/papers/marktoberdorf/baastad.pdf
+  * Monads for functional programming]]
+  * 
+  * The purpose of this type-class is to support the data-types in the
+  * Monix library and it is considered a shim for a lawful type-class
+  * to be supplied by libraries such as Cats or Scalaz or equivalent.
+  * 
+  * To implement it in instances, inherit from [[MonadClass]].
+  * 
+  * Credit should be given where it is due.The type-class encoding has
+  * been copied from the Scado project and
+  * [[https://github.com/scalaz/scalaz/ Scalaz 8]] and the type has
+  * been extracted from [[http://typelevel.org/cats/ Cats]].
   */
-trait Monad[F[_]] extends Applicative[F] {
+trait Monad[F[_]] extends Serializable {  
+  def applicative: Applicative[F]
+
   def flatMap[A, B](fa: F[A])(f: A => F[B]): F[B]
-  def flatten[A](ffa: F[F[A]]): F[A]
+  def flatten[A](ffa: F[F[A]]): F[A] =
+    flatMap(ffa)(x => x)
 }
 
-object Monad {
+object Monad extends MonadSyntax {
   @inline def apply[F[_]](implicit F: Monad[F]): Monad[F] = F
 }
+
+/** The `MonadClass` provides the means to combine
+  * [[Monad]] instances with other type-classes.
+  * 
+  * To be inherited by `Monad` instances.
+  */
+trait MonadClass[F[_]] extends Monad[F] with ApplicativeClass[F] {
+  final def monad: Monad[F] = this
+}
+
+/** Provides syntax for [[Monad]]. */
+trait MonadSyntax {
+  implicit def monadOps[F[_], A](fa: F[A])
+    (implicit F: Monad[F]): MonadSyntax.Ops[F, A] =
+    new MonadSyntax.Ops(fa)
+}
+
+object MonadSyntax {
+  class Ops[F[_], A](self: F[A])(implicit F: Monad[F]) {
+    def flatMap[B](f: A => F[B]): F[B] =
+      F.flatMap(self)(f)
+    def flatten[B](implicit ev: A <:< F[B]): F[B] =
+      F.flatten(self.asInstanceOf[F[F[B]]])
+  }
+}
+

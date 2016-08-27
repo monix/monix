@@ -17,18 +17,36 @@
 
 package monix.types
 
-/** A shim for a `MonoidK` type-class, to be supplied by / translated to
-  * libraries such as Cats or Scalaz.
-  *
-  * `MonoidK` is a universal monoid which operates on kinds.
+/** `MonoidK` is a universal monoid which operates on kinds. 
+  * 
+  * The purpose of this type-class is to support the data-types in the
+  * Monix library and it is considered a shim for a lawful type-class
+  * to be supplied by libraries such as Cats or Scalaz or equivalent.
+  * 
+  * To implement it in instances, inherit from [[MonoidKClass]].
+  * 
+  * Credit should be given where it is due.The type-class encoding has
+  * been copied from the Scado project and
+  * [[https://github.com/scalaz/scalaz/ Scalaz 8]] and the type has
+  * been extracted from [[http://typelevel.org/cats/ Cats]].
   */
-trait MonoidK[F[_]] extends SemigroupK[F] {
-  /**
-    * Given a type A, create an "empty" F[A] value.
-    */
+trait MonoidK[F[_]] extends Serializable {
+  def semigroupK: SemigroupK[F]
+
+  /** Given a type A, create an "empty" F[A] value. */
   def empty[A]: F[A]
 }
 
 object MonoidK {
   @inline def apply[F[_]](implicit F: MonoidK[F]): MonoidK[F] = F
 }
+
+/** The `MonoidKClass` provides the means to combine
+  * [[MonoidK]] instances with other type-classes.
+  * 
+  * To be inherited by `MonoidK` instances.
+  */
+trait MonoidKClass[F[_]] extends MonoidK[F] with SemigroupKClass[F] {
+  final def monoidK: MonoidK[F] = this
+}
+

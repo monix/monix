@@ -17,9 +17,8 @@
 
 package monix.eval
 
+import monix.types._
 import monix.eval.Coeval._
-import monix.types.Evaluable
-import monix.types.Bimonad
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.collection.generic.CanBuildFrom
@@ -671,7 +670,10 @@ object Coeval {
   implicit val typeClassInstances: TypeClassInstances = new TypeClassInstances
 
   /** Groups the implementation for the type-classes defined in [[monix.types]]. */
-  class TypeClassInstances extends Evaluable[Coeval] with Bimonad[Coeval] {
+  class TypeClassInstances extends SuspendableClass[Coeval]
+    with MemoizableClass[Coeval] with RecoverableClass[Coeval,Throwable]
+    with ComonadClass[Coeval] with MonadRecClass[Coeval] {
+
     override def pure[A](a: A): Coeval[A] = Coeval.now(a)
     override def suspend[A](fa: => Coeval[A]): Coeval[A] = Coeval.defer(fa)
     override def evalOnce[A](a: => A): Coeval[A] = Coeval.evalOnce(a)
@@ -694,14 +696,13 @@ object Coeval {
       fa.map(f)
     override def raiseError[A](e: Throwable): Coeval[A] =
       Coeval.raiseError(e)
-    override def handleError[A](fa: Coeval[A])(f: (Throwable) => A): Coeval[A] =
+    override def onErrorHandle[A](fa: Coeval[A])(f: (Throwable) => A): Coeval[A] =
       fa.onErrorHandle(f)
-    override def handleErrorWith[A](fa: Coeval[A])(f: (Throwable) => Coeval[A]): Coeval[A] =
+    override def onErrorHandleWith[A](fa: Coeval[A])(f: (Throwable) => Coeval[A]): Coeval[A] =
       fa.onErrorHandleWith(f)
-    override def recover[A](fa: Coeval[A])(pf: PartialFunction[Throwable, A]): Coeval[A] =
+    override def onErrorRecover[A](fa: Coeval[A])(pf: PartialFunction[Throwable, A]): Coeval[A] =
       fa.onErrorRecover(pf)
-    override def recoverWith[A](fa: Coeval[A])(pf: PartialFunction[Throwable, Coeval[A]]): Coeval[A] =
+    override def onErrorRecoverWith[A](fa: Coeval[A])(pf: PartialFunction[Throwable, Coeval[A]]): Coeval[A] =
       fa.onErrorRecoverWith(pf)
   }
 }
-
