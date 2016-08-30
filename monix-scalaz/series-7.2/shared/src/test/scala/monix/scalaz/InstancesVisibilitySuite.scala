@@ -20,19 +20,14 @@ package monix.scalaz
 import minitest.SimpleTestSuite
 import monix.eval.{Coeval, Task}
 import monix.reactive.Observable
-import monix.types._
 
 object InstancesVisibilitySuite extends SimpleTestSuite {
   test("Functor instance is visible") {
-    implicit val monixInstance: Functor[Task] = Task.typeClassInstances
-
     val scalazFunctor = implicitly[_root_.scalaz.Functor[Task]]
     assert(scalazFunctor != null)
   }
 
   test("Applicative instance is visible") {
-    implicit val monixInstance: Applicative[Task] = Task.typeClassInstances
-
     val scalazFunctor = implicitly[_root_.scalaz.Functor[Task]]
     assert(scalazFunctor != null)
     val scalazApplicative = implicitly[_root_.scalaz.Applicative[Task]]
@@ -40,8 +35,6 @@ object InstancesVisibilitySuite extends SimpleTestSuite {
   }
 
   test("Monad instance is visible") {
-    implicit val monixInstance: Monad[Task] = Task.typeClassInstances
-
     val scalazFunctor = implicitly[_root_.scalaz.Functor[Task]]
     assert(scalazFunctor != null)
     val scalazApplicative = implicitly[_root_.scalaz.Applicative[Task]]
@@ -51,8 +44,6 @@ object InstancesVisibilitySuite extends SimpleTestSuite {
   }
 
   test("MonadError instance is visible") {
-    implicit val monixInstance: MonadError[Task,Throwable] = Task.typeClassInstances
-
     val scalazFunctor = implicitly[_root_.scalaz.Functor[Task]]
     assert(scalazFunctor != null)
     val scalazApplicative = implicitly[_root_.scalaz.Applicative[Task]]
@@ -64,8 +55,6 @@ object InstancesVisibilitySuite extends SimpleTestSuite {
   }
 
   test("Cobind instance is visible") {
-    implicit val monixInstance: CoflatMap[Task] = Task.typeClassInstances
-
     val scalazFunctor = implicitly[_root_.scalaz.Functor[Task]]
     assert(scalazFunctor != null)
     val scalazApplicative = implicitly[_root_.scalaz.Applicative[Task]]
@@ -79,8 +68,6 @@ object InstancesVisibilitySuite extends SimpleTestSuite {
   }
 
   test("Comonad instance is visible") {
-    implicit val monixInstance: Comonad[Coeval] = Coeval.typeClassInstances
-
     val scalazFunctor = implicitly[_root_.scalaz.Functor[Coeval]]
     assert(scalazFunctor != null)
     val scalazApplicative = implicitly[_root_.scalaz.Applicative[Coeval]]
@@ -96,8 +83,6 @@ object InstancesVisibilitySuite extends SimpleTestSuite {
   }
 
   test("MonadPlus instance is visible") {
-    implicit val monixInstance: MonadPlus[Observable] = Observable.typeClassInstances
-
     val scalazFunctor = implicitly[_root_.scalaz.Functor[Observable]]
     assert(scalazFunctor != null)
     val scalazApplicative = implicitly[_root_.scalaz.Applicative[Observable]]
@@ -115,8 +100,6 @@ object InstancesVisibilitySuite extends SimpleTestSuite {
   }
 
   test("Evaluable is convertible") {
-    implicit val monixInstance: Evaluable[Task] = Task.typeClassInstances
-
     val scalazFunctor = implicitly[_root_.scalaz.Functor[Task]]
     assert(scalazFunctor != null)
     val scalazApplicative = implicitly[_root_.scalaz.Applicative[Task]]

@@ -670,9 +670,12 @@ object Coeval {
   implicit val typeClassInstances: TypeClassInstances = new TypeClassInstances
 
   /** Groups the implementation for the type-classes defined in [[monix.types]]. */
-  class TypeClassInstances extends SuspendableClass[Coeval]
-    with MemoizableClass[Coeval] with RecoverableClass[Coeval,Throwable]
-    with ComonadClass[Coeval] with MonadRecClass[Coeval] {
+  class TypeClassInstances extends EvaluableClass[Coeval]
+    with SuspendableClass[Coeval]
+    with MemoizableClass[Coeval]
+    with RecoverableClass[Coeval,Throwable]
+    with ComonadClass[Coeval]
+    with MonadRecClass[Coeval] {
 
     override def pure[A](a: A): Coeval[A] = Coeval.now(a)
     override def suspend[A](fa: => Coeval[A]): Coeval[A] = Coeval.defer(fa)

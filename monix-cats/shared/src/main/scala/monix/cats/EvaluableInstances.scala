@@ -17,50 +17,67 @@
 
 package monix.cats
 
-import cats.{CoflatMap, Group, MonadError, Monoid, Semigroup}
-import monix.types.Evaluable
+import cats.{Group, Monoid, Semigroup}
+import monix.types._
 
 /** Converts Monix's [[monix.types.Evaluable Evaluable]]
   * instances into Cats type-classes.
   */
 trait EvaluableInstances extends EvaluableInstances2 {
   implicit def monixEvaluableToCats[F[_]]
-    (implicit ev: Evaluable[F]): MonadError[F,Throwable] with CoflatMap[F] =
-    new ConvertMonixEvaluableToCats[F] { override val F = ev }
+    (implicit ev: Evaluable[F]): _root_.cats.Monad[F] with _root_.cats.CoflatMap[F] =
+    new ConvertMonixEvaluableToCats[F] {
+      override val monadRec: MonadRec[F] =
+        ev.monadRec
+      override val applicative: Applicative[F] =
+        ev.monadRec.monad.applicative
+      override val monad: Monad[F] =
+        ev.monadRec.monad
+      override val functor: Functor[F] =
+        ev.monadRec.monad.applicative.functor
+      override val coflatMap: CoflatMap[F] =
+        ev.coflatMap
+    }
 
   private[cats] trait ConvertMonixEvaluableToCats[F[_]]
-    extends ConvertMonixMonadErrorToCats[F,Throwable]
-      with ConvertMonixCoflatMapToCats[F]
-      with ConvertTailRecMonixMonadToCats[F] {
-
-    override val F: Evaluable[F]
-  }
+    extends ConvertMonixCoflatMapToCats[F]
+      with ConvertMonixMonadRecToCats[F]
 }
 
 private[cats] trait EvaluableInstances2 extends EvaluableInstances1 {
   implicit def monixEvaluableGroup[F[_], A](implicit F: Evaluable[F], A: Group[A]): Group[F[A]] =
     new Group[F[A]] {
-      def empty: F[A] = F.pure(A.empty)
+      private[this] val ap =
+        F.monadRec.monad.applicative
+      def empty: F[A] =
+        ap.pure(A.empty)
       def combine(x: F[A], y: F[A]): F[A] =
-        F.flatMap(x)(a => F.map(y)(b => A.combine(a,b)))
+        ap.map2(x,y)(A.combine)
       def inverse(a: F[A]): F[A] =
-        F.map(a)(A.inverse)
+        ap.functor.map(a)(A.inverse)
     }
 }
 
 private[cats] trait EvaluableInstances1 extends EvaluableInstances0 {
-  implicit def monixEvaluableMonoid[F[_], A](implicit F: Evaluable[F], A: Monoid[A]): Monoid[F[A]] =
+  implicit def monixEvaluableMonoid[F[_], A]
+    (implicit F: Evaluable[F], A: Monoid[A]): Monoid[F[A]] =
     new Monoid[F[A]] {
-      def empty: F[A] = F.pure(A.empty)
+      private[this] val ap =
+        F.monadRec.monad.applicative
+      def empty: F[A] =
+        ap.pure(A.empty)
       def combine(x: F[A], y: F[A]): F[A] =
-        F.map2(x,y)(A.combine)
+        ap.map2(x,y)(A.combine)
     }
 }
 
 private[cats] trait EvaluableInstances0 extends ShimsInstances {
-  implicit def monixEvaluableSemigroup[F[_], A](implicit F: Evaluable[F], A: Semigroup[A]): Semigroup[F[A]] =
+  implicit def monixEvaluableSemigroup[F[_], A]
+    (implicit F: Evaluable[F], A: Semigroup[A]): Semigroup[F[A]] =
     new Semigroup[F[A]] {
+      private[this] val ap =
+        F.monadRec.monad.applicative
       def combine(x: F[A], y: F[A]): F[A] =
-        F.map2(x,y)(A.combine)
+        ap.map2(x,y)(A.combine)
     }
 }

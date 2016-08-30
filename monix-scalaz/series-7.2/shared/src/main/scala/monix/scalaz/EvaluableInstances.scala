@@ -17,39 +17,51 @@
 
 package monix.scalaz
 
-import monix.types.Evaluable
-import scalaz.{Cobind, MonadError, Monoid, Semigroup}
+import monix.types._
+import scalaz.{Monoid, Semigroup}
 
 /** Converts Monix's [[monix.types.Evaluable Evaluable]]
   * instances into Scalaz type-classes.
   */
 trait EvaluableInstances extends EvaluableInstances1 {
   implicit def monixEvaluableToScalaz[F[_]]
-    (implicit ev: Evaluable[F]): MonadError[F,Throwable] with Cobind[F] =
-    new ConvertMonixEvaluableToScalaz[F] { override val F = ev }
+    (implicit ev: Evaluable[F]): _root_.scalaz.Monad[F] with _root_.scalaz.Cobind[F] =
+    new ConvertMonixEvaluableToScalaz[F] {
+      override val monadRec: MonadRec[F] =
+        ev.monadRec
+      override val applicative: Applicative[F] =
+        ev.monadRec.monad.applicative
+      override val monad: Monad[F] =
+        ev.monadRec.monad
+      override val functor: Functor[F] =
+        ev.monadRec.monad.applicative.functor
+      override val coflatMap: CoflatMap[F] =
+        ev.coflatMap
+    }
 
   private[scalaz] trait ConvertMonixEvaluableToScalaz[F[_]]
-    extends ConvertMonixMonadErrorToScalaz[F,Throwable]
+    extends ConvertMonixMonadToScalaz[F]
       with ConvertMonixCoflatMapToScalaz[F]
-      with ConvertMonixTailRecMonadToScalaz[F] {
-
-    override val F: Evaluable[F]
-  }
+      with ConvertMonixTailRecMonadToScalaz[F]
 }
 
 private[scalaz] trait EvaluableInstances1 extends EvaluableInstances0 {
   implicit def monixEvaluableMonoid[F[_], A](implicit F: Evaluable[F], A: Monoid[A]): Monoid[F[A]] =
     new Monoid[F[A]] {
-      def zero: F[A] = F.pure(A.zero)
+      private[this] val ap =
+        F.monadRec.monad.applicative
+      def zero: F[A] = ap.pure(A.zero)
       def append(f1: F[A], f2: => F[A]): F[A] =
-        F.map2(f1,f2)((a,b) => A.append(a,b))
+        ap.map2(f1,f2)((a,b) => A.append(a,b))
     }
 }
 
 private[scalaz] trait EvaluableInstances0 extends ShimsInstances {
   implicit def monixEvaluableSemigroup[F[_], A](implicit F: Evaluable[F], A: Semigroup[A]): Semigroup[F[A]] =
     new Semigroup[F[A]] {
+      private[this] val ap =
+        F.monadRec.monad.applicative
       def append(f1: F[A], f2: => F[A]): F[A] =
-        F.map2(f1,f2)((a,b) => A.append(a,b))
+        ap.map2(f1,f2)((a,b) => A.append(a,b))
     }
 }
