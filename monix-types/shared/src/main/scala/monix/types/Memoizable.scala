@@ -27,26 +27,42 @@ package monix.types
   * to be reused on subsequent evaluations.
   */
 trait Memoizable[F[_]] extends Serializable {
-  def suspendable: Suspendable[F]
+  def suspendable: Deferrable[F]
 
   def memoize[A](fa: F[A]): F[A]
   def evalOnce[A](a: => A): F[A] =
     memoize(suspendable.eval(a))
 }
 
-object Memoizable {
+object Memoizable extends MemoizableSyntax {
   @inline def apply[F[_]](implicit F: Memoizable[F]): Memoizable[F] = F
 }
 
 /** The `MemoizableClass` provides the means to combine
   * [[Memoizable]] instances with other type-classes.
-  * 
+  *
   * To be inherited by `Memoizable` instances.
   */
 trait MemoizableClass[F[_]] extends Memoizable[F]
-  with SuspendableClass[F] {
+  with DeferrableClass[F] {
 
   final def memoizable: Memoizable[F] = this
+}
+
+/** Provides syntax for [[Memoizable]]. */
+trait MemoizableSyntax extends Serializable {
+  implicit final def memoizableOps[F[_], A](fa: F[A])
+    (implicit F: Memoizable[F]): MemoizableSyntax.Ops[F, A] =
+    new MemoizableSyntax.Ops(fa)
+}
+
+object MemoizableSyntax {
+  final class Ops[F[_], A](self: F[A])(implicit F: Memoizable[F])
+    extends Serializable {
+
+    /** Extension method for [[Memoizable.memoize]]. */
+    def memoize: F[A] = F.memoize(self)
+  }
 }
 
 

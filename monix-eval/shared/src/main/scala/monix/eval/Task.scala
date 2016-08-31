@@ -1584,14 +1584,14 @@ private[eval] trait TaskInstances {
 
   /** Groups the implementation for the type-classes defined in [[monix.types]]. */
   class TypeClassInstances
-    extends SuspendableClass[Task]
+    extends DeferrableClass[Task]
     with MemoizableClass[Task]
     with RecoverableClass[Task,Throwable]
     with CoflatMapClass[Task]
     with MonadRecClass[Task] {
 
     override def pure[A](a: A): Task[A] = Task.now(a)
-    override def suspend[A](fa: => Task[A]): Task[A] = Task.defer(fa)
+    override def defer[A](fa: => Task[A]): Task[A] = Task.defer(fa)
     override def evalOnce[A](a: => A): Task[A] = Task.evalOnce(a)
     override def eval[A](a: => A): Task[A] = Task.eval(a)
     override def memoize[A](fa: Task[A]): Task[A] = fa.memoize

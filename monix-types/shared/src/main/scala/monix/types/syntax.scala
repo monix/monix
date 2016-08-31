@@ -15,32 +15,28 @@
  * limitations under the License.
  */
 
-package monix
+package monix.types
 
-/** Package exposing the Monix integration with the Scalaz library.
+/** Groups all syntax extensions. */
+trait AllSyntax extends ApplicativeSyntax
+  with CoflatMapSyntax
+  with ComonadSyntax
+  with FunctorSyntax
+  with MonadSyntax
+  with MonadFilterSyntax
+  with RecoverableSyntax
+  with MemoizableSyntax
+
+/** Provides syntax (extension methods) for usage of [[monix.types]]
+  * instances.
   *
-  * See the library's documentation at
-  * [[http://www.scalaz.org/ scalaz.org]].
-  *
-  * To convert Monix type-class instances into Scalaz types:
-  *
-  * {{{
-  *   import monix.scalaz._
-  * }}}
-  *
-  * To convert Scalaz type-class instances into Monix types:
-  *
-  * {{{
-  *   import monix.scalaz.reverse._
-  * }}}
-  *
-  * Do not bring these imports into the same scope as you
-  * can experience conflicts if you do:
+  * Usage:
   *
   * {{{
-  *   // Do not do this!
-  *   import monix.scalaz._
-  *   import monix.scalaz.reverse._
+  *   import monix.types.syntax._
   * }}}
+  *
+  * Do not combine with Cats or Scalaz syntax in
+  * the same context.
   */
-package object scalaz extends MonixToScalazConversions
+object syntax extends AllSyntax

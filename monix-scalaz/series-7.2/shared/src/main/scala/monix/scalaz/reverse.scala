@@ -15,32 +15,25 @@
  * limitations under the License.
  */
 
-package monix
+package monix.scalaz
 
-/** Package exposing the Monix integration with the Scalaz library.
+/** Defines conversions from [[http://scalaz.org/ Scalaz]]
+  * type-class instances to the Monix type-classes defined in
+  * [[monix.types]].
   *
-  * See the library's documentation at
-  * [[http://www.scalaz.org/ scalaz.org]].
-  *
-  * To convert Monix type-class instances into Scalaz types:
-  *
-  * {{{
-  *   import monix.scalaz._
-  * }}}
-  *
-  * To convert Scalaz type-class instances into Monix types:
+  * To use:
   *
   * {{{
   *   import monix.scalaz.reverse._
   * }}}
   *
-  * Do not bring these imports into the same scope as you
-  * can experience conflicts if you do:
+  * Note that importing both this and the Monix to Scalaz
+  * conversions in the same scope can create conflicts:
   *
   * {{{
-  *   // Do not do this!
+  *   // Don't do this!
   *   import monix.scalaz._
   *   import monix.scalaz.reverse._
   * }}}
   */
-package object scalaz extends MonixToScalazConversions
+object reverse extends ScalazToMonixConversions

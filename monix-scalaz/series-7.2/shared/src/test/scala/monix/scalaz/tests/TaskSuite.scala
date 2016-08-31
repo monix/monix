@@ -15,16 +15,16 @@
  * limitations under the License.
  */
 
-package monix.scalaz
+package monix.scalaz.tests
 
+import scalaz.Scalaz._
 import minitest.SimpleTestSuite
+import monix.scalaz._
 import monix.eval.Task
 import monix.eval.Task.nondeterminism
 import monix.execution.schedulers.TestScheduler
-import scalaz._
-import Scalaz._
-import scala.util.Success
 import scala.concurrent.duration._
+import scala.util.Success
 
 object TaskSuite extends SimpleTestSuite {
   test("tasks should execute in parallel") {

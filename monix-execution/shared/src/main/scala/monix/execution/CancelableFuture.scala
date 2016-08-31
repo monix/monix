@@ -52,6 +52,14 @@ trait CancelableFuture[+T] extends Future[T] with Cancelable {
     CancelableFuture(super.mapTo(tag), this)
   override def andThen[U](pf: PartialFunction[Try[T], U])(implicit executor: ExecutionContext): CancelableFuture[T] =
     CancelableFuture(super.andThen(pf), this)
+
+  // Needed for Scala 2.12 compatibility
+  def transform[S](f: Try[T] => Try[S])(implicit executor: ExecutionContext): CancelableFuture[S] =
+    CancelableFuture(FutureUtils.transform(this, f), this)
+
+  // Needed for Scala 2.12 compatibility
+  def transformWith[S](f: Try[T] => Future[S])(implicit executor: ExecutionContext): CancelableFuture[S] =
+    CancelableFuture(FutureUtils.transformWith(this, f), this)
 }
 
 object CancelableFuture {
@@ -177,5 +185,15 @@ object CancelableFuture {
       new Implementation(underlying.mapTo[S], cancelable)
     override def andThen[U](pf: PartialFunction[Try[T], U])(implicit executor: ExecutionContext): CancelableFuture[T] =
       new Implementation(underlying.andThen(pf), cancelable)
+
+    // Needed for Scala 2.12 compatibility
+    override def transform[S](f: Try[T] => Try[S])
+      (implicit executor: ExecutionContext): CancelableFuture[S] =
+      new Implementation[S](FutureUtils.transform(underlying, f), cancelable)
+
+    // Needed for Scala 2.12 compatibility
+    override def transformWith[S](f: Try[T] => Future[S])
+      (implicit executor: ExecutionContext): CancelableFuture[S] =
+      new Implementation[S](FutureUtils.transformWith(underlying, f), cancelable)
   }
 }

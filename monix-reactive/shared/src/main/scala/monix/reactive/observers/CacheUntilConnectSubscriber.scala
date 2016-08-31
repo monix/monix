@@ -20,8 +20,10 @@ package monix.reactive.observers
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.{Ack, CancelableFuture}
 import monix.reactive.Observable
+
 import scala.collection.mutable
 import scala.concurrent.{Future, Promise}
+import scala.util.{Failure, Success}
 
 /** Wraps an `underlying` [[Subscriber]] into an implementation that caches
   * all events until the call to `connect()` happens. After being connected,
@@ -74,8 +76,8 @@ final class CacheUntilConnectSubscriber[-T] private (downstream: Subscriber[T])
         implicit val scheduler = downstream.scheduler
         private[this] var ack: Future[Ack] = Continue
 
-        bufferWasDrained.future.onSuccess {
-          case Continue =>
+        bufferWasDrained.future.onComplete {
+          case Success(Continue) =>
             connectedPromise.success(Continue)
             isConnected = true
             // GC relief
@@ -85,7 +87,7 @@ final class CacheUntilConnectSubscriber[-T] private (downstream: Subscriber[T])
             // matters for GC relief purposes
             connectionRef = CancelableFuture.successful(Continue)
 
-          case Stop =>
+          case Success(Stop) =>
             wasCanceled = true
             connectedPromise.success(Stop)
             isConnected = true
@@ -95,6 +97,17 @@ final class CacheUntilConnectSubscriber[-T] private (downstream: Subscriber[T])
             // This might be a race condition problem, but it only
             // matters for GC relief purposes
             connectionRef = CancelableFuture.successful(Stop)
+
+          case Failure(ex) =>
+            wasCanceled = true
+            connectedPromise.failure(ex)
+            isConnected = true
+            // GC relief
+            queue = null
+            connectedPromise = null
+            // This might be a race condition problem, but it only
+            // matters for GC relief purposes
+            connectionRef = CancelableFuture.failed(ex)
         }
 
         def onNext(elem: T): Future[Ack] = {

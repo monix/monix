@@ -15,7 +15,14 @@
  * limitations under the License.
  */
 
-package monix.scalaz
+package monix.execution.misc
 
-/** Groups all instances in a single trait. */
-trait AllInstances extends EvaluableInstances
+private[execution] object compat {
+  type Context = scala.reflect.macros.whitebox.Context
+
+  def freshTermName[C <: Context](c: C)(s: String) =
+    c.universe.TermName(c.freshName(s))
+
+  def setOrig[C <: Context](c: C)(tt: c.universe.TypeTree, t: c.Tree) =
+    c.universe.internal.setOriginal(tt, t)
+}

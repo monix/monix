@@ -35,7 +35,7 @@ trait Functor[F[_]] extends Serializable {
   def map[A, B](fa: F[A])(f: A => B): F[B]
 }
 
-object Functor {
+object Functor extends FunctorSyntax {
   @inline def apply[F[_]](implicit F: Functor[F]): Functor[F] = F
 }
 
@@ -46,4 +46,20 @@ object Functor {
   */
 trait FunctorClass[F[_]] extends Functor[F] {
   final def functor: Functor[F] = this
+}
+
+/** Provides syntax for [[Functor]]. */
+trait FunctorSyntax extends Serializable {
+  implicit final def functorOps[F[_], A](fa: F[A])
+    (implicit F: Functor[F]): FunctorSyntax.Ops[F, A] =
+    new FunctorSyntax.Ops(fa)
+}
+
+object FunctorSyntax {
+  final class Ops[F[_], A](self: F[A])(implicit F: Functor[F])
+    extends Serializable {
+
+    /** Extension method for [[Functor.map]]. */
+    def map[B](f: A => B): F[B] = F.map(self)(f)
+  }
 }

@@ -42,7 +42,7 @@ trait MonadFilter[F[_]] extends Serializable {
   def filter[A](fa: F[A])(f: A => Boolean): F[A]
 }
 
-object MonadFilter {
+object MonadFilter extends MonadFilterSyntax {
   @inline def apply[F[_]](implicit F: MonadFilter[F]): MonadFilter[F] = F
 }
 
@@ -54,3 +54,20 @@ object MonadFilter {
 trait MonadFilterClass[F[_]] extends MonadFilter[F] with MonadClass[F] {
   final def monadFilter: MonadFilter[F] = this
 }
+
+/** Provides syntax for [[MonadFilter]]. */
+trait MonadFilterSyntax extends Serializable {
+  implicit final def monadFilterOps[F[_], A](fa: F[A])
+    (implicit F: MonadFilter[F]): MonadFilterSyntax.Ops[F, A] =
+    new MonadFilterSyntax.Ops(fa)
+}
+
+object MonadFilterSyntax {
+  final class Ops[F[_], A](self: F[A])(implicit F: MonadFilter[F])
+    extends Serializable {
+
+    /** Extension method for [[MonadFilter.filter]]. */
+    def filter(f: A => Boolean): F[A] = F.filter(self)(f)
+  }
+}
+

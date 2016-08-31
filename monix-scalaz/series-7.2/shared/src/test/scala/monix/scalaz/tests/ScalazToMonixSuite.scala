@@ -15,57 +15,58 @@
  * limitations under the License.
  */
 
-package monix.cats.tests
+package monix.scalaz.tests
 
-import cats.Eval
 import minitest.SimpleTestSuite
 import monix.types._
-import monix.cats.reverse._
 import monix.types.syntax._
-import scala.util.Try
+import monix.scalaz.reverse._
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
+import scalaz.Need
 
-object CatsToMonixSuite extends SimpleTestSuite with cats.instances.AllInstances {
+object ScalazToMonixSuite extends SimpleTestSuite with scalaz.std.AllInstances {
   test("functor") {
     def test[F[_]](x: F[Int])(implicit F: Functor[F]): F[Int] =
       x.map(_ + 1)
 
-    assertEquals(test(Eval.always(1)).value, 2)
+    assertEquals(test(Need(1)).extract, 2)
   }
 
   test("applicative") {
     def test[F[_]](x: F[Int => Int])(implicit F: Applicative[F]): F[Int] =
       x.ap(F.pure(1))
 
-    assertEquals(test(Eval.always((x: Int) => x + 1)).value, 2)
+    assertEquals(test(Need((x: Int) => x + 1)).extract, 2)
   }
 
   test("recoverable") {
     def test[F[_]](x: F[Int])(implicit F: Recoverable[F,Throwable]): F[Int] =
       x.onErrorHandle(_ => 2)
 
-    val ref = Try[Int](throw new RuntimeException)
-    assertEquals(test(ref).get, 2)
+    val ref = Future[Int](throw new RuntimeException)
+    for (result <- test(ref)) yield assertEquals(result, 2)
   }
 
   test("monad") {
     def test[F[_]](x: F[Int])(implicit M: Monad[F], A: Applicative[F]): F[Int] =
       x.flatMap(r => A.pure(r + 1))
 
-    assertEquals(test(Eval.always(1)).value, 2)
+    assertEquals(test(Need(1)).extract, 2)
   }
 
   test("coflatMap") {
     def test[F[_]](x: F[Int])(implicit F: CoflatMap[F]): F[Int] =
       x.coflatMap(_ => 2)
 
-    assertEquals(test(Eval.always(1)).value, 2)
+    assertEquals(test(Need(1)).extract, 2)
   }
 
   test("comonad") {
     def test[F[_]](x: F[Int])(implicit F: Comonad[F]): Int =
       x.extract
 
-    assertEquals(test(Eval.always(1)), 1)
+    assertEquals(test(Need(1)), 1)
   }
 
   test("monadFilter") {

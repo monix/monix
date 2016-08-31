@@ -21,9 +21,8 @@ import java.lang.Thread.UncaughtExceptionHandler
 import java.util.concurrent.{Executors, ScheduledExecutorService}
 import monix.execution.UncaughtExceptionReporter._
 import monix.execution.{Scheduler, SchedulerCompanion, UncaughtExceptionReporter}
+import monix.execution.internal.ForkJoinPool
 import scala.concurrent.ExecutionContext
-import scala.concurrent.forkjoin.ForkJoinPool
-
 
 /** @define applyDesc The resulting [[Scheduler]] will piggyback on top of a Java
   *         `ScheduledExecutorService` for scheduling tasks for execution with
@@ -204,11 +203,11 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
         reporter.reportFailure(e)
     }
 
-    val pool = new scala.concurrent.forkjoin.ForkJoinPool(
+    val pool = ForkJoinPool(
       parallelism,
       ForkJoinPool.defaultForkJoinWorkerThreadFactory,
       exceptionHandler,
-      true // asyncMode
+      asyncMode = true
     )
 
     val context = ExecutionContext.fromExecutor(pool, reporter.reportFailure)

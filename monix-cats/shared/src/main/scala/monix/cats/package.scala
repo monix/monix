@@ -17,7 +17,7 @@
 
 package monix
 
-/** Package exposing integration with the Cats library.
+/** Package exposing the Monix integration with the Cats library.
   *
   * See the library's documentation at:
   * [[http://typelevel.org/cats/ typelevel.org/cats/]]

@@ -27,7 +27,7 @@ package monix.cats
   *   import monix.cats.reverse._
   * }}}
   *
-  * Note that doing importing both this and the Monix to Cats
+  * Note that importing both this and the Monix to Cats
   * conversions in the same scope can create conflicts:
   *
   * {{{

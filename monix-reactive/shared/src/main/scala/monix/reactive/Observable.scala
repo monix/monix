@@ -1430,13 +1430,13 @@ object Observable {
   implicit val typeClassInstances: TypeClassInstances = new TypeClassInstances
 
   /** Type-class instances for [[Observable]]. */
-  class TypeClassInstances extends SuspendableClass[Observable]
+  class TypeClassInstances extends DeferrableClass[Observable]
     with MemoizableClass[Observable] with RecoverableClass[Observable,Throwable]
     with MonadFilterClass[Observable] with MonoidKClass[Observable]
     with CoflatMapClass[Observable] {
 
     override def pure[A](a: A): Observable[A] = Observable.now(a)
-    override def suspend[A](fa: => Observable[A]): Observable[A] = Observable.suspend(fa)
+    override def defer[A](fa: => Observable[A]): Observable[A] = Observable.suspend(fa)
     override def eval[A](a: => A): Observable[A] = Observable.eval(a)
     override def evalOnce[A](a: => A): Observable[A] = Observable.evalOnce(a)
     override def memoize[A](fa: Observable[A]): Observable[A] = fa.cache

@@ -24,39 +24,39 @@ package monix.types
   * The `suspend` operation can be thought of as a factory
   * of `F[A]` instances, that will produce fresh instances,
   * along with possible side-effects, on each evaluation.
-  * 
+  *
   * The purpose of this type-class is to support the data-types in the
   * Monix library and it is considered a shim for a lawful type-class
   * to be supplied by libraries such as Cats or Scalaz or equivalent.
-  * 
-  * To implement it in instances, inherit from [[SuspendableClass]].
-  * 
+  *
+  * To implement it in instances, inherit from [[DeferrableClass]].
+  *
   * Credit should be given where it is due. The type-class encoding has
   * been copied from the Scado project and
   * [[https://github.com/scalaz/scalaz/ Scalaz 8]] and the type has
   * been inspired by [[http://typelevel.org/cats/ Cats]] and
   * [[https://github.com/functional-streams-for-scala/fs2 FS2]].
   */
-trait Suspendable[F[_]] extends Serializable {
+trait Deferrable[F[_]] extends Serializable {
   def applicative: Applicative[F]
 
-  def suspend[A](fa: => F[A]): F[A]
+  def defer[A](fa: => F[A]): F[A]
 
   def eval[A](a: => A): F[A] =
-    suspend(applicative.pure(a))
+    defer(applicative.pure(a))
 }
 
-object Suspendable {
-  @inline def apply[F[_]](implicit F: Suspendable[F]): Suspendable[F] = F
+object Deferrable {
+  @inline def apply[F[_]](implicit F: Deferrable[F]): Deferrable[F] = F
 }
 
-/** The `SuspendableClass` provides the means to combine
-  * [[Suspendable]] instances with other type-classes.
-  * 
-  * To be inherited by `Suspendable` instances.
+/** The `DeferrableClass` provides the means to combine
+  * [[Deferrable]] instances with other type-classes.
+  *
+  * To be inherited by `Deferrable` instances.
   */
-trait SuspendableClass[F[_]] extends Suspendable[F]
+trait DeferrableClass[F[_]] extends Deferrable[F]
   with ApplicativeClass[F] {
 
-  final def suspendable: Suspendable[F] = this
+  final def suspendable: Deferrable[F] = this
 }

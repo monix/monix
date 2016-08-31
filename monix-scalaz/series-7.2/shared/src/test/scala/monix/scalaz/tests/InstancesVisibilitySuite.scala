@@ -15,8 +15,9 @@
  * limitations under the License.
  */
 
-package monix.scalaz
+package monix.scalaz.tests
 
+import monix.scalaz._
 import minitest.SimpleTestSuite
 import monix.eval.{Coeval, Task}
 import monix.reactive.Observable
