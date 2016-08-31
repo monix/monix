@@ -4,6 +4,7 @@ sudo: false
 scala:
   - 2.11.8
   - 2.10.6
+  - 2.12.0-M5
 jdk:
   - oraclejdk8
 
@@ -18,6 +19,7 @@ notifications:
 env:
   global:
     - MAIN_SCALA_VERSION=2.11.8
+    - EXPERIMENTAL_SCALA_VERSION=2.12.0-M5
     - PUBLISHER_REFERENCE_GC_TIMEOUT_MILLIS=2000
 
 script:
