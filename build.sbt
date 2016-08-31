@@ -141,19 +141,6 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
   releasePublishArtifactsAction := PgpKeys.publishSigned.value,
   releaseCrossBuild := true,
 
-  releaseProcess := Seq[ReleaseStep](
-    checkSnapshotDependencies,
-    inquireVersions,
-    ReleaseStep(action = Command.process("so clean", _)),
-    ReleaseStep(action = Command.process("such test:compile", _)),
-    setReleaseVersion,
-    commitReleaseVersion,
-    tagRelease,
-    ReleaseStep(action = Command.process("very publishSigned", _)),
-    setNextVersion,
-    commitNextVersion,
-    pushChanges),
-
   publishTo := {
     val nexus = "https://oss.sonatype.org/"
     if (isSnapshot.value)
