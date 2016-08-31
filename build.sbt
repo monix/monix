@@ -1,14 +1,12 @@
 import com.typesafe.sbt.pgp.PgpKeys
 import sbtunidoc.Plugin.UnidocKeys._
 import sbtunidoc.Plugin.{ScalaUnidoc, unidocSettings => baseUnidocSettings}
-import ReleaseTransformations._
 
 // For getting Scoverage out of the generated POM
 import scala.xml.Elem
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 
-lazy val defaultScalaVersion = "2.11.8"
-lazy val defaultCrossScalaVersions =
+lazy val defaultCrossScala =
   Seq("2.10.6", "2.11.8", "2.12.0-M5")
 
 lazy val doNotPublishArtifact = Seq(
@@ -33,7 +31,7 @@ lazy val warnUnusedImport = Seq(
 
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
-  scalaVersion := defaultScalaVersion,
+  scalaVersion := "2.11.8",
 
   scalacOptions ++= Seq(
     // warnings
@@ -62,7 +60,7 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
       // generates code with the Java 6 class format
       Seq("-source", "1.6", "-target", "1.6")
     case _ =>
-      // For 2.12 we are targetting the Java 8 class format
+      // For 2.12 we are targeting the Java 8 class format
       Seq.empty
   }),
 
@@ -72,7 +70,7 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
       // generates code with the Java 6 class format
       Seq("-target:jvm-1.6")
     case _ =>
-      // For 2.12 we are targetting the Java 8 class format
+      // For 2.12 we are targeting the Java 8 class format
       Seq.empty
   }),
 
@@ -138,21 +136,8 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
   usePgpKeyHex("2673B174C4071B0E"),
 
   publishMavenStyle := true,
-  releasePublishArtifactsAction := PgpKeys.publishSigned.value,
   releaseCrossBuild := true,
-
-  releaseProcess := Seq[ReleaseStep](
-    checkSnapshotDependencies,
-    inquireVersions,
-    ReleaseStep(action = Command.process("so clean", _)),
-    ReleaseStep(action = Command.process("such test:compile", _)),
-    setReleaseVersion,
-    commitReleaseVersion,
-    tagRelease,
-    ReleaseStep(action = Command.process("very publishSigned", _)),
-    setNextVersion,
-    commitNextVersion,
-    pushChanges),
+  releasePublishArtifactsAction := PgpKeys.publishSigned.value,
 
   publishTo := {
     val nexus = "https://oss.sonatype.org/"
@@ -276,32 +261,38 @@ def profile: Project ⇒ Project = pr => cmdlineProfile match {
 }
 
 lazy val monix = project.in(file("."))
+  .enablePlugins(CrossPerProjectPlugin)
   .configure(profile)
-  .aggregate(monixJVM, monixJS, tckTests)
+  .aggregate(monixCoreJVM, monixCoreJS, tckTests, catsJVM, catsJS, scalaz72JVM, scalaz72JS)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
   .settings(unidocSettings)
 
-lazy val monixJVM = project.in(file("monix/jvm"))
+lazy val monixCoreJVM = project.in(file("monix/jvm"))
   .configure(profile)
   .dependsOn(typesJVM, executionJVM, evalJVM, reactiveJVM)
-  .aggregate(typesJVM, executionJVM, evalJVM, reactiveJVM, catsJVM, scalaz72JVM)
+  .aggregate(typesJVM, executionJVM, evalJVM, reactiveJVM)
   .settings(crossSettings)
-  .settings(name := "monix")
+  .settings(
+    name := "monix",
+    crossScalaVersions := defaultCrossScala
+  )
 
-lazy val monixJS = project.in(file("monix/js"))
+lazy val monixCoreJS = project.in(file("monix/js"))
   .configure(profile)
   .enablePlugins(ScalaJSPlugin)
   .dependsOn(typesJS, executionJS, evalJS, reactiveJS)
-  .aggregate(typesJS, executionJS, evalJS, reactiveJS, catsJS, scalaz72JS)
+  .aggregate(typesJS, executionJS, evalJS, reactiveJS)
   .settings(crossSettings)
   .settings(scalaJSSettings)
-  .settings(name := "monix")
+  .settings(
+    name := "monix",
+    crossScalaVersions := defaultCrossScala
+  )
 
 lazy val typesCommon = crossSettings ++ testSettings ++ Seq(
   name := "monix-types",
-  scalaVersion := defaultScalaVersion,
-  crossScalaVersions := defaultCrossScalaVersions
+  crossScalaVersions := defaultCrossScala
 )
 
 lazy val typesJVM = project.in(file("monix-types/jvm"))
@@ -316,8 +307,7 @@ lazy val typesJS = project.in(file("monix-types/js"))
 
 lazy val executionCommon = crossVersionSharedSources ++ Seq(
   name := "monix-execution",
-  scalaVersion := defaultScalaVersion,
-  crossScalaVersions := defaultCrossScalaVersions
+  crossScalaVersions := defaultCrossScala
 )
 
 lazy val executionJVM = project.in(file("monix-execution/jvm"))
@@ -340,8 +330,7 @@ lazy val executionJS = project.in(file("monix-execution/js"))
 lazy val evalCommon =
   crossSettings ++ testSettings ++ Seq(
     name := "monix-eval",
-    scalaVersion := defaultScalaVersion,
-    crossScalaVersions := defaultCrossScalaVersions
+    crossScalaVersions := defaultCrossScala
   )
 
 lazy val evalJVM = project.in(file("monix-eval/jvm"))
@@ -359,8 +348,7 @@ lazy val evalJS = project.in(file("monix-eval/js"))
 lazy val reactiveCommon =
   crossSettings ++ testSettings ++ Seq(
     name := "monix-reactive",
-    scalaVersion := defaultScalaVersion,
-    crossScalaVersions := defaultCrossScalaVersions
+    crossScalaVersions := defaultCrossScala
   )
 
 lazy val reactiveJVM = project.in(file("monix-reactive/jvm"))
@@ -378,8 +366,7 @@ lazy val reactiveJS = project.in(file("monix-reactive/js"))
 lazy val catsCommon =
   crossSettings ++ Seq(
     name := "monix-cats",
-    scalaVersion := defaultScalaVersion,
-    crossScalaVersions := Seq("2.11.8", "2.10.6"),
+    crossScalaVersions := Seq("2.10.6", "2.11.8"),
     testFrameworks := Seq(new TestFramework("minitest.runner.Framework")),
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-core" % "0.7.0",
@@ -404,8 +391,7 @@ lazy val catsJS = project.in(file("monix-cats/js"))
 lazy val scalaz72Common =
   crossSettings ++ testSettings ++ Seq(
     name := "monix-scalaz-72",
-    scalaVersion := defaultScalaVersion,
-    crossScalaVersions := defaultCrossScalaVersions,
+    crossScalaVersions := defaultCrossScala,
     libraryDependencies ++= Seq(
       "org.scalaz" %%% "scalaz-core" % "7.2.5",
       "org.scalaz" %%% "scalaz-scalacheck-binding" % "7.2.5" % "test"
@@ -427,12 +413,11 @@ lazy val scalaz72JS = project.in(file("monix-scalaz/series-7.2/js"))
 
 lazy val tckTests = project.in(file("tckTests"))
   .configure(profile)
-  .dependsOn(monixJVM)
+  .dependsOn(monixCoreJVM)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
   .settings(
-    scalaVersion := defaultScalaVersion,
-    crossScalaVersions := defaultCrossScalaVersions,
+    crossScalaVersions := defaultCrossScala,
     libraryDependencies ++= Seq(
       "org.reactivestreams" % "reactive-streams-tck" % "1.0.0" % "test",
       "org.scalatest" %% "scalatest" % "3.0.0" % "test"
@@ -440,13 +425,12 @@ lazy val tckTests = project.in(file("tckTests"))
 
 lazy val benchmarks = project.in(file("benchmarks"))
   .configure(profile)
-  .dependsOn(monixJVM)
+  .dependsOn(monixCoreJVM)
   .enablePlugins(JmhPlugin)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
   .settings(
-    scalaVersion := defaultScalaVersion,
-    crossScalaVersions := Seq("2.11.8", "2.10.6"),
+    crossScalaVersions := Seq("2.10.6", "2.11.8"),
     libraryDependencies ++= Seq(
       "org.monifu" %% "monifu" % "1.2",
       "org.scalaz" %% "scalaz-concurrent" % "7.2.5",
