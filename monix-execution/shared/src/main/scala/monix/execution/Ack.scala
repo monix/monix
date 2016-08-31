@@ -41,6 +41,19 @@ object Ack {
     final def ready(atMost: Duration)(implicit permit: CanAwait) = self
     final def result(atMost: Duration)(implicit permit: CanAwait) = Continue
 
+    // For Scala 2.12 compatibility
+    def transform[S](f: scala.util.Try[Continue] => scala.util.Try[S])
+      (implicit executor: scala.concurrent.ExecutionContext): scala.concurrent.Future[S] =
+      self.flatMap { r => f(Success(r)) match {
+        case Success(v) => Future.successful(v)
+        case Failure(ex) => Future.failed(ex)
+      }}
+
+    // For Scala 2.12 compatibility
+    def transformWith[S](f: scala.util.Try[Continue] => scala.concurrent.Future[S])
+      (implicit executor: scala.concurrent.ExecutionContext): scala.concurrent.Future[S] =
+      self.flatMap { r => f(Success(r)) }
+
     final def onComplete[U](func: Try[Continue] => U)(implicit executor: ExecutionContext): Unit =
       executor.execute(new Runnable {
         def run(): Unit = func(AsSuccess)
@@ -59,6 +72,17 @@ object Ack {
 
     final def ready(atMost: Duration)(implicit permit: CanAwait) = self
     final def result(atMost: Duration)(implicit permit: CanAwait) = Stop
+
+    // For Scala 2.12 compatibility
+    def transform[S](f: Try[Stop] => Try[S])(implicit executor: ExecutionContext): Future[S] =
+      self.flatMap { r => f(Success(r)) match {
+        case Success(v) => Future.successful(v)
+        case Failure(ex) => Future.failed(ex)
+      }}
+
+    // For Scala 2.12 compatibility
+    def transformWith[S](f: Try[Stop] => Future[S])(implicit executor: ExecutionContext): Future[S] =
+      self.flatMap { r => f(Success(r)) }
 
     final def onComplete[U](func: Try[Stop] => U)(implicit executor: ExecutionContext): Unit =
       executor.execute(new Runnable {

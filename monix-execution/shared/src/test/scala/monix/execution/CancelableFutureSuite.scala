@@ -18,7 +18,9 @@
 package monix.execution
 
 import minitest.TestSuite
+import monix.execution.misc.InlineMacrosTest.DummyException
 import monix.execution.schedulers.TestScheduler
+
 import scala.concurrent.duration._
 import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success}
@@ -340,6 +342,70 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
 
   test("now.map.andThen") { implicit s =>
     val f = CancelableFuture.successful(1).map(_+1).andThen { case Success(x) => x+1 }
+    s.tick()
+    assertEquals(f.value, Some(Success(2)))
+  }
+
+  test("now.transform") { implicit s =>
+    val f = CancelableFuture.successful(1).transform {
+      case Success(value) => Success(value + 1)
+      case error @ Failure(_) => error
+    }
+
+    s.tick()
+    assertEquals(f.value, Some(Success(2)))
+  }
+
+  test("now.transformWith") { implicit s =>
+    val f = CancelableFuture.successful(1).transformWith {
+      case Success(value) => Future.successful(value + 1)
+      case Failure(ex) => Future.failed(ex)
+    }
+
+    s.tick()
+    assertEquals(f.value, Some(Success(2)))
+  }
+
+  test("error.transform") { implicit s =>
+    val ex = DummyException("dummy")
+    val f = CancelableFuture.failed[Int](ex).transform {
+      case Failure(`ex`) => Success(10)
+      case other @ Failure(_) => other
+      case Success(value) => Success(value + 1)
+    }
+
+    s.tick()
+    assertEquals(f.value, Some(Success(10)))
+  }
+
+  test("error.transformWith") { implicit s =>
+    val ex = DummyException("dummy")
+    val f = CancelableFuture.failed[Int](ex).transformWith {
+      case Failure(`ex`) => Future.successful(10)
+      case Failure(other) => Future.failed(other)
+      case Success(value) => Future.successful(value + 1)
+    }
+
+    s.tick()
+    assertEquals(f.value, Some(Success(10)))
+  }
+
+  test("async.transform") { implicit s =>
+    val f = CancelableFuture(Future(1), Cancelable.empty).transform {
+      case Success(value) => Success(value + 1)
+      case error @ Failure(_) => error
+    }
+
+    s.tick()
+    assertEquals(f.value, Some(Success(2)))
+  }
+
+  test("async.transformWith") { implicit s =>
+    val f = CancelableFuture(Future(1), Cancelable.empty).transformWith {
+      case Success(value) => Future.successful(value + 1)
+      case Failure(ex) => Future.failed(ex)
+    }
+
     s.tick()
     assertEquals(f.value, Some(Success(2)))
   }

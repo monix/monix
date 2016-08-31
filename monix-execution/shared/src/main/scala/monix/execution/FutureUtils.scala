@@ -21,6 +21,7 @@ import java.util.concurrent.TimeoutException
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
 /** Utilities for Scala's standard `concurrent.Future`. */
@@ -94,6 +95,34 @@ object FutureUtils {
     }
   }
 
+  /** Given a mapping functions that operates on successful results as well as
+    * errors, transforms the source by applying it.
+    *
+    * Similar to `Future.transform` from Scala 2.12.
+    */
+  def transform[T,S](source: Future[T], f: Try[T] => Try[S])(implicit ec: ExecutionContext): Future[S] = {
+    val p = Promise[S]()
+    source.onComplete(r => try p.complete(f(r)) catch {
+      case NonFatal(ex) =>
+        if (!p.tryFailure(ex)) ec.reportFailure(ex)
+    })
+    p.future
+  }
+
+  /** Given a mapping functions that operates on successful results
+    * as well as errors, transforms the source by applying it.
+    *
+    * Similar to `Future.transformWith` from Scala 2.12.
+    */
+  def transformWith[T,S](source: Future[T], f: Try[T] => Future[S])(implicit ec: ExecutionContext): Future[S] = {
+    val p = Promise[S]()
+    source.onComplete(r => try p.completeWith(f(r)) catch {
+      case NonFatal(ex) =>
+        if (!p.tryFailure(ex)) ec.reportFailure(ex)
+    })
+    p.future
+  }
+
   /** Utility that transforms a `Future[Try[T]]` into a `Future[T]`,
     * hiding errors, being the opposite of [[materialize]].
     */
@@ -146,6 +175,14 @@ object FutureUtils {
       /** [[FutureUtils.dematerialize]] exposed as an extension method. */
       def dematerialize[U](implicit ev: T <:< Try[U], ec: ExecutionContext): Future[U] =
         FutureUtils.dematerialize(source.asInstanceOf[Future[Try[U]]])
+
+      /** [[FutureUtils.transform]] exposed as an extension method. */
+      def transform[S](f: Try[T] => Try[S])(implicit ec: ExecutionContext): Future[S] =
+        FutureUtils.transform(source, f)
+
+      /** [[FutureUtils.transformWith]] exposed as an extension method. */
+      def transformWith[S](f: Try[T] => Future[S])(implicit ec: ExecutionContext): Future[S] =
+        FutureUtils.transformWith(source, f)
     }
 
     /** Provides utility methods for Scala's `concurrent.Future` companion object. */

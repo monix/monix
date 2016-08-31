@@ -17,18 +17,34 @@
 
 package monix.types
 
-/** A shim for a `SemigroupK` type-class, to be supplied by / translated to
-  * libraries such as Cats or Scalaz.
-  *
-  * `SemigroupK` is a universal semigroup which operates on kinds.
+/** `SemigroupK` is a universal semigroup which operates on kinds.
+  * 
+  * The purpose of this type-class is to support the data-types in the
+  * Monix library and it is considered a shim for a lawful type-class
+  * to be supplied by libraries such as Cats or Scalaz or equivalent.
+  * 
+  * To implement it in instances, inherit from [[SemigroupKClass]].
+  * 
+  * Credit should be given where it is due.The type-class encoding has
+  * been copied from the Scado project and
+  * [[https://github.com/scalaz/scalaz/ Scalaz 8]] and the type has
+  * been extracted from [[http://typelevel.org/cats/ Cats]].
   */
-trait SemigroupK[F[_]] extends Any with Serializable { self =>
-  /**
-    * Combine two F[A] values.
-    */
+trait SemigroupK[F[_]] extends Serializable { self =>
+  /** Combine two F[A] values. */
   def combineK[A](x: F[A], y: F[A]): F[A]
 }
 
 object SemigroupK {
   @inline def apply[F[_]](implicit F: SemigroupK[F]): SemigroupK[F] = F
 }
+
+/** The `SemigroupKClass` provides the means to combine [[SemigroupK]]
+  * instances with other type-classes.
+  * 
+  * To be inherited by `SemigroupK` instances.
+  */
+trait SemigroupKClass[F[_]] extends SemigroupK[F] {
+  final def semigroupK: SemigroupK[F] = this
+}
+

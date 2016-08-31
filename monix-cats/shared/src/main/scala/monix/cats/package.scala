@@ -17,8 +17,30 @@
 
 package monix
 
-/** Package exposing integration with the Cats library.
+/** Package exposing the Monix integration with the Cats library.
   *
-  * See: [[http://typelevel.org/cats/ typelevel.org/cats/]]
+  * See the library's documentation at:
+  * [[http://typelevel.org/cats/ typelevel.org/cats/]]
+  *
+  * To convert Monix type-class instances into Cats types:
+  *
+  * {{{
+  *   import monix.cats._
+  * }}}
+  *
+  * To convert Cats type-class instances into Monix types:
+  *
+  * {{{
+  *   import monix.cats.reverse._
+  * }}}
+  *
+  * Do not bring these imports into the same scope as you
+  * can experience conflicts if you do:
+  *
+  * {{{
+  *   // Do not do this!
+  *   import monix.cats._
+  *   import monix.cats.reverse._
+  * }}}
   */
-package object cats extends AllInstances
+package object cats extends MonixToCatsConversions

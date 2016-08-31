@@ -29,10 +29,9 @@ lazy val warnUnusedImport = Seq(
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
   scalaVersion := "2.11.8",
-  crossScalaVersions := Seq("2.11.8", "2.10.6"),
-  javacOptions ++= Seq("-source", "1.6", "-target", "1.6"),
+  crossScalaVersions := Seq("2.10.6", "2.11.8"),
+
   scalacOptions ++= Seq(
-    "-target:jvm-1.6", // generates code with the Java 6 class format
     // warnings
     "-unchecked", // able additional warnings where generated code depends on assumptions
     "-deprecation", // emit warning for usages of deprecated APIs
@@ -43,8 +42,7 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
     "-language:experimental.macros",
     // possibly deprecated options
     "-Ywarn-dead-code",
-    "-Ywarn-inaccessible",
-    "-Yinline-warnings"
+    "-Ywarn-inaccessible"
   ),
 
   // Force building with Java 8
@@ -53,6 +51,26 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
     val current  = sys.props("java.specification.version")
     assert(current == required, s"Unsupported build JDK: java.specification.version $current != $required")
   },
+
+  // Targeting Java 6, but only for Scala <= 2.11
+  javacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, majorVersion)) if majorVersion <= 11 =>
+      // generates code with the Java 6 class format
+      Seq("-source", "1.6", "-target", "1.6")
+    case _ =>
+      // For 2.12 we are targeting the Java 8 class format
+      Seq.empty
+  }),
+
+  // Targeting Java 6, but only for Scala <= 2.11
+  scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, majorVersion)) if majorVersion <= 11 =>
+      // generates code with the Java 6 class format
+      Seq("-target:jvm-1.6")
+    case _ =>
+      // For 2.12 we are targeting the Java 8 class format
+      Seq.empty
+  }),
 
   // version specific compiler options
   scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
@@ -116,8 +134,8 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
   usePgpKeyHex("2673B174C4071B0E"),
 
   publishMavenStyle := true,
-  releasePublishArtifactsAction := PgpKeys.publishSigned.value,
   releaseCrossBuild := true,
+  releasePublishArtifactsAction := PgpKeys.publishSigned.value,
 
   publishTo := {
     val nexus = "https://oss.sonatype.org/"
@@ -176,7 +194,8 @@ lazy val crossVersionSharedSources: Seq[Setting[_]] =
       (unmanagedSourceDirectories in sc).value.map { dir =>
         scalaPartV.value match {
           case Some((2, y)) if y == 10 => new File(dir.getPath + "_2.10")
-          case Some((2, y)) if y >= 11 => new File(dir.getPath + "_2.11+")
+          case Some((2, y)) if y == 11 => new File(dir.getPath + "_2.11")
+          case Some((2, y)) if y == 12 => new File(dir.getPath + "_2.12")
         }
       }
     }
@@ -222,7 +241,7 @@ lazy val unidocSettings = baseUnidocSettings ++ Seq(
 
 lazy val testSettings = Seq(
   testFrameworks := Seq(new TestFramework("minitest.runner.Framework")),
-  libraryDependencies += "io.monix" %%% "minitest-laws" % "0.21" % "test"
+  libraryDependencies += "io.monix" %%% "minitest-laws" % "0.23" % "test"
 )
 
 lazy val scalaJSSettings = Seq(
@@ -230,22 +249,33 @@ lazy val scalaJSSettings = Seq(
   coverageExcludedFiles := ".*"
 )
 
+lazy val cmdlineProfile =
+  sys.props.getOrElse("sbt.profile", default = "")
+
+def profile: Project ⇒ Project = pr => cmdlineProfile match {
+  case "coverage" => pr
+  case _ => pr.disablePlugins(scoverage.ScoverageSbtPlugin)
+}
+
 lazy val monix = project.in(file("."))
-  .aggregate(monixJVM, monixJS, tckTests)
+  .configure(profile)
+  .aggregate(coreJVM, coreJS, tckTests, catsJVM, catsJS, scalaz72JVM, scalaz72JS)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
   .settings(unidocSettings)
 
-lazy val monixJVM = project.in(file("monix/jvm"))
+lazy val coreJVM = project.in(file("monix/jvm"))
+  .configure(profile)
   .dependsOn(typesJVM, executionJVM, evalJVM, reactiveJVM)
-  .aggregate(typesJVM, executionJVM, evalJVM, reactiveJVM, catsJVM, scalaz72JVM)
+  .aggregate(typesJVM, executionJVM, evalJVM, reactiveJVM)
   .settings(crossSettings)
   .settings(name := "monix")
 
-lazy val monixJS = project.in(file("monix/js"))
+lazy val coreJS = project.in(file("monix/js"))
+  .configure(profile)
   .enablePlugins(ScalaJSPlugin)
   .dependsOn(typesJS, executionJS, evalJS, reactiveJS)
-  .aggregate(typesJS, executionJS, evalJS, reactiveJS, catsJS, scalaz72JS)
+  .aggregate(typesJS, executionJS, evalJS, reactiveJS)
   .settings(crossSettings)
   .settings(scalaJSSettings)
   .settings(name := "monix")
@@ -255,10 +285,12 @@ lazy val typesCommon = crossSettings ++ testSettings ++ Seq(
 )
 
 lazy val typesJVM = project.in(file("monix-types/jvm"))
+  .configure(profile)
   .settings(typesCommon)
 
 lazy val typesJS = project.in(file("monix-types/js"))
   .enablePlugins(ScalaJSPlugin)
+  .configure(profile)
   .settings(typesCommon)
   .settings(scalaJSSettings)
 
@@ -267,6 +299,7 @@ lazy val executionCommon = crossVersionSharedSources ++ Seq(
 )
 
 lazy val executionJVM = project.in(file("monix-execution/jvm"))
+  .configure(profile)
   .settings(crossSettings)
   .settings(testSettings)
   .settings(requiredMacroCompatDeps)
@@ -275,6 +308,7 @@ lazy val executionJVM = project.in(file("monix-execution/jvm"))
 
 lazy val executionJS = project.in(file("monix-execution/js"))
   .enablePlugins(ScalaJSPlugin)
+  .configure(profile)
   .settings(crossSettings)
   .settings(scalaJSSettings)
   .settings(testSettings)
@@ -282,48 +316,58 @@ lazy val executionJS = project.in(file("monix-execution/js"))
   .settings(executionCommon)
 
 lazy val evalCommon =
-  crossSettings ++ testSettings ++
-    Seq(name := "monix-eval")
+  crossSettings ++ testSettings ++ Seq(
+    name := "monix-eval"
+  )
 
 lazy val evalJVM = project.in(file("monix-eval/jvm"))
+  .configure(profile)
   .dependsOn(typesJVM, executionJVM)
   .settings(evalCommon)
 
 lazy val evalJS = project.in(file("monix-eval/js"))
   .enablePlugins(ScalaJSPlugin)
+  .configure(profile)
   .dependsOn(typesJS, executionJS)
   .settings(scalaJSSettings)
   .settings(evalCommon)
 
 lazy val reactiveCommon =
-  crossSettings ++ testSettings ++
-    Seq(name := "monix-reactive")
+  crossSettings ++ testSettings ++ Seq(
+    name := "monix-reactive"
+  )
 
 lazy val reactiveJVM = project.in(file("monix-reactive/jvm"))
+  .configure(profile)
   .dependsOn(typesJVM, executionJVM, evalJVM)
   .settings(reactiveCommon)
 
 lazy val reactiveJS = project.in(file("monix-reactive/js"))
   .enablePlugins(ScalaJSPlugin)
+  .configure(profile)
   .dependsOn(typesJS, executionJS, evalJS)
   .settings(reactiveCommon)
   .settings(scalaJSSettings)
 
 lazy val catsCommon =
-  crossSettings ++ testSettings ++ Seq(
+  crossSettings ++ Seq(
     name := "monix-cats",
+    testFrameworks := Seq(new TestFramework("minitest.runner.Framework")),
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-core" % "0.7.0",
-      "org.typelevel" %%% "cats-laws" % "0.7.0" % "test"
+      "org.typelevel" %%% "cats-laws" % "0.7.0" % "test",
+      "io.monix" %%% "minitest-laws" % "0.21" % "test"
     ))
 
 lazy val catsJVM = project.in(file("monix-cats/jvm"))
+  .configure(profile)
   .dependsOn(typesJVM)
   .dependsOn(reactiveJVM % "test")
   .settings(catsCommon)
 
 lazy val catsJS = project.in(file("monix-cats/js"))
   .enablePlugins(ScalaJSPlugin)
+  .configure(profile)
   .dependsOn(typesJS)
   .dependsOn(reactiveJS % "test")
   .settings(catsCommon)
@@ -333,40 +377,43 @@ lazy val scalaz72Common =
   crossSettings ++ testSettings ++ Seq(
     name := "monix-scalaz-72",
     libraryDependencies ++= Seq(
-      "org.scalaz" %%% "scalaz-core" % "7.2.4",
-      "org.scalaz" %%% "scalaz-scalacheck-binding" % "7.2.4" % "test"
+      "org.scalaz" %%% "scalaz-core" % "7.2.5",
+      "org.scalaz" %%% "scalaz-scalacheck-binding" % "7.2.5" % "test"
     ))
 
 lazy val scalaz72JVM = project.in(file("monix-scalaz/series-7.2/jvm"))
+  .configure(profile)
   .dependsOn(typesJVM)
   .dependsOn(reactiveJVM % "test")
   .settings(scalaz72Common)
 
 lazy val scalaz72JS = project.in(file("monix-scalaz/series-7.2/js"))
   .enablePlugins(ScalaJSPlugin)
+  .configure(profile)
   .dependsOn(typesJS)
   .dependsOn(reactiveJS % "test")
   .settings(scalaz72Common)
   .settings(scalaJSSettings)
 
 lazy val tckTests = project.in(file("tckTests"))
-  .dependsOn(monixJVM)
+  .configure(profile)
+  .dependsOn(coreJVM)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
   .settings(
     libraryDependencies ++= Seq(
       "org.reactivestreams" % "reactive-streams-tck" % "1.0.0" % "test",
-      "org.scalatest" %% "scalatest" % "2.2.4" % "test"
+      "org.scalatest" %% "scalatest" % "3.0.0" % "test"
     ))
 
 lazy val benchmarks = project.in(file("benchmarks"))
-  .dependsOn(monixJVM)
+  .configure(profile)
+  .dependsOn(coreJVM)
   .enablePlugins(JmhPlugin)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
   .settings(
     libraryDependencies ++= Seq(
-      "org.monifu" %% "monifu" % "1.2",
-      "org.scalaz" %% "scalaz-concurrent" % "7.2.4",
+      "org.scalaz" %% "scalaz-concurrent" % "7.2.5",
       "io.reactivex" %% "rxscala" % "0.26.0"
     ))
