@@ -142,7 +142,7 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
   releaseProcess := Seq[ReleaseStep](
     checkSnapshotDependencies,
     inquireVersions,
-    runClean,
+    ReleaseStep(action = Command.process("so clean", _)),
     ReleaseStep(action = Command.process("so test:compile", _)),
     ReleaseStep(action = Command.process("such package", _)),
     setReleaseVersion,
