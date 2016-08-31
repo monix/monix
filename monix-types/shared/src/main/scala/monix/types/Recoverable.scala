@@ -54,7 +54,7 @@ trait Recoverable[F[_], E] extends Serializable {
   def onErrorRecover[A](fa: F[A])(pf: PartialFunction[E, A]): F[A]
 }
 
-object Recoverable extends RecoverableSyntax {
+object Recoverable {
   @inline def apply[F[_],E](implicit F: Recoverable[F,E]): Recoverable[F,E] = F
 }
 
@@ -67,25 +67,4 @@ trait RecoverableClass[F[_],E]
   extends Recoverable[F,E] with ApplicativeClass[F] {
 
   final def recoverable: Recoverable[F,E] = this
-}
-
-trait RecoverableSyntax extends Serializable {
-  implicit def recoverableOps[F[_],E,A](fa: F[A])
-    (implicit F: Recoverable[F,E]): RecoverableSyntax.Ops[F,E,A] =
-    new RecoverableSyntax.Ops(fa)
-}
-
-object RecoverableSyntax {
-  class Ops[F[_], E, A](self: F[A])(implicit F: Recoverable[F,E])
-    extends Serializable {
-
-    def onErrorHandleWith(f: E => F[A]): F[A] =
-      F.onErrorHandleWith(self)(f)
-    def onErrorHandle(f: E => A): F[A] =
-      F.onErrorHandle(self)(f)
-    def onErrorRecoverWith(pf: PartialFunction[E, F[A]]): F[A] =
-      F.onErrorRecoverWith(self)(pf)
-    def onErrorRecover(pf: PartialFunction[E, A]): F[A] =
-      F.onErrorRecover(self)(pf)
-  }
 }

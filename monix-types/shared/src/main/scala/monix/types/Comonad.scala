@@ -38,7 +38,7 @@ trait Comonad[F[_]] extends Serializable {
   def extract[A](x: F[A]): A
 }
 
-object Comonad extends ComonadSyntax {
+object Comonad {
   @inline def apply[F[_]](implicit F: Comonad[F]): Comonad[F] = F
 }
 
@@ -49,19 +49,4 @@ object Comonad extends ComonadSyntax {
   */
 trait ComonadClass[F[_]] extends Comonad[F] with CoflatMapClass[F] {
   final def comonad: Comonad[F] = this
-}
-
-/** Provides syntax for [[Comonad]]. */
-trait ComonadSyntax extends Serializable {
-  implicit def comonadOps[F[_], A](fa: F[A])
-    (implicit F: Comonad[F]): ComonadSyntax.Ops[F, A] =
-    new ComonadSyntax.Ops(fa)
-}
-
-object ComonadSyntax {
-  class Ops[F[_], A](self: F[A])(implicit F: Comonad[F])
-    extends Serializable {
-
-    def extract: A = F.extract(self)
-  }
 }

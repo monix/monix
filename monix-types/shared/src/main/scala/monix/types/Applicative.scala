@@ -43,7 +43,7 @@ trait Applicative[F[_]] extends Serializable {
   def ap[A, B](ff: F[A => B])(fa: F[A]): F[B]
 }
 
-object Applicative extends ApplicativeSyntax {
+object Applicative {
   @inline def apply[F[_]](implicit F: Applicative[F]): Applicative[F] = F
 }
 
@@ -54,27 +54,4 @@ object Applicative extends ApplicativeSyntax {
   */
 trait ApplicativeClass[F[_]] extends Applicative[F] with FunctorClass[F] {
   final def applicative: Applicative[F] = this
-}
-
-/** Provides syntax for [[Applicative]]. */
-trait ApplicativeSyntax extends Serializable {
-  implicit def applicativeOpsA[A](a: A): ApplicativeSyntax.OpsA[A] =
-    new ApplicativeSyntax.OpsA(a)
-
-  implicit def applicativeOpsAP[F[_], A, B](ff: F[A => B])
-    (implicit F: Applicative[F]): ApplicativeSyntax.OpsAP[F, A, B] =
-    new ApplicativeSyntax.OpsAP(ff)
-}
-
-object ApplicativeSyntax {
-  class OpsA[A](a: A) extends Serializable {
-    def pure[F[_]](implicit F: Applicative[F]): F[A] = F.pure(a)
-  }
-
-  class OpsAP[F[_], A, B](self: F[A => B])(implicit F: Applicative[F])
-    extends Serializable {
-
-    def ap(fa: F[A]): F[B] =
-      F.ap(self)(fa)
-  }
 }

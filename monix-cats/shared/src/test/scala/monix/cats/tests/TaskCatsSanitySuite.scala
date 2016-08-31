@@ -15,15 +15,16 @@
  * limitations under the License.
  */
 
-package monix.cats
+package monix.cats.tests
 
 import cats.{CoflatMap, Group, Monad, MonadError, Monoid, Semigroup}
+import cats.implicits._
 import minitest.SimpleTestSuite
-import _root_.cats.implicits._
+import monix.cats.MonixToCatsConversions
 import monix.eval.Task
 import monix.execution.schedulers.TestScheduler
 
-object TaskCatsSanitySuite extends SimpleTestSuite {
+object TaskCatsSanitySuite extends SimpleTestSuite with MonixToCatsConversions {
   test("Task is Monad") {
     val ref = implicitly[Monad[Task]]
     assert(ref != null)

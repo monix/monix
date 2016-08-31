@@ -33,12 +33,6 @@ import monix.types._
   * type-class instances to the Monix type-classes defined in
   * [[monix.types]].
   */
-object catsToMonix extends CatsToMonixConversions
-
-/** Defines conversions from [[http://typelevel.org/cats/ Cats]]
-  * type-class instances to the Monix type-classes defined in
-  * [[monix.types]].
-  */
 trait CatsToMonixConversions extends CatsCoreToMonix9
 
 private[cats] trait CatsCoreToMonix0 {

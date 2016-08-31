@@ -15,22 +15,16 @@
  * limitations under the License.
  */
 
-package monix.types
+package monix.cats.tests
 
-/** Groups all syntax extensions. */
-trait AllSyntax
-  extends ApplicativeSyntax
-  with CoflatMapSyntax
-  with ComonadSyntax
-  with FunctorSyntax
-  with MonadFilterSyntax
-  with RecoverableSyntax
+import cats.laws.discipline.{CoflatMapTests, MonadCombineTests, MonadErrorTests}
+import monix.reactive.Observable
 
-/** Groups all syntax extensions.
-  *
-  * Usage:
-  * {{{
-  *   import monix.types.syntax._
-  * }}}
-  */
-object syntax extends AllSyntax
+object ObservableLawsSuite extends BaseLawsSuite {
+  // https://github.com/typelevel/cats/issues/1329
+  override lazy val checkConfig = slowCheckConfig
+
+  checkAll("MonadError[Observable[Int]]", MonadErrorTests[Observable, Throwable].flatMap[Int,Int,Int])
+  checkAll("CoflatMap[Observable[Int]]", CoflatMapTests[Observable].coflatMap[Int,Int,Int])
+  checkAll("MonadCombine[Observable[Int]]", MonadCombineTests[Observable].monadCombine[Int,Int,Int])
+}

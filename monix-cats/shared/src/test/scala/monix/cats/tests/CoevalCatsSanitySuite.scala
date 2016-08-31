@@ -15,14 +15,15 @@
  * limitations under the License.
  */
 
-package monix.cats
+package monix.cats.tests
 
-import _root_.cats.implicits._
 import _root_.cats.{Bimonad, Group, Monad, MonadError, Monoid, Semigroup}
+import _root_.cats.implicits._
 import minitest.SimpleTestSuite
+import monix.cats.MonixToCatsConversions
 import monix.eval.Coeval
 
-object CoevalCatsSanitySuite extends SimpleTestSuite {
+object CoevalCatsSanitySuite extends SimpleTestSuite with MonixToCatsConversions {
   test("Coeval is Monad") {
     val ref = implicitly[Monad[Coeval]]
     assert(ref != null)

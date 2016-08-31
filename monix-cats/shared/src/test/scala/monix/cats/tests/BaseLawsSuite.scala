@@ -15,12 +15,13 @@
  * limitations under the License.
  */
 
-package monix.cats
+package monix.cats.tests
 
 import cats.data.Xor
-import cats.{Eval, Eq}
+import cats.{Eq, Eval}
 import minitest.SimpleTestSuite
 import minitest.laws.Discipline
+import monix.cats.MonixToCatsConversions
 import monix.eval._
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler

@@ -15,18 +15,18 @@
  * limitations under the License.
  */
 
-package monix.cats
+package monix.cats.tests
 
 import cats.Eq
 import cats.kernel.laws.GroupLaws
 import cats.laws.discipline.ApplicativeTests
+import cats.implicits._
 import monix.eval.Task
 import monix.eval.Task.nondeterminism
 import monix.execution.schedulers.TestScheduler
 import org.scalacheck.Arbitrary
 import scala.concurrent.duration._
 import scala.util.Success
-import cats.implicits._
 
 object ParallelTaskLawsSuite extends BaseLawsSuite with GroupLaws[Task[Int]] {
   // for GroupLaws

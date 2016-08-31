@@ -39,7 +39,7 @@ trait CoflatMap[F[_]] extends Serializable {
     coflatMap(fa)(fa => fa)
 }
 
-object CoflatMap extends CoflatMapSyntax {
+object CoflatMap {
   @inline def apply[F[_]](implicit F: CoflatMap[F]): CoflatMap[F] = F
 }
 
@@ -50,22 +50,4 @@ object CoflatMap extends CoflatMapSyntax {
   */
 trait CoflatMapClass[F[_]] extends CoflatMap[F] with FunctorClass[F] {
   final def coflatMap: CoflatMap[F] = this
-}
-
-/** Provides syntax for [[CoflatMap]]. */
-trait CoflatMapSyntax extends Serializable {
-  implicit def coflatMapOps[F[_], A](fa: F[A])
-    (implicit F: CoflatMap[F]): CoflatMapSyntax.Ops[F, A] =
-    new CoflatMapSyntax.Ops(fa)
-}
-
-object CoflatMapSyntax {
-  class Ops[F[_], A](self: F[A])(implicit F: CoflatMap[F])
-    extends Serializable {
-
-    def coflatMap[B](f: F[A] => B): F[B] =
-      F.coflatMap(self)(f)
-    def coflatten: F[F[A]] =
-      F.coflatten(self)
-  }
 }

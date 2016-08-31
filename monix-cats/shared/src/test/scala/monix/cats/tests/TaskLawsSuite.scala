@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package monix.cats
+package monix.cats.tests
 
 import cats.Eq
 import cats.kernel.laws.GroupLaws

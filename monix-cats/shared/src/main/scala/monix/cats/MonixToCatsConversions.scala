@@ -24,15 +24,12 @@ import monix.types._
   * [[monix.types]] to type-class instances from the
   * [[http://typelevel.org/cats/ Cats]] library.
   */
-object monixToCats extends MonixToCatsConversions
-
-/** Defines conversions from the Monix type-classes defined in
-  * [[monix.types]] to type-class instances from the
-  * [[http://typelevel.org/cats/ Cats]] library.
-  */
 trait MonixToCatsConversions extends MonixToCatsCore12
 
 private[cats] trait MonixToCatsKernel0 {
+  /** Given an `Applicative` for `F[A]` and a `Semigroup` defined
+    * for `A`, then `F[A]` is also a `Semigroup`.
+    */
   implicit def monixApplicativeToCatsSemigroup[F[_], A]
     (implicit F: Applicative[F], A: Semigroup[A]): Semigroup[F[A]] =
     new Semigroup[F[A]] {
@@ -42,6 +39,9 @@ private[cats] trait MonixToCatsKernel0 {
 }
 
 private[cats] trait MonixToCatsKernel1 extends MonixToCatsKernel0 {
+  /** Given an `Applicative` for `F[A]` and a `Monoid` defined
+    * for `A`, then `F[A]` is also a `Monoid`.
+    */
   implicit def monixApplicativeToCatsMonoid[F[_], A]
     (implicit F: Applicative[F], A: Monoid[A]): Monoid[F[A]] =
     new Monoid[F[A]] {
@@ -53,6 +53,9 @@ private[cats] trait MonixToCatsKernel1 extends MonixToCatsKernel0 {
 }
 
 private[cats] trait MonixToCatsKernel2 extends MonixToCatsKernel1 {
+  /** Given an `Applicative` for `F[A]` and a `Group` defined
+    * for `A`, then `F[A]` is also a `Group`.
+    */
   implicit def monixApplicativeToCatsGroup[F[_], A]
     (implicit F: Applicative[F], A: Group[A]): Group[F[A]] =
     new Group[F[A]] {
@@ -87,7 +90,7 @@ private[cats] trait MonixToCatsCore1 extends MonixToCatsCore0 {
     * instances into the Cats `Applicative`.
     */
   implicit def monixToCatsApplicative[F[_]]
-  (implicit ev: Applicative[F]): _root_.cats.Applicative[F] =
+    (implicit ev: Applicative[F]): _root_.cats.Applicative[F] =
     new ConvertMonixToCatsApplicative[F] {
       override val _applicative = ev
       override val _functor = ev.functor
@@ -114,7 +117,7 @@ private[cats] trait MonixToCatsCore2 extends MonixToCatsCore1 {
     * instances into the Cats `ApplicativeError`.
     */
   implicit def monixToCatsApplicativeError[F[_],E]
-  (implicit ev: Recoverable[F,E]): _root_.cats.ApplicativeError[F,E] =
+    (implicit ev: Recoverable[F,E]): _root_.cats.ApplicativeError[F,E] =
     new ConvertMonixToCatsApplicativeError[F,E] {
       override val _recoverable = ev
       override val _applicative = ev.applicative

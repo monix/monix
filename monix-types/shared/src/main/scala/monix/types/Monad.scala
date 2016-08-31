@@ -45,7 +45,7 @@ trait Monad[F[_]] extends Serializable {
     flatMap(ffa)(x => x)
 }
 
-object Monad extends MonadSyntax {
+object Monad {
   @inline def apply[F[_]](implicit F: Monad[F]): Monad[F] = F
 }
 
@@ -57,22 +57,3 @@ object Monad extends MonadSyntax {
 trait MonadClass[F[_]] extends Monad[F] with ApplicativeClass[F] {
   final def monad: Monad[F] = this
 }
-
-/** Provides syntax for [[Monad]]. */
-trait MonadSyntax extends Serializable {
-  implicit def monadOps[F[_], A](fa: F[A])
-    (implicit F: Monad[F]): MonadSyntax.Ops[F, A] =
-    new MonadSyntax.Ops(fa)
-}
-
-object MonadSyntax {
-  class Ops[F[_], A](self: F[A])(implicit F: Monad[F])
-    extends Serializable {
-
-    def flatMap[B](f: A => F[B]): F[B] =
-      F.flatMap(self)(f)
-    def flatten[B](implicit ev: A <:< F[B]): F[B] =
-      F.flatten(self.asInstanceOf[F[F[B]]])
-  }
-}
-

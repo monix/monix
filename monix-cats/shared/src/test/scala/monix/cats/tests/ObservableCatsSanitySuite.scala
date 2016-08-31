@@ -15,16 +15,18 @@
  * limitations under the License.
  */
 
-package monix.cats
+package monix.cats.tests
 
 import cats.{CoflatMap, Monad, MonadError}
+import cats.implicits._
 import minitest.SimpleTestSuite
-import _root_.cats.implicits._
+import monix.cats.MonixToCatsConversions
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
+
 import scala.util.Success
 
-object ObservableCatsSanitySuite extends SimpleTestSuite {
+object ObservableCatsSanitySuite extends SimpleTestSuite with MonixToCatsConversions {
   test("Observable is Monad") {
     val ref = implicitly[Monad[Observable]]
     assert(ref != null)

@@ -17,14 +17,23 @@
 
 package monix.cats
 
-/** Provided for convenience, for importing everything from ''Cats''
-  * (all instances, syntax, etc), as well as all defined instances
-  * from ''Monix''.
+/** Defines conversions from [[http://typelevel.org/cats/ Cats]]
+  * type-class instances to the Monix type-classes defined in
+  * [[monix.types]].
+  *
+  * To use:
   *
   * {{{
-  *   import monix.cats.implicits._
+  *   import monix.cats.reverse._
+  * }}}
+  *
+  * Note that doing importing both this and the Monix to Cats
+  * conversions in the same scope can create conflicts:
+  *
+  * {{{
+  *   // Don't do this!
+  *   import monix.cats._
+  *   import monix.cats.reverse._
   * }}}
   */
-@deprecated("Import will be deleted in 2.1.0", since="2.0")
-object implicits extends monix.cats.MonixToCatsConversions
-  with cats.syntax.AllSyntax with cats.instances.AllInstances
+object reverse extends CatsToMonixConversions
