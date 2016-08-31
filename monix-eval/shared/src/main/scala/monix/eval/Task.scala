@@ -1576,15 +1576,15 @@ private[eval] trait TaskInstances {
     */
   implicit val nondeterminism: TypeClassInstances =
     new TypeClassInstances {
-      override def ap[A, B](fa: Task[A])(ff: Task[(A) => B]): Task[B] =
+      override def ap[A, B](ff: Task[(A) => B])(fa: Task[A]): Task[B] =
         Task.mapBoth(ff,fa)(_(_))
       override def map2[A, B, Z](fa: Task[A], fb: Task[B])(f: (A, B) => Z): Task[Z] =
         Task.mapBoth(fa, fb)(f)
     }
 
   /** Groups the implementation for the type-classes defined in [[monix.types]]. */
-  class TypeClassInstances extends EvaluableClass[Task]
-    with SuspendableClass[Task]
+  class TypeClassInstances
+    extends SuspendableClass[Task]
     with MemoizableClass[Task]
     with RecoverableClass[Task,Throwable]
     with CoflatMapClass[Task]
@@ -1602,7 +1602,7 @@ private[eval] trait TaskInstances {
       ffa.flatten
     override def coflatMap[A, B](fa: Task[A])(f: (Task[A]) => B): Task[B] =
       Task.eval(f(fa))
-    override def ap[A, B](fa: Task[A])(ff: Task[(A) => B]): Task[B] =
+    override def ap[A, B](ff: Task[(A) => B])(fa: Task[A]): Task[B] =
       for (f <- ff; a <- fa) yield f(a)
     override def map2[A, B, Z](fa: Task[A], fb: Task[B])(f: (A, B) => Z): Task[Z] =
       for (a <- fa; b <- fb) yield f(a,b)

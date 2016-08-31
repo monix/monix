@@ -19,17 +19,17 @@ package monix.types
 
 /** The `Applicative` type-class is a [[Functor]] that also adds the
   * capability of lifting a value in the context.
-  * 
+  *
   * Described in
   * [[http://www.soi.city.ac.uk/~ross/papers/Applicative.html
   * Applicative Programming with Effects]].
-  * 
+  *
   * The purpose of this type-class is to support the data-types in the
   * Monix library and it is considered a shim for a lawful type-class
   * to be supplied by libraries such as Cats or Scalaz or equivalent.
-  * 
+  *
   * To implement it in instances, inherit from [[ApplicativeClass]].
-  * 
+  *
   * Credit should be given where it is due. The type-class encoding has
   * been copied from the Scado project and
   * [[https://github.com/scalaz/scalaz/ Scalaz 8]] and the type has
@@ -39,8 +39,8 @@ trait Applicative[F[_]] extends Serializable {
   def functor: Functor[F]
 
   def pure[A](a: A): F[A]
-  def ap[A, B](fa: F[A])(ff: F[A => B]): F[B]
   def map2[A, B, Z](fa: F[A], fb: F[B])(f: (A, B) => Z): F[Z]
+  def ap[A, B](ff: F[A => B])(fa: F[A]): F[B]
 }
 
 object Applicative extends ApplicativeSyntax {
@@ -49,7 +49,7 @@ object Applicative extends ApplicativeSyntax {
 
 /** The `ApplicativeClass` provides the means to combine
   * [[Applicative]] instances with other type-classes.
-  * 
+  *
   * To be inherited by `Applicative` instances.
   */
 trait ApplicativeClass[F[_]] extends Applicative[F] with FunctorClass[F] {
@@ -57,22 +57,24 @@ trait ApplicativeClass[F[_]] extends Applicative[F] with FunctorClass[F] {
 }
 
 /** Provides syntax for [[Applicative]]. */
-trait ApplicativeSyntax {
+trait ApplicativeSyntax extends Serializable {
   implicit def applicativeOpsA[A](a: A): ApplicativeSyntax.OpsA[A] =
     new ApplicativeSyntax.OpsA(a)
 
-  implicit def applicativeOpsFA[F[_], A](fa: F[A])
-    (implicit F: Applicative[F]): ApplicativeSyntax.OpsFA[F, A] =
-    new ApplicativeSyntax.OpsFA(fa)
+  implicit def applicativeOpsAP[F[_], A, B](ff: F[A => B])
+    (implicit F: Applicative[F]): ApplicativeSyntax.OpsAP[F, A, B] =
+    new ApplicativeSyntax.OpsAP(ff)
 }
 
 object ApplicativeSyntax {
-  class OpsA[A](a: A) {
+  class OpsA[A](a: A) extends Serializable {
     def pure[F[_]](implicit F: Applicative[F]): F[A] = F.pure(a)
   }
 
-  class OpsFA[F[_], A](self: F[A])(implicit F: Applicative[F]) {
-    def ap[B](ff: F[A => B]): F[B] =
-      F.ap(self)(ff)    
+  class OpsAP[F[_], A, B](self: F[A => B])(implicit F: Applicative[F])
+    extends Serializable {
+
+    def ap(fa: F[A]): F[B] =
+      F.ap(self)(fa)
   }
 }

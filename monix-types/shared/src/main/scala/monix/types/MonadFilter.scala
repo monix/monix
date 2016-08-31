@@ -23,13 +23,13 @@ package monix.types
   * is of particular interest to us since it allows us to add a
   * `filter` method to a Monad, which is used when pattern matching or
   * using guards in for comprehensions.
-  * 
+  *
   * The purpose of this type-class is to support the data-types in the
   * Monix library and it is considered a shim for a lawful type-class
   * to be supplied by libraries such as Cats or Scalaz or equivalent.
-  * 
+  *
   * To implement it in instances, inherit from [[MonadFilterClass]].
-  * 
+  *
   * Credit should be given where it is due.The type-class encoding has
   * been copied from the Scado project and
   * [[https://github.com/scalaz/scalaz/ Scalaz 8]] and the type has
@@ -40,7 +40,6 @@ trait MonadFilter[F[_]] extends Serializable {
 
   def empty[A]: F[A]
   def filter[A](fa: F[A])(f: A => Boolean): F[A]
-  def filterM[A](fa: F[A])(f: A => F[Boolean]): F[A]
 }
 
 object MonadFilter extends MonadFilterSyntax {
@@ -49,7 +48,7 @@ object MonadFilter extends MonadFilterSyntax {
 
 /** The `MonadFilterClass` provides the means to combine
   * [[MonadFilter]] instances with other type-classes.
-  * 
+  *
   * To be inherited by `MonadFilter` instances.
   */
 trait MonadFilterClass[F[_]] extends MonadFilter[F] with MonadClass[F] {
@@ -57,18 +56,18 @@ trait MonadFilterClass[F[_]] extends MonadFilter[F] with MonadClass[F] {
 }
 
 /** Provides syntax for [[MonadFilter]]. */
-trait MonadFilterSyntax {
+trait MonadFilterSyntax extends Serializable {
   implicit def monadFilterOps[F[_], A](fa: F[A])
     (implicit F: MonadFilter[F]): MonadFilterSyntax.Ops[F, A] =
     new MonadFilterSyntax.Ops(fa)
 }
 
 object MonadFilterSyntax {
-  class Ops[F[_], A](self: F[A])(implicit F: MonadFilter[F]) {    
+  class Ops[F[_], A](self: F[A])(implicit F: MonadFilter[F])
+    extends Serializable {
+
     def filter(f: A => Boolean): F[A] =
       F.filter(self)(f)
-    def filterM(f: A => F[Boolean]): F[A] =
-      F.filterM(self)(f)
   }
 }
 

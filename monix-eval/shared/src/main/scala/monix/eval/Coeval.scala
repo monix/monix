@@ -670,8 +670,8 @@ object Coeval {
   implicit val typeClassInstances: TypeClassInstances = new TypeClassInstances
 
   /** Groups the implementation for the type-classes defined in [[monix.types]]. */
-  class TypeClassInstances extends EvaluableClass[Coeval]
-    with SuspendableClass[Coeval]
+  class TypeClassInstances
+    extends SuspendableClass[Coeval]
     with MemoizableClass[Coeval]
     with RecoverableClass[Coeval,Throwable]
     with ComonadClass[Coeval]
@@ -691,7 +691,7 @@ object Coeval {
       ffa.flatten
     override def coflatMap[A, B](fa: Coeval[A])(f: (Coeval[A]) => B): Coeval[B] =
       Coeval.eval(f(fa))
-    override def ap[A, B](fa: Coeval[A])(ff: Coeval[(A) => B]): Coeval[B] =
+    override def ap[A, B](ff: Coeval[(A) => B])(fa: Coeval[A]): Coeval[B] =
       for (f <- ff; a <- fa) yield f(a)
     override def map2[A, B, Z](fa: Coeval[A], fb: Coeval[B])(f: (A, B) => Z): Coeval[Z] =
       for (a <- fa; b <- fb) yield f(a, b)

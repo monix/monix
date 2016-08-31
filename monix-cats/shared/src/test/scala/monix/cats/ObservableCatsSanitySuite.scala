@@ -19,7 +19,7 @@ package monix.cats
 
 import cats.{CoflatMap, Monad, MonadError}
 import minitest.SimpleTestSuite
-import monix.cats.implicits._
+import _root_.cats.implicits._
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
 import scala.util.Success

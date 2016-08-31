@@ -25,5 +25,6 @@ package monix.cats
   *   import monix.cats.implicits._
   * }}}
   */
-object implicits extends monix.cats.AllInstances
+@deprecated("Import will be deleted in 2.1.0", since="2.0")
+object implicits extends monix.cats.MonixToCatsConversions
   with cats.syntax.AllSyntax with cats.instances.AllInstances

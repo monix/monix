@@ -21,13 +21,13 @@ package monix.types
   * `ApplicativeError` or of `MonadError` from other libraries like
   * Cats or Scalaz. This type class allows one to abstract over
   * error-handling applicatives.
-  * 
+  *
   * The purpose of this type-class is to support the data-types in the
   * Monix library and it is considered a shim for a lawful type-class
   * to be supplied by libraries such as Cats or Scalaz or equivalent.
-  * 
+  *
   * To implement it in instances, inherit from [[RecoverableClass]].
-  * 
+  *
   * Credit should be given where it is due.The type-class encoding has
   * been copied from the Scado project and
   * [[https://github.com/scalaz/scalaz/ Scalaz 8]] and the type has
@@ -60,7 +60,7 @@ object Recoverable extends RecoverableSyntax {
 
 /** The `RecoverableClass` provides the means to combine
   * [[Recoverable]] instances with other type-classes.
-  * 
+  *
   * To be inherited by `Recoverable` instances.
   */
 trait RecoverableClass[F[_],E]
@@ -69,14 +69,16 @@ trait RecoverableClass[F[_],E]
   final def recoverable: Recoverable[F,E] = this
 }
 
-trait RecoverableSyntax {
+trait RecoverableSyntax extends Serializable {
   implicit def recoverableOps[F[_],E,A](fa: F[A])
     (implicit F: Recoverable[F,E]): RecoverableSyntax.Ops[F,E,A] =
     new RecoverableSyntax.Ops(fa)
 }
 
 object RecoverableSyntax {
-  class Ops[F[_], E, A](self: F[A])(implicit F: Recoverable[F,E]) {
+  class Ops[F[_], E, A](self: F[A])(implicit F: Recoverable[F,E])
+    extends Serializable {
+
     def onErrorHandleWith(f: E => F[A]): F[A] =
       F.onErrorHandleWith(self)(f)
     def onErrorHandle(f: E => A): F[A] =

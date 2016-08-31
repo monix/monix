@@ -1449,7 +1449,7 @@ object Observable {
       ffa.flatten
     override def coflatMap[A, B](fa: Observable[A])(f: (Observable[A]) => B): Observable[B] =
       Observable.eval(f(fa))
-    override def ap[A, B](fa: Observable[A])(ff: Observable[(A) => B]): Observable[B] =
+    override def ap[A, B](ff: Observable[(A) => B])(fa: Observable[A]): Observable[B] =
       for (f <- ff; a <- fa) yield f(a)
     override def map2[A, B, Z](fa: Observable[A], fb: Observable[B])(f: (A, B) => Z): Observable[Z] =
       for (a <- fa; b <- fb) yield f(a,b)
@@ -1469,7 +1469,5 @@ object Observable {
       Observable.empty[A]
     override def filter[A](fa: Observable[A])(f: (A) => Boolean): Observable[A] =
       fa.filter(f)
-    override def filterM[A](fa: Observable[A])(f: (A) => Observable[Boolean]): Observable[A] =
-      flatMap(fa)(a => flatMap(f(a))(b => if (b) pure(a) else empty[A]))
   }
 }

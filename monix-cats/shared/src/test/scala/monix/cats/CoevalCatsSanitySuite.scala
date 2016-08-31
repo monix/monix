@@ -17,9 +17,9 @@
 
 package monix.cats
 
-import cats.{Bimonad, Group, Monad, MonadError, Monoid, Semigroup}
+import _root_.cats.implicits._
+import _root_.cats.{Bimonad, Group, Monad, MonadError, Monoid, Semigroup}
 import minitest.SimpleTestSuite
-import monix.cats.implicits._
 import monix.eval.Coeval
 
 object CoevalCatsSanitySuite extends SimpleTestSuite {

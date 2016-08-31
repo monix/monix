@@ -18,14 +18,17 @@
 package monix.types
 
 /** This type-class represents monads with a tail-recursive
-  * flatMap implementation.
-  * 
+  * `tailRecM` implementation.
+  *
+  * Based on Phil Freeman's
+  * [[http://functorial.com/stack-safety-for-free/index.pdf Stack Safety for Free]].
+  *
   * The purpose of this type-class is to support the data-types in the
   * Monix library and it is considered a shim for a lawful type-class
   * to be supplied by libraries such as Cats or Scalaz or equivalent.
-  * 
+  *
   * To implement it in instances, inherit from [[MonadClass]].
-  * 
+  *
   * Credit should be given where it is due. The type-class encoding
   * has been copied from the Scado project and
   * [[https://github.com/scalaz/scalaz/ Scalaz 8]] and the type has
@@ -34,11 +37,7 @@ package monix.types
 trait MonadRec[F[_]] extends Serializable {
   def monad: Monad[F]
 
-  /** Keeps calling `f` until a `scala.util.Right[B]` is returned.
-    *
-    * Based on Phil Freeman's
-    * [[http://functorial.com/stack-safety-for-free/index.pdf Stack Safety for Free]].
-    */
+  /** Keeps calling `f` until a `scala.util.Right[B]` is returned. */
   def tailRecM[A, B](a: A)(f: A => F[Either[A, B]]): F[B] =
     monad.flatMap(f(a)) {
       case Right(b) =>
@@ -54,7 +53,7 @@ object MonadRec {
 
 /** The `MonadRecClass` provides the means to combine
   * [[MonadRec]] instances with other type-classes.
-  * 
+  *
   * To be inherited by `MonadRec` instances.
   */
 trait MonadRecClass[F[_]] extends MonadRec[F] with MonadClass[F] {

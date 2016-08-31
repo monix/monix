@@ -25,19 +25,19 @@ package monix.types
   * See:
   * [[http://homepages.inf.ed.ac.uk/wadler/papers/marktoberdorf/baastad.pdf
   * Monads for functional programming]]
-  * 
+  *
   * The purpose of this type-class is to support the data-types in the
   * Monix library and it is considered a shim for a lawful type-class
   * to be supplied by libraries such as Cats or Scalaz or equivalent.
-  * 
+  *
   * To implement it in instances, inherit from [[MonadClass]].
-  * 
+  *
   * Credit should be given where it is due.The type-class encoding has
   * been copied from the Scado project and
   * [[https://github.com/scalaz/scalaz/ Scalaz 8]] and the type has
   * been extracted from [[http://typelevel.org/cats/ Cats]].
   */
-trait Monad[F[_]] extends Serializable {  
+trait Monad[F[_]] extends Serializable {
   def applicative: Applicative[F]
 
   def flatMap[A, B](fa: F[A])(f: A => F[B]): F[B]
@@ -51,7 +51,7 @@ object Monad extends MonadSyntax {
 
 /** The `MonadClass` provides the means to combine
   * [[Monad]] instances with other type-classes.
-  * 
+  *
   * To be inherited by `Monad` instances.
   */
 trait MonadClass[F[_]] extends Monad[F] with ApplicativeClass[F] {
@@ -59,14 +59,16 @@ trait MonadClass[F[_]] extends Monad[F] with ApplicativeClass[F] {
 }
 
 /** Provides syntax for [[Monad]]. */
-trait MonadSyntax {
+trait MonadSyntax extends Serializable {
   implicit def monadOps[F[_], A](fa: F[A])
     (implicit F: Monad[F]): MonadSyntax.Ops[F, A] =
     new MonadSyntax.Ops(fa)
 }
 
 object MonadSyntax {
-  class Ops[F[_], A](self: F[A])(implicit F: Monad[F]) {
+  class Ops[F[_], A](self: F[A])(implicit F: Monad[F])
+    extends Serializable {
+
     def flatMap[B](f: A => F[B]): F[B] =
       F.flatMap(self)(f)
     def flatten[B](implicit ev: A <:< F[B]): F[B] =

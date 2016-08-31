@@ -19,7 +19,7 @@ package monix.cats
 
 import cats.{CoflatMap, Group, Monad, MonadError, Monoid, Semigroup}
 import minitest.SimpleTestSuite
-import monix.cats.implicits._
+import _root_.cats.implicits._
 import monix.eval.Task
 import monix.execution.schedulers.TestScheduler
 

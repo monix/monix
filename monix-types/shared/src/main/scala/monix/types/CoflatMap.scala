@@ -19,13 +19,13 @@ package monix.types
 
 /** A type-class providing the `coflatMap` operation, the dual of
   * `flatMap`.
-  * 
+  *
   * The purpose of this type-class is to support the data-types in the
   * Monix library and it is considered a shim for a lawful type-class
   * to be supplied by libraries such as Cats or Scalaz or equivalent.
-  * 
+  *
   * To implement it in instances, inherit from [[CoflatMapClass]].
-  * 
+  *
   * Credit should be given where it is due.The type-class encoding has
   * been copied from the Scado project and
   * [[https://github.com/scalaz/scalaz/ Scalaz 8]] and the type has
@@ -45,7 +45,7 @@ object CoflatMap extends CoflatMapSyntax {
 
 /** The `CoflatMapClass` provides the means to combine
   * [[CoflatMap]] instances with other type-classes.
-  * 
+  *
   * To be inherited by `CoflatMap` instances.
   */
 trait CoflatMapClass[F[_]] extends CoflatMap[F] with FunctorClass[F] {
@@ -53,14 +53,16 @@ trait CoflatMapClass[F[_]] extends CoflatMap[F] with FunctorClass[F] {
 }
 
 /** Provides syntax for [[CoflatMap]]. */
-trait CoflatMapSyntax {
+trait CoflatMapSyntax extends Serializable {
   implicit def coflatMapOps[F[_], A](fa: F[A])
     (implicit F: CoflatMap[F]): CoflatMapSyntax.Ops[F, A] =
     new CoflatMapSyntax.Ops(fa)
 }
 
 object CoflatMapSyntax {
-  class Ops[F[_], A](self: F[A])(implicit F: CoflatMap[F]) {
+  class Ops[F[_], A](self: F[A])(implicit F: CoflatMap[F])
+    extends Serializable {
+
     def coflatMap[B](f: F[A] => B): F[B] =
       F.coflatMap(self)(f)
     def coflatten: F[F[A]] =

@@ -63,7 +63,7 @@ trait BaseLawsSuiteInstances2 extends BaseLawsSuiteInstances1 {
     }
 }
 
-trait BaseLawsSuiteInstances1 extends AllInstances with cats.instances.AllInstances {
+trait BaseLawsSuiteInstances1 extends cats.instances.AllInstances with MonixToCatsConversions {
   implicit def arbitraryCoeval[A : Arbitrary]: Arbitrary[Coeval[A]] =
     Arbitrary {
       val int = implicitly[Arbitrary[Int]].arbitrary

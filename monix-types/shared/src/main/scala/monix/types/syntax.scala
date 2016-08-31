@@ -15,7 +15,22 @@
  * limitations under the License.
  */
 
-package monix.cats
+package monix.types
 
-/** Groups all instances in a single trait. */
-trait AllInstances extends EvaluableInstances
+/** Groups all syntax extensions. */
+trait AllSyntax
+  extends ApplicativeSyntax
+  with CoflatMapSyntax
+  with ComonadSyntax
+  with FunctorSyntax
+  with MonadFilterSyntax
+  with RecoverableSyntax
+
+/** Groups all syntax extensions.
+  *
+  * Usage:
+  * {{{
+  *   import monix.types.syntax._
+  * }}}
+  */
+object syntax extends AllSyntax

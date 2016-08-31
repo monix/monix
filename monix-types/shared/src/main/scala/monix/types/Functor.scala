@@ -19,13 +19,13 @@ package monix.types
 
 /** A functor provides the `map` operation that allows lifting an `f`
   * function into the functor context and applying it.
-  * 
+  *
   * The purpose of this type-class is to support the data-types in the
   * Monix library and it is considered a shim for a lawful type-class
   * to be supplied by libraries such as Cats or Scalaz or equivalent.
-  * 
+  *
   * To implement it in instances, inherit from [[FunctorClass]].
-  * 
+  *
   * Credit should be given where it is due.The type-class encoding has
   * been copied from the Scado project and
   * [[https://github.com/scalaz/scalaz/ Scalaz 8]] and the type has
@@ -41,7 +41,7 @@ object Functor extends FunctorSyntax {
 
 /** The `FunctorClass` provides the means to combine [[Functor]]
   * instances with other type-classes.
-  * 
+  *
   *  To be inherited by `Functor` instances.
   */
 trait FunctorClass[F[_]] extends Functor[F] {
@@ -49,14 +49,16 @@ trait FunctorClass[F[_]] extends Functor[F] {
 }
 
 /** Provides syntax for [[Functor]]. */
-trait FunctorSyntax {
+trait FunctorSyntax extends Serializable {
   implicit def functorOps[F[_], A](fa: F[A])
     (implicit F: Functor[F]): FunctorSyntax.Ops[F, A] =
     new FunctorSyntax.Ops(fa)
 }
 
 object FunctorSyntax {
-  class Ops[F[_], A](self: F[A])(implicit F: Functor[F]) {
+  class Ops[F[_], A](self: F[A])(implicit F: Functor[F])
+    extends Serializable {
+
     def map[B](f: A => B): F[B] = F.map(self)(f)
   }
 }

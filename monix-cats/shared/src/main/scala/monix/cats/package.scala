@@ -21,4 +21,4 @@ package monix
   *
   * See: [[http://typelevel.org/cats/ typelevel.org/cats/]]
   */
-package object cats extends AllInstances
+package object cats extends MonixToCatsConversions
