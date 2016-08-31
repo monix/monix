@@ -1,3 +1,13 @@
+## Version 2.0.0 (Aug 31, 2016)
+
+- [Issue #216](https://github.com/monixio/monix/pull/216):
+  Change type-class design in `monix.types` to an encoding
+  inspired by the [Scato](https://github.com/aloiscochard/scato) and
+  [Scalaz 8](https://github.com/scalaz/scalaz/tree/series/8.0.x),
+  cleaning up the available types; also enable 2.12.0-M5 support, 
+  although releases are not automatic, because Cats doesn't yet 
+  support Scala 2.12
+
 ## Version 2.0-RC13 (Aug 19, 2016)
 
 Emergency bug fix:

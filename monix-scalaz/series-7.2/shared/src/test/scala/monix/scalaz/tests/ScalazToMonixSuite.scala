@@ -21,8 +21,6 @@ import minitest.SimpleTestSuite
 import monix.types._
 import monix.types.syntax._
 import monix.scalaz.reverse._
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
 import scalaz.Need
 
 object ScalazToMonixSuite extends SimpleTestSuite with scalaz.std.AllInstances {
@@ -38,14 +36,6 @@ object ScalazToMonixSuite extends SimpleTestSuite with scalaz.std.AllInstances {
       x.ap(F.pure(1))
 
     assertEquals(test(Need((x: Int) => x + 1)).extract, 2)
-  }
-
-  test("recoverable") {
-    def test[F[_]](x: F[Int])(implicit F: Recoverable[F,Throwable]): F[Int] =
-      x.onErrorHandle(_ => 2)
-
-    val ref = Future[Int](throw new RuntimeException)
-    for (result <- test(ref)) yield assertEquals(result, 2)
   }
 
   test("monad") {

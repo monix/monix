@@ -22,7 +22,6 @@ import minitest.SimpleTestSuite
 import monix.types._
 import monix.cats.reverse._
 import monix.types.syntax._
-import scala.util.Try
 
 object CatsToMonixSuite extends SimpleTestSuite with cats.instances.AllInstances {
   test("functor") {
@@ -37,14 +36,6 @@ object CatsToMonixSuite extends SimpleTestSuite with cats.instances.AllInstances
       x.ap(F.pure(1))
 
     assertEquals(test(Eval.always((x: Int) => x + 1)).value, 2)
-  }
-
-  test("recoverable") {
-    def test[F[_]](x: F[Int])(implicit F: Recoverable[F,Throwable]): F[Int] =
-      x.onErrorHandle(_ => 2)
-
-    val ref = Try[Int](throw new RuntimeException)
-    assertEquals(test(ref).get, 2)
   }
 
   test("monad") {

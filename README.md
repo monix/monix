@@ -45,8 +45,8 @@ a project exemplifying Monix used both on the server and on the client.
 
 The packages are published on Maven Central.
 
-- Current stable release: `1.2`
-- Current beta release: `2.0-RC11`
+- Old branch (Monifu): `1.2`
+- Current stable release: `2.0.0`
 
 For the stable release (use the `%%%` for Scala.js):
 
@@ -57,12 +57,12 @@ libraryDependencies += "org.monifu" %% "monifu" % "1.2"
 For the beta/preview release (use at your own risk):
 
 ```scala
-libraryDependencies += "io.monix" %% "monix" % "2.0-RC13"
+libraryDependencies += "io.monix" %% "monix" % "2.0.0"
 ```
 
 ### Sub-projects
 
-Monix 2.0 is modular by design, so you can pick and choose:
+Monix 2.x is modular by design, so you can pick and choose:
 
 - `monix-types` exposes type-classes and shims needed for
   integration with other FP libraries (Cats, Scalaz)
@@ -92,7 +92,7 @@ hosted at,
 API Documentation:
 
 - [1.2](https://monix.io/api/1.2/)
-- [2.0-RC13](https://monix.io/api/2.0-RC13/)
+- [2.0](https://monix.io/api/2.0/)
 
 Presentations:
 

@@ -139,7 +139,7 @@ private[scalaz] trait MonixToScalaz5 extends MonixToScalaz4 {
   }
 }
 
-protected trait MonixToScalaz6 extends MonixToScalaz5 {
+private[scalaz] trait MonixToScalaz6 extends MonixToScalaz5 {
   /** Converts Monix's type instances into the Scalaz `Plus`. */
   implicit def monixToScalazPlus[F[_]](implicit ev: SemigroupK[F]): _root_.scalaz.Plus[F] =
     new MonixToScalazPlus[F] {
