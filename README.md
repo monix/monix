@@ -7,7 +7,7 @@ Reactive Programming for Scala and [Scala.js](http://www.scala-js.org/).
 [![Build Status](https://travis-ci.org/monixio/monix.svg?branch=master)](https://travis-ci.org/monixio/monix)
 [![Coverage Status](http://codecov.io/github/monixio/monix/coverage.svg?branch=master)](http://codecov.io/github/monixio/monix?branch=master)
 [![Scala.js](http://scala-js.org/assets/badges/scalajs-0.6.8.svg)](http://scala-js.org)
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/org.monifu/monifu_2.11/badge.svg)](https://maven-badges.herokuapp.com/maven-central/org.monifu/monifu_2.11)
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.monix/monix_2.11/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.monix/monix_2.11)
 
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/monixio/monix?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
