@@ -45,19 +45,19 @@ a project exemplifying Monix used both on the server and on the client.
 
 The packages are published on Maven Central.
 
-- Old branch (Monifu): `1.2`
 - Current stable release: `2.0.0`
+- Old 1.x release (Monifu): `1.2`
 
-For the stable release (use the `%%%` for Scala.js):
-
-```scala
-libraryDependencies += "org.monifu" %% "monifu" % "1.2"
-```
-
-For the beta/preview release (use at your own risk):
+For the current stable release (use the `%%%` for Scala.js):
 
 ```scala
 libraryDependencies += "io.monix" %% "monix" % "2.0.0"
+```
+
+For the old 1.x release (use the `%%%` for Scala.js):
+
+```scala
+libraryDependencies += "org.monifu" %% "monifu" % "1.2"
 ```
 
 ### Sub-projects
@@ -91,8 +91,8 @@ hosted at,
 
 API Documentation:
 
-- [1.2](https://monix.io/api/1.2/)
 - [2.0](https://monix.io/api/2.0/)
+- [1.2](https://monix.io/api/1.2/)
 
 Presentations:
 
@@ -108,21 +108,24 @@ The current maintainers (people who can help you) are:
 
 ## Contributing
 
-The Monix project welcomes contributions from anybody wishing to participate.
-All code or documentation that is provided must be licensed with the same
-license that Monix is licensed with (Apache 2.0, see LICENSE.txt).
+The Monix project welcomes contributions from anybody wishing to
+participate.  All code or documentation that is provided must be
+licensed with the same license that Monix is licensed with (Apache
+2.0, see LICENSE.txt).
 
-People are expected to follow the [Typelevel Code of Conduct](http://typelevel.org/conduct.html)
-when discussing Monix on the Github page, Gitter channel, or other venues.
+People are expected to follow the
+[Typelevel Code of Conduct](http://typelevel.org/conduct.html) when
+discussing Monix on the Github page, Gitter channel, or other venues.
 
-Feel free to open an issue if you notice a bug, have an idea for a feature, or
-have a question about the code. Pull requests are also gladly accepted. For more information,
-check out the [contributor guide](CONTRIBUTING.md).
+Feel free to open an issue if you notice a bug, have an idea for a
+feature, or have a question about the code. Pull requests are also
+gladly accepted. For more information, check out the
+[contributor guide](CONTRIBUTING.md).
 
 ## License
 
-All code in this repository is licensed under the Apache License, Version 2.0.
-See [LICENCE.txt](./LICENSE.txt).
+All code in this repository is licensed under the Apache License,
+Version 2.0.  See [LICENCE.txt](./LICENSE.txt).
 
 ## Acknowledgements
 
