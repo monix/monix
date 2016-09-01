@@ -11,8 +11,6 @@ Reactive Programming for Scala and [Scala.js](http://www.scala-js.org/).
 
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/monixio/monix?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-**NOTE: renamed from Monifu, see [issue #91](https://github.com/monixio/monix/issues/91) for details.**
-
 ## Overview
 
 Monix is a high-performance Scala / Scala.js library for
