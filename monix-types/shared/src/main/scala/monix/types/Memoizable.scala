@@ -26,37 +26,42 @@ package monix.types
   * all related side-effects only happen once, with the results
   * to be reused on subsequent evaluations.
   */
-trait Memoizable[F[_]] extends Serializable {
-  def suspendable: Deferrable[F]
+trait Memoizable[F[_]] extends Serializable with Deferrable.Type[F] {
+  self: Memoizable.Instance[F] =>
 
   def memoize[A](fa: F[A]): F[A]
   def evalOnce[A](a: => A): F[A] =
-    memoize(suspendable.eval(a))
+    memoize(eval(a))
 }
 
-object Memoizable extends MemoizableSyntax {
+object Memoizable {
   @inline def apply[F[_]](implicit F: Memoizable[F]): Memoizable[F] = F
-}
 
-/** The `MemoizableClass` provides the means to combine
-  * [[Memoizable]] instances with other type-classes.
-  *
-  * To be inherited by `Memoizable` instances.
-  */
-trait MemoizableClass[F[_]] extends Memoizable[F]
-  with DeferrableClass[F] {
+  /** The `Memoizable.Type` should be inherited in type-classes that
+    * are derived from [[Memoizable]].
+    */
+  trait Type[F[_]] extends Deferrable.Type[F] {
+    implicit def memoizable: Memoizable[F]
+  }
 
-  final def memoizable: Memoizable[F] = this
-}
+  /** The `Memoizable.Instance` provides the means to combine
+    * [[Memoizable]] instances with other type-classes.
+    *
+    * To be inherited by `Memoizable` instances.
+    */
+  trait Instance[F[_]] extends Memoizable[F] with Type[F]
+    with Deferrable.Instance[F] {
 
-/** Provides syntax for [[Memoizable]]. */
-trait MemoizableSyntax extends Serializable {
-  implicit final def memoizableOps[F[_], A](fa: F[A])
-    (implicit F: Memoizable[F]): MemoizableSyntax.Ops[F, A] =
-    new MemoizableSyntax.Ops(fa)
-}
+    override final def memoizable: Memoizable[F] = this
+  }
 
-object MemoizableSyntax {
+  /** Provides syntax for [[Memoizable]]. */
+  trait Syntax extends Serializable {
+    implicit final def memoizableOps[F[_] : Memoizable, A](fa: F[A]): Ops[F, A] =
+      new Ops(fa)
+  }
+
+  /** Extension methods for [[Memoizable]]. */
   final class Ops[F[_], A](self: F[A])(implicit F: Memoizable[F])
     extends Serializable {
 
@@ -64,5 +69,3 @@ object MemoizableSyntax {
     def memoize: F[A] = F.memoize(self)
   }
 }
-
-

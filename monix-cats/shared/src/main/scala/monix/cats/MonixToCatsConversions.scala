@@ -24,7 +24,7 @@ import monix.types._
   * [[monix.types]] to type-class instances from the
   * [[http://typelevel.org/cats/ Cats]] library.
   */
-trait MonixToCatsConversions extends MonixToCatsCore12
+trait MonixToCatsConversions extends MonixToCatsCore11
 
 private[cats] trait MonixToCatsKernel0 {
   /** Given an `Applicative` for `F[A]` and a `Semigroup` defined
@@ -72,16 +72,14 @@ private[cats] trait MonixToCatsCore0 extends MonixToCatsKernel2 {
   /** Converts Monix's [[monix.types.Functor Functor]]
     * instances into the Cats `Functor`.
     */
-  implicit def monixToCatsFunctor[F[_]]
-    (implicit ev: Functor[F]): _root_.cats.Functor[F] =
-    new ConvertMonixToCatsFunctor[F] { override val _functor = ev }
+  implicit def monixToCatsFunctor[F[_] : Functor]: _root_.cats.Functor[F] =
+    new MonixToCatsFunctor[F]()
 
-  protected trait ConvertMonixToCatsFunctor[F[_]]
+  protected class MonixToCatsFunctor[F[_]](implicit ev: Functor[F])
     extends _root_.cats.Functor[F] {
 
-    val _functor: Functor[F]
     override def map[A, B](fa: F[A])(f: (A) => B): F[B] =
-      _functor.map(fa)(f)
+      ev.map(fa)(f)
   }
 }
 
@@ -89,263 +87,201 @@ private[cats] trait MonixToCatsCore1 extends MonixToCatsCore0 {
   /** Converts Monix's [[monix.types.Applicative Applicative]]
     * instances into the Cats `Applicative`.
     */
-  implicit def monixToCatsApplicative[F[_]]
-    (implicit ev: Applicative[F]): _root_.cats.Applicative[F] =
-    new ConvertMonixToCatsApplicative[F] {
-      override val _applicative = ev
-      override val _functor = ev.functor
-    }
+  implicit def monixToCatsApplicative[F[_] : Applicative]: _root_.cats.Applicative[F] =
+    new MonixToCatsApplicative[F]()
 
-  protected trait ConvertMonixToCatsApplicative[F[_]]
-    extends _root_.cats.Applicative[F] with ConvertMonixToCatsFunctor[F] {
+  protected class MonixToCatsApplicative[F[_]](implicit F: Applicative[F])
+    extends _root_.cats.Applicative[F]  {
 
-    val _applicative: Applicative[F]
-
-    override def pure[A](x: A): F[A] =
-      _applicative.pure(x)
-    override def ap[A, B](ff: F[(A) => B])(fa: F[A]): F[B] =
-      _applicative.ap(ff)(fa)
-    override def map2[A, B, Z](fa: F[A], fb: F[B])(f: (A, B) => Z): F[Z] =
-      _applicative.map2(fa,fb)(f)
-    override def product[A, B](fa: F[A], fb: F[B]): F[(A, B)] =
-      _applicative.map2(fa,fb)((a,b) => (a,b))
+    final override def map[A, B](fa: F[A])(f: (A) => B): F[B] =
+      F.functor.map(fa)(f)
+    final override def pure[A](x: A): F[A] =
+      F.pure(x)
+    final override def ap[A, B](ff: F[(A) => B])(fa: F[A]): F[B] =
+      F.ap(ff)(fa)
+    final override def map2[A, B, Z](fa: F[A], fb: F[B])(f: (A, B) => Z): F[Z] =
+      F.map2(fa,fb)(f)
+    final override def product[A, B](fa: F[A], fb: F[B]): F[(A, B)] =
+      F.map2(fa,fb)((a,b) => (a,b))
   }
 }
 
 private[cats] trait MonixToCatsCore2 extends MonixToCatsCore1 {
-  /** Converts Monix's [[monix.types.Recoverable Recoverable]]
-    * instances into the Cats `ApplicativeError`.
-    */
-  implicit def monixToCatsApplicativeError[F[_],E]
-    (implicit ev: Recoverable[F,E]): _root_.cats.ApplicativeError[F,E] =
-    new ConvertMonixToCatsApplicativeError[F,E] {
-      override val _recoverable = ev
-      override val _applicative = ev.applicative
-      override val _functor = ev.applicative.functor
-    }
-
-  protected trait ConvertMonixToCatsApplicativeError[F[_],E]
-    extends _root_.cats.ApplicativeError[F,E]
-      with ConvertMonixToCatsApplicative[F] {
-
-    val _recoverable: Recoverable[F,E]
-
-    override def raiseError[A](e: E): F[A] =
-      _recoverable.raiseError(e)
-    override def handleErrorWith[A](fa: F[A])(f: (E) => F[A]): F[A] =
-      _recoverable.onErrorHandleWith(fa)(f)
-    override def handleError[A](fa: F[A])(f: (E) => A): F[A] =
-      _recoverable.onErrorHandle(fa)(f)
-    override def recover[A](fa: F[A])(pf: PartialFunction[E, A]): F[A] =
-      _recoverable.onErrorRecover(fa)(pf)
-    override def recoverWith[A](fa: F[A])(pf: PartialFunction[E, F[A]]): F[A] =
-      _recoverable.onErrorRecoverWith(fa)(pf)
-  }
-}
-
-private[cats] trait MonixToCatsCore3 extends MonixToCatsCore2 {
   /** Converts Monix's [[monix.types.Monad Monad]]
     * instances into the Cats `Monad`.
     */
-  implicit def convertMonixToCatsMonad[F[_]](implicit ev: Monad[F]): _root_.cats.Monad[F] =
-    new ConvertMonixToCatsMonad[F] {
-      override val _monad = ev
-      override val _applicative = ev.applicative
-      override val _functor = ev.applicative.functor
-    }
+  implicit def convertMonixToCatsMonad[F[_] : Monad]: _root_.cats.Monad[F] =
+    new MonixToCatsMonad[F]()
 
-  protected trait ConvertMonixToCatsMonad[F[_]]
-    extends _root_.cats.Monad[F] with ConvertMonixToCatsApplicative[F] {
+  protected class MonixToCatsMonad[F[_]](implicit F: Monad[F])
+    extends _root_.cats.Monad[F] {
 
-    val _monad: Monad[F]
-
-    override def flatMap[A, B](fa: F[A])(f: (A) => F[B]): F[B] =
-      _monad.flatMap(fa)(f)
-    override def flatten[A](ffa: F[F[A]]): F[A] =
-      _monad.flatten(ffa)
+    final override def map[A, B](fa: F[A])(f: (A) => B): F[B] =
+      F.functor.map(fa)(f)
+    final override def pure[A](x: A): F[A] =
+      F.applicative.pure(x)
+    final override def ap[A, B](ff: F[(A) => B])(fa: F[A]): F[B] =
+      F.applicative.ap(ff)(fa)
+    final override def map2[A, B, Z](fa: F[A], fb: F[B])(f: (A, B) => Z): F[Z] =
+      F.applicative.map2(fa,fb)(f)
+    final override def product[A, B](fa: F[A], fb: F[B]): F[(A, B)] =
+      F.applicative.map2(fa,fb)((a,b) => (a,b))
+    final override def flatMap[A, B](fa: F[A])(f: (A) => F[B]): F[B] =
+      F.flatMap(fa)(f)
+    final override def flatten[A](ffa: F[F[A]]): F[A] =
+      F.flatten(ffa)
     override def tailRecM[A, B](a: A)(f: (A) => F[Either[A, B]]): F[B] =
       defaultTailRecM(a)(f)
   }
 }
 
-private[cats] trait MonixToCatsCore4 extends MonixToCatsCore3  {
-  /** Converts Monix's type instances into the Cats `MonadError`. */
+private[cats] trait MonixToCatsCore3 extends MonixToCatsCore2 {
+  /** Converts Monix's [[monix.types.MonadError MonadError]]
+    * instances into the Cats `MonadError`.
+    */
   implicit def monixToCatsMonadError[F[_],E]
-  (implicit M: Monad[F], R: Recoverable[F,E]): _root_.cats.MonadError[F,E] =
-    new ConvertMonixToCatsMonadError[F,E] {
-      override val _recoverable: Recoverable[F, E] = R
-      override val _monad: Monad[F] = M
-      override val _applicative: Applicative[F] = M.applicative
-      override val _functor: Functor[F] = M.applicative.functor
-    }
+    (implicit ev: MonadError[F,E]): _root_.cats.MonadError[F,E] =
+    new MonixToCatsMonadError()
 
-  protected trait ConvertMonixToCatsMonadError[F[_],E]
-    extends _root_.cats.MonadError[F,E]
-      with ConvertMonixToCatsMonad[F]
-      with ConvertMonixToCatsApplicativeError[F,E]
+  protected class MonixToCatsMonadError[F[_],E](implicit F: MonadError[F,E])
+    extends MonixToCatsMonad[F]()(F.monad)
+      with _root_.cats.MonadError[F,E] {
+
+    override def raiseError[A](e: E): F[A] =
+      F.raiseError(e)
+    override def handleErrorWith[A](fa: F[A])(f: (E) => F[A]): F[A] =
+      F.onErrorHandleWith(fa)(f)
+    override def handleError[A](fa: F[A])(f: (E) => A): F[A] =
+      F.onErrorHandle(fa)(f)
+    override def recover[A](fa: F[A])(pf: PartialFunction[E, A]): F[A] =
+      F.onErrorRecover(fa)(pf)
+    override def recoverWith[A](fa: F[A])(pf: PartialFunction[E, F[A]]): F[A] =
+      F.onErrorRecoverWith(fa)(pf)
+  }
+}
+
+private[cats] trait MonixToCatsCore4 extends MonixToCatsCore3 {
+  /** Converts Monix's [[monix.types.Cobind CoflatMap]]
+    * instances into the Cats `CoflatMap`.
+    */
+  implicit def monixToCatsCoflatMap[F[_] : Cobind]: _root_.cats.CoflatMap[F] =
+    new MonixToCatsCoflatMap[F]()
+
+  protected class MonixToCatsCoflatMap[F[_]](implicit F: Cobind[F])
+    extends MonixToCatsFunctor[F]()(F.functor)
+      with _root_.cats.CoflatMap[F] {
+
+    final override def coflatMap[A, B](fa: F[A])(f: (F[A]) => B): F[B] =
+      F.coflatMap(fa)(f)
+    final override def coflatten[A](fa: F[A]): F[F[A]] =
+      F.coflatten(fa)
+  }
 }
 
 
 private[cats] trait MonixToCatsCore5 extends MonixToCatsCore4 {
-  /** Converts Monix's [[monix.types.CoflatMap CoflatMap]]
-    * instances into the Cats `CoflatMap`.
-    */
-  implicit def monixToCatsCoflatMap[F[_]](implicit ev: CoflatMap[F]): _root_.cats.CoflatMap[F] =
-    new ConvertMonixToCatsCoflatMap[F] {
-      override val _coflatMap = ev
-      override val _functor = ev.functor
-    }
-
-  protected trait ConvertMonixToCatsCoflatMap[F[_]]
-    extends _root_.cats.CoflatMap[F] with ConvertMonixToCatsFunctor[F] {
-
-    val _coflatMap: CoflatMap[F]
-
-    override def coflatMap[A, B](fa: F[A])(f: (F[A]) => B): F[B] =
-      _coflatMap.coflatMap(fa)(f)
-    override def coflatten[A](fa: F[A]): F[F[A]] =
-      _coflatMap.coflatten(fa)
-  }
-}
-
-
-private[cats] trait MonixToCatsCore6 extends MonixToCatsCore5 {
   /** Converts Monix's [[monix.types.Comonad Comonad]]
     * instances into the Cats `Comonad`.
     */
-  implicit def monixToCatsComonad[F[_]](implicit ev: Comonad[F]): _root_.cats.Comonad[F] =
-    new ConvertMonixToCatsComonad[F] {
-      override val _comonad = ev
-      override val _coflatMap = ev.coflatMap
-      override val _functor = ev.coflatMap.functor
-    }
+  implicit def monixToCatsComonad[F[_] : Comonad]: _root_.cats.Comonad[F] =
+    new ConvertMonixToCatsComonad[F]()
 
-  protected trait ConvertMonixToCatsComonad[F[_]]
-    extends _root_.cats.Comonad[F] with ConvertMonixToCatsCoflatMap[F] {
+  protected class ConvertMonixToCatsComonad[F[_]](implicit F: Comonad[F])
+    extends MonixToCatsCoflatMap[F]()(F.cobind)
+      with _root_.cats.Comonad[F] {
 
-    val _comonad: Comonad[F]
-    override def extract[A](x: F[A]): A = _comonad.extract(x)
+    final override def extract[A](x: F[A]): A =
+      F.extract(x)
+  }
+}
+
+private[cats] trait MonixToCatsCore6 extends MonixToCatsCore5 {
+  /** Converts Monix's type instances into the Cats `Bimonad`. */
+  implicit def monixToCatsBimonad[F[_] : Monad : Comonad]: _root_.cats.Bimonad[F] =
+    new MonixToCatsBimonad[F]()
+
+  protected class MonixToCatsBimonad[F[_]](implicit ev1: Monad[F], ev2: Comonad[F])
+    extends MonixToCatsMonad[F]()(ev1) with _root_.cats.Bimonad[F] {
+
+    final override def extract[A](x: F[A]): A =
+      ev2.extract(x)
+    final override def coflatMap[A, B](fa: F[A])(f: (F[A]) => B): F[B] =
+      ev2.cobind.coflatMap(fa)(f)
   }
 }
 
 private[cats] trait MonixToCatsCore7 extends MonixToCatsCore6 {
-  /** Converts Monix's type instances into the Cats `Bimonad`. */
-  implicit def monixToCatsBimonad[F[_]](implicit ev1: Monad[F], ev2: Comonad[F]): _root_.cats.Bimonad[F] =
-    new ConvertMonixToCatsBimonad[F] {
-      override val _applicative: Applicative[F] = ev1.applicative
-      override val _comonad: Comonad[F] = ev2
-      override val _coflatMap: CoflatMap[F] = ev2.coflatMap
-      override val _monad: Monad[F] = ev1
-      override val _functor: Functor[F] = ev1.applicative.functor
-    }
-
-  private[cats] trait ConvertMonixToCatsBimonad[F[_]]
-    extends _root_.cats.Bimonad[F]
-      with ConvertMonixToCatsMonad[F]
-      with ConvertMonixToCatsComonad[F]
-}
-
-private[cats] trait MonixToCatsCore8 extends MonixToCatsCore7 {
   /** Converts Monix's [[monix.types.MonadFilter MonadFilter]]
     * instances into the Cats `MonadFilter`.
     */
-  implicit def monixToCatsMonadFilter[F[_]](implicit ev: MonadFilter[F]): _root_.cats.MonadFilter[F] =
-    new ConvertMonixToCatsMonadFilter[F] {
-      override val _monadFilter: MonadFilter[F] = ev
-      override val _monad: Monad[F] = ev.monad
-      override val _applicative: Applicative[F] = ev.monad.applicative
-      override val _functor: Functor[F] = ev.monad.applicative.functor
-    }
+  implicit def monixToCatsMonadFilter[F[_] : MonadFilter]: _root_.cats.MonadFilter[F] =
+    new MonixToCatsMonadFilter[F]()
 
-  protected trait ConvertMonixToCatsMonadFilter[F[_]]
-    extends _root_.cats.MonadFilter[F] with ConvertMonixToCatsMonad[F] {
+  protected class MonixToCatsMonadFilter[F[_]](implicit F: MonadFilter[F])
+    extends MonixToCatsMonad[F]()(F.monad) with _root_.cats.MonadFilter[F] {
 
-    val _monadFilter: MonadFilter[F]
+    final override def empty[A]: F[A] =
+      F.empty[A]
+    final override def filter[A](fa: F[A])(f: (A) => Boolean): F[A] =
+      F.filter(fa)(f)
+  }
+}
 
-    override def empty[A]: F[A] =
-      _monadFilter.empty[A]
-    override def filter[A](fa: F[A])(f: (A) => Boolean): F[A] =
-      _monadFilter.filter(fa)(f)
+private[cats] trait MonixToCatsCore8 extends MonixToCatsCore7 {
+  /** Converts Monix's [[monix.types.SemigroupK SemigroupK]]
+    * instances into the Cats `SemigroupK`.
+    */
+  implicit def monixToCatsSemigroupK[F[_] : SemigroupK]: _root_.cats.SemigroupK[F] =
+    new MonixToCatsSemigroupK[F]()
+
+  protected class MonixToCatsSemigroupK[F[_]](implicit F: SemigroupK[F])
+    extends _root_.cats.SemigroupK[F] {
+
+    override def combineK[A](x: F[A], y: F[A]): F[A] =
+      F.combineK(x,y)
   }
 }
 
 private[cats] trait MonixToCatsCore9 extends MonixToCatsCore8 {
-  /** Converts Monix's [[monix.types.SemigroupK SemigroupK]]
-    * instances into the Cats `SemigroupK`.
-    */
-  implicit def monixToCatsSemigroupK[F[_]](implicit ev: SemigroupK[F]): _root_.cats.SemigroupK[F] =
-    new ConvertMonixToCatsSemigroupK[F] { override val _semigroupK = ev }
-
-  protected trait ConvertMonixToCatsSemigroupK[F[_]]
-    extends _root_.cats.SemigroupK[F] {
-
-    val _semigroupK: SemigroupK[F]
-    override def combineK[A](x: F[A], y: F[A]): F[A] =
-      _semigroupK.combineK(x,y)
-  }
-}
-
-private[cats] trait MonixToCatsCore10 extends MonixToCatsCore9 {
   /** Converts Monix's [[monix.types.MonoidK MonoidK]]
     * instances into the Cats `MonoidK`.
     */
-  implicit def monixToCatsMonoidK[F[_]](implicit ev: MonoidK[F]): _root_.cats.MonoidK[F] =
-    new ConvertMonixToCatsMonoidK[F] {
-      override val _monoidK: MonoidK[F] = ev
-      override val _semigroupK: SemigroupK[F] = ev.semigroupK
-    }
+  implicit def monixToCatsMonoidK[F[_] : MonoidK]: _root_.cats.MonoidK[F] =
+    new MonixToCatsMonoidK[F]()
 
-  protected trait ConvertMonixToCatsMonoidK[F[_]]
-    extends _root_.cats.MonoidK[F] with ConvertMonixToCatsSemigroupK[F] {
+  protected class MonixToCatsMonoidK[F[_]](implicit F: MonoidK[F])
+    extends MonixToCatsSemigroupK[F]()(F.semigroupK)
+      with _root_.cats.MonoidK[F] {
 
-    val _monoidK: MonoidK[F]
-    override def empty[A]: F[A] = _monoidK.empty[A]
+    final override def empty[A]: F[A] = F.empty[A]
   }
 }
 
-private[cats] trait MonixToCatsCore11 extends  MonixToCatsCore10 {
+private[cats] trait MonixToCatsCore10 extends  MonixToCatsCore9 {
   /** Converts Monix's type instances into the Cats `MonadCombine`. */
-  implicit def monixToCatsMonadCombine[F[_]]
-    (implicit M: MonadFilter[F], MK: MonoidK[F]): _root_.cats.MonadCombine[F] =
-    new ConvertMonixToCatsMonadCombine[F] {
-      override val _monadFilter: MonadFilter[F] = M
-      override val _monad: Monad[F] = M.monad
-      override val _applicative: Applicative[F] = M.monad.applicative
-      override val _monoidK: MonoidK[F] = MK
-      override val _semigroupK: SemigroupK[F] = MK.semigroupK
-      override val _functor: Functor[F] = M.monad.applicative.functor
-    }
+  implicit def monixToCatsMonadCombine[F[_] : MonadFilter : MonoidK]: _root_.cats.MonadCombine[F] =
+    new MonixToCatsMonadCombine[F]()
 
-  protected trait ConvertMonixToCatsMonadCombine[F[_]]
-    extends _root_.cats.MonadCombine[F]
-      with ConvertMonixToCatsMonoidK[F]
-      with ConvertMonixToCatsMonadFilter[F] {
+  protected class MonixToCatsMonadCombine[F[_]](implicit M: MonadFilter[F], MK: MonoidK[F])
+    extends MonixToCatsMonadFilter[F]
+      with _root_.cats.MonadCombine[F] {
 
-    // Compiler complains, because empty gets
-    // inherited from two sources
-    override def empty[A]: F[A] =
-      _monadFilter.empty
+    final override def combineK[A](x: F[A], y: F[A]): F[A] =
+      MK.semigroupK.combineK(x,y)
   }
 }
 
-private[cats] trait MonixToCatsCore12 extends MonixToCatsCore11 {
+private[cats] trait MonixToCatsCore11 extends MonixToCatsCore10 {
   /** Converts Monix's [[monix.types.MonadRec MonadRec]]
     * instances into the Cats `Monad`.
     */
-  implicit def monixToCatsMonadRec[F[_]]
-    (implicit ev: MonadRec[F]): _root_.cats.Monad[F] with _root_.cats.RecursiveTailRecM[F] =
-    new ConvertMonixToCatsMonadRec[F] {
-      override val _monadRec: MonadRec[F] = ev
-      override val _monad: Monad[F] = ev.monad
-      override val _applicative: Applicative[F] = ev.monad.applicative
-      override val _functor: Functor[F] = ev.monad.applicative.functor
-    }
+  implicit def monixToCatsMonadRec[F[_] : MonadRec]: _root_.cats.Monad[F] with _root_.cats.RecursiveTailRecM[F] =
+      new MonixToCatsMonadRec[F]()
 
-  protected trait ConvertMonixToCatsMonadRec[F[_]]
-    extends _root_.cats.RecursiveTailRecM[F] with ConvertMonixToCatsMonad[F] {
+  protected class MonixToCatsMonadRec[F[_]](implicit F: MonadRec[F])
+    extends MonixToCatsMonad[F]()(F.monad) with _root_.cats.RecursiveTailRecM[F] {
 
-    val _monadRec: MonadRec[F]
-    override def tailRecM[A, B](a: A)(f: (A) => F[Either[A, B]]): F[B] =
-      _monadRec.tailRecM(a)(f)
+    final override def tailRecM[A, B](a: A)(f: (A) => F[Either[A, B]]): F[B] =
+      F.tailRecM(a)(f)
   }
 }

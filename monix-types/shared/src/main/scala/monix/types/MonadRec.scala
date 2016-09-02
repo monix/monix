@@ -23,39 +23,46 @@ package monix.types
   * Based on Phil Freeman's
   * [[http://functorial.com/stack-safety-for-free/index.pdf Stack Safety for Free]].
   *
+  * To implement `MonadRec`:
+  *
+  *  - inherit from [[MonadRec.Type]] in derived type-classes
+  *  - inherit from [[MonadRec.Instance]] when implementing instances
+  *
   * The purpose of this type-class is to support the data-types in the
   * Monix library and it is considered a shim for a lawful type-class
   * to be supplied by libraries such as Cats or Scalaz or equivalent.
   *
-  * To implement it in instances, inherit from [[MonadClass]].
-  *
-  * Credit should be given where it is due. The type-class encoding
-  * has been copied from the Scado project and
-  * [[https://github.com/scalaz/scalaz/ Scalaz 8]] and the type has
-  * been extracted from [[http://typelevel.org/cats/ Cats]].
+  * CREDITS: The type-class encoding has been inspired by the Scado
+  * project and [[https://github.com/scalaz/scalaz/ Scalaz 8]] and
+  * the type has been extracted from [[http://typelevel.org/cats/ Cats]].
   */
-trait MonadRec[F[_]] extends Serializable {
-  def monad: Monad[F]
+trait MonadRec[F[_]] extends Serializable with Monad.Type[F] {
+  self: MonadRec.Instance[F] =>
 
   /** Keeps calling `f` until a `scala.util.Right[B]` is returned. */
   def tailRecM[A, B](a: A)(f: A => F[Either[A, B]]): F[B] =
-    monad.flatMap(f(a)) {
-      case Right(b) =>
-        monad.applicative.pure(b)
-      case Left(nextA) =>
-        tailRecM(nextA)(f)
+    flatMap(f(a)) {
+      case Right(b) => pure(b)
+      case Left(nextA) => tailRecM(nextA)(f)
     }
 }
 
 object MonadRec {
   @inline def apply[F[_]](implicit F: MonadRec[F]): MonadRec[F] = F
-}
 
-/** The `MonadRecClass` provides the means to combine
-  * [[MonadRec]] instances with other type-classes.
-  *
-  * To be inherited by `MonadRec` instances.
-  */
-trait MonadRecClass[F[_]] extends MonadRec[F] with MonadClass[F] {
-  final def monadRec: MonadRec[F] = this
+  /** The `MonadRec.Type` should be inherited in type-classes that
+    * are derived from [[MonadRec]].
+    */
+  trait Type[F[_]] extends Monad.Type[F] {
+    implicit def monadRec: MonadRec[F]
+  }
+
+  /** The `MonadRec.Instance` provides the means to combine
+    * [[MonadRec]] instances with other type-classes.
+    *
+    * To be inherited by `MonadRec` instances.
+    */
+  trait Instance[F[_]] extends MonadRec[F] with Type[F] with Monad.Instance[F] {
+    override final def monadRec: MonadRec[F] = this
+  }
 }

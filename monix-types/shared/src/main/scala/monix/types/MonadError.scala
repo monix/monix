@@ -17,24 +17,23 @@
 
 package monix.types
 
-/** The `Recoverable` type-class is the equivalent of
-  * `ApplicativeError` or of `MonadError` from other libraries like
-  * Cats or Scalaz. This type class allows one to abstract over
-  * error-handling applicatives.
+/** The `MonadError` type-class describes monads that can do error handling.
+  *
+  * To implement `MonadError`:
+  *
+  *  - inherit from [[MonadError.Type]] in derived type-classes
+  *  - inherit from [[MonadError.Instance]] when implementing instances
   *
   * The purpose of this type-class is to support the data-types in the
   * Monix library and it is considered a shim for a lawful type-class
   * to be supplied by libraries such as Cats or Scalaz or equivalent.
   *
-  * To implement it in instances, inherit from [[RecoverableClass]].
-  *
-  * Credit should be given where it is due.The type-class encoding has
-  * been copied from the Scado project and
-  * [[https://github.com/scalaz/scalaz/ Scalaz 8]] and the type has
-  * been extracted from [[http://typelevel.org/cats/ Cats]].
+  * CREDITS: The type-class encoding has been inspired by the Scado
+  * project and [[https://github.com/scalaz/scalaz/ Scalaz 8]] and
+  * the type has been extracted from [[http://typelevel.org/cats/ Cats]].
   */
-trait Recoverable[F[_], E] extends Serializable {
-  def applicative: Applicative[F]
+trait MonadError[F[_], E] extends Serializable with Monad.Type[F] {
+  self: MonadError.Instance[F,E] =>
 
   /** Lift an error into the `F` context. */
   def raiseError[A](e: E): F[A]
@@ -54,41 +53,49 @@ trait Recoverable[F[_], E] extends Serializable {
   def onErrorRecover[A](fa: F[A])(pf: PartialFunction[E, A]): F[A]
 }
 
-object Recoverable extends RecoverableSyntax {
-  @inline def apply[F[_],E](implicit F: Recoverable[F,E]): Recoverable[F,E] = F
-}
+object MonadError {
+  @inline def apply[F[_],E](implicit F: MonadError[F,E]): MonadError[F,E] = F
 
-/** The `RecoverableClass` provides the means to combine
-  * [[Recoverable]] instances with other type-classes.
-  *
-  * To be inherited by `Recoverable` instances.
-  */
-trait RecoverableClass[F[_],E]
-  extends Recoverable[F,E] with ApplicativeClass[F] {
+  /** The `MonadError.Type` should be inherited in type-classes that
+    * are derived from [[MonadError]].
+    */
+  trait Type[F[_],E] extends Monad.Type[F] {
+    implicit def monadError: MonadError[F,E]
+  }
 
-  final def recoverable: Recoverable[F,E] = this
-}
+  /** The `MonadError.Instance` provides the means to combine
+    * [[MonadError]] instances with other type-classes.
+    *
+    * To be inherited by `MonadError` instances.
+    */
+  trait Instance[F[_],E] extends MonadError[F,E] with Type[F,E]
+    with Applicative.Instance[F] {
 
-trait RecoverableSyntax extends Serializable {
-  implicit final def recoverableOps[F[_],E,A](fa: F[A])
-    (implicit F: Recoverable[F,E]): RecoverableSyntax.Ops[F,E,A] =
-    new RecoverableSyntax.Ops(fa)
-}
+    override final def monadError: MonadError[F,E] = this
+  }
 
-object RecoverableSyntax {
-  final class Ops[F[_], E, A](self: F[A])(implicit F: Recoverable[F,E])
+  trait Syntax extends Serializable {
+    implicit final def recoverableOps[F[_],E,A](fa: F[A])(implicit F: MonadError[F,E]): Ops[F,E,A] =
+      new Ops(fa)
+  }
+
+  /** Extension methods for [[MonadError]]. */
+  final class Ops[F[_], E, A](self: F[A])(implicit F: MonadError[F,E])
     extends Serializable {
 
-    /** Extension method for [[Recoverable.onErrorHandleWith]]. */
+    /** Extension method for [[MonadError.onErrorHandleWith]]. */
     def onErrorHandleWith(f: E => F[A]): F[A] =
       F.onErrorHandleWith(self)(f)
-    /** Extension method for [[Recoverable.onErrorHandle]]. */
+
+    /** Extension method for [[MonadError.onErrorHandle]]. */
     def onErrorHandle(f: E => A): F[A] =
       F.onErrorHandle(self)(f)
-    /** Extension method for [[Recoverable.onErrorRecoverWith]]. */
+
+    /** Extension method for [[MonadError.onErrorRecoverWith]]. */
     def onErrorRecoverWith(pf: PartialFunction[E, F[A]]): F[A] =
       F.onErrorRecoverWith(self)(pf)
-    /** Extension method for [[Recoverable.onErrorRecover]]. */
+
+    /** Extension method for [[MonadError.onErrorRecover]]. */
     def onErrorRecover(pf: PartialFunction[E, A]): F[A] =
       F.onErrorRecover(self)(pf)
   }

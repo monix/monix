@@ -20,42 +20,50 @@ package monix.types
 /** A functor provides the `map` operation that allows lifting an `f`
   * function into the functor context and applying it.
   *
+  * To implement `Functor`:
+  *
+  *  - inherit from [[Functor.Type]] in derived type-classes
+  *  - inherit from [[Functor.Instance]] when implementing instances
+  *
   * The purpose of this type-class is to support the data-types in the
   * Monix library and it is considered a shim for a lawful type-class
   * to be supplied by libraries such as Cats or Scalaz or equivalent.
   *
-  * To implement it in instances, inherit from [[FunctorClass]].
-  *
-  * Credit should be given where it is due.The type-class encoding has
-  * been copied from the Scado project and
-  * [[https://github.com/scalaz/scalaz/ Scalaz 8]] and the type has
-  * been extracted from [[http://typelevel.org/cats/ Cats]].
+  * CREDITS: The type-class encoding has been inspired by the Scado
+  * project and [[https://github.com/scalaz/scalaz/ Scalaz 8]] and
+  * the type has been extracted from [[http://typelevel.org/cats/ Cats]].
   */
 trait Functor[F[_]] extends Serializable {
+  self: Functor.Instance[F] =>
+
   def map[A, B](fa: F[A])(f: A => B): F[B]
 }
 
-object Functor extends FunctorSyntax {
+object Functor {
   @inline def apply[F[_]](implicit F: Functor[F]): Functor[F] = F
-}
 
-/** The `FunctorClass` provides the means to combine [[Functor]]
-  * instances with other type-classes.
-  *
-  *  To be inherited by `Functor` instances.
-  */
-trait FunctorClass[F[_]] extends Functor[F] {
-  final def functor: Functor[F] = this
-}
+  /** The `Functor.Type` should be inherited in type-classes that
+    * are derived from [[Functor]].
+    */
+  trait Type[F[_]] {
+    implicit def functor: Functor[F]
+  }
 
-/** Provides syntax for [[Functor]]. */
-trait FunctorSyntax extends Serializable {
-  implicit final def functorOps[F[_], A](fa: F[A])
-    (implicit F: Functor[F]): FunctorSyntax.Ops[F, A] =
-    new FunctorSyntax.Ops(fa)
-}
+  /** The `Functor.Instance` provides the means to combine [[Functor]]
+    * instances with other type-classes when implementing instances.
+    *
+    *  To be inherited by `Functor` instances.
+    */
+  trait Instance[F[_]] extends Functor[F] with Type[F] {
+    override implicit final def functor: Functor[F] = this
+  }
 
-object FunctorSyntax {
+  /** Provides syntax for [[Functor]]. */
+  trait Syntax extends Serializable {
+    implicit final def functorOps[F[_] : Functor, A](fa: F[A]): Ops[F, A] =
+      new Ops(fa)
+  }
+
   final class Ops[F[_], A](self: F[A])(implicit F: Functor[F])
     extends Serializable {
 
@@ -63,3 +71,5 @@ object FunctorSyntax {
     def map[B](f: A => B): F[B] = F.map(self)(f)
   }
 }
+
+

@@ -18,14 +18,14 @@
 package monix.types
 
 /** Groups all syntax extensions. */
-trait AllSyntax extends ApplicativeSyntax
-  with CoflatMapSyntax
-  with ComonadSyntax
-  with FunctorSyntax
-  with MonadSyntax
-  with MonadFilterSyntax
-  with RecoverableSyntax
-  with MemoizableSyntax
+trait AllSyntax extends Applicative.Syntax
+  with Cobind.Syntax
+  with Comonad.Syntax
+  with Functor.Syntax
+  with Monad.Syntax
+  with MonadFilter.Syntax
+  with MonadError.Syntax
+  with Memoizable.Syntax
 
 /** Provides syntax (extension methods) for usage of [[monix.types]]
   * instances.

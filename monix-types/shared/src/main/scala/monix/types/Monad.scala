@@ -26,46 +26,53 @@ package monix.types
   * [[http://homepages.inf.ed.ac.uk/wadler/papers/marktoberdorf/baastad.pdf
   * Monads for functional programming]]
   *
+  * To implement `Monad`:
+  *
+  *  - inherit from [[Monad.Type]] in derived type-classes
+  *  - inherit from [[Monad.Instance]] when implementing instances
+  *
   * The purpose of this type-class is to support the data-types in the
   * Monix library and it is considered a shim for a lawful type-class
   * to be supplied by libraries such as Cats or Scalaz or equivalent.
   *
-  * To implement it in instances, inherit from [[MonadClass]].
-  *
-  * Credit should be given where it is due.The type-class encoding has
-  * been copied from the Scado project and
-  * [[https://github.com/scalaz/scalaz/ Scalaz 8]] and the type has
-  * been extracted from [[http://typelevel.org/cats/ Cats]].
+  * CREDITS: The type-class encoding has been inspired by the Scado
+  * project and [[https://github.com/scalaz/scalaz/ Scalaz 8]] and
+  * the type has been extracted from [[http://typelevel.org/cats/ Cats]].
   */
-trait Monad[F[_]] extends Serializable {
-  def applicative: Applicative[F]
+trait Monad[F[_]] extends Serializable with Applicative.Type[F] {
+  self: Monad.Instance[F] =>
 
   def flatMap[A, B](fa: F[A])(f: A => F[B]): F[B]
   def flatten[A](ffa: F[F[A]]): F[A] =
     flatMap(ffa)(x => x)
 }
 
-object Monad extends MonadSyntax {
+object Monad {
   @inline def apply[F[_]](implicit F: Monad[F]): Monad[F] = F
-}
 
-/** The `MonadClass` provides the means to combine
-  * [[Monad]] instances with other type-classes.
-  *
-  * To be inherited by `Monad` instances.
-  */
-trait MonadClass[F[_]] extends Monad[F] with ApplicativeClass[F] {
-  final def monad: Monad[F] = this
-}
+  /** The `Monad.Type` should be inherited in type-classes that
+    * are derived from [[Monad]].
+    */
+  trait Type[F[_]] extends Applicative.Type[F] {
+    implicit def monad: Monad[F]
+  }
 
-/** Provides syntax for [[Monad]]. */
-trait MonadSyntax extends Serializable {
-  implicit final def monadOps[F[_], A](fa: F[A])
-    (implicit F: Monad[F]): MonadSyntax.Ops[F, A] =
-    new MonadSyntax.Ops(fa)
-}
+  /** The `Monad.Instance` provides the means to combine
+    * [[Monad]] instances with other type-classes.
+    *
+    * To be inherited by `Monad` instances.
+    */
+  trait Instance[F[_]] extends Monad[F] with Type[F] with Applicative.Instance[F] {
+    override final def monad: Monad[F] = this
+  }
 
-object MonadSyntax {
+  /** Provides syntax for [[Monad]]. */
+  trait Syntax extends Serializable {
+    implicit final def monadOps[F[_] : Monad, A](fa: F[A]): Ops[F, A] =
+      new Ops(fa)
+  }
+
+  /** Extension methods for [[Monad]]. */
   final class Ops[F[_], A](self: F[A])(implicit F: Monad[F])
     extends Serializable {
 
@@ -73,7 +80,7 @@ object MonadSyntax {
     def flatMap[B](f: A => F[B]): F[B] = F.flatMap(self)(f)
     /** Extension method for [[Monad.flatten]]. */
     def flatten[B](implicit ev: A <:< F[B]): F[B] =
-      F.flatten(self.asInstanceOf[F[F[B]]])
+    F.flatten(self.asInstanceOf[F[F[B]]])
   }
 }
 

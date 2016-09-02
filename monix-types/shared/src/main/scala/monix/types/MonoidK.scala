@@ -17,21 +17,23 @@
 
 package monix.types
 
-/** `MonoidK` is a universal monoid which operates on kinds. 
-  * 
+/** `MonoidK` is a universal monoid which operates on kinds.
+  *
+  * To implement `MonoidK`:
+  *
+  *  - inherit from [[MonoidK.Type]] in derived type-classes
+  *  - inherit from [[MonoidK.Instance]] when implementing instances
+  *
   * The purpose of this type-class is to support the data-types in the
   * Monix library and it is considered a shim for a lawful type-class
   * to be supplied by libraries such as Cats or Scalaz or equivalent.
-  * 
-  * To implement it in instances, inherit from [[MonoidKClass]].
-  * 
-  * Credit should be given where it is due.The type-class encoding has
-  * been copied from the Scado project and
-  * [[https://github.com/scalaz/scalaz/ Scalaz 8]] and the type has
-  * been extracted from [[http://typelevel.org/cats/ Cats]].
+  *
+  * CREDITS: The type-class encoding has been inspired by the Scado
+  * project and [[https://github.com/scalaz/scalaz/ Scalaz 8]] and
+  * the type has been extracted from [[http://typelevel.org/cats/ Cats]].
   */
-trait MonoidK[F[_]] extends Serializable {
-  def semigroupK: SemigroupK[F]
+trait MonoidK[F[_]] extends Serializable with SemigroupK.Type[F] {
+  self: MonoidK.Instance[F] =>
 
   /** Given a type A, create an "empty" F[A] value. */
   def empty[A]: F[A]
@@ -39,14 +41,22 @@ trait MonoidK[F[_]] extends Serializable {
 
 object MonoidK {
   @inline def apply[F[_]](implicit F: MonoidK[F]): MonoidK[F] = F
-}
 
-/** The `MonoidKClass` provides the means to combine
-  * [[MonoidK]] instances with other type-classes.
-  * 
-  * To be inherited by `MonoidK` instances.
-  */
-trait MonoidKClass[F[_]] extends MonoidK[F] with SemigroupKClass[F] {
-  final def monoidK: MonoidK[F] = this
-}
+  /** The `MonoidK.Type` should be inherited in type-classes that
+    * are derived from [[MonoidK]].
+    */
+  trait Type[F[_]] extends SemigroupK.Type[F] {
+    implicit def monoidK: MonoidK[F]
+  }
 
+  /** The `MonoidK.Instance` provides the means to combine
+    * [[MonoidK]] instances with other type-classes.
+    *
+    * To be inherited by `MonoidK` instances.
+    */
+  trait Instance[F[_]] extends MonoidK[F] with Type[F]
+    with SemigroupK.Instance[F] {
+
+    override final def monoidK: MonoidK[F] = this
+  }
+}

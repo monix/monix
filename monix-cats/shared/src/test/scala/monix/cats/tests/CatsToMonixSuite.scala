@@ -46,7 +46,7 @@ object CatsToMonixSuite extends SimpleTestSuite with cats.instances.AllInstances
   }
 
   test("coflatMap") {
-    def test[F[_]](x: F[Int])(implicit F: CoflatMap[F]): F[Int] =
+    def test[F[_]](x: F[Int])(implicit F: Cobind[F]): F[Int] =
       x.coflatMap(_ => 2)
 
     assertEquals(test(Eval.always(1)).value, 2)

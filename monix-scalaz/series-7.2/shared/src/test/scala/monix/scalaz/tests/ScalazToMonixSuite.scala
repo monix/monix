@@ -46,7 +46,7 @@ object ScalazToMonixSuite extends SimpleTestSuite with scalaz.std.AllInstances {
   }
 
   test("coflatMap") {
-    def test[F[_]](x: F[Int])(implicit F: CoflatMap[F]): F[Int] =
+    def test[F[_]](x: F[Int])(implicit F: Cobind[F]): F[Int] =
       x.coflatMap(_ => 2)
 
     assertEquals(test(Need(1)).extract, 2)

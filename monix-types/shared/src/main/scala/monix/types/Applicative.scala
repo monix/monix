@@ -24,46 +24,55 @@ package monix.types
   * [[http://www.soi.city.ac.uk/~ross/papers/Applicative.html
   * Applicative Programming with Effects]].
   *
+  * To implement `Functor`:
+  *
+  *  - inherit from [[Functor.Type]] in derived type-classes
+  *  - inherit from [[Functor.Instance]] when implementing instances
+  *
   * The purpose of this type-class is to support the data-types in the
   * Monix library and it is considered a shim for a lawful type-class
   * to be supplied by libraries such as Cats or Scalaz or equivalent.
   *
-  * To implement it in instances, inherit from [[ApplicativeClass]].
-  *
-  * Credit should be given where it is due. The type-class encoding has
-  * been copied from the Scado project and
-  * [[https://github.com/scalaz/scalaz/ Scalaz 8]] and the type has
-  * been extracted from [[http://typelevel.org/cats/ Cats]].
-  */
-trait Applicative[F[_]] extends Serializable {
-  def functor: Functor[F]
+  * CREDITS: The type-class encoding has been inspired by the Scado
+  * project and [[https://github.com/scalaz/scalaz/ Scalaz 8]] and
+  * the type has been extracted from [[http://typelevel.org/cats/ Cats]].
 
+  */
+trait Applicative[F[_]] extends Serializable with Functor.Type[F] {
   def pure[A](a: A): F[A]
   def map2[A, B, Z](fa: F[A], fb: F[B])(f: (A, B) => Z): F[Z]
   def ap[A, B](ff: F[A => B])(fa: F[A]): F[B]
+  def unit: F[Unit] = pure(())
 }
 
-object Applicative extends ApplicativeSyntax {
+object Applicative {
   @inline def apply[F[_]](implicit F: Applicative[F]): Applicative[F] = F
-}
 
-/** The `ApplicativeClass` provides the means to combine
-  * [[Applicative]] instances with other type-classes.
-  *
-  * To be inherited by `Applicative` instances.
-  */
-trait ApplicativeClass[F[_]] extends Applicative[F] with FunctorClass[F] {
-  final def applicative: Applicative[F] = this
-}
+  /** The `Applicative.Type` should be inherited in type-classes that
+    * are derived from [[Applicative]].
+    */
+  trait Type[F[_]] extends Functor.Type[F] {
+    implicit def applicative: Applicative[F]
+  }
 
-/** Provides syntax for [[Applicative]]. */
-trait ApplicativeSyntax extends Serializable {
-  implicit final def applicativeOps[F[_], A, B](ff: F[A => B])
-    (implicit F: Applicative[F]): ApplicativeSyntax.OpsAP[F, A, B] =
-    new ApplicativeSyntax.OpsAP(ff)
-}
+  /** The `Applicative.Instance` provides the means to combine
+    * [[Applicative]] instances with other type-classes.
+    *
+    * To be inherited by `Applicative` instances.
+    */
+  trait Instance[F[_]] extends Applicative[F] with Type[F]
+    with Functor.Instance[F] {
 
-object ApplicativeSyntax {
+    override final def applicative: Applicative[F] = this
+  }
+
+  /** Provides syntax for [[Applicative]]. */
+  trait Syntax extends Serializable {
+    implicit final def applicativeOps[F[_] : Applicative, A, B](ff: F[A => B]): OpsAP[F, A, B] =
+      new OpsAP(ff)
+  }
+
+  /** Extension methods for [[Applicative]]. */
   final class OpsAP[F[_], A, B](self: F[A => B])(implicit F: Applicative[F])
     extends Serializable {
 
