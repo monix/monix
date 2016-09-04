@@ -6,6 +6,9 @@ import sbtunidoc.Plugin.{ScalaUnidoc, unidocSettings => baseUnidocSettings}
 import scala.xml.Elem
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 
+val catsVersion = "0.7.2"
+val scalazVersion = "7.2.5"
+
 lazy val doNotPublishArtifact = Seq(
   publishArtifact := false,
   publishArtifact in (Compile, packageDoc) := false,
@@ -354,8 +357,8 @@ lazy val catsCommon =
     name := "monix-cats",
     testFrameworks := Seq(new TestFramework("minitest.runner.Framework")),
     libraryDependencies ++= Seq(
-      "org.typelevel" %%% "cats-core" % "0.7.0",
-      "org.typelevel" %%% "cats-laws" % "0.7.0" % "test",
+      "org.typelevel" %%% "cats-core" % catsVersion,
+      "org.typelevel" %%% "cats-laws" % catsVersion % "test",
       "io.monix" %%% "minitest-laws" % "0.21" % "test"
     ))
 
@@ -377,8 +380,8 @@ lazy val scalaz72Common =
   crossSettings ++ testSettings ++ Seq(
     name := "monix-scalaz-72",
     libraryDependencies ++= Seq(
-      "org.scalaz" %%% "scalaz-core" % "7.2.5",
-      "org.scalaz" %%% "scalaz-scalacheck-binding" % "7.2.5" % "test"
+      "org.scalaz" %%% "scalaz-core" % scalazVersion,
+      "org.scalaz" %%% "scalaz-scalacheck-binding" % scalazVersion % "test"
     ))
 
 lazy val scalaz72JVM = project.in(file("monix-scalaz/series-7.2/jvm"))
@@ -414,6 +417,6 @@ lazy val benchmarks = project.in(file("benchmarks"))
   .settings(doNotPublishArtifact)
   .settings(
     libraryDependencies ++= Seq(
-      "org.scalaz" %% "scalaz-concurrent" % "7.2.5",
+      "org.scalaz" %% "scalaz-concurrent" % scalazVersion,
       "io.reactivex" %% "rxscala" % "0.26.0"
     ))

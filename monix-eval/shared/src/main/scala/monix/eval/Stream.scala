@@ -18,9 +18,10 @@
 package monix.eval
 
 import monix.eval.Stream._
+import monix.execution.internal.Platform
 import monix.types._
-
-import scala.collection.{LinearSeq, mutable}
+import scala.collection.immutable.{LinearSeq, Seq}
+import scala.collection.mutable
 import scala.util.control.NonFatal
 
 /** The `Stream` is a type that describes lazy, possibly asynchronous
@@ -40,17 +41,16 @@ import scala.util.control.NonFatal
   *
   * The type is an ADT, meaning a composite of the following types:
   *
-  *  - [[monix.eval.Stream.Next Next]] which signals a single strict
+  *  - [[monix.eval.Stream.Cons Cons]] which signals a single strict
   *    element, the `head` and a `tail` representing the rest of the stream
-  *  - [[monix.eval.Stream.NextF NextF]] is a variation on `Next`
+  *  - [[monix.eval.Stream.ConsLazy ConsLazy]] is a variation on `Cons`
   *    for signaling a lazily computed `head` and the `tail`
   *    representing the rest of the stream
-  *  - [[monix.eval.Stream.NextSeq NextSeq]] signaling a
-  *    whole batch of elements, as an optimization, along
-  *    with the `tail` that represents the rest of the stream
+  *  - [[monix.eval.Stream.ConsSeq ConsSeq]] is a variation on `Cons`
+  *    for signaling a whole strict batch of elements as the `head`,
+  *    along with the `tail` representing the rest of the stream
   *  - [[monix.eval.Stream.Wait Wait]] is for suspending the
-  *    evaluation of a stream, very much similar with a `NextSeq`
-  *    that has its `headSeq` empty
+  *    evaluation of a stream
   *  - [[monix.eval.Stream.Halt Halt]] represents an empty
   *    stream, signaling the end, either in success or in error
   *
@@ -81,23 +81,56 @@ sealed trait Stream[F[_], +A] extends Product with Serializable { self =>
     * This is useful to release any acquired resources,
     * like opened file handles or network sockets.
     */
-  def onCancel(implicit F: Applicative[F]): F[Unit] =
+  final def onCancel(implicit F: Applicative[F]): F[Unit] =
     this match {
-      case Next(_, _, ref) => ref
-      case NextF(_, _, ref) => ref
-      case NextSeq(_, _, ref) => ref
+      case Cons(_, _, ref) => ref
+      case ConsLazy(_, _, ref) => ref
+      case ConsSeq(_, _, ref) => ref
       case Wait(_, ref) => ref
       case Halt(_) => F.unit
     }
 
+  /** Given a mapping function that returns a possibly lazy or asynchronous
+    * result, applies it over the elements emitted by the stream.
+    */
+  final def mapEval[B](f: A => F[B])(implicit F: Monad[F]): Stream[F, B] = {
+    import F.applicative
+
+    this match {
+      case Cons(head, tail, cancel) =>
+        try ConsLazy[F,B](f(head), F.functor.map(tail)(_.mapEval(f)), cancel)
+        catch { case NonFatal(ex) => signalError(ex) }
+
+      case ConsLazy(headF, tail, cancel) =>
+        try ConsLazy[F,B](F.flatMap(headF)(f), F.functor.map(tail)(_.mapEval(f)), cancel)
+        catch { case NonFatal(ex) => signalError(ex) }
+
+      case ConsSeq(headSeq, tailF, cancel) =>
+        if (headSeq.isEmpty)
+          Wait[F,B](F.functor.map(tailF)(_.mapEval(f)), cancel)
+        else {
+          val head = headSeq.head
+          val tail = F.applicative.pure(ConsSeq(headSeq.tail, tailF, cancel))
+
+          try ConsLazy[F,B](f(head), F.functor.map(tail)(_.mapEval(f)), cancel)
+          catch { case NonFatal(ex) => signalError(ex) }
+        }
+
+      case Wait(rest, cancel) =>
+        Wait[F,B](F.functor.map(rest)(_.mapEval(f)), cancel)
+      case halt @ Halt(_) =>
+        halt
+    }
+  }
+
   /** Left associative fold using the function 'f'.
     *
-    * On execution the iterable will be traversed from left to right,
+    * On execution the stream will be traversed from left to right,
     * and the given function will be called with the prior result,
     * accumulating state until the end, when the summary is returned.
     */
   final def foldLeftL[S](seed: => S)(f: (S,A) => S)
-    (implicit D: Deferrable[F], ME: MonadError[F,Throwable]): F[S] = {
+    (implicit F: Deferrable[F], E: MonadError[F,Throwable]): F[S] = {
 
     def loop(self: Stream[F,A], state: S)(implicit A: Applicative[F], M: Monad[F]): F[S] = {
       def next(a: A, next: F[Stream[F,A]], cancel: F[Unit]): F[S] =
@@ -106,21 +139,23 @@ sealed trait Stream[F[_], +A] extends Product with Serializable { self =>
           M.flatMap(next)(loop(_, newState))
         } catch {
           case NonFatal(ex) =>
-            M.flatMap(cancel)(_ => ME.raiseError(ex))
+            M.flatMap(cancel)(_ => E.raiseError(ex))
         }
 
       self match {
         case Halt(None) =>
           A.pure(state)
         case Halt(Some(ex)) =>
-          ME.raiseError(ex)
-        case Next(a, tail, cancel) =>
+          E.raiseError(ex)
+        case Cons(a, tail, cancel) =>
           next(a, tail, cancel)
-        case NextF(headF, tail, cancel) =>
-          M.flatMap(headF)(a => next(a, tail, cancel))
+        case ConsLazy(headF, tail, cancel) =>
+          // Also protecting the head!
+          val head = E.onErrorHandleWith(headF)(ex => M.flatMap(cancel)(_ => E.raiseError(ex)))
+          M.flatMap(head)(a => next(a, tail, cancel))
         case Wait(rest, _) =>
           M.flatMap(rest)(loop(_, state))
-        case NextSeq(list, next, _) =>
+        case ConsSeq(list, next, _) =>
           if (list.isEmpty)
             M.flatMap(next)(loop(_, state))
           else try {
@@ -128,51 +163,67 @@ sealed trait Stream[F[_], +A] extends Product with Serializable { self =>
             M.flatMap(next)(loop(_, newState))
           } catch {
             case NonFatal(ex) =>
-              M.flatMap(self.onCancel)(_ => ME.raiseError(ex))
+              M.flatMap(self.onCancel)(_ => E.raiseError(ex))
           }
       }
     }
 
-    implicit val A = D.applicative
-    implicit val M = D.monad
+    implicit val A = F.applicative
+    implicit val M = F.monad
 
-    val init = ME.onErrorHandleWith(D.eval(seed))(ex => M.flatMap(onCancel)(_ => ME.raiseError(ex)))
+    val init = E.onErrorHandleWith(F.eval(seed))(ex => M.flatMap(onCancel)(_ => E.raiseError(ex)))
     M.flatMap(init)(a => loop(self, a))
+  }
+
+  /** Aggregates all elements in a `List` and preserves order. */
+  final def toListL[B >: A](implicit F: Deferrable[F], E: MonadError[F,Throwable]): F[List[B]] = {
+    val folded = foldLeftL(mutable.ListBuffer.empty[A]) { (acc, a) => acc += a }
+    F.functor.map(folded)(_.toList)
+  }
+
+  private def signalError(ex: Throwable)(implicit F: Applicative[F]): Stream[F, Nothing] = {
+    val c = onCancel
+    val t: F[Stream[F,Nothing]] = F.functor.map(c)(_ => Stream.Halt[F](Some(ex)))
+    Stream.Wait[F,Nothing](t, c)
   }
 }
 
 /**
-  * @define nextDesc The [[monix.eval.Stream.Next Next]] state
+  * @define consDesc The [[monix.eval.Stream.Cons Cons]] state
   *         of the [[Stream]] represents a `head` / `tail`
-  *         cons pair.
+  *         cons pair, where the `head` is a strict value.
   *
-  *         Note the `head` is a strict value, whereas the `tail` is
-  *         meant to be lazy and can have asynchronous behavior as well,
-  *         depending on the `F` type used. Also see
-  *         [[monix.eval.Stream.NextF NextF]] for a state that
-  *         yields a possibly lazy `head`, or
-  *         [[monix.eval.Stream.NextSeq NextSeq]] for a
-  *         state that yields a whole sequence.
+  *         Note the `head` being a strict value means that it is
+  *         already known, whereas the `tail` is meant to be lazy and
+  *         can have asynchronous behavior as well, depending on the `F`
+  *         type used.
   *
-  * @define nextSeqDesc The [[monix.eval.Stream.NextSeq NextSeq]] state
-  *         of the [[Stream]] represents a `headSeq` / `tail` cons pair.
+  *         See [[monix.eval.Stream.ConsLazy ConsLazy]] for
+  *         a state that yields a possibly lazy `head`.
+  *         See [[monix.eval.Stream.ConsSeq ConsSeq]]
+  *         for a state where the head is a strict immutable list.
   *
-  *         Like [[monix.eval.Stream.Next Next]] except that
-  *         the head is a strict sequence of elements that don't need
-  *         asynchronous execution. The `headSeq` sequence can be
-  *         empty. Useful for doing buffering.
-  *
-  * @define waitDesc The [[monix.eval.Stream.Wait Wait]] state
-  *         of the [[Stream]] represents a
-  *
-  * @define nextFDesc The [[monix.eval.Stream.NextF NextF]] state
+  * @define consLazyDesc The [[monix.eval.Stream.ConsLazy ConsLazy]] state
   *         of the [[Stream]] represents a `head` / `tail` cons pair,
   *         where the `head` is a possibly lazy or asynchronous
   *         value, its evaluation model depending on `F`.
   *
-  *         See [[monix.eval.Stream.Next Next]] for the a state where
-  *         the head is a strict value or [[monix.eval.Stream.NextSeq NextSeq]]
-  *         for a state in which the head is a strict list.
+  *         See [[monix.eval.Stream.Cons Cons]] for the a state where
+  *         the head is a strict value. See [[monix.eval.Stream.ConsSeq ConsSeq]]
+  *         for a state where the head is a strict immutable list.
+  *
+  * @define consSeqDesc The [[monix.eval.Stream.ConsSeq ConsSeq]] state
+  *         of the [[Stream]] represents a `head` / `tail` cons pair,
+  *         where the `head` is a strict list of elements.
+  *
+  *         The `head` is a Scala `collection.immutable.LinearSeq` and so
+  *         it accepts collections that are guaranteed to be immutable and
+  *         that have a reasonably efficient head/tail decomposition, examples
+  *         being Scala's `List`, `Queue` and `Stack`. The `head` can be
+  *         empty.
+  *
+  *         Useful for doing buffering, or by giving it an empty list,
+  *         useful to postpone the evaluation of the next element.
   *
   * @define waitDesc The [[monix.eval.Stream.Wait Wait]] state
   *         of the [[Stream]] represents a suspended stream to be
@@ -191,127 +242,276 @@ sealed trait Stream[F[_], +A] extends Product with Serializable { self =>
   *         `Halt` is received as a final state in the iteration process.
   *         This state cannot be followed by any other element and
   *         represents the end of the stream.
+  *
+  * @define fromIteratorDesc Converts a `scala.collection.Iterator`
+  *         into a stream.
+  *
+  *         Note that an `Iterator` is side-effectful and evaluating the
+  *         `tail` references multiple times might yield undesired effects.
+  *         Therefore, in order for evaluation of the resulting stream
+  *         to be free of surprises, the result of the evaluation driven
+  *         by the `F` context is memoized (see [[monix.types.Memoizable]]).
+  *
+  *         But memoization implies a slight overhead, so for a much cheaper
+  *         conversion from a Scala list see `fromList`.
+  *
+  * @define fromIterableDesc Converts a `scala.collection.Iterable`
+  *         into a stream.
+  *
+  *         Note that an `Iterable` reference eventually yields an `Iterator`
+  *         that is side-effectful and evaluating the `tail` references multiple
+  *         times might yield undesired effects. Therefore, in order for
+  *         evaluation of the resulting stream to be free of surprises,
+  *         the result of the evaluation driven by the `F` context is
+  *         memoized (see [[monix.types.Memoizable]]).
+  *
+  *         But memoization implies a slight overhead, so for a much cheaper
+  *         conversion from a Scala list see `fromList`.
+  *
+  * @define batchSizeDesc indicates the size of a streamed batch on each event
+  *        (by means of [[Stream.ConsSeq]]) or no batching done if it is
+  *        equal to 1
   */
 object Stream {
-  /** Converts an iterable into a stream. */
-  def fromIterable[F[_],A](iterable: Iterable[A], batchSize: Int)
-    (implicit M: Monad[F], F: Deferrable[F]): Stream[F,A] = {
+  /** Given a sequence of elements, builds a stream out of it. */
+  def apply[F[_] : Applicative, A](elems: A*): Stream[F,A] =
+    fromList[F,A](elems.toList)
 
-    val init = F.eval(iterable.iterator)
-    val cancel = F.applicative.unit
-    val rest = M.flatMap(init)(iterator => fromIterator(iterator, batchSize))
+  /** Builds a [[Stream.Cons]] stream state.
+    *
+    * $consDesc
+    *
+    * @param head is the current element to be signaled
+    * @param tail is the next state in the sequence that will
+    *        produce the rest of the stream
+    * @param cancel $cancelDesc
+    */
+  def cons[F[_],A](head: A, tail: F[Stream[F,A]], cancel: F[Unit]): Stream[F,A] =
+    Cons[F,A](head, tail, cancel)
+
+  /** Builds a [[Stream.Cons]] stream state.
+    *
+    * $consDesc
+    *
+    * @param head is the current element to be signaled
+    * @param tail is the next state in the sequence that will
+    *        produce the rest of the stream
+    */
+  def cons[F[_],A](head: A, tail: F[Stream[F,A]])
+    (implicit F: Applicative[F]): Stream[F,A] =
+    cons[F,A](head, tail, F.unit)
+
+  /** Builds a [[Stream.ConsLazy]] stream state.
+    *
+    * $consLazyDesc
+    *
+    * @param head is the current element to be signaled
+    * @param tail is the next state in the sequence that will
+    *        produce the rest of the stream
+    * @param cancel $cancelDesc
+    */
+  def consLazy[F[_],A](head: F[A], tail: F[Stream[F,A]], cancel: F[Unit]): Stream[F,A] =
+    ConsLazy[F,A](head, tail, cancel)
+
+  /** Builds a [[Stream.ConsLazy]] stream state.
+    *
+    * $consLazyDesc
+    *
+    * @param head is the current element to be signaled
+    * @param tail is the next state in the sequence that will
+    *        produce the rest of the stream
+    */
+  def consLazy[F[_],A](head: F[A], tail: F[Stream[F,A]])
+    (implicit F: Applicative[F]): Stream[F,A] =
+    consLazy[F,A](head, tail, F.unit)
+
+  /** Builds a [[Stream.ConsSeq]] stream state.
+    *
+    * $consSeqDesc
+    *
+    * @param head is the current element to be signaled
+    * @param tail is the next state in the sequence that will
+    *        produce the rest of the stream
+    * @param cancel $cancelDesc
+    */
+  def consSeq[F[_],A](head: LinearSeq[A], tail: F[Stream[F,A]], cancel: F[Unit]): Stream[F,A] =
+    ConsSeq[F,A](head, tail, cancel)
+
+  /** Builds a [[Stream.ConsSeq]] stream state.
+    *
+    * $consSeqDesc
+    *
+    * @param head is a strict list of the next elements to be processed, can be empty
+    * @param tail is the next state in the sequence that will
+    *        produce the rest of the stream
+    */
+  def consSeq[F[_],A](head: LinearSeq[A], tail: F[Stream[F,A]])
+    (implicit F: Applicative[F]): Stream[F,A] =
+    consSeq[F,A](head, tail, F.unit)
+
+  /** Builds a [[Stream.Wait]] stream state.
+    *
+    * $waitDesc
+    *
+    * @param rest is the suspended stream
+    * @param cancel $cancelDesc
+    */
+  def wait[F[_],A](rest: F[Stream[F,A]], cancel: F[Unit]): Stream[F,A] =
     Wait[F,A](rest, cancel)
-  }
 
-  /** Converts a `java.util.Iterator` into an async iterator. */
-  def fromIterator[F[_], A](iterator: Iterator[A], batchSize: Int)
-    (implicit F: Deferrable[F]): F[Stream[F,A]] = {
+  /** Builds a [[Stream.Wait]] stream state.
+    *
+    * $waitDesc
+    *
+    * @param rest is the suspended stream
+    */
+  def wait[F[_],A](rest: F[Stream[F,A]])
+    (implicit F: Applicative[F]): Stream[F,A] =
+    wait[F,A](rest, F.unit)
 
-    F.eval {
-      try {
-        val A = F.applicative
-        val buffer = mutable.ListBuffer.empty[A]
-        var processed = 0
-        while (processed < batchSize && iterator.hasNext) {
-          buffer += iterator.next()
-          processed += 1
-        }
+  /** Returns an empty stream. */
+  def empty[F[_],A]: Stream[F,A] =
+    Halt[F](None)
 
-        if (processed == 0)
-          Halt(None)
-        else if (processed == 1)
-          Next[F,A](buffer.head, fromIterator(iterator, batchSize), A.unit)
-        else
-          NextSeq[F,A](buffer.toList, fromIterator(iterator, batchSize), A.unit)
-      } catch {
-        case NonFatal(ex) =>
-          Halt(Some(ex))
+  /** Returns a stream that signals an error. */
+  def raiseError[F[_],A](ex: Throwable): Stream[F,A] =
+    Halt[F](Some(ex))
+
+  /** Builds a [[Stream.Halt]] stream state.
+    *
+    * $haltDesc
+    */
+  def halt[F[_],A](ex: Option[Throwable]): Stream[F,A] =
+    Halt[F](ex)
+
+  /** Converts any Scala `collection.immutable.LinearSeq`
+    * into a stream.
+    */
+  def fromList[F[_], A](list: LinearSeq[A])(implicit F: Applicative[F]): Stream[F,A] =
+    ConsSeq[F,A](list, F.pure(halt[F,A](None)), F.unit)
+
+  /** Converts a `scala.collection.immutable.Seq` into a stream. */
+  def fromSeq[F[_], A](seq: Seq[A])(implicit F: Monad[F]): Stream[F,A] = {
+    def loop(seq: Seq[A]): Stream[F,A] = {
+      val (head, tail) = seq.splitAt(Platform.recommendedBatchSize)
+
+      if (head.isEmpty)
+        Halt[F](None)
+      else if (tail.isEmpty) {
+        val empty = F.applicative.pure(Stream.halt[F,A](None))
+        ConsSeq[F,A](head.toList, empty, F.applicative.unit)
       }
+      else {
+        val next = F.applicative.pure(tail)
+        ConsSeq[F,A](head.toList, F.functor.map(next)(loop),
+          F.applicative.unit)
+      }
+    }
+
+    seq match {
+      case ref: LinearSeq[_] =>
+        fromList[F,A](ref.asInstanceOf[LinearSeq[A]])(F.applicative)
+      case _ =>
+        loop(seq)
     }
   }
 
-  /** A template for stream-like types based on [[Stream]].
+  /** $fromIterableDesc
     *
-    * Wraps a [[Stream]] instance into a class type that has
-    * a backed-in evaluation model, no longer exposing higher-kinded
-    * types or type-class usage.
-    *
-    * This type is not meant for providing polymorphic behavior, but
-    * for sharing implementation between types such as
-    * [[TaskStream]] and [[CoevalStream]].
-    *
-    * @tparam A is the type of the elements emitted by the stream
-    * @tparam Self is the type of the inheriting subtype
-    * @tparam F is the monadic type that handles evaluation in the
-    *         [[Stream]] implementation (e.g. [[Task]], [[Coeval]])
+    * @param iterable is the reference to be converted to a stream
     */
-  abstract class Like[+A, F[_], Self[+T] <: Like[T, F, Self]] extends Serializable {
-    self: Self[A] with MonadError.Type[F,Throwable] with Memoizable.Type[F] =>
+  def fromIterable[F[_] : Memoizable, A](iterable: Iterable[A]): Stream[F,A] =
+    fromIterable[F,A](iterable, 1)
 
-    /** Returns the underlying [[Stream]]. */
-    def stream: Stream[F,A]
+  /** $fromIterableDesc
+    *
+    * @param iterable is the reference to be converted to a stream
+    * @param batchSize $batchSizeDesc
+    */
+  def fromIterable[F[_],A](iterable: Iterable[A], batchSize: Int)
+    (implicit F: Memoizable[F]): Stream[F,A] = {
 
-    /** Given a mapping function from one [[Stream]] to another,
-      * applies it and returns a new stream based on the result.
-      *
-      * Must be implemented by inheriting subtypes.
-      */
-    protected def transform[B](f: Stream[F,A] => Stream[F,B]): Self[B]
-
-    /** Returns a computation that should be evaluated in
-      * case the stream must be canceled before reaching
-      * the end.
-      *
-      * This is useful to release any acquired resources,
-      * like opened file handles or network sockets.
-      */
-    final def cancel: F[Unit] =
-      stream.onCancel
-
-    /** Left associative fold using the function 'f'.
-      *
-      * On execution the iterable will be traversed from left to right,
-      * and the given function will be called with the prior result,
-      * accumulating state until the end, when the summary is returned.
-      */
-    final def foldLeftL[S](seed: => S)(f: (S,A) => S): F[S] =
-      stream.foldLeftL(seed)(f)
+    require(batchSize > 0, "batchSize should be strictly positive")
+    val init = F.deferrable.eval(iterable.iterator)
+    val cancel = F.applicative.unit
+    val rest = F.functor.map(init)(iterator => fromIterator[F,A](iterator, batchSize))
+    Wait[F,A](rest, cancel)
   }
 
-  /** $nextDesc
+  /** $fromIteratorDesc
+    *
+    * @param iterator is the reference to be converted to a stream
+    */
+  def fromIterator[F[_] : Memoizable, A](iterator: Iterator[A]): Stream[F,A] =
+    fromIterator[F,A](iterator, batchSize = 1)
+
+  /** $fromIteratorDesc
+    *
+    * @param iterator is the reference to be converted to a stream
+    * @param batchSize $batchSizeDesc
+    */
+  def fromIterator[F[_], A](iterator: Iterator[A], batchSize: Int)
+    (implicit F: Memoizable[F]): Stream[F,A] = {
+
+    def loop(): F[Stream[F,A]] =
+      F.evalOnce {
+        try {
+          val buffer = mutable.ListBuffer.empty[A]
+          var processed = 0
+          while (processed < batchSize && iterator.hasNext) {
+            buffer += iterator.next()
+            processed += 1
+          }
+
+          if (processed == 0) Halt(None)
+          else if (processed == 1)
+            Cons[F,A](buffer.head, loop(), F.applicative.unit)
+          else
+            ConsSeq[F,A](buffer.toList, loop(), F.applicative.unit)
+        } catch {
+          case NonFatal(ex) =>
+            Halt(Some(ex))
+        }
+      }
+
+    require(batchSize > 0, "batchSize should be strictly positive")
+    Wait[F,A](loop(), F.applicative.unit)
+  }
+
+  /** $consDesc
     *
     * @param head is the current element being signaled
     * @param tail is the next state in the sequence that will
     *        produce the rest of the stream
     * @param cancel $cancelDesc
     */
-  final case class Next[F[_],A](
+  final case class Cons[F[_],A](
     head: A,
     tail: F[Stream[F,A]],
     cancel: F[Unit])
     extends Stream[F,A]
 
-  /** $nextFDesc
+  /** $consLazyDesc
     *
     * @param head is the current element being signaled
     * @param tail is the next state in the sequence that will
     *        produce the rest of the stream
     * @param cancel $cancelDesc
     */
-  final case class NextF[F[_],A](
+  final case class ConsLazy[F[_],A](
     head: F[A],
     tail: F[Stream[F,A]],
     cancel: F[Unit])
     extends Stream[F,A]
 
-  /** $nextSeqDesc
+  /** $consSeqDesc
     *
-    * @param headSeq is a sequence with the next elements to be processed; can be empty
+    * @param head is a strict list of the next elements to be processed, can be empty
     * @param tail is the rest of the stream
     * @param cancel $cancelDesc
     */
-  final case class NextSeq[F[_],A](
-    headSeq: LinearSeq[A],
+  final case class ConsSeq[F[_],A](
+    head: LinearSeq[A],
     tail: F[Stream[F,A]],
     cancel: F[Unit])
     extends Stream[F,A]
@@ -333,4 +533,238 @@ object Stream {
     */
   final case class Halt[F[_]](ex: Option[Throwable])
     extends Stream[F,Nothing]
+
+  /** A template for stream-like types based on [[Stream]].
+    *
+    * Wraps an [[Stream]] instance into a class type that has
+    * a backed-in evaluation model, no longer exposing higher-kinded
+    * types or type-class usage.
+    *
+    * This type is not meant for providing polymorphic behavior, but
+    * for sharing implementation between types such as
+    * [[TaskStream]] and [[CoevalStream]].
+    *
+    * @tparam A is the type of the elements emitted by the stream
+    * @tparam Self is the type of the inheriting subtype
+    * @tparam F is the monadic type that handles evaluation
+    *         (e.g. [[Task]], [[Coeval]])
+    */
+  abstract class Like[+A, F[_], Self[+T] <: Like[T, F, Self]]
+    (implicit E: MonadError[F,Throwable], M: Memoizable[F]) {
+    self: Self[A] =>
+
+    import M.{applicative, deferrable}
+
+    /** Returns the underlying [[Stream]] that handles this stream. */
+    def stream: Stream[F,A]
+
+    /** Given a mapping function from one [[Stream]] to another,
+      * applies it and returns a new stream based on the result.
+      *
+      * Must be implemented by inheriting subtypes.
+      */
+    protected def transform[B](f: Stream[F,A] => Stream[F,B]): Self[B]
+
+    /** Given a mapping function that returns a possibly lazy or asynchronous
+      * result, applies it over the elements emitted by the stream.
+      */
+    final def mapEval[B](f: A => F[B]): Self[B] =
+      transform(_.mapEval(f)(M.monad))
+
+    /** Returns a computation that should be evaluated in
+      * case the streaming must be canceled before reaching
+      * the end.
+      *
+      * This is useful to release any acquired resources,
+      * like opened file handles or network sockets.
+      */
+    final def onCancel: F[Unit] =
+      stream.onCancel
+
+    /** Left associative fold using the function 'f'.
+      *
+      * On execution the stream will be traversed from left to right,
+      * and the given function will be called with the prior result,
+      * accumulating state until the end, when the summary is returned.
+      */
+    final def foldLeftL[S](seed: => S)(f: (S,A) => S): F[S] =
+      stream.foldLeftL(seed)(f)
+
+    /** Aggregates all elements in a `List` and preserves order. */
+    final def toListL[B >: A]: F[List[B]] =
+      stream.toListL[B]
+  }
+
+  /** A template for companion objects of [[Stream.Like]] subtypes.
+    *
+    * This type is not meant for providing polymorphic behavior, but
+    * for sharing implementation between types such as
+    * [[TaskStream]] and [[CoevalStream]].
+    *
+    * @tparam Self is the type of the inheriting subtype
+    * @tparam F is the monadic type that handles evaluation in the
+    *         [[Stream]] implementation (e.g. [[Task]], [[Coeval]])
+    */
+  abstract class Builders[F[_], Self[+T] <: Like[T, F, Self]]
+    (implicit E: MonadError[F,Throwable], M: Memoizable[F]) {
+
+    import M.{applicative, functor, monad}
+
+    /** Materializes a [[Stream]]. */
+    def fromStream[A](stream: Stream[F,A]): Self[A]
+
+    /** Given a sequence of elements, builds a stream out of it. */
+    def apply[A](elems: A*): Self[A] =
+      fromStream(Stream.apply[F,A](elems:_*))
+
+    /** Builds a stream equivalent with the [[Stream.Cons]]
+      * stream state.
+      *
+      * $consDesc
+      *
+      * @param head is the current element to be signaled
+      * @param tail is the next state in the sequence that will
+      *        produce the rest of the stream
+      */
+    def cons[A](head: A, tail: F[Self[A]]): Self[A] =
+      fromStream(Stream.cons[F,A](head, functor.map(tail)(_.stream)))
+
+    /** Builds a stream equivalent with the [[Stream.Cons]]
+      * stream state.
+      *
+      * $consDesc
+      *
+      * @param head is the current element to be signaled
+      * @param tail is the next state in the sequence that will
+      *        produce the rest of the stream
+      * @param cancel $cancelDesc
+      */
+    def cons[A](head: A, tail: F[Self[A]], cancel: F[Unit]): Self[A] =
+      fromStream(Stream.cons[F,A](head, functor.map(tail)(_.stream), cancel))
+
+    /** Builds a stream equivalent with the [[Stream.ConsLazy]]
+      * stream state.
+      *
+      * $consLazyDesc
+      *
+      * @param head is the current element to be signaled
+      * @param tail is the next state in the sequence that will
+      *        produce the rest of the stream
+      */
+    def consLazy[A](head: F[A], tail: F[Self[A]]): Self[A] =
+      fromStream(Stream.consLazy[F,A](head, functor.map(tail)(_.stream)))
+
+    /** Builds a stream equivalent with the [[Stream.ConsLazy]]
+      * stream state.
+      *
+      * $consLazyDesc
+      *
+      * @param head is the current element to be signaled
+      * @param tail is the next state in the sequence that will
+      *        produce the rest of the stream
+      * @param cancel $cancelDesc
+      */
+    def consLazy[A](head: F[A], tail: F[Self[A]], cancel: F[Unit]): Self[A] =
+      fromStream(Stream.consLazy[F,A](head, functor.map(tail)(_.stream), cancel))
+
+    /** Builds a stream equivalent with the [[Stream.ConsSeq]]
+      * stream state.
+      *
+      * $consSeqDesc
+      *
+      * @param head is a strict list of the next elements to be processed, can be empty
+      * @param tail is the next state in the sequence that will
+      *        produce the rest of the stream
+      */
+    def consSeq[A](head: LinearSeq[A], tail: F[Self[A]]): Self[A] =
+      fromStream(Stream.consSeq[F,A](head, functor.map(tail)(_.stream)))
+
+    /** Builds a stream equivalent with the [[Stream.ConsSeq]]
+      * stream state.
+      *
+      * $consSeqDesc
+      *
+      * @param head is a strict list of the next elements to be processed, can be empty
+      * @param tail is the next state in the sequence that will
+      *        produce the rest of the stream
+      * @param cancel $cancelDesc
+      */
+    def consSeq[A](head: LinearSeq[A], tail: F[Self[A]], cancel: F[Unit]): Self[A] =
+      fromStream(Stream.consSeq[F,A](head, functor.map(tail)(_.stream), cancel))
+
+    /** Builds a stream equivalent with the [[Stream.Wait]]
+      * stream state.
+      *
+      * $waitDesc
+      *
+      * @param rest is the suspended stream
+      */
+    def wait[A](rest: F[Stream[F,A]]): Self[A] =
+      fromStream(Stream.wait[F,A](rest))
+
+    /** Builds a stream equivalent with the [[Stream.Wait]]
+      * stream state.
+      *
+      * $waitDesc
+      *
+      * @param rest is the suspended stream
+      * @param cancel $cancelDesc
+      */
+    def wait[A](rest: F[Stream[F,A]], cancel: F[Unit]): Self[A] =
+      fromStream(Stream.wait[F,A](rest, cancel))
+
+    /** Returns an empty stream. */
+    def empty[A]: Self[A] = fromStream(Stream.empty[F,A])
+
+    /** Returns a stream that signals an error. */
+    def raiseError[A](ex: Throwable): Self[A] =
+      fromStream(Stream.raiseError[F,A](ex))
+
+    /** Builds a stream equivalent with the [[Stream.Halt]] stream state.
+      *
+      * $haltDesc
+      */
+    def halt[A](ex: Option[Throwable]): Self[A] =
+      fromStream(Stream.halt[F,A](ex))
+
+    /** Converts any Scala `collection.immutable.LinearSeq`
+      * into a stream.
+      */
+    def fromList[A](list: LinearSeq[A]): Self[A] =
+      fromStream(Stream.fromList[F,A](list))
+
+    /** Converts a `scala.collection.immutable.Seq` into a stream. */
+    def fromSeq[A](seq: Seq[A]): Self[A] =
+      fromStream(Stream.fromSeq[F,A](seq))
+
+    /** $fromIterableDesc
+      *
+      * @param iterable is the reference to be converted to a stream
+      */
+    def fromIterable[A](iterable: Iterable[A]): Self[A] =
+      fromStream(Stream.fromIterable[F,A](iterable))
+
+    /** $fromIterableDesc
+      *
+      * @param iterable is the reference to be converted to a stream
+      * @param batchSize $batchSizeDesc
+      */
+    def fromIterable[A](iterable: Iterable[A], batchSize: Int): Self[A] =
+      fromStream(Stream.fromIterable[F,A](iterable, batchSize))
+
+    /** $fromIteratorDesc
+      *
+      * @param iterator is the reference to be converted to a stream
+      */
+    def fromIterator[A](iterator: Iterator[A]): Self[A] =
+      fromStream(Stream.fromIterator[F,A](iterator))
+
+    /** $fromIteratorDesc
+      *
+      * @param iterator is the reference to be converted to a stream
+      * @param batchSize $batchSizeDesc
+      */
+    def fromIterator[A](iterator: Iterator[A], batchSize: Int): Self[A] =
+      fromStream(Stream.fromIterator[F,A](iterator, batchSize))
+  }
 }

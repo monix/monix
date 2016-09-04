@@ -43,6 +43,7 @@ trait Deferrable[F[_]] extends Serializable with Monad.Type[F] {
   self: Deferrable.Instance[F] =>
 
   def defer[A](fa: => F[A]): F[A]
+
   def eval[A](a: => A): F[A] =
     defer(pure(a))
 }

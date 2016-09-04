@@ -17,8 +17,8 @@
 
 package monix.types
 
-/** A type-class for `F[A]` suspendable applicatives
-  * whose evaluation can be memoized, along with a guarantee
+/** A type-class for `F[A]` monads that are [[Deferrable deferrable]]
+  * and whose evaluation can be memoized, along with a guarantee
   * that the side-effects only happen once.
   *
   * The `memoize` operation takes an `F[_]` instance and
