@@ -17,18 +17,15 @@
 
 package monix.types
 
+import monix.types.utils._
+
 /** Type-class describing a [[Monad]] which also supports
-  * capturing a deferred evaluation of a by-name `F[A]`.
+  * lifting a by-name value into the monadic context.
   *
-  * Evaluation can be suspended until a value is extracted.
-  * The `suspend` operation can be thought of as a factory
-  * of `F[A]` instances, that will produce fresh instances,
-  * along with possible side-effects, on each evaluation.
+  * To implement `MonadEval`:
   *
-  * To implement `Deferrable`:
-  *
-  *  - inherit from [[Deferrable.Type]] in derived type-classes
-  *  - inherit from [[Deferrable.Instance]] when implementing instances
+  *  - inherit from [[MonadEval.Type]] in derived type-classes
+  *  - inherit from [[MonadEval.Instance]] when implementing instances
   *
   * The purpose of this type-class is to support the data-types in the
   * Monix library and it is considered a shim for a lawful type-class
@@ -39,33 +36,43 @@ package monix.types
   * been inspired by [[http://typelevel.org/cats/ Cats]] and
   * [[https://github.com/functional-streams-for-scala/fs2 FS2]].
   */
-trait Deferrable[F[_]] extends Serializable with Monad.Type[F] {
-  self: Deferrable.Instance[F] =>
+trait MonadEval[F[_]] extends Serializable with Monad.Type[F] {
+  self: MonadEval.Instance[F] =>
 
-  def defer[A](fa: => F[A]): F[A]
-
-  def eval[A](a: => A): F[A] =
-    defer(pure(a))
+  def eval[A](a: => A): F[A]
 }
 
-object Deferrable {
-  @inline def apply[F[_]](implicit F: Deferrable[F]): Deferrable[F] = F
+object MonadEval {
+  @inline def apply[F[_]](implicit F: MonadEval[F]): MonadEval[F] = F
 
-  /** The `Deferrable.Type` should be inherited in type-classes that
-    * are derived from [[Deferrable]].
+  /** The `MonadEval.Type` should be inherited in type-classes that
+    * are derived from [[MonadEval]].
     */
   trait Type[F[_]] extends Monad.Type[F] {
-    implicit def deferrable: Deferrable[F]
+    implicit def monadEval: MonadEval[F]
   }
 
-  /** The `Deferrable.Instance` provides the means to combine
-    * [[Deferrable]] instances with other type-classes.
+  /** The `MonadEval.Instance` provides the means to combine
+    * [[MonadEval]] instances with other type-classes.
     *
-    * To be inherited by `Deferrable` instances.
+    * To be inherited by `MonadEval` instances.
     */
-  trait Instance[F[_]] extends Deferrable[F] with Type[F]
-    with Applicative.Instance[F] {
+  trait Instance[F[_]] extends MonadEval[F] with Type[F]
+    with Monad.Instance[F] {
 
-    override final def deferrable: Deferrable[F] = this
+    override final def monadEval: MonadEval[F] = this
+  }
+
+  /** Laws for [[MonadEval]]. */
+  trait Laws[F[_]] extends Monad.Laws[F] with Type[F] {
+    private def A = applicative
+    private def E = monadEval
+
+    def evalEquivalenceWithPure[A](a: A): IsEquiv[F[A]] =
+      E.eval(a) <-> A.pure(a)
+
+    def evalEquivalenceWithRaiseError[A](ex: Throwable)
+      (implicit M: MonadError[F, Throwable]): IsEquiv[F[A]] =
+      E.eval[A](throw ex) <-> M.raiseError[A](ex)
   }
 }

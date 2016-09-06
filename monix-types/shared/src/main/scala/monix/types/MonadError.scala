@@ -17,6 +17,8 @@
 
 package monix.types
 
+import monix.types.utils._
+
 /** The `MonadError` type-class describes monads that can do error handling.
   *
   * To implement `MonadError`:
@@ -69,13 +71,13 @@ object MonadError {
     * To be inherited by `MonadError` instances.
     */
   trait Instance[F[_],E] extends MonadError[F,E] with Type[F,E]
-    with Applicative.Instance[F] {
+    with Monad.Instance[F] {
 
     override final def monadError: MonadError[F,E] = this
   }
 
   trait Syntax extends Serializable {
-    implicit final def recoverableOps[F[_],E,A](fa: F[A])(implicit F: MonadError[F,E]): Ops[F,E,A] =
+    implicit final def monadErrorOps[F[_],E,A](fa: F[A])(implicit F: MonadError[F,E]): Ops[F,E,A] =
       new Ops(fa)
   }
 
@@ -85,18 +87,49 @@ object MonadError {
 
     /** Extension method for [[MonadError.onErrorHandleWith]]. */
     def onErrorHandleWith(f: E => F[A]): F[A] =
-      F.onErrorHandleWith(self)(f)
+      macro Macros.monadErrorHandleWith
 
     /** Extension method for [[MonadError.onErrorHandle]]. */
     def onErrorHandle(f: E => A): F[A] =
-      F.onErrorHandle(self)(f)
+      macro Macros.monadErrorHandle
 
     /** Extension method for [[MonadError.onErrorRecoverWith]]. */
     def onErrorRecoverWith(pf: PartialFunction[E, F[A]]): F[A] =
-      F.onErrorRecoverWith(self)(pf)
+      macro Macros.monadErrorRecoverWith
 
     /** Extension method for [[MonadError.onErrorRecover]]. */
     def onErrorRecover(pf: PartialFunction[E, A]): F[A] =
-      F.onErrorRecover(self)(pf)
+      macro Macros.monadErrorRecover
+  }
+
+  /** Laws for [[MonadError]]. */
+  trait Laws[F[_], E] extends Monad.Laws[F] with Type[F,E] {
+    private def M = monad
+    private def E = monadError
+    private def A = applicative
+
+    def monadErrorLeftZero[A, B](e: E, f: A => F[B]): IsEquiv[F[B]] =
+      M.flatMap(E.raiseError[A](e))(f) <-> E.raiseError[B](e)
+
+    def applicativeErrorHandleWith[A](e: E, f: E => F[A]): IsEquiv[F[A]] =
+      E.onErrorHandleWith(E.raiseError[A](e))(f) <-> f(e)
+
+    def applicativeErrorHandle[A](e: E, f: E => A): IsEquiv[F[A]] =
+      E.onErrorHandle(E.raiseError[A](e))(f) <-> A.pure(f(e))
+
+    def onErrorHandleWithPure[A](a: A, f: E => F[A]): IsEquiv[F[A]] =
+      E.onErrorHandleWith(A.pure(a))(f) <-> A.pure(a)
+
+    def onErrorHandlePure[A](a: A, f: E => A): IsEquiv[F[A]] =
+      E.onErrorHandle(A.pure(a))(f) <-> A.pure(a)
+
+    def onErrorHandleWithConsistentWithRecoverWith[A](fa: F[A], f: E => F[A]): IsEquiv[F[A]] =
+      E.onErrorHandleWith(fa)(f) <-> E.onErrorRecoverWith(fa)(PartialFunction(f))
+
+    def onErrorHandleConsistentWithRecover[A](fa: F[A], f: E => A): IsEquiv[F[A]] =
+      E.onErrorHandle(fa)(f) <-> E.onErrorRecover(fa)(PartialFunction(f))
+
+    def recoverConsistentWithRecoverWith[A](fa: F[A], pf: PartialFunction[E, A]): IsEquiv[F[A]] =
+      E.onErrorRecover(fa)(pf) <-> E.onErrorRecoverWith(fa)(pf andThen A.pure)
   }
 }

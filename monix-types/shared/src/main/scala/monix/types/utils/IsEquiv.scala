@@ -15,27 +15,11 @@
  * limitations under the License.
  */
 
-package monix.types
+package monix.types.utils
 
-/** Groups all syntax extensions. */
-trait AllSyntax extends Cobind.Syntax
-  with Comonad.Syntax
-  with Functor.Syntax
-  with Monad.Syntax
-  with MonadFilter.Syntax
-  with MonadError.Syntax
-  with Memoizable.Syntax
+/** For expressing equivalence in laws. */
+final case class IsEquiv[A](lh: A, rh: A)
 
-/** Provides syntax (extension methods) for usage of [[monix.types]]
-  * instances.
-  *
-  * Usage:
-  *
-  * {{{
-  *   import monix.types.syntax._
-  * }}}
-  *
-  * Do not combine with Cats or Scalaz syntax in
-  * the same context.
-  */
-object syntax extends AllSyntax
+
+
+

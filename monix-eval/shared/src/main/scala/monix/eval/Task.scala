@@ -335,6 +335,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
             case Error(ex) =>
               now(Error(ex))
           })
+
       case Async(onFinish) =>
         Async((s, conn, cb) =>
           s.executeLocal(onFinish(s, conn, new Callback[A] {
@@ -1584,14 +1585,13 @@ private[eval] trait TaskInstances {
 
   /** Groups the implementation for the type-classes defined in [[monix.types]]. */
   class TypeClassInstances
-    extends Deferrable.Instance[Task]
-    with Memoizable.Instance[Task]
+    extends Memoizable.Instance[Task]
     with MonadError.Instance[Task,Throwable]
     with Cobind.Instance[Task]
     with MonadRec.Instance[Task] {
 
     override def pure[A](a: A): Task[A] = Task.now(a)
-    override def defer[A](fa: => Task[A]): Task[A] = Task.defer(fa)
+    override def suspend[A](fa: => Task[A]): Task[A] = Task.defer(fa)
     override def evalOnce[A](a: => A): Task[A] = Task.evalOnce(a)
     override def eval[A](a: => A): Task[A] = Task.eval(a)
     override def memoize[A](fa: Task[A]): Task[A] = fa.memoize

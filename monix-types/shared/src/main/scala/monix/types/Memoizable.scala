@@ -17,16 +17,22 @@
 
 package monix.types
 
-/** A type-class for `F[A]` monads that are [[Deferrable deferrable]]
+import monix.types.utils._
+
+/** A type-class for `F[A]` monads that are [[Suspendable suspendable]]
   * and whose evaluation can be memoized, along with a guarantee
-  * that the side-effects only happen once.
+  * that the captured side-effects only happen once.
   *
   * The `memoize` operation takes an `F[_]` instance and
   * returns a new `F` that guarantees that its evaluation and
   * all related side-effects only happen once, with the results
   * to be reused on subsequent evaluations.
+  *
+  * Note that the `memoize` operation can be a no-op. For example
+  * Scala's `Future` doesn't need to do anything special as memoization
+  * happens by default and idempotency is guaranteed.
   */
-trait Memoizable[F[_]] extends Serializable with Deferrable.Type[F] {
+trait Memoizable[F[_]] extends Serializable with Suspendable.Type[F] {
   self: Memoizable.Instance[F] =>
 
   def memoize[A](fa: F[A]): F[A]
@@ -40,7 +46,7 @@ object Memoizable {
   /** The `Memoizable.Type` should be inherited in type-classes that
     * are derived from [[Memoizable]].
     */
-  trait Type[F[_]] extends Deferrable.Type[F] {
+  trait Type[F[_]] extends Suspendable.Type[F] {
     implicit def memoizable: Memoizable[F]
   }
 
@@ -50,7 +56,7 @@ object Memoizable {
     * To be inherited by `Memoizable` instances.
     */
   trait Instance[F[_]] extends Memoizable[F] with Type[F]
-    with Deferrable.Instance[F] {
+    with Suspendable.Instance[F] {
 
     override final def memoizable: Memoizable[F] = this
   }
@@ -67,5 +73,30 @@ object Memoizable {
 
     /** Extension method for [[Memoizable.memoize]]. */
     def memoize: F[A] = F.memoize(self)
+  }
+
+  /** Laws for [[Memoizable]]. */
+  trait Laws[F[_]] extends Suspendable.Laws[F] with Type[F] {
+    private def E = monadEval
+    private def Z = memoizable
+
+    def evalOnceIsIdempotent[A](seed: A, effect: A => A): IsEquiv[F[A]] = {
+      var initial = seed
+      val fa = Z.evalOnce { initial = effect(initial); initial }
+      fa <-> fa
+    }
+
+    def memoizeIsIdempotent[A](seed: A, effect: A => A): IsEquiv[F[A]] = {
+      var initial = seed
+      val fa = Z.memoize(E.eval { initial = effect(initial); initial })
+      fa <-> fa
+    }
+
+    def evalOnceEquivalenceWithEval[A](seed: A, effect: A => A): IsEquiv[F[A]] = {
+      var initial = seed
+      val fa1 = Z.evalOnce { initial = effect(initial); initial }
+      val fa2 = E.eval(effect(seed))
+      fa1 <-> fa2
+    }
   }
 }

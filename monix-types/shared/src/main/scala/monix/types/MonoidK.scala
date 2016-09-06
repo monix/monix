@@ -17,6 +17,8 @@
 
 package monix.types
 
+import monix.types.utils._
+
 /** `MonoidK` is a universal monoid which operates on kinds.
   *
   * To implement `MonoidK`:
@@ -58,5 +60,17 @@ object MonoidK {
     with SemigroupK.Instance[F] {
 
     override final def monoidK: MonoidK[F] = this
+  }
+
+  /** Laws for [[MonoidK]]. */
+  trait Laws[F[_]] extends SemigroupK.Laws[F] with Type[F] {
+    private def F = semigroupK
+    private def M = monoidK
+
+    def monoidKLeftIdentity[A](a: F[A]): IsEquiv[F[A]] =
+      F.combineK(M.empty, a) <-> a
+
+    def monoidKRightIdentity[A](a: F[A]): IsEquiv[F[A]] =
+      F.combineK(a, M.empty) <-> a
   }
 }

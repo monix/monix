@@ -17,25 +17,9 @@
 
 package monix.types
 
-/** Groups all syntax extensions. */
-trait AllSyntax extends Cobind.Syntax
-  with Comonad.Syntax
-  with Functor.Syntax
-  with Monad.Syntax
-  with MonadFilter.Syntax
-  with MonadError.Syntax
-  with Memoizable.Syntax
-
-/** Provides syntax (extension methods) for usage of [[monix.types]]
-  * instances.
-  *
-  * Usage:
-  *
-  * {{{
-  *   import monix.types.syntax._
-  * }}}
-  *
-  * Do not combine with Cats or Scalaz syntax in
-  * the same context.
-  */
-object syntax extends AllSyntax
+package object utils {
+  /** Syntax for expressing equivalence in laws. */
+  implicit final class IsEqArrow[A](val lhs: A) extends AnyVal {
+    def <->(rhs: A): IsEquiv[A] = IsEquiv(lhs, rhs)
+  }
+}

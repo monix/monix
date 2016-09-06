@@ -17,6 +17,8 @@
 
 package monix.types
 
+import monix.types.utils._
+
 /** A functor provides the `map` operation that allows lifting an `f`
   * function into the functor context and applying it.
   *
@@ -64,11 +66,23 @@ object Functor {
       new Ops(fa)
   }
 
-  final class Ops[F[_], A](self: F[A])(implicit F: Functor[F])
+  /** Extension methods for [[Functor]]. */
+  final class Ops[F[_], A](val self: F[A])(implicit val F: Functor[F])
     extends Serializable {
 
     /** Extension method for [[Functor.map]]. */
-    def map[B](f: A => B): F[B] = F.map(self)(f)
+    def map[B](f: A => B): F[B] = macro monix.types.utils.Macros.functorMap
+  }
+
+  /** Laws for [[Functor]]. */
+  trait Laws[F[_]] extends Type[F] {
+    private def F = functor
+
+    def covariantIdentity[A](fa: F[A]): IsEquiv[F[A]] =
+      F.map(fa)(identity) <-> fa
+
+    def covariantComposition[A, B, C](fa: F[A], f: A => B, g: B => C): IsEquiv[F[C]] =
+      F.map(F.map(fa)(f))(g) <-> F.map(fa)(f andThen g)
   }
 }
 

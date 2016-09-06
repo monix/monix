@@ -17,8 +17,10 @@
 
 package monix.types
 
+import monix.types.utils._
+
 /** This type-class represents monads with a tail-recursive
-  * `tailRecM` implementation.
+  * `flatMap` implementation.
   *
   * Based on Phil Freeman's
   * [[http://functorial.com/stack-safety-for-free/index.pdf Stack Safety for Free]].
@@ -64,5 +66,22 @@ object MonadRec {
     */
   trait Instance[F[_]] extends MonadRec[F] with Type[F] with Monad.Instance[F] {
     override final def monadRec: MonadRec[F] = this
+  }
+
+  /** Laws for [[MonadRec]]. */
+  trait Laws[F[_]] extends Monad.Laws[F] with Type[F] {
+    private def F = functor
+    private def R = monadRec
+    private def M = monad
+
+    def tailRecMConsistentFlatMap[A](count: Int, a: A, f: A => F[A]): IsEquiv[F[A]] = {
+      def bounce(n: Int) = R.tailRecM[(A, Int), A]((a, n)) { case (a0, i) =>
+        if (i > 0) F.map(f(a0))(a1 => Left((a1, i-1)))
+        else F.map(f(a0))(Right(_))
+      }
+
+      val smallN = (count % 2) + 2 // a number 1 to 3
+      bounce(smallN) <-> M.flatMap(bounce(smallN - 1))(f)
+    }
   }
 }

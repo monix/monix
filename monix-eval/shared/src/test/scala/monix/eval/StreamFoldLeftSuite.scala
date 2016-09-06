@@ -79,7 +79,7 @@ object StreamFoldLeftSuite extends BaseTestSuite {
     val result = stream.foldLeftL(0)((a,e) => throw dummy)
     check(result === Task.raiseError(dummy))
   }
-  
+
   test("CoevalStream.toListL (foldLeftL)") { implicit s =>
     check1 { (list: List[Int]) =>
       val result = CoevalStream.fromIterable(list).toListL

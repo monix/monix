@@ -17,6 +17,8 @@
 
 package monix.types
 
+import monix.types.utils._
+
 /** The `Monad` type-class is a structure that represents
   * computations defined as sequences of steps: : a type with
   * a monad structure defines what it means to chain operations
@@ -73,14 +75,31 @@ object Monad {
   }
 
   /** Extension methods for [[Monad]]. */
-  final class Ops[F[_], A](self: F[A])(implicit F: Monad[F])
+  final class Ops[F[_], A](val self: F[A])(implicit val F: Monad[F])
     extends Serializable {
 
     /** Extension method for [[Monad.flatMap]]. */
-    def flatMap[B](f: A => F[B]): F[B] = F.flatMap(self)(f)
+    def flatMap[B](f: A => F[B]): F[B] =
+      macro Macros.monadFlatMap
     /** Extension method for [[Monad.flatten]]. */
     def flatten[B](implicit ev: A <:< F[B]): F[B] =
-    F.flatten(self.asInstanceOf[F[F[B]]])
+      macro Macros.monadFlatten
+  }
+
+  /** Laws for [[Monad]]. */
+  trait Laws[F[_]] extends Applicative.Laws[F] with Type[F] {
+    private def M = monad
+    private def F = functor
+    private def A = applicative
+
+    def flatMapAssociativity[A, B, C](fa: F[A], f: A => F[B], g: B => F[C]): IsEquiv[F[C]] =
+      M.flatMap(M.flatMap(fa)(f))(g) <-> M.flatMap(fa)(a => M.flatMap(f(a))(g))
+
+    def flatMapConsistentApply[A, B](fa: F[A], fab: F[A => B]): IsEquiv[F[B]] =
+      A.ap(fab)(fa) <-> M.flatMap(fab)(f => F.map(fa)(f))
+
+    def flatMapConsistentMap2[A, B, C](fa: F[A], fb: F[B], f: (A,B) => C): IsEquiv[F[C]] =
+      A.map2(fa,fb)(f) <-> M.flatMap(fa)(a => F.map(fb)(b => f(a,b)))
   }
 }
 

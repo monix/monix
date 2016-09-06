@@ -17,6 +17,8 @@
 
 package monix.types
 
+import monix.types.utils._
+
 /** `SemigroupK` is a universal semigroup which operates on kinds.
   *
   * To implement `SemigroupK`:
@@ -56,6 +58,14 @@ object SemigroupK {
     */
   trait Instance[F[_]] extends SemigroupK[F] with Type[F] {
     override final def semigroupK: SemigroupK[F] = this
+  }
+
+  /** Laws for [[SemigroupK]]. */
+  trait Laws[F[_]] extends Type[F] {
+    private def F = semigroupK
+
+    def semigroupKAssociative[A](a: F[A], b: F[A], c: F[A]): IsEquiv[F[A]] =
+      F.combineK(F.combineK(a, b), c) <-> F.combineK(a, F.combineK(b, c))
   }
 }
 

@@ -17,6 +17,8 @@
 
 package monix.types
 
+import monix.types.utils._
+
 /** The `Applicative` type-class is a [[Functor]] that also adds the
   * capability of lifting a value in the context.
   *
@@ -36,7 +38,6 @@ package monix.types
   * CREDITS: The type-class encoding has been inspired by the Scado
   * project and [[https://github.com/scalaz/scalaz/ Scalaz 8]] and
   * the type has been extracted from [[http://typelevel.org/cats/ Cats]].
-
   */
 trait Applicative[F[_]] extends Serializable with Functor.Type[F] {
   def pure[A](a: A): F[A]
@@ -66,17 +67,31 @@ object Applicative {
     override final def applicative: Applicative[F] = this
   }
 
-  /** Provides syntax for [[Applicative]]. */
-  trait Syntax extends Serializable {
-    implicit final def applicativeOps[F[_] : Applicative, A, B](ff: F[A => B]): OpsAP[F, A, B] =
-      new OpsAP(ff)
-  }
+  /** Laws for [[Applicative]]. */
+  trait Laws[F[_]] extends Functor.Laws[F] with Type[F] {
+    private def A: Applicative[F] = applicative
+    private def F: Functor[F] = functor
 
-  /** Extension methods for [[Applicative]]. */
-  final class OpsAP[F[_], A, B](self: F[A => B])(implicit F: Applicative[F])
-    extends Serializable {
+    def applyComposition[A, B, C](fa: F[A], fab: F[A => B], fbc: F[B => C]): IsEquiv[F[C]] = {
+      val compose: (B => C) => (A => B) => (A => C) = _.compose
+      A.ap(fbc)(A.ap(fab)(fa)) <-> A.ap(A.ap(F.map(fbc)(compose))(fab))(fa)
+    }
 
-    /** Extension method for [[Applicative.ap]]. */
-    def ap(fa: F[A]): F[B] = F.ap(self)(fa)
+    def applicativeIdentity[A](fa: F[A]): IsEquiv[F[A]] =
+      A.ap(A.pure((a: A) => a))(fa) <-> fa
+
+    def applicativeHomomorphism[A, B](a: A, f: A => B): IsEquiv[F[B]] =
+      A.ap(A.pure(f))(A.pure(a)) <-> A.pure(f(a))
+
+    def applicativeInterchange[A, B](a: A, ff: F[A => B]): IsEquiv[F[B]] =
+      A.ap(ff)(A.pure(a)) <-> A.ap(A.pure((f: A => B) => f(a)))(ff)
+
+    def applicativeMap[A, B](fa: F[A], f: A => B): IsEquiv[F[B]] =
+      F.map(fa)(f) <-> A.ap(A.pure(f))(fa)
+
+    def applicativeComposition[A, B, C](fa: F[A], fab: F[A => B], fbc: F[B => C]): IsEquiv[F[C]] = {
+      val compose: (B => C) => (A => B) => (A => C) = _.compose
+      A.ap(A.ap(A.ap(A.pure(compose))(fbc))(fab))(fa) <-> A.ap(fbc)(A.ap(fab)(fa))
+    }
   }
 }

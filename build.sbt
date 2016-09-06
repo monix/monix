@@ -283,9 +283,12 @@ lazy val coreJS = project.in(file("monix/js"))
   .settings(scalaJSSettings)
   .settings(name := "monix")
 
-lazy val typesCommon = crossSettings ++ testSettings ++ Seq(
-  name := "monix-types"
-)
+lazy val typesCommon = crossSettings ++ testSettings ++
+  requiredMacroCompatDeps ++ Seq(
+    name := "monix-types",
+    // Suppress macro warnings in our own tests
+    scalacOptions in (Test, console) ~= (_ filterNot (_ == "-Xfatal-warnings"))
+  )
 
 lazy val typesJVM = project.in(file("monix-types/jvm"))
   .configure(profile)
@@ -325,13 +328,15 @@ lazy val evalCommon =
 
 lazy val evalJVM = project.in(file("monix-eval/jvm"))
   .configure(profile)
-  .dependsOn(typesJVM, executionJVM)
+  .dependsOn(typesJVM % "compile->compile; test->test")
+  .dependsOn(executionJVM)
   .settings(evalCommon)
 
 lazy val evalJS = project.in(file("monix-eval/js"))
   .enablePlugins(ScalaJSPlugin)
   .configure(profile)
-  .dependsOn(typesJS, executionJS)
+  .dependsOn(typesJS % "compile->compile; test->test")
+  .dependsOn(executionJS)
   .settings(scalaJSSettings)
   .settings(evalCommon)
 
@@ -342,13 +347,15 @@ lazy val reactiveCommon =
 
 lazy val reactiveJVM = project.in(file("monix-reactive/jvm"))
   .configure(profile)
-  .dependsOn(typesJVM, executionJVM, evalJVM)
+  .dependsOn(typesJVM % "compile->compile; test->test")
+  .dependsOn(executionJVM, evalJVM)
   .settings(reactiveCommon)
 
 lazy val reactiveJS = project.in(file("monix-reactive/js"))
   .enablePlugins(ScalaJSPlugin)
   .configure(profile)
-  .dependsOn(typesJS, executionJS, evalJS)
+  .dependsOn(typesJS % "compile->compile; test->test")
+  .dependsOn(executionJS, evalJS)
   .settings(reactiveCommon)
   .settings(scalaJSSettings)
 

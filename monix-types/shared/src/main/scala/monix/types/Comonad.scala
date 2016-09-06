@@ -17,6 +17,8 @@
 
 package monix.types
 
+import monix.types.utils._
+
 /** The `Comonad` type-class is the dual of [[Monad]]. Whereas Monads
   * allow for the composition of effectful functions, Comonads allow
   * for composition of functions that extract the value from their
@@ -72,5 +74,27 @@ object Comonad {
 
     /** Extension method for [[Comonad.extract]]. */
     def extract: A = F.extract(self)
+  }
+
+  /** Laws for [[Comonad]]. */
+  trait Laws[F[_]] extends Cobind.Laws[F] with Type[F] {
+    private def B = cobind
+    private def M = comonad
+    private def F = functor
+
+    def extractCoflattenIdentity[A](fa: F[A]): IsEquiv[F[A]] =
+      M.extract(B.coflatten(fa)) <-> fa
+
+    def mapCoflattenIdentity[A](fa: F[A]): IsEquiv[F[A]] =
+      F.map(B.coflatten(fa))(M.extract) <-> fa
+
+    def mapCoflatMapCoherence[A, B](fa: F[A], f: A => B): IsEquiv[F[B]] =
+      F.map(fa)(f) <-> B.coflatMap(fa)(fa0 => f(M.extract(fa0)))
+
+    def comonadLeftIdentity[A](fa: F[A]): IsEquiv[F[A]] =
+      B.coflatMap(fa)(M.extract) <-> fa
+
+    def comonadRightIdentity[A, B](fa: F[A], f: F[A] => B): IsEquiv[B] =
+      M.extract(B.coflatMap(fa)(f)) <-> f(fa)
   }
 }

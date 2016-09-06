@@ -15,27 +15,14 @@
  * limitations under the License.
  */
 
-package monix.types
+package monix.types.tests
 
-/** Groups all syntax extensions. */
-trait AllSyntax extends Cobind.Syntax
-  with Comonad.Syntax
-  with Functor.Syntax
-  with Monad.Syntax
-  with MonadFilter.Syntax
-  with MonadError.Syntax
-  with Memoizable.Syntax
+import minitest.SimpleTestSuite
+import minitest.laws.Checkers
+import monix.types.utils.IsEquiv
+import org.scalacheck.Prop
 
-/** Provides syntax (extension methods) for usage of [[monix.types]]
-  * instances.
-  *
-  * Usage:
-  *
-  * {{{
-  *   import monix.types.syntax._
-  * }}}
-  *
-  * Do not combine with Cats or Scalaz syntax in
-  * the same context.
-  */
-object syntax extends AllSyntax
+trait BaseLawsSuite extends SimpleTestSuite with Checkers {
+  implicit def isEqToProp[T](isEq: IsEquiv[T])(implicit eq: Eq[T]): Prop =
+    Prop(eq(isEq.lh, isEq.rh))
+}

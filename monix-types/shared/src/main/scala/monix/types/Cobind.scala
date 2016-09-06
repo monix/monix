@@ -17,6 +17,8 @@
 
 package monix.types
 
+import monix.types.utils._
+
 /** A type-class providing the `coflatMap` operation, the dual of
   * `flatMap`.
   *
@@ -76,5 +78,23 @@ object Cobind {
     def coflatMap[B](f: F[A] => B): F[B] = F.coflatMap(self)(f)
     /** Extension method for [[Cobind.coflatten]]. */
     def coflatten: F[F[A]] = F.coflatten(self)
+  }
+
+  /** Laws for [[Cobind]]. */
+  trait Laws[F[_]] extends Functor.Laws[F] with Type[F] {
+    private def C = cobind
+    private def F = functor
+
+    def coflatMapAssociativity[A, B, C](fa: F[A], f: F[A] => B, g: F[B] => C): IsEquiv[F[C]] =
+      C.coflatMap(C.coflatMap(fa)(f))(g) <-> C.coflatMap(fa)(x => g(C.coflatMap(x)(f)))
+
+    def coflattenThroughMap[A](fa: F[A]): IsEquiv[F[F[F[A]]]] =
+      C.coflatten(C.coflatten(fa)) <-> F.map(C.coflatten(fa))(C.coflatten)
+
+    def coflattenCoherence[A, B](fa: F[A], f: F[A] => B): IsEquiv[F[B]] =
+      C.coflatMap(fa)(f) <-> F.map(C.coflatten(fa))(f)
+
+    def coflatMapIdentity[A, B](fa: F[A]): IsEquiv[F[F[A]]] =
+      C.coflatten(fa) <-> C.coflatMap(fa)(identity)
   }
 }

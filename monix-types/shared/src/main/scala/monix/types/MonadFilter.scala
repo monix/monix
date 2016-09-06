@@ -17,6 +17,8 @@
 
 package monix.types
 
+import monix.types.utils._
+
 /** The `MonadFilter` type-class is equipped with an additional
   * operation which allows us to create an "Empty" value for the Monad
   * (for whatever "empty" makes sense for that particular monad). This
@@ -74,8 +76,22 @@ object MonadFilter {
     extends Serializable {
 
     /** Extension method for [[MonadFilter.filter]]. */
-    def filter(f: A => Boolean): F[A] = F.filter(self)(f)
+    def filter(f: A => Boolean): F[A] = macro Macros.monadFilter
+  }
+
+  /** Laws for [[MonadFilter]]. */
+  trait Laws[F[_]] extends Monad.Laws[F] with Type[F] {
+    private def MF = monadFilter
+    private def M = monad
+    private def A = applicative
+
+    def monadFilterLeftEmpty[A, B](f: A => F[B]): IsEquiv[F[B]] =
+      M.flatMap(MF.empty[A])(f) <-> MF.empty[B]
+
+    def monadFilterRightEmpty[A, B](fa: F[A]): IsEquiv[F[B]] =
+      M.flatMap(fa)(_ => MF.empty[B]) <-> MF.empty[B]
+
+    def monadFilterConsistency[A, B](fa: F[A], f: A => Boolean): IsEquiv[F[A]] =
+      MF.filter(fa)(f) <-> M.flatMap(fa)(a => if (f(a)) A.pure(a) else MF.empty)
   }
 }
-
-

@@ -20,6 +20,7 @@ package monix.eval
 import monix.eval.Stream._
 import monix.execution.internal.Platform
 import monix.types._
+import monix.types.syntax._
 import scala.collection.immutable.{LinearSeq, Seq}
 import scala.collection.mutable
 import scala.util.control.NonFatal
@@ -94,25 +95,25 @@ sealed trait Stream[F[_], +A] extends Product with Serializable { self =>
     * result, applies it over the elements emitted by the stream.
     */
   final def mapEval[B](f: A => F[B])(implicit F: Monad[F]): Stream[F, B] = {
-    import F.applicative
+    import F.{applicative, functor}
 
     this match {
       case Cons(head, tail, cancel) =>
-        try ConsLazy[F,B](f(head), F.functor.map(tail)(_.mapEval(f)), cancel)
+        try ConsLazy[F,B](f(head), tail.map(_.mapEval(f)), cancel)
         catch { case NonFatal(ex) => signalError(ex) }
 
       case ConsLazy(headF, tail, cancel) =>
-        try ConsLazy[F,B](F.flatMap(headF)(f), F.functor.map(tail)(_.mapEval(f)), cancel)
+        try ConsLazy[F,B](F.flatMap(headF)(f), tail.map(_.mapEval(f)), cancel)
         catch { case NonFatal(ex) => signalError(ex) }
 
       case ConsSeq(headSeq, tailF, cancel) =>
         if (headSeq.isEmpty)
-          Wait[F,B](F.functor.map(tailF)(_.mapEval(f)), cancel)
+          Wait[F,B](tailF.map(_.mapEval(f)), cancel)
         else {
           val head = headSeq.head
           val tail = F.applicative.pure(ConsSeq(headSeq.tail, tailF, cancel))
 
-          try ConsLazy[F,B](f(head), F.functor.map(tail)(_.mapEval(f)), cancel)
+          try ConsLazy[F,B](f(head), tail.map(_.mapEval(f)), cancel)
           catch { case NonFatal(ex) => signalError(ex) }
         }
 
@@ -130,16 +131,16 @@ sealed trait Stream[F[_], +A] extends Product with Serializable { self =>
     * accumulating state until the end, when the summary is returned.
     */
   final def foldLeftL[S](seed: => S)(f: (S,A) => S)
-    (implicit F: Deferrable[F], E: MonadError[F,Throwable]): F[S] = {
+    (implicit F: MonadEval[F], E: MonadError[F,Throwable]): F[S] = {
 
     def loop(self: Stream[F,A], state: S)(implicit A: Applicative[F], M: Monad[F]): F[S] = {
       def next(a: A, next: F[Stream[F,A]], cancel: F[Unit]): F[S] =
         try {
           val newState = f(state, a)
-          M.flatMap(next)(loop(_, newState))
+          next.flatMap(loop(_, newState))
         } catch {
           case NonFatal(ex) =>
-            M.flatMap(cancel)(_ => E.raiseError(ex))
+            cancel.flatMap(_ => E.raiseError(ex))
         }
 
       self match {
@@ -151,19 +152,19 @@ sealed trait Stream[F[_], +A] extends Product with Serializable { self =>
           next(a, tail, cancel)
         case ConsLazy(headF, tail, cancel) =>
           // Also protecting the head!
-          val head = E.onErrorHandleWith(headF)(ex => M.flatMap(cancel)(_ => E.raiseError(ex)))
-          M.flatMap(head)(a => next(a, tail, cancel))
+          val head = headF.onErrorHandleWith(ex => cancel.flatMap(_ => E.raiseError(ex)))
+          head.flatMap(a => next(a, tail, cancel))
         case Wait(rest, _) =>
-          M.flatMap(rest)(loop(_, state))
-        case ConsSeq(list, next, _) =>
+          rest.flatMap(loop(_, state))
+        case ConsSeq(list, next, cancel) =>
           if (list.isEmpty)
-            M.flatMap(next)(loop(_, state))
+            next.flatMap(loop(_, state))
           else try {
             val newState = list.foldLeft(state)(f)
-            M.flatMap(next)(loop(_, newState))
+            next.flatMap(loop(_, newState))
           } catch {
             case NonFatal(ex) =>
-              M.flatMap(self.onCancel)(_ => E.raiseError(ex))
+              cancel.flatMap(_ => E.raiseError(ex))
           }
       }
     }
@@ -171,13 +172,13 @@ sealed trait Stream[F[_], +A] extends Product with Serializable { self =>
     implicit val A = F.applicative
     implicit val M = F.monad
 
-    val init = E.onErrorHandleWith(F.eval(seed))(ex => M.flatMap(onCancel)(_ => E.raiseError(ex)))
-    M.flatMap(init)(a => loop(self, a))
+    val init = F.eval(seed).onErrorHandleWith(ex => onCancel.flatMap(_ => E.raiseError(ex)))
+    init.flatMap(a => loop(self, a))
   }
 
   /** Aggregates all elements in a `List` and preserves order. */
-  final def toListL[B >: A](implicit F: Deferrable[F], E: MonadError[F,Throwable]): F[List[B]] = {
-    val folded = foldLeftL(mutable.ListBuffer.empty[A]) { (acc, a) => acc += a }
+  final def toListL[B >: A](implicit F: MonadEval[F], E: MonadError[F,Throwable]): F[List[B]] = {
+    val folded = foldLeftL(mutable.ListBuffer.empty[B]) { (acc, a) => acc += a }
     F.functor.map(folded)(_.toList)
   }
 
@@ -432,7 +433,7 @@ object Stream {
     (implicit F: Memoizable[F]): Stream[F,A] = {
 
     require(batchSize > 0, "batchSize should be strictly positive")
-    val init = F.deferrable.eval(iterable.iterator)
+    val init = F.monadEval.eval(iterable.iterator)
     val cancel = F.applicative.unit
     val rest = F.functor.map(init)(iterator => fromIterator[F,A](iterator, batchSize))
     Wait[F,A](rest, cancel)
@@ -553,7 +554,7 @@ object Stream {
     (implicit E: MonadError[F,Throwable], M: Memoizable[F]) {
     self: Self[A] =>
 
-    import M.{applicative, deferrable}
+    import M.{applicative, monadEval}
 
     /** Returns the underlying [[Stream]] that handles this stream. */
     def stream: Stream[F,A]
