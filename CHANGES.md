@@ -1,3 +1,9 @@
+## Version 2.0.1 (Sat 10, 2016)
+
+- [Issue #218](https://github.com/monixio/monix/issues/218):
+  Upgrade Cats to `0.7.2`, Scalaz to `7.2.6` and support
+  Scala `2.12.0-RC1`
+
 ## Version 2.0.0 (Aug 31, 2016)
 
 - [Issue #216](https://github.com/monixio/monix/pull/216):

@@ -241,7 +241,7 @@ lazy val unidocSettings = baseUnidocSettings ++ Seq(
 
 lazy val testSettings = Seq(
   testFrameworks := Seq(new TestFramework("minitest.runner.Framework")),
-  libraryDependencies += "io.monix" %%% "minitest-laws" % "0.23" % "test"
+  libraryDependencies += "io.monix" %%% "minitest-laws" % "0.24" % "test"
 )
 
 lazy val scalaJSSettings = Seq(
@@ -354,8 +354,8 @@ lazy val catsCommon =
     name := "monix-cats",
     testFrameworks := Seq(new TestFramework("minitest.runner.Framework")),
     libraryDependencies ++= Seq(
-      "org.typelevel" %%% "cats-core" % "0.7.0",
-      "org.typelevel" %%% "cats-laws" % "0.7.0" % "test",
+      "org.typelevel" %%% "cats-core" % "0.7.2",
+      "org.typelevel" %%% "cats-laws" % "0.7.2" % "test",
       "io.monix" %%% "minitest-laws" % "0.21" % "test"
     ))
 
@@ -377,8 +377,8 @@ lazy val scalaz72Common =
   crossSettings ++ testSettings ++ Seq(
     name := "monix-scalaz-72",
     libraryDependencies ++= Seq(
-      "org.scalaz" %%% "scalaz-core" % "7.2.5",
-      "org.scalaz" %%% "scalaz-scalacheck-binding" % "7.2.5" % "test"
+      "org.scalaz" %%% "scalaz-core" % "7.2.6",
+      "org.scalaz" %%% "scalaz-scalacheck-binding" % "7.2.6" % "test"
     ))
 
 lazy val scalaz72JVM = project.in(file("monix-scalaz/series-7.2/jvm"))
@@ -414,6 +414,6 @@ lazy val benchmarks = project.in(file("benchmarks"))
   .settings(doNotPublishArtifact)
   .settings(
     libraryDependencies ++= Seq(
-      "org.scalaz" %% "scalaz-concurrent" % "7.2.5",
+      "org.scalaz" %% "scalaz-concurrent" % "7.2.6",
       "io.reactivex" %% "rxscala" % "0.26.0"
     ))

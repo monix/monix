@@ -125,10 +125,13 @@ object TaskApplySuite extends BaseTestSuite {
   }
 
   test("Task.apply.coeval") { implicit s =>
-    val result = Task(100).coeval.value
-    assert(result.isLeft, "result.isLeft")
-    assertEquals(result.left.map(_.value), Left(None))
-    s.tick()
-    assertEquals(result.left.map(_.value), Left(Some(Success(100))))
+    Task(100).coeval.value match {
+      case Left(result) =>
+        assertEquals(result.value, None)
+        s.tick()
+        assertEquals(result.value, Some(Success(100)))
+      case r @ Right(_) =>
+        fail(s"Received incorrect result: $r")
+    }
   }
 }
