@@ -2,7 +2,7 @@
 
 <img src="https://monix.io/public/images/monix-logo.png" align="right" width="280" />
 
-Reactive Programming for Scala and [Scala.js](http://www.scala-js.org/).
+Asynchronous Programming for Scala and [Scala.js](http://www.scala-js.org/).
 
 [![Build Status](https://travis-ci.org/monixio/monix.svg?branch=master)](https://travis-ci.org/monixio/monix)
 [![Coverage Status](http://codecov.io/github/monixio/monix/coverage.svg?branch=master)](http://codecov.io/github/monixio/monix?branch=master)
