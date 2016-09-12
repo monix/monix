@@ -2,7 +2,7 @@
 
 <img src="https://monix.io/public/images/monix-logo.png" align="right" width="280" />
 
-Reactive Programming for Scala and [Scala.js](http://www.scala-js.org/).
+Asynchronous Programming for Scala and [Scala.js](http://www.scala-js.org/).
 
 [![Build Status](https://travis-ci.org/monixio/monix.svg?branch=master)](https://travis-ci.org/monixio/monix)
 [![Coverage Status](http://codecov.io/github/monixio/monix/coverage.svg?branch=master)](http://codecov.io/github/monixio/monix?branch=master)
@@ -43,13 +43,13 @@ a project exemplifying Monix used both on the server and on the client.
 
 The packages are published on Maven Central.
 
-- Current stable release: `2.0.0`
+- Current stable release: `2.0.1`
 - Old 1.x release (Monifu): `1.2`
 
 For the current stable release (use the `%%%` for Scala.js):
 
 ```scala
-libraryDependencies += "io.monix" %% "monix" % "2.0.0"
+libraryDependencies += "io.monix" %% "monix" % "2.0.1"
 ```
 
 For the old 1.x release (use the `%%%` for Scala.js):
