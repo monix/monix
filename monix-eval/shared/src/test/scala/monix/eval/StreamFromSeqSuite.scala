@@ -20,9 +20,16 @@ package monix.eval
 import monix.execution.internal.Platform
 
 object StreamFromSeqSuite extends BaseTestSuite {
-  test("TaskStream.fromSeq") { implicit s =>
+  test("TaskStream.fromSeq(vector)") { implicit s =>
     check1 { (list: List[Int]) =>
       val result = TaskStream.fromSeq(list.toVector).toListL
+      result === Task.now(list)
+    }
+  }
+
+  test("TaskStream.fromSeq(list)") { implicit s =>
+    check1 { (list: List[Int]) =>
+      val result = TaskStream.fromSeq(list).toListL
       result === Task.now(list)
     }
   }

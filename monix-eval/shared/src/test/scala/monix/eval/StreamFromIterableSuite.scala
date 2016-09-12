@@ -56,7 +56,7 @@ object StreamFromIterableSuite extends BaseTestSuite {
     def findCons(stream: Stream[Task, Int]): Stream.Cons[Task, Int] =
       stream match {
         case ref @ Stream.Cons(_,_,_) => ref
-        case Stream.Wait(rest,_) =>
+        case Stream.Suspend(rest,_) =>
           val ref = rest.runAsync; s.tick()
           findCons(ref.value.get.get)
         case other =>
@@ -71,6 +71,18 @@ object StreamFromIterableSuite extends BaseTestSuite {
 
     s.tick()
     assertEquals(result1.value, result2.value)
+  }
+
+  test("TaskStream.fromIterable should throw error if batchSize <= 0") { _ =>
+    intercept[IllegalArgumentException] {
+      TaskStream.fromIterable(List(1,2,3), 0)
+    }
+  }
+
+  test("TaskStream.fromIterator should throw error if batchSize <= 0") { _ =>
+    intercept[IllegalArgumentException] {
+      TaskStream.fromIterator(List(1,2,3).iterator, 0)
+    }
   }
 
   test("CoevalStream.fromIterable") { _ =>
@@ -109,7 +121,7 @@ object StreamFromIterableSuite extends BaseTestSuite {
     def findCons(stream: Stream[Coeval, Int]): Stream.Cons[Coeval, Int] =
       stream match {
         case ref @ Stream.Cons(_,_,_) => ref
-        case Stream.Wait(rest,_) =>
+        case Stream.Suspend(rest,_) =>
           findCons(rest.value)
         case other =>
           throw new IllegalStateException(s"Unexpected: $other")
@@ -121,5 +133,17 @@ object StreamFromIterableSuite extends BaseTestSuite {
     val result1 = cons.tail.value
     val result2 = cons.tail.value
     assertEquals(result1, result2)
+  }
+
+  test("CoevalStream.fromIterable should throw error if batchSize <= 0") { _ =>
+    intercept[IllegalArgumentException] {
+      CoevalStream.fromIterable(List(1,2,3), 0)
+    }
+  }
+
+  test("CoevalStream.fromIterator should throw error if batchSize <= 0") { _ =>
+    intercept[IllegalArgumentException] {
+      CoevalStream.fromIterator(List(1,2,3).iterator, 0)
+    }
   }
 }

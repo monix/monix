@@ -50,14 +50,14 @@ trait SuspendableLawsSuite[F[_],A,B,C] extends MonadEvalLawsSuite[F,A,B,C] {
 
     if (includeSupertypes) monadEvalCheck(typeName, includeSupertypes)
 
-    test(s"Suspendable[$typeName].deferEquivalenceWithEval") {
+    test(s"Suspendable[$typeName].suspendEquivalenceWithEval") {
       check1((a: A) =>
-        suspendableLaws.deferEquivalenceWithEval(a))
+        suspendableLaws.suspendEquivalenceWithEval(a))
     }
 
-    test(s"Suspendable[$typeName].evalEquivalenceWithDefer") {
+    test(s"Suspendable[$typeName].evalEquivalenceWithSuspend") {
       check1((fa: F[A]) =>
-        suspendableLaws.evalEquivalenceWithDefer(fa))
+        suspendableLaws.evalEquivalenceWithSuspend(fa))
     }
 
     test(s"Suspendable[$typeName].suspendDelaysEffects") {

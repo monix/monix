@@ -71,10 +71,10 @@ object Suspendable {
     private def M = monad
     private def S = suspendable
 
-    def deferEquivalenceWithEval[A](a: A): IsEquiv[F[A]] =
+    def suspendEquivalenceWithEval[A](a: A): IsEquiv[F[A]] =
       S.suspend(A.pure(a)) <-> E.eval(a)
 
-    def evalEquivalenceWithDefer[A](fa: F[A]): IsEquiv[F[A]] =
+    def evalEquivalenceWithSuspend[A](fa: F[A]): IsEquiv[F[A]] =
       M.flatten[A](E.eval(fa)) <-> S.suspend(fa)
 
     def suspendDelaysEffects[A](seed: A, effect: A => A): IsEquiv[F[A]] = {

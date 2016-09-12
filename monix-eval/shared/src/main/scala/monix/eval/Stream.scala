@@ -50,7 +50,7 @@ import scala.util.control.NonFatal
   *  - [[monix.eval.Stream.ConsSeq ConsSeq]] is a variation on `Cons`
   *    for signaling a whole strict batch of elements as the `head`,
   *    along with the `tail` representing the rest of the stream
-  *  - [[monix.eval.Stream.Wait Wait]] is for suspending the
+  *  - [[monix.eval.Stream.Suspend Suspend]] is for suspending the
   *    evaluation of a stream
   *  - [[monix.eval.Stream.Halt Halt]] represents an empty
   *    stream, signaling the end, either in success or in error
@@ -87,7 +87,7 @@ sealed trait Stream[F[_], +A] extends Product with Serializable { self =>
       case Cons(_, _, ref) => ref
       case ConsLazy(_, _, ref) => ref
       case ConsSeq(_, _, ref) => ref
-      case Wait(_, ref) => ref
+      case Suspend(_, ref) => ref
       case Halt(_) => F.unit
     }
 
@@ -108,7 +108,7 @@ sealed trait Stream[F[_], +A] extends Product with Serializable { self =>
 
       case ConsSeq(headSeq, tailF, cancel) =>
         if (headSeq.isEmpty)
-          Wait[F,B](tailF.map(_.mapEval(f)), cancel)
+          Suspend[F,B](tailF.map(_.mapEval(f)), cancel)
         else {
           val head = headSeq.head
           val tail = F.applicative.pure(ConsSeq(headSeq.tail, tailF, cancel))
@@ -117,8 +117,8 @@ sealed trait Stream[F[_], +A] extends Product with Serializable { self =>
           catch { case NonFatal(ex) => signalError(ex) }
         }
 
-      case Wait(rest, cancel) =>
-        Wait[F,B](F.functor.map(rest)(_.mapEval(f)), cancel)
+      case Suspend(rest, cancel) =>
+        Suspend[F,B](F.functor.map(rest)(_.mapEval(f)), cancel)
       case halt @ Halt(_) =>
         halt
     }
@@ -154,7 +154,7 @@ sealed trait Stream[F[_], +A] extends Product with Serializable { self =>
           // Also protecting the head!
           val head = headF.onErrorHandleWith(ex => cancel.flatMap(_ => E.raiseError(ex)))
           head.flatMap(a => next(a, tail, cancel))
-        case Wait(rest, _) =>
+        case Suspend(rest, _) =>
           rest.flatMap(loop(_, state))
         case ConsSeq(list, next, cancel) =>
           if (list.isEmpty)
@@ -185,7 +185,7 @@ sealed trait Stream[F[_], +A] extends Product with Serializable { self =>
   private def signalError(ex: Throwable)(implicit F: Applicative[F]): Stream[F, Nothing] = {
     val c = onCancel
     val t: F[Stream[F,Nothing]] = F.functor.map(c)(_ => Stream.Halt[F](Some(ex)))
-    Stream.Wait[F,Nothing](t, c)
+    Stream.Suspend[F,Nothing](t, c)
   }
 }
 
@@ -226,7 +226,7 @@ sealed trait Stream[F[_], +A] extends Product with Serializable { self =>
   *         Useful for doing buffering, or by giving it an empty list,
   *         useful to postpone the evaluation of the next element.
   *
-  * @define waitDesc The [[monix.eval.Stream.Wait Wait]] state
+  * @define suspendDesc The [[monix.eval.Stream.Suspend Suspend]] state
   *         of the [[Stream]] represents a suspended stream to be
   *         evaluated in the `F` context. It is useful to delay the
   *         evaluation of a stream by deferring to `F`.
@@ -272,6 +272,16 @@ sealed trait Stream[F[_], +A] extends Product with Serializable { self =>
   * @define batchSizeDesc indicates the size of a streamed batch on each event
   *        (by means of [[Stream.ConsSeq]]) or no batching done if it is
   *        equal to 1
+  *
+  * @define suspendEvalDesc Promote a non-strict value representing a
+  *         stream to a stream of the same type, effectively delaying its
+  *         initialisation.
+  *
+  *         In case the underlying evaluation monad `F` is a
+  *         [[monix.types.Suspendable Suspendable]] type
+  *         (like [[Task]] or [[Coeval]]), then suspension will act as a factory
+  *         of streams, with any described side-effects happening on
+  *         each evaluation.
   */
 object Stream {
   /** Given a sequence of elements, builds a stream out of it. */
@@ -350,25 +360,29 @@ object Stream {
     (implicit F: Applicative[F]): Stream[F,A] =
     consSeq[F,A](head, tail, F.unit)
 
-  /** Builds a [[Stream.Wait]] stream state.
+  /** $suspendEvalDesc */
+  def suspend[F[_], A](fa: => Stream[F,A])(implicit F: MonadEval[F]): Stream[F,A] =
+    Stream.suspend[F,A](F.eval(fa))(F.applicative)
+
+  /** Builds a [[Stream.Suspend]] stream state.
     *
-    * $waitDesc
+    * $suspendDesc
+    *
+    * @param rest is the suspended stream
+    */
+  def suspend[F[_],A](rest: F[Stream[F,A]])
+    (implicit F: Applicative[F]): Stream[F,A] =
+    suspend[F,A](rest, F.unit)
+
+  /** Builds a [[Stream.Suspend]] stream state.
+    *
+    * $suspendDesc
     *
     * @param rest is the suspended stream
     * @param cancel $cancelDesc
     */
-  def wait[F[_],A](rest: F[Stream[F,A]], cancel: F[Unit]): Stream[F,A] =
-    Wait[F,A](rest, cancel)
-
-  /** Builds a [[Stream.Wait]] stream state.
-    *
-    * $waitDesc
-    *
-    * @param rest is the suspended stream
-    */
-  def wait[F[_],A](rest: F[Stream[F,A]])
-    (implicit F: Applicative[F]): Stream[F,A] =
-    wait[F,A](rest, F.unit)
+  def suspend[F[_],A](rest: F[Stream[F,A]], cancel: F[Unit]): Stream[F,A] =
+    Suspend[F,A](rest, cancel)
 
   /** Returns an empty stream. */
   def empty[F[_],A]: Stream[F,A] =
@@ -436,7 +450,7 @@ object Stream {
     val init = F.monadEval.eval(iterable.iterator)
     val cancel = F.applicative.unit
     val rest = F.functor.map(init)(iterator => fromIterator[F,A](iterator, batchSize))
-    Wait[F,A](rest, cancel)
+    Suspend[F,A](rest, cancel)
   }
 
   /** $fromIteratorDesc
@@ -476,7 +490,7 @@ object Stream {
       }
 
     require(batchSize > 0, "batchSize should be strictly positive")
-    Wait[F,A](loop(), F.applicative.unit)
+    Suspend[F,A](loop(), F.applicative.unit)
   }
 
   /** $consDesc
@@ -517,12 +531,12 @@ object Stream {
     cancel: F[Unit])
     extends Stream[F,A]
 
-  /** $waitDesc
+  /** $suspendDesc
     *
     * @param rest is the suspended stream
     * @param cancel $cancelDesc
     */
-  final case class Wait[F[_], A](
+  final case class Suspend[F[_], A](
     rest: F[Stream[F,A]],
     cancel: F[Unit])
     extends Stream[F,A]
@@ -609,7 +623,7 @@ object Stream {
   abstract class Builders[F[_], Self[+T] <: Like[T, F, Self]]
     (implicit E: MonadError[F,Throwable], M: Memoizable[F]) {
 
-    import M.{applicative, functor, monad}
+    import M.{applicative, functor, monad, monadEval}
 
     /** Materializes a [[Stream]]. */
     def fromStream[A](stream: Stream[F,A]): Self[A]
@@ -693,26 +707,30 @@ object Stream {
     def consSeq[A](head: LinearSeq[A], tail: F[Self[A]], cancel: F[Unit]): Self[A] =
       fromStream(Stream.consSeq[F,A](head, functor.map(tail)(_.stream), cancel))
 
-    /** Builds a stream equivalent with the [[Stream.Wait]]
+    /** $suspendEvalDesc */
+    def suspend[A](fa: => Self[A]): Self[A] =
+      fromStream(Stream.suspend[F,A](fa.stream))
+
+    /** Builds a stream equivalent with the [[Stream.Suspend]]
       * stream state.
       *
-      * $waitDesc
+      * $suspendDesc
       *
       * @param rest is the suspended stream
       */
-    def wait[A](rest: F[Stream[F,A]]): Self[A] =
-      fromStream(Stream.wait[F,A](rest))
+    def suspend[A](rest: F[Self[A]]): Self[A] =
+      fromStream(Stream.suspend[F,A](rest.map(_.stream)))
 
-    /** Builds a stream equivalent with the [[Stream.Wait]]
+    /** Builds a stream equivalent with the [[Stream.Suspend]]
       * stream state.
       *
-      * $waitDesc
+      * $suspendDesc
       *
       * @param rest is the suspended stream
       * @param cancel $cancelDesc
       */
-    def wait[A](rest: F[Stream[F,A]], cancel: F[Unit]): Self[A] =
-      fromStream(Stream.wait[F,A](rest, cancel))
+    def suspend[A](rest: F[Self[A]], cancel: F[Unit]): Self[A] =
+      fromStream(Stream.suspend[F,A](rest.map(_.stream), cancel))
 
     /** Returns an empty stream. */
     def empty[A]: Self[A] = fromStream(Stream.empty[F,A])
