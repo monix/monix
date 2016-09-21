@@ -26,24 +26,24 @@ import monix.eval.Task.nondeterminism
   * A `TaskStream` has the following characteristics:
   *
   *  1. it can be infinite
-  *  2. it can be lazy
-  *  3. it can be asynchronous
+  *  1. it can be lazy
+  *  1. it can be asynchronous
   *
   * It's very similar to other lazy types in Scala's standard
   * library, like `Iterator`, however the execution model is more
   * flexible, as it is controlled by [[Task]]. This means that:
   *
-  *  1. you can have the equivalent of an `Iterable` if the
-  *     `Task` tails are built with [[Task.eval]]
-  *  2. you can have the equivalent of a Scala `Stream`, caching
-  *     elements as the stream is getting traversed, if the
-  *     `Task` tails are built with [[Task.evalOnce]]
-  *  3. it can be completely strict and thus equivalent with
-  *     `List`, if the tails are built with [[Task.now]]
-  *  4. it supports asynchronous behavior and can also replace
-  *     `Observable` for simple use-cases - for example the
-  *     elements produced can be the result of asynchronous
-  *     HTTP requests
+  *  - you can have the equivalent of an `Iterable` if the
+  *    `Task` tails are built with [[Task.eval]]
+  *  - you can have the equivalent of a Scala `Stream`, caching
+  *    elements as the stream is getting traversed, if the
+  *    `Task` tails are built with [[Task.evalOnce]]
+  *  - it can be completely strict and thus equivalent with
+  *    `List`, if the tails are built with [[Task.now]]
+  *  - it supports asynchronous behavior and can also replace
+  *    `Observable` for simple use-cases - for example the
+  *    elements produced can be the result of asynchronous
+  *    HTTP requests
   *
   * The implementation is practically wrapping the generic
   * [[Stream]], materialized with the [[Task]] type.

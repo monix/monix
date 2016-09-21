@@ -52,27 +52,6 @@ object StreamFromIterableSuite extends BaseTestSuite {
     s.tick(); assertEquals(result.value, Some(Failure(dummy)))
   }
 
-  test("TaskStream.fromIterator is memoized") { implicit s =>
-    def findCons(stream: Stream[Task, Int]): Stream.Cons[Task, Int] =
-      stream match {
-        case ref @ Stream.Cons(_,_,_) => ref
-        case Stream.Suspend(rest,_) =>
-          val ref = rest.runAsync; s.tick()
-          findCons(ref.value.get.get)
-        case other =>
-          throw new IllegalStateException(s"Unexpected: $other")
-      }
-
-    val source = TaskStream.fromIterator(List(1,2,3).iterator)
-    val cons = findCons(source.stream)
-
-    val result1 = cons.tail.runAsync
-    val result2 = cons.tail.runAsync
-
-    s.tick()
-    assertEquals(result1.value, result2.value)
-  }
-
   test("TaskStream.fromIterable should throw error if batchSize <= 0") { _ =>
     intercept[IllegalArgumentException] {
       TaskStream.fromIterable(List(1,2,3), 0)
@@ -115,24 +94,6 @@ object StreamFromIterableSuite extends BaseTestSuite {
 
     val result = CoevalStream.fromIterator(iterator).toListL.runTry
     assertEquals(result, Failure(dummy))
-  }
-
-  test("CoevalStream.fromIterator is memoized") { _ =>
-    def findCons(stream: Stream[Coeval, Int]): Stream.Cons[Coeval, Int] =
-      stream match {
-        case ref @ Stream.Cons(_,_,_) => ref
-        case Stream.Suspend(rest,_) =>
-          findCons(rest.value)
-        case other =>
-          throw new IllegalStateException(s"Unexpected: $other")
-      }
-
-    val source = CoevalStream.fromIterator(List(1,2,3).iterator)
-    val cons = findCons(source.stream)
-
-    val result1 = cons.tail.value
-    val result2 = cons.tail.value
-    assertEquals(result1, result2)
   }
 
   test("CoevalStream.fromIterable should throw error if batchSize <= 0") { _ =>

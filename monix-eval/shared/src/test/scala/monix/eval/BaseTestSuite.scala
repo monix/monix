@@ -19,139 +19,30 @@ package monix.eval
 
 import minitest.TestSuite
 import minitest.laws.Checkers
-import monix.execution.Cancelable
 import monix.execution.schedulers.TestScheduler
-import org.scalacheck.Prop.{False, Proof, True}
-import org.scalacheck.{Arbitrary, Prop}
-import scala.concurrent.duration._
-import scala.util.{Failure, Success, Try}
+import monix.types.tests.Eq
+import org.scalacheck.Prop
 
-abstract class BaseTestSuite extends TestSuite[TestScheduler] with Checkers {
+abstract class BaseTestSuite extends TestSuite[TestScheduler]
+  with Checkers with ArbitraryInstances {
+
   def setup(): TestScheduler = TestScheduler()
   def tearDown(env: TestScheduler): Unit = {
     assert(env.state.get.tasks.isEmpty, "should not have tasks left to execute")
   }
 
-  def arbitraryTaskNow[A](implicit A: Arbitrary[A]): Arbitrary[Task[A]] =
-    Arbitrary { A.arbitrary.map(a => Task.now(a)) }
+  implicit def isEquivToProp[A](p: IsEquiv[A])(implicit A: Eq[A]): Prop =
+    Prop(A(p.lh, p.rh))
 
-  def arbitraryCoevalNow[A](implicit A: Arbitrary[A]): Arbitrary[Coeval[A]] =
-    Arbitrary { A.arbitrary.map(a => Coeval.now(a)) }
+  implicit def isEquivListToProp[A](ns: List[IsEquiv[A]])(implicit A: Eq[A]): Prop =
+    Prop(ns.forall(p => A(p.lh, p.rh)))
 
-  def arbitraryTaskEvalOnce[A](implicit A: Arbitrary[A]): Arbitrary[Task[A]] =
-    Arbitrary { A.arbitrary.map(a => Task.evalOnce(a)) }
+  implicit def isNotEquivToProp[A](p: IsNotEquiv[A])(implicit A: Eq[A]): Prop =
+    Prop(!A(p.lh, p.rh))
 
-  def arbitraryCoevalEvalOnce[A](implicit A: Arbitrary[A]): Arbitrary[Coeval[A]] =
-    Arbitrary { A.arbitrary.map(a => Coeval.evalOnce(a)) }
-
-  def arbitraryEvalAlways[A](implicit A: Arbitrary[A]): Arbitrary[Task[A]] =
-    Arbitrary { A.arbitrary.map(a => Task.eval(a)) }
-
-  def arbitraryError[A](implicit ev: Arbitrary[Int]): Arbitrary[Task[A]] =
-    Arbitrary { ev.arbitrary.map(nr => Task.raiseError(DummyException(s"dummy $nr"))) }
-
-  def arbitraryAsync[A](implicit A: Arbitrary[A]): Arbitrary[Task[A]] =
-    Arbitrary(A.arbitrary.map(a =>
-      Task.create { (s,cb) =>
-        cb.onSuccess(a)
-        Cancelable.empty
-      }
-    ))
-
-  def arbitraryAsyncError[A](implicit ev: Arbitrary[Int]): Arbitrary[Task[A]] =
-    Arbitrary(ev.arbitrary.map(nr =>
-      Task.create { (s,cb) =>
-        cb.onError(DummyException(s"dummy $nr"))
-        Cancelable.empty
-      }
-    ))
-
-  /** Implicitly map [[IsEquiv]] to a [[Prop]]. */
-  implicit def isEqTaskProp[A](isEq: IsEquiv[Task[A]])(implicit s: TestScheduler): Prop =
-    Prop {
-      var valueA = Option.empty[Try[A]]
-      var valueB = Option.empty[Try[A]]
-
-      isEq.lh.runAsync(new Callback[A] {
-        def onError(ex: Throwable): Unit =
-          valueA = Some(Failure(ex))
-        def onSuccess(value: A): Unit =
-          valueA = Some(Success(value))
-      })
-
-      isEq.rh.runAsync(new Callback[A] {
-        def onError(ex: Throwable): Unit =
-          valueB = Some(Failure(ex))
-        def onSuccess(value: A): Unit =
-          valueB = Some(Success(value))
-      })
-
-      // simulate synchronous execution
-      s.tick(1.hour)
-
-      valueA == valueB || {
-        valueA.isDefined && valueB.isDefined &&
-        valueA.get.isFailure && valueB.get.isFailure
-      }
-    }
-
-  /** Implicitly map [[IsNotEquiv]] to a [[Prop]]. */
-  implicit def isNotEqTaskProp[A](isNotEq: IsNotEquiv[Task[A]])(implicit s: TestScheduler): Prop =
-    for (r <- isEqTaskProp(IsEquiv(isNotEq.lh, isNotEq.rh))) yield
-      r.status match {
-        case False => r.copy(status = True)
-        case True | Proof => r.copy(status = False)
-        case _ => r
-      }
-
-  /** Implicitly map [[IsEquiv]] to a [[Prop]]. */
-  implicit def isEqSeqTaskProp[A](list: List[IsEquiv[Task[A]]])(implicit s: TestScheduler): Prop =
-    list match {
-      case Nil => Prop(true)
-      case head :: tail =>
-        isEqTaskProp(head)(s).flatMap { result =>
-          if (result.success && tail.nonEmpty)
-            isEqSeqTaskProp(tail)(s)
-          else
-            Prop(result)
-        }
-    }
-
-  /** Implicitly map [[IsNotEquiv]] to a [[Prop]]. */
-  implicit def isNotEqSeqTaskProp[A](list: List[IsNotEquiv[Task[A]]])(implicit s: TestScheduler): Prop =
-    list match {
-      case Nil => Prop(true)
-      case head :: tail =>
-        isNotEqTaskProp(head)(s).flatMap { result =>
-          if (result.success && tail.nonEmpty)
-            isNotEqSeqTaskProp(tail)(s)
-          else
-            Prop(result)
-        }
-    }
-
-  /** Implicitly map [[IsEquiv]] to a [[Prop]]. */
-  implicit def isEqCoevalProp[A](isEq: IsEquiv[Coeval[A]]): Prop =
-    Prop {
-      val valueA = isEq.lh.runTry
-      val valueB = isEq.rh.runTry
-      valueA == valueB || valueA.isFailure == valueB.isFailure
-    }
-
-  /** Implicitly map [[IsNotEquiv]] to a [[Prop]]. */
-  implicit def isNotEqCoevalProp[A](isNotEq: IsNotEquiv[Coeval[A]]): Prop =
-    Prop { isNotEq.lh.runTry != isNotEq.rh.runTry }
-
-  /** Implicitly map [[IsEquiv]] to a [[Prop]]. */
-  implicit def isEqSeqCoevalProp[A](list: List[IsEquiv[Coeval[A]]]): Prop =
-    Prop { list.forall(isEq => isEq.lh.runTry == isEq.rh.runTry ) }
-
-  /** Implicitly map [[IsNotEquiv]] to a [[Prop]]. */
-  implicit def isNotEqSeqCoevalProp[A](list: List[IsNotEquiv[Coeval[A]]]): Prop =
-    Prop { list.forall(isNotEq => isNotEq.lh.runTry != isNotEq.rh.runTry ) }
+  implicit def isNotEquivListToProp[A](ns: List[IsNotEquiv[A]])(implicit A: Eq[A]): Prop =
+    Prop(ns.forall(p => !A(p.lh, p.rh)))
 }
-
-
 
 /** For generating dummy exceptions. */
 case class DummyException(message: String) extends RuntimeException(message)

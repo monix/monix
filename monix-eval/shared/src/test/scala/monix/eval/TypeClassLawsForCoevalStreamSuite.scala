@@ -17,27 +17,16 @@
 
 package monix.eval
 
-import scala.collection.mutable.ListBuffer
+import monix.types.tests.{MonadEvalLawsSuite, MonadLawsSuite, SuspendableLawsSuite}
 
-object StreamFromSeqSuite extends BaseTestSuite {
-  test("TaskStream.fromSeq(vector)") { implicit s =>
-    check1 { (list: List[Int]) =>
-      val result = TaskStream.fromSeq(list.toVector).toListL
-      result === Task.now(list)
-    }
-  }
+object TypeClassLawsForCoevalStreamSuite extends BaseLawsSuite
+  with MonadEvalLawsSuite[CoevalStream, Int, Long, Short]
+  with MonadLawsSuite[CoevalStream, Int, Long, Short]
+  with SuspendableLawsSuite[CoevalStream, Int, Long, Short] {
 
-  test("TaskStream.fromSeq(list)") { implicit s =>
-    check1 { (list: List[Int]) =>
-      val result = TaskStream.fromSeq(list).toListL
-      result === Task.now(list)
-    }
-  }
+  override val F =
+    CoevalStream.typeClassInstances
 
-  test("TaskStream.fromSeq(iterable)") { implicit s =>
-    check1 { (list: List[Int]) =>
-      val result = TaskStream.fromSeq(list.to[ListBuffer]).toListL
-      result === Task.now(list)
-    }
-  }
+  // Actual tests ...
+  suspendableCheck("CoevalStream[A]", includeSupertypes = true)
 }

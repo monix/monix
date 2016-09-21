@@ -18,9 +18,9 @@
 package monix.eval
 
 import monix.types.tests._
-import org.scalacheck.Arbitrary
 
-object TypeClassLawsForCoevalSuite extends MemoizableLawsSuite[Coeval,Int,Long,Short]
+object TypeClassLawsForCoevalSuite extends BaseLawsSuite
+  with MemoizableLawsSuite[Coeval,Int,Long,Short]
   with SuspendableLawsSuite[Coeval,Int,Long,Short]
   with MonadErrorLawsSuite[Coeval,Int,Long,Short,Throwable]
   with CobindLawsSuite[Coeval,Int,Long,Short]
@@ -29,44 +29,6 @@ object TypeClassLawsForCoevalSuite extends MemoizableLawsSuite[Coeval,Int,Long,S
 
   override def F: Coeval.TypeClassInstances =
     Coeval.typeClassInstances
-
-  implicit def arbitraryCoeval[A](implicit A: Arbitrary[A]): Arbitrary[Coeval[A]] =
-    Arbitrary {
-      val intGen = implicitly[Arbitrary[Int]]
-      for (a <- A.arbitrary; int <- intGen.arbitrary) yield {
-        if (int % 3 == 0) Coeval.now(a)
-        else if (int % 3 == 1) Coeval.evalOnce(a)
-        else Coeval.eval(a)
-      }
-    }
-
-  implicit def isEqCoeval[A](implicit A: Eq[A]): Eq[Coeval[A]] =
-    new Eq[Coeval[A]] {
-      def apply(lh: Coeval[A], rh: Coeval[A]): Boolean = {
-        val valueA = lh.runTry
-        val valueB = rh.runTry
-
-        (valueA.isFailure && valueB.isFailure) ||
-          A(valueA.get, valueB.get)
-      }
-    }
-
-  implicit def arbitraryExToA[A](implicit A: Arbitrary[A]): Arbitrary[Throwable => A] =
-    Arbitrary {
-      val fun = implicitly[Arbitrary[Int => A]]
-      for (f <- fun.arbitrary) yield (t: Throwable) => f(t.hashCode())
-    }
-
-  implicit def arbitraryPfExToA[A](implicit A: Arbitrary[A]): Arbitrary[PartialFunction[Throwable, A]] =
-    Arbitrary {
-      val fun = implicitly[Arbitrary[Int => A]]
-      for (f <- fun.arbitrary) yield PartialFunction((t: Throwable) => f(t.hashCode()))
-    }
-
-  implicit def arbitraryCoevalToLong[A,B](implicit A: Arbitrary[A], B: Arbitrary[B]): Arbitrary[Coeval[A] => B] =
-    Arbitrary {
-      for (b <- B.arbitrary) yield (t: Coeval[A]) => b
-    }
 
   // Actual tests ...
 

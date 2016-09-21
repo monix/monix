@@ -46,38 +46,57 @@ object StreamFoldLeftSuite extends BaseTestSuite {
   test("TaskStream.foldLeftL ends in error") { implicit s =>
     import TaskStream._
     val dummy = DummyException("dummy")
-    val c = Task.unit
+    var wasCanceled = false
+    val c = Task { wasCanceled = true }
     val r = cons(1, Task(cons(2, Task(raiseError(dummy)), c)), c).toListL.runAsync
     s.tick()
     assertEquals(r.value, Some(Failure(dummy)))
+    assert(!wasCanceled, "wasCanceled should not be true")
   }
 
   test("TaskStream.foldLeftL protects against user code in the seed") { implicit s =>
     val dummy = DummyException("dummy")
-    val stream = TaskStream.cons(1, Task.now(TaskStream.empty))
+    var wasCanceled = false
+    val c = Task { wasCanceled = true }
+    val stream = TaskStream.cons(1, Task.now(TaskStream.empty), c)
     val result = stream.foldLeftL[Int](throw dummy)((a,e) => a+e).runAsync
-    s.tick(); assertEquals(result.value, Some(Failure(dummy)))
+    s.tick()
+    assertEquals(result.value, Some(Failure(dummy)))
+    assert(wasCanceled, "wasCanceled should be true")
   }
 
   test("TaskStream.foldLeftL protects against user code in function f") { implicit s =>
     val dummy = DummyException("dummy")
-    val stream = TaskStream.cons(1, Task.now(TaskStream.empty))
+    var wasCanceled = false
+    val c = Task { wasCanceled = true }
+    val stream = TaskStream.cons(1, Task.now(TaskStream.empty), c)
     val result = stream.foldLeftL(0)((a,e) => throw dummy)
+    s.tick()
     check(result === Task.raiseError(dummy))
+    assert(wasCanceled, "wasCanceled should be true")
   }
 
   test("TaskStream.foldLeftL (batched) protects against user code in function f") { implicit s =>
     val dummy = DummyException("dummy")
-    val stream = TaskStream.consSeq(List(1,2,3), Task.now(TaskStream.empty))
+    var wasCanceled = false
+    val c = Task { wasCanceled = true }
+    val stream = TaskStream.consSeq(List(1,2,3), Task.now(TaskStream.empty), c)
     val result = stream.foldLeftL(0)((a,e) => throw dummy)
+    s.tick()
     check(result === Task.raiseError(dummy))
+    assert(wasCanceled, "wasCanceled should be true")
   }
 
   test("TaskStream.foldLeftL (async) protects against user code in function f") { implicit s =>
     val dummy = DummyException("dummy")
-    val stream = TaskStream(1,2,3).mapEval(x => Task(x))
+    var wasCanceled = false
+    val c = Task { wasCanceled = true }
+    val stream = TaskStream.cons(1, Task(TaskStream.consSeq(List(2,3), Task.now(TaskStream.empty), c)), c)
+      .mapEval(x => Task(x))
+
     val result = stream.foldLeftL(0)((a,e) => throw dummy)
     check(result === Task.raiseError(dummy))
+    assert(wasCanceled, "wasCanceled should be true")
   }
 
   test("CoevalStream.toListL (foldLeftL)") { implicit s =>
@@ -106,23 +125,52 @@ object StreamFoldLeftSuite extends BaseTestSuite {
   test("CoevalStream.foldLeftL ends in error") { implicit s =>
     import CoevalStream._
     val dummy = DummyException("dummy")
-    val c = Coeval.unit
+    var wasCanceled = false
+    val c = Coeval { wasCanceled = true }
     val r = cons(1, Coeval(cons(2, Coeval(raiseError(dummy)), c)), c).toListL.runTry
-    s.tick()
     assertEquals(r, Failure(dummy))
+    assert(!wasCanceled, "wasCanceled should not be true")
   }
 
   test("CoevalStream.foldLeftL protects against user code in the seed") { implicit s =>
     val dummy = DummyException("dummy")
-    val stream = CoevalStream.cons(1, Coeval.now(CoevalStream.empty))
+    var wasCanceled = false
+    val c = Coeval { wasCanceled = true }
+    val stream = CoevalStream.cons(1, Coeval.now(CoevalStream.empty), c)
     val result = stream.foldLeftL[Int](throw dummy)((a,e) => a+e).runTry
     assertEquals(result, Failure(dummy))
+    assert(wasCanceled, "wasCanceled should be true")
   }
 
   test("CoevalStream.foldLeftL protects against user code in function f") { implicit s =>
     val dummy = DummyException("dummy")
-    val stream = CoevalStream.cons(1, Coeval.now(CoevalStream.empty))
-    val result = stream.foldLeftL(0)((a,e) => throw dummy).runTry
-    assertEquals(result, Failure(dummy))
+    var wasCanceled = false
+    val c = Coeval { wasCanceled = true }
+    val stream = CoevalStream.cons(1, Coeval.now(CoevalStream.empty), c)
+    val result = stream.foldLeftL(0)((a,e) => throw dummy)
+    check(result === Coeval.raiseError(dummy))
+    assert(wasCanceled, "wasCanceled should be true")
+  }
+
+  test("CoevalStream.foldLeftL (batched) protects against user code in function f") { implicit s =>
+    val dummy = DummyException("dummy")
+    var wasCanceled = false
+    val c = Coeval { wasCanceled = true }
+    val stream = CoevalStream.consSeq(List(1,2,3), Coeval.now(CoevalStream.empty), c)
+    val result = stream.foldLeftL(0)((a,e) => throw dummy)
+    check(result === Coeval.raiseError(dummy))
+    assert(wasCanceled, "wasCanceled should be true")
+  }
+
+  test("CoevalStream.foldLeftL (async) protects against user code in function f") { implicit s =>
+    val dummy = DummyException("dummy")
+    var wasCanceled = false
+    val c = Coeval { wasCanceled = true }
+    val stream = CoevalStream.cons(1, Coeval(CoevalStream.consSeq(List(2,3), Coeval.now(CoevalStream.empty), c)), c)
+      .mapEval(x => Coeval(x))
+
+    val result = stream.foldLeftL(0)((a,e) => throw dummy)
+    check(result === Coeval.raiseError(dummy))
+    assert(wasCanceled, "wasCanceled should be true")
   }
 }
