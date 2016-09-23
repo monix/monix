@@ -205,6 +205,12 @@ sealed trait Stream[F[_], +A] extends Product with Serializable { self =>
     }
   }
 
+  /** Appends the given stream to the end of the source,
+    * effectively concatenating them.
+    */
+  final def ++[B >: A](rhs: Stream[F,B])(implicit F: Monad[F]): Stream[F,B] =
+    this.concatF(F.applicative.pure(rhs))
+
   private final def concatF[B >: A](rhs: F[Stream[F,B]])(implicit F: Monad[F]): Stream[F,B] = {
     import F.{applicative, functor}
 
@@ -753,6 +759,12 @@ object Stream extends StreamInstances {
       */
     final def flatMap[B](f: A => Self[B]): Self[B] =
       transform(_.flatMap(a => f(a).stream)(M.monad))
+
+    /** Appends the given stream to the end of the source,
+      * effectively concatenating them.
+      */
+    final def ++[B >: A](rhs: Self[B]): Self[B] =
+      transform(_ ++ rhs.stream)
 
     /** Returns a computation that should be evaluated in
       * case the streaming must be canceled before reaching
