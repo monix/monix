@@ -1,3 +1,10 @@
+## Version 2.0.2 (Sat 25, 2016)
+
+- [Bug #224](https://github.com/monixio/monix/issues/224):
+  `IllegalStateException` logged in parallel consumer, 
+  when streaming gets canceled due to a subscriber triggering 
+  an error    
+
 ## Version 2.0.1 (Sat 10, 2016)
 
 - [Issue #218](https://github.com/monixio/monix/issues/218):
