@@ -884,24 +884,20 @@ object Consumer {
             // Forcing an asynchronous boundary, to avoid any possible
             // initialization issues (in building subscribersQueue) or
             // stack overflows and other problems
-            def cancel(): Unit = scheduler.execute(
-              new Runnable {
-                // We are required to synchronize, because we need to
-                // make sure that subscribersQueue is fully created before
-                // triggering any cancellation!
-                def run(): Unit = self.synchronized {
-                  // Guards the idempotency contract of cancel(); not really
-                  // required, because `deactivate()` should be idempotent, but
-                  // since we are doing an expensive synchronize, we might as well
-                  if (!isCanceled) {
-                    isCanceled = true
-                    // Deactivating the subscriber. In case all subscribers
-                    // have been deactivated, then we are done
-                    if (subscribersQueue.deactivate(out))
-                      interruptAll(null)
-                  }
+            def cancel(): Unit = scheduler.executeAsync {
+              // We are required to synchronize, because we need to
+              // make sure that subscribersQueue is fully created before
+              // triggering any cancellation!
+              self.synchronized {
+                // Guards the idempotency contract of cancel(); not really
+                // required, because `deactivate()` should be idempotent, but
+                // since we are doing an expensive synchronize, we might as well
+                if (!isCanceled) {
+                  isCanceled = true
+                  interruptOne(out, null)
                 }
-              })
+              }
+            }
           }
 
         // Asynchronous queue that serves idle subscribers waiting
@@ -924,7 +920,7 @@ object Consumer {
 
           while (i < parallelism) {
             val (out, c) = consumers(i % arrLen).createSubscriber(callback, s)
-            val indexed = new IndexedSubscriber(i, out)
+            val indexed = IndexedSubscriber(i, out)
             // Every created subscriber has the opportunity to cancel the
             // main subscription if needed, cancellation thus happening globally
             c := newCancelableFor(indexed)
@@ -993,6 +989,16 @@ object Consumer {
           }
         }
 
+        /** Called whenever a subscriber stops its subscription, or
+          * when an error gets thrown.
+          */
+        private def interruptOne(out: IndexedSubscriber[In], ex: Throwable): Unit = {
+          // Deactivating the subscriber. In case all subscribers
+          // have been deactivated, then we are done
+          if (subscribersQueue.deactivate(out))
+            interruptAll(ex)
+        }
+
         /** When Stop or error is received, this makes sure the
           * streaming gets interrupted!
           */
@@ -1011,29 +1017,24 @@ object Consumer {
         private def signalNext(out: IndexedSubscriber[In], elem: In): Unit = {
           // We are forcing an asynchronous boundary here, since we
           // don't want to block the main thread!
-          scheduler.execute(new Runnable {
-            def run(): Unit = {
-              try out.out.onNext(elem).syncOnComplete {
-                case Success(ack) =>
-                  ack match {
-                    case Continue =>
-                      // We have permission to continue from this subscriber
-                      // so returning it to the queue, to be reused
-                      subscribersQueue.offer(out)
-                    case Stop =>
-                      // Deactivating the subscriber. In case all subscribers
-                      // have been deactivated, then we are done
-                      if (subscribersQueue.deactivate(out))
-                        interruptAll(null)
-                  }
-                case Failure(ex) =>
-                  interruptAll(ex)
-              } catch {
-                case NonFatal(ex) =>
-                  interruptAll(ex)
-              }
+          scheduler.executeAsync {
+            try out.out.onNext(elem).syncOnComplete {
+              case Success(ack) =>
+                ack match {
+                  case Continue =>
+                    // We have permission to continue from this subscriber
+                    // so returning it to the queue, to be reused
+                    subscribersQueue.offer(out)
+                  case Stop =>
+                    interruptOne(out, null)
+                }
+              case Failure(ex) =>
+                interruptAll(ex)
+            } catch {
+              case NonFatal(ex) =>
+                interruptAll(ex)
             }
-          })
+          }
         }
 
         def onComplete(): Unit =
@@ -1050,7 +1051,8 @@ object Consumer {
             else subscribersQueue.poll().flatMap {
               // By protocol, if a null happens, then there are
               // no more active subscribers available
-              case null => Future.successful(())
+              case null =>
+                Future.successful(())
               case subscriber =>
                 try {
                   if (ex == null) subscriber.out.onComplete()
@@ -1109,10 +1111,7 @@ object Consumer {
       def offer(value: IndexedSubscriber[In]): Unit =
         stateRef.get match {
           case current @ Available(queue, canceledIDs, ac) =>
-            if (ac <= 0)
-              throw new IllegalStateException("offer after activeCount is zero")
-
-            if (!canceledIDs(value.id)) {
+            if (ac > 0 && !canceledIDs(value.id)) {
               val update = Available(queue.enqueue(value), canceledIDs, ac)
               if (!stateRef.compareAndSet(current, update))
                 offer(value)
@@ -1157,7 +1156,7 @@ object Consumer {
       @tailrec
       def deactivateAll(): Unit =
         stateRef.get match {
-          case current @ Available(_,canceledIDs,_) =>
+          case current @ Available(_, canceledIDs, _) =>
             val update: State[In] = Available(Queue.empty, canceledIDs, 0)
             if (!stateRef.compareAndSet(current, update))
               deactivateAll()
@@ -1194,7 +1193,7 @@ object Consumer {
                 else Available[In](Queue.empty, canceledIDs+ref.id, 0)
 
               if (!stateRef.compareAndSet(current, update))
-                deactivate(ref)
+                deactivate(ref) // retry
               else if (update.activeCount <= 0) {
                 promise.success(null)
                 true

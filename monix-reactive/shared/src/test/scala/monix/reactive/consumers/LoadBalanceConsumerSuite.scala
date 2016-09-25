@@ -113,19 +113,21 @@ object LoadBalanceConsumerSuite extends BaseLawsTestSuite {
     assertEquals(finishPromise.future.value, Some(Success(6)))
   }
 
-  test("a subscriber triggering an error when onNext will cancel everything") { implicit s =>
+  test("a subscriber triggering an error in onNext will cancel everything") { implicit s =>
     val iterations = 10000
-    val ackPromise = Promise[Ack]()
+    val ackPromise1 = Promise[Ack]()
+    val ackPromise2 = Promise[Ack]()
     val expectedSum = iterations.toLong * (iterations-1) / 2
     val sum = Atomic(0L)
     val wasCompleted = Atomic(0)
 
     val async = createAsync(sum, wasCompleted)
     val sync = createSync(sum, wasCompleted)
-    val busy = createBusy(sum, wasCompleted, ackPromise)
+    val busy1 = createBusy(sum, wasCompleted, ackPromise1)
+    val busy2 = createBusy(sum, wasCompleted, ackPromise2)
 
     val finishPromise = Promise[Int]()
-    val loadBalancer = Consumer.loadBalance(sync, async, busy, sync, async, busy).map(_.length)
+    val loadBalancer = Consumer.loadBalance(sync, async, busy1, sync, async, busy2).map(_.length)
 
     val conn = BooleanCancelable()
     val (subscriber, c) = loadBalancer.createSubscriber(Callback.fromPromise(finishPromise), s)
@@ -144,16 +146,23 @@ object LoadBalanceConsumerSuite extends BaseLawsTestSuite {
 
     // Continue
     val dummy = DummyException("dummy")
-    ackPromise.failure(dummy); s.tick()
+    ackPromise1.failure(dummy); s.tick()
     assertEquals(wasCompleted.get, 4)
     assertEquals(finishPromise.future.value, Some(Failure(dummy)))
     assert(conn.isCanceled, "conn.isCanceled")
     assertEquals(subscriber.onNext(10), Stop)
+
+    ackPromise2.success(Continue)
+    s.tick()
+
+    // We shouldn't have triggered any errors!
+    assertEquals(s.state.get.lastReportedError, null)
   }
 
   test("a subscriber triggering an error by callback will cancel everything") { implicit s =>
     val iterations = 10000
-    val ackPromise = Promise[Ack]()
+    val ackPromise1 = Promise[Ack]()
+    val ackPromise2 = Promise[Ack]()
     val expectedSum = iterations.toLong * (iterations-1) / 2
     val sum = Atomic(0L)
     val wasCompleted = Atomic(0)
@@ -161,10 +170,11 @@ object LoadBalanceConsumerSuite extends BaseLawsTestSuite {
     val async = createAsync(sum, wasCompleted)
     val sync = createSync(sum, wasCompleted)
     val dummy = DummyException("dummy")
-    val withError = createErrorSignaling(ackPromise, dummy)
+    val withError = createErrorSignaling(ackPromise1, dummy)
+    val busy = createBusy(sum, wasCompleted, ackPromise2)
 
     val finishPromise = Promise[Int]()
-    val loadBalancer = Consumer.loadBalance(sync, async, withError, sync, async, withError).map(_.length)
+    val loadBalancer = Consumer.loadBalance(sync, async, withError, sync, async, busy).map(_.length)
 
     val conn = BooleanCancelable()
     val (subscriber, c) = loadBalancer.createSubscriber(Callback.fromPromise(finishPromise), s)
@@ -182,11 +192,17 @@ object LoadBalanceConsumerSuite extends BaseLawsTestSuite {
     assertEquals(finishPromise.future.value, None)
 
     // Continue
-    ackPromise.success(Continue); s.tick()
+    ackPromise1.success(Continue); s.tick()
     assertEquals(wasCompleted.get, 4)
     assertEquals(finishPromise.future.value, Some(Failure(dummy)))
     assert(conn.isCanceled, "conn.isCanceled")
     assertEquals(subscriber.onNext(10), Stop)
+
+    ackPromise2.success(Continue)
+    s.tick()
+
+    // We shouldn't have triggered any errors!
+    assertEquals(s.state.get.lastReportedError, null)
   }
 
   test("a subscriber can cancel at any time") { implicit s =>
