@@ -33,12 +33,8 @@ import scala.util.control.NonFatal
   *
   * This is useful for light-weight callbacks. The idea is
   * borrowed from the implementation of
-  * `scala.concurrent.Future`, except that in this case we
-  * don't care about a blocking context, the implementation
-  * being more light-weight.
-  *
-  * Currently used as an optimization by `Task` in processing
-  * its internal callbacks.
+  * `scala.concurrent.Future`. Currently used as an
+  * optimization by `Task` in processing its internal callbacks.
   */
 trait LocalBatchingExecutor extends Scheduler {
   private[this] val localContext = LocalBatchingExecutor.localContext
