@@ -1,9 +1,15 @@
+## Version 2.0.3 (Oct 3, 2016)
+
+- [Bug #230](https://github.com/monixio/monix/issues/230):
+  Deadlock when blocking threads due to `LocalBatchingExecutor`
+  (affects `Task` usage)
+      
 ## Version 2.0.2 (Sat 25, 2016)
 
-- [Bug #224](https://github.com/monixio/monix/issues/224):
+- [Issue #224](https://github.com/monixio/monix/issues/224):
   `IllegalStateException` logged in parallel consumer, 
   when streaming gets canceled due to a subscriber triggering 
-  an error    
+  an error          
 
 ## Version 2.0.1 (Sat 10, 2016)
 
