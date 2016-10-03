@@ -18,8 +18,8 @@
 package monix.execution.schedulers
 
 import monix.execution.Scheduler
-
 import scala.annotation.tailrec
+import scala.concurrent.{BlockContext, CanAwait}
 import scala.util.control.NonFatal
 
 /** Adds trampoline execution capabilities to
@@ -41,7 +41,9 @@ import scala.util.control.NonFatal
   * its internal callbacks.
   */
 trait LocalBatchingExecutor extends Scheduler {
+  private[this] val localContext = LocalBatchingExecutor.localContext
   private[this] val localTasks = new ThreadLocal[List[Runnable]]()
+
   protected def executeAsync(r: Runnable): Unit
 
   override final def execute(runnable: Runnable): Unit =
@@ -51,7 +53,13 @@ trait LocalBatchingExecutor extends Scheduler {
           case null =>
             // If we aren't in local mode yet, start local loop
             localTasks.set(Nil)
-            localRunLoop(runnable, Nil)
+            val parentContext = localContext.get()
+            try {
+              localContext.set(localBlockContext)
+              localRunLoop(runnable)
+            } finally {
+              localContext.set(parentContext)
+            }
           case some =>
             // If we are already in batching mode, add to stack
             localTasks.set(runnable :: some)
@@ -61,44 +69,65 @@ trait LocalBatchingExecutor extends Scheduler {
         executeAsync(runnable)
     }
 
-  @tailrec private def localRunLoop(head: Runnable, tail: List[Runnable]): Unit = {
+  private[this] val localBlockContext: BlockContext =
+    new BlockContext {
+      def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
+        // In case of blocking, execute all scheduled local tasks on
+        // a separate thread, otherwise we could end up with a dead-lock
+        forkTheRest(Nil)
+        thunk
+      }
+    }
+
+  @tailrec private def localRunLoop(head: Runnable): Unit = {
     try {
       head.run()
     } catch {
       case ex: Throwable =>
-        // Sending everything to the underlying context,
-        // so that we can throw
-        val remaining = tail ::: localTasks.get()
-        localTasks.set(null)
-        forkTheRest(remaining)
+        // Sending everything else to the underlying context
+        forkTheRest(null)
         if (NonFatal(ex)) reportFailure(ex) else throw ex
     }
 
-    tail match {
-      case h2 :: t2 => localRunLoop(h2, t2)
+    localTasks.get() match {
+      case null => ()
       case Nil =>
-        localTasks.get() match {
-          case null => ()
-          case Nil =>
-            localTasks.set(null)
-          case h2 :: t2 =>
-            localTasks.set(Nil)
-            localRunLoop(h2, t2)
-        }
+        localTasks.set(null)
+      case h2 :: t2 =>
+        localTasks.set(t2)
+        localRunLoop(h2)
     }
   }
 
-  private def forkTheRest(rest: List[Runnable]): Unit = {
-    final class ResumeRun(head: Runnable, tail: List[Runnable]) extends Runnable {
+  private def forkTheRest(newLocalTasks: Nil.type): Unit = {
+    final class ResumeRun(head: Runnable, rest: List[Runnable]) extends Runnable {
       def run(): Unit = {
-        localTasks.set(Nil)
-        localRunLoop(head,tail)
+        localTasks.set(rest)
+        localRunLoop(head)
       }
     }
 
+    val rest = localTasks.get()
+    localTasks.set(newLocalTasks)
+
     rest match {
       case null | Nil => ()
-      case head :: tail => executeAsync(new ResumeRun(head, tail))
+      case head :: tail =>
+        executeAsync(new ResumeRun(head, tail))
     }
+  }
+}
+
+object LocalBatchingExecutor {
+  /** Returns the `localContext`, allowing us to bypass calling
+    * `BlockContext.withBlockContext`, as an optimization trick.
+    */
+  private val localContext: ThreadLocal[BlockContext] = {
+    val method = BlockContext.getClass.getDeclaredMethods
+      .find(_.getName.endsWith("contextLocal"))
+      .getOrElse(throw new NoSuchMethodError("BlockContext.contextLocal"))
+
+    method.setAccessible(true)
+    method.invoke(BlockContext).asInstanceOf[ThreadLocal[BlockContext]]
   }
 }
