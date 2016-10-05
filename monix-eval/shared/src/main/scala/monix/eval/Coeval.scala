@@ -127,12 +127,30 @@ sealed abstract class Coeval[+A] extends Serializable { self =>
       case Now(_) => Error(new NoSuchElementException("failed"))
     }
 
+  /** Returns a new task that upon evaluation will execute
+    * the given function for the generated element,
+    * transforming the source into a `Coeval[Unit]`.
+    *
+    * Similar in spirit with normal [[foreach]], but lazy,
+    * as obviously nothing gets executed at this point.
+    */
+  def foreachL(f: A => Unit): Coeval[Unit] =
+    self.map { a => f(a); () }
+
+  /** Triggers the evaluation of the source, executing
+    * the given function for the generated element.
+    *
+    * The application of this function has strict
+    * behavior, as the coeval is immediately executed.
+    */
+  def foreach(f: A => Unit): Unit =
+    foreachL(f).value
+
   /** Returns a new Coeval that applies the mapping function to
     * the element emitted by the source.
     */
   def map[B](f: A => B): Coeval[B] =
     flatMap(a => try Now(f(a)) catch { case NonFatal(ex) => Error(ex) })
-
 
   /** Creates a new [[Coeval]] that will expose any triggered error from
     * the source.

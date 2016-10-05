@@ -43,14 +43,14 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
   test("should do synchronous execution in batches") { implicit s =>
     var received = 0
     Observable.fromAsyncStateAction(intNow)(s.currentTimeMillis())
-      .take(Platform.recommendedBatchSize * 2)
+      .take(Platform.recommendedBatchSize * 3)
       .subscribe { x => received += 1; Continue }
 
-    assertEquals(received, Platform.recommendedBatchSize / 2)
-    s.tickOne()
     assertEquals(received, Platform.recommendedBatchSize - 1)
+    s.tickOne()
+    assertEquals(received, Platform.recommendedBatchSize * 2 - 1)
     s.tick()
-    assertEquals(received, Platform.recommendedBatchSize * 2)
+    assertEquals(received, Platform.recommendedBatchSize * 3)
   }
 
   test("should do async execution") { implicit s =>
@@ -83,7 +83,7 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
     cancelable.cancel()
     s.tick()
 
-    assertEquals(sum, s.executionModel.recommendedBatchSize - 1)
+    assertEquals(sum, s.executionModel.recommendedBatchSize * 2 - 1)
     assert(!wasCompleted)
   }
 

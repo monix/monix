@@ -64,8 +64,8 @@ final class ExecutorScheduler private (
   def reportFailure(t: Throwable): Unit =
     r.reportFailure(t)
 
-  override def withExecutionModel(f: ExecutionModel => ExecutionModel): Scheduler =
-    new ExecutorScheduler(s, r, f(executionModel))
+  override def withExecutionModel(em: ExecutionModel): Scheduler =
+    new ExecutorScheduler(s, r, em)
 }
 
 object ExecutorScheduler {

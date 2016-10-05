@@ -39,34 +39,31 @@ object TaskFlatMapSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(())))
   }
 
-  test("runAsync flatMap loop is cancelable if ExecutionModel permits") { scheduler =>
-    implicit val s = scheduler.withExecutionModel(_.withAutoCancelableLoops(true))
-
+  test("runAsync flatMap loop is cancelable if ExecutionModel permits") { implicit s =>
     val maxCount = Platform.recommendedBatchSize * 4
-    val expected = Platform.recommendedBatchSize * 2 - 1
+    val expected1 = Platform.recommendedBatchSize - 2
+    val expected2 = Platform.recommendedBatchSize * 2 - 3
 
     def loop(count: AtomicInt): Task[Unit] =
       if (count.getAndIncrement() >= maxCount) Task.unit else
         Task.unit.flatMap(_ => loop(count))
 
     val atomic = Atomic(0)
-    val f = loop(atomic).runAsync
+    val f = loop(atomic).executeWithModel(_.withAutoCancelableLoops(true)).runAsync
 
-    assertEquals(atomic.get, Platform.recommendedBatchSize)
+    assertEquals(atomic.get, expected1)
     f.cancel()
     s.tickOne()
-    assertEquals(atomic.get, expected)
+    assertEquals(atomic.get, expected2)
 
     s.tick()
-    assertEquals(atomic.get, expected)
+    assertEquals(atomic.get, expected2)
     assertEquals(f.value, None)
   }
 
-  test("runAsync(callback) flatMap loop is cancelable if ExecutionModel permits") { scheduler =>
-    implicit val s = scheduler.withExecutionModel(_.withAutoCancelableLoops(true))
-
+  test("runAsync(callback) flatMap loop is cancelable if ExecutionModel permits") { implicit s =>
     val maxCount = Platform.recommendedBatchSize * 4
-    val expected = Platform.recommendedBatchSize * 2 - 1
+    val expected = Platform.recommendedBatchSize * 2 - 2
 
     def loop(count: AtomicInt): Task[Unit] =
       if (count.getAndIncrement() >= maxCount) Task.unit else
@@ -75,12 +72,13 @@ object TaskFlatMapSuite extends BaseTestSuite {
     val atomic = Atomic(0)
     var result = Option.empty[Try[Unit]]
 
-    val c = loop(atomic).runAsync(new Callback[Unit] {
-      def onSuccess(value: Unit): Unit =
-        result = Some(Success(value))
-      def onError(ex: Throwable): Unit =
-        result = Some(Failure(ex))
-    })
+    val c = loop(atomic).executeWithModel(_.withAutoCancelableLoops(true))
+      .runAsync(new Callback[Unit] {
+        def onSuccess(value: Unit): Unit =
+          result = Some(Success(value))
+        def onError(ex: Throwable): Unit =
+          result = Some(Failure(ex))
+      })
 
     c.cancel()
     s.tickOne()

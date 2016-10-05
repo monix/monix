@@ -68,7 +68,7 @@ object InputStreamObservableSuite extends SimpleTestSuite {
   }
 
   test("it works for AlwaysAsyncExecution") {
-    implicit val s = TestScheduler(AlwaysAsyncExecution)
+    implicit val s = TestScheduler(AlwaysAsyncExecution())
     val array = randomByteArray()
     val in = new ByteArrayInputStream(array)
 
@@ -79,11 +79,11 @@ object InputStreamObservableSuite extends SimpleTestSuite {
 
     s.tick()
     assertEquals(result.value, Some(Success(Some(array.toList))))
-    assert(s.state.get.tasks.isEmpty, "should be left with no pending tasks")
+    assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
   }
 
   test("it works for SynchronousExecution") {
-    implicit val s = TestScheduler(SynchronousExecution)
+    implicit val s = TestScheduler(SynchronousExecution())
 
     var wasCompleted = 0
     val received = ListBuffer.empty[Byte]
@@ -109,7 +109,7 @@ object InputStreamObservableSuite extends SimpleTestSuite {
     })
 
     assertEquals(received.toList, array.toList)
-    assert(s.state.get.tasks.isEmpty, "should be left with no pending tasks")
+    assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
   }
 
   test("closes the file handle onComplete") {
@@ -154,7 +154,7 @@ object InputStreamObservableSuite extends SimpleTestSuite {
   }
 
   test("closes the file handle on cancel") {
-    implicit val s = TestScheduler(AlwaysAsyncExecution)
+    implicit val s = TestScheduler(AlwaysAsyncExecution())
 
     var wasClosed = false
     val in = randomInputWithOnFinish(() => wasClosed = true)
@@ -167,8 +167,8 @@ object InputStreamObservableSuite extends SimpleTestSuite {
     assertEquals(f.value, None)
     assert(wasClosed, "InputStream should have been closed")
 
-    assertEquals(s.state.get.lastReportedError, null)
-    assert(s.state.get.tasks.isEmpty, "should be left with no pending tasks")
+    assertEquals(s.state.lastReportedError, null)
+    assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
   }
 
   def inputWithError(ex: Throwable, whenToThrow: Int, onFinish: () => Unit): InputStream =

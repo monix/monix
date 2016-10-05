@@ -20,8 +20,11 @@ package monix.reactive.internal.builders
 import monix.eval.{Callback, Task}
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.Cancelable
+import monix.execution.internal.Platform
+import monix.execution.schedulers.ExecutionModel.BatchedExecution
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
+
 import scala.util.control.NonFatal
 
 private[reactive] final
@@ -32,7 +35,11 @@ class AsyncStateActionObservable[S,A](seed: => S, f: S => Task[(A,S)]) extends O
     try {
       val init = seed
       streamErrors = false
-      loop(subscriber, init).runAsync(Callback.empty)
+      loop(subscriber, init)
+        .executeWithModel(_ => BatchedExecution(
+          batchSize = Platform.recommendedBatchSize * 2,
+          autoCancelableLoops = true))
+        .runAsync(Callback.empty)
     } catch {
       case NonFatal(ex) =>
         if (streamErrors) subscriber.onError(ex)

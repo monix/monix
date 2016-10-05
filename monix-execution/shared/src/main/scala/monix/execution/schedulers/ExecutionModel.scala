@@ -175,6 +175,59 @@ object ExecutionModel {
       copy(autoCancelableLoops = value)
   }
 
+  /** Extension methods for [[ExecutionModel]]. */
+  implicit final class Extensions(val self: ExecutionModel) extends AnyVal {
+    /** Returns a [[SynchronousExecution]] value initialized
+      * with the options of the source.
+      */
+    def synchronous: SynchronousExecution =
+      SynchronousExecution(self.autoCancelableLoops)
+
+    /** Returns a [[AlwaysAsyncExecution]] value initialized
+      * with the options of the source.
+      */
+    def alwaysAsync: AlwaysAsyncExecution =
+      AlwaysAsyncExecution(self.autoCancelableLoops)
+
+    /** Returns a [[BatchedExecution]] value initialized
+      * with the options of the source.
+      *
+      * @param batchSize is the recommended batch size,
+      *        auto-initialized to a platform default, see
+      *        the description of [[BatchedExecution]] for
+      *        details.
+      */
+    def batched(batchSize: Int = Platform.recommendedBatchSize): BatchedExecution =
+      BatchedExecution(batchSize, self.autoCancelableLoops)
+
+    /** Returns `true` if this execution model is
+      * [[AlwaysAsyncExecution]] or `false` otherwise.
+      */
+    def isAlwaysAsync: Boolean =
+      self match {
+        case AlwaysAsyncExecution(_) => true
+        case _ => false
+      }
+
+    /** Returns `true` if this execution model is
+      * [[SynchronousExecution]] or `false` otherwise.
+      */
+    def isSynchronous: Boolean =
+      self match {
+        case SynchronousExecution(_) => true
+        case _ => false
+      }
+
+    /** Returns `true` if this execution model is
+      * [[BatchedExecution]] or `false` otherwise.
+      */
+    def isBatched: Boolean =
+      self match {
+        case BatchedExecution(_,_) => true
+        case _ => false
+      }
+  }
+
   final val Default: ExecutionModel =
     BatchedExecution(
       batchSize = Platform.recommendedBatchSize,

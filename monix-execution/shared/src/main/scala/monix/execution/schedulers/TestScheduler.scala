@@ -70,8 +70,8 @@ final class TestScheduler private (
     if (!stateRef.compareAndSet(current, update)) reportFailure(t)
   }
 
-  override def withExecutionModel(f: ExecutionModel => ExecutionModel): TestScheduler =
-    new TestScheduler(stateRef, f(executionModel))
+  override def withExecutionModel(em: ExecutionModel): TestScheduler =
+    new TestScheduler(stateRef, em)
 
   private[this] def extractOneTask(current: State, clock: FiniteDuration): Option[(Task, SortedSet[Task])] = {
     current.tasks.headOption.filter(_.runsAt <= clock) match {

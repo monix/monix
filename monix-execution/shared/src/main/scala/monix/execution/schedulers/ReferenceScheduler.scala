@@ -83,8 +83,8 @@ private[schedulers] abstract class ReferenceScheduler extends Scheduler {
     sub
   }
 
-  override def withExecutionModel(f: (ExecutionModel) => ExecutionModel): Scheduler =
-    WrappedScheduler(this, f(executionModel))
+  override def withExecutionModel(em: ExecutionModel): Scheduler =
+    WrappedScheduler(this, em)
 }
 
 object ReferenceScheduler {
@@ -108,7 +108,7 @@ object ReferenceScheduler {
       s.scheduleAtFixedRate(initialDelay, period, unit, r)
     override def currentTimeMillis(): Long =
       s.currentTimeMillis()
-    override def withExecutionModel(f: (ExecutionModel) => ExecutionModel): Scheduler =
-      copy(s, f(executionModel))
+    override def withExecutionModel(em: ExecutionModel): Scheduler =
+      copy(s, em)
   }
 }

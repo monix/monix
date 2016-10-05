@@ -68,7 +68,7 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
   }
 
   test("it works for AlwaysAsyncExecution") {
-    implicit val s = TestScheduler(AlwaysAsyncExecution)
+    implicit val s = TestScheduler(AlwaysAsyncExecution())
     val string = randomString()
     val in = new StringReader(string)
 
@@ -79,11 +79,11 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
 
     s.tick()
     assertEquals(result.value, Some(Success(Some(string))))
-    assert(s.state.get.tasks.isEmpty, "should be left with no pending tasks")
+    assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
   }
 
   test("it works for SynchronousExecution") {
-    implicit val s = TestScheduler(SynchronousExecution)
+    implicit val s = TestScheduler(SynchronousExecution())
 
     var wasCompleted = 0
     val received = ArrayBuffer.empty[Char]
@@ -109,7 +109,7 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
     })
 
     assertEquals(new String(received.toArray), string)
-    assert(s.state.get.tasks.isEmpty, "should be left with no pending tasks")
+    assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
   }
 
   test("closes the file handle onComplete") {
@@ -154,7 +154,7 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
   }
 
   test("closes the file handle on cancel") {
-    implicit val s = TestScheduler(AlwaysAsyncExecution)
+    implicit val s = TestScheduler(AlwaysAsyncExecution())
 
     var wasClosed = false
     val in = randomReaderWithOnFinish(() => wasClosed = true)
@@ -167,8 +167,8 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
     assertEquals(f.value, None)
     assert(wasClosed, "Reader should have been closed")
 
-    assertEquals(s.state.get.lastReportedError, null)
-    assert(s.state.get.tasks.isEmpty, "should be left with no pending tasks")
+    assertEquals(s.state.lastReportedError, null)
+    assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
   }
 
   def inputWithError(ex: Throwable, whenToThrow: Int, onFinish: () => Unit): Reader =

@@ -62,8 +62,8 @@ final class AsyncScheduler private (
   override def reportFailure(t: Throwable): Unit =
     r.reportFailure(t)
 
-  override def withExecutionModel(f: ExecutionModel => ExecutionModel): AsyncScheduler =
-    new AsyncScheduler(scheduler, ec, r, f(executionModel))
+  override def withExecutionModel(em: ExecutionModel): AsyncScheduler =
+    new AsyncScheduler(scheduler, ec, r, em)
 }
 
 object AsyncScheduler {

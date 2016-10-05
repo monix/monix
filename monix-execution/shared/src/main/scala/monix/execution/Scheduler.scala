@@ -160,11 +160,13 @@ abstract class Scheduler extends ExecutionContext with UncaughtExceptionReporter
     * {{{
     *   import monix.execution.Scheduler.global
     *
-    *   implicit val scheduler =
-    *     global.withExecutionModel(_.withAutoCancelableLoops(true))
+    *   implicit val scheduler = {
+    *     val em = global.executionModel
+    *     global.withExecutionModel(em.withAutoCancelableLoops(true))
+    *   }
     * }}}
     */
-  def withExecutionModel(f: ExecutionModel => ExecutionModel): Scheduler
+  def withExecutionModel(em: ExecutionModel): Scheduler
 }
 
 private[monix] trait SchedulerCompanion {

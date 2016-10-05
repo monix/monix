@@ -79,8 +79,8 @@ final class TrampolineScheduler private (
   override def reportFailure(t: Throwable): Unit =
     reporter.reportFailure(t)
 
-  override def withExecutionModel(f: ExecutionModel => ExecutionModel): Scheduler =
-    new TrampolineScheduler(reporter, f(executionModel))
+  override def withExecutionModel(em: ExecutionModel): Scheduler =
+    new TrampolineScheduler(reporter, em)
 }
 
 object TrampolineScheduler {

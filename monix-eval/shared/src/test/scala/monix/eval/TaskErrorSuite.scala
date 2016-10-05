@@ -226,19 +226,17 @@ object TaskErrorSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(err)))
   }
 
-  test("Task.onErrorFallbackTo should be cancelable if the ExecutionModel allows it") { scheduler =>
-    implicit val s = scheduler.withExecutionModel(_.withAutoCancelableLoops(true))
-
+  test("Task.onErrorFallbackTo should be cancelable if the ExecutionModel allows it") { implicit s =>
     def recursive(): Task[Int] = {
       Task[Int](throw DummyException("dummy")).onErrorFallbackTo(Task.defer(recursive()))
     }
 
-    val task = recursive()
+    val task = recursive().executeWithModel(_.withAutoCancelableLoops(true))
     val f = task.runAsync
     assertEquals(f.value, None)
 
     // cancelling after scheduled for execution, but before execution
-    f.cancel(); scheduler.tick()
+    f.cancel(); s.tick()
     assertEquals(f.value, None)
   }
 
@@ -271,17 +269,15 @@ object TaskErrorSuite extends BaseTestSuite {
     assertEquals(tries, 11)
   }
 
-  test("Task.onErrorRestart should be cancelable if ExecutionModel permits") { scheduler =>
-    implicit val s = scheduler.withExecutionModel(_.withAutoCancelableLoops(true))
-
+  test("Task.onErrorRestart should be cancelable if ExecutionModel permits") { implicit s =>
     val task = Task[Int](throw DummyException("dummy"))
       .onErrorRestart(s.executionModel.recommendedBatchSize*2)
 
-    val f = task.runAsync
+    val f = task.executeWithModel(_.withAutoCancelableLoops(true)).runAsync
     assertEquals(f.value, None)
 
     // cancelling after scheduled for execution, but before execution
-    f.cancel(); scheduler.tick()
+    f.cancel(); s.tick()
     assertEquals(f.value, None)
   }
 
@@ -316,16 +312,13 @@ object TaskErrorSuite extends BaseTestSuite {
     assertEquals(tries, 11)
   }
 
-  test("Task.onErrorRestartIf should be cancelable if ExecutionModel permits") { scheduler =>
-    implicit val s = scheduler.withExecutionModel(_.withAutoCancelableLoops(true))
-
+  test("Task.onErrorRestartIf should be cancelable if ExecutionModel permits") { implicit s =>
     val task = Task[Int](throw DummyException("dummy")).onErrorRestartIf(ex => true)
-    val f = task.runAsync
+    val f = task.executeWithModel(_.withAutoCancelableLoops(true)).runAsync
     assertEquals(f.value, None)
 
     // cancelling after scheduled for execution, but before execution
-    f.cancel(); scheduler.tick()
-
+    f.cancel(); s.tick()
     assertEquals(f.value, None)
   }
 
