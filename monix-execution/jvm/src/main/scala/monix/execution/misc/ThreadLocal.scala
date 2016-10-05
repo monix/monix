@@ -59,7 +59,7 @@ final class ThreadLocal[A] private (val initial: A) {
     * [[ThreadLocal.get read]] by the current thread, its value will be
     * reinitialized by its [[ThreadLocal.initial initial]] value.
     */
-  def remove(): Unit = tl.remove()
+  def reset(): Unit = tl.remove()
 }
 
 object ThreadLocal {

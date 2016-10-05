@@ -19,6 +19,7 @@ package monix.eval
 
 import monix.eval.Coeval.{Error, Now}
 import monix.execution.internal.Platform
+
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
@@ -173,7 +174,7 @@ object TaskErrorSuite extends BaseTestSuite {
   }
 
   test("Task#onErrorHandle should mirror source on success") { implicit s =>
-    val task = Task(1).onErrorHandle { case ex: Throwable => 99 }
+    val task = Task(1).onErrorHandle { ex: Throwable => 99 }
     val f = task.runAsync
     s.tick()
     assertEquals(f.value, Some(Success(1)))
@@ -195,7 +196,7 @@ object TaskErrorSuite extends BaseTestSuite {
     val ex2 = DummyException("two")
 
     val task = Task[Int](if (1 == 1) throw ex1 else 1)
-      .onErrorHandle { case ex => throw ex2 }
+      .onErrorHandle { ex => throw ex2 }
 
     val f = task.runAsync; s.tick()
     assertEquals(f.value, Some(Failure(ex2)))
@@ -225,7 +226,9 @@ object TaskErrorSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(err)))
   }
 
-  test("Task.onErrorFallbackTo should be cancelable") { implicit s =>
+  test("Task.onErrorFallbackTo should be cancelable if the ExecutionModel allows it") { scheduler =>
+    implicit val s = scheduler.withExecutionModel(_.withAutoCancelableLoops(true))
+
     def recursive(): Task[Int] = {
       Task[Int](throw DummyException("dummy")).onErrorFallbackTo(Task.defer(recursive()))
     }
@@ -235,7 +238,7 @@ object TaskErrorSuite extends BaseTestSuite {
     assertEquals(f.value, None)
 
     // cancelling after scheduled for execution, but before execution
-    f.cancel(); s.tick()
+    f.cancel(); scheduler.tick()
     assertEquals(f.value, None)
   }
 
@@ -268,7 +271,9 @@ object TaskErrorSuite extends BaseTestSuite {
     assertEquals(tries, 11)
   }
 
-  test("Task.onErrorRestart should not be cancelable") { implicit s =>
+  test("Task.onErrorRestart should be cancelable if ExecutionModel permits") { scheduler =>
+    implicit val s = scheduler.withExecutionModel(_.withAutoCancelableLoops(true))
+
     val task = Task[Int](throw DummyException("dummy"))
       .onErrorRestart(s.executionModel.recommendedBatchSize*2)
 
@@ -276,7 +281,7 @@ object TaskErrorSuite extends BaseTestSuite {
     assertEquals(f.value, None)
 
     // cancelling after scheduled for execution, but before execution
-    f.cancel(); s.tick()
+    f.cancel(); scheduler.tick()
     assertEquals(f.value, None)
   }
 
@@ -311,13 +316,15 @@ object TaskErrorSuite extends BaseTestSuite {
     assertEquals(tries, 11)
   }
 
-  test("Task.onErrorRestartIf should be cancelable") { implicit s =>
+  test("Task.onErrorRestartIf should be cancelable if ExecutionModel permits") { scheduler =>
+    implicit val s = scheduler.withExecutionModel(_.withAutoCancelableLoops(true))
+
     val task = Task[Int](throw DummyException("dummy")).onErrorRestartIf(ex => true)
     val f = task.runAsync
     assertEquals(f.value, None)
 
     // cancelling after scheduled for execution, but before execution
-    f.cancel(); s.tick()
+    f.cancel(); scheduler.tick()
 
     assertEquals(f.value, None)
   }

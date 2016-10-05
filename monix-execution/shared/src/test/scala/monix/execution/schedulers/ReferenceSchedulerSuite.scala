@@ -18,26 +18,22 @@
 package monix.execution.schedulers
 
 import java.util.concurrent.TimeUnit
-
 import minitest.SimpleTestSuite
-import monix.execution.{Cancelable, Scheduler}
-
+import monix.execution.Cancelable
 import scala.concurrent.duration._
 
 object ReferenceSchedulerSuite extends SimpleTestSuite {
   class DummyScheduler(
-    val underlying: TestScheduler = TestScheduler(),
-    val executionModel: ExecutionModel = ExecutionModel.Default)
+    val underlying: TestScheduler = TestScheduler())
     extends ReferenceScheduler {
 
+    def executionModel = ExecutionModel.Default
     def tick(time: FiniteDuration = Duration.Zero) = underlying.tick(time)
     def state = underlying.statePula
     def execute(runnable: Runnable): Unit = underlying.execute(runnable)
     def reportFailure(t: Throwable): Unit = underlying.reportFailure(t)
     def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable =
       underlying.scheduleOnce(initialDelay, unit, r)
-    def withExecutionModel(em: ExecutionModel): Scheduler =
-      new DummyScheduler(underlying, em)
   }
 
   test("current time") {

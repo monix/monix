@@ -468,6 +468,15 @@ object Coeval {
     */
   sealed abstract class Attempt[+A] extends Coeval[A] with Product {
     self =>
+
+    /** Retrieve the (successful) value or
+      * throw the error.
+      */
+    def get: A = this match {
+      case Now(value) => value
+      case Error(ex) => throw ex
+    }
+
     /** Returns true if value is a successful one. */
     def isSuccess: Boolean = this match {
       case Now(_) => true

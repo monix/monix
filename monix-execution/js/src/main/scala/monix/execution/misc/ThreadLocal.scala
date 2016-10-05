@@ -52,11 +52,11 @@ final class ThreadLocal[A] private (val initial: A) {
   def set(value: A): Unit = tl = value
 
   /** Removes the current thread's value for this thread-local
-    * variable.  If this thread-local variable is subsequently
+    * variable. If this thread-local variable is subsequently
     * [[ThreadLocal.get read]] by the current thread, its value will be
     * reinitialized by its [[ThreadLocal.initial initial]] value.
     */
-  def remove(): Unit = tl = initial
+  def reset(): Unit = tl = initial
 }
 
 object ThreadLocal {

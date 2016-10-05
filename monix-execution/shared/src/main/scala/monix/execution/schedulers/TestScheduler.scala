@@ -17,11 +17,10 @@
 
 package monix.execution.schedulers
 
-import monix.execution.{Cancelable, Scheduler}
+import monix.execution.Cancelable
 import monix.execution.atomic.AtomicAny
 import monix.execution.cancelables.SingleAssignmentCancelable
 import monix.execution.schedulers.TestScheduler._
-
 import scala.annotation.tailrec
 import scala.collection.immutable.SortedSet
 import scala.concurrent.duration.{Duration, FiniteDuration, TimeUnit}
@@ -71,8 +70,8 @@ final class TestScheduler private (
     if (!stateRef.compareAndSet(current, update)) reportFailure(t)
   }
 
-  def withExecutionModel(em: ExecutionModel): Scheduler =
-    new TestScheduler(stateRef, em)
+  override def withExecutionModel(f: ExecutionModel => ExecutionModel): TestScheduler =
+    new TestScheduler(stateRef, f(executionModel))
 
   private[this] def extractOneTask(current: State, clock: FiniteDuration): Option[(Task, SortedSet[Task])] = {
     current.tasks.headOption.filter(_.runsAt <= clock) match {

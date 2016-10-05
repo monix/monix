@@ -138,13 +138,16 @@ abstract class Scheduler extends ExecutionContext with UncaughtExceptionReporter
     */
   def executionModel: ExecutionModel
 
-  /** Returns a new [[Scheduler]] reference, based on the source,
-    * that exposes the specified
-    * [[monix.execution.schedulers.ExecutionModel ExecutionModel]]
+  /** Given a function that will receive the underlying
+    * [[monix.execution.schedulers.ExecutionModel ExecutionModel]],
+    * returns a new [[Scheduler]] reference, based on the source,
+    * that exposes the transformed `ExecutionModel`
     * when queried by means of the [[executionModel]] property.
     *
     * This method enables reusing global scheduler references in
-    * a local scope.
+    * a local scope, but with a slightly modified
+    * [[monix.execution.schedulers.ExecutionModel execution model]]
+    * to inject.
     *
     * The contract of this method (things you can rely on):
     *
@@ -157,13 +160,11 @@ abstract class Scheduler extends ExecutionContext with UncaughtExceptionReporter
     * {{{
     *   import monix.execution.Scheduler.global
     *
-    *   implicit val scheduler = {
-    *     val em = global.executionModel
-    *     global.withExecutionModel(em.withAutoCancelableLoops(true))
-    *   }
+    *   implicit val scheduler =
+    *     global.withExecutionModel(_.withAutoCancelableLoops(true))
     * }}}
     */
-  def withExecutionModel(em: ExecutionModel): Scheduler
+  def withExecutionModel(f: ExecutionModel => ExecutionModel): Scheduler
 }
 
 private[monix] trait SchedulerCompanion {

@@ -19,7 +19,6 @@ package monix.eval
 
 import monix.execution.Cancelable
 import monix.execution.internal.Platform
-
 import scala.util.Success
 
 object TaskForkSuite extends BaseTestSuite {
@@ -56,7 +55,7 @@ object TaskForkSuite extends BaseTestSuite {
   }
 
   test("Task.async.fork should execute async") { implicit s =>
-    val source = Task.unsafeCreate[Int]((s, conn, cb) => cb.onSuccess(10))
+    val source = Task.unsafeCreate[Int]((s, conn, _, cb) => cb.onSuccess(10))
     val t = Task.fork(source)
     val f = t.runAsync
     assertEquals(f.value, None)
@@ -65,7 +64,7 @@ object TaskForkSuite extends BaseTestSuite {
   }
 
   test("Task.async.defer.fork should execute async") { implicit s =>
-    val source = Task.unsafeCreate[Int]((s, conn, cb) => cb.onSuccess(10))
+    val source = Task.unsafeCreate[Int]((s, conn, _, cb) => cb.onSuccess(10))
     val t = Task.fork(Task.defer(source))
     val f = t.runAsync
     assertEquals(f.value, None)
@@ -74,7 +73,7 @@ object TaskForkSuite extends BaseTestSuite {
   }
 
   test("Task.async.flatMap.fork should execute async") { implicit s =>
-    val source = Task.unsafeCreate[Int]((s, conn, cb) => cb.onSuccess(10)).flatMap(Task.now)
+    val source = Task.unsafeCreate[Int]((s, conn, _, cb) => cb.onSuccess(10)).flatMap(Task.now)
     val t = Task.fork(source)
     val f = t.runAsync
     assertEquals(f.value, None)
@@ -83,7 +82,7 @@ object TaskForkSuite extends BaseTestSuite {
   }
 
   test("Task.async.memoize.fork should execute async") { implicit s =>
-    val source = Task.unsafeCreate[Int]((s, conn, cb) => cb.onSuccess(10))
+    val source = Task.unsafeCreate[Int]((s, conn, _, cb) => cb.onSuccess(10))
     val t = Task.fork(source.memoize)
     val f = t.runAsync
     assertEquals(f.value, None)
