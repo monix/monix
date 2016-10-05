@@ -23,7 +23,7 @@ import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 import scala.concurrent.{ExecutionContext, Future, Promise}
 
-/** The `TaskSemaphore` is an asynchronous semaphore implementation that
+/** The `AsyncSemaphore` is an asynchronous semaphore implementation that
   * limits the parallelism on `Future` execution.
   *
   * The following example instantiates a semaphore with a
