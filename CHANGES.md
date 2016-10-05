@@ -1,7 +1,7 @@
 ## Version 2.0.3 (Oct 3, 2016)
 
 - [Bug #230](https://github.com/monixio/monix/issues/230):
-  Deadlock when blocking threads due to `LocalBatchingExecutor`
+  Deadlock when blocking threads due to `BatchingExecutor`
   (affects `Task` usage)
       
 ## Version 2.0.2 (Sat 25, 2016)
@@ -82,10 +82,10 @@ Details on [PR #214](https://github.com/monixio/monix/pull/214):
     one. People can use `Coeval.Attempt` if they need a `Try`
     alternative (and convert to `Task` if they end up needing a
     `Task`)
-  - Introduced `Scheduler.executeAsync` and `Scheduler.executeLocal`
+  - Introduced `Scheduler.executeAsync` and `Scheduler.executeTrampolined`
     as extension methods powered by macros, for zero-overhead, because
     building `Runnable` instances is too annoying
-  - Used `Scheduler.executeLocal` and `LocalRunnable` in key points in
+  - Used `Scheduler.executeTrampolined` and `TrampolinedRunnable` in key points in
     the `Task` implementation to reduce forking    
   - Made `Task.gather` be based on `Task.gatherUnordered` and it is
     now way faster
@@ -113,11 +113,11 @@ Issue #210 changes for the `monix-execution` sub-project:
 - introduced the `CallbackRunnable` interface for marking `Runnable`
   instances that could be executed on the current thread, on a local
   trampoline, as an optimization
-- introduced `LocalBatchingExecutor`, a mixin for schedulers that can
+- introduced `BatchingExecutor`, a mixin for schedulers that can
   execute `CallbackRunnable` locally, using a trampoline
 - made `AsyncScheduler` for the JVM be able to execute
   `CallbackRunnable` instances by inheriting from
-  `LocalBatchingExecutor`; but not on top of Javascript
+  `BatchingExecutor`; but not on top of Javascript
 - fixed critical bug in `CompositeCancelable` that was introduced in
   the last release
 
@@ -163,7 +163,7 @@ Issue #210 changes for the `monix-reactive` project:
 Enhancements:
 
 - [Issue #200](https://github.com/monixio/monix/issues/200): Add an
-  `executeNow` extension method for `Scheduler`, taking a by-name callback,
+  `executeTrampolined` extension method for `Scheduler`, taking a by-name callback,
   as initializing `Runnable` instances is too annoying
 - [Issue #201](https://github.com/monixio/monix/issues/201): Fixes and
   optimizes `Task.gatherUnordered` - as an edge-case, it wasn't stack

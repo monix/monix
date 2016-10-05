@@ -26,23 +26,22 @@ import scala.util.control.NonFatal
   * [[monix.execution.Scheduler schedulers]], when
   * inherited.
   *
-  * When it receives [[LocalRunnable]] instances, it
+  * When it receives [[TrampolinedRunnable]] instances, it
   * switches to a trampolined mode where all incoming
-  * [[LocalRunnable LocalRunnables]] are executed on the
-  * current thread.
+  * [[TrampolinedRunnable]] are executed on the current thread.
   *
   * This is useful for light-weight callbacks. The idea is
   * borrowed from the implementation of
   * `scala.concurrent.Future`. Currently used as an
   * optimization by `Task` in processing its internal callbacks.
   */
-trait LocalBatchingExecutor extends Scheduler {
+trait BatchingExecutor extends Scheduler {
   private[this] var localTasks: List[Runnable] = null
   protected def executeAsync(r: Runnable): Unit
 
   override final def execute(runnable: Runnable): Unit =
     runnable match {
-      case _: LocalRunnable =>
+      case _: TrampolinedRunnable =>
         localTasks match {
           case null =>
             // If we aren't in local mode yet, start local loop

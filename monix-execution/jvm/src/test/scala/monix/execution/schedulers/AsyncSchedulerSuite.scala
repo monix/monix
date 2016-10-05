@@ -18,11 +18,9 @@
 package monix.execution.schedulers
 
 import java.util.concurrent.{CountDownLatch, TimeUnit, TimeoutException}
-
 import minitest.SimpleTestSuite
 import monix.execution.cancelables.SingleAssignmentCancelable
 import monix.execution.{Cancelable, Scheduler}
-
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Promise}
 
@@ -100,8 +98,8 @@ object AsyncSchedulerSuite extends SimpleTestSuite {
     import monix.execution.schedulers.ExecutionModel.AlwaysAsyncExecution
     import monix.execution.Scheduler
 
-    val s: Scheduler = Scheduler(AlwaysAsyncExecution)
-    assertEquals(s.executionModel, AlwaysAsyncExecution)
+    val s: Scheduler = Scheduler(AlwaysAsyncExecution())
+    assertEquals(s.executionModel, AlwaysAsyncExecution())
 
     val latch = new CountDownLatch(1)
     s.execute(new Runnable {
@@ -114,7 +112,7 @@ object AsyncSchedulerSuite extends SimpleTestSuite {
   test("execute local") {
     var result = 0
     def loop(n: Int): Unit =
-      s.executeLocal {
+      s.executeTrampolined {
         result += 1
         if (n-1 > 0) loop(n-1)
       }

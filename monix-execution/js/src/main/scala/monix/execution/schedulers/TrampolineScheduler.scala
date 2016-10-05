@@ -18,8 +18,10 @@
 package monix.execution.schedulers
 
 import java.util.concurrent.TimeUnit
+
 import monix.execution.schedulers.Timer.{clearTimeout, setTimeout}
-import monix.execution.{Cancelable, UncaughtExceptionReporter}
+import monix.execution.{Cancelable, Scheduler, UncaughtExceptionReporter}
+
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.concurrent.duration.TimeUnit
@@ -76,6 +78,9 @@ final class TrampolineScheduler private (
 
   override def reportFailure(t: Throwable): Unit =
     reporter.reportFailure(t)
+
+  override def withExecutionModel(em: ExecutionModel): Scheduler =
+    new TrampolineScheduler(reporter, em)
 }
 
 object TrampolineScheduler {

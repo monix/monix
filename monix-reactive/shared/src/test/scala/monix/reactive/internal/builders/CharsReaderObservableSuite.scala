@@ -49,7 +49,7 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
     })
 
     assert(errorThrown.isInstanceOf[MultipleSubscribersException])
-    assert(s.state.get.tasks.isEmpty, "should be left with no pending tasks")
+    assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
   }
 
   test("it works for BatchedExecution") {
@@ -64,7 +64,7 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
 
     s.tick()
     assertEquals(result.value, Some(Success(Some(string))))
-    assert(s.state.get.tasks.isEmpty, "should be left with no pending tasks")
+    assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
   }
 
   test("it works for AlwaysAsyncExecution") {
@@ -122,7 +122,7 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
     s.tick()
     assertEquals(f.value, Some(Success(())))
     assert(wasClosed, "Reader should have been closed")
-    assert(s.state.get.tasks.isEmpty, "should be left with no pending tasks")
+    assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
   }
 
   test("closes the file handle onError on first call") {
@@ -136,7 +136,7 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
     assert(wasClosed, "Reader should have been closed")
-    assert(s.state.get.tasks.isEmpty, "should be left with no pending tasks")
+    assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
   }
 
   test("closes the file handle onError on second call") {
@@ -150,7 +150,7 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
     assert(wasClosed, "Reader should have been closed")
-    assert(s.state.get.tasks.isEmpty, "should be left with no pending tasks")
+    assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
   }
 
   test("closes the file handle on cancel") {

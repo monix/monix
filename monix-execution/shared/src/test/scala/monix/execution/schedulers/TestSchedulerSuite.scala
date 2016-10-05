@@ -30,7 +30,7 @@ import scala.util.{Success, Try}
 object TestSchedulerSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(env: TestScheduler): Unit = {
-    assert(env.state.get.tasks.isEmpty)
+    assert(env.state.tasks.isEmpty)
   }
 
   test("should execute asynchronously") { s =>
@@ -169,7 +169,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     s.tick(250.millis)
 
     assert(counter == 5)
-    assert(s.state.get.tasks.isEmpty)
+    assert(s.state.tasks.isEmpty)
   }
 
   test("complicated scheduling, test 2") { implicit s =>
@@ -197,7 +197,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
 
     for (_ <- 0 until 250) s.tick(1.milli)
     assert(counter == 5)
-    assert(s.state.get.tasks.isEmpty)
+    assert(s.state.tasks.isEmpty)
   }
 
   test("tasks sharing same runsAt should execute randomly") { implicit s =>
@@ -221,13 +221,13 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
 
   test("execute local") { implicit s =>
     var effect = 1
-    s.executeLocal {
+    s.executeTrampolined {
       effect += 1
 
-      s.executeLocal(effect += 2)
-      s.executeLocal {
+      s.executeTrampolined(effect += 2)
+      s.executeTrampolined {
         effect += 3
-        s.executeLocal {
+        s.executeTrampolined {
           effect += 4
         }
       }
@@ -241,11 +241,11 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     val ex = DummyException("dummy")
     var effect = 0
 
-    s.executeLocal {
+    s.executeTrampolined {
       effect += 1
       // Scheduling for execution
-      s.executeLocal(effect += 2)
-      s.executeLocal(effect += 3)
+      s.executeTrampolined(effect += 2)
+      s.executeTrampolined(effect += 3)
       // Subsequent effects not executed yet
       assertEquals(effect, 1)
       throw ex
@@ -253,7 +253,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
 
     // No tick allowed here
     assertEquals(effect, 1)
-    assertEquals(s.state.get.lastReportedError, ex)
+    assertEquals(s.state.lastReportedError, ex)
 
     // Other runnables have been rescheduled async
     s.tickOne()
@@ -263,7 +263,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
   test("execute local should be stack safe") { implicit s =>
     var result = 0
     def loop(n: Int): Unit =
-      s.executeLocal {
+      s.executeTrampolined {
         result += 1
         if (n-1 > 0) loop(n-1)
       }

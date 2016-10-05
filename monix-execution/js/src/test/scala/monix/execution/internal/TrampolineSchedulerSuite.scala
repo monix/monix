@@ -60,11 +60,11 @@ object TrampolineSchedulerSuite extends TestSuite[Scheduler] {
   test("execute local should work") { implicit s =>
     var effect = 0
 
-    s.executeLocal {
+    s.executeTrampolined {
       effect += 1
-      s.executeLocal {
+      s.executeTrampolined {
         effect += 2
-        s.executeLocal {
+        s.executeTrampolined {
           effect += 3
         }
       }

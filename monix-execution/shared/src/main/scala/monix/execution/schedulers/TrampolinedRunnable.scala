@@ -19,12 +19,13 @@ package monix.execution.schedulers
 
 import scala.concurrent.OnCompleteRunnable
 
-/** A marker for callbacks that can be batched and
-  * executed locally.
+/** A marker for callbacks that can be batched and executed
+  * locally (on the current thread) by means of a trampoline
+  * (if the execution context / scheduler allows it).
   *
   * Idea was taken from the `scala.concurrent.Future`
   * implementation. Credit should be given where due.
   *
   * DO NOT use unless you know what you're doing.
   */
-abstract class LocalRunnable extends Runnable with OnCompleteRunnable
+abstract class TrampolinedRunnable extends Runnable with OnCompleteRunnable

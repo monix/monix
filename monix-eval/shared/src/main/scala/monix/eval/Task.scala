@@ -23,6 +23,7 @@ import monix.eval.Task._
 import monix.execution.Ack.Stop
 import monix.execution.atomic.{Atomic, AtomicAny, PaddingStrategy}
 import monix.execution.cancelables.{CompositeCancelable, SingleAssignmentCancelable, StackedCancelable}
+import monix.execution.misc.ThreadLocal
 import monix.execution.rstreams.Subscription
 import monix.execution.schedulers.ExecutionModel
 import monix.execution.{Cancelable, CancelableFuture, Scheduler}
@@ -89,7 +90,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     *         a running task.
     */
   def runAsync(implicit s: Scheduler): CancelableFuture[A] =
-    Task.startTrampolineForFuture(s, this, Nil)
+    Task.startTrampolineForFuture(s, this, Nil, newFrameRef())
 
   /** Transforms a [[Task]] into a [[Coeval]] that tries to
     * execute the source synchronously, returning either `Right(value)`
@@ -146,7 +147,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
       c := s.scheduleOnce(timespan.length, timespan.unit, new Runnable {
         def run(): Unit = {
           conn.pop()
-          Task.startTrampolineRunLoop(scheduler, conn, self, Callback.async(cb), Nil)
+          Task.unsafeStartNow(self, scheduler, conn, Callback.async(cb))
         }
       })
     }
@@ -290,6 +291,36 @@ sealed abstract class Task[+A] extends Serializable { self =>
         f(Some(ex)).flatMap(_ => raiseError(ex))
     }
 
+  /** Returns a new `Task` that will mirror the source, but that
+    * will execute the given `callback` if the task gets canceled
+    * before completion.
+    *
+    * This only works for premature cancellation. See [[doOnFinish]] for
+    * triggering callbacks when the source finishes.
+    *
+    * @param callback is the callback to execute if the task gets
+    *        canceled prematurely
+    */
+  def doOnCancel(callback: Task[Unit]): Task[A] =
+    Task.unsafeCreate { (scheduler, conn, onFinish) =>
+      implicit val s = scheduler
+      val c = Cancelable(() => callback.runAsync(Callback.empty))
+      conn.push(c)
+
+      // Forced asynchronous boundary
+      Task.unsafeStartAsync(self, s, conn, new Callback[A] {
+        def onSuccess(value: A): Unit = {
+          conn.pop()
+          onFinish.asyncOnSuccess(value)
+        }
+
+        def onError(ex: Throwable): Unit = {
+          conn.pop()
+          onFinish.asyncOnError(ex)
+        }
+      })
+    }
+
   /** Creates a new [[Task]] that will expose any triggered error from
     * the source.
     */
@@ -312,6 +343,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
       case ref: MemoizeSuspend[_] =>
         val task = ref.asInstanceOf[MemoizeSuspend[A]]
         Async[Attempt[A]] { (s, conn, cb) =>
+          // Forced asynchronous boundary
           Task.unsafeStartAsync[A](task, s, conn, new Callback[A] {
             def onSuccess(value: A): Unit = cb.asyncOnSuccess(Now(value))(s)
             def onError(ex: Throwable): Unit = cb.asyncOnSuccess(Error(ex))(s)
@@ -337,7 +369,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
           })
       case Async(onFinish) =>
         Async((s, conn, cb) =>
-          s.executeLocal(onFinish(s, conn, new Callback[A] {
+          s.executeTrampolined(onFinish(s, conn, new Callback[A] {
             def onSuccess(value: A): Unit = cb.asyncOnSuccess(Now(value))(s)
             def onError(ex: Throwable): Unit = cb.asyncOnSuccess(Error(ex))(s)
           })))
@@ -345,7 +377,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
       case BindAsync(onFinish, g) =>
         BindAsync[Attempt[Any], Attempt[A]](
           (s, conn, cb) =>
-            s.executeLocal(onFinish(s, conn, new Callback[Any] {
+            s.executeTrampolined(onFinish(s, conn, new Callback[Any] {
               def onSuccess(value: Any): Unit = cb.asyncOnSuccess(Now(value))(s)
               def onError(ex: Throwable): Unit = cb.asyncOnSuccess(Error(ex))(s)
             })),
@@ -604,7 +636,7 @@ object Task extends TaskInstances {
   def fork[A](fa: Task[A]): Task[A] =
     Async { (s, conn, cb) =>
       // Asynchronous boundary
-      Task.startTrampolineAsync(s, conn, fa, Callback.async(cb)(s), Nil)
+      Task.unsafeStartAsync(fa, s, conn, cb)
     }
 
   /** Mirrors the given source `Task`, but upon execution ensure
@@ -622,7 +654,7 @@ object Task extends TaskInstances {
   def fork[A](fa: Task[A], scheduler: Scheduler): Task[A] =
     Async { (_, conn, cb) =>
       // Asynchronous boundary
-      Task.startTrampolineAsync(scheduler, conn, fa, Callback.async(cb)(scheduler), Nil)
+      Task.unsafeStartAsync(fa, scheduler, conn, cb)
     }
 
   /** Create a `Task` from an asynchronous computation.
@@ -678,9 +710,9 @@ object Task extends TaskInstances {
       val c = SingleAssignmentCancelable()
       conn push c
 
-      // Forcing asynchronous boundary, otherwise
-      // stack-overflows can happen
-      scheduler.executeAsync(
+      // Forcing (light) asynchronous boundary,
+      // otherwise stack-overflows can happen
+      scheduler.executeTrampolined(
         try {
           c := register(scheduler, new CreateCallback(conn, cb)(scheduler))
         }
@@ -922,7 +954,7 @@ object Task extends TaskInstances {
       // We need a monitor to synchronize on, per evaluation!
       val lock = new AnyRef
       // Forces a fork on another (logical) thread!
-      scheduler.executeAsync(lock.synchronized {
+      scheduler.executeAsyncBatch(lock.synchronized {
         // Aggregates all results into a buffer.
         // MUST BE synchronized by `lock`!
         var builder = cbf(in)
@@ -974,7 +1006,7 @@ object Task extends TaskInstances {
 
           // Light asynchronous boundary; with most scheduler implementations
           // it will not fork a new (logical) thread!
-          scheduler.executeLocal(
+          scheduler.executeTrampolined(
             Task.unsafeStartNow(task, scheduler, stacked,
               new Callback[A] {
                 def onSuccess(value: A): Unit =
@@ -1063,7 +1095,7 @@ object Task extends TaskInstances {
     // The resulting task will be executed asynchronously
     Async { (scheduler, conn, cb) =>
       // Initial asynchronous boundary
-      scheduler.executeAsync {
+      scheduler.executeAsyncBatch {
         // for synchronizing the results
         val state = Atomic(null : AnyRef)
         val task1 = StackedCancelable()
@@ -1072,7 +1104,7 @@ object Task extends TaskInstances {
 
         // Light asynchronous boundary; with most scheduler implementations
         // it will not fork a new (logical) thread!
-        scheduler.executeLocal(
+        scheduler.executeTrampolined(
           Task.unsafeStartNow(fa1, scheduler, task1, new Callback[A1] {
             @tailrec def onSuccess(a1: A1): Unit =
               state.get match {
@@ -1093,7 +1125,7 @@ object Task extends TaskInstances {
           }))
 
         // Light asynchronous boundary
-        scheduler.executeLocal(
+        scheduler.executeTrampolined(
           Task.unsafeStartNow(fa2, scheduler, task2, new Callback[A2] {
             @tailrec def onSuccess(a2: A2): Unit =
               state.get match {
@@ -1199,8 +1231,24 @@ object Task extends TaskInstances {
   def zipWith6[A1,A2,A3,A4,A5,A6,R](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4], fa5: Task[A5], fa6: Task[A6])(f: (A1,A2,A3,A4,A5,A6) => R): Task[R] =
     zipMap6(fa1, fa2, fa3, fa4, fa5, fa6)(f)
 
-  /** Type alias representing callbacks for [[create]] tasks. */
+  /** A frame index is a number representing the current run-loop
+    * cycle. It gets used for automatically forcing asynchronous
+    * boundaries, according to the
+    * [[monix.execution.schedulers.ExecutionModel ExecutionModel]]
+    * injected by the
+    * [[monix.execution.Scheduler Scheduler]].
+    */
+  type FrameIndex = Int
+
+  /** Type alias representing callbacks for [[create]] tasks.
+    */
   type OnFinish[+A] = (Scheduler, StackedCancelable, Callback[A]) => Unit
+
+  /** Creates a `ThreadLocal[FrameIndex]` reference to use as
+    * the default. The starting frame index should always be `1`.
+    */
+  private def newFrameRef(): ThreadLocal[FrameIndex] =
+    ThreadLocal(1)
 
   private case class Delay[A](coeval: Coeval[A]) extends Task[A] {
     override def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable = {
@@ -1289,7 +1337,8 @@ object Task extends TaskInstances {
       thunk = null
     }
 
-    @tailrec def execute(active: StackedCancelable, cb: Callback[A], binds: List[Bind], nextFrame: Int)
+    @tailrec def execute(active: StackedCancelable, cb: Callback[A], binds: List[Bind],
+      frameRef: ThreadLocal[FrameIndex], nextFrame: FrameIndex)
       (implicit s: Scheduler): Boolean = {
 
       state.get match {
@@ -1297,30 +1346,32 @@ object Task extends TaskInstances {
           val p = Promise[A]()
 
           if (!state.compareAndSet(null, (p, active)))
-            execute(active, cb, binds, nextFrame)(s) // retry
+            execute(active, cb, binds, frameRef, nextFrame)(s) // retry
           else {
             val underlying = try thunk() catch { case NonFatal(ex) => raiseError(ex) }
+
             val callback = new Callback[A] {
               def onError(ex: Throwable): Unit = {
                 memoizeValue(Failure(ex))
                 if (binds.isEmpty) cb.asyncOnError(ex) else
                   // Resuming trampoline with the rest of the binds
-                  Task.startTrampolineAsync(s, active, raiseError(ex), cb, binds)
+                  Task.startTrampolineAsync(s, active, raiseError(ex), cb, binds, frameRef)
               }
 
               def onSuccess(value: A): Unit = {
                 memoizeValue(Success(value))
                 if (binds.isEmpty) cb.asyncOnSuccess(value) else
                   // Resuming trampoline with the rest of the binds
-                  Task.startTrampolineAsync(s, active, now(value), cb, binds)
+                  Task.startTrampolineAsync(s, active, now(value), cb, binds, frameRef)
               }
             }
 
             // Asynchronous boundary to prevent stack-overflows!
-            s.executeLocal(
+            s.executeTrampolined {
               runLoop(s, s.executionModel, active, underlying,
                 callback.asInstanceOf[Callback[Any]], Nil,
-                nextFrame))
+                frameRef, nextFrame)
+            }
 
             true
           }
@@ -1330,7 +1381,7 @@ object Task extends TaskInstances {
           active push mainCancelable
           p.asInstanceOf[Promise[A]].future.onComplete { r =>
             active.pop()
-            Task.startTrampolineRunLoop(s, active, fromTry(r), cb, binds)
+            Task.startTrampolineRunLoop(s, active, fromTry(r), cb, binds, frameRef)
           }
           true
 
@@ -1354,10 +1405,8 @@ object Task extends TaskInstances {
     * what you're doing. Prefer [[Task.runAsync(cb* Task.runAsync]]
     * and `Task.fork`.
     */
-  def unsafeStartAsync[A](source: Task[A], scheduler: Scheduler, conn: StackedCancelable, cb: Callback[A]): Unit = {
-    // Task is already known to execute asynchronously
-    startTrampolineAsync(scheduler, conn, source, cb, Nil)
-  }
+  def unsafeStartAsync[A](source: Task[A], scheduler: Scheduler, conn: StackedCancelable, cb: Callback[A]): Unit =
+    startTrampolineAsync(scheduler, conn, source, cb, Nil, newFrameRef())
 
   /** Unsafe utility - starts the execution of a Task, by providing
     * the needed [[monix.execution.Scheduler Scheduler]],
@@ -1368,16 +1417,7 @@ object Task extends TaskInstances {
     * what you're doing. Prefer [[Task.runAsync(cb* Task.runAsync]].
     */
   def unsafeStartNow[A](source: Task[A], scheduler: Scheduler, conn: StackedCancelable, cb: Callback[A]): Unit =
-    startTrampolineRunLoop(scheduler, conn, source, cb, Nil)
-
-  /** Internal utility, returns true if the current state
-    * is known to be asynchronous.
-    */
-  private def isNextAsync[A](source: Task[A]): Boolean =
-    source match {
-      case Async(_) | BindAsync(_,_) => true
-      case _ => false
-    }
+    startTrampolineRunLoop(scheduler, conn, source, cb, Nil, newFrameRef(), frameIndex = 1)
 
   /** Internal utility, for forcing an asynchronous boundary in the
     * trampoline loop.
@@ -1387,11 +1427,17 @@ object Task extends TaskInstances {
     conn: StackedCancelable,
     source: Task[A],
     cb: Callback[A],
-    binds: List[Bind]): Unit = {
+    binds: List[Bind],
+    frameRef: ThreadLocal[FrameIndex]): Unit = {
 
-    if (!conn.isCanceled)
-      scheduler.executeAsync(
-        startTrampolineRunLoop(scheduler, conn, source, cb, binds))
+    val shouldCancel =
+      scheduler.executionModel.autoCancelableLoops &&
+      conn.isCanceled
+
+    if (!shouldCancel)
+      scheduler.executeAsyncBatch {
+        startTrampolineRunLoop(scheduler, conn, source, cb, binds, frameRef)
+      }
   }
 
   /** Internal utility - the actual trampoline run-loop implementation. */
@@ -1402,27 +1448,49 @@ object Task extends TaskInstances {
     source: Current,
     cb: Callback[Any],
     binds: List[Bind],
-    frameIndex: Int): Unit = {
+    frameRef: ThreadLocal[FrameIndex],
+    frameIndex: FrameIndex): Unit = {
 
     @inline def executeOnFinish(
       scheduler: Scheduler,
+      em: ExecutionModel,
       conn: StackedCancelable,
       cb: Callback[Any],
       fs: List[Bind],
-      onFinish: OnFinish[Any]): Unit = {
+      onFinish: OnFinish[Any],
+      frameRef: ThreadLocal[FrameIndex],
+      nextFrame: FrameIndex): Unit = {
 
-      if (!conn.isCanceled)
-        onFinish(scheduler, conn, new Callback[Any] {
-          def onSuccess(value: Any): Unit =
-            startTrampolineRunLoop(scheduler, conn, now(value), cb, fs)
-          def onError(ex: Throwable): Unit =
-            cb.onError(ex)
-        })
+      try {
+        // We are going to resume the frame index from where we were left,
+        // but only if no real asynchronous execution happened. So in order
+        // to detect asynchronous execution, we are reading a thread-local
+        // variable that's going to be reset in case of an async jump.
+        frameRef.set(nextFrame)
+
+        val shouldCancel =
+          em.autoCancelableLoops &&
+          conn.isCanceled
+
+        if (!shouldCancel)
+          onFinish(scheduler, conn, new Callback[Any] {
+            def onSuccess(value: Any): Unit =
+              startTrampolineRunLoop(scheduler, conn, now(value), cb, fs, frameRef, frameRef.get())
+            def onError(ex: Throwable): Unit =
+              cb.onError(ex)
+          })
+      } finally {
+        // Trick meant for Javascript - because on top of Javascript there is
+        // no such thing as thread-local vars, but local execution implies that
+        // our logic has executed already, so if it succeeded, then it means
+        // we can reset our frame reference to the default value.
+        frameRef.remove()
+      }
     }
 
-    if (frameIndex == 0 && !Task.isNextAsync(source)) {
+    if (frameIndex == 0) {
       // Asynchronous boundary is forced because of the Scheduler's ExecutionModel
-      startTrampolineAsync(scheduler, conn, source, cb, binds)
+      startTrampolineAsync(scheduler, conn, source, cb, binds, frameRef)
     }
     else source match {
       case Delay(coeval) =>
@@ -1433,7 +1501,7 @@ object Task extends TaskInstances {
             coeval.runAttempt match {
               case Now(a) =>
                 val fa = try f(a) catch { case NonFatal(ex) => raiseError(ex) }
-                runLoop(scheduler, em, conn, fa, cb, rest, em.nextFrameIndex(frameIndex))
+                runLoop(scheduler, em, conn, fa, cb, rest, frameRef, em.nextFrameIndex(frameIndex))
               case Error(ex) =>
                 cb.onError(ex)
             }
@@ -1441,47 +1509,55 @@ object Task extends TaskInstances {
 
       case Suspend(thunk) =>
         val fa = try thunk() catch { case NonFatal(ex) => raiseError(ex) }
-        runLoop(scheduler, em, conn, fa, cb, binds, em.nextFrameIndex(frameIndex))
+        runLoop(scheduler, em, conn, fa, cb, binds, frameRef, em.nextFrameIndex(frameIndex))
 
       case ref: MemoizeSuspend[_] =>
         val nextFrame = em.nextFrameIndex(frameIndex)
         ref.value match {
           case Some(materialized) =>
-            runLoop(scheduler, em, conn, coeval(materialized), cb, binds, nextFrame)
+            runLoop(scheduler, em, conn, coeval(materialized), cb, binds, frameRef, nextFrame)
           case None =>
             val success = source.asInstanceOf[MemoizeSuspend[Any]].execute(
-              conn, cb, binds, nextFrame)(scheduler)
+              conn, cb, binds, frameRef, nextFrame)(scheduler)
             if (!success) // retry?
-              runLoop(scheduler, em, conn, source, cb, binds, nextFrame)
+              runLoop(scheduler, em, conn, source, cb, binds, frameRef, nextFrame)
         }
 
       case BindSuspend(thunk, f) =>
         val fa = try thunk() catch { case NonFatal(ex) => raiseError(ex) }
         runLoop(scheduler, em, conn, fa, cb, f.asInstanceOf[Bind] :: binds,
-          em.nextFrameIndex(frameIndex))
+          frameRef, em.nextFrameIndex(frameIndex))
 
       case BindAsync(onFinish, f) =>
-        executeOnFinish(scheduler, conn, cb, f.asInstanceOf[Bind] :: binds, onFinish)
+        executeOnFinish(scheduler, em, conn, cb, f.asInstanceOf[Bind] :: binds, onFinish,
+          frameRef, em.nextFrameIndex(frameIndex))
 
       case Async(onFinish) =>
-        executeOnFinish(scheduler, conn, cb, binds, onFinish)
+        executeOnFinish(scheduler, em, conn, cb, binds, onFinish,
+          frameRef, em.nextFrameIndex(frameIndex))
     }
   }
 
   /** Internal utility, starts or resumes evaluation of
     * the run-loop from where it left off.
+    *
+    * The `frameIndex=1` default value ensures that the
+    * first cycle of the trampoline gets executed regardless of
+    * the `ExecutionModel`.
     */
   private def startTrampolineRunLoop[A](
     scheduler: Scheduler,
     conn: StackedCancelable,
     source: Task[A],
     cb: Callback[A],
-    binds: List[Bind]): Unit = {
+    binds: List[Bind],
+    frameRef: ThreadLocal[FrameIndex],
+    frameIndex: FrameIndex = 1): Unit = {
 
     runLoop(scheduler, scheduler.executionModel,
-      conn, source, cb.asInstanceOf[Callback[Any]], binds,
+      conn, source, cb.asInstanceOf[Callback[Any]], binds, frameRef,
       // value ensures that first cycle is not async
-      frameIndex = 1)
+      frameIndex)
   }
 
   /** A run-loop that attempts to complete a
@@ -1492,9 +1568,13 @@ object Task extends TaskInstances {
   private def startTrampolineForFuture[A](
     scheduler: Scheduler,
     source: Task[A],
-    binds: List[Bind]): CancelableFuture[A] = {
+    binds: List[Bind],
+    frameRef: ThreadLocal[FrameIndex]): CancelableFuture[A] = {
 
-    def goAsync(scheduler: Scheduler, source: Current, binds: List[Bind], isNextAsync: Boolean): CancelableFuture[Any] = {
+    def goAsync(scheduler: Scheduler, source: Current, binds: List[Bind],
+      frameRef: ThreadLocal[FrameIndex], nextFrame: FrameIndex,
+      forceAsync: Boolean): CancelableFuture[Any] = {
+
       val p = Promise[Any]()
       val cb: Callback[Any] = new Callback[Any] {
         def onSuccess(value: Any): Unit = p.trySuccess(value)
@@ -1502,10 +1582,10 @@ object Task extends TaskInstances {
       }
 
       val conn = StackedCancelable()
-      if (!isNextAsync)
-        startTrampolineAsync(scheduler, conn, source, cb, binds)
+      if (forceAsync)
+        startTrampolineAsync(scheduler, conn, source, cb, binds, frameRef)
       else
-        startTrampolineRunLoop(scheduler, conn, source, cb, binds)
+        startTrampolineRunLoop(scheduler, conn, source, cb, binds, frameRef, nextFrame)
 
       CancelableFuture(p.future, conn)
     }
@@ -1515,11 +1595,14 @@ object Task extends TaskInstances {
       em: ExecutionModel,
       source: Current,
       binds: List[Bind],
+      frameRef: ThreadLocal[FrameIndex],
       frameIndex: Int): CancelableFuture[Any] = {
 
-      if (frameIndex == 0 && !Task.isNextAsync(source)) {
+      if (frameIndex == 0) {
         // Asynchronous boundary is forced
-        goAsync(scheduler, source, binds, isNextAsync = false)
+        goAsync(scheduler, source, binds,
+          frameRef, em.nextFrameIndex(frameIndex),
+          forceAsync = true)
       }
       else source match {
         case Delay(coeval) =>
@@ -1532,34 +1615,40 @@ object Task extends TaskInstances {
                   CancelableFuture.successful(a)
                 case f :: rest =>
                   val fa = try f(a) catch { case NonFatal(ex) => raiseError(ex) }
-                  loop(scheduler, em, fa, rest, em.nextFrameIndex(frameIndex))
+                  loop(scheduler, em, fa, rest, frameRef, em.nextFrameIndex(frameIndex))
               }
           }
 
         case Suspend(thunk) =>
           val fa = try thunk() catch { case NonFatal(ex) => raiseError(ex) }
-          loop(scheduler, em, fa, binds, em.nextFrameIndex(frameIndex))
+          loop(scheduler, em, fa, binds,
+            frameRef, em.nextFrameIndex(frameIndex))
 
         case BindSuspend(thunk, f) =>
           val fa = try thunk() catch { case NonFatal(ex) => raiseError(ex) }
           loop(scheduler, em, fa, f.asInstanceOf[Bind] :: binds,
-            em.nextFrameIndex(frameIndex))
+            frameRef, em.nextFrameIndex(frameIndex))
 
         case ref: MemoizeSuspend[_] =>
           val task = ref.asInstanceOf[MemoizeSuspend[A]]
           task.value match {
             case Some(materialized) =>
-              loop(scheduler, em, coeval(materialized), binds, em.nextFrameIndex(frameIndex))
+              loop(scheduler, em, coeval(materialized), binds,
+                frameRef, em.nextFrameIndex(frameIndex))
             case None =>
-              goAsync(scheduler, source, binds, isNextAsync = true)
+              goAsync(scheduler, source, binds,
+                frameRef, em.nextFrameIndex(frameIndex),
+                forceAsync = false)
           }
 
         case async =>
-          goAsync(scheduler, async, binds, isNextAsync = true)
+          goAsync(scheduler, async, binds,
+            frameRef, em.nextFrameIndex(frameIndex),
+            forceAsync = false)
       }
     }
 
-    loop(scheduler, scheduler.executionModel, source, binds, frameIndex = 1)
+    loop(scheduler, scheduler.executionModel, source, binds, frameRef, frameIndex = 1)
       .asInstanceOf[CancelableFuture[A]]
   }
 

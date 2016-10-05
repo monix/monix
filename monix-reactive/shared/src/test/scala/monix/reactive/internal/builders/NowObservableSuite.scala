@@ -27,7 +27,7 @@ import scala.concurrent.{Promise, Future}
 object NowObservableSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.get.tasks.isEmpty,
+    assert(s.state.tasks.isEmpty,
       "Scheduler should be left with no pending tasks")
   }
 

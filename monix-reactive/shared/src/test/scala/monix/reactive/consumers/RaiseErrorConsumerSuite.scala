@@ -49,8 +49,8 @@ object RaiseErrorConsumerSuite extends BaseLawsTestSuite {
     val (out, _) = consumer.createSubscriber(Callback.empty, s)
 
     out.onError(ex2)
-    assertEquals(s.state.get.lastReportedError, ex2)
+    assertEquals(s.state.lastReportedError, ex2)
     s.tick()
-    assertEquals(s.state.get.lastReportedError, ex1)
+    assertEquals(s.state.lastReportedError, ex1)
   }
 }

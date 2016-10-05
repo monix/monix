@@ -33,7 +33,7 @@ import monix.execution.internal.Platform
   * to choose the best execution model. This can be related to
   * recursive loops or to events pushed into consumers.
   */
-sealed abstract class ExecutionModel {
+sealed abstract class ExecutionModel extends Product with Serializable {
   /** Recommended batch size used for breaking synchronous loops in
     * asynchronous batches. When streaming value from a producer to
     * a synchronous consumer it's recommended to break the streaming
@@ -70,13 +70,37 @@ sealed abstract class ExecutionModel {
     * cycle in the run-loop should execute asynchronously.
     */
   def nextFrameIndex(current: Int): Int
+
+  /** A hint instructing run-loops that auto-cancellation
+    * can be used.
+    *
+    * What this means is that in a run-loop, such as when
+    * evaluating a `Task`, the processing can simply be stopped
+    * without worry if some cancelable handle is observed
+    * to be canceled. In the context of a `Task` for example,
+    * if this parameter is set to `true`, it means that a
+    * loop described by `Task.flatMap` is automatically
+    * cancelable.
+    *
+    * The default should always be `false` and only activated
+    * in a local context.
+    */
+  val autoCancelableLoops: Boolean
+
+  /** Returns a new [[ExecutionModel]] value with the
+    * given value for the [[autoCancelableLoops]] property.
+    */
+  def withAutoCancelableLoops(value: Boolean): ExecutionModel
 }
 
 object ExecutionModel {
   /** [[ExecutionModel]] specifying that execution should be
     * synchronous (immediate, trampolined) for as long as possible.
     */
-  case object SynchronousExecution extends ExecutionModel {
+  final case class SynchronousExecution(
+    autoCancelableLoops: Boolean = false)
+    extends ExecutionModel {
+
     /** The [[ExecutionModel.recommendedBatchSize]] for the
       * [[SynchronousExecution]] type is set to the maximum power
       * of 2 expressible with a `Int`, which is 2^30^ (or 1,073,741,824).
@@ -90,13 +114,20 @@ object ExecutionModel {
       * a positive constant.
       */
     def nextFrameIndex(current: Int): Int = 1
+
+    // Updates the [[autoCancelableLoops]] property
+    def withAutoCancelableLoops(value: Boolean): SynchronousExecution =
+      copy(autoCancelableLoops = value)
   }
 
   /** [[ExecutionModel]] that specifies a run-loop should always do
     * async execution of tasks, forking logical threads
     * on each step.
     */
-  case object AlwaysAsyncExecution extends ExecutionModel {
+  final case class AlwaysAsyncExecution(
+    autoCancelableLoops: Boolean = false)
+    extends ExecutionModel {
+
     /** The [[ExecutionModel.recommendedBatchSize]] for the
       * [[SynchronousExecution]] type is set to one.
       */
@@ -110,6 +141,10 @@ object ExecutionModel {
       * should always be async.
       */
     def nextFrameIndex(current: Int): Int = 0
+
+    // Updates the [[autoCancelableLoops]] property
+    def withAutoCancelableLoops(value: Boolean): AlwaysAsyncExecution =
+      copy(autoCancelableLoops = value)
   }
 
   /** [[ExecutionModel]] specifying an mixed execution mode under
@@ -124,7 +159,9 @@ object ExecutionModel {
     * By specifying the [[ExecutionModel.recommendedBatchSize]],
     * the configuration can be fine-tuned.
     */
-  final case class BatchedExecution(private val batchSize: Int)
+  final case class BatchedExecution(
+    private val batchSize: Int,
+    autoCancelableLoops: Boolean = false)
     extends ExecutionModel {
 
     val recommendedBatchSize = math.nextPowerOf2(batchSize)
@@ -132,8 +169,15 @@ object ExecutionModel {
 
     def nextFrameIndex(current: Int): Int =
       (current + 1) & batchedExecutionModulus
+
+    // Updates the [[autoCancelableLoops]] property
+    def withAutoCancelableLoops(value: Boolean): ExecutionModel =
+      copy(autoCancelableLoops = value)
   }
 
   final val Default: ExecutionModel =
-    BatchedExecution(Platform.recommendedBatchSize)
+    BatchedExecution(
+      batchSize = Platform.recommendedBatchSize,
+      autoCancelableLoops = false
+    )
 }

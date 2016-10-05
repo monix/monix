@@ -25,9 +25,9 @@ import org.reactivestreams.{Subscription, Subscriber}
 object ObservableIsPublisherSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
-    s.state.get.lastReportedError match {
+    s.state.lastReportedError match {
       case null =>
-        assert(s.state.get.tasks.isEmpty,
+        assert(s.state.tasks.isEmpty,
           "TestScheduler should have no pending tasks")
       case error =>
         throw error

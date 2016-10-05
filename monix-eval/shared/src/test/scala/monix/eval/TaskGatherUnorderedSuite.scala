@@ -132,7 +132,7 @@ object TaskGatherUnorderedSuite extends BaseTestSuite {
     s.tick()
 
     assertEquals(result.value, Some(Failure(ex)))
-    assertEquals(s.state.get.lastReportedError, ex)
+    assertEquals(s.state.lastReportedError, ex)
     assertEquals(errorsThrow, 2)
   }
 
