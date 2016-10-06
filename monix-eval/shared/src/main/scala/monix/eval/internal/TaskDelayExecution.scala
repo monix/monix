@@ -34,7 +34,7 @@ private[monix] object TaskDelayExecution {
       c := s.scheduleOnce(timespan.length, timespan.unit, new Runnable {
         def run(): Unit = {
           conn.pop()
-          // We had an async boundary, as we can reset the frame
+          // We had an async boundary, as we mustreset the frame
           frameRef.reset()
 
           Task.unsafeStartNow(

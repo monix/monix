@@ -35,15 +35,15 @@ import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
 /** `Task` represents a specification for a possibly lazy or
-  * asynchronous computation, which when executed will produce
-  * an `A` as a result, along with possible side-effects.
+  * asynchronous computation, which when executed will produce an `A`
+  * as a result, along with possible side-effects.
   *
   * Compared with `Future` from Scala's standard library, `Task` does
   * not represent a running computation or a value detached from time,
   * as `Task` does not execute anything when working with its builders
   * or operators and it does not submit any work into any thread-pool,
-  * the execution eventually taking place only after `runAsync`
-  * is called and not before that.
+  * the execution eventually taking place only after `runAsync` is
+  * called and not before that.
   *
   * Note that `Task` is conservative in how it spawns logical threads.
   * Transformations like `map` and `flatMap` for example will default
@@ -88,10 +88,10 @@ sealed abstract class Task[+A] extends Serializable { self =>
   def runAsync(implicit s: Scheduler): CancelableFuture[A] =
     Task.startTrampolineForFuture(s, this, Nil, startFrameRef())
 
-  /** Transforms a [[Task]] into a [[Coeval]] that tries to
-    * execute the source synchronously, returning either `Right(value)`
-    * in case a value is available immediately, or `Left(future)` in case
-    * we have an asynchronous boundary.
+  /** Transforms a [[Task]] into a [[Coeval]] that tries to execute the
+    * source synchronously, returning either `Right(value)` in case a
+    * value is available immediately, or `Left(future)` in case we
+    * have an asynchronous boundary.
     */
   def coeval(implicit s: Scheduler): Coeval[Either[CancelableFuture[A], A]] =
     Coeval.eval {
@@ -140,8 +140,8 @@ sealed abstract class Task[+A] extends Serializable { self =>
   /** Returns a task that waits for the specified `trigger` to succeed
     * before mirroring the result of the source.
     *
-    * If the `trigger` ends in error, then the resulting task will also
-    * end in error.
+    * If the `trigger` ends in error, then the resulting task will
+    * also end in error.
     */
   def delayExecutionWith(trigger: Task[Any]): Task[A] =
     TaskDelayExecutionWith(self, trigger)
@@ -166,21 +166,21 @@ sealed abstract class Task[+A] extends Serializable { self =>
   def delayResultBySelector[B](selector: A => Task[B]): Task[A] =
     TaskDelayResultBySelector(self, selector)
 
-  /** Mirrors the given source `Task`, but upon execution ensure
-    * that evaluation forks into a separate (logical) thread.
+  /** Mirrors the given source `Task`, but upon execution ensure that
+    * evaluation forks into a separate (logical) thread.
     *
-    * The given [[monix.execution.Scheduler Scheduler]]  will be
-    * used for execution of the [[Task]], effectively overriding the
-    * `Scheduler` that's passed in `runAsync`. Thus you can
-    * execute a whole `Task` on a separate thread-pool, useful for
-    * example in case of doing I/O.
+    * The given [[monix.execution.Scheduler Scheduler]] will be used
+    * for execution of the [[Task]], effectively overriding the
+    * `Scheduler` that's passed in `runAsync`. Thus you can execute a
+    * whole `Task` on a separate thread-pool, useful for example in
+    * case of doing I/O.
     *
     * NOTE: the logic one cares about won't necessarily end up
-    * executed on the given scheduler, or for transformations
-    * that happen from here on. It all depends on what overrides
-    * or asynchronous boundaries happen. But this function
-    * guarantees that the this `Task` run-loop begins executing
-    * on the given scheduler.
+    * executed on the given scheduler, or for transformations that
+    * happen from here on. It all depends on what overrides or
+    * asynchronous boundaries happen. But this function guarantees
+    * that the this `Task` run-loop begins executing on the given
+    * scheduler.
     *
     * @param s is the scheduler to use for execution
     */
@@ -189,6 +189,13 @@ sealed abstract class Task[+A] extends Serializable { self =>
 
   /** Returns a new task that will execute the source with a different
     * [[monix.execution.schedulers.ExecutionModel ExecutionModel]].
+    *
+    * This allows fine-tuning the options injected by the scheduler
+    * locally. Example:
+    *
+    * {{{
+    *   task.executeWithModel(_.withAutoCancelableLoops(true))
+    * }}}
     *
     * @param f is a function that will receive the
     *        [[monix.execution.schedulers.ExecutionModel ExecutionModel]]
@@ -199,10 +206,11 @@ sealed abstract class Task[+A] extends Serializable { self =>
   def executeWithModel(f: ExecutionModel => ExecutionModel): Task[A] =
     TaskExecuteWithModel(self, f)
 
-  /** Introduces an asynchronous boundary at the current
-    * stage in the asynchronous processing pipeline.
+  /** Introduces an asynchronous boundary at the current stage in the
+    * asynchronous processing pipeline.
     *
     * Consider the following example:
+    *
     * {{{
     *   import monix.execution.Scheduler
     *   val io = Scheduler.io()
@@ -210,29 +218,30 @@ sealed abstract class Task[+A] extends Serializable { self =>
     *   val source = Task(1).executeOn(io).map(_ + 1)
     * }}}
     *
-    * That task is being forced to execute on the `io`
-    * scheduler, including the `map` transformation that
-    * follows after `executeOn`. But what if we want to jump
-    * with the execution run-loop on the default scheduler for
-    * the following transformations?
+    * That task is being forced to execute on the `io` scheduler,
+    * including the `map` transformation that follows after
+    * `executeOn`. But what if we want to jump with the execution
+    * run-loop on the default scheduler for the following
+    * transformations?
     *
     * Then we can do:
+    *
     * {{{
     *   source.asyncBoundary.map(_ + 2)
     * }}}
     *
-    * In this sample, whatever gets evaluated by the `source`
-    * will happen on the `io` scheduler, however the `asyncBoundary`
-    * call will make all subsequent operations to happen on
-    * the default scheduler.
+    * In this sample, whatever gets evaluated by the `source` will
+    * happen on the `io` scheduler, however the `asyncBoundary` call
+    * will make all subsequent operations to happen on the default
+    * scheduler.
     */
   def asyncBoundary: Task[A] =
     self.flatMap(r => Task.forkedUnit.map(_ => r))
 
-  /** Introduces an asynchronous boundary at the current
-    * stage in the asynchronous processing pipeline, making processing
-    * to jump on the given [[monix.execution.Scheduler Scheduler]]
-    * (until the next async boundary).
+  /** Introduces an asynchronous boundary at the current stage in the
+    * asynchronous processing pipeline, making processing to jump on
+    * the given [[monix.execution.Scheduler Scheduler]] (until the
+    * next async boundary).
     *
     * Consider the following example:
     * {{{
@@ -242,11 +251,10 @@ sealed abstract class Task[+A] extends Serializable { self =>
     *   val source = Task(1).executeOn(io).map(_ + 1)
     * }}}
     *
-    * That task is being forced to execute on the `io`
-    * scheduler, including the `map` transformation that
-    * follows after `executeOn`. But what if we want to jump
-    * with the execution run-loop on another scheduler for
-    * the following transformations?
+    * That task is being forced to execute on the `io` scheduler,
+    * including the `map` transformation that follows after
+    * `executeOn`. But what if we want to jump with the execution
+    * run-loop on another scheduler for the following transformations?
     *
     * Then we can do:
     * {{{
@@ -255,10 +263,10 @@ sealed abstract class Task[+A] extends Serializable { self =>
     *   source.asyncBoundary(global).map(_ + 2)
     * }}}
     *
-    * In this sample, whatever gets evaluated by the `source`
-    * will happen on the `io` scheduler, however the `asyncBoundary`
-    * call will make all subsequent operations to happen on
-    * the specified `global` scheduler.
+    * In this sample, whatever gets evaluated by the `source` will
+    * happen on the `io` scheduler, however the `asyncBoundary` call
+    * will make all subsequent operations to happen on the specified
+    * `global` scheduler.
     *
     * @param s is the scheduler triggering the asynchronous boundary
     */
@@ -278,37 +286,45 @@ sealed abstract class Task[+A] extends Serializable { self =>
       case Now(_) => raiseError(new NoSuchElementException("failed"))
     }
 
-  /** Returns a new task that upon evaluation will execute
-    * the given function for the generated element,
-    * transforming the source into a `Task[Unit]`.
+  /** Returns a new task that upon evaluation will execute the given
+    * function for the generated element, transforming the source into
+    * a `Task[Unit]`.
     *
-    * Similar in spirit with normal [[foreach]], but lazy,
-    * as obviously nothing gets executed at this point.
+    * Similar in spirit with normal [[foreach]], but lazy, as
+    * obviously nothing gets executed at this point.
     */
   def foreachL(f: A => Unit): Task[Unit] =
     self.map { a => f(a); () }
 
-  /** Triggers the evaluation of the source, executing
-    * the given function for the generated element.
+  /** Triggers the evaluation of the source, executing the given
+    * function for the generated element.
     *
-    * The application of this function has strict
-    * behavior, as the task is immediately executed.
+    * The application of this function has strict behavior, as the
+    * task is immediately executed.
     */
   def foreach(f: A => Unit)(implicit s: Scheduler): CancelableFuture[Unit] =
     foreachL(f).runAsync(s)
 
-  /** Returns a new Task that applies the mapping function to
-    * the element emitted by the source.
+  /** Returns a new Task that applies the mapping function to the
+    * element emitted by the source.
     */
   def map[B](f: A => B): Task[B] =
     flatMap(a => try now(f(a)) catch { case NonFatal(ex) => raiseError(ex) })
 
-  /** Returns a new `Task` in which `f` is scheduled to be run on completion.
-    * This would typically be used to release any resources acquired by this
-    * `Task`.
+  /** Returns a new `Task` in which `f` is scheduled to be run on
+    * completion.  This would typically be used to release any
+    * resources acquired by this `Task`.
     *
-    * The returned `Task` completes when both the source and the
-    * task returned by `f` complete.
+    * The returned `Task` completes when both the source and the task
+    * returned by `f` complete.
+    *
+    * NOTE: The given function is only called when the task is
+    * complete.  However the function does not get called if the task
+    * gets canceled.  Cancellation is a process that's concurrent with
+    * the execution of a task and hence needs special handling.
+    *
+    * See [[doOnCancel]] for specifying a callback to call on
+    * canceling a task.
     */
   def doOnFinish(f: Option[Throwable] => Task[Unit]): Task[A] =
     materializeAttempt.flatMap {
@@ -318,12 +334,12 @@ sealed abstract class Task[+A] extends Serializable { self =>
         f(Some(ex)).flatMap(_ => raiseError(ex))
     }
 
-  /** Returns a new `Task` that will mirror the source, but that
-    * will execute the given `callback` if the task gets canceled
-    * before completion.
+  /** Returns a new `Task` that will mirror the source, but that will
+    * execute the given `callback` if the task gets canceled before
+    * completion.
     *
-    * This only works for premature cancellation. See [[doOnFinish]] for
-    * triggering callbacks when the source finishes.
+    * This only works for premature cancellation. See [[doOnFinish]]
+    * for triggering callbacks when the source finishes.
     *
     * @param callback is the callback to execute if the task gets
     *        canceled prematurely
@@ -355,7 +371,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
       case ref: MemoizeSuspend[_] =>
         val task = ref.asInstanceOf[MemoizeSuspend[A]]
         Async[Attempt[A]] { (s, conn, frameRef, cb) =>
-          // Forced asynchronous boundary
+          // Light asynchronous boundary
           Task.unsafeStartTrampolined[A](task, s, conn, frameRef, new Callback[A] {
             def onSuccess(value: A): Unit = cb.asyncOnSuccess(Now(value))(s)
             def onError(ex: Throwable): Unit = cb.asyncOnSuccess(Error(ex))(s)
@@ -782,13 +798,20 @@ object Task extends TaskInstances {
   /** Nondeterministically gather results from the given collection of tasks,
     * without keeping the original ordering of results.
     *
+    * If the tasks in the list are set to execute asynchronously, forking
+    * logical threads, then the tasks will execute in parallel.
+    *
     * This function is similar to [[gather]], but neither the effects nor the
-    * results will be ordered. Useful when you don't need ordering because it
-    * can be more efficient than `gather`.
+    * results will be ordered. Useful when you don't need ordering because:
+    *
+    *  - it has non-blocking behavior (but not wait-free)
+    *  - it can be more efficient (compared with [[gather]]), but not
+    *    necessarily (if you care about performance, then test)
+    *
+    * @param in is a list of tasks to execute
     */
-  def gatherUnordered[A, M[X] <: TraversableOnce[X]](in: M[Task[A]])
-    (implicit cbf: CanBuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] =
-    TaskGatherUnordered(in)(cbf)
+  def gatherUnordered[A](in: TraversableOnce[Task[A]]): Task[List[A]] =
+    TaskGatherUnordered(in)
 
   /** Apply a mapping functions to the results of two tasks, nondeterministically
     * ordering their effects.
@@ -1109,8 +1132,9 @@ object Task extends TaskInstances {
       conn.isCanceled
 
     if (!shouldCancel)
-      scheduler.executeAsyncBatch {
-        frameRef.reset() // just to be safe
+      scheduler.executeAsync {
+        // Resetting the frameRef, as a real asynchronous boundary happened
+        frameRef.reset()
         internalRestartTrampolineLoop(scheduler, conn, source, cb, binds, frameRef)
       }
   }

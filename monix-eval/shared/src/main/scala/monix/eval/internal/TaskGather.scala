@@ -82,15 +82,11 @@ private[monix] object TaskGather {
       }
 
       // Light asynchronous boundary
-      scheduler.executeAsyncBatch(lock.synchronized {
+      scheduler.executeTrampolined(lock.synchronized {
         try {
           implicit val s = scheduler
           tasks = in.toArray
           tasksCount = tasks.length
-
-          // Resetting the frame just for safety, since we clearly have
-          // a real async boundary here
-          frameRef.reset()
 
           if (tasksCount == 0) {
             finalCallback.asyncOnSuccess(cbf(in).result())

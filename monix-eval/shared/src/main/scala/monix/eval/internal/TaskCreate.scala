@@ -48,10 +48,11 @@ private[monix] object TaskCreate {
       val c = SingleAssignmentCancelable()
       conn push c
 
-      // Forcing (light) asynchronous boundary,
+      // Forcing a real asynchronous boundary,
       // otherwise stack-overflows can happen
-      scheduler.executeTrampolined(
+      scheduler.executeAsyncBatch(
         try {
+          frameRef.reset()
           c := register(scheduler, new CreateCallback(conn, cb)(scheduler))
         }
         catch {

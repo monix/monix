@@ -40,6 +40,7 @@ private[monix] object TaskDelayResult {
               new Runnable {
                 def run(): Unit = {
                   conn.pop()
+                  frameRef.reset()
                   cb.asyncOnSuccess(value)
                 }
               })

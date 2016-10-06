@@ -21,7 +21,6 @@ import monix.execution.Cancelable
 import monix.execution.atomic.Atomic
 import monix.execution.cancelables.{CompositeCancelable, MultiAssignmentCancelable}
 import monix.execution.internal.Platform
-
 import scala.util.{Failure, Success, Try}
 
 object TaskCreateSuite extends BaseTestSuite {
@@ -120,16 +119,22 @@ object TaskCreateSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("Task.create should execute immediately when executed as future") { implicit s =>
+  test("Task.create should not execute immediately when executed as future") { implicit s =>
     val t = Task.create[Int] { (_,cb) => cb.onSuccess(100); Cancelable.empty }
     val result = t.runAsync
+
+    assertEquals(result.value, None)
+    s.tick()
     assertEquals(result.value, Some(Success(100)))
   }
 
-  test("Task.create should execute immediately when executed with callback") { implicit s =>
+  test("Task.create should not execute immediately when executed with callback") { implicit s =>
     var result = Option.empty[Try[Int]]
     val t = Task.create[Int] { (_,cb) => cb.onSuccess(100); Cancelable.empty }
     t.runAsync { r: Try[Int] => result = Some(r) }
+
+    assertEquals(result, None)
+    s.tick()
     assertEquals(result, Some(Success(100)))
   }
 }
