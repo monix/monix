@@ -36,19 +36,20 @@ import scala.util.control.NonFatal
   */
 trait BatchingTrampolineExecutor extends Scheduler {
   private[this] var localTasks: List[Runnable] = null
+
   protected def executeAsync(r: Runnable): Unit
 
   override final def execute(runnable: Runnable): Unit =
     runnable match {
-      case _: TrampolinedRunnable =>
+      case r: TrampolinedRunnable =>
         localTasks match {
           case null =>
             // If we aren't in local mode yet, start local loop
             localTasks = Nil
-            localRunLoop(runnable, Nil)
+            localRunLoop(r, Nil)
           case some =>
             // If we are already in batching mode, add to stack
-            localTasks = runnable :: some
+            localTasks = r :: some
         }
       case _ =>
         // No local execution, forwards to underlying context

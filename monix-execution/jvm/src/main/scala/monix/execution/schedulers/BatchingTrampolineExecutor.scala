@@ -43,7 +43,7 @@ trait BatchingTrampolineExecutor extends Scheduler {
 
   override final def execute(runnable: Runnable): Unit =
     runnable match {
-      case _: TrampolinedRunnable =>
+      case r: TrampolinedRunnable =>
         localTasks.get match {
           case null =>
             // If we aren't in local mode yet, start local loop
@@ -51,13 +51,13 @@ trait BatchingTrampolineExecutor extends Scheduler {
             val parentContext = localContext.get()
             try {
               localContext.set(localBlockContext)
-              localRunLoop(runnable)
+              localRunLoop(r)
             } finally {
               localContext.set(parentContext)
             }
           case some =>
             // If we are already in batching mode, add to stack
-            localTasks.set(runnable :: some)
+            localTasks.set(r :: some)
         }
       case _ =>
         // No local execution, forwards to underlying context
