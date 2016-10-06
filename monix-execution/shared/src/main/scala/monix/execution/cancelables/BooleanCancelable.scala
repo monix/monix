@@ -53,7 +53,7 @@ object BooleanCancelable {
   /** Returns an instance of a [[BooleanCancelable]] that's
     * already canceled.
     */
-  val alreadyCanceled: BooleanCancelable =
+  final val alreadyCanceled: BooleanCancelable =
     new BooleanCancelable {
       val isCanceled = true
       def cancel() = ()
@@ -64,7 +64,7 @@ object BooleanCancelable {
     * Useful as a low-overhead instance whose `isCanceled` value
     * is always `false`, thus similar in spirit with [[alreadyCanceled]].
     */
-  val dummy: BooleanCancelable =
+  final val dummy: BooleanCancelable =
     new BooleanCancelable {
       val isCanceled = false
       def cancel() = ()
