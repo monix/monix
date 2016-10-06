@@ -35,8 +35,8 @@ import scala.util.control.NonFatal
   * `scala.concurrent.Future`. Currently used as an
   * optimization by `Task` in processing its internal callbacks.
   */
-trait BatchingExecutor extends Scheduler {
-  private[this] val localContext = BatchingExecutor.localContext
+trait BatchingTrampolineExecutor extends Scheduler {
+  private[this] val localContext = BatchingTrampolineExecutor.localContext
   private[this] val localTasks = new ThreadLocal[List[Runnable]]()
 
   protected def executeAsync(r: Runnable): Unit
@@ -113,7 +113,7 @@ trait BatchingExecutor extends Scheduler {
   }
 }
 
-object BatchingExecutor {
+object BatchingTrampolineExecutor {
   /** Returns the `localContext`, allowing us to bypass calling
     * `BlockContext.withBlockContext`, as an optimization trick.
     */

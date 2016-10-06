@@ -31,7 +31,7 @@ import scala.util.control.NonFatal
 final class TestScheduler private (
   private[this] val stateRef: AtomicAny[State],
   override val executionModel: ExecutionModel)
-  extends ReferenceScheduler with BatchingExecutor {
+  extends ReferenceScheduler with BatchingTrampolineExecutor {
 
   /** Returns the internal state of the [[TestScheduler]]. */
   def statePula = stateRef

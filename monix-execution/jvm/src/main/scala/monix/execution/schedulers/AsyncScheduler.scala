@@ -31,7 +31,7 @@ final class AsyncScheduler private (
   ec: ExecutionContext,
   r: UncaughtExceptionReporter,
   val executionModel: ExecutionModel)
-  extends ReferenceScheduler with BatchingExecutor {
+  extends ReferenceScheduler with BatchingTrampolineExecutor {
 
   protected def executeAsync(r: Runnable): Unit =
     ec.execute(r)

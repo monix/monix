@@ -1132,7 +1132,7 @@ object Task extends TaskInstances {
       conn.isCanceled
 
     if (!shouldCancel)
-      scheduler.executeAsync {
+      scheduler.executeAsyncBatch {
         // Resetting the frameRef, as a real asynchronous boundary happened
         frameRef.reset()
         internalRestartTrampolineLoop(scheduler, conn, source, cb, binds, frameRef)

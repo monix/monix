@@ -199,7 +199,7 @@ object Scheduler extends SchedulerCompanionImpl {
       * start of a
       * [[monix.execution.schedulers.TrampolinedRunnable thread-local trampoline]]
       * in case the scheduler is a
-      * [[monix.execution.schedulers.BatchingExecutor BatchingExecutor]].
+      * [[monix.execution.schedulers.BatchingTrampolineExecutor BatchingTrampolineExecutor]].
       *
       * This utility is provided as an optimization. If you don't understand
       * what this does, then don't worry about it.

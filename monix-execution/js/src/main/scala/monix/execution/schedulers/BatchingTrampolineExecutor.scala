@@ -18,7 +18,6 @@
 package monix.execution.schedulers
 
 import monix.execution.Scheduler
-
 import scala.annotation.tailrec
 import scala.util.control.NonFatal
 
@@ -35,7 +34,7 @@ import scala.util.control.NonFatal
   * `scala.concurrent.Future`. Currently used as an
   * optimization by `Task` in processing its internal callbacks.
   */
-trait BatchingExecutor extends Scheduler {
+trait BatchingTrampolineExecutor extends Scheduler {
   private[this] var localTasks: List[Runnable] = null
   protected def executeAsync(r: Runnable): Unit
 
