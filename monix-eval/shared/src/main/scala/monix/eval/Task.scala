@@ -683,6 +683,26 @@ object Task extends TaskInstances {
     *
     * Unsafe to use directly, only use if you know what you're doing.
     * For building `Task` instances safely see [[create]].
+    *
+    * Rules of usage:
+    *
+    *  - the received `StackedCancelable` can be used to store
+    *    cancelable references that will be executed upon cancel;
+    *    every `push` must happen at the beginning, before any
+    *    execution happens and `pop` must happen afterwards
+    *    when the processing is finished, before signaling the
+    *    result
+    *  - the received `FrameRef` indicates the current frame
+    *    index and must be reset on real asynchronous boundaries
+    *    (which avoids doing extra async boundaries in batched
+    *    execution mode)
+    *  - before execution, an asynchronous boundary is recommended,
+    *    to avoid stack overflow errors, but can happen using the
+    *    scheduler's facilities for trampolined execution
+    *  - on signaling the result (`onSuccess`, `onError`),
+    *    another async boundary is necessary, but can also
+    *    happen with the scheduler's facilities for trampolined
+    *    execution
     */
   def unsafeCreate[A](onFinish: OnFinish[A]): Task[A] =
     Async(onFinish)
