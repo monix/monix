@@ -167,7 +167,8 @@ sealed abstract class Task[+A] extends Serializable { self =>
     TaskDelayResultBySelector(self, selector)
 
   /** Mirrors the given source `Task`, but upon execution ensure that
-    * evaluation forks into a separate (logical) thread.
+    * evaluation forks into a separate (logical) thread spawned by the
+    * given `scheduler`.
     *
     * The given [[monix.execution.Scheduler Scheduler]] will be used
     * for execution of the [[Task]], effectively overriding the
@@ -182,10 +183,24 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * that the this `Task` run-loop begins executing on the given
     * scheduler.
     *
+    * Alias for
+    * [[Task.fork[A](fa:monix\.eval\.Task[A],scheduler* Task.fork(fa,scheduler)]].
+    *
     * @param s is the scheduler to use for execution
     */
   def executeOn(s: Scheduler): Task[A] =
     Task.fork(this, s)
+
+  /** Mirrors the given source `Task`, but upon execution ensure
+    * that evaluation forks into a separate (logical) thread.
+    *
+    * The [[monix.execution.Scheduler Scheduler]] used will be
+    * the one that is used to start the run-loop in `runAsync`.
+    *
+    * Alias for [[Task.fork[A](fa:monix\.eval\.Task[A])* Task.fork(fa)]].
+    */
+  def executeAsync: Task[A] =
+    Task.fork(this)
 
   /** Returns a new task that will execute the source with a different
     * [[monix.execution.schedulers.ExecutionModel ExecutionModel]].
@@ -623,6 +638,8 @@ object Task extends TaskInstances {
 
   /** A `Task[Unit]` provided for convenience. */
   final val unit: Task[Unit] = Delay(Coeval.unit)
+
+  /** Reusable task instance used in `Task#asyncBoundary` */
   private final val forkedUnit = Task.fork(Task.unit)
 
   /** Transforms a [[Coeval]] into a [[Task]]. */
