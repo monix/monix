@@ -37,7 +37,7 @@ function buildJVM {
         COMMAND="$INIT;$COMPILE$EXTRA_COMPILE;$TEST$EXTRA_TEST"
 
         echo
-        echo "Executing JVM tests: sbt $COMMAND"
+        echo "Executing JVM tests: sbt \"$COMMAND\""
         echo
         sbt "$COMMAND"
     fi
@@ -59,7 +59,7 @@ function buildJS {
     COMMAND="$INIT;$COMPILE$EXTRA_COMPILE;$TEST$EXTRA_TEST"
 
     echo
-    echo "Executing JS tests: sbt $COMMAND"
+    echo "Executing JS tests: sbt \"$COMMAND\""
     echo
     sbt "$COMMAND"
 }
