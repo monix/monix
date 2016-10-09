@@ -934,7 +934,8 @@ object Task extends TaskInstances {
     */
   type FrameIndex = Int
 
-  /** Type alias representing callbacks for [[create]] tasks.
+  /** Type alias representing callbacks for
+    * [[unsafeCreate asynchronous]] tasks.
     */
   type OnFinish[+A] = (Scheduler, StackedCancelable, ThreadLocal[FrameIndex], Callback[A]) => Unit
 

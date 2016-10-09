@@ -15,18 +15,14 @@
  * limitations under the License.
  */
 
-package monix.execution.schedulers
+package monix.execution
 
-import scala.concurrent.OnCompleteRunnable
+package object schedulers {
+  /** Deprecated. Renamed to [[TrampolinedRunnable]]. */
+  @deprecated("Renamed to `TrampolinedRunnable`", since="2.1.0")
+  type LocalRunnable = TrampolinedRunnable
 
-/** A marker for callbacks that can be batched and executed
-  * locally (on the current thread) by means of a trampoline
-  * (if the execution context / scheduler allows it).
-  *
-  * Idea was taken from the `scala.concurrent.Future`
-  * implementation. Credit should be given where due.
-  *
-  * DO NOT use unless you know what you're doing.
-  */
-abstract class TrampolinedRunnable
-  extends Runnable with OnCompleteRunnable
+  /** Deprecated. Renamed to [[BatchingTrampolineExecutor]]. */
+  @deprecated("Renamed to `BatchingTrampolineExecutor`", since="2.1.0")
+  type LocalBatchingExecutor = BatchingTrampolineExecutor
+}

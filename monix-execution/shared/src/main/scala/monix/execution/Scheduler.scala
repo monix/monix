@@ -226,6 +226,11 @@ object Scheduler extends SchedulerCompanionImpl {
     def executeTrampolined(cb: => Unit): Unit =
       macro Macros.executeTrampolined
 
+    /** Deprecated. Use [[executeTrampolined]] instead. */
+    @deprecated("Renamed to `executeTrampolined`", since = "2.1.0")
+    def executeLocal(cb: => Unit): Unit =
+      macro Macros.executeTrampolined
+
     /** Schedules a task to run in the future, after `initialDelay`.
       *
       * For example the following schedules a message to be printed to

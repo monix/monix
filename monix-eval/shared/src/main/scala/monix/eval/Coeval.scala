@@ -487,40 +487,38 @@ object Coeval {
   sealed abstract class Attempt[+A] extends Coeval[A] with Product {
     self =>
 
-    /** Retrieve the (successful) value or
-      * throw the error.
+    /** Retrieve the (successful) value or throw the error.
+      *
+      * Alias for [[Coeval.value]].
       */
-    def get: A = this match {
-      case Now(value) => value
-      case Error(ex) => throw ex
-    }
+    final def get: A = value
 
     /** Returns true if value is a successful one. */
-    def isSuccess: Boolean = this match {
+    final def isSuccess: Boolean = this match {
       case Now(_) => true
       case _ => false
     }
 
     /** Returns true if result is an error. */
-    def isFailure: Boolean = this match {
+    final def isFailure: Boolean = this match {
       case Error(_) => true
       case _ => false
     }
 
-    override def failed: Attempt[Throwable] =
+    override final def failed: Attempt[Throwable] =
       self match {
         case Now(_) => Error(new NoSuchElementException("failed"))
         case Error(ex) => Now(ex)
       }
 
     /** Converts this attempt into a `scala.util.Try`. */
-    def asScala: Try[A] =
+    final def asScala: Try[A] =
       this match {
         case Now(a) => Success(a)
         case Error(ex) => Failure(ex)
       }
 
-    override def materializeAttempt: Attempt[Attempt[A]] =
+    override final def materializeAttempt: Attempt[Attempt[A]] =
       self match {
         case now@Now(_) =>
           Now(now)
@@ -528,13 +526,13 @@ object Coeval {
           Now(Error(ex))
       }
 
-    override def dematerializeAttempt[B](implicit ev: <:<[A, Attempt[B]]): Attempt[B] =
+    override final def dematerializeAttempt[B](implicit ev: <:<[A, Attempt[B]]): Attempt[B] =
       self match {
         case Now(now) => now
         case error@Error(_) => error
       }
 
-    override def memoize: Attempt[A] = this
+    override final def memoize: Attempt[A] = this
   }
 
   object Attempt {
