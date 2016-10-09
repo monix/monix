@@ -714,8 +714,9 @@ object Task extends TaskInstances {
   /** Constructs a lazy [[Task]] instance whose result
     * will be computed asynchronously.
     *
-    * Unsafe to use directly, only use if you know what you're doing.
-    * For building `Task` instances safely see [[create]].
+    * **WARNING:** Unsafe to use directly, only use if you know
+    * what you're doing. For building `Task` instances safely
+    * see [[create Task.create]].
     *
     * Rules of usage:
     *
@@ -735,7 +736,13 @@ object Task extends TaskInstances {
     *  - on signaling the result (`onSuccess`, `onError`),
     *    another async boundary is necessary, but can also
     *    happen with the scheduler's facilities for trampolined
-    *    execution
+    *    execution (e.g. `asyncOnSuccess` and `asyncOnError`)
+    *
+    * **WARNING:** note that not only is this builder unsafe, but also
+    * unstable, as the [[OnFinish]] callback type is exposing volatile
+    * internal implementation details. This builder is meant to create
+    * optimized asynchronous tasks, but for normal usage prefer
+    * [[Task.create]].
     */
   def unsafeCreate[A](onFinish: OnFinish[A]): Task[A] =
     Async(onFinish)
