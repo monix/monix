@@ -690,8 +690,34 @@ object Observable {
   def never: Observable[Nothing] =
     builders.NeverObservable
 
-  /** Forks a logical thread on executing the subscription. */
+  /** Mirrors the given source [[Observable]], but upon subscription
+    * ensure that evaluation forks into a separate (logical) thread.
+    *
+    * The [[monix.execution.Scheduler Scheduler]] used will be
+    * the one that is injected in `subscribe()`.
+    *
+    * @param fa is the observable that will get subscribed
+    *        asynchronously
+    */
   def fork[A](fa: Observable[A]): Observable[A] =
+    new builders.ExecuteWithForkObservable(fa)
+
+  /** Mirrors the given source [[Observable]], but upon subscription ensure
+    * that evaluation forks into a separate (logical) thread,
+    * managed by the given scheduler, which will also be used for
+    * subsequent asynchronous execution, overriding the default.
+    *
+    * The given [[monix.execution.Scheduler Scheduler]]  will be
+    * used for evaluation of the source [[Observable]], effectively
+    * overriding the `Scheduler` that's passed in `subscribe()`.
+    * Thus you can evaluate an observable on a separate thread-pool,
+    * useful for example in case of doing I/O.
+    *
+    * @param fa is the source observable that will evaluate asynchronously
+    *        on the specified scheduler
+    * @param scheduler is the scheduler to use for evaluation
+    */
+  def fork[A](fa: Observable[A], scheduler: Scheduler): Observable[A] =
     new builders.ExecuteWithForkObservable(fa)
 
   /** Given a subscribe function, lifts it into an [[Observable]].
