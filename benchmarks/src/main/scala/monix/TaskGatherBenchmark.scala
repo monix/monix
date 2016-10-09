@@ -24,7 +24,6 @@ import monix.execution.Scheduler.Implicits.global
 import org.openjdk.jmh.annotations._
 import scalaz.Nondeterminism
 import scalaz.concurrent.{Task => ScalazTask}
-
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.Duration
@@ -130,5 +129,19 @@ class TaskGatherBenchmark {
   def unorderedScalazS(): Long = {
     val tasks = (0 until 1000).map(_ => ScalazTask.delay(1)).toList
     Nondeterminism[ScalazTask].gatherUnordered(tasks).map(_.sum.toLong).unsafePerformSync
+  }
+
+  @Benchmark
+  def zipListMonixA(): Long = {
+    val tasks = (0 until 1000).map(_ => Task(1)).toList
+    val f = Task.zipList(tasks:_*).map(_.sum.toLong).runAsync
+    Await.result(f, Duration.Inf)
+  }
+
+  @Benchmark
+  def zipListMonixS(): Long = {
+    val tasks = (0 until 1000).map(_ => Task.eval(1)).toList
+    val f = Task.zipList(tasks:_*).map(_.sum.toLong).runAsync
+    Await.result(f, Duration.Inf)
   }
 }

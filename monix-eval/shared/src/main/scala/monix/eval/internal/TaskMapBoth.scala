@@ -20,8 +20,10 @@ package monix.eval.internal
 import monix.eval.{Callback, Task}
 import monix.execution.Ack.Stop
 import monix.execution.Scheduler
+import monix.execution.atomic.PaddingStrategy.LeftRight128
 import monix.execution.atomic.{Atomic, AtomicAny}
 import monix.execution.cancelables.{CompositeCancelable, StackedCancelable}
+
 import scala.annotation.tailrec
 import scala.util.control.NonFatal
 
@@ -72,9 +74,9 @@ private[monix] object TaskMapBoth {
     // The resulting task will be executed asynchronously
     Task.unsafeCreate { (scheduler, conn, frameIndex, cb) =>
       // Initial asynchronous boundary
-      scheduler.executeAsyncBatch {
+      scheduler.executeTrampolined {
         // for synchronizing the results
-        val state = Atomic(null: AnyRef)
+        val state = Atomic.withPadding(null: AnyRef, LeftRight128)
         val task1 = StackedCancelable()
         val task2 = StackedCancelable()
         conn push CompositeCancelable(task1, task2)

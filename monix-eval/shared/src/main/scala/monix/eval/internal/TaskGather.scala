@@ -89,7 +89,23 @@ private[monix] object TaskGather {
           tasksCount = tasks.length
 
           if (tasksCount == 0) {
+            // With no tasks available, we need to return an empty sequence
             finalCallback.asyncOnSuccess(cbf(in).result())
+          }
+          else if (tasksCount == 1) {
+            // If it's a single task, then execute it directly
+            val source = tasks(0).map(r => (cbf(in) += r).result())
+            Task.unsafeStartNow(source, s, conn, frameRef, finalCallback)
+          }
+          else if (tasksCount == 2) {
+            // Optimizing for 2 tasks by calling `mapBoth`
+            val source = Task.mapBoth(tasks(0), tasks(1)) { (a1,a2) =>
+              val b = cbf(in)
+              b += a1 += a2
+              b.result()
+            }
+
+            Task.unsafeStartNow(source, s, conn, frameRef, finalCallback)
           }
           else {
             results = new Array[AnyRef](tasksCount)
