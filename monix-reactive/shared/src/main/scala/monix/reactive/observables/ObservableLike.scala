@@ -18,15 +18,18 @@
 package monix.reactive.observables
 
 import java.io.PrintStream
+
 import monix.execution.Scheduler
 import monix.execution.cancelables.BooleanCancelable
+import monix.execution.schedulers.ExecutionModel
 import monix.reactive.OverflowStrategy.Synchronous
 import monix.reactive.exceptions.UpstreamTimeoutException
-import monix.reactive.internal.builders.{CombineLatest2Observable, Interleave2Observable, Zip2Observable}
+import monix.reactive.internal.builders.{RepeatObservable => _, _}
 import monix.reactive.internal.operators._
 import monix.reactive.observables.ObservableLike.{Operator, Transformer}
 import monix.reactive.observers.Subscriber
 import monix.reactive.{Notification, Observable, OverflowStrategy, Pipe}
+
 import scala.concurrent.duration.FiniteDuration
 
 /** Defines the available operations for observable-like instances.
@@ -1162,6 +1165,37 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     */
   def executeOn(scheduler: Scheduler): Self[A] =
     self.transform(source => new ExecuteOnObservable[A](source, scheduler))
+
+  /** Mirrors the source observable, but upon subscription ensure
+    * that the evaluation forks into a separate (logical) thread.
+    *
+    * The execution is managed by the injected
+    * [[monix.execution.Scheduler scheduler]] in `subscribe()`.
+    *
+    * Alias for
+    * [[Observable.fork[A](fa:monix\.reactive\.Observabel[A])* Observable.fork(fa)]].
+    */
+  def executeWithFork: Self[A] =
+    self.transform(source => new ExecuteWithForkObservable(source))
+
+  /** Returns a new observable that will execute the source with a different
+    * [[monix.execution.schedulers.ExecutionModel ExecutionModel]].
+    *
+    * This allows fine-tuning the options injected by the scheduler
+    * locally. Example:
+    *
+    * {{{
+    *   observable.executeWithModel(_ => AlwaysAsyncExecution())
+    * }}}
+    *
+    * @param f is a function that will receive the
+    *        [[monix.execution.schedulers.ExecutionModel ExecutionModel]]
+    *        of the injected [[monix.execution.Scheduler Scheduler]]
+    *        (on `subscribe`) and that must return a transformed
+    *        execution model with which the source will get executed.
+    */
+  def executeWithModel(f: ExecutionModel => ExecutionModel): Self[A] =
+    self.transform(source => new ExecuteWithModelObservable[A](source, f))
 
   /** If the connection is [[monix.execution.Cancelable.cancel cancelled]]
     * then trigger a `CancellationException`.

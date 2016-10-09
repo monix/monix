@@ -692,7 +692,7 @@ object Observable {
 
   /** Forks a logical thread on executing the subscription. */
   def fork[A](fa: Observable[A]): Observable[A] =
-    new builders.ForkObservable(fa)
+    new builders.ExecuteWithForkObservable(fa)
 
   /** Given a subscribe function, lifts it into an [[Observable]].
     *

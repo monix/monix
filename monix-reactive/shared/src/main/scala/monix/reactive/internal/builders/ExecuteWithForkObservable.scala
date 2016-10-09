@@ -21,7 +21,7 @@ import monix.execution.Cancelable
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
-private[reactive] final class ForkObservable[A](source: Observable[A])
+private[reactive] final class ExecuteWithForkObservable[A](source: Observable[A])
   extends Observable[A] {
 
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {

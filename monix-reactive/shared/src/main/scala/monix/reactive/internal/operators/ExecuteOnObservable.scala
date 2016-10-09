@@ -30,16 +30,15 @@ class ExecuteOnObservable[+A](source: Observable[A], s: Scheduler)
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
     val subscription = SingleAssignmentCancelable()
 
-    s.execute(new Runnable {
-      def run(): Unit =
-        subscription := source.unsafeSubscribeFn(
-          new Subscriber[A] {
-            implicit val scheduler: Scheduler = s
-            def onError(ex: Throwable): Unit = out.onError(ex)
-            def onComplete(): Unit = out.onComplete()
-            def onNext(elem: A): Future[Ack] = out.onNext(elem)
+    s.executeAsync {
+      subscription := source.unsafeSubscribeFn(
+        new Subscriber[A] {
+          implicit val scheduler: Scheduler = s
+          def onError(ex: Throwable): Unit = out.onError(ex)
+          def onComplete(): Unit = out.onComplete()
+          def onNext(elem: A): Future[Ack] = out.onNext(elem)
         })
-    })
+    }
 
     subscription
   }

@@ -199,7 +199,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     *
     * Alias for [[Task.fork[A](fa:monix\.eval\.Task[A])* Task.fork(fa)]].
     */
-  def executeAsync: Task[A] =
+  def executeWithFork: Task[A] =
     Task.fork(this)
 
   /** Returns a new task that will execute the source with a different

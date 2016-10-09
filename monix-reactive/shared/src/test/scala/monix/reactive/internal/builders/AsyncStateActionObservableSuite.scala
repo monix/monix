@@ -21,6 +21,7 @@ import minitest.TestSuite
 import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.internal.Platform
+import monix.execution.schedulers.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
@@ -85,6 +86,25 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
 
     assertEquals(sum, s.executionModel.recommendedBatchSize * 2 - 1)
     assert(!wasCompleted)
+  }
+
+  test("should respect the ExecutionModel") { scheduler =>
+    implicit val s = scheduler.withExecutionModel(AlwaysAsyncExecution())
+
+    var received = 0
+    val cancelable = Observable
+      .fromAsyncStateAction(intNow)(s.currentTimeMillis())
+      .subscribe { x => received += 1; Continue }
+
+    assertEquals(received, 0)
+    s.tickOne()
+    assertEquals(received, 1)
+    s.tickOne(); s.tickOne()
+    assertEquals(received, 2)
+
+    cancelable.cancel(); s.tick()
+    assertEquals(received, 2)
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
   def intAsync(seed: Long) = Task(int(seed))
