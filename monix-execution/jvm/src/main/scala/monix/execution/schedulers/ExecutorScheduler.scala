@@ -29,7 +29,7 @@ final class ExecutorScheduler private (
   s: ScheduledExecutorService,
   r: UncaughtExceptionReporter,
   override val executionModel: ExecutionModel)
-  extends ReferenceScheduler with BatchingTrampolineExecutor {
+  extends ReferenceScheduler with BatchingScheduler {
 
   def executor: ScheduledExecutorService = s
 

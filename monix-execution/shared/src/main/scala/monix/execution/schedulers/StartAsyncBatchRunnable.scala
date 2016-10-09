@@ -24,8 +24,9 @@ import monix.execution.Scheduler
   *
   * Sometimes you want to execute multiple [[TrampolinedRunnable]]
   * instances as a batch, with the functionality provided by
-  * schedulers implementing [[BatchingTrampolineExecutor]], however you might
-  * need the very first execution to force an asynchronous boundary.
+  * schedulers implementing [[BatchingScheduler]],
+  * however you might need the very first execution to force an
+  * asynchronous boundary.
   *
   * @param start is the [[TrampolinedRunnable]] instance that will get
   *        executed and that is supposed to trigger the execution of
@@ -38,10 +39,10 @@ final case class StartAsyncBatchRunnable(
   extends Runnable with Serializable {
 
   def run(): Unit = {
-    // Scheduler might not be an actual `BatchingTrampolineExecutor`, in which case
+    // Scheduler might not be an actual `BatchingScheduler`, in which case
     // we don't want to create an extra asynchronous boundary.
     s match {
-      case _: BatchingTrampolineExecutor =>
+      case _: BatchingScheduler =>
         s.execute(start)
       case _ =>
         start.run()

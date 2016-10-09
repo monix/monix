@@ -22,7 +22,7 @@ package object schedulers {
   @deprecated("Renamed to `TrampolinedRunnable`", since="2.1.0")
   type LocalRunnable = TrampolinedRunnable
 
-  /** Deprecated. Renamed to [[BatchingTrampolineExecutor]]. */
-  @deprecated("Renamed to `BatchingTrampolineExecutor`", since="2.1.0")
-  type LocalBatchingExecutor = BatchingTrampolineExecutor
+  /** Deprecated. Renamed to [[BatchingScheduler]]. */
+  @deprecated("Renamed to `BatchingScheduler`", since="2.1.0")
+  type LocalBatchingExecutor = BatchingScheduler
 }

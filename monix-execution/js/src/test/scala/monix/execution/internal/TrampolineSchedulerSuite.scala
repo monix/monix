@@ -19,8 +19,9 @@ package monix.execution.internal
 
 import minitest.TestSuite
 import monix.execution.atomic.Atomic
-import monix.execution.schedulers.{ExecutionModel, TrampolineScheduler}
+import monix.execution.schedulers.{AsyncScheduler, ExecutionModel, TrampolineScheduler}
 import monix.execution.{Scheduler, UncaughtExceptionReporter}
+
 import scala.concurrent.Promise
 
 object TrampolineSchedulerSuite extends TestSuite[Scheduler] {
@@ -32,7 +33,8 @@ object TrampolineSchedulerSuite extends TestSuite[Scheduler] {
 
   def setup(): Scheduler = {
     lastReported.set(null)
-    TrampolineScheduler(reporter, ExecutionModel.Default)
+    val underlying = AsyncScheduler(reporter, ExecutionModel.Default)
+    TrampolineScheduler(underlying, ExecutionModel.Default)
   }
 
   def tearDown(env: Scheduler): Unit =

@@ -27,7 +27,7 @@ import monix.execution.{Cancelable, UncaughtExceptionReporter}
 final class AsyncScheduler private (
   reporter: UncaughtExceptionReporter,
   override val executionModel: ExecutionModel)
-  extends ReferenceScheduler with BatchingTrampolineExecutor {
+  extends ReferenceScheduler with BatchingScheduler {
 
   protected def executeAsync(r: Runnable): Unit =
     setTimeout(0L, r, reporter)
