@@ -1,3 +1,9 @@
+## Version 2.0.4 (Oct 10, 2016)
+
+- [Bug #244](https://github.com/monixio/monix/issues/244):
+  AsyncScheduler.scheduleAtFixedRate and scheduleWithFixedDelay 
+  (on the JVM) have incorrect behavior
+
 ## Version 2.0.3 (Oct 3, 2016)
 
 - [Bug #230](https://github.com/monixio/monix/issues/230):
