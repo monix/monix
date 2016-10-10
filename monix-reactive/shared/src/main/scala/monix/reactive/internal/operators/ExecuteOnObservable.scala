@@ -33,7 +33,7 @@ class ExecuteOnObservable[+A](source: Observable[A], s: Scheduler)
     s.executeAsync {
       subscription := source.unsafeSubscribeFn(
         new Subscriber[A] {
-          implicit val scheduler: Scheduler = s
+          override val scheduler: Scheduler = s
           def onError(ex: Throwable): Unit = out.onError(ex)
           def onComplete(): Unit = out.onComplete()
           def onNext(elem: A): Future[Ack] = out.onNext(elem)

@@ -18,7 +18,6 @@
 package monix.execution.schedulers
 
 import java.util.concurrent.TimeUnit
-
 import monix.execution.cancelables.MultiAssignmentCancelable
 import monix.execution.schedulers.ReferenceScheduler.WrappedScheduler
 import monix.execution.{Cancelable, Scheduler}
@@ -59,10 +58,9 @@ private[schedulers] abstract class ReferenceScheduler extends Scheduler {
     val sub = MultiAssignmentCancelable()
 
     def loop(initialDelayMs: Long, periodMs: Long): Unit = {
-      val startedAtMillis = currentTimeMillis()
-
       sub := scheduleOnce(initialDelayMs, TimeUnit.MILLISECONDS, new Runnable {
         def run(): Unit = {
+          val startedAtMillis = currentTimeMillis()
           r.run()
 
           val delay = {
@@ -78,7 +76,6 @@ private[schedulers] abstract class ReferenceScheduler extends Scheduler {
 
     val initialMs = TimeUnit.MILLISECONDS.convert(initialDelay, unit)
     val periodMs = TimeUnit.MILLISECONDS.convert(period, unit)
-
     loop(initialMs, periodMs)
     sub
   }

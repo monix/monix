@@ -64,7 +64,6 @@ object ReferenceSchedulerSuite extends SimpleTestSuite {
   test("schedule at fixed rate") {
     val s = new DummyScheduler
     var effect = 0
-
     val task = s.scheduleAtFixedRate(1.second, 2.seconds) { effect += 1 }
 
     s.tick(1.second)

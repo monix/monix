@@ -81,9 +81,6 @@ sealed abstract class ExecutionModel extends Product with Serializable {
     * if this parameter is set to `true`, it means that a
     * loop described by `Task.flatMap` is automatically
     * cancelable.
-    *
-    * The default should always be `false` and only activated
-    * in a local context.
     */
   val autoCancelableLoops: Boolean
 
@@ -98,7 +95,7 @@ object ExecutionModel {
     * synchronous (immediate, trampolined) for as long as possible.
     */
   final case class SynchronousExecution(
-    autoCancelableLoops: Boolean = false)
+    autoCancelableLoops: Boolean = true)
     extends ExecutionModel {
 
     /** The [[ExecutionModel.recommendedBatchSize]] for the
@@ -125,7 +122,7 @@ object ExecutionModel {
     * on each step.
     */
   final case class AlwaysAsyncExecution(
-    autoCancelableLoops: Boolean = false)
+    autoCancelableLoops: Boolean = true)
     extends ExecutionModel {
 
     /** The [[ExecutionModel.recommendedBatchSize]] for the
@@ -161,7 +158,7 @@ object ExecutionModel {
     */
   final case class BatchedExecution(
     private val batchSize: Int,
-    autoCancelableLoops: Boolean = false)
+    autoCancelableLoops: Boolean = true)
     extends ExecutionModel {
 
     val recommendedBatchSize = math.nextPowerOf2(batchSize)
@@ -231,6 +228,6 @@ object ExecutionModel {
   final val Default: ExecutionModel =
     BatchedExecution(
       batchSize = Platform.recommendedBatchSize,
-      autoCancelableLoops = false
+      autoCancelableLoops = true
     )
 }
