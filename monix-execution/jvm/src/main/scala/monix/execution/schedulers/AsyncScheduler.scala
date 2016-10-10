@@ -47,18 +47,6 @@ final class AsyncScheduler private (
     }
   }
 
-  override def scheduleWithFixedDelay(initialDelay: Long, delay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
-    val deferred = new DeferredRunnable(r, ec)
-    val task = scheduler.scheduleWithFixedDelay(deferred, initialDelay, delay, unit)
-    Cancelable(() => task.cancel(false))
-  }
-
-  override def scheduleAtFixedRate(initialDelay: Long, period: Long, unit: TimeUnit, r: Runnable): Cancelable = {
-    val deferred = new DeferredRunnable(r, ec)
-    val task = scheduler.scheduleAtFixedRate(deferred, initialDelay, period, unit)
-    Cancelable(() => task.cancel(false))
-  }
-
   override def reportFailure(t: Throwable): Unit =
     r.reportFailure(t)
 }
