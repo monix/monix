@@ -42,13 +42,15 @@ private[schedulers] abstract class ReferenceScheduler extends Scheduler {
   override def scheduleWithFixedDelay(initialDelay: Long, delay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
     val sub = MultiAssignmentCancelable()
 
-    def loop(initialDelay: Long, delay: Long): Unit =
-      sub := scheduleOnce(initialDelay, unit, new Runnable {
-        def run(): Unit = {
-          r.run()
-          loop(delay, delay)
-        }
-      })
+    def loop(initialDelay: Long, delay: Long): Unit = {
+      if (!sub.isCanceled)
+        sub := scheduleOnce(initialDelay, unit, new Runnable {
+          def run(): Unit = {
+            r.run()
+            loop(delay, delay)
+          }
+        })
+    }
 
     loop(initialDelay, delay)
     sub
@@ -57,22 +59,25 @@ private[schedulers] abstract class ReferenceScheduler extends Scheduler {
   override def scheduleAtFixedRate(initialDelay: Long, period: Long, unit: TimeUnit, r: Runnable): Cancelable = {
     val sub = MultiAssignmentCancelable()
 
-    def loop(initialDelayMs: Long, periodMs: Long): Unit = {
-      sub := scheduleOnce(initialDelayMs, TimeUnit.MILLISECONDS, new Runnable {
-        def run(): Unit = {
-          val startedAtMillis = currentTimeMillis()
-          r.run()
+    def loop(initialDelayMs: Long, periodMs: Long): Unit =
+      if (!sub.isCanceled) {
+        sub := scheduleOnce(initialDelayMs, TimeUnit.MILLISECONDS, new Runnable {
+          def run(): Unit = {
+            // Measuring the duration of the task
+            val startedAtMillis = currentTimeMillis()
+            r.run()
 
-          val delay = {
-            val durationMillis = currentTimeMillis() - startedAtMillis
-            val d = periodMs - durationMillis
-            if (d >= 0) d else 0
+            val delay = {
+              val durationMillis = currentTimeMillis() - startedAtMillis
+              val d = periodMs - durationMillis
+              if (d >= 0) d else 0
+            }
+
+            // Recursive call
+            loop(delay, periodMs)
           }
-
-          loop(delay, periodMs)
-        }
-      })
-    }
+        })
+      }
 
     val initialMs = TimeUnit.MILLISECONDS.convert(initialDelay, unit)
     val periodMs = TimeUnit.MILLISECONDS.convert(period, unit)

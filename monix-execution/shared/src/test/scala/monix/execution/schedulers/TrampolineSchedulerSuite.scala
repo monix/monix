@@ -124,6 +124,6 @@ object TrampolineSchedulerSuite extends TestSuite[(Scheduler, TestScheduler)] {
     val s2 = s.withExecutionModel(em)
 
     assert(s2.isInstanceOf[TrampolineScheduler], "s2.isInstanceOf[TrampolineScheduler]")
-    assertEquals(s2.executionModel, s2)
+    assertEquals(s2.executionModel, em)
   }
 }

@@ -22,7 +22,7 @@ import monix.execution.internal.Platform
 import scala.util.{Failure, Success, Try}
 
 object TaskFlatMapSuite extends BaseTestSuite {
-  test("runAsync flatMap loop is not cancelable by default") { implicit s =>
+  test("runAsync flatMap loop is not cancelable if autoCancelableLoops=false") { implicit s =>
     val maxCount = Platform.recommendedBatchSize * 4
 
     def loop(count: AtomicInt): Task[Unit] =
@@ -30,9 +30,9 @@ object TaskFlatMapSuite extends BaseTestSuite {
         Task.unit.flatMap(_ => loop(count))
 
     val atomic = Atomic(0)
-    val f = loop(atomic).runAsync
-
-    assertEquals(atomic.get, Platform.recommendedBatchSize)
+    val f = loop(atomic)
+      .executeWithModel(_.withAutoCancelableLoops(false))
+      .runAsync
 
     f.cancel(); s.tick()
     assertEquals(atomic.get, maxCount)
