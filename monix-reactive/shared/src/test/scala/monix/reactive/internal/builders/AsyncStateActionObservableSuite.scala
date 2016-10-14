@@ -47,9 +47,9 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
       .take(Platform.recommendedBatchSize * 3)
       .subscribe { x => received += 1; Continue }
 
-    assertEquals(received, Platform.recommendedBatchSize - 1)
+    assertEquals(received, Platform.recommendedBatchSize / 2 - 1)
     s.tickOne()
-    assertEquals(received, Platform.recommendedBatchSize * 2 - 1)
+    assertEquals(received, Platform.recommendedBatchSize - 1)
     s.tick()
     assertEquals(received, Platform.recommendedBatchSize * 3)
   }
@@ -84,7 +84,7 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
     cancelable.cancel()
     s.tick()
 
-    assertEquals(sum, s.executionModel.recommendedBatchSize * 2 - 1)
+    assertEquals(sum, s.executionModel.recommendedBatchSize - 1)
     assert(!wasCompleted)
   }
 

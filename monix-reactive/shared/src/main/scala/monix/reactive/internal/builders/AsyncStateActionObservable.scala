@@ -33,7 +33,7 @@ class AsyncStateActionObservable[S,A](seed: => S, f: S => Task[(A,S)]) extends O
       val init = seed
       streamErrors = false
 
-      loop(subscriber, init)
+      Task.defer(loop(subscriber, init))
         .runAsync(Callback.empty)
     }
     catch {
