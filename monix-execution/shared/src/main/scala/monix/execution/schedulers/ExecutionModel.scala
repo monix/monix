@@ -71,16 +71,22 @@ sealed abstract class ExecutionModel extends Product with Serializable {
     */
   def nextFrameIndex(current: Int): Int
 
-  /** A hint instructing run-loops that auto-cancellation
-    * can be used.
+  /** A hint instructing run-loops that auto-cancellation can be used.
     *
-    * What this means is that in a run-loop, such as when
-    * evaluating a `Task`, the processing can simply be stopped
-    * without worry if some cancelable handle is observed
-    * to be canceled. In the context of a `Task` for example,
-    * if this parameter is set to `true`, it means that a
-    * loop described by `Task.flatMap` is automatically
+    * This property being set to `true` is a hint for run-loops, such
+    * as when evaluating a `Task`, that the processing can be canceled
+    * without signaling the downstream consumer. In the context of a
+    * `Task` for example, if this parameter is set to `true`, it means
+    * that a loop described by `Task.flatMap` is automatically
     * cancelable.
+    *
+    * By default this property should be set to `true` and modified to
+    * `false` only when needed. Disabling auto-cancelable loops is
+    * sometimes useful because the act of cancellation is often
+    * concurrent with the producer pushing data into consumer(s) and
+    * thus access to resources have to be synchronized. Thus disabling
+    * the auto-cancellation logic of a run-loop can be a useful
+    * optimization.
     */
   val autoCancelableLoops: Boolean
 
