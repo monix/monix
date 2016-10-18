@@ -29,7 +29,7 @@ import monix.reactive.exceptions.DummyException
 
 import scala.concurrent.{Future, Promise}
 
-object BufferDropOldThenSignalSuite extends TestSuite[TestScheduler] {
+object BufferDropOldAndSignalSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
     assert(s.state.get.tasks.isEmpty,
