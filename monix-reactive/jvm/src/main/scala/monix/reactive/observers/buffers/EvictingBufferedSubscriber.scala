@@ -100,6 +100,7 @@ private[buffers] final class EvictingBufferedSubscriber[-T] private
                 consumerBuffer(0) = message.asInstanceOf[AnyRef]
                 1 + buffer.pollMany(consumerBuffer, 1)
               case None =>
+                eventsDropped = 0
                 buffer.pollMany(consumerBuffer)
             }
           } catch {
