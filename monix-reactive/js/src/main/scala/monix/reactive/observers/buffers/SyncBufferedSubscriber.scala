@@ -112,6 +112,7 @@ private[buffers] final class SyncBufferedSubscriber[-T] private
                 eventsDropped = 0
                 message.asInstanceOf[AnyRef]
               case None =>
+                eventsDropped = 0
                 buffer.poll()
             }
           } catch {

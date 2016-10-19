@@ -26,9 +26,10 @@ import monix.execution.{Ack, Scheduler}
 import monix.reactive.Observer
 import monix.reactive.OverflowStrategy.DropOldAndSignal
 import monix.reactive.exceptions.DummyException
+
 import scala.concurrent.{Future, Promise}
 
-object BufferDropOldThenSignalSuite extends TestSuite[TestScheduler] {
+object BufferDropOldAndSignalSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
     assert(s.state.tasks.isEmpty,
@@ -149,7 +150,7 @@ object BufferDropOldThenSignalSuite extends TestSuite[TestScheduler] {
     assert(wasCompleted, "wasCompleted should be true")
   }
 
-  test("should drop old events when over capacity and log") { implicit s =>
+  test("should drop old events when over capacity and log once") { implicit s =>
     var received = 0
     var wasCompleted = false
     val promise = Promise[Ack]()
@@ -181,6 +182,13 @@ object BufferDropOldThenSignalSuite extends TestSuite[TestScheduler] {
     promise.success(Continue); s.tick()
     assertEquals(received, (1094 to 1100).sum + 28)
     assertEquals(log.get, 994)
+
+    log.set(0)
+    assertEquals(buffer.onNext(42), Continue)
+
+    s.tick()
+
+    assertEquals(log.get, 0)
 
     buffer.onComplete(); s.tick()
     assert(wasCompleted, "wasCompleted should be true")

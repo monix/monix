@@ -70,19 +70,37 @@ final class TrampolineExecutionContext private (underlying: ExecutionContext)
   override def execute(runnable: Runnable): Unit =
     localTasks.get match {
       case null =>
-        // If we aren't in local mode yet, start local loop
-        localTasks.set(Nil)
-        val parentContext = localContext.get()
-        try {
-          localContext.set(trampolineContext)
-          localRunLoop(runnable)
-        } finally {
-          localContext.set(parentContext)
-        }
+        // Optimal execution happens when we can access
+        // BlockContext.contextLocal
+        if (localContext ne null)
+          startLoopOptimal(runnable)
+        else
+          startLoopNormal(runnable)
+
       case some =>
         // If we are already in batching mode, add to stack
         localTasks.set(runnable :: some)
     }
+
+  private def startLoopOptimal(runnable: Runnable): Unit = {
+    // If we aren't in local mode yet, start local loop
+    localTasks.set(Nil)
+    val parentContext = localContext.get()
+    try {
+      localContext.set(trampolineContext)
+      localRunLoop(runnable)
+    } finally {
+      localContext.set(parentContext)
+    }
+  }
+
+  private def startLoopNormal(runnable: Runnable): Unit = {
+    // If we aren't in local mode yet, start local loop
+    localTasks.set(Nil)
+    BlockContext.withBlockContext(trampolineContext) {
+      localRunLoop(runnable)
+    }
+  }
 
   @tailrec private def localRunLoop(head: Runnable): Unit = {
     try {
@@ -139,12 +157,23 @@ object TrampolineExecutionContext {
   /** Returns the `localContext`, allowing us to bypass calling
     * `BlockContext.withBlockContext`, as an optimization trick.
     */
-  private val localContext: ThreadLocal[BlockContext] = {
-    val method = BlockContext.getClass.getDeclaredMethods
-      .find(_.getName.endsWith("contextLocal"))
-      .getOrElse(throw new NoSuchMethodError("BlockContext.contextLocal"))
+  private final val localContext: ThreadLocal[BlockContext] = {
+    try {
+      val methods = BlockContext.getClass.getDeclaredMethods
+        .filter(m => m.getParameterCount == 0 && m.getReturnType == classOf[ThreadLocal[_]])
+        .toList
 
-    method.setAccessible(true)
-    method.invoke(BlockContext).asInstanceOf[ThreadLocal[BlockContext]]
+      methods match {
+        case m :: Nil =>
+          m.setAccessible(true)
+          m.invoke(BlockContext).asInstanceOf[ThreadLocal[BlockContext]]
+        case _ =>
+          throw new NoSuchMethodError("BlockContext.contextLocal")
+      }
+    } catch {
+      case _: NoSuchMethodError => null
+      case _: SecurityException => null
+      case NonFatal(_) => null
+    }
   }
 }
