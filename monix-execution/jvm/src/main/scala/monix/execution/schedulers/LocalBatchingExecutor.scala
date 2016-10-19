@@ -37,25 +37,23 @@ import scala.util.control.NonFatal
   * optimization by `Task` in processing its internal callbacks.
   */
 trait LocalBatchingExecutor extends Scheduler {
-  private[this] val localContext = LocalBatchingExecutor.localContext
+  private[this] final val localContext = LocalBatchingExecutor.localContext
   private[this] val localTasks = new ThreadLocal[List[Runnable]]()
 
   protected def executeAsync(r: Runnable): Unit
 
   override final def execute(runnable: Runnable): Unit =
     runnable match {
-      case _: LocalRunnable =>
+      case ref: LocalRunnable =>
         localTasks.get match {
           case null =>
-            // If we aren't in local mode yet, start local loop
-            localTasks.set(Nil)
-            val parentContext = localContext.get()
-            try {
-              localContext.set(localBlockContext)
-              localRunLoop(runnable)
-            } finally {
-              localContext.set(parentContext)
-            }
+            // Optimal execution happens when we can access
+            // BlockContext.contextLocal
+            if (localContext ne null)
+              startLoopOptimal(ref)
+            else
+              startLoopNormal(ref)
+
           case some =>
             // If we are already in batching mode, add to stack
             localTasks.set(runnable :: some)
@@ -64,6 +62,26 @@ trait LocalBatchingExecutor extends Scheduler {
         // No local execution, forwards to underlying context
         executeAsync(runnable)
     }
+
+  private final def startLoopOptimal(runnable: LocalRunnable): Unit = {
+    // If we aren't in local mode yet, start local loop
+    localTasks.set(Nil)
+    val parentContext = localContext.get()
+    try {
+      localContext.set(localBlockContext)
+      localRunLoop(runnable)
+    } finally {
+      localContext.set(parentContext)
+    }
+  }
+
+  private final def startLoopNormal(runnable: LocalRunnable): Unit = {
+    // If we aren't in local mode yet, start local loop
+    localTasks.set(Nil)
+    BlockContext.withBlockContext(localBlockContext) {
+      localRunLoop(runnable)
+    }
+  }
 
   private[this] val localBlockContext: BlockContext =
     new BlockContext {
@@ -118,12 +136,23 @@ object LocalBatchingExecutor {
   /** Returns the `localContext`, allowing us to bypass calling
     * `BlockContext.withBlockContext`, as an optimization trick.
     */
-  private val localContext: ThreadLocal[BlockContext] = {
-    val method = BlockContext.getClass.getDeclaredMethods
-      .find(_.getName.endsWith("contextLocal"))
-      .getOrElse(throw new NoSuchMethodError("BlockContext.contextLocal"))
+  private final val localContext: ThreadLocal[BlockContext] = {
+    try {
+      val methods = BlockContext.getClass.getDeclaredMethods
+        .filter(m => m.getParameterCount == 0 && m.getReturnType == classOf[ThreadLocal[_]])
+        .toList
 
-    method.setAccessible(true)
-    method.invoke(BlockContext).asInstanceOf[ThreadLocal[BlockContext]]
+      methods match {
+        case m :: Nil =>
+          m.setAccessible(true)
+          m.invoke(BlockContext).asInstanceOf[ThreadLocal[BlockContext]]
+        case _ =>
+          throw new NoSuchMethodError("BlockContext.contextLocal")
+      }
+    } catch {
+      case _: NoSuchMethodError => null
+      case _: SecurityException => null
+      case NonFatal(_) => null
+    }
   }
 }
