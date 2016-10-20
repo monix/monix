@@ -17,25 +17,25 @@
 
 package monix.eval.internal
 
+import monix.eval.Task.Options
 import monix.eval.{Callback, Task}
-import monix.execution.schedulers.ExecutionModel
 import scala.util.control.NonFatal
 
-private[monix] object TaskExecuteWithModel {
+private[monix] object TaskExecuteWithOptions {
   /**
-    * Implementation for `Task.executeWithModel`
+    * Implementation for `Task.executeWithOptions`
     */
-  def apply[A](self: Task[A], em: ExecutionModel): Task[A] =
+  def apply[A](self: Task[A], f: Options => Options): Task[A] =
     Task.unsafeCreate { (context, cb) =>
+      implicit val s = context.scheduler
       var streamErrors = true
       try {
-        implicit val s2 = context.scheduler.withExecutionModel(em)
-        val context2 = context.copy(scheduler = s2)
+        val context2 = context.copy(options = f(context.options))
         streamErrors = false
         Task.unsafeStartTrampolined[A](self, context2, Callback.async(cb))
       } catch {
         case NonFatal(ex) =>
-          if (streamErrors) cb.onError(ex)
+          if (streamErrors) cb.asyncOnError(ex)
           else context.scheduler.reportFailure(ex)
       }
     }

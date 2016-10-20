@@ -26,19 +26,18 @@ private[monix] object TaskDelayExecution {
     * Implementation for `Task.delayExecution`
     */
   def apply[A](self: Task[A], timespan: FiniteDuration): Task[A] =
-    Task.unsafeCreate { (scheduler, conn, frameRef, cb) =>
-      implicit val s = scheduler
+    Task.unsafeCreate { (context, cb) =>
+      implicit val s = context.scheduler
+      val conn = context.connection
       val c = SingleAssignmentCancelable()
       conn push c
 
       c := s.scheduleOnce(timespan.length, timespan.unit, new Runnable {
         def run(): Unit = {
           conn.pop()
-          // We had an async boundary, as we mustreset the frame
-          frameRef.reset()
-
-          Task.unsafeStartNow(
-            self, scheduler, conn, frameRef, Callback.async(cb))
+          // We had an async boundary, as we must reset the frame
+          context.frameRef.reset()
+          Task.unsafeStartNow(self, context, Callback.async(cb))
         }
       })
     }

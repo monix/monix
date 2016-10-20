@@ -21,7 +21,6 @@ import monix.execution.Cancelable
 import monix.execution.internal.Platform
 import monix.execution.schedulers.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.schedulers.TestScheduler
-
 import scala.util.Success
 
 object TaskForkSuite extends BaseTestSuite {
@@ -92,7 +91,7 @@ object TaskForkSuite extends BaseTestSuite {
   }
 
   test("Task.executeWithModel should work") { implicit s =>
-    val task = Task.now(1).executeWithModel(_ => AlwaysAsyncExecution())
+    val task = Task.now(1).executeWithModel(AlwaysAsyncExecution)
     val f = task.runAsync
 
     assertEquals(f.value, None)

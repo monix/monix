@@ -28,8 +28,10 @@ private[monix] object TaskChooseFirstOf {
     * Implementation for `Task.chooseFirstOf`.
     */
   def apply[A,B](fa: Task[A], fb: Task[B]): Task[Either[(A, CancelableFuture[B]), (CancelableFuture[A], B)]] =
-    Task.unsafeCreate { (scheduler, conn, frameRef, cb) =>
-      implicit val s = scheduler
+    Task.unsafeCreate { (context, cb) =>
+      implicit val s = context.scheduler
+      val conn = context.connection
+
       val pa = Promise[A]()
       val pb = Promise[B]()
 
@@ -38,8 +40,11 @@ private[monix] object TaskChooseFirstOf {
       val connB = StackedCancelable()
       conn push CompositeCancelable(connA, connB)
 
+      val contextA = context.copy(connection = connA)
+      val contextB = context.copy(connection = connB)
+
       // First task: A
-      Task.unsafeStartAsync(fa, scheduler, connA, frameRef, new Callback[A] {
+      Task.unsafeStartAsync(fa, contextA, new Callback[A] {
         def onSuccess(valueA: A): Unit =
           if (isActive.getAndSet(false)) {
             val futureB = CancelableFuture(pb.future, connB)
@@ -60,7 +65,7 @@ private[monix] object TaskChooseFirstOf {
       })
 
       // Second task: B
-      Task.unsafeStartAsync(fb, scheduler, connB, frameRef, new Callback[B] {
+      Task.unsafeStartAsync(fb, contextB, new Callback[B] {
         def onSuccess(valueB: B): Unit =
           if (isActive.getAndSet(false)) {
             val futureA = CancelableFuture(pa.future, connA)

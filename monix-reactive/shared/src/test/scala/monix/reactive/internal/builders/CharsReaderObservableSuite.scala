@@ -68,7 +68,7 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
   }
 
   test("it works for AlwaysAsyncExecution") {
-    implicit val s = TestScheduler(AlwaysAsyncExecution())
+    implicit val s = TestScheduler(AlwaysAsyncExecution)
     val string = randomString()
     val in = new StringReader(string)
 
@@ -83,7 +83,7 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
   }
 
   test("it works for SynchronousExecution") {
-    implicit val s = TestScheduler(SynchronousExecution())
+    implicit val s = TestScheduler(SynchronousExecution)
 
     var wasCompleted = 0
     val received = ArrayBuffer.empty[Char]
@@ -154,7 +154,7 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
   }
 
   test("closes the file handle on cancel") {
-    implicit val s = TestScheduler(AlwaysAsyncExecution())
+    implicit val s = TestScheduler(AlwaysAsyncExecution)
 
     var wasClosed = false
     val in = randomReaderWithOnFinish(() => wasClosed = true)

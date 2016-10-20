@@ -120,7 +120,7 @@ object TrampolineSchedulerSuite extends TestSuite[(Scheduler, TestScheduler)] {
   }
 
   test("withExecutionModel") { case (s,_) =>
-    val em = AlwaysAsyncExecution()
+    val em = AlwaysAsyncExecution
     val s2 = s.withExecutionModel(em)
 
     assert(s2.isInstanceOf[TrampolineScheduler], "s2.isInstanceOf[TrampolineScheduler]")

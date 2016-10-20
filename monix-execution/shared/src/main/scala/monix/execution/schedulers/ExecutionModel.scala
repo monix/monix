@@ -70,40 +70,13 @@ sealed abstract class ExecutionModel extends Product with Serializable {
     * cycle in the run-loop should execute asynchronously.
     */
   def nextFrameIndex(current: Int): Int
-
-  /** A hint instructing run-loops that auto-cancellation can be used.
-    *
-    * This property being set to `true` is a hint for run-loops, such
-    * as when evaluating a `Task`, that the processing can be canceled
-    * without signaling the downstream consumer. In the context of a
-    * `Task` for example, if this parameter is set to `true`, it means
-    * that a loop described by `Task.flatMap` is automatically
-    * cancelable.
-    *
-    * By default this property should be set to `true` and modified to
-    * `false` only when needed. Disabling auto-cancelable loops is
-    * sometimes useful because the act of cancellation is often
-    * concurrent with the producer pushing data into consumer(s) and
-    * thus access to resources have to be synchronized. Thus disabling
-    * the auto-cancellation logic of a run-loop can be a useful
-    * optimization.
-    */
-  val autoCancelableLoops: Boolean
-
-  /** Returns a new [[ExecutionModel]] value with the
-    * given value for the [[autoCancelableLoops]] property.
-    */
-  def withAutoCancelableLoops(value: Boolean): ExecutionModel
 }
 
 object ExecutionModel {
   /** [[ExecutionModel]] specifying that execution should be
     * synchronous (immediate, trampolined) for as long as possible.
     */
-  final case class SynchronousExecution(
-    autoCancelableLoops: Boolean = true)
-    extends ExecutionModel {
-
+  case object SynchronousExecution extends ExecutionModel {
     /** The [[ExecutionModel.recommendedBatchSize]] for the
       * [[SynchronousExecution]] type is set to the maximum power
       * of 2 expressible with a `Int`, which is 2^30^ (or 1,073,741,824).
@@ -117,20 +90,13 @@ object ExecutionModel {
       * a positive constant.
       */
     def nextFrameIndex(current: Int): Int = 1
-
-    // Updates the [[autoCancelableLoops]] property
-    def withAutoCancelableLoops(value: Boolean): SynchronousExecution =
-      copy(autoCancelableLoops = value)
   }
 
   /** [[ExecutionModel]] that specifies a run-loop should always do
     * async execution of tasks, forking logical threads
     * on each step.
     */
-  final case class AlwaysAsyncExecution(
-    autoCancelableLoops: Boolean = true)
-    extends ExecutionModel {
-
+  case object AlwaysAsyncExecution extends ExecutionModel {
     /** The [[ExecutionModel.recommendedBatchSize]] for the
       * [[SynchronousExecution]] type is set to one.
       */
@@ -144,10 +110,6 @@ object ExecutionModel {
       * should always be async.
       */
     def nextFrameIndex(current: Int): Int = 0
-
-    // Updates the [[autoCancelableLoops]] property
-    def withAutoCancelableLoops(value: Boolean): AlwaysAsyncExecution =
-      copy(autoCancelableLoops = value)
   }
 
   /** [[ExecutionModel]] specifying an mixed execution mode under
@@ -163,8 +125,7 @@ object ExecutionModel {
     * the configuration can be fine-tuned.
     */
   final case class BatchedExecution(
-    private val batchSize: Int,
-    autoCancelableLoops: Boolean = true)
+    private val batchSize: Int)
     extends ExecutionModel {
 
     val recommendedBatchSize = math.nextPowerOf2(batchSize)
@@ -172,43 +133,16 @@ object ExecutionModel {
 
     def nextFrameIndex(current: Int): Int =
       (current + 1) & batchedExecutionModulus
-
-    // Updates the [[autoCancelableLoops]] property
-    def withAutoCancelableLoops(value: Boolean): ExecutionModel =
-      copy(autoCancelableLoops = value)
   }
 
   /** Extension methods for [[ExecutionModel]]. */
   implicit final class Extensions(val self: ExecutionModel) extends AnyVal {
-    /** Returns a [[SynchronousExecution]] value initialized
-      * with the options of the source.
-      */
-    def synchronous: SynchronousExecution =
-      SynchronousExecution(self.autoCancelableLoops)
-
-    /** Returns a [[AlwaysAsyncExecution]] value initialized
-      * with the options of the source.
-      */
-    def alwaysAsync: AlwaysAsyncExecution =
-      AlwaysAsyncExecution(self.autoCancelableLoops)
-
-    /** Returns a [[BatchedExecution]] value initialized
-      * with the options of the source.
-      *
-      * @param batchSize is the recommended batch size,
-      *        auto-initialized to a platform default, see
-      *        the description of [[BatchedExecution]] for
-      *        details.
-      */
-    def batched(batchSize: Int = Platform.recommendedBatchSize): BatchedExecution =
-      BatchedExecution(batchSize, self.autoCancelableLoops)
-
     /** Returns `true` if this execution model is
       * [[AlwaysAsyncExecution]] or `false` otherwise.
       */
     def isAlwaysAsync: Boolean =
       self match {
-        case AlwaysAsyncExecution(_) => true
+        case AlwaysAsyncExecution => true
         case _ => false
       }
 
@@ -217,7 +151,7 @@ object ExecutionModel {
       */
     def isSynchronous: Boolean =
       self match {
-        case SynchronousExecution(_) => true
+        case SynchronousExecution => true
         case _ => false
       }
 
@@ -226,14 +160,11 @@ object ExecutionModel {
       */
     def isBatched: Boolean =
       self match {
-        case BatchedExecution(_,_) => true
+        case BatchedExecution(_) => true
         case _ => false
       }
   }
 
   final val Default: ExecutionModel =
-    BatchedExecution(
-      batchSize = Platform.recommendedBatchSize,
-      autoCancelableLoops = true
-    )
+    BatchedExecution(Platform.recommendedBatchSize)
 }

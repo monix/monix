@@ -32,7 +32,7 @@ import scala.language.experimental.macros
 @implicitNotFound(
   "Cannot find an implicit Scheduler, either " +
   "import monix.execution.Scheduler.Implicits.global or use a custom one")
-abstract class Scheduler extends ExecutionContext with UncaughtExceptionReporter {
+trait Scheduler extends ExecutionContext with UncaughtExceptionReporter {
   /** Schedules the given `runnable` for immediate execution. */
   def execute(runnable: Runnable): Unit
 

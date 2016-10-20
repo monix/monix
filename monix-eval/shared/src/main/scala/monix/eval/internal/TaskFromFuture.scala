@@ -34,23 +34,26 @@ private[monix] object TaskFromFuture {
       // Do we have a CancelableFuture?
       case c: Cancelable =>
         // Cancelable future, needs canceling
-        Task.unsafeCreate { (s, conn, _, cb) =>
+        Task.unsafeCreate { (context, cb) =>
+          import context.implicitScheduler
           // Already completed future?
-          if (f.isCompleted) cb.asyncApply(f.value.get)(s) else {
+          if (f.isCompleted) cb.asyncApply(f.value.get) else {
+            val conn = context.connection
             conn.push(c)
             f.onComplete { result =>
               conn.pop()
               cb(result)
-            }(s)
+            }
           }
         }
       case _ =>
         // Simple future, convert directly
-        Task.unsafeCreate { (s, conn, _, cb) =>
+        Task.unsafeCreate { (context, cb) =>
+          import context.implicitScheduler
           if (f.isCompleted)
-            cb.asyncApply(f.value.get)(s)
+            cb.asyncApply(f.value.get)
           else
-            f.onComplete(cb)(s)
+            f.onComplete(cb)
         }
     }
   }

@@ -26,21 +26,22 @@ private[monix] object TaskDelayResult {
     * Implementation for `Task.delayResult`
     */
   def apply[A](self: Task[A], timespan: FiniteDuration): Task[A] =
-    Task.unsafeCreate { (scheduler, conn, frameRef, cb) =>
-      implicit val s = scheduler
+    Task.unsafeCreate { (context, cb) =>
+      implicit val s = context.scheduler
+      val conn = context.connection
 
-      Task.unsafeStartAsync(self, scheduler, conn, frameRef,
+      Task.unsafeStartAsync(self, context,
         new Callback[A] {
           def onSuccess(value: A): Unit = {
             val task = SingleAssignmentCancelable()
             conn push task
 
             // Delaying result
-            task := scheduler.scheduleOnce(timespan.length, timespan.unit,
+            task := s.scheduleOnce(timespan.length, timespan.unit,
               new Runnable {
                 def run(): Unit = {
                   conn.pop()
-                  frameRef.reset()
+                  context.frameRef.reset()
                   cb.asyncOnSuccess(value)
                 }
               })

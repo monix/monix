@@ -68,7 +68,7 @@ object InputStreamObservableSuite extends SimpleTestSuite {
   }
 
   test("it works for AlwaysAsyncExecution") {
-    implicit val s = TestScheduler(AlwaysAsyncExecution())
+    implicit val s = TestScheduler(AlwaysAsyncExecution)
     val array = randomByteArray()
     val in = new ByteArrayInputStream(array)
 
@@ -83,7 +83,7 @@ object InputStreamObservableSuite extends SimpleTestSuite {
   }
 
   test("it works for SynchronousExecution") {
-    implicit val s = TestScheduler(SynchronousExecution())
+    implicit val s = TestScheduler(SynchronousExecution)
 
     var wasCompleted = 0
     val received = ListBuffer.empty[Byte]
@@ -154,7 +154,7 @@ object InputStreamObservableSuite extends SimpleTestSuite {
   }
 
   test("closes the file handle on cancel") {
-    implicit val s = TestScheduler(AlwaysAsyncExecution())
+    implicit val s = TestScheduler(AlwaysAsyncExecution)
 
     var wasClosed = false
     val in = randomInputWithOnFinish(() => wasClosed = true)

@@ -24,14 +24,14 @@ private[monix] object TaskDelayExecutionWith {
     * Implementation for `Task.delayExecutionWith`
     */
   def apply[A](self: Task[A], trigger: Task[Any]): Task[A] =
-    Task.unsafeCreate { (scheduler, conn, frameRef, cb) =>
-      implicit val s = scheduler
+    Task.unsafeCreate { (context, cb) =>
+      implicit val s = context.scheduler
 
-      Task.unsafeStartAsync(trigger, scheduler, conn, frameRef,
+      Task.unsafeStartAsync(trigger, context,
         new Callback[Any] {
           def onSuccess(value: Any): Unit = {
             // Async boundary forced, prevents stack-overflows
-            Task.unsafeStartAsync(self, scheduler, conn, frameRef, Callback.async(cb))
+            Task.unsafeStartAsync(self, context, Callback.async(cb))
           }
 
           def onError(ex: Throwable): Unit =

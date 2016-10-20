@@ -26,8 +26,10 @@ private[monix] object TaskChooseFirstOfList {
     * Implementation for `Task.chooseFirstOfList`
     */
   def apply[A](tasks: TraversableOnce[Task[A]]): Task[A] =
-    Task.unsafeCreate { (scheduler, conn, frameRef, callback) =>
-      implicit val s = scheduler
+    Task.unsafeCreate { (context, callback) =>
+      implicit val s = context.scheduler
+      val conn = context.connection
+
       val isActive = Atomic.withPadding(true, PaddingStrategy.LeftRight128)
       val composite = CompositeCancelable()
       conn.push(composite)
@@ -37,9 +39,10 @@ private[monix] object TaskChooseFirstOfList {
       while (isActive.get && cursor.hasNext) {
         val task = cursor.next()
         val taskCancelable = StackedCancelable()
+        val taskContext = context.copy(connection = taskCancelable)
         composite += taskCancelable
 
-        Task.unsafeStartAsync(task, scheduler, taskCancelable, frameRef, new Callback[A] {
+        Task.unsafeStartAsync(task, taskContext, new Callback[A] {
           def onSuccess(value: A): Unit =
             if (isActive.getAndSet(false)) {
               composite -= taskCancelable
@@ -55,7 +58,7 @@ private[monix] object TaskChooseFirstOfList {
               conn.popAndCollapse(taskCancelable)
               callback.asyncOnError(ex)
             } else {
-              scheduler.reportFailure(ex)
+              s.reportFailure(ex)
             }
         })
       }

@@ -25,13 +25,14 @@ private[monix] object TaskDoOnCancel {
     * Implementation for `Task.doOnCancel`
     */
   def apply[A](self: Task[A], callback: Task[Unit]): Task[A] =
-    Task.unsafeCreate { (scheduler, conn, frameRef, onFinish) =>
-      implicit val s = scheduler
+    Task.unsafeCreate { (context, onFinish) =>
+      implicit val s = context.scheduler
       val c = Cancelable(() => callback.runAsync(Callback.empty))
+      val conn = context.connection
       conn.push(c)
 
       // Light asynchronous boundary
-      Task.unsafeStartTrampolined(self, s, conn, frameRef, new Callback[A] {
+      Task.unsafeStartTrampolined(self, context, new Callback[A] {
         def onSuccess(value: A): Unit = {
           conn.pop()
           onFinish.asyncOnSuccess(value)

@@ -1185,17 +1185,15 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * locally. Example:
     *
     * {{{
-    *   observable.executeWithModel(_ => AlwaysAsyncExecution())
+    *   observable.executeWithModel(AlwaysAsyncExecution)
     * }}}
     *
-    * @param f is a function that will receive the
+    * @param em is the
     *        [[monix.execution.schedulers.ExecutionModel ExecutionModel]]
-    *        of the injected [[monix.execution.Scheduler Scheduler]]
-    *        (on `subscribe`) and that must return a transformed
-    *        execution model with which the source will get executed.
+    *        that will be used when evaluating the source.
     */
-  def executeWithModel(f: ExecutionModel => ExecutionModel): Self[A] =
-    self.transform(source => new ExecuteWithModelObservable[A](source, f))
+  def executeWithModel(em: ExecutionModel): Self[A] =
+    self.transform(source => new ExecuteWithModelObservable[A](source, em))
 
   /** If the connection is [[monix.execution.Cancelable.cancel cancelled]]
     * then trigger a `CancellationException`.

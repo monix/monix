@@ -98,8 +98,8 @@ object AsyncSchedulerSuite extends SimpleTestSuite {
     import monix.execution.schedulers.ExecutionModel.AlwaysAsyncExecution
     import monix.execution.Scheduler
 
-    val s: Scheduler = Scheduler(AlwaysAsyncExecution())
-    assertEquals(s.executionModel, AlwaysAsyncExecution())
+    val s: Scheduler = Scheduler(AlwaysAsyncExecution)
+    assertEquals(s.executionModel, AlwaysAsyncExecution)
 
     val latch = new CountDownLatch(1)
     s.execute(new Runnable {

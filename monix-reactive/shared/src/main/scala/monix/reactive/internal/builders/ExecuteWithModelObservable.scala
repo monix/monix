@@ -25,15 +25,12 @@ import scala.concurrent.Future
 import scala.util.control.NonFatal
 
 private[reactive]
-final class ExecuteWithModelObservable[A](
-  source: Observable[A],
-  f: ExecutionModel => ExecutionModel)
+final class ExecuteWithModelObservable[A](source: Observable[A], em: ExecutionModel)
   extends Observable[A] {
 
   override def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
     var streamErrors = true
     try {
-      val em = f(out.scheduler.executionModel)
       val newS = out.scheduler.withExecutionModel(em)
       streamErrors = false
 

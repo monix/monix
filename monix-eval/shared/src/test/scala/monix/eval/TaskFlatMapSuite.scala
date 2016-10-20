@@ -22,7 +22,7 @@ import monix.execution.internal.Platform
 import scala.util.{Failure, Success, Try}
 
 object TaskFlatMapSuite extends BaseTestSuite {
-  test("runAsync flatMap loop is not cancelable if autoCancelableLoops=false") { implicit s =>
+  test("runAsync flatMap loop is not cancelable if autoCancelableRunLoops=false") { implicit s =>
     val maxCount = Platform.recommendedBatchSize * 4
 
     def loop(count: AtomicInt): Task[Unit] =
@@ -31,7 +31,7 @@ object TaskFlatMapSuite extends BaseTestSuite {
 
     val atomic = Atomic(0)
     val f = loop(atomic)
-      .executeWithModel(_.withAutoCancelableLoops(false))
+      .executeWithOptions(_.disableAutoCancelableRunLoops)
       .runAsync
 
     f.cancel(); s.tick()
@@ -49,7 +49,9 @@ object TaskFlatMapSuite extends BaseTestSuite {
         Task.unit.flatMap(_ => loop(count))
 
     val atomic = Atomic(0)
-    val f = loop(atomic).executeWithModel(_.withAutoCancelableLoops(true)).runAsync
+    val f = loop(atomic)
+      .executeWithOptions(_.enableAutoCancelableRunLoops)
+      .runAsync
 
     assertEquals(atomic.get, expected1)
     f.cancel()
@@ -72,7 +74,8 @@ object TaskFlatMapSuite extends BaseTestSuite {
     val atomic = Atomic(0)
     var result = Option.empty[Try[Unit]]
 
-    val c = loop(atomic).executeWithModel(_.withAutoCancelableLoops(true))
+    val c = loop(atomic)
+      .executeWithOptions(_.enableAutoCancelableRunLoops)
       .runAsync(new Callback[Unit] {
         def onSuccess(value: Unit): Unit =
           result = Some(Success(value))

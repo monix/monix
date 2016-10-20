@@ -49,7 +49,7 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
 
     assertEquals(received, Platform.recommendedBatchSize / 2 - 1)
     s.tickOne()
-    assertEquals(received, Platform.recommendedBatchSize - 1)
+    assertEquals(received, Platform.recommendedBatchSize - 2)
     s.tick()
     assertEquals(received, Platform.recommendedBatchSize * 3)
   }
@@ -84,12 +84,12 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
     cancelable.cancel()
     s.tick()
 
-    assertEquals(sum, s.executionModel.recommendedBatchSize - 1)
+    assertEquals(sum, s.executionModel.recommendedBatchSize - 2)
     assert(!wasCompleted)
   }
 
   test("should respect the ExecutionModel") { scheduler =>
-    implicit val s = scheduler.withExecutionModel(AlwaysAsyncExecution())
+    implicit val s = scheduler.withExecutionModel(AlwaysAsyncExecution)
 
     var received = 0
     val cancelable = Observable
@@ -97,7 +97,7 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
       .subscribe { x => received += 1; Continue }
 
     assertEquals(received, 0)
-    s.tickOne()
+    s.tickOne(); s.tickOne()
     assertEquals(received, 1)
     s.tickOne(); s.tickOne()
     assertEquals(received, 2)

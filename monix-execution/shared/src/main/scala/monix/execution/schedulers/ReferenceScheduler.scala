@@ -29,13 +29,7 @@ import monix.execution.{Cancelable, Scheduler}
   * you'll get [[Scheduler.scheduleWithFixedDelay]] and
   * [[Scheduler.scheduleAtFixedRate]] for free.
   */
-private[schedulers] abstract class ReferenceScheduler extends Scheduler {
-  /** Runs a block of code in this `ExecutionContext`. */
-  def execute(runnable: Runnable): Unit
-
-  /** Reports that an asynchronous computation failed. */
-  def reportFailure(t: Throwable): Unit
-
+trait ReferenceScheduler extends Scheduler {
   override def currentTimeMillis(): Long =
     System.currentTimeMillis()
 

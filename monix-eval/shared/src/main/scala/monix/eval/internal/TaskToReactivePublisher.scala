@@ -33,21 +33,25 @@ private[monix] object TaskToReactivePublisher {
         out.onSubscribe(new Subscription {
           private[this] var isActive = true
           private[this] val conn = StackedCancelable()
+          private[this] val context =
+            Task.Context(s, conn, Task.startFrameRef(), Task.defaultOptions)
 
           def request(n: Long): Unit = {
             require(n > 0, "n must be strictly positive, according to " +
               "the Reactive Streams contract, rule 3.9")
 
-            if (isActive) Task.unsafeStartAsync[A](self, s, conn, Task.startFrameRef(),
-              Callback.safe(new Callback[A] {
-                def onError(ex: Throwable): Unit =
-                  out.onError(ex)
+            if (isActive) {
+              Task.unsafeStartAsync[A](self, context,
+                Callback.safe(new Callback[A] {
+                  def onError(ex: Throwable): Unit =
+                    out.onError(ex)
 
-                def onSuccess(value: A): Unit = {
-                  out.onNext(value)
-                  out.onComplete()
-                }
-              }))
+                  def onSuccess(value: A): Unit = {
+                    out.onNext(value)
+                    out.onComplete()
+                  }
+                }))
+            }
           }
 
           def cancel(): Unit = {

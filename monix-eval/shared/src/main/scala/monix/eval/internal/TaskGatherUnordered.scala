@@ -31,32 +31,37 @@ private[monix] object TaskGatherUnordered {
     * Implementation for `Task.gatherUnordered`
     */
   def apply[A](in: TraversableOnce[Task[A]]): Task[List[A]] = {
-    Task.unsafeCreate { (scheduler, conn, frameRef, finalCallback) =>
+    Task.unsafeCreate { (context, finalCallback) =>
       // Forced asynchronous boundary
-      scheduler.executeTrampolined {
+      context.scheduler.executeTrampolined {
         @inline def maybeSignalFinal(
           ref: AtomicAny[State[A]],
           currentState: State[A],
-          conn: StackedCancelable,
+          mainConn: StackedCancelable,
           finalCallback: Callback[List[A]])
           (implicit s: Scheduler): Unit = {
 
           currentState match {
             case State.Active(list, 0) =>
               ref.lazySet(State.Complete)
+              mainConn.pop()
               finalCallback.asyncOnSuccess(list)
             case _ =>
               () // invalid state
           }
         }
 
-        @inline def reportError(stateRef: AtomicAny[State[A]], ex: Throwable)(implicit s: Scheduler): Unit = {
+        @inline def reportError(
+          stateRef: AtomicAny[State[A]],
+          mainConn: StackedCancelable,
+          ex: Throwable)(implicit s: Scheduler): Unit = {
+
           val currentState = stateRef.getAndSet(State.Complete)
           if (currentState != State.Complete) {
-            conn.pop().cancel()
+            mainConn.pop().cancel()
             finalCallback.asyncOnError(ex)
           } else {
-            scheduler.reportFailure(ex)
+            s.reportFailure(ex)
           }
         }
 
@@ -82,10 +87,11 @@ private[monix] object TaskGatherUnordered {
         val stateRef = Atomic.withPadding(State.empty[A], LeftRight128)
 
         try {
-          implicit val s = scheduler
+          implicit val s = context.scheduler
           // Represents the collection of cancelables for all started tasks
           val composite = CompositeCancelable()
-          conn.push(composite)
+          val mainConn = context.connection
+          mainConn.push(composite)
 
           // Collecting all cancelables in a buffer, because adding
           // cancelables one by one in our `CompositeCancelable` is
@@ -105,10 +111,11 @@ private[monix] object TaskGatherUnordered {
             continue = count % batchSize != 0 || stateRef.get.isActive
 
             val stacked = StackedCancelable()
+            val childCtx = context.copy(connection = stacked)
             allCancelables += stacked
 
             // Light asynchronous boundary
-            Task.unsafeStartTrampolined(task, scheduler, stacked, frameRef,
+            Task.unsafeStartTrampolined(task, childCtx,
               new Callback[A] {
                 @tailrec
                 def onSuccess(value: A): Unit = {
@@ -118,12 +125,12 @@ private[monix] object TaskGatherUnordered {
                     if (!stateRef.compareAndSet(current, update))
                       onSuccess(value) // retry
                     else
-                      maybeSignalFinal(stateRef, update, conn, finalCallback)
+                      maybeSignalFinal(stateRef, update, context.connection, finalCallback)
                   }
                 }
 
                 def onError(ex: Throwable): Unit =
-                  reportError(stateRef, ex)
+                  reportError(stateRef, mainConn, ex)
               })
           }
 
@@ -132,11 +139,11 @@ private[monix] object TaskGatherUnordered {
           composite ++= allCancelables
           // We are done triggering tasks, now we can allow the final
           // callback to be triggered
-          activate(stateRef, count, conn, finalCallback)(s)
+          activate(stateRef, count, mainConn, finalCallback)(s)
         }
         catch {
           case NonFatal(ex) =>
-            reportError(stateRef, ex)(scheduler)
+            reportError(stateRef, context.connection, ex)(context.scheduler)
         }
       }
     }

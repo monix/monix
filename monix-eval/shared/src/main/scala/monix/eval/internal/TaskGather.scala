@@ -31,9 +31,10 @@ private[monix] object TaskGather {
   def apply[A, M[X] <: TraversableOnce[X]](in: M[Task[A]])
     (implicit cbf: CanBuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] = {
 
-    Task.unsafeCreate { (scheduler, conn, frameRef, finalCallback) =>
+    Task.unsafeCreate { (context, finalCallback) =>
       // We need a monitor to synchronize on, per evaluation!
       val lock = new AnyRef
+      val mainConn = context.connection
 
       var tasks: Array[Task[A]] = null
       var results: Array[AnyRef] = null
@@ -46,13 +47,13 @@ private[monix] object TaskGather {
 
       // MUST BE synchronized by `lock`!
       // MUST NOT BE called if isActive == false!
-      @inline def maybeSignalFinal(conn: StackedCancelable, finalCallback: Callback[M[A]])
+      @inline def maybeSignalFinal(mainConn: StackedCancelable, finalCallback: Callback[M[A]])
         (implicit s: Scheduler): Unit = {
 
         completed += 1
         if (completed >= tasksCount) {
           isActive = false
-          conn.pop()
+          mainConn.pop()
 
           val builder = cbf(in)
           var idx = 0
@@ -68,23 +69,25 @@ private[monix] object TaskGather {
       }
 
       // MUST BE synchronized by `lock`!
-      @inline def reportError(ex: Throwable)(implicit s: Scheduler): Unit = {
+      @inline def reportError(mainConn: StackedCancelable, ex: Throwable)
+        (implicit s: Scheduler): Unit = {
+
         if (isActive) {
           isActive = false
           // This should cancel our CompositeCancelable
-          conn.pop().cancel()
+          mainConn.pop().cancel()
           tasks = null // GC relief
           results = null // GC relief
           finalCallback.asyncOnError(ex)
         } else {
-          scheduler.reportFailure(ex)
+          s.reportFailure(ex)
         }
       }
 
       // Light asynchronous boundary
-      scheduler.executeTrampolined(lock.synchronized {
+      context.scheduler.executeTrampolined(lock.synchronized {
         try {
-          implicit val s = scheduler
+          implicit val s = context.scheduler
           tasks = in.toArray
           tasksCount = tasks.length
 
@@ -95,7 +98,7 @@ private[monix] object TaskGather {
           else if (tasksCount == 1) {
             // If it's a single task, then execute it directly
             val source = tasks(0).map(r => (cbf(in) += r).result())
-            Task.unsafeStartNow(source, s, conn, frameRef, finalCallback)
+            Task.unsafeStartNow(source, context, finalCallback)
           }
           else if (tasksCount == 2) {
             // Optimizing for 2 tasks by calling `mapBoth`
@@ -105,7 +108,7 @@ private[monix] object TaskGather {
               b.result()
             }
 
-            Task.unsafeStartNow(source, s, conn, frameRef, finalCallback)
+            Task.unsafeStartNow(source, context, finalCallback)
           }
           else {
             results = new Array[AnyRef](tasksCount)
@@ -118,27 +121,28 @@ private[monix] object TaskGather {
             // We need a composite because we are potentially starting tasks
             // in paralel and thus we need to cancel everything
             val composite = CompositeCancelable()
-            conn.push(composite)
+            mainConn.push(composite)
 
             var idx = 0
             while (idx < tasksCount && isActive) {
               val currentTask = idx
               val stacked = StackedCancelable()
+              val childContext = context.copy(connection = stacked)
               allCancelables += stacked
 
               // Light asynchronous boundary
-              Task.unsafeStartTrampolined(tasks(idx), scheduler, stacked, frameRef,
+              Task.unsafeStartTrampolined(tasks(idx), childContext,
                 new Callback[A] {
                   def onSuccess(value: A): Unit =
                     lock.synchronized {
                       if (isActive) {
                         results(currentTask) = value.asInstanceOf[AnyRef]
-                        maybeSignalFinal(conn, finalCallback)
+                        maybeSignalFinal(mainConn, finalCallback)
                       }
                     }
 
                   def onError(ex: Throwable): Unit =
-                    lock.synchronized(reportError(ex))
+                    lock.synchronized(reportError(mainConn, ex))
                 })
 
               idx += 1
@@ -153,7 +157,7 @@ private[monix] object TaskGather {
           case NonFatal(ex) =>
             // We are still under the lock.synchronize block
             // so this call is safe
-            reportError(ex)(scheduler)
+            reportError(context.connection, ex)(context.scheduler)
         }
       })
     }

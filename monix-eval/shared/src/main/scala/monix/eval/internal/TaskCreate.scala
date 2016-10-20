@@ -44,23 +44,25 @@ private[monix] object TaskCreate {
       }
     }
 
-    Task.unsafeCreate { (scheduler, conn, frameRef, cb) =>
+    Task.unsafeCreate { (context, cb) =>
+      val s = context.scheduler
+      val conn = context.connection
       val c = SingleAssignmentCancelable()
       conn push c
 
       // Forcing a real asynchronous boundary,
       // otherwise stack-overflows can happen
-      scheduler.executeAsyncBatch(
+      s.executeAsyncBatch(
         try {
-          frameRef.reset()
-          c := register(scheduler, new CreateCallback(conn, cb)(scheduler))
+          context.frameRef.reset()
+          c := register(s, new CreateCallback(conn, cb)(s))
         }
         catch {
           case NonFatal(ex) =>
             // We cannot stream the error, because the callback might have
             // been called already and we'd be violating its contract,
             // hence the only thing possible is to log the error.
-            scheduler.reportFailure(ex)
+            s.reportFailure(ex)
         })
     }
   }

@@ -25,10 +25,10 @@ private[monix] object TaskDelayResultBySelector {
     * Implementation for `Task.delayResultBySelector`
     */
   def apply[A,B](self: Task[A], selector: A => Task[B]): Task[A] =
-    Task.unsafeCreate { (scheduler, conn, frameRef, cb) =>
-      implicit val s = scheduler
+    Task.unsafeCreate { (context, cb) =>
+      implicit val s = context.scheduler
 
-      Task.unsafeStartAsync(self, scheduler, conn, frameRef,
+      Task.unsafeStartAsync(self, context,
         new Callback[A] {
           def onSuccess(value: A): Unit = {
             var streamErrors = true
@@ -37,7 +37,7 @@ private[monix] object TaskDelayResultBySelector {
               streamErrors = false
 
               // Delaying result
-              Task.unsafeStartAsync(trigger, scheduler, conn, frameRef,
+              Task.unsafeStartAsync(trigger, context,
                 new Callback[B] {
                   def onSuccess(b: B): Unit = cb.asyncOnSuccess(value)
                   def onError(ex: Throwable): Unit = cb.asyncOnError(ex)
