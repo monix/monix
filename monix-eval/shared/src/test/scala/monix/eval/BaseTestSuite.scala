@@ -28,7 +28,7 @@ abstract class BaseTestSuite extends TestSuite[TestScheduler]
 
   def setup(): TestScheduler = TestScheduler()
   def tearDown(env: TestScheduler): Unit = {
-    assert(env.state.get.tasks.isEmpty, "should not have tasks left to execute")
+    assert(env.state.tasks.isEmpty, "should not have tasks left to execute")
   }
 
   implicit def isEquivToProp[A](p: IsEquiv[A])(implicit A: Eq[A]): Prop =

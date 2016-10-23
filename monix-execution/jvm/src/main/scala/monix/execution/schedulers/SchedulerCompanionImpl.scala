@@ -182,6 +182,23 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     )
   }
 
+  /** Builds a [[monix.execution.schedulers.TrampolineScheduler TrampolineScheduler]].
+    *
+    * @param underlying is the [[monix.execution.Scheduler Scheduler]]
+    *        to which the we defer to in case asynchronous or time-delayed
+    *        execution is needed
+    *
+    * @define executionModel is the preferred
+    *         [[monix.execution.schedulers.ExecutionModel ExecutionModel]],
+    *         a guideline for run-loops and producers of data. Use
+    *         [[monix.execution.schedulers.ExecutionModel.Default ExecutionModel.Default]]
+    *         for the default.
+    */
+  def trampoline(
+    underlying: Scheduler = Implicits.global,
+    executionModel: ExecutionModel = ExecutionModel.Default): Scheduler =
+    TrampolineScheduler(underlying, executionModel)
+
   /** Creates a [[monix.execution.Scheduler Scheduler]] meant for computational heavy tasks.
     *
     * Characteristics:

@@ -1,3 +1,22 @@
+## Version 2.0.4 (Oct 10, 2016)
+
+- [Bug #244](https://github.com/monixio/monix/issues/244):
+  AsyncScheduler.scheduleAtFixedRate and scheduleWithFixedDelay 
+  (on the JVM) have incorrect behavior
+
+## Version 2.0.3 (Oct 3, 2016)
+
+- [Bug #230](https://github.com/monixio/monix/issues/230):
+  Deadlock when blocking threads due to `LocalBatchingExecutor`
+  (affects `Task` usage)
+      
+## Version 2.0.2 (Sat 25, 2016)
+
+- [Issue #224](https://github.com/monixio/monix/issues/224):
+  `IllegalStateException` logged in parallel consumer, 
+  when streaming gets canceled due to a subscriber triggering 
+  an error          
+
 ## Version 2.0.1 (Sat 10, 2016)
 
 - [Issue #218](https://github.com/monixio/monix/issues/218):

@@ -27,7 +27,7 @@ object FutureUtilsSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
 
   def tearDown(env: TestScheduler): Unit = {
-    assert(env.state.get.tasks.isEmpty, "should not have tasks left to execute")
+    assert(env.state.tasks.isEmpty, "should not have tasks left to execute")
   }
 
   test("delayedResult") { implicit s =>

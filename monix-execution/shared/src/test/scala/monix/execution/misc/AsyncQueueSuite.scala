@@ -24,7 +24,7 @@ import scala.util.Success
 object AsyncQueueSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(env: TestScheduler): Unit =
-    assert(env.state.get.tasks.isEmpty, "should not have tasks left to execute")
+    assert(env.state.tasks.isEmpty, "should not have tasks left to execute")
 
   test("simple offer and poll") { implicit s =>
     val queue = AsyncQueue.empty[Int]

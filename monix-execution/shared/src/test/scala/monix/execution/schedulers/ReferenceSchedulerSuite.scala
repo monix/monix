@@ -23,11 +23,13 @@ import monix.execution.Cancelable
 import scala.concurrent.duration._
 
 object ReferenceSchedulerSuite extends SimpleTestSuite {
-  class DummyScheduler extends ReferenceScheduler {
-    val executionModel = ExecutionModel.Default
+  class DummyScheduler(
+    val underlying: TestScheduler = TestScheduler())
+    extends ReferenceScheduler {
+
+    def executionModel = ExecutionModel.Default
     def tick(time: FiniteDuration = Duration.Zero) = underlying.tick(time)
-    val underlying = TestScheduler()
-    def state = underlying.state
+    def state = underlying.statePula
     def execute(runnable: Runnable): Unit = underlying.execute(runnable)
     def reportFailure(t: Throwable): Unit = underlying.reportFailure(t)
     def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable =
@@ -62,7 +64,6 @@ object ReferenceSchedulerSuite extends SimpleTestSuite {
   test("schedule at fixed rate") {
     val s = new DummyScheduler
     var effect = 0
-
     val task = s.scheduleAtFixedRate(1.second, 2.seconds) { effect += 1 }
 
     s.tick(1.second)

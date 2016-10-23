@@ -20,6 +20,15 @@ package monix.eval
 import scala.util.Success
 
 object TaskMapBothSuite extends BaseTestSuite {
+  test("if both tasks are synchronous, then mapBoth is also synchronous") { implicit s =>
+    val ta = Task.eval(1)
+    val tb = Task.eval(2)
+
+    val r = Task.mapBoth(ta,tb)(_ + _)
+    val f = r.runAsync
+    assertEquals(f.value, Some(Success(3)))
+  }
+
   test("sum two async tasks") { implicit s =>
     val ta = Task(1)
     val tb = Task(2)

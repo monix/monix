@@ -127,12 +127,30 @@ sealed abstract class Coeval[+A] extends Serializable { self =>
       case Now(_) => Error(new NoSuchElementException("failed"))
     }
 
+  /** Returns a new task that upon evaluation will execute
+    * the given function for the generated element,
+    * transforming the source into a `Coeval[Unit]`.
+    *
+    * Similar in spirit with normal [[foreach]], but lazy,
+    * as obviously nothing gets executed at this point.
+    */
+  def foreachL(f: A => Unit): Coeval[Unit] =
+    self.map { a => f(a); () }
+
+  /** Triggers the evaluation of the source, executing
+    * the given function for the generated element.
+    *
+    * The application of this function has strict
+    * behavior, as the coeval is immediately executed.
+    */
+  def foreach(f: A => Unit): Unit =
+    foreachL(f).value
+
   /** Returns a new Coeval that applies the mapping function to
     * the element emitted by the source.
     */
   def map[B](f: A => B): Coeval[B] =
     flatMap(a => try Now(f(a)) catch { case NonFatal(ex) => Error(ex) })
-
 
   /** Creates a new [[Coeval]] that will expose any triggered error from
     * the source.
@@ -468,32 +486,39 @@ object Coeval {
     */
   sealed abstract class Attempt[+A] extends Coeval[A] with Product {
     self =>
+
+    /** Retrieve the (successful) value or throw the error.
+      *
+      * Alias for [[Coeval.value]].
+      */
+    final def get: A = value
+
     /** Returns true if value is a successful one. */
-    def isSuccess: Boolean = this match {
+    final def isSuccess: Boolean = this match {
       case Now(_) => true
       case _ => false
     }
 
     /** Returns true if result is an error. */
-    def isFailure: Boolean = this match {
+    final def isFailure: Boolean = this match {
       case Error(_) => true
       case _ => false
     }
 
-    override def failed: Attempt[Throwable] =
+    override final def failed: Attempt[Throwable] =
       self match {
         case Now(_) => Error(new NoSuchElementException("failed"))
         case Error(ex) => Now(ex)
       }
 
     /** Converts this attempt into a `scala.util.Try`. */
-    def asScala: Try[A] =
+    final def asScala: Try[A] =
       this match {
         case Now(a) => Success(a)
         case Error(ex) => Failure(ex)
       }
 
-    override def materializeAttempt: Attempt[Attempt[A]] =
+    override final def materializeAttempt: Attempt[Attempt[A]] =
       self match {
         case now@Now(_) =>
           Now(now)
@@ -501,13 +526,13 @@ object Coeval {
           Now(Error(ex))
       }
 
-    override def dematerializeAttempt[B](implicit ev: <:<[A, Attempt[B]]): Attempt[B] =
+    override final def dematerializeAttempt[B](implicit ev: <:<[A, Attempt[B]]): Attempt[B] =
       self match {
         case Now(now) => now
         case error@Error(_) => error
       }
 
-    override def memoize: Attempt[A] = this
+    override final def memoize: Attempt[A] = this
   }
 
   object Attempt {

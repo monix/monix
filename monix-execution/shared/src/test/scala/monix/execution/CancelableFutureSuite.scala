@@ -28,7 +28,7 @@ import scala.util.{Failure, Success}
 object CancelableFutureSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(env: TestScheduler): Unit =
-    assert(env.state.get.tasks.isEmpty, "should not have tasks left to execute")
+    assert(env.state.tasks.isEmpty, "should not have tasks left to execute")
 
   test("CancelableFuture.fromTry(success)") { implicit s =>
     val f = CancelableFuture.fromTry(Success(1))
@@ -58,9 +58,9 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
     s.tick()
     assertEquals(f.value, None)
 
-    assert(s.state.get.tasks.nonEmpty, "tasks.nonEmpty")
+    assert(s.state.tasks.nonEmpty, "tasks.nonEmpty")
     f.cancel()
-    assert(s.state.get.tasks.isEmpty, "tasks.isEmpty")
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
     assertEquals(f.value, None)
   }
 

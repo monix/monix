@@ -34,18 +34,22 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     executionModel: ExecutionModel = ExecutionModel.Default): Scheduler =
     AsyncScheduler(reporter, executionModel)
 
-  /**
-    * Builds a [[monix.execution.schedulers.TrampolineScheduler TrampolineScheduler]].
+  /** Builds a [[monix.execution.schedulers.TrampolineScheduler TrampolineScheduler]].
     *
-    * @param reporter is the [[UncaughtExceptionReporter]] that logs uncaught exceptions.
-    * @param executionModel is the preferred
-    *        [[monix.execution.schedulers.ExecutionModel ExecutionModel]],
-    *        a guideline for run-loops and producers of data.
+    * @param underlying is the [[monix.execution.Scheduler Scheduler]]
+    *        to which the we defer to in case asynchronous or time-delayed
+    *        execution is needed
+    *
+    * @define executionModel is the preferred
+    *         [[monix.execution.schedulers.ExecutionModel ExecutionModel]],
+    *         a guideline for run-loops and producers of data. Use
+    *         [[monix.execution.schedulers.ExecutionModel.Default ExecutionModel.Default]]
+    *         for the default.
     */
   def trampoline(
-    reporter: UncaughtExceptionReporter = LogExceptionsToStandardErr,
+    underlying: Scheduler = Implicits.global,
     executionModel: ExecutionModel = ExecutionModel.Default): Scheduler =
-    TrampolineScheduler(reporter, executionModel)
+    TrampolineScheduler(underlying, executionModel)
 
   /** The explicit global `Scheduler`. Invoke `global` when you want to provide the global
     * `Scheduler` explicitly.

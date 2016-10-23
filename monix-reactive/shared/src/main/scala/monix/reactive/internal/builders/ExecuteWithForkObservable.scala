@@ -15,16 +15,17 @@
  * limitations under the License.
  */
 
-package monix.execution.schedulers
+package monix.reactive.internal.builders
 
-import scala.concurrent.OnCompleteRunnable
+import monix.execution.Cancelable
+import monix.reactive.Observable
+import monix.reactive.observers.Subscriber
 
-/** A marker for callbacks that can be batched and
-  * executed locally.
-  *
-  * Idea was taken from the `scala.concurrent.Future`
-  * implementation. Credit should be given where due.
-  *
-  * DO NOT use unless you know what you're doing.
-  */
-abstract class LocalRunnable extends Runnable with OnCompleteRunnable
+private[reactive] final class ExecuteWithForkObservable[A](source: Observable[A])
+  extends Observable[A] {
+
+  def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
+    source.subscribeOn(subscriber.scheduler)
+      .unsafeSubscribeFn(subscriber)
+  }
+}

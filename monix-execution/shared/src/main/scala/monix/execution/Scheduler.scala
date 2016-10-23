@@ -32,7 +32,7 @@ import scala.language.experimental.macros
 @implicitNotFound(
   "Cannot find an implicit Scheduler, either " +
   "import monix.execution.Scheduler.Implicits.global or use a custom one")
-abstract class Scheduler extends ExecutionContext with UncaughtExceptionReporter {
+trait Scheduler extends ExecutionContext with UncaughtExceptionReporter {
   /** Schedules the given `runnable` for immediate execution. */
   def execute(runnable: Runnable): Unit
 
@@ -137,6 +137,36 @@ abstract class Scheduler extends ExecutionContext with UncaughtExceptionReporter
     * asynchronously.
     */
   def executionModel: ExecutionModel
+
+  /** Given a function that will receive the underlying
+    * [[monix.execution.schedulers.ExecutionModel ExecutionModel]],
+    * returns a new [[Scheduler]] reference, based on the source,
+    * that exposes the transformed `ExecutionModel`
+    * when queried by means of the [[executionModel]] property.
+    *
+    * This method enables reusing global scheduler references in
+    * a local scope, but with a slightly modified
+    * [[monix.execution.schedulers.ExecutionModel execution model]]
+    * to inject.
+    *
+    * The contract of this method (things you can rely on):
+    *
+    *  1. the source `Scheduler` must not be modified in any way
+    *  1. the implementation should wrap the source efficiently, such that the
+    *     result mirrors the source `Scheduler` in every way except for
+    *     the execution model
+    *
+    * Sample:
+    * {{{
+    *   import monix.execution.Scheduler.global
+    *
+    *   implicit val scheduler = {
+    *     val em = global.executionModel
+    *     global.withExecutionModel(em.withAutoCancelableLoops(true))
+    *   }
+    * }}}
+    */
+  def withExecutionModel(em: ExecutionModel): Scheduler
 }
 
 private[monix] trait SchedulerCompanion {
@@ -153,7 +183,7 @@ object Scheduler extends SchedulerCompanionImpl {
 
   /** Utilities complementing the `Scheduler` interface. */
   implicit final class Extensions(val source: Scheduler) extends AnyVal {
-    /** Schedules the given callback for immediate asynchronous
+    /** Schedules the given callback for asynchronous
       * execution in the thread-pool.
       *
       * Described as a macro, thus it has zero overhead compared
@@ -164,19 +194,42 @@ object Scheduler extends SchedulerCompanionImpl {
     def executeAsync(cb: => Unit): Unit =
       macro Macros.executeAsync
 
+    /** Schedules the given callback for asynchronous
+      * execution in the thread-pool, but also indicates the
+      * start of a
+      * [[monix.execution.schedulers.TrampolinedRunnable thread-local trampoline]]
+      * in case the scheduler is a
+      * [[monix.execution.schedulers.BatchingScheduler BatchingScheduler]].
+      *
+      * This utility is provided as an optimization. If you don't understand
+      * what this does, then don't worry about it.
+      *
+      * Described as a macro, thus it has zero overhead compared
+      * to doing `execute(new Runnable { ... })`
+      *
+      * @param cb the callback to execute asynchronously
+      */
+    def executeAsyncBatch(cb: => Unit): Unit =
+      macro Macros.executeAsyncBatch
+
     /** Schedules the given callback for immediate execution as a
-      * [[monix.execution.schedulers.LocalRunnable LocalRunnable]].
+      * [[monix.execution.schedulers.TrampolinedRunnable TrampolinedRunnable]].
       * Depending on the execution context, it might
       * get executed on the current thread by using an internal
       * trampoline, so it is still safe from stack-overflow exceptions.
       *
       * Described as a macro, thus it has zero overhead compared
-      * to doing `execute(new LocalRunnable { ... })`
+      * to doing `execute(new TrampolinedRunnable { ... })`
       *
       * @param cb the callback to execute asynchronously
       */
+    def executeTrampolined(cb: => Unit): Unit =
+      macro Macros.executeTrampolined
+
+    /** Deprecated. Use [[executeTrampolined]] instead. */
+    @deprecated("Renamed to `executeTrampolined`", since = "2.1.0")
     def executeLocal(cb: => Unit): Unit =
-      macro Macros.executeLocal
+      macro Macros.executeTrampolined
 
     /** Schedules a task to run in the future, after `initialDelay`.
       *

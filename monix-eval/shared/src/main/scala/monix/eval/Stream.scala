@@ -730,7 +730,7 @@ object Stream extends StreamInstances {
     (implicit E: MonadError[F,Throwable], M: Memoizable[F]) {
     self: Self[A] =>
 
-    import M.{applicative, monadEval}
+    import M.{applicative, monadEval, monad}
 
     /** Returns the underlying [[Stream]] that handles this stream. */
     def stream: Stream[F,A]

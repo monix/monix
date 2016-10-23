@@ -15,17 +15,24 @@
  * limitations under the License.
  */
 
-package monix.reactive.internal.builders
+package monix.eval
 
-import monix.execution.Cancelable
-import monix.reactive.Observable
-import monix.reactive.observers.Subscriber
+import minitest.SimpleTestSuite
+import monix.execution.Scheduler.Implicits.global
+import scala.concurrent.Await
+import scala.concurrent.duration._
 
-private[reactive] final class ForkObservable[A](source: Observable[A])
-  extends Observable[A] {
+object TaskBlockingSuite extends SimpleTestSuite {
+  test("blocking should work") {
+    val source1 = Task(100)
+    val source2 = Task(200).onErrorHandleWith { case e: Exception => Task.raiseError(e) }
 
-  def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
-    source.subscribeOn(subscriber.scheduler)
-      .unsafeSubscribeFn(subscriber)
+    val derived = source1.map { x =>
+      val r = Await.result(source2.runAsync, 10.seconds)
+      r + x
+    }
+
+    val result = Await.result(derived.runAsync, 10.seconds)
+    assertEquals(result, 300)
   }
 }

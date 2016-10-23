@@ -29,7 +29,7 @@ import scala.collection.mutable.ArrayBuffer
 object ConnectableSubscriberSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
-    assert(s.state.get.tasks.isEmpty)
+    assert(s.state.tasks.isEmpty)
   }
 
   test("should block onNext until connect") { implicit s =>

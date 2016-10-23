@@ -19,6 +19,7 @@ package monix.execution.schedulers
 
 import java.util.concurrent.TimeUnit
 import monix.execution.cancelables.MultiAssignmentCancelable
+import monix.execution.schedulers.ReferenceScheduler.WrappedScheduler
 import monix.execution.{Cancelable, Scheduler}
 
 /** Helper for building a [[Scheduler]].
@@ -28,20 +29,22 @@ import monix.execution.{Cancelable, Scheduler}
   * you'll get [[Scheduler.scheduleWithFixedDelay]] and
   * [[Scheduler.scheduleAtFixedRate]] for free.
   */
-private[schedulers] abstract class ReferenceScheduler extends Scheduler {
+trait ReferenceScheduler extends Scheduler {
   override def currentTimeMillis(): Long =
     System.currentTimeMillis()
 
   override def scheduleWithFixedDelay(initialDelay: Long, delay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
     val sub = MultiAssignmentCancelable()
 
-    def loop(initialDelay: Long, delay: Long): Unit =
-      sub := scheduleOnce(initialDelay, unit, new Runnable {
-        def run(): Unit = {
-          r.run()
-          loop(delay, delay)
-        }
-      })
+    def loop(initialDelay: Long, delay: Long): Unit = {
+      if (!sub.isCanceled)
+        sub := scheduleOnce(initialDelay, unit, new Runnable {
+          def run(): Unit = {
+            r.run()
+            loop(delay, delay)
+          }
+        })
+    }
 
     loop(initialDelay, delay)
     sub
@@ -50,34 +53,58 @@ private[schedulers] abstract class ReferenceScheduler extends Scheduler {
   override def scheduleAtFixedRate(initialDelay: Long, period: Long, unit: TimeUnit, r: Runnable): Cancelable = {
     val sub = MultiAssignmentCancelable()
 
-    def loop(initialDelayMs: Long, periodMs: Long): Unit = {
-      val startedAtMillis = currentTimeMillis()
+    def loop(initialDelayMs: Long, periodMs: Long): Unit =
+      if (!sub.isCanceled) {
+        sub := scheduleOnce(initialDelayMs, TimeUnit.MILLISECONDS, new Runnable {
+          def run(): Unit = {
+            // Measuring the duration of the task
+            val startedAtMillis = currentTimeMillis()
+            r.run()
 
-      sub := scheduleOnce(initialDelayMs, TimeUnit.MILLISECONDS, new Runnable {
-        def run(): Unit = {
-          r.run()
+            val delay = {
+              val durationMillis = currentTimeMillis() - startedAtMillis
+              val d = periodMs - durationMillis
+              if (d >= 0) d else 0
+            }
 
-          val delay = {
-            val durationMillis = currentTimeMillis() - startedAtMillis
-            val d = periodMs - durationMillis
-            if (d >= 0) d else 0
+            // Recursive call
+            loop(delay, periodMs)
           }
-
-          loop(delay, periodMs)
-        }
-      })
-    }
+        })
+      }
 
     val initialMs = TimeUnit.MILLISECONDS.convert(initialDelay, unit)
     val periodMs = TimeUnit.MILLISECONDS.convert(period, unit)
-
     loop(initialMs, periodMs)
     sub
   }
 
-  /** Runs a block of code in this `ExecutionContext`. */
-  def execute(runnable: Runnable): Unit
+  override def withExecutionModel(em: ExecutionModel): Scheduler =
+    WrappedScheduler(this, em)
+}
 
-  /** Reports that an asynchronous computation failed. */
-  def reportFailure(t: Throwable): Unit
+object ReferenceScheduler {
+  /** Wrapper around any scheduler implementation,
+    * for specifying any execution model.
+    */
+  private final case class WrappedScheduler(
+    s: Scheduler,
+    override val executionModel: ExecutionModel)
+    extends Scheduler {
+
+    override def execute(runnable: Runnable): Unit =
+      s.execute(runnable)
+    override def reportFailure(t: Throwable): Unit =
+      s.reportFailure(t)
+    override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable =
+      s.scheduleOnce(initialDelay, unit, r)
+    override def scheduleWithFixedDelay(initialDelay: Long, delay: Long, unit: TimeUnit, r: Runnable): Cancelable =
+      s.scheduleWithFixedDelay(initialDelay, delay, unit, r)
+    override def scheduleAtFixedRate(initialDelay: Long, period: Long, unit: TimeUnit, r: Runnable): Cancelable =
+      s.scheduleAtFixedRate(initialDelay, period, unit, r)
+    override def currentTimeMillis(): Long =
+      s.currentTimeMillis()
+    override def withExecutionModel(em: ExecutionModel): Scheduler =
+      copy(s, em)
+  }
 }

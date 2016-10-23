@@ -19,7 +19,8 @@ package monix.execution
 
 import monix.execution.Ack.{AckExtensions, Continue, Stop}
 import monix.execution.misc.{HygieneUtilMacros, InlineMacros}
-import monix.execution.schedulers.LocalRunnable
+import monix.execution.schedulers.{StartAsyncBatchRunnable, TrampolinedRunnable}
+
 import scala.concurrent.Future
 import scala.reflect.macros.whitebox
 
@@ -304,12 +305,30 @@ class Macros(override val c: whitebox.Context) extends InlineMacros with Hygiene
     inlineAndResetTree(tree)
   }
 
-  def executeLocal(cb: Tree): Tree = {
+  def executeTrampolined(cb: Tree): Tree = {
     val selfExpr = sourceFromScheduler(c.prefix.tree)
-    val LocalRunnableSymbol = symbolOf[LocalRunnable]
+    val TrampolinedRunnableSymbol = symbolOf[TrampolinedRunnable]
     val execute = c.Expr[Unit](cb)
 
-    val tree = q"""($selfExpr).execute(new $LocalRunnableSymbol { def run(): Unit = { $execute } })"""
+    val tree = q"""($selfExpr).execute(new $TrampolinedRunnableSymbol { def run(): Unit = { $execute } })"""
+    inlineAndResetTree(tree)
+  }
+
+  def executeAsyncBatch(cb: Tree): Tree = {
+    val self = util.name("self")
+    val runnable = util.name("runnable")
+    val selfExpr = sourceFromScheduler(c.prefix.tree)
+    val TrampolinedRunnableSymbol = symbolOf[TrampolinedRunnable]
+    val StartAsyncBatchRunnableSymbol = symbolOf[StartAsyncBatchRunnable]
+    val execute = c.Expr[Unit](cb)
+
+    val tree =
+      q"""
+      val $self = ($selfExpr)
+      val $runnable = new $TrampolinedRunnableSymbol { def run(): Unit = { $execute } }
+      $self.execute(new $StartAsyncBatchRunnableSymbol($runnable, $self))
+      """
+
     inlineAndResetTree(tree)
   }
 

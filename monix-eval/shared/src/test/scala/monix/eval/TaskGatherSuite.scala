@@ -18,12 +18,11 @@
 package monix.eval
 
 import monix.execution.internal.Platform
-
-import concurrent.duration._
+import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
 object TaskGatherSuite extends BaseTestSuite {
-  test("Task.gather should execute in parallel") { implicit s =>
+  test("Task.gather should execute in parallel for async tasks") { implicit s =>
     val seq = Seq(Task(1).delayExecution(2.seconds), Task(2).delayExecution(1.second), Task(3).delayExecution(3.seconds))
     val f = Task.gather(seq).runAsync
 

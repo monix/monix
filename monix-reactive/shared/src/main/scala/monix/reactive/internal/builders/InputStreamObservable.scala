@@ -22,7 +22,6 @@ import java.util
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.schedulers.ExecutionModel
-import monix.execution.schedulers.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.{Ack, Cancelable, Scheduler, UncaughtExceptionReporter}
 import monix.reactive.Observable
 import monix.reactive.exceptions.MultipleSubscribersException
@@ -42,7 +41,7 @@ private[reactive] final class InputStreamObservable(
 
   def unsafeSubscribeFn(out: Subscriber[Array[Byte]]): Cancelable = {
     if (wasSubscribed.getAndSet(true)) {
-      out.onError(new MultipleSubscribersException("InputStreamObservable"))
+      out.onError(MultipleSubscribersException("InputStreamObservable"))
       Cancelable.empty
     }
     else {
@@ -51,7 +50,7 @@ private[reactive] final class InputStreamObservable(
       val cancelable = BooleanCancelable()
       val em = out.scheduler.executionModel
       // Schedule first cycle
-      if (em == AlwaysAsyncExecution)
+      if (em.isAlwaysAsync)
         reschedule(Continue, buffer, out, cancelable, em)(out.scheduler)
       else
         fastLoop(buffer, out, cancelable, em, 0)(out.scheduler)

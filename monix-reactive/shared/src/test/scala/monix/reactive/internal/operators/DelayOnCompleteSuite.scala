@@ -29,7 +29,7 @@ import scala.concurrent.duration._
 object DelayOnCompleteSuite extends TestSuite[TestScheduler] {
   def setup(): TestScheduler = TestScheduler()
   def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.get.tasks.isEmpty,
+    assert(s.state.tasks.isEmpty,
       "TestScheduler should have no pending tasks")
   }
 
@@ -107,6 +107,6 @@ object DelayOnCompleteSuite extends TestSuite[TestScheduler] {
     assertEquals(received, 1)
     assertEquals(wasCompleted, 0)
 
-    assert(s.state.get.tasks.isEmpty, "tasks.isEmpty")
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 }
