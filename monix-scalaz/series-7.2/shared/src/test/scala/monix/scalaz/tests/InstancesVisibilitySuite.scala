@@ -100,7 +100,7 @@ object InstancesVisibilitySuite extends SimpleTestSuite {
     assert(scalazMonadPlus != null)
   }
 
-  test("Evaluable is convertible") {
+  test("Suspendable is convertible") {
     val scalazFunctor = implicitly[_root_.scalaz.Functor[Task]]
     assert(scalazFunctor != null)
     val scalazApplicative = implicitly[_root_.scalaz.Applicative[Task]]

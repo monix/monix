@@ -28,184 +28,151 @@ trait MonixToScalazConversions extends MonixToScalaz9
 
 private[scalaz] trait MonixToScalaz0 {
   /** Converts Monix's type instances into the Scalaz `Functor`. */
-  implicit def monixToScalazFunctor[F[_]](implicit ev: Functor[F]): _root_.scalaz.Functor[F] =
-    new MonixToScalazFunctor[F] { override val functor = ev }
+  implicit def monixToScalazFunctor[F[_] : Functor]: _root_.scalaz.Functor[F] =
+    new MonixToScalazFunctor[F]()
 
-  protected trait MonixToScalazFunctor[F[_]]
+  protected class MonixToScalazFunctor[F[_]](implicit F: Functor[F])
     extends _root_.scalaz.Functor[F] {
 
-    val functor: Functor[F]
-    override def map[A, B](fa: F[A])(f: (A) => B): F[B] =
-      functor.map(fa)(f)
+    final override def map[A, B](fa: F[A])(f: (A) => B): F[B] =
+      F.map(fa)(f)
   }
 }
 
 private[scalaz] trait MonixToScalaz1 extends MonixToScalaz0 {
   /** Converts Monix's type instances into the Scalaz `Applicative`. */
-  implicit def monixToScalazApplicative[F[_]](implicit ev: Applicative[F]): _root_.scalaz.Applicative[F] =
-    new MonixToScalazApplicative[F] {
-      override val applicative: Applicative[F] = ev
-      override val functor: Functor[F] = ev.functor
-    }
+  implicit def monixToScalazApplicative[F[_] : Applicative]: _root_.scalaz.Applicative[F] =
+    new MonixToScalazApplicative[F]()
 
-  protected trait MonixToScalazApplicative[F[_]]
-    extends MonixToScalazFunctor[F] with _root_.scalaz.Applicative[F] {
+  protected class MonixToScalazApplicative[F[_]](implicit F: Applicative[F])
+    extends _root_.scalaz.Applicative[F] {
 
-    val applicative: Applicative[F]
-
+    final override def map[A, B](fa: F[A])(f: (A) => B): F[B] =
+      F.functor.map(fa)(f)
     override def point[A](a: => A): F[A] =
-      applicative.pure(a)
+      F.pure(a)
     override def ap[A, B](fa: => F[A])(f: => F[(A) => B]): F[B] =
-      applicative.ap(f)(fa)
+      F.ap(f)(fa)
     override def apply2[A, B, C](fa: => F[A], fb: => F[B])(f: (A, B) => C): F[C] =
-      applicative.map2(fa, fb)(f)
+      F.map2(fa, fb)(f)
   }
 }
 
 private[scalaz] trait MonixToScalaz2 extends MonixToScalaz1 {
   /** Converts Monix's type instances into the Scalaz `Monad`. */
-  implicit def monixMonadInstancesToScalaz[F[_]](implicit ev: Monad[F]): _root_.scalaz.Monad[F] =
-    new MonixToScalazMonad[F] {
-      override val monad: Monad[F] = ev
-      override val applicative: Applicative[F] = ev.applicative
-      override val functor: Functor[F] = ev.applicative.functor
-    }
+  implicit def monixMonadInstancesToScalaz[F[_] : Monad]: _root_.scalaz.Monad[F] =
+    new MonixToScalazMonad[F]()
 
-  protected trait MonixToScalazMonad[F[_]]
-    extends MonixToScalazApplicative[F] with _root_.scalaz.Monad[F] {
+  protected class MonixToScalazMonad[F[_]](implicit val F: Monad[F])
+    extends _root_.scalaz.Monad[F] {
 
-    val monad: Monad[F]
-    override def bind[A, B](fa: F[A])(f: (A) => F[B]): F[B] =
-      monad.flatMap(fa)(f)
+    final override def map[A, B](fa: F[A])(f: (A) => B): F[B] =
+      F.functor.map(fa)(f)
+    final override def point[A](a: => A): F[A] =
+      F.applicative.pure(a)
+    final override def ap[A, B](fa: => F[A])(f: => F[(A) => B]): F[B] =
+      F.applicative.ap(f)(fa)
+    final override def apply2[A, B, C](fa: => F[A], fb: => F[B])(f: (A, B) => C): F[C] =
+      F.applicative.map2(fa, fb)(f)
+    final override def bind[A, B](fa: F[A])(f: (A) => F[B]): F[B] =
+      F.flatMap(fa)(f)
   }
 }
 
 private[scalaz] trait MonixToScalaz3 extends MonixToScalaz2  {
   /** Converts Monix's type instances into the Scalaz `MonadError`. */
-  implicit def monixToScalazMonadError[F[_],E]
-    (implicit M: Monad[F], R: Recoverable[F,E]): _root_.scalaz.MonadError[F,E] =
-    new MonixToScalazMonadError[F,E] {
-      override val recoverable: Recoverable[F, E] = R
-      override val monad: Monad[F] = M
-      override val applicative: Applicative[F] = M.applicative
-      override val functor: Functor[F] = M.applicative.functor
-    }
+  implicit def monixToScalazMonadError[F[_],E](implicit F: MonadError[F,E]): _root_.scalaz.MonadError[F,E] =
+    new MonixToScalazMonadError[F,E]()
 
-  protected trait MonixToScalazMonadError[F[_],E]
-    extends MonixToScalazMonad[F] with _root_.scalaz.MonadError[F,E] {
+  protected class MonixToScalazMonadError[F[_],E](implicit F: MonadError[F,E])
+    extends MonixToScalazMonad[F]()(F.monad) with _root_.scalaz.MonadError[F,E] {
 
-    val recoverable: Recoverable[F,E]
-
-    override def raiseError[A](e: E): F[A] =
-      recoverable.raiseError(e)
-    override def handleError[A](fa: F[A])(f: (E) => F[A]): F[A] =
-      recoverable.onErrorHandleWith(fa)(f)
+    final override def raiseError[A](e: E): F[A] =
+      F.raiseError(e)
+    final override def handleError[A](fa: F[A])(f: (E) => F[A]): F[A] =
+      F.onErrorHandleWith(fa)(f)
   }
 }
 
 private[scalaz] trait MonixToScalaz4 extends MonixToScalaz3 {
   /** Converts Monix's type instances into the Scalaz `Cobind`. */
-  implicit def monixToScalazCobind[F[_]](implicit ev: CoflatMap[F]): _root_.scalaz.Cobind[F] =
-    new MonixToScalazCobind[F] {
-      override val coflatMap: CoflatMap[F] = ev
-      override val functor: Functor[F] = ev.functor
-    }
+  implicit def monixToScalazCobind[F[_] : Cobind]: _root_.scalaz.Cobind[F] =
+    new MonixToScalazCobind[F]()
 
-  protected trait MonixToScalazCobind[F[_]]
-    extends MonixToScalazFunctor[F] with _root_.scalaz.Cobind[F] {
+  protected class MonixToScalazCobind[F[_]](implicit F: Cobind[F])
+    extends MonixToScalazFunctor[F]()(F.functor) with _root_.scalaz.Cobind[F] {
 
-    val coflatMap: CoflatMap[F]
-    override def cobind[A, B](fa: F[A])(f: (F[A]) => B): F[B] =
-      coflatMap.coflatMap(fa)(f)
+    final override def cobind[A, B](fa: F[A])(f: (F[A]) => B): F[B] =
+      F.coflatMap(fa)(f)
   }
 }
 
 
 private[scalaz] trait MonixToScalaz5 extends MonixToScalaz4 {
   /** Converts Monix's type instances into the Scalaz `Comonad`. */
-  implicit def monixToScalazComonad[F[_]](implicit ev: Comonad[F]): _root_.scalaz.Comonad[F] =
-    new MonixToScalazComonad[F] {
-      override val comonad: Comonad[F] = ev
-      override val coflatMap: CoflatMap[F] = ev.coflatMap
-      override val functor: Functor[F] = ev.coflatMap.functor
-    }
+  implicit def monixToScalazComonad[F[_] : Comonad]: _root_.scalaz.Comonad[F] =
+    new MonixToScalazComonad[F]()
 
-  protected trait MonixToScalazComonad[F[_]]
-    extends MonixToScalazCobind[F] with _root_.scalaz.Comonad[F] {
+  protected class MonixToScalazComonad[F[_]](implicit F: Comonad[F])
+    extends MonixToScalazCobind[F]()(F.cobind) with _root_.scalaz.Comonad[F] {
 
-    val comonad: Comonad[F]
-    override def copoint[A](p: F[A]): A =
-      comonad.extract(p)
+    final override def copoint[A](p: F[A]): A =
+      F.extract(p)
   }
 }
 
 private[scalaz] trait MonixToScalaz6 extends MonixToScalaz5 {
   /** Converts Monix's type instances into the Scalaz `Plus`. */
-  implicit def monixToScalazPlus[F[_]](implicit ev: SemigroupK[F]): _root_.scalaz.Plus[F] =
-    new MonixToScalazPlus[F] {
-      override val semigroupK = ev
-    }
+  implicit def monixToScalazPlus[F[_] : SemigroupK]: _root_.scalaz.Plus[F] =
+    new MonixToScalazPlus[F]()
 
-  protected trait MonixToScalazPlus[F[_]] extends _root_.scalaz.Plus[F] {
-    val semigroupK: SemigroupK[F]
-    override def plus[A](a: F[A], b: => F[A]): F[A] =
-      semigroupK.combineK(a, b)
+  protected class MonixToScalazPlus[F[_]](implicit F: SemigroupK[F])
+    extends _root_.scalaz.Plus[F] {
+
+    final override def plus[A](a: F[A], b: => F[A]): F[A] =
+      F.combineK(a, b)
   }
 }
 
 private[scalaz] trait MonixToScalaz7 extends MonixToScalaz6 {
   /** Converts Monix's type instances into the Scalaz `PlusEmpty`. */
-  implicit def monixToScalazPlusEmpty[F[_]](implicit ev: MonoidK[F]): _root_.scalaz.PlusEmpty[F] =
-    new MonixToScalazPlusEmpty[F] {
-      override val monoidK: MonoidK[F] = ev
-      override val semigroupK: SemigroupK[F] = ev.semigroupK
-    }
+  implicit def monixToScalazPlusEmpty[F[_] : MonoidK]: _root_.scalaz.PlusEmpty[F] =
+    new MonixToScalazPlusEmpty[F]()
 
-  private[scalaz] trait MonixToScalazPlusEmpty[F[_]]
-    extends MonixToScalazPlus[F] with _root_.scalaz.PlusEmpty[F] {
+  protected class MonixToScalazPlusEmpty[F[_]](implicit F: MonoidK[F])
+    extends MonixToScalazPlus[F]()(F.semigroupK) with _root_.scalaz.PlusEmpty[F] {
 
-    val monoidK: MonoidK[F]
-    override def empty[A]: F[A] = monoidK.empty[A]
+    final override def empty[A]: F[A] = F.empty[A]
   }
 }
 
 
 private[scalaz] trait MonixToScalaz8 extends MonixToScalaz7 {
   /** Converts Monix's types instances into the Scalaz `MonadPlus`. */
-  implicit def monixToScalazMonadPlus[F[_]](implicit MF: MonadFilter[F], MK: MonoidK[F]): _root_.scalaz.MonadPlus[F] =
-    new MonixToScalazMonadPlus[F] {
-      override val monadFilter: MonadFilter[F] = MF
-      override val semigroupK: SemigroupK[F] = MK.semigroupK
-      override val monad: Monad[F] = MF.monad
-      override val monoidK: MonoidK[F] = MK
-      override val applicative: Applicative[F] = MF.monad.applicative
-      override val functor: Functor[F] = MF.monad.applicative.functor
-    }
+  implicit def monixToScalazMonadPlus[F[_] : MonadFilter : MonoidK]: _root_.scalaz.MonadPlus[F] =
+    new MonixToScalazMonadPlus[F]()
 
-  protected trait MonixToScalazMonadPlus[F[_]]
-    extends MonixToScalazMonad[F] with MonixToScalazPlusEmpty[F] with _root_.scalaz.MonadPlus[F] {
+  protected class MonixToScalazMonadPlus[F[_]](implicit MF: MonadFilter[F], MK: MonoidK[F])
+    extends MonixToScalazMonad[F]()(MF.monad) with _root_.scalaz.MonadPlus[F] {
 
-    val monadFilter: MonadFilter[F]
-    override def filter[A](fa: F[A])(f: (A) => Boolean): F[A] =
-      monadFilter.filter(fa)(f)
+    final override def empty[A]: F[A] =
+      MK.empty
+    final override def plus[A](a: F[A], b: => F[A]): F[A] =
+      MK.semigroupK.combineK(a,b)
+    final override def filter[A](fa: F[A])(f: (A) => Boolean): F[A] =
+      MF.filter(fa)(f)
   }
 }
 
 private[scalaz] trait MonixToScalaz9 extends MonixToScalaz8 {
   /** Converts Monix's types instances into the Scalaz `BindRec`. */
-  implicit def monixToScalazBindRec[F[_]](implicit ev: MonadRec[F]): _root_.scalaz.Monad[F] with _root_.scalaz.BindRec[F] =
-    new MonixToScalazBindRec[F] {
-      override val monadRec: MonadRec[F] = ev
-      override val monad: Monad[F] = ev.monad
-      override val applicative: Applicative[F] = ev.monad.applicative
-      override val functor: Functor[F] = ev.monad.applicative.functor
-    }
+  implicit def monixToScalazBindRec[F[_] : MonadRec]: _root_.scalaz.Monad[F] with _root_.scalaz.BindRec[F] =
+    new MonixToScalazBindRec[F]()
 
-  protected trait MonixToScalazBindRec[F[_]]
-    extends MonixToScalazMonad[F] with _root_.scalaz.BindRec[F] {
+  protected class MonixToScalazBindRec[F[_]](implicit F: MonadRec[F])
+    extends MonixToScalazMonad[F]()(F.monad) with _root_.scalaz.BindRec[F] {
 
-    val monadRec: MonadRec[F]
-    override def tailrecM[A, B](f: (A) => F[\/[A, B]])(a: A): F[B] =
-      monadRec.tailRecM(a)(a => functor.map(f(a))(_.toEither))
+    final override def tailrecM[A, B](f: (A) => F[\/[A, B]])(a: A): F[B] =
+      F.tailRecM(a)(a => F.functor.map(f(a))(_.toEither))
   }
 }

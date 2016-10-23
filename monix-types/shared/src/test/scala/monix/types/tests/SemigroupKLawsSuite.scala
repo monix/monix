@@ -15,27 +15,25 @@
  * limitations under the License.
  */
 
-package monix.types
+package monix.types.tests
 
-/** Groups all syntax extensions. */
-trait AllSyntax extends Cobind.Syntax
-  with Comonad.Syntax
-  with Functor.Syntax
-  with Monad.Syntax
-  with MonadFilter.Syntax
-  with MonadError.Syntax
-  with Memoizable.Syntax
+import monix.types.SemigroupK
+import org.scalacheck.Arbitrary
 
-/** Provides syntax (extension methods) for usage of [[monix.types]]
-  * instances.
-  *
-  * Usage:
-  *
-  * {{{
-  *   import monix.types.syntax._
-  * }}}
-  *
-  * Do not combine with Cats or Scalaz syntax in
-  * the same context.
-  */
-object syntax extends AllSyntax
+trait SemigroupKLawsSuite[F[_], A] extends BaseLawsSuite {
+  def F: SemigroupK.Instance[F]
+
+  object semigroupKLaws extends SemigroupK.Laws[F] {
+    implicit def semigroupK: SemigroupK[F] = F
+  }
+
+  def semigroupKCheck(typeName: String)(implicit
+    arbitraryFA: Arbitrary[F[A]],
+    eqFA: Eq[F[A]]): Unit = {
+
+    test(s"SemigroupK[$typeName].semigroupKAssociative") {
+      check3((fa: F[A], fb: F[A], fc: F[A]) =>
+        semigroupKLaws.semigroupKAssociative(fa, fb, fc))
+    }
+  }
+}

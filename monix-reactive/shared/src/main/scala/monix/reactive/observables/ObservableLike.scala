@@ -227,15 +227,13 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     *
     * For `count` and `skip` there are 3 possibilities:
     *
-    * 1. in case `skip == count`, then there are no items dropped and
-    *    no overlap, the call being equivalent to `buffer(count)`
-    *
-    * 2. in case `skip < count`, then overlap between buffers
-    *    happens, with the number of elements being repeated being
-    *    `count - skip`
-    *
-    * 3. in case `skip > count`, then `skip - count` elements start
-    *    getting dropped between windows
+    *  1. in case `skip == count`, then there are no items dropped and
+    *     no overlap, the call being equivalent to `buffer(count)`
+    *  1. in case `skip < count`, then overlap between buffers
+    *     happens, with the number of elements being repeated being
+    *     `count - skip`
+    *  1. in case `skip > count`, then `skip - count` elements start
+    *     getting dropped between windows
     *
     * @param count the maximum size of each buffer before it should
     *        be emitted

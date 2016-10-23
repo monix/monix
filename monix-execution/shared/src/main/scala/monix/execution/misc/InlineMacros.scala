@@ -91,6 +91,4 @@ trait InlineMacros {
 
     InlineApply.transform(tree)
   }
-
-
 }

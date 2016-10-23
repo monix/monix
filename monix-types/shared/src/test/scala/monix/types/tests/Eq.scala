@@ -15,27 +15,21 @@
  * limitations under the License.
  */
 
-package monix.types
+package monix.types.tests
 
-/** Groups all syntax extensions. */
-trait AllSyntax extends Cobind.Syntax
-  with Comonad.Syntax
-  with Functor.Syntax
-  with Monad.Syntax
-  with MonadFilter.Syntax
-  with MonadError.Syntax
-  with Memoizable.Syntax
+/** Type-class for testing equality, used only in tests. */
+trait Eq[T] { def apply(x: T, y: T): Boolean }
 
-/** Provides syntax (extension methods) for usage of [[monix.types]]
-  * instances.
-  *
-  * Usage:
-  *
-  * {{{
-  *   import monix.types.syntax._
-  * }}}
-  *
-  * Do not combine with Cats or Scalaz syntax in
-  * the same context.
-  */
-object syntax extends AllSyntax
+object Eq {
+  implicit val intEq: Eq[Int] = new Eq[Int] {
+    def apply(x: Int, y: Int): Boolean = x == y
+  }
+
+  implicit val longEq: Eq[Long] = new Eq[Long] {
+    def apply(x: Long, y: Long): Boolean = x == y
+  }
+
+  implicit val shortEq: Eq[Short] = new Eq[Short] {
+    def apply(x: Short, y: Short): Boolean = x == y
+  }
+}

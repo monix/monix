@@ -696,17 +696,18 @@ object Coeval {
 
   /** Groups the implementation for the type-classes defined in [[monix.types]]. */
   class TypeClassInstances
-    extends DeferrableClass[Coeval]
-    with MemoizableClass[Coeval]
-    with RecoverableClass[Coeval,Throwable]
-    with ComonadClass[Coeval]
-    with MonadRecClass[Coeval] {
+    extends Suspendable.Instance[Coeval]
+    with Memoizable.Instance[Coeval]
+    with MonadError.Instance[Coeval,Throwable]
+    with Comonad.Instance[Coeval]
+    with MonadRec.Instance[Coeval] {
 
     override def pure[A](a: A): Coeval[A] = Coeval.now(a)
-    override def defer[A](fa: => Coeval[A]): Coeval[A] = Coeval.defer(fa)
+    override def suspend[A](fa: => Coeval[A]): Coeval[A] = Coeval.defer(fa)
     override def evalOnce[A](a: => A): Coeval[A] = Coeval.evalOnce(a)
     override def eval[A](a: => A): Coeval[A] = Coeval.eval(a)
     override def memoize[A](fa: Coeval[A]): Coeval[A] = fa.memoize
+    override val unit: Coeval[Unit] = Coeval.now(())
 
     override def extract[A](x: Coeval[A]): A =
       x.value

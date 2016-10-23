@@ -15,16 +15,25 @@
  * limitations under the License.
  */
 
-package monix
+package monix.eval
 
-package object eval {
-  /** Syntax for equivalence in tests. */
-  implicit final class IsEqArrow[A](val lhs: A) extends AnyVal {
-    def ===(rhs: A): IsEquiv[A] = IsEquiv(lhs, rhs)
-  }
+import monix.types.tests._
 
-  /** Syntax for negating equivalence in tests. */
-  implicit final class IsNotEqArrow[A](val lhs: A) extends AnyVal {
-    def !==(rhs: A): IsNotEquiv[A] = IsNotEquiv(lhs, rhs)
-  }
+object TypeClassLawsForTaskSuite extends BaseLawsSuite
+  with MemoizableLawsSuite[Task,Int,Long,Short]
+  with SuspendableLawsSuite[Task,Int,Long,Short]
+  with MonadErrorLawsSuite[Task,Int,Long,Short,Throwable]
+  with CobindLawsSuite[Task,Int,Long,Short]
+  with MonadRecLawsSuite[Task,Int,Long,Short] {
+
+  override def F: Task.TypeClassInstances =
+    Task.typeClassInstances
+
+  // Actual tests ...
+
+  monadEvalErrorCheck("Task")
+  memoizableCheck("Task", includeSupertypes = true)
+  monadErrorCheck("Task", includeSupertypes = false)
+  monadRecCheck("Task", includeSupertypes = false)
+  cobindCheck("Task", includeSupertypes = false)
 }
