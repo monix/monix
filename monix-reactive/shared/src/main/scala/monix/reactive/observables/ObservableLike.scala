@@ -1173,7 +1173,7 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * [[monix.execution.Scheduler scheduler]] in `subscribe()`.
     *
     * Alias for
-    * [[Observable.fork[A](fa:monix\.reactive\.Observabel[A])* Observable.fork(fa)]].
+    * [[Observable.fork[A](fa:monix\.reactive\.Observable[A])* Observable.fork(fa)]].
     */
   def executeWithFork: Self[A] =
     self.transform(source => new ExecuteWithForkObservable(source))

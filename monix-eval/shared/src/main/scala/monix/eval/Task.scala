@@ -54,13 +54,23 @@ import scala.util.{Failure, Success, Try}
   * implementation's job to decide on the best execution model. All
   * you are guaranteed is asynchronous execution after executing
   * `runAsync`.
+  *
+  * @define runAsyncDesc Triggers the asynchronous execution.
+  *
+  *         Without invoking `runAsync` on a `Task`, nothing
+  *         gets evaluated, as a `Task` has lazy behavior.
   */
 sealed abstract class Task[+A] extends Serializable { self =>
   import monix.eval.Task._
 
-  /** Triggers the asynchronous execution.
+  /** $runAsyncDesc
     *
     * @param cb is a callback that will be invoked upon completion.
+    *
+    * @param s is an injected [[monix.execution.Scheduler Scheduler]]
+    *        that gets used whenever asynchronous boundaries are needed
+    *        when evaluating the task
+    *
     * @return a [[monix.execution.Cancelable Cancelable]] that can
     *         be used to cancel a running task
     */
@@ -71,9 +81,14 @@ sealed abstract class Task[+A] extends Serializable { self =>
     conn
   }
 
-  /** Triggers the asynchronous execution.
+  /** $runAsyncDesc
     *
     * @param f is a callback that will be invoked upon completion.
+    *
+    * @param s is an injected [[monix.execution.Scheduler Scheduler]]
+    *        that gets used whenever asynchronous boundaries are needed
+    *        when evaluating the task
+    *
     * @return a [[monix.execution.Cancelable Cancelable]] that can
     *         be used to cancel a running task
     */
@@ -83,7 +98,11 @@ sealed abstract class Task[+A] extends Serializable { self =>
       def onError(ex: Throwable): Unit = f(Failure(ex))
     })
 
-  /** Triggers the asynchronous execution.
+  /** $runAsyncDesc
+    *
+    * @param s is an injected [[monix.execution.Scheduler Scheduler]]
+    *        that gets used whenever asynchronous boundaries are needed
+    *        when evaluating the task
     *
     * @return a [[monix.execution.CancelableFuture CancelableFuture]]
     *         that can be used to extract the result or to cancel
@@ -1081,6 +1100,7 @@ object Task extends TaskInstances {
     */
   private[eval] def startFrameRef(): ThreadLocal[FrameIndex] =
     ThreadLocal(1)
+
 
   private case class Delay[A](coeval: Coeval[A]) extends Task[A] {
     override def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable = {
