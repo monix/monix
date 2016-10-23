@@ -1,3 +1,11 @@
+## Version 2.0.5 (Oct 23, 2016)
+
+- [Bug #247](https://github.com/monixio/monix/issues/247):
+  Avoid runtime reflection
+- [Bug #248](https://github.com/monixio/monix/pull/248): 
+  Reset overflow counter on None onOverflow result
+- Updates Scala.js to 0.6.13 and Scala to 2.12.0-RC2
+
 ## Version 2.0.4 (Oct 10, 2016)
 
 - [Bug #244](https://github.com/monixio/monix/issues/244):
