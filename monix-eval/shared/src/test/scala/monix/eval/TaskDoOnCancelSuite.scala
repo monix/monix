@@ -18,7 +18,7 @@
 package monix.eval
 
 import concurrent.duration._
-import scala.util.Success
+import scala.util.{Failure, Success}
 
 object TaskDoOnCancelSuite extends BaseTestSuite {
   test("Task.doOnCancel should normally mirror the source") { implicit s =>
@@ -40,6 +40,18 @@ object TaskDoOnCancelSuite extends BaseTestSuite {
     assertEquals(effect1, 0)
     assertEquals(effect2, 0)
     assertEquals(effect3, 0)
+  }
+
+  test("Task.doOnCancel should mirror failed sources") { implicit s =>
+    var effect = 0
+    val dummy = new RuntimeException("dummy")
+    val f = Task.fork(Task.raiseError(dummy))
+      .doOnCancel(Task.eval { effect += 1 })
+      .runAsync
+
+    s.tick()
+    assertEquals(f.value, Some(Failure(dummy)))
+    assertEquals(effect, 0)
   }
 
   test("Task.doOnCancel should cancel delayResult #1") { implicit s =>

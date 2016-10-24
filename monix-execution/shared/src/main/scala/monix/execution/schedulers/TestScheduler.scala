@@ -34,7 +34,6 @@ final class TestScheduler private (
   extends ReferenceScheduler with BatchingScheduler {
 
   /** Returns the internal state of the [[TestScheduler]]. */
-  def statePula = stateRef
   def state: State = stateRef.get
 
   override def currentTimeMillis(): Long =

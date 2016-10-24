@@ -696,7 +696,7 @@ object Observable {
     *        asynchronously
     */
   def fork[A](fa: Observable[A]): Observable[A] =
-    new builders.ExecuteWithForkObservable(fa)
+    fa.executeWithFork
 
   /** Mirrors the given source [[Observable]], but upon subscription ensure
     * that evaluation forks into a separate (logical) thread,
@@ -714,7 +714,7 @@ object Observable {
     * @param scheduler is the scheduler to use for evaluation
     */
   def fork[A](fa: Observable[A], scheduler: Scheduler): Observable[A] =
-    new builders.ExecuteWithForkObservable(fa)
+    fa.executeOn(scheduler)
 
   /** Given a subscribe function, lifts it into an [[Observable]].
     *

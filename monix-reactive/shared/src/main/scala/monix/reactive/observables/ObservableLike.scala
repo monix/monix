@@ -1160,6 +1160,9 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * gets injected with a different scheduler and it's up to the source
     * to actually use it. This also means the effects are more far reaching,
     * because the whole chain until the call of this operator is affected.
+    *
+    * Alias for
+    * [[Observable.fork[A](fa:monix\.reactive\.Observable[A],scheduler* Observable.fork(fa, scheduler)]].
     */
   def executeOn(scheduler: Scheduler): Self[A] =
     self.transform(source => new ExecuteOnObservable[A](source, scheduler))
