@@ -173,8 +173,8 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
         </license>
       </licenses>
       <scm>
-        <url>git@github.com:monixio/monix.git</url>
-        <connection>scm:git:git@github.com:monixio/monix.git</connection>
+        <url>git@github.com:monix/monix.git</url>
+        <connection>scm:git:git@github.com:monix/monix.git</connection>
       </scm>
       <developers>
         <developer>
@@ -235,7 +235,7 @@ lazy val unidocSettings = baseUnidocSettings ++ Seq(
   scalacOptions in (ScalaUnidoc, unidoc) ++=
     Opts.doc.title(s"Monix"),
   scalacOptions in (ScalaUnidoc, unidoc) ++=
-    Opts.doc.sourceUrl(s"https://github.com/monixio/monix/tree/v${version.value}€{FILE_PATH}.scala"),
+    Opts.doc.sourceUrl(s"https://github.com/monix/monix/tree/v${version.value}€{FILE_PATH}.scala"),
   scalacOptions in (ScalaUnidoc, unidoc) ++=
     Seq("-doc-root-content", file("rootdoc.txt").getAbsolutePath),
   scalacOptions in (ScalaUnidoc, unidoc) ++=
