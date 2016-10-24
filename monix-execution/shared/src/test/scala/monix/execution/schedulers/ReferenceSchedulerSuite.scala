@@ -30,7 +30,6 @@ object ReferenceSchedulerSuite extends SimpleTestSuite {
 
     def executionModel = ExecutionModel.Default
     def tick(time: FiniteDuration = Duration.Zero) = underlying.tick(time)
-    def state = underlying.statePula
     def execute(runnable: Runnable): Unit = underlying.execute(runnable)
     def reportFailure(t: Throwable): Unit = underlying.reportFailure(t)
     def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable =
