@@ -274,6 +274,23 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     assertEquals(result, count)
   }
 
+  test("start async batch, then trampolined") { implicit s =>
+    var effect = 0
+    s.executeAsyncBatch {
+      effect += 1
+      s.executeTrampolined {
+        effect += 1
+        s.executeTrampolined {
+          effect += 1
+        }
+      }
+    }
+
+    assertEquals(effect, 0)
+    s.tickOne()
+    assertEquals(effect, 3)
+  }
+
   def action(f: => Unit): Runnable =
     new Runnable { def run() = f }
 

@@ -249,7 +249,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
   def io(name: String = "monix-io", daemonic: Boolean = true,
     reporter: UncaughtExceptionReporter = LogExceptionsToStandardErr,
     executionModel: ExecutionModel = ExecutionModel.Default): Scheduler = {
-    val threadFactory = ThreadFactoryBuilder(name, daemonic)
+    val threadFactory = ThreadFactoryBuilder(name, reporter, daemonic)
 
     val context = ExecutionContext.fromExecutor(
       Executors.newCachedThreadPool(threadFactory),
@@ -279,7 +279,8 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     executionModel: ExecutionModel = ExecutionModel.Default): Scheduler = {
 
     val executor =
-      Executors.newSingleThreadScheduledExecutor(ThreadFactoryBuilder(name, daemonic))
+      Executors.newSingleThreadScheduledExecutor(
+        ThreadFactoryBuilder(name, reporter, daemonic))
 
     val context = new ExecutionContext {
       def reportFailure(t: Throwable) = reporter.reportFailure(t)
@@ -306,8 +307,8 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     reporter: UncaughtExceptionReporter = LogExceptionsToStandardErr,
     executionModel: ExecutionModel = ExecutionModel.Default): Scheduler = {
 
-    val executor =
-      Executors.newScheduledThreadPool(poolSize, ThreadFactoryBuilder(name, daemonic))
+    val executor = Executors.newScheduledThreadPool(
+      poolSize, ThreadFactoryBuilder(name, reporter, daemonic))
 
     ExecutorScheduler(executor, reporter, executionModel)
   }
@@ -320,7 +321,8 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     * you can just reuse this one for all your scheduling needs.
     */
   lazy val DefaultScheduledExecutor: ScheduledExecutorService =
-    Executors.newSingleThreadScheduledExecutor(ThreadFactoryBuilder("monix-scheduler"))
+    Executors.newSingleThreadScheduledExecutor(
+      ThreadFactoryBuilder("monix-scheduler", LogExceptionsToStandardErr))
 
   /** The explicit global `Scheduler`. Invoke `global` when you want to provide the global
     * `Scheduler` explicitly.
