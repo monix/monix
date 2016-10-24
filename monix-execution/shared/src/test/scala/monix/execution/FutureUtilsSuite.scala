@@ -81,7 +81,7 @@ object FutureUtilsSuite extends TestSuite[TestScheduler] {
     assertEquals(f1.value, Some(Success(Success(1))))
 
     val dummy = new RuntimeException("dummy")
-    val f2 = Future.failed(dummy).materialize
+    val f2 = (Future.failed(dummy) : Future[Int]).materialize
     assertEquals(f2.value, Some(Success(Failure(dummy))))
   }
 
@@ -90,7 +90,7 @@ object FutureUtilsSuite extends TestSuite[TestScheduler] {
     assertEquals(f1.value, Some(Success(Success(1))))
 
     val dummy = new RuntimeException("dummy")
-    val f2 = Future(throw dummy).materialize; s.tick()
+    val f2 = Future[Int](throw dummy).materialize; s.tick()
     assertEquals(f2.value, Some(Success(Failure(dummy))))
   }
 
@@ -102,7 +102,7 @@ object FutureUtilsSuite extends TestSuite[TestScheduler] {
     val f2 = Future.successful(Failure(dummy)).dematerialize
     assertEquals(f2.value, Some(Failure(dummy)))
 
-    val f3 = Future.failed(dummy).dematerialize
+    val f3 = (Future.failed(dummy) : Future[Try[Int]]).dematerialize
     assertEquals(f3.value, Some(Failure(dummy)))
   }
 
@@ -114,7 +114,7 @@ object FutureUtilsSuite extends TestSuite[TestScheduler] {
     val f2 = Future(Failure(dummy)).dematerialize; s.tick()
     assertEquals(f2.value, Some(Failure(dummy)))
 
-    val f3 = Future(throw dummy).dematerialize; s.tick()
+    val f3 = Future[Try[Int]](throw dummy).dematerialize; s.tick()
     assertEquals(f3.value, Some(Failure(dummy)))
   }
 
