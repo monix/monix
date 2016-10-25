@@ -299,9 +299,8 @@ class Macros(override val c: whitebox.Context) extends InlineMacros with Hygiene
   def executeAsync(cb: Tree): Tree = {
     val selfExpr = sourceFromScheduler(c.prefix.tree)
     val RunnableSymbol = symbolOf[Runnable]
-    val execute = c.Expr[Unit](cb)
 
-    val tree = q"""($selfExpr).execute(new $RunnableSymbol { def run(): Unit = { $execute } })"""
+    val tree = q"""($selfExpr).execute(new $RunnableSymbol { def run(): Unit = { $cb } })"""
     inlineAndResetTree(tree)
   }
 
