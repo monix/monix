@@ -300,33 +300,39 @@ class Macros(override val c: whitebox.Context) extends InlineMacros with Hygiene
     val selfExpr = sourceFromScheduler(c.prefix.tree)
     val RunnableSymbol = symbolOf[Runnable]
 
-    val tree = q"""($selfExpr).execute(new $RunnableSymbol { def run(): Unit = { $cb } })"""
-    inlineAndResetTree(tree)
+    resetTree(
+      q"""
+      ($selfExpr).execute(new $RunnableSymbol {
+        def run(): Unit = { $cb }
+      })
+      """)
   }
 
   def executeTrampolined(cb: Tree): Tree = {
     val selfExpr = sourceFromScheduler(c.prefix.tree)
     val TrampolinedRunnableSymbol = symbolOf[TrampolinedRunnable]
 
-    val tree = q"""($selfExpr).execute(new $TrampolinedRunnableSymbol { def run(): Unit = { $cb } })"""
-    inlineAndResetTree(tree)
+    resetTree(
+      q"""
+      ($selfExpr).execute(new $TrampolinedRunnableSymbol {
+        def run(): Unit = { $cb }
+      })
+      """)
   }
 
   def executeAsyncBatch(cb: Tree): Tree = {
-    val self = util.name("self")
+    val self = util.name("scheduler")
     val runnable = util.name("runnable")
     val selfExpr = sourceFromScheduler(c.prefix.tree)
     val TrampolinedRunnableSymbol = symbolOf[TrampolinedRunnable]
     val StartAsyncBatchRunnableSymbol = symbolOf[StartAsyncBatchRunnable]
 
-    val tree =
+    resetTree(
       q"""
       val $self = ($selfExpr)
       val $runnable = new $TrampolinedRunnableSymbol { def run(): Unit = { $cb } }
       $self.execute(new $StartAsyncBatchRunnableSymbol($runnable, $self))
-      """
-
-    inlineAndResetTree(tree)
+      """)
   }
 
   private[monix] def sourceFromScheduler(tree: Tree): c.Expr[Scheduler] = {

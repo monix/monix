@@ -698,7 +698,7 @@ object Task extends TaskInstances {
   def fork[A](fa: Task[A]): Task[A] =
     Async { (context, cb) =>
       // Asynchronous boundary
-      import context.implicitScheduler
+      implicit val s = context.scheduler
       Task.unsafeStartAsync(fa, context, Callback.async(cb))
     }
 
@@ -736,16 +736,19 @@ object Task extends TaskInstances {
     *
     * Contract:
     *
-    *  1. execution of the `register` callback is async,
-    *     forking a (logical) thread
-    *  2. execution of the `onSuccess` and `onError` callbacks,
-    *     is async, forking another (logical) thread
+    *  - execution of the `register` callback is asynchronous,
+    *    always forking a (logical) thread
+    *  - execution of the `onSuccess` and `onError` callbacks, is also
+    *    async, however they are executed on the current thread /
+    *    call-stack if the scheduler is enhanced for execution of
+    *    [[monix.execution.schedulers.TrampolinedRunnable trampolined runnables]]
     *
-    * Point number 2 happens because [[create]] is supposed to be safe
-    * or otherwise, depending on the executed logic, one can end up with
-    * a stack overflow exception. So this contract happens in order to
-    * guarantee safety. In order to bypass rule number 2, one can use
-    * [[unsafeCreate]], but that's for people knowing what they are doing.
+    * This asynchrony is needed because [[create]] is supposed to be
+    * safe or otherwise, depending on the executed logic, one can end
+    * up with a stack overflow exception. So this contract happens in
+    * order to guarantee safety. In order to bypass this, one can use
+    * [[unsafeCreate]], but that's more difficult and meant for people
+    * knowing what they are doing.
     *
     * @param register is a function that will be called when this `Task`
     *        is executed, receiving a callback as a parameter, a
@@ -1044,18 +1047,6 @@ object Task extends TaskInstances {
     frameRef: ThreadLocal[FrameIndex],
     options: Options) {
 
-    /** Returns the [[scheduler]] as an `implicit`, making it
-      * convenient for importing into a local scope.
-      *
-      * Example:
-      *
-      * {{{
-      *   import context.implicitScheduler
-      * }}}
-      */
-    implicit def implicitScheduler: Scheduler =
-      scheduler
-
     /** Helper that returns the
       * [[monix.execution.schedulers.ExecutionModel ExecutionModel]]
       * specified by the [[scheduler]].
@@ -1166,8 +1157,7 @@ object Task extends TaskInstances {
     }
 
     @tailrec def execute(context: Context, cb: Callback[A], binds: List[Bind], nextFrame: FrameIndex): Boolean = {
-      import context.{implicitScheduler => s}
-
+      implicit val s = context.scheduler
       state.get match {
         case null =>
           val p = Promise[A]()
