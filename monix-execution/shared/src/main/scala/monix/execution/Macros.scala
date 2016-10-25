@@ -307,9 +307,8 @@ class Macros(override val c: whitebox.Context) extends InlineMacros with Hygiene
   def executeTrampolined(cb: Tree): Tree = {
     val selfExpr = sourceFromScheduler(c.prefix.tree)
     val TrampolinedRunnableSymbol = symbolOf[TrampolinedRunnable]
-    val execute = c.Expr[Unit](cb)
 
-    val tree = q"""($selfExpr).execute(new $TrampolinedRunnableSymbol { def run(): Unit = { $execute } })"""
+    val tree = q"""($selfExpr).execute(new $TrampolinedRunnableSymbol { def run(): Unit = { $cb } })"""
     inlineAndResetTree(tree)
   }
 
@@ -319,12 +318,11 @@ class Macros(override val c: whitebox.Context) extends InlineMacros with Hygiene
     val selfExpr = sourceFromScheduler(c.prefix.tree)
     val TrampolinedRunnableSymbol = symbolOf[TrampolinedRunnable]
     val StartAsyncBatchRunnableSymbol = symbolOf[StartAsyncBatchRunnable]
-    val execute = c.Expr[Unit](cb)
 
     val tree =
       q"""
       val $self = ($selfExpr)
-      val $runnable = new $TrampolinedRunnableSymbol { def run(): Unit = { $execute } }
+      val $runnable = new $TrampolinedRunnableSymbol { def run(): Unit = { $cb } }
       $self.execute(new $StartAsyncBatchRunnableSymbol($runnable, $self))
       """
 
