@@ -457,7 +457,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
       case Async(onFinish) =>
         Async { (context, cb) =>
           import context.{scheduler => s}
-          s.executeTrampolined(onFinish(context, new Callback[A] {
+          s.executeTrampolined(() => onFinish(context, new Callback[A] {
             def onSuccess(value: A): Unit = cb.asyncOnSuccess(Now(value))(s)
             def onError(ex: Throwable): Unit = cb.asyncOnSuccess(Error(ex))(s)
           }))
@@ -467,7 +467,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
         BindAsync[Attempt[Any], Attempt[A]](
           (context, cb) => {
             import context.{scheduler => s}
-            s.executeTrampolined(onFinish(context, new Callback[Any] {
+            s.executeTrampolined(() => onFinish(context, new Callback[Any] {
               def onSuccess(value: Any): Unit = cb.asyncOnSuccess(Now(value))(s)
               def onError(ex: Throwable): Unit = cb.asyncOnSuccess(Error(ex))(s)
             }))
@@ -1184,7 +1184,7 @@ object Task extends TaskInstances {
             }
 
             // Asynchronous boundary to prevent stack-overflows!
-            s.executeTrampolined {
+            s.executeTrampolined { () =>
               runLoop(underlying, context, s.executionModel,
                 callback.asInstanceOf[Callback[Any]], Nil,
                 nextFrame)
@@ -1236,7 +1236,7 @@ object Task extends TaskInstances {
     * and `Task.fork`.
     */
   def unsafeStartTrampolined[A](source: Task[A], context: Context, cb: Callback[A]): Unit =
-    context.scheduler.executeTrampolined {
+    context.scheduler.executeTrampolined { () =>
       internalRestartTrampolineLoop(source, context, cb, Nil)
     }
 
@@ -1261,7 +1261,7 @@ object Task extends TaskInstances {
     binds: List[Bind]): Unit = {
 
     if (!context.shouldCancel)
-      context.scheduler.executeAsyncBatch {
+      context.scheduler.executeAsyncBatch { () =>
         // Resetting the frameRef, as a real asynchronous boundary happened
         context.frameRef.reset()
         internalRestartTrampolineLoop(source, context, cb, binds)

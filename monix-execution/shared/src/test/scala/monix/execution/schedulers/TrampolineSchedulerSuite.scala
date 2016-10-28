@@ -38,11 +38,11 @@ object TrampolineSchedulerSuite extends TestSuite[(Scheduler, TestScheduler)] {
     var effect = 0
     val p = Promise[Int]()
 
-    s.executeAsync {
+    s.executeAsync { () =>
       effect += 1
-      s.executeAsync {
+      s.executeAsync { () =>
         effect += 2
-        s.executeAsync {
+        s.executeAsync { () =>
           effect += 3
           p.success(effect)
         }
@@ -56,11 +56,11 @@ object TrampolineSchedulerSuite extends TestSuite[(Scheduler, TestScheduler)] {
   test("execute local should work") { case (s, _) =>
     var effect = 0
 
-    s.executeTrampolined {
+    s.executeTrampolined { () =>
       effect += 1
-      s.executeTrampolined {
+      s.executeTrampolined { () =>
         effect += 2
-        s.executeTrampolined {
+        s.executeTrampolined { () =>
           effect += 3
         }
       }
@@ -133,9 +133,9 @@ object TrampolineSchedulerSuite extends TestSuite[(Scheduler, TestScheduler)] {
     if (!Platform.isJVM) ignore("test relevant only for the JVM")
 
     var effect = 0
-    s.executeAsync {
-      s.executeAsync { effect += 20 }
-      s.executeAsync { effect += 20 }
+    s.executeAsync { () =>
+      s.executeAsync { () => effect += 20 }
+      s.executeAsync { () => effect += 20 }
 
       effect += 3
       blocking { effect += 10 }

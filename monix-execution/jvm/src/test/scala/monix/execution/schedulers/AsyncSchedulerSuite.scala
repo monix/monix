@@ -113,7 +113,7 @@ object AsyncSchedulerSuite extends SimpleTestSuite {
   test("execute local") {
     var result = 0
     def loop(n: Int): Unit =
-      s.executeTrampolined {
+      s.executeTrampolined { () =>
         result += 1
         if (n-1 > 0) loop(n-1)
       }

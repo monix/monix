@@ -56,7 +56,7 @@ final class TestScheduler private (
   }
 
   @tailrec
-  override def executeAsync(r: Runnable): Unit = {
+  protected override def executeAsync(r: Runnable): Unit = {
     val current: State = stateRef.get
     val update = current.execute(r)
     if (!stateRef.compareAndSet(current, update)) executeAsync(r)
