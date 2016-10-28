@@ -28,7 +28,7 @@ import scala.util.Success
 object CreateObservableSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.get.tasks.isEmpty,
+    assert(s.state.tasks.isEmpty,
       "Scheduler should be left with no pending tasks")
   }
 
@@ -57,6 +57,6 @@ object CreateObservableSuite extends TestSuite[TestScheduler] {
     s.tick()
 
     assertEquals(sum.value, None)
-    assertEquals(s.state.get.lastReportedError, ex)
+    assertEquals(s.state.lastReportedError, ex)
   }
 }

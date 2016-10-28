@@ -29,7 +29,7 @@ import scala.util.{Failure, Success, Try}
 abstract class BaseTestSuite extends TestSuite[TestScheduler] with Checkers {
   def setup(): TestScheduler = TestScheduler()
   def tearDown(env: TestScheduler): Unit = {
-    assert(env.state.get.tasks.isEmpty, "should not have tasks left to execute")
+    assert(env.state.tasks.isEmpty, "should not have tasks left to execute")
   }
 
   def arbitraryTaskNow[A](implicit A: Arbitrary[A]): Arbitrary[Task[A]] =

@@ -29,7 +29,7 @@ import scala.concurrent.duration._
 object DoOnCompleteSuite extends TestSuite[TestScheduler] {
   def setup(): TestScheduler = TestScheduler()
   def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.get.tasks.isEmpty,
+    assert(s.state.tasks.isEmpty,
       "TestScheduler should have no pending tasks")
   }
 
@@ -97,9 +97,9 @@ object DoOnCompleteSuite extends TestSuite[TestScheduler] {
       .subscribe()
 
     s.tick()
-    assert(s.state.get.tasks.nonEmpty, "tasks.nonEmpty")
+    assert(s.state.tasks.nonEmpty, "tasks.nonEmpty")
     cancelable.cancel()
-    assert(s.state.get.tasks.isEmpty, "tasks.isEmpty")
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
     assertEquals(wasTriggered, 0)
   }
 

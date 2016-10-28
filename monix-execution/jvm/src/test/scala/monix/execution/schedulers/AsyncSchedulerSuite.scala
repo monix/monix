@@ -18,16 +18,15 @@
 package monix.execution.schedulers
 
 import java.util.concurrent.{CountDownLatch, TimeUnit, TimeoutException}
-
 import minitest.SimpleTestSuite
 import monix.execution.cancelables.SingleAssignmentCancelable
+import monix.execution.schedulers.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.{Cancelable, Scheduler}
-
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Promise}
 
 object AsyncSchedulerSuite extends SimpleTestSuite {
-  val s = monix.execution.Scheduler.global
+  val s: Scheduler = monix.execution.Scheduler.global
 
   def scheduleOnce(s: Scheduler, delay: FiniteDuration)(action: => Unit): Cancelable = {
     s.scheduleOnce(delay.length, delay.unit, runnableAction(action))
@@ -114,7 +113,7 @@ object AsyncSchedulerSuite extends SimpleTestSuite {
   test("execute local") {
     var result = 0
     def loop(n: Int): Unit =
-      s.executeLocal {
+      s.executeTrampolined { () =>
         result += 1
         if (n-1 > 0) loop(n-1)
       }
@@ -122,6 +121,14 @@ object AsyncSchedulerSuite extends SimpleTestSuite {
     val count = 100000
     loop(count)
     assertEquals(result, count)
+  }
+
+  test("change execution model") {
+    val s: Scheduler = monix.execution.Scheduler.global
+    assertEquals(s.executionModel, ExecutionModel.Default)
+    val s2 = s.withExecutionModel(AlwaysAsyncExecution)
+    assertEquals(s.executionModel, ExecutionModel.Default)
+    assertEquals(s2.executionModel, AlwaysAsyncExecution)
   }
 
   def runnableAction(f: => Unit): Runnable =

@@ -42,7 +42,7 @@ object TaskApplySuite extends BaseTestSuite {
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
-    assertEquals(s.state.get.lastReportedError, null)
+    assertEquals(s.state.lastReportedError, null)
   }
 
   test("Task.apply is equivalent with Task.eval") { implicit s =>

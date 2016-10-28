@@ -18,7 +18,7 @@
 package monix.execution.schedulers
 
 import java.util.concurrent.ScheduledExecutorService
-import monix.execution.{Cancelable, UncaughtExceptionReporter}
+import monix.execution.{Cancelable, UncaughtExceptionReporter, Scheduler}
 import scala.concurrent.duration.TimeUnit
 
 /** An [[ExecutorScheduler]] is for building a
@@ -29,7 +29,7 @@ final class ExecutorScheduler private (
   s: ScheduledExecutorService,
   r: UncaughtExceptionReporter,
   override val executionModel: ExecutionModel)
-  extends ReferenceScheduler with LocalBatchingExecutor {
+  extends ReferenceScheduler with BatchingScheduler {
 
   def executor: ScheduledExecutorService = s
 
@@ -54,11 +54,14 @@ final class ExecutorScheduler private (
     Cancelable(() => task.cancel(false))
   }
 
-  def executeAsync(runnable: Runnable): Unit =
+  protected def executeAsync(runnable: Runnable): Unit =
     s.execute(runnable)
 
   def reportFailure(t: Throwable): Unit =
     r.reportFailure(t)
+
+  override def withExecutionModel(em: ExecutionModel): Scheduler =
+    new ExecutorScheduler(s, r, em)
 }
 
 object ExecutorScheduler {

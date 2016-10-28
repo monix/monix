@@ -76,6 +76,6 @@ object RepeatedValueObservableSuite extends SimpleTestSuite {
     s.tick(100.millis)
 
     assertEquals(received, 1)
-    assert(s.state.get.tasks.isEmpty)
+    assert(s.state.tasks.isEmpty)
   }
 }

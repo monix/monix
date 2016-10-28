@@ -337,7 +337,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
           })
       case Async(onFinish) =>
         Async((s, conn, cb) =>
-          s.executeLocal(onFinish(s, conn, new Callback[A] {
+          s.executeTrampolined(() => onFinish(s, conn, new Callback[A] {
             def onSuccess(value: A): Unit = cb.asyncOnSuccess(Now(value))(s)
             def onError(ex: Throwable): Unit = cb.asyncOnSuccess(Error(ex))(s)
           })))
@@ -345,7 +345,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
       case BindAsync(onFinish, g) =>
         BindAsync[Attempt[Any], Attempt[A]](
           (s, conn, cb) =>
-            s.executeLocal(onFinish(s, conn, new Callback[Any] {
+            s.executeTrampolined(() => onFinish(s, conn, new Callback[Any] {
               def onSuccess(value: Any): Unit = cb.asyncOnSuccess(Now(value))(s)
               def onError(ex: Throwable): Unit = cb.asyncOnSuccess(Error(ex))(s)
             })),
@@ -680,7 +680,7 @@ object Task extends TaskInstances {
 
       // Forcing asynchronous boundary, otherwise
       // stack-overflows can happen
-      scheduler.executeAsync(
+      scheduler.executeAsync(() =>
         try {
           c := register(scheduler, new CreateCallback(conn, cb)(scheduler))
         }
@@ -922,7 +922,7 @@ object Task extends TaskInstances {
       // We need a monitor to synchronize on, per evaluation!
       val lock = new AnyRef
       // Forces a fork on another (logical) thread!
-      scheduler.executeAsync(lock.synchronized {
+      scheduler.executeAsync(() => lock.synchronized {
         // Aggregates all results into a buffer.
         // MUST BE synchronized by `lock`!
         var builder = cbf(in)
@@ -974,7 +974,7 @@ object Task extends TaskInstances {
 
           // Light asynchronous boundary; with most scheduler implementations
           // it will not fork a new (logical) thread!
-          scheduler.executeLocal(
+          scheduler.executeTrampolined(() =>
             Task.unsafeStartNow(task, scheduler, stacked,
               new Callback[A] {
                 def onSuccess(value: A): Unit =
@@ -1063,7 +1063,7 @@ object Task extends TaskInstances {
     // The resulting task will be executed asynchronously
     Async { (scheduler, conn, cb) =>
       // Initial asynchronous boundary
-      scheduler.executeAsync {
+      scheduler.executeAsync { () =>
         // for synchronizing the results
         val state = Atomic(null : AnyRef)
         val task1 = StackedCancelable()
@@ -1072,7 +1072,7 @@ object Task extends TaskInstances {
 
         // Light asynchronous boundary; with most scheduler implementations
         // it will not fork a new (logical) thread!
-        scheduler.executeLocal(
+        scheduler.executeTrampolined(() =>
           Task.unsafeStartNow(fa1, scheduler, task1, new Callback[A1] {
             @tailrec def onSuccess(a1: A1): Unit =
               state.get match {
@@ -1093,7 +1093,7 @@ object Task extends TaskInstances {
           }))
 
         // Light asynchronous boundary
-        scheduler.executeLocal(
+        scheduler.executeTrampolined(() =>
           Task.unsafeStartNow(fa2, scheduler, task2, new Callback[A2] {
             @tailrec def onSuccess(a2: A2): Unit =
               state.get match {
@@ -1317,7 +1317,7 @@ object Task extends TaskInstances {
             }
 
             // Asynchronous boundary to prevent stack-overflows!
-            s.executeLocal(
+            s.executeTrampolined(() =>
               runLoop(s, s.executionModel, active, underlying,
                 callback.asInstanceOf[Callback[Any]], Nil,
                 nextFrame))
@@ -1390,7 +1390,7 @@ object Task extends TaskInstances {
     binds: List[Bind]): Unit = {
 
     if (!conn.isCanceled)
-      scheduler.executeAsync(
+      scheduler.executeAsync(() =>
         startTrampolineRunLoop(scheduler, conn, source, cb, binds))
   }
 

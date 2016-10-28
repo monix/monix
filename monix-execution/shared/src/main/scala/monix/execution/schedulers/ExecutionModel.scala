@@ -33,7 +33,7 @@ import monix.execution.internal.Platform
   * to choose the best execution model. This can be related to
   * recursive loops or to events pushed into consumers.
   */
-sealed abstract class ExecutionModel {
+sealed abstract class ExecutionModel extends Product with Serializable {
   /** Recommended batch size used for breaking synchronous loops in
     * asynchronous batches. When streaming value from a producer to
     * a synchronous consumer it's recommended to break the streaming
@@ -81,7 +81,7 @@ object ExecutionModel {
       * [[SynchronousExecution]] type is set to the maximum power
       * of 2 expressible with a `Int`, which is 2^30^ (or 1,073,741,824).
       */
-    val recommendedBatchSize = math.roundToPowerOf2(Int.MaxValue) - 1
+    val recommendedBatchSize = math.roundToPowerOf2(Int.MaxValue)
     val batchedExecutionModulus = recommendedBatchSize-1
 
     /** Returns the next frame index in the run-loop.
@@ -124,7 +124,8 @@ object ExecutionModel {
     * By specifying the [[ExecutionModel.recommendedBatchSize]],
     * the configuration can be fine-tuned.
     */
-  final case class BatchedExecution(private val batchSize: Int)
+  final case class BatchedExecution(
+    private val batchSize: Int)
     extends ExecutionModel {
 
     val recommendedBatchSize = math.nextPowerOf2(batchSize)
@@ -132,6 +133,36 @@ object ExecutionModel {
 
     def nextFrameIndex(current: Int): Int =
       (current + 1) & batchedExecutionModulus
+  }
+
+  /** Extension methods for [[ExecutionModel]]. */
+  implicit final class Extensions(val self: ExecutionModel) extends AnyVal {
+    /** Returns `true` if this execution model is
+      * [[AlwaysAsyncExecution]] or `false` otherwise.
+      */
+    def isAlwaysAsync: Boolean =
+      self match {
+        case AlwaysAsyncExecution => true
+        case _ => false
+      }
+
+    /** Returns `true` if this execution model is
+      * [[SynchronousExecution]] or `false` otherwise.
+      */
+    def isSynchronous: Boolean =
+      self match {
+        case SynchronousExecution => true
+        case _ => false
+      }
+
+    /** Returns `true` if this execution model is
+      * [[BatchedExecution]] or `false` otherwise.
+      */
+    def isBatched: Boolean =
+      self match {
+        case BatchedExecution(_) => true
+        case _ => false
+      }
   }
 
   final val Default: ExecutionModel =

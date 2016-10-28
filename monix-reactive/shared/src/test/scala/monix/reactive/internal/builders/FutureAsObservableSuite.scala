@@ -30,7 +30,7 @@ import scala.concurrent.duration._
 object FutureAsObservableSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
-    assert(s.state.get.tasks.isEmpty,
+    assert(s.state.tasks.isEmpty,
       "TestScheduler should be left with no pending tasks")
   }
 
@@ -129,6 +129,6 @@ object FutureAsObservableSuite extends TestSuite[TestScheduler] {
 
     assertEquals(received, 0)
     assert(!wasCompleted)
-    assert(s.state.get.tasks.isEmpty)
+    assert(s.state.tasks.isEmpty)
   }
 }

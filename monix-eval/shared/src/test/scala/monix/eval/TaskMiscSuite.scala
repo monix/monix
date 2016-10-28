@@ -107,7 +107,7 @@ object TaskMiscSuite extends BaseTestSuite {
     })
 
     s.tick()
-    assert(s.state.get.tasks.isEmpty,
+    assert(s.state.tasks.isEmpty,
       "should not have tasks left to execute")
   }
 
@@ -130,7 +130,7 @@ object TaskMiscSuite extends BaseTestSuite {
     })
 
     s.tick()
-    assert(s.state.get.tasks.isEmpty,
+    assert(s.state.tasks.isEmpty,
       "should not have tasks left to execute")
   }
 
