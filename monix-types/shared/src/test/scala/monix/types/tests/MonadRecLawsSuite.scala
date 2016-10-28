@@ -44,13 +44,19 @@ trait MonadRecLawsSuite[F[_],A,B,C] extends MonadLawsSuite[F,A,B,C] {
     arbitraryFBtoC: Arbitrary[F[B => C]],
     eqFA: Eq[F[A]],
     eqFB: Eq[F[B]],
-    eqFC: Eq[F[C]]): Unit = {
+    eqFC: Eq[F[C]],
+    eqFInt: Eq[F[Int]]): Unit = {
 
     if (includeSupertypes) monadCheck(typeName, includeSupertypes)
 
-    test(s"MonadRec[$typeName].monadRecLeftEmpty") {
+    test(s"MonadRec[$typeName].tailRecMConsistentFlatMap") {
       check3((count: Int, a: A, f: A => F[A]) =>
         monadRecLaws.tailRecMConsistentFlatMap(count, a, f))
+    }
+
+    test(s"MonadRec[$typeName].tailRecMStackSafety(50000)") {
+      val prop = monadRecLaws.tailRecMStackSafety(50000)
+      assert(eqFInt(prop.lh, prop.rh))
     }
   }
 }

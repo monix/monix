@@ -353,6 +353,17 @@ object Coeval {
   def fromTry[A](a: Try[A]): Coeval[A] =
     Attempt.fromTry(a)
 
+  /** Keeps calling `f` until it returns a `Right` result.
+    *
+    * Based on Phil Freeman's
+    * [[http://functorial.com/stack-safety-for-free/index.pdf Stack Safety for Free]].
+    */
+  def tailRecM[A,B](a: A)(f: A => Coeval[Either[A,B]]): Coeval[B] =
+    Coeval.defer(f(a)).flatMap {
+      case Left(continueA) => tailRecM(continueA)(f)
+      case Right(b) => Coeval.now(b)
+    }
+
   /** Transforms a `TraversableOnce` of coevals into a coeval producing
     * the same collection of gathered results.
     *
@@ -680,6 +691,8 @@ object Coeval {
       fa.flatMap(f)
     override def flatten[A](ffa: Coeval[Coeval[A]]): Coeval[A] =
       ffa.flatten
+    override def tailRecM[A, B](a: A)(f: (A) => Coeval[Either[A, B]]): Coeval[B] =
+      Coeval.tailRecM(a)(f)
     override def coflatMap[A, B](fa: Coeval[A])(f: (Coeval[A]) => B): Coeval[B] =
       Coeval.eval(f(fa))
     override def ap[A, B](ff: Coeval[(A) => B])(fa: Coeval[A]): Coeval[B] =

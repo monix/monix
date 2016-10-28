@@ -130,8 +130,22 @@ private[cats] trait MonixToCatsCore2 extends MonixToCatsCore1 {
       F.flatMap(fa)(f)
     final override def flatten[A](ffa: F[F[A]]): F[A] =
       F.flatten(ffa)
-    override def tailRecM[A, B](a: A)(f: (A) => F[Either[A, B]]): F[B] =
-      defaultTailRecM(a)(f)
+
+    override def tailRecM[A, B](a: A)(f: (A) => F[Either[A, B]]): F[B] = {
+      val instance = F.asInstanceOf[AnyRef]
+
+      instance match {
+        case ref: MonadRec[_] =>
+          // Workaround for Cats Monad instances that might implement
+          // a stack-safe `tailRecM`, since unfortunately the
+          // `RecursiveTailRecM` marker and the `FlatMapRec` type
+          // are now gone and all monads are expected to implement
+          // a safe `tailRecM`, which is not really possible
+          ref.asInstanceOf[MonadRec[F]].tailRecM(a)(f)
+        case _ =>
+          MonadRec.defaultTailRecM(a)(f)(F)
+      }
+    }
   }
 }
 
@@ -275,11 +289,11 @@ private[cats] trait MonixToCatsCore11 extends MonixToCatsCore10 {
   /** Converts Monix's [[monix.types.MonadRec MonadRec]]
     * instances into the Cats `Monad`.
     */
-  implicit def monixToCatsMonadRec[F[_] : MonadRec]: _root_.cats.Monad[F] with _root_.cats.RecursiveTailRecM[F] =
+  implicit def monixToCatsMonadRec[F[_] : MonadRec]: _root_.cats.Monad[F] =
       new MonixToCatsMonadRec[F]()
 
   protected class MonixToCatsMonadRec[F[_]](implicit F: MonadRec[F])
-    extends MonixToCatsMonad[F]()(F.monad) with _root_.cats.RecursiveTailRecM[F] {
+    extends MonixToCatsMonad[F]()(F.monad) {
 
     final override def tailRecM[A, B](a: A)(f: (A) => F[Either[A, B]]): F[B] =
       F.tailRecM(a)(f)

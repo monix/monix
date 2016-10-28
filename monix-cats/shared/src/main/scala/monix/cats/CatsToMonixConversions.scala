@@ -26,7 +26,6 @@ import _root_.cats.{Comonad => CatsComonad}
 import _root_.cats.{MonadFilter => CatsMonadFilter}
 import _root_.cats.{SemigroupK => CatsSemigroupK}
 import _root_.cats.{MonoidK => CatsMonoidK}
-import _root_.cats.{RecursiveTailRecM => CatsRecursiveTailRecM}
 import monix.types._
 
 /** Defines conversions from [[http://typelevel.org/cats/ Cats]]
@@ -231,8 +230,8 @@ private[cats] trait CatsCoreToMonix9 extends CatsCoreToMonix8 {
     * [[monix.types.MonadRec MonadRec]]
     */
   implicit def catsToMonixMonadRec[F[_]]
-    (implicit ev1: CatsMonad[F], ev2: CatsRecursiveTailRecM[F]): MonadRec[F] =
-    new CatsToMonixMonadRec[F] { override def F = ev2.sameType(ev1) }
+    (implicit ev1: CatsMonad[F]): MonadRec[F] =
+    new CatsToMonixMonadRec[F] { override def F = ev1 }
 
   /** Adapter for converting Cats type instances into Monix's
     * [[monix.types.MonadRec MonadRec]].

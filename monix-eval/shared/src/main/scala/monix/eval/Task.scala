@@ -675,6 +675,17 @@ object Task extends TaskInstances {
   def fromTry[A](a: Try[A]): Task[A] =
     Delay(Coeval.fromTry(a))
 
+  /** Keeps calling `f` until it returns a `Right` result.
+    *
+    * Based on Phil Freeman's
+    * [[http://functorial.com/stack-safety-for-free/index.pdf Stack Safety for Free]].
+    */
+  def tailRecM[A,B](a: A)(f: A => Task[Either[A,B]]): Task[B] =
+    Task.defer(f(a)).flatMap {
+      case Left(continueA) => tailRecM(continueA)(f)
+      case Right(b) => Task.now(b)
+    }
+
   private[this] final val neverRef: Async[Nothing] =
     Async((_,_) => ())
 
@@ -1062,12 +1073,14 @@ object Task extends TaskInstances {
       connection.isCanceled
   }
 
+  // We always start from 1
+  private final val frameStart: FrameIndex = 1
+
   /** Creates a `ThreadLocal[FrameIndex]` reference to use as
     * the default. The starting frame index should always be `1`.
     */
   private[eval] def startFrameRef(): ThreadLocal[FrameIndex] =
-    ThreadLocal(1)
-
+    ThreadLocal(frameStart)
 
   private case class Delay[A](coeval: Coeval[A]) extends Task[A] {
     override def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable = {
@@ -1381,7 +1394,7 @@ object Task extends TaskInstances {
     * falling back to [[internalRestartTrampolineLoop]] and actual asynchronous execution
     * in case of an asynchronous boundary.
     */
-  private def startTrampolineForFuture[A](
+  private[monix] def startTrampolineForFuture[A](
     source: Task[A],
     context: Context,
     binds: List[Bind]): CancelableFuture[A] = {
@@ -1466,7 +1479,7 @@ object Task extends TaskInstances {
       }
     }
 
-    loop(source, context, context.executionModel, binds, frameIndex = 1)
+    loop(source, context, context.executionModel, binds, frameIndex = context.frameRef.get())
       .asInstanceOf[CancelableFuture[A]]
   }
 
@@ -1507,6 +1520,8 @@ private[eval] trait TaskInstances {
       fa.flatMap(f)
     override def flatten[A](ffa: Task[Task[A]]): Task[A] =
       ffa.flatten
+    override def tailRecM[A, B](a: A)(f: (A) => Task[Either[A, B]]): Task[B] =
+      Task.tailRecM(a)(f)
     override def coflatMap[A, B](fa: Task[A])(f: (Task[A]) => B): Task[B] =
       Task.eval(f(fa))
     override def ap[A, B](ff: Task[(A) => B])(fa: Task[A]): Task[B] =

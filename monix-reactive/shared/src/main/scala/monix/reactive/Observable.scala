@@ -716,6 +716,28 @@ object Observable {
   def fork[A](fa: Observable[A], scheduler: Scheduler): Observable[A] =
     fa.executeOn(scheduler)
 
+  /** Keeps calling `f` and concatenating the resulting observables
+    * for each `scala.util.Left` event emitted by the source, concatenating
+    * the resulting observables and pushing every `scala.util.Right[B]`
+    * events downstream.
+    *
+    * Based on Phil Freeman's
+    * [[http://functorial.com/stack-safety-for-free/index.pdf Stack Safety for Free]].
+    *
+    * It helps to wrap your head around it if you think of it as being
+    * equivalent to this inefficient and unsafe implementation (for `Observable`):
+    *
+    * {{{
+    *   def tailRecM[A, B](a: A)(f: (A) => Observable[Either[A, B]]): Observable[B] =
+    *     f(a).flatMap {
+    *       case Right(b) => pure(b)
+    *       case Left(nextA) => tailRecM(nextA)(f)
+          }
+    * }}}
+    */
+  def tailRecM[A, B](a: A)(f: (A) => Observable[Either[A, B]]): Observable[B] =
+    new builders.TailRecMObservable[A,B](a, f)
+
   /** Given a subscribe function, lifts it into an [[Observable]].
     *
     * This function is unsafe to use because users have to know and apply
@@ -1415,7 +1437,8 @@ object Observable {
   class TypeClassInstances extends Suspendable.Instance[Observable]
     with Memoizable.Instance[Observable] with MonadError.Instance[Observable,Throwable]
     with MonadFilter.Instance[Observable] with MonoidK.Instance[Observable]
-    with Cobind.Instance[Observable] {
+    with Cobind.Instance[Observable]
+    with MonadRec.Instance[Observable] {
 
     override def pure[A](a: A): Observable[A] = Observable.now(a)
     override def suspend[A](fa: => Observable[A]): Observable[A] = Observable.defer(fa)
@@ -1430,6 +1453,8 @@ object Observable {
       fa.flatMap(f)
     override def flatten[A](ffa: Observable[Observable[A]]): Observable[A] =
       ffa.flatten
+    override def tailRecM[A, B](a: A)(f: (A) => Observable[Either[A, B]]): Observable[B] =
+      Observable.tailRecM(a)(f)
     override def coflatMap[A, B](fa: Observable[A])(f: (Observable[A]) => B): Observable[B] =
       Observable.eval(f(fa))
     override def ap[A, B](ff: Observable[(A) => B])(fa: Observable[A]): Observable[B] =
