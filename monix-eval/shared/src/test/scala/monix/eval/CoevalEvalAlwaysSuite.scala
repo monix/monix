@@ -141,7 +141,7 @@ object CoevalEvalAlwaysSuite extends BaseTestSuite {
       t1.runAttempt
       t2.runAttempt
 
-      t1 =!= t1
+      t1 !== t1
     }
   }
 }

@@ -20,7 +20,7 @@ package monix.eval
 import scala.concurrent.Promise
 import scala.util.{Failure, Success}
 
-object DoOnFinishSuite extends BaseTestSuite {
+object TaskCoevalDoOnFinishSuite extends BaseTestSuite {
   test("Task.doOnFinish should work for successful values") { implicit s =>
     val p = Promise[Option[Throwable]]()
 

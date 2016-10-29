@@ -19,7 +19,6 @@ package monix.eval
 
 import monix.execution.CancelableFuture
 import monix.execution.internal.Platform
-
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}

@@ -73,7 +73,7 @@ object TaskEvalAlwaysSuite extends BaseTestSuite {
       t2.runAsync(s)
       s.tick()
 
-      t1 =!= t2
+      t1 !== t2
     }
   }
 
