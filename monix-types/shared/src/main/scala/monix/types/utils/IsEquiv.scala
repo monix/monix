@@ -15,12 +15,11 @@
  * limitations under the License.
  */
 
-package monix.reactive
+package monix.types.utils
 
-package object observers {
-  @deprecated("Use monix.reactive.Observer.Sync", since="2.0")
-  type SyncObserver[-A] = monix.reactive.Observer.Sync[A]
+/** For expressing equivalence in laws. */
+final case class IsEquiv[A](lh: A, rh: A)
 
-  @deprecated("Use monix.reactive.observers.Subscriber.Sync", since="2.0")
-  type SyncSubscriber[-A] = monix.reactive.observers.Subscriber.Sync[A]
-}
+
+
+

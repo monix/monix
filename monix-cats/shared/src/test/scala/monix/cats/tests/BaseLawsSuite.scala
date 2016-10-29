@@ -17,21 +17,21 @@
 
 package monix.cats.tests
 
-import cats.data.Xor
 import cats.{Eq, Eval}
 import minitest.SimpleTestSuite
-import minitest.laws.Discipline
+import minitest.laws.Checkers
 import monix.cats.MonixToCatsConversions
 import monix.eval._
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
-import org.scalacheck.Arbitrary
+import org.scalacheck.{Arbitrary, Cogen, Prop}
 import org.scalacheck.Test.Parameters
+import org.typelevel.discipline.Laws
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
-trait BaseLawsSuite extends SimpleTestSuite with Discipline with BaseLawsSuiteInstances2 {
+trait BaseLawsSuite extends SimpleTestSuite with Checkers with BaseLawsSuiteInstances2 {
   override lazy val checkConfig: Parameters =
     Parameters.default
       .withMinSuccessfulTests(if (Platform.isJVM) 100 else 10)
@@ -42,6 +42,14 @@ trait BaseLawsSuite extends SimpleTestSuite with Discipline with BaseLawsSuiteIn
       .withMinSuccessfulTests(10)
       .withMaxDiscardRatio(50.0f)
       .withMaxSize(6)
+
+  /** Checks all given Discipline rules. */
+  def checkAll(name: String, ruleSet: Laws#RuleSet, config: Parameters = checkConfig): Unit = {
+    for ((id, prop: Prop) ← ruleSet.all.properties)
+      test(name + "." + id) {
+        check(prop)
+      }
+  }
 }
 
 trait BaseLawsSuiteInstances2 extends BaseLawsSuiteInstances1 {
@@ -111,14 +119,14 @@ trait BaseLawsSuiteInstances1 extends cats.instances.AllInstances with MonixToCa
         .map(number => new RuntimeException(number.toString))
     }
 
-  implicit def arbitrary[E : Arbitrary, A : Arbitrary]: Arbitrary[E Xor A] =
+  implicit def arbitrary[E : Arbitrary, A : Arbitrary]: Arbitrary[Either[E,A]] =
     Arbitrary {
       val int = implicitly[Arbitrary[Int]].arbitrary
       val aa = implicitly[Arbitrary[A]].arbitrary
       val ae = implicitly[Arbitrary[E]].arbitrary
 
       for (i <- int; a <- aa; e <- ae) yield
-        if (i % 2 == 0) Xor.left(e) else Xor.right(a)
+        if (i % 2 == 0) Left(e) else Right(a)
     }
 
   implicit lazy val throwableEq = new Eq[Throwable] {
@@ -208,4 +216,13 @@ trait BaseLawsSuiteInstances1 extends cats.instances.AllInstances with MonixToCa
         valueA == valueB
       }
     }
+
+  implicit def cogenForThrowable: Cogen[Throwable] =
+    Cogen[String].contramap(_.toString)
+  implicit def cogenForTask[A]: Cogen[Task[A]] =
+    Cogen[Unit].contramap(_ => ())
+  implicit def cogenForCoeval[A](implicit A: Numeric[A]): Cogen[Coeval[A]] =
+    Cogen((x: Coeval[A]) => A.toLong(x.value))
+  implicit def cogenForObservable[A]: Cogen[Observable[A]] =
+    Cogen[Unit].contramap(_ => ())
 }

@@ -40,7 +40,7 @@ private[reactive] final class IteratorAsObservable[T](
 
   def unsafeSubscribeFn(out: Subscriber[T]): Cancelable = {
     if (wasSubscribed.getAndSet(true)) {
-      out.onError(new MultipleSubscribersException("InputStreamObservable"))
+      out.onError(MultipleSubscribersException("InputStreamObservable"))
       Cancelable.empty
     } else {
       startLoop(out)
@@ -53,11 +53,11 @@ private[reactive] final class IteratorAsObservable[T](
     // call onError if no other terminal event has been called.
     var streamErrors = true
     try {
-      val isEmpty = iterator.isEmpty
+      val iteratorHasNext = iterator.hasNext
       streamErrors = false
       // Short-circuiting empty iterators, as there's no reason to
       // start the streaming if we have no elements
-      if (isEmpty) {
+      if (!iteratorHasNext) {
         subscriber.onComplete()
         Cancelable.empty
       }
@@ -95,6 +95,9 @@ private[reactive] final class IteratorAsObservable[T](
   /** In case of an asynchronous boundary, we reschedule the the
     * run-loop on another logical thread. Usage of `onComplete` takes
     * care of that.
+    *
+    * NOTE: the assumption of this method is that `iter` is
+    * NOT empty, so the first call is `next()` and not `hasNext()`.
     */
   private def reschedule(ack: Future[Ack], iter: Iterator[T],
     out: Subscriber[T], c: BooleanCancelable, em: ExecutionModel)
@@ -131,6 +134,9 @@ private[reactive] final class IteratorAsObservable[T](
     * After it encounters an asynchronous boundary (i.e. an
     * uncompleted `Future` returned by `onNext`), then we
     * [[reschedule]] the loop on another logical thread.
+    *
+    * NOTE: the assumption of this method is that `iter` is
+    * NOT empty, so the first call is `next()` and not `hasNext()`.
     */
   @tailrec private
   def fastLoop(iter: Iterator[T], out: Subscriber[T], c: BooleanCancelable,
@@ -145,7 +151,7 @@ private[reactive] final class IteratorAsObservable[T](
     var streamErrors = true
     // True in case our iterator is seen to be empty and we must
     // signal onComplete
-    var iteratorIsDone = false
+    var iteratorHasNext = true
     // non-null in case we caught an iterator related error and we
     // must signal onError
     var iteratorTriggeredError: Throwable = null
@@ -154,20 +160,17 @@ private[reactive] final class IteratorAsObservable[T](
     // iterator-related exceptions, otherwise we are dealing with a
     // contract violation and we won't take care of that
     try {
-      if (iter.hasNext) {
-        val next = iter.next()
-        streamErrors = false
-        ack = out.onNext(next)
-      } else {
-        iteratorIsDone = true
-      }
+      val next = iter.next()
+      iteratorHasNext = iter.hasNext
+      streamErrors = false
+      ack = out.onNext(next)
     } catch {
       case NonFatal(ex) if streamErrors =>
         iteratorTriggeredError = ex
     }
 
     // Signaling onComplete
-    if (iteratorIsDone) {
+    if (!iteratorHasNext) {
       streamErrors = true
       try {
         onFinish.cancel()
@@ -182,6 +185,7 @@ private[reactive] final class IteratorAsObservable[T](
       triggerCancel(s)
       // Signaling error only if the subscription isn't canceled
       if (!c.isCanceled) out.onError(iteratorTriggeredError)
+      else s.reportFailure(iteratorTriggeredError)
     }
     else {
       // Logic for collapsing execution loops

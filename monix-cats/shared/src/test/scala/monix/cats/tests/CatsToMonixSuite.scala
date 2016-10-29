@@ -31,13 +31,6 @@ object CatsToMonixSuite extends SimpleTestSuite with cats.instances.AllInstances
     assertEquals(test(Eval.always(1)).value, 2)
   }
 
-  test("applicative") {
-    def test[F[_]](x: F[Int => Int])(implicit F: Applicative[F]): F[Int] =
-      x.ap(F.pure(1))
-
-    assertEquals(test(Eval.always((x: Int) => x + 1)).value, 2)
-  }
-
   test("monad") {
     def test[F[_]](x: F[Int])(implicit M: Monad[F], A: Applicative[F]): F[Int] =
       x.flatMap(r => A.pure(r + 1))
@@ -46,7 +39,7 @@ object CatsToMonixSuite extends SimpleTestSuite with cats.instances.AllInstances
   }
 
   test("coflatMap") {
-    def test[F[_]](x: F[Int])(implicit F: CoflatMap[F]): F[Int] =
+    def test[F[_]](x: F[Int])(implicit F: Cobind[F]): F[Int] =
       x.coflatMap(_ => 2)
 
     assertEquals(test(Eval.always(1)).value, 2)

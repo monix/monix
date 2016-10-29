@@ -670,20 +670,20 @@ object Coeval {
   /** Implicit type-class instances of [[Coeval]]. */
   implicit val typeClassInstances: TypeClassInstances = new TypeClassInstances
 
-
   /** Groups the implementation for the type-classes defined in [[monix.types]]. */
   class TypeClassInstances
-    extends DeferrableClass[Coeval]
-      with MemoizableClass[Coeval]
-      with RecoverableClass[Coeval,Throwable]
-      with ComonadClass[Coeval]
-      with MonadRecClass[Coeval] {
+    extends Suspendable.Instance[Coeval]
+    with Memoizable.Instance[Coeval]
+    with MonadError.Instance[Coeval,Throwable]
+    with Comonad.Instance[Coeval]
+    with MonadRec.Instance[Coeval] {
 
     override def pure[A](a: A): Coeval[A] = Coeval.now(a)
-    override def defer[A](fa: => Coeval[A]): Coeval[A] = Coeval.defer(fa)
+    override def suspend[A](fa: => Coeval[A]): Coeval[A] = Coeval.defer(fa)
     override def evalOnce[A](a: => A): Coeval[A] = Coeval.evalOnce(a)
     override def eval[A](a: => A): Coeval[A] = Coeval.eval(a)
     override def memoize[A](fa: Coeval[A]): Coeval[A] = fa.memoize
+    override val unit: Coeval[Unit] = Coeval.now(())
 
     override def extract[A](x: Coeval[A]): A =
       x.value
@@ -691,6 +691,8 @@ object Coeval {
       fa.flatMap(f)
     override def flatten[A](ffa: Coeval[Coeval[A]]): Coeval[A] =
       ffa.flatten
+    override def tailRecM[A, B](a: A)(f: (A) => Coeval[Either[A, B]]): Coeval[B] =
+      Coeval.tailRecM(a)(f)
     override def coflatMap[A, B](fa: Coeval[A])(f: (Coeval[A]) => B): Coeval[B] =
       Coeval.eval(f(fa))
     override def ap[A, B](ff: Coeval[(A) => B])(fa: Coeval[A]): Coeval[B] =

@@ -1504,22 +1504,24 @@ private[eval] trait TaskInstances {
 
   /** Groups the implementation for the type-classes defined in [[monix.types]]. */
   class TypeClassInstances
-    extends DeferrableClass[Task]
-      with MemoizableClass[Task]
-      with RecoverableClass[Task,Throwable]
-      with CoflatMapClass[Task]
-      with MonadRecClass[Task] {
+    extends Memoizable.Instance[Task]
+    with MonadError.Instance[Task,Throwable]
+    with Cobind.Instance[Task]
+    with MonadRec.Instance[Task] {
 
     override def pure[A](a: A): Task[A] = Task.now(a)
-    override def defer[A](fa: => Task[A]): Task[A] = Task.defer(fa)
+    override def suspend[A](fa: => Task[A]): Task[A] = Task.defer(fa)
     override def evalOnce[A](a: => A): Task[A] = Task.evalOnce(a)
     override def eval[A](a: => A): Task[A] = Task.eval(a)
     override def memoize[A](fa: Task[A]): Task[A] = fa.memoize
+    override val unit: Task[Unit] = Task.now(())
 
     override def flatMap[A, B](fa: Task[A])(f: (A) => Task[B]): Task[B] =
       fa.flatMap(f)
     override def flatten[A](ffa: Task[Task[A]]): Task[A] =
       ffa.flatten
+    override def tailRecM[A, B](a: A)(f: (A) => Task[Either[A, B]]): Task[B] =
+      Task.tailRecM(a)(f)
     override def coflatMap[A, B](fa: Task[A])(f: (Task[A]) => B): Task[B] =
       Task.eval(f(fa))
     override def ap[A, B](ff: Task[(A) => B])(fa: Task[A]): Task[B] =

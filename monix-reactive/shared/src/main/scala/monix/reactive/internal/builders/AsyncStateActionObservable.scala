@@ -32,8 +32,12 @@ class AsyncStateActionObservable[S,A](seed: => S, f: S => Task[(A,S)]) extends O
     try {
       val init = seed
       streamErrors = false
-      loop(subscriber, init).runAsync(Callback.empty)
-    } catch {
+
+      Task.defer(loop(subscriber, init))
+        .executeWithOptions(_.enableAutoCancelableRunLoops)
+        .runAsync(Callback.empty)
+    }
+    catch {
       case NonFatal(ex) =>
         if (streamErrors) subscriber.onError(ex)
         else subscriber.scheduler.reportFailure(ex)

@@ -15,17 +15,11 @@
  * limitations under the License.
  */
 
-package monix.reactive.internal.builders
+package monix.types
 
-import monix.execution.Cancelable
-import monix.reactive.Observable
-import monix.reactive.observers.Subscriber
-
-private[reactive] final class ForkObservable[A](source: Observable[A])
-  extends Observable[A] {
-
-  def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
-    source.subscribeOn(subscriber.scheduler)
-      .unsafeSubscribeFn(subscriber)
+package object utils {
+  /** Syntax for expressing equivalence in laws. */
+  implicit final class IsEqArrow[A](val lhs: A) extends AnyVal {
+    def <->(rhs: A): IsEquiv[A] = IsEquiv(lhs, rhs)
   }
 }

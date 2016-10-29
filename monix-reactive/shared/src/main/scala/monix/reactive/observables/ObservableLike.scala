@@ -18,15 +18,18 @@
 package monix.reactive.observables
 
 import java.io.PrintStream
+
 import monix.execution.Scheduler
 import monix.execution.cancelables.BooleanCancelable
+import monix.execution.schedulers.ExecutionModel
 import monix.reactive.OverflowStrategy.Synchronous
 import monix.reactive.exceptions.UpstreamTimeoutException
-import monix.reactive.internal.builders.{CombineLatest2Observable, Interleave2Observable, Zip2Observable}
+import monix.reactive.internal.builders.{RepeatObservable => _, _}
 import monix.reactive.internal.operators._
 import monix.reactive.observables.ObservableLike.{Operator, Transformer}
 import monix.reactive.observers.Subscriber
 import monix.reactive.{Notification, Observable, OverflowStrategy, Pipe}
+
 import scala.concurrent.duration.FiniteDuration
 
 /** Defines the available operations for observable-like instances.
@@ -224,15 +227,13 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     *
     * For `count` and `skip` there are 3 possibilities:
     *
-    * 1. in case `skip == count`, then there are no items dropped and
-    *    no overlap, the call being equivalent to `buffer(count)`
-    *
-    * 2. in case `skip < count`, then overlap between buffers
-    *    happens, with the number of elements being repeated being
-    *    `count - skip`
-    *
-    * 3. in case `skip > count`, then `skip - count` elements start
-    *    getting dropped between windows
+    *  1. in case `skip == count`, then there are no items dropped and
+    *     no overlap, the call being equivalent to `buffer(count)`
+    *  1. in case `skip < count`, then overlap between buffers
+    *     happens, with the number of elements being repeated being
+    *     `count - skip`
+    *  1. in case `skip > count`, then `skip - count` elements start
+    *     getting dropped between windows
     *
     * @param count the maximum size of each buffer before it should
     *        be emitted
@@ -1159,9 +1160,41 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * gets injected with a different scheduler and it's up to the source
     * to actually use it. This also means the effects are more far reaching,
     * because the whole chain until the call of this operator is affected.
+    *
+    * Alias for
+    * [[Observable.fork[A](fa:monix\.reactive\.Observable[A],scheduler* Observable.fork(fa, scheduler)]].
     */
   def executeOn(scheduler: Scheduler): Self[A] =
     self.transform(source => new ExecuteOnObservable[A](source, scheduler))
+
+  /** Mirrors the source observable, but upon subscription ensure
+    * that the evaluation forks into a separate (logical) thread.
+    *
+    * The execution is managed by the injected
+    * [[monix.execution.Scheduler scheduler]] in `subscribe()`.
+    *
+    * Alias for
+    * [[Observable.fork[A](fa:monix\.reactive\.Observable[A])* Observable.fork(fa)]].
+    */
+  def executeWithFork: Self[A] =
+    self.transform(source => new ExecuteWithForkObservable(source))
+
+  /** Returns a new observable that will execute the source with a different
+    * [[monix.execution.schedulers.ExecutionModel ExecutionModel]].
+    *
+    * This allows fine-tuning the options injected by the scheduler
+    * locally. Example:
+    *
+    * {{{
+    *   observable.executeWithModel(AlwaysAsyncExecution)
+    * }}}
+    *
+    * @param em is the
+    *        [[monix.execution.schedulers.ExecutionModel ExecutionModel]]
+    *        that will be used when evaluating the source.
+    */
+  def executeWithModel(em: ExecutionModel): Self[A] =
+    self.transform(source => new ExecuteWithModelObservable[A](source, em))
 
   /** If the connection is [[monix.execution.Cancelable.cancel cancelled]]
     * then trigger a `CancellationException`.
