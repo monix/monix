@@ -26,7 +26,6 @@ import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.reactive.Consumer.LoadBalanceConsumer.IndexedSubscriber
 import monix.reactive.Consumer.{ContraMapConsumer, MapAsyncConsumer, MapConsumer}
 import monix.reactive.observers.Subscriber
-
 import scala.annotation.tailrec
 import scala.collection.immutable.{BitSet, Queue}
 import scala.collection.mutable.ListBuffer
