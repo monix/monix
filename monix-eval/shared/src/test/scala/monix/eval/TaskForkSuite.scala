@@ -19,84 +19,42 @@ package monix.eval
 
 import monix.execution.Cancelable
 import monix.execution.internal.Platform
-
+import monix.execution.schedulers.ExecutionModel.AlwaysAsyncExecution
+import monix.execution.schedulers.TestScheduler
 import scala.util.Success
 
 object TaskForkSuite extends BaseTestSuite {
-  test("Task.now.fork should execute async") { implicit s =>
-    val t = Task.fork(Task.now(10))
+  test("Task.now.executeWithFork should execute async") { implicit s =>
+    val t = Task.now(10).executeWithFork
     val f = t.runAsync
+
     assertEquals(f.value, None)
     s.tick()
     assertEquals(f.value, Some(Success(10)))
   }
 
-  test("Task.evalOnce.fork should execute async") { implicit s =>
-    val t = Task.fork(Task.evalOnce(10))
+  test("Task.now.executeOn should execute async") { implicit s =>
+    val s2 = TestScheduler()
+    val t = Task.now(10).executeOn(s2)
     val f = t.runAsync
+
     assertEquals(f.value, None)
     s.tick()
+    assertEquals(f.value, None)
+    s2.tick()
     assertEquals(f.value, Some(Success(10)))
   }
 
-  test("Task.eval.fork should execute async") { implicit s =>
-    val t = Task.fork(Task.eval(10))
-    val f = t.runAsync
-    assertEquals(f.value, None)
-    s.tick()
-    assertEquals(f.value, Some(Success(10)))
-  }
-
-  test("Task.defer.fork should execute async") { implicit s =>
-    val t = Task.fork(Task.defer(Task.now(10)))
-    val f = t.runAsync
-    assertEquals(f.value, None)
-    s.tick()
-    assertEquals(f.value, Some(Success(10)))
-  }
-
-  test("Task.async.fork should execute async") { implicit s =>
-    val source = Task.unsafeCreate[Int]((s, conn, cb) => cb.onSuccess(10))
-    val t = Task.fork(source)
-    val f = t.runAsync
-    assertEquals(f.value, None)
-    s.tick()
-    assertEquals(f.value, Some(Success(10)))
-  }
-
-  test("Task.async.defer.fork should execute async") { implicit s =>
-    val source = Task.unsafeCreate[Int]((s, conn, cb) => cb.onSuccess(10))
-    val t = Task.fork(Task.defer(source))
-    val f = t.runAsync
-    assertEquals(f.value, None)
-    s.tick()
-    assertEquals(f.value, Some(Success(10)))
-  }
-
-  test("Task.async.flatMap.fork should execute async") { implicit s =>
-    val source = Task.unsafeCreate[Int]((s, conn, cb) => cb.onSuccess(10)).flatMap(Task.now)
-    val t = Task.fork(source)
-    val f = t.runAsync
-    assertEquals(f.value, None)
-    s.tick()
-    assertEquals(f.value, Some(Success(10)))
-  }
-
-  test("Task.async.memoize.fork should execute async") { implicit s =>
-    val source = Task.unsafeCreate[Int]((s, conn, cb) => cb.onSuccess(10))
-    val t = Task.fork(source.memoize)
-    val f = t.runAsync
-    assertEquals(f.value, None)
-    s.tick()
-    assertEquals(f.value, Some(Success(10)))
-  }
-
-  test("Task.create.fork should execute async") { implicit s =>
+  test("Task.create.executeOn should execute async") { implicit s =>
+    val s2 = TestScheduler()
     val source = Task.create[Int] { (s, cb) => cb.onSuccess(10); Cancelable.empty }
-    val t = Task.fork(source)
+    val t = source.executeOn(s2)
     val f = t.runAsync
+
     assertEquals(f.value, None)
     s.tick()
+    assertEquals(f.value, None)
+    s2.tick()
     assertEquals(f.value, Some(Success(10)))
   }
 
@@ -130,5 +88,56 @@ object TaskForkSuite extends BaseTestSuite {
     val result = loop(count).runAsync
     s.tick()
     assertEquals(result.value, Some(Success(0)))
+  }
+
+  test("Task.executeWithModel should work") { implicit s =>
+    val task = Task.now(1).executeWithModel(AlwaysAsyncExecution)
+    val f = task.runAsync
+
+    assertEquals(f.value, None)
+    s.tick()
+    assertEquals(f.value, Some(Success(1)))
+  }
+
+  test("Task.asyncBoundary should work") { implicit s =>
+    val io = TestScheduler()
+    var effect = 0
+    val f = Task.fork(Task.eval { effect += 1; effect }, io)
+      .asyncBoundary
+      .map(_ + 1)
+      .runAsync
+
+    assertEquals(effect, 0)
+    s.tick()
+    assertEquals(effect, 0)
+
+    io.tick()
+    assertEquals(effect, 1)
+    assertEquals(f.value, None)
+
+    s.tick()
+    assertEquals(f.value, Some(Success(2)))
+  }
+
+  test("Task.asyncBoundary(other) should work") { implicit s1 =>
+    val io = TestScheduler()
+    val s2 = TestScheduler()
+
+    var effect = 0
+    val f = Task.fork(Task.eval { effect += 1; effect }, io)
+      .asyncBoundary(s2)
+      .map(_ + 1)
+      .runAsync
+
+    assertEquals(effect, 0)
+    s1.tick()
+    assertEquals(effect, 0)
+
+    io.tick()
+    assertEquals(effect, 1)
+    assertEquals(f.value, None)
+
+    s2.tick()
+    assertEquals(f.value, Some(Success(2)))
   }
 }

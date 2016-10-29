@@ -18,7 +18,6 @@
 package monix.eval
 
 import monix.execution.internal.Platform
-
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
@@ -33,7 +32,7 @@ object TaskGatherUnorderedSuite extends BaseTestSuite {
     s.tick(2.seconds)
     assertEquals(f.value, None)
     s.tick(1.second)
-    assertEquals(f.value, Some(Success(List(2, 1, 3))))
+    assertEquals(f.value, Some(Success(List(3, 1, 2))))
   }
 
   test("Task.gatherUnordered should onError if one of the tasks terminates in error") { implicit s =>

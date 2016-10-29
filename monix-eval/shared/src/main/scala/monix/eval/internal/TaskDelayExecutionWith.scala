@@ -15,16 +15,27 @@
  * limitations under the License.
  */
 
-package monix
+package monix.eval.internal
 
-package object eval {
-  /** Syntax for equivalence in tests. */
-  implicit final class IsEqArrow[A](val lhs: A) extends AnyVal {
-    def ===(rhs: A): IsEquiv[A] = IsEquiv(lhs, rhs)
-  }
+import monix.eval.{Callback, Task}
 
-  /** Syntax for negating equivalence in tests. */
-  implicit final class IsNotEqArrow[A](val lhs: A) extends AnyVal {
-    def !==(rhs: A): IsNotEquiv[A] = IsNotEquiv(lhs, rhs)
-  }
+private[monix] object TaskDelayExecutionWith {
+  /**
+    * Implementation for `Task.delayExecutionWith`
+    */
+  def apply[A](self: Task[A], trigger: Task[Any]): Task[A] =
+    Task.unsafeCreate { (context, cb) =>
+      implicit val s = context.scheduler
+
+      Task.unsafeStartAsync(trigger, context,
+        new Callback[Any] {
+          def onSuccess(value: Any): Unit = {
+            // Async boundary forced, prevents stack-overflows
+            Task.unsafeStartAsync(self, context, Callback.async(cb))
+          }
+
+          def onError(ex: Throwable): Unit =
+            cb.asyncOnError(ex)
+        })
+    }
 }
