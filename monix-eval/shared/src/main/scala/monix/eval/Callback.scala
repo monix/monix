@@ -81,28 +81,28 @@ object Callback {
   def async[A](cb: Callback[A])(implicit s: Scheduler): Callback[A] =
     new Callback[A] {
       def onSuccess(value: A): Unit =
-        s.executeLocal(cb.onSuccess(value))
+        s.executeTrampolined(() => cb.onSuccess(value))
       def onError(ex: Throwable): Unit =
-        s.executeLocal(cb.onError(ex))
+        s.executeTrampolined(() => cb.onError(ex))
     }
 
   /** Useful extension methods for [[Callback]]. */
   implicit final class Extensions[-A](val source: Callback[A]) extends AnyVal {
     /** Extension method that calls `onSuccess` asynchronously. */
     def asyncOnSuccess(value: A)(implicit s: Scheduler): Unit =
-      s.executeLocal(source.onSuccess(value))
+      s.executeTrampolined(() => source.onSuccess(value))
 
     /** Extension method that calls `onError` asynchronously. */
     def asyncOnError(ex: Throwable)(implicit s: Scheduler): Unit =
-      s.executeLocal(source.onError(ex))
+      s.executeTrampolined(() => source.onError(ex))
 
     /** Extension method that calls `apply` asynchronously. */
     def asyncApply(value: Coeval[A])(implicit s: Scheduler): Unit =
-      s.executeLocal(source(value))
+      s.executeTrampolined(() => source(value))
 
     /** Extension method that calls `apply` asynchronously. */
     def asyncApply(value: Try[A])(implicit s: Scheduler): Unit =
-      s.executeLocal(source(value))
+      s.executeTrampolined(() => source(value))
   }
 
   /** An "empty" callback instance doesn't do anything `onSuccess` and

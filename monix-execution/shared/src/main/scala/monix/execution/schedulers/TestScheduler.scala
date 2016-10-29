@@ -23,58 +23,54 @@ import monix.execution.cancelables.SingleAssignmentCancelable
 import monix.execution.schedulers.TestScheduler._
 import scala.annotation.tailrec
 import scala.collection.immutable.SortedSet
-import scala.concurrent.duration.{TimeUnit, Duration, FiniteDuration}
+import scala.concurrent.duration.{Duration, FiniteDuration, TimeUnit}
 import scala.util.Random
 import scala.util.control.NonFatal
 
 /** A scheduler meant for testing purposes. */
-final class TestScheduler private (override val executionModel: ExecutionModel)
-  extends ReferenceScheduler with LocalBatchingExecutor {
+final class TestScheduler private (
+  private[this] val stateRef: AtomicAny[State],
+  override val executionModel: ExecutionModel)
+  extends ReferenceScheduler with BatchingScheduler {
 
-  /*
-   * The `internalClock` is used for executing tasks. Upon calling [[tick]], the
-   * internal clock is advanced and pending `tasks` are executed.
-   */
-  val state = AtomicAny(State(
-    lastID = 0,
-    clock = Duration.Zero,
-    tasks = SortedSet.empty[Task],
-    cancelTask = cancelTask,
-    lastReportedError = null
-  ))
+  /** Returns the internal state of the [[TestScheduler]]. */
+  def state: State = stateRef.get
 
   override def currentTimeMillis(): Long =
-    state.get.clock.toMillis
+    stateRef.get.clock.toMillis
+
+  @tailrec
+  private def cancelTask(t: Task): Unit = {
+    val current: State = stateRef.get
+    val update = current.copy(tasks = current.tasks - t)
+    if (!stateRef.compareAndSet(current, update)) cancelTask(t)
+  }
 
   @tailrec
   override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
-    val current: State = state.get
+    val current: State = stateRef.get
     val (cancelable, newState) =
-      current.scheduleOnce(FiniteDuration(initialDelay, unit), r)
-    if (state.compareAndSet(current, newState)) cancelable else
+      current.scheduleOnce(FiniteDuration(initialDelay, unit), r, cancelTask)
+    if (stateRef.compareAndSet(current, newState)) cancelable else
       scheduleOnce(initialDelay, unit, r)
   }
 
   @tailrec
-  private[this] def cancelTask(t: Task): Unit = {
-    val current: State = state.get
-    val update = current.copy(tasks = current.tasks - t)
-    if (!state.compareAndSet(current, update)) cancelTask(t)
-  }
-
-  @tailrec
-  override def executeAsync(r: Runnable): Unit = {
-    val current: State = state.get
+  protected override def executeAsync(r: Runnable): Unit = {
+    val current: State = stateRef.get
     val update = current.execute(r)
-    if (!state.compareAndSet(current, update)) executeAsync(r)
+    if (!stateRef.compareAndSet(current, update)) executeAsync(r)
   }
 
   @tailrec
   override def reportFailure(t: Throwable): Unit = {
-    val current: State = state.get
+    val current: State = stateRef.get
     val update = current.copy(lastReportedError = t)
-    if (!state.compareAndSet(current, update)) reportFailure(t)
+    if (!stateRef.compareAndSet(current, update)) reportFailure(t)
   }
+
+  override def withExecutionModel(em: ExecutionModel): TestScheduler =
+    new TestScheduler(stateRef, em)
 
   private[this] def extractOneTask(current: State, clock: FiniteDuration): Option[(Task, SortedSet[Task])] = {
     current.tasks.headOption.filter(_.runsAt <= clock) match {
@@ -95,12 +91,12 @@ final class TestScheduler private (override val executionModel: ExecutionModel)
 
   @tailrec
   def tickOne(): Boolean = {
-    val current = state.get
+    val current = stateRef.get
 
     // extracting one task by taking the immediate tasks
     extractOneTask(current, current.clock) match {
       case Some((head, rest)) =>
-        if (!state.compareAndSet(current, current.copy(tasks = rest)))
+        if (!stateRef.compareAndSet(current, current.copy(tasks = rest)))
           tickOne()
         else {
           // execute task
@@ -120,12 +116,12 @@ final class TestScheduler private (override val executionModel: ExecutionModel)
   def tick(time: FiniteDuration = Duration.Zero): Unit = {
     @tailrec
     def loop(time: FiniteDuration, result: Boolean): Unit = {
-      val current: State = state.get
+      val current: State = stateRef.get
       val currentClock = current.clock + time
 
       extractOneTask(current, currentClock) match {
         case Some((head, rest)) =>
-          if (!state.compareAndSet(current, current.copy(clock = head.runsAt, tasks = rest)))
+          if (!stateRef.compareAndSet(current, current.copy(clock = head.runsAt, tasks = rest)))
             loop(time, result)
           else {
             // execute task
@@ -140,7 +136,7 @@ final class TestScheduler private (override val executionModel: ExecutionModel)
           }
 
         case None =>
-          if (!state.compareAndSet(current, current.copy(clock = currentClock)))
+          if (!stateRef.compareAndSet(current, current.copy(clock = currentClock)))
             loop(time, result)
       }
     }
@@ -152,11 +148,19 @@ final class TestScheduler private (override val executionModel: ExecutionModel)
 object TestScheduler {
   /** Builder for [[TestScheduler]]. */
   def apply(): TestScheduler =
-    new TestScheduler(ExecutionModel.Default)
+    apply(ExecutionModel.Default)
 
   /** Builder for [[TestScheduler]]. */
-  def apply(executionModel: ExecutionModel): TestScheduler =
-    new TestScheduler(executionModel)
+  def apply(executionModel: ExecutionModel): TestScheduler = {
+    val state = AtomicAny(State(
+      lastID = 0,
+      clock = Duration.Zero,
+      tasks = SortedSet.empty[Task],
+      lastReportedError = null
+    ))
+
+    new TestScheduler(state, executionModel)
+  }
 
   /** Used internally by [[TestScheduler]], represents a
     * unit of work pending execution.
@@ -185,7 +189,6 @@ object TestScheduler {
     lastID: Long,
     clock: FiniteDuration,
     tasks: SortedSet[Task],
-    cancelTask: Task => Unit,
     lastReportedError: Throwable) {
 
     assert(!tasks.headOption.exists(_.runsAt < clock),
@@ -199,7 +202,7 @@ object TestScheduler {
     }
 
     /** Returns a new state with a scheduled task included. */
-    def scheduleOnce(delay: FiniteDuration, r: Runnable): (Cancelable, State) = {
+    def scheduleOnce(delay: FiniteDuration, r: Runnable, cancelTask: Task => Unit): (Cancelable, State) = {
       require(delay >= Duration.Zero, "The given delay must be positive")
 
       val newID = lastID + 1

@@ -17,10 +17,10 @@
 
 package monix.execution.schedulers
 
-import java.util.concurrent.{TimeUnit, ScheduledExecutorService}
+import java.util.concurrent.{ScheduledExecutorService, TimeUnit}
 import monix.execution.schedulers.AsyncScheduler.DeferredRunnable
-import scala.concurrent.ExecutionContext
 import monix.execution.{Cancelable, UncaughtExceptionReporter}
+import scala.concurrent.ExecutionContext
 
 /** An `AsyncScheduler` schedules tasks to happen in the future with the
   * given `ScheduledExecutorService` and the tasks themselves are executed on
@@ -31,7 +31,7 @@ final class AsyncScheduler private (
   ec: ExecutionContext,
   r: UncaughtExceptionReporter,
   val executionModel: ExecutionModel)
-  extends ReferenceScheduler with LocalBatchingExecutor {
+  extends ReferenceScheduler with BatchingScheduler {
 
   protected def executeAsync(r: Runnable): Unit =
     ec.execute(r)
@@ -49,6 +49,9 @@ final class AsyncScheduler private (
 
   override def reportFailure(t: Throwable): Unit =
     r.reportFailure(t)
+
+  override def withExecutionModel(em: ExecutionModel): AsyncScheduler =
+    new AsyncScheduler(scheduler, ec, r, em)
 }
 
 object AsyncScheduler {

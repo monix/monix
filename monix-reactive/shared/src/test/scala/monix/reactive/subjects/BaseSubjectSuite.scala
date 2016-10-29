@@ -29,7 +29,7 @@ trait BaseSubjectSuite extends TestSuite[TestScheduler] {
 
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
-    assert(s.state.get.tasks.isEmpty,
+    assert(s.state.tasks.isEmpty,
       "TestScheduler should have no pending tasks")
   }
 

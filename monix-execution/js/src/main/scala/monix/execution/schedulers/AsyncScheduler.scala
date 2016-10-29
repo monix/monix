@@ -27,7 +27,7 @@ import monix.execution.{Cancelable, UncaughtExceptionReporter}
 final class AsyncScheduler private (
   reporter: UncaughtExceptionReporter,
   override val executionModel: ExecutionModel)
-  extends ReferenceScheduler with LocalBatchingExecutor {
+  extends ReferenceScheduler with BatchingScheduler {
 
   protected def executeAsync(r: Runnable): Unit =
     setTimeout(0L, r, reporter)
@@ -44,6 +44,8 @@ final class AsyncScheduler private (
 
   override def reportFailure(t: Throwable): Unit =
     reporter.reportFailure(t)
+  override def withExecutionModel(em: ExecutionModel): AsyncScheduler =
+    new AsyncScheduler(reporter, em)
 }
 
 object AsyncScheduler {

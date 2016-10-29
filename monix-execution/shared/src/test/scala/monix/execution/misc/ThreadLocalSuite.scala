@@ -15,16 +15,19 @@
  * limitations under the License.
  */
 
-package monix.execution.schedulers
+package monix.execution.misc
 
-import scala.concurrent.OnCompleteRunnable
+import minitest.SimpleTestSuite
 
-/** A marker for callbacks that can be batched and
-  * executed locally.
-  *
-  * Idea was taken from the `scala.concurrent.Future`
-  * implementation. Credit should be given where due.
-  *
-  * DO NOT use unless you know what you're doing.
-  */
-abstract class LocalRunnable extends Runnable with OnCompleteRunnable
+object ThreadLocalSuite extends SimpleTestSuite {
+  test("ThreadLocal should work") {
+    val tl = ThreadLocal(10)
+    assertEquals(tl.get, 10)
+
+    tl.set(20)
+    assertEquals(tl.get, 20)
+
+    tl.reset()
+    assertEquals(tl.get, 10)
+  }
+}

@@ -31,7 +31,7 @@ import scala.util.Success
 object CancelConsumerSuite extends TestSuite[TestScheduler] {
   def setup(): TestScheduler = TestScheduler()
   def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.get.tasks.isEmpty,
+    assert(s.state.tasks.isEmpty,
       "TestScheduler should have no pending tasks")
   }
 
@@ -64,10 +64,10 @@ object CancelConsumerSuite extends TestSuite[TestScheduler] {
     val consumer = Consumer.cancel[Int]
     val (out, _) = consumer.createSubscriber(Callback.empty, s)
 
-    assertEquals(s.state.get.lastReportedError, null)
+    assertEquals(s.state.lastReportedError, null)
     val ex = DummyException("ex")
     out.onError(ex)
-    assertEquals(s.state.get.lastReportedError, ex)
+    assertEquals(s.state.lastReportedError, ex)
     s.tick()
   }
 }

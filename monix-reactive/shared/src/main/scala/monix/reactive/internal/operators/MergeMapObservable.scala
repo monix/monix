@@ -46,7 +46,7 @@ private[reactive] final class MergeMapObservable[A,B](
       private[this] val errors = if (delayErrors)
         mutable.ArrayBuffer.empty[Throwable] else null
 
-      private[this] val refCount = RefCountCancelable {
+      private[this] val refCount = RefCountCancelable { () =>
         if (!upstreamIsDone.getAndSet(true)) {
           if (delayErrors)
             errors.synchronized {

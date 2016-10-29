@@ -19,6 +19,7 @@ package monix.execution.schedulers
 
 import java.util.concurrent.TimeUnit
 import monix.execution.cancelables.MultiAssignmentCancelable
+import monix.execution.schedulers.ReferenceScheduler.WrappedScheduler
 import monix.execution.{Cancelable, Scheduler}
 
 /** Helper for building a [[Scheduler]].
@@ -28,7 +29,7 @@ import monix.execution.{Cancelable, Scheduler}
   * you'll get [[Scheduler.scheduleWithFixedDelay]] and
   * [[Scheduler.scheduleAtFixedRate]] for free.
   */
-private[schedulers] abstract class ReferenceScheduler extends Scheduler {
+trait ReferenceScheduler extends Scheduler {
   override def currentTimeMillis(): Long =
     System.currentTimeMillis()
 
@@ -78,9 +79,32 @@ private[schedulers] abstract class ReferenceScheduler extends Scheduler {
     sub
   }
 
-  /** Runs a block of code in this `ExecutionContext`. */
-  def execute(runnable: Runnable): Unit
+  override def withExecutionModel(em: ExecutionModel): Scheduler =
+    WrappedScheduler(this, em)
+}
 
-  /** Reports that an asynchronous computation failed. */
-  def reportFailure(t: Throwable): Unit
+object ReferenceScheduler {
+  /** Wrapper around any scheduler implementation,
+    * for specifying any execution model.
+    */
+  private final case class WrappedScheduler(
+    s: Scheduler,
+    override val executionModel: ExecutionModel)
+    extends Scheduler {
+
+    override def execute(runnable: Runnable): Unit =
+      s.execute(runnable)
+    override def reportFailure(t: Throwable): Unit =
+      s.reportFailure(t)
+    override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable =
+      s.scheduleOnce(initialDelay, unit, r)
+    override def scheduleWithFixedDelay(initialDelay: Long, delay: Long, unit: TimeUnit, r: Runnable): Cancelable =
+      s.scheduleWithFixedDelay(initialDelay, delay, unit, r)
+    override def scheduleAtFixedRate(initialDelay: Long, period: Long, unit: TimeUnit, r: Runnable): Cancelable =
+      s.scheduleAtFixedRate(initialDelay, period, unit, r)
+    override def currentTimeMillis(): Long =
+      s.currentTimeMillis()
+    override def withExecutionModel(em: ExecutionModel): Scheduler =
+      copy(s, em)
+  }
 }

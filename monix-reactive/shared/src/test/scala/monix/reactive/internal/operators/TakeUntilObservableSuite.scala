@@ -65,10 +65,10 @@ object TakeUntilObservableSuite extends BaseOperatorSuite {
       .takeUntil(Observable.now(1).delaySubscription(1.second))
     val f = obs.runAsyncGetFirst
 
-    assert(s.state.get.tasks.nonEmpty, "tasks.nonEmpty")
+    assert(s.state.tasks.nonEmpty, "tasks.nonEmpty")
     s.tick()
 
     assertEquals(f.value, Some(Success(Some(1))))
-    assert(s.state.get.tasks.isEmpty, "tasks.isEmpty")
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 }

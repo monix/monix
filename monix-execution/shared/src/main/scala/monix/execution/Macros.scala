@@ -19,7 +19,8 @@ package monix.execution
 
 import monix.execution.Ack.{AckExtensions, Continue, Stop}
 import monix.execution.misc.{HygieneUtilMacros, InlineMacros}
-import monix.execution.schedulers.LocalRunnable
+import monix.execution.schedulers.{StartAsyncBatchRunnable, TrampolinedRunnable}
+
 import scala.concurrent.Future
 import scala.reflect.macros.whitebox
 
@@ -298,19 +299,40 @@ class Macros(override val c: whitebox.Context) extends InlineMacros with Hygiene
   def executeAsync(cb: Tree): Tree = {
     val selfExpr = sourceFromScheduler(c.prefix.tree)
     val RunnableSymbol = symbolOf[Runnable]
-    val execute = c.Expr[Unit](cb)
 
-    val tree = q"""($selfExpr).execute(new $RunnableSymbol { def run(): Unit = { $execute } })"""
-    inlineAndResetTree(tree)
+    resetTree(
+      q"""
+      ($selfExpr).execute(new $RunnableSymbol {
+        def run(): Unit = { $cb }
+      })
+      """)
   }
 
-  def executeLocal(cb: Tree): Tree = {
+  def executeTrampolined(cb: Tree): Tree = {
     val selfExpr = sourceFromScheduler(c.prefix.tree)
-    val LocalRunnableSymbol = symbolOf[LocalRunnable]
-    val execute = c.Expr[Unit](cb)
+    val TrampolinedRunnableSymbol = symbolOf[TrampolinedRunnable]
 
-    val tree = q"""($selfExpr).execute(new $LocalRunnableSymbol { def run(): Unit = { $execute } })"""
-    inlineAndResetTree(tree)
+    resetTree(
+      q"""
+      ($selfExpr).execute(new $TrampolinedRunnableSymbol {
+        def run(): Unit = { $cb }
+      })
+      """)
+  }
+
+  def executeAsyncBatch(cb: Tree): Tree = {
+    val self = util.name("scheduler")
+    val runnable = util.name("runnable")
+    val selfExpr = sourceFromScheduler(c.prefix.tree)
+    val TrampolinedRunnableSymbol = symbolOf[TrampolinedRunnable]
+    val StartAsyncBatchRunnableSymbol = symbolOf[StartAsyncBatchRunnable]
+
+    resetTree(
+      q"""
+      val $self = ($selfExpr)
+      val $runnable = new $TrampolinedRunnableSymbol { def run(): Unit = { $cb } }
+      $self.execute(new $StartAsyncBatchRunnableSymbol($runnable, $self))
+      """)
   }
 
   private[monix] def sourceFromScheduler(tree: Tree): c.Expr[Scheduler] = {

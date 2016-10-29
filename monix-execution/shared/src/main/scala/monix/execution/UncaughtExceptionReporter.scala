@@ -44,7 +44,6 @@ object UncaughtExceptionReporter {
     }
 
   /** The default reporter. Simply prints stack traces on STDERR. */
-  val LogExceptionsToStandardErr = {
-    UncaughtExceptionReporter(ex => ExecutionContext.defaultReporter(ex))
-  }
+  val LogExceptionsToStandardErr =
+    UncaughtExceptionReporter(ExecutionContext.defaultReporter)
 }

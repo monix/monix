@@ -360,14 +360,14 @@ abstract class BaseOperatorSuite extends BaseLawsTestSuite {
       s.tick(waitFirst)
       assertEquals(received, count)
       assertEquals(wasCompleted, 0)
-      assert(s.state.get.tasks.nonEmpty, "tasks.nonEmpty")
+      assert(s.state.tasks.nonEmpty, "tasks.nonEmpty")
 
       cancelable.cancel()
       s.tick(waitNext)
 
       assertEquals(received, count)
       assertEquals(wasCompleted, 0)
-      assert(s.state.get.tasks.isEmpty, "tasks.isEmpty")
+      assert(s.state.tasks.isEmpty, "tasks.isEmpty")
     }
   }
 }

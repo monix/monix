@@ -39,7 +39,7 @@ object TaskEvalOnceSuite extends BaseTestSuite {
     val f = Task.evalOnce[Int](if (1 == 1) throw ex else 1).runAsync
 
     assertEquals(f.value, Some(Failure(ex)))
-    assertEquals(s.state.get.lastReportedError, null)
+    assertEquals(s.state.lastReportedError, null)
   }
 
   test("Task.evalOnce.flatMap should be equivalent with Task.evalOnce") { implicit s =>

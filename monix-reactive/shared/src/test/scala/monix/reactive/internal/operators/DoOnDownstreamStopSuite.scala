@@ -28,7 +28,7 @@ import scala.concurrent.Future
 object DoOnDownstreamStopSuite extends TestSuite[TestScheduler] {
   def setup(): TestScheduler = TestScheduler()
   def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.get.tasks.isEmpty,
+    assert(s.state.tasks.isEmpty,
       "TestScheduler should have no pending tasks")
   }
 
@@ -122,7 +122,7 @@ object DoOnDownstreamStopSuite extends TestSuite[TestScheduler] {
       })
 
     s.tick()
-    assertEquals(s.state.get.lastReportedError, dummy)
+    assertEquals(s.state.lastReportedError, dummy)
     assertEquals(hasError, false)
   }
 }
