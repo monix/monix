@@ -26,7 +26,7 @@ import scala.util.Success
 object AsyncSemaphoreSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(env: TestScheduler): Unit =
-    assert(env.state.get.tasks.isEmpty, "should not have tasks left to execute")
+    assert(env.state.tasks.isEmpty, "should not have tasks left to execute")
 
   test("simple greenLight") { implicit s =>
     val semaphore = AsyncSemaphore(maxParallelism = 4)
