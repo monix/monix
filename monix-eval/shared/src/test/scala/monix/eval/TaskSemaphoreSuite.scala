@@ -20,14 +20,13 @@ package monix.eval
 import minitest.TestSuite
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
-
 import scala.concurrent.Promise
 import scala.util.Success
 
 object TaskSemaphoreSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(env: TestScheduler): Unit =
-    assert(env.state.get.tasks.isEmpty, "should not have tasks left to execute")
+    assert(env.state.tasks.isEmpty, "should not have tasks left to execute")
 
   test("simple green-light") { implicit s =>
     val semaphore = TaskSemaphore(maxParallelism = 4)

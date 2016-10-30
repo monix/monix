@@ -17,7 +17,6 @@
 
 package monix.eval
 
-import monix.execution.Cancelable
 import monix.execution.misc.AsyncSemaphore
 
 /** The `TaskSemaphore` is an asynchronous semaphore implementation that
@@ -54,18 +53,15 @@ final class TaskSemaphore private (maxParallelism: Int) extends Serializable {
     * releasing its permit after being complete.
     */
   def greenLight[A](fa: Task[A]): Task[A] =
-    Task.unsafeCreate { (s, conn, cb) =>
+    Task.defer {
       val permit = semaphore.acquire()
-      val c = Cancelable(semaphore.release)
-      // On cancel trigger a release
-      conn.push(c)
+      val release = Task.evalOnce(semaphore.release())
 
-      val source = Task.fromFuture(permit).flatMap { _ =>
+      Task.fromFuture(permit).flatMap { _ =>
         // On finish trigger a release
-        fa.doOnFinish(_ => Task.eval(c.cancel()))
+        fa.doOnFinish(_ => release)
+          .doOnCancel(release)
       }
-
-      Task.unsafeStartNow(source, s, conn, cb)
     }
 }
 
