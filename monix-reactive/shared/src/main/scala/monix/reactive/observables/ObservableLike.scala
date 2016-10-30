@@ -19,6 +19,7 @@ package monix.reactive.observables
 
 import java.io.PrintStream
 
+import monix.eval.Task
 import monix.execution.Scheduler
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.schedulers.ExecutionModel
@@ -30,7 +31,9 @@ import monix.reactive.observables.ObservableLike.{Operator, Transformer}
 import monix.reactive.observers.Subscriber
 import monix.reactive.{Notification, Observable, OverflowStrategy, Pipe}
 
+import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
+import scala.util.control.NonFatal
 
 /** Defines the available operations for observable-like instances.
   *
@@ -1055,6 +1058,51 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     */
   def map[B](f: A => B): Self[B] =
     self.liftByOperator(new MapOperator(f))
+
+  /** Alias for [[mapTask]]. */
+  def mapAsync[B](f: A => Task[B]): Self[B] =
+    mapTask(f)
+
+  /** Maps elements from the source using a function that can do
+    * asynchronous processing by means of `scala.concurrent.Future`.
+    *
+    * Given a source observable, this function is basically the
+    * equivalent of doing:
+    *
+    * {{{
+    *   observable.concatMap(a => Observable.fromFuture(f(a)))
+    * }}}
+    *
+    * However prefer this operator to `concatMap` because it
+    * is more clear and has better performance.
+    *
+    * @see [[mapTask]] for the version that can work with
+    *      [[monix.eval.Task Task]]
+    */
+  def mapFuture[B](f: A => Future[B]): Self[B] =
+    mapTask { elemA =>
+      try Task.fromFuture(f(elemA))
+      catch { case NonFatal(ex) => Task.raiseError(ex) }
+    }
+
+  /** Maps elements from the source using a function that can do
+    * asynchronous processing by means of [[monix.eval.Task Task]].
+    *
+    * Given a source observable, this function is basically the
+    * equivalent of doing:
+    *
+    * {{{
+    *   observable.concatMap(a => Observable.fromTask(f(a)))
+    * }}}
+    *
+    * However prefer this operator to `concatMap` because it
+    * is more clear and has better performance.
+    *
+    * @see [[mapFuture]] for the version that can work with
+    *      `scala.concurrent.Future`
+    */
+  def mapTask[B](f: A => Task[B]): Self[B] =
+    self.transform(source => new MapTaskObservable[A,B](source, f))
 
   /** Converts the source Observable that emits `A` into an Observable
     * that emits `Notification[A]`.
