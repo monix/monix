@@ -6,6 +6,9 @@ import sbtunidoc.Plugin.{ScalaUnidoc, unidocSettings => baseUnidocSettings}
 import scala.xml.Elem
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 
+val catsVersion = "0.8.0"
+val scalazVersion = "7.2.6"
+
 lazy val doNotPublishArtifact = Seq(
   publishArtifact := false,
   publishArtifact in (Compile, packageDoc) := false,
@@ -29,7 +32,7 @@ lazy val warnUnusedImport = Seq(
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
   scalaVersion := "2.11.8",
-  crossScalaVersions := Seq("2.10.6", "2.11.8"),
+  crossScalaVersions := Seq("2.10.6", "2.11.8", "2.12.0-RC2"),
 
   scalacOptions ++= Seq(
     // warnings
@@ -170,8 +173,8 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
         </license>
       </licenses>
       <scm>
-        <url>git@github.com:monixio/monix.git</url>
-        <connection>scm:git:git@github.com:monixio/monix.git</connection>
+        <url>git@github.com:monix/monix.git</url>
+        <connection>scm:git:git@github.com:monix/monix.git</connection>
       </scm>
       <developers>
         <developer>
@@ -232,7 +235,7 @@ lazy val unidocSettings = baseUnidocSettings ++ Seq(
   scalacOptions in (ScalaUnidoc, unidoc) ++=
     Opts.doc.title(s"Monix"),
   scalacOptions in (ScalaUnidoc, unidoc) ++=
-    Opts.doc.sourceUrl(s"https://github.com/monixio/monix/tree/v${version.value}€{FILE_PATH}.scala"),
+    Opts.doc.sourceUrl(s"https://github.com/monix/monix/tree/v${version.value}€{FILE_PATH}.scala"),
   scalacOptions in (ScalaUnidoc, unidoc) ++=
     Seq("-doc-root-content", file("rootdoc.txt").getAbsolutePath),
   scalacOptions in (ScalaUnidoc, unidoc) ++=
@@ -241,11 +244,10 @@ lazy val unidocSettings = baseUnidocSettings ++ Seq(
 
 lazy val testSettings = Seq(
   testFrameworks := Seq(new TestFramework("minitest.runner.Framework")),
-  libraryDependencies += "io.monix" %%% "minitest-laws" % "0.24" % "test"
+  libraryDependencies += "io.monix" %%% "minitest-laws" % "0.26" % "test"
 )
 
 lazy val scalaJSSettings = Seq(
-  scalaJSUseRhino in Global := false,
   coverageExcludedFiles := ".*"
 )
 
@@ -259,7 +261,7 @@ def profile: Project ⇒ Project = pr => cmdlineProfile match {
 
 lazy val monix = project.in(file("."))
   .configure(profile)
-  .aggregate(coreJVM, coreJS, tckTests, catsJVM, catsJS, scalaz72JVM, scalaz72JS)
+  .aggregate(coreJVM, coreJS, tckTests)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
   .settings(unidocSettings)
@@ -267,7 +269,7 @@ lazy val monix = project.in(file("."))
 lazy val coreJVM = project.in(file("monix/jvm"))
   .configure(profile)
   .dependsOn(typesJVM, executionJVM, evalJVM, reactiveJVM)
-  .aggregate(typesJVM, executionJVM, evalJVM, reactiveJVM)
+  .aggregate(typesJVM, executionJVM, evalJVM, reactiveJVM, catsJVM, scalaz72JVM)
   .settings(crossSettings)
   .settings(name := "monix")
 
@@ -275,14 +277,17 @@ lazy val coreJS = project.in(file("monix/js"))
   .configure(profile)
   .enablePlugins(ScalaJSPlugin)
   .dependsOn(typesJS, executionJS, evalJS, reactiveJS)
-  .aggregate(typesJS, executionJS, evalJS, reactiveJS)
+  .aggregate(typesJS, executionJS, evalJS, reactiveJS, catsJS, scalaz72JS)
   .settings(crossSettings)
   .settings(scalaJSSettings)
   .settings(name := "monix")
 
-lazy val typesCommon = crossSettings ++ testSettings ++ Seq(
-  name := "monix-types"
-)
+lazy val typesCommon = crossSettings ++ testSettings ++
+  requiredMacroCompatDeps ++ Seq(
+    name := "monix-types",
+    // Suppress macro warnings in our own tests
+    scalacOptions in (Test, console) ~= (_ filterNot (_ == "-Xfatal-warnings"))
+  )
 
 lazy val typesJVM = project.in(file("monix-types/jvm"))
   .configure(profile)
@@ -322,13 +327,15 @@ lazy val evalCommon =
 
 lazy val evalJVM = project.in(file("monix-eval/jvm"))
   .configure(profile)
-  .dependsOn(typesJVM, executionJVM)
+  .dependsOn(typesJVM % "compile->compile; test->test")
+  .dependsOn(executionJVM)
   .settings(evalCommon)
 
 lazy val evalJS = project.in(file("monix-eval/js"))
   .enablePlugins(ScalaJSPlugin)
   .configure(profile)
-  .dependsOn(typesJS, executionJS)
+  .dependsOn(typesJS % "compile->compile; test->test")
+  .dependsOn(executionJS)
   .settings(scalaJSSettings)
   .settings(evalCommon)
 
@@ -339,24 +346,25 @@ lazy val reactiveCommon =
 
 lazy val reactiveJVM = project.in(file("monix-reactive/jvm"))
   .configure(profile)
-  .dependsOn(typesJVM, executionJVM, evalJVM)
+  .dependsOn(typesJVM % "compile->compile; test->test")
+  .dependsOn(executionJVM, evalJVM)
   .settings(reactiveCommon)
 
 lazy val reactiveJS = project.in(file("monix-reactive/js"))
   .enablePlugins(ScalaJSPlugin)
   .configure(profile)
-  .dependsOn(typesJS, executionJS, evalJS)
+  .dependsOn(typesJS % "compile->compile; test->test")
+  .dependsOn(executionJS, evalJS)
   .settings(reactiveCommon)
   .settings(scalaJSSettings)
 
 lazy val catsCommon =
-  crossSettings ++ Seq(
+  crossSettings ++ testSettings ++ Seq(
     name := "monix-cats",
     testFrameworks := Seq(new TestFramework("minitest.runner.Framework")),
     libraryDependencies ++= Seq(
-      "org.typelevel" %%% "cats-core" % "0.7.2",
-      "org.typelevel" %%% "cats-laws" % "0.7.2" % "test",
-      "io.monix" %%% "minitest-laws" % "0.21" % "test"
+      "org.typelevel" %%% "cats-core" % catsVersion,
+      "org.typelevel" %%% "cats-laws" % catsVersion % "test"
     ))
 
 lazy val catsJVM = project.in(file("monix-cats/jvm"))
@@ -377,8 +385,8 @@ lazy val scalaz72Common =
   crossSettings ++ testSettings ++ Seq(
     name := "monix-scalaz-72",
     libraryDependencies ++= Seq(
-      "org.scalaz" %%% "scalaz-core" % "7.2.6",
-      "org.scalaz" %%% "scalaz-scalacheck-binding" % "7.2.6" % "test"
+      "org.scalaz" %%% "scalaz-core" % scalazVersion,
+      "org.scalaz" %%% "scalaz-scalacheck-binding" % scalazVersion % "test"
     ))
 
 lazy val scalaz72JVM = project.in(file("monix-scalaz/series-7.2/jvm"))
@@ -414,6 +422,6 @@ lazy val benchmarks = project.in(file("benchmarks"))
   .settings(doNotPublishArtifact)
   .settings(
     libraryDependencies ++= Seq(
-      "org.scalaz" %% "scalaz-concurrent" % "7.2.6",
+      "org.scalaz" %% "scalaz-concurrent" % scalazVersion,
       "io.reactivex" %% "rxscala" % "0.26.0"
     ))

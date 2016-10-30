@@ -82,6 +82,6 @@ final class RefCountCancelable private (onCancel: () => Unit) extends BooleanCan
 }
 
 object RefCountCancelable {
-  def apply(onCancel: => Unit): RefCountCancelable =
-    new RefCountCancelable(() => onCancel)
+  def apply(onCancel: () => Unit): RefCountCancelable =
+    new RefCountCancelable(onCancel)
 }

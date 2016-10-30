@@ -22,7 +22,6 @@ import minitest.TestSuite
 import monix.execution.Scheduler
 import monix.execution.misc.InlineMacrosTest.DummyException
 import monix.execution.internal.Platform
-
 import scala.concurrent.duration._
 import scala.concurrent.Promise
 import scala.util.{Success, Try}
@@ -30,12 +29,12 @@ import scala.util.{Success, Try}
 object TestSchedulerSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(env: TestScheduler): Unit = {
-    assert(env.state.get.tasks.isEmpty)
+    assert(env.state.tasks.isEmpty)
   }
 
   test("should execute asynchronously") { s =>
     var wasExecuted = false
-    s.execute(action { wasExecuted = true })
+    s.executeAsync { () => wasExecuted = true }
     assert(!wasExecuted)
 
     s.tick()
@@ -45,27 +44,26 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
   test("should execute the whole stack") { s =>
     var iterations = 0
 
-    s.execute(action {
-      s.execute(action {
+    s.executeAsync { () =>
+      s.executeAsync { () =>
         iterations += 1
-        s.execute(action {
+        s.executeAsync { () =>
           iterations += 1
-        })
-      })
+        }
+      }
 
       assert(iterations == 0)
       iterations += 1
 
-      s.execute(action {
+      s.executeAsync { () =>
         iterations += 1
-        s.execute(action {
+        s.executeAsync { () =>
           iterations += 1
-        })
-      })
-    })
+        }
+      }
+    }
 
     assert(iterations == 0)
-
     s.tick()
     assert(iterations == 5)
   }
@@ -169,7 +167,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     s.tick(250.millis)
 
     assert(counter == 5)
-    assert(s.state.get.tasks.isEmpty)
+    assert(s.state.tasks.isEmpty)
   }
 
   test("complicated scheduling, test 2") { implicit s =>
@@ -197,7 +195,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
 
     for (_ <- 0 until 250) s.tick(1.milli)
     assert(counter == 5)
-    assert(s.state.get.tasks.isEmpty)
+    assert(s.state.tasks.isEmpty)
   }
 
   test("tasks sharing same runsAt should execute randomly") { implicit s =>
@@ -212,7 +210,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
 
   test("execute extension method") { implicit s =>
     var wasExecuted = false
-    s.executeAsync { wasExecuted = true }
+    s.executeAsync { () => wasExecuted = true }
 
     assert(!wasExecuted, "should not be executed yet")
     s.tick()
@@ -221,13 +219,13 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
 
   test("execute local") { implicit s =>
     var effect = 1
-    s.executeLocal {
+    s.executeTrampolined { () =>
       effect += 1
 
-      s.executeLocal(effect += 2)
-      s.executeLocal {
+      s.executeTrampolined(() => effect += 2)
+      s.executeTrampolined { () =>
         effect += 3
-        s.executeLocal {
+        s.executeTrampolined { () =>
           effect += 4
         }
       }
@@ -241,11 +239,11 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     val ex = DummyException("dummy")
     var effect = 0
 
-    s.executeLocal {
+    s.executeTrampolined { () =>
       effect += 1
       // Scheduling for execution
-      s.executeLocal(effect += 2)
-      s.executeLocal(effect += 3)
+      s.executeTrampolined(() => effect += 2)
+      s.executeTrampolined(() => effect += 3)
       // Subsequent effects not executed yet
       assertEquals(effect, 1)
       throw ex
@@ -253,7 +251,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
 
     // No tick allowed here
     assertEquals(effect, 1)
-    assertEquals(s.state.get.lastReportedError, ex)
+    assertEquals(s.state.lastReportedError, ex)
 
     // Other runnables have been rescheduled async
     s.tickOne()
@@ -263,7 +261,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
   test("execute local should be stack safe") { implicit s =>
     var result = 0
     def loop(n: Int): Unit =
-      s.executeLocal {
+      s.executeTrampolined { () =>
         result += 1
         if (n-1 > 0) loop(n-1)
       }
@@ -272,6 +270,23 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     loop(count)
 
     assertEquals(result, count)
+  }
+
+  test("start async batch, then trampolined") { implicit s =>
+    var effect = 0
+    s.executeAsyncBatch { () =>
+      effect += 1
+      s.executeTrampolined { () =>
+        effect += 1
+        s.executeTrampolined { () =>
+          effect += 1
+        }
+      }
+    }
+
+    assertEquals(effect, 0)
+    s.tickOne()
+    assertEquals(effect, 3)
   }
 
   def action(f: => Unit): Runnable =

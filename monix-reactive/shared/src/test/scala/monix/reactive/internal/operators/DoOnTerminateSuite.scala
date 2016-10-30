@@ -29,7 +29,7 @@ import scala.concurrent.Future
 object DoOnTerminateSuite extends TestSuite[TestScheduler] {
   def setup(): TestScheduler = TestScheduler()
   def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.get.tasks.isEmpty,
+    assert(s.state.tasks.isEmpty,
       "TestScheduler should have no pending tasks")
   }
 
@@ -48,7 +48,7 @@ object DoOnTerminateSuite extends TestSuite[TestScheduler] {
 
     assertEquals(wasCalled, 1)
     assertEquals(wasCompleted, 1)
-    assert(s.state.get.tasks.isEmpty, "tasks.isEmpty")
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
   test("should protect against user code onComplete") { implicit s =>
@@ -66,7 +66,7 @@ object DoOnTerminateSuite extends TestSuite[TestScheduler] {
       })
 
     assertEquals(wasThrown, ex)
-    assert(s.state.get.tasks.isEmpty, "tasks.isEmpty")
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
   test("should execute callback onError") { implicit s =>
@@ -86,7 +86,7 @@ object DoOnTerminateSuite extends TestSuite[TestScheduler] {
 
     assertEquals(wasCalled, 1)
     assertEquals(wasThrown, ex)
-    assert(s.state.get.tasks.isEmpty, "tasks.isEmpty")
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
   test("should protect against user-code onError") { implicit s =>
@@ -105,8 +105,8 @@ object DoOnTerminateSuite extends TestSuite[TestScheduler] {
       })
 
     assertEquals(wasThrown, ex1)
-    assertEquals(s.state.get.lastReportedError, ex2)
-    assert(s.state.get.tasks.isEmpty, "tasks.isEmpty")
+    assertEquals(s.state.lastReportedError, ex2)
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
   test("should call on synchronous downstream Stop") { implicit s =>
@@ -124,7 +124,7 @@ object DoOnTerminateSuite extends TestSuite[TestScheduler] {
 
     assertEquals(wasCalled, 1)
     assertEquals(wasCompleted, 0)
-    assert(s.state.get.tasks.isEmpty, "tasks.isEmpty")
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
   test("should call on asynchronous downstream Stop") { implicit s =>
@@ -143,7 +143,7 @@ object DoOnTerminateSuite extends TestSuite[TestScheduler] {
     s.tick()
     assertEquals(wasCalled, 1)
     assertEquals(wasCompleted, 0)
-    assert(s.state.get.tasks.isEmpty, "tasks.isEmpty")
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
   test("should protect against user code on synchronous downstream Stop") { implicit s =>
@@ -160,7 +160,7 @@ object DoOnTerminateSuite extends TestSuite[TestScheduler] {
           throw new IllegalStateException("onComplete")
       })
 
-    assertEquals(s.state.get.lastReportedError, ex)
+    assertEquals(s.state.lastReportedError, ex)
   }
 
   test("should protect against user code on asynchronous downstream Stop") { implicit s =>
@@ -178,6 +178,6 @@ object DoOnTerminateSuite extends TestSuite[TestScheduler] {
       })
 
     s.tick()
-    assertEquals(s.state.get.lastReportedError, ex)
+    assertEquals(s.state.lastReportedError, ex)
   }
 }

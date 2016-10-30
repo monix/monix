@@ -37,7 +37,7 @@ object TaskEvalAlwaysSuite extends BaseTestSuite {
     val f = Task.eval[Int](if (1 == 1) throw ex else 1).runAsync
 
     assertEquals(f.value, Some(Failure(ex)))
-    assertEquals(s.state.get.lastReportedError, null)
+    assertEquals(s.state.lastReportedError, null)
   }
 
   test("Task.eval is equivalent with Task.evalOnce on first run") { implicit s =>
@@ -73,7 +73,7 @@ object TaskEvalAlwaysSuite extends BaseTestSuite {
       t2.runAsync(s)
       s.tick()
 
-      t1 =!= t2
+      t1 !== t2
     }
   }
 

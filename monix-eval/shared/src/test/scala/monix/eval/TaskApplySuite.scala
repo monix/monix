@@ -42,7 +42,7 @@ object TaskApplySuite extends BaseTestSuite {
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
-    assertEquals(s.state.get.lastReportedError, null)
+    assertEquals(s.state.lastReportedError, null)
   }
 
   test("Task.apply is equivalent with Task.eval") { implicit s =>
@@ -92,8 +92,9 @@ object TaskApplySuite extends BaseTestSuite {
       // Running once to trigger effects
       t1.runAsync(s)
       t2.runAsync(s)
+      s.tick()
 
-      t1 =!= t1
+      t1 !== t2
     }
   }
 

@@ -28,7 +28,7 @@ import scala.util.Success
 object SafeSubscriberSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
-    assert(s.state.get.tasks.isEmpty)
+    assert(s.state.tasks.isEmpty)
   }
 
   test("should protect against synchronous errors, test 1") { implicit s =>
@@ -53,7 +53,7 @@ object SafeSubscriberSuite extends TestSuite[TestScheduler] {
 
     val r2 = observer.onNext(1)
     assertEquals(r2, Stop)
-    assert(s.state.get.lastReportedError == null)
+    assert(s.state.lastReportedError == null)
   }
 
   test("should protect against synchronous errors, test 2") { implicit s =>
@@ -78,7 +78,7 @@ object SafeSubscriberSuite extends TestSuite[TestScheduler] {
 
     val r2 = observer.onNext(1)
     assertEquals(r2, Stop)
-    assert(s.state.get.lastReportedError == null)
+    assert(s.state.lastReportedError == null)
   }
 
   test("should protect against asynchronous errors") { implicit s =>
@@ -105,7 +105,7 @@ object SafeSubscriberSuite extends TestSuite[TestScheduler] {
 
     val r2 = observer.onNext(1); s.tick()
     assertEquals(r2.value, Some(Success(Stop)))
-    assert(s.state.get.lastReportedError == null)
+    assert(s.state.lastReportedError == null)
   }
 
   test("should protect against errors in onComplete") { implicit s =>
@@ -122,7 +122,7 @@ object SafeSubscriberSuite extends TestSuite[TestScheduler] {
     })
 
     observer.onComplete()
-    assert(s.state.get.lastReportedError.isInstanceOf[DummyException],
+    assert(s.state.lastReportedError.isInstanceOf[DummyException],
       "lastReportedError.isInstanceOf[DummyException]")
   }
 
@@ -142,7 +142,7 @@ object SafeSubscriberSuite extends TestSuite[TestScheduler] {
 
     observer.onError(new DummyException("external"))
     assertEquals(errorThrown, DummyException("external"))
-    assertEquals(s.state.get.lastReportedError, DummyException("internal"))
+    assertEquals(s.state.lastReportedError, DummyException("internal"))
 
     observer.onError(new DummyException("external 2"))
     assertEquals(errorThrown, DummyException("external"))

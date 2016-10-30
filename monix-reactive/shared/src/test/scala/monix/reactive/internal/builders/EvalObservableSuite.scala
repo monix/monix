@@ -21,6 +21,8 @@ import monix.eval.Coeval
 import monix.reactive.exceptions.DummyException
 import monix.reactive.{BaseLawsTestSuite, Observable}
 
+import scala.util.Success
+
 object EvalObservableSuite extends BaseLawsTestSuite {
   test("Observable.eval(now(value)) should work") { implicit s =>
     check1 { (value: Int) =>
@@ -53,5 +55,15 @@ object EvalObservableSuite extends BaseLawsTestSuite {
       val obs2 = Observable.raiseError(ex)
       obs1 === obs2
     }
+  }
+
+  test("Observable.delay is alias for eval") { implicit s =>
+    var effect = 0
+    val obs = Observable.delay { effect += 1; effect }
+    val f = obs.runAsyncGetFirst
+
+    assertEquals(f.value, None)
+    s.tick()
+    assertEquals(f.value, Some(Success(Some(1))))
   }
 }

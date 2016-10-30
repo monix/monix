@@ -138,7 +138,7 @@ object TaskAsyncSuite extends BaseTestSuite {
     val f = t.runAsync; s.tick()
     assertEquals(f.value, None)
     f.cancel()
-    assert(s.state.get.tasks.isEmpty, "tasks.isEmpty")
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
   test("Task.apply.fromFuture should be stack safe") { implicit s =>
@@ -163,6 +163,6 @@ object TaskAsyncSuite extends BaseTestSuite {
     val task = Task.create[Int]((_,_) => throw ex)
     val result = task.runAsync; s.tick()
     assertEquals(result.value, None)
-    assertEquals(s.state.get.lastReportedError, ex)
+    assertEquals(s.state.lastReportedError, ex)
   }
 }

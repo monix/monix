@@ -20,14 +20,13 @@ package monix.reactive.internal.builders
 import java.io.Reader
 import java.util
 import monix.execution.Ack.{Continue, Stop}
+import monix.execution.atomic.Atomic
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.schedulers.ExecutionModel
-import monix.execution.schedulers.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.{Ack, Cancelable, Scheduler, UncaughtExceptionReporter}
 import monix.reactive.Observable
 import monix.reactive.exceptions.MultipleSubscribersException
 import monix.reactive.observers.Subscriber
-import monix.execution.atomic.Atomic
 import scala.annotation.tailrec
 import scala.concurrent.{Future, blocking}
 import scala.util.control.NonFatal
@@ -41,7 +40,7 @@ private[reactive] final class CharsReaderObservable(
 
   def unsafeSubscribeFn(out: Subscriber[Array[Char]]): Cancelable = {
     if (wasSubscribed.getAndSet(true)) {
-      out.onError(new MultipleSubscribersException("ReaderObservable"))
+      out.onError(MultipleSubscribersException("ReaderObservable"))
       Cancelable.empty
     }
     else {
@@ -50,7 +49,7 @@ private[reactive] final class CharsReaderObservable(
       val cancelable = BooleanCancelable()
       val em = out.scheduler.executionModel
       // Schedule first cycle
-      if (em == AlwaysAsyncExecution)
+      if (em.isAlwaysAsync)
         reschedule(Continue, buffer, out, cancelable, em)(out.scheduler)
       else
         fastLoop(buffer, out, cancelable, em, 0)(out.scheduler)

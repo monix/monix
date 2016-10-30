@@ -25,6 +25,6 @@ package object eval {
 
   /** Syntax for negating equivalence in tests. */
   implicit final class IsNotEqArrow[A](val lhs: A) extends AnyVal {
-    def =!=(rhs: A): IsNotEquiv[A] = IsNotEquiv(lhs, rhs)
+    def !==(rhs: A): IsNotEquiv[A] = IsNotEquiv(lhs, rhs)
   }
 }

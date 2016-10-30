@@ -29,7 +29,7 @@ import scala.concurrent.Future
 object ExecuteOnSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
-    assert(s.state.get.tasks.isEmpty,
+    assert(s.state.tasks.isEmpty,
       "TestScheduler should be left with no pending tasks")
   }
 
@@ -40,10 +40,11 @@ object ExecuteOnSuite extends TestSuite[TestScheduler] {
     var receivedOnNext: Long = 0
     var finallyReceived: Long = 0
 
-    val obs = Observable.range(0, nr).sumF
-      .doOnNext(sum => receivedOnNext = sum)
-      .executeOn(other)
-      .asyncBoundary(Unbounded)
+    val forked = Observable.fork(
+      Observable.range(0, nr).sumF.doOnNext(sum => receivedOnNext = sum),
+      other)
+    val obs =
+      forked.asyncBoundary(Unbounded)
 
     obs.unsafeSubscribeFn(new Subscriber[Long] {
       implicit val scheduler: Scheduler = s

@@ -156,7 +156,7 @@ object LoadBalanceConsumerSuite extends BaseLawsTestSuite {
     s.tick()
 
     // We shouldn't have triggered any errors!
-    assertEquals(s.state.get.lastReportedError, null)
+    assertEquals(s.state.lastReportedError, null)
   }
 
   test("a subscriber triggering an error by callback will cancel everything") { implicit s =>
@@ -202,7 +202,7 @@ object LoadBalanceConsumerSuite extends BaseLawsTestSuite {
     s.tick()
 
     // We shouldn't have triggered any errors!
-    assertEquals(s.state.get.lastReportedError, null)
+    assertEquals(s.state.lastReportedError, null)
   }
 
   test("a subscriber can cancel at any time") { implicit s =>

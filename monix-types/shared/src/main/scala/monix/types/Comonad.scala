@@ -17,52 +17,84 @@
 
 package monix.types
 
+import monix.types.utils._
+
 /** The `Comonad` type-class is the dual of [[Monad]]. Whereas Monads
   * allow for the composition of effectful functions, Comonads allow
   * for composition of functions that extract the value from their
   * context.
   *
+  * To implement `Comonad`:
+  *
+  *  - inherit from [[Comonad.Type]] in derived type-classes
+  *  - inherit from [[Comonad.Instance]] when implementing instances
+  *
   * The purpose of this type-class is to support the data-types in the
   * Monix library and it is considered a shim for a lawful type-class
   * to be supplied by libraries such as Cats or Scalaz or equivalent.
   *
-  * To implement it in instances, inherit from [[ComonadClass]].
-  *
-  * Credit should be given where it is due.The type-class encoding has
-  * been copied from the Scado project and
-  * [[https://github.com/scalaz/scalaz/ Scalaz 8]] and the type has
-  * been extracted from [[http://typelevel.org/cats/ Cats]].
+  * CREDITS: The type-class encoding has been inspired by the Scado
+  * project and [[https://github.com/scalaz/scalaz/ Scalaz 8]] and
+  * the type has been extracted from [[http://typelevel.org/cats/ Cats]].
   */
-trait Comonad[F[_]] extends Serializable {
-  def coflatMap: CoflatMap[F]
+trait Comonad[F[_]] extends Serializable with Cobind.Type[F] {
+  self: Comonad.Instance[F] =>
+
   def extract[A](x: F[A]): A
 }
 
-object Comonad extends ComonadSyntax {
+object Comonad {
   @inline def apply[F[_]](implicit F: Comonad[F]): Comonad[F] = F
-}
 
-/** The `ComonadClass` provides the means to combine
-  * [[Comonad]] instances with other type-classes.
-  *
-  * To be inherited by `Comonad` instances.
-  */
-trait ComonadClass[F[_]] extends Comonad[F] with CoflatMapClass[F] {
-  final def comonad: Comonad[F] = this
-}
+  /** The `Comonad.Type` should be inherited in type-classes that
+    * are derived from [[Comonad]].
+    */
+  trait Type[F[_]] extends Cobind.Type[F] {
+    implicit def comonad: Comonad[F]
+  }
 
-/** Provides syntax for [[Comonad]]. */
-trait ComonadSyntax extends Serializable {
-  implicit final def comonadOps[F[_], A](fa: F[A])
-    (implicit F: Comonad[F]): ComonadSyntax.Ops[F, A] =
-    new ComonadSyntax.Ops(fa)
-}
+  /** The `Comonad.Instance` provides the means to combine
+    * [[Comonad]] instances with other type-classes.
+    *
+    * To be inherited by `Comonad` instances.
+    */
+  trait Instance[F[_]] extends Comonad[F] with Type[F] with Cobind.Instance[F] {
+    override final def comonad: Comonad[F] = this
+  }
 
-object ComonadSyntax {
+  /** Provides syntax for [[Comonad]]. */
+  trait Syntax extends Serializable {
+    implicit final def comonadOps[F[_] : Comonad, A](fa: F[A]): Ops[F, A] =
+      new Ops(fa)
+  }
+
+  /** Extension methods for [[Comonad]]. */
   final class Ops[F[_], A](self: F[A])(implicit F: Comonad[F])
     extends Serializable {
 
     /** Extension method for [[Comonad.extract]]. */
     def extract: A = F.extract(self)
+  }
+
+  /** Laws for [[Comonad]]. */
+  trait Laws[F[_]] extends Cobind.Laws[F] with Type[F] {
+    private def B = cobind
+    private def M = comonad
+    private def F = functor
+
+    def extractCoflattenIdentity[A](fa: F[A]): IsEquiv[F[A]] =
+      M.extract(B.coflatten(fa)) <-> fa
+
+    def mapCoflattenIdentity[A](fa: F[A]): IsEquiv[F[A]] =
+      F.map(B.coflatten(fa))(M.extract) <-> fa
+
+    def mapCoflatMapCoherence[A, B](fa: F[A], f: A => B): IsEquiv[F[B]] =
+      F.map(fa)(f) <-> B.coflatMap(fa)(fa0 => f(M.extract(fa0)))
+
+    def comonadLeftIdentity[A](fa: F[A]): IsEquiv[F[A]] =
+      B.coflatMap(fa)(M.extract) <-> fa
+
+    def comonadRightIdentity[A, B](fa: F[A], f: F[A] => B): IsEquiv[B] =
+      M.extract(B.coflatMap(fa)(f)) <-> f(fa)
   }
 }

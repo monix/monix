@@ -37,7 +37,7 @@ final case class IsNotEquiv[A](lh: A, rh: A)
 trait BaseLawsTestSuite extends TestSuite[TestScheduler] with Checkers {
   def setup(): TestScheduler = TestScheduler()
   def tearDown(env: TestScheduler): Unit = {
-    assert(env.state.get.tasks.isEmpty, "should not have tasks left to execute")
+    assert(env.state.tasks.isEmpty, "should not have tasks left to execute")
   }
 
   implicit def arbitraryObservable[A : Arbitrary]: Arbitrary[Observable[A]] =

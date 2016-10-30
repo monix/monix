@@ -38,7 +38,7 @@ object CoevalEvalOnceSuite extends BaseTestSuite {
     val f = Coeval.evalOnce[Int](if (1 == 1) throw ex else 1).runTry
 
     assertEquals(f, Failure(ex))
-    assertEquals(s.state.get.lastReportedError, null)
+    assertEquals(s.state.lastReportedError, null)
   }
 
   test("Coeval.evalOnce.flatMap should be equivalent with Coeval.evalOnce") { implicit s =>

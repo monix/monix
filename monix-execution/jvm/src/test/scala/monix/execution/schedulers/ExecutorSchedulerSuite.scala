@@ -17,32 +17,36 @@
 
 package monix.execution.schedulers
 
-import java.util.concurrent.{Executors, ThreadFactory, TimeoutException}
+import java.util.concurrent._
+
 import minitest.TestSuite
-import monix.execution.cancelables.SingleAssignmentCancelable
 import monix.execution.UncaughtExceptionReporter
+import monix.execution.atomic.Atomic
+import monix.execution.cancelables.SingleAssignmentCancelable
+import monix.execution.schedulers.ExecutionModel.AlwaysAsyncExecution
+
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Promise}
 
 
 object ExecutorSchedulerSuite extends TestSuite[ExecutorScheduler] {
+  val lastError = Atomic(null : Throwable)
   def setup(): ExecutorScheduler = {
-    val executor = Executors.newScheduledThreadPool(2, new ThreadFactory {
-      def newThread(r: Runnable): Thread = {
-        val th = new Thread(r)
-        th.setName("ExecutorSchedulerSuite")
-        th.setDaemon(true)
-        th
-      }
-    })
+    val reporter = UncaughtExceptionReporter(lastError.set)
+    val executor = Executors.newScheduledThreadPool(2,
+      ThreadFactoryBuilder(
+        "ExecutorSchedulerSuite",
+        reporter))
 
     ExecutorScheduler(executor,
-      UncaughtExceptionReporter.LogExceptionsToStandardErr,
+      reporter,
       ExecutionModel.Default)
   }
 
   override def tearDown(env: ExecutorScheduler): Unit = {
     env.executor.shutdown()
+    val ex = lastError.getAndSet(null)
+    if (ex != null) throw ex
   }
 
   test("scheduleOnce with delay") { implicit s =>
@@ -50,8 +54,22 @@ object ExecutorSchedulerSuite extends TestSuite[ExecutorScheduler] {
     val startedAt = System.nanoTime()
     s.scheduleOnce(100.millis)(p.success(System.nanoTime()))
 
-    val timeTaken = Await.result(p.future, 3.second)
+    val timeTaken = Await.result(p.future, 30.second)
     assert((timeTaken - startedAt).nanos.toMillis >= 100)
+  }
+
+  test("scheduleOnce with negative delay") { implicit s =>
+    val p = Promise[Boolean]()
+    s.scheduleOnce(-100.millis)(p.success(true))
+
+    val result = Await.result(p.future, 30.second)
+    assert(result)
+  }
+
+  test("reportFailure") { implicit s =>
+    val dummy = new RuntimeException("dummy, please ignore")
+    s.reportFailure(dummy)
+    assertEquals(lastError.getAndSet(null), dummy)
   }
 
   test("scheduleOnce with delay lower than 1.milli") { implicit s =>
@@ -111,7 +129,7 @@ object ExecutorSchedulerSuite extends TestSuite[ExecutorScheduler] {
   test("execute local") { implicit s =>
     var result = 0
     def loop(n: Int): Unit =
-      s.executeLocal {
+      s.executeTrampolined { () =>
         result += 1
         if (n-1 > 0) loop(n-1)
       }
@@ -119,5 +137,12 @@ object ExecutorSchedulerSuite extends TestSuite[ExecutorScheduler] {
     val count = 100000
     loop(count)
     assertEquals(result, count)
+  }
+
+  test("change execution model") { implicit s =>
+    assertEquals(s.executionModel, ExecutionModel.Default)
+    val s2 = s.withExecutionModel(AlwaysAsyncExecution)
+    assertEquals(s.executionModel, ExecutionModel.Default)
+    assertEquals(s2.executionModel, AlwaysAsyncExecution)
   }
 }

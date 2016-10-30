@@ -18,20 +18,20 @@
 package monix.reactive.internal.builders
 
 import minitest.TestSuite
-import monix.execution.Ack.{Stop, Continue}
+import monix.execution.Ack.{Continue, Stop}
 import monix.execution.FutureUtils.extensions._
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.exceptions.DummyException
-import monix.reactive.observers.Subscriber
 import monix.reactive.{Observable, Observer}
+import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
 object IterableAsObservableSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
-    assert(s.state.get.tasks.isEmpty,
+    assert(s.state.tasks.isEmpty,
       "TestScheduler should be left with no pending tasks")
   }
 
@@ -100,13 +100,13 @@ object IterableAsObservableSuite extends TestSuite[TestScheduler] {
     s.tick(50.millis); assertEquals(sum, 3)
     s.tick(50.millis); assertEquals(sum, 6)
     s.tick(50.millis); assertEquals(sum, 6)
-    s.tick(50.millis); assertEquals(sum, 10)
 
     assert(!wasCompleted)
     s.tick(50.millis); assertEquals(sum, 10)
-    assert(!wasCompleted)
-    s.tick(50.millis); assertEquals(sum, 15)
     assert(wasCompleted)
+    s.tick(50.millis); assertEquals(sum, 10)
+
+    s.tick(50.millis); assertEquals(sum, 15)
   }
 
   test("fromIterable should do empty iterables synchronously") { implicit s =>
@@ -167,12 +167,15 @@ object IterableAsObservableSuite extends TestSuite[TestScheduler] {
           Continue
         }
 
-        def onError(ex: Throwable): Unit = errorThrown = ex
-        def onComplete(): Unit = throw new IllegalStateException()
+        def onError(ex: Throwable): Unit =
+          errorThrown = ex
+        def onComplete(): Unit =
+          throw new IllegalStateException("onComplete should not happen")
       })
 
     s.tick()
     assertEquals(sum, 6)
+    assertEquals(s.state.lastReportedError, null)
     assertEquals(errorThrown, DummyException("dummy"))
   }
 
@@ -238,7 +241,7 @@ object IterableAsObservableSuite extends TestSuite[TestScheduler] {
       })
 
     s.tick()
-    assertEquals(sum, 6)
+    assertEquals(sum, 3)
     assertEquals(errorThrown, DummyException("dummy"))
   }
 
@@ -269,7 +272,7 @@ object IterableAsObservableSuite extends TestSuite[TestScheduler] {
       })
 
     s.tick(10.seconds)
-    assertEquals(sum, 6)
+    assertEquals(sum, 3)
     assertEquals(errorThrown, DummyException("dummy"))
   }
 

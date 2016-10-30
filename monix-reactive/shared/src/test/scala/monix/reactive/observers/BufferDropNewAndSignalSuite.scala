@@ -31,7 +31,7 @@ import scala.concurrent.{Future, Promise}
 object BufferDropNewAndSignalSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
-    assert(s.state.get.tasks.isEmpty,
+    assert(s.state.tasks.isEmpty,
       "TestScheduler should have no pending tasks")
   }
 
@@ -160,7 +160,7 @@ object BufferDropNewAndSignalSuite extends TestSuite[TestScheduler] {
     assert(wasCompleted, "wasCompleted should be true")
   }
 
-  test("should drop incoming when over capacity and log") { implicit s =>
+  test("should drop incoming when over capacity and log once") { implicit s =>
     var received = 0
     var wasCompleted = false
     val promise = Promise[Ack]()
@@ -206,6 +206,13 @@ object BufferDropNewAndSignalSuite extends TestSuite[TestScheduler] {
     assert(log.get > 0, "log should have happened")
     assert(received >= 45 && received <= 60,
       s"received should be either 45 or 60, but got $received")
+
+    log.set(0)
+    assertEquals(buffer.onNext(42), Continue)
+
+    s.tick()
+
+    assertEquals(log.get, 0)
 
     buffer.onComplete(); s.tick()
     assert(wasCompleted, "wasCompleted should be true")

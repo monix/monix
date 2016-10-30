@@ -21,7 +21,6 @@ import java.io.{BufferedReader, Reader}
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.schedulers.ExecutionModel
-import monix.execution.schedulers.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.{Ack, Cancelable, Scheduler, UncaughtExceptionReporter}
 import monix.reactive.Observable
 import monix.reactive.exceptions.MultipleSubscribersException
@@ -53,7 +52,7 @@ private[reactive] final class LinesReaderObservable(reader: Reader)
       val cancelable = BooleanCancelable()
       val em = out.scheduler.executionModel
       // Schedule first cycle
-      if (em == AlwaysAsyncExecution)
+      if (em.isAlwaysAsync)
         reschedule(Continue, out, cancelable, em)(out.scheduler)
       else
         fastLoop(out, cancelable, em, 0)(out.scheduler)

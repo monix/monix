@@ -77,7 +77,7 @@ object IntervalObservableSuite extends SimpleTestSuite {
     cancelable.cancel()
     assertEquals(received, 2)
     assert(!wasCompleted)
-    assert(s.state.get.tasks.isEmpty, "tasks.isEmpty")
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
   test("should do intervalAtFixedRate") {

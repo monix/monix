@@ -42,7 +42,7 @@ object FutureUtils {
     val task = s.scheduleOnce(atMost.length, atMost.unit,
       new Runnable { def run() = promise.tryFailure(err) })
 
-    source.onComplete { case r =>
+    source.onComplete { r =>
       // canceling task to prevent waisted CPU resources and memory leaks
       // if the task has been executed already, this has no effect
       task.cancel()
@@ -71,7 +71,7 @@ object FutureUtils {
     val task = s.scheduleOnce(atMost.length, atMost.unit,
       new Runnable { def run() = promise.tryCompleteWith(fallback) })
 
-    source.onComplete { case r =>
+    source.onComplete { r =>
       // canceling task to prevent waisted CPU resources and memory leaks
       // if the task has been executed already, this has no effect
       task.cancel()
@@ -90,7 +90,7 @@ object FutureUtils {
     }
     else {
       val p = Promise[Try[T]]()
-      source.onComplete { case result => p.success(result) }
+      source.onComplete(result => p.success(result))
       p.future
     }
   }
@@ -102,10 +102,11 @@ object FutureUtils {
     */
   def transform[T,S](source: Future[T], f: Try[T] => Try[S])(implicit ec: ExecutionContext): Future[S] = {
     val p = Promise[S]()
-    source.onComplete(r => try p.complete(f(r)) catch {
-      case NonFatal(ex) =>
-        if (!p.tryFailure(ex)) ec.reportFailure(ex)
-    })
+    source.onComplete(r =>
+      try p.complete(f(r)) catch {
+        case NonFatal(ex) =>
+          if (!p.tryFailure(ex)) ec.reportFailure(ex)
+      })
     p.future
   }
 
@@ -116,10 +117,11 @@ object FutureUtils {
     */
   def transformWith[T,S](source: Future[T], f: Try[T] => Future[S])(implicit ec: ExecutionContext): Future[S] = {
     val p = Promise[S]()
-    source.onComplete(r => try p.completeWith(f(r)) catch {
-      case NonFatal(ex) =>
-        if (!p.tryFailure(ex)) ec.reportFailure(ex)
-    })
+    source.onComplete(r =>
+      try p.completeWith(f(r)) catch {
+        case NonFatal(ex) =>
+          if (!p.tryFailure(ex)) ec.reportFailure(ex)
+      })
     p.future
   }
 
@@ -175,10 +177,6 @@ object FutureUtils {
       /** [[FutureUtils.dematerialize]] exposed as an extension method. */
       def dematerialize[U](implicit ev: T <:< Try[U], ec: ExecutionContext): Future[U] =
         FutureUtils.dematerialize(source.asInstanceOf[Future[Try[U]]])
-
-      /** [[FutureUtils.transform]] exposed as an extension method. */
-      def transform[S](f: Try[T] => Try[S])(implicit ec: ExecutionContext): Future[S] =
-        FutureUtils.transform(source, f)
 
       /** [[FutureUtils.transformWith]] exposed as an extension method. */
       def transformWith[S](f: Try[T] => Future[S])(implicit ec: ExecutionContext): Future[S] =

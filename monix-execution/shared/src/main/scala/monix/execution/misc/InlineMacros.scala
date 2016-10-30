@@ -30,28 +30,15 @@ trait InlineMacros {
     c.Expr[T](inlineAndResetTree(tree))
   }
 
-  def inlineAndResetTree(tree: Tree): c.Tree = {
-    // Workaround for https://issues.scala-lang.org/browse/SI-5465
-    class StripUnApplyNodes extends Transformer {
-      val global = c.universe.asInstanceOf[scala.tools.nsc.Global]
-      import global.nme
-
-      override def transform(tree: Tree): Tree = {
-        super.transform {
-          tree match {
-            case UnApply(Apply(Select(qualifier, nme.unapply | nme.unapplySeq), List(Ident(nme.SELECTOR_DUMMY))), args) =>
-              Apply(transform(qualifier), transformTrees(args))
-            case UnApply(Apply(TypeApply(Select(qualifier, nme.unapply | nme.unapplySeq), _), List(Ident(nme.SELECTOR_DUMMY))), args) =>
-              Apply(transform(qualifier), transformTrees(args))
-            case t => t
-          }
-        }
-      }
-    }
-
+  def inlineAndResetTree(tree: Tree): Tree = {
     val inlined = inlineApplyRecursive(tree)
     val clean = c.untypecheck(inlined)
-    new StripUnApplyNodes().transform(clean)
+    stripUnApplyNodes().transform(clean)
+  }
+
+  def resetTree(tree: Tree): Tree = {
+    val clean = c.untypecheck(tree)
+    stripUnApplyNodes().transform(clean)
   }
 
   def inlineApplyRecursive(tree: Tree): Tree = {
@@ -92,5 +79,27 @@ trait InlineMacros {
     InlineApply.transform(tree)
   }
 
+  /** Creates a macro transformer than gets rid of implicit unapply
+    * in case statements.
+    *
+    * Workaround for:
+    * [[https://issues.scala-lang.org/browse/SI-5465]]
+    */
+  def stripUnApplyNodes(): Transformer =
+    new Transformer {
+      val global = c.universe.asInstanceOf[scala.tools.nsc.Global]
+      import global.nme
 
+      override def transform(tree: Tree): Tree = {
+        super.transform {
+          tree match {
+            case UnApply(Apply(Select(qualifier, nme.unapply | nme.unapplySeq), List(Ident(nme.SELECTOR_DUMMY))), args) =>
+              Apply(transform(qualifier), transformTrees(args))
+            case UnApply(Apply(TypeApply(Select(qualifier, nme.unapply | nme.unapplySeq), _), List(Ident(nme.SELECTOR_DUMMY))), args) =>
+              Apply(transform(qualifier), transformTrees(args))
+            case t => t
+          }
+        }
+      }
+    }
 }

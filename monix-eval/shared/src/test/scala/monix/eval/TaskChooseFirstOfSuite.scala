@@ -19,7 +19,6 @@ package monix.eval
 
 import monix.execution.CancelableFuture
 import monix.execution.internal.Platform
-
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
@@ -54,7 +53,7 @@ object TaskChooseFirstOfSuite extends BaseTestSuite {
     assertEquals(f.value, None)
     s.tick(1.second)
     assertEquals(f.value, Some(Success(1)))
-    assert(s.state.get.tasks.isEmpty, "other should be canceled")
+    assert(s.state.tasks.isEmpty, "other should be canceled")
   }
 
   test("Task.chooseFirstOfList should onError from the source") { implicit s =>
@@ -66,7 +65,7 @@ object TaskChooseFirstOfSuite extends BaseTestSuite {
     assertEquals(f.value, None)
     s.tick(1.second)
     assertEquals(f.value, Some(Failure(ex)))
-    assert(s.state.get.tasks.isEmpty, "other should be canceled")
+    assert(s.state.tasks.isEmpty, "other should be canceled")
   }
 
   test("Task.chooseFirstOfList should cancel both") { implicit s =>
@@ -79,7 +78,7 @@ object TaskChooseFirstOfSuite extends BaseTestSuite {
     s.tick()
 
     assertEquals(f.value, None)
-    assert(s.state.get.tasks.isEmpty, "both should be canceled")
+    assert(s.state.tasks.isEmpty, "both should be canceled")
   }
 
   test("Task.chooseFirstOfList should be stack safe, take 1") { implicit s =>
@@ -110,7 +109,7 @@ object TaskChooseFirstOfSuite extends BaseTestSuite {
     assert(f.value.isDefined && f.value.get.failed.get.isInstanceOf[TimeoutException],
       "isInstanceOf[TimeoutException]")
 
-    assert(s.state.get.tasks.isEmpty,
+    assert(s.state.tasks.isEmpty,
       "Main task was not canceled!")
   }
 
@@ -122,7 +121,7 @@ object TaskChooseFirstOfSuite extends BaseTestSuite {
     assertEquals(f.value, None)
     s.tick(1.second)
     assertEquals(f.value, Some(Success(1)))
-    assert(s.state.get.tasks.isEmpty, "timer should be canceled")
+    assert(s.state.tasks.isEmpty, "timer should be canceled")
   }
 
   test("Task#timeout should mirror the source in case of error") { implicit s =>
@@ -134,7 +133,7 @@ object TaskChooseFirstOfSuite extends BaseTestSuite {
     assertEquals(f.value, None)
     s.tick(1.second)
     assertEquals(f.value, Some(Failure(ex)))
-    assert(s.state.get.tasks.isEmpty, "timer should be canceled")
+    assert(s.state.tasks.isEmpty, "timer should be canceled")
   }
 
   test("Task#timeout should cancel both the source and the timer") { implicit s =>
@@ -167,7 +166,7 @@ object TaskChooseFirstOfSuite extends BaseTestSuite {
     assertEquals(f.value, None)
     s.tick(1.second)
     assertEquals(f.value, Some(Success(1)))
-    assert(s.state.get.tasks.isEmpty, "timer should be canceled")
+    assert(s.state.tasks.isEmpty, "timer should be canceled")
   }
 
   test("Task#timeout with backup should mirror the source in case of error") { implicit s =>
@@ -179,7 +178,7 @@ object TaskChooseFirstOfSuite extends BaseTestSuite {
     assertEquals(f.value, None)
     s.tick(1.second)
     assertEquals(f.value, Some(Failure(ex)))
-    assert(s.state.get.tasks.isEmpty, "timer should be canceled")
+    assert(s.state.tasks.isEmpty, "timer should be canceled")
   }
 
   test("Task#timeout should cancel both the source and the timer") { implicit s =>
@@ -192,7 +191,7 @@ object TaskChooseFirstOfSuite extends BaseTestSuite {
     s.tick()
 
     assertEquals(f.value, None)
-    assert(s.state.get.tasks.isEmpty, "timer should be canceled")
+    assert(s.state.tasks.isEmpty, "timer should be canceled")
   }
 
   test("Task#timeout should cancel the backup") { implicit s =>
@@ -206,7 +205,7 @@ object TaskChooseFirstOfSuite extends BaseTestSuite {
 
     f.cancel(); s.tick()
     assertEquals(f.value, None)
-    assert(s.state.get.tasks.isEmpty, "backup should be canceled")
+    assert(s.state.tasks.isEmpty, "backup should be canceled")
   }
 
   test("Task.chooseFirstOf(a,b) should work if a completes first") { implicit s =>
@@ -236,7 +235,7 @@ object TaskChooseFirstOfSuite extends BaseTestSuite {
     s.tick()
     f.cancel()
     assertEquals(f.value, None)
-    assert(s.state.get.tasks.isEmpty, "tasks.isEmpty")
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
   test("Task.chooseFirstOf(A,B) should not cancel B if A completes first") { implicit s =>
@@ -300,7 +299,7 @@ object TaskChooseFirstOfSuite extends BaseTestSuite {
     val f = t.runAsync
     s.tick(1.second)
     assertEquals(f.value, Some(Failure(dummy)))
-    assert(s.state.get.tasks.isEmpty, "tasks.isEmpty")
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
   test("Task.chooseFirstOf(A,B) should end both in error if B completes first in error") { implicit s =>
@@ -312,7 +311,7 @@ object TaskChooseFirstOfSuite extends BaseTestSuite {
     val f = t.runAsync
     s.tick(1.second)
     assertEquals(f.value, Some(Failure(dummy)))
-    assert(s.state.get.tasks.isEmpty, "tasks.isEmpty")
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
   test("Task.chooseFirstOf(A,B) should work if A completes second in error") { implicit s =>

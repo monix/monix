@@ -30,7 +30,7 @@ import scala.concurrent.Future
 object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
-    assert(s.state.get.tasks.isEmpty,
+    assert(s.state.tasks.isEmpty,
       "TestScheduler should be left with no pending tasks")
   }
 
@@ -183,7 +183,7 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
     s.tick()
     assertEquals(received, n)
     assertEquals(onFinishCalled, 1)
-    assertEquals(s.state.get.lastReportedError, ex)
+    assertEquals(s.state.lastReportedError, ex)
   }
 
   test("onFinish should be called if onNext triggers error after boundary") { implicit s =>
@@ -213,7 +213,7 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
     s.tick()
     assertEquals(received, n * 2)
     assertEquals(onFinishCalled, 1)
-    assertEquals(s.state.get.lastReportedError, ex)
+    assertEquals(s.state.lastReportedError, ex)
   }
 
   test("onFinish should be called if onNext triggers error asynchronously") { implicit s =>
@@ -245,7 +245,7 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
     s.tick()
     assertEquals(received, n * 2)
     assertEquals(onFinishCalled, 1)
-    assertEquals(s.state.get.lastReportedError, ex)
+    assertEquals(s.state.lastReportedError, ex)
   }
 
   test("onFinish throwing just before onComplete") { implicit s =>
@@ -294,6 +294,6 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
     s.tick()
     assertEquals(received, n)
     assertEquals(onCompleteCalled, 1)
-    assertEquals(s.state.get.lastReportedError, ex)
+    assertEquals(s.state.lastReportedError, ex)
   }
 }

@@ -24,7 +24,7 @@ object ObservableLawsSuite extends BaseLawsSuite {
   // https://github.com/typelevel/cats/issues/1329
   override lazy val checkConfig = slowCheckConfig
 
-  checkAll("MonadError[Observable[Int]]", MonadErrorTests[Observable, Throwable].flatMap[Int,Int,Int])
+  checkAll("MonadError[Observable[Int]]", MonadErrorTests[Observable,Throwable].flatMap[Int,Int,Int])
   checkAll("CoflatMap[Observable[Int]]", CoflatMapTests[Observable].coflatMap[Int,Int,Int])
-  checkAll("MonadCombine[Observable[Int]]", MonadCombineTests[Observable].monadCombine[Int,Int,Int])
+  checkAll("MonadCombine[Observable[Int]]", MonadCombineTests[Observable].monadFilter[Int,Int,Int])
 }

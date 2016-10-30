@@ -448,7 +448,7 @@ object TaskMemoizeSuite extends BaseTestSuite {
 
     third.cancel()
     s.tick()
-    assert(s.state.get.tasks.isEmpty, "tasks.isEmpty")
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
 
     s.tick(1.second)
     assertEquals(first.value, None)
@@ -479,7 +479,7 @@ object TaskMemoizeSuite extends BaseTestSuite {
 
     c3.cancel()
     s.tick()
-    assert(s.state.get.tasks.isEmpty, "tasks.isEmpty")
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
 
     s.tick(1.second)
     assertEquals(first.future.value, None)
@@ -510,7 +510,7 @@ object TaskMemoizeSuite extends BaseTestSuite {
 
     c3.cancel()
     s.tick()
-    assert(s.state.get.tasks.isEmpty, "tasks.isEmpty")
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
 
     s.tick(1.second)
     assertEquals(first.future.value, None)

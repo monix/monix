@@ -127,12 +127,30 @@ sealed abstract class Coeval[+A] extends Serializable { self =>
       case Now(_) => Error(new NoSuchElementException("failed"))
     }
 
+  /** Returns a new task that upon evaluation will execute
+    * the given function for the generated element,
+    * transforming the source into a `Coeval[Unit]`.
+    *
+    * Similar in spirit with normal [[foreach]], but lazy,
+    * as obviously nothing gets executed at this point.
+    */
+  def foreachL(f: A => Unit): Coeval[Unit] =
+    self.map { a => f(a); () }
+
+  /** Triggers the evaluation of the source, executing
+    * the given function for the generated element.
+    *
+    * The application of this function has strict
+    * behavior, as the coeval is immediately executed.
+    */
+  def foreach(f: A => Unit): Unit =
+    foreachL(f).value
+
   /** Returns a new Coeval that applies the mapping function to
     * the element emitted by the source.
     */
   def map[B](f: A => B): Coeval[B] =
     flatMap(a => try Now(f(a)) catch { case NonFatal(ex) => Error(ex) })
-
 
   /** Creates a new [[Coeval]] that will expose any triggered error from
     * the source.
@@ -279,10 +297,6 @@ sealed abstract class Coeval[+A] extends Serializable { self =>
     */
   def zipMap[B,C](that: Coeval[B])(f: (A,B) => C): Coeval[C] =
     for (a <- this; b <- that) yield f(a,b)
-
-  @deprecated("Renamed, please use Coeval.zipMap", since="2.0-RC12")
-  def zipWith[B,C](that: Coeval[B])(f: (A,B) => C): Coeval[C] =
-    for (a <- this; b <- that) yield f(a,b)
 }
 
 object Coeval {
@@ -332,16 +346,23 @@ object Coeval {
   /** Alias for [[eval]]. */
   def delay[A](a: => A): Coeval[A] = eval(a)
 
-  /** Alias for [[eval]]. Deprecated. */
-  @deprecated("Renamed, please use Coeval.apply or Coeval.eval", since="2.0-RC12")
-  def evalAlways[A](a: => A): Coeval[A] = eval(a)
-
   /** A `Coeval[Unit]` provided for convenience. */
   val unit: Coeval[Unit] = Now(())
 
   /** Builds a `Coeval` out of a Scala `Try` value. */
   def fromTry[A](a: Try[A]): Coeval[A] =
     Attempt.fromTry(a)
+
+  /** Keeps calling `f` until it returns a `Right` result.
+    *
+    * Based on Phil Freeman's
+    * [[http://functorial.com/stack-safety-for-free/index.pdf Stack Safety for Free]].
+    */
+  def tailRecM[A,B](a: A)(f: A => Coeval[Either[A,B]]): Coeval[B] =
+    Coeval.defer(f(a)).flatMap {
+      case Left(continueA) => tailRecM(continueA)(f)
+      case Right(b) => Coeval.now(b)
+    }
 
   /** Transforms a `TraversableOnce` of coevals into a coeval producing
     * the same collection of gathered results.
@@ -439,27 +460,6 @@ object Coeval {
     zipMap2(fa12345, fa6) { case ((a1, a2, a3, a4, a5), a6) => f(a1, a2, a3, a4, a5, a6) }
   }
 
-  @deprecated("Renamed to Coeval.zipMap2", since="2.0-RC12")
-  def zipWith2[A1,A2,R](fa1: Coeval[A1], fa2: Coeval[A2])(f: (A1,A2) => R): Coeval[R] =
-    zipMap2(fa1, fa2)(f)
-
-  @deprecated("Renamed to Coeval.zipMap3", since="2.0-RC12")
-  def zipWith3[A1,A2,A3,R](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3])(f: (A1,A2,A3) => R): Coeval[R] =
-    zipMap3(fa1, fa2, fa3)(f)
-
-  @deprecated("Renamed to Coeval.zipMap4", since="2.0-RC12")
-  def zipWith4[A1,A2,A3,A4,R](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3], fa4: Coeval[A4])(f: (A1,A2,A3,A4) => R): Coeval[R] =
-    zipMap4(fa1, fa2, fa3, fa4)(f)
-
-  @deprecated("Renamed to Coeval.zipMap5", since="2.0-RC12")
-  def zipWith5[A1,A2,A3,A4,A5,R](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3], fa4: Coeval[A4], fa5: Coeval[A5])(f: (A1,A2,A3,A4,A5) => R): Coeval[R] =
-    zipMap5(fa1, fa2, fa3, fa4, fa5)(f)
-
-  @deprecated("Renamed to Coeval.zipMap6", since="2.0-RC12")
-  def zipWith6[A1,A2,A3,A4,A5,A6,R](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3], fa4: Coeval[A4], fa5: Coeval[A5], fa6: Coeval[A6])(f: (A1,A2,A3,A4,A5,A6) => R): Coeval[R] =
-    zipMap6(fa1, fa2, fa3, fa4, fa5, fa6)(f)
-
-
   /** The `Attempt` represents a strict, already evaluated result
     * of a [[Coeval]] that either resulted in success, wrapped in a
     * [[Now]], or in an error, wrapped in a [[Error]].
@@ -468,32 +468,39 @@ object Coeval {
     */
   sealed abstract class Attempt[+A] extends Coeval[A] with Product {
     self =>
+
+    /** Retrieve the (successful) value or throw the error.
+      *
+      * Alias for [[Coeval.value]].
+      */
+    final def get: A = value
+
     /** Returns true if value is a successful one. */
-    def isSuccess: Boolean = this match {
+    final def isSuccess: Boolean = this match {
       case Now(_) => true
       case _ => false
     }
 
     /** Returns true if result is an error. */
-    def isFailure: Boolean = this match {
+    final def isFailure: Boolean = this match {
       case Error(_) => true
       case _ => false
     }
 
-    override def failed: Attempt[Throwable] =
+    override final def failed: Attempt[Throwable] =
       self match {
         case Now(_) => Error(new NoSuchElementException("failed"))
         case Error(ex) => Now(ex)
       }
 
     /** Converts this attempt into a `scala.util.Try`. */
-    def asScala: Try[A] =
+    final def asScala: Try[A] =
       this match {
         case Now(a) => Success(a)
         case Error(ex) => Failure(ex)
       }
 
-    override def materializeAttempt: Attempt[Attempt[A]] =
+    override final def materializeAttempt: Attempt[Attempt[A]] =
       self match {
         case now@Now(_) =>
           Now(now)
@@ -501,13 +508,13 @@ object Coeval {
           Now(Error(ex))
       }
 
-    override def dematerializeAttempt[B](implicit ev: <:<[A, Attempt[B]]): Attempt[B] =
+    override final def dematerializeAttempt[B](implicit ev: <:<[A, Attempt[B]]): Attempt[B] =
       self match {
         case Now(now) => now
         case error@Error(_) => error
       }
 
-    override def memoize: Attempt[A] = this
+    override final def memoize: Attempt[A] = this
   }
 
   object Attempt {
@@ -540,9 +547,6 @@ object Coeval {
 
     override def runAttempt: Error = this
   }
-
-  @deprecated("Type renamed, use Eval.Once", since="2.0-RC12")
-  type EvalOnce[+A] = Once[A]
 
   /** Constructs a lazy [[Coeval]] instance that gets evaluated
     * only once.
@@ -586,9 +590,6 @@ object Coeval {
     def unapply[A](coeval: Once[A]): Some[() => A] =
       Some(coeval)
   }
-
-  @deprecated("Type renamed, use Eval.Always", since="2.0-RC12")
-  type EvalAlways[+A] = Always[A]
 
   /** Constructs a lazy [[Coeval]] instance.
     *
@@ -671,17 +672,18 @@ object Coeval {
 
   /** Groups the implementation for the type-classes defined in [[monix.types]]. */
   class TypeClassInstances
-    extends DeferrableClass[Coeval]
-    with MemoizableClass[Coeval]
-    with RecoverableClass[Coeval,Throwable]
-    with ComonadClass[Coeval]
-    with MonadRecClass[Coeval] {
+    extends Suspendable.Instance[Coeval]
+    with Memoizable.Instance[Coeval]
+    with MonadError.Instance[Coeval,Throwable]
+    with Comonad.Instance[Coeval]
+    with MonadRec.Instance[Coeval] {
 
     override def pure[A](a: A): Coeval[A] = Coeval.now(a)
-    override def defer[A](fa: => Coeval[A]): Coeval[A] = Coeval.defer(fa)
+    override def suspend[A](fa: => Coeval[A]): Coeval[A] = Coeval.defer(fa)
     override def evalOnce[A](a: => A): Coeval[A] = Coeval.evalOnce(a)
     override def eval[A](a: => A): Coeval[A] = Coeval.eval(a)
     override def memoize[A](fa: Coeval[A]): Coeval[A] = fa.memoize
+    override val unit: Coeval[Unit] = Coeval.now(())
 
     override def extract[A](x: Coeval[A]): A =
       x.value
@@ -689,6 +691,8 @@ object Coeval {
       fa.flatMap(f)
     override def flatten[A](ffa: Coeval[Coeval[A]]): Coeval[A] =
       ffa.flatten
+    override def tailRecM[A, B](a: A)(f: (A) => Coeval[Either[A, B]]): Coeval[B] =
+      Coeval.tailRecM(a)(f)
     override def coflatMap[A, B](fa: Coeval[A])(f: (Coeval[A]) => B): Coeval[B] =
       Coeval.eval(f(fa))
     override def ap[A, B](ff: Coeval[(A) => B])(fa: Coeval[A]): Coeval[B] =

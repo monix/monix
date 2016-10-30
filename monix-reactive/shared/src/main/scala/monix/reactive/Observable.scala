@@ -652,10 +652,6 @@ object Observable {
   /** Alias for [[eval]]. */
   def delay[A](a: => A): Observable[A] = eval(a)
 
-  /** Alias for [[eval]]. Deprecated. */
-  @deprecated("Renamed, please use Observable.eval", since="2.0-RC12")
-  def evalAlways[A](a: => A): Observable[A] = eval(a)
-
   /** Given a non-strict value, converts it into an Observable
     * that emits a single element and that memoizes the value
     * for subsequent invocations.
@@ -690,9 +686,57 @@ object Observable {
   def never: Observable[Nothing] =
     builders.NeverObservable
 
-  /** Forks a logical thread on executing the subscription. */
+  /** Mirrors the given source [[Observable]], but upon subscription
+    * ensure that evaluation forks into a separate (logical) thread.
+    *
+    * The [[monix.execution.Scheduler Scheduler]] used will be
+    * the one that is injected in `subscribe()`.
+    *
+    * @param fa is the observable that will get subscribed
+    *        asynchronously
+    */
   def fork[A](fa: Observable[A]): Observable[A] =
-    new builders.ForkObservable(fa)
+    fa.executeWithFork
+
+  /** Mirrors the given source [[Observable]], but upon subscription ensure
+    * that evaluation forks into a separate (logical) thread,
+    * managed by the given scheduler, which will also be used for
+    * subsequent asynchronous execution, overriding the default.
+    *
+    * The given [[monix.execution.Scheduler Scheduler]]  will be
+    * used for evaluation of the source [[Observable]], effectively
+    * overriding the `Scheduler` that's passed in `subscribe()`.
+    * Thus you can evaluate an observable on a separate thread-pool,
+    * useful for example in case of doing I/O.
+    *
+    * @param fa is the source observable that will evaluate asynchronously
+    *        on the specified scheduler
+    * @param scheduler is the scheduler to use for evaluation
+    */
+  def fork[A](fa: Observable[A], scheduler: Scheduler): Observable[A] =
+    fa.executeOn(scheduler)
+
+  /** Keeps calling `f` and concatenating the resulting observables
+    * for each `scala.util.Left` event emitted by the source, concatenating
+    * the resulting observables and pushing every `scala.util.Right[B]`
+    * events downstream.
+    *
+    * Based on Phil Freeman's
+    * [[http://functorial.com/stack-safety-for-free/index.pdf Stack Safety for Free]].
+    *
+    * It helps to wrap your head around it if you think of it as being
+    * equivalent to this inefficient and unsafe implementation (for `Observable`):
+    *
+    * {{{
+    *   def tailRecM[A, B](a: A)(f: (A) => Observable[Either[A, B]]): Observable[B] =
+    *     f(a).flatMap {
+    *       case Right(b) => pure(b)
+    *       case Left(nextA) => tailRecM(nextA)(f)
+          }
+    * }}}
+    */
+  def tailRecM[A, B](a: A)(f: (A) => Observable[Either[A, B]]): Observable[B] =
+    new builders.TailRecMObservable[A,B](a, f)
 
   /** Given a subscribe function, lifts it into an [[Observable]].
     *
@@ -1229,26 +1273,6 @@ object Observable {
     }
   }
 
-  @deprecated("Renamed to Observable.zipMap2", since="2.0-RC12")
-  def zipWith2[A1,A2,R](fa1: Observable[A1], fa2: Observable[A2])(f: (A1,A2) => R): Observable[R] =
-    zipMap2(fa1, fa2)(f)
-
-  @deprecated("Renamed to Observable.zipMap3", since="2.0-RC12")
-  def zipWith3[A1,A2,A3,R](fa1: Observable[A1], fa2: Observable[A2], fa3: Observable[A3])(f: (A1,A2,A3) => R): Observable[R] =
-    zipMap3(fa1, fa2, fa3)(f)
-
-  @deprecated("Renamed to Observable.zipMap4", since="2.0-RC12")
-  def zipWith4[A1,A2,A3,A4,R](fa1: Observable[A1], fa2: Observable[A2], fa3: Observable[A3], fa4: Observable[A4])(f: (A1,A2,A3,A4) => R): Observable[R] =
-    zipMap4(fa1, fa2, fa3, fa4)(f)
-
-  @deprecated("Renamed to Observable.zipMap5", since="2.0-RC12")
-  def zipWith5[A1,A2,A3,A4,A5,R](fa1: Observable[A1], fa2: Observable[A2], fa3: Observable[A3], fa4: Observable[A4], fa5: Observable[A5])(f: (A1,A2,A3,A4,A5) => R): Observable[R] =
-    zipMap5(fa1, fa2, fa3, fa4, fa5)(f)
-
-  @deprecated("Renamed to Observable.zipMap6", since="2.0-RC12")
-  def zipWith6[A1,A2,A3,A4,A5,A6,R](fa1: Observable[A1], fa2: Observable[A2], fa3: Observable[A3], fa4: Observable[A4], fa5: Observable[A5], fa6: Observable[A6])(f: (A1,A2,A3,A4,A5,A6) => R): Observable[R] =
-    zipMap6(fa1, fa2, fa3, fa4, fa5, fa6)(f)
-
   /** Creates a combined observable from 2 source observables.
     *
     * This operator behaves in a similar way to [[zip2]],
@@ -1399,26 +1423,6 @@ object Observable {
     }
   }
 
-  @deprecated("Renamed to Observable.combineLatestMap2", since="2.0-RC12")
-  def combineLatestWith2[A1,A2,R](fa1: Observable[A1], fa2: Observable[A2])(f: (A1,A2) => R): Observable[R] =
-    combineLatestMap2(fa1, fa2)(f)
-
-  @deprecated("Renamed to Observable.combineLatestMap3", since="2.0-RC12")
-  def combineLatestWith3[A1,A2,A3,R](fa1: Observable[A1], fa2: Observable[A2], fa3: Observable[A3])(f: (A1,A2,A3) => R): Observable[R] =
-    combineLatestMap3(fa1, fa2, fa3)(f)
-
-  @deprecated("Renamed to Observable.combineLatestMap4", since="2.0-RC12")
-  def combineLatestWith4[A1,A2,A3,A4,R](fa1: Observable[A1], fa2: Observable[A2], fa3: Observable[A3], fa4: Observable[A4])(f: (A1,A2,A3,A4) => R): Observable[R] =
-    combineLatestMap4(fa1, fa2, fa3, fa4)(f)
-
-  @deprecated("Renamed to Observable.combineLatestMap5", since="2.0-RC12")
-  def combineLatestWith5[A1,A2,A3,A4,A5,R](fa1: Observable[A1], fa2: Observable[A2], fa3: Observable[A3], fa4: Observable[A4], fa5: Observable[A5])(f: (A1,A2,A3,A4,A5) => R): Observable[R] =
-    combineLatestMap5(fa1, fa2, fa3, fa4, fa5)(f)
-
-  @deprecated("Renamed to Observable.combineLatestMap6", since="2.0-RC12")
-  def combineLatestWith6[A1,A2,A3,A4,A5,A6,R](fa1: Observable[A1], fa2: Observable[A2], fa3: Observable[A3], fa4: Observable[A4], fa5: Observable[A5], fa6: Observable[A6])(f: (A1,A2,A3,A4,A5,A6) => R): Observable[R] =
-    combineLatestMap6(fa1, fa2, fa3, fa4, fa5, fa6)(f)
-
   /** Given a list of source Observables, emits all of the items from
     * the first of these Observables to emit an item or to complete,
     * and cancel the rest.
@@ -1430,16 +1434,18 @@ object Observable {
   implicit val typeClassInstances: TypeClassInstances = new TypeClassInstances
 
   /** Type-class instances for [[Observable]]. */
-  class TypeClassInstances extends DeferrableClass[Observable]
-    with MemoizableClass[Observable] with RecoverableClass[Observable,Throwable]
-    with MonadFilterClass[Observable] with MonoidKClass[Observable]
-    with CoflatMapClass[Observable] {
+  class TypeClassInstances extends Suspendable.Instance[Observable]
+    with Memoizable.Instance[Observable] with MonadError.Instance[Observable,Throwable]
+    with MonadFilter.Instance[Observable] with MonoidK.Instance[Observable]
+    with Cobind.Instance[Observable]
+    with MonadRec.Instance[Observable] {
 
     override def pure[A](a: A): Observable[A] = Observable.now(a)
-    override def defer[A](fa: => Observable[A]): Observable[A] = Observable.suspend(fa)
+    override def suspend[A](fa: => Observable[A]): Observable[A] = Observable.defer(fa)
     override def eval[A](a: => A): Observable[A] = Observable.eval(a)
     override def evalOnce[A](a: => A): Observable[A] = Observable.evalOnce(a)
     override def memoize[A](fa: Observable[A]): Observable[A] = fa.cache
+    override val unit: Observable[Unit] = Observable.now(())
 
     override def combineK[A](x: Observable[A], y: Observable[A]): Observable[A] =
       x ++ y
@@ -1447,6 +1453,8 @@ object Observable {
       fa.flatMap(f)
     override def flatten[A](ffa: Observable[Observable[A]]): Observable[A] =
       ffa.flatten
+    override def tailRecM[A, B](a: A)(f: (A) => Observable[Either[A, B]]): Observable[B] =
+      Observable.tailRecM(a)(f)
     override def coflatMap[A, B](fa: Observable[A])(f: (Observable[A]) => B): Observable[B] =
       Observable.eval(f(fa))
     override def ap[A, B](ff: Observable[(A) => B])(fa: Observable[A]): Observable[B] =

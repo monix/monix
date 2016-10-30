@@ -38,7 +38,7 @@ object CoevalEvalAlwaysSuite extends BaseTestSuite {
     val f = Coeval.eval[Int](if (1 == 1) throw ex else 1).runTry
 
     assertEquals(f, Failure(ex))
-    assertEquals(s.state.get.lastReportedError, null)
+    assertEquals(s.state.lastReportedError, null)
   }
 
   test("Coeval.eval.flatMap should be equivalent with Coeval.eval") { implicit s =>
@@ -141,7 +141,7 @@ object CoevalEvalAlwaysSuite extends BaseTestSuite {
       t1.runAttempt
       t2.runAttempt
 
-      t1 =!= t1
+      t1 !== t1
     }
   }
 }

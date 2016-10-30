@@ -82,7 +82,7 @@ object TaskDelaySuite extends BaseTestSuite {
     assert(!wasTriggered, "!wasTriggered")
 
     assertEquals(f.value, None)
-    assert(s.state.get.tasks.isEmpty,
+    assert(s.state.tasks.isEmpty,
       "should cancel the scheduleOnce(delay) as well")
   }
 
@@ -149,7 +149,7 @@ object TaskDelaySuite extends BaseTestSuite {
     assert(!wasTriggered, "!wasTriggered")
 
     assertEquals(f.value, None)
-    assert(s.state.get.tasks.isEmpty,
+    assert(s.state.tasks.isEmpty,
       "should cancel the scheduleOnce(delay) as well")
   }
 
@@ -228,7 +228,7 @@ object TaskDelaySuite extends BaseTestSuite {
 
     f.cancel(); s.tick()
     assertEquals(f.value, None)
-    assert(s.state.get.tasks.isEmpty,
+    assert(s.state.tasks.isEmpty,
       "should cancel the scheduleOnce(delay) as well")
   }
 
@@ -279,7 +279,7 @@ object TaskDelaySuite extends BaseTestSuite {
 
     f.cancel(); s.tick()
     assertEquals(f.value, None)
-    assert(s.state.get.tasks.isEmpty,
+    assert(s.state.tasks.isEmpty,
       "should cancel the scheduleOnce(delay) as well")
   }
 
