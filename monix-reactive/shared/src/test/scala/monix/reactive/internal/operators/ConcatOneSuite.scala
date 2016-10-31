@@ -108,7 +108,6 @@ object ConcatOneSuite extends BaseOperatorSuite {
     }
   }
 
-
   test("filter can be expressed in terms of flatMap") { implicit s =>
     val obs1 = Observable.range(0, 100).filter(_ % 2 == 0)
     val obs2 = Observable.range(0, 100).flatMap(x => if (x % 2 == 0) now(x) else empty)
