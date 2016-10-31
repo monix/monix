@@ -1068,8 +1068,8 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * `parallelism`, which indicates the maximum number of tasks that
     * can be executed in parallel.
     *
-    * Similar with
-    * [[monix.reactive.Consumer.loadBalance(parallelism* Consumer.loadBalance]],
+    * Similar in spirit with
+    * [[monix.reactive.Consumer.loadBalance[A,R](parallelism* Consumer.loadBalance]],
     * but expressed as an operator that executes [[monix.eval.Task Task]]
     * instances in parallel.
     *
@@ -1083,6 +1083,8 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * @param f is the mapping function that produces tasks to execute
     *        in parallel, which will eventually produce events for the
     *        resulting observable stream
+    *
+    * @see [[mapTask]] for serial execution
     */
   def mapAsync[B](parallelism: Int)(f: A => Task[B]): Self[B] =
     self.transform(source => new MapAsyncParallelObservable[A,B](source, parallelism, f))

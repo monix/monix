@@ -142,7 +142,7 @@ private[reactive] final class MapAsyncParallelObservable[A,B]
       if (lastAck == Stop || isDone) Stop else {
         // This will wait asynchronously, if there are no permits left
         val permit = semaphore.acquire()
-        val ack = permit.value match {
+        val ack: Future[Ack] = permit.value match {
           case None => permit.flatMap(_ => Continue)
           case Some(_) => Continue
         }
