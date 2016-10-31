@@ -349,6 +349,7 @@ lazy val reactiveJVM = project.in(file("monix-reactive/jvm"))
   .dependsOn(typesJVM % "compile->compile; test->test")
   .dependsOn(executionJVM, evalJVM)
   .settings(reactiveCommon)
+  .settings(libraryDependencies += "org.jctools" % "jctools-core" % "2.0")
 
 lazy val reactiveJS = project.in(file("monix-reactive/js"))
   .enablePlugins(ScalaJSPlugin)
@@ -423,5 +424,6 @@ lazy val benchmarks = project.in(file("benchmarks"))
   .settings(
     libraryDependencies ++= Seq(
       "org.scalaz" %% "scalaz-concurrent" % scalazVersion,
-      "io.reactivex" %% "rxscala" % "0.26.0"
+      "io.reactivex" %% "rxscala" % "0.26.0",
+      "org.monifu" %% "monifu" % "1.2"
     ))
