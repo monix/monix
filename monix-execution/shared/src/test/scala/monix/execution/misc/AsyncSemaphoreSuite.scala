@@ -82,4 +82,64 @@ object AsyncSemaphoreSuite extends TestSuite[TestScheduler] {
       assertEquals(result, count * (count - 1) / 2)
     }
   }
+
+  test("await for release of all active and pending permits") { implicit s =>
+    val semaphore = AsyncSemaphore(maxParallelism = 2)
+    val p1 = semaphore.acquire()
+    assertEquals(p1.value, Some(Success(())))
+    val p2 = semaphore.acquire()
+    assertEquals(p2.value, Some(Success(())))
+
+    val p3 = semaphore.acquire()
+    assert(!p3.isCompleted, "!p3.isCompleted")
+    val p4 = semaphore.acquire()
+    assert(!p4.isCompleted, "!p4.isCompleted")
+
+    val all1 = semaphore.awaitAllReleased()
+    assert(!all1.isCompleted, "!all1.isCompleted")
+
+    semaphore.release(); s.tick()
+    assert(!all1.isCompleted, "!all1.isCompleted")
+    semaphore.release(); s.tick()
+    assert(!all1.isCompleted, "!all1.isCompleted")
+    semaphore.release(); s.tick()
+    assert(!all1.isCompleted, "!all1.isCompleted")
+    semaphore.release(); s.tick()
+    assert(all1.isCompleted, "all1.isCompleted")
+
+    // REDO
+    val p5 = semaphore.acquire()
+    assert(p5.isCompleted, "p5.isCompleted")
+    val all2 = semaphore.awaitAllReleased()
+    s.tick(); assert(!all2.isCompleted, "!all2.isCompleted")
+    semaphore.release(); s.tick()
+    assert(all2.isCompleted, "all2.isCompleted")
+
+    // Already completed
+    val all3 = semaphore.awaitAllReleased()
+    assert(all3.isCompleted, "all3.isCompleted")
+  }
+
+  test("acquire is cancelable") { implicit s =>
+    val semaphore = AsyncSemaphore(maxParallelism = 2)
+
+    val p1 = semaphore.acquire()
+    assert(p1.isCompleted, "p1.isCompleted")
+    val p2 = semaphore.acquire()
+    assert(p2.isCompleted, "p2.isCompleted")
+
+    val p3 = semaphore.acquire()
+    assert(!p3.isCompleted, "!p3.isCompleted")
+    assertEquals(semaphore.activeCount, 2)
+
+    p3.cancel()
+    semaphore.release()
+    assertEquals(semaphore.activeCount, 1)
+    semaphore.release()
+    assertEquals(semaphore.activeCount, 0)
+
+    s.tick()
+    assertEquals(semaphore.activeCount, 0)
+    assert(!p3.isCompleted, "!p3.isCompleted")
+  }
 }

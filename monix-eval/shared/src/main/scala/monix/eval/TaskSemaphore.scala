@@ -43,7 +43,8 @@ final class TaskSemaphore private (maxParallelism: Int) extends Serializable {
   /** Returns the number of active tasks that are holding on
     * to the available permits.
     */
-  def activeCount: Int = semaphore.activeCount
+  def activeCount: Coeval[Int] =
+    Coeval.eval(semaphore.activeCount)
 
   /** Creates a new task ensuring that the given source
     * acquires an available permit from the semaphore before
@@ -83,7 +84,7 @@ final class TaskSemaphore private (maxParallelism: Int) extends Serializable {
     * acquisition and release of all enqueued promises as well.
     */
   val awaitAllReleased: Task[Unit] =
-    Task.fromFuture(semaphore.awaitAllReleased())
+    Task.defer(Task.fromFuture(semaphore.awaitAllReleased()))
 }
 
 object TaskSemaphore {

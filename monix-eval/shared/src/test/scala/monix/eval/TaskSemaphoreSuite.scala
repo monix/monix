@@ -32,12 +32,12 @@ object TaskSemaphoreSuite extends TestSuite[TestScheduler] {
     val semaphore = TaskSemaphore(maxParallelism = 4)
     val future = semaphore.greenLight(Task(1)).runAsync
 
-    assertEquals(semaphore.activeCount, 1)
+    assertEquals(semaphore.activeCount.value, 1)
     assert(!future.isCompleted, "!future.isCompleted")
 
     s.tick()
     assertEquals(future.value, Some(Success(1)))
-    assertEquals(semaphore.activeCount, 0)
+    assertEquals(semaphore.activeCount.value, 0)
   }
 
   test("should release on cancel") { implicit s =>
@@ -50,11 +50,11 @@ object TaskSemaphoreSuite extends TestSuite[TestScheduler] {
       .runAsync
 
     s.tick()
-    assertEquals(semaphore.activeCount, 1)
+    assertEquals(semaphore.activeCount.value, 1)
     assertEquals(future.value, None)
 
     future.cancel(); s.tick()
-    assertEquals(semaphore.activeCount, 0)
+    assertEquals(semaphore.activeCount.value, 0)
     assertEquals(future.value, None)
     assertEquals(effect, 0)
   }
@@ -74,5 +74,65 @@ object TaskSemaphoreSuite extends TestSuite[TestScheduler] {
     for (result <- sum.runAsync) yield {
       assertEquals(result, count * (count - 1) / 2)
     }
+  }
+
+  test("await for release of all active and pending permits") { implicit s =>
+    val semaphore = TaskSemaphore(maxParallelism = 2)
+    val p1 = semaphore.acquire.runAsync
+    assertEquals(p1.value, Some(Success(())))
+    val p2 = semaphore.acquire.runAsync
+    assertEquals(p2.value, Some(Success(())))
+
+    val p3 = semaphore.acquire.runAsync
+    assert(!p3.isCompleted, "!p3.isCompleted")
+    val p4 = semaphore.acquire.runAsync
+    assert(!p4.isCompleted, "!p4.isCompleted")
+
+    val all1 = semaphore.awaitAllReleased.runAsync
+    assert(!all1.isCompleted, "!all1.isCompleted")
+
+    semaphore.release.runAsync; s.tick()
+    assert(!all1.isCompleted, "!all1.isCompleted")
+    semaphore.release.runAsync; s.tick()
+    assert(!all1.isCompleted, "!all1.isCompleted")
+    semaphore.release.runAsync; s.tick()
+    assert(!all1.isCompleted, "!all1.isCompleted")
+    semaphore.release.runAsync; s.tick()
+    assert(all1.isCompleted, "all1.isCompleted")
+
+    // REDO
+    val p5 = semaphore.acquire.runAsync
+    assert(p5.isCompleted, "p5.isCompleted")
+    val all2 = semaphore.awaitAllReleased.runAsync
+    s.tick(); assert(!all2.isCompleted, "!all2.isCompleted")
+    semaphore.release.runAsync; s.tick()
+    assert(all2.isCompleted, "all2.isCompleted")
+
+    // Already completed
+    val all3 = semaphore.awaitAllReleased.runAsync
+    assert(all3.isCompleted, "all3.isCompleted")
+  }
+
+  test("acquire is cancelable") { implicit s =>
+    val semaphore = TaskSemaphore(maxParallelism = 2)
+
+    val p1 = semaphore.acquire.runAsync
+    assert(p1.isCompleted, "p1.isCompleted")
+    val p2 = semaphore.acquire.runAsync
+    assert(p2.isCompleted, "p2.isCompleted")
+
+    val p3 = semaphore.acquire.runAsync
+    assert(!p3.isCompleted, "!p3.isCompleted")
+    assertEquals(semaphore.activeCount.value, 2)
+
+    p3.cancel()
+    semaphore.release.runAsync
+    assertEquals(semaphore.activeCount.value, 1)
+    semaphore.release.runAsync
+    assertEquals(semaphore.activeCount.value, 0)
+
+    s.tick()
+    assertEquals(semaphore.activeCount.value, 0)
+    assert(!p3.isCompleted, "!p3.isCompleted")
   }
 }
