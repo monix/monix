@@ -22,17 +22,10 @@ import minitest.laws.Checkers
 import monix.eval.{Callback, Coeval, Task}
 import monix.execution.schedulers.TestScheduler
 import org.scalacheck.{Arbitrary, Prop}
-
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.implicitConversions
 import scala.util.{Failure, Success, Try}
-
-/** For expressing equivalence. */
-final case class IsEquiv[A](lh: A, rh: A)
-
-/** For negating equivalence. */
-final case class IsNotEquiv[A](lh: A, rh: A)
 
 trait BaseLawsTestSuite extends TestSuite[TestScheduler] with Checkers {
   def setup(): TestScheduler = TestScheduler()
