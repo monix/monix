@@ -18,8 +18,7 @@
 package monix.execution.atomic
 
 import monix.execution.atomic.PaddingStrategy.NoPadding
-import monix.execution.atomic.boxes.{Factory, BoxedInt}
-import scala.annotation.tailrec
+import monix.execution.atomic.boxes.{BoxedInt, Factory}
 
 /** Atomic references wrapping `Byte` values.
   *
@@ -34,138 +33,88 @@ final class AtomicByte private (private[this] val ref: BoxedInt)
   def get: Byte = (ref.volatileGet() & mask).asInstanceOf[Byte]
   def set(update: Byte): Unit = ref.volatileSet(update)
 
-  def lazySet(update: Byte) = {
+  def lazySet(update: Byte) =
     ref.lazySet(update)
-  }
 
-  def compareAndSet(expect: Byte, update: Byte): Boolean = {
+  def compareAndSet(expect: Byte, update: Byte): Boolean =
     ref.compareAndSet(expect, update)
-  }
 
-  def getAndSet(update: Byte): Byte = {
+  def getAndSet(update: Byte): Byte =
     (ref.getAndSet(update) & mask).asInstanceOf[Byte]
-  }
 
+  def increment(v: Int = 1): Unit =
+    ref.getAndAdd(v)
 
-  @tailrec
-  def increment(v: Int = 1): Unit = {
-    val current = (ref.volatileGet() & mask).asInstanceOf[Byte]
-    val update = incrementOp(current, v)
-    if (!ref.compareAndSet(current, update))
-      increment(v)
-  }
+  def add(v: Byte): Unit =
+    ref.getAndAdd(v)
 
-  @tailrec
-  def add(v: Byte): Unit = {
-    val current = (ref.volatileGet() & mask).asInstanceOf[Byte]
-    val update = plusOp(current, v)
-    if (!ref.compareAndSet(current, update))
-      add(v)
-  }
+  def incrementAndGet(v: Int = 1): Byte =
+    ((ref.getAndAdd(v) + v) & mask).asInstanceOf[Byte]
 
-  @tailrec
-  def incrementAndGet(v: Int = 1): Byte = {
-    val current = (ref.volatileGet() & mask).asInstanceOf[Byte]
-    val update = incrementOp(current, v)
-    if (!ref.compareAndSet(current, update))
-      incrementAndGet(v)
-    else
-      update
-  }
+  def addAndGet(v: Byte): Byte =
+    ((ref.getAndAdd(v) + v) & mask).asInstanceOf[Byte]
 
-  @tailrec
-  def addAndGet(v: Byte): Byte = {
-    val current = (ref.volatileGet() & mask).asInstanceOf[Byte]
-    val update = plusOp(current, v)
-    if (!ref.compareAndSet(current, update))
-      addAndGet(v)
-    else
-      update
-  }
+  def getAndIncrement(v: Int = 1): Byte =
+    (ref.getAndAdd(v) & mask).asInstanceOf[Byte]
 
-  @tailrec
-  def getAndIncrement(v: Int = 1): Byte = {
-    val current = (ref.volatileGet() & mask).asInstanceOf[Byte]
-    val update = incrementOp(current, v)
-    if (!ref.compareAndSet(current, update))
-      getAndIncrement(v)
-    else
-      current
-  }
+  def getAndAdd(v: Byte): Byte =
+    (ref.getAndAdd(v) & mask).asInstanceOf[Byte]
 
-  @tailrec
-  def getAndAdd(v: Byte): Byte = {
-    val current = (ref.volatileGet() & mask).asInstanceOf[Byte]
-    val update = plusOp(current, v)
-    if (!ref.compareAndSet(current, update))
-      getAndAdd(v)
-    else
-      current
-  }
-
-  @tailrec
-  def subtract(v: Byte): Unit = {
-    val current = (ref.volatileGet() & mask).asInstanceOf[Byte]
-    val update = minusOp(current, v)
-    if (!ref.compareAndSet(current, update))
-      subtract(v)
-  }
-
-  @tailrec
-  def subtractAndGet(v: Byte): Byte = {
-    val current = (ref.volatileGet() & mask).asInstanceOf[Byte]
-    val update = minusOp(current, v)
-    if (!ref.compareAndSet(current, update))
-      subtractAndGet(v)
-    else
-      update
-  }
-
-  @tailrec
-  def getAndSubtract(v: Byte): Byte = {
-    val current = (ref.volatileGet() & mask).asInstanceOf[Byte]
-    val update = minusOp(current, v)
-    if (!ref.compareAndSet(current, update))
-      getAndSubtract(v)
-    else
-      current
-  }
+  def subtract(v: Byte): Unit =
+    ref.getAndAdd(-v.asInstanceOf[Int])
+  def subtractAndGet(v: Byte): Byte =
+    ((ref.getAndAdd(-v.asInstanceOf[Int]) - v) & mask).asInstanceOf[Byte]
+  def getAndSubtract(v: Byte): Byte =
+    (ref.getAndAdd(-v.asInstanceOf[Int]) & mask).asInstanceOf[Byte]
 
   def decrement(v: Int = 1): Unit = increment(-v)
   def decrementAndGet(v: Int = 1): Byte = incrementAndGet(-v)
   def getAndDecrement(v: Int = 1): Byte = getAndIncrement(-v)
-
-  private[this] def plusOp(a: Byte, b: Byte): Byte =
-    ((a + b) & mask).asInstanceOf[Byte]
-
-  private[this] def minusOp(a: Byte, b: Byte): Byte =
-    ((a - b) & mask).asInstanceOf[Byte]
-
-  private[this] def incrementOp(a: Byte, b: Int): Byte =
-    ((a + b) & mask).asInstanceOf[Byte]
 }
 
+/** @define createDesc Constructs an [[AtomicByte]] reference, allowing
+  *         for fine-tuning of the created instance.
+  *
+  *         A [[PaddingStrategy]] can be provided in order to counter
+  *         the "false sharing" problem.
+  *
+  *         Note that for ''Scala.js'' we aren't applying any padding,
+  *         as it doesn't make much sense, since Javascript execution
+  *         is single threaded, but this builder is provided for
+  *         syntax compatibility anyway across the JVM and Javascript
+  *         and we never know how Javascript engines will evolve.
+  */
 object AtomicByte {
-  /** Constructs an [[AtomicByte]] reference.
+  /** Builds an [[AtomicByte]] reference.
     *
     * @param initialValue is the initial value with which to initialize the atomic
     */
   def apply(initialValue: Byte): AtomicByte =
     withPadding(initialValue, NoPadding)
 
-  /** Constructs an [[AtomicByte]] reference, applying the provided
-    * [[PaddingStrategy]] in order to counter the "false sharing"
-    * problem.
-    *
-    * Note that for ''Scala.js'' we aren't applying any padding, as it
-    * doesn't make much sense, since Javascript execution is single
-    * threaded, but this builder is provided for syntax compatibility
-    * anyway across the JVM and Javascript and we never know how
-    * Javascript engines will evolve.
+  /** $createDesc
     *
     * @param initialValue is the initial value with which to initialize the atomic
     * @param padding is the [[PaddingStrategy]] to apply
     */
   def withPadding(initialValue: Byte, padding: PaddingStrategy): AtomicByte =
-    new AtomicByte(Factory.newBoxedInt(initialValue, boxStrategyToPaddingStrategy(padding)))
+    create(initialValue, padding, allowPlatformIntrinsics = true)
+
+  /** $createDesc
+    *
+    * Also this builder on top Java 8 also allows for turning off the
+    * Java 8 intrinsics, thus forcing usage of CAS-loops for
+    * `getAndSet` and for `getAndAdd`.
+    *
+    * @param initialValue is the initial value with which to initialize the atomic
+    * @param padding is the [[PaddingStrategy]] to apply
+    * @param allowPlatformIntrinsics is a boolean parameter that specifies whether
+    *        the instance is allowed to use the Java 8 optimized operations
+    *        for `getAndSet` and for `getAndAdd`
+    */
+  def create(initialValue: Byte, padding: PaddingStrategy, allowPlatformIntrinsics: Boolean): AtomicByte =
+    new AtomicByte(Factory.newBoxedInt(
+      initialValue,
+      boxStrategyToPaddingStrategy(padding),
+      allowPlatformIntrinsics))
 }

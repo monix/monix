@@ -47,27 +47,47 @@ final class AtomicAny[T <: AnyRef] private[atomic] (initialValue: T) extends Ato
   def get: T = ref
 }
 
+/** @define createDesc Constructs an [[AtomicAny]] reference, allowing
+  *         for fine-tuning of the created instance.
+  *
+  *         A [[PaddingStrategy]] can be provided in order to counter
+  *         the "false sharing" problem.
+  *
+  *         Note that for ''Scala.js'' we aren't applying any padding,
+  *         as it doesn't make much sense, since Javascript execution
+  *         is single threaded, but this builder is provided for
+  *         syntax compatibility anyway across the JVM and Javascript
+  *         and we never know how Javascript engines will evolve.
+  */
 object AtomicAny {
-  /** Constructs an [[AtomicAny]] reference.
+  /** Builds an [[AtomicAny]] reference.
     *
     * @param initialValue is the initial value with which to initialize the atomic
     */
-  def apply[T <: AnyRef](initialValue: T): AtomicAny[T] =
+  def apply[A <: AnyRef](initialValue: A): AtomicAny[A] =
     new AtomicAny(initialValue)
 
-  /** Constructs an [[AtomicAny]] reference, applying the provided
-    * [[PaddingStrategy]] in order to counter the "false sharing"
-    * problem.
-    *
-    * Note that for ''Scala.js'' we aren't applying any padding, as it
-    * doesn't make much sense, since Javascript execution is single
-    * threaded, but this builder is provided for syntax compatibility
-    * anyway across the JVM and Javascript and we never know how
-    * Javascript engines will evolve.
+  /** $createDesc
     *
     * @param initialValue is the initial value with which to initialize the atomic
     * @param padding is the [[PaddingStrategy]] to apply
     */
-  def withPadding[T <: AnyRef](initialValue: T, padding: PaddingStrategy): AtomicAny[T] =
+  def withPadding[A <: AnyRef](initialValue: A, padding: PaddingStrategy): AtomicAny[A] =
+    new AtomicAny(initialValue)
+
+  /** $createDesc
+    *
+    * Also this builder on top Java 8 also allows for turning off the
+    * Java 8 intrinsics, thus forcing usage of CAS-loops for
+    * `getAndSet` and for `getAndAdd`.
+    *
+    * @param initialValue is the initial value with which to initialize the atomic
+    * @param padding is the [[PaddingStrategy]] to apply
+    * @param allowPlatformIntrinsics is a boolean parameter that specifies whether
+    *        the instance is allowed to use the Java 8 optimized operations
+    *        for `getAndSet` and for `getAndAdd`
+    */
+  def create[A <: AnyRef](initialValue: A, padding: PaddingStrategy, allowPlatformIntrinsics: Boolean): AtomicAny[A] =
     new AtomicAny(initialValue)
 }
+

@@ -24,14 +24,14 @@ package monix.execution.atomic
   * driven by implicits.
   */
 trait AtomicBuilder[T, R <: Atomic[T]] extends Serializable {
-  def buildInstance(initialValue: T, strategy: PaddingStrategy): R
+  def buildInstance(initialValue: T, strategy: PaddingStrategy, allowPlatformIntrinsics: Boolean): R
 }
 
 private[atomic] object Implicits {
   abstract class Level1 {
     implicit def AtomicRefBuilder[T <: AnyRef]: AtomicBuilder[T, AtomicAny[T]] =
       new AtomicBuilder[T, AtomicAny[T]] {
-        def buildInstance(initialValue: T, strategy: PaddingStrategy) =
+        def buildInstance(initialValue: T, strategy: PaddingStrategy, allowPlatformIntrinsics: Boolean) =
           AtomicAny(initialValue)
       }
   }
@@ -39,7 +39,7 @@ private[atomic] object Implicits {
   abstract class Level2 extends Level1 {
     implicit def AtomicNumberBuilder[T  <: AnyRef : Numeric]: AtomicBuilder[T, AtomicNumberAny[T]] =
       new AtomicBuilder[T, AtomicNumberAny[T]] {
-        def buildInstance(initialValue: T, strategy: PaddingStrategy) =
+        def buildInstance(initialValue: T, strategy: PaddingStrategy, allowPlatformIntrinsics: Boolean) =
           AtomicNumberAny(initialValue)
       }
   }
@@ -48,49 +48,49 @@ private[atomic] object Implicits {
 object AtomicBuilder extends Implicits.Level2 {
   implicit val AtomicIntBuilder: AtomicBuilder[Int, AtomicInt] =
     new AtomicBuilder[Int, AtomicInt] {
-      def buildInstance(initialValue: Int, strategy: PaddingStrategy) =
+      def buildInstance(initialValue: Int, strategy: PaddingStrategy, allowPlatformIntrinsics: Boolean) =
         AtomicInt(initialValue)
     }
 
   implicit val AtomicLongBuilder: AtomicBuilder[Long, AtomicLong] =
     new AtomicBuilder[Long, AtomicLong] {
-      def buildInstance(initialValue: Long, strategy: PaddingStrategy) =
+      def buildInstance(initialValue: Long, strategy: PaddingStrategy, allowPlatformIntrinsics: Boolean) =
         AtomicLong(initialValue)
     }
 
   implicit val AtomicBooleanBuilder: AtomicBuilder[Boolean, AtomicBoolean] =
     new AtomicBuilder[Boolean, AtomicBoolean] {
-      def buildInstance(initialValue: Boolean, strategy: PaddingStrategy) =
+      def buildInstance(initialValue: Boolean, strategy: PaddingStrategy, allowPlatformIntrinsics: Boolean) =
         AtomicBoolean(initialValue)
     }
 
   implicit val AtomicByteBuilder: AtomicBuilder[Byte, AtomicByte] =
     new AtomicBuilder[Byte, AtomicByte] {
-      def buildInstance(initialValue: Byte, strategy: PaddingStrategy): AtomicByte =
+      def buildInstance(initialValue: Byte, strategy: PaddingStrategy, allowPlatformIntrinsics: Boolean): AtomicByte =
         AtomicByte(initialValue)
     }
 
   implicit val AtomicCharBuilder: AtomicBuilder[Char, AtomicChar] =
     new AtomicBuilder[Char, AtomicChar] {
-      def buildInstance(initialValue: Char, strategy: PaddingStrategy): AtomicChar =
+      def buildInstance(initialValue: Char, strategy: PaddingStrategy, allowPlatformIntrinsics: Boolean): AtomicChar =
         AtomicChar(initialValue)
     }
 
   implicit val AtomicShortBuilder: AtomicBuilder[Short, AtomicShort] =
     new AtomicBuilder[Short, AtomicShort] {
-      def buildInstance(initialValue: Short, strategy: PaddingStrategy): AtomicShort =
+      def buildInstance(initialValue: Short, strategy: PaddingStrategy, allowPlatformIntrinsics: Boolean): AtomicShort =
         AtomicShort(initialValue)
     }
 
   implicit val AtomicFloatBuilder: AtomicBuilder[Float, AtomicFloat] =
     new AtomicBuilder[Float, AtomicFloat] {
-      def buildInstance(initialValue: Float, strategy: PaddingStrategy): AtomicFloat =
+      def buildInstance(initialValue: Float, strategy: PaddingStrategy, allowPlatformIntrinsics: Boolean): AtomicFloat =
         AtomicFloat(initialValue)
     }
 
   implicit val AtomicDoubleBuilder: AtomicBuilder[Double, AtomicDouble] =
     new AtomicBuilder[Double, AtomicDouble] {
-      def buildInstance(initialValue: Double, strategy: PaddingStrategy): AtomicDouble =
+      def buildInstance(initialValue: Double, strategy: PaddingStrategy, allowPlatformIntrinsics: Boolean): AtomicDouble =
         AtomicDouble(initialValue)
     }
 }

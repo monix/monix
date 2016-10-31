@@ -32,7 +32,7 @@ abstract class BoxedLongImpl implements monix.execution.atomic.boxes.BoxedLong {
         }
     }
 
-    public BoxedLongImpl(long initialValue) {
+    BoxedLongImpl(long initialValue) {
         this.value = initialValue;
     }
 
@@ -54,6 +54,10 @@ abstract class BoxedLongImpl implements monix.execution.atomic.boxes.BoxedLong {
 
     public long getAndSet(long update) {
         return UnsafeAccess.UNSAFE.getAndSetLong(this, OFFSET, update);
+    }
+
+    public long getAndAdd(long delta) {
+        return UnsafeAccess.UNSAFE.getAndAddLong(this, OFFSET, delta);
     }
 }
 

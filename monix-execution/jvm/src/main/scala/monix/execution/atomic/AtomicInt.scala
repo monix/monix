@@ -18,8 +18,7 @@
 package monix.execution.atomic
 
 import monix.execution.atomic.PaddingStrategy.NoPadding
-import monix.execution.atomic.boxes.{Factory, BoxedInt}
-import scala.annotation.tailrec
+import monix.execution.atomic.boxes.{BoxedInt, Factory}
 
 /** Atomic references wrapping `Int` values.
   *
@@ -32,72 +31,32 @@ final class AtomicInt private (private[this] val ref: BoxedInt)
   def get: Int = ref.volatileGet()
   def set(update: Int): Unit = ref.volatileSet(update)
 
-  def compareAndSet(expect: Int, update: Int): Boolean = {
+  def compareAndSet(expect: Int, update: Int): Boolean =
     ref.compareAndSet(expect, update)
-  }
 
-  def getAndSet(update: Int): Int = {
+  def getAndSet(update: Int): Int =
     ref.getAndSet(update)
-  }
 
-  def lazySet(update: Int): Unit = {
+  def lazySet(update: Int): Unit =
     ref.lazySet(update)
-  }
 
-  @tailrec
-  def increment(v: Int = 1): Unit = {
-    val current = ref.volatileGet()
-    if (!ref.compareAndSet(current, current+v))
-      increment(v)
-  }
+  def increment(v: Int = 1): Unit =
+    ref.getAndAdd(v)
 
-  @tailrec
-  def incrementAndGet(v: Int = 1): Int = {
-    val current = ref.volatileGet()
-    val update = current + v
-    if (!ref.compareAndSet(current, update))
-      incrementAndGet(v)
-    else
-      update
-  }
+  def incrementAndGet(v: Int = 1): Int =
+    ref.getAndAdd(v) + v
 
-  @tailrec
-  def getAndIncrement(v: Int = 1): Int = {
-    val current = ref.volatileGet()
-    val update = current + v
-    if (!ref.compareAndSet(current, update))
-      getAndIncrement(v)
-    else
-      current
-  }
+  def getAndIncrement(v: Int = 1): Int =
+    ref.getAndAdd(v)
 
-  @tailrec
-  def getAndAdd(v: Int): Int = {
-    val current = ref.volatileGet()
-    val update = current + v
-    if (!ref.compareAndSet(current, update))
-      getAndAdd(v)
-    else
-      current
-  }
+  def getAndAdd(v: Int): Int =
+    ref.getAndAdd(v)
 
-  @tailrec
-  def addAndGet(v: Int): Int = {
-    val current = ref.volatileGet()
-    val update = current + v
-    if (!ref.compareAndSet(current, update))
-      addAndGet(v)
-    else
-      update
-  }
+  def addAndGet(v: Int): Int =
+    ref.getAndAdd(v) + v
 
-  @tailrec
-  def add(v: Int): Unit = {
-    val current = ref.volatileGet()
-    val update = current + v
-    if (!ref.compareAndSet(current, update))
-      add(v)
-  }
+  def add(v: Int): Unit =
+    ref.getAndAdd(v)
 
   def subtract(v: Int): Unit =
     add(-v)
@@ -115,27 +74,49 @@ final class AtomicInt private (private[this] val ref: BoxedInt)
   override def toString: String = s"AtomicInt(${ref.volatileGet()})"
 }
 
+/** @define createDesc Constructs an [[AtomicInt]] reference, allowing
+  *         for fine-tuning of the created instance.
+  *
+  *         A [[PaddingStrategy]] can be provided in order to counter
+  *         the "false sharing" problem.
+  *
+  *         Note that for ''Scala.js'' we aren't applying any padding,
+  *         as it doesn't make much sense, since Javascript execution
+  *         is single threaded, but this builder is provided for
+  *         syntax compatibility anyway across the JVM and Javascript
+  *         and we never know how Javascript engines will evolve.
+  */
 object AtomicInt {
-  /** Constructs an [[AtomicInt]] reference.
+  /** Builds an [[AtomicInt]] reference.
     *
     * @param initialValue is the initial value with which to initialize the atomic
     */
   def apply(initialValue: Int): AtomicInt =
     withPadding(initialValue, NoPadding)
 
-  /** Constructs an [[AtomicInt]] reference, applying the provided
-    * [[PaddingStrategy]] in order to counter the "false sharing"
-    * problem.
-    *
-    * Note that for ''Scala.js'' we aren't applying any padding, as it
-    * doesn't make much sense, since Javascript execution is single
-    * threaded, but this builder is provided for syntax compatibility
-    * anyway across the JVM and Javascript and we never know how
-    * Javascript engines will evolve.
+  /** $createDesc
     *
     * @param initialValue is the initial value with which to initialize the atomic
     * @param padding is the [[PaddingStrategy]] to apply
     */
   def withPadding(initialValue: Int, padding: PaddingStrategy): AtomicInt =
-    new AtomicInt(Factory.newBoxedInt(initialValue, boxStrategyToPaddingStrategy(padding)))
+    create(initialValue, padding, allowPlatformIntrinsics = true)
+
+  /** $createDesc
+    *
+    * Also this builder on top Java 8 also allows for turning off the
+    * Java 8 intrinsics, thus forcing usage of CAS-loops for
+    * `getAndSet` and for `getAndAdd`.
+    *
+    * @param initialValue is the initial value with which to initialize the atomic
+    * @param padding is the [[PaddingStrategy]] to apply
+    * @param allowPlatformIntrinsics is a boolean parameter that specifies whether
+    *        the instance is allowed to use the Java 8 optimized operations
+    *        for `getAndSet` and for `getAndAdd`
+    */
+  def create(initialValue: Int, padding: PaddingStrategy, allowPlatformIntrinsics: Boolean): AtomicInt =
+    new AtomicInt(Factory.newBoxedInt(
+      initialValue,
+      boxStrategyToPaddingStrategy(padding),
+      allowPlatformIntrinsics))
 }

@@ -59,4 +59,8 @@ public final class BoxedLong extends LeftPadding48
     public long getAndSet(long update) {
         return UnsafeAccess.UNSAFE.getAndSetLong(this, OFFSET, update);
     }
+
+    public long getAndAdd(long delta) {
+        return UnsafeAccess.UNSAFE.getAndAddLong(this, OFFSET, delta);
+    }
 }

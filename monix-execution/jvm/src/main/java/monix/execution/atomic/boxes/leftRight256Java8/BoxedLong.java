@@ -35,7 +35,7 @@ abstract class BoxedLongImpl extends LeftPadding120
         }
     }
 
-    public BoxedLongImpl(long initialValue) {
+    BoxedLongImpl(long initialValue) {
         this.value = initialValue;
     }
 
@@ -57,6 +57,10 @@ abstract class BoxedLongImpl extends LeftPadding120
 
     public long getAndSet(long update) {
         return UnsafeAccess.UNSAFE.getAndSetLong(this, OFFSET, update);
+    }
+
+    public long getAndAdd(long delta) {
+        return UnsafeAccess.UNSAFE.getAndAddLong(this, OFFSET, delta);
     }
 }
 

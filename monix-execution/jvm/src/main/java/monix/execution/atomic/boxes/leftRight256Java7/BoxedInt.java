@@ -36,7 +36,7 @@ abstract class BoxedIntImpl extends LeftPadding120
         }
     }
 
-    public BoxedIntImpl(int initialValue) {
+    BoxedIntImpl(int initialValue) {
         this.value = initialValue;
     }
 
@@ -60,6 +60,14 @@ abstract class BoxedIntImpl extends LeftPadding120
         int current = value;
         while (!UnsafeAccess.UNSAFE.compareAndSwapInt(this, OFFSET, current, update))
             current = value;
+        return current;
+    }
+
+    public int getAndAdd(int delta) {
+        int current;
+        do {
+            current = UnsafeAccess.UNSAFE.getIntVolatile(this, OFFSET);
+        } while (!UnsafeAccess.UNSAFE.compareAndSwapInt(this, OFFSET, current, current+delta));
         return current;
     }
 }

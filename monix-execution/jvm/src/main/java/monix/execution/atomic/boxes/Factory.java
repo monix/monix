@@ -21,46 +21,46 @@ import monix.execution.misc.UnsafeAccess;
 import scala.MatchError;
 
 public final class Factory {
-    public static BoxedObject newBoxedObject(Object initial, BoxPaddingStrategy padding) {
+    public static BoxedObject newBoxedObject(Object initial, BoxPaddingStrategy padding, boolean allowJava8Intrinsics) {
         switch (padding) {
             case NO_PADDING:
-                if (UnsafeAccess.SUPPORTS_GET_AND_SET)
+                if (allowJava8Intrinsics && UnsafeAccess.IS_JAVA_8)
                     return new monix.execution.atomic.boxes.normalJava8.BoxedObject(initial);
                 else
                     return new monix.execution.atomic.boxes.normalJava7.BoxedObject(initial);
 
             case LEFT_64:
-                if (UnsafeAccess.SUPPORTS_GET_AND_SET)
+                if (allowJava8Intrinsics && UnsafeAccess.IS_JAVA_8)
                     return new monix.execution.atomic.boxes.left64Java8.BoxedObject(initial);
                 else
                     return new monix.execution.atomic.boxes.left64Java7.BoxedObject(initial);
 
             case RIGHT_64:
-                if (UnsafeAccess.SUPPORTS_GET_AND_SET)
+                if (allowJava8Intrinsics && UnsafeAccess.IS_JAVA_8)
                     return new monix.execution.atomic.boxes.right64Java8.BoxedObject(initial);
                 else
                     return new monix.execution.atomic.boxes.right64Java7.BoxedObject(initial);
 
             case LEFT_RIGHT_128:
-                if (UnsafeAccess.SUPPORTS_GET_AND_SET)
+                if (allowJava8Intrinsics && UnsafeAccess.IS_JAVA_8)
                     return new monix.execution.atomic.boxes.leftRight128Java8.BoxedObject(initial);
                 else
                     return new monix.execution.atomic.boxes.leftRight128Java7.BoxedObject(initial);
 
             case LEFT_128:
-                if (UnsafeAccess.SUPPORTS_GET_AND_SET)
+                if (allowJava8Intrinsics && UnsafeAccess.IS_JAVA_8)
                     return new monix.execution.atomic.boxes.left128Java8.BoxedObject(initial);
                 else
                     return new monix.execution.atomic.boxes.left128Java7.BoxedObject(initial);
 
             case RIGHT_128:
-                if (UnsafeAccess.SUPPORTS_GET_AND_SET)
+                if (allowJava8Intrinsics && UnsafeAccess.IS_JAVA_8)
                     return new monix.execution.atomic.boxes.right128Java8.BoxedObject(initial);
                 else
                     return new monix.execution.atomic.boxes.right128Java7.BoxedObject(initial);
 
             case LEFT_RIGHT_256:
-                if (UnsafeAccess.SUPPORTS_GET_AND_SET)
+                if (allowJava8Intrinsics && UnsafeAccess.IS_JAVA_8)
                     return new monix.execution.atomic.boxes.leftRight256Java8.BoxedObject(initial);
                 else
                     return new monix.execution.atomic.boxes.leftRight256Java7.BoxedObject(initial);
@@ -70,46 +70,46 @@ public final class Factory {
         }
     }
 
-    public static BoxedInt newBoxedInt(int initial, BoxPaddingStrategy padding) {
+    public static BoxedInt newBoxedInt(int initial, BoxPaddingStrategy padding, boolean allowJava8Intrinsics) {
         switch (padding) {
             case NO_PADDING:
-                if (UnsafeAccess.SUPPORTS_GET_AND_SET)
+                if (allowJava8Intrinsics && UnsafeAccess.IS_JAVA_8)
                     return new monix.execution.atomic.boxes.normalJava8.BoxedInt(initial);
                 else
                     return new monix.execution.atomic.boxes.normalJava7.BoxedInt(initial);
 
             case LEFT_64:
-                if (UnsafeAccess.SUPPORTS_GET_AND_SET)
+                if (allowJava8Intrinsics && UnsafeAccess.IS_JAVA_8)
                     return new monix.execution.atomic.boxes.left64Java8.BoxedInt(initial);
                 else
                     return new monix.execution.atomic.boxes.left64Java7.BoxedInt(initial);
 
             case RIGHT_64:
-                if (UnsafeAccess.SUPPORTS_GET_AND_SET)
+                if (allowJava8Intrinsics && UnsafeAccess.IS_JAVA_8)
                     return new monix.execution.atomic.boxes.right64Java8.BoxedInt(initial);
                 else
                     return new monix.execution.atomic.boxes.right64Java7.BoxedInt(initial);
 
             case LEFT_RIGHT_128:
-                if (UnsafeAccess.SUPPORTS_GET_AND_SET)
+                if (allowJava8Intrinsics && UnsafeAccess.IS_JAVA_8)
                     return new monix.execution.atomic.boxes.leftRight128Java8.BoxedInt(initial);
                 else
                     return new monix.execution.atomic.boxes.leftRight128Java7.BoxedInt(initial);
 
             case LEFT_128:
-                if (UnsafeAccess.SUPPORTS_GET_AND_SET)
+                if (allowJava8Intrinsics && UnsafeAccess.IS_JAVA_8)
                     return new monix.execution.atomic.boxes.left128Java8.BoxedInt(initial);
                 else
                     return new monix.execution.atomic.boxes.left128Java7.BoxedInt(initial);
 
             case RIGHT_128:
-                if (UnsafeAccess.SUPPORTS_GET_AND_SET)
+                if (allowJava8Intrinsics && UnsafeAccess.IS_JAVA_8)
                     return new monix.execution.atomic.boxes.right128Java8.BoxedInt(initial);
                 else
                     return new monix.execution.atomic.boxes.right128Java7.BoxedInt(initial);
 
             case LEFT_RIGHT_256:
-                if (UnsafeAccess.SUPPORTS_GET_AND_SET)
+                if (allowJava8Intrinsics && UnsafeAccess.IS_JAVA_8)
                     return new monix.execution.atomic.boxes.leftRight256Java8.BoxedInt(initial);
                 else
                     return new monix.execution.atomic.boxes.leftRight256Java7.BoxedInt(initial);
@@ -119,46 +119,46 @@ public final class Factory {
         }
     }
 
-    public static BoxedLong newBoxedLong(long initial, BoxPaddingStrategy padding) {
+    public static BoxedLong newBoxedLong(long initial, BoxPaddingStrategy padding, boolean allowJava8Intrinsics) {
         switch (padding) {
             case NO_PADDING:
-                if (UnsafeAccess.SUPPORTS_GET_AND_SET)
+                if (allowJava8Intrinsics && UnsafeAccess.IS_JAVA_8)
                     return new monix.execution.atomic.boxes.normalJava8.BoxedLong(initial);
                 else
                     return new monix.execution.atomic.boxes.normalJava7.BoxedLong(initial);
 
             case LEFT_64:
-                if (UnsafeAccess.SUPPORTS_GET_AND_SET)
+                if (allowJava8Intrinsics && UnsafeAccess.IS_JAVA_8)
                     return new monix.execution.atomic.boxes.left64Java8.BoxedLong(initial);
                 else
                     return new monix.execution.atomic.boxes.left64Java7.BoxedLong(initial);
 
             case RIGHT_64:
-                if (UnsafeAccess.SUPPORTS_GET_AND_SET)
+                if (allowJava8Intrinsics && UnsafeAccess.IS_JAVA_8)
                     return new monix.execution.atomic.boxes.right64Java8.BoxedLong(initial);
                 else
                     return new monix.execution.atomic.boxes.right64Java7.BoxedLong(initial);
 
             case LEFT_RIGHT_128:
-                if (UnsafeAccess.SUPPORTS_GET_AND_SET)
+                if (allowJava8Intrinsics && UnsafeAccess.IS_JAVA_8)
                     return new monix.execution.atomic.boxes.leftRight128Java8.BoxedLong(initial);
                 else
                     return new monix.execution.atomic.boxes.leftRight128Java7.BoxedLong(initial);
 
             case LEFT_128:
-                if (UnsafeAccess.SUPPORTS_GET_AND_SET)
+                if (allowJava8Intrinsics && UnsafeAccess.IS_JAVA_8)
                     return new monix.execution.atomic.boxes.left128Java8.BoxedLong(initial);
                 else
                     return new monix.execution.atomic.boxes.left128Java7.BoxedLong(initial);
 
             case RIGHT_128:
-                if (UnsafeAccess.SUPPORTS_GET_AND_SET)
+                if (allowJava8Intrinsics && UnsafeAccess.IS_JAVA_8)
                     return new monix.execution.atomic.boxes.right128Java8.BoxedLong(initial);
                 else
                     return new monix.execution.atomic.boxes.right128Java7.BoxedLong(initial);
 
             case LEFT_RIGHT_256:
-                if (UnsafeAccess.SUPPORTS_GET_AND_SET)
+                if (allowJava8Intrinsics && UnsafeAccess.IS_JAVA_8)
                     return new monix.execution.atomic.boxes.leftRight256Java8.BoxedLong(initial);
                 else
                     return new monix.execution.atomic.boxes.leftRight256Java7.BoxedLong(initial);

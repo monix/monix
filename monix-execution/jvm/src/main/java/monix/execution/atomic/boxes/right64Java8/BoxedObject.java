@@ -32,7 +32,7 @@ abstract class BoxedObjectImpl implements monix.execution.atomic.boxes.BoxedObje
         }
     }
 
-    public BoxedObjectImpl(Object initialValue) {
+    BoxedObjectImpl(Object initialValue) {
         this.value = initialValue;
     }
 
