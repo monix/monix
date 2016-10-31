@@ -35,7 +35,7 @@ abstract class BoxedObjectImpl extends LeftPadding56
         }
     }
 
-    public BoxedObjectImpl(Object initialValue) {
+    BoxedObjectImpl(Object initialValue) {
         this.value = initialValue;
     }
 

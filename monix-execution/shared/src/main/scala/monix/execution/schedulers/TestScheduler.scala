@@ -34,7 +34,6 @@ final class TestScheduler private (
   extends ReferenceScheduler with BatchingScheduler {
 
   /** Returns the internal state of the [[TestScheduler]]. */
-  def statePula = stateRef
   def state: State = stateRef.get
 
   override def currentTimeMillis(): Long =
@@ -57,7 +56,7 @@ final class TestScheduler private (
   }
 
   @tailrec
-  override def executeAsync(r: Runnable): Unit = {
+  protected override def executeAsync(r: Runnable): Unit = {
     val current: State = stateRef.get
     val update = current.execute(r)
     if (!stateRef.compareAndSet(current, update)) executeAsync(r)

@@ -35,12 +35,14 @@ private[monix] object TaskFromFuture {
       case c: Cancelable =>
         // Cancelable future, needs canceling
         Task.unsafeCreate { (context, cb) =>
-          import context.implicitScheduler
+          implicit val s = context.scheduler
           // Already completed future?
           if (f.isCompleted) cb.asyncApply(f.value.get) else {
             val conn = context.connection
             conn.push(c)
             f.onComplete { result =>
+              // Async boundary should trigger frame reset
+              context.frameRef.reset()
               conn.pop()
               cb(result)
             }
@@ -49,11 +51,15 @@ private[monix] object TaskFromFuture {
       case _ =>
         // Simple future, convert directly
         Task.unsafeCreate { (context, cb) =>
-          import context.implicitScheduler
+          implicit val s = context.scheduler
           if (f.isCompleted)
             cb.asyncApply(f.value.get)
           else
-            f.onComplete(cb)
+            f.onComplete { result =>
+              // Async boundary should trigger frame reset
+              context.frameRef.reset()
+              cb(result)
+            }
         }
     }
   }

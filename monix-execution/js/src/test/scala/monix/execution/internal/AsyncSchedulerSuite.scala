@@ -42,11 +42,11 @@ object AsyncSchedulerSuite extends TestSuite[Scheduler] {
     var effect = 0
     val p = Promise[Int]()
 
-    s.executeAsync {
+    s.executeAsync { () =>
       effect += 1
-      s.executeAsync {
+      s.executeAsync { () =>
         effect += 2
-        s.executeAsync {
+        s.executeAsync { () =>
           effect += 3
           p.success(effect)
         }
@@ -62,11 +62,11 @@ object AsyncSchedulerSuite extends TestSuite[Scheduler] {
   test("execute local should work") { implicit s =>
     var effect = 0
 
-    s.executeTrampolined {
+    s.executeTrampolined { () =>
       effect += 1
-      s.executeTrampolined {
+      s.executeTrampolined { () =>
         effect += 2
-        s.executeTrampolined {
+        s.executeTrampolined { () =>
           effect += 3
         }
       }

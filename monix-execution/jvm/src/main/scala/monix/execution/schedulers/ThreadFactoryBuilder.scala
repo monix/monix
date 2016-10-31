@@ -1,7 +1,25 @@
+/*
+ * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * See the project homepage at: https://monix.io
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package monix.execution.schedulers
 
+import java.lang.Thread.UncaughtExceptionHandler
 import java.util.concurrent.ThreadFactory
-
+import monix.execution.UncaughtExceptionReporter
 import monix.execution.atomic.AtomicLong
 
 private[schedulers] object ThreadFactoryBuilder {
@@ -13,15 +31,21 @@ private[schedulers] object ThreadFactoryBuilder {
     * @param daemonic specifies whether the created threads should be daemonic
     *                 (non-daemonic threads are blocking the JVM process on exit).
     */
-  def apply(name: String, daemonic: Boolean = true): ThreadFactory = {
+  def apply(name: String, reporter: UncaughtExceptionReporter, daemonic: Boolean = true): ThreadFactory = {
     new ThreadFactory {
       private[this] val threadCount = AtomicLong(0)
 
       def newThread(r: Runnable) = {
-        val th = new Thread(r)
-        th.setName(name + "-" + threadCount.incrementAndGet())
-        th.setDaemon(daemonic)
-        th
+        val thread = new Thread(r)
+        thread.setName(name + "-" + threadCount.incrementAndGet())
+        thread.setDaemon(daemonic)
+        thread.setUncaughtExceptionHandler(
+          new UncaughtExceptionHandler {
+            override def uncaughtException(t: Thread, e: Throwable): Unit =
+              reporter.reportFailure(e)
+          })
+
+        thread
       }
     }
   }

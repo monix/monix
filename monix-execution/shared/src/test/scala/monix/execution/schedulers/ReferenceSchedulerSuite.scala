@@ -20,6 +20,7 @@ package monix.execution.schedulers
 import java.util.concurrent.TimeUnit
 import minitest.SimpleTestSuite
 import monix.execution.Cancelable
+import monix.execution.schedulers.ExecutionModel.{AlwaysAsyncExecution, SynchronousExecution}
 import scala.concurrent.duration._
 
 object ReferenceSchedulerSuite extends SimpleTestSuite {
@@ -29,7 +30,6 @@ object ReferenceSchedulerSuite extends SimpleTestSuite {
 
     def executionModel = ExecutionModel.Default
     def tick(time: FiniteDuration = Duration.Zero) = underlying.tick(time)
-    def state = underlying.statePula
     def execute(runnable: Runnable): Unit = underlying.execute(runnable)
     def reportFailure(t: Throwable): Unit = underlying.reportFailure(t)
     def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable =
@@ -38,14 +38,16 @@ object ReferenceSchedulerSuite extends SimpleTestSuite {
 
   test("current time") {
     val s = new DummyScheduler
-    assert(s.currentTimeMillis() > 0)
+    val ws = s.withExecutionModel(SynchronousExecution)
+    assert(ws.currentTimeMillis() > 0)
   }
 
   test("schedule with fixed delay") {
     val s = new DummyScheduler
+    val ws = s.withExecutionModel(SynchronousExecution)
     var effect = 0
 
-    val task = s.scheduleWithFixedDelay(1.second, 2.seconds) { effect += 1 }
+    val task = ws.scheduleWithFixedDelay(1.second, 2.seconds) { effect += 1 }
 
     s.tick(1.second)
     assertEquals(effect, 1)
@@ -63,8 +65,10 @@ object ReferenceSchedulerSuite extends SimpleTestSuite {
 
   test("schedule at fixed rate") {
     val s = new DummyScheduler
+    val ws = s.withExecutionModel(SynchronousExecution)
+
     var effect = 0
-    val task = s.scheduleAtFixedRate(1.second, 2.seconds) { effect += 1 }
+    val task = ws.scheduleAtFixedRate(1.second, 2.seconds) { effect += 1 }
 
     s.tick(1.second)
     assertEquals(effect, 1)
@@ -78,5 +82,52 @@ object ReferenceSchedulerSuite extends SimpleTestSuite {
     task.cancel()
     s.tick(1.second)
     assertEquals(effect, 3)
+  }
+
+  test("change ExecutionModel") {
+    val s = (new DummyScheduler).withExecutionModel(AlwaysAsyncExecution)
+    assertEquals(s.executionModel, AlwaysAsyncExecution)
+  }
+
+  test("changed em triggers execution") {
+    val s = new DummyScheduler
+    val ws = s.withExecutionModel(AlwaysAsyncExecution)
+
+    var effect = 0
+    ws.executeAsync { () => effect += 1 }
+
+    assertEquals(effect, 0)
+    s.tick()
+    assertEquals(effect, 1)
+  }
+
+  test("can change em multiple times") {
+    val s = new DummyScheduler
+    var ws = s.withExecutionModel(AlwaysAsyncExecution)
+    for (i <- 0 until 10000) ws = ws.withExecutionModel(AlwaysAsyncExecution)
+    assertEquals(ws.executionModel, AlwaysAsyncExecution)
+  }
+
+  test("changed em triggers execution with delay") {
+    val s = new DummyScheduler
+    val ws = s.withExecutionModel(AlwaysAsyncExecution)
+
+    var effect = 0
+    ws.scheduleOnce(1.second) { effect += 1 }
+
+    assertEquals(effect, 0)
+    s.tick(1.second)
+    assertEquals(effect, 1)
+  }
+
+  test("changed em error reporting") {
+    val s = new DummyScheduler
+    val ws = s.withExecutionModel(AlwaysAsyncExecution)
+
+    val dummy = new RuntimeException("dummy")
+    ws.executeAsync { () => throw dummy }
+
+    s.tick()
+    assertEquals(s.underlying.state.lastReportedError, dummy)
   }
 }

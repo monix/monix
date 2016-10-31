@@ -137,32 +137,50 @@ final class AtomicNumberAny[T <: AnyRef : Numeric] private (private[this] val re
   def getAndDecrement(v: Int = 1): T = getAndIncrement(-v)
 }
 
+/** @define createDesc Constructs an [[AtomicNumberAny]] reference, allowing
+  *         for fine-tuning of the created instance.
+  *
+  *         A [[PaddingStrategy]] can be provided in order to counter
+  *         the "false sharing" problem.
+  *
+  *         Note that for ''Scala.js'' we aren't applying any padding,
+  *         as it doesn't make much sense, since Javascript execution
+  *         is single threaded, but this builder is provided for
+  *         syntax compatibility anyway across the JVM and Javascript
+  *         and we never know how Javascript engines will evolve.
+  */
 object AtomicNumberAny {
   /** Constructs an [[AtomicNumberAny]] reference.
     *
     * @param initialValue is the initial value with which to
     *        initialize the Atomic reference
     */
-  def apply[T <: AnyRef : Numeric](initialValue: T): AtomicNumberAny[T] =
+  def apply[A <: AnyRef : Numeric](initialValue: A): AtomicNumberAny[A] =
     withPadding(initialValue, NoPadding)
 
-  /** Constructs an [[AtomicNumberAny]] reference, applying the provided
-    * [[PaddingStrategy]] in order to counter the "false sharing"
-    * problem.
-    *
-    * Note that for ''Scala.js'' we aren't applying any padding, as it
-    * doesn't make much sense, since Javascript execution is single
-    * threaded, but this builder is provided for syntax compatibility
-    * anyway across the JVM and Javascript and we never know how
-    * Javascript engines will evolve.
+  /** $createDesc
     *
     * @param initialValue is the initial value with which to initialize the atomic
     * @param padding is the [[PaddingStrategy]] to apply
     */
-  def withPadding[T <: AnyRef : Numeric](
-    initialValue: T, padding: PaddingStrategy): AtomicNumberAny[T] =
-    new AtomicNumberAny(
-      Factory.newBoxedObject(initialValue,
-        boxStrategyToPaddingStrategy(padding)
-      ))
+  def withPadding[A <: AnyRef : Numeric](initialValue: A, padding: PaddingStrategy): AtomicNumberAny[A] =
+    create(initialValue, padding, allowPlatformIntrinsics = true)
+
+  /** $createDesc
+    *
+    * Also this builder on top Java 8 also allows for turning off the
+    * Java 8 intrinsics, thus forcing usage of CAS-loops for
+    * `getAndSet` and for `getAndAdd`.
+    *
+    * @param initialValue is the initial value with which to initialize the atomic
+    * @param padding is the [[PaddingStrategy]] to apply
+    * @param allowPlatformIntrinsics is a boolean parameter that specifies whether
+    *        the instance is allowed to use the Java 8 optimized operations
+    *        for `getAndSet` and for `getAndAdd`
+    */
+  def create[A <: AnyRef : Numeric](initialValue: A, padding: PaddingStrategy, allowPlatformIntrinsics: Boolean): AtomicNumberAny[A] =
+    new AtomicNumberAny[A](Factory.newBoxedObject(
+      initialValue,
+      boxStrategyToPaddingStrategy(padding),
+      allowPlatformIntrinsics))
 }

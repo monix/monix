@@ -20,7 +20,6 @@ package monix.execution
 import minitest.TestSuite
 import monix.execution.misc.InlineMacrosTest.DummyException
 import monix.execution.schedulers.TestScheduler
-
 import scala.concurrent.duration._
 import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success}
@@ -195,6 +194,21 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
     assertEquals(f.value, None)
     s.tick()
     assertEquals(f.value, Some(Success(3)))
+  }
+
+  test("now.failed") { implicit s =>
+    val dummy = new RuntimeException("dummy")
+    val f = CancelableFuture.failed(dummy).failed
+    s.tick(); assertEquals(f.value, Some(Success(dummy)))
+  }
+
+  test("async.failed") { implicit s =>
+    val dummy = new RuntimeException("dummy")
+    val f = CancelableFuture(Future(throw dummy), Cancelable.empty).failed
+
+    assertEquals(f.value, None)
+    s.tick()
+    assertEquals(f.value, Some(Success(dummy)))
   }
 
   test("now.recover") { implicit s =>
@@ -408,5 +422,26 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
 
     s.tick()
     assertEquals(f.value, Some(Success(2)))
+  }
+
+  test("async.isCompleted") { implicit s =>
+    val f = CancelableFuture(Future(1), Cancelable.empty)
+    assert(!f.isCompleted, "!f.isCompleted")
+    s.tick()
+    assert(f.isCompleted, "f.isCompleted")
+  }
+
+  test("never") { implicit s =>
+    var effect = false
+    val f = CancelableFuture.never[Int]
+    f.onComplete(_ => effect = true)
+
+    s.tick()
+    assert(!effect, "!effect")
+    assert(!f.isCompleted, "!f.isCompleted")
+    assertEquals(f.value, None)
+
+    f.cancel()
+    assertEquals(f.value, None)
   }
 }

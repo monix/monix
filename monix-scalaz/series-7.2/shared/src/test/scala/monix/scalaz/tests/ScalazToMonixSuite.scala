@@ -33,7 +33,7 @@ object ScalazToMonixSuite extends SimpleTestSuite with scalaz.std.AllInstances {
 
   test("applicative") {
     def test[F[_]](x: F[Int => Int])(implicit F: Applicative[F]): F[Int] =
-      x.ap(F.pure(1))
+      F.ap(x)(F.pure(1))
 
     assertEquals(test(Need((x: Int) => x + 1)).extract, 2)
   }

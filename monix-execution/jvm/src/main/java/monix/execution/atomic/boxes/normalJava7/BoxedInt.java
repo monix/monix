@@ -58,4 +58,12 @@ public final class BoxedInt implements monix.execution.atomic.boxes.BoxedInt {
             current = value;
         return current;
     }
+
+    public int getAndAdd(int delta) {
+        int current;
+        do {
+            current = UnsafeAccess.UNSAFE.getIntVolatile(this, OFFSET);
+        } while (!UnsafeAccess.UNSAFE.compareAndSwapInt(this, OFFSET, current, current+delta));
+        return current;
+    }
 }

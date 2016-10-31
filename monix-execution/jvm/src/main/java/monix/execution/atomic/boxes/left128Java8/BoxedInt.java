@@ -59,4 +59,8 @@ public final class BoxedInt extends LeftPadding112
     public int getAndSet(int update) {
         return UnsafeAccess.UNSAFE.getAndSetInt(this, OFFSET, update);
     }
+
+    public int getAndAdd(int delta) {
+        return UnsafeAccess.UNSAFE.getAndAddInt(this, OFFSET, delta);
+    }
 }

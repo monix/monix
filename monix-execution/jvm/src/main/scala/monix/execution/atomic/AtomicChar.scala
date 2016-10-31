@@ -19,7 +19,6 @@ package monix.execution.atomic
 
 import monix.execution.atomic.PaddingStrategy.NoPadding
 import monix.execution.atomic.boxes.{BoxedInt, Factory}
-import scala.annotation.tailrec
 
 /** Atomic references wrapping `Char` values.
   *
@@ -33,137 +32,88 @@ final class AtomicChar private (private[this] val ref: BoxedInt)
   def get: Char = (ref.volatileGet() & mask).asInstanceOf[Char]
   def set(update: Char): Unit = ref.volatileSet(update)
 
-  def lazySet(update: Char) = {
+  def lazySet(update: Char) =
     ref.lazySet(update)
-  }
 
-  def compareAndSet(expect: Char, update: Char): Boolean = {
+  def compareAndSet(expect: Char, update: Char): Boolean =
     ref.compareAndSet(expect, update)
-  }
 
-  def getAndSet(update: Char): Char = {
+  def getAndSet(update: Char): Char =
     (ref.getAndSet(update) & mask).asInstanceOf[Char]
-  }
 
+  def increment(v: Int = 1): Unit =
+    ref.getAndAdd(v)
 
-  @tailrec
-  def increment(v: Int = 1): Unit = {
-    val current = (ref.volatileGet() & mask).asInstanceOf[Char]
-    val update = incrementOp(current, v)
-    if (!ref.compareAndSet(current, update))
-      increment(v)
-  }
+  def add(v: Char): Unit =
+    ref.getAndAdd(v)
 
-  @tailrec
-  def add(v: Char): Unit = {
-    val current = (ref.volatileGet() & mask).asInstanceOf[Char]
-    val update = plusOp(current, v)
-    if (!ref.compareAndSet(current, update))
-      add(v)
-  }
+  def incrementAndGet(v: Int = 1): Char =
+    ((ref.getAndAdd(v) + v) & mask).asInstanceOf[Char]
 
-  @tailrec
-  def incrementAndGet(v: Int = 1): Char = {
-    val current = (ref.volatileGet() & mask).asInstanceOf[Char]
-    val update = incrementOp(current, v)
-    if (!ref.compareAndSet(current, update))
-      incrementAndGet(v)
-    else
-      update
-  }
+  def addAndGet(v: Char): Char =
+    ((ref.getAndAdd(v) + v) & mask).asInstanceOf[Char]
 
-  @tailrec
-  def addAndGet(v: Char): Char = {
-    val current = (ref.volatileGet() & mask).asInstanceOf[Char]
-    val update = plusOp(current, v)
-    if (!ref.compareAndSet(current, update))
-      addAndGet(v)
-    else
-      update
-  }
+  def getAndIncrement(v: Int = 1): Char =
+    (ref.getAndAdd(v) & mask).asInstanceOf[Char]
 
-  @tailrec
-  def getAndIncrement(v: Int = 1): Char = {
-    val current = (ref.volatileGet() & mask).asInstanceOf[Char]
-    val update = incrementOp(current, v)
-    if (!ref.compareAndSet(current, update))
-      getAndIncrement(v)
-    else
-      current
-  }
+  def getAndAdd(v: Char): Char =
+    (ref.getAndAdd(v) & mask).asInstanceOf[Char]
 
-  @tailrec
-  def getAndAdd(v: Char): Char = {
-    val current = (ref.volatileGet() & mask).asInstanceOf[Char]
-    val update = plusOp(current, v)
-    if (!ref.compareAndSet(current, update))
-      getAndAdd(v)
-    else
-      current
-  }
-
-  @tailrec
-  def subtract(v: Char): Unit = {
-    val current = (ref.volatileGet() & mask).asInstanceOf[Char]
-    val update = minusOp(current, v)
-    if (!ref.compareAndSet(current, update))
-      subtract(v)
-  }
-
-  @tailrec
-  def subtractAndGet(v: Char): Char = {
-    val current = (ref.volatileGet() & mask).asInstanceOf[Char]
-    val update = minusOp(current, v)
-    if (!ref.compareAndSet(current, update))
-      subtractAndGet(v)
-    else
-      update
-  }
-
-  @tailrec
-  def getAndSubtract(v: Char): Char = {
-    val current = (ref.volatileGet() & mask).asInstanceOf[Char]
-    val update = minusOp(current, v)
-    if (!ref.compareAndSet(current, update))
-      getAndSubtract(v)
-    else
-      current
-  }
+  def subtract(v: Char): Unit =
+    ref.getAndAdd(-v.asInstanceOf[Int])
+  def subtractAndGet(v: Char): Char =
+    ((ref.getAndAdd(-v.asInstanceOf[Int]) - v) & mask).asInstanceOf[Char]
+  def getAndSubtract(v: Char): Char =
+    (ref.getAndAdd(-v.asInstanceOf[Int]) & mask).asInstanceOf[Char]
 
   def decrement(v: Int = 1): Unit = increment(-v)
   def decrementAndGet(v: Int = 1): Char = incrementAndGet(-v)
   def getAndDecrement(v: Int = 1): Char = getAndIncrement(-v)
-
-  private[this] def plusOp(a: Char, b: Char): Char =
-    ((a + b) & mask).asInstanceOf[Char]
-
-  private[this] def minusOp(a: Char, b: Char): Char =
-    ((a - b) & mask).asInstanceOf[Char]
-
-  private[this] def incrementOp(a: Char, b: Int): Char =
-    ((a + b) & mask).asInstanceOf[Char]
 }
 
+/** @define createDesc Constructs an [[AtomicChar]] reference, allowing
+  *         for fine-tuning of the created instance.
+  *
+  *         A [[PaddingStrategy]] can be provided in order to counter
+  *         the "false sharing" problem.
+  *
+  *         Note that for ''Scala.js'' we aren't applying any padding,
+  *         as it doesn't make much sense, since Javascript execution
+  *         is single threaded, but this builder is provided for
+  *         syntax compatibility anyway across the JVM and Javascript
+  *         and we never know how Javascript engines will evolve.
+  */
 object AtomicChar {
-  /** Constructs an [[AtomicChar]] reference.
+  /** Builds an [[AtomicChar]] reference.
     *
     * @param initialValue is the initial value with which to initialize the atomic
     */
   def apply(initialValue: Char): AtomicChar =
     withPadding(initialValue, NoPadding)
 
-  /** Constructs an [[AtomicChar]] reference, applying the provided
-    * [[PaddingStrategy]] in order to counter the "false sharing" problem.
-    *
-    * Note that for ''Scala.js'' we aren't applying any padding, as it doesn't
-    * make much sense, since Javascript execution is single threaded, but this
-    * builder is provided for syntax compatibility anyway across the JVM and
-    * Javascript and we never know how Javascript engines will evolve.
+  /** $createDesc
     *
     * @param initialValue is the initial value with which to initialize the atomic
     * @param padding is the [[PaddingStrategy]] to apply
     */
   def withPadding(initialValue: Char, padding: PaddingStrategy): AtomicChar =
-    new AtomicChar(Factory.newBoxedInt(initialValue, boxStrategyToPaddingStrategy(padding)))
-}
+    create(initialValue, padding, allowPlatformIntrinsics = true)
 
+  /** $createDesc
+    *
+    * Also this builder on top Java 8 also allows for turning off the
+    * Java 8 intrinsics, thus forcing usage of CAS-loops for
+    * `getAndSet` and for `getAndAdd`.
+    *
+    * @param initialValue is the initial value with which to initialize the atomic
+    * @param padding is the [[PaddingStrategy]] to apply
+    * @param allowPlatformIntrinsics is a boolean parameter that specifies whether
+    *        the instance is allowed to use the Java 8 optimized operations
+    *        for `getAndSet` and for `getAndAdd`
+    */
+  def create(initialValue: Char, padding: PaddingStrategy, allowPlatformIntrinsics: Boolean): AtomicChar =
+    new AtomicChar(Factory.newBoxedInt(
+      initialValue,
+      boxStrategyToPaddingStrategy(padding),
+      allowPlatformIntrinsics))
+}

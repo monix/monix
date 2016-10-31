@@ -15,12 +15,19 @@
  * limitations under the License.
  */
 
-package monix.reactive
+package monix.execution.misc
 
-package object observers {
-  @deprecated("Use monix.reactive.Observer.Sync", since="2.0")
-  type SyncObserver[-A] = monix.reactive.Observer.Sync[A]
+import minitest.SimpleTestSuite
 
-  @deprecated("Use monix.reactive.observers.Subscriber.Sync", since="2.0")
-  type SyncSubscriber[-A] = monix.reactive.observers.Subscriber.Sync[A]
+object ThreadLocalSuite extends SimpleTestSuite {
+  test("ThreadLocal should work") {
+    val tl = ThreadLocal(10)
+    assertEquals(tl.get, 10)
+
+    tl.set(20)
+    assertEquals(tl.get, 20)
+
+    tl.reset()
+    assertEquals(tl.get, 10)
+  }
 }

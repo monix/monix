@@ -19,7 +19,6 @@ package monix.execution.atomic
 
 import monix.execution.atomic.PaddingStrategy.NoPadding
 import monix.execution.atomic.boxes.{Factory, BoxedLong}
-import scala.annotation.tailrec
 
 /** Atomic references wrapping `Long` values.
   *
@@ -32,72 +31,32 @@ final class AtomicLong private (private[this] val ref: BoxedLong)
   def get: Long = ref.volatileGet()
   def set(update: Long): Unit = ref.volatileSet(update)
 
-  def compareAndSet(expect: Long, update: Long): Boolean = {
+  def compareAndSet(expect: Long, update: Long): Boolean =
     ref.compareAndSet(expect, update)
-  }
 
-  def getAndSet(update: Long): Long = {
+  def getAndSet(update: Long): Long =
     ref.getAndSet(update)
-  }
 
-  def lazySet(update: Long): Unit = {
+  def lazySet(update: Long): Unit =
     ref.lazySet(update)
-  }
 
-  @tailrec
-  def increment(v: Int = 1): Unit = {
-    val current = ref.volatileGet()
-    if (!ref.compareAndSet(current, current+v))
-      increment(v)
-  }
+  def increment(v: Int = 1): Unit =
+    ref.getAndAdd(v)
 
-  @tailrec
-  def incrementAndGet(v: Int = 1): Long = {
-    val current = ref.volatileGet()
-    val update = current + v
-    if (!ref.compareAndSet(current, update))
-      incrementAndGet(v)
-    else
-      update
-  }
+  def incrementAndGet(v: Int = 1): Long =
+    ref.getAndAdd(v) + v
 
-  @tailrec
-  def getAndIncrement(v: Int = 1): Long = {
-    val current = ref.volatileGet()
-    val update = current + v
-    if (!ref.compareAndSet(current, update))
-      getAndIncrement(v)
-    else
-      current
-  }
+  def getAndIncrement(v: Int = 1): Long =
+    ref.getAndAdd(v)
 
-  @tailrec
-  def getAndAdd(v: Long): Long = {
-    val current = ref.volatileGet()
-    val update = current + v
-    if (!ref.compareAndSet(current, update))
-      getAndAdd(v)
-    else
-      current
-  }
+  def getAndAdd(v: Long): Long =
+    ref.getAndAdd(v)
 
-  @tailrec
-  def addAndGet(v: Long): Long = {
-    val current = ref.volatileGet()
-    val update = current + v
-    if (!ref.compareAndSet(current, update))
-      addAndGet(v)
-    else
-      update
-  }
+  def addAndGet(v: Long): Long =
+    ref.getAndAdd(v) + v
 
-  @tailrec
-  def add(v: Long): Unit = {
-    val current = ref.volatileGet()
-    val update = current + v
-    if (!ref.compareAndSet(current, update))
-      add(v)
-  }
+  def add(v: Long): Unit =
+    ref.getAndAdd(v)
 
   def subtract(v: Long): Unit =
     add(-v)
@@ -115,27 +74,49 @@ final class AtomicLong private (private[this] val ref: BoxedLong)
   override def toString: String = s"AtomicLong(${ref.volatileGet()})"
 }
 
+/** @define createDesc Constructs an [[AtomicLong]] reference, allowing
+  *         for fine-tuning of the created instance.
+  *
+  *         A [[PaddingStrategy]] can be provided in order to counter
+  *         the "false sharing" problem.
+  *
+  *         Note that for ''Scala.js'' we aren't applying any padding,
+  *         as it doesn't make much sense, since Javascript execution
+  *         is single threaded, but this builder is provided for
+  *         syntax compatibility anyway across the JVM and Javascript
+  *         and we never know how Javascript engines will evolve.
+  */
 object AtomicLong {
-  /** Constructs an [[AtomicLong]] reference.
+  /** Builds an [[AtomicLong]] reference.
     *
     * @param initialValue is the initial value with which to initialize the atomic
     */
   def apply(initialValue: Long): AtomicLong =
     withPadding(initialValue, NoPadding)
 
-  /** Constructs an [[AtomicLong]] reference, applying the provided
-    * [[PaddingStrategy]] in order to counter the "false sharing"
-    * problem.
-    *
-    * Note that for ''Scala.js'' we aren't applying any padding, as it
-    * doesn't make much sense, since Javascript execution is single
-    * threaded, but this builder is provided for syntax compatibility
-    * anyway across the JVM and Javascript and we never know how
-    * Javascript engines will evolve.
+  /** $createDesc
     *
     * @param initialValue is the initial value with which to initialize the atomic
     * @param padding is the [[PaddingStrategy]] to apply
     */
   def withPadding(initialValue: Long, padding: PaddingStrategy): AtomicLong =
-    new AtomicLong(Factory.newBoxedLong(initialValue, boxStrategyToPaddingStrategy(padding)))
+    create(initialValue, padding, allowPlatformIntrinsics = true)
+
+  /** $createDesc
+    *
+    * Also this builder on top Java 8 also allows for turning off the
+    * Java 8 intrinsics, thus forcing usage of CAS-loops for
+    * `getAndSet` and for `getAndAdd`.
+    *
+    * @param initialValue is the initial value with which to initialize the atomic
+    * @param padding is the [[PaddingStrategy]] to apply
+    * @param allowPlatformIntrinsics is a boolean parameter that specifies whether
+    *        the instance is allowed to use the Java 8 optimized operations
+    *        for `getAndSet` and for `getAndAdd`
+    */
+  def create(initialValue: Long, padding: PaddingStrategy, allowPlatformIntrinsics: Boolean): AtomicLong =
+    new AtomicLong(Factory.newBoxedLong(
+      initialValue,
+      boxStrategyToPaddingStrategy(padding),
+      allowPlatformIntrinsics))
 }

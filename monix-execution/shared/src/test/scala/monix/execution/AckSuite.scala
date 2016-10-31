@@ -20,8 +20,9 @@ package monix.execution
 import minitest.TestSuite
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.schedulers.TestScheduler
-import scala.concurrent.Future
-import scala.util.{Success, Try}
+
+import scala.concurrent.{Future, Promise}
+import scala.util.{Failure, Success, Try}
 
 object AckSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
@@ -312,8 +313,6 @@ object AckSuite extends TestSuite[TestScheduler] {
     assertEquals(triggered, true)
     assertEquals(result.syncTryFlatten, Stop)
   }
-
-  // --
 
   test("syncFlatMap(Continue) should execute synchronously") { implicit s =>
     var triggered = false
@@ -614,4 +613,135 @@ object AckSuite extends TestSuite[TestScheduler] {
     assert(triggered, "should have been async")
   }
 
+  test("Continue.syncOnContinueFollow") { implicit s =>
+    val ack: Future[Ack] = Continue
+    val p = Promise[Int]()
+
+    ack.syncOnContinueFollow(p, 1)
+    // should be immediate
+    assertEquals(p.future.value, Some(Success(1)))
+  }
+
+  test("Stop.syncOnContinueFollow") { implicit s =>
+    val ack: Future[Ack] = Stop
+    val p = Promise[Int]()
+
+    ack.syncOnContinueFollow(p, 1)
+    s.tick()
+    assertEquals(p.future.value, None)
+  }
+
+  test("Future(Continue).syncOnContinueFollow") { implicit s =>
+    val ack: Future[Ack] = Future(Continue)
+    val p = Promise[Int]()
+
+    ack.syncOnContinueFollow(p, 1)
+    assertEquals(p.future.value, None)
+
+    // should be async
+    s.tick()
+    assertEquals(p.future.value, Some(Success(1)))
+  }
+
+  test("Future(Stop).syncOnContinueFollow") { implicit s =>
+    val ack: Future[Ack] = Future(Stop)
+    val p = Promise[Int]()
+
+    ack.syncOnContinueFollow(p, 1)
+    s.tick()
+    assertEquals(p.future.value, None)
+  }
+
+  test("Continue.syncOnStopFollow") { implicit s =>
+    val ack: Future[Ack] = Continue
+    val p = Promise[Int]()
+
+    ack.syncOnStopFollow(p, 1)
+    s.tick()
+    assertEquals(p.future.value, None)
+  }
+
+  test("Stop.syncOnStopFollow") { implicit s =>
+    val ack: Future[Ack] = Stop
+    val p = Promise[Int]()
+
+    ack.syncOnStopFollow(p, 1)
+    // should be immediate
+    assertEquals(p.future.value, Some(Success(1)))
+  }
+
+  test("Future(Continue).syncOnStopFollow") { implicit s =>
+    val ack: Future[Ack] = Future(Continue)
+    val p = Promise[Int]()
+
+    ack.syncOnStopFollow(p, 1)
+    s.tick()
+    assertEquals(p.future.value, None)
+  }
+
+  test("Future(Stop).syncOnStopFollow") { implicit s =>
+    val ack: Future[Ack] = Future(Stop)
+    val p = Promise[Int]()
+
+    ack.syncOnStopFollow(p, 1)
+    s.tick()
+    assertEquals(p.future.value, Some(Success(1)))
+  }
+
+  test("syncTryFlatten works for synchronous failure") { implicit s =>
+    val dummy = new RuntimeException("dummy")
+    val f: Future[Ack] = Future.failed(dummy)
+
+    val sync = f.syncTryFlatten
+    assertEquals(sync, Stop)
+    assertEquals(s.state.lastReportedError, dummy)
+  }
+
+  test("Continue.transform") { implicit s =>
+    val f1 = Continue.transform { r => Success(1) }
+    assertEquals(f1.value, Some(Success(1)))
+
+    val dummy = new RuntimeException("dummy")
+    val f2 = Continue.transform { r => Failure(dummy) }
+    assertEquals(f2.value, Some(Failure(dummy)))
+
+    val f3 = Continue.transform { r => throw dummy }
+    assertEquals(f3.value, Some(Failure(dummy)))
+  }
+
+  test("Continue.transformWith") { implicit s =>
+    val f1 = Continue.transformWith { r => Future.successful(1) }
+    assertEquals(f1.value, Some(Success(1)))
+
+    val dummy = new RuntimeException("dummy")
+    val f2 = Continue.transformWith { r => Future.failed(dummy) }
+    assertEquals(f2.value, Some(Failure(dummy)))
+
+    val f3 = Continue.transformWith { r => throw dummy }
+    assertEquals(f3.value, Some(Failure(dummy)))
+  }
+
+  test("Stop.transform") { implicit s =>
+    val f1 = Stop.transform { r => Success(1) }
+    assertEquals(f1.value, Some(Success(1)))
+
+    val dummy = new RuntimeException("dummy")
+    val f2 = Stop.transform { r => Failure(dummy) }
+    assertEquals(f2.value, Some(Failure(dummy)))
+
+    val f3 = Stop.transform { r => throw dummy }
+    assertEquals(f3.value, Some(Failure(dummy)))
+  }
+
+  test("Stop.transformWith") { implicit s =>
+    val f1 = Stop.transformWith { r => Future.successful(1) }
+    assertEquals(f1.value, Some(Success(1)))
+
+    val dummy = new RuntimeException("dummy")
+    val f2 = Stop.transformWith { r => Future.failed(dummy) }
+    assertEquals(f2.value, Some(Failure(dummy)))
+
+    val f3 = Stop.transformWith { r => throw dummy }
+    assertEquals(f3.value, Some(Failure(dummy)))
+  }
 }

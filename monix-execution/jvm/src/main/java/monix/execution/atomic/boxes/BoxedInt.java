@@ -22,5 +22,6 @@ public interface BoxedInt {
     void volatileSet(int update);
     void lazySet(int update);
     boolean compareAndSet(int current, int update);
+    int getAndAdd(int delta);
     int getAndSet(int update);
 }

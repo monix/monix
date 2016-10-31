@@ -33,7 +33,7 @@ abstract class BoxedIntImpl implements monix.execution.atomic.boxes.BoxedInt {
         }
     }
 
-    public BoxedIntImpl(int initialValue) {
+    BoxedIntImpl(int initialValue) {
         this.value = initialValue;
     }
 
@@ -55,6 +55,10 @@ abstract class BoxedIntImpl implements monix.execution.atomic.boxes.BoxedInt {
 
     public int getAndSet(int update) {
         return UnsafeAccess.UNSAFE.getAndSetInt(this, OFFSET, update);
+    }
+
+    public int getAndAdd(int delta) {
+        return UnsafeAccess.UNSAFE.getAndAddInt(this, OFFSET, delta);
     }
 }
 

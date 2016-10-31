@@ -18,7 +18,8 @@
 package monix.scalaz
 
 import monix.types._
-import scalaz.\/
+
+import scalaz.{Monoid, Semigroup, \/}
 
 /** Defines conversions from the Monix type-classes defined in
   * [[monix.types]] to type-class instances from the
@@ -26,7 +27,33 @@ import scalaz.\/
   */
 trait MonixToScalazConversions extends MonixToScalaz9
 
-private[scalaz] trait MonixToScalaz0 {
+private[scalaz] trait MonixToScalazKernel0 {
+  /** Given an `Applicative` for `F[A]` and a `Semigroup` defined
+    * for `A`, then `F[A]` is also a `Semigroup`.
+    */
+  implicit def monixApplicativeToScalazSemigroup[F[_], A]
+    (implicit F: Applicative[F], A: Semigroup[A]): Semigroup[F[A]] =
+    new Semigroup[F[A]] {
+      override def append(f1: F[A], f2: => F[A]): F[A] =
+        F.map2(f1,f2)((a,b) => A.append(a,b))
+    }
+}
+
+private[scalaz] trait MonixToScalazKernel1 extends MonixToScalazKernel0 {
+  /** Given an `Applicative` for `F[A]` and a `Monoid` defined
+    * for `A`, then `F[A]` is also a `Monoid`.
+    */
+  implicit def monixApplicativeToScalazMonoid[F[_], A]
+    (implicit F: Applicative[F], A: Monoid[A]): Monoid[F[A]] =
+    new Monoid[F[A]] {
+      override def zero: F[A] =
+        F.pure(A.zero)
+      override def append(f1: F[A], f2: => F[A]): F[A] =
+        F.map2(f1,f2)((a,b) => A.append(a,b))
+    }
+}
+
+private[scalaz] trait MonixToScalaz0 extends MonixToScalazKernel1 {
   /** Converts Monix's type instances into the Scalaz `Functor`. */
   implicit def monixToScalazFunctor[F[_] : Functor]: _root_.scalaz.Functor[F] =
     new MonixToScalazFunctor[F]()

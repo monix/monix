@@ -6,7 +6,7 @@ import sbtunidoc.Plugin.{ScalaUnidoc, unidocSettings => baseUnidocSettings}
 import scala.xml.Elem
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 
-val catsVersion = "0.7.2"
+val catsVersion = "0.8.0"
 val scalazVersion = "7.2.6"
 
 lazy val doNotPublishArtifact = Seq(
@@ -32,7 +32,7 @@ lazy val warnUnusedImport = Seq(
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
   scalaVersion := "2.11.8",
-  crossScalaVersions := Seq("2.10.6", "2.11.8"),
+  crossScalaVersions := Seq("2.10.6", "2.11.8", "2.12.0-RC2"),
 
   scalacOptions ++= Seq(
     // warnings
@@ -173,8 +173,8 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
         </license>
       </licenses>
       <scm>
-        <url>git@github.com:monixio/monix.git</url>
-        <connection>scm:git:git@github.com:monixio/monix.git</connection>
+        <url>git@github.com:monix/monix.git</url>
+        <connection>scm:git:git@github.com:monix/monix.git</connection>
       </scm>
       <developers>
         <developer>
@@ -235,7 +235,7 @@ lazy val unidocSettings = baseUnidocSettings ++ Seq(
   scalacOptions in (ScalaUnidoc, unidoc) ++=
     Opts.doc.title(s"Monix"),
   scalacOptions in (ScalaUnidoc, unidoc) ++=
-    Opts.doc.sourceUrl(s"https://github.com/monixio/monix/tree/v${version.value}€{FILE_PATH}.scala"),
+    Opts.doc.sourceUrl(s"https://github.com/monix/monix/tree/v${version.value}€{FILE_PATH}.scala"),
   scalacOptions in (ScalaUnidoc, unidoc) ++=
     Seq("-doc-root-content", file("rootdoc.txt").getAbsolutePath),
   scalacOptions in (ScalaUnidoc, unidoc) ++=
@@ -244,11 +244,10 @@ lazy val unidocSettings = baseUnidocSettings ++ Seq(
 
 lazy val testSettings = Seq(
   testFrameworks := Seq(new TestFramework("minitest.runner.Framework")),
-  libraryDependencies += "io.monix" %%% "minitest-laws" % "0.25" % "test"
+  libraryDependencies += "io.monix" %%% "minitest-laws" % "0.26" % "test"
 )
 
 lazy val scalaJSSettings = Seq(
-  scalaJSUseRhino in Global := false,
   coverageExcludedFiles := ".*"
 )
 
@@ -262,7 +261,7 @@ def profile: Project ⇒ Project = pr => cmdlineProfile match {
 
 lazy val monix = project.in(file("."))
   .configure(profile)
-  .aggregate(coreJVM, coreJS, tckTests, catsJVM, catsJS, scalaz72JVM, scalaz72JS)
+  .aggregate(coreJVM, coreJS, tckTests)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
   .settings(unidocSettings)
@@ -270,7 +269,7 @@ lazy val monix = project.in(file("."))
 lazy val coreJVM = project.in(file("monix/jvm"))
   .configure(profile)
   .dependsOn(typesJVM, executionJVM, evalJVM, reactiveJVM)
-  .aggregate(typesJVM, executionJVM, evalJVM, reactiveJVM)
+  .aggregate(typesJVM, executionJVM, evalJVM, reactiveJVM, catsJVM, scalaz72JVM)
   .settings(crossSettings)
   .settings(name := "monix")
 
@@ -278,7 +277,7 @@ lazy val coreJS = project.in(file("monix/js"))
   .configure(profile)
   .enablePlugins(ScalaJSPlugin)
   .dependsOn(typesJS, executionJS, evalJS, reactiveJS)
-  .aggregate(typesJS, executionJS, evalJS, reactiveJS)
+  .aggregate(typesJS, executionJS, evalJS, reactiveJS, catsJS, scalaz72JS)
   .settings(crossSettings)
   .settings(scalaJSSettings)
   .settings(name := "monix")
@@ -360,13 +359,12 @@ lazy val reactiveJS = project.in(file("monix-reactive/js"))
   .settings(scalaJSSettings)
 
 lazy val catsCommon =
-  crossSettings ++ Seq(
+  crossSettings ++ testSettings ++ Seq(
     name := "monix-cats",
     testFrameworks := Seq(new TestFramework("minitest.runner.Framework")),
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-core" % catsVersion,
-      "org.typelevel" %%% "cats-laws" % catsVersion % "test",
-      "io.monix" %%% "minitest-laws" % "0.21" % "test"
+      "org.typelevel" %%% "cats-laws" % catsVersion % "test"
     ))
 
 lazy val catsJVM = project.in(file("monix-cats/jvm"))

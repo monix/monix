@@ -74,7 +74,7 @@ private[monix] object TaskMapBoth {
     // The resulting task will be executed asynchronously
     Task.unsafeCreate { (context, cb) =>
       // Initial asynchronous boundary
-      context.scheduler.executeTrampolined {
+      context.scheduler.executeTrampolined { () =>
         implicit val s = context.scheduler
         val mainConn = context.connection
         // for synchronizing the results

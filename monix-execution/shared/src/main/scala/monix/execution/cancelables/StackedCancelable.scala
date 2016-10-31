@@ -30,12 +30,12 @@ import scala.annotation.tailrec
   *
   * Used in the implementation of `monix.eval.Task`.
   */
-final class StackedCancelable private (initial: Cancelable)
+final class StackedCancelable private (initial: List[Cancelable])
   extends BooleanCancelable {
 
   private def underlying: List[Cancelable] = state.get
   private[this] val state = {
-    val ref = if (initial != null) initial :: Nil else Nil
+    val ref = if (initial != null) initial else Nil
     AtomicAny.withPadding(ref, PaddingStrategy.LeftRight128)
   }
 
@@ -117,6 +117,9 @@ object StackedCancelable {
   def apply(): StackedCancelable =
     new StackedCancelable(null)
 
-  def apply(s: Cancelable): StackedCancelable =
-    new StackedCancelable(s)
+  def apply(initial: Cancelable): StackedCancelable =
+    new StackedCancelable(List(initial))
+
+  def apply(initial: List[Cancelable]): StackedCancelable =
+    new StackedCancelable(initial)
 }

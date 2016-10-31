@@ -19,7 +19,6 @@ package monix.execution.atomic
 
 import monix.execution.atomic.PaddingStrategy.NoPadding
 import monix.execution.atomic.boxes.{BoxedInt, Factory}
-import scala.annotation.tailrec
 
 /** Atomic references wrapping `Short` values.
   *
@@ -33,138 +32,88 @@ final class AtomicShort private (private[this] val ref: BoxedInt)
   def get: Short = (ref.volatileGet() & mask).asInstanceOf[Short]
   def set(update: Short): Unit = ref.volatileSet(update)
 
-  def lazySet(update: Short) = {
+  def lazySet(update: Short) =
     ref.lazySet(update)
-  }
 
-  def compareAndSet(expect: Short, update: Short): Boolean = {
+  def compareAndSet(expect: Short, update: Short): Boolean =
     ref.compareAndSet(expect, update)
-  }
 
-  def getAndSet(update: Short): Short = {
+  def getAndSet(update: Short): Short =
     (ref.getAndSet(update) & mask).asInstanceOf[Short]
-  }
 
+  def increment(v: Int = 1): Unit =
+    ref.getAndAdd(v)
 
-  @tailrec
-  def increment(v: Int = 1): Unit = {
-    val current = (ref.volatileGet() & mask).asInstanceOf[Short]
-    val update = incrementOp(current, v)
-    if (!ref.compareAndSet(current, update))
-      increment(v)
-  }
+  def add(v: Short): Unit =
+    ref.getAndAdd(v)
 
-  @tailrec
-  def add(v: Short): Unit = {
-    val current = (ref.volatileGet() & mask).asInstanceOf[Short]
-    val update = plusOp(current, v)
-    if (!ref.compareAndSet(current, update))
-      add(v)
-  }
+  def incrementAndGet(v: Int = 1): Short =
+    ((ref.getAndAdd(v) + v) & mask).asInstanceOf[Short]
 
-  @tailrec
-  def incrementAndGet(v: Int = 1): Short = {
-    val current = (ref.volatileGet() & mask).asInstanceOf[Short]
-    val update = incrementOp(current, v)
-    if (!ref.compareAndSet(current, update))
-      incrementAndGet(v)
-    else
-      update
-  }
+  def addAndGet(v: Short): Short =
+    ((ref.getAndAdd(v) + v) & mask).asInstanceOf[Short]
 
-  @tailrec
-  def addAndGet(v: Short): Short = {
-    val current = (ref.volatileGet() & mask).asInstanceOf[Short]
-    val update = plusOp(current, v)
-    if (!ref.compareAndSet(current, update))
-      addAndGet(v)
-    else
-      update
-  }
+  def getAndIncrement(v: Int = 1): Short =
+    (ref.getAndAdd(v) & mask).asInstanceOf[Short]
 
-  @tailrec
-  def getAndIncrement(v: Int = 1): Short = {
-    val current = (ref.volatileGet() & mask).asInstanceOf[Short]
-    val update = incrementOp(current, v)
-    if (!ref.compareAndSet(current, update))
-      getAndIncrement(v)
-    else
-      current
-  }
+  def getAndAdd(v: Short): Short =
+    (ref.getAndAdd(v) & mask).asInstanceOf[Short]
 
-  @tailrec
-  def getAndAdd(v: Short): Short = {
-    val current = (ref.volatileGet() & mask).asInstanceOf[Short]
-    val update = plusOp(current, v)
-    if (!ref.compareAndSet(current, update))
-      getAndAdd(v)
-    else
-      current
-  }
-
-  @tailrec
-  def subtract(v: Short): Unit = {
-    val current = (ref.volatileGet() & mask).asInstanceOf[Short]
-    val update = minusOp(current, v)
-    if (!ref.compareAndSet(current, update))
-      subtract(v)
-  }
-
-  @tailrec
-  def subtractAndGet(v: Short): Short = {
-    val current = (ref.volatileGet() & mask).asInstanceOf[Short]
-    val update = minusOp(current, v)
-    if (!ref.compareAndSet(current, update))
-      subtractAndGet(v)
-    else
-      update
-  }
-
-  @tailrec
-  def getAndSubtract(v: Short): Short = {
-    val current = (ref.volatileGet() & mask).asInstanceOf[Short]
-    val update = minusOp(current, v)
-    if (!ref.compareAndSet(current, update))
-      getAndSubtract(v)
-    else
-      current
-  }
+  def subtract(v: Short): Unit =
+    ref.getAndAdd(-v.asInstanceOf[Int])
+  def subtractAndGet(v: Short): Short =
+    ((ref.getAndAdd(-v.asInstanceOf[Int]) - v) & mask).asInstanceOf[Short]
+  def getAndSubtract(v: Short): Short =
+    (ref.getAndAdd(-v.asInstanceOf[Int]) & mask).asInstanceOf[Short]
 
   def decrement(v: Int = 1): Unit = increment(-v)
   def decrementAndGet(v: Int = 1): Short = incrementAndGet(-v)
   def getAndDecrement(v: Int = 1): Short = getAndIncrement(-v)
-
-  private[this] def plusOp(a: Short, b: Short): Short =
-    ((a + b) & mask).asInstanceOf[Short]
-
-  private[this] def minusOp(a: Short, b: Short): Short =
-    ((a - b) & mask).asInstanceOf[Short]
-
-  private[this] def incrementOp(a: Short, b: Int): Short =
-    ((a + b) & mask).asInstanceOf[Short]
 }
 
+/** @define createDesc Constructs an [[AtomicShort]] reference, allowing
+  *         for fine-tuning of the created instance.
+  *
+  *         A [[PaddingStrategy]] can be provided in order to counter
+  *         the "false sharing" problem.
+  *
+  *         Note that for ''Scala.js'' we aren't applying any padding,
+  *         as it doesn't make much sense, since Javascript execution
+  *         is single threaded, but this builder is provided for
+  *         syntax compatibility anyway across the JVM and Javascript
+  *         and we never know how Javascript engines will evolve.
+  */
 object AtomicShort {
-  /** Constructs an [[AtomicShort]] reference.
+  /** Builds an [[AtomicShort]] reference.
     *
     * @param initialValue is the initial value with which to initialize the atomic
     */
   def apply(initialValue: Short): AtomicShort =
     withPadding(initialValue, NoPadding)
 
-  /** Constructs an [[AtomicShort]] reference, applying the provided
-    * [[PaddingStrategy]] in order to counter the "false sharing"
-    * problem.
-    *
-    * Note that for ''Scala.js'' we aren't applying any padding, as it
-    * doesn't make much sense, since Javascript execution is single
-    * threaded, but this builder is provided for syntax compatibility
-    * anyway across the JVM and Javascript and we never know how
-    * Javascript engines will evolve.
+  /** $createDesc
     *
     * @param initialValue is the initial value with which to initialize the atomic
     * @param padding is the [[PaddingStrategy]] to apply
     */
   def withPadding(initialValue: Short, padding: PaddingStrategy): AtomicShort =
-    new AtomicShort(Factory.newBoxedInt(initialValue, boxStrategyToPaddingStrategy(padding)))
+    create(initialValue, padding, allowPlatformIntrinsics = true)
+
+  /** $createDesc
+    *
+    * Also this builder on top Java 8 also allows for turning off the
+    * Java 8 intrinsics, thus forcing usage of CAS-loops for
+    * `getAndSet` and for `getAndAdd`.
+    *
+    * @param initialValue is the initial value with which to initialize the atomic
+    * @param padding is the [[PaddingStrategy]] to apply
+    * @param allowPlatformIntrinsics is a boolean parameter that specifies whether
+    *        the instance is allowed to use the Java 8 optimized operations
+    *        for `getAndSet` and for `getAndAdd`
+    */
+  def create(initialValue: Short, padding: PaddingStrategy, allowPlatformIntrinsics: Boolean): AtomicShort =
+    new AtomicShort(Factory.newBoxedInt(
+      initialValue,
+      boxStrategyToPaddingStrategy(padding),
+      allowPlatformIntrinsics))
 }

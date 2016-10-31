@@ -297,10 +297,6 @@ sealed abstract class Coeval[+A] extends Serializable { self =>
     */
   def zipMap[B,C](that: Coeval[B])(f: (A,B) => C): Coeval[C] =
     for (a <- this; b <- that) yield f(a,b)
-
-  @deprecated("Renamed, please use Coeval.zipMap", since="2.0-RC12")
-  def zipWith[B,C](that: Coeval[B])(f: (A,B) => C): Coeval[C] =
-    for (a <- this; b <- that) yield f(a,b)
 }
 
 object Coeval {
@@ -350,16 +346,23 @@ object Coeval {
   /** Alias for [[eval]]. */
   def delay[A](a: => A): Coeval[A] = eval(a)
 
-  /** Alias for [[eval]]. Deprecated. */
-  @deprecated("Renamed, please use Coeval.apply or Coeval.eval", since="2.0-RC12")
-  def evalAlways[A](a: => A): Coeval[A] = eval(a)
-
   /** A `Coeval[Unit]` provided for convenience. */
   val unit: Coeval[Unit] = Now(())
 
   /** Builds a `Coeval` out of a Scala `Try` value. */
   def fromTry[A](a: Try[A]): Coeval[A] =
     Attempt.fromTry(a)
+
+  /** Keeps calling `f` until it returns a `Right` result.
+    *
+    * Based on Phil Freeman's
+    * [[http://functorial.com/stack-safety-for-free/index.pdf Stack Safety for Free]].
+    */
+  def tailRecM[A,B](a: A)(f: A => Coeval[Either[A,B]]): Coeval[B] =
+    Coeval.defer(f(a)).flatMap {
+      case Left(continueA) => tailRecM(continueA)(f)
+      case Right(b) => Coeval.now(b)
+    }
 
   /** Transforms a `TraversableOnce` of coevals into a coeval producing
     * the same collection of gathered results.
@@ -457,27 +460,6 @@ object Coeval {
     zipMap2(fa12345, fa6) { case ((a1, a2, a3, a4, a5), a6) => f(a1, a2, a3, a4, a5, a6) }
   }
 
-  @deprecated("Renamed to Coeval.zipMap2", since="2.0-RC12")
-  def zipWith2[A1,A2,R](fa1: Coeval[A1], fa2: Coeval[A2])(f: (A1,A2) => R): Coeval[R] =
-    zipMap2(fa1, fa2)(f)
-
-  @deprecated("Renamed to Coeval.zipMap3", since="2.0-RC12")
-  def zipWith3[A1,A2,A3,R](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3])(f: (A1,A2,A3) => R): Coeval[R] =
-    zipMap3(fa1, fa2, fa3)(f)
-
-  @deprecated("Renamed to Coeval.zipMap4", since="2.0-RC12")
-  def zipWith4[A1,A2,A3,A4,R](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3], fa4: Coeval[A4])(f: (A1,A2,A3,A4) => R): Coeval[R] =
-    zipMap4(fa1, fa2, fa3, fa4)(f)
-
-  @deprecated("Renamed to Coeval.zipMap5", since="2.0-RC12")
-  def zipWith5[A1,A2,A3,A4,A5,R](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3], fa4: Coeval[A4], fa5: Coeval[A5])(f: (A1,A2,A3,A4,A5) => R): Coeval[R] =
-    zipMap5(fa1, fa2, fa3, fa4, fa5)(f)
-
-  @deprecated("Renamed to Coeval.zipMap6", since="2.0-RC12")
-  def zipWith6[A1,A2,A3,A4,A5,A6,R](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3], fa4: Coeval[A4], fa5: Coeval[A5], fa6: Coeval[A6])(f: (A1,A2,A3,A4,A5,A6) => R): Coeval[R] =
-    zipMap6(fa1, fa2, fa3, fa4, fa5, fa6)(f)
-
-
   /** The `Attempt` represents a strict, already evaluated result
     * of a [[Coeval]] that either resulted in success, wrapped in a
     * [[Now]], or in an error, wrapped in a [[Error]].
@@ -566,9 +548,6 @@ object Coeval {
     override def runAttempt: Error = this
   }
 
-  @deprecated("Type renamed, use Eval.Once", since="2.0-RC12")
-  type EvalOnce[+A] = Once[A]
-
   /** Constructs a lazy [[Coeval]] instance that gets evaluated
     * only once.
     *
@@ -611,9 +590,6 @@ object Coeval {
     def unapply[A](coeval: Once[A]): Some[() => A] =
       Some(coeval)
   }
-
-  @deprecated("Type renamed, use Eval.Always", since="2.0-RC12")
-  type EvalAlways[+A] = Always[A]
 
   /** Constructs a lazy [[Coeval]] instance.
     *
@@ -715,6 +691,8 @@ object Coeval {
       fa.flatMap(f)
     override def flatten[A](ffa: Coeval[Coeval[A]]): Coeval[A] =
       ffa.flatten
+    override def tailRecM[A, B](a: A)(f: (A) => Coeval[Either[A, B]]): Coeval[B] =
+      Coeval.tailRecM(a)(f)
     override def coflatMap[A, B](fa: Coeval[A])(f: (Coeval[A]) => B): Coeval[B] =
       Coeval.eval(f(fa))
     override def ap[A, B](ff: Coeval[(A) => B])(fa: Coeval[A]): Coeval[B] =

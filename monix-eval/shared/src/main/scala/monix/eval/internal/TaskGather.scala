@@ -85,7 +85,7 @@ private[monix] object TaskGather {
       }
 
       // Light asynchronous boundary
-      context.scheduler.executeTrampolined(lock.synchronized {
+      context.scheduler.executeTrampolined(() => lock.synchronized {
         try {
           implicit val s = context.scheduler
           tasks = in.toArray

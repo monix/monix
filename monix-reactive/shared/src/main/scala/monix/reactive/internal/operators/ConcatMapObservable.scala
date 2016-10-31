@@ -17,26 +17,29 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack.{Stop, Continue}
-import monix.execution.cancelables.{CompositeCancelable, MultiAssignmentCancelable}
+import monix.execution.Ack.{Continue, Stop}
+import monix.execution.atomic.Atomic
+import monix.execution.cancelables.MultiAssignmentCancelable
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.exceptions.CompositeException
 import monix.reactive.observers.Subscriber
+import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.concurrent.{Future, Promise}
 import scala.util.control.NonFatal
 
-private[reactive] final
-class ConcatMapObservable[A, B]
+/** Implementation for `Observable.concatMap` (i.e. `flatMap`). */
+private[reactive] final class ConcatMapObservable[A, B]
   (source: Observable[A], f: A => Observable[B], delayErrors: Boolean)
   extends Observable[B] {
 
-  def unsafeSubscribeFn(out: Subscriber[B]): Cancelable = {
-    val conn = MultiAssignmentCancelable()
-    val composite = CompositeCancelable(conn)
+  import ConcatMapObservable.RefCount
 
-    composite += source.unsafeSubscribeFn(new Subscriber[A] { self =>
+  def unsafeSubscribeFn(out: Subscriber[B]): Cancelable = {
+    val childSubscription = MultiAssignmentCancelable()
+
+    val mainSubscription = source.unsafeSubscribeFn(new Subscriber[A] { self =>
       implicit val scheduler = out.scheduler
 
       private[this] var isDone = false
@@ -44,6 +47,18 @@ class ConcatMapObservable[A, B]
       private[this] var upstreamAck: Future[Ack] = Continue
       private[this] val errors = if (delayErrors)
         mutable.ArrayBuffer.empty[Throwable] else null
+
+      // To be canceled once both the main stream is complete AND the
+      // active child is complete. Helps to signal `onComplete` earlier.
+      private[this] val refCount = new RefCount(() => {
+        if (!isDone) {
+          isDone = true
+          if (delayErrors && errors.nonEmpty)
+            out.onError(CompositeException(errors))
+          else
+            out.onComplete()
+        }
+      })
 
       def onNext(a: A): Future[Ack] = {
         val upstreamPromise = Promise[Ack]()
@@ -56,8 +71,9 @@ class ConcatMapObservable[A, B]
         upstreamAck = try {
           val fb = f(a)
           streamError = false
+          refCount.acquire()
 
-          conn := fb.unsafeSubscribeFn(new Subscriber[B] {
+          childSubscription := fb.unsafeSubscribeFn(new Subscriber[B] {
             implicit val scheduler = out.scheduler
             private[this] var childAck: Future[Ack] = Continue
 
@@ -66,7 +82,8 @@ class ConcatMapObservable[A, B]
                 upstreamPromise.trySuccess(Continue)
                 childAck = Stop
               } else {
-                childAck = out.onNext(elem).syncOnStopFollow(upstreamPromise, Stop)
+                childAck = out.onNext(elem)
+                  .syncOnStopFollow(upstreamPromise, Stop)
               }
 
               childAck
@@ -85,11 +102,13 @@ class ConcatMapObservable[A, B]
             }
 
             def onComplete(): Unit = {
-              // NOTE: we aren't sending this onComplete signal downstream
-              // instead we are just instructing upstream to send the next observable.
-              // We also need to apply back-pressure on the last ack,
-              // because otherwise we'll break back-pressure
-              childAck.syncOnContinueFollow(upstreamPromise, Continue)
+              refCount.release()
+              childAck.value match {
+                case Some(v) =>
+                  upstreamPromise.tryComplete(v)
+                case None =>
+                  upstreamPromise.tryCompleteWith(childAck)
+              }
             }
           })
 
@@ -123,15 +142,47 @@ class ConcatMapObservable[A, B]
         }
 
       def onComplete(): Unit =
-        upstreamAck.syncOnContinue {
-          if (!isDone) {
-            isDone = true
-            if (delayErrors && errors.nonEmpty)
-              out.onError(CompositeException(errors))
-            else
-              out.onComplete()
-          }
-        }
+        refCount.release()
     })
+
+    Cancelable { () =>
+      childSubscription.cancel()
+      mainSubscription.cancel()
+    }
+  }
+}
+
+private[reactive] object ConcatMapObservable {
+  /** Constant used as a state in [[RefCount]] */
+  private final val CANCELLED = 0
+  /** Constant used as a state in [[RefCount]] */
+  private final val IS_CHILDLESS = 1
+  /** Constant used as a state in [[RefCount]] */
+  private final val HAS_ONE_CHILD = 2
+
+  /** Lighter replacement for [[monix.execution.cancelables.RefCountCancelable]]. */
+  private final class RefCount(onCancel: () => Unit) {
+    private[this] var thunk = onCancel
+    private[this] val stateRef = Atomic(IS_CHILDLESS)
+
+    def acquire(): Unit = {
+      val prev = stateRef.getAndSet(HAS_ONE_CHILD)
+      if (prev != IS_CHILDLESS)
+        throw new IllegalStateException(s"stateRef was $prev")
+    }
+
+    @tailrec def release(): Unit =
+      stateRef.get match {
+        case CANCELLED =>
+          () // do nothing else
+        case IS_CHILDLESS =>
+          if (stateRef.compareAndSet(IS_CHILDLESS, CANCELLED))
+            try thunk() finally { thunk = null }
+          else
+            release()
+        case _ => // HAS_CHILD
+          if (!stateRef.compareAndSet(HAS_ONE_CHILD, IS_CHILDLESS))
+            release()
+      }
   }
 }

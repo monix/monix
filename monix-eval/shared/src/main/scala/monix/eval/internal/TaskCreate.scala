@@ -52,7 +52,7 @@ private[monix] object TaskCreate {
 
       // Forcing a real asynchronous boundary,
       // otherwise stack-overflows can happen
-      s.executeAsyncBatch(
+      s.executeAsyncBatch(() =>
         try {
           context.frameRef.reset()
           c := register(s, new CreateCallback(conn, cb)(s))

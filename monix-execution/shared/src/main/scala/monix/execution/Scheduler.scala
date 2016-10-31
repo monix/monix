@@ -24,7 +24,6 @@ import monix.execution.schedulers.SchedulerCompanionImpl
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
-import scala.language.experimental.macros
 
 /** A Scheduler is an `scala.concurrent.ExecutionContext` that additionally can
   * schedule the execution of units of work to run with a delay or periodically.
@@ -182,55 +181,7 @@ object Scheduler extends SchedulerCompanionImpl {
   self: SchedulerCompanion =>
 
   /** Utilities complementing the `Scheduler` interface. */
-  implicit final class Extensions(val source: Scheduler) extends AnyVal {
-    /** Schedules the given callback for asynchronous
-      * execution in the thread-pool.
-      *
-      * Described as a macro, thus it has zero overhead compared
-      * to doing `execute(new Runnable { ... })`
-      *
-      * @param cb the callback to execute asynchronously
-      */
-    def executeAsync(cb: => Unit): Unit =
-      macro Macros.executeAsync
-
-    /** Schedules the given callback for asynchronous
-      * execution in the thread-pool, but also indicates the
-      * start of a
-      * [[monix.execution.schedulers.TrampolinedRunnable thread-local trampoline]]
-      * in case the scheduler is a
-      * [[monix.execution.schedulers.BatchingScheduler BatchingScheduler]].
-      *
-      * This utility is provided as an optimization. If you don't understand
-      * what this does, then don't worry about it.
-      *
-      * Described as a macro, thus it has zero overhead compared
-      * to doing `execute(new Runnable { ... })`
-      *
-      * @param cb the callback to execute asynchronously
-      */
-    def executeAsyncBatch(cb: => Unit): Unit =
-      macro Macros.executeAsyncBatch
-
-    /** Schedules the given callback for immediate execution as a
-      * [[monix.execution.schedulers.TrampolinedRunnable TrampolinedRunnable]].
-      * Depending on the execution context, it might
-      * get executed on the current thread by using an internal
-      * trampoline, so it is still safe from stack-overflow exceptions.
-      *
-      * Described as a macro, thus it has zero overhead compared
-      * to doing `execute(new TrampolinedRunnable { ... })`
-      *
-      * @param cb the callback to execute asynchronously
-      */
-    def executeTrampolined(cb: => Unit): Unit =
-      macro Macros.executeTrampolined
-
-    /** Deprecated. Use [[executeTrampolined]] instead. */
-    @deprecated("Renamed to `executeTrampolined`", since = "2.1.0")
-    def executeLocal(cb: => Unit): Unit =
-      macro Macros.executeTrampolined
-
+  implicit final class Extensions(val source: Scheduler) extends AnyVal with schedulers.ExecuteExtensions {
     /** Schedules a task to run in the future, after `initialDelay`.
       *
       * For example the following schedules a message to be printed to

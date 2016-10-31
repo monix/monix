@@ -40,10 +40,11 @@ object ExecuteOnSuite extends TestSuite[TestScheduler] {
     var receivedOnNext: Long = 0
     var finallyReceived: Long = 0
 
-    val obs = Observable.range(0, nr).sumF
-      .doOnNext(sum => receivedOnNext = sum)
-      .executeOn(other)
-      .asyncBoundary(Unbounded)
+    val forked = Observable.fork(
+      Observable.range(0, nr).sumF.doOnNext(sum => receivedOnNext = sum),
+      other)
+    val obs =
+      forked.asyncBoundary(Unbounded)
 
     obs.unsafeSubscribeFn(new Subscriber[Long] {
       implicit val scheduler: Scheduler = s

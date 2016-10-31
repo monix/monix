@@ -33,7 +33,7 @@ private[monix] object TaskGatherUnordered {
   def apply[A](in: TraversableOnce[Task[A]]): Task[List[A]] = {
     Task.unsafeCreate { (context, finalCallback) =>
       // Forced asynchronous boundary
-      context.scheduler.executeTrampolined {
+      context.scheduler.executeTrampolined { () =>
         @inline def maybeSignalFinal(
           ref: AtomicAny[State[A]],
           currentState: State[A],

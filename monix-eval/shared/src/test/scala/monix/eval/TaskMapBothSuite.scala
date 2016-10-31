@@ -17,7 +17,7 @@
 
 package monix.eval
 
-import scala.util.Success
+import scala.util.{Failure, Success}
 
 object TaskMapBothSuite extends BaseTestSuite {
   test("if both tasks are synchronous, then mapBoth is also synchronous") { implicit s =>
@@ -82,6 +82,25 @@ object TaskMapBothSuite extends BaseTestSuite {
     check1 { (numbers: List[Int]) =>
       val sum = numbers.foldLeft(Task(0))((acc,t) => Task.mapBoth(acc, Task(t))(_+_))
       sum === Task(numbers.sum)
+    }
+  }
+
+  test("both task can fail with error") { implicit s =>
+    val err1 = new RuntimeException("Error 1")
+    val t1 = Task.fork(Task.defer(Task.raiseError[Int](err1)))
+    val err2 = new RuntimeException("Error 2")
+    val t2 = Task.fork(Task.defer(Task.raiseError[Int](err2)))
+
+    val fb = Task.mapBoth(t1, t2)(_ + _).runAsync
+    s.tick()
+
+    fb.value match {
+      case Some(Failure(`err1`)) =>
+        assertEquals(s.state.lastReportedError, err2)
+      case Some(Failure(`err2`)) =>
+        assertEquals(s.state.lastReportedError, err1)
+      case other =>
+        fail(s"fb.value is $other")
     }
   }
 }

@@ -24,7 +24,10 @@ import java.lang.reflect.Field;
 
 public final class UnsafeAccess {
     public static final sun.misc.Unsafe UNSAFE;
+    public static final boolean IS_JAVA_8;
     public static final boolean SUPPORTS_GET_AND_SET;
+    public static final boolean SUPPORTS_GET_AND_ADD_INT;
+    public static final boolean SUPPORTS_GET_AND_ADD_LONG;
 
     static {
         sun.misc.Unsafe instance;
@@ -44,14 +47,37 @@ public final class UnsafeAccess {
         }
 
         UNSAFE = instance;
+
         boolean supportsGetAndSet = false;
         try {
-            sun.misc.Unsafe.class.getMethod("getAndSetObject", Object.class, Long.TYPE,Object.class);
+            sun.misc.Unsafe.class.getMethod("getAndSetObject", Object.class, Long.TYPE, Object.class);
             supportsGetAndSet = true;
         } catch (Exception e) {
             if (!NonFatal.apply(e)) throw new RuntimeException(e);
         }
 
+        boolean supportsGetAndAddInt = false;
+        try {
+            sun.misc.Unsafe.class.getMethod("getAndAddInt", Object.class, Long.TYPE, Integer.TYPE);
+            supportsGetAndAddInt = true;
+        } catch (Exception e) {
+            if (!NonFatal.apply(e)) throw new RuntimeException(e);
+        }
+
+        boolean supportsGetAndAddLong = false;
+        try {
+            sun.misc.Unsafe.class.getMethod("getAndAddLong", Object.class, Long.TYPE, Long.TYPE);
+            supportsGetAndAddLong = true;
+        } catch (Exception e) {
+            if (!NonFatal.apply(e)) throw new RuntimeException(e);
+        }
+
         SUPPORTS_GET_AND_SET = supportsGetAndSet;
+        SUPPORTS_GET_AND_ADD_INT = supportsGetAndAddInt;
+        SUPPORTS_GET_AND_ADD_LONG = supportsGetAndAddLong;
+
+        IS_JAVA_8 = supportsGetAndSet &&
+            supportsGetAndAddInt &&
+            supportsGetAndAddLong;
     }
 }

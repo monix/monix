@@ -61,4 +61,12 @@ public final class BoxedLong extends LeftPadding48
             current = value;
         return current;
     }
+
+    public long getAndAdd(long delta) {
+        long current;
+        do {
+            current = UnsafeAccess.UNSAFE.getLongVolatile(this, OFFSET);
+        } while (!UnsafeAccess.UNSAFE.compareAndSwapLong(this, OFFSET, current, current+delta));
+        return current;
+    }
 }

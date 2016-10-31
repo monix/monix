@@ -54,7 +54,7 @@ final class ExecutorScheduler private (
     Cancelable(() => task.cancel(false))
   }
 
-  def executeAsync(runnable: Runnable): Unit =
+  protected def executeAsync(runnable: Runnable): Unit =
     s.execute(runnable)
 
   def reportFailure(t: Throwable): Unit =

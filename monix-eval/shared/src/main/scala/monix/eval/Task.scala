@@ -457,7 +457,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
       case Async(onFinish) =>
         Async { (context, cb) =>
           import context.{scheduler => s}
-          s.executeTrampolined(onFinish(context, new Callback[A] {
+          s.executeTrampolined(() => onFinish(context, new Callback[A] {
             def onSuccess(value: A): Unit = cb.asyncOnSuccess(Now(value))(s)
             def onError(ex: Throwable): Unit = cb.asyncOnSuccess(Error(ex))(s)
           }))
@@ -467,7 +467,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
         BindAsync[Attempt[Any], Attempt[A]](
           (context, cb) => {
             import context.{scheduler => s}
-            s.executeTrampolined(onFinish(context, new Callback[Any] {
+            s.executeTrampolined(() => onFinish(context, new Callback[Any] {
               def onSuccess(value: Any): Unit = cb.asyncOnSuccess(Now(value))(s)
               def onError(ex: Throwable): Unit = cb.asyncOnSuccess(Error(ex))(s)
             }))
@@ -668,16 +668,23 @@ object Task extends TaskInstances {
   /** Alias for [[coeval]]. */
   def delay[A](a: => A): Task[A] = eval(a)
 
-  /** Alias for [[coeval]]. Deprecated. */
-  @deprecated("Renamed, please use Task.eval", since="2.0-RC12")
-  def evalAlways[A](a: => A): Task[A] = eval(a)
-
   /** A [[Task]] instance that upon evaluation will never complete. */
   def never[A]: Task[A] = neverRef
 
   /** Builds a [[Task]] instance out of a Scala `Try`. */
   def fromTry[A](a: Try[A]): Task[A] =
     Delay(Coeval.fromTry(a))
+
+  /** Keeps calling `f` until it returns a `Right` result.
+    *
+    * Based on Phil Freeman's
+    * [[http://functorial.com/stack-safety-for-free/index.pdf Stack Safety for Free]].
+    */
+  def tailRecM[A,B](a: A)(f: A => Task[Either[A,B]]): Task[B] =
+    Task.defer(f(a)).flatMap {
+      case Left(continueA) => tailRecM(continueA)(f)
+      case Right(b) => Task.now(b)
+    }
 
   private[this] final val neverRef: Async[Nothing] =
     Async((_,_) => ())
@@ -702,7 +709,7 @@ object Task extends TaskInstances {
   def fork[A](fa: Task[A]): Task[A] =
     Async { (context, cb) =>
       // Asynchronous boundary
-      import context.implicitScheduler
+      implicit val s = context.scheduler
       Task.unsafeStartAsync(fa, context, Callback.async(cb))
     }
 
@@ -740,16 +747,19 @@ object Task extends TaskInstances {
     *
     * Contract:
     *
-    *  1. execution of the `register` callback is async,
-    *     forking a (logical) thread
-    *  2. execution of the `onSuccess` and `onError` callbacks,
-    *     is async, forking another (logical) thread
+    *  - execution of the `register` callback is asynchronous,
+    *    always forking a (logical) thread
+    *  - execution of the `onSuccess` and `onError` callbacks, is also
+    *    async, however they are executed on the current thread /
+    *    call-stack if the scheduler is enhanced for execution of
+    *    [[monix.execution.schedulers.TrampolinedRunnable trampolined runnables]]
     *
-    * Point number 2 happens because [[create]] is supposed to be safe
-    * or otherwise, depending on the executed logic, one can end up with
-    * a stack overflow exception. So this contract happens in order to
-    * guarantee safety. In order to bypass rule number 2, one can use
-    * [[unsafeCreate]], but that's for people knowing what they are doing.
+    * This asynchrony is needed because [[create]] is supposed to be
+    * safe or otherwise, depending on the executed logic, one can end
+    * up with a stack overflow exception. So this contract happens in
+    * order to guarantee safety. In order to bypass this, one can use
+    * [[unsafeCreate]], but that's more difficult and meant for people
+    * knowing what they are doing.
     *
     * @param register is a function that will be called when this `Task`
     *        is executed, receiving a callback as a parameter, a
@@ -960,26 +970,6 @@ object Task extends TaskInstances {
     zipMap2(fa12345, fa6) { case ((a1,a2,a3,a4,a5), a6) => f(a1,a2,a3,a4,a5,a6) }
   }
 
-  @deprecated("Renamed to Task.zipMap2", since="2.0-RC12")
-  def zipWith2[A1,A2,R](fa1: Task[A1], fa2: Task[A2])(f: (A1,A2) => R): Task[R] =
-    zipMap2(fa1, fa2)(f)
-
-  @deprecated("Renamed to Task.zipMap3", since="2.0-RC12")
-  def zipWith3[A1,A2,A3,R](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3])(f: (A1,A2,A3) => R): Task[R] =
-    zipMap3(fa1, fa2, fa3)(f)
-
-  @deprecated("Renamed to Task.zipMap4", since="2.0-RC12")
-  def zipWith4[A1,A2,A3,A4,R](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4])(f: (A1,A2,A3,A4) => R): Task[R] =
-    zipMap4(fa1, fa2, fa3, fa4)(f)
-
-  @deprecated("Renamed to Task.zipMap5", since="2.0-RC12")
-  def zipWith5[A1,A2,A3,A4,A5,R](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4], fa5: Task[A5])(f: (A1,A2,A3,A4,A5) => R): Task[R] =
-    zipMap5(fa1, fa2, fa3, fa4, fa5)(f)
-
-  @deprecated("Renamed to Task.zipMap6", since="2.0-RC12")
-  def zipWith6[A1,A2,A3,A4,A5,A6,R](fa1: Task[A1], fa2: Task[A2], fa3: Task[A3], fa4: Task[A4], fa5: Task[A5], fa6: Task[A6])(f: (A1,A2,A3,A4,A5,A6) => R): Task[R] =
-    zipMap6(fa1, fa2, fa3, fa4, fa5, fa6)(f)
-
   /** A frame index is a number representing the current run-loop
     * cycle. It gets used for automatically forcing asynchronous
     * boundaries, according to the
@@ -1068,18 +1058,6 @@ object Task extends TaskInstances {
     frameRef: ThreadLocal[FrameIndex],
     options: Options) {
 
-    /** Returns the [[scheduler]] as an `implicit`, making it
-      * convenient for importing into a local scope.
-      *
-      * Example:
-      *
-      * {{{
-      *   import context.implicitScheduler
-      * }}}
-      */
-    implicit def implicitScheduler: Scheduler =
-      scheduler
-
     /** Helper that returns the
       * [[monix.execution.schedulers.ExecutionModel ExecutionModel]]
       * specified by the [[scheduler]].
@@ -1095,12 +1073,14 @@ object Task extends TaskInstances {
       connection.isCanceled
   }
 
+  // We always start from 1
+  private final val frameStart: FrameIndex = 1
+
   /** Creates a `ThreadLocal[FrameIndex]` reference to use as
     * the default. The starting frame index should always be `1`.
     */
   private[eval] def startFrameRef(): ThreadLocal[FrameIndex] =
-    ThreadLocal(1)
-
+    ThreadLocal(frameStart)
 
   private case class Delay[A](coeval: Coeval[A]) extends Task[A] {
     override def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable = {
@@ -1190,8 +1170,7 @@ object Task extends TaskInstances {
     }
 
     @tailrec def execute(context: Context, cb: Callback[A], binds: List[Bind], nextFrame: FrameIndex): Boolean = {
-      import context.{implicitScheduler => s}
-
+      implicit val s = context.scheduler
       state.get match {
         case null =>
           val p = Promise[A]()
@@ -1218,7 +1197,7 @@ object Task extends TaskInstances {
             }
 
             // Asynchronous boundary to prevent stack-overflows!
-            s.executeTrampolined {
+            s.executeTrampolined { () =>
               runLoop(underlying, context, s.executionModel,
                 callback.asInstanceOf[Callback[Any]], Nil,
                 nextFrame)
@@ -1270,7 +1249,7 @@ object Task extends TaskInstances {
     * and `Task.fork`.
     */
   def unsafeStartTrampolined[A](source: Task[A], context: Context, cb: Callback[A]): Unit =
-    context.scheduler.executeTrampolined {
+    context.scheduler.executeTrampolined { () =>
       internalRestartTrampolineLoop(source, context, cb, Nil)
     }
 
@@ -1295,7 +1274,7 @@ object Task extends TaskInstances {
     binds: List[Bind]): Unit = {
 
     if (!context.shouldCancel)
-      context.scheduler.executeAsyncBatch {
+      context.scheduler.executeAsyncBatch { () =>
         // Resetting the frameRef, as a real asynchronous boundary happened
         context.frameRef.reset()
         internalRestartTrampolineLoop(source, context, cb, binds)
@@ -1415,7 +1394,7 @@ object Task extends TaskInstances {
     * falling back to [[internalRestartTrampolineLoop]] and actual asynchronous execution
     * in case of an asynchronous boundary.
     */
-  private def startTrampolineForFuture[A](
+  private[monix] def startTrampolineForFuture[A](
     source: Task[A],
     context: Context,
     binds: List[Bind]): CancelableFuture[A] = {
@@ -1500,7 +1479,7 @@ object Task extends TaskInstances {
       }
     }
 
-    loop(source, context, context.executionModel, binds, frameIndex = 1)
+    loop(source, context, context.executionModel, binds, frameIndex = context.frameRef.get())
       .asInstanceOf[CancelableFuture[A]]
   }
 
@@ -1541,6 +1520,8 @@ private[eval] trait TaskInstances {
       fa.flatMap(f)
     override def flatten[A](ffa: Task[Task[A]]): Task[A] =
       ffa.flatten
+    override def tailRecM[A, B](a: A)(f: (A) => Task[Either[A, B]]): Task[B] =
+      Task.tailRecM(a)(f)
     override def coflatMap[A, B](fa: Task[A])(f: (Task[A]) => B): Task[B] =
       Task.eval(f(fa))
     override def ap[A, B](ff: Task[(A) => B])(fa: Task[A]): Task[B] =

@@ -23,4 +23,5 @@ public interface BoxedLong {
     void lazySet(long update);
     boolean compareAndSet(long current, long update);
     long getAndSet(long update);
+    long getAndAdd(long delta);
 }

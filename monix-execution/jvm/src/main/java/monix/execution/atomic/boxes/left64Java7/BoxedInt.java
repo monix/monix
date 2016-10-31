@@ -19,6 +19,7 @@ package monix.execution.atomic.boxes.left64Java7;
 
 import monix.execution.atomic.boxes.common.LeftPadding48;
 import monix.execution.misc.UnsafeAccess;
+
 import java.lang.reflect.Field;
 
 public final class BoxedInt extends LeftPadding48
@@ -59,6 +60,14 @@ public final class BoxedInt extends LeftPadding48
         int current = value;
         while (!UnsafeAccess.UNSAFE.compareAndSwapInt(this, OFFSET, current, update))
             current = value;
+        return current;
+    }
+
+    public int getAndAdd(int delta) {
+        int current;
+        do {
+            current = UnsafeAccess.UNSAFE.getIntVolatile(this, OFFSET);
+        } while (!UnsafeAccess.UNSAFE.compareAndSwapInt(this, OFFSET, current, current+ delta));
         return current;
     }
 }
