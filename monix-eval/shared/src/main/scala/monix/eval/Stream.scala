@@ -86,7 +86,7 @@ sealed trait Stream[F[_], +A] extends Product with Serializable { self =>
     * This is useful to release any acquired resources,
     * like opened file handles or network sockets.
     */
-  final def onCancel(implicit F: Applicative[F]): F[Unit] =
+  final def onStop(implicit F: Applicative[F]): F[Unit] =
     this match {
       case Cons(_, _, ref) => ref
       case ConsLazy(_, _, ref) => ref
@@ -102,27 +102,27 @@ sealed trait Stream[F[_], +A] extends Product with Serializable { self =>
     import F.{applicative, functor}
 
     this match {
-      case Cons(head, tail, cancel) =>
-        try ConsLazy[F,B](f(head), tail.map(_.mapEval(f)), cancel)
-        catch { case NonFatal(ex) => signalError(ex, cancel) }
+      case Cons(head, tail, stop) =>
+        try ConsLazy[F,B](f(head), tail.map(_.mapEval(f)), stop)
+        catch { case NonFatal(ex) => signalError(ex, stop) }
 
-      case ConsLazy(headF, tail, cancel) =>
-        try ConsLazy[F,B](F.flatMap(headF)(f), tail.map(_.mapEval(f)), cancel)
-        catch { case NonFatal(ex) => signalError(ex, cancel) }
+      case ConsLazy(headF, tail, stop) =>
+        try ConsLazy[F,B](F.flatMap(headF)(f), tail.map(_.mapEval(f)), stop)
+        catch { case NonFatal(ex) => signalError(ex, stop) }
 
-      case ConsSeq(headSeq, tailF, cancel) =>
+      case ConsSeq(headSeq, tailF, stop) =>
         if (headSeq.isEmpty)
-          Suspend[F,B](tailF.map(_.mapEval(f)), cancel)
+          Suspend[F,B](tailF.map(_.mapEval(f)), stop)
         else {
           val head = headSeq.head
-          val tail = F.applicative.pure(ConsSeq(headSeq.tail, tailF, cancel))
+          val tail = F.applicative.pure(ConsSeq(headSeq.tail, tailF, stop))
 
-          try ConsLazy[F,B](f(head), tail.map(_.mapEval(f)), cancel)
-          catch { case NonFatal(ex) => signalError(ex, cancel) }
+          try ConsLazy[F,B](f(head), tail.map(_.mapEval(f)), stop)
+          catch { case NonFatal(ex) => signalError(ex, stop) }
         }
 
-      case Suspend(rest, cancel) =>
-        Suspend[F,B](F.functor.map(rest)(_.mapEval(f)), cancel)
+      case Suspend(rest, stop) =>
+        Suspend[F,B](F.functor.map(rest)(_.mapEval(f)), stop)
 
       case halt @ Halt(_) =>
         halt
@@ -136,29 +136,29 @@ sealed trait Stream[F[_], +A] extends Product with Serializable { self =>
     import F.functor
 
     this match {
-      case Cons(head, tail, cancel) =>
+      case Cons(head, tail, stop) =>
         try
-          Cons[F,B](f(head), tail.map(_.map(f)), cancel)
+          Cons[F,B](f(head), tail.map(_.map(f)), stop)
         catch { case NonFatal(ex) =>
-          signalError(ex, cancel)
+          signalError(ex, stop)
         }
 
-      case ConsLazy(headF, tail, cancel) =>
+      case ConsLazy(headF, tail, stop) =>
         try
-          ConsLazy[F,B](headF.map(f), tail.map(_.map(f)), cancel)
+          ConsLazy[F,B](headF.map(f), tail.map(_.map(f)), stop)
         catch { case NonFatal(ex) =>
-          signalError(ex, cancel)
+          signalError(ex, stop)
         }
 
-      case ConsSeq(head, rest, cancel) =>
+      case ConsSeq(head, rest, stop) =>
         try
-          ConsSeq[F,B](head.map(f), rest.map(_.map(f)), cancel)
+          ConsSeq[F,B](head.map(f), rest.map(_.map(f)), stop)
         catch { case NonFatal(ex) =>
-          signalError(ex, cancel)
+          signalError(ex, stop)
         }
 
-      case Suspend(rest, cancel) =>
-        Suspend[F,B](rest.map(_.map(f)), cancel)
+      case Suspend(rest, stop) =>
+        Suspend[F,B](rest.map(_.map(f)), stop)
 
       case empty @ Halt(_) =>
         empty
@@ -172,33 +172,33 @@ sealed trait Stream[F[_], +A] extends Product with Serializable { self =>
     import F.{applicative, functor}
 
     this match {
-      case Cons(head, tail, cancel) =>
+      case Cons(head, tail, stop) =>
         try f(head) concatF tail.map(_.flatMap(f)) catch {
-          case NonFatal(ex) => signalError(ex, cancel)
+          case NonFatal(ex) => signalError(ex, stop)
         }
 
-      case ConsSeq(list, rest, cancel) =>
+      case ConsSeq(list, rest, stop) =>
         try if (list.isEmpty)
-          suspend[F,B](rest.map(_.flatMap(f)), cancel)
+          suspend[F,B](rest.map(_.flatMap(f)), stop)
         else
           f(list.head) concatF F.applicative.pure {
-            ConsSeq[F,A](list.tail, rest, cancel).flatMap(f)
+            ConsSeq[F,A](list.tail, rest, stop).flatMap(f)
           }
         catch {
-          case NonFatal(ex) => signalError(ex, cancel)
+          case NonFatal(ex) => signalError(ex, stop)
         }
 
-      case ConsLazy(fa, rest, cancel) =>
+      case ConsLazy(fa, rest, stop) =>
         Suspend[F,B](
           fa.map(head =>
             try f(head) concatF rest.map(_.flatMap(f)) catch {
-              case NonFatal(ex) => signalError(ex, cancel)
+              case NonFatal(ex) => signalError(ex, stop)
             }),
-          cancel
+          stop
         )
 
-      case Suspend(rest, cancel) =>
-        Suspend[F,B](rest.map(_.flatMap(f)), cancel)
+      case Suspend(rest, stop) =>
+        Suspend[F,B](rest.map(_.flatMap(f)), stop)
 
       case empty @ Halt(_) =>
         empty
@@ -211,31 +211,37 @@ sealed trait Stream[F[_], +A] extends Product with Serializable { self =>
   final def ++[B >: A](rhs: Stream[F,B])(implicit F: Monad[F]): Stream[F,B] =
     this.concatF(F.applicative.pure(rhs))
 
+  /** Appends the given lazily generated stream to the end
+    * of the source, effectively concatenating them.
+    */
+  final def ++[B >: A](rhs: F[Stream[F,B]])(implicit F: Monad[F]): Stream[F,B] =
+    this.concatF(rhs)
+
   private final def concatF[B >: A](rhs: F[Stream[F,B]])(implicit F: Monad[F]): Stream[F,B] = {
     import F.{applicative, functor}
 
     this match {
-      case Cons(a, lt, cancel) =>
-        val composite = cancel.flatMap(_ => F.flatMap(rhs)(_.onCancel))
+      case Cons(a, lt, stop) =>
+        val composite = stop.flatMap(_ => F.flatMap(rhs)(_.onStop))
         Cons[F,B](a, lt.map(_.concatF(rhs)), composite)
 
-      case ConsLazy(fa, lt, cancel) =>
-        val composite = cancel.flatMap(_ => F.flatMap(rhs)(_.onCancel))
+      case ConsLazy(fa, lt, stop) =>
+        val composite = stop.flatMap(_ => F.flatMap(rhs)(_.onStop))
         ConsLazy[F,B](fa.asInstanceOf[F[B]], lt.map(_.concatF(rhs)), composite)
 
-      case ConsSeq(seq, lt, cancel) =>
-        val composite = cancel.flatMap(_ => F.flatMap(rhs)(_.onCancel))
+      case ConsSeq(seq, lt, stop) =>
+        val composite = stop.flatMap(_ => F.flatMap(rhs)(_.onStop))
         ConsSeq[F,B](seq, lt.map(_.concatF(rhs)), composite)
 
-      case Suspend(rest, cancel) =>
-        Suspend[F,B](rest.map(_.concatF(rhs)), cancel)
+      case Suspend(rest, stop) =>
+        Suspend[F,B](rest.map(_.concatF(rhs)), stop)
 
       case Halt(None) =>
-        Suspend[F,B](rhs, rhs.flatMap(_.onCancel))
+        Suspend[F,B](rhs, rhs.flatMap(_.onStop))
 
       case error @ Halt(Some(_)) =>
-        val cancel = rhs.flatMap(_.onCancel)
-        Suspend[F,B](cancel.map(_ => error.asInstanceOf[Stream[F,B]]), cancel)
+        val stop = rhs.flatMap(_.onStop)
+        Suspend[F,B](stop.map(_ => error.asInstanceOf[Stream[F,B]]), stop)
     }
   }
 
@@ -249,13 +255,13 @@ sealed trait Stream[F[_], +A] extends Product with Serializable { self =>
     (implicit F: MonadEval[F], E: MonadError[F,Throwable]): F[S] = {
 
     def loop(self: Stream[F,A], state: S)(implicit A: Applicative[F], M: Monad[F]): F[S] = {
-      def next(a: A, next: F[Stream[F,A]], cancel: F[Unit]): F[S] =
+      def next(a: A, next: F[Stream[F,A]], stop: F[Unit]): F[S] =
         try {
           val newState = f(state, a)
           next.flatMap(loop(_, newState))
         } catch {
           case NonFatal(ex) =>
-            cancel.flatMap(_ => E.raiseError(ex))
+            stop.flatMap(_ => E.raiseError(ex))
         }
 
       self match {
@@ -263,15 +269,15 @@ sealed trait Stream[F[_], +A] extends Product with Serializable { self =>
           A.pure(state)
         case Halt(Some(ex)) =>
           E.raiseError(ex)
-        case Cons(a, tail, cancel) =>
-          next(a, tail, cancel)
-        case ConsLazy(headF, tail, cancel) =>
+        case Cons(a, tail, stop) =>
+          next(a, tail, stop)
+        case ConsLazy(headF, tail, stop) =>
           // Also protecting the head!
-          val head = headF.onErrorHandleWith(ex => cancel.flatMap(_ => E.raiseError(ex)))
-          head.flatMap(a => next(a, tail, cancel))
+          val head = headF.onErrorHandleWith(ex => stop.flatMap(_ => E.raiseError(ex)))
+          head.flatMap(a => next(a, tail, stop))
         case Suspend(rest, _) =>
           rest.flatMap(loop(_, state))
-        case ConsSeq(list, next, cancel) =>
+        case ConsSeq(list, next, stop) =>
           if (list.isEmpty)
             next.flatMap(loop(_, state))
           else try {
@@ -279,7 +285,7 @@ sealed trait Stream[F[_], +A] extends Product with Serializable { self =>
             next.flatMap(loop(_, newState))
           } catch {
             case NonFatal(ex) =>
-              cancel.flatMap(_ => E.raiseError(ex))
+              stop.flatMap(_ => E.raiseError(ex))
           }
       }
     }
@@ -287,7 +293,7 @@ sealed trait Stream[F[_], +A] extends Product with Serializable { self =>
     implicit val A = F.applicative
     implicit val M = F.monad
 
-    val init = F.eval(seed).onErrorHandleWith(ex => onCancel.flatMap(_ => E.raiseError(ex)))
+    val init = F.eval(seed).onErrorHandleWith(ex => onStop.flatMap(_ => E.raiseError(ex)))
     init.flatMap(a => loop(self, a))
   }
 
@@ -297,11 +303,11 @@ sealed trait Stream[F[_], +A] extends Product with Serializable { self =>
     F.functor.map(folded)(_.toList)
   }
 
-  private def signalError(ex: Throwable, cancel: F[Unit])
+  private def signalError(ex: Throwable, stop: F[Unit])
     (implicit F: Applicative[F]): Stream[F, Nothing] = {
     import F.functor
-    val t = cancel.map(_ => Stream.halt[F,Nothing](Some(ex)))
-    Stream.Suspend[F,Nothing](t, cancel)
+    val t = stop.map(_ => Stream.halt[F,Nothing](Some(ex)))
+    Stream.Suspend[F,Nothing](t, stop)
   }
 }
 
@@ -348,7 +354,7 @@ sealed trait Stream[F[_], +A] extends Product with Serializable { self =>
   *         evaluated in the `F` context. It is useful to delay the
   *         evaluation of a stream by deferring to `F`.
   *
-  * @define cancelDesc is a computation to be executed in case
+  * @define stopDesc is a computation to be executed in case
   *         streaming is stopped prematurely, giving it a chance
   *         to do resource cleanup (e.g. close file handles)
   *
@@ -424,10 +430,10 @@ object Stream extends StreamInstances {
     * @param head is the current element to be signaled
     * @param tail is the next state in the sequence that will
     *        produce the rest of the stream
-    * @param cancel $cancelDesc
+    * @param stop $stopDesc
     */
-  def cons[F[_],A](head: A, tail: F[Stream[F,A]], cancel: F[Unit]): Stream[F,A] =
-    Cons[F,A](head, tail, cancel)
+  def cons[F[_],A](head: A, tail: F[Stream[F,A]], stop: F[Unit]): Stream[F,A] =
+    Cons[F,A](head, tail, stop)
 
   /** Builds a [[Stream.Cons]] stream state.
     *
@@ -448,10 +454,10 @@ object Stream extends StreamInstances {
     * @param head is the current element to be signaled
     * @param tail is the next state in the sequence that will
     *        produce the rest of the stream
-    * @param cancel $cancelDesc
+    * @param stop $stopDesc
     */
-  def consLazy[F[_],A](head: F[A], tail: F[Stream[F,A]], cancel: F[Unit]): Stream[F,A] =
-    ConsLazy[F,A](head, tail, cancel)
+  def consLazy[F[_],A](head: F[A], tail: F[Stream[F,A]], stop: F[Unit]): Stream[F,A] =
+    ConsLazy[F,A](head, tail, stop)
 
   /** Builds a [[Stream.ConsLazy]] stream state.
     *
@@ -472,10 +478,10 @@ object Stream extends StreamInstances {
     * @param head is the current element to be signaled
     * @param tail is the next state in the sequence that will
     *        produce the rest of the stream
-    * @param cancel $cancelDesc
+    * @param stop $stopDesc
     */
-  def consSeq[F[_],A](head: LinearSeq[A], tail: F[Stream[F,A]], cancel: F[Unit]): Stream[F,A] =
-    ConsSeq[F,A](head, tail, cancel)
+  def consSeq[F[_],A](head: LinearSeq[A], tail: F[Stream[F,A]], stop: F[Unit]): Stream[F,A] =
+    ConsSeq[F,A](head, tail, stop)
 
   /** Builds a [[Stream.ConsSeq]] stream state.
     *
@@ -512,10 +518,10 @@ object Stream extends StreamInstances {
     * $suspendDesc
     *
     * @param rest is the suspended stream
-    * @param cancel $cancelDesc
+    * @param stop $stopDesc
     */
-  def suspend[F[_],A](rest: F[Stream[F,A]], cancel: F[Unit]): Stream[F,A] =
-    Suspend[F,A](rest, cancel)
+  def suspend[F[_],A](rest: F[Stream[F,A]], stop: F[Unit]): Stream[F,A] =
+    Suspend[F,A](rest, stop)
 
   /** Returns an empty stream. */
   def empty[F[_],A]: Stream[F,A] =
@@ -554,12 +560,12 @@ object Stream extends StreamInstances {
     (implicit F: MonadEval[F]): Stream[F,A] = {
 
     // Recursive function
-    def loop(idx: Int, length: Int, cancel: F[Unit]): F[Stream[F,A]] =
+    def loop(idx: Int, length: Int, stop: F[Unit]): F[Stream[F,A]] =
       F.eval {
         if (idx >= length)
           Halt(None)
         else if (batchSize == 1)
-          try Cons[F,A](xs(idx), loop(idx+1,length,cancel), cancel) catch {
+          try Cons[F,A](xs(idx), loop(idx+1,length,stop), stop) catch {
             case NonFatal(ex) => Halt(Some(ex))
           }
         else try {
@@ -570,7 +576,7 @@ object Stream extends StreamInstances {
             j += 1
           }
 
-          ConsSeq[F,A](buffer.toList, loop(idx + j, length, cancel), cancel)
+          ConsSeq[F,A](buffer.toList, loop(idx + j, length, stop), stop)
         } catch {
           case NonFatal(ex) =>
             Halt(Some(ex))
@@ -578,8 +584,8 @@ object Stream extends StreamInstances {
       }
 
     require(batchSize >= 1, "batchSize >= 1")
-    val cancel = F.applicative.unit
-    Suspend[F,A](loop(0, xs.length, cancel), cancel)
+    val stop = F.applicative.unit
+    Suspend[F,A](loop(0, xs.length, stop), stop)
   }
 
   /** Converts any `scala.collection.Seq` into a stream. */
@@ -610,9 +616,9 @@ object Stream extends StreamInstances {
 
     require(batchSize > 0, "batchSize should be strictly positive")
     val init = F.eval(xs.iterator)
-    val cancel = F.applicative.unit
+    val stop = F.applicative.unit
     val rest = F.functor.map(init)(iterator => fromIterator[F,A](iterator, batchSize))
-    Suspend[F,A](rest, cancel)
+    Suspend[F,A](rest, stop)
   }
 
   /** $fromIteratorDesc
@@ -660,12 +666,12 @@ object Stream extends StreamInstances {
     * @param head is the current element being signaled
     * @param tail is the next state in the sequence that will
     *        produce the rest of the stream
-    * @param cancel $cancelDesc
+    * @param stop $stopDesc
     */
   final case class Cons[F[_],A](
     head: A,
     tail: F[Stream[F,A]],
-    cancel: F[Unit])
+    stop: F[Unit])
     extends Stream[F,A]
 
   /** $consLazyDesc
@@ -673,34 +679,34 @@ object Stream extends StreamInstances {
     * @param head is the current element being signaled
     * @param tail is the next state in the sequence that will
     *        produce the rest of the stream
-    * @param cancel $cancelDesc
+    * @param stop $stopDesc
     */
   final case class ConsLazy[F[_],A](
     head: F[A],
     tail: F[Stream[F,A]],
-    cancel: F[Unit])
+    stop: F[Unit])
     extends Stream[F,A]
 
   /** $consSeqDesc
     *
     * @param head is a strict list of the next elements to be processed, can be empty
     * @param tail is the rest of the stream
-    * @param cancel $cancelDesc
+    * @param stop $stopDesc
     */
   final case class ConsSeq[F[_],A](
     head: LinearSeq[A],
     tail: F[Stream[F,A]],
-    cancel: F[Unit])
+    stop: F[Unit])
     extends Stream[F,A]
 
   /** $suspendDesc
     *
     * @param rest is the suspended stream
-    * @param cancel $cancelDesc
+    * @param stop $stopDesc
     */
   final case class Suspend[F[_], A](
     rest: F[Stream[F,A]],
-    cancel: F[Unit])
+    stop: F[Unit])
     extends Stream[F,A]
 
   /** $haltDesc
@@ -774,7 +780,7 @@ object Stream extends StreamInstances {
       * like opened file handles or network sockets.
       */
     final def onCancel: F[Unit] =
-      stream.onCancel
+      stream.onStop
 
     /** Left associative fold using the function 'f'.
       *
@@ -853,7 +859,7 @@ object Stream extends StreamInstances {
     *
     *         @see [[Stream.Halt]]
     *
-    * @define cancelDesc is a computation to be executed in case
+    * @define stopDesc is a computation to be executed in case
     *         streaming is stopped prematurely, giving it a chance
     *         to do resource cleanup (e.g. close file handles)
     *
@@ -904,10 +910,10 @@ object Stream extends StreamInstances {
       * @param head is the current element to be signaled
       * @param tail is the next state in the sequence that will
       *        produce the rest of the stream
-      * @param cancel $cancelDesc
+      * @param stop $stopDesc
       */
-    def cons[A](head: A, tail: F[Self[A]], cancel: F[Unit]): Self[A] =
-      fromStream(Stream.cons[F,A](head, functor.map(tail)(_.stream), cancel))
+    def cons[A](head: A, tail: F[Self[A]], stop: F[Unit]): Self[A] =
+      fromStream(Stream.cons[F,A](head, functor.map(tail)(_.stream), stop))
 
     /** $consLazyDesc
       *
@@ -923,10 +929,10 @@ object Stream extends StreamInstances {
       * @param head is the current element to be signaled
       * @param tail is the next state in the sequence that will
       *        produce the rest of the stream
-      * @param cancel $cancelDesc
+      * @param stop $stopDesc
       */
-    def consLazy[A](head: F[A], tail: F[Self[A]], cancel: F[Unit]): Self[A] =
-      fromStream(Stream.consLazy[F,A](head, functor.map(tail)(_.stream), cancel))
+    def consLazy[A](head: F[A], tail: F[Self[A]], stop: F[Unit]): Self[A] =
+      fromStream(Stream.consLazy[F,A](head, functor.map(tail)(_.stream), stop))
 
     /** $consSeqDesc
       *
@@ -942,10 +948,10 @@ object Stream extends StreamInstances {
       * @param head is a strict list of the next elements to be processed, can be empty
       * @param tail is the next state in the sequence that will
       *        produce the rest of the stream
-      * @param cancel $cancelDesc
+      * @param stop $stopDesc
       */
-    def consSeq[A](head: LinearSeq[A], tail: F[Self[A]], cancel: F[Unit]): Self[A] =
-      fromStream(Stream.consSeq[F,A](head, functor.map(tail)(_.stream), cancel))
+    def consSeq[A](head: LinearSeq[A], tail: F[Self[A]], stop: F[Unit]): Self[A] =
+      fromStream(Stream.consSeq[F,A](head, functor.map(tail)(_.stream), stop))
 
     /** Promote a non-strict value representing a stream to a stream
       * of the same type, effectively delaying its initialisation.
@@ -970,10 +976,10 @@ object Stream extends StreamInstances {
     /** $suspendDesc
       *
       * @param rest is the suspended stream
-      * @param cancel $cancelDesc
+      * @param stop $stopDesc
       */
-    def suspend[A](rest: F[Self[A]], cancel: F[Unit]): Self[A] =
-      fromStream(Stream.suspend[F,A](rest.map(_.stream), cancel))
+    def suspend[A](rest: F[Self[A]], stop: F[Unit]): Self[A] =
+      fromStream(Stream.suspend[F,A](rest.map(_.stream), stop))
 
     /** Returns an empty stream. */
     def empty[A]: Self[A] = fromStream(Stream.empty[F,A])
