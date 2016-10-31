@@ -53,16 +53,37 @@ final class TaskSemaphore private (maxParallelism: Int) extends Serializable {
     * releasing its permit after being complete.
     */
   def greenLight[A](fa: Task[A]): Task[A] =
-    Task.defer {
-      val permit = semaphore.acquire()
-      val release = Task.evalOnce(semaphore.release())
-
-      Task.fromFuture(permit).flatMap { _ =>
-        // On finish trigger a release
-        fa.doOnFinish(_ => release)
-          .doOnCancel(release)
-      }
+    acquire.flatMap { _ =>
+      fa.doOnFinish(_ => release)
+        .doOnCancel(release)
     }
+
+  /** Triggers a permit acquisition, returning a task
+    * that upon evaluation will only complete after a permit
+    * has been acquired.
+    */
+  val acquire: Task[Unit] =
+    Task.defer(Task.fromFuture(semaphore.acquire()))
+
+  /** Returns a task that upon evaluation will release a permit,
+    * returning it to the pool.
+    *
+    * If there are consumers waiting on permits being available,
+    * then the first in the queue will be selected and given
+    * a permit immediately.
+    */
+  val release: Task[Unit] =
+    Task.eval(semaphore.release())
+
+  /** Returns a task, that upon evaluation will be complete when
+    * all the currently acquired permits are released, or in other
+    * words when the [[activeCount]] is zero.
+    *
+    * This also means that we are going to wait for the
+    * acquisition and release of all enqueued promises as well.
+    */
+  val awaitAllReleased: Task[Unit] =
+    Task.fromFuture(semaphore.awaitAllReleased())
 }
 
 object TaskSemaphore {

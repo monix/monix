@@ -1063,6 +1063,30 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
   def mapAsync[B](f: A => Task[B]): Self[B] =
     mapTask(f)
 
+  /** Given a mapping function that maps events to [[monix.eval.Task tasks]],
+    * applies it in parallel on the source, but with a specified
+    * `parallelism`, which indicates the maximum number of tasks that
+    * can be executed in parallel.
+    *
+    * Similar with
+    * [[monix.reactive.Consumer.loadBalance(parallelism* Consumer.loadBalance]],
+    * but expressed as an operator that executes [[monix.eval.Task Task]]
+    * instances in parallel.
+    *
+    * Note that when the specified `parallelism` is 1, it has the same
+    * behavior as [[mapTask]].
+    *
+    * @param parallelism is the maximum number of tasks that can be executed
+    *        in parallel, over which the source starts being
+    *        back-pressured
+    *
+    * @param f is the mapping function that produces tasks to execute
+    *        in parallel, which will eventually produce events for the
+    *        resulting observable stream
+    */
+  def mapAsync[B](parallelism: Int)(f: A => Task[B]): Self[B] =
+    self.transform(source => new MapAsyncParallelObservable[A,B](source, parallelism, f))
+
   /** Maps elements from the source using a function that can do
     * asynchronous processing by means of `scala.concurrent.Future`.
     *

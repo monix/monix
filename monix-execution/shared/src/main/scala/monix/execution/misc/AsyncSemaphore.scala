@@ -17,8 +17,10 @@
 
 package monix.execution.misc
 
+import monix.execution.{Cancelable, CancelableFuture}
 import monix.execution.atomic.AtomicAny
 import monix.execution.atomic.PaddingStrategy.LeftRight128
+
 import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 import scala.concurrent.{ExecutionContext, Future, Promise}
@@ -72,13 +74,12 @@ final class AsyncSemaphore private (maxParallelism: Int)
       result
     }
 
-  /** Internal. Triggers a permit acquisition,
-    * returning a future that will complete when a
-    * permit gets acquired.
+  /** Triggers a permit acquisition, returning a future that
+    * will complete when a permit gets acquired.
     */
-  @tailrec def acquire(): Future[Unit] = {
+  @tailrec def acquire(): CancelableFuture[Unit] = {
     stateRef.get match {
-      case current @ State(activeCount, _) =>
+      case current @ State(activeCount, _, _) =>
         if (activeCount < maxParallelism) {
           val update = current.activateOne()
 
@@ -93,7 +94,7 @@ final class AsyncSemaphore private (maxParallelism: Int)
           if (!stateRef.compareAndSet(current, update))
             acquire() // retry
           else
-            p.future
+            CancelableFuture(p.future, new CancelAcquisition(p))
         }
     }
   }
@@ -106,19 +107,59 @@ final class AsyncSemaphore private (maxParallelism: Int)
     */
   @tailrec def release(): Unit = {
     stateRef.get match {
-      case current @ State(activeCount, promises) =>
+      case current @ State(activeCount, promises, awaitAll) =>
         val (p, newPromises) =
           if (promises.nonEmpty) promises.dequeue else (null, promises)
         val newActiveCount =
-          if (p != null) activeCount else activeCount - 1
+          if (p != null || activeCount == 0) activeCount else activeCount - 1
+        val newAwaitAll =
+          if (newActiveCount == 0) null else awaitAll
         val update =
-          State(newActiveCount, newPromises)
+          State(newActiveCount, newPromises, newAwaitAll)
 
         if (!stateRef.compareAndSet(current, update))
           release() // retry
-        else if (p != null)
-          p.trySuccess(())
+        else {
+          if (p != null) p.trySuccess(())
+          if (newActiveCount == 0 && awaitAll != null) awaitAll.trySuccess(())
+        }
     }
+  }
+
+  /** Returns a future that will be complete when all the
+    * currently acquired permits are released, or in other
+    * words when the [[activeCount]] is zero.
+    *
+    * This also means that we are going to wait for the
+    * acquisition and release of all enqueued promises as well.
+    */
+  @tailrec def awaitAllReleased(): Future[Unit] =
+    stateRef.get match {
+      case current @ State(activeCount, promises, awaitAll) =>
+        if (activeCount <= 0)
+          CancelableFuture.successful(())
+        else if (awaitAll != null)
+          awaitAll.future
+        else {
+          val p = Promise[Unit]()
+          val update = current.copy(awaitAllReleased = p)
+          if (!stateRef.compareAndSet(current, update))
+            awaitAllReleased()
+          else
+            p.future
+        }
+    }
+
+  private final class CancelAcquisition(permit: Promise[Unit])
+    extends Cancelable {
+
+    @tailrec def cancel(): Unit =
+      if (!permit.future.isCompleted) {
+        val current: State = stateRef.get
+        val update = current.removePromise(permit)
+        if (!stateRef.compareAndSet(current, update))
+          cancel() // retry
+      }
   }
 }
 
@@ -133,21 +174,24 @@ object AsyncSemaphore {
 
   /** Internal. Reusable `Future` reference. */
   private final val availablePermit =
-    Future.successful(())
+    CancelableFuture.successful(())
   /** Internal. Reusable initial state. */
   private final val initialState: State =
-    State(0, Queue.empty)
+    State(0, Queue.empty, null)
 
   /** Internal. For keeping the state of our
     * [[AsyncSemaphore]] in an atomic reference.
     */
   private final case class State(
     activeCount: Int,
-    promises: Queue[Promise[Unit]]) {
+    promises: Queue[Promise[Unit]],
+    awaitAllReleased: Promise[Unit]) {
 
     def activateOne(): State =
       copy(activeCount = activeCount + 1)
     def addPromise(p: Promise[Unit]): State =
       copy(promises = promises.enqueue(p))
+    def removePromise(p: Promise[Unit]): State =
+      copy(promises = promises.filter(_ != p))
   }
 }

@@ -42,7 +42,7 @@ object MapTaskSuite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) =
     if (sourceCount == 1) None else Some {
       val o = createObservableEndingInError(Observable.range(0, sourceCount), ex)
-        .flatMap(i => Observable.now(i))
+        .mapTask(i => Task.now(i))
 
       Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
     }
@@ -52,11 +52,11 @@ object MapTaskSuite extends BaseOperatorSuite {
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.range(0, sourceCount).flatMap { i =>
+    val o = Observable.range(0, sourceCount).mapTask { i =>
       if (i == sourceCount-1)
         throw ex
       else
-        Observable.now(i)
+        Task.now(i)
     }
 
     Sample(o, count(sourceCount-1), sum(sourceCount-1), waitFirst, waitNext)
@@ -69,9 +69,9 @@ object MapTaskSuite extends BaseOperatorSuite {
 
   override def cancelableObservables(): Seq[Sample] = {
     val sample1 =  Observable.range(1, 100)
-      .flatMap(x => Observable.now(x).delaySubscription(1.second))
+      .mapTask(x => Task.now(x).delayExecution(1.second))
     val sample2 = Observable.range(0, 100).delayOnNext(1.second)
-      .flatMap(x => Observable.now(x).delaySubscription(1.second))
+      .mapTask(x => Task.now(x).delayExecution(1.second))
 
     Seq(
       Sample(sample1, 0, 0, 0.seconds, 0.seconds),
@@ -177,7 +177,7 @@ object MapTaskSuite extends BaseOperatorSuite {
     assertEquals(continued, 2)
   }
 
-  test("should interrupt the streaming on error") { implicit s =>
+  test("should interrupt the streaming on error, test #1") { implicit s =>
     val dummy = DummyException("dummy")
     var wasThrown: Throwable = null
     var received = 0L
@@ -216,6 +216,56 @@ object MapTaskSuite extends BaseOperatorSuite {
 
     s.tick(1.second)
     assertEquals(received, 10)
+  }
+
+  test("should interrupt the streaming on error, test #2") { implicit s =>
+    val dummy = DummyException("dummy")
+    var wasThrown: Throwable = null
+    var received = 0L
+
+    Observable(1L,2L,3L).endWithError(dummy).mapTask(x => Task(x))
+      .unsafeSubscribeFn(new Observer[Long] {
+        def onNext(elem: Long) = {
+          received += elem
+          Future.delayedResult(1.second)(Continue)
+        }
+
+        def onError(ex: Throwable) =
+          wasThrown = ex
+        def onComplete() =
+          throw new IllegalStateException("onComplete")
+      })
+
+    s.tick(1.second)
+    assertEquals(received, 3)
+    assertEquals(wasThrown, null)
+
+    s.tick(1.seconds)
+    assertEquals(received, 6)
+    assertEquals(wasThrown, dummy)
+    s.tick(1.second)
+  }
+
+  test("should interrupt the streaming on error, test #3") { implicit s =>
+    val dummy = DummyException("dummy")
+    var wasThrown: Throwable = null
+    var received = 0L
+
+    Observable(1L,2L,3L).endWithError(dummy).mapTask(x => Task.now(x))
+      .unsafeSubscribeFn(new Observer[Long] {
+        def onNext(elem: Long) = {
+          received += elem
+          Continue
+        }
+
+        def onError(ex: Throwable) =
+          wasThrown = ex
+        def onComplete() =
+          throw new IllegalStateException("onComplete")
+      })
+
+    assertEquals(received, 6)
+    assertEquals(wasThrown, dummy)
   }
 
   test("should not break the contract on user-level error #1") { implicit s =>
