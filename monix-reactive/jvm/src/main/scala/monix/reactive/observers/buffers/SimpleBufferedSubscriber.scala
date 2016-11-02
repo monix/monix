@@ -23,20 +23,21 @@ import monix.execution.internal.Platform
 import monix.execution.internal.math.nextPowerOf2
 import monix.reactive.exceptions.BufferOverflowException
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
-import org.jctools.queues.{MessagePassingQueue, MpscArrayQueue, MpscUnboundedArrayQueue}
+import org.jctools.queues.{MessagePassingQueue, MpscChunkedArrayQueue, MpscUnboundedArrayQueue}
 import scala.annotation.tailrec
 import scala.util.Failure
 import scala.util.control.NonFatal
 
-/** A highly optimized [[BufferedSubscriber]] implementation for
-  * [[monix.reactive.OverflowStrategy.Unbounded OverflowStrategy.Unbounded]].
+/** A highly optimized [[BufferedSubscriber]] implementation. It supports 2
+  * [[monix.reactive.OverflowStrategy overflow strategies]]:
   *
-  * Internally it uses an unbounded array-linked queue that grows
-  * in chunks of size `Platform.recommendedBatchSize`. It has no limit
-  * to how much it can grow, therefore it should be used with care, since
-  * it can eat your whole heap memory.
+  *   - [[monix.reactive.OverflowStrategy.Unbounded Unbounded]]
+  *   - [[monix.reactive.OverflowStrategy.Fail Fail]]
   *
-  * @param underlying is the underlying observer receiving the queued events
+  * For the `Unbounded` strategy it uses an unbounded array-linked queue
+  * that grows in chunks of size `Platform.recommendedBatchSize`.
+  * It has no limit to how much it can grow, therefore it should be
+  * used with care, since it can eat the whole heap memory.
   */
 private[buffers] final class SimpleBufferedSubscriber[A] private
   (underlying: Subscriber[A], _qRef: MessagePassingQueue[A])
@@ -195,7 +196,9 @@ private[monix] object SimpleBufferedSubscriber {
 
   def overflowTriggering[A](underlying: Subscriber[A], bufferSize: Int): Subscriber.Sync[A] = {
     val maxCapacity = math.max(4, nextPowerOf2(bufferSize))
-    val queue = new MpscArrayQueue[A](maxCapacity)
+    val initialCapacity = math.min(Platform.recommendedBatchSize, maxCapacity / 2)
+    val queue = new MpscChunkedArrayQueue[A](initialCapacity, maxCapacity)
+    // val queue = new MpscArrayQueue[A](maxCapacity)
     new SimpleBufferedSubscriber[A](underlying, queue)
   }
 }
