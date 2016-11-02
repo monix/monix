@@ -19,8 +19,8 @@ package monix.reactive.observers
 
 import minitest.TestSuite
 import monix.execution.Ack
-import monix.execution.Ack.{Stop, Continue}
-import monix.execution.internal.{Platform, RunnableAction}
+import monix.execution.Ack.{Continue, Stop}
+import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observer
 import monix.reactive.OverflowStrategy.Fail
@@ -86,7 +86,7 @@ object BufferOverflowTriggeringSuite extends TestSuite[TestScheduler] {
 
     def loop(n: Int): Unit =
       if (n > 0)
-        s.execute(RunnableAction { buffer.onNext(n); loop(n-1) })
+        s.executeAsync { () => buffer.onNext(n); loop(n-1) }
       else
         buffer.onComplete()
 
@@ -101,24 +101,13 @@ object BufferOverflowTriggeringSuite extends TestSuite[TestScheduler] {
 
   test("should trigger overflow when over capacity") { implicit s =>
     var errorCaught: Throwable = null
-    var receivedLatch = 5
+    var received = 0
     val promise = Promise[Ack]()
 
     val underlying = new Observer[Int] {
-      var received = 0
       def onNext(elem: Int) = {
         received += 1
-        if (received < 6) {
-          receivedLatch -= 1
-          Continue
-        }
-        else if (received == 6) {
-          receivedLatch -= 1
-          // never ending piece of processing
-          promise.future
-        }
-        else
-          Continue
+        promise.future
       }
 
       def onError(ex: Throwable) = {
@@ -133,22 +122,17 @@ object BufferOverflowTriggeringSuite extends TestSuite[TestScheduler] {
     }
 
     val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), Fail(5))
+    for (i <- 0 to 8) buffer.onNext(i)
 
-    assertEquals(buffer.onNext(1), Continue)
-    assertEquals(buffer.onNext(2), Continue)
-    assertEquals(buffer.onNext(3), Continue)
-    assertEquals(buffer.onNext(4), Continue)
-    assertEquals(buffer.onNext(5), Continue)
+    s.tick()
+    assertEquals(received, 1)
+    assert(errorCaught == null, "errorCaught == null")
 
-    for (_ <- 0 until 1000; if receivedLatch > 0) s.tickOne()
-    assertEquals(receivedLatch, 0)
-    assertEquals(errorCaught, null)
-
-    buffer.onNext(6)
-    for (i <- 0 until 10) buffer.onNext(7)
-
+    buffer.onNext(8)
     promise.success(Continue)
-    s.tickOne()
+    s.tick()
+
+    assertEquals(received, 8)
     assert(errorCaught != null && errorCaught.isInstanceOf[BufferOverflowException])
   }
 
@@ -233,25 +217,25 @@ object BufferOverflowTriggeringSuite extends TestSuite[TestScheduler] {
     assert(wasCompleted)
   }
 
-  test("should send onComplete when in flight") { implicit s =>
-    var wasCompleted = false
+  test("should not back-pressure onComplete") { implicit s =>
+    var wasCompleted = 0
     val promise = Promise[Ack]()
     val buffer = BufferedSubscriber[Int](
       new Subscriber[Int] {
         def onError(ex: Throwable) = throw new IllegalStateException()
         def onNext(elem: Int) = promise.future
-        def onComplete() = wasCompleted = true
+        def onComplete() = wasCompleted += 1
         val scheduler = s
       }, Fail(5))
 
     buffer.onNext(1)
     buffer.onComplete()
     s.tick()
-    assert(!wasCompleted)
+    assertEquals(wasCompleted, 1)
 
     promise.success(Continue)
     s.tick()
-    assert(wasCompleted)
+    assertEquals(wasCompleted, 1)
   }
 
   test("should send onComplete when at capacity") { implicit s =>

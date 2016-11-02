@@ -154,25 +154,25 @@ object BufferUnboundedSuite extends TestSuite[TestScheduler] {
     assert(wasCompleted)
   }
 
-  test("should send onComplete when in flight") { implicit s =>
-    var wasCompleted = false
+  test("should not back-pressure onComplete") { implicit s =>
+    var wasCompleted = 0
     val promise = Promise[Ack]()
     val buffer = BufferedSubscriber[Int](
       new Subscriber[Int] {
         def onError(ex: Throwable) = throw new IllegalStateException()
         def onNext(elem: Int) = promise.future
-        def onComplete() = wasCompleted = true
+        def onComplete() = wasCompleted += 1
         val scheduler = s
       }, Unbounded)
 
     buffer.onNext(1)
     buffer.onComplete()
     s.tick()
-    assert(!wasCompleted)
+    assertEquals(wasCompleted, 1)
 
     promise.success(Continue)
     s.tick()
-    assert(wasCompleted)
+    assertEquals(wasCompleted, 1)
   }
 
   test("should do onComplete only after all the queue was drained") { implicit s =>

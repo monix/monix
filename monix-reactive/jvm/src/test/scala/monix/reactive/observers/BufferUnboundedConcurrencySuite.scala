@@ -157,7 +157,7 @@ object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
     assert(latch.await(60, TimeUnit.SECONDS), "latch.await should have succeeded")
   }
 
-  test("should send onComplete when in flight") { implicit s =>
+  test("should not back-pressure onComplete") { implicit s =>
     val latch = new CountDownLatch(1)
     val promise = Promise[Ack]()
     val underlying = new Observer[Int] {
@@ -170,9 +170,6 @@ object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
 
     buffer.onNext(1)
     buffer.onComplete()
-    assert(!latch.await(1, TimeUnit.SECONDS), "latch.await should have failed")
-
-    promise.success(Continue)
     assert(latch.await(60, TimeUnit.SECONDS), "latch.await should have succeeded")
   }
 
