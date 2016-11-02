@@ -241,7 +241,7 @@ lazy val unidocSettings = baseUnidocSettings ++ Seq(
 
 lazy val testSettings = Seq(
   testFrameworks := Seq(new TestFramework("minitest.runner.Framework")),
-  libraryDependencies += "io.monix" %%% "minitest-laws" % "0.26" % "test"
+  libraryDependencies += "io.monix" %%% "minitest-laws" % "0.27" % "test"
 )
 
 lazy val scalaJSSettings = Seq(
@@ -377,8 +377,8 @@ lazy val scalaz72Common =
   crossSettings ++ testSettings ++ Seq(
     name := "monix-scalaz-72",
     libraryDependencies ++= Seq(
-      "org.scalaz" %%% "scalaz-core" % "7.2.6",
-      "org.scalaz" %%% "scalaz-scalacheck-binding" % "7.2.6" % "test"
+      "org.scalaz" %%% "scalaz-core" % "7.2.7",
+      "org.scalaz" %%% "scalaz-scalacheck-binding" % "7.2.7" % "test"
     ))
 
 lazy val scalaz72JVM = project.in(file("monix-scalaz/series-7.2/jvm"))
