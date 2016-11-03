@@ -93,10 +93,14 @@ private[buffers] final class SimpleBufferedSubscriber[A] private
     val currentNr = itemsToPush.getAndIncrement()
 
     // If a run-loop isn't started, then go, go, go!
-    if (currentNr == 0)
-      scheduler.execute(new Runnable {
-        def run() = fastLoop(Continue, 0, 0)
-      })
+    if (currentNr == 0) {
+      // It's important that lastIterationAck gets read after
+      // we read from itemsToPush, in order to ensure its visibility
+      val lastAck = lastIterationAck
+      // Starting the run-loop, as at this point we can be sure
+      // that no other loop is active
+      scheduler.executeAsync(() => fastLoop(lastAck, 0, 0))
+    }
   }
 
   private def goAsync(next: A, ack: Future[Ack], processed: Int): Unit =
@@ -104,8 +108,8 @@ private[buffers] final class SimpleBufferedSubscriber[A] private
       case Success(Continue) =>
         val nextAck = out.onNext(next)
         val isSync = ack == Continue || ack == Stop
-        val idx = if (isSync) em.nextFrameIndex(0) else 0
-        fastLoop(nextAck, processed+1, idx)
+        val nextFrame = if (isSync) em.nextFrameIndex(0) else 0
+        fastLoop(nextAck, processed+1, nextFrame)
 
       case Success(Stop) =>
         // ending loop
@@ -120,9 +124,9 @@ private[buffers] final class SimpleBufferedSubscriber[A] private
     }
 
   private def fastLoop(prevAck: Future[Ack], lastProcessed: Int, startIndex: Int): Unit = {
-    var ack = prevAck
+    var ack = if (prevAck == null) Continue else prevAck
+    var isFirstIteration = ack == Continue
     var processed = lastProcessed
-    var isFirstIteration = true
     var nextIndex = startIndex
 
     while (!downstreamIsComplete) {
@@ -135,9 +139,16 @@ private[buffers] final class SimpleBufferedSubscriber[A] private
           ack match {
             case Continue =>
               ack = out.onNext(next)
-              val isSync = ack == Continue || ack == Stop
-              nextIndex = if (isSync) em.nextFrameIndex(nextIndex) else 0
-              processed += 1
+              if (ack == Stop) {
+                // ending loop
+                downstreamIsComplete = true
+                itemsToPush.set(0)
+                return
+              } else {
+                val isSync = ack == Continue
+                nextIndex = if (isSync) em.nextFrameIndex(nextIndex) else 0
+                processed += 1
+              }
 
             case Stop =>
               // ending loop
@@ -171,7 +182,13 @@ private[buffers] final class SimpleBufferedSubscriber[A] private
         }
       }
       else {
+        // Given we are writing in `itemsToPush` before this
+        // assignment, it means that writes will not get reordered,
+        // so when we observe that itemsToPush is zero on the
+        // producer side, we will also have the latest lastIterationAck
+        lastIterationAck = ack
         val remaining = itemsToPush.decrementAndGet(processed)
+
         processed = 0
         // if the queue is non-empty (i.e. concurrent modifications
         // just happened) then continue loop, otherwise stop

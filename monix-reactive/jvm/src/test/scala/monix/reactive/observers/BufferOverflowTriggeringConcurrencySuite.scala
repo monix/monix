@@ -139,7 +139,7 @@ object BufferOverflowTriggeringConcurrencySuite extends TestSuite[Scheduler] {
     assert(!errorCaught.await(2, TimeUnit.SECONDS), "errorCaught.await should have failed")
 
     buffer.onNext(6)
-    for (i <- 0 until 10) buffer.onNext(7)
+    for (i <- 0 until 100) buffer.onNext(7)
 
     promise.success(Continue)
     assert(errorCaught.await(60, TimeUnit.SECONDS), "errorCaught.await should have succeeded")
@@ -220,7 +220,7 @@ object BufferOverflowTriggeringConcurrencySuite extends TestSuite[Scheduler] {
     assert(latch.await(60, TimeUnit.SECONDS), "latch.await should have succeeded")
   }
 
-  test("should send onComplete when in flight") { implicit s =>
+  test("should send onComplete without back-pressure") { implicit s =>
     val latch = new CountDownLatch(1)
     val promise = Promise[Ack]()
     val buffer = BufferedSubscriber[Int](new Subscriber[Int] {
@@ -232,9 +232,6 @@ object BufferOverflowTriggeringConcurrencySuite extends TestSuite[Scheduler] {
 
     buffer.onNext(1)
     buffer.onComplete()
-    assert(!latch.await(1, TimeUnit.SECONDS), "latch.await should have failed")
-
-    promise.success(Continue)
     assert(latch.await(60, TimeUnit.SECONDS), "latch.await should have succeeded")
   }
 

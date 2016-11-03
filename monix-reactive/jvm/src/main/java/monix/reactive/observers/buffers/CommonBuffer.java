@@ -17,9 +17,12 @@
 
 package monix.reactive.observers.buffers;
 
+import monix.execution.Ack;
+import monix.execution.Ack$;
 import monix.execution.atomic.AtomicInt;
 import monix.execution.atomic.PaddingStrategy;
 import org.jctools.queues.MessagePassingQueue;
+import scala.concurrent.Future;
 
 abstract class CommonBufferPad0 {
   volatile long p00, p01, p02, p03, p04, p05, p06, p07;
@@ -53,6 +56,10 @@ abstract class CommonBufferPad3 extends CommonBufferErrorThrown {
 }
 
 abstract class CommonBufferItemsPushed extends CommonBufferPad3 {
+  /*
+   * Used to detect whether there are any consumer run-loops
+   * active and start new run-loops when needed.
+   */
   protected AtomicInt itemsToPush =
     AtomicInt.withPadding(0, PaddingStrategy.NoPadding$.MODULE$);
 }
@@ -61,10 +68,29 @@ abstract class CommonBufferPad4 extends CommonBufferItemsPushed {
   volatile long p40, p41, p42, p43, p44, p45, p46, p47;
 }
 
-abstract class CommonBufferQueue<A> extends CommonBufferPad4 {
+abstract class CommonBufferLastAck extends CommonBufferPad4 {
+  /*
+   * Value used in order to apply back-pressure in the run-loop.
+   * It stores the last `Future[Ack]` value whenever the loop
+   * ends due to not having any more events to process.
+   *
+   * NOTE: value isn't synchronized, so to ensure its visibility
+   * it needs to be stored before `itemsToPush` gets decremented
+   * in the consumer loop and it needs to be read after the
+   * producer increments `itemsToPush`.
+   */
+  protected Future<Ack> lastIterationAck;
+}
+
+abstract class CommonBufferPad5 extends CommonBufferLastAck {
+  volatile long p50, p51, p52, p53, p54, p55, p56, p57;
+}
+
+abstract class CommonBufferQueue<A> extends CommonBufferPad5 {
   protected MessagePassingQueue<A> queue;
 
   protected CommonBufferQueue(MessagePassingQueue<A> ref) {
     this.queue = ref;
   }
 }
+

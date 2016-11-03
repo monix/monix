@@ -386,4 +386,106 @@ object BufferOverflowTriggeringSuite extends TestSuite[TestScheduler] {
     s.tickOne()
     assertEquals(wasCompleted, true)
   }
+
+  test("underlying subscriber should be able to stop precisely, sync, test #1") { implicit s =>
+    var wasCompleted = false
+    var sum = 0L
+
+    val buffer = BufferedSubscriber[Long](
+      new Subscriber[Long] {
+        def onNext(elem: Long) = {
+          sum += elem
+          if (elem < 10) Continue
+          else Stop
+        }
+
+        def onError(ex: Throwable) = ()
+        def onComplete() = wasCompleted = true
+        val scheduler = s
+      }, Fail(2000)
+    )
+
+    for (i <- 0 until 1000; ack = buffer.onNext(i); if ack == Continue) {}
+    s.tick()
+
+    // Should not onComplete because of Stop
+    assert(!wasCompleted, "!wasCompleted")
+    assertEquals(sum, 55)
+  }
+
+  test("underlying subscriber should be able to stop precisely, sync, test #2") { implicit s =>
+    var wasCompleted = false
+    var sum = 0L
+
+    val buffer = BufferedSubscriber[Long](
+      new Subscriber[Long] {
+        def onNext(elem: Long) = {
+          sum += elem
+          if (elem < 10) Continue
+          else Stop
+        }
+
+        def onError(ex: Throwable) = ()
+        def onComplete() = wasCompleted = true
+        val scheduler = s
+      }, Fail(2000)
+    )
+
+    for (i <- 0 until 1000; ack = buffer.onNext(i); if ack == Continue) s.tick()
+
+    // Should not onComplete because of Stop
+    assert(!wasCompleted, "!wasCompleted")
+    assertEquals(sum, 55)
+  }
+
+  test("underlying subscriber should be able to stop precisely, async, test #1") { implicit s =>
+    var wasCompleted = false
+    var sum = 0L
+
+    val buffer = BufferedSubscriber[Long](
+      new Subscriber[Long] {
+        def onNext(elem: Long) = {
+          sum += elem
+          if (elem < 10) Future(Continue)
+          else Future(Stop)
+        }
+
+        def onError(ex: Throwable) = ()
+        def onComplete() = wasCompleted = true
+        val scheduler = s
+      }, Fail(2000)
+    )
+
+    for (i <- 0 until 1000; ack = buffer.onNext(i); if ack == Continue) {}
+    s.tick()
+
+    // Should not onComplete because of Stop
+    assert(!wasCompleted, "!wasCompleted")
+    assertEquals(sum, 55)
+  }
+
+  test("underlying subscriber should be able to stop precisely, async, test #2") { implicit s =>
+    var wasCompleted = false
+    var sum = 0L
+
+    val buffer = BufferedSubscriber[Long](
+      new Subscriber[Long] {
+        def onNext(elem: Long) = {
+          sum += elem
+          if (elem < 10) Future(Continue)
+          else Future(Stop)
+        }
+
+        def onError(ex: Throwable) = ()
+        def onComplete() = wasCompleted = true
+        val scheduler = s
+      }, Fail(2000)
+    )
+
+    for (i <- 0 until 1000; ack = buffer.onNext(i); if ack == Continue) s.tick()
+
+    // Should not onComplete because of Stop
+    assert(!wasCompleted, "!wasCompleted")
+    assertEquals(sum, 55)
+  }
 }

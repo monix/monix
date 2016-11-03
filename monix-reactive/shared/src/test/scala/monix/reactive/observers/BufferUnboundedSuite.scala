@@ -19,12 +19,13 @@ package monix.reactive.observers
 
 import minitest.TestSuite
 import monix.execution.Ack
-import monix.execution.Ack.{Stop, Continue}
-import monix.execution.internal.{RunnableAction, Platform}
+import monix.execution.Ack.{Continue, Stop}
+import monix.execution.internal.{Platform, RunnableAction}
 import monix.execution.schedulers.TestScheduler
+import monix.reactive.Observer
 import monix.reactive.OverflowStrategy.Unbounded
 import monix.reactive.exceptions.DummyException
-import monix.reactive.Observer
+
 import scala.concurrent.{Future, Promise}
 
 object BufferUnboundedSuite extends TestSuite[TestScheduler] {
@@ -34,7 +35,7 @@ object BufferUnboundedSuite extends TestSuite[TestScheduler] {
       "TestScheduler should have no pending tasks")
   }
 
-  test("should not lose events, test 1") { implicit s =>
+  test("should not lose events with sync subscriber, test 1") { implicit s =>
     var number = 0
     var wasCompleted = false
 
@@ -63,7 +64,7 @@ object BufferUnboundedSuite extends TestSuite[TestScheduler] {
     assert(wasCompleted)
   }
 
-  test("should not lose events, test 2") { implicit s =>
+  test("should not lose events with sync subscriber, test 2") { implicit s =>
     var number = 0
     var completed = false
 
@@ -83,7 +84,70 @@ object BufferUnboundedSuite extends TestSuite[TestScheduler] {
     }
 
     val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), Unbounded)
+    def loop(n: Int): Unit =
+      if (n > 0)
+        s.execute(RunnableAction { buffer.onNext(n); loop(n-1) })
+      else
+        buffer.onComplete()
 
+    loop(10000)
+    assert(!completed)
+    assertEquals(number, 0)
+
+    s.tick()
+    assert(completed)
+    assertEquals(number, 10000)
+  }
+
+  test("should not lose events with async subscriber, test 1") { implicit s =>
+    var number = 0
+    var wasCompleted = false
+
+    val underlying = new Observer[Int] {
+      def onNext(elem: Int): Future[Ack] = {
+        number += 1
+        Future(Continue)
+      }
+
+      def onError(ex: Throwable): Unit = {
+        s.reportFailure(ex)
+      }
+
+      def onComplete(): Unit = {
+        wasCompleted = true
+      }
+    }
+
+    val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), Unbounded)
+    for (i <- 0 until 1000) buffer.onNext(i)
+    buffer.onComplete()
+
+    assert(!wasCompleted)
+    s.tick()
+    assert(number == 1000)
+    assert(wasCompleted)
+  }
+
+  test("should not lose events with async subscriber, test 2") { implicit s =>
+    var number = 0
+    var completed = false
+
+    val underlying = new Observer[Int] {
+      def onNext(elem: Int): Future[Ack] = {
+        number += 1
+        Future(Continue)
+      }
+
+      def onError(ex: Throwable): Unit = {
+        s.reportFailure(ex)
+      }
+
+      def onComplete(): Unit = {
+        completed = true
+      }
+    }
+
+    val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), Unbounded)
     def loop(n: Int): Unit =
       if (n > 0)
         s.execute(RunnableAction { buffer.onNext(n); loop(n-1) })
@@ -294,5 +358,107 @@ object BufferUnboundedSuite extends TestSuite[TestScheduler] {
     assertEquals(received, Platform.recommendedBatchSize * 2)
     s.tickOne()
     assertEquals(wasCompleted, true)
+  }
+
+  test("underlying subscriber should be able to stop precisely, sync, test #1") { implicit s =>
+    var wasCompleted = false
+    var sum = 0L
+
+    val buffer = BufferedSubscriber[Long](
+      new Subscriber[Long] {
+        def onNext(elem: Long) = {
+          sum += elem
+          if (elem < 10) Continue
+          else Stop
+        }
+
+        def onError(ex: Throwable) = ()
+        def onComplete() = wasCompleted = true
+        val scheduler = s
+      }, Unbounded
+    )
+
+    for (i <- 0 until 1000; ack = buffer.onNext(i); if ack == Continue) {}
+    s.tick()
+
+    // Should not onComplete because of Stop
+    assert(!wasCompleted, "!wasCompleted")
+    assertEquals(sum, 55)
+  }
+
+  test("underlying subscriber should be able to stop precisely, sync, test #2") { implicit s =>
+    var wasCompleted = false
+    var sum = 0L
+
+    val buffer = BufferedSubscriber[Long](
+      new Subscriber[Long] {
+        def onNext(elem: Long) = {
+          sum += elem
+          if (elem < 10) Continue
+          else Stop
+        }
+
+        def onError(ex: Throwable) = ()
+        def onComplete() = wasCompleted = true
+        val scheduler = s
+      }, Unbounded
+    )
+
+    for (i <- 0 until 1000; ack = buffer.onNext(i); if ack == Continue) s.tick()
+
+    // Should not onComplete because of Stop
+    assert(!wasCompleted, "!wasCompleted")
+    assertEquals(sum, 55)
+  }
+
+  test("underlying subscriber should be able to stop precisely, async, test #1") { implicit s =>
+    var wasCompleted = false
+    var sum = 0L
+
+    val buffer = BufferedSubscriber[Long](
+      new Subscriber[Long] {
+        def onNext(elem: Long) = {
+          sum += elem
+          if (elem < 10) Future(Continue)
+          else Future(Stop)
+        }
+
+        def onError(ex: Throwable) = ()
+        def onComplete() = wasCompleted = true
+        val scheduler = s
+      }, Unbounded
+    )
+
+    for (i <- 0 until 1000; ack = buffer.onNext(i); if ack == Continue) {}
+    s.tick()
+
+    // Should not onComplete because of Stop
+    assert(!wasCompleted, "!wasCompleted")
+    assertEquals(sum, 55)
+  }
+
+  test("underlying subscriber should be able to stop precisely, async, test #2") { implicit s =>
+    var wasCompleted = false
+    var sum = 0L
+
+    val buffer = BufferedSubscriber[Long](
+      new Subscriber[Long] {
+        def onNext(elem: Long) = {
+          sum += elem
+          if (elem < 10) Future(Continue)
+          else Future(Stop)
+        }
+
+        def onError(ex: Throwable) = ()
+        def onComplete() = wasCompleted = true
+        val scheduler = s
+      }, Unbounded
+    )
+
+    for (i <- 0 until 1000; ack = buffer.onNext(i); if ack == Continue) s.tick()
+
+    // Should not onComplete because of Stop
+    assert(!wasCompleted, "!wasCompleted")
+    assertEquals(sum, 55)
   }
 }
