@@ -7,7 +7,7 @@ import scala.xml.Elem
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 
 val catsVersion = "0.8.0"
-val scalazVersion = "7.2.6"
+val scalazVersion = "7.2.7"
 
 lazy val doNotPublishArtifact = Seq(
   publishArtifact := false,
@@ -244,7 +244,7 @@ lazy val unidocSettings = baseUnidocSettings ++ Seq(
 
 lazy val testSettings = Seq(
   testFrameworks := Seq(new TestFramework("minitest.runner.Framework")),
-  libraryDependencies += "io.monix" %%% "minitest-laws" % "0.26" % "test"
+  libraryDependencies += "io.monix" %%% "minitest-laws" % "0.27" % "test"
 )
 
 lazy val scalaJSSettings = Seq(

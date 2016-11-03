@@ -1,3 +1,9 @@
+## Version 2.0.6 (Nov 2, 2016)
+
+- Upgrade Scala to 2.12.0 final release
+- Upgrade Scalaz to 7.2.7
+- Upgrade Minitest to 0.27
+
 ## Version 2.0.5 (Oct 23, 2016)
 
 - [Bug #247](https://github.com/monix/monix/issues/247):
