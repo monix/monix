@@ -39,6 +39,9 @@ class OverflowingBufferBenchmark {
   @Param(Array("1", "2", "3", "4"))
   var parallelism = 0
 
+  // Number of events to push per test
+  val eventsCount = 10000
+
   @Benchmark
   def monixOverflowing(): Long = {
     import monix.reactive.OverflowStrategy
@@ -65,11 +68,12 @@ class OverflowingBufferBenchmark {
         promise.success(sum)
     }
 
-    val buffer = BufferedSubscriber[Long](out, OverflowStrategy.Fail(8000))
+    val buffer = BufferedSubscriber[Long](out, OverflowStrategy.Fail(11000))
 
     val futures =
       for (i <- 0 until parallelism) yield Future {
-        for (j <- 0 until 1000) buffer.onNext(j)
+        for (j <- 0 until (eventsCount / parallelism))
+          buffer.onNext(j)
       }
 
     Future.sequence(futures).map(_ => buffer.onComplete())
@@ -103,10 +107,11 @@ class OverflowingBufferBenchmark {
         promise.success(sum)
     }
 
-    val buffer = BufferedSubscriber[Long](out, OverflowStrategy.Fail(8000))
+    val buffer = BufferedSubscriber[Long](out, OverflowStrategy.Fail(11000))
     val futures =
       for (i <- 0 until parallelism) yield Future {
-        for (j <- 0 until 1000) buffer.onNext(j)
+        for (j <- 0 until (eventsCount / parallelism))
+          buffer.onNext(j)
       }
 
     Future.sequence(futures).map(_ => buffer.onComplete())

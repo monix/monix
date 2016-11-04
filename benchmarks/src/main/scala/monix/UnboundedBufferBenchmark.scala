@@ -39,6 +39,9 @@ class UnboundedBufferBenchmark {
   @Param(Array("1", "2", "3", "4"))
   var parallelism = 0
 
+  // Number of events to push per test
+  val eventsCount = 10000
+
   @Benchmark
   def monixUnbounded(): Long = {
     import monix.reactive.OverflowStrategy
@@ -69,7 +72,8 @@ class UnboundedBufferBenchmark {
 
     val futures =
       for (i <- 0 until parallelism) yield Future {
-        for (j <- 0 until 1000) buffer.onNext(j)
+        for (j <- 0 until (eventsCount / parallelism))
+          buffer.onNext(j)
       }
 
     Future.sequence(futures).map(_ => buffer.onComplete())
@@ -106,7 +110,8 @@ class UnboundedBufferBenchmark {
     val buffer = BufferedSubscriber[Long](out, OverflowStrategy.Unbounded)
     val futures =
       for (i <- 0 until parallelism) yield Future {
-        for (j <- 0 until 1000) buffer.onNext(j)
+        for (j <- 0 until (eventsCount / parallelism))
+          buffer.onNext(j)
       }
 
     Future.sequence(futures).map(_ => buffer.onComplete())
