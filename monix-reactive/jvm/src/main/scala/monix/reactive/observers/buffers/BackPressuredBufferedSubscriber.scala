@@ -17,238 +17,218 @@
 
 package monix.reactive.observers.buffers
 
-import java.util.concurrent.ConcurrentLinkedQueue
 import monix.execution.Ack
-import monix.execution.Ack.{Stop, Continue}
-import monix.reactive.observers.{Subscriber, BufferedSubscriber}
-import monix.reactive.observers.buffers.BackPressuredBufferedSubscriber.State
-import monix.execution.atomic.Atomic
-import scala.annotation.tailrec
+import monix.execution.Ack.{Continue, Stop}
+import monix.execution.atomic.AtomicAny
+import monix.execution.atomic.PaddingStrategy.LeftRight128
+import monix.execution.internal.Platform
+import monix.execution.internal.math._
+import monix.reactive.observers.{BufferedSubscriber, Subscriber}
+import org.jctools.queues.{MessagePassingQueue, MpscArrayQueue, MpscChunkedArrayQueue, MpscLinkedQueue}
+
 import scala.concurrent.{Future, Promise}
+import scala.util.{Failure, Success}
 
-/** A [[BufferedSubscriber]] implementation for the
-  * [[monix.reactive.OverflowStrategy.BackPressure BackPressured]]
-  * buffer overflowStrategy.
+/** A highly optimized [[BufferedSubscriber]] implementation. It supports 2
+  * [[monix.reactive.OverflowStrategy overflow strategies]]:
+  *
+  *   - [[monix.reactive.OverflowStrategy.Unbounded Unbounded]]
+  *   - [[monix.reactive.OverflowStrategy.Fail Fail]]
+  *
+  * For the `Unbounded` strategy it uses an unbounded array-linked queue
+  * that grows in chunks of size `Platform.recommendedBatchSize`.
+  * It has no limit to how much it can grow, therefore it should be
+  * used with care, since it can eat the whole heap memory.
   */
-private[monix] final class BackPressuredBufferedSubscriber[-T] private
-  (underlying: Subscriber[T], bufferSize: Int)
-  extends BufferedSubscriber[T] { self =>
+private[buffers] final class BackPressuredBufferedSubscriber[A] private
+  (out: Subscriber[A], _qRef: MessagePassingQueue[A])
+  extends CommonBufferQueue[A](_qRef)
+  with BufferedSubscriber[A] {
 
-  require(bufferSize > 0, "bufferSize must be a strictly positive number")
+  private[this] val em = out.scheduler.executionModel
+  implicit val scheduler = out.scheduler
 
-  implicit val scheduler = underlying.scheduler
+  /** Whenever the primary queue is full, we still have
+    * to enqueue the incoming messages somewhere. This
+    * secondary queue gets used whenever the data-source
+    * starts being back-pressured.
+    */
+  private[this] val secondaryQueue =
+    MpscLinkedQueue.newMpscLinkedQueue[A]()
 
-  // State for managing contention between multiple producers and one consumer
-  private[this] val stateRef = Atomic(State())
-  // Concurrent queue, producers can push into it without extra synchronization
-  // and there's a happens before relationship between `queue.offer` and
-  // incrementing `stateRef.itemsToPush`, which we are using on the consumer
-  // side in order to know how many items to process and when to stop
-  private[this] val queue = new ConcurrentLinkedQueue[T]()
-  // Used on the consumer side to split big synchronous workloads in batches
-  private[this] val em = scheduler.executionModel
+  /** A promise that becomes non-null whenever the queue is
+    * full, to be completed whenever the queue is empty again.
+    */
+  private[this] val backPressured: AtomicAny[Promise[Ack]] =
+    AtomicAny.withPadding(null, LeftRight128)
 
-  def onNext(elem: T): Future[Ack] = {
-    val state = stateRef.get
-    // if upstream has completed or downstream canceled, we should cancel
-    if (state.upstreamShouldStop) Stop else {
-      queue.offer(elem)
-      pushToConsumer(state)
-    }
-  }
-
-  /**
-   * Reusable logic for signaling a completion event or an error downstream,
-   * used in both `onError` and `onComplete`. The `error` param should
-   * be `null` for signaling a normal `onComplete`.
-   */
-  @tailrec private def signalCompleteOrError(ex: Throwable): Unit = {
-    val state = stateRef.get
-
-    if (!state.upstreamShouldStop) {
-      // signaling the completion of upstream to the consumer's run-loop
-      val update = state.copy(upstreamIsComplete = true, errorThrown = ex)
-      if (stateRef.compareAndSet(state, update))
-        pushToConsumer(update)
-      else // CAS failed, retry
-        signalCompleteOrError(ex)
-    }
+  def onNext(elem: A): Future[Ack] = {
+    if (upstreamIsComplete || downstreamIsComplete) Stop else
+      backPressured.get match {
+        case null =>
+          if (queue.offer(elem)) {
+            pushToConsumer()
+            Continue
+          } else {
+            val promise = Promise[Ack]()
+            if (!backPressured.compareAndSet(null, promise))
+              onNext(elem)
+            else {
+              secondaryQueue.offer(elem)
+              pushToConsumer()
+              promise.future
+            }
+          }
+        case promise =>
+          secondaryQueue.offer(elem)
+          pushToConsumer()
+          promise.future
+      }
   }
 
   def onError(ex: Throwable): Unit = {
-    signalCompleteOrError(ex)
+    if (!upstreamIsComplete && !downstreamIsComplete) {
+      errorThrown = ex
+      upstreamIsComplete = true
+      pushToConsumer()
+    }
   }
 
   def onComplete(): Unit = {
-    signalCompleteOrError(null)
-  }
-
-  /**
-   * Function that starts an asynchronous consumer run-loop or in case
-   * a run-loop is already in progress this function increments the
-   * itemsToPush count. And in case we've exceeded the bufferSize, then
-   * we start to apply back-pressure.
-   */
-  @tailrec private def pushToConsumer(state: State): Future[Ack] = {
-    // no run-loop is active? then we need to start one
-    if (state.itemsToPush == 0) {
-      val update = state.copy(
-        nextAckPromise = Promise[Ack](),
-        appliesBackPressure = false,
-        itemsToPush = 1)
-
-      if (!stateRef.compareAndSet(state, update)) {
-        // CAS failed, retry
-        pushToConsumer(stateRef.get)
-      }
-      else {
-        scheduler.execute(new Runnable { def run() = fastLoop(update, 0, 0) })
-        Continue
-      }
-    }
-    else {
-      val appliesBackPressure = state.shouldBackPressure(bufferSize)
-      val update = state.copy(
-        itemsToPush = state.itemsToPush + 1,
-        appliesBackPressure = appliesBackPressure)
-
-      if (!stateRef.compareAndSet(state, update)) {
-        // CAS failed, retry
-        pushToConsumer(stateRef.get)
-      }
-      else if (appliesBackPressure) {
-        // the buffer is full, so we need to apply back-pressure
-        state.nextAckPromise.future
-      }
-      else {
-        // everything normal, buffer is not full
-        Continue
-      }
+    if (!upstreamIsComplete && !downstreamIsComplete) {
+      upstreamIsComplete = true
+      pushToConsumer()
     }
   }
 
-  // Needed in fastLoop for usage in asynchronous callbacks
-  private def rescheduled(processed: Int): Unit = {
-    fastLoop(stateRef.get, processed, 0)
+  private[this] def pushToConsumer(): Unit = {
+    val currentNr = itemsToPush.getAndIncrement()
+
+    // If a run-loop isn't started, then go, go, go!
+    if (currentNr == 0) {
+      // It's important that lastIterationAck gets read after
+      // we read from itemsToPush, in order to ensure its visibility
+      val lastAck = lastIterationAck
+      // Starting the run-loop, as at this point we can be sure
+      // that no other loop is active
+      scheduler.executeAsync(() => fastLoop(lastAck, 0, 0))
+    }
   }
 
-  /**
-   * Starts a consumer run-loop that consumers everything we have in our
-   * queue, pushing those events to our downstream observer and then stops.
-   */
-  @tailrec private def fastLoop(state: State, processed: Int, syncIndex: Int): Unit = {
-    // should be called when downstream is canceling or triggering a failure
-    def downstreamSignalCancel(): Unit = {
-      val ref = stateRef.transformAndGet(_.downstreamComplete)
-      ref.nextAckPromise.success(Stop)
+  private def goAsync(next: A, ack: Future[Ack], processed: Int): Unit =
+    ack.onComplete {
+      case Success(Continue) =>
+        val nextAck = out.onNext(next)
+        val isSync = ack == Continue || ack == Stop
+        val nextFrame = if (isSync) em.nextFrameIndex(0) else 0
+        fastLoop(nextAck, processed+1, nextFrame)
+
+      case Success(Stop) =>
+        // ending loop
+        downstreamIsComplete = true
+        itemsToPush.set(0)
+
+      case Failure(ex) =>
+        // ending loop
+        downstreamIsComplete = true
+        itemsToPush.set(0)
+        out.onError(ex)
     }
 
-    // should be called when signaling a complete
-    def downstreamSignalComplete(ex: Throwable = null): Unit = {
-      downstreamSignalCancel()
-      if (ex != null)
-        underlying.onError(ex)
-      else
-        underlying.onComplete()
+  private def fastLoop(prevAck: Future[Ack], lastProcessed: Int, startIndex: Int): Unit = {
+    @inline def stopStreaming(): Unit = {
+      downstreamIsComplete = true
+      val bp = backPressured.get
+      if (bp != null) bp.success(Stop)
+      itemsToPush.set(0)
     }
 
-    // We protect the downstream, only doing this as long as the downstream
-    // hasn't canceled, or as long as we haven't signaled an onComplete or an
-    // onError event yet
-    if (!state.downstreamIsDone) {
-      // Processing until we're hitting `itemsToPush`
-      if (processed < state.itemsToPush) {
-        val next: T = queue.poll()
+    var ack = if (prevAck == null) Continue else prevAck
+    var isFirstIteration = ack == Continue
+    var processed = lastProcessed
+    var nextIndex = startIndex
 
-        if (next != null) {
-          val ack = underlying.onNext(next)
-          // for establishing whether the next call is asynchronous,
-          // note that the check with batchSizeModulus is meant for splitting
-          // big synchronous loops in smaller batches
-          val nextIndex = if (!ack.isCompleted) 0 else
-            em.nextFrameIndex(syncIndex)
+    while (!downstreamIsComplete) {
+      val next = {
+        val ref = queue.relaxedPoll()
+        if (ref != null) ref else
+          secondaryQueue.poll()
+      }
 
-          if (nextIndex > 0) {
-            if (ack == Continue || ack.value.get == Continue.AsSuccess)
-              fastLoop(state, processed + 1, nextIndex)
-            else if (ack == Stop || ack.value.get == Stop.AsSuccess) {
-              // ending loop
-              downstreamSignalCancel()
-            }
-            else {
-              // ending loop
-              val ex = ack.value.get.failed.getOrElse(new MatchError(ack.value.get))
-              downstreamSignalComplete(ex)
-            }
-          }
-          else ack.onComplete {
-            case Continue.AsSuccess =>
-              // re-run loop (in different thread)
-              rescheduled(processed + 1)
+      if (next != null) {
+        if (nextIndex > 0 || isFirstIteration) {
+          isFirstIteration = false
 
-            case Stop.AsSuccess =>
-              // ending loop
-              downstreamSignalCancel()
+          ack match {
+            case Continue =>
+              ack = out.onNext(next)
+              if (ack == Stop) {
+                stopStreaming()
+                return
+              } else {
+                val isSync = ack == Continue
+                nextIndex = if (isSync) em.nextFrameIndex(nextIndex) else 0
+                processed += 1
+              }
 
-            case failure =>
-              // ending loop
-              val ex = failure.failed.getOrElse(new MatchError(failure))
-              downstreamSignalComplete(ex)
+            case Stop =>
+              stopStreaming()
+              return
+
+            case async =>
+              goAsync(next, ack, processed)
+              return
           }
         }
         else {
-          // upstreamIsComplete=true, ending loop
-          assert(state.upstreamIsComplete, "upstreamIsComplete should be true")
-          try downstreamSignalComplete(state.errorThrown) finally
-            queue.clear() // for GC purposes
+          goAsync(next, ack, processed)
+          return
         }
       }
-      else { // if processed == itemsToPush
-        val ref = state.declareProcessed(processed)
-        // trying update, if it fails it probably means
-        // we've got more items to process
-        if (stateRef.compareAndSet(state, ref)) {
-          // if in back-pressure mode, unblock
-          // note that we don't need to check that itemsToPush is zero
-          ref.nextAckPromise.success(Continue)
+      else if (upstreamIsComplete) {
+        // Race-condition check, but if upstreamIsComplete=true is
+        // visible, then the queue should be fully published because
+        // there's a clear happens-before relationship between
+        // queue.offer() and upstreamIsComplete=true
+        if (queue.isEmpty) {
+          // ending loop
+          stopStreaming()
+          if (errorThrown ne null) out.onError(errorThrown)
+          else out.onComplete()
+          return
         }
-        else {
-          // concurrent modifications happened, continuing loop
-          fastLoop(stateRef.get, processed, syncIndex)
+      }
+      else {
+        // Given we are writing in `itemsToPush` before this
+        // assignment, it means that writes will not get reordered,
+        // so when we observe that itemsToPush is zero on the
+        // producer side, we will also have the latest lastIterationAck
+        lastIterationAck = ack
+        val remaining = itemsToPush.decrementAndGet(processed)
+
+        processed = 0
+        // if the queue is non-empty (i.e. concurrent modifications
+        // just happened) then continue loop, otherwise stop
+        if (remaining <= 0) {
+          val bp = backPressured.getAndSet(null)
+          if (bp != null) bp.success(Continue)
+          return
         }
       }
     }
   }
 }
 
-private[monix] object BackPressuredBufferedSubscriber {
-  /** Builder for [[BackPressuredBufferedSubscriber]] */
-  def apply[T](underlying: Subscriber[T], bufferSize: Int): BackPressuredBufferedSubscriber[T] =
-    new BackPressuredBufferedSubscriber[T](underlying, bufferSize)
-
-  /** State used in our implementation to manage concurrency */
-  private case class State(
-    itemsToPush: Int = 0,
-    nextAckPromise: Promise[Ack] = Promise(),
-    appliesBackPressure: Boolean = false,
-    upstreamIsComplete: Boolean = false,
-    downstreamIsDone: Boolean = false,
-    errorThrown: Throwable = null) {
-
-    def upstreamShouldStop: Boolean = {
-      upstreamIsComplete || downstreamIsDone
+object BackPressuredBufferedSubscriber {
+  def apply[A](underlying: Subscriber[A], bufferSize: Int): BackPressuredBufferedSubscriber[A] = {
+    val maxCapacity = math.max(4, nextPowerOf2(bufferSize))
+    val queue = if (maxCapacity <= Platform.recommendedBatchSize)
+      new MpscArrayQueue[A](maxCapacity)
+    else {
+      val initialCapacity = math.min(Platform.recommendedBatchSize, maxCapacity / 2)
+      new MpscChunkedArrayQueue[A](initialCapacity, maxCapacity)
     }
 
-    def shouldBackPressure(bufferSize: Int): Boolean = {
-      !upstreamIsComplete && (appliesBackPressure || itemsToPush >= bufferSize)
-    }
-
-    def downstreamComplete: State = {
-      copy(itemsToPush = 0, downstreamIsDone = true)
-    }
-
-    def declareProcessed(processed: Int): State = {
-      copy(itemsToPush = itemsToPush - processed)
-    }
+    new BackPressuredBufferedSubscriber[A](underlying, queue)
   }
 }

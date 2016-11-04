@@ -29,10 +29,8 @@ import scala.concurrent.{Await, Future, Promise}
 
 
 object BufferBackPressuredConcurrencySuite extends TestSuite[Scheduler] {
+  def setup() = monix.execution.Scheduler.Implicits.global
   def tearDown(env: Scheduler) = ()
-  def setup() = {
-    monix.execution.Scheduler.Implicits.global
-  }
 
   test("merge test should work") { implicit s =>
     val num = 200000
@@ -60,15 +58,19 @@ object BufferBackPressuredConcurrencySuite extends TestSuite[Scheduler] {
         def onError(ex: Throwable) = throw new IllegalStateException()
         def onComplete() = completed.countDown()
         val scheduler = s
-      }, BackPressure(5))
+      }, BackPressure(8))
 
     assertEquals(buffer.onNext(1), Continue)
     assertEquals(buffer.onNext(2), Continue)
     assertEquals(buffer.onNext(3), Continue)
     assertEquals(buffer.onNext(4), Continue)
     assertEquals(buffer.onNext(5), Continue)
+    assertEquals(buffer.onNext(6), Continue)
+    assertEquals(buffer.onNext(7), Continue)
+    assertEquals(buffer.onNext(8), Continue)
+    buffer.onNext(9) // uncertain
 
-    val async = buffer.onNext(6)
+    val async = buffer.onNext(10)
     assert(async != Continue)
 
     promise.success(Continue)
@@ -237,10 +239,8 @@ object BufferBackPressuredConcurrencySuite extends TestSuite[Scheduler] {
 
     buffer.onNext(1)
     buffer.onComplete()
-    assert(!latch.await(1, TimeUnit.SECONDS), "latch.await should have failed")
-
-    promise.success(Continue)
     assert(latch.await(60, TimeUnit.SECONDS), "latch.await should have succeeded")
+    promise.success(Continue); ()
   }
 
   test("should send onComplete when at capacity") { implicit s =>

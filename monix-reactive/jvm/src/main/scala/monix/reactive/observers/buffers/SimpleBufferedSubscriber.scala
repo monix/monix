@@ -199,12 +199,12 @@ private[buffers] final class SimpleBufferedSubscriber[A] private
 }
 
 private[monix] object SimpleBufferedSubscriber {
-  def unbounded[T](underlying: Subscriber[T]): Subscriber.Sync[T] = {
+  def unbounded[T](underlying: Subscriber[T]): SimpleBufferedSubscriber[T] = {
     val queue = new MpscUnboundedArrayQueue[T](Platform.recommendedBatchSize)
     new SimpleBufferedSubscriber[T](underlying, queue)
   }
 
-  def overflowTriggering[A](underlying: Subscriber[A], bufferSize: Int): Subscriber.Sync[A] = {
+  def overflowTriggering[A](underlying: Subscriber[A], bufferSize: Int): SimpleBufferedSubscriber[A] = {
     val maxCapacity = math.max(4, nextPowerOf2(bufferSize))
     val queue = if (maxCapacity <= Platform.recommendedBatchSize)
       new MpscArrayQueue[A](maxCapacity)

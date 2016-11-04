@@ -19,8 +19,8 @@ package monix.reactive.observers
 
 import minitest.TestSuite
 import monix.execution.Ack
-import monix.execution.Ack.{Stop, Continue}
-import monix.execution.internal.{RunnableAction, Platform}
+import monix.execution.Ack.{Continue, Stop}
+import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.OverflowStrategy.BackPressure
 import monix.reactive.exceptions.DummyException
@@ -50,8 +50,12 @@ object BufferBackPressuredSuite extends TestSuite[TestScheduler] {
     assertEquals(buffer.onNext(3), Continue)
     assertEquals(buffer.onNext(4), Continue)
     assertEquals(buffer.onNext(5), Continue)
+    assertEquals(buffer.onNext(6), Continue)
+    assertEquals(buffer.onNext(7), Continue)
+    assertEquals(buffer.onNext(8), Continue)
+    buffer.onNext(9) // uncertain
 
-    val async = buffer.onNext(6)
+    val async = buffer.onNext(10)
     assertEquals(async.value, None)
 
     promise.success(Continue)
@@ -124,10 +128,46 @@ object BufferBackPressuredSuite extends TestSuite[TestScheduler] {
     }
 
     val buffer = BufferedSubscriber[Int](underlying, BackPressure(1000))
-
     def loop(n: Int): Unit =
       if (n > 0)
-        s.execute(RunnableAction { buffer.onNext(n); loop(n-1) })
+        s.executeAsync { () => buffer.onNext(n); loop(n-1) }
+      else
+        buffer.onComplete()
+
+    loop(10000)
+    assert(!completed)
+    assertEquals(number, 0)
+
+    s.tick()
+    assert(completed)
+    assertEquals(number, 10000)
+  }
+
+  test("should not lose events, test 3") { implicit s =>
+    var number = 0
+    var completed = false
+
+    val underlying = new Subscriber[Int] {
+      val scheduler = s
+
+      def onNext(elem: Int): Future[Ack] = {
+        number += 1
+        Future(Continue)
+      }
+
+      def onError(ex: Throwable): Unit = {
+        s.reportFailure(ex)
+      }
+
+      def onComplete(): Unit = {
+        completed = true
+      }
+    }
+
+    val buffer = BufferedSubscriber[Int](underlying, BackPressure(512))
+    def loop(n: Int): Unit =
+      if (n > 0)
+        s.executeAsync { () => buffer.onNext(n); loop(n-1) }
       else
         buffer.onComplete()
 
@@ -215,7 +255,7 @@ object BufferBackPressuredSuite extends TestSuite[TestScheduler] {
     assert(wasCompleted)
   }
 
-  test("should send onComplete when in flight") { implicit s =>
+  test("should not back-pressure onComplete") { implicit s =>
     var wasCompleted = false
     val promise = Promise[Ack]()
     val buffer = BufferedSubscriber[Int](
@@ -229,7 +269,7 @@ object BufferBackPressuredSuite extends TestSuite[TestScheduler] {
     buffer.onNext(1)
     buffer.onComplete()
     s.tick()
-    assert(!wasCompleted)
+    assert(wasCompleted)
 
     promise.success(Continue)
     s.tick()

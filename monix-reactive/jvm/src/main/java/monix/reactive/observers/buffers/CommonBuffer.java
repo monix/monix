@@ -83,14 +83,13 @@ abstract class CommonBufferLastAck extends CommonBufferPad4 {
 }
 
 abstract class CommonBufferPad5 extends CommonBufferLastAck {
-  volatile long p50, p51, p52, p53, p54, p55, p56, p57;
+  volatile long p60, p61, p62, p63, p64, p65, p66, p67;
 }
 
 abstract class CommonBufferQueue<A> extends CommonBufferPad5 {
   protected MessagePassingQueue<A> queue;
 
-  protected CommonBufferQueue(MessagePassingQueue<A> ref) {
-    this.queue = ref;
+  protected CommonBufferQueue(MessagePassingQueue<A> queue) {
+    this.queue = queue;
   }
 }
-
