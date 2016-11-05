@@ -27,14 +27,9 @@ import monix.reactive.{Observable, Observer}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, Promise}
 
-object BufferDropNewAndSignalConcurrencySuite
-  extends TestSuite[Scheduler] {
-
+object BufferDropNewAndSignalConcurrencySuite extends TestSuite[Scheduler] {
+  def setup() = monix.execution.Scheduler.Implicits.global
   def tearDown(env: Scheduler) = ()
-
-  def setup() = {
-    monix.execution.Scheduler.Implicits.global
-  }
 
   def buildNewForInt(bufferSize: Int, underlying: Observer[Int])(implicit s: Scheduler) = {
     BufferedSubscriber(Subscriber(underlying, s), DropNewAndSignal(bufferSize, nr => Some(nr.toInt)))
@@ -118,16 +113,20 @@ object BufferDropNewAndSignalConcurrencySuite
   test("should drop incoming when over capacity") { implicit s =>
     // repeating test 100 times because of problems
     for (_ <- 0 until 100) {
-      var sum = 0
+      var received = 0
+      val started = new CountDownLatch(1)
       val completed = new CountDownLatch(1)
-      val promise = Promise[Ack]()
+      val promise = Promise[Continue]()
+      var dropped = 0
 
-      val underlying = new Observer[Int] {
-        var received = 0
+      val underlying = new Observer[Either[Int,Int]] {
+        def onNext(elem: Either[Int,Int]) = {
+          elem match {
+            case Left(v) => dropped += v
+            case Right(e) => received += 1
+          }
 
-        def onNext(elem: Int) = {
-          sum += elem
-          received += 1
+          started.countDown()
           promise.future
         }
 
@@ -140,20 +139,18 @@ object BufferDropNewAndSignalConcurrencySuite
         }
       }
 
-      val buffer = buildNewForInt(5, underlying)
+      val buffer = BufferedSubscriber[Either[Int,Int]](
+        Subscriber(underlying, s), DropNewAndSignal(8, nr => Some(Left(nr.toInt))))
 
-      assertEquals(buffer.onNext(1), Continue)
-      assertEquals(buffer.onNext(2), Continue)
-      assertEquals(buffer.onNext(3), Continue)
-      assertEquals(buffer.onNext(4), Continue)
-      assertEquals(buffer.onNext(5), Continue)
+      for (i <- 1 to 100) buffer.onNext(Right(i))
 
-      for (i <- 0 until 20) buffer.onNext(6 + i)
-      buffer.onComplete()
+      assert(started.await(60, TimeUnit.SECONDS), "started.await")
       promise.success(Continue)
+      buffer.onComplete()
 
       assert(completed.await(60, TimeUnit.SECONDS), "wasCompleted.await should have succeeded")
-      assertEquals(sum, 15 + 20)
+      assert(received <= 10, s"received $received <= 10")
+      assert(dropped >= 90)
     }
   }
 
@@ -239,9 +236,6 @@ object BufferDropNewAndSignalConcurrencySuite
 
     buffer.onNext(1)
     buffer.onComplete()
-    assert(!latch.await(1, TimeUnit.SECONDS), "latch.await should have failed")
-
-    promise.success(Continue)
     assert(latch.await(60, TimeUnit.SECONDS), "latch.await should have succeeded")
   }
 

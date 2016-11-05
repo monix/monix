@@ -133,7 +133,7 @@ object BufferDropOldAndSignalSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    val buffer = buildNewWithSignal(5, underlying)
+    val buffer = buildNewWithSignal(8, underlying)
 
     for (i <- 1 to 7) assertEquals(buffer.onNext(i), Continue)
     s.tick()
@@ -144,7 +144,7 @@ object BufferDropOldAndSignalSuite extends TestSuite[TestScheduler] {
     assertEquals(received, 28)
 
     promise.success(Continue); s.tick()
-    assertEquals(received, (1094 to 1100).sum + 28 + 994)
+    assertEquals(received, (1093 to 1100).sum + 28 + 993)
 
     buffer.onComplete(); s.tick()
     assert(wasCompleted, "wasCompleted should be true")
@@ -169,7 +169,7 @@ object BufferDropOldAndSignalSuite extends TestSuite[TestScheduler] {
     }
 
     val log = AtomicLong(0)
-    val buffer = buildNewWithLog(5, underlying, log)
+    val buffer = buildNewWithLog(8, underlying, log)
 
     for (i <- 1 to 7) assertEquals(buffer.onNext(i), Continue)
     s.tick()
@@ -180,8 +180,8 @@ object BufferDropOldAndSignalSuite extends TestSuite[TestScheduler] {
     assertEquals(received, 28)
 
     promise.success(Continue); s.tick()
-    assertEquals(received, (1094 to 1100).sum + 28)
-    assertEquals(log.get, 994)
+    assertEquals(received, (1093 to 1100).sum + 28)
+    assertEquals(log.get, 993)
 
     log.set(0)
     assertEquals(buffer.onNext(42), Continue)

@@ -19,6 +19,8 @@ package monix.reactive.observers.buffers
 
 import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
+import monix.execution.atomic.Atomic
+import monix.execution.atomic.PaddingStrategy.LeftRight256
 import monix.execution.internal.Platform
 import monix.execution.internal.math.nextPowerOf2
 import monix.reactive.exceptions.BufferOverflowException
@@ -40,17 +42,32 @@ import scala.util.{Failure, Success}
   * It has no limit to how much it can grow, therefore it should be
   * used with care, since it can eat the whole heap memory.
   */
-private[buffers] final class SimpleBufferedSubscriber[A] private
+private[observers] final class SimpleBufferedSubscriber[A] protected
   (out: Subscriber[A], _qRef: MessagePassingQueue[A])
-  extends CommonBufferPad5 with BufferedSubscriber[A] with Subscriber.Sync[A] {
+  extends AbstractSimpleBufferedSubscriber[A](out, _qRef) {
+
+  @volatile protected var p50, p51, p52, p53, p54, p55, p56, p57 = 5
+  @volatile protected var q50, q51, q52, q53, q54, q55, q56, q57 = 5
+}
+
+private[observers] abstract class AbstractSimpleBufferedSubscriber[A] protected
+  (out: Subscriber[A], _qRef: MessagePassingQueue[A])
+  extends CommonBufferPad4 with BufferedSubscriber[A] with Subscriber.Sync[A] {
 
   private[this] val queue = _qRef
   private[this] val em = out.scheduler.executionModel
   implicit val scheduler = out.scheduler
 
+  private[this] val itemsToPush =
+    Atomic.withPadding(0, LeftRight256)
+
   def onNext(elem: A): Ack = {
     if (!upstreamIsComplete && !downstreamIsComplete) {
-      try {
+      if (elem == null) {
+        onError(new NullPointerException("Null not supported in onNext"))
+        Stop
+      }
+      else try {
         if (queue.offer(elem)) {
           pushToConsumer()
           Continue
@@ -198,7 +215,7 @@ private[buffers] final class SimpleBufferedSubscriber[A] private
   }
 }
 
-private[monix] object SimpleBufferedSubscriber {
+private[observers] object SimpleBufferedSubscriber {
   def unbounded[T](underlying: Subscriber[T]): SimpleBufferedSubscriber[T] = {
     val queue = new MpscUnboundedArrayQueue[T](Platform.recommendedBatchSize)
     new SimpleBufferedSubscriber[T](underlying, queue)

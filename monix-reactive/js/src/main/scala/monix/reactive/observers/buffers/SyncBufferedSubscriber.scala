@@ -29,7 +29,7 @@ import scala.util.control.NonFatal
   * A [[BufferedSubscriber]] implementation for the
   * [[monix.reactive.OverflowStrategy.DropNew DropNew]] overflow strategy.
   */
-private[buffers] final class SyncBufferedSubscriber[-T] private
+private[observers] final class SyncBufferedSubscriber[-T] private
   (underlying: Subscriber[T], buffer: EvictingQueue[T], onOverflow: Long => Option[T] = null)
   extends BufferedSubscriber[T] with Subscriber.Sync[T] {
 

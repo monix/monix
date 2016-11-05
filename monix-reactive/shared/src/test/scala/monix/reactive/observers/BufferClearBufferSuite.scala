@@ -25,10 +25,10 @@ import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observer
 import monix.reactive.OverflowStrategy.ClearBuffer
 import monix.reactive.exceptions.DummyException
-import monix.reactive.observers.BufferClearBufferThenSignalSuite._
+import monix.reactive.observers.BufferClearBufferAndSignalSuite._
 import scala.concurrent.{Future, Promise}
 
-object BufferDropAllSuite extends TestSuite[TestScheduler] {
+object BufferClearBufferSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
     assert(s.state.tasks.isEmpty,
@@ -118,18 +118,17 @@ object BufferDropAllSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), ClearBuffer(5))
+    val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), ClearBuffer(8))
 
     for (i <- 1 to 7) assertEquals(buffer.onNext(i), Continue)
     s.tick()
     assertEquals(received, 28)
 
-    for (i <- 0 to 2000) assertEquals(buffer.onNext(i), Continue)
-    s.tick()
-    assertEquals(received, 28)
+    for (i <- 0 to 2002) assertEquals(buffer.onNext(i), Continue)
+    s.tick(); assertEquals(received, 28)
 
     promise.success(Continue); s.tick()
-    assertEquals(received, 28 + (1995 to 2000).sum)
+    assertEquals(received, 28 + (2000 to 2002).sum)
 
     buffer.onComplete(); s.tick()
     assert(wasCompleted, "wasCompleted should be true")

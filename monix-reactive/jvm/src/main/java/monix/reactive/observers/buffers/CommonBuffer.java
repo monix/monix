@@ -18,11 +18,7 @@
 package monix.reactive.observers.buffers;
 
 import monix.execution.Ack;
-import monix.execution.atomic.AtomicAny;
-import monix.execution.atomic.AtomicInt;
-import monix.execution.atomic.PaddingStrategy;
 import scala.concurrent.Future;
-import scala.concurrent.Promise;
 
 abstract class CommonBufferPad0 {
   volatile long p00, p01, p02, p03, p04, p05, p06, p07;
@@ -59,21 +55,7 @@ abstract class CommonBufferPad3 extends CommonBufferErrorThrown {
   volatile long q30, q31, q32, q33, q34, q35, q36, q37;
 }
 
-abstract class CommonBufferItemsPushed extends CommonBufferPad3 {
-  /*
-   * Used to detect whether there are any consumer run-loops
-   * active and start new run-loops when needed.
-   */
-  protected AtomicInt itemsToPush =
-    AtomicInt.withPadding(0, PaddingStrategy.NoPadding$.MODULE$);
-}
-
-abstract class CommonBufferPad4 extends CommonBufferItemsPushed {
-  volatile long p40, p41, p42, p43, p44, p45, p46, p47;
-  volatile long q40, q41, q42, q43, q44, q45, q46, q47;
-}
-
-abstract class CommonBufferLastAck extends CommonBufferPad4 {
+abstract class CommonBufferLastAck extends CommonBufferPad3 {
   /*
    * Value used in order to apply back-pressure in the run-loop.
    * It stores the last `Future[Ack]` value whenever the loop
@@ -87,20 +69,7 @@ abstract class CommonBufferLastAck extends CommonBufferPad4 {
   protected Future<Ack> lastIterationAck;
 }
 
-abstract class CommonBufferPad5 extends CommonBufferLastAck {
-  volatile long p50, p51, p52, p53, p54, p55, p56, p57;
-  volatile long q50, q51, q52, q53, q54, q55, q56, q57;
-}
-
-abstract class CommonBufferBackPressured extends CommonBufferPad5 {
-  /* A promise that becomes non-null whenever the queue is
-   * full, to be completed whenever the queue is empty again.
-   */
-  protected AtomicAny<Promise<Ack>> backPressured =
-    AtomicAny.withPadding(null, PaddingStrategy.NoPadding$.MODULE$);
-}
-
-abstract class CommonBufferPad6 extends CommonBufferBackPressured {
-  volatile long p60, p61, p62, p63, p64, p65, p66, p67;
-  volatile long q60, q61, q62, q63, q64, q65, q66, q67;
+abstract class CommonBufferPad4 extends CommonBufferLastAck {
+  volatile long p40, p41, p42, p43, p44, p45, p46, p47;
+  volatile long q40, q41, q42, q43, q44, q45, q46, q47;
 }

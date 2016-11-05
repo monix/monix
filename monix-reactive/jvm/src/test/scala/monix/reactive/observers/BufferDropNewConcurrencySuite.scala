@@ -19,20 +19,18 @@ package monix.reactive.observers
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 import minitest.TestSuite
-import monix.execution.Ack.{Stop, Continue}
+import monix.execution.Ack.{Continue, Stop}
 import monix.execution.{Ack, Scheduler}
 import monix.reactive.OverflowStrategy.DropNew
 import monix.reactive.exceptions.DummyException
 import monix.reactive.{Observable, Observer}
-import scala.concurrent.duration._
+import monix.reactive.observers.buffers.DropNewBufferedSubscriber
 import scala.concurrent.{Await, Future, Promise}
+import scala.concurrent.duration._
 
 object BufferDropNewConcurrencySuite extends TestSuite[Scheduler] {
+  def setup() = monix.execution.Scheduler.Implicits.global
   def tearDown(env: Scheduler) = ()
-
-  def setup() = {
-    monix.execution.Scheduler.Implicits.global
-  }
 
   test("merge test should work") { implicit s =>
     val num = 100000
@@ -112,15 +110,18 @@ object BufferDropNewConcurrencySuite extends TestSuite[Scheduler] {
   test("should drop incoming when over capacity") { implicit s =>
     // repeating test 100 times because of problems
     for (_ <- 0 until 100) {
-      var sum = 0
+      var received = 0
+      val started = new CountDownLatch(1)
       val completed = new CountDownLatch(1)
-      val promise = Promise[Ack]()
+      val promise = Promise[Continue]()
 
       val underlying = new Observer[Int] {
-        var received = 0
+        private var previous = 0
 
         def onNext(elem: Int) = {
-          sum += elem
+          started.countDown()
+          assert(elem > previous, s"current $elem > previous $previous")
+          previous = elem
           received += 1
           promise.future
         }
@@ -134,20 +135,13 @@ object BufferDropNewConcurrencySuite extends TestSuite[Scheduler] {
         }
       }
 
-      val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), DropNew(5))
-
-      assertEquals(buffer.onNext(1), Continue)
-      assertEquals(buffer.onNext(2), Continue)
-      assertEquals(buffer.onNext(3), Continue)
-      assertEquals(buffer.onNext(4), Continue)
-      assertEquals(buffer.onNext(5), Continue)
-
-      for (i <- 0 until 20) buffer.onNext(6 + i)
+      val buffer = DropNewBufferedSubscriber.simple(Subscriber(underlying, s), 8)
+      for (i <- 1 until 100) buffer.onNext(i)
       buffer.onComplete()
-      promise.success(Continue)
 
+      promise.success(Continue)
       assert(completed.await(60, TimeUnit.SECONDS), "wasCompleted.await should have succeeded")
-      assertEquals(sum, 15)
+      assert(received <= 10, s"received $received <= 10")
     }
   }
 
@@ -239,10 +233,7 @@ object BufferDropNewConcurrencySuite extends TestSuite[Scheduler] {
 
     buffer.onNext(1)
     buffer.onComplete()
-    assert(!latch.await(1, TimeUnit.SECONDS), "latch.await should have failed")
-
-    promise.success(Continue)
-    assert(latch.await(60, TimeUnit.SECONDS), "latch.await should have succeeded")
+    assert(latch.await(1, TimeUnit.SECONDS), "latch.await should have failed")
   }
 
   test("should send onComplete when at capacity") { implicit s =>
@@ -343,6 +334,7 @@ object BufferDropNewConcurrencySuite extends TestSuite[Scheduler] {
         sum += elem
         Continue
       }
+
       def onError(ex: Throwable) = complete.countDown()
       def onComplete() = throw new IllegalStateException()
       val scheduler = s

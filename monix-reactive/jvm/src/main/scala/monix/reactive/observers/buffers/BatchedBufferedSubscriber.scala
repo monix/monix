@@ -34,6 +34,9 @@ private[monix] final class BatchedBufferedSubscriber[A] private
 
   require(bufferSize > 0, "bufferSize must be a strictly positive number")
 
+  @volatile protected var p50, p51, p52, p53, p54, p55, p56, p57 = 5
+  @volatile protected var q50, q51, q52, q53, q54, q55, q56, q57 = 5
+
   override protected def fetchSize(r: ListBuffer[A]): Int =
     r.length
 

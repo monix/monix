@@ -117,18 +117,17 @@ object BufferDropOldSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), DropOld(5))
+    val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), DropOld(8))
 
     for (i <- 1 to 7) assertEquals(buffer.onNext(i), Continue)
     s.tick()
     assertEquals(received, 28)
 
     for (i <- 0 to 1000) assertEquals(buffer.onNext(i), Continue)
-    s.tick()
-    assertEquals(received, 28)
+    s.tick(); assertEquals(received, 28)
 
     promise.success(Continue); s.tick()
-    assertEquals(received, (994 to 1000).sum + 28)
+    assertEquals(received, (993 to 1000).sum + 28)
 
     buffer.onComplete(); s.tick()
     assert(wasCompleted, "wasCompleted should be true")

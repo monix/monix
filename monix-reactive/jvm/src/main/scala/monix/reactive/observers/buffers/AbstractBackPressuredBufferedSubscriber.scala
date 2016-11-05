@@ -19,6 +19,8 @@ package monix.reactive.observers.buffers
 
 import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
+import monix.execution.atomic.Atomic
+import monix.execution.atomic.PaddingStrategy.LeftRight256
 import monix.execution.internal.Platform
 import monix.execution.internal.math._
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
@@ -26,13 +28,12 @@ import org.jctools.queues.{MpscArrayQueue, MpscChunkedArrayQueue, MpscLinkedQueu
 import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success}
 
-
 /** Shared internals between [[BackPressuredBufferedSubscriber]] and
   * [[BatchedBufferedSubscriber]].
   */
-private[buffers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
+private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
   (out: Subscriber[R], bufferSize: Int)
-  extends CommonBufferPad6 with BufferedSubscriber[A] {
+  extends CommonBufferPad4 with BufferedSubscriber[A] {
 
   require(bufferSize > 0, "bufferSize must be a strictly positive number")
 
@@ -58,28 +59,37 @@ private[buffers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
   protected final val secondaryQueue =
     MpscLinkedQueue.newMpscLinkedQueue[A]()
 
+  private[this] val itemsToPush =
+    Atomic.withPadding(0, LeftRight256)
+  private[this] val backPressured =
+    Atomic.withPadding(null : Promise[Ack], LeftRight256)
+
   final def onNext(elem: A): Future[Ack] = {
-    if (upstreamIsComplete || downstreamIsComplete) Stop else
-      backPressured.get match {
-        case null =>
-          if (primaryQueue.offer(elem)) {
-            pushToConsumer()
-            Continue
-          } else {
-            val promise = Promise[Ack]()
-            if (!backPressured.compareAndSet(null, promise))
-              onNext(elem)
-            else {
-              secondaryQueue.offer(elem)
-              pushToConsumer()
-              promise.future
-            }
-          }
-        case promise =>
-          secondaryQueue.offer(elem)
+    if (upstreamIsComplete || downstreamIsComplete) Stop
+    else if (elem == null) {
+      onError(new NullPointerException("Null not supported in onNext"))
+      Stop
+    }
+    else backPressured.get match {
+      case null =>
+        if (primaryQueue.offer(elem)) {
           pushToConsumer()
-          promise.future
-      }
+          Continue
+        } else {
+          val promise = Promise[Ack]()
+          if (!backPressured.compareAndSet(null, promise))
+            onNext(elem)
+          else {
+            secondaryQueue.offer(elem)
+            pushToConsumer()
+            promise.future
+          }
+        }
+      case promise =>
+        secondaryQueue.offer(elem)
+        pushToConsumer()
+        promise.future
+    }
   }
 
   final def onError(ex: Throwable): Unit = {

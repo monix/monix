@@ -20,13 +20,13 @@ package monix.reactive.observers
 import minitest.TestSuite
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.AtomicLong
-import monix.execution.internal.{Platform, RunnableAction}
+import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import monix.execution.{Ack, Scheduler}
 import monix.reactive.Observer
 import monix.reactive.OverflowStrategy.DropNewAndSignal
 import monix.reactive.exceptions.DummyException
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.Promise
 
 object BufferDropNewAndSignalSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
@@ -52,7 +52,7 @@ object BufferDropNewAndSignalSuite extends TestSuite[TestScheduler] {
     var wasCompleted = false
 
     val underlying = new Observer[Int] {
-      def onNext(elem: Int): Future[Ack] = {
+      def onNext(elem: Int) = {
         number += 1
         Continue
       }
@@ -81,7 +81,7 @@ object BufferDropNewAndSignalSuite extends TestSuite[TestScheduler] {
     var completed = false
 
     val underlying = new Observer[Int] {
-      def onNext(elem: Int): Future[Ack] = {
+      def onNext(elem: Int) = {
         number += 1
         Continue
       }
@@ -99,7 +99,7 @@ object BufferDropNewAndSignalSuite extends TestSuite[TestScheduler] {
 
     def loop(n: Int): Unit =
       if (n > 0)
-        s.execute(RunnableAction { buffer.onNext(n); loop(n-1) })
+        s.executeAsync { () => buffer.onNext(n); loop(n-1) }
       else
         buffer.onComplete()
 
@@ -124,37 +124,29 @@ object BufferDropNewAndSignalSuite extends TestSuite[TestScheduler] {
       }
 
       def onError(ex: Throwable) = ()
-
-      def onComplete() = {
-        wasCompleted = true
-      }
+      def onComplete() = wasCompleted = true
     }
 
-    val buffer = buildNewForIntWithSignal(5, underlying)
+    val buffer = buildNewForIntWithSignal(8, underlying)
 
-    assertEquals(buffer.onNext(1), Continue)
-    assertEquals(buffer.onNext(2), Continue)
-    assertEquals(buffer.onNext(3), Continue)
-    assertEquals(buffer.onNext(4), Continue)
-    assertEquals(buffer.onNext(5), Continue)
-
+    buffer.onNext(1)
     s.tick()
     assertEquals(received, 1)
 
-    for (i <- 0 until 10)
-      assertEquals(buffer.onNext(6 + i), Continue)
+    for (i <- 2 to 9)
+      assertEquals(buffer.onNext(i), Continue)
+    for (i <- 0 until 5)
+      assertEquals(buffer.onNext(10 + i), Continue)
 
     s.tick()
     assertEquals(received, 1)
 
     promise.success(Continue); s.tick()
-    assert(received >= 15)
-
-    for (i <- 0 until 4) assertEquals(buffer.onNext(6 + i), Continue)
+    assertEquals(received, (1 to 8).sum + 14)
+    for (i <- 1 to 8) assertEquals(buffer.onNext(i), Continue)
 
     s.tick()
-    assert(received >= 55 && received <= 60,
-      s"received should be either 55 or 60, but got $received")
+    assertEquals(received, (1 to 8).sum * 2 + 14)
 
     buffer.onComplete(); s.tick()
     assert(wasCompleted, "wasCompleted should be true")
@@ -172,47 +164,32 @@ object BufferDropNewAndSignalSuite extends TestSuite[TestScheduler] {
       }
 
       def onError(ex: Throwable) = ()
-
-      def onComplete() = {
-        wasCompleted = true
-      }
+      def onComplete() = wasCompleted = true
     }
 
     val log = AtomicLong(0)
     val buffer = buildNewForIntWithLog(5, underlying, log)
 
-    assertEquals(buffer.onNext(1), Continue)
-    assertEquals(buffer.onNext(2), Continue)
-    assertEquals(buffer.onNext(3), Continue)
-    assertEquals(buffer.onNext(4), Continue)
-    assertEquals(buffer.onNext(5), Continue)
-
+    buffer.onNext(1)
     s.tick()
     assertEquals(received, 1)
 
-    for (i <- 0 until 10)
-      assertEquals(buffer.onNext(6 + i), Continue)
+    for (i <- 2 to 9)
+      assertEquals(buffer.onNext(i), Continue)
+    for (i <- 0 until 5)
+      assertEquals(buffer.onNext(10 + i), Continue)
 
     s.tick()
     assertEquals(received, 1)
 
     promise.success(Continue); s.tick()
-    assert(received >= 15)
-
-    for (i <- 0 until 4) assertEquals(buffer.onNext(6 + i), Continue)
-
-    s.tick()
-
-    assert(log.get > 0, "log should have happened")
-    assert(received >= 45 && received <= 60,
-      s"received should be either 45 or 60, but got $received")
-
-    log.set(0)
-    assertEquals(buffer.onNext(42), Continue)
+    assertEquals(received, (1 to 9).sum)
+    assertEquals(log.get, 5)
+    for (i <- 1 to 8) assertEquals(buffer.onNext(i), Continue)
 
     s.tick()
-
-    assertEquals(log.get, 0)
+    assertEquals(received, (1 to 8).sum * 2 + 9)
+    assertEquals(log.get, 5)
 
     buffer.onComplete(); s.tick()
     assert(wasCompleted, "wasCompleted should be true")

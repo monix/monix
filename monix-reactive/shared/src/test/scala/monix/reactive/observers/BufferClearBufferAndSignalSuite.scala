@@ -28,7 +28,7 @@ import monix.reactive.OverflowStrategy.ClearBufferAndSignal
 import monix.reactive.exceptions.DummyException
 import scala.concurrent.{Future, Promise}
 
-object BufferClearBufferThenSignalSuite extends TestSuite[TestScheduler] {
+object BufferClearBufferAndSignalSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
     assert(s.state.tasks.isEmpty,
@@ -126,25 +126,23 @@ object BufferClearBufferThenSignalSuite extends TestSuite[TestScheduler] {
       }
 
       def onError(ex: Throwable) = ()
+
       def onComplete() = {
         wasCompleted = true
       }
     }
 
-    val buffer = buildNewWithSignal(5, underlying)
+    val buffer = buildNewWithSignal(8, underlying)
 
     for (i <- 1 to 7) assertEquals(buffer.onNext(i), Continue)
     s.tick()
     assertEquals(received, 28)
 
-    for (i <- 0 to 150) {
-      assertEquals(buffer.onNext(100 + i), Continue)
-      s.tick()
-    }
+    for (i <- 0 to 2002) assertEquals(buffer.onNext(i), Continue)
+    s.tick(); assertEquals(received, 28)
 
-    assertEquals(received, 28)
     promise.success(Continue); s.tick()
-    assertEquals(received, 28 + (247 to 250).sum + 147)
+    assertEquals(received, 28 + (2000 to 2002).sum + 2000)
 
     buffer.onComplete(); s.tick()
     assert(wasCompleted, "wasCompleted should be true")
@@ -162,6 +160,7 @@ object BufferClearBufferThenSignalSuite extends TestSuite[TestScheduler] {
       }
 
       def onError(ex: Throwable) = ()
+
       def onComplete() = {
         wasCompleted = true
       }
@@ -174,18 +173,14 @@ object BufferClearBufferThenSignalSuite extends TestSuite[TestScheduler] {
     s.tick()
     assertEquals(received, 28)
 
-    for (i <- 0 to 150) {
-      assertEquals(buffer.onNext(100 + i), Continue)
-      s.tick()
-    }
+    for (i <- 0 to 2002) assertEquals(buffer.onNext(i), Continue)
 
+    s.tick()
     assertEquals(received, 28)
-    promise.success(Continue); s.tick()
-    assertEquals(received, 28 + (247 to 250).sum)
-    assertEquals(log.get, 147)
 
-    buffer.onNext(10); s.tick()
-    assertEquals(received, 28 + (247 to 250).sum + 10)
+    promise.success(Continue); s.tick()
+    assertEquals(received, 28 + (2000 to 2002).sum)
+    assertEquals(log.get, 2000)
 
     buffer.onComplete(); s.tick()
     assert(wasCompleted, "wasCompleted should be true")

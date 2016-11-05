@@ -19,13 +19,11 @@ package monix.reactive.observers
 
 import minitest.TestSuite
 import monix.execution.Ack
-import monix.execution.Ack.{Stop, Continue}
-import monix.execution.internal.{Platform, RunnableAction}
+import monix.execution.Ack.{Continue, Stop}
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observer
 import monix.reactive.OverflowStrategy.DropNew
 import monix.reactive.exceptions.DummyException
-import monix.reactive.observers.BufferClearBufferThenSignalSuite._
 import scala.concurrent.{Future, Promise}
 
 object BufferDropNewSuite extends TestSuite[TestScheduler] {
@@ -35,7 +33,7 @@ object BufferDropNewSuite extends TestSuite[TestScheduler] {
       "TestScheduler should have no pending tasks")
   }
 
-  test("should not lose events, test 1") { implicit s =>
+  test("should not lose events, synchronous test 1") { implicit s =>
     var number = 0
     var wasCompleted = false
 
@@ -64,7 +62,7 @@ object BufferDropNewSuite extends TestSuite[TestScheduler] {
     assert(wasCompleted)
   }
 
-  test("should not lose events, test 2") { implicit s =>
+  test("should not lose events, synchronous test 2") { implicit s =>
     var number = 0
     var completed = false
 
@@ -87,7 +85,68 @@ object BufferDropNewSuite extends TestSuite[TestScheduler] {
 
     def loop(n: Int): Unit =
       if (n > 0)
-        s.execute(RunnableAction { buffer.onNext(n); loop(n-1) })
+        s.executeAsync { () => buffer.onNext(n); loop(n-1) }
+      else
+        buffer.onComplete()
+
+    loop(10000)
+    assert(!completed)
+    assertEquals(number, 0)
+
+    s.tick()
+    assert(completed)
+    assertEquals(number, 10000)
+  }
+
+  test("should not lose events, async test 1") { implicit s =>
+    var number = 0
+    var wasCompleted = false
+
+    val underlying = new Observer[Int] {
+      def onNext(elem: Int) = Future {
+        number += 1
+        Continue
+      }
+
+      def onError(ex: Throwable): Unit = {
+        s.reportFailure(ex)
+      }
+
+      def onComplete(): Unit = {
+        wasCompleted = true
+      }
+    }
+
+    val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), DropNew(1000))
+    for (i <- 0 until 1000) buffer.onNext(i)
+    buffer.onComplete()
+
+    assert(!wasCompleted)
+    s.tick()
+    assert(number == 1000)
+    assert(wasCompleted)
+  }
+
+  test("should not lose events, async test 2") { implicit s =>
+    var number = 0
+    var completed = false
+
+    val underlying = new Observer[Int] {
+      def onNext(elem: Int) = Future {
+        number += 1
+        Continue
+      }
+
+      def onError(ex: Throwable): Unit =
+        s.reportFailure(ex)
+      def onComplete(): Unit =
+        completed = true
+    }
+
+    val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), DropNew(10000))
+    def loop(n: Int): Unit =
+      if (n > 0)
+        s.executeAsync { () => buffer.onNext(n); loop(n-1) }
       else
         buffer.onComplete()
 
@@ -120,26 +179,20 @@ object BufferDropNewSuite extends TestSuite[TestScheduler] {
 
     val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), DropNew(5))
 
-    assertEquals(buffer.onNext(1), Continue)
-    assertEquals(buffer.onNext(2), Continue)
-    assertEquals(buffer.onNext(3), Continue)
-    assertEquals(buffer.onNext(4), Continue)
-    assertEquals(buffer.onNext(5), Continue)
-
+    for (i <- 1 to 9)
+      assertEquals(buffer.onNext(i), Continue)
     for (i <- 0 until 5)
-      assertEquals(buffer.onNext(6 + i), Continue)
+      assertEquals(buffer.onNext(10 + i), Continue)
 
     s.tick()
     assertEquals(received, 1)
 
     promise.success(Continue); s.tick()
-    assertEquals(received, (1 to 5).sum)
-
-    for (i <- 0 until 5)
-      assertEquals(buffer.onNext(6 + i), Continue)
+    assertEquals(received, (1 to 8).sum)
+    for (i <- 1 to 8) assertEquals(buffer.onNext(i), Continue)
 
     s.tick()
-    assertEquals(received, 55)
+    assertEquals(received, (1 to 8).sum * 2)
 
     buffer.onComplete(); s.tick()
     assert(wasCompleted, "wasCompleted should be true")
@@ -306,31 +359,5 @@ object BufferDropNewSuite extends TestSuite[TestScheduler] {
     s.tick()
     assertEquals(errorThrown, DummyException("dummy"))
     assertEquals(sum, (0 until 9999).sum)
-  }
-
-  test("should do synchronous execution in batches") { implicit s =>
-    var received = 0L
-    var wasCompleted = false
-
-    val buffer = buildNewWithSignal(Platform.recommendedBatchSize * 3, new Observer[Int] {
-      def onNext(elem: Int) = {
-        received += 1
-        Continue
-      }
-
-      def onError(ex: Throwable) = ()
-      def onComplete() = wasCompleted = true
-    })
-
-    for (i <- 0 until (Platform.recommendedBatchSize * 2)) buffer.onNext(i)
-    buffer.onComplete()
-    assertEquals(received, 0)
-
-    s.tickOne()
-    assertEquals(received, Platform.recommendedBatchSize)
-    s.tickOne()
-    assertEquals(received, Platform.recommendedBatchSize * 2)
-    s.tickOne()
-    assertEquals(wasCompleted, true)
   }
 }

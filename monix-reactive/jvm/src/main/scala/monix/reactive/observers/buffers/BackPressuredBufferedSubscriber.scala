@@ -23,9 +23,12 @@ import monix.reactive.observers.Subscriber
   * [[monix.reactive.OverflowStrategy.BackPressure BackPressure]]
   * buffer overflow strategy.
   */
-private[buffers] final class BackPressuredBufferedSubscriber[A] private
+private[observers] final class BackPressuredBufferedSubscriber[A] private
   (out: Subscriber[A], bufferSize: Int)
   extends AbstractBackPressuredBufferedSubscriber[A,A](out, bufferSize) {
+
+  @volatile protected var p50, p51, p52, p53, p54, p55, p56, p57 = 5
+  @volatile protected var q50, q51, q52, q53, q54, q55, q56, q57 = 5
 
   override protected def fetchNext(): A = {
     val ref = primaryQueue.relaxedPoll()
@@ -37,7 +40,7 @@ private[buffers] final class BackPressuredBufferedSubscriber[A] private
     if (r == null) 0 else 1
 }
 
-private[buffers] object BackPressuredBufferedSubscriber {
+private[observers] object BackPressuredBufferedSubscriber {
   def apply[A](underlying: Subscriber[A], bufferSize: Int): BackPressuredBufferedSubscriber[A] =
     new BackPressuredBufferedSubscriber[A](underlying, bufferSize)
 }
