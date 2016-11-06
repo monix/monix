@@ -17,31 +17,35 @@
 
 package monix
 
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.{CountDownLatch, TimeUnit}
 import org.openjdk.jmh.annotations._
 import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, Future, Promise}
+import scala.concurrent.{Await, Promise}
 
 /*
  * Sample run:
  *
- *     sbt "benchmarks/jmh:run -i 20 -wi 20 -f 1 -t 1 monix.BackPressuredBufferBenchmark"
+ *     sbt "benchmarks/jmh:run -r 2 -i 20 -w 2 -wi 20 -f 1 -t 1 monix.BackPressuredBufferBenchmark"
  *
- * Which means "10 iterations" "5 warmup iterations" "1 fork" "1 thread".
- * Please note that benchmarks should be usually executed at least in
- * 10 iterations (as a rule of thumb), but more is better.
+ * Which means "20 iterations" of "2 seconds" each, "20 warm-up
+ * iterations" of "2 seconds" each, "1 fork", "1 thread".  Please note
+ * that benchmarks should be usually executed at least in 10
+ * iterations (as a rule of thumb), but the more is better.
  */
-
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
 class BackPressuredBufferBenchmark {
+  // Number of threads that push messages
   @Param(Array("1", "2", "3", "4"))
   var parallelism = 0
 
+  // Overflowing on or off
+  @Param(Array("8192", "4096"))
+  var bufferSize = 0
+
   // Number of events to push per test
-  @Param(Array("2000", "10000"))
-  var eventsCount = 0
+  val eventsCount = 8000
 
   @Benchmark
   def monixBackPressured(): Long = {
@@ -68,14 +72,28 @@ class BackPressuredBufferBenchmark {
         promise.success(sum)
     }
 
-    val buffer = BufferedSubscriber[Long](out, OverflowStrategy.BackPressure(2048))
-    val futures =
-      for (i <- 0 until parallelism) yield Future {
-        for (j <- 0 until (eventsCount / parallelism))
-          buffer.onNext(j)
-      }
+    val buffer = BufferedSubscriber[Long](out, OverflowStrategy.BackPressure(bufferSize))
+    val start = new CountDownLatch(1)
+    val threadsStarted = new CountDownLatch(parallelism)
+    val threadsFinished = new CountDownLatch(parallelism)
 
-    Future.sequence(futures).map(_ => buffer.onComplete())
+    for (i <- 0 until parallelism) global.execute(
+      new Runnable {
+        def run() = {
+          threadsStarted.countDown()
+          start.await()
+          for (j <- 0 until (eventsCount / parallelism))
+            buffer.onNext(j)
+
+          threadsFinished.countDown()
+        }
+      })
+
+    threadsStarted.await()
+    start.countDown()
+    threadsFinished.await()
+    buffer.onComplete()
+
     Await.result(promise.future, Duration.Inf)
   }
 
@@ -83,8 +101,8 @@ class BackPressuredBufferBenchmark {
   def monifuBackPressured(): Long = {
     import monifu.concurrent.Scheduler
     import monifu.reactive.Ack.Continue
-    import monifu.reactive.{OverflowStrategy, Subscriber}
     import monifu.reactive.observers.BufferedSubscriber
+    import monifu.reactive.{OverflowStrategy, Subscriber}
 
     val promise = Promise[Long]()
     implicit val global: Scheduler =
@@ -105,14 +123,28 @@ class BackPressuredBufferBenchmark {
         promise.success(sum)
     }
 
-    val buffer = BufferedSubscriber[Long](out, OverflowStrategy.BackPressure(2048))
-    val futures =
-      for (i <- 0 until parallelism) yield Future {
-        for (j <- 0 until (eventsCount / parallelism))
-          buffer.onNext(j)
-      }
+    val buffer = BufferedSubscriber[Long](out, OverflowStrategy.BackPressure(bufferSize))
+    val start = new CountDownLatch(1)
+    val threadsStarted = new CountDownLatch(parallelism)
+    val threadsFinished = new CountDownLatch(parallelism)
 
-    Future.sequence(futures).map(_ => buffer.onComplete())
+    for (i <- 0 until parallelism) global.execute(
+      new Runnable {
+        def run() = {
+          threadsStarted.countDown()
+          start.await()
+          for (j <- 0 until (eventsCount / parallelism))
+            buffer.onNext(j)
+
+          threadsFinished.countDown()
+        }
+      })
+
+    threadsStarted.await()
+    start.countDown()
+    threadsFinished.await()
+    buffer.onComplete()
+
     Await.result(promise.future, Duration.Inf)
   }
 }

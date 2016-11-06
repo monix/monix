@@ -17,21 +17,21 @@
 
 package monix
 
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.{CountDownLatch, TimeUnit}
 import org.openjdk.jmh.annotations._
 import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, Future, Promise}
+import scala.concurrent.{Await, Promise}
 
 /*
  * Sample run:
  *
- *     sbt "benchmarks/jmh:run -i 20 -wi 20 -f 1 -t 1 monix.UnboundedBufferBenchmark"
+ *     sbt "benchmarks/jmh:run -r 2 -i 20 -w 2 -wi 20 -f 1 -t 1 monix.UnboundedBufferBenchmark"
  *
- * Which means "10 iterations" "5 warmup iterations" "1 fork" "1 thread".
- * Please note that benchmarks should be usually executed at least in
- * 10 iterations (as a rule of thumb), but more is better.
+ * Which means "20 iterations" of "2 seconds" each, "20 warm-up
+ * iterations" of "2 seconds" each, "1 fork", "1 thread".  Please note
+ * that benchmarks should be usually executed at least in 10
+ * iterations (as a rule of thumb), but the more is better.
  */
-
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
@@ -40,15 +40,14 @@ class UnboundedBufferBenchmark {
   var parallelism = 0
 
   // Number of events to push per test
-  val eventsCount = 10000
+  val eventsCount = 8000
 
   @Benchmark
   def monixUnbounded(): Long = {
-    import monix.reactive.OverflowStrategy
-    import monix.reactive.observers.Subscriber
-    import monix.reactive.observers.BufferedSubscriber
     import monix.execution.Ack.Continue
     import monix.execution.Scheduler
+    import monix.reactive.OverflowStrategy
+    import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 
     val promise = Promise[Long]()
     implicit val global: Scheduler = Scheduler.global
@@ -69,24 +68,36 @@ class UnboundedBufferBenchmark {
     }
 
     val buffer = BufferedSubscriber[Long](out, OverflowStrategy.Unbounded)
+    val start = new CountDownLatch(1)
+    val threadsStarted = new CountDownLatch(parallelism)
+    val threadsFinished = new CountDownLatch(parallelism)
 
-    val futures =
-      for (i <- 0 until parallelism) yield Future {
-        for (j <- 0 until (eventsCount / parallelism))
-          buffer.onNext(j)
-      }
+    for (i <- 0 until parallelism) global.execute(
+      new Runnable {
+        def run() = {
+          threadsStarted.countDown()
+          start.await()
+          for (j <- 0 until (eventsCount / parallelism))
+            buffer.onNext(j)
 
-    Future.sequence(futures).map(_ => buffer.onComplete())
+          threadsFinished.countDown()
+        }
+      })
+
+    threadsStarted.await()
+    start.countDown()
+    threadsFinished.await()
+    buffer.onComplete()
+
     Await.result(promise.future, Duration.Inf)
   }
 
   @Benchmark
   def monifuUnbounded(): Long = {
-    import monifu.reactive.OverflowStrategy
-    import monifu.reactive.Subscriber
-    import monifu.reactive.observers.BufferedSubscriber
-    import monifu.reactive.Ack.Continue
     import monifu.concurrent.Scheduler
+    import monifu.reactive.Ack.Continue
+    import monifu.reactive.{OverflowStrategy, Subscriber}
+    import monifu.reactive.observers.BufferedSubscriber
 
     val promise = Promise[Long]()
     implicit val global: Scheduler =
@@ -108,13 +119,27 @@ class UnboundedBufferBenchmark {
     }
 
     val buffer = BufferedSubscriber[Long](out, OverflowStrategy.Unbounded)
-    val futures =
-      for (i <- 0 until parallelism) yield Future {
-        for (j <- 0 until (eventsCount / parallelism))
-          buffer.onNext(j)
-      }
+    val start = new CountDownLatch(1)
+    val threadsStarted = new CountDownLatch(parallelism)
+    val threadsFinished = new CountDownLatch(parallelism)
 
-    Future.sequence(futures).map(_ => buffer.onComplete())
+    for (i <- 0 until parallelism) global.execute(
+      new Runnable {
+        def run() = {
+          threadsStarted.countDown()
+          start.await()
+          for (j <- 0 until (eventsCount / parallelism))
+            buffer.onNext(j)
+
+          threadsFinished.countDown()
+        }
+      })
+
+    threadsStarted.await()
+    start.countDown()
+    threadsFinished.await()
+    buffer.onComplete()
+
     Await.result(promise.future, Duration.Inf)
   }
 }

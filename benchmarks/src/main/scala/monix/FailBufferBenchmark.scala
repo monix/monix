@@ -25,22 +25,25 @@ import scala.concurrent.{Await, Future, Promise}
 /*
  * Sample run:
  *
- *     sbt "benchmarks/jmh:run -i 10 -wi 10 -f 1 -t 1 monix.OverflowingBufferBenchmark"
+ *     sbt "benchmarks/jmh:run -r 2 -i 20 -w 2 -wi 20 -f 1 -t 1 monix.FailBufferBenchmark"
  *
- * Which means "10 iterations" "5 warmup iterations" "1 fork" "1 thread".
- * Please note that benchmarks should be usually executed at least in
- * 10 iterations (as a rule of thumb), but more is better.
+ * Which means "20 iterations" of "2 seconds" each, "20 warm-up
+ * iterations" of "2 seconds" each, "1 fork", "1 thread".  Please note
+ * that benchmarks should be usually executed at least in 10
+ * iterations (as a rule of thumb), but the more is better.
  */
-
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-class OverflowingBufferBenchmark {
+class FailBufferBenchmark {
   @Param(Array("1", "2", "3", "4"))
   var parallelism = 0
 
-  // Number of events to push per test
-  val eventsCount = 10000
+  // Number of events to push per test:
+  // First value yields a fixed size queue in Monix,
+  // whereas the later yields a growable queue
+  @Param(Array("1000", "8000"))
+  val eventsCount = 0
 
   @Benchmark
   def monixOverflowing(): Long = {
@@ -68,7 +71,7 @@ class OverflowingBufferBenchmark {
         promise.success(sum)
     }
 
-    val buffer = BufferedSubscriber[Long](out, OverflowStrategy.Fail(11000))
+    val buffer = BufferedSubscriber[Long](out, OverflowStrategy.Fail(eventsCount))
 
     val futures =
       for (i <- 0 until parallelism) yield Future {
@@ -107,7 +110,7 @@ class OverflowingBufferBenchmark {
         promise.success(sum)
     }
 
-    val buffer = BufferedSubscriber[Long](out, OverflowStrategy.Fail(11000))
+    val buffer = BufferedSubscriber[Long](out, OverflowStrategy.Fail(eventsCount))
     val futures =
       for (i <- 0 until parallelism) yield Future {
         for (j <- 0 until (eventsCount / parallelism))
