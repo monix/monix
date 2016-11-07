@@ -32,7 +32,7 @@ lazy val warnUnusedImport = Seq(
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
   scalaVersion := "2.11.8",
-  crossScalaVersions := Seq("2.10.6", "2.11.8", "2.12.0"),
+  crossScalaVersions := Seq("2.10.6", "2.11.8"),
 
   scalacOptions ++= Seq(
     // warnings
@@ -157,7 +157,7 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
     new RuleTransformer(new RewriteRule {
       override def transform(node: xml.Node): Seq[xml.Node] = node match {
         case e: Elem
-            if e.label == "dependency" && e.child.exists(child => child.label == "groupId" && child.text == "org.scoverage") => Nil
+          if e.label == "dependency" && e.child.exists(child => child.label == "groupId" && child.text == "org.scoverage") => Nil
         case _ => Seq(node)
       }
     }).transform(node).head
@@ -261,7 +261,7 @@ def profile: Project ⇒ Project = pr => cmdlineProfile match {
 
 lazy val monix = project.in(file("."))
   .configure(profile)
-  .aggregate(coreJVM, coreJS, tckTests)
+  .aggregate(coreJVM, coreJS, catsJVM, catsJS, tckTests)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
   .settings(unidocSettings)
@@ -269,7 +269,7 @@ lazy val monix = project.in(file("."))
 lazy val coreJVM = project.in(file("monix/jvm"))
   .configure(profile)
   .dependsOn(typesJVM, executionJVM, evalJVM, reactiveJVM)
-  .aggregate(typesJVM, executionJVM, evalJVM, reactiveJVM, catsJVM, scalaz72JVM)
+  .aggregate(typesJVM, executionJVM, evalJVM, reactiveJVM, scalaz72JVM)
   .settings(crossSettings)
   .settings(name := "monix")
 
@@ -277,17 +277,17 @@ lazy val coreJS = project.in(file("monix/js"))
   .configure(profile)
   .enablePlugins(ScalaJSPlugin)
   .dependsOn(typesJS, executionJS, evalJS, reactiveJS)
-  .aggregate(typesJS, executionJS, evalJS, reactiveJS, catsJS, scalaz72JS)
+  .aggregate(typesJS, executionJS, evalJS, reactiveJS, scalaz72JS)
   .settings(crossSettings)
   .settings(scalaJSSettings)
   .settings(name := "monix")
 
 lazy val typesCommon = crossSettings ++ testSettings ++
   requiredMacroCompatDeps ++ Seq(
-    name := "monix-types",
-    // Suppress macro warnings in our own tests
-    scalacOptions in (Test, console) ~= (_ filterNot (_ == "-Xfatal-warnings"))
-  )
+  name := "monix-types",
+  // Suppress macro warnings in our own tests
+  scalacOptions in (Test, console) ~= (_ filterNot (_ == "-Xfatal-warnings"))
+)
 
 lazy val typesJVM = project.in(file("monix-types/jvm"))
   .configure(profile)
@@ -349,7 +349,6 @@ lazy val reactiveJVM = project.in(file("monix-reactive/jvm"))
   .dependsOn(typesJVM % "compile->compile; test->test")
   .dependsOn(executionJVM, evalJVM)
   .settings(reactiveCommon)
-  .settings(libraryDependencies += "org.jctools" % "jctools-core" % "2.0")
 
 lazy val reactiveJS = project.in(file("monix-reactive/js"))
   .enablePlugins(ScalaJSPlugin)
@@ -362,31 +361,17 @@ lazy val reactiveJS = project.in(file("monix-reactive/js"))
 lazy val catsCommon =
   crossSettings ++ testSettings ++ Seq(
     name := "monix-cats",
-    testFrameworks := Seq(new TestFramework("minitest.runner.Framework"))
-  )
+    testFrameworks := Seq(new TestFramework("minitest.runner.Framework")),
+    libraryDependencies ++= Seq(
+      "org.typelevel" %%% "cats-core" % catsVersion,
+      "org.typelevel" %%% "cats-laws" % catsVersion % "test"
+    ))
 
 lazy val catsJVM = project.in(file("monix-cats/jvm"))
   .configure(profile)
   .dependsOn(typesJVM)
   .dependsOn(reactiveJVM % "test")
   .settings(catsCommon)
-  .settings(Seq(
-    libraryDependencies ++=
-      (CrossVersion.partialVersion(scalaVersion.value) match {
-        case Some((2, 12)) =>
-          Seq(
-            "org.typelevel" % "cats-core_sjs0.6_2.12.0-RC2" % catsVersion,
-            "org.typelevel" % "cats-laws_sjs0.6_2.12.0-RC2" % catsVersion % "test",
-            "org.scalacheck" %%% "scalacheck" % "1.13.4" % "test",
-            "org.typelevel" %%% "discipline" % "0.7.2" % "test"
-          )
-        case _ =>
-          Seq(
-            "org.typelevel" %%% "cats-core" % catsVersion,
-            "org.typelevel" %%% "cats-laws" % catsVersion % "test"
-          )
-      })
-  ))
 
 lazy val catsJS = project.in(file("monix-cats/js"))
   .enablePlugins(ScalaJSPlugin)
@@ -395,28 +380,6 @@ lazy val catsJS = project.in(file("monix-cats/js"))
   .dependsOn(reactiveJS % "test")
   .settings(catsCommon)
   .settings(scalaJSSettings)
-  .settings(Seq(
-    libraryDependencies ++=
-      (CrossVersion.partialVersion(scalaVersion.value) match {
-        case Some((2, 12)) =>
-          Seq(
-            "org.typelevel" % "cats-core_sjs0.6_2.12.0-RC2" % catsVersion
-              excludeAll(ExclusionRule(organization = "org.scala-js")),
-            "org.typelevel" % "cats-laws_sjs0.6_2.12.0-RC2" % catsVersion % "test"
-              excludeAll(
-                ExclusionRule(organization = "org.scala-js"),
-                ExclusionRule(organization = "org.scalacheck"),
-                ExclusionRule(organization = "org.typelevel", name="discipline")),
-            "org.scalacheck" %%% "scalacheck" % "1.13.4" % "test",
-            "org.typelevel" %%% "discipline" % "0.7.2" % "test"
-          )
-        case _ =>
-          Seq(
-            "org.typelevel" %%% "cats-core" % catsVersion,
-            "org.typelevel" %%% "cats-laws" % catsVersion % "test"
-          )
-      })
-  ))
 
 lazy val scalaz72Common =
   crossSettings ++ testSettings ++ Seq(
@@ -460,6 +423,5 @@ lazy val benchmarks = project.in(file("benchmarks"))
   .settings(
     libraryDependencies ++= Seq(
       "org.scalaz" %% "scalaz-concurrent" % scalazVersion,
-      "io.reactivex" %% "rxscala" % "0.26.0",
-      "org.monifu" %% "monifu" % "1.2"
+      "io.reactivex" %% "rxscala" % "0.26.0"
     ))
