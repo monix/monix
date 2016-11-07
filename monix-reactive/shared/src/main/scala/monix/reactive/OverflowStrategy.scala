@@ -193,6 +193,7 @@ object OverflowStrategy {
     * start being dropped.
     */
   sealed abstract class Evicted[A] extends Synchronous[A] {
+    val bufferSize: Int
     override val isEvicted = true
   }
 

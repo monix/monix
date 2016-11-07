@@ -35,31 +35,31 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
     }
   }
 
-//  test("should work synchronously with batched requests") { implicit scheduler =>
-//    var sum = 0L
-//    var completed = false
-//
-//    val observer = new Observer[Long] {
-//      def onNext(elem: Long) = {
-//        sum += elem
-//        Continue
-//      }
-//
-//      def onError(ex: Throwable): Unit = {
-//        scheduler.reportFailure(ex)
-//      }
-//
-//      def onComplete(): Unit = {
-//        completed = true
-//      }
-//    }
-//
-//    Observable.range(0, 10000)
-//      .subscribe(Observer.toReactiveSubscriber(observer, bufferSize = 128))
-//
-//    scheduler.tick()
-//    assertEquals(sum, 5000L * 9999)
-//  }
+  test("should work with synchronous batched requests") { implicit scheduler =>
+    var sum = 0L
+    var completed = false
+
+    val observer = new Observer[Long] {
+      def onNext(elem: Long) = {
+        sum += elem
+        Continue
+      }
+
+      def onError(ex: Throwable): Unit = {
+        scheduler.reportFailure(ex)
+      }
+
+      def onComplete(): Unit = {
+        completed = true
+      }
+    }
+
+    Observable.range(0, 10000).toReactivePublisher
+      .subscribe(Observer.toReactiveSubscriber(observer, bufferSize = 128))
+
+    scheduler.tick()
+    assertEquals(sum, 5000L * 9999)
+  }
 
   test("should work synchronously and with requests of size 1") { implicit s =>
     var completed = false
@@ -183,47 +183,49 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
   }
 
   test("should cancel precisely with requests of size 1") { implicit s =>
-    var completed = 1
-    var sum = 0L
+    for (i <- 0 until 100) {
+      var completed = 0
+      var sum = 0L
 
-    val observer = new Observer[Long] {
-      private[this] var received = 0
+      val observer = new Observer[Long] {
+        private[this] var received = 0
 
-      def onNext(elem: Long) = Future {
-        received += 1
-        sum += elem
+        def onNext(elem: Long) = Future {
+          received += 1
+          sum += elem
 
-        if (received < 10)
-          Continue
-        else if (received == 10) {
-          completed -= 1
-          Stop
+          if (received < 10)
+            Continue
+          else if (received == 10) {
+            completed += 1
+            Stop
+          }
+          else
+            throw new IllegalStateException(s"onNext($elem)")
         }
-        else
-          throw new IllegalStateException(s"onNext($elem)")
+
+        def onError(ex: Throwable): Unit = {
+          completed += 1
+          throw ex
+        }
+
+        def onComplete(): Unit = {
+          completed += 1
+          throw new IllegalStateException("onComplete")
+        }
       }
 
-      def onError(ex: Throwable): Unit = {
-        completed -= 1
-        throw ex
-      }
+      Observable.range(1, 10000).toReactivePublisher
+        .subscribe(Observer.toReactiveSubscriber(observer, bufferSize = 1))
 
-      def onComplete(): Unit = {
-        completed -= 1
-        throw new IllegalStateException("onComplete")
-      }
+      s.tick()
+      assertEquals(sum, 5 * 11)
+      assertEquals(completed, 1)
     }
-
-    Observable.range(1, 10000).toReactivePublisher
-      .subscribe(Observer.toReactiveSubscriber(observer, bufferSize = 1))
-
-    s.tick()
-    assertEquals(sum, 5 * 11)
-    assertEquals(completed, 0)
   }
 
   test("should cancel precisely for one element and batched requests") { implicit s =>
-    var completed = 1
+    var completed = 0
     var sum = 0L
 
     val observer = new Observer[Long] {
@@ -232,19 +234,17 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
       def onNext(elem: Long) = Future {
         received += 1
         sum += elem
-        completed -= 1
+        completed += 1
         Stop
       }
 
       def onError(ex: Throwable): Unit = {
-        completed -= 1
+        completed += 1
         throw ex
       }
 
-      def onComplete(): Unit = {
-        completed -= 1
-        throw new IllegalStateException("onComplete")
-      }
+      def onComplete(): Unit =
+        completed += 1
     }
 
     Observable.now(100L).toReactivePublisher
@@ -252,11 +252,11 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
 
     s.tick()
     assertEquals(sum, 100L)
-    assertEquals(completed, 0)
+    assert(completed >= 1, "completed >= 1")
   }
 
   test("should cancel precisely for one element and requests of size one") { implicit s =>
-    var completed = 1
+    var completed = 0
     var sum = 0L
 
     val observer = new Observer[Long] {
@@ -265,19 +265,17 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
       def onNext(elem: Long) = Future {
         received += 1
         sum += elem
-        completed -= 1
+        completed += 1
         Stop
       }
 
       def onError(ex: Throwable): Unit = {
-        completed -= 1
+        completed += 1
         throw ex
       }
 
-      def onComplete(): Unit = {
-        completed -= 1
-        throw new IllegalStateException("onComplete")
-      }
+      def onComplete(): Unit =
+        completed += 1
     }
 
     Observable.now(100L).toReactivePublisher
@@ -285,6 +283,6 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
 
     s.tick()
     assertEquals(sum, 100L)
-    assertEquals(completed, 0)
+    assert(completed >= 1, "completed >= 1")
   }
 }

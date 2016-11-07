@@ -24,8 +24,10 @@ import monix.execution.Ack.Continue
 import monix.execution.{Ack, Scheduler}
 import monix.reactive.OverflowStrategy.Unbounded
 import monix.reactive.{Observable, Observer}
+
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, Promise}
+import scala.util.Random
 
 object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
   def tearDown(env: Scheduler) = ()
@@ -49,7 +51,7 @@ object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
     assertEquals(result, Some(num * 3 + num * 4 + num * 5))
   }
 
-  test("should not lose events, test 1") { implicit s =>
+  test("should not lose events with sync subscriber, test 1") { implicit s =>
     var number = 0
     val completed = new CountDownLatch(1)
 
@@ -76,7 +78,7 @@ object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
     assertEquals(number, 100000)
   }
 
-  test("should not lose events, test 2") { implicit s =>
+  test("should not lose events with sync subscriber, test 2") { implicit s =>
     var number = 0
     val completed = new CountDownLatch(1)
 
@@ -106,6 +108,84 @@ object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
     loop(10000)
     assert(completed.await(60, TimeUnit.SECONDS), "completed.await should have succeeded")
     assertEquals(number, 10000)
+  }
+
+  test("should not lose events with async subscriber from one publisher") { implicit s =>
+    var sum = 0
+    val completed = new CountDownLatch(1)
+
+    val underlying = new Observer[Int] {
+      var previous = 0
+
+      def process(elem: Int): Ack = {
+        assertEquals(elem, previous + 1)
+        sum += elem
+        previous = elem
+        Continue
+      }
+
+      def onNext(elem: Int): Future[Ack] = {
+        val shouldBeAsync = Random.nextInt() % 2 == 0
+        if (shouldBeAsync)
+          Future(process(elem))
+        else
+          process(elem)
+      }
+
+      def onError(ex: Throwable): Unit =
+        s.reportFailure(ex)
+
+      def onComplete(): Unit =
+        completed.countDown()
+    }
+
+    val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), Unbounded)
+    for (i <- 1 to 100000) buffer.onNext(i)
+    buffer.onComplete()
+
+    assert(completed.await(60, TimeUnit.SECONDS), "completed.await should have succeeded")
+    assertEquals(sum, 50000 * (100000 + 1))
+  }
+
+  test("should not lose events with async subscriber from multiple publishers") { implicit s =>
+    var sum = 0
+    val completed = new CountDownLatch(1)
+
+    val underlying = new Observer[Int] {
+      def process(elem: Int): Ack = {
+        sum += elem
+        Continue
+      }
+
+      def onNext(elem: Int): Future[Ack] = {
+        val shouldBeAsync = Random.nextInt() % 2 == 0
+        if (shouldBeAsync)
+          Future(process(elem))
+        else
+          process(elem)
+      }
+
+      def onError(ex: Throwable): Unit =
+        s.reportFailure(ex)
+
+      def onComplete(): Unit =
+        completed.countDown()
+    }
+
+    val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), Unbounded)
+    // Publisher 1
+    val p1 = Future { for (i <- 1 until 25000) buffer.onNext(i) }
+    // Publisher 2
+    val p2 = Future { for (i <- 25000 until 50000) buffer.onNext(i) }
+    // Publisher 3
+    val p3 = Future { for (i <- 50000 until 75000) buffer.onNext(i) }
+    // Publisher 4
+    val p4 = Future { for (i <- 75000 to 100000) buffer.onNext(i) }
+    // Final event
+    Future.sequence(Seq(p1,p2,p3,p4)).foreach(_ => buffer.onComplete())
+
+    assert(completed.await(60, TimeUnit.SECONDS), "completed.await should have succeeded")
+    assertEquals(sum, 50000 * (100000 + 1))
   }
 
   test("should send onError when empty") { implicit s =>
@@ -157,7 +237,7 @@ object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
     assert(latch.await(60, TimeUnit.SECONDS), "latch.await should have succeeded")
   }
 
-  test("should send onComplete when in flight") { implicit s =>
+  test("should not back-pressure onComplete") { implicit s =>
     val latch = new CountDownLatch(1)
     val promise = Promise[Ack]()
     val underlying = new Observer[Int] {
@@ -170,9 +250,6 @@ object BufferUnboundedConcurrencySuite extends TestSuite[Scheduler] {
 
     buffer.onNext(1)
     buffer.onComplete()
-    assert(!latch.await(1, TimeUnit.SECONDS), "latch.await should have failed")
-
-    promise.success(Continue)
     assert(latch.await(60, TimeUnit.SECONDS), "latch.await should have succeeded")
   }
 

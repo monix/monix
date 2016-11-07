@@ -44,7 +44,7 @@ package monix.execution.atomic
   * @see [[PaddingStrategy.Right128]]
   * @see [[PaddingStrategy.LeftRight256]]
   */
-sealed trait PaddingStrategy
+sealed abstract class PaddingStrategy
 
 object PaddingStrategy {
   /** A [[PaddingStrategy]] that specifies no padding should be applied.

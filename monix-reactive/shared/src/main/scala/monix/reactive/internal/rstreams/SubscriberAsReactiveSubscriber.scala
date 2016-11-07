@@ -65,7 +65,8 @@ private[monix] final class SubscriberAsReactiveSubscriber[T] private
   private[this] val buffer: RSubscriber[T] =
     SyncSubscriberAsReactiveSubscriber(
       BufferedSubscriber.synchronous(subscriber, Unbounded),
-      requestCount = requestCount)
+      requestCount = requestCount
+    )
 
   def onSubscribe(s: RSubscription): Unit =
     buffer.onSubscribe(s)

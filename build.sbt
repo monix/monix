@@ -32,7 +32,7 @@ lazy val warnUnusedImport = Seq(
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
   scalaVersion := "2.11.8",
-  crossScalaVersions := Seq("2.10.6", "2.11.8", "2.12.0-RC2"),
+  crossScalaVersions := Seq("2.10.6", "2.11.8"),
 
   scalacOptions ++= Seq(
     // warnings
@@ -157,7 +157,7 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
     new RuleTransformer(new RewriteRule {
       override def transform(node: xml.Node): Seq[xml.Node] = node match {
         case e: Elem
-            if e.label == "dependency" && e.child.exists(child => child.label == "groupId" && child.text == "org.scoverage") => Nil
+          if e.label == "dependency" && e.child.exists(child => child.label == "groupId" && child.text == "org.scoverage") => Nil
         case _ => Seq(node)
       }
     }).transform(node).head
@@ -261,7 +261,7 @@ def profile: Project ⇒ Project = pr => cmdlineProfile match {
 
 lazy val monix = project.in(file("."))
   .configure(profile)
-  .aggregate(coreJVM, coreJS, tckTests)
+  .aggregate(coreJVM, coreJS, catsJVM, catsJS, tckTests)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
   .settings(unidocSettings)
@@ -269,7 +269,7 @@ lazy val monix = project.in(file("."))
 lazy val coreJVM = project.in(file("monix/jvm"))
   .configure(profile)
   .dependsOn(typesJVM, executionJVM, evalJVM, reactiveJVM)
-  .aggregate(typesJVM, executionJVM, evalJVM, reactiveJVM, catsJVM, scalaz72JVM)
+  .aggregate(typesJVM, executionJVM, evalJVM, reactiveJVM, scalaz72JVM)
   .settings(crossSettings)
   .settings(name := "monix")
 
@@ -277,17 +277,17 @@ lazy val coreJS = project.in(file("monix/js"))
   .configure(profile)
   .enablePlugins(ScalaJSPlugin)
   .dependsOn(typesJS, executionJS, evalJS, reactiveJS)
-  .aggregate(typesJS, executionJS, evalJS, reactiveJS, catsJS, scalaz72JS)
+  .aggregate(typesJS, executionJS, evalJS, reactiveJS, scalaz72JS)
   .settings(crossSettings)
   .settings(scalaJSSettings)
   .settings(name := "monix")
 
 lazy val typesCommon = crossSettings ++ testSettings ++
   requiredMacroCompatDeps ++ Seq(
-    name := "monix-types",
-    // Suppress macro warnings in our own tests
-    scalacOptions in (Test, console) ~= (_ filterNot (_ == "-Xfatal-warnings"))
-  )
+  name := "monix-types",
+  // Suppress macro warnings in our own tests
+  scalacOptions in (Test, console) ~= (_ filterNot (_ == "-Xfatal-warnings"))
+)
 
 lazy val typesJVM = project.in(file("monix-types/jvm"))
   .configure(profile)
@@ -349,6 +349,7 @@ lazy val reactiveJVM = project.in(file("monix-reactive/jvm"))
   .dependsOn(typesJVM % "compile->compile; test->test")
   .dependsOn(executionJVM, evalJVM)
   .settings(reactiveCommon)
+  .settings(libraryDependencies += "org.jctools" % "jctools-core" % "2.0")
 
 lazy val reactiveJS = project.in(file("monix-reactive/js"))
   .enablePlugins(ScalaJSPlugin)

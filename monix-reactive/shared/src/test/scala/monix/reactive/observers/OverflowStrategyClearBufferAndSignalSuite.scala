@@ -18,21 +18,35 @@
 package monix.reactive.observers
 
 import minitest.TestSuite
-import monix.execution.Ack
-import monix.execution.Ack.{Stop, Continue}
-import monix.execution.internal.{RunnableAction, Platform}
+import monix.execution.Ack.{Continue, Stop}
+import monix.execution.atomic.AtomicLong
+import monix.execution.internal.{Platform, RunnableAction}
 import monix.execution.schedulers.TestScheduler
+import monix.execution.{Ack, Scheduler}
 import monix.reactive.Observer
-import monix.reactive.OverflowStrategy.ClearBuffer
+import monix.reactive.OverflowStrategy.ClearBufferAndSignal
 import monix.reactive.exceptions.DummyException
-import monix.reactive.observers.BufferClearBufferThenSignalSuite._
 import scala.concurrent.{Future, Promise}
 
-object BufferDropAllSuite extends TestSuite[TestScheduler] {
+object OverflowStrategyClearBufferAndSignalSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
     assert(s.state.tasks.isEmpty,
       "TestScheduler should have no pending tasks")
+  }
+
+  def buildNewWithSignal(bufferSize: Int, underlying: Observer[Int])
+    (implicit s: Scheduler) = {
+
+    BufferedSubscriber(Subscriber(underlying, s),
+      ClearBufferAndSignal(bufferSize, nr => Some(nr.toInt)))
+  }
+
+  def buildNewWithLog(bufferSize: Int, underlying: Observer[Int], log: AtomicLong)
+    (implicit s: Scheduler) = {
+
+    BufferedSubscriber[Int](Subscriber(underlying, s),
+      ClearBufferAndSignal(bufferSize, { nr => log.set(nr); None }))
   }
 
   test("should not lose events, test 1") { implicit s =>
@@ -54,7 +68,7 @@ object BufferDropAllSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), ClearBuffer(1000))
+    val buffer = buildNewWithSignal(1000, underlying)
     for (i <- 0 until 1000) buffer.onNext(i)
     buffer.onComplete()
 
@@ -83,7 +97,7 @@ object BufferDropAllSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), ClearBuffer(1000))
+    val buffer = buildNewWithSignal(1000, underlying)
 
     def loop(n: Int): Unit =
       if (n > 0)
@@ -100,7 +114,7 @@ object BufferDropAllSuite extends TestSuite[TestScheduler] {
     assertEquals(number, 10000)
   }
 
-  test("should drop old events when over capacity") { implicit s =>
+  test("should drop old events when over capacity and signal") { implicit s =>
     var received = 0
     var wasCompleted = false
     val promise = Promise[Ack]()
@@ -118,18 +132,67 @@ object BufferDropAllSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), ClearBuffer(5))
+    val buffer = buildNewWithSignal(8, underlying)
 
     for (i <- 1 to 7) assertEquals(buffer.onNext(i), Continue)
     s.tick()
     assertEquals(received, 28)
 
-    for (i <- 0 to 2000) assertEquals(buffer.onNext(i), Continue)
+    for (i <- 0 to 2004) assertEquals(buffer.onNext(i), Continue)
+    s.tick(); assertEquals(received, 28)
+
+    promise.success(Continue)
+    s.tick()
+
+    if (Platform.isJVM)
+      assertEquals(received, 28 + (2000 to 2004).sum + 2000)
+    else
+      assertEquals(received, 28 + (2002 to 2004).sum + 2002)
+
+    buffer.onComplete(); s.tick()
+    assert(wasCompleted, "wasCompleted should be true")
+  }
+
+  test("should drop old events when over capacity and log") { implicit s =>
+    var received = 0
+    var wasCompleted = false
+    val promise = Promise[Ack]()
+
+    val underlying = new Observer[Int] {
+      def onNext(elem: Int) = {
+        received += elem
+        if (elem < 7) Continue else promise.future
+      }
+
+      def onError(ex: Throwable) = ()
+
+      def onComplete() = {
+        wasCompleted = true
+      }
+    }
+
+    val log = AtomicLong(0)
+    val buffer = buildNewWithLog(5, underlying, log)
+
+    for (i <- 1 to 7) assertEquals(buffer.onNext(i), Continue)
+    s.tick()
+    assertEquals(received, 28)
+
+    for (i <- 0 to 2004) assertEquals(buffer.onNext(i), Continue)
+
     s.tick()
     assertEquals(received, 28)
 
     promise.success(Continue); s.tick()
-    assertEquals(received, 28 + (1995 to 2000).sum)
+
+    if (Platform.isJVM) {
+      assertEquals(received, 28 + (2000 to 2004).sum)
+      assertEquals(log.get, 2000)
+    }
+    else {
+      assertEquals(log.get, 2002)
+      assertEquals(received, 28 + (2002 to 2004).sum)
+    }
 
     buffer.onComplete(); s.tick()
     assert(wasCompleted, "wasCompleted should be true")
@@ -137,16 +200,14 @@ object BufferDropAllSuite extends TestSuite[TestScheduler] {
 
   test("should send onError when empty") { implicit s =>
     var errorThrown: Throwable = null
-    val buffer = BufferedSubscriber[Int](
-      new Subscriber[Int] {
-        def onError(ex: Throwable) = {
-          errorThrown = ex
-        }
+    val buffer = buildNewWithSignal(5, new Observer[Int] {
+      def onError(ex: Throwable) = {
+        errorThrown = ex
+      }
 
-        def onNext(elem: Int) = throw new IllegalStateException()
-        def onComplete() = throw new IllegalStateException()
-        val scheduler = s
-      }, ClearBuffer(5))
+      def onNext(elem: Int) = throw new IllegalStateException()
+      def onComplete() = throw new IllegalStateException()
+    })
 
     buffer.onError(DummyException("dummy"))
     s.tickOne()
@@ -158,15 +219,13 @@ object BufferDropAllSuite extends TestSuite[TestScheduler] {
 
   test("should send onError when in flight") { implicit s =>
     var errorThrown: Throwable = null
-    val buffer = BufferedSubscriber[Int](
-      new Subscriber[Int] {
-        def onError(ex: Throwable) = {
-          errorThrown = ex
-        }
-        def onNext(elem: Int) = Continue
-        def onComplete() = throw new IllegalStateException()
-        val scheduler = s
-      }, ClearBuffer(5))
+    val buffer = buildNewWithSignal(5, new Observer[Int] {
+      def onError(ex: Throwable) = {
+        errorThrown = ex
+      }
+      def onNext(elem: Int) = Continue
+      def onComplete() = throw new IllegalStateException()
+    })
 
     buffer.onNext(1)
     buffer.onError(DummyException("dummy"))
@@ -179,15 +238,13 @@ object BufferDropAllSuite extends TestSuite[TestScheduler] {
     var errorThrown: Throwable = null
     val promise = Promise[Ack]()
 
-    val buffer = BufferedSubscriber[Int](
-      new Subscriber[Int] {
-        def onError(ex: Throwable) = {
-          errorThrown = ex
-        }
-        def onNext(elem: Int) = promise.future
-        def onComplete() = throw new IllegalStateException()
-        val scheduler = s
-      }, ClearBuffer(5))
+    val buffer = buildNewWithSignal(5, new Observer[Int] {
+      def onError(ex: Throwable) = {
+        errorThrown = ex
+      }
+      def onNext(elem: Int) = promise.future
+      def onComplete() = throw new IllegalStateException()
+    })
 
     for (i <- 1 to 10) assertEquals(buffer.onNext(i), Continue)
     buffer.onError(DummyException("dummy"))
@@ -203,16 +260,14 @@ object BufferDropAllSuite extends TestSuite[TestScheduler] {
     var wasCompleted = false
     val startConsuming = Promise[Continue]()
 
-    val buffer = BufferedSubscriber[Long](
-      new Subscriber[Long] {
-        def onNext(elem: Long) = {
-          sum += elem
-          startConsuming.future
-        }
-        def onError(ex: Throwable) = throw ex
-        def onComplete() = wasCompleted = true
-        val scheduler = s
-      }, ClearBuffer(10000))
+    val buffer = buildNewWithSignal(10000, new Observer[Int] {
+      def onNext(elem: Int) = {
+        sum += elem
+        startConsuming.future
+      }
+      def onError(ex: Throwable) = throw ex
+      def onComplete() = wasCompleted = true
+    })
 
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onComplete()
@@ -227,16 +282,14 @@ object BufferDropAllSuite extends TestSuite[TestScheduler] {
     var sum = 0L
     var wasCompleted = false
 
-    val buffer = BufferedSubscriber[Long](
-      new Subscriber[Long] {
-        def onNext(elem: Long) = {
-          sum += elem
-          Continue
-        }
-        def onError(ex: Throwable) = throw ex
-        def onComplete() = wasCompleted = true
-        val scheduler = s
-      }, ClearBuffer(10000))
+    val buffer = buildNewWithSignal(10000, new Observer[Int] {
+      def onNext(elem: Int) = {
+        sum += elem
+        Continue
+      }
+      def onError(ex: Throwable) = throw ex
+      def onComplete() = wasCompleted = true
+    })
 
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onComplete()
@@ -251,16 +304,14 @@ object BufferDropAllSuite extends TestSuite[TestScheduler] {
     var errorThrown: Throwable = null
     val startConsuming = Promise[Continue]()
 
-    val buffer = BufferedSubscriber[Long](
-      new Subscriber[Long] {
-        def onNext(elem: Long) = {
-          sum += elem
-          startConsuming.future
-        }
-        def onError(ex: Throwable) = errorThrown = ex
-        def onComplete() = throw new IllegalStateException()
-        val scheduler = s
-      }, ClearBuffer(10000))
+    val buffer = buildNewWithSignal(10000, new Observer[Int] {
+      def onNext(elem: Int) = {
+        sum += elem
+        startConsuming.future
+      }
+      def onError(ex: Throwable) = errorThrown = ex
+      def onComplete() = throw new IllegalStateException()
+    })
 
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onError(DummyException("dummy"))
@@ -275,16 +326,14 @@ object BufferDropAllSuite extends TestSuite[TestScheduler] {
     var sum = 0L
     var errorThrown: Throwable = null
 
-    val buffer = BufferedSubscriber[Long](
-      new Subscriber[Long] {
-        def onNext(elem: Long) = {
-          sum += elem
-          Continue
-        }
-        def onError(ex: Throwable) = errorThrown = ex
-        def onComplete() = throw new IllegalStateException()
-        val scheduler = s
-      }, ClearBuffer(10000))
+    val buffer = buildNewWithSignal(10000, new Observer[Int] {
+      def onNext(elem: Int) = {
+        sum += elem
+        Continue
+      }
+      def onError(ex: Throwable) = errorThrown = ex
+      def onComplete() = throw new IllegalStateException()
+    })
 
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onError(DummyException("dummy"))
@@ -303,7 +352,6 @@ object BufferDropAllSuite extends TestSuite[TestScheduler] {
         received += 1
         Continue
       }
-
       def onError(ex: Throwable) = ()
       def onComplete() = wasCompleted = true
     })

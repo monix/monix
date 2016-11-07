@@ -13,6 +13,7 @@ else
     echo
     echo "TRAVIS_SCALA_VERSION=$TRAVIS_SCALA_VERSION"
     echo "MAIN_SCALA_VERSION=$MAIN_SCALA_VERSION"
+    echo "EXPERIMENTAL_SCALA_VERSION=$EXPERIMENTAL_SCALA_VERSION"
 fi
 
 function buildJVM {
@@ -20,14 +21,21 @@ function buildJVM {
     COMPILE="coreJVM/test:compile;tckTests/test:compile"
     TEST="coreJVM/test;tckTests/test"
 
+    if [ "$TRAVIS_SCALA_VERSION" = "$EXPERIMENTAL_SCALA_VERSION" ]; then
+        EXTRA_COMPILE=""
+        EXTRA_TEST=""
+    else
+        EXTRA_COMPILE=";catsJVM/test:compile"
+        EXTRA_TEST=";catsJVM/test"
+    fi
+
     if [ "$TRAVIS_SCALA_VERSION" = "$MAIN_SCALA_VERSION" ]; then
-        COMMAND="$INIT;coverage;$COMPILE;$TEST"
-        echo
+        COMMAND="$INIT;coverage;$COMPILE$EXTRA_COMPILE;$TEST$EXTRA_TEST"
         echo "Executing JVM tests (with coverage): sbt -Dsbt.profile=coverage $COMMAND"
-        echo
         sbt -Dsbt.profile=coverage "$COMMAND"
     else
-        COMMAND="$INIT;$COMPILE;$TEST"
+        COMMAND="$INIT;$COMPILE$EXTRA_COMPILE;$TEST$EXTRA_TEST"
+
         echo
         echo "Executing JVM tests: sbt \"$COMMAND\""
         echo
@@ -39,7 +47,16 @@ function buildJS {
     INIT=";++$TRAVIS_SCALA_VERSION;clean"
     COMPILE="coreJS/test:compile"
     TEST="coreJS/test"
-    COMMAND="$INIT;$COMPILE;$TEST"
+
+    if [ "$TRAVIS_SCALA_VERSION" = "$EXPERIMENTAL_SCALA_VERSION" ]; then
+        EXTRA_COMPILE=""
+        EXTRA_TEST=""
+    else
+        EXTRA_COMPILE=";catsJS/test:compile"
+        EXTRA_TEST=";catsJS/test"
+    fi
+
+    COMMAND="$INIT;$COMPILE$EXTRA_COMPILE;$TEST$EXTRA_TEST"
 
     echo
     echo "Executing JS tests: sbt \"$COMMAND\""
