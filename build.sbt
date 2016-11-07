@@ -380,8 +380,10 @@ lazy val catsJVM = project.in(file("monix-cats/jvm"))
           )
         case _ =>
           Seq(
-            "org.typelevel" %%% "cats-core" % catsVersion,
+            "org.typelevel" %%% "cats-core" % catsVersion
+              excludeAll(ExclusionRule(organization = "org.scala-js")),
             "org.typelevel" %%% "cats-laws" % catsVersion % "test"
+              excludeAll(ExclusionRule(organization = "org.scala-js"))
           )
       })
   ))
