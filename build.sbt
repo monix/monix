@@ -403,7 +403,10 @@ lazy val catsJS = project.in(file("monix-cats/js"))
             "org.typelevel" % "cats-core_sjs0.6_2.12.0-RC2" % catsVersion
               excludeAll(ExclusionRule(organization = "org.scala-js")),
             "org.typelevel" % "cats-laws_sjs0.6_2.12.0-RC2" % catsVersion % "test"
-              excludeAll(ExclusionRule(organization = "org.scala-js")),
+              excludeAll(
+                ExclusionRule(organization = "org.scala-js"),
+                ExclusionRule(organization = "org.scalacheck"),
+                ExclusionRule(organization = "org.typelevel", name="discipline")),
             "org.scalacheck" %%% "scalacheck" % "1.13.4" % "test",
             "org.typelevel" %%% "discipline" % "0.7.2" % "test"
           )
