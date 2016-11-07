@@ -32,7 +32,7 @@ lazy val warnUnusedImport = Seq(
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
   scalaVersion := "2.11.8",
-  crossScalaVersions := Seq("2.10.6", "2.11.8", "2.12.0-RC2"),
+  crossScalaVersions := Seq("2.10.6", "2.11.8", "2.12.0"),
 
   scalacOptions ++= Seq(
     // warnings
@@ -362,17 +362,29 @@ lazy val reactiveJS = project.in(file("monix-reactive/js"))
 lazy val catsCommon =
   crossSettings ++ testSettings ++ Seq(
     name := "monix-cats",
-    testFrameworks := Seq(new TestFramework("minitest.runner.Framework")),
-    libraryDependencies ++= Seq(
-      "org.typelevel" %%% "cats-core" % catsVersion,
-      "org.typelevel" %%% "cats-laws" % catsVersion % "test"
-    ))
+    testFrameworks := Seq(new TestFramework("minitest.runner.Framework"))
+  )
 
 lazy val catsJVM = project.in(file("monix-cats/jvm"))
   .configure(profile)
   .dependsOn(typesJVM)
   .dependsOn(reactiveJVM % "test")
   .settings(catsCommon)
+  .settings(Seq(
+    libraryDependencies ++=
+      (CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, 10 | 11)) =>
+          Seq(
+            "org.typelevel" %%% "cats-core" % catsVersion,
+            "org.typelevel" %%% "cats-laws" % catsVersion % "test"
+          )
+        case Some((2, 12)) =>
+          Seq(
+            "org.typelevel" % "cats-core_2.12.0-RC2" % catsVersion,
+            "org.typelevel" % "cats-laws_2.12.0-RC2" % catsVersion % "test"
+          )
+      })
+  ))
 
 lazy val catsJS = project.in(file("monix-cats/js"))
   .enablePlugins(ScalaJSPlugin)
@@ -381,6 +393,21 @@ lazy val catsJS = project.in(file("monix-cats/js"))
   .dependsOn(reactiveJS % "test")
   .settings(catsCommon)
   .settings(scalaJSSettings)
+  .settings(Seq(
+    libraryDependencies ++=
+      (CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, 10 | 11)) =>
+          Seq(
+            "org.typelevel" %%% "cats-core" % catsVersion,
+            "org.typelevel" %%% "cats-laws" % catsVersion % "test"
+          )
+        case Some((2, 12)) =>
+          Seq(
+            "org.typelevel" % "cats-core_sjs0.6_2.12.0-RC2" % catsVersion,
+            "org.typelevel" % "cats-laws_sjs0.6_2.12.0-RC2" % catsVersion % "test"
+          )
+      })
+  ))
 
 lazy val scalaz72Common =
   crossSettings ++ testSettings ++ Seq(
