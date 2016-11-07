@@ -17,39 +17,34 @@
 
 package monix.execution.internal.collection
 
+import monix.execution.internal.math._
+
 import scala.collection.mutable
 import scala.scalajs.js
 
-/**
- * A Javascript-array based queue.
- *
- * Inspired by: http://code.stephenmorley.org/javascript/queues/
- */
+/** A Javascript Array based queue.
+  *
+  * Inspired by: http://code.stephenmorley.org/javascript/queues/
+  */
 private[monix] final class ArrayQueue[A] private
-  (bufferSize: Int, triggerEx: Int => Throwable = null)
-  extends drainToArray[A] {
+  (_size: Int, triggerEx: Int => Throwable = null)
+  extends EvictingQueue[A] {
 
   private[this] var queue = new js.Array[A]()
   private[this] var offset = 0
+  private[this] val bufferSize =
+    if (_size <= 0) 0 else nextPowerOf2(_size)
 
-  val capacity = {
-    if (bufferSize > 0)
-      bufferSize
-    else
-      Int.MaxValue
-  }
-
-  def isAtCapacity: Boolean = {
+  override def capacity =
+    if (bufferSize == 0) Int.MaxValue else bufferSize
+  override def isAtCapacity: Boolean =
     queue.length - offset >= capacity
-  }
-
-  def length: Int = {
+  override def length: Int =
     queue.length - offset
-  }
-
-  override def isEmpty: Boolean = {
-    queue.length == 0
-  }
+  override def isEmpty: Boolean =
+    queue.length - offset == 0
+  override def nonEmpty: Boolean =
+    queue.length - offset > 0
 
   def offer(elem: A): Int = {
     if (elem == null) throw null

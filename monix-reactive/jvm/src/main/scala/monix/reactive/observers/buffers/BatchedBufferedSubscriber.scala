@@ -41,24 +41,18 @@ private[monix] final class BatchedBufferedSubscriber[A] private
     r.length
 
   override protected def fetchNext(): ListBuffer[A] = {
-    def drainFrom(queue: MessagePassingQueue[A], buffer: ListBuffer[A], limit: Int): Int = {
-      var size = 0
-      val consumer: Consumer[A] = new Consumer[A] {
-        def accept(e: A): Unit = {
-          buffer += e
-          size += 1
-        }
-      }
-
-      primaryQueue.drain(consumer, limit)
-      size
+    def drainFrom(queue: MessagePassingQueue[A], buffer: ListBuffer[A], limit: Int): Unit = {
+      val consumer: Consumer[A] = new Consumer[A] { def accept(e: A): Unit = buffer += e }
+      queue.drain(consumer, limit)
     }
 
     val batchSize = Platform.recommendedBatchSize
     val buffer = ListBuffer.empty[A]
-    val drained = drainFrom(primaryQueue, buffer, batchSize)
+    drainFrom(primaryQueue, buffer, batchSize)
+
+    val drained = buffer.length
     if (drained < batchSize) drainFrom(secondaryQueue, buffer, batchSize - drained)
-    buffer
+    if (buffer.nonEmpty) buffer else null
   }
 }
 

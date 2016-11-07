@@ -20,18 +20,22 @@ package monix.reactive.observers.buffers
 import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.internal.collection.ArrayQueue
+import monix.execution.internal.math.nextPowerOf2
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
+
 import scala.concurrent.{Future, Promise}
+import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
 /** Shared internals between [[BackPressuredBufferedSubscriber]] and
   * [[BatchedBufferedSubscriber]].
   */
 private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
-  (out: Subscriber[R], bufferSize: Int)
+  (out: Subscriber[R], _size: Int)
   extends BufferedSubscriber[A] {
 
-  require(bufferSize > 0, "bufferSize must be a strictly positive number")
+  require(_size > 0, "bufferSize must be a strictly positive number")
+  private[this] val bufferSize = nextPowerOf2(_size)
 
   private[this] val em = out.scheduler.executionModel
   implicit final val scheduler = out.scheduler
@@ -39,7 +43,7 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
   private[this] var upstreamIsComplete = false
   private[this] var downstreamIsComplete = false
   private[this] var errorThrown: Throwable = null
-  private[this] var isLoopActive = true
+  private[this] var isLoopActive = false
   private[this] var backPressured: Promise[Ack] = null
   private[this] var lastIterationAck: Future[Ack] = Continue
   protected val queue = ArrayQueue.unbounded[A]
@@ -53,7 +57,8 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
     }
     else backPressured match {
       case null =>
-        if (queue.offer(elem) == 0) {
+        if (queue.length < bufferSize) {
+          queue.offer(elem)
           pushToConsumer()
           Continue
         } else {
@@ -90,13 +95,12 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
       scheduler.execute(consumerRunLoop)
     }
 
-  protected def fetchSize(r: R): Int
   protected def fetchNext(): R
 
   private[this] val consumerRunLoop = new Runnable {
     def run(): Unit = fastLoop(lastIterationAck, 0)
 
-    private final def goAsync(next: R, nextSize: Int, ack: Future[Ack]): Unit =
+    private final def goAsync(next: R, ack: Future[Ack]): Unit = {
       ack.onComplete {
         case Success(Continue) =>
           val nextAck = out.onNext(next)
@@ -115,6 +119,8 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
           isLoopActive = false
           out.onError(ex)
       }
+    }
+
 
     @inline
     private def downstreamSignalComplete(ex: Throwable = null): Unit = {
@@ -128,20 +134,23 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
     @inline
     private def stopStreaming(): Unit = {
       downstreamIsComplete = true
-      if (backPressured != null) backPressured.success(Stop)
       isLoopActive = false
+      if (backPressured != null) {
+        backPressured.success(Stop)
+        backPressured = null
+      }
     }
 
     private final def fastLoop(prevAck: Future[Ack], startIndex: Int): Unit = {
       var ack = if (prevAck == null) Continue else prevAck
       var isFirstIteration = ack == Continue
       var nextIndex = startIndex
+      var streamErrors = true
 
-      while (!downstreamIsComplete) {
+      try while (isLoopActive && !downstreamIsComplete) {
         val next = fetchNext()
-        val nextSize = fetchSize(next)
 
-        if (nextSize > 0) {
+        if (next != null) {
           if (nextIndex > 0 || isFirstIteration) {
             isFirstIteration = false
 
@@ -161,27 +170,35 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
                 return
 
               case async =>
-                goAsync(next, nextSize, ack)
+                goAsync(next, ack)
                 return
             }
           }
           else {
-            goAsync(next, nextSize, ack)
+            goAsync(next, ack)
             return
           }
         }
         else {
           // Ending loop
-          val bp = backPressured
-          if (bp != null) {
+          if (backPressured != null) {
+            backPressured.success(if (upstreamIsComplete) Stop else Continue)
             backPressured = null
-            bp.success(if (upstreamIsComplete) Stop else Continue)
           }
 
+          streamErrors = false
           if (upstreamIsComplete) downstreamSignalComplete(errorThrown)
           lastIterationAck = ack
           isLoopActive = false
+          return
         }
+      }
+      catch {
+        case NonFatal(ex) =>
+          if (streamErrors) downstreamSignalComplete(ex)
+          else scheduler.reportFailure(ex)
+          lastIterationAck = Stop
+          isLoopActive = false
       }
     }
   }

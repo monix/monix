@@ -37,10 +37,9 @@ import scala.reflect.ClassTag
   *        can be expressed as a power of 2, minus 1)
   */
 private[monix] final class DropAllOnOverflowQueue[A : ClassTag] private (_recommendedCapacity: Int)
-  extends drainToArray[A] { self =>
+  extends EvictingQueue[A] { self =>
 
   require(_recommendedCapacity > 0, "recommendedCapacity must be positive")
-
   private[this] val maxSize = {
     val v = nextPowerOf2(_recommendedCapacity)
     if (v <= 1) 2 else v
@@ -55,17 +54,12 @@ private[monix] final class DropAllOnOverflowQueue[A : ClassTag] private (_recomm
   // tail is incremented by `offer()`
   private[this] var tailIdx = 0
 
-  def isAtCapacity: Boolean = {
+  override def isAtCapacity: Boolean =
     size >= modulus
-  }
-
-  override def isEmpty: Boolean = {
+  override def isEmpty: Boolean =
     headIdx == tailIdx
-  }
-
-  override def nonEmpty: Boolean = {
+  override def nonEmpty: Boolean =
     headIdx != tailIdx
-  }
 
   def offer(elem: A): Int = {
     if (elem == null) throw new NullPointerException

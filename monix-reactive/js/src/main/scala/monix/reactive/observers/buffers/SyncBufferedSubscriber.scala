@@ -26,12 +26,11 @@ import scala.concurrent.Future
 import scala.util.{Failure, Success}
 import scala.util.control.NonFatal
 
-/**
-  * A [[BufferedSubscriber]] implementation for the
+/** A [[BufferedSubscriber]] implementation for the
   * [[monix.reactive.OverflowStrategy.DropNew DropNew]] overflow strategy.
   */
 private[observers] final class SyncBufferedSubscriber[-A] private
-  (out: Subscriber[A], queue: drainToArray[A], onOverflow: Long => Option[A] = null)
+  (out: Subscriber[A], queue: EvictingQueue[A], onOverflow: Long => Option[A] = null)
   extends BufferedSubscriber[A] with Subscriber.Sync[A] {
 
   implicit val scheduler = out.scheduler
@@ -54,7 +53,7 @@ private[observers] final class SyncBufferedSubscriber[-A] private
     if (!upstreamIsComplete && !downstreamIsComplete) {
       try {
         droppedCount += queue.offer(elem)
-        pushToConsumer()
+        consume()
         Continue
       }
       catch {
@@ -71,18 +70,18 @@ private[observers] final class SyncBufferedSubscriber[-A] private
     if (!upstreamIsComplete && !downstreamIsComplete) {
       errorThrown = ex
       upstreamIsComplete = true
-      pushToConsumer()
+      consume()
     }
   }
 
   def onComplete(): Unit = {
     if (!upstreamIsComplete && !downstreamIsComplete) {
       upstreamIsComplete = true
-      pushToConsumer()
+      consume()
     }
   }
 
-  private def pushToConsumer(): Unit =
+  private def consume(): Unit =
     if (!isLoopActive) {
       isLoopActive = true
       scheduler.execute(consumerRunLoop)
@@ -96,10 +95,8 @@ private[observers] final class SyncBufferedSubscriber[-A] private
     @inline
     private def downstreamSignalComplete(ex: Throwable = null): Unit = {
       downstreamIsComplete = true
-      if (ex != null)
-        out.onError(ex)
-      else
-        out.onComplete()
+      if (ex != null) out.onError(ex)
+      else out.onComplete()
     }
 
     private def goAsync(next: A, ack: Future[Ack]): Unit =
@@ -127,7 +124,7 @@ private[observers] final class SyncBufferedSubscriber[-A] private
       var isFirstIteration = ack == Continue
       var nextIndex = startIndex
 
-      while (!downstreamIsComplete) {
+      while (isLoopActive && !downstreamIsComplete) {
         var streamErrors = true
         try {
           val next = {
@@ -159,7 +156,7 @@ private[observers] final class SyncBufferedSubscriber[-A] private
 
               ack match {
                 case Continue =>
-                  ack = out.onNext(next)
+                  ack = out.onNext(next).syncTryFlatten
                   if (ack == Stop) {
                     // ending loop
                     downstreamIsComplete = true
@@ -191,6 +188,7 @@ private[observers] final class SyncBufferedSubscriber[-A] private
             // ending loop
             lastIterationAck = ack
             isLoopActive = false
+            return
           }
         } catch {
           case NonFatal(ex) =>
@@ -198,8 +196,10 @@ private[observers] final class SyncBufferedSubscriber[-A] private
               // ending loop
               downstreamSignalComplete(ex)
               isLoopActive = false
+              return
             } else {
               scheduler.reportFailure(ex)
+              return
             }
         }
       }
@@ -224,9 +224,7 @@ private[monix] object SyncBufferedSubscriber {
     * overflow strategy.
     */
   def bounded[T](underlying: Subscriber[T], bufferSize: Int): Subscriber.Sync[T] = {
-    require(bufferSize > 1,
-      "bufferSize must be a strictly positive number, bigger than 1")
-
+    require(bufferSize > 1, "bufferSize must be strictly higher than 1")
     val buffer = ArrayQueue.bounded[T](bufferSize, capacity => {
       new BufferOverflowException(
         s"Downstream observer is too slow, buffer over capacity with a " +
@@ -242,9 +240,7 @@ private[monix] object SyncBufferedSubscriber {
     * overflow strategy.
     */
   def dropNew[T](underlying: Subscriber[T], bufferSize: Int): Subscriber.Sync[T] = {
-    require(bufferSize > 1,
-      "bufferSize must be a strictly positive number, bigger than 1")
-
+    require(bufferSize > 1, "bufferSize must be strictly higher than 1")
     val buffer = ArrayQueue.bounded[T](bufferSize)
     new SyncBufferedSubscriber[T](underlying, buffer, null)
   }
@@ -255,9 +251,7 @@ private[monix] object SyncBufferedSubscriber {
     * overflow strategy.
     */
   def dropNewAndSignal[T](underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => Option[T]): Subscriber.Sync[T] = {
-    require(bufferSize > 1,
-      "bufferSize must be a strictly positive number, bigger than 1")
-
+    require(bufferSize > 1, "bufferSize must be strictly higher than 1")
     val buffer = ArrayQueue.bounded[T](bufferSize)
     new SyncBufferedSubscriber[T](underlying, buffer, onOverflow)
   }
@@ -268,10 +262,8 @@ private[monix] object SyncBufferedSubscriber {
     * overflow strategy.
     */
   def dropOld[T](underlying: Subscriber[T], bufferSize: Int): Subscriber.Sync[T] = {
-    require(bufferSize > 1,
-      "bufferSize must be a strictly positive number, bigger than 1")
-
-    val buffer = DropHeadOnOverflowQueue[AnyRef](bufferSize).asInstanceOf[drainToArray[T]]
+    require(bufferSize > 1, "bufferSize must be strictly higher than 1")
+    val buffer = DropHeadOnOverflowQueue[AnyRef](bufferSize).asInstanceOf[EvictingQueue[T]]
     new SyncBufferedSubscriber[T](underlying, buffer, null)
   }
 
@@ -282,10 +274,8 @@ private[monix] object SyncBufferedSubscriber {
     * were dropped.
     */
   def dropOldAndSignal[T](underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => Option[T]): Subscriber.Sync[T] = {
-    require(bufferSize > 1,
-      "bufferSize must be a strictly positive number, bigger than 1")
-
-    val buffer = DropHeadOnOverflowQueue[AnyRef](bufferSize).asInstanceOf[drainToArray[T]]
+    require(bufferSize > 1, "bufferSize must be strictly higher than 1")
+    val buffer = DropHeadOnOverflowQueue[AnyRef](bufferSize).asInstanceOf[EvictingQueue[T]]
     new SyncBufferedSubscriber[T](underlying, buffer, onOverflow)
   }
 
@@ -295,10 +285,8 @@ private[monix] object SyncBufferedSubscriber {
     * overflow strategy.
     */
   def clearBuffer[T](underlying: Subscriber[T], bufferSize: Int): Subscriber.Sync[T] = {
-    require(bufferSize > 1,
-      "bufferSize must be a strictly positive number, bigger than 1")
-
-    val buffer = DropAllOnOverflowQueue[AnyRef](bufferSize).asInstanceOf[drainToArray[T]]
+    require(bufferSize > 1, "bufferSize must be strictly higher than 1")
+    val buffer = DropAllOnOverflowQueue[AnyRef](bufferSize).asInstanceOf[EvictingQueue[T]]
     new SyncBufferedSubscriber[T](underlying, buffer, null)
   }
 
@@ -309,9 +297,8 @@ private[monix] object SyncBufferedSubscriber {
     * were dropped.
     */
   def clearBufferAndSignal[T](underlying: Subscriber[T], bufferSize: Int, onOverflow: Long => Option[T]): Subscriber.Sync[T] = {
-    require(bufferSize > 1, "bufferSize must be a strictly positive number, bigger than 1")
-
-    val buffer = DropAllOnOverflowQueue[AnyRef](bufferSize).asInstanceOf[drainToArray[T]]
+    require(bufferSize > 1, "bufferSize must be strictly higher than 1")
+    val buffer = DropAllOnOverflowQueue[AnyRef](bufferSize).asInstanceOf[EvictingQueue[T]]
     new SyncBufferedSubscriber[T](underlying, buffer, onOverflow)
   }
 }

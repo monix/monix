@@ -24,11 +24,12 @@ import monix.execution.internal.{Platform, RunnableAction}
 import monix.execution.schedulers.TestScheduler
 import monix.execution.{Ack, Scheduler}
 import monix.reactive.Observer
-import monix.reactive.OverflowStrategy.ClearBufferAndSignal
+import monix.reactive.OverflowStrategy.DropOldAndSignal
 import monix.reactive.exceptions.DummyException
+
 import scala.concurrent.{Future, Promise}
 
-object BufferClearBufferAndSignalSuite extends TestSuite[TestScheduler] {
+object OverflowStrategyDropOldAndSignalSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(s: TestScheduler) = {
     assert(s.state.tasks.isEmpty,
@@ -38,15 +39,15 @@ object BufferClearBufferAndSignalSuite extends TestSuite[TestScheduler] {
   def buildNewWithSignal(bufferSize: Int, underlying: Observer[Int])
     (implicit s: Scheduler) = {
 
-    BufferedSubscriber(Subscriber(underlying, s),
-      ClearBufferAndSignal(bufferSize, nr => Some(nr.toInt)))
+    BufferedSubscriber.synchronous(
+      Subscriber(underlying, s), DropOldAndSignal(bufferSize, nr => Some(nr.toInt)))
   }
 
   def buildNewWithLog(bufferSize: Int, underlying: Observer[Int], log: AtomicLong)
     (implicit s: Scheduler) = {
 
-    BufferedSubscriber[Int](Subscriber(underlying, s),
-      ClearBufferAndSignal(bufferSize, { nr => log.set(nr); None }))
+    BufferedSubscriber.synchronous[Int](
+      Subscriber(underlying, s), DropOldAndSignal(bufferSize, { nr => log.set(nr); None }))
   }
 
   test("should not lose events, test 1") { implicit s =>
@@ -138,17 +139,23 @@ object BufferClearBufferAndSignalSuite extends TestSuite[TestScheduler] {
     s.tick()
     assertEquals(received, 28)
 
-    for (i <- 0 to 2002) assertEquals(buffer.onNext(i), Continue)
-    s.tick(); assertEquals(received, 28)
+    for (i <- 0 to 1000) assertEquals(buffer.onNext(100 + i), Continue)
+    s.tick()
+    assertEquals(received, 28)
 
     promise.success(Continue); s.tick()
-    assertEquals(received, 28 + (2000 to 2002).sum + 2000)
+
+    // Different queue implementations :-(
+    val first = if (Platform.isJVM) 1093 else 1094
+    val dropped = if (Platform.isJVM) 993 else 994
+
+    assertEquals(received, (first to 1100).sum + 28 + dropped)
 
     buffer.onComplete(); s.tick()
     assert(wasCompleted, "wasCompleted should be true")
   }
 
-  test("should drop old events when over capacity and log") { implicit s =>
+  test("should drop old events when over capacity and log once") { implicit s =>
     var received = 0
     var wasCompleted = false
     val promise = Promise[Ack]()
@@ -167,20 +174,32 @@ object BufferClearBufferAndSignalSuite extends TestSuite[TestScheduler] {
     }
 
     val log = AtomicLong(0)
-    val buffer = buildNewWithLog(5, underlying, log)
+    val buffer = buildNewWithLog(8, underlying, log)
 
     for (i <- 1 to 7) assertEquals(buffer.onNext(i), Continue)
     s.tick()
     assertEquals(received, 28)
 
-    for (i <- 0 to 2002) assertEquals(buffer.onNext(i), Continue)
-
+    for (i <- 0 to 1000) assertEquals(buffer.onNext(100 + i), Continue)
     s.tick()
     assertEquals(received, 28)
 
     promise.success(Continue); s.tick()
-    assertEquals(received, 28 + (2000 to 2002).sum)
-    assertEquals(log.get, 2000)
+
+    // Different queue implementations :-(
+    // Different queue implementations :-(
+    val first = if (Platform.isJVM) 1093 else 1094
+    val dropped = if (Platform.isJVM) 993 else 994
+
+    assertEquals(received, (first to 1100).sum + 28)
+    assertEquals(log.get, dropped)
+
+    log.set(0)
+    assertEquals(buffer.onNext(42), Continue)
+
+    s.tick()
+
+    assertEquals(log.get, 0)
 
     buffer.onComplete(); s.tick()
     assert(wasCompleted, "wasCompleted should be true")
@@ -217,8 +236,8 @@ object BufferClearBufferAndSignalSuite extends TestSuite[TestScheduler] {
 
     buffer.onNext(1)
     buffer.onError(DummyException("dummy"))
-    s.tick()
 
+    s.tick()
     assertEquals(errorThrown, DummyException("dummy"))
   }
 
@@ -340,6 +359,7 @@ object BufferClearBufferAndSignalSuite extends TestSuite[TestScheduler] {
         received += 1
         Continue
       }
+
       def onError(ex: Throwable) = ()
       def onComplete() = wasCompleted = true
     })

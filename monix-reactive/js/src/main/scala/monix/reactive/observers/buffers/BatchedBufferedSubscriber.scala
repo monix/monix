@@ -27,17 +27,14 @@ import scala.collection.mutable.ListBuffer
   */
 private[monix] final class BatchedBufferedSubscriber[A] private
   (out: Subscriber[List[A]], bufferSize: Int)
-  extends AbstractBackPressuredBufferedSubscriber[A, ListBuffer[A]](
-    subscriberBufferToList(out), bufferSize) { self =>
+  extends AbstractBackPressuredBufferedSubscriber[A, List[A]](out, bufferSize) { self =>
 
-  override protected def fetchSize(r: ListBuffer[A]): Int =
-    r.length
-
-  override protected def fetchNext(): ListBuffer[A] = {
-    val buffer = ListBuffer.empty[A]
-    queue.drainToBuffer(buffer, Platform.recommendedBatchSize)
-    buffer
-  }
+  override protected def fetchNext(): List[A] =
+    if (queue.isEmpty) null else {
+      val buffer = ListBuffer.empty[A]
+      queue.drainToBuffer(buffer, Platform.recommendedBatchSize)
+      buffer.toList
+    }
 }
 
 private[monix] object BatchedBufferedSubscriber {

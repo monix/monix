@@ -118,8 +118,8 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
     }
   }
 
-  protected def fetchSize(r: R): Int
   protected def fetchNext(): R
+  protected def fetchSize(r: R): Int
 
   private[this] val consumerRunLoop = new Runnable {
     def run(): Unit = {
@@ -161,9 +161,10 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
 
       while (!downstreamIsComplete) {
         val next = fetchNext()
-        val nextSize = fetchSize(next)
 
-        if (nextSize > 0) {
+        if (next != null) {
+          val nextSize = fetchSize(next)
+
           if (nextIndex > 0 || isFirstIteration) {
             isFirstIteration = false
 
@@ -198,7 +199,7 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
           // visible, then the queue should be fully published because
           // there's a clear happens-before relationship between
           // queue.offer() and upstreamIsComplete=true
-          if (primaryQueue.isEmpty) {
+          if (primaryQueue.isEmpty && secondaryQueue.isEmpty) {
             // ending loop
             stopStreaming()
             if (errorThrown ne null) out.onError(errorThrown)
@@ -213,8 +214,8 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
           // producer side, we will also have the latest lastIterationAck
           lastIterationAck = ack
           val remaining = itemsToPush.decrementAndGet(processed)
-
           processed = 0
+
           // if the queue is non-empty (i.e. concurrent modifications
           // just happened) then continue loop, otherwise stop
           if (remaining <= 0) {

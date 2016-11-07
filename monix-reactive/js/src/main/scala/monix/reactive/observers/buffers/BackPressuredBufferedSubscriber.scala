@@ -24,15 +24,13 @@ import monix.reactive.observers.Subscriber
   * buffer overflowStrategy.
   */
 private[monix] final class BackPressuredBufferedSubscriber[A] private
-  (out: Subscriber[A], bufferSize: Int)
-  extends AbstractBackPressuredBufferedSubscriber[A,A](out,bufferSize) { self =>
+  (out: Subscriber[A], _size: Int)
+  extends AbstractBackPressuredBufferedSubscriber[A,A](out,_size) { self =>
 
-  require(bufferSize > 0, "bufferSize must be a strictly positive number")
+  require(_size > 0, "bufferSize must be a strictly positive number")
 
   override protected def fetchNext(): A =
     queue.poll()
-  override protected def fetchSize(r: A): Int =
-    if (r == null) 0 else 1
 }
 
 private[monix] object BackPressuredBufferedSubscriber {

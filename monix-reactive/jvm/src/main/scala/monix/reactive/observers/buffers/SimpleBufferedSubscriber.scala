@@ -57,7 +57,6 @@ private[observers] abstract class AbstractSimpleBufferedSubscriber[A] protected
   private[this] val queue = _qRef
   private[this] val em = out.scheduler.executionModel
   implicit val scheduler = out.scheduler
-
   private[this] val itemsToPush =
     Atomic.withPadding(0, LeftRight256)
 
