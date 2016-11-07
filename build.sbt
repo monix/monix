@@ -349,6 +349,7 @@ lazy val reactiveJVM = project.in(file("monix-reactive/jvm"))
   .dependsOn(typesJVM % "compile->compile; test->test")
   .dependsOn(executionJVM, evalJVM)
   .settings(reactiveCommon)
+  .settings(libraryDependencies += "org.jctools" % "jctools-core" % "2.0")
 
 lazy val reactiveJS = project.in(file("monix-reactive/js"))
   .enablePlugins(ScalaJSPlugin)
