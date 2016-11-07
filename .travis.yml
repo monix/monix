@@ -11,11 +11,6 @@ scala:
 jdk:
   - oraclejdk8
 
-matrix:
-  include:
-  - scala: 2.10.6
-    jdk: oraclejdk7
-
 notifications:
   webhooks:
     urls:
