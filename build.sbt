@@ -373,15 +373,15 @@ lazy val catsJVM = project.in(file("monix-cats/jvm"))
   .settings(Seq(
     libraryDependencies ++=
       (CrossVersion.partialVersion(scalaVersion.value) match {
-        case Some((2, 10 | 11)) =>
-          Seq(
-            "org.typelevel" %%% "cats-core" % catsVersion,
-            "org.typelevel" %%% "cats-laws" % catsVersion % "test"
-          )
         case Some((2, 12)) =>
           Seq(
             "org.typelevel" % "cats-core_2.12.0-RC2" % catsVersion,
             "org.typelevel" % "cats-laws_2.12.0-RC2" % catsVersion % "test"
+          )
+        case _ =>
+          Seq(
+            "org.typelevel" %%% "cats-core" % catsVersion,
+            "org.typelevel" %%% "cats-laws" % catsVersion % "test"
           )
       })
   ))
@@ -396,15 +396,15 @@ lazy val catsJS = project.in(file("monix-cats/js"))
   .settings(Seq(
     libraryDependencies ++=
       (CrossVersion.partialVersion(scalaVersion.value) match {
-        case Some((2, 10 | 11)) =>
-          Seq(
-            "org.typelevel" %%% "cats-core" % catsVersion,
-            "org.typelevel" %%% "cats-laws" % catsVersion % "test"
-          )
         case Some((2, 12)) =>
           Seq(
             "org.typelevel" % "cats-core_sjs0.6_2.12.0-RC2" % catsVersion,
             "org.typelevel" % "cats-laws_sjs0.6_2.12.0-RC2" % catsVersion % "test"
+          )
+        case _ =>
+          Seq(
+            "org.typelevel" %%% "cats-core" % catsVersion,
+            "org.typelevel" %%% "cats-laws" % catsVersion % "test"
           )
       })
   ))
