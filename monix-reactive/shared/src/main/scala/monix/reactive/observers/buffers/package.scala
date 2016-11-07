@@ -21,7 +21,7 @@ import scala.collection.mutable.ListBuffer
 
 package object buffers {
   // Internal reusable utility
-  private[observers] def subscriberBufferToList[A](out: Subscriber[List[A]]): Subscriber[ListBuffer[A]] =
+  private[buffers] def subscriberBufferToList[A](out: Subscriber[List[A]]): Subscriber[ListBuffer[A]] =
     new Subscriber[ListBuffer[A]] {
       val scheduler = out.scheduler
       def onNext(elem: ListBuffer[A]) = out.onNext(elem.toList)

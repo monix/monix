@@ -112,113 +112,116 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
 
     // If a run-loop isn't started, then go, go, go!
     if (currentNr == 0) {
-      // It's important that lastIterationAck gets read after
-      // we read from itemsToPush, in order to ensure its visibility
-      val lastAck = lastIterationAck
       // Starting the run-loop, as at this point we can be sure
       // that no other loop is active
-      scheduler.executeAsync(() => fastLoop(lastAck, 0, 0))
+      scheduler.execute(consumerRunLoop)
     }
   }
 
   protected def fetchSize(r: R): Int
   protected def fetchNext(): R
 
-  private final def goAsync(next: R, nextSize: Int, ack: Future[Ack], processed: Int): Unit =
-    ack.onComplete {
-      case Success(Continue) =>
-        val nextAck = out.onNext(next)
-        val isSync = ack == Continue || ack == Stop
-        val nextFrame = if (isSync) em.nextFrameIndex(0) else 0
-        fastLoop(nextAck, processed + nextSize, nextFrame)
-
-      case Success(Stop) =>
-        // ending loop
-        downstreamIsComplete = true
-        itemsToPush.set(0)
-
-      case Failure(ex) =>
-        // ending loop
-        downstreamIsComplete = true
-        itemsToPush.set(0)
-        out.onError(ex)
+  private[this] val consumerRunLoop = new Runnable {
+    def run(): Unit = {
+      fastLoop(lastIterationAck, 0, 0)
     }
 
-  private final def fastLoop(prevAck: Future[Ack], lastProcessed: Int, startIndex: Int): Unit = {
-    @inline def stopStreaming(): Unit = {
-      downstreamIsComplete = true
-      val bp = backPressured.get
-      if (bp != null) bp.success(Stop)
-      itemsToPush.set(0)
-    }
+    private final def goAsync(next: R, nextSize: Int, ack: Future[Ack], processed: Int): Unit =
+      ack.onComplete {
+        case Success(Continue) =>
+          val nextAck = out.onNext(next)
+          val isSync = ack == Continue || ack == Stop
+          val nextFrame = if (isSync) em.nextFrameIndex(0) else 0
+          fastLoop(nextAck, processed + nextSize, nextFrame)
 
-    var ack = if (prevAck == null) Continue else prevAck
-    var isFirstIteration = ack == Continue
-    var processed = lastProcessed
-    var nextIndex = startIndex
+        case Success(Stop) =>
+          // ending loop
+          downstreamIsComplete = true
+          itemsToPush.set(0)
 
-    while (!downstreamIsComplete) {
-      val next = fetchNext()
-      val nextSize = fetchSize(next)
+        case Failure(ex) =>
+          // ending loop
+          downstreamIsComplete = true
+          itemsToPush.set(0)
+          out.onError(ex)
+      }
 
-      if (nextSize > 0) {
-        if (nextIndex > 0 || isFirstIteration) {
-          isFirstIteration = false
+    private final def fastLoop(prevAck: Future[Ack], lastProcessed: Int, startIndex: Int): Unit = {
+      @inline def stopStreaming(): Unit = {
+        downstreamIsComplete = true
+        val bp = backPressured.get
+        if (bp != null) bp.success(Stop)
+        itemsToPush.set(0)
+      }
 
-          ack match {
-            case Continue =>
-              ack = out.onNext(next)
-              if (ack == Stop) {
+      var ack = if (prevAck == null) Continue else prevAck
+      var isFirstIteration = ack == Continue
+      var processed = lastProcessed
+      var nextIndex = startIndex
+
+      while (!downstreamIsComplete) {
+        val next = fetchNext()
+        val nextSize = fetchSize(next)
+
+        if (nextSize > 0) {
+          if (nextIndex > 0 || isFirstIteration) {
+            isFirstIteration = false
+
+            ack match {
+              case Continue =>
+                ack = out.onNext(next)
+                if (ack == Stop) {
+                  stopStreaming()
+                  return
+                } else {
+                  val isSync = ack == Continue
+                  nextIndex = if (isSync) em.nextFrameIndex(nextIndex) else 0
+                  processed += nextSize
+                }
+
+              case Stop =>
                 stopStreaming()
                 return
-              } else {
-                val isSync = ack == Continue
-                nextIndex = if (isSync) em.nextFrameIndex(nextIndex) else 0
-                processed += nextSize
-              }
 
-            case Stop =>
-              stopStreaming()
-              return
-
-            case async =>
-              goAsync(next, nextSize, ack, processed)
-              return
+              case async =>
+                goAsync(next, nextSize, ack, processed)
+                return
+            }
+          }
+          else {
+            goAsync(next, nextSize, ack, processed)
+            return
+          }
+        }
+        else if (upstreamIsComplete) {
+          // Race-condition check, but if upstreamIsComplete=true is
+          // visible, then the queue should be fully published because
+          // there's a clear happens-before relationship between
+          // queue.offer() and upstreamIsComplete=true
+          if (primaryQueue.isEmpty) {
+            // ending loop
+            stopStreaming()
+            if (errorThrown ne null) out.onError(errorThrown)
+            else out.onComplete()
+            return
           }
         }
         else {
-          goAsync(next, nextSize, ack, processed)
-          return
-        }
-      }
-      else if (upstreamIsComplete) {
-        // Race-condition check, but if upstreamIsComplete=true is
-        // visible, then the queue should be fully published because
-        // there's a clear happens-before relationship between
-        // queue.offer() and upstreamIsComplete=true
-        if (primaryQueue.isEmpty) {
-          // ending loop
-          stopStreaming()
-          if (errorThrown ne null) out.onError(errorThrown)
-          else out.onComplete()
-          return
-        }
-      }
-      else {
-        // Given we are writing in `itemsToPush` before this
-        // assignment, it means that writes will not get reordered,
-        // so when we observe that itemsToPush is zero on the
-        // producer side, we will also have the latest lastIterationAck
-        lastIterationAck = ack
-        val remaining = itemsToPush.decrementAndGet(processed)
+          // Given we are writing in `itemsToPush` before this
+          // assignment, it means that writes will not get reordered,
+          // so when we observe that itemsToPush is zero on the
+          // producer side, we will also have the latest lastIterationAck
+          lastIterationAck = ack
+          val remaining = itemsToPush.decrementAndGet(processed)
 
-        processed = 0
-        // if the queue is non-empty (i.e. concurrent modifications
-        // just happened) then continue loop, otherwise stop
-        if (remaining <= 0) {
-          val bp = backPressured.getAndSet(null)
-          if (bp != null) bp.success(Continue)
-          return
+          processed = 0
+          // if the queue is non-empty (i.e. concurrent modifications
+          // just happened) then continue loop, otherwise stop
+          if (remaining <= 0) {
+            val bp = backPressured.getAndSet(null)
+            if (bp != null) bp.success(Continue)
+            return
+          }
         }
       }
     }

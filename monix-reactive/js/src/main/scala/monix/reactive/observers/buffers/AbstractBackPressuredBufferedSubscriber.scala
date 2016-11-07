@@ -1,0 +1,188 @@
+/*
+ * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * See the project homepage at: https://monix.io
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package monix.reactive.observers.buffers
+
+import monix.execution.Ack
+import monix.execution.Ack.{Continue, Stop}
+import monix.execution.internal.collection.ArrayQueue
+import monix.reactive.observers.{BufferedSubscriber, Subscriber}
+import scala.concurrent.{Future, Promise}
+import scala.util.{Failure, Success}
+
+/** Shared internals between [[BackPressuredBufferedSubscriber]] and
+  * [[BatchedBufferedSubscriber]].
+  */
+private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
+  (out: Subscriber[R], bufferSize: Int)
+  extends BufferedSubscriber[A] {
+
+  require(bufferSize > 0, "bufferSize must be a strictly positive number")
+
+  private[this] val em = out.scheduler.executionModel
+  implicit final val scheduler = out.scheduler
+
+  private[this] var upstreamIsComplete = false
+  private[this] var downstreamIsComplete = false
+  private[this] var errorThrown: Throwable = null
+  private[this] var isLoopActive = true
+  private[this] var backPressured: Promise[Ack] = null
+  private[this] var lastIterationAck: Future[Ack] = Continue
+  protected val queue = ArrayQueue.unbounded[A]
+
+  final def onNext(elem: A): Future[Ack] = {
+    if (upstreamIsComplete || downstreamIsComplete)
+      Stop
+    else if (elem == null) {
+      onError(new NullPointerException("Null not supported in onNext"))
+      Stop
+    }
+    else backPressured match {
+      case null =>
+        if (queue.offer(elem) == 0) {
+          pushToConsumer()
+          Continue
+        } else {
+          backPressured = Promise[Ack]()
+          queue.offer(elem)
+          pushToConsumer()
+          backPressured.future
+        }
+      case promise =>
+        queue.offer(elem)
+        pushToConsumer()
+        promise.future
+    }
+  }
+
+  final def onError(ex: Throwable): Unit = {
+    if (!upstreamIsComplete && !downstreamIsComplete) {
+      errorThrown = ex
+      upstreamIsComplete = true
+      pushToConsumer()
+    }
+  }
+
+  final def onComplete(): Unit = {
+    if (!upstreamIsComplete && !downstreamIsComplete) {
+      upstreamIsComplete = true
+      pushToConsumer()
+    }
+  }
+
+  private def pushToConsumer(): Unit =
+    if (!isLoopActive) {
+      isLoopActive = true
+      scheduler.execute(consumerRunLoop)
+    }
+
+  protected def fetchSize(r: R): Int
+  protected def fetchNext(): R
+
+  private[this] val consumerRunLoop = new Runnable {
+    def run(): Unit = fastLoop(lastIterationAck, 0)
+
+    private final def goAsync(next: R, nextSize: Int, ack: Future[Ack]): Unit =
+      ack.onComplete {
+        case Success(Continue) =>
+          val nextAck = out.onNext(next)
+          val isSync = ack == Continue || ack == Stop
+          val nextFrame = if (isSync) em.nextFrameIndex(0) else 0
+          fastLoop(nextAck, nextFrame)
+
+        case Success(Stop) =>
+          // ending loop
+          downstreamIsComplete = true
+          isLoopActive = false
+
+        case Failure(ex) =>
+          // ending loop
+          downstreamIsComplete = true
+          isLoopActive = false
+          out.onError(ex)
+      }
+
+    @inline
+    private def downstreamSignalComplete(ex: Throwable = null): Unit = {
+      downstreamIsComplete = true
+      if (ex != null)
+        out.onError(ex)
+      else
+        out.onComplete()
+    }
+
+    @inline
+    private def stopStreaming(): Unit = {
+      downstreamIsComplete = true
+      if (backPressured != null) backPressured.success(Stop)
+      isLoopActive = false
+    }
+
+    private final def fastLoop(prevAck: Future[Ack], startIndex: Int): Unit = {
+      var ack = if (prevAck == null) Continue else prevAck
+      var isFirstIteration = ack == Continue
+      var nextIndex = startIndex
+
+      while (!downstreamIsComplete) {
+        val next = fetchNext()
+        val nextSize = fetchSize(next)
+
+        if (nextSize > 0) {
+          if (nextIndex > 0 || isFirstIteration) {
+            isFirstIteration = false
+
+            ack match {
+              case Continue =>
+                ack = out.onNext(next)
+                if (ack == Stop) {
+                  stopStreaming()
+                  return
+                } else {
+                  val isSync = ack == Continue
+                  nextIndex = if (isSync) em.nextFrameIndex(nextIndex) else 0
+                }
+
+              case Stop =>
+                stopStreaming()
+                return
+
+              case async =>
+                goAsync(next, nextSize, ack)
+                return
+            }
+          }
+          else {
+            goAsync(next, nextSize, ack)
+            return
+          }
+        }
+        else {
+          // Ending loop
+          val bp = backPressured
+          if (bp != null) {
+            backPressured = null
+            bp.success(if (upstreamIsComplete) Stop else Continue)
+          }
+
+          if (upstreamIsComplete) downstreamSignalComplete(errorThrown)
+          lastIterationAck = ack
+          isLoopActive = false
+        }
+      }
+    }
+  }
+}
