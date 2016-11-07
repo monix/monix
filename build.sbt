@@ -375,15 +375,15 @@ lazy val catsJVM = project.in(file("monix-cats/jvm"))
       (CrossVersion.partialVersion(scalaVersion.value) match {
         case Some((2, 12)) =>
           Seq(
-            "org.typelevel" % "cats-core_2.12.0-RC2" % catsVersion,
-            "org.typelevel" % "cats-laws_2.12.0-RC2" % catsVersion % "test"
+            "org.typelevel" % "cats-core_sjs0.6_2.12.0-RC2" % catsVersion,
+            "org.typelevel" % "cats-laws_sjs0.6_2.12.0-RC2" % catsVersion % "test",
+            "org.scalacheck" %%% "scalacheck" % "1.13.4" % "test",
+            "org.typelevel" %%% "discipline" % "0.7.2" % "test"
           )
         case _ =>
           Seq(
-            "org.typelevel" %%% "cats-core" % catsVersion
-              excludeAll(ExclusionRule(organization = "org.scala-js")),
+            "org.typelevel" %%% "cats-core" % catsVersion,
             "org.typelevel" %%% "cats-laws" % catsVersion % "test"
-              excludeAll(ExclusionRule(organization = "org.scala-js"))
           )
       })
   ))
@@ -400,8 +400,12 @@ lazy val catsJS = project.in(file("monix-cats/js"))
       (CrossVersion.partialVersion(scalaVersion.value) match {
         case Some((2, 12)) =>
           Seq(
-            "org.typelevel" % "cats-core_sjs0.6_2.12.0-RC2" % catsVersion,
+            "org.typelevel" % "cats-core_sjs0.6_2.12.0-RC2" % catsVersion
+              excludeAll(ExclusionRule(organization = "org.scala-js")),
             "org.typelevel" % "cats-laws_sjs0.6_2.12.0-RC2" % catsVersion % "test"
+              excludeAll(ExclusionRule(organization = "org.scala-js")),
+            "org.scalacheck" %%% "scalacheck" % "1.13.4" % "test",
+            "org.typelevel" %%% "discipline" % "0.7.2" % "test"
           )
         case _ =>
           Seq(
