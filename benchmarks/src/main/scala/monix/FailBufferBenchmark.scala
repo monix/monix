@@ -43,7 +43,7 @@ class FailBufferBenchmark {
   // First value yields a fixed size queue in Monix,
   // whereas the later yields a growable queue
   @Param(Array("1000", "8000"))
-  val eventsCount = 0
+  var eventsCount = 0
 
   @Benchmark
   def monixOverflowing(): Long = {
