@@ -18,12 +18,14 @@
 package monix.execution.schedulers
 
 import java.util.concurrent.{CountDownLatch, TimeUnit, TimeoutException}
+
 import minitest.SimpleTestSuite
 import monix.execution.cancelables.SingleAssignmentCancelable
 import monix.execution.schedulers.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.{Cancelable, Scheduler}
+
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Promise}
+import scala.concurrent.{Await, Future, Promise}
 
 object AsyncSchedulerSuite extends SimpleTestSuite {
   val s: Scheduler = monix.execution.Scheduler.global
@@ -129,6 +131,48 @@ object AsyncSchedulerSuite extends SimpleTestSuite {
     val s2 = s.withExecutionModel(AlwaysAsyncExecution)
     assertEquals(s.executionModel, ExecutionModel.Default)
     assertEquals(s2.executionModel, AlwaysAsyncExecution)
+  }
+
+  test("Scheduler.cached") {
+    import scala.concurrent.duration._
+
+    intercept[IllegalArgumentException] {
+      monix.execution.Scheduler.cached("dummy", -1, 2, 1.second)
+    }
+
+    intercept[IllegalArgumentException] {
+      monix.execution.Scheduler.cached("dummy", 0, 0, 1.second)
+    }
+
+    intercept[IllegalArgumentException] {
+      monix.execution.Scheduler.cached("dummy", 2, 1, 1.second)
+    }
+
+    intercept[IllegalArgumentException] {
+      monix.execution.Scheduler.cached("dummy", 2, 10, -1.second)
+    }
+
+    implicit val s: Scheduler = monix.execution.Scheduler.cached(
+      name = "cached-test",
+      minThreads = 0,
+      maxThreads = 2,
+      keepAliveTime = 1.second,
+      daemonic = true)
+
+    val futureStarted = new CountDownLatch(1)
+    val start = new CountDownLatch(1)
+
+    val future = Future {
+      futureStarted.countDown()
+      start.await()
+      1 + 1
+    }
+
+    futureStarted.await()
+    start.countDown()
+
+    val result = Await.result(future, 60.seconds)
+    assertEquals(result, 2)
   }
 
   def runnableAction(f: => Unit): Runnable =

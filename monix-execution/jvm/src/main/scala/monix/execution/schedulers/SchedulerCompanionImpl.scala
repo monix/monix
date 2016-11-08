@@ -18,11 +18,14 @@
 package monix.execution.schedulers
 
 import java.lang.Thread.UncaughtExceptionHandler
-import java.util.concurrent.{Executors, ScheduledExecutorService}
+import java.util.concurrent._
+
 import monix.execution.UncaughtExceptionReporter._
 import monix.execution.{Scheduler, SchedulerCompanion, UncaughtExceptionReporter}
 import monix.execution.internal.ForkJoinPool
+
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
 
 /** @define applyDesc The resulting [[Scheduler]] will piggyback on top of a Java
   *         `ScheduledExecutorService` for scheduling tasks for execution with
@@ -242,7 +245,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     *
     * @param name the created threads name prefix, for easy identification.
     * @param daemonic specifies whether the created threads should be daemonic
-    *                 (non-daemonic threads are blocking the JVM process on exit).
+    *        (non-daemonic threads are blocking the JVM process on exit).
     * @param reporter $reporter
     * @param executionModel $executionModel
     */
@@ -256,6 +259,47 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
       reporter.reportFailure
     )
 
+    AsyncScheduler(DefaultScheduledExecutor, context, reporter, executionModel)
+  }
+
+  /** Builds a [[Scheduler]] backed by an internal
+    * `java.util.concurrent.ThreadPoolExecutor`, that executes each submitted
+    * task using one of possibly several pooled threads.
+    *
+    * @param name the created threads name prefix, for easy identification
+    * @param minThreads the number of threads to keep in the pool, even
+    *        if they are idle
+    * @param maxThreads the maximum number of threads to allow in the pool
+    * @param keepAliveTime when the number of threads is greater than
+    *        the core, this is the maximum time that excess idle threads
+    *        will wait for new tasks before terminating
+    * @param daemonic specifies whether the created threads should be daemonic
+    *        (non-daemonic threads are blocking the JVM process on exit).
+    * @param reporter $reporter
+    * @param executionModel $executionModel
+    */
+  def cached(
+    name: String,
+    minThreads: Int,
+    maxThreads: Int,
+    keepAliveTime: FiniteDuration = 60.seconds,
+    daemonic: Boolean = true,
+    reporter: UncaughtExceptionReporter = LogExceptionsToStandardErr,
+    executionModel: ExecutionModel = ExecutionModel.Default): Scheduler = {
+
+    require(minThreads >= 0, "minThreads >= 0")
+    require(maxThreads > 0, "maxThreads > 0")
+    require(maxThreads >= minThreads, "maxThreads >= minThreads")
+    require(keepAliveTime >= Duration.Zero, "keepAliveTime >= 0")
+
+    val threadFactory = ThreadFactoryBuilder(name, reporter, daemonic)
+    val executor = new ThreadPoolExecutor(
+      minThreads, maxThreads,
+      keepAliveTime.toMillis, TimeUnit.MILLISECONDS,
+      new SynchronousQueue[Runnable](false),
+      threadFactory)
+
+    val context = ExecutionContext.fromExecutor(executor, reporter.reportFailure)
     AsyncScheduler(DefaultScheduledExecutor, context, reporter, executionModel)
   }
 
