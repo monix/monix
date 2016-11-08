@@ -1,4 +1,4 @@
-# Monix
+# Monix (series 1.x, old Monifu)
 
 <img src="https://raw.githubusercontent.com/wiki/monix/monix/assets/monifu-square.png" align="right" width="280" />
 
