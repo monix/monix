@@ -896,7 +896,7 @@ object Task extends TaskInstances {
    */
   def wander[A, B, M[X] <: TraversableOnce[X]](in: M[A])(f: A => Task[B])
     (implicit cbf: CanBuildFrom[M[A], B, M[B]]): Task[M[B]] = {
-    TaskGather(in.toArray.map(f), () => cbf(in))
+    TaskGather(in.map(f).toArray, () => cbf(in))
   }
 
   /** Nondeterministically gather results from the given collection of tasks,
