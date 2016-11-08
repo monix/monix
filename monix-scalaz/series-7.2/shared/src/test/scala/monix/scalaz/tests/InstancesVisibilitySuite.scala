@@ -112,4 +112,13 @@ object InstancesVisibilitySuite extends SimpleTestSuite {
     val scalazCobind = implicitly[_root_.scalaz.Cobind[Task]]
     assert(scalazCobind != null)
   }
+
+  test("Catchable instance is visible") {
+    val taskInstance = implicitly[_root_.scalaz.Catchable[Task]]
+    assert(taskInstance != null)
+    val coevalInstance = implicitly[_root_.scalaz.Catchable[Coeval]]
+    assert(coevalInstance != null)
+    val observableInstance = implicitly[_root_.scalaz.Catchable[Observable]]
+    assert(observableInstance != null)
+  }
 }

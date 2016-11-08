@@ -18,14 +18,13 @@
 package monix.scalaz
 
 import monix.types._
-
-import scalaz.{Monoid, Semigroup, \/}
+import _root_.scalaz.{Monoid, Semigroup, \/}
 
 /** Defines conversions from the Monix type-classes defined in
   * [[monix.types]] to type-class instances from the
   * [[http://www.scalaz.org/ Scalaz]] library.
   */
-trait MonixToScalazConversions extends MonixToScalaz9
+trait MonixToScalazConversions extends MonixToScalaz10
 
 private[scalaz] trait MonixToScalazKernel0 {
   /** Given an `Applicative` for `F[A]` and a `Semigroup` defined
@@ -121,7 +120,26 @@ private[scalaz] trait MonixToScalaz3 extends MonixToScalaz2  {
   }
 }
 
-private[scalaz] trait MonixToScalaz4 extends MonixToScalaz3 {
+private[scalaz] trait MonixToScalaz4 extends MonixToScalaz3  {
+  /** Converts Monix's type instances into the Scalaz `MonadError`. */
+  implicit def monixToScalazCatchable[F[_]](implicit F: MonadError[F,Throwable]): _root_.scalaz.Catchable[F] =
+    new MonixToScalazCatchable[F]()
+
+  protected class MonixToScalazCatchable[F[_]](implicit F: MonadError[F,Throwable])
+    extends MonixToScalazMonad[F]()(F.monad) with _root_.scalaz.Catchable[F] {
+
+    override final def attempt[A](f: F[A]): F[\/[Throwable, A]] = {
+      val A = F.functor
+      F.onErrorHandle(A.map(f)(\/.right[Throwable,A]))(\/.left)
+    }
+
+    override final def fail[A](err: Throwable): F[A] =
+      F.raiseError(err)
+  }
+}
+
+
+private[scalaz] trait MonixToScalaz5 extends MonixToScalaz4 {
   /** Converts Monix's type instances into the Scalaz `Cobind`. */
   implicit def monixToScalazCobind[F[_] : Cobind]: _root_.scalaz.Cobind[F] =
     new MonixToScalazCobind[F]()
@@ -135,7 +153,7 @@ private[scalaz] trait MonixToScalaz4 extends MonixToScalaz3 {
 }
 
 
-private[scalaz] trait MonixToScalaz5 extends MonixToScalaz4 {
+private[scalaz] trait MonixToScalaz6 extends MonixToScalaz5 {
   /** Converts Monix's type instances into the Scalaz `Comonad`. */
   implicit def monixToScalazComonad[F[_] : Comonad]: _root_.scalaz.Comonad[F] =
     new MonixToScalazComonad[F]()
@@ -148,7 +166,7 @@ private[scalaz] trait MonixToScalaz5 extends MonixToScalaz4 {
   }
 }
 
-private[scalaz] trait MonixToScalaz6 extends MonixToScalaz5 {
+private[scalaz] trait MonixToScalaz7 extends MonixToScalaz6 {
   /** Converts Monix's type instances into the Scalaz `Plus`. */
   implicit def monixToScalazPlus[F[_] : SemigroupK]: _root_.scalaz.Plus[F] =
     new MonixToScalazPlus[F]()
@@ -161,7 +179,7 @@ private[scalaz] trait MonixToScalaz6 extends MonixToScalaz5 {
   }
 }
 
-private[scalaz] trait MonixToScalaz7 extends MonixToScalaz6 {
+private[scalaz] trait MonixToScalaz8 extends MonixToScalaz7 {
   /** Converts Monix's type instances into the Scalaz `PlusEmpty`. */
   implicit def monixToScalazPlusEmpty[F[_] : MonoidK]: _root_.scalaz.PlusEmpty[F] =
     new MonixToScalazPlusEmpty[F]()
@@ -174,7 +192,7 @@ private[scalaz] trait MonixToScalaz7 extends MonixToScalaz6 {
 }
 
 
-private[scalaz] trait MonixToScalaz8 extends MonixToScalaz7 {
+private[scalaz] trait MonixToScalaz9 extends MonixToScalaz8 {
   /** Converts Monix's types instances into the Scalaz `MonadPlus`. */
   implicit def monixToScalazMonadPlus[F[_] : MonadFilter : MonoidK]: _root_.scalaz.MonadPlus[F] =
     new MonixToScalazMonadPlus[F]()
@@ -191,7 +209,7 @@ private[scalaz] trait MonixToScalaz8 extends MonixToScalaz7 {
   }
 }
 
-private[scalaz] trait MonixToScalaz9 extends MonixToScalaz8 {
+private[scalaz] trait MonixToScalaz10 extends MonixToScalaz9 {
   /** Converts Monix's types instances into the Scalaz `BindRec`. */
   implicit def monixToScalazBindRec[F[_] : MonadRec]: _root_.scalaz.Monad[F] with _root_.scalaz.BindRec[F] =
     new MonixToScalazBindRec[F]()

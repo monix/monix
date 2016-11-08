@@ -163,4 +163,21 @@ object MonixToScalazSuite extends SimpleTestSuite {
     val result = coeval.value
     assertEquals(result, 10)
   }
+
+  test("monix to scalaz catchable") {
+    def apply[F[_]](fa: F[Int])(implicit F: Catchable[F], A: Functor[F]): F[Int] =
+      A.map(F.attempt(fa)) {
+        case -\/(err) => 0
+        case \/-(a) => a + 1
+      }
+
+    val fa = apply(Coeval(1))
+    assertEquals(fa.value, 2)
+
+    val fb = apply(Coeval.raiseError[Int](new RuntimeException))
+    assertEquals(fb.value, 0)
+
+    val fc = apply(implicitly[Catchable[Coeval]].fail[Int](new RuntimeException))
+    assertEquals(fc.value, 0)
+  }
 }
