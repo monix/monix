@@ -47,7 +47,7 @@ private[monix] final class ArrayQueue[A] private
     queue.length - offset > 0
 
   def offer(elem: A): Int = {
-    if (elem == null) throw null
+    if (elem == null) throw new NullPointerException("Null not supported")
     if (bufferSize > 0 && queue.length - offset >= capacity) {
       if (triggerEx != null) throw triggerEx(capacity)
       1 // rejecting new element as we are at capacity

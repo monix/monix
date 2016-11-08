@@ -62,7 +62,7 @@ private[monix] final class DropHeadOnOverflowQueue[A : ClassTag] private (_recom
     size >= modulus
 
   def offer(elem: A): Int = {
-    if (elem == null) throw new NullPointerException
+    if (elem == null) throw new NullPointerException("Null is not supported")
     array(tailIdx) = elem
     tailIdx = (tailIdx + 1) & modulus
 

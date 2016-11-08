@@ -25,7 +25,9 @@ import monix.execution.internal.Platform
 import monix.execution.internal.math._
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 import org.jctools.queues.{MpscArrayQueue, MpscChunkedArrayQueue, MpscLinkedQueue}
+
 import scala.concurrent.{Future, Promise}
+import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
 /** Shared internals between [[BackPressuredBufferedSubscriber]] and
@@ -65,7 +67,8 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
     Atomic.withPadding(null : Promise[Ack], LeftRight256)
 
   final def onNext(elem: A): Future[Ack] = {
-    if (upstreamIsComplete || downstreamIsComplete) Stop
+    if (upstreamIsComplete || downstreamIsComplete)
+      Stop
     else if (elem == null) {
       onError(new NullPointerException("Null not supported in onNext"))
       Stop
@@ -126,10 +129,44 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
       fastLoop(lastIterationAck, 0, 0)
     }
 
+    private final def signalNext(next: R): Future[Ack] =
+      try {
+        val ack = out.onNext(next)
+        // Tries flattening the Future[Ack] to a
+        // synchronous value
+        if (ack == Continue || ack == Stop)
+          ack
+        else ack.value match {
+          case Some(Success(success)) =>
+            success
+          case Some(Failure(ex)) =>
+            signalError(ex)
+            Stop
+          case None =>
+            ack
+        }
+      } catch {
+        case NonFatal(ex) =>
+          signalError(ex)
+          Stop
+      }
+
+    private final def signalComplete(): Unit =
+      try out.onComplete() catch {
+        case NonFatal(ex) =>
+          scheduler.reportFailure(ex)
+      }
+
+    private final def signalError(ex: Throwable): Unit =
+      try out.onError(ex) catch {
+        case NonFatal(err) =>
+          scheduler.reportFailure(err)
+      }
+
     private final def goAsync(next: R, nextSize: Int, ack: Future[Ack], processed: Int): Unit =
       ack.onComplete {
         case Success(Continue) =>
-          val nextAck = out.onNext(next)
+          val nextAck = signalNext(next)
           val isSync = ack == Continue || ack == Stop
           val nextFrame = if (isSync) em.nextFrameIndex(0) else 0
           fastLoop(nextAck, processed + nextSize, nextFrame)
@@ -143,7 +180,7 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
           // ending loop
           downstreamIsComplete = true
           itemsToPush.set(0)
-          out.onError(ex)
+          signalError(ex)
       }
 
     private final def fastLoop(prevAck: Future[Ack], lastProcessed: Int, startIndex: Int): Unit = {
@@ -170,7 +207,7 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
 
             ack match {
               case Continue =>
-                ack = out.onNext(next)
+                ack = signalNext(next)
                 if (ack == Stop) {
                   stopStreaming()
                   return
@@ -202,8 +239,8 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
           if (primaryQueue.isEmpty && secondaryQueue.isEmpty) {
             // ending loop
             stopStreaming()
-            if (errorThrown ne null) out.onError(errorThrown)
-            else out.onComplete()
+            if (errorThrown ne null) signalError(errorThrown)
+            else signalComplete()
             return
           }
         }

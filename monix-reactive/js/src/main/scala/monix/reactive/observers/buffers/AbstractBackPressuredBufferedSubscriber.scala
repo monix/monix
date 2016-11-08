@@ -100,10 +100,43 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
   private[this] val consumerRunLoop = new Runnable {
     def run(): Unit = fastLoop(lastIterationAck, 0)
 
+    private final def signalNext(next: R): Future[Ack] =
+      try {
+        val ack = out.onNext(next)
+        // Tries flattening the Future[Ack] to a
+        // synchronous value
+        if (ack == Continue || ack == Stop)
+          ack
+        else ack.value match {
+          case Some(Success(success)) =>
+            success
+          case Some(Failure(ex)) =>
+            downstreamSignalComplete(ex)
+            Stop
+          case None =>
+            ack
+        }
+      } catch {
+        case NonFatal(ex) =>
+          downstreamSignalComplete(ex)
+          Stop
+      }
+
+    private def downstreamSignalComplete(ex: Throwable = null): Unit = {
+      downstreamIsComplete = true
+      try {
+        if (ex != null) out.onError(ex)
+        else out.onComplete()
+      } catch {
+        case NonFatal(err) =>
+          scheduler.reportFailure(err)
+      }
+    }
+
     private final def goAsync(next: R, ack: Future[Ack]): Unit = {
       ack.onComplete {
         case Success(Continue) =>
-          val nextAck = out.onNext(next)
+          val nextAck = signalNext(next)
           val isSync = ack == Continue || ack == Stop
           val nextFrame = if (isSync) em.nextFrameIndex(0) else 0
           fastLoop(nextAck, nextFrame)
@@ -115,21 +148,11 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
 
         case Failure(ex) =>
           // ending loop
-          downstreamIsComplete = true
           isLoopActive = false
-          out.onError(ex)
+          downstreamSignalComplete(ex)
       }
     }
 
-
-    @inline
-    private def downstreamSignalComplete(ex: Throwable = null): Unit = {
-      downstreamIsComplete = true
-      if (ex != null)
-        out.onError(ex)
-      else
-        out.onComplete()
-    }
 
     @inline
     private def stopStreaming(): Unit = {
@@ -156,7 +179,7 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
 
             ack match {
               case Continue =>
-                ack = out.onNext(next)
+                ack = signalNext(next)
                 if (ack == Stop) {
                   stopStreaming()
                   return
@@ -187,7 +210,9 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
           }
 
           streamErrors = false
-          if (upstreamIsComplete) downstreamSignalComplete(errorThrown)
+          if (upstreamIsComplete)
+            downstreamSignalComplete(errorThrown)
+
           lastIterationAck = ack
           isLoopActive = false
           return

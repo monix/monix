@@ -18,37 +18,21 @@
 package monix.reactive.observers
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
+
 import minitest.TestSuite
-import monix.execution.Ack.{Stop, Continue}
 import monix.execution.{Ack, Scheduler}
-import monix.reactive.OverflowStrategy.DropNewAndSignal
-import monix.reactive.exceptions.DummyException
-import monix.reactive.{Observable, Observer}
-import scala.concurrent.duration._
-import scala.concurrent.{Await, Future, Promise}
+import monix.reactive.{OverflowStrategy, Observer}
+import monix.execution.Ack.{Stop, Continue}
+import OverflowStrategy.Fail
+import monix.reactive.exceptions.{DummyException, BufferOverflowException}
 
-object BufferDropNewAndSignalConcurrencySuite extends TestSuite[Scheduler] {
-  def setup() = monix.execution.Scheduler.Implicits.global
+import scala.concurrent.{Future, Promise}
+
+
+object OverflowStrategyFailConcurrencySuite extends TestSuite[Scheduler] {
   def tearDown(env: Scheduler) = ()
-
-  def buildNewForInt(bufferSize: Int, underlying: Observer[Int])(implicit s: Scheduler) = {
-    BufferedSubscriber(Subscriber(underlying, s), DropNewAndSignal(bufferSize, nr => Some(nr.toInt)))
-  }
-
-  def buildNewForLong(bufferSize: Int, underlying: Observer[Long])(implicit s: Scheduler) = {
-    BufferedSubscriber(Subscriber(underlying, s), DropNewAndSignal(bufferSize, nr => Some(nr)))
-  }
-
-  test("merge test should work") { implicit s =>
-    val num = 100000
-    val source = Observable.repeat(1L).take(num)
-    val f = Observable.fromIterable(Seq(source, source, source))
-      .mergeMap(x => x)(DropNewAndSignal(1000, dropped => Some(dropped)))
-      .sumF
-      .runAsyncGetFirst
-
-    val result = Await.result(f, 30.seconds)
-    assertEquals(result, Some(num * 3))
+  def setup() = {
+    monix.execution.Scheduler.Implicits.global
   }
 
   test("should not lose events, test 1") { implicit s =>
@@ -70,7 +54,7 @@ object BufferDropNewAndSignalConcurrencySuite extends TestSuite[Scheduler] {
       }
     }
 
-    val buffer = buildNewForInt(100000, underlying)
+    val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), Fail(100000))
     for (i <- 0 until 100000) buffer.onNext(i)
     buffer.onComplete()
 
@@ -97,7 +81,7 @@ object BufferDropNewAndSignalConcurrencySuite extends TestSuite[Scheduler] {
       }
     }
 
-    val buffer = buildNewForInt(100000, underlying)
+    val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), Fail(100000))
 
     def loop(n: Int): Unit =
       if (n > 0) s.execute(new Runnable {
@@ -110,53 +94,60 @@ object BufferDropNewAndSignalConcurrencySuite extends TestSuite[Scheduler] {
     assertEquals(number, 10000)
   }
 
-  test("should drop incoming when over capacity") { implicit s =>
-    // repeating test 100 times because of problems
-    for (_ <- 0 until 100) {
+  test("should trigger overflow when over capacity") { implicit s =>
+    val errorCaught = new CountDownLatch(1)
+    val receivedLatch = new CountDownLatch(5)
+    val promise = Promise[Ack]()
+
+    val underlying = new Observer[Int] {
       var received = 0
-      val started = new CountDownLatch(1)
-      val completed = new CountDownLatch(1)
-      val promise = Promise[Continue]()
-      var dropped = 0
-
-      val underlying = new Observer[Either[Int,Int]] {
-        def onNext(elem: Either[Int,Int]) = {
-          elem match {
-            case Left(v) => dropped += v
-            case Right(e) => received += 1
-          }
-
-          started.countDown()
+      def onNext(elem: Int) = {
+        received += 1
+        if (received < 6) {
+          receivedLatch.countDown()
+          Continue
+        }
+        else if (received == 6) {
+          receivedLatch.countDown()
+          // never ending piece of processing
           promise.future
         }
-
-        def onError(ex: Throwable): Unit = {
-          s.reportFailure(ex)
-        }
-
-        def onComplete() = {
-          completed.countDown()
-        }
+        else
+          Continue
       }
 
-      val buffer = BufferedSubscriber[Either[Int,Int]](
-        Subscriber(underlying, s), DropNewAndSignal(8, nr => Some(Left(nr.toInt))))
+      def onError(ex: Throwable) = {
+        assert(ex.isInstanceOf[BufferOverflowException],
+          s"Exception $ex is not a buffer overflow error")
+        errorCaught.countDown()
+      }
 
-      for (i <- 1 to 100) buffer.onNext(Right(i))
-
-      assert(started.await(60, TimeUnit.SECONDS), "started.await")
-      promise.success(Continue)
-      buffer.onComplete()
-
-      assert(completed.await(60, TimeUnit.SECONDS), "wasCompleted.await should have succeeded")
-      assert(received <= 10, s"received $received <= 10")
-      assert(dropped >= 90)
+      def onComplete() = {
+        throw new IllegalStateException("Should not onComplete")
+      }
     }
+
+    val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), Fail(5))
+
+    assertEquals(buffer.onNext(1), Continue)
+    assertEquals(buffer.onNext(2), Continue)
+    assertEquals(buffer.onNext(3), Continue)
+    assertEquals(buffer.onNext(4), Continue)
+    assertEquals(buffer.onNext(5), Continue)
+
+    assert(receivedLatch.await(60, TimeUnit.SECONDS), "receivedLatch.await should have succeeded")
+    assert(!errorCaught.await(2, TimeUnit.SECONDS), "errorCaught.await should have failed")
+
+    buffer.onNext(6)
+    for (i <- 0 until 100) buffer.onNext(7)
+
+    promise.success(Continue)
+    assert(errorCaught.await(60, TimeUnit.SECONDS), "errorCaught.await should have succeeded")
   }
 
   test("should send onError when empty") { implicit s =>
     val latch = new CountDownLatch(1)
-    val buffer = buildNewForInt(5, new Observer[Int] {
+    val buffer = BufferedSubscriber[Int](new Subscriber[Int] {
       def onError(ex: Throwable) = {
         assert(ex.getMessage == "dummy")
         latch.countDown()
@@ -164,7 +155,8 @@ object BufferDropNewAndSignalConcurrencySuite extends TestSuite[Scheduler] {
 
       def onNext(elem: Int) = throw new IllegalStateException()
       def onComplete() = throw new IllegalStateException()
-    })
+      val scheduler = s
+    }, Fail(5))
 
     buffer.onError(new RuntimeException("dummy"))
     assert(latch.await(60, TimeUnit.SECONDS), "latch.await should have succeeded")
@@ -175,14 +167,15 @@ object BufferDropNewAndSignalConcurrencySuite extends TestSuite[Scheduler] {
 
   test("should send onError when in flight") { implicit s =>
     val latch = new CountDownLatch(1)
-    val buffer = buildNewForInt(5, new Observer[Int] {
+    val buffer = BufferedSubscriber[Int](new Subscriber[Int] {
       def onError(ex: Throwable) = {
         assert(ex.getMessage == "dummy")
         latch.countDown()
       }
       def onNext(elem: Int) = Continue
       def onComplete() = throw new IllegalStateException()
-    })
+      val scheduler = s
+    }, Fail(5))
 
     buffer.onNext(1)
     buffer.onError(new RuntimeException("dummy"))
@@ -193,14 +186,15 @@ object BufferDropNewAndSignalConcurrencySuite extends TestSuite[Scheduler] {
     val latch = new CountDownLatch(1)
     val promise = Promise[Ack]()
 
-    val buffer = buildNewForInt(5, new Observer[Int] {
+    val buffer = BufferedSubscriber[Int](new Subscriber[Int] {
       def onError(ex: Throwable) = {
         assert(ex.getMessage == "dummy")
         latch.countDown()
       }
       def onNext(elem: Int) = promise.future
       def onComplete() = throw new IllegalStateException()
-    })
+      val scheduler = s
+    }, Fail(5))
 
     buffer.onNext(1)
     buffer.onNext(2)
@@ -215,24 +209,26 @@ object BufferDropNewAndSignalConcurrencySuite extends TestSuite[Scheduler] {
 
   test("should send onComplete when empty") { implicit s =>
     val latch = new CountDownLatch(1)
-    val buffer = buildNewForInt(5, new Observer[Int] {
+    val buffer = BufferedSubscriber[Int](new Subscriber[Int] {
       def onError(ex: Throwable) = throw new IllegalStateException()
       def onNext(elem: Int) = throw new IllegalStateException()
       def onComplete() = latch.countDown()
-    })
+      val scheduler = s
+    }, Fail(5))
 
     buffer.onComplete()
     assert(latch.await(60, TimeUnit.SECONDS), "latch.await should have succeeded")
   }
 
-  test("should send onComplete when in flight") { implicit s =>
+  test("should send onComplete without back-pressure") { implicit s =>
     val latch = new CountDownLatch(1)
     val promise = Promise[Ack]()
-    val buffer = buildNewForInt(5, new Observer[Int] {
+    val buffer = BufferedSubscriber[Int](new Subscriber[Int] {
       def onError(ex: Throwable) = throw new IllegalStateException()
       def onNext(elem: Int) = promise.future
       def onComplete() = latch.countDown()
-    })
+      val scheduler = s
+    }, Fail(5))
 
     buffer.onNext(1)
     buffer.onComplete()
@@ -242,11 +238,12 @@ object BufferDropNewAndSignalConcurrencySuite extends TestSuite[Scheduler] {
   test("should send onComplete when at capacity") { implicit s =>
     val latch = new CountDownLatch(1)
     val promise = Promise[Ack]()
-    val buffer = buildNewForInt(5, new Observer[Int] {
+    val buffer = BufferedSubscriber[Int](new Subscriber[Int] {
       def onError(ex: Throwable) = throw new IllegalStateException()
       def onNext(elem: Int) = promise.future
       def onComplete() = latch.countDown()
-    })
+      val scheduler = s
+    }, Fail(5))
 
     buffer.onNext(1)
     buffer.onNext(2)
@@ -265,14 +262,15 @@ object BufferDropNewAndSignalConcurrencySuite extends TestSuite[Scheduler] {
     val complete = new CountDownLatch(1)
     val startConsuming = Promise[Continue]()
 
-    val buffer = buildNewForLong(10000, new Observer[Long] {
+    val buffer = BufferedSubscriber[Long](new Subscriber[Long] {
       def onNext(elem: Long) = {
         sum += elem
         startConsuming.future
       }
       def onError(ex: Throwable) = throw ex
       def onComplete() = complete.countDown()
-    })
+      val scheduler = s
+    }, Fail(10000))
 
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onComplete()
@@ -286,14 +284,15 @@ object BufferDropNewAndSignalConcurrencySuite extends TestSuite[Scheduler] {
     var sum = 0L
     val complete = new CountDownLatch(1)
 
-    val buffer = buildNewForLong(10000, new Observer[Long] {
+    val buffer = BufferedSubscriber[Long](new Subscriber[Long] {
       def onNext(elem: Long) = {
         sum += elem
         Continue
       }
       def onError(ex: Throwable) = throw ex
       def onComplete() = complete.countDown()
-    })
+      val scheduler = s
+    }, Fail(10000))
 
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onComplete()
@@ -307,14 +306,15 @@ object BufferDropNewAndSignalConcurrencySuite extends TestSuite[Scheduler] {
     val complete = new CountDownLatch(1)
     val startConsuming = Promise[Continue]()
 
-    val buffer = buildNewForLong(10000, new Observer[Long] {
+    val buffer = BufferedSubscriber[Long](new Subscriber[Long] {
       def onNext(elem: Long) = {
         sum += elem
         startConsuming.future
       }
       def onError(ex: Throwable) = complete.countDown()
       def onComplete() = throw new IllegalStateException()
-    })
+      val scheduler = s
+    }, Fail(10000))
 
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onError(new RuntimeException)
@@ -328,14 +328,15 @@ object BufferDropNewAndSignalConcurrencySuite extends TestSuite[Scheduler] {
     var sum = 0L
     val complete = new CountDownLatch(1)
 
-    val buffer = buildNewForLong(10000, new Observer[Long] {
+    val buffer = BufferedSubscriber[Long](new Subscriber[Long] {
       def onNext(elem: Long) = {
         sum += elem
         Continue
       }
       def onError(ex: Throwable) = complete.countDown()
       def onComplete() = throw new IllegalStateException()
-    })
+      val scheduler = s
+    }, Fail(10000))
 
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onError(new RuntimeException)

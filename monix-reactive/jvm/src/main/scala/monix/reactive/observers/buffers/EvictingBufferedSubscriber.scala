@@ -170,10 +170,44 @@ private[observers] abstract class AbstractEvictingBufferedSubscriber[-A]
       fastLoop(Queue.empty, lastIterationAck, 0, 0)
     }
 
+    private def signalNext(next: A): Future[Ack] =
+      try {
+        val ack = out.onNext(next)
+        // Tries flattening the Future[Ack] to a
+        // synchronous value
+        if (ack == Continue || ack == Stop)
+          ack
+        else ack.value match {
+          case Some(Success(success)) =>
+            success
+          case Some(Failure(ex)) =>
+            signalError(ex)
+            Stop
+          case None =>
+            ack
+        }
+      } catch {
+        case NonFatal(ex) =>
+          signalError(ex)
+          Stop
+      }
+
+    private def signalComplete(): Unit =
+      try out.onComplete() catch {
+        case NonFatal(ex) =>
+          scheduler.reportFailure(ex)
+      }
+
+    private def signalError(ex: Throwable): Unit =
+      try out.onError(ex) catch {
+        case NonFatal(err) =>
+          scheduler.reportFailure(err)
+      }
+
     private def goAsync(prevQueue: Queue[A], next: A, ack: Future[Ack], processed: Int, toProcess: Int): Unit =
       ack.onComplete {
         case Success(Continue) =>
-          val nextAck = out.onNext(next)
+          val nextAck = signalNext(next)
           val isSync = ack == Continue || ack == Stop
           val nextFrame = if (isSync) em.nextFrameIndex(0) else 0
           fastLoop(prevQueue, nextAck, processed + toProcess, nextFrame)
@@ -187,7 +221,7 @@ private[observers] abstract class AbstractEvictingBufferedSubscriber[-A]
           // ending loop
           downstreamIsComplete = true
           itemsToPush.set(0)
-          out.onError(ex)
+          signalError(ex)
       }
 
     private def fastLoop(prevQueue: Queue[A], prevAck: Future[Ack], lastProcessed: Int, startIndex: Int): Unit = {
@@ -239,7 +273,7 @@ private[observers] abstract class AbstractEvictingBufferedSubscriber[-A]
 
               ack match {
                 case Continue =>
-                  ack = out.onNext(next)
+                  ack = signalNext(next)
                   if (ack == Stop) {
                     // ending loop
                     downstreamIsComplete = true
@@ -278,8 +312,8 @@ private[observers] abstract class AbstractEvictingBufferedSubscriber[-A]
               downstreamIsComplete = true
               itemsToPush.set(0)
 
-              if (errorThrown ne null) out.onError(errorThrown)
-              else out.onComplete()
+              if (errorThrown ne null) signalError(errorThrown)
+              else signalComplete()
               return
             }
           }
@@ -302,7 +336,7 @@ private[observers] abstract class AbstractEvictingBufferedSubscriber[-A]
               // ending loop
               downstreamIsComplete = true
               itemsToPush.set(0)
-              out.onError(ex)
+              signalError(ex)
             } else {
               scheduler.reportFailure(ex)
             }

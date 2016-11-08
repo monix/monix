@@ -418,4 +418,251 @@ object OverflowStrategyBackPressureSuite extends TestSuite[TestScheduler] {
     s.tickOne()
     assertEquals(wasCompleted, true)
   }
+
+  test("subscriber STOP after a synchronous onNext") { implicit s =>
+    var received = 0
+    var wasCompleted = false
+    val underlying = new Subscriber[Int] {
+      val scheduler = s
+
+      def onNext(elem: Int): Future[Ack] = {
+        received += elem
+        Stop
+      }
+
+      def onError(ex: Throwable): Unit =
+        throw ex
+      def onComplete(): Unit =
+        wasCompleted = true
+    }
+
+    val buffer = BufferedSubscriber[Int](underlying, BackPressure(16))
+    assertEquals(buffer.onNext(1), Continue)
+
+    s.tick()
+    assertEquals(buffer.onNext(2), Stop)
+
+    buffer.onComplete(); s.tick()
+    assert(!wasCompleted, "!wasCompleted")
+    assertEquals(received, 1)
+  }
+
+  test("subscriber STOP after an asynchronous onNext") { implicit s =>
+    var received = 0
+    var wasCompleted = false
+    val underlying = new Subscriber[Int] {
+      val scheduler = s
+
+      def onNext(elem: Int): Future[Ack] = Future {
+        received += elem
+        Stop
+      }
+
+      def onError(ex: Throwable): Unit =
+        throw ex
+      def onComplete(): Unit =
+        wasCompleted = true
+    }
+
+    val buffer = BufferedSubscriber[Int](underlying, BackPressure(16))
+    assertEquals(buffer.onNext(1), Continue)
+
+    s.tick()
+    assertEquals(received, 1)
+
+    buffer.onNext(2); s.tick() // uncertain
+    assertEquals(buffer.onNext(3), Stop)
+
+    buffer.onComplete(); s.tick()
+    assert(!wasCompleted, "!wasCompleted")
+    assertEquals(received, 1)
+  }
+
+  test("stop after a synchronous Failure(ex)") { implicit s =>
+    var received = 0
+    var wasCompleted = false
+    var errorThrown: Throwable = null
+    val dummy = new RuntimeException("dummy")
+
+    val underlying = new Subscriber[Int] {
+      val scheduler = s
+
+      def onNext(elem: Int): Future[Ack] = {
+        received += elem
+        Future.failed(dummy)
+      }
+
+      def onError(ex: Throwable): Unit =
+        errorThrown = ex
+      def onComplete(): Unit =
+        wasCompleted = true
+    }
+
+    val buffer = BufferedSubscriber[Int](underlying, BackPressure(16))
+    assertEquals(buffer.onNext(1), Continue)
+
+    s.tick()
+    assertEquals(buffer.onNext(2), Stop)
+
+    buffer.onComplete(); s.tick()
+    assert(!wasCompleted, "!wasCompleted")
+    assertEquals(received, 1)
+    assertEquals(errorThrown, dummy)
+  }
+
+  test("stop after an asynchronous Failure(ex)") { implicit s =>
+    var received = 0
+    var wasCompleted = false
+    var errorThrown: Throwable = null
+    val dummy = new RuntimeException("dummy")
+
+    val underlying = new Subscriber[Int] {
+      val scheduler = s
+
+      def onNext(elem: Int): Future[Ack] = Future {
+        received += elem
+        throw dummy
+      }
+
+      def onError(ex: Throwable): Unit =
+        errorThrown = ex
+      def onComplete(): Unit =
+        wasCompleted = true
+    }
+
+    val buffer = BufferedSubscriber[Int](underlying, BackPressure(16))
+    assertEquals(buffer.onNext(1), Continue)
+    s.tick(); buffer.onNext(2) // uncertain
+
+    s.tick()
+    assertEquals(buffer.onNext(3), Stop)
+
+    buffer.onComplete(); s.tick()
+    assert(!wasCompleted, "!wasCompleted")
+    assertEquals(received, 1)
+    assertEquals(errorThrown, dummy)
+  }
+
+  test("should protect against user-code in onNext") { implicit s =>
+    var received = 0
+    var wasCompleted = false
+    var errorThrown: Throwable = null
+    val dummy = new RuntimeException("dummy")
+
+    val underlying = new Subscriber[Int] {
+      val scheduler = s
+
+      def onNext(elem: Int): Future[Ack] = {
+        received += elem
+        throw dummy
+      }
+
+      def onError(ex: Throwable): Unit =
+        errorThrown = ex
+      def onComplete(): Unit =
+        wasCompleted = true
+    }
+
+    val buffer = BufferedSubscriber[Int](underlying, BackPressure(16))
+    assertEquals(buffer.onNext(1), Continue)
+
+    s.tick()
+    assertEquals(buffer.onNext(2), Stop)
+
+    buffer.onComplete(); s.tick()
+    assert(!wasCompleted, "!wasCompleted")
+    assertEquals(received, 1)
+    assertEquals(errorThrown, dummy)
+  }
+
+  test("should protect against user-code in onComplete") { implicit s =>
+    var received = 0
+    var errorThrown: Throwable = null
+    val dummy = new RuntimeException("dummy")
+
+    val underlying = new Subscriber[Int] {
+      val scheduler = s
+
+      def onNext(elem: Int): Future[Ack] = {
+        received += elem
+        Continue
+      }
+
+      def onError(ex: Throwable): Unit =
+        errorThrown = ex
+      def onComplete(): Unit =
+        throw dummy
+    }
+
+    val buffer = BufferedSubscriber[Int](underlying, BackPressure(16))
+
+    buffer.onNext(1)
+    buffer.onComplete()
+
+    s.tick()
+    assertEquals(received, 1)
+    assertEquals(errorThrown, null)
+    assertEquals(s.state.lastReportedError, dummy)
+  }
+
+  test("should protect against user-code in onError") { implicit s =>
+    var received = 0
+    var errorThrown: Throwable = null
+
+    val dummy1 = new RuntimeException("dummy1")
+    val dummy2 = new RuntimeException("dummy2")
+
+    val underlying = new Subscriber[Int] {
+      val scheduler = s
+
+      def onNext(elem: Int): Future[Ack] = {
+        received += elem
+        Future.failed(dummy1)
+      }
+
+      def onError(ex: Throwable): Unit = {
+        errorThrown = ex
+        throw dummy2
+      }
+
+      def onComplete(): Unit =
+        throw new IllegalStateException("onComplete")
+    }
+
+    val buffer = BufferedSubscriber[Int](underlying, BackPressure(16))
+    buffer.onNext(1)
+
+    s.tick()
+    assertEquals(received, 1)
+    assertEquals(errorThrown, dummy1)
+    assertEquals(s.state.lastReportedError, dummy2)
+  }
+
+  test("streaming null is not allowed") { implicit s =>
+    var errorThrown: Throwable = null
+
+    val underlying = new Subscriber[String] {
+      val scheduler = s
+      def onNext(elem: String) =
+        Continue
+      def onError(ex: Throwable): Unit =
+        errorThrown = ex
+      def onComplete(): Unit =
+        throw new IllegalStateException("onComplete")
+    }
+
+    val buffer = BufferedSubscriber[String](underlying, BackPressure(16))
+    buffer.onNext(null)
+
+    s.tick()
+    assert(errorThrown != null, "errorThrown != null")
+    assert(errorThrown.isInstanceOf[NullPointerException],
+      "errorThrown.isInstanceOf[NullPointerException]")
+  }
+
+  test("buffer size is required to be greater than 1") { implicit s =>
+    intercept[IllegalArgumentException] {
+      BufferedSubscriber[Int](Subscriber.empty[Int], BackPressure(1))
+    }
+  }
 }

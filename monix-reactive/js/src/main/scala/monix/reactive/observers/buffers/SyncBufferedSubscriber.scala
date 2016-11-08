@@ -51,7 +51,11 @@ private[observers] final class SyncBufferedSubscriber[-A] private
 
   def onNext(elem: A): Ack = {
     if (!upstreamIsComplete && !downstreamIsComplete) {
-      try {
+      if (elem == null) {
+        onError(new NullPointerException("Null not supported in onNext"))
+        Stop
+      }
+      else try {
         droppedCount += queue.offer(elem)
         consume()
         Continue
@@ -92,17 +96,43 @@ private[observers] final class SyncBufferedSubscriber[-A] private
       fastLoop(lastIterationAck, 0)
     }
 
-    @inline
+    private final def signalNext(next: A): Future[Ack] =
+      try {
+        val ack = out.onNext(next)
+        // Tries flattening the Future[Ack] to a
+        // synchronous value
+        if (ack == Continue || ack == Stop)
+          ack
+        else ack.value match {
+          case Some(Success(success)) =>
+            success
+          case Some(Failure(ex)) =>
+            downstreamSignalComplete(ex)
+            Stop
+          case None =>
+            ack
+        }
+      } catch {
+        case NonFatal(ex) =>
+          downstreamSignalComplete(ex)
+          Stop
+      }
+
     private def downstreamSignalComplete(ex: Throwable = null): Unit = {
       downstreamIsComplete = true
-      if (ex != null) out.onError(ex)
-      else out.onComplete()
+      try {
+        if (ex != null) out.onError(ex)
+        else out.onComplete()
+      } catch {
+        case NonFatal(err) =>
+          scheduler.reportFailure(err)
+      }
     }
 
     private def goAsync(next: A, ack: Future[Ack]): Unit =
       ack.onComplete {
         case Success(Continue) =>
-          val nextAck = out.onNext(next)
+          val nextAck = signalNext(next)
           val isSync = ack == Continue || ack == Stop
           val nextFrame = if (isSync) em.nextFrameIndex(0) else 0
           fastLoop(nextAck, nextFrame)
@@ -114,9 +144,8 @@ private[observers] final class SyncBufferedSubscriber[-A] private
 
         case Failure(ex) =>
           // ending loop
-          downstreamIsComplete = true
           isLoopActive = false
-          out.onError(ex)
+          downstreamSignalComplete(ex)
       }
 
     private def fastLoop(prevAck: Future[Ack], startIndex: Int): Unit = {
@@ -156,7 +185,7 @@ private[observers] final class SyncBufferedSubscriber[-A] private
 
               ack match {
                 case Continue =>
-                  ack = out.onNext(next).syncTryFlatten
+                  ack = signalNext(next)
                   if (ack == Stop) {
                     // ending loop
                     downstreamIsComplete = true
