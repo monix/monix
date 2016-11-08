@@ -33,7 +33,7 @@ object HeadConsumerSuite extends TestSuite[TestScheduler] {
   test("stops on first on next") { implicit s =>
     var wasStopped = false
     val obs = Observable.now(1).doOnDownstreamStop { wasStopped = true }
-    val f = obs.runWith(Consumer.head).runAsync
+    val f = obs.consumeWith(Consumer.head).runAsync
 
     s.tick()
     assert(wasStopped, "wasStopped")
@@ -47,7 +47,7 @@ object HeadConsumerSuite extends TestSuite[TestScheduler] {
       .doOnDownstreamStop { wasStopped = true }
       .doOnComplete { wasCompleted = true }
 
-    val f = obs.runWith(Consumer.head).runAsync
+    val f = obs.consumeWith(Consumer.head).runAsync
 
     s.tick()
     assert(!wasStopped, "!wasStopped")
@@ -64,7 +64,7 @@ object HeadConsumerSuite extends TestSuite[TestScheduler] {
       .doOnDownstreamStop { wasStopped = true }
       .doOnError { _ => wasCompleted = true }
 
-    val f = obs.runWith(Consumer.head).runAsync
+    val f = obs.consumeWith(Consumer.head).runAsync
 
     s.tick()
     assert(!wasStopped, "!wasStopped")

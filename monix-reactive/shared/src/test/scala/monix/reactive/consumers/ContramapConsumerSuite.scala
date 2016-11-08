@@ -25,8 +25,8 @@ object ContramapConsumerSuite extends BaseLawsTestSuite {
   test("consumer.contramap equivalence with observable.map") { implicit s =>
     check1 { (obs: Observable[Int]) =>
       val consumer = Consumer.foldLeft[Long,Int](0L)(_ + _)
-      val t1 = obs.map(_ + 1).runWith(consumer)
-      val t2 = obs.runWith(consumer.contramap(_+1))
+      val t1 = obs.map(_ + 1).consumeWith(consumer)
+      val t2 = obs.consumeWith(consumer.contramap(_+1))
       t1 === t2
     }
   }
@@ -36,8 +36,8 @@ object ContramapConsumerSuite extends BaseLawsTestSuite {
       val withError = obs.endWithError(ex)
       val consumer = Consumer.foldLeft[Long,Int](0L)(_ + _)
 
-      val t1 = withError.runWith(consumer)
-      val t2 = withError.runWith(consumer.contramap(_+1))
+      val t1 = withError.consumeWith(consumer)
+      val t2 = withError.consumeWith(consumer.contramap(_+1))
       t1 === t2
     }
   }
@@ -45,7 +45,7 @@ object ContramapConsumerSuite extends BaseLawsTestSuite {
   test("consumer.contramap protects against user code") { implicit s =>
     val ex = DummyException("dummy")
     val f = Observable(1)
-      .runWith(Consumer.head[Int].contramap(_ => throw ex))
+      .consumeWith(Consumer.head[Int].contramap(_ => throw ex))
       .runAsync
 
     s.tick()

@@ -25,8 +25,8 @@ object MapConsumerSuite extends BaseLawsTestSuite {
   test("consumer.map equivalence with task.map") { implicit s =>
     check1 { (obs: Observable[Int]) =>
       val consumer = Consumer.foldLeft[Long,Int](0L)(_ + _)
-      val t1 = obs.runWith(consumer.map(_ + 100))
-      val t2 = obs.runWith(consumer).map(_ + 100)
+      val t1 = obs.consumeWith(consumer.map(_ + 100))
+      val t2 = obs.consumeWith(consumer).map(_ + 100)
       t1 === t2
     }
   }
@@ -36,8 +36,8 @@ object MapConsumerSuite extends BaseLawsTestSuite {
       val withError = obs.endWithError(ex)
       val consumer = Consumer.foldLeft[Long,Int](0L)(_ + _)
 
-      val t1 = withError.runWith(consumer.map(_+100))
-      val t2 = withError.runWith(consumer).map(_+100)
+      val t1 = withError.consumeWith(consumer.map(_+100))
+      val t2 = withError.consumeWith(consumer).map(_+100)
       t1 === t2
     }
   }
@@ -45,7 +45,7 @@ object MapConsumerSuite extends BaseLawsTestSuite {
   test("consumer.map protects against user code") { implicit s =>
     val ex = DummyException("dummy")
     val f = Observable(1)
-      .runWith(Consumer.head[Int].map(_ => throw ex))
+      .consumeWith(Consumer.head[Int].map(_ => throw ex))
       .runAsync
 
     s.tick()

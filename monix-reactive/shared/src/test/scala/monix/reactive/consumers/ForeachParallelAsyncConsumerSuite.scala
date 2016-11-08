@@ -41,7 +41,7 @@ object ForeachParallelAsyncConsumerSuite extends TestSuite[TestScheduler] {
     val count = 10000L
     val obs = Observable.range(0, count)
     val sum = Atomic(0L)
-    val f = obs.runWith(Consumer
+    val f = obs.consumeWith(Consumer
       .foreachParallelAsync(10)(x => Task(sum.add(x))))
       .runAsync
 
@@ -54,7 +54,7 @@ object ForeachParallelAsyncConsumerSuite extends TestSuite[TestScheduler] {
     val ex = DummyException("dummy")
     val obs = Observable.range(0, 10000).endWithError(ex)
     val sum = Atomic(0L)
-    val f = obs.runWith(Consumer
+    val f = obs.consumeWith(Consumer
       .foreachParallelAsync(10)(x => Task(sum.add(x))))
       .runAsync
 

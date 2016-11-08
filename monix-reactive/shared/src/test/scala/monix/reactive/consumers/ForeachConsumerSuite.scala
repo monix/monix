@@ -34,7 +34,7 @@ object ForeachConsumerSuite extends TestSuite[TestScheduler] {
     val count = 10000L
     val obs = Observable.range(0, count)
     var sum = 0L
-    val f = obs.runWith(Consumer.foreach(x => sum += x)).runAsync
+    val f = obs.consumeWith(Consumer.foreach(x => sum += x)).runAsync
 
     s.tick()
     assertEquals(f.value, Some(Success(())))
@@ -45,7 +45,7 @@ object ForeachConsumerSuite extends TestSuite[TestScheduler] {
     val ex = DummyException("dummy")
     val obs = Observable.range(0, 10000).endWithError(ex)
     var sum = 0L
-    val f = obs.runWith(Consumer.foreach(x => sum += x)).runAsync
+    val f = obs.consumeWith(Consumer.foreach(x => sum += x)).runAsync
 
     s.tick()
     assertEquals(f.value, Some(Failure(ex)))
@@ -54,7 +54,7 @@ object ForeachConsumerSuite extends TestSuite[TestScheduler] {
   test("should protect against user error") { implicit s =>
     val ex = DummyException("dummy")
     val f = Observable.now(1)
-      .runWith(Consumer.foreach(_ => throw ex))
+      .consumeWith(Consumer.foreach(_ => throw ex))
       .runAsync
 
     s.tick()
