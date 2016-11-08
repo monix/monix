@@ -1,16 +1,16 @@
 # Monix
 
-<img src="https://raw.githubusercontent.com/wiki/monifu/monix/assets/monifu-square.png" align="right" width="280" />
+<img src="https://raw.githubusercontent.com/wiki/monix/monix/assets/monifu-square.png" align="right" width="280" />
 
 Reactive Programming for Scala and [Scala.js](http://www.scala-js.org/).
 
-[![Build Status](https://travis-ci.org/monixio/monix.svg?branch=1.x)](https://travis-ci.org/monifu/monix)
+[![Build Status](https://travis-ci.org/monix/monix.svg?branch=series/1.x)](https://travis-ci.org/monix/monix)
 [![License](http://img.shields.io/:license-Apache%202-red.svg)](http://www.apache.org/licenses/LICENSE-2.0.txt)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/org.monifu/monifu_2.11/badge.svg)](https://maven-badges.herokuapp.com/maven-central/org.monifu/monifu_2.11)
 
-[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/monifu/monix?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/monix/monix?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-**NOTE: renamed from Monifu, see [issue #91](https://github.com/monifu/monix/issues/91) for details.**
+**NOTE: renamed from Monifu, see [issue #91](https://github.com/monix/monix/issues/91) for details.**
 
 ## Overview
 
@@ -41,7 +41,7 @@ Highlights:
 
 ## Usage
 
-See **[monix-sample](https://github.com/monifu/monix-sample)** for
+See **[monix-sample](https://github.com/monix/monix-sample)** for
 a project exemplifying Monix used both on the server and on the client.
 
 Currently compiled for  *Scala 2.10.x*, *2.11.x* and *Scala.js 0.6.x*.
@@ -157,13 +157,13 @@ See [LICENCE.txt](./LICENSE.txt).
 
 ## Acknowledgements
 
-<img src="https://raw.githubusercontent.com/wiki/monifu/monix/assets/yklogo.png" align="right" />
+<img src="https://raw.githubusercontent.com/wiki/monix/monix/assets/yklogo.png" align="right" />
 YourKit supports the Monix project with its full-featured Java Profiler.
 YourKit, LLC is the creator [YourKit Java Profiler](http://www.yourkit.com/java/profiler/index.jsp)
 and [YourKit .NET Profiler](http://www.yourkit.com/.net/profiler/index.jsp),
 innovative and intelligent tools for profiling Java and .NET applications.
 
-<img src="https://raw.githubusercontent.com/wiki/monifu/monix/assets/logo-eloquentix@2x.png" align="right" width="130" />
+<img src="https://raw.githubusercontent.com/wiki/monix/monix/assets/logo-eloquentix@2x.png" align="right" width="130" />
 
 Development of Monix has been initiated by [Eloquentix](http://eloquentix.com/)
 engineers, with Monix being introduced at E.ON Connecting Energies,
