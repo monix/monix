@@ -20,7 +20,7 @@ package monix.eval.internal
 import monix.eval.{Callback, Task}
 import monix.execution.Scheduler
 import monix.execution.cancelables.{CompositeCancelable, StackedCancelable}
-import scala.collection.generic.CanBuildFrom
+import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.util.control.NonFatal
 
@@ -28,8 +28,7 @@ private[monix] object TaskGather {
   /**
     * Implementation for `Task.gather`
     */
-  def apply[A, M[X] <: TraversableOnce[X]](in: M[Task[A]])
-    (implicit cbf: CanBuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] = {
+  def apply[A, M[X] <: TraversableOnce[X]](in: Array[Task[A]], bldrBldr: () => mutable.Builder[A, M[A]]): Task[M[A]] = {
 
     Task.unsafeCreate { (context, finalCallback) =>
       // We need a monitor to synchronize on, per evaluation!
@@ -55,7 +54,7 @@ private[monix] object TaskGather {
           isActive = false
           mainConn.pop()
 
-          val builder = cbf(in)
+          val builder = bldrBldr()
           var idx = 0
           while (idx < results.length) {
             builder += results(idx).asInstanceOf[A]
@@ -88,22 +87,22 @@ private[monix] object TaskGather {
       context.scheduler.executeTrampolined(() => lock.synchronized {
         try {
           implicit val s = context.scheduler
-          tasks = in.toArray
+          tasks = in
           tasksCount = tasks.length
 
           if (tasksCount == 0) {
             // With no tasks available, we need to return an empty sequence
-            finalCallback.asyncOnSuccess(cbf(in).result())
+            finalCallback.asyncOnSuccess(bldrBldr().result())
           }
           else if (tasksCount == 1) {
             // If it's a single task, then execute it directly
-            val source = tasks(0).map(r => (cbf(in) += r).result())
+            val source = tasks(0).map(r => (bldrBldr() += r).result())
             Task.unsafeStartNow(source, context, finalCallback)
           }
           else if (tasksCount == 2) {
             // Optimizing for 2 tasks by calling `mapBoth`
             val source = Task.mapBoth(tasks(0), tasks(1)) { (a1,a2) =>
-              val b = cbf(in)
+              val b = bldrBldr()
               b += a1 += a2
               b.result()
             }
