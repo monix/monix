@@ -4,7 +4,8 @@ This is the API documentation for the [[https://monix.io Monix]] library.
 
 ==Package Overview==
 
- - '''[[monix.execution]]''' exposes lower level primitives for dealing
+ - ''
+ '[[monix.execution]]''' exposes lower level primitives for dealing
     with asynchronous execution
    - [[monix.execution.atomic]] exposes the `Atomic` types, as alternative
      to `java.util.concurrent.atomic`
