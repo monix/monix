@@ -6,7 +6,7 @@ import sbtunidoc.Plugin.{ScalaUnidoc, unidocSettings => baseUnidocSettings}
 import scala.xml.Elem
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 
-val catsVersion = "0.8.0"
+val catsVersion = "0.8.1"
 val scalazVersion = "7.2.7"
 
 lazy val doNotPublishArtifact = Seq(
@@ -32,7 +32,7 @@ lazy val warnUnusedImport = Seq(
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
   scalaVersion := "2.11.8",
-  crossScalaVersions := Seq("2.10.6", "2.11.8"),
+  crossScalaVersions := Seq("2.10.6", "2.11.8", "2.12.0"),
 
   scalacOptions ++= Seq(
     // warnings
@@ -261,7 +261,7 @@ def profile: Project ⇒ Project = pr => cmdlineProfile match {
 
 lazy val monix = project.in(file("."))
   .configure(profile)
-  .aggregate(coreJVM, coreJS, catsJVM, catsJS, tckTests)
+  .aggregate(coreJVM, coreJS, tckTests)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
   .settings(unidocSettings)
@@ -269,7 +269,7 @@ lazy val monix = project.in(file("."))
 lazy val coreJVM = project.in(file("monix/jvm"))
   .configure(profile)
   .dependsOn(typesJVM, executionJVM, evalJVM, reactiveJVM)
-  .aggregate(typesJVM, executionJVM, evalJVM, reactiveJVM, scalaz72JVM)
+  .aggregate(typesJVM, executionJVM, evalJVM, reactiveJVM, catsJVM, scalaz72JVM)
   .settings(crossSettings)
   .settings(name := "monix")
 
@@ -277,7 +277,7 @@ lazy val coreJS = project.in(file("monix/js"))
   .configure(profile)
   .enablePlugins(ScalaJSPlugin)
   .dependsOn(typesJS, executionJS, evalJS, reactiveJS)
-  .aggregate(typesJS, executionJS, evalJS, reactiveJS, scalaz72JS)
+  .aggregate(typesJS, executionJS, evalJS, reactiveJS, catsJS, scalaz72JS)
   .settings(crossSettings)
   .settings(scalaJSSettings)
   .settings(name := "monix")

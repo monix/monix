@@ -86,7 +86,7 @@ private[scalaz] trait MonixToScalaz1 extends MonixToScalaz0 {
 
 private[scalaz] trait MonixToScalaz2 extends MonixToScalaz1 {
   /** Converts Monix's type instances into the Scalaz `Monad`. */
-  implicit def monixMonadInstancesToScalaz[F[_] : Monad]: _root_.scalaz.Monad[F] =
+  implicit def monixToScalazMonad[F[_] : Monad]: _root_.scalaz.Monad[F] =
     new MonixToScalazMonad[F]()
 
   protected class MonixToScalazMonad[F[_]](implicit val F: Monad[F])

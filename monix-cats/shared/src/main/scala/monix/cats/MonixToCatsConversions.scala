@@ -110,7 +110,7 @@ private[cats] trait MonixToCatsCore2 extends MonixToCatsCore1 {
   /** Converts Monix's [[monix.types.Monad Monad]]
     * instances into the Cats `Monad`.
     */
-  implicit def convertMonixToCatsMonad[F[_] : Monad]: _root_.cats.Monad[F] =
+  implicit def monixToCatsMonad[F[_] : Monad]: _root_.cats.Monad[F] =
     new MonixToCatsMonad[F]()
 
   protected class MonixToCatsMonad[F[_]](implicit F: Monad[F])
