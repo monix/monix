@@ -28,7 +28,7 @@ private[monix] object TaskGather {
   /**
     * Implementation for `Task.gather`
     */
-  def apply[A, M[X] <: TraversableOnce[X]](in: Array[Task[A]], bldrBldr: () => mutable.Builder[A, M[A]]): Task[M[A]] = {
+  def apply[A, M[X] <: TraversableOnce[X]](in: TraversableOnce[Task[A]], bldrBldr: () => mutable.Builder[A, M[A]]): Task[M[A]] = {
 
     Task.unsafeCreate { (context, finalCallback) =>
       // We need a monitor to synchronize on, per evaluation!
@@ -87,7 +87,7 @@ private[monix] object TaskGather {
       context.scheduler.executeTrampolined(() => lock.synchronized {
         try {
           implicit val s = context.scheduler
-          tasks = in
+          tasks = in.toArray
           tasksCount = tasks.length
 
           if (tasksCount == 0) {

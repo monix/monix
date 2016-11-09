@@ -875,7 +875,7 @@ object Task extends TaskInstances {
     */
   def gather[A, M[X] <: TraversableOnce[X]](in: M[Task[A]])
     (implicit cbf: CanBuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] =
-    TaskGather(in.toArray, () => cbf(in))
+    TaskGather(in, () => cbf(in))
 
    /** Given a `TraversableOnce[A]` and a function `A => Task[B]`,
    * nondeterministically apply the function to each element of the collection
@@ -895,9 +895,8 @@ object Task extends TaskInstances {
    * It's a generalized version of [[gather]].
    */
   def wander[A, B, M[X] <: TraversableOnce[X]](in: M[A])(f: A => Task[B])
-    (implicit cbf: CanBuildFrom[M[A], B, M[B]]): Task[M[B]] = {
-    TaskGather(in.map(f).toArray, () => cbf(in))
-  }
+    (implicit cbf: CanBuildFrom[M[A], B, M[B]]): Task[M[B]] =
+    Task.eval(in.map(f)).flatMap(col => TaskGather(col, () => cbf(in)))
 
   /** Nondeterministically gather results from the given collection of tasks,
     * without keeping the original ordering of results.
@@ -930,16 +929,8 @@ object Task extends TaskInstances {
     *
     * It's a generalized version of [[gatherUnordered]].
     */
-  def wanderUnordered[A, B, M[X] <: TraversableOnce[X]](in: M[A])(f: A => Task[B])
-    (implicit cbf: CanBuildFrom[M[A], B, M[B]]): Task[M[B]] = {
-    val tasks = in.toIterable.map(f)
-
-    for (result <- gatherUnordered(tasks)) yield {
-      val builder = cbf(in)
-      for (b <- result) builder += b
-      builder.result()
-    }
-  }
+  def wanderUnordered[A, B, M[X] <: TraversableOnce[X]](in: M[A])(f: A => Task[B]): Task[List[B]] =
+    Task.eval(in.map(f)).flatMap(gatherUnordered)
 
   /** Apply a mapping functions to the results of two tasks, nondeterministically
     * ordering their effects.

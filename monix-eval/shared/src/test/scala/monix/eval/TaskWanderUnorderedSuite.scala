@@ -160,4 +160,15 @@ object TaskWanderUnorderedSuite extends BaseTestSuite {
     assertEquals(result2.value, Some(Success(List(4, 4, 4))))
     assertEquals(effect, 1 + 3 + 3)
   }
+
+  test("Task.wanderUnordered should wrap exceptions in the function") { implicit s =>
+    val ex = DummyException("dummy")
+    val task1 = Task.wanderUnordered(Seq(0)) { _ =>
+      throw ex
+    }
+
+    val result1 = task1.runAsync; s.tick()
+    assertEquals(result1.value, Some(Failure(ex)))
+  }
+
 }
