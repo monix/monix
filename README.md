@@ -89,6 +89,7 @@ hosted at,
 
 API Documentation:
 
+- [2.1](https://monix.io/api/2.1/)
 - [2.0](https://monix.io/api/2.0/)
 - [1.2](https://monix.io/api/1.2/)
 
