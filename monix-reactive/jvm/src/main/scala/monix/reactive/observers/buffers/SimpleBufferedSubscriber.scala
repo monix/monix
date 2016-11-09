@@ -52,7 +52,7 @@ private[observers] final class SimpleBufferedSubscriber[A] protected
 
 private[observers] abstract class AbstractSimpleBufferedSubscriber[A] protected
   (out: Subscriber[A], _qRef: MessagePassingQueue[A])
-  extends CommonBufferPad4 with BufferedSubscriber[A] with Subscriber.Sync[A] {
+  extends CommonBufferMembers with BufferedSubscriber[A] with Subscriber.Sync[A] {
 
   private[this] val queue = _qRef
   private[this] val em = out.scheduler.executionModel

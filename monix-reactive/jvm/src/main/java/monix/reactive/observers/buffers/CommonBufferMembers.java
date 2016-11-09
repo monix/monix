@@ -69,7 +69,12 @@ abstract class CommonBufferLastAck extends CommonBufferPad3 {
   protected Future<Ack> lastIterationAck;
 }
 
-abstract class CommonBufferPad4 extends CommonBufferLastAck {
+/**
+ * Common (protected) members between several `BufferedSubscriber`
+ * implementations, with cache-line padding applied to avoid the
+ * false-sharing problem.
+ */
+abstract class CommonBufferMembers extends CommonBufferLastAck {
   volatile long p40, p41, p42, p43, p44, p45, p46, p47;
   volatile long q40, q41, q42, q43, q44, q45, q46, q47;
 }

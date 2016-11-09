@@ -4,7 +4,7 @@ This is the API documentation for the [[https://monix.io Monix]] library.
 
 ==Package Overview==
 
- - [[monix.execution]] exposes lower level primitives for dealing
+ - '''[[monix.execution]]''' exposes lower level primitives for dealing
     with asynchronous execution
    - [[monix.execution.atomic]] exposes the `Atomic` types, as alternative
      to `java.util.concurrent.atomic`
@@ -14,9 +14,13 @@ This is the API documentation for the [[https://monix.io Monix]] library.
      useful [[monix.execution.Scheduler Scheduler]] implementations
    - [[monix.execution.rstreams]] contains helpers for dealing
      with the [[http://www.reactive-streams.org Reactive Streams]] specification
- - [[monix.eval]] is for dealing with evaluation of results, thus exposing
+   - [[monix.execution.misc]] provides miscellaneous primitives
+     useful for dealing with concurrency
+
+ - '''[[monix.eval]]''' is for dealing with evaluation of results, thus exposing
    [[monix.eval.Task Task]] and [[monix.eval.Coeval Coeval]]
- - [[monix.reactive]] exposes the `Observable` pattern
+
+ - '''[[monix.reactive]]''' exposes the `Observable` pattern
    - [[monix.reactive.exceptions]] groups some exceptions thrown by the implementation
    - [[monix.reactive.observables]] groups reusable `Observable` implementations
    - [[monix.reactive.observers]] groups reusable [[monix.reactive.Observer Observer]]
@@ -24,9 +28,15 @@ This is the API documentation for the [[https://monix.io Monix]] library.
    - [[monix.reactive.subjects]] exposes [[monix.reactive.subjects.Subject Subject]]
      and [[monix.reactive.subjects.ConcurrentSubject ConcurrentSubject]],
      which are implementations of hot observables that function both as input and output
- - [[monix.types]] implements type-class shims, to be translated to
+
+ - '''[[monix.types]]''' implements type-class shims, to be translated to
    type-classes provided by libraries such as
    [[http://typelevel.org/cats/ Cats]] or [[http://scalaz.org/ Scalaz]]
- - [[monix.cats]] is the optional integration with the
+
+ - '''[[monix.cats]]''' is the optional integration with the
    [[http://typelevel.org/cats/ Cats]] library, providing translations
+   for the types described in `monix.types`
+
+ - '''[[monix.scalaz]]''' is the optional integration with the
+   [[http://scalaz.org/ Scalaz]] library, providing translations
    for the types described in `monix.types`

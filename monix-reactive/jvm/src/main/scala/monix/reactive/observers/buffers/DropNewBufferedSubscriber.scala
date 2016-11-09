@@ -36,7 +36,7 @@ import scala.util.{Failure, Success}
   */
 private[observers] final class DropNewBufferedSubscriber[A] private
   (out: Subscriber[A], bufferSize: Int, onOverflow: Long => Option[A] = null)
-  extends CommonBufferPad4 with BufferedSubscriber[A] with Subscriber.Sync[A] {
+  extends CommonBufferMembers with BufferedSubscriber[A] with Subscriber.Sync[A] {
 
   require(bufferSize > 0, "bufferSize must be a strictly positive number")
 

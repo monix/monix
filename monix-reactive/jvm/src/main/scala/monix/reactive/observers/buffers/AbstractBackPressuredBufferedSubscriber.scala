@@ -35,7 +35,7 @@ import scala.util.{Failure, Success}
   */
 private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
   (out: Subscriber[R], bufferSize: Int)
-  extends CommonBufferPad4 with BufferedSubscriber[A] {
+  extends CommonBufferMembers with BufferedSubscriber[A] {
 
   require(bufferSize > 0, "bufferSize must be a strictly positive number")
 

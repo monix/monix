@@ -18,16 +18,25 @@
 package monix.execution.misc;
 
 import scala.util.control.NonFatal;
-
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 
+/**
+ * Provides access to `sun.misc.Unsafe`.
+ *
+ * DO NOT use unless you know what you're doing.
+ */
 public final class UnsafeAccess {
+    /**
+     * Initialized and reusable reference for `sun.misc.Unsafe`.
+     */
     public static final sun.misc.Unsafe UNSAFE;
+
+    /**
+     * True in case the underlying platform supports Java 8's
+     * `Unsafe` features for platform intrinsics.
+     */
     public static final boolean IS_JAVA_8;
-    public static final boolean SUPPORTS_GET_AND_SET;
-    public static final boolean SUPPORTS_GET_AND_ADD_INT;
-    public static final boolean SUPPORTS_GET_AND_ADD_LONG;
 
     static {
         sun.misc.Unsafe instance;
@@ -71,10 +80,6 @@ public final class UnsafeAccess {
         } catch (Exception e) {
             if (!NonFatal.apply(e)) throw new RuntimeException(e);
         }
-
-        SUPPORTS_GET_AND_SET = supportsGetAndSet;
-        SUPPORTS_GET_AND_ADD_INT = supportsGetAndAddInt;
-        SUPPORTS_GET_AND_ADD_LONG = supportsGetAndAddLong;
 
         IS_JAVA_8 = supportsGetAndSet &&
             supportsGetAndAddInt &&

@@ -97,7 +97,7 @@ private[observers] object EvictingBufferedSubscriber {
 
 private[observers] abstract class AbstractEvictingBufferedSubscriber[-A]
   (out: Subscriber[A], strategy: Evicted[Nothing], onOverflow: Long => Option[A])
-  extends CommonBufferPad4 with BufferedSubscriber[A] with Subscriber.Sync[A] {
+  extends CommonBufferMembers with BufferedSubscriber[A] with Subscriber.Sync[A] {
 
   require(strategy.bufferSize > 0, "bufferSize must be a strictly positive number")
 

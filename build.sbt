@@ -227,11 +227,15 @@ lazy val unidocSettings = baseUnidocSettings ++ Seq(
   unidocProjectFilter in (ScalaUnidoc, unidoc) :=
     inProjects(typesJVM, executionJVM, evalJVM, reactiveJVM, catsJVM, scalaz72JVM),
 
-  // Never include Java classes in ScalaDoc
-  sources in (ScalaUnidoc, unidoc) ~= (_ filter (_.getName endsWith ".scala")),
+  // Exclude monix.execution.atomic.boxes from ScalaDoc
+  sources in (ScalaUnidoc, unidoc) ~= (_ filterNot { file =>
+    file.getCanonicalPath matches "^.*monix.execution.atomic.boxes.*$"
+  }),
 
   scalacOptions in (ScalaUnidoc, unidoc) +=
     "-Xfatal-warnings",
+  scalacOptions in (ScalaUnidoc, unidoc) -=
+    "-Ywarn-unused-import",
   scalacOptions in (ScalaUnidoc, unidoc) ++=
     Opts.doc.title(s"Monix"),
   scalacOptions in (ScalaUnidoc, unidoc) ++=
