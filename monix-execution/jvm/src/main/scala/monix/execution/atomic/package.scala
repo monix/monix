@@ -18,7 +18,7 @@
 package monix.execution
 
 import monix.execution.atomic.PaddingStrategy._
-import monix.execution.atomic.boxes.BoxPaddingStrategy
+import monix.execution.atomic.internals.BoxPaddingStrategy
 
 /** A small toolkit of classes that support compare-and-swap semantics
   * for safe mutation of variables.
@@ -42,7 +42,7 @@ import monix.execution.atomic.boxes.BoxPaddingStrategy
   * will automatically return the most specific type needed (in the
   * following sample, that's an `AtomicDouble`, inheriting from
   * `AtomicNumber[T]`):
-  * 
+  *
   * {{{
   *   val atomicNumber = Atomic(12.2)
   *

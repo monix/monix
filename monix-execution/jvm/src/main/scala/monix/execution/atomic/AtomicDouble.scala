@@ -18,7 +18,7 @@
 package monix.execution.atomic
 
 import monix.execution.atomic.PaddingStrategy.NoPadding
-import monix.execution.atomic.boxes.{Factory, BoxedLong}
+import monix.execution.atomic.internals.{Factory, BoxedLong}
 import scala.annotation.tailrec
 import java.lang.Double.{longBitsToDouble, doubleToLongBits}
 
