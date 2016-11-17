@@ -18,7 +18,7 @@
 package monix.execution.atomic
 
 import monix.execution.atomic.PaddingStrategy.NoPadding
-import monix.execution.atomic.boxes.{BoxedInt, Factory}
+import monix.execution.atomic.internals.{BoxedInt, Factory}
 
 /** Atomic references wrapping `Char` values.
   *

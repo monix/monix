@@ -18,7 +18,7 @@
 package monix.execution.atomic
 
 import monix.execution.atomic.PaddingStrategy.NoPadding
-import monix.execution.atomic.boxes.{Factory, BoxedInt}
+import monix.execution.atomic.internals.{Factory, BoxedInt}
 import scala.annotation.tailrec
 import java.lang.Float.{intBitsToFloat, floatToIntBits}
 

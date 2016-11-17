@@ -27,62 +27,90 @@ import java.lang.reflect.Field;
  * DO NOT use unless you know what you're doing.
  */
 public final class UnsafeAccess {
-    /**
-     * Initialized and reusable reference for `sun.misc.Unsafe`.
-     */
-    public static final sun.misc.Unsafe UNSAFE;
+  /**
+   * Initialized and reusable reference for `sun.misc.Unsafe`.
+   */
+  public static final Object UNSAFE;
 
-    /**
-     * True in case the underlying platform supports Java 8's
-     * `Unsafe` features for platform intrinsics.
-     */
-    public static final boolean IS_JAVA_8;
+  public static void checkIfUnsafeIsAvailable() {
+    if (UNSAFE == null)
+      throw new AssertionError(
+        "Platform does not support sun.misc.Unsafe, " +
+        "please file a bug report for the Monix project " +
+        "(see https://monix.io)"
+      );
+  }
 
-    static {
-        sun.misc.Unsafe instance;
-        try {
-            Field field = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
-            field.setAccessible(true);
-            instance = (sun.misc.Unsafe) field.get(null);
-        } catch (Exception e) {
-            if (!NonFatal.apply(e)) throw new RuntimeException(e);
-            else try {
-                Constructor<sun.misc.Unsafe> c = sun.misc.Unsafe.class.getDeclaredConstructor();
-                c.setAccessible(true);
-                instance = c.newInstance();
-            } catch (Exception again) {
-                throw new RuntimeException(again);
-            }
+  /**
+   * True in case the underlying platform supports Java 8's
+   * `Unsafe` features for platform intrinsics.
+   */
+  public static final boolean IS_JAVA_8;
+
+  static {
+    Object instance = null;
+    boolean isJava8 = false;
+
+    try {
+      Class<?> cls = Class.forName("sun.misc.Unsafe", true, UnsafeAccess.class.getClassLoader());
+      try {
+        Field field = cls.getDeclaredField("theUnsafe");
+        field.setAccessible(true);
+        instance = field.get(null);
+      }
+      catch (Exception ex) {
+        if (!NonFatal.apply(ex)) {
+          throw ex;
         }
-
-        UNSAFE = instance;
-
-        boolean supportsGetAndSet = false;
-        try {
-            sun.misc.Unsafe.class.getMethod("getAndSetObject", Object.class, Long.TYPE, Object.class);
-            supportsGetAndSet = true;
-        } catch (Exception e) {
-            if (!NonFatal.apply(e)) throw new RuntimeException(e);
+        else {
+          // Workaround for older Android versions or other non-OpenJDK
+          // implementations that may not have a `theUnsafe` instance
+          Constructor<?> c = cls.getDeclaredConstructor();
+          c.setAccessible(true);
+          instance = c.newInstance();
         }
+      }
 
-        boolean supportsGetAndAddInt = false;
-        try {
-            sun.misc.Unsafe.class.getMethod("getAndAddInt", Object.class, Long.TYPE, Integer.TYPE);
-            supportsGetAndAddInt = true;
-        } catch (Exception e) {
-            if (!NonFatal.apply(e)) throw new RuntimeException(e);
-        }
+      boolean supportsGetAndSet = false;
+      try {
+        cls.getMethod("getAndSetObject", Object.class, Long.TYPE, Object.class);
+        supportsGetAndSet = true;
+      }
+      catch (Exception e) {
+        if (!NonFatal.apply(e)) throw e;
+      }
 
-        boolean supportsGetAndAddLong = false;
-        try {
-            sun.misc.Unsafe.class.getMethod("getAndAddLong", Object.class, Long.TYPE, Long.TYPE);
-            supportsGetAndAddLong = true;
-        } catch (Exception e) {
-            if (!NonFatal.apply(e)) throw new RuntimeException(e);
-        }
+      boolean supportsGetAndAddInt = false;
+      try {
+        cls.getMethod("getAndAddInt", Object.class, Long.TYPE, Integer.TYPE);
+        supportsGetAndAddInt = true;
+      }
+      catch (Exception e) {
+        if (!NonFatal.apply(e)) throw e;
+      }
 
-        IS_JAVA_8 = supportsGetAndSet &&
-            supportsGetAndAddInt &&
-            supportsGetAndAddLong;
+      boolean supportsGetAndAddLong = false;
+      try {
+        cls.getMethod("getAndAddLong", Object.class, Long.TYPE, Long.TYPE);
+        supportsGetAndAddLong = true;
+      }
+      catch (Exception e) {
+        if (!NonFatal.apply(e)) throw e;
+      }
+
+      isJava8 = supportsGetAndSet &&
+        supportsGetAndAddInt &&
+        supportsGetAndAddLong;
     }
+    catch (Exception ex) {
+      instance = null;
+      isJava8 = false;
+      if (!NonFatal.apply(ex))
+        throw new RuntimeException(ex);
+    }
+    finally {
+      UNSAFE = instance;
+      IS_JAVA_8 = isJava8;
+    }
+  }
 }
