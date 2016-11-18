@@ -18,7 +18,7 @@
 package monix.execution
 
 import monix.execution.atomic.PaddingStrategy._
-import monix.execution.atomic.internals.BoxPaddingStrategy
+import monix.execution.internals.atomic.BoxPaddingStrategy
 
 /** A small toolkit of classes that support compare-and-swap semantics
   * for safe mutation of variables.
