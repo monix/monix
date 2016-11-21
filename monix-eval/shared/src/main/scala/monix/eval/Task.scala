@@ -665,7 +665,7 @@ object Task extends TaskInstances {
   def eval[A](a: => A): Task[A] =
     Delay(Coeval.Always(a _))
 
-  /** Alias for [[coeval]]. */
+  /** Alias for [[eval]]. */
   def delay[A](a: => A): Task[A] = eval(a)
 
   /** A [[Task]] instance that upon evaluation will never complete. */
