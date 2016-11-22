@@ -102,7 +102,7 @@ private[reactive] final class InputStreamObservable(
       ack = if (length >= 0) {
         // As long as the returned length is positive, it means
         // we haven't reached EOF. Making a copy of the array, because
-        // we cannot our mutable buffer.
+        // we cannot send our mutable buffer.
         val next = util.Arrays.copyOf(buffer, length)
         out.onNext(next)
       } else { // length < 0

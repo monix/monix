@@ -139,4 +139,22 @@ object AtomicByte {
     */
   def create(initialValue: Byte, padding: PaddingStrategy, allowPlatformIntrinsics: Boolean): AtomicByte =
     new AtomicByte(initialValue)
+
+  /** $createDesc
+    *
+    * This builder guarantees to construct a safe atomic reference that
+    * does not make use of `sun.misc.Unsafe`. On top of platforms that
+    * don't support it, notably some versions of Android or on top of
+    * the upcoming Java 9, this might be desirable.
+    *
+    * NOTE that explicit usage of this builder is not usually necessary
+    * because [[create]] can auto-detect whether the underlying platform
+    * supports `sun.misc.Unsafe` and if it does, then its usage is
+    * recommended, because the "safe" atomic instances have overhead.
+    *
+    * @param initialValue is the initial value with which to initialize the atomic
+    * @param padding is the [[PaddingStrategy]] to apply
+    */
+  def safe(initialValue: Byte, padding: PaddingStrategy): AtomicByte =
+    new AtomicByte(initialValue)
 }
