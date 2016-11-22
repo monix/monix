@@ -21,12 +21,9 @@ import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight256
-import monix.execution.internal.Platform
 import monix.execution.internal.math.nextPowerOf2
 import monix.reactive.exceptions.BufferOverflowException
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
-import org.jctools.queues.{MessagePassingQueue, MpscArrayQueue, MpscChunkedArrayQueue, MpscUnboundedArrayQueue}
-
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
@@ -43,15 +40,15 @@ import scala.util.{Failure, Success}
   * used with care, since it can eat the whole heap memory.
   */
 private[observers] final class SimpleBufferedSubscriber[A] protected
-  (out: Subscriber[A], _qRef: MessagePassingQueue[A])
-  extends AbstractSimpleBufferedSubscriber[A](out, _qRef) {
+  (out: Subscriber[A], _qRef: ConcurrentQueue[A], capacity: Int)
+  extends AbstractSimpleBufferedSubscriber[A](out, _qRef, capacity) {
 
   @volatile protected var p50, p51, p52, p53, p54, p55, p56, p57 = 5
   @volatile protected var q50, q51, q52, q53, q54, q55, q56, q57 = 5
 }
 
 private[observers] abstract class AbstractSimpleBufferedSubscriber[A] protected
-  (out: Subscriber[A], _qRef: MessagePassingQueue[A])
+  (out: Subscriber[A], _qRef: ConcurrentQueue[A], capacity: Int)
   extends CommonBufferMembers with BufferedSubscriber[A] with Subscriber.Sync[A] {
 
   private[this] val queue = _qRef
@@ -74,7 +71,7 @@ private[observers] abstract class AbstractSimpleBufferedSubscriber[A] protected
         else {
           onError(new BufferOverflowException(
             s"Downstream observer is too slow, buffer overflowed with a " +
-            s"specified maximum capacity of ${queue.capacity()}"
+            s"specified maximum capacity of $capacity"
           ))
 
           Stop
@@ -186,7 +183,7 @@ private[observers] abstract class AbstractSimpleBufferedSubscriber[A] protected
       var nextIndex = startIndex
 
       while (!downstreamIsComplete) {
-        val next = queue.relaxedPoll()
+        val next = queue.poll()
 
         if (next != null) {
           if (nextIndex > 0 || isFirstIteration) {
@@ -256,20 +253,14 @@ private[observers] abstract class AbstractSimpleBufferedSubscriber[A] protected
 }
 
 private[observers] object SimpleBufferedSubscriber {
-  def unbounded[T](underlying: Subscriber[T]): SimpleBufferedSubscriber[T] = {
-    val queue = new MpscUnboundedArrayQueue[T](Platform.recommendedBatchSize)
-    new SimpleBufferedSubscriber[T](underlying, queue)
+  def unbounded[A](underlying: Subscriber[A]): SimpleBufferedSubscriber[A] = {
+    val queue = ConcurrentQueue.unbounded[A](isBatched = true)
+    new SimpleBufferedSubscriber[A](underlying, queue, Int.MaxValue)
   }
 
   def overflowTriggering[A](underlying: Subscriber[A], bufferSize: Int): SimpleBufferedSubscriber[A] = {
     val maxCapacity = math.max(4, nextPowerOf2(bufferSize))
-    val queue = if (maxCapacity <= Platform.recommendedBatchSize)
-      new MpscArrayQueue[A](maxCapacity)
-    else {
-      val initialCapacity = math.min(Platform.recommendedBatchSize, maxCapacity / 2)
-      new MpscChunkedArrayQueue[A](initialCapacity, maxCapacity)
-    }
-
-    new SimpleBufferedSubscriber[A](underlying, queue)
+    val queue = ConcurrentQueue.limited[A](bufferSize)
+    new SimpleBufferedSubscriber[A](underlying, queue, maxCapacity)
   }
 }

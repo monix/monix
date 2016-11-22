@@ -31,7 +31,7 @@ private[observers] final class BackPressuredBufferedSubscriber[A] private
   @volatile protected var q50, q51, q52, q53, q54, q55, q56, q57 = 5
 
   override protected def fetchNext(): A = {
-    val ref = primaryQueue.relaxedPoll()
+    val ref = primaryQueue.poll()
     if (ref != null) ref else
       secondaryQueue.poll()
   }

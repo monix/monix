@@ -1,3 +1,32 @@
+## Version 2.1.1 (Nov 22, 2016)
+
+Version `2.1.1` is a minor release, binary compatible with `2.1.0`,
+fixing the compatibility with older Android versions.
+
+The gist is that older Android versions are incompatible with our
+usage of `sun.misc.Unsafe`. And this might also be true of other 
+platforms as well, like the upcoming Java 9.
+
+Therefore we are doing two things:
+
+1. we introduce new `monix.execution.atomic.Atomic` implementations
+   that make use of `AtomicFieldUpdater` classes, for those platforms
+   that do not support `sun.misc.Unsafe`; hopefully this will perform
+   well on top of Java 9, see this post by Aleksey Shipilёv:
+   https://shipilev.net/blog/2015/faster-atomic-fu/\
+2. in our usage of [JCTools](https://github.com/JCTools/JCTools/),
+   since these rely heavily on `sun.misc.Unsafe`, we fallback to
+   implementations from `org.jctools.queues.atomic`, as these are 
+   safe to use
+   
+The issues being addressed:
+
+- [Bug #269](https://github.com/monix/monix/issues/269): Observable
+  throws NoSuchFieldException (via jctools) on Android
+- [Issue #270](https://github.com/monix/monix/issues/270): Add support
+  for platforms that do not have `sun.misc.Unsafe`
+  (with the corresponding [PR #272](https://github.com/monix/monix/pull/272))
+
 ## Version 2.1.0 (Nov 9, 2016)
 
 Version `2.1.0` is a major release that is not compatible with

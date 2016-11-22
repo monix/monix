@@ -665,7 +665,7 @@ object Task extends TaskInstances {
   def eval[A](a: => A): Task[A] =
     Delay(Coeval.Always(a _))
 
-  /** Alias for [[coeval]]. */
+  /** Alias for [[eval]]. */
   def delay[A](a: => A): Task[A] = eval(a)
 
   /** A [[Task]] instance that upon evaluation will never complete. */
@@ -875,7 +875,28 @@ object Task extends TaskInstances {
     */
   def gather[A, M[X] <: TraversableOnce[X]](in: M[Task[A]])
     (implicit cbf: CanBuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] =
-    TaskGather(in)(cbf)
+    TaskGather(in, () => cbf(in))
+
+   /** Given a `TraversableOnce[A]` and a function `A => Task[B]`,
+   * nondeterministically apply the function to each element of the collection
+   * and return a task that will signal a collection of the results once all
+   * tasks are finished.
+   *
+   * This function is the nondeterministic analogue of `traverse` and should
+   * behave identically to `traverse` so long as there is no interaction between
+   * the effects being gathered. However, unlike `traverse`, which decides on
+   * a total order of effects, the effects in a `wander` are unordered with
+   * respect to each other.
+   *
+   * Although the effects are unordered, we ensure the order of results
+   * matches the order of the input sequence. Also see [[wanderUnordered]]
+   * for the more efficient alternative.
+   *
+   * It's a generalized version of [[gather]].
+   */
+  def wander[A, B, M[X] <: TraversableOnce[X]](in: M[A])(f: A => Task[B])
+    (implicit cbf: CanBuildFrom[M[A], B, M[B]]): Task[M[B]] =
+    Task.eval(in.map(f)).flatMap(col => TaskGather(col, () => cbf(in)))
 
   /** Nondeterministically gather results from the given collection of tasks,
     * without keeping the original ordering of results.
@@ -894,6 +915,22 @@ object Task extends TaskInstances {
     */
   def gatherUnordered[A](in: TraversableOnce[Task[A]]): Task[List[A]] =
     TaskGatherUnordered(in)
+
+  /** Given a `TraversableOnce[A]` and a function `A => Task[B]`,
+    * nondeterministically apply the function to each element of the collection
+    * without keeping the original ordering of the results.
+    *
+    * This function is similar to [[wander]], but neither the effects nor the
+    * results will be ordered. Useful when you don't need ordering because:
+    *
+    *  - it has non-blocking behavior (but not wait-free)
+    *  - it can be more efficient (compared with [[wander]]), but not
+    *    necessarily (if you care about performance, then test)
+    *
+    * It's a generalized version of [[gatherUnordered]].
+    */
+  def wanderUnordered[A, B, M[X] <: TraversableOnce[X]](in: M[A])(f: A => Task[B]): Task[List[B]] =
+    Task.eval(in.map(f)).flatMap(gatherUnordered)
 
   /** Apply a mapping functions to the results of two tasks, nondeterministically
     * ordering their effects.
