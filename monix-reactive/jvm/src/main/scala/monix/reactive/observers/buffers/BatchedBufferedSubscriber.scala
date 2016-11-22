@@ -19,8 +19,6 @@ package monix.reactive.observers.buffers
 
 import monix.execution.internal.Platform
 import monix.reactive.observers.Subscriber
-import org.jctools.queues.MessagePassingQueue
-import org.jctools.queues.MessagePassingQueue.Consumer
 import scala.collection.mutable.ListBuffer
 
 /** A `BufferedSubscriber` implementation for the
@@ -41,17 +39,12 @@ private[monix] final class BatchedBufferedSubscriber[A] private
     r.length
 
   override protected def fetchNext(): ListBuffer[A] = {
-    def drainFrom(queue: MessagePassingQueue[A], buffer: ListBuffer[A], limit: Int): Unit = {
-      val consumer: Consumer[A] = new Consumer[A] { def accept(e: A): Unit = buffer += e }
-      queue.drain(consumer, limit)
-    }
-
     val batchSize = Platform.recommendedBatchSize
     val buffer = ListBuffer.empty[A]
-    drainFrom(primaryQueue, buffer, batchSize)
+    primaryQueue.drain(buffer, batchSize)
 
     val drained = buffer.length
-    if (drained < batchSize) drainFrom(secondaryQueue, buffer, batchSize - drained)
+    if (drained < batchSize) secondaryQueue.drain(buffer, batchSize - drained)
     if (buffer.nonEmpty) buffer else null
   }
 }

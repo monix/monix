@@ -21,11 +21,7 @@ import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight256
-import monix.execution.internal.Platform
-import monix.execution.internal.math._
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
-import org.jctools.queues.{MpscArrayQueue, MpscChunkedArrayQueue, MpscLinkedQueue}
-
 import scala.concurrent.{Future, Promise}
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
@@ -43,23 +39,16 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
   implicit final val scheduler = out.scheduler
 
   /** Primary queue. */
-  protected final val primaryQueue = {
-    val maxCapacity = math.max(4, nextPowerOf2(bufferSize))
-    if (maxCapacity <= Platform.recommendedBatchSize)
-      new MpscArrayQueue[A](maxCapacity)
-    else {
-      val initialCapacity = math.min(Platform.recommendedBatchSize, maxCapacity / 2)
-      new MpscChunkedArrayQueue[A](initialCapacity, maxCapacity)
-    }
-  }
+  protected final val primaryQueue: ConcurrentQueue[A] =
+    ConcurrentQueue.limited[A](bufferSize)
 
   /** Whenever the primary queue is full, we still have
     * to enqueue the incoming messages somewhere. This
     * secondary queue gets used whenever the data-source
     * starts being back-pressured.
     */
-  protected final val secondaryQueue =
-    MpscLinkedQueue.newMpscLinkedQueue[A]()
+  protected final val secondaryQueue: ConcurrentQueue[A] =
+    ConcurrentQueue.unbounded[A](isBatched = false)
 
   private[this] val itemsToPush =
     Atomic.withPadding(0, LeftRight256)

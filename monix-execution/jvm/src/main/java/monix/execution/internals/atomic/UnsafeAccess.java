@@ -97,6 +97,7 @@ public final class UnsafeAccess {
           Field field = cls.getDeclaredField("theUnsafe");
           field.setAccessible(true);
           instance = field.get(null);
+          if (instance == null) throw null;
           isOpenJDKCompatible = true;
         }
         catch (Exception ex) {

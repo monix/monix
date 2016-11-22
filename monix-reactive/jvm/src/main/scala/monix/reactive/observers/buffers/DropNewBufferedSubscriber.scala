@@ -21,10 +21,7 @@ import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.PaddingStrategy.{LeftRight128, LeftRight256}
 import monix.execution.atomic.{Atomic, AtomicInt}
-import monix.execution.internal.Platform
-import monix.execution.internal.math._
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
-import org.jctools.queues.{MpscArrayQueue, MpscChunkedArrayQueue}
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
@@ -50,15 +47,8 @@ private[observers] final class DropNewBufferedSubscriber[A] private
     if (onOverflow != null) AtomicInt.withPadding(0, LeftRight128)
     else null
 
-  private[this] val queue = {
-    val maxCapacity = math.max(4, nextPowerOf2(bufferSize))
-    if (maxCapacity <= Platform.recommendedBatchSize)
-      new MpscArrayQueue[A](maxCapacity)
-    else {
-      val initialCapacity = math.min(Platform.recommendedBatchSize, maxCapacity / 2)
-      new MpscChunkedArrayQueue[A](initialCapacity, maxCapacity)
-    }
-  }
+  private[this] val queue =
+    ConcurrentQueue.limited[A](bufferSize)
 
   def onNext(elem: A): Ack = {
     if (upstreamIsComplete || downstreamIsComplete) Stop else {
@@ -188,7 +178,7 @@ private[observers] final class DropNewBufferedSubscriber[A] private
 
             if (overflowMessage != null) overflowMessage else {
               toProcess = 1
-              queue.relaxedPoll()
+              queue.poll()
             }
           }
 
