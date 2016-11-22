@@ -229,7 +229,7 @@ lazy val unidocSettings = baseUnidocSettings ++ Seq(
 
   // Exclude monix.execution.atomic.internals from ScalaDoc
   sources in (ScalaUnidoc, unidoc) ~= (_ filterNot { file =>
-    file.getCanonicalPath matches "^.*monix.execution.atomic.internals.*$"
+    file.getCanonicalPath matches "^.*monix.execution.internals.*$"
   }),
 
   scalacOptions in (ScalaUnidoc, unidoc) +=
