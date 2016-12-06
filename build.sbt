@@ -7,7 +7,7 @@ import scala.xml.Elem
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 
 val catsVersion = "0.8.1"
-val scalazVersion = "7.2.7"
+val scalazVersion = "7.2.8"
 
 lazy val doNotPublishArtifact = Seq(
   publishArtifact := false,
@@ -32,7 +32,7 @@ lazy val warnUnusedImport = Seq(
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
   scalaVersion := "2.11.8",
-  crossScalaVersions := Seq("2.10.6", "2.11.8", "2.12.0"),
+  crossScalaVersions := Seq("2.10.6", "2.11.8", "2.12.1"),
 
   scalacOptions ++= Seq(
     // warnings
@@ -208,15 +208,15 @@ lazy val requiredMacroCompatDeps = Seq(
   libraryDependencies ++= (CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, majorVersion)) if majorVersion >= 11 =>
       Seq(
-        "org.scala-lang" % "scala-reflect" % scalaVersion.value % "provided",
-        "org.scala-lang" % "scala-compiler" % scalaVersion.value % "provided",
-        "org.typelevel" %%% "macro-compat" % "1.1.1" % "provided",
+        "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided,
+        "org.scala-lang" % "scala-compiler" % scalaVersion.value % Provided,
+        "org.typelevel" %%% "macro-compat" % "1.1.1" % Provided,
         compilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
       )
     case _ =>
       Seq(
-        "org.scala-lang" % "scala-reflect" % scalaVersion.value % "provided",
-        "org.scala-lang" % "scala-compiler" % scalaVersion.value % "provided",
+        "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided,
+        "org.scala-lang" % "scala-compiler" % scalaVersion.value % Provided,
         "org.typelevel" %%% "macro-compat" % "1.1.1",
         compilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
       )
@@ -248,7 +248,7 @@ lazy val unidocSettings = baseUnidocSettings ++ Seq(
 
 lazy val testSettings = Seq(
   testFrameworks := Seq(new TestFramework("minitest.runner.Framework")),
-  libraryDependencies += "io.monix" %%% "minitest-laws" % "0.27" % "test"
+  libraryDependencies += "io.monix" %%% "minitest-laws" % "0.27" % Test
 )
 
 lazy val scalaJSSettings = Seq(
@@ -369,20 +369,20 @@ lazy val catsCommon =
     testFrameworks := Seq(new TestFramework("minitest.runner.Framework")),
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-core" % catsVersion,
-      "org.typelevel" %%% "cats-laws" % catsVersion % "test"
+      "org.typelevel" %%% "cats-laws" % catsVersion % Test
     ))
 
 lazy val catsJVM = project.in(file("monix-cats/jvm"))
   .configure(profile)
   .dependsOn(typesJVM)
-  .dependsOn(reactiveJVM % "test")
+  .dependsOn(reactiveJVM % Test)
   .settings(catsCommon)
 
 lazy val catsJS = project.in(file("monix-cats/js"))
   .enablePlugins(ScalaJSPlugin)
   .configure(profile)
   .dependsOn(typesJS)
-  .dependsOn(reactiveJS % "test")
+  .dependsOn(reactiveJS % Test)
   .settings(catsCommon)
   .settings(scalaJSSettings)
 
@@ -391,20 +391,20 @@ lazy val scalaz72Common =
     name := "monix-scalaz-72",
     libraryDependencies ++= Seq(
       "org.scalaz" %%% "scalaz-core" % scalazVersion,
-      "org.scalaz" %%% "scalaz-scalacheck-binding" % scalazVersion % "test"
+      "org.scalaz" %%% "scalaz-scalacheck-binding" % scalazVersion % Test
     ))
 
 lazy val scalaz72JVM = project.in(file("monix-scalaz/series-7.2/jvm"))
   .configure(profile)
   .dependsOn(typesJVM)
-  .dependsOn(reactiveJVM % "test")
+  .dependsOn(reactiveJVM % Test)
   .settings(scalaz72Common)
 
 lazy val scalaz72JS = project.in(file("monix-scalaz/series-7.2/js"))
   .enablePlugins(ScalaJSPlugin)
   .configure(profile)
   .dependsOn(typesJS)
-  .dependsOn(reactiveJS % "test")
+  .dependsOn(reactiveJS % Test)
   .settings(scalaz72Common)
   .settings(scalaJSSettings)
 
@@ -415,8 +415,8 @@ lazy val tckTests = project.in(file("tckTests"))
   .settings(doNotPublishArtifact)
   .settings(
     libraryDependencies ++= Seq(
-      "org.reactivestreams" % "reactive-streams-tck" % "1.0.0" % "test",
-      "org.scalatest" %% "scalatest" % "3.0.0" % "test"
+      "org.reactivestreams" % "reactive-streams-tck" % "1.0.0" % Test,
+      "org.scalatest" %% "scalatest" % "3.0.1" % Test
     ))
 
 lazy val benchmarks = project.in(file("benchmarks"))
@@ -428,5 +428,5 @@ lazy val benchmarks = project.in(file("benchmarks"))
   .settings(
     libraryDependencies ++= Seq(
       "org.scalaz" %% "scalaz-concurrent" % scalazVersion,
-      "io.reactivex" %% "rxscala" % "0.26.0"
+      "io.reactivex" %% "rxscala" % "0.26.4"
     ))
