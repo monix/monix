@@ -198,7 +198,7 @@ lazy val crossVersionSharedSources: Seq[Setting[_]] =
         scalaPartV.value match {
           case Some((2, y)) if y == 10 => new File(dir.getPath + "_2.10")
           case Some((2, y)) if y == 11 => new File(dir.getPath + "_2.11")
-          case Some((2, y)) if y == 12 => new File(dir.getPath + "_2.12")
+          case Some((2, y)) if y >= 12 => new File(dir.getPath + "_2.12")
         }
       }
     }
