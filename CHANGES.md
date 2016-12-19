@@ -1,3 +1,11 @@
+## Version 2.1.2 (Dec 19, 2016)
+
+Version `2.1.2` is a minor release, binary compatible with `2.1.x`,
+upgrading Scala to `2.12.1` and fixing a bug in `Observable.bufferSliding`.
+
+- [Bug #275](https://github.com/monix/monix/issues/275):
+  `Observable.bufferSliding` is broken
+
 ## Version 2.1.1 (Nov 22, 2016)
 
 Version `2.1.1` is a minor release, binary compatible with `2.1.0`,
