@@ -18,10 +18,10 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack
-import monix.execution.Ack.Continue
+import monix.execution.Ack.{Continue, Stop}
 import monix.reactive.observables.ObservableLike.Operator
 import monix.reactive.observers.Subscriber
-import scala.collection.mutable.ListBuffer
+import scala.collection.immutable.Queue
 import scala.concurrent.Future
 
 private[reactive] final class BufferSlidingOperator[A](count: Int, skip: Int)
@@ -34,62 +34,83 @@ private[reactive] final class BufferSlidingOperator[A](count: Int, skip: Int)
     new Subscriber[A] {
       implicit val scheduler = out.scheduler
 
+      private[this] var isDone = false
       private[this] var ack: Future[Ack] = Continue
-      private[this] val shouldDrop = skip > count
-      private[this] var leftToDrop = 0
-      private[this] val shouldOverlap = skip < count
-      private[this] var nextBuffer = ListBuffer.empty[A]
-      private[this] var buffer = null : ListBuffer[A]
+      private[this] var buffer = Queue.empty[A]
       private[this] var size = 0
+      private[this] var trigger = 0
 
       def onNext(elem: A): Future[Ack] = {
-        if (shouldDrop && leftToDrop > 0) {
-          leftToDrop -= 1
-          Continue
-        } else {
-          if (buffer == null) {
-            buffer = nextBuffer
-            size = nextBuffer.length
-            nextBuffer = ListBuffer.empty[A]
-          }
-
+        if (isDone) Stop else {
+          buffer = buffer.enqueue(elem)
           size += 1
-          buffer += elem
-          if (shouldOverlap && size - skip > 0) nextBuffer += elem
 
-          if (size >= count) {
-            if (shouldDrop) leftToDrop = skip - count
-            ack = out.onNext(buffer.toList)
-            buffer = null
-          } else {
-            ack = Continue
+          if (size < count) Continue else {
+            if (trigger > 0) {
+              trigger -= 1
+              Continue
+            }
+            else {
+              trigger = skip-1
+              while (size > count) {
+                val (_, state) = buffer.dequeue
+                buffer = state
+                size -= 1
+              }
+
+              // signaling downstream
+              ack = out.onNext(buffer)
+              ack
+            }
           }
-
-          ack
         }
       }
 
-      def onError(ex: Throwable): Unit = {
-        // Drops any pending items
-        buffer = null
-        nextBuffer = null
-        out.onError(ex)
-      }
-
-      def onComplete(): Unit = {
-        // In case the last onNext isn't finished, then
-        // we need to apply back-pressure, otherwise this
-        // onNext will break the contract.
-        if (buffer != null) ack.syncOnContinue {
-          out.onNext(buffer)
-          buffer = null
-          nextBuffer = null
-          out.onComplete()
-        } else {
-          buffer = null
-          nextBuffer = null
-          out.onComplete()
+      def onError(ex: Throwable): Unit =
+        if (!isDone) {
+          isDone = true
+          buffer = null // GC purposes
+          out.onError(ex)
         }
-      }
+
+      def onComplete(): Unit =
+        if (!isDone) {
+          isDone = true
+
+          // Did we ever signal anything? If no, then we need
+          // to send the whole buffer
+          if (size > 0 && size < count) {
+            out.onNext(buffer)
+            out.onComplete()
+            buffer = null // GC purposes
+          }
+          else {
+            // Do we have items left to signal?
+            val toSignal = count - (trigger + 1)
+            // In case we have overlap, because of a skip < count,
+            // then we shouldn't repeat old events unless we also
+            // have new events to signal, hence this threshold
+            val threshold = math.max(0, count - skip)
+
+            if (toSignal > threshold && size > 0) {
+              while (size > toSignal) {
+                val (_, state) = buffer.dequeue
+                buffer = state
+                size -= 1
+              }
+
+              // Back-pressuring last onNext
+              ack.syncOnContinue {
+                out.onNext(buffer)
+                out.onComplete()
+                buffer = null // GC purposes
+              }
+            }
+            else {
+              // No extra elements to signal, no need for back-pressure
+              out.onComplete()
+            }
+          }
+        }
     }
 }

@@ -278,7 +278,7 @@ object MapAsyncParallelSuite extends BaseOperatorSuite {
     var received = 0
     var isComplete = false
     val p = Promise[Continue]()
-    val totalCount = Platform.recommendedBatchSize * 2
+    val totalCount = Platform.recommendedBatchSize * 4
 
     Observable.range(0, totalCount)
       .doOnNext(_ => initiated += 1)

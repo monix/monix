@@ -36,7 +36,7 @@ trait CatsToMonixConversions extends CatsCoreToMonix9
 
 private[cats] trait CatsCoreToMonix0 {
   /** Converts Cats type instances into Monix's
-    * [[monix.types.Functor Functor]]
+    * [[monix.types.Functor Functor]].
     */
   implicit def catsToMonixFunctor[F[_]](implicit ev: CatsFunctor[F]): Functor[F] =
     new CatsToMonixFunctor[F] { override def F = ev }
@@ -46,6 +46,7 @@ private[cats] trait CatsCoreToMonix0 {
     */
   trait CatsToMonixFunctor[F[_]] extends Functor.Instance[F] {
     def F: CatsFunctor[F]
+
     override def map[A, B](fa: F[A])(f: (A) => B): F[B] =
       F.map(fa)(f)
   }
@@ -79,7 +80,7 @@ private[cats] trait CatsCoreToMonix2 extends CatsCoreToMonix1 {
   /** Converts Cats type instances into Monix's
     * [[monix.types.Monad Monad]]
     */
-  implicit def convertCatsToMonixMonad[F[_]](implicit ev: CatsMonad[F]): Monad[F] =
+  implicit def catsToMonixMonad[F[_]](implicit ev: CatsMonad[F]): Monad[F] =
     new CatsToMonixMonad[F] { override def F = ev }
 
   /** Adapter for converting Cats type instances into Monix's
@@ -128,9 +129,9 @@ private[cats] trait CatsCoreToMonix3 extends CatsCoreToMonix2 {
 
 private[cats] trait CatsCoreToMonix4 extends CatsCoreToMonix3 {
   /** Converts Cats type instances into Monix's
-    * [[monix.types.Cobind CoflatMap]]
+    * [[monix.types.Cobind Cobind]]
     */
-  implicit def catsToMonixCoflatMap[F[_]](implicit ev: CatsCoflatMap[F]): Cobind[F] =
+  implicit def catsToMonixCobind[F[_]](implicit ev: CatsCoflatMap[F]): Cobind[F] =
     new CatsToMonixCobind[F] { override def F = ev }
 
   /** Converts Cats type instances into Monix's

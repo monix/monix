@@ -65,13 +65,17 @@ private[monix] final class SubscriberAsReactiveSubscriber[T] private
   private[this] val buffer: RSubscriber[T] =
     SyncSubscriberAsReactiveSubscriber(
       BufferedSubscriber.synchronous(subscriber, Unbounded),
-      requestCount = requestCount)
+      requestCount = requestCount
+    )
 
   def onSubscribe(s: RSubscription): Unit =
     buffer.onSubscribe(s)
 
   def onNext(elem: T): Unit = {
-    if (elem == null) throw new NullPointerException("onNext(null)")
+    if (elem == null)
+      throw new NullPointerException(
+        "onNext(null) is forbidden, see rule 2.13 in the Reactive Streams spec")
+
     buffer.onNext(elem)
   }
 
@@ -181,8 +185,12 @@ private[monix] final class SyncSubscriberAsReactiveSubscriber[T] private
   }
 
   def onNext(elem: T): Unit = {
-    if (subscription == null) throw new NullPointerException("onSubscription never happened")
-    if (elem == null) throw new NullPointerException("onNext(null)")
+    if (subscription == null)
+      throw new NullPointerException(
+        "onSubscription never happened, see rule 2.13 in the Reactive Streams spec")
+    if (elem == null)
+      throw new NullPointerException(
+        "onNext(null) is forbidden, see rule 2.13 in the Reactive Streams spec")
 
     if (!isCanceled) {
       if (expectingCount > 0) expectingCount -= 1
@@ -203,7 +211,8 @@ private[monix] final class SyncSubscriberAsReactiveSubscriber[T] private
   }
 
   def onError(ex: Throwable): Unit = {
-    if (ex == null) throw new NullPointerException("onError(null)")
+    if (ex == null) throw new NullPointerException(
+      "onError(null) is forbidden, see rule 2.13 in the Reactive Streams spec")
 
     if (!isCanceled) {
       isCanceled = true

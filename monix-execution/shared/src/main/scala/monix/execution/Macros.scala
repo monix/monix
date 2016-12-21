@@ -20,7 +20,6 @@ package monix.execution
 import monix.execution.Ack.{AckExtensions, Continue, Stop}
 import monix.execution.misc.{HygieneUtilMacros, InlineMacros}
 import monix.execution.schedulers.{StartAsyncBatchRunnable, TrampolinedRunnable}
-
 import scala.concurrent.Future
 import scala.reflect.macros.whitebox
 

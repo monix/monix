@@ -26,7 +26,6 @@ import scala.reflect.macros.whitebox
 @macrocompat.bundle class Macros(val c: whitebox.Context) {
   import c.universe._
 
-  /** Implementation for [[monix.types.Functor.map Functor.map]] */
   def functorMap(f: Tree): Tree =
     reset(getImplicitCallParams("Functor.Syntax", "functorOps", c.prefix.tree) match {
       case Some((valueExpr, functorExpr)) =>
@@ -40,9 +39,6 @@ import scala.reflect.macros.whitebox
         """
     })
 
-  /** Implementation for
-    * [[monix.types.Applicative.ap Applicative.ap]]
-    */
   def applicativeAP(ff: Tree): Tree =
     reset(getImplicitCallParams("Applicative.Syntax", "applicativeOps", c.prefix.tree) match {
       case Some((valueExpr, monadExpr)) =>
@@ -56,9 +52,6 @@ import scala.reflect.macros.whitebox
         """
     })
 
-  /** Implementation for
-    * [[monix.types.Monad.flatMap Monad.flatMap]]
-    */
   def monadFlatMap(f: Tree): Tree =
     reset(getImplicitCallParams("Monad.Syntax", "monadOps", c.prefix.tree) match {
       case Some((valueExpr, monadExpr)) =>
@@ -72,9 +65,6 @@ import scala.reflect.macros.whitebox
         """
     })
 
-  /** Implementation for [
-    * [monix.types.Monad.flatten Monad.flatten]]
-    */
   def monadFlatten(ev: Tree): Tree =
     reset(getImplicitCallParams("Monad.Syntax", "monadOps", c.prefix.tree) match {
       case Some((valueExpr, monadExpr)) =>
@@ -88,9 +78,6 @@ import scala.reflect.macros.whitebox
         """
     })
 
-  /** Implementation for
-    * [[monix.types.MonadError.onErrorHandleWith MonadError.onErrorHandleWith]]
-    */
   def monadErrorHandleWith(f: Tree): Tree =
     reset(getImplicitCallParams("MonadError.Syntax", "monadErrorOps", c.prefix.tree) match {
       case Some((valueExpr, monadErrorExpr)) =>
@@ -104,9 +91,6 @@ import scala.reflect.macros.whitebox
         """
     })
 
-  /** Implementation for
-    * [[monix.types.MonadError.onErrorHandle MonadError.onErrorHandle]]
-    */
   def monadErrorHandle(f: Tree): Tree =
     reset(getImplicitCallParams("MonadError.Syntax", "monadErrorOps", c.prefix.tree) match {
       case Some((valueExpr, monadErrorExpr)) =>
@@ -120,9 +104,6 @@ import scala.reflect.macros.whitebox
         """
     })
 
-  /** Implementation for
-    * [[monix.types.MonadError.onErrorRecoverWith MonadError.onErrorRecoverWith]]
-    */
   def monadErrorRecoverWith(pf: Tree): Tree =
     reset(getImplicitCallParams("MonadError.Syntax", "monadErrorOps", c.prefix.tree) match {
       case Some((valueExpr, monadErrorExpr)) =>
@@ -136,9 +117,6 @@ import scala.reflect.macros.whitebox
         """
     })
 
-  /** Implementation for
-    * [[monix.types.MonadError.onErrorRecover MonadError.onErrorRecover]]
-    */
   def monadErrorRecover(pf: Tree): Tree =
     reset(getImplicitCallParams("MonadError.Syntax", "monadErrorOps", c.prefix.tree) match {
       case Some((valueExpr, monadErrorExpr)) =>
@@ -152,9 +130,6 @@ import scala.reflect.macros.whitebox
         """
     })
 
-  /** Implementation for
-    * [[monix.types.MonadFilter.filter MonadFilter.filter]]
-    */
   def monadFilter(f: Tree): Tree =
     reset(getImplicitCallParams("MonadFilter.Syntax", "monadFilterOps", c.prefix.tree) match {
       case Some((valueExpr, monadFilterExpr)) =>

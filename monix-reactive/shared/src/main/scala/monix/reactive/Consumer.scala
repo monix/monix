@@ -100,7 +100,7 @@ trait Consumer[-In, +R] extends ((Observable[In]) => Task[R])
     * asynchronous boundary is forced, otherwise it could
     * trigger a stack overflow exception. For more efficient
     * mapping of the result, it's probably better to `map`
-    * the resulting `Task` on [[Observable.runWith]].
+    * the resulting `Task` on [[Observable.consumeWith]].
     *
     * @see [[mapAsync]] for a variant that can map the output
     *     to a `Task` that can be processed asynchronously.
@@ -119,7 +119,7 @@ trait Consumer[-In, +R] extends ((Observable[In]) => Task[R])
     * asynchronous boundary is forced, otherwise it could
     * trigger a stack overflow exception. For more efficient
     * mapping of the result, it's probably better to `map`
-    * the resulting `Task` on [[Observable.runWith]].
+    * the resulting `Task` on [[Observable.consumeWith]].
     */
   def mapAsync[R2](f: R => Task[R2]): Consumer[In, R2] =
     new MapAsyncConsumer[In,R,R2](self, f)

@@ -9,7 +9,7 @@ Asynchronous, Reactive Programming for Scala and [Scala.js](http://www.scala-js.
 [![Scala.js](https://scala-js.org/assets/badges/scala.js-0.6.13.svg)](http://scala-js.org)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.monix/monix_2.11/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.monix/monix_2.11)
 
-[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/monixio/monix?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/monix/monix?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 ## Overview
 
@@ -43,13 +43,13 @@ a project exemplifying Monix used both on the server and on the client.
 
 The packages are published on Maven Central.
 
-- Current stable release: `2.0.5`
+- Current stable release: `2.1.2`
 - Old 1.x release (Monifu): `1.2`
 
 For the current stable release (use the `%%%` for Scala.js):
 
 ```scala
-libraryDependencies += "io.monix" %% "monix" % "2.0.5"
+libraryDependencies += "io.monix" %% "monix" % "2.1.2"
 ```
 
 For the old 1.x release (use the `%%%` for Scala.js):
@@ -89,6 +89,7 @@ hosted at,
 
 API Documentation:
 
+- [2.1](https://monix.io/api/2.1/)
 - [2.0](https://monix.io/api/2.0/)
 - [1.2](https://monix.io/api/1.2/)
 

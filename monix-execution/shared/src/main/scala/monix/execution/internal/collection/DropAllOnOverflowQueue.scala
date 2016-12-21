@@ -18,11 +18,14 @@
 package monix.execution.internal.collection
 
 import java.util.ConcurrentModificationException
+
 import monix.execution.internal.math.nextPowerOf2
+
+import scala.collection.mutable
 import scala.reflect.ClassTag
 
 /**
-  * An [[EvictingQueue]] implementation that on overflow starts
+  * An [[drainToArray]] implementation that on overflow starts
   * dropping old elements.
   *
   * This implementation is not thread-safe and on the JVM it
@@ -33,11 +36,10 @@ import scala.reflect.ClassTag
   *        the given number, or a maximum of 2^30^-1 (the maximum positive int that
   *        can be expressed as a power of 2, minus 1)
   */
-private[monix] final class DropAllOnOverflowQueue[T : ClassTag] private (_recommendedCapacity: Int)
-  extends EvictingQueue[T] { self =>
+private[monix] final class DropAllOnOverflowQueue[A : ClassTag] private (_recommendedCapacity: Int)
+  extends EvictingQueue[A] { self =>
 
   require(_recommendedCapacity > 0, "recommendedCapacity must be positive")
-
   private[this] val maxSize = {
     val v = nextPowerOf2(_recommendedCapacity)
     if (v <= 1) 2 else v
@@ -46,26 +48,21 @@ private[monix] final class DropAllOnOverflowQueue[T : ClassTag] private (_recomm
   private[this] val modulus = maxSize - 1
   def capacity = modulus
 
-  private[this] val array = new Array[T](maxSize)
+  private[this] val array = new Array[A](maxSize)
   // head is incremented by `poll()`, or by `offer()` on overflow
   private[this] var headIdx = 0
   // tail is incremented by `offer()`
   private[this] var tailIdx = 0
 
-  def isAtCapacity: Boolean = {
+  override def isAtCapacity: Boolean =
     size >= modulus
-  }
-
-  override def isEmpty: Boolean = {
+  override def isEmpty: Boolean =
     headIdx == tailIdx
-  }
-
-  override def nonEmpty: Boolean = {
+  override def nonEmpty: Boolean =
     headIdx != tailIdx
-  }
 
-  def offer(elem: T): Int = {
-    if (elem == null) throw new NullPointerException
+  def offer(elem: A): Int = {
+    if (elem == null) throw new NullPointerException("Null is not supported")
     array(tailIdx) = elem
     tailIdx = (tailIdx + 1) & modulus
 
@@ -76,7 +73,7 @@ private[monix] final class DropAllOnOverflowQueue[T : ClassTag] private (_recomm
     }
   }
 
-  def offerMany(seq: T*): Long = {
+  def offerMany(seq: A*): Long = {
     val iterator = seq.iterator
     var acc = 0L
     while (iterator.hasNext)
@@ -84,8 +81,8 @@ private[monix] final class DropAllOnOverflowQueue[T : ClassTag] private (_recomm
     acc
   }
 
-  def poll(): T = {
-    if (headIdx == tailIdx) null.asInstanceOf[T] else {
+  def poll(): A = {
+    if (headIdx == tailIdx) null.asInstanceOf[A] else {
       val elem = array(headIdx)
       // incrementing head pointer
       headIdx = (headIdx + 1) & modulus
@@ -93,7 +90,7 @@ private[monix] final class DropAllOnOverflowQueue[T : ClassTag] private (_recomm
     }
   }
 
-  def pollMany(array: Array[T], offset: Int = 0): Int = {
+  def drainToArray(array: Array[A], offset: Int = 0): Int = {
     var arrayIdx = offset
     while (arrayIdx < array.length && headIdx != tailIdx) {
       array(arrayIdx) = self.array(headIdx)
@@ -103,6 +100,18 @@ private[monix] final class DropAllOnOverflowQueue[T : ClassTag] private (_recomm
     }
 
     arrayIdx - offset
+  }
+
+  override def drainToBuffer(buffer: mutable.Buffer[A], limit: Int): Int = {
+    var count = 0
+    while (headIdx != tailIdx && count < limit) {
+      buffer += self.array(headIdx)
+      // incrementing head pointer
+      headIdx = (headIdx + 1) & modulus
+      count += 1
+    }
+
+    count
   }
 
   override val hasDefiniteSize: Boolean =
@@ -115,22 +124,22 @@ private[monix] final class DropAllOnOverflowQueue[T : ClassTag] private (_recomm
       (maxSize - headIdx) + tailIdx
   }
 
-  override def head: T = {
+  override def head: A = {
     if (headIdx == tailIdx)
       throw new NoSuchElementException("EvictingQueue is empty")
     else
       array(headIdx)
   }
 
-  override def headOption: Option[T] = {
+  override def headOption: Option[A] = {
     try Some(head) catch {
       case _: NoSuchElementException =>
         None
     }
   }
 
-  def iterator: Iterator[T] = {
-    new Iterator[T] {
+  def iterator: Iterator[A] = {
+    new Iterator[A] {
       private[this] var isStarted = false
       private[this] val initialHeadIdx = self.headIdx
       private[this] val initialTailIdx = self.tailIdx
@@ -145,7 +154,7 @@ private[monix] final class DropAllOnOverflowQueue[T : ClassTag] private (_recomm
         headIdx != tailIdx
       }
 
-      def next(): T = {
+      def next(): A = {
         if (!isStarted) init()
         if (headIdx == tailIdx)
           throw new NoSuchElementException("EvictingQueue.iterator is empty")
@@ -184,7 +193,7 @@ private[monix] object DropAllOnOverflowQueue {
     *        equal to the given number minus one, or a maximum of 2^30^-1 (the maximum
     *        positive int that can be expressed as a power of 2, minus 1)
    */
-  def apply[T : ClassTag](recommendedCapacity: Int): DropAllOnOverflowQueue[T] = {
-    new DropAllOnOverflowQueue[T](recommendedCapacity)
+  def apply[A : ClassTag](recommendedCapacity: Int): DropAllOnOverflowQueue[A] = {
+    new DropAllOnOverflowQueue[A](recommendedCapacity)
   }
 }

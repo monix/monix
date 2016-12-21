@@ -21,6 +21,8 @@ import java.util.ConcurrentModificationException
 
 import minitest.SimpleTestSuite
 
+import scala.collection.mutable.ListBuffer
+
 object DropAllOnOverflowQueueSuite extends SimpleTestSuite {
   test("should not accept null values") {
     val q = DropAllOnOverflowQueue[String](100)
@@ -51,7 +53,7 @@ object DropAllOnOverflowQueueSuite extends SimpleTestSuite {
     }
   }
 
-  test("offer and poll, happy path") {
+  test("offer and poll with drainToArray, happy path") {
     val array = new Array[Int](7)
     val q = DropAllOnOverflowQueue[Int](7)
 
@@ -69,8 +71,12 @@ object DropAllOnOverflowQueueSuite extends SimpleTestSuite {
 
     assertEquals(q.offerMany(40, 50, 60, 70, 80, 90, 100), 0)
 
-    assertEquals(q.pollMany(array), 7)
-    assertEquals(array.toList, List(40, 50, 60, 70, 80, 90, 100))
+    val buffer = ListBuffer.empty[Int]
+    assertEquals(q.drainToBuffer(buffer, 3), 3)
+    assertEquals(buffer.toList, List(40, 50, 60))
+
+    assertEquals(q.drainToArray(array), 4)
+    assertEquals(array.toList.take(4), List(70, 80, 90, 100))
   }
 
   test("offer and poll, overflow") {
@@ -88,11 +94,15 @@ object DropAllOnOverflowQueueSuite extends SimpleTestSuite {
     assertEquals(q.offer(8), 7)
     assertEquals(q.offerMany(9 to 14: _*), 0)
 
-    assertEquals(q.pollMany(array), 7)
-    assertEquals(array.toList, List(8, 9, 10, 11, 12, 13, 14))
+    val buffer = ListBuffer.empty[Int]
+    assertEquals(q.drainToBuffer(buffer, 3), 3)
+    assertEquals(buffer.toList, List(8, 9, 10))
+
+    assertEquals(q.drainToArray(array), 4)
+    assertEquals(array.toList.take(4), List(11, 12, 13, 14))
 
     assertEquals(q.offerMany(15 until 29: _*), 7)
-    assertEquals(q.pollMany(array), 7)
+    assertEquals(q.drainToArray(array), 7)
     assertEquals(array.toList, (22 until 29).toList)
 
     assert(q.poll().asInstanceOf[AnyRef] == null)

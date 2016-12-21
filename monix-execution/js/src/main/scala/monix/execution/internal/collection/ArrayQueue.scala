@@ -17,41 +17,37 @@
 
 package monix.execution.internal.collection
 
+import monix.execution.internal.math._
+
+import scala.collection.mutable
 import scala.scalajs.js
 
-/**
- * A Javascript-array based queue.
- *
- * Inspired by: http://code.stephenmorley.org/javascript/queues/
- */
-private[monix] final class ArrayQueue[T] private
-  (bufferSize: Int, triggerEx: Int => Throwable = null)
-  extends EvictingQueue[T] {
+/** A Javascript Array based queue.
+  *
+  * Inspired by: http://code.stephenmorley.org/javascript/queues/
+  */
+private[monix] final class ArrayQueue[A] private
+  (_size: Int, triggerEx: Int => Throwable = null)
+  extends EvictingQueue[A] {
 
-  private[this] var queue = new js.Array[T]()
+  private[this] var queue = new js.Array[A]()
   private[this] var offset = 0
+  private[this] val bufferSize =
+    if (_size <= 0) 0 else nextPowerOf2(_size)
 
-  val capacity = {
-    if (bufferSize > 0)
-      bufferSize
-    else
-      Int.MaxValue
-  }
-
-  def isAtCapacity: Boolean = {
+  override def capacity =
+    if (bufferSize == 0) Int.MaxValue else bufferSize
+  override def isAtCapacity: Boolean =
     queue.length - offset >= capacity
-  }
-
-  def length: Int = {
+  override def length: Int =
     queue.length - offset
-  }
+  override def isEmpty: Boolean =
+    queue.length - offset == 0
+  override def nonEmpty: Boolean =
+    queue.length - offset > 0
 
-  override def isEmpty: Boolean = {
-    queue.length == 0
-  }
-
-  def offer(elem: T): Int = {
-    if (elem == null) throw null
+  def offer(elem: A): Int = {
+    if (elem == null) throw new NullPointerException("Null not supported")
     if (bufferSize > 0 && queue.length - offset >= capacity) {
       if (triggerEx != null) throw triggerEx(capacity)
       1 // rejecting new element as we are at capacity
@@ -62,8 +58,8 @@ private[monix] final class ArrayQueue[T] private
     }
   }
 
-  def poll(): T = {
-    if (queue.length == 0) null.asInstanceOf[T] else {
+  def poll(): A = {
+    if (queue.length == 0) null.asInstanceOf[A] else {
       val item = queue(offset)
       offset += 1
 
@@ -76,7 +72,7 @@ private[monix] final class ArrayQueue[T] private
     }
   }
 
-  def offerMany(seq: T*): Long = {
+  def offerMany(seq: A*): Long = {
     val iterator = seq.iterator
     var acc = 0L
     while (iterator.hasNext)
@@ -84,8 +80,7 @@ private[monix] final class ArrayQueue[T] private
     acc
   }
 
-
-  def pollMany(array: Array[T], offset: Int): Int = {
+  def drainToArray(array: Array[A], offset: Int): Int = {
     var idx = offset
     var continue = true
 
@@ -103,21 +98,39 @@ private[monix] final class ArrayQueue[T] private
     idx - offset
   }
 
+  override def drainToBuffer(buffer: mutable.Buffer[A], limit: Int): Int = {
+    var count = 0
+    var continue = true
+
+    while (continue && count < limit) {
+      val elem = poll()
+      if (elem != null) {
+        buffer += elem
+        count += 1
+      }
+      else {
+        continue = false
+      }
+    }
+
+    count
+  }
+
   def clear(): Unit = {
-    queue = new js.Array[T]()
+    queue = new js.Array[A]()
     offset = 0
   }
 
-  def iterator: Iterator[T] = {
+  def iterator: Iterator[A] = {
     val clone = queue.jsSlice(0)
     clone.iterator
   }
 }
 
 private[monix] object ArrayQueue {
-  def unbounded[T]: ArrayQueue[T] =
-    new ArrayQueue[T](0)
+  def unbounded[A]: ArrayQueue[A] =
+    new ArrayQueue[A](0)
 
-  def bounded[T](bufferSize: Int, triggerEx: Int => Throwable = null): ArrayQueue[T] =
-    new ArrayQueue[T](bufferSize, triggerEx)
+  def bounded[A](bufferSize: Int, triggerEx: Int => Throwable = null): ArrayQueue[A] =
+    new ArrayQueue[A](bufferSize, triggerEx)
 }

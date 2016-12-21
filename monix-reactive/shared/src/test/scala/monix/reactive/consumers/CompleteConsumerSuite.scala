@@ -34,7 +34,7 @@ object CompleteConsumerSuite extends TestSuite[TestScheduler] {
 
   test("should run to completion") { implicit s =>
     val obs = Observable(1) ++ Observable.now(2).delaySubscription(3.seconds)
-    val f = obs.runWith(Consumer.complete).runAsync
+    val f = obs.consumeWith(Consumer.complete).runAsync
 
     s.tick(); assertEquals(f.value, None)
     s.tick(3.seconds); assertEquals(f.value, Some(Success(())))
@@ -42,7 +42,7 @@ object CompleteConsumerSuite extends TestSuite[TestScheduler] {
 
   test("should trigger error") { implicit s =>
     val ex = DummyException("dummy")
-    val f = Observable.raiseError(ex).runWith(Consumer.complete).runAsync
+    val f = Observable.raiseError(ex).consumeWith(Consumer.complete).runAsync
     s.tick(); assertEquals(f.value, Some(Failure(ex)))
   }
 }

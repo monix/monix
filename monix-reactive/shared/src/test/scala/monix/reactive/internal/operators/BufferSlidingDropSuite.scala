@@ -56,7 +56,6 @@ object BufferSlidingDropSuite extends BaseOperatorSuite {
       .bufferSliding(4,8)
       .flatMap(Observable.fromIterable)
 
-
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 }

@@ -55,7 +55,7 @@ object CancelConsumerSuite extends TestSuite[TestScheduler] {
 
   test("observable.now") { implicit s =>
     val obs = Observable.now(1)
-    val f = obs.runWith(Consumer.cancel).runAsync
+    val f = obs.consumeWith(Consumer.cancel).runAsync
     s.tick()
     assertEquals(f.value, Some(Success(())))
   }

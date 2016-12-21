@@ -17,15 +17,14 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack.{Stop, Continue}
+import monix.execution.Ack.{Continue, Stop}
+import monix.execution.atomic.Atomic
 import monix.execution.{Ack, Cancelable, Scheduler}
-import monix.reactive.observables.{ObservableLike, GroupedObservable}
-import ObservableLike.Operator
 import monix.reactive.exceptions.CompositeException
 import monix.reactive.observables.GroupedObservable
+import monix.reactive.observables.ObservableLike.Operator
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 import monix.reactive.{Observer, OverflowStrategy}
-import monix.execution.atomic.Atomic
 import scala.annotation.tailrec
 import scala.concurrent.Future
 import scala.util.control.NonFatal

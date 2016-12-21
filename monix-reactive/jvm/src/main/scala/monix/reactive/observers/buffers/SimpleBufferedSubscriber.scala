@@ -17,51 +17,65 @@
 
 package monix.reactive.observers.buffers
 
-import java.util.concurrent.ConcurrentLinkedQueue
 import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.Atomic
+import monix.execution.atomic.PaddingStrategy.LeftRight256
+import monix.execution.internal.math.nextPowerOf2
 import monix.reactive.exceptions.BufferOverflowException
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
-import scala.annotation.tailrec
-import scala.util.Failure
+import scala.concurrent.Future
 import scala.util.control.NonFatal
+import scala.util.{Failure, Success}
 
-/**
- * A highly optimized [[BufferedSubscriber]] implementation. It supports 2
- * [[monix.reactive.OverflowStrategy overflow strategies]]:
- *
- *   - [[monix.reactive.OverflowStrategy.Unbounded Unbounded]]
- *   - [[monix.reactive.OverflowStrategy.Fail Fail]]
- *
- * @param underlying is the underlying observer receiving the queued events
- * @param bufferSize is the maximum buffer size, or zero if unbounded
- */
-private[buffers] final class SimpleBufferedSubscriber[-T] private
-  (underlying: Subscriber[T], bufferSize: Int = 0)
-  extends BufferedSubscriber[T] with Subscriber.Sync[T] { self =>
+/** A highly optimized [[BufferedSubscriber]] implementation. It supports 2
+  * [[monix.reactive.OverflowStrategy overflow strategies]]:
+  *
+  *   - [[monix.reactive.OverflowStrategy.Unbounded Unbounded]]
+  *   - [[monix.reactive.OverflowStrategy.Fail Fail]]
+  *
+  * For the `Unbounded` strategy it uses an unbounded array-linked queue
+  * that grows in chunks of size `Platform.recommendedBatchSize`.
+  * It has no limit to how much it can grow, therefore it should be
+  * used with care, since it can eat the whole heap memory.
+  */
+private[observers] final class SimpleBufferedSubscriber[A] protected
+  (out: Subscriber[A], _qRef: ConcurrentQueue[A], capacity: Int)
+  extends AbstractSimpleBufferedSubscriber[A](out, _qRef, capacity) {
 
-  require(bufferSize >= 0, "bufferSize must be a positive number")
+  @volatile protected var p50, p51, p52, p53, p54, p55, p56, p57 = 5
+  @volatile protected var q50, q51, q52, q53, q54, q55, q56, q57 = 5
+}
 
-  implicit val scheduler = underlying.scheduler
-  private[this] val queue = new ConcurrentLinkedQueue[T]()
-  private[this] val em = scheduler.executionModel
+private[observers] abstract class AbstractSimpleBufferedSubscriber[A] protected
+  (out: Subscriber[A], _qRef: ConcurrentQueue[A], capacity: Int)
+  extends CommonBufferMembers with BufferedSubscriber[A] with Subscriber.Sync[A] {
 
-  // to be modified only in onError, before upstreamIsComplete
-  private[this] var errorThrown: Throwable = null
-  // to be modified only in onError / onComplete
-  @volatile private[this] var upstreamIsComplete = false
-  // to be modified only by consumer
-  @volatile private[this] var downstreamIsDone = false
-  // for enforcing non-concurrent updates
-  private[this] val itemsToPush = Atomic(0)
+  private[this] val queue = _qRef
+  private[this] val em = out.scheduler.executionModel
+  implicit val scheduler = out.scheduler
+  private[this] val itemsToPush =
+    Atomic.withPadding(0, LeftRight256)
 
-  def onNext(elem: T): Ack = {
-    if (!upstreamIsComplete && !downstreamIsDone) {
-      try {
-        queue.offer(elem)
-        pushToConsumer()
-        Continue
+  def onNext(elem: A): Ack = {
+    if (!upstreamIsComplete && !downstreamIsComplete) {
+      if (elem == null) {
+        onError(new NullPointerException("Null not supported in onNext"))
+        Stop
+      }
+      else try {
+        if (queue.offer(elem)) {
+          pushToConsumer()
+          Continue
+        }
+        else {
+          onError(new BufferOverflowException(
+            s"Downstream observer is too slow, buffer overflowed with a " +
+            s"specified maximum capacity of $capacity"
+          ))
+
+          Stop
+        }
       }
       catch {
         case NonFatal(ex) =>
@@ -74,7 +88,7 @@ private[buffers] final class SimpleBufferedSubscriber[-T] private
   }
 
   def onError(ex: Throwable): Unit = {
-    if (!upstreamIsComplete && !downstreamIsDone) {
+    if (!upstreamIsComplete && !downstreamIsComplete) {
       errorThrown = ex
       upstreamIsComplete = true
       pushToConsumer()
@@ -82,135 +96,171 @@ private[buffers] final class SimpleBufferedSubscriber[-T] private
   }
 
   def onComplete(): Unit = {
-    if (!upstreamIsComplete && !downstreamIsDone) {
+    if (!upstreamIsComplete && !downstreamIsComplete) {
       upstreamIsComplete = true
       pushToConsumer()
     }
   }
 
-  @tailrec
   private[this] def pushToConsumer(): Unit = {
-    val currentNr = itemsToPush.get
+    val currentNr = itemsToPush.getAndIncrement()
 
-    if (bufferSize == 0) {
-      // unbounded branch
-      if (!itemsToPush.compareAndSet(currentNr, currentNr + 1))
-        pushToConsumer()
-      else if (currentNr == 0)
-        scheduler.execute(new Runnable {
-          def run() = fastLoop(0,0)
-        })
+    // If a run-loop isn't started, then go, go, go!
+    if (currentNr == 0) {
+      // Starting the run-loop, as at this point we can be sure
+      // that no other loop is active, or if there is one, then
+      // it is shutting down!
+      scheduler.execute(consumerLoop)
     }
-    else {
-      // triggering overflow branch
-      if (currentNr >= bufferSize && !upstreamIsComplete) {
-        self.onError(new BufferOverflowException(
-          s"Downstream observer is too slow, buffer over capacity with a " +
-          s"specified buffer size of $bufferSize"))
+  }
+
+  private[this] val consumerLoop = new Runnable {
+    def run(): Unit = {
+      // This lastIterationAck is also being set by the consumer-loop,
+      // but it's important for the write to happen before `itemsToPush`,
+      // to ensure its visibility
+      fastLoop(lastIterationAck, 0, 0)
+    }
+
+    private final def signalNext(next: A): Future[Ack] =
+      try {
+        val ack = out.onNext(next)
+        // Tries flattening the Future[Ack] to a
+        // synchronous value
+        if (ack == Continue || ack == Stop)
+          ack
+        else ack.value match {
+          case Some(Success(success)) =>
+            success
+          case Some(Failure(ex)) =>
+            signalError(ex)
+            Stop
+          case None =>
+            ack
+        }
+      } catch {
+        case NonFatal(ex) =>
+          signalError(ex)
+          Stop
       }
-      else if (!itemsToPush.compareAndSet(currentNr, currentNr + 1))
-        pushToConsumer()
-      else if (currentNr == 0)
-        scheduler.execute(new Runnable {
-          def run() = fastLoop(0,0)
-        })
-    }
-  }
 
-  private[this] def rescheduled(processed: Int): Unit = {
-    fastLoop(processed, 0)
-  }
+    private final def signalComplete(): Unit =
+      try out.onComplete() catch {
+        case NonFatal(ex) =>
+          scheduler.reportFailure(ex)
+      }
 
-  @tailrec
-  private[this] def fastLoop(processed: Int, syncIndex: Int): Unit = {
-    if (!downstreamIsDone) {
-      val hasError = errorThrown ne null
-      val next = queue.poll()
+    private final def signalError(ex: Throwable): Unit =
+      try out.onError(ex) catch {
+        case NonFatal(err) =>
+          scheduler.reportFailure(err)
+      }
 
-      if (next != null) {
-        val ack = underlying.onNext(next)
-        val nextIndex = if (!ack.isCompleted) 0 else
-          em.nextFrameIndex(syncIndex)
+    private def goAsync(next: A, ack: Future[Ack], processed: Int): Unit =
+      ack.onComplete {
+        case Success(Continue) =>
+          val nextAck = signalNext(next)
+          val isSync = ack == Continue || ack == Stop
+          val nextFrame = if (isSync) em.nextFrameIndex(0) else 0
+          fastLoop(nextAck, processed+1, nextFrame)
 
-        if (nextIndex > 0) {
-          if (ack == Continue || ack.value.get == Continue.AsSuccess) {
-            // process next
-            fastLoop(processed + 1, nextIndex)
-          }
-          else if (ack == Stop || ack.value.get == Stop.AsSuccess) {
-            // ending loop
-            downstreamIsDone = true
-            itemsToPush.set(0)
-          }
-          else if (ack.value.get.isFailure) {
-            // ending loop
-            downstreamIsDone = true
-            itemsToPush.set(0)
-            underlying.onError(ack.value.get.failed.get)
+        case Success(Stop) =>
+          // ending loop
+          downstreamIsComplete = true
+          itemsToPush.set(0)
+
+        case Failure(ex) =>
+          // ending loop
+          downstreamIsComplete = true
+          itemsToPush.set(0)
+          signalError(ex)
+      }
+
+    private def fastLoop(prevAck: Future[Ack], lastProcessed: Int, startIndex: Int): Unit = {
+      var ack = if (prevAck == null) Continue else prevAck
+      var isFirstIteration = ack == Continue
+      var processed = lastProcessed
+      var nextIndex = startIndex
+
+      while (!downstreamIsComplete) {
+        val next = queue.poll()
+
+        if (next != null) {
+          if (nextIndex > 0 || isFirstIteration) {
+            isFirstIteration = false
+
+            ack match {
+              case Continue =>
+                ack = signalNext(next)
+                if (ack == Stop) {
+                  // ending loop
+                  downstreamIsComplete = true
+                  itemsToPush.set(0)
+                  return
+                } else {
+                  val isSync = ack == Continue
+                  nextIndex = if (isSync) em.nextFrameIndex(nextIndex) else 0
+                  processed += 1
+                }
+
+              case Stop =>
+                // ending loop
+                downstreamIsComplete = true
+                itemsToPush.set(0)
+                return
+
+              case async =>
+                goAsync(next, ack, processed)
+                return
+            }
           }
           else {
-            // never happens
-            downstreamIsDone = true
-            itemsToPush.set(0)
-            underlying.onError(new MatchError(ack.value.get.toString))
+            goAsync(next, ack, processed)
+            return
           }
         }
-        else ack.onComplete {
-          case Continue.AsSuccess =>
-            // re-run loop (in different thread)
-            rescheduled(processed + 1)
-
-          case Stop.AsSuccess =>
+        else if (upstreamIsComplete) {
+          // Race-condition check, but if upstreamIsComplete=true is
+          // visible, then the queue should be fully published because
+          // there's a clear happens-before relationship between
+          // queue.offer() and upstreamIsComplete=true
+          if (queue.isEmpty) {
             // ending loop
-            downstreamIsDone = true
+            downstreamIsComplete = true
             itemsToPush.set(0)
 
-          case Failure(ex) =>
-            // ending loop
-            downstreamIsDone = true
-            itemsToPush.set(0)
-            underlying.onError(ex)
-
-          case other =>
-            // never happens, but to appease the Scala compiler
-            downstreamIsDone = true
-            itemsToPush.set(0)
-            underlying.onError(new MatchError(s"$other"))
-        }
-      }
-      else if (upstreamIsComplete || hasError) {
-        // Race-condition check, but if upstreamIsComplete=true is visible,
-        // then the queue should be fully published because there's a clear happens-before
-        // relationship between queue.offer() and upstreamIsComplete=true
-        if (!queue.isEmpty) {
-          fastLoop(processed, syncIndex)
+            if (errorThrown ne null) signalError(errorThrown)
+            else signalComplete()
+            return
+          }
         }
         else {
-          // ending loop
-          downstreamIsDone = true
-          itemsToPush.set(0)
-          queue.clear() // for GC purposes
+          // Given we are writing in `itemsToPush` before this
+          // assignment, it means that writes will not get reordered,
+          // so when we observe that itemsToPush is zero on the
+          // producer side, we will also have the latest lastIterationAck
+          lastIterationAck = ack
+          val remaining = itemsToPush.decrementAndGet(processed)
 
-          if (errorThrown ne null)
-            underlying.onError(errorThrown)
-          else
-            underlying.onComplete()
+          processed = 0
+          // if the queue is non-empty (i.e. concurrent modifications
+          // just happened) then continue loop, otherwise stop
+          if (remaining <= 0) return
         }
-      }
-      else {
-        val remaining = itemsToPush.decrementAndGet(processed)
-        // if the queue is non-empty (i.e. concurrent modifications just happened)
-        // then start all over again
-        if (remaining > 0) fastLoop(0, syncIndex)
       }
     }
   }
 }
 
-private[monix] object SimpleBufferedSubscriber {
-  def unbounded[T](underlying: Subscriber[T]): Subscriber.Sync[T] =
-    new SimpleBufferedSubscriber[T](underlying)
+private[observers] object SimpleBufferedSubscriber {
+  def unbounded[A](underlying: Subscriber[A]): SimpleBufferedSubscriber[A] = {
+    val queue = ConcurrentQueue.unbounded[A](isBatched = true)
+    new SimpleBufferedSubscriber[A](underlying, queue, Int.MaxValue)
+  }
 
-  def overflowTriggering[T](underlying: Subscriber[T], bufferSize: Int): Subscriber.Sync[T] =
-    new SimpleBufferedSubscriber[T](underlying, bufferSize)
+  def overflowTriggering[A](underlying: Subscriber[A], bufferSize: Int): SimpleBufferedSubscriber[A] = {
+    val maxCapacity = math.max(4, nextPowerOf2(bufferSize))
+    val queue = ConcurrentQueue.limited[A](bufferSize)
+    new SimpleBufferedSubscriber[A](underlying, queue, maxCapacity)
+  }
 }

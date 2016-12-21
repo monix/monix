@@ -34,7 +34,7 @@ object FoldLeftAsyncConsumerSuite extends TestSuite[TestScheduler] {
   test("should sum a long stream") { implicit s =>
     val count = 10000L
     val obs = Observable.range(0, count)
-    val f = obs.runWith(Consumer
+    val f = obs.consumeWith(Consumer
       .foldLeftAsync(0L)((s,a) => Task(s+a)))
       .runAsync
 
@@ -45,7 +45,7 @@ object FoldLeftAsyncConsumerSuite extends TestSuite[TestScheduler] {
   test("should interrupt with error") { implicit s =>
     val ex = DummyException("dummy")
     val obs = Observable.range(0, 10000).endWithError(ex)
-    val f = obs.runWith(Consumer
+    val f = obs.consumeWith(Consumer
       .foldLeftAsync(0L)((s,a) => Task(s+a)))
       .runAsync
 
@@ -56,7 +56,7 @@ object FoldLeftAsyncConsumerSuite extends TestSuite[TestScheduler] {
   test("should protect against user simple error") { implicit s =>
     val ex = DummyException("dummy")
     val f = Observable.now(1)
-      .runWith(Consumer.foldLeftAsync(0L)((s,a) => throw ex))
+      .consumeWith(Consumer.foldLeftAsync(0L)((s,a) => throw ex))
       .runAsync
 
     s.tick()
@@ -66,7 +66,7 @@ object FoldLeftAsyncConsumerSuite extends TestSuite[TestScheduler] {
   test("should protect against user task error") { implicit s =>
     val ex = DummyException("dummy")
     val f = Observable.now(1)
-      .runWith(Consumer.foldLeftAsync(0L)((s,a) => Task.raiseError(ex)))
+      .consumeWith(Consumer.foldLeftAsync(0L)((s,a) => Task.raiseError(ex)))
       .runAsync
 
     s.tick()
