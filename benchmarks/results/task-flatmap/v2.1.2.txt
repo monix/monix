@@ -1,0 +1,134 @@
+maxielo:monix alex$ sbt "benchmarks/jmh:run -i 20 -wi 20 -f 1 -t 1 monix.benchmarks.TaskFlatMapBenchmark"
+[info] Loading global plugins from /Users/alex/.sbt/0.13/plugins
+[info] Loading project definition from /Users/alex/Projects/monix/monix/project
+[info] Set current project to monix (in build file:/Users/alex/Projects/monix/monix/)
+Processing 163 classes from /Users/alex/Projects/monix/monix/benchmarks/target/scala-2.11/classes with "reflection" generator
+Writing out Java source to /Users/alex/Projects/monix/monix/benchmarks/target/scala-2.11/src_managed/jmh and resources to /Users/alex/Projects/monix/monix/benchmarks/target/scala-2.11/resource_managed/jmh
+[info] Running org.openjdk.jmh.Main -i 20 -wi 20 -f 1 -t 1 monix.benchmarks.TaskFlatMapBenchmark
+[info] # JMH 1.17.1 (released 23 days ago)
+[info] # VM version: JDK 1.8.0_111, VM 25.111-b14
+[info] # VM invoker: /Library/Java/JavaVirtualMachines/jdk1.8.0_111.jdk/Contents/Home/jre/bin/java
+[info] # VM options: <none>
+[info] # Warmup: 20 iterations, 1 s each
+[info] # Measurement: 20 iterations, 1 s each
+[info] # Timeout: 10 min per iteration
+[info] # Threads: 1 thread, will synchronize iterations
+[info] # Benchmark mode: Throughput, ops/time
+[info] # Benchmark: monix.benchmarks.TaskFlatMapBenchmark.sequenceA
+[info] 
+[info] # Run progress: 0.00% complete, ETA 00:01:20
+[info] # Fork: 1 of 1
+[info] # Warmup Iteration   1: 33.631 ops/s
+[info] # Warmup Iteration   2: 108.369 ops/s
+[info] # Warmup Iteration   3: 84.769 ops/s
+[info] # Warmup Iteration   4: 131.669 ops/s
+[info] # Warmup Iteration   5: 75.655 ops/s
+[info] # Warmup Iteration   6: 137.134 ops/s
+[info] # Warmup Iteration   7: 137.682 ops/s
+[info] # Warmup Iteration   8: 137.510 ops/s
+[info] # Warmup Iteration   9: 137.565 ops/s
+[info] # Warmup Iteration  10: 137.437 ops/s
+[info] # Warmup Iteration  11: 136.704 ops/s
+[info] # Warmup Iteration  12: 136.927 ops/s
+[info] # Warmup Iteration  13: 137.885 ops/s
+[info] # Warmup Iteration  14: 136.763 ops/s
+[info] # Warmup Iteration  15: 136.283 ops/s
+[info] # Warmup Iteration  16: 136.077 ops/s
+[info] # Warmup Iteration  17: 137.279 ops/s
+[info] # Warmup Iteration  18: 137.423 ops/s
+[info] # Warmup Iteration  19: 137.628 ops/s
+[info] # Warmup Iteration  20: 136.634 ops/s
+[info] Iteration   1: 126.150 ops/s
+[info] Iteration   2: 134.706 ops/s
+[info] Iteration   3: 130.489 ops/s
+[info] Iteration   4: 129.193 ops/s
+[info] Iteration   5: 129.496 ops/s
+[info] Iteration   6: 123.195 ops/s
+[info] Iteration   7: 126.552 ops/s
+[info] Iteration   8: 131.024 ops/s
+[info] Iteration   9: 120.108 ops/s
+[info] Iteration  10: 120.532 ops/s
+[info] Iteration  11: 119.734 ops/s
+[info] Iteration  12: 128.178 ops/s
+[info] Iteration  13: 117.707 ops/s
+[info] Iteration  14: 120.161 ops/s
+[info] Iteration  15: 127.064 ops/s
+[info] Iteration  16: 126.092 ops/s
+[info] Iteration  17: 120.652 ops/s
+[info] Iteration  18: 125.454 ops/s
+[info] Iteration  19: 126.453 ops/s
+[info] Iteration  20: 124.945 ops/s
+[info] 
+[info] 
+[info] Result "sequenceA":
+[info]   125.394 ±(99.9%) 3.920 ops/s [Average]
+[info]   (min, avg, max) = (117.707, 125.394, 134.706), stdev = 4.515
+[info]   CI (99.9%): [121.474, 129.315] (assumes normal distribution)
+[info] 
+[info] 
+[info] # JMH 1.17.1 (released 23 days ago)
+[info] # VM version: JDK 1.8.0_111, VM 25.111-b14
+[info] # VM invoker: /Library/Java/JavaVirtualMachines/jdk1.8.0_111.jdk/Contents/Home/jre/bin/java
+[info] # VM options: <none>
+[info] # Warmup: 20 iterations, 1 s each
+[info] # Measurement: 20 iterations, 1 s each
+[info] # Timeout: 10 min per iteration
+[info] # Threads: 1 thread, will synchronize iterations
+[info] # Benchmark mode: Throughput, ops/time
+[info] # Benchmark: monix.benchmarks.TaskFlatMapBenchmark.sequenceS
+[info] 
+[info] # Run progress: 50.00% complete, ETA 00:00:45
+[info] # Fork: 1 of 1
+[info] # Warmup Iteration   1: 409.256 ops/s
+[info] # Warmup Iteration   2: 690.463 ops/s
+[info] # Warmup Iteration   3: 690.754 ops/s
+[info] # Warmup Iteration   4: 843.503 ops/s
+[info] # Warmup Iteration   5: 754.753 ops/s
+[info] # Warmup Iteration   6: 751.970 ops/s
+[info] # Warmup Iteration   7: 740.861 ops/s
+[info] # Warmup Iteration   8: 752.669 ops/s
+[info] # Warmup Iteration   9: 752.852 ops/s
+[info] # Warmup Iteration  10: 749.409 ops/s
+[info] # Warmup Iteration  11: 756.694 ops/s
+[info] # Warmup Iteration  12: 756.214 ops/s
+[info] # Warmup Iteration  13: 752.632 ops/s
+[info] # Warmup Iteration  14: 753.648 ops/s
+[info] # Warmup Iteration  15: 755.713 ops/s
+[info] # Warmup Iteration  16: 756.833 ops/s
+[info] # Warmup Iteration  17: 757.674 ops/s
+[info] # Warmup Iteration  18: 756.662 ops/s
+[info] # Warmup Iteration  19: 760.076 ops/s
+[info] # Warmup Iteration  20: 768.214 ops/s
+[info] Iteration   1: 757.501 ops/s
+[info] Iteration   2: 754.925 ops/s
+[info] Iteration   3: 754.788 ops/s
+[info] Iteration   4: 760.278 ops/s
+[info] Iteration   5: 755.392 ops/s
+[info] Iteration   6: 766.142 ops/s
+[info] Iteration   7: 762.116 ops/s
+[info] Iteration   8: 760.683 ops/s
+[info] Iteration   9: 755.403 ops/s
+[info] Iteration  10: 759.253 ops/s
+[info] Iteration  11: 754.662 ops/s
+[info] Iteration  12: 761.309 ops/s
+[info] Iteration  13: 757.618 ops/s
+[info] Iteration  14: 765.345 ops/s
+[info] Iteration  15: 755.106 ops/s
+[info] Iteration  16: 751.232 ops/s
+[info] Iteration  17: 762.084 ops/s
+[info] Iteration  18: 757.225 ops/s
+[info] Iteration  19: 752.017 ops/s
+[info] Iteration  20: 760.119 ops/s
+[info] 
+[info] 
+[info] Result "sequenceS":
+[info]   758.160 ±(99.9%) 3.554 ops/s [Average]
+[info]   (min, avg, max) = (751.232, 758.160, 766.142), stdev = 4.092
+[info]   CI (99.9%): [754.606, 761.713] (assumes normal distribution)
+[info] 
+[info] 
+[info] # Run complete. Total time: 00:01:31
+[info] 
+[info] Benchmark                        Mode  Cnt    Score   Error  Units
+[info] TaskFlatMapBenchmark.sequenceA  thrpt   20  125.394 ± 3.920  ops/s
+[info] TaskFlatMapBenchmark.sequenceS  thrpt   20  758.160 ± 3.554  ops/s
