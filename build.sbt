@@ -428,5 +428,7 @@ lazy val benchmarks = project.in(file("benchmarks"))
   .settings(
     libraryDependencies ++= Seq(
       "org.scalaz" %% "scalaz-concurrent" % scalazVersion,
-      "io.reactivex" %% "rxscala" % "0.26.4"
-    ))
+      "org.monifu" %% "monifu" % "1.2"
+    )
+  )
+

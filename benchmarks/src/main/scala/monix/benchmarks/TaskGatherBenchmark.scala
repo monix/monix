@@ -15,29 +15,26 @@
  * limitations under the License.
  */
 
-package monix
+package monix.benchmarks
 
 import java.util.concurrent.TimeUnit
-
-import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
+import monix.eval.Task
 import org.openjdk.jmh.annotations._
+import scala.collection.mutable.ListBuffer
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, Future}
 import scalaz.Nondeterminism
 import scalaz.concurrent.{Task => ScalazTask}
-import scala.collection.mutable.ListBuffer
-import scala.concurrent.{Await, Future}
-import scala.concurrent.duration.Duration
 
-/*
- * Sample run:
- *
- *     sbt "benchmarks/jmh:run -i 10 -wi 10 -f 1 -t 1 monix.TaskGatherBenchmark"
- *
- * Which means "10 iterations" "5 warmup iterations" "1 fork" "1 thread".
- * Please note that benchmarks should be usually executed at least in
- * 10 iterations (as a rule of thumb), but more is better.
- */
-
+/** Sample run:
+  *
+  *     sbt "benchmarks/jmh:run -i 10 -wi 10 -f 1 -t 1 monix.benchmarks.TaskGatherBenchmark"
+  *
+  * Which means "10 iterations" "5 warmup iterations" "1 fork" "1 thread".
+  * Please note that benchmarks should be usually executed at least in
+  * 10 iterations (as a rule of thumb), but more is better.
+  */
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)

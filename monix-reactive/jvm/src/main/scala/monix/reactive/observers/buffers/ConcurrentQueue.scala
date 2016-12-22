@@ -18,7 +18,6 @@
 package monix.reactive.observers.buffers
 
 import java.util
-
 import monix.execution.internal.Platform
 import monix.execution.internals.atomic.UnsafeAccess
 import monix.execution.internal.math.nextPowerOf2

@@ -15,17 +15,19 @@
  * limitations under the License.
  */
 
-package monix
+package monix.benchmarks
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
+
 import org.openjdk.jmh.annotations._
+
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Promise}
 
 /*
  * Sample run:
  *
- *     sbt "benchmarks/jmh:run -r 2 -i 20 -w 2 -wi 20 -f 1 -t 1 monix.DropNewBufferBenchmark"
+ *     sbt "benchmarks/jmh:run -r 2 -i 20 -w 2 -wi 20 -f 1 -t 1 monix.benchmarks.DropOldBufferBenchmark"
  *
  * Which means "20 iterations" of "2 seconds" each, "20 warm-up
  * iterations" of "2 seconds" each, "1 fork", "1 thread".  Please note
@@ -35,7 +37,7 @@ import scala.concurrent.{Await, Promise}
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-class DropNewBufferBenchmark {
+class DropOldBufferBenchmark {
   // Number of threads that push messages
   @Param(Array("1", "2", "3", "4"))
   var parallelism = 0
@@ -48,7 +50,7 @@ class DropNewBufferBenchmark {
   val eventsCount = 8000
 
   @Benchmark
-  def monixDropNew(): Long = {
+  def monixDropOld(): Long = {
     import monix.execution.Ack.Continue
     import monix.execution.Scheduler
     import monix.reactive.OverflowStrategy
@@ -72,7 +74,7 @@ class DropNewBufferBenchmark {
         promise.success(sum)
     }
 
-    val buffer = BufferedSubscriber[Long](out, OverflowStrategy.DropNew(bufferSize))
+    val buffer = BufferedSubscriber[Long](out, OverflowStrategy.DropOld(bufferSize))
     val start = new CountDownLatch(1)
     val threadsStarted = new CountDownLatch(parallelism)
     val threadsFinished = new CountDownLatch(parallelism)
@@ -98,7 +100,7 @@ class DropNewBufferBenchmark {
   }
 
   @Benchmark
-  def monifuDropNew(): Long = {
+  def monifuDropOld(): Long = {
     import monifu.concurrent.Scheduler
     import monifu.reactive.Ack.Continue
     import monifu.reactive.observers.BufferedSubscriber
@@ -123,7 +125,7 @@ class DropNewBufferBenchmark {
         promise.success(sum)
     }
 
-    val buffer = BufferedSubscriber[Long](out, OverflowStrategy.DropNew(bufferSize))
+    val buffer = BufferedSubscriber[Long](out, OverflowStrategy.DropOld(bufferSize))
     val start = new CountDownLatch(1)
     val threadsStarted = new CountDownLatch(parallelism)
     val threadsFinished = new CountDownLatch(parallelism)

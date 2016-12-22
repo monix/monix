@@ -15,17 +15,19 @@
  * limitations under the License.
  */
 
-package monix
+package monix.benchmarks
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
+
 import org.openjdk.jmh.annotations._
+
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Promise}
 
 /*
  * Sample run:
  *
- *     sbt "benchmarks/jmh:run -r 2 -i 20 -w 2 -wi 20 -f 1 -t 1 monix.BackPressuredBufferBenchmark"
+ *     sbt "benchmarks/jmh:run -r 2 -i 20 -w 2 -wi 20 -f 1 -t 1 monix.benchmarks.BackPressuredBufferBenchmark"
  *
  * Which means "20 iterations" of "2 seconds" each, "20 warm-up
  * iterations" of "2 seconds" each, "1 fork", "1 thread".  Please note
@@ -128,7 +130,7 @@ class BackPressuredBufferBenchmark {
     val threadsStarted = new CountDownLatch(parallelism)
     val threadsFinished = new CountDownLatch(parallelism)
 
-    for (i <- 0 until parallelism) global.execute(
+    for (_ <- 0 until parallelism) global.execute(
       new Runnable {
         def run() = {
           threadsStarted.countDown()

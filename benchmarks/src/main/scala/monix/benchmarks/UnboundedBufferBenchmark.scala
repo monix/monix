@@ -15,17 +15,19 @@
  * limitations under the License.
  */
 
-package monix
+package monix.benchmarks
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
+
 import org.openjdk.jmh.annotations._
+
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Promise}
 
 /*
  * Sample run:
  *
- *     sbt "benchmarks/jmh:run -r 2 -i 20 -w 2 -wi 20 -f 1 -t 1 monix.UnboundedBufferBenchmark"
+ *     sbt "benchmarks/jmh:run -r 2 -i 20 -w 2 -wi 20 -f 1 -t 1 monix.benchmarks.UnboundedBufferBenchmark"
  *
  * Which means "20 iterations" of "2 seconds" each, "20 warm-up
  * iterations" of "2 seconds" each, "1 fork", "1 thread".  Please note
@@ -96,8 +98,8 @@ class UnboundedBufferBenchmark {
   def monifuUnbounded(): Long = {
     import monifu.concurrent.Scheduler
     import monifu.reactive.Ack.Continue
-    import monifu.reactive.{OverflowStrategy, Subscriber}
     import monifu.reactive.observers.BufferedSubscriber
+    import monifu.reactive.{OverflowStrategy, Subscriber}
 
     val promise = Promise[Long]()
     implicit val global: Scheduler =
