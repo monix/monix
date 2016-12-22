@@ -1252,7 +1252,7 @@ object Task extends TaskInstances {
           }
           true
 
-        case result: Try[_] =>
+        case _ =>
           // Race condition happened
           false
       }

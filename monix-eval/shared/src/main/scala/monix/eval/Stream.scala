@@ -78,7 +78,7 @@ import scala.util.control.NonFatal
   *
   * @tparam A is the type of the elements produced by this Stream
   */
-sealed trait Stream[F[_], +A] extends Product with Serializable { self =>
+sealed abstract class Stream[F[_], +A] extends Product with Serializable { self =>
   /** Returns a computation that should be evaluated in
     * case the streaming must be canceled before reaching
     * the end.
