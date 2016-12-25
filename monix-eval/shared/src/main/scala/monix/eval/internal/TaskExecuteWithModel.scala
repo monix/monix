@@ -19,6 +19,8 @@ package monix.eval.internal
 
 import monix.eval.{Callback, Task}
 import monix.execution.schedulers.ExecutionModel
+import monix.execution.schedulers.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
+
 import scala.util.control.NonFatal
 
 private[monix] object TaskExecuteWithModel {
@@ -31,9 +33,25 @@ private[monix] object TaskExecuteWithModel {
       try {
         implicit val s2 = context.scheduler.withExecutionModel(em)
         val context2 = context.copy(scheduler = s2)
+        val frameRef = context2.frameRef
         streamErrors = false
-        Task.unsafeStartTrampolined[A](self, context2, Callback.async(cb))
-      } catch {
+
+        // Increment the frame index because we have a changed
+        // execution model, or otherwise we risk not following it
+        // for the next step in our evaluation
+        val nextIndex = em match {
+          case BatchedExecution(_) =>
+            val nextFrame = em.nextFrameIndex(frameRef.get())
+            frameRef.set(nextFrame)
+            nextFrame
+          case AlwaysAsyncExecution | SynchronousExecution =>
+            frameRef.reset()
+            em.nextFrameIndex(frameRef.initial)
+        }
+
+        Task.internalRestartTrampolineLoop[A](self, context2, Callback.async(cb), Nil, nextIndex)
+      }
+      catch {
         case NonFatal(ex) =>
           if (streamErrors) cb.onError(ex)
           else context.scheduler.reportFailure(ex)

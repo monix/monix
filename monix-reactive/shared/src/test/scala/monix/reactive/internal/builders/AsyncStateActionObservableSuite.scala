@@ -97,7 +97,7 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
       .subscribe { x => received += 1; Continue }
 
     assertEquals(received, 0)
-    s.tickOne(); s.tickOne()
+    s.tickOne(); s.tickOne(); s.tickOne()
     assertEquals(received, 1)
     s.tickOne(); s.tickOne()
     assertEquals(received, 2)

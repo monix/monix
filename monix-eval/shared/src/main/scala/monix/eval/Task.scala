@@ -24,6 +24,7 @@ import monix.execution.cancelables.StackedCancelable
 import monix.execution.internal.Platform
 import monix.execution.misc.ThreadLocal
 import monix.execution.schedulers.ExecutionModel
+import monix.execution.schedulers.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.{Cancelable, CancelableFuture, Scheduler}
 import monix.types._
 
@@ -76,8 +77,10 @@ sealed abstract class Task[+A] extends Serializable { self =>
     */
   def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable = {
     val conn = StackedCancelable()
+    // Is the first execution asynchronous?
+    val frameStart = if (!s.executionModel.isAlwaysAsync) Task.frameStart else 0
     val context = Context(s, conn, startFrameRef(), defaultOptions)
-    Task.unsafeStartNow[A](this, context, Callback.safe(cb))
+    internalRestartTrampolineLoop(self, context, Callback.safe(cb), Nil, frameStart)
     conn
   }
 
@@ -109,8 +112,10 @@ sealed abstract class Task[+A] extends Serializable { self =>
     *         a running task.
     */
   def runAsync(implicit s: Scheduler): CancelableFuture[A] = {
+    // Is the first execution asynchronous?
+    val frameStart = if (!s.executionModel.isAlwaysAsync) Task.frameStart else 0
     val context = Context(s, StackedCancelable(), startFrameRef(), defaultOptions)
-    Task.startTrampolineForFuture(this, context, Nil)
+    Task.startTrampolineForFuture(this, context, Nil, frameStart)
   }
 
   /** Transforms a [[Task]] into a [[Coeval]] that tries to execute the
@@ -1119,17 +1124,33 @@ object Task extends TaskInstances {
   private[eval] def startFrameRef(): ThreadLocal[FrameIndex] =
     ThreadLocal(frameStart)
 
+  /** [[Task]] state that evaluates a [[Coeval]]. */
   private case class Delay[A](coeval: Coeval[A]) extends Task[A] {
+    // Optimization to avoid the run-loop
     override def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable = {
-      cb.asyncApply(coeval)
+      if (s.executionModel == AlwaysAsyncExecution)
+        s.executeAsync(() => cb(coeval))
+      else
+        cb(coeval)
+
       Cancelable.empty
     }
 
-    override def runAsync(implicit s: Scheduler): CancelableFuture[A] =
-      coeval.runAttempt match {
-        case Coeval.Now(value) => CancelableFuture.successful(value)
-        case Coeval.Error(ex) => CancelableFuture.failed(ex)
+    // Optimization to avoid the run-loop
+    override def runAsync(implicit s: Scheduler): CancelableFuture[A] = {
+      if (s.executionModel != AlwaysAsyncExecution)
+        coeval.runAttempt match {
+          case Coeval.Now(value) =>
+            CancelableFuture.successful(value)
+          case Coeval.Error(ex) =>
+            CancelableFuture.failed(ex)
+        }
+      else {
+        val p = Promise[A]()
+        s.executeAsync(() => p.complete(coeval.runAttempt.asScala))
+        CancelableFuture(p.future, Cancelable.empty)
       }
+    }
   }
 
   /** Constructs a lazy [[Task]] instance whose result will
@@ -1248,7 +1269,8 @@ object Task extends TaskInstances {
           context.connection push mainCancelable
           p.asInstanceOf[Promise[A]].future.onComplete { r =>
             context.connection.pop()
-            Task.internalRestartTrampolineLoop(fromTry(r), context, cb, binds)
+            context.frameRef.reset()
+            Task.internalRestartTrampolineLoop(fromTry(r), context, cb, binds, Task.frameStart)
           }
           true
 
@@ -1287,7 +1309,7 @@ object Task extends TaskInstances {
     */
   def unsafeStartTrampolined[A](source: Task[A], context: Context, cb: Callback[A]): Unit =
     context.scheduler.executeTrampolined { () =>
-      internalRestartTrampolineLoop(source, context, cb, Nil)
+      internalRestartTrampolineLoop(source, context, cb, Nil, context.frameRef.get())
     }
 
   /** Unsafe utility - starts the execution of a Task, by providing
@@ -1299,7 +1321,7 @@ object Task extends TaskInstances {
     * what you're doing. Prefer [[Task.runAsync(cb* Task.runAsync]].
     */
   def unsafeStartNow[A](source: Task[A], context: Context, cb: Callback[A]): Unit =
-    internalRestartTrampolineLoop(source, context, cb, Nil)
+    internalRestartTrampolineLoop(source, context, cb, Nil, context.frameRef.get())
 
   /** Internal utility, for forcing an asynchronous boundary in the
     * trampoline loop.
@@ -1314,7 +1336,7 @@ object Task extends TaskInstances {
       context.scheduler.executeAsyncBatch { () =>
         // Resetting the frameRef, as a real asynchronous boundary happened
         context.frameRef.reset()
-        internalRestartTrampolineLoop(source, context, cb, binds)
+        internalRestartTrampolineLoop(source, context, cb, binds, frameStart)
       }
   }
 
@@ -1348,7 +1370,7 @@ object Task extends TaskInstances {
       if (!context.shouldCancel)
         onFinish(context, new Callback[Any] {
           def onSuccess(value: Any): Unit =
-            internalRestartTrampolineLoop(now(value), context, cb, fs)
+            internalRestartTrampolineLoop(now(value), context, cb, fs, context.frameRef.get())
           def onError(ex: Throwable): Unit =
             cb.onError(ex)
         })
@@ -1362,8 +1384,6 @@ object Task extends TaskInstances {
       case Delay(coeval) =>
         val result = coeval.runAttempt
         if (result.isFailure || binds.isEmpty) {
-          // We are done and can signal the result!
-          context.frameRef.set(em.nextFrameIndex(frameIndex))
           cb(result)
         } else {
           val f = binds.head
@@ -1411,11 +1431,12 @@ object Task extends TaskInstances {
     * first cycle of the trampoline gets executed regardless of
     * the `ExecutionModel`.
     */
-  private def internalRestartTrampolineLoop[A](
+  private[eval] def internalRestartTrampolineLoop[A](
     source: Task[A],
     context: Context,
     cb: Callback[A],
-    binds: List[Bind]): Unit = {
+    binds: List[Bind],
+    frameIndex: FrameIndex): Unit = {
 
     runLoop(
       source,
@@ -1423,7 +1444,7 @@ object Task extends TaskInstances {
       context.executionModel,
       cb.asInstanceOf[Callback[Any]],
       binds,
-      context.frameRef.get())
+      frameIndex)
   }
 
   /** A run-loop that attempts to complete a
@@ -1431,10 +1452,11 @@ object Task extends TaskInstances {
     * falling back to [[internalRestartTrampolineLoop]] and actual asynchronous execution
     * in case of an asynchronous boundary.
     */
-  private[monix] def startTrampolineForFuture[A](
+  private def startTrampolineForFuture[A](
     source: Task[A],
     context: Context,
-    binds: List[Bind]): CancelableFuture[A] = {
+    binds: List[Bind],
+    frameStart: FrameIndex): CancelableFuture[A] = {
 
     def goAsync(source: Current, context: Context, binds: List[Bind],
       nextFrame: FrameIndex, forceAsync: Boolean): CancelableFuture[Any] = {
@@ -1447,11 +1469,8 @@ object Task extends TaskInstances {
 
       if (forceAsync)
         startTrampolineAsync(source, context, cb, binds)
-      else {
-        // See the description in runLoop()
-        context.frameRef.set(nextFrame)
-        internalRestartTrampolineLoop(source, context, cb, binds)
-      }
+      else
+        internalRestartTrampolineLoop(source, context, cb, binds, nextFrame)
 
       CancelableFuture(p.future, context.connection)
     }
@@ -1473,13 +1492,11 @@ object Task extends TaskInstances {
         case Delay(coeval) =>
           coeval.runAttempt match {
             case Error(ex) =>
-              context.frameRef.set(em.nextFrameIndex(frameIndex))
               CancelableFuture.failed(ex)
 
             case Now(a) =>
               binds match {
                 case Nil =>
-                  context.frameRef.set(em.nextFrameIndex(frameIndex))
                   CancelableFuture.successful(a)
                 case f :: rest =>
                   val fa = try f(a) catch { case NonFatal(ex) => raiseError(ex) }
@@ -1516,7 +1533,7 @@ object Task extends TaskInstances {
       }
     }
 
-    loop(source, context, context.executionModel, binds, frameIndex = context.frameRef.get())
+    loop(source, context, context.executionModel, binds, frameStart)
       .asInstanceOf[CancelableFuture[A]]
   }
 

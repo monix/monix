@@ -19,7 +19,6 @@ package monix.eval
 
 import monix.execution.Cancelable
 import monix.execution.internal.Platform
-import monix.execution.schedulers.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.schedulers.TestScheduler
 import scala.util.Success
 
@@ -88,15 +87,6 @@ object TaskForkSuite extends BaseTestSuite {
     val result = loop(count).runAsync
     s.tick()
     assertEquals(result.value, Some(Success(0)))
-  }
-
-  test("Task.executeWithModel should work") { implicit s =>
-    val task = Task.now(1).executeWithModel(AlwaysAsyncExecution)
-    val f = task.runAsync
-
-    assertEquals(f.value, None)
-    s.tick()
-    assertEquals(f.value, Some(Success(1)))
   }
 
   test("Task.asyncBoundary should work") { implicit s =>
