@@ -19,10 +19,14 @@ package monix.reactive
 
 import cats.effect.Effect
 import monix.eval.{Callback, Task}
-import monix.execution.cancelables.AssignableCancelable
+import monix.execution.Ack.Continue
+import monix.execution.atomic.AtomicBoolean
+import monix.execution.cancelables.{AssignableCancelable, RefCountCancelable}
 import monix.execution.{Cancelable, Scheduler}
+import monix.reactive.exceptions.CompositeException
 import monix.reactive.internal.consumers._
 import monix.reactive.observers.Subscriber
+import monix.reactive.subjects.PublishSubject
 
 /** The `Consumer` is a specification of how to consume an observable.
   *
@@ -395,10 +399,101 @@ object Consumer {
   def loadBalance[A,R](consumers: Consumer[A,R]*): Consumer[A, List[R]] =
     new LoadBalanceConsumer[A,R](consumers.length, consumers.toArray)
 
+  /** Consumer for partitioned parallel consumption
+    *
+    * @param nrPartitions Number of partitions which consume the stream in parallel
+    * @param overflowStrategy Specify what to do if upstream pushes more elements the consumer can handle
+    * @param partitioner A function which returns a integer which is used to partition the element to a specific bucket. It is not needed to do modulo on this. Whenever this bucket is ready to get consumed, the consumer is called
+    * @param consumer A consumer function which gets called with the partition number plus a sequence of elements which are buffered internally.
+    * */
+  def partitionParallel[A](nrPartitions: Int, overflowStrategy: OverflowStrategy.Synchronous[A], partitioner: A => Int, consumer: (Int, Seq[A]) => Task[Unit]): Consumer[A, Unit] =
+    new PartitionParallelConsumer[A](nrPartitions, overflowStrategy, partitioner, consumer)
+
   /** Defines a synchronous [[Consumer]] that builds
     * [[monix.reactive.observers.Subscriber.Sync synchronous subscribers]].
     */
   trait Sync[-In, +R] extends Consumer[In, R] {
     override def createSubscriber(cb: Callback[R], s: Scheduler): (Subscriber.Sync[In], AssignableCancelable)
+  }
+
+  /** Implementation for [[Consumer.partitionParallel]] */
+  private final class PartitionParallelConsumer[A](nrPartitions: Int, overflowStrategy: OverflowStrategy.Synchronous[A], partition: A => Int, consumer: (Int, Seq[A]) => Task[Unit]) extends Consumer[A, Unit] {
+    override def createSubscriber(cb: Callback[Unit], s: Scheduler): (Subscriber[A], AssignableCancelable) = {
+
+      val errors = scala.collection.mutable.ArrayBuffer.empty[Throwable]
+      val sac = SingleAssignmentCancelable()
+
+      val publishSubject = PublishSubject[A]()
+      val stream = publishSubject.whileBusyBuffer(overflowStrategy)
+      val isUpstreamDone = AtomicBoolean(false)
+
+      val refCount = RefCountCancelable { () =>
+        sac.cancel()
+        if (errors.nonEmpty) {
+          cb.onError(CompositeException(errors))
+        } else {
+          cb.onSuccess(())
+        }
+      }
+
+      def subscriber(part: Int): Cancelable = {
+
+        def consumerSubscriber(ref: Cancelable) = new Subscriber[Seq[A]] {
+          implicit def scheduler: Scheduler = s
+
+          def onNext(elements: Seq[A]) =
+            try consumer(part, elements).coeval.value match {
+              case Left(future) =>
+                future.map(_ => Continue)
+              case Right(()) =>
+                Continue
+            } catch {
+              case NonFatal(ex) =>
+                errors += ex
+                //cancel the partition cancellation token
+                ref.cancel()
+                //only cancel the "main" cancellation token once
+                if (!isUpstreamDone.getAndSet(true)) {
+                  refCount.cancel()
+                }
+                Stop
+            }
+
+          def onError(ex: Throwable) = ()
+
+          def onComplete() = {
+            //cancel the partition cancellation token
+            ref.cancel()
+            //only cancel the "main" cancellation token once
+            if (!isUpstreamDone.getAndSet(true)) {
+              refCount.cancel()
+            }
+          }
+        }
+
+        stream
+          .filter(x => partition(x) % nrPartitions == part)
+          .bufferIntrospective(s.executionModel.recommendedBatchSize)
+          .subscribe(consumerSubscriber(refCount.acquire())) // per partition we create a cancellation token
+      }
+
+      val out = new Subscriber[A] {
+        implicit def scheduler: Scheduler = s
+
+        def onNext(elem: A): Future[Ack] = publishSubject.onNext(elem)
+
+        def onError(ex: Throwable): Unit = {
+          //upon receiving an error from upstream, cancel immediately and signal this error once
+          sac.cancel()
+          cb.onError(ex)
+        }
+
+        def onComplete(): Unit = publishSubject.onComplete()
+      }
+
+      (0 until nrPartitions).foreach(subscriber)
+
+      out -> sac
+    }
   }
 }
