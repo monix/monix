@@ -1341,7 +1341,7 @@ object Task extends TaskInstances {
   }
 
   /** Internal utility - the actual trampoline run-loop implementation. */
-  @tailrec private def runLoop(
+  @tailrec private[eval] def runLoop(
     source: Current,
     context: Context,
     em: ExecutionModel,
@@ -1357,23 +1357,28 @@ object Task extends TaskInstances {
       onFinish: OnFinish[Any],
       nextFrame: FrameIndex): Unit = {
 
-      // We are going to resume the frame index from where we were left,
-      // but only if no real asynchronous execution happened. So in order
-      // to detect asynchronous execution, we are reading a thread-local
-      // variable that's going to be reset in case of an thread jump.
-      // Obviously this doesn't work for Javascript, but that's OK, as
-      // it only means that Javascript can experience more async
-      // boundaries and everything is fine for as long as the implementation
-      // of `Async` tasks are triggering a `frameRef.reset`.
-      context.frameRef.set(nextFrame)
+      if (!context.shouldCancel) {
+        // Optimization: no need to restart the run-loop if we know that
+        // this is going to be the final iteration
+        if (fs.isEmpty) onFinish(context, cb) else {
+          // We are going to resume the frame index from where we were left,
+          // but only if no real asynchronous execution happened. So in order
+          // to detect asynchronous execution, we are reading a thread-local
+          // variable that's going to be reset in case of an thread jump.
+          // Obviously this doesn't work for Javascript, but that's OK, as
+          // it only means that Javascript can experience more async
+          // boundaries and everything is fine for as long as the implementation
+          // of `Async` tasks are triggering a `frameRef.reset`.
+          context.frameRef.set(nextFrame)
 
-      if (!context.shouldCancel)
-        onFinish(context, new Callback[Any] {
-          def onSuccess(value: Any): Unit =
-            internalRestartTrampolineLoop(now(value), context, cb, fs, context.frameRef.get())
-          def onError(ex: Throwable): Unit =
-            cb.onError(ex)
-        })
+          onFinish(context, new Callback[Any] {
+            def onSuccess(value: Any): Unit =
+              internalRestartTrampolineLoop(now(value), context, cb, fs, context.frameRef.get())
+            def onError(ex: Throwable): Unit =
+              cb.onError(ex)
+          })
+        }
+      }
     }
 
     if (frameIndex == 0) {
@@ -1431,6 +1436,7 @@ object Task extends TaskInstances {
     * first cycle of the trampoline gets executed regardless of
     * the `ExecutionModel`.
     */
+  @inline
   private[eval] def internalRestartTrampolineLoop[A](
     source: Task[A],
     context: Context,
