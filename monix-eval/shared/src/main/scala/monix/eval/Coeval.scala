@@ -576,8 +576,8 @@ object Coeval {
 
     override def toString =
       synchronized {
-        if (thunk != null) s"Once($thunk)"
-        else s"Once($runAttempt)"
+        if (thunk != null) s"Coeval.Once($thunk)"
+        else s"Coeval.Once($runAttempt)"
       }
   }
 

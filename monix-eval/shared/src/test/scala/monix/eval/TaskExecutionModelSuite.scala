@@ -25,18 +25,14 @@ object TaskExecutionModelSuite extends BaseTestSuite {
     val task = Task.now(1).executeWithModel(AlwaysAsyncExecution)
     val f = task.runAsync
 
-    assertEquals(f.value, None)
     s.tick()
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("Task.now should be async with AlwaysAsyncExecution") { s =>
+  test("Task.now should not be async with AlwaysAsyncExecution") { s =>
     implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
     val task = Task.now(1)
     val f = task.runAsync
-
-    assertEquals(f.value, None)
-    s.tick()
     assertEquals(f.value, Some(Success(1)))
   }
 

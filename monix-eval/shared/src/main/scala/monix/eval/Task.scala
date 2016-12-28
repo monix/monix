@@ -17,7 +17,7 @@
 
 package monix.eval
 
-import monix.eval.Coeval.{Attempt, Error, Now}
+import monix.eval.Coeval.Attempt
 import monix.eval.internal._
 import monix.execution.atomic.Atomic
 import monix.execution.cancelables.StackedCancelable
@@ -139,6 +139,8 @@ sealed abstract class Task[+A] extends Serializable { self =>
     */
   def flatMap[B](f: A => Task[B]): Task[B] =
     self match {
+      case Now(value) =>
+        Suspend(() => try f(value) catch { case NonFatal(ex) => raiseError(ex) })
       case Delay(coeval) =>
         Suspend(() => try f(coeval.value) catch { case NonFatal(ex) => raiseError(ex) })
       case Suspend(thunk) =>
@@ -343,8 +345,8 @@ sealed abstract class Task[+A] extends Serializable { self =>
     */
   def failed: Task[Throwable] =
     materializeAttempt.flatMap {
-      case Error(ex) => now(ex)
-      case Now(_) => raiseError(new NoSuchElementException("failed"))
+      case Coeval.Error(ex) => now(ex)
+      case Coeval.Now(_) => raiseError(new NoSuchElementException("failed"))
     }
 
   /** Returns a new task that upon evaluation will execute the given
@@ -389,9 +391,9 @@ sealed abstract class Task[+A] extends Serializable { self =>
     */
   def doOnFinish(f: Option[Throwable] => Task[Unit]): Task[A] =
     materializeAttempt.flatMap {
-      case Now(value) =>
+      case Coeval.Now(value) =>
         f(None).map(_ => value)
-      case Error(ex) =>
+      case Coeval.Error(ex) =>
         f(Some(ex)).flatMap(_ => raiseError(ex))
     }
 
@@ -419,6 +421,8 @@ sealed abstract class Task[+A] extends Serializable { self =>
     */
   def materializeAttempt: Task[Attempt[A]] = {
     self match {
+      case Now(value) =>
+        Task.now(Coeval.Now(value))
       case Delay(coeval) =>
         Suspend(() => Delay(coeval.materializeAttempt))
 
@@ -426,7 +430,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
         Suspend(() => try {
           thunk().materializeAttempt
         } catch { case NonFatal(ex) =>
-          now(Error(ex))
+          now(Coeval.Error(ex))
         })
 
       case ref: MemoizeSuspend[_] =>
@@ -434,8 +438,8 @@ sealed abstract class Task[+A] extends Serializable { self =>
         Async[Attempt[A]] { (ctx, cb) =>
           // Light asynchronous boundary
           Task.unsafeStartTrampolined[A](task, ctx, new Callback[A] {
-            def onSuccess(value: A): Unit = cb.onSuccess(Now(value))
-            def onError(ex: Throwable): Unit = cb.onSuccess(Error(ex))
+            def onSuccess(value: A): Unit = cb.onSuccess(Coeval.Now(value))
+            def onError(ex: Throwable): Unit = cb.onSuccess(Coeval.Error(ex))
           })
         }
 
@@ -443,27 +447,29 @@ sealed abstract class Task[+A] extends Serializable { self =>
         BindSuspend[Attempt[Any], Attempt[A]](
           () => Suspend(() =>
             try thunk().materializeAttempt catch {
-              case NonFatal(ex) => now(Error(ex))
+              case NonFatal(ex) => Now(Coeval.Error(ex))
             }),
           result => result match {
-            case Now(any) =>
+            case Coeval.Now(any) =>
               try {
                 g.asInstanceOf[Any => Task[A]](any)
                   .materializeAttempt
               } catch {
                 case NonFatal(ex) =>
-                  now(Error(ex))
+                  Now(Coeval.Error(ex))
               }
-            case Error(ex) =>
-              now(Error(ex))
+            case error @ Coeval.Error(_) =>
+              Now(error)
           })
 
       case Async(onFinish) =>
         Async { (context, cb) =>
           import context.{scheduler => s}
           s.executeTrampolined(() => onFinish(context, new Callback[A] {
-            def onSuccess(value: A): Unit = cb.onSuccess(Now(value))
-            def onError(ex: Throwable): Unit = cb.onSuccess(Error(ex))
+            def onSuccess(value: A): Unit =
+              cb.onSuccess(Coeval.Now(value))
+            def onError(ex: Throwable): Unit =
+              cb.onSuccess(Coeval.Error(ex))
           }))
         }
 
@@ -472,22 +478,24 @@ sealed abstract class Task[+A] extends Serializable { self =>
           (context, cb) => {
             import context.{scheduler => s}
             s.executeTrampolined(() => onFinish(context, new Callback[Any] {
-              def onSuccess(value: Any): Unit = cb.onSuccess(Now(value))
-              def onError(ex: Throwable): Unit = cb.onSuccess(Error(ex))
+              def onSuccess(value: Any): Unit =
+                cb.onSuccess(Coeval.Now(value))
+              def onError(ex: Throwable): Unit =
+                cb.onSuccess(Coeval.Error(ex))
             }))
           },
           result => result match {
-            case Now(any) =>
+            case Coeval.Now(any) =>
               try {
                 g.asInstanceOf[Any => Task[A]](any)
                   .materializeAttempt
               }
               catch {
                 case NonFatal(ex) =>
-                  now(Error(ex))
+                  Now(Coeval.Error(ex))
               }
-            case Error(ex) =>
-              now(Error(ex))
+            case Coeval.Error(ex) =>
+              Now(Coeval.Error(ex))
           })
     }
   }
@@ -515,8 +523,8 @@ sealed abstract class Task[+A] extends Serializable { self =>
     */
   def onErrorHandleWith[B >: A](f: Throwable => Task[B]): Task[B] =
     self.materializeAttempt.flatMap {
-      case now @ Now(_) => Delay(now)
-      case Error(ex) => try f(ex) catch { case NonFatal(err) => raiseError(err) }
+      case now @ Coeval.Now(_) => Delay(now)
+      case Coeval.Error(ex) => try f(ex) catch { case NonFatal(err) => raiseError(err) }
     }
 
   /** Creates a new task that in case of error will fallback to the
@@ -572,6 +580,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     */
   def memoize: Task[A] =
     self match {
+      case Now(_) => self
       case Delay(value) => Delay(value.memoize)
       case _: MemoizeSuspend[_] => self
       case other => new MemoizeSuspend[A](() => other)
@@ -633,7 +642,7 @@ object Task extends TaskInstances {
     * the given strict value.
     */
   def now[A](a: A): Task[A] =
-    Delay(Coeval.Now(a))
+    Task.Now(a)
 
   /** Lifts a value into the task context. Alias for [[now]]. */
   def pure[A](a: A): Task[A] = now(a)
@@ -694,7 +703,7 @@ object Task extends TaskInstances {
     Async((_,_) => ())
 
   /** A `Task[Unit]` provided for convenience. */
-  final val unit: Task[Unit] = Delay(Coeval.unit)
+  final val unit: Task[Unit] = Now(())
 
   /** Reusable task instance used in `Task#asyncBoundary` */
   private final val forkedUnit = Task.fork(Task.unit)
@@ -1123,8 +1132,28 @@ object Task extends TaskInstances {
   private[eval] def startFrameRef(): ThreadLocal[FrameIndex] =
     ThreadLocal(frameStart)
 
+  /** [[Task]] state describing an immediate synchronous value. */
+  private final case class Now[A](value: A) extends Task[A] {
+    // Optimization to avoid the run-loop
+    override def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable = {
+      if (s.executionModel == AlwaysAsyncExecution)
+        s.executeAsync(() => cb.onSuccess(value))
+      else
+        cb.onSuccess(value)
+
+      Cancelable.empty
+    }
+
+    // Optimization to avoid the run-loop
+    override def runAsync(implicit s: Scheduler): CancelableFuture[A] =
+      CancelableFuture.successful(value)
+
+    override def toString: String =
+      s"Task.Now($value)"
+  }
+
   /** [[Task]] state that evaluates a [[Coeval]]. */
-  private case class Delay[A](coeval: Coeval[A]) extends Task[A] {
+  private final case class Delay[A](coeval: Coeval[A]) extends Task[A] {
     // Optimization to avoid the run-loop
     override def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable = {
       if (s.executionModel == AlwaysAsyncExecution)
@@ -1150,6 +1179,9 @@ object Task extends TaskInstances {
         CancelableFuture(p.future, Cancelable.empty)
       }
     }
+
+    override def toString: String =
+      s"Task.Delay($coeval)"
   }
 
   /** Constructs a lazy [[Task]] instance whose result will
@@ -1158,17 +1190,30 @@ object Task extends TaskInstances {
     * Unsafe to build directly, only use if you know what you're doing.
     * For building `Async` instances safely, see [[create]].
     */
-  private final case class Async[+A](onFinish: OnFinish[A]) extends Task[A]
+  private final case class Async[+A](onFinish: OnFinish[A]) extends Task[A] {
+    override def toString: String =
+      s"Task.Async($onFinish)"
+  }
 
   /** Internal state, the result of [[Task.defer]] */
-  private[eval] final case class Suspend[+A](thunk: () => Task[A]) extends Task[A]
+  private final case class Suspend[+A](thunk: () => Task[A]) extends Task[A] {
+    override def toString: String =
+      s"Task.Suspend($thunk)"
+  }
+
   /** Internal [[Task]] state that is the result of applying `flatMap`. */
-  private[eval] final case class BindSuspend[A,B](thunk: () => Task[A], f: A => Task[B]) extends Task[B]
+  private final case class BindSuspend[A,B](thunk: () => Task[A], f: A => Task[B]) extends Task[B] {
+    override def toString: String =
+      s"Task.BindSuspend($thunk, $f)"
+  }
 
   /** Internal [[Task]] state that is the result of applying `flatMap`
     * over an [[Async]] value.
     */
-  private[eval] final case class BindAsync[A,B](onFinish: OnFinish[A], f: A => Task[B]) extends Task[B]
+  private final case class BindAsync[A,B](onFinish: OnFinish[A], f: A => Task[B]) extends Task[B] {
+    override def toString: String =
+      s"Task.BindAsync($onFinish, $f)"
+  }
 
   /** Internal [[Task]] state that defers the evaluation of the
     * given [[Task]] and upon execution memoize its result to
@@ -1277,6 +1322,9 @@ object Task extends TaskInstances {
           false
       }
     }
+
+    override def toString: String =
+      s"Task.MemoizeSuspend(${state.get})"
   }
 
   private type Current = Task[Any]
@@ -1363,7 +1411,7 @@ object Task extends TaskInstances {
       def onSuccess(value: Any): Unit = {
         val fs = this.binds
         this.binds = Nil
-        loop(now(value), cb, this, fs, frameRef.get())
+        loop(Now(value), cb, this, fs, frameRef.get())
       }
 
       def onError(ex: Throwable): Unit =
@@ -1411,6 +1459,19 @@ object Task extends TaskInstances {
           return
         }
         else cursor match {
+          case Now(value) =>
+            if (binds.isEmpty) {
+              cb.onSuccess(value)
+              return
+            }
+            else {
+              // Next iteration please
+              val f = binds.head
+              binds = binds.tail
+              cursor = try f(value) catch { case NonFatal(ex) => raiseError(ex) }
+              frameIndex = em.nextFrameIndex(frameIndex)
+            }
+
           case Delay(coeval) =>
             val result = coeval.runAttempt
             if (result.isFailure || binds.isEmpty) {
@@ -1514,12 +1575,21 @@ object Task extends TaskInstances {
           forceAsync = true)
       }
       else source match {
+        case Now(value) =>
+          binds match {
+            case Nil =>
+              CancelableFuture.successful(value)
+            case f :: rest =>
+              val fa = try f(value) catch { case NonFatal(ex) => raiseError(ex) }
+              loop(fa, context, em, rest, em.nextFrameIndex(frameIndex))
+          }
+
         case Delay(coeval) =>
           coeval.runAttempt match {
-            case Error(ex) =>
+            case Coeval.Error(ex) =>
               CancelableFuture.failed(ex)
 
-            case Now(a) =>
+            case Coeval.Now(a) =>
               binds match {
                 case Nil =>
                   CancelableFuture.successful(a)

@@ -475,7 +475,7 @@ object TaskErrorSuite extends BaseTestSuite {
     def loop(n: Int): Task[Int] =
       if (n <= 0) Task.now(n)
       else Task.now(n).materialize.flatMap {
-        case Success(v) => loop(n-1)
+        case Success(v) => loop(v-1)
         case Failure(ex) => Task.raiseError(ex)
       }
 
