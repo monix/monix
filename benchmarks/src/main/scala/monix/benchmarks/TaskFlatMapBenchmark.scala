@@ -41,10 +41,7 @@ class TaskFlatMapBenchmark {
   @Benchmark
   def monixApply(): Int = {
     import monix.eval.Task
-    import monix.execution.schedulers.ExecutionModel.SynchronousExecution
-    import monix.execution.Scheduler.global
-
-    implicit val s = global.withExecutionModel(SynchronousExecution)
+    import TaskFlatMapBenchmark.monixScheduler
 
     def loop(i: Int): Task[Int] =
       if (i < size) Task.apply(i + 1).flatMap(loop)
@@ -57,10 +54,7 @@ class TaskFlatMapBenchmark {
   @Benchmark
   def monixEval(): Int = {
     import monix.eval.Task
-    import monix.execution.schedulers.ExecutionModel.SynchronousExecution
-    import monix.execution.Scheduler.global
-
-    implicit val s = global.withExecutionModel(SynchronousExecution)
+    import TaskFlatMapBenchmark.monixScheduler
 
     def loop(i: Int): Task[Int] =
       if (i < size) Task.eval(i + 1).flatMap(loop)
@@ -70,13 +64,10 @@ class TaskFlatMapBenchmark {
     Await.result(task.runAsync, Duration.Inf)
   }
 
-    @Benchmark
+  @Benchmark
   def monixNow(): Int = {
     import monix.eval.Task
-    import monix.execution.schedulers.ExecutionModel.SynchronousExecution
-    import monix.execution.Scheduler.global
-
-    implicit val s = global.withExecutionModel(SynchronousExecution)
+    import TaskFlatMapBenchmark.monixScheduler
 
     def loop(i: Int): Task[Int] =
       if (i < size) Task.now(i + 1).flatMap(loop)
@@ -84,5 +75,15 @@ class TaskFlatMapBenchmark {
 
     val task = Task.now(0).flatMap(loop)
     Await.result(task.runAsync, Duration.Inf)
+  }
+}
+
+object TaskFlatMapBenchmark {
+  import monix.execution.Scheduler
+
+  implicit val monixScheduler: Scheduler = {
+    import monix.execution.Scheduler.global
+    import monix.execution.schedulers.ExecutionModel.SynchronousExecution
+    global.withExecutionModel(SynchronousExecution)
   }
 }
