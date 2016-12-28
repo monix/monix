@@ -150,11 +150,11 @@ sealed abstract class Task[+A] extends Serializable { self =>
         val task = ref.asInstanceOf[MemoizeSuspend[A]]
         BindSuspend(() => task, f)
       case BindSuspend(thunk, g) =>
-        Suspend(() => BindSuspend(thunk, g andThen (_ flatMap f)))
+        BindSuspend(thunk, (v: Any) => g(v).flatMap(f))
       case Async(onFinish) =>
         BindAsync(onFinish, f)
       case BindAsync(listen, g) =>
-        Suspend(() => BindAsync(listen, g andThen (_ flatMap f)))
+        BindAsync(listen, (v: Any) => g(v).flatMap(f))
     }
 
   /** Given a source Task that emits another Task, this function
