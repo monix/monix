@@ -42,13 +42,13 @@ private[monix] object TaskDelayResult {
                 def run(): Unit = {
                   conn.pop()
                   context.frameRef.reset()
-                  cb.asyncOnSuccess(value)
+                  cb.onSuccess(value)
                 }
               })
           }
 
           def onError(ex: Throwable): Unit =
-            cb.asyncOnError(ex)
+            cb.onError(ex)
         })
     }
 }

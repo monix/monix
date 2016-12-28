@@ -48,7 +48,7 @@ private[monix] object TaskChooseFirstOfList {
               composite -= taskCancelable
               composite.cancel()
               conn.popAndCollapse(taskCancelable)
-              callback.asyncOnSuccess(value)
+              callback.onSuccess(value)
             }
 
           def onError(ex: Throwable): Unit =
@@ -56,7 +56,7 @@ private[monix] object TaskChooseFirstOfList {
               composite -= taskCancelable
               composite.cancel()
               conn.popAndCollapse(taskCancelable)
-              callback.asyncOnError(ex)
+              callback.onError(ex)
             } else {
               s.reportFailure(ex)
             }

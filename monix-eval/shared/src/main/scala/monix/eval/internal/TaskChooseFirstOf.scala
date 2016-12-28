@@ -49,7 +49,7 @@ private[monix] object TaskChooseFirstOf {
           if (isActive.getAndSet(false)) {
             val futureB = CancelableFuture(pb.future, connB)
             conn.pop()
-            cb.asyncOnSuccess(Left((valueA, futureB)))
+            cb.onSuccess(Left((valueA, futureB)))
           } else {
             pa.success(valueA)
           }
@@ -58,7 +58,7 @@ private[monix] object TaskChooseFirstOf {
           if (isActive.getAndSet(false)) {
             conn.pop()
             connB.cancel()
-            cb.asyncOnError(ex)
+            cb.onError(ex)
           } else {
             pa.failure(ex)
           }
@@ -70,7 +70,7 @@ private[monix] object TaskChooseFirstOf {
           if (isActive.getAndSet(false)) {
             val futureA = CancelableFuture(pa.future, connA)
             conn.pop()
-            cb.asyncOnSuccess(Right((futureA, valueB)))
+            cb.onSuccess(Right((futureA, valueB)))
           } else {
             pb.success(valueB)
           }
@@ -79,7 +79,7 @@ private[monix] object TaskChooseFirstOf {
           if (isActive.getAndSet(false)) {
             conn.pop()
             connA.cancel()
-            cb.asyncOnError(ex)
+            cb.onError(ex)
           } else {
             pb.failure(ex)
           }

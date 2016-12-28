@@ -80,7 +80,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     // Is the first execution asynchronous?
     val frameStart = if (!s.executionModel.isAlwaysAsync) Task.frameStart else 0
     val context = Context(s, conn, startFrameRef(), defaultOptions)
-    internalTrampolineRunLoop(self, context, Callback.safe(cb), Nil, frameStart)
+    internalStartTrampolineRunLoop(self, context, Callback.safe(cb), Nil, frameStart)
     conn
   }
 
@@ -115,7 +115,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     // Is the first execution asynchronous?
     val frameStart = if (!s.executionModel.isAlwaysAsync) Task.frameStart else 0
     val context = Context(s, StackedCancelable(), startFrameRef(), defaultOptions)
-    Task.startTrampolineForFuture(this, context, Nil, frameStart)
+    Task.internalStartTrampolineForFuture(this, context, Nil, frameStart)
   }
 
   /** Transforms a [[Task]] into a [[Coeval]] that tries to execute the
@@ -432,11 +432,10 @@ sealed abstract class Task[+A] extends Serializable { self =>
       case ref: MemoizeSuspend[_] =>
         val task = ref.asInstanceOf[MemoizeSuspend[A]]
         Async[Attempt[A]] { (ctx, cb) =>
-          import ctx.{scheduler => s}
           // Light asynchronous boundary
           Task.unsafeStartTrampolined[A](task, ctx, new Callback[A] {
-            def onSuccess(value: A): Unit = cb.asyncOnSuccess(Now(value))(s)
-            def onError(ex: Throwable): Unit = cb.asyncOnSuccess(Error(ex))(s)
+            def onSuccess(value: A): Unit = cb.onSuccess(Now(value))
+            def onError(ex: Throwable): Unit = cb.onSuccess(Error(ex))
           })
         }
 
@@ -463,8 +462,8 @@ sealed abstract class Task[+A] extends Serializable { self =>
         Async { (context, cb) =>
           import context.{scheduler => s}
           s.executeTrampolined(() => onFinish(context, new Callback[A] {
-            def onSuccess(value: A): Unit = cb.asyncOnSuccess(Now(value))(s)
-            def onError(ex: Throwable): Unit = cb.asyncOnSuccess(Error(ex))(s)
+            def onSuccess(value: A): Unit = cb.onSuccess(Now(value))
+            def onError(ex: Throwable): Unit = cb.onSuccess(Error(ex))
           }))
         }
 
@@ -473,8 +472,8 @@ sealed abstract class Task[+A] extends Serializable { self =>
           (context, cb) => {
             import context.{scheduler => s}
             s.executeTrampolined(() => onFinish(context, new Callback[Any] {
-              def onSuccess(value: Any): Unit = cb.asyncOnSuccess(Now(value))(s)
-              def onError(ex: Throwable): Unit = cb.asyncOnSuccess(Error(ex))(s)
+              def onSuccess(value: Any): Unit = cb.onSuccess(Now(value))
+              def onError(ex: Throwable): Unit = cb.onSuccess(Error(ex))
             }))
           },
           result => result match {
@@ -715,7 +714,7 @@ object Task extends TaskInstances {
     Async { (context, cb) =>
       // Asynchronous boundary
       implicit val s = context.scheduler
-      Task.unsafeStartAsync(fa, context, Callback.async(cb))
+      Task.unsafeStartAsync(fa, context, cb)
     }
 
   /** Mirrors the given source `Task`, but upon execution ensure
@@ -734,7 +733,7 @@ object Task extends TaskInstances {
     Async { (context, cb) =>
       // Asynchronous boundary
       val newContext = context.copy(scheduler = scheduler)
-      Task.unsafeStartAsync(fa, newContext, Callback.async(cb)(scheduler))
+      Task.unsafeStartAsync(fa, newContext, cb)
     }
 
   /** Create a `Task` from an asynchronous computation.
@@ -1200,7 +1199,7 @@ object Task extends TaskInstances {
           f.onComplete(cb)
           conn
         case result: Try[_] =>
-          cb.asyncApply(result.asInstanceOf[Try[A]])
+          cb(result.asInstanceOf[Try[A]])
           Cancelable.empty
       }
 
@@ -1241,22 +1240,22 @@ object Task extends TaskInstances {
             val callback = new Callback[A] {
               def onError(ex: Throwable): Unit = {
                 memoizeValue(Failure(ex))
-                if (binds.isEmpty) cb.asyncOnError(ex) else
+                if (binds.isEmpty) cb.onError(ex) else
                   // Resuming trampoline with the rest of the binds
-                  Task.startTrampolineAsync(raiseError(ex), context, cb, binds)
+                  Task.internalRestartTrampolineAsync(raiseError(ex), context, cb, binds)
               }
 
               def onSuccess(value: A): Unit = {
                 memoizeValue(Success(value))
-                if (binds.isEmpty) cb.asyncOnSuccess(value) else
+                if (binds.isEmpty) cb.onSuccess(value) else
                   // Resuming trampoline with the rest of the binds
-                  Task.startTrampolineAsync(now(value), context, cb, binds)
+                  Task.internalRestartTrampolineAsync(now(value), context, cb, binds)
               }
             }
 
             // Asynchronous boundary to prevent stack-overflows!
             s.executeTrampolined { () =>
-              internalTrampolineRunLoop(
+              internalStartTrampolineRunLoop(
                 underlying, context, callback, Nil, nextFrame)
             }
 
@@ -1269,7 +1268,7 @@ object Task extends TaskInstances {
           p.asInstanceOf[Promise[A]].future.onComplete { r =>
             context.connection.pop()
             context.frameRef.reset()
-            Task.internalTrampolineRunLoop(fromTry(r), context, cb, binds, Task.frameStart)
+            Task.internalStartTrampolineRunLoop(fromTry(r), context, cb, binds, Task.frameStart)
           }
           true
 
@@ -1294,7 +1293,7 @@ object Task extends TaskInstances {
     * and `Task.fork`.
     */
   def unsafeStartAsync[A](source: Task[A], context: Context, cb: Callback[A]): Unit =
-    startTrampolineAsync(source, context, cb, Nil)
+    internalRestartTrampolineAsync(source, context, cb, Nil)
 
   /** Unsafe utility - starts the execution of a Task with a guaranteed
     * [[monix.execution.schedulers.TrampolinedRunnable trampolined asynchronous boundary]],
@@ -1308,7 +1307,7 @@ object Task extends TaskInstances {
     */
   def unsafeStartTrampolined[A](source: Task[A], context: Context, cb: Callback[A]): Unit =
     context.scheduler.executeTrampolined { () =>
-      internalTrampolineRunLoop(source, context, cb, Nil, context.frameRef.get())
+      internalStartTrampolineRunLoop(source, context, cb, Nil, context.frameRef.get())
     }
 
   /** Unsafe utility - starts the execution of a Task, by providing
@@ -1320,22 +1319,22 @@ object Task extends TaskInstances {
     * what you're doing. Prefer [[Task.runAsync(cb* Task.runAsync]].
     */
   def unsafeStartNow[A](source: Task[A], context: Context, cb: Callback[A]): Unit =
-    internalTrampolineRunLoop(source, context, cb, Nil, context.frameRef.get())
+    internalStartTrampolineRunLoop(source, context, cb, Nil, context.frameRef.get())
 
   /** Internal utility, for forcing an asynchronous boundary in the
     * trampoline loop.
     */
-  @inline private def startTrampolineAsync[A](
+  @inline private def internalRestartTrampolineAsync[A](
     source: Task[A],
     context: Context,
     cb: Callback[A],
     binds: List[Bind]): Unit = {
 
     if (!context.shouldCancel)
-      context.scheduler.executeAsyncBatch { () =>
+      context.scheduler.executeAsync { () =>
         // Resetting the frameRef, as a real asynchronous boundary happened
         context.frameRef.reset()
-        internalTrampolineRunLoop(source, context, cb, binds, frameStart)
+        internalStartTrampolineRunLoop(source, context, cb, binds, frameStart)
       }
   }
 
@@ -1346,7 +1345,7 @@ object Task extends TaskInstances {
     * first cycle of the trampoline gets executed regardless of
     * the `ExecutionModel`.
     */
-  private[eval] def internalTrampolineRunLoop[A](
+  private[eval] def internalStartTrampolineRunLoop[A](
     source: Task[A],
     context: Context,
     cb: Callback[A],
@@ -1408,7 +1407,7 @@ object Task extends TaskInstances {
 
       while (true) {
         if (frameIndex == 0) {
-          startTrampolineAsync(cursor, context, cb, binds)
+          internalRestartTrampolineAsync(cursor, context, cb, binds)
           return
         }
         else cursor match {
@@ -1475,10 +1474,10 @@ object Task extends TaskInstances {
 
   /** A run-loop that attempts to complete a
     * [[monix.execution.CancelableFuture CancelableFuture]] synchronously ,
-    * falling back to [[internalTrampolineRunLoop]] and actual asynchronous execution
+    * falling back to [[internalStartTrampolineRunLoop]] and actual asynchronous execution
     * in case of an asynchronous boundary.
     */
-  private def startTrampolineForFuture[A](
+  private def internalStartTrampolineForFuture[A](
     source: Task[A],
     context: Context,
     binds: List[Bind],
@@ -1494,9 +1493,9 @@ object Task extends TaskInstances {
       }
 
       if (forceAsync)
-        startTrampolineAsync(source, context, cb, binds)
+        internalRestartTrampolineAsync(source, context, cb, binds)
       else
-        internalTrampolineRunLoop(source, context, cb, binds, nextFrame)
+        internalStartTrampolineRunLoop(source, context, cb, binds, nextFrame)
 
       CancelableFuture(p.future, context.connection)
     }

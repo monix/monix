@@ -17,7 +17,7 @@
 
 package monix.eval.internal
 
-import monix.eval.{Callback, Task}
+import monix.eval.Task
 import monix.execution.cancelables.SingleAssignmentCancelable
 import scala.concurrent.duration.FiniteDuration
 
@@ -37,7 +37,7 @@ private[monix] object TaskDelayExecution {
           conn.pop()
           // We had an async boundary, as we must reset the frame
           context.frameRef.reset()
-          Task.unsafeStartNow(self, context, Callback.async(cb))
+          Task.unsafeStartNow(self, context, cb)
         }
       })
     }

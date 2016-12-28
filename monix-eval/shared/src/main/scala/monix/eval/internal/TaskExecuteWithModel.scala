@@ -17,10 +17,9 @@
 
 package monix.eval.internal
 
-import monix.eval.{Callback, Task}
+import monix.eval.Task
 import monix.execution.schedulers.ExecutionModel
 import monix.execution.schedulers.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
-
 import scala.util.control.NonFatal
 
 private[monix] object TaskExecuteWithModel {
@@ -49,7 +48,7 @@ private[monix] object TaskExecuteWithModel {
             em.nextFrameIndex(frame.initial)
         }
 
-        Task.internalTrampolineRunLoop[A](self, context2, Callback.async(cb), Nil, nextIndex)
+        Task.internalStartTrampolineRunLoop[A](self, context2, cb, Nil, nextIndex)
       }
       catch {
         case NonFatal(ex) =>

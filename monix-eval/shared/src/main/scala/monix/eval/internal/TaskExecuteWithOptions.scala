@@ -17,8 +17,8 @@
 
 package monix.eval.internal
 
+import monix.eval.Task
 import monix.eval.Task.Options
-import monix.eval.{Callback, Task}
 import scala.util.control.NonFatal
 
 private[monix] object TaskExecuteWithOptions {
@@ -32,10 +32,10 @@ private[monix] object TaskExecuteWithOptions {
       try {
         val context2 = context.copy(options = f(context.options))
         streamErrors = false
-        Task.unsafeStartTrampolined[A](self, context2, Callback.async(cb))
+        Task.unsafeStartTrampolined[A](self, context2, cb)
       } catch {
         case NonFatal(ex) =>
-          if (streamErrors) cb.asyncOnError(ex)
+          if (streamErrors) cb.onError(ex)
           else context.scheduler.reportFailure(ex)
       }
     }

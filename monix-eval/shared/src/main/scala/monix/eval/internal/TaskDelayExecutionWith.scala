@@ -31,11 +31,11 @@ private[monix] object TaskDelayExecutionWith {
         new Callback[Any] {
           def onSuccess(value: Any): Unit = {
             // Async boundary forced, prevents stack-overflows
-            Task.unsafeStartAsync(self, context, Callback.async(cb))
+            Task.unsafeStartAsync(self, context, cb)
           }
 
           def onError(ex: Throwable): Unit =
-            cb.asyncOnError(ex)
+            cb.onError(ex)
         })
     }
 }

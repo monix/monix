@@ -39,17 +39,17 @@ private[monix] object TaskDelayResultBySelector {
               // Delaying result
               Task.unsafeStartAsync(trigger, context,
                 new Callback[B] {
-                  def onSuccess(b: B): Unit = cb.asyncOnSuccess(value)
-                  def onError(ex: Throwable): Unit = cb.asyncOnError(ex)
+                  def onSuccess(b: B): Unit = cb.onSuccess(value)
+                  def onError(ex: Throwable): Unit = cb.onError(ex)
                 })
             } catch {
               case NonFatal(ex) if streamErrors =>
-                cb.asyncOnError(ex)
+                cb.onError(ex)
             }
           }
 
           def onError(ex: Throwable): Unit =
-            cb.asyncOnError(ex)
+            cb.onError(ex)
         })
     }
 }
