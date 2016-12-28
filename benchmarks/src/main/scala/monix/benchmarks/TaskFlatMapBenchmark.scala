@@ -21,7 +21,6 @@ import java.util.concurrent.TimeUnit
 import org.openjdk.jmh.annotations._
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
-import scala.concurrent._
 
 /** Sample run:
   *
@@ -40,8 +39,8 @@ class TaskFlatMapBenchmark {
 
   @Benchmark
   def monixApply(): Int = {
-    import monix.eval.Task
     import TaskFlatMapBenchmark.monixScheduler
+    import monix.eval.Task
 
     def loop(i: Int): Task[Int] =
       if (i < size) Task.apply(i + 1).flatMap(loop)
@@ -53,8 +52,8 @@ class TaskFlatMapBenchmark {
 
   @Benchmark
   def monixEval(): Int = {
-    import monix.eval.Task
     import TaskFlatMapBenchmark.monixScheduler
+    import monix.eval.Task
 
     def loop(i: Int): Task[Int] =
       if (i < size) Task.eval(i + 1).flatMap(loop)
@@ -66,8 +65,8 @@ class TaskFlatMapBenchmark {
 
   @Benchmark
   def monixNow(): Int = {
-    import monix.eval.Task
     import TaskFlatMapBenchmark.monixScheduler
+    import monix.eval.Task
 
     def loop(i: Int): Task[Int] =
       if (i < size) Task.now(i + 1).flatMap(loop)
@@ -82,8 +81,7 @@ object TaskFlatMapBenchmark {
   import monix.execution.Scheduler
 
   implicit val monixScheduler: Scheduler = {
-    import monix.execution.Scheduler.global
     import monix.execution.schedulers.ExecutionModel.SynchronousExecution
-    global.withExecutionModel(SynchronousExecution)
+    Scheduler.global.withExecutionModel(SynchronousExecution)
   }
 }

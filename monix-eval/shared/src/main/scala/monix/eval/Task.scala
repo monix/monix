@@ -1497,7 +1497,7 @@ object Task extends TaskInstances {
             ref.value match {
               case Some(materialized) =>
                 // Next iteration please
-                cursor = coeval(materialized)
+                cursor = Delay(materialized)
                 frameIndex = nextFrame
               case None =>
                 val anyRef = ref.asInstanceOf[MemoizeSuspend[Any]]
@@ -1613,8 +1613,7 @@ object Task extends TaskInstances {
           val task = ref.asInstanceOf[MemoizeSuspend[A]]
           task.value match {
             case Some(materialized) =>
-              loop(coeval(materialized), context, em, binds,
-                em.nextFrameIndex(frameIndex))
+              loop(Delay(materialized), context, em, binds, em.nextFrameIndex(frameIndex))
             case None =>
               goAsync(source, context, binds,
                 em.nextFrameIndex(frameIndex),
