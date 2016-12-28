@@ -18,9 +18,7 @@
 package monix.benchmarks
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
-
 import org.openjdk.jmh.annotations._
-
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Promise}
 
@@ -58,57 +56,6 @@ class DropOldBufferBenchmark {
 
     val promise = Promise[Long]()
     implicit val global: Scheduler = Scheduler.global
-
-    val out: Subscriber[Long] = new Subscriber[Long] {
-      private[this] var sum = 0L
-      implicit val scheduler = global
-
-      def onNext(elem: Long) = {
-        sum += elem
-        Continue
-      }
-
-      def onError(ex: Throwable): Unit =
-        promise.failure(ex)
-      def onComplete(): Unit =
-        promise.success(sum)
-    }
-
-    val buffer = BufferedSubscriber[Long](out, OverflowStrategy.DropOld(bufferSize))
-    val start = new CountDownLatch(1)
-    val threadsStarted = new CountDownLatch(parallelism)
-    val threadsFinished = new CountDownLatch(parallelism)
-
-    for (i <- 0 until parallelism) global.execute(
-      new Runnable {
-        def run() = {
-          threadsStarted.countDown()
-          start.await()
-          for (j <- 0 until (eventsCount / parallelism))
-            buffer.onNext(j)
-
-          threadsFinished.countDown()
-        }
-      })
-
-    threadsStarted.await()
-    start.countDown()
-    threadsFinished.await()
-    buffer.onComplete()
-
-    Await.result(promise.future, Duration.Inf)
-  }
-
-  @Benchmark
-  def monifuDropOld(): Long = {
-    import monifu.concurrent.Scheduler
-    import monifu.reactive.Ack.Continue
-    import monifu.reactive.observers.BufferedSubscriber
-    import monifu.reactive.{OverflowStrategy, Subscriber}
-
-    val promise = Promise[Long]()
-    implicit val global: Scheduler =
-      monifu.concurrent.Implicits.globalScheduler
 
     val out: Subscriber[Long] = new Subscriber[Long] {
       private[this] var sum = 0L

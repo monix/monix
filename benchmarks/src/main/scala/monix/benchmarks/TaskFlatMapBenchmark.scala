@@ -18,12 +18,10 @@
 package monix.benchmarks
 
 import java.util.concurrent.TimeUnit
-
-import monix.eval.Task
 import org.openjdk.jmh.annotations._
-
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
+import scala.concurrent._
 
 /** Sample run:
   *
@@ -37,19 +35,54 @@ import scala.concurrent.duration.Duration
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
 class TaskFlatMapBenchmark {
+  @Param(Array("10000"))
+  var size: Int = _
+
   @Benchmark
-  def sequenceA(): Long = {
-    import monix.execution.Scheduler.Implicits.global
-    val tasks = (0 until 10000).map(_ => Task(1)).toList
-    val f = Task.sequence(tasks).map(_.sum.toLong).runAsync
-    Await.result(f, Duration.Inf)
+  def monixApply(): Int = {
+    import monix.eval.Task
+    import monix.execution.schedulers.ExecutionModel.SynchronousExecution
+    import monix.execution.Scheduler.global
+
+    implicit val s = global.withExecutionModel(SynchronousExecution)
+
+    def loop(i: Int): Task[Int] =
+      if (i < size) Task.apply(i + 1).flatMap(loop)
+      else Task.apply(i)
+
+    val task = Task.apply(0).flatMap(loop)
+    Await.result(task.runAsync, Duration.Inf)
   }
 
   @Benchmark
-  def sequenceS(): Long = {
-    import monix.execution.Scheduler.Implicits.global
-    val tasks = (0 until 10000).map(_ => Task.eval(1)).toList
-    val f = Task.sequence(tasks).map(_.sum.toLong).runAsync
-    Await.result(f, Duration.Inf)
+  def monixEval(): Int = {
+    import monix.eval.Task
+    import monix.execution.schedulers.ExecutionModel.SynchronousExecution
+    import monix.execution.Scheduler.global
+
+    implicit val s = global.withExecutionModel(SynchronousExecution)
+
+    def loop(i: Int): Task[Int] =
+      if (i < size) Task.eval(i + 1).flatMap(loop)
+      else Task.eval(i)
+
+    val task = Task.eval(0).flatMap(loop)
+    Await.result(task.runAsync, Duration.Inf)
+  }
+
+    @Benchmark
+  def monixNow(): Int = {
+    import monix.eval.Task
+    import monix.execution.schedulers.ExecutionModel.SynchronousExecution
+    import monix.execution.Scheduler.global
+
+    implicit val s = global.withExecutionModel(SynchronousExecution)
+
+    def loop(i: Int): Task[Int] =
+      if (i < size) Task.now(i + 1).flatMap(loop)
+      else Task.now(i)
+
+    val task = Task.now(0).flatMap(loop)
+    Await.result(task.runAsync, Duration.Inf)
   }
 }

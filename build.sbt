@@ -31,7 +31,7 @@ lazy val warnUnusedImport = Seq(
 
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
-  scalaVersion := "2.11.8",
+  scalaVersion := "2.12.1",
   crossScalaVersions := Seq("2.10.6", "2.11.8", "2.12.1"),
 
   scalacOptions ++= Seq(
@@ -427,8 +427,7 @@ lazy val benchmarks = project.in(file("benchmarks"))
   .settings(doNotPublishArtifact)
   .settings(
     libraryDependencies ++= Seq(
-      "org.scalaz" %% "scalaz-concurrent" % scalazVersion,
-      "org.monifu" %% "monifu" % "1.2"
+      "org.scalaz" %% "scalaz-concurrent" % scalazVersion
     )
   )
 
