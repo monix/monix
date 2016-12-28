@@ -49,7 +49,7 @@ private[monix] object TaskExecuteWithModel {
             em.nextFrameIndex(frame.initial)
         }
 
-        Task.internalRestartTrampolineLoop[A](self, context2, Callback.async(cb), Nil, nextIndex)
+        Task.internalTrampolineRunLoop[A](self, context2, Callback.async(cb), Nil, nextIndex)
       }
       catch {
         case NonFatal(ex) =>

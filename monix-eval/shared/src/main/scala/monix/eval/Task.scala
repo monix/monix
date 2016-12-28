@@ -80,7 +80,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     // Is the first execution asynchronous?
     val frameStart = if (!s.executionModel.isAlwaysAsync) Task.frameStart else 0
     val context = Context(s, conn, startFrameRef(), defaultOptions)
-    internalRestartTrampolineLoop(self, context, Callback.safe(cb), Nil, frameStart)
+    internalTrampolineRunLoop(self, context, Callback.safe(cb), Nil, frameStart)
     conn
   }
 
@@ -524,7 +524,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * given backup task.
     */
   def onErrorFallbackTo[B >: A](that: Task[B]): Task[B] =
-    onErrorHandleWith(ex => that)
+    onErrorHandleWith(_ => that)
 
   /** Given a predicate function, keep retrying the
     * task until the function returns true.
@@ -574,7 +574,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
   def memoize: Task[A] =
     self match {
       case Delay(value) => Delay(value.memoize)
-      case memoized: MemoizeSuspend[_] => self
+      case _: MemoizeSuspend[_] => self
       case other => new MemoizeSuspend[A](() => other)
     }
 
@@ -1256,9 +1256,8 @@ object Task extends TaskInstances {
 
             // Asynchronous boundary to prevent stack-overflows!
             s.executeTrampolined { () =>
-              runLoop(underlying, context, s.executionModel,
-                callback.asInstanceOf[Callback[Any]], Nil,
-                nextFrame)
+              internalTrampolineRunLoop(
+                underlying, context, callback, Nil, nextFrame)
             }
 
             true
@@ -1270,11 +1269,11 @@ object Task extends TaskInstances {
           p.asInstanceOf[Promise[A]].future.onComplete { r =>
             context.connection.pop()
             context.frameRef.reset()
-            Task.internalRestartTrampolineLoop(fromTry(r), context, cb, binds, Task.frameStart)
+            Task.internalTrampolineRunLoop(fromTry(r), context, cb, binds, Task.frameStart)
           }
           true
 
-        case result: Try[_] =>
+        case _: Try[_] =>
           // Race condition happened
           false
       }
@@ -1309,7 +1308,7 @@ object Task extends TaskInstances {
     */
   def unsafeStartTrampolined[A](source: Task[A], context: Context, cb: Callback[A]): Unit =
     context.scheduler.executeTrampolined { () =>
-      internalRestartTrampolineLoop(source, context, cb, Nil, context.frameRef.get())
+      internalTrampolineRunLoop(source, context, cb, Nil, context.frameRef.get())
     }
 
   /** Unsafe utility - starts the execution of a Task, by providing
@@ -1321,7 +1320,7 @@ object Task extends TaskInstances {
     * what you're doing. Prefer [[Task.runAsync(cb* Task.runAsync]].
     */
   def unsafeStartNow[A](source: Task[A], context: Context, cb: Callback[A]): Unit =
-    internalRestartTrampolineLoop(source, context, cb, Nil, context.frameRef.get())
+    internalTrampolineRunLoop(source, context, cb, Nil, context.frameRef.get())
 
   /** Internal utility, for forcing an asynchronous boundary in the
     * trampoline loop.
@@ -1336,97 +1335,8 @@ object Task extends TaskInstances {
       context.scheduler.executeAsyncBatch { () =>
         // Resetting the frameRef, as a real asynchronous boundary happened
         context.frameRef.reset()
-        internalRestartTrampolineLoop(source, context, cb, binds, frameStart)
+        internalTrampolineRunLoop(source, context, cb, binds, frameStart)
       }
-  }
-
-  /** Internal utility - the actual trampoline run-loop implementation. */
-  @tailrec private[eval] def runLoop(
-    source: Current,
-    context: Context,
-    em: ExecutionModel,
-    cb: Callback[Any],
-    binds: List[Bind],
-    frameIndex: FrameIndex): Unit = {
-
-    @inline def executeOnFinish(
-      context: Context,
-      em: ExecutionModel,
-      cb: Callback[Any],
-      fs: List[Bind],
-      onFinish: OnFinish[Any],
-      nextFrame: FrameIndex): Unit = {
-
-      if (!context.shouldCancel) {
-        // Optimization: no need to restart the run-loop if we know that
-        // this is going to be the final iteration
-        if (fs.isEmpty) onFinish(context, cb) else {
-          // We are going to resume the frame index from where we were left,
-          // but only if no real asynchronous execution happened. So in order
-          // to detect asynchronous execution, we are reading a thread-local
-          // variable that's going to be reset in case of an thread jump.
-          // Obviously this doesn't work for Javascript, but that's OK, as
-          // it only means that Javascript can experience more async
-          // boundaries and everything is fine for as long as the implementation
-          // of `Async` tasks are triggering a `frameRef.reset`.
-          context.frameRef.set(nextFrame)
-
-          onFinish(context, new Callback[Any] {
-            def onSuccess(value: Any): Unit =
-              internalRestartTrampolineLoop(now(value), context, cb, fs, context.frameRef.get())
-            def onError(ex: Throwable): Unit =
-              cb.onError(ex)
-          })
-        }
-      }
-    }
-
-    if (frameIndex == 0) {
-      // Asynchronous boundary is forced because of the Scheduler's ExecutionModel
-      startTrampolineAsync(source, context, cb, binds)
-    }
-    else source match {
-      case Delay(coeval) =>
-        val result = coeval.runAttempt
-        if (result.isFailure || binds.isEmpty) {
-          cb(result)
-        } else {
-          val f = binds.head
-          val fa = try f(result.get) catch { case NonFatal(ex) => raiseError(ex) }
-          // Next iteration please
-          runLoop(fa, context, em, cb, binds.tail, em.nextFrameIndex(frameIndex))
-        }
-
-      case Suspend(thunk) =>
-        val fa = try thunk() catch { case NonFatal(ex) => raiseError(ex) }
-        // Next iteration please
-        runLoop(fa, context, em, cb, binds, em.nextFrameIndex(frameIndex))
-
-      case ref: MemoizeSuspend[_] =>
-        val nextFrame = em.nextFrameIndex(frameIndex)
-        ref.value match {
-          case Some(materialized) =>
-            runLoop(coeval(materialized), context, em, cb, binds, nextFrame)
-          case None =>
-            val success = source.asInstanceOf[MemoizeSuspend[Any]]
-              .execute(context, cb, binds, nextFrame)
-            if (!success) // retry?
-              runLoop(source, context, em, cb, binds, nextFrame)
-        }
-
-      case BindSuspend(thunk, f) =>
-        val fa = try thunk() catch { case NonFatal(ex) => raiseError(ex) }
-        runLoop(fa, context, em, cb, f.asInstanceOf[Bind] :: binds,
-          em.nextFrameIndex(frameIndex))
-
-      case BindAsync(onFinish, f) =>
-        executeOnFinish(context, em, cb, f.asInstanceOf[Bind] :: binds, onFinish,
-          em.nextFrameIndex(frameIndex))
-
-      case Async(onFinish) =>
-        executeOnFinish(context, em, cb, binds, onFinish,
-          em.nextFrameIndex(frameIndex))
-    }
   }
 
   /** Internal utility, starts or resumes evaluation of
@@ -1436,26 +1346,136 @@ object Task extends TaskInstances {
     * first cycle of the trampoline gets executed regardless of
     * the `ExecutionModel`.
     */
-  @inline
-  private[eval] def internalRestartTrampolineLoop[A](
+  private[eval] def internalTrampolineRunLoop[A](
     source: Task[A],
     context: Context,
     cb: Callback[A],
     binds: List[Bind],
     frameIndex: FrameIndex): Unit = {
 
-    runLoop(
-      source,
-      context,
-      context.executionModel,
-      cb.asInstanceOf[Callback[Any]],
-      binds,
-      frameIndex)
+    final class RestartCallback(context: Context, cb: Callback[Any]) extends Callback[Any] {
+      private[this] var binds: List[Bind] = Nil
+      private[this] val frameRef = context.frameRef
+
+      def prepare(fs: List[Bind]): Unit = {
+        this.binds = fs
+      }
+
+      def onSuccess(value: Any): Unit = {
+        val fs = this.binds
+        this.binds = Nil
+        loop(now(value), cb, this, fs, frameRef.get())
+      }
+
+      def onError(ex: Throwable): Unit =
+        cb.onError(ex)
+    }
+
+    @inline def executeOnFinish(
+      em: ExecutionModel,
+      cb: Callback[Any],
+      rcb: RestartCallback,
+      binds: List[Bind],
+      onFinish: OnFinish[Any],
+      nextFrame: FrameIndex): Unit = {
+
+      if (!context.shouldCancel) {
+        // We are going to resume the frame index from where we left,
+        // but only if no real asynchronous execution happened. So in order
+        // to detect asynchronous execution, we are reading a thread-local
+        // variable that's going to be reset in case of a thread jump.
+        // Obviously this doesn't work for Javascript or for single-threaded
+        // thread-pools, but that's OK, as it only means that in such instances
+        // we can experience more async boundaries and everything is fine for
+        // as long as the implementation of `Async` tasks are triggering
+        // a `frameRef.reset` on async boundaries.
+        context.frameRef.set(nextFrame)
+
+        // Optimization: no need to restart the run-loop if we know that
+        // this is going to be the final iteration
+        if (binds.isEmpty) onFinish(context, cb) else {
+          rcb.prepare(binds)
+          onFinish(context, rcb)
+        }
+      }
+    }
+
+    def loop(state: Current, cb: Callback[Any], rcb: RestartCallback, initialBinds: List[Bind], startFrame: FrameIndex): Unit = {
+      val em = context.executionModel
+      var cursor = state
+      var binds = initialBinds
+      var frameIndex = startFrame
+
+      while (true) {
+        if (frameIndex == 0) {
+          startTrampolineAsync(cursor, context, cb, binds)
+          return
+        }
+        else cursor match {
+          case Delay(coeval) =>
+            val result = coeval.runAttempt
+            if (result.isFailure || binds.isEmpty) {
+              cb(result)
+              return
+            }
+            else {
+              // Next iteration please
+              val f = binds.head
+              binds = binds.tail
+              cursor = try f(result.get) catch { case NonFatal(ex) => raiseError(ex) }
+              frameIndex = em.nextFrameIndex(frameIndex)
+            }
+
+          case Suspend(thunk) =>
+            // Next iteration please
+            cursor = try thunk() catch { case NonFatal(ex) => raiseError(ex) }
+            frameIndex = em.nextFrameIndex(frameIndex)
+
+          case ref: MemoizeSuspend[_] =>
+            val nextFrame = em.nextFrameIndex(frameIndex)
+            // Already processed?
+            ref.value match {
+              case Some(materialized) =>
+                // Next iteration please
+                cursor = coeval(materialized)
+                frameIndex = nextFrame
+              case None =>
+                val anyRef = ref.asInstanceOf[MemoizeSuspend[Any]]
+                val isSuccess = anyRef.execute(context, cb, binds, nextFrame)
+                if (isSuccess) return else {
+                  // retry?
+                  frameIndex = nextFrame
+                }
+            }
+
+          case BindSuspend(thunk, f) =>
+            // Next iteration please
+            cursor = try thunk() catch { case NonFatal(ex) => raiseError(ex) }
+            binds = f.asInstanceOf[Bind] :: binds
+            frameIndex = em.nextFrameIndex(frameIndex)
+
+          case BindAsync(onFinish, f) =>
+            binds = f.asInstanceOf[Bind] :: binds
+            frameIndex = em.nextFrameIndex(frameIndex)
+            executeOnFinish(em, cb, rcb, binds, onFinish, frameIndex)
+            return
+
+          case Async(onFinish) =>
+            frameIndex = em.nextFrameIndex(frameIndex)
+            executeOnFinish(em, cb, rcb, binds, onFinish, frameIndex)
+            return
+        }
+      }
+    }
+
+    val callback = cb.asInstanceOf[Callback[Any]]
+    val rcb = new RestartCallback(context, callback)
+    loop(source, callback, rcb, binds, frameIndex)
   }
 
   /** A run-loop that attempts to complete a
     * [[monix.execution.CancelableFuture CancelableFuture]] synchronously ,
-    * falling back to [[internalRestartTrampolineLoop]] and actual asynchronous execution
+    * falling back to [[internalTrampolineRunLoop]] and actual asynchronous execution
     * in case of an asynchronous boundary.
     */
   private def startTrampolineForFuture[A](
@@ -1476,7 +1496,7 @@ object Task extends TaskInstances {
       if (forceAsync)
         startTrampolineAsync(source, context, cb, binds)
       else
-        internalRestartTrampolineLoop(source, context, cb, binds, nextFrame)
+        internalTrampolineRunLoop(source, context, cb, binds, nextFrame)
 
       CancelableFuture(p.future, context.connection)
     }
