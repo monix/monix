@@ -48,7 +48,7 @@ private[monix] object TaskExecuteWithModel {
             em.nextFrameIndex(frame.initial)
         }
 
-        Task.internalStartTrampolineRunLoop[A](self, context2, cb, Nil, nextIndex)
+        Task.internalStartTrampolineRunLoop[A](self, context2, cb, null, nextIndex)
       }
       catch {
         case NonFatal(ex) =>
