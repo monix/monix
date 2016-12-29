@@ -173,7 +173,7 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
       }
 
     private final def fastLoop(prevAck: Future[Ack], lastProcessed: Int, startIndex: Int): Unit = {
-      @inline def stopStreaming(): Unit = {
+      def stopStreaming(): Unit = {
         downstreamIsComplete = true
         val bp = backPressured.get
         if (bp != null) bp.success(Stop)

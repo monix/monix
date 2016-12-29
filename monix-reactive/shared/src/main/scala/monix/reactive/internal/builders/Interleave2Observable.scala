@@ -59,19 +59,17 @@ private[reactive] final class Interleave2Observable[+A]
 
     // MUST BE synchronized by `self`
     def signalOnComplete(ack: Future[Ack]): Unit = {
-      @inline def rawOnComplete(): Unit =
-        self.synchronized(if (!isDone) {
-          isDone = true
-          out.onComplete()
-        })
-
       val shouldComplete = !isDone && {
         completedCount += 1
         completedCount >= 2
       }
 
       if (shouldComplete)
-        ack.syncOnContinue(rawOnComplete())
+        ack.syncOnContinue(
+          self.synchronized(if (!isDone) {
+            isDone = true
+            out.onComplete()
+          }))
     }
 
     val composite = CompositeCancelable()

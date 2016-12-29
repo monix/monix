@@ -20,8 +20,8 @@ package monix.benchmarks
 import java.util.concurrent.TimeUnit
 import monix.eval.Callback
 import org.openjdk.jmh.annotations._
-import scala.concurrent.Await
-import scala.concurrent.duration.Duration
+//import scala.concurrent.Await
+//import scala.concurrent.duration.Duration
 
 /** Sample run:
   *
@@ -38,38 +38,38 @@ class TaskFlatMapBenchmark {
   @Param(Array("10000"))
   var size: Int = _
 
-  @Benchmark
-  def monixApply(): Int = {
-    import TaskFlatMapBenchmark.monixScheduler
-    import monix.eval.Task
-
-    def loop(i: Int): Task[Int] =
-      if (i < size) Task.apply(i + 1).flatMap(loop)
-      else Task.apply(i)
-
-    val task = Task.apply(0).flatMap(loop)
-    Await.result(task.runAsync, Duration.Inf)
-  }
-
-  @Benchmark
-  def monixEval(): Int = {
-    import TaskFlatMapBenchmark.monixScheduler
-    import monix.eval.Task
-
-    def loop(i: Int): Task[Int] =
-      if (i < size) Task.eval(i + 1).flatMap(loop)
-      else Task.eval(i)
-
-    val task = Task.eval(0).flatMap(loop)
-    var result: Int = 0
-    task.runAsync(new Callback[Int] {
-      def onSuccess(value: Int): Unit =
-        result = value
-      def onError(ex: Throwable): Unit =
-        throw ex
-    })
-    result
-  }
+//  @Benchmark
+//  def monixApply(): Int = {
+//    import TaskFlatMapBenchmark.monixScheduler
+//    import monix.eval.Task
+//
+//    def loop(i: Int): Task[Int] =
+//      if (i < size) Task.apply(i + 1).flatMap(loop)
+//      else Task.apply(i)
+//
+//    val task = Task.apply(0).flatMap(loop)
+//    Await.result(task.runAsync, Duration.Inf)
+//  }
+//
+//  @Benchmark
+//  def monixEval(): Int = {
+//    import TaskFlatMapBenchmark.monixScheduler
+//    import monix.eval.Task
+//
+//    def loop(i: Int): Task[Int] =
+//      if (i < size) Task.eval(i + 1).flatMap(loop)
+//      else Task.eval(i)
+//
+//    val task = Task.eval(0).flatMap(loop)
+//    var result: Int = 0
+//    task.runAsync(new Callback[Int] {
+//      def onSuccess(value: Int): Unit =
+//        result = value
+//      def onError(ex: Throwable): Unit =
+//        throw ex
+//    })
+//    result
+//  }
 
   @Benchmark
   def monixNow(): Int = {

@@ -62,7 +62,7 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
       Seq("-source", "1.6", "-target", "1.6")
     case _ =>
       // For 2.12 we are targeting the Java 8 class format
-      Seq.empty
+      Seq("-source", "1.8", "-target", "1.8")
   }),
 
   // Targeting Java 6, but only for Scala <= 2.11
@@ -75,7 +75,7 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
       Seq.empty
   }),
 
-  // version specific compiler options
+  // Linter
   scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, majorVersion)) if majorVersion >= 11 =>
       Seq(
@@ -98,6 +98,16 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
         "-Xlint:package-object-classes", // Class or object defined in package object
         "-Xlint:unsound-match" // Pattern match may not be typesafe
       )
+    case _ =>
+      Seq.empty
+  }),
+
+  // Optimizations
+  scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, 12)) =>
+      Seq("-opt:l:classpath", "-opt-warnings")
+    case Some((2, 11)) =>
+      Seq("-optimise")
     case _ =>
       Seq.empty
   }),
