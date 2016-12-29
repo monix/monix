@@ -32,7 +32,7 @@ private[monix] object TaskExecuteWithModel {
       try {
         implicit val s2 = context.scheduler.withExecutionModel(em)
         val context2 = context.copy(scheduler = s2)
-        val frame = context2.frameRef
+        val frame = context2.flatMapIndex
         streamErrors = false
 
         // Increment the frame index because we have a changed
@@ -40,12 +40,9 @@ private[monix] object TaskExecuteWithModel {
         // for the next step in our evaluation
         val nextIndex = em match {
           case BatchedExecution(_) =>
-            val nextFrame = em.nextFrameIndex(frame.get())
-            frame.set(nextFrame)
-            nextFrame
+            em.nextFrameIndex(frame())
           case AlwaysAsyncExecution | SynchronousExecution =>
-            frame.reset()
-            em.nextFrameIndex(frame.initial)
+            em.nextFrameIndex(0)
         }
 
         Task.internalStartTrampolineRunLoop[A](self, context2, cb, null, null, nextIndex)

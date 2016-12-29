@@ -54,7 +54,7 @@ private[monix] object TaskCreate {
       // otherwise stack-overflows can happen
       s.executeAsyncBatch(() =>
         try {
-          context.frameRef.reset()
+          context.flatMapIndex.reset()
           c := register(s, new CreateCallback(conn, cb)(s))
         }
         catch {

@@ -37,7 +37,7 @@ private[monix] object TaskDelayExecution {
         def run(): Unit = {
           conn.pop()
           // We had an async boundary, as we must reset the frame
-          context.frameRef.reset()
+          context.flatMapIndex.reset()
           Task.unsafeStartNow(self, context, Callback.async(cb))
         }
       })
