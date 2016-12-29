@@ -97,6 +97,6 @@ object TaskFlatMapBenchmark {
 
   implicit val monixScheduler: Scheduler = {
     import monix.execution.schedulers.ExecutionModel.SynchronousExecution
-    Scheduler.fixedPool("benchmarks", 8).withExecutionModel(SynchronousExecution)
+    Scheduler.computation().withExecutionModel(SynchronousExecution)
   }
 }

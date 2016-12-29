@@ -19,11 +19,9 @@ package monix.execution.schedulers
 
 import java.lang.Thread.UncaughtExceptionHandler
 import java.util.concurrent._
-
 import monix.execution.UncaughtExceptionReporter._
+import monix.execution.internal.forkJoin.{AdaptedForkJoinPool, DynamicWorkerThreadFactory, StandardWorkerThreadFactory}
 import monix.execution.{Scheduler, SchedulerCompanion, UncaughtExceptionReporter}
-import monix.execution.internal.ForkJoinPool
-
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
@@ -202,30 +200,78 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     executionModel: ExecutionModel = ExecutionModel.Default): Scheduler =
     TrampolineScheduler(underlying, executionModel)
 
-  /** Creates a [[monix.execution.Scheduler Scheduler]] meant for computational heavy tasks.
+  /** Creates a [[monix.execution.Scheduler Scheduler]] meant for
+    * computationally heavy CPU-bound tasks.
     *
     * Characteristics:
     *
-    * - backed by Scala's `ForkJoinPool` for the task execution, in async mode
+    * - backed by a `ForkJoinPool` implementation, in async mode
     * - uses monix's default `ScheduledExecutorService` instance for scheduling
-    * - all created threads are daemonic
-    * - cooperates with Scala's `BlockContext`
+    * - DOES NOT cooperate with Scala's `BlockContext`
     *
+    * @param name the created threads name prefix, for easy identification.
     * @param parallelism is the number of threads that can run in parallel
+    * @param daemonic specifies whether the created threads should be daemonic
+    *        (non-daemonic threads are blocking the JVM process on exit).
     * @param reporter $reporter
     * @param executionModel $executionModel
     */
-  def computation(parallelism: Int,
+  def computation(
+    name: String = "monix-computation",
+    parallelism: Int = Runtime.getRuntime.availableProcessors(),
+    daemonic: Boolean = true,
     reporter: UncaughtExceptionReporter = LogExceptionsToStandardErr,
     executionModel: ExecutionModel = ExecutionModel.Default): Scheduler = {
+
     val exceptionHandler = new UncaughtExceptionHandler {
       def uncaughtException(t: Thread, e: Throwable) =
         reporter.reportFailure(e)
     }
 
-    val pool = ForkJoinPool(
+    val pool = new AdaptedForkJoinPool(
       parallelism,
-      ForkJoinPool.defaultForkJoinWorkerThreadFactory,
+      new StandardWorkerThreadFactory(name, reporter, daemonic),
+      exceptionHandler,
+      asyncMode = true
+    )
+
+    val context = ExecutionContext.fromExecutor(pool, reporter.reportFailure)
+    AsyncScheduler(DefaultScheduledExecutor, context, reporter, executionModel)
+  }
+
+  /** Creates a general purpose [[monix.execution.Scheduler Scheduler]]
+    * backed by a `ForkJoinPool`, similar to Scala's `global`.
+    *
+    * Characteristics:
+    *
+    * - backed by a `ForkJoinPool` implementation, in async mode
+    * - uses monix's default `ScheduledExecutorService` instance for scheduling
+    * - cooperates with Scala's `BlockContext`
+    *
+    * @param parallelism is the number of threads that can run in parallel
+    * @param maxThreads is the maximum number of threads that can be created
+    * @param name the created threads name prefix, for easy identification.
+    * @param daemonic specifies whether the created threads should be daemonic
+    *        (non-daemonic threads are blocking the JVM process on exit).
+    * @param reporter $reporter
+    * @param executionModel $executionModel
+    */
+  def forkJoin(
+    parallelism: Int,
+    maxThreads: Int,
+    name: String = "monix-forkjoin",
+    daemonic: Boolean = true,
+    reporter: UncaughtExceptionReporter = LogExceptionsToStandardErr,
+    executionModel: ExecutionModel = ExecutionModel.Default): Scheduler = {
+
+    val exceptionHandler = new UncaughtExceptionHandler {
+      def uncaughtException(t: Thread, e: Throwable) =
+        reporter.reportFailure(e)
+    }
+
+    val pool = new AdaptedForkJoinPool(
+      parallelism,
+      new DynamicWorkerThreadFactory(name, maxThreads, exceptionHandler, daemonic),
       exceptionHandler,
       asyncMode = true
     )

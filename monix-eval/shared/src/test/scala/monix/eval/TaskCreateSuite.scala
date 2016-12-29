@@ -131,7 +131,7 @@ object TaskCreateSuite extends BaseTestSuite {
   test("Task.create should not execute immediately when executed with callback") { implicit s =>
     var result = Option.empty[Try[Int]]
     val t = Task.create[Int] { (_,cb) => cb.onSuccess(100); Cancelable.empty }
-    t.runAsync { r: Try[Int] => result = Some(r) }
+    t.runOnComplete { r => result = Some(r) }
 
     assertEquals(result, None)
     s.tick()
