@@ -102,16 +102,6 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
       Seq.empty
   }),
 
-  // Optimizations
-  scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, 12)) =>
-      Seq("-opt:l:classpath", "-opt-warnings")
-    case Some((2, 11)) =>
-      Seq("-optimise")
-    case _ =>
-      Seq.empty
-  }),
-
   // Turning off fatal warnings for ScalaDoc, otherwise we can't release.
   scalacOptions in (Compile, doc) ~= (_ filterNot (_ == "-Xfatal-warnings")),
 

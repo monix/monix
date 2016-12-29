@@ -39,7 +39,10 @@ private[monix] abstract class ArrayStack[A]
   /** Pushes an item in the stack. */
   def push(a: A): Unit
 
-  /** Pops an item from the stack (in LIFO order). */
+  /** Pops an item from the stack (in LIFO order).
+    *
+    * Returns `null` in case the stack is empty.
+    */
   def pop(): A
 
   /** Returns a shallow copy of this stack. */

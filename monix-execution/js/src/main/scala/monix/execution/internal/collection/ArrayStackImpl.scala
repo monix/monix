@@ -57,7 +57,7 @@ private[collection] final class ArrayStackImpl[A] private (
   }
 
   def pop(): A = {
-    if (index == 0) throw new NoSuchElementException("pop")
+    if (index == 0) return null.asInstanceOf[A]
     index -= 1
     val result = array(index)
 

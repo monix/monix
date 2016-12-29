@@ -39,9 +39,7 @@ object ArrayStackSuite extends SimpleTestSuite {
     assertEquals(stack.pop(), 3)
     assertEquals(stack.currentCapacity, 1)
 
-    intercept[NoSuchElementException] {
-      stack.pop()
-    }
+    assertEquals(stack.pop().asInstanceOf[AnyRef], null)
   }
 
   test("ArrayStack(1) unlimited push and pop") {
@@ -76,9 +74,7 @@ object ArrayStackSuite extends SimpleTestSuite {
     assertEquals(stack.currentCapacity, 1)
     assert(stack.isEmpty, "stack.isEmpty")
 
-    intercept[NoSuchElementException] {
-      stack.pop()
-    }
+    assertEquals(stack.pop().asInstanceOf[AnyRef], null)
   }
 
   test("ArrayStack(16) unlimited push and pop") {
@@ -113,9 +109,7 @@ object ArrayStackSuite extends SimpleTestSuite {
     assertEquals(stack.currentCapacity, 16)
     assert(stack.isEmpty, "stack.isEmpty")
 
-    intercept[NoSuchElementException] {
-      stack.pop()
-    }
+    assertEquals(stack.pop().asInstanceOf[AnyRef], null)
   }
 
   test("ArrayStack clone") {

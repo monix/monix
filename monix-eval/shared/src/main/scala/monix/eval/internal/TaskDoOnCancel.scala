@@ -35,12 +35,12 @@ private[monix] object TaskDoOnCancel {
       Task.unsafeStartTrampolined(self, context, new Callback[A] {
         def onSuccess(value: A): Unit = {
           conn.pop()
-          onFinish.onSuccess(value)
+          onFinish.asyncOnSuccess(value)
         }
 
         def onError(ex: Throwable): Unit = {
           conn.pop()
-          onFinish.onError(ex)
+          onFinish.asyncOnError(ex)
         }
       })
     }

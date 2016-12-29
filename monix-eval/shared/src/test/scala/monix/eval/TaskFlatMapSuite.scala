@@ -41,8 +41,8 @@ object TaskFlatMapSuite extends BaseTestSuite {
 
   test("runAsync flatMap loop is cancelable if ExecutionModel permits") { implicit s =>
     val maxCount = Platform.recommendedBatchSize * 4
-    val expected1 = Platform.recommendedBatchSize - 2
-    val expected2 = Platform.recommendedBatchSize * 2 - 3
+    val expected1 = Platform.recommendedBatchSize - 1
+    val expected2 = Platform.recommendedBatchSize * 2 - 2
 
     def loop(count: AtomicInt): Task[Unit] =
       if (count.getAndIncrement() >= maxCount) Task.unit else
