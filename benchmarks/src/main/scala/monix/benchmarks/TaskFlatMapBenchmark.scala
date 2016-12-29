@@ -18,6 +18,7 @@
 package monix.benchmarks
 
 import java.util.concurrent.TimeUnit
+import monix.eval.Callback
 import org.openjdk.jmh.annotations._
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -60,7 +61,14 @@ class TaskFlatMapBenchmark {
       else Task.eval(i)
 
     val task = Task.eval(0).flatMap(loop)
-    Await.result(task.runAsync, Duration.Inf)
+    var result: Int = 0
+    task.runAsync(new Callback[Int] {
+      def onSuccess(value: Int): Unit =
+        result = value
+      def onError(ex: Throwable): Unit =
+        throw ex
+    })
+    result
   }
 
   @Benchmark
@@ -73,7 +81,14 @@ class TaskFlatMapBenchmark {
       else Task.now(i)
 
     val task = Task.now(0).flatMap(loop)
-    Await.result(task.runAsync, Duration.Inf)
+    var result: Int = 0
+    task.runAsync(new Callback[Int] {
+      def onSuccess(value: Int): Unit =
+        result = value
+      def onError(ex: Throwable): Unit =
+        throw ex
+    })
+    result
   }
 }
 
