@@ -19,9 +19,8 @@ package monix.benchmarks
 
 import java.util.concurrent.TimeUnit
 import org.openjdk.jmh.annotations._
-import scala.concurrent.{Await, ExecutionContext}
+import scala.concurrent.Await
 import scala.concurrent.duration.Duration
-import scalaz.concurrent.Strategy
 
 /** Sample run:
   *
@@ -63,7 +62,7 @@ class TaskFlatMapDeepBenchmark {
           fib(n-2).flatMap(b => Task.eval(a + b))
         }
 
-    Await.result(fib(depth).runAsync, Duration.Inf)
+    fib(depth).runSyncMaybe.right.get
   }
 
   @Benchmark
@@ -77,7 +76,7 @@ class TaskFlatMapDeepBenchmark {
           fib(n-2).flatMap(b => Task.now(a + b))
         }
 
-    Await.result(fib(depth).runAsync, Duration.Inf)
+    fib(depth).runSyncMaybe.right.get
   }
 
   // @Benchmark
