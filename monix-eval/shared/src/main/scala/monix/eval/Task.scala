@@ -1168,7 +1168,7 @@ object Task extends TaskInstances {
     *        [[monix.execution.cancelables.StackedCancelable StackedCancelable]] 
     *        that handles the cancellation on `runAsync`
     * 
-    * @param runLoopIndex is a thread-local counter that keeps track
+    * @param frameRef is a thread-local counter that keeps track
     *        of the current frame index of the run-loop. The run-loop
     *        is supposed to force an asynchronous boundary upon
     *        reaching a certain threshold, when the task is evaluated
@@ -1178,14 +1178,14 @@ object Task extends TaskInstances {
     *        asynchronous boundary happens.
     *
     *        See the description of [[FrameIndexRef]].
-    * 
+    *
     * @param options is a set of options for customizing the task's
     *        behavior upon evaluation.
     */
   final case class Context(
     scheduler: Scheduler,
     connection: StackedCancelable,
-    runLoopIndex: FrameIndexRef,
+    frameRef: FrameIndexRef,
     options: Options) {
 
     /** Helper that returns the
@@ -1246,37 +1246,6 @@ object Task extends TaskInstances {
 
   /** [[Task]] state describing an immediate synchronous value. */
   private final case class Eval[A](f: () => A) extends Task[A] {
-    @inline def signal(cb: Callback[A], s: Scheduler): Unit = {
-      var streamErrors = true
-      try {
-        val a = f()
-        streamErrors = false
-        cb.onSuccess(a)
-      } catch {
-        case NonFatal(ex) =>
-          if (streamErrors) cb.onError(ex)
-          else s.reportFailure(ex)
-      }
-    }
-
-    // Optimization to avoid the run-loop
-    override def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable = {
-      if (s.executionModel != AlwaysAsyncExecution) signal(cb,s)
-      else s.executeAsync(() => signal(cb,s))
-      Cancelable.empty
-    }
-
-    // Optimization to avoid the run-loop
-    override def runAsync(implicit s: Scheduler): CancelableFuture[A] = {
-      if (s.executionModel != AlwaysAsyncExecution)
-        CancelableFuture.fromTry(Try(f()))
-      else {
-        val p = Promise[A]()
-        s.executeAsync(() => p.complete(Try(f())))
-        CancelableFuture(p.future, Cancelable.empty)
-      }
-    }
-
     override def toString: String =
       s"Task.Eval($f)"
   }
@@ -1316,10 +1285,7 @@ object Task extends TaskInstances {
       state.get match {
         case null => None
         case (p: Promise[_], _) =>
-          p.asInstanceOf[Promise[A]].future.value match {
-            case None => None
-            case Some(value) => Some(value)
-          }
+          p.asInstanceOf[Promise[A]].future.value
         case result: Try[_] =>
           Some(result.asInstanceOf[Try[A]])
       }
@@ -1404,7 +1370,7 @@ object Task extends TaskInstances {
           context.connection push mainCancelable
           p.asInstanceOf[Promise[A]].future.onComplete { r =>
             context.connection.pop()
-            context.runLoopIndex.reset()
+            context.frameRef.reset()
             Task.internalStartTrampolineRunLoop(fromTry(r), context, cb, bindCurrent, bindRest, 1)
           }
           true
@@ -1448,7 +1414,7 @@ object Task extends TaskInstances {
     */
   def unsafeStartTrampolined[A](source: Task[A], context: Context, cb: Callback[A]): Unit =
     context.scheduler.executeTrampolined { () =>
-      internalStartTrampolineRunLoop(source, context, cb, null, null, context.runLoopIndex())
+      internalStartTrampolineRunLoop(source, context, cb, null, null, context.frameRef())
     }
 
   /** Unsafe utility - starts the execution of a Task, by providing
@@ -1460,7 +1426,7 @@ object Task extends TaskInstances {
     * what you're doing. Prefer [[Task.runAsync(cb* Task.runAsync]].
     */
   def unsafeStartNow[A](source: Task[A], context: Context, cb: Callback[A]): Unit =
-    internalStartTrampolineRunLoop(source, context, cb, null, null, context.runLoopIndex())
+    internalStartTrampolineRunLoop(source, context, cb, null, null, context.frameRef())
 
   /** Internal utility, for forcing an asynchronous boundary in the
     * trampoline loop.
@@ -1475,7 +1441,7 @@ object Task extends TaskInstances {
     if (!context.shouldCancel)
       context.scheduler.executeAsync { () =>
         // Resetting the frameRef, as a real asynchronous boundary happened
-        context.runLoopIndex.reset()
+        context.frameRef.reset()
         internalStartTrampolineRunLoop(source, context, cb, bindCurrent, bindRest, 1)
       }
   }
@@ -1495,14 +1461,11 @@ object Task extends TaskInstances {
     bindRest: CallStack,
     frameIndex: FrameIndex): Unit = {
 
-    final class RestartCallback(ctx: Context, cb: Callback[Any]) extends Callback[Any] {
+    final class RestartCallback(context: Context, callback: Callback[Any]) extends Callback[Any] {
       private[this] var canCall = false
       private[this] var bFirst: Bind = _
       private[this] var bRest: CallStack = _
-      private[this] val runLoopIndex = ctx.runLoopIndex
-
-      def context: Context = ctx
-      def callback: Callback[Any] = cb
+      private[this] val runLoopIndex = context.frameRef
 
       def prepare(bindCurrent: Bind, bindRest: CallStack): Unit = {
         canCall = true
@@ -1513,19 +1476,19 @@ object Task extends TaskInstances {
       def onSuccess(value: Any): Unit =
         if (canCall) {
           canCall = false
-          loop(Now(value), ctx.executionModel, cb, this, bFirst, bRest, runLoopIndex())
+          loop(Now(value), context.executionModel, callback, this, bFirst, bRest, runLoopIndex())
         }
 
       def onError(ex: Throwable): Unit =
         if (canCall) {
           canCall = false
-          cb.onError(ex)
+          callback.onError(ex)
         } else {
-          ctx.scheduler.reportFailure(ex)
+          context.scheduler.reportFailure(ex)
         }
 
       override def toString(): String =
-        s"RestartCallback($ctx, $cb)@${hashCode()}"
+        s"RestartCallback($context, $callback)@${hashCode()}"
     }
 
     @inline def executeOnFinish(
@@ -1547,7 +1510,7 @@ object Task extends TaskInstances {
         // we can experience more async boundaries and everything is fine for
         // as long as the implementation of `Async` tasks are triggering
         // a `frameRef.reset` on async boundaries.
-        context.runLoopIndex := nextFrame
+        context.frameRef := nextFrame
         rcb.prepare(bFirst, bRest)
         onFinish(context, rcb)
       }
@@ -1651,12 +1614,7 @@ object Task extends TaskInstances {
     // in which case we should unwrap it
     val callback = cb.asInstanceOf[Callback[Any]]
     val rcb = new RestartCallback(context, callback)
-    try {
-      loop(source, context.executionModel, callback, rcb, bindCurrent, bindRest, frameIndex)
-    } catch {
-      case ex: StackOverflowError =>
-        context.scheduler.reportFailure(ex)
-    }
+    loop(source, context.executionModel, callback, rcb, bindCurrent, bindRest, frameIndex)
   }
 
   /** A run-loop that attempts to complete a
@@ -1782,13 +1740,8 @@ object Task extends TaskInstances {
       }
     }
 
-    try {
-      loop(source, context, context.executionModel, null, null, frameStart)
-        .asInstanceOf[CancelableFuture[A]]
-    } catch {
-      case ex: StackOverflowError =>
-        CancelableFuture.failed(ex)
-    }
+    loop(source, context, context.executionModel, null, null, frameStart)
+      .asInstanceOf[CancelableFuture[A]]
   }
 
   /** Type-class instances for [[Task]]. */

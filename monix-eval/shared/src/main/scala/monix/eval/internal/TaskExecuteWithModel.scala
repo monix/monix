@@ -32,7 +32,7 @@ private[monix] object TaskExecuteWithModel {
       try {
         implicit val s2 = context.scheduler.withExecutionModel(em)
         val context2 = context.copy(scheduler = s2)
-        val frame = context2.runLoopIndex
+        val frame = context2.frameRef
         streamErrors = false
 
         // Increment the frame index because we have a changed

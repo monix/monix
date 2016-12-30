@@ -41,7 +41,7 @@ private[monix] object TaskDelayResult {
               new Runnable {
                 def run(): Unit = {
                   conn.pop()
-                  context.runLoopIndex.reset()
+                  context.frameRef.reset()
                   cb.asyncOnSuccess(value)
                 }
               })
