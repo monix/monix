@@ -19,8 +19,9 @@ package monix.execution.internal
 
 import minitest.TestSuite
 import monix.execution.atomic.Atomic
-import monix.execution.{Scheduler, UncaughtExceptionReporter}
-import monix.execution.schedulers.{AsyncScheduler, ExecutionModel}
+import monix.execution.{ExecutionModel, Scheduler, UncaughtExceptionReporter}
+import monix.execution.schedulers.AsyncScheduler
+
 import scala.concurrent.Promise
 
 object AsyncSchedulerSuite extends TestSuite[Scheduler] {

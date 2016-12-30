@@ -17,7 +17,7 @@
 
 package monix.eval
 
-import monix.execution.schedulers.ExecutionModel.AlwaysAsyncExecution
+import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import scala.util.Success
 
 object TaskExecutionModelSuite extends BaseTestSuite {

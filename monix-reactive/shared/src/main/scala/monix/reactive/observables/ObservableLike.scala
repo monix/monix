@@ -18,10 +18,10 @@
 package monix.reactive.observables
 
 import java.io.PrintStream
+
 import monix.eval.Task
-import monix.execution.Scheduler
+import monix.execution.{ExecutionModel, Scheduler}
 import monix.execution.cancelables.BooleanCancelable
-import monix.execution.schedulers.ExecutionModel
 import monix.reactive.OverflowStrategy.Synchronous
 import monix.reactive.exceptions.UpstreamTimeoutException
 import monix.reactive.internal.builders.{RepeatObservable => _, _}
@@ -29,6 +29,7 @@ import monix.reactive.internal.operators._
 import monix.reactive.observables.ObservableLike.{Operator, Transformer}
 import monix.reactive.observers.Subscriber
 import monix.reactive.{Notification, Observable, OverflowStrategy, Pipe}
+
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 import scala.util.control.NonFatal
@@ -1265,7 +1266,7 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     self.transform(source => new ExecuteWithForkObservable(source))
 
   /** Returns a new observable that will execute the source with a different
-    * [[monix.execution.schedulers.ExecutionModel ExecutionModel]].
+    * [[monix.execution.ExecutionModel ExecutionModel]].
     *
     * This allows fine-tuning the options injected by the scheduler
     * locally. Example:
@@ -1275,7 +1276,7 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * }}}
     *
     * @param em is the
-    *        [[monix.execution.schedulers.ExecutionModel ExecutionModel]]
+    *        [[ExecutionModel ExecutionModel]]
     *        that will be used when evaluating the source.
     */
   def executeWithModel(em: ExecutionModel): Self[A] =
@@ -1299,7 +1300,7 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * In other words, this operator does heavy synchronization, can
     * prove to be inefficient and you should avoid using it because
     * the signaled error can interfere with functionality from other
-    * operators that use cancelation internally and cancellation in
+    * operators that use cancellation internally and cancellation in
     * general is a side-effecting operation that should be avoided,
     * unless it's necessary.
     */

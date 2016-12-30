@@ -20,7 +20,7 @@ package monix.execution.schedulers
 import java.util.concurrent.TimeUnit
 import minitest.SimpleTestSuite
 import monix.execution.Cancelable
-import monix.execution.schedulers.ExecutionModel.{AlwaysAsyncExecution, SynchronousExecution}
+import monix.execution.ExecutionModel.{AlwaysAsyncExecution, SynchronousExecution}
 import scala.concurrent.duration._
 
 object ReferenceSchedulerSuite extends SimpleTestSuite {
@@ -28,7 +28,7 @@ object ReferenceSchedulerSuite extends SimpleTestSuite {
     val underlying: TestScheduler = TestScheduler())
     extends ReferenceScheduler {
 
-    def executionModel = ExecutionModel.Default
+    def executionModel = monix.execution.ExecutionModel.Default
     def tick(time: FiniteDuration = Duration.Zero) = underlying.tick(time)
     def execute(runnable: Runnable): Unit = underlying.execute(runnable)
     def reportFailure(t: Throwable): Unit = underlying.reportFailure(t)
@@ -104,7 +104,7 @@ object ReferenceSchedulerSuite extends SimpleTestSuite {
   test("can change em multiple times") {
     val s = new DummyScheduler
     var ws = s.withExecutionModel(AlwaysAsyncExecution)
-    for (i <- 0 until 10000) ws = ws.withExecutionModel(AlwaysAsyncExecution)
+    for (_ <- 0 until 10000) ws = ws.withExecutionModel(AlwaysAsyncExecution)
     assertEquals(ws.executionModel, AlwaysAsyncExecution)
   }
 

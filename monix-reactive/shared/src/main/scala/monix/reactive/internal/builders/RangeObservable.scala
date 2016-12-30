@@ -17,15 +17,15 @@
 
 package monix.reactive.internal.builders
 
-import monix.execution.Ack.{Stop, Continue}
+import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.BooleanCancelable
-import monix.execution.schedulers.ExecutionModel
-import monix.execution.{Cancelable, Ack, Scheduler}
+import monix.execution.{Ack, Cancelable, ExecutionModel, Scheduler}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
+
 import scala.annotation.tailrec
 import scala.concurrent.Future
-import scala.util.{Success, Failure}
+import scala.util.{Failure, Success}
 
 /** Generates ranges */
 private[reactive] final class RangeObservable(from: Long, until: Long, step: Long = 1)

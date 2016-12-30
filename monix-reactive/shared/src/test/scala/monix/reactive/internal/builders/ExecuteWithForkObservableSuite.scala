@@ -21,7 +21,7 @@ import minitest.TestSuite
 import monix.execution.Ack
 import monix.execution.Ack.Stop
 import monix.execution.internal.Platform
-import monix.execution.schedulers.ExecutionModel.SynchronousExecution
+import monix.execution.ExecutionModel.SynchronousExecution
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.{Observable, Observer}
 import scala.concurrent.{Future, Promise}

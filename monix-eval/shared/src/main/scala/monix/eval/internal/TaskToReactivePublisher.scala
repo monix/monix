@@ -34,7 +34,7 @@ private[monix] object TaskToReactivePublisher {
           private[this] var isActive = true
           private[this] val conn = StackedCancelable()
           private[this] val context = {
-            val ref = Task.RunLoopIndexRef(s.executionModel)
+            val ref = Task.FrameIndexRef(s.executionModel)
             Task.Context(s, conn, ref, Task.defaultOptions)
           }
 

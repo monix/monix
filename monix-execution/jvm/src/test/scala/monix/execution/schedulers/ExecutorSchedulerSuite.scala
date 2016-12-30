@@ -20,10 +20,10 @@ package monix.execution.schedulers
 import java.util.concurrent._
 
 import minitest.TestSuite
-import monix.execution.UncaughtExceptionReporter
+import monix.execution.{ExecutionModel, UncaughtExceptionReporter}
 import monix.execution.atomic.Atomic
 import monix.execution.cancelables.SingleAssignmentCancelable
-import monix.execution.schedulers.ExecutionModel.AlwaysAsyncExecution
+import monix.execution.ExecutionModel.AlwaysAsyncExecution
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Promise}

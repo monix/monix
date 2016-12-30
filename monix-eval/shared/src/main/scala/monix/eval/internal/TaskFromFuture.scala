@@ -42,7 +42,7 @@ private[monix] object TaskFromFuture {
             conn.push(c)
             f.onComplete { result =>
               // Async boundary should trigger frame reset
-              context.flatMapIndex.reset()
+              context.runLoopIndex.reset()
               conn.pop()
               cb(result)
             }
@@ -57,7 +57,7 @@ private[monix] object TaskFromFuture {
           else
             f.onComplete { result =>
               // Async boundary should trigger frame reset
-              context.flatMapIndex.reset()
+              context.runLoopIndex.reset()
               cb(result)
             }
         }

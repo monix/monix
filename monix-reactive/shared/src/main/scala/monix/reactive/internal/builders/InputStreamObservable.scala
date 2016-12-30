@@ -19,14 +19,15 @@ package monix.reactive.internal.builders
 
 import java.io.InputStream
 import java.util
+
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.BooleanCancelable
-import monix.execution.schedulers.ExecutionModel
-import monix.execution.{Ack, Cancelable, Scheduler, UncaughtExceptionReporter}
+import monix.execution._
 import monix.reactive.Observable
 import monix.reactive.exceptions.MultipleSubscribersException
 import monix.reactive.observers.Subscriber
 import monix.execution.atomic.Atomic
+
 import scala.annotation.tailrec
 import scala.concurrent.{Future, blocking}
 import scala.util.control.NonFatal

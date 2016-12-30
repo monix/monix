@@ -25,4 +25,32 @@ package object schedulers {
   /** Deprecated. Renamed to [[BatchingScheduler]]. */
   @deprecated("Renamed to `BatchingScheduler`", since="2.1.0")
   type LocalBatchingExecutor = BatchingScheduler
+
+  /** Deprecated. Moved to [[monix.execution.ExecutionModel]]. */
+  @deprecated("Moved to `monix.execution.ExecutionModel`", since="2.1.3")
+  type ExecutionModel = monix.execution.ExecutionModel
+
+  /** Deprecated. Moved to [[monix.execution.ExecutionModel]]. */
+  @deprecated("Moved to `monix.execution.ExecutionModel`", since="2.1.3")
+  object ExecutionModel {
+    /** Deprecated. Moved to [[monix.execution.ExecutionModel.SynchronousExecution]]. */
+    @deprecated("Moved to `monix.execution.ExecutionModel.SynchronousExecution`", since="2.1.3")
+    def SynchronousExecution = monix.execution.ExecutionModel.SynchronousExecution
+
+    /** Deprecated. Moved to [[monix.execution.ExecutionModel.AlwaysAsyncExecution]]. */
+    @deprecated("Moved to `monix.execution.ExecutionModel.AlwaysAsyncExecution`", since="2.1.3")
+    def AlwaysAsyncExecution = monix.execution.ExecutionModel.AlwaysAsyncExecution
+
+    /** Deprecated. Moved to [[monix.execution.ExecutionModel.BatchedExecution]]. */
+    @deprecated("Moved to `monix.execution.ExecutionModel.BatchedExecution`", since="2.1.3")
+    type BatchedExecution = monix.execution.ExecutionModel.BatchedExecution
+
+    /** Deprecated. Moved to [[monix.execution.ExecutionModel.BatchedExecution]]. */
+    @deprecated("Moved to `monix.execution.ExecutionModel.BatchedExecution`", since="2.1.3")
+    def BatchedExecution = monix.execution.ExecutionModel.BatchedExecution
+
+    /** Deprecated. Moved to [[monix.execution.ExecutionModel.Default]]. */
+    @deprecated("Moved to `monix.execution.ExecutionModel.Default`", since="2.1.3")
+    def Default: monix.execution.ExecutionModel = monix.execution.ExecutionModel.Default
+  }
 }

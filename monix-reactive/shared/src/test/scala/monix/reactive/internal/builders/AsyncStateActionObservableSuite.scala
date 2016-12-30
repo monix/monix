@@ -21,7 +21,7 @@ import minitest.TestSuite
 import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.internal.Platform
-import monix.execution.schedulers.ExecutionModel.AlwaysAsyncExecution
+import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber

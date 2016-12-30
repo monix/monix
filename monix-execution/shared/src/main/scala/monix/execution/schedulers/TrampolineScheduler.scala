@@ -19,6 +19,8 @@ package monix.execution.schedulers
 
 import java.util.concurrent.TimeUnit
 import monix.execution.{Cancelable, Scheduler}
+// Prevents conflict with the deprecated symbol
+import monix.execution.{ExecutionModel => ExecModel}
 
 /** A [[monix.execution.Scheduler Scheduler]] implementation
   * that executes runnables immediately, on the current thread,
@@ -53,7 +55,7 @@ import monix.execution.{Cancelable, Scheduler}
   */
 final class TrampolineScheduler(
   underlying: Scheduler,
-  override val executionModel: ExecutionModel)
+  override val executionModel: ExecModel)
   extends Scheduler { self =>
 
   private[this] val trampoline =
@@ -71,7 +73,7 @@ final class TrampolineScheduler(
     underlying.scheduleAtFixedRate(initialDelay, period, unit, r)
   override def currentTimeMillis(): Long =
     underlying.currentTimeMillis()
-  override def withExecutionModel(em: ExecutionModel): TrampolineScheduler =
+  override def withExecutionModel(em: ExecModel): TrampolineScheduler =
     new TrampolineScheduler(underlying, em)
 }
 
@@ -82,12 +84,11 @@ object TrampolineScheduler {
     *        to which the we defer to in case asynchronous or time-delayed
     *        execution is needed
     *
-    * @define executionModel is the preferred
-    *         [[monix.execution.schedulers.ExecutionModel ExecutionModel]],
+    * @define executionModel is the preferred [[ExecutionModel]],
     *         a guideline for run-loops and producers of data. Use
-    *         [[monix.execution.schedulers.ExecutionModel.Default ExecutionModel.Default]]
+    *         [[monix.execution.ExecutionModel.Default ExecutionModel.Default]]
     *         for the default.
     */
-  def apply(underlying: Scheduler, em: ExecutionModel): TrampolineScheduler =
+  def apply(underlying: Scheduler, em: ExecModel): TrampolineScheduler =
     new TrampolineScheduler(underlying, em)
 }

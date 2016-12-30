@@ -19,14 +19,13 @@ package monix.eval
 
 import monix.eval.Coeval.Attempt
 import monix.eval.internal._
+import monix.execution.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
 import monix.execution.atomic.Atomic
 import monix.execution.cancelables.StackedCancelable
 import monix.execution.internal.Platform
 import monix.execution.internal.collection.ArrayStack
 import monix.execution.misc.ThreadLocal
-import monix.execution.schedulers.ExecutionModel
-import monix.execution.schedulers.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
-import monix.execution.{Cancelable, CancelableFuture, Scheduler}
+import monix.execution.{Cancelable, CancelableFuture, ExecutionModel, Scheduler}
 import monix.types._
 
 import scala.annotation.tailrec
@@ -80,7 +79,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     val conn = StackedCancelable()
     val em = s.executionModel
     val frameStart = Task.frameStart(em)
-    val frameRef = RunLoopIndexRef(em)
+    val frameRef = FrameIndexRef(em)
     val context = Context(s, conn, frameRef, defaultOptions)
     internalStartTrampolineRunLoop(self, context, Callback.safe(cb), null, null, frameStart)
     conn
@@ -123,7 +122,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
   def runAsync(implicit s: Scheduler): CancelableFuture[A] = {
     val em = s.executionModel
     val frameStart = Task.frameStart(em)
-    val frameRef = RunLoopIndexRef(em)
+    val frameRef = FrameIndexRef(em)
     val context = Context(s, StackedCancelable(), frameRef, defaultOptions)
     Task.internalStartTrampolineForFuture(this, context, frameStart)
   }
@@ -245,18 +244,18 @@ sealed abstract class Task[+A] extends Serializable { self =>
     Task.fork(this)
 
   /** Returns a new task that will execute the source with a different
-    * [[monix.execution.schedulers.ExecutionModel ExecutionModel]].
+    * [[monix.execution.ExecutionModel ExecutionModel]].
     *
     * This allows fine-tuning the options injected by the scheduler
     * locally. Example:
     *
     * {{{
-    *   import monix.execution.schedulers.ExecutionModel.AlwaysAsyncExecution
+    *   import monix.execution.ExecutionModel.AlwaysAsyncExecution
     *   task.executeWithModel(AlwaysAsyncExecution)
     * }}}
     *
     * @param em is the
-    *        [[monix.execution.schedulers.ExecutionModel ExecutionModel]]
+    *        [[monix.execution.ExecutionModel ExecutionModel]]
     *        with which the source will get evaluated on `runAsync`
     */
   def executeWithModel(em: ExecutionModel): Task[A] =
@@ -1004,17 +1003,17 @@ object Task extends TaskInstances {
     zipMap2(fa12345, fa6) { case ((a1,a2,a3,a4,a5), a6) => f(a1,a2,a3,a4,a5,a6) }
   }
 
-  /** A run-loop index is a number representing the current run-loop
+  /** A run-loop frame index is a number representing the current run-loop
     * cycle, being incremented whenever a `flatMap` evaluation happens.
     *
     * It gets used for automatically forcing asynchronous boundaries, according to the
-    * [[monix.execution.schedulers.ExecutionModel ExecutionModel]]
+    * [[monix.execution.ExecutionModel ExecutionModel]]
     * injected by the [[monix.execution.Scheduler Scheduler]] when
     * the task gets evaluated with `runAsync`.
     *
-    * @see [[RunLoopIndexRef]]
+    * @see [[FrameIndexRef]]
     */
-  type RunLoopIndex = Int
+  type FrameIndex = Int
 
   /** Type alias representing callbacks for
     * [[unsafeCreate asynchronous]] tasks.
@@ -1068,68 +1067,71 @@ object Task extends TaskInstances {
       )
   }
 
-  /** A reference that boxes a [[RunLoopIndex]] possibly using a thread-local.
+  /** A reference that boxes a [[FrameIndex]] possibly using a thread-local.
     *
     * This definition is of interest only when creating
     * tasks with [[Task.unsafeCreate]], which exposes internals and
     * is considered unsafe to use.
     *
     * In case the [[Task]] is executed with
-    * [[monix.execution.schedulers.ExecutionModel.BatchedExecution BatchedExecution]],
-    * this boxes a [[RunLoopIndex]] in order to transport it over
+    * [[monix.execution.ExecutionModel.BatchedExecution BatchedExecution]],
+    * this class boxes a [[FrameIndex]] in order to transport it over
     * light async boundaries, possibly using a
     * [[monix.execution.misc.ThreadLocal ThreadLocal]], since this
     * index is not supposed to survive when threads get forked.
     *
-    * The [[RunLoopIndex]] is a counter that increments whenever a
-    * `flatMap` operation is evaluated. And with `BatchedExecution`
+    * The [[FrameIndex]] is a counter that increments whenever a
+    * `flatMap` operation is evaluated. And with `BatchedExecution`,
     * whenever that counter exceeds the specified threshold, an
     * asynchronous boundary is automatically inserted. However this
     * capability doesn't blend well with light asynchronous
     * boundaries, for example [[Async]] tasks that never fork logical threads or
     * [[monix.execution.schedulers.TrampolinedRunnable TrampolinedRunnable]]
     * instances executed by capable schedulers. This is why
-    * [[RunLoopIndexRef]] is part of the [[Context]] of execution for
+    * [[FrameIndexRef]] is part of the [[Context]] of execution for
     * [[Task]], available for asynchronous tasks that get created with
     * [[Task.unsafeCreate]].
     *
     * Note that in case the execution model is not
-    * [[monix.execution.schedulers.ExecutionModel.BatchedExecution BatchedExecution]]
+    * [[monix.execution.ExecutionModel.BatchedExecution BatchedExecution]]
     * then this reference is just a dummy, since there's no point in
     * keeping a counter around, plus setting and fetching from a
     * `ThreadLocal` can be quite expensive.
     */
-  sealed abstract class RunLoopIndexRef {
-    /** Returns the current [[RunLoopIndex]]. */
-    def apply(): RunLoopIndex
+  sealed abstract class FrameIndexRef {
+    /** Returns the current [[FrameIndex]]. */
+    def apply(): FrameIndex
 
-    /** Stores a new [[RunLoopIndex]]. */
-    def `:=`(update: RunLoopIndex): Unit
+    /** Stores a new [[FrameIndex]]. */
+    def `:=`(update: FrameIndex): Unit
 
-    /** Resets the stored [[RunLoopIndex]] to 1, which is the
+    /** Resets the stored [[FrameIndex]] to 1, which is the
       * default value that should be used after an asynchronous
       * boundary happened.
       */
     def reset(): Unit
   }
 
-  object RunLoopIndexRef {
-    def apply(em: ExecutionModel): RunLoopIndexRef =
+  object FrameIndexRef {
+    /** Builds a [[FrameIndexRef]]. */
+    def apply(em: ExecutionModel): FrameIndexRef =
       em match {
         case AlwaysAsyncExecution | SynchronousExecution => Dummy
         case BatchedExecution(_) => new Local
       }
 
-    private final class Local extends RunLoopIndexRef {
+    // Keeps our frame index in a thread-local
+    private final class Local extends FrameIndexRef {
       private[this] val local = ThreadLocal(1)
-      def apply(): RunLoopIndex = local.get()
-      def `:=`(update: RunLoopIndex): Unit = local.set(update)
+      def apply(): FrameIndex = local.get()
+      def `:=`(update: FrameIndex): Unit = local.set(update)
       def reset(): Unit = local.reset()
     }
 
-    private object Dummy extends RunLoopIndexRef {
-      def apply(): RunLoopIndex = 1
-      def `:=`(update: RunLoopIndex): Unit = ()
+    // Dummy implementation that doesn't do anything
+    private object Dummy extends FrameIndexRef {
+      def apply(): FrameIndex = 1
+      def `:=`(update: FrameIndex): Unit = ()
       def reset(): Unit = ()
     }
   }
@@ -1144,19 +1146,19 @@ object Task extends TaskInstances {
     *        in charge of evaluation on `runAsync`.
     * 
     * @param connection is the
-    *        [[monix.execution.cancelables.StackedCancelable StackedCancelable]]
+    *        [[monix.execution.cancelables.StackedCancelable StackedCancelable]] 
     *        that handles the cancellation on `runAsync`
     * 
-    * @param flatMapIndex is a thread-local counter that keeps track
+    * @param runLoopIndex is a thread-local counter that keeps track
     *        of the current frame index of the run-loop. The run-loop
     *        is supposed to force an asynchronous boundary upon
     *        reaching a certain threshold, when the task is evaluated
     *        with
-    *        [[monix.execution.schedulers.ExecutionModel.BatchedExecution]].
+    *        [[monix.execution.ExecutionModel.BatchedExecution]].
     *        And this `frameIndexRef` should be reset whenever a real
     *        asynchronous boundary happens.
     *
-    *        See the description of [[RunLoopIndexRef]].
+    *        See the description of [[FrameIndexRef]].
     * 
     * @param options is a set of options for customizing the task's
     *        behavior upon evaluation.
@@ -1164,11 +1166,11 @@ object Task extends TaskInstances {
   final case class Context(
     scheduler: Scheduler,
     connection: StackedCancelable,
-    flatMapIndex: RunLoopIndexRef,
+    runLoopIndex: FrameIndexRef,
     options: Options) {
 
     /** Helper that returns the
-      * [[monix.execution.schedulers.ExecutionModel ExecutionModel]]
+      * [[monix.execution.ExecutionModel ExecutionModel]]
       * specified by the [[scheduler]].
       */
     @inline def executionModel: ExecutionModel =
@@ -1183,11 +1185,11 @@ object Task extends TaskInstances {
   }
 
   // We always start from 1
-  private final def frameStart(em: ExecutionModel): RunLoopIndex =
+  private final def frameStart(em: ExecutionModel): FrameIndex =
     em.nextFrameIndex(0)
 
   /** Creates a new [[CallStack]] */
-  private def createCallStack(): CallStack = ArrayStack(16)
+  private def createCallStack(): CallStack = ArrayStack(8)
 
   /** [[Task]] state describing an immediate synchronous value. */
   private final case class Now[A](value: A) extends Task[A] {
@@ -1321,7 +1323,7 @@ object Task extends TaskInstances {
     }
 
     @tailrec def execute(context: Context, cb: Callback[A], bindCurrent: Bind, bindRest: CallStack,
-      nextFrame: RunLoopIndex): Boolean = {
+      nextFrame: FrameIndex): Boolean = {
 
       implicit val s = context.scheduler
       state.get match {
@@ -1364,7 +1366,7 @@ object Task extends TaskInstances {
           context.connection push mainCancelable
           p.asInstanceOf[Promise[A]].future.onComplete { r =>
             context.connection.pop()
-            context.flatMapIndex.reset()
+            context.runLoopIndex.reset()
             Task.internalStartTrampolineRunLoop(fromTry(r), context, cb, bindCurrent, bindRest, 1)
           }
           true
@@ -1408,7 +1410,7 @@ object Task extends TaskInstances {
     */
   def unsafeStartTrampolined[A](source: Task[A], context: Context, cb: Callback[A]): Unit =
     context.scheduler.executeTrampolined { () =>
-      internalStartTrampolineRunLoop(source, context, cb, null, null, context.flatMapIndex())
+      internalStartTrampolineRunLoop(source, context, cb, null, null, context.runLoopIndex())
     }
 
   /** Unsafe utility - starts the execution of a Task, by providing
@@ -1420,7 +1422,7 @@ object Task extends TaskInstances {
     * what you're doing. Prefer [[Task.runAsync(cb* Task.runAsync]].
     */
   def unsafeStartNow[A](source: Task[A], context: Context, cb: Callback[A]): Unit =
-    internalStartTrampolineRunLoop(source, context, cb, null, null, context.flatMapIndex())
+    internalStartTrampolineRunLoop(source, context, cb, null, null, context.runLoopIndex())
 
   /** Internal utility, for forcing an asynchronous boundary in the
     * trampoline loop.
@@ -1435,7 +1437,7 @@ object Task extends TaskInstances {
     if (!context.shouldCancel)
       context.scheduler.executeAsync { () =>
         // Resetting the frameRef, as a real asynchronous boundary happened
-        context.flatMapIndex.reset()
+        context.runLoopIndex.reset()
         internalStartTrampolineRunLoop(source, context, cb, bindCurrent, bindRest, 1)
       }
   }
@@ -1453,27 +1455,27 @@ object Task extends TaskInstances {
     cb: Callback[A],
     bindCurrent: Bind,
     bindRest: CallStack,
-    frameIndex: RunLoopIndex): Unit = {
+    frameIndex: FrameIndex): Unit = {
 
     final class RestartCallback(ctx: Context, cb: Callback[Any]) extends Callback[Any] {
       private[this] var canCall = false
-      private[this] var bindCurrent: Bind = _
-      private[this] var bindRest: CallStack = _
-      private[this] val flatMapIndex = ctx.flatMapIndex
+      private[this] var bFirst: Bind = _
+      private[this] var bRest: CallStack = _
+      private[this] val runLoopIndex = ctx.runLoopIndex
 
       def context: Context = ctx
       def callback: Callback[Any] = cb
 
       def prepare(bindCurrent: Bind, bindRest: CallStack): Unit = {
         canCall = true
-        this.bindCurrent = bindCurrent
-        this.bindRest = bindRest
+        this.bFirst = bindCurrent
+        this.bRest = bindRest
       }
 
       def onSuccess(value: Any): Unit =
         if (canCall) {
           canCall = false
-          loop(Now(value), ctx.executionModel, cb, this, bindCurrent, bindRest, flatMapIndex())
+          loop(Now(value), ctx.executionModel, cb, this, bFirst, bRest, runLoopIndex())
         }
 
       def onError(ex: Throwable): Unit =
@@ -1492,10 +1494,10 @@ object Task extends TaskInstances {
       em: ExecutionModel,
       cb: Callback[Any],
       rcb: RestartCallback,
-      bindCurrent: Bind,
-      bindRest: CallStack,
+      bFirst: Bind,
+      bRest: CallStack,
       onFinish: OnFinish[Any],
-      nextFrame: RunLoopIndex): Unit = {
+      nextFrame: FrameIndex): Unit = {
 
       if (!context.shouldCancel) {
         // We are going to resume the frame index from where we left,
@@ -1507,8 +1509,8 @@ object Task extends TaskInstances {
         // we can experience more async boundaries and everything is fine for
         // as long as the implementation of `Async` tasks are triggering
         // a `frameRef.reset` on async boundaries.
-        context.flatMapIndex := nextFrame
-        rcb.prepare(bindCurrent, bindRest)
+        context.runLoopIndex := nextFrame
+        rcb.prepare(bFirst, bRest)
         onFinish(context, rcb)
       }
     }
@@ -1518,18 +1520,18 @@ object Task extends TaskInstances {
       em: ExecutionModel,
       cb: Callback[Any],
       rcb: RestartCallback,
-      bindCurrent: Bind,
-      bindRest: CallStack,
-      frameIndex: RunLoopIndex): Unit = {
+      bFirst: Bind,
+      bRest: CallStack,
+      frameIndex: FrameIndex): Unit = {
 
       if (frameIndex == 0) {
-        internalRestartTrampolineAsync(source, context, cb, bindCurrent, bindRest)
+        internalRestartTrampolineAsync(source, context, cb, bFirst, bRest)
       }
       else source match {
         case Now(value) =>
           val bind =
-            if (bindCurrent ne null) bindCurrent
-            else if (bindRest ne null) bindRest.pop()
+            if (bFirst ne null) bFirst
+            else if (bRest ne null) bRest.pop()
             else null
 
           if (bind eq null)
@@ -1539,7 +1541,7 @@ object Task extends TaskInstances {
             // Given a flatMap evaluation just happened, must increment the index
             val nextFrame = em.nextFrameIndex(frameIndex)
             // Next iteration please
-            loop(fa, em, cb, rcb, null, bindRest, nextFrame)
+            loop(fa, em, cb, rcb, null, bRest, nextFrame)
           }
 
         case Delay(coeval) =>
@@ -1548,8 +1550,8 @@ object Task extends TaskInstances {
               cb.onError(ex)
             case Coeval.Now(value) =>
               val bind =
-                if (bindCurrent ne null) bindCurrent
-                else if (bindRest ne null) bindRest.pop()
+                if (bFirst ne null) bFirst
+                else if (bRest ne null) bRest.pop()
                 else null
 
               if (bind eq null)
@@ -1559,16 +1561,16 @@ object Task extends TaskInstances {
                 // Given a flatMap evaluation just happened, must increment the index
                 val nextFrame = em.nextFrameIndex(frameIndex)
                 // Next iteration please
-                loop(fa, em, cb, rcb, null, bindRest, nextFrame)
+                loop(fa, em, cb, rcb, null, bRest, nextFrame)
               }
           }
 
         case FlatMap(fa, f) =>
-          var callStack: CallStack = bindRest
+          var callStack: CallStack = bRest
           val bindNext = f.asInstanceOf[Bind]
-          if (bindCurrent ne null) {
+          if (bFirst ne null) {
             if (callStack eq null) callStack = createCallStack()
-            callStack.push(bindCurrent)
+            callStack.push(bFirst)
           }
           // Next iteration please
           loop(fa, em, cb, rcb, bindNext, callStack, frameIndex)
@@ -1576,23 +1578,23 @@ object Task extends TaskInstances {
         case Suspend(thunk) =>
           // Next iteration please
           val fa = try thunk() catch { case NonFatal(ex) => raiseError(ex) }
-          loop(fa, em, cb, rcb, bindCurrent, bindRest, frameIndex)
+          loop(fa, em, cb, rcb, bFirst, bRest, frameIndex)
 
         case Async(onFinish) =>
-          executeOnFinish(em, cb, rcb, bindCurrent, bindRest, onFinish, frameIndex)
+          executeOnFinish(em, cb, rcb, bFirst, bRest, onFinish, frameIndex)
 
         case ref: MemoizeSuspend[_] =>
           // Already processed?
           ref.value match {
             case Some(materialized) =>
               // Next iteration please
-              loop(Delay(materialized), em, cb, rcb, bindCurrent, bindRest, frameIndex)
+              loop(Delay(materialized), em, cb, rcb, bFirst, bRest, frameIndex)
 
             case None =>
               val anyRef = ref.asInstanceOf[MemoizeSuspend[Any]]
-              val isSuccess = anyRef.execute(context, cb, bindCurrent, bindRest, frameIndex)
+              val isSuccess = anyRef.execute(context, cb, bFirst, bRest, frameIndex)
               // Next iteration please
-              if (!isSuccess) loop(ref, em, cb, rcb, bindCurrent, bindRest, frameIndex)
+              if (!isSuccess) loop(ref, em, cb, rcb, bFirst, bRest, frameIndex)
           }
       }
     }
@@ -1617,7 +1619,7 @@ object Task extends TaskInstances {
   private def internalStartTrampolineForFuture[A](
     source: Task[A],
     context: Context,
-    frameStart: RunLoopIndex): CancelableFuture[A] = {
+    frameStart: FrameIndex): CancelableFuture[A] = {
 
     /* Called when we hit the first async boundary. */
     def goAsync(
@@ -1625,7 +1627,7 @@ object Task extends TaskInstances {
       context: Context,
       bindCurrent: Bind,
       bindRest: CallStack,
-      nextFrame: RunLoopIndex,
+      nextFrame: FrameIndex,
       forceAsync: Boolean): CancelableFuture[Any] = {
 
       val p = Promise[Any]()

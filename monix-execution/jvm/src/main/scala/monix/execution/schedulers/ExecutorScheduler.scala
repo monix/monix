@@ -18,7 +18,9 @@
 package monix.execution.schedulers
 
 import java.util.concurrent.ScheduledExecutorService
-import monix.execution.{Cancelable, UncaughtExceptionReporter, Scheduler}
+import monix.execution.{Cancelable, Scheduler, UncaughtExceptionReporter}
+// Prevents conflict with the deprecated symbol
+import monix.execution.{ExecutionModel => ExecModel}
 import scala.concurrent.duration.TimeUnit
 
 /** An [[ExecutorScheduler]] is for building a
@@ -28,7 +30,7 @@ import scala.concurrent.duration.TimeUnit
 final class ExecutorScheduler private (
   s: ScheduledExecutorService,
   r: UncaughtExceptionReporter,
-  override val executionModel: ExecutionModel)
+  override val executionModel: ExecModel)
   extends ReferenceScheduler with BatchingScheduler {
 
   def executor: ScheduledExecutorService = s
@@ -60,7 +62,7 @@ final class ExecutorScheduler private (
   def reportFailure(t: Throwable): Unit =
     r.reportFailure(t)
 
-  override def withExecutionModel(em: ExecutionModel): Scheduler =
+  override def withExecutionModel(em: ExecModel): Scheduler =
     new ExecutorScheduler(s, r, em)
 }
 
@@ -70,12 +72,13 @@ object ExecutorScheduler {
     * @param schedulerService is the Java `ScheduledExecutorService` that will take
     *        care of scheduling and execution of all runnables.
     * @param reporter is the [[UncaughtExceptionReporter]] that logs uncaught exceptions.
-    * @param executionModel is the preferred [[ExecutionModel]], a guideline
+    * @param executionModel is the preferred
+    *        [[monix.execution.ExecutionModel ExecutionModel]], a guideline
     *        for run-loops and producers of data.
     */
   def apply(
     schedulerService: ScheduledExecutorService,
     reporter: UncaughtExceptionReporter,
-    executionModel: ExecutionModel): ExecutorScheduler =
+    executionModel: ExecModel): ExecutorScheduler =
     new ExecutorScheduler(schedulerService, reporter, executionModel)
 }

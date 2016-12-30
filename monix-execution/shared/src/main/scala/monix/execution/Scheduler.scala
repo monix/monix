@@ -19,7 +19,6 @@ package monix.execution
 
 import java.util.concurrent.TimeUnit
 import monix.execution.internal.RunnableAction
-import monix.execution.schedulers.ExecutionModel
 import monix.execution.schedulers.SchedulerCompanionImpl
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
@@ -130,22 +129,21 @@ trait Scheduler extends ExecutionContext with UncaughtExceptionReporter {
     */
   def currentTimeMillis(): Long
 
-  /** The [[monix.execution.schedulers.ExecutionModel ExecutionModel]]
-    * is a specification of how run-loops and producers should behave
-    * in regards to executing tasks either synchronously or
-    * asynchronously.
+  /** The [[ExecutionModel]] is a specification of how run-loops
+    * and producers should behave in regards to executing tasks
+    * either synchronously or asynchronously.
     */
   def executionModel: ExecutionModel
 
   /** Given a function that will receive the underlying
-    * [[monix.execution.schedulers.ExecutionModel ExecutionModel]],
+    * [[monix.execution.ExecutionModel ExecutionModel]],
     * returns a new [[Scheduler]] reference, based on the source,
     * that exposes the transformed `ExecutionModel`
     * when queried by means of the [[executionModel]] property.
     *
     * This method enables reusing global scheduler references in
     * a local scope, but with a slightly modified
-    * [[monix.execution.schedulers.ExecutionModel execution model]]
+    * [[monix.execution.ExecutionModel execution model]]
     * to inject.
     *
     * The contract of this method (things you can rely on):
