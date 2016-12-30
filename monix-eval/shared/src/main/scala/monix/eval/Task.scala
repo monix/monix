@@ -1076,25 +1076,28 @@ object Task extends TaskInstances {
     *
     * In case the [[Task]] is executed with
     * [[monix.execution.schedulers.ExecutionModel.BatchedExecution BatchedExecution]],
-    * this boxes a [[RunLoopIndex]] in order to transport it over light async
-    * boundaries, possibly using a [[monix.execution.misc.ThreadLocal ThreadLocal]],
-    * since this index is not supposed to survive when threads get forked.
+    * this boxes a [[RunLoopIndex]] in order to transport it over
+    * light async boundaries, possibly using a
+    * [[monix.execution.misc.ThreadLocal ThreadLocal]], since this
+    * index is not supposed to survive when threads get forked.
     *
-    * The [[RunLoopIndex]] is a counter that increments whenever a `flatMap`
-    * operation is evaluated. And with `BatchedExecution` whenever that
-    * counter exceeds the specified threshold, an asynchronous boundary
-    * is automatically inserted. However this capability doesn't blend well
-    * with light asynchronous boundaries, for example [[Async]] tasks
-    * that never fork logical threads or
+    * The [[RunLoopIndex]] is a counter that increments whenever a
+    * `flatMap` operation is evaluated. And with `BatchedExecution`
+    * whenever that counter exceeds the specified threshold, an
+    * asynchronous boundary is automatically inserted. However this
+    * capability doesn't blend well with light asynchronous
+    * boundaries, for example [[Async]] tasks that never fork logical threads or
     * [[monix.execution.schedulers.TrampolinedRunnable TrampolinedRunnable]]
-    * instances executed by capable schedulers. This is why [[RunLoopIndexRef]]
-    * is part of the [[Context]] of execution for [[Task]], available for
-    * asynchronous tasks that get created with [[Task.unsafeCreate]].
+    * instances executed by capable schedulers. This is why
+    * [[RunLoopIndexRef]] is part of the [[Context]] of execution for
+    * [[Task]], available for asynchronous tasks that get created with
+    * [[Task.unsafeCreate]].
     *
     * Note that in case the execution model is not
     * [[monix.execution.schedulers.ExecutionModel.BatchedExecution BatchedExecution]]
-    * then this reference is just a dummy, since there's no point in keeping a counter
-    * around, plus setting and fetching from a `ThreadLocal` can be quite expensive.
+    * then this reference is just a dummy, since there's no point in
+    * keeping a counter around, plus setting and fetching from a
+    * `ThreadLocal` can be quite expensive.
     */
   sealed abstract class RunLoopIndexRef {
     /** Returns the current [[RunLoopIndex]]. */
@@ -1137,22 +1140,26 @@ object Task extends TaskInstances {
     * tasks with [[Task.unsafeCreate]], which exposes internals and
     * is considered unsafe to use.
     *
-    * @param scheduler                 is the [[monix.execution.Scheduler Scheduler]]
-    *                                  in charge of evaluation on `runAsync`.
+    * @param scheduler is the [[monix.execution.Scheduler Scheduler]]
+    *        in charge of evaluation on `runAsync`.
+    * 
     * @param connection is the
     *        [[monix.execution.cancelables.StackedCancelable StackedCancelable]]
     *        that handles the cancellation on `runAsync`
-    * @param flatMapIndex is a thread-local counter that keeps track of the current
-    *                                  frame index of the run-loop. The run-loop is supposed to
-    *                                  force an asynchronous boundary upon reaching a certain
-    *                                  threshold, when the task is evaluated with
-    *                                  [[monix.execution.schedulers.ExecutionModel.BatchedExecution]].
-    *                                  And this `frameIndexRef` should be reset whenever a real
-    *                                  asynchronous boundary happens.
+    * 
+    * @param flatMapIndex is a thread-local counter that keeps track
+    *        of the current frame index of the run-loop. The run-loop
+    *        is supposed to force an asynchronous boundary upon
+    *        reaching a certain threshold, when the task is evaluated
+    *        with
+    *        [[monix.execution.schedulers.ExecutionModel.BatchedExecution]].
+    *        And this `frameIndexRef` should be reset whenever a real
+    *        asynchronous boundary happens.
     *
-    *                                  See the description of [[RunLoopIndexRef]].
-    * @param options                   is a set of options for customizing the task's behavior
-    *                                  upon evaluation.
+    *        See the description of [[RunLoopIndexRef]].
+    * 
+    * @param options is a set of options for customizing the task's
+    *        behavior upon evaluation.
     */
   final case class Context(
     scheduler: Scheduler,
