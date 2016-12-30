@@ -35,7 +35,7 @@ import scalaz.concurrent.Strategy
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
 class TaskFlatMapDeepBenchmark {
-  @Param(Array("20"))
+  @Param(Array("15"))
   var depth: Int = _
 
   @Benchmark
@@ -80,44 +80,44 @@ class TaskFlatMapDeepBenchmark {
     Await.result(fib(depth).runAsync, Duration.Inf)
   }
 
-  @Benchmark
-  def scalazApply(): BigInt = {
-    import scalaz.concurrent.Task
+  // @Benchmark
+  // def scalazApply(): BigInt = {
+  //   import scalaz.concurrent.Task
 
-    def fib(n: Int): Task[BigInt] =
-      if (n <= 1) Task(n) else
-        fib(n-1).flatMap { a =>
-          fib(n-2).flatMap(b => Task(a + b))
-        }
+  //   def fib(n: Int): Task[BigInt] =
+  //     if (n <= 1) Task(n) else
+  //       fib(n-1).flatMap { a =>
+  //         fib(n-2).flatMap(b => Task(a + b))
+  //       }
 
-    fib(depth).unsafePerformSync
-  }
+  //   fib(depth).unsafePerformSync
+  // }
 
-  @Benchmark
-  def scalazEval(): BigInt = {
-    import scalaz.concurrent.Task
+  // @Benchmark
+  // def scalazEval(): BigInt = {
+  //   import scalaz.concurrent.Task
 
-    def fib(n: Int): Task[BigInt] =
-      if (n <= 1) Task.delay(n) else
-        fib(n-1).flatMap { a =>
-          fib(n-2).flatMap(b => Task.delay(a + b))
-        }
+  //   def fib(n: Int): Task[BigInt] =
+  //     if (n <= 1) Task.delay(n) else
+  //       fib(n-1).flatMap { a =>
+  //         fib(n-2).flatMap(b => Task.delay(a + b))
+  //       }
 
-    fib(depth).unsafePerformSync
-  }
+  //   fib(depth).unsafePerformSync
+  // }
 
-  @Benchmark
-  def scalazNow(): BigInt = {
-    import scalaz.concurrent.Task
+  // @Benchmark
+  // def scalazNow(): BigInt = {
+  //   import scalaz.concurrent.Task
 
-    def fib(n: Int): Task[BigInt] =
-      if (n <= 1) Task.now(n) else
-        fib(n-1).flatMap { a =>
-          fib(n-2).flatMap(b => Task.now(a + b))
-        }
+  //   def fib(n: Int): Task[BigInt] =
+  //     if (n <= 1) Task.now(n) else
+  //       fib(n-1).flatMap { a =>
+  //         fib(n-2).flatMap(b => Task.now(a + b))
+  //       }
 
-    fib(depth).unsafePerformSync
-  }
+  //   fib(depth).unsafePerformSync
+  // }
 }
 
 object TaskFlatMapDeepBenchmark {
@@ -125,8 +125,6 @@ object TaskFlatMapDeepBenchmark {
 
   implicit val monixScheduler: Scheduler = {
     import monix.execution.schedulers.ExecutionModel.SynchronousExecution
-    val executor = Strategy.DefaultExecutorService
-    val ec = ExecutionContext.fromExecutor(executor, System.err.println)
-    Scheduler(ec, SynchronousExecution)
+    Scheduler.computation().withExecutionModel(SynchronousExecution)
   }
 }
