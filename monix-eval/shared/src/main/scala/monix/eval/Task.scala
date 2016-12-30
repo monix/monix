@@ -1660,9 +1660,10 @@ object Task extends TaskInstances {
   }
 
   /** A run-loop that attempts to complete a
-    * [[monix.execution.CancelableFuture CancelableFuture]] synchronously ,
-    * falling back to [[internalStartTrampolineRunLoop]] and actual asynchronous execution
-    * in case of an asynchronous boundary.
+    * [[monix.execution.CancelableFuture CancelableFuture]]
+    * synchronously falling back to [[internalStartTrampolineRunLoop]]
+    * and actual asynchronous execution in case of an
+    * asynchronous boundary.
     */
   private def internalStartTrampolineForFuture[A](
     source: Task[A],
