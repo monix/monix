@@ -18,8 +18,11 @@
 package monix.benchmarks
 
 import java.util.concurrent.TimeUnit
+
 import monix.eval.Callback
+import monix.execution.ExecutionModel.SynchronousExecution
 import org.openjdk.jmh.annotations._
+
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 
@@ -96,7 +99,8 @@ object TaskFlatMapBenchmark {
   import monix.execution.Scheduler
 
   implicit val monixScheduler: Scheduler = {
-    import monix.execution.ExecutionModel.SynchronousExecution
-    Scheduler.computation().withExecutionModel(SynchronousExecution)
+    import monix.forkJoin.ForkJoinExecutionContext
+    val ec = ForkJoinExecutionContext.createStandard(Runtime.getRuntime.availableProcessors())
+    Scheduler(ec, SynchronousExecution)
   }
 }

@@ -427,7 +427,8 @@ lazy val benchmarks = project.in(file("benchmarks"))
   .settings(doNotPublishArtifact)
   .settings(
     libraryDependencies ++= Seq(
-      "org.scalaz" %% "scalaz-concurrent" % scalazVersion
+      "org.scalaz" %% "scalaz-concurrent" % scalazVersion,
+      "io.monix" %% "monix-forkjoin" % "1.0"
     )
   )
 
