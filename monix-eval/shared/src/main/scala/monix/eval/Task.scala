@@ -693,7 +693,7 @@ object Task extends TaskInstances {
   /** Reusable task instance used in `Task#asyncBoundary` and `Task#fork` */
   private final val forkedUnit =
     Async[Unit] { (context, cb) =>
-      context.scheduler.execute(() => cb.onSuccess(()))
+      context.scheduler.executeAsync(() => cb.onSuccess(()))
     }
 
   /** Transforms a [[Coeval]] into a [[Task]]. */
