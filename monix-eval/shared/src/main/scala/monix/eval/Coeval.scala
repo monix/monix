@@ -56,15 +56,23 @@ import scala.util.{Failure, Success, Try}
   * Computation done within .map and .flatMap is always done lazily,
   * even when applied to a `Now` instance.
   */
-sealed abstract class Coeval[+A] extends Serializable { self =>
+sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
   /** Evaluates the underlying computation and returns the result.
     *
     * NOTE: this can throw exceptions.
     */
-  def value: A = runAttempt match {
+  override def apply(): A = runAttempt match {
     case Now(value) => value
     case Error(ex) => throw ex
   }
+
+  /** Evaluates the underlying computation and returns the result.
+    *
+    * NOTE: this can throw exceptions.
+    *
+    * Alias for [[apply]].
+    */
+  def value: A = apply()
 
   /** Evaluates the underlying computation and returns the
     * result or any triggered errors as a [[Coeval.Attempt]].
@@ -222,7 +230,7 @@ sealed abstract class Coeval[+A] extends Serializable { self =>
     * given backup coeval.
     */
   def onErrorFallbackTo[B >: A](that: Coeval[B]): Coeval[B] =
-    onErrorHandleWith(ex => that)
+    onErrorHandleWith(_ => that)
 
   /** Creates a new coeval that in case of error will retry executing the
     * source again and again, until it succeeds.
@@ -269,7 +277,7 @@ sealed abstract class Coeval[+A] extends Serializable { self =>
       case error @ Error(_) => error
       case Always(thunk) =>
         new Once[A](thunk)
-      case eval: Once[_] => self
+      case _: Once[_] => self
       case other =>
         new Once[A](() => other.value)
     }
@@ -536,6 +544,7 @@ object Coeval {
     * value that's already known.
     */
   final case class Now[+A](override val value: A) extends Attempt[A] {
+    override def apply(): A = value
     override def runAttempt: Now[A] = this
   }
 
@@ -543,8 +552,7 @@ object Coeval {
     * a result that represents an error.
     */
   final case class Error(ex: Throwable) extends Attempt[Nothing] {
-    override def value: Nothing = throw ex
-
+    override def apply(): Nothing = throw ex
     override def runAttempt: Error = this
   }
 
@@ -558,7 +566,7 @@ object Coeval {
   final class Once[+A](f: () => A) extends Coeval[A] with (() => A) {
     private[this] var thunk: () => A = f
 
-    def apply(): A = runAttempt match {
+    override def apply(): A = runAttempt match {
       case Now(a) => a
       case Error(ex) => throw ex
     }
@@ -597,7 +605,7 @@ object Coeval {
     * equivalent to using a Function0 value.
     */
   final case class Always[+A](f: () => A) extends Coeval[A] {
-    override def value: A = f()
+    override def apply(): A = f()
 
     override def runAttempt: Attempt[A] =
       try Now(f()) catch {
