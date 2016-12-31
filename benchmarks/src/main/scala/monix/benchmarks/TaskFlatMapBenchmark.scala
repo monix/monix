@@ -63,15 +63,8 @@ class TaskFlatMapBenchmark {
       if (i < size) Task.eval(i + 1).flatMap(loop)
       else Task.eval(i)
 
-    val task = Task.eval(0).flatMap(loop)
-    var result: Int = 0
-    task.runAsync(new Callback[Int] {
-      def onSuccess(value: Int): Unit =
-        result = value
-      def onError(ex: Throwable): Unit =
-        throw ex
-    })
-    result
+    Task.eval(0).flatMap(loop)
+      .runSyncMaybe.right.get
   }
 
   @Benchmark
@@ -83,15 +76,8 @@ class TaskFlatMapBenchmark {
       if (i < size) Task.now(i + 1).flatMap(loop)
       else Task.now(i)
 
-    val task = Task.now(0).flatMap(loop)
-    var result: Int = 0
-    task.runAsync(new Callback[Int] {
-      def onSuccess(value: Int): Unit =
-        result = value
-      def onError(ex: Throwable): Unit =
-        throw ex
-    })
-    result
+    Task.now(0).flatMap(loop)
+      .runSyncMaybe.right.get
   }
 }
 

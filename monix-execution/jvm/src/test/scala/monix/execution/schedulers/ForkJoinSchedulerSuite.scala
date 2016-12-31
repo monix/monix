@@ -18,18 +18,30 @@
 package monix.execution.schedulers
 
 import java.util.concurrent.{CountDownLatch, TimeUnit, TimeoutException}
-
 import minitest.SimpleTestSuite
+import monix.execution.ExecutionModel.{AlwaysAsyncExecution, Default => DefaultExecutionModel}
 import monix.execution.cancelables.SingleAssignmentCancelable
-import monix.execution.ExecutionModel.AlwaysAsyncExecution
-import monix.execution.{Cancelable, ExecutionModel, Scheduler}
-
+import monix.execution.misc.InlineMacrosTest.DummyException
+import monix.execution.{Cancelable, Scheduler, UncaughtExceptionReporter}
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Promise}
+import scala.concurrent.{Await, Promise, blocking}
 
-object ForkJoinSchedulerSuite extends SimpleTestSuite {
-  val scheduler: Scheduler =
-    monix.execution.schedulers.forkJoinSchedulerForTests
+object ForkJoinSchedulerSuite extends SimpleTestSuite { self =>
+  var lastReportedFailure = null : Throwable
+  var lastReportedFailureLatch = null : CountDownLatch
+
+  val testsReporter = UncaughtExceptionReporter { ex =>
+    self.synchronized {
+      lastReportedFailure = ex
+      if (lastReportedFailureLatch != null)
+        lastReportedFailureLatch.countDown()
+      else
+        ex.printStackTrace()
+    }
+  }
+
+  lazy val scheduler: Scheduler =
+    monix.execution.Scheduler.forkJoin(parallelism = 4, maxThreads = 256, reporter=testsReporter)
 
   def scheduleOnce(s: Scheduler, delay: FiniteDuration)(action: => Unit): Cancelable =
     s.scheduleOnce(delay.length, delay.unit, runnableAction(action))
@@ -98,8 +110,8 @@ object ForkJoinSchedulerSuite extends SimpleTestSuite {
   }
 
   test("builder for ExecutionModel works") {
-    import monix.execution.Scheduler
     import monix.execution.ExecutionModel.AlwaysAsyncExecution
+    import monix.execution.Scheduler
 
     val s: Scheduler = Scheduler(AlwaysAsyncExecution)
     assertEquals(s.executionModel, AlwaysAsyncExecution)
@@ -127,10 +139,52 @@ object ForkJoinSchedulerSuite extends SimpleTestSuite {
 
   test("change execution model") {
     val s: Scheduler = scheduler
-    assertEquals(s.executionModel, ExecutionModel.Default)
+    assertEquals(s.executionModel, DefaultExecutionModel)
     val s2 = s.withExecutionModel(AlwaysAsyncExecution)
-    assertEquals(s.executionModel, ExecutionModel.Default)
+    assertEquals(s.executionModel, DefaultExecutionModel)
     assertEquals(s2.executionModel, AlwaysAsyncExecution)
+  }
+
+  test("reports errors") {
+    val latch = new CountDownLatch(1)
+    self.synchronized {
+      lastReportedFailure = null
+      lastReportedFailureLatch = latch
+    }
+
+    try {
+      val ex = DummyException("dummy")
+
+      scheduler.execute(new Runnable {
+        override def run() =
+          throw ex
+      })
+
+      assert(latch.await(30, TimeUnit.SECONDS), "lastReportedFailureLatch.await")
+      self.synchronized(assertEquals(lastReportedFailure, ex))
+    } finally {
+      self.synchronized {
+        lastReportedFailure = null
+        lastReportedFailureLatch = null
+      }
+    }
+  }
+
+  test("integrates with Scala's BlockContext") {
+    val threadsCount = 100
+    val latch = new CountDownLatch(100)
+    val finish = new CountDownLatch(1)
+
+    for (_ <- 0 until threadsCount)
+      scheduler.executeAsync { () =>
+        blocking {
+          latch.countDown()
+          finish.await(30, TimeUnit.SECONDS)
+        }
+      }
+
+    assert(latch.await(30, TimeUnit.SECONDS), "latch.await")
+    finish.countDown()
   }
 
   def runnableAction(f: => Unit): Runnable =
