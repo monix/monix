@@ -105,7 +105,7 @@ object TaskCreateSuite extends BaseTestSuite {
   }
 
   test("Task.create should work onSuccess") { implicit s =>
-    val t = Task.create[Int] { (s,cb) => cb.onSuccess(10); Cancelable.empty }
+    val t = Task.create[Int] { (_,cb) => cb.onSuccess(10); Cancelable.empty }
     val f = t.runAsync
     s.tick()
     assertEquals(f.value, Some(Success(10)))
@@ -113,7 +113,7 @@ object TaskCreateSuite extends BaseTestSuite {
 
   test("Task.create should work onError") { implicit s =>
     val dummy = DummyException("dummy")
-    val t = Task.create[Int] { (s,cb) => cb.onError(dummy); Cancelable.empty }
+    val t = Task.create[Int] { (_,cb) => cb.onError(dummy); Cancelable.empty }
     val f = t.runAsync
     s.tick()
     assertEquals(f.value, Some(Failure(dummy)))
@@ -131,7 +131,7 @@ object TaskCreateSuite extends BaseTestSuite {
   test("Task.create should not execute immediately when executed with callback") { implicit s =>
     var result = Option.empty[Try[Int]]
     val t = Task.create[Int] { (_,cb) => cb.onSuccess(100); Cancelable.empty }
-    t.runAsync { r: Try[Int] => result = Some(r) }
+    t.runOnComplete { r => result = Some(r) }
 
     assertEquals(result, None)
     s.tick()

@@ -17,21 +17,21 @@
 
 package monix.execution.schedulers
 
-import monix.execution.{SchedulerCompanion, Scheduler, UncaughtExceptionReporter}
+import monix.execution.{Scheduler, SchedulerCompanion, UncaughtExceptionReporter}
 import monix.execution.UncaughtExceptionReporter.LogExceptionsToStandardErr
+import monix.execution.{ExecutionModel => ExecModel}
 
 private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
-  /**
-    * [[monix.execution.Scheduler Scheduler]] builder.
+  /** [[monix.execution.Scheduler Scheduler]] builder.
     *
     * @param reporter is the [[UncaughtExceptionReporter]] that logs uncaught exceptions.
     * @param executionModel is the preferred
-    *        [[monix.execution.schedulers.ExecutionModel ExecutionModel]],
+    *        [[monix.execution.ExecutionModel ExecutionModel]],
     *        a guideline for run-loops and producers of data.
     */
   def apply(
     reporter: UncaughtExceptionReporter = LogExceptionsToStandardErr,
-    executionModel: ExecutionModel = ExecutionModel.Default): Scheduler =
+    executionModel: ExecModel = ExecModel.Default): Scheduler =
     AsyncScheduler(reporter, executionModel)
 
   /** Builds a [[monix.execution.schedulers.TrampolineScheduler TrampolineScheduler]].
@@ -41,14 +41,14 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     *        execution is needed
     *
     * @define executionModel is the preferred
-    *         [[monix.execution.schedulers.ExecutionModel ExecutionModel]],
+    *         [[monix.execution.ExecutionModel ExecutionModel]],
     *         a guideline for run-loops and producers of data. Use
-    *         [[monix.execution.schedulers.ExecutionModel.Default ExecutionModel.Default]]
+    *         [[monix.execution.ExecutionModel.Default ExecutionModel.Default]]
     *         for the default.
     */
   def trampoline(
     underlying: Scheduler = Implicits.global,
-    executionModel: ExecutionModel = ExecutionModel.Default): Scheduler =
+    executionModel: ExecModel = ExecModel.Default): Scheduler =
     TrampolineScheduler(underlying, executionModel)
 
   /** The explicit global `Scheduler`. Invoke `global` when you want to provide the global
@@ -65,6 +65,6 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     implicit lazy val global: Scheduler =
       AsyncScheduler(
         UncaughtExceptionReporter.LogExceptionsToStandardErr,
-        ExecutionModel.Default)
+        ExecModel.Default)
   }
 }

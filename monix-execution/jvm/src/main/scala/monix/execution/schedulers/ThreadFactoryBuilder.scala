@@ -20,7 +20,6 @@ package monix.execution.schedulers
 import java.lang.Thread.UncaughtExceptionHandler
 import java.util.concurrent.ThreadFactory
 import monix.execution.UncaughtExceptionReporter
-import monix.execution.atomic.AtomicLong
 
 private[schedulers] object ThreadFactoryBuilder {
   /**
@@ -33,11 +32,9 @@ private[schedulers] object ThreadFactoryBuilder {
     */
   def apply(name: String, reporter: UncaughtExceptionReporter, daemonic: Boolean = true): ThreadFactory = {
     new ThreadFactory {
-      private[this] val threadCount = AtomicLong(0)
-
       def newThread(r: Runnable) = {
         val thread = new Thread(r)
-        thread.setName(name + "-" + threadCount.incrementAndGet())
+        thread.setName(name + "-" + thread.getId)
         thread.setDaemon(daemonic)
         thread.setUncaughtExceptionHandler(
           new UncaughtExceptionHandler {

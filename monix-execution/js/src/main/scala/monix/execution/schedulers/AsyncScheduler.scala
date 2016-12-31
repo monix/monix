@@ -15,18 +15,20 @@
  * limitations under the License.
  */
 
-package monix.execution.schedulers
+package monix.execution
+package schedulers
 
 import java.util.concurrent.TimeUnit
+import monix.execution.UncaughtExceptionReporter
 import monix.execution.schedulers.Timer.{clearTimeout, setTimeout}
-import monix.execution.{Cancelable, UncaughtExceptionReporter}
+import monix.execution.{ExecutionModel => ExecModel}
 
 /** An `AsyncScheduler` schedules tasks to be executed asynchronously,
   * either now or in the future, by means of Javascript's `setTimeout`.
   */
 final class AsyncScheduler private (
   reporter: UncaughtExceptionReporter,
-  override val executionModel: ExecutionModel)
+  override val executionModel: ExecModel)
   extends ReferenceScheduler with BatchingScheduler {
 
   protected def executeAsync(r: Runnable): Unit =
@@ -44,19 +46,21 @@ final class AsyncScheduler private (
 
   override def reportFailure(t: Throwable): Unit =
     reporter.reportFailure(t)
-  override def withExecutionModel(em: ExecutionModel): AsyncScheduler =
+  override def withExecutionModel(em: ExecModel): AsyncScheduler =
     new AsyncScheduler(reporter, em)
 }
 
 object AsyncScheduler {
   /** Builder for [[AsyncScheduler]].
     *
-    * @param reporter is the [[UncaughtExceptionReporter]] that logs uncaught exceptions.
-    * @param executionModel is the preferred [[ExecutionModel]], a guideline
+    * @param reporter is the [[UncaughtExceptionReporter]] that logs
+    *        uncaught exceptions.
+    * @param executionModel is the preferred
+    *        [[monix.execution.ExecutionModel ExecutionModel]], a guideline
     *        for run-loops and producers of data.
     */
   def apply(reporter: UncaughtExceptionReporter,
-    executionModel: ExecutionModel): AsyncScheduler =
+    executionModel: ExecModel): AsyncScheduler =
     new AsyncScheduler(reporter, executionModel)
 }
 

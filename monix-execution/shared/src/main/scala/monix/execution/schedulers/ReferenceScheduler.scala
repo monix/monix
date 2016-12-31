@@ -21,6 +21,8 @@ import java.util.concurrent.TimeUnit
 import monix.execution.cancelables.MultiAssignmentCancelable
 import monix.execution.schedulers.ReferenceScheduler.WrappedScheduler
 import monix.execution.{Cancelable, Scheduler}
+// Prevents conflict with the deprecated symbol
+import monix.execution.{ExecutionModel => ExecModel}
 
 /** Helper for building a [[Scheduler]].
   *
@@ -79,7 +81,7 @@ trait ReferenceScheduler extends Scheduler {
     sub
   }
 
-  override def withExecutionModel(em: ExecutionModel): Scheduler =
+  override def withExecutionModel(em: ExecModel): Scheduler =
     WrappedScheduler(this, em)
 }
 
@@ -89,7 +91,7 @@ object ReferenceScheduler {
     */
   private final case class WrappedScheduler(
     s: Scheduler,
-    override val executionModel: ExecutionModel)
+    override val executionModel: ExecModel)
     extends Scheduler {
 
     override def execute(runnable: Runnable): Unit =
@@ -104,7 +106,7 @@ object ReferenceScheduler {
       s.scheduleAtFixedRate(initialDelay, period, unit, r)
     override def currentTimeMillis(): Long =
       s.currentTimeMillis()
-    override def withExecutionModel(em: ExecutionModel): Scheduler =
+    override def withExecutionModel(em: ExecModel): Scheduler =
       copy(s, em)
   }
 }

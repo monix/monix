@@ -20,6 +20,7 @@ package monix.execution.schedulers
 import java.util.concurrent.{ScheduledExecutorService, TimeUnit}
 import monix.execution.schedulers.AsyncScheduler.DeferredRunnable
 import monix.execution.{Cancelable, UncaughtExceptionReporter}
+import monix.execution.{ExecutionModel => ExecModel}
 import scala.concurrent.ExecutionContext
 
 /** An `AsyncScheduler` schedules tasks to happen in the future with the
@@ -30,7 +31,7 @@ final class AsyncScheduler private (
   scheduler: ScheduledExecutorService,
   ec: ExecutionContext,
   r: UncaughtExceptionReporter,
-  val executionModel: ExecutionModel)
+  val executionModel: ExecModel)
   extends ReferenceScheduler with BatchingScheduler {
 
   protected def executeAsync(r: Runnable): Unit =
@@ -50,7 +51,7 @@ final class AsyncScheduler private (
   override def reportFailure(t: Throwable): Unit =
     r.reportFailure(t)
 
-  override def withExecutionModel(em: ExecutionModel): AsyncScheduler =
+  override def withExecutionModel(em: ExecModel): AsyncScheduler =
     new AsyncScheduler(scheduler, ec, r, em)
 }
 
@@ -61,14 +62,15 @@ object AsyncScheduler {
     *        care of scheduling tasks for execution with a delay.
     * @param ec is the execution context that will execute all runnables
     * @param reporter is the [[UncaughtExceptionReporter]] that logs uncaught exceptions.
-    * @param executionModel is the preferred [[ExecutionModel]], a guideline
-    *        for run-loops and producers of data.
+    * @param executionModel is the preferred
+    *        [[monix.execution.ExecutionModel ExecutionModel]],
+    *        a guideline for run-loops and producers of data.
     */
   def apply(
     schedulerService: ScheduledExecutorService,
     ec: ExecutionContext,
     reporter: UncaughtExceptionReporter,
-    executionModel: ExecutionModel): AsyncScheduler =
+    executionModel: ExecModel): AsyncScheduler =
     new AsyncScheduler(schedulerService, ec, reporter, executionModel)
 
   /** Runnable that defers the execution of the given runnable to the

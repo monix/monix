@@ -17,10 +17,10 @@
 
 package monix.reactive.internal.builders
 
-import monix.execution.schedulers.ExecutionModel
-import monix.execution.{Ack, Cancelable}
+import monix.execution.{Ack, Cancelable, ExecutionModel}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
+
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 

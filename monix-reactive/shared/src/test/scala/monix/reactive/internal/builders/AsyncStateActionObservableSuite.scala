@@ -21,7 +21,7 @@ import minitest.TestSuite
 import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.internal.Platform
-import monix.execution.schedulers.ExecutionModel.AlwaysAsyncExecution
+import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
@@ -47,9 +47,9 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
       .take(Platform.recommendedBatchSize * 3)
       .subscribe { x => received += 1; Continue }
 
-    assertEquals(received, Platform.recommendedBatchSize / 2 - 1)
+    assertEquals(received, Platform.recommendedBatchSize / 2)
     s.tickOne()
-    assertEquals(received, Platform.recommendedBatchSize - 2)
+    assertEquals(received, Platform.recommendedBatchSize - 1)
     s.tick()
     assertEquals(received, Platform.recommendedBatchSize * 3)
   }
@@ -84,7 +84,7 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
     cancelable.cancel()
     s.tick()
 
-    assertEquals(sum, s.executionModel.recommendedBatchSize - 2)
+    assertEquals(sum, s.executionModel.recommendedBatchSize - 1)
     assert(!wasCompleted)
   }
 
@@ -94,7 +94,7 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
     var received = 0
     val cancelable = Observable
       .fromAsyncStateAction(intNow)(s.currentTimeMillis())
-      .subscribe { x => received += 1; Continue }
+      .subscribe { _ => received += 1; Continue }
 
     assertEquals(received, 0)
     s.tickOne(); s.tickOne()
@@ -103,7 +103,7 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(received, 2)
 
     cancelable.cancel(); s.tick()
-    assertEquals(received, 2)
+    assertEquals(received, 3)
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 

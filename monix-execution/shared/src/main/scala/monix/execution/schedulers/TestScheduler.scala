@@ -21,6 +21,9 @@ import monix.execution.Cancelable
 import monix.execution.atomic.AtomicAny
 import monix.execution.cancelables.SingleAssignmentCancelable
 import monix.execution.schedulers.TestScheduler._
+// Prevents conflict with the deprecated symbol
+import monix.execution.{ExecutionModel => ExecModel}
+
 import scala.annotation.tailrec
 import scala.collection.immutable.SortedSet
 import scala.concurrent.duration.{Duration, FiniteDuration, TimeUnit}
@@ -30,7 +33,7 @@ import scala.util.control.NonFatal
 /** A scheduler meant for testing purposes. */
 final class TestScheduler private (
   private[this] val stateRef: AtomicAny[State],
-  override val executionModel: ExecutionModel)
+  override val executionModel: ExecModel)
   extends ReferenceScheduler with BatchingScheduler {
 
   /** Returns the internal state of the [[TestScheduler]]. */
@@ -69,7 +72,7 @@ final class TestScheduler private (
     if (!stateRef.compareAndSet(current, update)) reportFailure(t)
   }
 
-  override def withExecutionModel(em: ExecutionModel): TestScheduler =
+  override def withExecutionModel(em: ExecModel): TestScheduler =
     new TestScheduler(stateRef, em)
 
   private[this] def extractOneTask(current: State, clock: FiniteDuration): Option[(Task, SortedSet[Task])] = {
@@ -148,10 +151,10 @@ final class TestScheduler private (
 object TestScheduler {
   /** Builder for [[TestScheduler]]. */
   def apply(): TestScheduler =
-    apply(ExecutionModel.Default)
+    apply(ExecModel.Default)
 
   /** Builder for [[TestScheduler]]. */
-  def apply(executionModel: ExecutionModel): TestScheduler = {
+  def apply(executionModel: ExecModel): TestScheduler = {
     val state = AtomicAny(State(
       lastID = 0,
       clock = Duration.Zero,

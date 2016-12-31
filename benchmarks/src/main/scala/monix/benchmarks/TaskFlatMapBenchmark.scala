@@ -19,7 +19,8 @@ package monix.benchmarks
 
 import java.util.concurrent.TimeUnit
 
-import monix.eval.Task
+import monix.eval.Callback
+import monix.execution.ExecutionModel.SynchronousExecution
 import org.openjdk.jmh.annotations._
 
 import scala.concurrent.Await
@@ -37,19 +38,55 @@ import scala.concurrent.duration.Duration
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
 class TaskFlatMapBenchmark {
+  @Param(Array("10000"))
+  var size: Int = _
+
   @Benchmark
-  def sequenceA(): Long = {
-    import monix.execution.Scheduler.Implicits.global
-    val tasks = (0 until 10000).map(_ => Task(1)).toList
-    val f = Task.sequence(tasks).map(_.sum.toLong).runAsync
-    Await.result(f, Duration.Inf)
+  def monixApply(): Int = {
+    import TaskFlatMapBenchmark.monixScheduler
+    import monix.eval.Task
+
+    def loop(i: Int): Task[Int] =
+      if (i < size) Task.apply(i + 1).flatMap(loop)
+      else Task.apply(i)
+
+    val task = Task.apply(0).flatMap(loop)
+    Await.result(task.runAsync, Duration.Inf)
   }
 
   @Benchmark
-  def sequenceS(): Long = {
-    import monix.execution.Scheduler.Implicits.global
-    val tasks = (0 until 10000).map(_ => Task.eval(1)).toList
-    val f = Task.sequence(tasks).map(_.sum.toLong).runAsync
-    Await.result(f, Duration.Inf)
+  def monixEval(): Int = {
+    import TaskFlatMapBenchmark.monixScheduler
+    import monix.eval.Task
+
+    def loop(i: Int): Task[Int] =
+      if (i < size) Task.eval(i + 1).flatMap(loop)
+      else Task.eval(i)
+
+    Task.eval(0).flatMap(loop)
+      .runSyncMaybe.right.get
+  }
+
+  @Benchmark
+  def monixNow(): Int = {
+    import TaskFlatMapBenchmark.monixScheduler
+    import monix.eval.Task
+
+    def loop(i: Int): Task[Int] =
+      if (i < size) Task.now(i + 1).flatMap(loop)
+      else Task.now(i)
+
+    Task.now(0).flatMap(loop)
+      .runSyncMaybe.right.get
+  }
+}
+
+object TaskFlatMapBenchmark {
+  import monix.execution.Scheduler
+
+  implicit val monixScheduler: Scheduler = {
+    import monix.forkJoin.ForkJoinExecutionContext
+    val ec = ForkJoinExecutionContext.createStandard(Runtime.getRuntime.availableProcessors())
+    Scheduler(ec, SynchronousExecution)
   }
 }

@@ -19,7 +19,6 @@ package monix.eval
 
 import monix.execution.internal.Platform
 import concurrent.duration._
-
 import scala.util.{Failure, Success}
 
 object TaskWanderSuite extends BaseTestSuite {
@@ -70,7 +69,7 @@ object TaskWanderSuite extends BaseTestSuite {
   }
 
   test("Task.wander should be stack safe for synchronous tasks") { implicit s =>
-    val count = if (Platform.isJVM) 100000 else 5000
+    val count = if (Platform.isJVM) 200000 else 5000
     val seq = for (i <- 0 until count) yield 1
     val composite = Task.wander(seq)(Task.now).map(_.sum)
     val result = composite.runAsync
