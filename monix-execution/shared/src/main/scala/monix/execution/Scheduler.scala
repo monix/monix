@@ -17,7 +17,7 @@
 
 package monix.execution
 
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.{Executor, TimeUnit}
 import monix.execution.internal.RunnableAction
 import monix.execution.schedulers.SchedulerCompanionImpl
 import scala.annotation.implicitNotFound
@@ -30,9 +30,14 @@ import scala.concurrent.duration.FiniteDuration
 @implicitNotFound(
   "Cannot find an implicit Scheduler, either " +
   "import monix.execution.Scheduler.Implicits.global or use a custom one")
-trait Scheduler extends ExecutionContext with UncaughtExceptionReporter {
-  /** Schedules the given `runnable` for immediate execution. */
-  def execute(runnable: Runnable): Unit
+trait Scheduler extends ExecutionContext with UncaughtExceptionReporter with Executor {
+  /** Schedules the given `command` for execution at some time in the future.
+    *
+    * The command may execute in a new thread, in a pooled thread,
+    * in the calling thread, basically at the discretion of the
+    * [[Scheduler]] implementation.
+    */
+  def execute(command: Runnable): Unit
 
   /** Reports that an asynchronous computation failed. */
   def reportFailure(t: Throwable): Unit

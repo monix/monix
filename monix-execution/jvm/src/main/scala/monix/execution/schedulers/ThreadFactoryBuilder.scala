@@ -22,15 +22,14 @@ import java.util.concurrent.ThreadFactory
 import monix.execution.UncaughtExceptionReporter
 
 private[schedulers] object ThreadFactoryBuilder {
-  /**
-    * Constructs a ThreadFactory using the provided name prefix and appending
+  /** Constructs a ThreadFactory using the provided name prefix and appending
     * with a unique incrementing thread identifier.
     *
     * @param name     the created threads name prefix, for easy identification.
     * @param daemonic specifies whether the created threads should be daemonic
     *                 (non-daemonic threads are blocking the JVM process on exit).
     */
-  def apply(name: String, reporter: UncaughtExceptionReporter, daemonic: Boolean = true): ThreadFactory = {
+  def apply(name: String, reporter: UncaughtExceptionReporter, daemonic: Boolean): ThreadFactory = {
     new ThreadFactory {
       def newThread(r: Runnable) = {
         val thread = new Thread(r)

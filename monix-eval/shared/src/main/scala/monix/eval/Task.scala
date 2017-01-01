@@ -1104,7 +1104,7 @@ object Task extends TaskInstances {
     * whenever that counter exceeds the specified threshold, an
     * asynchronous boundary is automatically inserted. However this
     * capability doesn't blend well with light asynchronous
-    * boundaries, for example [[Async]] tasks that never fork logical threads or
+    * boundaries, for example `Async` tasks that never fork logical threads or
     * [[monix.execution.schedulers.TrampolinedRunnable TrampolinedRunnable]]
     * instances executed by capable schedulers. This is why
     * [[FrameIndexRef]] is part of the [[Context]] of execution for

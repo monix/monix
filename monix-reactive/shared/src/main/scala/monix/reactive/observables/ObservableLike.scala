@@ -1276,7 +1276,7 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * }}}
     *
     * @param em is the
-    *        [[ExecutionModel ExecutionModel]]
+    *        [[monix.execution.ExecutionModel ExecutionModel]]
     *        that will be used when evaluating the source.
     */
   def executeWithModel(em: ExecutionModel): Self[A] =

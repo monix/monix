@@ -15,26 +15,15 @@
  * limitations under the License.
  */
 
-package monix.execution.internal.forkJoin
+package monix.execution.schedulers
 
-import java.util.concurrent.ThreadFactory
+import java.util.concurrent.{Executors, ScheduledExecutorService}
+import monix.execution.UncaughtExceptionReporter.LogExceptionsToStandardErr
 
-private[monix] final class StandardWorkerThreadFactory(
-  prefix: String,
-  uncaught: Thread.UncaughtExceptionHandler,
-  daemonic: Boolean)
-  extends ThreadFactory with ForkJoinWorkerThreadFactory {
-
-  def wire[T <: Thread](thread: T): T = {
-    thread.setDaemon(daemonic)
-    thread.setUncaughtExceptionHandler(uncaught)
-    thread.setName(prefix + "-" + thread.getId)
-    thread
-  }
-
-  override def newThread(r: Runnable): Thread =
-    wire(new Thread(r))
-
-  override def newThread(pool: ForkJoinPool): ForkJoinWorkerThread =
-    wire(new ForkJoinWorkerThread(pool) {})
+private[schedulers] object Defaults {
+  /** Internal. Provides the `Scheduler.DefaultScheduledExecutor` instance. */
+  lazy val scheduledExecutor: ScheduledExecutorService =
+    Executors.newSingleThreadScheduledExecutor(
+      ThreadFactoryBuilder("monix-scheduler", LogExceptionsToStandardErr, daemonic = true)
+    )
 }
