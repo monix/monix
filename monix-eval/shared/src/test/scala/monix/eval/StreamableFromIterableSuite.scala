@@ -19,7 +19,7 @@ package monix.eval
 
 import scala.util.Failure
 
-object StreamFromIterableSuite extends BaseTestSuite {
+object StreamableFromIterableSuite extends BaseTestSuite {
   test("TaskStream.fromIterable") { implicit s =>
     check1 { (list: List[Int]) =>
       val result = TaskStream.fromIterable(list).toListL

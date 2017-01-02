@@ -17,7 +17,7 @@
 
 package monix.eval
 
-object StreamFromIndexedSeqSuite extends BaseTestSuite {
+object StreamableFromIndexedSeqSuite extends BaseTestSuite {
   test("TaskStream.fromIndexedSeq") { implicit s =>
     check1 { (list: List[Int]) =>
       val result = TaskStream.fromIndexedSeq(list.toVector).toListL

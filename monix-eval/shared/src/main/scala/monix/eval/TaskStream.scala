@@ -19,7 +19,7 @@ package monix.eval
 
 import monix.eval.Task.nondeterminism
 
-/** A `TaskStream` represents a [[Task]]-based [[Stream]], that
+/** A `TaskStream` represents a [[Task]]-based [[Streamable]], that
   * has potentially lazy behavior and that also supports
   * asynchronous behavior.
   *
@@ -46,17 +46,17 @@ import monix.eval.Task.nondeterminism
   *    HTTP requests
   *
   * The implementation is practically wrapping the generic
-  * [[Stream]], materialized with the [[Task]] type.
+  * [[Streamable]], materialized with the [[Task]] type.
   */
-final case class TaskStream[+A](stream: Stream[Task,A])
-  extends Stream.Like[A,Task,TaskStream]() {
+final case class TaskStream[+A](stream: Streamable[Task,A])
+  extends Streamable.Like[A,Task,TaskStream]() {
 
-  protected def transform[B](f: (Stream[Task, A]) => Stream[Task, B]): TaskStream[B] =
+  protected def transform[B](f: (Streamable[Task, A]) => Streamable[Task, B]): TaskStream[B] =
     TaskStream(f(stream))
 }
 
-object TaskStream extends Stream.Builders[Task, TaskStream] {
-  /** Wraps a [[Stream]] into a [[TaskStream]]. */
-  def fromStream[A](stream: Stream[Task, A]): TaskStream[A] =
+object TaskStream extends Streamable.Builders[Task, TaskStream] {
+  /** Wraps a [[Streamable]] into a [[TaskStream]]. */
+  def fromStream[A](stream: Streamable[Task, A]): TaskStream[A] =
     TaskStream(stream)
 }

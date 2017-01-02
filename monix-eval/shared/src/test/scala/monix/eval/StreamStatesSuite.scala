@@ -50,48 +50,48 @@ object StreamStatesSuite extends BaseTestSuite {
     assertEquals(result, Success(list))
   }
 
-  test("TaskStream.cons") { implicit s =>
+  test("TaskStream.next") { implicit s =>
     val list = List(1,2,3)
     val deferred = Task.eval(TaskStream.fromSeq[Int](list))
-    val result = TaskStream.cons(0, deferred).toListL.runAsync
+    val result = TaskStream.next(0, deferred).toListL.runAsync
     s.tick()
     assertEquals(result.value, Some(Success(0 :: list)))
   }
 
-  test("CoevalStream.cons") { implicit s =>
+  test("CoevalStream.next") { implicit s =>
     val list = List(1,2,3)
     val deferred = Coeval.eval(CoevalStream.fromSeq[Int](list))
-    val result = CoevalStream.cons(0, deferred).toListL.runTry
+    val result = CoevalStream.next(0, deferred).toListL.runTry
     assertEquals(result, Success(0 :: list))
   }
 
-  test("TaskStream.consLazy") { implicit s =>
+  test("TaskStream.nextLazy") { implicit s =>
     val list = List(1,2,3)
     val deferred = Task.eval(TaskStream.fromSeq[Int](list))
-    val result = TaskStream.consLazy(Task(0), deferred).toListL.runAsync
+    val result = TaskStream.nextLazy(Task(0), deferred).toListL.runAsync
     s.tick()
     assertEquals(result.value, Some(Success(0 :: list)))
   }
 
-  test("CoevalStream.consLazy") { implicit s =>
+  test("CoevalStream.nextLazy") { implicit s =>
     val list = List(1,2,3)
     val deferred = Coeval.eval(CoevalStream.fromSeq[Int](list))
-    val result = CoevalStream.consLazy(Coeval(0), deferred).toListL.runTry
+    val result = CoevalStream.nextLazy(Coeval(0), deferred).toListL.runTry
     assertEquals(result, Success(0 :: list))
   }
 
-  test("TaskStream.consSeq") { implicit s =>
+  test("TaskStream.nextSeq") { implicit s =>
     val list = List(1,2,3)
     val deferred = Task.eval(TaskStream.fromSeq[Int](list))
-    val result = TaskStream.consSeq(List(0), deferred).toListL.runAsync
+    val result = TaskStream.nextSeq(List(0), deferred).toListL.runAsync
     s.tick()
     assertEquals(result.value, Some(Success(0 :: list)))
   }
 
-  test("CoevalStream.consSeq") { implicit s =>
+  test("CoevalStream.nextSeq") { implicit s =>
     val list = List(1,2,3)
     val deferred = Coeval.eval(CoevalStream.fromSeq[Int](list))
-    val result = CoevalStream.consSeq(List(0), deferred).toListL.runTry
+    val result = CoevalStream.nextSeq(List(0), deferred).toListL.runTry
     assertEquals(result, Success(0 :: list))
   }
 

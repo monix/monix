@@ -33,11 +33,11 @@ object StreamMapSuite extends BaseTestSuite {
     assertEquals(stream, stream.map(identity))
   }
 
-  test("TaskStream.cons.map guards against direct user code errors") { implicit s =>
+  test("TaskStream.next.map guards against direct user code errors") { implicit s =>
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = TaskStream.cons(1, Task(TaskStream.empty), Task { isCanceled = true })
+    val stream = TaskStream.nextS(1, Task(TaskStream.empty), Task { isCanceled = true })
     val result = stream.map[Int](_ => throw dummy).toListL.runAsync
 
     s.tick()
@@ -45,11 +45,11 @@ object StreamMapSuite extends BaseTestSuite {
     assert(isCanceled, "isCanceled should be true")
   }
 
-  test("TaskStream.consSeq.map guards against direct user code errors") { implicit s =>
+  test("TaskStream.nextSeq.map guards against direct user code errors") { implicit s =>
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = TaskStream.consSeq(List(1,2,3), Task(TaskStream.empty), Task { isCanceled = true })
+    val stream = TaskStream.nextSeqS(List(1,2,3), Task(TaskStream.empty), Task { isCanceled = true })
     val result = stream.map[Int](_ => throw dummy).toListL.runAsync
 
     s.tick()
@@ -57,11 +57,11 @@ object StreamMapSuite extends BaseTestSuite {
     assert(isCanceled, "isCanceled should be true")
   }
 
-  test("TaskStream.consLazy.map guards against direct user code errors") { implicit s =>
+  test("TaskStream.nextLazy.map guards against direct user code errors") { implicit s =>
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = TaskStream.consLazy(Task(1), Task(TaskStream.empty), Task { isCanceled = true })
+    val stream = TaskStream.nextLazyS(Task(1), Task(TaskStream.empty), Task { isCanceled = true })
     val result = stream.map[Int](_ => throw dummy).toListL.runAsync
 
     s.tick()
@@ -82,33 +82,33 @@ object StreamMapSuite extends BaseTestSuite {
     assertEquals(stream, stream.map(identity))
   }
 
-  test("CoevalStream.cons.map guards against direct user code errors") { _ =>
+  test("CoevalStream.next.map guards against direct user code errors") { _ =>
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = CoevalStream.cons(1, Coeval(CoevalStream.empty), Coeval { isCanceled = true })
+    val stream = CoevalStream.nextS(1, Coeval(CoevalStream.empty), Coeval { isCanceled = true })
     val result = stream.map[Int](_ => throw dummy).toListL.runTry
 
     assertEquals(result, Failure(dummy))
     assert(isCanceled, "isCanceled should be true")
   }
 
-  test("CoevalStream.consSeq.map guards against direct user code errors") { _ =>
+  test("CoevalStream.nextSeq.map guards against direct user code errors") { _ =>
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = CoevalStream.consSeq(List(1,2,3), Coeval(CoevalStream.empty), Coeval { isCanceled = true })
+    val stream = CoevalStream.nextSeqS(List(1,2,3), Coeval(CoevalStream.empty), Coeval { isCanceled = true })
     val result = stream.map[Int](_ => throw dummy).toListL.runTry
 
     assertEquals(result, Failure(dummy))
     assert(isCanceled, "isCanceled should be true")
   }
 
-  test("CoevalStream.consLazy.map guards against direct user code errors") { _ =>
+  test("CoevalStream.nextLazy.map guards against direct user code errors") { _ =>
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = CoevalStream.consLazy(Coeval(1), Coeval(CoevalStream.empty), Coeval { isCanceled = true })
+    val stream = CoevalStream.nextLazyS(Coeval(1), Coeval(CoevalStream.empty), Coeval { isCanceled = true })
     val result = stream.map[Int](_ => throw dummy).toListL.runTry
 
     assertEquals(result, Failure(dummy))

@@ -19,7 +19,7 @@ package monix.eval
 
 import scala.util.Failure
 
-object StreamFoldLeftSuite extends BaseTestSuite {
+object StreamableFoldLeftSuite extends BaseTestSuite {
   test("TaskStream.toListL (foldLeftL)") { implicit s =>
     check1 { (list: List[Int]) =>
       val result = TaskStream.fromIterable(list).toListL
@@ -48,7 +48,7 @@ object StreamFoldLeftSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var wasCanceled = false
     val c = Task { wasCanceled = true }
-    val r = cons(1, Task(cons(2, Task(raiseError(dummy)), c)), c).toListL.runAsync
+    val r = nextS(1, Task(nextS(2, Task(raiseError(dummy)), c)), c).toListL.runAsync
     s.tick()
     assertEquals(r.value, Some(Failure(dummy)))
     assert(!wasCanceled, "wasCanceled should not be true")
@@ -58,7 +58,7 @@ object StreamFoldLeftSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var wasCanceled = false
     val c = Task { wasCanceled = true }
-    val stream = TaskStream.cons(1, Task.now(TaskStream.empty), c)
+    val stream = TaskStream.nextS(1, Task.now(TaskStream.empty), c)
     val result = stream.foldLeftL[Int](throw dummy)((a,e) => a+e).runAsync
     s.tick()
     assertEquals(result.value, Some(Failure(dummy)))
@@ -69,7 +69,7 @@ object StreamFoldLeftSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var wasCanceled = false
     val c = Task { wasCanceled = true }
-    val stream = TaskStream.cons(1, Task.now(TaskStream.empty), c)
+    val stream = TaskStream.nextS(1, Task.now(TaskStream.empty), c)
     val result = stream.foldLeftL(0)((a,e) => throw dummy)
     s.tick()
     check(result === Task.raiseError(dummy))
@@ -80,7 +80,7 @@ object StreamFoldLeftSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var wasCanceled = false
     val c = Task { wasCanceled = true }
-    val stream = TaskStream.consSeq(List(1,2,3), Task.now(TaskStream.empty), c)
+    val stream = TaskStream.nextSeqS(List(1,2,3), Task.now(TaskStream.empty), c)
     val result = stream.foldLeftL(0)((a,e) => throw dummy)
     s.tick()
     check(result === Task.raiseError(dummy))
@@ -91,7 +91,7 @@ object StreamFoldLeftSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var wasCanceled = false
     val c = Task { wasCanceled = true }
-    val stream = TaskStream.cons(1, Task(TaskStream.consSeq(List(2,3), Task.now(TaskStream.empty), c)), c)
+    val stream = TaskStream.nextS(1, Task(TaskStream.nextSeqS(List(2,3), Task.now(TaskStream.empty), c)), c)
       .mapEval(x => Task(x))
 
     val result = stream.foldLeftL(0)((a,e) => throw dummy)
@@ -127,7 +127,7 @@ object StreamFoldLeftSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var wasCanceled = false
     val c = Coeval { wasCanceled = true }
-    val r = cons(1, Coeval(cons(2, Coeval(raiseError(dummy)), c)), c).toListL.runTry
+    val r = nextS(1, Coeval(nextS(2, Coeval(raiseError(dummy)), c)), c).toListL.runTry
     assertEquals(r, Failure(dummy))
     assert(!wasCanceled, "wasCanceled should not be true")
   }
@@ -136,7 +136,7 @@ object StreamFoldLeftSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var wasCanceled = false
     val c = Coeval { wasCanceled = true }
-    val stream = CoevalStream.cons(1, Coeval.now(CoevalStream.empty), c)
+    val stream = CoevalStream.nextS(1, Coeval.now(CoevalStream.empty), c)
     val result = stream.foldLeftL[Int](throw dummy)((a,e) => a+e).runTry
     assertEquals(result, Failure(dummy))
     assert(wasCanceled, "wasCanceled should be true")
@@ -146,7 +146,7 @@ object StreamFoldLeftSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var wasCanceled = false
     val c = Coeval { wasCanceled = true }
-    val stream = CoevalStream.cons(1, Coeval.now(CoevalStream.empty), c)
+    val stream = CoevalStream.nextS(1, Coeval.now(CoevalStream.empty), c)
     val result = stream.foldLeftL(0)((a,e) => throw dummy)
     check(result === Coeval.raiseError(dummy))
     assert(wasCanceled, "wasCanceled should be true")
@@ -156,7 +156,7 @@ object StreamFoldLeftSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var wasCanceled = false
     val c = Coeval { wasCanceled = true }
-    val stream = CoevalStream.consSeq(List(1,2,3), Coeval.now(CoevalStream.empty), c)
+    val stream = CoevalStream.nextSeqS(List(1,2,3), Coeval.now(CoevalStream.empty), c)
     val result = stream.foldLeftL(0)((a,e) => throw dummy)
     check(result === Coeval.raiseError(dummy))
     assert(wasCanceled, "wasCanceled should be true")
@@ -166,7 +166,7 @@ object StreamFoldLeftSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var wasCanceled = false
     val c = Coeval { wasCanceled = true }
-    val stream = CoevalStream.cons(1, Coeval(CoevalStream.consSeq(List(2,3), Coeval.now(CoevalStream.empty), c)), c)
+    val stream = CoevalStream.nextS(1, Coeval(CoevalStream.nextSeqS(List(2,3), Coeval.now(CoevalStream.empty), c)), c)
       .mapEval(x => Coeval(x))
 
     val result = stream.foldLeftL(0)((a,e) => throw dummy)

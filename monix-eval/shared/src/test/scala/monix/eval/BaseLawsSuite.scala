@@ -78,21 +78,21 @@ trait ArbitraryInstances {
       for (b <- B.arbitrary) yield (t: Task[A]) => b
     }
 
-  implicit def arbitraryStream[A](implicit A: Arbitrary[A]): Arbitrary[Stream[Task,A]] = {
-    def listToStream(list: List[A], length: Int, idx: Int): Stream[Task, A] =
+  implicit def arbitraryStream[A](implicit A: Arbitrary[A]): Arbitrary[Streamable[Task,A]] = {
+    def listToStream(list: List[A], length: Int, idx: Int): Streamable[Task, A] =
       list match {
         case Nil =>
-          Stream.halt(None)
+          Streamable.halt(None)
         case ns =>
           if (idx % 4 == 0)
-            Stream.cons[Task,A](ns.head, Task(listToStream(ns.tail, length, idx+1)))
+            Streamable.next[Task,A](ns.head, Task(listToStream(ns.tail, length, idx+1)))
           else if (idx % 4 == 1)
-            Stream.consLazy[Task,A](Task(ns.head), Task(listToStream(ns.tail, length, idx+1)))
+            Streamable.nextLazy[Task,A](Task(ns.head), Task(listToStream(ns.tail, length, idx+1)))
           else if (idx % 4 == 2)
-            Stream.suspend[Task,A](Task(listToStream(list, length, idx+1)))
+            Streamable.suspend[Task,A](Task(listToStream(list, length, idx+1)))
           else {
             val (headSeq, tail) = list.splitAt(4)
-            Stream.consSeq[Task,A](headSeq, Task(listToStream(tail, length, idx+1)))
+            Streamable.nextSeq[Task,A](headSeq, Task(listToStream(tail, length, idx+1)))
           }
       }
 
@@ -111,14 +111,14 @@ trait ArbitraryInstances {
           CoevalStream.halt(None)
         case ns =>
           if (idx % 4 == 0)
-            CoevalStream.cons(ns.head, Coeval(listToStream(ns.tail, length, idx+1)))
+            CoevalStream.next(ns.head, Coeval(listToStream(ns.tail, length, idx+1)))
           else if (idx % 4 == 1)
-            CoevalStream.consLazy(Coeval(ns.head), Coeval(listToStream(ns.tail, length, idx+1)))
+            CoevalStream.nextLazy(Coeval(ns.head), Coeval(listToStream(ns.tail, length, idx+1)))
           else if (idx % 4 == 2)
             CoevalStream.suspend(Coeval(listToStream(list, length, idx+1)))
           else {
             val (headSeq, tail) = list.splitAt(4)
-            CoevalStream.consSeq(headSeq, Coeval(listToStream(tail, length, idx+1)))
+            CoevalStream.nextSeq(headSeq, Coeval(listToStream(tail, length, idx+1)))
           }
       }
 
@@ -137,14 +137,14 @@ trait ArbitraryInstances {
           TaskStream.halt(None)
         case ns =>
           if (idx % 4 == 0)
-            TaskStream.cons(ns.head, Task(listToStream(ns.tail, length, idx+1)))
+            TaskStream.next(ns.head, Task(listToStream(ns.tail, length, idx+1)))
           else if (idx % 4 == 1)
-            TaskStream.consLazy(Task(ns.head), Task(listToStream(ns.tail, length, idx+1)))
+            TaskStream.nextLazy(Task(ns.head), Task(listToStream(ns.tail, length, idx+1)))
           else if (idx % 4 == 2)
             TaskStream.suspend(Task(listToStream(list, length, idx+1)))
           else {
             val (headSeq, tail) = list.splitAt(4)
-            TaskStream.consSeq(headSeq, Task(listToStream(tail, length, idx+1)))
+            TaskStream.nextSeq(headSeq, Task(listToStream(tail, length, idx+1)))
           }
       }
 
@@ -222,9 +222,9 @@ trait ArbitraryInstances {
       }
     }
 
-  implicit def isEqStream[A](implicit A: Eq[List[A]]): Eq[Stream[Task,A]] =
-    new Eq[Stream[Task,A]] {
-      def apply(lh: Stream[Task, A], rh: Stream[Task, A]): Boolean = {
+  implicit def isEqStream[A](implicit A: Eq[List[A]]): Eq[Streamable[Task,A]] =
+    new Eq[Streamable[Task,A]] {
+      def apply(lh: Streamable[Task, A], rh: Streamable[Task, A]): Boolean = {
         implicit val s = TestScheduler()
         var valueA = Option.empty[Try[List[A]]]
         var valueB = Option.empty[Try[List[A]]]

@@ -17,7 +17,7 @@
 
 package monix.eval
 
-/** A `CoevalStream` represents a [[Coeval]]-based [[Stream]], that
+/** A `CoevalStream` represents a [[Coeval]]-based [[Streamable]], that
   * has potentially lazy behavior.
   *
   * A `CoevalStream` has the following characteristics:
@@ -38,17 +38,17 @@ package monix.eval
   *     `List`, if the tails are built with [[Coeval.now]]
   *
   * The implementation is practically wrapping the generic
-  * [[Stream]], materialized with the [[Coeval]] type.
+  * [[Streamable]], materialized with the [[Coeval]] type.
   */
-final case class CoevalStream[+A](stream: Stream[Coeval,A])
-  extends Stream.Like[A,Coeval,CoevalStream]() {
+final case class CoevalStream[+A](stream: Streamable[Coeval,A])
+  extends Streamable.Like[A,Coeval,CoevalStream]() {
 
-  protected def transform[B](f: (Stream[Coeval, A]) => Stream[Coeval, B]): CoevalStream[B] =
+  protected def transform[B](f: (Streamable[Coeval, A]) => Streamable[Coeval, B]): CoevalStream[B] =
     CoevalStream(f(stream))
 }
 
-object CoevalStream extends Stream.Builders[Coeval, CoevalStream] {
-  /** Wraps a [[Stream]] into a [[CoevalStream]]. */
-  def fromStream[A](stream: Stream[Coeval, A]): CoevalStream[A] =
+object CoevalStream extends Streamable.Builders[Coeval, CoevalStream] {
+  /** Wraps a [[Streamable]] into a [[CoevalStream]]. */
+  def fromStream[A](stream: Streamable[Coeval, A]): CoevalStream[A] =
     CoevalStream(stream)
 }

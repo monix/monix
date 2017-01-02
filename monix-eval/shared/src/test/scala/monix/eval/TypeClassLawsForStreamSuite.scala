@@ -20,12 +20,12 @@ package monix.eval
 import monix.types.tests.{MonadEvalLawsSuite, MonadLawsSuite, SuspendableLawsSuite}
 
 object TypeClassLawsForStreamSuite extends BaseLawsSuite
-  with MonadEvalLawsSuite[({type λ[+α] = Stream[Task,α]})#λ, Int, Long, Short]
-  with MonadLawsSuite[({type λ[+α] = Stream[Task,α]})#λ, Int, Long, Short]
-  with SuspendableLawsSuite[({type λ[+α] = Stream[Task,α]})#λ, Int, Long, Short] {
+  with MonadEvalLawsSuite[({type λ[+α] = Streamable[Task,α]})#λ, Int, Long, Short]
+  with MonadLawsSuite[({type λ[+α] = Streamable[Task,α]})#λ, Int, Long, Short]
+  with SuspendableLawsSuite[({type λ[+α] = Streamable[Task,α]})#λ, Int, Long, Short] {
 
   override val F =
-    Stream.suspendableInstance[Task]
+    Streamable.suspendableInstance[Task]
 
   // Actual tests ...
   suspendableCheck("Stream[Task,A]", includeSupertypes = true)
