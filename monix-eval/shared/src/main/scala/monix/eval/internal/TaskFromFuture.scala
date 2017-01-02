@@ -37,7 +37,7 @@ private[monix] object TaskFromFuture {
         Task.unsafeCreate { (context, cb) =>
           implicit val s = context.scheduler
           // Already completed future?
-          if (f.isCompleted) cb.asyncApply(f.value.get) else {
+          if (f.isCompleted) cb(f.value.get) else {
             val conn = context.connection
             conn.push(c)
             f.onComplete { result =>
@@ -53,7 +53,7 @@ private[monix] object TaskFromFuture {
         Task.unsafeCreate { (context, cb) =>
           implicit val s = context.scheduler
           if (f.isCompleted)
-            cb.asyncApply(f.value.get)
+            cb(f.value.get)
           else
             f.onComplete { result =>
               // Async boundary should trigger frame reset

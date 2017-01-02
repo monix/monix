@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package monix
+package monix.benchmarks
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 import org.openjdk.jmh.annotations._
@@ -25,7 +25,7 @@ import scala.concurrent.{Await, Promise}
 /*
  * Sample run:
  *
- *     sbt "benchmarks/jmh:run -r 2 -i 20 -w 2 -wi 20 -f 1 -t 1 monix.DropOldBufferBenchmark"
+ *     sbt "benchmarks/jmh:run -r 2 -i 20 -w 2 -wi 20 -f 1 -t 1 monix.benchmarks.UnboundedBufferBenchmark"
  *
  * Which means "20 iterations" of "2 seconds" each, "20 warm-up
  * iterations" of "2 seconds" each, "1 fork", "1 thread".  Please note
@@ -35,20 +35,15 @@ import scala.concurrent.{Await, Promise}
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-class DropOldBufferBenchmark {
-  // Number of threads that push messages
+class UnboundedBufferBenchmark {
   @Param(Array("1", "2", "3", "4"))
   var parallelism = 0
-
-  // Overflowing on or off
-  @Param(Array("8192", "4096"))
-  var bufferSize = 0
 
   // Number of events to push per test
   val eventsCount = 8000
 
   @Benchmark
-  def monixDropOld(): Long = {
+  def monixUnbounded(): Long = {
     import monix.execution.Ack.Continue
     import monix.execution.Scheduler
     import monix.reactive.OverflowStrategy
@@ -72,63 +67,12 @@ class DropOldBufferBenchmark {
         promise.success(sum)
     }
 
-    val buffer = BufferedSubscriber[Long](out, OverflowStrategy.DropOld(bufferSize))
+    val buffer = BufferedSubscriber[Long](out, OverflowStrategy.Unbounded)
     val start = new CountDownLatch(1)
     val threadsStarted = new CountDownLatch(parallelism)
     val threadsFinished = new CountDownLatch(parallelism)
 
-    for (i <- 0 until parallelism) global.execute(
-      new Runnable {
-        def run() = {
-          threadsStarted.countDown()
-          start.await()
-          for (j <- 0 until (eventsCount / parallelism))
-            buffer.onNext(j)
-
-          threadsFinished.countDown()
-        }
-      })
-
-    threadsStarted.await()
-    start.countDown()
-    threadsFinished.await()
-    buffer.onComplete()
-
-    Await.result(promise.future, Duration.Inf)
-  }
-
-  @Benchmark
-  def monifuDropOld(): Long = {
-    import monifu.concurrent.Scheduler
-    import monifu.reactive.Ack.Continue
-    import monifu.reactive.observers.BufferedSubscriber
-    import monifu.reactive.{OverflowStrategy, Subscriber}
-
-    val promise = Promise[Long]()
-    implicit val global: Scheduler =
-      monifu.concurrent.Implicits.globalScheduler
-
-    val out: Subscriber[Long] = new Subscriber[Long] {
-      private[this] var sum = 0L
-      implicit val scheduler = global
-
-      def onNext(elem: Long) = {
-        sum += elem
-        Continue
-      }
-
-      def onError(ex: Throwable): Unit =
-        promise.failure(ex)
-      def onComplete(): Unit =
-        promise.success(sum)
-    }
-
-    val buffer = BufferedSubscriber[Long](out, OverflowStrategy.DropOld(bufferSize))
-    val start = new CountDownLatch(1)
-    val threadsStarted = new CountDownLatch(parallelism)
-    val threadsFinished = new CountDownLatch(parallelism)
-
-    for (i <- 0 until parallelism) global.execute(
+    for (_ <- 0 until parallelism) global.execute(
       new Runnable {
         def run() = {
           threadsStarted.countDown()

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package monix
+package monix.benchmarks
 
 import java.util.concurrent.TimeUnit
 import org.openjdk.jmh.annotations._
@@ -25,7 +25,7 @@ import scala.concurrent.{Await, Future, Promise}
 /*
  * Sample run:
  *
- *     sbt "benchmarks/jmh:run -r 2 -i 20 -w 2 -wi 20 -f 1 -t 1 monix.FailBufferBenchmark"
+ *     sbt "benchmarks/jmh:run -r 2 -i 20 -w 2 -wi 20 -f 1 -t 1 monix.benchmarks.FailBufferBenchmark"
  *
  * Which means "20 iterations" of "2 seconds" each, "20 warm-up
  * iterations" of "2 seconds" each, "1 fork", "1 thread".  Please note
@@ -47,11 +47,10 @@ class FailBufferBenchmark {
 
   @Benchmark
   def monixOverflowing(): Long = {
-    import monix.reactive.OverflowStrategy
-    import monix.reactive.observers.Subscriber
-    import monix.reactive.observers.BufferedSubscriber
     import monix.execution.Ack.Continue
     import monix.execution.Scheduler
+    import monix.reactive.OverflowStrategy
+    import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 
     val promise = Promise[Long]()
     implicit val global: Scheduler = Scheduler.global
@@ -73,44 +72,6 @@ class FailBufferBenchmark {
 
     val buffer = BufferedSubscriber[Long](out, OverflowStrategy.Fail(eventsCount))
 
-    val futures =
-      for (i <- 0 until parallelism) yield Future {
-        for (j <- 0 until (eventsCount / parallelism))
-          buffer.onNext(j)
-      }
-
-    Future.sequence(futures).map(_ => buffer.onComplete())
-    Await.result(promise.future, Duration.Inf)
-  }
-
-  @Benchmark
-  def monifuOverflowing(): Long = {
-    import monifu.reactive.OverflowStrategy
-    import monifu.reactive.Subscriber
-    import monifu.reactive.observers.BufferedSubscriber
-    import monifu.reactive.Ack.Continue
-    import monifu.concurrent.Scheduler
-
-    val promise = Promise[Long]()
-    implicit val global: Scheduler =
-      monifu.concurrent.Implicits.globalScheduler
-
-    val out: Subscriber[Long] = new Subscriber[Long] {
-      private[this] var sum = 0L
-      implicit val scheduler = global
-
-      def onNext(elem: Long) = {
-        sum += elem
-        Continue
-      }
-
-      def onError(ex: Throwable): Unit =
-        promise.failure(ex)
-      def onComplete(): Unit =
-        promise.success(sum)
-    }
-
-    val buffer = BufferedSubscriber[Long](out, OverflowStrategy.Fail(eventsCount))
     val futures =
       for (i <- 0 until parallelism) yield Future {
         for (j <- 0 until (eventsCount / parallelism))

@@ -33,7 +33,7 @@ object FromObserverConsumerSuite extends BaseLawsTestSuite {
         implicit val scheduler = s
         var sum = 0
 
-        val consumer = Consumer.fromObserver(scheduler =>
+        val consumer = Consumer.fromObserver(_ =>
           new Observer[Int] {
             def onError(ex: Throwable): Unit = throw ex
             def onComplete(): Unit = ()
@@ -64,7 +64,7 @@ object FromObserverConsumerSuite extends BaseLawsTestSuite {
       val rh = Task.create[Unit] { (s, cb) =>
         implicit val scheduler = s
 
-        val consumer = Consumer.fromObserver(scheduler =>
+        val consumer = Consumer.fromObserver(_ =>
           new Observer[Int] {
             def onError(ex: Throwable): Unit = throw ex
             def onComplete(): Unit = ()

@@ -18,7 +18,6 @@
 package monix.eval
 
 import monix.eval.Coeval.{Error, Now}
-
 import scala.util.{Failure, Success}
 
 object CoevalNowSuite extends BaseTestSuite {
@@ -115,18 +114,5 @@ object CoevalNowSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     val task = Coeval.raiseError(dummy).materializeAttempt
     assertEquals(task.value, Error(dummy))
-  }
-
-  test("Coeval.now.task should equal Task.now") { implicit s =>
-    val coeval = Coeval.now(100).task
-    val task = Task.now(100)
-    assertEquals(coeval, task)
-  }
-
-  test("Coeval.error.task should equal Task.error") { implicit s =>
-    val dummy = DummyException("dummy")
-    val coeval = Coeval.raiseError(dummy).task
-    val task = Task.raiseError(dummy)
-    assertEquals(coeval, task)
   }
 }

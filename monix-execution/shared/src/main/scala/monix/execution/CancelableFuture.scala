@@ -90,10 +90,7 @@ object CancelableFuture {
 
   /** Promotes a strict `Try[T]` to a [[CancelableFuture]] that's already complete. */
   def fromTry[T](value: Try[T]): CancelableFuture[T] =
-    value match {
-      case Success(v) => successful(v)
-      case Failure(ex) => failed(ex)
-    }
+    new Now[T](value)
 
   /** A [[CancelableFuture]] instance that will never complete. */
   private object Never extends CancelableFuture[Nothing] {

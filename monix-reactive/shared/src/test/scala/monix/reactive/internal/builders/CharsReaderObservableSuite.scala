@@ -21,7 +21,7 @@ import java.io.{Reader, StringReader}
 import minitest.SimpleTestSuite
 import monix.execution.Ack
 import monix.execution.Ack.Continue
-import monix.execution.schedulers.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
+import monix.execution.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
 import monix.reactive.exceptions.{DummyException, MultipleSubscribersException}

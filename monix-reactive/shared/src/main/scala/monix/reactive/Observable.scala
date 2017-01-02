@@ -19,11 +19,12 @@ package monix.reactive
 
 import java.io.{BufferedReader, InputStream, Reader}
 import monix.eval.Coeval.Attempt
-import monix.eval.{Coeval, Task}
+import monix.eval.{Callback, Coeval, Task}
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution._
 import monix.execution.cancelables.SingleAssignmentCancelable
 import monix.reactive.internal.builders
+import monix.reactive.internal.subscribers.ForeachSubscriber
 import monix.reactive.observables.ObservableLike.{Operator, Transformer}
 import monix.reactive.observables._
 import monix.reactive.observers._
@@ -31,9 +32,8 @@ import monix.reactive.subjects._
 import monix.types._
 import org.reactivestreams.{Publisher => RPublisher, Subscriber => RSubscriber}
 import scala.collection.mutable
-import scala.concurrent.Future
 import scala.concurrent.duration.{Duration, FiniteDuration}
-import scala.util.control.NonFatal
+import scala.concurrent.{Future, Promise}
 
 /** The Observable type that implements the Reactive Pattern.
   *
@@ -109,7 +109,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     * @see [[consumeWith]] for another way of consuming observables
     */
   def subscribe()(implicit s: Scheduler): Cancelable =
-    subscribe(elem => Continue)
+    subscribe(_ => Continue)
 
   /** Subscribes to the stream.
     *
@@ -538,34 +538,20 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     */
   def foreachL(cb: A => Unit): Task[Unit] =
     Task.create { (s, onFinish) =>
-      unsafeSubscribeFn(new Subscriber.Sync[A] {
-        implicit val scheduler: Scheduler = s
-        private[this] var isDone = false
-
-        def onNext(elem: A): Ack = {
-          try {
-            cb(elem)
-            Continue
-          } catch {
-            case NonFatal(ex) =>
-              onError(ex)
-              Stop
-          }
-        }
-
-        def onError(ex: Throwable): Unit =
-          if (!isDone) { isDone = true; onFinish.onError(ex) }
-        def onComplete(): Unit =
-          if (!isDone) { isDone = true; onFinish.onSuccess(()) }
-      })
+      unsafeSubscribeFn(new ForeachSubscriber[A](cb, onFinish, s))
     }
 
   /** Subscribes to the source `Observable` and foreach element emitted
     * by the source it executes the given callback.
     */
-  def foreach(cb: A => Unit)(implicit s: Scheduler): CancelableFuture[Unit] =
-    foreachL(cb).runAsync
+  def foreach(cb: A => Unit)(implicit s: Scheduler): CancelableFuture[Unit] = {
+    val p = Promise[Unit]()
+    val onFinish = Callback.fromPromise(p)
+    val c = unsafeSubscribeFn(new ForeachSubscriber[A](cb, onFinish, s))
+    CancelableFuture(p.future, c)
+  }
 }
+
 
 /** Observable builders.
   *

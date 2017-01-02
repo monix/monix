@@ -84,7 +84,7 @@ object AssignableCancelable {
     * on assignment or on cancelation.
     */
   val dummy: AssignableCancelable =
-    new AssignableCancelable {
+    new AssignableCancelable with Cancelable.IsDummy {
       def `:=`(value: Cancelable): this.type = this
       def cancel(): Unit = ()
     }

@@ -19,7 +19,6 @@ package monix.eval
 
 import monix.execution.Cancelable
 import monix.execution.internal.Platform
-import monix.execution.schedulers.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.schedulers.TestScheduler
 import scala.util.Success
 
@@ -47,7 +46,7 @@ object TaskForkSuite extends BaseTestSuite {
 
   test("Task.create.executeOn should execute async") { implicit s =>
     val s2 = TestScheduler()
-    val source = Task.create[Int] { (s, cb) => cb.onSuccess(10); Cancelable.empty }
+    val source = Task.create[Int] { (_, cb) => cb.onSuccess(10); Cancelable.empty }
     val t = source.executeOn(s2)
     val f = t.runAsync
 
@@ -61,7 +60,7 @@ object TaskForkSuite extends BaseTestSuite {
   test("Task.fork should be stack safe, test 1") { implicit s =>
     val count = if (Platform.isJVM) 100000 else 5000
     var task = Task.eval(1)
-    for (i <- 0 until count) task = Task.fork(task)
+    for (_ <- 0 until count) task = Task.fork(task)
 
     val result = task.runAsync
     s.tick()
@@ -71,7 +70,7 @@ object TaskForkSuite extends BaseTestSuite {
   test("Task.executeOn should be stack safe, test 2") { implicit s =>
     val count = if (Platform.isJVM) 100000 else 5000
     var task = Task.eval(1)
-    for (i <- 0 until count) task = task.executeOn(s)
+    for (_ <- 0 until count) task = task.executeOn(s)
 
     val result = task.runAsync
     s.tick()
@@ -88,15 +87,6 @@ object TaskForkSuite extends BaseTestSuite {
     val result = loop(count).runAsync
     s.tick()
     assertEquals(result.value, Some(Success(0)))
-  }
-
-  test("Task.executeWithModel should work") { implicit s =>
-    val task = Task.now(1).executeWithModel(AlwaysAsyncExecution)
-    val f = task.runAsync
-
-    assertEquals(f.value, None)
-    s.tick()
-    assertEquals(f.value, Some(Success(1)))
   }
 
   test("Task.asyncBoundary should work") { implicit s =>

@@ -153,8 +153,6 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
       }
     }
 
-
-    @inline
     private def stopStreaming(): Unit = {
       downstreamIsComplete = true
       isLoopActive = false

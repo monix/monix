@@ -65,7 +65,7 @@ object TaskGatherSuite extends BaseTestSuite {
   }
 
   test("Task.gather should be stack safe for synchronous tasks") { implicit s =>
-    val count = if (Platform.isJVM) 100000 else 5000
+    val count = if (Platform.isJVM) 200000 else 5000
     val tasks = for (i <- 0 until count) yield Task.now(1)
     val composite = Task.gather(tasks).map(_.sum)
     val result = composite.runAsync
@@ -140,7 +140,7 @@ object TaskGatherSuite extends BaseTestSuite {
   }
 
   test("Task.zipList should be stack safe for synchronous tasks") { implicit s =>
-    val count = if (Platform.isJVM) 100000 else 5000
+    val count = if (Platform.isJVM) 200000 else 5000
     val tasks = for (i <- 0 until count) yield Task.now(1)
     val composite = Task.zipList(tasks:_*).map(_.sum)
     val result = composite.runAsync

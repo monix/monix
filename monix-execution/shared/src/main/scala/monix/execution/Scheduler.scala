@@ -17,9 +17,8 @@
 
 package monix.execution
 
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.{Executor, TimeUnit}
 import monix.execution.internal.RunnableAction
-import monix.execution.schedulers.ExecutionModel
 import monix.execution.schedulers.SchedulerCompanionImpl
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
@@ -31,9 +30,14 @@ import scala.concurrent.duration.FiniteDuration
 @implicitNotFound(
   "Cannot find an implicit Scheduler, either " +
   "import monix.execution.Scheduler.Implicits.global or use a custom one")
-trait Scheduler extends ExecutionContext with UncaughtExceptionReporter {
-  /** Schedules the given `runnable` for immediate execution. */
-  def execute(runnable: Runnable): Unit
+trait Scheduler extends ExecutionContext with UncaughtExceptionReporter with Executor {
+  /** Schedules the given `command` for execution at some time in the future.
+    *
+    * The command may execute in a new thread, in a pooled thread,
+    * in the calling thread, basically at the discretion of the
+    * [[Scheduler]] implementation.
+    */
+  def execute(command: Runnable): Unit
 
   /** Reports that an asynchronous computation failed. */
   def reportFailure(t: Throwable): Unit
@@ -130,22 +134,21 @@ trait Scheduler extends ExecutionContext with UncaughtExceptionReporter {
     */
   def currentTimeMillis(): Long
 
-  /** The [[monix.execution.schedulers.ExecutionModel ExecutionModel]]
-    * is a specification of how run-loops and producers should behave
-    * in regards to executing tasks either synchronously or
-    * asynchronously.
+  /** The [[ExecutionModel]] is a specification of how run-loops
+    * and producers should behave in regards to executing tasks
+    * either synchronously or asynchronously.
     */
   def executionModel: ExecutionModel
 
   /** Given a function that will receive the underlying
-    * [[monix.execution.schedulers.ExecutionModel ExecutionModel]],
+    * [[monix.execution.ExecutionModel ExecutionModel]],
     * returns a new [[Scheduler]] reference, based on the source,
     * that exposes the transformed `ExecutionModel`
     * when queried by means of the [[executionModel]] property.
     *
     * This method enables reusing global scheduler references in
     * a local scope, but with a slightly modified
-    * [[monix.execution.schedulers.ExecutionModel execution model]]
+    * [[monix.execution.ExecutionModel execution model]]
     * to inject.
     *
     * The contract of this method (things you can rely on):

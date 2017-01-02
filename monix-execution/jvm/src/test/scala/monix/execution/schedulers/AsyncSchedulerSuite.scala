@@ -18,12 +18,11 @@
 package monix.execution.schedulers
 
 import java.util.concurrent.{CountDownLatch, TimeUnit, TimeoutException}
-
 import minitest.SimpleTestSuite
+import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.cancelables.SingleAssignmentCancelable
-import monix.execution.schedulers.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.{Cancelable, Scheduler}
-
+import monix.execution.{ExecutionModel => ExecModel}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, Promise}
 
@@ -98,7 +97,7 @@ object AsyncSchedulerSuite extends SimpleTestSuite {
   }
 
   test("builder for ExecutionModel works") {
-    import monix.execution.schedulers.ExecutionModel.AlwaysAsyncExecution
+    import monix.execution.ExecutionModel.AlwaysAsyncExecution
     import monix.execution.Scheduler
 
     val s: Scheduler = Scheduler(AlwaysAsyncExecution)
@@ -127,9 +126,9 @@ object AsyncSchedulerSuite extends SimpleTestSuite {
 
   test("change execution model") {
     val s: Scheduler = monix.execution.Scheduler.global
-    assertEquals(s.executionModel, ExecutionModel.Default)
+    assertEquals(s.executionModel, ExecModel.Default)
     val s2 = s.withExecutionModel(AlwaysAsyncExecution)
-    assertEquals(s.executionModel, ExecutionModel.Default)
+    assertEquals(s.executionModel, ExecModel.Default)
     assertEquals(s2.executionModel, AlwaysAsyncExecution)
   }
 

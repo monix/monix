@@ -62,7 +62,7 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
       Seq("-source", "1.6", "-target", "1.6")
     case _ =>
       // For 2.12 we are targeting the Java 8 class format
-      Seq.empty
+      Seq("-source", "1.8", "-target", "1.8")
   }),
 
   // Targeting Java 6, but only for Scala <= 2.11
@@ -75,7 +75,7 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
       Seq.empty
   }),
 
-  // version specific compiler options
+  // Linter
   scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, majorVersion)) if majorVersion >= 11 =>
       Seq(
@@ -428,5 +428,7 @@ lazy val benchmarks = project.in(file("benchmarks"))
   .settings(
     libraryDependencies ++= Seq(
       "org.scalaz" %% "scalaz-concurrent" % scalazVersion,
-      "io.reactivex" %% "rxscala" % "0.26.4"
-    ))
+      "io.monix" %% "monix-forkjoin" % "1.0"
+    )
+  )
+

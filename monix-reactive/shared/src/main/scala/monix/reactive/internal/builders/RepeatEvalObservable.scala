@@ -17,10 +17,9 @@
 
 package monix.reactive.internal.builders
 
-import monix.execution.Ack.{Stop, Continue}
+import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.BooleanCancelable
-import monix.execution.schedulers.ExecutionModel
-import monix.execution.{Cancelable, Scheduler, Ack}
+import monix.execution.{Ack, Cancelable, ExecutionModel, Scheduler}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 

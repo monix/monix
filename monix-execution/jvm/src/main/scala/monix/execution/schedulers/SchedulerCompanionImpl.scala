@@ -17,13 +17,11 @@
 
 package monix.execution.schedulers
 
-import java.lang.Thread.UncaughtExceptionHandler
 import java.util.concurrent._
-
 import monix.execution.UncaughtExceptionReporter._
 import monix.execution.{Scheduler, SchedulerCompanion, UncaughtExceptionReporter}
-import monix.execution.internal.ForkJoinPool
-
+// Prevents conflict with the deprecated symbol
+import monix.execution.{ExecutionModel => ExecModel}
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
@@ -42,9 +40,9 @@ import scala.concurrent.duration._
   *         for the default.
   *
   * @define executionModel is the preferred
-  *         [[monix.execution.schedulers.ExecutionModel ExecutionModel]],
+  *         [[monix.execution.ExecutionModel ExecutionModel]],
   *         a guideline for run-loops and producers of data. Use
-  *         [[monix.execution.schedulers.ExecutionModel.Default ExecutionModel.Default]]
+  *         [[monix.execution.ExecutionModel.Default ExecutionModel.Default]]
   *         for the default.
   *
   * @define reporter is the [[UncaughtExceptionReporter]] that logs uncaught exceptions.
@@ -69,7 +67,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     executor: ScheduledExecutorService,
     ec: ExecutionContext,
     reporter: UncaughtExceptionReporter,
-    executionModel: ExecutionModel): Scheduler =
+    executionModel: ExecModel): Scheduler =
     AsyncScheduler(executor, ec, reporter, executionModel)
 
   /** [[monix.execution.Scheduler Scheduler]] builder.
@@ -78,7 +76,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     * @param ec $executionContext
     */
   def apply(executor: ScheduledExecutorService, ec: ExecutionContext): Scheduler =
-    AsyncScheduler(executor, ec, UncaughtExceptionReporter(ec.reportFailure), ExecutionModel.Default)
+    AsyncScheduler(executor, ec, UncaughtExceptionReporter(ec.reportFailure), ExecModel.Default)
 
   /** [[monix.execution.Scheduler Scheduler]] builder.
     *
@@ -86,7 +84,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     * @param reporter $reporter
     */
   def apply(ec: ExecutionContext, reporter: UncaughtExceptionReporter): Scheduler =
-    AsyncScheduler(DefaultScheduledExecutor, ec, reporter, ExecutionModel.Default)
+    AsyncScheduler(DefaultScheduledExecutor, ec, reporter, ExecModel.Default)
 
   /** [[monix.execution.Scheduler Scheduler]] builder .
     *
@@ -94,43 +92,43 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     * @param reporter $reporter
     * @param executionModel $executionModel
     */
-  def apply(ec: ExecutionContext, reporter: UncaughtExceptionReporter, executionModel: ExecutionModel): Scheduler =
+  def apply(ec: ExecutionContext, reporter: UncaughtExceptionReporter, executionModel: ExecModel): Scheduler =
     AsyncScheduler(DefaultScheduledExecutor, ec, reporter, executionModel)
 
-  /** [[monix.execution.Scheduler Scheduler]] builder that converts a Java `ScheduledExecutorService` into
-    * a scheduler.
+  /** [[monix.execution.Scheduler Scheduler]] builder that converts a
+    * Java `ExecutorService` into a scheduler.
     *
     * @param executor $executorService
     * @param reporter $reporter
     */
-  def apply(executor: ScheduledExecutorService, reporter: UncaughtExceptionReporter): Scheduler =
-    ExecutorScheduler(executor, reporter, ExecutionModel.Default)
+  def apply(executor: ExecutorService, reporter: UncaughtExceptionReporter): SchedulerService =
+    ExecutorScheduler(executor, reporter, ExecModel.Default)
 
-  /** [[monix.execution.Scheduler Scheduler]] builder that converts a Java `ScheduledExecutorService` into
-    * a scheduler.
+  /** [[monix.execution.Scheduler Scheduler]] builder that converts a
+    * Java `ExecutorService` into a scheduler.
     *
     * @param executor $executorService
     * @param reporter $reporter
     * @param executionModel $executionModel
     */
-  def apply(executor: ScheduledExecutorService, reporter: UncaughtExceptionReporter, executionModel: ExecutionModel): Scheduler =
+  def apply(executor: ExecutorService, reporter: UncaughtExceptionReporter, executionModel: ExecModel): SchedulerService =
     ExecutorScheduler(executor, reporter, executionModel)
 
-  /** [[monix.execution.Scheduler Scheduler]] builder that converts a Java `ScheduledExecutorService` into
-    * a scheduler.
+  /** [[monix.execution.Scheduler Scheduler]] builder that converts a
+    * Java `ExecutorService` into a scheduler.
     *
     * @param executor $executorService
     */
-  def apply(executor: ScheduledExecutorService): Scheduler =
-    ExecutorScheduler(executor, LogExceptionsToStandardErr, ExecutionModel.Default)
+  def apply(executor: ExecutorService): SchedulerService =
+    ExecutorScheduler(executor, LogExceptionsToStandardErr, ExecModel.Default)
 
-  /** [[monix.execution.Scheduler Scheduler]] builder that converts a Java `ScheduledExecutorService` into
-    * a scheduler.
+  /** [[monix.execution.Scheduler Scheduler]] builder that converts a
+    * Java `ExecutorService` into a scheduler.
     *
     * @param executor $executorService
     * @param executionModel $executionModel
     */
-  def apply(executor: ScheduledExecutorService, executionModel: ExecutionModel): Scheduler =
+  def apply(executor: ExecutorService, executionModel: ExecModel): SchedulerService =
     ExecutorScheduler(executor, LogExceptionsToStandardErr, executionModel)
 
   /** [[monix.execution.Scheduler Scheduler]] builder - uses monix's
@@ -142,7 +140,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     AsyncScheduler(
       DefaultScheduledExecutor, ec,
       UncaughtExceptionReporter(ec.reportFailure),
-      ExecutionModel.Default
+      ExecModel.Default
     )
 
   /** [[monix.execution.Scheduler Scheduler]] builder - uses monix's
@@ -151,7 +149,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     * @param ec is the execution context in which all tasks will run.
     * @param executionModel $executionModel
     */
-  def apply(ec: ExecutionContext, executionModel: ExecutionModel): Scheduler =
+  def apply(ec: ExecutionContext, executionModel: ExecModel): Scheduler =
     AsyncScheduler(
       DefaultScheduledExecutor, ec,
       UncaughtExceptionReporter(ec.reportFailure),
@@ -165,7 +163,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     * @param reporter $reporter
     * @param executionModel $executionModel
     */
-  def apply(reporter: UncaughtExceptionReporter, executionModel: ExecutionModel): Scheduler = {
+  def apply(reporter: UncaughtExceptionReporter, executionModel: ExecModel): Scheduler = {
     val ec = ExecutionContext.Implicits.global
     AsyncScheduler(DefaultScheduledExecutor, ec, reporter, executionModel)
   }
@@ -176,7 +174,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     *
     * @param executionModel $executionModel
     */
-  def apply(executionModel: ExecutionModel): Scheduler = {
+  def apply(executionModel: ExecModel): Scheduler = {
     val ec = ExecutionContext.Implicits.global
     AsyncScheduler(
       DefaultScheduledExecutor, ec,
@@ -192,46 +190,70 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     *        execution is needed
     *
     * @define executionModel is the preferred
-    *         [[monix.execution.schedulers.ExecutionModel ExecutionModel]],
+    *         [[monix.execution.ExecutionModel ExecutionModel]],
     *         a guideline for run-loops and producers of data. Use
-    *         [[monix.execution.schedulers.ExecutionModel.Default ExecutionModel.Default]]
+    *         [[monix.execution.ExecutionModel.Default ExecutionModel.Default]]
     *         for the default.
     */
   def trampoline(
     underlying: Scheduler = Implicits.global,
-    executionModel: ExecutionModel = ExecutionModel.Default): Scheduler =
+    executionModel: ExecModel = ExecModel.Default): Scheduler =
     TrampolineScheduler(underlying, executionModel)
 
-  /** Creates a [[monix.execution.Scheduler Scheduler]] meant for computational heavy tasks.
+  /** Creates a [[monix.execution.Scheduler Scheduler]] meant for
+    * computationally heavy CPU-bound tasks.
     *
     * Characteristics:
     *
-    * - backed by Scala's `ForkJoinPool` for the task execution, in async mode
+    * - backed by a `ForkJoinPool` implementation, in async mode
     * - uses monix's default `ScheduledExecutorService` instance for scheduling
-    * - all created threads are daemonic
-    * - cooperates with Scala's `BlockContext`
+    * - DOES NOT cooperate with Scala's `BlockContext`
     *
+    * @param name the created threads name prefix, for easy identification.
     * @param parallelism is the number of threads that can run in parallel
+    * @param daemonic specifies whether the created threads should be daemonic
+    *        (non-daemonic threads are blocking the JVM process on exit).
     * @param reporter $reporter
     * @param executionModel $executionModel
     */
-  def computation(parallelism: Int,
+  def computation(
+    name: String = "monix-computation",
+    parallelism: Int = Runtime.getRuntime.availableProcessors(),
+    daemonic: Boolean = true,
     reporter: UncaughtExceptionReporter = LogExceptionsToStandardErr,
-    executionModel: ExecutionModel = ExecutionModel.Default): Scheduler = {
-    val exceptionHandler = new UncaughtExceptionHandler {
-      def uncaughtException(t: Thread, e: Throwable) =
-        reporter.reportFailure(e)
-    }
+    executionModel: ExecModel = ExecModel.Default): SchedulerService = {
 
-    val pool = ForkJoinPool(
-      parallelism,
-      ForkJoinPool.defaultForkJoinWorkerThreadFactory,
-      exceptionHandler,
-      asyncMode = true
-    )
+    ExecutorScheduler.forkJoinStatic(
+      name, parallelism, daemonic, reporter, executionModel)
+  }
 
-    val context = ExecutionContext.fromExecutor(pool, reporter.reportFailure)
-    AsyncScheduler(DefaultScheduledExecutor, context, reporter, executionModel)
+  /** Creates a general purpose [[monix.execution.Scheduler Scheduler]]
+    * backed by a `ForkJoinPool`, similar to Scala's `global`.
+    *
+    * Characteristics:
+    *
+    * - backed by a `ForkJoinPool` implementation, in async mode
+    * - uses monix's default `ScheduledExecutorService` instance for scheduling
+    * - cooperates with Scala's `BlockContext`
+    *
+    * @param parallelism is the number of threads that can run in parallel
+    * @param maxThreads is the maximum number of threads that can be created
+    * @param name the created threads name prefix, for easy identification.
+    * @param daemonic specifies whether the created threads should be daemonic
+    *        (non-daemonic threads are blocking the JVM process on exit).
+    * @param reporter $reporter
+    * @param executionModel $executionModel
+    */
+  def forkJoin(
+    parallelism: Int,
+    maxThreads: Int,
+    name: String = "monix-forkjoin",
+    daemonic: Boolean = true,
+    reporter: UncaughtExceptionReporter = LogExceptionsToStandardErr,
+    executionModel: ExecModel = ExecModel.Default): SchedulerService = {
+
+    ExecutorScheduler.forkJoinDynamic(
+      name, parallelism, maxThreads, daemonic, reporter, executionModel)
   }
 
   /** Creates a [[monix.execution.Scheduler Scheduler]] meant for blocking I/O tasks.
@@ -251,15 +273,16 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     */
   def io(name: String = "monix-io", daemonic: Boolean = true,
     reporter: UncaughtExceptionReporter = LogExceptionsToStandardErr,
-    executionModel: ExecutionModel = ExecutionModel.Default): Scheduler = {
+    executionModel: ExecModel = ExecModel.Default): SchedulerService = {
+
     val threadFactory = ThreadFactoryBuilder(name, reporter, daemonic)
+    val executor = new ThreadPoolExecutor(
+      0, Int.MaxValue,
+      60, TimeUnit.SECONDS,
+      new SynchronousQueue[Runnable](false),
+      threadFactory)
 
-    val context = ExecutionContext.fromExecutor(
-      Executors.newCachedThreadPool(threadFactory),
-      reporter.reportFailure
-    )
-
-    AsyncScheduler(DefaultScheduledExecutor, context, reporter, executionModel)
+    ExecutorScheduler(executor, reporter, executionModel)
   }
 
   /** Builds a [[Scheduler]] backed by an internal
@@ -285,7 +308,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     keepAliveTime: FiniteDuration = 60.seconds,
     daemonic: Boolean = true,
     reporter: UncaughtExceptionReporter = LogExceptionsToStandardErr,
-    executionModel: ExecutionModel = ExecutionModel.Default): Scheduler = {
+    executionModel: ExecModel = ExecModel.Default): SchedulerService = {
 
     require(minThreads >= 0, "minThreads >= 0")
     require(maxThreads > 0, "maxThreads > 0")
@@ -299,8 +322,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
       new SynchronousQueue[Runnable](false),
       threadFactory)
 
-    val context = ExecutionContext.fromExecutor(executor, reporter.reportFailure)
-    AsyncScheduler(DefaultScheduledExecutor, context, reporter, executionModel)
+    ExecutorScheduler(executor, reporter, executionModel)
   }
 
   /** Builds a [[monix.execution.Scheduler Scheduler]] that schedules and executes tasks on its own thread.
@@ -320,18 +342,17 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     */
   def singleThread(name: String, daemonic: Boolean = true,
     reporter: UncaughtExceptionReporter = LogExceptionsToStandardErr,
-    executionModel: ExecutionModel = ExecutionModel.Default): Scheduler = {
+    executionModel: ExecModel = ExecModel.Default): SchedulerService = {
 
-    val executor =
-      Executors.newSingleThreadScheduledExecutor(
-        ThreadFactoryBuilder(name, reporter, daemonic))
-
-    val context = new ExecutionContext {
-      def reportFailure(t: Throwable) = reporter.reportFailure(t)
-      def execute(runnable: Runnable) = executor.execute(runnable)
+    val factory = ThreadFactoryBuilder(name, reporter, daemonic)
+    val executor = new ScheduledThreadPoolExecutor(1, factory)
+      with AdaptedThreadPoolExecutorMixin {
+      override def reportFailure(t: Throwable): Unit =
+        reporter.reportFailure(t)
     }
 
-    AsyncScheduler(executor, context, reporter, executionModel)
+
+    ExecutorScheduler(executor, reporter, executionModel)
   }
 
   /** Builds a [[monix.execution.Scheduler Scheduler]] with a fixed thread-pool.
@@ -349,10 +370,15 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     */
   def fixedPool(name: String, poolSize: Int, daemonic: Boolean = true,
     reporter: UncaughtExceptionReporter = LogExceptionsToStandardErr,
-    executionModel: ExecutionModel = ExecutionModel.Default): Scheduler = {
+    executionModel: ExecModel = ExecModel.Default): SchedulerService = {
 
-    val executor = Executors.newScheduledThreadPool(
-      poolSize, ThreadFactoryBuilder(name, reporter, daemonic))
+    val factory = ThreadFactoryBuilder(name, reporter, daemonic)
+    val executor = new ScheduledThreadPoolExecutor(poolSize, factory)
+      with AdaptedThreadPoolExecutorMixin {
+
+      override def reportFailure(t: Throwable): Unit =
+        reporter.reportFailure(t)
+    }
 
     ExecutorScheduler(executor, reporter, executionModel)
   }
@@ -365,8 +391,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     * you can just reuse this one for all your scheduling needs.
     */
   lazy val DefaultScheduledExecutor: ScheduledExecutorService =
-    Executors.newSingleThreadScheduledExecutor(
-      ThreadFactoryBuilder("monix-scheduler", LogExceptionsToStandardErr))
+    Defaults.scheduledExecutor
 
   /** The explicit global `Scheduler`. Invoke `global` when you want to provide the global
     * `Scheduler` explicitly.
@@ -426,7 +451,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
         DefaultScheduledExecutor,
         ExecutionContext.Implicits.global,
         UncaughtExceptionReporter.LogExceptionsToStandardErr,
-        ExecutionModel.Default
+        ExecModel.Default
       )
   }
 }

@@ -106,17 +106,17 @@ object TaskApplySuite extends BaseTestSuite {
 
   test("Task.apply should be tail recursive") { implicit s =>
     def loop(n: Int, idx: Int): Task[Int] =
-      Task.apply(idx).flatMap { a =>
+      Task.apply(idx).flatMap { idx =>
         if (idx < n) loop(n, idx + 1).map(_ + 1) else
           Task.apply(idx)
       }
 
     val iterations = s.executionModel.recommendedBatchSize * 20
     val f = loop(iterations, 0).runAsync
+
     s.tick()
     assertEquals(f.value, Some(Success(iterations * 2)))
   }
-
 
   test("Task.apply.flatten is equivalent with flatMap") { implicit s =>
     check1 { a: Int =>

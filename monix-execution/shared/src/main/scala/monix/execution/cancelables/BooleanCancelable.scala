@@ -54,7 +54,7 @@ object BooleanCancelable {
     * already canceled.
     */
   final val alreadyCanceled: BooleanCancelable =
-    new BooleanCancelable {
+    new BooleanCancelable with Cancelable.IsDummy {
       val isCanceled = true
       def cancel() = ()
     }
@@ -65,7 +65,7 @@ object BooleanCancelable {
     * is always `false`, thus similar in spirit with [[alreadyCanceled]].
     */
   final val dummy: BooleanCancelable =
-    new BooleanCancelable {
+    new BooleanCancelable with Cancelable.IsDummy {
       val isCanceled = false
       def cancel() = ()
     }

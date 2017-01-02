@@ -47,15 +47,17 @@ private[monix] object TaskCreate {
     Task.unsafeCreate { (context, cb) =>
       val s = context.scheduler
       val conn = context.connection
-      val c = SingleAssignmentCancelable()
-      conn push c
+      val cancelable = SingleAssignmentCancelable()
+      conn push cancelable
 
       // Forcing a real asynchronous boundary,
       // otherwise stack-overflows can happen
-      s.executeAsyncBatch(() =>
+      s.executeTrampolined(() =>
         try {
-          context.frameRef.reset()
-          c := register(s, new CreateCallback(conn, cb)(s))
+          val ref = register(s, new CreateCallback(conn, cb)(s))
+          // Optimization to skip the assignment, as it's expensive
+          if (!ref.isInstanceOf[Cancelable.IsDummy])
+            cancelable := ref
         }
         catch {
           case NonFatal(ex) =>

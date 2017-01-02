@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by its authors. Some rights reserved.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,70 +17,60 @@
 
 package monix.execution.schedulers
 
-import java.util.concurrent._
+import java.util.concurrent.{CountDownLatch, TimeUnit, TimeoutException}
 
 import minitest.TestSuite
-import monix.execution.UncaughtExceptionReporter
-import monix.execution.atomic.Atomic
+import monix.execution.ExecutionModel.{AlwaysAsyncExecution, Default => DefaultExecutionModel}
 import monix.execution.cancelables.SingleAssignmentCancelable
-import monix.execution.schedulers.ExecutionModel.AlwaysAsyncExecution
+import monix.execution.misc.InlineMacrosTest.DummyException
+import monix.execution.{Cancelable, Scheduler, UncaughtExceptionReporter}
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Promise}
+import scala.concurrent.{Await, Promise, blocking}
 
+abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self =>
+  var lastReportedFailure = null : Throwable
+  var lastReportedFailureLatch = null : CountDownLatch
 
-object ExecutorSchedulerSuite extends TestSuite[ExecutorScheduler] {
-  val lastError = Atomic(null : Throwable)
-  def setup(): ExecutorScheduler = {
-    val reporter = UncaughtExceptionReporter(lastError.set)
-    val executor = Executors.newScheduledThreadPool(2,
-      ThreadFactoryBuilder(
-        "ExecutorSchedulerSuite",
-        reporter))
-
-    ExecutorScheduler(executor,
-      reporter,
-      ExecutionModel.Default)
+  val testsReporter = UncaughtExceptionReporter { ex =>
+    self.synchronized {
+      lastReportedFailure = ex
+      if (lastReportedFailureLatch != null)
+        lastReportedFailureLatch.countDown()
+      else
+        ex.printStackTrace()
+    }
   }
 
-  override def tearDown(env: ExecutorScheduler): Unit = {
-    env.executor.shutdown()
-    val ex = lastError.getAndSet(null)
-    if (ex != null) throw ex
+  override def tearDown(scheduler: SchedulerService): Unit = {
+    try assert(!scheduler.isShutdown) finally scheduler.shutdown()
+    assert(scheduler.isShutdown, "scheduler.isShutdown")
+    val result = Await.result(scheduler.awaitTermination(10.seconds, Scheduler.global), 30.seconds)
+    assert(result, "scheduler.awaitTermination")
+    assert(scheduler.isTerminated, "scheduler.isTerminated")
   }
 
-  test("scheduleOnce with delay") { implicit s =>
+  def scheduleOnce(s: Scheduler, delay: FiniteDuration)(action: => Unit): Cancelable =
+    s.scheduleOnce(delay.length, delay.unit, runnableAction(action))
+
+  test("scheduleOnce with delay") { scheduler =>
     val p = Promise[Long]()
     val startedAt = System.nanoTime()
-    s.scheduleOnce(100.millis)(p.success(System.nanoTime()))
+    scheduleOnce(scheduler, 100.millis)(p.success(System.nanoTime()))
 
-    val timeTaken = Await.result(p.future, 30.second)
+    val timeTaken = Await.result(p.future, 3.second)
     assert((timeTaken - startedAt).nanos.toMillis >= 100)
   }
 
-  test("scheduleOnce with negative delay") { implicit s =>
-    val p = Promise[Boolean]()
-    s.scheduleOnce(-100.millis)(p.success(true))
-
-    val result = Await.result(p.future, 30.second)
-    assert(result)
-  }
-
-  test("reportFailure") { implicit s =>
-    val dummy = new RuntimeException("dummy, please ignore")
-    s.reportFailure(dummy)
-    assertEquals(lastError.getAndSet(null), dummy)
-  }
-
-  test("scheduleOnce with delay lower than 1.milli") { implicit s =>
+  test("scheduleOnce with delay lower than 1.milli") { scheduler =>
     val p = Promise[Int]()
-    s.scheduleOnce(20.nanos)(p.success(1))
+    scheduleOnce(scheduler, 20.nanos)(p.success(1))
     assert(Await.result(p.future, 3.seconds) == 1)
   }
 
-  test("scheduleOnce with delay and cancel") { implicit s =>
+  test("scheduleOnce with delay and cancel") { scheduler =>
     val p = Promise[Int]()
-    val task = s.scheduleOnce(100.millis)(p.success(1))
+    val task = scheduleOnce(scheduler, 100.millis)(p.success(1))
     task.cancel()
 
     intercept[TimeoutException] {
@@ -88,12 +78,12 @@ object ExecutorSchedulerSuite extends TestSuite[ExecutorScheduler] {
     }
   }
 
-  test("schedule with fixed delay") { implicit s =>
+  test("schedule with fixed delay") { scheduler =>
     val sub = SingleAssignmentCancelable()
     val p = Promise[Int]()
     var value = 0
 
-    sub := s.scheduleWithFixedDelay(10.millis, 50.millis) {
+    sub := scheduler.scheduleWithFixedDelay(10, 50, TimeUnit.MILLISECONDS, runnableAction {
       if (value + 1 == 4) {
         value += 1
         sub.cancel()
@@ -102,17 +92,17 @@ object ExecutorSchedulerSuite extends TestSuite[ExecutorScheduler] {
       else if (value < 4) {
         value += 1
       }
-    }
+    })
 
     assert(Await.result(p.future, 5.second) == 4)
   }
 
-  test("schedule at fixed rate") { implicit s =>
+  test("schedule at fixed rate") { scheduler =>
     val sub = SingleAssignmentCancelable()
     val p = Promise[Int]()
     var value = 0
 
-    sub := s.scheduleAtFixedRate(10.millis, 50.millis) {
+    sub := scheduler.scheduleAtFixedRate(10, 50, TimeUnit.MILLISECONDS, runnableAction {
       if (value + 1 == 4) {
         value += 1
         sub.cancel()
@@ -121,15 +111,15 @@ object ExecutorSchedulerSuite extends TestSuite[ExecutorScheduler] {
       else if (value < 4) {
         value += 1
       }
-    }
+    })
 
     assert(Await.result(p.future, 5.second) == 4)
   }
 
-  test("execute local") { implicit s =>
+  test("execute local") { scheduler =>
     var result = 0
     def loop(n: Int): Unit =
-      s.executeTrampolined { () =>
+      scheduler.executeTrampolined { () =>
         result += 1
         if (n-1 > 0) loop(n-1)
       }
@@ -139,10 +129,119 @@ object ExecutorSchedulerSuite extends TestSuite[ExecutorScheduler] {
     assertEquals(result, count)
   }
 
-  test("change execution model") { implicit s =>
-    assertEquals(s.executionModel, ExecutionModel.Default)
+  test("change execution model") { scheduler =>
+    val s: Scheduler = scheduler
+    assertEquals(s.executionModel, DefaultExecutionModel)
     val s2 = s.withExecutionModel(AlwaysAsyncExecution)
-    assertEquals(s.executionModel, ExecutionModel.Default)
+    assertEquals(s.executionModel, DefaultExecutionModel)
     assertEquals(s2.executionModel, AlwaysAsyncExecution)
   }
+
+  test("reports errors on execute") { scheduler =>
+    val latch = new CountDownLatch(1)
+    self.synchronized {
+      lastReportedFailure = null
+      lastReportedFailureLatch = latch
+    }
+
+    try {
+      val ex = DummyException("dummy")
+
+      scheduler.execute(new Runnable {
+        override def run() =
+          throw ex
+      })
+
+      assert(latch.await(30, TimeUnit.SECONDS), "lastReportedFailureLatch.await")
+      self.synchronized(assertEquals(lastReportedFailure, ex))
+    } finally {
+      self.synchronized {
+        lastReportedFailure = null
+        lastReportedFailureLatch = null
+      }
+    }
+  }
+
+  test("reports errors on scheduleOnce") { scheduler =>
+    val latch = new CountDownLatch(1)
+    self.synchronized {
+      lastReportedFailure = null
+      lastReportedFailureLatch = latch
+    }
+
+    try {
+      val ex = DummyException("dummy")
+
+      scheduler.scheduleOnce(1, TimeUnit.MILLISECONDS, new Runnable {
+        override def run() =
+          throw ex
+      })
+
+      assert(latch.await(30, TimeUnit.SECONDS), "lastReportedFailureLatch.await")
+      self.synchronized(assertEquals(lastReportedFailure, ex))
+    } finally {
+      self.synchronized {
+        lastReportedFailure = null
+        lastReportedFailureLatch = null
+      }
+    }
+  }
+
+  def runnableAction(f: => Unit): Runnable =
+    new Runnable { def run() = f }
+}
+
+object ComputationSchedulerSuite extends ExecutorSchedulerSuite {
+  def setup(): SchedulerService =
+    monix.execution.Scheduler.forkJoin(
+      name = "monix-tests-computation",
+      parallelism = 4,
+      maxThreads = 256,
+      reporter=testsReporter)
+}
+
+object ForkJoinSchedulerSuite extends ExecutorSchedulerSuite {
+  def setup(): SchedulerService =
+    monix.execution.Scheduler.forkJoin(
+      name = "monix-tests-forkjoin",
+      parallelism = 4,
+      maxThreads = 256,
+      reporter=testsReporter)
+
+  test("integrates with Scala's BlockContext") { scheduler =>
+    val threadsCount = 100
+    val latch = new CountDownLatch(100)
+    val finish = new CountDownLatch(1)
+
+    for (_ <- 0 until threadsCount)
+      scheduler.executeAsync { () =>
+        blocking {
+          latch.countDown()
+          finish.await(30, TimeUnit.SECONDS)
+        }
+      }
+
+    assert(latch.await(30, TimeUnit.SECONDS), "latch.await")
+    finish.countDown()
+  }
+}
+
+object FixedPoolSchedulerSuite extends ExecutorSchedulerSuite {
+  def setup(): SchedulerService =
+    monix.execution.Scheduler.fixedPool("monix-tests-fixedPool", poolSize = 4, reporter=testsReporter)
+}
+
+object SingleThreadSchedulerSuite extends ExecutorSchedulerSuite {
+  def setup(): SchedulerService =
+    monix.execution.Scheduler.singleThread("monix-tests-singleThread", reporter=testsReporter)
+}
+
+object CachedSchedulerSuite extends ExecutorSchedulerSuite {
+  def setup(): SchedulerService =
+    monix.execution.Scheduler.cached("monix-tests-cached", 1, 4, reporter=testsReporter)
+}
+
+object IOSchedulerSuite extends ExecutorSchedulerSuite {
+  def setup(): SchedulerService =
+    monix.execution.Scheduler.io("monix-tests-io", reporter=testsReporter)
 }
