@@ -19,7 +19,7 @@ package monix.eval
 
 import scala.util.Failure
 
-object StreamMapSuite extends BaseTestSuite {
+object StreamableMapSuite extends BaseTestSuite {
   test("TaskStream.map equivalence with List.map") { implicit s =>
     check2 { (stream: TaskStream[Int], f: Int => Long) =>
       stream.map(f).toListL ===
@@ -57,18 +57,6 @@ object StreamMapSuite extends BaseTestSuite {
     assert(isCanceled, "isCanceled should be true")
   }
 
-  test("TaskStream.nextLazy.map guards against direct user code errors") { implicit s =>
-    val dummy = DummyException("dummy")
-    var isCanceled = false
-
-    val stream = TaskStream.nextLazyS(Task(1), Task(TaskStream.empty), Task { isCanceled = true })
-    val result = stream.map[Int](_ => throw dummy).toListL.runAsync
-
-    s.tick()
-    assertEquals(result.value, Some(Failure(dummy)))
-    assert(isCanceled, "isCanceled should be true")
-  }
-
   test("CoevalStream.map equivalence with List.map") { implicit s =>
     check2 { (stream: CoevalStream[Int], f: Int => Long) =>
       stream.map(f).toListL ===
@@ -98,17 +86,6 @@ object StreamMapSuite extends BaseTestSuite {
     var isCanceled = false
 
     val stream = CoevalStream.nextSeqS(List(1,2,3), Coeval(CoevalStream.empty), Coeval { isCanceled = true })
-    val result = stream.map[Int](_ => throw dummy).toListL.runTry
-
-    assertEquals(result, Failure(dummy))
-    assert(isCanceled, "isCanceled should be true")
-  }
-
-  test("CoevalStream.nextLazy.map guards against direct user code errors") { _ =>
-    val dummy = DummyException("dummy")
-    var isCanceled = false
-
-    val stream = CoevalStream.nextLazyS(Coeval(1), Coeval(CoevalStream.empty), Coeval { isCanceled = true })
     val result = stream.map[Int](_ => throw dummy).toListL.runTry
 
     assertEquals(result, Failure(dummy))

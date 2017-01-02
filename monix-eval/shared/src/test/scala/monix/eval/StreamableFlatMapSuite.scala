@@ -17,8 +17,8 @@
 
 package monix.eval
 
-import monix.eval.Streamable.{Halt, Next, NextLazy, NextSeq, Suspend}
-import scala.util.Failure
+import monix.eval.Streamable.{Halt, Next, NextSeq, Suspend}
+import scala.util.{Failure, Success}
 
 object StreamableFlatMapSuite extends BaseTestSuite {
   test("TaskStream.flatMap equivalence with List.flatMap") { implicit s =>
@@ -59,18 +59,6 @@ object StreamableFlatMapSuite extends BaseTestSuite {
     assert(isCanceled, "isCanceled should be true")
   }
 
-  test("TaskStream.nextLazy.flatMap guards against direct user code errors") { implicit s =>
-    val dummy = DummyException("dummy")
-    var isCanceled = false
-
-    val stream = TaskStream.nextLazyS(Task(1), Task(TaskStream.empty), Task { isCanceled = true })
-    val result = stream.flatMap[Int](_ => throw dummy).toListL.runAsync
-
-    s.tick()
-    assertEquals(result.value, Some(Failure(dummy)))
-    assert(isCanceled, "isCanceled should be true")
-  }
-
   test("TaskStream.next.flatMap chains stop") { implicit s =>
     var effects = Vector.empty[Int]
     val stop1T = Task.eval { effects = effects :+ 1 }
@@ -99,48 +87,12 @@ object StreamableFlatMapSuite extends BaseTestSuite {
     }
   }
 
-  test("TaskStream.nextLazy.flatMap chains stop") { implicit s =>
-    def firstNext[A](streamable: Streamable[Task,A]): Task[Streamable[Task,A]] =
-      streamable match {
-        case Suspend(rest, _) =>
-          rest.flatMap(firstNext)
-        case Next(_,_,_) | NextLazy(_,_,_) | NextSeq(_,_,_) | Halt(_) =>
-          Task.now(streamable)
-      }
-
-    var effects = Vector.empty[Int]
-    val stop1T = Task.eval { effects = effects :+ 1 }
-    val stream1: TaskStream[Int] =
-      TaskStream.nextLazyS(Task.now(1), Task.now(TaskStream.halt[Int](None)), stop1T)
-
-    val stop2T = Task.eval { effects = effects :+ 2 }
-    val stream2: TaskStream[Int] =
-      TaskStream.nextLazyS(Task.now(2), Task.now(TaskStream.halt[Int](None)), stop2T)
-
-    val stop3T = Task.eval { effects = effects :+ 3 }
-    val stream3: TaskStream[Int] =
-      TaskStream.nextLazyS(Task.now(3), Task.now(TaskStream.halt[Int](None)), stop3T)
-
-    val composed =
-      for (x <- stream1; y <- stream2; z <- stream3)
-        yield x + y + z
-
-    firstNext(composed.stream).runSyncMaybe match {
-      case Right(Streamable.NextLazy(head, _, stop)) =>
-        assertEquals(head.runSyncMaybe, Right(6))
-        assertEquals(stop.runSyncMaybe, Right(()))
-        assertEquals(effects, Vector(3,2,1))
-      case state =>
-        fail(s"Invalid state: $state")
-    }
-  }
-
   test("TaskStream.nextSeq.flatMap chains stop") { implicit s =>
     def firstNext[A](streamable: Streamable[Task,A]): Task[Streamable[Task,A]] =
       streamable match {
         case Suspend(rest, _) =>
           rest.flatMap(firstNext)
-        case Next(_,_,_) | NextLazy(_,_,_) | NextSeq(_,_,_) | Halt(_) =>
+        case Next(_,_,_) | NextSeq(_,_,_) | Halt(_) =>
           Task.now(streamable)
       }
 
@@ -169,6 +121,17 @@ object StreamableFlatMapSuite extends BaseTestSuite {
       case state =>
         fail(s"Invalid state: $state")
     }
+  }
+
+  test("TaskStream.nextSeq.flatMap works for large lists") { implicit s =>
+    val count = 100000
+    val list = (0 until count).toList
+    val sumTask = TaskStream.nextSeq(list, Task.now(TaskStream.empty))
+      .flatMap(x => TaskStream.fromSeq(List(x,x,x)))
+      .foldLeftL(0L)(_+_)
+
+    val f = sumTask.runAsync; s.tick()
+    assertEquals(f.value, Some(Success(3L * (count * (count - 1) / 2))))
   }
 
   test("CoevalStream.flatMap equivalence with List.flatMap") { implicit s =>
@@ -207,18 +170,6 @@ object StreamableFlatMapSuite extends BaseTestSuite {
     assert(isCanceled, "isCanceled should be true")
   }
 
-  test("CoevalStream.nextLazy.flatMap guards against direct user code errors") { _ =>
-    val dummy = DummyException("dummy")
-    var isCanceled = false
-
-    val stream = CoevalStream.nextLazyS(Coeval(1), Coeval(CoevalStream.empty), Coeval { isCanceled = true })
-    val result = stream.flatMap[Int](_ => throw dummy).toListL.runTry
-
-    assertEquals(result, Failure(dummy))
-    assert(isCanceled, "isCanceled should be true")
-  }
-  
-  // --
   test("CoevalStream.next.flatMap chains stop") { implicit s =>
     var effects = Vector.empty[Int]
     val stop1T = Coeval.eval { effects = effects :+ 1 }
@@ -247,48 +198,12 @@ object StreamableFlatMapSuite extends BaseTestSuite {
     }
   }
 
-  test("CoevalStream.nextLazy.flatMap chains stop") { implicit s =>
-    def firstNext[A](streamable: Streamable[Coeval,A]): Coeval[Streamable[Coeval,A]] =
-      streamable match {
-        case Suspend(rest, _) =>
-          rest.flatMap(firstNext)
-        case Next(_,_,_) | NextLazy(_,_,_) | NextSeq(_,_,_) | Halt(_) =>
-          Coeval.now(streamable)
-      }
-
-    var effects = Vector.empty[Int]
-    val stop1T = Coeval.eval { effects = effects :+ 1 }
-    val stream1: CoevalStream[Int] =
-      CoevalStream.nextLazyS(Coeval.now(1), Coeval.now(CoevalStream.halt[Int](None)), stop1T)
-
-    val stop2T = Coeval.eval { effects = effects :+ 2 }
-    val stream2: CoevalStream[Int] =
-      CoevalStream.nextLazyS(Coeval.now(2), Coeval.now(CoevalStream.halt[Int](None)), stop2T)
-
-    val stop3T = Coeval.eval { effects = effects :+ 3 }
-    val stream3: CoevalStream[Int] =
-      CoevalStream.nextLazyS(Coeval.now(3), Coeval.now(CoevalStream.halt[Int](None)), stop3T)
-
-    val composed =
-      for (x <- stream1; y <- stream2; z <- stream3)
-        yield x + y + z
-
-    firstNext(composed.stream).value match {
-      case Streamable.NextLazy(head, _, stop) =>
-        assertEquals(head.value, 6)
-        assertEquals(stop.value, ())
-        assertEquals(effects, Vector(3,2,1))
-      case state =>
-        fail(s"Invalid state: $state")
-    }
-  }
-
   test("CoevalStream.nextSeq.flatMap chains stop") { implicit s =>
     def firstNext[A](streamable: Streamable[Coeval,A]): Coeval[Streamable[Coeval,A]] =
       streamable match {
         case Suspend(rest, _) =>
           rest.flatMap(firstNext)
-        case Next(_,_,_) | NextLazy(_,_,_) | NextSeq(_,_,_) | Halt(_) =>
+        case Next(_,_,_) | NextSeq(_,_,_) | Halt(_) =>
           Coeval.now(streamable)
       }
 

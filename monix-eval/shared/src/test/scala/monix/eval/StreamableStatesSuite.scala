@@ -19,7 +19,7 @@ package monix.eval
 
 import scala.util.{Failure, Success}
 
-object StreamStatesSuite extends BaseTestSuite {
+object StreamableStatesSuite extends BaseTestSuite {
   test("TaskStream.suspend(Task(list))") { implicit s =>
     val list = List(1,2,3)
     val deferred = Task.eval(TaskStream.fromSeq[Int](list))
@@ -62,21 +62,6 @@ object StreamStatesSuite extends BaseTestSuite {
     val list = List(1,2,3)
     val deferred = Coeval.eval(CoevalStream.fromSeq[Int](list))
     val result = CoevalStream.next(0, deferred).toListL.runTry
-    assertEquals(result, Success(0 :: list))
-  }
-
-  test("TaskStream.nextLazy") { implicit s =>
-    val list = List(1,2,3)
-    val deferred = Task.eval(TaskStream.fromSeq[Int](list))
-    val result = TaskStream.nextLazy(Task(0), deferred).toListL.runAsync
-    s.tick()
-    assertEquals(result.value, Some(Success(0 :: list)))
-  }
-
-  test("CoevalStream.nextLazy") { implicit s =>
-    val list = List(1,2,3)
-    val deferred = Coeval.eval(CoevalStream.fromSeq[Int](list))
-    val result = CoevalStream.nextLazy(Coeval(0), deferred).toListL.runTry
     assertEquals(result, Success(0 :: list))
   }
 

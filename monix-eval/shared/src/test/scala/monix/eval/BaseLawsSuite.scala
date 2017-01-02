@@ -52,7 +52,7 @@ trait ArbitraryInstances {
         if (int % 4 == 0) Task.now(a)
         else if (int % 4 == 1) Task.evalOnce(a)
         else if (int % 4 == 2) Task.eval(a)
-        else Task.create[A] { (s,cb) => cb.onSuccess(a); Cancelable.empty }
+        else Task.create[A] { (_,cb) => cb.onSuccess(a); Cancelable.empty }
       }
     }
 
@@ -70,12 +70,12 @@ trait ArbitraryInstances {
 
   implicit def arbitraryCoevalToLong[A,B](implicit A: Arbitrary[A], B: Arbitrary[B]): Arbitrary[Coeval[A] => B] =
     Arbitrary {
-      for (b <- B.arbitrary) yield (t: Coeval[A]) => b
+      for (b <- B.arbitrary) yield (_: Coeval[A]) => b
     }
 
   implicit def arbitraryTaskToLong[A,B](implicit A: Arbitrary[A], B: Arbitrary[B]): Arbitrary[Task[A] => B] =
     Arbitrary {
-      for (b <- B.arbitrary) yield (t: Task[A]) => b
+      for (b <- B.arbitrary) yield (_: Task[A]) => b
     }
 
   implicit def arbitraryStream[A](implicit A: Arbitrary[A]): Arbitrary[Streamable[Task,A]] = {
@@ -84,11 +84,9 @@ trait ArbitraryInstances {
         case Nil =>
           Streamable.halt(None)
         case ns =>
-          if (idx % 4 == 0)
+          if (idx % 3 == 0)
             Streamable.next[Task,A](ns.head, Task(listToStream(ns.tail, length, idx+1)))
-          else if (idx % 4 == 1)
-            Streamable.nextLazy[Task,A](Task(ns.head), Task(listToStream(ns.tail, length, idx+1)))
-          else if (idx % 4 == 2)
+          else if (idx % 3 == 1)
             Streamable.suspend[Task,A](Task(listToStream(list, length, idx+1)))
           else {
             val (headSeq, tail) = list.splitAt(4)
@@ -110,11 +108,9 @@ trait ArbitraryInstances {
         case Nil =>
           CoevalStream.halt(None)
         case ns =>
-          if (idx % 4 == 0)
+          if (idx % 3 == 0)
             CoevalStream.next(ns.head, Coeval(listToStream(ns.tail, length, idx+1)))
-          else if (idx % 4 == 1)
-            CoevalStream.nextLazy(Coeval(ns.head), Coeval(listToStream(ns.tail, length, idx+1)))
-          else if (idx % 4 == 2)
+          else if (idx % 3 == 1)
             CoevalStream.suspend(Coeval(listToStream(list, length, idx+1)))
           else {
             val (headSeq, tail) = list.splitAt(4)
@@ -136,11 +132,9 @@ trait ArbitraryInstances {
         case Nil =>
           TaskStream.halt(None)
         case ns =>
-          if (idx % 4 == 0)
+          if (idx % 3 == 0)
             TaskStream.next(ns.head, Task(listToStream(ns.tail, length, idx+1)))
-          else if (idx % 4 == 1)
-            TaskStream.nextLazy(Task(ns.head), Task(listToStream(ns.tail, length, idx+1)))
-          else if (idx % 4 == 2)
+          else if (idx % 3 == 1)
             TaskStream.suspend(Task(listToStream(list, length, idx+1)))
           else {
             val (headSeq, tail) = list.splitAt(4)

@@ -47,9 +47,6 @@ import scala.util.control.NonFatal
   *
   *  - [[monix.eval.Streamable.Next Next]] which signals a single strict
   *    element, the `head` and a `tail` representing the rest of the stream
-  *  - [[monix.eval.Streamable.NextLazy NextLazy]] is a variation on `Next`
-  *    for signaling a lazily computed `head` and the `tail`
-  *    representing the rest of the stream
   *  - [[monix.eval.Streamable.NextSeq NextSeq]] is a variation on `Next`
   *    for signaling a whole strict batch of elements as the `head`,
   *    along with the `tail` representing the rest of the stream
@@ -89,7 +86,6 @@ sealed abstract class Streamable[F[_], +A] extends Product with Serializable { s
   final def onStop(implicit F: Applicative[F]): F[Unit] =
     this match {
       case Next(_, _, ref) => ref
-      case NextLazy(_, _, ref) => ref
       case NextSeq(_, _, ref) => ref
       case Suspend(_, ref) => ref
       case Halt(_) => F.unit
@@ -103,8 +99,6 @@ sealed abstract class Streamable[F[_], +A] extends Product with Serializable { s
     this match {
       case Next(head, tail, stop) =>
         Next(head, tail.map(_.doOnStop(f)), stop.flatMap(_ => f))
-      case NextLazy(head, tail, stop) =>
-        NextLazy(head, tail.map(_.doOnStop(f)), stop.flatMap(_ => f))
       case NextSeq(head, tail, stop) =>
         NextSeq(head, tail.map(_.doOnStop(f)), stop.flatMap(_ => f))
       case Suspend(tail, stop) =>
@@ -117,27 +111,30 @@ sealed abstract class Streamable[F[_], +A] extends Product with Serializable { s
   /** Given a mapping function that returns a possibly lazy or asynchronous
     * result, applies it over the elements emitted by the stream.
     */
-  final def mapEval[B](f: A => F[B])(implicit F: Monad[F]): Streamable[F, B] = {
-    import F.{applicative, functor}
-
+  final def mapEval[B](f: A => F[B])(implicit F: Applicative[F]): Streamable[F, B] = {
+    import F.functor
     this match {
       case Next(head, tail, stop) =>
-        try NextLazy[F,B](f(head), tail.map(_.mapEval(f)), stop)
-        catch { case NonFatal(ex) => signalError(ex, stop) }
-
-      case NextLazy(headF, tail, stop) =>
-        try NextLazy[F,B](F.flatMap(headF)(f), tail.map(_.mapEval(f)), stop)
-        catch { case NonFatal(ex) => signalError(ex, stop) }
+        try {
+          val fa = f(head)
+          val rest = fa.map(h => nextS(h, tail.map(_.mapEval(f)), stop))
+          Suspend(rest, stop)
+        } catch {
+          case NonFatal(ex) => signalError(ex, stop)
+        }
 
       case NextSeq(headSeq, tailF, stop) =>
         if (headSeq.isEmpty)
           Suspend[F,B](tailF.map(_.mapEval(f)), stop)
-        else {
+        else try {
           val head = headSeq.head
-          val tail = F.applicative.pure(NextSeq(headSeq.tail, tailF, stop))
-
-          try NextLazy[F,B](f(head), tail.map(_.mapEval(f)), stop)
-          catch { case NonFatal(ex) => signalError(ex, stop) }
+          val tail = F.pure(NextSeq(headSeq.tail, tailF, stop))
+          val fa = f(head)
+          val rest = fa.map(h => nextS(h, tail.map(_.mapEval(f)), stop))
+          Suspend[F,B](rest, stop)
+        }
+        catch { case NonFatal(ex) =>
+          signalError(ex, stop)
         }
 
       case Suspend(rest, stop) =>
@@ -153,14 +150,9 @@ sealed abstract class Streamable[F[_], +A] extends Product with Serializable { s
     */
   final def map[B](f: A => B)(implicit F: Applicative[F]): Streamable[F,B] = {
     import F.functor
-
     this match {
       case Next(head, tail, stop) =>
         try Next[F,B](f(head), tail.map(_.map(f)), stop)
-        catch { case NonFatal(ex) => signalError(ex, stop) }
-
-      case NextLazy(headF, tail, stop) =>
-        try NextLazy[F,B](headF.map(f), tail.map(_.map(f)), stop)
         catch { case NonFatal(ex) => signalError(ex, stop) }
 
       case NextSeq(head, rest, stop) =>
@@ -179,36 +171,26 @@ sealed abstract class Streamable[F[_], +A] extends Product with Serializable { s
     * and concatenates the results.
     */
   final def flatMap[B](f: A => Streamable[F,B])(implicit F: Monad[F]): Streamable[F,B] = {
-    import F.{applicative, functor}
-
+    import F.{functor,applicative}
     this match {
       case Next(head, tail, stop) =>
-        try f(head).doOnStop(stop) concatF tail.map(_.flatMap(f))
+        try f(head).doOnStop(stop) ++ tail.map(_.flatMap(f))
         catch { case NonFatal(ex) => signalError(ex, stop) }
 
       case NextSeq(list, rest, stop) =>
-        try if (list.isEmpty)
-          suspendS[F,B](rest.map(_.flatMap(f)), stop)
-        else
-          f(list.head).doOnStop(stop) concatF F.applicative.pure {
+        try if (list.isEmpty) {
+          Suspend[F,B](rest.map(_.flatMap(f)), stop)
+        }
+        else {
+          f(list.head).doOnStop(stop) ++
             NextSeq[F,A](list.tail, rest, stop).flatMap(f)
-          }
+        }
         catch {
           case NonFatal(ex) => signalError(ex, stop)
         }
 
-      case NextLazy(fa, rest, stop) =>
-        Suspend[F,B](
-          fa.map(head =>
-            try f(head).doOnStop(stop) concatF rest.map(_.flatMap(f)) catch {
-              case NonFatal(ex) => signalError(ex, stop)
-            }),
-          stop
-        )
-
       case Suspend(rest, stop) =>
         Suspend[F,B](rest.map(_.flatMap(f)), stop)
-
       case empty @ Halt(_) =>
         empty
     }
@@ -217,41 +199,31 @@ sealed abstract class Streamable[F[_], +A] extends Product with Serializable { s
   /** Appends the given stream to the end of the source,
     * effectively concatenating them.
     */
-  final def ++[B >: A](rhs: Streamable[F,B])(implicit F: Monad[F]): Streamable[F,B] =
-    this.concatF(F.applicative.pure(rhs))
+  final def ++[B >: A](rhs: Streamable[F,B])(implicit F: Functor[F]): Streamable[F,B] =
+    this.concat(rhs)
 
   /** Appends the given lazily generated stream to the end
     * of the source, effectively concatenating them.
     */
-  final def ++[B >: A](rhs: F[Streamable[F,B]])(implicit F: Monad[F]): Streamable[F,B] =
-    this.concatF(rhs)
+  final def ++[B >: A](rhs: F[Streamable[F,B]])(implicit F: Applicative[F]): Streamable[F,B] =
+    this.concat(Suspend(rhs, F.unit))(F.functor)
 
-  private final def concatF[B >: A](rhs: F[Streamable[F,B]])(implicit F: Monad[F]): Streamable[F,B] = {
-    import F.functor
+  private final def concat[B >: A](rhs: Streamable[F,B])(implicit F: Functor[F]): Streamable[F,B] =
     this match {
       case Next(a, lt, stop) =>
-        val rest = lt.map(_.concatF(rhs))
+        val rest = lt.map(_.concat(rhs))
         Next[F,B](a, rest, stop)
-
-      case NextLazy(fa, lt, stop) =>
-        val rest = lt.map(_.concatF(rhs))
-        NextLazy[F,B](fa.asInstanceOf[F[B]], rest, stop)
-
       case NextSeq(seq, lt, stop) =>
-        val rest = lt.map(_.concatF(rhs))
+        val rest = lt.map(_.concat(rhs))
         NextSeq[F,B](seq, rest, stop)
-
       case Suspend(lt, stop) =>
-        val rest = lt.map(_.concatF(rhs))
+        val rest = lt.map(_.concat(rhs))
         Suspend[F,B](rest, stop)
-
       case Halt(None) =>
-        Suspend[F,B](rhs, F.applicative.unit)
-
+        rhs
       case error @ Halt(Some(_)) =>
         error
     }
-  }
 
   /** Left associative fold using the function `f`.
     *
@@ -279,10 +251,6 @@ sealed abstract class Streamable[F[_], +A] extends Product with Serializable { s
           E.raiseError(ex)
         case Next(a, tail, stop) =>
           next(a, tail, stop)
-        case NextLazy(headF, tail, stop) =>
-          // Also protecting the head!
-          val head = headF.onErrorHandleWith(ex => stop.flatMap(_ => E.raiseError(ex)))
-          head.flatMap(a => next(a, tail, stop))
         case Suspend(rest, _) =>
           rest.flatMap(loop(_, state))
         case NextSeq(list, next, stop) =>
@@ -330,18 +298,7 @@ sealed abstract class Streamable[F[_], +A] extends Product with Serializable { s
   *         can have asynchronous behavior as well, depending on the `F`
   *         type used.
   *
-  *         See [[monix.eval.Streamable.NextLazy NextLazy]] for
-  *         a state that yields a possibly lazy `head`.
   *         See [[monix.eval.Streamable.NextSeq NextSeq]]
-  *         for a state where the head is a strict immutable list.
-  *
-  * @define nextLazyDesc The [[monix.eval.Streamable.NextLazy NextLazy]] state
-  *         of the [[Streamable]] represents a `head` / `tail` cons pair,
-  *         where the `head` is a possibly lazy or asynchronous
-  *         value, its evaluation model depending on `F`.
-  *
-  *         See [[monix.eval.Streamable.Next Next]] for the a state where
-  *         the head is a strict value. See [[monix.eval.Streamable.NextSeq NextSeq]]
   *         for a state where the head is a strict immutable list.
   *
   * @define nextSeqDesc The [[monix.eval.Streamable.NextSeq NextSeq]] state
@@ -428,8 +385,10 @@ object Streamable extends StreamInstances {
     * returning a stream of one element that is lazily
     * evaluated.
     */
-  def eval[F[_],A](a: => A)(implicit F: MonadEval[F]): Streamable[F,A] =
-    nextLazy[F,A](F.eval(a), F.applicative.pure(empty[F,A]))(F.applicative)
+  def eval[F[_],A](a: => A)(implicit F: MonadEval[F]): Streamable[F,A] = {
+    import F.{functor, applicative => A}
+    Suspend(F.eval(a).map(r => nextS[F,A](r, A.pure(Halt(None)), A.unit)), A.unit)
+  }
 
   /** Builds a [[Streamable.Next]] stream state.
     *
@@ -454,30 +413,6 @@ object Streamable extends StreamInstances {
   def next[F[_],A](head: A, tail: F[Streamable[F,A]])
     (implicit F: Applicative[F]): Streamable[F,A] =
     nextS[F,A](head, tail, F.unit)
-
-  /** Builds a [[Streamable.NextLazy]] stream state.
-    *
-    * $nextLazyDesc
-    *
-    * @param head is the current element to be signaled
-    * @param tail is the next state in the sequence that will
-    *        produce the rest of the stream
-    * @param stop $stopDesc
-    */
-  def nextLazyS[F[_],A](head: F[A], tail: F[Streamable[F,A]], stop: F[Unit]): Streamable[F,A] =
-    NextLazy[F,A](head, tail, stop)
-
-  /** Builds a [[Streamable.NextLazy]] stream state.
-    *
-    * $nextLazyDesc
-    *
-    * @param head is the current element to be signaled
-    * @param tail is the next state in the sequence that will
-    *        produce the rest of the stream
-    */
-  def nextLazy[F[_],A](head: F[A], tail: F[Streamable[F,A]])
-    (implicit F: Applicative[F]): Streamable[F,A] =
-    nextLazyS[F,A](head, tail, F.unit)
 
   /** Builds a [[Streamable.NextSeq]] stream state.
     *
@@ -682,19 +617,6 @@ object Streamable extends StreamInstances {
     stop: F[Unit])
     extends Streamable[F,A]
 
-  /** $nextLazyDesc
-    *
-    * @param head is the current element being signaled
-    * @param tail is the next state in the sequence that will
-    *        produce the rest of the stream
-    * @param stop $stopDesc
-    */
-  final case class NextLazy[F[_],A](
-    head: F[A],
-    tail: F[Streamable[F,A]],
-    stop: F[Unit])
-    extends Streamable[F,A]
-
   /** $nextSeqDesc
     *
     * @param head is a strict list of the next elements to be processed, can be empty
@@ -744,7 +666,7 @@ object Streamable extends StreamInstances {
     (implicit E: MonadError[F,Throwable], M: Memoizable[F]) {
     self: Self[A] =>
 
-    import M.{applicative, monad, monadEval}
+    import M.{functor, applicative, monadEval}
 
     /** Returns the underlying [[Streamable]] that handles this stream. */
     def stream: Streamable[F,A]
@@ -760,13 +682,13 @@ object Streamable extends StreamInstances {
       * result, applies it over the elements emitted by the stream.
       */
     final def mapEval[B](f: A => F[B]): Self[B] =
-      transform(_.mapEval(f)(M.monad))
+      transform(_.mapEval(f))
 
     /** Returns a new stream by mapping the supplied function
       * over the elements of the source.
       */
     final def map[B](f: A => B): Self[B] =
-      transform(_.map(f)(M.applicative))
+      transform(_.map(f))
 
     /** Applies the function to the elements of the source
       * and concatenates the results.
@@ -846,12 +768,6 @@ object Streamable extends StreamInstances {
     *
     *         @see [[Streamable.NextSeq]]
     *
-    * @define nextLazyDesc Builds a stream equivalent with [[Streamable.NextLazy]],
-    *         a pairing between a lazy, potentially asynchronous `head` and a
-    *         potentially lazy or asynchronous `tail`.
-    *
-    *         @see [[Streamable.NextLazy]]
-    *
     * @define suspendDesc Builds a stream equivalent with [[Streamable.Suspend]],
     *         representing a suspended stream, useful for delaying its
     *         initialization, the evaluation being controlled by the
@@ -922,25 +838,6 @@ object Streamable extends StreamInstances {
       */
     def nextS[A](head: A, tail: F[Self[A]], stop: F[Unit]): Self[A] =
       fromStream(Streamable.nextS[F,A](head, functor.map(tail)(_.stream), stop))
-
-    /** $nextLazyDesc
-      *
-      * @param head is the current element to be signaled
-      * @param tail is the next state in the sequence that will
-      *        produce the rest of the stream
-      */
-    def nextLazy[A](head: F[A], tail: F[Self[A]]): Self[A] =
-      fromStream(Streamable.nextLazy[F,A](head, functor.map(tail)(_.stream)))
-
-    /** $nextLazyDesc
-      *
-      * @param head is the current element to be signaled
-      * @param tail is the next state in the sequence that will
-      *        produce the rest of the stream
-      * @param stop $stopDesc
-      */
-    def nextLazyS[A](head: F[A], tail: F[Self[A]], stop: F[Unit]): Self[A] =
-      fromStream(Streamable.nextLazyS[F,A](head, functor.map(tail)(_.stream), stop))
 
     /** $nextSeqDesc
       *

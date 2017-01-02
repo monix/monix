@@ -17,27 +17,32 @@
 
 package monix.eval
 
-import scala.collection.mutable.ListBuffer
-
-object StreamFromSeqSuite extends BaseTestSuite {
-  test("TaskStream.fromSeq(vector)") { implicit s =>
+object StreamableFromListSuite extends BaseTestSuite {
+  test("TaskStream.fromList") { implicit s =>
     check1 { (list: List[Int]) =>
-      val result = TaskStream.fromSeq(list.toVector).toListL
+      val result = TaskStream.fromList(list).toListL
       result === Task.now(list)
     }
   }
 
-  test("TaskStream.fromSeq(list)") { implicit s =>
+  test("TaskStream.fromList (async)") { implicit s =>
     check1 { (list: List[Int]) =>
-      val result = TaskStream.fromSeq(list).toListL
+      val result = TaskStream.fromList(list).mapEval(x => Task(x)).toListL
       result === Task.now(list)
     }
   }
 
-  test("TaskStream.fromSeq(iterable)") { implicit s =>
+  test("CoevalStream.fromList") { implicit s =>
     check1 { (list: List[Int]) =>
-      val result = TaskStream.fromSeq(list.to[ListBuffer]).toListL
-      result === Task.now(list)
+      val result = CoevalStream.fromList(list).toListL
+      result === Coeval.now(list)
+    }
+  }
+
+  test("CoevalStream.fromList (async)") { implicit s =>
+    check1 { (list: List[Int]) =>
+      val result = CoevalStream.fromList(list).mapEval(x => Coeval(x)).toListL
+      result === Coeval.now(list)
     }
   }
 }
