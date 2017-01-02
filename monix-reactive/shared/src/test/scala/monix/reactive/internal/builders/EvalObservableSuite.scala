@@ -20,7 +20,6 @@ package monix.reactive.internal.builders
 import monix.eval.Coeval
 import monix.reactive.exceptions.DummyException
 import monix.reactive.{BaseLawsTestSuite, Observable}
-
 import scala.util.Success
 
 object EvalObservableSuite extends BaseLawsTestSuite {
@@ -62,7 +61,6 @@ object EvalObservableSuite extends BaseLawsTestSuite {
     val obs = Observable.delay { effect += 1; effect }
     val f = obs.runAsyncGetFirst
 
-    assertEquals(f.value, None)
     s.tick()
     assertEquals(f.value, Some(Success(Some(1))))
   }

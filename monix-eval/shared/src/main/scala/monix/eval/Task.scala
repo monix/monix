@@ -760,22 +760,6 @@ object Task extends TaskInstances {
     * This can be used to translate from a callback-based API to a
     * straightforward monadic version.
     *
-    * Contract:
-    *
-    *  - execution of the `register` callback is asynchronous,
-    *    always forking a (logical) thread
-    *  - execution of the `onSuccess` and `onError` callbacks, is also
-    *    async, however they are executed on the current thread /
-    *    call-stack if the scheduler is enhanced for execution of
-    *    [[monix.execution.schedulers.TrampolinedRunnable trampolined runnables]]
-    *
-    * This asynchrony is needed because [[create]] is supposed to be
-    * safe or otherwise, depending on the executed logic, one can end
-    * up with a stack overflow exception. So this contract happens in
-    * order to guarantee safety. In order to bypass this, one can use
-    * [[unsafeCreate]], but that's more difficult and meant for people
-    * knowing what they are doing.
-    *
     * @param register is a function that will be called when this `Task`
     *        is executed, receiving a callback as a parameter, a
     *        callback that the user is supposed to call in order to

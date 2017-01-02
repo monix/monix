@@ -48,10 +48,13 @@ object Cancelable {
     new CancelableTask(callback)
 
   val empty: Cancelable =
-    new Cancelable {
+    new Cancelable with IsDummy {
       def cancel() = ()
       override def toString = "monix.execution.Cancelable.empty"
     }
+
+  /** Marker for cancelables that are dummies that can be ignored. */
+  trait IsDummy { self: Cancelable => }
 
   private final class CancelableTask(cb: () => Unit)
     extends Cancelable {

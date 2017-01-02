@@ -100,8 +100,8 @@ object SingleAssignmentCancelable {
   def  apply(): SingleAssignmentCancelable =
     new SingleAssignmentCancelable()
 
-  private sealed trait State
-  private object State {
+  private[monix] sealed trait State
+  private[monix] object State {
     case object Empty extends State
     case class IsActive(s: Cancelable) extends State
     case object IsCanceled extends State
