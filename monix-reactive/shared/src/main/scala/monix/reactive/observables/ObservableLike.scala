@@ -1585,6 +1585,12 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
   def takeByTimespan(timespan: FiniteDuration): Self[A] =
     self.transform(self => new TakeLeftByTimespanObservable(self, timespan))
 
+  /** Creates a new Observable that emits every n-th event from the source,
+    * dropping intermediary events.
+    */
+  def takeEveryNth(n: Int): Self[A] =
+    self.liftByOperator(new TakeEveryNthOperator(n))
+
   /** Creates a new observable that only emits the last `n` elements
     * emitted by the source.
     *
