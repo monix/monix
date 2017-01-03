@@ -1435,7 +1435,36 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * the source observable with it.
     */
   def pipeThrough[I >: A, B](pipe: Pipe[I,B]): Self[B] =
-    self.liftByOperator(new PipeThroughOperator(pipe))
+    self.transform(self => new PipeThroughObservable(self, pipe))
+
+  /** Returns an observable that emits the results of invoking a specified
+    * selector on items emitted by a [[ConnectableObservable]], which shares a single
+    * subscription to the underlying sequence.
+    *
+    * @param pipe is the [[Pipe]] used to transform the source into a multicast
+    *        (hot) observable that can be shared in the selector function
+    *
+    * @param f is a selector function that can use the multicasted source sequence
+    *        as many times as needed, without causing multiple subscriptions
+    *        to the source sequence. Observers to the given source will
+    *        receive all notifications of the source from the time of the
+    *        subscription forward.
+    */
+  def pipeThroughSelector[S >: A, B, R](pipe: Pipe[S, B], f: Observable[B] => Observable[R]): Self[R] =
+    self.transform(self => new PipeThroughSelectorObservable[S,B,R](self, pipe, f))
+
+  /** Returns an observable that emits the results of invoking a specified
+    * selector on items emitted by a [[ConnectableObservable]], which shares a single
+    * subscription to the underlying sequence.
+    *
+    * @param f is a selector function that can use the multicasted source sequence
+    *        as many times as needed, without causing multiple subscriptions
+    *        to the source sequence. Observers to the given source will
+    *        receive all notifications of the source from the time of the
+    *        subscription forward.
+    */
+  def publishSelector[R](f: Observable[A] => Observable[R]): Self[R] =
+    pipeThroughSelector(Pipe.publish[A], f)
 
   /** Applies a binary operator to a start value and all elements of
     * this Observable, going left to right and returns a new
