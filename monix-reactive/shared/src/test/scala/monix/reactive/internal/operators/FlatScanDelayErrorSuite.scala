@@ -30,7 +30,7 @@ object FlatScanDelayErrorSuite extends BaseOperatorSuite {
     val source = if (ex == null) Observable.range(0, sourceCount)
       else Observable.range(0, sourceCount).endWithError(ex)
 
-    val o = source.flatScanDelayError(1L)((acc, elem) =>
+    val o = source.flatScanDelayErrors(1L)((acc, elem) =>
       Observable.repeat(acc + elem).take(3)
         .endWithError(SomeException(10)))
 
@@ -55,9 +55,9 @@ object FlatScanDelayErrorSuite extends BaseOperatorSuite {
 
   override def cancelableObservables() = {
     val sample1 = Observable.range(0, 10)
-      .flatScanDelayError(1L)((acc,e) => Observable.now(acc+e).delaySubscription(1.second))
+      .flatScanDelayErrors(1L)((acc,e) => Observable.now(acc+e).delaySubscription(1.second))
     val sample2 = Observable.range(0, 10).delayOnNext(1.second)
-      .flatScanDelayError(1L)((acc,e) => Observable.now(acc+e).delaySubscription(1.second))
+      .flatScanDelayErrors(1L)((acc,e) => Observable.now(acc+e).delaySubscription(1.second))
 
     Seq(
       Sample(sample1,0,0,0.seconds,0.seconds),
@@ -67,7 +67,7 @@ object FlatScanDelayErrorSuite extends BaseOperatorSuite {
 
   test("should trigger error if the initial state triggers errors") { implicit s =>
     val ex = DummyException("dummy")
-    val obs = Observable(1,2,3,4).flatScanDelayError[Int](throw ex)((_,e) => Observable(e))
+    val obs = Observable(1,2,3,4).flatScanDelayErrors[Int](throw ex)((_,e) => Observable(e))
     val f = obs.runAsyncGetFirst; s.tick()
     assertEquals(f.value, Some(Failure(ex)))
   }
