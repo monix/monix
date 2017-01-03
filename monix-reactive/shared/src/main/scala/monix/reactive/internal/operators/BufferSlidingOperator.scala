@@ -21,8 +21,8 @@ import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
 import monix.reactive.observables.ObservableLike.Operator
 import monix.reactive.observers.Subscriber
-import scala.collection.immutable.Queue
 import scala.concurrent.Future
+import scala.collection.mutable.WrappedArray
 
 private[reactive] final class BufferSlidingOperator[A](count: Int, skip: Int)
   extends Operator[A, Seq[A]] {
@@ -35,33 +35,45 @@ private[reactive] final class BufferSlidingOperator[A](count: Int, skip: Int)
       implicit val scheduler = out.scheduler
 
       private[this] var isDone = false
-      private[this] var ack: Future[Ack] = Continue
-      private[this] var buffer = Queue.empty[A]
-      private[this] var size = 0
-      private[this] var trigger = 0
+      private[this] var ack: Future[Ack] = null
+
+      private[this] val toDrop = if (count > skip) 0 else skip - count
+      private[this] val toRepeat = if (skip > count) 0 else count - skip
+
+      private[this] var buffer = new Array[AnyRef](count)
+      private[this] var dropped = 0
+      private[this] var length = 0
+
+      @inline
+      private def toSeq(array: Array[AnyRef]): Seq[A] =
+        new WrappedArray.ofRef(array).asInstanceOf[Seq[A]]
 
       def onNext(elem: A): Future[Ack] = {
-        if (isDone) Stop else {
-          buffer = buffer.enqueue(elem)
-          size += 1
+        if (isDone)
+          Stop
+        else if (dropped > 0) {
+          dropped -= 1
+          Continue
+        }
+        else {
+          buffer(length) = elem.asInstanceOf[AnyRef]
+          length += 1
 
-          if (size < count) Continue else {
-            if (trigger > 0) {
-              trigger -= 1
-              Continue
-            }
-            else {
-              trigger = skip-1
-              while (size > count) {
-                val (_, state) = buffer.dequeue
-                buffer = state
-                size -= 1
-              }
+          if (length < count) Continue else {
+            val oldBuffer = buffer
+            buffer = new Array(count)
 
-              // signaling downstream
-              ack = out.onNext(buffer)
-              ack
+            if (toRepeat > 0) {
+              System.arraycopy(oldBuffer, count-toRepeat, buffer, 0, toRepeat)
+              length = toRepeat
+            } else {
+              dropped = toDrop
+              length = 0
             }
+
+            // signaling downstream
+            ack = out.onNext(toSeq(oldBuffer))
+            ack
           }
         }
       }
@@ -77,40 +89,17 @@ private[reactive] final class BufferSlidingOperator[A](count: Int, skip: Int)
         if (!isDone) {
           isDone = true
 
-          // Did we ever signal anything? If no, then we need
-          // to send the whole buffer
-          if (size > 0 && size < count) {
-            out.onNext(buffer)
-            out.onComplete()
-            buffer = null // GC purposes
-          }
-          else {
-            // Do we have items left to signal?
-            val toSignal = count - (trigger + 1)
-            // In case we have overlap, because of a skip < count,
-            // then we shouldn't repeat old events unless we also
-            // have new events to signal, hence this threshold
-            val threshold = math.max(0, count - skip)
-
-            if (toSignal > threshold && size > 0) {
-              while (size > toSignal) {
-                val (_, state) = buffer.dequeue
-                buffer = state
-                size -= 1
-              }
-
-              // Back-pressuring last onNext
-              ack.syncOnContinue {
-                out.onNext(buffer)
-                out.onComplete()
-                buffer = null // GC purposes
-              }
-            }
-            else {
-              // No extra elements to signal, no need for back-pressure
+          val threshold = if (ack == null) 0 else toRepeat
+          if (length > threshold) {
+            if (ack == null) ack = Continue
+            ack.syncOnContinue {
+              out.onNext(toSeq(buffer.take(length)))
               out.onComplete()
+              buffer = null // GC purposes
             }
           }
+          else
+            out.onComplete()
         }
     }
 }
