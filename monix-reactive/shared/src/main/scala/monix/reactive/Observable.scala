@@ -1043,7 +1043,7 @@ object Observable {
     * observable.  Delays errors until the end.
     */
   def flattenDelayError[A](sources: Observable[A]*): Observable[A] =
-    Observable.fromIterable(sources).concatDelayError
+    Observable.fromIterable(sources).concatDelayErrors
 
   /** Merges the given list of ''observables'' into a single observable.
     */
@@ -1068,7 +1068,7 @@ object Observable {
     * Delays errors until the end.
     */
   def concatDelayError[A](sources: Observable[A]*): Observable[A] =
-    Observable.fromIterable(sources).concatMapDelayError[A](identity)
+    Observable.fromIterable(sources).concatMapDelayErrors[A](identity)
 
   /** Given a sequence of observables, builds an observable
     * that emits the elements of the most recently emitted

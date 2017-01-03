@@ -440,8 +440,8 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     *
     * @return $concatReturn
     */
-  def concatDelayError[B](implicit ev: A <:< Observable[B]): Self[B] =
-    concatMapDelayError(x => x)
+  def concatDelayErrors[B](implicit ev: A <:< Observable[B]): Self[B] =
+    concatMapDelayErrors(x => x)
 
   /** Applies a function that you supply to each item emitted by the
     * source observable, where that function returns sequences
@@ -454,7 +454,7 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     *        the source, returns an observable
     * @return $concatReturn
     */
-  def concatMapDelayError[B](f: A => Observable[B]): Self[B] =
+  def concatMapDelayErrors[B](f: A => Observable[B]): Self[B] =
     self.transform(self => new ConcatMapObservable[A,B](self, f, delayErrors = true))
 
   /** Creates a new Observable that emits the total number of `onNext`
@@ -877,7 +877,7 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * and then concatenating those resulting sequences and emitting the
     * results of this concatenation.
     *
-    * It's an alias for [[concatMapDelayError]].
+    * It's an alias for [[concatMapDelayErrors]].
     *
     * @param f a function that, when applied to an item emitted by
     *        the source Observable, returns an Observable
@@ -886,8 +886,8 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     *         source Observable and concatenating the results of the
     *         Observables obtained from this transformation.
     */
-  def flatMapDelayError[B](f: A => Observable[B]): Self[B] =
-    concatMapDelayError(f)
+  def flatMapDelayErrors[B](f: A => Observable[B]): Self[B] =
+    concatMapDelayErrors(f)
 
   /** An alias of [[switchMap]].
     *
@@ -911,9 +911,9 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     *
     * This version of [[flatScan]] delays all errors until `onComplete`,
     * when it will finally emit a `CompositeException`.
-    * It's the combination between [[scan]] and [[flatMapDelayError]].
+    * It's the combination between [[scan]] and [[flatMapDelayErrors]].
     */
-  def flatScanDelayError[R](initial: => R)(op: (R, A) => Observable[R]): Self[R] =
+  def flatScanDelayErrors[R](initial: => R)(op: (R, A) => Observable[R]): Self[R] =
     self.transform(self => new FlatScanObservable[A,R](self, initial _, op, delayErrors = true))
 
   /** $concatDescription
@@ -925,15 +925,15 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
   def flatten[B](implicit ev: A <:< Observable[B]): Self[B] =
     concat
 
-  /** Alias for [[concatDelayError]].
+  /** Alias for [[concatDelayErrors]].
     *
     * $concatDescription
     * $delayErrorsDescription
     *
     * @return $concatReturn
     */
-  def flattenDelayError[B](implicit ev: A <:< Observable[B]): Self[B] =
-    concatDelayError
+  def flattenDelayErrors[B](implicit ev: A <:< Observable[B]): Self[B] =
+    concatDelayErrors
 
   /** Alias for [[switch]]
     *
@@ -1907,4 +1907,31 @@ object ObservableLike {
 
   /** A `Transformer` is a function used for transforming observables */
   type Transformer[-A,+B] = Observable[A] => Observable[B]
+
+  /** Deprecated methods living on as extension methods
+    * for [[ObservableLike]] in order to maintain source compatibility.
+    */
+  implicit final class DeprecatedMethods[A, Self[+T] <: ObservableLike[T, Self]]
+    (val self: Self[A]) extends AnyVal {
+
+    @deprecated("Renamed to concatMapDelayErrors (plural for errors ;))", since="2.2.0")
+    def concatMapDelayError[B](f: A => Observable[B]): Self[B] =
+      self.concatMapDelayErrors(f)
+
+    @deprecated("Renamed to concatDelayErrors (plural for errors ;))", since="2.2.0")
+    def concatDelayError[B](implicit ev: A <:< Observable[B]): Self[B] =
+      self.concatDelayErrors(ev)
+
+    @deprecated("Renamed to flatMapDelayError (plural for errors ;))", since="2.2.0")
+    def flatMapDelayError[B](f: A => Observable[B]): Self[B] =
+      self.flatMapDelayErrors(f)
+
+    @deprecated("Renamed to flattenDelayError (plural for errors ;))", since="2.2.0")
+    def flattenDelayError[B](implicit ev: A <:< Observable[B]): Self[B] =
+      self.flattenDelayErrors(ev)
+
+    @deprecated("Renamed to flatScanDelayErrors (plural for errors ;))", since="2.2.0")
+    def flatScanDelayError[R](initial: => R)(op: (R, A) => Observable[R]): Self[R] =
+      self.flatScanDelayErrors(initial)(op)
+  }
 }

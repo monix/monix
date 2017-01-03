@@ -104,8 +104,8 @@ private[reactive] final class MapTaskObservable[A,B]
             ref.cancel()
           else
             cancel() // retry
-        case WaitOnNext | WaitActiveTask =>
-          if (!stateRef.compareAndSet(WaitOnNext, Cancelled))
+        case current @ (WaitOnNext | WaitActiveTask) =>
+          if (!stateRef.compareAndSet(current, Cancelled))
             cancel() // retry
         case WaitComplete(_) | Cancelled =>
           () // do nothing else
