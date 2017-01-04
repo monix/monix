@@ -17,14 +17,16 @@
 
 package monix.reactive.subjects
 
-import monix.execution.Ack.{Stop, Continue}
+import monix.execution.Ack.{Continue, Stop}
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.internal.util.PromiseCounter
 import monix.reactive.observers.{ConnectableSubscriber, Subscriber}
 import monix.execution.atomic.Atomic
+
 import scala.annotation.tailrec
 import scala.concurrent.Future
+import scala.util.Success
 import scala.util.control.NonFatal
 
 /** `BehaviorSubject` when subscribed, will emit the most recently emitted item by the source,
@@ -113,9 +115,8 @@ final class BehaviorSubject[T] private (initialValue: T)
             result.acquire()
 
             ack.onComplete {
-              case Continue.AsSuccess =>
+              case Success(Continue) =>
                 result.countdown()
-
               case _ =>
                 // subscriber canceled or triggered an error? then remove
                 removeSubscriber(subscriber)

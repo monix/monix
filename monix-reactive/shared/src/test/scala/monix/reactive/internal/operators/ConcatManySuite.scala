@@ -38,9 +38,9 @@ object ConcatManySuite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) =
     if (sourceCount == 1) None else Some {
       val o = createObservableEndingInError(Observable.range(0, sourceCount), ex)
-        .flatMap(i => Observable.fromIterable(Seq(1L, 1L, 1L)))
+        .flatMap(_ => Observable.fromIterable(Seq(1L, 1L, 1L)))
 
-      Sample(o, count(sourceCount)-2, count(sourceCount)-2, waitFirst, waitNext)
+      Sample(o, count(sourceCount), count(sourceCount)-2, waitFirst, waitNext)
     }
 
   def sum(sourceCount: Int) = {

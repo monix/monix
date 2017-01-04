@@ -657,6 +657,16 @@ object Task extends TaskInstances {
   def defer[A](fa: => Task[A]): Task[A] =
     Suspend(fa _)
 
+  /** Promote a non-strict Scala `Future` to a `Task` of the same type.
+    *
+    * The equivalent of doing:
+    * {{{
+    *   Task.defer(Task.fromFuture(fa))
+    * }}}
+    */
+  def deferFuture[A](fa: => Future[A]): Task[A] =
+    defer(fromFuture(fa))
+
   /** Alias for [[defer]]. */
   def suspend[A](fa: => Task[A]): Task[A] =
     Suspend(fa _)

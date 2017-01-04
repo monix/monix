@@ -1,3 +1,35 @@
+## Version 2.2.0-M1 (Jan 4, 2017)
+
+Version `2.2.0-M1` is a milestone release, released for feedback 
+and testing purposes.
+
+- [Issue #281](https://github.com/monix/monix/issues/281):
+  Fix performance regression in `Task.flatMap`
+- [Issue #284](https://github.com/monix/monix/issues/284):
+  Move `ExecutionModel` to `monix.execution`
+- [Issue #285](https://github.com/monix/monix/issues/285):
+  Rename `Task.runAsync(f: Try[A] => Unit)` to `Task.runOnComplete`
+- [Issue #286](https://github.com/monix/monix/issues/286):
+  Add `Task.runSyncMaybe`
+- [Issue #287](https://github.com/monix/monix/issues/287):
+  Add `Scheduler.forkJoin` builder
+- [Issue #266](https://github.com/monix/monix/issues/266):
+  Add `SchedulerService` interface in `monix.execution.schedulers`
+- [Issue #288](https://github.com/monix/monix/issues/288):
+  `Task.create` should not force async boundary
+- [Issue #289](https://github.com/monix/monix/issues/289):
+  `Observable.foreach` should not fork
+- [Issue #291](https://github.com/monix/monix/issues/291):
+  Add `Observable.takeEveryNth` operator
+- [Issue #292](https://github.com/monix/monix/issues/292):
+  Optimize `Observable.concatMap`
+- [Issue #294](https://github.com/monix/monix/issues/294):
+  Optimize `Observable.bufferSliding`
+- [Issue #295](https://github.com/monix/monix/issues/295):
+  Add `Observable.publishSelector`, `Observable.pipeThroughSelector`
+- [Issue #296](https://github.com/monix/monix/issues/296):
+  Add `Task.deferFuture` builder
+
 ## Version 2.1.2 (Dec 19, 2016)
 
 Version `2.1.2` is a minor release, binary compatible with `2.1.x`,
