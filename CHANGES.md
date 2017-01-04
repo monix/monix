@@ -27,6 +27,8 @@ and testing purposes.
   Optimize `Observable.bufferSliding`
 - [Issue #295](https://github.com/monix/monix/issues/295):
   Add `Observable.publishSelector`, `Observable.pipeThroughSelector`
+- [Issue #296](https://github.com/monix/monix/issues/296):
+  Add `Task.deferFuture` builder
 
 ## Version 2.1.2 (Dec 19, 2016)
 
