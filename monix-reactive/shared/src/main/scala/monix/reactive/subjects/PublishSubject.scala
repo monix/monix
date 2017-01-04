@@ -18,13 +18,12 @@
 package monix.reactive.subjects
 
 import monix.execution.Ack.{Continue, Stop}
+import monix.execution.atomic.Atomic
+import monix.execution.atomic.PaddingStrategy.LeftRight128
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.internal.util.PromiseCounter
 import monix.reactive.observers.Subscriber
 import monix.reactive.subjects.PublishSubject.State
-import monix.execution.atomic.Atomic
-import monix.execution.atomic.PaddingStrategy.LeftRight128
-
 import scala.annotation.tailrec
 import scala.concurrent.Future
 import scala.util.control.NonFatal
@@ -83,7 +82,7 @@ final class PublishSubject[T] private () extends Subject[T,T] { self =>
     }
   }
 
-  @tailrec def onNext(elem: T): Future[Ack] = {
+  def onNext(elem: T): Future[Ack] = {
     val state = stateRef.get
     val subscribersArray = state.cache
 
@@ -91,10 +90,10 @@ final class PublishSubject[T] private () extends Subject[T,T] { self =>
       val set = state.subscribers
       if (set == null) Stop else {
         val update = state.refresh
-        if (!stateRef.compareAndSet(state, update))
-          onNext(elem)
-        else
-          sendOnNextToAll(update.cache, elem)
+        // If CAS fails, it means we have new subscribers;
+        // not bothering to recreate the cache for now
+        stateRef.compareAndSet(state, update)
+        sendOnNextToAll(update.cache, elem)
       }
     }
     else {
@@ -103,9 +102,9 @@ final class PublishSubject[T] private () extends Subject[T,T] { self =>
   }
 
   def onError(ex: Throwable): Unit =
-    onCompleteOrError(ex)
+    sendOnCompleteOrError(ex)
   def onComplete(): Unit =
-    onCompleteOrError(null)
+    sendOnCompleteOrError(null)
 
   private def sendOnNextToAll(subscribers: Array[Subscriber[T]], elem: T): Future[Ack] = {
     // counter that's only used when we go async, hence the null
@@ -154,7 +153,7 @@ final class PublishSubject[T] private () extends Subject[T,T] { self =>
   }
 
   @tailrec
-  private def onCompleteOrError(ex: Throwable): Unit = {
+  private def sendOnCompleteOrError(ex: Throwable): Unit = {
     val state = stateRef.get
     val set = state.subscribers
     val subscribers: Iterable[Subscriber[T]] =
@@ -165,7 +164,7 @@ final class PublishSubject[T] private () extends Subject[T,T] { self =>
       // the most recent set of subscribers that may contain references
       // that haven't been seen in onNext yet
       if (!stateRef.compareAndSet(state, state.complete(ex)))
-        onCompleteOrError(ex)
+        sendOnCompleteOrError(ex)
       else {
         val iterator = set.iterator
         while (iterator.hasNext) {
