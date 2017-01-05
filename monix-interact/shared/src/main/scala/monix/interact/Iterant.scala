@@ -19,10 +19,8 @@ package monix.interact
 
 import monix.types._
 import monix.types.syntax._
-import monix.execution.internal.Platform
 import scala.collection.immutable.LinearSeq
 import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
 import scala.util.control.NonFatal
 
 /** The `Iterant` is a type that describes lazy, possibly asynchronous
@@ -39,16 +37,16 @@ import scala.util.control.NonFatal
   *
   * Consumption of a `Iterant` happens typically in a loop where
   * the current step represents either a signal that the stream
-  * is over, or a (head, tail) pair, very similar in spirit to
+  * is over, or a (head, rest) pair, very similar in spirit to
   * Scala's standard `List` or `Iterant`.
   *
   * The type is an ADT, meaning a composite of the following types:
   *
   *  - [[monix.interact.Iterant.Next Next]] which signals a single strict
-  *    element, the `head` and a `tail` representing the rest of the stream
+  *    element, the `head` and a `rest` representing the rest of the stream
   *  - [[monix.interact.Iterant.NextSeq NextSeq]] is a variation on `Next`
-  *    for signaling a whole strict batch of elements as the `head`,
-  *    along with the `tail` representing the rest of the stream
+  *    for signaling a whole strict batch of elements as the `cursor`,
+  *    along with the `rest` representing the rest of the stream
   *  - [[monix.interact.Iterant.Suspend Suspend]] is for suspending the
   *    evaluation of a stream
   *  - [[monix.interact.Iterant.Halt Halt]] represents an empty
@@ -98,12 +96,12 @@ sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self
   final def doOnStop(f: F[Unit])(implicit F: Monad[F]): Iterant[F,A] = {
     import F.functor
     this match {
-      case Next(head, tail, stop) =>
-        Next(head, tail.map(_.doOnStop(f)), stop.flatMap(_ => f))
-      case NextSeq(head, tail, stop) =>
-        NextSeq(head, tail.map(_.doOnStop(f)), stop.flatMap(_ => f))
-      case Suspend(tail, stop) =>
-        Suspend(tail.map(_.doOnStop(f)), stop.flatMap(_ => f))
+      case Next(head, rest, stop) =>
+        Next(head, rest.map(_.doOnStop(f)), stop.flatMap(_ => f))
+      case NextSeq(cursor, rest, stop) =>
+        NextSeq(cursor, rest.map(_.doOnStop(f)), stop.flatMap(_ => f))
+      case Suspend(rest, stop) =>
+        Suspend(rest.map(_.doOnStop(f)), stop.flatMap(_ => f))
       case halt @ Halt(_) =>
         halt // nothing to do
     }
@@ -124,12 +122,12 @@ sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self
           case NonFatal(ex) => signalError(ex, stop)
         }
 
-      case NextSeq(headSeq, tailF, stop) =>
-        if (headSeq.isEmpty)
-          Suspend[F,B](tailF.map(_.mapEval(f)), stop)
-        else try {
-          val head = headSeq.head
-          val tail = F.pure(NextSeq(headSeq.tail, tailF, stop))
+      case ref @ NextSeq(cursor, rest, stop) =>
+        try if (!cursor.moveNext())
+          Suspend[F,B](rest.map(_.mapEval(f)), stop)
+        else {
+          val head = cursor.current
+          val tail = F.pure(ref)
           val fa = f(head)
           val rest = fa.map(h => nextS(h, tail.map(_.mapEval(f)), stop))
           Suspend[F,B](rest, stop)
@@ -156,8 +154,8 @@ sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self
         try Next[F,B](f(head), tail.map(_.map(f)), stop)
         catch { case NonFatal(ex) => signalError(ex, stop) }
 
-      case NextSeq(head, rest, stop) =>
-        try NextSeq[F,B](head.map(f), rest.map(_.map(f)), stop)
+      case NextSeq(cursor, rest, stop) =>
+        try NextSeq[F,B](cursor.map(f), rest.map(_.map(f)), stop)
         catch { case NonFatal(ex) => signalError(ex, stop) }
 
       case Suspend(rest, stop) =>
@@ -172,20 +170,19 @@ sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self
     * and concatenates the results.
     */
   final def flatMap[B](f: A => Iterant[F,B])(implicit F: Monad[F]): Iterant[F,B] = {
-    import F.functor
-    import F.{applicative => A}
+    import F.{functor, applicative => A}
     this match {
       case Next(head, tail, stop) =>
         try f(head).doOnStop(stop) ++ tail.map(_.flatMap(f))
         catch { case NonFatal(ex) => signalError(ex, stop) }
 
-      case NextSeq(list, rest, stop) =>
-        try if (list.isEmpty) {
+      case ref @ NextSeq(cursor, rest, stop) =>
+        try if (!cursor.moveNext()) {
           Suspend[F,B](rest.map(_.flatMap(f)), stop)
         }
         else {
-          f(list.head).doOnStop(stop) ++
-            A.pure(NextSeq[F,A](list.tail, rest, stop)).map(_.flatMap(f))
+          f(cursor.current).doOnStop(stop) ++
+            A.eval(ref.flatMap(f))
         }
         catch {
           case NonFatal(ex) => signalError(ex, stop)
@@ -234,8 +231,7 @@ sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self
     * accumulating state until the end, when the summary is returned.
     */
   final def foldLeftL[S](seed: => S)(f: (S,A) => S)(implicit F: MonadError[F,Throwable]): F[S] = {
-    import F.{applicative => A}
-    import F.{monad => M}
+    import F.{applicative => A, monad => M}
 
     def loop(self: Iterant[F,A], state: S): F[S] = {
       def next(a: A, next: F[Iterant[F,A]], stop: F[Unit]): F[S] =
@@ -290,11 +286,11 @@ sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self
 /** Defines [[Iterant]] builders.
   *
   * @define nextDesc The [[monix.interact.Iterant.Next Next]] state
-  *         of the [[Iterant]] represents a `head` / `tail`
+  *         of the [[Iterant]] represents a `head` / `rest`
   *         cons pair, where the `head` is a strict value.
   *
   *         Note the `head` being a strict value means that it is
-  *         already known, whereas the `tail` is meant to be lazy and
+  *         already known, whereas the `rest` is meant to be lazy and
   *         can have asynchronous behavior as well, depending on the `F`
   *         type used.
   *
@@ -302,16 +298,11 @@ sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self
   *         for a state where the head is a strict immutable list.
   *
   * @define nextSeqDesc The [[monix.interact.Iterant.NextSeq NextSeq]] state
-  *         of the [[Iterant]] represents a `head` / `tail` cons pair,
-  *         where the `head` is a strict list of elements.
+  *         of the [[Iterant]] represents a `cursor` / `rest` cons pair,
+  *         where the `cursor` is an [[Cursor iterator-like]] type that
+  *         can generate a whole batch of elements.
   *
-  *         The `head` is a Scala `collection.immutable.LinearSeq` and so
-  *         it accepts collections that are guaranteed to be immutable and
-  *         that have a reasonably efficient head/tail decomposition, examples
-  *         being Scala's `List`, `Queue` and `Stack`. The `head` can be
-  *         empty.
-  *
-  *         Useful for doing buffering, or by giving it an empty list,
+  *         Useful for doing buffering, or by giving it an empty cursor,
   *         useful to postpone the evaluation of the next element.
   *
   * @define suspendDesc The [[monix.interact.Iterant.Suspend Suspend]] state
@@ -336,21 +327,15 @@ sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self
   *         into a stream.
   *
   *         Note that the generated `Iterator` is side-effectful and
-  *         evaluating the `tail` references multiple times might yield
-  *         undesired effects. So if you end up evaluating those `tail`
-  *         references multiple times, consider using `memoize` on
-  *         the resulting stream or apply `fromList` on an
-  *         immutable `LinearSeq`.
+  *         evaluating the `rest` references multiple times might yield
+  *         undesired effects.
   *
   * @define fromIterableDesc Converts a `scala.collection.Iterable`
   *         into a stream.
   *
   *         Note that the generated `Iterator` is side-effectful and
-  *         evaluating the `tail` references multiple times might yield
-  *         undesired effects. So if you end up evaluating those `tail`
-  *         references multiple times, consider using `memoize` on
-  *         the resulting stream or apply `fromList` on an
-  *         immutable `LinearSeq`.
+  *         evaluating the `rest` references multiple times might yield
+  *         undesired effects.
   *
   * @define batchSizeDesc indicates the size of a streamed batch on each event
   *        (by means of [[Iterant.NextSeq]]) or no batching done if it is
@@ -387,48 +372,48 @@ object Iterant extends StreamInstances {
     * $nextDesc
     *
     * @param head is the current element to be signaled
-    * @param tail is the next state in the sequence that will
+    * @param rest is the next state in the sequence that will
     *        produce the rest of the stream
     * @param stop $stopDesc
     */
-  def nextS[F[_],A](head: A, tail: F[Iterant[F,A]], stop: F[Unit]): Iterant[F,A] =
-    Next[F,A](head, tail, stop)
+  def nextS[F[_],A](head: A, rest: F[Iterant[F,A]], stop: F[Unit]): Iterant[F,A] =
+    Next[F,A](head, rest, stop)
 
   /** Builds a [[Iterant.Next]] stream state.
     *
     * $nextDesc
     *
     * @param head is the current element to be signaled
-    * @param tail is the next state in the sequence that will
+    * @param rest is the next state in the sequence that will
     *        produce the rest of the stream
     */
-  def next[F[_],A](head: A, tail: F[Iterant[F,A]])
-    (implicit F: Applicative[F]): Iterant[F,A] =
-    nextS[F,A](head, tail, F.unit)
+  def next[F[_],A](head: A, rest: F[Iterant[F,A]])(implicit F: Applicative[F]): Iterant[F,A] =
+    nextS[F,A](head, rest, F.unit)
 
   /** Builds a [[Iterant.NextSeq]] stream state.
     *
     * $nextSeqDesc
     *
-    * @param head is the current element to be signaled
-    * @param tail is the next state in the sequence that will
+    * @param cursor is an [[Cursor iterator-like]] type that can generate
+    *        elements by traversing a collection
+    * @param rest is the next state in the sequence that will
     *        produce the rest of the stream
     * @param stop $stopDesc
     */
-  def nextSeqS[F[_],A](head: LinearSeq[A], tail: F[Iterant[F,A]], stop: F[Unit]): Iterant[F,A] =
-    NextSeq[F,A](head, tail, stop)
+  def nextSeqS[F[_],A](cursor: Cursor[A], rest: F[Iterant[F,A]], stop: F[Unit]): Iterant[F,A] =
+    NextSeq[F,A](cursor, rest, stop)
 
   /** Builds a [[Iterant.NextSeq]] stream state.
     *
     * $nextSeqDesc
     *
-    * @param head is a strict list of the next elements to be processed, can be empty
-    * @param tail is the next state in the sequence that will
+    * @param cursor is an [[Cursor iterator-like]] type that can generate
+    *        elements by traversing a collection
+    * @param rest is the next state in the sequence that will
     *        produce the rest of the stream
     */
-  def nextSeq[F[_],A](head: LinearSeq[A], tail: F[Iterant[F,A]])
-    (implicit F: Applicative[F]): Iterant[F,A] =
-    nextSeqS[F,A](head, tail, F.unit)
+  def nextSeq[F[_],A](cursor: Cursor[A], rest: F[Iterant[F,A]])(implicit F: Applicative[F]): Iterant[F,A] =
+    nextSeqS[F,A](cursor, rest, F.unit)
 
   /** $suspendEvalDesc */
   def suspend[F[_], A](fa: => Iterant[F,A])(implicit F: Applicative[F]): Iterant[F,A] =
@@ -475,49 +460,18 @@ object Iterant extends StreamInstances {
   /** Converts any Scala `collection.immutable.LinearSeq`
     * into a stream.
     */
-  def fromList[F[_], A](xs: LinearSeq[A])(implicit F: Applicative[F]): Iterant[F,A] =
-    NextSeq[F,A](xs, F.pure(halt[F,A](None)), F.unit)
+  def fromList[F[_], A](xs: LinearSeq[A])(implicit F: Applicative[F]): Iterant[F,A] = {
+    val fa = F.eval(nextSeqS[F,A](Cursor.fromSeq(xs), F.pure(halt[F,A](None)), F.unit))
+    Suspend[F,A](fa, F.unit)
+  }
 
   /** Converts any Scala `collection.IndexedSeq` into a stream.
     *
     * @param xs is the reference to be converted to a stream
     */
-  def fromIndexedSeq[F[_] : Applicative, A](xs: IndexedSeq[A]): Iterant[F,A] =
-    fromIndexedSeq(xs, Platform.recommendedBatchSize)
-
-  /** Converts any Scala `collection.IndexedSeq` into a stream.
-    *
-    * @param xs is the reference to be converted to a stream
-    * @param batchSize $batchSizeDesc
-    */
-  def fromIndexedSeq[F[_], A](xs: IndexedSeq[A], batchSize: Int)(implicit F: Applicative[F]): Iterant[F,A] = {
-    // Recursive function
-    def loop(idx: Int, length: Int, stop: F[Unit]): F[Iterant[F,A]] =
-      F.eval {
-        if (idx >= length)
-          Halt(None)
-        else if (batchSize == 1)
-          try Next[F,A](xs(idx), loop(idx+1,length,stop), stop) catch {
-            case NonFatal(ex) => Halt(Some(ex))
-          }
-        else try {
-          val buffer = ListBuffer.empty[A]
-          var j = 0
-          while (j + idx < length && j < batchSize) {
-            buffer += xs(idx + j)
-            j += 1
-          }
-
-          NextSeq[F,A](buffer.toList, loop(idx + j, length, stop), stop)
-        } catch {
-          case NonFatal(ex) =>
-            Halt(Some(ex))
-        }
-      }
-
-    require(batchSize >= 1, "batchSize >= 1")
-    val stop = F.unit
-    Suspend[F,A](loop(0, xs.length, stop), stop)
+  def fromIndexedSeq[F[_], A](xs: IndexedSeq[A])(implicit F: Applicative[F]): Iterant[F,A] = {
+    val fa = F.eval(nextSeq[F,A](Cursor.fromIndexedSeq(xs), F.pure(empty)))
+    Suspend[F,A](fa, F.unit)
   }
 
   /** Converts any `scala.collection.Seq` into a stream. */
@@ -526,28 +480,19 @@ object Iterant extends StreamInstances {
       case ref: LinearSeq[_] =>
         fromList[F,A](ref.asInstanceOf[LinearSeq[A]])
       case ref: IndexedSeq[_] =>
-        fromIndexedSeq[F,A](ref.asInstanceOf[IndexedSeq[A]], Platform.recommendedBatchSize)
+        fromIndexedSeq[F,A](ref.asInstanceOf[IndexedSeq[A]])
       case _ =>
-        fromIterable(xs, batchSize = Platform.recommendedBatchSize)
+        fromIterable(xs)
     }
 
   /** $fromIterableDesc
     *
     * @param xs is the reference to be converted to a stream
     */
-  def fromIterable[F[_] : Applicative, A](xs: Iterable[A]): Iterant[F,A] =
-    fromIterable[F,A](xs, 1)
-
-  /** $fromIterableDesc
-    *
-    * @param xs is the reference to be converted to a stream
-    * @param batchSize $batchSizeDesc
-    */
-  def fromIterable[F[_],A](xs: Iterable[A], batchSize: Int)(implicit F: Applicative[F]): Iterant[F,A] = {
-    require(batchSize > 0, "batchSize should be strictly positive")
+  def fromIterable[F[_],A](xs: Iterable[A])(implicit F: Applicative[F]): Iterant[F,A] = {
     val init = F.eval(xs.iterator)
     val stop = F.unit
-    val rest = F.functor.map(init)(iterator => fromIterator[F,A](iterator, batchSize))
+    val rest = F.functor.map(init)(iterator => fromIterator[F,A](iterator))
     Suspend[F,A](rest, stop)
   }
 
@@ -555,62 +500,32 @@ object Iterant extends StreamInstances {
     *
     * @param xs is the reference to be converted to a stream
     */
-  def fromIterator[F[_] : Applicative, A](xs: Iterator[A]): Iterant[F,A] =
-    fromIterator[F,A](xs, batchSize = 1)
-
-  /** $fromIteratorDesc
-    *
-    * @param xs is the reference to be converted to a stream
-    * @param batchSize $batchSizeDesc
-    */
-  def fromIterator[F[_], A](xs: Iterator[A], batchSize: Int)(implicit F: Applicative[F]): Iterant[F,A] = {
-    def loop(): F[Iterant[F,A]] =
-      F.eval {
-        try {
-          val buffer = mutable.ListBuffer.empty[A]
-          var processed = 0
-          while (processed < batchSize && xs.hasNext) {
-            buffer += xs.next()
-            processed += 1
-          }
-
-          if (processed == 0) Halt(None)
-          else if (processed == 1)
-            Next[F,A](buffer.head, loop(), F.unit)
-          else
-            NextSeq[F,A](buffer.toList, loop(), F.unit)
-        } catch {
-          case NonFatal(ex) =>
-            Halt(Some(ex))
-        }
-      }
-
-    require(batchSize > 0, "batchSize should be strictly positive")
-    Suspend[F,A](loop(), F.unit)
-  }
+  def fromIterator[F[_], A](xs: Iterator[A])(implicit F: Applicative[F]): Iterant[F,A] =
+    NextSeq[F,A](Cursor.fromIterator(xs), F.pure(empty), F.unit)
 
   /** $nextDesc
     *
     * @param head is the current element being signaled
-    * @param tail is the next state in the sequence that will
+    * @param rest is the next state in the sequence that will
     *        produce the rest of the stream
     * @param stop $stopDesc
     */
   final case class Next[F[_],A](
     head: A,
-    tail: F[Iterant[F,A]],
+    rest: F[Iterant[F,A]],
     stop: F[Unit])
     extends Iterant[F,A]
 
   /** $nextSeqDesc
     *
-    * @param head is a strict list of the next elements to be processed, can be empty
-    * @param tail is the rest of the stream
+    * @param cursor is an [[Cursor iterator-like]] type that can generate
+    *        elements by traversing a collection
+    * @param rest is the rest of the stream
     * @param stop $stopDesc
     */
   final case class NextSeq[F[_],A](
-    head: LinearSeq[A],
-    tail: F[Iterant[F,A]],
+    cursor: Cursor[A],
+    rest: F[Iterant[F,A]],
     stop: F[Unit])
     extends Iterant[F,A]
 

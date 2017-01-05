@@ -51,7 +51,7 @@ object IterantMapSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = TaskStream.nextSeqS(List(1,2,3), Task(TaskStream.empty), Task { isCanceled = true })
+    val stream = TaskStream.nextSeqS(Cursor.fromSeq(List(1,2,3)), Task(TaskStream.empty), Task { isCanceled = true })
     val result = stream.map[Int](_ => throw dummy).toListL.runAsync
 
     s.tick()
@@ -87,7 +87,7 @@ object IterantMapSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = CoevalStream.nextSeqS(List(1,2,3), Coeval(CoevalStream.empty), Coeval { isCanceled = true })
+    val stream = CoevalStream.nextSeqS(Cursor.fromSeq(List(1,2,3)), Coeval(CoevalStream.empty), Coeval { isCanceled = true })
     val result = stream.map[Int](_ => throw dummy).toListL.runTry
 
     assertEquals(result, Failure(dummy))

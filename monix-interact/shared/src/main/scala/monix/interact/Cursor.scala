@@ -263,4 +263,18 @@ object Cursor {
     */
   def fromArray[A](array: Array[A], offset: Int, length: Int): Cursor[A] =
     new ArrayCursor[A](array, offset, length)
+
+  /** Builds a [[Cursor]] from a Scala `Seq`, with lazy
+    * semantics on transformations.
+    */
+  def fromSeq[A](seq: Seq[A]): Cursor[A] =
+    fromIterator(seq.iterator)
+
+  /** Builds a [[Cursor]] from a Scala `IndexedSeq`, with strict
+    * semantics on transformations.
+    */
+  def fromIndexedSeq[A](seq: IndexedSeq[A]): Cursor[A] = {
+    val ref = seq.asInstanceOf[IndexedSeq[AnyRef]].toArray
+    fromArray(ref).asInstanceOf[Cursor[A]]
+  }
 }

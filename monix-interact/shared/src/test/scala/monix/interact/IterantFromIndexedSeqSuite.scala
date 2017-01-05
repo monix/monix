@@ -33,18 +33,4 @@ object IterantFromIndexedSeqSuite extends BaseTestSuite {
       result === Coeval.now(list)
     }
   }
-
-  test("TaskStream.fromIndexedSeq(batchSize=1)") { implicit s =>
-    check1 { (list: List[Int]) =>
-      val result = TaskStream.fromIndexedSeq(list.toVector, batchSize = 1).toListL
-      result === Task.now(list)
-    }
-  }
-
-  test("CoevalStream.fromIndexedSeq(batchSize=1)") { implicit s =>
-    check1 { (list: List[Int]) =>
-      val result = CoevalStream.fromIndexedSeq(list.toVector, batchSize = 1).toListL
-      result === Coeval.now(list)
-    }
-  }
 }

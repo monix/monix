@@ -37,7 +37,7 @@ trait ArbitraryInstances extends monix.eval.ArbitraryInstances {
             Iterant.suspend[Task,A](Task(listToStream(list, length, idx+1)))
           else {
             val (headSeq, tail) = list.splitAt(4)
-            Iterant.nextSeq[Task,A](headSeq, Task(listToStream(tail, length, idx+1)))
+            Iterant.nextSeq[Task,A](Cursor.fromSeq(headSeq), Task(listToStream(tail, length, idx+1)))
           }
       }
 
@@ -61,7 +61,7 @@ trait ArbitraryInstances extends monix.eval.ArbitraryInstances {
             CoevalStream.suspend(Coeval(listToStream(list, length, idx+1)))
           else {
             val (headSeq, tail) = list.splitAt(4)
-            CoevalStream.nextSeq(headSeq, Coeval(listToStream(tail, length, idx+1)))
+            CoevalStream.nextSeq(Cursor.fromSeq(headSeq), Coeval(listToStream(tail, length, idx+1)))
           }
       }
 
@@ -85,7 +85,7 @@ trait ArbitraryInstances extends monix.eval.ArbitraryInstances {
             TaskStream.suspend(Task(listToStream(list, length, idx+1)))
           else {
             val (headSeq, tail) = list.splitAt(4)
-            TaskStream.nextSeq(headSeq, Task(listToStream(tail, length, idx+1)))
+            TaskStream.nextSeq(Cursor.fromSeq(headSeq), Task(listToStream(tail, length, idx+1)))
           }
       }
 

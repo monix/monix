@@ -29,13 +29,6 @@ object IterantFromIterableSuite extends BaseTestSuite {
     }
   }
 
-  test("TaskStream.fromIterable (batched)") { implicit s =>
-    check1 { (list: List[Int]) =>
-      val result = TaskStream.fromIterable(list, batchSize = 4).toListL
-      result === Task.now(list)
-    }
-  }
-
   test("TaskStream.fromIterable (async)") { implicit s =>
     check1 { (list: List[Int]) =>
       val result = TaskStream.fromIterable(list) .mapEval(x => Task(x)).toListL
@@ -54,28 +47,9 @@ object IterantFromIterableSuite extends BaseTestSuite {
     s.tick(); assertEquals(result.value, Some(Failure(dummy)))
   }
 
-  test("TaskStream.fromIterable should throw error if batchSize <= 0") { _ =>
-    intercept[IllegalArgumentException] {
-      TaskStream.fromIterable(List(1,2,3), 0)
-    }
-  }
-
-  test("TaskStream.fromIterator should throw error if batchSize <= 0") { _ =>
-    intercept[IllegalArgumentException] {
-      TaskStream.fromIterator(List(1,2,3).iterator, 0)
-    }
-  }
-
   test("CoevalStream.fromIterable") { _ =>
     check1 { (list: List[Int]) =>
       val result = CoevalStream.fromIterable(list).toListL
-      result === Coeval.now(list)
-    }
-  }
-
-  test("CoevalStream.fromIterable (batched)") { _ =>
-    check1 { (list: List[Int]) =>
-      val result = CoevalStream.fromIterable(list, batchSize = 4).toListL
       result === Coeval.now(list)
     }
   }
@@ -96,17 +70,5 @@ object IterantFromIterableSuite extends BaseTestSuite {
 
     val result = CoevalStream.fromIterator(iterator).toListL.runTry
     assertEquals(result, Failure(dummy))
-  }
-
-  test("CoevalStream.fromIterable should throw error if batchSize <= 0") { _ =>
-    intercept[IllegalArgumentException] {
-      CoevalStream.fromIterable(List(1,2,3), 0)
-    }
-  }
-
-  test("CoevalStream.fromIterator should throw error if batchSize <= 0") { _ =>
-    intercept[IllegalArgumentException] {
-      CoevalStream.fromIterator(List(1,2,3).iterator, 0)
-    }
   }
 }
