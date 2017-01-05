@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by its authors. Some rights reserved.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,18 +15,13 @@
  * limitations under the License.
  */
 
-package monix.eval
+package monix.interact.exceptions
 
-import monix.types.tests.{MonadEvalLawsSuite, MonadLawsSuite, SuspendableLawsSuite}
-
-object TypeClassLawsForTaskStreamSuite extends BaseLawsSuite
-  with MonadEvalLawsSuite[TaskStream, Int, Long, Short]
-  with MonadLawsSuite[TaskStream, Int, Long, Short]
-  with SuspendableLawsSuite[TaskStream, Int, Long, Short] {
-
-  override val F =
-    TaskStream.typeClassInstances
-
-  // Actual tests ...
-  suspendableCheck("TaskStream[A]", includeSupertypes = true)
-}
+/** Exception type thrown whenever a
+  * [[monix.interact.Cursor.current Cursor.current]] invocation happens
+  * without being preceded by a first call to
+  * [[monix.interact.Cursor.moveNext Cursor.moveNext()]]
+  */
+class CursorNotStartedException extends NoSuchElementException(
+  "cursor.current is unavailable, because moveNext() was not called"
+)

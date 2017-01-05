@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by its authors. Some rights reserved.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,13 +15,14 @@
  * limitations under the License.
  */
 
-package monix.eval
+package monix.interact
 
+import monix.eval.Task
 import monix.eval.Task.nondeterminism
 
-/** A `TaskStream` represents a [[Task]]-based [[Streamable]], that
-  * has potentially lazy behavior and that also supports
-  * asynchronous behavior.
+/** A `TaskStream` represents a [[monix.eval.Task Task]]-based
+  * [[Iterant]], that has potentially lazy behavior and
+  * that also supports asynchronous behavior.
   *
   * A `TaskStream` has the following characteristics:
   *
@@ -34,29 +35,32 @@ import monix.eval.Task.nondeterminism
   * flexible, as it is controlled by [[Task]]. This means that:
   *
   *  - you can have the equivalent of an `Iterable` if the
-  *    `Task` tails are built with [[Task.eval]]
+  *    `Task` tails are built with
+  *    [[monix.eval.Task.eval Task.eval]]
   *  - you can have the equivalent of a Scala `Stream`, caching
   *    elements as the stream is getting traversed, if the
-  *    `Task` tails are built with [[Task.evalOnce]]
+  *    `Task` tails are built with
+  *    [[monix.eval.Task.evalOnce Task.evalOnce]]
   *  - it can be completely strict and thus equivalent with
-  *    `List`, if the tails are built with [[Task.now]]
+  *    `List`, if the tails are built with
+  *    [[monix.eval.Task.now Task.now]]
   *  - it supports asynchronous behavior and can also replace
   *    `Observable` for simple use-cases - for example the
   *    elements produced can be the result of asynchronous
   *    HTTP requests
   *
   * The implementation is practically wrapping the generic
-  * [[Streamable]], materialized with the [[Task]] type.
+  * [[Iterant]], materialized with the [[Task]] type.
   */
-final case class TaskStream[+A](stream: Streamable[Task,A])
-  extends Streamable.Like[A,Task,TaskStream]() {
+final case class TaskStream[+A](stream: Iterant[Task,A])
+  extends Iterant.Like[A,Task,TaskStream]() {
 
-  protected def transform[B](f: (Streamable[Task, A]) => Streamable[Task, B]): TaskStream[B] =
+  protected def transform[B](f: (Iterant[Task, A]) => Iterant[Task, B]): TaskStream[B] =
     TaskStream(f(stream))
 }
 
-object TaskStream extends Streamable.Builders[Task, TaskStream] {
-  /** Wraps a [[Streamable]] into a [[TaskStream]]. */
-  def fromStream[A](stream: Streamable[Task, A]): TaskStream[A] =
+object TaskStream extends Iterant.Builders[Task, TaskStream] {
+  /** Wraps a [[Iterant]] into a [[TaskStream]]. */
+  def fromStream[A](stream: Iterant[Task, A]): TaskStream[A] =
     TaskStream(stream)
 }

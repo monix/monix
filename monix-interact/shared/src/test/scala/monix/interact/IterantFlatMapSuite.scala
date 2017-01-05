@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by its authors. Some rights reserved.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,12 +15,13 @@
  * limitations under the License.
  */
 
-package monix.eval
+package monix.interact
 
-import monix.eval.Streamable.{Halt, Next, NextSeq, Suspend}
+import monix.eval.{Coeval, DummyException, Task}
+import monix.interact.Iterant.{Halt, Next, NextSeq, Suspend}
 import scala.util.{Failure, Success}
 
-object StreamableFlatMapSuite extends BaseTestSuite {
+object IterantFlatMapSuite extends BaseTestSuite {
   test("TaskStream.flatMap equivalence with List.flatMap") { implicit s =>
     check2 { (stream: TaskStream[Int], f: Int => List[Long]) =>
       val result = stream.flatMap(x => TaskStream.fromList(f(x))).toListL
@@ -78,7 +79,7 @@ object StreamableFlatMapSuite extends BaseTestSuite {
         yield x + y + z
 
     composed.stream match {
-      case Streamable.Next(head, _, stop) =>
+      case Iterant.Next(head, _, stop) =>
         assertEquals(head, 6)
         assertEquals(stop.runSyncMaybe, Right(()))
         assertEquals(effects, Vector(3,2,1))
@@ -88,7 +89,7 @@ object StreamableFlatMapSuite extends BaseTestSuite {
   }
 
   test("TaskStream.nextSeq.flatMap chains stop") { implicit s =>
-    def firstNext[A](streamable: Streamable[Task,A]): Task[Streamable[Task,A]] =
+    def firstNext[A](streamable: Iterant[Task,A]): Task[Iterant[Task,A]] =
       streamable match {
         case Suspend(rest, _) =>
           rest.flatMap(firstNext)
@@ -114,7 +115,7 @@ object StreamableFlatMapSuite extends BaseTestSuite {
         yield x + y + z
 
     firstNext(composed.stream).runSyncMaybe match {
-      case Right(Streamable.NextSeq(head, _, stop)) =>
+      case Right(Iterant.NextSeq(head, _, stop)) =>
         assertEquals(head, List(6))
         assertEquals(stop.runSyncMaybe, Right(()))
         assertEquals(effects, Vector(3,2,1))
@@ -131,7 +132,7 @@ object StreamableFlatMapSuite extends BaseTestSuite {
       .foldLeftL(0L)(_+_)
 
     val f = sumTask.runAsync; s.tick()
-    assertEquals(f.value, Some(Success(3L * (count * (count - 1) / 2))))
+    assertEquals(f.value, Some(Success(3 * (count.toLong * (count - 1) / 2))))
   }
 
   test("CoevalStream.flatMap equivalence with List.flatMap") { implicit s =>
@@ -189,7 +190,7 @@ object StreamableFlatMapSuite extends BaseTestSuite {
         yield x + y + z
 
     composed.stream match {
-      case Streamable.Next(head, _, stop) =>
+      case Iterant.Next(head, _, stop) =>
         assertEquals(head, 6)
         assertEquals(stop.value, ())
         assertEquals(effects, Vector(3,2,1))
@@ -199,7 +200,7 @@ object StreamableFlatMapSuite extends BaseTestSuite {
   }
 
   test("CoevalStream.nextSeq.flatMap chains stop") { implicit s =>
-    def firstNext[A](streamable: Streamable[Coeval,A]): Coeval[Streamable[Coeval,A]] =
+    def firstNext[A](streamable: Iterant[Coeval,A]): Coeval[Iterant[Coeval,A]] =
       streamable match {
         case Suspend(rest, _) =>
           rest.flatMap(firstNext)
@@ -225,7 +226,7 @@ object StreamableFlatMapSuite extends BaseTestSuite {
         yield x + y + z
 
     firstNext(composed.stream).value match {
-      case Streamable.NextSeq(head, _, stop) =>
+      case Iterant.NextSeq(head, _, stop) =>
         assertEquals(head, List(6))
         assertEquals(stop.value, ())
         assertEquals(effects, Vector(3,2,1))

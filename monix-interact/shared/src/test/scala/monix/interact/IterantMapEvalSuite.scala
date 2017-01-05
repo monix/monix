@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by its authors. Some rights reserved.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,11 +15,13 @@
  * limitations under the License.
  */
 
-package monix.eval
+package monix.interact
+
+import monix.eval.{Coeval, DummyException, Task}
 
 import scala.util.Failure
 
-object StreamableMapEvalSuite extends BaseTestSuite {
+object IterantMapEvalSuite extends BaseTestSuite {
   test("TaskStream.mapEval covariant identity") { implicit s =>
     check1 { (list: List[Int]) =>
       val r = TaskStream.fromIterable(list).mapEval(x => Task(x)).toListL

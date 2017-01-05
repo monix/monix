@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by its authors. Some rights reserved.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,51 +15,50 @@
  * limitations under the License.
  */
 
-package monix.eval
+package monix.interact
 
-import monix.eval.Streamable._
-import monix.execution.internal.Platform
 import monix.types._
 import monix.types.syntax._
-
+import monix.execution.internal.Platform
 import scala.collection.immutable.LinearSeq
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.util.control.NonFatal
 
-/** The `Streamable` is a type that describes lazy, possibly asynchronous
+/** The `Iterant` is a type that describes lazy, possibly asynchronous
   * streaming of elements.
   *
   * It is similar somewhat in spirit to Scala's own
   * `collection.immutable.Stream` and with Java's `Iterable`, except
   * that it is more composable and more flexible due to evaluation being
   * controlled by an `F[_]` monadic type that you have to supply
-  * (like [[Task]] or [[Coeval]]) which will control the evaluation.
-  * In other words, this `Streamable` type is capable of strict or lazy,
-  * synchronous or asynchronous evaluation.
+  * (like [[monix.eval.Task Task]] or [[monix.eval.Coeval Coeval]])
+  * which will control the evaluation. In other words, this `Iterant`
+  * type is capable of strict or lazy, synchronous or asynchronous
+  * evaluation.
   *
-  * Consumption of a `Streamable` happens typically in a loop where
+  * Consumption of a `Iterant` happens typically in a loop where
   * the current step represents either a signal that the stream
   * is over, or a (head, tail) pair, very similar in spirit to
-  * Scala's standard `List` or `Streamable`.
+  * Scala's standard `List` or `Iterant`.
   *
   * The type is an ADT, meaning a composite of the following types:
   *
-  *  - [[monix.eval.Streamable.Next Next]] which signals a single strict
+  *  - [[monix.interact.Iterant.Next Next]] which signals a single strict
   *    element, the `head` and a `tail` representing the rest of the stream
-  *  - [[monix.eval.Streamable.NextSeq NextSeq]] is a variation on `Next`
+  *  - [[monix.interact.Iterant.NextSeq NextSeq]] is a variation on `Next`
   *    for signaling a whole strict batch of elements as the `head`,
   *    along with the `tail` representing the rest of the stream
-  *  - [[monix.eval.Streamable.Suspend Suspend]] is for suspending the
+  *  - [[monix.interact.Iterant.Suspend Suspend]] is for suspending the
   *    evaluation of a stream
-  *  - [[monix.eval.Streamable.Halt Halt]] represents an empty
+  *  - [[monix.interact.Iterant.Halt Halt]] represents an empty
   *    stream, signaling the end, either in success or in error
   *
-  * The `Streamable` type accepts as type parameter an `F` monadic type that
-  * is used to control how evaluation happens. For example you can
-  * use [[Task]], in which case the streaming can have asynchronous
-  * behavior, or you can use [[Coeval]] in which case it can behave
-  * like a normal, synchronous `Iterable`.
+  * The `Iterant` type accepts as type parameter an `F` monadic type
+  * that is used to control how evaluation happens. For example you can
+  * use [[monix.eval.Task Task]], in which case the streaming can have
+  * asynchronous behavior, or you can use [[monix.eval.Coeval Coeval]]
+  * in which case it can behave like a normal, synchronous `Iterable`.
   *
   * As restriction, this `F[_]` type used must be stack safe in
   * `map` and `flatMap`.
@@ -67,15 +66,17 @@ import scala.util.control.NonFatal
   * ATTRIBUTION: this type was inspired by the `Streaming` type in the
   * Typelevel Cats library (later moved to Typelevel's Dogs), originally
   * committed in Cats by Erik Osheim. Several operations from `Streaming`
-  * were adapted for this `Streamable` type, like `flatMap`, `foldRightL`
+  * were adapted for this `Iterant` type, like `flatMap`, `foldRightL`
   * and `zipMap`.
   *
   * @tparam F is the monadic type that controls evaluation; note that it
   *         must be stack-safe in its `map` and `flatMap` operations
   *
-  * @tparam A is the type of the elements produced by this Streamable
+  * @tparam A is the type of the elements produced by this Iterant
   */
-sealed abstract class Streamable[F[_], +A] extends Product with Serializable { self =>
+sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self =>
+  import Iterant._
+
   /** Returns a computation that should be evaluated in
     * case the streaming must be canceled before reaching
     * the end.
@@ -94,7 +95,7 @@ sealed abstract class Streamable[F[_], +A] extends Product with Serializable { s
   /** Given a routine make sure to execute it whenever
     * the consumer executes the current `stop` action.
     */
-  final def doOnStop(f: F[Unit])(implicit F: Monad[F]): Streamable[F,A] = {
+  final def doOnStop(f: F[Unit])(implicit F: Monad[F]): Iterant[F,A] = {
     import F.functor
     this match {
       case Next(head, tail, stop) =>
@@ -111,7 +112,7 @@ sealed abstract class Streamable[F[_], +A] extends Product with Serializable { s
   /** Given a mapping function that returns a possibly lazy or asynchronous
     * result, applies it over the elements emitted by the stream.
     */
-  final def mapEval[B](f: A => F[B])(implicit F: Applicative[F]): Streamable[F, B] = {
+  final def mapEval[B](f: A => F[B])(implicit F: Applicative[F]): Iterant[F, B] = {
     import F.functor
     this match {
       case Next(head, tail, stop) =>
@@ -148,7 +149,7 @@ sealed abstract class Streamable[F[_], +A] extends Product with Serializable { s
   /** Returns a new stream by mapping the supplied function
     * over the elements of the source.
     */
-  final def map[B](f: A => B)(implicit F: Applicative[F]): Streamable[F,B] = {
+  final def map[B](f: A => B)(implicit F: Applicative[F]): Iterant[F,B] = {
     import F.functor
     this match {
       case Next(head, tail, stop) =>
@@ -170,8 +171,9 @@ sealed abstract class Streamable[F[_], +A] extends Product with Serializable { s
   /** Applies the function to the elements of the source
     * and concatenates the results.
     */
-  final def flatMap[B](f: A => Streamable[F,B])(implicit F: Monad[F]): Streamable[F,B] = {
-    import F.{functor,applicative}
+  final def flatMap[B](f: A => Iterant[F,B])(implicit F: Monad[F]): Iterant[F,B] = {
+    import F.functor
+    import F.{applicative => A}
     this match {
       case Next(head, tail, stop) =>
         try f(head).doOnStop(stop) ++ tail.map(_.flatMap(f))
@@ -183,7 +185,7 @@ sealed abstract class Streamable[F[_], +A] extends Product with Serializable { s
         }
         else {
           f(list.head).doOnStop(stop) ++
-            NextSeq[F,A](list.tail, rest, stop).flatMap(f)
+            A.pure(NextSeq[F,A](list.tail, rest, stop)).map(_.flatMap(f))
         }
         catch {
           case NonFatal(ex) => signalError(ex, stop)
@@ -199,16 +201,16 @@ sealed abstract class Streamable[F[_], +A] extends Product with Serializable { s
   /** Appends the given stream to the end of the source,
     * effectively concatenating them.
     */
-  final def ++[B >: A](rhs: Streamable[F,B])(implicit F: Functor[F]): Streamable[F,B] =
+  final def ++[B >: A](rhs: Iterant[F,B])(implicit F: Functor[F]): Iterant[F,B] =
     this.concat(rhs)
 
   /** Appends the given lazily generated stream to the end
     * of the source, effectively concatenating them.
     */
-  final def ++[B >: A](rhs: F[Streamable[F,B]])(implicit F: Applicative[F]): Streamable[F,B] =
+  final def ++[B >: A](rhs: F[Iterant[F,B]])(implicit F: Applicative[F]): Iterant[F,B] =
     this.concat(Suspend(rhs, F.unit))(F.functor)
 
-  private final def concat[B >: A](rhs: Streamable[F,B])(implicit F: Functor[F]): Streamable[F,B] =
+  private final def concat[B >: A](rhs: Iterant[F,B])(implicit F: Functor[F]): Iterant[F,B] =
     this match {
       case Next(a, lt, stop) =>
         val rest = lt.map(_.concat(rhs))
@@ -234,8 +236,8 @@ sealed abstract class Streamable[F[_], +A] extends Product with Serializable { s
   final def foldLeftL[S](seed: => S)(f: (S,A) => S)
     (implicit F: MonadEval[F], E: MonadError[F,Throwable]): F[S] = {
 
-    def loop(self: Streamable[F,A], state: S)(implicit A: Applicative[F], M: Monad[F]): F[S] = {
-      def next(a: A, next: F[Streamable[F,A]], stop: F[Unit]): F[S] =
+    def loop(self: Iterant[F,A], state: S)(implicit A: Applicative[F], M: Monad[F]): F[S] = {
+      def next(a: A, next: F[Iterant[F,A]], stop: F[Unit]): F[S] =
         try {
           val newState = f(state, a)
           next.flatMap(loop(_, newState))
@@ -280,17 +282,17 @@ sealed abstract class Streamable[F[_], +A] extends Product with Serializable { s
   }
 
   private def signalError(ex: Throwable, stop: F[Unit])
-    (implicit F: Applicative[F]): Streamable[F, Nothing] = {
+    (implicit F: Applicative[F]): Iterant[F, Nothing] = {
     import F.functor
-    val t = stop.map(_ => Streamable.halt[F,Nothing](Some(ex)))
-    Streamable.Suspend[F,Nothing](t, stop)
+    val t = stop.map(_ => Iterant.halt[F,Nothing](Some(ex)))
+    Iterant.Suspend[F,Nothing](t, stop)
   }
 }
 
-/** Defines [[Streamable]] builders.
+/** Defines [[Iterant]] builders.
   *
-  * @define nextDesc The [[monix.eval.Streamable.Next Next]] state
-  *         of the [[Streamable]] represents a `head` / `tail`
+  * @define nextDesc The [[monix.interact.Iterant.Next Next]] state
+  *         of the [[Iterant]] represents a `head` / `tail`
   *         cons pair, where the `head` is a strict value.
   *
   *         Note the `head` being a strict value means that it is
@@ -298,11 +300,11 @@ sealed abstract class Streamable[F[_], +A] extends Product with Serializable { s
   *         can have asynchronous behavior as well, depending on the `F`
   *         type used.
   *
-  *         See [[monix.eval.Streamable.NextSeq NextSeq]]
+  *         See [[monix.interact.Iterant.NextSeq NextSeq]]
   *         for a state where the head is a strict immutable list.
   *
-  * @define nextSeqDesc The [[monix.eval.Streamable.NextSeq NextSeq]] state
-  *         of the [[Streamable]] represents a `head` / `tail` cons pair,
+  * @define nextSeqDesc The [[monix.interact.Iterant.NextSeq NextSeq]] state
+  *         of the [[Iterant]] represents a `head` / `tail` cons pair,
   *         where the `head` is a strict list of elements.
   *
   *         The `head` is a Scala `collection.immutable.LinearSeq` and so
@@ -314,8 +316,8 @@ sealed abstract class Streamable[F[_], +A] extends Product with Serializable { s
   *         Useful for doing buffering, or by giving it an empty list,
   *         useful to postpone the evaluation of the next element.
   *
-  * @define suspendDesc The [[monix.eval.Streamable.Suspend Suspend]] state
-  *         of the [[Streamable]] represents a suspended stream to be
+  * @define suspendDesc The [[monix.interact.Iterant.Suspend Suspend]] state
+  *         of the [[Iterant]] represents a suspended stream to be
   *         evaluated in the `F` context. It is useful to delay the
   *         evaluation of a stream by deferring to `F`.
   *
@@ -323,8 +325,8 @@ sealed abstract class Streamable[F[_], +A] extends Product with Serializable { s
   *         streaming is stopped prematurely, giving it a chance
   *         to do resource cleanup (e.g. close file handles)
   *
-  * @define haltDesc The [[monix.eval.Streamable.Halt Halt]] state
-  *         of the [[Streamable]] represents the completion state
+  * @define haltDesc The [[monix.interact.Iterant.Halt Halt]] state
+  *         of the [[Iterant]] represents the completion state
   *         of a stream, with an optional exception if an error
   *         happened.
   *
@@ -353,7 +355,7 @@ sealed abstract class Streamable[F[_], +A] extends Product with Serializable { s
   *         immutable `LinearSeq`.
   *
   * @define batchSizeDesc indicates the size of a streamed batch on each event
-  *        (by means of [[Streamable.NextSeq]]) or no batching done if it is
+  *        (by means of [[Iterant.NextSeq]]) or no batching done if it is
   *        equal to 1
   *
   * @define suspendEvalDesc Promote a non-strict value representing a
@@ -362,35 +364,35 @@ sealed abstract class Streamable[F[_], +A] extends Product with Serializable { s
   *
   *         In case the underlying evaluation monad `F` is a
   *         [[monix.types.Suspendable Suspendable]] type
-  *         (like [[Task]] or [[Coeval]]), then suspension will act as a factory
+  *         (like [[monix.eval.Task Task]] or [[monix.eval.Coeval Coeval]]), then suspension will act as a factory
   *         of streams, with any described side-effects happening on
   *         each evaluation.
   */
-object Streamable extends StreamInstances {
+object Iterant extends StreamInstances {
   /** Given a sequence of elements, builds a stream out of it. */
-  def apply[F[_] : Applicative, A](elems: A*): Streamable[F,A] =
+  def apply[F[_] : Applicative, A](elems: A*): Iterant[F,A] =
     fromList[F,A](elems.toList)
 
   /** Lifts a strict value into the stream context,
     * returning a stream of one element.
     */
-  def now[F[_],A](a: A)(implicit F: Applicative[F]): Streamable[F,A] =
+  def now[F[_],A](a: A)(implicit F: Applicative[F]): Iterant[F,A] =
     next[F,A](a, F.pure(empty[F,A]))
 
   /** Alias for [[now]]. */
-  def pure[F[_],A](a: A)(implicit F: Applicative[F]): Streamable[F,A] =
+  def pure[F[_],A](a: A)(implicit F: Applicative[F]): Iterant[F,A] =
     now[F,A](a)(F)
 
   /** Lifts a non-strict value into the stream context,
     * returning a stream of one element that is lazily
     * evaluated.
     */
-  def eval[F[_],A](a: => A)(implicit F: MonadEval[F]): Streamable[F,A] = {
+  def eval[F[_],A](a: => A)(implicit F: MonadEval[F]): Iterant[F,A] = {
     import F.{functor, applicative => A}
     Suspend(F.eval(a).map(r => nextS[F,A](r, A.pure(Halt(None)), A.unit)), A.unit)
   }
 
-  /** Builds a [[Streamable.Next]] stream state.
+  /** Builds a [[Iterant.Next]] stream state.
     *
     * $nextDesc
     *
@@ -399,10 +401,10 @@ object Streamable extends StreamInstances {
     *        produce the rest of the stream
     * @param stop $stopDesc
     */
-  def nextS[F[_],A](head: A, tail: F[Streamable[F,A]], stop: F[Unit]): Streamable[F,A] =
+  def nextS[F[_],A](head: A, tail: F[Iterant[F,A]], stop: F[Unit]): Iterant[F,A] =
     Next[F,A](head, tail, stop)
 
-  /** Builds a [[Streamable.Next]] stream state.
+  /** Builds a [[Iterant.Next]] stream state.
     *
     * $nextDesc
     *
@@ -410,11 +412,11 @@ object Streamable extends StreamInstances {
     * @param tail is the next state in the sequence that will
     *        produce the rest of the stream
     */
-  def next[F[_],A](head: A, tail: F[Streamable[F,A]])
-    (implicit F: Applicative[F]): Streamable[F,A] =
+  def next[F[_],A](head: A, tail: F[Iterant[F,A]])
+    (implicit F: Applicative[F]): Iterant[F,A] =
     nextS[F,A](head, tail, F.unit)
 
-  /** Builds a [[Streamable.NextSeq]] stream state.
+  /** Builds a [[Iterant.NextSeq]] stream state.
     *
     * $nextSeqDesc
     *
@@ -423,10 +425,10 @@ object Streamable extends StreamInstances {
     *        produce the rest of the stream
     * @param stop $stopDesc
     */
-  def nextSeqS[F[_],A](head: LinearSeq[A], tail: F[Streamable[F,A]], stop: F[Unit]): Streamable[F,A] =
+  def nextSeqS[F[_],A](head: LinearSeq[A], tail: F[Iterant[F,A]], stop: F[Unit]): Iterant[F,A] =
     NextSeq[F,A](head, tail, stop)
 
-  /** Builds a [[Streamable.NextSeq]] stream state.
+  /** Builds a [[Iterant.NextSeq]] stream state.
     *
     * $nextSeqDesc
     *
@@ -434,64 +436,64 @@ object Streamable extends StreamInstances {
     * @param tail is the next state in the sequence that will
     *        produce the rest of the stream
     */
-  def nextSeq[F[_],A](head: LinearSeq[A], tail: F[Streamable[F,A]])
-    (implicit F: Applicative[F]): Streamable[F,A] =
+  def nextSeq[F[_],A](head: LinearSeq[A], tail: F[Iterant[F,A]])
+    (implicit F: Applicative[F]): Iterant[F,A] =
     nextSeqS[F,A](head, tail, F.unit)
 
   /** $suspendEvalDesc */
-  def suspend[F[_], A](fa: => Streamable[F,A])(implicit F: Suspendable[F]): Streamable[F,A] =
-    Streamable.suspend[F,A](F.monadEval.eval(fa))(F.applicative)
+  def suspend[F[_], A](fa: => Iterant[F,A])(implicit F: Suspendable[F]): Iterant[F,A] =
+    Iterant.suspend[F,A](F.monadEval.eval(fa))(F.applicative)
 
-  /** Alias for [[Streamable.suspendS[F[_],A](fa* suspend]]. */
-  def defer[F[_] : Suspendable, A](fa: => Streamable[F,A]): Streamable[F,A] =
+  /** Alias for [[Iterant.suspendS[F[_],A](fa* suspend]]. */
+  def defer[F[_] : Suspendable, A](fa: => Iterant[F,A]): Iterant[F,A] =
     suspend(fa)
 
-  /** Builds a [[Streamable.Suspend]] stream state.
+  /** Builds a [[Iterant.Suspend]] stream state.
     *
     * $suspendDesc
     *
     * @param rest is the suspended stream
     */
-  def suspend[F[_],A](rest: F[Streamable[F,A]])
-    (implicit F: Applicative[F]): Streamable[F,A] =
+  def suspend[F[_],A](rest: F[Iterant[F,A]])
+    (implicit F: Applicative[F]): Iterant[F,A] =
     suspendS[F,A](rest, F.unit)
 
-  /** Builds a [[Streamable.Suspend]] stream state.
+  /** Builds a [[Iterant.Suspend]] stream state.
     *
     * $suspendDesc
     *
     * @param rest is the suspended stream
     * @param stop $stopDesc
     */
-  def suspendS[F[_],A](rest: F[Streamable[F,A]], stop: F[Unit]): Streamable[F,A] =
+  def suspendS[F[_],A](rest: F[Iterant[F,A]], stop: F[Unit]): Iterant[F,A] =
     Suspend[F,A](rest, stop)
 
   /** Returns an empty stream. */
-  def empty[F[_],A]: Streamable[F,A] =
+  def empty[F[_],A]: Iterant[F,A] =
     Halt[F](None)
 
   /** Returns a stream that signals an error. */
-  def raiseError[F[_],A](ex: Throwable): Streamable[F,A] =
+  def raiseError[F[_],A](ex: Throwable): Iterant[F,A] =
     Halt[F](Some(ex))
 
-  /** Builds a [[Streamable.Halt]] stream state.
+  /** Builds a [[Iterant.Halt]] stream state.
     *
     * $haltDesc
     */
-  def halt[F[_],A](ex: Option[Throwable]): Streamable[F,A] =
+  def halt[F[_],A](ex: Option[Throwable]): Iterant[F,A] =
     Halt[F](ex)
 
   /** Converts any Scala `collection.immutable.LinearSeq`
     * into a stream.
     */
-  def fromList[F[_], A](xs: LinearSeq[A])(implicit F: Applicative[F]): Streamable[F,A] =
+  def fromList[F[_], A](xs: LinearSeq[A])(implicit F: Applicative[F]): Iterant[F,A] =
     NextSeq[F,A](xs, F.pure(halt[F,A](None)), F.unit)
 
   /** Converts any Scala `collection.IndexedSeq` into a stream.
     *
     * @param xs is the reference to be converted to a stream
     */
-  def fromIndexedSeq[F[_] : MonadEval, A](xs: IndexedSeq[A]): Streamable[F,A] =
+  def fromIndexedSeq[F[_] : MonadEval, A](xs: IndexedSeq[A]): Iterant[F,A] =
     fromIndexedSeq(xs, Platform.recommendedBatchSize)
 
   /** Converts any Scala `collection.IndexedSeq` into a stream.
@@ -500,10 +502,10 @@ object Streamable extends StreamInstances {
     * @param batchSize $batchSizeDesc
     */
   def fromIndexedSeq[F[_], A](xs: IndexedSeq[A], batchSize: Int)
-    (implicit F: MonadEval[F]): Streamable[F,A] = {
+    (implicit F: MonadEval[F]): Iterant[F,A] = {
 
     // Recursive function
-    def loop(idx: Int, length: Int, stop: F[Unit]): F[Streamable[F,A]] =
+    def loop(idx: Int, length: Int, stop: F[Unit]): F[Iterant[F,A]] =
       F.eval {
         if (idx >= length)
           Halt(None)
@@ -532,7 +534,7 @@ object Streamable extends StreamInstances {
   }
 
   /** Converts any `scala.collection.Seq` into a stream. */
-  def fromSeq[F[_], A](xs: Seq[A])(implicit F: MonadEval[F]): Streamable[F,A] =
+  def fromSeq[F[_], A](xs: Seq[A])(implicit F: MonadEval[F]): Iterant[F,A] =
     xs match {
       case ref: LinearSeq[_] =>
         fromList[F,A](ref.asInstanceOf[LinearSeq[A]])(F.applicative)
@@ -546,7 +548,7 @@ object Streamable extends StreamInstances {
     *
     * @param xs is the reference to be converted to a stream
     */
-  def fromIterable[F[_] : MonadEval, A](xs: Iterable[A]): Streamable[F,A] =
+  def fromIterable[F[_] : MonadEval, A](xs: Iterable[A]): Iterant[F,A] =
     fromIterable[F,A](xs, 1)
 
   /** $fromIterableDesc
@@ -555,7 +557,7 @@ object Streamable extends StreamInstances {
     * @param batchSize $batchSizeDesc
     */
   def fromIterable[F[_],A](xs: Iterable[A], batchSize: Int)
-    (implicit F: MonadEval[F]): Streamable[F,A] = {
+    (implicit F: MonadEval[F]): Iterant[F,A] = {
 
     require(batchSize > 0, "batchSize should be strictly positive")
     val init = F.eval(xs.iterator)
@@ -568,7 +570,7 @@ object Streamable extends StreamInstances {
     *
     * @param xs is the reference to be converted to a stream
     */
-  def fromIterator[F[_] : MonadEval, A](xs: Iterator[A]): Streamable[F,A] =
+  def fromIterator[F[_] : MonadEval, A](xs: Iterator[A]): Iterant[F,A] =
     fromIterator[F,A](xs, batchSize = 1)
 
   /** $fromIteratorDesc
@@ -577,9 +579,9 @@ object Streamable extends StreamInstances {
     * @param batchSize $batchSizeDesc
     */
   def fromIterator[F[_], A](xs: Iterator[A], batchSize: Int)
-    (implicit F: MonadEval[F]): Streamable[F,A] = {
+    (implicit F: MonadEval[F]): Iterant[F,A] = {
 
-    def loop(): F[Streamable[F,A]] =
+    def loop(): F[Iterant[F,A]] =
       F.eval {
         try {
           val buffer = mutable.ListBuffer.empty[A]
@@ -613,9 +615,9 @@ object Streamable extends StreamInstances {
     */
   final case class Next[F[_],A](
     head: A,
-    tail: F[Streamable[F,A]],
+    tail: F[Iterant[F,A]],
     stop: F[Unit])
-    extends Streamable[F,A]
+    extends Iterant[F,A]
 
   /** $nextSeqDesc
     *
@@ -625,9 +627,9 @@ object Streamable extends StreamInstances {
     */
   final case class NextSeq[F[_],A](
     head: LinearSeq[A],
-    tail: F[Streamable[F,A]],
+    tail: F[Iterant[F,A]],
     stop: F[Unit])
-    extends Streamable[F,A]
+    extends Iterant[F,A]
 
   /** $suspendDesc
     *
@@ -635,9 +637,9 @@ object Streamable extends StreamInstances {
     * @param stop $stopDesc
     */
   final case class Suspend[F[_], A](
-    rest: F[Streamable[F,A]],
+    rest: F[Iterant[F,A]],
     stop: F[Unit])
-    extends Streamable[F,A]
+    extends Iterant[F,A]
 
   /** $haltDesc
     *
@@ -645,11 +647,11 @@ object Streamable extends StreamInstances {
     *        present, it means that the streaming ended in error.
     */
   final case class Halt[F[_]](ex: Option[Throwable])
-    extends Streamable[F,Nothing]
+    extends Iterant[F,Nothing]
 
-  /** A template for stream-like types based on [[Streamable]].
+  /** A template for stream-like types based on [[Iterant]].
     *
-    * Wraps an [[Streamable]] instance into a class type that has
+    * Wraps an [[Iterant]] instance into a class type that has
     * a backed-in evaluation model, no longer exposing higher-kinded
     * types or type-class usage.
     *
@@ -660,23 +662,23 @@ object Streamable extends StreamInstances {
     * @tparam A is the type of the elements emitted by the stream
     * @tparam Self is the type of the inheriting subtype
     * @tparam F is the monadic type that handles evaluation
-    *         (e.g. [[Task]], [[Coeval]])
+    *         (e.g. [[monix.eval.Task Task]], [[monix.eval.Coeval Coeval]])
     */
   abstract class Like[+A, F[_], Self[+T] <: Like[T, F, Self]]
     (implicit E: MonadError[F,Throwable], M: Memoizable[F]) {
     self: Self[A] =>
 
-    import M.{functor, applicative, monadEval}
+    import M.{applicative, functor, monadEval}
 
-    /** Returns the underlying [[Streamable]] that handles this stream. */
-    def stream: Streamable[F,A]
+    /** Returns the underlying [[Iterant]] that handles this stream. */
+    def stream: Iterant[F,A]
 
-    /** Given a mapping function from one [[Streamable]] to another,
+    /** Given a mapping function from one [[Iterant]] to another,
       * applies it and returns a new stream based on the result.
       *
       * Must be implemented by inheriting subtypes.
       */
-    protected def transform[B](f: Streamable[F,A] => Streamable[F,B]): Self[B]
+    protected def transform[B](f: Iterant[F,A] => Iterant[F,B]): Self[B]
 
     /** Given a mapping function that returns a possibly lazy or asynchronous
       * result, applies it over the elements emitted by the stream.
@@ -726,7 +728,7 @@ object Streamable extends StreamInstances {
       stream.toListL[B]
   }
 
-  /** A template for companion objects of [[Streamable.Like]] subtypes.
+  /** A template for companion objects of [[Iterant.Like]] subtypes.
     *
     * This type is not meant for providing polymorphic behavior, but
     * for sharing implementation between types such as
@@ -734,7 +736,7 @@ object Streamable extends StreamInstances {
     *
     * @tparam Self is the type of the inheriting subtype
     * @tparam F is the monadic type that handles evaluation in the
-    *         [[Streamable]] implementation (e.g. [[Task]], [[Coeval]])
+    *         [[Iterant]] implementation (e.g. [[monix.eval.Task Task]], [[monix.eval.Coeval Coeval]])
     *
     * @define fromIterableDesc Converts a `scala.collection.Iterable`
     *         into a stream.
@@ -756,39 +758,39 @@ object Streamable extends StreamInstances {
     *         the resulting stream or apply `fromList` on an
     *         immutable `LinearSeq`.
     *
-    * @define nextDesc Builds a stream equivalent with [[Streamable.Next]],
+    * @define nextDesc Builds a stream equivalent with [[Iterant.Next]],
     *         a pairing between a `head` and a potentially lazy or
     *         asynchronous `tail`.
     *
-    *         @see [[Streamable.Next]]
+    *         @see [[Iterant.Next]]
     *
-    * @define nextSeqDesc Builds a stream equivalent with [[Streamable.NextSeq]],
+    * @define nextSeqDesc Builds a stream equivalent with [[Iterant.NextSeq]],
     *         a pairing between a `head`, which is a strict sequence and a
     *         potentially lazy or asynchronous `tail`.
     *
-    *         @see [[Streamable.NextSeq]]
+    *         @see [[Iterant.NextSeq]]
     *
-    * @define suspendDesc Builds a stream equivalent with [[Streamable.Suspend]],
+    * @define suspendDesc Builds a stream equivalent with [[Iterant.Suspend]],
     *         representing a suspended stream, useful for delaying its
     *         initialization, the evaluation being controlled by the
-    *         underlying monadic context (e.g. [[Task]], [[Coeval]], etc).
+    *         underlying monadic context (e.g. [[monix.eval.Task Task]], [[monix.eval.Coeval Coeval]], etc).
     *
-    *         @see [[Streamable.Suspend]]
+    *         @see [[Iterant.Suspend]]
     *
     * @define haltDesc Builds an empty stream that can potentially signal an
     *         error.
     *
     *         Used as a final node of a stream (the equivalent of Scala's `Nil`),
-    *         wrapping a [[Streamable.Halt]] instance.
+    *         wrapping a [[Iterant.Halt]] instance.
     *
-    *         @see [[Streamable.Halt]]
+    *         @see [[Iterant.Halt]]
     *
     * @define stopDesc is a computation to be executed in case
     *         streaming is stopped prematurely, giving it a chance
     *         to do resource cleanup (e.g. close file handles)
     *
     * @define batchSizeDesc indicates the size of a streamed batch
-    *         on each event (generating [[Streamable.NextSeq]] nodes) or no
+    *         on each event (generating [[Iterant.NextSeq]] nodes) or no
     *         batching done if it is equal to 1
     */
   abstract class Builders[F[_], Self[+T] <: Like[T, F, Self]]
@@ -796,29 +798,29 @@ object Streamable extends StreamInstances {
 
     import M.{applicative, functor, monadEval, suspendable}
 
-    /** Materializes a [[Streamable]]. */
-    def fromStream[A](stream: Streamable[F,A]): Self[A]
+    /** Materializes a [[Iterant]]. */
+    def fromStream[A](stream: Iterant[F,A]): Self[A]
 
     /** Given a sequence of elements, builds a stream out of it. */
     def apply[A](elems: A*): Self[A] =
-      fromStream(Streamable.apply[F,A](elems:_*))
+      fromStream(Iterant.apply[F,A](elems:_*))
 
     /** Lifts a strict value into the stream context,
       * returning a stream of one element.
       */
     def now[A](a: A): Self[A] =
-      fromStream(Streamable.now[F,A](a))
+      fromStream(Iterant.now[F,A](a))
 
     /** Alias for [[now]]. */
     def pure[A](a: A): Self[A] =
-      fromStream(Streamable.pure[F,A](a))
+      fromStream(Iterant.pure[F,A](a))
 
     /** Lifts a non-strict value into the stream context,
       * returning a stream of one element that is lazily
       * evaluated.
       */
     def eval[A](a: => A): Self[A] =
-      fromStream(Streamable.eval[F,A](a))
+      fromStream(Iterant.eval[F,A](a))
 
     /** $nextDesc
       *
@@ -827,7 +829,7 @@ object Streamable extends StreamInstances {
       *        produce the rest of the stream
       */
     def next[A](head: A, tail: F[Self[A]]): Self[A] =
-      fromStream(Streamable.next[F,A](head, functor.map(tail)(_.stream)))
+      fromStream(Iterant.next[F,A](head, functor.map(tail)(_.stream)))
 
     /** $nextDesc
       *
@@ -837,7 +839,7 @@ object Streamable extends StreamInstances {
       * @param stop $stopDesc
       */
     def nextS[A](head: A, tail: F[Self[A]], stop: F[Unit]): Self[A] =
-      fromStream(Streamable.nextS[F,A](head, functor.map(tail)(_.stream), stop))
+      fromStream(Iterant.nextS[F,A](head, functor.map(tail)(_.stream), stop))
 
     /** $nextSeqDesc
       *
@@ -846,7 +848,7 @@ object Streamable extends StreamInstances {
       *        produce the rest of the stream
       */
     def nextSeq[A](head: LinearSeq[A], tail: F[Self[A]]): Self[A] =
-      fromStream(Streamable.nextSeq[F,A](head, functor.map(tail)(_.stream)))
+      fromStream(Iterant.nextSeq[F,A](head, functor.map(tail)(_.stream)))
 
     /** $nextSeqDesc
       *
@@ -856,7 +858,7 @@ object Streamable extends StreamInstances {
       * @param stop $stopDesc
       */
     def nextSeqS[A](head: LinearSeq[A], tail: F[Self[A]], stop: F[Unit]): Self[A] =
-      fromStream(Streamable.nextSeqS[F,A](head, functor.map(tail)(_.stream), stop))
+      fromStream(Iterant.nextSeqS[F,A](head, functor.map(tail)(_.stream), stop))
 
     /** Promote a non-strict value representing a stream to a stream
       * of the same type, effectively delaying its initialisation.
@@ -865,18 +867,18 @@ object Streamable extends StreamInstances {
       * described side-effects happening on each evaluation.
       */
     def suspend[A](fa: => Self[A]): Self[A] =
-      fromStream(Streamable.suspend[F,A](fa.stream))
+      fromStream(Iterant.suspend[F,A](fa.stream))
 
     /** Alias for [[Builders.suspendS[A](fa* suspend]]. */
     def defer[A](fa: => Self[A]): Self[A] =
-      fromStream(Streamable.defer[F,A](fa.stream))
+      fromStream(Iterant.defer[F,A](fa.stream))
 
     /** $suspendDesc
       *
       * @param rest is the suspended stream
       */
     def suspend[A](rest: F[Self[A]]): Self[A] =
-      fromStream(Streamable.suspend[F,A](rest.map(_.stream)))
+      fromStream(Iterant.suspend[F,A](rest.map(_.stream)))
 
     /** $suspendDesc
       *
@@ -884,25 +886,25 @@ object Streamable extends StreamInstances {
       * @param stop $stopDesc
       */
     def suspendS[A](rest: F[Self[A]], stop: F[Unit]): Self[A] =
-      fromStream(Streamable.suspendS[F,A](rest.map(_.stream), stop))
+      fromStream(Iterant.suspendS[F,A](rest.map(_.stream), stop))
 
     /** Returns an empty stream. */
-    def empty[A]: Self[A] = fromStream(Streamable.empty[F,A])
+    def empty[A]: Self[A] = fromStream(Iterant.empty[F,A])
 
     /** Returns a stream that signals an error. */
     def raiseError[A](ex: Throwable): Self[A] =
-      fromStream(Streamable.raiseError[F,A](ex))
+      fromStream(Iterant.raiseError[F,A](ex))
 
     /** $haltDesc */
     def halt[A](ex: Option[Throwable]): Self[A] =
-      fromStream(Streamable.halt[F,A](ex))
+      fromStream(Iterant.halt[F,A](ex))
 
     /** Converts any Scala `collection.IndexedSeq` into a stream.
       *
       * @param xs is the reference to be converted to a stream
       */
     def fromIndexedSeq[A](xs: IndexedSeq[A]): Self[A] =
-      fromStream(Streamable.fromIndexedSeq[F,A](xs))
+      fromStream(Iterant.fromIndexedSeq[F,A](xs))
 
     /** Converts any Scala `collection.IndexedSeq` into a stream.
       *
@@ -910,24 +912,24 @@ object Streamable extends StreamInstances {
       * @param batchSize $batchSizeDesc
       */
     def fromIndexedSeq[A](xs: IndexedSeq[A], batchSize: Int): Self[A] =
-      fromStream(Streamable.fromIndexedSeq[F,A](xs, batchSize))
+      fromStream(Iterant.fromIndexedSeq[F,A](xs, batchSize))
 
     /** Converts any Scala `collection.immutable.LinearSeq`
       * into a stream.
       */
     def fromList[A](list: LinearSeq[A]): Self[A] =
-      fromStream(Streamable.fromList[F,A](list))
+      fromStream(Iterant.fromList[F,A](list))
 
     /** Converts a `scala.collection.immutable.Seq` into a stream. */
     def fromSeq[A](seq: Seq[A]): Self[A] =
-      fromStream(Streamable.fromSeq[F,A](seq))
+      fromStream(Iterant.fromSeq[F,A](seq))
 
     /** $fromIterableDesc
       *
       * @param xs is the reference to be converted to a stream
       */
     def fromIterable[A](xs: Iterable[A]): Self[A] =
-      fromStream(Streamable.fromIterable[F,A](xs))
+      fromStream(Iterant.fromIterable[F,A](xs))
 
     /** $fromIterableDesc
       *
@@ -935,14 +937,14 @@ object Streamable extends StreamInstances {
       * @param batchSize $batchSizeDesc
       */
     def fromIterable[A](xs: Iterable[A], batchSize: Int): Self[A] =
-      fromStream(Streamable.fromIterable[F,A](xs, batchSize))
+      fromStream(Iterant.fromIterable[F,A](xs, batchSize))
 
     /** $fromIteratorDesc
       *
       * @param xs is the reference to be converted to a stream
       */
     def fromIterator[A](xs: Iterator[A]): Self[A] =
-      fromStream(Streamable.fromIterator[F,A](xs))
+      fromStream(Iterant.fromIterator[F,A](xs))
 
     /** $fromIteratorDesc
       *
@@ -950,13 +952,13 @@ object Streamable extends StreamInstances {
       * @param batchSize $batchSizeDesc
       */
     def fromIterator[A](xs: Iterator[A], batchSize: Int): Self[A] =
-      fromStream(Streamable.fromIterator[F,A](xs, batchSize))
+      fromStream(Iterant.fromIterator[F,A](xs, batchSize))
 
-    /** Type-class instances for [[Streamable.Like]] types. */
+    /** Type-class instances for [[Iterant.Like]] types. */
     implicit val typeClassInstances: TypeClassInstances =
       new TypeClassInstances
 
-    /** Type-class instances for [[Streamable.Like]] types. */
+    /** Type-class instances for [[Iterant.Like]] types. */
     class TypeClassInstances extends Suspendable.Instance[Self] {
       override def pure[A](a: A): Self[A] =
         self.pure(a)
@@ -976,62 +978,62 @@ object Streamable extends StreamInstances {
   }
 }
 
-private[eval] trait StreamInstances extends StreamInstances1 {
+private[interact] trait StreamInstances extends StreamInstances1 {
   /** Provides a [[monix.types.Suspendable Suspendable]] instance
-    * for [[Streamable]].
+    * for [[Iterant]].
     */
   implicit def suspendableInstance[F[_] : Suspendable]: SuspendableInstance[F] =
     new SuspendableInstance[F]()
 
   /** Provides a [[monix.types.Suspendable Suspendable]] instance
-    * for [[Streamable]].
+    * for [[Iterant]].
     */
   class SuspendableInstance[F[_]](implicit F: Suspendable[F])
     extends MonadEvalInstance[F]()(F.monadEval)
-      with Suspendable.Instance[({type λ[+α] = Streamable[F,α]})#λ] {
+      with Suspendable.Instance[({type λ[+α] = Iterant[F,α]})#λ] {
 
-    override def suspend[A](fa: => Streamable[F, A]): Streamable[F, A] =
-      Streamable.suspend(fa)
+    override def suspend[A](fa: => Iterant[F, A]): Iterant[F, A] =
+      Iterant.suspend(fa)
   }
 }
 
-private[eval] trait StreamInstances1 extends StreamInstances0 {
+private[interact] trait StreamInstances1 extends StreamInstances0 {
   /** Provides a [[monix.types.MonadEval MonadEval]] instance
-    * for [[Streamable]].
+    * for [[Iterant]].
     */
   implicit def monadEvalInstance[F[_] : MonadEval]: MonadEvalInstance[F] =
     new MonadEvalInstance[F]()
 
   /** Provides a [[monix.types.MonadEval MonadEval]] instance
-    * for [[Streamable]].
+    * for [[Iterant]].
     */
   class MonadEvalInstance[F[_]](implicit F: MonadEval[F])
     extends MonadInstance[F]()(F.monad)
-    with MonadEval.Instance[({type λ[+α] = Streamable[F,α]})#λ] {
+    with MonadEval.Instance[({type λ[+α] = Iterant[F,α]})#λ] {
 
-    def eval[A](a: => A): Streamable[F, A] =
-      Streamable.eval[F,A](a)
+    def eval[A](a: => A): Iterant[F, A] =
+      Iterant.eval[F,A](a)
   }
 }
 
-private[eval] trait StreamInstances0 {
-  /** Provides a [[monix.types.Monad]] instance for [[Streamable]]. */
+private[interact] trait StreamInstances0 {
+  /** Provides a [[monix.types.Monad]] instance for [[Iterant]]. */
   implicit def monadInstance[F[_] : Monad]: MonadInstance[F] =
     new MonadInstance[F]()
 
-  /** Provides a [[monix.types.Monad]] instance for [[Streamable]]. */
+  /** Provides a [[monix.types.Monad]] instance for [[Iterant]]. */
   class MonadInstance[F[_]](implicit F: Monad[F])
-    extends Monad.Instance[({type λ[+α] = Streamable[F,α]})#λ] {
+    extends Monad.Instance[({type λ[+α] = Iterant[F,α]})#λ] {
 
-    def pure[A](a: A): Streamable[F, A] =
-      Streamable.pure[F,A](a)(F.applicative)
-    def flatMap[A, B](fa: Streamable[F, A])(f: (A) => Streamable[F, B]): Streamable[F, B] =
+    def pure[A](a: A): Iterant[F, A] =
+      Iterant.pure[F,A](a)(F.applicative)
+    def flatMap[A, B](fa: Iterant[F, A])(f: (A) => Iterant[F, B]): Iterant[F, B] =
       fa.flatMap(f)
-    def map[A, B](fa: Streamable[F, A])(f: (A) => B): Streamable[F, B] =
+    def map[A, B](fa: Iterant[F, A])(f: (A) => B): Iterant[F, B] =
       fa.map(f)(F.applicative)
-    def map2[A, B, Z](fa: Streamable[F, A], fb: Streamable[F, B])(f: (A, B) => Z): Streamable[F, Z] =
+    def map2[A, B, Z](fa: Iterant[F, A], fb: Iterant[F, B])(f: (A, B) => Z): Iterant[F, Z] =
       fa.flatMap(a => fb.map(b => f(a,b))(F.applicative))
-    def ap[A, B](ff: Streamable[F, (A) => B])(fa: Streamable[F, A]): Streamable[F, B] =
+    def ap[A, B](ff: Iterant[F, (A) => B])(fa: Iterant[F, A]): Iterant[F, B] =
       ff.flatMap(f => fa.map(a => f(a))(F.applicative))
   }
 }

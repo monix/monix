@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by its authors. Some rights reserved.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,10 +15,12 @@
  * limitations under the License.
  */
 
-package monix.eval
+package monix.interact
 
-/** A `CoevalStream` represents a [[Coeval]]-based [[Streamable]], that
-  * has potentially lazy behavior.
+import monix.eval.Coeval
+
+/** A `CoevalStream` represents a [[monix.eval.Coeval Coeval]]-based
+  * [[Iterant]], that has potentially lazy behavior.
   *
   * A `CoevalStream` has the following characteristics:
   *
@@ -27,28 +29,33 @@ package monix.eval
   *
   * It's very similar to other lazy types in Scala's standard
   * library, like `Iterator`, however the execution model is more
-  * flexible, as it is controlled by [[Coeval]]. This means that:
+  * flexible, as it is controlled by [[monix.eval.Coeval Coeval]].
+  * This means that:
   *
   *  1. you can have the equivalent of an `Iterable` if the
-  *     `Coeval` tails are built with [[Coeval.eval]]
+  *     `Coeval` tails are built with
+  *     [[monix.eval.Coeval Coeval.eval]]
   *  2. you can have the equivalent of a Scala `Stream`, caching
   *     elements as the stream is getting traversed, if the
-  *     `Coeval` tails are built with [[Coeval.evalOnce]]
+  *     `Coeval` tails are built with
+  *     [[monix.eval.Coeval Coeval.evalOnce]]
   *  3. it can be completely strict and thus equivalent with
-  *     `List`, if the tails are built with [[Coeval.now]]
+  *     `List`, if the tails are built with
+  *     [[monix.eval.Coeval Coeval.now]]
   *
   * The implementation is practically wrapping the generic
-  * [[Streamable]], materialized with the [[Coeval]] type.
+  * [[Iterant]], materialized with the [[monix.eval.Coeval Coeval]]
+  * type.
   */
-final case class CoevalStream[+A](stream: Streamable[Coeval,A])
-  extends Streamable.Like[A,Coeval,CoevalStream]() {
+final case class CoevalStream[+A](stream: Iterant[Coeval,A])
+  extends Iterant.Like[A,Coeval,CoevalStream]() {
 
-  protected def transform[B](f: (Streamable[Coeval, A]) => Streamable[Coeval, B]): CoevalStream[B] =
+  protected def transform[B](f: (Iterant[Coeval, A]) => Iterant[Coeval, B]): CoevalStream[B] =
     CoevalStream(f(stream))
 }
 
-object CoevalStream extends Streamable.Builders[Coeval, CoevalStream] {
-  /** Wraps a [[Streamable]] into a [[CoevalStream]]. */
-  def fromStream[A](stream: Streamable[Coeval, A]): CoevalStream[A] =
+object CoevalStream extends Iterant.Builders[Coeval, CoevalStream] {
+  /** Wraps a [[Iterant]] into a [[monix.eval.Coeval CoevalStream]]. */
+  def fromStream[A](stream: Iterant[Coeval, A]): CoevalStream[A] =
     CoevalStream(stream)
 }

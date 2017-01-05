@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by its authors. Some rights reserved.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,11 +15,13 @@
  * limitations under the License.
  */
 
-package monix.eval
+package monix.interact
+
+import monix.eval.Task
 
 import scala.collection.mutable.ListBuffer
 
-object StreamableFromSeqSuite extends BaseTestSuite {
+object IterantFromSeqSuite extends BaseTestSuite {
   test("TaskStream.fromSeq(vector)") { implicit s =>
     check1 { (list: List[Int]) =>
       val result = TaskStream.fromSeq(list.toVector).toListL

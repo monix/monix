@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by its authors. Some rights reserved.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,33 +15,35 @@
  * limitations under the License.
  */
 
-package monix.eval
+package monix.interact
 
-object StreamableFromIndexedSeqSuite extends BaseTestSuite {
-  test("TaskStream.fromIndexedSeq") { implicit s =>
+import monix.eval.{Coeval, Task}
+
+object IterantFromListSuite extends BaseTestSuite {
+  test("TaskStream.fromList") { implicit s =>
     check1 { (list: List[Int]) =>
-      val result = TaskStream.fromIndexedSeq(list.toVector).toListL
+      val result = TaskStream.fromList(list).toListL
       result === Task.now(list)
     }
   }
 
-  test("CoevalStream.fromIndexedSeq") { implicit s =>
+  test("TaskStream.fromList (async)") { implicit s =>
     check1 { (list: List[Int]) =>
-      val result = CoevalStream.fromIndexedSeq(list.toVector).toListL
+      val result = TaskStream.fromList(list).mapEval(x => Task(x)).toListL
+      result === Task.now(list)
+    }
+  }
+
+  test("CoevalStream.fromList") { implicit s =>
+    check1 { (list: List[Int]) =>
+      val result = CoevalStream.fromList(list).toListL
       result === Coeval.now(list)
     }
   }
 
-  test("TaskStream.fromIndexedSeq(batchSize=1)") { implicit s =>
+  test("CoevalStream.fromList (async)") { implicit s =>
     check1 { (list: List[Int]) =>
-      val result = TaskStream.fromIndexedSeq(list.toVector, batchSize = 1).toListL
-      result === Task.now(list)
-    }
-  }
-
-  test("CoevalStream.fromIndexedSeq(batchSize=1)") { implicit s =>
-    check1 { (list: List[Int]) =>
-      val result = CoevalStream.fromIndexedSeq(list.toVector, batchSize = 1).toListL
+      val result = CoevalStream.fromList(list).mapEval(x => Coeval(x)).toListL
       result === Coeval.now(list)
     }
   }

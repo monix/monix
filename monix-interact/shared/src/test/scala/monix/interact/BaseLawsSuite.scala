@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by its authors. Some rights reserved.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,18 +15,18 @@
  * limitations under the License.
  */
 
-package monix.eval
+package monix.interact
 
-import monix.types.tests.{MonadEvalLawsSuite, MonadLawsSuite, SuspendableLawsSuite}
+import monix.execution.internal.Platform
+import org.scalacheck.Test.Parameters
 
-object TypeClassLawsForCoevalStreamSuite extends BaseLawsSuite
-  with MonadEvalLawsSuite[CoevalStream, Int, Long, Short]
-  with MonadLawsSuite[CoevalStream, Int, Long, Short]
-  with SuspendableLawsSuite[CoevalStream, Int, Long, Short] {
-
-  override val F =
-    CoevalStream.typeClassInstances
-
-  // Actual tests ...
-  suspendableCheck("CoevalStream[A]", includeSupertypes = true)
+/** Just a marker for what we need to extend in the tests
+  * of `monix-interact`.
+  */
+trait BaseLawsSuite extends monix.types.tests.BaseLawsSuite with ArbitraryInstances {
+  override lazy val checkConfig: Parameters =
+    Parameters.default
+      .withMinSuccessfulTests(if (Platform.isJVM) 100 else 10)
+      .withMaxDiscardRatio(if (Platform.isJVM) 5.0f else 50.0f)
+      .withMaxSize(32)
 }

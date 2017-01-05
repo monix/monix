@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by its authors. Some rights reserved.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,11 +15,13 @@
  * limitations under the License.
  */
 
-package monix.eval
+package monix.interact
+
+import monix.eval.{Coeval, DummyException, Task}
 
 import scala.util.{Failure, Success}
 
-object StreamableStatesSuite extends BaseTestSuite {
+object IterantStatesSuite extends BaseTestSuite {
   test("TaskStream.suspend(Task(list))") { implicit s =>
     val list = List(1,2,3)
     val deferred = Task.eval(TaskStream.fromSeq[Int](list))

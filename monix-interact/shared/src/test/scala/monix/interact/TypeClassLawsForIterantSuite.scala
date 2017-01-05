@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by its authors. Some rights reserved.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,17 +15,18 @@
  * limitations under the License.
  */
 
-package monix.eval
+package monix.interact
 
+import monix.eval.Task
 import monix.types.tests.{MonadEvalLawsSuite, MonadLawsSuite, SuspendableLawsSuite}
 
-object TypeClassLawsForStreamSuite extends BaseLawsSuite
-  with MonadEvalLawsSuite[({type λ[+α] = Streamable[Task,α]})#λ, Int, Long, Short]
-  with MonadLawsSuite[({type λ[+α] = Streamable[Task,α]})#λ, Int, Long, Short]
-  with SuspendableLawsSuite[({type λ[+α] = Streamable[Task,α]})#λ, Int, Long, Short] {
+object TypeClassLawsForIterantSuite extends BaseLawsSuite
+  with MonadEvalLawsSuite[({type λ[+α] = Iterant[Task,α]})#λ, Int, Long, Short]
+  with MonadLawsSuite[({type λ[+α] = Iterant[Task,α]})#λ, Int, Long, Short]
+  with SuspendableLawsSuite[({type λ[+α] = Iterant[Task,α]})#λ, Int, Long, Short] {
 
   override val F =
-    Streamable.suspendableInstance[Task]
+    Iterant.suspendableInstance[Task]
 
   // Actual tests ...
   suspendableCheck("Stream[Task,A]", includeSupertypes = true)

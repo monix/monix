@@ -193,7 +193,7 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * also emits the events of the source (prepend operation).
     */
   def +:[B >: A](elem: B): Self[B] =
-    self.transform(self => Observable.next(elem, self))
+    self.transform(self => Observable.cons(elem, self))
 
   /** Creates a new Observable that emits the events of the source and
     * then it also emits the given element (appended to the stream).
