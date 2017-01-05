@@ -48,13 +48,13 @@ import monix.eval.Coeval
   * type.
   */
 final case class CoevalStream[+A](stream: Iterant[Coeval,A])
-  extends Iterant.Like[A,Coeval,CoevalStream]() {
+  extends IterantLike[A,Coeval,CoevalStream]() {
 
   protected def transform[B](f: (Iterant[Coeval, A]) => Iterant[Coeval, B]): CoevalStream[B] =
     CoevalStream(f(stream))
 }
 
-object CoevalStream extends Iterant.Builders[Coeval, CoevalStream] {
+object CoevalStream extends IterantLikeBuilders[Coeval, CoevalStream] {
   /** Wraps a [[Iterant]] into a [[monix.eval.Coeval CoevalStream]]. */
   def fromStream[A](stream: Iterant[Coeval, A]): CoevalStream[A] =
     CoevalStream(stream)

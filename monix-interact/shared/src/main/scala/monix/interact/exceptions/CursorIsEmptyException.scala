@@ -17,13 +17,11 @@
 
 package monix.interact.exceptions
 
-/** Exception type thrown whenever a
-  * [[monix.interact.Cursor.current Cursor.current]] invocation happens
-  * without being preceded by a first call to
-  * [[monix.interact.Cursor.moveNext Cursor.moveNext()]]
+/** Exception that can be thrown if the cursor is empty and
+  * `cursor.current` is accessed.
   */
-class CursorNotStartedException(msg: String) extends NoSuchElementException(msg) {
-  def this() =
-    this("cursor.current is unavailable, because moveNext() was not called")
+class CursorIsEmptyException(msg: String) extends NoSuchElementException(msg) {
+  def this() = this(
+    "cursor.current is unavailable because the cursor is empty"
+  )
 }
-

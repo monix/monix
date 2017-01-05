@@ -19,6 +19,8 @@ package monix.interact
 
 import monix.interact.cursors.{ArrayCursor, IteratorCursor}
 
+import scala.collection.mutable.ListBuffer
+
 /** Similar to Java's and Scala's `Iterator`, the `Cursor` type can
   * can be used to iterate over the data in a collection, but it cannot
   * be used to modify the underlying collection.
@@ -77,7 +79,8 @@ trait Cursor[+A] extends Serializable {
     */
   def current: A
 
-  /** Advances the enumerator to the next element of the collection.
+  /** Advances the enumerator to the next element of the collection,
+    * when available, otherwise returns `false`.
     *
     * A cursor remains valid as long as the collection remains unchanged.
     * If changes are made to the collection, such as adding, modifying,
@@ -91,6 +94,68 @@ trait Cursor[+A] extends Serializable {
     *        stop
     */
   def moveNext(): Boolean
+
+  /** Returns `true` if the cursor can be advanced or `false` otherwise.
+    *
+    * This method does not advance our cursor, users still have to call
+    * [[moveNext()]], this method being useful for optimizations,
+    * for knowing in advance if the cursor is empty or not.
+    *
+    * This method can be side-effecting, even if it doesn't move our
+    * cursor (i.e. in some cases we can't know if there are more
+    * elements to process without producing an irreversible effect).
+    *
+    * @return `true` in case we have more elements to process and the
+    *        cursor can be advanced (the next call to `moveNext` will
+    *        return `true`), or `false` otherwise.
+    */
+  def hasMore(): Boolean
+
+  /** Returns `true` in case our cursor is empty or `false` if there
+    * are more elements to process.
+    *
+    * Alias for `!cursor.hasMore()`.
+    */
+  def isEmpty: Boolean = !hasMore()
+
+  /** Returns `true` in case our cursor has more elements
+    * to process or `false` if the cursor is empty.
+    *
+    * Alias for [[hasMore()]].
+    */
+  def nonEmpty: Boolean = hasMore()
+
+  /** Selects first `n` values of this cursor.
+    *
+    * @param  n is the number of values to take
+    * @return a cursor producing only of the first `n` values of
+    *         this iterator, or else the whole iterator,
+    *         if it produces fewer than `n` values.
+    */
+  def take(n: Int): Cursor[A]
+
+  /** Advances this cursor past the first `n` elements,
+    * or the length of the cursor, whichever is smaller.
+    *
+    * @param n the number of elements to drop
+    * @return a cursor which produces all values of the current cursor,
+    *         except it omits the first `n` values.
+    */
+  def drop(n: Int): Cursor[A]
+
+  /** Creates an cursor returning an interval of the values
+    * produced by this cursor.
+    *
+    *  @param from the index of the first element in this cursor
+    *         which forms part of the slice.
+    *  @param until the index of the first element
+    *         following the slice.
+    *  @return a cursor which advances this iterator past
+    *          the first `from` elements using `drop`,
+    *          and then takes `until - from` elements,
+    *          using `take`
+    */
+  def slice(from: Int, until: Int): Cursor[A]
 
   /** Creates a new cursor that maps all produced values of this cursor
     * to new values using a transformation function.
@@ -146,6 +211,15 @@ trait Cursor[+A] extends Serializable {
     var result = initial
     while (moveNext()) result = op(result, current)
     result
+  }
+
+  /** Converts this cursor into a Scala immutable `List`,
+    * consuming it in the process.
+    */
+  def toList: List[A] = {
+    val buffer = ListBuffer.empty[A]
+    while (moveNext()) buffer += current
+    buffer.toList
   }
 
   /** Converts this cursor into a Scala `Iterator`. */

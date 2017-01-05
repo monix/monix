@@ -18,7 +18,6 @@
 package monix.benchmarks
 
 import java.util.concurrent.TimeUnit
-
 import monix.interact.Cursor
 import org.openjdk.jmh.annotations._
 
@@ -37,7 +36,7 @@ import org.openjdk.jmh.annotations._
 @OutputTimeUnit(TimeUnit.SECONDS)
 class CursorBenchmark {
   // Number of threads that push messages
-  @Param(Array("128", "1024"))
+  @Param(Array("128", "1024", "4096"))
   var size = 0
 
   @Benchmark
@@ -48,6 +47,8 @@ class CursorBenchmark {
       .map(_ + 1)
       .filter(_ % 2 == 0)
       .map(_ + 1)
+      .collect { case x => x + 1 }
+      .map(_ + 2)
       .foldLeft(0L)(_+_)
   }
 
@@ -59,6 +60,8 @@ class CursorBenchmark {
       .map(_ + 1)
       .filter(_ % 2 == 0)
       .map(_ + 1)
+      .collect { case x => x + 1 }
+      .map(_ + 2)
       .foldLeft(0L)(_+_)
   }
 }

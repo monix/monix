@@ -53,13 +53,13 @@ import monix.eval.Task.nondeterminism
   * [[Iterant]], materialized with the [[Task]] type.
   */
 final case class TaskStream[+A](stream: Iterant[Task,A])
-  extends Iterant.Like[A,Task,TaskStream]() {
+  extends IterantLike[A,Task,TaskStream]() {
 
   protected def transform[B](f: (Iterant[Task, A]) => Iterant[Task, B]): TaskStream[B] =
     TaskStream(f(stream))
 }
 
-object TaskStream extends Iterant.Builders[Task, TaskStream] {
+object TaskStream extends IterantLikeBuilders[Task, TaskStream] {
   /** Wraps a [[Iterant]] into a [[TaskStream]]. */
   def fromStream[A](stream: Iterant[Task, A]): TaskStream[A] =
     TaskStream(stream)

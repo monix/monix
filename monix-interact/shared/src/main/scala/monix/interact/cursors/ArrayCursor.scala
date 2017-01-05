@@ -27,12 +27,13 @@ import monix.interact.exceptions.{CursorIsFinishedException, CursorNotStartedExc
   * into a modified copy, hence all transformations have strict behavior!
   */
 class ArrayCursor[A](array: Array[A], offset: Int, length: Int) extends Cursor[A] { self =>
-  require(length <= array.length, "specified length <= array.length")
-  require(0 <= offset && offset <= length, "0 <= offset <= length")
+  require(offset + length <= array.length, "offset + length <= array.length")
+  require(0 <= offset && offset <= array.length, "0 <= offset <= length")
 
   def this(array: Array[A]) =
     this(array, 0, array.length)
 
+  private[this] val limit = offset + length
   private[this] var index: Int = -1
 
   override def current: A = {
@@ -40,7 +41,7 @@ class ArrayCursor[A](array: Array[A], offset: Int, length: Int) extends Cursor[A
       case ex: ArrayIndexOutOfBoundsException =>
         if (index < 0)
           throw new CursorNotStartedException
-        else if (index >= length)
+        else if (index >= limit)
           throw new CursorIsFinishedException
         else
           throw ex
@@ -49,14 +50,39 @@ class ArrayCursor[A](array: Array[A], offset: Int, length: Int) extends Cursor[A
 
   override def moveNext(): Boolean = {
     if (index < offset) index = offset
-    else if (index < length) index += 1
-    index < length
+    else if (index < limit) index += 1
+    index < limit
+  }
+
+  override def hasMore(): Boolean = {
+    val i = if (index < offset) offset else index
+    i + 1 < limit
+  }
+
+  override def take(n: Int): Cursor[A] = {
+    val start = if (index < offset) offset else index
+    val newLimit = math.min(start+n, limit)
+    if (start >= newLimit) EmptyCursor else
+      new ArrayCursor(array, start, newLimit-start)
+  }
+
+  override def drop(n: Int): Cursor[A] = {
+    val start = if (index < offset) offset else index
+    val newOffset = math.min(start+n, limit)
+    val newLength = limit-newOffset
+    if (newOffset >= limit) EmptyCursor else
+      new ArrayCursor(array, newOffset, newLength)
+  }
+
+  override def slice(from: Int, until: Int): Cursor[A] = {
+    if (until <= from) EmptyCursor else
+      drop(from).take(until - from)
   }
 
   override def map[B](f: (A) => B): Cursor[B] = {
     val oldOffset = if (index >= offset) index else offset
-    val newLength = length - oldOffset
-    val copy = new Array[AnyRef](length)
+    val newLength = limit - oldOffset
+    val copy = new Array[AnyRef](limit)
 
     var i = 0
     while (i < newLength) {
@@ -72,37 +98,35 @@ class ArrayCursor[A](array: Array[A], offset: Int, length: Int) extends Cursor[A
     val oldOffset = if (index >= offset) index else offset
     val buffer = Array.newBuilder[AnyRef]
 
-    var i = oldOffset
-    while (i < length) {
-      val elem = array(i)
-      if (p(elem)) buffer += array(i).asInstanceOf[AnyRef]
-      i += 1
+    var oldIndex = oldOffset
+    while (oldIndex < limit) {
+      val elem = array(oldIndex)
+      if (p(elem)) buffer += array(oldIndex).asInstanceOf[AnyRef]
+      oldIndex += 1
     }
 
     val copy = buffer.result()
-    new ArrayCursor[AnyRef](copy, 0, copy.length)
-      .asInstanceOf[Cursor[A]]
+    new ArrayCursor[AnyRef](copy, 0, copy.length).asInstanceOf[Cursor[A]]
   }
 
   override def collect[B](pf: PartialFunction[A, B]): Cursor[B] = {
     val oldOffset = if (index >= offset) index else offset
     val buffer = Array.newBuilder[AnyRef]
 
-    var i = oldOffset
-    while (i < length) {
-      val elem = array(i)
-      if (pf.isDefinedAt(elem)) buffer += pf(array(i)).asInstanceOf[AnyRef]
-      i += 1
+    var oldIndex = oldOffset
+    while (oldIndex < limit) {
+      val elem = array(oldIndex)
+      if (pf.isDefinedAt(elem)) buffer += pf(array(oldIndex)).asInstanceOf[AnyRef]
+      oldIndex += 1
     }
 
     val copy = buffer.result()
-    new ArrayCursor[AnyRef](copy, 0, copy.length)
-      .asInstanceOf[Cursor[B]]
+    new ArrayCursor[AnyRef](copy, 0, copy.length).asInstanceOf[Cursor[B]]
   }
 
   override def toIterator: Iterator[A] = {
     val newOffset = if (index < offset) offset else index
-    val newLength = length - newOffset
+    val newLength = limit - newOffset
     if (newLength <= 0) Iterator.empty else {
       var ref = array.iterator
       if (newOffset > 0) ref = ref.drop(newOffset)

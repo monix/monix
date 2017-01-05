@@ -55,6 +55,18 @@ class IteratorCursor[+A](underlying: Iterator[A]) extends Cursor[A] {
     }
   }
 
+  override def hasMore(): Boolean =
+    underlying.hasNext
+
+  override def take(n: Int): Cursor[A] =
+    new IteratorCursor[A](underlying.take(n))
+
+  override def drop(n: Int): Cursor[A] =
+    new IteratorCursor[A](underlying.drop(n))
+
+  override def slice(from: Int, until: Int): Cursor[A] =
+    new IteratorCursor[A](underlying.slice(from, until))
+
   override def map[B](f: (A) => B): Cursor[B] =
     new IteratorCursor(underlying.map(f))
 

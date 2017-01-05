@@ -21,7 +21,9 @@ package monix.interact.exceptions
   * [[monix.interact.Cursor.current Cursor.current]] invocation happens
   * after a cursor has been depleted.
   */
-class CursorIsFinishedException extends NoSuchElementException(
-  "cursor.current is unavailable, because the cursor is finished " +
-  "with the last moveNext() returning false"
-)
+class CursorIsFinishedException(msg: String) extends NoSuchElementException(msg) {
+  def this() = this(
+    "cursor.current is unavailable, because the cursor is finished " +
+    "with the last moveNext() returning false"
+  )
+}
