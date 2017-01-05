@@ -18,16 +18,13 @@
 package monix.interact
 
 import monix.eval.Task
-import monix.types.tests.{MonadEvalLawsSuite, MonadLawsSuite, SuspendableLawsSuite}
+import monix.types.tests.MonadLawsSuite
 
 object TypeClassLawsForIterantSuite extends BaseLawsSuite
-  with MonadEvalLawsSuite[({type λ[+α] = Iterant[Task,α]})#λ, Int, Long, Short]
-  with MonadLawsSuite[({type λ[+α] = Iterant[Task,α]})#λ, Int, Long, Short]
-  with SuspendableLawsSuite[({type λ[+α] = Iterant[Task,α]})#λ, Int, Long, Short] {
+  with MonadLawsSuite[({type λ[+α] = Iterant[Task,α]})#λ, Int, Long, Short] {
 
-  override val F =
-    Iterant.suspendableInstance[Task]
+  override val F = Iterant.monadInstance[Task]
 
   // Actual tests ...
-  suspendableCheck("Stream[Task,A]", includeSupertypes = true)
+  monadCheck("Stream[Task,A]", includeSupertypes = true)
 }

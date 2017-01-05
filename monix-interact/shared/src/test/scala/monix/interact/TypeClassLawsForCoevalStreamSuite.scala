@@ -17,16 +17,14 @@
 
 package monix.interact
 
-import monix.types.tests.{MonadEvalLawsSuite, MonadLawsSuite, SuspendableLawsSuite}
+import monix.types.tests.MonadLawsSuite
 
 object TypeClassLawsForCoevalStreamSuite extends BaseLawsSuite
-  with MonadEvalLawsSuite[CoevalStream, Int, Long, Short]
-  with MonadLawsSuite[CoevalStream, Int, Long, Short]
-  with SuspendableLawsSuite[CoevalStream, Int, Long, Short] {
+  with MonadLawsSuite[CoevalStream, Int, Long, Short]{
 
   override val F =
     CoevalStream.typeClassInstances
 
   // Actual tests ...
-  suspendableCheck("CoevalStream[A]", includeSupertypes = true)
+  monadCheck("CoevalStream[A]", includeSupertypes = true)
 }

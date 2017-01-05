@@ -21,7 +21,6 @@ import monix.types.tests._
 
 object TypeClassLawsForNondetTaskSuite extends BaseLawsSuite
   with MemoizableLawsSuite[Task,Int,Long,Short]
-  with SuspendableLawsSuite[Task,Int,Long,Short]
   with MonadErrorLawsSuite[Task,Int,Long,Short,Throwable]
   with CobindLawsSuite[Task,Int,Long,Short]
   with MonadRecLawsSuite[Task,Int,Long,Short] {
@@ -29,7 +28,7 @@ object TypeClassLawsForNondetTaskSuite extends BaseLawsSuite
   override def F: Task.TypeClassInstances =
     Task.nondeterminism
 
-  monadEvalErrorCheck("Task.nondeterminism")
+  applicativeEvalErrorCheck("Task.nondeterminism")
   memoizableCheck("Task.nondeterminism", includeSupertypes = true)
   monadErrorCheck("Task.nondeterminism", includeSupertypes = false)
   monadRecCheck("Task.nondeterminism", includeSupertypes = false)

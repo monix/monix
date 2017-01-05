@@ -17,8 +17,9 @@
 
 package monix.interact
 
-import monix.types.{Memoizable, MonadError, Suspendable}
 import monix.types.syntax._
+import monix.types.{Memoizable, Monad, MonadError}
+
 import scala.collection.immutable.LinearSeq
 
 /** A template for stream-like types based on [[Iterant]].
@@ -40,7 +41,7 @@ abstract class IterantLike[+A, F[_], Self[+T] <: IterantLike[T, F, Self]]
   (implicit E: MonadError[F,Throwable], M: Memoizable[F]) {
   self: Self[A] =>
 
-  import M.{applicative, functor, monadEval}
+  import M.{applicative, functor}
 
   /** Returns the underlying [[Iterant]] that handles this stream. */
   def stream: Iterant[F,A]
@@ -168,7 +169,7 @@ abstract class IterantLike[+A, F[_], Self[+T] <: IterantLike[T, F, Self]]
 abstract class IterantLikeBuilders[F[_], Self[+T] <: IterantLike[T, F, Self]]
   (implicit E: MonadError[F,Throwable], M: Memoizable[F]) { self =>
 
-  import M.{applicative, functor, monadEval, suspendable}
+  import M.{applicative, functor}
 
   /** Materializes a [[Iterant]]. */
   def fromStream[A](stream: Iterant[F,A]): Self[A]
@@ -331,7 +332,7 @@ abstract class IterantLikeBuilders[F[_], Self[+T] <: IterantLike[T, F, Self]]
     new TypeClassInstances
 
   /** Type-class instances for [[IterantLike]] types. */
-  class TypeClassInstances extends Suspendable.Instance[Self] {
+  class TypeClassInstances extends Monad.Instance[Self] {
     override def pure[A](a: A): Self[A] =
       self.pure(a)
     override def eval[A](a: => A): Self[A] =

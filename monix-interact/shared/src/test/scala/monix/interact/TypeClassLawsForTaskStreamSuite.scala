@@ -17,16 +17,13 @@
 
 package monix.interact
 
-import monix.types.tests.{MonadEvalLawsSuite, MonadLawsSuite, SuspendableLawsSuite}
+import monix.types.tests.MonadLawsSuite
 
 object TypeClassLawsForTaskStreamSuite extends BaseLawsSuite
-  with MonadEvalLawsSuite[TaskStream, Int, Long, Short]
-  with MonadLawsSuite[TaskStream, Int, Long, Short]
-  with SuspendableLawsSuite[TaskStream, Int, Long, Short] {
+  with MonadLawsSuite[TaskStream, Int, Long, Short] {
 
-  override val F =
-    TaskStream.typeClassInstances
+  override val F = TaskStream.typeClassInstances
 
   // Actual tests ...
-  suspendableCheck("TaskStream[A]", includeSupertypes = true)
+  monadCheck("TaskStream[A]", includeSupertypes = true)
 }

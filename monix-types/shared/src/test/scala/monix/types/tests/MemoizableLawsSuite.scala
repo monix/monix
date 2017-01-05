@@ -20,13 +20,11 @@ package monix.types.tests
 import monix.types._
 import org.scalacheck.Arbitrary
 
-trait MemoizableLawsSuite[F[_],A,B,C] extends SuspendableLawsSuite[F,A,B,C] {
+trait MemoizableLawsSuite[F[_],A,B,C] extends MonadLawsSuite[F,A,B,C] {
   override def F: Memoizable.Instance[F]
 
   object memoizableLaws extends Memoizable.Laws[F] {
     implicit def memoizable: Memoizable[F] = F
-    implicit def suspendable: Suspendable[F] = F
-    implicit def monadEval: MonadEval[F] = F
     implicit def monad: Monad[F] = F
     implicit def applicative: Applicative[F] = F
     implicit def functor: Functor[F] = F
@@ -49,7 +47,7 @@ trait MemoizableLawsSuite[F[_],A,B,C] extends SuspendableLawsSuite[F,A,B,C] {
     eqFB: Eq[F[B]],
     eqFC: Eq[F[C]]): Unit = {
 
-    if (includeSupertypes) suspendableCheck(typeName, includeSupertypes)
+    if (includeSupertypes) monadCheck(typeName, includeSupertypes)
 
     test(s"Memoizable[$typeName].evalOnceIsIdempotent") {
       check2((a: A, f: A => A) =>

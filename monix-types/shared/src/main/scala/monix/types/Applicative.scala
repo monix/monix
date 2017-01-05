@@ -40,10 +40,16 @@ import monix.types.utils._
   * the type has been extracted from [[http://typelevel.org/cats/ Cats]].
   */
 trait Applicative[F[_]] extends Serializable with Functor.Type[F] {
+  self: Applicative.Instance[F] =>
+
   def pure[A](a: A): F[A]
   def map2[A, B, Z](fa: F[A], fb: F[B])(f: (A, B) => Z): F[Z]
   def ap[A, B](ff: F[A => B])(fa: F[A]): F[B]
   def unit: F[Unit] = pure(())
+  def eval[A](a: => A): F[A]
+
+  protected def defaultEval[A](a: => A): F[A] =
+    map(unit)(_ => a)
 }
 
 object Applicative {
@@ -93,5 +99,12 @@ object Applicative {
       val compose: (B => C) => (A => B) => (A => C) = _.compose
       A.ap(A.ap(A.ap(A.pure(compose))(fbc))(fab))(fa) <-> A.ap(fbc)(A.ap(fab)(fa))
     }
+
+    def applicativeEvalEquivalenceWithPure[A](a: A): IsEquiv[F[A]] =
+      A.eval(a) <-> A.pure(a)
+
+    def evalEquivalenceWithRaiseError[A](ex: Throwable)
+      (implicit M: MonadError[F,Throwable]): IsEquiv[F[A]] =
+      A.eval[A](throw ex) <-> M.raiseError[A](ex)
   }
 }

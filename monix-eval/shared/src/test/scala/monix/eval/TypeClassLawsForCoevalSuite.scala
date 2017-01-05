@@ -21,7 +21,6 @@ import monix.types.tests._
 
 object TypeClassLawsForCoevalSuite extends BaseLawsSuite
   with MemoizableLawsSuite[Coeval,Int,Long,Short]
-  with SuspendableLawsSuite[Coeval,Int,Long,Short]
   with MonadErrorLawsSuite[Coeval,Int,Long,Short,Throwable]
   with CobindLawsSuite[Coeval,Int,Long,Short]
   with MonadRecLawsSuite[Coeval,Int,Long,Short]
@@ -32,7 +31,7 @@ object TypeClassLawsForCoevalSuite extends BaseLawsSuite
 
   // Actual tests ...
 
-  monadEvalErrorCheck("Coeval")
+  applicativeEvalErrorCheck("Coeval")
   memoizableCheck("Coeval", includeSupertypes = true)
   monadErrorCheck("Coeval", includeSupertypes = false)
   monadRecCheck("Coeval", includeSupertypes = false)

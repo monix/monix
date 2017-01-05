@@ -1425,8 +1425,8 @@ object Observable {
   implicit val typeClassInstances: TypeClassInstances = new TypeClassInstances
 
   /** Type-class instances for [[Observable]]. */
-  class TypeClassInstances extends Suspendable.Instance[Observable]
-    with Memoizable.Instance[Observable] with MonadError.Instance[Observable,Throwable]
+  class TypeClassInstances extends Memoizable.Instance[Observable]
+    with MonadError.Instance[Observable,Throwable]
     with MonadFilter.Instance[Observable] with MonoidK.Instance[Observable]
     with Cobind.Instance[Observable]
     with MonadRec.Instance[Observable] {

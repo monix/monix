@@ -233,24 +233,25 @@ sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self
     * and the given function will be called with the prior result,
     * accumulating state until the end, when the summary is returned.
     */
-  final def foldLeftL[S](seed: => S)(f: (S,A) => S)
-    (implicit F: MonadEval[F], E: MonadError[F,Throwable]): F[S] = {
+  final def foldLeftL[S](seed: => S)(f: (S,A) => S)(implicit F: MonadError[F,Throwable]): F[S] = {
+    import F.{applicative => A}
+    import F.{monad => M}
 
-    def loop(self: Iterant[F,A], state: S)(implicit A: Applicative[F], M: Monad[F]): F[S] = {
+    def loop(self: Iterant[F,A], state: S): F[S] = {
       def next(a: A, next: F[Iterant[F,A]], stop: F[Unit]): F[S] =
         try {
           val newState = f(state, a)
           next.flatMap(loop(_, newState))
         } catch {
           case NonFatal(ex) =>
-            stop.flatMap(_ => E.raiseError(ex))
+            stop.flatMap(_ => F.raiseError(ex))
         }
 
       self match {
         case Halt(None) =>
           A.pure(state)
         case Halt(Some(ex)) =>
-          E.raiseError(ex)
+          F.raiseError(ex)
         case Next(a, tail, stop) =>
           next(a, tail, stop)
         case Suspend(rest, _) =>
@@ -263,20 +264,17 @@ sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self
             next.flatMap(loop(_, newState))
           } catch {
             case NonFatal(ex) =>
-              stop.flatMap(_ => E.raiseError(ex))
+              stop.flatMap(_ => F.raiseError(ex))
           }
       }
     }
 
-    implicit val A = F.applicative
-    implicit val M = F.monad
-
-    val init = F.eval(seed).onErrorHandleWith(ex => onStop.flatMap(_ => E.raiseError(ex)))
+    val init = A.eval(seed).onErrorHandleWith(ex => onStop.flatMap(_ => F.raiseError(ex)))
     init.flatMap(a => loop(self, a))
   }
 
   /** Aggregates all elements in a `List` and preserves order. */
-  final def toListL[B >: A](implicit F: MonadEval[F], E: MonadError[F,Throwable]): F[List[B]] = {
+  final def toListL[B >: A](implicit F: MonadError[F,Throwable]): F[List[B]] = {
     val folded = foldLeftL(mutable.ListBuffer.empty[B]) { (acc, a) => acc += a }
     F.functor.map(folded)(_.toList)
   }
@@ -361,12 +359,6 @@ sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self
   * @define suspendEvalDesc Promote a non-strict value representing a
   *         stream to a stream of the same type, effectively delaying its
   *         initialisation.
-  *
-  *         In case the underlying evaluation monad `F` is a
-  *         [[monix.types.Suspendable Suspendable]] type
-  *         (like [[monix.eval.Task Task]] or [[monix.eval.Coeval Coeval]]), then suspension will act as a factory
-  *         of streams, with any described side-effects happening on
-  *         each evaluation.
   */
 object Iterant extends StreamInstances {
   /** Given a sequence of elements, builds a stream out of it. */
@@ -387,10 +379,8 @@ object Iterant extends StreamInstances {
     * returning a stream of one element that is lazily
     * evaluated.
     */
-  def eval[F[_],A](a: => A)(implicit F: MonadEval[F]): Iterant[F,A] = {
-    import F.{functor, applicative => A}
-    Suspend(F.eval(a).map(r => nextS[F,A](r, A.pure(Halt(None)), A.unit)), A.unit)
-  }
+  def eval[F[_],A](a: => A)(implicit F: Applicative[F]): Iterant[F,A] =
+    Suspend(F.eval(nextS[F,A](a, F.pure(Halt(None)), F.unit)), F.unit)
 
   /** Builds a [[Iterant.Next]] stream state.
     *
@@ -441,11 +431,11 @@ object Iterant extends StreamInstances {
     nextSeqS[F,A](head, tail, F.unit)
 
   /** $suspendEvalDesc */
-  def suspend[F[_], A](fa: => Iterant[F,A])(implicit F: Suspendable[F]): Iterant[F,A] =
-    Iterant.suspend[F,A](F.monadEval.eval(fa))(F.applicative)
+  def suspend[F[_], A](fa: => Iterant[F,A])(implicit F: Applicative[F]): Iterant[F,A] =
+    suspend[F,A](F.eval(fa))
 
   /** Alias for [[Iterant.suspendS[F[_],A](fa* suspend]]. */
-  def defer[F[_] : Suspendable, A](fa: => Iterant[F,A]): Iterant[F,A] =
+  def defer[F[_] : Applicative, A](fa: => Iterant[F,A]): Iterant[F,A] =
     suspend(fa)
 
   /** Builds a [[Iterant.Suspend]] stream state.
@@ -454,8 +444,7 @@ object Iterant extends StreamInstances {
     *
     * @param rest is the suspended stream
     */
-  def suspend[F[_],A](rest: F[Iterant[F,A]])
-    (implicit F: Applicative[F]): Iterant[F,A] =
+  def suspend[F[_],A](rest: F[Iterant[F,A]])(implicit F: Applicative[F]): Iterant[F,A] =
     suspendS[F,A](rest, F.unit)
 
   /** Builds a [[Iterant.Suspend]] stream state.
@@ -493,7 +482,7 @@ object Iterant extends StreamInstances {
     *
     * @param xs is the reference to be converted to a stream
     */
-  def fromIndexedSeq[F[_] : MonadEval, A](xs: IndexedSeq[A]): Iterant[F,A] =
+  def fromIndexedSeq[F[_] : Applicative, A](xs: IndexedSeq[A]): Iterant[F,A] =
     fromIndexedSeq(xs, Platform.recommendedBatchSize)
 
   /** Converts any Scala `collection.IndexedSeq` into a stream.
@@ -501,9 +490,7 @@ object Iterant extends StreamInstances {
     * @param xs is the reference to be converted to a stream
     * @param batchSize $batchSizeDesc
     */
-  def fromIndexedSeq[F[_], A](xs: IndexedSeq[A], batchSize: Int)
-    (implicit F: MonadEval[F]): Iterant[F,A] = {
-
+  def fromIndexedSeq[F[_], A](xs: IndexedSeq[A], batchSize: Int)(implicit F: Applicative[F]): Iterant[F,A] = {
     // Recursive function
     def loop(idx: Int, length: Int, stop: F[Unit]): F[Iterant[F,A]] =
       F.eval {
@@ -529,15 +516,15 @@ object Iterant extends StreamInstances {
       }
 
     require(batchSize >= 1, "batchSize >= 1")
-    val stop = F.applicative.unit
+    val stop = F.unit
     Suspend[F,A](loop(0, xs.length, stop), stop)
   }
 
   /** Converts any `scala.collection.Seq` into a stream. */
-  def fromSeq[F[_], A](xs: Seq[A])(implicit F: MonadEval[F]): Iterant[F,A] =
+  def fromSeq[F[_], A](xs: Seq[A])(implicit F: Applicative[F]): Iterant[F,A] =
     xs match {
       case ref: LinearSeq[_] =>
-        fromList[F,A](ref.asInstanceOf[LinearSeq[A]])(F.applicative)
+        fromList[F,A](ref.asInstanceOf[LinearSeq[A]])
       case ref: IndexedSeq[_] =>
         fromIndexedSeq[F,A](ref.asInstanceOf[IndexedSeq[A]], Platform.recommendedBatchSize)
       case _ =>
@@ -548,7 +535,7 @@ object Iterant extends StreamInstances {
     *
     * @param xs is the reference to be converted to a stream
     */
-  def fromIterable[F[_] : MonadEval, A](xs: Iterable[A]): Iterant[F,A] =
+  def fromIterable[F[_] : Applicative, A](xs: Iterable[A]): Iterant[F,A] =
     fromIterable[F,A](xs, 1)
 
   /** $fromIterableDesc
@@ -556,12 +543,10 @@ object Iterant extends StreamInstances {
     * @param xs is the reference to be converted to a stream
     * @param batchSize $batchSizeDesc
     */
-  def fromIterable[F[_],A](xs: Iterable[A], batchSize: Int)
-    (implicit F: MonadEval[F]): Iterant[F,A] = {
-
+  def fromIterable[F[_],A](xs: Iterable[A], batchSize: Int)(implicit F: Applicative[F]): Iterant[F,A] = {
     require(batchSize > 0, "batchSize should be strictly positive")
     val init = F.eval(xs.iterator)
-    val stop = F.applicative.unit
+    val stop = F.unit
     val rest = F.functor.map(init)(iterator => fromIterator[F,A](iterator, batchSize))
     Suspend[F,A](rest, stop)
   }
@@ -570,7 +555,7 @@ object Iterant extends StreamInstances {
     *
     * @param xs is the reference to be converted to a stream
     */
-  def fromIterator[F[_] : MonadEval, A](xs: Iterator[A]): Iterant[F,A] =
+  def fromIterator[F[_] : Applicative, A](xs: Iterator[A]): Iterant[F,A] =
     fromIterator[F,A](xs, batchSize = 1)
 
   /** $fromIteratorDesc
@@ -578,9 +563,7 @@ object Iterant extends StreamInstances {
     * @param xs is the reference to be converted to a stream
     * @param batchSize $batchSizeDesc
     */
-  def fromIterator[F[_], A](xs: Iterator[A], batchSize: Int)
-    (implicit F: MonadEval[F]): Iterant[F,A] = {
-
+  def fromIterator[F[_], A](xs: Iterator[A], batchSize: Int)(implicit F: Applicative[F]): Iterant[F,A] = {
     def loop(): F[Iterant[F,A]] =
       F.eval {
         try {
@@ -593,9 +576,9 @@ object Iterant extends StreamInstances {
 
           if (processed == 0) Halt(None)
           else if (processed == 1)
-            Next[F,A](buffer.head, loop(), F.applicative.unit)
+            Next[F,A](buffer.head, loop(), F.unit)
           else
-            NextSeq[F,A](buffer.toList, loop(), F.applicative.unit)
+            NextSeq[F,A](buffer.toList, loop(), F.unit)
         } catch {
           case NonFatal(ex) =>
             Halt(Some(ex))
@@ -603,7 +586,7 @@ object Iterant extends StreamInstances {
       }
 
     require(batchSize > 0, "batchSize should be strictly positive")
-    Suspend[F,A](loop(), F.applicative.unit)
+    Suspend[F,A](loop(), F.unit)
   }
 
   /** $nextDesc
@@ -650,43 +633,7 @@ object Iterant extends StreamInstances {
     extends Iterant[F,Nothing]
 }
 
-private[interact] trait StreamInstances extends StreamInstances1 {
-  /** Provides a [[monix.types.Suspendable Suspendable]] instance
-    * for [[Iterant]].
-    */
-  implicit def suspendableInstance[F[_] : Suspendable]: SuspendableInstance[F] =
-    new SuspendableInstance[F]()
-
-  /** Provides a [[monix.types.Suspendable Suspendable]] instance
-    * for [[Iterant]].
-    */
-  class SuspendableInstance[F[_]](implicit F: Suspendable[F])
-    extends MonadEvalInstance[F]()(F.monadEval)
-      with Suspendable.Instance[({type λ[+α] = Iterant[F,α]})#λ] {
-
-    override def suspend[A](fa: => Iterant[F, A]): Iterant[F, A] =
-      Iterant.suspend(fa)
-  }
-}
-
-private[interact] trait StreamInstances1 extends StreamInstances0 {
-  /** Provides a [[monix.types.MonadEval MonadEval]] instance
-    * for [[Iterant]].
-    */
-  implicit def monadEvalInstance[F[_] : MonadEval]: MonadEvalInstance[F] =
-    new MonadEvalInstance[F]()
-
-  /** Provides a [[monix.types.MonadEval MonadEval]] instance
-    * for [[Iterant]].
-    */
-  class MonadEvalInstance[F[_]](implicit F: MonadEval[F])
-    extends MonadInstance[F]()(F.monad)
-    with MonadEval.Instance[({type λ[+α] = Iterant[F,α]})#λ] {
-
-    def eval[A](a: => A): Iterant[F, A] =
-      Iterant.eval[F,A](a)
-  }
-}
+private[interact] trait StreamInstances extends StreamInstances0
 
 private[interact] trait StreamInstances0 {
   /** Provides a [[monix.types.Monad]] instance for [[Iterant]]. */
@@ -707,5 +654,9 @@ private[interact] trait StreamInstances0 {
       fa.flatMap(a => fb.map(b => f(a,b))(F.applicative))
     def ap[A, B](ff: Iterant[F, (A) => B])(fa: Iterant[F, A]): Iterant[F, B] =
       ff.flatMap(f => fa.map(a => f(a))(F.applicative))
+    def suspend[A](fa: => Iterant[F, A]): Iterant[F, A] =
+      Iterant.suspend(fa)(F.applicative)
+    def eval[A](a: => A): Iterant[F, A] =
+      Iterant.eval(a)(F.applicative)
   }
 }

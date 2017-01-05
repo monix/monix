@@ -47,6 +47,11 @@ trait Monad[F[_]] extends Serializable with Applicative.Type[F] {
   def flatMap[A, B](fa: F[A])(f: A => F[B]): F[B]
   def flatten[A](ffa: F[F[A]]): F[A] =
     flatMap(ffa)(x => x)
+
+  def suspend[A](fa: => F[A]): F[A]
+
+  protected def defaultSuspend[A](fa: => F[A]): F[A] =
+    flatten(eval(fa))
 }
 
 object Monad {
@@ -100,6 +105,12 @@ object Monad {
 
     def flatMapConsistentMap2[A, B, C](fa: F[A], fb: F[B], f: (A,B) => C): IsEquiv[F[C]] =
       A.map2(fa,fb)(f) <-> M.flatMap(fa)(a => F.map(fb)(b => f(a,b)))
+
+    def suspendEquivalenceWithEval[A](a: A): IsEquiv[F[A]] =
+      M.suspend(A.pure(a)) <-> A.eval(a)
+
+    def evalEquivalenceWithSuspend[A](fa: F[A]): IsEquiv[F[A]] =
+      M.flatten[A](A.eval(fa)) <-> M.suspend(fa)
   }
 }
 
