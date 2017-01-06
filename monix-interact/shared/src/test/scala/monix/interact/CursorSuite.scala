@@ -119,6 +119,28 @@ abstract class CursorSuite extends BaseTestSuite {
       cursor.toJavaIterator.asScala.toList == list
     }
   }
+
+  test("cursor.hasMore") { _ =>
+    check1 { (list: List[Int]) =>
+      val cursor = fromList(list)
+      var seen1 = if (cursor.hasMore()) 1 else 0
+      var seen2 = 0
+
+      while (cursor.moveNext()) {
+        seen2 += 1
+        seen1 += (if (cursor.hasMore()) 1 else 0)
+      }
+
+      seen1 == seen2 && seen2 == list.length
+    }
+  }
+
+  test("cursor.hasMore == list.nonEmpty") { _ =>
+    check1 { (list: List[Int]) =>
+      val cursor = fromList(list)
+      list.nonEmpty == cursor.hasMore()
+    }
+  }
 }
 
 object ArrayCursorSuite extends CursorSuite {

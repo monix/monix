@@ -38,7 +38,7 @@ abstract class IterantLike[+A, F[_], Self[+T] <: IterantLike[T, F, Self]]
   (implicit E: MonadError[F,Throwable], M: Memoizable[F]) {
   self: Self[A] =>
 
-  import M.{applicative, functor}
+  import M.{applicative, functor, monad}
 
   /** Returns the underlying [[Iterant]] that handles this stream. */
   def stream: Iterant[F,A]
@@ -50,7 +50,13 @@ abstract class IterantLike[+A, F[_], Self[+T] <: IterantLike[T, F, Self]]
     */
   protected def transform[B](f: Iterant[F,A] => Iterant[F,B]): Self[B]
 
-  /** Given a mapping function that returns a possibly lazy or asynchronous
+  /** Given a routine make sure to execute it whenever
+    * the consumer executes the current `stop` action.
+    */
+  def doOnStop(f: F[Unit]): Self[A] =
+    transform(_.doOnStop(f)(monad))
+
+    /** Given a mapping function that returns a possibly lazy or asynchronous
     * result, applies it over the elements emitted by the stream.
     */
   final def mapEval[B](f: A => F[B]): Self[B] =

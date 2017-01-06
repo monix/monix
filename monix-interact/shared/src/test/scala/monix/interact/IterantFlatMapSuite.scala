@@ -19,6 +19,7 @@ package monix.interact
 
 import monix.eval.{Coeval, DummyException, Task}
 import monix.interact.Iterant.{Halt, Next, NextSeq, Suspend}
+
 import scala.util.{Failure, Success}
 
 object IterantFlatMapSuite extends BaseTestSuite {
@@ -64,15 +65,15 @@ object IterantFlatMapSuite extends BaseTestSuite {
     var effects = Vector.empty[Int]
     val stop1T = Task.eval { effects = effects :+ 1 }
     val stream1: TaskStream[Int] =
-      TaskStream.nextS(1, Task.now(TaskStream.halt[Int](None)), stop1T)
+      TaskStream.nextS(1, Task.now(TaskStream.haltS[Int](None)), stop1T)
 
     val stop2T = Task.eval { effects = effects :+ 2 }
     val stream2: TaskStream[Int] =
-      TaskStream.nextS(2, Task.now(TaskStream.halt[Int](None)), stop2T)
+      TaskStream.nextS(2, Task.now(TaskStream.haltS[Int](None)), stop2T)
 
     val stop3T = Task.eval { effects = effects :+ 3 }
     val stream3: TaskStream[Int] =
-      TaskStream.nextS(3, Task.now(TaskStream.halt[Int](None)), stop3T)
+      TaskStream.nextS(3, Task.now(TaskStream.haltS[Int](None)), stop3T)
 
     val composed =
       for (x <- stream1; y <- stream2; z <- stream3)
@@ -100,15 +101,15 @@ object IterantFlatMapSuite extends BaseTestSuite {
     var effects = Vector.empty[Int]
     val stop1T = Task.eval { effects = effects :+ 1 }
     val stream1: TaskStream[Int] =
-      TaskStream.nextSeqS(Cursor.fromSeq(List(1)), Task.now(TaskStream.halt[Int](None)), stop1T)
+      TaskStream.fromList(List(1)).doOnStop(stop1T)
 
     val stop2T = Task.eval { effects = effects :+ 2 }
     val stream2: TaskStream[Int] =
-      TaskStream.nextSeqS(Cursor.fromSeq(List(2)), Task.now(TaskStream.halt[Int](None)), stop2T)
+      TaskStream.fromList(List(2)).doOnStop(stop2T)
 
     val stop3T = Task.eval { effects = effects :+ 3 }
     val stream3: TaskStream[Int] =
-      TaskStream.nextSeqS(Cursor.fromSeq(List(3)), Task.now(TaskStream.halt[Int](None)), stop3T)
+      TaskStream.fromList(List(3)).doOnStop(stop3T)
 
     val composed =
       for (x <- stream1; y <- stream2; z <- stream3)
@@ -116,7 +117,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
 
     firstNext(composed.stream).runSyncMaybe match {
       case Right(Iterant.NextSeq(head, _, stop)) =>
-        assertEquals(head, List(6))
+        assertEquals(head.toList, List(6))
         assertEquals(stop.runSyncMaybe, Right(()))
         assertEquals(effects, Vector(3,2,1))
       case state =>
@@ -127,8 +128,8 @@ object IterantFlatMapSuite extends BaseTestSuite {
   test("TaskStream.nextSeq.flatMap works for large lists") { implicit s =>
     val count = 100000
     val list = (0 until count).toList
-    val sumTask = TaskStream.nextSeq(Cursor.fromSeq(list), Task.now(TaskStream.empty))
-      .flatMap(x => TaskStream.fromSeq(List(x,x,x)))
+    val sumTask = TaskStream.fromList(list)
+      .flatMap(x => TaskStream.fromList(List(x,x,x)))
       .foldLeftL(0L)(_+_)
 
     val f = sumTask.runAsync; s.tick()
@@ -175,15 +176,15 @@ object IterantFlatMapSuite extends BaseTestSuite {
     var effects = Vector.empty[Int]
     val stop1T = Coeval.eval { effects = effects :+ 1 }
     val stream1: CoevalStream[Int] =
-      CoevalStream.nextS(1, Coeval.now(CoevalStream.halt[Int](None)), stop1T)
+      CoevalStream.nextS(1, Coeval.now(CoevalStream.haltS[Int](None)), stop1T)
 
     val stop2T = Coeval.eval { effects = effects :+ 2 }
     val stream2: CoevalStream[Int] =
-      CoevalStream.nextS(2, Coeval.now(CoevalStream.halt[Int](None)), stop2T)
+      CoevalStream.nextS(2, Coeval.now(CoevalStream.haltS[Int](None)), stop2T)
 
     val stop3T = Coeval.eval { effects = effects :+ 3 }
     val stream3: CoevalStream[Int] =
-      CoevalStream.nextS(3, Coeval.now(CoevalStream.halt[Int](None)), stop3T)
+      CoevalStream.nextS(3, Coeval.now(CoevalStream.haltS[Int](None)), stop3T)
 
     val composed =
       for (x <- stream1; y <- stream2; z <- stream3)
@@ -211,15 +212,15 @@ object IterantFlatMapSuite extends BaseTestSuite {
     var effects = Vector.empty[Int]
     val stop1T = Coeval.eval { effects = effects :+ 1 }
     val stream1: CoevalStream[Int] =
-      CoevalStream.nextSeqS(Cursor.fromSeq(List(1)), Coeval.now(CoevalStream.halt[Int](None)), stop1T)
+      CoevalStream.fromList(List(1)).doOnStop(stop1T)
 
     val stop2T = Coeval.eval { effects = effects :+ 2 }
     val stream2: CoevalStream[Int] =
-      CoevalStream.nextSeqS(Cursor.fromSeq(List(2)), Coeval.now(CoevalStream.halt[Int](None)), stop2T)
+      CoevalStream.fromList(List(2)).doOnStop(stop2T)
 
     val stop3T = Coeval.eval { effects = effects :+ 3 }
     val stream3: CoevalStream[Int] =
-      CoevalStream.nextSeqS(Cursor.fromSeq(List(3)), Coeval.now(CoevalStream.halt[Int](None)), stop3T)
+      CoevalStream.fromList(List(3)).doOnStop(stop3T)
 
     val composed =
       for (x <- stream1; y <- stream2; z <- stream3)
@@ -227,7 +228,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
 
     firstNext(composed.stream).value match {
       case Iterant.NextSeq(head, _, stop) =>
-        assertEquals(head, List(6))
+        assertEquals(head.toList, List(6))
         assertEquals(stop.value, ())
         assertEquals(effects, Vector(3,2,1))
       case state =>

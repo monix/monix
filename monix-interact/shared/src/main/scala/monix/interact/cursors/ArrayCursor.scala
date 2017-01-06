@@ -55,7 +55,7 @@ class ArrayCursor[A](array: Array[A], offset: Int, length: Int) extends Cursor[A
   }
 
   override def hasMore(): Boolean = {
-    val i = if (index < offset) offset else index
+    val i = if (index < offset) offset-1 else index
     i + 1 < limit
   }
 

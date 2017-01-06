@@ -57,11 +57,15 @@ import scala.collection.immutable.LinearSeq
   *
   *         @see [[Iterant.Next]]
   *
-  * @define nextSeqDesc Builds a stream equivalent with [[Iterant.NextSeq]],
-  *         a pairing between a `head`, which is a strict sequence and a
-  *         potentially lazy or asynchronous `tail`.
+  * @define nextSeqDesc Builds a sequence equivalent with [[Iterant.NextSeq]].
   *
-  *         @see [[Iterant.NextSeq]]
+  *         This [[monix.interact.Iterant.NextSeq NextSeq]] state
+  *         of the [[Iterant]] represents a `cursor` / `rest` cons pair,
+  *         where the `cursor` is an [[Cursor iterator-like]] type that
+  *         can generate a whole batch of elements.
+  *
+  *         Useful for doing buffering, or by giving it an empty cursor,
+  *         useful to postpone the evaluation of the next element.
   *
   * @define suspendDesc Builds a stream equivalent with [[Iterant.Suspend]],
   *         representing a suspended stream, useful for delaying its
@@ -87,7 +91,7 @@ import scala.collection.immutable.LinearSeq
   *         batching done if it is equal to 1
   */
 abstract class IterantLikeBuilders[F[_], Self[+T] <: IterantLike[T, F, Self]]
-(implicit E: MonadError[F,Throwable], M: Memoizable[F]) { self =>
+  (implicit E: MonadError[F,Throwable], M: Memoizable[F]) { self =>
 
   import M.{applicative, functor}
 
@@ -120,29 +124,10 @@ abstract class IterantLikeBuilders[F[_], Self[+T] <: IterantLike[T, F, Self]]
     * @param head is the current element to be signaled
     * @param tail is the next state in the sequence that will
     *        produce the rest of the stream
-    */
-  def next[A](head: A, tail: F[Self[A]]): Self[A] =
-    fromStream(Iterant.next[F,A](head, functor.map(tail)(_.stream)))
-
-  /** $nextDesc
-    *
-    * @param head is the current element to be signaled
-    * @param tail is the next state in the sequence that will
-    *        produce the rest of the stream
     * @param stop $stopDesc
     */
   def nextS[A](head: A, tail: F[Self[A]], stop: F[Unit]): Self[A] =
     fromStream(Iterant.nextS[F,A](head, functor.map(tail)(_.stream), stop))
-
-  /** $nextSeqDesc
-    *
-    * @param cursor is an [[Cursor iterator-like]] type that can generate
-    *        elements by traversing a collection
-    * @param rest is the next state in the sequence that will
-    *        produce the rest of the stream
-    */
-  def nextSeq[A](cursor: Cursor[A], rest: F[Self[A]]): Self[A] =
-    fromStream(Iterant.nextSeq[F,A](cursor, functor.map(rest)(_.stream)))
 
   /** $nextSeqDesc
     *
@@ -155,6 +140,18 @@ abstract class IterantLikeBuilders[F[_], Self[+T] <: IterantLike[T, F, Self]]
   def nextSeqS[A](cursor: Cursor[A], rest: F[Self[A]], stop: F[Unit]): Self[A] =
     fromStream(Iterant.nextSeqS[F,A](cursor, functor.map(rest)(_.stream), stop))
 
+  /** $suspendDesc
+    *
+    * @param rest is the suspended stream
+    * @param stop $stopDesc
+    */
+  def suspendS[A](rest: F[Self[A]], stop: F[Unit]): Self[A] =
+    fromStream(Iterant.suspendS[F,A](rest.map(_.stream), stop))
+
+  /** $haltDesc */
+  def haltS[A](ex: Option[Throwable]): Self[A] =
+    fromStream(Iterant.haltS[F,A](ex))
+
   /** Promote a non-strict value representing a stream to a stream
     * of the same type, effectively delaying its initialisation.
     *
@@ -164,7 +161,7 @@ abstract class IterantLikeBuilders[F[_], Self[+T] <: IterantLike[T, F, Self]]
   def suspend[A](fa: => Self[A]): Self[A] =
     fromStream(Iterant.suspend[F,A](fa.stream))
 
-  /** Alias for [[IterantLikeBuilders.suspendS[A](fa* suspend]]. */
+  /** Alias for [[IterantLikeBuilders.suspend[A](fa* suspend]]. */
   def defer[A](fa: => Self[A]): Self[A] =
     fromStream(Iterant.defer[F,A](fa.stream))
 
@@ -175,24 +172,12 @@ abstract class IterantLikeBuilders[F[_], Self[+T] <: IterantLike[T, F, Self]]
   def suspend[A](rest: F[Self[A]]): Self[A] =
     fromStream(Iterant.suspend[F,A](rest.map(_.stream)))
 
-  /** $suspendDesc
-    *
-    * @param rest is the suspended stream
-    * @param stop $stopDesc
-    */
-  def suspendS[A](rest: F[Self[A]], stop: F[Unit]): Self[A] =
-    fromStream(Iterant.suspendS[F,A](rest.map(_.stream), stop))
-
   /** Returns an empty stream. */
   def empty[A]: Self[A] = fromStream(Iterant.empty[F,A])
 
   /** Returns a stream that signals an error. */
   def raiseError[A](ex: Throwable): Self[A] =
     fromStream(Iterant.raiseError[F,A](ex))
-
-  /** $haltDesc */
-  def halt[A](ex: Option[Throwable]): Self[A] =
-    fromStream(Iterant.halt[F,A](ex))
 
   /** Converts any Scala `collection.IndexedSeq` into a stream.
     *

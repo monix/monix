@@ -252,11 +252,9 @@ sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self
           next(a, tail, stop)
         case Suspend(rest, _) =>
           rest.flatMap(loop(_, state))
-        case NextSeq(list, next, stop) =>
-          if (list.isEmpty)
-            next.flatMap(loop(_, state))
-          else try {
-            val newState = list.foldLeft(state)(f)
+        case NextSeq(cursor, next, stop) =>
+          try {
+            val newState = cursor.foldLeft(state)(f)
             next.flatMap(loop(_, newState))
           } catch {
             case NonFatal(ex) =>
@@ -278,7 +276,7 @@ sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self
   private def signalError(ex: Throwable, stop: F[Unit])
     (implicit F: Applicative[F]): Iterant[F, Nothing] = {
     import F.functor
-    val t = stop.map(_ => Iterant.halt[F,Nothing](Some(ex)))
+    val t = stop.map(_ => Iterant.haltS[F,Nothing](Some(ex)))
     Iterant.Suspend[F,Nothing](t, stop)
   }
 }
@@ -354,7 +352,7 @@ object Iterant extends StreamInstances {
     * returning a stream of one element.
     */
   def now[F[_],A](a: A)(implicit F: Applicative[F]): Iterant[F,A] =
-    next[F,A](a, F.pure(empty[F,A]))
+    nextS[F,A](a, F.pure(empty[F,A]), F.unit)
 
   /** Alias for [[now]]. */
   def pure[F[_],A](a: A)(implicit F: Applicative[F]): Iterant[F,A] =
@@ -379,17 +377,6 @@ object Iterant extends StreamInstances {
   def nextS[F[_],A](head: A, rest: F[Iterant[F,A]], stop: F[Unit]): Iterant[F,A] =
     Next[F,A](head, rest, stop)
 
-  /** Builds a [[Iterant.Next]] stream state.
-    *
-    * $nextDesc
-    *
-    * @param head is the current element to be signaled
-    * @param rest is the next state in the sequence that will
-    *        produce the rest of the stream
-    */
-  def next[F[_],A](head: A, rest: F[Iterant[F,A]])(implicit F: Applicative[F]): Iterant[F,A] =
-    nextS[F,A](head, rest, F.unit)
-
   /** Builds a [[Iterant.NextSeq]] stream state.
     *
     * $nextSeqDesc
@@ -403,23 +390,28 @@ object Iterant extends StreamInstances {
   def nextSeqS[F[_],A](cursor: Cursor[A], rest: F[Iterant[F,A]], stop: F[Unit]): Iterant[F,A] =
     NextSeq[F,A](cursor, rest, stop)
 
-  /** Builds a [[Iterant.NextSeq]] stream state.
+  /** Builds a [[Iterant.Suspend]] stream state.
     *
-    * $nextSeqDesc
+    * $suspendDesc
     *
-    * @param cursor is an [[Cursor iterator-like]] type that can generate
-    *        elements by traversing a collection
-    * @param rest is the next state in the sequence that will
-    *        produce the rest of the stream
+    * @param rest is the suspended stream
+    * @param stop $stopDesc
     */
-  def nextSeq[F[_],A](cursor: Cursor[A], rest: F[Iterant[F,A]])(implicit F: Applicative[F]): Iterant[F,A] =
-    nextSeqS[F,A](cursor, rest, F.unit)
+  def suspendS[F[_],A](rest: F[Iterant[F,A]], stop: F[Unit]): Iterant[F,A] =
+    Suspend[F,A](rest, stop)
+
+  /** Builds a [[Iterant.Halt]] stream state.
+    *
+    * $haltDesc
+    */
+  def haltS[F[_],A](ex: Option[Throwable]): Iterant[F,A] =
+    Halt[F](ex)
 
   /** $suspendEvalDesc */
   def suspend[F[_], A](fa: => Iterant[F,A])(implicit F: Applicative[F]): Iterant[F,A] =
     suspend[F,A](F.eval(fa))
 
-  /** Alias for [[Iterant.suspendS[F[_],A](fa* suspend]]. */
+  /** Alias for [[Iterant.suspend[F[_],A](fa* suspend]]. */
   def defer[F[_] : Applicative, A](fa: => Iterant[F,A]): Iterant[F,A] =
     suspend(fa)
 
@@ -432,16 +424,6 @@ object Iterant extends StreamInstances {
   def suspend[F[_],A](rest: F[Iterant[F,A]])(implicit F: Applicative[F]): Iterant[F,A] =
     suspendS[F,A](rest, F.unit)
 
-  /** Builds a [[Iterant.Suspend]] stream state.
-    *
-    * $suspendDesc
-    *
-    * @param rest is the suspended stream
-    * @param stop $stopDesc
-    */
-  def suspendS[F[_],A](rest: F[Iterant[F,A]], stop: F[Unit]): Iterant[F,A] =
-    Suspend[F,A](rest, stop)
-
   /** Returns an empty stream. */
   def empty[F[_],A]: Iterant[F,A] =
     Halt[F](None)
@@ -450,18 +432,11 @@ object Iterant extends StreamInstances {
   def raiseError[F[_],A](ex: Throwable): Iterant[F,A] =
     Halt[F](Some(ex))
 
-  /** Builds a [[Iterant.Halt]] stream state.
-    *
-    * $haltDesc
-    */
-  def halt[F[_],A](ex: Option[Throwable]): Iterant[F,A] =
-    Halt[F](ex)
-
   /** Converts any Scala `collection.immutable.LinearSeq`
     * into a stream.
     */
   def fromList[F[_], A](xs: LinearSeq[A])(implicit F: Applicative[F]): Iterant[F,A] = {
-    val fa = F.eval(nextSeqS[F,A](Cursor.fromSeq(xs), F.pure(halt[F,A](None)), F.unit))
+    val fa = F.eval(nextSeqS[F,A](Cursor.fromSeq(xs), F.pure(haltS[F,A](None)), F.unit))
     Suspend[F,A](fa, F.unit)
   }
 
@@ -470,7 +445,7 @@ object Iterant extends StreamInstances {
     * @param xs is the reference to be converted to a stream
     */
   def fromIndexedSeq[F[_], A](xs: IndexedSeq[A])(implicit F: Applicative[F]): Iterant[F,A] = {
-    val fa = F.eval(nextSeq[F,A](Cursor.fromIndexedSeq(xs), F.pure(empty)))
+    val fa = F.eval(nextSeqS[F,A](Cursor.fromIndexedSeq(xs), F.pure(empty), F.unit))
     Suspend[F,A](fa, F.unit)
   }
 

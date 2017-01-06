@@ -26,18 +26,22 @@ import scala.concurrent.duration._
 
 trait ArbitraryInstances extends monix.eval.ArbitraryInstances {
   implicit def arbitraryStream[A](implicit A: Arbitrary[A]): Arbitrary[Iterant[Task,A]] = {
-    def listToStream(list: List[A], length: Int, idx: Int): Iterant[Task, A] =
+    def loop(list: List[A], length: Int, idx: Int): Iterant[Task, A] =
       list match {
         case Nil =>
-          Iterant.halt(None)
+          Iterant.haltS(None)
         case ns =>
-          if (idx % 3 == 0)
-            Iterant.next[Task,A](ns.head, Task(listToStream(ns.tail, length, idx+1)))
-          else if (idx % 3 == 1)
-            Iterant.suspend[Task,A](Task(listToStream(list, length, idx+1)))
+          if (idx % 4 == 0)
+            Iterant.nextS[Task,A](ns.head, Task(loop(ns.tail, length, idx+1)), Task.unit)
+          else if (idx % 4 == 1)
+            Iterant.suspend[Task,A](Task(loop(list, length, idx+1)))
+          else if (idx % 4 == 2) {
+            val (headSeq, tail) = list.splitAt(4)
+            Iterant.nextSeqS[Task,A](Cursor.fromSeq(headSeq), Task(loop(tail, length, idx+1)), Task.unit)
+          }
           else {
             val (headSeq, tail) = list.splitAt(4)
-            Iterant.nextSeq[Task,A](Cursor.fromSeq(headSeq), Task(listToStream(tail, length, idx+1)))
+            Iterant.nextSeqS[Task,A](Cursor.fromIndexedSeq(headSeq.toVector), Task(loop(tail, length, idx+1)), Task.unit)
           }
       }
 
@@ -45,57 +49,71 @@ trait ArbitraryInstances extends monix.eval.ArbitraryInstances {
       val listGen = implicitly[Arbitrary[List[A]]]
       val intGen = implicitly[Arbitrary[Int]]
       for (source <- listGen.arbitrary; i <- intGen.arbitrary) yield
-        listToStream(source.reverse, source.length, math.abs(i % 4))
+        Iterant.suspend(loop(source.reverse, source.length, math.abs(i % 4)))
     }
   }
 
-  implicit def arbitraryCoevalStream[A](implicit A: Arbitrary[A]): Arbitrary[CoevalStream[A]] = {
-    def listToStream(list: List[A], length: Int, idx: Int): CoevalStream[A] =
+  def arbitraryListToCoevalStream[A](list: List[A], idx: Int): CoevalStream[A] = {
+    def loop(list: List[A], idx: Int): CoevalStream[A] =
       list match {
         case Nil =>
-          CoevalStream.halt(None)
+          CoevalStream.haltS(None)
         case ns =>
-          if (idx % 3 == 0)
-            CoevalStream.next(ns.head, Coeval(listToStream(ns.tail, length, idx+1)))
-          else if (idx % 3 == 1)
-            CoevalStream.suspend(Coeval(listToStream(list, length, idx+1)))
+          if (idx % 4 == 0)
+            CoevalStream.nextS(ns.head, Coeval(loop(ns.tail, idx+1)), Coeval.unit)
+          else if (idx % 4 == 1)
+            CoevalStream.suspend(Coeval(loop(list, idx+1)))
+          else  if (idx % 4 == 2) {
+            val (headSeq, tail) = list.splitAt(4)
+            CoevalStream.nextSeqS(Cursor.fromIndexedSeq(headSeq.toVector), Coeval(loop(tail, idx+1)), Coeval.unit)
+          }
           else {
             val (headSeq, tail) = list.splitAt(4)
-            CoevalStream.nextSeq(Cursor.fromSeq(headSeq), Coeval(listToStream(tail, length, idx+1)))
+            CoevalStream.nextSeqS(Cursor.fromSeq(headSeq), Coeval(loop(tail, idx+1)), Coeval.unit)
           }
       }
 
+    CoevalStream.suspend(loop(list, idx))
+  }
+
+  implicit def arbitraryCoevalStream[A](implicit A: Arbitrary[A]): Arbitrary[CoevalStream[A]] =
     Arbitrary {
       val listGen = implicitly[Arbitrary[List[A]]]
       val intGen = implicitly[Arbitrary[Int]]
       for (source <- listGen.arbitrary; i <- intGen.arbitrary) yield
-        listToStream(source.reverse, source.length, math.abs(i % 4))
+        arbitraryListToCoevalStream(source.reverse, math.abs(i % 4))
     }
-  }
 
-  implicit def arbitraryTaskStream[A](implicit A: Arbitrary[A]): Arbitrary[TaskStream[A]] = {
-    def listToStream(list: List[A], length: Int, idx: Int): TaskStream[A] =
+  def arbitraryListToTaskStream[A](list: List[A], idx: Int): TaskStream[A] = {
+    def loop(list: List[A], idx: Int): TaskStream[A] =
       list match {
         case Nil =>
-          TaskStream.halt(None)
+          TaskStream.haltS(None)
         case ns =>
-          if (idx % 3 == 0)
-            TaskStream.next(ns.head, Task(listToStream(ns.tail, length, idx+1)))
-          else if (idx % 3 == 1)
-            TaskStream.suspend(Task(listToStream(list, length, idx+1)))
+          if (idx % 4 == 0)
+            TaskStream.nextS(ns.head, Task(loop(ns.tail, idx+1)), Task.unit)
+          else if (idx % 4 == 1)
+            TaskStream.suspend(Task(loop(list, idx+1)))
+          else if (idx % 4 == 2) {
+            val (headSeq, tail) = list.splitAt(4)
+            TaskStream.nextSeqS(Cursor.fromIndexedSeq(headSeq.toVector), Task(loop(tail, idx+1)), Task.unit)
+          }
           else {
             val (headSeq, tail) = list.splitAt(4)
-            TaskStream.nextSeq(Cursor.fromSeq(headSeq), Task(listToStream(tail, length, idx+1)))
+            TaskStream.nextSeqS(Cursor.fromSeq(headSeq), Task(loop(tail, idx+1)), Task.unit)
           }
       }
 
+    TaskStream.suspend(loop(list, idx))
+  }
+
+  implicit def arbitraryTaskStream[A](implicit A: Arbitrary[A]): Arbitrary[TaskStream[A]] =
     Arbitrary {
       val listGen = implicitly[Arbitrary[List[A]]]
       val intGen = implicitly[Arbitrary[Int]]
       for (source <- listGen.arbitrary; i <- intGen.arbitrary) yield
-        listToStream(source.reverse, source.length, math.abs(i % 4))
+        arbitraryListToTaskStream(source.reverse, math.abs(i % 4))
     }
-  }
 
   implicit def isEqStream[A](implicit A: Eq[List[A]]): Eq[Iterant[Task,A]] =
     new Eq[Iterant[Task,A]] {

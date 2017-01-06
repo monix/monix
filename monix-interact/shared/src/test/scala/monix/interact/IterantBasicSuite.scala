@@ -17,28 +17,20 @@
 
 package monix.interact
 
-import monix.eval.Task
-import scala.collection.mutable.ListBuffer
+import monix.eval.{Coeval, Task}
 
-object IterantFromSeqSuite extends BaseTestSuite {
-  test("TaskStream.fromSeq(vector)") { implicit s =>
-    check1 { (list: List[Int]) =>
-      val result = TaskStream.fromSeq(list.toVector).toListL
-      result === Task.now(list)
+object IterantBasicSuite extends BaseTestSuite {
+  test("arbitraryListToTaskStream works") { implicit s =>
+    check2 { (list: List[Int], i: Int) =>
+      val stream = arbitraryListToTaskStream(list, math.abs(i % 4))
+      stream.toListL === Task.now(list)
     }
   }
 
-  test("TaskStream.fromSeq(list)") { implicit s =>
-    check1 { (list: List[Int]) =>
-      val result = TaskStream.fromSeq(list).toListL
-      result === Task.now(list)
-    }
-  }
-
-  test("TaskStream.fromSeq(iterable)") { implicit s =>
-    check1 { (list: List[Int]) =>
-      val result = TaskStream.fromSeq(list.to[ListBuffer]).toListL
-      result === Task.now(list)
+  test("arbitraryListToCoevalStream") { implicit s =>
+    check2 { (list: List[Int], i: Int) =>
+      val stream = arbitraryListToCoevalStream(list, math.abs(i % 4))
+      stream.toListL === Coeval.now(list)
     }
   }
 }

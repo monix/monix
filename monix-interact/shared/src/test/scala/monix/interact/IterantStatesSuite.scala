@@ -55,7 +55,7 @@ object IterantStatesSuite extends BaseTestSuite {
   test("TaskStream.next") { implicit s =>
     val list = List(1,2,3)
     val deferred = Task.eval(TaskStream.fromSeq[Int](list))
-    val result = TaskStream.next(0, deferred).toListL.runAsync
+    val result = TaskStream.nextS(0, deferred, Task.unit).toListL.runAsync
     s.tick()
     assertEquals(result.value, Some(Success(0 :: list)))
   }
@@ -63,14 +63,14 @@ object IterantStatesSuite extends BaseTestSuite {
   test("CoevalStream.next") { implicit s =>
     val list = List(1,2,3)
     val deferred = Coeval.eval(CoevalStream.fromSeq[Int](list))
-    val result = CoevalStream.next(0, deferred).toListL.runTry
+    val result = CoevalStream.nextS(0, deferred, Coeval.unit).toListL.runTry
     assertEquals(result, Success(0 :: list))
   }
 
   test("TaskStream.nextSeq") { implicit s =>
     val list = List(1,2,3)
     val deferred = Task.eval(TaskStream.fromSeq[Int](list))
-    val result = TaskStream.nextSeq(Cursor.fromSeq(List(0)), deferred).toListL.runAsync
+    val result = TaskStream.nextSeqS(Cursor.fromSeq(List(0)), deferred, Task.unit).toListL.runAsync
     s.tick()
     assertEquals(result.value, Some(Success(0 :: list)))
   }
@@ -78,31 +78,31 @@ object IterantStatesSuite extends BaseTestSuite {
   test("CoevalStream.nextSeq") { implicit s =>
     val list = List(1,2,3)
     val deferred = Coeval.eval(CoevalStream.fromSeq[Int](list))
-    val result = CoevalStream.nextSeq(Cursor.fromSeq(List(0)), deferred).toListL.runTry
+    val result = CoevalStream.nextSeqS(Cursor.fromSeq(List(0)), deferred, Coeval.unit).toListL.runTry
     assertEquals(result, Success(0 :: list))
   }
 
   test("TaskStream.halt(None)") { implicit s =>
-    val result = TaskStream.halt(None).toListL.runAsync
+    val result = TaskStream.haltS(None).toListL.runAsync
     s.tick()
     assertEquals(result.value, Some(Success(Nil)))
   }
 
   test("CoevalStream.halt(None)") { implicit s =>
-    val result = CoevalStream.halt(None).toListL.runTry
+    val result = CoevalStream.haltS(None).toListL.runTry
     assertEquals(result, Success(Nil))
   }
 
   test("TaskStream.halt(Some(ex))") { implicit s =>
     val ex = DummyException("dummy")
-    val result = TaskStream.halt(Some(ex)).toListL.runAsync
+    val result = TaskStream.haltS(Some(ex)).toListL.runAsync
     s.tick()
     assertEquals(result.value, Some(Failure(ex)))
   }
 
   test("CoevalStream.halt(Some(ex))") { implicit s =>
     val ex = DummyException("dummy")
-    val result = CoevalStream.halt(Some(ex)).toListL.runTry
+    val result = CoevalStream.haltS(Some(ex)).toListL.runTry
     assertEquals(result, Failure(ex))
   }
 }
