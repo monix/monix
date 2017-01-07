@@ -16,6 +16,13 @@ lazy val doNotPublishArtifact = Seq(
   publishArtifact in (Compile, packageBin) := false
 )
 
+lazy val noSources = Seq(
+  // disable automatic dependency on the Scala library
+  autoScalaLibrary := false,
+  publishArtifact in Compile := false,
+  sources in Compile := Seq.empty
+)
+
 lazy val warnUnusedImport = Seq(
   scalacOptions ++= {
     CrossVersion.partialVersion(scalaVersion.value) match {
@@ -275,6 +282,7 @@ lazy val coreJVM = project.in(file("monix/jvm"))
   .dependsOn(typesJVM, executionJVM, evalJVM, reactiveJVM)
   .aggregate(typesJVM, executionJVM, evalJVM, reactiveJVM, catsJVM, scalaz72JVM)
   .settings(crossSettings)
+  .settings(noSources)
   .settings(name := "monix")
 
 lazy val coreJS = project.in(file("monix/js"))
