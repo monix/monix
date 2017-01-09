@@ -17,8 +17,7 @@
 
 package monix.interact
 
-import monix.interact.cursors.{ArrayCursor, IteratorCursor}
-
+import monix.interact.cursors.{ArrayCursor, EmptyCursor, IteratorCursor}
 import scala.collection.mutable.ListBuffer
 
 /** Similar to Java's and Scala's `Iterator`, the `Cursor` type can
@@ -98,7 +97,7 @@ trait Cursor[+A] extends Serializable {
   /** Returns `true` if the cursor can be advanced or `false` otherwise.
     *
     * This method does not advance our cursor, users still have to call
-    * [[moveNext()]], this method being useful for optimizations,
+    * [[moveNext]], this method being useful for optimizations,
     * for knowing in advance if the cursor is empty or not.
     *
     * This method can be side-effecting, even if it doesn't move our
@@ -121,7 +120,7 @@ trait Cursor[+A] extends Serializable {
   /** Returns `true` in case our cursor has more elements
     * to process or `false` if the cursor is empty.
     *
-    * Alias for [[hasMore()]].
+    * Alias for [[hasMore]].
     */
   def nonEmpty: Boolean = hasMore()
 
@@ -230,6 +229,12 @@ trait Cursor[+A] extends Serializable {
 }
 
 object Cursor {
+  /** Given a list of items, builds an array-backed [[Cursor]] out of it. */
+  def apply[A](elems: A*): Cursor[A] = {
+    val array = elems.asInstanceOf[Seq[AnyRef]].toArray
+    fromArray(array).asInstanceOf[Cursor[A]]
+  }
+
   /** Converts a Scala `Iterator` into a `Cursor`. */
   def fromIterator[A](iter: Iterator[A]): Cursor[A] =
     new IteratorCursor[A](iter)
@@ -277,4 +282,17 @@ object Cursor {
     val ref = seq.asInstanceOf[IndexedSeq[AnyRef]].toArray
     fromArray(ref).asInstanceOf[Cursor[A]]
   }
+
+  /** Returns a generic, empty cursor instance. */
+  def empty[A]: Cursor[A] = EmptyCursor
+
+  /** A cursor producing equally spaced values in some integer interval.
+    *
+    * @param from the start value of the cursor
+    * @param until the end value of the cursor (the first value NOT returned)
+    * @param step the increment value of the cursor (must be positive or negative)
+    * @return the cursor producing values `from, from + step, ...` up to, but excluding `end`
+    */
+  def range(from: Int, until: Int, step: Int = 1): Cursor[Int] =
+    Cursor.fromIterator(Iterator.range(from, until, step))
 }

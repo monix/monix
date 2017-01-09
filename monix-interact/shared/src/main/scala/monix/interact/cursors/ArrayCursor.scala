@@ -55,19 +55,18 @@ class ArrayCursor[A](array: Array[A], offset: Int, length: Int) extends Cursor[A
   }
 
   override def hasMore(): Boolean = {
-    val i = if (index < offset) offset-1 else index
-    i + 1 < limit
+    getNextIndex < limit
   }
 
   override def take(n: Int): Cursor[A] = {
-    val start = if (index < offset) offset else index
+    val start = getNextIndex
     val newLimit = math.min(start+n, limit)
     if (start >= newLimit) EmptyCursor else
       new ArrayCursor(array, start, newLimit-start)
   }
 
   override def drop(n: Int): Cursor[A] = {
-    val start = if (index < offset) offset else index
+    val start = getNextIndex
     val newOffset = math.min(start+n, limit)
     val newLength = limit-newOffset
     if (newOffset >= limit) EmptyCursor else
@@ -80,22 +79,24 @@ class ArrayCursor[A](array: Array[A], offset: Int, length: Int) extends Cursor[A
   }
 
   override def map[B](f: (A) => B): Cursor[B] = {
-    val oldOffset = if (index >= offset) index else offset
+    val oldOffset = getNextIndex
     val newLength = limit - oldOffset
-    val copy = new Array[AnyRef](limit)
+    if (newLength <= 0) EmptyCursor else {
+      val copy = new Array[AnyRef](limit)
 
-    var i = 0
-    while (i < newLength) {
-      copy(i) = f(array(i+oldOffset)).asInstanceOf[AnyRef]
-      i += 1
+      var i = 0
+      while (i < newLength) {
+        copy(i) = f(array(i+oldOffset)).asInstanceOf[AnyRef]
+        i += 1
+      }
+
+      new ArrayCursor[AnyRef](copy, 0, newLength)
+        .asInstanceOf[Cursor[B]]
     }
-
-    new ArrayCursor[AnyRef](copy, 0, newLength)
-      .asInstanceOf[Cursor[B]]
   }
 
   override def filter(p: (A) => Boolean): Cursor[A] = {
-    val oldOffset = if (index >= offset) index else offset
+    val oldOffset = getNextIndex
     val buffer = Array.newBuilder[AnyRef]
 
     var oldIndex = oldOffset
@@ -106,11 +107,12 @@ class ArrayCursor[A](array: Array[A], offset: Int, length: Int) extends Cursor[A
     }
 
     val copy = buffer.result()
-    new ArrayCursor[AnyRef](copy, 0, copy.length).asInstanceOf[Cursor[A]]
+    if (copy.length == 0) EmptyCursor else
+      new ArrayCursor[AnyRef](copy, 0, copy.length).asInstanceOf[Cursor[A]]
   }
 
   override def collect[B](pf: PartialFunction[A, B]): Cursor[B] = {
-    val oldOffset = if (index >= offset) index else offset
+    val oldOffset = getNextIndex
     val buffer = Array.newBuilder[AnyRef]
 
     var oldIndex = oldOffset
@@ -121,11 +123,12 @@ class ArrayCursor[A](array: Array[A], offset: Int, length: Int) extends Cursor[A
     }
 
     val copy = buffer.result()
-    new ArrayCursor[AnyRef](copy, 0, copy.length).asInstanceOf[Cursor[B]]
+    if (copy.length == 0) EmptyCursor else
+      new ArrayCursor[AnyRef](copy, 0, copy.length).asInstanceOf[Cursor[B]]
   }
 
   override def toIterator: Iterator[A] = {
-    val newOffset = if (index < offset) offset else index
+    val newOffset = getNextIndex
     val newLength = limit - newOffset
     if (newLength <= 0) Iterator.empty else {
       var ref = array.iterator
@@ -139,4 +142,7 @@ class ArrayCursor[A](array: Array[A], offset: Int, length: Int) extends Cursor[A
     import scala.collection.JavaConverters._
     toIterator.asInstanceOf[Iterator[B]].asJava
   }
+
+  @inline private def getNextIndex: Int =
+    if (index < offset) offset else index+1
 }

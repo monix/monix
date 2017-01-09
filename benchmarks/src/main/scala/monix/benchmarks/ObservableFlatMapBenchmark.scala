@@ -18,6 +18,8 @@
 package monix.benchmarks
 
 import java.util.concurrent.TimeUnit
+import monix.eval.Task
+import monix.interact.Iterant
 import monix.reactive.Observable
 import org.openjdk.jmh.annotations._
 import scala.concurrent.Await
@@ -40,30 +42,36 @@ class ObservableFlatMapBenchmark {
   @Param(Array("100000"))
   var size: Int = _
 
+//  @Benchmark
+//  def noConcat: Long = {
+//    val f = Observable.range(0, size).sumL.runAsync
+//    Await.result(f, Duration.Inf)
+//  }
+//
   @Benchmark
-  def noConcat: Long = {
-    val f = Observable.range(0, size).sumL.runAsync
-    Await.result(f, Duration.Inf)
-  }
-
-  @Benchmark
-  def concatMapSync: Long = {
+  def observableConcatSync: Long = {
     val f = Observable.range(0, size).concatMap(x => Observable.now(x)).sumL.runAsync
     Await.result(f, Duration.Inf)
   }
+//
+//  @Benchmark
+//  def concatMapAsync: Long = {
+//    val f = Observable.range(0, size).concatMap(x => Observable.now(x).executeWithFork).sumL.runAsync
+//    Await.result(f, Duration.Inf)
+//  }
+//
 
   @Benchmark
-  def concatMapAsync: Long = {
-    val f = Observable.range(0, size).concatMap(x => Observable.now(x).executeWithFork).sumL.runAsync
+  def iterantConcatSync: Long = {
+    val f = Iterant.range[Task](0,size).flatMap(x => Iterant.now(x)).foldLeftL(0L)(_+_).runAsync
     Await.result(f, Duration.Inf)
   }
 }
 
 object ObservableFlatMapBenchmark {
-  import monix.execution.Scheduler
-  import monix.execution.Scheduler.global
   import monix.execution.ExecutionModel.SynchronousExecution
+  import monix.execution.Scheduler
 
   implicit val monixScheduler: Scheduler = 
-    global.withExecutionModel(SynchronousExecution)
+    Scheduler.global.withExecutionModel(SynchronousExecution)
 }

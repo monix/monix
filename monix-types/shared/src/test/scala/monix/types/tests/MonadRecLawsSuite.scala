@@ -30,7 +30,7 @@ trait MonadRecLawsSuite[F[_],A,B,C] extends MonadLawsSuite[F,A,B,C] {
     implicit def functor: Functor[F] = F
   }
 
-  def monadRecCheck(typeName: String, includeSupertypes: Boolean)(implicit
+  def monadRecCheck(typeName: String, includeSupertypes: Boolean, stackSafetyCount: Int = 50000)(implicit
     arbitraryA: Arbitrary[A],
     arbitraryAtoB: Arbitrary[A => B],
     arbitraryABtoC: Arbitrary[(A,B) => C],
@@ -54,8 +54,8 @@ trait MonadRecLawsSuite[F[_],A,B,C] extends MonadLawsSuite[F,A,B,C] {
         monadRecLaws.tailRecMConsistentFlatMap(count, a, f))
     }
 
-    test(s"MonadRec[$typeName].tailRecMStackSafety(50000)") {
-      val prop = monadRecLaws.tailRecMStackSafety(50000)
+    test(s"MonadRec[$typeName].tailRecMStackSafety($stackSafetyCount)") {
+      val prop = monadRecLaws.tailRecMStackSafety(stackSafetyCount)
       assert(eqFInt(prop.lh, prop.rh))
     }
   }

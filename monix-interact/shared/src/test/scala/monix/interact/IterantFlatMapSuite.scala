@@ -19,7 +19,6 @@ package monix.interact
 
 import monix.eval.{Coeval, DummyException, Task}
 import monix.interact.Iterant.{Halt, Next, NextSeq, Suspend}
-
 import scala.util.{Failure, Success}
 
 object IterantFlatMapSuite extends BaseTestSuite {

@@ -37,11 +37,7 @@ object EmptyCursor extends Cursor[Nothing] {
   override def slice(from: Int, until: Int): Cursor[Nothing] = this
 
   override def toIterator: Iterator[Nothing] =
-    new Iterator[Nothing] {
-      override def hasNext: Boolean = false
-      override def next(): Nothing =
-        throw new NoSuchElementException("iterator.next()")
-    }
+    Iterator.empty
 
   override def toJavaIterator[B >: Nothing]: util.Iterator[B] = {
     import scala.collection.JavaConverters._

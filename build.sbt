@@ -29,6 +29,19 @@ lazy val warnUnusedImport = Seq(
   scalacOptions in (Test, console) <<= (scalacOptions in (Compile, console))
 )
 
+lazy val optimisationSettings = Seq(
+  scalacOptions ++= {
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((2, n)) if n >= 12 =>
+        Seq("-opt:l:classpath")
+      case Some((2, 11)) =>
+        Seq("-optimise")
+      case Some((2, 10)) =>
+        Seq.empty
+    }
+  }
+)
+
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
   scalaVersion := "2.11.8",
@@ -344,7 +357,7 @@ lazy val evalJS = project.in(file("monix-eval/js"))
   .settings(evalCommon)
 
 lazy val interactCommon =
-  crossSettings ++ testSettings ++ Seq(
+  crossSettings ++ testSettings ++ optimisationSettings ++ Seq(
     name := "monix-interact"
   )
 
