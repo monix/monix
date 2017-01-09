@@ -18,7 +18,7 @@ composing asynchronous and event-based programs using observable sequences
 that are exposed as asynchronous streams, expanding on the
 [observer pattern](https://en.wikipedia.org/wiki/Observer_pattern),
 strongly inspired by [ReactiveX](http://reactivex.io/),
-but designed from the ground up  for back-pressure and made to cleanly iterant
+but designed from the ground up  for back-pressure and made to cleanly interact
 with Scala's standard library and compatible out-of-the-box with the
 [Reactive Streams](http://www.reactive-streams.org/) protocol.
 
