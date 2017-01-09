@@ -18,7 +18,7 @@
 package monix.benchmarks
 
 import java.util.concurrent.TimeUnit
-import monix.interact.Cursor
+import monix.iterant.Cursor
 import org.openjdk.jmh.annotations._
 
 /**
