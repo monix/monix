@@ -238,7 +238,7 @@ lazy val requiredMacroCompatDeps = Seq(
 lazy val unidocSettings = baseUnidocSettings ++ Seq(
   autoAPIMappings := true,
   unidocProjectFilter in (ScalaUnidoc, unidoc) :=
-    inProjects(typesJVM, executionJVM, evalJVM, iterantJVM, reactiveJVM, catsJVM, scalaz72JVM),
+    inProjects(typesJVM, executionJVM, evalJVM, tailJVM, reactiveJVM, catsJVM, scalaz72JVM),
 
   // Exclude monix.execution.atomic.internals from ScalaDoc
   sources in (ScalaUnidoc, unidoc) ~= (_ filterNot { file =>
@@ -285,16 +285,16 @@ lazy val monix = project.in(file("."))
 
 lazy val coreJVM = project.in(file("monix/jvm"))
   .configure(profile)
-  .dependsOn(typesJVM, executionJVM, evalJVM, reactiveJVM, iterantJVM)
-  .aggregate(typesJVM, executionJVM, evalJVM, reactiveJVM, iterantJVM, catsJVM, scalaz72JVM)
+  .dependsOn(typesJVM, executionJVM, evalJVM, tailJVM, reactiveJVM)
+  .aggregate(typesJVM, executionJVM, evalJVM, tailJVM, reactiveJVM, catsJVM, scalaz72JVM)
   .settings(crossSettings)
   .settings(name := "monix")
 
 lazy val coreJS = project.in(file("monix/js"))
   .configure(profile)
   .enablePlugins(ScalaJSPlugin)
-  .dependsOn(typesJS, executionJS, evalJS, iterantJS, reactiveJS)
-  .aggregate(typesJS, executionJS, evalJS, iterantJS, reactiveJS, catsJS, scalaz72JS)
+  .dependsOn(typesJS, executionJS, evalJS, tailJS, reactiveJS)
+  .aggregate(typesJS, executionJS, evalJS, tailJS, reactiveJS, catsJS, scalaz72JS)
   .settings(crossSettings)
   .settings(scalaJSSettings)
   .settings(name := "monix")
@@ -356,26 +356,26 @@ lazy val evalJS = project.in(file("monix-eval/js"))
   .settings(scalaJSSettings)
   .settings(evalCommon)
 
-lazy val iterantCommon =
+lazy val tailCommon =
   crossSettings ++ testSettings ++ optimisationSettings ++ Seq(
-    name := "monix-iterant"
+    name := "monix-tail"
   )
 
-lazy val iterantJVM = project.in(file("monix-iterant/jvm"))
+lazy val tailJVM = project.in(file("monix-tail/jvm"))
   .configure(profile)
   .dependsOn(typesJVM % "compile->compile; test->test")
   .dependsOn(evalJVM % "compile->compile; test->test")
   .dependsOn(executionJVM)
-  .settings(iterantCommon)
+  .settings(tailCommon)
 
-lazy val iterantJS = project.in(file("monix-iterant/js"))
+lazy val tailJS = project.in(file("monix-tail/js"))
   .enablePlugins(ScalaJSPlugin)
   .configure(profile)
   .dependsOn(typesJS % "compile->compile; test->test")
   .dependsOn(evalJS % "compile->compile; test->test")
   .dependsOn(executionJS)
   .settings(scalaJSSettings)
-  .settings(iterantCommon)
+  .settings(tailCommon)
 
 lazy val reactiveCommon =
   crossSettings ++ testSettings ++ Seq(
@@ -385,7 +385,7 @@ lazy val reactiveCommon =
 lazy val reactiveJVM = project.in(file("monix-reactive/jvm"))
   .configure(profile)
   .dependsOn(typesJVM % "compile->compile; test->test")
-  .dependsOn(executionJVM, evalJVM, iterantJVM)
+  .dependsOn(executionJVM, evalJVM, tailJVM)
   .settings(reactiveCommon)
   .settings(libraryDependencies += "org.jctools" % "jctools-core" % "2.0")
 
@@ -393,7 +393,7 @@ lazy val reactiveJS = project.in(file("monix-reactive/js"))
   .enablePlugins(ScalaJSPlugin)
   .configure(profile)
   .dependsOn(typesJS % "compile->compile; test->test")
-  .dependsOn(executionJS, evalJS, iterantJS)
+  .dependsOn(executionJS, evalJS, tailJS)
   .settings(reactiveCommon)
   .settings(scalaJSSettings)
 
