@@ -41,15 +41,20 @@ import scala.util.control.NonFatal
   * Consumption of a `Iterant` happens typically in a loop where
   * the current step represents either a signal that the stream
   * is over, or a (head, rest) pair, very similar in spirit to
-  * Scala's standard `List` or `Iterant`.
+  * Scala's standard `List` or `Iterable`.
   *
   * The type is an ADT, meaning a composite of the following types:
   *
   *  - [[monix.tail.Iterant.Next Next]] which signals a single strict
   *    element, the `head` and a `rest` representing the rest of the stream
   *  - [[monix.tail.Iterant.NextSeq NextSeq]] is a variation on `Next`
-  *    for signaling a whole strict batch of elements as the `cursor`,
-  *    along with the `rest` representing the rest of the stream
+  *    for signaling a whole strict batch of elements as a traversable
+  *    [[Cursor cursor]], along with the `rest` representing the
+  *    rest of the stream
+  *  - [[monix.tail.Iterant.NextGen NextGen]] is a variation on `Next`
+  *    for signaling a whole batch of elements by means of a
+  *    [[cursors.Generator cursor generator]], along with the `rest`
+  *    representing the rest of the stream
   *  - [[monix.tail.Iterant.Suspend Suspend]] is for suspending the
   *    evaluation of a stream
   *  - [[monix.tail.Iterant.Halt Halt]] represents an empty
@@ -70,7 +75,9 @@ import scala.util.control.NonFatal
   *
   * ATTRIBUTION: this type was inspired by the `Streaming` type in the
   * Typelevel Cats library (later moved to Typelevel's Dogs), originally
-  * committed in Cats by Erik Osheim.
+  * committed in Cats by Erik Osheim. It was also inspired by other
+  * push-based streaming abstractions, like the `Iteratee` or
+  * `IAsyncEnumerable`.
   *
   * @tparam F is the monadic type that controls evaluation; note that it
   *         must be stack-safe in its `map` and `flatMap` operations
