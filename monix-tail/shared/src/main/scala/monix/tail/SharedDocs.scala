@@ -49,6 +49,17 @@ package monix.tail
   *
   *         $NextSeqDesc
   *
+  * @define NextGenDesc The [[monix.tail.Iterant.NextGen NextGen]] state
+  *         of the [[Iterant]] represents an `items` / `rest` cons pair,
+  *         where `items` is an [[cursors.Generator cursors generator]]
+  *         type (much like Scala's `Iterable`) that can generate a whole
+  *         batch of elements.
+  *
+  * @define nextGenSDesc Builds a stream state equivalent with
+  *         [[Iterant.NextGen]].
+  *
+  *         $NextGenDesc
+  *
   * @define SuspendDesc The [[monix.tail.Iterant.Suspend Suspend]] state
   *         of the [[Iterant]] represents a suspended stream to be
   *         evaluated in the `F` context. It is useful to delay the
@@ -144,6 +155,10 @@ package monix.tail
   * @define cursorParamDesc is an [[Cursor iterator-like]] type that can
   *         generate elements by traversing a collection, a standard array
   *         or any `Iterator`
+  *
+  * @define generatorParamDesc is a [[cursors.Generator cursor generator]]
+  *         type that can generate elements by traversing a collection,
+  *         a standard array or any `Iterable`
   *
   * @define restParamDesc is the next state in the sequence that
   *         will produce the rest of the stream when evaluated

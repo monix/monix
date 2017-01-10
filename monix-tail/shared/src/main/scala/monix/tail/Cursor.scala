@@ -17,8 +17,9 @@
 
 package monix.tail
 
-import monix.tail.cursors.{ArrayCursor, EmptyCursor, IteratorCursor}
-import scala.collection.mutable.ListBuffer
+import monix.tail.cursors.{ArrayCursor, EmptyCursor, Generator, IteratorCursor}
+import scala.collection.mutable.{ArrayBuffer, ListBuffer}
+import scala.reflect.ClassTag
 
 /** Similar to Java's and Scala's `Iterator`, the `Cursor` type can
   * can be used to iterate over the data in a collection, but it cannot
@@ -30,7 +31,7 @@ import scala.collection.mutable.ListBuffer
   * collection without such operations having necessarily lazy behavior.
   * So in other words, when wrapping a standard `Array`, an application of
   * `map` will copy the data to a new `Array` instance with its elements
-  * modified, immediately and is thus having strict behavior. In other case,
+  * modified, immediately and is thus having strict behavior. In other cases,
   * when wrapping potentially infinite collections, like `Iterable` or `Stream`,
   * that's when lazy behavior happens.
   *
@@ -65,7 +66,7 @@ import scala.collection.mutable.ListBuffer
   *         either strict or lazy (depending on the underlying cursor type),
   *         but it does not modify the original collection.
   */
-trait Cursor[+A] extends Serializable {
+trait Cursor[+A] extends Serializable with Cloneable {
   /** Gets the current element of the underlying collection.
     *
     * After an enumerator is created, the [[moveNext]] method must be
@@ -128,7 +129,7 @@ trait Cursor[+A] extends Serializable {
     *
     * @param  n is the number of values to take
     * @return a cursor producing only of the first `n` values of
-    *         this iterator, or else the whole iterator,
+    *         this cursor, or else the whole sequence,
     *         if it produces fewer than `n` values.
     */
   def take(n: Int): Cursor[A]
@@ -149,7 +150,7 @@ trait Cursor[+A] extends Serializable {
     *         which forms part of the slice.
     *  @param until the index of the first element
     *         following the slice.
-    *  @return a cursor which advances this iterator past
+    *  @return a cursor which advances this cursor past
     *          the first `from` elements using `drop`,
     *          and then takes `until - from` elements,
     *          using `take`
@@ -185,8 +186,8 @@ trait Cursor[+A] extends Serializable {
     *
     * $strictOrLazyNote
     *
-    * @param pf the partial function which filters and maps the iterator.
-    * @return a new iterator which yields each value `x` produced by this
+    * @param pf the partial function which filters and maps the cursor.
+    * @return a new cursor which yields each value `x` produced by this
     *         cursor for which `pf` is defined the image `pf(x)`.
     */
   def collect[B](pf: PartialFunction[A,B]): Cursor[B]
@@ -221,15 +222,36 @@ trait Cursor[+A] extends Serializable {
     buffer.toList
   }
 
+  /** Converts this cursor into an `Array`,
+    * consuming it in the process.
+    */
+  def toArray[B >: A : ClassTag]: Array[B] = {
+    val buffer = ArrayBuffer.empty[A]
+    while (moveNext()) buffer += current
+    buffer.toArray
+  }
+
+  /** Converts this cursor into a reusable [[Generator]],
+    * consuming it in the process.
+    */
+  def toGenerator: Generator[A] = {
+    val array = asInstanceOf[Cursor[AnyRef]].toArray
+    Generator.fromArray(array).asInstanceOf[Generator[A]]
+  }
+
   /** Converts this cursor into a Scala `Iterator`. */
   def toIterator: Iterator[A]
 
   /** Converts this cursor into a Java `Iterator`. */
   def toJavaIterator[B >: A]: java.util.Iterator[B]
+
+  /** Creates and returns a copy of this cursor. */
+  override def clone(): Cursor[A] =
+    super.clone().asInstanceOf[Cursor[A]]
 }
 
 object Cursor {
-  /** Given a list of items, builds an array-backed [[Cursor]] out of it. */
+  /** Given a list of cursor, builds an array-backed [[Cursor]] out of it. */
   def apply[A](elems: A*): Cursor[A] = {
     val array = elems.asInstanceOf[Seq[AnyRef]].toArray
     fromArray(array).asInstanceOf[Cursor[A]]

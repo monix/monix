@@ -18,7 +18,7 @@
 package monix.tail
 
 import monix.eval.{Coeval, DummyException, Task}
-import monix.tail.Iterant.{Halt, Last, Next, NextSeq, Suspend}
+import monix.tail.Iterant.{NextGen, NextSeq, Suspend}
 
 import scala.util.{Failure, Success}
 
@@ -94,7 +94,9 @@ object IterantFlatMapSuite extends BaseTestSuite {
       streamable match {
         case Suspend(rest, _) =>
           rest.flatMap(firstNext)
-        case Next(_,_,_) | NextSeq(_,_,_) | Halt(_) | Last(_) =>
+        case NextGen(gen, rest, stop) =>
+          Task.now(NextSeq(gen.cursor(), rest, stop))
+        case _ =>
           Task.now(streamable)
       }
 
@@ -205,7 +207,9 @@ object IterantFlatMapSuite extends BaseTestSuite {
       streamable match {
         case Suspend(rest, _) =>
           rest.flatMap(firstNext)
-        case Next(_,_,_) | NextSeq(_,_,_) | Halt(_) | Last(_) =>
+        case NextGen(gen, rest, stop) =>
+          Coeval.now(NextSeq(gen.cursor(), rest, stop))
+        case _ =>
           Coeval.now(streamable)
       }
 
