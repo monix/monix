@@ -27,6 +27,48 @@ abstract class CursorSuite extends BaseTestSuite {
     }
   }
 
+  test("cursor.toArray") { _ =>
+    check1 { (list: List[Int]) =>
+      val cursor = fromList(list)
+      cursor.toArray.toList == list
+    }
+  }
+
+  test("cursor.drop(2).toArray") { _ =>
+    check1 { (list: List[Int]) =>
+      val cursor = fromList(list)
+      cursor.drop(2).toArray.toList == list.drop(2)
+    }
+  }
+
+  test("cursor.take(2).toArray") { _ =>
+    check1 { (list: List[Int]) =>
+      val cursor = fromList(list)
+      cursor.take(2).toArray.toList == list.take(2)
+    }
+  }
+
+  test("cursor.toGenerator") { _ =>
+    check1 { (list: List[Int]) =>
+      val cursor = fromList(list)
+      cursor.toGenerator.cursor().toList == list
+    }
+  }
+
+  test("cursor.drop(2).toGenerator") { _ =>
+    check1 { (list: List[Int]) =>
+      val cursor = fromList(list)
+      cursor.drop(2).toGenerator.cursor().toList == list.drop(2)
+    }
+  }
+
+  test("cursor.take(2).toGenerator") { _ =>
+    check1 { (list: List[Int]) =>
+      val cursor = fromList(list)
+      cursor.take(2).toGenerator.cursor().toList == list.take(2)
+    }
+  }
+
   test("cursor.drop(5).toList") { _ =>
     check1 { (list: List[Int]) =>
       val cursor = fromList(list)
@@ -112,14 +154,6 @@ abstract class CursorSuite extends BaseTestSuite {
     }
   }
 
-  test("cursor.toJavaIterator") { _ =>
-    check1 { (list: List[Int]) =>
-      import collection.JavaConverters._
-      val cursor = fromList(list)
-      cursor.toJavaIterator.asScala.toList == list
-    }
-  }
-
   test("cursor.hasMore") { _ =>
     check1 { (list: List[Int]) =>
       val cursor = fromList(list)
@@ -152,8 +186,7 @@ object ArraySliceCursorSuite extends CursorSuite {
   override def fromList(list: List[Int]): Cursor[Int] = {
     val listOf5 = (0 until 5).toList
     val fullList = listOf5 ::: list ::: listOf5
-    val slice = fullList.slice(5, list.length + 5)
-    Cursor.fromArray(slice.toArray)
+    Cursor.fromArray(fullList.toArray, 5, list.length)
   }
 }
 

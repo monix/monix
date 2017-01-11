@@ -17,7 +17,6 @@
 
 package monix.tail.cursors
 
-import java.util
 import monix.tail.Cursor
 import monix.tail.exceptions.{CursorIsFinishedException, CursorNotStartedException}
 
@@ -127,6 +126,12 @@ class ArrayCursor[A](array: Array[A], offset: Int, length: Int) extends Cursor[A
       new ArrayCursor[AnyRef](copy, 0, copy.length).asInstanceOf[Cursor[B]]
   }
 
+  override def toGenerator: Generator[A] = {
+    val newOffset = getNextIndex
+    val newLength = limit - newOffset
+    Generator.fromArray(array, newOffset, newLength)
+  }
+
   override def toIterator: Iterator[A] = {
     val newOffset = getNextIndex
     val newLength = limit - newOffset
@@ -136,11 +141,6 @@ class ArrayCursor[A](array: Array[A], offset: Int, length: Int) extends Cursor[A
       if (newLength < array.length) ref = ref.take(newLength)
       ref
     }
-  }
-
-  override def toJavaIterator[B >: A]: util.Iterator[B] = {
-    import scala.collection.JavaConverters._
-    toIterator.asInstanceOf[Iterator[B]].asJava
   }
 
   @inline private def getNextIndex: Int =

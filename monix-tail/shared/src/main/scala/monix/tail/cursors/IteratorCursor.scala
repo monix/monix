@@ -17,8 +17,6 @@
 
 package monix.tail.cursors
 
-import java.util
-
 import monix.tail.Cursor
 import monix.tail.exceptions.{CursorIsFinishedException, CursorNotStartedException}
 
@@ -78,11 +76,6 @@ class IteratorCursor[+A](underlying: Iterator[A]) extends Cursor[A] {
 
   override def toIterator: Iterator[A] =
     underlying
-
-  override def toJavaIterator[B >: A]: util.Iterator[B] = {
-    import scala.collection.JavaConverters._
-    underlying.asInstanceOf[Iterator[B]].asJava
-  }
 }
 
 object IteratorCursor {

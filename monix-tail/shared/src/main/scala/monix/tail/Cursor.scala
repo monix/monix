@@ -231,7 +231,7 @@ trait Cursor[+A] extends Serializable with Cloneable {
     buffer.toArray
   }
 
-  /** Converts this cursor into a reusable [[Generator]],
+  /** Converts this cursor into a reusable array-backed [[Generator]],
     * consuming it in the process.
     */
   def toGenerator: Generator[A] = {
@@ -241,9 +241,6 @@ trait Cursor[+A] extends Serializable with Cloneable {
 
   /** Converts this cursor into a Scala `Iterator`. */
   def toIterator: Iterator[A]
-
-  /** Converts this cursor into a Java `Iterator`. */
-  def toJavaIterator[B >: A]: java.util.Iterator[B]
 
   /** Creates and returns a copy of this cursor. */
   override def clone(): Cursor[A] =

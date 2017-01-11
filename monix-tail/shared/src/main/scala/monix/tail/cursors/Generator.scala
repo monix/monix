@@ -18,6 +18,7 @@
 package monix.tail.cursors
 
 import monix.tail.Cursor
+import scala.reflect.ClassTag
 
 /** The `Generator` is a [[Cursor]] factory, similar in spirit
   * with Scala's `Iterable`.
@@ -50,6 +51,16 @@ trait Generator[+A] extends Serializable {
     val self = this
     new Generator[B] { def cursor(): Cursor[B] = f(self.cursor()) }
   }
+
+  /** Converts this cursor into a Scala immutable `List`. */
+  def toList: List[A] = cursor().toList
+
+  /** Converts this cursor into a standard `Array`. */
+  def toArray[B >: A : ClassTag]: Array[B] = cursor().toArray
+
+  /** Converts this cursor into a Scala `Iterable`. */
+  def toIterable: Iterable[A] =
+    new Iterable[A] { def iterator: Iterator[A] = cursor().toIterator }
 }
 
 object Generator {

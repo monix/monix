@@ -17,8 +17,6 @@
 
 package monix.tail.cursors
 
-import java.util
-
 import monix.tail.Cursor
 import monix.tail.exceptions.CursorIsEmptyException
 
@@ -38,9 +36,4 @@ object EmptyCursor extends Cursor[Nothing] {
 
   override def toIterator: Iterator[Nothing] =
     Iterator.empty
-
-  override def toJavaIterator[B >: Nothing]: util.Iterator[B] = {
-    import scala.collection.JavaConverters._
-    toIterator.asJava.asInstanceOf[util.Iterator[B]]
-  }
 }

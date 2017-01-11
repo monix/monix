@@ -127,23 +127,7 @@ trait IterantBuilders[F[_], Self[+A] <: Iterant[F,A]] extends SharedDocs {
   def range(from: Int, until: Int, step: Int = 1)(implicit F: Applicative[F]): Self[Int]
 }
 
-object IterantBuilders extends IterantBuildersInstances {
-  /** For building [[AsyncStream$ AsyncStream]] instances. */
-  implicit object FromTask extends From[Task] {
-    type Self[+A] = AsyncStream[A]
-    type Builders = AsyncStream.type
-    def instance: Builders = AsyncStream
-  }
-
-  /** For building [[LazyStream$ LazyStream]] instances. */
-  implicit object FromCoeval extends From[Coeval] {
-    type Self[+A] = LazyStream[A]
-    type Builders = LazyStream.type
-    def instance: Builders = LazyStream
-  }
-}
-
-private[tail] trait IterantBuildersInstances {
+object IterantBuilders {
   /** Type-class for quickly finding a suitable type and [[IterantBuilders]]
     * implementation for a given `F[_]` monadic context.
     *
@@ -158,9 +142,38 @@ private[tail] trait IterantBuildersInstances {
     def instance: Builders
   }
 
-  /** For building generic [[Iterant]] instances. */
-  implicit def fromAny[F[_]]: FromAny[F] =
-    genericFromAny.asInstanceOf[FromAny[F]]
+  object From extends LowPriority {
+    /** Implicit [[From]] instance for building
+      * [[AsyncStream$ AsyncStream]] instances.
+      */
+    implicit val task: FromTask.type = FromTask
+
+    /** Implicit [[From]] instance for building
+      * [[LazyStream$ LazyStream]] instances.
+      */
+    implicit val coeval: FromCoeval.type = FromCoeval
+  }
+
+  // Layering for low-priority implicit resolution
+  private[tail] class LowPriority {
+    /** For building generic [[Iterant]] instances. */
+    implicit def fromAny[F[_]]: FromAny[F] =
+      genericFromAny.asInstanceOf[FromAny[F]]
+  }
+
+  /** For building [[AsyncStream$ AsyncStream]] instances. */
+  object FromTask extends From[Task] {
+    type Self[+A] = AsyncStream[A]
+    type Builders = AsyncStream.type
+    def instance: Builders = AsyncStream
+  }
+
+  /** For building [[LazyStream$ LazyStream]] instances. */
+  object FromCoeval extends From[Coeval] {
+    type Self[+A] = LazyStream[A]
+    type Builders = LazyStream.type
+    def instance: Builders = LazyStream
+  }
 
   /** For building generic [[Iterant]] instances. */
   final class FromAny[F[_]] extends From[F] {
@@ -228,3 +241,4 @@ private[tail] trait IterantBuildersInstances {
   private val genericBuildersInstance: Generic[Task] =
     new Generic[Task]
 }
+
