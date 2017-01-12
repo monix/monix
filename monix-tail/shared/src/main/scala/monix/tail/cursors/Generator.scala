@@ -82,12 +82,6 @@ object Generator {
   def fromIterable[A](iter: Iterable[A]): Generator[A] =
     new FromIterable[A](iter)
 
-  /** Converts a standard `java.lang.Iterable` into a `Cursor`. */
-  def fromJavaIterable[A](iter: java.lang.Iterable[A]): Generator[A] = {
-    import scala.collection.JavaConverters._
-    new FromIterable[A](iter.asScala)
-  }
-
   /** Builds a [[Generator]] from a Scala `Seq`, with lazy
     * semantics on transformations.
     */

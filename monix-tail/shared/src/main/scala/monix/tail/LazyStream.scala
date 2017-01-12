@@ -18,7 +18,9 @@
 package monix.tail
 
 import monix.eval.Coeval
+import monix.tail.cursors.Generator
 import monix.types.{Applicative, Monad}
+
 import scala.collection.immutable.LinearSeq
 import scala.reflect.ClassTag
 
@@ -48,6 +50,8 @@ object LazyStream extends IterantBuilders[Coeval,LazyStream] {
     Iterant.nextS(item, rest, stop)
   override def nextSeqS[A](items: Cursor[A], rest: Coeval[LazyStream[A]], stop: Coeval[Unit]): LazyStream[A] =
     Iterant.nextSeqS(items, rest, stop)
+  override def nextGenS[A](items: Generator[A], rest: Coeval[LazyStream[A]], stop: Coeval[Unit]): LazyStream[A] =
+    Iterant.nextGenS(items, rest, stop)
   override def suspendS[A](rest: Coeval[LazyStream[A]], stop: Coeval[Unit]): LazyStream[A] =
     Iterant.suspendS(rest, stop)
   override def lastS[A](item: A): LazyStream[A] =

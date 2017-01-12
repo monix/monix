@@ -18,7 +18,9 @@
 package monix.tail
 
 import monix.eval.{Coeval, Task}
+import monix.tail.cursors.Generator
 import monix.types.{Applicative, Monad}
+
 import scala.collection.immutable.LinearSeq
 import scala.reflect.ClassTag
 
@@ -50,6 +52,14 @@ trait IterantBuilders[F[_], Self[+A] <: Iterant[F,A]] extends SharedDocs {
     * @param stop $stopParamDesc
     */
   def nextSeqS[A](items: Cursor[A], rest: F[Self[A]], stop: F[Unit]): Self[A]
+
+  /** $nextGenSDesc
+    *
+    * @param items $generatorParamDesc
+    * @param rest $restParamDesc
+    * @param stop $stopParamDesc
+    */
+  def nextGenS[A](items: Generator[A], rest: F[Self[A]], stop: F[Unit]): Self[A]
 
   /** $suspendSDesc
     *
@@ -186,7 +196,7 @@ object IterantBuilders {
 
   /** For building generic [[Iterant]] instances.
     *
-    * @see [[fromAny]] and [[IterantBuilders]].
+    * @see [[FromAny]], [[From.fromAny]] and [[IterantBuilders]].
     */
   final class Generic[F[_]] extends IterantBuilders[F, ({type λ[+α] = Iterant[F, α]})#λ] {
     //-- BOILERPLATE that does nothing more than to forward to the standard Iterant builders!
@@ -204,6 +214,8 @@ object IterantBuilders {
       Iterant.nextS(item, rest, stop)
     override def nextSeqS[A](items: Cursor[A], rest: F[Iterant[F,A]], stop: F[Unit]): Iterant[F,A] =
       Iterant.nextSeqS(items, rest, stop)
+    override def nextGenS[A](items: Generator[A], rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
+      Iterant.nextGenS(items, rest, stop)
     override def suspendS[A](rest: F[Iterant[F,A]], stop: F[Unit]): Iterant[F,A] =
       Iterant.suspendS(rest, stop)
     override def lastS[A](item: A): Iterant[F,A] =

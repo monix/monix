@@ -66,7 +66,7 @@ import scala.reflect.ClassTag
   *         either strict or lazy (depending on the underlying cursor type),
   *         but it does not modify the original collection.
   */
-trait Cursor[+A] extends Serializable with Cloneable {
+trait Cursor[+A] extends Serializable {
   /** Gets the current element of the underlying collection.
     *
     * After an enumerator is created, the [[moveNext]] method must be
@@ -231,7 +231,8 @@ trait Cursor[+A] extends Serializable with Cloneable {
     buffer.toArray
   }
 
-  /** Converts this cursor into a reusable array-backed [[Generator]],
+  /** Converts this cursor into a reusable array-backed
+    * [[monix.tail.cursors.Generator Generator]],
     * consuming it in the process.
     */
   def toGenerator: Generator[A] = {
@@ -241,10 +242,6 @@ trait Cursor[+A] extends Serializable with Cloneable {
 
   /** Converts this cursor into a Scala `Iterator`. */
   def toIterator: Iterator[A]
-
-  /** Creates and returns a copy of this cursor. */
-  override def clone(): Cursor[A] =
-    super.clone().asInstanceOf[Cursor[A]]
 }
 
 object Cursor {
@@ -257,12 +254,6 @@ object Cursor {
   /** Converts a Scala `Iterator` into a `Cursor`. */
   def fromIterator[A](iter: Iterator[A]): Cursor[A] =
     new IteratorCursor[A](iter)
-
-  /** Converts a standard `java.util.Iterator` into a `Cursor`. */
-  def fromJavaIterator[A](iter: java.util.Iterator[A]): Cursor[A] = {
-    import scala.collection.JavaConverters._
-    new IteratorCursor(iter.asScala)
-  }
 
   /** Builds a [[Cursor]] from a standard `Array`, with strict
     * semantics on transformations.

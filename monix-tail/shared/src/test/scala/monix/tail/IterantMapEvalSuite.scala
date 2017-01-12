@@ -96,6 +96,26 @@ object IterantMapEvalSuite extends BaseTestSuite {
     assertEquals(result.value, Some(Failure(dummy)))
   }
 
+  test("AsyncStream.mapEval should protect against indirect user errors") { implicit s =>
+    check2 { (l: List[Int], idx: Int) =>
+      val dummy = DummyException("dummy")
+      val list = if (l.isEmpty) List(1) else l
+      val source = arbitraryListToAsyncStream(list, idx)
+      val received = source.mapEval(_ => Task.raiseError[Int](dummy))
+      received === AsyncStream.haltS[Int](Some(dummy))
+    }
+  }
+
+  test("AsyncStream.mapEval should protect against direct exceptions") { implicit s =>
+    check2 { (l: List[Int], idx: Int) =>
+      val dummy = DummyException("dummy")
+      val list = if (l.isEmpty) List(1) else l
+      val source = arbitraryListToAsyncStream(list, idx)
+      val received = source.mapEval[Int](_ => throw dummy)
+      received === AsyncStream.haltS[Int](Some(dummy))
+    }
+  }
+
   test("LazyStream.mapEval covariant identity") { implicit s =>
     check1 { (list: List[Int]) =>
       val r = LazyStream.fromIterable(list).mapEval(x => Coeval(x)).toListL
@@ -157,5 +177,26 @@ object IterantMapEvalSuite extends BaseTestSuite {
     val stream = LazyStream.fromList(List(1,2,3))
     val result = stream.mapEval[Int](_ => Coeval.raiseError(dummy)).toListL.runTry
     assertEquals(result, Failure(dummy))
+  }
+
+  test("LazyStream.mapEval should protect against indirect user errors") { implicit s =>
+    check2 { (l: List[Int], idx: Int) =>
+      val dummy = DummyException("dummy")
+      val list = if (l.isEmpty) List(1) else l
+      val iterant = arbitraryListToLazyStream(list, idx)
+      val received = (iterant ++ LazyStream.now(1))
+        .mapEval[Int](_ => Coeval.raiseError(dummy))
+      received === LazyStream.haltS[Int](Some(dummy))
+    }
+  }
+
+  test("LazyStream.mapEval should protect against direct exceptions") { implicit s =>
+    check2 { (l: List[Int], idx: Int) =>
+      val dummy = DummyException("dummy")
+      val list = if (l.isEmpty) List(1) else l
+      val iterant = arbitraryListToLazyStream(list, idx)
+      val received = (iterant ++ LazyStream.now(1)).mapEval[Int](_ => throw dummy)
+      received === LazyStream.haltS[Int](Some(dummy))
+    }
   }
 }

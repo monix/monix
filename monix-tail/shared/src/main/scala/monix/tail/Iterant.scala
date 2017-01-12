@@ -170,7 +170,7 @@ sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self
         }
 
       case Suspend(rest, stop) =>
-        Suspend[F,B](F.functor.map(rest)(_.mapEval(f)), stop)
+        Suspend[F,B](rest.map(_.mapEval(f)), stop)
 
       case Last(item) =>
         try {
@@ -602,16 +602,15 @@ private[tail] trait StreamInstances extends StreamInstances1 {
     }
   }
 
-  /** Provides type-class instances for `Iterant[Task, +A]`,
-    * also known as [[AsyncStream]], based on the default instances
-    * provided by [[Task.TypeClassInstances]].
+  /** Provides type-class instances for `Iterant[Task, +A]`, also known
+    * as [[AsyncStream]], based on the default instances provided by
+    * [[monix.eval.Task.TypeClassInstances Task.TypeClassInstances]].
     */
   class AsyncStreamInstances(implicit F: Task.TypeClassInstances)
     extends MonadRecInstance[Task]()(F)
 
-  /** Provides type-class instances for `Iterant[Coeval, +A]`,
-    * also known as [[AsyncStream]], based on the default instances
-    * provided by
+  /** Provides type-class instances for `Iterant[Coeval, +A]`, also known
+    * as [[AsyncStream]], based on the default instances provided by
     * [[monix.eval.Coeval.typeClassInstances Coeval.typeClassInstances]].
     */
   implicit def lazyStreamInstances(implicit F: Coeval.TypeClassInstances): LazyStreamInstances = {
@@ -623,9 +622,9 @@ private[tail] trait StreamInstances extends StreamInstances1 {
     }
   }
 
-  /** Provides type-class instances for `Iterant[Coeval, +A]`,
-    * also known as [[LazyStream]], based on the default instances
-    * provided by [[Coeval.TypeClassInstances]].
+  /** Provides type-class instances for `Iterant[Coeval, +A]`, also known
+    * as [[LazyStream]], based on the default instances provided by
+    * [[monix.eval.Coeval.TypeClassInstances Coeval.TypeClassInstances]].
     */
   class LazyStreamInstances(implicit F: Coeval.TypeClassInstances)
     extends MonadRecInstance[Coeval]()(F)

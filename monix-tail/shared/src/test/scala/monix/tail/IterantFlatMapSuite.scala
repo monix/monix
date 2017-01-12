@@ -138,6 +138,26 @@ object IterantFlatMapSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(3 * (count.toLong * (count - 1) / 2))))
   }
 
+  test("AsyncStream.flatMap should protect against indirect user errors") { implicit s =>
+    check2 { (l: List[Int], idx: Int) =>
+      val dummy = DummyException("dummy")
+      val list = if (l.isEmpty) List(1) else l
+      val source = arbitraryListToAsyncStream(list, idx)
+      val received = source.flatMap(_ => AsyncStream.raiseError[Int](dummy))
+      received === AsyncStream.haltS[Int](Some(dummy))
+    }
+  }
+
+  test("AsyncStream.flatMap should protect against direct exceptions") { implicit s =>
+    check2 { (l: List[Int], idx: Int) =>
+      val dummy = DummyException("dummy")
+      val list = if (l.isEmpty) List(1) else l
+      val source = arbitraryListToAsyncStream(list, idx)
+      val received = source.flatMap[Int](_ => throw dummy)
+      received === AsyncStream.haltS[Int](Some(dummy))
+    }
+  }
+
   test("LazyStream.flatMap equivalence with List.flatMap") { implicit s =>
     check2 { (stream: LazyStream[Int], f: Int => List[Long]) =>
       val result = stream.flatMap(x => LazyStream.fromList(f(x))).toListL
@@ -237,6 +257,26 @@ object IterantFlatMapSuite extends BaseTestSuite {
         assertEquals(effects, Vector(3,2,1))
       case state =>
         fail(s"Invalid state: $state")
+    }
+  }
+
+  test("LazyStream.flatMap should protect against indirect user errors") { implicit s =>
+    check2 { (l: List[Int], idx: Int) =>
+      val dummy = DummyException("dummy")
+      val list = if (l.isEmpty) List(1) else l
+      val source = arbitraryListToLazyStream(list, idx)
+      val received = source.flatMap(_ => LazyStream.raiseError[Int](dummy))
+      received === LazyStream.haltS[Int](Some(dummy))
+    }
+  }
+
+  test("LazyStream.flatMap should protect against direct exceptions") { implicit s =>
+    check2 { (l: List[Int], idx: Int) =>
+      val dummy = DummyException("dummy")
+      val list = if (l.isEmpty) List(1) else l
+      val source = arbitraryListToLazyStream(list, idx)
+      val received = source.flatMap[Int](_ => throw dummy)
+      received === LazyStream.haltS[Int](Some(dummy))
     }
   }
 }

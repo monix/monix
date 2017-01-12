@@ -169,6 +169,20 @@ abstract class CursorSuite extends BaseTestSuite {
     }
   }
 
+  test("cursor.hasMore <=> !cursor.isEmpty") { _ =>
+    check1 { (list: List[Int]) =>
+      val cursor = fromList(list)
+      cursor.hasMore() == !cursor.isEmpty
+    }
+  }
+
+  test("cursor.hasMore <=> cursor.nonEmpty") { _ =>
+    check1 { (list: List[Int]) =>
+      val cursor = fromList(list)
+      cursor.hasMore() == cursor.nonEmpty
+    }
+  }
+
   test("cursor.hasMore == list.nonEmpty") { _ =>
     check1 { (list: List[Int]) =>
       val cursor = fromList(list)

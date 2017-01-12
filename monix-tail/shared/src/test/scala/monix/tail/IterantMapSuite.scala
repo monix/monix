@@ -59,6 +59,16 @@ object IterantMapSuite extends BaseTestSuite {
     assert(isCanceled, "isCanceled should be true")
   }
 
+  test("AsyncStream.map should protect against direct exceptions") { implicit s =>
+    check2 { (l: List[Int], idx: Int) =>
+      val dummy = DummyException("dummy")
+      val list = if (l.isEmpty) List(1) else l
+      val iterant = arbitraryListToAsyncStream(list, idx)
+      val received = (iterant ++ AsyncStream.now(1)).map[Int](_ => throw dummy)
+      received === AsyncStream.haltS[Int](Some(dummy))
+    }
+  }
+
   test("LazyStream.map equivalence with List.map") { implicit s =>
     check2 { (stream: LazyStream[Int], f: Int => Long) =>
       stream.map(f).toListL ===
@@ -92,5 +102,15 @@ object IterantMapSuite extends BaseTestSuite {
 
     assertEquals(result, Failure(dummy))
     assert(isCanceled, "isCanceled should be true")
+  }
+
+  test("LazyStream.map should protect against direct exceptions") { implicit s =>
+    check2 { (l: List[Int], idx: Int) =>
+      val dummy = DummyException("dummy")
+      val list = if (l.isEmpty) List(1) else l
+      val iterant = arbitraryListToLazyStream(list, idx)
+      val received = (iterant ++ LazyStream.now(1)).map[Int](_ => throw dummy)
+      received === LazyStream.haltS[Int](Some(dummy))
+    }
   }
 }
