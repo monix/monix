@@ -18,7 +18,6 @@
 package monix.tail
 
 import monix.eval.{Coeval, DummyException, Task}
-
 import scala.util.Failure
 
 object IterantMapEvalSuite extends BaseTestSuite {
@@ -116,6 +115,26 @@ object IterantMapEvalSuite extends BaseTestSuite {
     }
   }
 
+  test("AsyncStream.mapEval should protect against broken cursors") { implicit s =>
+    check1 { (prefix: AsyncStream[Int]) =>
+      val dummy = DummyException("dummy")
+      val cursor = new ThrowExceptionCursor(dummy)
+      val error = AsyncStream.nextSeqS(cursor, Task.now(AsyncStream.empty), Task.unit)
+      val stream = (prefix ++ error).mapEval(x => Task.now(x))
+      stream === AsyncStream.haltS[Int](Some(dummy))
+    }
+  }
+
+  test("AsyncStream.mapEval should protect against broken generators") { implicit s =>
+    check1 { (prefix: AsyncStream[Int]) =>
+      val dummy = DummyException("dummy")
+      val cursor = new ThrowExceptionGenerator(dummy)
+      val error = AsyncStream.nextGenS(cursor, Task.now(AsyncStream.empty), Task.unit)
+      val stream = (prefix ++ error).mapEval(x => Task.now(x))
+      stream === AsyncStream.haltS[Int](Some(dummy))
+    }
+  }
+
   test("LazyStream.mapEval covariant identity") { implicit s =>
     check1 { (list: List[Int]) =>
       val r = LazyStream.fromIterable(list).mapEval(x => Coeval(x)).toListL
@@ -197,6 +216,26 @@ object IterantMapEvalSuite extends BaseTestSuite {
       val iterant = arbitraryListToLazyStream(list, idx)
       val received = (iterant ++ LazyStream.now(1)).mapEval[Int](_ => throw dummy)
       received === LazyStream.haltS[Int](Some(dummy))
+    }
+  }
+
+  test("LazyStream.mapEval should protect against broken cursors") { implicit s =>
+    check1 { (prefix: LazyStream[Int]) =>
+      val dummy = DummyException("dummy")
+      val cursor = new ThrowExceptionCursor(dummy)
+      val error = LazyStream.nextSeqS(cursor, Coeval.now(LazyStream.empty), Coeval.unit)
+      val stream = (prefix ++ error).mapEval(x => Coeval.now(x))
+      stream === LazyStream.haltS[Int](Some(dummy))
+    }
+  }
+
+  test("LazyStream.mapEval should protect against broken generators") { implicit s =>
+    check1 { (prefix: LazyStream[Int]) =>
+      val dummy = DummyException("dummy")
+      val cursor = new ThrowExceptionGenerator(dummy)
+      val error = LazyStream.nextGenS(cursor, Coeval.now(LazyStream.empty), Coeval.unit)
+      val stream = (prefix ++ error).mapEval(x => Coeval.now(x))
+      stream === LazyStream.haltS[Int](Some(dummy))
     }
   }
 }

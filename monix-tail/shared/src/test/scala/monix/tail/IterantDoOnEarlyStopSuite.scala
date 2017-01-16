@@ -20,94 +20,94 @@ package monix.tail
 import monix.eval.{Coeval, Task}
 import monix.tail.cursors.Generator
 
-object IterantDoOnStopSuite extends BaseTestSuite {
-  test("Next.stopHandler") { _ =>
+object IterantDoOnEarlyStopSuite extends BaseTestSuite {
+  test("Next.earlyStop") { _ =>
     val ref = Task.eval(())
     val iterant = Iterant[Task].nextS(1, Task.now(Iterant[Task].empty), ref)
-    assertEquals(iterant.stopHandler, ref)
+    assertEquals(iterant.earlyStop, ref)
   }
 
-  test("Next.doOnStop") { _ =>
+  test("Next.doOnEarlyStop") { _ =>
     var effect = Vector.empty[Int]
     val ref1 = Coeval.eval { effect = effect :+ 1 }
     val ref2 = Coeval.eval { effect = effect :+ 2 }
 
-    val iterant = Iterant[Coeval].nextS(1, Coeval.now(Iterant[Coeval].empty), ref1).doOnStop(ref2)
-    iterant.stopHandler.value
+    val iterant = Iterant[Coeval].nextS(1, Coeval.now(Iterant[Coeval].empty), ref1).doOnEarlyStop(ref2)
+    iterant.earlyStop.value
     assertEquals(effect, Vector(1, 2))
   }
 
-  test("NextSeq.stopHandler") { _ =>
+  test("NextSeq.earlyStop") { _ =>
     val ref = Task.eval(())
     val iterant = Iterant[Task].nextSeqS(Cursor.empty[Int], Task.now(Iterant[Task].empty), ref)
-    assertEquals(iterant.stopHandler, ref)
+    assertEquals(iterant.earlyStop, ref)
   }
 
-  test("NextSeq.doOnStop") { _ =>
+  test("NextSeq.doOnEarlyStop") { _ =>
     var effect = Vector.empty[Int]
     val ref1 = Coeval.eval { effect = effect :+ 1 }
     val ref2 = Coeval.eval { effect = effect :+ 2 }
 
-    val iterant = Iterant[Coeval].nextSeqS(Cursor.empty[Int], Coeval.now(Iterant[Coeval].empty), ref1).doOnStop(ref2)
-    iterant.stopHandler.value
+    val iterant = Iterant[Coeval].nextSeqS(Cursor.empty[Int], Coeval.now(Iterant[Coeval].empty), ref1).doOnEarlyStop(ref2)
+    iterant.earlyStop.value
     assertEquals(effect, Vector(1, 2))
   }
 
-  test("NextGen.stopHandler") { _ =>
+  test("NextGen.earlyStop") { _ =>
     val ref = Task.eval(())
     val iterant = Iterant[Task].nextGenS(Generator.empty[Int], Task.now(Iterant[Task].empty), ref)
-    assertEquals(iterant.stopHandler, ref)
+    assertEquals(iterant.earlyStop, ref)
   }
 
-  test("NextGen.doOnStop") { _ =>
+  test("NextGen.doOnEarlyStop") { _ =>
     var effect = Vector.empty[Int]
     val ref1 = Coeval.eval { effect = effect :+ 1 }
     val ref2 = Coeval.eval { effect = effect :+ 2 }
 
-    val iterant = Iterant[Coeval].nextGenS(Generator.empty[Int], Coeval.now(Iterant[Coeval].empty), ref1).doOnStop(ref2)
-    iterant.stopHandler.value
+    val iterant = Iterant[Coeval].nextGenS(Generator.empty[Int], Coeval.now(Iterant[Coeval].empty), ref1).doOnEarlyStop(ref2)
+    iterant.earlyStop.value
     assertEquals(effect, Vector(1, 2))
   }
 
-  test("Suspend.stopHandler") { _ =>
+  test("Suspend.earlyStop") { _ =>
     val ref = Task.eval(())
     val iterant = Iterant[Task].suspendS(Task.now(Iterant[Task].empty[Int]), ref)
-    assertEquals(iterant.stopHandler, ref)
+    assertEquals(iterant.earlyStop, ref)
   }
 
-  test("Suspend.doOnStop") { _ =>
+  test("Suspend.doOnEarlyStop") { _ =>
     var effect = Vector.empty[Int]
     val ref1 = Coeval.eval { effect = effect :+ 1 }
     val ref2 = Coeval.eval { effect = effect :+ 2 }
 
-    val iterant = Iterant[Coeval].suspendS(Coeval.now(Iterant[Coeval].empty), ref1).doOnStop(ref2)
-    iterant.stopHandler.value
+    val iterant = Iterant[Coeval].suspendS(Coeval.now(Iterant[Coeval].empty), ref1).doOnEarlyStop(ref2)
+    iterant.earlyStop.value
     assertEquals(effect, Vector(1, 2))
   }
 
-  test("Last.stopHandler") { _ =>
-    val stop = Iterant[Task].lastS(1).stopHandler
+  test("Last.earlyStop") { _ =>
+    val stop = Iterant[Task].lastS(1).earlyStop
     assertEquals(stop, Task.unit)
   }
 
-  test("Last.doOnStop") { _ =>
+  test("Last.doOnEarlyStop") { _ =>
     var effect = Vector.empty[Int]
     val ref1 = Coeval.eval { effect = effect :+ 1 }
-    val iterant = Iterant[Coeval].lastS(1).doOnStop(ref1)
-    iterant.stopHandler.value
+    val iterant = Iterant[Coeval].lastS(1).doOnEarlyStop(ref1)
+    iterant.earlyStop.value
     assertEquals(effect, Vector.empty)
   }
 
-  test("Halt.stopHandler") { _ =>
-    val stop = Iterant[Task].haltS(None).stopHandler
+  test("Halt.earlyStop") { _ =>
+    val stop = Iterant[Task].haltS(None).earlyStop
     assertEquals(stop, Task.unit)
   }
 
-  test("Halt.doOnStop") { _ =>
+  test("Halt.doOnEarlyStop") { _ =>
     var effect = Vector.empty[Int]
     val ref1 = Coeval.eval { effect = effect :+ 1 }
-    val iterant = Iterant[Coeval].empty[Int].doOnStop(ref1)
-    iterant.stopHandler.value
+    val iterant = Iterant[Coeval].empty[Int].doOnEarlyStop(ref1)
+    iterant.earlyStop.value
     assertEquals(effect, Vector.empty)
   }
 }

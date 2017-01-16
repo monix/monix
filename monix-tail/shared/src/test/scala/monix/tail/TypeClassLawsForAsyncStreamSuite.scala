@@ -17,10 +17,12 @@
 
 package monix.tail
 
-import monix.types.tests.MonadRecLawsSuite
+import monix.types.tests.{MonadFilterLawsSuite, MonadRecLawsSuite, MonoidKLawsSuite}
 
 object TypeClassLawsForAsyncStreamSuite extends BaseLawsSuite
-  with MonadRecLawsSuite[AsyncStream, Int, Long, Short] {
+  with MonadRecLawsSuite[AsyncStream, Int, Long, Short]
+  with MonadFilterLawsSuite[AsyncStream, Int, Long, Short]
+  with MonoidKLawsSuite[AsyncStream, Int] {
 
   override val F = Iterant.asyncStreamInstances
   override lazy val checkConfig = slowConfig
@@ -28,4 +30,6 @@ object TypeClassLawsForAsyncStreamSuite extends BaseLawsSuite
   // Actual tests ...
   monadCheck("AsyncStream[A]", includeSupertypes = true)
   monadRecCheck("AsyncStream[A]", includeSupertypes = false, stackSafetyCount = 10000)
+  monadFilterCheck("AsyncStream[A]", includeSupertypes = false)
+  monoidKCheck("AsyncStream[A]", includeSupertypes = true)
 }

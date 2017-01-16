@@ -20,20 +20,26 @@ package monix.tail.cursors
 import monix.tail.Cursor
 import monix.tail.exceptions.CursorIsEmptyException
 
-object EmptyCursor extends Cursor[Nothing] {
+/** [[monix.tail.Cursor]] implementation that's always empty. */
+class EmptyCursor extends Cursor[Nothing] {
   override def current: Nothing =
     throw new CursorIsEmptyException()
 
   override def moveNext(): Boolean = false
   override def hasMore(): Boolean = false
 
-  override def take(n: Int): Cursor[Nothing] = this
-  override def drop(n: Int): Cursor[Nothing] = this
-  override def map[B](f: (Nothing) => B): Cursor[B] = this
-  override def filter(p: (Nothing) => Boolean): Cursor[Nothing] = this
-  override def collect[B](pf: PartialFunction[Nothing, B]): Cursor[B] = this
-  override def slice(from: Int, until: Int): Cursor[Nothing] = this
-
   override def toIterator: Iterator[Nothing] =
     Iterator.empty
+
+  override final def take(n: Int): Cursor[Nothing] = this
+  override final def drop(n: Int): Cursor[Nothing] = this
+  override final def map[B](f: (Nothing) => B): Cursor[B] = this
+  override final def filter(p: (Nothing) => Boolean): Cursor[Nothing] = this
+  override final def collect[B](pf: PartialFunction[Nothing, B]): Cursor[B] = this
+  override final def slice(from: Int, until: Int): Cursor[Nothing] = this
 }
+
+/** [[monix.tail.Cursor]] implementation that's always empty. */
+object EmptyCursor extends EmptyCursor
+
+

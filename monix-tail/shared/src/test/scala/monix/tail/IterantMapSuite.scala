@@ -69,6 +69,26 @@ object IterantMapSuite extends BaseTestSuite {
     }
   }
 
+  test("AsyncStream.map should protect against broken cursors") { implicit s =>
+    check1 { (prefix: AsyncStream[Int]) =>
+      val dummy = DummyException("dummy")
+      val cursor = new ThrowExceptionCursor(dummy)
+      val error = AsyncStream.nextSeqS(cursor, Task.now(AsyncStream.empty), Task.unit)
+      val stream = (prefix ++ error).map(x => x)
+      stream === AsyncStream.haltS[Int](Some(dummy))
+    }
+  }
+
+  test("AsyncStream.map should protect against broken generators") { implicit s =>
+    check1 { (prefix: AsyncStream[Int]) =>
+      val dummy = DummyException("dummy")
+      val cursor = new ThrowExceptionGenerator(dummy)
+      val error = AsyncStream.nextGenS(cursor, Task.now(AsyncStream.empty), Task.unit)
+      val stream = (prefix ++ error).map(x => x)
+      stream === AsyncStream.haltS[Int](Some(dummy))
+    }
+  }
+
   test("LazyStream.map equivalence with List.map") { implicit s =>
     check2 { (stream: LazyStream[Int], f: Int => Long) =>
       stream.map(f).toListL ===
@@ -111,6 +131,26 @@ object IterantMapSuite extends BaseTestSuite {
       val iterant = arbitraryListToLazyStream(list, idx)
       val received = (iterant ++ LazyStream.now(1)).map[Int](_ => throw dummy)
       received === LazyStream.haltS[Int](Some(dummy))
+    }
+  }
+
+  test("LazyStream.map should protect against broken cursors") { implicit s =>
+    check1 { (prefix: LazyStream[Int]) =>
+      val dummy = DummyException("dummy")
+      val cursor = new ThrowExceptionCursor(dummy)
+      val error = LazyStream.nextSeqS(cursor, Coeval.now(LazyStream.empty), Coeval.unit)
+      val stream = (prefix ++ error).map(x => x)
+      stream === LazyStream.haltS[Int](Some(dummy))
+    }
+  }
+
+  test("LazyStream.map should protect against broken generators") { implicit s =>
+    check1 { (prefix: LazyStream[Int]) =>
+      val dummy = DummyException("dummy")
+      val cursor = new ThrowExceptionGenerator(dummy)
+      val error = LazyStream.nextGenS(cursor, Coeval.now(LazyStream.empty), Coeval.unit)
+      val stream = (prefix ++ error).map(x => x)
+      stream === LazyStream.haltS[Int](Some(dummy))
     }
   }
 }

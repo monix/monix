@@ -17,19 +17,12 @@
 
 package monix.tail
 
-import monix.types.tests.{MonadFilterLawsSuite, MonadRecLawsSuite, MonoidKLawsSuite}
+import monix.tail.cursors.Generator
 
-object TypeClassLawsForLazyStreamSuite extends BaseLawsSuite
-  with MonadRecLawsSuite[LazyStream, Int, Long, Short]
-  with MonadFilterLawsSuite[LazyStream, Int, Long, Short]
-  with MonoidKLawsSuite[LazyStream, Int] {
+/** Generator that throws exception on access. */
+final class ThrowExceptionGenerator(ex: Throwable)
+  extends Generator[Nothing] {
 
-  override val F = Iterant.lazyStreamInstances
-  override lazy val checkConfig = slowConfig
-
-  // Actual tests ...
-  monadCheck("LazyStream[A]", includeSupertypes = true)
-  monadRecCheck("LazyStream[A]", includeSupertypes = false, stackSafetyCount = 10000)
-  monadFilterCheck("LazyStream[A]", includeSupertypes = false)
-  monoidKCheck("LazyStream[A]", includeSupertypes = true)
+  override def cursor() = throw ex
+  override def transform[B](f: (Cursor[Nothing]) => Cursor[B]): Generator[B] = throw ex
 }

@@ -89,6 +89,27 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     assert(wasCanceled, "wasCanceled should be true")
   }
 
+
+  test("AsyncStream.foldLeftL should protect against broken cursors") { implicit s =>
+    check1 { (prefix: AsyncStream[Int]) =>
+      val dummy = DummyException("dummy")
+      val cursor = new ThrowExceptionCursor(dummy)
+      val error = AsyncStream.nextSeqS(cursor, Task.now(AsyncStream.empty), Task.unit)
+      val result = (prefix ++ error).foldLeftL(0)(_+_)
+      result === Task.raiseError(dummy)
+    }
+  }
+
+  test("AsyncStream.foldLeftL should protect against broken generators") { implicit s =>
+    check1 { (prefix: AsyncStream[Int]) =>
+      val dummy = DummyException("dummy")
+      val generator = new ThrowExceptionGenerator(dummy)
+      val error = AsyncStream.nextGenS(generator, Task.now(AsyncStream.empty), Task.unit)
+      val result = (prefix ++ error).foldLeftL(0)(_+_)
+      result === Task.raiseError(dummy)
+    }
+  }
+
   test("LazyStream.toListL (foldLeftL)") { implicit s =>
     check1 { (list: List[Int]) =>
       val result = LazyStream.fromIterable(list).toListL
@@ -155,5 +176,25 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     val result = stream.foldLeftL(0)((a,e) => throw dummy)
     check(result === Coeval.raiseError(dummy))
     assert(wasCanceled, "wasCanceled should be true")
+  }
+
+  test("LazyStream.foldLeftL should protect against broken cursors") { implicit s =>
+    check1 { (prefix: LazyStream[Int]) =>
+      val dummy = DummyException("dummy")
+      val cursor = new ThrowExceptionCursor(dummy)
+      val error = LazyStream.nextSeqS(cursor, Coeval.now(LazyStream.empty), Coeval.unit)
+      val result = (prefix ++ error).foldLeftL(0)(_+_)
+      result === Coeval.raiseError(dummy)
+    }
+  }
+
+  test("LazyStream.foldLeftL should protect against broken generators") { implicit s =>
+    check1 { (prefix: LazyStream[Int]) =>
+      val dummy = DummyException("dummy")
+      val generator = new ThrowExceptionGenerator(dummy)
+      val error = LazyStream.nextGenS(generator, Coeval.now(LazyStream.empty), Coeval.unit)
+      val result = (prefix ++ error).foldLeftL(0)(_+_)
+      result === Coeval.raiseError(dummy)
+    }
   }
 }

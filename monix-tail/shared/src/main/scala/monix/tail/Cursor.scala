@@ -17,7 +17,8 @@
 
 package monix.tail
 
-import monix.tail.cursors.{ArrayCursor, EmptyCursor, Generator, IteratorCursor}
+import monix.tail.cursors._
+
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import scala.reflect.ClassTag
 

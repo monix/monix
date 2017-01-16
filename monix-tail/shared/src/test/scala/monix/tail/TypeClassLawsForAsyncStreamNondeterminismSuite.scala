@@ -18,15 +18,19 @@
 package monix.tail
 
 import monix.eval.Task.nondeterminism
-import monix.types.tests.MonadRecLawsSuite
+import monix.types.tests.{MonadFilterLawsSuite, MonadRecLawsSuite, MonoidKLawsSuite}
 
 object TypeClassLawsForAsyncStreamNondeterminismSuite extends BaseLawsSuite
-  with MonadRecLawsSuite[AsyncStream, Int, Long, Short] {
+  with MonadRecLawsSuite[AsyncStream, Int, Long, Short]
+  with MonadFilterLawsSuite[AsyncStream, Int, Long, Short]
+  with MonoidKLawsSuite[AsyncStream, Int] {
 
   override val F = Iterant.asyncStreamInstances
   override lazy val checkConfig = slowConfig
 
   // Actual tests ...
   monadCheck("AsyncStream[A](nondeterminism)", includeSupertypes = true)
-  monadRecCheck("LazyStream[A]", includeSupertypes = false, stackSafetyCount = 10000)
+  monadRecCheck("AsyncStream[A](nondeterminism)", includeSupertypes = false, stackSafetyCount = 10000)
+  monadFilterCheck("AsyncStream[A](nondeterminism)", includeSupertypes = false)
+  monoidKCheck("AsyncStream[A](nondeterminism)", includeSupertypes = true)
 }

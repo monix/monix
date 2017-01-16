@@ -103,15 +103,15 @@ object IterantFlatMapSuite extends BaseTestSuite {
     var effects = Vector.empty[Int]
     val stop1T = Task.eval { effects = effects :+ 1 }
     val stream1: AsyncStream[Int] =
-      AsyncStream.fromList(List(1)).doOnStop(stop1T)
+      AsyncStream.fromList(List(1)).doOnEarlyStop(stop1T)
 
     val stop2T = Task.eval { effects = effects :+ 2 }
     val stream2: AsyncStream[Int] =
-      AsyncStream.fromList(List(2)).doOnStop(stop2T)
+      AsyncStream.fromList(List(2)).doOnEarlyStop(stop2T)
 
     val stop3T = Task.eval { effects = effects :+ 3 }
     val stream3: AsyncStream[Int] =
-      AsyncStream.fromList(List(3)).doOnStop(stop3T)
+      AsyncStream.fromList(List(3)).doOnEarlyStop(stop3T)
 
     val composed =
       for (x <- stream1; y <- stream2; z <- stream3)
@@ -155,6 +155,26 @@ object IterantFlatMapSuite extends BaseTestSuite {
       val source = arbitraryListToAsyncStream(list, idx)
       val received = source.flatMap[Int](_ => throw dummy)
       received === AsyncStream.haltS[Int](Some(dummy))
+    }
+  }
+
+  test("AsyncStream.flatMap should protect against broken cursors") { implicit s =>
+    check1 { (prefix: AsyncStream[Int]) =>
+      val dummy = DummyException("dummy")
+      val cursor = new ThrowExceptionCursor(dummy)
+      val error = AsyncStream.nextSeqS(cursor, Task.now(AsyncStream.empty), Task.unit)
+      val stream = (prefix ++ error).flatMap(x => AsyncStream.now(x))
+      stream === AsyncStream.haltS[Int](Some(dummy))
+    }
+  }
+
+  test("AsyncStream.flatMap should protect against broken generators") { implicit s =>
+    check1 { (prefix: AsyncStream[Int]) =>
+      val dummy = DummyException("dummy")
+      val generator = new ThrowExceptionGenerator(dummy)
+      val error = AsyncStream.nextGenS(generator, Task.now(AsyncStream.empty), Task.unit)
+      val stream = (prefix ++ error).flatMap(x => AsyncStream.now(x))
+      stream === AsyncStream.haltS[Int](Some(dummy))
     }
   }
 
@@ -236,15 +256,15 @@ object IterantFlatMapSuite extends BaseTestSuite {
     var effects = Vector.empty[Int]
     val stop1T = Coeval.eval { effects = effects :+ 1 }
     val stream1: LazyStream[Int] =
-      LazyStream.fromList(List(1)).doOnStop(stop1T)
+      LazyStream.fromList(List(1)).doOnEarlyStop(stop1T)
 
     val stop2T = Coeval.eval { effects = effects :+ 2 }
     val stream2: LazyStream[Int] =
-      LazyStream.fromList(List(2)).doOnStop(stop2T)
+      LazyStream.fromList(List(2)).doOnEarlyStop(stop2T)
 
     val stop3T = Coeval.eval { effects = effects :+ 3 }
     val stream3: LazyStream[Int] =
-      LazyStream.fromList(List(3)).doOnStop(stop3T)
+      LazyStream.fromList(List(3)).doOnEarlyStop(stop3T)
 
     val composed =
       for (x <- stream1; y <- stream2; z <- stream3)
@@ -277,6 +297,26 @@ object IterantFlatMapSuite extends BaseTestSuite {
       val source = arbitraryListToLazyStream(list, idx)
       val received = source.flatMap[Int](_ => throw dummy)
       received === LazyStream.haltS[Int](Some(dummy))
+    }
+  }
+
+  test("LazyStream.flatMap should protect against broken cursors") { implicit s =>
+    check1 { (prefix: LazyStream[Int]) =>
+      val dummy = DummyException("dummy")
+      val cursor = new ThrowExceptionCursor(dummy)
+      val error = LazyStream.nextSeqS(cursor, Coeval.now(LazyStream.empty), Coeval.unit)
+      val stream = (prefix ++ error).flatMap(x => LazyStream.now(x))
+      stream === LazyStream.haltS[Int](Some(dummy))
+    }
+  }
+
+  test("LazyStream.flatMap should protect against broken generators") { implicit s =>
+    check1 { (prefix: LazyStream[Int]) =>
+      val dummy = DummyException("dummy")
+      val cursor = new ThrowExceptionGenerator(dummy)
+      val error = LazyStream.nextGenS(cursor, Coeval.now(LazyStream.empty), Coeval.unit)
+      val stream = (prefix ++ error).flatMap(x => LazyStream.now(x))
+      stream === LazyStream.haltS[Int](Some(dummy))
     }
   }
 }

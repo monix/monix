@@ -19,8 +19,10 @@ package monix.tail
 
 import monix.eval.{Callback, Coeval, Task}
 import monix.execution.schedulers.TestScheduler
+import monix.tail.cursors.Generator
 import monix.types.tests.Eq
 import org.scalacheck.Arbitrary
+
 import scala.util.{Failure, Success, Try}
 import scala.concurrent.duration._
 
@@ -30,18 +32,26 @@ trait ArbitraryInstances extends monix.eval.ArbitraryInstances {
       list match {
         case Nil =>
           LazyStream.haltS(None)
+        case x :: Nil if idx % 2 == 1 =>
+          LazyStream.lastS(x)
         case ns =>
-          if (idx % 4 == 0)
+          if (idx % 6 == 0)
             LazyStream.nextS(ns.head, Coeval(loop(ns.tail, idx+1)), Coeval.unit)
-          else if (idx % 4 == 1)
+          else if (idx % 6 == 1)
             LazyStream.suspend(Coeval(loop(list, idx+1)))
-          else  if (idx % 4 == 2) {
-            val (headSeq, tail) = list.splitAt(4)
+          else  if (idx % 6 == 2) {
+            val (headSeq, tail) = list.splitAt(3)
             LazyStream.nextSeqS(Cursor.fromIndexedSeq(headSeq.toVector), Coeval(loop(tail, idx+1)), Coeval.unit)
           }
+          else if (idx % 6 == 3) {
+            LazyStream.suspendS(Coeval(loop(ns, idx + 1)), Coeval.unit)
+          }
+          else if (idx % 6 == 4) {
+            val (headSeq, tail) = list.splitAt(3)
+            LazyStream.nextGenS(Generator.fromIndexedSeq(headSeq.toVector), Coeval(loop(tail, idx+1)), Coeval.unit)
+          }
           else {
-            val (headSeq, tail) = list.splitAt(4)
-            LazyStream.nextSeqS(Cursor.fromSeq(headSeq), Coeval(loop(tail, idx+1)), Coeval.unit)
+            LazyStream.nextGenS(Generator.empty, Coeval(loop(ns, idx + 1)), Coeval.unit)
           }
       }
 
@@ -61,21 +71,29 @@ trait ArbitraryInstances extends monix.eval.ArbitraryInstances {
       list match {
         case Nil =>
           AsyncStream.haltS(None)
+        case x :: Nil if idx % 2 == 1 =>
+          AsyncStream.lastS(x)
         case ns =>
-          if (idx % 4 == 0)
-            AsyncStream.nextS(ns.head, Task(loop(ns.tail, idx+1)), Task.unit)
-          else if (idx % 4 == 1)
-            AsyncStream.suspend(Task(loop(list, idx+1)))
-          else if (idx % 4 == 2) {
-            val (headSeq, tail) = list.splitAt(4)
-            AsyncStream.nextSeqS(Cursor.fromIndexedSeq(headSeq.toVector), Task(loop(tail, idx+1)), Task.unit)
+          if (idx % 6 == 0)
+            AsyncStream.nextS(ns.head, Task.eval(loop(ns.tail, idx+1)), Task.unit)
+          else if (idx % 6 == 1)
+            AsyncStream.suspend(Task.eval(loop(list, idx+1)))
+          else  if (idx % 6 == 2) {
+            val (headSeq, tail) = list.splitAt(3)
+            AsyncStream.nextSeqS(Cursor.fromIndexedSeq(headSeq.toVector), Task.eval(loop(tail, idx+1)), Task.unit)
+          }
+          else if (idx % 6 == 3) {
+            AsyncStream.suspendS(Task.eval(loop(ns, idx + 1)), Task.unit)
+          }
+          else if (idx % 6 == 4) {
+            val (headSeq, tail) = list.splitAt(3)
+            AsyncStream.nextGenS(Generator.fromIndexedSeq(headSeq.toVector), Task.eval(loop(tail, idx+1)), Task.unit)
           }
           else {
-            val (headSeq, tail) = list.splitAt(4)
-            AsyncStream.nextSeqS(Cursor.fromSeq(headSeq), Task(loop(tail, idx+1)), Task.unit)
+            AsyncStream.nextGenS(Generator.empty, Task.eval(loop(ns, idx + 1)), Task.unit)
           }
       }
-
+    
     AsyncStream.suspend(loop(list, idx))
   }
 
