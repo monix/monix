@@ -6,7 +6,7 @@ import sbtunidoc.Plugin.{ScalaUnidoc, unidocSettings => baseUnidocSettings}
 import scala.xml.Elem
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 
-val catsVersion = "0.8.1"
+val catsVersion = "0.9.0"
 val scalazVersion = "7.2.8"
 
 lazy val doNotPublishArtifact = Seq(
