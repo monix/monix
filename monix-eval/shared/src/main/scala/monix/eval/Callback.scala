@@ -17,7 +17,8 @@
 
 package monix.eval
 
-import monix.execution.{Scheduler, UncaughtExceptionReporter}
+import monix.execution.{Listener, Scheduler, UncaughtExceptionReporter}
+
 import scala.concurrent.Promise
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
@@ -29,17 +30,23 @@ import scala.util.{Failure, Success, Try}
   * The `onSuccess` method should be called only once, with the successful
   * result, whereas `onError` should be called if the result is an error.
   */
-trait Callback[-T] extends ((Try[T]) => Unit) with Serializable {
+abstract class Callback[-T] extends Listener[T] with ((Try[T]) => Unit) {
   def onSuccess(value: T): Unit
   def onError(ex: Throwable): Unit
 
-  def apply(result: Try[T]): Unit =
+  /** An alias for [[onSuccess]], inherited
+    * from [[monix.execution.Listener]].
+    */
+  final def onValue(value: T): Unit =
+    onSuccess(value)
+
+  final def apply(result: Try[T]): Unit =
     result match {
       case Success(value) => onSuccess(value)
       case Failure(ex) => onError(ex)
     }
 
-  def apply(result: Coeval[T]): Unit =
+  final def apply(result: Coeval[T]): Unit =
     result.runAttempt match {
       case Coeval.Now(value) => onSuccess(value)
       case Coeval.Error(ex) => onError(ex)
