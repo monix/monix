@@ -20,6 +20,8 @@ package monix.eval
 import monix.execution.atomic.PaddingStrategy
 import monix.execution.misc.AsyncVar
 
+import scala.util.control.NonFatal
+
 /** A mutable location, that is either empty or contains
   * a value of type `A`.
   *
@@ -108,15 +110,13 @@ object MVar {
   def withPadding[A](ps: PaddingStrategy): MVar[A] =
     new AsyncMVarImpl[A](AsyncVar.withPadding(ps))
 
-  /** [[MVar]] implementation based on
-    * [[monix.execution.misc.AsyncVar]]
-    */
+  /** [[MVar]] implementation based on [[monix.execution.misc.AsyncVar]] */
   private final class AsyncMVarImpl[A](av: AsyncVar[A]) extends MVar[A] {
     def put(a: A): Task[Unit] =
-      Task.unsafeCreate { (context, callback) =>
+      Task.unsafeCreate { (context, cb) =>
         // Execution could be synchronous
-        if (av.unsafePut(a, callback))
-          callback.onSuccess(())
+        try if (av.unsafePut(a, cb)) cb.onSuccess(())
+        catch { case NonFatal(ex) => cb.onError(ex) }
       }
 
     def take: Task[A] =
