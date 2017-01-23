@@ -49,29 +49,59 @@ final class StackedCancelable private (initial: List[Cancelable])
     if (oldState ne null) oldState.foreach(_.cancel())
   }
 
-  @tailrec def popAndCollapse(value: StackedCancelable): Cancelable = {
-    val other = value.underlying
-    if (other == null) {
-      this.cancel()
-      Cancelable.empty
-    }
-    else state.get match {
+  /** Deprecated, to be removed. Use [[popAndPushList]] instead. */
+  @deprecated("To be removed, use popAndPushAll instead", since="v2.2.0")
+  def popAndCollapse(value: StackedCancelable): Cancelable =
+    value.underlying match {
       case null =>
-        value.cancel()
+        this.cancel()
+        Cancelable.empty
+      case other =>
+        popAndPushList(other)
+    }
+
+  /** Pops the head of the stack and pushes a list as an
+    * atomic operation.
+    *
+    * This operation is the atomic equivalent of doing:
+    * {{{
+    *   sc.pop()
+    *   sc.pushList(list)
+    * }}}
+    *
+    * @param list is the list to prepend to the cancelable stack
+    * @return the cancelable reference that was popped from the stack
+    */
+  @tailrec def popAndPushList(list: List[Cancelable]): Cancelable = {
+    state.get match {
+      case null =>
+        list.foreach(_.cancel())
         Cancelable.empty
       case Nil =>
-        if (!state.compareAndSet(Nil, other))
-          popAndCollapse(value)
+        if (!state.compareAndSet(Nil, list))
+          popAndPushList(list)
         else
           Cancelable.empty
       case ref @ (head :: tail) =>
-        if (!state.compareAndSet(ref, other ::: tail))
-          popAndCollapse(value)
+        if (!state.compareAndSet(ref, list ::: tail))
+          popAndPushList(list)
         else
           head
     }
   }
 
+  /** Pops the head of the stack and pushes a list as
+    * an atomic operation.
+    *
+    * This operation is the atomic equivalent of doing:
+    * {{{
+    *   sc.pop()
+    *   sc.push(value)
+    * }}}
+    *
+    * @param value is the cancelable reference to push on the stack
+    * @return the cancelable reference that was popped from the stack
+    */
   @tailrec def popAndPush(value: Cancelable): Cancelable = {
     state.get match {
       case null =>
@@ -90,6 +120,28 @@ final class StackedCancelable private (initial: List[Cancelable])
     }
   }
 
+  /** Pushes a whole list of cancelable references on the stack.
+    *
+    * This operation is the atomic equivalent of doing:
+    * {{{
+    *   for (c <- list.reverse) sc.push(c)
+    * }}}
+    *
+    * @param list is the list to prepend to the cancelable stack
+    */
+  @tailrec def pushList(list: List[Cancelable]): Unit = {
+    state.get match {
+      case null =>
+        list.foreach(_.cancel())
+      case stack =>
+        if (!state.compareAndSet(stack, list ::: stack))
+          pushList(list) // retry
+    }
+  }
+
+  /** Pushes a cancelable reference on the stack, to be
+    * popped or cancelled later in FIFO order.
+    */
   @tailrec def push(value: Cancelable): Unit = {
     state.get match {
       case null =>
@@ -100,6 +152,10 @@ final class StackedCancelable private (initial: List[Cancelable])
     }
   }
 
+  /** Removes a cancelable reference from the stack in FIFO order.
+    *
+    * @return the cancelable reference that was removed.
+    */
   @tailrec def pop(): Cancelable = {
     state.get match {
       case null => Cancelable.empty
@@ -114,12 +170,20 @@ final class StackedCancelable private (initial: List[Cancelable])
 }
 
 object StackedCancelable {
+  /** Builds an empty [[StackedCancelable]] reference. */
   def apply(): StackedCancelable =
     new StackedCancelable(null)
 
+  /** Builds a [[StackedCancelable]] with an initial
+    * cancelable reference in it.
+    */
   def apply(initial: Cancelable): StackedCancelable =
     new StackedCancelable(List(initial))
 
+  /** Builds a [[StackedCancelable]] already initialized with
+    * a list of cancelable references, to be popped or canceled
+    * later in FIFO order.
+    */
   def apply(initial: List[Cancelable]): StackedCancelable =
     new StackedCancelable(initial)
 }
