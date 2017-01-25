@@ -38,7 +38,7 @@ private[reactive] final class PipeThroughObservable[A,B]
       def onComplete() = out.onComplete()
 
       def onNext(elem: B): Future[Ack] =
-        out.onNext(elem).syncOnStopOrFailure(upstream.cancel())
+        out.onNext(elem).syncOnStopOrFailure(_ => upstream.cancel())
     })
 
     upstream := source.unsafeSubscribeFn(input)

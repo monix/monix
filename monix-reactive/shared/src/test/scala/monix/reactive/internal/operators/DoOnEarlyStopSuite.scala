@@ -18,61 +18,79 @@
 package monix.reactive.internal.operators
 
 import minitest.TestSuite
-import monix.execution.Ack.Continue
+import monix.execution.Ack.{Stop, Continue}
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
 import monix.reactive.exceptions.DummyException
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
-import scala.concurrent.duration._
 
-object DoOnCompleteSuite extends TestSuite[TestScheduler] {
+object DoOnEarlyStopSuite extends TestSuite[TestScheduler] {
   def setup(): TestScheduler = TestScheduler()
   def tearDown(s: TestScheduler): Unit = {
     assert(s.state.tasks.isEmpty,
       "TestScheduler should have no pending tasks")
   }
 
-  test("should work for synchronous subscribers") { implicit s =>
-    var wasTriggered = 0
+  test("should execute for synchronous subscribers") { implicit s =>
+    var wasCanceled = 0
     var wasCompleted = 0
 
-    Observable.now(1).doOnComplete(() => wasTriggered += 1)
+    Observable.now(1).doOnEarlyStop(() => wasCanceled += 1)
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
-        def onNext(elem: Int) = Continue
+        def onNext(elem: Int) = Stop
         def onError(ex: Throwable): Unit = ()
         def onComplete(): Unit = wasCompleted += 1
       })
 
-    assertEquals(wasTriggered, 1)
+    assertEquals(wasCanceled, 1)
     assertEquals(wasCompleted, 1)
   }
 
-  test("should work for asynchronous subscribers") { implicit s =>
-    var wasTriggered = 0
+  test("should execute for asynchronous subscribers") { implicit s =>
+    var wasCanceled = 0
     var wasCompleted = 0
 
-    Observable.now(1).doOnComplete(() => wasTriggered += 1)
+    Observable.now(1).doOnEarlyStop(() => wasCanceled += 1)
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
-        def onNext(elem: Int) = Future(Continue)
+        def onNext(elem: Int) = Future(Stop)
         def onError(ex: Throwable): Unit = ()
         def onComplete(): Unit = wasCompleted += 1
       })
 
     s.tick()
-    assertEquals(wasTriggered, 1)
+    assertEquals(wasCanceled, 1)
+    assertEquals(wasCompleted, 1)
+  }
+
+  test("should not execute if cancel does not happen") { implicit s =>
+    var wasCanceled = 0
+    var wasCompleted = 0
+
+    Observable.range(0,10).doOnEarlyStop(() => wasCanceled += 1)
+      .unsafeSubscribeFn(new Subscriber[Long] {
+        val scheduler = s
+        def onNext(elem: Long): Future[Continue] =
+          if (elem % 2 == 0) Continue else Future(Continue)
+
+        def onError(ex: Throwable): Unit = ()
+        def onComplete(): Unit = wasCompleted += 1
+      })
+
+    s.tick()
+    assertEquals(wasCanceled, 0)
     assertEquals(wasCompleted, 1)
   }
 
   test("should stream onError") { implicit s =>
     val dummy = DummyException("ex")
-    var wasTriggered = 0
+    var wasCanceled = 0
     var wasCompleted = 0
     var errorThrown: Throwable = null
 
-    Observable.raiseError(dummy).doOnComplete(() => wasTriggered += 1)
+    Observable.raiseError(dummy).doOnEarlyStop(() => wasCanceled += 1)
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onNext(elem: Long): Future[Continue] =
@@ -85,38 +103,26 @@ object DoOnCompleteSuite extends TestSuite[TestScheduler] {
       })
 
     s.tick()
-    assertEquals(wasTriggered, 0)
+    assertEquals(wasCanceled, 0)
     assertEquals(wasCompleted, 0)
     assertEquals(errorThrown, dummy)
   }
 
-  test("should be cancelable") { implicit s =>
-    var wasTriggered = 0
-    val cancelable = Observable.now(1).delayOnNext(1.second)
-      .doOnComplete(() => wasTriggered += 1)
-      .subscribe()
-
-    s.tick()
-    assert(s.state.tasks.nonEmpty, "tasks.nonEmpty")
-    cancelable.cancel()
-    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
-    assertEquals(wasTriggered, 0)
-  }
-
   test("should protect against user code") { implicit s =>
     val dummy = DummyException("dummy")
-    var errorThrown: Throwable = null
+    var hasError = false
 
-    Observable.now(1).doOnComplete(() => throw dummy)
+    Observable.now(1).doOnEarlyStop(() => throw dummy)
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
 
-        def onNext(elem: Int) = Continue
-        def onError(ex: Throwable) = errorThrown = ex
+        def onNext(elem: Int) = Stop
+        def onError(ex: Throwable) = hasError = true
         def onComplete() = ()
       })
 
     s.tick()
-    assertEquals(errorThrown, dummy)
+    assertEquals(s.state.lastReportedError, dummy)
+    assertEquals(hasError, false)
   }
 }

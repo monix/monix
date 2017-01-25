@@ -62,7 +62,7 @@ private[reactive] final class SwitchMapObservable[A,B](
                 if (upstreamIsDone || myChildIndex != activeChildIndex)
                   Stop
                 else {
-                  ack = out.onNext(elem).syncOnStopOrFailure(cancelFromDownstream())
+                  ack = out.onNext(elem).syncOnStopOrFailure(_ => cancelFromDownstream())
                   ack
                 }
               }

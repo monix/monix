@@ -88,7 +88,7 @@ class Macros(override val c: whitebox.Context) extends InlineMacros with Hygiene
     val self = util.name("source")
     val scheduler = c.Expr[Scheduler](s)
 
-    val execute = c.Expr[Unit](callback)
+    val execute = c.Expr[Option[Throwable] => Unit](callback)
     val ContinueSymbol = symbolOf[Continue].companion
     val StopSymbol = symbolOf[Stop].companion
     val AckSymbol = symbolOf[Ack]
@@ -98,8 +98,8 @@ class Macros(override val c: whitebox.Context) extends InlineMacros with Hygiene
       q"""
         val $self = $selfExpr
         if ($self eq $StopSymbol)
-          try { $execute } catch {
-            case ex: Throwable =>
+          try { $execute(_root_.scala.None) } catch {
+            case ex: _root_.scala.Throwable =>
               if (_root_.scala.util.control.NonFatal(ex))
                 $scheduler.reportFailure(ex)
               else
@@ -107,7 +107,12 @@ class Macros(override val c: whitebox.Context) extends InlineMacros with Hygiene
           }
         else if (($self : $FutureSymbol[$AckSymbol]) != $ContinueSymbol) {
           $self.onComplete { result =>
-            if (result.isFailure || (result.get eq $StopSymbol)) { $execute }
+            if (result.isFailure) {
+              $execute(_root_.scala.Some(result.failed.get))
+            }
+            else if (result.get eq $StopSymbol) {
+              $execute(_root_.scala.None)
+            }
           }($scheduler)
         }
 

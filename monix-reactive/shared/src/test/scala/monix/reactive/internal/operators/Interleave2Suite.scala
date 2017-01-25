@@ -92,7 +92,7 @@ object Interleave2Suite extends BaseOperatorSuite {
     var wasCanceled = false
     var received = 0
 
-    obs1.interleave(obs2.doOnDownstreamStop { wasCanceled = true })
+    obs1.interleave(obs2.doOnEarlyStop { () => wasCanceled = true })
       .unsafeSubscribeFn(new Observer[Int] {
         def onNext(elem: Int) = { received = elem; Continue }
         def onError(ex: Throwable) = wasThrown = ex
@@ -115,7 +115,7 @@ object Interleave2Suite extends BaseOperatorSuite {
     var wasCanceled = false
     var received = 0
 
-    obs2.doOnDownstreamStop { wasCanceled = true }.interleave(obs1)
+    obs2.doOnEarlyStop { () => wasCanceled = true }.interleave(obs1)
       .unsafeSubscribeFn(new Observer[Int] {
         def onNext(elem: Int) = { received = elem; Continue }
         def onError(ex: Throwable) = wasThrown = ex

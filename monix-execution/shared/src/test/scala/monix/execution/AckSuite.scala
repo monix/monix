@@ -20,7 +20,6 @@ package monix.execution
 import minitest.TestSuite
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.schedulers.TestScheduler
-
 import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success, Try}
 
@@ -123,41 +122,61 @@ object AckSuite extends TestSuite[TestScheduler] {
     assertEquals(caught, ex)
   }
 
-  test("syncOnCancel(Stop) should execute synchronously") { implicit s =>
+  test("syncOnStopOrFailure(Stop) should execute synchronously") { implicit s =>
     var triggered = false
-    Stop.syncOnStopOrFailure { triggered = true }
+    Stop.syncOnStopOrFailure { ex => if (ex.isEmpty) triggered = true }
     assert(triggered, "triggered")
     assert(s.state.tasks.isEmpty, "there should be no async tasks registered")
   }
 
-  test("syncOnCancel(Continue) should execute synchronously") { implicit s =>
+  test("syncOnStopOrFailure(Future(Stop)) should execute asynchronously") { implicit s =>
     var triggered = false
-    (Continue : Ack).syncOnStopOrFailure { triggered = true }
+    Future(Stop).syncOnStopOrFailure { ex => if (ex.isEmpty) triggered = true }
     assert(!triggered, "!triggered")
+
+    s.tick()
+    assert(triggered, "triggered")
     assert(s.state.tasks.isEmpty, "there should be no async tasks registered")
   }
 
-  test("syncOnCancel(Future.successful(Stop)) should execute asynchronously") { implicit s =>
+  test("syncOnStopOrFailure(Future.successful(Stop)) should execute asynchronously") { implicit s =>
     var triggered = false
-    Future.successful(Stop).syncOnStopOrFailure { triggered = true }
+    Future.successful(Stop).syncOnStopOrFailure { ex => if (ex.isEmpty) triggered = true }
     assert(s.state.tasks.nonEmpty, "there should be async tasks registered")
     s.tick()
     assert(triggered, "triggered")
   }
 
-  test("syncOnCancel(Future.successful(Continue)) should execute asynchronously") { implicit s =>
+  test("syncOnStopOrFailure(Continue) should execute synchronously") { implicit s =>
     var triggered = false
-    (Future.successful(Continue) : Future[Ack]).syncOnStopOrFailure { triggered = true }
+    (Continue : Ack).syncOnStopOrFailure { ex => if (ex.isEmpty) triggered = true }
+    assert(!triggered, "!triggered")
+    assert(s.state.tasks.isEmpty, "there should be no async tasks registered")
+  }
+
+  test("syncOnStopOrFailure(Future.successful(Continue)) should execute asynchronously") { implicit s =>
+    var triggered = false
+    (Future.successful(Continue) : Future[Ack]).syncOnStopOrFailure { ex => if (ex.isEmpty) triggered = true }
     assert(s.state.tasks.nonEmpty, "there should be async tasks registered")
     s.tick()
     assert(!triggered, "!triggered")
   }
 
-  test("syncOnCancel(Failure(ex)) should execute") { implicit s =>
+  test("syncOnStopOrFailure(Future(Continue)) should execute asynchronously") { implicit s =>
+    var triggered = false
+    (Future(Continue) : Future[Ack]).syncOnStopOrFailure { ex => if (ex.isEmpty) triggered = true }
+    assert(s.state.tasks.nonEmpty, "there should be async tasks registered")
+
+    s.tick()
+    assert(!triggered, "!triggered")
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
+  }
+
+  test("syncOnStopOrFailure(Failure(ex)) should execute") { implicit s =>
     var triggered = false
     val ex = new RuntimeException("dummy")
     val ack: Future[Ack] = Future.failed(ex)
-    ack.syncOnStopOrFailure { triggered = true }
+    ack.syncOnStopOrFailure { p => if (p.contains(ex)) triggered = true }
 
     assertEquals(triggered, false)
     assert(s.state.tasks.nonEmpty, "there should be async tasks registered")
@@ -165,11 +184,11 @@ object AckSuite extends TestSuite[TestScheduler] {
     assertEquals(triggered, true)
   }
 
-  test("syncOnCancel(Future(throw ex)) should execute") { implicit s =>
+  test("syncOnStopOrFailure(Future(throw ex)) should execute") { implicit s =>
     var triggered = false
     val ex = new RuntimeException("dummy")
     val ack: Future[Ack] = Future { throw ex }
-    ack.syncOnStopOrFailure { triggered = true }
+    ack.syncOnStopOrFailure { p => if (p.contains(ex)) triggered = true }
 
     assertEquals(triggered, false)
     assert(s.state.tasks.nonEmpty, "there should be async tasks registered")
@@ -177,17 +196,24 @@ object AckSuite extends TestSuite[TestScheduler] {
     assertEquals(triggered, true)
   }
 
-  test("syncOnCancel(Stop) should protect against user errors") { implicit s =>
+  test("syncOnStopOrFailure(Stop) should protect against user errors") { implicit s =>
     val ex = new RuntimeException("dummy")
-    Stop.syncOnStopOrFailure { throw ex }
+    Stop.syncOnStopOrFailure { _ => throw ex }
     assertEquals(s.state.lastReportedError, ex)
   }
 
-  test("syncOnCancel(Stop) should not protect against fatal errors") { implicit s =>
+  test("syncOnStopOrFailure(Future(Stop)) should protect against user errors") { implicit s =>
+    val ex = new RuntimeException("dummy")
+    Future(Stop).syncOnStopOrFailure { _ => throw ex }
+    s.tick()
+    assertEquals(s.state.lastReportedError, ex)
+  }
+
+  test("syncOnStopOrFailure(Stop) should not protect against fatal errors") { implicit s =>
     val ex = new InterruptedException()
     var caught: Throwable = null
 
-    try Stop.syncOnStopOrFailure { throw ex } catch {
+    try Stop.syncOnStopOrFailure { _ => throw ex } catch {
       case err: InterruptedException => caught = err
     }
 

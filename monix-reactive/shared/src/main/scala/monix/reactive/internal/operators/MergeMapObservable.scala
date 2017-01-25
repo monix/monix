@@ -84,8 +84,7 @@ private[reactive] final class MergeMapObservable[A,B](
             implicit val scheduler = downstream.scheduler
 
             def onNext(elem: B) = {
-              subscriberB.onNext(elem)
-                .syncOnStopOrFailure(cancelUpstream())
+              subscriberB.onNext(elem).syncOnStopOrFailure(_ => cancelUpstream())
             }
 
             def onError(ex: Throwable): Unit = {

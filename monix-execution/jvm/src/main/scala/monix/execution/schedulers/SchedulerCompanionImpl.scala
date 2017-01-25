@@ -217,8 +217,8 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     * @param executionModel $executionModel
     */
   def computation(
-    name: String = "monix-computation",
     parallelism: Int = Runtime.getRuntime.availableProcessors(),
+    name: String = "monix-computation",
     daemonic: Boolean = true,
     reporter: UncaughtExceptionReporter = LogExceptionsToStandardErr,
     executionModel: ExecModel = ExecModel.Default): SchedulerService = {

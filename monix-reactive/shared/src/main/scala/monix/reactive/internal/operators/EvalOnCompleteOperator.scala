@@ -17,29 +17,28 @@
 
 package monix.reactive.internal.operators
 
+import monix.eval.{Coeval, Task}
 import monix.execution.Ack
 import monix.reactive.observables.ObservableLike.Operator
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
-import scala.util.control.NonFatal
 
 private[reactive] final
-class DoOnDownstreamStopOperator[A](callback: => Unit) extends Operator[A,A] {
+class EvalOnCompleteOperator[A](task: Task[Unit]) extends Operator[A,A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
       implicit val scheduler = out.scheduler
 
-      private def execute(): Unit =
-        try callback catch { case NonFatal(ex) =>
-          out.scheduler.reportFailure(ex)
-        }
-
-      def onNext(elem: A): Future[Ack] = {
-        out.onNext(elem).syncOnStopOrFailure(execute())
-      }
-
+      def onNext(elem: A): Future[Ack] = out.onNext(elem)
       def onError(ex: Throwable): Unit = out.onError(ex)
-      def onComplete(): Unit = out.onComplete()
+
+      def onComplete(): Unit =
+        task.materializeAttempt.foreach {
+          case Coeval.Now(()) =>
+            out.onComplete()
+          case Coeval.Error(ex) =>
+            out.onError(ex)
+        }
     }
 }

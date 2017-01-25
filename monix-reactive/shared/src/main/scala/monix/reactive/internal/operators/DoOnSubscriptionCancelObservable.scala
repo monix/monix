@@ -23,7 +23,7 @@ import monix.reactive.observers.Subscriber
 import scala.util.control.NonFatal
 
 private[reactive] final
-class DoOnSubscriptionCancelObservable[+A](source: Observable[A], cb: => Unit)
+class DoOnSubscriptionCancelObservable[+A](source: Observable[A], cb: () => Unit)
   extends Observable[A] {
 
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
@@ -33,7 +33,7 @@ class DoOnSubscriptionCancelObservable[+A](source: Observable[A], cb: => Unit)
       // First cancel the source
       try subscription.cancel() finally {
         // Then execute the callback, protected
-        try cb catch {
+        try cb() catch {
           case NonFatal(ex) =>
             subscriber.scheduler.reportFailure(ex)
         }

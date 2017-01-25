@@ -131,7 +131,7 @@ private[reactive] final class ConcatMapObservable[A, B]
 
           def onNext(elem: B) = {
             ack = out.onNext(elem)
-            ack.syncOnStopOrFailure(signalOnComplete(ack, isStop = true))
+            ack.syncOnStopOrFailure(_ => signalOnComplete(ack, isStop = true))
           }
 
           def onComplete(): Unit =

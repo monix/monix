@@ -18,36 +18,27 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack
-import monix.reactive.observables.ObservableLike
-import ObservableLike.Operator
+import monix.reactive.observables.ObservableLike.Operator
 import monix.reactive.observers.Subscriber
-
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 
-private[reactive] final
-class DoOnCompleteOperator[A](cb: () => Unit) extends Operator[A,A] {
+private[reactive] final class DoOnEarlyStopOperator[A](cb: () => Unit)
+  extends Operator[A,A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
       implicit val scheduler = out.scheduler
 
-      def onNext(elem: A): Future[Ack] = out.onNext(elem)
-      def onError(ex: Throwable): Unit = out.onError(ex)
+      @inline
+      private def execute(): Unit =
+        try cb() catch { case NonFatal(ex) => scheduler.reportFailure(ex) }
 
-      def onComplete(): Unit = {
-        // Protects calls to user code from within the operator and
-        // stream the error downstream if it happens.
-        var streamError = true
-        try {
-          cb()
-          streamError = false
-          out.onComplete()
-        }
-        catch {
-          case NonFatal(ex) if streamError =>
-            out.onError(ex)
-        }
-      }
+      def onNext(elem: A): Future[Ack] =
+        out.onNext(elem).syncOnStopOrFailure(_ => execute())
+      def onError(ex: Throwable): Unit =
+        out.onError(ex)
+      def onComplete(): Unit =
+        out.onComplete()
     }
 }

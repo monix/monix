@@ -26,7 +26,7 @@ import monix.reactive.subjects.{ReplaySubject, Subject}
 import scala.concurrent.Future
 import scala.util.Success
 
-private[reactive] final class RepeatObservable[A](source: Observable[A])
+private[reactive] final class RepeatSourceObservable[A](source: Observable[A])
   extends Observable[A] {
 
   // recursive function - subscribes the observer again when
