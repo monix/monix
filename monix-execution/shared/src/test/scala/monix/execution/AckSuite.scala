@@ -176,7 +176,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     var triggered = false
     val ex = new RuntimeException("dummy")
     val ack: Future[Ack] = Future.failed(ex)
-    ack.syncOnStopOrFailure { p => if (p.contains(ex)) triggered = true }
+    ack.syncOnStopOrFailure { p => triggered = p.fold(triggered)(_ == ex) }
 
     assertEquals(triggered, false)
     assert(s.state.tasks.nonEmpty, "there should be async tasks registered")
@@ -188,7 +188,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     var triggered = false
     val ex = new RuntimeException("dummy")
     val ack: Future[Ack] = Future { throw ex }
-    ack.syncOnStopOrFailure { p => if (p.contains(ex)) triggered = true }
+    ack.syncOnStopOrFailure { p => triggered = p.fold(triggered)(_ == ex) }
 
     assertEquals(triggered, false)
     assert(s.state.tasks.nonEmpty, "there should be async tasks registered")
