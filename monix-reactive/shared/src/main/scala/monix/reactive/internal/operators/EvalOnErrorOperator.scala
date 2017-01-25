@@ -17,48 +17,39 @@
 
 package monix.reactive.internal.operators
 
+import monix.eval.{Coeval, Task}
 import monix.execution.Ack
-import monix.execution.Ack.Stop
-import monix.reactive.observables.ObservableLike
-import ObservableLike.Operator
+import monix.reactive.observables.ObservableLike.Operator
 import monix.reactive.observers.Subscriber
+
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 
 private[reactive] final
-class DoOnNextOperator[A](cb: A => Unit) extends Operator[A,A] {
+class EvalOnErrorOperator[A](cb: Throwable => Task[Unit]) extends Operator[A,A] {
+
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
       implicit val scheduler = out.scheduler
-      private[this] var isDone = false
 
-      def onNext(elem: A): Future[Ack] = {
-        // Protects calls to user code from within the operator and
-        // stream the error downstream if it happens, but if the
-        // error happens because of calls to `onNext` or other
-        // protocol calls, then the behavior should be undefined.
-        var streamError = true
+      def onNext(elem: A): Future[Ack] = out.onNext(elem)
+      def onComplete(): Unit = out.onComplete()
+
+      def onError(ex: Throwable): Unit = {
         try {
-          cb(elem)
-          streamError = false
-          out.onNext(elem)
-        } catch {
-          case NonFatal(ex) if streamError =>
-            onError(ex)
-            Stop
+          val task = try cb(ex) catch { case NonFatal(err) => Task.raiseError(err) }
+          task.materializeAttempt.foreach {
+            case Coeval.Now(()) =>
+              out.onError(ex)
+            case Coeval.Error(err) =>
+              scheduler.reportFailure(err)
+              out.onError(ex)
+          }
+        }
+        catch {
+          case NonFatal(err) =>
+            scheduler.reportFailure(err)
         }
       }
-
-      def onError(ex: Throwable): Unit =
-        if (!isDone) {
-          isDone = true
-          out.onError(ex)
-        }
-
-      def onComplete(): Unit =
-        if (!isDone) {
-          isDone = true
-          out.onComplete()
-        }
     }
 }

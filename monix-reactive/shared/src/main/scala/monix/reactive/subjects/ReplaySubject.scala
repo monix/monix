@@ -75,7 +75,7 @@ final class ReplaySubject[T] private (initialState: ReplaySubject.State[T])
 
         import subscriber.scheduler
         val connecting = c.connect()
-        connecting.syncOnStopOrFailure(removeSubscriber(c))
+        connecting.syncOnStopOrFailure(_ => removeSubscriber(c))
 
         Cancelable { () =>
           try removeSubscriber(c)

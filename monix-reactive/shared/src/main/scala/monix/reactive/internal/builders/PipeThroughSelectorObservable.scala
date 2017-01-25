@@ -46,8 +46,7 @@ private[reactive] final class PipeThroughSelectorObservable[A,B,C]
 
           def onNext(elem: C): Future[Ack] = {
             // Treating STOP event
-            out.onNext(elem)
-              .syncOnStopOrFailure(upstream.cancel())
+            out.onNext(elem).syncOnStopOrFailure(_ => upstream.cancel())
           }
         })
 

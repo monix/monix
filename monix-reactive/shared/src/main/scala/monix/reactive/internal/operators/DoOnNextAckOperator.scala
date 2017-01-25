@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by its authors. Some rights reserved.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,36 +18,42 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack
-import monix.reactive.observables.ObservableLike
-import ObservableLike.Operator
+import monix.execution.Ack.Stop
+import monix.execution.atomic.Atomic
+import monix.reactive.observables.ObservableLike.Operator
 import monix.reactive.observers.Subscriber
-
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 
-private[reactive] final
-class DoOnCompleteOperator[A](cb: () => Unit) extends Operator[A,A] {
+private[reactive] final class DoOnNextAckOperator[A](cb: (A, Ack) => Unit)
+  extends Operator[A,A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
-    new Subscriber[A] {
+    new Subscriber[A] { self =>
       implicit val scheduler = out.scheduler
+      private[this] val isActive = Atomic(true)
 
-      def onNext(elem: A): Future[Ack] = out.onNext(elem)
-      def onError(ex: Throwable): Unit = out.onError(ex)
+      def tryExecute(a: A, ack: Ack): Ack = {
+        try { cb(a, ack); ack }
+        catch { case NonFatal(ex) => onError(ex); Stop }
+      }
+
+      def onNext(elem: A): Future[Ack] =
+        out.onNext(elem).syncFlatMap { ack =>
+          try { cb(elem, ack); ack }
+          catch { case NonFatal(ex) => onError(ex); Stop }
+        }
 
       def onComplete(): Unit = {
-        // Protects calls to user code from within the operator and
-        // stream the error downstream if it happens.
-        var streamError = true
-        try {
-          cb()
-          streamError = false
+        if (isActive.getAndSet(false))
           out.onComplete()
-        }
-        catch {
-          case NonFatal(ex) if streamError =>
-            out.onError(ex)
-        }
+      }
+
+      def onError(ex: Throwable): Unit = {
+        if (isActive.getAndSet(false))
+          out.onError(ex)
+        else
+          scheduler.reportFailure(ex)
       }
     }
 }

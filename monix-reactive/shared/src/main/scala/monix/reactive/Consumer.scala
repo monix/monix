@@ -75,15 +75,18 @@ trait Consumer[-In, +R] extends ((Observable[In]) => Task[R])
     */
   def apply(source: Observable[In]): Task[R] =
     Task.create[R] { (scheduler, cb) =>
-      val (out, c) = createSubscriber(cb, scheduler)
+      val (out, consumerSubscription) = createSubscriber(cb, scheduler)
       // Start consuming the stream
-      val subscription = source.subscribe(out)
+      val sourceSubscription = source.subscribe(out)
       // Assign the observable subscription to our assignable,
       // thus the subscriber can cancel its subscription
-      c := subscription
-      // We cannot return the assignable returned by `createSubscriber`
+      consumerSubscription := sourceSubscription
+      // We might not return the assignable returned by `createSubscriber`
       // because it might be a dummy
-      subscription
+      if (consumerSubscription.isInstanceOf[Cancelable.IsDummy])
+        sourceSubscription
+      else
+        consumerSubscription
     }
 
   /** Given a contravariant mapping function, transform

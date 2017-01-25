@@ -47,8 +47,7 @@ class DumpObservable[T](source: Observable[T], prefix: String, out: PrintStream)
           case NonFatal(_) => () // ignore
         }
 
-        subscriber.onNext(elem)
-          .syncOnStopOrFailure(downstreamActive.cancel())
+        subscriber.onNext(elem).syncOnStopOrFailure(_ => downstreamActive.cancel())
       }
 
       def onError(ex: Throwable) = {

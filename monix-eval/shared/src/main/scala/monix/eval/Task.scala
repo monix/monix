@@ -384,7 +384,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     flatMap(a => try now(f(a)) catch { case NonFatal(ex) => raiseError(ex) })
 
   /** Returns a new `Task` in which `f` is scheduled to be run on
-    * completion.  This would typically be used to release any
+    * completion. This would typically be used to release any
     * resources acquired by this `Task`.
     *
     * The returned `Task` completes when both the source and the task

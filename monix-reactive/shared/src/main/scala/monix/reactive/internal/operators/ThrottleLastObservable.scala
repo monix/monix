@@ -89,7 +89,7 @@ private[reactive] final class ThrottleLastObservable[+A, S](
               val next = if (!hasValue) Continue else {
                 hasValue = shouldRepeatOnSilence
                 val ack = downstream.onNext(lastValue)
-                ack.syncOnStopOrFailure {
+                ack.syncOnStopOrFailure { _ =>
                   downstreamIsDone = true
                   upstreamSubscription.cancel()
                 }

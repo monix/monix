@@ -61,7 +61,7 @@ object GroupBySuite extends BaseOperatorSuite {
     var nextShouldCancel = false
 
     def fallbackObservable: Observable[Nothing] =
-      Observable.empty.doOnSubscribe {
+      Observable.empty.doOnSubscribe { () =>
         fallbackTick += 1
       }
 

@@ -65,7 +65,7 @@ private[reactive] final class TakeUntilObservable[+A](
         def onNext(elem: A): Future[Ack] =
           mainConn.synchronized {
             if (isComplete) Stop else
-              out.onNext(elem).syncOnStopOrFailure {
+              out.onNext(elem).syncOnStopOrFailure { _ =>
                 mainConn.synchronized {
                   isComplete = true
                   selectorConn.cancel()

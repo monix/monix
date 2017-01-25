@@ -22,20 +22,30 @@ import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.util.control.NonFatal
 
-private[reactive] final
-class DoOnSubscribeObservable[+A](source: Observable[A], callback: => Unit)
-  extends Observable[A] {
+private[reactive] object DoOnSubscribeObservable {
+  // Implementation for doBeforeSubscribe
+  final class Before[+A](source: Observable[A], callback: () => Unit) extends Observable[A] {
+    def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
+      var streamError = true
+      try {
+        callback()
+        streamError = false
+        source.unsafeSubscribeFn(subscriber)
+      } catch {
+        case NonFatal(ex) if streamError =>
+          subscriber.onError(ex)
+          Cancelable.empty
+      }
+    }
+  }
 
-  def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
-    var streamError = true
-    try {
-      callback
-      streamError = false
-      source.unsafeSubscribeFn(subscriber)
-    } catch {
-      case NonFatal(ex) if streamError =>
-        subscriber.onError(ex)
-        Cancelable.empty
+  // Implementation for doAfterSubscribe
+  final class After[+A](source: Observable[A], callback: () => Unit) extends Observable[A] {
+    def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
+      import subscriber.{scheduler => s}
+      val cancelable = source.unsafeSubscribeFn(subscriber)
+      try callback() catch { case NonFatal(ex) => s.reportFailure(ex) }
+      cancelable
     }
   }
 }

@@ -52,7 +52,7 @@ class TakeLeftByTimespanObservable[A](source: Observable[A], timespan: FiniteDur
 
       def onNext(elem: A): Future[Ack] = synchronized {
         if (isActive)
-          out.onNext(elem).syncOnStopOrFailure(deactivate())
+          out.onNext(elem).syncOnStopOrFailure(_ => deactivate())
         else {
           onComplete()
           Stop

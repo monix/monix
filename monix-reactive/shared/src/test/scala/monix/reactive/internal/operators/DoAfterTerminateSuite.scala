@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by its authors. Some rights reserved.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,7 +27,7 @@ import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
 
-object DoOnTerminateSuite extends TestSuite[TestScheduler] {
+object DoAfterTerminateSuite extends TestSuite[TestScheduler] {
   def setup(): TestScheduler = TestScheduler()
   def tearDown(s: TestScheduler): Unit = {
     assert(s.state.tasks.isEmpty,
@@ -39,7 +39,7 @@ object DoOnTerminateSuite extends TestSuite[TestScheduler] {
     var wasCompleted = 0
 
     Observable.now(1)
-      .doOnTerminate(_ => wasCalled += 1)
+      .doAfterTerminate(_ => wasCalled += 1)
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
         def onNext(elem: Int) = Continue
@@ -57,7 +57,7 @@ object DoOnTerminateSuite extends TestSuite[TestScheduler] {
     var wasThrown: Throwable = null
 
     Observable.now(1)
-      .doOnTerminate(_ => throw ex)
+      .doAfterTerminate(_ => throw ex)
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
         def onNext(elem: Int) = Continue
@@ -66,7 +66,8 @@ object DoOnTerminateSuite extends TestSuite[TestScheduler] {
           wasThrown = ex
       })
 
-    assertEquals(wasThrown, ex)
+    assertEquals(wasThrown, null)
+    assertEquals(s.state.lastReportedError, ex)
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
@@ -76,7 +77,7 @@ object DoOnTerminateSuite extends TestSuite[TestScheduler] {
     var wasThrown: Throwable = null
 
     Observable.now(1).endWithError(ex)
-      .doOnTerminate(_ => wasCalled += 1)
+      .doAfterTerminate(_ => wasCalled += 1)
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
         def onNext(elem: Int) = Continue
@@ -96,7 +97,7 @@ object DoOnTerminateSuite extends TestSuite[TestScheduler] {
     var wasThrown: Throwable = null
 
     Observable.now(1).endWithError(ex1)
-      .doOnTerminate(_ => throw ex2)
+      .doAfterTerminate(_ => throw ex2)
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
         def onNext(elem: Int) = Continue
@@ -105,8 +106,8 @@ object DoOnTerminateSuite extends TestSuite[TestScheduler] {
           wasThrown = ex
       })
 
-    assertEquals(wasThrown, ex2)
-    assertEquals(s.state.lastReportedError, ex1)
+    assertEquals(wasThrown, ex1)
+    assertEquals(s.state.lastReportedError, ex2)
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
@@ -115,7 +116,7 @@ object DoOnTerminateSuite extends TestSuite[TestScheduler] {
     var wasCompleted = 0
 
     Observable.range(0, 100)
-      .doOnTerminate(_ => wasCalled += 1)
+      .doAfterTerminate(_ => wasCalled += 1)
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onNext(elem: Long) = Stop
@@ -133,7 +134,7 @@ object DoOnTerminateSuite extends TestSuite[TestScheduler] {
     var wasCompleted = 0
 
     Observable.range(0, 100)
-      .doOnTerminate(_ => wasCalled += 1)
+      .doAfterTerminate(_ => wasCalled += 1)
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onNext(elem: Long) = Future(Stop)
@@ -151,7 +152,7 @@ object DoOnTerminateSuite extends TestSuite[TestScheduler] {
     val ex = DummyException("dummy")
 
     Observable.range(0, 100)
-      .doOnTerminate(_ => throw ex)
+      .doAfterTerminate(_ => throw ex)
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onNext(elem: Long) = Stop
@@ -168,7 +169,7 @@ object DoOnTerminateSuite extends TestSuite[TestScheduler] {
     val ex = DummyException("dummy")
 
     Observable.range(0, 100)
-      .doOnTerminate(_ => throw ex)
+      .doAfterTerminate(_ => throw ex)
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onNext(elem: Long) = Future(Stop)
@@ -187,7 +188,7 @@ object DoOnTerminateSuite extends TestSuite[TestScheduler] {
     var errorThrown = Option.empty[Throwable]
 
     Observable.range(0, 100)
-      .doOnTerminate { ex => errorThrown = ex }
+      .doAfterTerminate { ex => errorThrown = ex }
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onNext(elem: Long) =
@@ -207,7 +208,7 @@ object DoOnTerminateSuite extends TestSuite[TestScheduler] {
     var errorThrown = Option.empty[Throwable]
 
     Observable.range(0, 100)
-      .doOnTerminate { ex => errorThrown = ex }
+      .doAfterTerminate { ex => errorThrown = ex }
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onNext(elem: Long) =
