@@ -1,3 +1,16 @@
+## Version 2.2.0 (Jan 25, 2017)
+
+In addition to the changes from the `2.2.0-M1` milestone:
+
+- [Issue #298](https://github.com/monix/monix/pull/298):
+  Don't publish empty jars in root projects
+- [Issue #300](https://github.com/monix/monix/pull/300):
+  Update to cats 0.9.0
+- [Issue #301](https://github.com/monix/monix/pull/301):
+  `MVar`, a non-blocking Task-based implementation
+- [Issue #303](https://github.com/monix/monix/issues/303):
+  Observable "doOn" operators refactoring
+
 ## Version 2.2.0-M1 (Jan 4, 2017)
 
 Version `2.2.0-M1` is a milestone release, released for feedback 
