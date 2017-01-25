@@ -20,8 +20,7 @@ package monix.execution
 import monix.execution.Ack.{AckExtensions, Continue, Stop}
 import monix.execution.misc.{HygieneUtilMacros, InlineMacros}
 import monix.execution.schedulers.{StartAsyncBatchRunnable, TrampolinedRunnable}
-
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.Future
 import scala.reflect.macros.whitebox
 
 /** Various implementations for
@@ -119,34 +118,6 @@ class Macros(override val c: whitebox.Context) extends InlineMacros with Hygiene
 
         $self
         """
-
-    inlineAndResetTree(tree)
-  }
-
-  def syncMaterialize[Self <: Future[Ack] : c.WeakTypeTag](s: Tree): Tree = {
-    val selfExpr = sourceFromAck[Self](c.prefix.tree)
-    val self = util.name("source")
-    val promise = util.name("promise")
-    val scheduler = c.Expr[Scheduler](s)
-
-    val PromiseCompanion = symbolOf[Promise[_]].companion
-    val FutureCompanion = symbolOf[Future[_]].companion
-    val ContinueSymbol = symbolOf[Continue].companion
-    val StopSymbol = symbolOf[Stop].companion
-    val AckSymbol = symbolOf[Ack]
-
-    val tree =
-      q"""
-        val $self = $selfExpr
-        $self.value match {
-          case _root_.scala.Some(v) =>
-            $FutureCompanion.successful(v)
-          case _root_.scala.None =>
-            val $promise = $PromiseCompanion[_root_.scala.util.Try[_root_.monix.execution.Ack]]()
-            $self.onComplete(v => $promise.success(v))($s)
-            $promise.future
-        }
-      """
 
     inlineAndResetTree(tree)
   }

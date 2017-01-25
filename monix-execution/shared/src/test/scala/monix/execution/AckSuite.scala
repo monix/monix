@@ -19,9 +19,7 @@ package monix.execution
 
 import minitest.TestSuite
 import monix.execution.Ack.{Continue, Stop}
-import monix.execution.misc.InlineMacrosTest.DummyException
 import monix.execution.schedulers.TestScheduler
-
 import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success, Try}
 
@@ -771,43 +769,5 @@ object AckSuite extends TestSuite[TestScheduler] {
 
     val f3 = Stop.transformWith { r => throw dummy }
     assertEquals(f3.value, Some(Failure(dummy)))
-  }
-
-  test("Continue.syncMaterialize") { implicit s =>
-    val f = (Continue : Future[Ack]).syncMaterialize
-    assertEquals(f.value, Some(Success(Success(Continue))))
-  }
-
-  test("Future(Continue).syncMaterialize") { implicit s =>
-    val f = (Future(Continue) : Future[Ack]).syncMaterialize
-    assertEquals(f.value, None)
-    s.tick()
-    assertEquals(f.value, Some(Success(Success(Continue))))
-  }
-
-  test("Stop.syncMaterialize") { implicit s =>
-    val f = (Stop : Future[Ack]).syncMaterialize
-    assertEquals(f.value, Some(Success(Success(Stop))))
-  }
-
-  test("Future(Continue).syncMaterialize") { implicit s =>
-    val f = (Future(Stop) : Future[Ack]).syncMaterialize
-    assertEquals(f.value, None)
-    s.tick()
-    assertEquals(f.value, Some(Success(Success(Stop))))
-  }
-
-  test("Future.failed(ex).syncMaterialize") { implicit s =>
-    val dummy = DummyException("dummy")
-    val f = (Future.failed(dummy) : Future[Ack]).syncMaterialize
-    assertEquals(f.value, Some(Success(Failure(dummy))))
-  }
-
-  test("Future(throw ex).syncMaterialize") { implicit s =>
-    val dummy = DummyException("dummy")
-    val f = (Future(throw dummy) : Future[Ack]).syncMaterialize
-    assertEquals(f.value, None)
-    s.tick()
-    assertEquals(f.value, Some(Success(Failure(dummy))))
   }
 }

@@ -33,11 +33,6 @@ private[reactive] final class DoOnNextAckOperator[A](cb: (A, Ack) => Unit)
       implicit val scheduler = out.scheduler
       private[this] val isActive = Atomic(true)
 
-      def tryExecute(a: A, ack: Ack): Ack = {
-        try { cb(a, ack); ack }
-        catch { case NonFatal(ex) => onError(ex); Stop }
-      }
-
       def onNext(elem: A): Future[Ack] =
         out.onNext(elem).syncFlatMap { ack =>
           try { cb(elem, ack); ack }

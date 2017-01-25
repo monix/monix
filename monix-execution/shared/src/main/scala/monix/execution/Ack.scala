@@ -131,14 +131,6 @@ object Ack {
     def syncOnStopOrFailure(callback: Option[Throwable] => Unit)(implicit s: Scheduler): Self =
       macro Macros.syncOnStopOrFailure[Self]
 
-    /** Materializes the source, exposing any errors that might have happened.
-      *
-      * Execution will happen synchronously if the `source` is already
-      * complete, or asynchronously otherwise.
-      */
-    def syncMaterialize(implicit s: Scheduler): Future[Try[Ack]] =
-      macro Macros.syncMaterialize[Self]
-
     /** Given a mapping function, returns a new future reference that
       * is the result of a `map` operation applied to the source.
       *
