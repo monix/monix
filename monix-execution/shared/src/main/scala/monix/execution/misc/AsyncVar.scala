@@ -267,15 +267,16 @@ object AsyncVar {
   def empty[A]: AsyncVar[A] =
     new AsyncVar[A](NoPadding)
 
-  /** Builds an [[AsyncVar]] instance with an `initial`
-    * value and a given [[PaddingStrategy]] (for avoiding the
-    * false sharing problem).
+  /** Builds an [[AsyncVar]] instance with an `initial` value and a given
+    * [[monix.execution.atomic.PaddingStrategy PaddingStrategy]]
+    * (for avoiding the false sharing problem).
     */
   def withPadding[A](initial: A, ps: PaddingStrategy): AsyncVar[A] =
     new AsyncVar[A](initial, ps)
 
   /** Builds an empty [[AsyncVar]] instance with a given
-    * [[PaddingStrategy]] (for avoiding the false sharing problem).
+    * [[monix.execution.atomic.PaddingStrategy PaddingStrategy]]
+    * (for avoiding the false sharing problem).
     */
   def withPadding[A](ps: PaddingStrategy): AsyncVar[A] =
     new AsyncVar[A](ps)

@@ -838,8 +838,9 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     self.liftByOperator(new DoOnNextAckOperator[A](cb))
 
   /** Executes the given callback on each acknowledgement received from
-    * the downstream subscriber, executing a generated [[Task]] and
-    * back-pressuring until the task is done.
+    * the downstream subscriber, executing a generated
+    * [[monix.eval.Task Task]] and back-pressuring until the task
+    * is done.
     *
     * This method helps in executing logic after messages get
     * processed, for example when messages are polled from

@@ -99,12 +99,14 @@ object MVar {
     new AsyncMVarImpl[A](AsyncVar.empty)
 
   /** Builds an [[MVar]] instance with an `initial`  value and a given
-    * [[PaddingStrategy]] (for avoiding the false sharing problem).
+    * [[monix.execution.atomic.PaddingStrategy PaddingStrategy]]
+    * (for avoiding the false sharing problem).
     */
   def withPadding[A](initial: A, ps: PaddingStrategy): MVar[A] =
     new AsyncMVarImpl[A](AsyncVar.withPadding(initial, ps))
 
-  /** Builds an empty [[MVar]] instance with a given [[PaddingStrategy]]
+  /** Builds an empty [[MVar]] instance with a given
+    * [[monix.execution.atomic.PaddingStrategy PaddingStrategy]]
     * (for avoiding the false sharing problem).
     */
   def withPadding[A](ps: PaddingStrategy): MVar[A] =
