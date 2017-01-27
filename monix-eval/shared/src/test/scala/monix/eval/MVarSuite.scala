@@ -17,7 +17,9 @@
 
 package monix.eval
 
+import monix.execution.CancelableFuture
 import monix.execution.atomic.PaddingStrategy.LeftRight128
+
 import scala.util.Success
 
 object MVarSuite extends BaseTestSuite {
@@ -128,5 +130,71 @@ object MVarSuite extends BaseTestSuite {
     intercept[NullPointerException] {
       task.runSyncMaybe
     }
+  }
+
+  test("producer-consumer parallel loop") { implicit s =>
+    // Signaling option, because we need to detect completion
+    type Channel[A] = MVar[Option[A]]
+
+    def producer(ch: Channel[Int], list: List[Int]): Task[Unit] =
+      list match {
+        case Nil =>
+          ch.put(None) // we are done!
+        case head :: tail =>
+          // next please
+          ch.put(Some(head)).flatMap(_ => producer(ch, tail))
+      }
+
+    def consumer(ch: Channel[Int], sum: Long): Task[Long] =
+      ch.take.flatMap {
+        case Some(x) =>
+          // next please
+          consumer(ch, sum + x)
+        case None =>
+          Task.now(sum) // we are done!
+      }
+
+    val channel = MVar(Option(0))
+    val count = 1000000
+
+    val producerTask = producer(channel, (0 until count).toList).executeWithFork
+    val consumerTask = consumer(channel, 0L).executeWithFork
+
+    // Ensure they run in parallel
+    val sumTask = Task.mapBoth(producerTask, consumerTask)((_,sum) => sum)
+    // Evaluate
+    val f: CancelableFuture[Long] = sumTask.runAsync
+
+    s.tick()
+    assertEquals(f.value, Some(Success(count.toLong * (count - 1) / 2)))
+  }
+
+  test("stack overflow test") { implicit s =>
+    // Signaling option, because we need to detect completion
+    type Channel[A] = MVar[Option[A]]
+
+    def consumer(ch: Channel[Int], sum: Long): Task[Long] =
+      ch.take.flatMap {
+        case Some(x) =>
+          // next please
+          consumer(ch, sum + x)
+        case None =>
+          Task.now(sum) // we are done!
+      }
+
+    val channel = MVar(Option(0))
+    val count = 100000
+
+    val consumerTask = consumer(channel, 0L)
+
+    val tasks = for (i <- 0 until count) yield channel.put(Some(i))
+    val producerTask = Task.gather(tasks).flatMap(_ => channel.put(None))
+
+    val pf = producerTask.runAsync
+    val cf = consumerTask.runAsync
+
+    s.tick()
+    assertEquals(pf.value, Some(Success(())))
+    assertEquals(cf.value, Some(Success(count.toLong * (count - 1) / 2)))
   }
 }

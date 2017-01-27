@@ -72,7 +72,7 @@ trait SchedulerService extends Scheduler {
     *   import monix.execution.Scheduler.global
     *
     *   val wasTerminated =
-    *     Await.result(service.shutdown(30.seconds, global), Duration.Inf)
+    *     Await.result(service.awaitTermination(30.seconds, global), Duration.Inf)
     * }}}
     *
     * Given the asynchronous execution requirement, the `awaitOn` parameter
