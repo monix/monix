@@ -20,8 +20,6 @@ package monix.eval
 import monix.execution.atomic.PaddingStrategy
 import monix.execution.misc.AsyncVar
 
-import scala.util.control.NonFatal
-
 /** A mutable location, that is either empty or contains
   * a value of type `A`.
   *
@@ -115,27 +113,29 @@ object MVar {
   /** [[MVar]] implementation based on [[monix.execution.misc.AsyncVar]] */
   private final class AsyncMVarImpl[A](av: AsyncVar[A]) extends MVar[A] {
     def put(a: A): Task[Unit] =
-      Task.unsafeCreate { (context, cb) =>
+      Task.unsafeCreate { (context, callback) =>
+        implicit val s = context.scheduler
         // Execution could be synchronous
-        try if (av.unsafePut(a, cb)) cb.onSuccess(())
-        catch { case NonFatal(ex) => cb.onError(ex) }
+        if (av.unsafePut(a, callback)) callback.asyncOnSuccess(())
       }
 
     def take: Task[A] =
       Task.unsafeCreate { (context, callback) =>
+        implicit val s = context.scheduler
         // Execution could be synchronous (e.g. result is null or not)
         av.unsafeTake(callback) match {
           case null => () // do nothing
-          case a => callback.onSuccess(a)
+          case a => callback.asyncOnSuccess(a)
         }
       }
 
     def read: Task[A] =
       Task.unsafeCreate { (context, callback) =>
+        implicit val s = context.scheduler
         // Execution could be synchronous (e.g. result is null or not)
         av.unsafeRead(callback) match {
           case null => () // do nothing
-          case a => callback.onSuccess(a)
+          case a => callback.asyncOnSuccess(a)
         }
       }
   }
