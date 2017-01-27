@@ -1,3 +1,10 @@
+## Version 2.2.1 (Jan 27, 2017)
+
+Unfortunately we have to push an emergency fix:
+
+- [Issue #305](https://github.com/monix/monix/pull/305):
+  Fix stack-overflow error in `MVar`
+
 ## Version 2.2.0 (Jan 25, 2017)
 
 In addition to the changes from the `2.2.0-M1` milestone:
