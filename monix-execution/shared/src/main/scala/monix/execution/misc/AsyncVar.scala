@@ -180,7 +180,7 @@ final class AsyncVar[A] private (_ref: AtomicAny[AsyncVar.State[A]]) {
     *
     * This `read` operation is equivalent to:
     * {{{
-    *   for (a <- v.read; _ <- v.put(a)) yield a
+    *   for (a <- v.take; _ <- v.put(a)) yield a
     * }}}
     *
     * This operation is not atomic. Being equivalent with a `take`
@@ -208,7 +208,7 @@ final class AsyncVar[A] private (_ref: AtomicAny[AsyncVar.State[A]]) {
     *
     * This `read` operation is equivalent to:
     * {{{
-    *   for (a <- v.read; _ <- v.put(a)) yield a
+    *   for (a <- v.take; _ <- v.put(a)) yield a
     * }}}
     *
     * This operation is not atomic. Being equivalent with a `take`
