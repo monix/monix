@@ -184,7 +184,7 @@ final class PublishSubject[T] private () extends Subject[T,T] { self =>
     val subscribers = state.subscribers
 
     if (subscribers eq null) Continue else {
-      val update = State(subscribers.filterNot(_ == subscriber))
+      val update = State(subscribers = subscribers - subscriber)
       if (!stateRef.compareAndSet(state, update))
         unsubscribe(subscriber) // retry
       else
