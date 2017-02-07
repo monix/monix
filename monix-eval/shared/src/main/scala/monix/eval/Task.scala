@@ -588,7 +588,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
       case ref: MemoizeSuspend[_] if ref.isCachingAll =>
         self
       case other =>
-        new MemoizeSuspend[A](() => other, cacheAll = true)
+        new MemoizeSuspend[A](() => other, cacheErrors = true)
     }
 
   /** Memoizes (cache) the successful result of the source task
@@ -611,7 +611,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
       case ref: MemoizeSuspend[_] =>
         self
       case other =>
-        new MemoizeSuspend[A](() => other, cacheAll = false)
+        new MemoizeSuspend[A](() => other, cacheErrors = false)
     }
 
   /** Converts a [[Task]] to an `org.reactivestreams.Publisher` that
@@ -1301,12 +1301,15 @@ object Task extends TaskInstances {
     * given [[Task]] and upon execution memoize its result to
     * be available for later evaluations.
     */
-  private final class MemoizeSuspend[A](f: () => Task[A], cacheAll: Boolean) extends Task[A] {
+  private final class MemoizeSuspend[A](f: () => Task[A], cacheErrors: Boolean) extends Task[A] {
     private[this] var thunk: () => Task[A] = f
     private[this] val state = Atomic(null : AnyRef)
 
+    /* Constructor provided for keeping binary backwards compatibility. */
+    def this(f: () => Task[A]) = this(f, cacheErrors = true)
+
     def isCachingAll: Boolean =
-      cacheAll
+      cacheErrors
 
     def value: Option[Try[A]] =
       state.get match {
@@ -1344,7 +1347,7 @@ object Task extends TaskInstances {
     private def memoizeValue(value: Try[A]): Unit = {
       // Should we cache everything, error results as well,
       // or only successful results?
-      if (cacheAll || value.isSuccess) {
+      if (cacheErrors || value.isSuccess) {
         state.getAndSet(value) match {
           case (p: Promise[_], _) =>
             p.asInstanceOf[Promise[A]].complete(value)

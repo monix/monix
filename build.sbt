@@ -9,6 +9,11 @@ import scala.xml.transform.{RewriteRule, RuleTransformer}
 val catsVersion = "0.9.0"
 val scalazVersion = "7.2.8"
 
+// The Monix version with which we must keep binary compatibility.
+// For MiMa testing, see:
+// https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
+val monixSeries = "2.2.0"
+
 lazy val doNotPublishArtifact = Seq(
   publishArtifact := false,
   publishArtifact in (Compile, packageDoc) := false,
@@ -265,6 +270,9 @@ lazy val scalaJSSettings = Seq(
 lazy val cmdlineProfile =
   sys.props.getOrElse("sbt.profile", default = "")
 
+def mimaSettings(projectName: String) =
+  Seq(mimaPreviousArtifacts := Set("io.monix" %% projectName % monixSeries))
+
 def profile: Project ⇒ Project = pr => cmdlineProfile match {
   case "coverage" => pr
   case _ => pr.disablePlugins(scoverage.ScoverageSbtPlugin)
@@ -304,6 +312,7 @@ lazy val typesCommon = crossSettings ++ testSettings ++
 lazy val typesJVM = project.in(file("monix-types/jvm"))
   .configure(profile)
   .settings(typesCommon)
+  .settings(mimaSettings("monix-types"))
 
 lazy val typesJS = project.in(file("monix-types/js"))
   .enablePlugins(ScalaJSPlugin)
@@ -322,6 +331,7 @@ lazy val executionJVM = project.in(file("monix-execution/jvm"))
   .settings(requiredMacroCompatDeps)
   .settings(executionCommon)
   .settings(libraryDependencies += "org.reactivestreams" % "reactive-streams" % "1.0.0")
+  .settings(mimaSettings("monix-execution"))
 
 lazy val executionJS = project.in(file("monix-execution/js"))
   .enablePlugins(ScalaJSPlugin)
@@ -342,6 +352,7 @@ lazy val evalJVM = project.in(file("monix-eval/jvm"))
   .dependsOn(typesJVM % "compile->compile; test->test")
   .dependsOn(executionJVM)
   .settings(evalCommon)
+  .settings(mimaSettings("monix-eval"))
 
 lazy val evalJS = project.in(file("monix-eval/js"))
   .enablePlugins(ScalaJSPlugin)
@@ -362,6 +373,7 @@ lazy val reactiveJVM = project.in(file("monix-reactive/jvm"))
   .dependsOn(executionJVM, evalJVM)
   .settings(reactiveCommon)
   .settings(libraryDependencies += "org.jctools" % "jctools-core" % "2.0")
+  .settings(mimaSettings("monix-reactive"))
 
 lazy val reactiveJS = project.in(file("monix-reactive/js"))
   .enablePlugins(ScalaJSPlugin)
@@ -385,6 +397,7 @@ lazy val catsJVM = project.in(file("monix-cats/jvm"))
   .dependsOn(typesJVM)
   .dependsOn(reactiveJVM % Test)
   .settings(catsCommon)
+  .settings(mimaSettings("monix-cats"))
 
 lazy val catsJS = project.in(file("monix-cats/js"))
   .enablePlugins(ScalaJSPlugin)
@@ -407,6 +420,7 @@ lazy val scalaz72JVM = project.in(file("monix-scalaz/series-7.2/jvm"))
   .dependsOn(typesJVM)
   .dependsOn(reactiveJVM % Test)
   .settings(scalaz72Common)
+  .settings(mimaSettings("monix-scalaz-72"))
 
 lazy val scalaz72JS = project.in(file("monix-scalaz/series-7.2/js"))
   .enablePlugins(ScalaJSPlugin)
