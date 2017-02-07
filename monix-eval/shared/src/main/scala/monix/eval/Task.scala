@@ -1077,6 +1077,59 @@ object Task extends TaskInstances {
     zipMap2(fa12345, fa6) { case ((a1,a2,a3,a4,a5), a6) => f(a1,a2,a3,a4,a5,a6) }
   }
 
+  /** Create a new task that upon evaluation will continuously execute a periodic task
+    * that becomes enabled first after the given `initialDelay`, and subsequently with the
+    * given `period`. Executions will commence after `initialDelay` then
+    * `initialDelay + period`, then `initialDelay + 2 * period` and so on.
+    *
+    * Similar with
+    * [[monix.execution.Scheduler.scheduleAtFixedRate Scheduler.scheduleAtFixedRate]],
+    * but this one works with [[Task]].
+    *
+    * If any execution of the task encounters an exception, subsequent executions
+    * are suppressed. Otherwise, the task will only terminate via cancellation or
+    * termination of the scheduler. If any execution of this task takes longer
+    * than its period, then subsequent executions may start late, but will not
+    * concurrently execute.
+    *
+    * The resulting task will execute forever, never completing with an `onSuccess`,
+    * however it can terminate with an `onError` or it be canceled.
+    *
+    * @see [[repeatWithFixedDelay]] for executing with a fixed delay between
+    *     subsequent executions.
+    *
+    * @param initialDelay is the time to wait until the first execution happens
+    * @param period is the time to wait between 2 successive executions of the task
+    * @param task is the task to be executed periodically
+    * @return a new task that upon evaluation will periodically execute the given task
+    */
+  def repeatAtFixedRate(initialDelay: FiniteDuration, period: FiniteDuration, task: Task[_]): Task[Nothing] =
+    TaskRepeat.atFixedRate(initialDelay, period, task)
+
+  /** Create a new task that upon evaluation will continuously execute the given
+    * task, starting after the given `initialDelay` and subsequently with the given
+    * `delay` between the termination of one execution and the
+    * commencement of the next.
+    *
+    * Similar with
+    * [[monix.execution.Scheduler.scheduleWithFixedDelay Scheduler.scheduleWithFixedDelay]],
+    * but this one works with [[Task]].
+    *
+    * If any execution of the task encounters an exception, subsequent executions
+    * are suppressed. Otherwise, the task will only terminate via cancellation or
+    * termination of the scheduler.
+    *
+    * @see [[repeatAtFixedRate]] for taking the execution time into account and
+    *     trying to compensate for it.
+    *
+    * @param initialDelay is the time to wait until the first execution happens
+    * @param delay is the time to wait between 2 successive executions of the task
+    * @param task is the task to be executed periodically
+    * @return a new task that upon evaluation will periodically execute the given task
+    */
+  def repeatWithFixedDelay(initialDelay: FiniteDuration, delay: FiniteDuration, task: Task[_]): Task[Nothing] =
+    TaskRepeat.withFixedDelay(initialDelay, delay, task)
+
   /** A run-loop frame index is a number representing the current run-loop
     * cycle, being incremented whenever a `flatMap` evaluation happens.
     *
