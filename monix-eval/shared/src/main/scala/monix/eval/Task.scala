@@ -27,7 +27,6 @@ import monix.execution.internal.collection.ArrayStack
 import monix.execution.misc.ThreadLocal
 import monix.execution.{Cancelable, CancelableFuture, ExecutionModel, Scheduler}
 import monix.types._
-
 import scala.annotation.tailrec
 import scala.collection.generic.CanBuildFrom
 import scala.collection.mutable
@@ -565,12 +564,20 @@ sealed abstract class Task[+A] extends Serializable { self =>
   def onErrorRecover[U >: A](pf: PartialFunction[Throwable, U]): Task[U] =
     onErrorRecoverWith(pf.andThen(now))
 
-  /** Memoizes the result on the computation and reuses it on subsequent
-    * invocations of `runAsync`.
+  /** Memoizes (caches) the result of the source task and reuses it on
+    * subsequent invocations of `runAsync`.
+    *
+    * The resulting task will be idempotent, meaning that
+    * evaluating the resulting task multiple times will have the
+    * same effect as evaluating it once.
+    *
+    * @see [[memoizeOnSuccess]] for a version that only caches
+    *     successful results
     */
   def memoize: Task[A] =
     self match {
-      case Now(_) | Error(_) => self
+      case Now(_) | Error(_) =>
+        self
       case Eval(f) =>
         f match {
           case _:Coeval.Once[_] => self
@@ -578,10 +585,33 @@ sealed abstract class Task[+A] extends Serializable { self =>
             val coeval = Coeval.Once(f)
             Eval(coeval)
         }
-      case _: MemoizeSuspend[_] =>
+      case ref: MemoizeSuspend[_] if ref.isCachingAll =>
         self
       case other =>
-        new MemoizeSuspend[A](() => other)
+        new MemoizeSuspend[A](() => other, cacheAll = true)
+    }
+
+  /** Memoizes (cache) the successful result of the source task
+    * and reuses it on subsequent invocations of `runAsync`.
+    * Thrown exceptions are not cached.
+    *
+    * The resulting task will be idempotent, but only if the
+    * result is successful.
+    *
+    * @see [[memoize]] for a version that caches both successful
+    *     results and failures
+    */
+  def memoizeOnSuccess: Task[A] =
+    self match {
+      case Now(_) | Error(_) =>
+        self
+      case Eval(f) =>
+        val lf = LazyOnSuccess(f)
+        if (lf eq f) self else Eval(lf)
+      case ref: MemoizeSuspend[_] =>
+        self
+      case other =>
+        new MemoizeSuspend[A](() => other, cacheAll = false)
     }
 
   /** Converts a [[Task]] to an `org.reactivestreams.Publisher` that
@@ -1271,9 +1301,12 @@ object Task extends TaskInstances {
     * given [[Task]] and upon execution memoize its result to
     * be available for later evaluations.
     */
-  private final class MemoizeSuspend[A](f: () => Task[A]) extends Task[A] {
+  private final class MemoizeSuspend[A](f: () => Task[A], cacheAll: Boolean) extends Task[A] {
     private[this] var thunk: () => Task[A] = f
     private[this] val state = Atomic(null : AnyRef)
+
+    def isCachingAll: Boolean =
+      cacheAll
 
     def value: Option[Try[A]] =
       state.get match {
@@ -1309,15 +1342,32 @@ object Task extends TaskInstances {
       }
 
     private def memoizeValue(value: Try[A]): Unit = {
-      state.getAndSet(value) match {
-        case (p: Promise[_], _) =>
-          p.asInstanceOf[Promise[A]].complete(value)
-        case _ =>
-          () // do nothing
+      // Should we cache everything, error results as well,
+      // or only successful results?
+      if (cacheAll || value.isSuccess) {
+        state.getAndSet(value) match {
+          case (p: Promise[_], _) =>
+            p.asInstanceOf[Promise[A]].complete(value)
+          case _ =>
+            () // do nothing
+        }
+        // GC purposes
+        thunk = null
+      } else {
+        // Error happened and we are not caching errors!
+        val current = state.get
+        // Resetting the state to `null` will trigger the
+        // execution again on next `runAsync`
+        if (state.compareAndSet(current, null))
+          current match {
+            case (p: Promise[_], _) =>
+              p.asInstanceOf[Promise[A]].complete(value)
+            case _ =>
+              () // do nothing
+          }
+        else
+          memoizeValue(value) // retry
       }
-
-      // GC purposes
-      thunk = null
     }
 
     @tailrec def execute(context: Context, cb: Callback[A], bindCurrent: Bind, bindRest: CallStack,

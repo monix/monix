@@ -19,6 +19,8 @@ package monix.eval
 
 import monix.types._
 import monix.eval.Coeval._
+import monix.eval.internal.LazyOnSuccess
+
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.collection.generic.CanBuildFrom
@@ -268,18 +270,49 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
   def onErrorRecover[U >: A](pf: PartialFunction[Throwable, U]): Coeval[U] =
     onErrorRecoverWith(pf.andThen(Coeval.now))
 
-  /** Memoizes the result on the computation and reuses it on subsequent
-    * invocations of `runAsync`.
+  /** Memoizes (caches) the result of the source and reuses it on
+    * subsequent invocations of `value`.
+    *
+    * The resulting coeval will be idempotent, meaning that
+    * evaluating the resulting coeval multiple times will have the
+    * same effect as evaluating it once.
+    *
+    * @see [[memoizeOnSuccess]] for a version that only caches
+    *     successful results
     */
   def memoize: Coeval[A] =
     self match {
-      case ref @ Now(_) => ref
-      case error @ Error(_) => error
+      case Now(_) | Error(_) =>
+        self
       case Always(thunk) =>
         new Once[A](thunk)
-      case _: Once[_] => self
+      case _: Once[_] =>
+        self
       case other =>
         new Once[A](() => other.value)
+    }
+
+  /** Memoizes (cache) the successful result of the source
+    * and reuses it on subsequent invocations of `value`.
+    * Thrown exceptions are not cached.
+    *
+    * The resulting coeval will be idempotent, but only if the
+    * result is successful.
+    *
+    * @see [[memoize]] for a version that caches both successful
+    *     results and failures
+    */
+  def memoizeOnSuccess: Coeval[A] =
+    self match {
+      case Now(_) | Error(_) =>
+        self
+      case Always(thunk) =>
+        val lf = LazyOnSuccess(thunk)
+        if (lf eq thunk) self else Always(lf)
+      case _: Once[_] =>
+        self
+      case other =>
+        Always[A](LazyOnSuccess(() => other.value))
     }
 
   /** Returns a new `Coeval` in which `f` is scheduled to be run on completion.
