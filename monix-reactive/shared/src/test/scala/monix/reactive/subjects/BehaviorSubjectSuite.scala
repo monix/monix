@@ -155,4 +155,17 @@ object BehaviorSubjectSuite extends BaseSubjectSuite {
     assertEquals(future2.value, Some(Success(Some(20))))
     assertEquals(subject.size, 0)
   }
+
+  test("unsubscribe after onComplete") { implicit s =>
+    var result: Int = 0
+    val subject = BehaviorSubject[Int](0)
+    val c = subject.subscribe { e => result = e; Continue }
+
+    subject.onNext(1)
+    subject.onComplete()
+
+    s.tick()
+    c.cancel()
+    assertEquals(result, 1)
+  }
 }

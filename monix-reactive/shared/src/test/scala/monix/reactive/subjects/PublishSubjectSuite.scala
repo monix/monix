@@ -186,4 +186,17 @@ object PublishSubjectSuite extends BaseSubjectSuite {
     assertEquals(elemsReceived, 10)
     assertEquals(errorsReceived, 11)
   }
+
+  test("unsubscribe after onComplete") { implicit s =>
+    var result: Int = 0
+    val subject = PublishSubject[Int]()
+    val c = subject.subscribe { e => result = e; Continue }
+
+    subject.onNext(1)
+    subject.onComplete()
+
+    s.tick()
+    c.cancel()
+    assertEquals(result, 1)
+  }
 }

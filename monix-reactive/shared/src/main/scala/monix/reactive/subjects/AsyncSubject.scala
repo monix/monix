@@ -119,9 +119,11 @@ final class AsyncSubject[T] extends Subject[T,T] { self =>
 
   @tailrec private def unsubscribe(s: Subscriber[T]): Unit = {
     val current = stateRef.get
-    val update = current.copy(subscribers = current.subscribers - s)
-    if (!stateRef.compareAndSet(current, update))
-      unsubscribe(s)
+    if (current.subscribers ne null) {
+      val update = current.copy(subscribers = current.subscribers - s)
+      if (!stateRef.compareAndSet(current, update))
+        unsubscribe(s) // retry
+    }
   }
 }
 

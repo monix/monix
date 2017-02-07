@@ -205,4 +205,17 @@ object AsyncSubjectSuite extends BaseSubjectSuite {
     assertEquals(elemsReceived, 0)
     assertEquals(errorsReceived, 11)
   }
+
+  test("unsubscribe after onComplete") { implicit s =>
+    var result: Int = 0
+    val subject = AsyncSubject[Int]()
+    val c = subject.subscribe { e => result = e; Continue }
+
+    subject.onNext(1)
+    subject.onComplete()
+
+    s.tick()
+    c.cancel()
+    assertEquals(result, 1)
+  }
 }
