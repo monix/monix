@@ -348,7 +348,7 @@ object Coeval {
   def apply[A](f: => A): Coeval[A] =
     Always(f _)
 
-  /** Returns an `Coeval` that on execution is always successful, emitting
+  /** Returns a `Coeval` that on execution is always successful, emitting
     * the given strict value.
     */
   def now[A](a: A): Coeval[A] = Now(a)
@@ -356,7 +356,7 @@ object Coeval {
   /** Lifts a value into the coeval context. Alias for [[now]]. */
   def pure[A](a: A): Coeval[A] = Now(a)
 
-  /** Returns an `Coeval` that on execution is always finishing in error
+  /** Returns a `Coeval` that on execution is always finishing in error
     * emitting the specified exception.
     */
   def raiseError[A](ex: Throwable): Coeval[A] =
@@ -376,7 +376,7 @@ object Coeval {
     */
   def evalOnce[A](a: => A): Coeval[A] = Once(a _)
 
-  /** Promote a non-strict value to an `Coeval`, catching exceptions in the
+  /** Promote a non-strict value to a `Coeval`, catching exceptions in the
     * process.
     *
     * Note that since `Coeval` is not memoized, this will recompute the
