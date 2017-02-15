@@ -503,7 +503,7 @@ object Coeval {
 
   /** The `Attempt` represents a strict, already evaluated result
     * of a [[Coeval]] that either resulted in success, wrapped in a
-    * [[Now]], or in an error, wrapped in a [[Error]].
+    * [[Now]], or in an error, wrapped in an [[Error]].
     *
     * It's the moral equivalent of `scala.util.Try`.
     */
