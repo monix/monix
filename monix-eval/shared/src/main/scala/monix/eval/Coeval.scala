@@ -394,6 +394,20 @@ object Coeval {
   def fromTry[A](a: Try[A]): Coeval[A] =
     Attempt.fromTry(a)
 
+  /** Aquires a `Closeable` and closes it after the `Coeval` has been run.
+    */
+  def bracket[R <: java.io.Closeable](aquire: => R): Coeval[R] = defer {
+    val resource: R = aquire
+    now(resource).doOnFinish(_ => delay(resource.close))
+  }
+
+  /** Aquires a resource and closes it after the `Coeval` has been run.
+    */
+  def bracket[R](aquire: => R, close: R => Unit): Coeval[R] = defer {
+    val resource: R = aquire
+    now(resource).doOnFinish(_ => delay(close(resource)))
+  }
+
   /** Keeps calling `f` until it returns a `Right` result.
     *
     * Based on Phil Freeman's

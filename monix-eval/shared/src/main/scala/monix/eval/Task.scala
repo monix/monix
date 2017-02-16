@@ -883,6 +883,16 @@ object Task extends TaskInstances {
   def fromFuture[A](f: Future[A]): Task[A] =
     TaskFromFuture(f)
 
+  /** Aquires a `Closeable` and closes it after the `Task` has been run.
+    */
+  def bracket[R <: java.io.Closeable](aquire: => R): Task[R] =
+    Coeval.bracket(aquire).task
+
+  /** Aquires a resource and closes it after the `Task` has been run.
+    */
+  def bracket[R](aquire: => R, close: R => Unit): Task[R] =
+    Coeval.bracket(aquire, close).task
+
   /** Creates a `Task` that upon execution will execute both given tasks
     * (possibly in parallel in case the tasks are asynchronous) and will
     * return the result of the task that manages to complete first,
@@ -1271,11 +1281,11 @@ object Task extends TaskInstances {
     *
     * @param scheduler is the [[monix.execution.Scheduler Scheduler]]
     *        in charge of evaluation on `runAsync`.
-    * 
+    *
     * @param connection is the
-    *        [[monix.execution.cancelables.StackedCancelable StackedCancelable]] 
+    *        [[monix.execution.cancelables.StackedCancelable StackedCancelable]]
     *        that handles the cancellation on `runAsync`
-    * 
+    *
     * @param frameRef is a thread-local counter that keeps track
     *        of the current frame index of the run-loop. The run-loop
     *        is supposed to force an asynchronous boundary upon
