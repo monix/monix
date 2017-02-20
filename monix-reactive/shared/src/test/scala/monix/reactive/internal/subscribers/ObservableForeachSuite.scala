@@ -18,7 +18,7 @@
 package monix.reactive.internal.subscribers
 
 import monix.execution.ExecutionModel.SynchronousExecution
-import monix.reactive.exceptions.DummyException
+import monix.execution.exceptions.DummyException
 import monix.reactive.{BaseLawsTestSuite, Observable}
 
 import scala.util.{Failure, Success}

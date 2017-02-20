@@ -18,7 +18,7 @@
 package monix.execution
 
 import minitest.TestSuite
-import monix.execution.misc.InlineMacrosTest.DummyException
+import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
 import scala.concurrent.duration._
 import scala.concurrent.{Future, Promise}

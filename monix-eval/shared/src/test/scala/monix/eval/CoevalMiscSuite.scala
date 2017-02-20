@@ -17,6 +17,8 @@
 
 package monix.eval
 
+import monix.execution.exceptions.DummyException
+
 import scala.util.{Failure, Random, Success}
 
 object CoevalMiscSuite extends BaseTestSuite {

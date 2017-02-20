@@ -23,9 +23,9 @@ import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution._
 import monix.reactive.Observable
-import monix.reactive.exceptions.MultipleSubscribersException
 import monix.reactive.observers.Subscriber
 import monix.execution.atomic.Atomic
+import monix.reactive.exceptions.MultipleSubscribersException
 
 import scala.annotation.tailrec
 import scala.concurrent.{Future, blocking}
@@ -45,7 +45,7 @@ private[reactive] final class LinesReaderObservable(reader: Reader)
 
   def unsafeSubscribeFn(out: Subscriber[String]): Cancelable = {
     if (wasSubscribed.getAndSet(true)) {
-      out.onError(new MultipleSubscribersException("LinesReaderObservable"))
+      out.onError(MultipleSubscribersException.build("LinesReaderObservable"))
       Cancelable.empty
     }
     else {

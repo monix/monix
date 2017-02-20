@@ -22,7 +22,7 @@ import monix.execution.Cancelable
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
 import monix.reactive.OverflowStrategy.Unbounded
-import monix.reactive.exceptions.DummyException
+import monix.execution.exceptions.DummyException
 import scala.util.Success
 
 object CreateObservableSuite extends TestSuite[TestScheduler] {

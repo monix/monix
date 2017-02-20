@@ -25,7 +25,7 @@ import monix.execution.schedulers.TestScheduler
 import monix.execution.{Ack, Scheduler}
 import monix.reactive.Observer
 import monix.reactive.OverflowStrategy.DropNewAndSignal
-import monix.reactive.exceptions.DummyException
+import monix.execution.exceptions.DummyException
 import scala.concurrent.Promise
 
 object OverflowStrategyDropNewAndSignalSuite extends TestSuite[TestScheduler] {

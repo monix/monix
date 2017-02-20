@@ -255,7 +255,7 @@ private[monix] object SyncBufferedSubscriber {
   def bounded[T](underlying: Subscriber[T], bufferSize: Int): Subscriber.Sync[T] = {
     require(bufferSize > 1, "bufferSize must be strictly higher than 1")
     val buffer = ArrayQueue.bounded[T](bufferSize, capacity => {
-      new BufferOverflowException(
+      BufferOverflowException.build(
         s"Downstream observer is too slow, buffer over capacity with a " +
           s"specified buffer size of $bufferSize")
     })

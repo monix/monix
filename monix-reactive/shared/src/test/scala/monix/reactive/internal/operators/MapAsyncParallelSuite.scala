@@ -20,7 +20,7 @@ package monix.reactive.internal.operators
 import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.internal.Platform
-import monix.reactive.exceptions.DummyException
+import monix.execution.exceptions.DummyException
 import monix.reactive.{Observable, Observer}
 import scala.concurrent.Promise
 import scala.concurrent.duration._

@@ -20,7 +20,7 @@ package monix.reactive.internal.operators
 import minitest.TestSuite
 import monix.execution.Ack.{Stop, Continue}
 import monix.execution.schedulers.TestScheduler
-import monix.reactive.exceptions.DummyException
+import monix.execution.exceptions.DummyException
 import monix.reactive.{Observable, Observer}
 import scala.concurrent.{Future, CancellationException}
 import scala.concurrent.duration._

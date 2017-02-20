@@ -281,7 +281,7 @@ private[reactive] final class ConcatMapObservable[A, B]
       if (!delayErrors) out.onComplete() else
         this.errors.get match {
           case Nil => out.onComplete()
-          case list => out.onError(CompositeException(list))
+          case list => out.onError(CompositeException.build(list))
         }
     }
 

@@ -22,7 +22,7 @@ import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.{Atomic, AtomicInt, AtomicLong}
 import monix.execution.cancelables.{AssignableCancelable, BooleanCancelable, CompositeCancelable}
 import monix.execution.{Ack, Cancelable, Scheduler}
-import monix.reactive.exceptions.DummyException
+import monix.execution.exceptions.DummyException
 import monix.reactive.observers.Subscriber
 import monix.reactive.{BaseLawsTestSuite, Consumer, Observable, Observer}
 import scala.concurrent.{Future, Promise}

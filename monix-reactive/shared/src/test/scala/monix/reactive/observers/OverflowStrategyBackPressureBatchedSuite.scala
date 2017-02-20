@@ -21,7 +21,7 @@ import minitest.TestSuite
 import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.schedulers.TestScheduler
-import monix.reactive.exceptions.DummyException
+import monix.execution.exceptions.DummyException
 import scala.concurrent.{Future, Promise}
 import scala.util.Success
 

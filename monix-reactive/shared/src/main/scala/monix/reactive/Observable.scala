@@ -569,7 +569,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
   *         Therefore only a single subscriber is supported, the result being
   *         a single-subscriber observable. If multiple subscribers are attempted,
   *         all subscribers, except for the first one, will be terminated with a
-  *         [[monix.reactive.exceptions.MultipleSubscribersException MultipleSubscribersException]].
+  *         [[monix.execution.exceptions.APIContractViolationException APIContractViolationException]].
   *
   *         Therefore, if you need a factory of data sources, from a cold source
   *         from which you can open how many iterators you want,
@@ -585,7 +585,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
   *         Therefore only a single subscriber is supported, the result being
   *         a single-subscriber observable. If multiple subscribers are attempted,
   *         all subscribers, except for the first one, will be terminated with a
-  *         [[monix.reactive.exceptions.MultipleSubscribersException MultipleSubscribersException]].
+  *         [[monix.execution.exceptions.APIContractViolationException APIContractViolationException]].
   *
   *         Therefore, if you need a factory of data sources, from a cold source such
   *         as a `java.io.File` from which you can open how many file handles you want,
@@ -601,7 +601,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
   *         Therefore only a single subscriber is supported, the result being
   *         a single-subscriber observable. If multiple subscribers are attempted,
   *         all subscribers, except for the first one, will be terminated with a
-  *         [[monix.reactive.exceptions.MultipleSubscribersException MultipleSubscribersException]].
+  *         [[monix.execution.exceptions.APIContractViolationException APIContractViolationException]].
   *
   *         Therefore, if you need a factory of data sources, from a cold source such
   *         as a `java.io.File` from which you can open how many file handles you want,
@@ -853,7 +853,7 @@ object Observable {
     * Therefore only a single subscriber is supported, the result being
     * a single-subscriber observable. If multiple subscribers are attempted,
     * all subscribers, except for the first one, will be terminated with a
-    * [[monix.reactive.exceptions.MultipleSubscribersException MultipleSubscribersException]].
+    * [[monix.execution.exceptions.APIContractViolationException APIContractViolationException]].
     *
     * Therefore, if you need a factory of data sources, from a cold source such
     * as a `java.io.File` from which you can open how many file handles you want,

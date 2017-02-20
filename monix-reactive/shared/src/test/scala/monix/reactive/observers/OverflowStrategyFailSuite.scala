@@ -20,11 +20,13 @@ package monix.reactive.observers
 import minitest.TestSuite
 import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
+import monix.execution.exceptions.BufferOverflowException
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observer
 import monix.reactive.OverflowStrategy.Fail
-import monix.reactive.exceptions.{BufferOverflowException, DummyException}
+import monix.execution.exceptions.DummyException
+
 import scala.concurrent.{Future, Promise}
 
 object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {

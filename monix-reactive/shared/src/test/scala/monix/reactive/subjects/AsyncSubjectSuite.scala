@@ -18,8 +18,8 @@
 package monix.reactive.subjects
 
 import monix.execution.Ack.Continue
+import monix.execution.exceptions.DummyException
 import monix.reactive.Observer
-import monix.reactive.exceptions.DummyException
 
 object AsyncSubjectSuite extends BaseSubjectSuite {
   def alreadyTerminatedTest(expectedElems: Seq[Long]) = {

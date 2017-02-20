@@ -83,7 +83,7 @@ private[reactive] final class GroupByOperator[A,K](
                   case Stop =>
                     val errors = completeAll()
                     if (errors.nonEmpty)
-                      self.onError(CompositeException(errors))
+                      self.onError(CompositeException.build(errors))
                     Stop
                 }
               else
@@ -124,7 +124,7 @@ private[reactive] final class GroupByOperator[A,K](
           isDone = true
           val errors = completeAll()
           if (errors.nonEmpty)
-            downstream.onError(CompositeException(ex +: errors))
+            downstream.onError(CompositeException.build(ex +: errors))
           else
             downstream.onError(ex)
         }
@@ -135,7 +135,7 @@ private[reactive] final class GroupByOperator[A,K](
           isDone = true
           val errors = completeAll()
           if (errors.nonEmpty)
-            downstream.onError(CompositeException(errors))
+            downstream.onError(CompositeException.build(errors))
           else
             downstream.onComplete()
         }

@@ -22,7 +22,7 @@ import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.FutureUtils.extensions._
 import monix.execution.schedulers.TestScheduler
-import monix.reactive.exceptions.DummyException
+import monix.execution.exceptions.DummyException
 import monix.reactive.{Observable, Observer}
 import scala.concurrent.Future
 import scala.concurrent.duration._

@@ -143,7 +143,7 @@ class FlatScanObservable[A,R](
           if (!isDone) {
             isDone = true
             if (delayErrors && errors.nonEmpty)
-              out.onError(CompositeException(errors))
+              out.onError(CompositeException.build(errors))
             else
               out.onComplete()
           }

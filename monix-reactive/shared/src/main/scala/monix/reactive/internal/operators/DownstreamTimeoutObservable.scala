@@ -108,7 +108,7 @@ private[reactive] final class DownstreamTimeoutObservable[+A](
       def triggerTimeout(): Unit = self.synchronized {
         if (!isDone) {
           isDone = true
-          val ex = DownstreamTimeoutException(timeout)
+          val ex = DownstreamTimeoutException.build(timeout)
           try downstream.onError(ex) finally
             mainTask.cancel()
         }

@@ -18,9 +18,9 @@
 package monix.reactive.consumers
 
 import minitest.TestSuite
+import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Notification.{OnComplete, OnError, OnNext}
-import monix.reactive.exceptions.DummyException
 import monix.reactive.{Consumer, Observable}
 import scala.util.Success
 

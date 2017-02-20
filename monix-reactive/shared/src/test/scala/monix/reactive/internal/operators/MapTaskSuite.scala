@@ -22,7 +22,7 @@ import monix.execution.Ack.Continue
 import monix.execution.FutureUtils.extensions._
 import monix.execution.Scheduler
 import monix.reactive.{Observable, Observer}
-import monix.reactive.exceptions.DummyException
+import monix.execution.exceptions.DummyException
 import scala.concurrent.duration._
 import scala.concurrent.{Future, Promise}
 import scala.util.Random

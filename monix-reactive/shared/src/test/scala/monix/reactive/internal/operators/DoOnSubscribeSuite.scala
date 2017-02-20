@@ -21,7 +21,7 @@ import minitest.TestSuite
 import monix.execution.Ack.Continue
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.{Observable, Observer}
-import monix.reactive.exceptions.DummyException
+import monix.execution.exceptions.DummyException
 
 object DoOnSubscribeSuite extends TestSuite[TestScheduler] {
   def setup(): TestScheduler = TestScheduler()

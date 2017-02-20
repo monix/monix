@@ -18,8 +18,8 @@
 package monix.reactive.internal.operators
 
 import monix.reactive.Observable
-import monix.reactive.exceptions.DummyException
 import monix.execution.atomic.Atomic
+import monix.execution.exceptions.DummyException
 import scala.concurrent.duration.{Duration, _}
 
 object OnErrorRetryIfSuite extends BaseOperatorSuite {
@@ -29,7 +29,7 @@ object OnErrorRetryIfSuite extends BaseOperatorSuite {
 
     val o = Observable.range(0, sourceCount).endWithError(ex)
       .onErrorRestartIf { case DummyException("expected") => retriesCount.incrementAndGet() <= 3 }
-      .onErrorHandle { case _ => 10L }
+      .onErrorHandle(_ => 10L)
 
     val count = sourceCount * 4 + 1
     val sum = 1L * sourceCount * (sourceCount-1) / 2 * 4 + 10
@@ -43,9 +43,8 @@ object OnErrorRetryIfSuite extends BaseOperatorSuite {
     } else {
       val retriesCount = Atomic(0)
 
-      val o = Observable.range(0, sourceCount).endWithError(ex).onErrorRestartIf {
-        case _ => retriesCount.incrementAndGet() <= 3
-      }
+      val o = Observable.range(0, sourceCount).endWithError(ex)
+        .onErrorRestartIf(_ => retriesCount.incrementAndGet() <= 3)
 
       val count = sourceCount * 4
       val sum = 1L * sourceCount * (sourceCount-1) / 2 * 4

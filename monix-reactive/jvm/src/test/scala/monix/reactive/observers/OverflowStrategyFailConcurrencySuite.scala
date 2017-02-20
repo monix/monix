@@ -21,11 +21,11 @@ import java.util.concurrent.{CountDownLatch, TimeUnit}
 
 import minitest.TestSuite
 import monix.execution.{Ack, Scheduler}
-import monix.reactive.{OverflowStrategy, Observer}
-import monix.execution.Ack.{Stop, Continue}
+import monix.reactive.{Observer, OverflowStrategy}
+import monix.execution.Ack.{Continue, Stop}
 import OverflowStrategy.Fail
-import monix.reactive.exceptions.{DummyException, BufferOverflowException}
-
+import monix.execution.exceptions.BufferOverflowException
+import monix.execution.exceptions.DummyException
 import scala.concurrent.{Future, Promise}
 
 

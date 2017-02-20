@@ -17,7 +17,7 @@
 
 package monix.reactive.consumers
 
-import monix.reactive.exceptions.DummyException
+import monix.execution.exceptions.DummyException
 import monix.reactive.{BaseLawsTestSuite, Consumer, Observable}
 import scala.util.Failure
 

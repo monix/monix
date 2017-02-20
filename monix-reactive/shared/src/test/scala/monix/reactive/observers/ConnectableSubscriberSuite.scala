@@ -22,7 +22,7 @@ import minitest.TestSuite
 import monix.execution.Ack.Continue
 import monix.execution.Scheduler
 import monix.execution.schedulers.TestScheduler
-import monix.reactive.exceptions.DummyException
+import monix.execution.exceptions.DummyException
 import monix.reactive.Observer
 import scala.collection.mutable.ArrayBuffer
 

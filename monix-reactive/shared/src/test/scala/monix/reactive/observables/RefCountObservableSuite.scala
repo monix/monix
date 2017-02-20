@@ -22,7 +22,7 @@ import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.OverflowStrategy.Unbounded
-import monix.reactive.exceptions.DummyException
+import monix.execution.exceptions.DummyException
 import monix.reactive.subjects.ConcurrentSubject
 import monix.reactive.{Observable, Observer}
 import scala.concurrent.Future

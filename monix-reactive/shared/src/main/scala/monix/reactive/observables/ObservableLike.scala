@@ -22,7 +22,7 @@ import monix.eval.Task
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.{Ack, ExecutionModel, Scheduler}
 import monix.reactive.OverflowStrategy.Synchronous
-import monix.reactive.exceptions.UpstreamTimeoutException
+import monix.execution.exceptions.UpstreamTimeoutException
 import monix.reactive.internal.builders._
 import monix.reactive.internal.operators._
 import monix.reactive.observables.ObservableLike.{Operator, Transformer}
@@ -57,7 +57,7 @@ import scala.util.control.NonFatal
   *         notifications until all of the observables complete and only
   *         then passing the issued errors(s) downstream. Note that
   *         the streamed error is a
-  *         [[monix.reactive.exceptions.CompositeException CompositeException]],
+  *         [[monix.execution.exceptions.CompositeException CompositeException]],
   *         since multiple errors from multiple streams can happen.
   *
   * @define concatReturn an observable that emits items that are the result of
@@ -1088,7 +1088,7 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * producing and concatenating observables along the way.
     *
     * This version of [[flatScan]] delays all errors until `onComplete`,
-    * when it will finally emit a `CompositeException`.
+    * when it will finally emit a [[monix.execution.exceptions.CompositeException CompositeException]].
     * It's the combination between [[scan]] and [[flatMapDelayErrors]].
     */
   def flatScanDelayErrors[R](initial: => R)(op: (R, A) => Observable[R]): Self[R] =

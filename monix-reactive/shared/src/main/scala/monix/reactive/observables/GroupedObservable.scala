@@ -91,7 +91,7 @@ object GroupedObservable {
     def unsafeSubscribeFn(subscriber: Subscriber[V]): Cancelable =
       self.synchronized {
         if (ref != null) {
-          subscriber.onError(MultipleSubscribersException("GroupedObservable"))
+          subscriber.onError(MultipleSubscribersException.build("GroupedObservable"))
           Cancelable.empty
         } else {
           ref = subscriber

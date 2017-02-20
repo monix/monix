@@ -17,7 +17,9 @@
 
 package monix.eval
 
+import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
+
 import concurrent.duration._
 import scala.util.{Failure, Success}
 

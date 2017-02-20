@@ -17,8 +17,46 @@
 
 package monix.reactive.exceptions
 
-/** The `MultipleSubscribersException` happens for hot observables
-  * that support a single subscriber.
-  */
-final case class MultipleSubscribersException(observableType: String)
-  extends RuntimeException(s"$observableType does not support multiple subscribers")
+import monix.execution.exceptions.APIContractViolationException
+import scala.runtime.AbstractFunction1
+
+@deprecated("Use monix.execution.exceptions.APIContractViolationException", since="2.2.2")
+class MultipleSubscribersException(val observableType: String)
+  extends APIContractViolationException(s"$observableType does not support multiple subscribers") 
+  with Serializable with Product {
+
+  // Provided for binary backwards compatibility
+  def copy(observableType: String = observableType): MultipleSubscribersException =
+    new MultipleSubscribersException(observableType)
+
+  // Provided for binary backwards compatibility
+  override def productElement(n: Int): Any = {
+    if (n != 0) throw new IndexOutOfBoundsException(n.toString)
+    observableType
+  }
+
+  // Provided for binary backwards compatibility
+  override def productArity: Int = 1
+
+  // Provided for binary backwards compatibility
+  override def canEqual(that: Any): Boolean =
+    that.isInstanceOf[MultipleSubscribersException]
+}
+
+object MultipleSubscribersException
+  extends AbstractFunction1[String, MultipleSubscribersException] {
+
+  /** For maintaining backwards compatibility. */
+  private[reactive] def build(observableType: String): APIContractViolationException =
+    new MultipleSubscribersException(observableType)
+
+  /** Builder for [[MultipleSubscribersException]]. */
+  @deprecated("Moved to monix.execution.MultipleSubscribersException", "2.2.2")
+  def apply(observableType: String): MultipleSubscribersException =
+    new MultipleSubscribersException(observableType)
+
+  /** For pattern matching [[MultipleSubscribersException]] instances. */
+  @deprecated("Moved to monix.execution.MultipleSubscribersException", "2.2.2")
+  def unapply(ex: MultipleSubscribersException): Option[String] =
+    Some(ex.observableType)
+}

@@ -18,16 +18,15 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack.Continue
-import monix.reactive.exceptions.CompositeException
+import monix.execution.exceptions.{CompositeException, DummyException}
 import monix.reactive.{BaseLawsTestSuite, Observable, Observer}
-
 import scala.concurrent.Future
 
 object ConcatDelayErrorsSuite extends BaseLawsTestSuite {
   test("flatMapDelayErrors works for synchronous observers") { implicit s =>
-    case class DummyException(nr: Long) extends Exception
     val obs = Observable.range(0, 100)
-      .flatMapDelayErrors(x => Observable(x,x,x).endWithError(DummyException(x)))
+      .flatMapDelayErrors(x => Observable(x,x,x)
+        .endWithError(DummyException(x.toString)))
 
     var result = 0L
     var errorThrown: Throwable = null
@@ -61,9 +60,8 @@ object ConcatDelayErrorsSuite extends BaseLawsTestSuite {
   }
 
   test("flatMapDelayErrors works for asynchronous observers") { implicit s =>
-    case class DummyException(nr: Long) extends Exception
     val obs = Observable.range(0, 100)
-      .flatMapDelayErrors(x => Observable(x,x,x).endWithError(DummyException(x)))
+      .flatMapDelayErrors(x => Observable(x,x,x).endWithError(DummyException(x.toString)))
 
     var result = 0L
     var errorThrown: Throwable = null

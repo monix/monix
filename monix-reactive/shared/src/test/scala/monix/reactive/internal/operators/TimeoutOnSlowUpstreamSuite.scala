@@ -18,8 +18,9 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack.Continue
+import monix.execution.exceptions.UpstreamTimeoutException
 import monix.reactive.{Observable, Observer}
-import monix.reactive.exceptions.{DummyException, UpstreamTimeoutException}
+import monix.execution.exceptions.DummyException
 import monix.reactive.subjects.PublishSubject
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._

@@ -19,7 +19,7 @@ package monix.reactive.consumers
 
 import monix.eval.{Callback, Task}
 import monix.execution.Ack.Continue
-import monix.reactive.exceptions.DummyException
+import monix.execution.exceptions.DummyException
 import monix.reactive.{BaseLawsTestSuite, Consumer, Observable, Observer}
 
 import scala.concurrent.Promise

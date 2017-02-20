@@ -17,8 +17,9 @@
 
 package monix.reactive.internal.operators
 
+import monix.execution.exceptions.DownstreamTimeoutException
 import monix.reactive.Observable
-import monix.reactive.exceptions.{DownstreamTimeoutException, DummyException}
+import monix.execution.exceptions.DummyException
 import scala.concurrent.duration._
 
 object TimeoutOnSlowDownstreamSuite extends BaseOperatorSuite {

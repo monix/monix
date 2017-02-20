@@ -22,7 +22,7 @@ import minitest.TestSuite
 import monix.execution.Ack.{Stop, Continue}
 import monix.execution.{Ack, Scheduler}
 import monix.reactive.OverflowStrategy.DropNewAndSignal
-import monix.reactive.exceptions.DummyException
+import monix.execution.exceptions.DummyException
 import monix.reactive.{Observable, Observer}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, Promise}

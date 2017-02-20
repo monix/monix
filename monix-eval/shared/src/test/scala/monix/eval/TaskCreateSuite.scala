@@ -20,7 +20,9 @@ package monix.eval
 import monix.execution.Cancelable
 import monix.execution.atomic.Atomic
 import monix.execution.cancelables.{CompositeCancelable, MultiAssignmentCancelable}
+import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
+
 import scala.util.{Failure, Success, Try}
 
 object TaskCreateSuite extends BaseTestSuite {

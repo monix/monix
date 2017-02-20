@@ -17,6 +17,7 @@
 
 package monix.eval
 
+import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 import monix.execution.{Cancelable, CancelableFuture}
 

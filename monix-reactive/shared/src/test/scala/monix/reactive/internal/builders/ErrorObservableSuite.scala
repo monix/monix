@@ -20,7 +20,7 @@ package monix.reactive.internal.builders
 import minitest.TestSuite
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.{Observer, Observable}
-import monix.reactive.exceptions.DummyException
+import monix.execution.exceptions.DummyException
 
 object ErrorObservableSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()

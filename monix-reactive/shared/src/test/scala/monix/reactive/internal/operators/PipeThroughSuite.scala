@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.operators
 
-import monix.reactive.exceptions.DummyException
+import monix.execution.exceptions.DummyException
 import monix.reactive.{Observable, Pipe}
 import scala.concurrent.duration.Duration.Zero
 import scala.concurrent.duration._

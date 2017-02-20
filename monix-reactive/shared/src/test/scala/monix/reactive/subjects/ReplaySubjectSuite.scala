@@ -20,7 +20,7 @@ package monix.reactive.subjects
 import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.reactive.Observer
-import monix.reactive.exceptions.DummyException
+import monix.execution.exceptions.DummyException
 import scala.concurrent.Future
 import scala.util.Success
 
