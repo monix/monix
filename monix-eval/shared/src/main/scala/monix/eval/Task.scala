@@ -251,7 +251,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * executed on the given scheduler, or for transformations that
     * happen from here on. It all depends on what overrides or
     * asynchronous boundaries happen. But this function guarantees
-    * that the this `Task` run-loop begins executing on the given
+    * that this `Task` run-loop begins executing on the given
     * scheduler.
     *
     * Alias for

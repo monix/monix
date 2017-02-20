@@ -1339,6 +1339,25 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
   def maxByF[B](f: A => B)(implicit ev: Ordering[B]): Self[A] =
     self.liftByOperator(new MaxByOperator[A,B](f))
 
+  /** Measure the downstream latency on each `onNext` request and
+    * call the given callback with the milliseconds that took.
+    *
+    * Useful for gathering statistics about the latency of the
+    * subscribed downstream observer.
+    *
+    * Note the measurements are made with
+    * [[monix.execution.Scheduler.currentTimeMillis Scheduler.currentTimeMillis]],
+    * which is based by default on `System.currentTimeMillis`
+    * instead of `System.nanoTime` and therefore might not be
+    * very accurate for benchmarking, but enough for gathering
+    * statistics, which is the purpose of this utility.
+    *
+    * @param cb is a callback that will receive after each `onNext`
+    *           the number of milliseconds it took to execute
+    */
+  def measureDownstreamLatency(cb: Long => Unit): Self[A] =
+    self.liftByOperator(new MeasureDownstreamLatencyOperator[A](cb))
+
   /** $mergeDescription
     *
     * @note $defaultOverflowStrategy
