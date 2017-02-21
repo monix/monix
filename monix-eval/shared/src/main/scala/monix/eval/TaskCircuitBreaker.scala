@@ -135,7 +135,7 @@ import scala.util.{Failure, Success}
   * [[http://doc.akka.io/docs/akka/current/common/circuitbreaker.html Akka's Circuit Breaker]].
   */
 final class TaskCircuitBreaker private (
-  initialStateRef: AtomicAny[TaskCircuitBreaker.State],
+  _stateRef: AtomicAny[TaskCircuitBreaker.State],
   _maxFailures: Int,
   _resetTimeout: FiniteDuration,
   _exponentialBackoffFactor: Double,
@@ -151,7 +151,7 @@ final class TaskCircuitBreaker private (
   require(_maxResetTimeout > Duration.Zero, "maxResetTimeout > 0")
 
   import monix.eval.TaskCircuitBreaker._
-  private[this] val stateRef = initialStateRef
+  private[this] val stateRef = _stateRef
 
   /** The maximum count for allowed failures before
     * opening the circuit breaker.
@@ -344,7 +344,7 @@ final class TaskCircuitBreaker private (
   def doOnRejectedTask(callback: Task[Unit]): TaskCircuitBreaker = {
     val onRejected = this.onRejected.flatMap(_ => callback)
     new TaskCircuitBreaker(
-      initialStateRef = stateRef,
+      _stateRef = stateRef,
       _maxFailures = maxFailures,
       _resetTimeout = resetTimeout,
       _exponentialBackoffFactor = exponentialBackoffFactor,
@@ -371,7 +371,7 @@ final class TaskCircuitBreaker private (
   def doOnClosed(callback: Task[Unit]): TaskCircuitBreaker = {
     val onClosed = this.onClosed.flatMap(_ => callback)
     new TaskCircuitBreaker(
-      initialStateRef = stateRef,
+      _stateRef = stateRef,
       _maxFailures = maxFailures,
       _resetTimeout = resetTimeout,
       _exponentialBackoffFactor = exponentialBackoffFactor,
@@ -399,7 +399,7 @@ final class TaskCircuitBreaker private (
   def doOnHalfOpen(callback: Task[Unit]): TaskCircuitBreaker = {
     val onHalfOpen = this.onHalfOpen.flatMap(_ => callback)
     new TaskCircuitBreaker(
-      initialStateRef = stateRef,
+      _stateRef = stateRef,
       _maxFailures = maxFailures,
       _resetTimeout = resetTimeout,
       _exponentialBackoffFactor = exponentialBackoffFactor,
@@ -426,7 +426,7 @@ final class TaskCircuitBreaker private (
   def doOnOpen(callback: Task[Unit]): TaskCircuitBreaker = {
     val onOpen = this.onOpen.flatMap(_ => callback)
     new TaskCircuitBreaker(
-      initialStateRef = stateRef,
+      _stateRef = stateRef,
       _maxFailures = maxFailures,
       _resetTimeout = resetTimeout,
       _exponentialBackoffFactor = exponentialBackoffFactor,
@@ -474,7 +474,7 @@ object TaskCircuitBreaker {
 
     val atomic = Atomic.withPadding(Closed(0) : State, padding)
     new TaskCircuitBreaker(
-      initialStateRef = atomic,
+      _stateRef = atomic,
       _maxFailures = maxFailures,
       _resetTimeout = resetTimeout,
       _exponentialBackoffFactor = exponentialBackoffFactor,
