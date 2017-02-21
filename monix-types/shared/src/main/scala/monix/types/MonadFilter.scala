@@ -35,9 +35,9 @@ import monix.types.utils._
   * Monix library and it is considered a shim for a lawful type-class
   * to be supplied by libraries such as Cats or Scalaz or equivalent.
   *
-  * CREDITS: The type-class encoding has been inspired by the Scado
-  * project and [[https://github.com/scalaz/scalaz/ Scalaz 8]] and
-  * the type has been extracted from [[http://typelevel.org/cats/ Cats]].
+  * CREDITS: The type-class encoding has been inspired by the Scato
+  * project by Aloïs Cochard and [[https://github.com/scalaz/scalaz/ Scalaz 8]]
+  * and the type has been extracted from [[http://typelevel.org/cats/ Cats]].
   */
 trait MonadFilter[F[_]] extends Serializable with Monad.Type[F] {
   self: MonadFilter.Instance[F] =>
