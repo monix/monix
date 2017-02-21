@@ -220,17 +220,17 @@ lazy val requiredMacroCompatDeps = Seq(
   libraryDependencies ++= (CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, majorVersion)) if majorVersion >= 11 =>
       Seq(
-        "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided,
-        "org.scala-lang" % "scala-compiler" % scalaVersion.value % Provided,
+        scalaOrganization.value % "scala-reflect" % scalaVersion.value % Provided,
+        scalaOrganization.value % "scala-compiler" % scalaVersion.value % Provided,
         "org.typelevel" %%% "macro-compat" % "1.1.1" % Provided,
-        compilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
+        compilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.patch)
       )
     case _ =>
       Seq(
-        "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided,
-        "org.scala-lang" % "scala-compiler" % scalaVersion.value % Provided,
+        scalaOrganization.value % "scala-reflect" % scalaVersion.value % Provided,
+        scalaOrganization.value % "scala-compiler" % scalaVersion.value % Provided,
         "org.typelevel" %%% "macro-compat" % "1.1.1",
-        compilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
+        compilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.patch)
       )
   }))
 
