@@ -38,7 +38,7 @@ lazy val warnUnusedImport = Seq(
     }
   },
   scalacOptions in (Compile, console) ~= {_.filterNot("-Ywarn-unused-import" == _)},
-  scalacOptions in (Test, console) <<= (scalacOptions in (Compile, console))
+  scalacOptions in (Test, console) ~= {_.filterNot("-Ywarn-unused-import" == _)}
 )
 
 lazy val sharedSettings = warnUnusedImport ++ Seq(
@@ -198,8 +198,12 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
 )
 
 lazy val crossSettings = sharedSettings ++ Seq(
-  unmanagedSourceDirectories in Compile <+= baseDirectory(_.getParentFile / "shared" / "src" / "main" / "scala"),
-  unmanagedSourceDirectories in Test <+= baseDirectory(_.getParentFile / "shared" / "src" / "test" / "scala")
+  unmanagedSourceDirectories in Compile += {
+    baseDirectory.value.getParentFile / "shared" / "src" / "main" / "scala"
+  },
+  unmanagedSourceDirectories in Test += {
+    baseDirectory.value.getParentFile / "shared" / "src" / "test" / "scala"
+  }
 )
 
 def scalaPartV = Def setting (CrossVersion partialVersion scalaVersion.value)

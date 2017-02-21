@@ -470,4 +470,19 @@ object MapTaskSuite extends BaseOperatorSuite {
     s.tick(1.hour)
     assertEquals(f.value, None)
   }
+
+  test("should be cancelable after the main stream has ended") { implicit s =>
+    val f = Observable.now(1)
+      .mapTask(x => Task(x+1).delayExecution(1.second))
+      .sumL
+      .runAsync
+
+    s.tick()
+    assertEquals(f.value, None)
+    assert(s.state.tasks.nonEmpty, "tasks.nonEmpty")
+
+    f.cancel(); s.tick()
+    assertEquals(f.value, None)
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
+  }
 }

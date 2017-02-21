@@ -17,7 +17,9 @@
 
 package monix.reactive.internal.operators
 
-import monix.reactive.Observable
+import monix.execution.Ack
+import monix.execution.Ack.Continue
+import monix.reactive.{Observable, Observer}
 import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero
 
@@ -57,5 +59,31 @@ object MergeManySuite extends BaseOperatorSuite {
       Sample(sample2, 0, 0, 0.seconds, 0.seconds),
       Sample(sample2, 0, 0, 1.seconds, 0.seconds)
     )
+  }
+
+  test("mergeMap should be cancelable after main stream has finished") { implicit s =>
+    val source = Observable.now(1L).concatMap { x =>
+      Observable.intervalWithFixedDelay(1.second, 1.second).map(_ + x)
+    }
+
+    var total = 0L
+    val subscription = source.unsafeSubscribeFn(
+      new Observer.Sync[Long] {
+        def onNext(elem: Long): Ack = {
+          total += elem
+          Continue
+        }
+
+        def onError(ex: Throwable): Unit = throw ex
+        def onComplete(): Unit = ()
+      })
+
+    s.tick(10.seconds)
+    assertEquals(total, 5 * 11L)
+    subscription.cancel()
+
+    s.tick()
+    assertEquals(total, 5 * 11L)
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 }

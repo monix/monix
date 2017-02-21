@@ -17,7 +17,9 @@
 
 package monix.reactive.internal.operators
 
-import monix.reactive.Observable
+import monix.execution.Ack
+import monix.execution.Ack.Continue
+import monix.reactive.{Observable, Observer}
 import scala.concurrent.duration._
 
 object SwitchMapSuite extends BaseOperatorSuite {
@@ -79,5 +81,27 @@ object SwitchMapSuite extends BaseOperatorSuite {
     s.tick()
 
     assertEquals(r2.value.get, r1.value.get)
+  }
+
+  test("switchMap should cancel child after stream has ended") { implicit s =>
+    val source = Observable.now(1L).switchMap { x =>
+      Observable.intervalWithFixedDelay(1.second, 1.second).map(_ + x)
+    }
+
+    var total = 0L
+    source.unsafeSubscribeFn(
+      new Observer.Sync[Long] {
+        def onNext(elem: Long): Ack = {
+          total += elem
+          Continue
+        }
+
+        def onError(ex: Throwable): Unit = throw ex
+        def onComplete(): Unit = ()
+      })
+
+    s.tick()
+    assertEquals(total, 0)
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 }

@@ -104,10 +104,17 @@ private[reactive] final class MapTaskObservable[A,B]
             ref.cancel()
           else
             cancel() // retry
+        case current @ WaitComplete(_, ref) =>
+          if (ref != null) {
+            if (stateRef.compareAndSet(current, Cancelled))
+              ref.cancel()
+            else
+              cancel() // retry
+          }
         case current @ (WaitOnNext | WaitActiveTask) =>
           if (!stateRef.compareAndSet(current, Cancelled))
             cancel() // retry
-        case WaitComplete(_) | Cancelled =>
+        case Cancelled =>
           () // do nothing else
       }
 
@@ -131,7 +138,7 @@ private[reactive] final class MapTaskObservable[A,B]
               case Cancelled =>
                 Task.now(Stop)
 
-              case WaitComplete(exOpt) =>
+              case WaitComplete(exOpt, _) =>
                 // An `onComplete` or `onError` event happened since
                 // `onNext` was called, so we are now responsible for
                 // signaling it downstream.  Note that we've set
@@ -148,14 +155,16 @@ private[reactive] final class MapTaskObservable[A,B]
             }
 
           case Error(ex) =>
-            stateRef.getAndSet(WaitComplete(Some(ex))) match {
+            // The cancelable passed in WaitComplete here can be `null`
+            // because it would only replace the child's own cancelable
+            stateRef.getAndSet(WaitComplete(Some(ex), null)) match {
               case WaitActiveTask | WaitOnNext | Active(_) =>
                 Task.eval {
                   out.onError(ex)
                   Stop
                 }
 
-              case WaitComplete(otherEx) =>
+              case WaitComplete(otherEx, _) =>
                 // If an exception also happened on main observable, log it!
                 otherEx.foreach(scheduler.reportFailure)
                 // Send our immediate error downstream and stop everything
@@ -193,7 +202,7 @@ private[reactive] final class MapTaskObservable[A,B]
             stateRef.lazySet(WaitOnNext)
             ack.syncTryFlatten
 
-          case state @ (WaitComplete(_) | Active(_)) =>
+          case state @ (WaitComplete(_,_) | Active(_)) =>
             // These should never, ever happen!
             self.onError(new IllegalStateException(
               s"State $state is invalid, please send a bug report!"))
@@ -220,18 +229,42 @@ private[reactive] final class MapTaskObservable[A,B]
       }
     }
 
-    private def signalFinish(ex: Option[Throwable]): Unit =
-      stateRef.getAndSet(WaitComplete(ex)) match {
+    private def signalFinish(ex: Option[Throwable]): Unit = {
+      // It's fine to fetch the current cancelable like this because
+      // this can only give us the cancelable of the active child and
+      // the only race condition that can happen is for the child to
+      // set this to `null` between this `get` and the upcoming
+      // `getAndSet`, which is totally fine
+      val childRef = stateRef.get match {
+        case Active(ref) => ref
+        case WaitComplete(_,ref) => ref
+        case _ => null
+      }
+
+      // Can have a race condition with the `onComplete` / `onError`
+      // signal in the child, but this works fine because of the
+      // no-concurrent clause in the protocol of communication. So
+      // either we have exactly one active child, in which case it
+      // will be responsible for sending the final signal, or we don't
+      // have any active child, in which case it is the responsibility
+      // of the main subscriber to do it right here
+      stateRef.getAndSet(WaitComplete(ex, childRef)) match {
         case WaitOnNext =>
           // In this state we know we have no active task,
           // and we know that the last `onNext` was triggered
           // (but its future not necessarily finished)
           // so we can just signal the completion event
           if (ex.isEmpty) out.onComplete() else out.onError(ex.get)
+          // GC purposes: we no longer need the cancelable reference!
+          stateRef.lazySet(Cancelled)
 
-        case Active(_) | WaitComplete(_) | Cancelled =>
-          // We either have an active task, or this is a duplicate
-          // event, hence we cannot signal the completion signal here.
+        case previous @ (WaitComplete(_,_) | Cancelled) =>
+          // GC purposes: we no longer need the cancelable reference!
+          stateRef.lazySet(previous)
+
+        case Active(_) =>
+          // Child still active, so we are not supposed to do anything here
+          // since it's now the responsibility of the child to finish!
           ()
 
         case WaitActiveTask =>
@@ -241,6 +274,7 @@ private[reactive] final class MapTaskObservable[A,B]
               "State WaitActiveTask is invalid, please send a bug report!"
             ))
       }
+    }
 
     def onComplete(): Unit =
       signalFinish(None)
@@ -302,7 +336,7 @@ object MapTaskObservable {
       * the responsibility of the active task (initialized in
       * `onNext`) to send this final event.
       */
-    final case class WaitComplete(ex: Option[Throwable]) extends FlatMapState
+    final case class WaitComplete(ex: Option[Throwable], ref: Cancelable) extends FlatMapState
 
     /** State that happens after a task has been executed, but before the
       * following `onNext` call on the downstream subscriber.

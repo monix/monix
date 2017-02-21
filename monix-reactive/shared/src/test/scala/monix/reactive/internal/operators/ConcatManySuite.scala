@@ -17,8 +17,10 @@
 
 package monix.reactive.internal.operators
 
+import monix.execution.Ack
+import monix.execution.Ack.Continue
 import monix.execution.internal.Platform
-import monix.reactive.Observable
+import monix.reactive.{Observable, Observer}
 import scala.concurrent.duration._
 
 object ConcatManySuite extends BaseOperatorSuite {
@@ -67,5 +69,57 @@ object ConcatManySuite extends BaseOperatorSuite {
 
     val count = Platform.recommendedBatchSize*3
     Seq(Sample(o, count, count, 1.seconds, 0.seconds))
+  }
+
+  test("concatMap should be cancelable before main stream has finished") { implicit s =>
+    val source = Observable(1L,2L).concatMap { x =>
+      Observable.intervalWithFixedDelay(1.second, 1.second).map(_ + x)
+    }
+
+    var total = 0L
+    val subscription = source.unsafeSubscribeFn(
+      new Observer.Sync[Long] {
+        def onNext(elem: Long): Ack = {
+          total += elem
+          Continue
+        }
+
+        def onError(ex: Throwable): Unit = throw ex
+        def onComplete(): Unit = ()
+      })
+
+    s.tick(10.seconds)
+    assertEquals(total, 5 * 11L)
+    subscription.cancel()
+
+    s.tick()
+    assertEquals(total, 5 * 11L)
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
+  }
+
+  test("concatMap should be cancelable after main stream has finished") { implicit s =>
+    val source = Observable.now(1L).concatMap { x =>
+      Observable.intervalWithFixedDelay(1.second, 1.second).map(_ + x)
+    }
+
+    var total = 0L
+    val subscription = source.unsafeSubscribeFn(
+      new Observer.Sync[Long] {
+        def onNext(elem: Long): Ack = {
+          total += elem
+          Continue
+        }
+
+        def onError(ex: Throwable): Unit = throw ex
+        def onComplete(): Unit = ()
+      })
+
+    s.tick(10.seconds)
+    assertEquals(total, 5 * 11L)
+    subscription.cancel()
+
+    s.tick()
+    assertEquals(total, 5 * 11L)
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 }
