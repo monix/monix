@@ -283,7 +283,7 @@ private[reactive] final class MapTaskObservable[A,B]
   }
 }
 
-object MapTaskObservable {
+private[reactive] object MapTaskObservable {
   /** Internal, private state for the [[MapTaskObservable]]
     * implementation, modeling its state machine for managing
     * the active task.
