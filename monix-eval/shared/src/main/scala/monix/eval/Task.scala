@@ -910,11 +910,8 @@ object Task extends TaskInstances {
     *  It's a simple version of [[traverse]].
     */
   def sequence[A, M[X] <: TraversableOnce[X]](in: M[Task[A]])
-    (implicit cbf: CanBuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] = {
-    val init = eval(cbf(in))
-    val r = in.foldLeft(init)((acc,elem) => acc.flatMap(lb => elem.map(e => lb += e)))
-    r.map(_.result())
-  }
+    (implicit cbf: CanBuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] =
+    TaskSequence.list(in)(cbf)
 
   /** Given a `TraversableOnce[A]` and a function `A => Task[B]`, sequentially
    *  apply the function to each element of the collection and gather their
@@ -923,11 +920,8 @@ object Task extends TaskInstances {
    *  It's a generalized version of [[sequence]].
    */
   def traverse[A, B, M[X] <: TraversableOnce[X]](in: M[A])(f: A => Task[B])
-    (implicit cbf: CanBuildFrom[M[A], B, M[B]]): Task[M[B]] = {
-    val init = eval(cbf(in))
-    val r = in.foldLeft(init)((acc,elem) => acc.flatMap(lb => f(elem).map(e => lb += e)))
-    r.map(_.result())
-  }
+    (implicit cbf: CanBuildFrom[M[A], B, M[B]]): Task[M[B]] =
+    TaskSequence.traverse(in, f)(cbf)
 
   /** Nondeterministically gather results from the given collection of tasks,
     * returning a task that will signal the same type of collection of results
