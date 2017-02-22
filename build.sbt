@@ -1,6 +1,8 @@
 import com.typesafe.sbt.pgp.PgpKeys
 import sbtunidoc.Plugin.UnidocKeys._
 import sbtunidoc.Plugin.{ScalaUnidoc, unidocSettings => baseUnidocSettings}
+import com.typesafe.tools.mima.core._
+import com.typesafe.tools.mima.core.ProblemFilters._
 
 // For getting Scoverage out of the generated POM
 import scala.xml.Elem
@@ -348,7 +350,12 @@ lazy val executionJS = project.in(file("monix-execution/js"))
 
 lazy val evalCommon =
   crossSettings ++ testSettings ++ Seq(
-    name := "monix-eval"
+    name := "monix-eval",
+    // Filtering out private stuff for 2.2.x
+    mimaBinaryIssueFilters ++= Seq(
+      // Related to issue: https://github.com/monix/monix/issues/313
+      exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskFromFuture.apply")
+    )
   )
 
 lazy val evalJVM = project.in(file("monix-eval/jvm"))
@@ -366,10 +373,7 @@ lazy val evalJS = project.in(file("monix-eval/js"))
   .settings(scalaJSSettings)
   .settings(evalCommon)
 
-lazy val reactiveCommon = {
-  import com.typesafe.tools.mima.core._
-  import com.typesafe.tools.mima.core.ProblemFilters._
-
+lazy val reactiveCommon =
   crossSettings ++ testSettings ++ Seq(
     name := "monix-reactive",
     // Filtering out private stuff for 2.2.x
@@ -388,8 +392,6 @@ lazy val reactiveCommon = {
       exclude[MissingClassProblem]("monix.reactive.internal.operators.MapAsyncParallelObservable$MapAsyncParallelSubscriber")
     )
   )
-}
-
 
 lazy val reactiveJVM = project.in(file("monix-reactive/jvm"))
   .configure(profile)

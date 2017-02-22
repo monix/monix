@@ -36,6 +36,24 @@ object SingleAssignmentCancelableSuite extends SimpleTestSuite {
     assert(effect == 1)
   }
 
+  test("cancel() (plus one)") {
+    var effect = 0
+    val extra = BooleanCancelable { () => effect += 1 }
+    val b = BooleanCancelable { () => effect += 2 }
+
+    val s = SingleAssignmentCancelable.plusOne(extra)
+    s := b
+
+    s.cancel()
+    assert(s.isCanceled)
+    assert(b.isCanceled)
+    assert(extra.isCanceled)
+    assert(effect == 3)
+
+    s.cancel()
+    assert(effect == 3)
+  }
+
   test("cancel on single assignment") {
     val s = SingleAssignmentCancelable()
     s.cancel()
@@ -50,6 +68,26 @@ object SingleAssignmentCancelableSuite extends SimpleTestSuite {
 
     s.cancel()
     assert(effect == 1)
+  }
+
+  test("cancel on single assignment (plus one)") {
+    var effect = 0
+    val extra = BooleanCancelable { () => effect += 1 }
+    val s = SingleAssignmentCancelable.plusOne(extra)
+
+    s.cancel()
+    assert(s.isCanceled, "s.isCanceled")
+    assert(extra.isCanceled, "extra.isCanceled")
+    assert(effect == 1)
+
+    val b = BooleanCancelable { () => effect += 1 }
+    s := b
+
+    assert(b.isCanceled)
+    assert(effect == 2)
+
+    s.cancel()
+    assert(effect == 2)
   }
 
   test("throw exception on multi assignment") {

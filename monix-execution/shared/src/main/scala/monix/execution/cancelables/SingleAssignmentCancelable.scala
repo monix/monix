@@ -34,8 +34,11 @@ import monix.execution.Cancelable
   *
   * Useful in case you need a forward reference.
   */
-final class SingleAssignmentCancelable private ()
+final class SingleAssignmentCancelable private (extra: Cancelable)
   extends AssignableCancelable.Bool {
+
+  // For binary compatibility
+  private[SingleAssignmentCancelable] def this() = this(null)
 
   import State._
 
@@ -80,10 +83,13 @@ final class SingleAssignmentCancelable private ()
       case IsCanceled | IsEmptyCanceled => ()
       case IsActive(s) =>
         state.set(IsCanceled)
+        if (extra != null) extra.cancel()
         s.cancel()
       case Empty =>
         if (!state.compareAndSet(Empty, IsEmptyCanceled))
           cancel()
+        else if (extra != null)
+          extra.cancel()
     }
   }
 
@@ -97,8 +103,30 @@ final class SingleAssignmentCancelable private ()
 }
 
 object SingleAssignmentCancelable {
+  /** Builder for [[SingleAssignmentCancelable]]. */
   def  apply(): SingleAssignmentCancelable =
     new SingleAssignmentCancelable()
+
+  /** Builder for [[SingleAssignmentCancelable]] that takes an extra reference,
+    * to be canceled on [[SingleAssignmentCancelable.cancel cancel()]]
+    * along with whatever underlying reference we have.
+    *
+    * {{{
+    *   val c = {
+    *     val extra = Cancelable(() => println("extra canceled")
+    *     SingleAssignmentCancelable.withExtra(extra)
+    *   }
+    *
+    *   c := Cancelable(() => println("main canceled"))
+    *
+    *   // ...
+    *   c.cancel()
+    *   //=> extra canceled
+    *   //=> main canceled
+    * }}}
+    */
+  def plusOne(guest: Cancelable): SingleAssignmentCancelable =
+    new SingleAssignmentCancelable(guest)
 
   private[monix] sealed trait State
   private[monix] object State {
