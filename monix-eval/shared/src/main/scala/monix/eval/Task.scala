@@ -748,7 +748,7 @@ object Task extends TaskInstances {
     * function an `ExecutionContext` is needed:
     *
     * {{{
-    *   def sumTask(list: Seq[Int])(implicit ec: ExecutionContext): Future[Int] =
+    *   def sumTask(list: Seq[Int])(implicit ec: ExecutionContext): Task[Int] =
     *     Task.deferFuture(sumFuture(list))
     * }}}
     *
@@ -760,7 +760,7 @@ object Task extends TaskInstances {
     * `Scheduler` in the passed callback:
     *
     * {{{
-    *   def sumTask(list: Seq[Int]): Future[Int] =
+    *   def sumTask(list: Seq[Int]): Task[Int] =
     *     Task.deferFutureAction { implicit scheduler =>
     *       sumFuture(list)
     *     }
