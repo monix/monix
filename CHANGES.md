@@ -1,3 +1,48 @@
+## Version 2.2.2 (Feb 22, 2017)
+
+New Features:
+
+- [Issue #306](https://github.com/monix/monix/issues/306):
+  Circuit Breaker for `Task`
+- [Issue #312](https://github.com/monix/monix/issues/312):
+  Add `Task.memoizeOnSuccess` and `Coeval.memoizeOnSuccess`
+- [Issue #313](https://github.com/monix/monix/issues/313):
+  Add `Task.deferFutureAction` builder
+- [Issue #325](https://github.com/monix/monix/issues/325):
+  Add `SingleAssignmentCancelable.plusOne`
+- [Issue #319](https://github.com/monix/monix/issues/319):
+  Move and redesign exceptions in `monix.execution`
+- [Issue #314](https://github.com/monix/monix/issues/314):
+  `Task.sequence` should have lazy behavior in evaluating 
+  the given sequence
+  
+Bug fixes:
+
+- [Bug #268](https://github.com/monix/monix/issues/268):
+  Optimise the unsubscribe logic in `PublishSubject`
+- [Bug #308](https://github.com/monix/monix/issues/308):
+  Fix NPE on `AsyncSubject.unsubscribe`
+- [Bug #315](https://github.com/monix/monix/issues/315):
+  The `MapTaskObservable` internal object is exposed (ScalaDoc)
+- [Bug #321](https://github.com/monix/monix/issues/321):
+  `Observable.concatMap` and `mapTask` cannot be canceled if
+  the source has already completed
+- Documentation fixes: 
+  [#307](https://github.com/monix/monix/pull/307), 
+  [#309](https://github.com/monix/monix/pull/309),
+  [#311](https://github.com/monix/monix/issues/311),
+  [#316](https://github.com/monix/monix/issues/316) and
+  [#317](https://github.com/monix/monix/issues/317)
+  
+Build:
+
+- enabled the Scala 
+  [Migration Manager](https://github.com/typesafehub/migration-manager) 
+  (MiMa) in `build.sbt` to check for backwards compatibility problems
+- [Issue #322](https://github.com/monix/monix/issues/322):
+  Switch projects which use `CrossVersion.full/"org.scala-lang"` 
+  to `CrossVersion.patch/scalaOrganization.value`
+
 ## Version 2.2.1 (Jan 27, 2017)
 
 Unfortunately we have to push an emergency fix:
