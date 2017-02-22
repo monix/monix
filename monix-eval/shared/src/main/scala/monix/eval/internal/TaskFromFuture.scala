@@ -18,14 +18,13 @@
 package monix.eval.internal
 
 import monix.eval.Task
-import monix.execution.Cancelable
+import monix.execution.{Cancelable, Scheduler}
 import scala.concurrent.Future
+import scala.util.control.NonFatal
 
 private[monix] object TaskFromFuture {
-  /**
-    * Implementation for `Task.fromFuture`
-    */
-  def apply[A](f: Future[A]): Task[A] = {
+  /** Implementation for `Task.fromFuture`. */
+  def strict[A](f: Future[A]): Task[A] = {
     if (f.isCompleted) {
       // An already computed result is synchronous
       Task.fromTry(f.value.get)
@@ -65,4 +64,47 @@ private[monix] object TaskFromFuture {
         }
     }
   }
+
+  def deferAction[A](f: Scheduler => Future[A]): Task[A] =
+    Task.unsafeCreate[A] { (context, callback) =>
+      implicit val s = context.scheduler
+      // Prevents violations of the Callback contract
+      var streamErrors = true
+      try {
+        val future = f(s)
+        streamErrors = false
+
+        future.value match {
+          case Some(value) =>
+            // Already completed future, streaming value immediately,
+            // but with light async boundary to prevent stack overflows
+            callback.asyncApply(value)
+
+          case None =>
+            future match {
+              case c: Cancelable =>
+                // Given a cancelable future, we should use it
+                val conn = context.connection
+                conn.push(c)
+                future.onComplete { result =>
+                  // Async boundary should trigger frame reset
+                  context.frameRef.reset()
+                  conn.pop()
+                  callback(result)
+                }
+              case _ =>
+                // Normal future reference
+                future.onComplete { result =>
+                  // Async boundary should trigger frame reset
+                  context.frameRef.reset()
+                  callback(result)
+                }
+            }
+        }
+      } catch {
+        case NonFatal(ex) =>
+          if (streamErrors) callback.asyncOnError(ex)
+          else s.reportFailure(ex)
+      }
+    }
 }

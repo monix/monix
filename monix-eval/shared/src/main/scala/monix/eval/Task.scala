@@ -728,6 +728,50 @@ object Task extends TaskInstances {
   def deferFuture[A](fa: => Future[A]): Task[A] =
     defer(fromFuture(fa))
 
+  /** Wraps calls that generate `Future` results into [[Task]], provided 
+    * a callback with an injected [[monix.execution.Scheduler Scheduler]]
+    * to act as the necessary `ExecutionContext`.
+    *
+    * This builder helps with wrapping `Future`-enabled APIs that need
+    * an implicit `ExecutionContext` to work. Consider this example:
+    *
+    * {{{
+    *   import scala.concurrent.{ExecutionContext, Future}
+    *
+    *   def sumFuture(list: Seq[Int])(implicit ec: ExecutionContext): Future[Int] =
+    *     Future(list.sum)
+    * }}}
+    *
+    * We'd like to wrap this function into one that returns a lazy
+    * `Task` that evaluates this sum every time it is called, because
+    * that's how tasks work best. However in order to invoke this
+    * function an `ExecutionContext` is needed:
+    *
+    * {{{
+    *   def sumTask(list: Seq[Int])(implicit ec: ExecutionContext): Future[Int] =
+    *     Task.deferFuture(sumFuture(list))
+    * }}}
+    *
+    * But this is not only superfluous, but against the best practices
+    * of using `Task`. The difference is that `Task` takes a
+    * [[monix.execution.Scheduler Scheduler]] (inheriting from
+    * `ExecutionContext`) only when [[monix.eval.Task!.runAsync(cb* runAsync]]
+    * happens. But with `deferFutureAction` we get to have an injected
+    * `Scheduler` in the passed callback:
+    *
+    * {{{
+    *   def sumTask(list: Seq[Int]): Future[Int] =
+    *     Task.deferFutureAction { implicit scheduler =>
+    *       sumFuture(list)
+    *     }
+    * }}}
+    *
+    * @param f is the function that's going to be executed when the task
+    *        gets evaluated, generating the wrapped `Future`
+    */
+  def deferFutureAction[A](f: Scheduler => Future[A]): Task[A] =
+    TaskFromFuture.deferAction(f)
+
   /** Alias for [[defer]]. */
   def suspend[A](fa: => Task[A]): Task[A] =
     Suspend(fa _)
@@ -881,7 +925,7 @@ object Task extends TaskInstances {
     * in combination with [[defer]].
     */
   def fromFuture[A](f: Future[A]): Task[A] =
-    TaskFromFuture(f)
+    TaskFromFuture.strict(f)
 
   /** Creates a `Task` that upon execution will execute both given tasks
     * (possibly in parallel in case the tasks are asynchronous) and will
