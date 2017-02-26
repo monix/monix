@@ -1,6 +1,4 @@
 import com.typesafe.sbt.pgp.PgpKeys
-import sbtunidoc.Plugin.UnidocKeys._
-import sbtunidoc.Plugin.{ScalaUnidoc, unidocSettings => baseUnidocSettings}
 import com.typesafe.tools.mima.core._
 import com.typesafe.tools.mima.core.ProblemFilters._
 
@@ -240,7 +238,7 @@ lazy val requiredMacroCompatDeps = Seq(
       )
   }))
 
-lazy val unidocSettings = baseUnidocSettings ++ Seq(
+lazy val unidocSettings = Seq(
   autoAPIMappings := true,
   unidocProjectFilter in (ScalaUnidoc, unidoc) :=
     inProjects(typesJVM, executionJVM, evalJVM, reactiveJVM, catsJVM, scalaz72JVM),
@@ -285,6 +283,7 @@ def profile: Project ⇒ Project = pr => cmdlineProfile match {
 }
 
 lazy val monix = project.in(file("."))
+  .enablePlugins(ScalaUnidocPlugin)
   .configure(profile)
   .aggregate(coreJVM, coreJS, tckTests)
   .settings(sharedSettings)
