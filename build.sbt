@@ -1,19 +1,33 @@
 import com.typesafe.sbt.pgp.PgpKeys
 import sbtunidoc.Plugin.UnidocKeys._
 import sbtunidoc.Plugin.{ScalaUnidoc, unidocSettings => baseUnidocSettings}
+import com.typesafe.tools.mima.core._
+import com.typesafe.tools.mima.core.ProblemFilters._
 
 // For getting Scoverage out of the generated POM
 import scala.xml.Elem
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 
-val catsVersion = "0.8.1"
+val catsVersion = "0.9.0"
 val scalazVersion = "7.2.8"
+
+// The Monix version with which we must keep binary compatibility.
+// For MiMa testing, see:
+// https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
+val monixSeries = "2.2.0"
 
 lazy val doNotPublishArtifact = Seq(
   publishArtifact := false,
   publishArtifact in (Compile, packageDoc) := false,
   publishArtifact in (Compile, packageSrc) := false,
   publishArtifact in (Compile, packageBin) := false
+)
+
+lazy val noSources = Seq(
+  // disable automatic dependency on the Scala library
+  autoScalaLibrary := false,
+  publishArtifact in Compile := false,
+  sources in Compile := Seq.empty
 )
 
 lazy val warnUnusedImport = Seq(
@@ -26,7 +40,7 @@ lazy val warnUnusedImport = Seq(
     }
   },
   scalacOptions in (Compile, console) ~= {_.filterNot("-Ywarn-unused-import" == _)},
-  scalacOptions in (Test, console) <<= (scalacOptions in (Compile, console))
+  scalacOptions in (Test, console) ~= {_.filterNot("-Ywarn-unused-import" == _)}
 )
 
 lazy val optimisationSettings = Seq(
@@ -199,8 +213,12 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
 )
 
 lazy val crossSettings = sharedSettings ++ Seq(
-  unmanagedSourceDirectories in Compile <+= baseDirectory(_.getParentFile / "shared" / "src" / "main" / "scala"),
-  unmanagedSourceDirectories in Test <+= baseDirectory(_.getParentFile / "shared" / "src" / "test" / "scala")
+  unmanagedSourceDirectories in Compile += {
+    baseDirectory.value.getParentFile / "shared" / "src" / "main" / "scala"
+  },
+  unmanagedSourceDirectories in Test += {
+    baseDirectory.value.getParentFile / "shared" / "src" / "test" / "scala"
+  }
 )
 
 def scalaPartV = Def setting (CrossVersion partialVersion scalaVersion.value)
@@ -221,17 +239,17 @@ lazy val requiredMacroCompatDeps = Seq(
   libraryDependencies ++= (CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, majorVersion)) if majorVersion >= 11 =>
       Seq(
-        "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided,
-        "org.scala-lang" % "scala-compiler" % scalaVersion.value % Provided,
+        scalaOrganization.value % "scala-reflect" % scalaVersion.value % Provided,
+        scalaOrganization.value % "scala-compiler" % scalaVersion.value % Provided,
         "org.typelevel" %%% "macro-compat" % "1.1.1" % Provided,
-        compilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
+        compilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.patch)
       )
     case _ =>
       Seq(
-        "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided,
-        "org.scala-lang" % "scala-compiler" % scalaVersion.value % Provided,
+        scalaOrganization.value % "scala-reflect" % scalaVersion.value % Provided,
+        scalaOrganization.value % "scala-compiler" % scalaVersion.value % Provided,
         "org.typelevel" %%% "macro-compat" % "1.1.1",
-        compilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
+        compilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.patch)
       )
   }))
 
@@ -271,6 +289,9 @@ lazy val scalaJSSettings = Seq(
 lazy val cmdlineProfile =
   sys.props.getOrElse("sbt.profile", default = "")
 
+def mimaSettings(projectName: String) =
+  Seq(mimaPreviousArtifacts := Set("io.monix" %% projectName % monixSeries))
+
 def profile: Project ⇒ Project = pr => cmdlineProfile match {
   case "coverage" => pr
   case _ => pr.disablePlugins(scoverage.ScoverageSbtPlugin)
@@ -288,6 +309,7 @@ lazy val coreJVM = project.in(file("monix/jvm"))
   .dependsOn(typesJVM, executionJVM, evalJVM, tailJVM, reactiveJVM)
   .aggregate(typesJVM, executionJVM, evalJVM, tailJVM, reactiveJVM, catsJVM, scalaz72JVM)
   .settings(crossSettings)
+  .settings(noSources)
   .settings(name := "monix")
 
 lazy val coreJS = project.in(file("monix/js"))
@@ -309,6 +331,7 @@ lazy val typesCommon = crossSettings ++ testSettings ++
 lazy val typesJVM = project.in(file("monix-types/jvm"))
   .configure(profile)
   .settings(typesCommon)
+  .settings(mimaSettings("monix-types"))
 
 lazy val typesJS = project.in(file("monix-types/js"))
   .enablePlugins(ScalaJSPlugin)
@@ -327,6 +350,7 @@ lazy val executionJVM = project.in(file("monix-execution/jvm"))
   .settings(requiredMacroCompatDeps)
   .settings(executionCommon)
   .settings(libraryDependencies += "org.reactivestreams" % "reactive-streams" % "1.0.0")
+  .settings(mimaSettings("monix-execution"))
 
 lazy val executionJS = project.in(file("monix-execution/js"))
   .enablePlugins(ScalaJSPlugin)
@@ -339,7 +363,12 @@ lazy val executionJS = project.in(file("monix-execution/js"))
 
 lazy val evalCommon =
   crossSettings ++ testSettings ++ Seq(
-    name := "monix-eval"
+    name := "monix-eval",
+    // Filtering out private stuff for 2.2.x
+    mimaBinaryIssueFilters ++= Seq(
+      // Related to issue: https://github.com/monix/monix/issues/313
+      exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskFromFuture.apply")
+    )
   )
 
 lazy val evalJVM = project.in(file("monix-eval/jvm"))
@@ -347,6 +376,7 @@ lazy val evalJVM = project.in(file("monix-eval/jvm"))
   .dependsOn(typesJVM % "compile->compile; test->test")
   .dependsOn(executionJVM)
   .settings(evalCommon)
+  .settings(mimaSettings("monix-eval"))
 
 lazy val evalJS = project.in(file("monix-eval/js"))
   .enablePlugins(ScalaJSPlugin)
@@ -379,7 +409,22 @@ lazy val tailJS = project.in(file("monix-tail/js"))
 
 lazy val reactiveCommon =
   crossSettings ++ testSettings ++ Seq(
-    name := "monix-reactive"
+    name := "monix-reactive",
+    // Filtering out private stuff for 2.2.x
+    mimaBinaryIssueFilters ++= Seq(
+      // Related to issue: https://github.com/monix/monix/issues/321
+      // All these types are private, so in fact we cannot break binary compatibility,
+      // unless accessed by reflection, for which Monix can't make a guarantee
+      exclude[MissingTypesProblem]("monix.reactive.internal.operators.ConcatMapObservable$FlatMapState$WaitComplete$"),
+      exclude[DirectMissingMethodProblem]("monix.reactive.internal.operators.ConcatMapObservable#FlatMapState#WaitComplete.apply"),
+      exclude[DirectMissingMethodProblem]("monix.reactive.internal.operators.ConcatMapObservable#FlatMapState#WaitComplete.copy"),
+      exclude[DirectMissingMethodProblem]("monix.reactive.internal.operators.ConcatMapObservable#FlatMapState#WaitComplete.this"),
+      exclude[MissingTypesProblem]("monix.reactive.internal.operators.MapTaskObservable$FlatMapState$WaitComplete$"),
+      exclude[DirectMissingMethodProblem]("monix.reactive.internal.operators.MapTaskObservable#FlatMapState#WaitComplete.apply"),
+      exclude[DirectMissingMethodProblem]("monix.reactive.internal.operators.MapTaskObservable#FlatMapState#WaitComplete.copy"),
+      exclude[DirectMissingMethodProblem]("monix.reactive.internal.operators.MapTaskObservable#FlatMapState#WaitComplete.this"),
+      exclude[MissingClassProblem]("monix.reactive.internal.operators.MapAsyncParallelObservable$MapAsyncParallelSubscriber")
+    )
   )
 
 lazy val reactiveJVM = project.in(file("monix-reactive/jvm"))
@@ -388,6 +433,7 @@ lazy val reactiveJVM = project.in(file("monix-reactive/jvm"))
   .dependsOn(executionJVM, evalJVM, tailJVM)
   .settings(reactiveCommon)
   .settings(libraryDependencies += "org.jctools" % "jctools-core" % "2.0")
+  .settings(mimaSettings("monix-reactive"))
 
 lazy val reactiveJS = project.in(file("monix-reactive/js"))
   .enablePlugins(ScalaJSPlugin)
@@ -411,6 +457,7 @@ lazy val catsJVM = project.in(file("monix-cats/jvm"))
   .dependsOn(typesJVM)
   .dependsOn(reactiveJVM % Test)
   .settings(catsCommon)
+  .settings(mimaSettings("monix-cats"))
 
 lazy val catsJS = project.in(file("monix-cats/js"))
   .enablePlugins(ScalaJSPlugin)
@@ -433,6 +480,7 @@ lazy val scalaz72JVM = project.in(file("monix-scalaz/series-7.2/jvm"))
   .dependsOn(typesJVM)
   .dependsOn(reactiveJVM % Test)
   .settings(scalaz72Common)
+  .settings(mimaSettings("monix-scalaz-72"))
 
 lazy val scalaz72JS = project.in(file("monix-scalaz/series-7.2/js"))
   .enablePlugins(ScalaJSPlugin)

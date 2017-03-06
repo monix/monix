@@ -18,6 +18,7 @@
 package monix.eval
 
 import monix.eval.Coeval.{Error, Now}
+import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 
 import scala.concurrent.TimeoutException

@@ -42,7 +42,7 @@ private[reactive] final class InputStreamObservable(
 
   def unsafeSubscribeFn(out: Subscriber[Array[Byte]]): Cancelable = {
     if (wasSubscribed.getAndSet(true)) {
-      out.onError(MultipleSubscribersException("InputStreamObservable"))
+      out.onError(MultipleSubscribersException.build("InputStreamObservable"))
       Cancelable.empty
     }
     else {

@@ -17,8 +17,57 @@
 
 package monix.reactive.exceptions
 
-import scala.concurrent.TimeoutException
 import scala.concurrent.duration.FiniteDuration
+import scala.runtime.AbstractFunction1
 
-final case class DownstreamTimeoutException(timeout: FiniteDuration)
-  extends TimeoutException(s"Downstream timeout after $timeout")
+/** Moved to [[monix.execution.exceptions.DownstreamTimeoutException]]. */
+@deprecated("Moved to monix.execution.exceptions.DownstreamTimeoutException", "2.2.2")
+class DownstreamTimeoutException(timeout: FiniteDuration)
+  extends monix.execution.exceptions.DownstreamTimeoutException(timeout)
+  with Product {
+
+  // Overrides string because we don't want to show the
+  // name of a deprecated exception class
+  override def toString: String = {
+    val s = classOf[monix.execution.exceptions.DownstreamTimeoutException].getName
+    val message: String = getLocalizedMessage
+    if (message != null) s + ": " + message
+    else s
+  }
+
+  // Provided for binary backwards compatibility
+  def copy(timeout: FiniteDuration = timeout): DownstreamTimeoutException =
+    new DownstreamTimeoutException(timeout)
+
+  // Provided for binary backwards compatibility
+  override def productElement(n: Int): Any = {
+    if (n != 0) throw new IndexOutOfBoundsException(n.toString)
+    timeout
+  }
+
+  // Provided for binary backwards compatibility
+  override def productArity: Int = 1
+
+  // Provided for binary backwards compatibility
+  override def canEqual(that: Any): Boolean =
+    that.isInstanceOf[DownstreamTimeoutException]
+}
+
+/** Moved to [[monix.execution.exceptions.DownstreamTimeoutException]]. */
+object DownstreamTimeoutException
+  extends AbstractFunction1[FiniteDuration, DownstreamTimeoutException] {
+
+  /** Provided for backwards compatibility. */
+  private[reactive] def build(timeout: FiniteDuration): monix.execution.exceptions.DownstreamTimeoutException =
+    new DownstreamTimeoutException(timeout)
+
+  /** Builder for [[DownstreamTimeoutException]]. */
+  @deprecated("Moved to monix.execution.exceptions.DownstreamTimeoutException", "2.2.2")
+  def apply(timeout: FiniteDuration): DownstreamTimeoutException =
+    new DownstreamTimeoutException(timeout)
+
+  /** For pattern matching [[DownstreamTimeoutException]] instances. */
+  @deprecated("Moved to monix.execution.exceptions.DownstreamTimeoutException", "2.2.2")
+  def unapply(ex: DownstreamTimeoutException): Option[FiniteDuration] =
+    Some(ex.timeout)
+}

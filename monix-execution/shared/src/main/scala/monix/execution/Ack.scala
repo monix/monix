@@ -128,7 +128,7 @@ object Ack {
       * a direct reference to `Continue` or `Stop`, or asynchronously
       * otherwise.
       */
-    def syncOnStopOrFailure(callback: => Unit)(implicit s: Scheduler): Self =
+    def syncOnStopOrFailure(callback: Option[Throwable] => Unit)(implicit s: Scheduler): Self =
       macro Macros.syncOnStopOrFailure[Self]
 
     /** Given a mapping function, returns a new future reference that

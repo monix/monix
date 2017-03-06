@@ -37,7 +37,7 @@ private[reactive] final class DelayOnCompleteObservable[A]
 
       def onNext(elem: A): Future[Ack] = {
         val ack = out.onNext(elem)
-        ack.syncOnStopOrFailure(task.cancel())
+        ack.syncOnStopOrFailure(_ => task.cancel())
         ack
       }
 

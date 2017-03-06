@@ -69,7 +69,7 @@ final class BehaviorSubject[T] private (initialValue: T)
         val connecting = c.connect()
 
         val cancelable = Cancelable { () => removeSubscriber(c) }
-        connecting.syncOnStopOrFailure(cancelable.cancel())
+        connecting.syncOnStopOrFailure(_ => cancelable.cancel())
         cancelable
       }
       else {

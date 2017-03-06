@@ -39,7 +39,7 @@ private[reactive] final class IteratorAsObservable[T](
 
   def unsafeSubscribeFn(out: Subscriber[T]): Cancelable = {
     if (wasSubscribed.getAndSet(true)) {
-      out.onError(MultipleSubscribersException("InputStreamObservable"))
+      out.onError(MultipleSubscribersException.build("InputStreamObservable"))
       Cancelable.empty
     } else {
       startLoop(out)

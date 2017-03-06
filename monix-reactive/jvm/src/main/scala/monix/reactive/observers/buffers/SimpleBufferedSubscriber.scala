@@ -69,7 +69,7 @@ private[observers] abstract class AbstractSimpleBufferedSubscriber[A] protected
           Continue
         }
         else {
-          onError(new BufferOverflowException(
+          onError(BufferOverflowException.build(
             s"Downstream observer is too slow, buffer overflowed with a " +
             s"specified maximum capacity of $capacity"
           ))

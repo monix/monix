@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by its authors. Some rights reserved.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,14 +18,15 @@
 package monix.reactive.internal.operators
 
 import minitest.TestSuite
-import monix.execution.Ack.{Stop, Continue}
+import monix.eval.Task
+import monix.execution.Ack.{Continue, Stop}
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
-import monix.reactive.exceptions.DummyException
+import monix.execution.exceptions.DummyException
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
-object DoOnDownstreamStopSuite extends TestSuite[TestScheduler] {
+object EvalOnEarlyStopSuite extends TestSuite[TestScheduler] {
   def setup(): TestScheduler = TestScheduler()
   def tearDown(s: TestScheduler): Unit = {
     assert(s.state.tasks.isEmpty,
@@ -36,7 +37,7 @@ object DoOnDownstreamStopSuite extends TestSuite[TestScheduler] {
     var wasCanceled = 0
     var wasCompleted = 0
 
-    Observable.now(1).doOnDownstreamStop(wasCanceled += 1)
+    Observable.now(1).doOnEarlyStopEval(Task.eval { wasCanceled += 1 })
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
         def onNext(elem: Int) = Stop
@@ -52,7 +53,7 @@ object DoOnDownstreamStopSuite extends TestSuite[TestScheduler] {
     var wasCanceled = 0
     var wasCompleted = 0
 
-    Observable.now(1).doOnDownstreamStop(wasCanceled += 1)
+    Observable.now(1).doOnEarlyStopEval(Task { wasCanceled += 1 })
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
         def onNext(elem: Int) = Future(Stop)
@@ -69,7 +70,7 @@ object DoOnDownstreamStopSuite extends TestSuite[TestScheduler] {
     var wasCanceled = 0
     var wasCompleted = 0
 
-    Observable.range(0,10).doOnDownstreamStop(wasCanceled += 1)
+    Observable.range(0,10).doOnEarlyStopEval(Task.eval { wasCanceled += 1 })
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onNext(elem: Long): Future[Continue] =
@@ -90,7 +91,7 @@ object DoOnDownstreamStopSuite extends TestSuite[TestScheduler] {
     var wasCompleted = 0
     var errorThrown: Throwable = null
 
-    Observable.raiseError(dummy).doOnDownstreamStop(wasCanceled += 1)
+    Observable.raiseError(dummy).doOnEarlyStopEval(Task.eval { wasCanceled += 1 })
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onNext(elem: Long): Future[Continue] =
@@ -112,10 +113,9 @@ object DoOnDownstreamStopSuite extends TestSuite[TestScheduler] {
     val dummy = DummyException("dummy")
     var hasError = false
 
-    Observable.now(1).doOnDownstreamStop(throw dummy)
+    Observable.repeat(1).doOnEarlyStopEval(Task.eval { throw dummy })
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
-
         def onNext(elem: Int) = Stop
         def onError(ex: Throwable) = hasError = true
         def onComplete() = ()

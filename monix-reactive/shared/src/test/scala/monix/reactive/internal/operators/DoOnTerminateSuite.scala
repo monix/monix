@@ -18,10 +18,11 @@
 package monix.reactive.internal.operators
 
 import minitest.TestSuite
+import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
-import monix.reactive.exceptions.DummyException
+import monix.execution.exceptions.DummyException
 import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
@@ -38,7 +39,7 @@ object DoOnTerminateSuite extends TestSuite[TestScheduler] {
     var wasCompleted = 0
 
     Observable.now(1)
-      .doOnTerminate(wasCalled += 1)
+      .doOnTerminate(_ => wasCalled += 1)
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
         def onNext(elem: Int) = Continue
@@ -56,7 +57,7 @@ object DoOnTerminateSuite extends TestSuite[TestScheduler] {
     var wasThrown: Throwable = null
 
     Observable.now(1)
-      .doOnTerminate(throw ex)
+      .doOnTerminate(_ => throw ex)
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
         def onNext(elem: Int) = Continue
@@ -75,7 +76,7 @@ object DoOnTerminateSuite extends TestSuite[TestScheduler] {
     var wasThrown: Throwable = null
 
     Observable.now(1).endWithError(ex)
-      .doOnTerminate(wasCalled += 1)
+      .doOnTerminate(_ => wasCalled += 1)
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
         def onNext(elem: Int) = Continue
@@ -95,7 +96,7 @@ object DoOnTerminateSuite extends TestSuite[TestScheduler] {
     var wasThrown: Throwable = null
 
     Observable.now(1).endWithError(ex1)
-      .doOnTerminate(throw ex2)
+      .doOnTerminate(_ => throw ex2)
       .unsafeSubscribeFn(new Subscriber[Int] {
         val scheduler = s
         def onNext(elem: Int) = Continue
@@ -104,8 +105,8 @@ object DoOnTerminateSuite extends TestSuite[TestScheduler] {
           wasThrown = ex
       })
 
-    assertEquals(wasThrown, ex1)
-    assertEquals(s.state.lastReportedError, ex2)
+    assertEquals(wasThrown, ex2)
+    assertEquals(s.state.lastReportedError, ex1)
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
@@ -114,7 +115,7 @@ object DoOnTerminateSuite extends TestSuite[TestScheduler] {
     var wasCompleted = 0
 
     Observable.range(0, 100)
-      .doOnTerminate(wasCalled += 1)
+      .doOnTerminate(_ => wasCalled += 1)
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onNext(elem: Long) = Stop
@@ -132,7 +133,7 @@ object DoOnTerminateSuite extends TestSuite[TestScheduler] {
     var wasCompleted = 0
 
     Observable.range(0, 100)
-      .doOnTerminate(wasCalled += 1)
+      .doOnTerminate(_ => wasCalled += 1)
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onNext(elem: Long) = Future(Stop)
@@ -150,7 +151,7 @@ object DoOnTerminateSuite extends TestSuite[TestScheduler] {
     val ex = DummyException("dummy")
 
     Observable.range(0, 100)
-      .doOnTerminate(throw ex)
+      .doOnTerminate(_ => throw ex)
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onNext(elem: Long) = Stop
@@ -167,7 +168,7 @@ object DoOnTerminateSuite extends TestSuite[TestScheduler] {
     val ex = DummyException("dummy")
 
     Observable.range(0, 100)
-      .doOnTerminate(throw ex)
+      .doOnTerminate(_ => throw ex)
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
         def onNext(elem: Long) = Future(Stop)
@@ -179,5 +180,45 @@ object DoOnTerminateSuite extends TestSuite[TestScheduler] {
 
     s.tick()
     assertEquals(s.state.lastReportedError, ex)
+  }
+
+  test("should receive error if onNext generates error asynchronously") { implicit s =>
+    val ex = DummyException("dummy")
+    var errorThrown = Option.empty[Throwable]
+
+    Observable.range(0, 100)
+      .doOnTerminate { ex => errorThrown = ex }
+      .unsafeSubscribeFn(new Subscriber[Long] {
+        val scheduler = s
+        def onNext(elem: Long) =
+          Future { (throw ex) : Ack }
+        def onError(ex: Throwable): Unit =
+          throw new IllegalStateException("onError")
+        def onComplete(): Unit =
+          throw new IllegalStateException("onComplete")
+      })
+
+    s.tick()
+    assertEquals(errorThrown, Some(ex))
+  }
+
+  test("should receive error if onNext returns error synchronously") { implicit s =>
+    val ex = DummyException("dummy")
+    var errorThrown = Option.empty[Throwable]
+
+    Observable.range(0, 100)
+      .doOnTerminate { ex => errorThrown = ex }
+      .unsafeSubscribeFn(new Subscriber[Long] {
+        val scheduler = s
+        def onNext(elem: Long) =
+          Future.failed(ex)
+        def onError(ex: Throwable): Unit =
+          throw new IllegalStateException("onError")
+        def onComplete(): Unit =
+          throw new IllegalStateException("onComplete")
+      })
+
+    s.tick()
+    assertEquals(errorThrown, Some(ex))
   }
 }

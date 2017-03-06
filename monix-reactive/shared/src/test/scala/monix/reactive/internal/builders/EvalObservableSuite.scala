@@ -18,7 +18,7 @@
 package monix.reactive.internal.builders
 
 import monix.eval.Coeval
-import monix.reactive.exceptions.DummyException
+import monix.execution.exceptions.DummyException
 import monix.reactive.{BaseLawsTestSuite, Observable}
 import scala.util.Success
 

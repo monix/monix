@@ -19,7 +19,7 @@ package monix.reactive.internal.operators
 
 import monix.execution.Ack.Continue
 import monix.execution.FutureUtils.extensions._
-import monix.reactive.exceptions.DummyException
+import monix.execution.exceptions.DummyException
 import monix.reactive.subjects.PublishSubject
 import monix.reactive.{Observable, Observer}
 import scala.concurrent.Future
@@ -107,7 +107,7 @@ object Zip2Suite extends BaseOperatorSuite {
     var wasCanceled = false
     var received = (0,0)
 
-    obs1.zip(obs2.doOnDownstreamStop { wasCanceled = true })
+    obs1.zip(obs2.doOnEarlyStop { () => wasCanceled = true })
       .unsafeSubscribeFn(new Observer[(Int, Int)] {
         def onNext(elem: (Int, Int)) = { received = elem; Continue }
         def onError(ex: Throwable) = wasThrown = ex
@@ -130,7 +130,7 @@ object Zip2Suite extends BaseOperatorSuite {
     var wasCanceled = false
     var received = (0,0)
 
-    obs2.doOnDownstreamStop { wasCanceled = true }.zip(obs1)
+    obs2.doOnEarlyStop { () => wasCanceled = true }.zip(obs1)
       .unsafeSubscribeFn(new Observer[(Int, Int)] {
       def onNext(elem: (Int, Int)) = { received = elem; Continue }
       def onError(ex: Throwable) = wasThrown = ex

@@ -22,7 +22,7 @@ import java.util.concurrent.{CountDownLatch, TimeUnit, TimeoutException}
 import minitest.TestSuite
 import monix.execution.ExecutionModel.{AlwaysAsyncExecution, Default => DefaultExecutionModel}
 import monix.execution.cancelables.SingleAssignmentCancelable
-import monix.execution.misc.InlineMacrosTest.DummyException
+import monix.execution.exceptions.DummyException
 import monix.execution.{Cancelable, Scheduler, UncaughtExceptionReporter}
 
 import scala.concurrent.duration._

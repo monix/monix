@@ -19,11 +19,10 @@ package monix.eval.internal
 
 import monix.eval.{Callback, Task}
 import monix.execution.Ack.Stop
-import monix.execution.Scheduler
 import monix.execution.atomic.PaddingStrategy.LeftRight128
 import monix.execution.atomic.{Atomic, AtomicAny}
-import monix.execution.cancelables.{CompositeCancelable, StackedCancelable}
-
+import monix.execution.cancelables.StackedCancelable
+import monix.execution.{Cancelable, Scheduler}
 import scala.annotation.tailrec
 import scala.util.control.NonFatal
 
@@ -83,7 +82,7 @@ private[monix] object TaskMapBoth {
         val context1 = context.copy(connection = task1)
         val task2 = StackedCancelable()
         val context2 = context.copy(connection = task2)
-        mainConn push CompositeCancelable(task1, task2)
+        mainConn push Cancelable.collection(Array(task1, task2))
 
         // Light asynchronous boundary; with most scheduler implementations
         // it will not fork a new (logical) thread!

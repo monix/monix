@@ -19,7 +19,7 @@ package monix.reactive.internal.operators
 
 import monix.execution.Ack
 import monix.execution.Ack.Continue
-import monix.reactive.exceptions.DummyException
+import monix.execution.exceptions.DummyException
 import monix.reactive.{Observable, Observer}
 import scala.concurrent.Future
 import scala.concurrent.duration._

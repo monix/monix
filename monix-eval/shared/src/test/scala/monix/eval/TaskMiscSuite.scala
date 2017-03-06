@@ -17,7 +17,9 @@
 
 package monix.eval
 
+import monix.execution.exceptions.DummyException
 import org.reactivestreams.{Subscriber, Subscription}
+
 import scala.concurrent.Promise
 import scala.util.{Failure, Success}
 

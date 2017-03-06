@@ -19,6 +19,7 @@ package monix.eval
 
 import minitest.SimpleTestSuite
 import monix.execution.Cancelable
+import monix.execution.exceptions.DummyException
 
 object TaskToStringSuite extends SimpleTestSuite {
   test("Task.Now") {

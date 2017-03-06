@@ -18,18 +18,16 @@
 package monix.reactive.observables
 
 import java.io.PrintStream
-
 import monix.eval.Task
-import monix.execution.{ExecutionModel, Scheduler}
 import monix.execution.cancelables.BooleanCancelable
+import monix.execution.{Ack, ExecutionModel, Scheduler}
 import monix.reactive.OverflowStrategy.Synchronous
-import monix.reactive.exceptions.UpstreamTimeoutException
-import monix.reactive.internal.builders.{RepeatObservable => _, _}
+import monix.execution.exceptions.UpstreamTimeoutException
+import monix.reactive.internal.builders._
 import monix.reactive.internal.operators._
 import monix.reactive.observables.ObservableLike.{Operator, Transformer}
 import monix.reactive.observers.Subscriber
 import monix.reactive.{Notification, Observable, OverflowStrategy, Pipe}
-
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 import scala.util.control.NonFatal
@@ -59,7 +57,7 @@ import scala.util.control.NonFatal
   *         notifications until all of the observables complete and only
   *         then passing the issued errors(s) downstream. Note that
   *         the streamed error is a
-  *         [[monix.reactive.exceptions.CompositeException CompositeException]],
+  *         [[monix.execution.exceptions.CompositeException CompositeException]],
   *         since multiple errors from multiple streams can happen.
   *
   * @define concatReturn an observable that emits items that are the result of
@@ -637,23 +635,66 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
   /** Executes the given callback when the streaming is stopped
     * due to a downstream [[monix.execution.Ack.Stop Stop]] signal
     * returned by [[monix.reactive.Observer.onNext onNext]].
+    *
+    * @see [[doOnEarlyStopEval]] for a version that allows for asynchronous
+    *     evaluation by means of [[monix.eval.Task Task]].
     */
-  def doOnDownstreamStop(cb: => Unit): Self[A] =
-    self.liftByOperator(new DoOnDownstreamStopOperator[A](cb))
+  def doOnEarlyStop(cb: () => Unit): Self[A] =
+    self.liftByOperator(new DoOnEarlyStopOperator[A](cb))
 
-  /** Executes the given callback when the connection is
-    * being [[monix.execution.Cancelable.cancel cancelled]].
+  /** Executes the given task when the streaming is stopped
+    * due to a downstream [[monix.execution.Ack.Stop Stop]] signal
+    * returned by [[monix.reactive.Observer.onNext onNext]].
+    *
+    * The given `task` gets evaluated *before* the upstream
+    * receives the `Stop` event (is back-pressured).
+    *
+    * @see [[doOnEarlyStop]] for a simpler version that doesn't
+    *     do asynchronous execution
     */
-  def doOnSubscriptionCancel(cb: => Unit): Self[A] =
+  def doOnEarlyStopEval(task: Task[Unit]): Self[A] =
+    self.liftByOperator(new EvalOnEarlyStopOperator[A](task))
+
+  /** Executes the given callback when the connection is being
+    * [[monix.execution.Cancelable.cancel cancelled]].
+    */
+  def doOnSubscriptionCancel(cb: () => Unit): Self[A] =
     self.transform(self => new DoOnSubscriptionCancelObservable[A](self, cb))
 
   /** Executes the given callback when the stream has ended with an
     * `onComplete` event, but before the complete event is emitted.
     *
-    * @param cb the callback to execute when the subscription is canceled
+    * Unless you know what you're doing, you probably want to use
+    * [[doOnTerminate]] and [[doOnSubscriptionCancel]] for proper
+    * disposal of resources on completion.
+    *
+    * @param cb the callback to execute when the `onComplete`
+    *        event gets emitted
+    *
+    * @see [[doOnCompleteEval]] for a version that allows for asynchronous
+    *     evaluation by means of [[monix.eval.Task Task]].
     */
-  def doOnComplete(cb: => Unit): Self[A] =
+  def doOnComplete(cb: () => Unit): Self[A] =
     self.liftByOperator(new DoOnCompleteOperator[A](cb))
+
+  /** Evaluates the given task when the stream has ended with an
+    * `onComplete` event, but before the complete event is emitted.
+    *
+    * The task gets evaluated and is finished *before* the `onComplete`
+    * signal gets sent downstream.
+    *
+    * Unless you know what you're doing, you probably want to use
+    * [[doOnTerminateEval]] and [[doOnSubscriptionCancel]] for proper
+    * disposal of resources on completion.
+    *
+    * @param task the task to execute when the `onComplete`
+    *        event gets emitted
+    *
+    * @see [[doOnComplete]] for a simpler version that doesn't
+    *     do asynchronous execution
+    */
+  def doOnCompleteEval(task: Task[Unit]): Self[A] =
+    self.liftByOperator(new EvalOnCompleteOperator[A](task))
 
   /** Executes the given callback when the stream is interrupted with an
     * error, before the `onError` event is emitted downstream.
@@ -661,31 +702,157 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * NOTE: should protect the code in this callback, because if it
     * throws an exception the `onError` event will prefer signaling
     * the original exception and otherwise the behavior is undefined.
+    *
+    * @see [[doOnTerminate]] and [[doOnSubscriptionCancel]] for
+    *     handling resource disposal, also see [[doOnErrorEval]] for
+    *     a version that does asynchronous evaluation by means of
+    *     [[monix.eval.Task Task]].
     */
   def doOnError(cb: Throwable => Unit): Self[A] =
     self.liftByOperator(new DoOnErrorOperator[A](cb))
 
-  /** Executes the given callback when the stream has ended either with
-    * an `onComplete` or `onError` event, or when the streaming stops by
+  /** Executes the given task when the stream is interrupted with an
+    * error, before the `onError` event is emitted downstream.
+    *
+    * NOTE: should protect the code in this callback, because if it
+    * throws an exception the `onError` event will prefer signaling
+    * the original exception and otherwise the behavior is undefined.
+    *
+    * @see [[doOnTerminateEval]] and [[doOnSubscriptionCancel]] for handling
+    *     resource disposal, also see [[doOnError]] for a simpler version
+    *     that doesn't do asynchronous execution.
+    */
+  def doOnErrorEval(cb: Throwable => Task[Unit]): Self[A] =
+    self.liftByOperator(new EvalOnErrorOperator[A](cb))
+
+  /** Executes the given callback right before the streaming is ended either
+    * with an `onComplete` or `onError` event, or when the streaming stops by
     * a downstream `Stop` being signaled.
     *
     * It is the equivalent of calling:
     *
     *   - [[doOnComplete]]
     *   - [[doOnError]]
-    *   - [[doOnDownstreamStop]]
+    *   - [[doOnEarlyStop]]
+    *
+    * This differs from [[doAfterTerminate]] in that this happens *before*
+    * the `onComplete` or `onError` notification.
+    *
+    * @see [[doOnTerminateEval]] for a version that allows for asynchronous
+    *     evaluation by means of [[monix.eval.Task Task]].
     */
-  def doOnTerminate(cb: => Unit): Self[A] =
-    self.liftByOperator(new DoOnTerminateOperator[A](cb _))
+  def doOnTerminate(cb: Option[Throwable] => Unit): Self[A] =
+    self.liftByOperator(new DoOnTerminateOperator[A](cb, happensBefore=true))
+
+  /** Evaluates the task generated by the given callback right before the streaming
+    * is ended either with an `onComplete` or `onError` event, or when the streaming
+    * stops by a downstream `Stop` being signaled.
+    *
+    * The callback-generated [[monix.eval.Task Task]] will back-pressure the source
+    * when applied for `Stop` events returned by `onNext` and thus the upstream source
+    * will receive the `Stop` result only after the task has finished executing.
+    *
+    * It is the equivalent of calling:
+    *
+    *   - [[doOnCompleteEval]]
+    *   - [[doOnErrorEval]]
+    *   - [[doOnEarlyStopEval]]
+    *
+    * This differs from [[doAfterTerminateEval]] in that this happens *before*
+    * the `onComplete` or `onError` notification.
+    *
+    * @see [[doOnTerminate]] for a simpler version that doesn't allow
+    *     asynchronous execution.
+    */
+  def doOnTerminateEval(cb: Option[Throwable] => Task[Unit]): Self[A] =
+    self.liftByOperator(new EvalOnTerminateOperator[A](cb, happensBefore=true))
+
+  /** Executes the given callback after the stream has ended either with
+    * an `onComplete` or `onError` event, or when the streaming stops by
+    * a downstream `Stop` being signaled.
+    *
+    * This differs from [[doOnTerminate]] in that this happens *after*
+    * the `onComplete` or `onError` notification.
+    *
+    * @see [[doAfterTerminateEval]] for a version that allows for asynchronous
+    *     evaluation by means of [[monix.eval.Task Task]].
+    */
+  def doAfterTerminate(cb: Option[Throwable] => Unit): Self[A] =
+    self.liftByOperator(new DoOnTerminateOperator[A](cb, happensBefore=false))
+
+  /** Evaluates the task generated by the given callback after the stream has
+    * ended either with an `onComplete` or `onError` event, or when the streaming
+    * stops by a downstream `Stop` being signaled.
+    *
+    * This operation subsumes [[doOnEarlyStopEval]] and the callback-generated
+    * [[monix.eval.Task Task]] will back-pressure the source when applied for
+    * `Stop` events returned by `onNext` and thus the upstream source will receive
+    * the `Stop` result only after the task has finished executing.
+    *
+    * This differs from [[doOnTerminateEval]] in that this happens *after*
+    * the `onComplete` or `onError` notification.
+    *
+    * @see [[doAfterTerminate]] for a simpler version that doesn't allow
+    *     asynchronous execution.
+    */
+  def doAfterTerminateEval(cb: Option[Throwable] => Task[Unit]): Self[A] =
+    self.liftByOperator(new EvalOnTerminateOperator[A](cb, happensBefore=false))
 
   /** Executes the given callback for each element generated by the
     * source Observable, useful for doing side-effects.
     *
     * @return a new Observable that executes the specified
     *         callback for each element
+    *
+    * @see [[doOnNextEval]] for a version that allows for asynchronous
+    *     evaluation by means of [[monix.eval.Task Task]].
     */
   def doOnNext(cb: A => Unit): Self[A] =
-    self.liftByOperator(new DoOnNextOperator[A](cb))
+    self.map { a => cb(a); a }
+
+  /** Evaluates the given callback for each element generated by the
+    * source Observable, useful for triggering async side-effects.
+    *
+    * @return a new Observable that executes the specified
+    *         callback for each element
+    *
+    * @see [[doOnNext]] for a simpler version that doesn't allow
+    *     asynchronous execution.
+    */
+  def doOnNextEval(cb: A => Task[Unit]): Self[A] =
+    self.mapTask(a => cb(a).map(_ => a))
+
+  /** Executes the given callback on each acknowledgement
+    * received from the downstream subscriber.
+    *
+    * This method helps in executing logic after messages get
+    * processed, for example when messages are polled from
+    * some distributed message queue and an acknowledgement
+    * needs to be sent after each message in order to mark it
+    * as processed.
+    *
+    * @see [[doOnNextAckEval]] for a version that allows for asynchronous
+    *     evaluation by means of [[monix.eval.Task Task]].
+    */
+  def doOnNextAck(cb: (A, Ack) => Unit): Self[A] =
+    self.liftByOperator(new DoOnNextAckOperator[A](cb))
+
+  /** Executes the given callback on each acknowledgement received from
+    * the downstream subscriber, executing a generated
+    * [[monix.eval.Task Task]] and back-pressuring until the task
+    * is done.
+    *
+    * This method helps in executing logic after messages get
+    * processed, for example when messages are polled from
+    * some distributed message queue and an acknowledgement
+    * needs to be sent after each message in order to mark it
+    * as processed.
+    *
+    * @see [[doOnNextAck]] for a simpler version that doesn't allow
+    *     asynchronous execution.
+    */
+  def doOnNextAckEval(cb: (A, Ack) => Task[Unit]): Self[A] =
+    self.liftByOperator(new EvalOnNextAckOperator[A](cb))
 
   /** Executes the given callback only for the first element generated
     * by the source Observable, useful for doing a piece of
@@ -697,9 +864,21 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
   def doOnStart(cb: A => Unit): Self[A] =
     self.liftByOperator(new DoOnStartOperator[A](cb))
 
-  /** Executes the given callback before the subscription happens. */
-  def doOnSubscribe(cb: => Unit): Self[A] =
-    self.transform(self => new DoOnSubscribeObservable[A](self, cb))
+  /** Executes the given callback just before the subscription happens.
+    *
+    * @see [[doAfterSubscribe]] for executing a callback just after
+    *     a subscription happens.
+    */
+  def doOnSubscribe(cb: () => Unit): Self[A] =
+    self.transform(self => new DoOnSubscribeObservable.Before[A](self, cb))
+
+  /** Executes the given callback just after the subscription happens.
+    *
+    * @see [[doOnSubscribe]] for executing a callback just before
+    *     a subscription happens.
+    */
+  def doAfterSubscribe(cb: () => Unit): Self[A] =
+    self.transform(self => new DoOnSubscribeObservable.After[A](self, cb))
 
   /** Drops the first `n` elements (from the start).
     *
@@ -794,7 +973,6 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     */
   def echoRepeated(timeout: FiniteDuration): Self[A] =
     self.transform(self => new EchoObservable(self, timeout, onlyOnce = false))
-
 
   /** Creates a new Observable that emits the events of the source and
     * then it also emits the given elements (appended to the stream).
@@ -910,7 +1088,7 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * producing and concatenating observables along the way.
     *
     * This version of [[flatScan]] delays all errors until `onComplete`,
-    * when it will finally emit a `CompositeException`.
+    * when it will finally emit a [[monix.execution.exceptions.CompositeException CompositeException]].
     * It's the combination between [[scan]] and [[flatMapDelayErrors]].
     */
   def flatScanDelayErrors[R](initial: => R)(op: (R, A) => Observable[R]): Self[R] =
@@ -1480,7 +1658,7 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * It terminates either on error or if the source is empty.
     */
   def repeat: Self[A] =
-    self.transform(self => new RepeatObservable[A](self))
+    self.transform(self => new RepeatSourceObservable[A](self))
 
   /** Keeps restarting / resubscribing the source until the predicate
     * returns `true` for the the first emitted element, after which
@@ -1962,5 +2140,45 @@ object ObservableLike {
     @deprecated("Renamed to flatScanDelayErrors (plural for errors ;))", since="2.2.0")
     def flatScanDelayError[R](initial: => R)(op: (R, A) => Observable[R]): Self[R] =
       self.flatScanDelayErrors(initial)(op)
+
+    /** Deprecated. Renamed to [[ObservableLike.doOnEarlyStop]]. */
+    @deprecated("Renamed to doOnEarlyStop", since="2.2.0")
+    def doOnDownstreamStop(cb: => Unit): Self[A] =
+      self.doOnEarlyStop(cb _)
+
+    /** Deprecated. Parameter should be a function, instead of being passed by-name.
+      *
+      * @see [[ObservableLike.doOnSubscriptionCancel]].
+      */
+    @deprecated(
+      "Parameter should be a function, instead of being passed by-name. " +
+      "See ObservableLike.doOnSubscriptionCancel", since="2.2.0")
+    def doOnSubscriptionCancel(cb: => Unit): Self[A] =
+      self.doOnSubscriptionCancel(cb _)
+
+    /** Deprecated. Parameter should be a function, instead of being passed by-name.
+      *
+      * @see [[ObservableLike.doOnComplete]].
+      */
+    @deprecated(
+      "Parameter should be a function, instead of being passed by-name. " +
+      "See ObservableLike.doOnComplete", since="2.2.0")
+    def doOnComplete(cb: => Unit): Self[A] =
+      self.doOnComplete(cb _)
+
+    /** Deprecated. Parameter type changed.
+      *
+      * @see [[ObservableLike.doOnTerminate]].
+      */
+    @deprecated("Parameter type changed. See ObservableLike.doOnTerminate", since="2.2.0")
+    def doOnTerminate(cb: => Unit): Self[A] =
+      self.doOnTerminate(_ => cb)
+
+    /** Deprecated. Renamed to [[ObservableLike.doOnSubscribe]]. */
+    @deprecated(
+      "Parameter should be a function, instead of being passed by-name. " +
+      "See ObservableLike.doOnSubscribe", since="2.2.0")
+    def doOnSubscribe(cb: => Unit): Self[A] =
+      self.doOnSubscribe(cb _)
   }
 }

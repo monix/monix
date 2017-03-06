@@ -31,7 +31,7 @@ import scala.concurrent.{Future, Promise}
   *
   * In case the subject gets subscribed more than once, then the
   * subscribers will be notified with a
-  * [[monix.reactive.exceptions.MultipleSubscribersException MultipleSubscribersException]]
+  * [[monix.execution.exceptions.APIContractViolationException APIContractViolationException]]
   * error.
   *
   * Given that unicast observables are tricky, for working with this subject
@@ -80,7 +80,7 @@ final class PublishToOneSubject[A] private () extends Subject[A,A] with BooleanC
         }
 
       case _ =>
-        subscriber.onError(MultipleSubscribersException("PublishToOneSubject"))
+        subscriber.onError(MultipleSubscribersException.build("PublishToOneSubject"))
         Cancelable.empty
     }
 

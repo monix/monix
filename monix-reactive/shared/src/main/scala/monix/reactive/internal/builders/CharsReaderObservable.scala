@@ -41,7 +41,7 @@ private[reactive] final class CharsReaderObservable(
 
   def unsafeSubscribeFn(out: Subscriber[Array[Char]]): Cancelable = {
     if (wasSubscribed.getAndSet(true)) {
-      out.onError(MultipleSubscribersException("ReaderObservable"))
+      out.onError(MultipleSubscribersException.build("ReaderObservable"))
       Cancelable.empty
     }
     else {

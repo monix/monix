@@ -18,8 +18,8 @@
 package monix.reactive.subjects
 
 import monix.execution.Ack.Continue
+import monix.execution.exceptions.DummyException
 import monix.reactive.Observer
-import monix.reactive.exceptions.DummyException
 
 object AsyncSubjectSuite extends BaseSubjectSuite {
   def alreadyTerminatedTest(expectedElems: Seq[Long]) = {
@@ -204,5 +204,18 @@ object AsyncSubjectSuite extends BaseSubjectSuite {
 
     assertEquals(elemsReceived, 0)
     assertEquals(errorsReceived, 11)
+  }
+
+  test("unsubscribe after onComplete") { implicit s =>
+    var result: Int = 0
+    val subject = AsyncSubject[Int]()
+    val c = subject.subscribe { e => result = e; Continue }
+
+    subject.onNext(1)
+    subject.onComplete()
+
+    s.tick()
+    c.cancel()
+    assertEquals(result, 1)
   }
 }

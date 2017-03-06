@@ -20,7 +20,7 @@ package monix.reactive.internal.operators
 import java.io.{OutputStream, PrintStream}
 
 import monix.reactive.Observable
-import monix.reactive.exceptions.DummyException
+import monix.execution.exceptions.DummyException
 import monix.execution.atomic.AtomicInt
 import scala.concurrent.duration.Duration.Zero
 import scala.concurrent.duration._

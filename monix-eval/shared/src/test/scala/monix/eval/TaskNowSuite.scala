@@ -18,6 +18,8 @@
 package monix.eval
 
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
+import monix.execution.exceptions.DummyException
+
 import scala.util.{Failure, Success, Try}
 
 object TaskNowSuite extends BaseTestSuite {

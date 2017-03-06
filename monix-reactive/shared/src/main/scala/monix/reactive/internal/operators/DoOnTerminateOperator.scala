@@ -17,54 +17,69 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.{Ack, Cancelable}
+import monix.execution.Ack
+import monix.execution.atomic.Atomic
 import monix.reactive.observables.ObservableLike.Operator
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 
 private[reactive] final
-class DoOnTerminateOperator[A](onTerminate: () => Unit)
+class DoOnTerminateOperator[A](onTerminate: Option[Throwable] => Unit, happensBefore: Boolean)
   extends Operator[A,A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
       // Wrapping in a cancelable in order to protect it from
       // being called multiple times
-      private[this] val active = Cancelable(onTerminate)
+      private[this] val active = Atomic(true)
       implicit val scheduler = out.scheduler
 
       def onNext(elem: A): Future[Ack] = {
-        out.onNext(elem).syncOnStopOrFailure {
-          try active.cancel() catch {
-            case NonFatal(ex) =>
-              scheduler.reportFailure(ex)
+        out.onNext(elem).syncOnStopOrFailure { ex =>
+          if (active.getAndSet(false))
+            try onTerminate(ex) catch {
+              case NonFatal(err) =>
+                scheduler.reportFailure(err)
+            }
+        }
+      }
+
+      private def onFinish(ex: Option[Throwable]): Unit = {
+        @inline def triggerSignal(): Unit = ex match {
+          case None => out.onComplete()
+          case Some(ref) => out.onError(ref)
+        }
+
+        if (active.getAndSet(false)) {
+          var streamErrors = true
+          try {
+            if (happensBefore) {
+              onTerminate(ex)
+              streamErrors = false
+              triggerSignal()
+            } else {
+              streamErrors = false
+              triggerSignal()
+              onTerminate(ex)
+            }
+          } catch {
+            case NonFatal(err) =>
+              if (streamErrors) {
+                out.onError(err)
+                ex.foreach(scheduler.reportFailure)
+              }
+              else
+                scheduler.reportFailure(err)
           }
+        } else {
+          ex.foreach(scheduler.reportFailure)
         }
       }
 
-      def onComplete(): Unit = {
-        var streamErrors = true
-        try {
-          active.cancel()
-          streamErrors = false
-          out.onComplete()
-        } catch {
-          case NonFatal(ex) =>
-            if (streamErrors) out.onError(ex)
-            else scheduler.reportFailure(ex)
-        }
-      }
-
-      def onError(ex: Throwable): Unit = {
-        // In case our callback throws an error the behavior
-        // is undefined, so we just log it.
-        try active.cancel() catch {
-          case NonFatal(err) =>
-            scheduler.reportFailure(err)
-        } finally {
-          out.onError(ex)
-        }
-      }
+      def onComplete(): Unit =
+        onFinish(None)
+      def onError(ex: Throwable): Unit =
+        onFinish(Some(ex))
     }
 }

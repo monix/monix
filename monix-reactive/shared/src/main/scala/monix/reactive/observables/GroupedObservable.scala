@@ -61,7 +61,7 @@ object GroupedObservable {
         def onNext(elem: V) = {
           val cache = ref
           val downstream = if (cache == null) self.synchronized(ref) else cache
-          downstream.onNext(elem).syncOnStopOrFailure(onCancel.cancel())
+          downstream.onNext(elem).syncOnStopOrFailure(_ => onCancel.cancel())
         }
 
         def onError(ex: Throwable): Unit =
@@ -91,7 +91,7 @@ object GroupedObservable {
     def unsafeSubscribeFn(subscriber: Subscriber[V]): Cancelable =
       self.synchronized {
         if (ref != null) {
-          subscriber.onError(MultipleSubscribersException("GroupedObservable"))
+          subscriber.onError(MultipleSubscribersException.build("GroupedObservable"))
           Cancelable.empty
         } else {
           ref = subscriber

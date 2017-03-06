@@ -72,7 +72,7 @@ final class RefCountObservable[+T] private (source: ConnectableObservable[T])
 
       def onNext(elem: U): Future[Ack] = {
         downstream.onNext(elem)
-          .syncOnStopOrFailure(subscription.cancel())
+          .syncOnStopOrFailure(_ => subscription.cancel())
       }
 
       def onError(ex: Throwable): Unit = {

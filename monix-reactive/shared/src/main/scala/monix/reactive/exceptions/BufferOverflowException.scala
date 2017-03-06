@@ -20,5 +20,22 @@ package monix.reactive.exceptions
 /** An exception emitted on buffer overflow, like when
   * using [[monix.reactive.OverflowStrategy.Fail OverflowStrategy.Fail]].
   */
+@deprecated("Moved to monix.execution.exceptions.BufferOverflowException", "2.2.2")
 class BufferOverflowException(msg: String)
-  extends RuntimeException(msg)
+  extends monix.execution.exceptions.BufferOverflowException(msg) {
+
+  // Overrides string because we don't want to show the
+  // name of a deprecated exception class
+  override def toString: String = {
+    val s = classOf[monix.execution.exceptions.BufferOverflowException].getName
+    val message: String = getLocalizedMessage
+    if (message != null) s + ": " + message
+    else s
+  }
+}
+
+private[reactive] object BufferOverflowException {
+  /** Provided for backwards compatibility. */
+  def build(msg: String): monix.execution.exceptions.BufferOverflowException =
+    new BufferOverflowException(msg)
+}

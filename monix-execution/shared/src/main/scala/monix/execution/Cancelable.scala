@@ -47,10 +47,20 @@ object Cancelable {
   def apply(callback: () => Unit): Cancelable =
     new CancelableTask(callback)
 
+  /** Returns a dummy [[Cancelable]] that doesn't do anything. */
   val empty: Cancelable =
     new Cancelable with IsDummy {
       def cancel() = ()
       override def toString = "monix.execution.Cancelable.empty"
+    }
+
+  /** Builds a [[Cancelable]] reference from a sequence,
+    * cancelling everything on `cancel`.
+    */
+  def collection(refs: Iterable[Cancelable]): Cancelable =
+    apply { () =>
+      val cursor = refs.iterator
+      while (cursor.hasNext) cursor.next().cancel()
     }
 
   /** Marker for cancelables that are dummies that can be ignored. */

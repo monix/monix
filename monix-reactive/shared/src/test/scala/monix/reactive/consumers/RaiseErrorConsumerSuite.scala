@@ -20,7 +20,7 @@ package monix.reactive.consumers
 import monix.eval.Callback
 import monix.execution.Ack.Stop
 import monix.execution.cancelables.BooleanCancelable
-import monix.reactive.exceptions.DummyException
+import monix.execution.exceptions.DummyException
 import monix.reactive.{BaseLawsTestSuite, Consumer}
 
 import scala.concurrent.Promise

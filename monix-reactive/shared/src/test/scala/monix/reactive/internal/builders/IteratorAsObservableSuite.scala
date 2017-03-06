@@ -19,10 +19,11 @@ package monix.reactive.internal.builders
 
 import minitest.TestSuite
 import monix.execution.Ack.Continue
+import monix.execution.exceptions.APIContractViolationException
 import monix.execution.{Ack, Scheduler}
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
-import monix.reactive.exceptions.{DummyException, MultipleSubscribersException}
+import monix.execution.exceptions.DummyException
 import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
@@ -50,7 +51,7 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
         errorThrown = ex
     })
 
-    assert(errorThrown.isInstanceOf[MultipleSubscribersException])
+    assert(errorThrown.isInstanceOf[APIContractViolationException])
   }
 
   test("onFinish should be called upon onComplete") { implicit s =>

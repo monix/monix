@@ -20,7 +20,7 @@ package monix.execution.schedulers
 import java.util.concurrent.{TimeUnit, TimeoutException}
 import minitest.TestSuite
 import monix.execution.Scheduler
-import monix.execution.misc.InlineMacrosTest.DummyException
+import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 import scala.concurrent.duration._
 import scala.concurrent.Promise

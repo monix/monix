@@ -18,9 +18,9 @@
 package monix.reactive.consumers
 
 import minitest.TestSuite
+import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Notification.{OnComplete, OnError, OnNext}
-import monix.reactive.exceptions.DummyException
 import monix.reactive.{Consumer, Observable}
 import scala.util.Success
 
@@ -33,7 +33,7 @@ object FirstNotificationConsumerSuite extends TestSuite[TestScheduler] {
 
   test("stops on first on next") { implicit s =>
     var wasStopped = false
-    val obs = Observable.now(1).doOnDownstreamStop { wasStopped = true }
+    val obs = Observable.now(1).doOnEarlyStop { () => wasStopped = true }
     val f = obs.consumeWith(Consumer.firstNotification).runAsync
 
     s.tick()
@@ -45,8 +45,8 @@ object FirstNotificationConsumerSuite extends TestSuite[TestScheduler] {
     var wasStopped = false
     var wasCompleted = false
     val obs = Observable.empty[Int]
-      .doOnDownstreamStop { wasStopped = true }
-      .doOnComplete { wasCompleted = true }
+      .doOnEarlyStop { () => wasStopped = true }
+      .doOnComplete { () => wasCompleted = true }
 
     val f = obs.consumeWith(Consumer.firstNotification).runAsync
 
@@ -61,7 +61,7 @@ object FirstNotificationConsumerSuite extends TestSuite[TestScheduler] {
     var wasStopped = false
     var wasCompleted = false
     val obs = Observable.raiseError(ex)
-      .doOnDownstreamStop { wasStopped = true }
+      .doOnEarlyStop { () => wasStopped = true }
       .doOnError { _ => wasCompleted = true }
 
     val f = obs.consumeWith(Consumer.firstNotification).runAsync

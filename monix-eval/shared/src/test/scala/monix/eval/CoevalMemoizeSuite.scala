@@ -17,7 +17,9 @@
 
 package monix.eval
 
+import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
+
 import scala.util.Success
 
 object CoevalMemoizeSuite extends BaseTestSuite {

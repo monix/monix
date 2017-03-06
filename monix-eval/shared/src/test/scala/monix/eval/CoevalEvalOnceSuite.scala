@@ -18,6 +18,8 @@
 package monix.eval
 
 import monix.eval.Coeval.{Error, Now}
+import monix.execution.exceptions.DummyException
+
 import scala.util.{Failure, Success}
 
 object CoevalEvalOnceSuite extends BaseTestSuite {

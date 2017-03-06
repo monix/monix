@@ -51,7 +51,7 @@ private[reactive] final class MergeMapObservable[A,B](
           if (delayErrors)
             errors.synchronized {
               if (errors.nonEmpty)
-                subscriberB.onError(CompositeException(errors))
+                subscriberB.onError(CompositeException.build(errors))
               else
                 subscriberB.onComplete()
             }
@@ -84,8 +84,7 @@ private[reactive] final class MergeMapObservable[A,B](
             implicit val scheduler = downstream.scheduler
 
             def onNext(elem: B) = {
-              subscriberB.onNext(elem)
-                .syncOnStopOrFailure(cancelUpstream())
+              subscriberB.onNext(elem).syncOnStopOrFailure(_ => cancelUpstream())
             }
 
             def onError(ex: Throwable): Unit = {

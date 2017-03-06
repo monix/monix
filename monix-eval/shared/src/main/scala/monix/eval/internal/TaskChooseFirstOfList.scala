@@ -18,8 +18,9 @@
 package monix.eval.internal
 
 import monix.eval.{Callback, Task}
+import monix.execution.Cancelable
 import monix.execution.atomic.{Atomic, PaddingStrategy}
-import monix.execution.cancelables.{CompositeCancelable, StackedCancelable}
+import monix.execution.cancelables.StackedCancelable
 
 private[monix] object TaskChooseFirstOfList {
   /**
@@ -29,33 +30,42 @@ private[monix] object TaskChooseFirstOfList {
     Task.unsafeCreate { (context, callback) =>
       implicit val s = context.scheduler
       val conn = context.connection
+      var streamErrors = true
 
       val isActive = Atomic.withPadding(true, PaddingStrategy.LeftRight128)
-      val composite = CompositeCancelable()
+      val taskArray = tasks.toArray
+      val cancelablesArray = buildCancelableArray(taskArray.length)
+
+      val composite = Cancelable.collection(cancelablesArray)
       conn.push(composite)
 
-      val cursor = tasks.toIterator
-
-      while (isActive.get && cursor.hasNext) {
-        val task = cursor.next()
-        val taskCancelable = StackedCancelable()
+      var index = 0
+      while (index < taskArray.length) {
+        val task = taskArray(index)
+        val taskCancelable = cancelablesArray(index)
         val taskContext = context.copy(connection = taskCancelable)
-        composite += taskCancelable
+        index += 1
 
         Task.unsafeStartAsync(task, taskContext, new Callback[A] {
+          private def popAndCancelRest(): Unit = {
+            conn.pop()
+            var i = 0
+            while (i < cancelablesArray.length) {
+              val ref = cancelablesArray(i)
+              if (ref ne taskCancelable) ref.cancel()
+              i += 1
+            }
+          }
+
           def onSuccess(value: A): Unit =
             if (isActive.getAndSet(false)) {
-              composite -= taskCancelable
-              composite.cancel()
-              conn.popAndCollapse(taskCancelable)
+              popAndCancelRest()
               callback.asyncOnSuccess(value)
             }
 
           def onError(ex: Throwable): Unit =
             if (isActive.getAndSet(false)) {
-              composite -= taskCancelable
-              composite.cancel()
-              conn.popAndCollapse(taskCancelable)
+              popAndCancelRest()
               callback.asyncOnError(ex)
             } else {
               s.reportFailure(ex)
@@ -63,4 +73,11 @@ private[monix] object TaskChooseFirstOfList {
         })
       }
     }
+
+  private def buildCancelableArray(n: Int): Array[StackedCancelable] = {
+    val array = new Array[StackedCancelable](n)
+    var i = 0
+    while (i < n) { array(i) = StackedCancelable(); i += 1 }
+    array
+  }
 }

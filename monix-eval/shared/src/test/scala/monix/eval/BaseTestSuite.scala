@@ -44,9 +44,6 @@ trait BaseTestSuite extends TestSuite[TestScheduler]
     Prop(ns.forall(p => !A(p.lh, p.rh)))
 }
 
-/** For generating dummy exceptions. */
-case class DummyException(message: String) extends RuntimeException(message)
-
 /** For expressing equivalence. */
 final case class IsEquiv[A](lh: A, rh: A)
 

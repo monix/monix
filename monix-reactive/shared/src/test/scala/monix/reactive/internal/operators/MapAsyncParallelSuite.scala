@@ -20,7 +20,7 @@ package monix.reactive.internal.operators
 import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.internal.Platform
-import monix.reactive.exceptions.DummyException
+import monix.execution.exceptions.DummyException
 import monix.reactive.{Observable, Observer}
 import scala.concurrent.Promise
 import scala.concurrent.duration._
@@ -305,5 +305,20 @@ object MapAsyncParallelSuite extends BaseOperatorSuite {
     assertEquals(initiated, totalCount)
     assertEquals(received, totalCount)
     assert(isComplete, "isComplete")
+  }
+
+  test("should be cancelable after the main stream has ended") { implicit s =>
+    val f = Observable.now(1)
+      .mapAsync(parallelism = 4)(x => Task(x+1).delayExecution(1.second))
+      .sumL
+      .runAsync
+
+    s.tick()
+    assertEquals(f.value, None)
+    assert(s.state.tasks.nonEmpty, "tasks.nonEmpty")
+
+    f.cancel(); s.tick()
+    assertEquals(f.value, None)
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 }

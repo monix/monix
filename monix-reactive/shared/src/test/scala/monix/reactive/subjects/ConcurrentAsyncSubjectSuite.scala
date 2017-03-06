@@ -19,8 +19,8 @@ package monix.reactive.subjects
 
 import monix.execution.Ack.Continue
 import monix.execution.Scheduler
+import monix.execution.exceptions.DummyException
 import monix.reactive.Observer
-import monix.reactive.exceptions.DummyException
 
 object ConcurrentAsyncSubjectSuite extends BaseConcurrentSubjectSuite {
   def alreadyTerminatedTest(expectedElems: Seq[Long])(implicit s: Scheduler) = {

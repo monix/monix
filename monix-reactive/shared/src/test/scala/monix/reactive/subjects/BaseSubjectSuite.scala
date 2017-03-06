@@ -18,9 +18,9 @@
 package monix.reactive.subjects
 
 import minitest.TestSuite
-import monix.execution.Ack.{Stop, Continue}
+import monix.execution.Ack.{Continue, Stop}
+import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
-import monix.reactive.exceptions.DummyException
 import monix.reactive.{Observable, Observer}
 import scala.util.Random
 
@@ -168,7 +168,7 @@ trait BaseSubjectSuite extends TestSuite[TestScheduler] {
 
   test("should remove subscribers that triggered errors") { implicit s =>
     val elemsLength = Random.nextInt(300) + 100
-    val elems = (0 until elemsLength).map(_.toLong).toSeq
+    val elems = (0 until elemsLength).map(_.toLong)
     var wereCompleted = 0
     var totalReceived = 0
 

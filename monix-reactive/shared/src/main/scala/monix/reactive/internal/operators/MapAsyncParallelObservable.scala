@@ -58,14 +58,15 @@ private[reactive] final class MapAsyncParallelObservable[A,B]
     }
     else {
       val composite = CompositeCancelable()
-      val subscriber = new MapAsyncParallelSubscriber(out, composite)
-      composite += source.unsafeSubscribeFn(subscriber)
+      val subscription = new MapAsyncParallelSubscription(out, composite)
+      composite += source.unsafeSubscribeFn(subscription)
+      subscription
     }
   }
 
-  private final class MapAsyncParallelSubscriber(
+  private final class MapAsyncParallelSubscription(
     out: Subscriber[B], composite: CompositeCancelable)
-    extends Subscriber[A] { self =>
+    extends Subscriber[A] with Cancelable { self =>
 
     implicit val scheduler = out.scheduler
     // Ensures we don't execute more then a maximum number of tasks in parallel
@@ -194,6 +195,13 @@ private[reactive] final class MapAsyncParallelObservable[A,B]
           buffer.onComplete()
         }
       }
+    }
+
+    def cancel(): Unit = {
+      // We are canceling permits as well, so this is necessary to prevent
+      // `onComplete` / `onError` signals from main subscriber
+      isDone = true
+      composite.cancel()
     }
   }
 }

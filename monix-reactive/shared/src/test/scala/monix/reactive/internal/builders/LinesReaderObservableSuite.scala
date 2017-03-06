@@ -22,9 +22,10 @@ import minitest.SimpleTestSuite
 import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
+import monix.execution.exceptions.APIContractViolationException
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
-import monix.reactive.exceptions.{DummyException, MultipleSubscribersException}
+import monix.execution.exceptions.DummyException
 import monix.reactive.observers.Subscriber
 import scala.util.{Failure, Random, Success}
 
@@ -47,7 +48,7 @@ object LinesReaderObservableSuite extends SimpleTestSuite {
         errorThrown = ex
     })
 
-    assert(errorThrown.isInstanceOf[MultipleSubscribersException])
+    assert(errorThrown.isInstanceOf[APIContractViolationException])
     assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
   }
 

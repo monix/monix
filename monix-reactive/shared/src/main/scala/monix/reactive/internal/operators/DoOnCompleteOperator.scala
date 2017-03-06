@@ -26,8 +26,7 @@ import scala.concurrent.Future
 import scala.util.control.NonFatal
 
 private[reactive] final
-class DoOnCompleteOperator[A](callback: => Unit)
-  extends Operator[A,A] {
+class DoOnCompleteOperator[A](cb: () => Unit) extends Operator[A,A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
@@ -41,7 +40,7 @@ class DoOnCompleteOperator[A](callback: => Unit)
         // stream the error downstream if it happens.
         var streamError = true
         try {
-          callback
+          cb()
           streamError = false
           out.onComplete()
         }

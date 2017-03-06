@@ -17,8 +17,46 @@
 
 package monix.reactive.exceptions
 
-import scala.concurrent.TimeoutException
 import scala.concurrent.duration.FiniteDuration
+import scala.runtime.AbstractFunction1
 
-final case class UpstreamTimeoutException(timeout: FiniteDuration)
-  extends TimeoutException(s"Upstream timeout after $timeout")
+@deprecated("Moved to monix.execution.UpstreamTimeoutException", "2.2.2")
+class UpstreamTimeoutException(timeout: FiniteDuration)
+  extends monix.execution.exceptions.UpstreamTimeoutException(timeout)
+  with Product {
+
+  // Provided for binary backwards compatibility
+  def copy(timeout: FiniteDuration = timeout): UpstreamTimeoutException =
+    new UpstreamTimeoutException(timeout)
+
+  // Provided for binary backwards compatibility
+  override def productElement(n: Int): Any = {
+    if (n != 0) throw new IndexOutOfBoundsException(n.toString)
+    timeout
+  }
+
+  // Provided for binary backwards compatibility
+  override def productArity: Int = 1
+
+  // Provided for binary backwards compatibility
+  override def canEqual(that: Any): Boolean =
+    that.isInstanceOf[UpstreamTimeoutException]
+}
+
+object UpstreamTimeoutException
+  extends AbstractFunction1[FiniteDuration, UpstreamTimeoutException] {
+
+  /** Provided for backwards compatibility. */
+  private[reactive] def build(timeout: FiniteDuration): monix.execution.exceptions.UpstreamTimeoutException =
+    new UpstreamTimeoutException(timeout)
+
+  /** Builder for [[UpstreamTimeoutException]]. */
+  @deprecated("Moved to monix.execution.UpstreamTimeoutException", "2.2.2")
+  def apply(timeout: FiniteDuration): UpstreamTimeoutException =
+    new UpstreamTimeoutException(timeout)
+
+  /** For pattern matching [[UpstreamTimeoutException]] instances. */
+  @deprecated("Moved to monix.execution.UpstreamTimeoutException", "2.2.2")
+  def unapply(ex: UpstreamTimeoutException): Option[FiniteDuration] =
+    Some(ex.timeout)
+}

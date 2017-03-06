@@ -64,8 +64,7 @@ private[reactive] final class DropUntilObservable[A](source: Observable[A], trig
           onError(errorThrown)
           Stop
         } else {
-          out.onNext(elem)
-            .syncOnStopOrFailure(task.cancel())
+          out.onNext(elem).syncOnStopOrFailure(_ => task.cancel())
         }
       }
 

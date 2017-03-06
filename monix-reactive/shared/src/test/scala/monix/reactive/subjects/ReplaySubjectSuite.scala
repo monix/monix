@@ -20,7 +20,7 @@ package monix.reactive.subjects
 import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.reactive.Observer
-import monix.reactive.exceptions.DummyException
+import monix.execution.exceptions.DummyException
 import scala.concurrent.Future
 import scala.util.Success
 
@@ -189,5 +189,18 @@ object ReplaySubjectSuite extends BaseSubjectSuite {
     assertEquals(subject.onNext(40), Continue)
     assertEquals(future2.value, Some(Success(Some(20 + 30 + 40))))
     assertEquals(subject.size, 0)
+  }
+
+  test("unsubscribe after onComplete") { implicit s =>
+    var result: Int = 0
+    val subject = ReplaySubject[Int]()
+    val c = subject.subscribe { e => result = e; Continue }
+
+    subject.onNext(1)
+    subject.onComplete()
+
+    s.tick()
+    c.cancel()
+    assertEquals(result, 1)
   }
 }
