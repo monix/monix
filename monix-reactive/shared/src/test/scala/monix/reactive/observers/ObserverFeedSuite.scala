@@ -21,6 +21,7 @@ import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.BooleanCancelable
 import monix.reactive.{BaseLawsTestSuite, Observer}
 import scala.concurrent.Future
+import scala.util.Success
 
 object ObserverFeedSuite extends BaseLawsTestSuite {
   test("feed synchronous iterable") { implicit s =>
@@ -113,5 +114,25 @@ object ObserverFeedSuite extends BaseLawsTestSuite {
       c.cancel(); s.tick()
       (xs.length <= 1) || ack.syncTryFlatten(s) == Stop
     }
+  }
+
+  test("synchronous feed should be stack safe") { implicit s =>
+    val total = 100000000
+    val iterator = Iterator.range(0, total)
+    var received = 0
+
+    val observer = new Observer[Int] {
+      def onNext(elem: Int) = {
+        received += 1
+        Continue
+      }
+
+      def onError(ex: Throwable): Unit = throw ex
+      def onComplete(): Unit = ()
+    }
+
+    val f = observer.feed(iterator); s.tick()
+    assertEquals(received, total)
+    assertEquals(f.value, Some(Success(Continue)))
   }
 }

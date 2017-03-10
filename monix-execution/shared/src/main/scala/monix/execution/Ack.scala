@@ -20,7 +20,6 @@ package monix.execution
 import scala.concurrent.duration.Duration
 import scala.concurrent.{CanAwait, ExecutionContext, Future, Promise}
 import scala.language.experimental.macros
-import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
 /** Represents an acknowledgement of processing that a consumer
@@ -43,22 +42,12 @@ object Ack {
     final def result(atMost: Duration)(implicit permit: CanAwait) = Continue
 
     // For Scala 2.12 compatibility
-    def transform[S](f: scala.util.Try[Continue] => scala.util.Try[S])
-      (implicit executor: scala.concurrent.ExecutionContext): scala.concurrent.Future[S] = {
-
-      val fs = try f(Success(Continue)) catch { case NonFatal(ex) => Failure(ex) }
-      fs match {
-        case Success(v) => Future.successful(v)
-        case Failure(ex) => Future.failed(ex)
-      }
-    }
+    def transform[S](f: (Try[Continue]) => Try[S])(implicit executor: ExecutionContext): Future[S] =
+      FutureUtils.transform(this, f)(executor)
 
     // For Scala 2.12 compatibility
-    def transformWith[S](f: scala.util.Try[Continue] => scala.concurrent.Future[S])
-      (implicit executor: scala.concurrent.ExecutionContext): scala.concurrent.Future[S] = {
-
-      try f(Success(Continue)) catch { case NonFatal(ex) => Future.failed(ex) }
-    }
+    def transformWith[S](f: (Try[Continue]) => Future[S])(implicit executor: ExecutionContext): Future[S] =
+      FutureUtils.transformWith(this, f)(executor)
 
     final def onComplete[U](func: Try[Continue] => U)(implicit executor: ExecutionContext): Unit =
       executor.execute(new Runnable {
@@ -80,22 +69,12 @@ object Ack {
     final def result(atMost: Duration)(implicit permit: CanAwait) = Stop
 
     // For Scala 2.12 compatibility
-    def transform[S](f: scala.util.Try[Stop] => scala.util.Try[S])
-      (implicit executor: scala.concurrent.ExecutionContext): scala.concurrent.Future[S] = {
-
-      val fs = try f(Success(Stop)) catch { case NonFatal(ex) => Failure(ex) }
-      fs match {
-        case Success(v) => Future.successful(v)
-        case Failure(ex) => Future.failed(ex)
-      }
-    }
+    def transform[S](f: (Try[Stop]) => Try[S])(implicit executor: ExecutionContext): Future[S] =
+      FutureUtils.transform(this, f)(executor)
 
     // For Scala 2.12 compatibility
-    def transformWith[S](f: scala.util.Try[Stop] => scala.concurrent.Future[S])
-      (implicit executor: scala.concurrent.ExecutionContext): scala.concurrent.Future[S] = {
-
-      try f(Success(Stop)) catch { case NonFatal(ex) => Future.failed(ex) }
-    }
+    def transformWith[S](f: (Try[Stop]) => Future[S])(implicit executor: ExecutionContext): Future[S] =
+      FutureUtils.transformWith(this, f)(executor)
 
     final def onComplete[U](func: Try[Stop] => U)(implicit executor: ExecutionContext): Unit =
       executor.execute(new Runnable {
@@ -187,7 +166,6 @@ object Ack {
           if (r.isSuccess && (r.get eq Stop))
             p.trySuccess(value)
         }
-
       source
     }
 
@@ -209,4 +187,3 @@ object Ack {
       }
   }
 }
-

@@ -24,12 +24,11 @@ import monix.execution.Ack.Continue
 import monix.execution.{Ack, Scheduler}
 import monix.reactive.OverflowStrategy.Unbounded
 import monix.reactive.{Observable, Observer}
-
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, Promise}
 import scala.util.Random
 
-object OverflowStreategyUnboundedConcurrencySuite extends TestSuite[Scheduler] {
+object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[Scheduler] {
   def tearDown(env: Scheduler) = ()
   def setup() = {
     monix.execution.Scheduler.Implicits.global
@@ -111,81 +110,84 @@ object OverflowStreategyUnboundedConcurrencySuite extends TestSuite[Scheduler] {
   }
 
   test("should not lose events with async subscriber from one publisher") { implicit s =>
-    var sum = 0
     val completed = new CountDownLatch(1)
+    val total = 1000000L
+    var sum = 0L
 
-    val underlying = new Observer[Int] {
-      var previous = 0
+    val underlying = new Observer[Long] {
+      var previous = 0L
+      var ack: Future[Ack] = Continue
 
-      def process(elem: Int): Ack = {
+      def process(elem: Long): Ack = {
         assertEquals(elem, previous + 1)
         sum += elem
         previous = elem
         Continue
       }
 
-      def onNext(elem: Int): Future[Ack] = {
-        val shouldBeAsync = Random.nextInt() % 2 == 0
-        if (shouldBeAsync)
-          Future(process(elem))
-        else
-          process(elem)
+      def onNext(elem: Long): Future[Ack] = {
+        val goAsync = Random.nextInt() % 4 == 0
+        val ack = if (goAsync) Future(process(elem)) else process(elem)
+        ack
       }
 
       def onError(ex: Throwable): Unit =
         s.reportFailure(ex)
 
       def onComplete(): Unit =
-        completed.countDown()
+        ack.syncOnContinue(completed.countDown())
     }
 
-    val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), Unbounded)
-    for (i <- 1 to 100000) buffer.onNext(i)
+    val buffer = BufferedSubscriber[Long](Subscriber(underlying, s), Unbounded)
+    for (i <- 1 to total.toInt) buffer.onNext(i)
     buffer.onComplete()
 
-    assert(completed.await(60, TimeUnit.SECONDS), "completed.await should have succeeded")
-    assertEquals(sum, 50000 * (100000 + 1))
+    assert(completed.await(120, TimeUnit.SECONDS), "completed.await should have succeeded")
+    assertEquals(sum, total * (total + 1) / 2)
   }
 
   test("should not lose events with async subscriber from multiple publishers") { implicit s =>
-    var sum = 0
     val completed = new CountDownLatch(1)
+    val total = 1000000L
+    var sum = 0L
 
     val underlying = new Observer[Int] {
+      var ack: Future[Ack] = Continue
+
       def process(elem: Int): Ack = {
         sum += elem
         Continue
       }
 
       def onNext(elem: Int): Future[Ack] = {
-        val shouldBeAsync = Random.nextInt() % 2 == 0
-        if (shouldBeAsync)
-          Future(process(elem))
-        else
-          process(elem)
+        val goAsync = Random.nextInt() % 4 == 0
+        ack = if (goAsync) Future(process(elem)) else process(elem)
+        ack
       }
 
       def onError(ex: Throwable): Unit =
         s.reportFailure(ex)
 
       def onComplete(): Unit =
-        completed.countDown()
+        ack.syncOnContinue(completed.countDown())
     }
 
     val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), Unbounded)
+    val range = 1 until total.toInt
+
     // Publisher 1
-    val p1 = Future { for (i <- 1 until 25000) buffer.onNext(i) }
+    val p1 = Future.successful(()).flatMap(_ => buffer.onNextAll(range.filter(_ % 4 == 0)))
     // Publisher 2
-    val p2 = Future { for (i <- 25000 until 50000) buffer.onNext(i) }
+    val p2 = Future.successful(()).flatMap(_ => buffer.onNextAll(range.filter(_ % 4 == 1)))
     // Publisher 3
-    val p3 = Future { for (i <- 50000 until 75000) buffer.onNext(i) }
+    val p3 = Future.successful(()).flatMap(_ => buffer.onNextAll(range.filter(_ % 4 == 2)))
     // Publisher 4
-    val p4 = Future { for (i <- 75000 to 100000) buffer.onNext(i) }
+    val p4 = Future.successful(()).flatMap(_ => buffer.onNextAll(range.filter(_ % 4 == 3)))
     // Final event
     Future.sequence(Seq(p1,p2,p3,p4)).foreach(_ => buffer.onComplete())
 
-    assert(completed.await(60, TimeUnit.SECONDS), "completed.await should have succeeded")
-    assertEquals(sum, 50000 * (100000 + 1))
+    assert(completed.await(120, TimeUnit.SECONDS), "completed.await should have succeeded")
+    assertEquals(sum, total * (total - 1) / 2)
   }
 
   test("should send onError when empty") { implicit s =>

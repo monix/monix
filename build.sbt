@@ -1,6 +1,4 @@
 import com.typesafe.sbt.pgp.PgpKeys
-import sbtunidoc.Plugin.UnidocKeys._
-import sbtunidoc.Plugin.{ScalaUnidoc, unidocSettings => baseUnidocSettings}
 import com.typesafe.tools.mima.core._
 import com.typesafe.tools.mima.core.ProblemFilters._
 
@@ -192,24 +190,24 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
 
   pomExtra :=
     <url>https://monix.io/</url>
-      <licenses>
-        <license>
-          <name>Apache License, Version 2.0</name>
-          <url>https://www.apache.org/licenses/LICENSE-2.0</url>
-          <distribution>repo</distribution>
-        </license>
-      </licenses>
-      <scm>
-        <url>git@github.com:monix/monix.git</url>
-        <connection>scm:git:git@github.com:monix/monix.git</connection>
-      </scm>
-      <developers>
-        <developer>
-          <id>alex_ndc</id>
-          <name>Alexandru Nedelcu</name>
-          <url>https://alexn.org</url>
-        </developer>
-      </developers>
+    <licenses>
+      <license>
+        <name>Apache License, Version 2.0</name>
+        <url>https://www.apache.org/licenses/LICENSE-2.0</url>
+        <distribution>repo</distribution>
+      </license>
+    </licenses>
+    <scm>
+      <url>git@github.com:monix/monix.git</url>
+      <connection>scm:git:git@github.com:monix/monix.git</connection>
+    </scm>
+    <developers>
+      <developer>
+        <id>alexelcu</id>
+        <name>Alexandru Nedelcu</name>
+        <url>https://alexn.org</url>
+      </developer>
+    </developers>
 )
 
 lazy val crossSettings = sharedSettings ++ Seq(
@@ -253,7 +251,7 @@ lazy val requiredMacroCompatDeps = Seq(
       )
   }))
 
-lazy val unidocSettings = baseUnidocSettings ++ Seq(
+lazy val unidocSettings = Seq(
   autoAPIMappings := true,
   unidocProjectFilter in (ScalaUnidoc, unidoc) :=
     inProjects(typesJVM, executionJVM, evalJVM, tailJVM, reactiveJVM, catsJVM, scalaz72JVM),
@@ -298,6 +296,7 @@ def profile: Project ⇒ Project = pr => cmdlineProfile match {
 }
 
 lazy val monix = project.in(file("."))
+  .enablePlugins(ScalaUnidocPlugin)
   .configure(profile)
   .aggregate(coreJVM, coreJS, tckTests)
   .settings(sharedSettings)

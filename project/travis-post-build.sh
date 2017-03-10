@@ -17,7 +17,7 @@ fi
 
 if [ "$TRAVIS_SCALA_VERSION" = "$MAIN_SCALA_VERSION" ]; then
     echo "Uploading coverage for Scala $TRAVIS_SCALA_VERSION"
-    sbt -Dsbt.profile=coverage ";coverageAggregate;coverageReport"
+    sbt -Dsbt.profile=coverage ";++$TRAVIS_SCALA_VERSION;coverageAggregate;coverageReport"
     bash <(curl -s https://codecov.io/bash)
 else
     echo "Skipping uploading coverage for Scala $TRAVIS_SCALA_VERSION"
