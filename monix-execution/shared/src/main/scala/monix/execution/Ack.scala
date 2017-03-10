@@ -34,24 +34,20 @@ object Ack {
   sealed abstract class Continue extends Ack
 
   case object Continue extends Continue with Future[Continue] { self =>
-    private[this] final val boxed = Future.successful(Continue)
-
+    final val AsSuccess = Success(Continue)
+    final val value = Some(AsSuccess)
     final val isCompleted = true
-    final val value: Some[Try[Continue]] =
-      boxed.value.asInstanceOf[Some[Try[Continue]]]
-    final val AsSuccess: Success[Continue] =
-      value.get.asInstanceOf[Success[Continue]]
 
     final def ready(atMost: Duration)(implicit permit: CanAwait) = self
     final def result(atMost: Duration)(implicit permit: CanAwait) = Continue
 
     // For Scala 2.12 compatibility
     def transform[S](f: (Try[Continue]) => Try[S])(implicit executor: ExecutionContext): Future[S] =
-      boxed.transform(f)
+      FutureUtils.transform(this, f)(executor)
 
     // For Scala 2.12 compatibility
     def transformWith[S](f: (Try[Continue]) => Future[S])(implicit executor: ExecutionContext): Future[S] =
-      boxed.transformWith(f)
+      FutureUtils.transformWith(this, f)(executor)
 
     final def onComplete[U](func: Try[Continue] => U)(implicit executor: ExecutionContext): Unit =
       executor.execute(new Runnable {
@@ -65,24 +61,20 @@ object Ack {
   sealed abstract class Stop extends Ack
 
   case object Stop extends Stop with Future[Stop] { self =>
-    private[this] final val boxed = Future.successful(Stop)
-
+    final val AsSuccess = Success(Stop)
+    final val value = Some(AsSuccess)
     final val isCompleted = true
-    final val value: Some[Try[Stop]] =
-      boxed.value.asInstanceOf[Some[Try[Stop]]]
-    final val AsSuccess: Success[Stop] =
-      value.get.asInstanceOf[Success[Stop]]
 
     final def ready(atMost: Duration)(implicit permit: CanAwait) = self
     final def result(atMost: Duration)(implicit permit: CanAwait) = Stop
 
     // For Scala 2.12 compatibility
     def transform[S](f: (Try[Stop]) => Try[S])(implicit executor: ExecutionContext): Future[S] =
-      boxed.transform(f)
+      FutureUtils.transform(this, f)(executor)
 
     // For Scala 2.12 compatibility
     def transformWith[S](f: (Try[Stop]) => Future[S])(implicit executor: ExecutionContext): Future[S] =
-      boxed.transformWith(f)
+      FutureUtils.transformWith(this, f)(executor)
 
     final def onComplete[U](func: Try[Stop] => U)(implicit executor: ExecutionContext): Unit =
       executor.execute(new Runnable {
@@ -195,4 +187,3 @@ object Ack {
       }
   }
 }
-
