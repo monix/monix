@@ -43,19 +43,12 @@ a project exemplifying Monix used both on the server and on the client.
 
 The packages are published on Maven Central.
 
-- Current stable release: `2.2.2`
-- Old 1.x release (Monifu): `1.2`
+- Current stable release: `2.2.3`
 
 For the current stable release (use the `%%%` for Scala.js):
 
 ```scala
-libraryDependencies += "io.monix" %% "monix" % "2.2.2"
-```
-
-For the old 1.x release (use the `%%%` for Scala.js):
-
-```scala
-libraryDependencies += "org.monifu" %% "monifu" % "1.2"
+libraryDependencies += "io.monix" %% "monix" % "2.2.3"
 ```
 
 ### Sub-projects

@@ -1,3 +1,16 @@
+## Version 2.2.3 (Mar 10, 2017)
+
+Critical bug fix release related to Scala 2.12:
+
+- [Bug #330](https://github.com/monix/monix/issues/330):
+  `Ack.Continue.transformWith` and `Ack.Stop.transformWith` 
+  are not stack-safe
+  
+Most (probably all) functionality in Monix is not affected, because Monix 
+rarely flatMaps `Continue` references and we have had extensive tests for it. 
+However this bug can be dangerous for people that have implemented the 
+communication protocol (as described in the docs) by themselves.
+
 ## Version 2.2.2 (Feb 22, 2017)
 
 New Features:

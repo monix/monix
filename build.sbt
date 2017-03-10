@@ -177,24 +177,24 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
 
   pomExtra :=
     <url>https://monix.io/</url>
-      <licenses>
-        <license>
-          <name>Apache License, Version 2.0</name>
-          <url>https://www.apache.org/licenses/LICENSE-2.0</url>
-          <distribution>repo</distribution>
-        </license>
-      </licenses>
-      <scm>
-        <url>git@github.com:monix/monix.git</url>
-        <connection>scm:git:git@github.com:monix/monix.git</connection>
-      </scm>
-      <developers>
-        <developer>
-          <id>alex_ndc</id>
-          <name>Alexandru Nedelcu</name>
-          <url>https://alexn.org</url>
-        </developer>
-      </developers>
+    <licenses>
+      <license>
+        <name>Apache License, Version 2.0</name>
+        <url>https://www.apache.org/licenses/LICENSE-2.0</url>
+        <distribution>repo</distribution>
+      </license>
+    </licenses>
+    <scm>
+      <url>git@github.com:monix/monix.git</url>
+      <connection>scm:git:git@github.com:monix/monix.git</connection>
+    </scm>
+    <developers>
+      <developer>
+        <id>alexelcu</id>
+        <name>Alexandru Nedelcu</name>
+        <url>https://alexn.org</url>
+      </developer>
+    </developers>
 )
 
 lazy val crossSettings = sharedSettings ++ Seq(
