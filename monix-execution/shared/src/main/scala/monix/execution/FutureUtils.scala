@@ -102,11 +102,10 @@ object FutureUtils {
     */
   def transform[T,S](source: Future[T], f: Try[T] => Try[S])(implicit ec: ExecutionContext): Future[S] = {
     val p = Promise[S]()
-    source.onComplete(r =>
-      try p.complete(f(r)) catch {
-        case NonFatal(ex) =>
-          if (!p.tryFailure(ex)) ec.reportFailure(ex)
-      })
+    source.onComplete { result =>
+      val b = try f(result) catch { case NonFatal(t) => Failure(t) }
+      p.complete(b)
+    }
     p.future
   }
 
@@ -117,11 +116,15 @@ object FutureUtils {
     */
   def transformWith[T,S](source: Future[T], f: Try[T] => Future[S])(implicit ec: ExecutionContext): Future[S] = {
     val p = Promise[S]()
-    source.onComplete(r =>
-      try p.completeWith(f(r)) catch {
-        case NonFatal(ex) =>
-          if (!p.tryFailure(ex)) ec.reportFailure(ex)
-      })
+    source.onComplete { result =>
+      val fb = try f(result) catch { case NonFatal(t) => Future.failed(t) }
+      if (fb eq source)
+        p.complete(result.asInstanceOf[Try[S]])
+      else fb.value match {
+        case Some(value) => p.complete(value)
+        case None => p.completeWith(fb)
+      }
+    }
     p.future
   }
 
