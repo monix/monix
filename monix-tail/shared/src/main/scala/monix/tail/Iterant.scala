@@ -448,6 +448,10 @@ sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self
     }
   }
 
+  /** Prepends an element to the enumerator. */
+  final def #::[B >: A](head: B)(implicit F: Applicative[F]): Iterant[F, B] =
+    Next[F,B](head, F.pure(this), earlyStop)
+
   /** Left associative fold using the function `f`.
     *
     * On execution the stream will be traversed from left to right,
