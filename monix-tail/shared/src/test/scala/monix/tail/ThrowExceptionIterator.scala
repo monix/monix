@@ -17,12 +17,15 @@
 
 package monix.tail
 
-import monix.tail.cursors.Generator
+/** Cursor that throws exception on access. */
+final class ThrowExceptionIterator(ex: Throwable) extends Iterator[Nothing] {
+  override def hasNext: Boolean = throw ex
+  override def next(): Nothing = throw ex
 
-/** Generator that throws exception on access. */
-final class ThrowExceptionGenerator(ex: Throwable)
-  extends Generator[Nothing] {
-
-  override def cursor() = throw ex
-  override def transform[B](f: (Cursor[Nothing]) => Cursor[B]): Generator[B] = throw ex
+  override def take(n: Int): Iterator[Nothing] = throw ex
+  override def drop(n: Int): Iterator[Nothing] = throw ex
+  override def slice(from: Int, until: Int): Iterator[Nothing] = throw ex
+  override def map[B](f: (Nothing) => B): Iterator[B] = throw ex
+  override def filter(p: (Nothing) => Boolean): Iterator[Nothing] = throw ex
+  override def collect[B](pf: PartialFunction[Nothing, B]): Iterator[B] = throw ex
 }

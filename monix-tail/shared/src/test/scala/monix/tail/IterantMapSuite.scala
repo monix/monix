@@ -51,7 +51,7 @@ object IterantMapSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = AsyncStream.nextSeqS(Cursor.fromSeq(List(1,2,3)), Task(AsyncStream.empty), Task { isCanceled = true })
+    val stream = AsyncStream.nextSeqS(List(1,2,3).iterator, Task(AsyncStream.empty), Task { isCanceled = true })
     val result = stream.map[Int](_ => throw dummy).toListL.runAsync
 
     s.tick()
@@ -72,7 +72,7 @@ object IterantMapSuite extends BaseTestSuite {
   test("AsyncStream.map should protect against broken cursors") { implicit s =>
     check1 { (prefix: AsyncStream[Int]) =>
       val dummy = DummyException("dummy")
-      val cursor = new ThrowExceptionCursor(dummy)
+      val cursor = new ThrowExceptionIterator(dummy)
       val error = AsyncStream.nextSeqS(cursor, Task.now(AsyncStream.empty), Task.unit)
       val stream = (prefix ++ error).map(x => x)
       stream === AsyncStream.haltS[Int](Some(dummy))
@@ -82,7 +82,7 @@ object IterantMapSuite extends BaseTestSuite {
   test("AsyncStream.map should protect against broken generators") { implicit s =>
     check1 { (prefix: AsyncStream[Int]) =>
       val dummy = DummyException("dummy")
-      val cursor = new ThrowExceptionGenerator(dummy)
+      val cursor = new ThrowExceptionIterable(dummy)
       val error = AsyncStream.nextGenS(cursor, Task.now(AsyncStream.empty), Task.unit)
       val stream = (prefix ++ error).map(x => x)
       stream === AsyncStream.haltS[Int](Some(dummy))
@@ -117,7 +117,7 @@ object IterantMapSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = LazyStream.nextSeqS(Cursor.fromSeq(List(1,2,3)), Coeval(LazyStream.empty), Coeval { isCanceled = true })
+    val stream = LazyStream.nextSeqS(List(1,2,3).iterator, Coeval(LazyStream.empty), Coeval { isCanceled = true })
     val result = stream.map[Int](_ => throw dummy).toListL.runTry
 
     assertEquals(result, Failure(dummy))
@@ -137,7 +137,7 @@ object IterantMapSuite extends BaseTestSuite {
   test("LazyStream.map should protect against broken cursors") { implicit s =>
     check1 { (prefix: LazyStream[Int]) =>
       val dummy = DummyException("dummy")
-      val cursor = new ThrowExceptionCursor(dummy)
+      val cursor = new ThrowExceptionIterator(dummy)
       val error = LazyStream.nextSeqS(cursor, Coeval.now(LazyStream.empty), Coeval.unit)
       val stream = (prefix ++ error).map(x => x)
       stream === LazyStream.haltS[Int](Some(dummy))
@@ -147,7 +147,7 @@ object IterantMapSuite extends BaseTestSuite {
   test("LazyStream.map should protect against broken generators") { implicit s =>
     check1 { (prefix: LazyStream[Int]) =>
       val dummy = DummyException("dummy")
-      val cursor = new ThrowExceptionGenerator(dummy)
+      val cursor = new ThrowExceptionIterable(dummy)
       val error = LazyStream.nextGenS(cursor, Coeval.now(LazyStream.empty), Coeval.unit)
       val stream = (prefix ++ error).map(x => x)
       stream === LazyStream.haltS[Int](Some(dummy))

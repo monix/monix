@@ -70,7 +70,7 @@ object IterantStatesSuite extends BaseTestSuite {
   test("AsyncStream.nextSeq") { implicit s =>
     val list = List(1,2,3)
     val deferred = Task.eval(AsyncStream.fromSeq[Int](list))
-    val result = AsyncStream.nextSeqS(Cursor.fromSeq(List(0)), deferred, Task.unit).toListL.runAsync
+    val result = AsyncStream.nextSeqS(List(0).iterator, deferred, Task.unit).toListL.runAsync
     s.tick()
     assertEquals(result.value, Some(Success(0 :: list)))
   }
@@ -78,7 +78,7 @@ object IterantStatesSuite extends BaseTestSuite {
   test("LazyStream.nextSeq") { implicit s =>
     val list = List(1,2,3)
     val deferred = Coeval.eval(LazyStream.fromSeq[Int](list))
-    val result = LazyStream.nextSeqS(Cursor.fromSeq(List(0)), deferred, Coeval.unit).toListL.runTry
+    val result = LazyStream.nextSeqS(List(0).iterator, deferred, Coeval.unit).toListL.runTry
     assertEquals(result, Success(0 :: list))
   }
 

@@ -82,7 +82,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var wasCanceled = false
     val c = Task { wasCanceled = true }
-    val stream = AsyncStream.nextS(1, Task(AsyncStream.nextSeqS(Cursor.fromSeq(List(2,3)), Task.now(AsyncStream.empty), c)), c)
+    val stream = AsyncStream.nextS(1, Task(AsyncStream.nextSeqS(List(2,3).iterator, Task.now(AsyncStream.empty), c)), c)
       .mapEval(x => Task(x))
 
     val result = stream.foldLeftL(0)((a,e) => throw dummy)
@@ -94,7 +94,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
   test("AsyncStream.foldLeftL should protect against broken cursors") { implicit s =>
     check1 { (prefix: AsyncStream[Int]) =>
       val dummy = DummyException("dummy")
-      val cursor = new ThrowExceptionCursor(dummy)
+      val cursor = new ThrowExceptionIterator(dummy)
       val error = AsyncStream.nextSeqS(cursor, Task.now(AsyncStream.empty), Task.unit)
       val result = (prefix ++ error).foldLeftL(0)(_+_)
       result === Task.raiseError(dummy)
@@ -104,7 +104,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
   test("AsyncStream.foldLeftL should protect against broken generators") { implicit s =>
     check1 { (prefix: AsyncStream[Int]) =>
       val dummy = DummyException("dummy")
-      val generator = new ThrowExceptionGenerator(dummy)
+      val generator = new ThrowExceptionIterable(dummy)
       val error = AsyncStream.nextGenS(generator, Task.now(AsyncStream.empty), Task.unit)
       val result = (prefix ++ error).foldLeftL(0)(_+_)
       result === Task.raiseError(dummy)
@@ -161,7 +161,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var wasCanceled = false
     val c = Coeval { wasCanceled = true }
-    val stream = LazyStream.nextSeqS(Cursor.fromSeq(List(1,2,3)), Coeval.now(LazyStream.empty), c)
+    val stream = LazyStream.nextSeqS(List(1,2,3).iterator, Coeval.now(LazyStream.empty), c)
     val result = stream.foldLeftL(0)((a,e) => throw dummy)
     check(result === Coeval.raiseError(dummy))
     assert(wasCanceled, "wasCanceled should be true")
@@ -171,7 +171,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var wasCanceled = false
     val c = Coeval { wasCanceled = true }
-    val stream = LazyStream.nextS(1, Coeval(LazyStream.nextSeqS(Cursor.fromSeq(List(2,3)), Coeval.now(LazyStream.empty), c)), c)
+    val stream = LazyStream.nextS(1, Coeval(LazyStream.nextSeqS(List(2,3).iterator, Coeval.now(LazyStream.empty), c)), c)
       .mapEval(x => Coeval(x))
 
     val result = stream.foldLeftL(0)((a,e) => throw dummy)
@@ -182,7 +182,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
   test("LazyStream.foldLeftL should protect against broken cursors") { implicit s =>
     check1 { (prefix: LazyStream[Int]) =>
       val dummy = DummyException("dummy")
-      val cursor = new ThrowExceptionCursor(dummy)
+      val cursor = new ThrowExceptionIterator(dummy)
       val error = LazyStream.nextSeqS(cursor, Coeval.now(LazyStream.empty), Coeval.unit)
       val result = (prefix ++ error).foldLeftL(0)(_+_)
       result === Coeval.raiseError(dummy)
@@ -192,7 +192,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
   test("LazyStream.foldLeftL should protect against broken generators") { implicit s =>
     check1 { (prefix: LazyStream[Int]) =>
       val dummy = DummyException("dummy")
-      val generator = new ThrowExceptionGenerator(dummy)
+      val generator = new ThrowExceptionIterable(dummy)
       val error = LazyStream.nextGenS(generator, Coeval.now(LazyStream.empty), Coeval.unit)
       val result = (prefix ++ error).foldLeftL(0)(_+_)
       result === Coeval.raiseError(dummy)

@@ -18,7 +18,6 @@
 package monix.tail
 
 import monix.eval.Task
-import monix.tail.cursors.Generator
 import monix.types.{Applicative, Monad}
 import scala.collection.immutable.LinearSeq
 import scala.reflect.ClassTag
@@ -46,9 +45,9 @@ object AsyncStream extends IterantBuilders[Task, AsyncStream] {
     Iterant.eval(a)
   override def nextS[A](item: A, rest: Task[AsyncStream[A]], stop: Task[Unit]): AsyncStream[A] =
     Iterant.nextS(item, rest, stop)
-  override def nextSeqS[A](items: Cursor[A], rest: Task[AsyncStream[A]], stop: Task[Unit]): AsyncStream[A] =
+  override def nextSeqS[A](items: Iterator[A], rest: Task[AsyncStream[A]], stop: Task[Unit]): AsyncStream[A] =
     Iterant.nextSeqS(items, rest, stop)
-  override def nextGenS[A](items: Generator[A], rest: Task[AsyncStream[A]], stop: Task[Unit]): AsyncStream[A] =
+  override def nextGenS[A](items: Iterable[A], rest: Task[AsyncStream[A]], stop: Task[Unit]): AsyncStream[A] =
     Iterant.nextGenS(items, rest, stop)
   override def suspendS[A](rest: Task[AsyncStream[A]], stop: Task[Unit]): AsyncStream[A] =
     Iterant.suspendS(rest, stop)

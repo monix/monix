@@ -19,7 +19,6 @@ package monix.tail
 
 import monix.eval.{Callback, Coeval, Task}
 import monix.execution.schedulers.TestScheduler
-import monix.tail.cursors.Generator
 import monix.types.tests.Eq
 import org.scalacheck.Arbitrary
 
@@ -41,17 +40,17 @@ trait ArbitraryInstances extends monix.eval.ArbitraryInstances {
             LazyStream.suspend(Coeval(loop(list, idx+1)))
           else  if (idx % 6 == 2) {
             val (headSeq, tail) = list.splitAt(3)
-            LazyStream.nextSeqS(Cursor.fromIndexedSeq(headSeq.toVector), Coeval(loop(tail, idx+1)), Coeval.unit)
+            LazyStream.nextSeqS(headSeq.toVector.iterator, Coeval(loop(tail, idx+1)), Coeval.unit)
           }
           else if (idx % 6 == 3) {
             LazyStream.suspendS(Coeval(loop(ns, idx + 1)), Coeval.unit)
           }
           else if (idx % 6 == 4) {
             val (headSeq, tail) = list.splitAt(3)
-            LazyStream.nextGenS(Generator.fromIndexedSeq(headSeq.toVector), Coeval(loop(tail, idx+1)), Coeval.unit)
+            LazyStream.nextGenS(headSeq.toVector, Coeval(loop(tail, idx+1)), Coeval.unit)
           }
           else {
-            LazyStream.nextGenS(Generator.empty, Coeval(loop(ns, idx + 1)), Coeval.unit)
+            LazyStream.nextGenS(Nil, Coeval(loop(ns, idx + 1)), Coeval.unit)
           }
       }
 
@@ -80,17 +79,17 @@ trait ArbitraryInstances extends monix.eval.ArbitraryInstances {
             AsyncStream.suspend(Task.eval(loop(list, idx+1)))
           else  if (idx % 6 == 2) {
             val (headSeq, tail) = list.splitAt(3)
-            AsyncStream.nextSeqS(Cursor.fromIndexedSeq(headSeq.toVector), Task.eval(loop(tail, idx+1)), Task.unit)
+            AsyncStream.nextSeqS(headSeq.toVector.iterator, Task.eval(loop(tail, idx+1)), Task.unit)
           }
           else if (idx % 6 == 3) {
             AsyncStream.suspendS(Task.eval(loop(ns, idx + 1)), Task.unit)
           }
           else if (idx % 6 == 4) {
             val (headSeq, tail) = list.splitAt(3)
-            AsyncStream.nextGenS(Generator.fromIndexedSeq(headSeq.toVector), Task.eval(loop(tail, idx+1)), Task.unit)
+            AsyncStream.nextGenS(headSeq.toVector, Task.eval(loop(tail, idx+1)), Task.unit)
           }
           else {
-            AsyncStream.nextGenS(Generator.empty, Task.eval(loop(ns, idx + 1)), Task.unit)
+            AsyncStream.nextGenS(Nil, Task.eval(loop(ns, idx + 1)), Task.unit)
           }
       }
     

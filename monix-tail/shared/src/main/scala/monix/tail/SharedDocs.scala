@@ -38,10 +38,10 @@ package monix.tail
   *
   * @define NextSeqDesc The [[monix.tail.Iterant.NextSeq NextSeq]] state
   *         of the [[Iterant]] represents an `items` / `rest` cons pair,
-  *         where `items` is an [[Cursor iterator-like]] type that
-  *         can generate a whole batch of elements.
+  *         where `items` is an [[scala.collection.Iterator Iterator]]
+  *         type that can generate a whole batch of elements.
   *
-  *         Useful for doing buffering, or by giving it an empty cursor,
+  *         Useful for doing buffering, or by giving it an empty iterator,
   *         useful to postpone the evaluation of the next element.
   *
   * @define nextSeqSDesc Builds a stream state equivalent with
@@ -51,9 +51,8 @@ package monix.tail
   *
   * @define NextGenDesc The [[monix.tail.Iterant.NextGen NextGen]] state
   *         of the [[Iterant]] represents an `items` / `rest` cons pair,
-  *         where `items` is an [[cursors.Generator cursors generator]]
-  *         type (much like Scala's `Iterable`) that can generate a whole
-  *         batch of elements.
+  *         where `items` is an [[scala.collection.Iterable Iterable]]
+  *         type that can generate a whole batch of elements.
   *
   * @define nextGenSDesc Builds a stream state equivalent with
   *         [[Iterant.NextGen]].
@@ -152,11 +151,11 @@ package monix.tail
   * @define lastParamDesc is the last element being signaled, after which
   *         the consumer can stop the iteration
   *
-  * @define cursorParamDesc is an [[Cursor iterator-like]] type that can
-  *         generate elements by traversing a collection, a standard array
-  *         or any `Iterator`
+  * @define cursorParamDesc is an [[scala.collection.Iterator Iterator]] type
+  *         that can generate elements by traversing a collection, a standard
+  *         array or any `Iterator`
   *
-  * @define generatorParamDesc is a [[cursors.Generator cursor generator]]
+  * @define generatorParamDesc is a [[scala.collection.Iterable Iterable]]
   *         type that can generate elements by traversing a collection,
   *         a standard array or any `Iterable`
   *

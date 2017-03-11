@@ -18,9 +18,7 @@
 package monix.tail
 
 import monix.eval.{Coeval, Task}
-import monix.tail.cursors.Generator
 import monix.types.{Applicative, Monad}
-
 import scala.collection.immutable.LinearSeq
 import scala.reflect.ClassTag
 
@@ -51,7 +49,7 @@ trait IterantBuilders[F[_], Self[+A] <: Iterant[F,A]] extends SharedDocs {
     * @param rest $restParamDesc
     * @param stop $stopParamDesc
     */
-  def nextSeqS[A](items: Cursor[A], rest: F[Self[A]], stop: F[Unit]): Self[A]
+  def nextSeqS[A](items: Iterator[A], rest: F[Self[A]], stop: F[Unit]): Self[A]
 
   /** $nextGenSDesc
     *
@@ -59,7 +57,7 @@ trait IterantBuilders[F[_], Self[+A] <: Iterant[F,A]] extends SharedDocs {
     * @param rest $restParamDesc
     * @param stop $stopParamDesc
     */
-  def nextGenS[A](items: Generator[A], rest: F[Self[A]], stop: F[Unit]): Self[A]
+  def nextGenS[A](items: Iterable[A], rest: F[Self[A]], stop: F[Unit]): Self[A]
 
   /** $suspendSDesc
     *
@@ -212,9 +210,9 @@ object IterantBuilders {
       Iterant.eval(a)
     override def nextS[A](item: A, rest: F[Iterant[F,A]], stop: F[Unit]): Iterant[F,A] =
       Iterant.nextS(item, rest, stop)
-    override def nextSeqS[A](items: Cursor[A], rest: F[Iterant[F,A]], stop: F[Unit]): Iterant[F,A] =
+    override def nextSeqS[A](items: Iterator[A], rest: F[Iterant[F,A]], stop: F[Unit]): Iterant[F,A] =
       Iterant.nextSeqS(items, rest, stop)
-    override def nextGenS[A](items: Generator[A], rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
+    override def nextGenS[A](items: Iterable[A], rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
       Iterant.nextGenS(items, rest, stop)
     override def suspendS[A](rest: F[Iterant[F,A]], stop: F[Unit]): Iterant[F,A] =
       Iterant.suspendS(rest, stop)

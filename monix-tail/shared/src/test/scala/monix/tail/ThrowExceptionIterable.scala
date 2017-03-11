@@ -15,15 +15,11 @@
  * limitations under the License.
  */
 
-package monix.tail.exceptions
+package monix.tail
 
-/** Exception type thrown whenever a
-  * [[monix.tail.Cursor.current Cursor.current]] invocation happens
-  * without being preceded by a first call to
-  * [[monix.tail.Cursor.moveNext Cursor.moveNext()]]
-  */
-class CursorNotStartedException(msg: String) extends NoSuchElementException(msg) {
-  def this() =
-    this("cursor.current is unavailable, because moveNext() was not called")
+/** Generator that throws exception on access. */
+final class ThrowExceptionIterable(ex: Throwable)
+  extends Iterable[Nothing] {
+
+  override def iterator = throw ex
 }
-

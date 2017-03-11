@@ -18,10 +18,8 @@
 package monix.tail
 
 import monix.eval.{Coeval, Task}
-import monix.tail.cursors.Generator
 import monix.types._
 import monix.types.syntax._
-
 import scala.collection.immutable.LinearSeq
 import scala.collection.mutable
 import scala.util.control.NonFatal
@@ -49,12 +47,11 @@ import scala.util.control.NonFatal
   *    element, the `head` and a `rest` representing the rest of the stream
   *  - [[monix.tail.Iterant.NextSeq NextSeq]] is a variation on `Next`
   *    for signaling a whole strict batch of elements as a traversable
-  *    [[Cursor cursor]], along with the `rest` representing the
-  *    rest of the stream
-  *  - [[monix.tail.Iterant.NextGen NextGen]] is a variation on `Next`
-  *    for signaling a whole batch of elements by means of a
-  *    [[cursors.Generator cursor generator]], along with the `rest`
+  *    [[scala.collection.Iterator Iterator]], along with the `rest`
   *    representing the rest of the stream
+  *  - [[monix.tail.Iterant.NextGen NextGen]] is a variation on `Next`
+  *    for signaling a whole batch of elements by means of an `Iterable`,
+  *    along with the `rest` representing the rest of the stream
   *  - [[monix.tail.Iterant.Suspend Suspend]] is for suspending the
   *    evaluation of a stream
   *  - [[monix.tail.Iterant.Halt Halt]] represents an empty
@@ -119,10 +116,10 @@ sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self
     *         The order of the elements is preserved.
     */
   final def collect[B](pf: PartialFunction[A,B])(implicit F: Functor[F]): Iterant[F,B] = {
-    @inline def seq(items: Cursor[A], rest: F[Iterant[F, A]], stop: F[Unit]) = {
+    @inline def seq(items: Iterator[A], rest: F[Iterant[F, A]], stop: F[Unit]) = {
       val filtered = items.collect(pf)
       val restF = rest.map(_.collect(pf))
-      if (filtered.hasMore())
+      if (filtered.hasNext)
         NextSeq(filtered, restF, stop)
       else
         Suspend(restF, stop)
@@ -137,7 +134,7 @@ sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self
       case NextSeq(items, rest, stop) =>
         seq(items, rest, stop)
       case NextGen(items, rest, stop) =>
-        seq(items.cursor(), rest, stop)
+        seq(items.iterator, rest, stop)
       case Suspend(rest, stop) =>
         Suspend(rest.map(_.collect(pf)), stop)
       case Last(item) =>
@@ -235,9 +232,9 @@ sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self
     *         predicate. The order of the elements is preserved.
     */
   final def filter(p: A => Boolean)(implicit F: Functor[F]): Iterant[F,A] = {
-    def seq(items: Cursor[A], rest: F[Iterant[F, A]], stop: F[Unit]) = {
+    def seq(items: Iterator[A], rest: F[Iterant[F, A]], stop: F[Unit]) = {
       val filtered = items.filter(p)
-      if (filtered.hasMore())
+      if (filtered.hasNext)
         NextSeq(filtered, rest.map(_.filter(p)), stop)
       else
         Suspend(rest.map(_.filter(p)), stop)
@@ -252,7 +249,7 @@ sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self
       case NextSeq(items, rest, stop) =>
         seq(items, rest, stop)
       case NextGen(items, rest, stop) =>
-        seq(items.cursor(), rest, stop)
+        seq(items.iterator, rest, stop)
       case Suspend(rest, stop) =>
         Suspend(rest.map(_.filter(p)), stop)
       case last @ Last(item) =>
@@ -274,14 +271,14 @@ sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self
   final def mapEval[B](f: A => F[B])(implicit F: Applicative[F]): Iterant[F, B] = {
     import F.functor
 
-    @inline def evalNextSeq(ref: NextSeq[F, A], cursor: Cursor[A], rest: F[Iterant[F, A]], stop: F[Unit]) = {
-      if (!cursor.moveNext())
+    @inline def evalNextSeq(ref: NextSeq[F, A], cursor: Iterator[A], rest: F[Iterant[F, A]], stop: F[Unit]) = {
+      if (!cursor.hasNext)
         Suspend[F, B](rest.map(_.mapEval(f)), stop)
       else {
-        val head = cursor.current
+        val head = cursor.next()
         val fa = f(head)
-        // If the cursor is empty, then we can skip a beat
-        val tail = if (cursor.hasMore()) F.pure(ref: Iterant[F, A]) else rest
+        // If the iterator is empty, then we can skip a beat
+        val tail = if (cursor.hasNext) F.pure(ref: Iterant[F, A]) else rest
         val suspended = fa.map(h => nextS(h, tail.map(_.mapEval(f)), stop))
         Suspend[F, B](suspended, stop)
       }
@@ -297,7 +294,7 @@ sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self
         evalNextSeq(ref, cursor, rest, stop)
 
       case NextGen(gen, rest, stop) =>
-        val cursor = gen.cursor()
+        val cursor = gen.iterator
         val ref = NextSeq(cursor, rest, stop)
         evalNextSeq(ref, cursor, rest, stop)
 
@@ -331,7 +328,7 @@ sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self
         NextSeq[F,B](cursor.map(f), rest.map(_.map(f)), stop)
 
       case NextGen(gen, rest, stop) =>
-        NextGen(gen.transform(_.map(f)), rest.map(_.map(f)), stop)
+        NextGen(gen.map(f), rest.map(_.map(f)), stop)
 
       case Suspend(rest, stop) =>
         Suspend[F,B](rest.map(_.map(f)), stop)
@@ -367,14 +364,14 @@ sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self
           self.signalError(ex)
       }
 
-    @inline def evalNextSeq(ref: NextSeq[F, A], cursor: Cursor[A], rest: F[Iterant[F, A]], stop: F[Unit]) = {
-      if (!cursor.moveNext()) {
+    @inline def evalNextSeq(ref: NextSeq[F, A], cursor: Iterator[A], rest: F[Iterant[F, A]], stop: F[Unit]) = {
+      if (!cursor.hasNext) {
         Suspend[F, B](rest.map(_.flatMap(f)), stop)
       }
       else {
-        val item = cursor.current
-        // If cursor is empty then we can skip a beat
-        val tail = if (cursor.hasMore()) A.eval(ref.flatMap(f)) else rest.map(_.flatMap(f))
+        val item = cursor.next()
+        // If iterator is empty then we can skip a beat
+        val tail = if (cursor.hasNext) A.eval(ref.flatMap(f)) else rest.map(_.flatMap(f))
         concat(item, tail, stop)
       }
     }
@@ -390,7 +387,7 @@ sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self
         Suspend[F,B](rest.map(_.flatMap(f)), stop)
 
       case NextGen(gen, rest, stop) =>
-        val cursor = gen.cursor()
+        val cursor = gen.iterator
         val ref = NextSeq(cursor, rest, stop)
         evalNextSeq(ref, cursor, rest, stop)
 
@@ -479,7 +476,7 @@ sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self
           val newState = cursor.foldLeft(state)(op)
           rest.flatMap(loop(_, newState))
         case NextGen(gen, rest, stop) =>
-          val newState = gen.cursor().foldLeft(state)(op)
+          val newState = gen.iterator.foldLeft(state)(op)
           rest.flatMap(loop(_, newState))
         case Suspend(rest, _) =>
           rest.flatMap(loop(_, state))
@@ -566,7 +563,7 @@ object Iterant extends StreamInstances with SharedDocs {
     * @param rest $restParamDesc
     * @param stop $stopParamDesc
     */
-  def nextSeqS[F[_],A](items: Cursor[A], rest: F[Iterant[F,A]], stop: F[Unit]): Iterant[F,A] =
+  def nextSeqS[F[_],A](items: Iterator[A], rest: F[Iterant[F,A]], stop: F[Unit]): Iterant[F,A] =
     NextSeq[F,A](items, rest, stop)
 
   /** $nextGenSDesc
@@ -575,7 +572,7 @@ object Iterant extends StreamInstances with SharedDocs {
     * @param rest $restParamDesc
     * @param stop $stopParamDesc
     */
-  def nextGenS[F[_],A](items: Generator[A], rest: F[Iterant[F,A]], stop: F[Unit]): Iterant[F,A] =
+  def nextGenS[F[_],A](items: Iterable[A], rest: F[Iterant[F,A]], stop: F[Unit]): Iterant[F,A] =
     NextGen[F,A](items, rest, stop)
 
   /** $suspendSDesc
@@ -644,15 +641,15 @@ object Iterant extends StreamInstances with SharedDocs {
 
   /** $builderFromArray */
   def fromArray[F[_], A](xs: Array[A])(implicit F: Applicative[F]): Iterant[F,A] =
-    NextGen(Generator.fromArray(xs), F.pure(empty[F,A]), F.unit)
+    NextGen(xs, F.pure(empty[F,A]), F.unit)
 
   /** $builderFromList */
   def fromList[F[_], A](xs: LinearSeq[A])(implicit F: Applicative[F]): Iterant[F,A] =
-    NextGen(Generator.fromSeq(xs), F.pure(empty[F,A]), F.unit)
+    NextGen(xs, F.pure(empty[F,A]), F.unit)
 
   /** $builderFromIndexedSeq */
   def fromIndexedSeq[F[_], A](xs: IndexedSeq[A])(implicit F: Applicative[F]): Iterant[F,A] =
-    NextGen(Generator.fromIndexedSeq(xs), F.pure(empty[F,A]), F.unit)
+    NextGen(xs, F.pure(empty[F,A]), F.unit)
 
   /** $builderFromSeq */
   def fromSeq[F[_], A](xs: Seq[A])(implicit F: Applicative[F]): Iterant[F,A] =
@@ -667,11 +664,11 @@ object Iterant extends StreamInstances with SharedDocs {
 
   /** $builderFromIterable */
   def fromIterable[F[_],A](xs: Iterable[A])(implicit F: Applicative[F]): Iterant[F,A] =
-    NextGen(Generator.fromIterable(xs), F.pure(empty[F,A]), F.unit)
+    NextGen(xs, F.pure(empty[F,A]), F.unit)
 
   /** $builderFromIterator */
   def fromIterator[F[_], A](xs: Iterator[A])(implicit F: Applicative[F]): Iterant[F,A] =
-    NextSeq[F,A](Cursor.fromIterator(xs), F.pure(empty), F.unit)
+    NextSeq[F,A](xs, F.pure(empty), F.unit)
 
   /** $builderRange
     *
@@ -681,7 +678,7 @@ object Iterant extends StreamInstances with SharedDocs {
     * @return $rangeReturnDesc
     */
   def range[F[_]](from: Int, until: Int, step: Int = 1)(implicit F: Applicative[F]): Iterant[F,Int] =
-    NextGen(Generator.range(from, until, step), F.pure(empty[F,Int]), F.unit)
+    NextGen(Iterable.range(from, until, step), F.pure(empty[F,Int]), F.unit)
 
   /** $NextDesc
     *
@@ -709,7 +706,7 @@ object Iterant extends StreamInstances with SharedDocs {
     * @param stop $stopParamDesc
     */
   final case class NextSeq[F[_],A](
-    items: Cursor[A],
+    items: Iterator[A],
     rest: F[Iterant[F,A]],
     stop: F[Unit])
     extends Iterant[F,A]
@@ -721,7 +718,7 @@ object Iterant extends StreamInstances with SharedDocs {
     * @param stop $stopParamDesc
     */
   final case class NextGen[F[_],A](
-    items: Generator[A],
+    items: Iterable[A],
     rest: F[Iterant[F,A]],
     stop: F[Unit])
     extends Iterant[F,A]
@@ -789,7 +786,7 @@ private[tail] trait StreamInstances extends StreamInstances2 {
 
   /** Reusable instance for [[AsyncStream]], avoids creating junk. */
   private[this] val nondetAsyncStreamRef =
-    new AsyncStreamInstances()(Task.typeClassInstances)
+    new AsyncStreamInstances()(Task.nondeterminism)
 
   /** Reusable instance for [[AsyncStream]], avoids creating junk. */
   private[this] val defaultAsyncStreamRef =

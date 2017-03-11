@@ -20,7 +20,6 @@ package monix.tail
 import monix.eval.{Coeval, Task}
 import monix.execution.exceptions.DummyException
 import monix.tail.Iterant.{NextGen, NextSeq, Suspend}
-
 import scala.util.{Failure, Success}
 
 object IterantFlatMapSuite extends BaseTestSuite {
@@ -54,7 +53,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = AsyncStream.nextSeqS(Cursor.fromSeq(List(1,2,3)), Task(AsyncStream.empty), Task { isCanceled = true })
+    val stream = AsyncStream.nextSeqS(List(1,2,3).iterator, Task(AsyncStream.empty), Task { isCanceled = true })
     val result = stream.flatMap[Int](_ => throw dummy).toListL.runAsync
 
     s.tick()
@@ -96,7 +95,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
         case Suspend(rest, _) =>
           rest.flatMap(firstNext)
         case NextGen(gen, rest, stop) =>
-          Task.now(NextSeq(gen.cursor(), rest, stop))
+          Task.now(NextSeq(gen.iterator, rest, stop))
         case _ =>
           Task.now(streamable)
       }
@@ -162,7 +161,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
   test("AsyncStream.flatMap should protect against broken cursors") { implicit s =>
     check1 { (prefix: AsyncStream[Int]) =>
       val dummy = DummyException("dummy")
-      val cursor = new ThrowExceptionCursor(dummy)
+      val cursor = new ThrowExceptionIterator(dummy)
       val error = AsyncStream.nextSeqS(cursor, Task.now(AsyncStream.empty), Task.unit)
       val stream = (prefix ++ error).flatMap(x => AsyncStream.now(x))
       stream === AsyncStream.haltS[Int](Some(dummy))
@@ -172,7 +171,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
   test("AsyncStream.flatMap should protect against broken generators") { implicit s =>
     check1 { (prefix: AsyncStream[Int]) =>
       val dummy = DummyException("dummy")
-      val generator = new ThrowExceptionGenerator(dummy)
+      val generator = new ThrowExceptionIterable(dummy)
       val error = AsyncStream.nextGenS(generator, Task.now(AsyncStream.empty), Task.unit)
       val stream = (prefix ++ error).flatMap(x => AsyncStream.now(x))
       stream === AsyncStream.haltS[Int](Some(dummy))
@@ -208,7 +207,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = LazyStream.nextSeqS(Cursor.fromSeq(List(1,2,3)), Coeval(LazyStream.empty), Coeval { isCanceled = true })
+    val stream = LazyStream.nextSeqS(List(1,2,3).iterator, Coeval(LazyStream.empty), Coeval { isCanceled = true })
     val result = stream.flatMap[Int](_ => throw dummy).toListL.runTry
 
     assertEquals(result, Failure(dummy))
@@ -249,7 +248,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
         case Suspend(rest, _) =>
           rest.flatMap(firstNext)
         case NextGen(gen, rest, stop) =>
-          Coeval.now(NextSeq(gen.cursor(), rest, stop))
+          Coeval.now(NextSeq(gen.iterator, rest, stop))
         case _ =>
           Coeval.now(streamable)
       }
@@ -304,7 +303,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
   test("LazyStream.flatMap should protect against broken cursors") { implicit s =>
     check1 { (prefix: LazyStream[Int]) =>
       val dummy = DummyException("dummy")
-      val cursor = new ThrowExceptionCursor(dummy)
+      val cursor = new ThrowExceptionIterator(dummy)
       val error = LazyStream.nextSeqS(cursor, Coeval.now(LazyStream.empty), Coeval.unit)
       val stream = (prefix ++ error).flatMap(x => LazyStream.now(x))
       stream === LazyStream.haltS[Int](Some(dummy))
@@ -314,7 +313,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
   test("LazyStream.flatMap should protect against broken generators") { implicit s =>
     check1 { (prefix: LazyStream[Int]) =>
       val dummy = DummyException("dummy")
-      val cursor = new ThrowExceptionGenerator(dummy)
+      val cursor = new ThrowExceptionIterable(dummy)
       val error = LazyStream.nextGenS(cursor, Coeval.now(LazyStream.empty), Coeval.unit)
       val stream = (prefix ++ error).flatMap(x => LazyStream.now(x))
       stream === LazyStream.haltS[Int](Some(dummy))
