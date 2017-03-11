@@ -26,87 +26,87 @@ import scala.util.{Failure, Success, Try}
 import scala.concurrent.duration._
 
 trait ArbitraryInstances extends monix.eval.ArbitraryInstances {
-  def arbitraryListToLazyStream[A](list: List[A], idx: Int): LazyStream[A] = {
-    def loop(list: List[A], idx: Int): LazyStream[A] =
+  def arbitraryListToIterantCoeval[A](list: List[A], idx: Int): Iterant[Coeval, A] = {
+    def loop(list: List[A], idx: Int): Iterant[Coeval, A] =
       list match {
         case Nil =>
-          LazyStream.haltS(None)
+          Iterant[Coeval].haltS(None)
         case x :: Nil if idx % 2 == 1 =>
-          LazyStream.lastS(x)
+          Iterant[Coeval].lastS(x)
         case ns =>
           if (idx % 6 == 0)
-            LazyStream.nextS(ns.head, Coeval(loop(ns.tail, idx+1)), Coeval.unit)
+            Iterant[Coeval].nextS(ns.head, Coeval(loop(ns.tail, idx+1)), Coeval.unit)
           else if (idx % 6 == 1)
-            LazyStream.suspend(Coeval(loop(list, idx+1)))
+            Iterant[Coeval].suspend(Coeval(loop(list, idx+1)))
           else  if (idx % 6 == 2) {
             val (headSeq, tail) = list.splitAt(3)
-            LazyStream.nextSeqS(headSeq.toVector.iterator, Coeval(loop(tail, idx+1)), Coeval.unit)
+            Iterant[Coeval].nextSeqS(headSeq.toVector.iterator, Coeval(loop(tail, idx+1)), Coeval.unit)
           }
           else if (idx % 6 == 3) {
-            LazyStream.suspendS(Coeval(loop(ns, idx + 1)), Coeval.unit)
+            Iterant[Coeval].suspendS(Coeval(loop(ns, idx + 1)), Coeval.unit)
           }
           else if (idx % 6 == 4) {
             val (headSeq, tail) = list.splitAt(3)
-            LazyStream.nextGenS(headSeq.toVector, Coeval(loop(tail, idx+1)), Coeval.unit)
+            Iterant[Coeval].nextGenS(headSeq.toVector, Coeval(loop(tail, idx+1)), Coeval.unit)
           }
           else {
-            LazyStream.nextGenS(Nil, Coeval(loop(ns, idx + 1)), Coeval.unit)
+            Iterant[Coeval].nextGenS(Nil, Coeval(loop(ns, idx + 1)), Coeval.unit)
           }
       }
 
-    LazyStream.suspend(loop(list, idx))
+    Iterant[Coeval].suspend(loop(list, idx))
   }
 
-  implicit def arbitraryLazyStream[A](implicit A: Arbitrary[A]): Arbitrary[LazyStream[A]] =
+  implicit def arbitraryIterantCoeval[A](implicit A: Arbitrary[A]): Arbitrary[Iterant[Coeval, A]] =
     Arbitrary {
       val listGen = implicitly[Arbitrary[List[A]]]
       val intGen = implicitly[Arbitrary[Int]]
       for (source <- listGen.arbitrary; i <- intGen.arbitrary) yield
-        arbitraryListToLazyStream(source.reverse, math.abs(i % 4))
+        arbitraryListToIterantCoeval(source.reverse, math.abs(i % 4))
     }
 
-  def arbitraryListToAsyncStream[A](list: List[A], idx: Int): AsyncStream[A] = {
-    def loop(list: List[A], idx: Int): AsyncStream[A] =
+  def arbitraryListToIterantTask[A](list: List[A], idx: Int): Iterant[Task, A] = {
+    def loop(list: List[A], idx: Int): Iterant[Task, A] =
       list match {
         case Nil =>
-          AsyncStream.haltS(None)
+          Iterant[Task].haltS(None)
         case x :: Nil if idx % 2 == 1 =>
-          AsyncStream.lastS(x)
+          Iterant[Task].lastS(x)
         case ns =>
           if (idx % 6 == 0)
-            AsyncStream.nextS(ns.head, Task.eval(loop(ns.tail, idx+1)), Task.unit)
+            Iterant[Task].nextS(ns.head, Task.eval(loop(ns.tail, idx+1)), Task.unit)
           else if (idx % 6 == 1)
-            AsyncStream.suspend(Task.eval(loop(list, idx+1)))
+            Iterant[Task].suspend(Task.eval(loop(list, idx+1)))
           else  if (idx % 6 == 2) {
             val (headSeq, tail) = list.splitAt(3)
-            AsyncStream.nextSeqS(headSeq.toVector.iterator, Task.eval(loop(tail, idx+1)), Task.unit)
+            Iterant[Task].nextSeqS(headSeq.toVector.iterator, Task.eval(loop(tail, idx+1)), Task.unit)
           }
           else if (idx % 6 == 3) {
-            AsyncStream.suspendS(Task.eval(loop(ns, idx + 1)), Task.unit)
+            Iterant[Task].suspendS(Task.eval(loop(ns, idx + 1)), Task.unit)
           }
           else if (idx % 6 == 4) {
             val (headSeq, tail) = list.splitAt(3)
-            AsyncStream.nextGenS(headSeq.toVector, Task.eval(loop(tail, idx+1)), Task.unit)
+            Iterant[Task].nextGenS(headSeq.toVector, Task.eval(loop(tail, idx+1)), Task.unit)
           }
           else {
-            AsyncStream.nextGenS(Nil, Task.eval(loop(ns, idx + 1)), Task.unit)
+            Iterant[Task].nextGenS(Nil, Task.eval(loop(ns, idx + 1)), Task.unit)
           }
       }
-    
-    AsyncStream.suspend(loop(list, idx))
+
+    Iterant[Task].suspend(loop(list, idx))
   }
 
-  implicit def arbitraryAsyncStream[A](implicit A: Arbitrary[A]): Arbitrary[AsyncStream[A]] =
+  implicit def arbitraryIterantTask[A](implicit A: Arbitrary[A]): Arbitrary[Iterant[Task, A]] =
     Arbitrary {
       val listGen = implicitly[Arbitrary[List[A]]]
       val intGen = implicitly[Arbitrary[Int]]
       for (source <- listGen.arbitrary; i <- intGen.arbitrary) yield
-        arbitraryListToAsyncStream(source.reverse, math.abs(i % 4))
+        arbitraryListToIterantTask(source.reverse, math.abs(i % 4))
     }
 
-  implicit def isEqLazyStream[A](implicit A: Eq[List[A]]): Eq[LazyStream[A]] =
-    new Eq[LazyStream[A]] {
-      def apply(lh: LazyStream[ A], rh: LazyStream[ A]): Boolean = {
+  implicit def isEqIterantCoeval[A](implicit A: Eq[List[A]]): Eq[Iterant[Coeval, A]] =
+    new Eq[Iterant[Coeval, A]] {
+      def apply(lh: Iterant[Coeval,  A], rh: Iterant[Coeval,  A]): Boolean = {
         val valueA = lh.toListL.runTry
         val valueB = rh.toListL.runTry
 
@@ -118,9 +118,9 @@ trait ArbitraryInstances extends monix.eval.ArbitraryInstances {
       }
     }
 
-  implicit def isEqAsyncStream[A](implicit A: Eq[List[A]]): Eq[AsyncStream[A]] =
-    new Eq[AsyncStream[A]] {
-      def apply(lh: AsyncStream[ A], rh: AsyncStream[ A]): Boolean = {
+  implicit def isEqIterantTask[A](implicit A: Eq[List[A]]): Eq[Iterant[Task, A]] =
+    new Eq[Iterant[Task, A]] {
+      def apply(lh: Iterant[Task,  A], rh: Iterant[Task,  A]): Boolean = {
         implicit val s = TestScheduler()
         var valueA = Option.empty[Try[List[A]]]
         var valueB = Option.empty[Try[List[A]]]

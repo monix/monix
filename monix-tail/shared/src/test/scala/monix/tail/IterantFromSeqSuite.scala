@@ -21,23 +21,23 @@ import monix.eval.Task
 import scala.collection.mutable.ListBuffer
 
 object IterantFromSeqSuite extends BaseTestSuite {
-  test("AsyncStream.fromSeq(vector)") { implicit s =>
+  test("Iterant[Task].fromSeq(vector)") { implicit s =>
     check1 { (list: List[Int]) =>
-      val result = AsyncStream.fromSeq(list.toVector).toListL
+      val result = Iterant[Task].fromSeq(list.toVector).toListL
       result === Task.now(list)
     }
   }
 
-  test("AsyncStream.fromSeq(list)") { implicit s =>
+  test("Iterant[Task].fromSeq(list)") { implicit s =>
     check1 { (list: List[Int]) =>
-      val result = AsyncStream.fromSeq(list).toListL
+      val result = Iterant[Task].fromSeq(list).toListL
       result === Task.now(list)
     }
   }
 
-  test("AsyncStream.fromSeq(iterable)") { implicit s =>
+  test("Iterant[Task].fromSeq(iterable)") { implicit s =>
     check1 { (list: List[Int]) =>
-      val result = AsyncStream.fromSeq(list.to[ListBuffer]).toListL
+      val result = Iterant[Task].fromSeq(list.to[ListBuffer]).toListL
       result === Task.now(list)
     }
   }

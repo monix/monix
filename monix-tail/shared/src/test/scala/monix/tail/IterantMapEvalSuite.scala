@@ -22,21 +22,21 @@ import monix.execution.exceptions.DummyException
 import scala.util.Failure
 
 object IterantMapEvalSuite extends BaseTestSuite {
-  test("AsyncStream.mapEval covariant identity") { implicit s =>
+  test("Iterant[Task].mapEval covariant identity") { implicit s =>
     check1 { (list: List[Int]) =>
-      val r = AsyncStream.fromIterable(list).mapEval(x => Task(x)).toListL
+      val r = Iterant[Task].fromIterable(list).mapEval(x => Task(x)).toListL
       r === Task.now(list)
     }
   }
 
-  test("AsyncStream.mapEval covariant composition") { implicit s =>
+  test("Iterant[Task].mapEval covariant composition") { implicit s =>
     check3 { (list: List[Int], f: Int => Int, g: Int => Int) =>
-      val r1 = AsyncStream.fromIterable(list)
+      val r1 = Iterant[Task].fromIterable(list)
         .mapEval(x => Task(f(x)))
         .mapEval(x => Task(g(x)))
         .toListL
 
-      val r2 = AsyncStream.fromIterable(list)
+      val r2 = Iterant[Task].fromIterable(list)
         .mapEval(x => Task(f(x)).flatMap(y => Task(g(y))))
         .toListL
 
@@ -44,113 +44,113 @@ object IterantMapEvalSuite extends BaseTestSuite {
     }
   }
 
-  test("AsyncStream.mapEval equivalence") { implicit s =>
+  test("Iterant[Task].mapEval equivalence") { implicit s =>
     check2 { (list: List[Int], f: Int => Int) =>
-      val r = AsyncStream.fromIterable(list).mapEval(x => Task(f(x))).toListL
+      val r = Iterant[Task].fromIterable(list).mapEval(x => Task(f(x))).toListL
       r === Task.now(list.map(f))
     }
   }
 
-  test("AsyncStream.mapEval equivalence (batched)") { implicit s =>
+  test("Iterant[Task].mapEval equivalence (batched)") { implicit s =>
     check2 { (list: List[Int], f: Int => Int) =>
-      val r = AsyncStream.fromIterable(list).mapEval(x => Task(f(x))).toListL
+      val r = Iterant[Task].fromIterable(list).mapEval(x => Task(f(x))).toListL
       r === Task.now(list.map(f))
     }
   }
 
-  test("AsyncStream.mapEval can handle errors") { implicit s =>
+  test("Iterant[Task].mapEval can handle errors") { implicit s =>
     val dummy = DummyException("dummy")
-    val stream = AsyncStream.raiseError[Int](dummy)
+    val stream = Iterant[Task].raiseError[Int](dummy)
     assertEquals(stream, stream.mapEval(x => Task(x)))
   }
 
-  test("AsyncStream.next.mapEval guards against direct user code errors") { implicit s =>
+  test("Iterant[Task].next.mapEval guards against direct user code errors") { implicit s =>
     val dummy = DummyException("dummy")
-    val stream = AsyncStream.now(1)
+    val stream = Iterant[Task].now(1)
     val result = stream.mapEval[Int](_ => throw dummy).toListL.runAsync
     s.tick()
     assertEquals(result.value, Some(Failure(dummy)))
   }
 
-  test("AsyncStream.nextSeq.mapEval guards against direct user code errors") { implicit s =>
+  test("Iterant[Task].nextSeq.mapEval guards against direct user code errors") { implicit s =>
     val dummy = DummyException("dummy")
-    val stream = AsyncStream.fromList(List(1,2,3))
+    val stream = Iterant[Task].fromList(List(1,2,3))
     val result = stream.mapEval[Int](_ => throw dummy).toListL.runAsync
     s.tick()
     assertEquals(result.value, Some(Failure(dummy)))
   }
 
-  test("AsyncStream.next.mapEval guards against indirect user code errors") { implicit s =>
+  test("Iterant[Task].next.mapEval guards against indirect user code errors") { implicit s =>
     val dummy = DummyException("dummy")
-    val stream = AsyncStream.now(1)
+    val stream = Iterant[Task].now(1)
     val result = stream.mapEval[Int](_ => Task.raiseError(dummy)).toListL.runAsync
     s.tick()
     assertEquals(result.value, Some(Failure(dummy)))
   }
 
-  test("AsyncStream.nextSeq.mapEval guards against indirect user code errors") { implicit s =>
+  test("Iterant[Task].nextSeq.mapEval guards against indirect user code errors") { implicit s =>
     val dummy = DummyException("dummy")
-    val stream = AsyncStream.fromList(List(1,2,3))
+    val stream = Iterant[Task].fromList(List(1,2,3))
     val result = stream.mapEval[Int](_ => Task.raiseError(dummy)).toListL.runAsync
     s.tick()
     assertEquals(result.value, Some(Failure(dummy)))
   }
 
-  test("AsyncStream.mapEval should protect against indirect user errors") { implicit s =>
+  test("Iterant[Task].mapEval should protect against indirect user errors") { implicit s =>
     check2 { (l: List[Int], idx: Int) =>
       val dummy = DummyException("dummy")
       val list = if (l.isEmpty) List(1) else l
-      val source = arbitraryListToAsyncStream(list, idx)
+      val source = arbitraryListToIterantTask(list, idx)
       val received = source.mapEval(_ => Task.raiseError[Int](dummy))
-      received === AsyncStream.haltS[Int](Some(dummy))
+      received === Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
-  test("AsyncStream.mapEval should protect against direct exceptions") { implicit s =>
+  test("Iterant[Task].mapEval should protect against direct exceptions") { implicit s =>
     check2 { (l: List[Int], idx: Int) =>
       val dummy = DummyException("dummy")
       val list = if (l.isEmpty) List(1) else l
-      val source = arbitraryListToAsyncStream(list, idx)
+      val source = arbitraryListToIterantTask(list, idx)
       val received = source.mapEval[Int](_ => throw dummy)
-      received === AsyncStream.haltS[Int](Some(dummy))
+      received === Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
-  test("AsyncStream.mapEval should protect against broken cursors") { implicit s =>
-    check1 { (prefix: AsyncStream[Int]) =>
+  test("Iterant[Task].mapEval should protect against broken cursors") { implicit s =>
+    check1 { (prefix: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val cursor = new ThrowExceptionIterator(dummy)
-      val error = AsyncStream.nextSeqS(cursor, Task.now(AsyncStream.empty), Task.unit)
+      val error = Iterant[Task].nextSeqS(cursor, Task.now(Iterant[Task].empty), Task.unit)
       val stream = (prefix ++ error).mapEval(x => Task.now(x))
-      stream === AsyncStream.haltS[Int](Some(dummy))
+      stream === Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
-  test("AsyncStream.mapEval should protect against broken generators") { implicit s =>
-    check1 { (prefix: AsyncStream[Int]) =>
+  test("Iterant[Task].mapEval should protect against broken generators") { implicit s =>
+    check1 { (prefix: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val cursor = new ThrowExceptionIterable(dummy)
-      val error = AsyncStream.nextGenS(cursor, Task.now(AsyncStream.empty), Task.unit)
+      val error = Iterant[Task].nextGenS(cursor, Task.now(Iterant[Task].empty), Task.unit)
       val stream = (prefix ++ error).mapEval(x => Task.now(x))
-      stream === AsyncStream.haltS[Int](Some(dummy))
+      stream === Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
-  test("LazyStream.mapEval covariant identity") { implicit s =>
+  test("Iterant[Coeval].mapEval covariant identity") { implicit s =>
     check1 { (list: List[Int]) =>
-      val r = LazyStream.fromIterable(list).mapEval(x => Coeval(x)).toListL
+      val r = Iterant[Coeval].fromIterable(list).mapEval(x => Coeval(x)).toListL
       r === Coeval.now(list)
     }
   }
 
-  test("LazyStream.mapEval covariant composition") { implicit s =>
+  test("Iterant[Coeval].mapEval covariant composition") { implicit s =>
     check3 { (list: List[Int], f: Int => Int, g: Int => Int) =>
-      val r1 = LazyStream.fromIterable(list)
+      val r1 = Iterant[Coeval].fromIterable(list)
         .mapEval(x => Coeval(f(x)))
         .mapEval(x => Coeval(g(x)))
         .toListL
 
-      val r2 = LazyStream.fromIterable(list)
+      val r2 = Iterant[Coeval].fromIterable(list)
         .mapEval(x => Coeval(f(x)).flatMap(y => Coeval(g(y))))
         .toListL
 
@@ -158,85 +158,85 @@ object IterantMapEvalSuite extends BaseTestSuite {
     }
   }
 
-  test("LazyStream.mapEval equivalence") { implicit s =>
+  test("Iterant[Coeval].mapEval equivalence") { implicit s =>
     check2 { (list: List[Int], f: Int => Int) =>
-      val r = LazyStream.fromIterable(list).mapEval(x => Coeval(f(x))).toListL
+      val r = Iterant[Coeval].fromIterable(list).mapEval(x => Coeval(f(x))).toListL
       r === Coeval.now(list.map(f))
     }
   }
 
-  test("LazyStream.mapEval can handle errors") { implicit s =>
+  test("Iterant[Coeval].mapEval can handle errors") { implicit s =>
     val dummy = DummyException("dummy")
-    val stream = LazyStream.raiseError[Int](dummy)
+    val stream = Iterant[Coeval].raiseError[Int](dummy)
     assertEquals(stream, stream.mapEval(x => Coeval(x)))
   }
 
-  test("LazyStream.next.mapEval guards against direct user code errors") { implicit s =>
+  test("Iterant[Coeval].next.mapEval guards against direct user code errors") { implicit s =>
     val dummy = DummyException("dummy")
-    val stream = LazyStream.now(1)
+    val stream = Iterant[Coeval].now(1)
     val result = stream.mapEval[Int](_ => throw dummy).toListL.runTry
     assertEquals(result, Failure(dummy))
   }
 
-  test("LazyStream.nextSeq.mapEval guards against direct user code errors") { implicit s =>
+  test("Iterant[Coeval].nextSeq.mapEval guards against direct user code errors") { implicit s =>
     val dummy = DummyException("dummy")
-    val stream = LazyStream.fromList(List(1,2,3))
+    val stream = Iterant[Coeval].fromList(List(1,2,3))
     val result = stream.mapEval[Int](_ => throw dummy).toListL.runTry
     assertEquals(result, Failure(dummy))
   }
 
-  test("LazyStream.next.mapEval guards against indirect user code errors") { implicit s =>
+  test("Iterant[Coeval].next.mapEval guards against indirect user code errors") { implicit s =>
     val dummy = DummyException("dummy")
-    val stream = LazyStream.now(1)
+    val stream = Iterant[Coeval].now(1)
     val result = stream.mapEval[Int](_ => Coeval.raiseError(dummy)).toListL.runTry
     assertEquals(result, Failure(dummy))
   }
 
-  test("LazyStream.nextSeq.mapEval guards against indirect user code errors") { implicit s =>
+  test("Iterant[Coeval].nextSeq.mapEval guards against indirect user code errors") { implicit s =>
     val dummy = DummyException("dummy")
-    val stream = LazyStream.fromList(List(1,2,3))
+    val stream = Iterant[Coeval].fromList(List(1,2,3))
     val result = stream.mapEval[Int](_ => Coeval.raiseError(dummy)).toListL.runTry
     assertEquals(result, Failure(dummy))
   }
 
-  test("LazyStream.mapEval should protect against indirect user errors") { implicit s =>
+  test("Iterant[Coeval].mapEval should protect against indirect user errors") { implicit s =>
     check2 { (l: List[Int], idx: Int) =>
       val dummy = DummyException("dummy")
       val list = if (l.isEmpty) List(1) else l
-      val iterant = arbitraryListToLazyStream(list, idx)
-      val received = (iterant ++ LazyStream.now(1))
+      val iterant = arbitraryListToIterantCoeval(list, idx)
+      val received = (iterant ++ Iterant[Coeval].now(1))
         .mapEval[Int](_ => Coeval.raiseError(dummy))
-      received === LazyStream.haltS[Int](Some(dummy))
+      received === Iterant[Coeval].haltS[Int](Some(dummy))
     }
   }
 
-  test("LazyStream.mapEval should protect against direct exceptions") { implicit s =>
+  test("Iterant[Coeval].mapEval should protect against direct exceptions") { implicit s =>
     check2 { (l: List[Int], idx: Int) =>
       val dummy = DummyException("dummy")
       val list = if (l.isEmpty) List(1) else l
-      val iterant = arbitraryListToLazyStream(list, idx)
-      val received = (iterant ++ LazyStream.now(1)).mapEval[Int](_ => throw dummy)
-      received === LazyStream.haltS[Int](Some(dummy))
+      val iterant = arbitraryListToIterantCoeval(list, idx)
+      val received = (iterant ++ Iterant[Coeval].now(1)).mapEval[Int](_ => throw dummy)
+      received === Iterant[Coeval].haltS[Int](Some(dummy))
     }
   }
 
-  test("LazyStream.mapEval should protect against broken cursors") { implicit s =>
-    check1 { (prefix: LazyStream[Int]) =>
+  test("Iterant[Coeval].mapEval should protect against broken cursors") { implicit s =>
+    check1 { (prefix: Iterant[Coeval, Int]) =>
       val dummy = DummyException("dummy")
       val cursor = new ThrowExceptionIterator(dummy)
-      val error = LazyStream.nextSeqS(cursor, Coeval.now(LazyStream.empty), Coeval.unit)
+      val error = Iterant[Coeval].nextSeqS(cursor, Coeval.now(Iterant[Coeval].empty), Coeval.unit)
       val stream = (prefix ++ error).mapEval(x => Coeval.now(x))
-      stream === LazyStream.haltS[Int](Some(dummy))
+      stream === Iterant[Coeval].haltS[Int](Some(dummy))
     }
   }
 
-  test("LazyStream.mapEval should protect against broken generators") { implicit s =>
-    check1 { (prefix: LazyStream[Int]) =>
+  test("Iterant[Coeval].mapEval should protect against broken generators") { implicit s =>
+    check1 { (prefix: Iterant[Coeval, Int]) =>
       val dummy = DummyException("dummy")
       val cursor = new ThrowExceptionIterable(dummy)
-      val error = LazyStream.nextGenS(cursor, Coeval.now(LazyStream.empty), Coeval.unit)
+      val error = Iterant[Coeval].nextGenS(cursor, Coeval.now(Iterant[Coeval].empty), Coeval.unit)
       val stream = (prefix ++ error).mapEval(x => Coeval.now(x))
-      stream === LazyStream.haltS[Int](Some(dummy))
+      stream === Iterant[Coeval].haltS[Int](Some(dummy))
     }
   }
 }

@@ -17,6 +17,7 @@
 
 package monix.tail
 
+import monix.eval.Task
 import monix.execution.exceptions.DummyException
 import org.scalacheck.Test.Parameters
 
@@ -25,7 +26,7 @@ object IterantFilterSuite extends BaseTestSuite {
     super.checkConfig.withMaxSize(64)
 
   test("Iterant.filter <=> List.filter") { implicit s =>
-    check2 { (stream: AsyncStream[Int], p: Int => Boolean) =>
+    check2 { (stream: Iterant[Task, Int], p: Int => Boolean) =>
       val received = stream.filter(p).toListL
       val expected = stream.toListL.map(_.filter(p))
       received === expected
@@ -33,17 +34,17 @@ object IterantFilterSuite extends BaseTestSuite {
   }
 
   test("Iterant.filter protects against user error") { implicit s =>
-    check1 { (stream: AsyncStream[Int]) =>
+    check1 { (stream: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
-      val received = (stream ++ AsyncStream.now(1)).filter(_ => throw dummy)
-      received === AsyncStream.raiseError(dummy)
+      val received = (stream ++ Iterant[Task].now(1)).filter(_ => throw dummy)
+      received === Iterant[Task].raiseError(dummy)
     }
   }
 
   test("Iterant.filter flatMap equivalence") { implicit s =>
-    check2 { (stream: AsyncStream[Int], p: Int => Boolean) =>
+    check2 { (stream: Iterant[Task, Int], p: Int => Boolean) =>
       val received = stream.filter(p)
-      val expected = stream.flatMap(x => if (p(x)) AsyncStream.now(x) else AsyncStream.empty)
+      val expected = stream.flatMap(x => if (p(x)) Iterant[Task].now(x) else Iterant[Task].empty)
       received === expected
     }
   }

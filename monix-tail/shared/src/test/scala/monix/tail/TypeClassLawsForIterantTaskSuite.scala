@@ -17,19 +17,20 @@
 
 package monix.tail
 
+import monix.eval.Task
 import monix.types.tests.{MonadFilterLawsSuite, MonadRecLawsSuite, MonoidKLawsSuite}
 
-object TypeClassLawsForLazyStreamSuite extends BaseLawsSuite
-  with MonadRecLawsSuite[LazyStream, Int, Long, Short]
-  with MonadFilterLawsSuite[LazyStream, Int, Long, Short]
-  with MonoidKLawsSuite[LazyStream, Int] {
+object TypeClassLawsForIterantTaskSuite extends BaseLawsSuite
+  with MonadRecLawsSuite[({type λ[+α] = Iterant[Task,α]})#λ, Int, Long, Short]
+  with MonadFilterLawsSuite[({type λ[+α] = Iterant[Task,α]})#λ, Int, Long, Short]
+  with MonoidKLawsSuite[({type λ[+α] = Iterant[Task,α]})#λ, Int] {
 
-  override val F = Iterant.lazyStreamInstances
+  override val F = Iterant.iterantTaskInstances
   override lazy val checkConfig = slowConfig
 
   // Actual tests ...
-  monadCheck("LazyStream[A]", includeSupertypes = true)
-  monadRecCheck("LazyStream[A]", includeSupertypes = false, stackSafetyCount = 10000)
-  monadFilterCheck("LazyStream[A]", includeSupertypes = false)
-  monoidKCheck("LazyStream[A]", includeSupertypes = true)
+  monadCheck("Iterant[Task, A]", includeSupertypes = true)
+  monadRecCheck("Iterant[Task, A]", includeSupertypes = false, stackSafetyCount = 10000)
+  monadFilterCheck("Iterant[Task, A]", includeSupertypes = false)
+  monoidKCheck("Iterant[Task, A]", includeSupertypes = true)
 }

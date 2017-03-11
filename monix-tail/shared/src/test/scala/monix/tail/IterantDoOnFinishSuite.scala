@@ -140,10 +140,10 @@ object IterantDoOnFinishSuite extends BaseTestSuite {
   }
 
   test("doOnFinish protects against user error") { _ =>
-    check1 { (stream: LazyStream[Int]) =>
+    check1 { (stream: Iterant[Coeval, Int]) =>
       val dummy = DummyException("dummy")
       val received = stream.doOnFinish(_ => throw dummy)
-      received === LazyStream.raiseError(dummy)
+      received === Iterant[Coeval].raiseError(dummy)
     }
   }
 }

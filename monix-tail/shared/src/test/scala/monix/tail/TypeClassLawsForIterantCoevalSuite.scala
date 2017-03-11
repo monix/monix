@@ -17,20 +17,20 @@
 
 package monix.tail
 
-import monix.eval.Task.nondeterminism
+import monix.eval.Coeval
 import monix.types.tests.{MonadFilterLawsSuite, MonadRecLawsSuite, MonoidKLawsSuite}
 
-object TypeClassLawsForAsyncStreamNondeterminismSuite extends BaseLawsSuite
-  with MonadRecLawsSuite[AsyncStream, Int, Long, Short]
-  with MonadFilterLawsSuite[AsyncStream, Int, Long, Short]
-  with MonoidKLawsSuite[AsyncStream, Int] {
+object TypeClassLawsForIterantCoevalSuite extends BaseLawsSuite
+  with MonadRecLawsSuite[({type λ[+α] = Iterant[Coeval,α]})#λ, Int, Long, Short]
+  with MonadFilterLawsSuite[({type λ[+α] = Iterant[Coeval,α]})#λ, Int, Long, Short]
+  with MonoidKLawsSuite[({type λ[+α] = Iterant[Coeval,α]})#λ, Int] {
 
-  override val F = Iterant.asyncStreamInstances
+  override val F = Iterant.iterantCoevalInstances
   override lazy val checkConfig = slowConfig
 
   // Actual tests ...
-  monadCheck("AsyncStream[A](nondeterminism)", includeSupertypes = true)
-  monadRecCheck("AsyncStream[A](nondeterminism)", includeSupertypes = false, stackSafetyCount = 10000)
-  monadFilterCheck("AsyncStream[A](nondeterminism)", includeSupertypes = false)
-  monoidKCheck("AsyncStream[A](nondeterminism)", includeSupertypes = true)
+  monadCheck("Iterant[Coeval, A]", includeSupertypes = true)
+  monadRecCheck("Iterant[Coeval, A]", includeSupertypes = false, stackSafetyCount = 10000)
+  monadFilterCheck("Iterant[Coeval, A]", includeSupertypes = false)
+  monoidKCheck("Iterant[Coeval, A]", includeSupertypes = true)
 }

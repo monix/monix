@@ -20,30 +20,30 @@ package monix.tail
 import monix.eval.{Coeval, Task}
 
 object IterantFromListSuite extends BaseTestSuite {
-  test("AsyncStream.fromList") { implicit s =>
+  test("Iterant[Task].fromList") { implicit s =>
     check1 { (list: List[Int]) =>
-      val result = AsyncStream.fromList(list).toListL
+      val result = Iterant[Task].fromList(list).toListL
       result === Task.now(list)
     }
   }
 
-  test("AsyncStream.fromList (async)") { implicit s =>
+  test("Iterant[Task].fromList (async)") { implicit s =>
     check1 { (list: List[Int]) =>
-      val result = AsyncStream.fromList(list).mapEval(x => Task(x)).toListL
+      val result = Iterant[Task].fromList(list).mapEval(x => Task(x)).toListL
       result === Task.now(list)
     }
   }
 
-  test("LazyStream.fromList") { implicit s =>
+  test("Iterant[Coeval].fromList") { implicit s =>
     check1 { (list: List[Int]) =>
-      val result = LazyStream.fromList(list).toListL
+      val result = Iterant[Coeval].fromList(list).toListL
       result === Coeval.now(list)
     }
   }
 
-  test("LazyStream.fromList (async)") { implicit s =>
+  test("Iterant[Coeval].fromList (async)") { implicit s =>
     check1 { (list: List[Int]) =>
-      val result = LazyStream.fromList(list).mapEval(x => Coeval(x)).toListL
+      val result = Iterant[Coeval].fromList(list).mapEval(x => Coeval(x)).toListL
       result === Coeval.now(list)
     }
   }

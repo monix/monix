@@ -19,21 +19,26 @@ package monix.tail
 
 import monix.eval.{Coeval, Task}
 import monix.types.{Applicative, Monad}
-import scala.collection.immutable.LinearSeq
-import scala.reflect.ClassTag
 
-trait IterantBuilders[F[_], Self[+A] <: Iterant[F,A]] extends SharedDocs {
+import scala.collection.immutable.LinearSeq
+import scala.util.Try
+
+class IterantBuilders[F[_]] extends SharedDocs {
   /** Given a list of elements build a stream out of it. */
-  def apply[A : ClassTag](elems: A*)(implicit F: Applicative[F]): Self[A]
+  def apply[A](elems: A*)(implicit F: Applicative[F]): Iterant[F,A] =
+    Iterant.fromSeq(elems)(F)
 
   /** $builderNow */
-  def now[A](a: A)(implicit F: Applicative[F]): Self[A]
+  def now[A](a: A): Iterant[F,A] =
+    Iterant.now(a)
 
   /** Alias for [[now]]. */
-  def pure[A](a: A)(implicit F: Applicative[F]): Self[A]
+  def pure[A](a: A): Iterant[F,A] =
+    Iterant.pure(a)
 
   /** $builderEval */
-  def eval[A](a: => A)(implicit F: Applicative[F]): Self[A]
+  def eval[A](a: => A)(implicit F: Applicative[F]): Iterant[F,A] =
+    Iterant.eval(a)(F)
 
   /** $nextSDesc
     *
@@ -41,7 +46,8 @@ trait IterantBuilders[F[_], Self[+A] <: Iterant[F,A]] extends SharedDocs {
     * @param rest $restParamDesc
     * @param stop $stopParamDesc
     */
-  def nextS[A](item: A, rest: F[Self[A]], stop: F[Unit]): Self[A]
+  def nextS[A](item: A, rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
+    Iterant.nextS(item, rest, stop)
 
   /** $nextSeqSDesc
     *
@@ -49,7 +55,8 @@ trait IterantBuilders[F[_], Self[+A] <: Iterant[F,A]] extends SharedDocs {
     * @param rest $restParamDesc
     * @param stop $stopParamDesc
     */
-  def nextSeqS[A](items: Iterator[A], rest: F[Self[A]], stop: F[Unit]): Self[A]
+  def nextSeqS[A](items: Iterator[A], rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
+    Iterant.nextSeqS(items, rest, stop)
 
   /** $nextGenSDesc
     *
@@ -57,32 +64,37 @@ trait IterantBuilders[F[_], Self[+A] <: Iterant[F,A]] extends SharedDocs {
     * @param rest $restParamDesc
     * @param stop $stopParamDesc
     */
-  def nextGenS[A](items: Iterable[A], rest: F[Self[A]], stop: F[Unit]): Self[A]
+  def nextGenS[A](items: Iterable[A], rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
+    Iterant.nextGenS(items, rest, stop)
 
   /** $suspendSDesc
     *
     * @param rest $restParamDesc
     * @param stop $stopParamDesc
     */
-  def suspendS[A](rest: F[Self[A]], stop: F[Unit]): Self[A]
+  def suspendS[A](rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
+    Iterant.suspendS(rest, stop)
 
   /** $lastSDesc
     *
     * @param item $lastParamDesc
     */
-  def lastS[A](item: A): Self[A]
+  def lastS[A](item: A): Iterant[F, A] =
+    Iterant.lastS(item)
 
   /** $haltSDesc
     *
     * @param ex $exParamDesc
     */
-  def haltS[A](ex: Option[Throwable]): Self[A]
+  def haltS[A](ex: Option[Throwable]): Iterant[F, A] =
+    Iterant.haltS(ex)
 
   /** $builderSuspendByName
     *
     * @param fa $suspendByNameParam
     */
-  def suspend[A](fa: => Self[A])(implicit F: Applicative[F]): Self[A]
+  def suspend[A](fa: => Iterant[F, A])(implicit F: Applicative[F]): Iterant[F, A] =
+    Iterant.suspend(fa)(F)
 
   /** Alias for [[suspend[A](fa* suspend]].
     *
@@ -90,40 +102,51 @@ trait IterantBuilders[F[_], Self[+A] <: Iterant[F,A]] extends SharedDocs {
     *
     * @param fa $suspendByNameParam
     */
-  def defer[A](fa: => Self[A])(implicit F: Applicative[F]): Self[A]
+  def defer[A](fa: => Iterant[F, A])(implicit F: Applicative[F]): Iterant[F, A] =
+    Iterant.defer(fa)(F)
 
   /** $builderSuspendByF
     *
     * @param rest $restParamDesc
     */
-  def suspend[A](rest: F[Self[A]])(implicit F: Applicative[F]): Self[A]
+  def suspend[A](rest: F[Iterant[F, A]])(implicit F: Applicative[F]): Iterant[F, A] =
+    Iterant.suspend(rest)(F)
 
   /** $builderEmpty */
-  def empty[A]: Self[A]
+  def empty[A]: Iterant[F, A] =
+    Iterant.empty
 
   /** $builderRaiseError */
-  def raiseError[A](ex: Throwable): Self[A]
+  def raiseError[A](ex: Throwable): Iterant[F, A] =
+    Iterant.raiseError(ex)
 
   /** $builderTailRecM */
-  def tailRecM[A, B](a: A)(f: A => Self[Either[A, B]])(implicit F: Monad[F]): Self[B]
+  def tailRecM[A, B](a: A)(f: A => Iterant[F, Either[A, B]])(implicit F: Monad[F]): Iterant[F, B] =
+    Iterant.tailRecM(a)(f)(F)
 
   /** $builderFromArray */
-  def fromArray[A](xs: Array[A])(implicit F: Applicative[F]): Self[A]
+  def fromArray[A](xs: Array[A])(implicit F: Applicative[F]): Iterant[F, A] =
+    Iterant.fromArray(xs)(F)
 
   /** $builderFromList */
-  def fromList[A](xs: LinearSeq[A])(implicit F: Applicative[F]): Self[A]
+  def fromList[A](xs: LinearSeq[A])(implicit F: Applicative[F]): Iterant[F, A] =
+    Iterant.fromList(xs)(F)
 
   /** $builderFromIndexedSeq */
-  def fromIndexedSeq[A](xs: IndexedSeq[A])(implicit F: Applicative[F]): Self[A]
+  def fromIndexedSeq[A](xs: IndexedSeq[A])(implicit F: Applicative[F]): Iterant[F, A] =
+    Iterant.fromIndexedSeq(xs)(F)
 
   /** $builderFromSeq */
-  def fromSeq[A](xs: Seq[A])(implicit F: Applicative[F]): Self[A]
+  def fromSeq[A](xs: Seq[A])(implicit F: Applicative[F]): Iterant[F, A] =
+    Iterant.fromSeq(xs)(F)
 
   /** $builderFromIterable */
-  def fromIterable[A](xs: Iterable[A])(implicit F: Applicative[F]): Self[A]
+  def fromIterable[A](xs: Iterable[A])(implicit F: Applicative[F]): Iterant[F, A] =
+    Iterant.fromIterable(xs)(F)
 
   /** $builderFromIterator */
-  def fromIterator[A](xs: Iterator[A])(implicit F: Applicative[F]): Self[A]
+  def fromIterator[A](xs: Iterator[A])(implicit F: Applicative[F]): Iterant[F, A] =
+    Iterant.fromIterator(xs)(F)
 
   /** $builderRange
     *
@@ -132,123 +155,78 @@ trait IterantBuilders[F[_], Self[+A] <: Iterant[F,A]] extends SharedDocs {
     * @param step $rangeStepParam
     * @return $rangeReturnDesc
     */
-  def range(from: Int, until: Int, step: Int = 1)(implicit F: Applicative[F]): Self[Int]
+  def range(from: Int, until: Int, step: Int = 1)(implicit F: Applicative[F]): Iterant[F, Int] =
+    Iterant.range(from, until, step)(F)
 }
 
 object IterantBuilders {
   /** Type-class for quickly finding a suitable type and [[IterantBuilders]]
     * implementation for a given `F[_]` monadic context.
-    *
-    * Implementations provided by Monix:
-    *
-    *  - [[AsyncStream$ AsyncStream]]
-    *  - [[LazyStream$ LazyStream]]
     */
   trait From[F[_]] {
-    type Self[+A] <: Iterant[F,A]
-    type Builders <: IterantBuilders[F, Self]
+    type Builders <: IterantBuilders[F]
     def instance: Builders
   }
 
   object From extends LowPriority {
-    /** Implicit [[From]] instance for building
-      * [[AsyncStream$ AsyncStream]] instances.
+    /** Implicit [[From]] instance for building [[Iterant]]
+      * instances powered by [[monix.eval.Task Task]].
       */
     implicit val task: FromTask.type = FromTask
 
-    /** Implicit [[From]] instance for building
-      * [[LazyStream$ LazyStream]] instances.
+    /** Implicit [[From]] instance for building [[Iterant]]
+      * instances powered by [[monix.eval.Coeval Coeval]].
       */
     implicit val coeval: FromCoeval.type = FromCoeval
   }
 
-  // Layering for low-priority implicit resolution
   private[tail] class LowPriority {
     /** For building generic [[Iterant]] instances. */
     implicit def fromAny[F[_]]: FromAny[F] =
       genericFromAny.asInstanceOf[FromAny[F]]
   }
 
-  /** For building [[AsyncStream$ AsyncStream]] instances. */
+  /** For building [[Iterant]] instances powered by
+    * [[monix.eval.Task Task]].
+    */
   object FromTask extends From[Task] {
-    type Self[+A] = AsyncStream[A]
-    type Builders = AsyncStream.type
-    def instance: Builders = AsyncStream
+    type Builders = IterantTask.type
+    def instance: Builders = IterantTask
   }
 
-  /** For building [[LazyStream$ LazyStream]] instances. */
+  /** For building [[Iterant]] instances powered by
+    * [[monix.eval.Coeval Coeval]].
+    */
   object FromCoeval extends From[Coeval] {
-    type Self[+A] = LazyStream[A]
-    type Builders = LazyStream.type
-    def instance: Builders = LazyStream
+    type Builders = IterantCoeval.type
+    def instance: Builders = IterantCoeval
   }
 
   /** For building generic [[Iterant]] instances. */
   final class FromAny[F[_]] extends From[F] {
-    type Self[+A] = Iterant[F,A]
-    type Builders = Generic[F]
+    type Builders = IterantBuilders[F]
 
-    def instance: Generic[F] =
-      genericBuildersInstance.asInstanceOf[Generic[F]]
+    def instance: Builders =
+      genericBuildersInstance.asInstanceOf[IterantBuilders[F]]
   }
 
-  /** For building generic [[Iterant]] instances.
-    *
-    * @see [[FromAny]], [[From.fromAny]] and [[IterantBuilders]].
-    */
-  final class Generic[F[_]] extends IterantBuilders[F, ({type λ[+α] = Iterant[F, α]})#λ] {
-    //-- BOILERPLATE that does nothing more than to forward to the standard Iterant builders!
-    override def apply[A : ClassTag](elems: A*)(implicit F: Applicative[F]): Iterant[F,A] =
-      Iterant.fromArray(elems.toArray)
-    override def now[A](a: A)(implicit F: Applicative[F]): Iterant[F,A] =
-      Iterant.now(a)
-    override def pure[A](a: A)(implicit F: Applicative[F]): Iterant[F, A] =
-      Iterant.pure(a)
-    override def defer[A](fa: => Iterant[F, A])(implicit F: Applicative[F]): Iterant[F, A] =
-      Iterant.defer(fa)
-    override def eval[A](a: => A)(implicit F: Applicative[F]): Iterant[F,A] =
-      Iterant.eval(a)
-    override def nextS[A](item: A, rest: F[Iterant[F,A]], stop: F[Unit]): Iterant[F,A] =
-      Iterant.nextS(item, rest, stop)
-    override def nextSeqS[A](items: Iterator[A], rest: F[Iterant[F,A]], stop: F[Unit]): Iterant[F,A] =
-      Iterant.nextSeqS(items, rest, stop)
-    override def nextGenS[A](items: Iterable[A], rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
-      Iterant.nextGenS(items, rest, stop)
-    override def suspendS[A](rest: F[Iterant[F,A]], stop: F[Unit]): Iterant[F,A] =
-      Iterant.suspendS(rest, stop)
-    override def lastS[A](item: A): Iterant[F,A] =
-      Iterant.lastS(item)
-    override def haltS[A](ex: Option[Throwable]): Iterant[F,A] =
-      Iterant.haltS(ex)
-    override def suspend[A](fa: => Iterant[F,A])(implicit F: Applicative[F]): Iterant[F,A] =
-      Iterant.suspend(fa)
-    override def suspend[A](rest: F[Iterant[F,A]])(implicit F: Applicative[F]): Iterant[F,A] =
-      Iterant.suspend(rest)
-    override def empty[A]: Iterant[F,A] =
-      Iterant.empty
-    override def raiseError[A](ex: Throwable): Iterant[F,A] =
-      Iterant.raiseError(ex)
-    override def tailRecM[A, B](a: A)(f: (A) => Iterant[F,Either[A, B]])(implicit F: Monad[F]): Iterant[F,B] =
-      Iterant.tailRecM(a)(f)
-    override def fromArray[A](xs: Array[A])(implicit F: Applicative[F]): Iterant[F,A] =
-      Iterant.fromArray(xs)
-    override def fromList[A](xs: LinearSeq[A])(implicit F: Applicative[F]): Iterant[F,A] =
-      Iterant.fromList(xs)
-    override def fromIndexedSeq[A](xs: IndexedSeq[A])(implicit F: Applicative[F]): Iterant[F,A] =
-      Iterant.fromIndexedSeq(xs)
-    override def fromSeq[A](xs: Seq[A])(implicit F: Applicative[F]): Iterant[F,A] =
-      Iterant.fromSeq(xs)
-    override def fromIterable[A](xs: Iterable[A])(implicit F: Applicative[F]): Iterant[F,A] =
-      Iterant.fromIterable(xs)
-    override def fromIterator[A](xs: Iterator[A])(implicit F: Applicative[F]): Iterant[F,A] =
-      Iterant.fromIterator(xs)
-    override def range(from: Int, until: Int, step: Int)(implicit F: Applicative[F]): Iterant[F,Int] =
-      Iterant.range(from, until, step)
-  }
-
-  private val genericFromAny: FromAny[Task] =
-    new FromAny[Task]
-  private val genericBuildersInstance: Generic[Task] =
-    new Generic[Task]
+  // Relying on type-erasure to build a generic instance.
+  // Try here is being ignored.
+  private val genericFromAny: FromAny[Try] =
+    new FromAny[Try]
+  // Relying on type-erasure to build a generic instance.
+  // Try here is being ignored.
+  private final val genericBuildersInstance: IterantBuilders[Try] =
+    new IterantBuilders[Try]
 }
+
+/** Defines builders for [[Iterant]] instances powered by
+  * [[monix.eval.Coeval Coeval]]
+  */
+object IterantCoeval extends IterantBuilders[Coeval]
+
+/** Defines builders for [[Iterant]] instances powered by
+  * [[monix.eval.Task Task]]
+  */
+object IterantTask extends IterantBuilders[Task]
 

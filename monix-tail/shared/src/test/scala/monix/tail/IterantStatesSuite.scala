@@ -22,87 +22,87 @@ import monix.execution.exceptions.DummyException
 import scala.util.{Failure, Success}
 
 object IterantStatesSuite extends BaseTestSuite {
-  test("AsyncStream.suspend(Task(list))") { implicit s =>
+  test("Iterant[Task].suspend(Task(list))") { implicit s =>
     val list = List(1,2,3)
-    val deferred = Task.eval(AsyncStream.fromSeq[Int](list))
-    val result = AsyncStream.suspend(deferred).toListL.runAsync
+    val deferred = Task.eval(Iterant[Task].fromSeq[Int](list))
+    val result = Iterant[Task].suspend(deferred).toListL.runAsync
     s.tick()
     assertEquals(result.value, Some(Success(list)))
   }
 
-  test("LazyStream.suspend(Coeval(list))") { implicit s =>
+  test("Iterant[Coeval].suspend(Coeval(list))") { implicit s =>
     val list = List(1,2,3)
-    val deferred = Coeval.eval(LazyStream.fromSeq[Int](list))
-    val result = LazyStream.suspend(deferred).toListL.runTry
+    val deferred = Coeval.eval(Iterant[Coeval].fromSeq[Int](list))
+    val result = Iterant[Coeval].suspend(deferred).toListL.runTry
     assertEquals(result, Success(list))
   }
 
-  test("AsyncStream.suspend(AsyncStream)") { implicit s =>
+  test("Iterant[Task].suspend(AsyncStream)") { implicit s =>
     val list = List(1,2,3)
-    val deferred = AsyncStream.fromSeq[Int](list)
-    val result = AsyncStream.suspend(deferred).toListL.runAsync
+    val deferred = Iterant[Task].fromSeq[Int](list)
+    val result = Iterant[Task].suspend(deferred).toListL.runAsync
     s.tick()
     assertEquals(result.value, Some(Success(list)))
   }
 
-  test("LazyStream.suspend(LazyStream)") { implicit s =>
+  test("Iterant[Coeval].suspend(LazyStream)") { implicit s =>
     val list = List(1,2,3)
-    val deferred = LazyStream.fromSeq[Int](list)
-    val result = LazyStream.suspend(deferred).toListL.runTry
+    val deferred = Iterant[Coeval].fromSeq[Int](list)
+    val result = Iterant[Coeval].suspend(deferred).toListL.runTry
     assertEquals(result, Success(list))
   }
 
-  test("AsyncStream.next") { implicit s =>
+  test("Iterant[Task].next") { implicit s =>
     val list = List(1,2,3)
-    val deferred = Task.eval(AsyncStream.fromSeq[Int](list))
-    val result = AsyncStream.nextS(0, deferred, Task.unit).toListL.runAsync
+    val deferred = Task.eval(Iterant[Task].fromSeq[Int](list))
+    val result = Iterant[Task].nextS(0, deferred, Task.unit).toListL.runAsync
     s.tick()
     assertEquals(result.value, Some(Success(0 :: list)))
   }
 
-  test("LazyStream.next") { implicit s =>
+  test("Iterant[Coeval].next") { implicit s =>
     val list = List(1,2,3)
-    val deferred = Coeval.eval(LazyStream.fromSeq[Int](list))
-    val result = LazyStream.nextS(0, deferred, Coeval.unit).toListL.runTry
+    val deferred = Coeval.eval(Iterant[Coeval].fromSeq[Int](list))
+    val result = Iterant[Coeval].nextS(0, deferred, Coeval.unit).toListL.runTry
     assertEquals(result, Success(0 :: list))
   }
 
-  test("AsyncStream.nextSeq") { implicit s =>
+  test("Iterant[Task].nextSeq") { implicit s =>
     val list = List(1,2,3)
-    val deferred = Task.eval(AsyncStream.fromSeq[Int](list))
-    val result = AsyncStream.nextSeqS(List(0).iterator, deferred, Task.unit).toListL.runAsync
+    val deferred = Task.eval(Iterant[Task].fromSeq[Int](list))
+    val result = Iterant[Task].nextSeqS(List(0).iterator, deferred, Task.unit).toListL.runAsync
     s.tick()
     assertEquals(result.value, Some(Success(0 :: list)))
   }
 
-  test("LazyStream.nextSeq") { implicit s =>
+  test("Iterant[Coeval].nextSeq") { implicit s =>
     val list = List(1,2,3)
-    val deferred = Coeval.eval(LazyStream.fromSeq[Int](list))
-    val result = LazyStream.nextSeqS(List(0).iterator, deferred, Coeval.unit).toListL.runTry
+    val deferred = Coeval.eval(Iterant[Coeval].fromSeq[Int](list))
+    val result = Iterant[Coeval].nextSeqS(List(0).iterator, deferred, Coeval.unit).toListL.runTry
     assertEquals(result, Success(0 :: list))
   }
 
-  test("AsyncStream.halt(None)") { implicit s =>
-    val result = AsyncStream.haltS(None).toListL.runAsync
+  test("Iterant[Task].halt(None)") { implicit s =>
+    val result = Iterant[Task].haltS(None).toListL.runAsync
     s.tick()
     assertEquals(result.value, Some(Success(Nil)))
   }
 
-  test("LazyStream.halt(None)") { implicit s =>
-    val result = LazyStream.haltS(None).toListL.runTry
+  test("Iterant[Coeval].halt(None)") { implicit s =>
+    val result = Iterant[Coeval].haltS(None).toListL.runTry
     assertEquals(result, Success(Nil))
   }
 
-  test("AsyncStream.halt(Some(ex))") { implicit s =>
+  test("Iterant[Task].halt(Some(ex))") { implicit s =>
     val ex = DummyException("dummy")
-    val result = AsyncStream.haltS(Some(ex)).toListL.runAsync
+    val result = Iterant[Task].haltS(Some(ex)).toListL.runAsync
     s.tick()
     assertEquals(result.value, Some(Failure(ex)))
   }
 
-  test("LazyStream.halt(Some(ex))") { implicit s =>
+  test("Iterant[Coeval].halt(Some(ex))") { implicit s =>
     val ex = DummyException("dummy")
-    val result = LazyStream.haltS(Some(ex)).toListL.runTry
+    val result = Iterant[Coeval].haltS(Some(ex)).toListL.runTry
     assertEquals(result, Failure(ex))
   }
 }

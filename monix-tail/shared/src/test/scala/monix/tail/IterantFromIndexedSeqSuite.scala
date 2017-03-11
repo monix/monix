@@ -20,16 +20,16 @@ package monix.tail
 import monix.eval.{Coeval, Task}
 
 object IterantFromIndexedSeqSuite extends BaseTestSuite {
-  test("AsyncStream.fromIndexedSeq") { implicit s =>
+  test("Iterant[Task].fromIndexedSeq") { implicit s =>
     check1 { (list: List[Int]) =>
-      val result = AsyncStream.fromIndexedSeq(list.toVector).toListL
+      val result = Iterant[Task].fromIndexedSeq(list.toVector).toListL
       result === Task.now(list)
     }
   }
 
-  test("LazyStream.fromIndexedSeq") { implicit s =>
+  test("Iterant[Coeval].fromIndexedSeq") { implicit s =>
     check1 { (list: List[Int]) =>
-      val result = LazyStream.fromIndexedSeq(list.toVector).toListL
+      val result = Iterant[Coeval].fromIndexedSeq(list.toVector).toListL
       result === Coeval.now(list)
     }
   }

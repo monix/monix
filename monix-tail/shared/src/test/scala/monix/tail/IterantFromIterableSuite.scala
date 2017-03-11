@@ -22,53 +22,53 @@ import monix.execution.exceptions.DummyException
 import scala.util.Failure
 
 object IterantFromIterableSuite extends BaseTestSuite {
-  test("AsyncStream.fromIterable") { implicit s =>
+  test("Iterant[Task].fromIterable") { implicit s =>
     check1 { (list: List[Int]) =>
-      val result = AsyncStream.fromIterable(list).toListL
+      val result = Iterant[Task].fromIterable(list).toListL
       result === Task.now(list)
     }
   }
 
-  test("AsyncStream.fromIterable (async)") { implicit s =>
+  test("Iterant[Task].fromIterable (async)") { implicit s =>
     check1 { (list: List[Int]) =>
-      val result = AsyncStream.fromIterable(list) .mapEval(x => Task(x)).toListL
+      val result = Iterant[Task].fromIterable(list) .mapEval(x => Task(x)).toListL
       result === Task.now(list)
     }
   }
 
-  test("AsyncStream.fromIterator protects against user code") { implicit s =>
+  test("Iterant[Task].fromIterator protects against user code") { implicit s =>
     val dummy = DummyException("dummy")
     val iterator = new Iterator[Int] {
       def hasNext: Boolean = true
       def next(): Int = throw dummy
     }
 
-    val result = AsyncStream.fromIterator(iterator).toListL.runAsync
+    val result = Iterant[Task].fromIterator(iterator).toListL.runAsync
     s.tick(); assertEquals(result.value, Some(Failure(dummy)))
   }
 
-  test("LazyStream.fromIterable") { _ =>
+  test("Iterant[Coeval].fromIterable") { _ =>
     check1 { (list: List[Int]) =>
-      val result = LazyStream.fromIterable(list).toListL
+      val result = Iterant[Coeval].fromIterable(list).toListL
       result === Coeval.now(list)
     }
   }
 
-  test("LazyStream.fromIterable (async)") { _ =>
+  test("Iterant[Coeval].fromIterable (async)") { _ =>
     check1 { (list: List[Int]) =>
-      val result = LazyStream.fromIterable(list) .mapEval(x => Coeval(x)).toListL
+      val result = Iterant[Coeval].fromIterable(list) .mapEval(x => Coeval(x)).toListL
       result === Coeval.now(list)
     }
   }
 
-  test("LazyStream.fromIterator protects against user code") { _ =>
+  test("Iterant[Coeval].fromIterator protects against user code") { _ =>
     val dummy = DummyException("dummy")
     val iterator = new Iterator[Int] {
       def hasNext: Boolean = true
       def next(): Int = throw dummy
     }
 
-    val result = LazyStream.fromIterator(iterator).toListL.runTry
+    val result = Iterant[Coeval].fromIterator(iterator).toListL.runTry
     assertEquals(result, Failure(dummy))
   }
 }

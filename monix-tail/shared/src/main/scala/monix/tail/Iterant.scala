@@ -89,7 +89,7 @@ import scala.util.control.NonFatal
   * @define monadParamDesc is the [[monix.types.Monad monad]]
   *         instance that controls the evaluation for our iterant for this operation.
   *         Note that if the source iterant is powered by [[monix.eval.Task Task]] or
-  *         [[monix.eval.Coeval Coeval]] one such instance is globally available.
+  *         [[monix.eval.Coeval Coeval]] one such instance should be globally available.
   *
   * @define monadErrorParamDesc is the [[monix.types.MonadError MonadError]]
   *         instance that controls the evaluation for our iterant for this operation.
@@ -457,15 +457,15 @@ sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self
     *
     * @param seed is the start value
     * @param op is the binary operator
-    * @param F $monadErrorParamDesc
+    * @param F $monadParamDesc
     *
     * @return the result of inserting `op` between consecutive elements
     *         of this iterant, going from left to right with the
     *         `seed` as the start value, or `seed` if the iterant
     *         is empty.
     */
-  final def foldLeftL[S](seed: => S)(op: (S,A) => S)(implicit F: MonadError[F,Throwable]): F[S] = {
-    import F.{applicative => A, monad => M}
+  final def foldLeftL[S](seed: => S)(op: (S,A) => S)(implicit F: Monad[F]): F[S] = {
+    import F.{applicative => A}
 
     def loop(self: Iterant[F,A], state: S): F[S] = {
       try self match {
@@ -485,23 +485,33 @@ sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self
         case Halt(None) =>
           A.pure(state)
         case Halt(Some(ex)) =>
-          F.raiseError(ex)
+          throw ex
       }
       catch {
         case NonFatal(ex) =>
-          earlyStop.flatMap(_ => F.raiseError(ex))
+          earlyStop.flatMap(_ => (throw ex) : F[S])
       }
     }
 
-    val init = A.eval(seed).onErrorHandleWith(ex => earlyStop.flatMap(_ => F.raiseError(ex)))
-    init.flatMap(a => loop(self, a))
+    F.suspend {
+      var catchErrors = true
+      try {
+        val init = seed
+        catchErrors = false
+        loop(self, init)
+      }
+      catch {
+        case NonFatal(ex) if catchErrors =>
+          earlyStop.flatMap(_ => (throw ex) : F[S])
+      }
+    }
   }
 
   /** Aggregates all elements in a `List` and preserves order.
     *
-    * @param F $monadErrorParamDesc
+    * @param F $monadParamDesc
     */
-  final def toListL[B >: A](implicit F: MonadError[F,Throwable]): F[List[B]] = {
+  final def toListL[B >: A](implicit F: Monad[F]): F[List[B]] = {
     val folded = foldLeftL(mutable.ListBuffer.empty[B]) { (acc, a) => acc += a }
     F.functor.map(folded)(_.toList)
   }
@@ -524,7 +534,7 @@ sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self
 }
 
 /** Defines the standard [[Iterant]] builders. */
-object Iterant extends StreamInstances with SharedDocs {
+object Iterant extends IterantInstances with SharedDocs {
   /** Returns an [[IterantBuilders]] instance for the
     * specified `F` monadic type that can be used to build
     * [[Iterant]] instances.
@@ -741,63 +751,62 @@ object Iterant extends StreamInstances with SharedDocs {
     extends Iterant[F,Nothing]
 }
 
-private[tail] trait StreamInstances extends StreamInstances2 {
-  /** Provides type-class instances for `Iterant[Task, +A]`,
-    * also known as [[AsyncStream]], based on the default instances
-    * provided by
+private[tail] trait IterantInstances extends IterantInstances1 {
+  /** Provides type-class instances for `Iterant[Task, +A]`, based
+    * on the default instances provided by
     * [[monix.eval.Task.typeClassInstances Task.typeClassInstances]].
     */
-  implicit def asyncStreamInstances(implicit F: Task.TypeClassInstances): AsyncStreamInstances = {
+  implicit def iterantTaskInstances(implicit F: Task.TypeClassInstances): IterantTaskInstances = {
     import Task.{nondeterminism, typeClassInstances => default}
     // Avoiding the creation of junk, because it is expensive
     F match {
-      case `default` => defaultAsyncStreamRef
-      case `nondeterminism` => nondetAsyncStreamRef
-      case _ => new AsyncStreamInstances()(F)
+      case `default` => defaultIterantTaskRef
+      case `nondeterminism` => nondetIterantTaskRef
+      case _ => new IterantTaskInstances()(F)
     }
   }
 
-  /** Provides type-class instances for `Iterant[Task, +A]`, also known
-    * as [[AsyncStream]], based on the default instances provided by
+  /** Provides type-class instances for `Iterant[Task, +A]`, based
+    * on the default instances provided by
     * [[monix.eval.Task.TypeClassInstances Task.TypeClassInstances]].
     */
-  class AsyncStreamInstances(implicit F: Task.TypeClassInstances)
+  class IterantTaskInstances(implicit F: Task.TypeClassInstances)
     extends MonadInstance[Task]()(F)
 
-  /** Provides type-class instances for `Iterant[Coeval, +A]`, also known
-    * as [[AsyncStream]], based on the default instances provided by
+  /** Provides type-class instances for `Iterant[Coeval, +A]`, based on
+    * the default instances provided by
     * [[monix.eval.Coeval.typeClassInstances Coeval.typeClassInstances]].
     */
-  implicit def lazyStreamInstances(implicit F: Coeval.TypeClassInstances): LazyStreamInstances = {
+  implicit def iterantCoevalInstances(implicit F: Coeval.TypeClassInstances): IterantCoevalInstances = {
     import Coeval.{typeClassInstances => default}
     // Avoiding the creation of junk, because it is expensive
     F match {
-      case `default` => defaultLazyStreamRef
-      case _ => new LazyStreamInstances()(F)
+      case `default` => defaultIterantCoevalRef
+      case _ => new IterantCoevalInstances()(F)
     }
   }
 
-  /** Provides type-class instances for `Iterant[Coeval, +A]`, also known
-    * as [[LazyStream]], based on the default instances provided by
+  /** Provides type-class instances for `Iterant[Coeval, +A]`, based on
+    * the default instances provided by
     * [[monix.eval.Coeval.TypeClassInstances Coeval.TypeClassInstances]].
     */
-  class LazyStreamInstances(implicit F: Coeval.TypeClassInstances)
+  class IterantCoevalInstances(implicit F: Coeval.TypeClassInstances)
     extends MonadInstance[Coeval]()(F)
 
-  /** Reusable instance for [[AsyncStream]], avoids creating junk. */
-  private[this] val nondetAsyncStreamRef =
-    new AsyncStreamInstances()(Task.nondeterminism)
+  /** Reusable instance for `Iterant[Task, A]`, avoids creating junk. */
+  private[this] val nondetIterantTaskRef =
+    new IterantTaskInstances()(Task.nondeterminism)
 
-  /** Reusable instance for [[AsyncStream]], avoids creating junk. */
-  private[this] val defaultAsyncStreamRef =
-    new AsyncStreamInstances()(Task.typeClassInstances)
+  /** Reusable instance for `Iterant[Task, A]`, avoids creating junk. */
+  private[this] final val defaultIterantTaskRef =
+    new IterantTaskInstances()(Task.typeClassInstances)
 
-  /** Reusable instance for [[LazyStream]], avoids creating junk. */
-  private[this] val defaultLazyStreamRef =
-    new LazyStreamInstances()(Coeval.typeClassInstances)
+  /** Reusable instance for `Iterant[Coeval, A]`, avoids creating junk. */
+  private[this] final val defaultIterantCoevalRef =
+    new IterantCoevalInstances()(Coeval.typeClassInstances)
 }
 
-private[tail] trait StreamInstances2 extends StreamInstances0 {
+private[tail] trait IterantInstances1 extends IterantInstances0 {
   /** Provides a [[monix.types.Monad]] instance for [[Iterant]]. */
   implicit def monadInstance[F[_] : Monad]: MonadInstance[F] =
     new MonadInstance[F]()
@@ -833,7 +842,7 @@ private[tail] trait StreamInstances2 extends StreamInstances0 {
   }
 }
 
-private[tail] trait StreamInstances0 {
+private[tail] trait IterantInstances0 {
   /** Provides a [[monix.types.Functor]] instance for [[Iterant]]. */
   implicit def functorInstance[F[_] : Functor]: FunctorInstance[F] =
     new FunctorInstance[F]()

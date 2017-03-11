@@ -19,70 +19,74 @@ package monix.tail
 
 import monix.eval.{Coeval, Task}
 import monix.execution.exceptions.DummyException
+
 import scala.util.Failure
 
 object IterantFoldLeftSuite extends BaseTestSuite {
-  test("AsyncStream.toListL (foldLeftL)") { implicit s =>
+  test("Iterant[Task].toListL (foldLeftL)") { implicit s =>
     check1 { (list: List[Int]) =>
-      val result = AsyncStream.fromIterable(list).toListL
+      val result = Iterant[Task].fromIterable(list).toListL
       result === Task.now(list)
     }
   }
 
-  test("AsyncStream.toListL (foldLeftL)") { implicit s =>
+  test("Iterant[Task].toListL (foldLeftL)") { implicit s =>
     check1 { (list: List[Int]) =>
-      val result = AsyncStream.fromIterable(list).toListL
+      val result = Iterant[Task].fromIterable(list).toListL
       result === Task.now(list)
     }
   }
 
-  test("AsyncStream.toListL (foldLeftL, async)") { implicit s =>
+  test("Iterant[Task].toListL (foldLeftL, async)") { implicit s =>
     check1 { (list: List[Int]) =>
-      val result = AsyncStream.fromIterable(list)
+      val result = Iterant[Task].fromIterable(list)
         .mapEval(x => Task(x)).toListL
 
       result === Task.now(list)
     }
   }
 
-  test("AsyncStream.foldLeftL ends in error") { implicit s =>
-    import AsyncStream._
+  test("Iterant[Task].foldLeftL ends in error") { implicit s =>
+    val b = Iterant[Task]
     val dummy = DummyException("dummy")
     var wasCanceled = false
-    val c = Task { wasCanceled = true }
-    val r = nextS(1, Task(nextS(2, Task(raiseError(dummy)), c)), c).toListL.runAsync
+    val stopT = Task { wasCanceled = true }
+
+    val r = b.nextS(1, Task(b.nextS(2, Task(b.raiseError(dummy)), stopT)), stopT).toListL.runAsync
+    assert(!wasCanceled, "wasCanceled should not be true")
+
     s.tick()
     assertEquals(r.value, Some(Failure(dummy)))
-    assert(!wasCanceled, "wasCanceled should not be true")
+    assert(wasCanceled, "wasCanceled should be true")
   }
 
-  test("AsyncStream.foldLeftL protects against user code in the seed") { implicit s =>
+  test("Iterant[Task].foldLeftL protects against user code in the seed") { implicit s =>
     val dummy = DummyException("dummy")
     var wasCanceled = false
     val c = Task { wasCanceled = true }
-    val stream = AsyncStream.nextS(1, Task.now(AsyncStream.empty), c)
+    val stream = Iterant[Task].nextS(1, Task.now(Iterant[Task].empty), c)
     val result = stream.foldLeftL[Int](throw dummy)((a,e) => a+e).runAsync
     s.tick()
     assertEquals(result.value, Some(Failure(dummy)))
     assert(wasCanceled, "wasCanceled should be true")
   }
 
-  test("AsyncStream.foldLeftL protects against user code in function f") { implicit s =>
+  test("Iterant[Task].foldLeftL protects against user code in function f") { implicit s =>
     val dummy = DummyException("dummy")
     var wasCanceled = false
     val c = Task { wasCanceled = true }
-    val stream = AsyncStream.nextS(1, Task.now(AsyncStream.empty), c)
+    val stream = Iterant[Task].nextS(1, Task.now(Iterant[Task].empty), c)
     val result = stream.foldLeftL(0)((a,e) => throw dummy)
     s.tick()
     check(result === Task.raiseError(dummy))
     assert(wasCanceled, "wasCanceled should be true")
   }
 
-  test("AsyncStream.foldLeftL (async) protects against user code in function f") { implicit s =>
+  test("Iterant[Task].foldLeftL (async) protects against user code in function f") { implicit s =>
     val dummy = DummyException("dummy")
     var wasCanceled = false
     val c = Task { wasCanceled = true }
-    val stream = AsyncStream.nextS(1, Task(AsyncStream.nextSeqS(List(2,3).iterator, Task.now(AsyncStream.empty), c)), c)
+    val stream = Iterant[Task].nextS(1, Task(Iterant[Task].nextSeqS(List(2,3).iterator, Task.now(Iterant[Task].empty), c)), c)
       .mapEval(x => Task(x))
 
     val result = stream.foldLeftL(0)((a,e) => throw dummy)
@@ -91,87 +95,88 @@ object IterantFoldLeftSuite extends BaseTestSuite {
   }
 
 
-  test("AsyncStream.foldLeftL should protect against broken cursors") { implicit s =>
-    check1 { (prefix: AsyncStream[Int]) =>
+  test("Iterant[Task].foldLeftL should protect against broken cursors") { implicit s =>
+    check1 { (prefix: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val cursor = new ThrowExceptionIterator(dummy)
-      val error = AsyncStream.nextSeqS(cursor, Task.now(AsyncStream.empty), Task.unit)
+      val error = Iterant[Task].nextSeqS(cursor, Task.now(Iterant[Task].empty), Task.unit)
       val result = (prefix ++ error).foldLeftL(0)(_+_)
       result === Task.raiseError(dummy)
     }
   }
 
-  test("AsyncStream.foldLeftL should protect against broken generators") { implicit s =>
-    check1 { (prefix: AsyncStream[Int]) =>
+  test("Iterant[Task].foldLeftL should protect against broken generators") { implicit s =>
+    check1 { (prefix: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val generator = new ThrowExceptionIterable(dummy)
-      val error = AsyncStream.nextGenS(generator, Task.now(AsyncStream.empty), Task.unit)
+      val error = Iterant[Task].nextGenS(generator, Task.now(Iterant[Task].empty), Task.unit)
       val result = (prefix ++ error).foldLeftL(0)(_+_)
       result === Task.raiseError(dummy)
     }
   }
 
-  test("LazyStream.toListL (foldLeftL)") { implicit s =>
+  test("Iterant[Coeval].toListL (foldLeftL)") { implicit s =>
     check1 { (list: List[Int]) =>
-      val result = LazyStream.fromIterable(list).toListL
+      val result = Iterant[Coeval].fromIterable(list).toListL
       result === Coeval.now(list)
     }
   }
 
-  test("LazyStream.toListL (foldLeftL, lazy)") { implicit s =>
+  test("Iterant[Coeval].toListL (foldLeftL, lazy)") { implicit s =>
     check1 { (list: List[Int]) =>
-      val result = LazyStream.fromIterable(list)
+      val result = Iterant[Coeval].fromIterable(list)
         .mapEval(x => Coeval(x)).toListL
 
       result === Coeval.now(list)
     }
   }
 
-  test("LazyStream.foldLeftL ends in error") { implicit s =>
-    import LazyStream._
+  test("Iterant[Coeval].foldLeftL ends in error") { implicit s =>
+    val b = Iterant[Coeval]
     val dummy = DummyException("dummy")
     var wasCanceled = false
     val c = Coeval { wasCanceled = true }
-    val r = nextS(1, Coeval(nextS(2, Coeval(raiseError(dummy)), c)), c).toListL.runTry
+    val r = b.nextS(1, Coeval(b.nextS(2, Coeval(b.raiseError(dummy)), c)), c).toListL.runTry
+
     assertEquals(r, Failure(dummy))
-    assert(!wasCanceled, "wasCanceled should not be true")
+    assert(wasCanceled, "wasCanceled should be true")
   }
 
-  test("LazyStream.foldLeftL protects against user code in the seed") { implicit s =>
+  test("Iterant[Coeval].foldLeftL protects against user code in the seed") { implicit s =>
     val dummy = DummyException("dummy")
     var wasCanceled = false
     val c = Coeval { wasCanceled = true }
-    val stream = LazyStream.nextS(1, Coeval.now(LazyStream.empty), c)
+    val stream = Iterant[Coeval].nextS(1, Coeval.now(Iterant[Coeval].empty), c)
     val result = stream.foldLeftL[Int](throw dummy)((a,e) => a+e).runTry
     assertEquals(result, Failure(dummy))
     assert(wasCanceled, "wasCanceled should be true")
   }
 
-  test("LazyStream.foldLeftL protects against user code in function f") { implicit s =>
+  test("Iterant[Coeval].foldLeftL protects against user code in function f") { implicit s =>
     val dummy = DummyException("dummy")
     var wasCanceled = false
     val c = Coeval { wasCanceled = true }
-    val stream = LazyStream.nextS(1, Coeval.now(LazyStream.empty), c)
+    val stream = Iterant[Coeval].nextS(1, Coeval.now(Iterant[Coeval].empty), c)
     val result = stream.foldLeftL(0)((a,e) => throw dummy)
     check(result === Coeval.raiseError(dummy))
     assert(wasCanceled, "wasCanceled should be true")
   }
 
-  test("LazyStream.foldLeftL (batched) protects against user code in function f") { implicit s =>
+  test("Iterant[Coeval].foldLeftL (batched) protects against user code in function f") { implicit s =>
     val dummy = DummyException("dummy")
     var wasCanceled = false
     val c = Coeval { wasCanceled = true }
-    val stream = LazyStream.nextSeqS(List(1,2,3).iterator, Coeval.now(LazyStream.empty), c)
+    val stream = Iterant[Coeval].nextSeqS(List(1,2,3).iterator, Coeval.now(Iterant[Coeval].empty), c)
     val result = stream.foldLeftL(0)((a,e) => throw dummy)
     check(result === Coeval.raiseError(dummy))
     assert(wasCanceled, "wasCanceled should be true")
   }
 
-  test("LazyStream.foldLeftL (async) protects against user code in function f") { implicit s =>
+  test("Iterant[Coeval].foldLeftL (async) protects against user code in function f") { implicit s =>
     val dummy = DummyException("dummy")
     var wasCanceled = false
     val c = Coeval { wasCanceled = true }
-    val stream = LazyStream.nextS(1, Coeval(LazyStream.nextSeqS(List(2,3).iterator, Coeval.now(LazyStream.empty), c)), c)
+    val stream = Iterant[Coeval].nextS(1, Coeval(Iterant[Coeval].nextSeqS(List(2,3).iterator, Coeval.now(Iterant[Coeval].empty), c)), c)
       .mapEval(x => Coeval(x))
 
     val result = stream.foldLeftL(0)((a,e) => throw dummy)
@@ -179,21 +184,21 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     assert(wasCanceled, "wasCanceled should be true")
   }
 
-  test("LazyStream.foldLeftL should protect against broken cursors") { implicit s =>
-    check1 { (prefix: LazyStream[Int]) =>
+  test("Iterant[Coeval].foldLeftL should protect against broken cursors") { implicit s =>
+    check1 { (prefix: Iterant[Coeval, Int]) =>
       val dummy = DummyException("dummy")
       val cursor = new ThrowExceptionIterator(dummy)
-      val error = LazyStream.nextSeqS(cursor, Coeval.now(LazyStream.empty), Coeval.unit)
+      val error = Iterant[Coeval].nextSeqS(cursor, Coeval.now(Iterant[Coeval].empty), Coeval.unit)
       val result = (prefix ++ error).foldLeftL(0)(_+_)
       result === Coeval.raiseError(dummy)
     }
   }
 
-  test("LazyStream.foldLeftL should protect against broken generators") { implicit s =>
-    check1 { (prefix: LazyStream[Int]) =>
+  test("Iterant[Coeval].foldLeftL should protect against broken generators") { implicit s =>
+    check1 { (prefix: Iterant[Coeval, Int]) =>
       val dummy = DummyException("dummy")
       val generator = new ThrowExceptionIterable(dummy)
-      val error = LazyStream.nextGenS(generator, Coeval.now(LazyStream.empty), Coeval.unit)
+      val error = Iterant[Coeval].nextGenS(generator, Coeval.now(Iterant[Coeval].empty), Coeval.unit)
       val result = (prefix ++ error).foldLeftL(0)(_+_)
       result === Coeval.raiseError(dummy)
     }

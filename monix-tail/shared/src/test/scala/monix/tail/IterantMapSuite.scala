@@ -22,24 +22,24 @@ import monix.execution.exceptions.DummyException
 import scala.util.Failure
 
 object IterantMapSuite extends BaseTestSuite {
-  test("AsyncStream.map equivalence with List.map") { implicit s =>
-    check2 { (stream: AsyncStream[Int], f: Int => Long) =>
+  test("Iterant[Task].map equivalence with List.map") { implicit s =>
+    check2 { (stream: Iterant[Task, Int], f: Int => Long) =>
       stream.map(f).toListL ===
         stream.toListL.map((list: List[Int]) => list.map(f))
     }
   }
 
-  test("AsyncStream.map can handle errors") { implicit s =>
+  test("Iterant[Task].map can handle errors") { implicit s =>
     val dummy = DummyException("dummy")
-    val stream = AsyncStream.raiseError[Int](dummy)
+    val stream = Iterant[Task].raiseError[Int](dummy)
     assertEquals(stream, stream.map(identity))
   }
 
-  test("AsyncStream.next.map guards against direct user code errors") { implicit s =>
+  test("Iterant[Task].next.map guards against direct user code errors") { implicit s =>
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = AsyncStream.nextS(1, Task(AsyncStream.empty), Task { isCanceled = true })
+    val stream = Iterant[Task].nextS(1, Task(Iterant[Task].empty), Task { isCanceled = true })
     val result = stream.map[Int](_ => throw dummy).toListL.runAsync
 
     s.tick()
@@ -47,11 +47,11 @@ object IterantMapSuite extends BaseTestSuite {
     assert(isCanceled, "isCanceled should be true")
   }
 
-  test("AsyncStream.nextSeq.map guards against direct user code errors") { implicit s =>
+  test("Iterant[Task].nextSeq.map guards against direct user code errors") { implicit s =>
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = AsyncStream.nextSeqS(List(1,2,3).iterator, Task(AsyncStream.empty), Task { isCanceled = true })
+    val stream = Iterant[Task].nextSeqS(List(1,2,3).iterator, Task(Iterant[Task].empty), Task { isCanceled = true })
     val result = stream.map[Int](_ => throw dummy).toListL.runAsync
 
     s.tick()
@@ -59,98 +59,98 @@ object IterantMapSuite extends BaseTestSuite {
     assert(isCanceled, "isCanceled should be true")
   }
 
-  test("AsyncStream.map should protect against direct exceptions") { implicit s =>
+  test("Iterant[Task].map should protect against direct exceptions") { implicit s =>
     check2 { (l: List[Int], idx: Int) =>
       val dummy = DummyException("dummy")
       val list = if (l.isEmpty) List(1) else l
-      val iterant = arbitraryListToAsyncStream(list, idx)
-      val received = (iterant ++ AsyncStream.now(1)).map[Int](_ => throw dummy)
-      received === AsyncStream.haltS[Int](Some(dummy))
+      val iterant = arbitraryListToIterantTask(list, idx)
+      val received = (iterant ++ Iterant[Task].now(1)).map[Int](_ => throw dummy)
+      received === Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
-  test("AsyncStream.map should protect against broken cursors") { implicit s =>
-    check1 { (prefix: AsyncStream[Int]) =>
+  test("Iterant[Task].map should protect against broken cursors") { implicit s =>
+    check1 { (prefix: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val cursor = new ThrowExceptionIterator(dummy)
-      val error = AsyncStream.nextSeqS(cursor, Task.now(AsyncStream.empty), Task.unit)
+      val error = Iterant[Task].nextSeqS(cursor, Task.now(Iterant[Task].empty), Task.unit)
       val stream = (prefix ++ error).map(x => x)
-      stream === AsyncStream.haltS[Int](Some(dummy))
+      stream === Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
-  test("AsyncStream.map should protect against broken generators") { implicit s =>
-    check1 { (prefix: AsyncStream[Int]) =>
+  test("Iterant[Task].map should protect against broken generators") { implicit s =>
+    check1 { (prefix: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val cursor = new ThrowExceptionIterable(dummy)
-      val error = AsyncStream.nextGenS(cursor, Task.now(AsyncStream.empty), Task.unit)
+      val error = Iterant[Task].nextGenS(cursor, Task.now(Iterant[Task].empty), Task.unit)
       val stream = (prefix ++ error).map(x => x)
-      stream === AsyncStream.haltS[Int](Some(dummy))
+      stream === Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
-  test("LazyStream.map equivalence with List.map") { implicit s =>
-    check2 { (stream: LazyStream[Int], f: Int => Long) =>
+  test("Iterant[Coeval].map equivalence with List.map") { implicit s =>
+    check2 { (stream: Iterant[Coeval, Int], f: Int => Long) =>
       stream.map(f).toListL ===
         stream.toListL.map((list: List[Int]) => list.map(f))
     }
   }
 
-  test("LazyStream.map can handle errors") { implicit s =>
+  test("Iterant[Coeval].map can handle errors") { implicit s =>
     val dummy = DummyException("dummy")
-    val stream = LazyStream.raiseError[Int](dummy)
+    val stream = Iterant[Coeval].raiseError[Int](dummy)
     assertEquals(stream, stream.map(identity))
   }
 
-  test("LazyStream.next.map guards against direct user code errors") { _ =>
+  test("Iterant[Coeval].next.map guards against direct user code errors") { _ =>
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = LazyStream.nextS(1, Coeval(LazyStream.empty), Coeval { isCanceled = true })
+    val stream = Iterant[Coeval].nextS(1, Coeval(Iterant[Coeval].empty), Coeval { isCanceled = true })
     val result = stream.map[Int](_ => throw dummy).toListL.runTry
 
     assertEquals(result, Failure(dummy))
     assert(isCanceled, "isCanceled should be true")
   }
 
-  test("LazyStream.nextSeq.map guards against direct user code errors") { _ =>
+  test("Iterant[Coeval].nextSeq.map guards against direct user code errors") { _ =>
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = LazyStream.nextSeqS(List(1,2,3).iterator, Coeval(LazyStream.empty), Coeval { isCanceled = true })
+    val stream = Iterant[Coeval].nextSeqS(List(1,2,3).iterator, Coeval(Iterant[Coeval].empty), Coeval { isCanceled = true })
     val result = stream.map[Int](_ => throw dummy).toListL.runTry
 
     assertEquals(result, Failure(dummy))
     assert(isCanceled, "isCanceled should be true")
   }
 
-  test("LazyStream.map should protect against direct exceptions") { implicit s =>
+  test("Iterant[Coeval].map should protect against direct exceptions") { implicit s =>
     check2 { (l: List[Int], idx: Int) =>
       val dummy = DummyException("dummy")
       val list = if (l.isEmpty) List(1) else l
-      val iterant = arbitraryListToLazyStream(list, idx)
-      val received = (iterant ++ LazyStream.now(1)).map[Int](_ => throw dummy)
-      received === LazyStream.haltS[Int](Some(dummy))
+      val iterant = arbitraryListToIterantCoeval(list, idx)
+      val received = (iterant ++ Iterant[Coeval].now(1)).map[Int](_ => throw dummy)
+      received === Iterant[Coeval].haltS[Int](Some(dummy))
     }
   }
 
-  test("LazyStream.map should protect against broken cursors") { implicit s =>
-    check1 { (prefix: LazyStream[Int]) =>
+  test("Iterant[Coeval].map should protect against broken cursors") { implicit s =>
+    check1 { (prefix: Iterant[Coeval, Int]) =>
       val dummy = DummyException("dummy")
       val cursor = new ThrowExceptionIterator(dummy)
-      val error = LazyStream.nextSeqS(cursor, Coeval.now(LazyStream.empty), Coeval.unit)
+      val error = Iterant[Coeval].nextSeqS(cursor, Coeval.now(Iterant[Coeval].empty), Coeval.unit)
       val stream = (prefix ++ error).map(x => x)
-      stream === LazyStream.haltS[Int](Some(dummy))
+      stream === Iterant[Coeval].haltS[Int](Some(dummy))
     }
   }
 
-  test("LazyStream.map should protect against broken generators") { implicit s =>
-    check1 { (prefix: LazyStream[Int]) =>
+  test("Iterant[Coeval].map should protect against broken generators") { implicit s =>
+    check1 { (prefix: Iterant[Coeval, Int]) =>
       val dummy = DummyException("dummy")
       val cursor = new ThrowExceptionIterable(dummy)
-      val error = LazyStream.nextGenS(cursor, Coeval.now(LazyStream.empty), Coeval.unit)
+      val error = Iterant[Coeval].nextGenS(cursor, Coeval.now(Iterant[Coeval].empty), Coeval.unit)
       val stream = (prefix ++ error).map(x => x)
-      stream === LazyStream.haltS[Int](Some(dummy))
+      stream === Iterant[Coeval].haltS[Int](Some(dummy))
     }
   }
 }
