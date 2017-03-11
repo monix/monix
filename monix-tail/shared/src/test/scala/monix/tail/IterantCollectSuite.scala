@@ -17,7 +17,7 @@
 
 package monix.tail
 
-import monix.eval.DummyException
+import monix.execution.exceptions.DummyException
 import org.scalacheck.Test.Parameters
 
 object IterantCollectSuite extends BaseTestSuite {

@@ -17,7 +17,8 @@
 
 package monix.tail
 
-import monix.eval.{Coeval, DummyException, Task}
+import monix.eval.{Coeval, Task}
+import monix.execution.exceptions.DummyException
 import monix.tail.Iterant.{NextGen, NextSeq, Suspend}
 
 import scala.util.{Failure, Success}

@@ -17,7 +17,8 @@
 
 package monix.tail
 
-import monix.eval.{Coeval, DummyException}
+import monix.eval.Coeval
+import monix.execution.exceptions.DummyException
 import monix.tail.cursors.Generator
 
 object IterantDoOnFinishSuite extends BaseTestSuite {
