@@ -19,13 +19,9 @@ package monix.eval
 
 import monix.eval.Iterant.Suspend
 import monix.execution.exceptions.DummyException
-import org.scalacheck.Test.Parameters
 import scala.util.Failure
 
 object IterantFilterSuite extends BaseTestSuite {
-  override lazy val checkConfig: Parameters =
-    super.checkConfig.withMaxSize(64)
-
   test("Iterant.filter <=> List.filter") { implicit s =>
     check2 { (stream: Iterant[Int], p: Int => Boolean) =>
       val received: Task[List[Int]] = stream.filter(p).toListL

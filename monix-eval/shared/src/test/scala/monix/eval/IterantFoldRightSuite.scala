@@ -18,7 +18,6 @@
 package monix.eval
 
 import monix.execution.exceptions.DummyException
-
 import scala.util.Failure
 
 object IterantFoldRightSuite extends BaseTestSuite {

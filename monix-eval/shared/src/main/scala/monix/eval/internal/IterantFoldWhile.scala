@@ -17,34 +17,62 @@
 
 package monix.eval.internal
 
-import monix.eval.{Iterant, Task}
-import monix.eval.Iterant._
+import monix.eval.Iterant.{Halt, Last, Next, NextGen, NextSeq, Suspend}
 import monix.eval.internal.IterantStop.earlyStop
-import scala.collection.mutable
+import monix.eval.{Iterant, Task}
 import scala.util.control.NonFatal
 
-private[eval] object IterantFoldLeft {
-  /**
-    * Implementation for `Iterant#foldLeftL`
-    */
-  final def apply[S, A](source: Iterant[A], seed: => S)(op: (S,A) => S): Task[S] = {
+private[eval] object IterantFoldWhile {
+  /** Implementation for `Iterant.foldWhileL` */
+  def apply[A,S](source: Iterant[A], seed: => S)(f: (S, A) => Either[S, S]): Task[S] = {
+    // Handles sequences
+    def evalNextSeq(state: S, items: Iterator[A], rest: Task[Iterant[A]], stop: Task[Unit]): Task[S] = {
+      var currentState = state
+      var continue = true
+
+      while (continue && items.hasNext) {
+        val item = items.next()
+        f(currentState, item) match {
+          case Left(newState) =>
+            currentState = newState
+          case Right(newState) =>
+            currentState = newState
+            continue = false
+        }
+      }
+
+      if (continue) rest.flatMap(loop(_, currentState))
+      else stop.flatMap(_ => Task.now(currentState))
+    }
+
     def loop(self: Iterant[A], state: S): Task[S] = {
       try self match {
         case Next(a, rest, stop) =>
-          val newState = op(state, a)
-          rest.flatMap(loop(_, newState))
+          f(state, a) match {
+            case Left(newState) =>
+              rest.flatMap(loop(_, newState))
+            case Right(newState) =>
+              stop.flatMap(_ => Task.now(newState))
+          }
+
         case NextSeq(cursor, rest, stop) =>
-          val newState = cursor.foldLeft(state)(op)
-          rest.flatMap(loop(_, newState))
+          evalNextSeq(state, cursor, rest, stop)
+
         case NextGen(gen, rest, stop) =>
-          val newState = gen.iterator.foldLeft(state)(op)
-          rest.flatMap(loop(_, newState))
+          evalNextSeq(state, gen.iterator, rest, stop)
+
         case Suspend(rest, stop) =>
           rest.flatMap(loop(_, state))
-        case Last(item) =>
-          Task.now(op(state,item))
+
+        case Last(a) =>
+          f(state, a) match {
+            case Left(newState) => Task.now(newState)
+            case Right(newState) => Task.now(newState)
+          }
+
         case Halt(None) =>
           Task.now(state)
+
         case Halt(Some(ex)) =>
           Task.raiseError(ex)
       }
@@ -66,13 +94,5 @@ private[eval] object IterantFoldLeft {
           earlyStop(source).flatMap(_ => Task.raiseError(ex))
       }
     }
-  }
-
-  /**
-    * Implementation for `Iterant#toListL`
-    */
-  def toListL[A](source: Iterant[A]): Task[List[A]] = {
-    IterantFoldLeft(source, mutable.ListBuffer.empty[A])((acc, a) => acc += a)
-      .map(_.toList)
   }
 }

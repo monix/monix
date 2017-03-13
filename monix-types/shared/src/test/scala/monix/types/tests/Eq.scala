@@ -21,6 +21,13 @@ package monix.types.tests
 trait Eq[T] { def apply(x: T, y: T): Boolean }
 
 object Eq {
+  implicit def optEq[A](implicit A: Eq[A]): Eq[Option[A]] =
+    new Eq[Option[A]] {
+      def apply(x: Option[A], y: Option[A]) =
+        (x.isEmpty && y.isEmpty) ||
+        x.exists(x => y.exists(y => A(x, y)))
+    }
+
   implicit val intEq: Eq[Int] = new Eq[Int] {
     def apply(x: Int, y: Int): Boolean = x == y
   }

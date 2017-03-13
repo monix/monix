@@ -219,6 +219,59 @@ sealed abstract class Iterant[+A] {
   final def foldRightL[B](b: Task[B])(f: (A, Task[B]) => Task[B]): Task[B] =
     IterantFoldRight(this, b)(f)
 
+  /** Left associative fold with the ability to short-circuit the process.
+    *
+    * This fold works for as long as the provided function keeps returning `true`
+    * as the first member of its result and the streaming isn't completed.
+    * If the provided fold function returns a `false` then the folding will
+    * stop and the generated result will be the second member
+    * of the resulting tuple.
+    *
+    * @param f is the folding function, returning `(true, state)` if the fold has
+    *          to be continued, or `(false, state)` if the fold has to be stopped
+    *          and the rest of the values to be ignored.
+    */
+  final def foldWhileL[S](seed: => S)(f: (S, A) => Either[S, S]): Task[S] =
+    IterantFoldWhile(this, seed)(f)
+
+  /** Search the stream from the left for the first element that
+    * satisfies the given predicate.
+    *
+    * The search ends when `p` returns true for some element,
+    * or the stream is exhausted.
+    *
+    * @return `Some(a)` if an element was found, `None` otherwise.
+    */
+  final def findL(p: A => Boolean): Task[Option[A]] =
+    foldWhileL(Option.empty[A])((s,a) => if (p(a)) Right(Some(a)) else Left(s))
+
+  /** Search the stream from the left for the first element that
+    * satisfies the given predicate.
+    *
+    * The search ends when `p` returns true for some element,
+    * or the stream is exhausted.
+    *
+    * @return `true` if an element was found, `false` otherwise.
+    */
+  final def existsL(p: A => Boolean): Task[Boolean] =
+    foldWhileL(false)((_,a) => if (p(a)) Right(true) else Left(false))
+
+  /** Check whether all elements satisfy the predicate.
+    *
+    * The search ends when `p` returns `false` for some element,
+    * or the stream is exhausted.
+    */
+  final def forallL(p: A => Boolean): Task[Boolean] =
+    foldWhileL(true)((_,a) => if (!p(a)) Right(false) else Left(true))
+
+  /** Returns true if there are no elements, false otherwise. */
+  final def isEmptyL: Task[Boolean] =
+    foldWhileL(true)((_,_) => Right(false))
+
+  /** Returns true if there are elements, false otherwise. */
+  final def nonEmptyL: Task[Boolean] =
+    foldWhileL(false)((_,_) => Right(true))
+
   /** Aggregates all elements in a `List` and preserves order. */
   final def toListL[B >: A]: Task[List[B]] =
     IterantFoldLeft.toListL(this)
