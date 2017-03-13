@@ -26,7 +26,7 @@ object IterantDoOnFinishSuite extends BaseTestSuite {
     val ref1 = Coeval.eval { effect = effect :+ 1 }
     val ref2 = Coeval.eval { effect = effect :+ 2 }
 
-    val iterant = Iterant[Coeval].nextS(1, Coeval.now(Iterant[Coeval].empty), ref1).doOnFinish(_ => ref2)
+    val iterant = Iterant[Coeval].nextS(1, Coeval.now(Iterant[Coeval].empty[Int]), ref1).doOnFinish(_ => ref2)
     iterant.earlyStop.value
     assertEquals(effect, Vector(1, 2))
   }
@@ -36,7 +36,7 @@ object IterantDoOnFinishSuite extends BaseTestSuite {
     val ref1 = Coeval.eval { effect = effect :+ 1 }
     val ref2 = Coeval.eval { effect = effect :+ 2 }
 
-    val iterant = Iterant[Coeval].nextS(1, Coeval.now(Iterant[Coeval].empty), ref1).doOnFinish(_ => ref2)
+    val iterant = Iterant[Coeval].nextS(1, Coeval.now(Iterant[Coeval].empty[Int]), ref1).doOnFinish(_ => ref2)
     assertEquals(iterant.foldLeftL(0)(_+_).value, 1)
     assertEquals(effect, Vector(2))
   }
@@ -46,7 +46,7 @@ object IterantDoOnFinishSuite extends BaseTestSuite {
     val ref1 = Coeval.eval { effect = effect :+ 1 }
     val ref2 = Coeval.eval { effect = effect :+ 2 }
 
-    val iterant = Iterant[Coeval].nextSeqS(List(1).iterator, Coeval.now(Iterant[Coeval].empty), ref1).doOnFinish(_ => ref2)
+    val iterant = Iterant[Coeval].nextSeqS(List(1).iterator, Coeval.now(Iterant[Coeval].empty[Int]), ref1).doOnFinish(_ => ref2)
     iterant.earlyStop.value
     assertEquals(effect, Vector(1, 2))
   }
@@ -56,7 +56,7 @@ object IterantDoOnFinishSuite extends BaseTestSuite {
     val ref1 = Coeval.eval { effect = effect :+ 1 }
     val ref2 = Coeval.eval { effect = effect :+ 2 }
 
-    val iterant = Iterant[Coeval].nextSeqS(List(1).iterator, Coeval.now(Iterant[Coeval].empty), ref1).doOnFinish(_ => ref2)
+    val iterant = Iterant[Coeval].nextSeqS(List(1).iterator, Coeval.now(Iterant[Coeval].empty[Int]), ref1).doOnFinish(_ => ref2)
     assertEquals(iterant.foldLeftL(0)(_+_).value, 1)
     assertEquals(effect, Vector(2))
   }
@@ -66,7 +66,7 @@ object IterantDoOnFinishSuite extends BaseTestSuite {
     val ref1 = Coeval.eval { effect = effect :+ 1 }
     val ref2 = Coeval.eval { effect = effect :+ 2 }
 
-    val iterant = Iterant[Coeval].nextGenS(List(1), Coeval.now(Iterant[Coeval].empty), ref1).doOnFinish(_ => ref2)
+    val iterant = Iterant[Coeval].nextGenS(List(1), Coeval.now(Iterant[Coeval].empty[Int]), ref1).doOnFinish(_ => ref2)
     iterant.earlyStop.value
     assertEquals(effect, Vector(1, 2))
   }
@@ -76,7 +76,7 @@ object IterantDoOnFinishSuite extends BaseTestSuite {
     val ref1 = Coeval.eval { effect = effect :+ 1 }
     val ref2 = Coeval.eval { effect = effect :+ 2 }
 
-    val iterant = Iterant[Coeval].nextGenS(List(1), Coeval.now(Iterant[Coeval].empty), ref1).doOnFinish(_ => ref2)
+    val iterant = Iterant[Coeval].nextGenS(List(1), Coeval.now(Iterant[Coeval].empty[Int]), ref1).doOnFinish(_ => ref2)
     assertEquals(iterant.foldLeftL(0)(_+_).value, 1)
     assertEquals(effect, Vector(2))
   }

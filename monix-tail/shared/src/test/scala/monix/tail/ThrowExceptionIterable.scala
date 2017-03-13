@@ -17,9 +17,17 @@
 
 package monix.tail
 
+import monix.execution.atomic.Atomic
+
 /** Generator that throws exception on access. */
 final class ThrowExceptionIterable(ex: Throwable)
   extends Iterable[Nothing] {
 
-  override def iterator = throw ex
+  private[this] val triggered = Atomic(false)
+  def isTriggered: Boolean = triggered.get
+
+  override def iterator: Iterator[Nothing] = {
+    triggered.set(true)
+    throw ex
+  }
 }

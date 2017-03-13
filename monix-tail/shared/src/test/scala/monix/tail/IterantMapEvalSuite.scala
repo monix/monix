@@ -120,7 +120,7 @@ object IterantMapEvalSuite extends BaseTestSuite {
     check1 { (prefix: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val cursor = new ThrowExceptionIterator(dummy)
-      val error = Iterant[Task].nextSeqS(cursor, Task.now(Iterant[Task].empty), Task.unit)
+      val error = Iterant[Task].nextSeqS(cursor, Task.now(Iterant[Task].empty[Int]), Task.unit)
       val stream = (prefix ++ error).mapEval(x => Task.now(x))
       stream === Iterant[Task].haltS[Int](Some(dummy))
     }
@@ -130,7 +130,7 @@ object IterantMapEvalSuite extends BaseTestSuite {
     check1 { (prefix: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val cursor = new ThrowExceptionIterable(dummy)
-      val error = Iterant[Task].nextGenS(cursor, Task.now(Iterant[Task].empty), Task.unit)
+      val error = Iterant[Task].nextGenS(cursor, Task.now(Iterant[Task].empty[Int]), Task.unit)
       val stream = (prefix ++ error).mapEval(x => Task.now(x))
       stream === Iterant[Task].haltS[Int](Some(dummy))
     }
@@ -223,8 +223,8 @@ object IterantMapEvalSuite extends BaseTestSuite {
   test("Iterant[Coeval].mapEval should protect against broken cursors") { implicit s =>
     check1 { (prefix: Iterant[Coeval, Int]) =>
       val dummy = DummyException("dummy")
-      val cursor = new ThrowExceptionIterator(dummy)
-      val error = Iterant[Coeval].nextSeqS(cursor, Coeval.now(Iterant[Coeval].empty), Coeval.unit)
+      val cursor: Iterator[Int] = new ThrowExceptionIterator(dummy)
+      val error = Iterant[Coeval].nextSeqS(cursor, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
       val stream = (prefix ++ error).mapEval(x => Coeval.now(x))
       stream === Iterant[Coeval].haltS[Int](Some(dummy))
     }
@@ -233,8 +233,8 @@ object IterantMapEvalSuite extends BaseTestSuite {
   test("Iterant[Coeval].mapEval should protect against broken generators") { implicit s =>
     check1 { (prefix: Iterant[Coeval, Int]) =>
       val dummy = DummyException("dummy")
-      val cursor = new ThrowExceptionIterable(dummy)
-      val error = Iterant[Coeval].nextGenS(cursor, Coeval.now(Iterant[Coeval].empty), Coeval.unit)
+      val cursor: Iterable[Int] = new ThrowExceptionIterable(dummy)
+      val error = Iterant[Coeval].nextGenS(cursor, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
       val stream = (prefix ++ error).mapEval(x => Coeval.now(x))
       stream === Iterant[Coeval].haltS[Int](Some(dummy))
     }

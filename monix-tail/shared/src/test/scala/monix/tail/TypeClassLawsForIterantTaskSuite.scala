@@ -21,9 +21,9 @@ import monix.eval.Task
 import monix.types.tests.{MonadFilterLawsSuite, MonadRecLawsSuite, MonoidKLawsSuite}
 
 object TypeClassLawsForIterantTaskSuite extends BaseLawsSuite
-  with MonadRecLawsSuite[({type λ[+α] = Iterant[Task,α]})#λ, Int, Long, Short]
-  with MonadFilterLawsSuite[({type λ[+α] = Iterant[Task,α]})#λ, Int, Long, Short]
-  with MonoidKLawsSuite[({type λ[+α] = Iterant[Task,α]})#λ, Int] {
+  with MonadRecLawsSuite[({type λ[α] = Iterant[Task,α]})#λ, Int, Long, Short]
+  with MonadFilterLawsSuite[({type λ[α] = Iterant[Task,α]})#λ, Int, Long, Short]
+  with MonoidKLawsSuite[({type λ[α] = Iterant[Task,α]})#λ, Int] {
 
   override val F = Iterant.iterantTaskInstances
   override lazy val checkConfig = slowConfig

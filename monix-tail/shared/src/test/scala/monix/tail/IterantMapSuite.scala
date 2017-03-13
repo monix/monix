@@ -39,7 +39,7 @@ object IterantMapSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = Iterant[Task].nextS(1, Task(Iterant[Task].empty), Task { isCanceled = true })
+    val stream = Iterant[Task].nextS(1, Task(Iterant[Task].empty[Int]), Task { isCanceled = true })
     val result = stream.map[Int](_ => throw dummy).toListL.runAsync
 
     s.tick()
@@ -51,7 +51,7 @@ object IterantMapSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = Iterant[Task].nextSeqS(List(1,2,3).iterator, Task(Iterant[Task].empty), Task { isCanceled = true })
+    val stream = Iterant[Task].nextSeqS(List(1,2,3).iterator, Task(Iterant[Task].empty[Int]), Task { isCanceled = true })
     val result = stream.map[Int](_ => throw dummy).toListL.runAsync
 
     s.tick()
@@ -73,7 +73,7 @@ object IterantMapSuite extends BaseTestSuite {
     check1 { (prefix: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val cursor = new ThrowExceptionIterator(dummy)
-      val error = Iterant[Task].nextSeqS(cursor, Task.now(Iterant[Task].empty), Task.unit)
+      val error = Iterant[Task].nextSeqS(cursor, Task.now(Iterant[Task].empty[Int]), Task.unit)
       val stream = (prefix ++ error).map(x => x)
       stream === Iterant[Task].haltS[Int](Some(dummy))
     }
@@ -83,7 +83,7 @@ object IterantMapSuite extends BaseTestSuite {
     check1 { (prefix: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val cursor = new ThrowExceptionIterable(dummy)
-      val error = Iterant[Task].nextGenS(cursor, Task.now(Iterant[Task].empty), Task.unit)
+      val error = Iterant[Task].nextGenS(cursor, Task.now(Iterant[Task].empty[Int]), Task.unit)
       val stream = (prefix ++ error).map(x => x)
       stream === Iterant[Task].haltS[Int](Some(dummy))
     }
@@ -106,7 +106,7 @@ object IterantMapSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = Iterant[Coeval].nextS(1, Coeval(Iterant[Coeval].empty), Coeval { isCanceled = true })
+    val stream = Iterant[Coeval].nextS(1, Coeval(Iterant[Coeval].empty[Int]), Coeval { isCanceled = true })
     val result = stream.map[Int](_ => throw dummy).toListL.runTry
 
     assertEquals(result, Failure(dummy))
@@ -117,7 +117,7 @@ object IterantMapSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = Iterant[Coeval].nextSeqS(List(1,2,3).iterator, Coeval(Iterant[Coeval].empty), Coeval { isCanceled = true })
+    val stream = Iterant[Coeval].nextSeqS(List(1,2,3).iterator, Coeval(Iterant[Coeval].empty[Int]), Coeval { isCanceled = true })
     val result = stream.map[Int](_ => throw dummy).toListL.runTry
 
     assertEquals(result, Failure(dummy))
@@ -137,8 +137,8 @@ object IterantMapSuite extends BaseTestSuite {
   test("Iterant[Coeval].map should protect against broken cursors") { implicit s =>
     check1 { (prefix: Iterant[Coeval, Int]) =>
       val dummy = DummyException("dummy")
-      val cursor = new ThrowExceptionIterator(dummy)
-      val error = Iterant[Coeval].nextSeqS(cursor, Coeval.now(Iterant[Coeval].empty), Coeval.unit)
+      val cursor: Iterator[Int] = new ThrowExceptionIterator(dummy)
+      val error = Iterant[Coeval].nextSeqS(cursor, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
       val stream = (prefix ++ error).map(x => x)
       stream === Iterant[Coeval].haltS[Int](Some(dummy))
     }
@@ -147,8 +147,8 @@ object IterantMapSuite extends BaseTestSuite {
   test("Iterant[Coeval].map should protect against broken generators") { implicit s =>
     check1 { (prefix: Iterant[Coeval, Int]) =>
       val dummy = DummyException("dummy")
-      val cursor = new ThrowExceptionIterable(dummy)
-      val error = Iterant[Coeval].nextGenS(cursor, Coeval.now(Iterant[Coeval].empty), Coeval.unit)
+      val cursor: Iterable[Int] = new ThrowExceptionIterable(dummy)
+      val error = Iterant[Coeval].nextGenS(cursor, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
       val stream = (prefix ++ error).map(x => x)
       stream === Iterant[Coeval].haltS[Int](Some(dummy))
     }

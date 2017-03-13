@@ -52,7 +52,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     var wasCanceled = false
     val stopT = Task { wasCanceled = true }
 
-    val r = b.nextS(1, Task(b.nextS(2, Task(b.raiseError(dummy)), stopT)), stopT).toListL.runAsync
+    val r = b.nextS(1, Task(b.nextS(2, Task(b.raiseError[Int](dummy)), stopT)), stopT).toListL.runAsync
     assert(!wasCanceled, "wasCanceled should not be true")
 
     s.tick()
@@ -64,7 +64,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var wasCanceled = false
     val c = Task { wasCanceled = true }
-    val stream = Iterant[Task].nextS(1, Task.now(Iterant[Task].empty), c)
+    val stream = Iterant[Task].nextS(1, Task.now(Iterant[Task].empty[Int]), c)
     val result = stream.foldLeftL[Int](throw dummy)((a,e) => a+e).runAsync
     s.tick()
     assertEquals(result.value, Some(Failure(dummy)))
@@ -75,10 +75,10 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var wasCanceled = false
     val c = Task { wasCanceled = true }
-    val stream = Iterant[Task].nextS(1, Task.now(Iterant[Task].empty), c)
+    val stream = Iterant[Task].nextS(1, Task.now(Iterant[Task].empty[Int]), c)
     val result = stream.foldLeftL(0)((a,e) => throw dummy)
     s.tick()
-    check(result === Task.raiseError(dummy))
+    check(result === Task.raiseError[Int](dummy))
     assert(wasCanceled, "wasCanceled should be true")
   }
 
@@ -86,11 +86,11 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var wasCanceled = false
     val c = Task { wasCanceled = true }
-    val stream = Iterant[Task].nextS(1, Task(Iterant[Task].nextSeqS(List(2,3).iterator, Task.now(Iterant[Task].empty), c)), c)
+    val stream = Iterant[Task].nextS(1, Task(Iterant[Task].nextSeqS(List(2,3).iterator, Task.now(Iterant[Task].empty[Int]), c)), c)
       .mapEval(x => Task(x))
 
     val result = stream.foldLeftL(0)((a,e) => throw dummy)
-    check(result === Task.raiseError(dummy))
+    check(result === Task.raiseError[Int](dummy))
     assert(wasCanceled, "wasCanceled should be true")
   }
 
@@ -99,9 +99,9 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     check1 { (prefix: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val cursor = new ThrowExceptionIterator(dummy)
-      val error = Iterant[Task].nextSeqS(cursor, Task.now(Iterant[Task].empty), Task.unit)
+      val error = Iterant[Task].nextSeqS(cursor, Task.now(Iterant[Task].empty[Int]), Task.unit)
       val result = (prefix ++ error).foldLeftL(0)(_+_)
-      result === Task.raiseError(dummy)
+      result === Task.raiseError[Int](dummy)
     }
   }
 
@@ -109,9 +109,9 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     check1 { (prefix: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val generator = new ThrowExceptionIterable(dummy)
-      val error = Iterant[Task].nextGenS(generator, Task.now(Iterant[Task].empty), Task.unit)
+      val error = Iterant[Task].nextGenS(generator, Task.now(Iterant[Task].empty[Int]), Task.unit)
       val result = (prefix ++ error).foldLeftL(0)(_+_)
-      result === Task.raiseError(dummy)
+      result === Task.raiseError[Int](dummy)
     }
   }
 
@@ -136,7 +136,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var wasCanceled = false
     val c = Coeval { wasCanceled = true }
-    val r = b.nextS(1, Coeval(b.nextS(2, Coeval(b.raiseError(dummy)), c)), c).toListL.runTry
+    val r = b.nextS(1, Coeval(b.nextS(2, Coeval(b.raiseError[Int](dummy)), c)), c).toListL.runTry
 
     assertEquals(r, Failure(dummy))
     assert(wasCanceled, "wasCanceled should be true")
@@ -146,7 +146,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var wasCanceled = false
     val c = Coeval { wasCanceled = true }
-    val stream = Iterant[Coeval].nextS(1, Coeval.now(Iterant[Coeval].empty), c)
+    val stream = Iterant[Coeval].nextS(1, Coeval.now(Iterant[Coeval].empty[Int]), c)
     val result = stream.foldLeftL[Int](throw dummy)((a,e) => a+e).runTry
     assertEquals(result, Failure(dummy))
     assert(wasCanceled, "wasCanceled should be true")
@@ -156,9 +156,9 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var wasCanceled = false
     val c = Coeval { wasCanceled = true }
-    val stream = Iterant[Coeval].nextS(1, Coeval.now(Iterant[Coeval].empty), c)
+    val stream = Iterant[Coeval].nextS(1, Coeval.now(Iterant[Coeval].empty[Int]), c)
     val result = stream.foldLeftL(0)((a,e) => throw dummy)
-    check(result === Coeval.raiseError(dummy))
+    check(result === Coeval.raiseError[Int](dummy))
     assert(wasCanceled, "wasCanceled should be true")
   }
 
@@ -166,9 +166,9 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var wasCanceled = false
     val c = Coeval { wasCanceled = true }
-    val stream = Iterant[Coeval].nextSeqS(List(1,2,3).iterator, Coeval.now(Iterant[Coeval].empty), c)
+    val stream = Iterant[Coeval].nextSeqS(List(1,2,3).iterator, Coeval.now(Iterant[Coeval].empty[Int]), c)
     val result = stream.foldLeftL(0)((a,e) => throw dummy)
-    check(result === Coeval.raiseError(dummy))
+    check(result === Coeval.raiseError[Int](dummy))
     assert(wasCanceled, "wasCanceled should be true")
   }
 
@@ -176,31 +176,32 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var wasCanceled = false
     val c = Coeval { wasCanceled = true }
-    val stream = Iterant[Coeval].nextS(1, Coeval(Iterant[Coeval].nextSeqS(List(2,3).iterator, Coeval.now(Iterant[Coeval].empty), c)), c)
+    val stream = Iterant[Coeval].nextS(1,
+      Coeval(Iterant[Coeval].nextSeqS(List(2,3).iterator, Coeval.now(Iterant[Coeval].empty[Int]), c)), c)
       .mapEval(x => Coeval(x))
 
     val result = stream.foldLeftL(0)((a,e) => throw dummy)
-    check(result === Coeval.raiseError(dummy))
+    check(result === Coeval.raiseError[Int](dummy))
     assert(wasCanceled, "wasCanceled should be true")
   }
 
   test("Iterant[Coeval].foldLeftL should protect against broken cursors") { implicit s =>
     check1 { (prefix: Iterant[Coeval, Int]) =>
       val dummy = DummyException("dummy")
-      val cursor = new ThrowExceptionIterator(dummy)
-      val error = Iterant[Coeval].nextSeqS(cursor, Coeval.now(Iterant[Coeval].empty), Coeval.unit)
+      val cursor: Iterator[Int] = new ThrowExceptionIterator(dummy)
+      val error = Iterant[Coeval].nextSeqS(cursor, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
       val result = (prefix ++ error).foldLeftL(0)(_+_)
-      result === Coeval.raiseError(dummy)
+      result === Coeval.raiseError[Int](dummy)
     }
   }
 
   test("Iterant[Coeval].foldLeftL should protect against broken generators") { implicit s =>
     check1 { (prefix: Iterant[Coeval, Int]) =>
       val dummy = DummyException("dummy")
-      val generator = new ThrowExceptionIterable(dummy)
-      val error = Iterant[Coeval].nextGenS(generator, Coeval.now(Iterant[Coeval].empty), Coeval.unit)
+      val generator: Iterable[Int] = new ThrowExceptionIterable(dummy)
+      val error = Iterant[Coeval].nextGenS(generator, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
       val result = (prefix ++ error).foldLeftL(0)(_+_)
-      result === Coeval.raiseError(dummy)
+      result === Coeval.raiseError[Int](dummy)
     }
   }
 }

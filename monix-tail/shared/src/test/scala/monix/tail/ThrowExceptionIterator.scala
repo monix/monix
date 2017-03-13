@@ -17,15 +17,25 @@
 
 package monix.tail
 
+import monix.execution.atomic.Atomic
+
 /** Cursor that throws exception on access. */
 final class ThrowExceptionIterator(ex: Throwable) extends Iterator[Nothing] {
-  override def hasNext: Boolean = throw ex
-  override def next(): Nothing = throw ex
+  private[this] val triggered = Atomic(false)
+  def isTriggered: Boolean = triggered.get
 
-  override def take(n: Int): Iterator[Nothing] = throw ex
-  override def drop(n: Int): Iterator[Nothing] = throw ex
-  override def slice(from: Int, until: Int): Iterator[Nothing] = throw ex
-  override def map[B](f: (Nothing) => B): Iterator[B] = throw ex
-  override def filter(p: (Nothing) => Boolean): Iterator[Nothing] = throw ex
-  override def collect[B](pf: PartialFunction[Nothing, B]): Iterator[B] = throw ex
+  private def triggerError(): Nothing = {
+    triggered := true
+    throw ex
+  }
+
+  override def hasNext: Boolean = triggerError()
+  override def next(): Nothing = triggerError()
+
+  override def take(n: Int): Iterator[Nothing] = triggerError()
+  override def drop(n: Int): Iterator[Nothing] = triggerError()
+  override def slice(from: Int, until: Int): Iterator[Nothing] = triggerError()
+  override def map[B](f: (Nothing) => B): Iterator[B] = triggerError()
+  override def filter(p: (Nothing) => Boolean): Iterator[Nothing] = triggerError()
+  override def collect[B](pf: PartialFunction[Nothing, B]): Iterator[B] = triggerError()
 }

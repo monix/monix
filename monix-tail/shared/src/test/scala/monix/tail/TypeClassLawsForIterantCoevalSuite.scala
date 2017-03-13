@@ -21,9 +21,9 @@ import monix.eval.Coeval
 import monix.types.tests.{MonadFilterLawsSuite, MonadRecLawsSuite, MonoidKLawsSuite}
 
 object TypeClassLawsForIterantCoevalSuite extends BaseLawsSuite
-  with MonadRecLawsSuite[({type λ[+α] = Iterant[Coeval,α]})#λ, Int, Long, Short]
-  with MonadFilterLawsSuite[({type λ[+α] = Iterant[Coeval,α]})#λ, Int, Long, Short]
-  with MonoidKLawsSuite[({type λ[+α] = Iterant[Coeval,α]})#λ, Int] {
+  with MonadRecLawsSuite[({type λ[α] = Iterant[Coeval,α]})#λ, Int, Long, Short]
+  with MonadFilterLawsSuite[({type λ[α] = Iterant[Coeval,α]})#λ, Int, Long, Short]
+  with MonoidKLawsSuite[({type λ[α] = Iterant[Coeval,α]})#λ, Int] {
 
   override val F = Iterant.iterantCoevalInstances
   override lazy val checkConfig = slowConfig

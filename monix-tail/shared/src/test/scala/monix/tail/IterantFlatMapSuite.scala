@@ -41,7 +41,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = Iterant[Task].nextS(1, Task(Iterant[Task].empty), Task { isCanceled = true })
+    val stream = Iterant[Task].nextS(1, Task(Iterant[Task].empty[Int]), Task { isCanceled = true })
     val result = stream.flatMap[Int](_ => throw dummy).toListL.runAsync
 
     s.tick()
@@ -53,7 +53,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = Iterant[Task].nextSeqS(List(1,2,3).iterator, Task(Iterant[Task].empty), Task { isCanceled = true })
+    val stream = Iterant[Task].nextSeqS(List(1,2,3).iterator, Task(Iterant[Task].empty[Int]), Task { isCanceled = true })
     val result = stream.flatMap[Int](_ => throw dummy).toListL.runAsync
 
     s.tick()
@@ -162,7 +162,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
     check1 { (prefix: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val cursor = new ThrowExceptionIterator(dummy)
-      val error = Iterant[Task].nextSeqS(cursor, Task.now(Iterant[Task].empty), Task.unit)
+      val error = Iterant[Task].nextSeqS(cursor, Task.now(Iterant[Task].empty[Int]), Task.unit)
       val stream = (prefix ++ error).flatMap(x => Iterant[Task].now(x))
       stream === Iterant[Task].haltS[Int](Some(dummy))
     }
@@ -172,7 +172,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
     check1 { (prefix: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val generator = new ThrowExceptionIterable(dummy)
-      val error = Iterant[Task].nextGenS(generator, Task.now(Iterant[Task].empty), Task.unit)
+      val error = Iterant[Task].nextGenS(generator, Task.now(Iterant[Task].empty[Int]), Task.unit)
       val stream = (prefix ++ error).flatMap(x => Iterant[Task].now(x))
       stream === Iterant[Task].haltS[Int](Some(dummy))
     }
@@ -196,7 +196,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = Iterant[Coeval].nextS(1, Coeval(Iterant[Coeval].empty), Coeval { isCanceled = true })
+    val stream = Iterant[Coeval].nextS(1, Coeval(Iterant[Coeval].empty[Int]), Coeval { isCanceled = true })
     val result = stream.flatMap[Int](_ => throw dummy).toListL.runTry
 
     assertEquals(result, Failure(dummy))
@@ -207,7 +207,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = Iterant[Coeval].nextSeqS(List(1,2,3).iterator, Coeval(Iterant[Coeval].empty), Coeval { isCanceled = true })
+    val stream = Iterant[Coeval].nextSeqS(List(1,2,3).iterator, Coeval(Iterant[Coeval].empty[Int]), Coeval { isCanceled = true })
     val result = stream.flatMap[Int](_ => throw dummy).toListL.runTry
 
     assertEquals(result, Failure(dummy))
@@ -304,7 +304,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
     check1 { (prefix: Iterant[Coeval, Int]) =>
       val dummy = DummyException("dummy")
       val cursor = new ThrowExceptionIterator(dummy)
-      val error = Iterant[Coeval].nextSeqS(cursor, Coeval.now(Iterant[Coeval].empty), Coeval.unit)
+      val error = Iterant[Coeval].nextSeqS(cursor, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
       val stream = (prefix ++ error).flatMap(x => Iterant[Coeval].now(x))
       stream === Iterant[Coeval].haltS[Int](Some(dummy))
     }
@@ -314,7 +314,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
     check1 { (prefix: Iterant[Coeval, Int]) =>
       val dummy = DummyException("dummy")
       val cursor = new ThrowExceptionIterable(dummy)
-      val error = Iterant[Coeval].nextGenS(cursor, Coeval.now(Iterant[Coeval].empty), Coeval.unit)
+      val error = Iterant[Coeval].nextGenS(cursor, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
       val stream = (prefix ++ error).flatMap(x => Iterant[Coeval].now(x))
       stream === Iterant[Coeval].haltS[Int](Some(dummy))
     }

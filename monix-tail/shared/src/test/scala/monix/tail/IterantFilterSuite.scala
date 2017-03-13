@@ -17,9 +17,12 @@
 
 package monix.tail
 
-import monix.eval.Task
+import monix.eval.{Coeval, Task}
 import monix.execution.exceptions.DummyException
+import monix.tail.Iterant.Suspend
 import org.scalacheck.Test.Parameters
+
+import scala.util.Failure
 
 object IterantFilterSuite extends BaseTestSuite {
   override lazy val checkConfig: Parameters =
@@ -44,8 +47,59 @@ object IterantFilterSuite extends BaseTestSuite {
   test("Iterant.filter flatMap equivalence") { implicit s =>
     check2 { (stream: Iterant[Task, Int], p: Int => Boolean) =>
       val received = stream.filter(p)
-      val expected = stream.flatMap(x => if (p(x)) Iterant[Task].now(x) else Iterant[Task].empty)
+      val expected = stream.flatMap(x => if (p(x)) Iterant[Task].now(x) else Iterant[Task].empty[Int])
       received === expected
     }
+  }
+
+  test("Iterant.filter suspends the evaluation for NextGen") { _ =>
+    val dummy = DummyException("dummy")
+    val items = new ThrowExceptionIterable(dummy)
+    val iter = Iterant[Coeval].nextGenS(items, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
+    val state = iter.filter { x => throw dummy }
+
+    assert(state.isInstanceOf[Suspend[Coeval,Int]], "state.isInstanceOf[Suspend[Coeval,Int]]")
+    assert(!items.isTriggered, "!items.isTriggered")
+    assertEquals(state.toListL.runTry, Failure(dummy))
+  }
+
+  test("Iterant.filter suspends the evaluation for NextSeq") { _ =>
+    val dummy = DummyException("dummy")
+    val items = new ThrowExceptionIterator(dummy)
+    val iter = Iterant[Coeval].nextSeqS(items, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
+    val state = iter.filter { x => throw dummy }
+
+    assert(state.isInstanceOf[Suspend[Coeval,Int]], "state.isInstanceOf[Suspend[Coeval,Int]]")
+    assert(!items.isTriggered, "!items.isTriggered")
+    assertEquals(state.toListL.runTry, Failure(dummy))
+  }
+
+  test("Iterant.filter suspends the evaluation for Next") { _ =>
+    val dummy = DummyException("dummy")
+    val iter = Iterant[Coeval].nextS(1, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
+    val state = iter.filter { x => (throw dummy) : Boolean }
+
+    assert(state.isInstanceOf[Suspend[Coeval,Int]], "state.isInstanceOf[Suspend[Coeval,Int]]")
+    assertEquals(state.toListL.runTry, Failure(dummy))
+  }
+
+  test("Iterant.filter suspends the evaluation for Last") { _ =>
+    val dummy = DummyException("dummy")
+    val iter = Iterant[Coeval].lastS(1)
+    val state = iter.filter { x => throw dummy }
+
+    assert(state.isInstanceOf[Suspend[Coeval,Int]])
+    assertEquals(state.toListL.runTry, Failure(dummy))
+  }
+
+  test("Iterant.filter doesn't touch Halt") { _ =>
+    val dummy = DummyException("dummy")
+    val iter1: Iterant[Coeval, Int] = Iterant[Coeval].haltS[Int](Some(dummy))
+    val state1 = iter1.filter { x => true }
+    assertEquals(state1, iter1)
+
+    val iter2: Iterant[Coeval, Int] = Iterant[Coeval].haltS[Int](None)
+    val state2 = iter2.filter { x => (throw dummy) : Boolean }
+    assertEquals(state2, iter2)
   }
 }

@@ -18,8 +18,10 @@
 package monix.tail
 
 import monix.eval.{Coeval, Task}
+import monix.tail.internal.{IterantCollect, IterantFilter, IterantMapEval, IterantStop}
 import monix.types._
 import monix.types.syntax._
+
 import scala.collection.immutable.LinearSeq
 import scala.collection.mutable
 import scala.util.control.NonFatal
@@ -101,7 +103,7 @@ import scala.util.control.NonFatal
   *
   * @tparam A is the type of the elements produced by this Iterant
   */
-sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self =>
+sealed abstract class Iterant[F[_], A] extends Product with Serializable { self =>
   import Iterant._
 
   /** Builds a new iterant by applying a partial function to all elements of
@@ -115,37 +117,8 @@ sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self
     *         `pf` to each element on which it is defined and collecting the results.
     *         The order of the elements is preserved.
     */
-  final def collect[B](pf: PartialFunction[A,B])(implicit F: Functor[F]): Iterant[F,B] = {
-    @inline def seq(items: Iterator[A], rest: F[Iterant[F, A]], stop: F[Unit]) = {
-      val filtered = items.collect(pf)
-      val restF = rest.map(_.collect(pf))
-      if (filtered.hasNext)
-        NextSeq(filtered, restF, stop)
-      else
-        Suspend(restF, stop)
-    }
-
-    try this match {
-      case Next(item, rest, stop) =>
-        if (pf.isDefinedAt(item))
-          Next[F,B](pf(item), rest.map(_.collect(pf)), stop)
-        else
-          Suspend(rest.map(_.collect(pf)), stop)
-      case NextSeq(items, rest, stop) =>
-        seq(items, rest, stop)
-      case NextGen(items, rest, stop) =>
-        seq(items.iterator, rest, stop)
-      case Suspend(rest, stop) =>
-        Suspend(rest.map(_.collect(pf)), stop)
-      case Last(item) =>
-        if (pf.isDefinedAt(item)) Last(pf(item)) else Halt(None)
-      case halt @ Halt(_) =>
-        halt
-    }
-    catch {
-      case NonFatal(ex) => signalError(ex)
-    }
-  }
+  final def collect[B](pf: PartialFunction[A,B])(implicit F: Applicative[F]): Iterant[F,B] =
+    IterantCollect(this, pf)(F)
 
   /** Returns a computation that should be evaluated in
     * case the streaming must stop before reaching the end.
@@ -156,14 +129,7 @@ sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self
     * @param F $applicativeParamDesc
     */
   final def earlyStop(implicit F: Applicative[F]): F[Unit] =
-    this match {
-      case Next(_, _, ref) => ref
-      case NextSeq(_, _, ref) => ref
-      case NextGen(_, _, ref) => ref
-      case Suspend(_, ref) => ref
-      case Last(_) => F.unit
-      case Halt(_) => F.unit
-    }
+    IterantStop.earlyStop(this)(F)
 
   /** Given a routine make sure to execute it whenever
     * the consumer executes the current `stop` action.
@@ -171,21 +137,8 @@ sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self
     * @param f is the function to execute on early stop
     * @param F $monadParamDesc
     */
-  final def doOnEarlyStop(f: F[Unit])(implicit F: Monad[F]): Iterant[F,A] = {
-    import F.functor
-    this match {
-      case Next(head, rest, stop) =>
-        Next(head, rest.map(_.doOnEarlyStop(f)), stop.flatMap(_ => f))
-      case NextSeq(items, rest, stop) =>
-        NextSeq(items, rest.map(_.doOnEarlyStop(f)), stop.flatMap(_ => f))
-      case Suspend(rest, stop) =>
-        Suspend(rest.map(_.doOnEarlyStop(f)), stop.flatMap(_ => f))
-      case NextGen(items, rest, stop) =>
-        NextGen(items, rest.map(_.doOnEarlyStop(f)), stop.flatMap(_ => f))
-      case ref @ (Halt(_) | Last(_)) =>
-        ref // nothing to do
-    }
-  }
+  final def doOnEarlyStop(f: F[Unit])(implicit F: Monad[F]): Iterant[F, A] =
+    IterantStop.doOnEarlyStop(this, f)(F)
 
   /** Returns a new enumerator in which `f` is scheduled to be executed
     * on [[Iterant.Halt halt]] or on [[earlyStop]].
@@ -199,28 +152,8 @@ sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self
     * @param f is the function to execute on early stop
     * @param F $monadParamDesc
     */
-  def doOnFinish(f: Option[Throwable] => F[Unit])(implicit F: Monad[F]): Iterant[F,A] = {
-    import F.{functor => U}
-    try this match {
-      case Next(item, rest, stop) =>
-        Next(item, rest.map(_.doOnFinish(f)), stop.flatMap(_ => f(None)))
-      case NextSeq(items, rest, stop) =>
-        NextSeq(items, rest.map(_.doOnFinish(f)), stop.flatMap(_ => f(None)))
-      case NextGen(items, rest, stop) =>
-        NextGen(items, rest.map(_.doOnFinish(f)), stop.flatMap(_ => f(None)))
-      case Suspend(rest, stop) =>
-        Suspend(rest.map(_.doOnFinish(f)), stop.flatMap(_ => f(None)))
-      case last @ Last(_) =>
-        val ref = f(None)
-        Suspend[F,A](U.map(ref)(_ => last), ref)
-      case halt @ Halt(ex) =>
-        val ref = f(ex)
-        Suspend[F,A](U.map(ref)(_ => halt), ref)
-    }
-    catch {
-      case NonFatal(ex) => signalError(ex)
-    }
-  }
+  def doOnFinish(f: Option[Throwable] => F[Unit])(implicit F: Monad[F]): Iterant[F, A] =
+    IterantStop.doOnFinish(this, f)(F)
 
   /** Filters the iterant by the given predicate function,
     * returning only those elements that match.
@@ -231,36 +164,9 @@ sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self
     * @return a new iterant consisting of all elements that satisfy the given
     *         predicate. The order of the elements is preserved.
     */
-  final def filter(p: A => Boolean)(implicit F: Functor[F]): Iterant[F,A] = {
-    def seq(items: Iterator[A], rest: F[Iterant[F, A]], stop: F[Unit]) = {
-      val filtered = items.filter(p)
-      if (filtered.hasNext)
-        NextSeq(filtered, rest.map(_.filter(p)), stop)
-      else
-        Suspend(rest.map(_.filter(p)), stop)
-    }
+  final def filter(p: A => Boolean)(implicit F: Applicative[F]): Iterant[F, A] =
+    IterantFilter(this, p)(F)
 
-    try this match {
-      case Next(item, rest, stop) =>
-        if (p(item))
-          Next(item, rest.map(_.filter(p)), stop)
-        else
-          Suspend(rest.map(_.filter(p)), stop)
-      case NextSeq(items, rest, stop) =>
-        seq(items, rest, stop)
-      case NextGen(items, rest, stop) =>
-        seq(items.iterator, rest, stop)
-      case Suspend(rest, stop) =>
-        Suspend(rest.map(_.filter(p)), stop)
-      case last @ Last(item) =>
-        if (p(item)) last else Halt(None)
-      case halt @ Halt(_) =>
-        halt
-    }
-    catch {
-      case NonFatal(ex) => signalError(ex)
-    }
-  }
 
   /** Given a mapping function that returns a possibly lazy or asynchronous
     * result, applies it over the elements emitted by the stream.
@@ -268,50 +174,8 @@ sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self
     * @param f is the mapping function that transforms the source
     * @param F $applicativeParamDesc
     */
-  final def mapEval[B](f: A => F[B])(implicit F: Applicative[F]): Iterant[F, B] = {
-    import F.functor
-
-    @inline def evalNextSeq(ref: NextSeq[F, A], cursor: Iterator[A], rest: F[Iterant[F, A]], stop: F[Unit]) = {
-      if (!cursor.hasNext)
-        Suspend[F, B](rest.map(_.mapEval(f)), stop)
-      else {
-        val head = cursor.next()
-        val fa = f(head)
-        // If the iterator is empty, then we can skip a beat
-        val tail = if (cursor.hasNext) F.pure(ref: Iterant[F, A]) else rest
-        val suspended = fa.map(h => nextS(h, tail.map(_.mapEval(f)), stop))
-        Suspend[F, B](suspended, stop)
-      }
-    }
-
-    try this match {
-      case Next(head, tail, stop) =>
-        val fa = f(head)
-        val rest = fa.map(h => nextS(h, tail.map(_.mapEval(f)), stop))
-        Suspend(rest, stop)
-
-      case ref @ NextSeq(cursor, rest, stop) =>
-        evalNextSeq(ref, cursor, rest, stop)
-
-      case NextGen(gen, rest, stop) =>
-        val cursor = gen.iterator
-        val ref = NextSeq(cursor, rest, stop)
-        evalNextSeq(ref, cursor, rest, stop)
-
-      case Suspend(rest, stop) =>
-        Suspend[F,B](rest.map(_.mapEval(f)), stop)
-
-      case Last(item) =>
-        val fa = f(item)
-        Suspend(fa.map(h => lastS[F,B](h)), F.unit)
-
-      case halt @ Halt(_) =>
-        halt
-    }
-    catch {
-      case NonFatal(ex) => signalError(ex)
-    }
-  }
+  final def mapEval[B](f: A => F[B])(implicit F: Applicative[F]): Iterant[F, B] =
+    IterantMapEval(this, f)(F)
 
   /** Returns a new stream by mapping the supplied function
     * over the elements of the source.
@@ -337,7 +201,7 @@ sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self
         Last(f(item))
 
       case empty @ Halt(_) =>
-        empty
+        empty.asInstanceOf[Iterant[F, B]]
     }
     catch {
       case NonFatal(ex) => signalError(ex)
@@ -395,7 +259,7 @@ sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self
         f(item)
 
       case empty @ Halt(_) =>
-        empty
+        empty.asInstanceOf[Iterant[F, B]]
     }
     catch {
       case NonFatal(ex) => signalError(ex)
@@ -441,13 +305,13 @@ sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self
       case Halt(None) =>
         rhs
       case error @ Halt(Some(_)) =>
-        error
+        error.asInstanceOf[Iterant[F, B]]
     }
   }
 
   /** Prepends an element to the enumerator. */
-  final def #::[B >: A](head: B)(implicit F: Applicative[F]): Iterant[F, B] =
-    Next[F,B](head, F.pure(this), earlyStop)
+  final def #::(head: A)(implicit F: Applicative[F]): Iterant[F, A] =
+    Next(head, F.pure(this), earlyStop)
 
   /** Left associative fold using the function `f`.
     *
@@ -467,7 +331,7 @@ sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self
   final def foldLeftL[S](seed: => S)(op: (S,A) => S)(implicit F: Monad[F]): F[S] = {
     import F.{applicative => A}
 
-    def loop(self: Iterant[F,A], state: S): F[S] = {
+    def loop(self: Iterant[F, A], state: S): F[S] = {
       try self match {
         case Next(a, rest, stop) =>
           val newState = op(state, a)
@@ -478,7 +342,7 @@ sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self
         case NextGen(gen, rest, stop) =>
           val newState = gen.iterator.foldLeft(state)(op)
           rest.flatMap(loop(_, newState))
-        case Suspend(rest, _) =>
+        case Suspend(rest, stop) =>
           rest.flatMap(loop(_, state))
         case Last(item) =>
           A.pure(op(state,item))
@@ -516,6 +380,9 @@ sealed abstract class Iterant[F[_], +A] extends Product with Serializable { self
     F.functor.map(folded)(_.toList)
   }
 
+  final def upcast[B >: A]: Iterant[F, B] =
+    this.asInstanceOf[Iterant[F, B]]
+
   private def signalError[B](ex: Throwable)(implicit F: Functor[F]): Iterant[F,B] = {
     val halt = Iterant.haltS[F,B](Some(ex))
     this match {
@@ -547,15 +414,15 @@ object Iterant extends IterantInstances with SharedDocs {
   def apply[F[_]](implicit F: IterantBuilders.From[F]): F.Builders = F.instance
 
   /** $builderNow */
-  def now[F[_],A](a: A): Iterant[F,A] =
+  def now[F[_], A](a: A): Iterant[F, A] =
     lastS(a)
 
   /** Alias for [[now]]. */
-  def pure[F[_],A](a: A): Iterant[F,A] =
+  def pure[F[_], A](a: A): Iterant[F, A] =
     now[F,A](a)
 
   /** $builderEval */
-  def eval[F[_],A](a: => A)(implicit F: Applicative[F]): Iterant[F,A] =
+  def eval[F[_], A](a: => A)(implicit F: Applicative[F]): Iterant[F, A] =
     Suspend(F.eval(nextS[F,A](a, F.pure(Halt(None)), F.unit)), F.unit)
 
   /** $nextSDesc
@@ -564,7 +431,7 @@ object Iterant extends IterantInstances with SharedDocs {
     * @param rest $restParamDesc
     * @param stop $stopParamDesc
     */
-  def nextS[F[_],A](item: A, rest: F[Iterant[F,A]], stop: F[Unit]): Iterant[F,A] =
+  def nextS[F[_], A](item: A, rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
     Next[F,A](item, rest, stop)
 
   /** $nextSeqSDesc
@@ -573,7 +440,7 @@ object Iterant extends IterantInstances with SharedDocs {
     * @param rest $restParamDesc
     * @param stop $stopParamDesc
     */
-  def nextSeqS[F[_],A](items: Iterator[A], rest: F[Iterant[F,A]], stop: F[Unit]): Iterant[F,A] =
+  def nextSeqS[F[_], A](items: Iterator[A], rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
     NextSeq[F,A](items, rest, stop)
 
   /** $nextGenSDesc
@@ -582,7 +449,7 @@ object Iterant extends IterantInstances with SharedDocs {
     * @param rest $restParamDesc
     * @param stop $stopParamDesc
     */
-  def nextGenS[F[_],A](items: Iterable[A], rest: F[Iterant[F,A]], stop: F[Unit]): Iterant[F,A] =
+  def nextGenS[F[_], A](items: Iterable[A], rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
     NextGen[F,A](items, rest, stop)
 
   /** $suspendSDesc
@@ -590,53 +457,53 @@ object Iterant extends IterantInstances with SharedDocs {
     * @param rest $restParamDesc
     * @param stop $stopParamDesc
     */
-  def suspendS[F[_],A](rest: F[Iterant[F,A]], stop: F[Unit]): Iterant[F,A] =
+  def suspendS[F[_], A](rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
     Suspend[F,A](rest, stop)
 
   /** $lastSDesc
     *
     * @param item $lastParamDesc
     */
-  def lastS[F[_],A](item: A): Iterant[F,A] =
+  def lastS[F[_], A](item: A): Iterant[F, A] =
     Last(item)
 
   /** $haltSDesc
     *
     * @param ex $exParamDesc
     */
-  def haltS[F[_],A](ex: Option[Throwable]): Iterant[F,A] =
-    Halt[F](ex)
+  def haltS[F[_], A](ex: Option[Throwable]): Iterant[F, A] =
+    Halt[F, A](ex)
 
   /** $builderSuspendByName
     *
     * @param fa $suspendByNameParam
     */
-  def suspend[F[_], A](fa: => Iterant[F,A])(implicit F: Applicative[F]): Iterant[F,A] =
+  def suspend[F[_], A](fa: => Iterant[F, A])(implicit F: Applicative[F]): Iterant[F, A] =
     suspend[F,A](F.eval(fa))
 
-  /** Alias for [[Iterant.suspend[F[_],A](fa* suspend]].
+  /** Alias for [[Iterant.suspend[F[_], A](fa* suspend]].
     *
     * $builderSuspendByName
     *
     * @param fa $suspendByNameParam
     */
-  def defer[F[_] : Applicative, A](fa: => Iterant[F,A]): Iterant[F,A] =
+  def defer[F[_] : Applicative, A](fa: => Iterant[F, A]): Iterant[F, A] =
     suspend(fa)
 
   /** $builderSuspendByF
     *
     * @param rest $restParamDesc
     */
-  def suspend[F[_],A](rest: F[Iterant[F,A]])(implicit F: Applicative[F]): Iterant[F,A] =
+  def suspend[F[_], A](rest: F[Iterant[F, A]])(implicit F: Applicative[F]): Iterant[F, A] =
     suspendS[F,A](rest, F.unit)
 
   /** $builderEmpty */
-  def empty[F[_],A]: Iterant[F,A] =
-    Halt[F](None)
+  def empty[F[_], A]: Iterant[F, A] =
+    Halt[F, A](None)
 
   /** $builderRaiseError */
-  def raiseError[F[_],A](ex: Throwable): Iterant[F,A] =
-    Halt[F](Some(ex))
+  def raiseError[F[_], A](ex: Throwable): Iterant[F, A] =
+    Halt[F, A](Some(ex))
 
   /** $builderTailRecM */
   def tailRecM[F[_], A, B](a: A)(f: A => Iterant[F,Either[A, B]])(implicit F: Monad[F]): Iterant[F,B] = {
@@ -650,19 +517,19 @@ object Iterant extends IterantInstances with SharedDocs {
   }
 
   /** $builderFromArray */
-  def fromArray[F[_], A](xs: Array[A])(implicit F: Applicative[F]): Iterant[F,A] =
+  def fromArray[F[_], A](xs: Array[A])(implicit F: Applicative[F]): Iterant[F, A] =
     NextGen(xs, F.pure(empty[F,A]), F.unit)
 
   /** $builderFromList */
-  def fromList[F[_], A](xs: LinearSeq[A])(implicit F: Applicative[F]): Iterant[F,A] =
+  def fromList[F[_], A](xs: LinearSeq[A])(implicit F: Applicative[F]): Iterant[F, A] =
     NextGen(xs, F.pure(empty[F,A]), F.unit)
 
   /** $builderFromIndexedSeq */
-  def fromIndexedSeq[F[_], A](xs: IndexedSeq[A])(implicit F: Applicative[F]): Iterant[F,A] =
+  def fromIndexedSeq[F[_], A](xs: IndexedSeq[A])(implicit F: Applicative[F]): Iterant[F, A] =
     NextGen(xs, F.pure(empty[F,A]), F.unit)
 
   /** $builderFromSeq */
-  def fromSeq[F[_], A](xs: Seq[A])(implicit F: Applicative[F]): Iterant[F,A] =
+  def fromSeq[F[_], A](xs: Seq[A])(implicit F: Applicative[F]): Iterant[F, A] =
     xs match {
       case ref: LinearSeq[_] =>
         fromList[F,A](ref.asInstanceOf[LinearSeq[A]])
@@ -673,11 +540,11 @@ object Iterant extends IterantInstances with SharedDocs {
     }
 
   /** $builderFromIterable */
-  def fromIterable[F[_],A](xs: Iterable[A])(implicit F: Applicative[F]): Iterant[F,A] =
+  def fromIterable[F[_], A](xs: Iterable[A])(implicit F: Applicative[F]): Iterant[F, A] =
     NextGen(xs, F.pure(empty[F,A]), F.unit)
 
   /** $builderFromIterator */
-  def fromIterator[F[_], A](xs: Iterator[A])(implicit F: Applicative[F]): Iterant[F,A] =
+  def fromIterator[F[_], A](xs: Iterator[A])(implicit F: Applicative[F]): Iterant[F, A] =
     NextSeq[F,A](xs, F.pure(empty), F.unit)
 
   /** $builderRange
@@ -696,18 +563,18 @@ object Iterant extends IterantInstances with SharedDocs {
     * @param rest $restParamDesc
     * @param stop $stopParamDesc
     */
-  final case class Next[F[_],A](
+  final case class Next[F[_], A](
     item: A,
-    rest: F[Iterant[F,A]],
+    rest: F[Iterant[F, A]],
     stop: F[Unit])
-    extends Iterant[F,A]
+    extends Iterant[F, A]
 
   /** $LastDesc
     *
     * @param item $lastParamDesc
     */
-  final case class Last[F[_],A](item: A)
-    extends Iterant[F,A]
+  final case class Last[F[_], A](item: A)
+    extends Iterant[F, A]
 
   /** $NextSeqDesc
     *
@@ -715,11 +582,11 @@ object Iterant extends IterantInstances with SharedDocs {
     * @param rest $restParamDesc
     * @param stop $stopParamDesc
     */
-  final case class NextSeq[F[_],A](
+  final case class NextSeq[F[_], A](
     items: Iterator[A],
-    rest: F[Iterant[F,A]],
+    rest: F[Iterant[F, A]],
     stop: F[Unit])
-    extends Iterant[F,A]
+    extends Iterant[F, A]
 
   /** $NextGenDesc
     *
@@ -727,11 +594,11 @@ object Iterant extends IterantInstances with SharedDocs {
     * @param rest $restParamDesc
     * @param stop $stopParamDesc
     */
-  final case class NextGen[F[_],A](
+  final case class NextGen[F[_], A](
     items: Iterable[A],
-    rest: F[Iterant[F,A]],
+    rest: F[Iterant[F, A]],
     stop: F[Unit])
-    extends Iterant[F,A]
+    extends Iterant[F, A]
 
   /** $SuspendDesc
     *
@@ -739,16 +606,16 @@ object Iterant extends IterantInstances with SharedDocs {
     * @param stop $stopParamDesc
     */
   final case class Suspend[F[_], A](
-    rest: F[Iterant[F,A]],
+    rest: F[Iterant[F, A]],
     stop: F[Unit])
-    extends Iterant[F,A]
+    extends Iterant[F, A]
 
   /** $HaltDesc
     *
     * @param ex $exParamDesc
     */
-  final case class Halt[F[_]](ex: Option[Throwable])
-    extends Iterant[F,Nothing]
+  final case class Halt[F[_], A](ex: Option[Throwable])
+    extends Iterant[F, A]
 }
 
 private[tail] trait IterantInstances extends IterantInstances1 {
@@ -814,10 +681,10 @@ private[tail] trait IterantInstances1 extends IterantInstances0 {
   /** Provides a [[monix.types.Monad]] instance for [[Iterant]]. */
   class MonadInstance[F[_]](implicit F: Monad[F])
     extends FunctorInstance[F]()(F.functor)
-    with Monad.Instance[({type λ[+α] = Iterant[F,α]})#λ]
-    with MonadRec.Instance[({type λ[+α] = Iterant[F,α]})#λ]
-    with MonadFilter.Instance[({type λ[+α] = Iterant[F,α]})#λ]
-    with MonoidK.Instance[({type λ[+α] = Iterant[F,α]})#λ] {
+    with Monad.Instance[({type λ[α] = Iterant[F,α]})#λ]
+    with MonadRec.Instance[({type λ[α] = Iterant[F,α]})#λ]
+    with MonadFilter.Instance[({type λ[α] = Iterant[F,α]})#λ]
+    with MonoidK.Instance[({type λ[α] = Iterant[F,α]})#λ] {
 
     def flatMap[A, B](fa: Iterant[F, A])(f: (A) => Iterant[F, B]): Iterant[F, B] =
       fa.flatMap(f)
@@ -836,7 +703,7 @@ private[tail] trait IterantInstances1 extends IterantInstances0 {
     def empty[A]: Iterant[F, A] =
       Iterant.empty
     def filter[A](fa: Iterant[F, A])(f: (A) => Boolean): Iterant[F, A] =
-      fa.filter(f)(F.functor)
+      fa.filter(f)(F.applicative)
     def combineK[A](x: Iterant[F, A], y: Iterant[F, A]): Iterant[F, A] =
       x.++(y)(F.applicative)
   }
@@ -849,7 +716,7 @@ private[tail] trait IterantInstances0 {
 
   /** Provides a [[monix.types.Functor]] instance for [[Iterant]]. */
   class FunctorInstance[F[_]](implicit F: Functor[F])
-    extends Functor.Instance[({type λ[+α] = Iterant[F,α]})#λ] {
+    extends Functor.Instance[({type λ[α] = Iterant[F,α]})#λ] {
 
     def map[A, B](fa: Iterant[F, A])(f: (A) => B): Iterant[F, B] =
       fa.map(f)(F)
