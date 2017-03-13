@@ -124,8 +124,6 @@ trait ArbitraryInstances {
       for (b <- B.arbitrary) yield (_: Task[A]) => b
     }
 
-
-
   implicit def isEqCoeval[A](implicit A: Eq[A]): Eq[Coeval[A]] =
     new Eq[Coeval[A]] {
       def apply(lh: Coeval[A], rh: Coeval[A]): Boolean = {

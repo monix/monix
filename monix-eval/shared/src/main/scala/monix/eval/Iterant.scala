@@ -212,6 +212,13 @@ sealed abstract class Iterant[+A] {
   final def foldLeftL[S](seed: => S)(op: (S,A) => S): Task[S] =
     IterantFoldLeft(this, seed)(op)
 
+  /** Lazily fold the stream to a single value from the right.
+    *
+    * @see [[foldLeftL]] for a left associative fold
+    */
+  final def foldRightL[B](b: Task[B])(f: (A, Task[B]) => Task[B]): Task[B] =
+    IterantFoldRight(this, b)(f)
+
   /** Aggregates all elements in a `List` and preserves order. */
   final def toListL[B >: A]: Task[List[B]] =
     IterantFoldLeft.toListL(this)

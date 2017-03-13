@@ -32,4 +32,8 @@ object Eq {
   implicit val shortEq: Eq[Short] = new Eq[Short] {
     def apply(x: Short, y: Short): Boolean = x == y
   }
+
+  implicit val booleanEq: Eq[Boolean] = new Eq[Boolean] {
+    def apply(x: Boolean, y: Boolean): Boolean = x == y
+  }
 }
