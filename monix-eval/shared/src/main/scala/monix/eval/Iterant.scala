@@ -17,9 +17,10 @@
 
 package monix.eval
 
-import monix.eval.Iterant.Next
+import monix.eval.Iterant.{Next, Suspend}
 import monix.eval.internal._
 import monix.types.{Monad, MonadFilter, MonadRec, MonoidK}
+
 import scala.collection.immutable.LinearSeq
 
 /** The `Iterant` is a type that describes lazy, possibly asynchronous
@@ -174,12 +175,21 @@ sealed abstract class Iterant[+A] {
   final def concat[B](implicit ev: A <:< Iterant[B]): Iterant[B] =
     flatten
 
-  /** Appends the given stream to the end of the source, effectively concatenating them.
+  /** Appends the given stream to the end of the source,
+    * effectively concatenating them.
     *
     * @param rhs is the iterant to append at the end of our source
     */
   final def ++[B >: A](rhs: Iterant[B]): Iterant[B] =
     IterantConcat.concat(this, rhs)
+
+  /** Appends a stream given in the [[Task]] context, possibly lazy
+    * evaluated, to the end of the source, effectively concatenating them.
+    *
+    * @param rhs is the iterant to append at the end of our source
+    */
+  final def ++[B >: A](rhs: Task[Iterant[B]]): Iterant[B] =
+    IterantConcat.concat(this, Suspend(rhs, Task.unit))
 
   /** Prepends an element to the enumerator. */
   final def #::[B >: A](head: B): Iterant[B] =

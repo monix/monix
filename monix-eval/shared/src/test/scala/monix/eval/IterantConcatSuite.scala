@@ -36,4 +36,14 @@ object IterantConcatSuite extends BaseTestSuite {
       received === expected
     }
   }
+
+  test("concat task") { implicit s =>
+    check2 { (list1: List[Int], list2: List[Int]) =>
+      val iter1 = Iterant.fromList(list1)
+      val iter2 = Task.eval(Iterant.fromList(list2))
+      val received = iter1 ++ iter2
+      val expected = Iterant.fromList(list1 ::: list2)
+      received === expected
+    }
+  }
 }
