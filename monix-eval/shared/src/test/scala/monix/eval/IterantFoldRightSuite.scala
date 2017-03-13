@@ -45,15 +45,30 @@ object IterantFoldRightSuite extends BaseTestSuite {
   }
 
   test("Iterant.foldRightL protects against user error") { implicit s =>
-    var effect = 0
-    val iter = Iterant.fromList(List(1,2,3))
-      .doOnEarlyStop(Task.eval(effect += 1))
+    check1 { (prefix: Iterant[Int]) =>
+      var effect = 0
+      val iter = (prefix ++ Iterant.fromList(List(1,2)))
+        .doOnEarlyStop(Task.eval(effect += 1))
 
-    val dummy = DummyException("dummy")
-    val t = iter.foldRightL[Boolean](Task.now(false)) { (e, lb) => throw dummy }
-    val f = t.runAsync; s.tick()
+      val dummy = DummyException("dummy")
+      val t = iter.foldRightL[Boolean](Task.now(false)) { (e, lb) => throw dummy }
+      val f = t.runAsync; s.tick()
 
-    assertEquals(f.value, Some(Failure(dummy)))
-    assertEquals(effect, 1)
+      f.value.contains(Failure(dummy)) && effect == 1
+    }
+  }
+
+  test("Iterant.foldRightL protects against async user error") { implicit s =>
+    check1 { (prefix: Iterant[Int]) =>
+      var effect = 0
+      val iter = (prefix ++ Iterant.fromList(List(1,2)))
+        .doOnEarlyStop(Task.eval(effect += 1))
+
+      val dummy = DummyException("dummy")
+      val t = iter.foldRightL[Boolean](Task.now(false)) { (e, lb) => Task.raiseError(dummy) }
+      val f = t.runAsync; s.tick()
+
+      f.value.contains(Failure(dummy)) && effect == 1
+    }
   }
 }

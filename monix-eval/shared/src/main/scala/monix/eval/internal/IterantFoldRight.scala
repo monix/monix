@@ -27,27 +27,33 @@ private[eval] object IterantFoldRight {
     * Implementation for `Iterant#foldRightL`
     */
   def apply[A, B](source: Iterant[A], b: Task[B])(f: (A, Task[B]) => Task[B]): Task[B] = {
-    @inline def evalNextSeq(items: Iterator[A], rest: Task[Iterant[A]], stop: Task[Unit]): Task[B] = {
+    // Guards against user errors signaled by the returned Task
+    @inline def asyncErrorGuard(fa: Task[B], stop: Task[Unit]): Task[B] =
+      fa.onErrorHandleWith(ex => stop.flatMap(_ => Task.raiseError(ex)))
+
+    @inline def evalNextSeq(ref: NextSeq[A], items: Iterator[A], rest: Task[Iterant[A]], stop: Task[Unit]): Task[B] = {
       if (!items.hasNext)
         rest.flatMap(loop)
       else {
         val item = items.next()
-        // Skipping a beat of items is empty?
-        val tail = if (items.hasNext) Task.now(NextSeq(items, rest, stop)) else rest
-        f(item, tail.flatMap(loop))
+        // Skipping a beat of empty
+        val tail = if (items.hasNext) Task.now(ref) else rest
+        val fa = f(item, tail.flatMap(loop))
+        asyncErrorGuard(fa, stop)
       }
     }
 
     def loop(source: Iterant[A]): Task[B] =
       try source match {
         case Next(item, rest, stop) =>
-          f(item, rest.flatMap(loop))
+          asyncErrorGuard(f(item, rest.flatMap(loop)), stop)
 
-        case NextSeq(items, rest, stop) =>
-          evalNextSeq(items, rest, stop)
+        case ref @ NextSeq(items, rest, stop) =>
+          evalNextSeq(ref, items, rest, stop)
 
-        case NextGen(items, rest, stop) =>
-          evalNextSeq(items.iterator, rest, stop)
+        case ref @ NextGen(items, rest, stop) =>
+          val ref = NextSeq(items.iterator, rest, stop)
+          evalNextSeq(ref, ref.items, rest, stop)
 
         case Suspend(rest, _) =>
           rest.flatMap(loop)
