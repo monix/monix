@@ -73,6 +73,8 @@ private[cats] trait CatsCoreToMonix1 extends CatsCoreToMonix0 {
       F.pure(a)
     override def ap[A, B](ff: F[(A) => B])(fa: F[A]): F[B] =
       F.ap(ff)(fa)
+    override def eval[A](a: => A): F[A] =
+      F.map(F.pure(()))(_ => a)
   }
 }
 
@@ -95,6 +97,8 @@ private[cats] trait CatsCoreToMonix2 extends CatsCoreToMonix1 {
       F.flatMap(fa)(f)
     override def flatten[A](ffa: F[F[A]]): F[A] =
       F.flatten(ffa)
+    override def suspend[A](fa: => F[A]): F[A] =
+      F.flatten(eval(fa))
   }
 }
 

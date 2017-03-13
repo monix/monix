@@ -280,7 +280,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     unsafeMulticast(AsyncSubject[A]())
 
   /** Creates a new [[monix.execution.CancelableFuture CancelableFuture]]
-    * that upon execution will signal the last generated element of the
+    * that upon execution will signal the first generated element of the
     * source observable. Returns an `Option` because the source can be empty.
     */
   def runAsyncGetFirst(implicit s: Scheduler): CancelableFuture[Option[A]] =
@@ -903,7 +903,7 @@ object Observable {
   def suspend[A](fa: => Observable[A]): Observable[A] = defer(fa)
 
   /** Builds a new observable from a strict `head` and a lazily
-    * evaluated head.
+    * evaluated `tail`.
     */
   def cons[A](head: A, tail: Observable[A]): Observable[A] =
     new builders.ConsObservable[A](head, tail)
@@ -1425,8 +1425,8 @@ object Observable {
   implicit val typeClassInstances: TypeClassInstances = new TypeClassInstances
 
   /** Type-class instances for [[Observable]]. */
-  class TypeClassInstances extends Suspendable.Instance[Observable]
-    with Memoizable.Instance[Observable] with MonadError.Instance[Observable,Throwable]
+  class TypeClassInstances extends Memoizable.Instance[Observable]
+    with MonadError.Instance[Observable,Throwable]
     with MonadFilter.Instance[Observable] with MonoidK.Instance[Observable]
     with Cobind.Instance[Observable]
     with MonadRec.Instance[Observable] {

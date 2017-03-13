@@ -60,5 +60,15 @@ trait MonadLawsSuite[F[_], A,B,C] extends ApplicativeLawsSuite[F,A,B,C] {
       check3((fa: F[A], fb: F[B], f: (A,B) => C) =>
         monadLaws.flatMapConsistentMap2(fa, fb, f))
     }
+
+    test(s"Monad[$typeName].suspendEquivalenceWithEval") {
+      check1((a: A) =>
+        monadLaws.suspendEquivalenceWithEval(a))
+    }
+
+    test(s"Monad[$typeName].evalEquivalenceWithSuspend") {
+      check1((fa: F[A]) =>
+        monadLaws.evalEquivalenceWithSuspend(fa))
+    }
   }
 }

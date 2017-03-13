@@ -713,8 +713,7 @@ object Coeval {
 
   /** Groups the implementation for the type-classes defined in [[monix.types]]. */
   class TypeClassInstances
-    extends Suspendable.Instance[Coeval]
-    with Memoizable.Instance[Coeval]
+    extends Memoizable.Instance[Coeval]
     with MonadError.Instance[Coeval,Throwable]
     with Comonad.Instance[Coeval]
     with MonadRec.Instance[Coeval] {

@@ -23,7 +23,7 @@ import monix.execution.schedulers.TestScheduler
 import monix.types.tests.Eq
 import org.scalacheck.Prop
 
-abstract class BaseTestSuite extends TestSuite[TestScheduler]
+trait BaseTestSuite extends TestSuite[TestScheduler]
   with Checkers with ArbitraryInstances {
 
   def setup(): TestScheduler = TestScheduler()

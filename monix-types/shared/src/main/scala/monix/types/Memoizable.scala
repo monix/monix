@@ -19,9 +19,8 @@ package monix.types
 
 import monix.types.utils._
 
-/** A type-class for `F[A]` monads that are [[Suspendable suspendable]]
-  * and whose evaluation can be memoized, along with a guarantee
-  * that the captured side-effects only happen once.
+/** A type-class for `F[A]` monads whose evaluation can be memoized,
+  * along with a guarantee that the captured side-effects only happen once.
   *
   * The `memoize` operation takes an `F[_]` instance and
   * returns a new `F` that guarantees that its evaluation and
@@ -32,12 +31,12 @@ import monix.types.utils._
   * Scala's `Future` doesn't need to do anything special as memoization
   * happens by default and idempotency is guaranteed.
   */
-trait Memoizable[F[_]] extends Serializable with Suspendable.Type[F] {
+trait Memoizable[F[_]] extends Serializable with Monad.Type[F] {
   self: Memoizable.Instance[F] =>
 
   def memoize[A](fa: F[A]): F[A]
   def evalOnce[A](a: => A): F[A] =
-    memoize(eval(a))
+    memoize(self.applicative.eval(a))
 }
 
 object Memoizable {
@@ -46,7 +45,7 @@ object Memoizable {
   /** The `Memoizable.Type` should be inherited in type-classes that
     * are derived from [[Memoizable]].
     */
-  trait Type[F[_]] extends Suspendable.Type[F] {
+  trait Type[F[_]] extends Monad.Type[F] {
     implicit def memoizable: Memoizable[F]
   }
 
@@ -56,7 +55,7 @@ object Memoizable {
     * To be inherited by `Memoizable` instances.
     */
   trait Instance[F[_]] extends Memoizable[F] with Type[F]
-    with Suspendable.Instance[F] {
+    with Monad.Instance[F] {
 
     override final def memoizable: Memoizable[F] = this
   }
@@ -76,8 +75,8 @@ object Memoizable {
   }
 
   /** Laws for [[Memoizable]]. */
-  trait Laws[F[_]] extends Suspendable.Laws[F] with Type[F] {
-    private def E = monadEval
+  trait Laws[F[_]] extends Monad.Laws[F] with Type[F] {
+    private def E = applicative
     private def Z = memoizable
 
     def evalOnceIsIdempotent[A](seed: A, effect: A => A): IsEquiv[F[A]] = {
