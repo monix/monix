@@ -19,7 +19,6 @@ package monix.eval.internal
 
 import monix.eval.{Iterant, Task}
 import monix.eval.Iterant._
-
 import scala.collection.mutable.ArrayBuffer
 import scala.util.control.NonFatal
 
@@ -28,16 +27,20 @@ private[eval] object IterantZipMap {
   def apply[A, B, C](lh: Iterant[A], rh: Iterant[B])(f: (A, B) => C): Iterant[C] = {
     def loop(lh: Iterant[A], rh: Iterant[B]): Iterant[C] = {
       @inline
+      def stopBoth(stopA: Task[Unit], stopB: Task[Unit]): Task[Unit] =
+        stopA.flatMap(_ => stopB)
+      
+      @inline
       def processPair(a: A, restA: Task[Iterant[A]], stopA: Task[Unit], b: B, restB: Task[Iterant[B]], stopB: Task[Unit]) = {
         val rest = Task.zipMap2(restA, restB)(loop)
-        Next(f(a, b), rest, stopA.flatMap(_ => stopB))
+        Next(f(a, b), rest, stopBoth(stopA, stopB))
       }
 
       @inline
       def processOneASeqB(lh: Iterant[A], a: A, restA: Task[Iterant[A]], stopA: Task[Unit], refB: NextSeq[B]): Iterant[C] = {
         val NextSeq(itemsB, restB, stopB) = refB
         if (!itemsB.hasNext)
-          Suspend(restB.map(loop(lh, _)), stopA.flatMap(_ => stopB))
+          Suspend(restB.map(loop(lh, _)), stopBoth(stopA, stopB))
         else
           processPair(a, restA, stopA, itemsB.next(), Task.now(refB), stopB)
       }
@@ -46,7 +49,7 @@ private[eval] object IterantZipMap {
       def processSeqAOneB(refA: NextSeq[A], rh: Iterant[B], b: B, restB: Task[Iterant[B]], stopB: Task[Unit]): Iterant[C] = {
         val NextSeq(itemsA, restA, stopA) = refA
         if (!itemsA.hasNext)
-          Suspend(restA.map(loop(_, rh)), stopA.flatMap(_ => stopB))
+          Suspend(restA.map(loop(_, rh)), stopBoth(stopA, stopB))
         else
           processPair(itemsA.next(), Task.now(refA), stopA, b, restB, stopB)
       }
@@ -55,28 +58,28 @@ private[eval] object IterantZipMap {
       def processSeqASeqB(refA: NextSeq[A], refB: NextSeq[B]): Iterant[C] = {
         val NextSeq(itemsA, restA, stopA) = refA
         val NextSeq(itemsB, restB, stopB) = refB
-        val buffer = ArrayBuffer.empty[C]
 
+        val buffer = ArrayBuffer.empty[C]
         while (itemsA.hasNext && itemsB.hasNext)
           buffer += f(itemsA.next(), itemsB.next())
 
         if (itemsA.isEmpty && itemsB.isEmpty) {
           if (buffer.isEmpty)
-            Suspend(Task.zipMap2(restA, restB)(loop), stopA.flatMap(_ => stopB))
+            Suspend(Task.zipMap2(restA, restB)(loop), stopBoth(stopA, stopB))
           else
-            NextGen(buffer, Task.zipMap2(restA, restB)(loop), stopA.flatMap(_ => stopB))
+            NextGen(buffer, Task.zipMap2(restA, restB)(loop), stopBoth(stopA, stopB))
         }
         else if (itemsA.isEmpty) {
           if (buffer.isEmpty)
-            Suspend(restA.map(loop(_, refB)), stopA.flatMap(_ => stopB))
+            Suspend(restA.map(loop(_, refB)), stopBoth(stopA, stopB))
           else
-            NextGen(buffer, restA.map(loop(_, refB)), stopA.flatMap(_ => stopB))
+            NextGen(buffer, restA.map(loop(_, refB)), stopBoth(stopA, stopB))
         }
         else { // if itemsB.isEmpty
           if (buffer.isEmpty)
-            Suspend(restB.map(loop(refA, _)), stopA.flatMap(_ => stopB))
+            Suspend(restB.map(loop(refA, _)), stopBoth(stopA, stopB))
           else
-            NextGen(buffer, restB.map(loop(refA, _)), stopA.flatMap(_ => stopB))
+            NextGen(buffer, restB.map(loop(refA, _)), stopBoth(stopA, stopB))
         }
       }
 
@@ -97,7 +100,7 @@ private[eval] object IterantZipMap {
             val seqB = NextSeq(itemsB.iterator, restB, stopB)
             processSeqASeqB(lh, seqB)
           case Suspend(restB, stopB) =>
-            Suspend(restB.map(loop(lh, _)), lh.stop.flatMap(_ => stopB))
+            Suspend(restB.map(loop(lh, _)), stopBoth(lh.earlyStop, stopB))
           case Last(b) =>
             val NextSeq(itemsA, restA, stopA) = lh
             if (!itemsA.hasNext)
@@ -107,7 +110,7 @@ private[eval] object IterantZipMap {
               processLast(a, b, stopA)
             }
           case halt @ Halt(_) =>
-            Suspend(lh.stop.map(_ => halt), lh.stop)
+            Suspend(lh.earlyStop.map(_ => halt), lh.earlyStop)
         }
 
       def processLastASeqB(a: A, itemsB: Iterator[B], restB: Task[Iterant[B]], stopB: Task[Unit]) = {
@@ -130,7 +133,7 @@ private[eval] object IterantZipMap {
               val seq = NextSeq(itemsB.iterator, restB, stopB)
               processOneASeqB(lh, a, restA, stopB, seq)
             case Suspend(restB, stopB) =>
-              Suspend(restB.map(loop(lh, _)), stopA.flatMap(_ => stopB))
+              Suspend(restB.map(loop(lh, _)), stopBoth(stopA, stopB))
             case Last(b) =>
               processLast(a, b, stopA)
             case halt @ Halt(_) =>
@@ -148,16 +151,12 @@ private[eval] object IterantZipMap {
           rh match {
             case halt @ Halt(_) =>
               Suspend(stopA.map(_ => halt), stopA)
-            case Suspend(restB, stopB) =>
-              Suspend(Task.zipMap2(restA, restB)(loop), stopA.flatMap(_ => stopB))
-            case Next(_, _, stopB) =>
-              Suspend(restA.map(loop(_, rh)), stopA.flatMap(_ => stopB))
-            case NextSeq(_, _, stopB) =>
-              Suspend(restA.map(loop(_, rh)), stopA.flatMap(_ => stopB))
-            case NextGen(_, _, stopB) =>
-              Suspend(restA.map(loop(_, rh)), stopA.flatMap(_ => stopB))
             case Last(_) =>
               Suspend(restA.map(loop(_, rh)), stopA)
+            case Suspend(restB, stopB) =>
+              Suspend(Task.zipMap2(restA, restB)(loop), stopBoth(stopA, stopB))
+            case _ =>
+              Suspend(restA.map(loop(_, rh)), stopBoth(stopA, rh.earlyStop))
           }
 
         case Last(a) =>
@@ -180,10 +179,8 @@ private[eval] object IterantZipMap {
           rh match {
             case Halt(exB) => Halt(exA.orElse(exB))
             case Last(_) => halt
-            case Next(_, _, stopB) => Suspend(stopB.map(_ => halt), stopB)
-            case NextSeq(_, _, stopB) => Suspend(stopB.map(_ => halt), stopB)
-            case NextGen(_, _, stopB) => Suspend(stopB.map(_ => halt), stopB)
-            case Suspend(_, stopB) => Suspend(stopB.map(_ => halt), stopB)
+            case _ =>
+              Suspend(rh.earlyStop.map(_ => halt), rh.earlyStop)
           }
       }
       catch {
@@ -193,6 +190,9 @@ private[eval] object IterantZipMap {
       }
     }
 
-    loop(lh, rh)
+    // Given function can be side-effecting,
+    // so we must suspend the execution
+    val stop = lh.earlyStop.flatMap(_ => rh.earlyStop)
+    Suspend(Task.eval(loop(lh, rh)), stop)
   }
 }

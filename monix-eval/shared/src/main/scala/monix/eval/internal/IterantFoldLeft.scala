@@ -19,7 +19,6 @@ package monix.eval.internal
 
 import monix.eval.{Iterant, Task}
 import monix.eval.Iterant._
-import monix.eval.internal.IterantStop.earlyStop
 import scala.collection.mutable
 import scala.util.control.NonFatal
 
@@ -50,7 +49,7 @@ private[eval] object IterantFoldLeft {
       }
       catch {
         case NonFatal(ex) =>
-          earlyStop(source).flatMap(_ => Task.raiseError(ex))
+          source.earlyStop.flatMap(_ => Task.raiseError(ex))
       }
     }
 
@@ -63,7 +62,7 @@ private[eval] object IterantFoldLeft {
       }
       catch {
         case NonFatal(ex) if catchErrors =>
-          earlyStop(source).flatMap(_ => Task.raiseError(ex))
+          source.earlyStop.flatMap(_ => Task.raiseError(ex))
       }
     }
   }

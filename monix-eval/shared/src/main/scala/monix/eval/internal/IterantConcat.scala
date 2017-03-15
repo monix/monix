@@ -20,7 +20,6 @@ package monix.eval.internal
 import monix.eval.{Iterant, Task}
 import monix.eval.Iterant._
 import monix.eval.internal.IterantUtils._
-import monix.eval.internal.IterantStop.earlyStop
 import scala.util.control.NonFatal
 
 private[eval] object IterantConcat {
@@ -33,7 +32,7 @@ private[eval] object IterantConcat {
       case _ =>
         // Given function can be side-effecting,
         // so we must suspend the execution
-        Suspend(Task.eval(unsafeFlatMap(source)(f)), earlyStop(source))
+        Suspend(Task.eval(unsafeFlatMap(source)(f)), source.earlyStop)
     }
 
   /**

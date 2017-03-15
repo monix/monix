@@ -69,8 +69,7 @@ private[eval] object IterantFoldRight {
       }
       catch {
         case NonFatal(ex) =>
-          val stop = IterantStop.earlyStop(source)
-          stop.flatMap(_ => Task.raiseError(ex))
+          source.earlyStop.flatMap(_ => Task.raiseError(ex))
       }
 
     source match {

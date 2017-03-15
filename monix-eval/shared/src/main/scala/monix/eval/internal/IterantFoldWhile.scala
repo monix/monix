@@ -18,7 +18,6 @@
 package monix.eval.internal
 
 import monix.eval.Iterant.{Halt, Last, Next, NextGen, NextSeq, Suspend}
-import monix.eval.internal.IterantStop.earlyStop
 import monix.eval.{Iterant, Task}
 import scala.util.control.NonFatal
 
@@ -78,7 +77,7 @@ private[eval] object IterantFoldWhile {
       }
       catch {
         case NonFatal(ex) =>
-          earlyStop(source).flatMap(_ => Task.raiseError(ex))
+          source.earlyStop.flatMap(_ => Task.raiseError(ex))
       }
     }
 
@@ -91,7 +90,7 @@ private[eval] object IterantFoldWhile {
       }
       catch {
         case NonFatal(ex) if catchErrors =>
-          earlyStop(source).flatMap(_ => Task.raiseError(ex))
+          source.earlyStop.flatMap(_ => Task.raiseError(ex))
       }
     }
   }

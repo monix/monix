@@ -24,19 +24,6 @@ import scala.util.control.NonFatal
 
 private[eval] object IterantStop {
   /**
-    * Implementation for `Iterant#earlyStop`
-    */
-  def earlyStop[A](source: Iterant[A]): Task[Unit] =
-    source match {
-      case Next(_, _, ref) => ref
-      case NextSeq(_, _, ref) => ref
-      case NextGen(_, _, ref) => ref
-      case Suspend(_, ref) => ref
-      case Last(_) => Task.unit
-      case Halt(_) => Task.unit
-    }
-
-  /**
     * Implementation for `Iterant#doOnEarlyStop`
     */
   def doOnEarlyStop[A](source: Iterant[A], f: Task[Unit]): Iterant[A] = {

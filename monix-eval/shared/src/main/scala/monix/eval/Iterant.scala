@@ -17,7 +17,7 @@
 
 package monix.eval
 
-import monix.eval.Iterant.{Next, Suspend}
+import monix.eval.Iterant.{Halt, Last, Next, NextGen, NextSeq, Suspend}
 import monix.eval.internal._
 import monix.types.{Monad, MonadFilter, MonadRec, MonoidK}
 
@@ -67,6 +67,14 @@ import scala.collection.immutable.LinearSeq
   * @tparam A is the type of the elements produced by this Iterant
   */
 sealed abstract class Iterant[+A] {
+  /** Returns a computation that should be evaluated in
+    * case the streaming must stop before reaching the end.
+    *
+    * This is useful to release any acquired resources,
+    * like opened file handles or network sockets.
+    */
+  def earlyStop: Task[Unit]
+
   /** Builds a new iterant by applying a partial function to all elements of
     * the source on which the function is defined.
     *
@@ -79,15 +87,6 @@ sealed abstract class Iterant[+A] {
     */
   final def collect[B](pf: PartialFunction[A,B]): Iterant[B] =
     IterantCollect(this, pf)
-
-  /** Returns a computation that should be evaluated in
-    * case the streaming must stop before reaching the end.
-    *
-    * This is useful to release any acquired resources,
-    * like opened file handles or network sockets.
-    */
-  final def earlyStop: Task[Unit] =
-    IterantStop.earlyStop(this)
 
   /** Given a routine make sure to execute it whenever
     * the consumer executes the current `stop` action.
@@ -284,6 +283,30 @@ sealed abstract class Iterant[+A] {
     */
   final def zipMap[B, C](rh: Iterant[B])(f: (A, B) => C): Iterant[C] =
     IterantZipMap(this, rh)(f)
+
+  override def toString: String = {
+    import concurrent.Await
+    import monix.execution.Scheduler.Implicits.global
+    import concurrent.duration._
+    this match {
+      case Next(a, rest, stop) =>
+        val restStr = Await.result(rest.map(_.toString).runAsync, Duration.Inf)
+        s"Next($a, Task($restStr), $stop)"
+      case NextSeq(a, rest, stop) =>
+        val restStr = Await.result(rest.map(_.toString).runAsync, Duration.Inf)
+        s"NextSeq(Iterator(${a.toList.mkString(", ")}), Task($restStr), $stop)"
+      case NextGen(a, rest, stop) =>
+        val restStr = Await.result(rest.map(_.toString).runAsync, Duration.Inf)
+        s"NextGen(${a.toList}, Task($restStr), $stop)"
+      case Suspend(rest, stop) =>
+        val restStr = Await.result(rest.map(_.toString).runAsync, Duration.Inf)
+        s"Suspend(Task($restStr), $stop)"
+      case Last(a) =>
+        s"Last($a)"
+      case Halt(ex) =>
+        s"Halt($ex)"
+    }
+  }
 }
 
 /** Defines the standard [[Iterant]] builders.
@@ -537,12 +560,12 @@ object Iterant {
     *
     * @param item $headParamDesc
     * @param rest $restParamDesc
-    * @param stop $stopParamDesc
+    * @param earlyStop $stopParamDesc
     */
   final case class Next[+A](
     item: A,
     rest: Task[Iterant[A]],
-    stop: Task[Unit])
+    earlyStop: Task[Unit])
     extends Iterant[A]
 
   /** $LastDesc
@@ -550,40 +573,43 @@ object Iterant {
     * @param item $lastParamDesc
     */
   final case class Last[+A](item: A)
-    extends Iterant[A]
+    extends Iterant[A] {
+
+    def earlyStop = Task.unit
+  }
 
   /** $NextSeqDesc
     *
     * @param items $cursorParamDesc
     * @param rest $restParamDesc
-    * @param stop $stopParamDesc
+    * @param earlyStop $stopParamDesc
     */
   final case class NextSeq[+A](
     items: Iterator[A],
     rest: Task[Iterant[A]],
-    stop: Task[Unit])
+    earlyStop: Task[Unit])
     extends Iterant[A]
 
   /** $NextGenDesc
     *
     * @param items $generatorParamDesc
     * @param rest $restParamDesc
-    * @param stop $stopParamDesc
+    * @param earlyStop $stopParamDesc
     */
   final case class NextGen[+A](
     items: Iterable[A],
     rest: Task[Iterant[A]],
-    stop: Task[Unit])
+    earlyStop: Task[Unit])
     extends Iterant[A]
 
   /** $SuspendDesc
     *
     * @param rest $restParamDesc
-    * @param stop $stopParamDesc
+    * @param earlyStop $stopParamDesc
     */
   final case class Suspend[+A](
     rest: Task[Iterant[A]],
-    stop: Task[Unit])
+    earlyStop: Task[Unit])
     extends Iterant[A]
 
   /** $HaltDesc
@@ -591,7 +617,10 @@ object Iterant {
     * @param ex $exParamDesc
     */
   final case class Halt(ex: Option[Throwable])
-    extends Iterant[Nothing]
+    extends Iterant[Nothing] {
+
+    def earlyStop = Task.unit
+  }
 
   private[this] final val emptyReference: Iterant[Nothing] =
     Halt(None)
