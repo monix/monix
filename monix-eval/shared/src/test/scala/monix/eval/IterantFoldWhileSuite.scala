@@ -47,7 +47,7 @@ object IterantFoldWhileSuite extends BaseTestSuite {
       val t = iter.findL { e => throw dummy }
       val f = t.runAsync; s.tick()
 
-      f.value.contains(Failure(dummy)) && effect == 1
+      f.value == Some(Failure(dummy)) && effect == 1
     }
   }
 
@@ -69,7 +69,7 @@ object IterantFoldWhileSuite extends BaseTestSuite {
       val t = iter.existsL { e => throw dummy }
       val f = t.runAsync; s.tick()
 
-      f.value.contains(Failure(dummy)) && effect == 1
+      f.value == Some(Failure(dummy)) && effect == 1
     }
   }
 
@@ -91,7 +91,7 @@ object IterantFoldWhileSuite extends BaseTestSuite {
       val t = iter.forallL { e => throw dummy }
       val f = t.runAsync; s.tick()
 
-      f.value.contains(Failure(dummy)) && effect == 1
+      f.value == Some(Failure(dummy)) && effect == 1
     }
   }
 

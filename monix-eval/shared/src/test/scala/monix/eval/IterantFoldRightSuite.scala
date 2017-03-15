@@ -53,7 +53,7 @@ object IterantFoldRightSuite extends BaseTestSuite {
       val t = iter.foldRightL[Boolean](Task.now(false)) { (e, lb) => throw dummy }
       val f = t.runAsync; s.tick()
 
-      f.value.contains(Failure(dummy)) && effect == 1
+      f.value == Some(Failure(dummy)) && effect == 1
     }
   }
 
@@ -67,7 +67,7 @@ object IterantFoldRightSuite extends BaseTestSuite {
       val t = iter.foldRightL[Boolean](Task.now(false)) { (e, lb) => Task.raiseError(dummy) }
       val f = t.runAsync; s.tick()
 
-      f.value.contains(Failure(dummy)) && effect == 1
+      f.value == Some(Failure(dummy)) && effect == 1
     }
   }
 }

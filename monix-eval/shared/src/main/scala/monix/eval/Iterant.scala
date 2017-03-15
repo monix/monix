@@ -275,6 +275,15 @@ sealed abstract class Iterant[+A] {
   /** Aggregates all elements in a `List` and preserves order. */
   final def toListL[B >: A]: Task[List[B]] =
     IterantFoldLeft.toListL(this)
+
+  /** Lazily zip two iterants together, using the given function `f` to
+    * produce output values.
+    *
+    * The length of the result will be the shorter of the two
+    * arguments.
+    */
+  final def zipMap[B, C](rh: Iterant[B])(f: (A, B) => C): Iterant[C] =
+    IterantZipMap(this, rh)(f)
 }
 
 /** Defines the standard [[Iterant]] builders.
