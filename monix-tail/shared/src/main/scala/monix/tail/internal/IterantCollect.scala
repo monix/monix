@@ -20,8 +20,8 @@ package monix.tail.internal
 import monix.tail.Iterant
 import monix.tail.Iterant._
 import monix.tail.internal.IterantUtils._
-import monix.tail.internal.IterantStop.earlyStop
 import monix.types.Applicative
+import monix.types.syntax._
 import scala.util.control.NonFatal
 
 private[tail] object IterantCollect {
@@ -36,20 +36,20 @@ private[tail] object IterantCollect {
     def loop(source: Iterant[F,A]): Iterant[F,B] = {
       try source match {
         case Next(item, rest, stop) =>
-          if (pf.isDefinedAt(item)) Next[F,B](pf(item), F.map(rest)(loop), stop)
-          else Suspend(F.map(rest)(loop), stop)
+          if (pf.isDefinedAt(item)) Next[F,B](pf(item), rest.map(loop), stop)
+          else Suspend(rest.map(loop), stop)
 
         case NextSeq(items, rest, stop) =>
           val filtered = items.collect(pf)
-          val restF = F.map(rest)(loop)
+          val restF = rest.map(loop)
           if (filtered.hasNext) NextSeq(filtered, restF, stop)
           else Suspend(restF, stop)
 
         case NextGen(items, rest, stop) =>
-          NextGen(items.collect(pf), F.map(rest)(loop), stop)
+          NextGen(items.collect(pf), rest.map(loop), stop)
 
         case Suspend(rest, stop) =>
-          Suspend(F.map(rest)(loop), stop)
+          Suspend(rest.map(loop), stop)
 
         case Last(item) =>
           if (pf.isDefinedAt(item)) Last(pf(item)) else Halt(None)
@@ -67,7 +67,7 @@ private[tail] object IterantCollect {
       case _ =>
         // Given function can be side-effecting,
         // so we must suspend the execution
-        Suspend(A.eval(loop(source)), earlyStop(source))
+        Suspend(A.eval(loop(source)), source.earlyStop)
     }
   }
 }

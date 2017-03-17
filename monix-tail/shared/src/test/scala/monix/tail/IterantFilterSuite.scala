@@ -20,14 +20,9 @@ package monix.tail
 import monix.eval.{Coeval, Task}
 import monix.execution.exceptions.DummyException
 import monix.tail.Iterant.Suspend
-import org.scalacheck.Test.Parameters
-
 import scala.util.Failure
 
 object IterantFilterSuite extends BaseTestSuite {
-  override lazy val checkConfig: Parameters =
-    super.checkConfig.withMaxSize(64)
-
   test("Iterant.filter <=> List.filter") { implicit s =>
     check2 { (stream: Iterant[Task, Int], p: Int => Boolean) =>
       val received = stream.filter(p).toListL

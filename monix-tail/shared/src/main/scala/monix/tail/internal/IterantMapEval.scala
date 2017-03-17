@@ -20,8 +20,8 @@ package monix.tail.internal
 import monix.tail.Iterant
 import monix.tail.Iterant._
 import monix.tail.internal.IterantUtils._
-import monix.tail.internal.IterantStop.earlyStop
 import monix.types.Applicative
+import monix.types.syntax._
 import scala.util.control.NonFatal
 
 private[tail] object IterantMapEval {
@@ -33,13 +33,13 @@ private[tail] object IterantMapEval {
 
     @inline def evalNextSeq(ref: NextSeq[F, A], cursor: Iterator[A], rest: F[Iterant[F, A]], stop: F[Unit]) = {
       if (!cursor.hasNext)
-        Suspend[F, B](F.map(rest)(loop), stop)
+        Suspend[F, B](rest.map(loop), stop)
       else {
         val head = cursor.next()
         val fa = f(head)
         // If the iterator is empty, then we can skip a beat
         val tail = if (cursor.hasNext) A.pure(ref: Iterant[F, A]) else rest
-        val suspended = F.map(fa)(h => nextS(h, F.map(tail)(loop), stop))
+        val suspended = fa.map(h => nextS(h, tail.map(loop), stop))
         Suspend[F, B](suspended, stop)
       }
     }
@@ -48,7 +48,7 @@ private[tail] object IterantMapEval {
       try source match {
         case Next(head, tail, stop) =>
           val fa = f(head)
-          val rest = F.map(fa)(h => nextS(h, F.map(tail)(loop), stop))
+          val rest = fa.map(h => nextS(h, tail.map(loop), stop))
           Suspend(rest, stop)
 
         case ref @ NextSeq(cursor, rest, stop) =>
@@ -60,11 +60,11 @@ private[tail] object IterantMapEval {
           evalNextSeq(ref, cursor, rest, stop)
 
         case Suspend(rest, stop) =>
-          Suspend[F,B](F.map(rest)(loop), stop)
+          Suspend[F,B](rest.map(loop), stop)
 
         case Last(item) =>
           val fa = f(item)
-          Suspend(F.map(fa)(h => lastS[F,B](h)), A.unit)
+          Suspend(fa.map(h => lastS[F,B](h)), A.unit)
 
         case halt @ Halt(_) =>
           halt.asInstanceOf[Iterant[F, B]]
@@ -78,7 +78,7 @@ private[tail] object IterantMapEval {
       case _ =>
         // Given function can be side-effecting,
         // so we must suspend the execution
-        Suspend(A.eval(loop(source)), earlyStop(source))
+        Suspend(A.eval(loop(source)), source.earlyStop)
     }
   }
 }

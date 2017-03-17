@@ -19,7 +19,6 @@ package monix.tail
 
 import monix.eval.{Coeval, Task}
 import monix.execution.exceptions.DummyException
-
 import scala.util.Failure
 
 object IterantFoldLeftSuite extends BaseTestSuite {
@@ -57,7 +56,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
 
     s.tick()
     assertEquals(r.value, Some(Failure(dummy)))
-    assert(wasCanceled, "wasCanceled should be true")
+    assert(!wasCanceled, "wasCanceled should not be true")
   }
 
   test("Iterant[Task].foldLeftL protects against user code in the seed") { implicit s =>
@@ -93,7 +92,6 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     check(result === Task.raiseError[Int](dummy))
     assert(wasCanceled, "wasCanceled should be true")
   }
-
 
   test("Iterant[Task].foldLeftL should protect against broken cursors") { implicit s =>
     check1 { (prefix: Iterant[Task, Int]) =>
@@ -139,7 +137,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     val r = b.nextS(1, Coeval(b.nextS(2, Coeval(b.raiseError[Int](dummy)), c)), c).toListL.runTry
 
     assertEquals(r, Failure(dummy))
-    assert(wasCanceled, "wasCanceled should be true")
+    assert(!wasCanceled, "wasCanceled should not be true")
   }
 
   test("Iterant[Coeval].foldLeftL protects against user code in the seed") { implicit s =>

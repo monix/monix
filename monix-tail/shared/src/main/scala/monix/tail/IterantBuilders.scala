@@ -214,6 +214,7 @@ object IterantBuilders {
   // Try here is being ignored.
   private val genericFromAny: FromAny[Try] =
     new FromAny[Try]
+
   // Relying on type-erasure to build a generic instance.
   // Try here is being ignored.
   private final val genericBuildersInstance: IterantBuilders[Try] =

@@ -19,6 +19,8 @@ package monix.tail
 
 import monix.eval.{Coeval, Task}
 import monix.execution.exceptions.DummyException
+import monix.tail.Iterant.Suspend
+
 import scala.util.Failure
 
 object IterantMapEvalSuite extends BaseTestSuite {
@@ -238,5 +240,56 @@ object IterantMapEvalSuite extends BaseTestSuite {
       val stream = (prefix ++ error).mapEval(x => Coeval.now(x))
       stream === Iterant[Coeval].haltS[Int](Some(dummy))
     }
+  }
+
+  test("Iterant.mapEval suspends the evaluation for NextGen") { implicit s =>
+    val dummy = DummyException("dummy")
+    val items = new ThrowExceptionIterable(dummy)
+    val iter = Iterant[Task].nextGenS[Int](items, Task.now(Iterant[Task].empty), Task.unit)
+    val state = iter.mapEval(Task.now)
+
+    assert(state.isInstanceOf[Suspend[Task, Int]], "state.isInstanceOf[Suspend[Task, Int]]")
+    assert(!items.isTriggered, "!items.isTriggered")
+    assertEquals(state.toListL.runAsync.value, Some(Failure(dummy)))
+  }
+
+  test("Iterant.mapEval suspends the evaluation for NextSeq") { implicit s =>
+    val dummy = DummyException("dummy")
+    val items = new ThrowExceptionIterator(dummy)
+    val iter = Iterant[Task].nextSeqS[Int](items, Task.now(Iterant[Task].empty), Task.unit)
+    val state = iter.mapEval(Task.now)
+
+    assert(state.isInstanceOf[Suspend[Task, Int]], "state.isInstanceOf[Suspend[Task, Int]]")
+    assert(!items.isTriggered, "!items.isTriggered")
+    assertEquals(state.toListL.runAsync.value, Some(Failure(dummy)))
+  }
+
+  test("Iterant.mapEval suspends the evaluation for Next") { implicit s =>
+    val dummy = DummyException("dummy")
+    val iter = Iterant[Task].nextS(1, Task.now(Iterant[Task].empty[Int]), Task.unit)
+    val state = iter.mapEval { x => (throw dummy): Task[Int] }
+
+    assert(state.isInstanceOf[Suspend[Task, Int]], "state.isInstanceOf[Suspend[Int]]")
+    assertEquals(state.toListL.runAsync.value, Some(Failure(dummy)))
+  }
+
+  test("Iterant.mapEval suspends the evaluation for Last") { implicit s =>
+    val dummy = DummyException("dummy")
+    val iter = Iterant[Task].lastS(1)
+    val state = iter.mapEval { x => (throw dummy): Task[Int] }
+
+    assert(state.isInstanceOf[Suspend[Task, Int]])
+    assertEquals(state.toListL.runAsync.value, Some(Failure(dummy)))
+  }
+
+  test("Iterant.mapEval doesn't touch Halt") { implicit s =>
+    val dummy = DummyException("dummy")
+    val iter1: Iterant[Task, Int] = Iterant[Task].haltS(Some(dummy))
+    val state1 = iter1.mapEval(Task.now)
+    assertEquals(state1, iter1)
+
+    val iter2: Iterant[Task, Int] = Iterant[Task].haltS(None)
+    val state2 = iter2.mapEval { x => (throw dummy) : Task[Int] }
+    assertEquals(state2, iter2)
   }
 }

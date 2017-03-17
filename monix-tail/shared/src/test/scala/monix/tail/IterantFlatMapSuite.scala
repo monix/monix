@@ -79,14 +79,9 @@ object IterantFlatMapSuite extends BaseTestSuite {
       for (x <- stream1; y <- stream2; z <- stream3)
         yield x + y + z
 
-    composed match {
-      case Iterant.Next(head, _, stop) =>
-        assertEquals(head, 6)
-        assertEquals(stop.runSyncMaybe, Right(()))
-        assertEquals(effects, Vector(3,2,1))
-      case state =>
-        fail(s"Invalid state: $state")
-    }
+    val result = composed.headOption.runAsync; s.tick()
+    assertEquals(result.value, Some(Success(Some(6))))
+    assertEquals(effects, Vector(3,2,1))
   }
 
   test("Iterant[Task].nextSeq.flatMap chains stop") { implicit s =>
@@ -232,14 +227,8 @@ object IterantFlatMapSuite extends BaseTestSuite {
       for (x <- stream1; y <- stream2; z <- stream3)
         yield x + y + z
 
-    composed match {
-      case Iterant.Next(head, _, stop) =>
-        assertEquals(head, 6)
-        assertEquals(stop.value, ())
-        assertEquals(effects, Vector(3,2,1))
-      case state =>
-        fail(s"Invalid state: $state")
-    }
+    assertEquals(composed.headOption.value, Some(6))
+    assertEquals(effects, Vector(3,2,1))
   }
 
   test("Iterant[Coeval].nextSeq.flatMap chains stop") { implicit s =>

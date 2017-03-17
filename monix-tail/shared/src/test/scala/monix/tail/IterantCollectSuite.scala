@@ -20,14 +20,9 @@ package monix.tail
 import monix.eval.{Coeval, Task}
 import monix.execution.exceptions.DummyException
 import monix.tail.Iterant.Suspend
-import org.scalacheck.Test.Parameters
-
 import scala.util.Failure
 
 object IterantCollectSuite extends BaseTestSuite {
-  override lazy val checkConfig: Parameters =
-    super.checkConfig.withMaxSize(64)
-
   test("Iterant.collect <=> List.collect") { implicit s =>
     check3 { (stream: Iterant[Task, Int], p: Int => Boolean, f: Int => Int) =>
       val pf: PartialFunction[Int,Int] = { case x if p(x) => f(x) }

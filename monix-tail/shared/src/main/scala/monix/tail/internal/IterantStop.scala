@@ -17,27 +17,14 @@
 
 package monix.tail.internal
 
-import monix.types.syntax._
 import monix.tail.Iterant
 import monix.tail.Iterant.{Halt, Last, Next, NextGen, NextSeq, Suspend}
 import monix.tail.internal.IterantUtils._
-import monix.types.{Applicative, Monad}
+import monix.types.Monad
+import monix.types.syntax._
 import scala.util.control.NonFatal
 
 private[tail] object IterantStop {
-  /**
-    * Implementation for `Iterant#earlyStop`
-    */
-  def earlyStop[F[_], A](source: Iterant[F, A])(implicit F: Applicative[F]): F[Unit] =
-    source match {
-      case Next(_, _, ref) => ref
-      case NextSeq(_, _, ref) => ref
-      case NextGen(_, _, ref) => ref
-      case Suspend(_, ref) => ref
-      case Last(_) => F.unit
-      case Halt(_) => F.unit
-    }
-
   /**
     * Implementation for `Iterant#doOnEarlyStop`
     */
