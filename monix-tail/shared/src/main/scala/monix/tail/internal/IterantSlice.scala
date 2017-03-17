@@ -25,7 +25,7 @@ import scala.util.control.NonFatal
 
 private[tail] object IterantSlice {
   /** Implementation for `Iterant#headOption`. */
-  def headOption[F[_], A](source: Iterant[F, A])(implicit F: Monad[F]): F[Option[A]] = {
+  def headOptionL[F[_], A](source: Iterant[F, A])(implicit F: Monad[F]): F[Option[A]] = {
     import F.{functor, applicative => A}
 
     def loop(source: Iterant[F, A]): F[Option[A]] = {

@@ -113,10 +113,17 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant[Coeval].toListL (foldLeftL)") { implicit s =>
+  test("Iterant[Coeval].toList (Comonad)") { implicit s =>
     check1 { (list: List[Int]) =>
-      val result = Iterant[Coeval].fromIterable(list).toListL
-      result === Coeval.now(list)
+      val result = Iterant[Coeval].fromIterable(list).toList
+      result == list
+    }
+  }
+
+  test("Iterant[Coeval].foldLeft (Comonad)") { implicit s =>
+    check1 { (list: List[Int]) =>
+      val result = Iterant[Coeval].fromIterable(list).foldLeft(0)(_ + _)
+      result == list.sum
     }
   }
 

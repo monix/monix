@@ -42,21 +42,22 @@ import scala.collection.immutable.LinearSeq
   * The type is an ADT, meaning a composite of the following types:
   *
   *  - [[monix.tail.Iterant.Next Next]] which signals a single strict
-  * element, the `head` and a `rest` representing the rest of the stream
+  *    element, the `head` and a `rest` representing the rest of the stream
   *  - [[monix.tail.Iterant.NextSeq NextSeq]] is a variation on `Next`
-  * for signaling a whole strict batch of elements as a traversable
-  * [[scala.collection.Iterator Iterator]], along with the `rest`
-  * representing the rest of the stream
+  *    for signaling a whole strict batch of elements as a traversable
+  *    [[scala.collection.Iterator Iterator]], along with the `rest`
+  *    representing the rest of the stream
   *  - [[monix.tail.Iterant.NextGen NextGen]] is a variation on `Next`
-  * for signaling a whole batch of elements by means of an `Iterable`,
-  * along with the `rest` representing the rest of the stream
+  *    for signaling a whole batch of elements by means of an
+  *    `Iterable`, along with the `rest` representing the rest of the
+  *    stream
   *  - [[monix.tail.Iterant.Suspend Suspend]] is for suspending the
-  * evaluation of a stream
-  *  - [[monix.tail.Iterant.Halt Halt]] represents an empty
-  * stream, signaling the end, either in success or in error
+  *    evaluation of a stream
+  *  - [[monix.tail.Iterant.Halt Halt]] represents an empty stream,
+  *    signaling the end, either in success or in error
   *  - [[monix.tail.Iterant.Last Last]] represents a one-element
-  * stream, where `Last(item)` as an optimisation on
-  * `Next(item, F.pure(Halt(None)), F.unit)`
+  *    stream, where `Last(item)` as an optimisation on
+  *    `Next(item, F.pure(Halt(None)), F.unit)`
   *
   * The `Iterant` type accepts as type parameter an `F` monadic type
   * that is used to control how evaluation happens. For example you can
@@ -73,29 +74,62 @@ import scala.collection.immutable.LinearSeq
   * committed in Cats by Erik Osheim. It was also inspired by other
   * push-based streaming abstractions, like the `Iteratee` or
   * `IAsyncEnumerable`.
+  * 
+  * @define foldLeftDesc Left associative fold using the function `f`.
+  *
+  *         On execution the stream will be traversed from left to
+  *         right, and the given function will be called with the
+  *         prior result, accumulating state until the end, when the
+  *         summary is returned.
+  * 
+  * @define foldLeftReturnDesc the result of inserting `op` between consecutive
+  *         elements of this iterant, going from left to right with
+  *         the `seed` as the start value, or `seed` if the iterant
+  *         is empty.
   *
   * @define functorParamDesc is the [[monix.types.Functor functor]]
-  * instance that controls the evaluation for our iterant for this operation.
-  * Note that if the source iterant is powered by [[monix.eval.Task Task]] or
-  * [[monix.eval.Coeval Coeval]] one such instance is globally available.
+  *         instance that controls the evaluation for our iterant for
+  *         this operation.  Note that if the source iterant is
+  *         powered by [[monix.eval.Task Task]] or 
+  *         [[monix.eval.Coeval Coeval]] one such instance is globally 
+  *         available.
   *
-  * @define applicativeParamDesc is the [[monix.types.Applicative applicative]]
-  * instance that controls the evaluation for our iterant for this operation.
-  * Note that if the source iterant is powered by [[monix.eval.Task Task]] or
-  * [[monix.eval.Coeval Coeval]] one such instance is globally available.
+  * @define applicativeParamDesc is the [[monix.types.Applicative applicative]] 
+  *         instance that controls the evaluation for our iterant for
+  *         this operation.  Note that if the source iterant is
+  *         powered by [[monix.eval.Task Task]] or [[monix.eval.Coeval Coeval]] 
+  *         one such instance is globally available.
   *
-  * @define monadParamDesc is the [[monix.types.Monad monad]]
-  * instance that controls the evaluation for our iterant for this operation.
-  * Note that if the source iterant is powered by [[monix.eval.Task Task]] or
-  * [[monix.eval.Coeval Coeval]] one such instance should be globally available.
+  * @define monadParamDesc is the [[monix.types.Monad monad]] instance
+  *         that controls the evaluation for our iterant for this
+  *         operation.  Note that if the source iterant is powered by
+  *         [[monix.eval.Task Task]] or [[monix.eval.Coeval Coeval]]
+  *         one such instance should be globally available.
   *
-  * @define monadErrorParamDesc is the [[monix.types.MonadError MonadError]]
-  * instance that controls the evaluation for our iterant for this operation.
-  * Note that if the source iterant is powered by [[monix.eval.Task Task]] or
-  * [[monix.eval.Coeval Coeval]] one such instance is globally available.
+  * @define comonadParamDesc is the [[monix.types.Comonad Comonad]]
+  *         instance that can extract values from our `F[_]`
+  *         context. So for example if we use 
+  *         [[monix.eval.Coeval Coeval]], given that it has a
+  *         `Comonad` implementation, this means we can extract
+  *         results immediately from it without blocking any threads.
   *
-  * @tparam F is the monadic type that controls evaluation; note that it
-  * must be stack-safe in its `map` and `flatMap` operations
+  * @define monadErrorParamDesc is the [[monix.types.MonadError MonadError]] 
+  *         instance that controls the evaluation for our iterant for
+  *         this operation.  Note that if the source iterant is
+  *         powered by [[monix.eval.Task Task]] or 
+  *         [[monix.eval.Coeval Coeval]] one such instance is globally 
+  *         available.
+  *
+  * @define strictVersionDesc for the strict (immediate, synchronous)
+  *         version, assuming the `F[_]` type allows it (has a `Comonad`
+  *         implementation)
+  *
+  * @define lazyVersionDesc for the lazy version (that doesn't pull
+  *         values out of the evaluation context)
+  * 
+  * @tparam F is the data type that controls evaluation; note that
+  *         it must be stack-safe in its `map` and `flatMap`
+  *         operations
   *
   * @tparam A is the type of the elements produced by this Iterant
   */
@@ -104,7 +138,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
 
   import Iterant._
 
-  /** Appends the given stream to the end of the source, effectively concatenating them.
+  /** Appends the given stream to the end of the source, effectively
+    * concatenating them.
     *
     * @param rhs is the iterant to append at the end of our source
     * @param F $applicativeParamDesc
@@ -112,8 +147,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def ++[B >: A](rhs: Iterant[F, B])(implicit F: Applicative[F]): Iterant[F, B] =
     IterantConcat.concat(this.upcast[B], rhs)(F)
 
-  /** Appends a stream given in the [[Task]] context, possibly lazy
-    * evaluated, to the end of the source, effectively concatenating them.
+  /** Appends a stream to the end of the source, effectively
+    * concatenating them.
     *
     * @param rhs is the iterant to append at the end of our source
     * @param F $applicativeParamDesc
@@ -125,16 +160,17 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def #::[B >: A](head: B)(implicit F: Applicative[F]): Iterant[F, B] =
     Next(head, F.pure(self.upcast[B]), earlyStop)
 
-  /** Builds a new iterant by applying a partial function to all elements of
-    * the source on which the function is defined.
+  /** Builds a new iterant by applying a partial function to all
+    * elements of the source on which the function is defined.
     *
     * @param pf the partial function that filters and maps the iterant
     * @param F $applicativeParamDesc
     * @tparam B the element type of the returned iterant.
     *
-    * @return a new iterant resulting from applying the partial function
-    * `pf` to each element on which it is defined and collecting the results.
-    * The order of the elements is preserved.
+    * @return a new iterant resulting from applying the partial
+    *         function `pf` to each element on which it is defined and
+    *         collecting the results.  The order of the elements is
+    *         preserved.
     */
   final def collect[B](pf: PartialFunction[A, B])(implicit F: Applicative[F]): Iterant[F, B] =
     IterantCollect(this, pf)(F)
@@ -155,11 +191,12 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   /** Returns a new enumerator in which `f` is scheduled to be executed
     * on [[Iterant.Halt halt]] or on [[earlyStop]].
     *
-    * This would typically be used to release any resources acquired by
-    * this enumerator.
+    * This would typically be used to release any resources acquired
+    * by this enumerator.
     *
-    * Note that [[doOnEarlyStop]] is subsumed under this operation, the
-    * given `f` being evaluated on both reaching the end or canceling early.
+    * Note that [[doOnEarlyStop]] is subsumed under this operation,
+    * the given `f` being evaluated on both reaching the end or
+    * canceling early.
     *
     * @param f is the function to execute on early stop
     * @param F $monadParamDesc
@@ -167,18 +204,18 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   def doOnFinish(f: Option[Throwable] => F[Unit])(implicit F: Monad[F]): Iterant[F, A] =
     IterantStop.doOnFinish(this, f)(F)
 
-  /** Returns a computation that should be evaluated in
-    * case the streaming must stop before reaching the end.
+  /** Returns a computation that should be evaluated in case the
+    * streaming must stop before reaching the end.
     *
-    * This is useful to release any acquired resources,
-    * like opened file handles or network sockets.
+    * This is useful to release any acquired resources, like opened
+    * file handles or network sockets.
     *
     * @param F $applicativeParamDesc
     */
   def earlyStop(implicit F: Applicative[F]): F[Unit]
 
-  /** Filters the iterant by the given predicate function,
-    * returning only those elements that match.
+  /** Filters the iterant by the given predicate function, returning
+    * only those elements that match.
     *
     * @param p the predicate used to test elements.
     * @param F $applicativeParamDesc
@@ -192,15 +229,30 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   /** Optionally selects the first element.
     *
     * @param F $monadParamDesc
+    * @param C $comonadParamDesc
     *
-    * @return the first element of this iterant if it is nonempty,
-    *         or `None` if it is empty, in the `F` context.
+    * @see [[headOptionL]] $lazyVersionDesc
+    *
+    * @return the first element of this iterant if it is nonempty, or
+    *         `None` if it is empty, in the `F` context.
     */
-  final def headOption(implicit F: Monad[F]): F[Option[A]] =
-    IterantSlice.headOption(self)(F)
+  final def headOption(implicit F: Monad[F], C: Comonad[F]): Option[A] =
+    C.extract(IterantSlice.headOptionL(self)(F))
 
-  /** Returns a new stream by mapping the supplied function
-    * over the elements of the source.
+  /** Optionally selects the first element.
+    *
+    * @param F $monadParamDesc
+    *
+    * @see [[headOption]] $strictVersionDesc
+    *
+    * @return the first element of this iterant if it is nonempty, or
+    *         `None` if it is empty, in the `F` context.
+    */
+  final def headOptionL(implicit F: Monad[F]): F[Option[A]] =
+    IterantSlice.headOptionL(self)(F)
+
+  /** Returns a new stream by mapping the supplied function over the
+    * elements of the source.
     *
     * @param f is the mapping function that transforms the source
     * @param F $applicativeParamDesc
@@ -208,8 +260,9 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def map[B](f: A => B)(implicit F: Applicative[F]): Iterant[F, B] =
     IterantMap(this, f)(F)
 
-  /** Given a mapping function that returns a possibly lazy or asynchronous
-    * result, applies it over the elements emitted by the stream.
+  /** Given a mapping function that returns a possibly lazy or
+    * asynchronous result, applies it over the elements emitted by the
+    * stream.
     *
     * @param f is the mapping function that transforms the source
     * @param F $applicativeParamDesc
@@ -217,7 +270,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def mapEval[B](f: A => F[B])(implicit F: Applicative[F]): Iterant[F, B] =
     IterantMapEval(this, f)(F)
 
-  /** Applies the function to the elements of the source and concatenates the results.
+  /** Applies the function to the elements of the source and
+    * concatenates the results.
     *
     * @param f is the function mapping elements from the source to iterants
     * @param F $monadParamDesc
@@ -229,8 +283,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def concat[B](implicit ev: A <:< Iterant[F, B], F: Monad[F]): Iterant[F, B] =
     flatten
 
-  /** Given an `Iterant` that generates `Iterant` elements,
-    * concatenates all the generated iterants.
+  /** Given an `Iterant` that generates `Iterant` elements, concatenates
+    * all the generated iterants.
     *
     * Equivalent with: `source.flatMap(x => x)`
     *
@@ -239,20 +293,29 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def flatten[B](implicit ev: A <:< Iterant[F, B], F: Monad[F]): Iterant[F, B] =
     flatMap(x => x)
 
-  /** Left associative fold using the function `f`.
+  /** $foldLeftDesc
     *
-    * On execution the stream will be traversed from left to right,
-    * and the given function will be called with the prior result,
-    * accumulating state until the end, when the summary is returned.
+    * @param seed is the start value
+    * @param op is the binary operator
+    * @param F $monadParamDesc
+    * @param C $comonadParamDesc
+    *
+    * @see [[foldLeftL]] $lazyVersionDesc
+    *
+    * @return $foldLeftReturnDesc
+    */
+  final def foldLeft[S](seed: => S)(op: (S, A) => S)(implicit F: Monad[F], C: Comonad[F]): S =
+    C.extract(IterantFoldLeft(self, seed)(op)(F))
+
+  /** $foldLeftDesc
     *
     * @param seed is the start value
     * @param op is the binary operator
     * @param F $monadParamDesc
     *
-    * @return the result of inserting `op` between consecutive elements
-    * of this iterant, going from left to right with the
-    * `seed` as the start value, or `seed` if the iterant
-    * is empty.
+    * @see [[foldLeft]] $strictVersionDesc
+    *
+    * @return $foldLeftReturnDesc
     */
   final def foldLeftL[S](seed: => S)(op: (S, A) => S)(implicit F: Monad[F]): F[S] =
     IterantFoldLeft(self, seed)(op)(F)
@@ -261,11 +324,11 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * concatenates the results.
     *
     * This variant of [[flatMap]] is not referentially transparent,
-    * because it tries to apply function `f` immediately, in case
-    * the `Iterant` is in a `Next`, `NextSeq` or `NextGen` state.
+    * because it tries to apply function `f` immediately, in case the
+    * `Iterant` is in a `Next`, `NextSeq` or `NextGen` state.
     *
-    * To be used for optimizations, but keep in mind it's unsafe,
-    * as its application isn't referentially transparent.
+    * To be used for optimizations, but keep in mind it's unsafe, as
+    * its application isn't referentially transparent.
     *
     * @param f is the function mapping elements from the source to iterants
     * @param F $monadParamDesc
@@ -276,9 +339,10 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   /** Explicit covariance operator.
     *
     * The [[Iterant]] type isn't covariant in type param `A`, because
-    * covariance doesn't play well with a higher-kinded type like `F[_]`.
-    * So in case you have an `Iterant[F, A]`, but need an `Iterant[F, B]`,
-    * knowing that `A extends B`, then you can do an `upcast`.
+    * covariance doesn't play well with a higher-kinded type like
+    * `F[_]`.  So in case you have an `Iterant[F, A]`, but need an
+    * `Iterant[F, B]`, knowing that `A extends B`, then you can do an
+    * `upcast`.
     *
     * Example:
     * {{{
@@ -296,6 +360,18 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
 
   /** Aggregates all elements in a `List` and preserves order.
     *
+    * @see [[toListL]] $lazyVersionDesc
+    *
+    * @param F $monadParamDesc
+    * @param C $comonadParamDesc
+    */
+  final def toList(implicit F: Monad[F], C: Comonad[F]): List[A] =
+    C.extract(IterantFoldLeft.toListL(self)(F))
+
+  /** Aggregates all elements in a `List` and preserves order.
+    *
+    * @see [[toList]] $strictVersionDesc
+    *
     * @param F $monadParamDesc
     */
   final def toListL(implicit F: Monad[F]): F[List[A]] =
@@ -304,9 +380,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
 
 /** Defines the standard [[Iterant]] builders. */
 object Iterant extends IterantInstances with SharedDocs {
-  /** Returns an [[IterantBuilders]] instance for the
-    * specified `F` monadic type that can be used to build
-    * [[Iterant]] instances.
+  /** Returns an [[IterantBuilders]] instance for the specified `F`
+    * monadic type that can be used to build [[Iterant]] instances.
     *
     * Example:
     * {{{

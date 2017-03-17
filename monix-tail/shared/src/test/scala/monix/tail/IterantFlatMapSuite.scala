@@ -79,7 +79,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
       for (x <- stream1; y <- stream2; z <- stream3)
         yield x + y + z
 
-    val result = composed.headOption.runAsync; s.tick()
+    val result = composed.headOptionL.runAsync; s.tick()
     assertEquals(result.value, Some(Success(Some(6))))
     assertEquals(effects, Vector(3,2,1))
   }
@@ -227,7 +227,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
       for (x <- stream1; y <- stream2; z <- stream3)
         yield x + y + z
 
-    assertEquals(composed.headOption.value, Some(6))
+    assertEquals(composed.headOptionL.value, Some(6))
     assertEquals(effects, Vector(3,2,1))
   }
 
