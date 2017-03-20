@@ -18,6 +18,10 @@
 package monix.execution
 
 import monix.execution.atomic.AtomicAny
+import monix.execution.exceptions.CompositeException
+
+import scala.collection.immutable.Queue
+import scala.util.control.NonFatal
 
 /** Represents a one-time idempotent action that can be used
   * to cancel async computations, or to release resources that
@@ -62,6 +66,24 @@ object Cancelable {
       val cursor = refs.iterator
       while (cursor.hasNext) cursor.next().cancel()
     }
+
+  /** Given a collection of cancelables, cancel them all.
+    *
+    * This function collects non-fatal exceptions and throws them all at the end as a
+    * [[monix.execution.exceptions.CompositeException CompositeException]],
+    * thus making sure that all references get canceled.
+    */
+  def cancelAll(seq: Iterable[Cancelable]): Unit = {
+    var errors = Queue.empty[Throwable]
+    val cursor = seq.iterator
+    while (cursor.hasNext) {
+      try cursor.next().cancel()
+      catch { case NonFatal(ex) => errors = errors.enqueue(ex) }
+    }
+
+    if (errors.nonEmpty)
+      throw new CompositeException(errors)
+  }
 
   /** Marker for cancelables that are dummies that can be ignored. */
   trait IsDummy { self: Cancelable => }

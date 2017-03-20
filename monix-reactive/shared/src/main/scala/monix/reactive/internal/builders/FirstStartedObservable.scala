@@ -18,11 +18,12 @@
 package monix.reactive.internal.builders
 
 import monix.execution.Ack.Stop
-import monix.execution.cancelables.{CompositeCancelable, MultiAssignmentCancelable}
+import monix.execution.atomic.PaddingStrategy.NoPadding
+import monix.execution.atomic.{Atomic, AtomicInt}
+import monix.execution.cancelables.CompositeCancelable
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.reactive.observers.Subscriber
 import monix.reactive.{Observable, Observer}
-import monix.execution.atomic.{Atomic, AtomicInt}
 import scala.concurrent.{Future, Promise}
 
 private[reactive] final class FirstStartedObservable[T](source: Observable[T]*)
@@ -30,34 +31,35 @@ private[reactive] final class FirstStartedObservable[T](source: Observable[T]*)
 
   override def unsafeSubscribeFn(subscriber: Subscriber[T]): Cancelable = {
     import subscriber.scheduler
-    val finishLine = Atomic(0)
+    val finishLine = Atomic(-1)
     var idx = 0
 
-    val cancelables = new Array[Cancelable](source.length)
+    // Future that will get completed with the winning index,
+    // meant to trigger the cancellation of all others
     val p = Promise[Int]()
+    val cancelables = new Array[Cancelable](source.length)
 
     for (observable <- source) {
-      cancelables(idx) = createSubscription(observable, subscriber, finishLine, idx + 1, p)
+      cancelables(idx) = createSubscription(observable, subscriber, finishLine, idx, p)
       idx += 1
     }
 
-    // if the list of observables was empty, just
-    // emit `onComplete`
+    // If the list of observables was empty, just emit `onComplete`
     if (idx == 0) {
       subscriber.onComplete()
       Cancelable.empty
     } else {
-      val composite = CompositeCancelable(cancelables:_*)
-      val cancelable = MultiAssignmentCancelable(composite)
+      val composite =
+        CompositeCancelable.withPadding(cancelables.toSet, NoPadding)
 
+      // When we have a winner, cancel the rest!
       for (idx <- p.future) {
         val c = cancelables(idx)
-        composite -= c
-        cancelable := c
-        composite.cancel()
+        val other = composite.getAndSet(Set(c))
+        Cancelable.cancelAll(other - c)
       }
 
-      cancelable
+      composite
     }
   }
 
@@ -68,13 +70,13 @@ private[reactive] final class FirstStartedObservable[T](source: Observable[T]*)
 
     observable.unsafeSubscribeFn(new Observer[T] {
       // for fast path
-      private[this] var finishLineCache = 0
+      private[this] var finishLineCache = -1
 
       private def shouldStream(): Boolean = {
         if (finishLineCache != idx) finishLineCache = finishLine.get
         if (finishLineCache == idx)
           true
-        else if (!finishLine.compareAndSet(0, idx))
+        else if (finishLineCache >= 0 || !finishLine.compareAndSet(-1, idx))
           false
         else {
           p.success(idx)

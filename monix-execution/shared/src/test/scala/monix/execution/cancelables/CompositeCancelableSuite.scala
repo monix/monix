@@ -145,4 +145,20 @@ object CompositeCancelableSuite extends SimpleTestSuite with Checkers {
     cc.cancel()
     assert(seq.forall(!_.isCanceled))
   }
+
+  test("getAndResetTo") {
+    val set1 = List.fill(10)(BooleanCancelable())
+    val cc = CompositeCancelable.fromSet(set1.toSet[Cancelable])
+
+    val set2 = List.fill(10)(BooleanCancelable())
+    assertEquals(cc.getAndSet(set2), set1.toSet[Cancelable])
+
+    cc.cancel()
+    assert(set1.forall(c => !c.isCanceled), "set1.forall(c => !c.isCanceled)")
+    assert(set2.forall(_.isCanceled), "set2.forall(_.isCanceled)")
+
+    val set3 = List.fill(10)(BooleanCancelable())
+    assertEquals(cc.getAndSet(set3), Set.empty)
+    assert(set3.forall(_.isCanceled), "set3.forall(_.isCanceled)")
+  }
 }
