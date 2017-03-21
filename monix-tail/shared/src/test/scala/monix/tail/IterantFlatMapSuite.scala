@@ -19,7 +19,7 @@ package monix.tail
 
 import monix.eval.{Coeval, Task}
 import monix.execution.exceptions.DummyException
-import monix.tail.Iterant.{NextGen, NextSeq, Suspend}
+import monix.tail.Iterant.{NextBatch, NextCursor, Suspend}
 import scala.util.{Failure, Success}
 
 object IterantFlatMapSuite extends BaseTestSuite {
@@ -49,11 +49,11 @@ object IterantFlatMapSuite extends BaseTestSuite {
     assert(isCanceled, "isCanceled should be true")
   }
 
-  test("Iterant[Task].nextSeq.flatMap guards against direct user code errors") { implicit s =>
+  test("Iterant[Task].nextCursor.flatMap guards against direct user code errors") { implicit s =>
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = Iterant[Task].nextSeqS(List(1,2,3).iterator, Task(Iterant[Task].empty[Int]), Task { isCanceled = true })
+    val stream = Iterant[Task].nextCursorS(BatchCursor(1,2,3), Task(Iterant[Task].empty[Int]), Task { isCanceled = true })
     val result = stream.flatMap[Int](_ => throw dummy).toListL.runAsync
 
     s.tick()
@@ -84,13 +84,13 @@ object IterantFlatMapSuite extends BaseTestSuite {
     assertEquals(effects, Vector(3,2,1))
   }
 
-  test("Iterant[Task].nextSeq.flatMap chains stop") { implicit s =>
+  test("Iterant[Task].nextCursor.flatMap chains stop") { implicit s =>
     def firstNext[A](streamable: Iterant[Task,A]): Task[Iterant[Task,A]] =
       streamable match {
         case Suspend(rest, _) =>
           rest.flatMap(firstNext)
-        case NextGen(gen, rest, stop) =>
-          Task.now(NextSeq(gen.iterator, rest, stop))
+        case NextBatch(gen, rest, stop) =>
+          Task.now(NextCursor(gen.cursor(), rest, stop))
         case _ =>
           Task.now(streamable)
       }
@@ -113,7 +113,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
         yield x + y + z
 
     firstNext(composed).runSyncMaybe match {
-      case Right(Iterant.NextSeq(head, _, stop)) =>
+      case Right(Iterant.NextCursor(head, _, stop)) =>
         assertEquals(head.toList, List(6))
         assertEquals(stop.runSyncMaybe, Right(()))
         assertEquals(effects, Vector(3,2,1))
@@ -122,7 +122,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant[Task].nextSeq.flatMap works for large lists") { implicit s =>
+  test("Iterant[Task].nextCursor.flatMap works for large lists") { implicit s =>
     val count = 100000
     val list = (0 until count).toList
     val sumTask = Iterant[Task].fromList(list)
@@ -153,11 +153,11 @@ object IterantFlatMapSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant[Task].flatMap should protect against broken cursors") { implicit s =>
+  test("Iterant[Task].flatMap should protect against broken batches") { implicit s =>
     check1 { (prefix: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
-      val cursor = new ThrowExceptionIterator(dummy)
-      val error = Iterant[Task].nextSeqS(cursor, Task.now(Iterant[Task].empty[Int]), Task.unit)
+      val cursor = new ThrowExceptionCursor(dummy)
+      val error = Iterant[Task].nextCursorS(cursor, Task.now(Iterant[Task].empty[Int]), Task.unit)
       val stream = (prefix ++ error).flatMap(x => Iterant[Task].now(x))
       stream === Iterant[Task].haltS[Int](Some(dummy))
     }
@@ -166,8 +166,8 @@ object IterantFlatMapSuite extends BaseTestSuite {
   test("Iterant[Task].flatMap should protect against broken generators") { implicit s =>
     check1 { (prefix: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
-      val generator = new ThrowExceptionIterable(dummy)
-      val error = Iterant[Task].nextGenS(generator, Task.now(Iterant[Task].empty[Int]), Task.unit)
+      val generator = new ThrowExceptionBatch(dummy)
+      val error = Iterant[Task].nextBatchS(generator, Task.now(Iterant[Task].empty[Int]), Task.unit)
       val stream = (prefix ++ error).flatMap(x => Iterant[Task].now(x))
       stream === Iterant[Task].haltS[Int](Some(dummy))
     }
@@ -198,11 +198,11 @@ object IterantFlatMapSuite extends BaseTestSuite {
     assert(isCanceled, "isCanceled should be true")
   }
 
-  test("Iterant[Coeval].nextSeq.flatMap guards against direct user code errors") { _ =>
+  test("Iterant[Coeval].nextCursor.flatMap guards against direct user code errors") { _ =>
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = Iterant[Coeval].nextSeqS(List(1,2,3).iterator, Coeval(Iterant[Coeval].empty[Int]), Coeval { isCanceled = true })
+    val stream = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval(Iterant[Coeval].empty[Int]), Coeval { isCanceled = true })
     val result = stream.flatMap[Int](_ => throw dummy).toListL.runTry
 
     assertEquals(result, Failure(dummy))
@@ -231,13 +231,13 @@ object IterantFlatMapSuite extends BaseTestSuite {
     assertEquals(effects, Vector(3,2,1))
   }
 
-  test("Iterant[Coeval].nextSeq.flatMap chains stop") { implicit s =>
+  test("Iterant[Coeval].nextCursor.flatMap chains stop") { implicit s =>
     def firstNext[A](streamable: Iterant[Coeval,A]): Coeval[Iterant[Coeval,A]] =
       streamable match {
         case Suspend(rest, _) =>
           rest.flatMap(firstNext)
-        case NextGen(gen, rest, stop) =>
-          Coeval.now(NextSeq(gen.iterator, rest, stop))
+        case NextBatch(gen, rest, stop) =>
+          Coeval.now(NextCursor(gen.cursor(), rest, stop))
         case _ =>
           Coeval.now(streamable)
       }
@@ -260,7 +260,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
         yield x + y + z
 
     firstNext(composed).value match {
-      case Iterant.NextSeq(head, _, stop) =>
+      case Iterant.NextCursor(head, _, stop) =>
         assertEquals(head.toList, List(6))
         assertEquals(stop.value, ())
         assertEquals(effects, Vector(3,2,1))
@@ -289,11 +289,11 @@ object IterantFlatMapSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant[Coeval].flatMap should protect against broken cursors") { implicit s =>
+  test("Iterant[Coeval].flatMap should protect against broken batches") { implicit s =>
     check1 { (prefix: Iterant[Coeval, Int]) =>
       val dummy = DummyException("dummy")
-      val cursor = new ThrowExceptionIterator(dummy)
-      val error = Iterant[Coeval].nextSeqS(cursor, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
+      val cursor = new ThrowExceptionCursor(dummy)
+      val error = Iterant[Coeval].nextCursorS(cursor, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
       val stream = (prefix ++ error).flatMap(x => Iterant[Coeval].now(x))
       stream === Iterant[Coeval].haltS[Int](Some(dummy))
     }
@@ -302,8 +302,8 @@ object IterantFlatMapSuite extends BaseTestSuite {
   test("Iterant[Coeval].flatMap should protect against broken generators") { implicit s =>
     check1 { (prefix: Iterant[Coeval, Int]) =>
       val dummy = DummyException("dummy")
-      val cursor = new ThrowExceptionIterable(dummy)
-      val error = Iterant[Coeval].nextGenS(cursor, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
+      val cursor = new ThrowExceptionBatch(dummy)
+      val error = Iterant[Coeval].nextBatchS(cursor, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
       val stream = (prefix ++ error).flatMap(x => Iterant[Coeval].now(x))
       stream === Iterant[Coeval].haltS[Int](Some(dummy))
     }

@@ -18,7 +18,7 @@
 package monix.tail.internal
 
 import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Last, Next, NextGen, NextSeq, Suspend}
+import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
 import monix.types.Monad
 import monix.types.syntax._
 import scala.util.control.NonFatal
@@ -33,13 +33,13 @@ private[tail] object IterantSlice {
         case Next(a, rest, stop) =>
           stop.map(_ => Some(a))
 
-        case NextSeq(items, rest, stop) =>
-          if (items.hasNext) stop.map(_ => Some(items.next()))
+        case NextCursor(items, rest, stop) =>
+          if (items.hasNext()) stop.map(_ => Some(items.next()))
           else rest.flatMap(loop)
 
-        case NextGen(items, rest, stop) =>
-          val cursor = items.iterator
-          if (cursor.hasNext) stop.map(_ => Some(cursor.next()))
+        case NextBatch(items, rest, stop) =>
+          val cursor = items.cursor()
+          if (cursor.hasNext()) stop.map(_ => Some(cursor.next()))
           else rest.flatMap(loop)
 
         case Suspend(rest, _) =>
@@ -59,7 +59,7 @@ private[tail] object IterantSlice {
     }
 
     source match {
-      case NextSeq(_, _, _) | NextGen(_, _, _) =>
+      case NextCursor(_, _, _) | NextBatch(_, _, _) =>
         F.suspend(loop(source))
       case _ =>
         loop(source)

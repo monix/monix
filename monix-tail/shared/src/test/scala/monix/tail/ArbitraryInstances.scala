@@ -40,17 +40,21 @@ trait ArbitraryInstances extends monix.eval.ArbitraryInstances {
             Iterant[Coeval].suspend(Coeval(loop(list, idx+1)))
           else  if (idx % 6 == 2) {
             val (headSeq, tail) = list.splitAt(3)
-            Iterant[Coeval].nextSeqS(headSeq.toVector.iterator, Coeval(loop(tail, idx+1)), Coeval.unit)
+            val bs = if (idx % 7 < 3) 1 else 3
+            val cursor = BatchCursor.fromIterator(headSeq.toVector.iterator, bs)
+            Iterant[Coeval].nextCursorS(cursor, Coeval(loop(tail, idx+1)), Coeval.unit)
           }
           else if (idx % 6 == 3) {
             Iterant[Coeval].suspendS(Coeval(loop(ns, idx + 1)), Coeval.unit)
           }
           else if (idx % 6 == 4) {
             val (headSeq, tail) = list.splitAt(3)
-            Iterant[Coeval].nextGenS(headSeq.toVector, Coeval(loop(tail, idx+1)), Coeval.unit)
+            val bs = if (idx % 7 < 3) 1 else 3
+            val batch = Batch.fromSeq(headSeq.toVector, bs)
+            Iterant[Coeval].nextBatchS(batch, Coeval(loop(tail, idx+1)), Coeval.unit)
           }
           else {
-            Iterant[Coeval].nextGenS(Nil, Coeval(loop(ns, idx + 1)), Coeval.unit)
+            Iterant[Coeval].nextBatchS(Batch.empty, Coeval(loop(ns, idx + 1)), Coeval.unit)
           }
       }
 
@@ -79,17 +83,21 @@ trait ArbitraryInstances extends monix.eval.ArbitraryInstances {
             Iterant[Task].suspend(Task.eval(loop(list, idx+1)))
           else  if (idx % 6 == 2) {
             val (headSeq, tail) = list.splitAt(3)
-            Iterant[Task].nextSeqS(headSeq.toVector.iterator, Task.eval(loop(tail, idx+1)), Task.unit)
+            val bs = if (idx % 7 < 3) 1 else 3
+            val cursor = BatchCursor.fromIterator(headSeq.toVector.iterator, bs)
+            Iterant[Task].nextCursorS(cursor, Task.eval(loop(tail, idx+1)), Task.unit)
           }
           else if (idx % 6 == 3) {
             Iterant[Task].suspendS(Task.eval(loop(ns, idx + 1)), Task.unit)
           }
           else if (idx % 6 == 4) {
             val (headSeq, tail) = list.splitAt(3)
-            Iterant[Task].nextGenS(headSeq.toVector, Task.eval(loop(tail, idx+1)), Task.unit)
+            val bs = if (idx % 7 < 3) 1 else 3
+            val batch = Batch.fromSeq(headSeq.toVector, bs)
+            Iterant[Task].nextBatchS(batch, Task.eval(loop(tail, idx+1)), Task.unit)
           }
           else {
-            Iterant[Task].nextGenS(Nil, Task.eval(loop(ns, idx + 1)), Task.unit)
+            Iterant[Task].nextBatchS(Batch.empty, Task.eval(loop(ns, idx + 1)), Task.unit)
           }
       }
 

@@ -28,7 +28,7 @@ package monix.tail
   *         can have asynchronous behavior as well, depending on the `F`
   *         type used.
   *
-  *         See [[monix.tail.Iterant.NextSeq NextSeq]]
+  *         See [[monix.tail.Iterant.NextCursor NextCursor]]
   *         for a state where the head is a strict immutable list.
   *
   * @define nextSDesc Builds a stream state equivalent with
@@ -36,28 +36,28 @@ package monix.tail
   *
   *         $NextDesc
   *
-  * @define NextSeqDesc The [[monix.tail.Iterant.NextSeq NextSeq]] state
-  *         of the [[Iterant]] represents an `items` / `rest` cons pair,
-  *         where `items` is an [[scala.collection.Iterator Iterator]]
+  * @define NextCursorDesc The [[monix.tail.Iterant.NextCursor NextCursor]] state
+  *         of the [[Iterant]] represents an `batch` / `rest` cons pair,
+  *         where `batch` is an [[scala.collection.Iterator Iterator]]
   *         type that can generate a whole batch of elements.
   *
   *         Useful for doing buffering, or by giving it an empty iterator,
   *         useful to postpone the evaluation of the next element.
   *
-  * @define nextSeqSDesc Builds a stream state equivalent with
-  *         [[Iterant.NextSeq]].
+  * @define nextCursorSDesc Builds a stream state equivalent with
+  *         [[Iterant.NextCursor]].
   *
-  *         $NextSeqDesc
+  *         $NextCursorDesc
   *
-  * @define NextGenDesc The [[monix.tail.Iterant.NextGen NextGen]] state
-  *         of the [[Iterant]] represents an `items` / `rest` cons pair,
-  *         where `items` is an [[scala.collection.Iterable Iterable]]
+  * @define NextBatchDesc The [[monix.tail.Iterant.NextBatch NextBatch]] state
+  *         of the [[Iterant]] represents an `batch` / `rest` cons pair,
+  *         where `batch` is an [[scala.collection.Iterable Iterable]]
   *         type that can generate a whole batch of elements.
   *
-  * @define nextGenSDesc Builds a stream state equivalent with
-  *         [[Iterant.NextGen]].
+  * @define nextBatchSDesc Builds a stream state equivalent with
+  *         [[Iterant.NextBatch]].
   *
-  *         $NextGenDesc
+  *         $NextBatchDesc
   *
   * @define SuspendDesc The [[monix.tail.Iterant.Suspend Suspend]] state
   *         of the [[Iterant]] represents a suspended stream to be
@@ -65,7 +65,7 @@ package monix.tail
   *         evaluation of a stream by deferring to `F`.
   *
   * @define suspendSDesc Builds a stream state equivalent with
-  *         [[Iterant.NextSeq]].
+  *         [[Iterant.NextCursor]].
   *
   *         $SuspendDesc
   *
@@ -122,7 +122,7 @@ package monix.tail
   * @define builderTailRecM Keeps calling `f` and concatenating the resulting
   *         iterants for each `scala.util.Left` event emitted by the source,
   *         concatenating the resulting iterants and generating `scala.util.Right[B]`
-  *         items.
+  *         batch.
   *
   *         Based on Phil Freeman's
   *         [[http://functorial.com/stack-safety-for-free/index.pdf Stack Safety for Free]].

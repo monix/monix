@@ -28,7 +28,7 @@ import scala.collection.immutable.Queue
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 
-/** `ReplaySubject` emits to any observer all of the items that were emitted
+/** `ReplaySubject` emits to any observer all of the cursor that were emitted
   * by the source, regardless of when the observer subscribes.
   */
 final class ReplaySubject[T] private (initialState: ReplaySubject.State[T])
@@ -191,7 +191,7 @@ object ReplaySubject {
 
   /** Creates a size-bounded replay subject.
     *
-    * In this setting, the ReplaySubject holds at most size items in its
+    * In this setting, the ReplaySubject holds at most size cursor in its
     * internal buffer and discards the oldest item.
     *
     * @param capacity is the maximum size of the internal buffer
@@ -203,7 +203,7 @@ object ReplaySubject {
 
   /** Creates a size-bounded replay subject, prepopulated.
     *
-    * In this setting, the ReplaySubject holds at most size items in its
+    * In this setting, the ReplaySubject holds at most size cursor in its
     * internal buffer and discards the oldest item.
     *
     * @param capacity is the maximum size of the internal buffer

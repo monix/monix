@@ -80,7 +80,7 @@ private[reactive] trait Builders {
     * the `underlying` is busy and then sends a whole sequence at once.
     *
     * The underlying buffer size will be able to support at least
-    * `maxSize` items. When the `maxSize` is reached, the subscriber
+    * `maxSize` cursor. When the `maxSize` is reached, the subscriber
     * will back-pressure the source.
     *
     * So a batched buffered subscriber is implicitly delivering

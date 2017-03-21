@@ -39,14 +39,14 @@ private[tail] object IterantCollect {
           if (pf.isDefinedAt(item)) Next[F,B](pf(item), rest.map(loop), stop)
           else Suspend(rest.map(loop), stop)
 
-        case NextSeq(items, rest, stop) =>
+        case NextCursor(items, rest, stop) =>
           val filtered = items.collect(pf)
           val restF = rest.map(loop)
-          if (filtered.hasNext) NextSeq(filtered, restF, stop)
+          if (filtered.hasNext()) NextCursor(filtered, restF, stop)
           else Suspend(restF, stop)
 
-        case NextGen(items, rest, stop) =>
-          NextGen(items.collect(pf), rest.map(loop), stop)
+        case NextBatch(items, rest, stop) =>
+          NextBatch(items.collect(pf), rest.map(loop), stop)
 
         case Suspend(rest, stop) =>
           Suspend(rest.map(loop), stop)

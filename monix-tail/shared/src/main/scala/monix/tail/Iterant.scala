@@ -20,7 +20,9 @@ package monix.tail
 import monix.eval.{Coeval, Task}
 import monix.tail.internal._
 import monix.types._
+
 import scala.collection.immutable.LinearSeq
+import scala.reflect.ClassTag
 
 /** The `Iterant` is a type that describes lazy, possibly asynchronous
   * streaming of elements.
@@ -43,18 +45,23 @@ import scala.collection.immutable.LinearSeq
   *
   *  - [[monix.tail.Iterant.Next Next]] which signals a single strict
   *    element, the `head` and a `rest` representing the rest of the stream
-  *  - [[monix.tail.Iterant.NextSeq NextSeq]] is a variation on `Next`
+  *
+  *  - [[monix.tail.Iterant.NextCursor NextCursor]] is a variation on `Next`
   *    for signaling a whole strict batch of elements as a traversable
   *    [[scala.collection.Iterator Iterator]], along with the `rest`
   *    representing the rest of the stream
-  *  - [[monix.tail.Iterant.NextGen NextGen]] is a variation on `Next`
+  *
+  *  - [[monix.tail.Iterant.NextBatch NextBatch]] is a variation on `Next`
   *    for signaling a whole batch of elements by means of an
   *    `Iterable`, along with the `rest` representing the rest of the
   *    stream
+  *
   *  - [[monix.tail.Iterant.Suspend Suspend]] is for suspending the
   *    evaluation of a stream
+  *
   *  - [[monix.tail.Iterant.Halt Halt]] represents an empty stream,
   *    signaling the end, either in success or in error
+  *
   *  - [[monix.tail.Iterant.Last Last]] represents a one-element
   *    stream, where `Last(item)` as an optimisation on
   *    `Next(item, F.pure(Halt(None)), F.unit)`
@@ -325,7 +332,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *
     * This variant of [[flatMap]] is not referentially transparent,
     * because it tries to apply function `f` immediately, in case the
-    * `Iterant` is in a `Next`, `NextSeq` or `NextGen` state.
+    * `Iterant` is in a `Next`, `NextCursor` or `NextBatch` state.
     *
     * To be used for optimizations, but keep in mind it's unsafe, as
     * its application isn't referentially transparent.
@@ -436,23 +443,23 @@ object Iterant extends IterantInstances with SharedDocs {
   def nextS[F[_], A](item: A, rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
     Next[F, A](item, rest, stop)
 
-  /** $nextSeqSDesc
+  /** $nextCursorSDesc
     *
     * @param items $cursorParamDesc
     * @param rest $restParamDesc
     * @param stop $stopParamDesc
     */
-  def nextSeqS[F[_], A](items: Iterator[A], rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
-    NextSeq[F, A](items, rest, stop)
+  def nextCursorS[F[_], A](items: BatchCursor[A], rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
+    NextCursor[F, A](items, rest, stop)
 
-  /** $nextGenSDesc
+  /** $nextBatchSDesc
     *
     * @param items $generatorParamDesc
     * @param rest $restParamDesc
     * @param stop $stopParamDesc
     */
-  def nextGenS[F[_], A](items: Iterable[A], rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
-    NextGen[F, A](items, rest, stop)
+  def nextBatchS[F[_], A](items: Batch[A], rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
+    NextBatch[F, A](items, rest, stop)
 
   /** $haltSDesc
     *
@@ -461,7 +468,7 @@ object Iterant extends IterantInstances with SharedDocs {
   def haltS[F[_], A](ex: Option[Throwable]): Iterant[F, A] =
     Halt[F, A](ex)
 
-  /** Alias for [[Iterant.suspend[F[_], A](fa* suspend]].
+  /** Alias for [[Iterant.suspend[F[_],A](fa* suspend]].
     *
     * $builderSuspendByName
     *
@@ -508,8 +515,8 @@ object Iterant extends IterantInstances with SharedDocs {
   }
 
   /** $builderFromArray */
-  def fromArray[F[_], A](xs: Array[A])(implicit F: Applicative[F]): Iterant[F, A] =
-    NextGen(xs, F.pure(empty[F, A]), F.unit)
+  def fromArray[F[_], A : ClassTag](xs: Array[A])(implicit F: Applicative[F]): Iterant[F, A] =
+    NextBatch(Batch.fromArray(xs), F.pure(empty[F, A]), F.unit)
 
   /** $builderFromSeq */
   def fromSeq[F[_], A](xs: Seq[A])(implicit F: Applicative[F]): Iterant[F, A] =
@@ -524,19 +531,23 @@ object Iterant extends IterantInstances with SharedDocs {
 
   /** $builderFromList */
   def fromList[F[_], A](xs: LinearSeq[A])(implicit F: Applicative[F]): Iterant[F, A] =
-    NextGen(xs, F.pure(empty[F, A]), F.unit)
+    NextBatch(Batch.fromSeq(xs), F.pure(empty[F, A]), F.unit)
 
   /** $builderFromIndexedSeq */
   def fromIndexedSeq[F[_], A](xs: IndexedSeq[A])(implicit F: Applicative[F]): Iterant[F, A] =
-    NextGen(xs, F.pure(empty[F, A]), F.unit)
+    NextBatch(Batch.fromIndexedSeq(xs), F.pure(empty[F, A]), F.unit)
 
   /** $builderFromIterable */
-  def fromIterable[F[_], A](xs: Iterable[A])(implicit F: Applicative[F]): Iterant[F, A] =
-    NextGen(xs, F.pure(empty[F, A]), F.unit)
+  def fromIterable[F[_], A](xs: Iterable[A])(implicit F: Applicative[F]): Iterant[F, A] = {
+    val bs = if (xs.hasDefiniteSize) batches.defaultBatchSize else 1
+    NextBatch(Batch.fromIterable(xs, bs), F.pure(empty[F, A]), F.unit)
+  }
 
   /** $builderFromIterator */
-  def fromIterator[F[_], A](xs: Iterator[A])(implicit F: Applicative[F]): Iterant[F, A] =
-    NextSeq[F, A](xs, F.pure(empty), F.unit)
+  def fromIterator[F[_], A](xs: Iterator[A])(implicit F: Applicative[F]): Iterant[F, A] = {
+    val bs = if (xs.hasDefiniteSize) batches.defaultBatchSize else 1
+    NextCursor[F, A](BatchCursor.fromIterator(xs, bs), F.pure(empty), F.unit)
+  }
 
   /** $builderRange
     *
@@ -546,7 +557,7 @@ object Iterant extends IterantInstances with SharedDocs {
     * @return $rangeReturnDesc
     */
   def range[F[_]](from: Int, until: Int, step: Int = 1)(implicit F: Applicative[F]): Iterant[F, Int] =
-    NextGen(Iterable.range(from, until, step), F.pure(empty[F, Int]), F.unit)
+    NextBatch(Batch.range(from, until, step), F.pure(empty[F, Int]), F.unit)
 
   /** $builderEmpty */
   def empty[F[_], A]: Iterant[F, A] =
@@ -579,14 +590,14 @@ object Iterant extends IterantInstances with SharedDocs {
       F.unit
   }
 
-  /** $NextSeqDesc
+  /** $NextCursorDesc
     *
-    * @param items $cursorParamDesc
+    * @param cursor $cursorParamDesc
     * @param rest $restParamDesc
     * @param stop $stopParamDesc
     */
-  final case class NextSeq[F[_], A](
-    items: Iterator[A],
+  final case class NextCursor[F[_], A](
+    cursor: BatchCursor[A],
     rest: F[Iterant[F, A]],
     stop: F[Unit])
     extends Iterant[F, A] {
@@ -595,14 +606,14 @@ object Iterant extends IterantInstances with SharedDocs {
       stop
   }
 
-  /** $NextGenDesc
+  /** $NextBatchDesc
     *
-    * @param items $generatorParamDesc
+    * @param batch $generatorParamDesc
     * @param rest $restParamDesc
     * @param stop $stopParamDesc
     */
-  final case class NextGen[F[_], A](
-    items: Iterable[A],
+  final case class NextBatch[F[_], A](
+    batch: Batch[A],
     rest: F[Iterant[F, A]],
     stop: F[Unit])
     extends Iterant[F, A] {

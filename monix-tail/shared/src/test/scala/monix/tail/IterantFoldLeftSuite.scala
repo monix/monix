@@ -85,7 +85,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var wasCanceled = false
     val c = Task { wasCanceled = true }
-    val stream = Iterant[Task].nextS(1, Task(Iterant[Task].nextSeqS(List(2,3).iterator, Task.now(Iterant[Task].empty[Int]), c)), c)
+    val stream = Iterant[Task].nextS(1, Task(Iterant[Task].nextCursorS(BatchCursor(2,3), Task.now(Iterant[Task].empty[Int]), c)), c)
       .mapEval(x => Task(x))
 
     val result = stream.foldLeftL(0)((a,e) => throw dummy)
@@ -93,11 +93,11 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     assert(wasCanceled, "wasCanceled should be true")
   }
 
-  test("Iterant[Task].foldLeftL should protect against broken cursors") { implicit s =>
+  test("Iterant[Task].foldLeftL should protect against broken batches") { implicit s =>
     check1 { (prefix: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
-      val cursor = new ThrowExceptionIterator(dummy)
-      val error = Iterant[Task].nextSeqS(cursor, Task.now(Iterant[Task].empty[Int]), Task.unit)
+      val cursor = new ThrowExceptionCursor(dummy)
+      val error = Iterant[Task].nextCursorS(cursor, Task.now(Iterant[Task].empty[Int]), Task.unit)
       val result = (prefix ++ error).foldLeftL(0)(_+_)
       result === Task.raiseError[Int](dummy)
     }
@@ -106,8 +106,8 @@ object IterantFoldLeftSuite extends BaseTestSuite {
   test("Iterant[Task].foldLeftL should protect against broken generators") { implicit s =>
     check1 { (prefix: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
-      val generator = new ThrowExceptionIterable(dummy)
-      val error = Iterant[Task].nextGenS(generator, Task.now(Iterant[Task].empty[Int]), Task.unit)
+      val generator = new ThrowExceptionBatch(dummy)
+      val error = Iterant[Task].nextBatchS(generator, Task.now(Iterant[Task].empty[Int]), Task.unit)
       val result = (prefix ++ error).foldLeftL(0)(_+_)
       result === Task.raiseError[Int](dummy)
     }
@@ -171,7 +171,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var wasCanceled = false
     val c = Coeval { wasCanceled = true }
-    val stream = Iterant[Coeval].nextSeqS(List(1,2,3).iterator, Coeval.now(Iterant[Coeval].empty[Int]), c)
+    val stream = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), c)
     val result = stream.foldLeftL(0)((a,e) => throw dummy)
     check(result === Coeval.raiseError[Int](dummy))
     assert(wasCanceled, "wasCanceled should be true")
@@ -182,7 +182,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     var wasCanceled = false
     val c = Coeval { wasCanceled = true }
     val stream = Iterant[Coeval].nextS(1,
-      Coeval(Iterant[Coeval].nextSeqS(List(2,3).iterator, Coeval.now(Iterant[Coeval].empty[Int]), c)), c)
+      Coeval(Iterant[Coeval].nextCursorS(BatchCursor(2,3), Coeval.now(Iterant[Coeval].empty[Int]), c)), c)
       .mapEval(x => Coeval(x))
 
     val result = stream.foldLeftL(0)((a,e) => throw dummy)
@@ -190,11 +190,11 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     assert(wasCanceled, "wasCanceled should be true")
   }
 
-  test("Iterant[Coeval].foldLeftL should protect against broken cursors") { implicit s =>
+  test("Iterant[Coeval].foldLeftL should protect against broken batches") { implicit s =>
     check1 { (prefix: Iterant[Coeval, Int]) =>
       val dummy = DummyException("dummy")
-      val cursor: Iterator[Int] = new ThrowExceptionIterator(dummy)
-      val error = Iterant[Coeval].nextSeqS(cursor, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
+      val cursor: BatchCursor[Int] = new ThrowExceptionCursor(dummy)
+      val error = Iterant[Coeval].nextCursorS(cursor, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
       val result = (prefix ++ error).foldLeftL(0)(_+_)
       result === Coeval.raiseError[Int](dummy)
     }
@@ -203,8 +203,8 @@ object IterantFoldLeftSuite extends BaseTestSuite {
   test("Iterant[Coeval].foldLeftL should protect against broken generators") { implicit s =>
     check1 { (prefix: Iterant[Coeval, Int]) =>
       val dummy = DummyException("dummy")
-      val generator: Iterable[Int] = new ThrowExceptionIterable(dummy)
-      val error = Iterant[Coeval].nextGenS(generator, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
+      val generator: Batch[Int] = new ThrowExceptionBatch(dummy)
+      val error = Iterant[Coeval].nextBatchS(generator, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
       val result = (prefix ++ error).foldLeftL(0)(_+_)
       result === Coeval.raiseError[Int](dummy)
     }

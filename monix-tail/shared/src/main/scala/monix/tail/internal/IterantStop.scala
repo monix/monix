@@ -18,7 +18,7 @@
 package monix.tail.internal
 
 import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Last, Next, NextGen, NextSeq, Suspend}
+import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
 import monix.tail.internal.IterantUtils._
 import monix.types.Monad
 import monix.types.syntax._
@@ -33,12 +33,12 @@ private[tail] object IterantStop {
     source match {
       case Next(head, rest, stop) =>
         Next(head, rest.map(doOnEarlyStop[F, A](_, f)), stop.flatMap(_ => f))
-      case NextSeq(items, rest, stop) =>
-        NextSeq(items, rest.map(doOnEarlyStop[F, A](_, f)), stop.flatMap(_ => f))
+      case NextCursor(items, rest, stop) =>
+        NextCursor(items, rest.map(doOnEarlyStop[F, A](_, f)), stop.flatMap(_ => f))
       case Suspend(rest, stop) =>
         Suspend(rest.map(doOnEarlyStop[F, A](_, f)), stop.flatMap(_ => f))
-      case NextGen(items, rest, stop) =>
-        NextGen(items, rest.map(doOnEarlyStop[F, A](_, f)), stop.flatMap(_ => f))
+      case NextBatch(items, rest, stop) =>
+        NextBatch(items, rest.map(doOnEarlyStop[F, A](_, f)), stop.flatMap(_ => f))
       case ref @ (Halt(_) | Last(_)) =>
         ref // nothing to do
     }
@@ -52,10 +52,10 @@ private[tail] object IterantStop {
     try source match {
       case Next(item, rest, stop) =>
         Next(item, rest.map(doOnFinish[F, A](_, f)), stop.flatMap(_ => f(None)))
-      case NextSeq(items, rest, stop) =>
-        NextSeq(items, rest.map(doOnFinish[F, A](_, f)), stop.flatMap(_ => f(None)))
-      case NextGen(items, rest, stop) =>
-        NextGen(items, rest.map(doOnFinish[F, A](_, f)), stop.flatMap(_ => f(None)))
+      case NextCursor(items, rest, stop) =>
+        NextCursor(items, rest.map(doOnFinish[F, A](_, f)), stop.flatMap(_ => f(None)))
+      case NextBatch(items, rest, stop) =>
+        NextBatch(items, rest.map(doOnFinish[F, A](_, f)), stop.flatMap(_ => f(None)))
       case Suspend(rest, stop) =>
         Suspend(rest.map(doOnFinish[F, A](_, f)), stop.flatMap(_ => f(None)))
       case last @ Last(_) =>

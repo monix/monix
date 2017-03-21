@@ -17,11 +17,12 @@
 
 package monix.tail.internal
 
-import monix.tail.Iterant
+import monix.tail.{BatchCursor, Iterant}
 import monix.tail.Iterant._
 import monix.tail.internal.IterantUtils._
 import monix.types.Applicative
 import monix.types.syntax._
+
 import scala.util.control.NonFatal
 
 private[tail] object IterantMapEval {
@@ -31,14 +32,14 @@ private[tail] object IterantMapEval {
   def apply[F[_], A, B](source: Iterant[F, A], f: A => F[B])(implicit A: Applicative[F]): Iterant[F, B] = {
     import A.{functor => F}
 
-    @inline def evalNextSeq(ref: NextSeq[F, A], cursor: Iterator[A], rest: F[Iterant[F, A]], stop: F[Unit]) = {
+    @inline def evalNextCursor(ref: NextCursor[F, A], cursor: BatchCursor[A], rest: F[Iterant[F, A]], stop: F[Unit]) = {
       if (!cursor.hasNext)
         Suspend[F, B](rest.map(loop), stop)
       else {
         val head = cursor.next()
         val fa = f(head)
         // If the iterator is empty, then we can skip a beat
-        val tail = if (cursor.hasNext) A.pure(ref: Iterant[F, A]) else rest
+        val tail = if (cursor.hasNext()) A.pure(ref: Iterant[F, A]) else rest
         val suspended = fa.map(h => nextS(h, tail.map(loop), stop))
         Suspend[F, B](suspended, stop)
       }
@@ -51,13 +52,13 @@ private[tail] object IterantMapEval {
           val rest = fa.map(h => nextS(h, tail.map(loop), stop))
           Suspend(rest, stop)
 
-        case ref @ NextSeq(cursor, rest, stop) =>
-          evalNextSeq(ref, cursor, rest, stop)
+        case ref @ NextCursor(cursor, rest, stop) =>
+          evalNextCursor(ref, cursor, rest, stop)
 
-        case NextGen(gen, rest, stop) =>
-          val cursor = gen.iterator
-          val ref = NextSeq(cursor, rest, stop)
-          evalNextSeq(ref, cursor, rest, stop)
+        case NextBatch(gen, rest, stop) =>
+          val cursor = gen.cursor()
+          val ref = NextCursor(cursor, rest, stop)
+          evalNextCursor(ref, cursor, rest, stop)
 
         case Suspend(rest, stop) =>
           Suspend[F,B](rest.map(loop), stop)

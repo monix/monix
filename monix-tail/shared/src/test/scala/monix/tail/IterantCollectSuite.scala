@@ -49,25 +49,25 @@ object IterantCollectSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.collect suspends the evaluation for NextGen") { _ =>
+  test("Iterant.collect suspends the evaluation for NextBatch") { _ =>
     val dummy = DummyException("dummy")
-    val items = new ThrowExceptionIterable(dummy)
-    val iter = Iterant[Coeval].nextGenS(items, Coeval.now(Iterant.empty[Coeval, Int]), Coeval.unit)
+    val items = new ThrowExceptionBatch(dummy)
+    val iter = Iterant[Coeval].nextBatchS(items, Coeval.now(Iterant.empty[Coeval, Int]), Coeval.unit)
     val state = iter.collect { case x => (throw dummy): Int }
 
     assert(state.isInstanceOf[Suspend[Coeval,Int]], "state.isInstanceOf[Suspend[Coeval,Int]]")
-    assert(!items.isTriggered, "!items.isTriggered")
+    assert(!items.isTriggered, "!batch.isTriggered")
     assertEquals(state.toListL.runTry, Failure(dummy))
   }
 
-  test("Iterant.collect suspends the evaluation for NextSeq") { _ =>
+  test("Iterant.collect suspends the evaluation for NextCursor") { _ =>
     val dummy = DummyException("dummy")
-    val items = new ThrowExceptionIterator(dummy)
-    val iter = Iterant[Coeval].nextSeqS(items, Coeval.now(Iterant.empty[Coeval, Int]), Coeval.unit)
+    val items = new ThrowExceptionCursor(dummy)
+    val iter = Iterant[Coeval].nextCursorS(items, Coeval.now(Iterant.empty[Coeval, Int]), Coeval.unit)
     val state = iter.collect { case x => (throw dummy): Int }
 
     assert(state.isInstanceOf[Suspend[Coeval,Int]], "state.isInstanceOf[Suspend[Coeval,Int]]")
-    assert(!items.isTriggered, "!items.isTriggered")
+    assert(!items.isTriggered, "!batch.isTriggered")
     assertEquals(state.toListL.runTry, Failure(dummy))
   }
 

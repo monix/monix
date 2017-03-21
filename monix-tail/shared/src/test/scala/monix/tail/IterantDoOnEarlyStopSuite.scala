@@ -36,34 +36,34 @@ object IterantDoOnEarlyStopSuite extends BaseTestSuite {
     assertEquals(effect, Vector(1, 2))
   }
 
-  test("NextSeq.earlyStop") { _ =>
+  test("NextCursor.earlyStop") { _ =>
     val ref = Task.eval(())
-    val iterant = Iterant[Task].nextSeqS(List.empty[Int].iterator, Task.now(Iterant[Task].empty[Int]), ref)
+    val iterant = Iterant[Task].nextCursorS(BatchCursor.empty[Int], Task.now(Iterant[Task].empty[Int]), ref)
     assertEquals(iterant.earlyStop, ref)
   }
 
-  test("NextSeq.doOnEarlyStop") { _ =>
+  test("NextCursor.doOnEarlyStop") { _ =>
     var effect = Vector.empty[Int]
     val ref1 = Coeval.eval { effect = effect :+ 1 }
     val ref2 = Coeval.eval { effect = effect :+ 2 }
 
-    val iterant = Iterant[Coeval].nextSeqS(List.empty[Int].iterator, Coeval.now(Iterant[Coeval].empty[Int]), ref1).doOnEarlyStop(ref2)
+    val iterant = Iterant[Coeval].nextCursorS(BatchCursor.empty[Int], Coeval.now(Iterant[Coeval].empty[Int]), ref1).doOnEarlyStop(ref2)
     iterant.earlyStop.value
     assertEquals(effect, Vector(1, 2))
   }
 
-  test("NextGen.earlyStop") { _ =>
+  test("NextBatch.earlyStop") { _ =>
     val ref = Task.eval(())
-    val iterant = Iterant[Task].nextGenS(Iterable.empty[Int], Task.now(Iterant[Task].empty[Int]), ref)
+    val iterant = Iterant[Task].nextBatchS(Batch.empty[Int], Task.now(Iterant[Task].empty[Int]), ref)
     assertEquals(iterant.earlyStop, ref)
   }
 
-  test("NextGen.doOnEarlyStop") { _ =>
+  test("NextBatch.doOnEarlyStop") { _ =>
     var effect = Vector.empty[Int]
     val ref1 = Coeval.eval { effect = effect :+ 1 }
     val ref2 = Coeval.eval { effect = effect :+ 2 }
 
-    val iterant = Iterant[Coeval].nextGenS(Iterable.empty[Int], Coeval.now(Iterant[Coeval].empty[Int]), ref1).doOnEarlyStop(ref2)
+    val iterant = Iterant[Coeval].nextBatchS(Batch.empty[Int], Coeval.now(Iterant[Coeval].empty[Int]), ref1).doOnEarlyStop(ref2)
     iterant.earlyStop.value
     assertEquals(effect, Vector(1, 2))
   }

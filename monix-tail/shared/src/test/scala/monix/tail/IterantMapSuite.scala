@@ -47,11 +47,11 @@ object IterantMapSuite extends BaseTestSuite {
     assert(isCanceled, "isCanceled should be true")
   }
 
-  test("Iterant[Task].nextSeq.map guards against direct user code errors") { implicit s =>
+  test("Iterant[Task].nextCursor.map guards against direct user code errors") { implicit s =>
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = Iterant[Task].nextSeqS(List(1,2,3).iterator, Task(Iterant[Task].empty[Int]), Task { isCanceled = true })
+    val stream = Iterant[Task].nextCursorS(BatchCursor(1,2,3), Task(Iterant[Task].empty[Int]), Task { isCanceled = true })
     val result = stream.map[Int](_ => throw dummy).toListL.runAsync
 
     s.tick()
@@ -69,11 +69,11 @@ object IterantMapSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant[Task].map should protect against broken cursors") { implicit s =>
+  test("Iterant[Task].map should protect against broken batches") { implicit s =>
     check1 { (prefix: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
-      val cursor = new ThrowExceptionIterator(dummy)
-      val error = Iterant[Task].nextSeqS(cursor, Task.now(Iterant[Task].empty[Int]), Task.unit)
+      val cursor = new ThrowExceptionCursor(dummy)
+      val error = Iterant[Task].nextCursorS(cursor, Task.now(Iterant[Task].empty[Int]), Task.unit)
       val stream = (prefix ++ error).map(x => x)
       stream === Iterant[Task].haltS[Int](Some(dummy))
     }
@@ -82,8 +82,8 @@ object IterantMapSuite extends BaseTestSuite {
   test("Iterant[Task].map should protect against broken generators") { implicit s =>
     check1 { (prefix: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
-      val cursor = new ThrowExceptionIterable(dummy)
-      val error = Iterant[Task].nextGenS(cursor, Task.now(Iterant[Task].empty[Int]), Task.unit)
+      val cursor = new ThrowExceptionBatch(dummy)
+      val error = Iterant[Task].nextBatchS(cursor, Task.now(Iterant[Task].empty[Int]), Task.unit)
       val stream = (prefix ++ error).map(x => x)
       stream === Iterant[Task].haltS[Int](Some(dummy))
     }
@@ -113,11 +113,11 @@ object IterantMapSuite extends BaseTestSuite {
     assert(isCanceled, "isCanceled should be true")
   }
 
-  test("Iterant[Coeval].nextSeq.map guards against direct user code errors") { _ =>
+  test("Iterant[Coeval].nextCursor.map guards against direct user code errors") { _ =>
     val dummy = DummyException("dummy")
     var isCanceled = false
 
-    val stream = Iterant[Coeval].nextSeqS(List(1,2,3).iterator, Coeval(Iterant[Coeval].empty[Int]), Coeval { isCanceled = true })
+    val stream = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval(Iterant[Coeval].empty[Int]), Coeval { isCanceled = true })
     val result = stream.map[Int](_ => throw dummy).toListL.runTry
 
     assertEquals(result, Failure(dummy))
@@ -134,11 +134,11 @@ object IterantMapSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant[Coeval].map should protect against broken cursors") { implicit s =>
+  test("Iterant[Coeval].map should protect against broken batches") { implicit s =>
     check1 { (prefix: Iterant[Coeval, Int]) =>
       val dummy = DummyException("dummy")
-      val cursor: Iterator[Int] = new ThrowExceptionIterator(dummy)
-      val error = Iterant[Coeval].nextSeqS(cursor, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
+      val cursor: BatchCursor[Int] = new ThrowExceptionCursor(dummy)
+      val error = Iterant[Coeval].nextCursorS(cursor, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
       val stream = (prefix ++ error).map(x => x)
       stream === Iterant[Coeval].haltS[Int](Some(dummy))
     }
@@ -147,8 +147,8 @@ object IterantMapSuite extends BaseTestSuite {
   test("Iterant[Coeval].map should protect against broken generators") { implicit s =>
     check1 { (prefix: Iterant[Coeval, Int]) =>
       val dummy = DummyException("dummy")
-      val cursor: Iterable[Int] = new ThrowExceptionIterable(dummy)
-      val error = Iterant[Coeval].nextGenS(cursor, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
+      val cursor: Batch[Int] = new ThrowExceptionBatch(dummy)
+      val error = Iterant[Coeval].nextBatchS(cursor, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
       val stream = (prefix ++ error).map(x => x)
       stream === Iterant[Coeval].haltS[Int](Some(dummy))
     }

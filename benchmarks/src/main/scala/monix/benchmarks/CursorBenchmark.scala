@@ -18,7 +18,7 @@
 package monix.benchmarks
 
 import java.util.concurrent.TimeUnit
-import monix.tail.Cursor
+import monix.tail.BatchCursor$
 import org.openjdk.jmh.annotations._
 
 /**
@@ -43,7 +43,7 @@ class CursorBenchmark {
   def fromIterator: Long = {
     val iterator = (0 until size).toArray.iterator
 
-    Cursor.fromIterator(iterator)
+    BatchCursor.fromIterator(iterator)
       .map(_ + 1)
       .filter(_ % 2 == 0)
       .map(_ + 1)
@@ -56,7 +56,7 @@ class CursorBenchmark {
   def fromArray: Long = {
     val iterator = (0 until size).toArray
 
-    Cursor.fromArray(iterator)
+    BatchCursor.fromArray(iterator)
       .map(_ + 1)
       .filter(_ % 2 == 0)
       .map(_ + 1)

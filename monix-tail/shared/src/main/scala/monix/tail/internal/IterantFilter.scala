@@ -18,7 +18,7 @@
 package monix.tail.internal
 
 import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Last, Next, NextGen, NextSeq, Suspend}
+import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
 import monix.tail.internal.IterantUtils._
 import monix.types.Applicative
 import monix.types.syntax._
@@ -37,15 +37,15 @@ private[tail] object IterantFilter {
           if (p(item)) Next(item, rest.map(loop), stop)
           else Suspend(rest.map(loop), stop)
 
-        case NextSeq(items, rest, stop) =>
+        case NextCursor(items, rest, stop) =>
           val filtered = items.filter(p)
-          if (filtered.hasNext)
-            NextSeq(filtered, rest.map(loop), stop)
+          if (filtered.hasNext())
+            NextCursor(filtered, rest.map(loop), stop)
           else
             Suspend(rest.map(loop), stop)
 
-        case NextGen(items, rest, stop) =>
-          NextGen(items.filter(p), rest.map(loop), stop)
+        case NextBatch(items, rest, stop) =>
+          NextBatch(items.filter(p), rest.map(loop), stop)
 
         case Suspend(rest, stop) =>
           Suspend(rest.map(loop), stop)

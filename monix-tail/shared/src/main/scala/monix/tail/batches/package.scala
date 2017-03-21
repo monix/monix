@@ -17,17 +17,15 @@
 
 package monix.tail
 
-import monix.execution.atomic.Atomic
+import monix.execution.internal.Platform
 
-/** Generator that throws exception on access. */
-final class ThrowExceptionIterable(ex: Throwable)
-  extends Iterable[Nothing] {
+import scala.collection.mutable.ArrayBuilder
 
-  private[this] val triggered = Atomic(false)
-  def isTriggered: Boolean = triggered.get
+package object batches {
+  /** Reusable `ArrayBuilder` instance. */
+  private[tail] final val arrayAnyRefBuilder =
+    () => ArrayBuilder.make[AnyRef]()
 
-  override def iterator: Iterator[Nothing] = {
-    triggered.set(true)
-    throw ex
-  }
+  private[tail] final val defaultBatchSize: Int =
+    Platform.recommendedBatchSize
 }

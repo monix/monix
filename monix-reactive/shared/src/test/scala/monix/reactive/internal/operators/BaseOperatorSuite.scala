@@ -36,7 +36,7 @@ abstract class BaseOperatorSuite extends BaseLawsTestSuite {
     waitNext: FiniteDuration)
 
   /** Returns an observable that emits from its data-source
-    * the specified `sourceCount` number of items. The `sourceCount`
+    * the specified `sourceCount` number of cursor. The `sourceCount`
     * is not necessarily equal to the number of elements emitted by
     * the resulting observable, being just a way to randomly vary
     * the events being emitted.
@@ -52,7 +52,7 @@ abstract class BaseOperatorSuite extends BaseLawsTestSuite {
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable): Option[Sample]
 
   /** Optionally builds an observable that first emits the
-    * items and then ends in error triggered by user code
+    * cursor and then ends in error triggered by user code
     * (only for operators that execute user specified code).
     */
   def observableInError(sourceCount: Int, ex: Throwable): Option[Sample]

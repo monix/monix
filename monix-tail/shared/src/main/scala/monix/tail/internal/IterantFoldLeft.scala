@@ -18,7 +18,7 @@
 package monix.tail.internal
 
 import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Last, Next, NextGen, NextSeq, Suspend}
+import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
 import monix.types.Monad
 import monix.types.syntax._
 
@@ -39,11 +39,11 @@ private[tail] object IterantFoldLeft {
         case Next(a, rest, stop) =>
           val newState = op(state, a)
           rest.flatMap(loop(_, newState))
-        case NextSeq(cursor, rest, stop) =>
+        case NextCursor(cursor, rest, stop) =>
           val newState = cursor.foldLeft(state)(op)
           rest.flatMap(loop(_, newState))
-        case NextGen(gen, rest, stop) =>
-          val newState = gen.iterator.foldLeft(state)(op)
+        case NextBatch(gen, rest, stop) =>
+          val newState = gen.foldLeft(state)(op)
           rest.flatMap(loop(_, newState))
         case Suspend(rest, stop) =>
           rest.flatMap(loop(_, state))

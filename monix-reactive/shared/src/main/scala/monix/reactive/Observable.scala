@@ -203,17 +203,17 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     * to activate the subscription.
     *
     * When you call cache, it does not yet subscribe to the source
-    * Observable and so does not yet begin caching items. This only
+    * Observable and so does not yet begin caching batch. This only
     * happens when the first Subscriber calls the resulting
     * Observable's `subscribe` method.
     *
     * Note: You sacrifice the ability to cancel the origin when you
     * use the cache operator so be careful not to use this on
-    * Observables that emit an infinite or very large number of items
+    * Observables that emit an infinite or very large number of batch
     * that will use up memory.
     *
     * @return an Observable that, when first subscribed to, caches all of its
-    *         items and notifications for the benefit of subsequent subscribers
+    *         batch and notifications for the benefit of subsequent subscribers
     */
   def cache: Observable[A] =
     CachedObservable.create(self)
@@ -229,7 +229,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     * to activate the subscription.
     *
     * When you call cache, it does not yet subscribe to the source
-    * Observable and so does not yet begin caching items. This only
+    * Observable and so does not yet begin caching batch. This only
     * happens when the first Subscriber calls the resulting
     * Observable's `subscribe` method.
     *
@@ -238,7 +238,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     *        [[monix.reactive.subjects.ReplaySubject.createLimited[T](capacity:Int,initial* ReplaySubject.createLimited]])
     *
     * @return an Observable that, when first subscribed to, caches all of its
-    *         items and notifications for the benefit of subsequent subscribers
+    *         batch and notifications for the benefit of subsequent subscribers
     */
   def cache(maxCapacity: Int): Observable[A] =
     CachedObservable.create(self, maxCapacity)
@@ -265,7 +265,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     * [[monix.reactive.subjects.ReplaySubject ReplaySubject]].
     *
     * @param bufferSize is the size of the buffer limiting the number
-    *        of items that can be replayed (on overflow the head
+    *        of cursor that can be replayed (on overflow the head
     *        starts being dropped)
     */
   def replay(bufferSize: Int)(implicit s: Scheduler): ConnectableObservable[A] =
@@ -302,7 +302,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
   /** Returns a `Task` which emits either `true`, in case the given predicate
     * holds for at least one item, or `false` otherwise.
     *
-    * @param p is a function that evaluates the items emitted by the
+    * @param p is a function that evaluates the cursor emitted by the
     *        source, returning `true` if they pass the filter
     * @return a task that emits `true` or `false` in case
     *         the given predicate holds or not for at least one item
@@ -313,7 +313,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
   /** Returns a task which emits the first item for which
     * the predicate holds.
     *
-    * @param p is a function that evaluates the items emitted by the
+    * @param p is a function that evaluates the cursor emitted by the
     *        source observable, returning `true` if they pass the filter
     * @return a task that emits the first item in the source
     *         observable for which the filter evaluates as `true`
@@ -345,14 +345,14 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     foldWhileF(initial)(op).headL
 
   /** Returns a `Task` that emits a single boolean, either true, in
-    * case the given predicate holds for all the items emitted by the
+    * case the given predicate holds for all the batch emitted by the
     * source, or false in case at least one item is not verifying the
     * given predicate.
     *
-    * @param p is a function that evaluates the items emitted by the source
+    * @param p is a function that evaluates the batch emitted by the source
     *        observable, returning `true` if they pass the filter
     * @return a task that emits only true or false in case the given
-    *         predicate holds or not for all the items
+    *         predicate holds or not for all the batch
     */
   def forAllL(p: A => Boolean): Task[Boolean] =
     existsL(e => !p(e)).map(r => !r)
@@ -524,7 +524,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
   def sumL[B >: A](implicit B: Numeric[B]): Task[B] =
     sumF(B).headL
 
-  /** Returns a `Task` that upon evaluation will collect all items from
+  /** Returns a `Task` that upon evaluation will collect all cursor from
     * the source in a Scala `List` and return this list instead.
     *
     * WARNING: for infinite streams the process will eventually blow up
@@ -909,16 +909,16 @@ object Observable {
     new builders.ConsObservable[A](head, tail)
 
   /** Creates a new observable from this observable and another given
-    * observable by interleaving their items into a strictly alternating sequence.
+    * observable by interleaving their batch into a strictly alternating sequence.
     *
     * So the first item emitted by the new observable will be the item emitted by
     * `self`, the second item will be emitted by the other observable, and so forth;
-    * when either `self` or `other` calls `onCompletes`, the items will then be
+    * when either `self` or `other` calls `onCompletes`, the batch will then be
     * directly coming from the observable that has not completed; when `onError` is
     * called by either `self` or `other`, the new observable will call `onError` and halt.
     *
     * See [[merge]] for a more relaxed alternative that doesn't
-    * emit items in strict alternating sequence.
+    * emit batch in strict alternating sequence.
     */
   def interleave2[A](oa1: Observable[A], oa2: Observable[A]): Observable[A] =
     new builders.Interleave2Observable(oa1, oa2)
@@ -996,7 +996,7 @@ object Observable {
   def repeatEval[A](task: => A): Observable[A] =
     new builders.RepeatEvalObservable(task)
 
-  /** Creates an Observable that emits items in the given range.
+  /** Creates an Observable that emits cursor in the given range.
     *
     * @param from the range start
     * @param until the range end
@@ -1078,31 +1078,31 @@ object Observable {
     Observable.fromIterable(sources).switch
 
   /** Creates a new observable from two observable sequences
-    * by combining their items in pairs in a strict sequence.
+    * by combining their batch in pairs in a strict sequence.
     *
     * So the first item emitted by the new observable will be the result
-    * of the function applied to the first items emitted by each of
+    * of the function applied to the first batch emitted by each of
     * the source observables; the second item emitted by the new observable
-    * will be the result of the function applied to the second items
+    * will be the result of the function applied to the second batch
     * emitted by each of those observables; and so forth.
     *
     * See [[combineLatestMap2]] for a more relaxed alternative that doesn't
-    * combine items in strict sequence.
+    * combine batch in strict sequence.
     */
   def zip2[A1,A2](oa1: Observable[A1], oa2: Observable[A2]): Observable[(A1,A2)] =
     new builders.Zip2Observable[A1,A2,(A1,A2)](oa1,oa2)((a1,a2) => (a1,a2))
 
   /** Creates a new observable from two observable sequences
-    * by combining their items in pairs in a strict sequence.
+    * by combining their batch in pairs in a strict sequence.
     *
     * So the first item emitted by the new observable will be the result
-    * of the function applied to the first items emitted by each of
+    * of the function applied to the first batch emitted by each of
     * the source observables; the second item emitted by the new observable
-    * will be the result of the function applied to the second items
+    * will be the result of the function applied to the second batch
     * emitted by each of those observables; and so forth.
     *
     * See [[combineLatestMap2]] for a more relaxed alternative that doesn't
-    * combine items in strict sequence.
+    * combine batch in strict sequence.
     *
     * @param f is the mapping function applied over the generated pairs
     */
@@ -1110,31 +1110,31 @@ object Observable {
     new builders.Zip2Observable[A1,A2,R](oa1,oa2)(f)
 
   /** Creates a new observable from three observable sequences
-    * by combining their items in pairs in a strict sequence.
+    * by combining their batch in pairs in a strict sequence.
     *
     * So the first item emitted by the new observable will be the result
-    * of the function applied to the first items emitted by each of
+    * of the function applied to the first batch emitted by each of
     * the source observables; the second item emitted by the new observable
-    * will be the result of the function applied to the second items
+    * will be the result of the function applied to the second batch
     * emitted by each of those observables; and so forth.
     *
     * See [[combineLatestMap3]] for a more relaxed alternative that doesn't
-    * combine items in strict sequence.
+    * combine batch in strict sequence.
     */
   def zip3[A1,A2,A3](oa1: Observable[A1], oa2: Observable[A2], oa3: Observable[A3]): Observable[(A1,A2,A3)] =
     new builders.Zip3Observable(oa1,oa2,oa3)((a1,a2,a3) => (a1,a2,a3))
 
   /** Creates a new observable from three observable sequences
-    * by combining their items in pairs in a strict sequence.
+    * by combining their batch in pairs in a strict sequence.
     *
     * So the first item emitted by the new observable will be the result
-    * of the function applied to the first items emitted by each of
+    * of the function applied to the first batch emitted by each of
     * the source observables; the second item emitted by the new observable
-    * will be the result of the function applied to the second items
+    * will be the result of the function applied to the second batch
     * emitted by each of those observables; and so forth.
     *
     * See [[combineLatestMap3]] for a more relaxed alternative that doesn't
-    * combine items in strict sequence.
+    * combine batch in strict sequence.
     *
     * @param f is the mapping function applied over the generated pairs
     */
@@ -1143,32 +1143,32 @@ object Observable {
     new builders.Zip3Observable(oa1,oa2,oa3)(f)
 
   /** Creates a new observable from four observable sequences
-    * by combining their items in pairs in a strict sequence.
+    * by combining their batch in pairs in a strict sequence.
     *
     * So the first item emitted by the new observable will be the result
-    * of the function applied to the first items emitted by each of
+    * of the function applied to the first batch emitted by each of
     * the source observables; the second item emitted by the new observable
-    * will be the result of the function applied to the second items
+    * will be the result of the function applied to the second batch
     * emitted by each of those observables; and so forth.
     *
     * See [[combineLatestMap4]] for a more relaxed alternative that doesn't
-    * combine items in strict sequence.
+    * combine batch in strict sequence.
     */
   def zip4[A1,A2,A3,A4]
     (oa1: Observable[A1], oa2: Observable[A2], oa3: Observable[A3], oa4: Observable[A4]): Observable[(A1,A2,A3,A4)] =
     new builders.Zip4Observable(oa1,oa2,oa3,oa4)((a1,a2,a3,a4) => (a1,a2,a3,a4))
 
   /** Creates a new observable from four observable sequences
-    * by combining their items in pairs in a strict sequence.
+    * by combining their batch in pairs in a strict sequence.
     *
     * So the first item emitted by the new observable will be the result
-    * of the function applied to the first items emitted by each of
+    * of the function applied to the first batch emitted by each of
     * the source observables; the second item emitted by the new observable
-    * will be the result of the function applied to the second items
+    * will be the result of the function applied to the second batch
     * emitted by each of those observables; and so forth.
     *
     * See [[combineLatestMap4]] for a more relaxed alternative that doesn't
-    * combine items in strict sequence.
+    * combine batch in strict sequence.
     *
     * @param f is the mapping function applied over the generated pairs
     */
@@ -1178,16 +1178,16 @@ object Observable {
     new builders.Zip4Observable(oa1,oa2,oa3,oa4)(f)
 
   /** Creates a new observable from five observable sequences
-    * by combining their items in pairs in a strict sequence.
+    * by combining their batch in pairs in a strict sequence.
     *
     * So the first item emitted by the new observable will be the result
-    * of the function applied to the first items emitted by each of
+    * of the function applied to the first batch emitted by each of
     * the source observables; the second item emitted by the new observable
-    * will be the result of the function applied to the second items
+    * will be the result of the function applied to the second batch
     * emitted by each of those observables; and so forth.
     *
     * See [[combineLatestMap5]] for a more relaxed alternative that doesn't
-    * combine items in strict sequence.
+    * combine batch in strict sequence.
     */
   def zip5[A1,A2,A3,A4,A5](
     oa1: Observable[A1], oa2: Observable[A2], oa3: Observable[A3],
@@ -1195,16 +1195,16 @@ object Observable {
     new builders.Zip5Observable(oa1,oa2,oa3,oa4,oa5)((a1,a2,a3,a4,a5) => (a1,a2,a3,a4,a5))
 
   /** Creates a new observable from five observable sequences
-    * by combining their items in pairs in a strict sequence.
+    * by combining their batch in pairs in a strict sequence.
     *
     * So the first item emitted by the new observable will be the result
-    * of the function applied to the first items emitted by each of
+    * of the function applied to the first batch emitted by each of
     * the source observables; the second item emitted by the new observable
-    * will be the result of the function applied to the second items
+    * will be the result of the function applied to the second batch
     * emitted by each of those observables; and so forth.
     *
     * See [[combineLatestMap5]] for a more relaxed alternative that doesn't
-    * combine items in strict sequence.
+    * combine batch in strict sequence.
     *
     * @param f is the mapping function applied over the generated pairs
     */
@@ -1215,16 +1215,16 @@ object Observable {
     new builders.Zip5Observable(oa1,oa2,oa3,oa4,oa5)(f)
 
   /** Creates a new observable from five observable sequences
-    * by combining their items in pairs in a strict sequence.
+    * by combining their batch in pairs in a strict sequence.
     *
     * So the first item emitted by the new observable will be the result
-    * of the function applied to the first items emitted by each of
+    * of the function applied to the first batch emitted by each of
     * the source observables; the second item emitted by the new observable
-    * will be the result of the function applied to the second items
+    * will be the result of the function applied to the second batch
     * emitted by each of those observables; and so forth.
     *
     * See [[combineLatestMap5]] for a more relaxed alternative that doesn't
-    * combine items in strict sequence.
+    * combine batch in strict sequence.
     */
   def zip6[A1,A2,A3,A4,A5,A6](
     oa1: Observable[A1], oa2: Observable[A2], oa3: Observable[A3],
@@ -1232,16 +1232,16 @@ object Observable {
     new builders.Zip6Observable(oa1,oa2,oa3,oa4,oa5,oa6)((a1,a2,a3,a4,a5,a6) => (a1,a2,a3,a4,a5,a6))
 
   /** Creates a new observable from five observable sequences
-    * by combining their items in pairs in a strict sequence.
+    * by combining their batch in pairs in a strict sequence.
     *
     * So the first item emitted by the new observable will be the result
-    * of the function applied to the first items emitted by each of
+    * of the function applied to the first batch emitted by each of
     * the source observables; the second item emitted by the new observable
-    * will be the result of the function applied to the second items
+    * will be the result of the function applied to the second batch
     * emitted by each of those observables; and so forth.
     *
     * See [[combineLatestMap5]] for a more relaxed alternative that doesn't
-    * combine items in strict sequence.
+    * combine batch in strict sequence.
     *
     * @param f is the mapping function applied over the generated pairs
     */
@@ -1267,7 +1267,7 @@ object Observable {
   /** Creates a combined observable from 2 source observables.
     *
     * This operator behaves in a similar way to [[zip2]],
-    * but while `zip` emits items only when all of the zipped source
+    * but while `zip` emits cursor only when all of the zipped source
     * observables have emitted a previously unzipped item, `combine`
     * emits an item whenever any of the source Observables emits an
     * item (so long as each of the source Observables has emitted at
@@ -1279,7 +1279,7 @@ object Observable {
   /** Creates a combined observable from 2 source observables.
     *
     * This operator behaves in a similar way to [[zipMap2]],
-    * but while `zip` emits items only when all of the zipped source
+    * but while `zip` emits cursor only when all of the zipped source
     * observables have emitted a previously unzipped item, `combine`
     * emits an item whenever any of the source Observables emits an
     * item (so long as each of the source Observables has emitted at
@@ -1292,7 +1292,7 @@ object Observable {
   /** Creates a combined observable from 3 source observables.
     *
     * This operator behaves in a similar way to [[zip3]],
-    * but while `zip` emits items only when all of the zipped source
+    * but while `zip` emits cursor only when all of the zipped source
     * observables have emitted a previously unzipped item, `combine`
     * emits an item whenever any of the source Observables emits an
     * item (so long as each of the source Observables has emitted at
@@ -1305,7 +1305,7 @@ object Observable {
   /** Creates a combined observable from 3 source observables.
     *
     * This operator behaves in a similar way to [[zipMap3]],
-    * but while `zip` emits items only when all of the zipped source
+    * but while `zip` emits cursor only when all of the zipped source
     * observables have emitted a previously unzipped item, `combine`
     * emits an item whenever any of the source Observables emits an
     * item (so long as each of the source Observables has emitted at
@@ -1318,7 +1318,7 @@ object Observable {
   /** Creates a combined observable from 4 source observables.
     *
     * This operator behaves in a similar way to [[zip4]],
-    * but while `zip` emits items only when all of the zipped source
+    * but while `zip` emits cursor only when all of the zipped source
     * observables have emitted a previously unzipped item, `combine`
     * emits an item whenever any of the source Observables emits an
     * item (so long as each of the source Observables has emitted at
@@ -1332,7 +1332,7 @@ object Observable {
   /** Creates a combined observable from 4 source observables.
     *
     * This operator behaves in a similar way to [[zipMap4]],
-    * but while `zip` emits items only when all of the zipped source
+    * but while `zip` emits cursor only when all of the zipped source
     * observables have emitted a previously unzipped item, `combine`
     * emits an item whenever any of the source Observables emits an
     * item (so long as each of the source Observables has emitted at
@@ -1346,7 +1346,7 @@ object Observable {
   /** Creates a combined observable from 5 source observables.
     *
     * This operator behaves in a similar way to [[zip5]],
-    * but while `zip` emits items only when all of the zipped source
+    * but while `zip` emits cursor only when all of the zipped source
     * observables have emitted a previously unzipped item, `combine`
     * emits an item whenever any of the source Observables emits an
     * item (so long as each of the source Observables has emitted at
@@ -1360,7 +1360,7 @@ object Observable {
   /** Creates a combined observable from 5 source observables.
     *
     * This operator behaves in a similar way to [[zipMap5]],
-    * but while `zip` emits items only when all of the zipped source
+    * but while `zip` emits cursor only when all of the zipped source
     * observables have emitted a previously unzipped item, `combine`
     * emits an item whenever any of the source Observables emits an
     * item (so long as each of the source Observables has emitted at
@@ -1374,7 +1374,7 @@ object Observable {
   /** Creates a combined observable from 6 source observables.
     *
     * This operator behaves in a similar way to [[zip6]],
-    * but while `zip` emits items only when all of the zipped source
+    * but while `zip` emits cursor only when all of the zipped source
     * observables have emitted a previously unzipped item, `combine`
     * emits an item whenever any of the source Observables emits an
     * item (so long as each of the source Observables has emitted at
@@ -1388,7 +1388,7 @@ object Observable {
   /** Creates a combined observable from 6 source observables.
     *
     * This operator behaves in a similar way to [[zipMap6]],
-    * but while `zip` emits items only when all of the zipped source
+    * but while `zip` emits cursor only when all of the zipped source
     * observables have emitted a previously unzipped item, `combine`
     * emits an item whenever any of the source Observables emits an
     * item (so long as each of the source Observables has emitted at
@@ -1414,7 +1414,7 @@ object Observable {
     }
   }
 
-  /** Given a list of source Observables, emits all of the items from
+  /** Given a list of source Observables, emits all of the cursor from
     * the first of these Observables to emit an item or to complete,
     * and cancel the rest.
     */

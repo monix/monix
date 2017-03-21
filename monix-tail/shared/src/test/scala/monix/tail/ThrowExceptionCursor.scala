@@ -19,8 +19,8 @@ package monix.tail
 
 import monix.execution.atomic.Atomic
 
-/** Cursor that throws exception on access. */
-final class ThrowExceptionIterator(ex: Throwable) extends Iterator[Nothing] {
+/** BatchCursor that throws exception on access. */
+final class ThrowExceptionCursor(ex: Throwable) extends BatchCursor[Nothing] { self =>
   private[this] val triggered = Atomic(false)
   def isTriggered: Boolean = triggered.get
 
@@ -29,13 +29,17 @@ final class ThrowExceptionIterator(ex: Throwable) extends Iterator[Nothing] {
     throw ex
   }
 
-  override def hasNext: Boolean = triggerError()
+  override def recommendedBatchSize: Int = 1
+  override def toIterator: Iterator[Nothing] =
+    new Iterator[Nothing] { def hasNext = self.hasNext(); def next() = self.next() }
+
+  override def hasNext(): Boolean = triggerError()
   override def next(): Nothing = triggerError()
 
-  override def take(n: Int): Iterator[Nothing] = triggerError()
-  override def drop(n: Int): Iterator[Nothing] = triggerError()
-  override def slice(from: Int, until: Int): Iterator[Nothing] = triggerError()
-  override def map[B](f: (Nothing) => B): Iterator[B] = triggerError()
-  override def filter(p: (Nothing) => Boolean): Iterator[Nothing] = triggerError()
-  override def collect[B](pf: PartialFunction[Nothing, B]): Iterator[B] = triggerError()
+  override def take(n: Int): BatchCursor[Nothing] = triggerError()
+  override def drop(n: Int): BatchCursor[Nothing] = triggerError()
+  override def slice(from: Int, until: Int): BatchCursor[Nothing] = triggerError()
+  override def map[B](f: (Nothing) => B): BatchCursor[B] = triggerError()
+  override def filter(p: (Nothing) => Boolean): BatchCursor[Nothing] = triggerError()
+  override def collect[B](pf: PartialFunction[Nothing, B]): BatchCursor[B] = triggerError()
 }

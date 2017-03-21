@@ -17,7 +17,7 @@
 
 package monix
 
-/** The `monix.tail` package exposes the [[monix.tail.Iterant Iterant]]
+/** The `monix.tail` batches exposes the [[monix.tail.Iterant Iterant]]
   * type, a pull-based streaming abstraction that can work lazily
   * and over asynchronous boundaries.
   */

@@ -18,7 +18,7 @@
 package monix.tail.internal
 
 import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Last, Next, NextGen, NextSeq, Suspend}
+import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
 import monix.tail.internal.IterantUtils.signalError
 import monix.types.Applicative
 import monix.types.syntax._
@@ -38,11 +38,11 @@ private[tail] object IterantMap {
         case Next(head, tail, stop) =>
           Next[F, B](f(head), tail.map(_.map(f)), stop)
 
-        case NextSeq(cursor, rest, stop) =>
-          NextSeq[F, B](cursor.map(f), rest.map(_.map(f)), stop)
+        case NextCursor(cursor, rest, stop) =>
+          NextCursor[F, B](cursor.map(f), rest.map(_.map(f)), stop)
 
-        case NextGen(gen, rest, stop) =>
-          NextGen(gen.map(f), rest.map(_.map(f)), stop)
+        case NextBatch(gen, rest, stop) =>
+          NextBatch(gen.map(f), rest.map(_.map(f)), stop)
 
         case Suspend(rest, stop) =>
           Suspend[F, B](rest.map(_.map(f)), stop)

@@ -67,18 +67,18 @@ object IterantStatesSuite extends BaseTestSuite {
     assertEquals(result, Success(0 :: list))
   }
 
-  test("Iterant[Task].nextSeq") { implicit s =>
+  test("Iterant[Task].nextCursor") { implicit s =>
     val list = List(1,2,3)
     val deferred = Task.eval(Iterant[Task].fromSeq[Int](list))
-    val result = Iterant[Task].nextSeqS(List(0).iterator, deferred, Task.unit).toListL.runAsync
+    val result = Iterant[Task].nextCursorS(BatchCursor(0), deferred, Task.unit).toListL.runAsync
     s.tick()
     assertEquals(result.value, Some(Success(0 :: list)))
   }
 
-  test("Iterant[Coeval].nextSeq") { implicit s =>
+  test("Iterant[Coeval].nextCursor") { implicit s =>
     val list = List(1,2,3)
     val deferred = Coeval.eval(Iterant[Coeval].fromSeq[Int](list))
-    val result = Iterant[Coeval].nextSeqS(List(0).iterator, deferred, Coeval.unit).toListL.runTry
+    val result = Iterant[Coeval].nextCursorS(BatchCursor(0), deferred, Coeval.unit).toListL.runTry
     assertEquals(result, Success(0 :: list))
   }
 

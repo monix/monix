@@ -28,7 +28,7 @@ import scala.annotation.tailrec
   * the source and only after the source completes.
   *
   * If the source terminates with an error, the `AsyncSubject` will not emit any
-  * items to subsequent subscribers, but will simply pass along the error
+  * cursor to subsequent subscribers, but will simply pass along the error
   * notification from the source Observable.
   */
 final class AsyncSubject[T] extends Subject[T,T] { self =>

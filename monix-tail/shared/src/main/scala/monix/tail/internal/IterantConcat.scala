@@ -17,11 +17,12 @@
 
 package monix.tail.internal
 
-import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Last, Next, NextGen, NextSeq, Suspend}
+import monix.tail.{BatchCursor, Iterant}
+import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
 import monix.tail.internal.IterantUtils.signalError
 import monix.types.syntax._
 import monix.types.{Applicative, Monad}
+
 import scala.util.control.NonFatal
 
 private[tail] object IterantConcat {
@@ -51,7 +52,7 @@ private[tail] object IterantConcat {
     
     @inline def generate(item: A, rest: F[Iterant[F, B]], stop: F[Unit]): Iterant[F, B] =
       f(item) match {
-        case next @ (Next(_,_,_) | NextSeq(_,_,_) | NextGen(_,_,_) | Suspend(_,_)) =>
+        case next @ (Next(_,_,_) | NextCursor(_,_,_) | NextBatch(_,_,_) | Suspend(_,_)) =>
           concat(next.doOnEarlyStop(stop), Suspend(rest, stop))
         case Last(value) =>
           Next(value, rest, stop)
@@ -61,14 +62,14 @@ private[tail] object IterantConcat {
           signalError(source, ex)
       }
 
-    @inline def evalNextSeq(ref: NextSeq[F, A], cursor: Iterator[A], rest: F[Iterant[F, A]], stop: F[Unit]) = {
+    @inline def evalNextCursor(ref: NextCursor[F, A], cursor: BatchCursor[A], rest: F[Iterant[F, A]], stop: F[Unit]) = {
       if (!cursor.hasNext) {
         Suspend(rest.map(unsafeFlatMap(_)(f)), stop)
       }
       else {
         val item = cursor.next()
         // If iterator is empty then we can skip a beat
-        val tail = if (cursor.hasNext) A.eval(flatMap(ref, f)) else rest.map(unsafeFlatMap(_)(f))
+        val tail = if (cursor.hasNext()) A.eval(flatMap(ref, f)) else rest.map(unsafeFlatMap(_)(f))
         generate(item, tail, stop)
       }
     }
@@ -77,16 +78,16 @@ private[tail] object IterantConcat {
       case Next(item, rest, stop) =>
         generate(item, rest.map(unsafeFlatMap(_)(f)), stop)
 
-      case ref @ NextSeq(cursor, rest, stop) =>
-        evalNextSeq(ref, cursor, rest, stop)
+      case ref @ NextCursor(cursor, rest, stop) =>
+        evalNextCursor(ref, cursor, rest, stop)
 
       case Suspend(rest, stop) =>
         Suspend(rest.map(unsafeFlatMap(_)(f)), stop)
 
-      case NextGen(gen, rest, stop) =>
-        val cursor = gen.iterator
-        val ref = NextSeq(cursor, rest, stop)
-        evalNextSeq(ref, cursor, rest, stop)
+      case NextBatch(gen, rest, stop) =>
+        val cursor = gen.cursor()
+        val ref = NextCursor(cursor, rest, stop)
+        evalNextCursor(ref, cursor, rest, stop)
 
       case Last(item) =>
         f(item)
@@ -110,10 +111,10 @@ private[tail] object IterantConcat {
     lhs match {
       case Next(a, lt, stop) =>
         Next(a, lt.map(concat(_, rhs)), stop)
-      case NextSeq(seq, lt, stop) =>
-        NextSeq(seq, lt.map(concat(_, rhs)), stop)
-      case NextGen(gen, rest, stop) =>
-        NextGen(gen, rest.map(concat(_, rhs)), stop)
+      case NextCursor(seq, lt, stop) =>
+        NextCursor(seq, lt.map(concat(_, rhs)), stop)
+      case NextBatch(gen, rest, stop) =>
+        NextBatch(gen, rest.map(concat(_, rhs)), stop)
       case Suspend(lt, stop) =>
         Suspend(lt.map(concat(_, rhs)), stop)
       case Last(item) =>

@@ -28,9 +28,9 @@ private[tail] object IterantUtils {
     source match {
       case Next(_,_,stop) =>
         Suspend(stop.map(_ => halt), stop)
-      case NextSeq(_,_,stop) =>
+      case NextCursor(_,_,stop) =>
         Suspend(stop.map(_ => halt), stop)
-      case NextGen(_,_,stop) =>
+      case NextBatch(_,_,stop) =>
         Suspend(stop.map(_ => halt), stop)
       case Suspend(_,stop) =>
         Suspend(stop.map(_ => halt), stop)

@@ -27,7 +27,7 @@ sealed abstract class MulticastStrategy[+A] extends Serializable
 /** The [[MulticastStrategy]] enumerated.
   *
   * @define publish The `Publish` strategy is for emitting to a subscriber
-  *         only those items that are emitted by the source subsequent
+  *         only those batch that are emitted by the source subsequent
   *         to the time of the subscription.
   *
   *         Corresponds to [[Pipe.publish]].
@@ -45,13 +45,13 @@ sealed abstract class MulticastStrategy[+A] extends Serializable
   *         Corresponds to [[Pipe.async]].
   *
   * @define replay The `Replay` strategy is for building multicast observables
-  *         that repeat all the generated items by the source, regardless of
+  *         that repeat all the generated batch by the source, regardless of
   *         when the source is subscribed.
   *
   *         Corresponds to [[Pipe.replay[A](initial:Seq[A]* Pipe.replay]].
   *
   * @define replayLimited   The `ReplayLimited` strategy is for building multicast
-  *         observables that repeat the generated items by the source, but limited by the
+  *         observables that repeat the generated batch by the source, but limited by the
   *         maximum size of the underlying buffer.
   *
   *         When maximum size is reached, the underlying buffer starts dropping

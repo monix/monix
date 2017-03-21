@@ -28,11 +28,11 @@ import scala.annotation.tailrec
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 
-/** A `PublishSubject` emits to a subscriber only those items that are
+/** A `PublishSubject` emits to a subscriber only those batch that are
   * emitted by the source subsequent to the time of the subscription.
   *
   * If the source terminates with an error, the `PublishSubject` will not emit any
-  * items to subsequent subscribers, but will simply pass along the error
+  * batch to subsequent subscribers, but will simply pass along the error
   * notification from the source Observable.
   *
   * @see [[Subject]]

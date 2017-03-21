@@ -47,25 +47,25 @@ object IterantFilterSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.filter suspends the evaluation for NextGen") { _ =>
+  test("Iterant.filter suspends the evaluation for NextBatch") { _ =>
     val dummy = DummyException("dummy")
-    val items = new ThrowExceptionIterable(dummy)
-    val iter = Iterant[Coeval].nextGenS(items, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
+    val items = new ThrowExceptionBatch(dummy)
+    val iter = Iterant[Coeval].nextBatchS(items, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
     val state = iter.filter { x => throw dummy }
 
     assert(state.isInstanceOf[Suspend[Coeval,Int]], "state.isInstanceOf[Suspend[Coeval,Int]]")
-    assert(!items.isTriggered, "!items.isTriggered")
+    assert(!items.isTriggered, "!batch.isTriggered")
     assertEquals(state.toListL.runTry, Failure(dummy))
   }
 
-  test("Iterant.filter suspends the evaluation for NextSeq") { _ =>
+  test("Iterant.filter suspends the evaluation for NextCursor") { _ =>
     val dummy = DummyException("dummy")
-    val items = new ThrowExceptionIterator(dummy)
-    val iter = Iterant[Coeval].nextSeqS(items, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
+    val items = new ThrowExceptionCursor(dummy)
+    val iter = Iterant[Coeval].nextCursorS(items, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
     val state = iter.filter { x => throw dummy }
 
     assert(state.isInstanceOf[Suspend[Coeval,Int]], "state.isInstanceOf[Suspend[Coeval,Int]]")
-    assert(!items.isTriggered, "!items.isTriggered")
+    assert(!items.isTriggered, "!batch.isTriggered")
     assertEquals(state.toListL.runTry, Failure(dummy))
   }
 

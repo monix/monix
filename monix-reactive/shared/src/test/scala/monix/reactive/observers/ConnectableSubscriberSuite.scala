@@ -66,7 +66,7 @@ object ConnectableSubscriberSuite extends TestSuite[TestScheduler] {
     assert(wasCompleted, "downstream should be completed")
   }
 
-  test("should emit pushed items immediately after connect") { implicit s =>
+  test("should emit pushed cursor immediately after connect") { implicit s =>
     val received = ArrayBuffer.empty[Int]
     var wasCompleted = false
 

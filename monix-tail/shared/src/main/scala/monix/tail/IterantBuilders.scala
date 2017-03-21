@@ -21,6 +21,7 @@ import monix.eval.{Coeval, Task}
 import monix.types.{Applicative, Monad}
 
 import scala.collection.immutable.LinearSeq
+import scala.reflect.ClassTag
 import scala.util.Try
 
 class IterantBuilders[F[_]] extends SharedDocs {
@@ -49,23 +50,23 @@ class IterantBuilders[F[_]] extends SharedDocs {
   def nextS[A](item: A, rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
     Iterant.nextS(item, rest, stop)
 
-  /** $nextSeqSDesc
+  /** $nextCursorSDesc
     *
-    * @param items $cursorParamDesc
+    * @param cursor $cursorParamDesc
     * @param rest $restParamDesc
     * @param stop $stopParamDesc
     */
-  def nextSeqS[A](items: Iterator[A], rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
-    Iterant.nextSeqS(items, rest, stop)
+  def nextCursorS[A](cursor: BatchCursor[A], rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
+    Iterant.nextCursorS(cursor, rest, stop)
 
-  /** $nextGenSDesc
+  /** $nextBatchSDesc
     *
-    * @param items $generatorParamDesc
+    * @param batch $generatorParamDesc
     * @param rest $restParamDesc
     * @param stop $stopParamDesc
     */
-  def nextGenS[A](items: Iterable[A], rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
-    Iterant.nextGenS(items, rest, stop)
+  def nextBatchS[A](batch: Batch[A], rest: F[Iterant[F, A]], stop: F[Unit]): Iterant[F, A] =
+    Iterant.nextBatchS(batch, rest, stop)
 
   /** $suspendSDesc
     *
@@ -125,8 +126,8 @@ class IterantBuilders[F[_]] extends SharedDocs {
     Iterant.tailRecM(a)(f)(F)
 
   /** $builderFromArray */
-  def fromArray[A](xs: Array[A])(implicit F: Applicative[F]): Iterant[F, A] =
-    Iterant.fromArray(xs)(F)
+  def fromArray[A : ClassTag](xs: Array[A])(implicit F: Applicative[F]): Iterant[F, A] =
+    Iterant.fromArray(xs)
 
   /** $builderFromList */
   def fromList[A](xs: LinearSeq[A])(implicit F: Applicative[F]): Iterant[F, A] =
