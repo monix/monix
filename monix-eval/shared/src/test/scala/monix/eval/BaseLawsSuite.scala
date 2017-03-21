@@ -23,6 +23,7 @@ import monix.execution.schedulers.TestScheduler
 import monix.types.tests.Eq
 import org.scalacheck.Arbitrary
 import org.scalacheck.Test.Parameters
+
 import scala.util.{Failure, Success, Try}
 import concurrent.duration._
 
@@ -32,9 +33,46 @@ trait BaseLawsSuite extends monix.types.tests.BaseLawsSuite with ArbitraryInstan
       .withMinSuccessfulTests(if (Platform.isJVM) 100 else 10)
       .withMaxDiscardRatio(if (Platform.isJVM) 5.0f else 50.0f)
       .withMaxSize(32)
+
+  lazy val slowConfig: Parameters =
+    Parameters.default
+      .withMinSuccessfulTests(if (Platform.isJVM) 100 else 10)
+      .withMaxDiscardRatio(if (Platform.isJVM) 5.0f else 50.0f)
+      .withMaxSize(10)
 }
 
 trait ArbitraryInstances {
+  def arbitraryListToIterant[A](list: List[A], idx: Int): Iterant[A] = {
+    def loop(list: List[A], idx: Int): Iterant[A] =
+      list match {
+        case Nil =>
+          Iterant.haltS(None)
+        case x :: Nil if idx % 2 == 1 =>
+          Iterant.lastS(x)
+        case ns =>
+          if (idx % 6 == 0)
+            Iterant.nextS(ns.head, Task.eval(loop(ns.tail, idx+1)), Task.unit)
+          else if (idx % 6 == 1)
+            Iterant.suspend(Task.eval(loop(list, idx+1)))
+          else  if (idx % 6 == 2) {
+            val (headSeq, tail) = list.splitAt(3)
+            Iterant.nextSeqS(headSeq.toVector.iterator, Task.eval(loop(tail, idx+1)), Task.unit)
+          }
+          else if (idx % 6 == 3) {
+            Iterant.suspendS(Task.eval(loop(ns, idx + 1)), Task.unit)
+          }
+          else if (idx % 6 == 4) {
+            val (headSeq, tail) = list.splitAt(3)
+            Iterant.nextGenS(headSeq.toVector, Task.eval(loop(tail, idx+1)), Task.unit)
+          }
+          else {
+            Iterant.nextGenS(Nil, Task.eval(loop(ns, idx + 1)), Task.unit)
+          }
+      }
+
+    Iterant.suspend(loop(list, idx))
+  }
+
   implicit def arbitraryCoeval[A](implicit A: Arbitrary[A]): Arbitrary[Coeval[A]] =
     Arbitrary {
       val intGen = implicitly[Arbitrary[Int]]
@@ -52,8 +90,16 @@ trait ArbitraryInstances {
         if (int % 4 == 0) Task.now(a)
         else if (int % 4 == 1) Task.evalOnce(a)
         else if (int % 4 == 2) Task.eval(a)
-        else Task.create[A] { (s,cb) => cb.onSuccess(a); Cancelable.empty }
+        else Task.create[A] { (_,cb) => cb.onSuccess(a); Cancelable.empty }
       }
+    }
+
+  implicit def arbitraryIterant[A](implicit A: Arbitrary[A]): Arbitrary[Iterant[A]] =
+    Arbitrary {
+      val listGen = implicitly[Arbitrary[List[A]]]
+      val intGen = implicitly[Arbitrary[Int]]
+      for (source <- listGen.arbitrary; i <- intGen.arbitrary) yield
+        arbitraryListToIterant(source.reverse, math.abs(i % 4))
     }
 
   implicit def arbitraryExToA[A](implicit A: Arbitrary[A]): Arbitrary[Throwable => A] =
@@ -70,12 +116,12 @@ trait ArbitraryInstances {
 
   implicit def arbitraryCoevalToLong[A,B](implicit A: Arbitrary[A], B: Arbitrary[B]): Arbitrary[Coeval[A] => B] =
     Arbitrary {
-      for (b <- B.arbitrary) yield (t: Coeval[A]) => b
+      for (b <- B.arbitrary) yield (_: Coeval[A]) => b
     }
 
   implicit def arbitraryTaskToLong[A,B](implicit A: Arbitrary[A], B: Arbitrary[B]): Arbitrary[Task[A] => B] =
     Arbitrary {
-      for (b <- B.arbitrary) yield (t: Task[A]) => b
+      for (b <- B.arbitrary) yield (_: Task[A]) => b
     }
 
   implicit def isEqCoeval[A](implicit A: Eq[A]): Eq[Coeval[A]] =
@@ -141,6 +187,42 @@ trait ArbitraryInstances {
         }
 
         areEqual
+      }
+    }
+
+  implicit def isEqIterantTask[A](implicit A: Eq[List[A]]): Eq[Iterant[A]] =
+    new Eq[Iterant[A]] {
+      def apply(lh: Iterant[A], rh: Iterant[A]): Boolean = {
+        implicit val s = TestScheduler()
+        var valueA = Option.empty[Try[List[A]]]
+        var valueB = Option.empty[Try[List[A]]]
+
+        lh.toListL.runAsync(new Callback[List[A]] {
+          def onError(ex: Throwable): Unit =
+            valueA = Some(Failure(ex))
+          def onSuccess(value: List[A]): Unit =
+            valueA = Some(Success(value))
+        })
+
+        rh.toListL.runAsync(new Callback[List[A]] {
+          def onError(ex: Throwable): Unit =
+            valueB = Some(Failure(ex))
+          def onSuccess(value: List[A]): Unit =
+            valueB = Some(Success(value))
+        })
+
+        // simulate synchronous execution
+        s.tick(1.hour)
+
+        if (valueA.isEmpty)
+          valueB.isEmpty
+        else {
+          (valueA.get.isFailure && valueB.get.isFailure) || {
+            val la = valueA.get.get
+            val lb = valueB.get.get
+            A(la, lb)
+          }
+        }
       }
     }
 }

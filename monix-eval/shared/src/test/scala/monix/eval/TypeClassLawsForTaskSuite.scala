@@ -21,7 +21,6 @@ import monix.types.tests._
 
 object TypeClassLawsForTaskSuite extends BaseLawsSuite
   with MemoizableLawsSuite[Task,Int,Long,Short]
-  with SuspendableLawsSuite[Task,Int,Long,Short]
   with MonadErrorLawsSuite[Task,Int,Long,Short,Throwable]
   with CobindLawsSuite[Task,Int,Long,Short]
   with MonadRecLawsSuite[Task,Int,Long,Short] {
@@ -31,7 +30,7 @@ object TypeClassLawsForTaskSuite extends BaseLawsSuite
 
   // Actual tests ...
 
-  monadEvalErrorCheck("Task")
+  applicativeEvalErrorCheck("Task")
   memoizableCheck("Task", includeSupertypes = true)
   monadErrorCheck("Task", includeSupertypes = false)
   monadRecCheck("Task", includeSupertypes = false)

@@ -22,9 +22,13 @@ import minitest.laws.Checkers
 import monix.execution.schedulers.TestScheduler
 import monix.types.tests.Eq
 import org.scalacheck.Prop
+import org.scalacheck.Test.Parameters
 
-abstract class BaseTestSuite extends TestSuite[TestScheduler]
+trait BaseTestSuite extends TestSuite[TestScheduler]
   with Checkers with ArbitraryInstances {
+
+  override lazy val checkConfig: Parameters =
+    super.checkConfig.withMaxSize(64)
 
   def setup(): TestScheduler = TestScheduler()
   def tearDown(env: TestScheduler): Unit = {

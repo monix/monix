@@ -17,7 +17,7 @@
 
 package monix.types.tests
 
-import monix.types.{Applicative, Functor}
+import monix.types.{Applicative, Functor, MonadError}
 import org.scalacheck.Arbitrary
 
 trait ApplicativeLawsSuite[F[_], A,B,C] extends FunctorLawsSuite[F,A,B,C] {
@@ -65,6 +65,17 @@ trait ApplicativeLawsSuite[F[_], A,B,C] extends FunctorLawsSuite[F,A,B,C] {
     test(s"Applicative[$typeName].applicativeComposition") {
       check3((fa: F[A], fab: F[A => B], fbc: F[B => C]) =>
         applicativeLaws.applicativeComposition(fa, fab, fbc))
+    }
+
+    test(s"Applicative[$typeName].evalEquivalenceWithPure") {
+      check1((a: A) => applicativeLaws.applicativeEvalEquivalenceWithPure(a))
+    }
+  }
+
+  def applicativeEvalErrorCheck(typeName: String)(implicit E: MonadError[F,Throwable], eqFA: Eq[F[A]]): Unit = {
+    test(s"MonadEval[$typeName].evalEquivalenceWithRaiseError") {
+      check1((ex: Throwable) =>
+        applicativeLaws.evalEquivalenceWithRaiseError[A](ex))
     }
   }
 }

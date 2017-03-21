@@ -75,6 +75,8 @@ private[scalaz] trait ScalazToMonix1 extends ScalazToMonix0 {
       szF.pure(a)
     override def ap[A, B](ff: F[(A) => B])(fa: F[A]): F[B] =
       szF.ap(fa)(ff)
+    override def eval[A](a: => A): F[A] =
+      szF.pure(a)
   }
 }
 
@@ -97,6 +99,8 @@ private[scalaz] trait ScalazToMonix2 extends ScalazToMonix1 {
       szF.bind(fa)(f)
     override def flatten[A](ffa: F[F[A]]): F[A] =
       szF.join(ffa)
+    override def suspend[A](fa: => F[A]): F[A] =
+      szF.join(szF.pure(fa))
   }
 }
 

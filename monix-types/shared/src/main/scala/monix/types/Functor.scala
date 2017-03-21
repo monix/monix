@@ -71,7 +71,7 @@ object Functor {
     extends Serializable {
 
     /** Extension method for [[Functor.map]]. */
-    def map[B](f: A => B): F[B] = macro monix.types.utils.Macros.functorMap
+    def map[B](f: A => B): F[B] = F.map(self)(f)
   }
 
   /** Laws for [[Functor]]. */
