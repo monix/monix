@@ -387,7 +387,8 @@ lazy val evalJS = project.in(file("monix-eval/js"))
 
 lazy val tailCommon =
   crossSettings ++ testSettings ++ optimisationSettings ++ Seq(
-    name := "monix-tail"
+    name := "monix-tail",
+    scalacOptions += "-Yinline-warnings"
   )
 
 lazy val tailJVM = project.in(file("monix-tail/jvm"))

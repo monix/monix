@@ -376,6 +376,24 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     */
   final def toListL(implicit F: Monad[F]): F[List[A]] =
     IterantFoldLeft.toListL(self)(F)
+
+  /** Lazily zip two iterants together, using the given function `f` to
+    * produce output values.
+    *
+    * The length of the result will be the shorter of the two
+    * arguments.
+    */
+  final def zipMap[B, C](rhs: Iterant[F, B])(f: (A, B) => C)
+    (implicit F: Monad[F]): Iterant[F, C] =
+    IterantZipMap(this, rhs)(f)
+
+  /** Lazily zip two iterants together.
+    *
+    * The length of the result will be the shorter of the two
+    * arguments.
+    */
+  final def zip[B](rhs: Iterant[F, B])(implicit F: Monad[F]): Iterant[F, (A, B)] =
+    (self zipMap rhs)((a, b) => (a, b))
 }
 
 /** Defines the standard [[Iterant]] builders. */
