@@ -66,7 +66,7 @@ trait ArbitraryInstances extends monix.eval.ArbitraryInstances {
       val listGen = implicitly[Arbitrary[List[A]]]
       val intGen = implicitly[Arbitrary[Int]]
       for (source <- listGen.arbitrary; i <- intGen.arbitrary) yield
-        arbitraryListToIterantCoeval(source.reverse, math.abs(i % 4))
+        arbitraryListToIterantCoeval(source.reverse, math.abs(i))
     }
 
   def arbitraryListToIterantTask[A](list: List[A], idx: Int): Iterant[Task, A] = {
@@ -109,7 +109,7 @@ trait ArbitraryInstances extends monix.eval.ArbitraryInstances {
       val listGen = implicitly[Arbitrary[List[A]]]
       val intGen = implicitly[Arbitrary[Int]]
       for (source <- listGen.arbitrary; i <- intGen.arbitrary) yield
-        arbitraryListToIterantTask(source.reverse, math.abs(i % 4))
+        arbitraryListToIterantTask(source.reverse, math.abs(i))
     }
 
   implicit def isEqIterantCoeval[A](implicit A: Eq[List[A]]): Eq[Iterant[Coeval, A]] =

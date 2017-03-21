@@ -365,6 +365,18 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def upcast[B >: A]: Iterant[F, B] =
     this.asInstanceOf[Iterant[F, B]]
 
+  /** Creates a new iterant that upon evaluation will select
+    * the first `n` elements from the source and then stop,
+    * in the order they are emitted by the source.
+    *
+    * @param n is the number of elements to take from this iterant
+    *
+    * @return a new iterant instance that on evaluation will emit
+    *         only the first `n` elements of this iterant
+    */
+  final def take(n: Int)(implicit F: Applicative[F]): Iterant[F, A] =
+    IterantTake(self, n)
+
   /** Aggregates all elements in a `List` and preserves order.
     *
     * @see [[toListL]] $lazyVersionDesc

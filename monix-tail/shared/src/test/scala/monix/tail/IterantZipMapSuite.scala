@@ -20,12 +20,17 @@ package monix.tail
 import monix.eval.Task
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.exceptions.DummyException
+import monix.execution.internal.Platform
 import org.scalacheck.Test
 import org.scalacheck.Test.Parameters
 
 object IterantZipMapSuite extends BaseTestSuite {
-  override lazy val checkConfig: Parameters =
-    Test.Parameters.default.withMaxSize(256)
+  override lazy val checkConfig: Parameters = {
+    if (Platform.isJVM)
+      Test.Parameters.default.withMaxSize(256)
+    else
+      Test.Parameters.default.withMaxSize(32)
+  }
 
   test("Iterant.zipMap equivalence with List.zip") { implicit s =>
     check3 { (stream1: Iterant[Task, Int], stream2: Iterant[Task, Int], f: (Int, Int) => Long) =>
