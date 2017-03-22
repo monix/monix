@@ -377,6 +377,15 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def take(n: Int)(implicit F: Applicative[F]): Iterant[F, A] =
     IterantTake(self, n)
 
+  /** Takes longest prefix of elements that satisfy the given predicate
+    * and returns a new iterant that emits those elements.
+    *
+    * @param p is the function that tests each element, stopping
+    *          the streaming on the first `false` result
+    */
+  final def takeWhile(p: A => Boolean)(implicit F: Applicative[F]): Iterant[F, A] =
+    IterantTakeWhile(self, p)
+
   /** Aggregates all elements in a `List` and preserves order.
     *
     * @see [[toListL]] $lazyVersionDesc

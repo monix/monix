@@ -103,7 +103,7 @@ object TypeClassLawsForObservableSuite
     }
 
   // Actual tests ...
-  
+
   applicativeEvalErrorCheck("Observable")
   memoizableCheck("Observable", includeSupertypes = true)
   monadErrorCheck("Observable", includeSupertypes = false)
