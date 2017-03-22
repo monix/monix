@@ -18,7 +18,7 @@
 package monix.benchmarks
 
 import java.util.concurrent.TimeUnit
-import monix.tail.BatchCursor$
+import monix.tail.BatchCursor
 import org.openjdk.jmh.annotations._
 
 /**
@@ -35,7 +35,6 @@ import org.openjdk.jmh.annotations._
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
 class CursorBenchmark {
-  // Number of threads that push messages
   @Param(Array("128", "1024", "4096"))
   var size = 0
 

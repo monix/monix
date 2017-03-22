@@ -251,6 +251,15 @@ abstract class BatchCursor[+A] extends Serializable {
 
 /** [[BatchCursor]] builders.
   *
+  * @define fromAnyArrayDesc Builds an [[ArrayCursor]] instance
+  *         from any array of boxed values.
+  *
+  *         This will have lower performance than working with
+  *         [[BatchCursor.fromArray]], since the values are boxed,
+  *         however there is no requirement for a
+  *         [[scala.reflect.ClassTag ClassTag]] and thus it can
+  *         be used in any generic context.
+  *
   * @define paramArray is the underlying reference to use for traversing
   *         and transformations
   *
@@ -307,6 +316,24 @@ object BatchCursor {
     */
   def fromArray[A : ClassTag](array: Array[A], offset: Int, length: Int): ArrayCursor[A] =
     new ArrayCursor[A](array, offset, length)
+
+  /** $fromAnyArrayDesc
+    *
+    * @param array $paramArray
+    * @param offset $paramArrayOffset
+    * @param length $paramArrayLength
+    */
+  def fromAnyArray[A](array: Array[_], offset: Int, length: Int): ArrayCursor[A] = {
+    val ref = new ArrayCursor[Any](array.asInstanceOf[Array[Any]], offset, length, arrayAnyBuilder)
+    ref.asInstanceOf[ArrayCursor[A]]
+  }
+
+  /** $fromAnyArrayDesc
+    *
+    * @param array $paramArray
+    */
+  def fromAnyArray[A](array: Array[_]): ArrayCursor[A] =
+    fromAnyArray(array, 0, array.length)
 
   /** Builds a [[BatchCursor]] from a Scala `Seq`, with lazy
     * semantics on transformations.

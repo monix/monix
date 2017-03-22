@@ -18,13 +18,12 @@
 package monix.tail
 
 import monix.execution.internal.Platform
-
 import scala.collection.mutable.ArrayBuilder
 
 package object batches {
   /** Reusable `ArrayBuilder` instance. */
-  private[tail] final val arrayAnyRefBuilder =
-    () => ArrayBuilder.make[AnyRef]()
+  private[tail] final val arrayAnyBuilder =
+    () => ArrayBuilder.make[Any]()
 
   private[tail] final val defaultBatchSize: Int =
     Platform.recommendedBatchSize

@@ -123,6 +123,15 @@ abstract class Batch[+A] extends Serializable {
 
 /** [[Batch]] builders.
   *
+  * @define fromAnyArrayDesc Builds an [[ArrayBatch]] instance
+  *         from any array of boxed values.
+  *
+  *         This will have lower performance than working with
+  *         [[Batch.fromArray]], since the values are boxed,
+  *         however there is no requirement for a
+  *         [[scala.reflect.ClassTag ClassTag]] and thus it can
+  *         be used in any generic context.
+  *
   * @define paramArray is the underlying reference to use for traversing
   *         and transformations
   *
@@ -156,6 +165,24 @@ object Batch {
     */
   def fromArray[A : ClassTag](array: Array[A], offset: Int, length: Int): ArrayBatch[A] =
     new ArrayBatch[A](array, offset, length)
+
+  /** $fromAnyArrayDesc
+    *
+    * @param array $paramArray
+    * @param offset $paramArrayOffset
+    * @param length $paramArrayLength
+    */
+  def fromAnyArray[A](array: Array[_], offset: Int, length: Int): ArrayBatch[A] = {
+    val ref = new ArrayBatch[Any](array.asInstanceOf[Array[Any]], offset, length, arrayAnyBuilder)
+    ref.asInstanceOf[ArrayBatch[A]]
+  }
+
+  /** $fromAnyArrayDesc
+    *
+    * @param array $paramArray
+    */
+  def fromAnyArray[A](array: Array[_]): ArrayBatch[A] =
+    fromAnyArray(array, 0, array.length)
 
   /** Converts a Scala [[scala.collection.Iterable Iterable]]
     * into a [[Batch]].

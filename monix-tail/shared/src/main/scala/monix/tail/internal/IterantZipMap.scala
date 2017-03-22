@@ -79,28 +79,29 @@ private[tail] object IterantZipMap {
 
           val isEmptyItemsA = !itemsA.hasNext()
           val isEmptyItemsB = !itemsB.hasNext()
+          val array = buffer.toArray[Any]
 
           if (isEmptyItemsA && isEmptyItemsB) {
-            if (buffer.isEmpty)
+            if (array.isEmpty)
               Suspend(A.map2(restA, restB)(loop), stopBoth(stopA, stopB))
             else
-              NextBatch(Batch.fromSeq(buffer, batchSize), A.map2(restA, restB)(loop), stopBoth(stopA, stopB))
+              NextBatch(Batch.fromAnyArray(array), A.map2(restA, restB)(loop), stopBoth(stopA, stopB))
           }
           else if (isEmptyItemsA) {
-            if (buffer.isEmpty)
+            if (array.isEmpty)
               Suspend(restA.map(loop(_, refB)), stopBoth(stopA, stopB))
             else
-              NextBatch(Batch.fromSeq(buffer, batchSize), restA.map(loop(_, refB)), stopBoth(stopA, stopB))
+              NextBatch(Batch.fromAnyArray(array), restA.map(loop(_, refB)), stopBoth(stopA, stopB))
           }
           else if (isEmptyItemsB) {
-            if (buffer.isEmpty)
+            if (array.isEmpty)
               Suspend(restB.map(loop(refA, _)), stopBoth(stopA, stopB))
             else
-              NextBatch(Batch.fromSeq(buffer, batchSize), restB.map(loop(refA, _)), stopBoth(stopA, stopB))
+              NextBatch(Batch.fromAnyArray(array), restB.map(loop(refA, _)), stopBoth(stopA, stopB))
           }
           else {
             // We are not done, continue loop
-            NextBatch(Batch.fromSeq(buffer, batchSize), A.eval(loop(refA, refB)), stopBoth(stopA, stopB))
+            NextBatch(Batch.fromAnyArray(array), A.eval(loop(refA, refB)), stopBoth(stopA, stopB))
           }
         }
         else if (!itemsA.hasNext)

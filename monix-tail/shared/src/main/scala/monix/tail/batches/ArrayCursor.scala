@@ -79,8 +79,7 @@ final class ArrayCursor[@specialized(Boolean, Byte, Char, Int, Long, Double) A]
     val newLength = limit - oldOffset
 
     if (newLength <= 0) {
-      new ArrayCursor[AnyRef](Array.empty, 0, 0, arrayAnyRefBuilder)
-        .asInstanceOf[ArrayCursor[B]]
+      BatchCursor.fromAnyArray[B](Array.empty, 0, 0)
     }
     else {
       val copy = new Array[AnyRef](newLength)
@@ -90,8 +89,7 @@ final class ArrayCursor[@specialized(Boolean, Byte, Char, Int, Long, Double) A]
         i += 1
       }
 
-      new ArrayCursor[AnyRef](copy, 0, newLength, arrayAnyRefBuilder)
-        .asInstanceOf[ArrayCursor[B]]
+      BatchCursor.fromAnyArray[B](copy, 0, newLength)
     }
   }
 
@@ -121,9 +119,7 @@ final class ArrayCursor[@specialized(Boolean, Byte, Char, Int, Long, Double) A]
       oldIndex += 1
     }
 
-    val copy = buffer.result()
-    new ArrayCursor[AnyRef](copy, 0, copy.length, arrayAnyRefBuilder)
-      .asInstanceOf[ArrayCursor[B]]
+    BatchCursor.fromAnyArray[B](buffer.result())
   }
 
   override def toGenerator: Batch[A] = {
