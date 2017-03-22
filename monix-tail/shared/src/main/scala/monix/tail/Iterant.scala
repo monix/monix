@@ -208,8 +208,17 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * @param f is the function to execute on early stop
     * @param F $monadParamDesc
     */
-  def doOnFinish(f: Option[Throwable] => F[Unit])(implicit F: Monad[F]): Iterant[F, A] =
+  final def doOnFinish(f: Option[Throwable] => F[Unit])(implicit F: Monad[F]): Iterant[F, A] =
     IterantStop.doOnFinish(this, f)(F)
+
+  /** Drops the first `n` elements (from the start).
+    *
+    * @param n the number of elements to drop
+    * @return a new iterant that drops the first ''n'' elements
+    *         emitted by the source
+    */
+  final def drop(n: Int)(implicit F: Applicative[F]): Iterant[F, A] =
+    IterantDrop(self, n)
 
   /** Returns a computation that should be evaluated in case the
     * streaming must stop before reaching the end.
@@ -385,6 +394,31 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     */
   final def takeWhile(p: A => Boolean)(implicit F: Applicative[F]): Iterant[F, A] =
     IterantTakeWhile(self, p)
+
+  /** Drops the first element of the source iterant, emitting the rest. */
+  final def tail(implicit F: Applicative[F]): Iterant[F, A] =
+    IterantTail(self)(F)
+
+  /** Skips over [[Iterant.Suspend]] states, along with [[Iterant.NextCursor]]
+    * and [[Iterant.NextBatch]] states that signal empty collections.
+    *
+    * @see [[skipSuspendL]] $lazyVersionDesc
+    *
+    * @param F $monadParamDesc
+    * @param C $comonadParamDesc
+    */
+  final def skipSuspend(implicit F: Monad[F], C: Comonad[F]): Iterant[F, A] =
+    C.extract(skipSuspendL(F))
+
+  /** Skips over [[Iterant.Suspend]] states, along with [[Iterant.NextCursor]]
+    * and [[Iterant.NextBatch]] states that signal empty collections.
+    *
+    * @see [[skipSuspend]] $strictVersionDesc
+    *
+    * @param F $monadParamDesc
+    */
+  final def skipSuspendL(implicit F: Monad[F]): F[Iterant[F, A]] =
+    IterantSkipSuspend(self)
 
   /** Aggregates all elements in a `List` and preserves order.
     *
