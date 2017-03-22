@@ -18,7 +18,9 @@
 package monix.execution.cancelables
 
 import monix.execution.Cancelable
-import scala.collection.{GenTraversableOnce, mutable}
+import monix.execution.atomic.{PaddingStrategy, AtomicAny}
+import scala.annotation.tailrec
+import scala.collection.GenTraversableOnce
 
 /** Represents a composite of multiple cancelables. In case it is canceled, all
   * contained cancelables will be canceled too, e.g...
@@ -70,26 +72,23 @@ import scala.collection.{GenTraversableOnce, mutable}
   *         the removed references don't get canceled when the composite
   *         gets canceled. Also useful for garbage collecting purposes.
   */
-final class CompositeCancelable private (cancelables: TraversableOnce[Cancelable])
+final class CompositeCancelable private (stateRef: AtomicAny[CompositeCancelable.State])
   extends BooleanCancelable { self =>
 
-  private[this] var isCanceledRef = false
-  private[this] var subscriptions = self.synchronized {
-    mutable.HashSet.empty[Cancelable] ++ cancelables
-  }
+  import CompositeCancelable.{Active, Cancelled}
 
   override def isCanceled: Boolean =
-    isCanceledRef
+    stateRef.get eq Cancelled
 
-  override def cancel(): Unit = self.synchronized {
-    if (!isCanceledRef) {
-      isCanceledRef = true
-
-      val cursor = subscriptions.iterator
-      while (cursor.hasNext) { cursor.next().cancel() }
-      subscriptions = null // GC relief
+  @tailrec override def cancel(): Unit =
+    stateRef.get match {
+      case Cancelled => ()
+      case current @ Active(set) =>
+        if (stateRef.compareAndSet(current, Cancelled))
+          Cancelable.cancelAll(set)
+        else
+          cancel()
     }
-  }
 
   /** $addOp
     *
@@ -99,10 +98,17 @@ final class CompositeCancelable private (cancelables: TraversableOnce[Cancelable
     add(other)
 
   /** $addOp */
-  def add(other: Cancelable): this.type = self.synchronized {
-    if (isCanceledRef) other.cancel() else subscriptions.add(other)
-    this
-  }
+  @tailrec def add(other: Cancelable): this.type =
+    stateRef.get match {
+      case Cancelled =>
+        other.cancel()
+        this
+      case current @ Active(set) =>
+        if (!stateRef.compareAndSet(current, Active(set + other)))
+          add(other)
+        else
+          this
+    }
 
   /** $addAllOp
     *
@@ -112,18 +118,21 @@ final class CompositeCancelable private (cancelables: TraversableOnce[Cancelable
     addAll(that)
 
   /** $addAllOp */
-  def addAll(that: GenTraversableOnce[Cancelable]): this.type =
-    self.synchronized {
-      if (!isCanceledRef) {
-        subscriptions ++= that.seq
-      } else {
-        // Canceling everything
-        val cursor = that.toIterator
-        while (cursor.hasNext) { cursor.next().cancel() }
+  def addAll(that: GenTraversableOnce[Cancelable]): this.type = {
+    @tailrec def loop(that: Iterable[Cancelable]): this.type =
+      stateRef.get match {
+        case Cancelled =>
+          Cancelable.cancelAll(that)
+          this
+        case current @ Active(set) =>
+          if (!stateRef.compareAndSet(current, Active(set ++ that)))
+            loop(that)
+          else
+            this
       }
 
-      this
-    }
+    loop(that.toIterable.seq)
+  }
 
   /** $removeOp
     *
@@ -132,10 +141,15 @@ final class CompositeCancelable private (cancelables: TraversableOnce[Cancelable
   def -=(s: Cancelable): this.type = remove(s)
 
   /** $removeOp */
-  def remove(s: Cancelable): this.type = self.synchronized {
-    if (!isCanceledRef) subscriptions.remove(s)
-    this
-  }
+  @tailrec def remove(s: Cancelable): this.type =
+    stateRef.get match {
+      case Cancelled => this
+      case current @ Active(set) =>
+        if (!stateRef.compareAndSet(current, Active(set - s)))
+          remove(s)
+        else
+          this
+    }
 
   /** $removeAllOp
     *
@@ -145,27 +159,84 @@ final class CompositeCancelable private (cancelables: TraversableOnce[Cancelable
     removeAll(that)
 
   /** $removeAllOp */
-  def removeAll(that: GenTraversableOnce[Cancelable]): this.type =
-    self.synchronized {
-      if (!isCanceledRef && that.nonEmpty) subscriptions --= that.seq
-      this
-    }
+  def removeAll(that: GenTraversableOnce[Cancelable]): this.type = {
+    @tailrec def loop(that: Iterable[Cancelable]): this.type =
+      stateRef.get match {
+        case Cancelled => this
+        case current @ Active(set) =>
+          if (!stateRef.compareAndSet(current, Active(set -- that)))
+            loop(that)
+          else
+            this
+      }
+
+    loop(that.toIterable.seq)
+  }
 
   /** Resets this composite to an empty state, if not canceled,
     * otherwise leaves it in the canceled state.
     */
-  def reset(): this.type = self.synchronized {
-    if (!isCanceledRef) subscriptions.clear()
-    this
+  @tailrec def reset(): this.type =
+    stateRef.get match {
+      case Cancelled => this
+      case current @ Active(_) =>
+        if (!stateRef.compareAndSet(current, Active(Set.empty)))
+          reset()
+        else
+          this
+    }
+
+  /** Replaces the underlying set of cancelables with a new one,
+    * returning the old set just before the substitution happened.
+    */
+  def getAndSet(that: GenTraversableOnce[Cancelable]): Set[Cancelable] = {
+    @tailrec def loop(that: Set[Cancelable]): Set[Cancelable] =
+      stateRef.get match {
+        case Cancelled =>
+          Cancelable.cancelAll(that)
+          Set.empty
+        case current @ Active(set) =>
+          if (!stateRef.compareAndSet(current, Active(that)))
+            loop(that)
+          else
+            set
+      }
+
+    that match {
+      case ref: Set[_] =>
+        loop(ref.asInstanceOf[Set[Cancelable]])
+      case _ =>
+        loop(that.seq.toSet[Cancelable])
+    }
   }
 }
 
 object CompositeCancelable {
   /** Builder for [[CompositeCancelable]]. */
-  def apply(initial: Cancelable*): CompositeCancelable = {
-    if (initial.nonEmpty)
-      new CompositeCancelable(initial)
-    else
-      new CompositeCancelable(Nil)
+  def apply(initial: Cancelable*): CompositeCancelable =
+    withPadding(Set(initial:_*), PaddingStrategy.LeftRight128)
+
+  /** Builder for [[CompositeCancelable]]. */
+  def fromSet(initial: Set[Cancelable]): CompositeCancelable =
+    withPadding(initial, PaddingStrategy.LeftRight128)
+
+  /** Builder for [[CompositeCancelable]] that can specify a
+    * [[monix.execution.atomic.PaddingStrategy PaddingStrategy]]
+    * to the underlying atomic reference.
+    */
+  def withPadding(ps: PaddingStrategy): CompositeCancelable =
+    withPadding(Set.empty, ps)
+
+  /** Builder for [[CompositeCancelable]] that can specify a
+    * [[monix.execution.atomic.PaddingStrategy PaddingStrategy]]
+    * to the underlying atomic reference.
+    */
+  def withPadding(initial: Set[Cancelable], ps: PaddingStrategy): CompositeCancelable = {
+    val ref: AtomicAny[State] = AtomicAny.withPadding(Active(initial), ps)
+    new CompositeCancelable(ref)
   }
+
+  private sealed abstract class State
+  private final case class Active(set: Set[Cancelable]) extends State
+  private case object Cancelled extends State
 }
