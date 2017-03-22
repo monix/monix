@@ -25,9 +25,9 @@ import scala.collection.mutable
 import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success}
 
-/** Wraps a [[Subscriber]] into an implementation that abstains from emitting batch until the call
+/** Wraps a [[Subscriber]] into an implementation that abstains from emitting items until the call
   * to `connect()` happens. Prior to `connect()` you can enqueue
-  * events for delivery once `connect()` happens, but before any batch
+  * events for delivery once `connect()` happens, but before any items
   * emitted by `onNext` / `onComplete` and `onError`.
   *
   * Example: {{{

@@ -174,7 +174,7 @@ object Subscriber {
 
     /** $feedCollectionDesc
       *
-      * @param iterable is the collection of cursor to push downstream
+      * @param iterable is the collection of items to push downstream
       */
     def feed(iterable: Iterable[T]): Future[Ack] =
       Observer.feed(target, iterable)(target.scheduler)
@@ -182,14 +182,14 @@ object Subscriber {
     /** $feedCollectionDesc
       *
       * @param subscription $feedCancelableDesc
-      * @param iterable is the collection of cursor to push downstream
+      * @param iterable is the collection of items to push downstream
       */
     def feed(subscription: BooleanCancelable, iterable: Iterable[T]): Future[Ack] =
       Observer.feed(target, subscription, iterable)(target.scheduler)
 
     /** $feedCollectionDesc
       *
-      * @param iterator is the iterator of cursor to push downstream
+      * @param iterator is the iterator of items to push downstream
       */
     def feed(iterator: Iterator[T]): Future[Ack] =
       Observer.feed(target, iterator)(target.scheduler)
@@ -197,7 +197,7 @@ object Subscriber {
     /** $feedCollectionDesc
       *
       * @param subscription $feedCancelableDesc
-      * @param iterator is the iterator of cursor to push downstream
+      * @param iterator is the iterator of items to push downstream
       */
     def feed(subscription: BooleanCancelable, iterator: Iterator[T]): Future[Ack] =
       Observer.feed(target, subscription, iterator)(target.scheduler)

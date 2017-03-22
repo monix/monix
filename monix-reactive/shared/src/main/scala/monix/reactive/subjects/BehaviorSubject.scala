@@ -33,7 +33,7 @@ import scala.util.control.NonFatal
   * or the `initialValue` (as the seed) in case no value has yet been emitted, then continuing
   * to emit events subsequent to the time of invocation.
   *
-  * When the source terminates in error, the `BehaviorSubject` will not emit any cursor to
+  * When the source terminates in error, the `BehaviorSubject` will not emit any items to
   * subsequent subscribers, but instead it will pass along the error notification.
   *
   * @see [[Subject]]

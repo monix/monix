@@ -178,7 +178,7 @@ object Pipe {
 
   /** Subject recipe for building
     * [[monix.reactive.subjects.ReplaySubject ReplaySubject]] instances
-    * with a maximum `capacity` (after which old cursor start being dropped).
+    * with a maximum `capacity` (after which old items start being dropped).
     *
     * @param capacity indicates the minimum capacity of the underlying buffer,
     *        with the implementation being free to increase it.
@@ -188,7 +188,7 @@ object Pipe {
 
   /** Subject recipe for building
     * [[monix.reactive.subjects.ReplaySubject ReplaySubject]] instances
-    * with a maximum `capacity` (after which old cursor start being dropped).
+    * with a maximum `capacity` (after which old items start being dropped).
     *
     * @param capacity indicates the minimum capacity of the underlying buffer,
     *        with the implementation being free to increase it.

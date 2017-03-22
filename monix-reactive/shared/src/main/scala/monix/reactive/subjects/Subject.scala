@@ -28,8 +28,8 @@ import org.reactivestreams.{Subscription, Processor => RProcessor, Subscriber =>
   * the contract of both.
   *
   * Because it is a `Observer`, it can subscribe to an `Observable`
-  * and because it is an `Observable`, it can pass through the batch
-  * it observes by re-emitting them and it can also emit new batch.
+  * and because it is an `Observable`, it can pass through the items
+  * it observes by re-emitting them and it can also emit new items.
   *
   * Useful to build multicast Observables or reusable processing pipelines.
   */

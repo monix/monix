@@ -139,7 +139,7 @@ trait Consumer[-In, +R] extends ((Observable[In]) => Task[R])
   *
   *         Has the following rules:
   *
-  *          - cursor are pushed on free subscribers, respecting their
+  *          - items are pushed on free subscribers, respecting their
   *            contract, each item being pushed to the first available
   *            subscriber in the queue
   *          - in case no free subscribers are available, then the
