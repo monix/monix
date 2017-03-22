@@ -28,12 +28,11 @@ import scala.util.{Failure, Success, Try}
 
 object TypeClassLawsForObservableSuite
   extends MemoizableLawsSuite[Observable,Int,Long,Short]
-  with SuspendableLawsSuite[Observable,Int,Long,Short]
-  with MonadErrorLawsSuite[Observable,Int,Long,Short,Throwable]
-  with CobindLawsSuite[Observable,Int,Long,Short]
-  with MonadFilterLawsSuite[Observable,Int,Long,Short]
-  with MonoidKLawsSuite[Observable,Int]
-  with MonadRecLawsSuite[Observable,Int,Long,Short] {
+    with MonadErrorLawsSuite[Observable,Int,Long,Short,Throwable]
+    with CobindLawsSuite[Observable,Int,Long,Short]
+    with MonadFilterLawsSuite[Observable,Int,Long,Short]
+    with MonoidKLawsSuite[Observable,Int]
+    with MonadRecLawsSuite[Observable,Int,Long,Short] {
 
   override lazy val checkConfig: Parameters =
     Parameters.default
@@ -104,8 +103,8 @@ object TypeClassLawsForObservableSuite
     }
 
   // Actual tests ...
-
-  monadEvalErrorCheck("Observable")
+  
+  applicativeEvalErrorCheck("Observable")
   memoizableCheck("Observable", includeSupertypes = true)
   monadErrorCheck("Observable", includeSupertypes = false)
   monadFilterCheck("Observable", includeSupertypes = false)
