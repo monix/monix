@@ -30,17 +30,22 @@ private[tail] object IterantTail {
   def apply[F[_], A](source: Iterant[F, A])(implicit F: Applicative[F]): Iterant[F, A] = {
     import F.functor
 
-    def loop(source: Iterant[F, A]): Iterant[F, A] =
+    def loop(source: Iterant[F, A]): Iterant[F, A] = {
       try source match {
         case Next(_, rest, stop) =>
           Suspend(rest, stop)
         case NextCursor(cursor, rest, stop) =>
-          if (cursor.hasNext()) cursor.next()
-          NextCursor(cursor, rest, stop)
+          if (cursor.hasNext()) {
+            cursor.next()
+            NextCursor(cursor, rest, stop)
+          } else {
+            // If empty, then needs to retry with `rest`
+            Suspend(rest.map(loop), stop)
+          }
         case NextBatch(batch, rest, stop) =>
-          val cursor = batch.cursor()
-          if (cursor.hasNext()) cursor.next()
-          NextCursor(cursor, rest, stop)
+          // Unsafe recursive call, it's fine b/c next call won't be
+          loop(NextCursor(batch.cursor(), rest, stop))
+
         case Suspend(rest, stop) =>
           Suspend(rest.map(loop), stop)
         case Last(_) =>
@@ -53,6 +58,7 @@ private[tail] object IterantTail {
           val stop = source.earlyStop
           Suspend(stop.map(_ => Halt(Some(ex))), stop)
       }
+    }
 
     // We can have side-effects with NextBatch/NextCursor
     // processing, so suspending execution in this case
