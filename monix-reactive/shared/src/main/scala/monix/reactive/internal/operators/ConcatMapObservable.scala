@@ -62,7 +62,7 @@ import scala.util.control.NonFatal
   *    to be contended
   */
 private[reactive] final class ConcatMapObservable[A, B]
-(source: Observable[A], f: A => Observable[B], delayErrors: Boolean)
+  (source: Observable[A], f: A => Observable[B], delayErrors: Boolean)
   extends Observable[B] {
 
   def unsafeSubscribeFn(out: Subscriber[B]): Cancelable = {
@@ -94,8 +94,7 @@ private[reactive] final class ConcatMapObservable[A, B]
       * we can afford a `compareAndSet`, not being a big deal since
       * cancellation only happens once.
       */
-    @tailrec def cancel(): Unit =
-    stateRef.get match {
+    @tailrec def cancel(): Unit = stateRef.get match {
       case current @ Active(ref) =>
         if (stateRef.compareAndSet(current, Cancelled))
           ref.cancel()
