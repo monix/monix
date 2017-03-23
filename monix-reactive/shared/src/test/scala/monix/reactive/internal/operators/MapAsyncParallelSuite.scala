@@ -22,9 +22,10 @@ import monix.execution.Ack.Continue
 import monix.execution.internal.Platform
 import monix.execution.exceptions.DummyException
 import monix.reactive.{Observable, Observer}
+
 import scala.concurrent.Promise
 import scala.concurrent.duration._
-import scala.util.Random
+import scala.util.{Failure, Random}
 
 object MapAsyncParallelSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
@@ -320,5 +321,27 @@ object MapAsyncParallelSuite extends BaseOperatorSuite {
     f.cancel(); s.tick()
     assertEquals(f.value, None)
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
+  }
+
+  test("exceptions can be triggered synchronously by throw") { implicit s =>
+    val dummy = DummyException("dummy")
+    val source = Observable.now(1L).mapAsync(parallelism = 4)(_ => throw dummy)
+
+    val f = source.runAsyncGetLast
+    s.tick()
+
+    assertEquals(f.value, Some(Failure(dummy)))
+    assertEquals(s.state.lastReportedError, null)
+  }
+
+  test("exceptions can be triggered synchronously through raiseError") { implicit s =>
+    val dummy = DummyException("dummy")
+    val source = Observable.now(1).mapAsync(parallelism = 4)(_ => Task.raiseError(dummy))
+
+    val f = source.runAsyncGetLast
+    s.tick()
+
+    assertEquals(f.value, Some(Failure(dummy)))
+    assertEquals(s.state.lastReportedError, null)
   }
 }

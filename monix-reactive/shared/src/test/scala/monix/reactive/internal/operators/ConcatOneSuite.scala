@@ -24,9 +24,10 @@ import monix.reactive.Observable.{empty, now}
 import monix.execution.exceptions.DummyException
 import monix.reactive.subjects.PublishSubject
 import monix.reactive.{Observable, Observer}
+
 import scala.concurrent.Future
 import scala.concurrent.duration._
-import scala.util.Random
+import scala.util.{Failure, Random}
 
 object ConcatOneSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
@@ -262,5 +263,27 @@ object ConcatOneSuite extends BaseOperatorSuite {
     assertEquals(thrownError, dummy2)
     assert(!onCompleteReceived, "!onCompleteReceived")
     assertEquals(onErrorReceived, 1)
+  }
+
+  test("exceptions can be triggered synchronously by throw") { implicit s =>
+    val dummy = DummyException("dummy")
+    val source = Observable.now(1L).flatMap(_ => throw dummy)
+
+    val f = source.runAsyncGetLast
+    s.tick()
+
+    assertEquals(f.value, Some(Failure(dummy)))
+    assertEquals(s.state.lastReportedError, null)
+  }
+
+  test("exceptions can be triggered synchronously through raiseError") { implicit s =>
+    val dummy = DummyException("dummy")
+    val source = Observable.now(1L).flatMap(_ => Observable.raiseError(dummy))
+
+    val f = source.runAsyncGetLast
+    s.tick()
+
+    assertEquals(f.value, Some(Failure(dummy)))
+    assertEquals(s.state.lastReportedError, null)
   }
 }

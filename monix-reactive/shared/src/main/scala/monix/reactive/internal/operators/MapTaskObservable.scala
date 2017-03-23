@@ -194,18 +194,18 @@ private[reactive] final class MapTaskObservable[A,B]
         // we do expect most of the time is either `WaitOnNext` or
         // `WaitActiveTask`.
         stateRef.getAndSet(Active(ack)) match {
-          case WaitActiveTask =>
-            ack // expected outcome
-
           case WaitOnNext =>
             // Task execution was synchronous, w00t, so redo state!
             stateRef.lazySet(WaitOnNext)
             ack.syncTryFlatten
 
-          case state @ (WaitComplete(_,_) | Active(_)) =>
-            // These should never, ever happen!
-            self.onError(new IllegalStateException(
-              s"State $state is invalid, please send a bug report!"))
+          case WaitActiveTask =>
+            // Expected outcome for asynchronous tasks
+            ack
+
+          case previous @ WaitComplete(_,_) =>
+            // Branch that can happen in case the child has finished
+            // already in error, so stop further onNext events.
             Stop
 
           case Cancelled =>
@@ -215,6 +215,12 @@ private[reactive] final class MapTaskObservable[A,B]
             // happen :-) Note that this is probably going to call
             // `ack.cancel()` a second time, but that's OK
             self.cancel()
+            Stop
+
+          case state @ Active(_) =>
+            // This should never, ever happen!
+            // Something is screwed up in our state machine :-(
+            reportInvalidState(state, "onNext")
             Stop
         }
       } catch {
@@ -269,10 +275,7 @@ private[reactive] final class MapTaskObservable[A,B]
 
         case WaitActiveTask =>
           // Something is screwed up in our state machine :-(
-          scheduler.reportFailure(
-            new IllegalStateException(
-              "State WaitActiveTask is invalid, please send a bug report!"
-            ))
+          reportInvalidState(WaitActiveTask, "signalFinish")
       }
     }
 
@@ -280,6 +283,14 @@ private[reactive] final class MapTaskObservable[A,B]
       signalFinish(None)
     def onError(ex: Throwable): Unit =
       signalFinish(Some(ex))
+
+    private def reportInvalidState(state: FlatMapState, method: String): Unit = {
+      scheduler.reportFailure(
+        new IllegalStateException(
+          s"State $state in the Monix MapTask.$method implementation is invalid, " +
+          s"please send a bug report! See https://monix.io"
+        ))
+    }
   }
 }
 

@@ -62,7 +62,7 @@ import scala.util.control.NonFatal
   *    to be contended
   */
 private[reactive] final class ConcatMapObservable[A, B]
-  (source: Observable[A], f: A => Observable[B], delayErrors: Boolean)
+(source: Observable[A], f: A => Observable[B], delayErrors: Boolean)
   extends Observable[B] {
 
   def unsafeSubscribeFn(out: Subscriber[B]): Cancelable = {
@@ -88,32 +88,32 @@ private[reactive] final class ConcatMapObservable[A, B]
     // For synchronizing our internal state machine, padded
     // in order to avoid the false sharing problem
     private[this] val stateRef =
-      Atomic.withPadding(WaitOnNextChild(Continue) : FlatMapState, LeftRight128)
+    Atomic.withPadding(WaitOnNextChild(Continue) : FlatMapState, LeftRight128)
 
     /** For canceling the current active task, in case there is any. Here
       * we can afford a `compareAndSet`, not being a big deal since
       * cancellation only happens once.
       */
     @tailrec def cancel(): Unit =
-      stateRef.get match {
-        case current @ Active(ref) =>
+    stateRef.get match {
+      case current @ Active(ref) =>
+        if (stateRef.compareAndSet(current, Cancelled))
+          ref.cancel()
+        else
+          cancel() // retry
+      case current @ WaitComplete(_, ref) =>
+        if (ref != null) {
           if (stateRef.compareAndSet(current, Cancelled))
             ref.cancel()
           else
             cancel() // retry
-        case current @ WaitComplete(_, ref) =>
-          if (ref != null) {
-            if (stateRef.compareAndSet(current, Cancelled))
-              ref.cancel()
-            else
-              cancel() // retry
-          }
-        case current @ (WaitOnNextChild(_) | WaitOnActiveChild) =>
-          if (!stateRef.compareAndSet(current, Cancelled))
-            cancel() // retry
-        case Cancelled =>
-          () // do nothing else
-      }
+        }
+      case current @ (WaitOnNextChild(_) | WaitOnActiveChild) =>
+        if (!stateRef.compareAndSet(current, Cancelled))
+          cancel() // retry
+      case Cancelled =>
+        () // do nothing else
+    }
 
     def onNext(elem: A): Future[Ack] = {
       // For protecting against user code, without violating the
@@ -182,7 +182,7 @@ private[reactive] final class ConcatMapObservable[A, B]
             // This assignment must happen after `onNext`, otherwise
             // we can end with a race condition with `onComplete`
             stateRef.getAndSet(WaitOnNextChild(ack)) match {
-              case WaitOnActiveChild =>                
+              case WaitOnActiveChild =>
                 () // Optimization, do nothing else
 
               case WaitOnNextChild(_) | Active(_) =>
@@ -231,20 +231,19 @@ private[reactive] final class ConcatMapObservable[A, B]
         // expect most of the time is either `WaitOnNext` or
         // `WaitActiveTask`.
         stateRef.getAndSet(Active(cancellable)) match {
-          case WaitOnActiveChild =>
-            // expected outcome for async observables
-            asyncUpstreamAck.future.syncTryFlatten
-
-          case next @ WaitOnNextChild(ack) =>
+          case previous @ WaitOnNextChild(ack) =>
             // Task execution was synchronous, w00t, so redo state!
-            stateRef.lazySet(next)
+            stateRef.lazySet(previous)
             ack.syncTryFlatten
 
-          case state @ (WaitComplete(_,_) | Active(_)) =>
-            // These should never, ever happen!
-            // Something is screwed up in our state machine :-(
-            reportInvalidState(state, "onNext")
-            cancellable.cancel()
+          case WaitOnActiveChild =>
+            // Expected outcome for async observables
+            asyncUpstreamAck.future.syncTryFlatten
+
+          case previous @ WaitComplete(_, _) =>
+            // Branch that can happen in case the child has finished
+            // already in error, so stop further onNext events.
+            stateRef.lazySet(previous) // GC purposes
             Stop
 
           case Cancelled =>
@@ -254,6 +253,13 @@ private[reactive] final class ConcatMapObservable[A, B]
             // happen :-) Note that this is probably going to call
             // `ack.cancel()` a second time, but that's OK
             self.cancel()
+            Stop
+
+          case state @ Active(_) =>
+            // This should never, ever happen!
+            // Something is screwed up in our state machine :-(
+            reportInvalidState(state, "onNext")
+            cancellable.cancel()
             Stop
         }
       }
@@ -331,7 +337,7 @@ private[reactive] final class ConcatMapObservable[A, B]
       scheduler.reportFailure(
         new IllegalStateException(
           s"State $state in the Monix ConcatMap.$method implementation is invalid, " +
-          s"please send a bug report! See https://monix.io"))
+            s"please send a bug report! See https://monix.io"))
     }
   }
 }
