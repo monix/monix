@@ -220,6 +220,12 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def drop(n: Int)(implicit F: Applicative[F]): Iterant[F, A] =
     IterantDrop(self, n)
 
+  /** Drops the longest prefix of elements that satisfy the given
+    * predicate and returns a new iterant that emits the rest.
+    */
+  final def dropWhile(p: A => Boolean)(implicit F: Applicative[F]): Iterant[F, A] =
+    IterantDropWhile(self, p)
+
   /** Returns a computation that should be evaluated in case the
     * streaming must stop before reaching the end.
     *
