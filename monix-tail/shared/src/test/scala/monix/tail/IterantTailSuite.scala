@@ -73,4 +73,13 @@ object IterantTailSuite extends BaseTestSuite {
     assert(iter.isInstanceOf[Suspend[Coeval, Int]], "iter.isInstanceOf[Suspend[Coeval, Int]]")
     intercept[DummyException](iter.toList)
   }
+
+  test("Iterant.tail preserves the source earlyStop") { implicit s =>
+    var effect = 0
+    val stop = Coeval.eval(effect += 1)
+    val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
+    val stream = source.tail
+    stream.earlyStop.value
+    assertEquals(effect, 1)
+  }
 }

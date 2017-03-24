@@ -292,4 +292,13 @@ object IterantMapEvalSuite extends BaseTestSuite {
     val state2 = iter2.mapEval { x => (throw dummy) : Task[Int] }
     assertEquals(state2, iter2)
   }
+
+  test("Iterant.mapEval preserves the source earlyStop") { implicit s =>
+    var effect = 0
+    val stop = Coeval.eval(effect += 1)
+    val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
+    val stream = source.mapEval(x => Coeval.now(x))
+    stream.earlyStop.value
+    assertEquals(effect, 1)
+  }
 }

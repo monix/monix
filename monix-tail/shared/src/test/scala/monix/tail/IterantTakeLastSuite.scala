@@ -19,53 +19,42 @@ package monix.tail
 
 import monix.eval.{Coeval, Task}
 import monix.execution.exceptions.DummyException
-import monix.execution.internal.Platform
-import org.scalacheck.Test
-import org.scalacheck.Test.Parameters
 
-object IterantDropSuite extends BaseTestSuite {
-  override lazy val checkConfig: Parameters = {
-    if (Platform.isJVM)
-      Test.Parameters.default.withMaxSize(256)
-    else
-      Test.Parameters.default.withMaxSize(32)
-  }
-
-  test("Iterant[Task].drop equivalence with List.drop") { implicit s =>
+object IterantTakeLastSuite extends BaseTestSuite {
+  test("Iterant.takeLast is equivalent with List.takeRight") { implicit s =>
     check3 { (list: List[Int], idx: Int, nr: Int) =>
       val stream = arbitraryListToIterantTask(list, math.abs(idx) + 1)
       val length = list.length
-      val n = math.abs(nr)
-
-      stream.drop(n).toListL === stream.toListL.map(_.drop(n))
+      val n = if (nr == 0) 0 else math.abs(math.abs(nr) % 20)
+      stream.takeLast(n).toListL === stream.toListL.map(_.takeRight(n))
     }
   }
 
-  test("Iterant.drop protects against broken batches") { implicit s =>
+  test("Iterant.takeLast protects against broken batches") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty), Task.unit)
       val stream = iter ++ suffix
-      val received = stream.drop(Int.MaxValue)
+      val received = stream.takeLast(10)
       received === Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
-  test("Iterant.drop protects against broken cursors") { implicit s =>
+  test("Iterant.takeLast protects against broken cursors") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty), Task.unit)
       val stream = iter ++ suffix
-      val received = stream.drop(Int.MaxValue)
+      val received = stream.takeLast(10)
       received === Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
-  test("Iterant.drop preserves the source earlyStop") { implicit s =>
+  test("Iterant.takeLast preserves the source earlyStop") { implicit s =>
     var effect = 0
     val stop = Coeval.eval(effect += 1)
     val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
-    val stream = source.drop(1)
+    val stream = source.takeLast(3)
     stream.earlyStop.value
     assertEquals(effect, 1)
   }

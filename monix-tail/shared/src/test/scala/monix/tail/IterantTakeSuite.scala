@@ -104,4 +104,13 @@ object IterantTakeSuite extends BaseTestSuite {
     assert(iter2.take(2).isInstanceOf[Suspend[Coeval, Int]], "NextCursor should be suspended")
     assertEquals(iter2.take(2).toList, List(1, 2))
   }
+
+  test("Iterant.take preserves the source earlyStop") { implicit s =>
+    var effect = 0
+    val stop = Coeval.eval(effect += 1)
+    val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
+    val stream = source.take(3)
+    stream.earlyStop.value
+    assertEquals(effect, 1)
+  }
 }

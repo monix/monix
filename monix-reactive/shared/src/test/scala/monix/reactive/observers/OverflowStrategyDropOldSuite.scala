@@ -117,7 +117,7 @@ object OverflowStrategyDropOldSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), DropOld(8))
+    val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), DropOld(7))
 
     for (i <- 1 to 7) assertEquals(buffer.onNext(i), Continue)
     s.tick()

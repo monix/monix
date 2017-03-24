@@ -97,7 +97,7 @@ private[tail] object IterantTakeWhile {
       case Suspend(_, _) | Halt(_) =>
         loop(source)
       case _ =>
-        Suspend(F.eval(loop(source)), F.unit)
+        Suspend(F.eval(loop(source)), source.earlyStop)
     }
   }
 }

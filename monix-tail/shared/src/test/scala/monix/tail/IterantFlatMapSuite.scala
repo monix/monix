@@ -308,4 +308,13 @@ object IterantFlatMapSuite extends BaseTestSuite {
       stream === Iterant[Coeval].haltS[Int](Some(dummy))
     }
   }
+
+  test("Iterant.flatMap preserves the source earlyStop") { implicit s =>
+    var effect = 0
+    val stop = Coeval.eval(effect += 1)
+    val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
+    val stream = source.flatMap(x => Iterant[Coeval].now(x))
+    stream.earlyStop.value
+    assertEquals(effect, 1)
+  }
 }

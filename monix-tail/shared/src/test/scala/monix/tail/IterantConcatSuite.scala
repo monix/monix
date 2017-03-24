@@ -20,7 +20,7 @@ package monix.tail
 import monix.eval.Task
 
 object IterantConcatSuite extends BaseTestSuite {
-  test("prepend") { implicit s =>
+  test("Iterant.prepend") { implicit s =>
     check2 { (list: List[Int], a: Int) =>
       val source = Iterant[Task].fromList(list)
       val received = a #:: source
@@ -29,7 +29,7 @@ object IterantConcatSuite extends BaseTestSuite {
     }
   }
 
-  test("concat") { implicit s =>
+  test("Iterant.concat") { implicit s =>
     check2 { (list1: List[Int], list2: List[Int]) =>
       val iter1 = Iterant[Task].fromList(list1)
       val iter2 = Iterant[Task].fromList(list2)

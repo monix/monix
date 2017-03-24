@@ -97,4 +97,13 @@ object IterantFilterSuite extends BaseTestSuite {
     val state2 = iter2.filter { x => (throw dummy) : Boolean }
     assertEquals(state2, iter2)
   }
+
+  test("Iterant.filter preserves the source earlyStop") { implicit s =>
+    var effect = 0
+    val stop = Coeval.eval(effect += 1)
+    val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
+    val stream = source.filter(x => true)
+    stream.earlyStop.value
+    assertEquals(effect, 1)
+  }
 }

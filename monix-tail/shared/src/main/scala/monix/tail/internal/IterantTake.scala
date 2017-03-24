@@ -88,7 +88,7 @@ private[tail] object IterantTake {
     // processing, so suspending execution in this case
     source match {
       case NextBatch(_, _, _) | NextCursor(_, _, _) =>
-        Suspend(F.eval(loop(n)(source)), F.unit)
+        Suspend(F.eval(loop(n)(source)), source.earlyStop)
       case _ =>
         loop(n)(source)
     }

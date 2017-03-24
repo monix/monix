@@ -133,7 +133,7 @@ object OverflowStrategyDropOldAndSignalSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    val buffer = buildNewWithSignal(8, underlying)
+    val buffer = buildNewWithSignal(7, underlying)
 
     for (i <- 1 to 7) assertEquals(buffer.onNext(i), Continue)
     s.tick()
@@ -174,7 +174,7 @@ object OverflowStrategyDropOldAndSignalSuite extends TestSuite[TestScheduler] {
     }
 
     val log = AtomicLong(0)
-    val buffer = buildNewWithLog(8, underlying, log)
+    val buffer = buildNewWithLog(7, underlying, log)
 
     for (i <- 1 to 7) assertEquals(buffer.onNext(i), Continue)
     s.tick()

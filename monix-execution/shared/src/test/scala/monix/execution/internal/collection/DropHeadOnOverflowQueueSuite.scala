@@ -17,10 +17,7 @@
 
 package monix.execution.internal.collection
 
-import java.util.ConcurrentModificationException
-
 import minitest.SimpleTestSuite
-
 import scala.collection.mutable.ListBuffer
 
 object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
@@ -38,7 +35,7 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
     val q2 = DropHeadOnOverflowQueue[Int](600)
     assertEquals(q2.capacity, 1023)
 
-    val q3 = DropHeadOnOverflowQueue[Int](1024)
+    val q3 = DropHeadOnOverflowQueue[Int](1023)
     assertEquals(q3.capacity, 1023)
 
     val q4 = DropHeadOnOverflowQueue[Int](1025)
@@ -148,28 +145,6 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
     }
   }
 
-  test("throw ConcurrentModificationException after poll") {
-    val q = DropHeadOnOverflowQueue[Int](7)
-    q.offerMany(1,2,3,4)
-    val iterator = q.iterator
-
-    q.poll()
-    intercept[ConcurrentModificationException] {
-      iterator.hasNext
-    }
-  }
-
-  test("throw ConcurrentModificationException after offer") {
-    val q = DropHeadOnOverflowQueue[Int](7)
-    q.offerMany(1,2,3,4)
-    val iterator = q.iterator
-
-    q.offer(1)
-    intercept[ConcurrentModificationException] {
-      iterator.hasNext
-    }
-  }
-
   test("isEmpty && nonEmpty && head && headOption") {
     val q = DropHeadOnOverflowQueue[Int](8)
     assert(q.isEmpty)
@@ -194,7 +169,7 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
   }
 
   test("iterable") {
-    val q = DropHeadOnOverflowQueue[Int](128)
+    val q = DropHeadOnOverflowQueue[Int](127)
     assertEquals(q.capacity, 127)
 
     q.offerMany(0 until 200:_*)

@@ -133,7 +133,7 @@ import scala.reflect.ClassTag
   *
   * @define lazyVersionDesc for the lazy version (that doesn't pull
   *         values out of the evaluation context)
-  * 
+  *
   * @tparam F is the data type that controls evaluation; note that
   *         it must be stack-safe in its `map` and `flatMap`
   *         operations
@@ -385,6 +385,15 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     */
   final def take(n: Int)(implicit F: Applicative[F]): Iterant[F, A] =
     IterantTake(self, n)
+
+  /** Creates a new iterable that only emits the last `n` elements
+    * emitted by the source.
+    *
+    * In case the source triggers an error, then the underlying buffer
+    * gets dropped and the error gets emitted immediately.
+    */
+  final def takeLast(n: Int)(implicit F: Monad[F]): Iterant[F, A] =
+    IterantTakeLast(self, n)
 
   /** Takes longest prefix of elements that satisfy the given predicate
     * and returns a new iterant that emits those elements.
