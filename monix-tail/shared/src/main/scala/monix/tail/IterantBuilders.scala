@@ -18,9 +18,11 @@
 package monix.tail
 
 import monix.eval.{Coeval, Task}
+import monix.tail.internal.IterantIntervalWithFixedDelay
 import monix.types.{Applicative, Monad}
 
 import scala.collection.immutable.LinearSeq
+import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.reflect.ClassTag
 import scala.util.Try
 
@@ -223,12 +225,37 @@ object IterantBuilders {
 }
 
 /** Defines builders for [[Iterant]] instances powered by
-  * [[monix.eval.Coeval Coeval]]
+  * [[monix.eval.Coeval Coeval]].
   */
 object IterantCoeval extends IterantBuilders[Coeval]
 
 /** Defines builders for [[Iterant]] instances powered by
-  * [[monix.eval.Task Task]]
+  * [[monix.eval.Task Task]].
+  *
+  * @define intervalWithFixedDelayDesc Creates an iterant that
+  *         emits auto-incremented natural numbers (longs) spaced
+  *         by a given time interval. Starts from 0 with no delay,
+  *         after which it emits incremented numbers spaced by the
+  *         `period` of time. The given `period` of time acts as a
+  *         fixed delay between successive events.
   */
-object IterantTask extends IterantBuilders[Task]
+object IterantTask extends IterantBuilders[Task] {
+  /** $intervalWithFixedDelayDesc
+    *
+    * Without having an initial delay specified, this overload
+    * will immediately emit the first item, without any delays.
+    *
+    * @param delay the time to wait between 2 successive events
+    */
+  def intervalWithFixedDelay(delay: FiniteDuration): Iterant[Task, Long] =
+    IterantIntervalWithFixedDelay(Duration.Zero, delay)
+
+  /** $intervalWithFixedDelayDesc
+    *
+    * @param initialDelay is the delay to wait before emitting the first event
+    * @param delay the time to wait between 2 successive events
+    */
+  def intervalWithFixedDelay(initialDelay: FiniteDuration, delay: FiniteDuration): Iterant[Task, Long] =
+    IterantIntervalWithFixedDelay(initialDelay, delay)
+}
 

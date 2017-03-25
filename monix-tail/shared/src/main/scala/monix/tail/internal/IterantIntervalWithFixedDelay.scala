@@ -15,22 +15,23 @@
  * limitations under the License.
  */
 
-package monix.tail
+package monix.tail.internal
 
-import monix.eval.Coeval
+import monix.eval.Task
+import monix.tail.Iterant
+import monix.tail.Iterant.Suspend
+import scala.concurrent.duration.{Duration, FiniteDuration}
 
-object IterantHeadOptionSuite extends BaseTestSuite {
-  test("Iterant.headOptionL <-> List.headOption") { _ =>
-    check2 { (list: List[Int], idx: Int) =>
-      val iter = arbitraryListToIterantCoeval(list, math.abs(idx % 4))
-      iter.headOptionL === Coeval.now(list.headOption)
-    }
-  }
+private[tail] object IterantIntervalWithFixedDelay {
+  /** Implementation for `Iterant[Task].intervalWithFixedDelay`. */
+  def apply(initialDelay: FiniteDuration, delay: FiniteDuration): Iterant[Task, Long] = {
+    // Recursive loop
+    def loop(index: Long): Iterant[Task, Long] =
+      Iterant.now(index) ++ Task.eval(loop(index + 1)).delayExecution(delay)
 
-  test("Iterant.headOption <-> List.headOption") { _ =>
-    check2 { (list: List[Int], idx: Int) =>
-      val iter = arbitraryListToIterantCoeval(list, math.abs(idx % 4))
-      iter.headOptionS == list.headOption
-    }
+    if (initialDelay > Duration.Zero)
+      Suspend(Task.eval(loop(0)).delayExecution(initialDelay), Task.unit)
+    else
+      loop(0)
   }
 }

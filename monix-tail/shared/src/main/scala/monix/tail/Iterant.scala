@@ -182,6 +182,20 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def collect[B](pf: PartialFunction[A, B])(implicit F: Applicative[F]): Iterant[F, B] =
     IterantCollect(this, pf)(F)
 
+  /** Consumes the source iterable.
+    *
+    * @see [[completeS]] $strictVersionDesc
+    */
+  final def completeL(implicit F: Monad[F]): F[Unit] =
+    IterantCompleteL(this)
+
+  /** Consumes the source iterable.
+    *
+    * @see [[completeL]] $lazyVersionDesc
+    */
+  final def completeS(implicit F: Monad[F], C: Comonad[F]): Unit =
+    C.extract(completeL(F))
+
   /** Alias for [[flatMap]]. */
   final def concatMap[B](f: A => Iterant[F, B])(implicit F: Monad[F]): Iterant[F, B] =
     flatMap(f)
@@ -248,6 +262,22 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def filter(p: A => Boolean)(implicit F: Applicative[F]): Iterant[F, A] =
     IterantFilter(this, p)(F)
 
+  /** Consumes the source iterable, executing the given callback for
+    * each element.
+    *
+    * @see [[foreachS]] $strictVersionDesc
+    */
+  final def foreachL(cb: A => Unit)(implicit F: Monad[F]): F[Unit] =
+    map(cb)(F.applicative).completeL
+
+  /** Consumes the source iterable, executing the given callback for
+    * each element.
+    *
+    * @see [[foreachL]] $lazyVersionDesc
+    */
+  final def foreachS(cb: A => Unit)(implicit F: Monad[F], C: Comonad[F]): Unit =
+    C.extract(foreachL(cb))
+
   /** Optionally selects the first element.
     *
     * @param F $monadParamDesc
@@ -258,14 +288,14 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * @return the first element of this iterant if it is nonempty, or
     *         `None` if it is empty, in the `F` context.
     */
-  final def headOption(implicit F: Monad[F], C: Comonad[F]): Option[A] =
+  final def headOptionS(implicit F: Monad[F], C: Comonad[F]): Option[A] =
     C.extract(IterantSlice.headOptionL(self)(F))
 
   /** Optionally selects the first element.
     *
     * @param F $monadParamDesc
     *
-    * @see [[headOption]] $strictVersionDesc
+    * @see [[headOptionS]] $strictVersionDesc
     *
     * @return the first element of this iterant if it is nonempty, or
     *         `None` if it is empty, in the `F` context.
@@ -326,8 +356,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *
     * @return $foldLeftReturnDesc
     */
-  final def foldLeft[S](seed: => S)(op: (S, A) => S)(implicit F: Monad[F], C: Comonad[F]): S =
-    C.extract(IterantFoldLeft(self, seed)(op)(F))
+  final def foldLeftS[S](seed: => S)(op: (S, A) => S)(implicit F: Monad[F], C: Comonad[F]): S =
+    C.extract(IterantFoldLeftL(self, seed)(op)(F))
 
   /** $foldLeftDesc
     *
@@ -335,12 +365,12 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * @param op is the binary operator
     * @param F $monadParamDesc
     *
-    * @see [[foldLeft]] $strictVersionDesc
+    * @see [[foldLeftS]] $strictVersionDesc
     *
     * @return $foldLeftReturnDesc
     */
   final def foldLeftL[S](seed: => S)(op: (S, A) => S)(implicit F: Monad[F]): F[S] =
-    IterantFoldLeft(self, seed)(op)(F)
+    IterantFoldLeftL(self, seed)(op)(F)
 
   /** Applies the function to the elements of the source and
     * concatenates the results.
@@ -422,13 +452,13 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * @param F $monadParamDesc
     * @param C $comonadParamDesc
     */
-  final def skipSuspend(implicit F: Monad[F], C: Comonad[F]): Iterant[F, A] =
+  final def skipSuspendS(implicit F: Monad[F], C: Comonad[F]): Iterant[F, A] =
     C.extract(skipSuspendL(F))
 
   /** Skips over [[Iterant.Suspend]] states, along with [[Iterant.NextCursor]]
     * and [[Iterant.NextBatch]] states that signal empty collections.
     *
-    * @see [[skipSuspend]] $strictVersionDesc
+    * @see [[skipSuspendS]] $strictVersionDesc
     *
     * @param F $monadParamDesc
     */
@@ -442,17 +472,17 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * @param F $monadParamDesc
     * @param C $comonadParamDesc
     */
-  final def toList(implicit F: Monad[F], C: Comonad[F]): List[A] =
-    C.extract(IterantFoldLeft.toListL(self)(F))
+  final def toListS(implicit F: Monad[F], C: Comonad[F]): List[A] =
+    C.extract(IterantFoldLeftL.toListL(self)(F))
 
   /** Aggregates all elements in a `List` and preserves order.
     *
-    * @see [[toList]] $strictVersionDesc
+    * @see [[toListS]] $strictVersionDesc
     *
     * @param F $monadParamDesc
     */
   final def toListL(implicit F: Monad[F]): F[List[A]] =
-    IterantFoldLeft.toListL(self)(F)
+    IterantFoldLeftL.toListL(self)(F)
 
   /** Lazily zip two iterants together, using the given function `f` to
     * produce output values.

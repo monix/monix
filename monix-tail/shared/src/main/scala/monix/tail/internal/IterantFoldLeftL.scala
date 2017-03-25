@@ -25,7 +25,7 @@ import monix.types.syntax._
 import scala.collection.mutable
 import scala.util.control.NonFatal
 
-private[tail] object IterantFoldLeft {
+private[tail] object IterantFoldLeftL {
   /**
     * Implementation for `Iterant#foldLeftL`
     */
@@ -79,7 +79,7 @@ private[tail] object IterantFoldLeft {
     */
   def toListL[F[_], A](source: Iterant[F, A])(implicit F: Monad[F]): F[List[A]] = {
     import F.functor
-    val buffer = IterantFoldLeft(source, mutable.ListBuffer.empty[A])((acc, a) => acc += a)
+    val buffer = IterantFoldLeftL(source, mutable.ListBuffer.empty[A])((acc, a) => acc += a)
     buffer.map(_.toList)
   }
 }
