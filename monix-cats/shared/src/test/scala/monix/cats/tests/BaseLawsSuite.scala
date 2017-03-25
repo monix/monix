@@ -25,9 +25,10 @@ import monix.eval._
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
-import org.scalacheck.{Arbitrary, Cogen, Prop}
+import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}
 import org.scalacheck.Test.Parameters
 import org.typelevel.discipline.Laws
+
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
@@ -75,14 +76,10 @@ trait BaseLawsSuiteInstances2 extends BaseLawsSuiteInstances1 {
 trait BaseLawsSuiteInstances1 extends cats.instances.AllInstances with MonixToCatsConversions {
   implicit def arbitraryCoeval[A : Arbitrary]: Arbitrary[Coeval[A]] =
     Arbitrary {
-      val int = implicitly[Arbitrary[Int]].arbitrary
-      for (chance <- int; a <- implicitly[Arbitrary[A]].arbitrary) yield
-        if (chance % 3 == 0)
-          Coeval.now(a)
-        else if (chance % 3 == 1)
-          Coeval.eval(a)
-        else
-          Coeval.evalOnce(a)
+      for {
+        a <- implicitly[Arbitrary[A]].arbitrary
+        coeval <- Gen.oneOf(Coeval.now(a), Coeval.eval(a), Coeval.evalOnce(a))
+      } yield coeval
     }
 
   implicit def arbitraryObservable[A : Arbitrary]: Arbitrary[Observable[A]] =
@@ -93,40 +90,24 @@ trait BaseLawsSuiteInstances1 extends cats.instances.AllInstances with MonixToCa
 
   implicit def arbitraryTask[A : Arbitrary]: Arbitrary[Task[A]] =
     Arbitrary {
-      val aa = implicitly[Arbitrary[A]].arbitrary
-      val ai = implicitly[Arbitrary[Int]].arbitrary
-      for (a <- aa; i <- ai) yield {
-        if (math.abs(i % 5) == 0) Task.now(a)
-        else if (math.abs(i % 5) == 1 || math.abs(i % 5) == 2) Task.evalOnce(a)
-        else Task.eval(a)
-      }
+      for {
+        a <- implicitly[Arbitrary[A]].arbitrary
+        task <- Gen.oneOf(Task.now(a), Task.evalOnce(a), Task.eval(a))
+      } yield task
     }
 
   implicit def arbitraryEval[A : Arbitrary]: Arbitrary[Eval[A]] =
     Arbitrary {
-      val int = implicitly[Arbitrary[Int]].arbitrary
-      val aa = implicitly[Arbitrary[A]].arbitrary
-
-      int.flatMap(chance => aa.map(a =>
-        if (chance % 3 == 0) Eval.now(a)
-        else if (chance % 3 == 1) Eval.always(a)
-        else Eval.later(a)))
+      for {
+        a <- implicitly[Arbitrary[A]].arbitrary
+        eval <- Gen.oneOf(Eval.now(a), Eval.always(a), Eval.later(a))
+      } yield eval
     }
 
   implicit lazy val arbitraryThrowable: Arbitrary[Throwable] =
     Arbitrary {
       implicitly[Arbitrary[Int]].arbitrary
         .map(number => new RuntimeException(number.toString))
-    }
-
-  implicit def arbitrary[E : Arbitrary, A : Arbitrary]: Arbitrary[Either[E,A]] =
-    Arbitrary {
-      val int = implicitly[Arbitrary[Int]].arbitrary
-      val aa = implicitly[Arbitrary[A]].arbitrary
-      val ae = implicitly[Arbitrary[E]].arbitrary
-
-      for (i <- int; a <- aa; e <- ae) yield
-        if (i % 2 == 0) Left(e) else Right(a)
     }
 
   implicit lazy val throwableEq = new Eq[Throwable] {

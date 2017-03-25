@@ -21,8 +21,9 @@ import monix.execution.Cancelable
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import monix.types.tests.Eq
-import org.scalacheck.Arbitrary
+import org.scalacheck.{Arbitrary, Gen}
 import org.scalacheck.Test.Parameters
+
 import scala.util.{Failure, Success, Try}
 import concurrent.duration._
 
@@ -37,24 +38,25 @@ trait BaseLawsSuite extends monix.types.tests.BaseLawsSuite with ArbitraryInstan
 trait ArbitraryInstances {
   implicit def arbitraryCoeval[A](implicit A: Arbitrary[A]): Arbitrary[Coeval[A]] =
     Arbitrary {
-      val intGen = implicitly[Arbitrary[Int]]
-      for (a <- A.arbitrary; int <- intGen.arbitrary) yield {
-        if (int % 3 == 0) Coeval.now(a)
-        else if (int % 3 == 1) Coeval.evalOnce(a)
-        else Coeval.eval(a)
-      }
+      for {
+        a <- A.arbitrary
+        coeval <- Gen.oneOf(Coeval.now(a), Coeval.evalOnce(a), Coeval.eval(a))
+      } yield coeval
     }
 
   implicit def arbitraryTask[A](implicit A: Arbitrary[A]): Arbitrary[Task[A]] =
     Arbitrary {
-      val intGen = implicitly[Arbitrary[Int]]
-      for (a <- A.arbitrary; int <- intGen.arbitrary) yield {
-        if (int % 4 == 0) Task.now(a)
-        else if (int % 4 == 1) Task.evalOnce(a)
-        else if (int % 4 == 2) Task.eval(a)
-        else Task.create[A] { (s,cb) => cb.onSuccess(a); Cancelable.empty }
-      }
+      for {
+        a <- A.arbitrary
+        task <- Gen.oneOf(
+          Task.now(a), Task.evalOnce(a), Task.eval(a),
+          Task.create[A] { (_, cb) =>
+            cb.onSuccess(a)
+            Cancelable.empty
+          })
+      } yield task
     }
+
 
   implicit def arbitraryExToA[A](implicit A: Arbitrary[A]): Arbitrary[Throwable => A] =
     Arbitrary {
@@ -68,12 +70,12 @@ trait ArbitraryInstances {
       for (f <- fun.arbitrary) yield PartialFunction((t: Throwable) => f(t.hashCode()))
     }
 
-  implicit def arbitraryCoevalToLong[A,B](implicit A: Arbitrary[A], B: Arbitrary[B]): Arbitrary[Coeval[A] => B] =
+  implicit def arbitraryCoevalToLong[A, B](implicit A: Arbitrary[A], B: Arbitrary[B]): Arbitrary[Coeval[A] => B] =
     Arbitrary {
       for (b <- B.arbitrary) yield (t: Coeval[A]) => b
     }
 
-  implicit def arbitraryTaskToLong[A,B](implicit A: Arbitrary[A], B: Arbitrary[B]): Arbitrary[Task[A] => B] =
+  implicit def arbitraryTaskToLong[A, B](implicit A: Arbitrary[A], B: Arbitrary[B]): Arbitrary[Task[A] => B] =
     Arbitrary {
       for (b <- B.arbitrary) yield (t: Task[A]) => b
     }
@@ -99,6 +101,7 @@ trait ArbitraryInstances {
         lh.runAsync(new Callback[A] {
           def onError(ex: Throwable): Unit =
             valueA = Some(Failure(ex))
+
           def onSuccess(value: A): Unit =
             valueA = Some(Success(value))
         })
@@ -106,6 +109,7 @@ trait ArbitraryInstances {
         rh.runAsync(new Callback[A] {
           def onError(ex: Throwable): Unit =
             valueB = Some(Failure(ex))
+
           def onSuccess(value: A): Unit =
             valueB = Some(Success(value))
         })
