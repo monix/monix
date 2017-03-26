@@ -19,7 +19,7 @@ package monix.eval
 
 import monix.execution.Scheduler
 import scala.scalajs.js.JSApp
-import scala.scalajs.js.annotation.{JSExport, JSExportDescendentObjects}
+import scala.scalajs.js.annotation.JSExport
 
 /** Safe `App` type that runs a [[Task]] action.
   *
@@ -29,7 +29,6 @@ import scala.scalajs.js.annotation.{JSExport, JSExportDescendentObjects}
   *
   * Clients should implement `runc`.
   */
-@JSExportDescendentObjects
 trait TaskApp extends JSApp {
   @JSExport
   def runc: Task[Unit] = Task.now(())
@@ -38,7 +37,7 @@ trait TaskApp extends JSApp {
     * Defaults to `global`, but can be overridden.
     */
   protected val scheduler: Coeval[Scheduler] =
-    Coeval.evalOnce(monix.execution.Scheduler.global)
+    Coeval.evalOnce(Scheduler.global)
 
   override final def main(): Unit =
     runc.runAsync(scheduler.value)

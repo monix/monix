@@ -42,7 +42,7 @@ trait TaskApp {
     * Defaults to `global`, but can be overridden.
     */
   protected val scheduler: Coeval[Scheduler] =
-    Coeval.evalOnce(monix.execution.Scheduler.global)
+    Coeval.evalOnce(Scheduler.global)
 
   final def main(args: Array[String]): Unit = {
     val f = run(args).runAsync(scheduler.value)
