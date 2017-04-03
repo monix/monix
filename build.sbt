@@ -7,7 +7,7 @@ import scala.xml.Elem
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 
 val catsVersion = "0.9.0"
-val scalazVersion = "7.2.8"
+val scalazVersion = "7.2.10"
 
 // The Monix version with which we must keep binary compatibility.
 // For MiMa testing, see:
@@ -43,8 +43,8 @@ lazy val warnUnusedImport = Seq(
 
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
-  scalaVersion := "2.11.8",
-  crossScalaVersions := Seq("2.10.6", "2.11.8", "2.12.1"),
+  scalaVersion := "2.11.9",
+  crossScalaVersions := Seq("2.10.6", "2.11.9", "2.12.1"),
 
   scalacOptions ++= Seq(
     // warnings
@@ -397,7 +397,7 @@ lazy val reactiveJVM = project.in(file("monix-reactive/jvm"))
   .dependsOn(typesJVM % "compile->compile; test->test")
   .dependsOn(executionJVM, evalJVM)
   .settings(reactiveCommon)
-  .settings(libraryDependencies += "org.jctools" % "jctools-core" % "2.0")
+  .settings(libraryDependencies += "org.jctools" % "jctools-core" % "2.0.1")
   .settings(mimaSettings("monix-reactive"))
 
 lazy val reactiveJS = project.in(file("monix-reactive/js"))
