@@ -62,10 +62,7 @@ object Cancelable {
     * cancelling everything on `cancel`.
     */
   def collection(refs: Iterable[Cancelable]): Cancelable =
-    apply { () =>
-      val cursor = refs.iterator
-      while (cursor.hasNext) cursor.next().cancel()
-    }
+    apply { () => cancelAll(refs) }
 
   /** Given a collection of cancelables, cancel them all.
     *
