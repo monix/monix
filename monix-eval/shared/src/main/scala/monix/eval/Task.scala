@@ -639,7 +639,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
       case Eval(f) =>
         val lf = LazyOnSuccess(f)
         if (lf eq f) self else Eval(lf)
-      case ref: MemoizeSuspend[_] =>
+      case _: MemoizeSuspend[_] =>
         self
       case other =>
         new MemoizeSuspend[A](() => other, cacheErrors = false)
@@ -717,6 +717,32 @@ object Task extends TaskInstances {
     */
   def defer[A](fa: => Task[A]): Task[A] =
     Suspend(fa _)
+
+  /** Defers the creation of a `Task` by using the provided
+    * function, which has the ability to inject a needed
+    * [[monix.execution.Scheduler Scheduler]].
+    *
+    * Example:
+    * {{{
+    *   def logLatency[A](source: Task[A]): Task[A] =
+    *     Task.deferAction { implicit s =>
+    *       // We have our Scheduler, which can inject time, we
+    *       // can use it for side-effectful operations
+    *       val start = s.currentTimeMillis()
+    *
+    *       source.doOnFinish { result =>
+    *         val finish = s.currentTimeMillis()
+    *         logger.info(s"Result: $result; Latency: ${finish - start} millis")
+    *         Task.unit
+    *       }
+    *     }
+    * }}}
+    *
+    * @param f is the function that's going to be called when the
+    *        resulting `Task` gets evaluated
+    */
+  def deferAction[A](f: Scheduler => Task[A]): Task[A] =
+    TaskDeferAction(f)
 
   /** Promote a non-strict Scala `Future` to a `Task` of the same type.
     *
