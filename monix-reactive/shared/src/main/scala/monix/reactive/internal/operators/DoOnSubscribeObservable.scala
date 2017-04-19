@@ -18,9 +18,9 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Cancelable
+import monix.execution.misc.NonFatal
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
-import scala.util.control.NonFatal
 
 private[reactive] object DoOnSubscribeObservable {
   // Implementation for doBeforeSubscribe

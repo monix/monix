@@ -21,8 +21,6 @@ import minitest.SimpleTestSuite
 import monix.execution.exceptions.DummyException
 import monix.execution.misc.test.{TestBox, TestInlineMacros}
 
-import scala.util.control.NonFatal
-
 object InlineMacrosTest extends SimpleTestSuite {
   test("inline a function code gen") {
     val result = TestInlineMacros.testInlineSingleArg()

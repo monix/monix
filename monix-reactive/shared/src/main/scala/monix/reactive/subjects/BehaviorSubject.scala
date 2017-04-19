@@ -23,11 +23,11 @@ import monix.reactive.Observable
 import monix.reactive.internal.util.PromiseCounter
 import monix.reactive.observers.{ConnectableSubscriber, Subscriber}
 import monix.execution.atomic.Atomic
+import monix.execution.misc.NonFatal
 
 import scala.annotation.tailrec
 import scala.concurrent.Future
 import scala.util.Success
-import scala.util.control.NonFatal
 
 /** `BehaviorSubject` when subscribed, will emit the most recently emitted item by the source,
   * or the `initialValue` (as the seed) in case no value has yet been emitted, then continuing

@@ -20,9 +20,10 @@ package monix.eval.internal
 import monix.eval.{Callback, Task}
 import monix.execution.Scheduler
 import monix.execution.cancelables.{CompositeCancelable, StackedCancelable}
+import monix.execution.misc.NonFatal
+
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-import scala.util.control.NonFatal
 
 private[monix] object TaskGather {
   /**

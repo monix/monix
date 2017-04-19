@@ -17,10 +17,12 @@
 
 package monix.execution.schedulers
 
+
+import monix.execution.misc.NonFatal
+
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
-import scala.util.control.NonFatal
 
 /** A `scala.concurrentExecutionContext` implementation
   * that executes runnables immediately, on the current thread,

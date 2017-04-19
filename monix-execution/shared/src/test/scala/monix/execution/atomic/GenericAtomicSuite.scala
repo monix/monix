@@ -19,7 +19,7 @@ package monix.execution.atomic
 
 import minitest.SimpleTestSuite
 import monix.execution.atomic.PaddingStrategy._
-import scala.util.control.NonFatal
+import monix.execution.misc.NonFatal
 
 abstract class GenericAtomicSuite[T, R <: Atomic[T]]
   (builder: AtomicBuilder[T, R], strategy: PaddingStrategy, valueFromInt: Int => T, valueToInt: T => Int,

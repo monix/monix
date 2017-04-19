@@ -17,7 +17,7 @@
 
 package monix.execution.internals.atomic;
 
-import scala.util.control.NonFatal;
+import monix.execution.misc.NonFatal;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 

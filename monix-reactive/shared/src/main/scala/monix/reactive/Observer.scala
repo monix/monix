@@ -21,7 +21,8 @@ import java.io.PrintStream
 
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.BooleanCancelable
-import monix.execution.{Ack, Cancelable, Scheduler, UncaughtExceptionReporter}
+import monix.execution._
+import monix.execution.misc.NonFatal
 import monix.reactive.internal.rstreams._
 import monix.reactive.observers.Subscriber
 import org.reactivestreams.{Subscriber => RSubscriber}
@@ -29,7 +30,6 @@ import org.reactivestreams.{Subscriber => RSubscriber}
 import scala.annotation.tailrec
 import scala.concurrent.{Future, Promise}
 import scala.util.Success
-import scala.util.control.NonFatal
 
 
 /** The Observer from the Rx pattern is the trio of callbacks that

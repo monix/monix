@@ -21,9 +21,10 @@ import monix.execution.Ack
 import monix.execution.Ack.Stop
 import monix.reactive.observables.ObservableLike
 import ObservableLike.Operator
+import monix.execution.misc.NonFatal
 import monix.reactive.observers.Subscriber
+
 import scala.concurrent.Future
-import scala.util.control.NonFatal
 
 private[reactive] final class MapOperator[-A,+B](f: A => B)
   extends Operator[A,B] {

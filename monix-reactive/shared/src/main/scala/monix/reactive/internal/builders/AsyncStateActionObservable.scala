@@ -20,9 +20,9 @@ package monix.reactive.internal.builders
 import monix.eval.{Callback, Task}
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.Cancelable
+import monix.execution.misc.NonFatal
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
-import scala.util.control.NonFatal
 
 private[reactive] final
 class AsyncStateActionObservable[S,A](seed: => S, f: S => Task[(A,S)]) extends Observable[A] {

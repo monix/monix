@@ -18,14 +18,14 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack.Continue
-import monix.execution.{Cancelable, Ack, Scheduler}
+import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.execution.cancelables.MultiAssignmentCancelable
+import monix.execution.misc.NonFatal
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
 import scala.util.Success
-import scala.util.control.NonFatal
 
 private[reactive] final
 class OnErrorRetryIfObservable[+A](source: Observable[A], p: Throwable => Boolean)

@@ -17,15 +17,16 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack.{Stop, Continue}
+import monix.execution.Ack.{Continue, Stop}
 import monix.execution.Cancelable
 import monix.execution.cancelables._
 import monix.reactive.exceptions.CompositeException
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 import monix.reactive.{Observable, OverflowStrategy}
 import monix.execution.atomic.Atomic
+import monix.execution.misc.NonFatal
+
 import scala.collection.mutable
-import scala.util.control.NonFatal
 
 private[reactive] final class MergeMapObservable[A,B](
   source: Observable[A],

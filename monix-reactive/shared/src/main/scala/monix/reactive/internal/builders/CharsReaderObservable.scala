@@ -24,13 +24,13 @@ import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.Atomic
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution._
+import monix.execution.misc.NonFatal
 import monix.reactive.Observable
 import monix.reactive.exceptions.MultipleSubscribersException
 import monix.reactive.observers.Subscriber
 
 import scala.annotation.tailrec
 import scala.concurrent.{Future, blocking}
-import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
 private[reactive] final class CharsReaderObservable(

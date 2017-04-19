@@ -21,12 +21,12 @@ import monix.eval.Task
 import monix.execution.Ack
 import monix.execution.Ack.Stop
 import monix.execution.atomic.Atomic
+import monix.execution.misc.NonFatal
 import monix.reactive.observables.ObservableLike.Operator
 import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
 import scala.util.Success
-import scala.util.control.NonFatal
 
 private[reactive] final class EvalOnNextAckOperator[A](cb: (A, Ack) => Task[Unit])
   extends Operator[A,A] {

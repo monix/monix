@@ -20,11 +20,12 @@ package monix.reactive.observers.buffers
 import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.internal.collection.{ArrayQueue, _}
+import monix.execution.misc.NonFatal
 import monix.reactive.exceptions.BufferOverflowException
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
+
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
-import scala.util.control.NonFatal
 
 /** A [[BufferedSubscriber]] implementation for the
   * [[monix.reactive.OverflowStrategy.DropNew DropNew]] overflow strategy.

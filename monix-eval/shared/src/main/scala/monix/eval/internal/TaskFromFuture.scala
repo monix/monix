@@ -18,9 +18,10 @@
 package monix.eval.internal
 
 import monix.eval.Task
+import monix.execution.misc.NonFatal
 import monix.execution.{Cancelable, Scheduler}
+
 import scala.concurrent.Future
-import scala.util.control.NonFatal
 
 private[monix] object TaskFromFuture {
   /** Implementation for `Task.fromFuture`. */

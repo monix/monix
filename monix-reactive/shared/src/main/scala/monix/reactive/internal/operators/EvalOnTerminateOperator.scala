@@ -21,12 +21,13 @@ import monix.eval.{Callback, Coeval, Task}
 import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.Atomic
+import monix.execution.misc.NonFatal
 import monix.reactive.observables.ObservableLike.Operator
 import monix.reactive.observers.Subscriber
 import monix.reactive.internal.util.Instances._
+
 import scala.concurrent.Future
 import scala.util.Success
-import scala.util.control.NonFatal
 
 private[reactive] final
 class EvalOnTerminateOperator[A](onTerminate: Option[Throwable] => Task[Unit], happensBefore: Boolean)

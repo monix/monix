@@ -17,12 +17,12 @@
 
 package monix.reactive.internal.builders
 
+import monix.execution.misc.NonFatal
 import monix.execution.{Ack, Cancelable, ExecutionModel}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
-import scala.util.control.NonFatal
 
 private[reactive]
 final class ExecuteWithModelObservable[A](source: Observable[A], em: ExecutionModel)

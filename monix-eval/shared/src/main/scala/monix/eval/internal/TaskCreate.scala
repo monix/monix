@@ -19,8 +19,8 @@ package monix.eval.internal
 
 import monix.eval.{Callback, Task}
 import monix.execution.cancelables.{SingleAssignmentCancelable, StackedCancelable}
+import monix.execution.misc.NonFatal
 import monix.execution.{Cancelable, Scheduler}
-import scala.util.control.NonFatal
 
 private[monix] object TaskCreate {
   /**

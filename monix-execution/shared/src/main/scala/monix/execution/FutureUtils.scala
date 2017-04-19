@@ -19,9 +19,10 @@ package monix.execution
 
 import java.util.concurrent.TimeoutException
 
+import monix.execution.misc.NonFatal
+
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
-import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
 /** Utilities for Scala's standard `concurrent.Future`. */

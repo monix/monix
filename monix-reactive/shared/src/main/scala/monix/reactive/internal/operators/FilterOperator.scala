@@ -17,11 +17,11 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack.{Stop, Continue}
+import monix.execution.Ack.{Continue, Stop}
 import monix.reactive.observables.ObservableLike
 import ObservableLike.Operator
+import monix.execution.misc.NonFatal
 import monix.reactive.observers.Subscriber
-import scala.util.control.NonFatal
 
 private[reactive] final class FilterOperator[A](p: A => Boolean)
   extends Operator[A,A] {

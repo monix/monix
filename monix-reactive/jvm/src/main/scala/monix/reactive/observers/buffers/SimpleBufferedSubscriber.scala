@@ -22,10 +22,11 @@ import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight256
 import monix.execution.internal.math.nextPowerOf2
+import monix.execution.misc.NonFatal
 import monix.reactive.exceptions.BufferOverflowException
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
+
 import scala.concurrent.Future
-import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
 /** A highly optimized [[BufferedSubscriber]] implementation. It supports 2

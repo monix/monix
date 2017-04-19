@@ -19,10 +19,11 @@ package monix.reactive.internal.builders
 
 import monix.execution.{Ack, Cancelable}
 import monix.execution.cancelables.SingleAssignmentCancelable
+import monix.execution.misc.NonFatal
 import monix.reactive.observers.Subscriber
 import monix.reactive.{Observable, Pipe}
+
 import scala.concurrent.Future
-import scala.util.control.NonFatal
 
 private[reactive] final class PipeThroughSelectorObservable[A,B,C]
   (source: Observable[A], pipe: Pipe[A,B], f: Observable[B] => Observable[C])

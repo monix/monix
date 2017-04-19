@@ -20,14 +20,15 @@ package monix.reactive.internal.operators
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
+import monix.execution.misc.NonFatal
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.exceptions.CompositeException
 import monix.reactive.observers.Subscriber
+
 import scala.annotation.tailrec
 import scala.concurrent.{Future, Promise}
 import scala.util.Failure
-import scala.util.control.NonFatal
 
 /** Implementation for `Observable.concatMap`.
   *

@@ -18,9 +18,9 @@
 package monix.reactive.internal.builders
 
 import monix.execution.Cancelable
+import monix.execution.misc.NonFatal
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
-import scala.util.control.NonFatal
 
 /** An observable that evaluates the given by-name argument,
   * and emits it.

@@ -19,9 +19,9 @@ package monix.execution
 
 import monix.execution.atomic.AtomicAny
 import monix.execution.exceptions.CompositeException
+import monix.execution.misc.NonFatal
 
 import scala.collection.immutable.Queue
-import scala.util.control.NonFatal
 
 /** Represents a one-time idempotent action that can be used
   * to cancel async computations, or to release resources that

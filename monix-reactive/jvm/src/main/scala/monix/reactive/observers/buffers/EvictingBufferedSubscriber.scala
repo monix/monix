@@ -22,12 +22,13 @@ import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.PaddingStrategy.{LeftRight128, LeftRight256}
 import monix.execution.atomic.{Atomic, AtomicAny, AtomicInt}
 import monix.execution.internal.math
+import monix.execution.misc.NonFatal
 import monix.reactive.OverflowStrategy._
 import monix.reactive.observers.buffers.AbstractEvictingBufferedSubscriber._
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
+
 import scala.collection.immutable.Queue
 import scala.concurrent.Future
-import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
 /** A [[BufferedSubscriber]] implementation for the

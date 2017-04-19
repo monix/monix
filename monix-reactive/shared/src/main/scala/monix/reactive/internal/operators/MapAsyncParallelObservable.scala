@@ -22,13 +22,13 @@ import monix.eval.{Callback, Task}
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.{CompositeCancelable, SingleAssignmentCancelable}
 import monix.execution.internal.Platform
-import monix.execution.misc.AsyncSemaphore
+import monix.execution.misc.{AsyncSemaphore, NonFatal}
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.OverflowStrategy.BackPressure
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
+
 import scala.concurrent.Future
-import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
 /** Implementation for a `mapAsync` operator that can execute multiple tasks

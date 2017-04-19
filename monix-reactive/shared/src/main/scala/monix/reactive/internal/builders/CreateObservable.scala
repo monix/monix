@@ -18,9 +18,9 @@
 package monix.reactive.internal.builders
 
 import monix.execution.Cancelable
+import monix.execution.misc.NonFatal
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 import monix.reactive.{Observable, OverflowStrategy}
-import scala.util.control.NonFatal
 
 /** Implementation for [[monix.reactive.Observable.create]]. */
 private[reactive] final class CreateObservable[+A](

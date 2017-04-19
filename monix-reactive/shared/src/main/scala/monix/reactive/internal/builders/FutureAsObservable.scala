@@ -17,11 +17,12 @@
 
 package monix.reactive.internal.builders
 
-import monix.execution.{CancelableFuture, Cancelable}
+import monix.execution.misc.NonFatal
+import monix.execution.{Cancelable, CancelableFuture}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
+
 import scala.concurrent.Future
-import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
 /** Converts any `Future` into an observable */

@@ -21,10 +21,10 @@ import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.internal.collection.ArrayQueue
 import monix.execution.internal.math.nextPowerOf2
+import monix.execution.misc.NonFatal
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 
 import scala.concurrent.{Future, Promise}
-import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
 /** Shared internals between [[BackPressuredBufferedSubscriber]] and

@@ -19,15 +19,16 @@ package monix.reactive.internal.operators
 
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.Atomic
+import monix.execution.misc.NonFatal
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.reactive.exceptions.CompositeException
 import monix.reactive.observables.GroupedObservable
 import monix.reactive.observables.ObservableLike.Operator
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 import monix.reactive.{Observer, OverflowStrategy}
+
 import scala.annotation.tailrec
 import scala.concurrent.Future
-import scala.util.control.NonFatal
 
 private[reactive] final class GroupByOperator[A,K](
   os: OverflowStrategy.Synchronous[GroupedObservable[K, A]],

@@ -19,11 +19,12 @@ package monix.reactive.internal.operators
 
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.CompositeCancelable
+import monix.execution.misc.NonFatal
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
+
 import scala.concurrent.Future
-import scala.util.control.NonFatal
 
 private[reactive] final class WithLatestFromObservable[A,B,+R](
   source: Observable[A], other: Observable[B], f: (A,B) => R)

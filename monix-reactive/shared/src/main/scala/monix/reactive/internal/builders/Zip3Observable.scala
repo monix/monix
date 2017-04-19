@@ -17,15 +17,15 @@
 
 package monix.reactive.internal.builders
 
-import monix.execution.{Cancelable, Ack}
-import monix.execution.Ack.{Stop, Continue}
+import monix.execution.{Ack, Cancelable}
+import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.CompositeCancelable
+import monix.execution.misc.NonFatal
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
-import scala.concurrent.{Promise, Future}
+import scala.concurrent.{Future, Promise}
 import scala.util.Success
-import scala.util.control.NonFatal
 
 private[reactive] final
 class Zip3Observable[A1,A2,A3,+R]

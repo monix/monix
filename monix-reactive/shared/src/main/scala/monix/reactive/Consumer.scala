@@ -22,15 +22,16 @@ import monix.eval.{Callback, Task}
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.{Atomic, PaddingStrategy}
 import monix.execution.cancelables.{AssignableCancelable, SingleAssignmentCancelable}
+import monix.execution.misc.NonFatal
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.reactive.Consumer.LoadBalanceConsumer.IndexedSubscriber
 import monix.reactive.Consumer.{ContraMapConsumer, MapAsyncConsumer, MapConsumer}
 import monix.reactive.observers.Subscriber
+
 import scala.annotation.tailrec
 import scala.collection.immutable.{BitSet, Queue}
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.{Future, Promise}
-import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
 /** The `Consumer` is a specification of how to consume an observable.

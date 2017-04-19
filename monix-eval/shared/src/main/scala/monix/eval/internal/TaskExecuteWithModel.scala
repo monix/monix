@@ -20,7 +20,7 @@ package monix.eval.internal
 import monix.eval.Task
 import monix.execution.ExecutionModel
 import monix.execution.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
-import scala.util.control.NonFatal
+import monix.execution.misc.NonFatal
 
 private[monix] object TaskExecuteWithModel {
   /**

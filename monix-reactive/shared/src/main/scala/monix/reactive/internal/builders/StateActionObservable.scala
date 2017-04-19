@@ -18,12 +18,13 @@
 package monix.reactive.internal.builders
 
 import monix.execution.cancelables.BooleanCancelable
-import monix.execution.{Cancelable, Ack}
-import monix.execution.Ack.{Stop, Continue}
+import monix.execution.{Ack, Cancelable}
+import monix.execution.Ack.{Continue, Stop}
+import monix.execution.misc.NonFatal
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
+
 import scala.annotation.tailrec
-import scala.util.control.NonFatal
 import scala.util.{Failure, Try}
 
 private[reactive] final

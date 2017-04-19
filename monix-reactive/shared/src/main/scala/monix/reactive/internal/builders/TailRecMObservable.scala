@@ -20,11 +20,12 @@ package monix.reactive.internal.builders
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.AtomicBoolean
 import monix.execution.cancelables.{SingleAssignmentCancelable, StackedCancelable}
+import monix.execution.misc.NonFatal
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
+
 import scala.concurrent.{Future, Promise}
-import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
 /** Implementation for `Observable.tailRecM`. */

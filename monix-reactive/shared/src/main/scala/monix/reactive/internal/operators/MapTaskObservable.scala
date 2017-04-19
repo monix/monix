@@ -22,12 +22,13 @@ import monix.eval.Task
 import monix.execution.Ack.Stop
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
+import monix.execution.misc.NonFatal
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
+
 import scala.annotation.tailrec
 import scala.concurrent.Future
-import scala.util.control.NonFatal
 
 /** Implementation for `Observable.mapTask`.
   *

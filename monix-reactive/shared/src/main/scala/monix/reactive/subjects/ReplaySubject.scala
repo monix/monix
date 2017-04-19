@@ -23,10 +23,11 @@ import monix.reactive.Observable
 import monix.reactive.internal.util.PromiseCounter
 import monix.reactive.observers.{ConnectableSubscriber, Subscriber}
 import monix.execution.atomic.Atomic
+import monix.execution.misc.NonFatal
+
 import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 import scala.concurrent.Future
-import scala.util.control.NonFatal
 
 /** `ReplaySubject` emits to any observer all of the items that were emitted
   * by the source, regardless of when the observer subscribes.

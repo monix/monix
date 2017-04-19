@@ -17,12 +17,13 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack.{Stop, Continue}
+import monix.execution.Ack.{Continue, Stop}
 import monix.reactive.observables.ObservableLike
 import ObservableLike.Operator
+import monix.execution.misc.NonFatal
 import monix.reactive.observers.Subscriber
+
 import scala.collection.mutable
-import scala.util.control.NonFatal
 
 private[reactive] final
 class DistinctByKeyOperator[A,K](key: A => K) extends Operator[A,A] {

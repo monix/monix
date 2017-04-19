@@ -17,10 +17,10 @@
 
 package monix.eval
 
+import monix.execution.misc.NonFatal
 import monix.execution.{Listener, Scheduler, UncaughtExceptionReporter}
 
 import scala.concurrent.Promise
-import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
 /** Represents a callback that should be called asynchronously

@@ -20,13 +20,14 @@ package monix.reactive.subjects
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
+import monix.execution.misc.NonFatal
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.internal.util.PromiseCounter
 import monix.reactive.observers.Subscriber
 import monix.reactive.subjects.PublishSubject.State
+
 import scala.annotation.tailrec
 import scala.concurrent.Future
-import scala.util.control.NonFatal
 
 /** A `PublishSubject` emits to a subscriber only those items that are
   * emitted by the source subsequent to the time of the subscription.

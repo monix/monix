@@ -18,10 +18,11 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack
+import monix.execution.misc.NonFatal
 import monix.reactive.observables.ObservableLike.Operator
 import monix.reactive.observers.Subscriber
+
 import scala.concurrent.Future
-import scala.util.control.NonFatal
 
 private[reactive] final class DoOnEarlyStopOperator[A](cb: () => Unit)
   extends Operator[A,A] {

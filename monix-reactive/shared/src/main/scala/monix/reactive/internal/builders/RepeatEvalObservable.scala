@@ -19,13 +19,13 @@ package monix.reactive.internal.builders
 
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.BooleanCancelable
-import monix.execution.{Ack, Cancelable, ExecutionModel, Scheduler}
+import monix.execution._
+import monix.execution.misc.NonFatal
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
 import scala.annotation.tailrec
 import scala.concurrent.Future
-import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
 private[reactive] final class RepeatEvalObservable[+A](eval: => A)

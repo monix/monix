@@ -18,9 +18,9 @@
 package monix.reactive.internal.builders
 
 import monix.execution.Cancelable
+import monix.execution.misc.NonFatal
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
-import scala.util.control.NonFatal
 
 private[reactive] final class DeferObservable[+A](factory: => Observable[A])
   extends Observable[A] {

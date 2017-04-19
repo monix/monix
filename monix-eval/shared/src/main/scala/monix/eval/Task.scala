@@ -24,15 +24,15 @@ import monix.execution.atomic.Atomic
 import monix.execution.cancelables.StackedCancelable
 import monix.execution.internal.Platform
 import monix.execution.internal.collection.ArrayStack
-import monix.execution.misc.ThreadLocal
-import monix.execution.{Cancelable, CancelableFuture, ExecutionModel, Scheduler}
+import monix.execution.misc.{NonFatal, ThreadLocal}
+import monix.execution._
 import monix.types._
+
 import scala.annotation.tailrec
 import scala.collection.generic.CanBuildFrom
 import scala.collection.mutable
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Future, Promise, TimeoutException}
-import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
 /** `Task` represents a specification for a possibly lazy or

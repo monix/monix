@@ -19,15 +19,15 @@ package monix.reactive.internal.builders
 
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.BooleanCancelable
-import monix.execution.{Ack, Cancelable, ExecutionModel, Scheduler}
+import monix.execution._
 import monix.reactive.Observable
 import monix.reactive.exceptions.MultipleSubscribersException
 import monix.reactive.observers.Subscriber
 import monix.execution.atomic.Atomic
+import monix.execution.misc.NonFatal
 
 import scala.annotation.tailrec
 import scala.concurrent.Future
-import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
 /** Converts any `Iterator` into an observable */

@@ -18,19 +18,21 @@
 package monix.reactive.observables
 
 import java.io.PrintStream
+
 import monix.eval.Task
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.{Ack, ExecutionModel, Scheduler}
 import monix.reactive.OverflowStrategy.Synchronous
 import monix.execution.exceptions.UpstreamTimeoutException
+import monix.execution.misc.NonFatal
 import monix.reactive.internal.builders._
 import monix.reactive.internal.operators._
 import monix.reactive.observables.ObservableLike.{Operator, Transformer}
 import monix.reactive.observers.Subscriber
 import monix.reactive.{Notification, Observable, OverflowStrategy, Pipe}
+
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
-import scala.util.control.NonFatal
 
 /** Defines the available operations for observable-like instances.
   *

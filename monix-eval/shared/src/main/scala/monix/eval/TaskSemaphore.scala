@@ -58,7 +58,7 @@ final class TaskSemaphore private (maxParallelism: Int) extends Serializable {
     // Inlining doOnFinish + doOnCancel
     val taskWithRelease = Task.unsafeCreate[A] { (context, cb) =>
       implicit val s = context.scheduler
-      val c = Cancelable(semaphore.release)
+      val c = Cancelable(() => semaphore.release())
       val conn = context.connection
       conn.push(c)
 

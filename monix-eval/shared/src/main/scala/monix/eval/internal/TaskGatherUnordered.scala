@@ -22,9 +22,10 @@ import monix.execution.Scheduler
 import monix.execution.atomic.{Atomic, AtomicAny}
 import monix.execution.atomic.PaddingStrategy.LeftRight128
 import monix.execution.cancelables.{CompositeCancelable, StackedCancelable}
+import monix.execution.misc.NonFatal
+
 import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
-import scala.util.control.NonFatal
 
 private[monix] object TaskGatherUnordered {
   /**

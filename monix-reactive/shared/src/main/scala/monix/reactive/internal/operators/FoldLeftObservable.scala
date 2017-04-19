@@ -18,11 +18,10 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack.{Continue, Stop}
+import monix.execution.misc.NonFatal
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
-
-import scala.util.control.NonFatal
 
 private[reactive] final
 class FoldLeftObservable[A,R](source: Observable[A], initial: () => R, f: (R,A) => R)

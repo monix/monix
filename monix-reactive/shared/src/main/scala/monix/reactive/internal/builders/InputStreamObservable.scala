@@ -27,10 +27,10 @@ import monix.reactive.Observable
 import monix.reactive.exceptions.MultipleSubscribersException
 import monix.reactive.observers.Subscriber
 import monix.execution.atomic.Atomic
+import monix.execution.misc.NonFatal
 
 import scala.annotation.tailrec
 import scala.concurrent.{Future, blocking}
-import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
 private[reactive] final class InputStreamObservable(

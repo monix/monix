@@ -19,11 +19,12 @@ package monix.reactive.internal.operators
 
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.{CompositeCancelable, SerialCancelable, SingleAssignmentCancelable}
+import monix.execution.misc.NonFatal
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.observers.Subscriber
 import monix.reactive.{Observable, Observer}
+
 import scala.concurrent.Future
-import scala.util.control.NonFatal
 
 private[reactive] final class SwitchMapObservable[A,B](
   source: Observable[A], f: A => Observable[B])

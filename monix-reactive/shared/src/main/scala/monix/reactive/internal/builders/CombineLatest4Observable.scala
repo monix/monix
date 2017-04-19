@@ -18,14 +18,14 @@
 package monix.reactive.internal.builders
 
 import monix.execution.cancelables.CompositeCancelable
-import monix.execution.{Cancelable, Ack}
-import monix.execution.Ack.{Stop, Continue}
+import monix.execution.{Ack, Cancelable}
+import monix.execution.Ack.{Continue, Stop}
+import monix.execution.misc.NonFatal
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
 import scala.util.Success
-import scala.util.control.NonFatal
 
 private[reactive] final
 class CombineLatest4Observable[A1,A2,A3,A4,+R]

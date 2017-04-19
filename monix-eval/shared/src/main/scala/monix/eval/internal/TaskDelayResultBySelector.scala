@@ -18,7 +18,7 @@
 package monix.eval.internal
 
 import monix.eval.{Callback, Task}
-import scala.util.control.NonFatal
+import monix.execution.misc.NonFatal
 
 private[monix] object TaskDelayResultBySelector {
   /**
