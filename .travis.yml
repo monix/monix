@@ -2,9 +2,9 @@ language: scala
 sudo: false
 
 scala:
-  - 2.11.8
+  - 2.11.10
   - 2.10.6
-  - 2.12.1
+  - 2.12.2
 jdk:
   - oraclejdk8
 
@@ -18,7 +18,7 @@ notifications:
 
 env:
   global:
-    - MAIN_SCALA_VERSION=2.11.8
+    - MAIN_SCALA_VERSION=2.11.10
     - PUBLISHER_REFERENCE_GC_TIMEOUT_MILLIS=2000
 
 script:
