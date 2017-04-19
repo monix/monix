@@ -21,16 +21,15 @@ import java.io.PrintStream
 
 import monix.eval.Task
 import monix.execution.cancelables.BooleanCancelable
-import monix.execution.{Ack, ExecutionModel, Scheduler}
-import monix.reactive.OverflowStrategy.Synchronous
 import monix.execution.exceptions.UpstreamTimeoutException
 import monix.execution.misc.NonFatal
+import monix.execution.{Ack, ExecutionModel, Scheduler}
+import monix.reactive.OverflowStrategy.Synchronous
 import monix.reactive.internal.builders._
 import monix.reactive.internal.operators._
 import monix.reactive.observables.ObservableLike.{Operator, Transformer}
 import monix.reactive.observers.Subscriber
 import monix.reactive.{Notification, Observable, OverflowStrategy, Pipe}
-
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 
@@ -1461,6 +1460,84 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     */
   def executeWithModel(em: ExecutionModel): Self[A] =
     self.transform(source => new ExecuteWithModelObservable[A](source, em))
+
+  /** Operator that specifies a different 
+    * [[monix.execution.Scheduler Scheduler]], on which subscribers 
+    * will observe events, instead of the default one.
+    *
+    * An `Observable` with an applied `observeOn` call will forward
+    * events into a buffer that uses the specified `Scheduler`
+    * reference to cycle through events and to make `onNext` calls to
+    * downstream listeners.
+    *
+    * Example:
+    * {{{
+    *   import monix.execution.Scheduler
+    *   val io = Scheduler.io("my-io")
+    *
+    *   source.map(_ + 1)
+    *     .observeOn(io)
+    *     .foreach(x => println(x))
+    * }}}
+    *
+    * In the above example the first `map` (whatever comes before the
+    * `observeOn` call) gets executed using the default `Scheduler`
+    * (might execute on the current thread even), however the
+    * `foreach` that's specified after `observeOn` will get executed
+    * on the indicated `Scheduler`.
+    *
+    * NOTE: this operator does not guarantee that downstream listeners
+    * will actually use the specified `Scheduler` to process events,
+    * because this depends on the rest of the pipeline. E.g. this will
+    * not work OK:
+    *
+    * {{{
+    *   source.observeOn(io).asyncBoundary(Unbounded)
+    * }}}
+    *
+    * This sample might not do what a user of `observeOn` would
+    * want. Indeed the implementation will use the provided `io`
+    * reference for calling `onNext` / `onComplete` / `onError`
+    * events, however because of the following asynchronous boundary
+    * created the actual listeners will probably end up being execute
+    * on a different `Scheduler`.
+    *
+    * The underlying implementation uses
+    * [[monix.reactive.observers.BufferedSubscriber a buffer]]
+    * to forward events. The
+    * [[monix.reactive.OverflowStrategy OverflowStrategy]]
+    * being applied is the
+    * [[monix.reactive.OverflowStrategy.Default default one]].
+    *
+    * @see [[observeOn[B>:A](s:monix\.execution\.Scheduler,os:monix\.reactive\.OverflowStrategy[B]* observeOn(Scheduler, OverflowStrategy)]]
+    *      for the version that allows customizing the
+    *      [[monix.reactive.OverflowStrategy OverflowStrategy]]
+    *      being used by the underlying buffer.
+    *
+    * @param s is the alternative `Scheduler` reference to use
+    *        for observing events
+    */
+  def observeOn(s: Scheduler): Self[A] =
+    observeOn(s, OverflowStrategy.Default)
+
+  /** Operator that specifies a different
+    * [[monix.execution.Scheduler Scheduler]], on which subscribers
+    * will observe events, instead of the default one.
+    *
+    * This overloaded version of `observeOn` takes an extra
+    * [[monix.reactive.OverflowStrategy OverflowStrategy]]
+    * parameter specifying the behavior of the underlying buffer.
+    *
+    * @see [[observeOn(s:monix\.execution\.Scheduler)* observeOn(Scheduler)]] for
+    *      the version that does not take an `OverflowStrategy` parameter.
+    *
+    * @param s is the alternative `Scheduler` reference to use
+    *        for observing events
+    * @param os is the [[monix.reactive.OverflowStrategy OverflowStrategy]]
+    *        to apply to the underlying buffer
+    */
+  def observeOn[B >: A](s: Scheduler, os: OverflowStrategy[B]): Self[B] =
+    self.transform(source => new ObserveOnObservable[B](source, s, os))
 
   /** If the connection is [[monix.execution.Cancelable.cancel cancelled]]
     * then trigger a `CancellationException`.

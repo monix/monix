@@ -724,16 +724,15 @@ object Task extends TaskInstances {
     *
     * Example:
     * {{{
-    *   def logLatency[A](source: Task[A]): Task[A] =
+    *   def measureLatency[A](source: Task[A]): Task[(A, Long)] =
     *     Task.deferAction { implicit s =>
     *       // We have our Scheduler, which can inject time, we
     *       // can use it for side-effectful operations
     *       val start = s.currentTimeMillis()
     *
-    *       source.doOnFinish { result =>
+    *       source.map { a =>
     *         val finish = s.currentTimeMillis()
-    *         logger.info(s"Result: $result; Latency: ${finish - start} millis")
-    *         Task.unit
+    *         (a, finish - start)
     *       }
     *     }
     * }}}
