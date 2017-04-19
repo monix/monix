@@ -30,7 +30,6 @@ private[monix] object TaskChooseFirstOfList {
     Task.unsafeCreate { (context, callback) =>
       implicit val s = context.scheduler
       val conn = context.connection
-      var streamErrors = true
 
       val isActive = Atomic.withPadding(true, PaddingStrategy.LeftRight128)
       val taskArray = tasks.toArray
