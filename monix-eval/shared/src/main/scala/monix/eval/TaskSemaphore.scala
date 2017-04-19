@@ -17,6 +17,7 @@
 
 package monix.eval
 
+import monix.execution.Cancelable
 import monix.execution.misc.AsyncSemaphore
 
 /** The `TaskSemaphore` is an asynchronous semaphore implementation that
@@ -53,18 +54,55 @@ final class TaskSemaphore private (maxParallelism: Int) extends Serializable {
     * The returned task also takes care of resource handling,
     * releasing its permit after being complete.
     */
-  def greenLight[A](fa: Task[A]): Task[A] =
-    acquire.flatMap { _ =>
-      fa.doOnFinish(_ => release)
-        .doOnCancel(release)
+  def greenLight[A](fa: Task[A]): Task[A] = {
+    // Inlining doOnFinish + doOnCancel
+    val taskWithRelease = Task.unsafeCreate[A] { (context, cb) =>
+      implicit val s = context.scheduler
+      val c = Cancelable(semaphore.release)
+      val conn = context.connection
+      conn.push(c)
+
+      // Light asynchronous boundary
+      Task.unsafeStartTrampolined(fa, context, new Callback[A] {
+        def onSuccess(value: A): Unit = {
+          conn.pop()
+          semaphore.release()
+          cb.asyncOnSuccess(value)
+        }
+
+        def onError(ex: Throwable): Unit = {
+          conn.pop()
+          semaphore.release()
+          cb.asyncOnError(ex)
+        }
+      })
     }
+
+    acquire.flatMap { _ => taskWithRelease }
+  }
 
   /** Triggers a permit acquisition, returning a task
     * that upon evaluation will only complete after a permit
     * has been acquired.
     */
   val acquire: Task[Unit] =
-    Task.defer(Task.fromFuture(semaphore.acquire()))
+    Task.unsafeCreate { (context, cb) =>
+      implicit val s = context.scheduler
+      val f = semaphore.acquire()
+
+      if (f.isCompleted)
+        cb.asyncApply(f.value.get)
+      else {
+        val conn = context.connection
+        conn.push(f)
+        f.onComplete { result =>
+          // Async boundary should trigger frame reset
+          context.frameRef.reset()
+          conn.pop()
+          cb(result)
+        }
+      }
+    }
 
   /** Returns a task that upon evaluation will release a permit,
     * returning it to the pool.
