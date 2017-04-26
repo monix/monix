@@ -26,11 +26,9 @@ import scala.collection.mutable.ListBuffer
   * buffer overflowStrategy that sends events in bundles.
   */
 private[monix] final class BatchedBufferedSubscriber[A] private
-  (out: Subscriber[List[A]], bufferSize: Int)
+  (out: Subscriber[List[A]], _bufferSize: Int)
   extends AbstractBackPressuredBufferedSubscriber[A, ListBuffer[A]](
-    subscriberBufferToList(out), bufferSize) { self =>
-
-  require(bufferSize > 0, "bufferSize must be a strictly positive number")
+    subscriberBufferToList(out), _bufferSize) { self =>
 
   @volatile protected var p50, p51, p52, p53, p54, p55, p56, p57 = 5
   @volatile protected var q50, q51, q52, q53, q54, q55, q56, q57 = 5
@@ -41,10 +39,7 @@ private[monix] final class BatchedBufferedSubscriber[A] private
   override protected def fetchNext(): ListBuffer[A] = {
     val batchSize = Platform.recommendedBatchSize
     val buffer = ListBuffer.empty[A]
-    primaryQueue.drain(buffer, batchSize)
-
-    val drained = buffer.length
-    if (drained < batchSize) secondaryQueue.drain(buffer, batchSize - drained)
+    queue.drain(buffer, batchSize)
     if (buffer.nonEmpty) buffer else null
   }
 }

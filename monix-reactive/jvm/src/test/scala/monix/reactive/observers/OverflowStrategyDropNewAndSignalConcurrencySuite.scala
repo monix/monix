@@ -19,13 +19,14 @@ package monix.reactive.observers
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 import minitest.TestSuite
-import monix.execution.Ack.{Stop, Continue}
+import monix.execution.Ack.{Continue, Stop}
 import monix.execution.{Ack, Scheduler}
 import monix.reactive.OverflowStrategy.DropNewAndSignal
 import monix.execution.exceptions.DummyException
 import monix.reactive.{Observable, Observer}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, Promise}
+import scala.util.Random
 
 object OverflowStrategyDropNewAndSignalConcurrencySuite extends TestSuite[Scheduler] {
   def setup() = monix.execution.Scheduler.Implicits.global
@@ -110,6 +111,50 @@ object OverflowStrategyDropNewAndSignalConcurrencySuite extends TestSuite[Schedu
     assertEquals(number, 10000)
   }
 
+  test("should not lose events with async subscriber from one publisher") { implicit s =>
+    // Repeating because of possible problems
+    for (_ <- 0 until 100) {
+      val completed = new CountDownLatch(1)
+      val total = 10000L
+
+      var received = 0
+      var sum = 0L
+
+      val underlying = new Observer[Long] {
+        var previous = 0L
+        var ack: Future[Ack] = Continue
+
+        def process(elem: Long): Ack = {
+          assertEquals(elem, previous + 1)
+          received += 1
+          sum += elem
+          previous = elem
+          Continue
+        }
+
+        def onNext(elem: Long): Future[Ack] = {
+          val goAsync = Random.nextInt() % 2 == 0
+          ack = if (goAsync) Future(process(elem)) else process(elem)
+          ack
+        }
+
+        def onError(ex: Throwable): Unit =
+          s.reportFailure(ex)
+
+        def onComplete(): Unit =
+          ack.syncOnContinue(completed.countDown())
+      }
+
+      val buffer = BufferedSubscriber[Long](Subscriber(underlying, s), DropNewAndSignal(total.toInt, _ => None))
+      for (i <- 1 to total.toInt) buffer.onNext(i)
+      buffer.onComplete()
+
+      assert(completed.await(120, TimeUnit.SECONDS), "completed.await should have succeeded")
+      assertEquals(received, total)
+      assertEquals(sum, total * (total + 1) / 2)
+    }
+  }
+
   test("should drop incoming when over capacity") { implicit s =>
     // repeating test 100 times because of problems
     for (_ <- 0 until 100) {
@@ -123,7 +168,7 @@ object OverflowStrategyDropNewAndSignalConcurrencySuite extends TestSuite[Schedu
         def onNext(elem: Either[Int,Int]) = {
           elem match {
             case Left(v) => dropped += v
-            case Right(e) => received += 1
+            case Right(_) => received += 1
           }
 
           started.countDown()

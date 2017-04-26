@@ -18,7 +18,6 @@
 package monix.reactive.observers
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
-
 import minitest.TestSuite
 import monix.execution.Ack.Continue
 import monix.execution.{Ack, Scheduler}
@@ -110,40 +109,47 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[Scheduler] {
   }
 
   test("should not lose events with async subscriber from one publisher") { implicit s =>
-    val completed = new CountDownLatch(1)
-    val total = 1000000L
-    var sum = 0L
+    // Repeating because of possible problems
+    for (_ <- 0 until 100) {
+      val completed = new CountDownLatch(1)
+      val total = 10000L
 
-    val underlying = new Observer[Long] {
-      var previous = 0L
-      var ack: Future[Ack] = Continue
+      var received = 0
+      var sum = 0L
 
-      def process(elem: Long): Ack = {
-        assertEquals(elem, previous + 1)
-        sum += elem
-        previous = elem
-        Continue
+      val underlying = new Observer[Long] {
+        var previous = 0L
+        var ack: Future[Ack] = Continue
+
+        def process(elem: Long): Ack = {
+          assertEquals(elem, previous + 1)
+          received += 1
+          sum += elem
+          previous = elem
+          Continue
+        }
+
+        def onNext(elem: Long): Future[Ack] = {
+          val goAsync = Random.nextInt() % 2 == 0
+          ack = if (goAsync) Future(process(elem)) else process(elem)
+          ack
+        }
+
+        def onError(ex: Throwable): Unit =
+          s.reportFailure(ex)
+
+        def onComplete(): Unit =
+          ack.syncOnContinue(completed.countDown())
       }
 
-      def onNext(elem: Long): Future[Ack] = {
-        val goAsync = Random.nextInt() % 4 == 0
-        val ack = if (goAsync) Future(process(elem)) else process(elem)
-        ack
-      }
+      val buffer = BufferedSubscriber[Long](Subscriber(underlying, s), Unbounded)
+      for (i <- 1 to total.toInt) buffer.onNext(i)
+      buffer.onComplete()
 
-      def onError(ex: Throwable): Unit =
-        s.reportFailure(ex)
-
-      def onComplete(): Unit =
-        ack.syncOnContinue(completed.countDown())
+      assert(completed.await(120, TimeUnit.SECONDS), "completed.await should have succeeded")
+      assertEquals(received, total)
+      assertEquals(sum, total * (total + 1) / 2)
     }
-
-    val buffer = BufferedSubscriber[Long](Subscriber(underlying, s), Unbounded)
-    for (i <- 1 to total.toInt) buffer.onNext(i)
-    buffer.onComplete()
-
-    assert(completed.await(120, TimeUnit.SECONDS), "completed.await should have succeeded")
-    assertEquals(sum, total * (total + 1) / 2)
   }
 
   test("should not lose events with async subscriber from multiple publishers") { implicit s =>

@@ -56,7 +56,7 @@ abstract class CommonBufferPad3 extends CommonBufferErrorThrown {
 }
 
 abstract class CommonBufferLastAck extends CommonBufferPad3 {
-  /*
+  /**
    * Value used in order to apply back-pressure in the run-loop.
    * It stores the last `Future[Ack]` value whenever the loop
    * ends due to not having any more events to process.

@@ -24,17 +24,14 @@ import monix.reactive.observers.Subscriber
   * buffer overflow strategy.
   */
 private[observers] final class BackPressuredBufferedSubscriber[A] private
-  (out: Subscriber[A], bufferSize: Int)
-  extends AbstractBackPressuredBufferedSubscriber[A,A](out, bufferSize) {
+  (out: Subscriber[A], _bufferSize: Int)
+  extends AbstractBackPressuredBufferedSubscriber[A,A](out, _bufferSize) {
 
   @volatile protected var p50, p51, p52, p53, p54, p55, p56, p57 = 5
   @volatile protected var q50, q51, q52, q53, q54, q55, q56, q57 = 5
 
-  override protected def fetchNext(): A = {
-    val ref = primaryQueue.poll()
-    if (ref != null) ref else
-      secondaryQueue.poll()
-  }
+  override protected def fetchNext(): A =
+    queue.poll()
 
   override protected def fetchSize(r: A): Int =
     if (r == null) 0 else 1

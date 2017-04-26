@@ -216,12 +216,10 @@ private[observers] abstract class AbstractEvictingBufferedSubscriber[-A]
         case Success(Stop) =>
           // ending loop
           downstreamIsComplete = true
-          itemsToPush.set(0)
 
         case Failure(ex) =>
           // ending loop
           downstreamIsComplete = true
-          itemsToPush.set(0)
           signalError(ex)
       }
 
@@ -278,7 +276,6 @@ private[observers] abstract class AbstractEvictingBufferedSubscriber[-A]
                   if (ack == Stop) {
                     // ending loop
                     downstreamIsComplete = true
-                    itemsToPush.set(0)
                     return
                   } else {
                     val isSync = ack == Continue
@@ -289,10 +286,9 @@ private[observers] abstract class AbstractEvictingBufferedSubscriber[-A]
                 case Stop =>
                   // ending loop
                   downstreamIsComplete = true
-                  itemsToPush.set(0)
                   return
 
-                case async =>
+                case _ =>
                   goAsync(currentQueue, next, ack, processed, toProcess)
                   return
               }
@@ -311,7 +307,6 @@ private[observers] abstract class AbstractEvictingBufferedSubscriber[-A]
             if (currentQueue.isEmpty && (onOverflow == null || droppedCount.get == 0)) {
               // ending loop
               downstreamIsComplete = true
-              itemsToPush.set(0)
 
               if (errorThrown ne null) signalError(errorThrown)
               else signalComplete()
@@ -336,7 +331,6 @@ private[observers] abstract class AbstractEvictingBufferedSubscriber[-A]
             if (streamErrors) {
               // ending loop
               downstreamIsComplete = true
-              itemsToPush.set(0)
               signalError(ex)
             } else {
               scheduler.reportFailure(ex)

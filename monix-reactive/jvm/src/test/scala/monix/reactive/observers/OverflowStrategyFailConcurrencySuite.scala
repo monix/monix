@@ -18,7 +18,6 @@
 package monix.reactive.observers
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
-
 import minitest.TestSuite
 import monix.execution.{Ack, Scheduler}
 import monix.reactive.{Observer, OverflowStrategy}
@@ -27,6 +26,7 @@ import OverflowStrategy.Fail
 import monix.execution.exceptions.BufferOverflowException
 import monix.execution.exceptions.DummyException
 import scala.concurrent.{Future, Promise}
+import scala.util.Random
 
 
 object OverflowStrategyFailConcurrencySuite extends TestSuite[Scheduler] {
@@ -94,6 +94,50 @@ object OverflowStrategyFailConcurrencySuite extends TestSuite[Scheduler] {
     assertEquals(number, 10000)
   }
 
+  test("should not lose events with async subscriber from one publisher") { implicit s =>
+    // Repeating because of possible problems
+    for (_ <- 0 until 100) {
+      val completed = new CountDownLatch(1)
+      val total = 10000L
+
+      var received = 0
+      var sum = 0L
+
+      val underlying = new Observer[Long] {
+        var previous = 0L
+        var ack: Future[Ack] = Continue
+
+        def process(elem: Long): Ack = {
+          assertEquals(elem, previous + 1)
+          received += 1
+          sum += elem
+          previous = elem
+          Continue
+        }
+
+        def onNext(elem: Long): Future[Ack] = {
+          val goAsync = Random.nextInt() % 2 == 0
+          ack = if (goAsync) Future(process(elem)) else process(elem)
+          ack
+        }
+
+        def onError(ex: Throwable): Unit =
+          s.reportFailure(ex)
+
+        def onComplete(): Unit =
+          ack.syncOnContinue(completed.countDown())
+      }
+
+      val buffer = BufferedSubscriber[Long](Subscriber(underlying, s), Fail(total.toInt))
+      for (i <- 1 to total.toInt) buffer.onNext(i)
+      buffer.onComplete()
+
+      assert(completed.await(120, TimeUnit.SECONDS), "completed.await should have succeeded")
+      assertEquals(received, total)
+      assertEquals(sum, total * (total + 1) / 2)
+    }
+  }
+
   test("should trigger overflow when over capacity") { implicit s =>
     val errorCaught = new CountDownLatch(1)
     val receivedLatch = new CountDownLatch(5)
@@ -139,7 +183,7 @@ object OverflowStrategyFailConcurrencySuite extends TestSuite[Scheduler] {
     assert(!errorCaught.await(2, TimeUnit.SECONDS), "errorCaught.await should have failed")
 
     buffer.onNext(6)
-    for (i <- 0 until 100) buffer.onNext(7)
+    for (_ <- 0 until 100) buffer.onNext(7)
 
     promise.success(Continue)
     assert(errorCaught.await(60, TimeUnit.SECONDS), "errorCaught.await should have succeeded")

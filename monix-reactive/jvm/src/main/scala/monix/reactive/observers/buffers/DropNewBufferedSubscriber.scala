@@ -144,12 +144,10 @@ private[observers] final class DropNewBufferedSubscriber[A] private
         case Success(Stop) =>
           // ending loop
           downstreamIsComplete = true
-          itemsToPush.set(0)
 
         case Failure(ex) =>
           // ending loop
           downstreamIsComplete = true
-          itemsToPush.set(0)
           signalError(ex)
       }
 
@@ -197,7 +195,6 @@ private[observers] final class DropNewBufferedSubscriber[A] private
                   if (ack == Stop) {
                     // ending loop
                     downstreamIsComplete = true
-                    itemsToPush.set(0)
                     return
                   } else {
                     val isSync = ack == Continue
@@ -208,10 +205,9 @@ private[observers] final class DropNewBufferedSubscriber[A] private
                 case Stop =>
                   // ending loop
                   downstreamIsComplete = true
-                  itemsToPush.set(0)
                   return
 
-                case async =>
+                case _ =>
                   goAsync(next, ack, processed, toProcess)
                   return
               }
@@ -229,7 +225,6 @@ private[observers] final class DropNewBufferedSubscriber[A] private
             if (queue.isEmpty && (onOverflow == null || droppedCount.get == 0)) {
               // ending loop
               downstreamIsComplete = true
-              itemsToPush.set(0)
 
               if (errorThrown ne null) signalError(errorThrown)
               else signalComplete()
@@ -254,7 +249,6 @@ private[observers] final class DropNewBufferedSubscriber[A] private
             if (streamErrors) {
               // ending loop
               downstreamIsComplete = true
-              itemsToPush.set(0)
               signalError(ex)
             } else {
               scheduler.reportFailure(ex)
