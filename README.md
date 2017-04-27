@@ -29,7 +29,7 @@ Highlights:
 - the core has no third-party dependencies
 - strives to be idiomatic Scala and encourages referential transparency,
   but is built to be faster than alternatives
-- accepted in the [Typelevel incubator](http://typelevel.org/projects/)
+- is a [Typelevel project](http://typelevel.org/projects/)
 - designed for true asynchronicity, running on both the
   JVM and [Scala.js](scala-js.org),
 - really good test coverage and API documentation as a project policy
