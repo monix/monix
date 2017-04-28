@@ -75,13 +75,10 @@ sealed abstract class Task[+A] extends Serializable { self =>
     *         be used to cancel a running task
     */
   def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable = {
-    val conn = StackedCancelable()
-    val em = s.executionModel
-    val frameStart = Task.frameStart(em)
-    val frameRef = FrameIndexRef(em)
-    val context = Context(s, conn, frameRef, defaultOptions)
+    val context = Context(s)
+    val frameStart = Task.frameStart(s.executionModel)
     internalStartTrampolineRunLoop(self, context, Callback.safe(cb), null, null, frameStart)
-    conn
+    context.connection
   }
 
   /** Deprecated overload. Use [[runOnComplete]]. */
@@ -118,13 +115,8 @@ sealed abstract class Task[+A] extends Serializable { self =>
     *         that can be used to extract the result or to cancel
     *         a running task.
     */
-  def runAsync(implicit s: Scheduler): CancelableFuture[A] = {
-    val em = s.executionModel
-    val frameStart = Task.frameStart(em)
-    val frameRef = FrameIndexRef(em)
-    val context = Context(s, StackedCancelable(), frameRef, defaultOptions)
-    Task.internalStartTrampolineForFuture(this, context, frameStart)
-  }
+  def runAsync(implicit s: Scheduler): CancelableFuture[A] =
+    Task.internalStartTrampolineForFuture(this, s)
 
   /** Tries to execute the source synchronously.
     *
@@ -450,74 +442,25 @@ sealed abstract class Task[+A] extends Serializable { self =>
     TaskDoOnCancel(self, callback)
 
   /** Creates a new [[Task]] that will expose any triggered error from
+    * the source, folding the resulting successful value or error into
+    * any type using the provided functions.
+    *
+    * @param success is a function for folding the successful result
+    * @param error is a function for folding an error result if it happens
+    */
+  def attemptFold[R](error: Throwable => R, success: A => R): Task[R]
+
+  /** Creates a new [[Task]] that will expose any triggered error from
     * the source.
     */
-  def materialize: Task[Try[A]] = {
-    self match {
-      case Now(value) =>
-        Now(Success(value))
-      case Error(ex) =>
-        Now(Failure(ex))
-      case Eval(f) =>
-        Suspend(() => Now(Try(f())))
-
-      case Suspend(thunk) =>
-        Suspend(() => try {
-          thunk().materialize
-        } catch { case NonFatal(ex) =>
-          Now(Failure(ex))
-        })
-
-      case FlatMap(task, f) =>
-        FlatMap[Any, Try[A]](
-          Suspend(() => task.materialize),
-          a => a match {
-            case Success(any) =>
-              try {
-                f.asInstanceOf[Any => Task[A]](any).materialize
-              } catch {
-                case NonFatal(ex) =>
-                  Now(Failure(ex))
-              }
-            case error @ Failure(_) =>
-              Now(error.asInstanceOf[Try[A]])
-          }
-        )
-
-      case Async(onFinish) =>
-        Async { (context, cb) =>
-          import context.{scheduler => s}
-          s.executeTrampolined(() =>
-            onFinish(context, new Callback[A] {
-              def onSuccess(value: A): Unit =
-                cb.onSuccess(Success(value))
-              def onError(ex: Throwable): Unit =
-                cb.onSuccess(Failure(ex))
-            }))
-        }
-
-      case ref: MemoizeSuspend[_] =>
-        val task = ref.asInstanceOf[MemoizeSuspend[A]]
-        Async[Try[A]] { (ctx, cb) =>
-          // Light asynchronous boundary
-          Task.unsafeStartTrampolined[A](task, ctx, new Callback[A] {
-            def onSuccess(value: A): Unit =
-              cb.onSuccess(Success(value))
-            def onError(ex: Throwable): Unit =
-              cb.onSuccess(Failure(ex))
-          })
-        }
-    }
-  }
+  def materialize: Task[Try[A]] =
+    attemptFold(Failure.apply, Success.apply)
 
   /** Creates a new [[Task]] that will expose any triggered error from
     * the source.
     */
   def materializeAttempt: Task[Attempt[A]] =
-    materialize.map {
-      case Success(value) => Coeval.Now(value)
-      case Failure(ex) => Coeval.Error(ex)
-    }
+    attemptFold(Coeval.Error.apply, Coeval.Now.apply)
 
   /** Dematerializes the source's result from a `Try`. */
   def dematerialize[B](implicit ev: A <:< Try[B]): Task[B] =
@@ -1321,6 +1264,16 @@ object Task extends TaskInstances {
       connection.isCanceled
   }
 
+  object Context {
+    /** Initialize fresh [[Context]] reference. */
+    def apply(s: Scheduler): Context = {
+      val conn = StackedCancelable()
+      val em = s.executionModel
+      val frameRef = FrameIndexRef(em)
+      Context(s, conn, frameRef, defaultOptions)
+    }
+  }
+
   // We always start from 1
   private final def frameStart(em: ExecutionModel): FrameIndex =
     em.nextFrameIndex(0)
@@ -1341,6 +1294,10 @@ object Task extends TaskInstances {
     override def runAsync(implicit s: Scheduler): CancelableFuture[A] =
       CancelableFuture.successful(value)
 
+
+    override def attemptFold[R](error: Throwable => R, success: A => R): Task[R] =
+      try Now(success(value)) catch { case NonFatal(e) => Error(e) }
+
     override def toString: String =
       s"Task.Now($value)"
   }
@@ -1358,12 +1315,20 @@ object Task extends TaskInstances {
     override def runAsync(implicit s: Scheduler): CancelableFuture[A] =
       CancelableFuture.failed(ex)
 
+    override def attemptFold[R](error: (Throwable) => R, success: (A) => R): Task[R] =
+      try Now(error(ex)) catch { case NonFatal(e) => Error(e) }
+
     override def toString: String =
       s"Task.Error($ex)"
   }
 
   /** [[Task]] state describing an immediate synchronous value. */
   private final case class Eval[A](f: () => A) extends Task[A] {
+    override def attemptFold[R](error: (Throwable) => R, success: (A) => R): Task[R] =
+      Eval { () =>
+        try success(f()) catch { case NonFatal(e) => error(e) }
+      }
+
     override def toString: String =
       s"Task.Eval($f)"
   }
@@ -1375,27 +1340,61 @@ object Task extends TaskInstances {
     * For building `Async` instances safely, see [[create]].
     */
   private final case class Async[+A](onFinish: OnFinish[A]) extends Task[A] {
+    override def attemptFold[R](error: (Throwable) => R, success: (A) => R): Task[R] =
+      Async { (context, cb) =>
+        implicit val s = context.scheduler
+
+        s.executeTrampolined { () =>
+          onFinish(context, new Callback[A] {
+            def onSuccess(value: A): Unit =
+              cb.onSuccess(success(value))
+            def onError(ex: Throwable): Unit =
+              cb.onSuccess(error(ex))
+          })
+        }
+      }
+
     override def toString: String =
       s"Task.Async($onFinish)"
   }
 
   /** Internal state, the result of [[Task.defer]] */
   private final case class Suspend[+A](thunk: () => Task[A]) extends Task[A] {
+    override def attemptFold[R](error: (Throwable) => R, success: (A) => R): Task[R] =
+      Suspend{ () =>
+        try thunk().attemptFold(error, success)
+        catch { case NonFatal(e) => Now(error(e)) }
+      }
+
     override def toString: String =
       s"Task.Suspend($thunk)"
   }
 
   /** Internal [[Task]] state that is the result of applying `flatMap`. */
-  private final case class FlatMap[A,B](source: Task[A], f: A => Task[B]) extends Task[B] {
+  private final case class FlatMap[A, B](source: Task[A], f: A => Task[B]) extends Task[B] {
+    override def attemptFold[R](error: (Throwable) => R, success: (B) => R): Task[R] =
+      FlatMap[Try[A], R](
+        Suspend { () =>
+          source.attemptFold(Failure.apply, Success.apply)
+        },
+        tryA => tryA match {
+          case Success(a) =>
+            try f(a).attemptFold(error, success)
+            catch { case NonFatal(ex) => Now(error(ex)) }
+          case Failure(ex) =>
+            Now(error(ex))
+        }
+      )
+
     override def toString: String =
-      s"Task.FlatMap($source, $f)"
+      s"Task.FlatMap(${System.identityHashCode(source)}, $f)"
   }
 
   /** Internal [[Task]] state that defers the evaluation of the
     * given [[Task]] and upon execution memoize its result to
     * be available for later evaluations.
     */
-  private final class MemoizeSuspend[A](f: () => Task[A], cacheErrors: Boolean) extends Task[A] {
+  private final class MemoizeSuspend[A](f: () => Task[A], cacheErrors: Boolean) extends Task[A] { self =>
     private[this] var thunk: () => Task[A] = f
     private[this] val state = Atomic(null : AnyRef)
 
@@ -1436,6 +1435,17 @@ object Task extends TaskInstances {
           CancelableFuture(f, conn)
         case result: Try[_] =>
           CancelableFuture.fromTry(result.asInstanceOf[Try[A]])
+      }
+
+    override def attemptFold[R](error: (Throwable) => R, success: (A) => R): Task[R] =
+      Async { (ctx, cb) =>
+        // Light asynchronous boundary
+        Task.unsafeStartTrampolined[A](self, ctx, new Callback[A] {
+          def onSuccess(value: A): Unit =
+            cb.onSuccess(success(value))
+          def onError(ex: Throwable): Unit =
+            cb.onSuccess(error(ex))
+        })
       }
 
     private def memoizeValue(value: Try[A]): Unit = {
@@ -1652,8 +1662,11 @@ object Task extends TaskInstances {
         // as long as the implementation of `Async` tasks are triggering
         // a `frameRef.reset` on async boundaries.
         context.frameRef := nextFrame
-        rcb.prepare(bFirst, bRest)
-        onFinish(context, rcb)
+
+        // rcb reference might be null, so initializing
+        val restartCallback = if (rcb != null) rcb else new RestartCallback(context, cb)
+        restartCallback.prepare(bFirst, bRest)
+        onFinish(context, restartCallback)
       }
     }
 
@@ -1666,10 +1679,7 @@ object Task extends TaskInstances {
       bRest: CallStack,
       frameIndex: FrameIndex): Unit = {
 
-      if (frameIndex == 0) {
-        internalRestartTrampolineAsync(source, context, cb, bFirst, bRest)
-      }
-      else source match {
+      if (frameIndex != 0) source match {
         case Now(value) =>
           val bind =
             if (bFirst ne null) bFirst
@@ -1749,13 +1759,16 @@ object Task extends TaskInstances {
         case Error(ex) =>
           cb.onError(ex)
       }
+      else {
+        // Force async boundary
+        internalRestartTrampolineAsync(source, context, cb, bFirst, bRest)
+      }
     }
 
     // Can happen to receive a `RestartCallback` (e.g. from Task.fork),
     // in which case we should unwrap it
     val callback = cb.asInstanceOf[Callback[Any]]
-    val rcb = new RestartCallback(context, callback)
-    loop(source, context.executionModel, callback, rcb, bindCurrent, bindRest, frameIndex)
+    loop(source, context.executionModel, callback, null, bindCurrent, bindRest, frameIndex)
   }
 
   /** A run-loop that attempts to complete a
@@ -1764,15 +1777,10 @@ object Task extends TaskInstances {
     * and actual asynchronous execution in case of an
     * asynchronous boundary.
     */
-  private def internalStartTrampolineForFuture[A](
-    source: Task[A],
-    context: Context,
-    frameStart: FrameIndex): CancelableFuture[A] = {
-
+  private def internalStartTrampolineForFuture[A](source: Task[A], scheduler: Scheduler): CancelableFuture[A] = {
     /* Called when we hit the first async boundary. */
     def goAsync(
       source: Current,
-      context: Context,
       bindCurrent: Bind,
       bindRest: CallStack,
       nextFrame: FrameIndex,
@@ -1784,6 +1792,8 @@ object Task extends TaskInstances {
         def onError(ex: Throwable): Unit = p.tryFailure(ex)
       }
 
+
+      val context = Context(scheduler)
       if (forceAsync)
         internalRestartTrampolineAsync(source, context, cb, bindCurrent, bindRest)
       else
@@ -1797,17 +1807,12 @@ object Task extends TaskInstances {
      */
     @tailrec def loop(
       source: Current,
-      context: Context,
       em: ExecutionModel,
       bFirst: Bind,
       bRest: CallStack,
       frameIndex: Int): CancelableFuture[Any] = {
 
-      if (frameIndex == 0) {
-        // Asynchronous boundary is forced
-        goAsync(source, context, bFirst, bRest, frameIndex, forceAsync = true)
-      }
-      else source match {
+      if (frameIndex != 0) source match {
         case Now(value) =>
           val bind =
             if (bFirst ne null) bFirst
@@ -1820,7 +1825,7 @@ object Task extends TaskInstances {
             val fa = try bind(value) catch { case NonFatal(ex) => raiseError(ex) }
             // Given a flatMap evaluation just happened, must increment the index
             val nextFrame = em.nextFrameIndex(frameIndex)
-            loop(fa, context, em, null, bRest, nextFrame)
+            loop(fa, em, null, bRest, nextFrame)
           }
 
         case Eval(f) =>
@@ -1848,7 +1853,7 @@ object Task extends TaskInstances {
             // Given a flatMap evaluation just happened, must increment the index
             val nextFrame = em.nextFrameIndex(frameIndex)
             // Next iteration please
-            loop(nextState, context, em, null, bRest, nextFrame)
+            loop(nextState, em, null, bRest, nextFrame)
           }
 
         case FlatMap(fa, f) =>
@@ -1859,29 +1864,34 @@ object Task extends TaskInstances {
             callStack.push(bFirst)
           }
           // Next iteration please
-          loop(fa, context, em, bind, callStack, frameIndex)
+          loop(fa, em, bind, callStack, frameIndex)
 
         case Suspend(thunk) =>
           val fa = try thunk() catch { case NonFatal(ex) => raiseError(ex) }
-          loop(fa, context, em, bFirst, bRest, frameIndex)
+          loop(fa, em, bFirst, bRest, frameIndex)
 
         case ref: MemoizeSuspend[_] =>
           ref.asInstanceOf[MemoizeSuspend[A]].value match {
             case Some(materialized) =>
-              loop(fromTry(materialized), context, em, bFirst, bRest, frameIndex)
+              loop(fromTry(materialized), em, bFirst, bRest, frameIndex)
             case None =>
-              goAsync(source, context, bFirst, bRest, frameIndex, forceAsync = false)
+              goAsync(source, bFirst, bRest, frameIndex, forceAsync = false)
           }
 
         case async @ Async(_) =>
-          goAsync(async, context, bFirst, bRest, frameIndex, forceAsync = false)
+          goAsync(async, bFirst, bRest, frameIndex, forceAsync = false)
 
         case Error(ex) =>
           CancelableFuture.failed(ex)
       }
+      else {
+        // Asynchronous boundary is forced
+        goAsync(source, bFirst, bRest, frameIndex, forceAsync = true)
+      }
     }
 
-    loop(source, context, context.executionModel, null, null, frameStart)
+    val em = scheduler.executionModel
+    loop(source, em, null, null, Task.frameStart(em))
       .asInstanceOf[CancelableFuture[A]]
   }
 

@@ -21,7 +21,6 @@ import monix.types._
 import monix.eval.Coeval._
 import monix.eval.internal.LazyOnSuccess
 import monix.execution.misc.NonFatal
-
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.collection.generic.CanBuildFrom
@@ -162,38 +161,26 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
   def map[B](f: A => B): Coeval[B] =
     flatMap(a => try Now(f(a)) catch { case NonFatal(ex) => Error(ex) })
 
+  /** Creates a new [[Task]] that will expose any triggered error from
+    * the source, folding the resulting successful value or error into
+    * any type using the provided functions.
+    *
+    * @param success is a function for folding the successful result
+    * @param error is a function for folding an error result if it happens
+    */
+  def attemptFold[R](error: Throwable => R, success: A => R): Coeval[R]
+
   /** Creates a new [[Coeval]] that will expose any triggered error from
     * the source.
     */
   def materialize: Coeval[Try[A]] =
-    materializeAttempt.map(_.asScala)
+    attemptFold(Failure.apply, Success.apply)
 
   /** Creates a new [[Coeval]] that will expose any triggered error from
     * the source.
     */
   def materializeAttempt: Coeval[Attempt[A]] =
-    self match {
-      case now @ Now(_) =>
-        Now(now)
-      case eval @ Once(_) =>
-        Suspend(() => Now(eval.runAttempt))
-      case Always(thunk) =>
-        Suspend(() => Now(try Now(thunk()) catch { case NonFatal(ex) => Error(ex) }))
-      case Error(ex) =>
-        Now(Error(ex))
-      case Suspend(thunk) =>
-        Suspend(() => try thunk().materializeAttempt catch { case NonFatal(ex) => Now(Error(ex)) })
-      case BindSuspend(thunk, g) =>
-        BindSuspend[Attempt[Any], Attempt[A]](
-          () => try thunk().materializeAttempt catch { case NonFatal(ex) => Now(Error(ex)) },
-          result => result match {
-            case Now(any) =>
-              try { g.asInstanceOf[Any => Coeval[A]](any).materializeAttempt }
-              catch { case NonFatal(ex) => Now(Error(ex)) }
-            case Error(ex) =>
-              Now(Error(ex))
-          })
-    }
+    attemptFold(Error.apply, Now.apply)
 
   /** Dematerializes the source's result from a `Try`. */
   def dematerialize[B](implicit ev: A <:< Try[B]): Coeval[B] =
@@ -579,6 +566,9 @@ object Coeval {
   final case class Now[+A](override val value: A) extends Attempt[A] {
     override def apply(): A = value
     override def runAttempt: Now[A] = this
+
+    override def attemptFold[R](error: (Throwable) => R, success: (A) => R): Coeval[R] =
+      try Now(success(value)) catch { case NonFatal(e) => Error(e) }
   }
 
   /** Constructs an eager [[Coeval]] instance for
@@ -587,6 +577,9 @@ object Coeval {
   final case class Error(ex: Throwable) extends Attempt[Nothing] {
     override def apply(): Nothing = throw ex
     override def runAttempt: Error = this
+
+    override def attemptFold[R](error: (Throwable) => R, success: (Nothing) => R): Coeval[R] =
+      try Now(error(ex)) catch { case NonFatal(e) => Error(e) }
   }
 
   /** Constructs a lazy [[Coeval]] instance that gets evaluated
@@ -596,7 +589,7 @@ object Coeval {
     * When caching is not required or desired,
     * prefer [[Always]] or [[Now]].
     */
-  final class Once[+A](f: () => A) extends Coeval[A] with (() => A) {
+  final class Once[+A](f: () => A) extends Coeval[A] with (() => A) { self =>
     private[this] var thunk: () => A = f
 
     override def apply(): A = runAttempt match {
@@ -614,6 +607,12 @@ object Coeval {
         thunk = null
       }
     }
+
+    override def attemptFold[R](error: (Throwable) => R, success: (A) => R): Coeval[R] =
+      Always(() => runAttempt match {
+        case Now(v) => success(v)
+        case Error(e) => error(e)
+      })
 
     override def toString =
       synchronized {
@@ -644,13 +643,34 @@ object Coeval {
       try Now(f()) catch {
         case NonFatal(ex) => Error(ex)
       }
+
+    override def attemptFold[R](error: (Throwable) => R, success: (A) => R): Coeval[R] =
+      Always(() => try success(f()) catch { case NonFatal(e) => error(e) })
   }
 
   /** Internal state, the result of [[Coeval.defer]] */
-  private[eval] final case class Suspend[+A](thunk: () => Coeval[A]) extends Coeval[A]
+  private[eval] final case class Suspend[+A](thunk: () => Coeval[A]) extends Coeval[A] {
+    override def attemptFold[R](error: (Throwable) => R, success: (A) => R): Coeval[R] =
+      Suspend { () =>
+        try thunk().attemptFold(error, success)
+        catch { case NonFatal(e) => Now(error(e)) }
+      }
+  }
 
   /** Internal [[Coeval]] state that is the result of applying `flatMap`. */
-  private[eval] final case class BindSuspend[A, B](thunk: () => Coeval[A], f: A => Coeval[B]) extends Coeval[B]
+  private[eval] final case class BindSuspend[A, B](thunk: () => Coeval[A], f: A => Coeval[B]) extends Coeval[B] {
+    override def attemptFold[R](error: (Throwable) => R, success: (B) => R): Coeval[R] =
+      BindSuspend[Attempt[A], R](
+        () => try Now(thunk().runAttempt) catch { case NonFatal(ex) => Now(Error(ex)) },
+        result => result match {
+          case Now(a) =>
+            try f(a).attemptFold(error, success)
+            catch { case NonFatal(e) => Now(error(e)) }
+          case Error(e) =>
+            Now(error(e))
+        }
+      )
+  }
 
   private type Current = Coeval[Any]
   private type Bind = Any => Coeval[Any]
