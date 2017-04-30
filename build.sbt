@@ -7,7 +7,7 @@ import scala.xml.Elem
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 
 val catsVersion = "0.9.0"
-val scalazVersion = "7.2.10"
+val scalazVersion = "7.2.11"
 
 // The Monix version with which we must keep binary compatibility.
 // For MiMa testing, see:
@@ -263,7 +263,7 @@ lazy val unidocSettings = Seq(
 
 lazy val testSettings = Seq(
   testFrameworks := Seq(new TestFramework("minitest.runner.Framework")),
-  libraryDependencies += "io.monix" %%% "minitest-laws" % "1.0.1" % Test
+  libraryDependencies += "io.monix" %%% "minitest-laws" % "1.1.0" % Test
 )
 
 lazy val scalaJSSettings = Seq(
@@ -462,7 +462,7 @@ lazy val tckTests = project.in(file("tckTests"))
   .settings(
     libraryDependencies ++= Seq(
       "org.reactivestreams" % "reactive-streams-tck" % "1.0.0" % Test,
-      "org.scalatest" %% "scalatest" % "3.0.1" % Test
+      "org.scalatest" %% "scalatest" % "3.0.3" % Test
     ))
 
 lazy val benchmarks = project.in(file("benchmarks"))
