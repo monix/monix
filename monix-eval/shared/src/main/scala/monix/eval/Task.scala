@@ -23,12 +23,9 @@ import monix.execution.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, S
 import monix.execution.atomic.Atomic
 import monix.execution.cancelables.StackedCancelable
 import monix.execution.internal.Platform
-import monix.execution.internal.collection.ArrayStack
 import monix.execution.misc.{NonFatal, ThreadLocal}
 import monix.execution._
 import monix.types._
-
-import scala.annotation.tailrec
 import scala.collection.generic.CanBuildFrom
 import scala.collection.mutable
 import scala.concurrent.duration.FiniteDuration
@@ -76,8 +73,8 @@ sealed abstract class Task[+A] extends Serializable { self =>
     */
   def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable = {
     val context = Context(s)
-    val frameStart = Task.frameStart(s.executionModel)
-    internalStartTrampolineRunLoop(self, context, Callback.safe(cb), null, null, frameStart)
+    val frameStart = TaskRunLoop.frameStart(s.executionModel)
+    TaskRunLoop.startWithCallback(self, context, Callback.safe(cb), null, null, frameStart)
     context.connection
   }
 
@@ -116,7 +113,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     *         a running task.
     */
   def runAsync(implicit s: Scheduler): CancelableFuture[A] =
-    Task.internalStartTrampolineForFuture(this, s)
+    TaskRunLoop.startAsFuture(this, s)
 
   /** Tries to execute the source synchronously.
     *
@@ -1262,15 +1259,8 @@ object Task extends TaskInstances {
     }
   }
 
-  // We always start from 1
-  private final def frameStart(em: ExecutionModel): FrameIndex =
-    em.nextFrameIndex(0)
-
-  /** Creates a new [[CallStack]] */
-  private def createCallStack(): CallStack = ArrayStack(8)
-
   /** [[Task]] state describing an immediate synchronous value. */
-  private final case class Now[A](value: A) extends Task[A] {
+  private[eval] final case class Now[A](value: A) extends Task[A] {
     // Optimization to avoid the run-loop
     override def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable = {
       if (s.executionModel != AlwaysAsyncExecution) cb.onSuccess(value)
@@ -1287,7 +1277,7 @@ object Task extends TaskInstances {
   }
 
   /** [[Task]] state describing an immediate exception. */
-  private final case class Error[A](ex: Throwable) extends Task[A] {
+  private[eval] final case class Error[A](ex: Throwable) extends Task[A] {
     // Optimization to avoid the run-loop
     override def runAsync(cb: Callback[A])(implicit s: Scheduler): Cancelable = {
       if (s.executionModel != AlwaysAsyncExecution) cb.onError(ex)
@@ -1304,19 +1294,19 @@ object Task extends TaskInstances {
   }
 
   /** [[Task]] state describing an immediate synchronous value. */
-  private final case class Eval[A](thunk: () => A) extends Task[A] {
+  private[eval] final case class Eval[A](thunk: () => A) extends Task[A] {
     override def toString: String =
       s"Task.Eval($thunk)"
   }
 
   /** Internal state, the result of [[Task.defer]] */
-  private final case class Suspend[+A](thunk: () => Task[A]) extends Task[A] {
+  private[eval] final case class Suspend[+A](thunk: () => Task[A]) extends Task[A] {
     override def toString: String =
       s"Task.Suspend($thunk)"
   }
 
   /** Internal [[Task]] state that is the result of applying `flatMap`. */
-  private final case class FlatMap[A, B](source: Task[A], f: A => Task[B]) extends Task[B] {
+  private[eval] final case class FlatMap[A, B](source: Task[A], f: A => Task[B]) extends Task[B] {
     override def toString: String =
       s"Task.FlatMap(Task@${System.identityHashCode(source)}, $f)"
   }
@@ -1327,7 +1317,7 @@ object Task extends TaskInstances {
     * Unsafe to build directly, only use if you know what you're doing.
     * For building `Async` instances safely, see [[create]].
     */
-  private final case class Async[+A](onFinish: OnFinish[A]) extends Task[A] {
+  private[eval] final case class Async[+A](onFinish: OnFinish[A]) extends Task[A] {
     override def toString: String =
       s"Task.Async($onFinish)"
   }
@@ -1336,9 +1326,13 @@ object Task extends TaskInstances {
     * given [[Task]] and upon execution memoize its result to
     * be available for later evaluations.
     */
-  private final class MemoizeSuspend[A](f: () => Task[A], cacheErrors: Boolean) extends Task[A] { self =>
-    private[this] var thunk: () => Task[A] = f
-    private[this] val state = Atomic(null : AnyRef)
+  private[eval] final class MemoizeSuspend[A](
+    f: () => Task[A],
+    private[eval] val cacheErrors: Boolean)
+    extends Task[A] { self =>
+
+    private[eval] var thunk: () => Task[A] = f
+    private[eval] val state = Atomic(null : AnyRef)
 
     /* Constructor provided for keeping binary backwards compatibility. */
     def this(f: () => Task[A]) = this(f, cacheErrors = true)
@@ -1379,97 +1373,10 @@ object Task extends TaskInstances {
           CancelableFuture.fromTry(result.asInstanceOf[Try[A]])
       }
 
-    private def memoizeValue(value: Try[A]): Unit = {
-      // Should we cache everything, error results as well,
-      // or only successful results?
-      if (cacheErrors || value.isSuccess) {
-        state.getAndSet(value) match {
-          case (p: Promise[_], _) =>
-            p.asInstanceOf[Promise[A]].complete(value)
-          case _ =>
-            () // do nothing
-        }
-        // GC purposes
-        thunk = null
-      } else {
-        // Error happened and we are not caching errors!
-        val current = state.get
-        // Resetting the state to `null` will trigger the
-        // execution again on next `runAsync`
-        if (state.compareAndSet(current, null))
-          current match {
-            case (p: Promise[_], _) =>
-              p.asInstanceOf[Promise[A]].complete(value)
-            case _ =>
-              () // do nothing
-          }
-        else
-          memoizeValue(value) // retry
-      }
-    }
-
-    @tailrec def execute(context: Context, cb: Callback[A], bindCurrent: Bind, bindRest: CallStack,
-      nextFrame: FrameIndex): Boolean = {
-
-      implicit val s = context.scheduler
-      state.get match {
-        case null =>
-          val p = Promise[A]()
-
-          if (!state.compareAndSet(null, (p, context.connection)))
-            execute(context, cb, bindCurrent, bindRest, nextFrame) // retry
-          else {
-            val underlying = try thunk() catch { case NonFatal(ex) => raiseError(ex) }
-
-            val callback = new Callback[A] {
-              def onError(ex: Throwable): Unit = {
-                memoizeValue(Failure(ex))
-                if ((bindCurrent eq null) && ((bindRest eq null) || bindRest.isEmpty))
-                  cb.onError(ex)
-                else
-                  Task.internalRestartTrampolineAsync(raiseError(ex), context, cb, bindCurrent, bindRest)
-              }
-
-              def onSuccess(value: A): Unit = {
-                memoizeValue(Success(value))
-                if ((bindCurrent eq null) && ((bindRest eq null) || bindRest.isEmpty))
-                  cb.onSuccess(value)
-                else
-                  Task.internalRestartTrampolineAsync(now(value), context, cb, bindCurrent, bindRest)
-              }
-            }
-
-            // Asynchronous boundary to prevent stack-overflows!
-            s.executeTrampolined { () =>
-              internalStartTrampolineRunLoop(underlying, context, callback, null, null, nextFrame)
-            }
-
-            true
-          }
-
-        case (p: Promise[_], mainCancelable: StackedCancelable) =>
-          // execution is pending completion
-          context.connection push mainCancelable
-          p.asInstanceOf[Promise[A]].future.onComplete { r =>
-            context.connection.pop()
-            context.frameRef.reset()
-            Task.internalStartTrampolineRunLoop(fromTry(r), context, cb, bindCurrent, bindRest, 1)
-          }
-          true
-
-        case _: Try[_] =>
-          // Race condition happened
-          false
-      }
-    }
 
     override def toString: String =
       s"Task.MemoizeSuspend(${state.get})"
   }
-
-  private type Current = Task[Any]
-  private type Bind = Any => Task[Any]
-  private type CallStack = ArrayStack[Bind]
 
   /** Unsafe utility - starts the execution of a Task with a guaranteed
     * asynchronous boundary, by providing
@@ -1482,7 +1389,7 @@ object Task extends TaskInstances {
     * and `Task.fork`.
     */
   def unsafeStartAsync[A](source: Task[A], context: Context, cb: Callback[A]): Unit =
-    internalRestartTrampolineAsync(source, context, cb, null, null)
+    TaskRunLoop.restartAsync(source, context, cb, null, null)
 
   /** Unsafe utility - starts the execution of a Task with a guaranteed
     * [[monix.execution.schedulers.TrampolinedRunnable trampolined asynchronous boundary]],
@@ -1496,7 +1403,7 @@ object Task extends TaskInstances {
     */
   def unsafeStartTrampolined[A](source: Task[A], context: Context, cb: Callback[A]): Unit =
     context.scheduler.executeTrampolined { () =>
-      internalStartTrampolineRunLoop(source, context, cb, null, null, context.frameRef())
+      TaskRunLoop.startWithCallback(source, context, cb, null, null, context.frameRef())
     }
 
   /** Unsafe utility - starts the execution of a Task, by providing
@@ -1508,350 +1415,7 @@ object Task extends TaskInstances {
     * what you're doing. Prefer [[Task.runAsync(cb* Task.runAsync]].
     */
   def unsafeStartNow[A](source: Task[A], context: Context, cb: Callback[A]): Unit =
-    internalStartTrampolineRunLoop(source, context, cb, null, null, context.frameRef())
-
-  /** Internal utility, for forcing an asynchronous boundary in the
-    * trampoline loop.
-    */
-  @inline private def internalRestartTrampolineAsync[A](
-    source: Task[A],
-    context: Context,
-    cb: Callback[A],
-    bindCurrent: Bind,
-    bindRest: CallStack): Unit = {
-
-    if (!context.shouldCancel)
-      context.scheduler.executeAsync { () =>
-        // Resetting the frameRef, as a real asynchronous boundary happened
-        context.frameRef.reset()
-        internalStartTrampolineRunLoop(source, context, cb, bindCurrent, bindRest, 1)
-      }
-  }
-
-  /** Logic for finding the next `Transformation` reference,
-    * meant for handling errors in the run-loop.
-    */
-  private def runLoopFindErrorHandler(bFirst: Bind, bRest: CallStack): Transformation[Any, Task[Any]] = {
-    var result: Transformation[Any, Task[Any]] = null
-    var cursor = bFirst
-    var continue = true
-
-    while (continue) {
-      if (cursor != null && cursor.isInstanceOf[Transformation[_, _]]) {
-        result = cursor.asInstanceOf[Transformation[Any, Task[Any]]]
-        continue = false
-      } else {
-        cursor = if (bRest ne null) bRest.pop() else null
-        continue = cursor != null
-      }
-    }
-    result
-  }
-
-  @inline private def runLoopPopNextBind(bFirst: Bind, bRest: CallStack): Bind = {
-    if (bFirst ne null) bFirst
-    else if (bRest ne null) bRest.pop()
-    else null
-  }
-
-  /** Internal utility, starts or resumes evaluation of
-    * the run-loop from where it left off.
-    *
-    * The `frameIndex=1` default value ensures that the
-    * first cycle of the trampoline gets executed regardless of
-    * the `ExecutionModel`.
-    */
-  private[eval] def internalStartTrampolineRunLoop[A](
-    source: Task[A],
-    context: Context,
-    cb: Callback[A],
-    bindCurrent: Bind,
-    bindRest: CallStack,
-    frameIndex: FrameIndex): Unit = {
-
-    final class RestartCallback(context: Context, callback: Callback[Any]) extends Callback[Any] {
-      private[this] var canCall = false
-      private[this] var bFirst: Bind = _
-      private[this] var bRest: CallStack = _
-      private[this] val runLoopIndex = context.frameRef
-
-      def prepare(bindCurrent: Bind, bindRest: CallStack): Unit = {
-        canCall = true
-        this.bFirst = bindCurrent
-        this.bRest = bindRest
-      }
-
-      def onSuccess(value: Any): Unit =
-        if (canCall) {
-          canCall = false
-          loop(Now(value), context.executionModel, callback, this, bFirst, bRest, runLoopIndex())
-        }
-
-      def onError(ex: Throwable): Unit =
-        if (canCall) {
-          canCall = false
-          loop(Error(ex), context.executionModel, callback, this, bFirst, bRest, runLoopIndex())
-        } else {
-          context.scheduler.reportFailure(ex)
-        }
-
-      override def toString(): String =
-        s"RestartCallback($context, $callback)@${hashCode()}"
-    }
-
-    @inline def executeOnFinish(
-      em: ExecutionModel,
-      cb: Callback[Any],
-      rcb: RestartCallback,
-      bFirst: Bind,
-      bRest: CallStack,
-      onFinish: OnFinish[Any],
-      nextFrame: FrameIndex): Unit = {
-
-      if (!context.shouldCancel) {
-        // We are going to resume the frame index from where we left,
-        // but only if no real asynchronous execution happened. So in order
-        // to detect asynchronous execution, we are reading a thread-local
-        // variable that's going to be reset in case of a thread jump.
-        // Obviously this doesn't work for Javascript or for single-threaded
-        // thread-pools, but that's OK, as it only means that in such instances
-        // we can experience more async boundaries and everything is fine for
-        // as long as the implementation of `Async` tasks are triggering
-        // a `frameRef.reset` on async boundaries.
-        context.frameRef := nextFrame
-
-        // rcb reference might be null, so initializing
-        val restartCallback = if (rcb != null) rcb else new RestartCallback(context, cb)
-        restartCallback.prepare(bFirst, bRest)
-        onFinish(context, restartCallback)
-      }
-    }
-
-    @tailrec def loop(
-      source: Current,
-      em: ExecutionModel,
-      cb: Callback[Any],
-      rcb: RestartCallback,
-      bFirst: Bind,
-      bRest: CallStack,
-      frameIndex: FrameIndex): Unit = {
-
-      if (frameIndex != 0) source match {
-        case Now(value) =>
-          runLoopPopNextBind(bFirst, bRest) match {
-            case null => cb.onSuccess(value)
-            case bind =>
-              val fa = try bind(value) catch { case NonFatal(ex) => Error(ex) }
-              // Given a flatMap evaluation just happened, must increment the index
-              val nextFrame = em.nextFrameIndex(frameIndex)
-              // Next iteration please
-              loop(fa, em, cb, rcb, null, bRest, nextFrame)
-          }
-
-        case Eval(thunk) =>
-          var streamErrors = true
-          var nextState: Current = null
-          try {
-            val value = thunk()
-            streamErrors = false
-
-            runLoopPopNextBind(bFirst, bRest) match {
-              case null => cb.onSuccess(value)
-              case bind =>
-                nextState = try bind(value) catch { case NonFatal(ex) => Error(ex) }
-            }
-          } catch {
-            case NonFatal(ex) if streamErrors =>
-              nextState = Error(ex)
-          }
-
-          if (nextState ne null) {
-            // Given a flatMap evaluation just happened, must increment the index
-            val nextFrame = em.nextFrameIndex(frameIndex)
-            // Next iteration please
-            val nextBFirst = if (streamErrors) bFirst else null
-            loop(nextState, em, cb, rcb, nextBFirst, bRest, nextFrame)
-          }
-
-        case FlatMap(fa, f) =>
-          var callStack: CallStack = bRest
-          val bindNext = f.asInstanceOf[Bind]
-          if (bFirst ne null) {
-            if (callStack eq null) callStack = createCallStack()
-            callStack.push(bFirst)
-          }
-          // Next iteration please
-          loop(fa, em, cb, rcb, bindNext, callStack, frameIndex)
-
-        case Suspend(thunk) =>
-          // Next iteration please
-          val fa = try thunk() catch { case NonFatal(ex) => raiseError(ex) }
-          loop(fa, em, cb, rcb, bFirst, bRest, frameIndex)
-
-        case Async(onFinish) =>
-          executeOnFinish(em, cb, rcb, bFirst, bRest, onFinish, frameIndex)
-
-        case ref: MemoizeSuspend[_] =>
-          // Already processed?
-          ref.value match {
-            case Some(materialized) =>
-              // Next iteration please
-              loop(fromTry(materialized), em, cb, rcb, bFirst, bRest, frameIndex)
-
-            case None =>
-              val anyRef = ref.asInstanceOf[MemoizeSuspend[Any]]
-              val isSuccess = anyRef.execute(context, cb, bFirst, bRest, frameIndex)
-              // Next iteration please
-              if (!isSuccess) loop(ref, em, cb, rcb, bFirst, bRest, frameIndex)
-          }
-
-        case Error(ex) =>
-          runLoopFindErrorHandler(bFirst, bRest) match {
-            case null => cb.onError(ex)
-            case bind =>
-              val fa = try bind.error(ex) catch { case NonFatal(e) => Error(e) }
-              // Given a flatMap evaluation just happened, must increment the index
-              val nextFrame = em.nextFrameIndex(frameIndex)
-              // Next cycle please
-              loop(fa, em, cb, rcb, null, bRest, nextFrame)
-          }
-      }
-      else {
-        // Force async boundary
-        internalRestartTrampolineAsync(source, context, cb, bFirst, bRest)
-      }
-    }
-
-    // Can happen to receive a `RestartCallback` (e.g. from Task.fork),
-    // in which case we should unwrap it
-    val callback = cb.asInstanceOf[Callback[Any]]
-    loop(source, context.executionModel, callback, null, bindCurrent, bindRest, frameIndex)
-  }
-
-  /** A run-loop that attempts to complete a
-    * [[monix.execution.CancelableFuture CancelableFuture]]
-    * synchronously falling back to [[internalStartTrampolineRunLoop]]
-    * and actual asynchronous execution in case of an
-    * asynchronous boundary.
-    */
-  private def internalStartTrampolineForFuture[A](source: Task[A], scheduler: Scheduler): CancelableFuture[A] = {
-    /* Called when we hit the first async boundary. */
-    def goAsync(
-      source: Current,
-      bindCurrent: Bind,
-      bindRest: CallStack,
-      nextFrame: FrameIndex,
-      forceAsync: Boolean): CancelableFuture[Any] = {
-
-      val p = Promise[Any]()
-      val cb: Callback[Any] = new Callback[Any] {
-        def onSuccess(value: Any): Unit = p.trySuccess(value)
-        def onError(ex: Throwable): Unit = p.tryFailure(ex)
-      }
-
-      val context = Context(scheduler)
-      if (forceAsync)
-        internalRestartTrampolineAsync(source, context, cb, bindCurrent, bindRest)
-      else
-        internalStartTrampolineRunLoop(source, context, cb, bindCurrent, bindRest, nextFrame)
-
-      CancelableFuture(p.future, context.connection)
-    }
-
-    /* Loop that evaluates a Task until the first async boundary is hit,
-     * or until the evaluation is finished, whichever comes first.
-     */
-    @tailrec def loop(
-      source: Current,
-      em: ExecutionModel,
-      bFirst: Bind,
-      bRest: CallStack,
-      frameIndex: Int): CancelableFuture[Any] = {
-
-      if (frameIndex != 0) source match {
-        case Now(value) =>
-          runLoopPopNextBind(bFirst, bRest) match {
-            case null =>
-              CancelableFuture.successful(value)
-            case bind =>
-              val fa = try bind(value) catch { case NonFatal(ex) => Error(ex) }
-              // Given a flatMap evaluation just happened, must increment the index
-              val nextFrame = em.nextFrameIndex(frameIndex)
-              loop(fa, em, null, bRest, nextFrame)
-          }
-
-        case Eval(thunk) =>
-          var nextBFirst = bFirst
-          var result: CancelableFuture[Any] = null
-          var nextState: Current = null
-
-          try {
-            val value = thunk()
-            runLoopPopNextBind(bFirst, bRest) match {
-              case null =>
-                result = CancelableFuture.successful(value)
-              case bind =>
-                nextBFirst = null
-                nextState = bind(value)
-            }
-          } catch {
-            case NonFatal(e) =>
-              nextState = Error(e)
-          }
-
-          if (result ne null) result else {
-            // Given a flatMap evaluation just happened, must increment the index
-            val nextFrame = em.nextFrameIndex(frameIndex)
-            // Next iteration please
-            loop(nextState, em, nextBFirst, bRest, nextFrame)
-          }
-
-        case FlatMap(fa, f) =>
-          var callStack: CallStack = bRest
-          val bind = f.asInstanceOf[Bind]
-          if (bFirst ne null) {
-            if (callStack eq null) callStack = createCallStack()
-            callStack.push(bFirst)
-          }
-          // Next iteration please
-          loop(fa, em, bind, callStack, frameIndex)
-
-        case Suspend(thunk) =>
-          val fa = try thunk() catch { case NonFatal(ex) => raiseError(ex) }
-          loop(fa, em, bFirst, bRest, frameIndex)
-
-        case ref: MemoizeSuspend[_] =>
-          ref.asInstanceOf[MemoizeSuspend[A]].value match {
-            case Some(materialized) =>
-              loop(fromTry(materialized), em, bFirst, bRest, frameIndex)
-            case None =>
-              goAsync(source, bFirst, bRest, frameIndex, forceAsync = false)
-          }
-
-        case async @ Async(_) =>
-          goAsync(async, bFirst, bRest, frameIndex, forceAsync = false)
-
-        case Error(ex) =>
-          runLoopFindErrorHandler(bFirst, bRest) match {
-            case null => CancelableFuture.failed(ex)
-            case bind =>
-              val fa = try bind.error(ex) catch { case NonFatal(e) => Error(e) }
-              // Given a flatMap evaluation just happened, must increment the index
-              val nextFrame = em.nextFrameIndex(frameIndex)
-              // Next cycle please
-              loop(fa, em, null, bRest, nextFrame)
-          }
-      }
-      else {
-        // Asynchronous boundary is forced
-        goAsync(source, bFirst, bRest, frameIndex, forceAsync = true)
-      }
-    }
-
-    val em = scheduler.executionModel
-    loop(source, em, null, null, Task.frameStart(em))
-      .asInstanceOf[CancelableFuture[A]]
-  }
+    TaskRunLoop.startWithCallback(source, context, cb, null, null, context.frameRef())
 
   /** Type-class instances for [[Task]]. */
   implicit val typeClassInstances: TypeClassInstances = new TypeClassInstances
