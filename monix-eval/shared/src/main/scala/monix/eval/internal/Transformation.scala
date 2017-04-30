@@ -21,12 +21,20 @@ import monix.eval.Task
 
 import scala.util.{Failure, Success, Try}
 
-private[eval] abstract class Transformation[-A, +R] extends (A => R) {
+private[eval] abstract class Transformation[-A, +R] extends (A => R) { self =>
   final override def apply(a: A): R =
     success(a)
 
   def success(a: A): R
   def error(e: Throwable): R
+
+  override def andThen[X](g: (R) => X): Transformation[A, X] =
+    new Transformation[A, X] {
+      def success(a: A): X =
+        g(self.success(a))
+      def error(e: Throwable): X =
+        g(self.error(e))
+    }
 }
 
 private[eval] object Transformation {

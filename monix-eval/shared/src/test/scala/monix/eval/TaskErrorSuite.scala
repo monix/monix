@@ -184,7 +184,7 @@ object TaskErrorSuite extends BaseTestSuite {
   test("Task#onErrorHandle should recover") { implicit s =>
     val ex = DummyException("dummy")
     val task = Task[Int](if (1 == 1) throw ex else 1).onErrorHandle {
-      case ex: DummyException => 99
+      case _: DummyException => 99
     }
 
     val f = task.runAsync
@@ -197,7 +197,7 @@ object TaskErrorSuite extends BaseTestSuite {
     val ex2 = DummyException("two")
 
     val task = Task[Int](if (1 == 1) throw ex1 else 1)
-      .onErrorHandle { ex => throw ex2 }
+      .onErrorHandle { _ => throw ex2 }
 
     val f = task.runAsync; s.tick()
     assertEquals(f.value, Some(Failure(ex2)))
