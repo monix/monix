@@ -1,5 +1,6 @@
 language: scala
 sudo: required
+dist: trusty
 
 matrix:
   include:
