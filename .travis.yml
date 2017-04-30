@@ -44,14 +44,10 @@ notifications:
 
 cache:
   directories:
-  - $HOME/.sbt/0.13
-  - $HOME/.sbt/boot/scala*
-  - $HOME/.sbt/cache
-  - $HOME/.sbt/launchers
-  - $HOME/.ivy2
+    - $HOME/.ivy2/cache
+    - $HOME/.coursier/cache
+    - $HOME/.sbt
 
 before_cache:
-  - du -h -d 1 $HOME/.ivy2/
-  - du -h -d 2 $HOME/.sbt/
   - find $HOME/.sbt -name "*.lock" -type f -delete
   - find $HOME/.ivy2/cache -name "ivydata-*.properties" -type f -delete
