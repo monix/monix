@@ -442,7 +442,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * the source.
     */
   def materialize: Task[Try[A]] =
-    FlatMap(this, Transformation.materialize[A])
+    FlatMap(this, MaterializeTask.asInstanceOf[Transformation[A, Task[Try[A]]]])
 
   /** Creates a new [[Task]] that will expose any triggered error from
     * the source.
@@ -602,9 +602,27 @@ sealed abstract class Task[+A] extends Serializable { self =>
         b
     }
 
+  /** Creates a new `Task` by applying the 'fa' function to the successful result of
+    * this future, or the 'fe' function to the potential errors that might happen.
+    *
+    * This function is similar with [[map]], except that it can also transform
+    * errors and not just successful results.
+    *
+    * @param fa function that transforms a successful result of the receiver
+    * @param fe function that transforms an error of the receiver
+    */
   def transform[R](fa: A => R, fe: Throwable => R): Task[R] =
     FlatMap(this, Transformation.fold(fa, fe).andThen(Task.now))
 
+  /** Creates a new `Task` by applying the 'fa' function to the successful result of
+    * this future, or the 'fe' function to the potential errors that might happen.
+    *
+    * This function is similar with [[flatMap]], except that it can also transform
+    * errors and not just successful results.
+    *
+    * @param fa function that transforms a successful result of the receiver
+    * @param fe function that transforms an error of the receiver
+    */
   def transformWith[R](fa: A => Task[R], fe: Throwable => Task[R]): Task[R] =
     FlatMap(this, Transformation.fold(fa, fe))
 
@@ -1424,6 +1442,13 @@ object Task extends TaskInstances {
     Async[Unit] { (context, cb) =>
       context.scheduler.executeAsync(() => cb.onSuccess(()))
     }
+
+  private object MaterializeTask extends Transformation[Any, Task[Try[Any]]] {
+    override def success(a: Any): Task[Try[Any]] =
+      Task.now(Success(a))
+    override def error(e: Throwable): Task[Try[Nothing]] =
+      Task.now(Failure(e))
+  }
 }
 
 private[eval] trait TaskInstances {

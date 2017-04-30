@@ -17,10 +17,6 @@
 
 package monix.eval.internal
 
-import monix.eval.Task
-
-import scala.util.{Failure, Success, Try}
-
 private[eval] abstract class Transformation[-A, +R] extends (A => R) { self =>
   final override def apply(a: A): R =
     success(a)
@@ -41,21 +37,10 @@ private[eval] object Transformation {
   def fold[A, R](fa: A => R, fe: Throwable => R): Transformation[A, R] =
     new Fold(fa, fe)
 
-  def materialize[A]: Transformation[A, Task[Try[A]]] =
-    Materialize.asInstanceOf[Transformation[A, Task[Try[A]]]]
-
   private final class Fold[A, R](fa: A => R, fe: Throwable => R)
     extends Transformation[A, R] {
 
     override def success(a: A): R = fa(a)
     override def error(e: Throwable): R = fe(e)
-  }
-
-  private object Materialize extends Transformation[Any, Task[Try[Any]]] {
-    override def success(a: Any): Task[Try[Any]] =
-      Task.now(Success(a))
-
-    override def error(e: Throwable): Task[Try[Nothing]] =
-      Task.now(Failure(e))
   }
 }
