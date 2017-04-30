@@ -19,11 +19,10 @@ package monix.eval
 
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
-
 import scala.concurrent.Promise
 import scala.util.{Failure, Success}
 
-object TaskAttemptSuite extends BaseTestSuite {
+object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
   test("Task.materialize flatMap loop") { implicit s =>
     val count = if (Platform.isJVM) 10000 else 1000
 
@@ -55,9 +54,7 @@ object TaskAttemptSuite extends BaseTestSuite {
     }
 
     val f = loop.runAsync
-
     s.tick()
-    f.value.get.get
     assertEquals(f.value, Some(Success(count)))
   }
 
@@ -290,7 +287,6 @@ object TaskAttemptSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(100)))
   }
 
-
   test("Task.raiseError.map(...).materialize (future)") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Task.raiseError[Int](dummy).map(_ + 1).materialize.map {
@@ -314,5 +310,136 @@ object TaskAttemptSuite extends BaseTestSuite {
 
     s.tick()
     assertEquals(p.future.value, Some(Success(100)))
+  }
+  
+  test("Coeval.materialize flatMap loop") { _ =>
+    val count = if (Platform.isJVM) 10000 else 1000
+
+    def loop[A](source: Coeval[A], n: Int): Coeval[A] =
+      source.materialize.flatMap {
+        case Success(a) =>
+          if (n <= 0) Coeval.now(a)
+          else loop(source, n - 1)
+        case Failure(ex) =>
+          Coeval.raiseError(ex)
+      }
+
+    val f = loop(Coeval.eval("value"), count).runTry
+    assertEquals(f, Success("value"))
+  }
+
+  test("Coeval.materialize foldLeft sequence") { _ =>
+    val count = if (Platform.isJVM) 10000 else 1000
+
+    val loop = (0 until count).foldLeft(Coeval.eval(0)) { (acc, _) =>
+      acc.materialize.flatMap {
+        case Success(x) =>
+          Coeval.now(x + 1)
+        case Failure(ex) =>
+          Coeval.raiseError(ex)
+      }
+    }
+
+    assertEquals(loop.runTry, Success(count))
+  }
+
+  test("Coeval.eval(throw).materialize") { _ =>
+    val dummy = DummyException("dummy")
+    val coeval = Coeval.eval[Int](throw dummy).materialize.map {
+      case Failure(`dummy`) => 100
+      case _ => 0
+    }
+
+    assertEquals(coeval.runTry, Success(100))
+  }
+
+  test("Coeval.eval(throw).map(...).materialize") { _ =>
+    val dummy = DummyException("dummy")
+    val coeval = Coeval.eval[Int](throw dummy).map(_ + 1).materialize.map {
+      case Failure(`dummy`) => 100
+      case _ => 0
+    }
+
+    assertEquals(coeval.runTry, Success(100))
+  }
+
+  test("Coeval.apply(throw).materialize") { _ =>
+    val dummy = DummyException("dummy")
+    val coeval = Coeval.apply[Int](throw dummy).materialize.map {
+      case Failure(`dummy`) => 100
+      case _ => 0
+    }
+
+    assertEquals(coeval.runTry, Success(100))
+  }
+
+  test("Coeval.apply(throw).map(...).materialize") { _ =>
+    val dummy = DummyException("dummy")
+    val coeval = Coeval.apply[Int](throw dummy).map(_ + 1).materialize.map {
+      case Failure(`dummy`) => 100
+      case _ => 0
+    }
+
+    assertEquals(coeval.runTry, Success(100))
+  }
+
+  test("Coeval.suspend(throw).materialize") { _ =>
+    val dummy = DummyException("dummy")
+    val coeval = Coeval.suspend[Int](throw dummy).materialize.map {
+      case Failure(`dummy`) => 100
+      case _ => 0
+    }
+
+    assertEquals(coeval.runTry, Success(100))
+  }
+
+  test("Coeval.suspend(throw).map(...).materialize") { _ =>
+    val dummy = DummyException("dummy")
+    val coeval = Coeval.suspend[Int](throw dummy).map(_ + 1).materialize.map {
+      case Failure(`dummy`) => 100
+      case _ => 0
+    }
+
+    assertEquals(coeval.runTry, Success(100))
+  }
+
+  test("Coeval(throw).memoize.materialize") { _ =>
+    val dummy = DummyException("dummy")
+    val coeval = Coeval[Int](throw dummy).memoize.materialize.map {
+      case Failure(`dummy`) => 100
+      case _ => 0
+    }
+
+    assertEquals(coeval.runTry, Success(100))
+  }
+
+  test("Coeval(throw).memoize.map(...).materialize") { _ =>
+    val dummy = DummyException("dummy")
+    val coeval = Coeval[Int](throw dummy).memoize.map(_ + 1).materialize.map {
+      case Failure(`dummy`) => 100
+      case _ => 0
+    }
+
+    assertEquals(coeval.runTry, Success(100))
+  }
+
+  test("Coeval.raiseError.materialize (future)") { _ =>
+    val dummy = DummyException("dummy")
+    val coeval = Coeval.raiseError[Int](dummy).materialize.map {
+      case Failure(`dummy`) => 100
+      case _ => 0
+    }
+
+    assertEquals(coeval.runTry, Success(100))
+  }
+
+  test("Coeval.raiseError.map(...).materialize (future)") { _ =>
+    val dummy = DummyException("dummy")
+    val coeval = Coeval.raiseError[Int](dummy).map(_ + 1).materialize.map {
+      case Failure(`dummy`) => 100
+      case _ => 0
+    }
+
+    assertEquals(coeval.runTry, Success(100))
   }
 }
