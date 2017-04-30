@@ -6,6 +6,8 @@ import com.typesafe.tools.mima.core.ProblemFilters._
 import scala.xml.Elem
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 
+addCommandAlias("ci", ";test:compile ;test ;mimaReportBinaryIssues; doc")
+
 val catsVersion = "0.9.0"
 val scalazVersion = "7.2.11"
 
