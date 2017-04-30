@@ -472,11 +472,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * See [[onErrorRecoverWith]] for the version that takes a partial function.
     */
   def onErrorHandleWith[B >: A](f: Throwable => Task[B]): Task[B] =
-    self.materialize.flatMap {
-      case Success(value) => Now(value)
-      case Failure(ex) =>
-        try f(ex) catch { case NonFatal(err) => raiseError(err) }
-    }
+    self.transformWith(Task.Now.apply, f)
 
   /** Creates a new task that in case of error will fallback to the
     * given backup task.
@@ -516,7 +512,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * See [[onErrorRecover]] for the version that takes a partial function.
     */
   def onErrorHandle[U >: A](f: Throwable => U): Task[U] =
-    onErrorHandleWith(ex => try now(f(ex)) catch { case NonFatal(err) => raiseError(err) })
+    transform(a => a, f)
 
   /** Creates a new task that on error will try to map the error
     * to another value using the provided partial function.

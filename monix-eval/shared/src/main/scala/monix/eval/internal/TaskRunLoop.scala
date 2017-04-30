@@ -17,7 +17,7 @@
 
 package monix.eval.internal
 
-import monix.eval.Task.{Async, Context, Error, Eval, FlatMap, FrameIndex, MemoizeSuspend, Now, OnFinish, Suspend, fromTry, now, raiseError}
+import monix.eval.Task.{Async, Context, Error, Eval, FlatMap, FrameIndex, MemoizeSuspend, Now, OnFinish, Suspend, fromTry}
 import monix.eval.{Callback, Task}
 import monix.execution.atomic.AtomicAny
 import monix.execution.cancelables.StackedCancelable
@@ -217,7 +217,7 @@ private[eval] object TaskRunLoop {
 
         case Suspend(thunk) =>
           // Next iteration please
-          val fa = try thunk() catch { case NonFatal(ex) => raiseError(ex) }
+          val fa = try thunk() catch { case NonFatal(ex) => Error(ex) }
           loop(fa, em, cb, rcb, bFirst, bRest, frameIndex)
 
         case Async(onFinish) =>
@@ -349,7 +349,7 @@ private[eval] object TaskRunLoop {
           loop(fa, em, bind, callStack, frameIndex)
 
         case Suspend(thunk) =>
-          val fa = try thunk() catch { case NonFatal(ex) => raiseError(ex) }
+          val fa = try thunk() catch { case NonFatal(ex) => Error(ex) }
           loop(fa, em, bFirst, bRest, frameIndex)
 
         case ref: MemoizeSuspend[_] =>
@@ -426,17 +426,17 @@ private[eval] object TaskRunLoop {
         if (!self.state.compareAndSet(null, (p, context.connection)))
           startMemoization(self, context, cb, bindCurrent, bindRest, nextFrame) // retry
         else {
-          val underlying = try self.thunk() catch { case NonFatal(ex) => raiseError(ex) }
+          val underlying = try self.thunk() catch { case NonFatal(ex) => Error(ex) }
 
           val callback = new Callback[A] {
             def onError(ex: Throwable): Unit = {
               cacheValue(self.state, Failure(ex))
-              restartAsync(raiseError(ex), context, cb, bindCurrent, bindRest)
+              restartAsync(Error(ex), context, cb, bindCurrent, bindRest)
             }
 
             def onSuccess(value: A): Unit = {
               cacheValue(self.state, Success(value))
-              restartAsync(now(value), context, cb, bindCurrent, bindRest)
+              restartAsync(Now(value), context, cb, bindCurrent, bindRest)
             }
           }
 
