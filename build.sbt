@@ -273,7 +273,7 @@ lazy val scalaJSSettings = Seq(
 )
 
 lazy val cmdlineProfile =
-  sys.props.getOrElse("sbt.profile", default = "")
+  sys.env.getOrElse("SBT_PROFILE", "")
 
 def mimaSettings(projectName: String) = Seq(
   // mimaPreviousArtifacts := Set("io.monix" %% projectName % monixSeries)
