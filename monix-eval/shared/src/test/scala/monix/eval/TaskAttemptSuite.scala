@@ -17,37 +17,44 @@
 
 package monix.eval
 
-object TaskAttemptSuite extends BaseTestSuite {
-//  test("materialize flatMap loop") { implicit s =>
-//    def loop[A](source: Task[A], n: Int): Task[A] =
-//      source.materialize.flatMap {
-//        case Success(a) =>
-//          if (n <= 0) Task.now(a)
-//          else loop(source, n - 1)
-//        case Failure(ex) =>
-//          Task.raiseError(ex)
-//      }
-//
-//    val f = loop(Task.eval("value"), 10000).runAsync
-//
-//    s.tick()
-//    assertEquals(f.value, Some(Success("value")))
-//  }
+import monix.execution.internal.Platform
+import scala.util.{Failure, Success}
 
-//  test("materialize foldLeft sequence") { implicit s =>
-//    val loop = (0 until 10000).foldLeft(Task.eval(0)) { (acc, _) =>
-//      acc.materialize.flatMap {
-//        case Success(x) =>
-//          println(x)
-//          Task.now(x + 1)
-//        case Failure(ex) =>
-//          Task.raiseError(ex)
-//      }
-//    }
-//
-//    val f = loop.runAsync
-//
-//    s.tick()
-//    assertEquals(f.value, Some(Success(10)))
-//  }
+object TaskAttemptSuite extends BaseTestSuite {
+  test("materialize flatMap loop") { implicit s =>
+    val count = if (Platform.isJVM) 10000 else 1000
+
+    def loop[A](source: Task[A], n: Int): Task[A] =
+      source.materialize.flatMap {
+        case Success(a) =>
+          if (n <= 0) Task.now(a)
+          else loop(source, n - 1)
+        case Failure(ex) =>
+          Task.raiseError(ex)
+      }
+
+    val f = loop(Task.eval("value"), count).runAsync
+
+    s.tick()
+    assertEquals(f.value, Some(Success("value")))
+  }
+
+  test("materialize foldLeft sequence") { implicit s =>
+    val count = if (Platform.isJVM) 10000 else 1000
+
+    val loop = (0 until count).foldLeft(Task.eval(0)) { (acc, _) =>
+      acc.materialize.flatMap {
+        case Success(x) =>
+          Task.now(x + 1)
+        case Failure(ex) =>
+          Task.raiseError(ex)
+      }
+    }
+
+    val f = loop.runAsync
+
+    s.tick()
+    f.value.get.get
+    assertEquals(f.value, Some(Success(count)))
+  }
 }
