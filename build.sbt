@@ -276,7 +276,7 @@ lazy val cmdlineProfile =
   sys.env.getOrElse("SBT_PROFILE", "")
 
 def mimaSettings(projectName: String) = Seq(
-  // mimaPreviousArtifacts := Set("io.monix" %% projectName % monixSeries)
+   // mimaPreviousArtifacts := Set("io.monix" %% projectName % monixSeries)
 )
 
 def profile: Project ⇒ Project = pr => cmdlineProfile match {
@@ -352,11 +352,8 @@ lazy val executionJS = project.in(file("monix-execution/js"))
 lazy val evalCommon =
   crossSettings ++ testSettings ++ Seq(
     name := "monix-eval",
-    // Filtering out private stuff for 2.2.x
-    mimaBinaryIssueFilters ++= Seq(
-      // Related to issue: https://github.com/monix/monix/issues/313
-      exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskFromFuture.apply")
-    )
+    // Filtering out private stuff for 2.3.x
+    mimaBinaryIssueFilters ++= Seq.empty
   )
 
 lazy val evalJVM = project.in(file("monix-eval/jvm"))
@@ -377,21 +374,8 @@ lazy val evalJS = project.in(file("monix-eval/js"))
 lazy val reactiveCommon =
   crossSettings ++ testSettings ++ Seq(
     name := "monix-reactive",
-    // Filtering out private stuff for 2.2.x
-    mimaBinaryIssueFilters ++= Seq(
-      // Related to issue: https://github.com/monix/monix/issues/321
-      // All these types are private, so in fact we cannot break binary compatibility,
-      // unless accessed by reflection, for which Monix can't make a guarantee
-      exclude[MissingTypesProblem]("monix.reactive.internal.operators.ConcatMapObservable$FlatMapState$WaitComplete$"),
-      exclude[DirectMissingMethodProblem]("monix.reactive.internal.operators.ConcatMapObservable#FlatMapState#WaitComplete.apply"),
-      exclude[DirectMissingMethodProblem]("monix.reactive.internal.operators.ConcatMapObservable#FlatMapState#WaitComplete.copy"),
-      exclude[DirectMissingMethodProblem]("monix.reactive.internal.operators.ConcatMapObservable#FlatMapState#WaitComplete.this"),
-      exclude[MissingTypesProblem]("monix.reactive.internal.operators.MapTaskObservable$FlatMapState$WaitComplete$"),
-      exclude[DirectMissingMethodProblem]("monix.reactive.internal.operators.MapTaskObservable#FlatMapState#WaitComplete.apply"),
-      exclude[DirectMissingMethodProblem]("monix.reactive.internal.operators.MapTaskObservable#FlatMapState#WaitComplete.copy"),
-      exclude[DirectMissingMethodProblem]("monix.reactive.internal.operators.MapTaskObservable#FlatMapState#WaitComplete.this"),
-      exclude[MissingClassProblem]("monix.reactive.internal.operators.MapAsyncParallelObservable$MapAsyncParallelSubscriber")
-    )
+    // Filtering out private stuff for 2.3.x
+    mimaBinaryIssueFilters ++= Seq.empty
   )
 
 lazy val reactiveJVM = project.in(file("monix-reactive/jvm"))
