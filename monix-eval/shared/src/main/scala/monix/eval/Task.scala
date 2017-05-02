@@ -20,12 +20,13 @@ package monix.eval
 import monix.eval.Coeval.Attempt
 import monix.eval.internal._
 import monix.execution.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
+import monix.execution._
 import monix.execution.atomic.Atomic
 import monix.execution.cancelables.StackedCancelable
 import monix.execution.internal.Platform
 import monix.execution.misc.{NonFatal, ThreadLocal}
-import monix.execution._
 import monix.types._
+
 import scala.collection.generic.CanBuildFrom
 import scala.collection.mutable
 import scala.concurrent.duration.FiniteDuration
@@ -137,6 +138,12 @@ sealed abstract class Task[+A] extends Serializable { self =>
       case Some(Failure(ex)) => throw ex
     }
   }
+
+  /** Creates a new [[Task]] that will expose any triggered error
+    * from the source.
+    */
+  def attempt: Task[Either[Throwable, A]] =
+    FlatMap(this, AttemptTask.asInstanceOf[Transformation[A, Task[Either[Throwable, A]]]])
 
   /** Transforms a [[Task]] into a [[Coeval]] that tries to execute the
     * source synchronously, returning either `Right(value)` in case a
@@ -363,20 +370,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     */
   def asyncBoundary(s: Scheduler): Task[A] =
     self.flatMap(r => Task.forkedUnit.executeOn(s).map(_ => r))
-
-  /** Returns a failed projection of this task.
-    *
-    * The failed projection is a future holding a value of type
-    * `Throwable`, emitting a value which is the throwable of the
-    * original task in case the original task fails, otherwise if the
-    * source succeeds, then it fails with a `NoSuchElementException`.
-    */
-  def failed: Task[Throwable] =
-    materializeAttempt.flatMap {
-      case Coeval.Error(ex) => now(ex)
-      case Coeval.Now(_) => raiseError(new NoSuchElementException("failed"))
-    }
-
+  
   /** Returns a new task that upon evaluation will execute the given
     * function for the generated element, transforming the source into
     * a `Task[Unit]`.
@@ -418,12 +412,10 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * canceling a task.
     */
   def doOnFinish(f: Option[Throwable] => Task[Unit]): Task[A] =
-    materializeAttempt.flatMap {
-      case Coeval.Now(value) =>
-        f(None).map(_ => value)
-      case Coeval.Error(ex) =>
-        f(Some(ex)).flatMap(_ => raiseError(ex))
-    }
+    transformWith(
+      a => f(None).map(_ => a),
+      e => f(Some(e)).flatMap(_ => Error(e))
+    )
 
   /** Returns a new `Task` that will mirror the source, but that will
     * execute the given `callback` if the task gets canceled before
@@ -444,19 +436,9 @@ sealed abstract class Task[+A] extends Serializable { self =>
   def materialize: Task[Try[A]] =
     FlatMap(this, MaterializeTask.asInstanceOf[Transformation[A, Task[Try[A]]]])
 
-  /** Creates a new [[Task]] that will expose any triggered error from
-    * the source.
-    */
-  def materializeAttempt: Task[Attempt[A]] =
-    materialize.map(Coeval.Attempt.fromTry)
-
   /** Dematerializes the source's result from a `Try`. */
   def dematerialize[B](implicit ev: A <:< Try[B]): Task[B] =
     self.asInstanceOf[Task[Try[B]]].flatMap(fromTry)
-
-  /** Dematerializes the source's result from an `Attempt`. */
-  def dematerializeAttempt[B](implicit ev: A <:< Attempt[B]): Task[B] =
-    self.asInstanceOf[Task[Attempt[B]]].flatMap(Task.coeval)
 
   /** Creates a new task that will try recovering from an error by
     * matching it with another task using the given partial function.
@@ -612,7 +594,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * @param fe function that transforms an error of the receiver
     */
   def transform[R](fa: A => R, fe: Throwable => R): Task[R] =
-    FlatMap(this, Transformation.fold(fa, fe).andThen(Task.now))
+    FlatMap(this, Transformation(fa, fe).andThen(Task.now))
 
   /** Creates a new `Task` by applying the 'fa' function to the successful result of
     * this future, or the 'fe' function to the potential errors that might happen.
@@ -624,7 +606,7 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * @param fe function that transforms an error of the receiver
     */
   def transformWith[R](fa: A => Task[R], fe: Throwable => Task[R]): Task[R] =
-    FlatMap(this, Transformation.fold(fa, fe))
+    FlatMap(this, Transformation(fa, fe))
 
   /** Zips the values of `this` and `that` task, and creates a new task
     * that will emit the tuple of their results.
@@ -637,6 +619,63 @@ sealed abstract class Task[+A] extends Serializable { self =>
     */
   def zipMap[B,C](that: Task[B])(f: (A,B) => C): Task[C] =
     Task.mapBoth(this, that)(f)
+
+  // ---- Deprecated operations, preserved for backwards compatibility
+
+  /** Returns a failed projection of this task.
+    *
+    * The failed projection is a future holding a value of type
+    * `Throwable`, emitting a value which is the throwable of the
+    * original task in case the original task fails, otherwise if the
+    * source succeeds, then it fails with a `NoSuchElementException`.
+    *
+    * Deprecated, please use [[Task#attempt]].
+    *
+    * The reason for the deprecation is that this function is unsafe,
+    * since it can yield errors on its own (if the source does not
+    * yield an error), but also because of naming consistency, because
+    * we are using "error" and not "failure" to indicate errors.
+    *
+    * [[Task.attempt]] is better for exposing and handling errors and
+    * you can get the same behaviour with:
+    * {{{
+    *   source.attempt.flatMap {
+    *     case Left(e) =>
+    *       Task.now(e)
+    *     case Right(_) =>
+    *       Task.raiseError(new NoSuchElementException("failed"))
+    *   }
+    * }}}
+    */
+  @deprecated("Use Task#attempt", "2.3.0")
+  def failed: Task[Throwable] =
+    transformWith(_ => Error(new NoSuchElementException("failed")), e => Now (e))
+
+  /** Creates a new [[Task]] that will expose any triggered error from
+    * the source.
+    *
+    * Deprecated, please use [[Task#attempt]] or [[Task#materialize]].
+    *
+    * The reason for the deprecation is the naming alignment
+    * with the Cats ecosystem, where `Attempt` is being used
+    * as an alias for `Either[Throwable, A]`.
+    */
+  @deprecated("Use Task#attempt or Task#materialize", "2.3.0")
+  def materializeAttempt: Task[Attempt[A]] =
+    self.transformWith(a => Task.now(Coeval.Now(a)), e => Task.now(Coeval.Error(e)))
+
+  /** Dematerializes the source's result from an `Attempt`.
+    *
+    * Deprecated, please use [[Task#dematerialize]] or just
+    * [[Task#flatMap flatMap]].
+    *
+    * The reason for the deprecation is the naming alignment
+    * with the Cats ecosystem, where `Attempt` is being used
+    * as an alias for `Either[Throwable, A]`.
+    */
+  @deprecated("Use Task#dematerialize or Task#flatMap", "2.3.0")
+  def dematerializeAttempt[B](implicit ev: A <:< Attempt[B]): Task[B] =
+    self.asInstanceOf[Task[Attempt[B]]].flatMap(Task.coeval)
 }
 
 object Task extends TaskInstances {
@@ -1443,10 +1482,19 @@ object Task extends TaskInstances {
       context.scheduler.executeAsync(() => cb.onSuccess(()))
     }
 
+  /** Used as optimization by [[Task.attempt]]. */
+  private object AttemptTask extends Transformation[Any, Task[Either[Throwable, Any]]] {
+    override def success(a: Any): Task[Either[Throwable, Any]] =
+      Task.now(Right(a))
+    override def error(e: Throwable): Task[Either[Throwable, Any]] =
+      Task.now(Left(e))
+  }
+
+  /** Used as optimization by [[Task.materialize]]. */
   private object MaterializeTask extends Transformation[Any, Task[Try[Any]]] {
     override def success(a: Any): Task[Try[Any]] =
       Task.now(Success(a))
-    override def error(e: Throwable): Task[Try[Nothing]] =
+    override def error(e: Throwable): Task[Try[Any]] =
       Task.now(Failure(e))
   }
 }
@@ -1504,5 +1552,7 @@ private[eval] trait TaskInstances {
       fa.onErrorRecover(pf)
     override def onErrorRecoverWith[A](fa: Task[A])(pf: PartialFunction[Throwable, Task[A]]): Task[A] =
       fa.onErrorRecoverWith(pf)
+    override def attempt[A](fa: Task[A]): Task[Either[Throwable, A]] =
+      fa.attempt
   }
 }

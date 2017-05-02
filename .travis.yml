@@ -6,13 +6,13 @@ matrix:
   include:
     - jdk: oraclejdk8
       scala: 2.10.6
-      env: COVERAGE=
+      env: COMMAND=ci COVERAGE=
     - jdk: oraclejdk8
       scala: 2.11.11
-      env: COVERAGE=coverage
+      env: COMMAND=ci COVERAGE=coverage
     - jdk: oraclejdk8
       scala: 2.12.2
-      env: COVERAGE=
+      env: COMMAND=ci-all COVERAGE=
 
 env:
   global:
@@ -24,7 +24,7 @@ install:
 
 script:
   - export SBT_PROFILE=$COVERAGE
-  - sbt -J-Xmx6144m ++$TRAVIS_SCALA_VERSION $COVERAGE ci
+  - sbt -J-Xmx6144m ++$TRAVIS_SCALA_VERSION $COVERAGE $COMMAND
 
 after_success:
   - |

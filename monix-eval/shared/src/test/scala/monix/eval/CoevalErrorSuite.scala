@@ -18,21 +18,19 @@
 package monix.eval
 
 import monix.execution.exceptions.DummyException
-
 import scala.concurrent.TimeoutException
 import scala.util.{Failure, Success}
 
 object CoevalErrorSuite extends BaseTestSuite {
-  test("Coeval.failed should expose error") { implicit s =>
+  test("Coeval.attempt should expose error") { implicit s =>
     val dummy = DummyException("ex")
-    val r = Coeval.raiseError[Int](dummy).failed.runTry
-    assertEquals(r, Success(dummy))
+    val r = Coeval.raiseError[Int](dummy).attempt.value
+    assertEquals(r, Left(dummy))
   }
 
-  test("Coeval.failed should end in error on success") { implicit s =>
-    intercept[NoSuchElementException] {
-      Coeval.now(10).failed.value
-    }
+  test("Coeval.attempt should expose successful value") { implicit s =>
+    val r = Coeval.now(10).attempt.value
+    assertEquals(r, Right(10))
   }
 
   test("Coeval.now.materialize") { implicit s =>
@@ -99,26 +97,15 @@ object CoevalErrorSuite extends BaseTestSuite {
     assertEquals(result, Failure(dummy))
   }
 
-  test("Coeval.now.dematerializeAttempt") { implicit s =>
-    val result = Coeval.now(10).materializeAttempt.dematerializeAttempt.runTry
-    assertEquals(result, Success(10))
-  }
-
-  test("Coeval.error.dematerializeAttempt") { implicit s =>
-    val dummy = DummyException("dummy")
-    val result = Coeval.raiseError[Int](dummy).materializeAttempt.dematerializeAttempt.runTry
-    assertEquals(result, Failure(dummy))
-  }
-
   test("Coeval#onErrorRecover should mirror source on success") { implicit s =>
-    val coeval = Coeval(1).onErrorRecover { case ex: Throwable => 99 }
+    val coeval = Coeval(1).onErrorRecover { case _: Throwable => 99 }
     assertEquals(coeval.runTry, Success(1))
   }
 
   test("Coeval#onErrorRecover should recover") { implicit s =>
     val ex = DummyException("dummy")
     val coeval = Coeval[Int](if (1 == 1) throw ex else 1).onErrorRecover {
-      case ex: DummyException => 99
+      case _: DummyException => 99
     }
 
     assertEquals(coeval.runTry, Success(99))
@@ -129,21 +116,20 @@ object CoevalErrorSuite extends BaseTestSuite {
     val ex2 = DummyException("two")
 
     val coeval = Coeval[Int](if (1 == 1) throw ex1 else 1)
-      .onErrorRecover { case ex => throw ex2 }
+      .onErrorRecover { case _ => throw ex2 }
 
     assertEquals(coeval.runTry, Failure(ex2))
   }
 
   test("Coeval#onErrorHandle should mirror source on success") { implicit s =>
-    val f = Coeval(1).onErrorHandle { case ex: Throwable => 99 }
+    val f = Coeval(1).onErrorHandle { _: Throwable => 99 }
     assertEquals(f.runTry, Success(1))
   }
 
   test("Coeval#onErrorHandle should recover") { implicit s =>
     val ex = DummyException("dummy")
-    val f = Coeval[Int](if (1 == 1) throw ex else 1).onErrorHandle {
-      case ex: DummyException => 99
-    }
+    val f = Coeval[Int](if (1 == 1) throw ex else 1)
+      .onErrorHandle { case _: DummyException => 99 }
 
     assertEquals(f.runTry, Success(99))
   }
@@ -152,7 +138,7 @@ object CoevalErrorSuite extends BaseTestSuite {
     val ex1 = DummyException("one")
     val ex2 = DummyException("two")
     val f = Coeval[Int](if (1 == 1) throw ex1 else 1)
-      .onErrorHandle { case ex => throw ex2 }
+      .onErrorHandle { _ => throw ex2 }
 
     assertEquals(f.runTry, Failure(ex2))
   }
@@ -202,7 +188,7 @@ object CoevalErrorSuite extends BaseTestSuite {
 
   test("Coeval.onErrorRestartIf should mirror the source onSuccess") { implicit s =>
     var tries = 0
-    val f = Coeval.eval { tries += 1; 1 }.onErrorRestartIf(ex => tries < 10)
+    val f = Coeval.eval { tries += 1; 1 }.onErrorRestartIf(_ => tries < 10)
     assertEquals(f.runTry, Success(1))
     assertEquals(tries, 1)
   }
@@ -211,7 +197,7 @@ object CoevalErrorSuite extends BaseTestSuite {
     val ex = DummyException("dummy")
     var tries = 0
     val f = Coeval.eval { tries += 1; if (tries < 5) throw ex else 1 }
-      .onErrorRestartIf(ex => tries <= 10)
+      .onErrorRestartIf(_ => tries <= 10)
 
     assertEquals(f.runTry, Success(1))
     assertEquals(tries, 5)
@@ -221,21 +207,21 @@ object CoevalErrorSuite extends BaseTestSuite {
     val ex = DummyException("dummy")
     var tries = 0
     val f = Coeval.eval { tries += 1; throw ex }
-      .onErrorRestartIf(ex => tries <= 10)
+      .onErrorRestartIf(_ => tries <= 10)
 
     assertEquals(f.runTry, Failure(ex))
     assertEquals(tries, 11)
   }
 
   test("Coeval#onErrorRecoverWith should mirror source on success") { implicit s =>
-    val f = Coeval(1).onErrorRecoverWith { case ex: Throwable => Coeval(99) }
+    val f = Coeval(1).onErrorRecoverWith { case _: Throwable => Coeval(99) }
     assertEquals(f.runTry, Success(1))
   }
 
   test("Coeval#onErrorRecoverWith should recover") { implicit s =>
     val ex = DummyException("dummy")
     val f = Coeval[Int](throw ex).onErrorRecoverWith {
-      case ex: DummyException => Coeval(99)
+      case _: DummyException => Coeval(99)
     }
 
     assertEquals(f.runTry, Success(99))
@@ -246,7 +232,7 @@ object CoevalErrorSuite extends BaseTestSuite {
     val ex2 = DummyException("two")
 
     val f = Coeval[Int](throw ex1)
-      .onErrorRecoverWith { case ex => throw ex2 }
+      .onErrorRecoverWith { case _ => throw ex2 }
 
     assertEquals(f.runTry, Failure(ex2))
   }

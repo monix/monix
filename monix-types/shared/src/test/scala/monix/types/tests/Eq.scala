@@ -17,6 +17,8 @@
 
 package monix.types.tests
 
+import scala.concurrent.ExecutionException
+
 /** Type-class for testing equality, used only in tests. */
 trait Eq[T] { def apply(x: T, y: T): Boolean }
 
@@ -32,4 +34,37 @@ object Eq {
   implicit val shortEq: Eq[Short] = new Eq[Short] {
     def apply(x: Short, y: Short): Boolean = x == y
   }
+
+  implicit def eitherEq[A : Eq, B : Eq]: Eq[Either[A, B]] =
+    new Eq[Either[A, B]] {
+      override def apply(x: Either[A, B], y: Either[A, B]): Boolean = {
+        x match {
+          case Left(a1) =>
+            y match {
+              case Left(a2) => implicitly[Eq[A]].apply(a1, a2)
+              case _ => false
+            }
+          case Right(b1) =>
+            y match {
+              case Right(b2) => implicitly[Eq[B]].apply(b1, b2)
+              case _ => false
+            }
+        }
+      }
+    }
+
+  implicit val exceptionEq: Eq[Throwable] =
+    new Eq[Throwable] {
+      // Unwraps exceptions that got caught by Future's implementation
+      // and that got wrapped in ExecutionException (`Future(throw ex)`)
+      def extractEx(ex: Throwable): Throwable =
+        ex match {
+          case ref: ExecutionException =>
+            Option(ref.getCause).getOrElse(ref)
+          case _ => ex
+        }
+
+      def apply(x: Throwable, y: Throwable): Boolean =
+        extractEx(x) == extractEx(y)
+    }
 }

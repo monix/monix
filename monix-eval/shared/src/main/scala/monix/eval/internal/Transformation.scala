@@ -17,7 +17,14 @@
 
 package monix.eval.internal
 
-private[eval] abstract class Transformation[-A, +R] extends (A => R) { self =>
+/** A mapping function type that is also able to handle errors.
+  *
+  * Used in the `Task` and `Coeval` implementations to specify
+  * error handlers in their respective `FlatMap` internal states.
+  */
+private[eval] abstract class Transformation[-A, +R]
+  extends (A => R) { self =>
+
   final override def apply(a: A): R =
     success(a)
 
@@ -34,7 +41,8 @@ private[eval] abstract class Transformation[-A, +R] extends (A => R) { self =>
 }
 
 private[eval] object Transformation {
-  def fold[A, R](fa: A => R, fe: Throwable => R): Transformation[A, R] =
+  /** Builds a [[Transformation]] instance. */
+  def apply[A, R](fa: A => R, fe: Throwable => R): Transformation[A, R] =
     new Fold(fa, fe)
 
   private final class Fold[A, R](fa: A => R, fe: Throwable => R)

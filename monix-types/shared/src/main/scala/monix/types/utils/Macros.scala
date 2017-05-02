@@ -130,6 +130,19 @@ import scala.reflect.macros.whitebox
         """
     })
 
+  def monadErrorAttempt: Tree =
+    reset(getImplicitCallParams("MonadError.Syntax", "monadErrorOps", c.prefix.tree) match {
+      case Some((valueExpr, monadErrorExpr)) =>
+        q"($monadErrorExpr).attempt($valueExpr)"
+      case None =>
+        val prefix = c.prefix.tree
+        val ops = TermName(c.freshName("ops$"))
+        q"""
+        val $ops = $prefix
+        $ops.F.attempt(($ops).self)
+        """
+    })
+
   def monadFilter(f: Tree): Tree =
     reset(getImplicitCallParams("MonadFilter.Syntax", "monadFilterOps", c.prefix.tree) match {
       case Some((valueExpr, monadFilterExpr)) =>

@@ -53,6 +53,14 @@ trait MonadError[F[_], E] extends Serializable with Monad.Type[F] {
 
   /** Recover from certain errors by mapping them to an `A` value. */
   def onErrorRecover[A](fa: F[A])(pf: PartialFunction[E, A]): F[A]
+
+  /** Handle errors by exposing them into [[scala.util.Either]] values.
+    *
+    * Returns `Right(value)` for successful values or `Left(error)` in
+    * case a failure happened.
+    */
+  def attempt[A](fa: F[A]): F[Either[E, A]] =
+    onErrorHandle(map(fa)(Right(_) : Either[E, A]))(Left(_))
 }
 
 object MonadError {
@@ -84,6 +92,10 @@ object MonadError {
   /** Extension methods for [[MonadError]]. */
   final class Ops[F[_], E, A](self: F[A])(implicit F: MonadError[F,E])
     extends Serializable {
+
+    /** Extension method for [[MonadError.attempt]]. */
+    def attempt: F[A] =
+      macro Macros.monadErrorAttempt
 
     /** Extension method for [[MonadError.onErrorHandleWith]]. */
     def onErrorHandleWith(f: E => F[A]): F[A] =
@@ -131,5 +143,11 @@ object MonadError {
 
     def recoverConsistentWithRecoverWith[A](fa: F[A], pf: PartialFunction[E, A]): IsEquiv[F[A]] =
       E.onErrorRecover(fa)(pf) <-> E.onErrorRecoverWith(fa)(pf andThen A.pure)
+
+    def raiseErrorAttempt[A](e: E): IsEquiv[F[Either[E, A]]] =
+      E.attempt(E.raiseError[A](e)) <-> A.pure(Left(e) : Either[E, A])
+
+    def pureAttempt[A](a: A): IsEquiv[F[Either[E, A]]] =
+      E.attempt(A.pure(a)) <-> A.pure(Right(a))
   }
 }

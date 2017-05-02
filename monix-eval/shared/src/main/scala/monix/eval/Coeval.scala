@@ -61,10 +61,11 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     *
     * NOTE: this can throw exceptions.
     */
-  override def apply(): A = runAttempt match {
-    case Now(value) => value
-    case Error(ex) => throw ex
-  }
+  override def apply(): A =
+    CoevalRunLoop.start(this) match {
+      case Now(value) => value
+      case Error(ex) => throw ex
+    }
 
   /** Evaluates the underlying computation and returns the result.
     *
@@ -74,45 +75,34 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     */
   def value: A = apply()
 
+  /** Evaluates the underlying computation and returns the result or any
+    * triggered errors as a Scala [[scala.Either Either]], where
+    * `Right(_)` is for successful values and `Left(_)` is for thrown
+    * errors.
+    */
+  def run: Either[Throwable, A] =
+    CoevalRunLoop.start(this) match {
+      case Coeval.Now(a) => Right(a)
+      case Coeval.Error(e) => Left(e)
+    }
+
   /** Evaluates the underlying computation and returns the
     * result or any triggered errors as a [[Coeval.Attempt]].
     */
-  def runAttempt: Attempt[A] =
+  def runAttempt: Coeval.Attempt[A] =
     CoevalRunLoop.start(this)
 
   /** Evaluates the underlying computation and returns the
     * result or any triggered errors as a `scala.util.Try`.
     */
   def runTry: Try[A] =
-    runAttempt.asScala
+    CoevalRunLoop.start(this).asScala
 
-  /** Converts the source [[Coeval]] into a [[Task]]. */
-  def task: Task[A] =
-    Task.coeval(self)
-
-  /** Creates a new `Coeval` by applying the 'fa' function to the successful result of
-    * this future, or the 'fe' function to the potential errors that might happen.
-    *
-    * This function is similar with [[map]], except that it can also transform
-    * errors and not just successful results.
-    *
-    * @param fa function that transforms a successful result of the receiver
-    * @param fe function that transforms an error of the receiver
+  /** Creates a new [[Coeval]] that will expose any triggered error
+    * from the source.
     */
-  def transform[R](fa: A => R, fe: Throwable => R): Coeval[R] =
-    FlatMap(this, Transformation.fold(fa, fe).andThen(Coeval.now))
-
-  /** Creates a new `Coeval` by applying the 'fa' function to the successful result of
-    * this future, or the 'fe' function to the potential errors that might happen. 
-    *
-    * This function is similar with [[flatMap]], except that it can also transform
-    * errors and not just successful results.
-    *
-    * @param fa function that transforms a successful result of the receiver
-    * @param fe function that transforms an error of the receiver
-    */
-  def transformWith[R](fa: A => Coeval[R], fe: Throwable => Coeval[R]): Coeval[R] =
-    FlatMap(this, Transformation.fold(fa, fe))
+  def attempt: Coeval[Either[Throwable, A]] =
+    FlatMap(this, AttemptCoeval.asInstanceOf[Transformation[A, Coeval[Either[Throwable, A]]]])
 
   /** Creates a new `Coeval` by applying a function to the successful result
     * of the source, and returns a new instance equivalent
@@ -127,19 +117,6 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     */
   def flatten[B](implicit ev: A <:< Coeval[B]): Coeval[B] =
     flatMap(a => a)
-
-  /** Returns a failed projection of this coeval.
-    *
-    * The failed projection is a future holding a value of type
-    * `Throwable`, emitting a value which is the throwable of the
-    * original coeval in case the original coeval fails, otherwise if the
-    * source succeeds, then it fails with a `NoSuchElementException`.
-    */
-  def failed: Coeval[Throwable] =
-    materializeAttempt.flatMap {
-      case Error(ex) => Now(ex)
-      case Now(_) => Error(new NoSuchElementException("failed"))
-    }
 
   /** Returns a new task that upon evaluation will execute
     * the given function for the generated element,
@@ -172,19 +149,37 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
   def materialize: Coeval[Try[A]] =
     FlatMap(this, MaterializeCoeval.asInstanceOf[Transformation[A, Coeval[Try[A]]]])
 
-  /** Creates a new [[Coeval]] that will expose any triggered error from
-    * the source.
-    */
-  def materializeAttempt: Coeval[Attempt[A]] =
-    materialize.map(Coeval.Attempt.fromTry)
-
   /** Dematerializes the source's result from a `Try`. */
   def dematerialize[B](implicit ev: A <:< Try[B]): Coeval[B] =
     self.asInstanceOf[Coeval[Try[B]]].flatMap(Attempt.fromTry)
 
-  /** Dematerializes the source's result from an `Attempt`. */
-  def dematerializeAttempt[B](implicit ev: A <:< Attempt[B]): Coeval[B] =
-    self.asInstanceOf[Coeval[Attempt[B]]].flatMap(identity)
+  /** Converts the source [[Coeval]] into a [[Task]]. */
+  def task: Task[A] =
+    Task.coeval(self)
+
+  /** Creates a new `Coeval` by applying the 'fa' function to the successful result of
+    * this future, or the 'fe' function to the potential errors that might happen.
+    *
+    * This function is similar with [[map]], except that it can also transform
+    * errors and not just successful results.
+    *
+    * @param fa function that transforms a successful result of the receiver
+    * @param fe function that transforms an error of the receiver
+    */
+  def transform[R](fa: A => R, fe: Throwable => R): Coeval[R] =
+    FlatMap(this, Transformation(fa, fe).andThen(Coeval.now))
+
+  /** Creates a new `Coeval` by applying the 'fa' function to the successful result of
+    * this future, or the 'fe' function to the potential errors that might happen.
+    *
+    * This function is similar with [[flatMap]], except that it can also transform
+    * errors and not just successful results.
+    *
+    * @param fa function that transforms a successful result of the receiver
+    * @param fe function that transforms an error of the receiver
+    */
+  def transformWith[R](fa: A => Coeval[R], fe: Throwable => Coeval[R]): Coeval[R] =
+    FlatMap(this, Transformation(fa, fe))
 
   /** Given a predicate function, keep retrying the
     * coeval until the function returns true.
@@ -300,12 +295,10 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * `Coeval`.
     */
   def doOnFinish(f: Option[Throwable] => Coeval[Unit]): Coeval[A] =
-    materializeAttempt.flatMap {
-      case Coeval.Now(value) =>
-        f(None).map(_ => value)
-      case Coeval.Error(ex) =>
-        f(Some(ex)).flatMap(_ => Coeval.raiseError(ex))
-    }
+    transformWith(
+      a => f(None).map(_ => a),
+      e => f(Some(e)).flatMap(_ => Error(e))
+    )
 
   /** Zips the values of `this` and `that` coeval, and creates a new coeval
     * that will emit the tuple of their results.
@@ -318,6 +311,63 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     */
   def zipMap[B,C](that: Coeval[B])(f: (A,B) => C): Coeval[C] =
     for (a <- this; b <- that) yield f(a,b)
+
+  // ---- Deprecated operations, preserved for backwards compatibility
+
+  /** Returns a failed projection of this coeval.
+    *
+    * The failed projection is a `Coeval` holding an optional value
+    * of type `Throwable`, emitting a `Some(error)` value, which is
+    * the throwable of the original `Coeval` in case the source fails,
+    * otherwise if the source succeeds the result will be `None`.
+    *
+    * Deprecated, please use [[Coeval#attempt]].
+    *
+    * The reason for the deprecation is that this function is unsafe,
+    * since it can yield errors on its own (if the source does not
+    * yield an error), but also because of naming consistency, because
+    * we are using "error" and not "failure" to indicate errors.
+    *
+    * [[Coeval.attempt]] is better for exposing and handling errors and
+    * you can get the same behaviour with:
+    * {{{
+    *   source.attempt.flatMap {
+    *     case Left(e) =>
+    *       Coeval.now(e)
+    *     case Right(_) =>
+    *       Coeval.raiseError(new NoSuchElementException("failed"))
+    *   }
+    * }}}
+    */
+  @deprecated("Use Coeval#attempt", "2.3.0")
+  def failed: Coeval[Throwable] =
+    self.transformWith(_ => Error(new NoSuchElementException("failed")), e => Now (e))
+
+  /** Creates a new [[Coeval]] that will expose any triggered error from
+    * the source.
+    *
+    * Deprecated, please use [[Coeval#attempt]] or [[Coeval#materialize]].
+    *
+    * The reason for the deprecation is the naming alignment
+    * with the Cats ecosystem, where `Attempt` is being used
+    * as an alias for `Either[Throwable, A]`.
+    */
+  @deprecated("Use Coeval#attempt or Coeval#materialize", "2.3.0")
+  def materializeAttempt: Coeval[Attempt[A]] =
+    self.transformWith(a => Now(Now(a)), e => Now(Error(e)))
+
+  /** Dematerializes the source's result from a [[Coeval.Attempt]].
+    *
+    * Deprecated, please use [[Coeval#dematerialize]] or just
+    * [[Coeval#flatMap flatMap]].
+    *
+    * The reason for the deprecation is the naming alignment
+    * with the Cats ecosystem, where `Attempt` is being used
+    * as an alias for `Either[Throwable, A]`.
+    */
+  @deprecated("Use Coeval#dematerialize or Coeval#flatMap", "2.3.0")
+  def dematerializeAttempt[B](implicit ev: A <:< Attempt[B]): Coeval[B] =
+    self.asInstanceOf[Coeval[Attempt[B]]].flatMap(identity)
 }
 
 object Coeval {
@@ -481,11 +531,13 @@ object Coeval {
     zipMap2(fa12345, fa6) { case ((a1, a2, a3, a4, a5), a6) => f(a1, a2, a3, a4, a5, a6) }
   }
 
-  /** The `Attempt` represents a strict, already evaluated result
+  /** The `Attempt` type represents a strict, already evaluated result
     * of a [[Coeval]] that either resulted in success, wrapped in a
     * [[Now]], or in an error, wrapped in an [[Error]].
     *
-    * It's the moral equivalent of `scala.util.Try`.
+    * It's the moral equivalent of `scala.util.Try`, except that
+    * application of functions such as `map` and `flatMap` produces
+    * [[Coeval]] references that are still lazily evaluated.
     */
   sealed abstract class Attempt[+A] extends Coeval[A] with Product {
     self =>
@@ -503,16 +555,10 @@ object Coeval {
     }
 
     /** Returns true if result is an error. */
-    final def isFailure: Boolean = this match {
+    final def isError: Boolean = this match {
       case Error(_) => true
       case _ => false
     }
-
-    override final def failed: Attempt[Throwable] =
-      self match {
-        case Now(_) => Error(new NoSuchElementException("failed"))
-        case Error(ex) => Now(ex)
-      }
 
     /** Converts this attempt into a `scala.util.Try`. */
     final def asScala: Try[A] =
@@ -520,6 +566,23 @@ object Coeval {
         case Now(a) => Success(a)
         case Error(ex) => Failure(ex)
       }
+
+    @deprecated("Use Coeval#attempt", "2.3.0")
+    override def failed: Attempt[Throwable] =
+      self match {
+        case Coeval.Now(_) =>
+          Coeval.Error(new NoSuchElementException("failed"))
+        case Coeval.Error(e) =>
+          Coeval.Now(e)
+      }
+
+    /** Returns true if result is an error.
+      *
+      * Deprecated, renamed to [[Coeval.Attempt#isError]].
+      */
+    @deprecated("Use Coeval.Attempt#isError", "2.3.0")
+    final def isFailure: Boolean =
+      self.isError
 
     override final def materializeAttempt: Attempt[Attempt[A]] =
       self match {
@@ -535,7 +598,8 @@ object Coeval {
         case error@Error(_) => error
       }
 
-    override final def memoize: Attempt[A] = this
+    override final def memoize: Attempt[A] =
+      this
   }
 
   object Attempt {
@@ -634,10 +698,19 @@ object Coeval {
   private[eval] final case class FlatMap[A, B](source: Coeval[A], f: A => Coeval[B])
     extends Coeval[B]
 
+  /** Used as optimization by [[Coeval.attempt]]. */
+  private object AttemptCoeval extends Transformation[Any, Coeval[Either[Throwable, Any]]] {
+    override def success(a: Any): Coeval[Either[Throwable, Any]] =
+      Coeval.now(Right(a))
+    override def error(e: Throwable): Coeval[Either[Throwable, Any]] =
+      Coeval.now(Left(e))
+  }
+
+  /** Used as optimization by [[Coeval.materialize]]. */
   private object MaterializeCoeval extends Transformation[Any, Coeval[Try[Any]]] {
     override def success(a: Any): Coeval[Try[Any]] =
       Coeval.now(Success(a))
-    override def error(e: Throwable): Coeval[Try[Nothing]] =
+    override def error(e: Throwable): Coeval[Try[Any]] =
       Coeval.now(Failure(e))
   }
 
@@ -684,5 +757,7 @@ object Coeval {
       fa.onErrorRecover(pf)
     override def onErrorRecoverWith[A](fa: Coeval[A])(pf: PartialFunction[Throwable, Coeval[A]]): Coeval[A] =
       fa.onErrorRecoverWith(pf)
+    override def attempt[A](fa: Coeval[A]): Coeval[Either[Throwable, A]] =
+      fa.attempt
   }
 }

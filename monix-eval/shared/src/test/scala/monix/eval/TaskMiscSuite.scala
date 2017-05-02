@@ -24,17 +24,15 @@ import scala.concurrent.Promise
 import scala.util.{Failure, Success}
 
 object TaskMiscSuite extends BaseTestSuite {
-  test("Task.failed should end in error") { implicit s =>
-    val result = Task.now(1).failed.runAsync
-    assert(result.value.isDefined && result.value.get.isFailure &&
-      result.value.get.failed.get.isInstanceOf[NoSuchElementException],
-      "Should throw NoSuchElementException")
+  test("Task.attempt should succeed") { implicit s =>
+    val result = Task.now(1).attempt.runAsync
+    assertEquals(result.value, Some(Success(Right(1))))
   }
 
-  test("Task.raiseError.failed should expose error") { implicit s =>
+  test("Task.raiseError.attempt should expose error") { implicit s =>
     val ex = DummyException("dummy")
-    val result = Task.raiseError[Int](ex).failed.runAsync
-    assertEquals(result.value, Some(Success(ex)))
+    val result = Task.raiseError[Int](ex).attempt.runAsync
+    assertEquals(result.value, Some(Success(Left(ex))))
   }
 
   test("Task.map protects against user code") { implicit s =>

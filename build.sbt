@@ -6,7 +6,9 @@ import com.typesafe.tools.mima.core.ProblemFilters._
 import scala.xml.Elem
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 
-addCommandAlias("ci", ";test:compile ;test ;mimaReportBinaryIssues ;doc")
+addCommandAlias("ci-all", ";test:compile ;test ;mimaReportBinaryIssues ;unidoc")
+
+addCommandAlias("ci", ";test:compile ;test ;doc")
 
 val catsVersion = "0.9.0"
 val scalazVersion = "7.2.11"
@@ -14,7 +16,7 @@ val scalazVersion = "7.2.11"
 // The Monix version with which we must keep binary compatibility.
 // For MiMa testing, see:
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
-val monixSeries = "2.2.0"
+val monixSeries = "2.2.4"
 
 lazy val doNotPublishArtifact = Seq(
   publishArtifact := false,
@@ -276,7 +278,7 @@ lazy val cmdlineProfile =
   sys.env.getOrElse("SBT_PROFILE", "")
 
 def mimaSettings(projectName: String) = Seq(
-   // mimaPreviousArtifacts := Set("io.monix" %% projectName % monixSeries)
+  mimaPreviousArtifacts := Set("io.monix" %% projectName % monixSeries)
 )
 
 def profile: Project ⇒ Project = pr => cmdlineProfile match {
@@ -352,8 +354,16 @@ lazy val executionJS = project.in(file("monix-execution/js"))
 lazy val evalCommon =
   crossSettings ++ testSettings ++ Seq(
     name := "monix-eval",
-    // Filtering out private stuff for 2.3.x
-    mimaBinaryIssueFilters ++= Seq.empty
+    // Filtering out private stuff that changed in 2.3.x
+    mimaBinaryIssueFilters ++= Seq(
+      ProblemFilters.exclude[DirectMissingMethodProblem]("monix.eval.Task.internalStartTrampolineRunLoop"),
+      ProblemFilters.exclude[MissingClassProblem]("monix.eval.Coeval$BindSuspend"),
+      ProblemFilters.exclude[MissingClassProblem]("monix.eval.Coeval$BindSuspend$"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("monix.eval.Task#MemoizeSuspend.execute"),
+      ProblemFilters.exclude[MissingTypesProblem]("monix.eval.Task$Context$"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("monix.eval.Task#Eval.f"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("monix.eval.Coeval.trampoline")
+    )
   )
 
 lazy val evalJVM = project.in(file("monix-eval/jvm"))
@@ -375,7 +385,11 @@ lazy val reactiveCommon =
   crossSettings ++ testSettings ++ Seq(
     name := "monix-reactive",
     // Filtering out private stuff for 2.3.x
-    mimaBinaryIssueFilters ++= Seq.empty
+    mimaBinaryIssueFilters ++= Seq(
+      ProblemFilters.exclude[DirectMissingMethodProblem]("monix.reactive.observers.buffers.AbstractBackPressuredBufferedSubscriber.secondaryQueue"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("monix.reactive.observers.buffers.AbstractBackPressuredBufferedSubscriber.primaryQueue"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("monix.reactive.observers.buffers.ConcurrentQueue.unbounded")
+    )
   )
 
 lazy val reactiveJVM = project.in(file("monix-reactive/jvm"))
