@@ -72,7 +72,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[Scheduler] {
     for (i <- 0 until 100000) buffer.onNext(i)
     buffer.onComplete()
 
-    assert(completed.await(120, TimeUnit.SECONDS), "completed.await should have succeeded")
+    assert(completed.await(5, TimeUnit.MINUTES), "completed.await should have succeeded")
     assertEquals(number, 100000)
   }
 
@@ -104,7 +104,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[Scheduler] {
       else buffer.onComplete()
 
     loop(10000)
-    assert(completed.await(120, TimeUnit.SECONDS), "completed.await should have succeeded")
+    assert(completed.await(5, TimeUnit.MINUTES), "completed.await should have succeeded")
     assertEquals(number, 10000)
   }
 
@@ -146,7 +146,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[Scheduler] {
       for (i <- 1 to total.toInt) buffer.onNext(i)
       buffer.onComplete()
 
-      assert(completed.await(120, TimeUnit.SECONDS), "completed.await should have succeeded")
+      assert(completed.await(5, TimeUnit.MINUTES), "completed.await should have succeeded")
       assertEquals(received, total)
       assertEquals(sum, total * (total + 1) / 2)
     }
@@ -192,7 +192,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[Scheduler] {
     // Final event
     Future.sequence(Seq(p1,p2,p3,p4)).foreach(_ => buffer.onComplete())
 
-    assert(completed.await(120, TimeUnit.SECONDS), "completed.await should have succeeded")
+    assert(completed.await(5, TimeUnit.MINUTES), "completed.await should have succeeded")
     assertEquals(sum, total * (total - 1) / 2)
   }
 
@@ -210,7 +210,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[Scheduler] {
     val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), Unbounded)
 
     buffer.onError(new RuntimeException("dummy"))
-    assert(latch.await(60, TimeUnit.SECONDS), "latch.await should have succeeded")
+    assert(latch.await(5, TimeUnit.MINUTES), "latch.await should have succeeded")
   }
 
   test("should send onError when in flight") { implicit s =>
@@ -228,7 +228,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[Scheduler] {
 
     buffer.onNext(1)
     buffer.onError(new RuntimeException("dummy"))
-    assert(latch.await(60, TimeUnit.SECONDS), "latch.await should have succeeded")
+    assert(latch.await(5, TimeUnit.MINUTES), "latch.await should have succeeded")
   }
 
   test("should send onComplete when empty") { implicit s =>
@@ -242,7 +242,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[Scheduler] {
     val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), Unbounded)
 
     buffer.onComplete()
-    assert(latch.await(60, TimeUnit.SECONDS), "latch.await should have succeeded")
+    assert(latch.await(5, TimeUnit.MINUTES), "latch.await should have succeeded")
   }
 
   test("should not back-pressure onComplete") { implicit s =>
@@ -258,7 +258,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[Scheduler] {
 
     buffer.onNext(1)
     buffer.onComplete()
-    assert(latch.await(60, TimeUnit.SECONDS), "latch.await should have succeeded")
+    assert(latch.await(5, TimeUnit.MINUTES), "latch.await should have succeeded")
   }
 
   test("should do onComplete only after all the queue was drained") { implicit s =>
@@ -280,7 +280,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[Scheduler] {
     buffer.onComplete()
     startConsuming.success(Continue)
 
-    assert(complete.await(60, TimeUnit.SECONDS), "complete.await should have succeeded")
+    assert(complete.await(5, TimeUnit.MINUTES), "complete.await should have succeeded")
     assert(sum == (0 until 9999).sum)
   }
 
@@ -301,7 +301,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[Scheduler] {
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onComplete()
 
-    assert(complete.await(60, TimeUnit.SECONDS), "complete.await should have succeeded")
+    assert(complete.await(5, TimeUnit.MINUTES), "complete.await should have succeeded")
     assert(sum == (0 until 9999).sum)
   }
 
@@ -325,7 +325,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[Scheduler] {
     buffer.onError(new RuntimeException)
     startConsuming.success(Continue)
 
-    assert(complete.await(60, TimeUnit.SECONDS), "complete.await should have succeeded")
+    assert(complete.await(5, TimeUnit.MINUTES), "complete.await should have succeeded")
     assertEquals(sum, (0 until 9999).sum)
   }
 
@@ -346,7 +346,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[Scheduler] {
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onError(new RuntimeException)
 
-    assert(complete.await(60, TimeUnit.SECONDS), "complete.await should have succeeded")
+    assert(complete.await(5, TimeUnit.MINUTES), "complete.await should have succeeded")
     assertEquals(sum, (0 until 9999).sum)
   }
 }
