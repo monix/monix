@@ -76,9 +76,8 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
   def value: A = apply()
 
   /** Evaluates the underlying computation and returns the result or any
-    * triggered errors as a Scala [[scala.Either Either]], where
-    * `Right(_)` is for successful values and `Left(_)` is for thrown
-    * errors.
+    * triggered errors as a Scala `Either`, where `Right(_)` is for successful
+    * values and `Left(_)` is for thrown errors.
     */
   def run: Either[Throwable, A] =
     CoevalRunLoop.start(this) match {

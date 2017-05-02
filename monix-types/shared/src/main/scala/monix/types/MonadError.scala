@@ -54,7 +54,7 @@ trait MonadError[F[_], E] extends Serializable with Monad.Type[F] {
   /** Recover from certain errors by mapping them to an `A` value. */
   def onErrorRecover[A](fa: F[A])(pf: PartialFunction[E, A]): F[A]
 
-  /** Handle errors by exposing them into [[scala.util.Either]] values.
+  /** Handle errors by exposing them into `Either` values.
     *
     * Returns `Right(value)` for successful values or `Left(error)` in
     * case a failure happened.
