@@ -96,6 +96,19 @@ object Observer {
       def onComplete(): Unit = ()
     }
 
+  /** Helper for building an empty observer that continuously returns
+    * `Stop` in `onNext` and that reports errors pushed with `onError`.
+    */
+  def stopped[A]: Observer.Sync[A] = stoppedRef
+
+  // Reusable reference
+  private[this] val stoppedRef: Observer.Sync[Any] =
+    new Observer.Sync[Any] {
+      def onNext(elem: Any): Stop = Stop
+      def onError(ex: Throwable): Unit = ()
+      def onComplete(): Unit = ()
+    }
+
   /** Builds an [[Observer]] that just logs incoming events. */
   def dump[A](prefix: String, out: PrintStream = System.out): Observer.Sync[A] =
     new DumpObserver[A](prefix, out)

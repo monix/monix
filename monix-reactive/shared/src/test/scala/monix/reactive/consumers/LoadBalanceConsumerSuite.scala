@@ -23,8 +23,10 @@ import monix.execution.atomic.{Atomic, AtomicInt, AtomicLong}
 import monix.execution.cancelables.{AssignableCancelable, BooleanCancelable, CompositeCancelable}
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.execution.exceptions.DummyException
+import monix.reactive.internal.consumers.LoadBalanceConsumer
 import monix.reactive.observers.Subscriber
 import monix.reactive.{BaseLawsTestSuite, Consumer, Observable, Observer}
+
 import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success}
 
@@ -37,7 +39,7 @@ object LoadBalanceConsumerSuite extends BaseLawsTestSuite {
 
   test("trigger error when array of consumers is empty") { implicit s =>
     intercept[IllegalArgumentException] {
-      new Consumer.LoadBalanceConsumer(1, Array.empty[Consumer[Int,Int]])
+      new LoadBalanceConsumer(1, Array.empty[Consumer[Int,Int]])
     }
   }
 
@@ -217,16 +219,16 @@ object LoadBalanceConsumerSuite extends BaseLawsTestSuite {
     val finishPromise = Promise[Int]()
     val (subscriber, _) = loadBalancer.createSubscriber(Callback.fromPromise(finishPromise), s)
 
-    for (i <- 0 until 4) assertEquals(subscriber.onNext(1), Continue)
+    for (_ <- 0 until 4) assertEquals(subscriber.onNext(1), Continue)
     s.tick()
     assertEquals(sum.get, 4 + 2)
 
-    for (i <- 0 until 4) assertEquals(subscriber.onNext(1), Continue)
+    for (_ <- 0 until 4) assertEquals(subscriber.onNext(1), Continue)
     s.tick()
     assertEquals(sum.get, 8 + 2 + 2)
 
     composite.cancel(); s.tick()
-    for (i <- 0 until 4) { assertEquals(subscriber.onNext(1), Continue); s.tick() }
+    for (_ <- 0 until 4) { assertEquals(subscriber.onNext(1), Continue); s.tick() }
     assertEquals(sum.get, 12 + 4)
 
     subscriber.onComplete(); s.tick()
@@ -312,7 +314,7 @@ object LoadBalanceConsumerSuite extends BaseLawsTestSuite {
           implicit val scheduler = s
 
           def onNext(elem: Int) =
-            ack.future.map { r =>
+            ack.future.map { _ =>
               cb.onError(ex)
               Stop
             }

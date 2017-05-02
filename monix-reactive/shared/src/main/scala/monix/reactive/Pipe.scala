@@ -18,6 +18,7 @@
 package monix.reactive
 
 import monix.execution.Scheduler
+import monix.execution.misc.NonFatal
 import monix.reactive.observables.ObservableLike
 import monix.reactive.observables.ObservableLike.{Operator, Transformer}
 import monix.reactive.OverflowStrategy.{Synchronous, Unbounded}
@@ -28,9 +29,7 @@ import monix.reactive.subjects._
 /** Represents a factory for an input/output channel for
   * broadcasting input to multiple subscribers.
   */
-abstract class Pipe[I, +O]
-  extends ObservableLike[O, ({type λ[+α] = Pipe[I, α]})#λ] {
-
+abstract class Pipe[I, +O] extends ObservableLike[O, ({type λ[+α] = Pipe[I, α]})#λ] {
   /** Returns an input/output pair that can be used to
     * push input to a single subscriber.
     *
@@ -226,13 +225,23 @@ object Pipe {
     extends Pipe[I,U] {
 
     override def unicast: (Observer[I], Observable[U]) = {
-      val (in,out) = self.unicast
-      (in, f(out))
+      try {
+        val (in,out) = self.unicast
+        (in, f(out))
+      } catch {
+        case NonFatal(e) =>
+          (Observer.stopped, Observable.raiseError(e))
+      }
     }
 
     override def multicast(implicit s: Scheduler): (Observer[I], Observable[U]) = {
-      val (in,out) = self.multicast(s)
-      (in, f(out))
+      try {
+        val (in,out) = self.multicast(s)
+        (in, f(out))
+      } catch {
+        case NonFatal(e) =>
+          (Observer.stopped, Observable.raiseError(e))
+      }
     }
   }
 }
