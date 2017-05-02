@@ -88,7 +88,7 @@ object OverflowStrategyBackPressuredConcurrencySuite extends TestSuite[Scheduler
       assert(!completed.await(100, TimeUnit.MILLISECONDS), "completed.await shouldn't have succeeded")
 
       buffer.onComplete()
-      assert(completed.await(5, TimeUnit.MINUTES), "completed.await should have succeeded")
+      assert(completed.await(15, TimeUnit.MINUTES), "completed.await should have succeeded")
     }
   }
 
@@ -115,7 +115,7 @@ object OverflowStrategyBackPressuredConcurrencySuite extends TestSuite[Scheduler
     for (i <- 0 until 100000) buffer.onNext(i)
     buffer.onComplete()
 
-    assert(completed.await(5, TimeUnit.MINUTES), "completed.await should have succeeded")
+    assert(completed.await(15, TimeUnit.MINUTES), "completed.await should have succeeded")
     assert(number == 100000)
   }
 
@@ -148,7 +148,7 @@ object OverflowStrategyBackPressuredConcurrencySuite extends TestSuite[Scheduler
         buffer.onComplete()
 
     loop(10000)
-    assert(completed.await(5, TimeUnit.MINUTES), "completed.await should have succeeded")
+    assert(completed.await(15, TimeUnit.MINUTES), "completed.await should have succeeded")
     assertEquals(number, 10000)
   }
 
@@ -190,7 +190,7 @@ object OverflowStrategyBackPressuredConcurrencySuite extends TestSuite[Scheduler
       for (i <- 1 to total.toInt) buffer.onNext(i)
       buffer.onComplete()
 
-      assert(completed.await(5, TimeUnit.MINUTES), "completed.await should have succeeded")
+      assert(completed.await(15, TimeUnit.MINUTES), "completed.await should have succeeded")
       assertEquals(received, total)
       assertEquals(sum, total * (total + 1) / 2)
     }
@@ -233,7 +233,7 @@ object OverflowStrategyBackPressuredConcurrencySuite extends TestSuite[Scheduler
       for (i <- 1 to total.toInt) buffer.onNext(i)
       buffer.onComplete()
 
-      assert(completed.await(5, TimeUnit.MINUTES), "completed.await should have succeeded")
+      assert(completed.await(15, TimeUnit.MINUTES), "completed.await should have succeeded")
       assertEquals(received, total)
       assertEquals(sum, total * (total + 1) / 2)
     }
@@ -254,7 +254,7 @@ object OverflowStrategyBackPressuredConcurrencySuite extends TestSuite[Scheduler
       }, BackPressure(5))
 
     buffer.onError(new RuntimeException("dummy"))
-    assert(latch.await(5, TimeUnit.MINUTES), "latch.await should have succeeded")
+    assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
 
     val r = buffer.onNext(1)
     assertEquals(r, Stop)
@@ -275,7 +275,7 @@ object OverflowStrategyBackPressuredConcurrencySuite extends TestSuite[Scheduler
 
     buffer.onNext(1)
     buffer.onError(new RuntimeException("dummy"))
-    assert(latch.await(5, TimeUnit.MINUTES), "latch.await should have succeeded")
+    assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
   }
 
   test("should send onError when at capacity") { implicit s =>
@@ -301,7 +301,7 @@ object OverflowStrategyBackPressuredConcurrencySuite extends TestSuite[Scheduler
     buffer.onError(DummyException("dummy"))
 
     promise.success(Continue)
-    assert(latch.await(5, TimeUnit.MINUTES), "latch.await should have succeeded")
+    assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
   }
 
   test("should send onComplete when empty") { implicit s =>
@@ -315,7 +315,7 @@ object OverflowStrategyBackPressuredConcurrencySuite extends TestSuite[Scheduler
       }, BackPressure(5))
 
     buffer.onComplete()
-    assert(latch.await(5, TimeUnit.MINUTES), "latch.await should have succeeded")
+    assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
   }
 
   test("should send onComplete when in flight") { implicit s =>
@@ -331,7 +331,7 @@ object OverflowStrategyBackPressuredConcurrencySuite extends TestSuite[Scheduler
 
     buffer.onNext(1)
     buffer.onComplete()
-    assert(latch.await(5, TimeUnit.MINUTES), "latch.await should have succeeded")
+    assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
     promise.success(Continue); ()
   }
 
@@ -355,7 +355,7 @@ object OverflowStrategyBackPressuredConcurrencySuite extends TestSuite[Scheduler
     assert(!latch.await(1, TimeUnit.SECONDS), "latch.await should have failed")
 
     promise.success(Continue)
-    assert(latch.await(5, TimeUnit.MINUTES), "latch.await should have succeeded")
+    assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
   }
 
   test("should do onComplete only after all the queue was drained") { implicit s =>
@@ -378,7 +378,7 @@ object OverflowStrategyBackPressuredConcurrencySuite extends TestSuite[Scheduler
     buffer.onComplete()
     startConsuming.success(Continue)
 
-    assert(complete.await(5, TimeUnit.MINUTES), "complete.await should have succeeded")
+    assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")
     assert(sum == (0 until 9999).sum)
   }
 
@@ -400,7 +400,7 @@ object OverflowStrategyBackPressuredConcurrencySuite extends TestSuite[Scheduler
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onComplete()
 
-    assert(complete.await(5, TimeUnit.MINUTES), "complete.await should have succeeded")
+    assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")
     assert(sum == (0 until 9999).sum)
   }
 
@@ -424,7 +424,7 @@ object OverflowStrategyBackPressuredConcurrencySuite extends TestSuite[Scheduler
     buffer.onError(new RuntimeException)
     startConsuming.success(Continue)
 
-    assert(complete.await(5, TimeUnit.MINUTES), "complete.await should have succeeded")
+    assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")
     assertEquals(sum, (0 until 9999).sum)
   }
 
@@ -446,7 +446,7 @@ object OverflowStrategyBackPressuredConcurrencySuite extends TestSuite[Scheduler
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onError(new RuntimeException)
 
-    assert(complete.await(5, TimeUnit.MINUTES), "complete.await should have succeeded")
+    assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")
     assertEquals(sum, (0 until 9999).sum)
   }
 }

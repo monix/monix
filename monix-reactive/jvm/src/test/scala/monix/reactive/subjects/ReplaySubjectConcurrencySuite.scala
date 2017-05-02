@@ -56,6 +56,6 @@ object ReplaySubjectConcurrencySuite extends TestSuite[Scheduler] {
     for (_ <- 0 until (nrOfSubscribers - 2))
       s.execute(RunnableAction(subject.unsafeSubscribeFn(createObserver)))
 
-    assert(completed.await(5, TimeUnit.MINUTES), "completed.await")
+    assert(completed.await(15, TimeUnit.MINUTES), "completed.await")
   }
 }
