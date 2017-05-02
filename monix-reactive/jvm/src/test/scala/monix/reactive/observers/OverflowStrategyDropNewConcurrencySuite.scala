@@ -72,7 +72,7 @@ object OverflowStrategyDropNewConcurrencySuite extends TestSuite[Scheduler] {
     for (i <- 0 until 100000) buffer.onNext(i)
     buffer.onComplete()
 
-    assert(completed.await(60, TimeUnit.SECONDS), "completed.await should have succeeded")
+    assert(completed.await(120, TimeUnit.SECONDS), "completed.await should have succeeded")
     assert(number == 100000)
   }
 
@@ -104,7 +104,7 @@ object OverflowStrategyDropNewConcurrencySuite extends TestSuite[Scheduler] {
       else buffer.onComplete()
 
     loop(10000)
-    assert(completed.await(60, TimeUnit.SECONDS), "completed.await should have succeeded")
+    assert(completed.await(120, TimeUnit.SECONDS), "completed.await should have succeeded")
     assertEquals(number, 10000)
   }
 
@@ -185,7 +185,7 @@ object OverflowStrategyDropNewConcurrencySuite extends TestSuite[Scheduler] {
       buffer.onComplete()
 
       promise.success(Continue)
-      assert(completed.await(60, TimeUnit.SECONDS), "wasCompleted.await should have succeeded")
+      assert(completed.await(120, TimeUnit.SECONDS), "wasCompleted.await should have succeeded")
       assert(received <= 10, s"received $received <= 10")
     }
   }

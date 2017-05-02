@@ -130,11 +130,13 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
     "-sourcepath", file(".").getAbsolutePath.replaceAll("[.]$", "")
   ),
 
-  parallelExecution in Test := false,
-  parallelExecution in IntegrationTest := false,
-  testForkedParallel in Test := false,
-  testForkedParallel in IntegrationTest := false,
-  concurrentRestrictions in Global += Tags.limit(Tags.Test, 1),
+  // Not working !!!
+  //
+  // parallelExecution in Test := false,
+  // parallelExecution in IntegrationTest := false,
+  // testForkedParallel in Test := false,
+  // testForkedParallel in IntegrationTest := false,
+  // concurrentRestrictions in Global += Tags.limit(Tags.Test, 1),
 
   resolvers ++= Seq(
     "Typesafe Releases" at "http://repo.typesafe.com/typesafe/releases",
@@ -288,7 +290,7 @@ def profile: Project ⇒ Project = pr => cmdlineProfile match {
 lazy val monix = project.in(file("."))
   .enablePlugins(ScalaUnidocPlugin)
   .configure(profile)
-  .aggregate(coreJVM, coreJS, tckTests)
+  .aggregate(coreJVM, coreJS)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
   .settings(unidocSettings)

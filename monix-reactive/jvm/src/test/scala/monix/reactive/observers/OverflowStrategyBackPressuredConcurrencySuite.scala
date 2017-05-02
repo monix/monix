@@ -88,7 +88,7 @@ object OverflowStrategyBackPressuredConcurrencySuite extends TestSuite[Scheduler
       assert(!completed.await(100, TimeUnit.MILLISECONDS), "completed.await shouldn't have succeeded")
 
       buffer.onComplete()
-      assert(completed.await(60, TimeUnit.SECONDS), "completed.await should have succeeded")
+      assert(completed.await(120, TimeUnit.SECONDS), "completed.await should have succeeded")
     }
   }
 
@@ -115,7 +115,7 @@ object OverflowStrategyBackPressuredConcurrencySuite extends TestSuite[Scheduler
     for (i <- 0 until 100000) buffer.onNext(i)
     buffer.onComplete()
 
-    assert(completed.await(60, TimeUnit.SECONDS), "completed.await should have succeeded")
+    assert(completed.await(120, TimeUnit.SECONDS), "completed.await should have succeeded")
     assert(number == 100000)
   }
 
@@ -148,7 +148,7 @@ object OverflowStrategyBackPressuredConcurrencySuite extends TestSuite[Scheduler
         buffer.onComplete()
 
     loop(10000)
-    assert(completed.await(60, TimeUnit.SECONDS), "completed.await should have succeeded")
+    assert(completed.await(120, TimeUnit.SECONDS), "completed.await should have succeeded")
     assertEquals(number, 10000)
   }
 
