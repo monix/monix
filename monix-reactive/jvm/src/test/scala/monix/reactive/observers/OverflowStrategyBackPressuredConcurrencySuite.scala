@@ -21,21 +21,30 @@ import java.util.concurrent.{CountDownLatch, TimeUnit}
 
 import minitest.TestSuite
 import monix.execution.Ack.{Continue, Stop}
-import monix.execution.{Ack, Scheduler}
-import monix.reactive.OverflowStrategy.BackPressure
+import monix.execution.ExecutionModel.BatchedExecution
 import monix.execution.exceptions.DummyException
+import monix.execution.{Ack, Scheduler}
+import monix.execution.schedulers.SchedulerService
 import monix.reactive.{Observable, Observer}
+import monix.reactive.OverflowStrategy.BackPressure
 
-import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, Promise}
+import scala.concurrent.duration._
 import scala.util.Random
 
-object OverflowStrategyBackPressuredConcurrencySuite extends TestSuite[Scheduler] {
-  def setup() = monix.execution.Scheduler.Implicits.global
-  def tearDown(env: Scheduler) = ()
+object OverflowStrategyBackPressuredConcurrencySuite extends TestSuite[SchedulerService] {
+  def setup() =
+    Scheduler.computation(name="monix-backpressured-test")
 
-  test("merge test should work") { implicit s =>
-    val num = 200000
+  def tearDown(env: SchedulerService) = {
+    env.shutdown()
+    Await.result(env.awaitTermination(1.hour, Scheduler.global), Duration.Inf)
+  }
+
+  test("merge test should work") { scheduler =>
+    implicit val s = scheduler.withExecutionModel(BatchedExecution(1024))
+
+    val num = 100000
     val source = Observable.repeat(1L).take(num)
     val o1 = source.map(_ + 2)
     val o2 = source.map(_ + 3)
@@ -51,7 +60,8 @@ object OverflowStrategyBackPressuredConcurrencySuite extends TestSuite[Scheduler
   }
 
   test("should do back-pressure") { implicit s =>
-    for (_ <- 0 until 100) {
+    // Repeating due to possible problems
+    for (_ <- 0 until 10) {
       val promise = Promise[Ack]()
       val completed = new CountDownLatch(1)
 
@@ -88,11 +98,47 @@ object OverflowStrategyBackPressuredConcurrencySuite extends TestSuite[Scheduler
       assert(!completed.await(100, TimeUnit.MILLISECONDS), "completed.await shouldn't have succeeded")
 
       buffer.onComplete()
-      assert(completed.await(60, TimeUnit.SECONDS), "completed.await should have succeeded")
+      assert(completed.await(15, TimeUnit.MINUTES), "completed.await should have succeeded")
     }
   }
 
-  test("should not lose events, test 1") { implicit s =>
+  test("should not lose events, test 1") { scheduler =>
+    implicit val s = scheduler.withExecutionModel(BatchedExecution(128))
+
+    // Repeating due to problems
+    for (_ <- 0 until 10) {
+      val count = 10000
+      var received = 0
+      val completed = new CountDownLatch(1)
+
+      val underlying = new Observer[Int] {
+        def onNext(elem: Int): Future[Ack] = {
+          received += 1
+          Continue
+        }
+
+        def onError(ex: Throwable): Unit = {
+          s.reportFailure(ex)
+          completed.countDown()
+        }
+
+        def onComplete(): Unit =
+          completed.countDown()
+      }
+
+      val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), BackPressure(count))
+      for (i <- 0 until count) buffer.onNext(i)
+      buffer.onComplete()
+
+      assert(completed.await(15, TimeUnit.MINUTES), "completed.await should have succeeded")
+      assert(received == count)
+    }
+  }
+
+  test("should not lose events, test 2") { scheduler =>
+    implicit val s = scheduler.withExecutionModel(BatchedExecution(128))
+    val totalCount = 10000
+
     var number = 0
     val completed = new CountDownLatch(1)
 
@@ -111,34 +157,7 @@ object OverflowStrategyBackPressuredConcurrencySuite extends TestSuite[Scheduler
       }
     }
 
-    val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), BackPressure(100000))
-    for (i <- 0 until 100000) buffer.onNext(i)
-    buffer.onComplete()
-
-    assert(completed.await(60, TimeUnit.SECONDS), "completed.await should have succeeded")
-    assert(number == 100000)
-  }
-
-  test("should not lose events, test 2") { implicit s =>
-    var number = 0
-    val completed = new CountDownLatch(1)
-
-    val underlying = new Observer[Int] {
-      def onNext(elem: Int): Future[Ack] = {
-        number += 1
-        Continue
-      }
-
-      def onError(ex: Throwable): Unit = {
-        s.reportFailure(ex)
-      }
-
-      def onComplete(): Unit = {
-        completed.countDown()
-      }
-    }
-
-    val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), BackPressure(100000))
+    val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), BackPressure(totalCount))
 
     def loop(n: Int): Unit =
       if (n > 0) s.execute(new Runnable {
@@ -147,16 +166,18 @@ object OverflowStrategyBackPressuredConcurrencySuite extends TestSuite[Scheduler
       else
         buffer.onComplete()
 
-    loop(10000)
-    assert(completed.await(60, TimeUnit.SECONDS), "completed.await should have succeeded")
-    assertEquals(number, 10000)
+    loop(totalCount)
+    assert(completed.await(15, TimeUnit.MINUTES), "completed.await should have succeeded")
+    assertEquals(number, totalCount)
   }
 
-  test("should not lose events with async subscriber from one publisher (with sufficient buffer)") { implicit s =>
+  test("should not lose events with async subscriber from one publisher (with sufficient buffer)") { scheduler =>
+    implicit val s = scheduler.withExecutionModel(BatchedExecution(128))
+
     // Repeating because of possible problems
-    for (_ <- 0 until 100) {
+    for (_ <- 0 until 10) {
       val completed = new CountDownLatch(1)
-      val total = 10000L
+      val total = 2000L
 
       var received = 0
       var sum = 0L
@@ -190,15 +211,17 @@ object OverflowStrategyBackPressuredConcurrencySuite extends TestSuite[Scheduler
       for (i <- 1 to total.toInt) buffer.onNext(i)
       buffer.onComplete()
 
-      assert(completed.await(120, TimeUnit.SECONDS), "completed.await should have succeeded")
+      assert(completed.await(15, TimeUnit.MINUTES), "completed.await should have succeeded")
       assertEquals(received, total)
       assertEquals(sum, total * (total + 1) / 2)
     }
   }
 
-  test("should not lose events with async subscriber from one publisher (with small buffer)") { implicit s =>
+  test("should not lose events with async subscriber from one publisher (with small buffer)") { scheduler =>
+    implicit val s = scheduler.withExecutionModel(BatchedExecution(128))
+
     // Repeating because of possible problems
-    for (_ <- 0 until 100) {
+    for (_ <- 0 until 10) {
       val completed = new CountDownLatch(1)
       val total = 10000L
 
@@ -233,7 +256,7 @@ object OverflowStrategyBackPressuredConcurrencySuite extends TestSuite[Scheduler
       for (i <- 1 to total.toInt) buffer.onNext(i)
       buffer.onComplete()
 
-      assert(completed.await(120, TimeUnit.SECONDS), "completed.await should have succeeded")
+      assert(completed.await(15, TimeUnit.MINUTES), "completed.await should have succeeded")
       assertEquals(received, total)
       assertEquals(sum, total * (total + 1) / 2)
     }
@@ -254,7 +277,7 @@ object OverflowStrategyBackPressuredConcurrencySuite extends TestSuite[Scheduler
       }, BackPressure(5))
 
     buffer.onError(new RuntimeException("dummy"))
-    assert(latch.await(60, TimeUnit.SECONDS), "latch.await should have succeeded")
+    assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
 
     val r = buffer.onNext(1)
     assertEquals(r, Stop)
@@ -275,7 +298,7 @@ object OverflowStrategyBackPressuredConcurrencySuite extends TestSuite[Scheduler
 
     buffer.onNext(1)
     buffer.onError(new RuntimeException("dummy"))
-    assert(latch.await(60, TimeUnit.SECONDS), "latch.await should have succeeded")
+    assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
   }
 
   test("should send onError when at capacity") { implicit s =>
@@ -301,7 +324,7 @@ object OverflowStrategyBackPressuredConcurrencySuite extends TestSuite[Scheduler
     buffer.onError(DummyException("dummy"))
 
     promise.success(Continue)
-    assert(latch.await(60, TimeUnit.SECONDS), "latch.await should have succeeded")
+    assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
   }
 
   test("should send onComplete when empty") { implicit s =>
@@ -315,7 +338,7 @@ object OverflowStrategyBackPressuredConcurrencySuite extends TestSuite[Scheduler
       }, BackPressure(5))
 
     buffer.onComplete()
-    assert(latch.await(60, TimeUnit.SECONDS), "latch.await should have succeeded")
+    assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
   }
 
   test("should send onComplete when in flight") { implicit s =>
@@ -331,7 +354,7 @@ object OverflowStrategyBackPressuredConcurrencySuite extends TestSuite[Scheduler
 
     buffer.onNext(1)
     buffer.onComplete()
-    assert(latch.await(60, TimeUnit.SECONDS), "latch.await should have succeeded")
+    assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
     promise.success(Continue); ()
   }
 
@@ -355,10 +378,13 @@ object OverflowStrategyBackPressuredConcurrencySuite extends TestSuite[Scheduler
     assert(!latch.await(1, TimeUnit.SECONDS), "latch.await should have failed")
 
     promise.success(Continue)
-    assert(latch.await(60, TimeUnit.SECONDS), "latch.await should have succeeded")
+    assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
   }
 
-  test("should do onComplete only after all the queue was drained") { implicit s =>
+  test("should do onComplete only after all the queue was drained") { scheduler =>
+    implicit val s = scheduler.withExecutionModel(BatchedExecution(128))
+    val totalCount = 10000
+
     var sum = 0L
     val complete = new CountDownLatch(1)
     val startConsuming = Promise[Continue]()
@@ -372,17 +398,20 @@ object OverflowStrategyBackPressuredConcurrencySuite extends TestSuite[Scheduler
         def onError(ex: Throwable) = throw ex
         def onComplete() = complete.countDown()
         val scheduler = s
-      }, BackPressure(10000))
+      }, BackPressure(totalCount))
 
-    (0 until 9999).foreach(x => buffer.onNext(x))
+    (0 until (totalCount - 1)).foreach(x => buffer.onNext(x))
     buffer.onComplete()
     startConsuming.success(Continue)
 
-    assert(complete.await(60, TimeUnit.SECONDS), "complete.await should have succeeded")
-    assert(sum == (0 until 9999).sum)
+    assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")
+    assert(sum == (0 until (totalCount - 1)).sum)
   }
 
-  test("should do onComplete only after all the queue was drained, test2") { implicit s =>
+  test("should do onComplete only after all the queue was drained, test2") { scheduler =>
+    implicit val s = scheduler.withExecutionModel(BatchedExecution(128))
+
+    val totalCount = 10000
     var sum = 0L
     val complete = new CountDownLatch(1)
 
@@ -395,16 +424,19 @@ object OverflowStrategyBackPressuredConcurrencySuite extends TestSuite[Scheduler
         def onError(ex: Throwable) = throw ex
         def onComplete() = complete.countDown()
         val scheduler = s
-      }, BackPressure(10000))
+      }, BackPressure(totalCount))
 
-    (0 until 9999).foreach(x => buffer.onNext(x))
+    (0 until (totalCount-1)).foreach(x => buffer.onNext(x))
     buffer.onComplete()
 
-    assert(complete.await(60, TimeUnit.SECONDS), "complete.await should have succeeded")
-    assert(sum == (0 until 9999).sum)
+    assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")
+    assert(sum == (0 until (totalCount-1)).sum)
   }
 
-  test("should do onError only after the queue was drained") { implicit s =>
+  test("should do onError only after the queue was drained") { scheduler =>
+    implicit val s = scheduler.withExecutionModel(BatchedExecution(128))
+
+    val totalCount = 10000
     var sum = 0L
     val complete = new CountDownLatch(1)
     val startConsuming = Promise[Continue]()
@@ -418,17 +450,20 @@ object OverflowStrategyBackPressuredConcurrencySuite extends TestSuite[Scheduler
         def onError(ex: Throwable) = complete.countDown()
         def onComplete() = throw new IllegalStateException()
         val scheduler = s
-      }, BackPressure(10000))
+      }, BackPressure(totalCount))
 
-    (0 until 9999).foreach(x => buffer.onNext(x))
+    (0 until (totalCount-1)).foreach(x => buffer.onNext(x))
     buffer.onError(new RuntimeException)
     startConsuming.success(Continue)
 
-    assert(complete.await(60, TimeUnit.SECONDS), "complete.await should have succeeded")
-    assertEquals(sum, (0 until 9999).sum)
+    assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")
+    assertEquals(sum, (0 until (totalCount-1)).sum)
   }
 
-  test("should do onError only after all the queue was drained, test2") { implicit s =>
+  test("should do onError only after all the queue was drained, test2") { scheduler =>
+    implicit val s = scheduler.withExecutionModel(BatchedExecution(128))
+    val totalCount = 10000
+
     var sum = 0L
     val complete = new CountDownLatch(1)
 
@@ -441,12 +476,12 @@ object OverflowStrategyBackPressuredConcurrencySuite extends TestSuite[Scheduler
         def onError(ex: Throwable) = complete.countDown()
         def onComplete() = throw new IllegalStateException()
         val scheduler = s
-      }, BackPressure(10000))
+      }, BackPressure(totalCount))
 
-    (0 until 9999).foreach(x => buffer.onNext(x))
+    (0 until (totalCount-1)).foreach(x => buffer.onNext(x))
     buffer.onError(new RuntimeException)
 
-    assert(complete.await(60, TimeUnit.SECONDS), "complete.await should have succeeded")
-    assertEquals(sum, (0 until 9999).sum)
+    assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")
+    assertEquals(sum, (0 until (totalCount-1)).sum)
   }
 }

@@ -1003,8 +1003,8 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     findF(p).foldLeftF(false)((_, _) => true)
 
   /** Returns an observable that emits a single Throwable, in case an
-    * error was thrown by the source, otherwise it isn't
-    * going to emit anything.
+    * error was thrown by the source, otherwise it isn't going to emit
+    * anything.
     */
   def failed: Self[Throwable] =
     self.liftByOperator(FailedOperator)

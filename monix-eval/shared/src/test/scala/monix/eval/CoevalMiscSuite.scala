@@ -18,21 +18,32 @@
 package monix.eval
 
 import monix.execution.exceptions.DummyException
-
 import scala.util.{Failure, Random, Success}
 
 object CoevalMiscSuite extends BaseTestSuite {
-  test("Coeval.now.failed should end in error") { implicit s =>
-    val result = Coeval.now(1).failed.runTry
-    assert(result.isFailure &&
-      result.failed.get.isInstanceOf[NoSuchElementException],
-      "Should throw NoSuchElementException")
+  test("Coeval.now.attempt should succeed") { implicit s =>
+    val result = Coeval.now(1).attempt.value
+    assertEquals(result, Right(1))
   }
 
-  test("Coeval.raiseError.failed should expose error") { implicit s =>
+  test("Coeval.raiseError.attempt should expose error") { implicit s =>
     val ex = DummyException("dummy")
-    val result = Coeval.raiseError[Int](ex).failed.runTry
-    assertEquals(result, Success(ex))
+    val result = Coeval.raiseError[Int](ex).attempt.value
+    assertEquals(result, Left(ex))
+  }
+
+  test("Coeval.fail should expose error") { implicit s =>
+    val dummy = DummyException("dummy")
+    check1 { (fa: Coeval[Int]) =>
+      val r = fa.map(_ => throw dummy).failed.value
+      r == dummy
+    }
+  }
+
+  test("Coeval.fail should fail for successful values") { implicit s =>
+    intercept[NoSuchElementException] {
+      Coeval.eval(10).failed.value
+    }
   }
 
   test("Coeval.map protects against user code") { implicit s =>
@@ -41,14 +52,14 @@ object CoevalMiscSuite extends BaseTestSuite {
     assertEquals(result, Failure(ex))
   }
 
-  test("Coeval.now.dematerializeAttempt") { implicit s =>
-    val result = Coeval.now(1).materializeAttempt.dematerializeAttempt.runTry
+  test("Coeval.now.dematerialize") { implicit s =>
+    val result = Coeval.now(1).materialize.dematerialize.runTry
     assertEquals(result, Success(1))
   }
 
-  test("Coeval.raiseError.dematerializeAttempt") { implicit s =>
+  test("Coeval.raiseError.dematerialize") { implicit s =>
     val ex = DummyException("dummy")
-    val result = Coeval.raiseError[Int](ex).materializeAttempt.dematerializeAttempt.runTry
+    val result = Coeval.raiseError[Int](ex).materialize.dematerialize.runTry
     assertEquals(result, Failure(ex))
   }
 

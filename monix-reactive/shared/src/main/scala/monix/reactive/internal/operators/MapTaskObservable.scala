@@ -17,7 +17,6 @@
 
 package monix.reactive.internal.operators
 
-import monix.eval.Coeval.{Error, Now}
 import monix.eval.Task
 import monix.execution.Ack.Stop
 import monix.execution.atomic.Atomic
@@ -125,10 +124,11 @@ private[reactive] final class MapTaskObservable[A,B]
       // we can no longer stream errors downstream
       var streamErrors = true
       try {
-        val task = f(elem).materializeAttempt.flatMap {
-          case Now(value) =>
+        val task = f(elem).transformWith(
+          value => {
             // Shoot first, ask questions later :-)
             val next = out.onNext(value)
+
             // This assignment must happen after `onNext`, otherwise
             // we can end with a race condition with `onComplete`
             stateRef.getAndSet(WaitOnNext) match {
@@ -154,14 +154,14 @@ private[reactive] final class MapTaskObservable[A,B]
                 }
                 Task.now(Stop)
             }
-
-          case Error(ex) =>
+          },
+          error => {
             // The cancelable passed in WaitComplete here can be `null`
             // because it would only replace the child's own cancelable
-            stateRef.getAndSet(WaitComplete(Some(ex), null)) match {
+            stateRef.getAndSet(WaitComplete(Some(error), null)) match {
               case WaitActiveTask | WaitOnNext | Active(_) =>
                 Task.eval {
-                  out.onError(ex)
+                  out.onError(error)
                   Stop
                 }
 
@@ -169,15 +169,16 @@ private[reactive] final class MapTaskObservable[A,B]
                 // If an exception also happened on main observable, log it!
                 otherEx.foreach(scheduler.reportFailure)
                 // Send our immediate error downstream and stop everything
-                out.onError(ex)
+                out.onError(error)
                 Task.now(Stop)
 
               case Cancelled =>
                 // User cancelled, but we have to log it somewhere
-                scheduler.reportFailure(ex)
+                scheduler.reportFailure(error)
                 Task.now(Stop)
             }
-        }
+          }
+        )
 
         // No longer allowed to stream errors downstream
         streamErrors = false
@@ -204,7 +205,7 @@ private[reactive] final class MapTaskObservable[A,B]
             // Expected outcome for asynchronous tasks
             ack
 
-          case previous @ WaitComplete(_,_) =>
+          case WaitComplete(_,_) =>
             // Branch that can happen in case the child has finished
             // already in error, so stop further onNext events.
             Stop

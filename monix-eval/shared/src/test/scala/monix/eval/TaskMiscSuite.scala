@@ -19,22 +19,33 @@ package monix.eval
 
 import monix.execution.exceptions.DummyException
 import org.reactivestreams.{Subscriber, Subscription}
-
 import scala.concurrent.Promise
 import scala.util.{Failure, Success}
 
 object TaskMiscSuite extends BaseTestSuite {
-  test("Task.failed should end in error") { implicit s =>
-    val result = Task.now(1).failed.runAsync
-    assert(result.value.isDefined && result.value.get.isFailure &&
-      result.value.get.failed.get.isInstanceOf[NoSuchElementException],
-      "Should throw NoSuchElementException")
+  test("Task.attempt should succeed") { implicit s =>
+    val result = Task.now(1).attempt.runAsync
+    assertEquals(result.value, Some(Success(Right(1))))
   }
 
-  test("Task.raiseError.failed should expose error") { implicit s =>
+  test("Task.raiseError.attempt should expose error") { implicit s =>
     val ex = DummyException("dummy")
-    val result = Task.raiseError[Int](ex).failed.runAsync
-    assertEquals(result.value, Some(Success(ex)))
+    val result = Task.raiseError[Int](ex).attempt.runAsync
+    assertEquals(result.value, Some(Success(Left(ex))))
+  }
+
+  test("Task.fail should expose error") { implicit s =>
+    val dummy = DummyException("dummy")
+    check1 { (fa: Task[Int]) =>
+      val r = fa.map(_ => throw dummy).failed.coeval.value
+      r == Right(dummy)
+    }
+  }
+
+  test("Task.fail should fail for successful values") { implicit s =>
+    intercept[NoSuchElementException] {
+      Task.eval(10).failed.coeval.value
+    }
   }
 
   test("Task.map protects against user code") { implicit s =>

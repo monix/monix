@@ -18,20 +18,28 @@
 package monix.reactive.observers
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
+
 import minitest.TestSuite
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.exceptions.DummyException
+import monix.execution.schedulers.SchedulerService
 import monix.execution.{Ack, Scheduler}
 import monix.reactive.OverflowStrategy.DropNew
 import monix.reactive.observers.buffers.DropNewBufferedSubscriber
 import monix.reactive.{Observable, Observer}
+
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, Promise}
 import scala.util.Random
 
-object OverflowStrategyDropNewConcurrencySuite extends TestSuite[Scheduler] {
-  def setup() = monix.execution.Scheduler.Implicits.global
-  def tearDown(env: Scheduler) = ()
+object OverflowStrategyDropNewConcurrencySuite extends TestSuite[SchedulerService] {
+  def setup() =
+    Scheduler.computation(name="monix-drop-new-test")
+
+  def tearDown(env: SchedulerService) = {
+    env.shutdown()
+    Await.result(env.awaitTermination(1.hour, Scheduler.global), Duration.Inf)
+  }
 
   test("merge test should work") { implicit s =>
     val num = 100000
@@ -72,7 +80,7 @@ object OverflowStrategyDropNewConcurrencySuite extends TestSuite[Scheduler] {
     for (i <- 0 until 100000) buffer.onNext(i)
     buffer.onComplete()
 
-    assert(completed.await(60, TimeUnit.SECONDS), "completed.await should have succeeded")
+    assert(completed.await(15, TimeUnit.MINUTES), "completed.await should have succeeded")
     assert(number == 100000)
   }
 
@@ -104,7 +112,7 @@ object OverflowStrategyDropNewConcurrencySuite extends TestSuite[Scheduler] {
       else buffer.onComplete()
 
     loop(10000)
-    assert(completed.await(60, TimeUnit.SECONDS), "completed.await should have succeeded")
+    assert(completed.await(15, TimeUnit.MINUTES), "completed.await should have succeeded")
     assertEquals(number, 10000)
   }
 
@@ -112,7 +120,7 @@ object OverflowStrategyDropNewConcurrencySuite extends TestSuite[Scheduler] {
     // Repeating because of possible problems
     for (_ <- 0 until 100) {
       val completed = new CountDownLatch(1)
-      val total = 10000L
+      val total = 1000L
 
       var received = 0
       var sum = 0L
@@ -146,14 +154,14 @@ object OverflowStrategyDropNewConcurrencySuite extends TestSuite[Scheduler] {
       for (i <- 1 to total.toInt) buffer.onNext(i)
       buffer.onComplete()
 
-      assert(completed.await(120, TimeUnit.SECONDS), "completed.await should have succeeded")
+      assert(completed.await(15, TimeUnit.MINUTES), "completed.await should have succeeded")
       assertEquals(received, total)
       assertEquals(sum, total * (total + 1) / 2)
     }
   }
 
   test("should drop incoming when over capacity") { implicit s =>
-    // repeating test 100 times because of problems
+    // Repeating due to possible problems
     for (_ <- 0 until 100) {
       var received = 0
       val started = new CountDownLatch(1)
@@ -185,7 +193,7 @@ object OverflowStrategyDropNewConcurrencySuite extends TestSuite[Scheduler] {
       buffer.onComplete()
 
       promise.success(Continue)
-      assert(completed.await(60, TimeUnit.SECONDS), "wasCompleted.await should have succeeded")
+      assert(completed.await(15, TimeUnit.MINUTES), "wasCompleted.await should have succeeded")
       assert(received <= 10, s"received $received <= 10")
     }
   }
@@ -204,7 +212,7 @@ object OverflowStrategyDropNewConcurrencySuite extends TestSuite[Scheduler] {
     }, DropNew(5))
 
     buffer.onError(new RuntimeException("dummy"))
-    assert(latch.await(60, TimeUnit.SECONDS), "latch.await should have succeeded")
+    assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
 
     val r = buffer.onNext(1)
     assertEquals(r, Stop)
@@ -224,7 +232,7 @@ object OverflowStrategyDropNewConcurrencySuite extends TestSuite[Scheduler] {
 
     buffer.onNext(1)
     buffer.onError(new RuntimeException("dummy"))
-    assert(latch.await(60, TimeUnit.SECONDS), "latch.await should have succeeded")
+    assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
   }
 
   test("should send onError when at capacity") { implicit s =>
@@ -250,7 +258,7 @@ object OverflowStrategyDropNewConcurrencySuite extends TestSuite[Scheduler] {
     buffer.onError(DummyException("dummy"))
 
     promise.success(Continue)
-    assert(latch.await(60, TimeUnit.SECONDS), "latch.await should have succeeded")
+    assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
   }
 
   test("should send onComplete when empty") { implicit s =>
@@ -263,7 +271,7 @@ object OverflowStrategyDropNewConcurrencySuite extends TestSuite[Scheduler] {
     }, DropNew(5))
 
     buffer.onComplete()
-    assert(latch.await(60, TimeUnit.SECONDS), "latch.await should have succeeded")
+    assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
   }
 
   test("should send onComplete when in flight") { implicit s =>
@@ -300,7 +308,7 @@ object OverflowStrategyDropNewConcurrencySuite extends TestSuite[Scheduler] {
     assert(!latch.await(1, TimeUnit.SECONDS), "latch.await should have failed")
 
     promise.success(Continue)
-    assert(latch.await(60, TimeUnit.SECONDS), "latch.await should have succeeded")
+    assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
   }
 
   test("should do onComplete only after all the queue was drained") { implicit s =>
@@ -322,7 +330,7 @@ object OverflowStrategyDropNewConcurrencySuite extends TestSuite[Scheduler] {
     buffer.onComplete()
     startConsuming.success(Continue)
 
-    assert(complete.await(60, TimeUnit.SECONDS), "complete.await should have succeeded")
+    assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")
     assert(sum == (0 until 9999).sum)
   }
 
@@ -343,7 +351,7 @@ object OverflowStrategyDropNewConcurrencySuite extends TestSuite[Scheduler] {
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onComplete()
 
-    assert(complete.await(60, TimeUnit.SECONDS), "complete.await should have succeeded")
+    assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")
     assert(sum == (0 until 9999).sum)
   }
 
@@ -366,7 +374,7 @@ object OverflowStrategyDropNewConcurrencySuite extends TestSuite[Scheduler] {
     buffer.onError(new RuntimeException)
     startConsuming.success(Continue)
 
-    assert(complete.await(60, TimeUnit.SECONDS), "complete.await should have succeeded")
+    assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")
     assertEquals(sum, (0 until 9999).sum)
   }
 
@@ -388,7 +396,7 @@ object OverflowStrategyDropNewConcurrencySuite extends TestSuite[Scheduler] {
     (0 until 9999).foreach(x => buffer.onNext(x))
     buffer.onError(new RuntimeException)
 
-    assert(complete.await(60, TimeUnit.SECONDS), "complete.await should have succeeded")
+    assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")
     assertEquals(sum, (0 until 9999).sum)
   }
 }

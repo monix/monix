@@ -108,7 +108,7 @@ object AsyncSchedulerSuite extends SimpleTestSuite {
       def run(): Unit = latch.countDown()
     })
 
-    assert(latch.await(2, TimeUnit.MINUTES), "latch.await")
+    assert(latch.await(15, TimeUnit.MINUTES), "latch.await")
   }
 
   test("execute local") {

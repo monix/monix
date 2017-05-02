@@ -17,9 +17,7 @@
 
 package monix.eval
 
-import monix.eval.Coeval.{Error, Now}
 import monix.execution.exceptions.DummyException
-
 import scala.util.{Failure, Success}
 
 object CoevalEvalAlwaysSuite extends BaseTestSuite {
@@ -63,7 +61,7 @@ object CoevalEvalAlwaysSuite extends BaseTestSuite {
 
   test("Coeval.eval.flatMap should be tail recursive") { implicit s =>
     def loop(n: Int, idx: Int): Coeval[Int] =
-      Coeval.eval(idx).flatMap { a =>
+      Coeval.eval(idx).flatMap { _ =>
         if (idx < n) loop(n, idx + 1).map(_ + 1) else
           Coeval.eval(idx)
       }
@@ -86,17 +84,17 @@ object CoevalEvalAlwaysSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("Coeval.eval.materializeAttempt should work for success") { implicit s =>
-    val task = Coeval.eval(1).materializeAttempt
+  test("Coeval.eval.materialize should work for success") { implicit s =>
+    val task = Coeval.eval(1).materialize
     val f = task.runTry
-    assertEquals(f, Success(Now(1)))
+    assertEquals(f, Success(Success(1)))
   }
 
-  test("Coeval.eval.materializeAttempt should work for failure") { implicit s =>
+  test("Coeval.eval.materialize should work for failure") { implicit s =>
     val dummy = DummyException("dummy")
-    val task = Coeval.eval[Int](throw dummy).materializeAttempt
+    val task = Coeval.eval[Int](throw dummy).materialize
     val f = task.runTry
-    assertEquals(f, Success(Error(dummy)))
+    assertEquals(f, Success(Failure(dummy)))
   }
 
   test("Coeval.eval.task") { implicit s =>

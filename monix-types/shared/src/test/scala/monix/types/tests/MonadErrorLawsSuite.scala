@@ -49,7 +49,8 @@ trait MonadErrorLawsSuite[F[_],A,B,C,E] extends MonadLawsSuite[F,A,B,C] {
     arbitraryFBtoC: Arbitrary[F[B => C]],
     eqFA: Eq[F[A]],
     eqFB: Eq[F[B]],
-    eqFC: Eq[F[C]]): Unit = {
+    eqFC: Eq[F[C]],
+    eqFEitherEA: Eq[F[Either[E, A]]]): Unit = {
 
     if (includeSupertypes) monadCheck(typeName, includeSupertypes)
 
@@ -91,6 +92,14 @@ trait MonadErrorLawsSuite[F[_],A,B,C,E] extends MonadLawsSuite[F,A,B,C] {
     test(s"MonadError[$typeName].recoverConsistentWithRecoverWith") {
       check2((fa: F[A], pf: PartialFunction[E, A]) =>
         monadErrorLaws.recoverConsistentWithRecoverWith(fa, pf))
+    }
+
+    test(s"MonadError[$typeName].raiseErrorAttempt") {
+      check1 { (e: E) => monadErrorLaws.raiseErrorAttempt[A](e) }
+    }
+
+    test(s"MonadError[$typeName].pureAttempt") {
+      check1 { (a: A) => monadErrorLaws.pureAttempt(a) }
     }
   }
 }

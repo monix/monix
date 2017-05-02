@@ -17,15 +17,14 @@
 
 package monix.reactive.internal.operators
 
-import monix.eval.{Callback, Coeval, Task}
+import monix.eval.{Callback, Task}
 import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.Atomic
 import monix.execution.misc.NonFatal
+import monix.reactive.internal.util.Instances._
 import monix.reactive.observables.ObservableLike.Operator
 import monix.reactive.observers.Subscriber
-import monix.reactive.internal.util.Instances._
-
 import scala.concurrent.Future
 import scala.util.Success
 
@@ -45,14 +44,14 @@ class EvalOnTerminateOperator[A](onTerminate: Option[Throwable] => Task[Unit], h
           try out.onNext(elem)
           catch { case NonFatal(ex) => Future.failed(ex) }
 
-        val task = Task.fromFuture(result).materializeAttempt.flatMap {
-          case Coeval.Now(ack) =>
+        val task = Task.fromFuture(result).attempt.flatMap {
+          case Right(ack) =>
             ack match {
               case Continue => ContinueTask
               case Stop =>
                 onTerminate(None).map(_ => Stop)
             }
-          case Coeval.Error(ex) =>
+          case Left(ex) =>
             onError(ex)
             onTerminate(Some(ex)).map(_ => Stop)
         }

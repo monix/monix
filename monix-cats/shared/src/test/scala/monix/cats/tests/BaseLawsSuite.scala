@@ -167,7 +167,7 @@ trait BaseLawsSuiteInstances1 extends cats.instances.AllInstances with MonixToCa
       val eqA = implicitly[Eq[Try[A]]]
 
       def eqv(x: Coeval[A], y: Coeval[A]): Boolean =
-        eqA.eqv(x.runAttempt.asScala, y.runAttempt.asScala)
+        eqA.eqv(x.runTry, y.runTry)
     }
 
   implicit def equalityTask[A : Eq]: Eq[Task[A]] =

@@ -1,12 +1,13 @@
 import com.typesafe.sbt.pgp.PgpKeys
 import com.typesafe.tools.mima.core._
-import com.typesafe.tools.mima.core.ProblemFilters._
 
 // For getting Scoverage out of the generated POM
 import scala.xml.Elem
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 
-addCommandAlias("ci", ";test:compile ;test ;mimaReportBinaryIssues ;doc")
+addCommandAlias("ci-jvm-all", ";clean ;coreJVM/test:compile ;coreJVM/test ;mimaReportBinaryIssues ;unidoc")
+addCommandAlias("ci-jvm",     ";clean ;coreJVM/test:compile ;coreJVM/test")
+addCommandAlias("ci-js",      ";clean ;coreJS/test:compile  ;coreJS/test")
 
 val catsVersion = "0.9.0"
 val scalazVersion = "7.2.11"
@@ -14,7 +15,7 @@ val scalazVersion = "7.2.11"
 // The Monix version with which we must keep binary compatibility.
 // For MiMa testing, see:
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
-val monixSeries = "2.2.0"
+val monixSeries = "2.2.4"
 
 lazy val doNotPublishArtifact = Seq(
   publishArtifact := false,
@@ -276,7 +277,7 @@ lazy val cmdlineProfile =
   sys.env.getOrElse("SBT_PROFILE", "")
 
 def mimaSettings(projectName: String) = Seq(
-  // mimaPreviousArtifacts := Set("io.monix" %% projectName % monixSeries)
+  mimaPreviousArtifacts := Set("io.monix" %% projectName % monixSeries)
 )
 
 def profile: Project ⇒ Project = pr => cmdlineProfile match {
@@ -287,7 +288,7 @@ def profile: Project ⇒ Project = pr => cmdlineProfile match {
 lazy val monix = project.in(file("."))
   .enablePlugins(ScalaUnidocPlugin)
   .configure(profile)
-  .aggregate(coreJVM, coreJS, tckTests)
+  .aggregate(coreJVM, coreJS)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
   .settings(unidocSettings)
@@ -352,10 +353,15 @@ lazy val executionJS = project.in(file("monix-execution/js"))
 lazy val evalCommon =
   crossSettings ++ testSettings ++ Seq(
     name := "monix-eval",
-    // Filtering out private stuff for 2.2.x
+    // Filtering out private stuff that changed in 2.3.x
     mimaBinaryIssueFilters ++= Seq(
-      // Related to issue: https://github.com/monix/monix/issues/313
-      exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskFromFuture.apply")
+      ProblemFilters.exclude[DirectMissingMethodProblem]("monix.eval.Task.internalStartTrampolineRunLoop"),
+      ProblemFilters.exclude[MissingClassProblem]("monix.eval.Coeval$BindSuspend"),
+      ProblemFilters.exclude[MissingClassProblem]("monix.eval.Coeval$BindSuspend$"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("monix.eval.Task#MemoizeSuspend.execute"),
+      ProblemFilters.exclude[MissingTypesProblem]("monix.eval.Task$Context$"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("monix.eval.Task#Eval.f"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("monix.eval.Coeval.trampoline")
     )
   )
 
@@ -377,20 +383,11 @@ lazy val evalJS = project.in(file("monix-eval/js"))
 lazy val reactiveCommon =
   crossSettings ++ testSettings ++ Seq(
     name := "monix-reactive",
-    // Filtering out private stuff for 2.2.x
+    // Filtering out private stuff for 2.3.x
     mimaBinaryIssueFilters ++= Seq(
-      // Related to issue: https://github.com/monix/monix/issues/321
-      // All these types are private, so in fact we cannot break binary compatibility,
-      // unless accessed by reflection, for which Monix can't make a guarantee
-      exclude[MissingTypesProblem]("monix.reactive.internal.operators.ConcatMapObservable$FlatMapState$WaitComplete$"),
-      exclude[DirectMissingMethodProblem]("monix.reactive.internal.operators.ConcatMapObservable#FlatMapState#WaitComplete.apply"),
-      exclude[DirectMissingMethodProblem]("monix.reactive.internal.operators.ConcatMapObservable#FlatMapState#WaitComplete.copy"),
-      exclude[DirectMissingMethodProblem]("monix.reactive.internal.operators.ConcatMapObservable#FlatMapState#WaitComplete.this"),
-      exclude[MissingTypesProblem]("monix.reactive.internal.operators.MapTaskObservable$FlatMapState$WaitComplete$"),
-      exclude[DirectMissingMethodProblem]("monix.reactive.internal.operators.MapTaskObservable#FlatMapState#WaitComplete.apply"),
-      exclude[DirectMissingMethodProblem]("monix.reactive.internal.operators.MapTaskObservable#FlatMapState#WaitComplete.copy"),
-      exclude[DirectMissingMethodProblem]("monix.reactive.internal.operators.MapTaskObservable#FlatMapState#WaitComplete.this"),
-      exclude[MissingClassProblem]("monix.reactive.internal.operators.MapAsyncParallelObservable$MapAsyncParallelSubscriber")
+      ProblemFilters.exclude[DirectMissingMethodProblem]("monix.reactive.observers.buffers.AbstractBackPressuredBufferedSubscriber.secondaryQueue"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("monix.reactive.observers.buffers.AbstractBackPressuredBufferedSubscriber.primaryQueue"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("monix.reactive.observers.buffers.ConcurrentQueue.unbounded")
     )
   )
 
