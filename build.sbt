@@ -7,7 +7,7 @@ import scala.xml.transform.{RewriteRule, RuleTransformer}
 
 addCommandAlias("ci-all", ";clean ;test:compile ;coreJVM/test; coreJS/test ;mimaReportBinaryIssues ;unidoc")
 
-addCommandAlias("ci", ";clean ;test:compile ;coreJVM/test; coreJS/test ;doc")
+addCommandAlias("ci", ";clean ;test:compile ;coreJVM/test ;coreJS/test")
 
 val catsVersion = "0.9.0"
 val scalazVersion = "7.2.11"
