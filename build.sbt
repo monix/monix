@@ -1,6 +1,5 @@
 import com.typesafe.sbt.pgp.PgpKeys
 import com.typesafe.tools.mima.core._
-import com.typesafe.tools.mima.core.ProblemFilters._
 
 // For getting Scoverage out of the generated POM
 import scala.xml.Elem

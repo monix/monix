@@ -32,7 +32,7 @@ package object schedulers {
 
   /** Deprecated. Moved to [[monix.execution.ExecutionModel]]. */
   @deprecated("Moved to `monix.execution.ExecutionModel`", since="2.1.3")
-  object ExecutionModel {
+  object ExecutionModel extends Serializable {
     /** Deprecated. Moved to [[monix.execution.ExecutionModel.SynchronousExecution]]. */
     @deprecated("Moved to `monix.execution.ExecutionModel.SynchronousExecution`", since="2.1.3")
     def SynchronousExecution = monix.execution.ExecutionModel.SynchronousExecution
