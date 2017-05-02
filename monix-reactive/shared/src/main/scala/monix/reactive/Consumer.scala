@@ -349,14 +349,4 @@ object Consumer {
   trait Sync[-In, +R] extends Consumer[In, R] {
     override def createSubscriber(cb: Callback[R], s: Scheduler): (Subscriber.Sync[In], AssignableCancelable)
   }
-
-
-
-
-
-
-
-
-
-
 }
