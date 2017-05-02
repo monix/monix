@@ -18,20 +18,28 @@
 package monix.reactive.observers
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
+
 import minitest.TestSuite
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.exceptions.DummyException
+import monix.execution.schedulers.SchedulerService
 import monix.execution.{Ack, Scheduler}
 import monix.reactive.OverflowStrategy.DropNew
 import monix.reactive.observers.buffers.DropNewBufferedSubscriber
 import monix.reactive.{Observable, Observer}
+
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, Promise}
 import scala.util.Random
 
-object OverflowStrategyDropNewConcurrencySuite extends TestSuite[Scheduler] {
-  def setup() = monix.execution.Scheduler.Implicits.global
-  def tearDown(env: Scheduler) = ()
+object OverflowStrategyDropNewConcurrencySuite extends TestSuite[SchedulerService] {
+  def setup() =
+    Scheduler.computation(name="monix-drop-new-test")
+
+  def tearDown(env: SchedulerService) = {
+    env.shutdown()
+    Await.result(env.awaitTermination(1.hour, Scheduler.global), Duration.Inf)
+  }
 
   test("merge test should work") { implicit s =>
     val num = 100000
@@ -112,7 +120,7 @@ object OverflowStrategyDropNewConcurrencySuite extends TestSuite[Scheduler] {
     // Repeating because of possible problems
     for (_ <- 0 until 100) {
       val completed = new CountDownLatch(1)
-      val total = 10000L
+      val total = 1000L
 
       var received = 0
       var sum = 0L
@@ -153,7 +161,7 @@ object OverflowStrategyDropNewConcurrencySuite extends TestSuite[Scheduler] {
   }
 
   test("should drop incoming when over capacity") { implicit s =>
-    // repeating test 100 times because of problems
+    // Repeating due to possible problems
     for (_ <- 0 until 100) {
       var received = 0
       val started = new CountDownLatch(1)
