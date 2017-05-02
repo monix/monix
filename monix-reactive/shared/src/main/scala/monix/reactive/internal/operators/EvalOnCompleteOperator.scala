@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.operators
 
-import monix.eval.{Coeval, Task}
+import monix.eval.Task
 import monix.execution.Ack
 import monix.reactive.observables.ObservableLike.Operator
 import monix.reactive.observers.Subscriber
@@ -34,10 +34,10 @@ class EvalOnCompleteOperator[A](task: Task[Unit]) extends Operator[A,A] {
       def onError(ex: Throwable): Unit = out.onError(ex)
 
       def onComplete(): Unit =
-        task.materializeAttempt.foreach {
-          case Coeval.Now(()) =>
+        task.attempt.foreach {
+          case Right(()) =>
             out.onComplete()
-          case Coeval.Error(ex) =>
+          case Left(ex) =>
             out.onError(ex)
         }
     }

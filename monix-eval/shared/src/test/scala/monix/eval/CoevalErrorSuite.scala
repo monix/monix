@@ -33,6 +33,18 @@ object CoevalErrorSuite extends BaseTestSuite {
     assertEquals(r, Right(10))
   }
 
+  test("Coeval.fail should expose error") { implicit s =>
+    val dummy = DummyException("dummy")
+    val r = Coeval.raiseError[Int](dummy).failed.value
+    assertEquals(r, dummy)
+  }
+
+  test("Coeval.fail should fail for successful values") { implicit s =>
+    intercept[NoSuchElementException] {
+      Coeval.now(10).failed.value
+    }
+  }
+
   test("Coeval.now.materialize") { implicit s =>
     assertEquals(Coeval.now(10).materialize.value, Success(10))
   }

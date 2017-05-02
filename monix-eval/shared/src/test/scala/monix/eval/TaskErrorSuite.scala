@@ -25,7 +25,7 @@ import scala.util.{Failure, Success}
 
 object TaskErrorSuite extends BaseTestSuite {
   test("Task.attempt should expose error") { implicit s =>
-    val dummy = DummyException("ex")
+    val dummy = DummyException("dummy")
     val r = Task.raiseError[Int](dummy).attempt.coeval.runTry
     assertEquals(r, Success(Right(Left(dummy))))
   }
@@ -33,6 +33,18 @@ object TaskErrorSuite extends BaseTestSuite {
   test("Task.attempt should work for successful values") { implicit s =>
     val r = Task.now(10).attempt.coeval.runTry
     assertEquals(r, Success(Right(Right(10))))
+  }
+
+  test("Task.fail should expose error") { implicit s =>
+    val dummy = DummyException("dummy")
+    val r = Task.raiseError[Int](dummy).failed.coeval.value
+    assertEquals(r, Right(dummy))
+  }
+
+  test("Task.fail should fail for successful values") { implicit s =>
+    intercept[NoSuchElementException] {
+      Task.now(10).failed.coeval.value
+    }
   }
 
   test("Task.now.materialize") { implicit s =>

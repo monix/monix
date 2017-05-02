@@ -104,6 +104,16 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
   def attempt: Coeval[Either[Throwable, A]] =
     FlatMap(this, AttemptCoeval.asInstanceOf[Transformation[A, Coeval[Either[Throwable, A]]]])
 
+  /** Returns a failed projection of this coeval.
+    *
+    * The failed projection is a `Coeval` holding a value of type `Throwable`,
+    * emitting the error yielded by the source, in case the source fails,
+    * otherwise if the source succeeds the result will fail with a
+    * `NoSuchElementException`.
+    */
+  def failed: Coeval[Throwable] =
+    self.transformWith(_ => Error(new NoSuchElementException("failed")), e => Now(e))
+
   /** Creates a new `Coeval` by applying a function to the successful result
     * of the source, and returns a new instance equivalent
     * to the result of the function.
@@ -313,35 +323,6 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     for (a <- this; b <- that) yield f(a,b)
 
   // ---- Deprecated operations, preserved for backwards compatibility
-
-  /** Returns a failed projection of this coeval.
-    *
-    * The failed projection is a `Coeval` holding an optional value
-    * of type `Throwable`, emitting a `Some(error)` value, which is
-    * the throwable of the original `Coeval` in case the source fails,
-    * otherwise if the source succeeds the result will be `None`.
-    *
-    * Deprecated, please use [[Coeval#attempt]].
-    *
-    * The reason for the deprecation is that this function is unsafe,
-    * since it can yield errors on its own (if the source does not
-    * yield an error), but also because of naming consistency, because
-    * we are using "error" and not "failure" to indicate errors.
-    *
-    * [[Coeval.attempt]] is better for exposing and handling errors and
-    * you can get the same behaviour with:
-    * {{{
-    *   source.attempt.flatMap {
-    *     case Left(e) =>
-    *       Coeval.now(e)
-    *     case Right(_) =>
-    *       Coeval.raiseError(new NoSuchElementException("failed"))
-    *   }
-    * }}}
-    */
-  @deprecated("Use Coeval#attempt", "2.3.0")
-  def failed: Coeval[Throwable] =
-    self.transformWith(_ => Error(new NoSuchElementException("failed")), e => Now (e))
 
   /** Creates a new [[Coeval]] that will expose any triggered error from
     * the source.
@@ -567,7 +548,6 @@ object Coeval {
         case Error(ex) => Failure(ex)
       }
 
-    @deprecated("Use Coeval#attempt", "2.3.0")
     override def failed: Attempt[Throwable] =
       self match {
         case Coeval.Now(_) =>
@@ -584,6 +564,7 @@ object Coeval {
     final def isFailure: Boolean =
       self.isError
 
+    @deprecated("Use Coeval#attempt or Coeval#materialize", "2.3.0")
     override final def materializeAttempt: Attempt[Attempt[A]] =
       self match {
         case now@Now(_) =>
@@ -592,6 +573,7 @@ object Coeval {
           Now(Error(ex))
       }
 
+    @deprecated("Use Coeval#attempt or Coeval#materialize", "2.3.0")
     override final def dematerializeAttempt[B](implicit ev: <:<[A, Attempt[B]]): Attempt[B] =
       self match {
         case Now(now) => now

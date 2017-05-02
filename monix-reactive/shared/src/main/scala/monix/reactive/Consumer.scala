@@ -17,7 +17,6 @@
 
 package monix.reactive
 
-import monix.eval.Coeval.{Error, Now}
 import monix.eval.{Callback, Task}
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.{Atomic, PaddingStrategy}
@@ -645,14 +644,15 @@ object Consumer {
           // Protects calls to user code from within the operator,
           // as a matter of contract.
           try {
-            val task = f(state, elem).materializeAttempt.map {
-              case Now(update) =>
+            val task = f(state, elem).transform(
+              update => {
                 state = update
                 Continue
-              case Error(ex) =>
-                onError(ex)
+              },
+              error => {
+                onError(error)
                 Stop
-            }
+              })
 
             task.runAsync
           }
@@ -873,7 +873,7 @@ object Consumer {
         // emit the first one, so in case multiple errors happen we
         // want to log them, but only if they aren't the same reference
         // MUST BE synchronized by `self`
-        private[this] var reportedError: Throwable = null
+        private[this] var reportedError: Throwable = _
 
         // Results accumulator - when length == parallelism,
         // that's when we need to trigger `onFinish.onSuccess`.

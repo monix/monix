@@ -32,6 +32,20 @@ object CoevalMiscSuite extends BaseTestSuite {
     assertEquals(result, Left(ex))
   }
 
+  test("Coeval.fail should expose error") { implicit s =>
+    val dummy = DummyException("dummy")
+    check1 { (fa: Coeval[Int]) =>
+      val r = fa.map(_ => throw dummy).failed.value
+      r == dummy
+    }
+  }
+
+  test("Coeval.fail should fail for successful values") { implicit s =>
+    intercept[NoSuchElementException] {
+      Coeval.eval(10).failed.value
+    }
+  }
+
   test("Coeval.map protects against user code") { implicit s =>
     val ex = DummyException("dummy")
     val result = Coeval.now(1).map(_ => throw ex).runTry

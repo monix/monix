@@ -153,6 +153,16 @@ sealed abstract class Task[+A] extends Serializable { self =>
   def coeval(implicit s: Scheduler): Coeval[Either[CancelableFuture[A], A]] =
     Coeval.eval(runSyncMaybe(s))
 
+  /** Returns a failed projection of this task.
+    *
+    * The failed projection is a `Task` holding a value of type `Throwable`, 
+    * emitting the error yielded by the source, in case the source fails,
+    * otherwise if the source succeeds the result will fail with a 
+    * `NoSuchElementException`.
+    */
+  def failed: Task[Throwable] =
+    transformWith(_ => Error(new NoSuchElementException("failed")), e => Now(e))
+  
   /** Creates a new Task by applying a function to the successful result
     * of the source Task, and returns a task equivalent to the result
     * of the function.
@@ -621,35 +631,6 @@ sealed abstract class Task[+A] extends Serializable { self =>
     Task.mapBoth(this, that)(f)
 
   // ---- Deprecated operations, preserved for backwards compatibility
-
-  /** Returns a failed projection of this task.
-    *
-    * The failed projection is a future holding a value of type
-    * `Throwable`, emitting a value which is the throwable of the
-    * original task in case the original task fails, otherwise if the
-    * source succeeds, then it fails with a `NoSuchElementException`.
-    *
-    * Deprecated, please use [[Task#attempt]].
-    *
-    * The reason for the deprecation is that this function is unsafe,
-    * since it can yield errors on its own (if the source does not
-    * yield an error), but also because of naming consistency, because
-    * we are using "error" and not "failure" to indicate errors.
-    *
-    * [[Task.attempt]] is better for exposing and handling errors and
-    * you can get the same behaviour with:
-    * {{{
-    *   source.attempt.flatMap {
-    *     case Left(e) =>
-    *       Task.now(e)
-    *     case Right(_) =>
-    *       Task.raiseError(new NoSuchElementException("failed"))
-    *   }
-    * }}}
-    */
-  @deprecated("Use Task#attempt", "2.3.0")
-  def failed: Task[Throwable] =
-    transformWith(_ => Error(new NoSuchElementException("failed")), e => Now (e))
 
   /** Creates a new [[Task]] that will expose any triggered error from
     * the source.
