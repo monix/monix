@@ -36,7 +36,7 @@ install:
 
 script:
   - export SBT_PROFILE=$COVERAGE
-  - sbt -J-Xmx6144m ++$TRAVIS_SCALA_VERSION $COVERAGE $COMMAND
+  - travis_wait 20 sbt -J-Xmx6144m ++$TRAVIS_SCALA_VERSION $COVERAGE $COMMAND
 
 after_success:
   - |
