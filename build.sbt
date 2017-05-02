@@ -5,9 +5,9 @@ import com.typesafe.tools.mima.core._
 import scala.xml.Elem
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 
-addCommandAlias("ci-all", ";clean ;test:compile ;test ;mimaReportBinaryIssues ;unidoc")
+addCommandAlias("ci-all", ";clean ;test:compile ;coreJVM/test; coreJS/test ;mimaReportBinaryIssues ;unidoc")
 
-addCommandAlias("ci", ";clean ;test:compile ;test ;doc")
+addCommandAlias("ci", ";clean ;test:compile ;coreJVM/test; coreJS/test ;doc")
 
 val catsVersion = "0.9.0"
 val scalazVersion = "7.2.11"
@@ -130,13 +130,11 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
     "-sourcepath", file(".").getAbsolutePath.replaceAll("[.]$", "")
   ),
 
-  // Not working !!!
-  //
-  // parallelExecution in Test := false,
-  // parallelExecution in IntegrationTest := false,
-  // testForkedParallel in Test := false,
-  // testForkedParallel in IntegrationTest := false,
-  // concurrentRestrictions in Global += Tags.limit(Tags.Test, 1),
+  parallelExecution in Test := false,
+  parallelExecution in IntegrationTest := false,
+  testForkedParallel in Test := false,
+  testForkedParallel in IntegrationTest := false,
+  concurrentRestrictions in Global += Tags.limit(Tags.Test, 1),
 
   resolvers ++= Seq(
     "Typesafe Releases" at "http://repo.typesafe.com/typesafe/releases",
