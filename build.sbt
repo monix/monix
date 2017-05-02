@@ -5,9 +5,9 @@ import com.typesafe.tools.mima.core._
 import scala.xml.Elem
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 
-addCommandAlias("ci-all", ";clean ;test:compile ;coreJVM/test; coreJS/test ;mimaReportBinaryIssues ;unidoc")
-
-addCommandAlias("ci", ";clean ;test:compile ;coreJVM/test ;coreJS/test")
+addCommandAlias("ci-jvm-all", ";clean ;coreJVM/test:compile ;coreJVM/test ;mimaReportBinaryIssues ;unidoc")
+addCommandAlias("ci-jvm",     ";clean ;coreJVM/test:compile ;coreJVM/test")
+addCommandAlias("ci-js",      ";clean ;coreJS/test:compile  ;coreJS/test")
 
 val catsVersion = "0.9.0"
 val scalazVersion = "7.2.11"
