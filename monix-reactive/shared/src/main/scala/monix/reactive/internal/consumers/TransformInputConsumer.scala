@@ -18,28 +18,23 @@
 package monix.reactive.internal.consumers
 
 import monix.eval.Callback
-import monix.execution.{Cancelable, Scheduler}
-import monix.execution.cancelables.{AssignableCancelable, SingleAssignmentCancelable}
-import monix.reactive.{Consumer, Observer}
+import monix.execution.Scheduler
+import monix.execution.cancelables.AssignableCancelable
 import monix.reactive.observers.Subscriber
-import scala.util.{Failure, Success, Try}
+import monix.reactive.{Consumer, Observable, Pipe}
 
-/** Implementation for [[monix.reactive.Consumer.create]]. */
+/** Implementation for [[monix.reactive.Consumer.transformInput]]. */
 private[reactive]
-final class CreateConsumer[-In,+Out]
-  (f: (Scheduler, Cancelable, Callback[Out]) => Observer[In])
-  extends Consumer[In,Out] {
+final class TransformInputConsumer[In2, -In, +R]
+  (source: Consumer[In, R], f: Observable[In2] => Observable[In])
+  extends Consumer[In2, R] {
 
-  def createSubscriber(cb: Callback[Out], s: Scheduler): (Subscriber[In], AssignableCancelable) = {
-    val conn = SingleAssignmentCancelable()
+  def createSubscriber(cb: Callback[R], s: Scheduler): (Subscriber[In2], AssignableCancelable) = {
+    val (input1, conn) = source.createSubscriber(cb, s)
 
-    Try(f(s, conn, cb)) match {
-      case Failure(ex) =>
-        Consumer.raiseError(ex).createSubscriber(cb,s)
+    val (input2, output1) = Pipe.publishToOne[In2].transform(f).unicast
+    output1.unsafeSubscribeFn(input1)
 
-      case Success(out) =>
-        val sub = Subscriber(out, s)
-        (sub, conn)
-    }
+    (Subscriber(input2, input1.scheduler), conn)
   }
 }

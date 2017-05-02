@@ -85,8 +85,12 @@ trait Consumer[-In, +R] extends ((Observable[In]) => Task[R])
   def contramap[In2](f: In2 => In): Consumer[In2, R] =
     new ContraMapConsumer[In2,In,R](self, f)
 
-//  def transformInput[In2](f: Observable[In2] => Observable[In]): Consumer[In2, R] =
-//    new TransformInputConsumer[In2,In,R](self, f)
+  /** Given a function that transforms the input stream, uses it
+    * to transform the source consumer into one that accepts events
+    * of the type specified by the transformation function.
+    */
+  def transformInput[In2](f: Observable[In2] => Observable[In]): Consumer[In2, R] =
+    new TransformInputConsumer[In2,In,R](self, f)
 
   /** Given a mapping function, when consuming a stream,
     * applies the mapping function to the final result,
