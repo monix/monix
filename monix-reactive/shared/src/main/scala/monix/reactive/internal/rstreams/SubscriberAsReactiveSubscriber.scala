@@ -61,7 +61,12 @@ private[reactive] object SubscriberAsReactiveSubscriber {
     *                    also representing the buffer size; MUST BE strictly positive
     */
   def apply[A](subscriber: Subscriber[A], requestCount: Int = 128): RSubscriber[A] =
-    SubscriberAsReactiveSubscriber(subscriber, requestCount)
+    subscriber match {
+      case _: Subscriber.Sync[_] =>
+        new SyncSubscriberAsReactiveSubscriber[A](subscriber.asInstanceOf[Subscriber.Sync[A]], requestCount)
+      case _ =>
+        new AsyncSubscriberAsReactiveSubscriber[A](subscriber, requestCount)
+    }
 }
 
 /** Wraps a [[monix.reactive.Observer Observer]] instance into an
@@ -98,7 +103,7 @@ private[reactive] object SubscriberAsReactiveSubscriber {
   * @param requestCount the parameter passed to `Subscription.request`,
   *                    also representing the buffer size; MUST BE strictly positive
   */
-private[reactive] final class AsyncSubscriberAsReactiveSubscriber[A] private
+private[reactive] final class AsyncSubscriberAsReactiveSubscriber[A]
   (target: Subscriber[A], requestCount: Int)
   extends RSubscriber[A] {
 
