@@ -5,7 +5,7 @@ import com.typesafe.tools.mima.core._
 import scala.xml.Elem
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 
-addCommandAlias("ci-jvm-all", ";clean ;coreJVM/test:compile ;coreJVM/test ;mimaReportBinaryIssues ;unidoc")
+addCommandAlias("ci-jvm-all", ";clean ;coreJVM/test:compile ;coreJVM/test; tckTests/test ;mimaReportBinaryIssues ;unidoc")
 addCommandAlias("ci-jvm",     ";clean ;coreJVM/test:compile ;coreJVM/test")
 addCommandAlias("ci-js",      ";clean ;coreJS/test:compile  ;coreJS/test")
 
@@ -296,7 +296,7 @@ lazy val monix = project.in(file("."))
 lazy val coreJVM = project.in(file("monix/jvm"))
   .configure(profile)
   .dependsOn(typesJVM, executionJVM, evalJVM, reactiveJVM)
-  .aggregate(typesJVM, executionJVM, evalJVM, reactiveJVM, catsJVM, scalaz72JVM, tckTests)
+  .aggregate(typesJVM, executionJVM, evalJVM, reactiveJVM, catsJVM, scalaz72JVM)
   .settings(crossSettings)
   .settings(noSources)
   .settings(name := "monix")
