@@ -30,23 +30,23 @@ import scala.annotation.tailrec
   * of the JVM that's the semantic of `compareAndSet`. This behavior
   * is kept consistent even on top of Scala.js / Javascript.
   */
-final class AtomicNumberAny[T <: AnyRef : Numeric] private (private[this] val ref: BoxedObject)
-  extends AtomicNumber[T] {
+final class AtomicNumberAny[A <: AnyRef : Numeric] private (private[this] val ref: BoxedObject)
+  extends AtomicNumber[A] {
 
-  private[this] val ev = implicitly[Numeric[T]]
+  private[this] val ev = implicitly[Numeric[A]]
 
-  def get: T = ref.volatileGet().asInstanceOf[T]
-  def set(update: T): Unit = ref.volatileSet(update)
+  def get: A = ref.volatileGet().asInstanceOf[A]
+  def set(update: A): Unit = ref.volatileSet(update)
 
-  def compareAndSet(expect: T, update: T): Boolean = {
+  def compareAndSet(expect: A, update: A): Boolean = {
     ref.compareAndSet(expect, update)
   }
 
-  def getAndSet(update: T): T = {
-    ref.getAndSet(update).asInstanceOf[T]
+  def getAndSet(update: A): A = {
+    ref.getAndSet(update).asInstanceOf[A]
   }
 
-  def lazySet(update: T): Unit = {
+  def lazySet(update: A): Unit = {
     ref.lazySet(update)
   }
 
@@ -58,7 +58,7 @@ final class AtomicNumberAny[T <: AnyRef : Numeric] private (private[this] val re
   }
 
   @tailrec
-  def incrementAndGet(v: Int = 1): T = {
+  def incrementAndGet(v: Int = 1): A = {
     val current = get
     val update = ev.plus(current, ev.fromInt(v))
     if (!compareAndSet(current, update))
@@ -68,7 +68,7 @@ final class AtomicNumberAny[T <: AnyRef : Numeric] private (private[this] val re
   }
 
   @tailrec
-  def getAndIncrement(v: Int = 1): T = {
+  def getAndIncrement(v: Int = 1): A = {
     val current = get
     val update = ev.plus(current, ev.fromInt(v))
     if (!compareAndSet(current, update))
@@ -78,7 +78,7 @@ final class AtomicNumberAny[T <: AnyRef : Numeric] private (private[this] val re
   }
 
   @tailrec
-  def getAndAdd(v: T): T = {
+  def getAndAdd(v: A): A = {
     val current = get
     val update = ev.plus(current, v)
     if (!compareAndSet(current, update))
@@ -88,7 +88,7 @@ final class AtomicNumberAny[T <: AnyRef : Numeric] private (private[this] val re
   }
 
   @tailrec
-  def addAndGet(v: T): T = {
+  def addAndGet(v: A): A = {
     val current = get
     val update = ev.plus(current, v)
     if (!compareAndSet(current, update))
@@ -98,7 +98,7 @@ final class AtomicNumberAny[T <: AnyRef : Numeric] private (private[this] val re
   }
 
   @tailrec
-  def add(v: T): Unit = {
+  def add(v: A): Unit = {
     val current = get
     val update = ev.plus(current, v)
     if (!compareAndSet(current, update))
@@ -106,7 +106,7 @@ final class AtomicNumberAny[T <: AnyRef : Numeric] private (private[this] val re
   }
 
   @tailrec
-  def subtract(v: T): Unit = {
+  def subtract(v: A): Unit = {
     val current = get
     val update = ev.minus(current, v)
     if (!compareAndSet(current, update))
@@ -114,7 +114,7 @@ final class AtomicNumberAny[T <: AnyRef : Numeric] private (private[this] val re
   }
 
   @tailrec
-  def getAndSubtract(v: T): T = {
+  def getAndSubtract(v: A): A = {
     val current = get
     val update = ev.minus(current, v)
     if (!compareAndSet(current, update))
@@ -124,7 +124,7 @@ final class AtomicNumberAny[T <: AnyRef : Numeric] private (private[this] val re
   }
 
   @tailrec
-  def subtractAndGet(v: T): T = {
+  def subtractAndGet(v: A): A = {
     val current = get
     val update = ev.minus(current, v)
     if (!compareAndSet(current, update))
@@ -134,8 +134,8 @@ final class AtomicNumberAny[T <: AnyRef : Numeric] private (private[this] val re
   }
 
   def decrement(v: Int = 1): Unit = increment(-v)
-  def decrementAndGet(v: Int = 1): T = incrementAndGet(-v)
-  def getAndDecrement(v: Int = 1): T = getAndIncrement(-v)
+  def decrementAndGet(v: Int = 1): A = incrementAndGet(-v)
+  def getAndDecrement(v: Int = 1): A = getAndIncrement(-v)
 }
 
 /** @define createDesc Constructs an [[AtomicNumberAny]] reference, allowing

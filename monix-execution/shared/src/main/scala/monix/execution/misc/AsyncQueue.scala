@@ -29,7 +29,7 @@ import scala.annotation.tailrec
   * On `poll`, if there are queued elements, it returns oe
   * immediately, otherwise it returns a `Future`
   */
-final class AsyncQueue[T] private (elems: Queue[T]) extends Serializable {
+final class AsyncQueue[A] private (elems: Queue[A]) extends Serializable {
   private[this] val stateRef =
     AtomicAny.withPadding(State(elems, Queue.empty), LeftRight128)
 
@@ -37,7 +37,7 @@ final class AsyncQueue[T] private (elems: Queue[T]) extends Serializable {
     * otherwise returns a `Future` that waits (asynchronously)
     * until items are offered.
     */
-  @tailrec def poll(): Future[T] = stateRef.get match {
+  @tailrec def poll(): Future[A] = stateRef.get match {
     case current @ State(elements, promises) =>
       if (elements.nonEmpty) {
         val (e, newQ) = elements.dequeue
@@ -49,7 +49,7 @@ final class AsyncQueue[T] private (elems: Queue[T]) extends Serializable {
           poll()
       }
       else {
-        val p = Promise[T]()
+        val p = Promise[A]()
         val update = State(elements, promises.enqueue(p))
 
         if (stateRef.compareAndSet(current, update))
@@ -62,7 +62,7 @@ final class AsyncQueue[T] private (elems: Queue[T]) extends Serializable {
   /** Enqueues an item in the queue, or feeds it to a waiting
     * consumer if there are such waiting consumers.
     */
-  @tailrec def offer(elem: T): Unit = stateRef.get match {
+  @tailrec def offer(elem: A): Unit = stateRef.get match {
     case current @ State(elements, promises) =>
       if (promises.nonEmpty) {
         val (p, q) = promises.dequeue
@@ -84,7 +84,7 @@ final class AsyncQueue[T] private (elems: Queue[T]) extends Serializable {
     stateRef.set(State(Queue.empty, Queue.empty))
 
   /** Clears the whole queue, then offers one item. */
-  def clearAndOffer(elem: T): Unit =
+  def clearAndOffer(elem: A): Unit =
     stateRef.set(State(Queue(elem), Queue.empty))
 }
 
@@ -92,17 +92,17 @@ object AsyncQueue {
   /** Builder for an [[AsyncQueue]], given an initial
     * set of `elems`.
     */
-  def apply[T](elems: T*): AsyncQueue[T] =
+  def apply[A](elems: A*): AsyncQueue[A] =
     from(Queue(elems:_*))
 
   /** Returns an empty [[AsyncQueue]]. */
-  def empty[T]: AsyncQueue[T] =
+  def empty[A]: AsyncQueue[A] =
     from(Queue.empty)
 
   /** Converts an immutable `Queue` to an [[AsyncQueue]]. */
-  def from[T](queue: Queue[T]): AsyncQueue[T] =
+  def from[A](queue: Queue[A]): AsyncQueue[A] =
     new AsyncQueue(queue)
 
   private final
-  case class State[T](elements: Queue[T], promises: Queue[Promise[T]])
+  case class State[A](elements: Queue[A], promises: Queue[Promise[A]])
 }

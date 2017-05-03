@@ -25,19 +25,19 @@ package monix.execution.atomic
   * of the JVM that's the semantic of `compareAndSet`. This behavior
   * is kept consistent even on top of Scala.js / Javascript.
   */
-final class AtomicNumberAny[T  <: AnyRef : Numeric] private[atomic] (initialValue: T)
-  extends AtomicNumber[T] {
+final class AtomicNumberAny[A  <: AnyRef : Numeric] private[atomic] (initialValue: A)
+  extends AtomicNumber[A] {
 
-  private[this] val ev = implicitly[Numeric[T]]
+  private[this] val ev = implicitly[Numeric[A]]
   private[this] var ref = initialValue
 
-  def getAndSet(update: T): T = {
+  def getAndSet(update: A): A = {
     val current = ref
     ref = update
     current
   }
 
-  def compareAndSet(expect: T, update: T): Boolean = {
+  def compareAndSet(expect: A, update: A): Boolean = {
     if (ref eq expect) {
       ref = update
       true
@@ -46,50 +46,50 @@ final class AtomicNumberAny[T  <: AnyRef : Numeric] private[atomic] (initialValu
       false
   }
 
-  def set(update: T): Unit = {
+  def set(update: A): Unit = {
     ref = update
   }
 
-  def get: T = ref
+  def get: A = ref
 
-  def getAndSubtract(v: T): T = {
+  def getAndSubtract(v: A): A = {
     val c = ref
     ref = ev.minus(ref, v)
     c
   }
 
-  def subtractAndGet(v: T): T = {
+  def subtractAndGet(v: A): A = {
     ref = ev.minus(ref, v)
     ref
   }
 
-  def subtract(v: T): Unit = {
+  def subtract(v: A): Unit = {
     ref = ev.minus(ref, v)
   }
 
-  def getAndAdd(v: T): T = {
+  def getAndAdd(v: A): A = {
     val c = ref
     ref = ev.plus(ref, v)
     c
   }
 
-  def getAndIncrement(v: Int = 1): T = {
+  def getAndIncrement(v: Int = 1): A = {
     val c = ref
     ref = ev.plus(ref, ev.fromInt(v))
     c
   }
 
-  def addAndGet(v: T): T = {
+  def addAndGet(v: A): A = {
     ref = ev.plus(ref, v)
     ref
   }
 
-  def incrementAndGet(v: Int = 1): T = {
+  def incrementAndGet(v: Int = 1): A = {
     ref = ev.plus(ref, ev.fromInt(v))
     ref
   }
 
-  def add(v: T): Unit = {
+  def add(v: A): Unit = {
     ref = ev.plus(ref, v)
   }
 
@@ -98,8 +98,8 @@ final class AtomicNumberAny[T  <: AnyRef : Numeric] private[atomic] (initialValu
   }
 
   def decrement(v: Int = 1): Unit = increment(-v)
-  def decrementAndGet(v: Int = 1): T = incrementAndGet(-v)
-  def getAndDecrement(v: Int = 1): T = getAndIncrement(-v)
+  def decrementAndGet(v: Int = 1): A = incrementAndGet(-v)
+  def getAndDecrement(v: Int = 1): A = getAndIncrement(-v)
 }
 
 /** @define createDesc Constructs an [[AtomicNumberAny]] reference, allowing

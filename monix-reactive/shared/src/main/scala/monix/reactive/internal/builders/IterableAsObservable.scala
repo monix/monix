@@ -23,11 +23,8 @@ import monix.reactive.observers.Subscriber
 
 /** Converts any `Iterable` into an observable */
 private[reactive] final
-class IterableAsObservable[T](
-  iterable: Iterable[T])
-  extends Observable[T] {
-
-  def unsafeSubscribeFn(subscriber: Subscriber[T]): Cancelable = {
+class IterableAsObservable[A](iterable: Iterable[A]) extends Observable[A] {
+  def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     new IteratorAsObservable(iterable.iterator, Cancelable.empty)
       .unsafeSubscribeFn(subscriber)
   }

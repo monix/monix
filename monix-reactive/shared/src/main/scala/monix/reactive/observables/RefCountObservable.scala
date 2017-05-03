@@ -31,15 +31,15 @@ import scala.concurrent.Future
   *
   * @param source - the connectable observable we are wrapping
   */
-final class RefCountObservable[+T] private (source: ConnectableObservable[T])
-  extends Observable[T] {
+final class RefCountObservable[+A] private (source: ConnectableObservable[A])
+  extends Observable[A] {
 
   private[this] val refs = Atomic(-1)
   private[this] lazy val connection: Cancelable =
     source.connect()
 
   @tailrec
-  def unsafeSubscribeFn(subscriber: Subscriber[T]): Cancelable = {
+  def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     val current = refs.get
     val update = current match {
       case x if x < 0 => 1
@@ -66,7 +66,7 @@ final class RefCountObservable[+T] private (source: ConnectableObservable[T])
     }
   }
 
-  private def wrap[U >: T](downstream: Subscriber[U], subscription: Cancelable): Subscriber[U] =
+  private def wrap[U >: A](downstream: Subscriber[U], subscription: Cancelable): Subscriber[U] =
     new Subscriber[U] {
       implicit val scheduler = downstream.scheduler
 
@@ -102,6 +102,6 @@ final class RefCountObservable[+T] private (source: ConnectableObservable[T])
 
 object RefCountObservable {
   /** Builder for [[RefCountObservable]] */
-  def apply[T](connectable: ConnectableObservable[T]): Observable[T] =
+  def apply[A](connectable: ConnectableObservable[A]): Observable[A] =
     new RefCountObservable(connectable)
 }

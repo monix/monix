@@ -31,13 +31,13 @@ import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
 /** Converts any `Iterator` into an observable */
-private[reactive] final class IteratorAsObservable[T](
-  iterator: Iterator[T],
-  onFinish: Cancelable) extends Observable[T] {
+private[reactive] final class IteratorAsObservable[A](
+  iterator: Iterator[A],
+  onFinish: Cancelable) extends Observable[A] {
 
   private[this] val wasSubscribed = Atomic(false)
 
-  def unsafeSubscribeFn(out: Subscriber[T]): Cancelable = {
+  def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
     if (wasSubscribed.getAndSet(true)) {
       out.onError(MultipleSubscribersException.build("InputStreamObservable"))
       Cancelable.empty
@@ -46,7 +46,7 @@ private[reactive] final class IteratorAsObservable[T](
     }
   }
 
-  private def startLoop(subscriber: Subscriber[T]): Cancelable = {
+  private def startLoop(subscriber: Subscriber[A]): Cancelable = {
     import subscriber.{scheduler => s}
     // Protect against contract violations - we are only allowed to
     // call onError if no other terminal event has been called.
@@ -98,8 +98,8 @@ private[reactive] final class IteratorAsObservable[T](
     * NOTE: the assumption of this method is that `iter` is
     * NOT empty, so the first call is `next()` and not `hasNext()`.
     */
-  private def reschedule(ack: Future[Ack], iter: Iterator[T],
-    out: Subscriber[T], c: BooleanCancelable, em: ExecutionModel)
+  private def reschedule(ack: Future[Ack], iter: Iterator[A],
+    out: Subscriber[A], c: BooleanCancelable, em: ExecutionModel)
     (implicit s: Scheduler): Unit = {
 
     ack.onComplete {
@@ -138,7 +138,7 @@ private[reactive] final class IteratorAsObservable[T](
     * NOT empty, so the first call is `next()` and not `hasNext()`.
     */
   @tailrec private
-  def fastLoop(iter: Iterator[T], out: Subscriber[T], c: BooleanCancelable,
+  def fastLoop(iter: Iterator[A], out: Subscriber[A], c: BooleanCancelable,
     em: ExecutionModel, syncIndex: Int)(implicit s: Scheduler): Unit = {
 
     // The result of onNext calls, on which we must do back-pressure

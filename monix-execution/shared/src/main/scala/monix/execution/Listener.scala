@@ -30,7 +30,7 @@ import scala.concurrent.Promise
   * `Listener` semantics to types that cannot be `Function1[A,Unit]`.
   *
   * In particular `monix.eval.Callback` is a supertype of
-  * `Listener`, even though `Callback` is a `Try[T] => Unit`.
+  * `Listener`, even though `Callback` is a `Try[A] => Unit`.
   */
 trait Listener[-A] extends Serializable {
   def onValue(value: A): Unit

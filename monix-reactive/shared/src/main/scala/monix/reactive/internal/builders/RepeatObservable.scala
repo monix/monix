@@ -22,7 +22,7 @@ import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
 /** Repeats the given elements */
-private[reactive] final class RepeatObservable[T](elems: T*) extends Observable[T] {
+private[reactive] final class RepeatObservable[A](elems: A*) extends Observable[A] {
   private[this] val source =
     if (elems.isEmpty) Observable.empty
     else if (elems.length == 1)
@@ -30,6 +30,6 @@ private[reactive] final class RepeatObservable[T](elems: T*) extends Observable[
     else
       Observable.fromIterable(elems).repeat
 
-  def unsafeSubscribeFn(subscriber: Subscriber[T]): Cancelable =
+  def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable =
     source.unsafeSubscribeFn(subscriber)
 }

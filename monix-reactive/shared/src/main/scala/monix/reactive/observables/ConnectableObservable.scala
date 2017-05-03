@@ -29,7 +29,7 @@ import monix.reactive.{Observable, Pipe}
   * Represents a hot observable (an observable that shares its data-source
   * to multiple subscribers).
   */
-trait ConnectableObservable[+T] extends Observable[T] { self =>
+trait ConnectableObservable[+A] extends Observable[A] { self =>
   /** Starts emitting events to subscribers. */
   def connect(): Cancelable
 
@@ -37,7 +37,7 @@ trait ConnectableObservable[+T] extends Observable[T] { self =>
     * `ConnectableObservable` as long as there is at least one
     * subscription that is active.
     */
-  def refCount: Observable[T] = {
+  def refCount: Observable[A] = {
     RefCountObservable(self)
   }
 }
@@ -46,17 +46,17 @@ object ConnectableObservable {
   /** Builds a [[ConnectableObservable]] for the given observable source
     * and a given [[monix.reactive.subjects.Subject Subject]].
     */
-  def unsafeMulticast[T, R](source: Observable[T], subject: Subject[T, R])
-    (implicit s: Scheduler): ConnectableObservable[R] = {
+  def unsafeMulticast[A, B](source: Observable[A], subject: Subject[A, B])
+    (implicit s: Scheduler): ConnectableObservable[B] = {
 
-    new ConnectableObservable[R] {
+    new ConnectableObservable[B] {
       private[this] lazy val connection: Cancelable =
         source.unsafeSubscribeFn(Subscriber(subject, s))
 
       def connect(): Cancelable =
         connection
 
-      def unsafeSubscribeFn(subscriber: Subscriber[R]): Cancelable =
+      def unsafeSubscribeFn(subscriber: Subscriber[B]): Cancelable =
         subject.unsafeSubscribeFn(subscriber)
     }
   }
@@ -64,10 +64,10 @@ object ConnectableObservable {
   /** Builds a [[ConnectableObservable]] for the given observable source
     * and a given [[Pipe]].
     */
-  def multicast[T, R](source: Observable[T], recipe: Pipe[T, R])
-    (implicit s: Scheduler): ConnectableObservable[R] = {
+  def multicast[A, B](source: Observable[A], recipe: Pipe[A, B])
+    (implicit s: Scheduler): ConnectableObservable[B] = {
 
-    new ConnectableObservable[R] {
+    new ConnectableObservable[B] {
       private[this] val (input, output) = recipe.multicast(s)
       private[this] lazy val connection = {
         source.subscribe(input)
@@ -76,7 +76,7 @@ object ConnectableObservable {
       def connect(): Cancelable =
         connection
 
-      def unsafeSubscribeFn(subscriber: Subscriber[R]): Cancelable =
+      def unsafeSubscribeFn(subscriber: Subscriber[B]): Cancelable =
         output.unsafeSubscribeFn(subscriber)
     }
   }
@@ -86,10 +86,10 @@ object ConnectableObservable {
     * the events are piped through the given `subject` to the final
     * subscribers.
     */
-  def cacheUntilConnect[T, R](source: Observable[T], subject: Subject[T, R])
-    (implicit s: Scheduler): ConnectableObservable[R] = {
+  def cacheUntilConnect[A, B](source: Observable[A], subject: Subject[A, B])
+    (implicit s: Scheduler): ConnectableObservable[B] = {
 
-    new ConnectableObservable[R] {
+    new ConnectableObservable[B] {
       private[this] val (connectable, cancelRef) = {
         val ref = CacheUntilConnectSubscriber(Subscriber(subject, s))
         val c = source.unsafeSubscribeFn(ref) // connects immediately
@@ -107,7 +107,7 @@ object ConnectableObservable {
       def connect(): Cancelable =
         connection
 
-      def unsafeSubscribeFn(subscriber: Subscriber[R]): Cancelable =
+      def unsafeSubscribeFn(subscriber: Subscriber[B]): Cancelable =
         subject.unsafeSubscribeFn(subscriber)
     }
   }

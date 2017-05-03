@@ -17,7 +17,7 @@
 
 package monix.execution.atomic
 
-/** For a given `T` indicates the most specific `Atomic[T]`
+/** For a given `A` indicates the most specific `Atomic[A]`
   * reference type to use.
   *
   * In essence this is implementing a form of specialization
@@ -48,11 +48,11 @@ private[atomic] object Implicits {
 
   abstract class Level2 extends Level1 {
     /** Provides an [[AtomicBuilder]] instance for [[AtomicNumberAny]]. */
-    implicit def AtomicNumberBuilder[T  <: AnyRef : Numeric]: AtomicBuilder[T, AtomicNumberAny[T]] =
-      new AtomicBuilder[T, AtomicNumberAny[T]] {
-        def buildInstance(initialValue: T, strategy: PaddingStrategy, allowPlatformIntrinsics: Boolean) =
+    implicit def AtomicNumberBuilder[A  <: AnyRef : Numeric]: AtomicBuilder[A, AtomicNumberAny[A]] =
+      new AtomicBuilder[A, AtomicNumberAny[A]] {
+        def buildInstance(initialValue: A, strategy: PaddingStrategy, allowPlatformIntrinsics: Boolean) =
           AtomicNumberAny(initialValue)
-        def buildSafeInstance(initialValue: T, strategy: PaddingStrategy) =
+        def buildSafeInstance(initialValue: A, strategy: PaddingStrategy) =
           AtomicNumberAny(initialValue)
       }
   }

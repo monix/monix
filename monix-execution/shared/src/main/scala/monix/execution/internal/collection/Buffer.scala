@@ -21,7 +21,7 @@ package monix.execution.internal.collection
  * A `Buffer` is a data-structure that can be appended in constant time
  * constant time and that can be iterated efficiently.
  */
-private[monix] trait Buffer[T] extends Iterable[T] {
+private[monix] trait Buffer[A] extends Iterable[A] {
   /**
    * Pushes a new element in the queue. Depending on
    * implementation, on overflow it might start to evict
@@ -30,7 +30,7 @@ private[monix] trait Buffer[T] extends Iterable[T] {
    * @return the number of elements that were evicted in case of
    *         overflow or zero otherwise
    */
-  def offer(elem: T): Int
+  def offer(elem: A): Int
 
   /**
    * Pushes the given sequence on the queue. Depending on
@@ -40,7 +40,7 @@ private[monix] trait Buffer[T] extends Iterable[T] {
    * @return the number of elements that were evicted in case of
    *         overflow or zero otherwise
    */
-  def offerMany(seq: T*): Long
+  def offerMany(seq: A*): Long
 
   /**
    * Clears all items in this buffer leaving it empty.

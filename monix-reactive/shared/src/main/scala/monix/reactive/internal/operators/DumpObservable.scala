@@ -27,13 +27,13 @@ import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
 private[reactive] final
-class DumpObservable[T](source: Observable[T], prefix: String, out: PrintStream)
-  extends Observable[T] {
+class DumpObservable[A](source: Observable[A], prefix: String, out: PrintStream)
+  extends Observable[A] {
 
-  def unsafeSubscribeFn(subscriber: Subscriber[T]): Cancelable = {
+  def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     var pos = 0
 
-    val upstream = source.unsafeSubscribeFn(new Subscriber[T] {
+    val upstream = source.unsafeSubscribeFn(new Subscriber[A] {
       implicit val scheduler = subscriber.scheduler
 
       private[this] val downstreamActive = Cancelable { () =>
@@ -41,7 +41,7 @@ class DumpObservable[T](source: Observable[T], prefix: String, out: PrintStream)
         out.println(s"$pos: $prefix stopped")
       }
 
-      def onNext(elem: T): Future[Ack] = {
+      def onNext(elem: A): Future[Ack] = {
         try {
           out.println(s"$pos: $prefix-->$elem")
           pos += 1
