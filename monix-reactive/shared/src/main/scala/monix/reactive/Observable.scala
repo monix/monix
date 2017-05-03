@@ -875,9 +875,35 @@ object Observable {
     *
     * @see [[Observable.toReactive]] for converting an `Observable` to
     *      a reactive publisher.
+    *
+    * @param publisher is the `org.reactivestreams.Publisher` reference to
+    *        wrap into an [[Observable]]
     */
   def fromReactivePublisher[A](publisher: RPublisher[A]): Observable[A] =
-    new builders.ReactiveObservable[A](publisher)
+    new builders.ReactiveObservable[A](publisher, 0)
+
+  /** Given a `org.reactivestreams.Publisher`, converts it into a
+    * Monix / Rx Observable.
+    *
+    * See the [[http://www.reactive-streams.org/ Reactive Streams]]
+    * protocol that Monix implements.
+    *
+    * @see [[Observable.toReactive]] for converting an `Observable` to
+    *      a reactive publisher.
+    *
+    * @param publisher is the `org.reactivestreams.Publisher` reference to
+    *        wrap into an [[Observable]]
+    *
+    * @param requestCount a strictly positive number, representing the size
+    *        of the buffer used and the number of elements requested on each
+    *        cycle when communicating demand, compliant with the
+    *        reactive streams specification. If `Int.MaxValue` is given,
+    *        then no back-pressuring logic will be applied (e.g. an unbounded
+    *        buffer is used and the source has a license to stream as many
+    *        events as it wants).
+    */
+  def fromReactivePublisher[A](publisher: RPublisher[A], requestCount: Int): Observable[A] =
+    new builders.ReactiveObservable[A](publisher, requestCount)
 
   /** Converts a Scala `Future` provided into an [[Observable]].
     *

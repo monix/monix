@@ -116,18 +116,21 @@ object Subscriber {
     * instance as defined by the [[http://www.reactive-streams.org/ Reactive Streams]]
     * specification.
     *
-    * @param bufferSize a strictly positive number, representing the size
-    *                   of the buffer used and the number of elements requested
-    *                   on each cycle when communicating demand, compliant with
-    *                   the reactive streams specification
+    * @param requestCount a strictly positive number, representing the size
+    *        of the buffer used and the number of elements requested on each
+    *        cycle when communicating demand, compliant with the reactive
+    *        streams specification
     */
-  def toReactiveSubscriber[T](source: Subscriber[T], bufferSize: Int): RSubscriber[T] = {
+  def toReactiveSubscriber[T](
+    source: Subscriber[T],
+    @deprecatedName('bufferSize) requestCount: Int): RSubscriber[T] = {
+
     source match {
       case sync: Subscriber.Sync[_] =>
         val inst = sync.asInstanceOf[Subscriber.Sync[T]]
-        SyncSubscriberAsReactiveSubscriber(inst, bufferSize)
+        SyncSubscriberAsReactiveSubscriber(inst, requestCount)
       case async =>
-        SubscriberAsReactiveSubscriber(async, bufferSize)
+        SubscriberAsReactiveSubscriber(async, requestCount)
     }
   }
 
@@ -156,13 +159,13 @@ object Subscriber {
       * instance as defined by the [[http://www.reactive-streams.org/ Reactive Streams]]
       * specification.
       *
-      * @param bufferSize a strictly positive number, representing the size
-      *                   of the buffer used and the number of elements requested
-      *                   on each cycle when communicating demand, compliant with
-      *                   the reactive streams specification
+      * @param requestCount a strictly positive number, representing the size
+      *        of the buffer used and the number of elements requested on each
+      *        cycle when communicating demand, compliant with the
+      *        reactive streams specification
       */
-    def toReactive(bufferSize: Int): RSubscriber[T] =
-      Subscriber.toReactiveSubscriber(target, bufferSize)
+    def toReactive(@deprecatedName('bufferSize) requestCount: Int): RSubscriber[T] =
+      Subscriber.toReactiveSubscriber(target, requestCount)
 
     /** $feedCollectionDesc
       *

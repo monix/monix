@@ -134,19 +134,21 @@ object Observer {
     * instance as defined by the [[http://www.reactive-streams.org/ Reactive Streams]]
     * specification.
     *
-    * @param bufferSize a strictly positive number, representing the size
-    *                   of the buffer used and the number of elements requested
-    *                   on each cycle when communicating demand, compliant with
-    *                   the reactive streams specification
+    * @param requestCount a strictly positive number, representing the size
+    *        of the buffer used and the number of elements requested
+    *        on each cycle when communicating demand, compliant with
+    *        the reactive streams specification
     */
-  def toReactiveSubscriber[T](observer: Observer[T], bufferSize: Int)(implicit s: Scheduler): RSubscriber[T] = {
-    require(bufferSize > 0, "requestCount > 0")
+  def toReactiveSubscriber[T](observer: Observer[T], @deprecatedName('bufferSize) requestCount: Int)
+    (implicit s: Scheduler): RSubscriber[T] = {
+
+    require(requestCount > 0, "requestCount > 0")
     observer match {
       case sync: Observer.Sync[_] =>
         val inst = sync.asInstanceOf[Observer.Sync[T]]
-        SyncSubscriberAsReactiveSubscriber(Subscriber.Sync(inst, s), bufferSize)
+        SyncSubscriberAsReactiveSubscriber(Subscriber.Sync(inst, s), requestCount)
       case async =>
-        SubscriberAsReactiveSubscriber(Subscriber(async, s), bufferSize)
+        SubscriberAsReactiveSubscriber(Subscriber(async, s), requestCount)
     }
   }
 
@@ -274,13 +276,14 @@ object Observer {
       * instance as defined by the [[http://www.reactive-streams.org/ Reactive Streams]]
       * specification.
       *
-      * @param bufferSize a strictly positive number, representing the size
-      *                   of the buffer used and the number of elements requested
-      *                   on each cycle when communicating demand, compliant with
-      *                   the reactive streams specification
+      * @param requestCount a strictly positive number, representing the size
+      *        of the buffer used and the number of elements requested
+      *        on each cycle when communicating demand, compliant with
+      *        the reactive streams specification
       */
-    def toReactive(bufferSize: Int)(implicit s: Scheduler): RSubscriber[T] =
-      Observer.toReactiveSubscriber(target, bufferSize)
+    def toReactive(@deprecatedName('bufferSize) requestCount: Int)
+      (implicit s: Scheduler): RSubscriber[T] =
+      Observer.toReactiveSubscriber(target, requestCount)
 
     /** $feedCollectionDesc
       *

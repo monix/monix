@@ -24,12 +24,16 @@ import monix.reactive.observers.Subscriber
 import org.reactivestreams
 import org.reactivestreams.{Subscription, Publisher => RPublisher}
 
-private[reactive] final class ReactiveObservable[A](publisher: RPublisher[A])
+/** Implementation for `Observable.fromReactivePublisher` */
+private[reactive]
+final class ReactiveObservable[A](publisher: RPublisher[A], requestCount: Int)
   extends Observable[A] {
 
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
-    val sub = subscriber.toReactive
     val subscription = SingleAssignmentSubscription()
+    val sub =
+      if (requestCount > 0) subscriber.toReactive(requestCount)
+      else subscriber.toReactive
 
     publisher.subscribe(new reactivestreams.Subscriber[A] {
       def onNext(t: A): Unit = sub.onNext(t)
