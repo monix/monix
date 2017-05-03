@@ -38,17 +38,17 @@ import scala.util.Success
   *
   * @see [[Subject]]
   */
-final class BehaviorSubject[T] private (initialValue: T)
-  extends Subject[T,T] { self =>
+final class BehaviorSubject[A] private (initialValue: A)
+  extends Subject[A,A] { self =>
 
   private[this] val stateRef =
-    Atomic(BehaviorSubject.State[T](initialValue))
+    Atomic(BehaviorSubject.State[A](initialValue))
 
   def size: Int =
     stateRef.get.subscribers.size
 
   @tailrec
-  def unsafeSubscribeFn(subscriber: Subscriber[T]): Cancelable = {
+  def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     import subscriber.scheduler
     val state = stateRef.get
 
@@ -80,7 +80,7 @@ final class BehaviorSubject[T] private (initialValue: T)
   }
 
   @tailrec
-  def onNext(elem: T): Future[Ack] = {
+  def onNext(elem: A): Future[Ack] = {
     val state = stateRef.get
 
     if (state.isDone) Stop else {
@@ -162,7 +162,7 @@ final class BehaviorSubject[T] private (initialValue: T)
   }
 
   @tailrec
-  private def removeSubscriber(s: ConnectableSubscriber[T]): Unit = {
+  private def removeSubscriber(s: ConnectableSubscriber[A]): Unit = {
     val state = stateRef.get
     val newState = state.removeSubscriber(s)
     if (!stateRef.compareAndSet(state, newState))
@@ -172,29 +172,29 @@ final class BehaviorSubject[T] private (initialValue: T)
 
 object BehaviorSubject {
   /** Builder for [[BehaviorSubject]] */
-  def apply[T](initialValue: T): BehaviorSubject[T] =
-    new BehaviorSubject[T](initialValue)
+  def apply[A](initialValue: A): BehaviorSubject[A] =
+    new BehaviorSubject[A](initialValue)
 
   /** Internal state for [[BehaviorSubject]] */
-  private final case class State[T](
-    cached: T,
-    subscribers: Set[ConnectableSubscriber[T]] = Set.empty[ConnectableSubscriber[T]],
+  private final case class State[A](
+    cached: A,
+    subscribers: Set[ConnectableSubscriber[A]] = Set.empty[ConnectableSubscriber[A]],
     isDone: Boolean = false,
     errorThrown: Throwable = null) {
 
-    def cacheElem(elem: T): State[T] = {
+    def cacheElem(elem: A): State[A] = {
       copy(cached = elem)
     }
 
-    def addNewSubscriber(s: ConnectableSubscriber[T]): State[T] =
+    def addNewSubscriber(s: ConnectableSubscriber[A]): State[A] =
       copy(subscribers = subscribers + s)
 
-    def removeSubscriber(toRemove: ConnectableSubscriber[T]): State[T] = {
+    def removeSubscriber(toRemove: ConnectableSubscriber[A]): State[A] = {
       val newSet = subscribers - toRemove
       copy(subscribers = newSet)
     }
 
-    def markDone(ex: Throwable): State[T] = {
+    def markDone(ex: Throwable): State[A] = {
       copy(subscribers = Set.empty, isDone = true, errorThrown = ex)
     }
   }

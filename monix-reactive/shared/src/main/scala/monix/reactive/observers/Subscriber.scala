@@ -31,20 +31,20 @@ import scala.concurrent.Future
   * A `Subscriber` can be seen as an address that the data source needs
   * in order to send events, along with an execution context.
   */
-trait Subscriber[-T] extends Observer[T] {
+trait Subscriber[-A] extends Observer[A] {
   implicit def scheduler: Scheduler
 }
 
 object Subscriber {
   /** Subscriber builder */
-  def apply[T](observer: Observer[T], scheduler: Scheduler): Subscriber[T] =
+  def apply[A](observer: Observer[A], scheduler: Scheduler): Subscriber[A] =
     observer match {
       case ref: Subscriber[_] if ref.scheduler == scheduler =>
-        ref.asInstanceOf[Subscriber[T]]
+        ref.asInstanceOf[Subscriber[A]]
       case ref: Observer.Sync[_] =>
-        Subscriber.Sync(ref.asInstanceOf[Observer.Sync[T]], scheduler)
+        Subscriber.Sync(ref.asInstanceOf[Observer.Sync[A]], scheduler)
       case _ =>
-        new Implementation[T](observer, scheduler)
+        new Implementation[A](observer, scheduler)
     }
 
   /** A `Subscriber.Sync` is a [[Subscriber]] whose `onNext` signal
@@ -52,16 +52,16 @@ object Subscriber {
     * wait on a `Future` in order to decide whether to send the next event
     * or not).
     */
-  trait Sync[-T] extends Subscriber[T] with Observer.Sync[T]
+  trait Sync[-A] extends Subscriber[A] with Observer.Sync[A]
 
   object Sync {
     /** `Subscriber.Sync` builder */
-    def apply[T](observer: Observer.Sync[T], scheduler: Scheduler): Subscriber.Sync[T] =
+    def apply[A](observer: Observer.Sync[A], scheduler: Scheduler): Subscriber.Sync[A] =
       observer match {
         case ref: Subscriber.Sync[_] if ref.scheduler == scheduler =>
-          ref.asInstanceOf[Subscriber.Sync[T]]
+          ref.asInstanceOf[Subscriber.Sync[A]]
         case _ =>
-          new SyncImplementation[T](observer, scheduler)
+          new SyncImplementation[A](observer, scheduler)
       }
   }
 
@@ -101,15 +101,15 @@ object Subscriber {
     * it builds an [[Subscriber]] instance compliant with the
     * Monix Rx implementation.
     */
-  def fromReactiveSubscriber[T](subscriber: RSubscriber[T], subscription: Cancelable)
-    (implicit s: Scheduler): Subscriber[T] =
+  def fromReactiveSubscriber[A](subscriber: RSubscriber[A], subscription: Cancelable)
+    (implicit s: Scheduler): Subscriber[A] =
     ReactiveSubscriberAsMonixSubscriber(subscriber, subscription)
 
   /** Transforms the source [[Subscriber]] into a `org.reactivestreams.Subscriber`
     * instance as defined by the [[http://www.reactive-streams.org/ Reactive Streams]]
     * specification.
     */
-  def toReactiveSubscriber[T](subscriber: Subscriber[T]): RSubscriber[T] =
+  def toReactiveSubscriber[A](subscriber: Subscriber[A]): RSubscriber[A] =
     toReactiveSubscriber(subscriber, subscriber.scheduler.executionModel.recommendedBatchSize)
 
   /** Transforms the source [[Subscriber]] into a `org.reactivestreams.Subscriber`
@@ -121,9 +121,9 @@ object Subscriber {
     *        cycle when communicating demand, compliant with the reactive
     *        streams specification
     */
-  def toReactiveSubscriber[T](
-    source: Subscriber[T],
-    @deprecatedName('bufferSize) requestCount: Int): RSubscriber[T] =
+  def toReactiveSubscriber[A](
+    source: Subscriber[A],
+    @deprecatedName('bufferSize) requestCount: Int): RSubscriber[A] =
     SubscriberAsReactiveSubscriber(source, requestCount)
 
   /** Extension methods for [[Subscriber]].
@@ -139,12 +139,12 @@ object Subscriber {
     *         asynchronous boundaries, and when it is seen as being `isCanceled`,
     *         streaming is stopped.
     */
-  implicit class Extensions[T](val target: Subscriber[T]) extends AnyVal {
+  implicit class Extensions[A](val target: Subscriber[A]) extends AnyVal {
     /** Transforms the source [[Subscriber]] into a `org.reactivestreams.Subscriber`
       * instance as defined by the [[http://www.reactive-streams.org/ Reactive Streams]]
       * specification.
       */
-    def toReactive: RSubscriber[T] =
+    def toReactive: RSubscriber[A] =
       Subscriber.toReactiveSubscriber(target)
 
     /** Transforms the source [[Subscriber]] into a `org.reactivestreams.Subscriber`
@@ -156,7 +156,7 @@ object Subscriber {
       *        cycle when communicating demand, compliant with the
       *        reactive streams specification
       */
-    def toReactive(@deprecatedName('bufferSize) requestCount: Int): RSubscriber[T] =
+    def toReactive(@deprecatedName('bufferSize) requestCount: Int): RSubscriber[A] =
       Subscriber.toReactiveSubscriber(target, requestCount)
 
     /** $feedCollectionDesc
@@ -164,14 +164,14 @@ object Subscriber {
       * @param xs the traversable object containing the elements to feed
       *        into our subscriber
       */
-    def onNextAll(xs: TraversableOnce[T]): Future[Ack] =
+    def onNextAll(xs: TraversableOnce[A]): Future[Ack] =
       Observer.feed(target, xs.toIterator)(target.scheduler)
 
     /** $feedCollectionDesc
       *
       * @param iterable is the collection of items to push downstream
       */
-    def feed(iterable: Iterable[T]): Future[Ack] =
+    def feed(iterable: Iterable[A]): Future[Ack] =
       Observer.feed(target, iterable)(target.scheduler)
 
     /** $feedCollectionDesc
@@ -179,14 +179,14 @@ object Subscriber {
       * @param subscription $feedCancelableDesc
       * @param iterable is the collection of items to push downstream
       */
-    def feed(subscription: BooleanCancelable, iterable: Iterable[T]): Future[Ack] =
+    def feed(subscription: BooleanCancelable, iterable: Iterable[A]): Future[Ack] =
       Observer.feed(target, subscription, iterable)(target.scheduler)
 
     /** $feedCollectionDesc
       *
       * @param iterator is the iterator of items to push downstream
       */
-    def feed(iterator: Iterator[T]): Future[Ack] =
+    def feed(iterator: Iterator[A]): Future[Ack] =
       Observer.feed(target, iterator)(target.scheduler)
 
     /** $feedCollectionDesc
@@ -194,30 +194,30 @@ object Subscriber {
       * @param subscription $feedCancelableDesc
       * @param iterator is the iterator of items to push downstream
       */
-    def feed(subscription: BooleanCancelable, iterator: Iterator[T]): Future[Ack] =
+    def feed(subscription: BooleanCancelable, iterator: Iterator[A]): Future[Ack] =
       Observer.feed(target, subscription, iterator)(target.scheduler)
   }
 
-  private[this] final class Implementation[-T]
-    (private val underlying: Observer[T], val scheduler: Scheduler)
-    extends Subscriber[T] {
+  private[this] final class Implementation[-A]
+    (private val underlying: Observer[A], val scheduler: Scheduler)
+    extends Subscriber[A] {
 
     require(underlying != null, "Observer should not be null")
     require(scheduler != null, "Scheduler should not be null")
 
-    def onNext(elem: T): Future[Ack] = underlying.onNext(elem)
+    def onNext(elem: A): Future[Ack] = underlying.onNext(elem)
     def onError(ex: Throwable): Unit = underlying.onError(ex)
     def onComplete(): Unit = underlying.onComplete()
   }
 
-  private[this] final class SyncImplementation[-T]
-    (observer: Observer.Sync[T], val scheduler: Scheduler)
-    extends Subscriber.Sync[T] {
+  private[this] final class SyncImplementation[-A]
+    (observer: Observer.Sync[A], val scheduler: Scheduler)
+    extends Subscriber.Sync[A] {
 
     require(observer != null, "Observer should not be null")
     require(scheduler != null, "Scheduler should not be null")
 
-    def onNext(elem: T): Ack = observer.onNext(elem)
+    def onNext(elem: A): Ack = observer.onNext(elem)
     def onError(ex: Throwable): Unit = observer.onError(ex)
     def onComplete(): Unit = observer.onComplete()
   }

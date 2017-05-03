@@ -20,13 +20,13 @@ package monix.execution.atomic
 import minitest.SimpleTestSuite
 import monix.execution.atomic.PaddingStrategy._
 
-abstract class AtomicNumberSuite[T, R <: AtomicNumber[T]]
-  (builder: AtomicBuilder[T, R], strategy: PaddingStrategy,
-  value: T, maxValue: T, minValue: T, hasOverflow: Boolean = true,
-  allowPlatformIntrinsics: Boolean, allowUnsafe: Boolean)(implicit ev: Numeric[T])
+abstract class AtomicNumberSuite[A, R <: AtomicNumber[A]]
+  (builder: AtomicBuilder[A, R], strategy: PaddingStrategy,
+  value: A, maxValue: A, minValue: A, hasOverflow: Boolean = true,
+  allowPlatformIntrinsics: Boolean, allowUnsafe: Boolean)(implicit ev: Numeric[A])
   extends SimpleTestSuite {
 
-  def Atomic(initial: T): R = {
+  def Atomic(initial: A): R = {
     if (allowUnsafe)
       builder.buildInstance(initial, strategy, allowPlatformIntrinsics)
     else
@@ -269,7 +269,7 @@ abstract class AtomicNumberSuite[T, R <: AtomicNumber[T]]
 
   test("should transform(function)") {
     val r = Atomic(value)
-    def fn(x: T): T = ev.plus(x, x)
+    def fn(x: A): A = ev.plus(x, x)
     r.transform(fn)
     assert(r.get == ev.plus(value, value))
   }
@@ -286,7 +286,7 @@ abstract class AtomicNumberSuite[T, R <: AtomicNumber[T]]
 
   test("should transformAndGet(function)") {
     val r = Atomic(value)
-    def fn(x: T) = ev.plus(x,x)
+    def fn(x: A) = ev.plus(x,x)
     assert(r.transformAndGet(fn) == ev.plus(value, value))
   }
 
@@ -304,7 +304,7 @@ abstract class AtomicNumberSuite[T, R <: AtomicNumber[T]]
 
   test("should getAndTransform(function)") {
     val r = Atomic(value)
-    def fn(x: T) = ev.plus(x,x)
+    def fn(x: A) = ev.plus(x,x)
     assert(r.getAndTransform(fn) == value)
     assert(r.get == ev.plus(value, value))
   }

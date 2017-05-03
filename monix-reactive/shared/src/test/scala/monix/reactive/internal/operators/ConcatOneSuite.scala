@@ -66,8 +66,8 @@ object ConcatOneSuite extends BaseOperatorSuite {
     Sample(o, count(sourceCount-1), sum(sourceCount-1), waitFirst, waitNext)
   }
 
-  def toList[T](o: Observable[T])(implicit s: Scheduler) = {
-    o.foldLeftF(Vector.empty[T])(_ :+ _).runAsyncGetLast
+  def toList[A](o: Observable[A])(implicit s: Scheduler) = {
+    o.foldLeftF(Vector.empty[A])(_ :+ _).runAsyncGetLast
       .map(_.getOrElse(Vector.empty))
   }
 

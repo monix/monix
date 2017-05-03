@@ -24,13 +24,13 @@ import scala.concurrent.{Future, Promise}
   * Represents a Promise that completes with `value` after
   * receiving a `countdownUntil` number of `countdown()` calls.
   */
-private[monix] final class PromiseCounter[T] private (value: T, initial: Int) {
+private[monix] final class PromiseCounter[A] private (value: A, initial: Int) {
   require(initial > 0, "length must be strictly positive")
 
-  private[this] val promise = Promise[T]()
+  private[this] val promise = Promise[A]()
   private[this] val counter = Atomic(initial)
 
-  def future: Future[T] =
+  def future: Future[A] =
     promise.future
 
   def acquire(): Unit =
@@ -41,11 +41,11 @@ private[monix] final class PromiseCounter[T] private (value: T, initial: Int) {
     if (update == 0) promise.success(value)
   }
 
-  def success(value: T): Unit =
+  def success(value: A): Unit =
     promise.success(value)
 }
 
 private[monix] object PromiseCounter {
-  def apply[T](value: T, initial: Int): PromiseCounter[T] =
-    new PromiseCounter[T](value, initial)
+  def apply[A](value: A, initial: Int): PromiseCounter[A] =
+    new PromiseCounter[A](value, initial)
 }

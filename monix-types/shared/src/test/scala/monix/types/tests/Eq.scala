@@ -20,7 +20,7 @@ package monix.types.tests
 import scala.concurrent.ExecutionException
 
 /** Type-class for testing equality, used only in tests. */
-trait Eq[T] { def apply(x: T, y: T): Boolean }
+trait Eq[A] { def apply(x: A, y: A): Boolean }
 
 object Eq {
   implicit val intEq: Eq[Int] = new Eq[Int] {

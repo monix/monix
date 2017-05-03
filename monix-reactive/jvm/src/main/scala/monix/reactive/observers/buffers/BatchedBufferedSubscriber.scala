@@ -46,6 +46,6 @@ private[monix] final class BatchedBufferedSubscriber[A] private
 
 private[monix] object BatchedBufferedSubscriber {
   /** Builder for [[BatchedBufferedSubscriber]] */
-  def apply[T](underlying: Subscriber[List[T]], bufferSize: Int): BatchedBufferedSubscriber[T] =
-    new BatchedBufferedSubscriber[T](underlying, bufferSize)
+  def apply[A](underlying: Subscriber[List[A]], bufferSize: Int): BatchedBufferedSubscriber[A] =
+    new BatchedBufferedSubscriber[A](underlying, bufferSize)
 }

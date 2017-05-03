@@ -142,6 +142,6 @@ object ConnectableSubscriberSuite extends TestSuite[TestScheduler] {
     assertEquals(errorThrown, DummyException("dummy"))
   }
 
-  def create[T](o: Observer[T])(implicit s: Scheduler) =
+  def create[A](o: Observer[A])(implicit s: Scheduler) =
     ConnectableSubscriber(Subscriber(o, s))
 }

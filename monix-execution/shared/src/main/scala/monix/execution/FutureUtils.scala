@@ -37,9 +37,9 @@ object FutureUtils {
     * @return a new future that will either complete with the result of our
     *         source or fail in case the timeout is reached.
     */
-  def timeout[T](source: Future[T], atMost: FiniteDuration)(implicit s: Scheduler): Future[T] = {
+  def timeout[A](source: Future[A], atMost: FiniteDuration)(implicit s: Scheduler): Future[A] = {
     val err = new TimeoutException
-    val promise = Promise[T]()
+    val promise = Promise[A]()
     val task = s.scheduleOnce(atMost.length, atMost.unit,
       new Runnable { def run() = promise.tryFailure(err) })
 
@@ -65,10 +65,10 @@ object FutureUtils {
     * @return a new future that will either complete with the result of our
     *         source or with the fallback in case the timeout is reached
     */
-  def timeoutTo[T](source: Future[T], atMost: FiniteDuration, fallback: => Future[T])
-    (implicit s: Scheduler): Future[T] = {
+  def timeoutTo[A](source: Future[A], atMost: FiniteDuration, fallback: => Future[A])
+    (implicit s: Scheduler): Future[A] = {
 
-    val promise = Promise[T]()
+    val promise = Promise[A]()
     val task = s.scheduleOnce(atMost.length, atMost.unit,
       new Runnable { def run() = promise.tryCompleteWith(fallback) })
 
@@ -82,15 +82,15 @@ object FutureUtils {
     promise.future
   }
 
-  /** Utility that lifts a `Future[T]` into a `Future[Try[T]]`, exposing
+  /** Utility that lifts a `Future[A]` into a `Future[Try[A]]`, exposing
     * error explicitly.
     */
-  def materialize[T](source: Future[T])(implicit ec: ExecutionContext): Future[Try[T]] = {
+  def materialize[A](source: Future[A])(implicit ec: ExecutionContext): Future[Try[A]] = {
     if (source.isCompleted) {
       Future.successful(source.value.get)
     }
     else {
-      val p = Promise[Try[T]]()
+      val p = Promise[Try[A]]()
       source.onComplete(result => p.success(result))
       p.future
     }
@@ -101,8 +101,8 @@ object FutureUtils {
     *
     * Similar to `Future.transform` from Scala 2.12.
     */
-  def transform[T,S](source: Future[T], f: Try[T] => Try[S])(implicit ec: ExecutionContext): Future[S] = {
-    val p = Promise[S]()
+  def transform[A,B](source: Future[A], f: Try[A] => Try[B])(implicit ec: ExecutionContext): Future[B] = {
+    val p = Promise[B]()
     source.onComplete { result =>
       val b = try f(result) catch { case NonFatal(t) => Failure(t) }
       p.complete(b)
@@ -115,12 +115,12 @@ object FutureUtils {
     *
     * Similar to `Future.transformWith` from Scala 2.12.
     */
-  def transformWith[T,S](source: Future[T], f: Try[T] => Future[S])(implicit ec: ExecutionContext): Future[S] = {
-    val p = Promise[S]()
+  def transformWith[A,B](source: Future[A], f: Try[A] => Future[B])(implicit ec: ExecutionContext): Future[B] = {
+    val p = Promise[B]()
     source.onComplete { result =>
       val fb = try f(result) catch { case NonFatal(t) => Future.failed(t) }
       if (fb eq source)
-        p.complete(result.asInstanceOf[Try[S]])
+        p.complete(result.asInstanceOf[Try[B]])
       else fb.value match {
         case Some(value) => p.complete(value)
         case None => p.completeWith(fb)
@@ -129,10 +129,10 @@ object FutureUtils {
     p.future
   }
 
-  /** Utility that transforms a `Future[Try[T]]` into a `Future[T]`,
+  /** Utility that transforms a `Future[Try[A]]` into a `Future[A]`,
     * hiding errors, being the opposite of [[materialize]].
     */
-  def dematerialize[T](source: Future[Try[T]])(implicit ec: ExecutionContext): Future[T] = {
+  def dematerialize[A](source: Future[Try[A]])(implicit ec: ExecutionContext): Future[A] = {
     if (source.isCompleted)
       source.value.get match {
         case Failure(error) => Future.failed(error)
@@ -142,7 +142,7 @@ object FutureUtils {
         }
       }
     else {
-      val p = Promise[T]()
+      val p = Promise[A]()
       source.onComplete {
         case Failure(error) => p.failure(error)
         case Success(result) => p.complete(result)
@@ -154,8 +154,8 @@ object FutureUtils {
   /** Creates a future that completes with the specified `result`, but only
     * after the specified `delay`.
     */
-  def delayedResult[T](delay: FiniteDuration)(result: => T)(implicit s: Scheduler): Future[T] = {
-    val p = Promise[T]()
+  def delayedResult[A](delay: FiniteDuration)(result: => A)(implicit s: Scheduler): Future[A] = {
+    val p = Promise[A]()
     s.scheduleOnce(delay.length, delay.unit,
       new Runnable { def run() = p.complete(Try(result)) })
     p.future
@@ -164,33 +164,33 @@ object FutureUtils {
   /** Provides extension methods for `Future`. */
   object extensions {
     /** Provides utility methods added on Scala's `concurrent.Future` */
-    implicit class FutureExtensions[T](val source: Future[T]) extends AnyVal {
+    implicit class FutureExtensions[A](val source: Future[A]) extends AnyVal {
       /** [[FutureUtils.timeout]] exposed as an extension method. */
-      def timeout(atMost: FiniteDuration)(implicit s: Scheduler): Future[T] =
+      def timeout(atMost: FiniteDuration)(implicit s: Scheduler): Future[A] =
         FutureUtils.timeout(source, atMost)
 
       /** [[FutureUtils.timeoutTo]] exposed as an extension method. */
-      def timeoutTo[U >: T](atMost: FiniteDuration, fallback: => Future[U])
+      def timeoutTo[U >: A](atMost: FiniteDuration, fallback: => Future[U])
         (implicit s: Scheduler): Future[U] =
         FutureUtils.timeoutTo(source, atMost, fallback)
 
       /** [[FutureUtils.materialize]] exposed as an extension method. */
-      def materialize(implicit ec: ExecutionContext): Future[Try[T]] =
+      def materialize(implicit ec: ExecutionContext): Future[Try[A]] =
         FutureUtils.materialize(source)
 
       /** [[FutureUtils.dematerialize]] exposed as an extension method. */
-      def dematerialize[U](implicit ev: T <:< Try[U], ec: ExecutionContext): Future[U] =
+      def dematerialize[U](implicit ev: A <:< Try[U], ec: ExecutionContext): Future[U] =
         FutureUtils.dematerialize(source.asInstanceOf[Future[Try[U]]])
 
       /** [[FutureUtils.transformWith]] exposed as an extension method. */
-      def transformWith[S](f: Try[T] => Future[S])(implicit ec: ExecutionContext): Future[S] =
+      def transformWith[S](f: Try[A] => Future[S])(implicit ec: ExecutionContext): Future[S] =
         FutureUtils.transformWith(source, f)
     }
 
     /** Provides utility methods for Scala's `concurrent.Future` companion object. */
     implicit class FutureCompanionExtensions(val f: Future.type) extends AnyVal {
       /** [[FutureUtils.delayedResult]] exposed as an extension method. */
-      def delayedResult[T](delay: FiniteDuration)(result: => T)(implicit s: Scheduler): Future[T] =
+      def delayedResult[A](delay: FiniteDuration)(result: => A)(implicit s: Scheduler): Future[A] =
         FutureUtils.delayedResult(delay)(result)
     }
   }

@@ -61,7 +61,7 @@ import monix.reactive.observers.buffers.BuildersImpl
   * See [[OverflowStrategy OverflowStrategy]] for the buffer
   * policies available.
   */
-trait BufferedSubscriber[-T] extends Subscriber[T]
+trait BufferedSubscriber[-A] extends Subscriber[A]
 
 private[reactive] trait Builders {
   /** Given an [[OverflowStrategy]] wraps a [[Subscriber]] into a

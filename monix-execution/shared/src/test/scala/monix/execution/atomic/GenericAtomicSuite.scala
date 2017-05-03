@@ -21,12 +21,12 @@ import minitest.SimpleTestSuite
 import monix.execution.atomic.PaddingStrategy._
 import monix.execution.misc.NonFatal
 
-abstract class GenericAtomicSuite[T, R <: Atomic[T]]
-  (builder: AtomicBuilder[T, R], strategy: PaddingStrategy, valueFromInt: Int => T, valueToInt: T => Int,
+abstract class GenericAtomicSuite[A, R <: Atomic[A]]
+  (builder: AtomicBuilder[A, R], strategy: PaddingStrategy, valueFromInt: Int => A, valueToInt: A => Int,
    allowPlatformIntrinsics: Boolean, allowUnsafe: Boolean)
   extends SimpleTestSuite {
 
-  def Atomic(initial: T): R = {
+  def Atomic(initial: A): R = {
     if (allowUnsafe)
       builder.buildInstance(initial, strategy, allowPlatformIntrinsics)
     else
@@ -77,15 +77,15 @@ abstract class GenericAtomicSuite[T, R <: Atomic[T]]
   test("should transform with dirty function #1") {
     val r = Atomic(zero)
     r.transform {
-      def increment(y: T): T = valueFromInt(valueToInt(y) + 1)
-      x: T => increment(x)
+      def increment(y: A): A = valueFromInt(valueToInt(y) + 1)
+      x: A => increment(x)
     }
     assert(r.get == one)
   }
 
   test("should transform with dirty function #2") {
     val r = Atomic(zero)
-    def increment(y: T): T = valueFromInt(valueToInt(y) + 1)
+    def increment(y: A): A = valueFromInt(valueToInt(y) + 1)
 
     r.transform(increment)
     assert(r.get == one)
@@ -125,15 +125,15 @@ abstract class GenericAtomicSuite[T, R <: Atomic[T]]
   test("should transformAndGet with dirty function #1") {
     val r = Atomic(zero)
     val result = r.transformAndGet {
-      def increment(y: T): T = valueFromInt(valueToInt(y) + 1)
-      x: T => increment(x)
+      def increment(y: A): A = valueFromInt(valueToInt(y) + 1)
+      x: A => increment(x)
     }
     assertEquals(result, one)
   }
 
   test("should transformAndGet with dirty function #2") {
     val r = Atomic(zero)
-    def increment(y: T): T = valueFromInt(valueToInt(y) + 1)
+    def increment(y: A): A = valueFromInt(valueToInt(y) + 1)
 
     val result = r.transformAndGet(increment)
     assertEquals(result, one)
@@ -172,8 +172,8 @@ abstract class GenericAtomicSuite[T, R <: Atomic[T]]
   test("should getAndTransform with dirty function #1") {
     val r = Atomic(zero)
     val result = r.getAndTransform {
-      def increment(y: T): T = valueFromInt(valueToInt(y) + 1)
-      x: T => increment(x)
+      def increment(y: A): A = valueFromInt(valueToInt(y) + 1)
+      x: A => increment(x)
     }
     assertEquals(result, zero)
     assertEquals(r.get, one)
@@ -181,7 +181,7 @@ abstract class GenericAtomicSuite[T, R <: Atomic[T]]
 
   test("should getAndTransform with dirty function #2") {
     val r = Atomic(zero)
-    def increment(y: T): T = valueFromInt(valueToInt(y) + 1)
+    def increment(y: A): A = valueFromInt(valueToInt(y) + 1)
 
     val result = r.getAndTransform(increment)
     assertEquals(result, zero)
@@ -224,8 +224,8 @@ abstract class GenericAtomicSuite[T, R <: Atomic[T]]
   test("should transformAndExtract with dirty function #1") {
     val r = Atomic(zero)
     val result = r.transformAndExtract {
-      def increment(y: T): T = valueFromInt(valueToInt(y) + 1)
-      x: T => (x, increment(x))
+      def increment(y: A): A = valueFromInt(valueToInt(y) + 1)
+      x: A => (x, increment(x))
     }
 
     assertEquals(result, zero)
@@ -234,7 +234,7 @@ abstract class GenericAtomicSuite[T, R <: Atomic[T]]
 
   test("should transformAndExtract with dirty function #2") {
     val r = Atomic(zero)
-    def increment(y: T) = (y, valueFromInt(valueToInt(y) + 1))
+    def increment(y: A) = (y, valueFromInt(valueToInt(y) + 1))
 
     val result = r.transformAndExtract(increment)
     assertEquals(result, zero)

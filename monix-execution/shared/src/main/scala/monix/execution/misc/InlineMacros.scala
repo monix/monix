@@ -26,8 +26,8 @@ trait InlineMacros {
 
   import c.universe._
 
-  def inlineAndReset[T](tree: Tree): c.Expr[T] = {
-    c.Expr[T](inlineAndResetTree(tree))
+  def inlineAndReset[A](tree: Tree): c.Expr[A] = {
+    c.Expr[A](inlineAndResetTree(tree))
   }
 
   def inlineAndResetTree(tree: Tree): Tree = {

@@ -235,7 +235,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     *
     * @param maxCapacity is the maximum buffer size after which old events
     *        start being dropped (according to what happens when using
-    *        [[monix.reactive.subjects.ReplaySubject.createLimited[T](capacity:Int,initial* ReplaySubject.createLimited]])
+    *        [[monix.reactive.subjects.ReplaySubject.createLimited[A](capacity:Int,initial* ReplaySubject.createLimited]])
     *
     * @return an Observable that, when first subscribed to, caches all of its
     *         items and notifications for the benefit of subsequent subscribers

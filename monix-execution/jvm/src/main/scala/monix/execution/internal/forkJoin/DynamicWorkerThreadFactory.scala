@@ -70,7 +70,7 @@ private[monix] final class DynamicWorkerThreadFactory(
         final override def onTermination(exception: Throwable): Unit =
           deregisterThread()
 
-        final override def blockOn[T](thunk: =>T)(implicit permission: CanAwait): T = {
+        final override def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
           var result: T = null.asInstanceOf[T]
           ForkJoinPool.managedBlock(new ManagedBlocker {
             @volatile

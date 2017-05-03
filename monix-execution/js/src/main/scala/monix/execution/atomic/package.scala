@@ -31,8 +31,9 @@ package monix.execution
   * the `expect` value, reporting `true` on success or `false` on failure. The classes in this package
   * also contain methods to get and unconditionally set values.
   *
-  * Building a reference is easy with the provided constructor, which will automatically return the
-  * most specific type needed (in the following sample, that's an `AtomicDouble`, inheriting from `AtomicNumber[T]`):
+  * Building a reference is easy with the provided constructor, which will automatically
+  * return the most specific type needed (in the following sample, that's an `AtomicDouble`,
+  * inheriting from `AtomicNumber[A]`):
   * {{{
   *   val atomicNumber = Atomic(12.2)
   *

@@ -23,13 +23,13 @@ import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 
-abstract class ConcurrentAtomicNumberSuite[T, R <: AtomicNumber[T]]
-  (builder: AtomicBuilder[T, R], strategy: PaddingStrategy,
-   value: T, nan1: Option[T], maxValue: T, minValue: T,
-   allowPlatformIntrinsics: Boolean)(implicit ev: Numeric[T])
+abstract class ConcurrentAtomicNumberSuite[A, R <: AtomicNumber[A]]
+  (builder: AtomicBuilder[A, R], strategy: PaddingStrategy,
+   value: A, nan1: Option[A], maxValue: A, minValue: A,
+   allowPlatformIntrinsics: Boolean)(implicit ev: Numeric[A])
   extends SimpleTestSuite {
 
-  def Atomic(initial: T): R = builder.buildInstance(initial, strategy, allowPlatformIntrinsics)
+  def Atomic(initial: A): R = builder.buildInstance(initial, strategy, allowPlatformIntrinsics)
 
   val two = ev.plus(ev.one, ev.one)
 

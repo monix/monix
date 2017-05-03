@@ -22,20 +22,20 @@ import monix.execution.internals.atomic.{BoxedObject, Factory}
 
 /** Atomic references wrapping `AnyRef` values.
   *
-  * @tparam T is forced to be an `AnyRef` because the equality test is
+  * @tparam A is forced to be an `AnyRef` because the equality test is
   *         by reference and not by value.
   */
-final class AtomicAny[T <: AnyRef] private (private[this] val ref: BoxedObject) extends Atomic[T] {
-  def get: T = ref.volatileGet().asInstanceOf[T]
-  def set(update: T): Unit = ref.volatileSet(update)
+final class AtomicAny[A <: AnyRef] private (private[this] val ref: BoxedObject) extends Atomic[A] {
+  def get: A = ref.volatileGet().asInstanceOf[A]
+  def set(update: A): Unit = ref.volatileSet(update)
 
-  def compareAndSet(expect: T, update: T): Boolean =
+  def compareAndSet(expect: A, update: A): Boolean =
     ref.compareAndSet(expect, update)
 
-  def getAndSet(update: T): T =
-    ref.getAndSet(update).asInstanceOf[T]
+  def getAndSet(update: A): A =
+    ref.getAndSet(update).asInstanceOf[A]
 
-  def lazySet(update: T): Unit =
+  def lazySet(update: A): Unit =
     ref.lazySet(update)
 }
 

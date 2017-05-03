@@ -26,10 +26,10 @@ import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
 /** Converts any `Future` into an observable */
-private[reactive] final class FutureAsObservable[T](factory: => Future[T])
-  extends Observable[T] {
+private[reactive] final class FutureAsObservable[A](factory: => Future[A])
+  extends Observable[A] {
 
-  def unsafeSubscribeFn(subscriber: Subscriber[T]): Cancelable = {
+  def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     import subscriber.{scheduler => s}
     // Protects calls to user code
     var streamErrors = true

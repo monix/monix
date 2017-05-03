@@ -35,14 +35,14 @@ import scala.util.Try
   *  - if downstream signals a `Stop`, the observer no longer accepts any events,
   *    ensuring that the grammar is respected
   */
-final class SafeSubscriber[-T] private (subscriber: Subscriber[T])
-  extends Subscriber[T] {
+final class SafeSubscriber[-A] private (subscriber: Subscriber[A])
+  extends Subscriber[A] {
 
   implicit val scheduler = subscriber.scheduler
   private[this] var isDone = false
   private[this] var ack: Future[Ack] = Continue
 
-  def onNext(elem: T): Future[Ack] = {
+  def onNext(elem: A): Future[Ack] = {
     if (!isDone) {
       ack = try {
         flattenAndCatchFailures(subscriber.onNext(elem))
@@ -112,9 +112,9 @@ object SafeSubscriber {
   /**
     * Wraps an Observer instance into a SafeObserver.
     */
-  def apply[T](subscriber: Subscriber[T]): SafeSubscriber[T] =
+  def apply[A](subscriber: Subscriber[A]): SafeSubscriber[A] =
     subscriber match {
-      case ref: SafeSubscriber[_] => ref.asInstanceOf[SafeSubscriber[T]]
-      case _ => new SafeSubscriber[T](subscriber)
+      case ref: SafeSubscriber[_] => ref.asInstanceOf[SafeSubscriber[A]]
+      case _ => new SafeSubscriber[A](subscriber)
     }
 }

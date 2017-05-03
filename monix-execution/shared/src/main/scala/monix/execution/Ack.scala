@@ -143,7 +143,7 @@ object Ack {
     /** If the source completes with a `Stop`, then complete the given
       * promise with a value.
       */
-    def syncOnContinueFollow[T](p: Promise[T], value: T)(implicit s: Scheduler): Self = {
+    def syncOnContinueFollow[A](p: Promise[A], value: A)(implicit s: Scheduler): Self = {
       if (source eq Continue)
         p.trySuccess(value)
       else if (source ne Stop)
@@ -158,7 +158,7 @@ object Ack {
     /** If the source completes with a `Stop`, then complete the given
       * promise with a value.
       */
-    def syncOnStopFollow[T](p: Promise[T], value: T)(implicit s: Scheduler): Self = {
+    def syncOnStopFollow[A](p: Promise[A], value: A)(implicit s: Scheduler): Self = {
       if (source eq Stop)
         p.trySuccess(value)
       else if (source ne Continue)

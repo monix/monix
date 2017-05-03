@@ -41,7 +41,7 @@ import monix.execution.internals.atomic.BoxPaddingStrategy
   * Building a reference is easy with the provided constructor, which
   * will automatically return the most specific type needed (in the
   * following sample, that's an `AtomicDouble`, inheriting from
-  * `AtomicNumber[T]`):
+  * `AtomicNumber[A]`):
   *
   * {{{
   *   val atomicNumber = Atomic(12.2)

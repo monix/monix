@@ -23,6 +23,6 @@ import monix.types.utils.IsEquiv
 import org.scalacheck.Prop
 
 trait BaseLawsSuite extends SimpleTestSuite with Checkers {
-  implicit def isEqToProp[T](isEq: IsEquiv[T])(implicit eq: Eq[T]): Prop =
+  implicit def isEqToProp[A](isEq: IsEquiv[A])(implicit eq: Eq[A]): Prop =
     Prop(eq(isEq.lh, isEq.rh))
 }
