@@ -55,7 +55,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
     }
 
     Observable.range(0, 10000).toReactivePublisher
-      .subscribe(Observer.toReactiveSubscriber(observer, bufferSize = 128))
+      .subscribe(Observer.toReactiveSubscriber(observer, requestCount = 128))
 
     scheduler.tick()
     assertEquals(sum, 5000L * 9999)
@@ -82,7 +82,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
 
     val requested = 100
     Observable.range(0, requested).toReactivePublisher
-      .subscribe(Observer.toReactiveSubscriber(observer, bufferSize = 1))
+      .subscribe(Observer.toReactiveSubscriber(observer, requestCount = 1))
 
     s.tick()
     assertEquals(sum, requested * (requested-1) / 2)
@@ -109,7 +109,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
     }
 
     Observable.range(0, 10000).toReactivePublisher
-      .subscribe(Observer.toReactiveSubscriber(observer, bufferSize = 128))
+      .subscribe(Observer.toReactiveSubscriber(observer, requestCount = 128))
 
     s.tick()
     assertEquals(sum, 5000L * 9999)
@@ -136,7 +136,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
     }
 
     Observable.range(0, 10000).toReactivePublisher
-      .subscribe(Observer.toReactiveSubscriber(observer, bufferSize = 1))
+      .subscribe(Observer.toReactiveSubscriber(observer, requestCount = 1))
 
     scheduler.tick()
     assertEquals(sum, 5000L * 9999)
@@ -175,7 +175,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
     }
 
     Observable.range(1, 10000).toReactivePublisher
-      .subscribe(Observer.toReactiveSubscriber(observer, bufferSize = 128))
+      .subscribe(Observer.toReactiveSubscriber(observer, requestCount = 128))
 
     s.tick()
     assertEquals(sum, 5 * 11)
@@ -216,7 +216,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
       }
 
       Observable.range(1, 10000).toReactivePublisher
-        .subscribe(Observer.toReactiveSubscriber(observer, bufferSize = 1))
+        .subscribe(Observer.toReactiveSubscriber(observer, requestCount = 1))
 
       s.tick()
       assertEquals(sum, 5 * 11)
@@ -248,7 +248,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
     }
 
     Observable.now(100L).toReactivePublisher
-      .subscribe(Observer.toReactiveSubscriber(observer, bufferSize = 128))
+      .subscribe(Observer.toReactiveSubscriber(observer, requestCount = 128))
 
     s.tick()
     assertEquals(sum, 100L)
@@ -279,7 +279,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
     }
 
     Observable.now(100L).toReactivePublisher
-      .subscribe(Observer.toReactiveSubscriber(observer, bufferSize = 1))
+      .subscribe(Observer.toReactiveSubscriber(observer, requestCount = 1))
 
     s.tick()
     assertEquals(sum, 100L)

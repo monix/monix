@@ -32,7 +32,7 @@ import scala.concurrent.{Future, Promise}
   * into an [[monix.reactive.Observer Observer]] instance that
   * respect the `Observer` contract.
   */
-private[monix] final class ReactiveSubscriberAsMonixSubscriber[T] private
+private[reactive] final class ReactiveSubscriberAsMonixSubscriber[T] private
     (subscriber: RSubscriber[T], subscription: Cancelable)
     (implicit val scheduler: Scheduler)
   extends Subscriber[T] with Cancelable { self =>
@@ -104,7 +104,7 @@ private[monix] final class ReactiveSubscriberAsMonixSubscriber[T] private
   }
 }
 
-private[monix] object ReactiveSubscriberAsMonixSubscriber {
+private[reactive] object ReactiveSubscriberAsMonixSubscriber {
   /** Given an `org.reactivestreams.Subscriber` as defined by
     * the [[http://www.reactive-streams.org/ Reactive Streams]]
     * specification, it builds an [[monix.reactive.Observer]]
