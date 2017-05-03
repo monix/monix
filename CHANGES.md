@@ -1,3 +1,62 @@
+## Version 2.3.0 (Wed 3, 2017)
+
+Release is binary backwards compatible with series `2.2.x`.
+
+List of changes:
+
+- [Issue #340](https://github.com/monix/monix/issues/340): 
+  Optimization of `TaskSemaphore`
+- [Issue #349](https://github.com/monix/monix/issues/349):
+  Replace usage of `scala.util.control.NonFatal` in handling
+  fatal exceptions to `monix.execution.misc.NonFatal`
+- [Issue #347](https://github.com/monix/monix/issues/347):
+  Add `Task.deferAction` builder
+- [Issue #339](https://github.com/monix/monix/issues/339):
+  Add `Observable.observeOn` method
+- [Issue #338](https://github.com/monix/monix/issues/338):
+  `Cancelable` refs built with `Cancelable.collection` should
+  use `Cancelable.cancelAll` in its implementation
+- [Issue #350](https://github.com/monix/monix/issues/350):
+  Change `BackPressure` buffer implementation to be more fair
+  and ensure that it doesn't lose events
+- [Issue #353](https://github.com/monix/monix/pull/353):
+  Refactor `Coeval` / `Task` run-loop to introduce optimized
+  `attempt` / `materialize` implementations and add 
+  `transform` / `transformWith` methods making use of this
+- [Issue #355](https://github.com/monix/monix/issues/355):
+  Add `Coeval.run` method
+- [Issue #356](https://github.com/monix/monix/issues/356):
+  Add `Coeval#attempt` and `Task#attempt` methods
+- [Issue #358](https://github.com/monix/monix/issues/358):
+  Deprecate `materializeAttempt` and `dematerializeAttempt`
+  on `Task` and `Coeval`
+- [Issue #359](https://github.com/monix/monix/issues/359):
+  Rename `Coeval.Attempt#isFailure` to `Coeval.Attempt#isError`
+- [Issue #348](https://github.com/monix/monix/issues/348):
+  Add `Consumer#transformInput` method
+- [Issue #352](https://github.com/monix/monix/issues/352) / 
+  [PR #361](https://github.com/monix/monix/pull/361):
+  No back-pressure when converting from `org.reactivestreams.Publisher` 
+  to `Observable`
+- [Issue #362](https://github.com/monix/monix/pull/362):
+  Replace `[T]` generic param to `[A]`, as a convention, 
+  everywhere
+- [PR #341](https://github.com/monix/monix/pull/341), 
+  [PR #344](https://github.com/monix/monix/pull/344),
+  [PR #346](https://github.com/monix/monix/pull/346),
+  [Commit 9357ba](https://github.com/monix/monix/commit/9357ba4e5632c605623157343247054e338d42f0),
+  etc:
+  Update dependencies (Scalaz 7.2.11, Scala 2.11.11, 
+  Scala 2.12.2, Scala.js 0.6.16)  
+  
+Administrative:
+
+- [Issue #354](https://github.com/monix/monix/issues/354):
+  Enable Mima and Unidoc error reporting in Travis build
+- [PR #351](https://github.com/monix/monix/pull/351):
+  Specify that Monix is now a Typelevel project with
+  full membership
+  
 ## Version 2.2.3 (Mar 10, 2017)
 
 Critical bug fix release related to Scala 2.12:
