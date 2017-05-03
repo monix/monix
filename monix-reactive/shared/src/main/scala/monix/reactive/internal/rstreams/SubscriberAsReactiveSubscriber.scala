@@ -26,6 +26,44 @@ import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 import org.reactivestreams.{Subscriber => RSubscriber, Subscription => RSubscription}
 import scala.concurrent.Future
 
+private[reactive] object SubscriberAsReactiveSubscriber {
+  /** Wraps a [[monix.reactive.Observer Observer]] instance into a
+    * `org.reactiveSubscriber` instance. The resulting subscriber respects
+    * the [[http://www.reactive-streams.org/ Reactive Streams]] contract.
+    *
+    * Given that when emitting [[monix.reactive.Observer.onNext Observer.onNext]] calls,
+    * the call may pass asynchronous boundaries, the emitted events need to be buffered.
+    * The `requestCount` constructor parameter also represents the buffer size.
+    *
+    * To async an instance, [[SubscriberAsReactiveSubscriber.apply]] must be used: {{{
+    *   // uses the default requestCount of 128
+    *   val subscriber = SubscriberAsReactiveSubscriber(new Observer[Int] {
+    *     private[this] var sum = 0
+    *
+    *     def onNext(elem: Int) = {
+    *       sum += elem
+    *       Continue
+    *     }
+    *
+    *     def onError(ex: Throwable) = {
+    *       logger.error(ex)
+    *     }
+    *
+    *     def onComplete() = {
+    *       logger.info("Stream completed")
+    *     }
+    *   })
+    * }}}
+    *
+    * @param subscriber the subscriber instance that will get wrapped into a
+    *                  `org.reactiveSubscriber`
+    * @param requestCount the parameter passed to each `Subscription.request` call,
+    *                    also representing the buffer size; MUST BE strictly positive
+    */
+  def apply[T](subscriber: Subscriber[T], requestCount: Int = 128): RSubscriber[T] =
+    SubscriberAsReactiveSubscriber(subscriber, requestCount)
+}
+
 /** Wraps a [[monix.reactive.Observer Observer]] instance into an
   * `org.reactiveSubscriber` instance. The resulting
   * subscriber respects the [[http://www.reactive-streams.org/ Reactive Streams]]
@@ -60,7 +98,7 @@ import scala.concurrent.Future
   * @param requestCount the parameter passed to `Subscription.request`,
   *                    also representing the buffer size; MUST BE strictly positive
   */
-private[monix] final class SubscriberAsReactiveSubscriber[A] private
+private[reactive] final class AsyncSubscriberAsReactiveSubscriber[A] private
   (target: Subscriber[A], requestCount: Int)
   extends RSubscriber[A] {
 
@@ -151,54 +189,7 @@ private[monix] final class SubscriberAsReactiveSubscriber[A] private
     )
 }
 
-
-private[monix] object SubscriberAsReactiveSubscriber {
-  /**
-    * Wraps a [[monix.reactive.Observer Observer]] instance into a
-    * `org.reactiveSubscriber` instance. The resulting
-    * subscriber respects the [[http://www.reactive-streams.org/ Reactive Streams]]
-    * contract.
-    *
-    * Given that when emitting [[monix.reactive.Observer.onNext Observer.onNext]] calls,
-    * the call may pass asynchronous boundaries, the emitted events need to be buffered.
-    * The `requestCount` constructor parameter also represents the buffer size.
-    *
-    * To async an instance, [[SubscriberAsReactiveSubscriber.apply]] must be used: {{{
-    *   // uses the default requestCount of 128
-    *   val subscriber = SubscriberAsReactiveSubscriber(new Observer[Int] {
-    *     private[this] var sum = 0
-    *
-    *     def onNext(elem: Int) = {
-    *       sum += elem
-    *       Continue
-    *     }
-    *
-    *     def onError(ex: Throwable) = {
-    *       logger.error(ex)
-    *     }
-    *
-    *     def onComplete() = {
-    *       logger.info("Stream completed")
-    *     }
-    *   })
-    * }}}
-    *
-    * @param subscriber the subscriber instance that will get wrapped into a
-    *                  `org.reactiveSubscriber`
-    * @param requestCount the parameter passed to each `Subscription.request` call,
-    *                    also representing the buffer size; MUST BE strictly positive
-    */
-  def apply[T](subscriber: Subscriber[T], requestCount: Int = 128): RSubscriber[T] =
-    subscriber match {
-      case ref: Subscriber.Sync[_] =>
-        SyncSubscriberAsReactiveSubscriber(ref.asInstanceOf[Subscriber.Sync[T]], requestCount)
-      case _ =>
-        new SubscriberAsReactiveSubscriber[T](subscriber, requestCount)
-    }
-}
-
-/**
-  * Wraps a [[monix.reactive.observers.Subscriber.Sync Subscriber.Sync]] instance into a
+/** Wraps a [[monix.reactive.observers.Subscriber.Sync Subscriber.Sync]] instance into a
   * `org.reactiveSubscriber` instance. The resulting
   * subscriber respects the [[http://www.reactive-streams.org/ Reactive Streams]]
   * contract.
@@ -226,7 +217,7 @@ private[monix] object SubscriberAsReactiveSubscriber {
   *   })
   * }}}
   */
-private[monix] final class SyncSubscriberAsReactiveSubscriber[T] private
+private[reactive] final class SyncSubscriberAsReactiveSubscriber[T]
   (target: Subscriber.Sync[T], requestCount: Int)
   extends RSubscriber[T] {
 
@@ -290,44 +281,4 @@ private[monix] final class SyncSubscriberAsReactiveSubscriber[T] private
       isCanceled = true
       target.onComplete()
     }
-}
-
-
-private[monix] object SyncSubscriberAsReactiveSubscriber {
-  /**
-    * Wraps a [[monix.reactive.observers.Subscriber.Sync Subscriber.Sync]] instance into a
-    * `org.reactiveSubscriber` instance. The resulting
-    * subscriber respects the [[http://www.reactive-streams.org/ Reactive Streams]]
-    * contract.
-    *
-    * Given that we can guarantee a [[monix.reactive.observers.Subscriber.Sync Subscriber.Sync]]
-    * is used, then no buffering is needed and thus the implementation is very efficient.
-    *
-    * To async an instance, [[SyncSubscriberAsReactiveSubscriber.apply]] must be used: {{{
-    *   // uses the default requestCount of 128
-    *   val subscriber = SyncSubscriberAsReactiveSubscriber(new Observer[Int] {
-    *     private[this] var sum = 0
-    *
-    *     def onNext(elem: Int) = {
-    *       sum += elem
-    *       Continue
-    *     }
-    *
-    *     def onError(ex: Throwable) = {
-    *       logger.error(ex)
-    *     }
-    *
-    *     def onComplete() = {
-    *       logger.info("Stream completed")
-    *     }
-    *   })
-    * }}}
-    *
-    * @param target the observer instance that will get wrapped into a
-    *                  `org.reactiveSubscriber`, along with the
-    *                  used scheduler
-    * @param requestCount the parameter passed to `Subscription.request`
-    */
-  def apply[T](target: Subscriber.Sync[T], requestCount: Int = 128): RSubscriber[T] =
-    new SyncSubscriberAsReactiveSubscriber[T](target, requestCount)
 }

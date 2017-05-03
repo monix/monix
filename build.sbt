@@ -1,6 +1,4 @@
 import com.typesafe.sbt.pgp.PgpKeys
-import com.typesafe.tools.mima.core._
-
 // For getting Scoverage out of the generated POM
 import scala.xml.Elem
 import scala.xml.transform.{RewriteRule, RuleTransformer}
@@ -13,7 +11,6 @@ val catsVersion = "0.9.0"
 val scalazVersion = "7.2.11"
 
 // The Monix version with which we must keep binary compatibility.
-// For MiMa testing, see:
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
 val monixSeries = "2.2.4"
 
@@ -354,15 +351,8 @@ lazy val evalCommon =
   crossSettings ++ testSettings ++ Seq(
     name := "monix-eval",
     // Filtering out private stuff that changed in 2.3.x
-    mimaBinaryIssueFilters ++= Seq(
-      ProblemFilters.exclude[DirectMissingMethodProblem]("monix.eval.Task.internalStartTrampolineRunLoop"),
-      ProblemFilters.exclude[MissingClassProblem]("monix.eval.Coeval$BindSuspend"),
-      ProblemFilters.exclude[MissingClassProblem]("monix.eval.Coeval$BindSuspend$"),
-      ProblemFilters.exclude[DirectMissingMethodProblem]("monix.eval.Task#MemoizeSuspend.execute"),
-      ProblemFilters.exclude[MissingTypesProblem]("monix.eval.Task$Context$"),
-      ProblemFilters.exclude[DirectMissingMethodProblem]("monix.eval.Task#Eval.f"),
-      ProblemFilters.exclude[DirectMissingMethodProblem]("monix.eval.Coeval.trampoline")
-    )
+    mimaBinaryIssueFilters ++=
+      MimaFilters.evalChangesFor_2_3_0
   )
 
 lazy val evalJVM = project.in(file("monix-eval/jvm"))
@@ -384,11 +374,8 @@ lazy val reactiveCommon =
   crossSettings ++ testSettings ++ Seq(
     name := "monix-reactive",
     // Filtering out private stuff for 2.3.x
-    mimaBinaryIssueFilters ++= Seq(
-      ProblemFilters.exclude[DirectMissingMethodProblem]("monix.reactive.observers.buffers.AbstractBackPressuredBufferedSubscriber.secondaryQueue"),
-      ProblemFilters.exclude[DirectMissingMethodProblem]("monix.reactive.observers.buffers.AbstractBackPressuredBufferedSubscriber.primaryQueue"),
-      ProblemFilters.exclude[DirectMissingMethodProblem]("monix.reactive.observers.buffers.ConcurrentQueue.unbounded")
-    )
+    mimaBinaryIssueFilters ++=
+      MimaFilters.reactiveChangesFor_2_3_0
   )
 
 lazy val reactiveJVM = project.in(file("monix-reactive/jvm"))

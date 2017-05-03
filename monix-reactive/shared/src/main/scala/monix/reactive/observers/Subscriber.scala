@@ -123,16 +123,8 @@ object Subscriber {
     */
   def toReactiveSubscriber[T](
     source: Subscriber[T],
-    @deprecatedName('bufferSize) requestCount: Int): RSubscriber[T] = {
-
-    source match {
-      case sync: Subscriber.Sync[_] =>
-        val inst = sync.asInstanceOf[Subscriber.Sync[T]]
-        SyncSubscriberAsReactiveSubscriber(inst, requestCount)
-      case async =>
-        SubscriberAsReactiveSubscriber(async, requestCount)
-    }
-  }
+    @deprecatedName('bufferSize) requestCount: Int): RSubscriber[T] =
+    SubscriberAsReactiveSubscriber(source, requestCount)
 
   /** Extension methods for [[Subscriber]].
     *

@@ -143,13 +143,7 @@ object Observer {
     (implicit s: Scheduler): RSubscriber[T] = {
 
     require(requestCount > 0, "requestCount > 0")
-    observer match {
-      case sync: Observer.Sync[_] =>
-        val inst = sync.asInstanceOf[Observer.Sync[T]]
-        SyncSubscriberAsReactiveSubscriber(Subscriber.Sync(inst, s), requestCount)
-      case async =>
-        SubscriberAsReactiveSubscriber(Subscriber(async, s), requestCount)
-    }
+    SubscriberAsReactiveSubscriber(Subscriber(observer, s), requestCount)
   }
 
   /** $feedCollectionDesc
