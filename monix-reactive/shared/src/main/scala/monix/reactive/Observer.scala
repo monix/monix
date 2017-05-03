@@ -44,8 +44,8 @@ import scala.util.Success
   * and after onComplete or onError, a well behaved `Observable`
   * implementation shouldn't send any more onNext events.
   */
-trait Observer[-T] extends Any with Serializable {
-  def onNext(elem: T): Future[Ack]
+trait Observer[-A] extends Any with Serializable {
+  def onNext(elem: A): Future[Ack]
 
   def onError(ex: Throwable): Unit
 
@@ -76,13 +76,13 @@ object Observer {
     *
     * Can be used for optimizations.
     */
-  trait Sync[-T] extends Observer[T] {
+  trait Sync[-A] extends Observer[A] {
     /**
       * Returns either a [[monix.execution.Ack.Continue Continue]] or a
       * [[monix.execution.Ack.Stop Stop]], in response to an `elem` event
       * being received.
       */
-    def onNext(elem: T): Ack
+    def onNext(elem: A): Ack
   }
 
 
@@ -118,15 +118,15 @@ object Observer {
     * it builds an [[Observer]] instance compliant with the
     * Monix Rx implementation.
     */
-  def fromReactiveSubscriber[T](subscriber: RSubscriber[T], subscription: Cancelable)
-    (implicit s: Scheduler): Observer[T] =
+  def fromReactiveSubscriber[A](subscriber: RSubscriber[A], subscription: Cancelable)
+    (implicit s: Scheduler): Observer[A] =
     ReactiveSubscriberAsMonixSubscriber(subscriber, subscription)
 
   /** Transforms the source [[Observer]] into a `org.reactivestreams.Subscriber`
     * instance as defined by the [[http://www.reactive-streams.org/ Reactive Streams]]
     * specification.
     */
-  def toReactiveSubscriber[T](observer: Observer[T])(implicit s: Scheduler): RSubscriber[T] = {
+  def toReactiveSubscriber[A](observer: Observer[A])(implicit s: Scheduler): RSubscriber[A] = {
     toReactiveSubscriber(observer, s.executionModel.recommendedBatchSize)(s)
   }
 
@@ -139,8 +139,8 @@ object Observer {
     *        on each cycle when communicating demand, compliant with
     *        the reactive streams specification
     */
-  def toReactiveSubscriber[T](observer: Observer[T], @deprecatedName('bufferSize) requestCount: Int)
-    (implicit s: Scheduler): RSubscriber[T] = {
+  def toReactiveSubscriber[A](observer: Observer[A], @deprecatedName('bufferSize) requestCount: Int)
+    (implicit s: Scheduler): RSubscriber[A] = {
 
     require(requestCount > 0, "requestCount > 0")
     SubscriberAsReactiveSubscriber(Subscriber(observer, s), requestCount)
@@ -151,7 +151,7 @@ object Observer {
     * @param target is the observer that will get the events
     * @param iterable is the collection of items to push downstream
     */
-  def feed[T](target: Observer[T], iterable: Iterable[T])
+  def feed[A](target: Observer[A], iterable: Iterable[A])
     (implicit s: Scheduler): Future[Ack] =
     feed(target, BooleanCancelable.dummy, iterable)
 
@@ -161,7 +161,7 @@ object Observer {
     * @param subscription $feedCancelableDesc
     * @param iterable is the collection of items to push downstream
     */
-  def feed[T](target: Observer[T], subscription: BooleanCancelable, iterable: Iterable[T])
+  def feed[A](target: Observer[A], subscription: BooleanCancelable, iterable: Iterable[A])
     (implicit s: Scheduler): Future[Ack] = {
 
     try feed(target, subscription, iterable.iterator) catch {
@@ -176,7 +176,7 @@ object Observer {
     * @param target is the observer that will get the events
     * @param iterator is the collection of items to push downstream
     */
-  def feed[T](target: Observer[T], iterator: Iterator[T])
+  def feed[A](target: Observer[A], iterator: Iterator[A])
     (implicit s: Scheduler): Future[Ack] =
     feed(target, BooleanCancelable.dummy, iterator)
 
@@ -186,10 +186,10 @@ object Observer {
     * @param subscription $feedCancelableDesc
     * @param iterator is the collection of items to push downstream
     */
-  def feed[T](target: Observer[T], subscription: BooleanCancelable, iterator: Iterator[T])
+  def feed[A](target: Observer[A], subscription: BooleanCancelable, iterator: Iterator[A])
     (implicit s: Scheduler): Future[Ack] = {
 
-    def scheduleFeedLoop(promise: Promise[Ack], iterator: Iterator[T]): Future[Ack] = {
+    def scheduleFeedLoop(promise: Promise[Ack], iterator: Iterator[A]): Future[Ack] = {
       s.execute(new Runnable {
         private[this] val em = s.executionModel
 
@@ -258,12 +258,12 @@ object Observer {
     *         asynchronous boundaries, and when it is seen as being `isCanceled`,
     *         streaming is stopped
     */
-  implicit class Extensions[T](val target: Observer[T]) extends AnyVal {
+  implicit class Extensions[A](val target: Observer[A]) extends AnyVal {
     /** Transforms the source [[Observer]] into a `org.reactivestreams.Subscriber`
       * instance as defined by the [[http://www.reactive-streams.org/ Reactive Streams]]
       * specification.
       */
-    def toReactive(implicit s: Scheduler): RSubscriber[T] =
+    def toReactive(implicit s: Scheduler): RSubscriber[A] =
       Observer.toReactiveSubscriber(target)
 
     /** Transforms the source [[Observer]] into a `org.reactivestreams.Subscriber`
@@ -276,7 +276,7 @@ object Observer {
       *        the reactive streams specification
       */
     def toReactive(@deprecatedName('bufferSize) requestCount: Int)
-      (implicit s: Scheduler): RSubscriber[T] =
+      (implicit s: Scheduler): RSubscriber[A] =
       Observer.toReactiveSubscriber(target, requestCount)
 
     /** $feedCollectionDesc
@@ -284,14 +284,14 @@ object Observer {
       * @param xs the traversable object containing the elements to feed
       *        into our observer.
       */
-    def onNextAll(xs: TraversableOnce[T])(implicit s: Scheduler): Future[Ack] =
+    def onNextAll(xs: TraversableOnce[A])(implicit s: Scheduler): Future[Ack] =
       Observer.feed(target, xs.toIterator)(s)
 
     /** $feedCollectionDesc
       *
       * @param iterable is the collection of items to push downstream
       */
-    def feed(iterable: Iterable[T])
+    def feed(iterable: Iterable[A])
       (implicit s: Scheduler): Future[Ack] =
       Observer.feed(target, iterable)
 
@@ -300,7 +300,7 @@ object Observer {
       * @param subscription $feedCancelableDesc
       * @param iterable is the collection of items to push downstream
       */
-    def feed(subscription: BooleanCancelable, iterable: Iterable[T])
+    def feed(subscription: BooleanCancelable, iterable: Iterable[A])
       (implicit s: Scheduler): Future[Ack] =
       Observer.feed(target, subscription, iterable)
 
@@ -308,7 +308,7 @@ object Observer {
       *
       * @param iterator is the collection of items to push downstream
       */
-    def feed(iterator: Iterator[T])
+    def feed(iterator: Iterator[A])
       (implicit s: Scheduler): Future[Ack] =
       Observer.feed(target, iterator)
 
@@ -317,7 +317,7 @@ object Observer {
       * @param subscription $feedCancelableDesc
       * @param iterator is the collection of items to push downstream
       */
-    def feed(subscription: BooleanCancelable, iterator: Iterator[T])
+    def feed(subscription: BooleanCancelable, iterator: Iterator[A])
       (implicit s: Scheduler): Future[Ack] =
       Observer.feed(target, subscription, iterator)
   }

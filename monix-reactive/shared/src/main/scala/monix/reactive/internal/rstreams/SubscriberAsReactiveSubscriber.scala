@@ -60,7 +60,7 @@ private[reactive] object SubscriberAsReactiveSubscriber {
     * @param requestCount the parameter passed to each `Subscription.request` call,
     *                    also representing the buffer size; MUST BE strictly positive
     */
-  def apply[T](subscriber: Subscriber[T], requestCount: Int = 128): RSubscriber[T] =
+  def apply[A](subscriber: Subscriber[A], requestCount: Int = 128): RSubscriber[A] =
     SubscriberAsReactiveSubscriber(subscriber, requestCount)
 }
 
@@ -217,9 +217,9 @@ private[reactive] final class AsyncSubscriberAsReactiveSubscriber[A] private
   *   })
   * }}}
   */
-private[reactive] final class SyncSubscriberAsReactiveSubscriber[T]
-  (target: Subscriber.Sync[T], requestCount: Int)
-  extends RSubscriber[T] {
+private[reactive] final class SyncSubscriberAsReactiveSubscriber[A]
+  (target: Subscriber.Sync[A], requestCount: Int)
+  extends RSubscriber[A] {
 
   require(requestCount > 0, "requestCount must be strictly positive, according to the Reactive Streams contract")
 
@@ -240,7 +240,7 @@ private[reactive] final class SyncSubscriberAsReactiveSubscriber[T]
     }
   }
 
-  def onNext(elem: T): Unit = {
+  def onNext(elem: A): Unit = {
     if (subscription == null)
       throw new NullPointerException(
         "onSubscription never happened, see rule 2.13 in the Reactive Streams spec")
