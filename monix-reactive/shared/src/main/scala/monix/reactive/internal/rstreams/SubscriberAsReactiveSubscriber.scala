@@ -133,18 +133,22 @@ private[monix] final class SubscriberAsReactiveSubscriber[A] private
     subscription := s
 
   def onNext(elem: A): Unit = {
-    if (elem == null)
-      throw new NullPointerException(
-        "onNext(null) is forbidden, see rule 2.13 in the Reactive Streams spec")
-
+    if (elem == null) throwNull("onNext")
     buffer.onNext(elem)
   }
 
-  def onError(ex: Throwable): Unit =
+  def onError(ex: Throwable): Unit = {
+    if (ex == null) throwNull("onError")
     buffer.onError(ex)
+  }
 
   def onComplete(): Unit =
     buffer.onComplete()
+
+  private def throwNull(name: String): Nothing =
+    throw new NullPointerException(
+      s"$name(null) is forbidden, see rule 2.13 in the Reactive Streams spec"
+    )
 }
 
 

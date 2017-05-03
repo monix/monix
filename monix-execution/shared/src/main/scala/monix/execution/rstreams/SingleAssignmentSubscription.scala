@@ -54,19 +54,17 @@ final class SingleAssignmentSubscription private ()
         else
           s.request(n)
 
-      case WithSubscription(_) =>
-        throw new IllegalArgumentException(
-          "SingleAssignmentSubscription as already initialized")
-
       case EmptyCanceled =>
         if (!state.compareAndSet(current, Canceled))
           set(s) // retry
         else
           s.cancel()
 
-      case Canceled =>
-        throw new IllegalArgumentException(
-          "SingleAssignmentSubscription as already initialized")
+      case WithSubscription(_) | Canceled =>
+        // Spec 205: A Subscriber MUST call Subscription.cancel() on the
+        // given Subscription after an onSubscribe signal if it already
+        // has an active Subscription
+        s.cancel()
     }
   }
 
