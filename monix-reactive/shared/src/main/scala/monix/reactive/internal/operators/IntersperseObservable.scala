@@ -35,7 +35,6 @@ private[reactive] final class IntersperseObservable[+A](
       implicit val scheduler = out.scheduler
 
       private[this] var firstTime = true
-      private[this] var isDone = false
       private[this] var downstreamAck = Continue : Future[Ack]
 
       override def onNext(elem: A): Future[Ack] = {
@@ -56,21 +55,12 @@ private[reactive] final class IntersperseObservable[+A](
         downstreamAck
       }
 
-      def onError(ex: Throwable) = {
-        if (!isDone){
-          isDone = true
-          out.onError(ex)
-        }
-      }
+      def onError(ex: Throwable) = out.onError(ex)
+
       def onComplete() = {
-        downstreamAck.syncFlatMap {
-          case Continue if end.isDefined => out.onNext(end.get)
-          case ack => ack
-        }.syncOnContinue {
-          if (!isDone){
-            isDone = true
-            out.onComplete()
-          }
+        downstreamAck.syncOnContinue {
+          if (end.nonEmpty) out.onNext(end.get)
+          out.onComplete()
         }
       }
     })
