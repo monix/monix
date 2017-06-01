@@ -44,13 +44,59 @@ object IntersperseSuite extends BaseOperatorSuite {
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 
+  test("start is the first emitted element") { implicit s =>
+    val obs = PublishSubject[Int]()
+
+    var received = Vector.empty[Int]
+    var wasCompleted = false
+
+    obs.intersperse(start = -1, separator = -2, end = -3).subscribe(new Observer[Int] {
+      def onNext(elem: Int) = {
+        received :+= elem
+        Continue
+      }
+
+      def onError(ex: Throwable) = ()
+      def onComplete() = wasCompleted = true
+    })
+
+    obs.onNext(1); s.tick()
+    assertEquals(received.headOption, Some(-1))
+
+    obs.onComplete(); s.tick()
+    assert(wasCompleted)
+  }
+
+  test("end is the last emitted element") { implicit s =>
+    val obs = PublishSubject[Int]()
+
+    var received = Vector.empty[Int]
+    var wasCompleted = false
+
+    obs.intersperse(start = -1, separator = -2, end = -3).unsafeSubscribeFn(new Observer[Int] {
+      def onNext(elem: Int) = {
+        received :+= elem
+        Continue
+      }
+
+      def onError(ex: Throwable) = ()
+      def onComplete() = wasCompleted = true
+    })
+
+    obs.onNext(1); s.tick()
+    obs.onNext(2); s.tick()
+    obs.onComplete(); s.tick()
+    assertEquals(received.lastOption, Some(-3))
+    assert(wasCompleted)
+  }
+
   test("separator is paired with emitted elements") { implicit s =>
     val obs = PublishSubject[Int]()
 
     var received = Vector.empty[Int]
     var wasCompleted = false
 
-    obs.intersperse(0).unsafeSubscribeFn(new Observer[Int] {
+    obs.intersperse(-1,0,-1).unsafeSubscribeFn(new Observer[Int] {
       def onNext(elem: Int) = {
         received :+= elem
         Continue
@@ -67,7 +113,7 @@ object IntersperseSuite extends BaseOperatorSuite {
     obs.onNext(5); s.tick()
     obs.onComplete(); s.tick()
 
-    assertEquals(received, Vector(1,0,2,0,3,0,4,0,5))
+    assertEquals(received, Vector(-1,1,0,2,0,3,0,4,0,5,-1))
     assert(wasCompleted)
   }
 }
