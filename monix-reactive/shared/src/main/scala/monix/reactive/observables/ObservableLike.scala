@@ -2183,6 +2183,24 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
   /** Zips the emitted elements of the source with their indices. */
   def zipWithIndex: Self[(A, Long)] =
     self.liftByOperator(new ZipWithIndexOperator[A])
+
+  /** Creates a new observable from this observable that will emit a specific `separator`
+    * between every pair of elements.
+    *
+    * @param separator is the separator
+    */
+  def intersperse[B >: A](separator: B): Self[B] =
+    self.transform(self => new IntersperseObservable(self, None, separator, None))
+
+  /** Creates a new observable from this observable that will emit the `start` element
+    * followed by the upstream elements paired with the `separator`, and lastly the `end` element.
+    *
+    * @param start is the first element emitted
+    * @param separator is the separator
+    * @param end the last element emitted
+    */
+  def intersperse[B >: A](start: B, separator: B, end: B): Self[B] =
+    self.transform(self => new IntersperseObservable(self, Some(start), separator, Some(end)))
 }
 
 object ObservableLike {
