@@ -55,7 +55,8 @@ private[reactive] final class IntersperseObservable[+A](
         downstreamAck
       }
 
-      def onError(ex: Throwable) = out.onError(ex)
+      def onError(ex: Throwable) =
+        downstreamAck.syncOnContinue(out.onError(ex))
 
       def onComplete() = {
         downstreamAck.syncOnContinue {
