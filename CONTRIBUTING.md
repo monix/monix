@@ -57,7 +57,7 @@ All code must be licensed under the Apache 2.0 license and all files
 must include the following copyright header:
 
 ```
-Copyright (c) 2014-$today.year by its authors. Some rights reserved.
+Copyright (c) 2014-$today.year by The Monix Project Developers.
 See the project homepage at: https://monix.io
 
 Licensed under the Apache License, Version 2.0 (the "License");
