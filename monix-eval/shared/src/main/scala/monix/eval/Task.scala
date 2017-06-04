@@ -1486,7 +1486,7 @@ object Task extends TaskInstances {
   }
 }
 
-private[eval] trait TaskInstances extends TaskInstances1 {
+private[eval] trait TaskInstances extends TaskInstances2 {
   /** Type class instances of [[Task]] for Cats.
     *
     * $strategyNote
@@ -1515,7 +1515,7 @@ private[eval] trait TaskInstances extends TaskInstances1 {
   *         `map2`, `ap` or `product`, specifying whether the returned
   *         instance should do sequential or parallel processing.
   */
-private[eval] trait TaskInstances1 extends TaskInstances0 {
+private[eval] trait TaskInstances2 extends TaskInstances1 {
   /** Type class instances of [[Task]] for `cats.effect.Effect`.
     *
     * $strategyNote
@@ -1523,14 +1523,48 @@ private[eval] trait TaskInstances1 extends TaskInstances0 {
     * @param as $strategyParamDesc
     * @param s is the `Scheduler` to use when executing `Effect#runAsync`
     */
-  @inline implicit def catsEffect(implicit as: ApplicativeStrategy[Task], s: Scheduler): CatsEffectInstances[Task] =
+  @inline implicit def catsEffect
+    (implicit as: ApplicativeStrategy[Task], s: Scheduler): CatsEffectInstances[Task] = {
+
     as match {
       case ApplicativeStrategy.Sequential =>
         new CatsEffectInstances.ForTask()(s)
       case ApplicativeStrategy.Parallel =>
         new CatsEffectInstances.ForParallelTask()(s)
     }
+  }
 }
+
+/** @define nondeterminismSample
+  *         {{{
+  *           import monix.eval.Task.nondeterminism
+  *
+  *           // The Task's Applicative will now do parallel processing
+  *           // if the given tasks are forking (logical) threads
+  *           // (e.g. will use `Task.mapBoth`)
+  *           val ap = implicitly[cats.Applicative[Task]]
+  *           ap.map2(task1, task2) { (a, b) => a + b }
+  *
+  *           // Or using the "applicative builder" syntax:
+  *           import cats.syntax.all._
+  *           (task1 |@| task2).map { (a, b) => a + b }
+  *         }}}
+  */
+private[eval] trait TaskInstances1 extends TaskInstances0 {
+  /** An [[monix.eval.instances.ApplicativeStrategy ApplicativeStrategy]]
+    * instance that will determine the generated type class instances
+    * for `Task` to do sequential processing in their applicative
+    * (and thus to order both results and effects).
+    *
+    * This is the default strategy that `Task` uses.
+    *
+    * @see [[Task.nondeterminism]] for picking a strategy for applicative
+    *      that does unordered effects and thus capable of parallelism
+    */
+  @inline implicit def determinism: ApplicativeStrategy[Task] =
+    ApplicativeStrategy.Sequential
+}
+
 
 /** @define nondeterminismSample
   *         {{{
@@ -1552,6 +1586,9 @@ private[eval] trait TaskInstances0 {
     * instance that, when imported in scope, will determine the
     * generated type class instances for `Task` to do parallel
     * processing in their applicative.
+    *
+    * Importing this in scope overrides the default
+    * [[Task.determinism]] strategy.
     *
     * $nondeterminismSample
     */

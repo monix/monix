@@ -37,12 +37,6 @@ object ApplicativeStrategy {
   @inline def parallel[F[_]]: ApplicativeStrategy[F] =
     Parallel
 
-  /** Defines the default [[ApplicativeStrategy]], currently
-    * [[Sequential]].
-    */
-  @inline implicit def default[F[_]]: ApplicativeStrategy[F] =
-    Sequential
-
   /** An [[ApplicativeStrategy]] specifying that sequential processing
     * should be used when applying operations such as `map2` or `ap` 
     * (e.g. ordered results, ordered side effects).
