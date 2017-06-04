@@ -24,8 +24,7 @@ import _root_.cats.CoflatMap
 import _root_.cats.effect.Async
 
 /** Specification for Cats type classes, to be implemented by
-  * types that can execute asynchronous computations and that
-  * yield exactly one result (e.g. [[Task]]).
+  * types that can execute asynchronous computations (e.g. [[Task]]).
   */
 trait CatsAsyncInstances[F[_]] extends Async[F] with CoflatMap[F]
 

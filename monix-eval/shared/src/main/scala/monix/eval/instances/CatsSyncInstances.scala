@@ -15,16 +15,21 @@
  * limitations under the License.
  */
 
-package monix.eval.instances
+package monix.eval
+package instances
 
 import cats.effect.Sync
 import cats.{Comonad, Eval}
 import monix.eval.Coeval
 import scala.util.Try
 
+/** Specification for Cats type classes, to be implemented by
+  * types that can execute synchronous computations (e.g. [[Coeval]]).
+  */
 trait CatsSyncInstances[F[_]] extends Sync[F] with Comonad[F]
 
 object CatsSyncInstances {
+  /** Cats type class instances for [[Coeval]]. */
   class ForCoeval extends CatsSyncInstances[Coeval] {
     override def pure[A](a: A): Coeval[A] = Coeval.now(a)
     override def delay[A](thunk: => A): Coeval[A] = Coeval.eval(thunk)

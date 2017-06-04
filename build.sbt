@@ -12,7 +12,7 @@ val catsEffectVersion = "0.3"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
-val monixSeries = "2.2.4"
+val monixSeries = "2.3.0"
 
 lazy val doNotPublishArtifact = Seq(
   publishArtifact := false,
@@ -338,6 +338,8 @@ lazy val executionJS = project.in(file("monix-execution/js"))
 lazy val evalCommon =
   crossSettings ++ testSettings ++ Seq(
     name := "monix-eval",
+    // Filtering out breaking changes from 3.0.0
+    mimaBinaryIssueFilters ++= MimaFilters.evalChangesFor_3_0_0,
     libraryDependencies +=
       "org.typelevel" %%% "cats-effect" % catsEffectVersion
   )
@@ -357,7 +359,9 @@ lazy val evalJS = project.in(file("monix-eval/js"))
 
 lazy val reactiveCommon =
   crossSettings ++ testSettings ++ Seq(
-    name := "monix-reactive"
+    name := "monix-reactive",
+    // Filtering out breaking changes from 3.0.0
+    mimaBinaryIssueFilters ++= MimaFilters.reactiveChangesFor_3_3_0
   )
 
 lazy val reactiveJVM = project.in(file("monix-reactive/jvm"))

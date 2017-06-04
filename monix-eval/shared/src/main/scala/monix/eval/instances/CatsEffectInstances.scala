@@ -21,18 +21,26 @@ import cats.effect.{Effect, IO}
 import monix.eval.{Callback, Task}
 import monix.execution.Scheduler
 
+/** Specification for Cats type classes, to be implemented by
+  * types that can execute asynchronous computations and that
+  * yield exactly one result (e.g. [[Task]]).
+  */
 trait CatsEffectInstances[F[_]] extends Effect[F]
 
 object CatsEffectInstances {
-  class ForParallelTask(implicit s: Scheduler)
-    extends CatsAsyncInstances.ForParallelTask with CatsEffectInstances[Task] {
+  /** Cats type class instances for [[Task]]. */
+  class ForTask(implicit s: Scheduler)
+    extends CatsAsyncInstances.ForTask with CatsEffectInstances[Task] {
 
     override def runAsync[A](fa: Task[A])(cb: (Either[Throwable, A]) => IO[Unit]): IO[Unit] =
       runAsyncImpl(fa)(cb)
   }
 
-  class ForTask(implicit s: Scheduler)
-    extends CatsAsyncInstances.ForTask with CatsEffectInstances[Task] {
+  /** Cats type class instances for [[Task Tasks]] that have
+    * non-deterministic effects in their applicative.
+    */
+  class ForParallelTask(implicit s: Scheduler)
+    extends CatsAsyncInstances.ForParallelTask with CatsEffectInstances[Task] {
 
     override def runAsync[A](fa: Task[A])(cb: (Either[Throwable, A]) => IO[Unit]): IO[Unit] =
       runAsyncImpl(fa)(cb)

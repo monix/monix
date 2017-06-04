@@ -98,4 +98,20 @@ object MimaFilters {
     exclude[DirectMissingMethodProblem]("monix.reactive.internal.rstreams.SubscriberAsReactiveSubscriber.this"),
     exclude[MissingClassProblem]("monix.reactive.internal.rstreams.SyncSubscriberAsReactiveSubscriber$")
   )
+
+  lazy val evalChangesFor_3_0_0 = Seq(
+    exclude[MissingClassProblem]("monix.eval.TaskInstances$TypeClassInstances"),
+    exclude[IncompatibleResultTypeProblem]("monix.eval.Task.nondeterminism"),
+    exclude[IncompatibleResultTypeProblem]("monix.eval.TaskInstances.nondeterminism"),
+    exclude[ReversedMissingMethodProblem]("monix.eval.TaskInstances.catsAsync"),
+    exclude[InheritedNewAbstractMethodProblem]("monix.eval.TaskInstances1.catsEffect"),
+    exclude[MissingClassProblem]("monix.eval.Coeval$TypeClassInstances"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task.typeClassInstances"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Coeval.typeClassInstances")
+  )
+
+  lazy val reactiveChangesFor_3_3_0 = Seq(
+    exclude[DirectMissingMethodProblem]("monix.reactive.Observable.typeClassInstances"),
+    exclude[MissingClassProblem]("monix.reactive.Observable$TypeClassInstances")
+  )
 }
