@@ -50,21 +50,21 @@ object CoevalNowSuite extends BaseTestSuite {
   test("Coeval.now.map should work") { implicit s =>
     Coeval.now(1).map(_ + 1).value
     check1 { a: Int =>
-      Coeval.now(a).map(_ + 1) === Coeval.now(a + 1)
+      Coeval.now(a).map(_ + 1) <-> Coeval.now(a + 1)
     }
   }
 
   test("Coeval.error.map should be the same as Coeval.error") { implicit s =>
     check {
       val dummy = DummyException("dummy")
-      Coeval.raiseError[Int](dummy).map(_ + 1) === Coeval.raiseError[Int](dummy)
+      Coeval.raiseError[Int](dummy).map(_ + 1) <-> Coeval.raiseError[Int](dummy)
     }
   }
 
   test("Coeval.error.flatMap should be the same as Coeval.flatMap") { implicit s =>
     check {
       val dummy = DummyException("dummy")
-      Coeval.raiseError[Int](dummy).flatMap(Coeval.now) === Coeval.raiseError(dummy)
+      Coeval.raiseError[Int](dummy).flatMap(Coeval.now) <-> Coeval.raiseError(dummy)
     }
   }
 
@@ -72,14 +72,14 @@ object CoevalNowSuite extends BaseTestSuite {
     check {
       val dummy = DummyException("dummy")
       val err = DummyException("err")
-      Coeval.raiseError[Int](dummy).flatMap[Int](_ => throw err) === Coeval.raiseError(dummy)
+      Coeval.raiseError[Int](dummy).flatMap[Int](_ => throw err) <-> Coeval.raiseError(dummy)
     }
   }
 
   test("Coeval.now.flatMap should protect against user code") { implicit s =>
     val ex = DummyException("dummy")
     val t = Coeval.now(1).flatMap[Int](_ => throw ex)
-    check(t === Coeval.raiseError(ex))
+    check(t <-> Coeval.raiseError(ex))
   }
 
   test("Coeval.now.flatMap should be tail recursive") { implicit s =>

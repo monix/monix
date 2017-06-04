@@ -19,11 +19,11 @@ package monix.reactive.observers
 
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.BooleanCancelable
-import monix.reactive.{BaseLawsTestSuite, Observer}
+import monix.reactive.{BaseTestSuite, Observer}
 import scala.concurrent.Future
 import scala.util.Success
 
-object ObserverFeedSuite extends BaseLawsTestSuite {
+object ObserverFeedSuite extends BaseTestSuite {
   test("feed synchronous iterable") { implicit s =>
     check1 { (xs: List[Int]) =>
       var sum = 0

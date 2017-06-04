@@ -21,21 +21,21 @@ object CoevalSequenceSuite extends BaseTestSuite {
   test("Coeval.sequence") { implicit s =>
     check1 { (numbers: List[Int]) =>
       val coeval = Coeval.sequence(numbers.map(x => Coeval(x)))
-      coeval === Coeval(numbers)
+      coeval <-> Coeval(numbers)
     }
   }
 
   test("Coeval.traverse") { implicit s =>
     check1 { (numbers: List[Int]) =>
       val coeval = Coeval.traverse(numbers)(x => Coeval(x))
-      coeval === Coeval(numbers)
+      coeval <-> Coeval(numbers)
     }
   }
 
   test("Coeval.zipList") { implicit s =>
     check1 { (numbers: List[Int]) =>
       val coeval = Coeval.zipList(numbers.map(x => Coeval(x)):_*)
-      coeval === Coeval(numbers)
+      coeval <-> Coeval(numbers)
     }
   }
 }

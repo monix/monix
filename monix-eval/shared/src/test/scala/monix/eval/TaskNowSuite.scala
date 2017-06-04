@@ -19,7 +19,6 @@ package monix.eval
 
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.exceptions.DummyException
-
 import scala.util.{Failure, Success, Try}
 
 object TaskNowSuite extends BaseTestSuite {
@@ -132,21 +131,21 @@ object TaskNowSuite extends BaseTestSuite {
   test("Task.now.map should work") { implicit s =>
     Coeval.now(1).map(_ + 1).value
     check1 { a: Int =>
-      Task.now(a).map(_ + 1) === Task.now(a + 1)
+      Task.now(a).map(_ + 1) <-> Task.now(a + 1)
     }
   }
 
   test("Task.raiseError.map should be the same as Task.raiseError") { implicit s =>
     check {
       val dummy = DummyException("dummy")
-      Task.raiseError[Int](dummy).map(_ + 1) === Task.raiseError(dummy)
+      Task.raiseError[Int](dummy).map(_ + 1) <-> Task.raiseError(dummy)
     }
   }
 
   test("Task.raiseError.flatMap should be the same as Task.flatMap") { implicit s =>
     check {
       val dummy = DummyException("dummy")
-      Task.raiseError[Int](dummy).flatMap(Task.now) === Task.raiseError(dummy)
+      Task.raiseError[Int](dummy).flatMap(Task.now) <-> Task.raiseError(dummy)
     }
   }
 
@@ -154,14 +153,14 @@ object TaskNowSuite extends BaseTestSuite {
     check {
       val dummy = DummyException("dummy")
       val err = DummyException("err")
-      Task.raiseError[Int](dummy).flatMap[Int](_ => throw err) === Task.raiseError(dummy)
+      Task.raiseError[Int](dummy).flatMap[Int](_ => throw err) <-> Task.raiseError(dummy)
     }
   }
 
   test("Task.now.flatMap should protect against user code") { implicit s =>
     val ex = DummyException("dummy")
     val t = Task.now(1).flatMap[Int](_ => throw ex)
-    check(t === Task.raiseError(ex))
+    check(t <-> Task.raiseError(ex))
   }
 
   test("Task.now.flatMap should be tail recursive") { implicit s =>

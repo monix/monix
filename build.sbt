@@ -8,11 +8,11 @@ addCommandAlias("ci-jvm",     ";clean ;coreJVM/test:compile ;coreJVM/test")
 addCommandAlias("ci-js",      ";clean ;coreJS/test:compile  ;coreJS/test")
 
 val catsVersion = "0.9.0"
-val scalazVersion = "7.2.11"
+val catsEffectVersion = "0.3"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
-val monixSeries = "2.2.4"
+val monixSeries = "2.3.0"
 
 lazy val doNotPublishArtifact = Seq(
   publishArtifact := false,
@@ -127,6 +127,8 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
     "-sourcepath", file(".").getAbsolutePath.replaceAll("[.]$", "")
   ),
 
+  addCompilerPlugin("org.spire-math" % "kind-projector" % "0.9.3" cross CrossVersion.binary),
+
   parallelExecution in Test := false,
   parallelExecution in IntegrationTest := false,
   testForkedParallel in Test := false,
@@ -240,7 +242,7 @@ lazy val requiredMacroCompatDeps = Seq(
 lazy val unidocSettings = Seq(
   autoAPIMappings := true,
   unidocProjectFilter in (ScalaUnidoc, unidoc) :=
-    inProjects(typesJVM, executionJVM, evalJVM, reactiveJVM, catsJVM, scalaz72JVM),
+    inProjects(executionJVM, evalJVM, reactiveJVM),
 
   // Exclude monix.execution.atomic.internals from ScalaDoc
   sources in (ScalaUnidoc, unidoc) ~= (_ filterNot { file =>
@@ -263,7 +265,11 @@ lazy val unidocSettings = Seq(
 
 lazy val testSettings = Seq(
   testFrameworks := Seq(new TestFramework("minitest.runner.Framework")),
-  libraryDependencies += "io.monix" %%% "minitest-laws" % "1.1.0" % Test
+  libraryDependencies ++= Seq(
+    "io.monix" %%% "minitest-laws" % "1.1.0" % Test,
+    "org.typelevel" %%% "cats-laws" % catsVersion % Test,
+    "org.typelevel" %%% "cats-effect-laws" % catsEffectVersion % Test
+  )
 )
 
 lazy val scalaJSSettings = Seq(
@@ -292,8 +298,8 @@ lazy val monix = project.in(file("."))
 
 lazy val coreJVM = project.in(file("monix/jvm"))
   .configure(profile)
-  .dependsOn(typesJVM, executionJVM, evalJVM, reactiveJVM)
-  .aggregate(typesJVM, executionJVM, evalJVM, reactiveJVM, catsJVM, scalaz72JVM)
+  .dependsOn(executionJVM, evalJVM, reactiveJVM)
+  .aggregate(executionJVM, evalJVM, reactiveJVM)
   .settings(crossSettings)
   .settings(noSources)
   .settings(name := "monix")
@@ -301,29 +307,11 @@ lazy val coreJVM = project.in(file("monix/jvm"))
 lazy val coreJS = project.in(file("monix/js"))
   .configure(profile)
   .enablePlugins(ScalaJSPlugin)
-  .dependsOn(typesJS, executionJS, evalJS, reactiveJS)
-  .aggregate(typesJS, executionJS, evalJS, reactiveJS, catsJS, scalaz72JS)
+  .dependsOn(executionJS, evalJS, reactiveJS)
+  .aggregate(executionJS, evalJS, reactiveJS)
   .settings(crossSettings)
   .settings(scalaJSSettings)
   .settings(name := "monix")
-
-lazy val typesCommon = crossSettings ++ testSettings ++
-  requiredMacroCompatDeps ++ Seq(
-  name := "monix-types",
-  // Suppress macro warnings in our own tests
-  scalacOptions in (Test, console) ~= (_ filterNot (_ == "-Xfatal-warnings"))
-)
-
-lazy val typesJVM = project.in(file("monix-types/jvm"))
-  .configure(profile)
-  .settings(typesCommon)
-  .settings(mimaSettings("monix-types"))
-
-lazy val typesJS = project.in(file("monix-types/js"))
-  .enablePlugins(ScalaJSPlugin)
-  .configure(profile)
-  .settings(typesCommon)
-  .settings(scalaJSSettings)
 
 lazy val executionCommon = crossVersionSharedSources ++ Seq(
   name := "monix-execution"
@@ -350,14 +338,14 @@ lazy val executionJS = project.in(file("monix-execution/js"))
 lazy val evalCommon =
   crossSettings ++ testSettings ++ Seq(
     name := "monix-eval",
-    // Filtering out private stuff that changed in 2.3.x
-    mimaBinaryIssueFilters ++=
-      MimaFilters.evalChangesFor_2_3_0
+    // Filtering out breaking changes from 3.0.0
+    mimaBinaryIssueFilters ++= MimaFilters.evalChangesFor_3_0_0,
+    libraryDependencies +=
+      "org.typelevel" %%% "cats-effect" % catsEffectVersion
   )
 
 lazy val evalJVM = project.in(file("monix-eval/jvm"))
   .configure(profile)
-  .dependsOn(typesJVM % "compile->compile; test->test")
   .dependsOn(executionJVM)
   .settings(evalCommon)
   .settings(mimaSettings("monix-eval"))
@@ -365,7 +353,6 @@ lazy val evalJVM = project.in(file("monix-eval/jvm"))
 lazy val evalJS = project.in(file("monix-eval/js"))
   .enablePlugins(ScalaJSPlugin)
   .configure(profile)
-  .dependsOn(typesJS % "compile->compile; test->test")
   .dependsOn(executionJS)
   .settings(scalaJSSettings)
   .settings(evalCommon)
@@ -373,15 +360,13 @@ lazy val evalJS = project.in(file("monix-eval/js"))
 lazy val reactiveCommon =
   crossSettings ++ testSettings ++ Seq(
     name := "monix-reactive",
-    // Filtering out private stuff for 2.3.x
-    mimaBinaryIssueFilters ++=
-      MimaFilters.reactiveChangesFor_2_3_0
+    // Filtering out breaking changes from 3.0.0
+    mimaBinaryIssueFilters ++= MimaFilters.reactiveChangesFor_3_3_0
   )
 
 lazy val reactiveJVM = project.in(file("monix-reactive/jvm"))
   .configure(profile)
-  .dependsOn(typesJVM % "compile->compile; test->test")
-  .dependsOn(executionJVM, evalJVM)
+  .dependsOn(executionJVM, evalJVM % "compile->compile; test->test")
   .settings(reactiveCommon)
   .settings(libraryDependencies += "org.jctools" % "jctools-core" % "2.0.1")
   .settings(mimaSettings("monix-reactive"))
@@ -389,56 +374,8 @@ lazy val reactiveJVM = project.in(file("monix-reactive/jvm"))
 lazy val reactiveJS = project.in(file("monix-reactive/js"))
   .enablePlugins(ScalaJSPlugin)
   .configure(profile)
-  .dependsOn(typesJS % "compile->compile; test->test")
-  .dependsOn(executionJS, evalJS)
+  .dependsOn(executionJS, evalJS % "compile->compile; test->test")
   .settings(reactiveCommon)
-  .settings(scalaJSSettings)
-
-lazy val catsCommon =
-  crossSettings ++ testSettings ++ Seq(
-    name := "monix-cats",
-    testFrameworks := Seq(new TestFramework("minitest.runner.Framework")),
-    libraryDependencies ++= Seq(
-      "org.typelevel" %%% "cats-core" % catsVersion,
-      "org.typelevel" %%% "cats-laws" % catsVersion % Test
-    ))
-
-lazy val catsJVM = project.in(file("monix-cats/jvm"))
-  .configure(profile)
-  .dependsOn(typesJVM)
-  .dependsOn(reactiveJVM % Test)
-  .settings(catsCommon)
-  .settings(mimaSettings("monix-cats"))
-
-lazy val catsJS = project.in(file("monix-cats/js"))
-  .enablePlugins(ScalaJSPlugin)
-  .configure(profile)
-  .dependsOn(typesJS)
-  .dependsOn(reactiveJS % Test)
-  .settings(catsCommon)
-  .settings(scalaJSSettings)
-
-lazy val scalaz72Common =
-  crossSettings ++ testSettings ++ Seq(
-    name := "monix-scalaz-72",
-    libraryDependencies ++= Seq(
-      "org.scalaz" %%% "scalaz-core" % scalazVersion,
-      "org.scalaz" %%% "scalaz-scalacheck-binding" % scalazVersion % Test
-    ))
-
-lazy val scalaz72JVM = project.in(file("monix-scalaz/series-7.2/jvm"))
-  .configure(profile)
-  .dependsOn(typesJVM)
-  .dependsOn(reactiveJVM % Test)
-  .settings(scalaz72Common)
-  .settings(mimaSettings("monix-scalaz-72"))
-
-lazy val scalaz72JS = project.in(file("monix-scalaz/series-7.2/js"))
-  .enablePlugins(ScalaJSPlugin)
-  .configure(profile)
-  .dependsOn(typesJS)
-  .dependsOn(reactiveJS % Test)
-  .settings(scalaz72Common)
   .settings(scalaJSSettings)
 
 lazy val tckTests = project.in(file("tckTests"))
@@ -460,7 +397,6 @@ lazy val benchmarks = project.in(file("benchmarks"))
   .settings(doNotPublishArtifact)
   .settings(
     libraryDependencies ++= Seq(
-      "org.scalaz" %% "scalaz-concurrent" % scalazVersion,
       "io.monix" %% "monix-forkjoin" % "1.0"
     )
   )

@@ -30,7 +30,7 @@ object MapAsyncParallelismConcurrencySuite extends BaseConcurrencySuite {
 
       val task1 = Observable.fromIterable(list).mapAsync(parallelism)(x => Task(x)).sumL
       val task2 = Task.eval(list.sum)
-      task1 === task2
+      task1 <-> task2
     }
   }
 }

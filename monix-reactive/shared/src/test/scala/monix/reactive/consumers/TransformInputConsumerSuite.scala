@@ -21,19 +21,19 @@ import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
-import monix.reactive.{BaseLawsTestSuite, Consumer, Observable, Observer}
+import monix.reactive.{BaseTestSuite, Consumer, Observable, Observer}
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Failure
 
-object TransformInputConsumerSuite extends BaseLawsTestSuite {
+object TransformInputConsumerSuite extends BaseTestSuite {
   test("Consumer#transformInput works for sync transformations") { implicit s =>
     check1 { (random: Observable[Int]) =>
       val source = random.map(Math.floorMod(_, 10))
       val consumer = Consumer.foldLeft[Long, Long](0L)(_ + _)
       val transformed = consumer.transformInput[Int](_.map(_ + 100))
-      source.consumeWith(transformed) === source.foldLeftL(0L)(_ + _ + 100)
+      source.consumeWith(transformed) <-> source.foldLeftL(0L)(_ + _ + 100)
     }
   }
 
@@ -42,7 +42,7 @@ object TransformInputConsumerSuite extends BaseLawsTestSuite {
       val source = random.map(Math.floorMod(_, 10))
       val consumer = Consumer.foldLeft[Long, Long](0L)(_ + _)
       val transformed = consumer.transformInput[Int](_.mapFuture(x => Future(x + 100)))
-      source.consumeWith(transformed) === source.foldLeftL(0L)(_ + _ + 100)
+      source.consumeWith(transformed) <-> source.foldLeftL(0L)(_ + _ + 100)
     }
   }
 

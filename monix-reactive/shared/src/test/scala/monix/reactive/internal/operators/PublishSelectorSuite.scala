@@ -18,10 +18,10 @@
 package monix.reactive.internal.operators
 
 import monix.execution.atomic.Atomic
-import monix.reactive.{BaseLawsTestSuite, Observable}
+import monix.reactive.{BaseTestSuite, Observable}
 import scala.util.Success
 
-object PublishSelectorSuite extends BaseLawsTestSuite {
+object PublishSelectorSuite extends BaseTestSuite {
   test("publishSelector sanity test") { implicit s =>
     val isStarted = Atomic(0)
     val f = Observable.range(0, 1000)

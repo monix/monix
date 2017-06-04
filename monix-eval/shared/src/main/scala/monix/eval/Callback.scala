@@ -42,14 +42,20 @@ abstract class Callback[-A] extends Listener[A] with ((Try[A]) => Unit) {
 
   final def apply(result: Try[A]): Unit =
     result match {
-      case Success(value) => onSuccess(value)
-      case Failure(ex) => onError(ex)
+      case Success(a) => onSuccess(a)
+      case Failure(e) => onError(e)
     }
 
   final def apply(result: Coeval[A]): Unit =
     result.runAttempt match {
-      case Coeval.Now(value) => onSuccess(value)
-      case Coeval.Error(ex) => onError(ex)
+      case Coeval.Now(a) => onSuccess(a)
+      case Coeval.Error(e) => onError(e)
+    }
+
+  final def apply(result: Either[Throwable, A]): Unit =
+    result match {
+      case Right(a) => onSuccess(a)
+      case Left(e) => onError(e)
     }
 }
 

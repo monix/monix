@@ -44,18 +44,18 @@ object TaskEvalOnceSuite extends BaseTestSuite {
   test("Task.evalOnce.flatMap should be equivalent with Task.evalOnce") { implicit s =>
     val ex = DummyException("dummy")
     val t = Task.evalOnce[Int](if (1 == 1) throw ex else 1).flatMap(Task.now)
-    check(t === Task.raiseError(ex))
+    check(t <-> Task.raiseError(ex))
   }
 
   test("Task.evalOnce.flatMap should protect against user code") { implicit s =>
     val ex = DummyException("dummy")
     val t = Task.evalOnce(1).flatMap[Int](_ => throw ex)
-    check(t === Task.raiseError(ex))
+    check(t <-> Task.raiseError(ex))
   }
 
   test("Task.evalOnce.map should work") { implicit s =>
     check1 { a: Int =>
-      Task.evalOnce(a).map(_ + 1) === Task.evalOnce(a + 1)
+      Task.evalOnce(a).map(_ + 1) <-> Task.evalOnce(a + 1)
     }
   }
 

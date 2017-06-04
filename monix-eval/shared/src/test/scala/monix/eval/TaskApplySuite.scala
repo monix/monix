@@ -59,7 +59,7 @@ object TaskApplySuite extends BaseTestSuite {
         Task.eval { effect += 100; effect + a }
       }
 
-      List(t1 === t2, t2 === t1)
+      List(t1 <-> t2, t2 <-> t1)
     }
   }
 
@@ -75,35 +75,14 @@ object TaskApplySuite extends BaseTestSuite {
         Task.evalOnce { effect += 100; effect + a }
       }
 
-      t1 === t2
-    }
-  }
-
-  test("Task.apply is not equivalent with Task.evalOnce on second run") { implicit s =>
-    check1 { a: Int =>
-      val t1 = {
-        var effect = 100
-        Task { effect += 100; effect + a }
-      }
-
-      val t2 = {
-        var effect = 100
-        Task.evalOnce { effect += 100; effect + a }
-      }
-
-      // Running once to trigger effects
-      t1.runAsync(s)
-      t2.runAsync(s)
-      s.tick()
-
-      t1 !== t2
+      t1 <-> t2
     }
   }
 
   test("Task.apply.flatMap should protect against user code") { implicit s =>
     val ex = DummyException("dummy")
     val t = Task(1).flatMap[Int](_ => throw ex)
-    check(t === Task.raiseError(ex))
+    check(t <-> Task.raiseError(ex))
   }
 
   test("Task.apply should be tail recursive") { implicit s =>
@@ -123,7 +102,7 @@ object TaskApplySuite extends BaseTestSuite {
   test("Task.apply.flatten is equivalent with flatMap") { implicit s =>
     check1 { a: Int =>
       val t = Task(Task.eval(a))
-      t.flatMap(identity) === t.flatten
+      t.flatMap(identity) <-> t.flatten
     }
   }
 

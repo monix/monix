@@ -137,7 +137,7 @@ object MapTaskSuite extends BaseOperatorSuite {
         .toListL
 
       val expected = Observable.fromIterable(list).map(_ + 10).toListL
-      received === expected
+      received <-> expected
     }
   }
 

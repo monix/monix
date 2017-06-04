@@ -18,6 +18,7 @@
 package monix.eval
 
 import monix.eval.Coeval.Attempt
+import monix.eval.instances._
 import monix.eval.internal._
 import monix.execution.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
 import monix.execution._
@@ -25,7 +26,6 @@ import monix.execution.atomic.Atomic
 import monix.execution.cancelables.StackedCancelable
 import monix.execution.internal.Platform
 import monix.execution.misc.{NonFatal, ThreadLocal}
-import monix.types._
 
 import scala.collection.generic.CanBuildFrom
 import scala.collection.mutable
@@ -659,6 +659,20 @@ sealed abstract class Task[+A] extends Serializable { self =>
     self.asInstanceOf[Task[Attempt[B]]].flatMap(Task.coeval)
 }
 
+/** Builders for [[Task]].
+  *
+  * @define createAsyncDesc Create a `Task` from an
+  *         asynchronous computation, which takes the form of a
+  *         function with which we can register a callback.
+  *
+  *         This can be used to translate from a callback-based API to
+  *         a straightforward monadic version.
+  *
+  * @define registerParamDesc is a function that will be called when
+  *         this `Task` is executed, receiving a callback as a
+  *         parameter, a callback that the user is supposed to call in
+  *         order to signal the desired outcome of this `Task`.
+  */
 object Task extends TaskInstances {
   /** Returns a new task that, when executed, will emit the result of
     * the given function, executed asynchronously.
@@ -849,23 +863,18 @@ object Task extends TaskInstances {
       Task.unsafeStartAsync(fa, newContext, Callback.async(cb)(scheduler))
     }
 
-  /** Create a `Task` from an asynchronous computation.
+  /** $createAsyncDesc
     *
-    * Alias for [[create]].
+    * Alias for [[Task.create]].
+    *
+    * @param register $registerParamDesc
     */
   def async[A](register: (Scheduler, Callback[A]) => Cancelable): Task[A] =
     create(register)
 
-  /** Create a `Task` from an asynchronous computation, which takes the
-    * form of a function with which we can register a callback.
+  /** $createAsyncDesc
     *
-    * This can be used to translate from a callback-based API to a
-    * straightforward monadic version.
-    *
-    * @param register is a function that will be called when this `Task`
-    *        is executed, receiving a callback as a parameter, a
-    *        callback that the user is supposed to call in order to
-    *        signal the desired outcome of this `Task`.
+    * @param register $registerParamDesc
     */
   def create[A](register: (Scheduler, Callback[A]) => Cancelable): Task[A] =
     TaskCreate(register)
@@ -1451,9 +1460,6 @@ object Task extends TaskInstances {
   def unsafeStartNow[A](source: Task[A], context: Context, cb: Callback[A]): Unit =
     TaskRunLoop.startWithCallback(source, context, cb, null, null, context.frameRef())
 
-  /** Type-class instances for [[Task]]. */
-  implicit val typeClassInstances: TypeClassInstances = new TypeClassInstances
-
   private[this] final val neverRef: Async[Nothing] =
     Async((_,_) => ())
 
@@ -1480,60 +1486,112 @@ object Task extends TaskInstances {
   }
 }
 
-private[eval] trait TaskInstances {
-  /** Type-class instances for [[Task]] that have
-    * nondeterministic effects for [[monix.types.Applicative Applicative]].
+private[eval] trait TaskInstances extends TaskInstances2 {
+  /** Type class instances of [[Task]] for Cats.
     *
-    * It can be optionally imported in scope to make `map2` and `ap` to
-    * potentially run tasks in parallel.
+    * $strategyNote
+    *
+    * @param as $strategyParamDesc
     */
-  implicit val nondeterminism: TypeClassInstances =
-    new TypeClassInstances {
-      override def ap[A, B](ff: Task[(A) => B])(fa: Task[A]): Task[B] =
-        Task.mapBoth(ff,fa)(_(_))
-      override def map2[A, B, Z](fa: Task[A], fb: Task[B])(f: (A, B) => Z): Task[Z] =
-        Task.mapBoth(fa, fb)(f)
+  @inline implicit def catsAsync
+    (implicit as: ApplicativeStrategy[Task]): CatsAsyncInstances[Task] = {
+
+    as match {
+      case ApplicativeStrategy.Sequential =>
+        CatsAsyncInstances.ForTask
+      case ApplicativeStrategy.Parallel =>
+        CatsAsyncInstances.ForParallelTask
     }
-
-  /** Groups the implementation for the type-classes defined in [[monix.types]]. */
-  class TypeClassInstances
-    extends Memoizable.Instance[Task]
-    with MonadError.Instance[Task,Throwable]
-    with Cobind.Instance[Task]
-    with MonadRec.Instance[Task] {
-
-    override def pure[A](a: A): Task[A] = Task.now(a)
-    override def suspend[A](fa: => Task[A]): Task[A] = Task.defer(fa)
-    override def evalOnce[A](a: => A): Task[A] = Task.evalOnce(a)
-    override def eval[A](a: => A): Task[A] = Task.eval(a)
-    override def memoize[A](fa: Task[A]): Task[A] = fa.memoize
-    override val unit: Task[Unit] = Task.now(())
-
-    override def flatMap[A, B](fa: Task[A])(f: (A) => Task[B]): Task[B] =
-      fa.flatMap(f)
-    override def flatten[A](ffa: Task[Task[A]]): Task[A] =
-      ffa.flatten
-    override def tailRecM[A, B](a: A)(f: (A) => Task[Either[A, B]]): Task[B] =
-      Task.tailRecM(a)(f)
-    override def coflatMap[A, B](fa: Task[A])(f: (Task[A]) => B): Task[B] =
-      Task.eval(f(fa))
-    override def ap[A, B](ff: Task[(A) => B])(fa: Task[A]): Task[B] =
-      for (f <- ff; a <- fa) yield f(a)
-    override def map2[A, B, Z](fa: Task[A], fb: Task[B])(f: (A, B) => Z): Task[Z] =
-      for (a <- fa; b <- fb) yield f(a,b)
-    override def map[A, B](fa: Task[A])(f: (A) => B): Task[B] =
-      fa.map(f)
-    override def raiseError[A](e: Throwable): Task[A] =
-      Task.raiseError(e)
-    override def onErrorHandle[A](fa: Task[A])(f: (Throwable) => A): Task[A] =
-      fa.onErrorHandle(f)
-    override def onErrorHandleWith[A](fa: Task[A])(f: (Throwable) => Task[A]): Task[A] =
-      fa.onErrorHandleWith(f)
-    override def onErrorRecover[A](fa: Task[A])(pf: PartialFunction[Throwable, A]): Task[A] =
-      fa.onErrorRecover(pf)
-    override def onErrorRecoverWith[A](fa: Task[A])(pf: PartialFunction[Throwable, Task[A]]): Task[A] =
-      fa.onErrorRecoverWith(pf)
-    override def attempt[A](fa: Task[A]): Task[Either[Throwable, A]] =
-      fa.attempt
   }
+}
+
+/** @define strategyNote In order to determine the returned instance to do
+  *         parallel processing in `cats.Applicative` then import
+  *         [[Task.nondeterminism]] in scope:
+  *
+  *         $nondeterminismSample
+  *
+  * @define strategyParamDesc is the applicative strategy to use when calling
+  *         `map2`, `ap` or `product`, specifying whether the returned
+  *         instance should do sequential or parallel processing.
+  */
+private[eval] trait TaskInstances2 extends TaskInstances1 {
+  /** Type class instances of [[Task]] for `cats.effect.Effect`.
+    *
+    * $strategyNote
+    *
+    * @param as $strategyParamDesc
+    * @param s is the `Scheduler` to use when executing `Effect#runAsync`
+    */
+  @inline implicit def catsEffect
+    (implicit as: ApplicativeStrategy[Task], s: Scheduler): CatsEffectInstances[Task] = {
+
+    as match {
+      case ApplicativeStrategy.Sequential =>
+        new CatsEffectInstances.ForTask()(s)
+      case ApplicativeStrategy.Parallel =>
+        new CatsEffectInstances.ForParallelTask()(s)
+    }
+  }
+}
+
+/** @define nondeterminismSample
+  *         {{{
+  *           import monix.eval.Task.nondeterminism
+  *
+  *           // The Task's Applicative will now do parallel processing
+  *           // if the given tasks are forking (logical) threads
+  *           // (e.g. will use `Task.mapBoth`)
+  *           val ap = implicitly[cats.Applicative[Task]]
+  *           ap.map2(task1, task2) { (a, b) => a + b }
+  *
+  *           // Or using the "applicative builder" syntax:
+  *           import cats.syntax.all._
+  *           (task1 |@| task2).map { (a, b) => a + b }
+  *         }}}
+  */
+private[eval] trait TaskInstances1 extends TaskInstances0 {
+  /** An [[monix.eval.instances.ApplicativeStrategy ApplicativeStrategy]]
+    * instance that will determine the generated type class instances
+    * for `Task` to do sequential processing in their applicative
+    * (and thus to order both results and effects).
+    *
+    * This is the default strategy that `Task` uses.
+    *
+    * @see [[Task.nondeterminism]] for picking a strategy for applicative
+    *      that does unordered effects and thus capable of parallelism
+    */
+  @inline implicit def determinism: ApplicativeStrategy[Task] =
+    ApplicativeStrategy.Sequential
+}
+
+
+/** @define nondeterminismSample
+  *         {{{
+  *           import monix.eval.Task.nondeterminism
+  *
+  *           // The Task's Applicative will now do parallel processing
+  *           // if the given tasks are forking (logical) threads
+  *           // (e.g. will use `Task.mapBoth`)
+  *           val ap = implicitly[cats.Applicative[Task]]
+  *           ap.map2(task1, task2) { (a, b) => a + b }
+  *
+  *           // Or using the "applicative builder" syntax:
+  *           import cats.syntax.all._
+  *           (task1 |@| task2).map { (a, b) => a + b }
+  *         }}}
+  */
+private[eval] trait TaskInstances0 {
+  /** An [[monix.eval.instances.ApplicativeStrategy ApplicativeStrategy]] 
+    * instance that, when imported in scope, will determine the
+    * generated type class instances for `Task` to do parallel
+    * processing in their applicative.
+    *
+    * Importing this in scope overrides the default
+    * [[Task.determinism]] strategy.
+    *
+    * $nondeterminismSample
+    */
+  @inline implicit def nondeterminism: ApplicativeStrategy[Task] =
+    ApplicativeStrategy.Parallel
 }

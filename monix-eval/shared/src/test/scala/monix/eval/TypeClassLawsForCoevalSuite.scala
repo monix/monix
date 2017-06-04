@@ -17,25 +17,13 @@
 
 package monix.eval
 
-import monix.types.tests._
+import cats.effect.laws.discipline.SyncTests
+import cats.laws.discipline.ComonadTests
 
-object TypeClassLawsForCoevalSuite extends BaseLawsSuite
-  with MemoizableLawsSuite[Coeval,Int,Long,Short]
-  with SuspendableLawsSuite[Coeval,Int,Long,Short]
-  with MonadErrorLawsSuite[Coeval,Int,Long,Short,Throwable]
-  with CobindLawsSuite[Coeval,Int,Long,Short]
-  with MonadRecLawsSuite[Coeval,Int,Long,Short]
-  with ComonadLawsSuite[Coeval,Int,Long,Short] {
+object TypeClassLawsForCoevalSuite extends BaseLawsSuite {
+  checkAll("Sync[Coeval[Int]]",
+    SyncTests[Coeval].sync[Int,Int,Int])
 
-  override def F: Coeval.TypeClassInstances =
-    Coeval.typeClassInstances
-
-  // Actual tests ...
-
-  monadEvalErrorCheck("Coeval")
-  memoizableCheck("Coeval", includeSupertypes = true)
-  monadErrorCheck("Coeval", includeSupertypes = false)
-  monadRecCheck("Coeval", includeSupertypes = false)
-  cobindCheck("Coeval", includeSupertypes = false)
-  comonadCheck("Coeval", includeSupertypes = false)
+  checkAll("Comonad[Coeval[Int]]",
+    ComonadTests[Coeval].comonad[Int,Int,Int])
 }

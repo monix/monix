@@ -95,7 +95,7 @@ object TaskGatherSuite extends BaseTestSuite {
       val tasks = list.map(x => if (i % 2 == 0) Task.eval(i) else Task(i))
       val gather = Task.gather(tasks)
       val zipList = Task.zipList(tasks:_*)
-      zipList === gather
+      zipList <-> gather
     }
   }
 
