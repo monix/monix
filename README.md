@@ -63,6 +63,28 @@ Monix 2.x is modular by design, so you can pick and choose:
    and depends on `monix-eval`
 - `monix` provides all of the above
 
+### Versioning Scheme
+
+The versioning scheme follows the
+[Semantic Versioning](http://semver.org/) (semver) specification,
+meaning that stable versions have the form `$major.$minor.$patch`,
+such that:
+
+1. `$major` version updates make binary incompatible API changes
+2. `$minor` version updates adds functionality in a
+   backwards-compatible manner, and
+3. `$patch` version updates makes backwards-compatible bug fixes
+
+For development snapshots may be published to Sonatype at any time.
+Development versions have the form: `$major.$minor.$patch-$hash`
+(example `3.0.0-3cc55ae`).
+
+The `$hash` is the 7 character git hash prefix of the commit from
+which the snapshot was published.  Thus, "snapshots" can be used as
+repeatable upstream dependencies if you're feeling courageous.  NO
+GUARANTEE is made for upgrades of development versions, use these at
+your own risk.
+
 ## Documentation
 
 NOTE: The documentation is a work in progress.  All documentation is
