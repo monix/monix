@@ -26,24 +26,32 @@ package monix.eval.instances
   * The default is [[ApplicativeStrategy.Sequential Sequential]]
   * processing.
   */
-sealed trait ApplicativeStrategy
+sealed trait ApplicativeStrategy[+F[_]]
 
 object ApplicativeStrategy {
+  /** Returns the [[Sequential]] strategy, parametrized by the given `F` type. */
+  @inline def sequential[F[_]]: ApplicativeStrategy[F] =
+    Sequential
+
+  /** Returns the [[Parallel]] strategy, parametrized by the given `F` type. */
+  @inline def parallel[F[_]]: ApplicativeStrategy[F] =
+    Parallel
+
+  /** Defines the default [[ApplicativeStrategy]], currently
+    * [[Sequential]].
+    */
+  @inline implicit def default[F[_]]: ApplicativeStrategy[F] =
+    Sequential
+
   /** An [[ApplicativeStrategy]] specifying that sequential processing
     * should be used when applying operations such as `map2` or `ap` 
     * (e.g. ordered results, ordered side effects).
     */
-  case object Sequential extends ApplicativeStrategy
+  case object Sequential extends ApplicativeStrategy[Nothing]
 
   /** An [[ApplicativeStrategy]] specifying that parallel processing
     * should be used when applying operations such as `map2` or `ap`
     * (e.g. ordered results, but unordered side effects).
     */
-  case object Parallel extends ApplicativeStrategy
-
-  /** Defines the default [[ApplicativeStrategy]], currently
-    * [[Sequential]].
-    */
-  implicit def default: ApplicativeStrategy =
-    Sequential
+  case object Parallel extends ApplicativeStrategy[Nothing]
 }

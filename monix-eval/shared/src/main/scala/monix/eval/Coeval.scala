@@ -696,6 +696,7 @@ object Coeval {
       Coeval.now(Failure(e))
   }
 
+  /** Type class instances of [[Coeval]] for Cats. */
   @inline implicit def catsSync: CatsSyncInstances[Coeval] =
     CatsSyncInstances.ForCoeval
 }
