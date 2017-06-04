@@ -34,7 +34,7 @@ object LoadBalanceConsumerConcurrencySuite extends BaseConcurrencySuite {
 
       val task1 = source.foldLeftF(0L)(_+_).firstL
       val task2 = source.consumeWith(consumer).map(_.sum)
-      task1 === task2
+      task1 <-> task2
     }
   }
 
@@ -55,7 +55,7 @@ object LoadBalanceConsumerConcurrencySuite extends BaseConcurrencySuite {
       val consumer = Consumer.loadBalance(allConsumers:_*)
       val task1 = source.foldLeftF(0L)(_+_).firstL
       val task2 = source.consumeWith(consumer).map(_.sum)
-      task1 === task2
+      task1 <-> task2
     }
   }
 }

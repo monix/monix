@@ -21,12 +21,12 @@ import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.OverflowStrategy.Unbounded
-import monix.reactive.{BaseLawsTestSuite, Observable}
+import monix.reactive.{BaseTestSuite, Observable}
 
-object ObserveOnSuite extends BaseLawsTestSuite {
+object ObserveOnSuite extends BaseTestSuite {
   test("equivalence with the source") { implicit s =>
     check1 { (obs: Observable[Int]) =>
-      obs.observeOn(s) === obs
+      obs.observeOn(s) <-> obs
     }
   }
 
@@ -34,7 +34,7 @@ object ObserveOnSuite extends BaseLawsTestSuite {
     check1 { (obs: Observable[Int]) =>
       val dummy = DummyException("dummy")
       val source = obs.endWithError(dummy)
-      source.observeOn(s) === source
+      source.observeOn(s) <-> source
     }
   }
 

@@ -17,21 +17,36 @@
 
 package monix.eval
 
-import monix.types.tests._
+import cats.Applicative
+import cats.effect.Effect
+import cats.effect.laws.discipline.{AsyncTests, EffectTests}
+import monix.eval.Task.nondeterminism
+import cats.laws.discipline.CoflatMapTests
+import monix.eval.instances.{CatsAsyncInstances, CatsEffectInstances}
+import monix.execution.schedulers.TestScheduler
 
-object TypeClassLawsForNondetTaskSuite extends BaseLawsSuite
-  with MemoizableLawsSuite[Task,Int,Long,Short]
-  with SuspendableLawsSuite[Task,Int,Long,Short]
-  with MonadErrorLawsSuite[Task,Int,Long,Short,Throwable]
-  with CobindLawsSuite[Task,Int,Long,Short]
-  with MonadRecLawsSuite[Task,Int,Long,Short] {
+object TypeClassLawsForNondetTaskSuite extends BaseLawsSuite {
+  test("picked the nondeterministic Async instance") {
+    val inst = implicitly[Applicative[Task]]
+    assert(inst.isInstanceOf[CatsAsyncInstances.ForParallelTask])
+    assert(!inst.isInstanceOf[CatsEffectInstances.ForParallelTask])
+  }
 
-  override def F: Task.TypeClassInstances =
-    Task.nondeterminism
+  test("picked the nondeterministic Effect instance") {
+    implicit val ec = TestScheduler()
+    val inst = implicitly[Effect[Task]]
+    assert(inst.isInstanceOf[CatsEffectInstances.ForParallelTask])
+  }
 
-  monadEvalErrorCheck("Task.nondeterminism")
-  memoizableCheck("Task.nondeterminism", includeSupertypes = true)
-  monadErrorCheck("Task.nondeterminism", includeSupertypes = false)
-  monadRecCheck("Task.nondeterminism", includeSupertypes = false)
-  cobindCheck("Task.nondeterminism", includeSupertypes = false)
+  checkAllAsync("Async[Coeval[Int]]") { implicit ec =>
+    AsyncTests[Task].async[Int,Int,Int]
+  }
+
+  checkAllAsync("Effect[Coeval[Int]]") { implicit ec =>
+    EffectTests[Task].effect[Int,Int,Int]
+  }
+
+  checkAllAsync("CoflatMap[Coeval[Int]]") { implicit ec =>
+    CoflatMapTests[Task].coflatMap[Int,Int,Int]
+  }
 }

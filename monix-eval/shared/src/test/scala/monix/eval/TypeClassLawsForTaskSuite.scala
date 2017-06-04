@@ -17,23 +17,35 @@
 
 package monix.eval
 
-import monix.types.tests._
+import cats.Applicative
+import cats.effect.Effect
+import cats.effect.laws.discipline.{AsyncTests, EffectTests}
+import cats.laws.discipline.CoflatMapTests
+import monix.eval.instances.{CatsAsyncInstances, CatsEffectInstances}
+import monix.execution.schedulers.TestScheduler
 
-object TypeClassLawsForTaskSuite extends BaseLawsSuite
-  with MemoizableLawsSuite[Task,Int,Long,Short]
-  with SuspendableLawsSuite[Task,Int,Long,Short]
-  with MonadErrorLawsSuite[Task,Int,Long,Short,Throwable]
-  with CobindLawsSuite[Task,Int,Long,Short]
-  with MonadRecLawsSuite[Task,Int,Long,Short] {
+object TypeClassLawsForTaskSuite extends BaseLawsSuite {
+  test("picked the deterministic Async instance") {
+    val inst = implicitly[Applicative[Task]]
+    assert(!inst.isInstanceOf[CatsAsyncInstances.ForParallelTask])
+    assert(!inst.isInstanceOf[CatsEffectInstances.ForTask])
+  }
 
-  override def F: Task.TypeClassInstances =
-    Task.typeClassInstances
+  test("picked the deterministic Effect instance") {
+    implicit val ec = TestScheduler()
+    val inst = implicitly[Effect[Task]]
+    assert(!inst.isInstanceOf[CatsEffectInstances.ForParallelTask])
+  }
 
-  // Actual tests ...
+  checkAllAsync("Async[Coeval[Int]]") { implicit ec =>
+    AsyncTests[Task].async[Int,Int,Int]
+  }
 
-  monadEvalErrorCheck("Task")
-  memoizableCheck("Task", includeSupertypes = true)
-  monadErrorCheck("Task", includeSupertypes = false)
-  monadRecCheck("Task", includeSupertypes = false)
-  cobindCheck("Task", includeSupertypes = false)
+  checkAllAsync("Effect[Coeval[Int]]") { implicit ec =>
+    EffectTests[Task].effect[Int,Int,Int]
+  }
+
+  checkAllAsync("CoflatMap[Coeval[Int]]") { implicit ec =>
+    CoflatMapTests[Task].coflatMap[Int,Int,Int]
+  }
 }

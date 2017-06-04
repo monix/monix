@@ -44,18 +44,18 @@ object CoevalEvalOnceSuite extends BaseTestSuite {
   test("Coeval.evalOnce.flatMap should be equivalent with Coeval.evalOnce") { implicit s =>
     val ex = DummyException("dummy")
     val t = Coeval.evalOnce[Int](if (1 == 1) throw ex else 1).flatMap(Coeval.now)
-    check(t === Coeval.raiseError(ex))
+    check(t <-> Coeval.raiseError(ex))
   }
 
   test("Coeval.evalOnce.flatMap should protect against user code") { implicit s =>
     val ex = DummyException("dummy")
     val t = Coeval.evalOnce(1).flatMap[Int](_ => throw ex)
-    check(t === Coeval.raiseError(ex))
+    check(t <-> Coeval.raiseError(ex))
   }
 
   test("Coeval.evalOnce.map should work") { implicit s =>
     check1 { a: Int =>
-      Coeval.evalOnce(a).map(_ + 1) === Coeval.evalOnce(a + 1)
+      Coeval.evalOnce(a).map(_ + 1) <-> Coeval.evalOnce(a + 1)
     }
   }
 

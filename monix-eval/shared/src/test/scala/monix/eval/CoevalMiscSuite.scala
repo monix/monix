@@ -75,7 +75,7 @@ object CoevalMiscSuite extends BaseTestSuite {
   test("Coeval.flatten is equivalent with flatMap") { implicit s =>
     check1 { (nr: Int) =>
       val ref = Coeval(Coeval(nr))
-      ref.flatten === ref.flatMap(x => x)
+      ref.flatten <-> ref.flatMap(x => x)
     }
   }
 

@@ -56,7 +56,7 @@ object TakeUntilObservableSuite extends BaseOperatorSuite {
 
   test("should mirror the source if never triggered") { implicit s =>
     check1 { (obs: Observable[Int]) =>
-      obs === obs.takeUntil(Observable.never)
+      obs <-> obs.takeUntil(Observable.never)
     }
   }
 

@@ -18,19 +18,19 @@
 package monix.reactive.internal.operators
 
 import monix.eval.Task
-import monix.reactive.{BaseLawsTestSuite, Observable}
+import monix.reactive.{BaseTestSuite, Observable}
 import scala.concurrent.duration._
 import scala.util.Success
 
-object BufferSlidingSuite extends BaseLawsTestSuite {
+object BufferSlidingSuite extends BaseTestSuite {
   test("bufferSliding equivalence with the standard library") { implicit s =>
     check3 { (numbers: List[Int], countR: Int, skipR: Int) =>
       val count = Math.floorMod(countR, 10) + 1
       val skip = Math.floorMod(skipR, 10) + 1
 
-      val received = Observable.fromIterable(numbers).bufferSliding(count, skip).toListL
-      val expected = Task.now(numbers.sliding(count, skip).toList)
-      received === expected
+      val received = Observable.fromIterable(numbers).bufferSliding(count, skip).map(_.toList).toListL
+      val expected = Task.now(numbers.sliding(count, skip).map(_.toList).toList)
+      received <-> expected
     }
   }
 

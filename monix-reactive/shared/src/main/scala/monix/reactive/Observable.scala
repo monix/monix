@@ -18,19 +18,21 @@
 package monix.reactive
 
 import java.io.{BufferedReader, InputStream, Reader}
+
 import monix.eval.Coeval.Attempt
 import monix.eval.{Callback, Coeval, Task}
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution._
 import monix.execution.cancelables.SingleAssignmentCancelable
+import monix.reactive.instances.{CatsAsyncSeqInstances, CatsObservableInstances}
 import monix.reactive.internal.builders
 import monix.reactive.internal.subscribers.ForeachSubscriber
 import monix.reactive.observables.ObservableLike.{Operator, Transformer}
 import monix.reactive.observables._
 import monix.reactive.observers._
 import monix.reactive.subjects._
-import monix.types._
 import org.reactivestreams.{Publisher => RPublisher, Subscriber => RSubscriber}
+
 import scala.collection.mutable
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent.{Future, Promise}
@@ -655,8 +657,8 @@ object Observable {
     */
   def coeval[A](value: Coeval[A]): Observable[A] =
     value match {
-      case Coeval.Now(v) => Observable.now(v)
-      case Coeval.Error(ex) => Observable.raiseError(ex)
+      case Coeval.Now(a) => Observable.now(a)
+      case Coeval.Error(e) => Observable.raiseError(e)
       case other => Observable.eval(other.value)
     }
 
@@ -668,13 +670,13 @@ object Observable {
 
   /** Creates an Observable that emits an error.
     */
-  def raiseError(ex: Throwable): Observable[Nothing] =
+  def raiseError[A](ex: Throwable): Observable[A] =
     new builders.ErrorObservable(ex)
 
   /** Creates an Observable that doesn't emit anything and that never
     * completes.
     */
-  def never: Observable[Nothing] =
+  def never[A]: Observable[A] =
     builders.NeverObservable
 
   /** Mirrors the given source [[Observable]], but upon subscription
@@ -1448,51 +1450,6 @@ object Observable {
     new builders.FirstStartedObservable(source: _*)
 
   /** Implicit type-class instances for [[Observable]]. */
-  implicit val typeClassInstances: TypeClassInstances = new TypeClassInstances
-
-  /** Type-class instances for [[Observable]]. */
-  class TypeClassInstances extends Suspendable.Instance[Observable]
-    with Memoizable.Instance[Observable] with MonadError.Instance[Observable,Throwable]
-    with MonadFilter.Instance[Observable] with MonoidK.Instance[Observable]
-    with Cobind.Instance[Observable]
-    with MonadRec.Instance[Observable] {
-
-    override def pure[A](a: A): Observable[A] = Observable.now(a)
-    override def suspend[A](fa: => Observable[A]): Observable[A] = Observable.defer(fa)
-    override def eval[A](a: => A): Observable[A] = Observable.eval(a)
-    override def evalOnce[A](a: => A): Observable[A] = Observable.evalOnce(a)
-    override def memoize[A](fa: Observable[A]): Observable[A] = fa.cache
-    override val unit: Observable[Unit] = Observable.now(())
-
-    override def combineK[A](x: Observable[A], y: Observable[A]): Observable[A] =
-      x ++ y
-    override def flatMap[A, B](fa: Observable[A])(f: (A) => Observable[B]): Observable[B] =
-      fa.flatMap(f)
-    override def flatten[A](ffa: Observable[Observable[A]]): Observable[A] =
-      ffa.flatten
-    override def tailRecM[A, B](a: A)(f: (A) => Observable[Either[A, B]]): Observable[B] =
-      Observable.tailRecM(a)(f)
-    override def coflatMap[A, B](fa: Observable[A])(f: (Observable[A]) => B): Observable[B] =
-      Observable.eval(f(fa))
-    override def ap[A, B](ff: Observable[(A) => B])(fa: Observable[A]): Observable[B] =
-      for (f <- ff; a <- fa) yield f(a)
-    override def map2[A, B, Z](fa: Observable[A], fb: Observable[B])(f: (A, B) => Z): Observable[Z] =
-      for (a <- fa; b <- fb) yield f(a,b)
-    override def map[A, B](fa: Observable[A])(f: (A) => B): Observable[B] =
-      fa.map(f)
-    override def raiseError[A](e: Throwable): Observable[A] =
-      Observable.raiseError(e)
-    override def onErrorHandle[A](fa: Observable[A])(f: (Throwable) => A): Observable[A] =
-      fa.onErrorHandle(f)
-    override def onErrorHandleWith[A](fa: Observable[A])(f: (Throwable) => Observable[A]): Observable[A] =
-      fa.onErrorHandleWith(f)
-    override def onErrorRecover[A](fa: Observable[A])(pf: PartialFunction[Throwable, A]): Observable[A] =
-      fa.onErrorRecover(pf)
-    override def onErrorRecoverWith[A](fa: Observable[A])(pf: PartialFunction[Throwable, Observable[A]]): Observable[A] =
-      fa.onErrorRecoverWith(pf)
-    override def empty[A]: Observable[A] =
-      Observable.empty[A]
-    override def filter[A](fa: Observable[A])(f: (A) => Boolean): Observable[A] =
-      fa.filter(f)
-  }
+  @inline implicit def catsAsyncSeq: CatsAsyncSeqInstances[Observable] =
+    CatsObservableInstances.ForObservable
 }

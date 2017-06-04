@@ -22,12 +22,12 @@ import monix.execution.Ack.{Continue, Stop}
 import monix.execution.FutureUtils.extensions._
 import monix.execution.exceptions.DummyException
 import monix.reactive.observers.Subscriber
-import monix.reactive.{BaseLawsTestSuite, Observable, Observer}
+import monix.reactive.{BaseTestSuite, Observable, Observer}
 import scala.concurrent.duration._
 import scala.concurrent.{Future, Promise}
 import scala.util.Random
 
-abstract class BaseOperatorSuite extends BaseLawsTestSuite {
+abstract class BaseOperatorSuite extends BaseTestSuite {
   case class Sample(
     observable: Observable[Long],
     count: Int,

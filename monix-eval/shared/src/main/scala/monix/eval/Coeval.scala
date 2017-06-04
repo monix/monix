@@ -18,9 +18,10 @@
 package monix.eval
 
 import monix.eval.Coeval._
+import monix.eval.instances.CatsSyncInstances
 import monix.eval.internal.{CoevalRunLoop, LazyOnSuccess, Transformation}
 import monix.execution.misc.NonFatal
-import monix.types._
+
 import scala.collection.generic.CanBuildFrom
 import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
@@ -695,50 +696,6 @@ object Coeval {
       Coeval.now(Failure(e))
   }
 
-  implicit val typeClassInstances: TypeClassInstances = new TypeClassInstances
-
-  /** Groups the implementation for the type-classes defined in [[monix.types]]. */
-  class TypeClassInstances
-    extends Suspendable.Instance[Coeval]
-    with Memoizable.Instance[Coeval]
-    with MonadError.Instance[Coeval,Throwable]
-    with Comonad.Instance[Coeval]
-    with MonadRec.Instance[Coeval] {
-
-    override def pure[A](a: A): Coeval[A] = Coeval.now(a)
-    override def suspend[A](fa: => Coeval[A]): Coeval[A] = Coeval.defer(fa)
-    override def evalOnce[A](a: => A): Coeval[A] = Coeval.evalOnce(a)
-    override def eval[A](a: => A): Coeval[A] = Coeval.eval(a)
-    override def memoize[A](fa: Coeval[A]): Coeval[A] = fa.memoize
-    override val unit: Coeval[Unit] = Coeval.now(())
-
-    override def extract[A](x: Coeval[A]): A =
-      x.value
-    override def flatMap[A, B](fa: Coeval[A])(f: (A) => Coeval[B]): Coeval[B] =
-      fa.flatMap(f)
-    override def flatten[A](ffa: Coeval[Coeval[A]]): Coeval[A] =
-      ffa.flatten
-    override def tailRecM[A, B](a: A)(f: (A) => Coeval[Either[A, B]]): Coeval[B] =
-      Coeval.tailRecM(a)(f)
-    override def coflatMap[A, B](fa: Coeval[A])(f: (Coeval[A]) => B): Coeval[B] =
-      Coeval.eval(f(fa))
-    override def ap[A, B](ff: Coeval[(A) => B])(fa: Coeval[A]): Coeval[B] =
-      for (f <- ff; a <- fa) yield f(a)
-    override def map2[A, B, Z](fa: Coeval[A], fb: Coeval[B])(f: (A, B) => Z): Coeval[Z] =
-      for (a <- fa; b <- fb) yield f(a, b)
-    override def map[A, B](fa: Coeval[A])(f: (A) => B): Coeval[B] =
-      fa.map(f)
-    override def raiseError[A](e: Throwable): Coeval[A] =
-      Coeval.raiseError(e)
-    override def onErrorHandle[A](fa: Coeval[A])(f: (Throwable) => A): Coeval[A] =
-      fa.onErrorHandle(f)
-    override def onErrorHandleWith[A](fa: Coeval[A])(f: (Throwable) => Coeval[A]): Coeval[A] =
-      fa.onErrorHandleWith(f)
-    override def onErrorRecover[A](fa: Coeval[A])(pf: PartialFunction[Throwable, A]): Coeval[A] =
-      fa.onErrorRecover(pf)
-    override def onErrorRecoverWith[A](fa: Coeval[A])(pf: PartialFunction[Throwable, Coeval[A]]): Coeval[A] =
-      fa.onErrorRecoverWith(pf)
-    override def attempt[A](fa: Coeval[A]): Coeval[Either[Throwable, A]] =
-      fa.attempt
-  }
+  @inline implicit def catsSync: CatsSyncInstances[Coeval] =
+    CatsSyncInstances.ForCoeval
 }

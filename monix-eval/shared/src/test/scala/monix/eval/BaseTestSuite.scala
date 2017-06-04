@@ -20,8 +20,6 @@ package monix.eval
 import minitest.TestSuite
 import minitest.laws.Checkers
 import monix.execution.schedulers.TestScheduler
-import monix.types.tests.Eq
-import org.scalacheck.Prop
 
 abstract class BaseTestSuite extends TestSuite[TestScheduler]
   with Checkers with ArbitraryInstances {
@@ -30,22 +28,4 @@ abstract class BaseTestSuite extends TestSuite[TestScheduler]
   def tearDown(env: TestScheduler): Unit = {
     assert(env.state.tasks.isEmpty, "should not have tasks left to execute")
   }
-
-  implicit def isEquivToProp[A](p: IsEquiv[A])(implicit A: Eq[A]): Prop =
-    Prop(A(p.lh, p.rh))
-
-  implicit def isEquivListToProp[A](ns: List[IsEquiv[A]])(implicit A: Eq[A]): Prop =
-    Prop(ns.forall(p => A(p.lh, p.rh)))
-
-  implicit def isNotEquivToProp[A](p: IsNotEquiv[A])(implicit A: Eq[A]): Prop =
-    Prop(!A(p.lh, p.rh))
-
-  implicit def isNotEquivListToProp[A](ns: List[IsNotEquiv[A]])(implicit A: Eq[A]): Prop =
-    Prop(ns.forall(p => !A(p.lh, p.rh)))
 }
-
-/** For expressing equivalence. */
-final case class IsEquiv[A](lh: A, rh: A)
-
-/** For negating equivalence. */
-final case class IsNotEquiv[A](lh: A, rh: A)
