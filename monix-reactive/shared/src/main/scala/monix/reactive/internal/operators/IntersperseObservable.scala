@@ -34,12 +34,12 @@ private[reactive] final class IntersperseObservable[+A](
     val upstream = source.unsafeSubscribeFn(new Subscriber[A] {
       implicit val scheduler = out.scheduler
 
-      private[this] var firstTime = true
+      private[this] var atLeastOne = false
       private[this] var downstreamAck = Continue : Future[Ack]
 
       override def onNext(elem: A): Future[Ack] = {
-        downstreamAck = if (firstTime) {
-          firstTime = false
+        downstreamAck = if (!atLeastOne) {
+          atLeastOne = true
           start.map(out.onNext).getOrElse(Continue).syncFlatMap {
             case Continue => out.onNext(elem)
             case ack => ack
@@ -60,7 +60,7 @@ private[reactive] final class IntersperseObservable[+A](
 
       def onComplete() = {
         downstreamAck.syncOnContinue {
-          if (end.nonEmpty) out.onNext(end.get)
+          if (atLeastOne && end.nonEmpty) out.onNext(end.get)
           out.onComplete()
         }
       }

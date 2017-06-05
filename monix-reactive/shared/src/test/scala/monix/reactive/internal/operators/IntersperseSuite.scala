@@ -116,4 +116,25 @@ object IntersperseSuite extends BaseOperatorSuite {
     assertEquals(received, Vector(-1,1,0,2,0,3,0,4,0,5,-1))
     assert(wasCompleted)
   }
+
+  test("do not emit if upstream emits nothing") { implicit s =>
+    val obs = PublishSubject[Int]()
+
+    var received = Vector.empty[Int]
+    var wasCompleted = false
+
+    obs.intersperse(start = -1, separator = -2, end = -3).unsafeSubscribeFn(new Observer[Int] {
+      def onNext(elem: Int) = {
+        received :+= elem
+        Continue
+      }
+
+      def onError(ex: Throwable) = ()
+      def onComplete() = wasCompleted = true
+    })
+
+    obs.onComplete(); s.tick()
+    assertEquals(received, List())
+    assert(wasCompleted)
+  }
 }
