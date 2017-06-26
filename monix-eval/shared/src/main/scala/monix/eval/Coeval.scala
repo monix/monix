@@ -17,6 +17,8 @@
 
 package monix.eval
 
+import cats.Eval
+import cats.effect.IO
 import monix.eval.Coeval._
 import monix.eval.instances.CatsSyncInstances
 import monix.eval.internal.{CoevalRunLoop, LazyOnSuccess, Transformation}
@@ -49,7 +51,7 @@ import scala.util.{Failure, Success, Try}
   * needed again. `Always` will run its computation every time.
   *
   * Both `Now` and `Error` are represented by the
-  * [[monix.eval.Coeval.Attempt Attempt]] trait, a sub-type of [[Coeval]]
+  * [[monix.eval.Coeval.Eager Eager]] trait, a sub-type of [[Coeval]]
   * that can be used as a replacement for Scala's own `Try` type.
   *
   * `Coeval` supports stack-safe lazy computation via the .map and .flatMap
@@ -87,9 +89,9 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     }
 
   /** Evaluates the underlying computation and returns the
-    * result or any triggered errors as a [[Coeval.Attempt]].
+    * result or any triggered errors as a [[Coeval.Eager]].
     */
-  def runAttempt: Coeval.Attempt[A] =
+  def runToEager: Coeval.Eager[A] =
     CoevalRunLoop.start(this)
 
   /** Evaluates the underlying computation and returns the
@@ -161,11 +163,28 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
 
   /** Dematerializes the source's result from a `Try`. */
   def dematerialize[B](implicit ev: A <:< Try[B]): Coeval[B] =
-    self.asInstanceOf[Coeval[Try[B]]].flatMap(Attempt.fromTry)
+    self.asInstanceOf[Coeval[Try[B]]].flatMap(Eager.fromTry)
 
   /** Converts the source [[Coeval]] into a [[Task]]. */
   def task: Task[A] =
     Task.coeval(self)
+
+  /** Converts the source [[Coeval]] into a `cats.Eval`. */
+  def toEval: Eval[A] =
+    this match {
+      case Coeval.Now(value) => Eval.now(value)
+      case Coeval.Error(e) => Eval.always(throw e)
+      case Coeval.Always(thunk) => new cats.Always(thunk)
+      case other => Eval.always(other.value)
+    }
+
+  /** Converts the source [[Coeval]] into a `cats.effect.IO`. */
+  def toIO: IO[A] =
+    this match {
+      case Coeval.Now(value) => IO.pure(value)
+      case Coeval.Error(e) => IO.raiseError(e)
+      case other => IO(other.value)
+    }
 
   /** Creates a new `Coeval` by applying the 'fa' function to the successful result of
     * this future, or the 'fe' function to the potential errors that might happen.
@@ -324,33 +343,48 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
 
   // ---- Deprecated operations, preserved for backwards compatibility
 
+  /** Deprecated, renamed to [[Coeval#runToEager]].
+    *
+    * This change happened in order to achieve naming consistency
+    * with the Typelevel ecosystem, where `Attempt[A]` is usually an
+    * alias for `Either[Throwable, A]`.
+    */
+  @deprecated("Renamed to Coeval#runToEager", "3.0.0")
+  def runAttempt: Coeval.Eager[A] = CoevalRunLoop.start(this)
+
   /** Creates a new [[Coeval]] that will expose any triggered error from
     * the source.
     *
     * Deprecated, please use [[Coeval#attempt]] or [[Coeval#materialize]].
     *
     * The reason for the deprecation is the naming alignment
-    * with the Cats ecosystem, where `Attempt` is being used
+    * with the Cats ecosystem, where `Eager` is being used
     * as an alias for `Either[Throwable, A]`.
     */
   @deprecated("Use Coeval#attempt or Coeval#materialize", "2.3.0")
-  def materializeAttempt: Coeval[Attempt[A]] =
+  def materializeAttempt: Coeval[Eager[A]] =
     self.transformWith(a => Now(Now(a)), e => Now(Error(e)))
 
-  /** Dematerializes the source's result from a [[Coeval.Attempt]].
+  /** Dematerializes the source's result from a [[Coeval.Eager]].
     *
     * Deprecated, please use [[Coeval#dematerialize]] or just
     * [[Coeval#flatMap flatMap]].
     *
     * The reason for the deprecation is the naming alignment
-    * with the Cats ecosystem, where `Attempt` is being used
+    * with the Cats ecosystem, where `Eager` is being used
     * as an alias for `Either[Throwable, A]`.
     */
   @deprecated("Use Coeval#dematerialize or Coeval#flatMap", "2.3.0")
-  def dematerializeAttempt[B](implicit ev: A <:< Attempt[B]): Coeval[B] =
-    self.asInstanceOf[Coeval[Attempt[B]]].flatMap(identity)
+  def dematerializeAttempt[B](implicit ev: A <:< Eager[B]): Coeval[B] =
+    self.asInstanceOf[Coeval[Eager[B]]].flatMap(identity)
 }
 
+/** [[Coeval]] builders.
+  *
+  * @define attemptDeprecation This change happened in order to achieve
+  *         naming consistency with the Typelevel ecosystem, where
+  *         `Attempt[A]` is usually an alias for `Either[Throwable, A]`.
+  */
 object Coeval {
   /** Promotes a non-strict value to a [[Coeval]].
     *
@@ -401,9 +435,16 @@ object Coeval {
   /** A `Coeval[Unit]` provided for convenience. */
   val unit: Coeval[Unit] = Now(())
 
+  /** Builds a `Coeval` out of a `cats.Eval` value. */
+  def fromEval[A](a: Eval[A]): Coeval[A] =
+    a match {
+      case cats.Now(v) => Coeval.Now(v)
+      case other => Coeval.eval(other.value)
+    }
+
   /** Builds a `Coeval` out of a Scala `Try` value. */
   def fromTry[A](a: Try[A]): Coeval[A] =
-    Attempt.fromTry(a)
+    Eager.fromTry(a)
 
   /** Keeps calling `f` until it returns a `Right` result.
     *
@@ -512,7 +553,7 @@ object Coeval {
     zipMap2(fa12345, fa6) { case ((a1, a2, a3, a4, a5), a6) => f(a1, a2, a3, a4, a5, a6) }
   }
 
-  /** The `Attempt` type represents a strict, already evaluated result
+  /** The `Eager` type represents a strict, already evaluated result
     * of a [[Coeval]] that either resulted in success, wrapped in a
     * [[Now]], or in an error, wrapped in an [[Error]].
     *
@@ -520,7 +561,7 @@ object Coeval {
     * application of functions such as `map` and `flatMap` produces
     * [[Coeval]] references that are still lazily evaluated.
     */
-  sealed abstract class Attempt[+A] extends Coeval[A] with Product {
+  sealed abstract class Eager[+A] extends Coeval[A] with Product {
     self =>
 
     /** Retrieve the (successful) value or throw the error.
@@ -548,7 +589,7 @@ object Coeval {
         case Error(ex) => Failure(ex)
       }
 
-    override def failed: Attempt[Throwable] =
+    override def failed: Eager[Throwable] =
       self match {
         case Coeval.Now(_) =>
           Coeval.Error(new NoSuchElementException("failed"))
@@ -558,14 +599,14 @@ object Coeval {
 
     /** Returns true if result is an error.
       *
-      * Deprecated, renamed to [[Coeval.Attempt#isError]].
+      * Deprecated, renamed to [[Coeval.Eager#isError]].
       */
-    @deprecated("Use Coeval.Attempt#isError", "2.3.0")
+    @deprecated("Use Coeval.Eager#isError", "2.3.0")
     final def isFailure: Boolean =
       self.isError
 
     @deprecated("Use Coeval#attempt or Coeval#materialize", "2.3.0")
-    override final def materializeAttempt: Attempt[Attempt[A]] =
+    override final def materializeAttempt: Eager[Eager[A]] =
       self match {
         case now@Now(_) =>
           Now(now)
@@ -574,25 +615,25 @@ object Coeval {
       }
 
     @deprecated("Use Coeval#attempt or Coeval#materialize", "2.3.0")
-    override final def dematerializeAttempt[B](implicit ev: <:<[A, Attempt[B]]): Attempt[B] =
+    override final def dematerializeAttempt[B](implicit ev: <:<[A, Eager[B]]): Eager[B] =
       self match {
         case Now(now) => now
         case error@Error(_) => error
       }
 
-    override final def memoize: Attempt[A] =
+    override final def memoize: Eager[A] =
       this
   }
 
-  object Attempt {
-    /** Promotes a non-strict value to a [[Coeval.Attempt]]. */
-    def apply[A](f: => A): Attempt[A] =
+  object Eager {
+    /** Promotes a non-strict value to a [[Coeval.Eager]]. */
+    def apply[A](f: => A): Eager[A] =
       try Now(f) catch {
         case NonFatal(ex) => Error(ex)
       }
 
-    /** Builds an [[Coeval.Attempt Attempt]] from a `scala.util.Try` */
-    def fromTry[A](value: Try[A]): Attempt[A] =
+    /** Builds an [[Coeval.Eager Eager]] from a `scala.util.Try` */
+    def fromTry[A](value: Try[A]): Eager[A] =
       value match {
         case Success(a) => Now(a)
         case Failure(ex) => Error(ex)
@@ -602,17 +643,17 @@ object Coeval {
   /** Constructs an eager [[Coeval]] instance from a strict
     * value that's already known.
     */
-  final case class Now[+A](override val value: A) extends Attempt[A] {
+  final case class Now[+A](override val value: A) extends Eager[A] {
     override def apply(): A = value
-    override def runAttempt: Now[A] = this
+    override def runToEager: Now[A] = this
   }
 
   /** Constructs an eager [[Coeval]] instance for
     * a result that represents an error.
     */
-  final case class Error(ex: Throwable) extends Attempt[Nothing] {
+  final case class Error(ex: Throwable) extends Eager[Nothing] {
     override def apply(): Nothing = throw ex
-    override def runAttempt: Error = this
+    override def runToEager: Error = this
   }
 
   /** Constructs a lazy [[Coeval]] instance that gets evaluated
@@ -625,12 +666,12 @@ object Coeval {
   final class Once[+A](f: () => A) extends Coeval[A] with (() => A) { self =>
     private[this] var thunk: () => A = f
 
-    override def apply(): A = runAttempt match {
+    override def apply(): A = runToEager match {
       case Now(a) => a
       case Error(ex) => throw ex
     }
 
-    override lazy val runAttempt: Attempt[A] = {
+    override lazy val runToEager: Eager[A] = {
       try {
         Now(thunk())
       } catch {
@@ -641,10 +682,10 @@ object Coeval {
       }
     }
 
-    override def toString =
+    override def toString: String =
       synchronized {
         if (thunk != null) s"Coeval.Once($thunk)"
-        else s"Coeval.Once($runAttempt)"
+        else s"Coeval.Once($runToEager)"
       }
   }
 
@@ -666,11 +707,25 @@ object Coeval {
   final case class Always[+A](f: () => A) extends Coeval[A] {
     override def apply(): A = f()
 
-    override def runAttempt: Attempt[A] =
+    override def runToEager: Eager[A] =
       try Now(f()) catch {
         case NonFatal(ex) => Error(ex)
       }
   }
+
+  /** Deprecated, renamed to [[Coeval.Eager]].
+    *
+    * $attemptDeprecation
+    */
+  @deprecated("Renamed to Coeval.Eager", "3.0.0")
+  type Attempt[+A] = Eager[A]
+
+  /** Deprecated, renamed to [[Coeval.Eager]].
+    *
+    * $attemptDeprecation
+    */
+  @deprecated("Renamed to Coeval.Eager", "3.0.0")
+  def Attempt: Eager.type = Eager
 
   /** Internal state, the result of [[Coeval.defer]] */
   private[eval] final case class Suspend[+A](thunk: () => Coeval[A])

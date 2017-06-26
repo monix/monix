@@ -99,6 +99,6 @@ object TaskEvalAlwaysSuite extends BaseTestSuite {
   test("Task.eval.flatMap should protect against user code errors") { implicit s =>
     val ex = DummyException("dummy")
     val task: Task[Int] = Task.eval(1).flatMap(_ => throw ex)
-    assertEquals(task.coeval.runAttempt, Coeval.Error(ex))
+    assertEquals(task.coeval.runToEager, Coeval.Error(ex))
   }
 }

@@ -18,7 +18,7 @@
 package monix.eval.internal
 
 import monix.eval.Coeval
-import monix.eval.Coeval.{Always, Attempt, Error, FlatMap, Now, Once, Suspend}
+import monix.eval.Coeval.{Always, Eager, Error, FlatMap, Now, Once, Suspend}
 import monix.execution.internal.collection.ArrayStack
 import monix.execution.misc.NonFatal
 import scala.annotation.tailrec
@@ -29,9 +29,9 @@ private[eval] object CoevalRunLoop {
   private type CallStack = ArrayStack[Bind]
 
   /** Trampoline for lazy evaluation. */
-  def start[A](source: Coeval[A]): Attempt[A] = {
+  def start[A](source: Coeval[A]): Eager[A] = {
     // Tail-recursive run-loop
-    @tailrec def loop(source: Coeval[Any], bFirst: Bind, bRest: CallStack): Attempt[Any] = {
+    @tailrec def loop(source: Coeval[Any], bFirst: Bind, bRest: CallStack): Eager[Any] = {
       source match {
         case now @ Now(a) =>
           popNextBind(bFirst, bRest) match {
@@ -42,7 +42,7 @@ private[eval] object CoevalRunLoop {
           }
 
         case eval @ Once(_) =>
-          loop(eval.runAttempt, bFirst, bRest)
+          loop(eval.runToEager, bFirst, bRest)
 
         case Always(thunk) =>
           val fa = try Now(thunk()) catch { case NonFatal(ex) => Error(ex) }
@@ -71,7 +71,7 @@ private[eval] object CoevalRunLoop {
       }
     }
 
-    loop(source, null, null).asInstanceOf[Attempt[A]]
+    loop(source, null, null).asInstanceOf[Eager[A]]
   }
 
   /** Logic for finding the next `Transformation` reference,

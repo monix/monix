@@ -17,7 +17,8 @@
 
 package monix.eval
 
-import monix.eval.Coeval.Attempt
+import cats.effect.IO
+import monix.eval.Coeval.Eager
 import monix.eval.instances._
 import monix.eval.internal._
 import monix.execution.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
@@ -27,6 +28,7 @@ import monix.execution.cancelables.StackedCancelable
 import monix.execution.internal.Platform
 import monix.execution.misc.{NonFatal, ThreadLocal}
 
+import scala.annotation.unchecked.{uncheckedVariance => uV}
 import scala.collection.generic.CanBuildFrom
 import scala.collection.mutable
 import scala.concurrent.duration.FiniteDuration
@@ -564,14 +566,18 @@ sealed abstract class Task[+A] extends Serializable { self =>
         new MemoizeSuspend[A](() => other, cacheErrors = false)
     }
 
+  /** Converts the source `Task` to a `cats.effect.IO` value. */
+  def toIO(implicit s: Scheduler): IO[A] =
+    TaskIOConversions.taskToIO(this)(s)
+
   /** Converts a [[Task]] to an `org.reactivestreams.Publisher` that
     * emits a single item on success, or just the error on failure.
     *
     * See [[http://www.reactive-streams.org/ reactive-streams.org]] for the
     * Reactive Streams specification.
     */
-  def toReactivePublisher[B >: A](implicit s: Scheduler): org.reactivestreams.Publisher[B] =
-    TaskToReactivePublisher[B](self)(s)
+  def toReactivePublisher(implicit s: Scheduler): org.reactivestreams.Publisher[A @uV] =
+    TaskToReactivePublisher[A](self)(s)
 
   /** Returns a Task that mirrors the source Task but that triggers a
     * `TimeoutException` in case the given duration passes without the
@@ -638,25 +644,25 @@ sealed abstract class Task[+A] extends Serializable { self =>
     * Deprecated, please use [[Task#attempt]] or [[Task#materialize]].
     *
     * The reason for the deprecation is the naming alignment
-    * with the Cats ecosystem, where `Attempt` is being used
+    * with the Cats ecosystem, where `Eager` is being used
     * as an alias for `Either[Throwable, A]`.
     */
   @deprecated("Use Task#attempt or Task#materialize", "2.3.0")
-  def materializeAttempt: Task[Attempt[A]] =
+  def materializeAttempt: Task[Eager[A]] =
     self.transformWith(a => Task.now(Coeval.Now(a)), e => Task.now(Coeval.Error(e)))
 
-  /** Dematerializes the source's result from an `Attempt`.
+  /** Dematerializes the source's result from an `Eager`.
     *
     * Deprecated, please use [[Task#dematerialize]] or just
     * [[Task#flatMap flatMap]].
     *
     * The reason for the deprecation is the naming alignment
-    * with the Cats ecosystem, where `Attempt` is being used
+    * with the Cats ecosystem, where `Eager` is being used
     * as an alias for `Either[Throwable, A]`.
     */
   @deprecated("Use Task#dematerialize or Task#flatMap", "2.3.0")
-  def dematerializeAttempt[B](implicit ev: A <:< Attempt[B]): Task[B] =
-    self.asInstanceOf[Task[Attempt[B]]].flatMap(Task.coeval)
+  def dematerializeAttempt[B](implicit ev: A <:< Eager[B]): Task[B] =
+    self.asInstanceOf[Task[Eager[B]]].flatMap(Task.coeval)
 }
 
 /** Builders for [[Task]].
@@ -808,6 +814,14 @@ object Task extends TaskInstances {
 
   /** A [[Task]] instance that upon evaluation will never complete. */
   def never[A]: Task[A] = neverRef
+
+  /** Builds a [[Task]] instance out of a `cats.Eval`. */
+  def fromEval[A](a: cats.Eval[A]): Task[A] =
+    Coeval.fromEval(a).task
+
+  /** Builds a [[Task]] instance out of a `cats.effect.IO`. */
+  def fromIO[A](a: IO[A]): Task[A] =
+    TaskIOConversions.taskFromIO(a)
 
   /** Builds a [[Task]] instance out of a Scala `Try`. */
   def fromTry[A](a: Try[A]): Task[A] =

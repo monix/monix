@@ -10,7 +10,7 @@ addCommandAlias("ci-js",      ";clean ;coreJS/test:compile  ;coreJS/test")
 addCommandAlias("release",    ";project monix ;reload; +clean; +test:compile ;+package ;+publishSigned")
 
 val catsVersion = "0.9.0"
-val catsEffectVersion = "0.3"
+val catsEffectVersion = "0.4-c257223"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
