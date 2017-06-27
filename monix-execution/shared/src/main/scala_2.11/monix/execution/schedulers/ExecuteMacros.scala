@@ -33,7 +33,6 @@ import scala.reflect.macros.whitebox
   *  NOTE: these macros are only defined for Scala < 2.12, because in
   *  Scala 2.12 we simply rely on its SAM support.
   */
-@macrocompat.bundle
 final class ExecuteMacros(override val c: whitebox.Context)
   extends InlineMacros with HygieneUtilMacros {
 

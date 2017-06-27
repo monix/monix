@@ -37,8 +37,6 @@ private[execution] object TestInlineMacros {
   def testInlinePatternMatch(): Either[String, Unit] =
     macro Macros.testInlinePatternMatch
 
-
-  @macrocompat.bundle
   class Macros(override val c: whitebox.Context)
     extends InlineMacros {
     import c.universe._

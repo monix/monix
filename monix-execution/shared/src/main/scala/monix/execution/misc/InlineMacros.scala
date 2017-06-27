@@ -20,7 +20,6 @@ package monix.execution.misc
 import monix.execution.misc.compat.setOrig
 import scala.reflect.macros.whitebox
 
-@macrocompat.bundle
 trait InlineMacros {
   val c: whitebox.Context
 
