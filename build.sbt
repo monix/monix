@@ -224,14 +224,14 @@ lazy val requiredMacroCompatDeps = Seq(
         scalaOrganization.value % "scala-reflect" % scalaVersion.value % Provided,
         scalaOrganization.value % "scala-compiler" % scalaVersion.value % Provided,
         "org.typelevel" %%% "macro-compat" % "1.1.1" % Provided,
-        compilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.patch)
+        compilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.patch)
       )
     case _ =>
       Seq(
         scalaOrganization.value % "scala-reflect" % scalaVersion.value % Provided,
         scalaOrganization.value % "scala-compiler" % scalaVersion.value % Provided,
         "org.typelevel" %%% "macro-compat" % "1.1.1",
-        compilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.patch)
+        compilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.patch)
       )
   }))
 
@@ -287,7 +287,7 @@ def profile: Project ⇒ Project = pr => cmdlineProfile match {
 lazy val monix = project.in(file("."))
   .enablePlugins(ScalaUnidocPlugin)
   .configure(profile)
-  .aggregate(coreJVM, coreJS, tckTests)
+  .aggregate(coreJVM, coreJS)
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
   .settings(unidocSettings)
@@ -364,7 +364,7 @@ lazy val reactiveJVM = project.in(file("monix-reactive/jvm"))
   .configure(profile)
   .dependsOn(executionJVM, evalJVM % "compile->compile; test->test")
   .settings(reactiveCommon)
-  .settings(libraryDependencies += "org.jctools" % "jctools-core" % "2.0.1")
+  .settings(libraryDependencies += "org.jctools" % "jctools-core" % "2.0.2")
   .settings(mimaSettings("monix-reactive"))
 
 lazy val reactiveJS = project.in(file("monix-reactive/js"))
