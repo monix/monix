@@ -19,7 +19,7 @@ package monix.reactive
 
 import java.io.{BufferedReader, InputStream, Reader}
 
-import monix.eval.Coeval.Attempt
+import monix.eval.Coeval.Eager
 import monix.eval.{Callback, Coeval, Task}
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution._
@@ -403,7 +403,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
         def onComplete(): Unit =
           if (!isDone) {
             isDone = true
-            cb(Attempt(default))
+            cb(Eager(default))
           }
       })
     }
@@ -440,7 +440,7 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
 
         def onComplete(): Unit = {
           if (isEmpty)
-            cb(Attempt(default))
+            cb(Eager(default))
           else
             cb.onSuccess(value)
         }
