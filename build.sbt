@@ -4,8 +4,8 @@ import sbt.Keys.version
 import scala.xml.Elem
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 
-addCommandAlias("ci-jvm-all", ";clean ;coreJVM/test:compile ;tckTests/test:compile ;coreJVM/test ;mimaReportBinaryIssues ;unidoc")
-addCommandAlias("ci-jvm",     ";clean ;coreJVM/test:compile ;tckTests/test:compile ;coreJVM/test")
+addCommandAlias("ci-jvm-all", ";clean ;coreJVM/test:compile ;coreJVM/test ;mimaReportBinaryIssues ;unidoc")
+addCommandAlias("ci-jvm",     ";clean ;coreJVM/test:compile ;coreJVM/test")
 addCommandAlias("ci-js",      ";clean ;coreJS/test:compile  ;coreJS/test")
 addCommandAlias("release",    ";project monix ;clean ;test:compile ;package ;publishSigned")
 
@@ -360,30 +360,6 @@ lazy val reactiveJS = project.in(file("monix-reactive/js"))
   .dependsOn(executionJS, evalJS % "compile->compile; test->test")
   .settings(reactiveCommon)
   .settings(scalaJSSettings)
-
-lazy val tckTests = project.in(file("tckTests"))
-  .configure(profile)
-  .dependsOn(coreJVM)
-  .settings(sharedSettings)
-  .settings(doNotPublishArtifact)
-  .settings(
-    libraryDependencies ++= Seq(
-      "org.reactivestreams" % "reactive-streams-tck" % "1.0.0" % Test,
-      "org.scalatest" %% "scalatest" % "3.0.3" % Test
-    ))
-
-lazy val benchmarks = project.in(file("benchmarks"))
-  .configure(profile)
-  .dependsOn(coreJVM)
-  .enablePlugins(JmhPlugin)
-  .settings(sharedSettings)
-  .settings(doNotPublishArtifact)
-  .settings(
-    libraryDependencies ++= Seq(
-      "io.monix" %% "monix-forkjoin" % "1.0"
-    )
-  )
-
 
 //------------- For Release
 
