@@ -44,7 +44,7 @@ a project exemplifying Monix used both on the server and on the client.
 The packages are published on Maven Central.
 
 - Current stable release: `2.3.0`
-- Development version: `3.0.0-7a337f9`
+- Development version: `3.0.0-d3288bb`
 
 For the current stable release (use the `%%%` for Scala.js):
 
@@ -78,7 +78,7 @@ such that:
 
 For development snapshots may be published to Sonatype at any time.
 Development versions have the form: `$major.$minor.$patch-$hash`
-(example `3.0.0-3cc55ae`).
+(example `3.0.0-d3288bb`).
 
 The `$hash` is the 7 character git hash prefix of the commit from
 which the snapshot was published.  Thus, "snapshots" can be used as
