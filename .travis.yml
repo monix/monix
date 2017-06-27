@@ -4,13 +4,6 @@ dist: trusty
 
 matrix:
   include:
-    # Scala 2.10
-    - jdk: oraclejdk8
-      scala: 2.10.6
-      env: COMMAND=ci-jvm COVERAGE=
-    - jdk: oraclejdk8
-      scala: 2.10.6
-      env: COMMAND=ci-js COVERAGE=
     # Scala 2.11
     - jdk: oraclejdk8
       scala: 2.11.11

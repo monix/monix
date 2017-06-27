@@ -107,10 +107,21 @@ object MimaFilters {
     exclude[InheritedNewAbstractMethodProblem]("monix.eval.TaskInstances1.catsEffect"),
     exclude[MissingClassProblem]("monix.eval.Coeval$TypeClassInstances"),
     exclude[DirectMissingMethodProblem]("monix.eval.Task.typeClassInstances"),
-    exclude[DirectMissingMethodProblem]("monix.eval.Coeval.typeClassInstances")
+    exclude[DirectMissingMethodProblem]("monix.eval.Coeval.typeClassInstances"),
+
+    exclude[IncompatibleResultTypeProblem]("monix.eval.Coeval#Once.runAttempt"),
+    exclude[MissingClassProblem]("monix.eval.Coeval$Attempt"),
+    exclude[IncompatibleResultTypeProblem]("monix.eval.Coeval#Always.runAttempt"),
+    exclude[MissingTypesProblem]("monix.eval.Coeval$Error"),
+    exclude[IncompatibleResultTypeProblem]("monix.eval.Coeval#Error.runAttempt"),
+    exclude[IncompatibleResultTypeProblem]("monix.eval.Coeval.runAttempt"),
+    exclude[MissingTypesProblem]("monix.eval.Coeval$Now"),
+    exclude[IncompatibleResultTypeProblem]("monix.eval.Coeval#Now.runAttempt"),
+    exclude[IncompatibleResultTypeProblem]("monix.eval.internal.CoevalRunLoop.start"),
+    exclude[MissingClassProblem]("monix.eval.Coeval$Attempt$")
   )
 
-  lazy val reactiveChangesFor_3_3_0 = Seq(
+  lazy val reactiveChangesFor_3_0_0 = Seq(
     exclude[DirectMissingMethodProblem]("monix.reactive.Observable.typeClassInstances"),
     exclude[MissingClassProblem]("monix.reactive.Observable$TypeClassInstances")
   )

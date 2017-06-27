@@ -4,8 +4,8 @@ import sbt.Keys.version
 import scala.xml.Elem
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 
-addCommandAlias("ci-jvm-all", ";clean ;coreJVM/test:compile ;tckTests/test:compile ;coreJVM/test ;mimaReportBinaryIssues ;unidoc")
-addCommandAlias("ci-jvm",     ";clean ;coreJVM/test:compile ;tckTests/test:compile ;coreJVM/test")
+addCommandAlias("ci-jvm-all", ";clean ;coreJVM/test:compile ;coreJVM/test ;mimaReportBinaryIssues ;unidoc")
+addCommandAlias("ci-jvm",     ";clean ;coreJVM/test:compile ;coreJVM/test")
 addCommandAlias("ci-js",      ";clean ;coreJS/test:compile  ;coreJS/test")
 addCommandAlias("release",    ";project monix ;clean ;test:compile ;package ;publishSigned")
 
@@ -46,7 +46,7 @@ lazy val warnUnusedImport = Seq(
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
   scalaVersion := "2.11.11",
-  crossScalaVersions := Seq("2.10.6", "2.11.11", "2.12.2"),
+  crossScalaVersions := Seq("2.11.11", "2.12.2"),
 
   scalacOptions ++= Seq(
     // warnings
@@ -209,7 +209,6 @@ lazy val crossVersionSharedSources: Seq[Setting[_]] =
     (unmanagedSourceDirectories in sc) ++= {
       (unmanagedSourceDirectories in sc).value.map { dir =>
         scalaPartV.value match {
-          case Some((2, y)) if y == 10 => new File(dir.getPath + "_2.10")
           case Some((2, y)) if y == 11 => new File(dir.getPath + "_2.11")
           case Some((2, y)) if y >= 12 => new File(dir.getPath + "_2.12")
         }
@@ -217,23 +216,11 @@ lazy val crossVersionSharedSources: Seq[Setting[_]] =
     }
   }
 
-lazy val requiredMacroCompatDeps = Seq(
-  libraryDependencies ++= (CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, majorVersion)) if majorVersion >= 11 =>
-      Seq(
-        scalaOrganization.value % "scala-reflect" % scalaVersion.value % Provided,
-        scalaOrganization.value % "scala-compiler" % scalaVersion.value % Provided,
-        "org.typelevel" %%% "macro-compat" % "1.1.1" % Provided,
-        compilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.patch)
-      )
-    case _ =>
-      Seq(
-        scalaOrganization.value % "scala-reflect" % scalaVersion.value % Provided,
-        scalaOrganization.value % "scala-compiler" % scalaVersion.value % Provided,
-        "org.typelevel" %%% "macro-compat" % "1.1.1",
-        compilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.patch)
-      )
-  }))
+lazy val requiredMacroDeps = Seq(
+  libraryDependencies ++= Seq(
+    scalaOrganization.value % "scala-reflect" % scalaVersion.value % Provided,
+    scalaOrganization.value % "scala-compiler" % scalaVersion.value % Provided
+  ))
 
 lazy val unidocSettings = Seq(
   autoAPIMappings := true,
@@ -317,7 +304,7 @@ lazy val executionJVM = project.in(file("monix-execution/jvm"))
   .configure(profile)
   .settings(crossSettings)
   .settings(testSettings)
-  .settings(requiredMacroCompatDeps)
+  .settings(requiredMacroDeps)
   .settings(executionCommon)
   .settings(libraryDependencies += "org.reactivestreams" % "reactive-streams" % "1.0.0")
   .settings(mimaSettings("monix-execution"))
@@ -328,7 +315,7 @@ lazy val executionJS = project.in(file("monix-execution/js"))
   .settings(crossSettings)
   .settings(scalaJSSettings)
   .settings(testSettings)
-  .settings(requiredMacroCompatDeps)
+  .settings(requiredMacroDeps)
   .settings(executionCommon)
 
 lazy val evalCommon =
@@ -357,7 +344,7 @@ lazy val reactiveCommon =
   crossSettings ++ testSettings ++ Seq(
     name := "monix-reactive",
     // Filtering out breaking changes from 3.0.0
-    mimaBinaryIssueFilters ++= MimaFilters.reactiveChangesFor_3_3_0
+    mimaBinaryIssueFilters ++= MimaFilters.reactiveChangesFor_3_0_0
   )
 
 lazy val reactiveJVM = project.in(file("monix-reactive/jvm"))
@@ -373,30 +360,6 @@ lazy val reactiveJS = project.in(file("monix-reactive/js"))
   .dependsOn(executionJS, evalJS % "compile->compile; test->test")
   .settings(reactiveCommon)
   .settings(scalaJSSettings)
-
-lazy val tckTests = project.in(file("tckTests"))
-  .configure(profile)
-  .dependsOn(coreJVM)
-  .settings(sharedSettings)
-  .settings(doNotPublishArtifact)
-  .settings(
-    libraryDependencies ++= Seq(
-      "org.reactivestreams" % "reactive-streams-tck" % "1.0.0" % Test,
-      "org.scalatest" %% "scalatest" % "3.0.3" % Test
-    ))
-
-lazy val benchmarks = project.in(file("benchmarks"))
-  .configure(profile)
-  .dependsOn(coreJVM)
-  .enablePlugins(JmhPlugin)
-  .settings(sharedSettings)
-  .settings(doNotPublishArtifact)
-  .settings(
-    libraryDependencies ++= Seq(
-      "io.monix" %% "monix-forkjoin" % "1.0"
-    )
-  )
-
 
 //------------- For Release
 

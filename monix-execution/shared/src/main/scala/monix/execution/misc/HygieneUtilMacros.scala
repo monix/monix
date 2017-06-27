@@ -21,7 +21,7 @@ import scala.reflect.macros.whitebox
 import monix.execution.misc.compat.freshTermName
 
 /** Utilities for macro-hygiene. */
-@macrocompat.bundle trait HygieneUtilMacros {
+trait HygieneUtilMacros {
   val c: whitebox.Context
 
   import c.universe._

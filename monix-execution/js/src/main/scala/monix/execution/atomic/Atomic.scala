@@ -180,7 +180,6 @@ object Atomic {
     builder
 
   /** Macros implementations for the [[Atomic]] type */
-  @macrocompat.bundle
   class Macros(override val c: whitebox.Context) extends InlineMacros with HygieneUtilMacros {
     import c.universe._
 

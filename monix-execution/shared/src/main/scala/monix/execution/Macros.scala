@@ -27,7 +27,6 @@ import scala.reflect.macros.whitebox
   * [[monix.execution.Ack.AckExtensions AckExtensions]] and
   * [[monix.execution.Scheduler Scheduler]].
   */
-@macrocompat.bundle
 class Macros(override val c: whitebox.Context) extends InlineMacros with HygieneUtilMacros {
   import c.universe._
 
