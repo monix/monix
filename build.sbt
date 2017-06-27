@@ -344,7 +344,7 @@ lazy val reactiveCommon =
   crossSettings ++ testSettings ++ Seq(
     name := "monix-reactive",
     // Filtering out breaking changes from 3.0.0
-    mimaBinaryIssueFilters ++= MimaFilters.reactiveChangesFor_3_3_0
+    mimaBinaryIssueFilters ++= MimaFilters.reactiveChangesFor_3_0_0
   )
 
 lazy val reactiveJVM = project.in(file("monix-reactive/jvm"))
