@@ -44,6 +44,7 @@ a project exemplifying Monix used both on the server and on the client.
 The packages are published on Maven Central.
 
 - Current stable release: `2.3.0`
+- Development version: `3.0.0-7a337f9`
 
 For the current stable release (use the `%%%` for Scala.js):
 
