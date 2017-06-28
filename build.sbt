@@ -7,7 +7,7 @@ import scala.xml.transform.{RewriteRule, RuleTransformer}
 addCommandAlias("ci-jvm-all", ";clean ;coreJVM/test:compile ;coreJVM/test ;mimaReportBinaryIssues ;unidoc")
 addCommandAlias("ci-jvm",     ";clean ;coreJVM/test:compile ;coreJVM/test")
 addCommandAlias("ci-js",      ";clean ;coreJS/test:compile  ;coreJS/test")
-addCommandAlias("release",    ";project monix ;reload ;+clean ;+test:compile ;+publishSigned")
+addCommandAlias("release",    ";project monix ;+publishSigned")
 
 val catsVersion = "0.9.0"
 val catsEffectVersion = "0.4-c257223"
@@ -148,9 +148,12 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
   // -- Settings meant for deployment on oss.sonatype.org
   sonatypeProfileName := organization.value,
 
-  useGpg := true,
-  useGpgAgent := true,
-  usePgpKeyHex("2673B174C4071B0E"),
+  credentials += Credentials(
+    "Sonatype Nexus Repository Manager",
+    "oss.sonatype.org",
+    sys.env.get("SONATYPE_USER").getOrElse(""),
+    sys.env.get("SONATYPE_PASS").getOrElse("")
+  ),
 
   publishMavenStyle := true,
   publishTo := Some(
@@ -362,6 +365,12 @@ lazy val reactiveJS = project.in(file("monix-reactive/js"))
   .settings(scalaJSSettings)
 
 //------------- For Release
+
+useGpg := false
+usePgpKeyHex("2673B174C4071B0E")
+pgpPublicRing := baseDirectory.value / "project" / ".gnupg" / "pubring.gpg"
+pgpSecretRing := baseDirectory.value / "project" / ".gnupg" / "secring.gpg"
+pgpPassphrase := sys.env.get("PGP_PASS").map(_.toArray)
 
 enablePlugins(GitVersioning)
 

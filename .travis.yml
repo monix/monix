@@ -7,21 +7,25 @@ matrix:
     # Scala 2.11
     - jdk: oraclejdk8
       scala: 2.11.11
-      env: COMMAND=ci-jvm COVERAGE=coverage
+      env: COMMAND=ci-jvm COVERAGE=coverage PUBLISH=
     - jdk: oraclejdk8
       scala: 2.11.11
-      env: COMMAND=ci-js COVERAGE=
+      env: COMMAND=ci-js COVERAGE= PUBLISH=
     # Scala 2.12
     - jdk: oraclejdk8
       scala: 2.12.2
-      env: COMMAND=ci-jvm-all COVERAGE=
+      env: COMMAND=ci-jvm-all COVERAGE= PUBLISH=true
     - jdk: oraclejdk8
       scala: 2.12.2
-      env: COMMAND=ci-js COVERAGE=
+      env: COMMAND=ci-js PUBLISH= COVERAGE=
 
 env:
   global:
     - TRAVIS_NODE_VERSION="6.10" # LTS
+
+before_install:
+  - openssl aes-256-cbc -K $encrypted_4413938994d3_key -iv $encrypted_4413938994d3_iv -in project/.gnupg/pubring.gpg.enc -out project/.gnupg/pubring.gpg -d
+  - openssl aes-256-cbc -K $encrypted_4257a4a5aee2_key -iv $encrypted_4257a4a5aee2_iv -in project/.gnupg/secring.gpg.enc -out project/.gnupg/secring.gpg -d
 
 # http://austinpray.com/ops/2015/09/20/change-travis-node-version.html
 install:
@@ -32,12 +36,8 @@ script:
   - travis_wait 30 sbt -J-Xmx6144m ++$TRAVIS_SCALA_VERSION $COVERAGE $COMMAND
 
 after_success:
-  - |
-    if [ "$COVERAGE" = "coverage" ]; then
-      export SBT_PROFILE=$COVERAGE
-      sbt ++$TRAVIS_SCALA_VERSION coverageAggregate coverageReport
-      bash <(curl -s https://codecov.io/bash)
-    fi
+  - ./project/upload-coverage
+  - ./project/publish
 
 notifications:
   webhooks:
