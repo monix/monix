@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
 if [ "$COVERAGE" = "coverage" ]; then
   export SBT_PROFILE=$COVERAGE
