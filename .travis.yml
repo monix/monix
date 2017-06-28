@@ -1,6 +1,7 @@
 language: scala
 sudo: required
 dist: trusty
+group: edge
 
 matrix:
   include:
