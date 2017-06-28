@@ -44,7 +44,8 @@ a project exemplifying Monix used both on the server and on the client.
 The packages are published on Maven Central.
 
 - Current stable release: `2.3.0`
-- Development version: `3.0.0-d3288bb`
+- Development version: `3.0.0-$hash`
+  (see [versioning scheme](https://github.com/monix/monix#versioning-scheme))
 
 For the current stable release (use the `%%%` for Scala.js):
 
@@ -96,6 +97,7 @@ hosted at,
 
 API Documentation:
 
+- [2.3](https://monix.io/api/2.3/)
 - [2.2](https://monix.io/api/2.2/)
 - [2.1](https://monix.io/api/2.1/)
 - [2.0](https://monix.io/api/2.0/)

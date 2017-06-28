@@ -7,7 +7,7 @@ import scala.xml.transform.{RewriteRule, RuleTransformer}
 addCommandAlias("ci-jvm-all", ";clean ;coreJVM/test:compile ;coreJVM/test ;mimaReportBinaryIssues ;unidoc")
 addCommandAlias("ci-jvm",     ";clean ;coreJVM/test:compile ;coreJVM/test")
 addCommandAlias("ci-js",      ";clean ;coreJS/test:compile  ;coreJS/test")
-addCommandAlias("release",    ";project monix ;+publishSigned")
+addCommandAlias("release",    ";project monix ;+publishSigned ;sonatypeReleaseAll")
 
 val catsVersion = "0.9.0"
 val catsEffectVersion = "0.4-c257223"
