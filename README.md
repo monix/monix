@@ -6,7 +6,7 @@ Asynchronous, Reactive Programming for Scala and [Scala.js](http://www.scala-js.
 
 [![Build Status](https://travis-ci.org/monix/monix.svg?branch=master)](https://travis-ci.org/monix/monix)
 [![Coverage Status](https://codecov.io/gh/monix/monix/coverage.svg?branch=master)](https://codecov.io/gh/monix/monix?branch=master)
-[![Maven Central](https://img.shields.io/maven-central/v/io.monix/monix_2.12.svg)](https://maven-badges.herokuapp.com/maven-central/io.monix/monix_2.11)
+[![Maven Central](https://img.shields.io/maven-central/v/io.monix/monix_2.12.svg)](http://search.maven.org/#search|gav|1|g%3A%22io.monix%22%20AND%20a%3A%22monix_2.12%22)
 
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/monix/monix?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
