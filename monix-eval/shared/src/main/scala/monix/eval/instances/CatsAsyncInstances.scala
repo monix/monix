@@ -34,7 +34,7 @@ object CatsAsyncInstances {
     override def pure[A](a: A): Task[A] = Task.now(a)
     override def delay[A](thunk: => A): Task[A] = Task.eval(thunk)
     override def suspend[A](fa: => Task[A]): Task[A] = Task.defer(fa)
-    val unit: Task[Unit] = Task.now(())
+    // override val unit: Task[Unit] = Task.now(())
 
     override def flatMap[A, B](fa: Task[A])(f: (A) => Task[B]): Task[B] =
       fa.flatMap(f)
