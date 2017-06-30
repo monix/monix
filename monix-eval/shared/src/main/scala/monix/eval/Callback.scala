@@ -17,6 +17,7 @@
 
 package monix.eval
 
+import cats.functor.Contravariant
 import monix.execution.misc.NonFatal
 import monix.execution.{Listener, Scheduler, UncaughtExceptionReporter}
 
@@ -157,6 +158,21 @@ object Callback {
             r.reportFailure(ex)
             r.reportFailure(err)
         }
+      }
+  }
+
+  /** Contravariant type class instance of [[Callback]] for Cats. */
+  implicit val contravariantCallback: Contravariant[Callback] = new Contravariant[Callback] {
+    override def contramap[A, B](cb: Callback[A])(f: (B) => A): Callback[B] =
+      new Callback[B] {
+        def onSuccess(value: B): Unit =
+          try cb.onSuccess(f(value)) catch {
+            case NonFatal(err) =>
+              cb.onError(err)
+          }
+
+        def onError(ex: Throwable): Unit =
+          cb.onError(ex)
       }
   }
 }
