@@ -19,18 +19,19 @@ package monix.tail.internal
 
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
 import monix.tail.Iterant
-import monix.types.Applicative
-import monix.types.syntax._
+import cats.syntax.all._
+import cats.effect.Sync
+import monix.execution.misc.NonFatal
+import monix.tail.batches.BatchCursor
 
 import scala.collection.mutable.ArrayBuffer
-import scala.util.control.NonFatal
 
 private[tail] object IterantTake {
   /**
     * Implementation for `Iterant#take`
     */
-  def apply[F[_], A](source: Iterant[F, A], n: Int)(implicit F: Applicative[F]): Iterant[F, A] = {
-    import F.functor
+  def apply[F[_], A](source: Iterant[F, A], n: Int)
+    (implicit F: Sync[F]): Iterant[F, A] = {
 
     def nextOrStop(rest: F[Iterant[F, A]], stop: F[Unit], n: Int, taken: Int): F[Iterant[F, A]] = {
       if (n > taken) rest.map(loop(n - taken))
@@ -61,7 +62,7 @@ private[tail] object IterantTake {
       try if (n > 0) source match {
         case Next(elem, rest, stop) =>
           Next(elem, nextOrStop(rest, stop, n, 1), stop)
-        case current @ NextCursor(cursor, rest, stop) =>
+        case current @ NextCursor(_, _, _) =>
           processSeq(n, current)
         case NextBatch(batch, rest, stop) =>
           processSeq(n, NextCursor(batch.cursor(), rest, stop))
@@ -88,7 +89,7 @@ private[tail] object IterantTake {
     // processing, so suspending execution in this case
     source match {
       case NextBatch(_, _, _) | NextCursor(_, _, _) =>
-        Suspend(F.eval(loop(n)(source)), source.earlyStop)
+        Suspend(F.delay(loop(n)(source)), source.earlyStop)
       case _ =>
         loop(n)(source)
     }

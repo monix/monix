@@ -21,6 +21,7 @@ import monix.eval.{Coeval, Task}
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
+import monix.tail.batches.{Batch, BatchCursor}
 import org.scalacheck.Test
 import org.scalacheck.Test.Parameters
 
@@ -44,20 +45,20 @@ object IterantTakeWhileSuite extends BaseTestSuite {
   test("Iterant[Task].takeWhile equivalence with List.takeWhile") { implicit s =>
     check3 { (list: List[Int], idx: Int, p: Int => Boolean) =>
       val stream = arbitraryListToIterantTask(list, math.abs(idx) + 1)
-      stream.takeWhile(p).toListL === stream.toListL.map(_.takeWhile(p))
+      stream.takeWhile(p).toListL <-> stream.toListL.map(_.takeWhile(p))
     }
   }
 
   test("Iterant[Task].takeWhile works for non-determinate batches") { implicit s =>
-    check3 { (list: List[Int], idx: Int, p: Int => Boolean) =>
+    check3 { (list: List[Int], _: Int, p: Int => Boolean) =>
       val stream = Iterant[Task].nextBatchS(Batch.fromIterable(list, 1), Task.now(Iterant[Task].empty[Int]), Task.unit)
-      stream.takeWhile(p).toListL === stream.toListL.map(_.takeWhile(p))
+      stream.takeWhile(p).toListL <-> stream.toListL.map(_.takeWhile(p))
     }
   }
 
   test("Iterant[Task].takeWhile(_ => true) mirrors the source") { implicit s =>
     check1 { (iter: Iterant[Coeval, Int]) =>
-      iter === iter.takeWhile(_ => true)
+      iter <-> iter.takeWhile(_ => true)
     }
   }
 
@@ -78,7 +79,7 @@ object IterantTakeWhileSuite extends BaseTestSuite {
       val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty), Task.unit)
       val stream = iter ++ suffix
       val received = stream.takeWhile(_ => true)
-      received === Iterant[Task].haltS[Int](Some(dummy))
+      received <-> Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
@@ -88,7 +89,7 @@ object IterantTakeWhileSuite extends BaseTestSuite {
       val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty), Task.unit)
       val stream = iter ++ suffix
       val received = stream.takeWhile(_ => true)
-      received === Iterant[Task].haltS[Int](Some(dummy))
+      received <-> Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
@@ -97,7 +98,7 @@ object IterantTakeWhileSuite extends BaseTestSuite {
       val dummy = DummyException("dummy")
       val stream = 1 #:: iter
 
-      stream.takeWhile(_ => throw dummy) === Iterant[Task].raiseError[Int](dummy)
+      stream.takeWhile(_ => throw dummy) <-> Iterant[Task].raiseError[Int](dummy)
     }
   }
 

@@ -17,21 +17,21 @@
 
 package monix.tail.internal
 
+import cats.effect.Sync
+import cats.syntax.all._
+import monix.execution.misc.NonFatal
 import monix.tail.Iterant
 import monix.tail.Iterant._
 import monix.tail.batches.BatchCursor
 import monix.tail.internal.IterantUtils._
-import monix.types.Applicative
-import monix.types.syntax._
-
-import scala.util.control.NonFatal
+import monix.tail.ApplicativeUtils
 
 private[tail] object IterantMapEval {
   /**
     * Implementation for `Iterant#mapEval`
     */
-  def apply[F[_], A, B](source: Iterant[F, A], f: A => F[B])(implicit A: Applicative[F]): Iterant[F, B] = {
-    import A.{functor => F}
+  def apply[F[_], A, B](source: Iterant[F, A], f: A => F[B])
+    (implicit F: Sync[F]): Iterant[F, B] = {
 
     @inline def evalNextCursor(ref: NextCursor[F, A], cursor: BatchCursor[A], rest: F[Iterant[F, A]], stop: F[Unit]) = {
       if (!cursor.hasNext)
@@ -40,7 +40,7 @@ private[tail] object IterantMapEval {
         val head = cursor.next()
         val fa = f(head)
         // If the iterator is empty, then we can skip a beat
-        val tail = if (cursor.hasNext()) A.pure(ref: Iterant[F, A]) else rest
+        val tail = if (cursor.hasNext()) F.pure(ref: Iterant[F, A]) else rest
         val suspended = fa.map(h => nextS(h, tail.map(loop), stop))
         Suspend[F, B](suspended, stop)
       }
@@ -52,26 +52,20 @@ private[tail] object IterantMapEval {
           val fa = f(head)
           val rest = fa.map(h => nextS(h, tail.map(loop), stop))
           Suspend(rest, stop)
-
         case ref @ NextCursor(cursor, rest, stop) =>
           evalNextCursor(ref, cursor, rest, stop)
-
         case NextBatch(gen, rest, stop) =>
           val cursor = gen.cursor()
           val ref = NextCursor(cursor, rest, stop)
           evalNextCursor(ref, cursor, rest, stop)
-
         case Suspend(rest, stop) =>
           Suspend[F,B](rest.map(loop), stop)
-
         case Last(item) =>
           val fa = f(item)
-          Suspend(fa.map(h => lastS[F,B](h)), A.unit)
-
+          Suspend(fa.map(h => lastS[F,B](h)), F.unit)
         case halt @ Halt(_) =>
           halt.asInstanceOf[Iterant[F, B]]
-      }
-      catch {
+      } catch {
         case NonFatal(ex) => signalError(source, ex)
       }
 
@@ -80,7 +74,7 @@ private[tail] object IterantMapEval {
       case _ =>
         // Given function can be side-effecting,
         // so we must suspend the execution
-        Suspend(A.eval(loop(source)), source.earlyStop)
+        Suspend(F.delay(loop(source)), source.earlyStop)
     }
   }
 }

@@ -17,9 +17,10 @@
 
 package monix.tail
 
+import cats.Eq
 import monix.eval.{Callback, Coeval, Task}
 import monix.execution.schedulers.TestScheduler
-import monix.types.tests.Eq
+import monix.tail.batches.{Batch, BatchCursor}
 import org.scalacheck.Arbitrary
 
 import scala.util.{Failure, Success, Try}
@@ -114,21 +115,21 @@ trait ArbitraryInstances extends monix.eval.ArbitraryInstances {
 
   implicit def isEqIterantCoeval[A](implicit A: Eq[List[A]]): Eq[Iterant[Coeval, A]] =
     new Eq[Iterant[Coeval, A]] {
-      def apply(lh: Iterant[Coeval,  A], rh: Iterant[Coeval,  A]): Boolean = {
+      def eqv(lh: Iterant[Coeval,  A], rh: Iterant[Coeval,  A]): Boolean = {
         val valueA = lh.toListL.runTry
         val valueB = rh.toListL.runTry
 
         (valueA.isFailure && valueB.isFailure) || {
           val la = valueA.get
           val lb = valueB.get
-          A(la, lb)
+          A.eqv(la, lb)
         }
       }
     }
 
   implicit def isEqIterantTask[A](implicit A: Eq[List[A]]): Eq[Iterant[Task, A]] =
     new Eq[Iterant[Task, A]] {
-      def apply(lh: Iterant[Task,  A], rh: Iterant[Task,  A]): Boolean = {
+      def eqv(lh: Iterant[Task,  A], rh: Iterant[Task,  A]): Boolean = {
         implicit val s = TestScheduler()
         var valueA = Option.empty[Try[List[A]]]
         var valueB = Option.empty[Try[List[A]]]
@@ -156,7 +157,7 @@ trait ArbitraryInstances extends monix.eval.ArbitraryInstances {
           (valueA.get.isFailure && valueB.get.isFailure) || {
             val la = valueA.get.get
             val lb = valueB.get.get
-            A(la, lb)
+            A.eqv(la, lb)
           }
         }
       }

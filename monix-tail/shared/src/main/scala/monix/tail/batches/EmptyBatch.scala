@@ -18,9 +18,7 @@
 package monix.tail
 package batches
 
-import monix.tail.batches
-
-/** Reusable [[batches.Batch Batch]] implementation
+/** Reusable [[Batch]] implementation
   * that's always empty.
   */
 object EmptyBatch extends Batch[Nothing] {

@@ -17,36 +17,32 @@
 
 package monix.tail.internal
 
+import cats.syntax.all._
+import cats.effect.Sync
+import monix.execution.misc.NonFatal
 import monix.tail.Iterant
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
-import monix.types.Monad
-import monix.types.syntax._
-
-import scala.util.control.NonFatal
 
 private[tail] object IterantSkipSuspend {
   /**
     * Implementation for `Iterant#skipSuspendL`
     */
-  def apply[F[_], A](source: Iterant[F, A])(implicit F: Monad[F]): F[Iterant[F, A]] = {
-    import F.{functor, applicative => A}
-
+  def apply[F[_], A](source: Iterant[F, A])(implicit F: Sync[F]): F[Iterant[F, A]] = {
     def loop(source: Iterant[F, A]): F[Iterant[F, A]] =
       try source match {
         case Next(_, _, _) =>
-          A.pure(source)
-        case NextCursor(cursor, rest, stop) =>
-          if (cursor.hasNext()) A.pure(source)
+          F.pure(source)
+        case NextCursor(cursor, rest, _) =>
+          if (cursor.hasNext()) F.pure(source)
           else rest.flatMap(loop)
         case NextBatch(batch, rest, stop) =>
           val cursor = batch.cursor()
           loop(NextCursor(cursor, rest, stop))
-        case Suspend(rest, stop) =>
+        case Suspend(rest, _) =>
           rest.flatMap(loop)
         case other @ (Halt(_) | Last(_)) =>
-          A.pure(other)
-      }
-      catch {
+          F.pure(other)
+      } catch {
         case NonFatal(ex) =>
           source.earlyStop.map(_ => Halt(Some(ex)))
       }

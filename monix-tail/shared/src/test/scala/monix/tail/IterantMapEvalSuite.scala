@@ -28,7 +28,7 @@ object IterantMapEvalSuite extends BaseTestSuite {
   test("Iterant[Task].mapEval covariant identity") { implicit s =>
     check1 { (list: List[Int]) =>
       val r = Iterant[Task].fromIterable(list).mapEval(x => Task(x)).toListL
-      r === Task.now(list)
+      r <-> Task.now(list)
     }
   }
 
@@ -43,21 +43,21 @@ object IterantMapEvalSuite extends BaseTestSuite {
         .mapEval(x => Task(f(x)).flatMap(y => Task(g(y))))
         .toListL
 
-      r1 === r2
+      r1 <-> r2
     }
   }
 
   test("Iterant[Task].mapEval equivalence") { implicit s =>
     check2 { (list: List[Int], f: Int => Int) =>
       val r = Iterant[Task].fromIterable(list).mapEval(x => Task(f(x))).toListL
-      r === Task.now(list.map(f))
+      r <-> Task.now(list.map(f))
     }
   }
 
   test("Iterant[Task].mapEval equivalence (batched)") { implicit s =>
     check2 { (list: List[Int], f: Int => Int) =>
       val r = Iterant[Task].fromIterable(list).mapEval(x => Task(f(x))).toListL
-      r === Task.now(list.map(f))
+      r <-> Task.now(list.map(f))
     }
   }
 
@@ -105,7 +105,7 @@ object IterantMapEvalSuite extends BaseTestSuite {
       val list = if (l.isEmpty) List(1) else l
       val source = arbitraryListToIterantTask(list, idx)
       val received = source.mapEval(_ => Task.raiseError[Int](dummy))
-      received === Iterant[Task].haltS[Int](Some(dummy))
+      received <-> Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
@@ -115,7 +115,7 @@ object IterantMapEvalSuite extends BaseTestSuite {
       val list = if (l.isEmpty) List(1) else l
       val source = arbitraryListToIterantTask(list, idx)
       val received = source.mapEval[Int](_ => throw dummy)
-      received === Iterant[Task].haltS[Int](Some(dummy))
+      received <-> Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
@@ -125,7 +125,7 @@ object IterantMapEvalSuite extends BaseTestSuite {
       val cursor = new ThrowExceptionCursor(dummy)
       val error = Iterant[Task].nextCursorS(cursor, Task.now(Iterant[Task].empty[Int]), Task.unit)
       val stream = (prefix ++ error).mapEval(x => Task.now(x))
-      stream === Iterant[Task].haltS[Int](Some(dummy))
+      stream <-> Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
@@ -135,14 +135,14 @@ object IterantMapEvalSuite extends BaseTestSuite {
       val cursor = new ThrowExceptionBatch(dummy)
       val error = Iterant[Task].nextBatchS(cursor, Task.now(Iterant[Task].empty[Int]), Task.unit)
       val stream = (prefix ++ error).mapEval(x => Task.now(x))
-      stream === Iterant[Task].haltS[Int](Some(dummy))
+      stream <-> Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
   test("Iterant[Coeval].mapEval covariant identity") { implicit s =>
     check1 { (list: List[Int]) =>
       val r = Iterant[Coeval].fromIterable(list).mapEval(x => Coeval(x)).toListL
-      r === Coeval.now(list)
+      r <-> Coeval.now(list)
     }
   }
 
@@ -157,14 +157,14 @@ object IterantMapEvalSuite extends BaseTestSuite {
         .mapEval(x => Coeval(f(x)).flatMap(y => Coeval(g(y))))
         .toListL
 
-      r1 === r2
+      r1 <-> r2
     }
   }
 
   test("Iterant[Coeval].mapEval equivalence") { implicit s =>
     check2 { (list: List[Int], f: Int => Int) =>
       val r = Iterant[Coeval].fromIterable(list).mapEval(x => Coeval(f(x))).toListL
-      r === Coeval.now(list.map(f))
+      r <-> Coeval.now(list.map(f))
     }
   }
 
@@ -209,7 +209,7 @@ object IterantMapEvalSuite extends BaseTestSuite {
       val iterant = arbitraryListToIterantCoeval(list, idx)
       val received = (iterant ++ Iterant[Coeval].now(1))
         .mapEval[Int](_ => Coeval.raiseError(dummy))
-      received === Iterant[Coeval].haltS[Int](Some(dummy))
+      received <-> Iterant[Coeval].haltS[Int](Some(dummy))
     }
   }
 
@@ -219,7 +219,7 @@ object IterantMapEvalSuite extends BaseTestSuite {
       val list = if (l.isEmpty) List(1) else l
       val iterant = arbitraryListToIterantCoeval(list, idx)
       val received = (iterant ++ Iterant[Coeval].now(1)).mapEval[Int](_ => throw dummy)
-      received === Iterant[Coeval].haltS[Int](Some(dummy))
+      received <-> Iterant[Coeval].haltS[Int](Some(dummy))
     }
   }
 
@@ -229,7 +229,7 @@ object IterantMapEvalSuite extends BaseTestSuite {
       val cursor: BatchCursor[Int] = new ThrowExceptionCursor(dummy)
       val error = Iterant[Coeval].nextCursorS(cursor, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
       val stream = (prefix ++ error).mapEval(x => Coeval.now(x))
-      stream === Iterant[Coeval].haltS[Int](Some(dummy))
+      stream <-> Iterant[Coeval].haltS[Int](Some(dummy))
     }
   }
 
@@ -239,7 +239,7 @@ object IterantMapEvalSuite extends BaseTestSuite {
       val cursor: Batch[Int] = new ThrowExceptionBatch(dummy)
       val error = Iterant[Coeval].nextBatchS(cursor, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
       val stream = (prefix ++ error).mapEval(x => Coeval.now(x))
-      stream === Iterant[Coeval].haltS[Int](Some(dummy))
+      stream <-> Iterant[Coeval].haltS[Int](Some(dummy))
     }
   }
 

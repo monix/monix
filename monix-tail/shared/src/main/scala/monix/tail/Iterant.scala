@@ -18,13 +18,11 @@
 package monix.tail
 
 import cats.effect.Sync
-import cats.{Applicative, Bimonad, Functor, Monad, MonadFilter, MonoidK}
-import monix.eval.instances.CatsAsyncInstances
+import cats.{Applicative, Comonad, Monad, MonadFilter, MonoidK}
+import monix.eval.instances.{CatsAsyncInstances, CatsSyncInstances}
 import monix.eval.{Coeval, Task}
-import monix.eval.instances.CatsSyncInstances
 import monix.tail.batches.{Batch, BatchCursor}
 import monix.tail.internal._
-
 import scala.collection.immutable.LinearSeq
 import scala.reflect.ClassTag
 
@@ -98,43 +96,6 @@ import scala.reflect.ClassTag
   *         the `seed` as the start value, or `seed` if the iterant
   *         is empty.
   *
-  * @define functorParamDesc is the `cats.Functor`
-  *         instance that controls the evaluation for our iterant for
-  *         this operation.  Note that if the source iterant is
-  *         powered by [[monix.eval.Task Task]] or 
-  *         [[monix.eval.Coeval Coeval]] one such instance is globally 
-  *         available.
-  *
-  * @define applicativeParamDesc is the `cats.Applicative`
-  *         instance that controls the evaluation for our iterant for
-  *         this operation.  Note that if the source iterant is
-  *         powered by [[monix.eval.Task Task]] or [[monix.eval.Coeval Coeval]] 
-  *         one such instance is globally available.
-  *
-  * @define monadParamDesc is the `cats.Monad` instance
-  *         that controls the evaluation for our iterant for this
-  *         operation.  Note that if the source iterant is powered by
-  *         [[monix.eval.Task Task]] or [[monix.eval.Coeval Coeval]]
-  *         one such instance should be globally available.
-  *
-  * @define bimonadParamDesc is the `cats.Bimonad` instance
-  *         that controls the evaluation for our iterant for this
-  *         operation.  Note that if the source iterant is powered by
-  *         [[monix.eval.Coeval Coeval]] one such instance should be
-  *         globally available.
-  *
-  *         The availability of a `cats.Bimonad` instance means that
-  *         the implementation can extract results without blocking
-  *         threads (e.g. `extract`), in addition to the properties
-  *         of a `cats.Monad`.
-  *
-  * @define monadErrorParamDesc is the `cats.MonadError`
-  *         instance that controls the evaluation for our iterant for
-  *         this operation.  Note that if the source iterant is
-  *         powered by [[monix.eval.Task Task]] or 
-  *         [[monix.eval.Coeval Coeval]] one such instance is globally 
-  *         available.
-  *
   * @define strictVersionDesc for the strict (immediate, synchronous)
   *         version, assuming the `F[_]` type allows it (has a `Comonad`
   *         implementation)
@@ -157,7 +118,6 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * concatenating them.
     *
     * @param rhs is the iterant to append at the end of our source
-    * @param F $applicativeParamDesc
     */
   final def ++[B >: A](rhs: Iterant[F, B])(implicit F: Applicative[F]): Iterant[F, B] =
     IterantConcat.concat(this.upcast[B], rhs)(F)
@@ -166,7 +126,6 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * concatenating them.
     *
     * @param rhs is the iterant to append at the end of our source
-    * @param F $applicativeParamDesc
     */
   final def ++[B >: A](rhs: F[Iterant[F, B]])(implicit F: Applicative[F]): Iterant[F, B] =
     IterantConcat.concat(self.upcast[B], Suspend(rhs, F.unit))
@@ -179,7 +138,6 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * elements of the source on which the function is defined.
     *
     * @param pf the partial function that filters and maps the iterant
-    * @param F $applicativeParamDesc
     * @tparam B the element type of the returned iterant.
     *
     * @return a new iterant resulting from applying the partial
@@ -187,36 +145,33 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *         collecting the results.  The order of the elements is
     *         preserved.
     */
-  final def collect[B](pf: PartialFunction[A, B])(implicit F: Applicative[F]): Iterant[F, B] =
+  final def collect[B](pf: PartialFunction[A, B])(implicit F: Sync[F]): Iterant[F, B] =
     IterantCollect(this, pf)(F)
 
   /** Consumes the source iterable.
     *
     * @see [[completeS]] $strictVersionDesc
     */
-  final def completeL(implicit F: Monad[F]): F[Unit] =
-    IterantCompleteL(this)
+  final def completeL(implicit F: Sync[F]): F[Unit] =
+    IterantCompleteL(this)(F)
 
   /** Consumes the source iterable.
     *
     * @see [[completeL]] $lazyVersionDesc
-    *
-    * @param F $bimonadParamDesc
     */
-  final def completeS(implicit F: Bimonad[F]): Unit =
-    F.extract(completeL(F))
+  final def completeS(implicit F: Sync[F], C: Comonad[F]): Unit =
+    C.extract(completeL(F))
 
   /** Alias for [[flatMap]]. */
-  final def concatMap[B](f: A => Iterant[F, B])(implicit F: Monad[F]): Iterant[F, B] =
+  final def concatMap[B](f: A => Iterant[F, B])(implicit F: Sync[F]): Iterant[F, B] =
     flatMap(f)
 
   /** Given a routine make sure to execute it whenever
     * the consumer executes the current `stop` action.
     *
     * @param f is the function to execute on early stop
-    * @param F $monadParamDesc
     */
-  final def doOnEarlyStop(f: F[Unit])(implicit F: Monad[F]): Iterant[F, A] =
+  final def doOnEarlyStop(f: F[Unit])(implicit F: Sync[F]): Iterant[F, A] =
     IterantStop.doOnEarlyStop(this, f)(F)
 
   /** Returns a new enumerator in which `f` is scheduled to be executed
@@ -230,9 +185,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * canceling early.
     *
     * @param f is the function to execute on early stop
-    * @param F $monadParamDesc
     */
-  final def doOnFinish(f: Option[Throwable] => F[Unit])(implicit F: Monad[F]): Iterant[F, A] =
+  final def doOnFinish(f: Option[Throwable] => F[Unit])(implicit F: Sync[F]): Iterant[F, A] =
     IterantStop.doOnFinish(this, f)(F)
 
   /** Drops the first `n` elements (from the start).
@@ -241,13 +195,13 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * @return a new iterant that drops the first ''n'' elements
     *         emitted by the source
     */
-  final def drop(n: Int)(implicit F: Applicative[F]): Iterant[F, A] =
-    IterantDrop(self, n)
+  final def drop(n: Int)(implicit F: Sync[F]): Iterant[F, A] =
+    IterantDrop(self, n)(F)
 
   /** Drops the longest prefix of elements that satisfy the given
     * predicate and returns a new iterant that emits the rest.
     */
-  final def dropWhile(p: A => Boolean)(implicit F: Applicative[F]): Iterant[F, A] =
+  final def dropWhile(p: A => Boolean)(implicit F: Sync[F]): Iterant[F, A] =
     IterantDropWhile(self, p)
 
   /** Returns a computation that should be evaluated in case the
@@ -255,8 +209,6 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *
     * This is useful to release any acquired resources, like opened
     * file handles or network sockets.
-    *
-    * @param F $applicativeParamDesc
     */
   def earlyStop(implicit F: Applicative[F]): F[Unit]
 
@@ -264,12 +216,11 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * only those elements that match.
     *
     * @param p the predicate used to test elements.
-    * @param F $applicativeParamDesc
     *
     * @return a new iterant consisting of all elements that satisfy the given
     *         predicate. The order of the elements is preserved.
     */
-  final def filter(p: A => Boolean)(implicit F: Applicative[F]): Iterant[F, A] =
+  final def filter(p: A => Boolean)(implicit F: Sync[F]): Iterant[F, A] =
     IterantFilter(this, p)(F)
 
   /** Consumes the source iterable, executing the given callback for
@@ -277,7 +228,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *
     * @see [[foreachS]] $strictVersionDesc
     */
-  final def foreachL(cb: A => Unit)(implicit F: Monad[F]): F[Unit] =
+  final def foreachL(cb: A => Unit)(implicit F: Sync[F]): F[Unit] =
     map(cb)(F).completeL
 
   /** Consumes the source iterable, executing the given callback for
@@ -285,40 +236,35 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *
     * @see [[foreachL]] $lazyVersionDesc
     */
-  final def foreachS(cb: A => Unit)(implicit F: Bimonad[F]): Unit =
-    F.extract(foreachL(cb))
+  final def foreachS(cb: A => Unit)(implicit F: Sync[F], C: Comonad[F]): Unit =
+    C.extract(foreachL(cb))
 
   /** Optionally selects the first element.
-    *
-    * @param F $bimonadParamDesc
     *
     * @see [[headOptionL]] $lazyVersionDesc
     *
     * @return the first element of this iterant if it is nonempty, or
     *         `None` if it is empty, in the `F` context.
     */
-  final def headOptionS(implicit F: Bimonad[F]): Option[A] =
-    F.extract(IterantSlice.headOptionL(self)(F))
+  final def headOptionS(implicit F: Sync[F], C: Comonad[F]): Option[A] =
+    C.extract(IterantSlice.headOptionL(self)(F))
 
   /** Optionally selects the first element.
-    *
-    * @param F $monadParamDesc
     *
     * @see [[headOptionS]] $strictVersionDesc
     *
     * @return the first element of this iterant if it is nonempty, or
     *         `None` if it is empty, in the `F` context.
     */
-  final def headOptionL(implicit F: Monad[F]): F[Option[A]] =
+  final def headOptionL(implicit F: Sync[F]): F[Option[A]] =
     IterantSlice.headOptionL(self)(F)
 
   /** Returns a new stream by mapping the supplied function over the
     * elements of the source.
     *
     * @param f is the mapping function that transforms the source
-    * @param F $applicativeParamDesc
     */
-  final def map[B](f: A => B)(implicit F: Applicative[F]): Iterant[F, B] =
+  final def map[B](f: A => B)(implicit F: Sync[F]): Iterant[F, B] =
     IterantMap(this, f)(F)
 
   /** Given a mapping function that returns a possibly lazy or
@@ -326,58 +272,53 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * stream.
     *
     * @param f is the mapping function that transforms the source
-    * @param F $applicativeParamDesc
     */
-  final def mapEval[B](f: A => F[B])(implicit F: Applicative[F]): Iterant[F, B] =
+  final def mapEval[B](f: A => F[B])(implicit F: Sync[F]): Iterant[F, B] =
     IterantMapEval(this, f)(F)
 
   /** Applies the function to the elements of the source and
     * concatenates the results.
     *
     * @param f is the function mapping elements from the source to iterants
-    * @param F $monadParamDesc
     */
-  final def flatMap[B](f: A => Iterant[F, B])(implicit F: Monad[F]): Iterant[F, B] =
+  final def flatMap[B](f: A => Iterant[F, B])(implicit F: Sync[F]): Iterant[F, B] =
     IterantConcat.flatMap(this, f)(F)
 
   /** Alias for [[concat]]. */
-  final def concat[B](implicit ev: A <:< Iterant[F, B], F: Monad[F]): Iterant[F, B] =
-    flatten
+  final def concat[B](implicit ev: A <:< Iterant[F, B], F: Sync[F]): Iterant[F, B] =
+    flatten(ev, F)
 
   /** Given an `Iterant` that generates `Iterant` elements, concatenates
     * all the generated iterants.
     *
     * Equivalent with: `source.flatMap(x => x)`
-    *
-    * @param F $monadParamDesc
     */
-  final def flatten[B](implicit ev: A <:< Iterant[F, B], F: Monad[F]): Iterant[F, B] =
-    flatMap(x => x)
+  final def flatten[B](implicit ev: A <:< Iterant[F, B], F: Sync[F]): Iterant[F, B] =
+    flatMap(x => x)(F)
 
   /** $foldLeftDesc
     *
     * @param seed is the start value
     * @param op is the binary operator
-    * @param F $bimonadParamDesc
     *
     * @see [[foldLeftL]] $lazyVersionDesc
     *
     * @return $foldLeftReturnDesc
     */
-  final def foldLeftS[S](seed: => S)(op: (S, A) => S)(implicit F: Bimonad[F]): S =
-    F.extract(IterantFoldLeftL(self, seed)(op)(F))
+  final def foldLeftS[S](seed: => S)(op: (S, A) => S)
+    (implicit F: Sync[F], C: Comonad[F]): S =
+    C.extract(IterantFoldLeftL(self, seed)(op)(F))
 
   /** $foldLeftDesc
     *
     * @param seed is the start value
     * @param op is the binary operator
-    * @param F $monadParamDesc
     *
     * @see [[foldLeftS]] $strictVersionDesc
     *
     * @return $foldLeftReturnDesc
     */
-  final def foldLeftL[S](seed: => S)(op: (S, A) => S)(implicit F: Monad[F]): F[S] =
+  final def foldLeftL[S](seed: => S)(op: (S, A) => S)(implicit F: Sync[F]): F[S] =
     IterantFoldLeftL(self, seed)(op)(F)
 
   /** Applies the function to the elements of the source and
@@ -391,9 +332,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * its application isn't referentially transparent.
     *
     * @param f is the function mapping elements from the source to iterants
-    * @param F $monadParamDesc
     */
-  final def unsafeFlatMap[B](f: A => Iterant[F, B])(implicit F: Monad[F]): Iterant[F, B] =
+  final def unsafeFlatMap[B](f: A => Iterant[F, B])(implicit F: Sync[F]): Iterant[F, B] =
     IterantConcat.unsafeFlatMap(this)(f)(F)
 
   /** Explicit covariance operator.
@@ -427,7 +367,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * @return a new iterant instance that on evaluation will emit
     *         only the first `n` elements of this iterant
     */
-  final def take(n: Int)(implicit F: Applicative[F]): Iterant[F, A] =
+  final def take(n: Int)(implicit F: Sync[F]): Iterant[F, A] =
     IterantTake(self, n)
 
   /** Creates a new iterable that only emits the last `n` elements
@@ -436,7 +376,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * In case the source triggers an error, then the underlying buffer
     * gets dropped and the error gets emitted immediately.
     */
-  final def takeLast(n: Int)(implicit F: Monad[F]): Iterant[F, A] =
+  final def takeLast(n: Int)(implicit F: Sync[F]): Iterant[F, A] =
     IterantTakeLast(self, n)
 
   /** Takes longest prefix of elements that satisfy the given predicate
@@ -445,47 +385,39 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * @param p is the function that tests each element, stopping
     *          the streaming on the first `false` result
     */
-  final def takeWhile(p: A => Boolean)(implicit F: Applicative[F]): Iterant[F, A] =
-    IterantTakeWhile(self, p)
+  final def takeWhile(p: A => Boolean)(implicit F: Sync[F]): Iterant[F, A] =
+    IterantTakeWhile(self, p)(F)
 
   /** Drops the first element of the source iterant, emitting the rest. */
-  final def tail(implicit F: Applicative[F]): Iterant[F, A] =
+  final def tail(implicit F: Sync[F]): Iterant[F, A] =
     IterantTail(self)(F)
 
   /** Skips over [[Iterant.Suspend]] states, along with [[Iterant.NextCursor]]
     * and [[Iterant.NextBatch]] states that signal empty collections.
     *
     * @see [[skipSuspendL]] $lazyVersionDesc
-    *
-    * @param F $bimonadParamDesc
     */
-  final def skipSuspendS(implicit F: Bimonad[F]): Iterant[F, A] =
-    F.extract(skipSuspendL(F))
+  final def skipSuspendS(implicit F: Sync[F], C: Comonad[F]): Iterant[F, A] =
+    C.extract(skipSuspendL(F))
 
   /** Skips over [[Iterant.Suspend]] states, along with [[Iterant.NextCursor]]
     * and [[Iterant.NextBatch]] states that signal empty collections.
     *
     * @see [[skipSuspendS]] $strictVersionDesc
-    *
-    * @param F $monadParamDesc
     */
-  final def skipSuspendL(implicit F: Monad[F]): F[Iterant[F, A]] =
+  final def skipSuspendL(implicit F: Sync[F]): F[Iterant[F, A]] =
     IterantSkipSuspend(self)
 
   /** Aggregates all elements in a `List` and preserves order.
     *
     * @see [[toListL]] $lazyVersionDesc
-    *
-    * @param F $bimonadParamDesc
     */
-  final def toListS(implicit F: Bimonad[F]): List[A] =
-    F.extract(IterantFoldLeftL.toListL(self)(F))
+  final def toListS(implicit F: Sync[F], C: Comonad[F]): List[A] =
+    C.extract(IterantFoldLeftL.toListL(self)(F))
 
   /** Aggregates all elements in a `List` and preserves order.
     *
     * @see [[toListS]] $strictVersionDesc
-    *
-    * @param F $monadParamDesc
     */
   final def toListL(implicit F: Sync[F]): F[List[A]] =
     IterantFoldLeftL.toListL(self)(F)
@@ -497,7 +429,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * arguments.
     */
   final def zipMap[B, C](rhs: Iterant[F, B])(f: (A, B) => C)
-    (implicit F: Monad[F]): Iterant[F, C] =
+    (implicit F: Sync[F]): Iterant[F, C] =
     IterantZipMap(this, rhs)(f)
 
   /** Lazily zip two iterants together.
@@ -505,7 +437,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * The length of the result will be the shorter of the two
     * arguments.
     */
-  final def zip[B](rhs: Iterant[F, B])(implicit F: Monad[F]): Iterant[F, (A, B)] =
+  final def zip[B](rhs: Iterant[F, B])(implicit F: Sync[F]): Iterant[F, (A, B)] =
     (self zipMap rhs)((a, b) => (a, b))
 }
 
@@ -580,7 +512,7 @@ object Iterant extends IterantInstances with SharedDocs {
     *
     * @param fa $suspendByNameParam
     */
-  def defer[F[_] : Applicative, A](fa: => Iterant[F, A]): Iterant[F, A] =
+  def defer[F[_] : Sync, A](fa: => Iterant[F, A]): Iterant[F, A] =
     suspend(fa)
 
   /** $builderSuspendByName
@@ -610,7 +542,7 @@ object Iterant extends IterantInstances with SharedDocs {
     Halt[F, A](Some(ex))
 
   /** $builderTailRecM */
-  def tailRecM[F[_], A, B](a: A)(f: A => Iterant[F, Either[A, B]])(implicit F: Monad[F]): Iterant[F, B] = {
+  def tailRecM[F[_], A, B](a: A)(f: A => Iterant[F, Either[A, B]])(implicit F: Sync[F]): Iterant[F, B] = {
     f(a).flatMap {
       case Right(b) =>
         Iterant.now[F, B](b)
@@ -627,11 +559,11 @@ object Iterant extends IterantInstances with SharedDocs {
   def fromSeq[F[_], A](xs: Seq[A])(implicit F: Applicative[F]): Iterant[F, A] =
     xs match {
       case ref: LinearSeq[_] =>
-        fromList[F, A](ref.asInstanceOf[LinearSeq[A]])
+        fromList[F, A](ref.asInstanceOf[LinearSeq[A]])(F)
       case ref: IndexedSeq[_] =>
-        fromIndexedSeq[F, A](ref.asInstanceOf[IndexedSeq[A]])
+        fromIndexedSeq[F, A](ref.asInstanceOf[IndexedSeq[A]])(F)
       case _ =>
-        fromIterable(xs)
+        fromIterable(xs)(F)
     }
 
   /** $builderFromList */
@@ -759,7 +691,7 @@ private[tail] trait IterantInstances extends IterantInstances1 {
     * [[monix.eval.Task.catsAsync Task.catsAsync]].
     */
   implicit def iterantTaskInstances(implicit F: CatsAsyncInstances[Task]): IterantTaskInstances = {
-    import CatsAsyncInstances.{ForTask, ForParallelTask}
+    import CatsAsyncInstances.{ForParallelTask, ForTask}
     // Avoiding the creation of junk, because it is expensive
     F match {
       case ForTask => defaultIterantTaskRef
@@ -808,23 +740,25 @@ private[tail] trait IterantInstances extends IterantInstances1 {
 
 }
 
-private[tail] trait IterantInstances1 extends IterantInstances0 {
-  /** Provides a [[cats.Monad]] instance for [[Iterant]]. */
-  implicit def monadInstance[F[_] : Monad]: MonadInstance[F] =
+private[tail] trait IterantInstances1 {
+  /** Provides a `cats.effect.Sync` instance for [[Iterant]]. */
+  implicit def monadInstance[F[_] : Sync]: MonadInstance[F] =
     new MonadInstance[F]()
 
-  /** Provides a [[cats.Monad]] instance for [[Iterant]]. */
-  class MonadInstance[F[_]](implicit F: Monad[F])
-    extends FunctorInstance[F]()(F)
-      with Monad[({type λ[α] = Iterant[F, α]})#λ]
-      with MonadFilter[({type λ[α] = Iterant[F, α]})#λ]
-      with MonoidK[({type λ[α] = Iterant[F, α]})#λ] {
-
-    override def flatMap[A, B](fa: Iterant[F, A])(f: (A) => Iterant[F, B]): Iterant[F, B] =
-      fa.flatMap(f)
+  /** Provides a `cats.effect.Sync` instance for [[Iterant]]. */
+  class MonadInstance[F[_]](implicit F: Sync[F])
+    extends Monad[({type λ[α] = Iterant[F, α]})#λ]
+    with MonadFilter[({type λ[α] = Iterant[F, α]})#λ]
+    with MonoidK[({type λ[α] = Iterant[F, α]})#λ] {
 
     override def pure[A](a: A): Iterant[F, A] =
       Iterant.pure(a)
+
+    override def map[A, B](fa: Iterant[F, A])(f: (A) => B): Iterant[F, B] =
+      fa.map(f)(F)
+
+    override def flatMap[A, B](fa: Iterant[F, A])(f: (A) => Iterant[F, B]): Iterant[F, B] =
+      fa.flatMap(f)
 
     override def map2[A, B, Z](fa: Iterant[F, A], fb: Iterant[F, B])(f: (A, B) => Z): Iterant[F, Z] =
       fa.flatMap(a => fb.map(b => f(a, b))(F))
@@ -843,19 +777,5 @@ private[tail] trait IterantInstances1 extends IterantInstances0 {
 
     override def combineK[A](x: Iterant[F, A], y: Iterant[F, A]): Iterant[F, A] =
       x.++(y)(F)
-  }
-}
-
-private[tail] trait IterantInstances0 {
-  /** Provides a [[cats.Functor]] instance for [[Iterant]]. */
-  implicit def functorInstance[F[_] : Applicative]: FunctorInstance[F] =
-    new FunctorInstance[F]()
-
-  /** Provides a [[cats.Functor]] instance for [[Iterant]]. */
-  class FunctorInstance[F[_]](implicit F: Applicative[F])
-    extends Functor[({type λ[α] = Iterant[F, α]})#λ] {
-    
-    def map[A, B](fa: Iterant[F, A])(f: (A) => B): Iterant[F, B] =
-      fa.map(f)(F)
   }
 }

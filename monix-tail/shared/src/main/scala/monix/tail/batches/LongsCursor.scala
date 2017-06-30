@@ -20,7 +20,7 @@ package batches
 
 /** [[BatchCursor]] implementation specialized for `Long`.
   *
-  * Under the hood it uses an [[monix.tail.batches.ArrayCursor ArrayCursor]]
+  * Under the hood it uses an [[ArrayCursor]]
   * implementation, which is `@specialized`. Using `LongsCursor` might
   * be desirable instead for `isInstanceOf` checks.
   */

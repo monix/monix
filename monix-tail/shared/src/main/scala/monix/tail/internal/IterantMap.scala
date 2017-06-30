@@ -17,43 +17,35 @@
 
 package monix.tail.internal
 
+import cats.syntax.all._
+import cats.effect.Sync
+import monix.execution.misc.NonFatal
 import monix.tail.Iterant
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
 import monix.tail.internal.IterantUtils.signalError
-import monix.types.Applicative
-import monix.types.syntax._
-import scala.util.control.NonFatal
 
 private[tail] object IterantMap {
   /**
     * Implementation for `Iterant#map`
     */
   def apply[F[_], A, B](source: Iterant[F, A], f: A => B)
-    (implicit F: Applicative[F]): Iterant[F, B] = {
-
-    import F.functor
+    (implicit F: Sync[F]): Iterant[F, B] = {
 
     def loop(source: Iterant[F, A]): Iterant[F, B] =
       try source match {
         case Next(head, tail, stop) =>
           Next[F, B](f(head), tail.map(_.map(f)), stop)
-
         case NextCursor(cursor, rest, stop) =>
           NextCursor[F, B](cursor.map(f), rest.map(_.map(f)), stop)
-
         case NextBatch(gen, rest, stop) =>
           NextBatch(gen.map(f), rest.map(_.map(f)), stop)
-
         case Suspend(rest, stop) =>
           Suspend[F, B](rest.map(_.map(f)), stop)
-
         case Last(item) =>
           Last(f(item))
-
         case empty@Halt(_) =>
           empty.asInstanceOf[Iterant[F, B]]
-      }
-      catch {
+      } catch {
         case NonFatal(ex) => signalError(source, ex)
       }
 
@@ -62,7 +54,7 @@ private[tail] object IterantMap {
       case _ =>
         // Given function can be side-effecting,
         // so we must suspend the execution
-        Suspend(F.eval(loop(source)), source.earlyStop)
+        Suspend(F.delay(loop(source)), source.earlyStop)
     }
   }
 }

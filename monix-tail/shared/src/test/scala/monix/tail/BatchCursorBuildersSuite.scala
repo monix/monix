@@ -17,6 +17,8 @@
 
 package monix.tail
 
+import monix.tail.batches.BatchCursor
+
 object BatchCursorBuildersSuite extends BaseTestSuite {
   test("apply") { _ =>
     check1 { (list: List[Int]) =>

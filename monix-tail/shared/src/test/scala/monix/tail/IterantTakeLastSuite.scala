@@ -19,6 +19,7 @@ package monix.tail
 
 import monix.eval.{Coeval, Task}
 import monix.execution.exceptions.DummyException
+import monix.tail.batches.BatchCursor
 
 object IterantTakeLastSuite extends BaseTestSuite {
   test("Iterant.takeLast is equivalent with List.takeRight") { implicit s =>
@@ -26,7 +27,7 @@ object IterantTakeLastSuite extends BaseTestSuite {
       val stream = arbitraryListToIterantTask(list, math.abs(idx) + 1)
       val length = list.length
       val n = if (nr == 0) 0 else math.abs(math.abs(nr) % 20)
-      stream.takeLast(n).toListL === stream.toListL.map(_.takeRight(n))
+      stream.takeLast(n).toListL <-> stream.toListL.map(_.takeRight(n))
     }
   }
 
@@ -36,7 +37,7 @@ object IterantTakeLastSuite extends BaseTestSuite {
       val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty), Task.unit)
       val stream = iter ++ suffix
       val received = stream.takeLast(10)
-      received === Iterant[Task].haltS[Int](Some(dummy))
+      received <-> Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
@@ -46,7 +47,7 @@ object IterantTakeLastSuite extends BaseTestSuite {
       val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty), Task.unit)
       val stream = iter ++ suffix
       val received = stream.takeLast(10)
-      received === Iterant[Task].haltS[Int](Some(dummy))
+      received <-> Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 

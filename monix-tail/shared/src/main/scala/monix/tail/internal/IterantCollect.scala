@@ -17,21 +17,19 @@
 
 package monix.tail.internal
 
+import cats.effect.Sync
+import cats.syntax.all._
+import monix.execution.misc.NonFatal
 import monix.tail.Iterant
 import monix.tail.Iterant._
 import monix.tail.internal.IterantUtils._
-import monix.types.Applicative
-import monix.types.syntax._
-import scala.util.control.NonFatal
 
 private[tail] object IterantCollect {
   /**
     * Implementation for `Iterant#collect`.
     */
   def apply[F[_], A, B](source: Iterant[F,A], pf: PartialFunction[A,B])
-    (implicit A: Applicative[F]): Iterant[F,B] = {
-
-    import A.{functor => F}
+    (implicit F: Sync[F]): Iterant[F,B] = {
 
     def loop(source: Iterant[F,A]): Iterant[F,B] = {
       try source match {
@@ -56,8 +54,7 @@ private[tail] object IterantCollect {
 
         case halt @ Halt(_) =>
           halt.asInstanceOf[Iterant[F, B]]
-      }
-      catch {
+      } catch {
         case NonFatal(ex) => signalError(source, ex)
       }
     }
@@ -67,7 +64,7 @@ private[tail] object IterantCollect {
       case _ =>
         // Given function can be side-effecting,
         // so we must suspend the execution
-        Suspend(A.eval(loop(source)), source.earlyStop)
+        Suspend(F.delay(loop(source)), source.earlyStop)
     }
   }
 }

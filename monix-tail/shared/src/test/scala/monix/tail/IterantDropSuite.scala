@@ -20,6 +20,7 @@ package monix.tail
 import monix.eval.{Coeval, Task}
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
+import monix.tail.batches.BatchCursor
 import org.scalacheck.Test
 import org.scalacheck.Test.Parameters
 
@@ -37,7 +38,7 @@ object IterantDropSuite extends BaseTestSuite {
       val length = list.length
       val n = math.abs(nr)
 
-      stream.drop(n).toListL === stream.toListL.map(_.drop(n))
+      stream.drop(n).toListL <-> stream.toListL.map(_.drop(n))
     }
   }
 
@@ -47,7 +48,7 @@ object IterantDropSuite extends BaseTestSuite {
       val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty), Task.unit)
       val stream = iter ++ suffix
       val received = stream.drop(Int.MaxValue)
-      received === Iterant[Task].haltS[Int](Some(dummy))
+      received <-> Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
@@ -57,7 +58,7 @@ object IterantDropSuite extends BaseTestSuite {
       val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty), Task.unit)
       val stream = iter ++ suffix
       val received = stream.drop(Int.MaxValue)
-      received === Iterant[Task].haltS[Int](Some(dummy))
+      received <-> Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 

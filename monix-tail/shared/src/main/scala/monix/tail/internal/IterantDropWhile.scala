@@ -17,21 +17,20 @@
 
 package monix.tail.internal
 
+import cats.effect.Sync
+import cats.syntax.all._
+import monix.execution.misc.NonFatal
 import monix.tail.Iterant
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
 import monix.tail.batches.BatchCursor
-import monix.types.Applicative
-import monix.types.syntax._
-
 import scala.annotation.tailrec
-import scala.util.control.NonFatal
 
 private[tail] object IterantDropWhile {
   /**
     * Implementation for `Iterant#dropWhile`
     */
-  def apply[F[_], A](source: Iterant[F, A], p: A => Boolean)(implicit F: Applicative[F]): Iterant[F, A] = {
-    import F.functor
+  def apply[F[_], A](source: Iterant[F, A], p: A => Boolean)
+    (implicit F: Sync[F]): Iterant[F, A] = {
 
     // Reusable logic for NextCursor / NextBatch branches
     @tailrec
@@ -68,8 +67,7 @@ private[tail] object IterantDropWhile {
           if (p(elem)) Halt(None) else last
         case halt @ Halt(_) =>
           halt
-      }
-      catch {
+      } catch {
         case NonFatal(ex) =>
           val stop = source.earlyStop
           Suspend(stop.map(_ => Halt(Some(ex))), stop)
@@ -78,6 +76,6 @@ private[tail] object IterantDropWhile {
 
     // We can have side-effects when executing the predicate,
     // so suspending execution
-    Suspend(F.eval(loop(source)), source.earlyStop)
+    Suspend(F.delay(loop(source)), source.earlyStop)
   }
 }

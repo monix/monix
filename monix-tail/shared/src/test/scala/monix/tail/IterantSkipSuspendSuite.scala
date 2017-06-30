@@ -35,7 +35,7 @@ object IterantSkipSuspendSuite extends BaseTestSuite {
     check2 { (list: List[Int], idx: Int) =>
       val stream = arbitraryListToIterantTask(list, math.abs(idx) + 1)
       val length = list.length
-      Iterant[Task].suspend(stream.skipSuspendL) === stream
+      Iterant[Task].suspend(stream.skipSuspendL) <-> stream
     }
   }
 
@@ -45,7 +45,7 @@ object IterantSkipSuspendSuite extends BaseTestSuite {
       val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty), Task.unit)
       val stream = iter ++ suffix
       val received = stream.skipSuspendL
-      Iterant[Task].suspend(received) === Iterant[Task].haltS[Int](Some(dummy))
+      Iterant[Task].suspend(received) <-> Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
@@ -55,7 +55,7 @@ object IterantSkipSuspendSuite extends BaseTestSuite {
       val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty), Task.unit)
       val stream = iter ++ suffix
       val received = stream.skipSuspendL
-      Iterant[Task].suspend(received) === Iterant[Task].haltS[Int](Some(dummy))
+      Iterant[Task].suspend(received) <-> Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 }

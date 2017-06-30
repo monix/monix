@@ -17,13 +17,14 @@
 
 package monix.tail.internal
 
+import cats.Applicative
+import cats.effect.Sync
+import cats.syntax.all._
 import monix.tail.Iterant
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
 import monix.tail.batches.BatchCursor
 import monix.tail.internal.IterantUtils.signalError
-import monix.types.syntax._
-import monix.types.{Applicative, Monad}
-
+import monix.tail.ApplicativeUtils
 import scala.util.control.NonFatal
 
 private[tail] object IterantConcat {
@@ -31,15 +32,14 @@ private[tail] object IterantConcat {
     * Implementation for `Iterant#flatMap`
     */
   def flatMap[F[_], A, B](source: Iterant[F, A], f: A => Iterant[F, B])
-    (implicit F: Monad[F]): Iterant[F, B] = {
-    import F.{applicative => A}
+    (implicit F: Sync[F]): Iterant[F, B] = {
 
     source match {
       case Suspend(_, _) | Halt(_) => unsafeFlatMap(source)(f)
       case _ =>
         // Given function can be side-effecting,
         // so we must suspend the execution
-        Suspend(A.eval(unsafeFlatMap(source)(f)), source.earlyStop)
+        Suspend(F.delay(unsafeFlatMap(source)(f)), source.earlyStop)
     }
   }
 
@@ -47,10 +47,8 @@ private[tail] object IterantConcat {
     * Implementation for `Iterant#unsafeFlatMap`
     */
   def unsafeFlatMap[F[_], A, B](source: Iterant[F, A])(f: A => Iterant[F, B])
-    (implicit F: Monad[F]): Iterant[F, B] = {
+    (implicit F: Sync[F]): Iterant[F, B] = {
 
-    import F.{functor, applicative => A}
-    
     @inline def generate(item: A, rest: F[Iterant[F, B]], stop: F[Unit]): Iterant[F, B] =
       f(item) match {
         case next @ (Next(_,_,_) | NextCursor(_,_,_) | NextBatch(_,_,_) | Suspend(_,_)) =>
@@ -70,7 +68,10 @@ private[tail] object IterantConcat {
       else {
         val item = cursor.next()
         // If iterator is empty then we can skip a beat
-        val tail = if (cursor.hasNext()) A.eval(flatMap(ref, f)) else rest.map(unsafeFlatMap(_)(f))
+        val tail =
+          if (cursor.hasNext()) F.delay(flatMap(ref, f))
+          else rest.map(unsafeFlatMap(_)(f))
+
         generate(item, tail, stop)
       }
     }
@@ -95,8 +96,7 @@ private[tail] object IterantConcat {
 
       case empty @ Halt(_) =>
         empty.asInstanceOf[Iterant[F, B]]
-    }
-    catch {
+    } catch {
       case NonFatal(ex) => signalError(source, ex)
     }
   }
@@ -106,8 +106,6 @@ private[tail] object IterantConcat {
     */
   def concat[F[_], A](lhs: Iterant[F, A], rhs: Iterant[F, A])
     (implicit F: Applicative[F]): Iterant[F, A] = {
-
-    import F.functor
 
     lhs match {
       case Next(a, lt, stop) =>
@@ -131,20 +129,18 @@ private[tail] object IterantConcat {
     * Implementation for `Iterant.tailRecM`
     */
   def tailRecM[F[_], A, B](a: A)(f: A => Iterant[F, Either[A, B]])
-    (implicit F: Monad[F]): Iterant[F, B] = {
-
-    import F.{applicative => A}
+    (implicit F: Sync[F]): Iterant[F, B] = {
 
     def loop(a: A): Iterant[F, B] =
       unsafeFlatMap(f(a)) {
         case Right(b) =>
           Last(b)
         case Left(nextA) =>
-          Suspend(A.eval(loop(nextA)), A.unit)
+          Suspend(F.delay(loop(nextA)), F.unit)
       }
 
     // Function `f` may be side-effecting, or it might trigger
     // side-effects, so we must suspend it
-    Suspend(A.eval(loop(a)), A.unit)
+    Suspend(F.delay(loop(a)), F.unit)
   }
 }

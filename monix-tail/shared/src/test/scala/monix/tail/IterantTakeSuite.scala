@@ -22,6 +22,7 @@ import monix.execution.cancelables.BooleanCancelable
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 import monix.tail.Iterant.Suspend
+import monix.tail.batches.{Batch, BatchCursor}
 import org.scalacheck.Test
 import org.scalacheck.Test.Parameters
 
@@ -42,7 +43,7 @@ object IterantTakeSuite extends BaseTestSuite {
         else if (length == 0) math.abs(nr)
         else math.abs(math.abs(nr) % length)
 
-      stream.take(n).toListL === stream.toListL.map(_.take(n))
+      stream.take(n).toListL <-> stream.toListL.map(_.take(n))
     }
   }
 
@@ -69,7 +70,7 @@ object IterantTakeSuite extends BaseTestSuite {
       val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty), Task.unit)
       val stream = iter ++ suffix
       val received = stream.take(Int.MaxValue)
-      received === Iterant[Task].haltS[Int](Some(dummy))
+      received <-> Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
@@ -79,7 +80,7 @@ object IterantTakeSuite extends BaseTestSuite {
       val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty), Task.unit)
       val stream = iter ++ suffix
       val received = stream.take(Int.MaxValue)
-      received === Iterant[Task].haltS[Int](Some(dummy))
+      received <-> Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 

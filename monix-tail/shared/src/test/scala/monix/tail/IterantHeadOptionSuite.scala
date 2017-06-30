@@ -23,7 +23,7 @@ object IterantHeadOptionSuite extends BaseTestSuite {
   test("Iterant.headOptionL <-> List.headOption") { _ =>
     check2 { (list: List[Int], idx: Int) =>
       val iter = arbitraryListToIterantCoeval(list, math.abs(idx % 4))
-      iter.headOptionL === Coeval.now(list.headOption)
+      iter.headOptionL <-> Coeval.now(list.headOption)
     }
   }
 

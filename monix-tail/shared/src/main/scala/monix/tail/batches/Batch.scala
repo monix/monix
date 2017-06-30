@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package monix.tail.batches
+package monix.tail
+package batches
 
-import monix.tail.Iterant
 import scala.reflect.ClassTag
 
 /** The `Batch` is a [[BatchCursor]] factory, similar in spirit

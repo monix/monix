@@ -17,20 +17,20 @@
 
 package monix.tail.internal
 
+import cats.effect.Sync
+import cats.syntax.all._
+import monix.execution.misc.NonFatal
 import monix.tail.Iterant
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
-import monix.types.Monad
-import monix.types.syntax._
-import scala.util.control.NonFatal
 
 private[tail] object IterantSlice {
   /** Implementation for `Iterant#headOption`. */
-  def headOptionL[F[_], A](source: Iterant[F, A])(implicit F: Monad[F]): F[Option[A]] = {
-    import F.{functor, applicative => A}
+  def headOptionL[F[_], A](source: Iterant[F, A])
+    (implicit F: Sync[F]): F[Option[A]] = {
 
     def loop(source: Iterant[F, A]): F[Option[A]] = {
       try source match {
-        case Next(a, rest, stop) =>
+        case Next(a, _, stop) =>
           stop.map(_ => Some(a))
 
         case NextCursor(items, rest, stop) =>
@@ -46,15 +46,15 @@ private[tail] object IterantSlice {
           rest.flatMap(loop)
 
         case Last(a) =>
-          A.pure(Some(a))
+          F.pure(Some(a))
         case Halt(None) =>
-          A.pure(None)
+          F.pure(None)
         case Halt(Some(ex)) =>
-          A.unit.map(_ => throw ex)
-      }
-      catch {
+          F.raiseError(ex)
+      } catch {
         case NonFatal(ex) =>
-          source.earlyStop.map(_ => throw ex)
+          source.earlyStop.flatMap(_ =>
+            F.raiseError(ex))
       }
     }
 

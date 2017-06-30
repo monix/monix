@@ -17,9 +17,7 @@
 
 package monix.tail.batches
 
-import monix.tail.batches
-
-/** [[batches.Batch Batch]] implementation specialized for `Byte`.
+/** [[Batch]] implementation specialized for `Byte`.
   *
   * Under the hood it uses an [[monix.tail.batches.ArrayBatch ArrayBatch]]
   * implementation, which is `@specialized`. Using `BytesBatch`

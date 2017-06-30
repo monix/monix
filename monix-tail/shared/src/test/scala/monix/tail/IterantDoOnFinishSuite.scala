@@ -19,6 +19,7 @@ package monix.tail
 
 import monix.eval.Coeval
 import monix.execution.exceptions.DummyException
+import monix.tail.batches._
 
 object IterantDoOnFinishSuite extends BaseTestSuite {
   test("Next.doOnFinish for early stop") { _ =>
@@ -148,7 +149,7 @@ object IterantDoOnFinishSuite extends BaseTestSuite {
     check1 { (stream: Iterant[Coeval, Int]) =>
       val dummy = DummyException("dummy")
       val received = stream.doOnFinish(_ => throw dummy)
-      received === Iterant[Coeval].raiseError(dummy)
+      received <-> Iterant[Coeval].raiseError(dummy)
     }
   }
 }

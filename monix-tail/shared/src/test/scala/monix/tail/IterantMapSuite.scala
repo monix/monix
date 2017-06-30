@@ -26,7 +26,7 @@ import scala.util.Failure
 object IterantMapSuite extends BaseTestSuite {
   test("Iterant[Task].map equivalence with List.map") { implicit s =>
     check2 { (stream: Iterant[Task, Int], f: Int => Long) =>
-      stream.map(f).toListL ===
+      stream.map(f).toListL <->
         stream.toListL.map((list: List[Int]) => list.map(f))
     }
   }
@@ -67,7 +67,7 @@ object IterantMapSuite extends BaseTestSuite {
       val list = if (l.isEmpty) List(1) else l
       val iterant = arbitraryListToIterantTask(list, idx)
       val received = (iterant ++ Iterant[Task].now(1)).map[Int](_ => throw dummy)
-      received === Iterant[Task].haltS[Int](Some(dummy))
+      received <-> Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
@@ -77,7 +77,7 @@ object IterantMapSuite extends BaseTestSuite {
       val cursor = new ThrowExceptionCursor(dummy)
       val error = Iterant[Task].nextCursorS(cursor, Task.now(Iterant[Task].empty[Int]), Task.unit)
       val stream = (prefix ++ error).map(x => x)
-      stream === Iterant[Task].haltS[Int](Some(dummy))
+      stream <-> Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
@@ -87,13 +87,13 @@ object IterantMapSuite extends BaseTestSuite {
       val cursor = new ThrowExceptionBatch(dummy)
       val error = Iterant[Task].nextBatchS(cursor, Task.now(Iterant[Task].empty[Int]), Task.unit)
       val stream = (prefix ++ error).map(x => x)
-      stream === Iterant[Task].haltS[Int](Some(dummy))
+      stream <-> Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
   test("Iterant[Coeval].map equivalence with List.map") { implicit s =>
     check2 { (stream: Iterant[Coeval, Int], f: Int => Long) =>
-      stream.map(f).toListL ===
+      stream.map(f).toListL <->
         stream.toListL.map((list: List[Int]) => list.map(f))
     }
   }
@@ -132,7 +132,7 @@ object IterantMapSuite extends BaseTestSuite {
       val list = if (l.isEmpty) List(1) else l
       val iterant = arbitraryListToIterantCoeval(list, idx)
       val received = (iterant ++ Iterant[Coeval].now(1)).map[Int](_ => throw dummy)
-      received === Iterant[Coeval].haltS[Int](Some(dummy))
+      received <-> Iterant[Coeval].haltS[Int](Some(dummy))
     }
   }
 
@@ -142,7 +142,7 @@ object IterantMapSuite extends BaseTestSuite {
       val cursor: BatchCursor[Int] = new ThrowExceptionCursor(dummy)
       val error = Iterant[Coeval].nextCursorS(cursor, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
       val stream = (prefix ++ error).map(x => x)
-      stream === Iterant[Coeval].haltS[Int](Some(dummy))
+      stream <-> Iterant[Coeval].haltS[Int](Some(dummy))
     }
   }
 
@@ -152,7 +152,7 @@ object IterantMapSuite extends BaseTestSuite {
       val cursor: Batch[Int] = new ThrowExceptionBatch(dummy)
       val error = Iterant[Coeval].nextBatchS(cursor, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
       val stream = (prefix ++ error).map(x => x)
-      stream === Iterant[Coeval].haltS[Int](Some(dummy))
+      stream <-> Iterant[Coeval].haltS[Int](Some(dummy))
     }
   }
 

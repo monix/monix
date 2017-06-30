@@ -20,6 +20,8 @@ package monix.tail
 import monix.eval.{Coeval, Task}
 import monix.execution.exceptions.DummyException
 import monix.tail.Iterant.{NextBatch, NextCursor, Suspend}
+import monix.tail.batches.BatchCursor
+
 import scala.util.{Failure, Success}
 
 object IterantFlatMapSuite extends BaseTestSuite {
@@ -27,7 +29,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
     check2 { (stream: Iterant[Task, Int], f: Int => List[Long]) =>
       val result = stream.flatMap(x => Iterant[Task].fromList(f(x))).toListL
       val expected = stream.toListL.map((list: List[Int]) => list.flatMap(f))
-      result === expected
+      result <-> expected
     }
   }
 
@@ -139,7 +141,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
       val list = if (l.isEmpty) List(1) else l
       val source = arbitraryListToIterantTask(list, idx)
       val received = source.flatMap(_ => Iterant[Task].raiseError[Int](dummy))
-      received === Iterant[Task].haltS[Int](Some(dummy))
+      received <-> Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
@@ -149,7 +151,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
       val list = if (l.isEmpty) List(1) else l
       val source = arbitraryListToIterantTask(list, idx)
       val received = source.flatMap[Int](_ => throw dummy)
-      received === Iterant[Task].haltS[Int](Some(dummy))
+      received <-> Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
@@ -159,7 +161,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
       val cursor = new ThrowExceptionCursor(dummy)
       val error = Iterant[Task].nextCursorS(cursor, Task.now(Iterant[Task].empty[Int]), Task.unit)
       val stream = (prefix ++ error).flatMap(x => Iterant[Task].now(x))
-      stream === Iterant[Task].haltS[Int](Some(dummy))
+      stream <-> Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
@@ -169,7 +171,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
       val generator = new ThrowExceptionBatch(dummy)
       val error = Iterant[Task].nextBatchS(generator, Task.now(Iterant[Task].empty[Int]), Task.unit)
       val stream = (prefix ++ error).flatMap(x => Iterant[Task].now(x))
-      stream === Iterant[Task].haltS[Int](Some(dummy))
+      stream <-> Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
@@ -177,7 +179,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
     check2 { (stream: Iterant[Coeval, Int], f: Int => List[Long]) =>
       val result = stream.flatMap(x => Iterant[Coeval].fromList(f(x))).toListL
       val expected = stream.toListL.map((list: List[Int]) => list.flatMap(f))
-      result === expected
+      result <-> expected
     }
   }
 
@@ -275,7 +277,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
       val list = if (l.isEmpty) List(1) else l
       val source = arbitraryListToIterantCoeval(list, idx)
       val received = source.flatMap(_ => Iterant[Coeval].raiseError[Int](dummy))
-      received === Iterant[Coeval].haltS[Int](Some(dummy))
+      received <-> Iterant[Coeval].haltS[Int](Some(dummy))
     }
   }
 
@@ -285,7 +287,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
       val list = if (l.isEmpty) List(1) else l
       val source = arbitraryListToIterantCoeval(list, idx)
       val received = source.flatMap[Int](_ => throw dummy)
-      received === Iterant[Coeval].haltS[Int](Some(dummy))
+      received <-> Iterant[Coeval].haltS[Int](Some(dummy))
     }
   }
 
@@ -295,7 +297,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
       val cursor = new ThrowExceptionCursor(dummy)
       val error = Iterant[Coeval].nextCursorS(cursor, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
       val stream = (prefix ++ error).flatMap(x => Iterant[Coeval].now(x))
-      stream === Iterant[Coeval].haltS[Int](Some(dummy))
+      stream <-> Iterant[Coeval].haltS[Int](Some(dummy))
     }
   }
 
@@ -305,7 +307,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
       val cursor = new ThrowExceptionBatch(dummy)
       val error = Iterant[Coeval].nextBatchS(cursor, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
       val stream = (prefix ++ error).flatMap(x => Iterant[Coeval].now(x))
-      stream === Iterant[Coeval].haltS[Int](Some(dummy))
+      stream <-> Iterant[Coeval].haltS[Int](Some(dummy))
     }
   }
 

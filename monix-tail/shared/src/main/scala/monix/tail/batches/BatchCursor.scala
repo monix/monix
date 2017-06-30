@@ -15,9 +15,8 @@
  * limitations under the License.
  */
 
-package monix.tail.batches
-
-import monix.tail.Iterant
+package monix.tail
+package batches
 
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import scala.reflect.ClassTag

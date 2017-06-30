@@ -17,18 +17,18 @@
 
 package monix.tail.internal
 
+import cats.effect.Sync
+import cats.syntax.all._
+import monix.execution.misc.NonFatal
 import monix.tail.Iterant
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
-import monix.types.Applicative
-import monix.types.syntax._
-import scala.util.control.NonFatal
 
 private[tail] object IterantTail {
   /**
     * Implementation for `Iterant#tail`
     */
-  def apply[F[_], A](source: Iterant[F, A])(implicit F: Applicative[F]): Iterant[F, A] = {
-    import F.functor
+  def apply[F[_], A](source: Iterant[F, A])
+    (implicit F: Sync[F]): Iterant[F, A] = {
 
     def loop(source: Iterant[F, A]): Iterant[F, A] = {
       try source match {
@@ -45,15 +45,13 @@ private[tail] object IterantTail {
         case NextBatch(batch, rest, stop) =>
           // Unsafe recursive call, it's fine b/c next call won't be
           loop(NextCursor(batch.cursor(), rest, stop))
-
         case Suspend(rest, stop) =>
           Suspend(rest.map(loop), stop)
         case Last(_) =>
           Halt(None)
         case halt @ Halt(_) =>
           halt
-      }
-      catch {
+      } catch {
         case NonFatal(ex) =>
           val stop = source.earlyStop
           Suspend(stop.map(_ => Halt(Some(ex))), stop)
@@ -64,7 +62,7 @@ private[tail] object IterantTail {
     // processing, so suspending execution in this case
     source match {
       case NextBatch(_, _, _) | NextCursor(_, _, _) =>
-        Suspend(F.eval(loop(source)), source.earlyStop)
+        Suspend(F.delay(loop(source)), source.earlyStop)
       case _ =>
         loop(source)
     }

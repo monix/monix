@@ -18,6 +18,7 @@
 package monix.tail
 
 import monix.eval.{Coeval, Task}
+import monix.tail.batches._
 
 object IterantDoOnEarlyStopSuite extends BaseTestSuite {
   test("Next.earlyStop") { _ =>

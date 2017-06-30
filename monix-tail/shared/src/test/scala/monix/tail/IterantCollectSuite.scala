@@ -20,6 +20,8 @@ package monix.tail
 import monix.eval.{Coeval, Task}
 import monix.execution.exceptions.DummyException
 import monix.tail.Iterant.Suspend
+import monix.tail.batches.BatchCursor
+
 import scala.util.Failure
 
 object IterantCollectSuite extends BaseTestSuite {
@@ -28,7 +30,7 @@ object IterantCollectSuite extends BaseTestSuite {
       val pf: PartialFunction[Int,Int] = { case x if p(x) => f(x) }
       val received = stream.collect(pf).toListL
       val expected = stream.toListL.map(_.collect(pf))
-      received === expected
+      received <-> expected
     }
   }
 
@@ -36,7 +38,7 @@ object IterantCollectSuite extends BaseTestSuite {
     check1 { (stream: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val received = (stream ++ Iterant[Task].now(1)).collect[Int] { case _ => throw dummy }
-      received === Iterant[Task].raiseError(dummy)
+      received <-> Iterant[Task].raiseError(dummy)
     }
   }
 
@@ -45,7 +47,7 @@ object IterantCollectSuite extends BaseTestSuite {
       val pf: PartialFunction[Int,Int] = { case x if p(x) => f(x) }
       val received = stream.collect(pf)
       val expected = stream.flatMap(x => if (pf.isDefinedAt(x)) Iterant[Task].now(pf(x)) else Iterant[Task].empty[Int])
-      received === expected
+      received <-> expected
     }
   }
 

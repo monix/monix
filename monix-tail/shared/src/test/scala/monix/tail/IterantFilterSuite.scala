@@ -20,6 +20,8 @@ package monix.tail
 import monix.eval.{Coeval, Task}
 import monix.execution.exceptions.DummyException
 import monix.tail.Iterant.Suspend
+import monix.tail.batches.BatchCursor
+
 import scala.util.Failure
 
 object IterantFilterSuite extends BaseTestSuite {
@@ -27,7 +29,7 @@ object IterantFilterSuite extends BaseTestSuite {
     check2 { (stream: Iterant[Task, Int], p: Int => Boolean) =>
       val received = stream.filter(p).toListL
       val expected = stream.toListL.map(_.filter(p))
-      received === expected
+      received <-> expected
     }
   }
 
@@ -35,7 +37,7 @@ object IterantFilterSuite extends BaseTestSuite {
     check1 { (stream: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val received = (stream ++ Iterant[Task].now(1)).filter(_ => throw dummy)
-      received === Iterant[Task].raiseError(dummy)
+      received <-> Iterant[Task].raiseError(dummy)
     }
   }
 
@@ -43,7 +45,7 @@ object IterantFilterSuite extends BaseTestSuite {
     check2 { (stream: Iterant[Task, Int], p: Int => Boolean) =>
       val received = stream.filter(p)
       val expected = stream.flatMap(x => if (p(x)) Iterant[Task].now(x) else Iterant[Task].empty[Int])
-      received === expected
+      received <-> expected
     }
   }
 

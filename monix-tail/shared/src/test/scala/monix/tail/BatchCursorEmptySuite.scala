@@ -18,8 +18,9 @@
 package monix.tail
 
 import java.util.NoSuchElementException
+
 import minitest.SimpleTestSuite
-import monix.tail.batches.EmptyCursor
+import monix.tail.batches.{BatchCursor, EmptyCursor}
 
 object BatchCursorEmptySuite extends SimpleTestSuite {
   test("BatchCursor.empty.current") {

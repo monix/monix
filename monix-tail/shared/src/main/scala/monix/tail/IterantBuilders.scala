@@ -17,10 +17,11 @@
 
 package monix.tail
 
+import cats.Applicative
+import cats.effect.Sync
 import monix.eval.{Coeval, Task}
 import monix.tail.batches.{Batch, BatchCursor}
 import monix.tail.internal.IterantIntervalWithFixedDelay
-import monix.types.{Applicative, Monad}
 
 import scala.collection.immutable.LinearSeq
 import scala.concurrent.duration.{Duration, FiniteDuration}
@@ -41,7 +42,7 @@ class IterantBuilders[F[_]] extends SharedDocs {
     Iterant.pure(a)
 
   /** $builderEval */
-  def eval[A](a: => A)(implicit F: Applicative[F]): Iterant[F,A] =
+  def eval[A](a: => A)(implicit F: Sync[F]): Iterant[F,A] =
     Iterant.eval(a)(F)
 
   /** $nextSDesc
@@ -97,7 +98,7 @@ class IterantBuilders[F[_]] extends SharedDocs {
     *
     * @param fa $suspendByNameParam
     */
-  def suspend[A](fa: => Iterant[F, A])(implicit F: Applicative[F]): Iterant[F, A] =
+  def suspend[A](fa: => Iterant[F, A])(implicit F: Sync[F]): Iterant[F, A] =
     Iterant.suspend(fa)(F)
 
   /** Alias for [[suspend[A](fa* suspend]].
@@ -106,7 +107,7 @@ class IterantBuilders[F[_]] extends SharedDocs {
     *
     * @param fa $suspendByNameParam
     */
-  def defer[A](fa: => Iterant[F, A])(implicit F: Applicative[F]): Iterant[F, A] =
+  def defer[A](fa: => Iterant[F, A])(implicit F: Sync[F]): Iterant[F, A] =
     Iterant.defer(fa)(F)
 
   /** $builderSuspendByF
@@ -125,7 +126,7 @@ class IterantBuilders[F[_]] extends SharedDocs {
     Iterant.raiseError(ex)
 
   /** $builderTailRecM */
-  def tailRecM[A, B](a: A)(f: A => Iterant[F, Either[A, B]])(implicit F: Monad[F]): Iterant[F, B] =
+  def tailRecM[A, B](a: A)(f: A => Iterant[F, Either[A, B]])(implicit F: Sync[F]): Iterant[F, B] =
     Iterant.tailRecM(a)(f)(F)
 
   /** $builderFromArray */

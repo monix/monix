@@ -18,7 +18,7 @@
 package monix.tail
 package batches
 
-/** Reusable [[batches.Batch Batch]] base class that can
+/** Reusable [[Batch]] base class that can
   * be used for implementing generators that simply modify their underlying
   * cursor reference.
   */

@@ -17,17 +17,17 @@
 
 package monix.tail.internal
 
+import cats.effect.Sync
+import cats.syntax.all._
+import monix.execution.misc.NonFatal
 import monix.tail.Iterant
 import monix.tail.Iterant._
-import monix.types.Applicative
-import monix.types.syntax._
-
+import monix.tail.batches.BatchCursor
 import scala.collection.mutable.ArrayBuffer
-import scala.util.control.NonFatal
 
 private[tail] object IterantTakeWhile {
-  def apply[F[_], A](source: Iterant[F, A], p: A => Boolean)(implicit F: Applicative[F]): Iterant[F, A] = {
-    import F.functor
+  def apply[F[_], A](source: Iterant[F, A], p: A => Boolean)
+    (implicit F: Sync[F]): Iterant[F, A] = {
 
     @inline def finishWith(stop: F[Unit]): Iterant[F, A] =
       Suspend(stop.map(_ => Halt(None)), stop)
@@ -83,8 +83,7 @@ private[tail] object IterantTakeWhile {
           if (p(elem)) Last(elem) else Halt(None)
         case halt @ Halt(_) =>
           halt
-      }
-      catch {
+      } catch {
         case NonFatal(ex) =>
           val stop = source.earlyStop
           Suspend(stop.map(_ => Halt(Some(ex))), stop)
@@ -97,7 +96,7 @@ private[tail] object IterantTakeWhile {
       case Suspend(_, _) | Halt(_) =>
         loop(source)
       case _ =>
-        Suspend(F.eval(loop(source)), source.earlyStop)
+        Suspend(F.delay(loop(source)), source.earlyStop)
     }
   }
 }

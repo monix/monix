@@ -20,16 +20,17 @@ package monix.tail.internal
 import monix.tail.Iterant
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
 import monix.tail.internal.IterantUtils._
-import monix.types.Monad
-import monix.types.syntax._
-import scala.util.control.NonFatal
+import cats.syntax.all._
+import cats.effect.Sync
+import monix.execution.misc.NonFatal
 
 private[tail] object IterantStop {
   /**
     * Implementation for `Iterant#doOnEarlyStop`
     */
-  def doOnEarlyStop[F[_], A](source: Iterant[F, A], f: F[Unit])(implicit F: Monad[F]): Iterant[F,A] = {
-    import F.functor
+  def doOnEarlyStop[F[_], A](source: Iterant[F, A], f: F[Unit])
+    (implicit F: Sync[F]): Iterant[F,A] = {
+
     source match {
       case Next(head, rest, stop) =>
         Next(head, rest.map(doOnEarlyStop[F, A](_, f)), stop.flatMap(_ => f))
@@ -47,8 +48,9 @@ private[tail] object IterantStop {
   /**
     * Implementation for `Iterant#doOnFinish`
     */
-  def doOnFinish[F[_], A](source: Iterant[F, A], f: Option[Throwable] => F[Unit])(implicit F: Monad[F]): Iterant[F,A] = {
-    import F.{functor => U}
+  def doOnFinish[F[_], A](source: Iterant[F, A], f: Option[Throwable] => F[Unit])
+    (implicit F: Sync[F]): Iterant[F,A] = {
+
     try source match {
       case Next(item, rest, stop) =>
         Next(item, rest.map(doOnFinish[F, A](_, f)), stop.flatMap(_ => f(None)))
@@ -60,12 +62,11 @@ private[tail] object IterantStop {
         Suspend(rest.map(doOnFinish[F, A](_, f)), stop.flatMap(_ => f(None)))
       case last @ Last(_) =>
         val ref = f(None)
-        Suspend[F,A](U.map(ref)(_ => last), ref)
+        Suspend[F,A](F.map(ref)(_ => last), ref)
       case halt @ Halt(ex) =>
         val ref = f(ex)
-        Suspend[F,A](U.map(ref)(_ => halt), ref)
-    }
-    catch {
+        Suspend[F,A](F.map(ref)(_ => halt), ref)
+    } catch {
       case NonFatal(ex) => signalError(source, ex)
     }
   }

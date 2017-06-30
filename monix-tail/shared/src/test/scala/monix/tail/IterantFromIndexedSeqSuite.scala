@@ -23,14 +23,14 @@ object IterantFromIndexedSeqSuite extends BaseTestSuite {
   test("Iterant[Task].fromIndexedSeq") { implicit s =>
     check1 { (list: List[Int]) =>
       val result = Iterant[Task].fromIndexedSeq(list.toVector).toListL
-      result === Task.now(list)
+      result <-> Task.now(list)
     }
   }
 
   test("Iterant[Coeval].fromIndexedSeq") { implicit s =>
     check1 { (list: List[Int]) =>
       val result = Iterant[Coeval].fromIndexedSeq(list.toVector).toListL
-      result === Coeval.now(list)
+      result <-> Coeval.now(list)
     }
   }
 }

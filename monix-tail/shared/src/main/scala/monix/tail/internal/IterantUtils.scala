@@ -17,13 +17,18 @@
 
 package monix.tail.internal
 
+import cats.Functor
+import cats.syntax.all._
 import monix.tail.Iterant
 import monix.tail.Iterant._
-import monix.types.Functor
-import monix.types.syntax._
 
 private[tail] object IterantUtils {
-  def signalError[F[_], A, B](source: Iterant[F, A], ex: Throwable)(implicit F: Functor[F]): Iterant[F,B] = {
+  /** Internal utility for signaling an error, while
+    * suspending `stop` before that.
+    */
+  def signalError[F[_], A, B](source: Iterant[F, A], ex: Throwable)
+    (implicit F: Functor[F]): Iterant[F,B] = {
+
     val halt = Iterant.haltS[F,B](Some(ex))
     source match {
       case Next(_,_,stop) =>

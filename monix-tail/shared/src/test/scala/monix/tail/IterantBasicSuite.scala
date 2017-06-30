@@ -23,14 +23,14 @@ object IterantBasicSuite extends BaseTestSuite {
   test("arbitraryListToTaskStream works") { implicit s =>
     check2 { (list: List[Int], i: Int) =>
       val stream = arbitraryListToIterantTask(list, math.abs(i % 4))
-      stream.toListL === Task.now(list)
+      stream.toListL <-> Task.now(list)
     }
   }
 
   test("arbitraryListToCoevalStream") { implicit s =>
     check2 { (list: List[Int], i: Int) =>
       val stream = arbitraryListToIterantCoeval(list, math.abs(i % 4))
-      stream.toListL === Coeval.now(list)
+      stream.toListL <-> Coeval.now(list)
     }
   }
 }

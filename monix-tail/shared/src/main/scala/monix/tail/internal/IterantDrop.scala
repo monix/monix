@@ -17,18 +17,18 @@
 
 package monix.tail.internal
 
+import cats.effect.Sync
+import cats.syntax.all._
+import monix.execution.misc.NonFatal
 import monix.tail.Iterant
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
-import monix.types.Applicative
-import monix.types.syntax._
-import scala.util.control.NonFatal
 
 private[tail] object IterantDrop {
   /**
     * Implementation for `Iterant#drop`
     */
-  def apply[F[_], A](source: Iterant[F, A], n: Int)(implicit F: Applicative[F]): Iterant[F, A] = {
-    import F.functor
+  def apply[F[_], A](source: Iterant[F, A], n: Int)
+    (implicit F: Sync[F]): Iterant[F, A] = {
 
     // Reusable logic for NextCursor / NextBatch branches
     def dropFromCursor(toDrop: Int, ref: NextCursor[F, A]): Iterant[F, A] = {
@@ -47,7 +47,7 @@ private[tail] object IterantDrop {
 
     def loop(toDrop: Int)(source: Iterant[F, A]): Iterant[F, A] = {
       try if (toDrop <= 0) source else source match {
-        case Next(item, rest, stop) =>
+        case Next(_, rest, stop) =>
           Suspend(rest.map(loop(toDrop - 1)), stop)
         case ref @ NextCursor(_, _, _) =>
           dropFromCursor(toDrop, ref)
@@ -59,8 +59,7 @@ private[tail] object IterantDrop {
           Halt(None)
         case halt @ Halt(_) =>
           halt
-      }
-      catch {
+      } catch {
         case NonFatal(ex) =>
           val stop = source.earlyStop
           Suspend(stop.map(_ => Halt(Some(ex))), stop)
@@ -71,7 +70,7 @@ private[tail] object IterantDrop {
     // processing, so suspending execution in this case
     source match {
       case NextBatch(_, _, _) | NextCursor(_, _, _) =>
-        Suspend(F.eval(loop(n)(source)), source.earlyStop)
+        Suspend(F.delay(loop(n)(source)), source.earlyStop)
       case _ =>
         loop(n)(source)
     }

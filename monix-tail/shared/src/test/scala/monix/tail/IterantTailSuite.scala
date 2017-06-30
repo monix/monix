@@ -20,13 +20,14 @@ package monix.tail
 import monix.eval.{Coeval, Task}
 import monix.execution.exceptions.DummyException
 import monix.tail.Iterant.Suspend
+import monix.tail.batches.BatchCursor
 
 object IterantTailSuite extends BaseTestSuite {
   test("Iterant.tail is equivalent with List.tail") { implicit s =>
     check2 { (list: List[Int], idx: Int) =>
       val iter = arbitraryListToIterantTask(list, math.abs(idx))
       val stream = iter ++ Iterant[Task].fromList(List(1,2,3))
-      stream.tail.toListL === stream.toListL.map(_.tail)
+      stream.tail.toListL <-> stream.toListL.map(_.tail)
     }
   }
 
@@ -36,7 +37,7 @@ object IterantTailSuite extends BaseTestSuite {
       val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty), Task.unit)
       val stream = iter ++ suffix
       val received = stream.tail
-      received === Iterant[Task].haltS[Int](Some(dummy))
+      received <-> Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 
@@ -46,7 +47,7 @@ object IterantTailSuite extends BaseTestSuite {
       val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty), Task.unit)
       val stream = iter ++ suffix
       val received = stream.tail
-      received === Iterant[Task].haltS[Int](Some(dummy))
+      received <-> Iterant[Task].haltS[Int](Some(dummy))
     }
   }
 

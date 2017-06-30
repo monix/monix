@@ -24,21 +24,21 @@ object IterantFromSeqSuite extends BaseTestSuite {
   test("Iterant[Task].fromSeq(vector)") { implicit s =>
     check1 { (list: List[Int]) =>
       val result = Iterant[Task].fromSeq(list.toVector).toListL
-      result === Task.now(list)
+      result <-> Task.now(list)
     }
   }
 
   test("Iterant[Task].fromSeq(list)") { implicit s =>
     check1 { (list: List[Int]) =>
       val result = Iterant[Task].fromSeq(list).toListL
-      result === Task.now(list)
+      result <-> Task.now(list)
     }
   }
 
   test("Iterant[Task].fromSeq(iterable)") { implicit s =>
     check1 { (list: List[Int]) =>
       val result = Iterant[Task].fromSeq(list.to[ListBuffer]).toListL
-      result === Task.now(list)
+      result <-> Task.now(list)
     }
   }
 }

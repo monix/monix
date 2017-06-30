@@ -17,23 +17,22 @@
 
 package monix.tail.internal
 
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
+import cats.effect.Sync
+import cats.syntax.all._
+import monix.execution.misc.NonFatal
 import monix.tail.Iterant
-import monix.tail.batches.BatchCursor
-import monix.types.Monad
-import monix.types.syntax._
+import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
+import monix.tail.batches.{Batch, BatchCursor}
 
 import scala.collection.mutable.ArrayBuffer
-import scala.util.control.NonFatal
+
 
 private[tail] object IterantZipMap {
   /** 
     * Implementation for `Iterant#zipMap` 
     */
   def apply[F[_], A, B, C](lh: Iterant[F, A], rh: Iterant[F, B])(f: (A, B) => C)
-    (implicit F: Monad[F]): Iterant[F, C] = {
-    
-    import F.{functor, applicative => A}
+    (implicit F: Sync[F]): Iterant[F, C] = {
     
     def loop(lh: Iterant[F, A], rh: Iterant[F, B]): Iterant[F, C] = {
       def stopBoth(stopA: F[Unit], stopB: F[Unit]): F[Unit] =
@@ -41,7 +40,7 @@ private[tail] object IterantZipMap {
 
       @inline
       def processPair(a: A, restA: F[Iterant[F, A]], stopA: F[Unit], b: B, restB: F[Iterant[F, B]], stopB: F[Unit]) = {
-        val rest = A.map2(restA, restB)(loop)
+        val rest = F.map2(restA, restB)(loop)
         Next(f(a, b), rest, stopBoth(stopA, stopB))
       }
 
@@ -51,7 +50,7 @@ private[tail] object IterantZipMap {
         if (!itemsB.hasNext)
           Suspend(restB.map(loop(lh, _)), stopBoth(stopA, stopB))
         else
-          processPair(a, restA, stopA, itemsB.next(), A.pure(refB), stopB)
+          processPair(a, restA, stopA, itemsB.next(), F.pure(refB), stopB)
       }
 
       @inline
@@ -60,7 +59,7 @@ private[tail] object IterantZipMap {
         if (!itemsA.hasNext)
           Suspend(restA.map(loop(_, rh)), stopBoth(stopA, stopB))
         else
-          processPair(itemsA.next(), A.pure(refA), stopA, b, restB, stopB)
+          processPair(itemsA.next(), F.pure(refA), stopA, b, restB, stopB)
       }
 
       def processSeqASeqB(refA: NextCursor[F, A], refB: NextCursor[F, B]): Iterant[F, C] = {
@@ -85,9 +84,9 @@ private[tail] object IterantZipMap {
 
           if (isEmptyItemsA && isEmptyItemsB) {
             if (array.isEmpty)
-              Suspend(A.map2(restA, restB)(loop), stopBoth(stopA, stopB))
+              Suspend(F.map2(restA, restB)(loop), stopBoth(stopA, stopB))
             else
-              NextBatch(Batch.fromAnyArray(array), A.map2(restA, restB)(loop), stopBoth(stopA, stopB))
+              NextBatch(Batch.fromAnyArray(array), F.map2(restA, restB)(loop), stopBoth(stopA, stopB))
           }
           else if (isEmptyItemsA) {
             if (array.isEmpty)
@@ -103,7 +102,7 @@ private[tail] object IterantZipMap {
           }
           else {
             // We are not done, continue loop
-            NextBatch(Batch.fromAnyArray(array), A.eval(loop(refA, refB)), stopBoth(stopA, stopB))
+            NextBatch(Batch.fromAnyArray(array), F.delay(loop(refA, refB)), stopBoth(stopA, stopB))
           }
         }
         else if (!itemsA.hasNext)
@@ -113,7 +112,7 @@ private[tail] object IterantZipMap {
         else {
           val a = itemsA.next()
           val b = itemsB.next()
-          Next(f(a, b), A.eval(loop(refA, refB)), stopBoth(stopA, stopB))
+          Next(f(a, b), F.delay(loop(refA, refB)), stopBoth(stopA, stopB))
         }
       }
 
@@ -161,7 +160,7 @@ private[tail] object IterantZipMap {
           rh match {
             case Next(b, restB, stopB) =>
               processPair(a, restA, stopA, b, restB, stopB)
-            case refB @ NextCursor(itemsB, restB, stopB) =>
+            case refB @ NextCursor(_, _, stopB) =>
               processOneASeqB(lh, a, restA, stopB, refB)
             case NextBatch(itemsB, restB, stopB) =>
               val seq = NextCursor(itemsB.cursor(), restB, stopB)
@@ -188,14 +187,14 @@ private[tail] object IterantZipMap {
             case Last(_) =>
               Suspend(restA.map(loop(_, rh)), stopA)
             case Suspend(restB, stopB) =>
-              Suspend(A.map2(restA, restB)(loop), stopBoth(stopA, stopB))
+              Suspend(F.map2(restA, restB)(loop), stopBoth(stopA, stopB))
             case _ =>
               Suspend(restA.map(loop(_, rh)), stopBoth(stopA, rh.earlyStop))
           }
 
         case Last(a) =>
           rh match {
-            case Next(b, restB, stopB) =>
+            case Next(b, _, stopB) =>
               processLast(a, b, stopB)
             case NextCursor(itemsB, restB, stopB) =>
               processLastASeqB(a, itemsB, restB, stopB)
@@ -218,8 +217,7 @@ private[tail] object IterantZipMap {
             case _ =>
               Suspend(rh.earlyStop.map(_ => halt.asInstanceOf[Iterant[F, C]]), rh.earlyStop)
           }
-      }
-      catch {
+      } catch {
         case NonFatal(ex) =>
           val stop = lh.earlyStop.flatMap(_ => rh.earlyStop)
           Suspend(stop.map(_ => Halt(Some(ex))), stop)
@@ -228,6 +226,6 @@ private[tail] object IterantZipMap {
 
     // Given function can be side-effecting, must suspend!
     val stop = lh.earlyStop.flatMap(_ => rh.earlyStop)
-    Suspend(A.eval(loop(lh, rh)), stop)
+    Suspend(F.delay(loop(lh, rh)), stop)
   }
 }

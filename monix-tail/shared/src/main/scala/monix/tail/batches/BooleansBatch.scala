@@ -18,7 +18,7 @@
 package monix.tail
 package batches
 
-/** [[batches.Batch Batch]] implementation specialized for `Boolean`.
+/** [[Batch]] implementation specialized for `Boolean`.
   *
   * Under the hood it uses an [[monix.tail.batches.ArrayBatch ArrayBatch]]
   * implementation, which is `@specialized`. Using `BooleansBatch`

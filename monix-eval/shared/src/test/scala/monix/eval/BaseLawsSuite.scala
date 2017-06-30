@@ -40,7 +40,7 @@ trait BaseLawsSuite extends SimpleTestSuite with Checkers with ArbitraryInstance
       .withMinSuccessfulTests(if (Platform.isJVM) 100 else 10)
       .withMaxDiscardRatio(if (Platform.isJVM) 5.0f else 50.0f)
 
-  lazy val slowCheckConfig =
+  lazy val slowCheckConfig: Parameters =
     Parameters.default
       .withMinSuccessfulTests(10)
       .withMaxDiscardRatio(50.0f)

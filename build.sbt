@@ -358,8 +358,7 @@ lazy val evalJS = project.in(file("monix-eval/js"))
 
 lazy val tailCommon =
   crossSettings ++ testSettings ++ optimisationSettings ++ Seq(
-    name := "monix-tail",
-    scalacOptions += "-Yinline-warnings"
+    name := "monix-tail"
   )
 
 lazy val tailJVM = project.in(file("monix-tail/jvm"))
@@ -393,7 +392,7 @@ lazy val reactiveJVM = project.in(file("monix-reactive/jvm"))
 lazy val reactiveJS = project.in(file("monix-reactive/js"))
   .enablePlugins(ScalaJSPlugin)
   .configure(profile)
-  .dependsOn(executionJS, evalJS % "compile->compile; test->test", tailJVM)
+  .dependsOn(executionJS, evalJS % "compile->compile; test->test", tailJS)
   .settings(reactiveCommon)
   .settings(scalaJSSettings)
 

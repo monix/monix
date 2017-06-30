@@ -19,6 +19,8 @@ package monix.tail
 
 import monix.eval.{Coeval, Task}
 import monix.execution.exceptions.DummyException
+import monix.tail.batches.BatchCursor
+
 import scala.util.{Failure, Success}
 
 object IterantStatesSuite extends BaseTestSuite {

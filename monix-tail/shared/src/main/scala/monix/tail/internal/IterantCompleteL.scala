@@ -17,40 +17,40 @@
 
 package monix.tail.internal
 
+import cats.effect.Sync
+import cats.syntax.all._
+import monix.execution.misc.NonFatal
+import monix.tail.ApplicativeUtils
 import monix.tail.Iterant
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
-import monix.types.Monad
-import monix.types.syntax._
-import scala.util.control.NonFatal
 
 private[tail] object IterantCompleteL {
   /**
     * Implementation for `Iterant#completeL`
     */
-  final def apply[F[_], A](source: Iterant[F, A])(implicit F: Monad[F]): F[Unit] = {
-    import F.{functor, applicative => A}
+  final def apply[F[_], A](source: Iterant[F, A])
+    (implicit F: Sync[F]): F[Unit] = {
 
     def loop(self: Iterant[F, A]): F[Unit] = {
       try self match {
-        case Next(a, rest, stop) =>
+        case Next(_, rest, _) =>
           rest.flatMap(loop)
-        case NextCursor(cursor, rest, stop) =>
+        case NextCursor(cursor, rest, _) =>
           while (cursor.hasNext()) cursor.next()
           rest.flatMap(loop)
-        case NextBatch(gen, rest, stop) =>
+        case NextBatch(gen, rest, _) =>
           val cursor = gen.cursor()
           while (cursor.hasNext()) cursor.next()
           rest.flatMap(loop)
-        case Suspend(rest, stop) =>
+        case Suspend(rest, _) =>
           rest.flatMap(loop)
-        case Last(item) =>
-          A.unit
+        case Last(_) =>
+          F.unit
         case Halt(None) =>
-          A.unit
+          F.unit
         case Halt(Some(ex)) =>
-          A.eval(throw ex)
-      }
-      catch {
+          F.raiseError(ex)
+      } catch {
         case NonFatal(ex) =>
           source.earlyStop.map(_ => throw ex)
       }

@@ -21,6 +21,7 @@ import monix.eval.{Coeval, Task}
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
+import monix.tail.batches.BatchCursor
 import org.scalacheck.Test
 import org.scalacheck.Test.Parameters
 
@@ -36,7 +37,7 @@ object IterantZipMapSuite extends BaseTestSuite {
     check3 { (stream1: Iterant[Task, Int], stream2: Iterant[Task, Int], f: (Int, Int) => Long) =>
       val received = stream1.zipMap(stream2)(f).toListL
       val expected = Task.zipMap2(stream1.toListL, stream2.toListL)((l1, l2) => l1.zip(l2).map { case (a,b) => f(a,b) })
-      received === expected
+      received <-> expected
     }
   }
 
@@ -48,14 +49,14 @@ object IterantZipMapSuite extends BaseTestSuite {
       val stream1 = s1 ++ suffix
       val stream2 = s2 ++ suffix
       val received = stream1.zipMap(stream2)(f).toListL
-      received === Task.raiseError(dummy)
+      received <-> Task.raiseError(dummy)
     }
   }
 
   test("Iterant.zipMap triggers early stop on user error") { implicit s =>
     check3 { (s1: Iterant[Task, Int], s2: Iterant[Task, Int], idx: Int) =>
       val dummy = DummyException("dummy")
-      val f = (x: Int, y: Int) => (throw dummy) : Long
+      val f = (_: Int, _: Int) => (throw dummy) : Long
 
       val suffix = math.abs(idx % 3) match {
         case 0 => Iterant[Task].fromIterable(List(1,2,3))

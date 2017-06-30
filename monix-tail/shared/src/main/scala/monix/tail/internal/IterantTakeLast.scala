@@ -17,37 +17,38 @@
 
 package monix.tail.internal
 
+import cats.effect.Sync
+import cats.syntax.all._
 import monix.execution.internal.collection.DropHeadOnOverflowQueue
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
 import monix.tail.Iterant
-import monix.types.Monad
-import monix.types.syntax._
+import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
+import monix.tail.batches.BatchCursor
+import monix.tail.ApplicativeUtils
 
 private[tail] object IterantTakeLast {
   /**
     * Implementation for `Iterant#takeLast`
     */
-  def apply[F[_], A](source: Iterant[F, A], n: Int)(implicit F: Monad[F]): Iterant[F, A] = {
-    import F.{functor, applicative => A}
+  def apply[F[_], A](source: Iterant[F, A], n: Int)(implicit F: Sync[F]): Iterant[F, A] = {
 
     def finalCursor(buffer: DropHeadOnOverflowQueue[A]): F[Iterant[F, A]] = {
       val cursor = BatchCursor.fromIterator(buffer.iterator(true), Int.MaxValue)
-      A.pure(NextCursor(cursor, A.pure(Halt(None)), A.unit))
+      F.pure(NextCursor(cursor, F.pure(Halt(None)), F.unit))
     }
 
     def loop(buffer: DropHeadOnOverflowQueue[A])(source: Iterant[F, A]): F[Iterant[F, A]] = {
       source match {
-        case Next(item, rest, stop) =>
+        case Next(item, rest, _) =>
           buffer.offer(item)
           rest.flatMap(loop(buffer))
-        case NextCursor(cursor, rest, stop) =>
+        case NextCursor(cursor, rest, _) =>
           while (cursor.hasNext()) buffer.offer(cursor.next())
           rest.flatMap(loop(buffer))
-        case NextBatch(batch, rest, stop) =>
+        case NextBatch(batch, rest, _) =>
           val cursor = batch.cursor()
           while (cursor.hasNext()) buffer.offer(cursor.next())
           rest.flatMap(loop(buffer))
-        case Suspend(rest, stop) =>
+        case Suspend(rest, _) =>
           rest.flatMap(loop(buffer))
         case Last(item) =>
           buffer.offer(item)
@@ -55,7 +56,7 @@ private[tail] object IterantTakeLast {
         case Halt(None) =>
           finalCursor(buffer)
         case halt @ Halt(Some(_)) =>
-          A.pure(halt)
+          F.pure(halt)
       }
     }
 
@@ -66,7 +67,7 @@ private[tail] object IterantTakeLast {
     else {
       // Suspending execution, because pushing into our buffer
       // is side-effecting
-      val buffer = A.eval(DropHeadOnOverflowQueue.boxed[A](n))
+      val buffer = F.delay(DropHeadOnOverflowQueue.boxed[A](n))
       Suspend(buffer.flatMap(b => loop(b)(source)), stopRef)
     }
   }

@@ -25,7 +25,7 @@ object IterantConcatSuite extends BaseTestSuite {
       val source = Iterant[Task].fromList(list)
       val received = a #:: source
       val expected = Iterant[Task].fromList(a :: list)
-      received === expected
+      received <-> expected
     }
   }
 
@@ -35,7 +35,7 @@ object IterantConcatSuite extends BaseTestSuite {
       val iter2 = Iterant[Task].fromList(list2)
       val received = iter1 ++ iter2
       val expected = Iterant[Task].fromList(list1 ::: list2)
-      received === expected
+      received <-> expected
     }
   }
 }

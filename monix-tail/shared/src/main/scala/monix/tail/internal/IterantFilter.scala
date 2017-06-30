@@ -17,20 +17,18 @@
 
 package monix.tail.internal
 
+import cats.syntax.all._
+import cats.effect.Sync
 import monix.tail.Iterant
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
 import monix.tail.internal.IterantUtils._
-import monix.types.Applicative
-import monix.types.syntax._
 import scala.util.control.NonFatal
 
 private[tail] object IterantFilter {
   /**
     * Implementation for `Iterant#filter`
     */
-  def apply[F[_], A](source: Iterant[F, A], p: A => Boolean)(implicit A: Applicative[F]): Iterant[F,A] = {
-    import A.{functor => F}
-
+  def apply[F[_], A](source: Iterant[F, A], p: A => Boolean)(implicit F: Sync[F]): Iterant[F,A] = {
     def loop(source: Iterant[F,A]): Iterant[F,A] = {
       try source match {
         case Next(item, rest, stop) =>
@@ -66,7 +64,7 @@ private[tail] object IterantFilter {
       case _ =>
         // Given function can be side-effecting,
         // so we must suspend the execution
-        Suspend(A.eval(loop(source)), source.earlyStop)
+        Suspend(F.delay(loop(source)), source.earlyStop)
     }
   }
 }
