@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,7 +30,6 @@ private[monix] object TaskChooseFirstOfList {
     Task.unsafeCreate { (context, callback) =>
       implicit val s = context.scheduler
       val conn = context.connection
-      var streamErrors = true
 
       val isActive = Atomic.withPadding(true, PaddingStrategy.LeftRight128)
       val taskArray = tasks.toArray

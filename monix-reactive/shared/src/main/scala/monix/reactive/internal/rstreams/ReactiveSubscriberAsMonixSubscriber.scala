@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,10 +32,10 @@ import scala.concurrent.{Future, Promise}
   * into an [[monix.reactive.Observer Observer]] instance that
   * respect the `Observer` contract.
   */
-private[monix] final class ReactiveSubscriberAsMonixSubscriber[T] private
-    (subscriber: RSubscriber[T], subscription: Cancelable)
-    (implicit val scheduler: Scheduler)
-  extends Subscriber[T] with Cancelable { self =>
+private[reactive] final class ReactiveSubscriberAsMonixSubscriber[A] private
+  (subscriber: RSubscriber[A], subscription: Cancelable)
+  (implicit val scheduler: Scheduler)
+  extends Subscriber[A] with Cancelable { self =>
 
   if (subscriber == null) throw null
 
@@ -51,7 +51,7 @@ private[monix] final class ReactiveSubscriberAsMonixSubscriber[T] private
   }
 
   @tailrec
-  def onNext(elem: T): Future[Ack] = {
+  def onNext(elem: A): Future[Ack] = {
     if (isComplete)
       Stop
     else if (firstEvent) {
@@ -104,15 +104,15 @@ private[monix] final class ReactiveSubscriberAsMonixSubscriber[T] private
   }
 }
 
-private[monix] object ReactiveSubscriberAsMonixSubscriber {
+private[reactive] object ReactiveSubscriberAsMonixSubscriber {
   /** Given an `org.reactivestreams.Subscriber` as defined by
     * the [[http://www.reactive-streams.org/ Reactive Streams]]
     * specification, it builds an [[monix.reactive.Observer]]
     * instance compliant with the Monix Rx implementation.
     */
-  def apply[T](subscriber: RSubscriber[T], subscription: Cancelable)
-    (implicit s: Scheduler): ReactiveSubscriberAsMonixSubscriber[T] =
-    new ReactiveSubscriberAsMonixSubscriber[T](subscriber, subscription)
+  def apply[A](subscriber: RSubscriber[A], subscription: Cancelable)
+    (implicit s: Scheduler): ReactiveSubscriberAsMonixSubscriber[A] =
+    new ReactiveSubscriberAsMonixSubscriber[A](subscriber, subscription)
 
   /** An asynchronous queue implementation for dealing with
     * requests from a Subscriber.

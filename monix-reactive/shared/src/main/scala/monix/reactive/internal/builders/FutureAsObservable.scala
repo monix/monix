@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,18 +17,19 @@
 
 package monix.reactive.internal.builders
 
-import monix.execution.{CancelableFuture, Cancelable}
+import monix.execution.misc.NonFatal
+import monix.execution.{Cancelable, CancelableFuture}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
+
 import scala.concurrent.Future
-import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
 /** Converts any `Future` into an observable */
-private[reactive] final class FutureAsObservable[T](factory: => Future[T])
-  extends Observable[T] {
+private[reactive] final class FutureAsObservable[A](factory: => Future[A])
+  extends Observable[A] {
 
-  def unsafeSubscribeFn(subscriber: Subscriber[T]): Cancelable = {
+  def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     import subscriber.{scheduler => s}
     // Protects calls to user code
     var streamErrors = true

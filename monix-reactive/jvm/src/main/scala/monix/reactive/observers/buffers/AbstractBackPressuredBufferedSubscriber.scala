@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,87 +21,94 @@ import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight256
+import monix.execution.internal.math
+import monix.execution.misc.NonFatal
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
+
+import scala.annotation.tailrec
 import scala.concurrent.{Future, Promise}
-import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
 /** Shared internals between [[BackPressuredBufferedSubscriber]] and
   * [[BatchedBufferedSubscriber]].
   */
 private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
-  (out: Subscriber[R], bufferSize: Int)
+  (out: Subscriber[R], _bufferSize: Int)
   extends CommonBufferMembers with BufferedSubscriber[A] {
 
-  require(bufferSize > 0, "bufferSize must be a strictly positive number")
+  require(_bufferSize > 0, "bufferSize must be a strictly positive number")
 
+  private[this] val bufferSize = math.nextPowerOf2(_bufferSize)
   private[this] val em = out.scheduler.executionModel
   implicit final val scheduler = out.scheduler
 
-  /** Primary queue. */
-  protected final val primaryQueue: ConcurrentQueue[A] =
-    ConcurrentQueue.limited[A](bufferSize)
-
-  /** Whenever the primary queue is full, we still have
-    * to enqueue the incoming messages somewhere. This
-    * secondary queue gets used whenever the data-source
-    * starts being back-pressured.
-    */
-  protected final val secondaryQueue: ConcurrentQueue[A] =
-    ConcurrentQueue.unbounded[A](isBatched = false)
+  protected final val queue: ConcurrentQueue[A] =
+    ConcurrentQueue.unbounded()
 
   private[this] val itemsToPush =
     Atomic.withPadding(0, LeftRight256)
   private[this] val backPressured =
     Atomic.withPadding(null : Promise[Ack], LeftRight256)
 
-  final def onNext(elem: A): Future[Ack] = {
+  @tailrec
+  private final def pushOnNext(elem: A, lastToPush: Option[Int]): Future[Ack] = {
     if (upstreamIsComplete || downstreamIsComplete)
       Stop
     else if (elem == null) {
       onError(new NullPointerException("Null not supported in onNext"))
       Stop
     }
-    else backPressured.get match {
-      case null =>
-        if (primaryQueue.offer(elem)) {
-          pushToConsumer()
-          Continue
-        } else {
-          val promise = Promise[Ack]()
-          if (!backPressured.compareAndSet(null, promise))
-            onNext(elem)
-          else {
-            secondaryQueue.offer(elem)
-            pushToConsumer()
-            promise.future
+    else {
+      val toPush = lastToPush match {
+        case None => itemsToPush.getAndIncrement()
+        case Some(v) => v
+      }
+
+      backPressured.get match {
+        case null =>
+          if (toPush < bufferSize) {
+            queue.offer(elem)
+            pushToConsumer(toPush)
+            Continue
           }
-        }
-      case promise =>
-        secondaryQueue.offer(elem)
-        pushToConsumer()
-        promise.future
+          else {
+            val promise = Promise[Ack]()
+
+            if (!backPressured.compareAndSet(null, promise))
+              pushOnNext(elem, Some(toPush))
+            else {
+              queue.offer(elem)
+              pushToConsumer(toPush)
+              promise.future
+            }
+          }
+        case promise =>
+          queue.offer(elem)
+          pushToConsumer(toPush)
+          promise.future
+      }
     }
   }
 
-  final def onError(ex: Throwable): Unit = {
+  final def onNext(elem: A): Future[Ack] =
+    pushOnNext(elem, None)
+
+  private def pushComplete(ex: Option[Throwable], toPush: Option[Int]): Unit = {
     if (!upstreamIsComplete && !downstreamIsComplete) {
-      errorThrown = ex
+      errorThrown = ex.orNull
       upstreamIsComplete = true
-      pushToConsumer()
+      val nr = toPush.getOrElse(itemsToPush.getAndIncrement())
+      pushToConsumer(nr)
     }
   }
 
-  final def onComplete(): Unit = {
-    if (!upstreamIsComplete && !downstreamIsComplete) {
-      upstreamIsComplete = true
-      pushToConsumer()
-    }
-  }
+  final def onError(ex: Throwable): Unit =
+    pushComplete(Some(ex), None)
 
-  private final def pushToConsumer(): Unit = {
-    val currentNr = itemsToPush.getAndIncrement()
+  final def onComplete(): Unit =
+    pushComplete(None, None)
 
+  private final def pushToConsumer(currentNr: Int): Unit = {
     // If a run-loop isn't started, then go, go, go!
     if (currentNr == 0) {
       // Starting the run-loop, as at this point we can be sure
@@ -163,12 +170,10 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
         case Success(Stop) =>
           // ending loop
           downstreamIsComplete = true
-          itemsToPush.set(0)
 
         case Failure(ex) =>
           // ending loop
           downstreamIsComplete = true
-          itemsToPush.set(0)
           signalError(ex)
       }
 
@@ -177,7 +182,6 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
         downstreamIsComplete = true
         val bp = backPressured.get
         if (bp != null) bp.success(Stop)
-        itemsToPush.set(0)
       }
 
       var ack = if (prevAck == null) Continue else prevAck
@@ -210,7 +214,7 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
                 stopStreaming()
                 return
 
-              case async =>
+              case _ =>
                 goAsync(next, nextSize, ack, processed)
                 return
             }
@@ -225,9 +229,11 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
           // visible, then the queue should be fully published because
           // there's a clear happens-before relationship between
           // queue.offer() and upstreamIsComplete=true
-          if (primaryQueue.isEmpty && secondaryQueue.isEmpty) {
+          if (queue.isEmpty) {
             // ending loop
             stopStreaming()
+            itemsToPush.decrement(processed + 1)
+
             if (errorThrown ne null) signalError(errorThrown)
             else signalComplete()
             return
@@ -244,7 +250,7 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A,R]
 
           // if the queue is non-empty (i.e. concurrent modifications
           // just happened) then continue loop, otherwise stop
-          if (remaining <= 0) {
+          if (remaining == 0) {
             val bp = backPressured.getAndSet(null)
             if (bp != null) bp.success(Continue)
             return

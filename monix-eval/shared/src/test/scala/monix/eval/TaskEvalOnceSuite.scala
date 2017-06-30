@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,10 +17,7 @@
 
 package monix.eval
 
-
-import monix.eval.Coeval.{Error, Now}
 import monix.execution.exceptions.DummyException
-
 import scala.util.{Failure, Success}
 
 object TaskEvalOnceSuite extends BaseTestSuite {
@@ -47,24 +44,24 @@ object TaskEvalOnceSuite extends BaseTestSuite {
   test("Task.evalOnce.flatMap should be equivalent with Task.evalOnce") { implicit s =>
     val ex = DummyException("dummy")
     val t = Task.evalOnce[Int](if (1 == 1) throw ex else 1).flatMap(Task.now)
-    check(t === Task.raiseError(ex))
+    check(t <-> Task.raiseError(ex))
   }
 
   test("Task.evalOnce.flatMap should protect against user code") { implicit s =>
     val ex = DummyException("dummy")
     val t = Task.evalOnce(1).flatMap[Int](_ => throw ex)
-    check(t === Task.raiseError(ex))
+    check(t <-> Task.raiseError(ex))
   }
 
   test("Task.evalOnce.map should work") { implicit s =>
     check1 { a: Int =>
-      Task.evalOnce(a).map(_ + 1) === Task.evalOnce(a + 1)
+      Task.evalOnce(a).map(_ + 1) <-> Task.evalOnce(a + 1)
     }
   }
 
   test("Task.evalOnce.flatMap should be tail recursive") { implicit s =>
     def loop(n: Int, idx: Int): Task[Int] =
-      Task.evalOnce(idx).flatMap { a =>
+      Task.evalOnce(idx).flatMap { _ =>
         if (idx < n) loop(n, idx + 1).map(_ + 1) else
           Task.evalOnce(idx)
       }
@@ -95,16 +92,16 @@ object TaskEvalOnceSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("Task.evalOnce.materializeAttempt should work for success") { implicit s =>
-    val task = Task.evalOnce(1).materializeAttempt
+  test("Task.evalOnce.materialize should work for success") { implicit s =>
+    val task = Task.evalOnce(1).materialize
     val f = task.runAsync
-    assertEquals(f.value, Some(Success(Now(1))))
+    assertEquals(f.value, Some(Success(Success(1))))
   }
 
-  test("Task.evalOnce.materializeAttempt should work for failure") { implicit s =>
+  test("Task.evalOnce.materialize should work for failure") { implicit s =>
     val dummy = DummyException("dummy")
-    val task = Task.evalOnce[Int](throw dummy).materializeAttempt
+    val task = Task.evalOnce[Int](throw dummy).materialize
     val f = task.runAsync
-    assertEquals(f.value, Some(Success(Error(dummy))))
+    assertEquals(f.value, Some(Success(Failure(dummy))))
   }
 }

@@ -18,7 +18,7 @@
 package monix.tail
 package batches
 
-/** [[monix.tail.Batch Batch]] implementation that wraps any
+/** [[Batch]] implementation that wraps any
   * Scala [[scala.collection.Seq Seq]].
   */
 final class SeqBatch[+A](ref: Seq[A], recommendedBatchSize: Int) extends Batch[A] {

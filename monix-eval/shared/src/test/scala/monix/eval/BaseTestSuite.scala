@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,36 +20,12 @@ package monix.eval
 import minitest.TestSuite
 import minitest.laws.Checkers
 import monix.execution.schedulers.TestScheduler
-import monix.types.tests.Eq
-import org.scalacheck.Prop
-import org.scalacheck.Test.Parameters
 
-trait BaseTestSuite extends TestSuite[TestScheduler]
+abstract class BaseTestSuite extends TestSuite[TestScheduler]
   with Checkers with ArbitraryInstances {
-
-  override lazy val checkConfig: Parameters =
-    super.checkConfig.withMaxSize(64)
 
   def setup(): TestScheduler = TestScheduler()
   def tearDown(env: TestScheduler): Unit = {
     assert(env.state.tasks.isEmpty, "should not have tasks left to execute")
   }
-
-  implicit def isEquivToProp[A](p: IsEquiv[A])(implicit A: Eq[A]): Prop =
-    Prop(A(p.lh, p.rh))
-
-  implicit def isEquivListToProp[A](ns: List[IsEquiv[A]])(implicit A: Eq[A]): Prop =
-    Prop(ns.forall(p => A(p.lh, p.rh)))
-
-  implicit def isNotEquivToProp[A](p: IsNotEquiv[A])(implicit A: Eq[A]): Prop =
-    Prop(!A(p.lh, p.rh))
-
-  implicit def isNotEquivListToProp[A](ns: List[IsNotEquiv[A]])(implicit A: Eq[A]): Prop =
-    Prop(ns.forall(p => !A(p.lh, p.rh)))
 }
-
-/** For expressing equivalence. */
-final case class IsEquiv[A](lh: A, rh: A)
-
-/** For negating equivalence. */
-final case class IsNotEquiv[A](lh: A, rh: A)

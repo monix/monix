@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,10 +22,11 @@ import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight256
 import monix.execution.internal.math.nextPowerOf2
+import monix.execution.misc.NonFatal
 import monix.reactive.exceptions.BufferOverflowException
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
+
 import scala.concurrent.Future
-import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
 /** A highly optimized [[BufferedSubscriber]] implementation. It supports 2
@@ -167,12 +168,10 @@ private[observers] abstract class AbstractSimpleBufferedSubscriber[A] protected
         case Success(Stop) =>
           // ending loop
           downstreamIsComplete = true
-          itemsToPush.set(0)
 
         case Failure(ex) =>
           // ending loop
           downstreamIsComplete = true
-          itemsToPush.set(0)
           signalError(ex)
       }
 
@@ -195,7 +194,6 @@ private[observers] abstract class AbstractSimpleBufferedSubscriber[A] protected
                 if (ack == Stop) {
                   // ending loop
                   downstreamIsComplete = true
-                  itemsToPush.set(0)
                   return
                 } else {
                   val isSync = ack == Continue
@@ -206,10 +204,9 @@ private[observers] abstract class AbstractSimpleBufferedSubscriber[A] protected
               case Stop =>
                 // ending loop
                 downstreamIsComplete = true
-                itemsToPush.set(0)
                 return
 
-              case async =>
+              case _ =>
                 goAsync(next, ack, processed)
                 return
             }
@@ -227,7 +224,6 @@ private[observers] abstract class AbstractSimpleBufferedSubscriber[A] protected
           if (queue.isEmpty) {
             // ending loop
             downstreamIsComplete = true
-            itemsToPush.set(0)
 
             if (errorThrown ne null) signalError(errorThrown)
             else signalComplete()
@@ -254,7 +250,7 @@ private[observers] abstract class AbstractSimpleBufferedSubscriber[A] protected
 
 private[observers] object SimpleBufferedSubscriber {
   def unbounded[A](underlying: Subscriber[A]): SimpleBufferedSubscriber[A] = {
-    val queue = ConcurrentQueue.unbounded[A](isBatched = true)
+    val queue = ConcurrentQueue.unbounded[A]()
     new SimpleBufferedSubscriber[A](underlying, queue, Int.MaxValue)
   }
 

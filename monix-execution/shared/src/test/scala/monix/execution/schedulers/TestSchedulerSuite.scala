@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -292,16 +292,16 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
   def action(f: => Unit): Runnable =
     new Runnable { def run() = f }
 
-  def delayedResult[T](delay: FiniteDuration, timeout: FiniteDuration)(r: => T)(implicit s: Scheduler) = {
+  def delayedResult[A](delay: FiniteDuration, timeout: FiniteDuration)(r: => A)(implicit s: Scheduler) = {
     val f1 = {
-      val p = Promise[T]()
+      val p = Promise[A]()
       s.scheduleOnce(delay.length, delay.unit, action(p.success(r)))
       p.future
     }
 
     // catching the exception here, for non-useless stack traces
     val err = Try(throw new TimeoutException)
-    val promise = Promise[T]()
+    val promise = Promise[A]()
     val task = s.scheduleOnce(timeout.length, timeout.unit, action(promise.tryComplete(err)))
 
     f1.onComplete { result =>

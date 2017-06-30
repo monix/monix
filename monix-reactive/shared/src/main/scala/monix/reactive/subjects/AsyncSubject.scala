@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,20 +31,20 @@ import scala.annotation.tailrec
   * items to subsequent subscribers, but will simply pass along the error
   * notification from the source Observable.
   */
-final class AsyncSubject[T] extends Subject[T,T] { self =>
+final class AsyncSubject[A] extends Subject[A,A] { self =>
   /*
    * NOTE: the stored vector value can be null and if it is, then
    * that means our subject has been terminated.
    */
-  private[this] val stateRef = Atomic(State[T]())
+  private[this] val stateRef = Atomic(State[A]())
 
   private[this] var onNextHappened = false
-  private[this] var cachedElem: T = _
+  private[this] var cachedElem: A = _
 
   def size: Int =
     stateRef.get.subscribers.size
 
-  def onNext(elem: T): Ack = {
+  def onNext(elem: A): Ack = {
     if (stateRef.get.isDone) Stop else {
       if (!onNextHappened) onNextHappened = true
       cachedElem = elem
@@ -61,7 +61,7 @@ final class AsyncSubject[T] extends Subject[T,T] { self =>
   }
 
   @tailrec
-  def unsafeSubscribeFn(subscriber: Subscriber[T]): Cancelable = {
+  def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     val state = stateRef.get
     val subscribers = state.subscribers
 
@@ -117,7 +117,7 @@ final class AsyncSubject[T] extends Subject[T,T] { self =>
     }
   }
 
-  @tailrec private def unsubscribe(s: Subscriber[T]): Unit = {
+  @tailrec private def unsubscribe(s: Subscriber[A]): Unit = {
     val current = stateRef.get
     if (current.subscribers ne null) {
       val update = current.copy(subscribers = current.subscribers - s)
@@ -128,6 +128,6 @@ final class AsyncSubject[T] extends Subject[T,T] { self =>
 }
 
 object AsyncSubject {
-  def apply[T](): AsyncSubject[T] =
-    new AsyncSubject[T]()
+  def apply[A](): AsyncSubject[A] =
+    new AsyncSubject[A]()
 }

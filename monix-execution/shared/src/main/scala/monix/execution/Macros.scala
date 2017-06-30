@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,7 +27,6 @@ import scala.reflect.macros.whitebox
   * [[monix.execution.Ack.AckExtensions AckExtensions]] and
   * [[monix.execution.Scheduler Scheduler]].
   */
-@macrocompat.bundle
 class Macros(override val c: whitebox.Context) extends InlineMacros with HygieneUtilMacros {
   import c.universe._
 
@@ -66,7 +65,7 @@ class Macros(override val c: whitebox.Context) extends InlineMacros with Hygiene
         if ($self eq $ContinueSymbol)
           try { $execute } catch {
             case ex: Throwable =>
-              if (_root_.scala.util.control.NonFatal(ex))
+              if (_root_.monix.execution.misc.NonFatal(ex))
                 $scheduler.reportFailure(ex)
               else
                 throw ex
@@ -100,7 +99,7 @@ class Macros(override val c: whitebox.Context) extends InlineMacros with Hygiene
         if ($self eq $StopSymbol)
           try { $execute(_root_.scala.None) } catch {
             case ex: _root_.scala.Throwable =>
-              if (_root_.scala.util.control.NonFatal(ex))
+              if (_root_.monix.execution.misc.NonFatal(ex))
                 $scheduler.reportFailure(ex)
               else
                 throw ex
@@ -142,7 +141,7 @@ class Macros(override val c: whitebox.Context) extends InlineMacros with Hygiene
               $f($self.asInstanceOf[$AckSymbol]) : $AckSymbol
             } catch {
               case ex: _root_.java.lang.Throwable =>
-                if (_root_.scala.util.control.NonFatal(ex)) {
+                if (_root_.monix.execution.misc.NonFatal(ex)) {
                   $schedulerExpr.reportFailure(ex)
                   $StopSymbol
                 } else {
@@ -163,7 +162,7 @@ class Macros(override val c: whitebox.Context) extends InlineMacros with Hygiene
               $fn($self.asInstanceOf[$AckSymbol]) : $AckSymbol
             } catch {
               case ex: Throwable =>
-                if (_root_.scala.util.control.NonFatal(ex)) {
+                if (_root_.monix.execution.misc.NonFatal(ex)) {
                   $schedulerExpr.reportFailure(ex)
                   $StopSymbol
                 } else {
@@ -199,7 +198,7 @@ class Macros(override val c: whitebox.Context) extends InlineMacros with Hygiene
               $f($self.asInstanceOf[$AckSymbol]) : $FutureSymbol[$AckSymbol]
             } catch {
               case ex: Throwable =>
-                if (_root_.scala.util.control.NonFatal(ex)) {
+                if (_root_.monix.execution.misc.NonFatal(ex)) {
                   $schedulerExpr.reportFailure(ex)
                   $StopSymbol
                 } else {
@@ -221,7 +220,7 @@ class Macros(override val c: whitebox.Context) extends InlineMacros with Hygiene
               $fn($self.asInstanceOf[$AckSymbol]) : $FutureSymbol[$AckSymbol]
             } catch {
               case ex: Throwable =>
-                if (_root_.scala.util.control.NonFatal(ex)) {
+                if (_root_.monix.execution.misc.NonFatal(ex)) {
                   $schedulerExpr.reportFailure(ex)
                   $StopSymbol
                 } else {
@@ -263,7 +262,7 @@ class Macros(override val c: whitebox.Context) extends InlineMacros with Hygiene
               ()
             } catch {
               case ex: Throwable =>
-                if (_root_.scala.util.control.NonFatal(ex)) {
+                if (_root_.monix.execution.misc.NonFatal(ex)) {
                   $schedulerExpr.reportFailure(ex)
                 } else {
                   throw ex
@@ -285,7 +284,7 @@ class Macros(override val c: whitebox.Context) extends InlineMacros with Hygiene
               ()
             } catch {
               case ex: Throwable =>
-                if (_root_.scala.util.control.NonFatal(ex)) {
+                if (_root_.monix.execution.misc.NonFatal(ex)) {
                   $schedulerExpr.reportFailure(ex)
                 } else {
                   throw ex

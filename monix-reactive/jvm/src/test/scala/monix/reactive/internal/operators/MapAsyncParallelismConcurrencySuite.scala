@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,7 +30,7 @@ object MapAsyncParallelismConcurrencySuite extends BaseConcurrencySuite {
 
       val task1 = Observable.fromIterable(list).mapAsync(parallelism)(x => Task(x)).sumL
       val task2 = Task.eval(list.sum)
-      task1 === task2
+      task1 <-> task2
     }
   }
 }

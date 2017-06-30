@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2016 by its authors. Some rights reserved.
- * See the project homepage at: https://sincron.org
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,13 +24,13 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 
 
-abstract class ConcurrentAtomicSuite[T, R <: Atomic[T]](
-  builder: AtomicBuilder[T, R], strategy: PaddingStrategy,
-  valueFromInt: Int => T, valueToInt: T => Int,
+abstract class ConcurrentAtomicSuite[A, R <: Atomic[A]](
+  builder: AtomicBuilder[A, R], strategy: PaddingStrategy,
+  valueFromInt: Int => A, valueToInt: A => Int,
   allowPlatformIntrinsics: Boolean)
   extends SimpleTestSuite {
 
-  def Atomic(initial: T): R = builder.buildInstance(initial, strategy, allowPlatformIntrinsics)
+  def Atomic(initial: A): R = builder.buildInstance(initial, strategy, allowPlatformIntrinsics)
   def zero = valueFromInt(0)
   def one = valueFromInt(1)
   def two = valueFromInt(2)

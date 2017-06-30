@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,7 +30,7 @@ import scala.concurrent.Promise
   * `Listener` semantics to types that cannot be `Function1[A,Unit]`.
   *
   * In particular `monix.eval.Callback` is a supertype of
-  * `Listener`, even though `Callback` is a `Try[T] => Unit`.
+  * `Listener`, even though `Callback` is a `Try[A] => Unit`.
   */
 trait Listener[-A] extends Serializable {
   def onValue(value: A): Unit

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,9 +23,10 @@ import monix.execution.FutureUtils.extensions._
 import monix.execution.Scheduler
 import monix.reactive.{Observable, Observer}
 import monix.execution.exceptions.DummyException
+
 import scala.concurrent.duration._
 import scala.concurrent.{Future, Promise}
-import scala.util.Random
+import scala.util.{Failure, Random}
 
 object MapTaskSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
@@ -62,8 +63,8 @@ object MapTaskSuite extends BaseOperatorSuite {
     Sample(o, count(sourceCount-1), sum(sourceCount-1), waitFirst, waitNext)
   }
 
-  def toList[T](o: Observable[T])(implicit s: Scheduler) = {
-    o.foldLeftF(Vector.empty[T])(_ :+ _).runAsyncGetLast
+  def toList[A](o: Observable[A])(implicit s: Scheduler) = {
+    o.foldLeftF(Vector.empty[A])(_ :+ _).runAsyncGetLast
       .map(_.getOrElse(Vector.empty))
   }
 
@@ -136,7 +137,7 @@ object MapTaskSuite extends BaseOperatorSuite {
         .toListL
 
       val expected = Observable.fromIterable(list).map(_ + 10).toListL
-      received === expected
+      received <-> expected
     }
   }
 
@@ -484,5 +485,27 @@ object MapTaskSuite extends BaseOperatorSuite {
     f.cancel(); s.tick()
     assertEquals(f.value, None)
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
+  }
+
+  test("exceptions can be triggered synchronously by throw") { implicit s =>
+    val dummy = DummyException("dummy")
+    val source = Observable.now(1L).mapTask(_ => throw dummy)
+
+    val f = source.runAsyncGetLast
+    s.tick()
+
+    assertEquals(f.value, Some(Failure(dummy)))
+    assertEquals(s.state.lastReportedError, null)
+  }
+
+  test("exceptions can be triggered synchronously through raiseError") { implicit s =>
+    val dummy = DummyException("dummy")
+    val source = Observable.now(1L).mapTask(_ => Task.raiseError(dummy))
+
+    val f = source.runAsyncGetLast
+    s.tick()
+
+    assertEquals(f.value, Some(Failure(dummy)))
+    assertEquals(s.state.lastReportedError, null)
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -54,19 +54,17 @@ final class SingleAssignmentSubscription private ()
         else
           s.request(n)
 
-      case WithSubscription(_) =>
-        throw new IllegalArgumentException(
-          "SingleAssignmentSubscription as already initialized")
-
       case EmptyCanceled =>
         if (!state.compareAndSet(current, Canceled))
           set(s) // retry
         else
           s.cancel()
 
-      case Canceled =>
-        throw new IllegalArgumentException(
-          "SingleAssignmentSubscription as already initialized")
+      case WithSubscription(_) | Canceled =>
+        // Spec 205: A Subscriber MUST call Subscription.cancel() on the
+        // given Subscription after an onSubscribe signal if it already
+        // has an active Subscription
+        s.cancel()
     }
   }
 

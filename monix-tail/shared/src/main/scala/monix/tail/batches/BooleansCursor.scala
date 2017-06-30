@@ -18,7 +18,7 @@
 package monix.tail
 package batches
 
-/** [[monix.tail.BatchCursor BatchCursor]] implementation specialized for `Boolean`.
+/** [[batches.BatchCursor BatchCursor]] implementation specialized for `Boolean`.
   *
   * Under the hood it uses an [[monix.tail.batches.ArrayCursor ArrayCursor]]
   * implementation, which is `@specialized`. Using `BooleansCursor`

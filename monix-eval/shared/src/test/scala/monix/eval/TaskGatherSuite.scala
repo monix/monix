@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -95,7 +95,7 @@ object TaskGatherSuite extends BaseTestSuite {
       val tasks = list.map(x => if (i % 2 == 0) Task.eval(i) else Task(i))
       val gather = Task.gather(tasks)
       val zipList = Task.zipList(tasks:_*)
-      zipList === gather
+      zipList <-> gather
     }
   }
 

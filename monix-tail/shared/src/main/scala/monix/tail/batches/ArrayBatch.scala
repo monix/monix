@@ -21,7 +21,7 @@ package batches
 import scala.collection.mutable.ArrayBuilder
 import scala.reflect.ClassTag
 
-/** [[monix.tail.Batch Batch]] implementation that wraps
+/** [[batches.Batch Batch]] implementation that wraps
   * an array, based on [[ArrayCursor]].
   */
 final class ArrayBatch[@specialized(Boolean, Byte, Char, Int, Long, Double) A]

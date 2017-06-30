@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2016 by its authors. Some rights reserved.
- * See the project homepage at: https://sincron.org
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,14 +20,13 @@ package monix.execution.misc
 import monix.execution.misc.compat.setOrig
 import scala.reflect.macros.whitebox
 
-@macrocompat.bundle
 trait InlineMacros {
   val c: whitebox.Context
 
   import c.universe._
 
-  def inlineAndReset[T](tree: Tree): c.Expr[T] = {
-    c.Expr[T](inlineAndResetTree(tree))
+  def inlineAndReset[A](tree: Tree): c.Expr[A] = {
+    c.Expr[A](inlineAndResetTree(tree))
   }
 
   def inlineAndResetTree(tree: Tree): Tree = {

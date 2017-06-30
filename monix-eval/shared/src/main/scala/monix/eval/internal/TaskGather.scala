@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,9 +20,10 @@ package monix.eval.internal
 import monix.eval.{Callback, Task}
 import monix.execution.Scheduler
 import monix.execution.cancelables.{CompositeCancelable, StackedCancelable}
+import monix.execution.misc.NonFatal
+
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-import scala.util.control.NonFatal
 
 private[monix] object TaskGather {
   /**

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,10 @@
 
 package monix.execution.internal.collection
 
+import java.util.ConcurrentModificationException
+
 import minitest.SimpleTestSuite
+
 import scala.collection.mutable.ListBuffer
 
 object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
@@ -35,7 +38,7 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
     val q2 = DropHeadOnOverflowQueue[Int](600)
     assertEquals(q2.capacity, 1023)
 
-    val q3 = DropHeadOnOverflowQueue[Int](1023)
+    val q3 = DropHeadOnOverflowQueue[Int](1024)
     assertEquals(q3.capacity, 1023)
 
     val q4 = DropHeadOnOverflowQueue[Int](1025)
@@ -145,6 +148,28 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
     }
   }
 
+  test("throw ConcurrentModificationException after poll") {
+    val q = DropHeadOnOverflowQueue[Int](7)
+    q.offerMany(1,2,3,4)
+    val iterator = q.iterator
+
+    q.poll()
+    intercept[ConcurrentModificationException] {
+      iterator.hasNext
+    }
+  }
+
+  test("throw ConcurrentModificationException after offer") {
+    val q = DropHeadOnOverflowQueue[Int](7)
+    q.offerMany(1,2,3,4)
+    val iterator = q.iterator
+
+    q.offer(1)
+    intercept[ConcurrentModificationException] {
+      iterator.hasNext
+    }
+  }
+
   test("isEmpty && nonEmpty && head && headOption") {
     val q = DropHeadOnOverflowQueue[Int](8)
     assert(q.isEmpty)
@@ -169,7 +194,7 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
   }
 
   test("iterable") {
-    val q = DropHeadOnOverflowQueue[Int](127)
+    val q = DropHeadOnOverflowQueue[Int](128)
     assertEquals(q.capacity, 127)
 
     q.offerMany(0 until 200:_*)

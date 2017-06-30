@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2016 by its authors. Some rights reserved.
- * See the project homepage at: https://sincron.org
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -128,11 +128,11 @@ abstract class Atomic[A] extends Serializable {
 }
 
 object Atomic {
-  /** Constructs an `Atomic[T]` reference.
+  /** Constructs an `Atomic[A]` reference.
     *
     * Based on the `initialValue`, it will return the best, most
     * specific type. E.g. you give it a number, it will return
-    * something inheriting from `AtomicNumber[T]`. That's why it takes
+    * something inheriting from `AtomicNumber[A]`. That's why it takes
     * an `AtomicBuilder[T, R]` as an implicit parameter - but worry
     * not about such details as it just works.
     *
@@ -142,17 +142,17 @@ object Atomic {
     * @param builder is the builder that helps us to build the
     *        best reference possible, based on our `initialValue`
     */
-  def apply[T, R <: Atomic[T]](initialValue: T)(implicit builder: AtomicBuilder[T, R]): R =
-    macro Atomic.Macros.buildAnyMacro[T, R]
+  def apply[A, R <: Atomic[A]](initialValue: A)(implicit builder: AtomicBuilder[A, R]): R =
+    macro Atomic.Macros.buildAnyMacro[A, R]
 
-  /** Constructs an `Atomic[T]` reference, applying the provided
+  /** Constructs an `Atomic[A]` reference, applying the provided
     * [[PaddingStrategy]] in order to counter the "false sharing"
     * problem.
     *
     * Based on the `initialValue`, it will return the best, most
     * specific type. E.g. you give it a number, it will return
-    * something inheriting from `AtomicNumber[T]`. That's why it takes
-    * an `AtomicBuilder[T, R]` as an implicit parameter - but worry
+    * something inheriting from `AtomicNumber[A]`. That's why it takes
+    * an `AtomicBuilder[A, R]` as an implicit parameter - but worry
     * not about such details as it just works.
     *
     * Note that for ''Scala.js'' we aren't applying any padding, as it
@@ -169,22 +169,21 @@ object Atomic {
     * @param builder is the builder that helps us to build the
     *        best reference possible, based on our `initialValue`
     */
-  def withPadding[T, R <: Atomic[T]](initialValue: T, padding: PaddingStrategy)(implicit builder: AtomicBuilder[T, R]): R =
-    macro Atomic.Macros.buildAnyWithPaddingMacro[T, R]
+  def withPadding[A, R <: Atomic[A]](initialValue: A, padding: PaddingStrategy)(implicit builder: AtomicBuilder[A, R]): R =
+    macro Atomic.Macros.buildAnyWithPaddingMacro[A, R]
 
   /** Returns the builder that would be chosen to construct Atomic
     * references for the given `initialValue`.
     */
-  def builderFor[T, R <: Atomic[T]](initialValue: T)(implicit builder: AtomicBuilder[T, R]): AtomicBuilder[T, R] =
+  def builderFor[A, R <: Atomic[A]](initialValue: A)(implicit builder: AtomicBuilder[A, R]): AtomicBuilder[A, R] =
     builder
 
   /** Macros implementations for the [[Atomic]] type */
-  @macrocompat.bundle
   class Macros(override val c: whitebox.Context) extends HygieneUtilMacros with InlineMacros {
     import c.universe._
 
-    def transformMacro[T : c.WeakTypeTag](cb: c.Expr[T => T]): c.Expr[Unit] = {
-      val selfExpr = c.Expr[Atomic[T]](c.prefix.tree)
+    def transformMacro[A : c.WeakTypeTag](cb: c.Expr[A => A]): c.Expr[Unit] = {
+      val selfExpr = c.Expr[Atomic[A]](c.prefix.tree)
       val self = util.name("self")
       val current = util.name("current")
       val update = util.name("update")
@@ -224,8 +223,8 @@ object Atomic {
       inlineAndReset[Unit](tree)
     }
 
-    def transformAndGetMacro[T : c.WeakTypeTag](cb: c.Expr[T => T]): c.Expr[T] = {
-      val selfExpr = c.Expr[Atomic[T]](c.prefix.tree)
+    def transformAndGetMacro[A : c.WeakTypeTag](cb: c.Expr[A => A]): c.Expr[A] = {
+      val selfExpr = c.Expr[Atomic[A]](c.prefix.tree)
       val self = util.name("self")
       val current = util.name("current")
       val update = util.name("update")
@@ -264,11 +263,11 @@ object Atomic {
           """
         }
 
-      inlineAndReset[T](tree)
+      inlineAndReset[A](tree)
     }
 
-    def getAndTransformMacro[T : c.WeakTypeTag](cb: c.Expr[T => T]): c.Expr[T] = {
-      val selfExpr = c.Expr[Atomic[T]](c.prefix.tree)
+    def getAndTransformMacro[A : c.WeakTypeTag](cb: c.Expr[A => A]): c.Expr[A] = {
+      val selfExpr = c.Expr[Atomic[A]](c.prefix.tree)
       val self = util.name("self")
       val current = util.name("current")
       val update = util.name("update")
@@ -307,7 +306,7 @@ object Atomic {
           """
         }
 
-      inlineAndReset[T](tree)
+      inlineAndReset[A](tree)
     }
 
     def transformAndExtractMacro[S : c.WeakTypeTag, A : c.WeakTypeTag]
@@ -363,9 +362,9 @@ object Atomic {
       inlineAndReset[A](tree)
     }
 
-    def buildAnyMacro[T : c.WeakTypeTag, R <: Atomic[T] : c.WeakTypeTag]
-      (initialValue: c.Expr[T])
-      (builder: c.Expr[AtomicBuilder[T, R]]): c.Expr[R] = {
+    def buildAnyMacro[A : c.WeakTypeTag, R <: Atomic[A] : c.WeakTypeTag]
+      (initialValue: c.Expr[A])
+      (builder: c.Expr[AtomicBuilder[A, R]]): c.Expr[R] = {
 
       val expr = reify {
         builder.splice.buildInstance(
@@ -377,9 +376,9 @@ object Atomic {
       inlineAndReset[R](expr.tree)
     }
 
-    def buildAnyWithPaddingMacro[T : c.WeakTypeTag, R <: Atomic[T] : c.WeakTypeTag]
-      (initialValue: c.Expr[T], padding: c.Expr[PaddingStrategy])
-      (builder: c.Expr[AtomicBuilder[T, R]]): c.Expr[R] = {
+    def buildAnyWithPaddingMacro[A : c.WeakTypeTag, R <: Atomic[A] : c.WeakTypeTag]
+      (initialValue: c.Expr[A], padding: c.Expr[PaddingStrategy])
+      (builder: c.Expr[AtomicBuilder[A, R]]): c.Expr[R] = {
 
       val expr = reify {
         builder.splice.buildInstance(
@@ -391,26 +390,26 @@ object Atomic {
       inlineAndReset[R](expr.tree)
     }
 
-    def applyMacro[T : c.WeakTypeTag](): c.Expr[T] = {
-      val selfExpr = c.Expr[Atomic[T]](c.prefix.tree)
+    def applyMacro[A : c.WeakTypeTag](): c.Expr[A] = {
+      val selfExpr = c.Expr[Atomic[A]](c.prefix.tree)
       val tree = q"""$selfExpr.get"""
-      inlineAndReset[T](tree)
+      inlineAndReset[A](tree)
     }
 
-    def setMacro[T : c.WeakTypeTag](value: c.Expr[T]): c.Expr[Unit] = {
-      val selfExpr = c.Expr[Atomic[T]](c.prefix.tree)
+    def setMacro[A : c.WeakTypeTag](value: c.Expr[A]): c.Expr[Unit] = {
+      val selfExpr = c.Expr[Atomic[A]](c.prefix.tree)
       val tree = q"""$selfExpr.set($value)"""
       inlineAndReset[Unit](tree)
     }
 
-    def addMacro[T : c.WeakTypeTag](value: c.Expr[T]): c.Expr[Unit] = {
-      val selfExpr = c.Expr[Atomic[T]](c.prefix.tree)
+    def addMacro[A : c.WeakTypeTag](value: c.Expr[A]): c.Expr[Unit] = {
+      val selfExpr = c.Expr[Atomic[A]](c.prefix.tree)
       val tree = q"""$selfExpr.add($value)"""
       inlineAndReset[Unit](tree)
     }
 
-    def subtractMacro[T : c.WeakTypeTag](value: c.Expr[T]): c.Expr[Unit] = {
-      val selfExpr = c.Expr[Atomic[T]](c.prefix.tree)
+    def subtractMacro[A : c.WeakTypeTag](value: c.Expr[A]): c.Expr[Unit] = {
+      val selfExpr = c.Expr[Atomic[A]](c.prefix.tree)
       val tree = q"""$selfExpr.subtract($value)"""
       inlineAndReset[Unit](tree)
     }

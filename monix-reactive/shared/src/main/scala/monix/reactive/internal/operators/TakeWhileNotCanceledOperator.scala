@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,10 +22,10 @@ import monix.execution.Ack.Stop
 import monix.execution.cancelables.BooleanCancelable
 import monix.reactive.observables.ObservableLike
 import ObservableLike.Operator
+import monix.execution.misc.NonFatal
 import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
-import scala.util.control.NonFatal
 
 private[reactive] final class TakeWhileNotCanceledOperator[A](c: BooleanCancelable)
   extends Operator[A, A] {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,17 +17,17 @@
 
 package monix.reactive.internal.operators
 
-import monix.eval.Coeval.{Error, Now}
 import monix.eval.Task
 import monix.execution.Ack.Stop
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
+import monix.execution.misc.NonFatal
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
+
 import scala.annotation.tailrec
 import scala.concurrent.Future
-import scala.util.control.NonFatal
 
 /** Implementation for `Observable.mapTask`.
   *
@@ -124,10 +124,11 @@ private[reactive] final class MapTaskObservable[A,B]
       // we can no longer stream errors downstream
       var streamErrors = true
       try {
-        val task = f(elem).materializeAttempt.flatMap {
-          case Now(value) =>
+        val task = f(elem).transformWith(
+          value => {
             // Shoot first, ask questions later :-)
             val next = out.onNext(value)
+
             // This assignment must happen after `onNext`, otherwise
             // we can end with a race condition with `onComplete`
             stateRef.getAndSet(WaitOnNext) match {
@@ -153,14 +154,14 @@ private[reactive] final class MapTaskObservable[A,B]
                 }
                 Task.now(Stop)
             }
-
-          case Error(ex) =>
+          },
+          error => {
             // The cancelable passed in WaitComplete here can be `null`
             // because it would only replace the child's own cancelable
-            stateRef.getAndSet(WaitComplete(Some(ex), null)) match {
+            stateRef.getAndSet(WaitComplete(Some(error), null)) match {
               case WaitActiveTask | WaitOnNext | Active(_) =>
                 Task.eval {
-                  out.onError(ex)
+                  out.onError(error)
                   Stop
                 }
 
@@ -168,15 +169,16 @@ private[reactive] final class MapTaskObservable[A,B]
                 // If an exception also happened on main observable, log it!
                 otherEx.foreach(scheduler.reportFailure)
                 // Send our immediate error downstream and stop everything
-                out.onError(ex)
+                out.onError(error)
                 Task.now(Stop)
 
               case Cancelled =>
                 // User cancelled, but we have to log it somewhere
-                scheduler.reportFailure(ex)
+                scheduler.reportFailure(error)
                 Task.now(Stop)
             }
-        }
+          }
+        )
 
         // No longer allowed to stream errors downstream
         streamErrors = false
@@ -194,18 +196,18 @@ private[reactive] final class MapTaskObservable[A,B]
         // we do expect most of the time is either `WaitOnNext` or
         // `WaitActiveTask`.
         stateRef.getAndSet(Active(ack)) match {
-          case WaitActiveTask =>
-            ack // expected outcome
-
           case WaitOnNext =>
             // Task execution was synchronous, w00t, so redo state!
             stateRef.lazySet(WaitOnNext)
             ack.syncTryFlatten
 
-          case state @ (WaitComplete(_,_) | Active(_)) =>
-            // These should never, ever happen!
-            self.onError(new IllegalStateException(
-              s"State $state is invalid, please send a bug report!"))
+          case WaitActiveTask =>
+            // Expected outcome for asynchronous tasks
+            ack
+
+          case WaitComplete(_,_) =>
+            // Branch that can happen in case the child has finished
+            // already in error, so stop further onNext events.
             Stop
 
           case Cancelled =>
@@ -215,6 +217,12 @@ private[reactive] final class MapTaskObservable[A,B]
             // happen :-) Note that this is probably going to call
             // `ack.cancel()` a second time, but that's OK
             self.cancel()
+            Stop
+
+          case state @ Active(_) =>
+            // This should never, ever happen!
+            // Something is screwed up in our state machine :-(
+            reportInvalidState(state, "onNext")
             Stop
         }
       } catch {
@@ -269,10 +277,7 @@ private[reactive] final class MapTaskObservable[A,B]
 
         case WaitActiveTask =>
           // Something is screwed up in our state machine :-(
-          scheduler.reportFailure(
-            new IllegalStateException(
-              "State WaitActiveTask is invalid, please send a bug report!"
-            ))
+          reportInvalidState(WaitActiveTask, "signalFinish")
       }
     }
 
@@ -280,6 +285,14 @@ private[reactive] final class MapTaskObservable[A,B]
       signalFinish(None)
     def onError(ex: Throwable): Unit =
       signalFinish(Some(ex))
+
+    private def reportInvalidState(state: FlatMapState, method: String): Unit = {
+      scheduler.reportFailure(
+        new IllegalStateException(
+          s"State $state in the Monix MapTask.$method implementation is invalid, " +
+          s"please send a bug report! See https://monix.io"
+        ))
+    }
   }
 }
 

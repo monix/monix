@@ -19,6 +19,7 @@ package monix.tail
 
 import monix.tail.batches._
 import org.scalacheck.Arbitrary
+
 import scala.reflect.ClassTag
 
 abstract class BatchSuite[A : ClassTag](implicit
@@ -27,7 +28,7 @@ abstract class BatchSuite[A : ClassTag](implicit
   arbAtoBoolean: Arbitrary[A => Boolean])
   extends BaseTestSuite {
  
-  type Batch <: monix.tail.Batch[A]
+  type Batch <: batches.Batch[A]
 
   def fromList(list: List[A]): Batch
 
@@ -177,7 +178,7 @@ object ArraySliceBatchSuite extends BatchSuite[Int] {
 }
 
 object BatchIterableSuite extends BatchSuite[Int] {
-  type Batch = monix.tail.Batch[Int]
+  type Batch = batches.Batch[Int]
 
   override def fromList(list: List[Int]): Batch =
     Batch.fromIterable(list, 4)

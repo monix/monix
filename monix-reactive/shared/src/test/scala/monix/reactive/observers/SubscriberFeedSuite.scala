@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,10 +19,10 @@ package monix.reactive.observers
 
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.BooleanCancelable
-import monix.reactive.BaseLawsTestSuite
+import monix.reactive.BaseTestSuite
 import scala.concurrent.Future
 
-object SubscriberFeedSuite extends BaseLawsTestSuite {
+object SubscriberFeedSuite extends BaseTestSuite {
   test("feed synchronous iterable") { s =>
     check1 { (xs: List[Int]) =>
       var sum = 0

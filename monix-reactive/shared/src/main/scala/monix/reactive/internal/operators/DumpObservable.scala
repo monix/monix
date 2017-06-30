@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,20 +18,22 @@
 package monix.reactive.internal.operators
 
 import java.io.PrintStream
+
+import monix.execution.misc.NonFatal
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
+
 import scala.concurrent.Future
-import scala.util.control.NonFatal
 
 private[reactive] final
-class DumpObservable[T](source: Observable[T], prefix: String, out: PrintStream)
-  extends Observable[T] {
+class DumpObservable[A](source: Observable[A], prefix: String, out: PrintStream)
+  extends Observable[A] {
 
-  def unsafeSubscribeFn(subscriber: Subscriber[T]): Cancelable = {
+  def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     var pos = 0
 
-    val upstream = source.unsafeSubscribeFn(new Subscriber[T] {
+    val upstream = source.unsafeSubscribeFn(new Subscriber[A] {
       implicit val scheduler = subscriber.scheduler
 
       private[this] val downstreamActive = Cancelable { () =>
@@ -39,7 +41,7 @@ class DumpObservable[T](source: Observable[T], prefix: String, out: PrintStream)
         out.println(s"$pos: $prefix stopped")
       }
 
-      def onNext(elem: T): Future[Ack] = {
+      def onNext(elem: A): Future[Ack] = {
         try {
           out.println(s"$pos: $prefix-->$elem")
           pos += 1

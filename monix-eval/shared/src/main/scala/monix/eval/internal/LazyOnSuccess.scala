@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,11 +18,10 @@
 package monix.eval.internal
 
 import monix.eval.Coeval
-
 import scala.util.Success
 
 private[eval] final class LazyOnSuccess[A](f: () => A) extends (() => A) { self =>
-  private[this] var cache: Success[A] = null
+  private[this] var cache: Success[A] = _
   private[this] var thunk = f
 
   override def apply(): A = {
@@ -51,8 +50,8 @@ private[eval] final class LazyOnSuccess[A](f: () => A) extends (() => A) { self 
 private[eval] object LazyOnSuccess {
   def apply[A](f: () => A): (() => A) =
     f match {
-      case ref: LazyOnSuccess[_] => f
-      case ref: Coeval.Once[_] => f
+      case _: LazyOnSuccess[_] => f
+      case _: Coeval.Once[_] => f
       case _ => new LazyOnSuccess[A](f)
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -56,7 +56,7 @@ object TakeUntilObservableSuite extends BaseOperatorSuite {
 
   test("should mirror the source if never triggered") { implicit s =>
     check1 { (obs: Observable[Int]) =>
-      obs === obs.takeUntil(Observable.never)
+      obs <-> obs.takeUntil(Observable.never)
     }
   }
 

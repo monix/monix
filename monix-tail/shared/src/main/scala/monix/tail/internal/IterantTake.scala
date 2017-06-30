@@ -18,7 +18,7 @@
 package monix.tail.internal
 
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
-import monix.tail.{BatchCursor, Iterant}
+import monix.tail.Iterant
 import monix.types.Applicative
 import monix.types.syntax._
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,11 +19,11 @@ package monix.reactive.internal.subscribers
 
 import monix.execution.ExecutionModel.SynchronousExecution
 import monix.execution.exceptions.DummyException
-import monix.reactive.{BaseLawsTestSuite, Observable}
+import monix.reactive.{BaseTestSuite, Observable}
 
 import scala.util.{Failure, Success}
 
-object ObservableForeachSuite extends BaseLawsTestSuite {
+object ObservableForeachSuite extends BaseTestSuite {
   test("foreach subscribes immediately") { scheduler =>
     implicit val s = scheduler.withExecutionModel(SynchronousExecution)
 

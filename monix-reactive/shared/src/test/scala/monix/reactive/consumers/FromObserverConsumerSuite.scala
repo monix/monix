@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,12 +20,12 @@ package monix.reactive.consumers
 import monix.eval.{Callback, Task}
 import monix.execution.Ack.Continue
 import monix.execution.exceptions.DummyException
-import monix.reactive.{BaseLawsTestSuite, Consumer, Observable, Observer}
+import monix.reactive.{BaseTestSuite, Consumer, Observable, Observer}
 
 import scala.concurrent.Promise
 import scala.util.{Failure, Success}
 
-object FromObserverConsumerSuite extends BaseLawsTestSuite {
+object FromObserverConsumerSuite extends BaseTestSuite {
   test("convert an observer into a consumer") { implicit s =>
     check1 { (source: Observable[Int]) =>
       val lh = source.sumL
@@ -52,7 +52,7 @@ object FromObserverConsumerSuite extends BaseLawsTestSuite {
         source.unsafeSubscribeFn(out)
       }
 
-      lh === rh
+      lh <-> rh
     }
   }
 
@@ -75,7 +75,7 @@ object FromObserverConsumerSuite extends BaseLawsTestSuite {
         source.endWithError(ex).unsafeSubscribeFn(out)
       }
 
-      lh === rh
+      lh <-> rh
     }
   }
 }

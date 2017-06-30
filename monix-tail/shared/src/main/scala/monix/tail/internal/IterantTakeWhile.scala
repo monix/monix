@@ -17,7 +17,7 @@
 
 package monix.tail.internal
 
-import monix.tail.{BatchCursor, Iterant}
+import monix.tail.Iterant
 import monix.tail.Iterant._
 import monix.types.Applicative
 import monix.types.syntax._

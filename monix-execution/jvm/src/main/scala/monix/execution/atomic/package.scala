@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2016 by its authors. Some rights reserved.
- * See the project homepage at: https://sincron.org
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,7 +41,7 @@ import monix.execution.internals.atomic.BoxPaddingStrategy
   * Building a reference is easy with the provided constructor, which
   * will automatically return the most specific type needed (in the
   * following sample, that's an `AtomicDouble`, inheriting from
-  * `AtomicNumber[T]`):
+  * `AtomicNumber[A]`):
   *
   * {{{
   *   val atomicNumber = Atomic(12.2)

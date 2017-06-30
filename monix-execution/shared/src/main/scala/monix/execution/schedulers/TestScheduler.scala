@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,6 +20,7 @@ package monix.execution.schedulers
 import monix.execution.Cancelable
 import monix.execution.atomic.AtomicAny
 import monix.execution.cancelables.SingleAssignmentCancelable
+import monix.execution.misc.NonFatal
 import monix.execution.schedulers.TestScheduler._
 // Prevents conflict with the deprecated symbol
 import monix.execution.{ExecutionModel => ExecModel}
@@ -28,7 +29,6 @@ import scala.annotation.tailrec
 import scala.collection.immutable.SortedSet
 import scala.concurrent.duration.{Duration, FiniteDuration, TimeUnit}
 import scala.util.Random
-import scala.util.control.NonFatal
 
 /** A scheduler meant for testing purposes. */
 final class TestScheduler private (

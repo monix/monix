@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -110,18 +110,6 @@ object AckSuite extends TestSuite[TestScheduler] {
     assertEquals(s.state.lastReportedError, ex)
   }
 
-  test("syncOnContinue(Continue) should not protect against fatal errors") { implicit s =>
-    val ex = new InterruptedException()
-    var caught: Throwable = null
-
-    try Continue.syncOnContinue { throw ex } catch {
-      case err: InterruptedException => caught = err
-    }
-
-    assertEquals(s.state.lastReportedError, null)
-    assertEquals(caught, ex)
-  }
-
   test("syncOnStopOrFailure(Stop) should execute synchronously") { implicit s =>
     var triggered = false
     Stop.syncOnStopOrFailure { ex => if (ex.isEmpty) triggered = true }
@@ -207,18 +195,6 @@ object AckSuite extends TestSuite[TestScheduler] {
     Future(Stop).syncOnStopOrFailure { _ => throw ex }
     s.tick()
     assertEquals(s.state.lastReportedError, ex)
-  }
-
-  test("syncOnStopOrFailure(Stop) should not protect against fatal errors") { implicit s =>
-    val ex = new InterruptedException()
-    var caught: Throwable = null
-
-    try Stop.syncOnStopOrFailure { _ => throw ex } catch {
-      case err: InterruptedException => caught = err
-    }
-
-    assertEquals(s.state.lastReportedError, null)
-    assertEquals(caught, ex)
   }
 
   test("syncMap(Continue) should execute synchronously") { implicit s =>

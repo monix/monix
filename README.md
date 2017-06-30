@@ -6,8 +6,7 @@ Asynchronous, Reactive Programming for Scala and [Scala.js](http://www.scala-js.
 
 [![Build Status](https://travis-ci.org/monix/monix.svg?branch=master)](https://travis-ci.org/monix/monix)
 [![Coverage Status](https://codecov.io/gh/monix/monix/coverage.svg?branch=master)](https://codecov.io/gh/monix/monix?branch=master)
-[![Scala.js](https://scala-js.org/assets/badges/scala.js-0.6.13.svg)](http://scala-js.org)
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.monix/monix_2.11/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.monix/monix_2.11)
+[![Maven Central](https://img.shields.io/maven-central/v/io.monix/monix_2.12.svg)](http://search.maven.org/#search|gav|1|g%3A%22io.monix%22%20AND%20a%3A%22monix_2.12%22)
 
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/monix/monix?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
@@ -29,7 +28,7 @@ Highlights:
 - the core has no third-party dependencies
 - strives to be idiomatic Scala and encourages referential transparency,
   but is built to be faster than alternatives
-- accepted in the [Typelevel incubator](http://typelevel.org/projects/)
+- is a [Typelevel project](http://typelevel.org/projects/)
 - designed for true asynchronicity, running on both the
   JVM and [Scala.js](scala-js.org),
 - really good test coverage and API documentation as a project policy
@@ -43,34 +42,49 @@ a project exemplifying Monix used both on the server and on the client.
 
 The packages are published on Maven Central.
 
-- Current stable release: `2.2.3`
+- Current stable release: `2.3.0`
+- Development version: `3.0.0-$hash`
+  (see [versioning scheme](https://github.com/monix/monix#versioning-scheme))
 
 For the current stable release (use the `%%%` for Scala.js):
 
 ```scala
-libraryDependencies += "io.monix" %% "monix" % "2.2.3"
+libraryDependencies += "io.monix" %% "monix" % "2.3.0"
 ```
 
 ### Sub-projects
 
 Monix 2.x is modular by design, so you can pick and choose:
 
-- `monix-types` exposes type-classes and shims needed for
-  integration with other FP libraries (Cats, Scalaz)
 - `monix-execution` exposes the low-level execution environment, or more precisely
   `Scheduler`, `Cancelable`, `Atomic` and `CancelableFuture`
 - `monix-eval` exposes `Task`, `Coeval`
-   and depends on `monix-execution` and `monix-types`
+   and depends on `monix-execution`
 - `monix-reactive` exposes `Observable` streams
-   and depends on `monix-eval` and `monix-types`
+   and depends on `monix-eval`
 - `monix` provides all of the above
 
-Optional packages:
+### Versioning Scheme
 
-- `monix-cats` provides integration with [Cats](http://typelevel.org/cats) and
-   depends on `monix-types` and `org.typelevel.cats-core`
-- `monix-scalaz-72` provides integration with [Scalaz](http://scalaz.org) and
-   depends on `monix-types` and `org.scalaz.scalaz-core` version 7.2.x
+The versioning scheme follows the
+[Semantic Versioning](http://semver.org/) (semver) specification,
+meaning that stable versions have the form `$major.$minor.$patch`,
+such that:
+
+1. `$major` version updates make binary incompatible API changes
+2. `$minor` version updates adds functionality in a
+   backwards-compatible manner, and
+3. `$patch` version updates makes backwards-compatible bug fixes
+
+For development snapshots may be published to Sonatype at any time.
+Development versions have the form: `$major.$minor.$patch-$hash`
+(example `3.0.0-d3288bb`).
+
+The `$hash` is the 7 character git hash prefix of the commit from
+which the snapshot was published.  Thus, "snapshots" can be used as
+repeatable upstream dependencies if you're feeling courageous.  NO
+GUARANTEE is made for upgrades of development versions, use these at
+your own risk.
 
 ## Documentation
 
@@ -82,6 +96,7 @@ hosted at,
 
 API Documentation:
 
+- [2.3](https://monix.io/api/2.3/)
 - [2.2](https://monix.io/api/2.2/)
 - [2.1](https://monix.io/api/2.1/)
 - [2.0](https://monix.io/api/2.0/)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,15 +19,15 @@ package monix.reactive.internal.builders
 
 import monix.eval.Coeval
 import monix.execution.exceptions.DummyException
-import monix.reactive.{BaseLawsTestSuite, Observable}
+import monix.reactive.{BaseTestSuite, Observable}
 import scala.util.Success
 
-object EvalObservableSuite extends BaseLawsTestSuite {
+object EvalObservableSuite extends BaseTestSuite {
   test("Observable.eval(now(value)) should work") { implicit s =>
     check1 { (value: Int) =>
       val obs1 = Observable.coeval(Coeval.now(value))
       val obs2 = Observable.now(value)
-      obs1 === obs2
+      obs1 <-> obs2
     }
   }
 
@@ -35,7 +35,7 @@ object EvalObservableSuite extends BaseLawsTestSuite {
     check1 { (value: Int) =>
       val obs1 = Observable.coeval(Coeval.eval(value))
       val obs2 = Observable.eval(value)
-      obs1 === obs2
+      obs1 <-> obs2
     }
   }
 
@@ -43,16 +43,16 @@ object EvalObservableSuite extends BaseLawsTestSuite {
     check1 { (value: Int) =>
       val obs1 = Observable.coeval(Coeval.evalOnce(value))
       val obs2 = Observable.evalOnce(value)
-      obs1 === obs2
+      obs1 <-> obs2
     }
   }
 
   test("Observable.eval(raiseError(value)) should work") { implicit s =>
     check1 { (value: Int) =>
       val ex = DummyException(s"dummy $value")
-      val obs1 = Observable.coeval(Coeval.raiseError(ex))
-      val obs2 = Observable.raiseError(ex)
-      obs1 === obs2
+      val obs1 = Observable.coeval[Int](Coeval.raiseError(ex))
+      val obs2 = Observable.raiseError[Int](ex)
+      obs1 <-> obs2
     }
   }
 

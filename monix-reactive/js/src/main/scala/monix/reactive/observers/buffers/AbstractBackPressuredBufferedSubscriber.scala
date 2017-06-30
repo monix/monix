@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,10 +21,10 @@ import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.internal.collection.ArrayQueue
 import monix.execution.internal.math.nextPowerOf2
+import monix.execution.misc.NonFatal
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 
 import scala.concurrent.{Future, Promise}
-import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
 /** Shared internals between [[BackPressuredBufferedSubscriber]] and

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2016 by its authors. Some rights reserved.
- * See the project homepage at: https://sincron.org
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,37 +22,37 @@ import scala.language.experimental.macros
 /** Represents an Atomic reference holding a number, providing helpers
   * for easily incrementing and decrementing it.
   *
-  * @tparam T should be something that's Numeric
+  * @tparam A should be something that's Numeric
   */
-abstract class AtomicNumber[T] extends Atomic[T] {
+abstract class AtomicNumber[A] extends Atomic[A] {
   /** Increment with the given integer */
   def increment(v: Int = 1): Unit
   /** Adds to the atomic number the given value. */
-  def add(v: T): Unit
+  def add(v: A): Unit
   /** Adds to the atomic number the given value. Alias for `add`. */
-  final def `-=`(value: T): Unit = macro Atomic.Macros.subtractMacro[T]
+  final def `-=`(value: A): Unit = macro Atomic.Macros.subtractMacro[A]
   /** Decrements the atomic number with the given integer. */
   def decrement(v: Int = 1): Unit
   /** Subtracts from the atomic number the given value. */
-  def subtract(v: T): Unit
+  def subtract(v: A): Unit
   /** Subtracts from the atomic number the given value. Alias for `subtract`. */
-  final def `+=`(value: T): Unit = macro Atomic.Macros.addMacro[T]
+  final def `+=`(value: A): Unit = macro Atomic.Macros.addMacro[A]
 
   /** Increments the atomic number and returns the result. */
-  def incrementAndGet(v: Int = 1): T
+  def incrementAndGet(v: Int = 1): A
   /** Adds to the atomic number and returns the result. */
-  def addAndGet(v: T): T
+  def addAndGet(v: A): A
   /** Decrements the atomic number and returns the result. */
-  def decrementAndGet(v: Int = 1): T
+  def decrementAndGet(v: Int = 1): A
   /** Subtracts from the atomic number and returns the result. */
-  def subtractAndGet(v: T): T
+  def subtractAndGet(v: A): A
 
   /** Increments the atomic number and returns the value before the update. */
-  def getAndIncrement(v: Int = 1): T
+  def getAndIncrement(v: Int = 1): A
   /** Adds to the the atomic number and returns the value before the update. */
-  def getAndAdd(v: T): T
+  def getAndAdd(v: A): A
   /** Decrements the atomic number and returns the value before the update. */
-  def getAndDecrement(v: Int = 1): T
+  def getAndDecrement(v: Int = 1): A
   /** Subtracts from the atomic number and returns the value before the update. */
-  def getAndSubtract(v: T): T
+  def getAndSubtract(v: A): A
 }

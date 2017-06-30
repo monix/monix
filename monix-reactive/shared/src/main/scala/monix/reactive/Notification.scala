@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,10 +18,10 @@
 package monix.reactive
 
 /** Used by [[Observable.materialize]]. */
-sealed abstract class Notification[+T] extends Serializable
+sealed abstract class Notification[+A] extends Serializable
 
 object Notification {
-  final case class OnNext[+T](elem: T) extends Notification[T]
+  final case class OnNext[+A](elem: A) extends Notification[A]
 
   final case class OnError(ex: Throwable) extends Notification[Nothing]
 

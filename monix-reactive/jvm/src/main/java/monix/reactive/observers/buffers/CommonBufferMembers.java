@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -56,7 +56,7 @@ abstract class CommonBufferPad3 extends CommonBufferErrorThrown {
 }
 
 abstract class CommonBufferLastAck extends CommonBufferPad3 {
-  /*
+  /**
    * Value used in order to apply back-pressure in the run-loop.
    * It stores the last `Future[Ack]` value whenever the loop
    * ends due to not having any more events to process.

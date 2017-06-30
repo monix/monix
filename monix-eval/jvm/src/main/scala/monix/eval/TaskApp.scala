@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -42,7 +42,7 @@ trait TaskApp {
     * Defaults to `global`, but can be overridden.
     */
   protected val scheduler: Coeval[Scheduler] =
-    Coeval.evalOnce(monix.execution.Scheduler.global)
+    Coeval.evalOnce(Scheduler.global)
 
   final def main(args: Array[String]): Unit = {
     val f = run(args).runAsync(scheduler.value)

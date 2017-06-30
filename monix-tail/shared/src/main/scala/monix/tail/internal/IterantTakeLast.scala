@@ -19,7 +19,7 @@ package monix.tail.internal
 
 import monix.execution.internal.collection.DropHeadOnOverflowQueue
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
-import monix.tail.{BatchCursor, Iterant}
+import monix.tail.Iterant
 import monix.types.Monad
 import monix.types.syntax._
 

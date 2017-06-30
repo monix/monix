@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,28 +17,31 @@
 
 package monix.execution.internal.collection
 
+import java.util.ConcurrentModificationException
+
 import monix.execution.internal.math.nextPowerOf2
+
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
-/** An [[EvictingQueue]] implementation that on overflow starts
+/**
+  * An [[drainToArray]] implementation that on overflow starts
   * dropping old elements.
   *
   * This implementation is not thread-safe and on the JVM it
   * needs to be synchronized.
   *
-  * @param _recommendedCapacity is the recommended capacity that this
-  *        queue will support, however the actual capacity will be the
-  *        closest power of 2 that is bigger than the given number, or
-  *        a maximum of 2^30^-1 (the maximum positive int that can be
-  *        expressed as a power of 2, minus 1)
+  * @param _recommendedCapacity is the recommended capacity that this queue will support,
+  *        however the actual capacity will be the closest power of 2 that is bigger than
+  *        the given number, or a maximum of 2^30^-1 (the maximum positive int that
+  *        can be expressed as a power of 2, minus 1)
   */
 private[monix] final class DropHeadOnOverflowQueue[A : ClassTag] private (_recommendedCapacity: Int)
   extends EvictingQueue[A] { self =>
 
   require(_recommendedCapacity > 0, "recommendedCapacity must be positive")
   private[this] val maxSize = {
-    val v = nextPowerOf2(_recommendedCapacity + 1)
+    val v = nextPowerOf2(_recommendedCapacity)
     if (v <= 1) 2 else v
   }
 
@@ -139,27 +142,18 @@ private[monix] final class DropHeadOnOverflowQueue[A : ClassTag] private (_recom
     }
   }
 
-  def iterator: Iterator[A] =
-    iterator(forcedSize = false)
-
-  def iterator(forcedSize: Boolean): Iterator[A] = {
+  def iterator: Iterator[A] = {
     new Iterator[A] {
       private[this] var isStarted = false
-
+      private[this] val initialHeadIdx = self.headIdx
       private[this] val initialTailIdx = self.tailIdx
-      private[this] val initialHeadIdx = {
-        if (!forcedSize) self.headIdx else {
-          // Dropping extra elements
-          val currentSize = self.size
-          if (currentSize < _recommendedCapacity) self.headIdx
-          else (self.headIdx + (currentSize - _recommendedCapacity)) & modulus
-        }
-      }
-
       private[this] var tailIdx = 0
       private[this] var headIdx = 0
 
       def hasNext: Boolean = {
+        if (initialHeadIdx != self.headIdx || initialTailIdx != self.tailIdx)
+          throw new ConcurrentModificationException(s"headIdx != $initialHeadIdx || tailIdx != $initialTailIdx")
+
         if (!isStarted) init()
         headIdx != tailIdx
       }
@@ -194,27 +188,16 @@ private[monix] final class DropHeadOnOverflowQueue[A : ClassTag] private (_recom
   def length: Int = size
 }
 
-/** Builders for [[DropHeadOnOverflowQueue]].
-  *
-  * @define recommendedCapacityDesc is the recommended capacity that
-  *         this queue will support, however the actual capacity will
-  *         be the closest power of 2 that is bigger or equal to the
-  *         given number minus one, or a maximum of 2^30^-1 (the
-  *         maximum positive int that can be expressed as a power of
-  *         2, minus 1)
-  */
 private[monix] object DropHeadOnOverflowQueue {
-  /** Builder for [[DropHeadOnOverflowQueue]]
+  /**
+    * Builder for [[DropHeadOnOverflowQueue]]
     *
-    * @param recommendedCapacity $recommendedCapacityDesc
+    * @param recommendedCapacity is the recommended capacity that this queue will support,
+    *        however the actual capacity will be the closest power of 2 that is bigger or
+    *        equal to the given number minus one, or a maximum of 2^30^-1 (the maximum
+    *        positive int that can be expressed as a power of 2, minus 1)
     */
-  def apply[A : ClassTag](recommendedCapacity: Int): DropHeadOnOverflowQueue[A] =
+  def apply[A : ClassTag](recommendedCapacity: Int): DropHeadOnOverflowQueue[A] = {
     new DropHeadOnOverflowQueue[A](recommendedCapacity)
-
-  /** Builder for [[DropHeadOnOverflowQueue]] that boxes elements into an `Array[Any]`.
-    *
-    * @param recommendedCapacity $recommendedCapacityDesc
-    */
-  def boxed[A](recommendedCapacity: Int): DropHeadOnOverflowQueue[A] =
-    apply[Any](recommendedCapacity).asInstanceOf[DropHeadOnOverflowQueue[A]]
+  }
 }

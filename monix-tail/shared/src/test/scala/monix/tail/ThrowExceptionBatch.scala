@@ -18,7 +18,7 @@
 package monix.tail
 
 import monix.execution.atomic.Atomic
-import monix.tail.batches.GenericBatch
+import monix.tail.batches.{BatchCursor, GenericBatch}
 
 /** Batch that throws exception on access. */
 final class ThrowExceptionBatch(ex: Throwable)

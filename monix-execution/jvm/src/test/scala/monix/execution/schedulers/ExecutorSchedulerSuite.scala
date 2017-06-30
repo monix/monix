@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -152,7 +152,7 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
           throw ex
       })
 
-      assert(latch.await(30, TimeUnit.SECONDS), "lastReportedFailureLatch.await")
+      assert(latch.await(15, TimeUnit.MINUTES), "lastReportedFailureLatch.await")
       self.synchronized(assertEquals(lastReportedFailure, ex))
     } finally {
       self.synchronized {
@@ -177,7 +177,7 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
           throw ex
       })
 
-      assert(latch.await(30, TimeUnit.SECONDS), "lastReportedFailureLatch.await")
+      assert(latch.await(15, TimeUnit.MINUTES), "lastReportedFailureLatch.await")
       self.synchronized(assertEquals(lastReportedFailure, ex))
     } finally {
       self.synchronized {
@@ -217,11 +217,11 @@ object ForkJoinSchedulerSuite extends ExecutorSchedulerSuite {
       scheduler.executeAsync { () =>
         blocking {
           latch.countDown()
-          finish.await(30, TimeUnit.SECONDS)
+          finish.await(15, TimeUnit.MINUTES)
         }
       }
 
-    assert(latch.await(30, TimeUnit.SECONDS), "latch.await")
+    assert(latch.await(15, TimeUnit.MINUTES), "latch.await")
     finish.countDown()
   }
 }

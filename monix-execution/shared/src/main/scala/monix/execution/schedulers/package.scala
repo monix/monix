@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,7 +32,7 @@ package object schedulers {
 
   /** Deprecated. Moved to [[monix.execution.ExecutionModel]]. */
   @deprecated("Moved to `monix.execution.ExecutionModel`", since="2.1.3")
-  object ExecutionModel {
+  object ExecutionModel extends Serializable {
     /** Deprecated. Moved to [[monix.execution.ExecutionModel.SynchronousExecution]]. */
     @deprecated("Moved to `monix.execution.ExecutionModel.SynchronousExecution`", since="2.1.3")
     def SynchronousExecution = monix.execution.ExecutionModel.SynchronousExecution

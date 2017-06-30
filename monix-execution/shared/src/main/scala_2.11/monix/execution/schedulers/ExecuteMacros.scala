@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,7 +33,6 @@ import scala.reflect.macros.whitebox
   *  NOTE: these macros are only defined for Scala < 2.12, because in
   *  Scala 2.12 we simply rely on its SAM support.
   */
-@macrocompat.bundle
 final class ExecuteMacros(override val c: whitebox.Context)
   extends InlineMacros with HygieneUtilMacros {
 

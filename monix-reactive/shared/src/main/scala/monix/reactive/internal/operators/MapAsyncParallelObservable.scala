@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,18 +17,16 @@
 
 package monix.reactive.internal.operators
 
-import monix.eval.Coeval.{Error, Now}
 import monix.eval.{Callback, Task}
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.{CompositeCancelable, SingleAssignmentCancelable}
 import monix.execution.internal.Platform
-import monix.execution.misc.AsyncSemaphore
+import monix.execution.misc.{AsyncSemaphore, NonFatal}
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.Observable
 import monix.reactive.OverflowStrategy.BackPressure
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 import scala.concurrent.Future
-import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
 /** Implementation for a `mapAsync` operator that can execute multiple tasks
@@ -104,25 +102,25 @@ private[reactive] final class MapAsyncParallelObservable[A,B]
         composite += subscription
 
         val task = {
-          val ref = f(elem).materializeAttempt.map {
-            case Now(value) =>
-              buffer.onNext(value).syncOnComplete {
-                case Success(Stop) =>
-                  lastAck = Stop
-                  composite.cancel()
-                case Success(Continue) =>
-                  semaphore.release()
-                  composite -= subscription
-                case Failure(ex) =>
-                  lastAck = Stop
-                  composite -= subscription
-                  self.onError(ex)
-              }
-            case Error(ex) =>
+          val ref = f(elem).transform(
+            value => buffer.onNext(value).syncOnComplete {
+              case Success(Stop) =>
+                lastAck = Stop
+                composite.cancel()
+              case Success(Continue) =>
+                semaphore.release()
+                composite -= subscription
+              case Failure(ex) =>
+                lastAck = Stop
+                composite -= subscription
+                self.onError(ex)
+            },
+            error => {
               lastAck = Stop
               composite -= subscription
-              self.onError(ex)
-          }
+              self.onError(error)
+            }
+          )
 
           ref.doOnCancel(releaseTask)
         }

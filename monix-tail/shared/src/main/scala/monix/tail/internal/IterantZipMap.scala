@@ -18,9 +18,11 @@
 package monix.tail.internal
 
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
-import monix.tail.{Batch, BatchCursor, Iterant}
+import monix.tail.Iterant
+import monix.tail.batches.BatchCursor
 import monix.types.Monad
 import monix.types.syntax._
+
 import scala.collection.mutable.ArrayBuffer
 import scala.util.control.NonFatal
 

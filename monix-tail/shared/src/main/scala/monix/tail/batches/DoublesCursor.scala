@@ -18,8 +18,7 @@
 package monix.tail
 package batches
 
-
-/** [[monix.tail.BatchCursor BatchCursor]] implementation specialized for `Double`.
+/** [[batches.BatchCursor BatchCursor]] implementation specialized for `Double`.
   *
   * Under the hood it uses an [[monix.tail.batches.ArrayCursor ArrayCursor]]
   * implementation, which is `@specialized`. Using `DoublesCursor` might
@@ -32,7 +31,7 @@ final class DoublesCursor(underlying: ArrayCursor[Double]) extends BatchCursor[D
     this(new ArrayCursor(array, offset, length))
 
   override def hasNext(): Boolean = underlying.hasNext()
-  override def next() = underlying.next()
+  override def next(): Double = underlying.next()
 
   override def recommendedBatchSize: Int = underlying.recommendedBatchSize
   override def toIterator: Iterator[Double] = underlying.toIterator

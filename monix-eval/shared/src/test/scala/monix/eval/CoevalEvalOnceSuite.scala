@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,9 +17,7 @@
 
 package monix.eval
 
-import monix.eval.Coeval.{Error, Now}
 import monix.execution.exceptions.DummyException
-
 import scala.util.{Failure, Success}
 
 object CoevalEvalOnceSuite extends BaseTestSuite {
@@ -46,24 +44,24 @@ object CoevalEvalOnceSuite extends BaseTestSuite {
   test("Coeval.evalOnce.flatMap should be equivalent with Coeval.evalOnce") { implicit s =>
     val ex = DummyException("dummy")
     val t = Coeval.evalOnce[Int](if (1 == 1) throw ex else 1).flatMap(Coeval.now)
-    check(t === Coeval.raiseError(ex))
+    check(t <-> Coeval.raiseError(ex))
   }
 
   test("Coeval.evalOnce.flatMap should protect against user code") { implicit s =>
     val ex = DummyException("dummy")
     val t = Coeval.evalOnce(1).flatMap[Int](_ => throw ex)
-    check(t === Coeval.raiseError(ex))
+    check(t <-> Coeval.raiseError(ex))
   }
 
   test("Coeval.evalOnce.map should work") { implicit s =>
     check1 { a: Int =>
-      Coeval.evalOnce(a).map(_ + 1) === Coeval.evalOnce(a + 1)
+      Coeval.evalOnce(a).map(_ + 1) <-> Coeval.evalOnce(a + 1)
     }
   }
 
   test("Coeval.evalOnce.flatMap should be tail recursive") { implicit s =>
     def loop(n: Int, idx: Int): Coeval[Int] =
-      Coeval.evalOnce(idx).flatMap { a =>
+      Coeval.evalOnce(idx).flatMap { _ =>
         if (idx < n) loop(n, idx + 1).map(_ + 1) else
           Coeval.evalOnce(idx)
       }
@@ -86,17 +84,17 @@ object CoevalEvalOnceSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("Coeval.evalOnce.materializeAttempt should work for success") { implicit s =>
-    val task = Coeval.evalOnce(1).materializeAttempt
+  test("Coeval.evalOnce.materialize should work for success") { implicit s =>
+    val task = Coeval.evalOnce(1).materialize
     val f = task.runTry
-    assertEquals(f, Success(Now(1)))
+    assertEquals(f, Success(Success(1)))
   }
 
-  test("Coeval.evalOnce.materializeAttempt should work for failure") { implicit s =>
+  test("Coeval.evalOnce.materialize should work for failure") { implicit s =>
     val dummy = DummyException("dummy")
-    val task = Coeval.evalOnce[Int](throw dummy).materializeAttempt
+    val task = Coeval.evalOnce[Int](throw dummy).materialize
     val f = task.runTry
-    assertEquals(f, Success(Error(dummy)))
+    assertEquals(f, Success(Failure(dummy)))
   }
 
   test("Coeval.evalOnce.task") { implicit s =>

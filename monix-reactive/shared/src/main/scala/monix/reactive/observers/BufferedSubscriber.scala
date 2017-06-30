@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -61,7 +61,7 @@ import monix.reactive.observers.buffers.BuildersImpl
   * See [[OverflowStrategy OverflowStrategy]] for the buffer
   * policies available.
   */
-trait BufferedSubscriber[-T] extends Subscriber[T]
+trait BufferedSubscriber[-A] extends Subscriber[A]
 
 private[reactive] trait Builders {
   /** Given an [[OverflowStrategy]] wraps a [[Subscriber]] into a

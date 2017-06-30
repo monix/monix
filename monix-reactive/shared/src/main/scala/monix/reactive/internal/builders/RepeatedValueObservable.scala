@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,10 +27,10 @@ import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Success, Try}
 
 private[reactive] final
-class RepeatedValueObservable[T](initialDelay: FiniteDuration, period: FiniteDuration, unit: T)
-  extends Observable[T] {
+class RepeatedValueObservable[A](initialDelay: FiniteDuration, period: FiniteDuration, unit: A)
+  extends Observable[A] {
 
-  def unsafeSubscribeFn(subscriber: Subscriber[T]): Cancelable = {
+  def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     val task = MultiAssignmentCancelable()
     val r = runnable(subscriber, task)
 
@@ -44,7 +44,7 @@ class RepeatedValueObservable[T](initialDelay: FiniteDuration, period: FiniteDur
     task
   }
 
-  private[this] def runnable(subscriber: Subscriber[T], task: MultiAssignmentCancelable): Runnable =
+  private[this] def runnable(subscriber: Subscriber[A], task: MultiAssignmentCancelable): Runnable =
     new Runnable { self =>
       private[this] implicit val s = subscriber.scheduler
       private[this] val periodMs = period.toMillis

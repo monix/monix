@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2016 by its authors. Some rights reserved.
- * See the project homepage at: https://sincron.org
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,7 +32,6 @@ private[execution] final case class TestBox[A](value: A) {
   * of [[InlineMacros]].
   */
 private[execution] object TestBox {
-  @macrocompat.bundle
   class Macros(override val c: whitebox.Context)
     extends InlineMacros with HygieneUtilMacros {
     import c.universe._

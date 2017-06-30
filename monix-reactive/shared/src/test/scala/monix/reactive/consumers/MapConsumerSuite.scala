@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,16 +18,16 @@
 package monix.reactive.consumers
 
 import monix.execution.exceptions.DummyException
-import monix.reactive.{BaseLawsTestSuite, Consumer, Observable}
+import monix.reactive.{BaseTestSuite, Consumer, Observable}
 import scala.util.Failure
 
-object MapConsumerSuite extends BaseLawsTestSuite {
+object MapConsumerSuite extends BaseTestSuite {
   test("consumer.map equivalence with task.map") { implicit s =>
     check1 { (obs: Observable[Int]) =>
       val consumer = Consumer.foldLeft[Long,Int](0L)(_ + _)
       val t1 = obs.consumeWith(consumer.map(_ + 100))
       val t2 = obs.consumeWith(consumer).map(_ + 100)
-      t1 === t2
+      t1 <-> t2
     }
   }
 
@@ -38,7 +38,7 @@ object MapConsumerSuite extends BaseLawsTestSuite {
 
       val t1 = withError.consumeWith(consumer.map(_+100))
       val t2 = withError.consumeWith(consumer).map(_+100)
-      t1 === t2
+      t1 <-> t2
     }
   }
 

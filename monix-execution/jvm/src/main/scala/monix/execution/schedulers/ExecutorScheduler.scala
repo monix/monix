@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,10 +19,12 @@ package monix.execution.schedulers
 
 import java.lang.Thread.UncaughtExceptionHandler
 import java.util.concurrent.{Executor, ExecutorService, ScheduledExecutorService}
+
 import monix.execution.internal.forkJoin.{AdaptedForkJoinPool, DynamicWorkerThreadFactory, StandardWorkerThreadFactory}
+import monix.execution.misc.NonFatal
 import monix.execution.{Cancelable, Scheduler, UncaughtExceptionReporter}
+
 import scala.concurrent.{Future, Promise, blocking}
-import scala.util.control.NonFatal
 // Prevents conflict with the deprecated symbol
 import monix.execution.{ExecutionModel => ExecModel}
 import scala.concurrent.duration.TimeUnit

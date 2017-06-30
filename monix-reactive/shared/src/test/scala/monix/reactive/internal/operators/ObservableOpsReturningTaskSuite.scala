@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,11 +22,11 @@ import monix.execution.Ack.Stop
 import monix.execution.FutureUtils.extensions._
 import monix.execution.Scheduler
 import monix.execution.atomic.Atomic
-import monix.reactive.{BaseLawsTestSuite, Observable, Observer}
+import monix.reactive.{BaseTestSuite, Observable, Observer}
 import scala.concurrent.{Future, Promise}
 import scala.util.{Success, Try}
 
-object ObservableOpsReturningTaskSuite extends BaseLawsTestSuite {
+object ObservableOpsReturningTaskSuite extends BaseTestSuite {
   def first[A](obs: Observable[A])(implicit s: Scheduler): Future[Try[Option[A]]] = {
     val p = Promise[Try[Option[A]]]()
     obs.unsafeSubscribeFn(new Observer.Sync[A] {
@@ -40,14 +40,14 @@ object ObservableOpsReturningTaskSuite extends BaseLawsTestSuite {
   test("runAsyncGetFirst works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
-      obs.runAsyncGetFirst.materialize === first(obs)
+      obs.runAsyncGetFirst.materialize <-> first(obs)
     }
   }
 
   test("runAsyncGetLast works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
-      obs.runAsyncGetLast.materialize === first(obs.lastF)
+      obs.runAsyncGetLast.materialize <-> first(obs.lastF)
     }
   }
 
@@ -57,7 +57,7 @@ object ObservableOpsReturningTaskSuite extends BaseLawsTestSuite {
       val result: Future[Try[Option[Long]]] =
         obs.countL.map(Some.apply).materialize.runAsync
 
-      result === Future.successful(Success(Some(list.length)))
+      result <-> Future.successful(Success(Some(list.length)))
     }
   }
 
@@ -67,7 +67,7 @@ object ObservableOpsReturningTaskSuite extends BaseLawsTestSuite {
       val result: Future[Try[Option[Long]]] =
         obs.countL.map(Some.apply).materialize.runAsync
 
-      result === first(obs.countF)
+      result <-> first(obs.countF)
     }
   }
 
@@ -77,7 +77,7 @@ object ObservableOpsReturningTaskSuite extends BaseLawsTestSuite {
       val result: Future[Try[Option[Boolean]]] =
         obs.existsL(_ % 3 == 0).map(Some.apply).materialize.runAsync
 
-      result === Future.successful(Success(Some(list.exists(_ % 3 == 0))))
+      result <-> Future.successful(Success(Some(list.exists(_ % 3 == 0))))
     }
   }
 
@@ -87,7 +87,7 @@ object ObservableOpsReturningTaskSuite extends BaseLawsTestSuite {
       val result: Future[Try[Option[Boolean]]] =
         obs.existsL(_ % 3 == 0).map(Some.apply).materialize.runAsync
 
-      result === first(obs.existsF(_ % 3 == 0))
+      result <-> first(obs.existsF(_ % 3 == 0))
     }
   }
 
@@ -97,7 +97,7 @@ object ObservableOpsReturningTaskSuite extends BaseLawsTestSuite {
       val result: Future[Try[Option[Int]]] =
         obs.findL(_ % 3 == 0).materialize.runAsync
 
-      result === first(obs.findF(_ % 3 == 0))
+      result <-> first(obs.findF(_ % 3 == 0))
     }
   }
 
@@ -107,7 +107,7 @@ object ObservableOpsReturningTaskSuite extends BaseLawsTestSuite {
       val result: Future[Try[Option[Int]]] =
         obs.foldLeftL(0)(_+_).map(Some.apply).materialize.runAsync
 
-      result === Future.successful(Success(Some(list.sum)))
+      result <-> Future.successful(Success(Some(list.sum)))
     }
   }
 
@@ -116,7 +116,7 @@ object ObservableOpsReturningTaskSuite extends BaseLawsTestSuite {
       val obs = Observable.fromIterable(list)
       val sum1 = obs.foldLeftL(0)(_+_)
       val sum2 = obs.foldWhileL(0)((acc,e) => (true, acc+e))
-      sum1 === sum2
+      sum1 <-> sum2
     }
   }
 
@@ -126,7 +126,7 @@ object ObservableOpsReturningTaskSuite extends BaseLawsTestSuite {
       val result: Future[Try[Option[Boolean]]] =
         obs.forAllL(_ >= 0).map(Some.apply).materialize.runAsync
 
-      result === Future.successful(Success(Some(list.forall(_ >= 0))))
+      result <-> Future.successful(Success(Some(list.forall(_ >= 0))))
     }
   }
 
@@ -136,7 +136,7 @@ object ObservableOpsReturningTaskSuite extends BaseLawsTestSuite {
       val result: Future[Try[Option[Boolean]]] =
         obs.forAllL(_ >= 0).map(Some.apply).materialize.runAsync
 
-      result === first(obs.forAllF(_ >= 0))
+      result <-> first(obs.forAllF(_ >= 0))
     }
   }
 
@@ -144,7 +144,7 @@ object ObservableOpsReturningTaskSuite extends BaseLawsTestSuite {
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result = obs.firstOptionL
-      result === Task.now(list.headOption)
+      result <-> Task.now(list.headOption)
     }
   }
 
@@ -152,28 +152,28 @@ object ObservableOpsReturningTaskSuite extends BaseLawsTestSuite {
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result = obs.firstL.onErrorHandle(_ => -101)
-      result === Task.now(list.headOption.getOrElse(-101))
+      result <-> Task.now(list.headOption.getOrElse(-101))
     }
   }
 
   test("headL is equivalent with firstL") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
-      obs.headL.onErrorHandle(_ => -101) === obs.firstL.onErrorHandle(_ => -101)
+      obs.headL.onErrorHandle(_ => -101) <-> obs.firstL.onErrorHandle(_ => -101)
     }
   }
 
   test("headOptionL is equivalent with firstOptionL") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
-      obs.headOptionL === obs.firstOptionL
+      obs.headOptionL <-> obs.firstOptionL
     }
   }
 
   test("headOrElseL is equivalent with firstOrElseL") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
-      obs.map(Some.apply).headOrElseL(None) ===
+      obs.map(Some.apply).headOrElseL(None) <->
         obs.map(Some.apply).firstOrElseL(None)
     }
   }
@@ -184,7 +184,7 @@ object ObservableOpsReturningTaskSuite extends BaseLawsTestSuite {
       val result: Future[Try[Option[Int]]] =
         obs.lastOptionL.materialize.runAsync
 
-      result === first(obs.lastF)
+      result <-> first(obs.lastF)
     }
   }
 
@@ -195,7 +195,7 @@ object ObservableOpsReturningTaskSuite extends BaseLawsTestSuite {
         obs.map(Some.apply).lastOrElseL(None)
           .materialize.runAsync
 
-      result === first(obs.lastF)
+      result <-> first(obs.lastF)
     }
   }
 
@@ -203,7 +203,7 @@ object ObservableOpsReturningTaskSuite extends BaseLawsTestSuite {
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result = obs.lastL.onErrorHandle(_ => -101)
-      result === Task.now(list.lastOption.getOrElse(-101))
+      result <-> Task.now(list.lastOption.getOrElse(-101))
     }
   }
 
@@ -211,7 +211,7 @@ object ObservableOpsReturningTaskSuite extends BaseLawsTestSuite {
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result = obs.isEmptyL
-      result === Task.now(list.isEmpty)
+      result <-> Task.now(list.isEmpty)
     }
   }
 
@@ -219,7 +219,7 @@ object ObservableOpsReturningTaskSuite extends BaseLawsTestSuite {
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result = obs.nonEmptyL
-      result === Task.now(list.nonEmpty)
+      result <-> Task.now(list.nonEmpty)
     }
   }
 
@@ -227,7 +227,7 @@ object ObservableOpsReturningTaskSuite extends BaseLawsTestSuite {
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result = obs.maxL.map(_.getOrElse(-101))
-      result === Task.now(Try(list.max).getOrElse(-101))
+      result <-> Task.now(Try(list.max).getOrElse(-101))
     }
   }
 
@@ -235,7 +235,7 @@ object ObservableOpsReturningTaskSuite extends BaseLawsTestSuite {
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result = obs.maxByL(identity).map(_.getOrElse(-101))
-      result === Task.now(Try(list.max).getOrElse(-101))
+      result <-> Task.now(Try(list.max).getOrElse(-101))
     }
   }
 
@@ -243,7 +243,7 @@ object ObservableOpsReturningTaskSuite extends BaseLawsTestSuite {
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result = obs.minL.map(_.getOrElse(-101))
-      result === Task.now(Try(list.min).getOrElse(-101))
+      result <-> Task.now(Try(list.min).getOrElse(-101))
     }
   }
 
@@ -251,7 +251,7 @@ object ObservableOpsReturningTaskSuite extends BaseLawsTestSuite {
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result = obs.minByL(identity).map(_.getOrElse(-101))
-      result === Task.now(Try(list.min).getOrElse(-101))
+      result <-> Task.now(Try(list.min).getOrElse(-101))
     }
   }
 
@@ -259,7 +259,7 @@ object ObservableOpsReturningTaskSuite extends BaseLawsTestSuite {
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result = obs.sumL
-      result === Task.now(list.sum)
+      result <-> Task.now(list.sum)
     }
   }
 
@@ -267,7 +267,7 @@ object ObservableOpsReturningTaskSuite extends BaseLawsTestSuite {
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result = obs.toListL
-      result === Task.now(list)
+      result <-> Task.now(list)
     }
   }
 
@@ -276,7 +276,7 @@ object ObservableOpsReturningTaskSuite extends BaseLawsTestSuite {
       val obs = Observable.fromIterable(list)
       val sumRef = Atomic(0)
       val result: Future[Int] = obs.foreachL(sumRef.increment).runAsync.map(_ => sumRef.get)
-      result === Future.successful(list.sum)
+      result <-> Future.successful(list.sum)
     }
   }
 }

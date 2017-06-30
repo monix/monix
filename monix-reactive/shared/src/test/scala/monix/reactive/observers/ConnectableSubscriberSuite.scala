@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -142,6 +142,6 @@ object ConnectableSubscriberSuite extends TestSuite[TestScheduler] {
     assertEquals(errorThrown, DummyException("dummy"))
   }
 
-  def create[T](o: Observer[T])(implicit s: Scheduler) =
+  def create[A](o: Observer[A])(implicit s: Scheduler) =
     ConnectableSubscriber(Subscriber(o, s))
 }

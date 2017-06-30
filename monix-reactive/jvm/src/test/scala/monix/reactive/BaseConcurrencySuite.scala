@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,85 +17,56 @@
 
 package monix.reactive
 
+import cats.Eq
 import minitest.TestSuite
 import minitest.laws.Checkers
-import monix.eval.{Callback, Coeval, Task}
+import monix.eval.Task
 import monix.execution.Scheduler
-import org.scalacheck.{Arbitrary, Prop}
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Promise}
-import scala.language.implicitConversions
-import scala.util.Try
+import scala.concurrent.{Await, Future}
+import scala.util.{Failure, Success}
 
-trait BaseConcurrencySuite extends TestSuite[Scheduler] with Checkers {
+trait BaseConcurrencySuite extends TestSuite[Scheduler] with Checkers with ArbitraryInstancesBase {
   def setup(): Scheduler = Scheduler.global
   def tearDown(env: Scheduler): Unit = ()
 
-  implicit def arbitraryObservable[A : Arbitrary]: Arbitrary[Observable[A]] =
-    Arbitrary {
-      implicitly[Arbitrary[List[A]]].arbitrary
-        .map(Observable.fromIterable)
+  implicit def equalityObservable[A](implicit A: Eq[A], ec: Scheduler): Eq[Observable[A]] =
+    new Eq[Observable[A]] {
+      def eqv(lh: Observable[A], rh: Observable[A]): Boolean = {
+        val eqList = implicitly[Eq[Option[List[A]]]]
+        val fa = lh.foldLeftF(List.empty[A])((acc,e) => e :: acc).firstOptionL.runAsync
+        val fb = rh.foldLeftF(List.empty[A])((acc,e) => e :: acc).firstOptionL.runAsync
+        equalityFuture(eqList, ec).eqv(fa, fb)
+      }
     }
 
-  implicit lazy val arbitraryThrowable: Arbitrary[Throwable] =
-    Arbitrary {
-      implicitly[Arbitrary[Int]].arbitrary
-        .map(number => new RuntimeException(number.toString))
+  implicit def equalityTask[A](implicit A: Eq[A], ec: Scheduler): Eq[Task[A]] =
+    new Eq[Task[A]] {
+      def eqv(lh: Task[A], rh: Task[A]): Boolean =
+        equalityFuture(A, ec).eqv(lh.runAsync, rh.runAsync)
     }
 
-  /** Implicitly map [[IsEquiv]] to a [[Prop]]. */
-  implicit def isEqObservableProp[A](isEq: IsEquiv[Observable[A]])(implicit s: Scheduler): Prop =
-    Prop {
-      val promiseLeft = Promise[Option[List[A]]]()
-      val promiseRight = Promise[Option[List[A]]]()
+  implicit def equalityFuture[A](implicit A: Eq[A], ec: Scheduler): Eq[Future[A]] =
+    new Eq[Future[A]] {
+      def eqv(x: Future[A], y: Future[A]): Boolean = {
+        Await.ready(for (_ <- x; _ <- y) yield (), 5.minutes)
 
-      isEq.lh.foldLeftF(List.empty[A])((acc,e) => e :: acc).firstOptionL
-        .runAsync(Callback.fromPromise(promiseLeft))
-      isEq.rh.foldLeftF(List.empty[A])((acc,e) => e :: acc).firstOptionL
-        .runAsync(Callback.fromPromise(promiseRight))
-
-      val valueLeft = Await.result(promiseLeft.future, 5.minutes)
-      val valueRight = Await.result(promiseRight.future, 5.minutes)
-      valueLeft == valueRight
+        x.value match {
+          case None =>
+            y.value.isEmpty
+          case Some(Success(a)) =>
+            y.value match {
+              case Some(Success(b)) => A.eqv(a, b)
+              case _ => false
+            }
+          case Some(Failure(ex1)) =>
+            y.value match {
+              case Some(Failure(ex2)) =>
+                equalityThrowable.eqv(ex1, ex2)
+              case _ =>
+                false
+            }
+        }
+      }
     }
-
-  /** Implicitly map [[IsEquiv]] to a [[Prop]]. */
-  implicit def isEqTaskProp[A](isEq: IsEquiv[Task[A]])(implicit s: Scheduler): Prop =
-    Prop {
-      val promiseLeft = Promise[Try[A]]()
-      val promiseRight = Promise[Try[A]]()
-
-      isEq.lh.materialize.runAsync(Callback.fromPromise(promiseLeft))
-      isEq.rh.materialize.runAsync(Callback.fromPromise(promiseRight))
-
-      val valueLeft = Await.result(promiseLeft.future, 5.minutes)
-      val valueRight = Await.result(promiseRight.future, 5.minutes)
-      valueLeft == valueRight
-    }
-
-  /** Implicitly map [[IsEquiv]] to a [[Prop]]. */
-  implicit def isEqCoevalProp[A](isEq: IsEquiv[Coeval[A]]): Prop =
-    Prop { isEq.lh.runTry == isEq.rh.runTry }
-
-  /** Implicitly map [[IsNotEquiv]] to a [[Prop]]. */
-  implicit def isNotEqCoevalProp[A](isNotEq: IsNotEquiv[Coeval[A]]): Prop =
-    Prop { isNotEq.lh.runTry != isNotEq.rh.runTry }
-
-  /** Implicitly map [[IsEquiv]] to a [[Prop]]. */
-  implicit def isEqSeqCoevalProp[A](list: List[IsEquiv[Coeval[A]]]): Prop =
-    Prop { list.forall(isEq => isEq.lh.runTry == isEq.rh.runTry ) }
-
-  /** Implicitly map [[IsNotEquiv]] to a [[Prop]]. */
-  implicit def isNotEqSeqCoevalProp[A](list: List[IsNotEquiv[Coeval[A]]]): Prop =
-    Prop { list.forall(isNotEq => isNotEq.lh.runTry != isNotEq.rh.runTry ) }
-
-  /** Syntax for equivalence in tests. */
-  implicit final class IsEqArrow[A](val lhs: A) {
-    def ===(rhs: A): IsEquiv[A] = IsEquiv(lhs, rhs)
-  }
-
-  /** Syntax for negating equivalence in tests. */
-  implicit final class IsNotEqArrow[A](val lhs: A) {
-    def =!=(rhs: A): IsNotEquiv[A] = IsNotEquiv(lhs, rhs)
-  }
 }

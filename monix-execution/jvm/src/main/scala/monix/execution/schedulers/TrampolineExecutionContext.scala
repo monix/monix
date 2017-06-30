@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,9 +17,11 @@
 
 package monix.execution.schedulers
 
+
+import monix.execution.misc.NonFatal
+
 import scala.annotation.tailrec
 import scala.concurrent.{BlockContext, CanAwait, ExecutionContext}
-import scala.util.control.NonFatal
 
 /** A `scala.concurrentExecutionContext` implementation
   * that executes runnables immediately, on the current thread,
@@ -153,6 +155,25 @@ object TrampolineExecutionContext {
     */
   def apply(underlying: ExecutionContext): TrampolineExecutionContext =
     new TrampolineExecutionContext(underlying)
+
+  /** [[TrampolineExecutionContext]] instance that executes everything
+    * immediately, on the current thread.
+    *
+    * Implementation notes:
+    *
+    *  - if too many `blocking` operations are chained, at some point
+    *    the implementation will trigger a stack overflow error
+    *  - `reportError` re-throws the exception in the hope that it
+    *    will get caught and reported by the underlying thread-pool,
+    *    because there's nowhere it could report that error safely
+    *    (i.e. `System.err` might be routed to `/dev/null` and we'd
+    *    have no way to override it)
+    */
+  val immediate: TrampolineExecutionContext =
+    TrampolineExecutionContext(new ExecutionContext {
+      def execute(r: Runnable): Unit = r.run()
+      def reportFailure(e: Throwable): Unit = throw e
+    })
 
   /** Returns the `localContext`, allowing us to bypass calling
     * `BlockContext.withBlockContext`, as an optimization trick.

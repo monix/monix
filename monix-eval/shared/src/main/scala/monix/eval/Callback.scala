@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,10 +17,10 @@
 
 package monix.eval
 
+import monix.execution.misc.NonFatal
 import monix.execution.{Listener, Scheduler, UncaughtExceptionReporter}
 
 import scala.concurrent.Promise
-import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
 /** Represents a callback that should be called asynchronously
@@ -30,26 +30,32 @@ import scala.util.{Failure, Success, Try}
   * The `onSuccess` method should be called only once, with the successful
   * result, whereas `onError` should be called if the result is an error.
   */
-abstract class Callback[-T] extends Listener[T] with ((Try[T]) => Unit) {
-  def onSuccess(value: T): Unit
+abstract class Callback[-A] extends Listener[A] with ((Try[A]) => Unit) {
+  def onSuccess(value: A): Unit
   def onError(ex: Throwable): Unit
 
   /** An alias for [[onSuccess]], inherited
     * from [[monix.execution.Listener]].
     */
-  final def onValue(value: T): Unit =
+  final def onValue(value: A): Unit =
     onSuccess(value)
 
-  final def apply(result: Try[T]): Unit =
+  final def apply(result: Try[A]): Unit =
     result match {
-      case Success(value) => onSuccess(value)
-      case Failure(ex) => onError(ex)
+      case Success(a) => onSuccess(a)
+      case Failure(e) => onError(e)
     }
 
-  final def apply(result: Coeval[T]): Unit =
-    result.runAttempt match {
-      case Coeval.Now(value) => onSuccess(value)
-      case Coeval.Error(ex) => onError(ex)
+  final def apply(result: Coeval[A]): Unit =
+    result.runToEager match {
+      case Coeval.Now(a) => onSuccess(a)
+      case Coeval.Error(e) => onError(e)
+    }
+
+  final def apply(result: Either[Throwable, A]): Unit =
+    result match {
+      case Right(a) => onSuccess(a)
+      case Left(e) => onError(e)
     }
 }
 
@@ -58,18 +64,18 @@ object Callback {
     * protects against grammar violations (e.g. `onSuccess` or `onError`
     * must be called at most once). For usage in `runAsync`.
     */
-  def safe[T](cb: Callback[T])
-    (implicit r: UncaughtExceptionReporter): Callback[T] =
+  def safe[A](cb: Callback[A])
+    (implicit r: UncaughtExceptionReporter): Callback[A] =
     cb match {
       case _: SafeCallback[_] => cb
-      case _ => new SafeCallback[T](cb)
+      case _ => new SafeCallback[A](cb)
     }
 
   /** Creates an empty [[Callback]], a callback that doesn't do
     * anything in `onNext` and that logs errors in `onError` with
     * the provided [[monix.execution.UncaughtExceptionReporter]].
     */
-  def empty[T](implicit r: UncaughtExceptionReporter): Callback[T] =
+  def empty[A](implicit r: UncaughtExceptionReporter): Callback[A] =
     new EmptyCallback(r)
 
   /** Returns a [[Callback]] instance that will complete the given
@@ -126,14 +132,14 @@ object Callback {
   /** A `SafeCallback` is a callback that ensures it can only be called
     * once, with a simple check.
     */
-  private final class SafeCallback[-T](underlying: Callback[T])
+  private final class SafeCallback[-A](underlying: Callback[A])
     (implicit r: UncaughtExceptionReporter)
-    extends Callback[T] {
+    extends Callback[A] {
 
     private[this] var isActive = true
 
     /** To be called only once, on successful completion of a [[monix.eval.Task Task]] */
-    def onSuccess(value: T): Unit =
+    def onSuccess(value: A): Unit =
       if (isActive) {
         isActive = false
         try underlying.onSuccess(value) catch {

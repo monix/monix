@@ -17,8 +17,18 @@
 
 package monix
 
+import cats.Applicative
+
 /** The `monix.tail` batches exposes the [[monix.tail.Iterant Iterant]]
   * type, a pull-based streaming abstraction that can work lazily
   * and over asynchronous boundaries.
   */
-package object tail
+package object tail {
+  /** Missing utils for `cats.Applicative`. */
+  private[tail] implicit class ApplicativeUtils[F[_]](val self: Applicative[F])
+    extends AnyVal {
+
+    /** Shortcut for `Applicative.pure(())`. */
+    def unit: F[Unit] = self.pure(())
+  }
+}

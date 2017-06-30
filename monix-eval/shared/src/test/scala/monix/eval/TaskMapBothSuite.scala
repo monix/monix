@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -74,14 +74,14 @@ object TaskMapBothSuite extends BaseTestSuite {
   test("sum random synchronous tasks") { implicit s =>
     check1 { (numbers: List[Int]) =>
       val sum = numbers.foldLeft(Task.now(0))((acc,t) => Task.mapBoth(acc, Task.eval(t))(_+_))
-      sum === Task.now(numbers.sum)
+      sum <-> Task.now(numbers.sum)
     }
   }
 
   test("sum random asynchronous tasks") { implicit s =>
     check1 { (numbers: List[Int]) =>
       val sum = numbers.foldLeft(Task(0))((acc,t) => Task.mapBoth(acc, Task(t))(_+_))
-      sum === Task(numbers.sum)
+      sum <-> Task(numbers.sum)
     }
   }
 

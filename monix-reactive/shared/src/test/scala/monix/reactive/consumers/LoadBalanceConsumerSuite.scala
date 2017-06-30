@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,12 +23,14 @@ import monix.execution.atomic.{Atomic, AtomicInt, AtomicLong}
 import monix.execution.cancelables.{AssignableCancelable, BooleanCancelable, CompositeCancelable}
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.execution.exceptions.DummyException
+import monix.reactive.internal.consumers.LoadBalanceConsumer
 import monix.reactive.observers.Subscriber
-import monix.reactive.{BaseLawsTestSuite, Consumer, Observable, Observer}
+import monix.reactive.{BaseTestSuite, Consumer, Observable, Observer}
+
 import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success}
 
-object LoadBalanceConsumerSuite extends BaseLawsTestSuite {
+object LoadBalanceConsumerSuite extends BaseTestSuite {
   test("trigger error when parallelism < 1") { implicit s =>
     intercept[IllegalArgumentException] {
       Consumer.loadBalance(0, Consumer.head[Int])
@@ -37,7 +39,7 @@ object LoadBalanceConsumerSuite extends BaseLawsTestSuite {
 
   test("trigger error when array of consumers is empty") { implicit s =>
     intercept[IllegalArgumentException] {
-      new Consumer.LoadBalanceConsumer(1, Array.empty[Consumer[Int,Int]])
+      new LoadBalanceConsumer(1, Array.empty[Consumer[Int,Int]])
     }
   }
 
@@ -55,7 +57,7 @@ object LoadBalanceConsumerSuite extends BaseLawsTestSuite {
 
       val task1 = source.foldLeftF(0L)(_+_).firstL
       val task2 = source.consumeWith(consumer).map(_.sum)
-      task1 === task2
+      task1 <-> task2
     }
   }
 
@@ -76,7 +78,7 @@ object LoadBalanceConsumerSuite extends BaseLawsTestSuite {
       val consumer = Consumer.loadBalance(allConsumers:_*)
       val task1 = source.foldLeftF(0L)(_+_).firstL
       val task2 = source.consumeWith(consumer).map(_.sum)
-      task1 === task2
+      task1 <-> task2
     }
   }
 
@@ -217,16 +219,16 @@ object LoadBalanceConsumerSuite extends BaseLawsTestSuite {
     val finishPromise = Promise[Int]()
     val (subscriber, _) = loadBalancer.createSubscriber(Callback.fromPromise(finishPromise), s)
 
-    for (i <- 0 until 4) assertEquals(subscriber.onNext(1), Continue)
+    for (_ <- 0 until 4) assertEquals(subscriber.onNext(1), Continue)
     s.tick()
     assertEquals(sum.get, 4 + 2)
 
-    for (i <- 0 until 4) assertEquals(subscriber.onNext(1), Continue)
+    for (_ <- 0 until 4) assertEquals(subscriber.onNext(1), Continue)
     s.tick()
     assertEquals(sum.get, 8 + 2 + 2)
 
     composite.cancel(); s.tick()
-    for (i <- 0 until 4) { assertEquals(subscriber.onNext(1), Continue); s.tick() }
+    for (_ <- 0 until 4) { assertEquals(subscriber.onNext(1), Continue); s.tick() }
     assertEquals(sum.get, 12 + 4)
 
     subscriber.onComplete(); s.tick()
@@ -312,7 +314,7 @@ object LoadBalanceConsumerSuite extends BaseLawsTestSuite {
           implicit val scheduler = s
 
           def onNext(elem: Int) =
-            ack.future.map { r =>
+            ack.future.map { _ =>
               cb.onError(ex)
               Stop
             }

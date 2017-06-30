@@ -17,11 +17,10 @@
 
 package monix.tail.internal
 
+import cats.effect.Sync
+import cats.syntax.all._
 import monix.tail.Iterant
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
-import monix.types.Monad
-import monix.types.syntax._
-
 import scala.collection.mutable
 import scala.util.control.NonFatal
 
@@ -30,31 +29,28 @@ private[tail] object IterantFoldLeftL {
     * Implementation for `Iterant#foldLeftL`
     */
   final def apply[F[_], S, A](source: Iterant[F, A], seed: => S)(op: (S,A) => S)
-    (implicit F: Monad[F]): F[S] = {
-
-    import F.{functor, applicative => A}
+    (implicit F: Sync[F]): F[S] = {
 
     def loop(self: Iterant[F, A], state: S): F[S] = {
       try self match {
-        case Next(a, rest, stop) =>
+        case Next(a, rest, _) =>
           val newState = op(state, a)
           rest.flatMap(loop(_, newState))
-        case NextCursor(cursor, rest, stop) =>
+        case NextCursor(cursor, rest, _) =>
           val newState = cursor.foldLeft(state)(op)
           rest.flatMap(loop(_, newState))
-        case NextBatch(gen, rest, stop) =>
+        case NextBatch(gen, rest, _) =>
           val newState = gen.foldLeft(state)(op)
           rest.flatMap(loop(_, newState))
-        case Suspend(rest, stop) =>
+        case Suspend(rest, _) =>
           rest.flatMap(loop(_, state))
         case Last(item) =>
-          A.pure(op(state,item))
+          F.pure(op(state,item))
         case Halt(None) =>
-          A.pure(state)
+          F.pure(state)
         case Halt(Some(ex)) =>
-          A.eval(throw ex)
-      }
-      catch {
+          F.raiseError(ex)
+      } catch {
         case NonFatal(ex) =>
           source.earlyStop.map(_ => throw ex)
       }
@@ -66,8 +62,7 @@ private[tail] object IterantFoldLeftL {
         val init = seed
         catchErrors = false
         loop(source, init)
-      }
-      catch {
+      } catch {
         case NonFatal(ex) if catchErrors =>
           source.earlyStop.map(_ => throw ex)
       }
@@ -77,8 +72,7 @@ private[tail] object IterantFoldLeftL {
   /**
     * Implementation for `Iterant#toListL`
     */
-  def toListL[F[_], A](source: Iterant[F, A])(implicit F: Monad[F]): F[List[A]] = {
-    import F.functor
+  def toListL[F[_], A](source: Iterant[F, A])(implicit F: Sync[F]): F[List[A]] = {
     val buffer = IterantFoldLeftL(source, mutable.ListBuffer.empty[A])((acc, a) => acc += a)
     buffer.map(_.toList)
   }

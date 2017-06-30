@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,10 +26,10 @@ import monix.reactive.observers.Subscriber
 import monix.reactive.{Observable, Observer}
 import scala.concurrent.{Future, Promise}
 
-private[reactive] final class FirstStartedObservable[T](source: Observable[T]*)
-  extends Observable[T] {
+private[reactive] final class FirstStartedObservable[A](source: Observable[A]*)
+  extends Observable[A] {
 
-  override def unsafeSubscribeFn(subscriber: Subscriber[T]): Cancelable = {
+  override def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     import subscriber.scheduler
     val finishLine = Atomic(-1)
     var idx = 0
@@ -64,11 +64,11 @@ private[reactive] final class FirstStartedObservable[T](source: Observable[T]*)
   }
 
   // Helper function used for creating a subscription that uses `finishLine` as guard
-  def createSubscription(observable: Observable[T], observer: Observer[T],
+  def createSubscription(observable: Observable[A], observer: Observer[A],
     finishLine: AtomicInt, idx: Int, p: Promise[Int])
     (implicit s: Scheduler): Cancelable = {
 
-    observable.unsafeSubscribeFn(new Observer[T] {
+    observable.unsafeSubscribeFn(new Observer[A] {
       // for fast path
       private[this] var finishLineCache = -1
 
@@ -85,7 +85,7 @@ private[reactive] final class FirstStartedObservable[T](source: Observable[T]*)
         }
       }
 
-      def onNext(elem: T): Future[Ack] = {
+      def onNext(elem: A): Future[Ack] = {
         if (shouldStream())
           observer.onNext(elem)
         else

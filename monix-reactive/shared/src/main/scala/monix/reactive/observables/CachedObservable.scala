@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -34,16 +34,16 @@ import monix.execution.atomic.Atomic
   * @param source - the observable we are wrapping
   * @param maxCapacity - the buffer capacity, or 0 for usage of an unbounded buffer
   */
-final class CachedObservable[+T] private (source: Observable[T], maxCapacity: Int)
-  extends Observable[T] {
+final class CachedObservable[+A] private (source: Observable[A], maxCapacity: Int)
+  extends Observable[A] {
 
   private[this] val isStarted = Atomic(false)
   private[this] val subject = {
-    if (maxCapacity > 0) ReplaySubject.createLimited[T](maxCapacity) else
-      ReplaySubject[T]()
+    if (maxCapacity > 0) ReplaySubject.createLimited[A](maxCapacity) else
+      ReplaySubject[A]()
   }
 
-  def unsafeSubscribeFn(subscriber: Subscriber[T]): Cancelable = {
+  def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     import subscriber.scheduler
     if (isStarted.compareAndSet(expect = false, update = true))
       source.unsafeSubscribeFn(Subscriber(subject, scheduler))
@@ -56,7 +56,7 @@ object CachedObservable {
     *
     * @param observable - is the observable we are wrapping
     */
-  def create[T](observable: Observable[T]): Observable[T] =
+  def create[A](observable: Observable[A]): Observable[A] =
     new CachedObservable(observable, 0)
 
   /** Builder for [[CachedObservable]]
@@ -64,7 +64,7 @@ object CachedObservable {
     * @param observable - is the observable we are wrapping
     * @param maxCapacity - the buffer capacity, with old elements being dropped on overflow
     */
-  def create[T](observable: Observable[T], maxCapacity: Int): Observable[T] = {
+  def create[A](observable: Observable[A], maxCapacity: Int): Observable[A] = {
     require(maxCapacity > 0, "capacity must be strictly positive")
     new CachedObservable(observable, maxCapacity)
   }

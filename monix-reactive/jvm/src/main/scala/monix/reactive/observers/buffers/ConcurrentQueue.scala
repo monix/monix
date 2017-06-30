@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -55,17 +55,11 @@ private[buffers] object ConcurrentQueue {
     }
   }
 
-  /** Builds an unbounded queue. If `isBatched` is true, then
-    * we're using an array-based growable queue (if it is supported).
-    */
-  def unbounded[A](isBatched: Boolean): ConcurrentQueue[A] = {
+  /** Builds an unbounded queue. */
+  def unbounded[A](): ConcurrentQueue[A] = {
     if (UnsafeAccess.IS_OPENJDK_COMPATIBLE) {
-      new FromMessagePassingQueue[A](
-        if (isBatched)
-          new MpscUnboundedArrayQueue[A](Platform.recommendedBatchSize)
-        else
-          MpscLinkedQueue.newMpscLinkedQueue[A]()
-      )
+      val size = Platform.recommendedBatchSize
+      new FromMessagePassingQueue[A](new MpscUnboundedArrayQueue[A](size))
     }
     else {
       val ref = new MpscLinkedAtomicQueue[A]()

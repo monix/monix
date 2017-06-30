@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,9 +17,7 @@
 
 package monix.eval
 
-import monix.eval.Coeval.{Error, Now}
 import monix.execution.exceptions.DummyException
-
 import scala.util.{Failure, Success}
 
 object CoevalNowSuite extends BaseTestSuite {
@@ -35,7 +33,7 @@ object CoevalNowSuite extends BaseTestSuite {
 
   test("Coeval.now.isSuccess") { implicit s =>
     assert(Coeval.Now(1).isSuccess, "isSuccess")
-    assert(!Coeval.Now(1).isFailure, "!isFailure")
+    assert(!Coeval.Now(1).isError, "!isFailure")
   }
 
   test("Coeval.error should work synchronously") { implicit s =>
@@ -52,21 +50,21 @@ object CoevalNowSuite extends BaseTestSuite {
   test("Coeval.now.map should work") { implicit s =>
     Coeval.now(1).map(_ + 1).value
     check1 { a: Int =>
-      Coeval.now(a).map(_ + 1) === Coeval.now(a + 1)
+      Coeval.now(a).map(_ + 1) <-> Coeval.now(a + 1)
     }
   }
 
   test("Coeval.error.map should be the same as Coeval.error") { implicit s =>
     check {
       val dummy = DummyException("dummy")
-      Coeval.raiseError[Int](dummy).map(_ + 1) === Coeval.raiseError[Int](dummy)
+      Coeval.raiseError[Int](dummy).map(_ + 1) <-> Coeval.raiseError[Int](dummy)
     }
   }
 
   test("Coeval.error.flatMap should be the same as Coeval.flatMap") { implicit s =>
     check {
       val dummy = DummyException("dummy")
-      Coeval.raiseError[Int](dummy).flatMap(Coeval.now) === Coeval.raiseError(dummy)
+      Coeval.raiseError[Int](dummy).flatMap(Coeval.now) <-> Coeval.raiseError(dummy)
     }
   }
 
@@ -74,19 +72,19 @@ object CoevalNowSuite extends BaseTestSuite {
     check {
       val dummy = DummyException("dummy")
       val err = DummyException("err")
-      Coeval.raiseError[Int](dummy).flatMap[Int](_ => throw err) === Coeval.raiseError(dummy)
+      Coeval.raiseError[Int](dummy).flatMap[Int](_ => throw err) <-> Coeval.raiseError(dummy)
     }
   }
 
   test("Coeval.now.flatMap should protect against user code") { implicit s =>
     val ex = DummyException("dummy")
     val t = Coeval.now(1).flatMap[Int](_ => throw ex)
-    check(t === Coeval.raiseError(ex))
+    check(t <-> Coeval.raiseError(ex))
   }
 
   test("Coeval.now.flatMap should be tail recursive") { implicit s =>
     def loop(n: Int, idx: Int): Coeval[Int] =
-      Coeval.now(idx).flatMap { a =>
+      Coeval.now(idx).flatMap { _ =>
         if (idx < n) loop(n, idx + 1).map(_ + 1) else
           Coeval.now(idx)
       }
@@ -101,20 +99,10 @@ object CoevalNowSuite extends BaseTestSuite {
     assertEquals(task.value, Success(1))
   }
 
-  test("Coeval.now.materializeAttempt should work") { implicit s =>
-    val task = Coeval.now(1).materializeAttempt
-    assertEquals(task.value, Now(1))
-  }
 
   test("Coeval.error.materialize should work") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Coeval.raiseError(dummy).materialize
     assertEquals(task.value, Failure(dummy))
-  }
-
-  test("Coeval.error.materializeAttempt should work") { implicit s =>
-    val dummy = DummyException("dummy")
-    val task = Coeval.raiseError(dummy).materializeAttempt
-    assertEquals(task.value, Error(dummy))
   }
 }

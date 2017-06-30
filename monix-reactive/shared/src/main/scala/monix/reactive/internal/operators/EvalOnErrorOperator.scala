@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,13 +17,12 @@
 
 package monix.reactive.internal.operators
 
-import monix.eval.{Coeval, Task}
+import monix.eval.Task
 import monix.execution.Ack
+import monix.execution.misc.NonFatal
 import monix.reactive.observables.ObservableLike.Operator
 import monix.reactive.observers.Subscriber
-
 import scala.concurrent.Future
-import scala.util.control.NonFatal
 
 private[reactive] final
 class EvalOnErrorOperator[A](cb: Throwable => Task[Unit]) extends Operator[A,A] {
@@ -38,10 +37,10 @@ class EvalOnErrorOperator[A](cb: Throwable => Task[Unit]) extends Operator[A,A] 
       def onError(ex: Throwable): Unit = {
         try {
           val task = try cb(ex) catch { case NonFatal(err) => Task.raiseError(err) }
-          task.materializeAttempt.foreach {
-            case Coeval.Now(()) =>
+          task.attempt.foreach {
+            case Right(()) =>
               out.onError(ex)
-            case Coeval.Error(err) =>
+            case Left(err) =>
               scheduler.reportFailure(err)
               out.onError(ex)
           }

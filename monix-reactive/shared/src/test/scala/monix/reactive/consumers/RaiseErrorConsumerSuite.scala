@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,12 +21,12 @@ import monix.eval.Callback
 import monix.execution.Ack.Stop
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.exceptions.DummyException
-import monix.reactive.{BaseLawsTestSuite, Consumer}
+import monix.reactive.{BaseTestSuite, Consumer}
 
 import scala.concurrent.Promise
 import scala.util.Failure
 
-object RaiseErrorConsumerSuite extends BaseLawsTestSuite {
+object RaiseErrorConsumerSuite extends BaseTestSuite {
   test("cancels and raises error") { implicit s =>
     val ex = DummyException("dummy")
     val consumer = Consumer.raiseError[Int,Unit](ex)

@@ -18,7 +18,7 @@
 package monix.tail
 package batches
 
-/** [[monix.tail.BatchCursor BatchCursor]] implementation that's always empty. */
+/** [[batches.BatchCursor BatchCursor]] implementation that's always empty. */
 object EmptyCursor extends BatchCursor[Nothing] {
   override def recommendedBatchSize: Int = 1
   override def hasNext(): Boolean = false

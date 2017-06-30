@@ -18,7 +18,7 @@
 package monix.tail
 package batches
 
-/** [[monix.tail.BatchCursor BatchCursor]] type that works over an
+/** [[BatchCursor]] type that works over an
   * underlying `Iterator`.
   *
   * NOTE: all transformations are delegated to the underlying

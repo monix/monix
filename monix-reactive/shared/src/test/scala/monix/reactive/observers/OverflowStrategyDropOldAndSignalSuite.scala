@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -133,7 +133,7 @@ object OverflowStrategyDropOldAndSignalSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    val buffer = buildNewWithSignal(7, underlying)
+    val buffer = buildNewWithSignal(8, underlying)
 
     for (i <- 1 to 7) assertEquals(buffer.onNext(i), Continue)
     s.tick()
@@ -174,7 +174,7 @@ object OverflowStrategyDropOldAndSignalSuite extends TestSuite[TestScheduler] {
     }
 
     val log = AtomicLong(0)
-    val buffer = buildNewWithLog(7, underlying, log)
+    val buffer = buildNewWithLog(8, underlying, log)
 
     for (i <- 1 to 7) assertEquals(buffer.onNext(i), Continue)
     s.tick()

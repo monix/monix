@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2016 by its authors. Some rights reserved.
- * See the project homepage at: https://sincron.org
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
+ * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,19 +19,19 @@ package monix.execution.atomic
 
 /** Atomic references wrapping `AnyRef` values.
   *
-  * @tparam T is forced to be an `AnyRef` because the equality test is
+  * @tparam A is forced to be an `AnyRef` because the equality test is
   *         by reference and not by value.
   */
-final class AtomicAny[T <: AnyRef] private[atomic] (initialValue: T) extends Atomic[T] {
+final class AtomicAny[A <: AnyRef] private[atomic] (initialValue: A) extends Atomic[A] {
   private[this] var ref = initialValue
 
-  def getAndSet(update: T): T = {
+  def getAndSet(update: A): A = {
     val current = ref
     ref = update
     current
   }
 
-  def compareAndSet(expect: T, update: T): Boolean = {
+  def compareAndSet(expect: A, update: A): Boolean = {
     if (ref eq expect) {
       ref = update
       true
@@ -40,11 +40,11 @@ final class AtomicAny[T <: AnyRef] private[atomic] (initialValue: T) extends Ato
       false
   }
 
-  def set(update: T): Unit = {
+  def set(update: A): Unit = {
     ref = update
   }
 
-  def get: T = ref
+  def get: A = ref
 }
 
 /** @define createDesc Constructs an [[AtomicAny]] reference, allowing

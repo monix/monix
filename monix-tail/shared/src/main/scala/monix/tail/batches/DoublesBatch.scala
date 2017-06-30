@@ -17,9 +17,8 @@
 
 package monix.tail.batches
 
-import monix.tail.Batch
 
-/** [[monix.tail.Batch Batch]] implementation specialized for `Double`.
+/** [[Batch]] implementation specialized for `Double`.
   *
   * Under the hood it uses an [[monix.tail.batches.ArrayBatch ArrayBatch]]
   * implementation, which is `@specialized`. Using `DoublesBatch`

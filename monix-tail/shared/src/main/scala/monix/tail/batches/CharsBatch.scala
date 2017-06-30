@@ -17,9 +17,9 @@
 
 package monix.tail.batches
 
-import monix.tail.Batch
+import monix.tail.batches
 
-/** [[monix.tail.Batch Batch]] implementation specialized for `Char`.
+/** [[batches.Batch Batch]] implementation specialized for `Char`.
   *
   * Under the hood it uses an [[monix.tail.batches.ArrayBatch ArrayBatch]]
   * implementation, which is `@specialized`. Using `CharsBatch`

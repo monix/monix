@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,12 +22,13 @@ import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.PaddingStrategy.{LeftRight128, LeftRight256}
 import monix.execution.atomic.{Atomic, AtomicAny, AtomicInt}
 import monix.execution.internal.math
+import monix.execution.misc.NonFatal
 import monix.reactive.OverflowStrategy._
 import monix.reactive.observers.buffers.AbstractEvictingBufferedSubscriber._
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
+
 import scala.collection.immutable.Queue
 import scala.concurrent.Future
-import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
 /** A [[BufferedSubscriber]] implementation for the
@@ -215,12 +216,10 @@ private[observers] abstract class AbstractEvictingBufferedSubscriber[-A]
         case Success(Stop) =>
           // ending loop
           downstreamIsComplete = true
-          itemsToPush.set(0)
 
         case Failure(ex) =>
           // ending loop
           downstreamIsComplete = true
-          itemsToPush.set(0)
           signalError(ex)
       }
 
@@ -277,7 +276,6 @@ private[observers] abstract class AbstractEvictingBufferedSubscriber[-A]
                   if (ack == Stop) {
                     // ending loop
                     downstreamIsComplete = true
-                    itemsToPush.set(0)
                     return
                   } else {
                     val isSync = ack == Continue
@@ -288,10 +286,9 @@ private[observers] abstract class AbstractEvictingBufferedSubscriber[-A]
                 case Stop =>
                   // ending loop
                   downstreamIsComplete = true
-                  itemsToPush.set(0)
                   return
 
-                case async =>
+                case _ =>
                   goAsync(currentQueue, next, ack, processed, toProcess)
                   return
               }
@@ -310,7 +307,6 @@ private[observers] abstract class AbstractEvictingBufferedSubscriber[-A]
             if (currentQueue.isEmpty && (onOverflow == null || droppedCount.get == 0)) {
               // ending loop
               downstreamIsComplete = true
-              itemsToPush.set(0)
 
               if (errorThrown ne null) signalError(errorThrown)
               else signalComplete()
@@ -335,7 +331,6 @@ private[observers] abstract class AbstractEvictingBufferedSubscriber[-A]
             if (streamErrors) {
               // ending loop
               downstreamIsComplete = true
-              itemsToPush.set(0)
               signalError(ex)
             } else {
               scheduler.reportFailure(ex)

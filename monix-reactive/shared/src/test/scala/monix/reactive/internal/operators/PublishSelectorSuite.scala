@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,10 +18,10 @@
 package monix.reactive.internal.operators
 
 import monix.execution.atomic.Atomic
-import monix.reactive.{BaseLawsTestSuite, Observable}
+import monix.reactive.{BaseTestSuite, Observable}
 import scala.util.Success
 
-object PublishSelectorSuite extends BaseLawsTestSuite {
+object PublishSelectorSuite extends BaseTestSuite {
   test("publishSelector sanity test") { implicit s =>
     val isStarted = Atomic(0)
     val f = Observable.range(0, 1000)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -54,41 +54,20 @@ object TaskEvalAlwaysSuite extends BaseTestSuite {
         Task.evalOnce { effect += 100; effect + a }
       }
 
-      t1 === t2
-    }
-  }
-
-  test("Task.eval is not equivalent with Task.evalOnce on second run") { implicit s =>
-    check1 { a: Int =>
-      val t1 = {
-        var effect = 100
-        Task.eval { effect += 100; effect + a }
-      }
-
-      val t2 = {
-        var effect = 100
-        Task.evalOnce { effect += 100; effect + a }
-      }
-
-      // Running once to trigger effects
-      t1.runAsync(s)
-      t2.runAsync(s)
-      s.tick()
-
-      t1 !== t2
+      t1 <-> t2
     }
   }
 
   test("Task.eval.flatMap should be equivalent with Task.eval") { implicit s =>
     val ex = DummyException("dummy")
     val t = Task.eval[Int](if (1 == 1) throw ex else 1).flatMap(Task.now)
-    check(t === Task.raiseError(ex))
+    check(t <-> Task.raiseError(ex))
   }
 
   test("Task.eval.flatMap should protect against user code") { implicit s =>
     val ex = DummyException("dummy")
     val t = Task.eval(1).flatMap[Int](_ => throw ex)
-    check(t === Task.raiseError(ex))
+    check(t <-> Task.raiseError(ex))
   }
 
   test("Task.eval.flatMap should be tail recursive") { implicit s =>
@@ -120,6 +99,6 @@ object TaskEvalAlwaysSuite extends BaseTestSuite {
   test("Task.eval.flatMap should protect against user code errors") { implicit s =>
     val ex = DummyException("dummy")
     val task: Task[Int] = Task.eval(1).flatMap(_ => throw ex)
-    assertEquals(task.coeval.runAttempt, Coeval.Error(ex))
+    assertEquals(task.coeval.runToEager, Coeval.Error(ex))
   }
 }

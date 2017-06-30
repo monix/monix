@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -117,7 +117,7 @@ object OverflowStrategyDropOldSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), DropOld(7))
+    val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), DropOld(8))
 
     for (i <- 1 to 7) assertEquals(buffer.onNext(i), Continue)
     s.tick()

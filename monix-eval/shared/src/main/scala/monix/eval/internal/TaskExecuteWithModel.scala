@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +20,7 @@ package monix.eval.internal
 import monix.eval.Task
 import monix.execution.ExecutionModel
 import monix.execution.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
-import scala.util.control.NonFatal
+import monix.execution.misc.NonFatal
 
 private[monix] object TaskExecuteWithModel {
   /**
@@ -45,7 +45,7 @@ private[monix] object TaskExecuteWithModel {
             em.nextFrameIndex(0)
         }
 
-        Task.internalStartTrampolineRunLoop[A](self, context2, cb, null, null, nextIndex)
+        TaskRunLoop.startWithCallback[A](self, context2, cb, null, null, nextIndex)
       }
       catch {
         case NonFatal(ex) =>

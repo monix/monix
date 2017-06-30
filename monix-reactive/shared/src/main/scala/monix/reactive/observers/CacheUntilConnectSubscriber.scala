@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,12 +30,12 @@ import scala.util.{Failure, Success}
   * the buffer is drained into the `underlying` observer, after which all
   * subsequent events are pushed directly.
   */
-final class CacheUntilConnectSubscriber[-T] private (downstream: Subscriber[T])
-  extends Subscriber[T] { self =>
+final class CacheUntilConnectSubscriber[-A] private (downstream: Subscriber[A])
+  extends Subscriber[A] { self =>
 
   implicit val scheduler = downstream.scheduler
   // MUST BE synchronized by `self`, only available if isConnected == false
-  private[this] var queue = mutable.ArrayBuffer.empty[T]
+  private[this] var queue = mutable.ArrayBuffer.empty[A]
   // MUST BE synchronized by `self`
   private[this] var isConnectionStarted = false
   // MUST BE synchronized by `self`, as long as isConnected == false
@@ -72,7 +72,7 @@ final class CacheUntilConnectSubscriber[-T] private (downstream: Subscriber[T])
       isConnectionStarted = true
       val bufferWasDrained = Promise[Ack]()
 
-      val cancelable = Observable.fromIterable(queue).unsafeSubscribeFn(new Subscriber[T] {
+      val cancelable = Observable.fromIterable(queue).unsafeSubscribeFn(new Subscriber[A] {
         implicit val scheduler = downstream.scheduler
         private[this] var ack: Future[Ack] = Continue
 
@@ -110,7 +110,7 @@ final class CacheUntilConnectSubscriber[-T] private (downstream: Subscriber[T])
             connectionRef = CancelableFuture.failed(ex)
         }
 
-        def onNext(elem: T): Future[Ack] = {
+        def onNext(elem: A): Future[Ack] = {
           ack = downstream.onNext(elem).syncOnStopFollow(bufferWasDrained, Stop)
           ack
         }
@@ -142,7 +142,7 @@ final class CacheUntilConnectSubscriber[-T] private (downstream: Subscriber[T])
     * until [[connect]] happens and the underlying queue of
     * cached events have been drained.
     */
-  def onNext(elem: T): Future[Ack] = {
+  def onNext(elem: A): Future[Ack] = {
     if (!isConnected) self.synchronized {
       // checking again because of multi-threading concerns
       if (!isConnected && !isConnectionStarted) {
@@ -200,6 +200,6 @@ final class CacheUntilConnectSubscriber[-T] private (downstream: Subscriber[T])
 
 object CacheUntilConnectSubscriber {
   /** Builder for [[CacheUntilConnectSubscriber]] */
-  def apply[T](underlying: Subscriber[T]): CacheUntilConnectSubscriber[T] =
+  def apply[A](underlying: Subscriber[A]): CacheUntilConnectSubscriber[A] =
     new CacheUntilConnectSubscriber(underlying)
 }

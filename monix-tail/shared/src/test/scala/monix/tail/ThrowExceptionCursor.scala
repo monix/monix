@@ -18,6 +18,7 @@
 package monix.tail
 
 import monix.execution.atomic.Atomic
+import monix.tail.batches.BatchCursor
 
 /** BatchCursor that throws exception on access. */
 final class ThrowExceptionCursor(ex: Throwable) extends BatchCursor[Nothing] { self =>

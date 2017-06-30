@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,14 +17,14 @@
 
 package monix.reactive.internal.builders
 
-import monix.reactive.{BaseLawsTestSuite, Observable}
+import monix.reactive.{BaseTestSuite, Observable}
 import scala.concurrent.duration._
 
-object FirstStartedObservableSuite extends BaseLawsTestSuite {
+object FirstStartedObservableSuite extends BaseTestSuite {
   test("should mirror the first observable") { implicit s =>
     check2 { (obs1: Observable[Int], obs: Observable[Int]) =>
       val amb = obs1.ambWith(obs.delaySubscription(365.days))
-      amb === obs1
+      amb <-> obs1
     }
   }
 
@@ -32,7 +32,7 @@ object FirstStartedObservableSuite extends BaseLawsTestSuite {
     check2 { (obs: Observable[Int], obs2: Observable[Int]) =>
       val delayed = obs.delaySubscription(365.days)
       val amb = Observable.firstStartedOf(delayed, obs2, delayed, delayed)
-      amb === obs2
+      amb <-> obs2
     }
   }
 
@@ -40,7 +40,7 @@ object FirstStartedObservableSuite extends BaseLawsTestSuite {
     check2 { (obs: Observable[Int], obs3: Observable[Int]) =>
       val delayed = obs.delaySubscription(365.days)
       val amb = Observable.firstStartedOf(delayed, delayed, obs3, delayed)
-      amb === obs3
+      amb <-> obs3
     }
   }
 

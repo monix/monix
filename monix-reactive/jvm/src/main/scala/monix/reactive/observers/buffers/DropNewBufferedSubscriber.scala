@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,9 +21,10 @@ import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.PaddingStrategy.{LeftRight128, LeftRight256}
 import monix.execution.atomic.{Atomic, AtomicInt}
+import monix.execution.misc.NonFatal
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
+
 import scala.concurrent.Future
-import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
 /** A high-performance and non-blocking [[BufferedSubscriber]]
@@ -143,12 +144,10 @@ private[observers] final class DropNewBufferedSubscriber[A] private
         case Success(Stop) =>
           // ending loop
           downstreamIsComplete = true
-          itemsToPush.set(0)
 
         case Failure(ex) =>
           // ending loop
           downstreamIsComplete = true
-          itemsToPush.set(0)
           signalError(ex)
       }
 
@@ -196,7 +195,6 @@ private[observers] final class DropNewBufferedSubscriber[A] private
                   if (ack == Stop) {
                     // ending loop
                     downstreamIsComplete = true
-                    itemsToPush.set(0)
                     return
                   } else {
                     val isSync = ack == Continue
@@ -207,10 +205,9 @@ private[observers] final class DropNewBufferedSubscriber[A] private
                 case Stop =>
                   // ending loop
                   downstreamIsComplete = true
-                  itemsToPush.set(0)
                   return
 
-                case async =>
+                case _ =>
                   goAsync(next, ack, processed, toProcess)
                   return
               }
@@ -228,7 +225,6 @@ private[observers] final class DropNewBufferedSubscriber[A] private
             if (queue.isEmpty && (onOverflow == null || droppedCount.get == 0)) {
               // ending loop
               downstreamIsComplete = true
-              itemsToPush.set(0)
 
               if (errorThrown ne null) signalError(errorThrown)
               else signalComplete()
@@ -253,7 +249,6 @@ private[observers] final class DropNewBufferedSubscriber[A] private
             if (streamErrors) {
               // ending loop
               downstreamIsComplete = true
-              itemsToPush.set(0)
               signalError(ex)
             } else {
               scheduler.reportFailure(ex)

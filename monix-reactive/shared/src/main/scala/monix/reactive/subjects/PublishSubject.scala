@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,13 +20,14 @@ package monix.reactive.subjects
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
+import monix.execution.misc.NonFatal
 import monix.execution.{Ack, Cancelable}
 import monix.reactive.internal.util.PromiseCounter
 import monix.reactive.observers.Subscriber
 import monix.reactive.subjects.PublishSubject.State
+
 import scala.annotation.tailrec
 import scala.concurrent.Future
-import scala.util.control.NonFatal
 
 /** A `PublishSubject` emits to a subscriber only those items that are
   * emitted by the source subsequent to the time of the subscription.
@@ -37,15 +38,15 @@ import scala.util.control.NonFatal
   *
   * @see [[Subject]]
   */
-final class PublishSubject[T] private () extends Subject[T,T] { self =>
+final class PublishSubject[A] private () extends Subject[A,A] { self =>
   /*
    * NOTE: the stored vector value can be null and if it is, then
    * that means our subject has been terminated.
    */
-  private[this] val stateRef = Atomic.withPadding(State[T](), LeftRight128)
+  private[this] val stateRef = Atomic.withPadding(State[A](), LeftRight128)
 
   private
-  def onSubscribeCompleted(subscriber: Subscriber[T], ex: Throwable): Cancelable = {
+  def onSubscribeCompleted(subscriber: Subscriber[A], ex: Throwable): Cancelable = {
     if (ex != null) subscriber.onError(ex) else
       subscriber.onComplete()
     Cancelable.empty
@@ -62,7 +63,7 @@ final class PublishSubject[T] private () extends Subject[T,T] { self =>
    * FreezeOnFirstOnNextSubscriber (the purpose of calling onSubscribeContinue)
    */
   @tailrec
-  def unsafeSubscribeFn(subscriber: Subscriber[T]): Cancelable = {
+  def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     val state = stateRef.get
     val subscribers = state.subscribers
 
@@ -82,7 +83,7 @@ final class PublishSubject[T] private () extends Subject[T,T] { self =>
     }
   }
 
-  def onNext(elem: T): Future[Ack] = {
+  def onNext(elem: A): Future[Ack] = {
     val state = stateRef.get
     val subscribersArray = state.cache
 
@@ -106,7 +107,7 @@ final class PublishSubject[T] private () extends Subject[T,T] { self =>
   def onComplete(): Unit =
     sendOnCompleteOrError(null)
 
-  private def sendOnNextToAll(subscribers: Array[Subscriber[T]], elem: T): Future[Ack] = {
+  private def sendOnNextToAll(subscribers: Array[Subscriber[A]], elem: A): Future[Ack] = {
     // counter that's only used when we go async, hence the null
     var result: PromiseCounter[Continue.type] = null
 
@@ -156,7 +157,7 @@ final class PublishSubject[T] private () extends Subject[T,T] { self =>
   private def sendOnCompleteOrError(ex: Throwable): Unit = {
     val state = stateRef.get
     val set = state.subscribers
-    val subscribers: Iterable[Subscriber[T]] =
+    val subscribers: Iterable[Subscriber[A]] =
       if (state.cache ne null) state.cache.toSeq else set
 
     if (subscribers ne null) {
@@ -179,7 +180,7 @@ final class PublishSubject[T] private () extends Subject[T,T] { self =>
   }
 
   @tailrec
-  private def unsubscribe(subscriber: Subscriber[T]): Continue = {
+  private def unsubscribe(subscriber: Subscriber[A]): Continue = {
     val state = stateRef.get
     val subscribers = state.subscribers
 
@@ -195,8 +196,8 @@ final class PublishSubject[T] private () extends Subject[T,T] { self =>
 
 object PublishSubject {
   /** Builder for [[PublishSubject]] */
-  def apply[T](): PublishSubject[T] =
-    new PublishSubject[T]()
+  def apply[A](): PublishSubject[A] =
+    new PublishSubject[A]()
 
   /** Synchronized state for [[PublishSubject]].
     *
@@ -205,20 +206,20 @@ object PublishSubject {
     * @param subscribers is the set of subscribers that are currently subscribed
     * @param errorThrown is the error received in `onError`, or `null` if no error
     */
-  private[subjects] final case class State[T](
-    subscribers: Set[Subscriber[T]] = Set.empty[Subscriber[T]],
-    cache: Array[Subscriber[T]] = null,
+  private[subjects] final case class State[A](
+    subscribers: Set[Subscriber[A]] = Set.empty[Subscriber[A]],
+    cache: Array[Subscriber[A]] = null,
     errorThrown: Throwable = null) {
 
-    def refresh: State[T] =
+    def refresh: State[A] =
       copy(cache = subscribers.toArray)
 
     def isDone: Boolean =
       subscribers eq null
 
-    def complete(errorThrown: Throwable): State[T] = {
+    def complete(errorThrown: Throwable): State[A] = {
       if (subscribers eq null) this else
-        State[T](null, null, errorThrown)
+        State[A](null, null, errorThrown)
     }
   }
 }

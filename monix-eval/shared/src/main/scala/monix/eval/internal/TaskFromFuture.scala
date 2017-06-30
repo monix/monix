@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,9 +18,10 @@
 package monix.eval.internal
 
 import monix.eval.Task
+import monix.execution.misc.NonFatal
 import monix.execution.{Cancelable, Scheduler}
+
 import scala.concurrent.Future
-import scala.util.control.NonFatal
 
 private[monix] object TaskFromFuture {
   /** Implementation for `Task.fromFuture`. */

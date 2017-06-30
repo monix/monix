@@ -18,6 +18,7 @@
 package monix.tail
 
 import monix.eval.{Coeval, Task}
+import monix.tail.batches.{Batch, BatchCursor}
 import monix.tail.internal.IterantIntervalWithFixedDelay
 import monix.types.{Applicative, Monad}
 

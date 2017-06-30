@@ -17,8 +17,9 @@
 
 package monix.tail.internal
 
-import monix.tail.{BatchCursor, Iterant}
+import monix.tail.Iterant
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
+import monix.tail.batches.BatchCursor
 import monix.tail.internal.IterantUtils.signalError
 import monix.types.syntax._
 import monix.types.{Applicative, Monad}

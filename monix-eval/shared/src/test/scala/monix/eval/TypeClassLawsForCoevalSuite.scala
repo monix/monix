@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,24 +17,13 @@
 
 package monix.eval
 
-import monix.types.tests._
+import cats.effect.laws.discipline.SyncTests
+import cats.laws.discipline.ComonadTests
 
-object TypeClassLawsForCoevalSuite extends BaseLawsSuite
-  with MemoizableLawsSuite[Coeval,Int,Long,Short]
-  with MonadErrorLawsSuite[Coeval,Int,Long,Short,Throwable]
-  with CobindLawsSuite[Coeval,Int,Long,Short]
-  with MonadRecLawsSuite[Coeval,Int,Long,Short]
-  with ComonadLawsSuite[Coeval,Int,Long,Short] {
+object TypeClassLawsForCoevalSuite extends BaseLawsSuite {
+  checkAll("Sync[Coeval[Int]]",
+    SyncTests[Coeval].sync[Int,Int,Int])
 
-  override def F: Coeval.TypeClassInstances =
-    Coeval.typeClassInstances
-
-  // Actual tests ...
-
-  applicativeEvalErrorCheck("Coeval")
-  memoizableCheck("Coeval", includeSupertypes = true)
-  monadErrorCheck("Coeval", includeSupertypes = false)
-  monadRecCheck("Coeval", includeSupertypes = false)
-  cobindCheck("Coeval", includeSupertypes = false)
-  comonadCheck("Coeval", includeSupertypes = false)
+  checkAll("Comonad[Coeval[Int]]",
+    ComonadTests[Coeval].comonad[Int,Int,Int])
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,10 +27,10 @@ import monix.reactive.Observable
 import monix.reactive.exceptions.MultipleSubscribersException
 import monix.reactive.observers.Subscriber
 import monix.execution.atomic.Atomic
+import monix.execution.misc.NonFatal
 
 import scala.annotation.tailrec
 import scala.concurrent.{Future, blocking}
-import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
 private[reactive] final class InputStreamObservable(

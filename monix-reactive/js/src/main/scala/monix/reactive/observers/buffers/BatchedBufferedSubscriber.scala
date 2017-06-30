@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -39,6 +39,6 @@ private[monix] final class BatchedBufferedSubscriber[A] private
 
 private[monix] object BatchedBufferedSubscriber {
   /** Builder for [[BatchedBufferedSubscriber]] */
-  def apply[T](underlying: Subscriber[List[T]], bufferSize: Int): BatchedBufferedSubscriber[T] =
-    new BatchedBufferedSubscriber[T](underlying, bufferSize)
+  def apply[A](underlying: Subscriber[List[A]], bufferSize: Int): BatchedBufferedSubscriber[A] =
+    new BatchedBufferedSubscriber[A](underlying, bufferSize)
 }

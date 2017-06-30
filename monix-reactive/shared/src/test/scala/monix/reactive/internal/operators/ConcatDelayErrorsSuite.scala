@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 by its authors. Some rights reserved.
+ * Copyright (c) 2014-2017 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,10 +19,10 @@ package monix.reactive.internal.operators
 
 import monix.execution.Ack.Continue
 import monix.execution.exceptions.{CompositeException, DummyException}
-import monix.reactive.{BaseLawsTestSuite, Observable, Observer}
+import monix.reactive.{BaseTestSuite, Observable, Observer}
 import scala.concurrent.Future
 
-object ConcatDelayErrorsSuite extends BaseLawsTestSuite {
+object ConcatDelayErrorsSuite extends BaseTestSuite {
   test("flatMapDelayErrors works for synchronous observers") { implicit s =>
     val obs = Observable.range(0, 100)
       .flatMapDelayErrors(x => Observable(x,x,x)
