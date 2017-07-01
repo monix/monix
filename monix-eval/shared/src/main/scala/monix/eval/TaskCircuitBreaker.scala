@@ -19,7 +19,7 @@ package monix.eval
 
 import monix.execution.Scheduler
 import monix.execution.atomic.PaddingStrategy.NoPadding
-import monix.execution.atomic.{Atomic, AtomicAny, PaddingStrategy}
+import monix.execution.atomic.{Atomic, AtomicAny, AtomicInt, PaddingStrategy}
 import monix.execution.exceptions.ExecutionRejectedException
 
 import scala.annotation.tailrec
@@ -325,6 +325,30 @@ final class TaskCircuitBreaker private (
         val loop = execute()(s)
         Task.unsafeStartNow(loop, context, callback)
       }
+    }
+  }
+
+  def protectWithRetry[A](task: Task[A], maxRetries: Int)(implicit s: Scheduler): Task[A] = {
+    require(maxRetries >= 0)
+    val retries = AtomicInt(maxRetries)
+    val shouldRetry: () => Boolean = () => {
+      retries.getAndDecrement() > 0
+    }
+    protectWithRetry(task, shouldRetry)
+  }
+
+  def protectWithRetry[A](task: Task[A])(implicit s: Scheduler): Task[A] = {
+    protectWithRetry(task, () => true)
+  }
+
+  private def protectWithRetry[A](task: Task[A], shouldRetry: () => Boolean)(implicit s: Scheduler): Task[A] = {
+    protect(task).onErrorHandleWith {
+      case _: ExecutionRejectedException if shouldRetry() => stateRef.get match {
+        case state: Open => protectWithRetry(task, shouldRetry).delayExecution((state.expiresAt - s.currentTimeMillis()).millis)
+        case HalfOpen(_) | Closed(_) => protectWithRetry(task, shouldRetry)
+      }
+      case _: Throwable if shouldRetry() => protectWithRetry(task, shouldRetry)
+      case t: Throwable => Task.raiseError[A](t)
     }
   }
 

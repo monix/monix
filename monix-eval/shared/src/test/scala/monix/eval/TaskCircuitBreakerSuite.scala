@@ -17,6 +17,7 @@
 
 package monix.eval
 
+import monix.execution.atomic.AtomicInt
 import monix.execution.exceptions.{DummyException, ExecutionRejectedException}
 
 import concurrent.duration._
@@ -229,6 +230,58 @@ object TaskCircuitBreakerSuite extends BaseTestSuite {
     assertEquals(openedCount, 30 + 1)
     assertEquals(halfOpenCount, 30 + 1)
     assertEquals(closedCount, 1)
+  }
+
+  test("should retry a task until it succeeds") { implicit s =>
+    val expectedFailures = 3
+    val resetTime = 100.nanos
+    val circuitBreaker = TaskCircuitBreaker(
+      maxFailures = expectedFailures - 1,
+      resetTimeout = resetTime
+    )
+
+    val failureCounter = AtomicInt(expectedFailures)
+    val executionCount = AtomicInt(0)
+
+    val fallible = Task {
+      executionCount.increment()
+      if (failureCounter.getAndDecrement() > 0) throw new RuntimeException("failed")
+      42
+    }
+    val f = circuitBreaker.protectWithRetry(fallible).runAsync
+
+    s.tick(expectedFailures * resetTime)
+    assertEquals(f.value, Some(Success(42)))
+    assertEquals(executionCount.get, expectedFailures + 1)
+  }
+
+  test("should retry a specific number of times") { implicit s =>
+    val circuitBreaker = TaskCircuitBreaker(
+      maxFailures = 3,
+      resetTimeout = 1.nanos
+    )
+
+    val executionCount = AtomicInt(0)
+    val retries = 2
+
+    val f = circuitBreaker.protectWithRetry(Task {
+      executionCount.increment()
+      throw new RuntimeException("failed")
+    }, retries).runAsync
+
+    s.tick(1.second)
+    assert(f.value.get.isFailure)
+    assertEquals(executionCount.get, retries + 1) // never succeeded and all retries exhausted
+
+    executionCount.set(0)
+    val g = circuitBreaker.protectWithRetry(Task {
+      if (executionCount.getAndIncrement() == 0) throw new RuntimeException("failed")
+      executionCount.get
+    }, retries).runAsync
+
+    s.tick(1.second)
+    assertEquals(g.value.get, Success(2))
+    assertEquals(executionCount.get, 2) // only needed to retry once
   }
 
   test("validate parameters") { implicit s =>
