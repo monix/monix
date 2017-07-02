@@ -252,7 +252,7 @@ object TaskCircuitBreakerSuite extends BaseTestSuite {
 
     s.tick(expectedFailures * resetTime)
     assertEquals(f.value, Some(Success(42)))
-    assertEquals(executionCount.get, expectedFailures + 1)
+    assertEquals(executionCount.get, expectedFailures + 1) // ran through all expected failures + 1 success
   }
 
   test("should retry a specific number of times") { implicit s =>

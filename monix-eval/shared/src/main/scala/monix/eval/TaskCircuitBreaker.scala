@@ -19,7 +19,7 @@ package monix.eval
 
 import monix.execution.Scheduler
 import monix.execution.atomic.PaddingStrategy.NoPadding
-import monix.execution.atomic.{Atomic, AtomicAny, AtomicInt, PaddingStrategy}
+import monix.execution.atomic.{Atomic, AtomicAny, PaddingStrategy}
 import monix.execution.exceptions.ExecutionRejectedException
 
 import scala.annotation.tailrec
@@ -328,26 +328,43 @@ final class TaskCircuitBreaker private (
     }
   }
 
-  def protectWithRetry[A](task: Task[A], maxRetries: Int)(implicit s: Scheduler): Task[A] = {
+  /** Returns a new [[Task]] that upon execution will execute the given
+    * task, but with the protection of this circuit breaker. If the protected
+    * task fails, it will be retried a fixed number of times until it succeeds.
+    */
+  def protectWithRetry[A](task: Task[A], maxRetries: Long)(implicit s: Scheduler): Task[A] = {
     require(maxRetries >= 0)
-    val retries = AtomicInt(maxRetries)
-    val shouldRetry: () => Boolean = () => {
-      retries.getAndDecrement() > 0
-    }
-    protectWithRetry(task, shouldRetry)
+    protectWithRetry(task, MaxRetries(maxRetries))
   }
 
+  /** Returns a new [[Task]] that upon execution will execute the given
+    * task, but with the protection of this circuit breaker. If the protected
+    * task fails, it will continuously be retried until it succeeds.
+    */
   def protectWithRetry[A](task: Task[A])(implicit s: Scheduler): Task[A] = {
-    protectWithRetry(task, () => true)
+    protectWithRetry(task, AlwaysRetry)
   }
 
-  private def protectWithRetry[A](task: Task[A], shouldRetry: () => Boolean)(implicit s: Scheduler): Task[A] = {
+  private sealed trait ShouldRetry {
+    def ? : Boolean
+    def -- : ShouldRetry
+  }
+  private object AlwaysRetry extends ShouldRetry {
+    override def ? = true
+    override def -- = this
+  }
+  private case class MaxRetries(retries: Long) extends ShouldRetry {
+    override def ? = retries > 0L
+    override def -- = MaxRetries(retries - 1L)
+  }
+
+  private def protectWithRetry[A](task: Task[A], shouldRetry: ShouldRetry)(implicit s: Scheduler): Task[A] = {
     protect(task).onErrorHandleWith {
-      case _: ExecutionRejectedException if shouldRetry() => stateRef.get match {
-        case state: Open => protectWithRetry(task, shouldRetry).delayExecution((state.expiresAt - s.currentTimeMillis()).millis)
-        case HalfOpen(_) | Closed(_) => protectWithRetry(task, shouldRetry)
+      case _: ExecutionRejectedException if shouldRetry.? => stateRef.get match {
+        case state: Open => protectWithRetry(task, shouldRetry.--).delayExecution((state.expiresAt - s.currentTimeMillis() + 1).millis)
+        case HalfOpen(_) | Closed(_) => protectWithRetry(task, shouldRetry.--)
       }
-      case _: Throwable if shouldRetry() => protectWithRetry(task, shouldRetry)
+      case _: Throwable if shouldRetry.? => protectWithRetry(task, shouldRetry.--)
       case t: Throwable => Task.raiseError[A](t)
     }
   }
