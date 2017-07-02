@@ -331,18 +331,49 @@ final class TaskCircuitBreaker private (
   /** Returns a new [[Task]] that upon execution will execute the given
     * task, but with the protection of this circuit breaker. If the protected
     * task fails, it will be retried a fixed number of times until it succeeds.
+    * If the circuit is open, all retries will be delayed based on the current
+    * reset timeout.
+    * However, the onErrorHandleWith partial function will break out of the
+    * retry loop if it is defined for the [[Throwable]] thrown by the failing
+    * [[Task]].
+    */
+  def protectWithRetry[A, B >: A](task: Task[A], maxRetries: Long, onErrorHandleWith: PartialFunction[Throwable, Task[B]])(implicit s: Scheduler): Task[B] = {
+    require(maxRetries >= 0)
+    protectWithRetry(task, MaxRetries(maxRetries), onErrorHandleWith)
+  }
+
+  /** Returns a new [[Task]] that upon execution will execute the given
+    * task, but with the protection of this circuit breaker. If the protected
+    * task fails, it will be retried a fixed number of times until it succeeds.
+    * If the circuit is open, all retries will be delayed based on the current
+    * reset timeout.
     */
   def protectWithRetry[A](task: Task[A], maxRetries: Long)(implicit s: Scheduler): Task[A] = {
     require(maxRetries >= 0)
-    protectWithRetry(task, MaxRetries(maxRetries))
+    protectWithRetry(task, MaxRetries(maxRetries), PartialFunction.empty)
   }
 
   /** Returns a new [[Task]] that upon execution will execute the given
     * task, but with the protection of this circuit breaker. If the protected
     * task fails, it will continuously be retried until it succeeds.
+    * If the circuit is open, all retries will be delayed based on the current
+    * reset timeout.
+    * However, the onErrorHandleWith partial function will break out of the
+    * retry loop if it is defined for the [[Throwable]] thrown by the failing
+    * [[Task]].
+    */
+  def protectWithRetry[A, B >: A](task: Task[A], onErrorHandleWith: PartialFunction[Throwable, Task[B]])(implicit s: Scheduler): Task[B] = {
+    protectWithRetry(task, AlwaysRetry, onErrorHandleWith)
+  }
+
+  /** Returns a new [[Task]] that upon execution will execute the given
+    * task, but with the protection of this circuit breaker. If the protected
+    * task fails, it will continuously be retried until it succeeds.
+    * If the circuit is open, all retries will be delayed based on the current
+    * reset timeout.
     */
   def protectWithRetry[A](task: Task[A])(implicit s: Scheduler): Task[A] = {
-    protectWithRetry(task, AlwaysRetry)
+    protectWithRetry(task, AlwaysRetry, PartialFunction.empty)
   }
 
   private sealed trait ShouldRetry {
@@ -358,15 +389,17 @@ final class TaskCircuitBreaker private (
     override def -- = MaxRetries(retries - 1L)
   }
 
-  private def protectWithRetry[A](task: Task[A], shouldRetry: ShouldRetry)(implicit s: Scheduler): Task[A] = {
-    protect(task).onErrorHandleWith {
+  private def protectWithRetry[A, B >: A](task: Task[A], shouldRetry: ShouldRetry, onErrorHandleWith: PartialFunction[Throwable, Task[B]])(implicit s: Scheduler): Task[B] = {
+    val defaultErrorHandler: PartialFunction[Throwable, Task[B]] = {
       case _: ExecutionRejectedException if shouldRetry.? => stateRef.get match {
-        case state: Open => protectWithRetry(task, shouldRetry.--).delayExecution((state.expiresAt - s.currentTimeMillis() + 1).millis)
-        case HalfOpen(_) | Closed(_) => protectWithRetry(task, shouldRetry.--)
+        case state: Open => protectWithRetry(task, shouldRetry.--, onErrorHandleWith).delayExecution((state.expiresAt - s.currentTimeMillis() + 1).millis)
+        case HalfOpen(_) | Closed(_) => protectWithRetry(task, shouldRetry.--, onErrorHandleWith)
       }
-      case _: Throwable if shouldRetry.? => protectWithRetry(task, shouldRetry.--)
-      case t: Throwable => Task.raiseError[A](t)
+      case _: Throwable if shouldRetry.? => protectWithRetry(task, shouldRetry.--, onErrorHandleWith)
+      case t: Throwable => Task.raiseError(t)
     }
+
+    protect(task).onErrorHandleWith(onErrorHandleWith.orElse(defaultErrorHandler))
   }
 
   /** Returns a new circuit breaker that wraps the state of the source

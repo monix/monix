@@ -255,6 +255,37 @@ object TaskCircuitBreakerSuite extends BaseTestSuite {
     assertEquals(executionCount.get, expectedFailures + 1) // ran through all expected failures + 1 success
   }
 
+  test("should retry a task until the onErrorHandleWith partial handles the error") { implicit s =>
+    val circuitBreaker = TaskCircuitBreaker(
+      maxFailures = 3,
+      resetTimeout = 100.nanos
+    )
+
+    val onErrorFlag = AtomicInt(1)
+
+    val onError: PartialFunction[Throwable, Task[Int]] = {
+      case _: IllegalArgumentException => {
+        onErrorFlag.decrement()
+        Task(42)
+      }
+    }
+
+    circuitBreaker.protectWithRetry(Task {
+      throw new RuntimeException()
+    }, 10, onError).runAsync
+
+    s.tick(1.second)
+    assertEquals(onErrorFlag.get, 1) // onError was never utilised
+
+    val f = circuitBreaker.protectWithRetry(Task {
+      throw new IllegalArgumentException()
+    }, 10, onError).runAsync
+
+    s.tick(1.second)
+    assertEquals(onErrorFlag.get, 0) // onError was utilised once
+    assertEquals(f.value.get, Success(42)) // onError defined the final result
+  }
+
   test("should retry a specific number of times") { implicit s =>
     val circuitBreaker = TaskCircuitBreaker(
       maxFailures = 3,
