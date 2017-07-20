@@ -44,5 +44,8 @@ object BoxedLong {
       BoxedLong(x.value - y.value)
     def compare(x: BoxedLong, y: BoxedLong): Int =
       x.value.compareTo(y.value)
+    def parseString(str: String): Option[BoxedLong] =
+      try Some(BoxedLong(str.toLong))
+      catch { case _: NumberFormatException => None }
   }
 }
