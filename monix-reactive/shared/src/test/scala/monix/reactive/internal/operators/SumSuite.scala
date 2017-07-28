@@ -47,6 +47,7 @@ object SumSuite extends BaseOperatorSuite {
       def times(x: Long, y: Long): Long = throw ex
       def minus(x: Long, y: Long): Long = throw ex
       def compare(x: Long, y: Long): Int = throw ex
+      def parseString(str: String): Option[Long] = throw ex
     }
 
     val o = Observable.range(0, sourceCount+1).sumF(num)
