@@ -311,7 +311,7 @@ lazy val executionJVM = project.in(file("monix-execution/jvm"))
   .settings(testSettings)
   .settings(requiredMacroDeps)
   .settings(executionCommon)
-  .settings(libraryDependencies += "org.reactivestreams" % "reactive-streams" % "1.0.1")
+  .settings(libraryDependencies += "org.reactivestreams" % "reactive-streams" % "1.0.0")
   .settings(mimaSettings("monix-execution"))
 
 lazy val executionJS = project.in(file("monix-execution/js"))
