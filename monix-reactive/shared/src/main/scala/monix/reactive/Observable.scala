@@ -24,7 +24,7 @@ import monix.eval.{Callback, Coeval, Task}
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution._
 import monix.execution.cancelables.SingleAssignmentCancelable
-import monix.reactive.instances.{CatsAsyncSeqInstances, CatsObservableInstances}
+import monix.reactive.instances.{CatsSeqInstances, CatsObservableInstances}
 import monix.reactive.internal.builders
 import monix.reactive.internal.subscribers.ForeachSubscriber
 import monix.reactive.observables.ObservableLike.{Operator, Transformer}
@@ -127,11 +127,6 @@ trait Observable[+A] extends ObservableLike[A, Observable] { self =>
     */
   def consumeWith[R](f: Consumer[A,R]): Task[R] =
     f(self)
-
-  /** Deprecated. See [[consumeWith]]. */
-  @deprecated("Renamed to consumeWith", since="2.1.0")
-  def runWith[R](f: Consumer[A,R]): Task[R] =
-    consumeWith(f)
 
   /** Transforms the source using the given operator. */
   override def liftByOperator[B](operator: Operator[A, B]): Observable[B] =
@@ -1450,6 +1445,6 @@ object Observable {
     new builders.FirstStartedObservable(source: _*)
 
   /** Implicit type-class instances for [[Observable]]. */
-  @inline implicit def catsAsyncSeq: CatsAsyncSeqInstances[Observable] =
+  @inline implicit def catsAsyncSeq: CatsSeqInstances[Observable] =
     CatsObservableInstances.ForObservable
 }

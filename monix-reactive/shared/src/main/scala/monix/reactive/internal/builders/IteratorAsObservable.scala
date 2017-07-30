@@ -21,11 +21,10 @@ import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution._
 import monix.reactive.Observable
-import monix.reactive.exceptions.MultipleSubscribersException
 import monix.reactive.observers.Subscriber
 import monix.execution.atomic.Atomic
+import monix.execution.exceptions.APIContractViolationException
 import monix.execution.misc.NonFatal
-
 import scala.annotation.tailrec
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
@@ -39,7 +38,7 @@ private[reactive] final class IteratorAsObservable[A](
 
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
     if (wasSubscribed.getAndSet(true)) {
-      out.onError(MultipleSubscribersException.build("InputStreamObservable"))
+      out.onError(APIContractViolationException("InputStreamObservable"))
       Cancelable.empty
     } else {
       startLoop(out)

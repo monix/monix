@@ -17,10 +17,18 @@
 
 package monix.reactive
 
-import cats.laws.discipline.MonadErrorTests
+import cats.laws.discipline.{CoflatMapTests, MonadErrorTests, MonoidKTests}
 
 object TypeClassLawsForObservableSuite extends BaseLawsTestSuite {
-  checkAllAsync("MonadError[Observable, Throwable") { implicit ec =>
+  checkAllAsync("MonadError[Observable, Throwable]") { implicit ec =>
     MonadErrorTests[Observable, Throwable].monadError[Int, Int, Int]
+  }
+
+  checkAllAsync("CoflatMap[Observable]") { implicit ec =>
+    CoflatMapTests[Observable].coflatMap[Int, Int, Int]
+  }
+
+  checkAllAsync("MonoidK[Observable]") { implicit ec =>
+    MonoidKTests[Observable].monoidK[Int]
   }
 }

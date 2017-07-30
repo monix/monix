@@ -121,9 +121,7 @@ object Subscriber {
     *        cycle when communicating demand, compliant with the reactive
     *        streams specification
     */
-  def toReactiveSubscriber[A](
-    source: Subscriber[A],
-    @deprecatedName('bufferSize) requestCount: Int): RSubscriber[A] =
+  def toReactiveSubscriber[A](source: Subscriber[A], requestCount: Int): RSubscriber[A] =
     SubscriberAsReactiveSubscriber(source, requestCount)
 
   /** Extension methods for [[Subscriber]].
@@ -156,7 +154,7 @@ object Subscriber {
       *        cycle when communicating demand, compliant with the
       *        reactive streams specification
       */
-    def toReactive(@deprecatedName('bufferSize) requestCount: Int): RSubscriber[A] =
+    def toReactive(requestCount: Int): RSubscriber[A] =
       Subscriber.toReactiveSubscriber(target, requestCount)
 
     /** $feedCollectionDesc

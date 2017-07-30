@@ -21,12 +21,11 @@ import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.Atomic
 import monix.execution.misc.NonFatal
 import monix.execution.{Ack, Cancelable, Scheduler}
-import monix.reactive.exceptions.CompositeException
+import monix.execution.exceptions.CompositeException
 import monix.reactive.observables.GroupedObservable
 import monix.reactive.observables.ObservableLike.Operator
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 import monix.reactive.{Observer, OverflowStrategy}
-
 import scala.annotation.tailrec
 import scala.concurrent.Future
 
@@ -84,7 +83,7 @@ private[reactive] final class GroupByOperator[A,K](
                   case Stop =>
                     val errors = completeAll()
                     if (errors.nonEmpty)
-                      self.onError(CompositeException.build(errors))
+                      self.onError(CompositeException(errors))
                     Stop
                 }
               else
@@ -125,7 +124,7 @@ private[reactive] final class GroupByOperator[A,K](
           isDone = true
           val errors = completeAll()
           if (errors.nonEmpty)
-            downstream.onError(CompositeException.build(ex +: errors))
+            downstream.onError(CompositeException(ex +: errors))
           else
             downstream.onError(ex)
         }
@@ -136,7 +135,7 @@ private[reactive] final class GroupByOperator[A,K](
           isDone = true
           val errors = completeAll()
           if (errors.nonEmpty)
-            downstream.onError(CompositeException.build(errors))
+            downstream.onError(CompositeException(errors))
           else
             downstream.onComplete()
         }

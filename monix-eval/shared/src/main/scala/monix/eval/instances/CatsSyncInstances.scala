@@ -34,7 +34,7 @@ object CatsSyncInstances {
     override def pure[A](a: A): Coeval[A] = Coeval.now(a)
     override def delay[A](thunk: => A): Coeval[A] = Coeval.eval(thunk)
     override def suspend[A](fa: => Coeval[A]): Coeval[A] = Coeval.defer(fa)
-    // override val unit: Coeval[Unit] = Coeval.now(())
+    override val unit: Coeval[Unit] = Coeval.now(())
 
     override def extract[A](x: Coeval[A]): A =
       x.value

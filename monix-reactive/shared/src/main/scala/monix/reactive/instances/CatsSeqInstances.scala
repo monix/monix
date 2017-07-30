@@ -18,21 +18,20 @@
 package monix.reactive
 package instances
 
-import cats.{CoflatMap, MonadError, MonadFilter, MonoidK}
+import cats.{CoflatMap, MonadError, MonoidK}
 
 /** Specification for Cats type classes, to be implemented by
   * asynchronous sequences, like [[Observable]].
   */
-trait CatsAsyncSeqInstances[F[_]] extends MonadError[F, Throwable]
-  with MonadFilter[F]
+trait CatsSeqInstances[F[_]] extends MonadError[F, Throwable]
   with MonoidK[F]
   with CoflatMap[F]
 
 object CatsObservableInstances {
   /** Cats instances for [[Observable]]. */
-  class ForObservable extends CatsAsyncSeqInstances[Observable] {
+  class ForObservable extends CatsSeqInstances[Observable] {
     override def pure[A](a: A): Observable[A] = Observable.now(a)
-    val unit: Observable[Unit] = Observable.now(())
+    override val unit: Observable[Unit] = Observable.now(())
 
     override def combineK[A](x: Observable[A], y: Observable[A]): Observable[A] =
       x ++ y
@@ -62,8 +61,8 @@ object CatsObservableInstances {
       fa.onErrorRecoverWith(pf)
     override def empty[A]: Observable[A] =
       Observable.empty[A]
-    override def filter[A](fa: Observable[A])(f: (A) => Boolean): Observable[A] =
-      fa.filter(f)
+
+    override def adaptError[A](fa: Observable[A])(pf: PartialFunction[Throwable, Throwable]): Observable[A] = super.adaptError(fa)(pf)
   }
 
   /** Reusable instance of [[ForObservable]]. */

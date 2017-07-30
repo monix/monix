@@ -18,7 +18,6 @@
 package monix.eval
 
 import cats.effect.IO
-import monix.eval.Coeval.Eager
 import monix.eval.instances._
 import monix.eval.internal._
 import monix.execution.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
@@ -80,11 +79,6 @@ sealed abstract class Task[+A] extends Serializable { self =>
     TaskRunLoop.startWithCallback(self, context, Callback.safe(cb), null, null, frameStart)
     context.connection
   }
-
-  /** Deprecated overload. Use [[runOnComplete]]. */
-  @deprecated("Renamed to runOnComplete", since="2.1.3")
-  def runAsync(f: Try[A] => Unit)(implicit s: Scheduler): Cancelable =
-    runOnComplete(f)
 
   /** Similar to Scala's `Future#onComplete`, this method triggers
     * the evaluation of a `Task` and invokes the given callback whenever
@@ -635,34 +629,6 @@ sealed abstract class Task[+A] extends Serializable { self =>
     */
   def zipMap[B,C](that: Task[B])(f: (A,B) => C): Task[C] =
     Task.mapBoth(this, that)(f)
-
-  // ---- Deprecated operations, preserved for backwards compatibility
-
-  /** Creates a new [[Task]] that will expose any triggered error from
-    * the source.
-    *
-    * Deprecated, please use [[Task#attempt]] or [[Task#materialize]].
-    *
-    * The reason for the deprecation is the naming alignment
-    * with the Cats ecosystem, where `Eager` is being used
-    * as an alias for `Either[Throwable, A]`.
-    */
-  @deprecated("Use Task#attempt or Task#materialize", "2.3.0")
-  def materializeAttempt: Task[Eager[A]] =
-    self.transformWith(a => Task.now(Coeval.Now(a)), e => Task.now(Coeval.Error(e)))
-
-  /** Dematerializes the source's result from an `Eager`.
-    *
-    * Deprecated, please use [[Task#dematerialize]] or just
-    * [[Task#flatMap flatMap]].
-    *
-    * The reason for the deprecation is the naming alignment
-    * with the Cats ecosystem, where `Eager` is being used
-    * as an alias for `Either[Throwable, A]`.
-    */
-  @deprecated("Use Task#dematerialize or Task#flatMap", "2.3.0")
-  def dematerializeAttempt[B](implicit ev: A <:< Eager[B]): Task[B] =
-    self.asInstanceOf[Task[Eager[B]]].flatMap(Task.coeval)
 }
 
 /** Builders for [[Task]].
