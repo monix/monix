@@ -139,7 +139,7 @@ object Observer {
     *        on each cycle when communicating demand, compliant with
     *        the reactive streams specification
     */
-  def toReactiveSubscriber[A](observer: Observer[A], @deprecatedName('bufferSize) requestCount: Int)
+  def toReactiveSubscriber[A](observer: Observer[A], requestCount: Int)
     (implicit s: Scheduler): RSubscriber[A] = {
 
     require(requestCount > 0, "requestCount > 0")
@@ -275,8 +275,7 @@ object Observer {
       *        on each cycle when communicating demand, compliant with
       *        the reactive streams specification
       */
-    def toReactive(@deprecatedName('bufferSize) requestCount: Int)
-      (implicit s: Scheduler): RSubscriber[A] =
+    def toReactive(requestCount: Int)(implicit s: Scheduler): RSubscriber[A] =
       Observer.toReactiveSubscriber(target, requestCount)
 
     /** $feedCollectionDesc

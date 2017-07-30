@@ -49,17 +49,6 @@ final class StackedCancelable private (initial: List[Cancelable])
     if (oldState ne null) oldState.foreach(_.cancel())
   }
 
-  /** Deprecated, to be removed. Use [[popAndPushList]] instead. */
-  @deprecated("To be removed, use popAndPushAll instead", since="v2.2.0")
-  def popAndCollapse(value: StackedCancelable): Cancelable =
-    value.underlying match {
-      case null =>
-        this.cancel()
-        Cancelable.empty
-      case other =>
-        popAndPushList(other)
-    }
-
   /** Pops the head of the stack and pushes a list as an
     * atomic operation.
     *

@@ -340,43 +340,6 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     */
   def zipMap[B,C](that: Coeval[B])(f: (A,B) => C): Coeval[C] =
     for (a <- this; b <- that) yield f(a,b)
-
-  // ---- Deprecated operations, preserved for backwards compatibility
-
-  /** Deprecated, renamed to [[Coeval#runToEager]].
-    *
-    * This change happened in order to achieve naming consistency
-    * with the Typelevel ecosystem, where `Attempt[A]` is usually an
-    * alias for `Either[Throwable, A]`.
-    */
-  @deprecated("Renamed to Coeval#runToEager", "3.0.0")
-  def runAttempt: Coeval.Eager[A] = CoevalRunLoop.start(this)
-
-  /** Creates a new [[Coeval]] that will expose any triggered error from
-    * the source.
-    *
-    * Deprecated, please use [[Coeval#attempt]] or [[Coeval#materialize]].
-    *
-    * The reason for the deprecation is the naming alignment
-    * with the Cats ecosystem, where `Eager` is being used
-    * as an alias for `Either[Throwable, A]`.
-    */
-  @deprecated("Use Coeval#attempt or Coeval#materialize", "2.3.0")
-  def materializeAttempt: Coeval[Eager[A]] =
-    self.transformWith(a => Now(Now(a)), e => Now(Error(e)))
-
-  /** Dematerializes the source's result from a [[Coeval.Eager]].
-    *
-    * Deprecated, please use [[Coeval#dematerialize]] or just
-    * [[Coeval#flatMap flatMap]].
-    *
-    * The reason for the deprecation is the naming alignment
-    * with the Cats ecosystem, where `Eager` is being used
-    * as an alias for `Either[Throwable, A]`.
-    */
-  @deprecated("Use Coeval#dematerialize or Coeval#flatMap", "2.3.0")
-  def dematerializeAttempt[B](implicit ev: A <:< Eager[B]): Coeval[B] =
-    self.asInstanceOf[Coeval[Eager[B]]].flatMap(identity)
 }
 
 /** [[Coeval]] builders.
@@ -597,30 +560,6 @@ object Coeval {
           Coeval.Now(e)
       }
 
-    /** Returns true if result is an error.
-      *
-      * Deprecated, renamed to [[Coeval.Eager#isError]].
-      */
-    @deprecated("Use Coeval.Eager#isError", "2.3.0")
-    final def isFailure: Boolean =
-      self.isError
-
-    @deprecated("Use Coeval#attempt or Coeval#materialize", "2.3.0")
-    override final def materializeAttempt: Eager[Eager[A]] =
-      self match {
-        case now@Now(_) =>
-          Now(now)
-        case Error(ex) =>
-          Now(Error(ex))
-      }
-
-    @deprecated("Use Coeval#attempt or Coeval#materialize", "2.3.0")
-    override final def dematerializeAttempt[B](implicit ev: <:<[A, Eager[B]]): Eager[B] =
-      self match {
-        case Now(now) => now
-        case error@Error(_) => error
-      }
-
     override final def memoize: Eager[A] =
       this
   }
@@ -712,20 +651,6 @@ object Coeval {
         case NonFatal(ex) => Error(ex)
       }
   }
-
-  /** Deprecated, renamed to [[Coeval.Eager]].
-    *
-    * $attemptDeprecation
-    */
-  @deprecated("Renamed to Coeval.Eager", "3.0.0")
-  type Attempt[+A] = Eager[A]
-
-  /** Deprecated, renamed to [[Coeval.Eager]].
-    *
-    * $attemptDeprecation
-    */
-  @deprecated("Renamed to Coeval.Eager", "3.0.0")
-  def Attempt: Eager.type = Eager
 
   /** Internal state, the result of [[Coeval.defer]] */
   private[eval] final case class Suspend[+A](thunk: () => Coeval[A])

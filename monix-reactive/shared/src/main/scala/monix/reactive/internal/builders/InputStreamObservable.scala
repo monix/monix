@@ -19,16 +19,14 @@ package monix.reactive.internal.builders
 
 import java.io.InputStream
 import java.util
-
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution._
 import monix.reactive.Observable
-import monix.reactive.exceptions.MultipleSubscribersException
 import monix.reactive.observers.Subscriber
 import monix.execution.atomic.Atomic
+import monix.execution.exceptions.APIContractViolationException
 import monix.execution.misc.NonFatal
-
 import scala.annotation.tailrec
 import scala.concurrent.{Future, blocking}
 import scala.util.{Failure, Success}
@@ -42,7 +40,7 @@ private[reactive] final class InputStreamObservable(
 
   def unsafeSubscribeFn(out: Subscriber[Array[Byte]]): Cancelable = {
     if (wasSubscribed.getAndSet(true)) {
-      out.onError(MultipleSubscribersException.build("InputStreamObservable"))
+      out.onError(APIContractViolationException("InputStreamObservable does not support multiple subscribers"))
       Cancelable.empty
     }
     else {

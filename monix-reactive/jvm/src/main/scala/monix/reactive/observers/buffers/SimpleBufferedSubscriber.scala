@@ -21,9 +21,9 @@ import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight256
+import monix.execution.exceptions.BufferOverflowException
 import monix.execution.internal.math.nextPowerOf2
 import monix.execution.misc.NonFatal
-import monix.reactive.exceptions.BufferOverflowException
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 
 import scala.concurrent.Future
@@ -70,7 +70,7 @@ private[observers] abstract class AbstractSimpleBufferedSubscriber[A] protected
           Continue
         }
         else {
-          onError(BufferOverflowException.build(
+          onError(BufferOverflowException(
             s"Downstream observer is too slow, buffer overflowed with a " +
             s"specified maximum capacity of $capacity"
           ))

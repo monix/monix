@@ -22,9 +22,11 @@ import minitest.{SimpleTestSuite, TestSuite}
 import minitest.laws.Checkers
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
+import monix.reactive.Notification.{OnComplete, OnError, OnNext}
 import org.scalacheck.Test.Parameters
-import org.scalacheck.{Arbitrary, Prop}
+import org.scalacheck.{Arbitrary, Cogen, Prop}
 import org.typelevel.discipline.Laws
+
 import scala.concurrent.duration._
 
 trait BaseTestSuite extends TestSuite[TestScheduler] with Checkers with ArbitraryInstances {
@@ -56,12 +58,31 @@ trait BaseLawsTestSuite extends SimpleTestSuite with Checkers with ArbitraryInst
 }
 
 trait ArbitraryInstances extends ArbitraryInstancesBase with monix.eval.ArbitraryInstances {
+  implicit def equalityNotification[A](implicit A: Eq[A]): Eq[Notification[A]] =
+    new Eq[Notification[A]] {
+      def eqv(x: Notification[A], y: Notification[A]): Boolean = {
+        x match {
+          case OnNext(v1) => y match {
+            case OnNext(v2) => A.eqv(v1, v2)
+            case _ => false
+          }
+          case OnError(ex1) =>
+            y match {
+              case OnError(ex2) => equalityThrowable.eqv(ex1, ex2)
+              case _ => false
+            }
+          case OnComplete =>
+            y == OnComplete
+        }
+      }
+    }
+
   implicit def equalityObservable[A](implicit A: Eq[A], ec: TestScheduler): Eq[Observable[A]] =
     new Eq[Observable[A]] {
       def eqv(lh: Observable[A], rh: Observable[A]): Boolean = {
-        val eqList = implicitly[Eq[Option[List[A]]]]
-        val fa = lh.foldLeftF(List.empty[A])((acc,e) => e :: acc).firstOptionL.runAsync
-        val fb = rh.foldLeftF(List.empty[A])((acc,e) => e :: acc).firstOptionL.runAsync
+        val eqList = implicitly[Eq[List[Notification[A]]]]
+        val fa = lh.materialize.toListL.runAsync
+        val fb = rh.materialize.toListL.runAsync
         equalityFuture(eqList, ec).eqv(fa, fb)
       }
     }
@@ -79,4 +100,7 @@ trait ArbitraryInstancesBase extends monix.eval.ArbitraryInstancesBase {
       implicitly[Arbitrary[Int]].arbitrary
         .map(number => new RuntimeException(number.toString))
     }
+
+  implicit def cogenForObservable[A]: Cogen[Observable[A]] =
+    Cogen[Unit].contramap(_ => ())
 }

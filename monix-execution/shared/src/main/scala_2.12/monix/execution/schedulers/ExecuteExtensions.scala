@@ -84,9 +84,4 @@ private[execution] trait ExecuteExtensions extends Any {
     */
   def executeTrampolined(cb: TrampolinedRunnable): Unit =
     source.execute(cb)
-
-  /** Deprecated. Use [[executeTrampolined]] instead. */
-  @deprecated("Renamed to `executeTrampolined`", since = "2.1.0")
-  def executeLocal(cb: => Unit): Unit =
-    source.execute(new TrampolinedRunnable { def run(): Unit = cb })
 }
