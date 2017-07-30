@@ -9,8 +9,8 @@ addCommandAlias("ci-jvm",     ";clean ;coreJVM/test:compile ;coreJVM/test")
 addCommandAlias("ci-js",      ";clean ;coreJS/test:compile  ;coreJS/test")
 addCommandAlias("release",    ";project monix ;+publishSigned ;sonatypeReleaseAll")
 
-val catsVersion = "0.9.0"
-val catsEffectVersion = "0.4-c257223"
+val catsVersion = "1.0.0-MF"
+val catsEffectVersion = "0.4"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
@@ -46,7 +46,7 @@ lazy val warnUnusedImport = Seq(
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
   scalaVersion := "2.11.11",
-  crossScalaVersions := Seq("2.11.11", "2.12.2"),
+  crossScalaVersions := Seq("2.11.11", "2.12.3"),
 
   scalacOptions ++= Seq(
     // warnings
@@ -300,7 +300,9 @@ lazy val coreJS = project.in(file("monix/js"))
   .settings(name := "monix")
 
 lazy val executionCommon = crossVersionSharedSources ++ Seq(
-  name := "monix-execution"
+  name := "monix-execution",
+  // Filtering out breaking changes from 3.0.0
+  mimaBinaryIssueFilters ++= MimaFilters.execChangesFor_3_0_0
 )
 
 lazy val executionJVM = project.in(file("monix-execution/jvm"))
@@ -309,7 +311,7 @@ lazy val executionJVM = project.in(file("monix-execution/jvm"))
   .settings(testSettings)
   .settings(requiredMacroDeps)
   .settings(executionCommon)
-  .settings(libraryDependencies += "org.reactivestreams" % "reactive-streams" % "1.0.0")
+  .settings(libraryDependencies += "org.reactivestreams" % "reactive-streams" % "1.0.1")
   .settings(mimaSettings("monix-execution"))
 
 lazy val executionJS = project.in(file("monix-execution/js"))

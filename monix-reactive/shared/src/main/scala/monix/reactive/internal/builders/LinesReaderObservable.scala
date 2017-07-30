@@ -18,16 +18,14 @@
 package monix.reactive.internal.builders
 
 import java.io.{BufferedReader, Reader}
-
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution._
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import monix.execution.atomic.Atomic
+import monix.execution.exceptions.APIContractViolationException
 import monix.execution.misc.NonFatal
-import monix.reactive.exceptions.MultipleSubscribersException
-
 import scala.annotation.tailrec
 import scala.concurrent.{Future, blocking}
 import scala.util.{Failure, Success}
@@ -45,7 +43,7 @@ private[reactive] final class LinesReaderObservable(reader: Reader)
 
   def unsafeSubscribeFn(out: Subscriber[String]): Cancelable = {
     if (wasSubscribed.getAndSet(true)) {
-      out.onError(MultipleSubscribersException.build("LinesReaderObservable"))
+      out.onError(APIContractViolationException("LinesReaderObservable does not support multiple subscribers"))
       Cancelable.empty
     }
     else {

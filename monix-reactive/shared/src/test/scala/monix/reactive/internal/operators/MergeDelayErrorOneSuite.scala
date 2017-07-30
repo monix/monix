@@ -18,9 +18,8 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack.Continue
-import monix.reactive.exceptions.CompositeException
+import monix.execution.exceptions.CompositeException
 import monix.reactive.{Observable, Observer}
-
 import scala.concurrent.duration._
 import scala.util.Random
 

@@ -20,12 +20,11 @@ package monix.reactive.internal.operators
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.Cancelable
 import monix.execution.cancelables._
-import monix.reactive.exceptions.CompositeException
+import monix.execution.exceptions.CompositeException
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 import monix.reactive.{Observable, OverflowStrategy}
 import monix.execution.atomic.Atomic
 import monix.execution.misc.NonFatal
-
 import scala.collection.mutable
 
 private[reactive] final class MergeMapObservable[A,B](
@@ -52,7 +51,7 @@ private[reactive] final class MergeMapObservable[A,B](
           if (delayErrors)
             errors.synchronized {
               if (errors.nonEmpty)
-                subscriberB.onError(CompositeException.build(errors))
+                subscriberB.onError(CompositeException(errors))
               else
                 subscriberB.onComplete()
             }
