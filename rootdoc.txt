@@ -18,13 +18,14 @@ with asynchronous execution:
    with the [[http://www.reactive-streams.org Reactive Streams]] specification
  - [[monix.execution.misc]] provides miscellaneous primitives
    useful for dealing with concurrency
+ - [[monix.execution.exceptions]] groups some exceptions thrown by
+   the implementation
 
 '''[[monix.eval]]''' is for dealing with evaluation of results, thus exposing
 [[monix.eval.Task Task]] and [[monix.eval.Coeval Coeval]].
 
 '''[[monix.reactive]]''' exposes the `Observable` pattern:
 
- - [[monix.reactive.exceptions]] groups some exceptions thrown by the implementation
  - [[monix.reactive.observables]] groups reusable `Observable` implementations
  - [[monix.reactive.observers]] groups reusable [[monix.reactive.Observer Observer]]
    implementations

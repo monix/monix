@@ -1958,7 +1958,7 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     debounce(timeout)
 
   /** Returns an observable that mirrors the source but that will trigger a
-    * [[monix.reactive.exceptions.DownstreamTimeoutException DownstreamTimeoutException]]
+    * [[monix.execution.exceptions.DownstreamTimeoutException DownstreamTimeoutException]]
     * in case the downstream subscriber takes more than the given timespan
     * to process an `onNext` message.
     *
