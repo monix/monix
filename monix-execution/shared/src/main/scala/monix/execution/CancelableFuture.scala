@@ -34,8 +34,6 @@ trait CancelableFuture[+A] extends Future[A] with Cancelable {
     CancelableFuture(super.transform(s, f), this)
   override def map[S](f: (A) => S)(implicit executor: ExecutionContext): CancelableFuture[S] =
     CancelableFuture(super.map(f), this)
-  override def flatMap[S](f: (A) => Future[S])(implicit executor: ExecutionContext): CancelableFuture[S] =
-    CancelableFuture(super.flatMap(f), this)
   override def filter(p: (A) => Boolean)(implicit executor: ExecutionContext): CancelableFuture[A] =
     CancelableFuture(super.filter(p), this)
   override def collect[S](pf: PartialFunction[A, S])(implicit executor: ExecutionContext): CancelableFuture[S] =
@@ -59,7 +57,14 @@ trait CancelableFuture[+A] extends Future[A] with Cancelable {
 
   // Needed for Scala 2.12 compatibility
   def transformWith[S](f: Try[A] => Future[S])(implicit executor: ExecutionContext): CancelableFuture[S] =
-    CancelableFuture(FutureUtils.transformWith(this, f), this)
+    FutureUtils.transformWith(this, f)
+
+  override def flatMap[S](f: (A) => Future[S])(implicit executor: ExecutionContext): CancelableFuture[S] =
+    // trick borrowed from Scala 2.12
+    transformWith {
+      case Success(s) => f(s)
+      case Failure(_) => this.asInstanceOf[CancelableFuture[S]]
+    }
 }
 
 object CancelableFuture {
