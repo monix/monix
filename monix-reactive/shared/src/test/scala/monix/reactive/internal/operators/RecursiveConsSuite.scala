@@ -21,10 +21,10 @@ import monix.reactive.Observable
 import scala.concurrent.duration.Duration.Zero
 import scala.util.Success
 
-object RecursiveConcatSuite extends BaseOperatorSuite {
+object RecursiveConsSuite extends BaseOperatorSuite {
   def range(from: Long, until: Long): Observable[Long] =
     Observable.defer {
-      Observable.now(from) ++ (
+      from +: (
         if (from + 1 < until) range(from + 1, until)
         else Observable.empty
       )
