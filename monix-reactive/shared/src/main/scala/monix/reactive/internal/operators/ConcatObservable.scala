@@ -15,33 +15,46 @@
  * limitations under the License.
  */
 
-package monix.reactive.internal.builders
+package monix.reactive.internal.operators
 
-import monix.execution.Cancelable
+import monix.execution.{Ack, Cancelable}
+import monix.execution.Ack.Continue
 import monix.execution.cancelables.MultiAssignmentCancelable
-import monix.execution.misc.NonFatal
 import monix.reactive.Observable
 import monix.reactive.observables.ChainedObservable
 import monix.reactive.observables.ChainedObservable.{subscribe => chain}
 import monix.reactive.observers.Subscriber
+import scala.concurrent.Future
 
-private[reactive] final class DeferObservable[+A](factory: () => Observable[A])
+/** Implementation for observable concatenation `++`. */
+private[reactive] final class ConcatObservable[A](lh: Observable[A], rh: Observable[A])
   extends ChainedObservable[A] {
 
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
-    val fa = try factory() catch { case NonFatal(e) => Observable.raiseError(e) }
-    if (fa.isInstanceOf[ChainedObservable[_]]) {
-      val ch = fa.asInstanceOf[ChainedObservable[A]]
-      val conn = MultiAssignmentCancelable()
-      ch.unsafeSubscribeFn(conn, out)
-      conn
-    } else {
-      fa.unsafeSubscribeFn(out)
-    }
+    val conn = MultiAssignmentCancelable()
+    unsafeSubscribeFn(conn, out)
+    conn
   }
 
-  override def unsafeSubscribeFn(conn: MultiAssignmentCancelable, out: Subscriber[A]): Unit = {
-    val fa = try factory() catch { case NonFatal(e) => Observable.raiseError(e) }
-    chain(fa, conn, out)
+  def unsafeSubscribeFn(conn: MultiAssignmentCancelable, out: Subscriber[A]): Unit = {
+    chain(lh, conn, new Subscriber[A] {
+      private[this] var ack: Future[Ack] = Continue
+      implicit val scheduler = out.scheduler
+
+      def onNext(elem: A): Future[Ack] = {
+        ack = out.onNext(elem)
+        ack
+      }
+
+      def onError(ex: Throwable): Unit =
+        out.onError(ex)
+
+      def onComplete(): Unit = {
+        // This can create a stack issue, but `chainedSubscribe`
+        // creates light async boundaries, so should be safe
+        ack.syncOnContinue(chain(rh, conn, out))
+      }
+    })
   }
 }
+
