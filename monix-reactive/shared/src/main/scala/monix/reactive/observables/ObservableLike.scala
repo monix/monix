@@ -18,7 +18,6 @@
 package monix.reactive.observables
 
 import java.io.PrintStream
-
 import monix.eval.Task
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.exceptions.UpstreamTimeoutException
@@ -186,7 +185,7 @@ trait ObservableLike[+A, Self[+T] <: ObservableLike[T, Self]]
     * error.
     */
   def ++[B >: A](other: Observable[B]): Self[B] =
-    self.transform(self => Observable.concat(self, other))
+    self.transform(self => new ConcatObservable[B](self, other))
 
   /** Creates a new Observable that emits the given element and then it
     * also emits the events of the source (prepend operation).
