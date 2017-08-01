@@ -19,6 +19,7 @@ package monix.execution
 
 import java.util.concurrent.TimeoutException
 
+import monix.execution.cancelables.MultiAssignmentCancelable
 import monix.execution.misc.NonFatal
 
 import scala.concurrent.duration._
@@ -115,10 +116,20 @@ object FutureUtils {
     *
     * Similar to `Future.transformWith` from Scala 2.12.
     */
-  def transformWith[A,B](source: Future[A], f: Try[A] => Future[B])(implicit ec: ExecutionContext): Future[B] = {
+  def transformWith[A,B](source: Future[A], f: Try[A] => Future[B])(implicit ec: ExecutionContext): CancelableFuture[B] = {
     val p = Promise[B]()
+
+    val cancelable = source match {
+      case c: Cancelable => MultiAssignmentCancelable(c)
+      case _ => MultiAssignmentCancelable()
+    }
+
     source.onComplete { result =>
       val fb = try f(result) catch { case NonFatal(t) => Future.failed(t) }
+      fb match {
+        case c: Cancelable => cancelable := c
+        case _ =>
+      }
       if (fb eq source)
         p.complete(result.asInstanceOf[Try[B]])
       else fb.value match {
@@ -126,7 +137,7 @@ object FutureUtils {
         case None => p.completeWith(fb)
       }
     }
-    p.future
+    CancelableFuture(p.future, cancelable)
   }
 
   /** Utility that transforms a `Future[Try[A]]` into a `Future[A]`,
