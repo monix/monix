@@ -20,7 +20,6 @@ package monix.tail.internal
 import cats.effect.Sync
 import cats.syntax.all._
 import monix.execution.misc.NonFatal
-import monix.tail.ApplicativeUtils
 import monix.tail.Iterant
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
 

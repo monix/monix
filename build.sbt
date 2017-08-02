@@ -42,7 +42,9 @@ lazy val optimisationSettings = Seq(
       case Some((2, n)) if n >= 12 =>
         Seq("-opt:l:classpath")
       case Some((2, 11)) =>
-        Seq("-optimise")
+        // TODO
+//        Seq("-optimise")
+        Seq.empty
       case Some((2, 10)) =>
         Seq.empty
     }
@@ -134,8 +136,6 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
     // definitely not what we want.
     "-sourcepath", file(".").getAbsolutePath.replaceAll("[.]$", "")
   ),
-
-  addCompilerPlugin("org.spire-math" % "kind-projector" % "0.9.3" cross CrossVersion.binary),
 
   parallelExecution in Test := false,
   parallelExecution in IntegrationTest := false,

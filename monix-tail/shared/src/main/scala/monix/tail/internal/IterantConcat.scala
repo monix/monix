@@ -24,7 +24,6 @@ import monix.tail.Iterant
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
 import monix.tail.batches.BatchCursor
 import monix.tail.internal.IterantUtils.signalError
-import monix.tail.ApplicativeUtils
 import scala.util.control.NonFatal
 
 private[tail] object IterantConcat {
@@ -49,7 +48,7 @@ private[tail] object IterantConcat {
   def unsafeFlatMap[F[_], A, B](source: Iterant[F, A])(f: A => Iterant[F, B])
     (implicit F: Sync[F]): Iterant[F, B] = {
 
-    @inline def generate(item: A, rest: F[Iterant[F, B]], stop: F[Unit]): Iterant[F, B] =
+    def generate(item: A, rest: F[Iterant[F, B]], stop: F[Unit]): Iterant[F, B] =
       f(item) match {
         case next @ (Next(_,_,_) | NextCursor(_,_,_) | NextBatch(_,_,_) | Suspend(_,_)) =>
           concat(next.doOnEarlyStop(stop), Suspend(rest, stop))
@@ -61,7 +60,7 @@ private[tail] object IterantConcat {
           signalError(source, ex)
       }
 
-    @inline def evalNextCursor(ref: NextCursor[F, A], cursor: BatchCursor[A], rest: F[Iterant[F, A]], stop: F[Unit]) = {
+    def evalNextCursor(ref: NextCursor[F, A], cursor: BatchCursor[A], rest: F[Iterant[F, A]], stop: F[Unit]) = {
       if (!cursor.hasNext) {
         Suspend(rest.map(unsafeFlatMap(_)(f)), stop)
       }

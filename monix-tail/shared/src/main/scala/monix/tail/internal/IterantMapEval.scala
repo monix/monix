@@ -24,7 +24,6 @@ import monix.tail.Iterant
 import monix.tail.Iterant._
 import monix.tail.batches.BatchCursor
 import monix.tail.internal.IterantUtils._
-import monix.tail.ApplicativeUtils
 
 private[tail] object IterantMapEval {
   /**
@@ -33,7 +32,7 @@ private[tail] object IterantMapEval {
   def apply[F[_], A, B](source: Iterant[F, A], f: A => F[B])
     (implicit F: Sync[F]): Iterant[F, B] = {
 
-    @inline def evalNextCursor(ref: NextCursor[F, A], cursor: BatchCursor[A], rest: F[Iterant[F, A]], stop: F[Unit]) = {
+    def evalNextCursor(ref: NextCursor[F, A], cursor: BatchCursor[A], rest: F[Iterant[F, A]], stop: F[Unit]) = {
       if (!cursor.hasNext)
         Suspend[F, B](rest.map(loop), stop)
       else {

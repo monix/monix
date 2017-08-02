@@ -47,7 +47,7 @@ private[monix] object TaskGather {
 
       // MUST BE synchronized by `lock`!
       // MUST NOT BE called if isActive == false!
-      @inline def maybeSignalFinal(mainConn: StackedCancelable, finalCallback: Callback[M[A]])
+      def maybeSignalFinal(mainConn: StackedCancelable, finalCallback: Callback[M[A]])
         (implicit s: Scheduler): Unit = {
 
         completed += 1
@@ -69,7 +69,7 @@ private[monix] object TaskGather {
       }
 
       // MUST BE synchronized by `lock`!
-      @inline def reportError(mainConn: StackedCancelable, ex: Throwable)
+      def reportError(mainConn: StackedCancelable, ex: Throwable)
         (implicit s: Scheduler): Unit = {
 
         if (isActive) {

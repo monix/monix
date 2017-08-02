@@ -30,11 +30,11 @@ sealed trait ApplicativeStrategy[+F[_]]
 
 object ApplicativeStrategy {
   /** Returns the [[Sequential]] strategy, parametrized by the given `F` type. */
-  @inline def sequential[F[_]]: ApplicativeStrategy[F] =
+  def sequential[F[_]]: ApplicativeStrategy[F] =
     Sequential
 
   /** Returns the [[Parallel]] strategy, parametrized by the given `F` type. */
-  @inline def parallel[F[_]]: ApplicativeStrategy[F] =
+  def parallel[F[_]]: ApplicativeStrategy[F] =
     Parallel
 
   /** An [[ApplicativeStrategy]] specifying that sequential processing

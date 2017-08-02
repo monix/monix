@@ -18,7 +18,7 @@
 package monix.tail
 
 import cats.effect.Sync
-import cats.{Applicative, Comonad, Monad, MonadFilter, MonoidK}
+import cats.{Applicative, Comonad, Monad, MonoidK}
 import monix.eval.instances.{CatsAsyncInstances, CatsSyncInstances}
 import monix.eval.{Coeval, Task}
 import monix.tail.batches.{Batch, BatchCursor}
@@ -748,7 +748,6 @@ private[tail] trait IterantInstances1 {
   /** Provides a `cats.effect.Sync` instance for [[Iterant]]. */
   class MonadInstance[F[_]](implicit F: Sync[F])
     extends Monad[({type λ[α] = Iterant[F, α]})#λ]
-    with MonadFilter[({type λ[α] = Iterant[F, α]})#λ]
     with MonoidK[({type λ[α] = Iterant[F, α]})#λ] {
 
     override def pure[A](a: A): Iterant[F, A] =
@@ -771,9 +770,6 @@ private[tail] trait IterantInstances1 {
 
     override def empty[A]: Iterant[F, A] =
       Iterant.empty
-
-    override def filter[A](fa: Iterant[F, A])(f: (A) => Boolean): Iterant[F, A] =
-      fa.filter(f)(F)
 
     override def combineK[A](x: Iterant[F, A], y: Iterant[F, A]): Iterant[F, A] =
       x.++(y)(F)

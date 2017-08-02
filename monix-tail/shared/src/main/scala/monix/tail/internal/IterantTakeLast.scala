@@ -23,7 +23,6 @@ import monix.execution.internal.collection.DropHeadOnOverflowQueue
 import monix.tail.Iterant
 import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Suspend}
 import monix.tail.batches.BatchCursor
-import monix.tail.ApplicativeUtils
 
 private[tail] object IterantTakeLast {
   /**

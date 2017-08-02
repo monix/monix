@@ -29,7 +29,7 @@ private[tail] object IterantTakeWhile {
   def apply[F[_], A](source: Iterant[F, A], p: A => Boolean)
     (implicit F: Sync[F]): Iterant[F, A] = {
 
-    @inline def finishWith(stop: F[Unit]): Iterant[F, A] =
+    def finishWith(stop: F[Unit]): Iterant[F, A] =
       Suspend(stop.map(_ => Halt(None)), stop)
 
     def processCursor(ref: NextCursor[F, A]): Iterant[F, A] = {

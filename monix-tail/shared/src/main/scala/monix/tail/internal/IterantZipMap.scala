@@ -38,13 +38,11 @@ private[tail] object IterantZipMap {
       def stopBoth(stopA: F[Unit], stopB: F[Unit]): F[Unit] =
         stopA.flatMap(_ => stopB)
 
-      @inline
       def processPair(a: A, restA: F[Iterant[F, A]], stopA: F[Unit], b: B, restB: F[Iterant[F, B]], stopB: F[Unit]) = {
         val rest = F.map2(restA, restB)(loop)
         Next(f(a, b), rest, stopBoth(stopA, stopB))
       }
 
-      @inline
       def processOneASeqB(lh: Iterant[F, A], a: A, restA: F[Iterant[F, A]], stopA: F[Unit], refB: NextCursor[F, B]): Iterant[F, C] = {
         val NextCursor(itemsB, restB, stopB) = refB
         if (!itemsB.hasNext)
@@ -53,7 +51,6 @@ private[tail] object IterantZipMap {
           processPair(a, restA, stopA, itemsB.next(), F.pure(refB), stopB)
       }
 
-      @inline
       def processSeqAOneB(refA: NextCursor[F, A], rh: Iterant[F, B], b: B, restB: F[Iterant[F, B]], stopB: F[Unit]): Iterant[F, C] = {
         val NextCursor(itemsA, restA, stopA) = refA
         if (!itemsA.hasNext)
@@ -116,13 +113,11 @@ private[tail] object IterantZipMap {
         }
       }
 
-      @inline
       def processLast(a: A, b: B, stop: F[Unit]): Iterant[F, C] = {
         val last = Last[F,C](f(a, b))
         Suspend(stop.map(_ => last), stop)
       }
 
-      @inline
       def processNextCursorA(lh: NextCursor[F, A], rh: Iterant[F, B]): Iterant[F, C] =
         rh match {
           case Next(b, restB, stopB) =>
