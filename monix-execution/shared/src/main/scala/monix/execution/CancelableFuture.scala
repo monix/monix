@@ -34,8 +34,6 @@ trait CancelableFuture[+A] extends Future[A] with Cancelable {
     CancelableFuture(super.transform(s, f), this)
   override def map[S](f: (A) => S)(implicit executor: ExecutionContext): CancelableFuture[S] =
     CancelableFuture(super.map(f), this)
-  override def flatMap[S](f: (A) => Future[S])(implicit executor: ExecutionContext): CancelableFuture[S] =
-    CancelableFuture(super.flatMap(f), this)
   override def filter(p: (A) => Boolean)(implicit executor: ExecutionContext): CancelableFuture[A] =
     CancelableFuture(super.filter(p), this)
   override def collect[S](pf: PartialFunction[A, S])(implicit executor: ExecutionContext): CancelableFuture[S] =
@@ -59,7 +57,14 @@ trait CancelableFuture[+A] extends Future[A] with Cancelable {
 
   // Needed for Scala 2.12 compatibility
   def transformWith[S](f: Try[A] => Future[S])(implicit executor: ExecutionContext): CancelableFuture[S] =
-    CancelableFuture(FutureUtils.transformWith(this, f), this)
+    FutureUtils.transformWith(this, f)
+
+  override def flatMap[S](f: (A) => Future[S])(implicit executor: ExecutionContext): CancelableFuture[S] =
+    // trick borrowed from Scala 2.12
+    transformWith {
+      case Success(s) => f(s)
+      case Failure(_) => this.asInstanceOf[CancelableFuture[S]]
+    }
 }
 
 object CancelableFuture {
@@ -156,41 +161,5 @@ object CancelableFuture {
 
     override def cancel(): Unit =
       cancelable.cancel()
-
-    // Overriding methods for getting CancelableFuture in return
-    override def failed: CancelableFuture[Throwable] =
-      new Implementation(underlying.failed, cancelable)
-    override def transform[S](s: (A) => S, f: (Throwable) => Throwable)(implicit executor: ExecutionContext): CancelableFuture[S] =
-      new Implementation(underlying.transform(s, f), cancelable)
-    override def map[S](f: (A) => S)(implicit executor: ExecutionContext): CancelableFuture[S] =
-      new Implementation(underlying.map(f), cancelable)
-    override def flatMap[S](f: (A) => Future[S])(implicit executor: ExecutionContext): CancelableFuture[S] =
-      new Implementation(underlying.flatMap(f), cancelable)
-    override def filter(p: (A) => Boolean)(implicit executor: ExecutionContext): CancelableFuture[A] =
-      new Implementation(underlying.filter(p), cancelable)
-    override def collect[S](pf: PartialFunction[A, S])(implicit executor: ExecutionContext): CancelableFuture[S] =
-      new Implementation(underlying.collect(pf), cancelable)
-    override def recover[U >: A](pf: PartialFunction[Throwable, U])(implicit executor: ExecutionContext): CancelableFuture[U] =
-      new Implementation(underlying.recover(pf), cancelable)
-    override def recoverWith[U >: A](pf: PartialFunction[Throwable, Future[U]])(implicit executor: ExecutionContext): CancelableFuture[U] =
-      new Implementation(underlying.recoverWith(pf), cancelable)
-    override def zip[U](that: Future[U]): CancelableFuture[(A, U)] =
-      new Implementation(underlying.zip(that), cancelable)
-    override def fallbackTo[U >: A](that: Future[U]): CancelableFuture[U] =
-      new Implementation(underlying.fallbackTo(that), cancelable)
-    override def mapTo[S](implicit tag: ClassTag[S]): CancelableFuture[S] =
-      new Implementation(underlying.mapTo[S], cancelable)
-    override def andThen[U](pf: PartialFunction[Try[A], U])(implicit executor: ExecutionContext): CancelableFuture[A] =
-      new Implementation(underlying.andThen(pf), cancelable)
-
-    // Needed for Scala 2.12 compatibility
-    override def transform[S](f: Try[A] => Try[S])
-      (implicit executor: ExecutionContext): CancelableFuture[S] =
-      new Implementation[S](FutureUtils.transform(underlying, f), cancelable)
-
-    // Needed for Scala 2.12 compatibility
-    override def transformWith[S](f: Try[A] => Future[S])
-      (implicit executor: ExecutionContext): CancelableFuture[S] =
-      new Implementation[S](FutureUtils.transformWith(underlying, f), cancelable)
   }
 }

@@ -444,4 +444,30 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
     f.cancel()
     assertEquals(f.value, None)
   }
+
+  test("flatMap cancels first") { implicit s =>
+    val c = Promise[Unit]
+    val f = CancelableFuture(CancelableFuture.never[Unit], Cancelable { () =>
+      c.success(())
+    })
+    assert(!f.isCompleted, "f.isCompleted")
+    s.tick()
+    f.cancel()
+    assert(c.isCompleted, "!c.isCompleted")
+  }
+
+  test("flatMap cancels second") { implicit s =>
+    val c = Promise[Unit]
+    val first = CancelableFuture.successful(())
+    val f = first.flatMap { _ =>
+      CancelableFuture(CancelableFuture.never[Unit], Cancelable { () =>
+        c.success(())
+      })
+    }
+    assert(first.isCompleted, "!first.isCompleted")
+    s.tick()
+    f.cancel()
+    s.tick()
+    assert(c.isCompleted, "!c.isCompleted")
+  }
 }

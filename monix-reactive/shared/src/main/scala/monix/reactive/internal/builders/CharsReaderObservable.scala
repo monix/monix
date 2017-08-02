@@ -19,16 +19,14 @@ package monix.reactive.internal.builders
 
 import java.io.Reader
 import java.util
-
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.Atomic
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution._
+import monix.execution.exceptions.APIContractViolationException
 import monix.execution.misc.NonFatal
 import monix.reactive.Observable
-import monix.reactive.exceptions.MultipleSubscribersException
 import monix.reactive.observers.Subscriber
-
 import scala.annotation.tailrec
 import scala.concurrent.{Future, blocking}
 import scala.util.{Failure, Success}
@@ -41,7 +39,7 @@ private[reactive] final class CharsReaderObservable(
 
   def unsafeSubscribeFn(out: Subscriber[Array[Char]]): Cancelable = {
     if (wasSubscribed.getAndSet(true)) {
-      out.onError(MultipleSubscribersException.build("ReaderObservable"))
+      out.onError(APIContractViolationException("ReaderObservable does not support multiple subscribers"))
       Cancelable.empty
     }
     else {

@@ -21,8 +21,8 @@ import java.util.concurrent.TimeUnit
 import monix.execution.Ack.{Stop, Continue}
 import monix.execution.cancelables.{CompositeCancelable, MultiAssignmentCancelable, SingleAssignmentCancelable}
 import monix.execution.{Ack, Cancelable, Scheduler}
+import monix.execution.exceptions.DownstreamTimeoutException
 import monix.reactive.Observable
-import monix.reactive.exceptions.DownstreamTimeoutException
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
@@ -108,7 +108,7 @@ private[reactive] final class DownstreamTimeoutObservable[+A](
       def triggerTimeout(): Unit = self.synchronized {
         if (!isDone) {
           isDone = true
-          val ex = DownstreamTimeoutException.build(timeout)
+          val ex = DownstreamTimeoutException(timeout)
           try downstream.onError(ex) finally
             mainTask.cancel()
         }

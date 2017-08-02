@@ -9,8 +9,8 @@ addCommandAlias("ci-jvm",     ";clean ;coreJVM/test:compile ;coreJVM/test")
 addCommandAlias("ci-js",      ";clean ;coreJS/test:compile  ;coreJS/test")
 addCommandAlias("release",    ";project monix ;+publishSigned ;sonatypeReleaseAll")
 
-val catsVersion = "0.9.0"
-val catsEffectVersion = "0.4-c257223"
+val catsVersion = "1.0.0-MF"
+val catsEffectVersion = "0.4"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
@@ -21,13 +21,6 @@ lazy val doNotPublishArtifact = Seq(
   publishArtifact in (Compile, packageDoc) := false,
   publishArtifact in (Compile, packageSrc) := false,
   publishArtifact in (Compile, packageBin) := false
-)
-
-lazy val noSources = Seq(
-  // disable automatic dependency on the Scala library
-  autoScalaLibrary := false,
-  publishArtifact in Compile := false,
-  sources in Compile := Seq.empty
 )
 
 lazy val warnUnusedImport = Seq(
@@ -59,7 +52,7 @@ lazy val optimisationSettings = Seq(
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
   scalaVersion := "2.11.11",
-  crossScalaVersions := Seq("2.11.11", "2.12.2"),
+  crossScalaVersions := Seq("2.11.11", "2.12.3"),
 
   scalacOptions ++= Seq(
     // warnings
@@ -300,7 +293,6 @@ lazy val coreJVM = project.in(file("monix/jvm"))
   .dependsOn(executionJVM, evalJVM, tailJVM, reactiveJVM)
   .aggregate(executionJVM, evalJVM, tailJVM, reactiveJVM)
   .settings(crossSettings)
-  .settings(noSources)
   .settings(name := "monix")
 
 lazy val coreJS = project.in(file("monix/js"))
@@ -313,7 +305,9 @@ lazy val coreJS = project.in(file("monix/js"))
   .settings(name := "monix")
 
 lazy val executionCommon = crossVersionSharedSources ++ Seq(
-  name := "monix-execution"
+  name := "monix-execution",
+  // Filtering out breaking changes from 3.0.0
+  mimaBinaryIssueFilters ++= MimaFilters.execChangesFor_3_0_0
 )
 
 lazy val executionJVM = project.in(file("monix-execution/jvm"))

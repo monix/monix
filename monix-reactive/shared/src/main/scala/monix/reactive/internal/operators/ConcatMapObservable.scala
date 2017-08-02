@@ -22,8 +22,8 @@ import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
 import monix.execution.misc.NonFatal
 import monix.execution.{Ack, Cancelable}
+import monix.execution.exceptions.CompositeException
 import monix.reactive.Observable
-import monix.reactive.exceptions.CompositeException
 import monix.reactive.observers.Subscriber
 
 import scala.annotation.tailrec
@@ -89,7 +89,7 @@ private[reactive] final class ConcatMapObservable[A, B]
     // For synchronizing our internal state machine, padded
     // in order to avoid the false sharing problem
     private[this] val stateRef =
-    Atomic.withPadding(WaitOnNextChild(Continue) : FlatMapState, LeftRight128)
+      Atomic.withPadding(WaitOnNextChild(Continue) : FlatMapState, LeftRight128)
 
     /** For canceling the current active task, in case there is any. Here
       * we can afford a `compareAndSet`, not being a big deal since
@@ -329,7 +329,7 @@ private[reactive] final class ConcatMapObservable[A, B]
       if (!delayErrors) out.onComplete() else
         this.errors.get match {
           case Nil => out.onComplete()
-          case list => out.onError(CompositeException.build(list))
+          case list => out.onError(CompositeException(list))
         }
     }
 

@@ -20,9 +20,10 @@ package monix.reactive.subjects
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.Atomic
 import monix.execution.cancelables.BooleanCancelable
+import monix.execution.exceptions.APIContractViolationException
 import monix.execution.{Ack, Cancelable, Scheduler}
-import monix.reactive.exceptions.MultipleSubscribersException
 import monix.reactive.observers.Subscriber
+
 import scala.annotation.tailrec
 import scala.concurrent.{Future, Promise}
 
@@ -41,7 +42,7 @@ final class PublishToOneSubject[A] private () extends Subject[A,A] with BooleanC
   import PublishToOneSubject.{canceledState, pendingCompleteState}
 
   private[this] val subscriptionP = Promise[Ack]()
-  private[this] var errorThrown: Throwable = null
+  private[this] var errorThrown: Throwable = _
   private[this] val ref = Atomic(null : Subscriber[A])
 
   /** A `Future` that signals when the subscription happened
@@ -80,7 +81,7 @@ final class PublishToOneSubject[A] private () extends Subject[A,A] with BooleanC
         }
 
       case _ =>
-        subscriber.onError(MultipleSubscribersException.build("PublishToOneSubject"))
+        subscriber.onError(APIContractViolationException("PublishToOneSubject does not support multiple subscribers"))
         Cancelable.empty
     }
 

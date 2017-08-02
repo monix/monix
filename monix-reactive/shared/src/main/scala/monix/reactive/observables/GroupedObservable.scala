@@ -17,10 +17,11 @@
 
 package monix.reactive.observables
 
+import monix.execution.exceptions.APIContractViolationException
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.reactive.Observable
-import monix.reactive.exceptions.MultipleSubscribersException
 import monix.reactive.observers.{CacheUntilConnectSubscriber, Subscriber}
+
 import scala.concurrent.Future
 
 /** A `GroupedObservable` is an observable type generated
@@ -52,7 +53,7 @@ object GroupedObservable {
     extends GroupedObservable[K,V] with Subscriber[V] { self =>
 
     // needs to be set upon subscription
-    private[this] var ref: Subscriber[V] = null
+    private[this] var ref: Subscriber[V] = _
     private[this] val underlying = {
       val o = new Subscriber[V] {
         implicit val scheduler = self.scheduler
@@ -91,7 +92,7 @@ object GroupedObservable {
     def unsafeSubscribeFn(subscriber: Subscriber[V]): Cancelable =
       self.synchronized {
         if (ref != null) {
-          subscriber.onError(MultipleSubscribersException.build("GroupedObservable"))
+          subscriber.onError(APIContractViolationException("GroupedObservable does not support multiple subscribers"))
           Cancelable.empty
         } else {
           ref = subscriber

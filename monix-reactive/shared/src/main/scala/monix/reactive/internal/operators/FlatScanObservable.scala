@@ -21,10 +21,9 @@ import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.{CompositeCancelable, MultiAssignmentCancelable}
 import monix.execution.misc.NonFatal
 import monix.execution.{Ack, Cancelable}
+import monix.execution.exceptions.CompositeException
 import monix.reactive.Observable
-import monix.reactive.exceptions.CompositeException
 import monix.reactive.observers.Subscriber
-
 import scala.collection.mutable
 import scala.concurrent.{Future, Promise}
 
@@ -144,7 +143,7 @@ class FlatScanObservable[A,R](
           if (!isDone) {
             isDone = true
             if (delayErrors && errors.nonEmpty)
-              out.onError(CompositeException.build(errors))
+              out.onError(CompositeException(errors))
             else
               out.onComplete()
           }

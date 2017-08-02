@@ -21,7 +21,7 @@ import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.internal.collection.{ArrayQueue, _}
 import monix.execution.misc.NonFatal
-import monix.reactive.exceptions.BufferOverflowException
+import monix.execution.exceptions.BufferOverflowException
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 
 import scala.concurrent.Future
@@ -36,7 +36,7 @@ private[observers] final class SyncBufferedSubscriber[-A] private
 
   implicit val scheduler = out.scheduler
   // to be modified only in onError, before upstreamIsComplete
-  private[this] var errorThrown: Throwable = null
+  private[this] var errorThrown: Throwable = _
   // to be modified only in onError / onComplete
   private[this] var upstreamIsComplete = false
   // to be modified only by consumer
@@ -203,7 +203,7 @@ private[observers] final class SyncBufferedSubscriber[-A] private
                   isLoopActive = false
                   return
 
-                case async =>
+                case _ =>
                   goAsync(next, ack)
                   return
               }
@@ -256,7 +256,7 @@ private[monix] object SyncBufferedSubscriber {
   def bounded[A](underlying: Subscriber[A], bufferSize: Int): Subscriber.Sync[A] = {
     require(bufferSize > 1, "bufferSize must be strictly higher than 1")
     val buffer = ArrayQueue.bounded[A](bufferSize, _ => {
-      BufferOverflowException.build(
+      BufferOverflowException(
         s"Downstream observer is too slow, buffer over capacity with a " +
         s"specified buffer size of $bufferSize")
     })

@@ -15,20 +15,17 @@
  * limitations under the License.
  */
 
-package monix.reactive
-
-import cats.laws.discipline.{CoflatMapTests, MonadErrorTests, MonoidKTests}
-
-object TypeClassLawsForObservableSuite extends BaseLawsTestSuite {
-  checkAllAsync("MonadError[Observable, Throwable]") { implicit ec =>
-    MonadErrorTests[Observable, Throwable].monadError[Int, Int, Int]
-  }
-
-  checkAllAsync("CoflatMap[Observable]") { implicit ec =>
-    CoflatMapTests[Observable].coflatMap[Int, Int, Int]
-  }
-
-  checkAllAsync("MonoidK[Observable]") { implicit ec =>
-    MonoidKTests[Observable].monoidK[Int]
-  }
-}
+/** Base package for the Monix library.
+  *
+  * The core is being split in the following sub-packages:
+  *
+  *  - '''[[monix.execution]]''' exposes lower level primitives for dealing
+  *    with asynchronous execution, corresponding to the `monix-execution`
+  *    sub-project
+  *  - '''[[monix.eval]]''' is for dealing with evaluation of results,
+  *    thus exposing [[monix.eval.Task Task]] and [[monix.eval.Coeval Coeval]],
+  *    corresponding to the `monix-eval` sub-project
+  *  - '''[[monix.reactive]]''' exposes the [[monix.reactive.Observable Observable]]
+  *    pattern, corresponding to the `monix-reactive` sub-project
+  */
+package object monix {}

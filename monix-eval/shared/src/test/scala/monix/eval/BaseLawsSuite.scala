@@ -175,8 +175,11 @@ trait ArbitraryInstancesBase extends cats.instances.AllInstances {
 
 
   implicit lazy val equalityThrowable = new Eq[Throwable] {
-    override def eqv(x: Throwable, y: Throwable): Boolean =
-      extractEx(x) == extractEx(y)
+    override def eqv(x: Throwable, y: Throwable): Boolean = {
+      val ex1 = extractEx(x)
+      val ex2 = extractEx(y)
+      ex1.getClass == ex2.getClass && ex1.getMessage == ex2.getMessage
+    }
 
     // Unwraps exceptions that got caught by Future's implementation
     // and that got wrapped in ExecutionException (`Future(throw ex)`)

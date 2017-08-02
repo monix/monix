@@ -18,7 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack.Continue
-import monix.reactive.exceptions.CompositeException
+import monix.execution.exceptions.CompositeException
 import monix.reactive.{Observable, Observer}
 import scala.concurrent.duration._
 import scala.util.Random
@@ -58,9 +58,9 @@ object MergeDelayErrorManySuite extends BaseOperatorSuite {
 
   override def cancelableObservables(): Seq[Sample] = {
     val sample1 =  Observable.range(1, 100)
-      .mergeMapDelayErrors(x => Observable.range(0,100).delaySubscription(2.second))
+      .mergeMapDelayErrors(_ => Observable.range(0,100).delaySubscription(2.second))
     val sample2 = Observable.range(0, 100).delayOnNext(1.second)
-      .mergeMapDelayErrors(x => Observable.range(0,100).delaySubscription(2.second))
+      .mergeMapDelayErrors(_ => Observable.range(0,100).delaySubscription(2.second))
 
     Seq(
       Sample(sample1, 0, 0, 0.seconds, 0.seconds),
