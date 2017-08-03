@@ -302,11 +302,29 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
 
   /** Consumes the source iterable, executing the given callback for
     * each element.
+    *
+    * Example: {{{
+    *   // Prints all elements, each one on different line
+    *   Iterant[Task].of(1, 2, 3).foreachL { elem =>
+    *     println(s"Elem: ${elem}")
+    *   }
+    * }}}
+    *
+    * @param cb is the callback to call for each element emitted
+    *        by the source.
     */
   final def foreachL(cb: A => Unit)(implicit F: Sync[F]): F[Unit] =
     map(cb)(F).completeL
 
   /** Optionally selects the first element.
+    *
+    * {{{
+    *   // Yields Some(1)
+    *   Iterant[Task].of(1, 2, 3, 4).headOptionL
+    *
+    *   // Yields None
+    *   Iterant[Task].empty[Int].headOptionL
+    * }}}
     *
     * @return the first element of this iterant if it is nonempty, or
     *         `None` if it is empty, in the `F` context.
@@ -317,7 +335,15 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   /** Returns a new stream by mapping the supplied function over the
     * elements of the source.
     *
+    * {{{
+    *   // Yields 2, 4, 6
+    *   Iterant[Task].of(1, 2, 3).map(_ * 2)
+    * }}}
+    *
     * @param f is the mapping function that transforms the source
+    *
+    * @return a new iterant that's the result of mapping the given
+    *         function over the source
     */
   final def map[B](f: A => B)(implicit F: Sync[F]): Iterant[F, B] =
     IterantMap(this, f)(F)
@@ -326,7 +352,19 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * asynchronous result, applies it over the elements emitted by the
     * stream.
     *
+    * {{{
+    *   Iterant[Task].of(1, 2, 3, 4).mapEval { elem =>
+    *     Task.eval {
+    *       println(s"Received: ${elem}")
+    *       elem * 2
+    *     }
+    *   }
+    * }}}
+    *
     * @param f is the mapping function that transforms the source
+    *
+    * @return a new iterant that's the result of mapping the given
+    *         function over the source,
     */
   final def mapEval[B](f: A => F[B])(implicit F: Sync[F]): Iterant[F, B] =
     IterantMapEval(this, f)(F)
@@ -334,7 +372,23 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   /** Applies the function to the elements of the source and
     * concatenates the results.
     *
-    * @param f is the function mapping elements from the source to iterants
+    * This operation is the monadic "bind", with all laws it entails.
+    *
+    * Also note that the implementation can use constant memory
+    * depending on usage, thus it can be used in tail recursive loops.
+    *
+    * Example: {{{
+    *   // Effectively equivalent with .filter
+    *   Iterant[Task].of(1, 2, 3, 4, 5, 6).flatMap { elem =>
+    *     if (elem % 2 == 0)
+    *       Iterant[Task].pure(elem)
+    *     else
+    *       Iterant[Task].empty
+    *   }
+    * }}}
+    *
+    * @param f is the function mapping elements from the
+    *        source to iterants
     */
   final def flatMap[B](f: A => Iterant[F, B])(implicit F: Sync[F]): Iterant[F, B] =
     IterantConcat.flatMap(this, f)(F)
@@ -356,6 +410,11 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * On execution the stream will be traversed from left to right,
     * and the given function will be called with the prior result,
     * accumulating state until the end, when the summary is returned.
+    *
+    * Example: {{{
+    *   // Yields 15 (1 + 2 + 3 + 4 + 5)
+    *   Iterant[Task].of(1, 2, 3, 4, 5).foldLeftL(0)(_ + _)
+    * }}}
     *
     * @param seed is the start value
     * @param op is the binary operator
@@ -392,8 +451,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * `Iterant[F, B]`, knowing that `A extends B`, then you can do an
     * `upcast`.
     *
-    * Example:
-    * {{{
+    * Example: {{{
     *   val source: Iterant[Task, List[Int]] = ???
     *
     *   // This will trigger an error because of the invariance:
@@ -410,6 +468,11 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * the first `n` elements from the source and then stop,
     * in the order they are emitted by the source.
     *
+    * Example: {{{
+    *   // Yields 1, 2, 3
+    *   Iterant[Task].of(1, 2, 3, 4, 5, 6).take(3)
+    * }}}
+    *
     * @param n is the number of elements to take from this iterant
     *
     * @return a new iterant instance that on evaluation will emit
@@ -423,6 +486,17 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *
     * In case the source triggers an error, then the underlying buffer
     * gets dropped and the error gets emitted immediately.
+    *
+    * Example: {{{
+    *   // Yields 1, 2, 3
+    *   Iterant[Task].of(1, 2, 3, 4, 5, 6).take(3)
+    * }}}
+    *
+    * @param n is the number of elements to take from the end of the
+    *        stream.
+    *
+    * @return a new iterant instance that on evaluation will emit the
+    *         last `n` elements of the source
     */
   final def takeLast(n: Int)(implicit F: Sync[F]): Iterant[F, A] =
     IterantTakeLast(self, n)
@@ -430,23 +504,55 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   /** Takes longest prefix of elements that satisfy the given predicate
     * and returns a new iterant that emits those elements.
     *
+    * Example: {{{
+    *   // Yields 1, 2, 3
+    *   Iterant[Task].of(1, 2, 3, 4, 5, 6).takeWhile(_ < 4)
+    * }}}
+    *
     * @param p is the function that tests each element, stopping
     *          the streaming on the first `false` result
+    *
+    * @return a new iterant instance that on evaluation will all
+    *         elements of the source for as long as the given predicate
+    *         returns `true`, stopping upon the first `false` result
     */
   final def takeWhile(p: A => Boolean)(implicit F: Sync[F]): Iterant[F, A] =
     IterantTakeWhile(self, p)(F)
 
-  /** Drops the first element of the source iterant, emitting the rest. */
+  /** Drops the first element of the source iterant, emitting the rest.
+    *
+    * Example: {{{
+    *   // Yields 2, 3, 4
+    *   Iterant[Task].of(1, 2, 3, 4).tail
+    * }}}
+    *
+    * @return a new iterant that upon evaluation will emit all
+    *         elements of the source, except for the head
+    */
   final def tail(implicit F: Sync[F]): Iterant[F, A] =
     IterantTail(self)(F)
 
-  /** Skips over [[Iterant.Suspend]] states, along with [[Iterant.NextCursor]]
-    * and [[Iterant.NextBatch]] states that signal empty collections.
+  /** Skips over [[Iterant.Suspend]] states, along with
+    * [[Iterant.NextCursor]] and [[Iterant.NextBatch]] states that
+    * signal empty collections.
+    *
+    * Will mirror the source, except that the emitted internal states
+    * might be different. Can be used as an optimization if necessary.
     */
   final def skipSuspendL(implicit F: Sync[F]): F[Iterant[F, A]] =
     IterantSkipSuspend(self)
 
-  /** Aggregates all elements in a `List` and preserves order. */
+  /** Aggregates all elements in a `List` and preserves order.
+    *
+    * Example: {{{
+    *   // Yields List(1, 2, 3, 4)
+    *   Iterant[Task].of(1, 2, 3, 4).toListL
+    * }}}
+    *
+    * Note that this operation is dangerous, since if the iterant is
+    * infinite then this operation is non-terminating, the process
+    * probably blowing up with an out of memory error sooner or later.
+    */
   final def toListL(implicit F: Sync[F]): F[List[A]] =
     IterantFoldLeftL.toListL(self)(F)
 
@@ -455,6 +561,20 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *
     * The length of the result will be the shorter of the two
     * arguments.
+    *
+    * Example: {{{
+    *   val lh = Iterant[Task].of(11, 12, 13, 14)
+    *   val rh = Iterant[Task].of(21, 22, 23, 24, 25)
+    *
+    *   // Yields 32, 34, 36, 38
+    *   lh.zipMap(rh) { (a, b) => a + b }
+    * }}}
+    *
+    * @param rhs is the other iterant to zip the source with (the
+    *        right hand side)
+    *
+    * @param f is the mapping function to transform the zipped
+    *        `(A, B)` elements
     */
   final def zipMap[B, C](rhs: Iterant[F, B])(f: (A, B) => C)
     (implicit F: Sync[F]): Iterant[F, C] =
@@ -464,6 +584,17 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *
     * The length of the result will be the shorter of the two
     * arguments.
+    *
+    * Example: {{{
+    *   val lh = Iterant[Task].of(11, 12, 13, 14)
+    *   val rh = Iterant[Task].of(21, 22, 23, 24, 25)
+    *
+    *   // Yields (11, 21), (12, 22), (13, 23), (14, 24)
+    *   lh.zip(rh)
+    * }}}
+    *
+    * @param rhs is the other iterant to zip the source with (the
+    *        right hand side)
     */
   final def zip[B](rhs: Iterant[F, B])(implicit F: Sync[F]): Iterant[F, (A, B)] =
     (self zipMap rhs)((a, b) => (a, b))

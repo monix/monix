@@ -21,7 +21,6 @@ import monix.eval.{Coeval, Task}
 import monix.execution.exceptions.DummyException
 import monix.tail.Iterant.Suspend
 import monix.tail.batches.BatchCursor
-
 import scala.util.Failure
 
 object IterantCollectSuite extends BaseTestSuite {
@@ -73,18 +72,24 @@ object IterantCollectSuite extends BaseTestSuite {
     assertEquals(state.toListL.runTry, Failure(dummy))
   }
 
-  test("Iterant.collect handles error for Next") { _ =>
-    val dummy = DummyException("dummy")
+  test("Iterant.collect suspends the evaluation for Next") { _ =>
+    var effect: Int = 0
     val iter = Iterant[Coeval].nextS(1, Coeval.now(Iterant.empty[Coeval, Int]), Coeval.unit)
-    val state = iter.collect { case _ => (throw dummy): Int }
-    assertEquals(state.toListL.runTry, Failure(dummy))
+    val state = iter.collect { case _ => effect += 1; 1 }
+
+    assertEquals(effect, 0)
+    assertEquals(state.toListL.value, List(1))
+    assertEquals(effect, 1)
   }
 
-  test("Iterant.collect handles error for Last") { _ =>
-    val dummy = DummyException("dummy")
+  test("Iterant.collect suspends the evaluation for Last") { _ =>
+    var effect = 0
     val iter = Iterant[Coeval].lastS(1)
-    val state = iter.collect { case _ => (throw dummy): Int }
-    assertEquals(state.toListL.runTry, Failure(dummy))
+    val state = iter.collect { case _ => effect += 1; 1 }
+
+    assertEquals(effect, 0)
+    assertEquals(state.toListL.value, List(1))
+    assertEquals(effect, 1)
   }
 
   test("Iterant.collect doesn't touch Halt") { _ =>

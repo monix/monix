@@ -90,12 +90,13 @@ private[tail] object IterantTakeWhile {
       }
     }
 
-    // We can have side-effects in that function so
-    // suspending execution if needed
     source match {
-      case Suspend(_, _) | Halt(_) =>
-        loop(source)
+      case Suspend(_, _) | Halt(_) => loop(source)
       case _ =>
+        // Suspending execution in order to preserve laziness and
+        // referential transparency, since the provided function can
+        // be side effecting and because processing NextBatch and
+        // NextCursor states can have side effects
         Suspend(F.delay(loop(source)), source.earlyStop)
     }
   }

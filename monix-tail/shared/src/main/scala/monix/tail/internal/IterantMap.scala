@@ -52,8 +52,10 @@ private[tail] object IterantMap {
     source match {
       case Suspend(_, _) | Halt(_) => loop(source)
       case _ =>
-        // Given function can be side-effecting,
-        // so we must suspend the execution
+        // Suspending execution in order to preserve laziness and
+        // referential transparency, since the provided function can
+        // be side effecting and because processing NextBatch and
+        // NextCursor states can have side effects
         Suspend(F.delay(loop(source)), source.earlyStop)
     }
   }

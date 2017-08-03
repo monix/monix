@@ -74,13 +74,14 @@ private[tail] object IterantDropWhile {
       }
     }
 
-    // We can have side-effects with NextBatch/NextCursor
-    // processing, so suspending execution in this case
     source match {
-      case NextBatch(_, _, _) | NextCursor(_, _, _) =>
-        Suspend(F.delay(loop(source)), source.earlyStop)
+      case Suspend(_, _) | Halt(_) => loop(source)
       case _ =>
-        loop(source)
+        // Suspending execution in order to preserve laziness and
+        // referential transparency, since the provided function can
+        // be side effecting and because processing NextBatch and
+        // NextCursor states can have side effects
+        Suspend(F.delay(loop(source)), source.earlyStop)
     }
   }
 }

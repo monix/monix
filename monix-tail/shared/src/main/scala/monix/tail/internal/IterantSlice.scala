@@ -60,6 +60,8 @@ private[tail] object IterantSlice {
 
     source match {
       case NextCursor(_, _, _) | NextBatch(_, _, _) =>
+        // Suspending execution for referential transparency, as we
+        // can have side effects when processing NextCursor/NextBatch
         F.suspend(loop(source))
       case _ =>
         loop(source)

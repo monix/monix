@@ -28,7 +28,9 @@ private[tail] object IterantFilter {
   /**
     * Implementation for `Iterant#filter`
     */
-  def apply[F[_], A](source: Iterant[F, A], p: A => Boolean)(implicit F: Sync[F]): Iterant[F,A] = {
+  def apply[F[_], A](source: Iterant[F, A], p: A => Boolean)
+    (implicit F: Sync[F]): Iterant[F,A] = {
+
     def loop(source: Iterant[F,A]): Iterant[F,A] = {
       try source match {
         case Next(item, rest, stop) =>
@@ -60,12 +62,13 @@ private[tail] object IterantFilter {
     }
 
     source match {
-      case NextCursor(_, _, _) | NextBatch(_, _, _) =>
-        // Given function can be side-effecting,
-        // so we must suspend the execution
-        Suspend(F.delay(loop(source)), source.earlyStop)
+      case Suspend(_, _) | Halt(_) => loop(source)
       case _ =>
-        loop(source)
+        // Suspending execution in order to preserve laziness and
+        // referential transparency, since the provided function can
+        // be side effecting and because processing NextBatch and
+        // NextCursor states can have side effects
+        Suspend(F.delay(loop(source)), source.earlyStop)
     }
   }
 }

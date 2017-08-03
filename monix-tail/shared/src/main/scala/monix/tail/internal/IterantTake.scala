@@ -85,10 +85,10 @@ private[tail] object IterantTake {
       }
     }
 
-    // We can have side-effects with NextBatch/NextCursor
-    // processing, so suspending execution in this case
     source match {
       case NextBatch(_, _, _) | NextCursor(_, _, _) =>
+        // We can have side-effects with NextBatch/NextCursor
+        // processing, so suspending execution in this case
         Suspend(F.delay(loop(n)(source)), source.earlyStop)
       case _ =>
         loop(n)(source)
