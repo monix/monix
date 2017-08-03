@@ -18,11 +18,12 @@
 package monix.tail
 
 import cats.effect.Sync
-import cats.{Applicative, Comonad, Monad, MonoidK}
+import cats.{Applicative, Monad, MonoidK}
 import monix.eval.instances.{CatsAsyncInstances, CatsSyncInstances}
 import monix.eval.{Coeval, Task}
 import monix.tail.batches.{Batch, BatchCursor}
 import monix.tail.internal._
+
 import scala.collection.immutable.LinearSeq
 import scala.reflect.ClassTag
 
@@ -33,12 +34,12 @@ import scala.reflect.ClassTag
   * `collection.immutable.Stream` and with Java's `Iterable`, except
   * that it is more composable and more flexible due to evaluation being
   * controlled by an `F[_]` monadic type that you have to supply
-  * (like [[monix.eval.Task Task]] or [[monix.eval.Coeval Coeval]])
-  * which will control the evaluation. In other words, this `Iterant`
-  * type is capable of strict or lazy, synchronous or asynchronous
-  * evaluation.
+  * (like [[monix.eval.Task Task]], [[monix.eval.Coeval Coeval]] or
+  * `cats.effect.IO`) which will control the evaluation. In other words,
+  * this `Iterant` type is capable of strict or lazy, synchronous or
+  * asynchronous evaluation.
   *
-  * Consumption of a `Iterant` happens typically in a loop where
+  * Consumption of an `Iterant` happens typically in a loop where
   * the current step represents either a signal that the stream
   * is over, or a (head, rest) pair, very similar in spirit to
   * Scala's standard `List` or `Iterable`.
@@ -48,25 +49,25 @@ import scala.reflect.ClassTag
   *  - [[monix.tail.Iterant.Next Next]] which signals a single strict
   *    element, the `head` and a `rest` representing the rest of the stream
   *
+  *  - [[monix.tail.Iterant.NextBatch NextBatch]] is a variation on `Next`
+  *    for signaling a whole batch of elements by means of a
+  *    [[monix.tail.batches.Batch Batch]], a type that's similar with
+  *    Scala's `Iterable`, along with the `rest` of the stream.
+  *
   *  - [[monix.tail.Iterant.NextCursor NextCursor]] is a variation on `Next`
   *    for signaling a whole strict batch of elements as a traversable
-  *    [[scala.collection.Iterator Iterator]], along with the `rest`
-  *    representing the rest of the stream
-  *
-  *  - [[monix.tail.Iterant.NextBatch NextBatch]] is a variation on `Next`
-  *    for signaling a whole batch of elements by means of an
-  *    `Iterable`, along with the `rest` representing the rest of the
-  *    stream
+  *    [[monix.tail.batches.BatchCursor BatchCursor]], a type that's similar
+  *    with Scala's `Iterator`, along with the `rest` of the stream.
   *
   *  - [[monix.tail.Iterant.Suspend Suspend]] is for suspending the
-  *    evaluation of a stream
+  *    evaluation of a stream.
   *
   *  - [[monix.tail.Iterant.Halt Halt]] represents an empty stream,
-  *    signaling the end, either in success or in error
+  *    signaling the end, either in success or in error.
   *
   *  - [[monix.tail.Iterant.Last Last]] represents a one-element
   *    stream, where `Last(item)` as an optimisation on
-  *    `Next(item, F.pure(Halt(None)), F.unit)`
+  *    `Next(item, F.pure(Halt(None)), F.unit)`.
   *
   * The `Iterant` type accepts as type parameter an `F` monadic type
   * that is used to control how evaluation happens. For example you can
@@ -84,25 +85,6 @@ import scala.reflect.ClassTag
   * push-based streaming abstractions, like the `Iteratee` or
   * `IAsyncEnumerable`.
   * 
-  * @define foldLeftDesc Left associative fold using the function `f`.
-  *
-  *         On execution the stream will be traversed from left to
-  *         right, and the given function will be called with the
-  *         prior result, accumulating state until the end, when the
-  *         summary is returned.
-  * 
-  * @define foldLeftReturnDesc the result of inserting `op` between consecutive
-  *         elements of this iterant, going from left to right with
-  *         the `seed` as the start value, or `seed` if the iterant
-  *         is empty.
-  *
-  * @define strictVersionDesc for the strict (immediate, synchronous)
-  *         version, assuming the `F[_]` type allows it (has a `Comonad`
-  *         implementation)
-  *
-  * @define lazyVersionDesc for the lazy version (that doesn't pull
-  *         values out of the evaluation context)
-  *
   * @tparam F is the data type that controls evaluation; note that
   *         it must be stack-safe in its `map` and `flatMap`
   *         operations
@@ -130,7 +112,10 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def ++[B >: A](rhs: F[Iterant[F, B]])(implicit F: Applicative[F]): Iterant[F, B] =
     IterantConcat.concat(self.upcast[B], Suspend(rhs, F.unit))
 
-  /** Prepends an element to the enumerator. */
+  /** Prepends an element to the iterant, returning a new
+    * iterant that will start with the given `head` and then
+    * continue with the source.
+    */
   final def #::[B >: A](head: B)(implicit F: Applicative[F]): Iterant[F, B] =
     Next(head, F.pure(self.upcast[B]), earlyStop)
 
@@ -148,19 +133,9 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def collect[B](pf: PartialFunction[A, B])(implicit F: Sync[F]): Iterant[F, B] =
     IterantCollect(this, pf)(F)
 
-  /** Consumes the source iterable.
-    *
-    * @see [[completeS]] $strictVersionDesc
-    */
+  /** Consumes the source iterable. */
   final def completeL(implicit F: Sync[F]): F[Unit] =
     IterantCompleteL(this)(F)
-
-  /** Consumes the source iterable.
-    *
-    * @see [[completeL]] $lazyVersionDesc
-    */
-  final def completeS(implicit F: Sync[F], C: Comonad[F]): Unit =
-    C.extract(completeL(F))
 
   /** Alias for [[flatMap]]. */
   final def concatMap[B](f: A => Iterant[F, B])(implicit F: Sync[F]): Iterant[F, B] =
@@ -225,33 +200,11 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
 
   /** Consumes the source iterable, executing the given callback for
     * each element.
-    *
-    * @see [[foreachS]] $strictVersionDesc
     */
   final def foreachL(cb: A => Unit)(implicit F: Sync[F]): F[Unit] =
     map(cb)(F).completeL
 
-  /** Consumes the source iterable, executing the given callback for
-    * each element.
-    *
-    * @see [[foreachL]] $lazyVersionDesc
-    */
-  final def foreachS(cb: A => Unit)(implicit F: Sync[F], C: Comonad[F]): Unit =
-    C.extract(foreachL(cb))
-
   /** Optionally selects the first element.
-    *
-    * @see [[headOptionL]] $lazyVersionDesc
-    *
-    * @return the first element of this iterant if it is nonempty, or
-    *         `None` if it is empty, in the `F` context.
-    */
-  final def headOptionS(implicit F: Sync[F], C: Comonad[F]): Option[A] =
-    C.extract(IterantSlice.headOptionL(self)(F))
-
-  /** Optionally selects the first element.
-    *
-    * @see [[headOptionS]] $strictVersionDesc
     *
     * @return the first element of this iterant if it is nonempty, or
     *         `None` if it is empty, in the `F` context.
@@ -296,27 +249,19 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   final def flatten[B](implicit ev: A <:< Iterant[F, B], F: Sync[F]): Iterant[F, B] =
     flatMap(x => x)(F)
 
-  /** $foldLeftDesc
+  /** Left associative fold using the function `f`.
+    *
+    * On execution the stream will be traversed from left to right,
+    * and the given function will be called with the prior result,
+    * accumulating state until the end, when the summary is returned.
     *
     * @param seed is the start value
     * @param op is the binary operator
     *
-    * @see [[foldLeftL]] $lazyVersionDesc
-    *
-    * @return $foldLeftReturnDesc
-    */
-  final def foldLeftS[S](seed: => S)(op: (S, A) => S)
-    (implicit F: Sync[F], C: Comonad[F]): S =
-    C.extract(IterantFoldLeftL(self, seed)(op)(F))
-
-  /** $foldLeftDesc
-    *
-    * @param seed is the start value
-    * @param op is the binary operator
-    *
-    * @see [[foldLeftS]] $strictVersionDesc
-    *
-    * @return $foldLeftReturnDesc
+    * @return the result of inserting `op` between consecutive
+    *         elements of this iterant, going from left to right with
+    *         the `seed` as the start value, or `seed` if the iterant
+    *         is empty.
     */
   final def foldLeftL[S](seed: => S)(op: (S, A) => S)(implicit F: Sync[F]): F[S] =
     IterantFoldLeftL(self, seed)(op)(F)
@@ -326,12 +271,13 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *
     * This variant of [[flatMap]] is not referentially transparent,
     * because it tries to apply function `f` immediately, in case the
-    * `Iterant` is in a `Next`, `NextCursor` or `NextBatch` state.
+    * `Iterant` is in a `NextCursor` or `NextBatch` state.
     *
     * To be used for optimizations, but keep in mind it's unsafe, as
     * its application isn't referentially transparent.
     *
-    * @param f is the function mapping elements from the source to iterants
+    * @param f is the function mapping elements from the source to
+    *        iterants
     */
   final def unsafeFlatMap[B](f: A => Iterant[F, B])(implicit F: Sync[F]): Iterant[F, B] =
     IterantConcat.unsafeFlatMap(this)(f)(F)
@@ -394,31 +340,11 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
 
   /** Skips over [[Iterant.Suspend]] states, along with [[Iterant.NextCursor]]
     * and [[Iterant.NextBatch]] states that signal empty collections.
-    *
-    * @see [[skipSuspendL]] $lazyVersionDesc
-    */
-  final def skipSuspendS(implicit F: Sync[F], C: Comonad[F]): Iterant[F, A] =
-    C.extract(skipSuspendL(F))
-
-  /** Skips over [[Iterant.Suspend]] states, along with [[Iterant.NextCursor]]
-    * and [[Iterant.NextBatch]] states that signal empty collections.
-    *
-    * @see [[skipSuspendS]] $strictVersionDesc
     */
   final def skipSuspendL(implicit F: Sync[F]): F[Iterant[F, A]] =
     IterantSkipSuspend(self)
 
-  /** Aggregates all elements in a `List` and preserves order.
-    *
-    * @see [[toListL]] $lazyVersionDesc
-    */
-  final def toListS(implicit F: Sync[F], C: Comonad[F]): List[A] =
-    C.extract(IterantFoldLeftL.toListL(self)(F))
-
-  /** Aggregates all elements in a `List` and preserves order.
-    *
-    * @see [[toListS]] $strictVersionDesc
-    */
+  /** Aggregates all elements in a `List` and preserves order. */
   final def toListL(implicit F: Sync[F]): F[List[A]] =
     IterantFoldLeftL.toListL(self)(F)
 
@@ -501,10 +427,10 @@ object Iterant extends IterantInstances with SharedDocs {
 
   /** $haltSDesc
     *
-    * @param ex $exParamDesc
+    * @param e $exParamDesc
     */
-  def haltS[F[_], A](ex: Option[Throwable]): Iterant[F, A] =
-    Halt[F, A](ex)
+  def haltS[F[_], A](e: Option[Throwable]): Iterant[F, A] =
+    Halt[F, A](e)
 
   /** Alias for [[Iterant.suspend[F[_],A](fa* suspend]].
     *
@@ -675,9 +601,9 @@ object Iterant extends IterantInstances with SharedDocs {
 
   /** $HaltDesc
     *
-    * @param ex $exParamDesc
+    * @param e $exParamDesc
     */
-  final case class Halt[F[_], A](ex: Option[Throwable])
+  final case class Halt[F[_], A](e: Option[Throwable])
     extends Iterant[F, A] {
 
     def earlyStop(implicit F: Applicative[F]): F[Unit] =

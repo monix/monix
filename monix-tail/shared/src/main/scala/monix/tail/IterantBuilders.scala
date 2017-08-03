@@ -89,10 +89,10 @@ class IterantBuilders[F[_]] extends SharedDocs {
 
   /** $haltSDesc
     *
-    * @param ex $exParamDesc
+    * @param e $exParamDesc
     */
-  def haltS[A](ex: Option[Throwable]): Iterant[F, A] =
-    Iterant.haltS(ex)
+  def haltS[A](e: Option[Throwable]): Iterant[F, A] =
+    Iterant.haltS(e)
 
   /** $builderSuspendByName
     *

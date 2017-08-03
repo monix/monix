@@ -55,7 +55,7 @@ object IterantCollectSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     val items = new ThrowExceptionBatch(dummy)
     val iter = Iterant[Coeval].nextBatchS(items, Coeval.now(Iterant.empty[Coeval, Int]), Coeval.unit)
-    val state = iter.collect { case x => (throw dummy): Int }
+    val state = iter.collect { case _ => (throw dummy): Int }
 
     assert(state.isInstanceOf[Suspend[Coeval,Int]], "state.isInstanceOf[Suspend[Coeval,Int]]")
     assert(!items.isTriggered, "!batch.isTriggered")
@@ -66,28 +66,24 @@ object IterantCollectSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     val items = new ThrowExceptionCursor(dummy)
     val iter = Iterant[Coeval].nextCursorS(items, Coeval.now(Iterant.empty[Coeval, Int]), Coeval.unit)
-    val state = iter.collect { case x => (throw dummy): Int }
+    val state = iter.collect { case _ => (throw dummy): Int }
 
     assert(state.isInstanceOf[Suspend[Coeval,Int]], "state.isInstanceOf[Suspend[Coeval,Int]]")
     assert(!items.isTriggered, "!batch.isTriggered")
     assertEquals(state.toListL.runTry, Failure(dummy))
   }
 
-  test("Iterant.collect suspends the evaluation for Next") { _ =>
+  test("Iterant.collect handles error for Next") { _ =>
     val dummy = DummyException("dummy")
     val iter = Iterant[Coeval].nextS(1, Coeval.now(Iterant.empty[Coeval, Int]), Coeval.unit)
-    val state = iter.collect { case x => (throw dummy): Int }
-
-    assert(state.isInstanceOf[Suspend[Coeval,Int]], "state.isInstanceOf[Suspend[Coeval,Int]]")
+    val state = iter.collect { case _ => (throw dummy): Int }
     assertEquals(state.toListL.runTry, Failure(dummy))
   }
 
-  test("Iterant.collect suspends the evaluation for Last") { _ =>
+  test("Iterant.collect handles error for Last") { _ =>
     val dummy = DummyException("dummy")
     val iter = Iterant[Coeval].lastS(1)
-    val state = iter.collect { case x => (throw dummy): Int }
-
-    assert(state.isInstanceOf[Suspend[Coeval,Int]])
+    val state = iter.collect { case _ => (throw dummy): Int }
     assertEquals(state.toListL.runTry, Failure(dummy))
   }
 
@@ -98,7 +94,7 @@ object IterantCollectSuite extends BaseTestSuite {
     assertEquals(state1, iter1)
 
     val iter2: Iterant[Coeval, Int] = Iterant[Coeval].haltS(None)
-    val state2 = iter2.collect { case x => (throw dummy) : Int }
+    val state2 = iter2.collect { case _ => (throw dummy) : Int }
     assertEquals(state2, iter2)
   }
 

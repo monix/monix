@@ -60,11 +60,13 @@ private[tail] object IterantCollect {
     }
 
     source match {
-      case Suspend(_, _) | Halt(_) => loop(source)
-      case _ =>
-        // Given function can be side-effecting,
-        // so we must suspend the execution
+      case NextBatch(_, _, _) | NextCursor(_, _, _) =>
+        // Must suspend execution for NextBatch and NextCursor,
+        // because we'll trigger side effects otherwise and we need
+        // to preserve referential transparency
         Suspend(F.delay(loop(source)), source.earlyStop)
+      case _ =>
+        loop(source)
     }
   }
 }

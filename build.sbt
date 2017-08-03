@@ -41,11 +41,7 @@ lazy val optimisationSettings = Seq(
     CrossVersion.partialVersion(scalaVersion.value) match {
       case Some((2, n)) if n >= 12 =>
         Seq("-opt:l:classpath")
-      case Some((2, 11)) =>
-        // TODO
-//        Seq("-optimise")
-        Seq.empty
-      case Some((2, 10)) =>
+      case _ =>
         Seq.empty
     }
   }

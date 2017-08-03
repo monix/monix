@@ -52,7 +52,7 @@ private[tail] object IterantFoldLeftL {
           F.raiseError(ex)
       } catch {
         case NonFatal(ex) =>
-          source.earlyStop.map(_ => throw ex)
+          source.earlyStop.followedBy(F.raiseError(ex))
       }
     }
 
@@ -63,8 +63,8 @@ private[tail] object IterantFoldLeftL {
         catchErrors = false
         loop(source, init)
       } catch {
-        case NonFatal(ex) if catchErrors =>
-          source.earlyStop.map(_ => throw ex)
+        case NonFatal(e) if catchErrors =>
+          source.earlyStop.followedBy(F.raiseError(e))
       }
     }
   }

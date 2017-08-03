@@ -34,11 +34,13 @@ private[tail] object IterantConcat {
     (implicit F: Sync[F]): Iterant[F, B] = {
 
     source match {
-      case Suspend(_, _) | Halt(_) => unsafeFlatMap(source)(f)
-      case _ =>
-        // Given function can be side-effecting,
-        // so we must suspend the execution
+      case NextBatch(_, _, _) | NextCursor(_, _, _) =>
+        // Must suspend execution for NextBatch and NextCursor,
+        // because we'll trigger side effects otherwise and we need
+        // to preserve referential transparency
         Suspend(F.delay(unsafeFlatMap(source)(f)), source.earlyStop)
+      case _ =>
+        unsafeFlatMap(source)(f)
     }
   }
 

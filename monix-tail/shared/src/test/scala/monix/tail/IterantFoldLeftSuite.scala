@@ -77,7 +77,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     var wasCanceled = false
     val c = Task { wasCanceled = true }
     val stream = Iterant[Task].nextS(1, Task.now(Iterant[Task].empty[Int]), c)
-    val result = stream.foldLeftL(0)((a,e) => throw dummy)
+    val result = stream.foldLeftL(0)((_, _) => throw dummy)
     s.tick()
     check(result <-> Task.raiseError[Int](dummy))
     assert(wasCanceled, "wasCanceled should be true")
@@ -90,7 +90,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     val stream = Iterant[Task].nextS(1, Task(Iterant[Task].nextCursorS(BatchCursor(2,3), Task.now(Iterant[Task].empty[Int]), c)), c)
       .mapEval(x => Task(x))
 
-    val result = stream.foldLeftL(0)((a,e) => throw dummy)
+    val result = stream.foldLeftL(0)((_, _) => throw dummy)
     check(result <-> Task.raiseError[Int](dummy))
     assert(wasCanceled, "wasCanceled should be true")
   }
@@ -117,14 +117,14 @@ object IterantFoldLeftSuite extends BaseTestSuite {
 
   test("Iterant[Coeval].toList (Comonad)") { implicit s =>
     check1 { (list: List[Int]) =>
-      val result = Iterant[Coeval].fromIterable(list).toListS
+      val result = Iterant[Coeval].fromIterable(list).toListL.value
       result == list
     }
   }
 
   test("Iterant[Coeval].foldLeft (Comonad)") { implicit s =>
     check1 { (list: List[Int]) =>
-      val result = Iterant[Coeval].fromIterable(list).foldLeftS(0)(_ + _)
+      val result = Iterant[Coeval].fromIterable(list).foldLeftL(0)(_ + _).value
       result == list.sum
     }
   }
@@ -164,7 +164,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     var wasCanceled = false
     val c = Coeval { wasCanceled = true }
     val stream = Iterant[Coeval].nextS(1, Coeval.now(Iterant[Coeval].empty[Int]), c)
-    val result = stream.foldLeftL(0)((a,e) => throw dummy)
+    val result = stream.foldLeftL(0)((_, _) => throw dummy)
     check(result <-> Coeval.raiseError[Int](dummy))
     assert(wasCanceled, "wasCanceled should be true")
   }
@@ -174,7 +174,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     var wasCanceled = false
     val c = Coeval { wasCanceled = true }
     val stream = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), c)
-    val result = stream.foldLeftL(0)((a,e) => throw dummy)
+    val result = stream.foldLeftL(0)((_, _) => throw dummy)
     check(result <-> Coeval.raiseError[Int](dummy))
     assert(wasCanceled, "wasCanceled should be true")
   }
@@ -187,7 +187,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
       Coeval(Iterant[Coeval].nextCursorS(BatchCursor(2,3), Coeval.now(Iterant[Coeval].empty[Int]), c)), c)
       .mapEval(x => Coeval(x))
 
-    val result = stream.foldLeftL(0)((a,e) => throw dummy)
+    val result = stream.foldLeftL(0)((_, _) => throw dummy)
     check(result <-> Coeval.raiseError[Int](dummy))
     assert(wasCanceled, "wasCanceled should be true")
   }

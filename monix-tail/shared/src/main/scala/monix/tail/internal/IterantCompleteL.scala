@@ -51,14 +51,15 @@ private[tail] object IterantCompleteL {
           F.raiseError(ex)
       } catch {
         case NonFatal(ex) =>
-          source.earlyStop.map(_ => throw ex)
+          source.earlyStop.followedBy(F.raiseError(ex))
       }
     }
 
-    // If we have a cursor or a batch, then processing them
-    // causes side-effects, so we need suspension of execution
     source match {
       case NextBatch(_, _, _) | NextCursor(_, _, _) =>
+        // Must suspend execution for NextBatch and NextCursor,
+        // because we'll trigger side effects otherwise and we need
+        // to preserve referential transparency
         F.suspend(loop(source))
       case _ =>
         loop(source)
