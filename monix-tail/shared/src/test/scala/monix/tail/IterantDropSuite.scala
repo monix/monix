@@ -20,7 +20,7 @@ package monix.tail
 import monix.eval.{Coeval, Task}
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
-import monix.tail.batches.BatchCursor
+import monix.tail.batches.{Batch, BatchCursor}
 import org.scalacheck.Test
 import org.scalacheck.Test.Parameters
 
@@ -35,9 +35,7 @@ object IterantDropSuite extends BaseTestSuite {
   test("Iterant[Task].drop equivalence with List.drop") { implicit s =>
     check3 { (list: List[Int], idx: Int, nr: Int) =>
       val stream = arbitraryListToIterantTask(list, math.abs(idx) + 1)
-      val length = list.length
       val n = math.abs(nr)
-
       stream.drop(n).toListL <-> stream.toListL.map(_.drop(n))
     }
   }
@@ -69,5 +67,36 @@ object IterantDropSuite extends BaseTestSuite {
     val stream = source.drop(1)
     stream.earlyStop.value
     assertEquals(effect, 1)
+  }
+
+  test("NextBatch.drop preserves referential transparency") { implicit s =>
+    var effect = 0
+    val batch = Batch.fromIterable(new Iterable[Int] {
+      def iterator: Iterator[Int] = {
+        effect += 1
+        Iterator(1, 2)
+      }
+    })
+
+    val source = Iterant[Coeval].nextBatchS(batch, Coeval(Iterant[Coeval].empty[Int]), Coeval.unit)
+    assertEquals(effect, 0)
+    assertEquals(source.foldLeftL(0)(_ + _).value, 3)
+    assertEquals(effect, 1)
+  }
+
+  test("NextCursor.drop preserves referential transparency") { implicit s =>
+    var effect = 0
+    val cursor = BatchCursor.fromIterator(new Iterator[Int] {
+      val i = Iterator(1, 2)
+      def hasNext: Boolean = i.hasNext
+      def next(): Int = { effect += 1; i.next() }
+    })
+
+    assertEquals(effect, 0)
+    val source = Iterant[Coeval].nextCursorS(cursor, Coeval(Iterant[Coeval].empty[Int]), Coeval.unit)
+    assertEquals(effect, 0)
+
+    assertEquals(source.foldLeftL(0)(_ + _).value, 3)
+    assertEquals(effect, 2)
   }
 }

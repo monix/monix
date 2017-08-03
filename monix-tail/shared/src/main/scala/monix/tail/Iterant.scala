@@ -207,6 +207,12 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   /** Given a routine make sure to execute it whenever
     * the consumer executes the current `stop` action.
     *
+    * Example: {{{
+    *   iterant.doOnEarlyStop(Task.eval {
+    *     println("Was stopped early!")
+    *   })
+    * }}}
+    *
     * @param f is the function to execute on early stop
     */
   final def doOnEarlyStop(f: F[Unit])(implicit F: Sync[F]): Iterant[F, A] =
@@ -221,6 +227,16 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * Note that [[doOnEarlyStop]] is subsumed under this operation,
     * the given `f` being evaluated on both reaching the end or
     * canceling early.
+    *
+    * Example: {{{
+    *   iterant.doOnEarlyStop(err => Task.eval {
+    *     err match {
+    *       case Some(e) => log.error(e)
+    *       case None =>
+    *         println("Was consumed successfully!")
+    *     }
+    *   })
+    * }}}
     *
     * @param f is the function to execute on early stop
     */

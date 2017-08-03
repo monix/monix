@@ -184,6 +184,10 @@ object Batch {
   def fromAnyArray[A](array: Array[_]): ArrayBatch[A] =
     fromAnyArray(array, 0, array.length)
 
+  /** Converts a Scala [[scala.collection.Iterable Iterable]] into a [[Batch]]. */
+  def fromIterable[A](iter: Iterable[A]): Batch[A] =
+    fromIterable(iter, defaultBatchSize)
+
   /** Converts a Scala [[scala.collection.Iterable Iterable]]
     * into a [[Batch]].
     *
