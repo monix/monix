@@ -554,14 +554,8 @@ object Iterant extends IterantInstances with SharedDocs {
     Halt[F, A](Some(ex))
 
   /** $builderTailRecM */
-  def tailRecM[F[_], A, B](a: A)(f: A => Iterant[F, Either[A, B]])(implicit F: Sync[F]): Iterant[F, B] = {
-    f(a).flatMap {
-      case Right(b) =>
-        Iterant.now[F, B](b)
-      case Left(nextA) =>
-        suspend(tailRecM(nextA)(f))
-    }
-  }
+  def tailRecM[F[_], A, B](a: A)(f: A => Iterant[F, Either[A, B]])(implicit F: Sync[F]): Iterant[F, B] =
+    IterantConcat.tailRecM(a)(f)
 
   /** $builderFromArray */
   def fromArray[F[_], A : ClassTag](xs: Array[A])(implicit F: Applicative[F]): Iterant[F, A] =
