@@ -29,11 +29,21 @@ object IterantConcatSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.concat") { implicit s =>
+  test("Iterant ++ Iterant") { implicit s =>
     check2 { (list1: List[Int], list2: List[Int]) =>
       val iter1 = Iterant[Task].fromList(list1)
       val iter2 = Iterant[Task].fromList(list2)
       val received = iter1 ++ iter2
+      val expected = Iterant[Task].fromList(list1 ::: list2)
+      received <-> expected
+    }
+  }
+
+  test("Iterant ++ F(Iterant)") { implicit s =>
+    check2 { (list1: List[Int], list2: List[Int]) =>
+      val iter1 = Iterant[Task].fromList(list1)
+      val iter2 = Iterant[Task].fromList(list2)
+      val received = iter1 ++ Task.eval(iter2)
       val expected = Iterant[Task].fromList(list1 ::: list2)
       received <-> expected
     }

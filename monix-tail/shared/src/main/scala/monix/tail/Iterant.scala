@@ -304,7 +304,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * each element.
     *
     * Example: {{{
-    *   // Prints all elements, each one on different line
+    *   // Prints all elements, each one on a different line
     *   Iterant[Task].of(1, 2, 3).foreachL { elem =>
     *     println(s"Elem: ${elem}")
     *   }
@@ -313,7 +313,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * @param cb is the callback to call for each element emitted
     *        by the source.
     */
-  final def foreachL(cb: A => Unit)(implicit F: Sync[F]): F[Unit] =
+  final def foreach(cb: A => Unit)(implicit F: Sync[F]): F[Unit] =
     map(cb)(F).completeL
 
   /** Optionally selects the first element.

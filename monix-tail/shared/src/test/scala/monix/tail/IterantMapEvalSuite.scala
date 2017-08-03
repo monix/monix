@@ -103,7 +103,7 @@ object IterantMapEvalSuite extends BaseTestSuite {
     check2 { (l: List[Int], idx: Int) =>
       val dummy = DummyException("dummy")
       val list = if (l.isEmpty) List(1) else l
-      val source = arbitraryListToIterantTask(list, idx)
+      val source = arbitraryListToIterant[Task, Int](list, idx)
       val received = source.mapEval(_ => Task.raiseError[Int](dummy))
       received <-> Iterant[Task].haltS[Int](Some(dummy))
     }
@@ -113,7 +113,7 @@ object IterantMapEvalSuite extends BaseTestSuite {
     check2 { (l: List[Int], idx: Int) =>
       val dummy = DummyException("dummy")
       val list = if (l.isEmpty) List(1) else l
-      val source = arbitraryListToIterantTask(list, idx)
+      val source = arbitraryListToIterant[Task, Int](list, idx)
       val received = source.mapEval[Int](_ => throw dummy)
       received <-> Iterant[Task].haltS[Int](Some(dummy))
     }
@@ -206,7 +206,7 @@ object IterantMapEvalSuite extends BaseTestSuite {
     check2 { (l: List[Int], idx: Int) =>
       val dummy = DummyException("dummy")
       val list = if (l.isEmpty) List(1) else l
-      val iterant = arbitraryListToIterantCoeval(list, idx)
+      val iterant = arbitraryListToIterant[Coeval, Int](list, idx)
       val received = (iterant ++ Iterant[Coeval].now(1))
         .mapEval[Int](_ => Coeval.raiseError(dummy))
       received <-> Iterant[Coeval].haltS[Int](Some(dummy))
@@ -217,7 +217,7 @@ object IterantMapEvalSuite extends BaseTestSuite {
     check2 { (l: List[Int], idx: Int) =>
       val dummy = DummyException("dummy")
       val list = if (l.isEmpty) List(1) else l
-      val iterant = arbitraryListToIterantCoeval(list, idx)
+      val iterant = arbitraryListToIterant[Coeval, Int](list, idx)
       val received = (iterant ++ Iterant[Coeval].now(1)).mapEval[Int](_ => throw dummy)
       received <-> Iterant[Coeval].haltS[Int](Some(dummy))
     }

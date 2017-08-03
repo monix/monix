@@ -33,7 +33,7 @@ object IterantSkipSuspendSuite extends BaseTestSuite {
 
   test("Iterant[Task].skipSuspend mirrors the source") { implicit s =>
     check2 { (list: List[Int], idx: Int) =>
-      val stream = arbitraryListToIterantTask(list, math.abs(idx) + 1)
+      val stream = arbitraryListToIterant[Task, Int](list, math.abs(idx) + 1)
       val length = list.length
       Iterant[Task].suspend(stream.skipSuspendL) <-> stream
     }

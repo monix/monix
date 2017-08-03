@@ -17,21 +17,21 @@
 
 package monix.tail
 
-import monix.eval.{Coeval, Task}
+import cats.laws.discipline.{CartesianTests, MonadTests, MonoidKTests}
+import cats.effect.IO
 
-object IterantBasicSuite extends BaseTestSuite {
-  test("arbitraryListToTaskStream works") { implicit s =>
-    check2 { (list: List[Int], i: Int) =>
-      Iterant[Task].of(1, 2)
-      val stream = arbitraryListToIterant[Task, Int](list, math.abs(i % 4))
-      stream.toListL <-> Task.now(list)
-    }
+object TypeClassLawsForIterantIOSuite extends BaseLawsSuite {
+  type F[α] = Iterant[IO, α]
+
+  // Explicit instance due to weird implicit resolution problem
+  implicit val iso: CartesianTests.Isomorphisms[F] =
+    CartesianTests.Isomorphisms.invariant
+
+  checkAllAsync("Monad[Iterant[IO]]") { implicit ec =>
+    MonadTests[F].monad[Int, Int, Int]
   }
 
-  test("arbitraryListToCoevalStream") { implicit s =>
-    check2 { (list: List[Int], i: Int) =>
-      val stream = arbitraryListToIterant[Coeval, Int](list, math.abs(i % 4))
-      stream.toListL <-> Coeval.now(list)
-    }
+  checkAllAsync("MonoidK[Iterant[IO]]") { implicit ec =>
+    MonoidKTests[F].monoidK[Int]
   }
 }

@@ -18,48 +18,46 @@
 package monix.tail
 
 import cats.Eq
-import monix.eval.{Callback, Coeval, Task}
+import cats.effect.{IO, Sync}
+import monix.eval.{Coeval, Task}
 import monix.execution.schedulers.TestScheduler
 import monix.tail.batches.{Batch, BatchCursor}
 import org.scalacheck.Arbitrary
 
-import scala.util.{Failure, Success, Try}
-import scala.concurrent.duration._
-
 trait ArbitraryInstances extends monix.eval.ArbitraryInstances {
-  def arbitraryListToIterantCoeval[A](list: List[A], idx: Int): Iterant[Coeval, A] = {
-    def loop(list: List[A], idx: Int): Iterant[Coeval, A] =
+  def arbitraryListToIterant[F[_], A](list: List[A], idx: Int)(implicit F: Sync[F]): Iterant[F, A] = {
+    def loop(list: List[A], idx: Int): Iterant[F, A] =
       list match {
         case Nil =>
-          Iterant[Coeval].haltS(None)
+          Iterant[F].haltS(None)
         case x :: Nil if idx % 2 == 1 =>
-          Iterant[Coeval].lastS(x)
+          Iterant[F].lastS(x)
         case ns =>
           if (idx % 6 == 0)
-            Iterant[Coeval].nextS(ns.head, Coeval(loop(ns.tail, idx+1)), Coeval.unit)
+            Iterant[F].nextS(ns.head, F.delay(loop(ns.tail, idx+1)), F.unit)
           else if (idx % 6 == 1)
-            Iterant[Coeval].suspend(Coeval(loop(list, idx+1)))
+            Iterant[F].suspend(F.delay(loop(list, idx+1)))
           else  if (idx % 6 == 2) {
             val (headSeq, tail) = list.splitAt(3)
             val bs = if (idx % 7 < 3) 1 else 3
             val cursor = BatchCursor.fromIterator(headSeq.toVector.iterator, bs)
-            Iterant[Coeval].nextCursorS(cursor, Coeval(loop(tail, idx+1)), Coeval.unit)
+            Iterant[F].nextCursorS(cursor, F.delay(loop(tail, idx+1)), F.unit)
           }
           else if (idx % 6 == 3) {
-            Iterant[Coeval].suspendS(Coeval(loop(ns, idx + 1)), Coeval.unit)
+            Iterant[F].suspendS(F.delay(loop(ns, idx + 1)), F.unit)
           }
           else if (idx % 6 == 4) {
             val (headSeq, tail) = list.splitAt(3)
             val bs = if (idx % 7 < 3) 1 else 3
             val batch = Batch.fromSeq(headSeq.toVector, bs)
-            Iterant[Coeval].nextBatchS(batch, Coeval(loop(tail, idx+1)), Coeval.unit)
+            Iterant[F].nextBatchS(batch, F.delay(loop(tail, idx+1)), F.unit)
           }
           else {
-            Iterant[Coeval].nextBatchS(Batch.empty, Coeval(loop(ns, idx + 1)), Coeval.unit)
+            Iterant[F].nextBatchS(Batch.empty, F.delay(loop(ns, idx + 1)), F.unit)
           }
       }
 
-    Iterant[Coeval].suspend(loop(list, idx))
+    Iterant[F].suspend(loop(list, idx))
   }
 
   implicit def arbitraryIterantCoeval[A](implicit A: Arbitrary[A]): Arbitrary[Iterant[Coeval, A]] =
@@ -67,50 +65,23 @@ trait ArbitraryInstances extends monix.eval.ArbitraryInstances {
       val listGen = implicitly[Arbitrary[List[A]]]
       val intGen = implicitly[Arbitrary[Int]]
       for (source <- listGen.arbitrary; i <- intGen.arbitrary) yield
-        arbitraryListToIterantCoeval(source.reverse, math.abs(i))
+        arbitraryListToIterant[Coeval, A](source.reverse, math.abs(i))
     }
-
-  def arbitraryListToIterantTask[A](list: List[A], idx: Int): Iterant[Task, A] = {
-    def loop(list: List[A], idx: Int): Iterant[Task, A] =
-      list match {
-        case Nil =>
-          Iterant[Task].haltS(None)
-        case x :: Nil if idx % 2 == 1 =>
-          Iterant[Task].lastS(x)
-        case ns =>
-          if (idx % 6 == 0)
-            Iterant[Task].nextS(ns.head, Task.eval(loop(ns.tail, idx+1)), Task.unit)
-          else if (idx % 6 == 1)
-            Iterant[Task].suspend(Task.eval(loop(list, idx+1)))
-          else  if (idx % 6 == 2) {
-            val (headSeq, tail) = list.splitAt(3)
-            val bs = if (idx % 7 < 3) 1 else 3
-            val cursor = BatchCursor.fromIterator(headSeq.toVector.iterator, bs)
-            Iterant[Task].nextCursorS(cursor, Task.eval(loop(tail, idx+1)), Task.unit)
-          }
-          else if (idx % 6 == 3) {
-            Iterant[Task].suspendS(Task.eval(loop(ns, idx + 1)), Task.unit)
-          }
-          else if (idx % 6 == 4) {
-            val (headSeq, tail) = list.splitAt(3)
-            val bs = if (idx % 7 < 3) 1 else 3
-            val batch = Batch.fromSeq(headSeq.toVector, bs)
-            Iterant[Task].nextBatchS(batch, Task.eval(loop(tail, idx+1)), Task.unit)
-          }
-          else {
-            Iterant[Task].nextBatchS(Batch.empty, Task.eval(loop(ns, idx + 1)), Task.unit)
-          }
-      }
-
-    Iterant[Task].suspend(loop(list, idx))
-  }
 
   implicit def arbitraryIterantTask[A](implicit A: Arbitrary[A]): Arbitrary[Iterant[Task, A]] =
     Arbitrary {
       val listGen = implicitly[Arbitrary[List[A]]]
       val intGen = implicitly[Arbitrary[Int]]
       for (source <- listGen.arbitrary; i <- intGen.arbitrary) yield
-        arbitraryListToIterantTask(source.reverse, math.abs(i))
+        arbitraryListToIterant[Task, A](source.reverse, math.abs(i))
+    }
+
+  implicit def arbitraryIterantIO[A](implicit A: Arbitrary[A]): Arbitrary[Iterant[IO, A]] =
+    Arbitrary {
+      val listGen = implicitly[Arbitrary[List[A]]]
+      val intGen = implicitly[Arbitrary[Int]]
+      for (source <- listGen.arbitrary; i <- intGen.arbitrary) yield
+        arbitraryListToIterant[IO, A](source.reverse, math.abs(i))
     }
 
   implicit def isEqIterantCoeval[A](implicit A: Eq[List[A]]): Eq[Iterant[Coeval, A]] =
@@ -131,35 +102,15 @@ trait ArbitraryInstances extends monix.eval.ArbitraryInstances {
     new Eq[Iterant[Task, A]] {
       def eqv(lh: Iterant[Task,  A], rh: Iterant[Task,  A]): Boolean = {
         implicit val s = TestScheduler()
-        var valueA = Option.empty[Try[List[A]]]
-        var valueB = Option.empty[Try[List[A]]]
+        equalityTask[List[A]].eqv(lh.toListL, rh.toListL)
+      }
+    }
 
-        lh.toListL.runAsync(new Callback[List[A]] {
-          def onError(ex: Throwable): Unit =
-            valueA = Some(Failure(ex))
-          def onSuccess(value: List[A]): Unit =
-            valueA = Some(Success(value))
-        })
-
-        rh.toListL.runAsync(new Callback[List[A]] {
-          def onError(ex: Throwable): Unit =
-            valueB = Some(Failure(ex))
-          def onSuccess(value: List[A]): Unit =
-            valueB = Some(Success(value))
-        })
-
-        // simulate synchronous execution
-        s.tick(1.hour)
-
-        if (valueA.isEmpty)
-          valueB.isEmpty
-        else {
-          (valueA.get.isFailure && valueB.get.isFailure) || {
-            val la = valueA.get.get
-            val lb = valueB.get.get
-            A.eqv(la, lb)
-          }
-        }
+  implicit def isEqIterantIO[A](implicit A: Eq[List[A]]): Eq[Iterant[IO, A]] =
+    new Eq[Iterant[IO, A]] {
+      def eqv(lh: Iterant[IO,  A], rh: Iterant[IO,  A]): Boolean = {
+        implicit val s = TestScheduler()
+        equalityIO[List[A]].eqv(lh.toListL, rh.toListL)
       }
     }
 }

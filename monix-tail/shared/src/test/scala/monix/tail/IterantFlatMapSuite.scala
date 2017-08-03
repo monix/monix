@@ -139,7 +139,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
     check2 { (l: List[Int], idx: Int) =>
       val dummy = DummyException("dummy")
       val list = if (l.isEmpty) List(1) else l
-      val source = arbitraryListToIterantTask(list, idx)
+      val source = arbitraryListToIterant[Task, Int](list, idx)
       val received = source.flatMap(_ => Iterant[Task].raiseError[Int](dummy))
       received <-> Iterant[Task].haltS[Int](Some(dummy))
     }
@@ -149,7 +149,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
     check2 { (l: List[Int], idx: Int) =>
       val dummy = DummyException("dummy")
       val list = if (l.isEmpty) List(1) else l
-      val source = arbitraryListToIterantTask(list, idx)
+      val source = arbitraryListToIterant[Task, Int](list, idx)
       val received = source.flatMap[Int](_ => throw dummy)
       received <-> Iterant[Task].haltS[Int](Some(dummy))
     }
@@ -275,7 +275,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
     check2 { (l: List[Int], idx: Int) =>
       val dummy = DummyException("dummy")
       val list = if (l.isEmpty) List(1) else l
-      val source = arbitraryListToIterantCoeval(list, idx)
+      val source = arbitraryListToIterant[Coeval, Int](list, idx)
       val received = source.flatMap(_ => Iterant[Coeval].raiseError[Int](dummy))
       received <-> Iterant[Coeval].haltS[Int](Some(dummy))
     }
@@ -285,7 +285,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
     check2 { (l: List[Int], idx: Int) =>
       val dummy = DummyException("dummy")
       val list = if (l.isEmpty) List(1) else l
-      val source = arbitraryListToIterantCoeval(list, idx)
+      val source = arbitraryListToIterant[Coeval, Int](list, idx)
       val received = source.flatMap[Int](_ => throw dummy)
       received <-> Iterant[Coeval].haltS[Int](Some(dummy))
     }
@@ -318,5 +318,29 @@ object IterantFlatMapSuite extends BaseTestSuite {
     val stream = source.flatMap(x => Iterant[Coeval].now(x))
     stream.earlyStop.value
     assertEquals(effect, 1)
+  }
+
+  test("Iterant.unsafeFlatMap <-> flatMap for pure iterants") { implicit s =>
+    check2 { (iter: Iterant[Coeval, Int], f: Int => Iterant[Coeval, Int]) =>
+      iter.unsafeFlatMap(f) <-> iter.flatMap(f)
+    }
+  }
+
+  test("Iterant.concatMap is alias of flatMap") { implicit s =>
+    check2 { (iter: Iterant[Coeval, Int], f: Int => Iterant[Coeval, Int]) =>
+      iter.flatMap(f) <-> iter.concatMap(f)
+    }
+  }
+
+  test("Iterant.concat is alias of flatten") { implicit s =>
+    check2 { (iter: Iterant[Coeval, Int], f: Int => Iterant[Coeval, Int]) =>
+      iter.map(f).flatten <-> iter.map(f).concat
+    }
+  }
+
+  test("fa.map(f).flatten <-> fa.flatMap(f)") { implicit s =>
+    check2 { (iter: Iterant[Coeval, Int], f: Int => Iterant[Coeval, Int]) =>
+      iter.map(f).flatten <-> iter.flatMap(f)
+    }
   }
 }

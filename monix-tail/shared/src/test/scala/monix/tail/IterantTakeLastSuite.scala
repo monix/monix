@@ -24,7 +24,7 @@ import monix.tail.batches.BatchCursor
 object IterantTakeLastSuite extends BaseTestSuite {
   test("Iterant.takeLast is equivalent with List.takeRight") { implicit s =>
     check3 { (list: List[Int], idx: Int, nr: Int) =>
-      val stream = arbitraryListToIterantTask(list, math.abs(idx) + 1)
+      val stream = arbitraryListToIterant[Task, Int](list, math.abs(idx) + 1)
       val length = list.length
       val n = if (nr == 0) 0 else math.abs(math.abs(nr) % 20)
       stream.takeLast(n).toListL <-> stream.toListL.map(_.takeRight(n))

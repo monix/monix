@@ -26,6 +26,7 @@ import minitest.laws.Checkers
 import monix.execution.Cancelable
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
+import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import org.scalacheck.Test.Parameters
 import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}
 import org.typelevel.discipline.Laws
@@ -139,6 +140,17 @@ trait ArbitraryInstancesBase extends cats.instances.AllInstances {
       } yield task
     }
 
+  implicit def arbitraryIO[A](implicit A: Arbitrary[A]): Arbitrary[IO[A]] =
+    Arbitrary {
+      for {
+        a <- A.arbitrary
+        io <- Gen.oneOf(
+          IO.pure(a), IO(a),
+          IO.async[A](f =>
+            immediate.execute(new Runnable { def run() = f(Right(a)) })
+          ))
+      } yield io
+    }
 
   implicit def arbitraryExToA[A](implicit A: Arbitrary[A]): Arbitrary[Throwable => A] =
     Arbitrary {
@@ -162,6 +174,11 @@ trait ArbitraryInstancesBase extends cats.instances.AllInstances {
       for (b <- B.arbitrary) yield (_: Task[A]) => b
     }
 
+  implicit def arbitraryIOToLong[A, B](implicit A: Arbitrary[A], B: Arbitrary[B]): Arbitrary[IO[A] => B] =
+    Arbitrary {
+      for (b <- B.arbitrary) yield (_: IO[A]) => b
+    }
+
   implicit def equalityCoeval[A](implicit A: Eq[A]): Eq[Coeval[A]] =
     new Eq[Coeval[A]] {
       def eqv(lh: Coeval[A], rh: Coeval[A]): Boolean = {
@@ -172,7 +189,6 @@ trait ArbitraryInstancesBase extends cats.instances.AllInstances {
           A.eqv(valueA.get, valueB.get)
       }
     }
-
 
   implicit lazy val equalityThrowable = new Eq[Throwable] {
     override def eqv(x: Throwable, y: Throwable): Boolean = {
@@ -205,6 +221,8 @@ trait ArbitraryInstancesBase extends cats.instances.AllInstances {
   implicit def cogenForThrowable: Cogen[Throwable] =
     Cogen[String].contramap(_.toString)
   implicit def cogenForTask[A]: Cogen[Task[A]] =
+    Cogen[Unit].contramap(_ => ())
+  implicit def cogenForIO[A]: Cogen[IO[A]] =
     Cogen[Unit].contramap(_ => ())
   implicit def cogenForCoeval[A](implicit A: Numeric[A]): Cogen[Coeval[A]] =
     Cogen((x: Coeval[A]) => A.toLong(x.value))

@@ -46,7 +46,7 @@ object IterantDropWhileSuite extends BaseTestSuite {
 
   test("Iterant.dropWhile equivalence with List.dropWhile") { implicit s =>
     check3 { (list: List[Int], idx: Int, p: Int => Boolean) =>
-      val stream = arbitraryListToIterantTask(list, math.abs(idx) + 1)
+      val stream = arbitraryListToIterant[Task, Int](list, math.abs(idx) + 1)
       val length = list.length
       stream.dropWhile(p).toListL <-> stream.toListL.map(dropFromList(p))
     }

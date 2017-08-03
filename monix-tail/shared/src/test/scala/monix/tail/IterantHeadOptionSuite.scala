@@ -22,14 +22,14 @@ import monix.eval.Coeval
 object IterantHeadOptionSuite extends BaseTestSuite {
   test("Iterant.headOptionL <-> List.headOption") { _ =>
     check2 { (list: List[Int], idx: Int) =>
-      val iter = arbitraryListToIterantCoeval(list, math.abs(idx % 4))
+      val iter = arbitraryListToIterant[Coeval, Int](list, math.abs(idx % 4))
       iter.headOptionL <-> Coeval.now(list.headOption)
     }
   }
 
   test("Iterant.headOption <-> List.headOption") { _ =>
     check2 { (list: List[Int], idx: Int) =>
-      val iter = arbitraryListToIterantCoeval(list, math.abs(idx % 4))
+      val iter = arbitraryListToIterant[Coeval, Int](list, math.abs(idx % 4))
       iter.headOptionL.value == list.headOption
     }
   }

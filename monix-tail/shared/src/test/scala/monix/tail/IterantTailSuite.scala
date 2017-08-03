@@ -25,7 +25,7 @@ import monix.tail.batches.BatchCursor
 object IterantTailSuite extends BaseTestSuite {
   test("Iterant.tail is equivalent with List.tail") { implicit s =>
     check2 { (list: List[Int], idx: Int) =>
-      val iter = arbitraryListToIterantTask(list, math.abs(idx))
+      val iter = arbitraryListToIterant[Task, Int](list, math.abs(idx))
       val stream = iter ++ Iterant[Task].fromList(List(1,2,3))
       stream.tail.toListL <-> stream.toListL.map(_.tail)
     }

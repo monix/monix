@@ -20,7 +20,6 @@ package monix.tail
 import monix.eval.{Coeval, Task}
 import monix.execution.exceptions.DummyException
 import monix.tail.batches.{Batch, BatchCursor}
-
 import scala.util.Failure
 
 object IterantMapSuite extends BaseTestSuite {
@@ -65,7 +64,7 @@ object IterantMapSuite extends BaseTestSuite {
     check2 { (l: List[Int], idx: Int) =>
       val dummy = DummyException("dummy")
       val list = if (l.isEmpty) List(1) else l
-      val iterant = arbitraryListToIterantTask(list, idx)
+      val iterant = arbitraryListToIterant[Task, Int](list, idx)
       val received = (iterant ++ Iterant[Task].now(1)).map[Int](_ => throw dummy)
       received <-> Iterant[Task].haltS[Int](Some(dummy))
     }
@@ -130,7 +129,7 @@ object IterantMapSuite extends BaseTestSuite {
     check2 { (l: List[Int], idx: Int) =>
       val dummy = DummyException("dummy")
       val list = if (l.isEmpty) List(1) else l
-      val iterant = arbitraryListToIterantCoeval(list, idx)
+      val iterant = arbitraryListToIterant[Coeval, Int](list, idx)
       val received = (iterant ++ Iterant[Coeval].now(1)).map[Int](_ => throw dummy)
       received <-> Iterant[Coeval].haltS[Int](Some(dummy))
     }
@@ -163,5 +162,16 @@ object IterantMapSuite extends BaseTestSuite {
     val stream = source.map(x => x)
     stream.earlyStop.value
     assertEquals(effect, 1)
+  }
+
+  test("Iterant.foreach") { implicit s =>
+    check1 { (iter: Iterant[Coeval, Int]) =>
+      val fa = Coeval.suspend {
+        var sum = 0
+        iter.foreach { e => sum += e }.map(_ => sum)
+      }
+
+      fa <-> iter.foldLeftL(0)(_ + _)
+    }
   }
 }

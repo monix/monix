@@ -34,7 +34,7 @@ object IterantDropSuite extends BaseTestSuite {
 
   test("Iterant[Task].drop equivalence with List.drop") { implicit s =>
     check3 { (list: List[Int], idx: Int, nr: Int) =>
-      val stream = arbitraryListToIterantTask(list, math.abs(idx) + 1)
+      val stream = arbitraryListToIterant[Task, Int](list, math.abs(idx) + 1)
       val n = math.abs(nr)
       stream.drop(n).toListL <-> stream.toListL.map(_.drop(n))
     }

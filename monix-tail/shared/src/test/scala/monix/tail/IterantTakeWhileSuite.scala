@@ -44,7 +44,7 @@ object IterantTakeWhileSuite extends BaseTestSuite {
 
   test("Iterant[Task].takeWhile equivalence with List.takeWhile") { implicit s =>
     check3 { (list: List[Int], idx: Int, p: Int => Boolean) =>
-      val stream = arbitraryListToIterantTask(list, math.abs(idx) + 1)
+      val stream = arbitraryListToIterant[Task, Int](list, math.abs(idx) + 1)
       stream.takeWhile(p).toListL <-> stream.toListL.map(_.takeWhile(p))
     }
   }
@@ -65,7 +65,7 @@ object IterantTakeWhileSuite extends BaseTestSuite {
   test("Iterant[Coeval].takeWhile triggers early stop") { implicit s =>
     check2 { (list: List[Int], idx: Int) =>
       val cancelable = BooleanCancelable()
-      val stream = arbitraryListToIterantCoeval(list, math.abs(idx) + 1)
+      val stream = arbitraryListToIterant[Coeval, Int](list, math.abs(idx) + 1)
         .doOnEarlyStop(Coeval.eval(cancelable.cancel()))
 
       stream.takeWhile(_ => false).toListL.value == Nil &&
