@@ -60,11 +60,12 @@ private[tail] object IterantFilter {
     }
 
     source match {
-      case Suspend(_, _) | Halt(_) => loop(source)
-      case _ =>
+      case NextCursor(_, _, _) | NextBatch(_, _, _) =>
         // Given function can be side-effecting,
         // so we must suspend the execution
         Suspend(F.delay(loop(source)), source.earlyStop)
+      case _ =>
+        loop(source)
     }
   }
 }

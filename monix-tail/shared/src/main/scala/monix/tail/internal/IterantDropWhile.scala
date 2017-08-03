@@ -74,8 +74,13 @@ private[tail] object IterantDropWhile {
       }
     }
 
-    // We can have side-effects when executing the predicate,
-    // so suspending execution
-    Suspend(F.delay(loop(source)), source.earlyStop)
+    // We can have side-effects with NextBatch/NextCursor
+    // processing, so suspending execution in this case
+    source match {
+      case NextBatch(_, _, _) | NextCursor(_, _, _) =>
+        Suspend(F.delay(loop(source)), source.earlyStop)
+      case _ =>
+        loop(source)
+    }
   }
 }

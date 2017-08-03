@@ -23,7 +23,7 @@ object IterantConcatSuite extends BaseTestSuite {
   test("Iterant.prepend") { implicit s =>
     check2 { (list: List[Int], a: Int) =>
       val source = Iterant[Task].fromList(list)
-      val received = a #:: source
+      val received = a +: source
       val expected = Iterant[Task].fromList(a :: list)
       received <-> expected
     }

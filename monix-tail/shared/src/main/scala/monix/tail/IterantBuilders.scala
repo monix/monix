@@ -30,7 +30,7 @@ import scala.util.Try
 
 class IterantBuilders[F[_]] extends SharedDocs {
   /** Given a list of elements build a stream out of it. */
-  def apply[A](elems: A*)(implicit F: Applicative[F]): Iterant[F,A] =
+  def of[A](elems: A*)(implicit F: Applicative[F]): Iterant[F,A] =
     Iterant.fromSeq(elems)(F)
 
   /** $builderNow */

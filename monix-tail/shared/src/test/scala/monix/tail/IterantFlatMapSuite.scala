@@ -36,7 +36,7 @@ object IterantFlatMapSuite extends BaseTestSuite {
   test("Iterant[Task].flatMap can handle errors") { implicit s =>
     val dummy = DummyException("dummy")
     val stream = Iterant[Task].raiseError[Int](dummy)
-    assertEquals(stream, stream.flatMap(x => Iterant[Task].apply(x)))
+    assertEquals(stream, stream.flatMap(x => Iterant[Task].of(x)))
   }
 
   test("Iterant[Task].next.flatMap guards against direct user code errors") { implicit s =>

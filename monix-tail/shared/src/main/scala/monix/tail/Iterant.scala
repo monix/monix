@@ -69,6 +69,8 @@ import scala.reflect.ClassTag
   *    stream, where `Last(item)` as an optimisation on
   *    `Next(item, F.pure(Halt(None)), F.unit)`.
   *
+  * ==Parametric Polymorphism==
+  *
   * The `Iterant` type accepts as type parameter an `F` monadic type
   * that is used to control how evaluation happens. For example you can
   * use [[monix.eval.Task Task]], in which case the streaming can have
@@ -77,13 +79,36 @@ import scala.reflect.ClassTag
   *
   * As restriction, this `F[_]` type used should be stack safe in
   * `map` and `flatMap`, otherwise you might get stack-overflow
-  * exceptions.
+  * exceptions. This is why in general the type class required
+  * for `F` is `cats.effect.Sync`.
   *
-  * ATTRIBUTION: this type was inspired by the `Streaming` type in the
-  * Typelevel Cats library (later moved to Typelevel's Dogs), originally
-  * committed in Cats by Erik Osheim. It was also inspired by other
-  * push-based streaming abstractions, like the `Iteratee` or
-  * `IAsyncEnumerable`.
+  * When building instances, type `F[_]` which handles the evaluation
+  * needs to be specified upfront. Example:
+  *
+  * {{{
+  *   import cats.effect.IO
+  *   import monix.eval.{Task, Coeval}
+  *
+  *   // Builds an Iterant powered by Monix's Task
+  *   Iterant[Task].of(1, 2, 3)
+  *
+  *   // Builds an Iterant powered by Monix's Coeval
+  *   Iterant[Coeval].of(1, 2, 3)
+  *
+  *   // Builds an Iterant powered by Cats's IO
+  *   Iterant[IO].of(1, 2, 3)
+  * }}}
+  *
+  * You'll usually pick between `Task`, `Coeval` or `IO` for your
+  * needs.
+  *
+  * ==Attribution==
+  *
+  * This type was inspired by the `Streaming` type in the
+  * [[http://typelevel.org/cats/ Typelevel Cats]] library (later moved
+  * to [[https://github.com/stew/dogs Dogs]]), originally committed in
+  * Cats by Erik Osheim. It was also inspired by other push-based
+  * streaming abstractions, like the `Iteratee` or `IAsyncEnumerable`.
   * 
   * @tparam F is the data type that controls evaluation; note that
   *         it must be stack-safe in its `map` and `flatMap`
@@ -99,7 +124,13 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   /** Appends the given stream to the end of the source, effectively
     * concatenating them.
     *
-    * @param rhs is the iterant to append at the end of our source
+    * Example: {{{
+    *   // Yields 1, 2, 3, 4
+    *   Iterant[Task].of(1, 2) ++ Iterant[Task].of(3, 4)
+    * }}}
+    *
+    * @param rhs is the (right hand side) iterant to concatenate at
+    *        the end of this iterant.
     */
   final def ++[B >: A](rhs: Iterant[F, B])(implicit F: Applicative[F]): Iterant[F, B] =
     IterantConcat.concat(this.upcast[B], rhs)(F)
@@ -107,7 +138,17 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   /** Appends a stream to the end of the source, effectively
     * concatenating them.
     *
-    * @param rhs is the iterant to append at the end of our source
+    * The right hand side is suspended in the `F[_]` data type, thus
+    * allowing for laziness.
+    *
+    * Example: {{{
+    *   // Yields 1, 2, 3, 4
+    *   Iterant[Task].of(1, 2) ++ Task.suspend {
+    *     Iterant[Task].of(3, 4)
+    *   }
+    * }}}
+    *
+    * @param rhs is the iterant to append at the end of our source.
     */
   final def ++[B >: A](rhs: F[Iterant[F, B]])(implicit F: Applicative[F]): Iterant[F, B] =
     IterantConcat.concat(self.upcast[B], Suspend(rhs, F.unit))
@@ -115,25 +156,47 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   /** Prepends an element to the iterant, returning a new
     * iterant that will start with the given `head` and then
     * continue with the source.
+    *
+    * Example: {{{
+    *   // Yields 1, 2, 3, 4
+    *   1 +: Iterant[Task].of(2, 3, 4)
+    * }}}
+    *
+    * @param head is the element to prepend at the start of
+    *        this iterant
     */
-  final def #::[B >: A](head: B)(implicit F: Applicative[F]): Iterant[F, B] =
+  final def +:[B >: A](head: B)(implicit F: Applicative[F]): Iterant[F, B] =
     Next(head, F.pure(self.upcast[B]), earlyStop)
 
   /** Builds a new iterant by applying a partial function to all
     * elements of the source on which the function is defined.
+    *
+    * Example: {{{
+    *   // Yields 2, 4, 6
+    *   Iterant[Task].of(1, 2, 3, 4, 5, 6)
+    *     .map { x => Option(x).filter(_ % 2 == 0) }
+    *     .collect { case Some(x) => x }
+    * }}}
     *
     * @param pf the partial function that filters and maps the iterant
     * @tparam B the element type of the returned iterant.
     *
     * @return a new iterant resulting from applying the partial
     *         function `pf` to each element on which it is defined and
-    *         collecting the results.  The order of the elements is
+    *         collecting the results. The order of the elements is
     *         preserved.
     */
   final def collect[B](pf: PartialFunction[A, B])(implicit F: Sync[F]): Iterant[F, B] =
     IterantCollect(this, pf)(F)
 
-  /** Consumes the source iterable. */
+  /** Upon evaluation of the result, consumes this iterant to
+    * completion.
+    *
+    * Example: {{{
+    *   val onFinish: Task[Unit] =
+    *     iterant.completeL >> Task.eval(println("Done!"))
+    * }}}
+    */
   final def completeL(implicit F: Sync[F]): F[Unit] =
     IterantCompleteL(this)(F)
 
@@ -166,6 +229,11 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
 
   /** Drops the first `n` elements (from the start).
     *
+    * Example: {{{
+    *   // Yields 4, 5
+    *   Iterant[Task].of(1, 2, 3, 4, 5).drop(3)
+    * }}}
+    *
     * @param n the number of elements to drop
     * @return a new iterant that drops the first ''n'' elements
     *         emitted by the source
@@ -175,6 +243,18 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
 
   /** Drops the longest prefix of elements that satisfy the given
     * predicate and returns a new iterant that emits the rest.
+    *
+    * Example: {{{
+    *   // Yields 4, 5
+    *   Iterant[Task].of(1, 2, 3, 4, 5).dropWhile(_ < 4)
+    * }}}
+    *
+    * @param p is the predicate used to test whether the current
+    *        element should be dropped, if `true`, or to interrupt
+    *        the dropping process, if `false`
+    *
+    * @return a new iterant that drops the elements of the source
+    *         until the first time the given predicate returns `false`
     */
   final def dropWhile(p: A => Boolean)(implicit F: Sync[F]): Iterant[F, A] =
     IterantDropWhile(self, p)
@@ -190,10 +270,16 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   /** Filters the iterant by the given predicate function, returning
     * only those elements that match.
     *
+    * Example: {{{
+    *   // Yields 2, 4, 6
+    *   Iterant[Task].of(1, 2, 3, 4, 5, 6).filter(_ % 2 == 0)
+    * }}}
+    *
     * @param p the predicate used to test elements.
     *
-    * @return a new iterant consisting of all elements that satisfy the given
-    *         predicate. The order of the elements is preserved.
+    * @return a new iterant consisting of all elements that satisfy
+    *         the given predicate. The order of the elements is
+    *         preserved.
     */
   final def filter(p: A => Boolean)(implicit F: Sync[F]): Iterant[F, A] =
     IterantFilter(this, p)(F)

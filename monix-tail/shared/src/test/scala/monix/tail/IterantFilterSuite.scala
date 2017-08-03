@@ -53,7 +53,7 @@ object IterantFilterSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     val items = new ThrowExceptionBatch(dummy)
     val iter = Iterant[Coeval].nextBatchS(items, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
-    val state = iter.filter { x => throw dummy }
+    val state = iter.filter { _ => throw dummy }
 
     assert(state.isInstanceOf[Suspend[Coeval,Int]], "state.isInstanceOf[Suspend[Coeval,Int]]")
     assert(!items.isTriggered, "!batch.isTriggered")
@@ -64,39 +64,35 @@ object IterantFilterSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     val items = new ThrowExceptionCursor(dummy)
     val iter = Iterant[Coeval].nextCursorS(items, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
-    val state = iter.filter { x => throw dummy }
+    val state = iter.filter { _ => throw dummy }
 
     assert(state.isInstanceOf[Suspend[Coeval,Int]], "state.isInstanceOf[Suspend[Coeval,Int]]")
     assert(!items.isTriggered, "!batch.isTriggered")
     assertEquals(state.toListL.runTry, Failure(dummy))
   }
 
-  test("Iterant.filter suspends the evaluation for Next") { _ =>
+  test("Iterant.filter protects against user code for Next") { _ =>
     val dummy = DummyException("dummy")
     val iter = Iterant[Coeval].nextS(1, Coeval.now(Iterant[Coeval].empty[Int]), Coeval.unit)
-    val state = iter.filter { x => (throw dummy) : Boolean }
-
-    assert(state.isInstanceOf[Suspend[Coeval,Int]], "state.isInstanceOf[Suspend[Coeval,Int]]")
+    val state = iter.filter { _ => (throw dummy) : Boolean }
     assertEquals(state.toListL.runTry, Failure(dummy))
   }
 
-  test("Iterant.filter suspends the evaluation for Last") { _ =>
+  test("Iterant.filter protects against user code for Last") { _ =>
     val dummy = DummyException("dummy")
     val iter = Iterant[Coeval].lastS(1)
-    val state = iter.filter { x => throw dummy }
-
-    assert(state.isInstanceOf[Suspend[Coeval,Int]])
+    val state = iter.filter { _ => throw dummy }
     assertEquals(state.toListL.runTry, Failure(dummy))
   }
 
   test("Iterant.filter doesn't touch Halt") { _ =>
     val dummy = DummyException("dummy")
     val iter1: Iterant[Coeval, Int] = Iterant[Coeval].haltS[Int](Some(dummy))
-    val state1 = iter1.filter { x => true }
+    val state1 = iter1.filter { _ => true }
     assertEquals(state1, iter1)
 
     val iter2: Iterant[Coeval, Int] = Iterant[Coeval].haltS[Int](None)
-    val state2 = iter2.filter { x => (throw dummy) : Boolean }
+    val state2 = iter2.filter { _ => (throw dummy) : Boolean }
     assertEquals(state2, iter2)
   }
 
@@ -104,7 +100,7 @@ object IterantFilterSuite extends BaseTestSuite {
     var effect = 0
     val stop = Coeval.eval(effect += 1)
     val source = Iterant[Coeval].nextCursorS(BatchCursor(1,2,3), Coeval.now(Iterant[Coeval].empty[Int]), stop)
-    val stream = source.filter(x => true)
+    val stream = source.filter(_ => true)
     stream.earlyStop.value
     assertEquals(effect, 1)
   }

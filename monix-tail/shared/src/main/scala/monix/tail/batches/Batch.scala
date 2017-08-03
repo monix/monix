@@ -127,10 +127,10 @@ abstract class Batch[+A] extends Serializable {
   *         from any array of boxed values.
   *
   *         This will have lower performance than working with
-  *         [[Batch.fromArray]], since the values are boxed,
-  *         however there is no requirement for a
-  *         [[scala.reflect.ClassTag ClassTag]] and thus it can
-  *         be used in any generic context.
+  *         [[Batch.fromArray[A](array:Array[A])* Batch.fromArray]],
+  *         since the values are boxed, however there is no
+  *         requirement for a [[scala.reflect.ClassTag ClassTag]] and
+  *         thus it can be used in any generic context.
   *
   * @define paramArray is the underlying reference to use for traversing
   *         and transformations

@@ -96,7 +96,7 @@ object IterantTakeWhileSuite extends BaseTestSuite {
   test("Iterant.takeWhile protects against user code") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
-      val stream = 1 #:: iter
+      val stream = 1 +: iter
 
       stream.takeWhile(_ => throw dummy) <-> Iterant[Task].raiseError[Int](dummy)
     }

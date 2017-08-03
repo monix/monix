@@ -22,6 +22,7 @@ import monix.eval.{Coeval, Task}
 object IterantBasicSuite extends BaseTestSuite {
   test("arbitraryListToTaskStream works") { implicit s =>
     check2 { (list: List[Int], i: Int) =>
+      Iterant[Task].of(1, 2)
       val stream = arbitraryListToIterantTask(list, math.abs(i % 4))
       stream.toListL <-> Task.now(list)
     }
