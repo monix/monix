@@ -920,7 +920,7 @@ object Observable {
     * given factory on each subscription.
     */
   def defer[A](fa: => Observable[A]): Observable[A] =
-    new builders.DeferObservable(fa)
+    new builders.DeferObservable(fa _)
 
   /** Alias for [[defer]]. */
   def suspend[A](fa: => Observable[A]): Observable[A] = defer(fa)

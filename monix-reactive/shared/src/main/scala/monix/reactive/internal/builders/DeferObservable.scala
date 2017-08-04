@@ -18,26 +18,30 @@
 package monix.reactive.internal.builders
 
 import monix.execution.Cancelable
+import monix.execution.cancelables.MultiAssignmentCancelable
 import monix.execution.misc.NonFatal
 import monix.reactive.Observable
+import monix.reactive.observables.ChainedObservable
+import monix.reactive.observables.ChainedObservable.{subscribe => chain}
 import monix.reactive.observers.Subscriber
 
-private[reactive] final class DeferObservable[+A](factory: => Observable[A])
-  extends Observable[A] {
+private[reactive] final class DeferObservable[+A](factory: () => Observable[A])
+  extends ChainedObservable[A] {
 
-  def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
-    // Protect against user code, but if the subscription fails
-    // then the behavior should be left undefined, otherwise we
-    // can get weird effects.
-    var streamErrors = true
-    try {
-      val source = factory
-      streamErrors = false
-      source.unsafeSubscribeFn(subscriber)
-    } catch {
-      case NonFatal(ex) if streamErrors =>
-        subscriber.onError(ex)
-        Cancelable.empty
+  def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
+    val fa = try factory() catch { case NonFatal(e) => Observable.raiseError(e) }
+    if (fa.isInstanceOf[ChainedObservable[_]]) {
+      val ch = fa.asInstanceOf[ChainedObservable[A]]
+      val conn = MultiAssignmentCancelable()
+      ch.unsafeSubscribeFn(conn, out)
+      conn
+    } else {
+      fa.unsafeSubscribeFn(out)
     }
+  }
+
+  override def unsafeSubscribeFn(conn: MultiAssignmentCancelable, out: Subscriber[A]): Unit = {
+    val fa = try factory() catch { case NonFatal(e) => Observable.raiseError(e) }
+    chain(fa, conn, out)
   }
 }

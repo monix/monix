@@ -35,7 +35,7 @@ private[monix] final class ArrayQueue[A] private
   private[this] val bufferSize =
     if (_size <= 0) 0 else nextPowerOf2(_size)
 
-  override def capacity =
+  override def capacity: Int =
     if (bufferSize == 0) Int.MaxValue else bufferSize
   override def isAtCapacity: Boolean =
     queue.length - offset >= capacity

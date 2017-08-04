@@ -89,7 +89,7 @@ private[reactive] final class ConcatMapObservable[A, B]
     // For synchronizing our internal state machine, padded
     // in order to avoid the false sharing problem
     private[this] val stateRef =
-    Atomic.withPadding(WaitOnNextChild(Continue) : FlatMapState, LeftRight128)
+      Atomic.withPadding(WaitOnNextChild(Continue) : FlatMapState, LeftRight128)
 
     /** For canceling the current active task, in case there is any. Here
       * we can afford a `compareAndSet`, not being a big deal since

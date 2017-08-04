@@ -106,7 +106,8 @@ object MimaFilters {
     exclude[DirectMissingMethodProblem]("monix.execution.schedulers.ExecuteExtensions.executeLocal"),
     exclude[MissingClassProblem]("monix.execution.schedulers.package"),
     exclude[MissingClassProblem]("monix.execution.schedulers.package$"),
-    exclude[MissingClassProblem]("monix.execution.schedulers.package$ExecutionModel$")
+    exclude[MissingClassProblem]("monix.execution.schedulers.package$ExecutionModel$"),
+    exclude[IncompatibleResultTypeProblem]("monix.execution.FutureUtils.transformWith")
   )
 
   /** `monix-eval` 3.0.0 */
